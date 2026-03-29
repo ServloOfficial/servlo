@@ -23,6 +23,14 @@
 | `lerd doctor` | Full environment diagnostic — podman, systemd, DNS, ports, PHP images, config validity |
 | `lerd logs [-f] [target]` | Show logs for the current project's FPM container, `nginx`, a service name, or a PHP version |
 
+## Project creation
+
+| Command | Description |
+|---|---|
+| `lerd new <name-or-path>` | Scaffold a new PHP project using the framework's create command (default: Laravel) |
+| `lerd new <name> --framework=<name>` | Scaffold using a specific framework |
+| `lerd new <name> -- <extra args>` | Pass extra args to the scaffold command |
+
 ## Project setup
 
 | Command | Description |

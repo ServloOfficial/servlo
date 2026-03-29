@@ -496,6 +496,27 @@ List all workers defined for a site's framework, with their running status, comm
 Arguments:
 - ` + bt + `site` + bt + ` (required): site name from ` + bt + `sites` + bt + ` tool
 
+### ` + bt + `project_new` + bt + `
+Scaffold a new PHP project using a framework's create command. For Laravel, runs ` + bt + `composer create-project laravel/laravel <path>` + bt + `. Other frameworks must have a ` + bt + `create` + bt + ` field in their YAML definition.
+
+Arguments:
+- ` + bt + `path` + bt + ` (required): absolute path for the new project directory (e.g. ` + bt + `/home/user/code/myapp` + bt + `)
+- ` + bt + `framework` + bt + ` (optional): framework name (default: ` + bt + `"laravel"` + bt + `)
+- ` + bt + `args` + bt + ` (optional): extra arguments passed to the scaffold command
+
+After creation, register and configure the project:
+` + "```" + `
+project_new(path: "/home/user/code/myapp")
+site_link(path: "/home/user/code/myapp")
+env_setup(path: "/home/user/code/myapp")
+` + "```" + `
+
+From the terminal you can also run:
+` + "```" + `
+lerd new myapp
+cd myapp && lerd link && lerd setup
+` + "```" + `
+
 ### ` + bt + `framework_list` + bt + `
 List all available framework definitions (Laravel built-in plus any user-defined YAMLs at ` + bt + `~/.config/lerd/frameworks/` + bt + `), including their defined workers. Call this before ` + bt + `framework_add` + bt + ` to see what already exists.
 
@@ -773,6 +794,7 @@ This project runs on **lerd**, a Podman-based Laravel development environment. T
 | ` + bt + `worker_start` + bt + ` | Start any named framework worker (e.g. messenger, pulse) |
 | ` + bt + `worker_stop` + bt + ` | Stop a named framework worker |
 | ` + bt + `worker_list` + bt + ` | List all workers defined for a site's framework with running status |
+| ` + bt + `project_new` + bt + ` | Scaffold a new PHP project (runs the framework's create command); follow with ` + bt + `site_link` + bt + ` + ` + bt + `env_setup` + bt + ` |
 | ` + bt + `framework_list` + bt + ` | List all framework definitions with their workers |
 | ` + bt + `framework_add` + bt + ` | Add or update a framework definition; use ` + bt + `name: "laravel"` + bt + ` to add custom workers to Laravel |
 | ` + bt + `framework_remove` + bt + ` | Remove a user-defined framework; for laravel removes only custom worker additions |
@@ -804,4 +826,5 @@ This project runs on **lerd**, a Podman-based Laravel development environment. T
 - ` + bt + `site_pause` + bt + ` / ` + bt + `site_unpause` + bt + ` free up resources for sites not in active use without unlinking them; paused state persists across restarts
 - ` + bt + `service_pin` + bt + ` keeps a service always running regardless of which sites are active; use for shared services like MySQL or Redis
 - ` + bt + `service_add` + bt + ` supports ` + bt + `depends_on` + bt + ` (array of service names): starting a dependency auto-starts the dependent service; stopping a dependency cascade-stops the dependent first; starting the dependent ensures dependencies start first
+- ` + bt + `project_new` + bt + ` requires an absolute ` + bt + `path` + bt + ` and runs the framework's ` + bt + `create` + bt + ` command; follow it with ` + bt + `site_link` + bt + ` + ` + bt + `env_setup` + bt + ` to register and configure the new project
 `

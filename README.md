@@ -1,11 +1,11 @@
 # Lerd
 
-> The open-source Laravel Herd alternative for Linux & macOS —
+> The open-source Laravel Herd alternative for Linux —
 > Podman-native, rootless, with a built-in web UI.
 
 [![Release](https://img.shields.io/github/v/release/geodro/lerd)](https://github.com/geodro/lerd/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey)]()
+[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)]()
 [![Docs](https://img.shields.io/badge/docs-geodro.github.io%2Flerd-blue)](https://geodro.github.io/lerd/)
 
 ![Lerd Web UI](screenshots/app-3.png)
@@ -17,13 +17,13 @@ is live at `project.test` with HTTPS.
 ## Features
 
 - 🌐 **Automatic `.test` domains** with one-command TLS
-- 🐘 **Per-project PHP version** (8.2, 8.3, 8.4) — switch with one click
+- 🐘 **Per-project PHP version** (8.2, 8.3, 8.4), switch with one click
 - 📦 **Node.js isolation** per project (Node 22, 24)
-- 🖥️ **Built-in Web UI** — manage sites, services, and logs from a browser
+- 🖥️ **Built-in Web UI** - manage sites, services, and logs from a browser
 - 🗄️ **One-click services**: MySQL, PostgreSQL, Redis, Meilisearch, Minio, Mailpit, Stripe Mock, Reverb and more
-- 📋 **Live logs** for PHP-FPM, Queue, Schedule, Reverb — per site
-- 🔒 **Rootless & daemonless** — Podman-native, no Docker required
-- 🤖 **MCP server** — let AI assistants (Claude Code, Windsurf, Junie) manage your environment directly
+- 📋 **Live logs** for PHP-FPM, Queue, Schedule, Reverb, per site
+- 🔒 **Rootless & daemonless** - Podman-native, no Docker required
+- 🤖 **MCP server** - let AI assistants (Claude Code, Windsurf, Junie) manage your environment directly
 - ⚡ **Laravel-first**, with Symfony, WordPress, and custom framework support
 
 ## AI Integration (MCP)
@@ -31,7 +31,7 @@ is live at `project.test` with HTTPS.
 Lerd ships a built-in [Model Context Protocol](https://modelcontextprotocol.io/) server. Connect it to Claude Code, Windsurf, JetBrains Junie, or any MCP-compatible AI assistant and manage your dev environment without leaving the chat.
 
 ```bash
-lerd mcp:enable-global   # register once — works in every project
+lerd mcp:enable-global   # register once, works in every project
 ```
 
 Then just ask:
@@ -45,7 +45,7 @@ AI:  → site_link()
      ✓  myapp → https://myapp.test ready
 ```
 
-50+ tools available: run migrations, manage services, toggle workers, tail logs, enable Xdebug, export databases, and more — all from your AI assistant.
+50+ tools available: run migrations, manage services, toggle workers, tail logs, enable Xdebug, export databases, and more, all from your AI assistant.
 
 📖 [MCP documentation](https://geodro.github.io/lerd/features/mcp/)
 

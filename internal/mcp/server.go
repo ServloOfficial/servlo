@@ -890,6 +890,28 @@ func toolList() []mcpTool {
 			},
 		},
 		mcpTool{
+			Name:        "project_new",
+			Description: "Scaffold a new PHP project using a framework's create command. For Laravel this runs `composer create-project laravel/laravel <path>`. Other frameworks must have a `create` field in their YAML definition. After creation, use site_link to register the site.",
+			InputSchema: mcpSchema{
+				Type: "object",
+				Properties: map[string]mcpProp{
+					"path": {
+						Type:        "string",
+						Description: "Absolute path for the new project directory (e.g. /home/user/code/myapp)",
+					},
+					"framework": {
+						Type:        "string",
+						Description: `Framework to use (default: "laravel"). Must have a 'create' field defined.`,
+					},
+					"args": {
+						Type:        "array",
+						Description: `Extra arguments to pass to the scaffold command, e.g. ["--no-interaction"]`,
+					},
+				},
+				Required: []string{"path"},
+			},
+		},
+		mcpTool{
 			Name:        "site_php",
 			Description: "Change the PHP version for a registered lerd site. Writes a .php-version file, updates the site registry, and regenerates the nginx vhost.",
 			InputSchema: mcpSchema{
@@ -1101,6 +1123,8 @@ func handleToolCall(params json.RawMessage) (any, *rpcError) {
 		return execFrameworkAdd(args)
 	case "framework_remove":
 		return execFrameworkRemove(args)
+	case "project_new":
+		return execProjectNew(args)
 	case "site_php":
 		return execSitePHP(args)
 	case "site_node":
@@ -2793,6 +2817,40 @@ func execFrameworkRemove(args map[string]any) (any, *rpcError) {
 		return toolOK("Custom Laravel worker additions removed. Built-in queue/schedule/reverb workers remain."), nil
 	}
 	return toolOK(fmt.Sprintf("Framework %q removed.", name)), nil
+}
+
+func execProjectNew(args map[string]any) (any, *rpcError) {
+	projectPath := strArg(args, "path")
+	if projectPath == "" {
+		return toolErr("path is required — provide an absolute path for the new project directory"), nil
+	}
+	frameworkName := strArg(args, "framework")
+	if frameworkName == "" {
+		frameworkName = "laravel"
+	}
+	extraArgs := strSliceArg(args, "args")
+
+	fw, ok := config.GetFramework(frameworkName)
+	if !ok {
+		return toolErr(fmt.Sprintf("unknown framework %q — use framework_list to see available frameworks", frameworkName)), nil
+	}
+	if fw.Create == "" {
+		return toolErr(fmt.Sprintf("framework %q has no create command — add a 'create' field to its YAML definition", frameworkName)), nil
+	}
+
+	parts := strings.Fields(fw.Create)
+	parts = append(parts, projectPath)
+	parts = append(parts, extraArgs...)
+
+	var out bytes.Buffer
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return toolErr(fmt.Sprintf("scaffold command failed (%v):\n%s", err, out.String())), nil
+	}
+	return toolOK(fmt.Sprintf("Project created at %s\n\nNext steps:\n  site_link(path: %q)\n  env_setup(path: %q)\n\n%s",
+		projectPath, projectPath, projectPath, strings.TrimSpace(out.String()))), nil
 }
 
 func execSitePHP(args map[string]any) (any, *rpcError) {
