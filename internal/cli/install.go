@@ -321,7 +321,6 @@ func ensureUnprivilegedPorts() error {
 	return nil
 }
 
-
 func downloadBinaries(w io.Writer) error {
 	arch := runtime.GOARCH
 	binDir := config.BinDir()
@@ -448,7 +447,6 @@ func (p *progressReader) Read(b []byte) (int, error) {
 	return n, err
 }
 
-
 func addShellShims() error {
 	home, _ := os.UserHomeDir()
 	binDir := config.BinDir()
@@ -508,11 +506,11 @@ fi
 		if err := appendShellRC(filepath.Join(home, ".zshrc"), binDir); err != nil {
 			return err
 		}
-		zfuncDir := filepath.Join(home, ".zfunc")
-		if err := os.MkdirAll(zfuncDir, 0755); err == nil {
-			installCompletion(lerdBin, "zsh", zfuncDir, "_lerd")
+		zshFunctionsDir := filepath.Join(home, ".local", "share", "zsh", "site-functions")
+		if err := os.MkdirAll(zshFunctionsDir, 0755); err == nil {
+			installCompletion(lerdBin, "zsh", zshFunctionsDir, "_lerd")
 			appendShellRC(filepath.Join(home, ".zshrc"), "") // ensure fpath line exists
-			ensureZshFpath(filepath.Join(home, ".zshrc"), zfuncDir)
+			ensureZshFpath(filepath.Join(home, ".zshrc"), zshFunctionsDir)
 		}
 		return nil
 	default:
