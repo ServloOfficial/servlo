@@ -168,6 +168,7 @@ For projects that use `laravel/horizon` — lerd detects it automatically from `
 
 | Command | Description |
 |---|---|
+| `lerd mcp:enable-global` | Register lerd MCP at user scope — available in every Claude Code session regardless of directory |
 | `lerd mcp:inject` | Inject the lerd MCP config and AI skill files into the current project |
 | `lerd mcp:inject --path <dir>` | Inject into a specific project directory |
 
