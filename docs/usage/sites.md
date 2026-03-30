@@ -4,6 +4,8 @@
 
 | Command | Description |
 |---|---|
+| `lerd init` | Interactive wizard — choose PHP version, HTTPS, and services, then save `.lerd.yaml` and apply |
+| `lerd init --fresh` | Re-run the wizard with existing `.lerd.yaml` values as defaults |
 | `lerd park [dir]` | Register all Laravel projects inside `dir` (defaults to cwd) |
 | `lerd unpark [dir]` | Remove a parked directory and unlink all its sites |
 | `lerd link [name]` | Register the current directory as a site |
@@ -17,6 +19,52 @@
 | `lerd pause [name]` | Pause a site: stop its workers and replace the vhost with a landing page |
 | `lerd unpause [name]` | Resume a paused site: restore its vhost and restart previously running workers |
 | `lerd env` | Configure `.env` for the current project with lerd service connection settings |
+
+---
+
+## Project initialisation
+
+`lerd init` runs an interactive wizard that asks you three questions, writes the answers to `.lerd.yaml` in the project root, and then applies the configuration — linking the site, enabling HTTPS if requested, and starting any required services.
+
+```bash
+cd ~/Projects/my-app
+lerd init
+```
+
+```
+? PHP version: 8.4
+? Enable HTTPS? No
+? Services needed:
+  ◉ mysql
+  ◉ redis
+  ◯ postgres
+  ◯ meilisearch
+  ◯ rustfs
+  ◯ mailpit
+Saved .lerd.yaml
+Linked: my-app -> my-app.test (PHP 8.4, Node 22, Framework: laravel)
+```
+
+Wizard defaults are populated intelligently on first run:
+
+- **PHP version** — from the site registry if already linked, otherwise from `.php-version`, `composer.json`, or the global default
+- **Enable HTTPS** — pre-checked if the site is already secured
+- **Services** — pre-checked based on what's detected in the project's `.env` file
+
+The resulting `.lerd.yaml` is intended to be committed to the repository. On a new machine or after a reinstall, running `lerd init` again reads the saved file and restores the full configuration without any prompts.
+
+```bash
+# On a fresh machine — no wizard, config applied directly
+git clone ...
+cd my-app
+lerd init
+```
+
+Use `--fresh` to re-run the wizard while keeping existing values as defaults:
+
+```bash
+lerd init --fresh
+```
 
 ---
 
