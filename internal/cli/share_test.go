@@ -57,11 +57,11 @@ func fakeBin(t *testing.T, binNames ...string) string {
 
 func TestPickShareTool_mutualExclusion(t *testing.T) {
 	pairs := [][5]bool{
-		{true, true, false, false, false},   // ngrok + cloudflare
-		{true, false, true, false, false},   // ngrok + expose
-		{false, true, true, false, false},   // cloudflare + expose
-		{false, false, true, true, false},   // expose + serveo
-		{true, false, false, false, true},   // ngrok + localhost-run
+		{true, true, false, false, false}, // ngrok + cloudflare
+		{true, false, true, false, false}, // ngrok + expose
+		{false, true, true, false, false}, // cloudflare + expose
+		{false, false, true, true, false}, // expose + serveo
+		{true, false, false, false, true}, // ngrok + localhost-run
 	}
 	for _, p := range pairs {
 		_, err := pickShareTool(p[0], p[1], p[2], p[3], p[4])

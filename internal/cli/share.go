@@ -57,10 +57,10 @@ Supported tools:
 type shareMode int
 
 const (
-	shareModeNgrok       shareMode = iota
-	shareModeExpose      shareMode = iota
-	shareModeSSH         shareMode = iota
-	shareModeCloudflare  shareMode = iota
+	shareModeNgrok      shareMode = iota
+	shareModeExpose     shareMode = iota
+	shareModeSSH        shareMode = iota
+	shareModeCloudflare shareMode = iota
 )
 
 type shareTool struct {
