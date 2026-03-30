@@ -75,4 +75,3 @@ func runConsole(_ *cobra.Command, args []string) error {
 	}
 	return nil
 }
-
