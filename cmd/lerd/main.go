@@ -35,6 +35,7 @@ func main() {
 	root.AddCommand(cli.NewUpdateCmd(version.Version))
 	root.AddCommand(cli.NewUninstallCmd())
 	root.AddCommand(cli.NewParkCmd())
+	root.AddCommand(cli.NewInitCmd())
 	root.AddCommand(cli.NewLinkCmd())
 	root.AddCommand(cli.NewUnlinkCmd())
 	root.AddCommand(cli.NewUnparkCmd())
