@@ -282,7 +282,7 @@ func runInstall(_ *cobra.Command, _ []string) error {
 
 
 	fmt.Println("\nLerd installation complete!")
-	fmt.Println("\n  Dashboard: \033[96mhttp://127.0.0.1:7073\033[0m")
+	fmt.Println("\n  Dashboard: \033[96mhttp://lerd.localhost\033[0m")
 	return nil
 }
 
