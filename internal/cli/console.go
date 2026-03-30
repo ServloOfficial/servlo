@@ -84,12 +84,12 @@ func runConsole(_ *cobra.Command, args []string) error {
 func getConsoleCommand(cwd string) (string, error) {
 	framework := ""
 
-	// 1. Try to get framework from site config first
+	// Try to get framework from site config first
 	siteConfig, err := config.FindSiteByPath(cwd)
 	if err == nil && siteConfig.Framework != "" {
 		framework = siteConfig.Framework
 	} else {
-		// 2. Detect framework from directory
+		// Detect framework from directory
 		detectedFramework, ok := config.DetectFramework(cwd)
 		if !ok {
 			return "", fmt.Errorf("no framework detected — create framework config with 'lerd framework add'")
@@ -98,24 +98,13 @@ func getConsoleCommand(cwd string) (string, error) {
 		framework = detectedFramework
 	}
 
-	// 3. Get framework definition
+	// Get framework definition
 	frameworkConfig, ok := config.GetFramework(framework)
 	if !ok {
 		return "", fmt.Errorf("framework %q not found", framework)
 	}
 
-	// 4. Return console command or fallback
-	if frameworkConfig.Console != "" {
-		return frameworkConfig.Console, nil
-	}
-
-	// 5. Framework-specific fallbacks for known frameworks
-	switch frameworkConfig.Name {
-	case "laravel":
-		return "artisan", nil
-	case "symfony":
-		return "bin/console", nil
-	default:
+	if frameworkConfig.Console == "" {
 		return "", fmt.Errorf(
 			"no console command defined for framework %q — add 'console' field to %s/%s.yaml",
 			frameworkConfig.Name,
@@ -123,4 +112,6 @@ func getConsoleCommand(cwd string) (string, error) {
 			frameworkConfig.Name,
 		)
 	}
+
+	return frameworkConfig.Console, nil
 }
