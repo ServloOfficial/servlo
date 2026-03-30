@@ -122,7 +122,7 @@ func runInstall(_ *cobra.Command, _ []string) error {
 				}
 				sslConf := filepath.Join(config.NginxConfD(), site.Domain+"-ssl.conf")
 				mainConf := filepath.Join(config.NginxConfD(), site.Domain+".conf")
-				os.Remove(mainConf) //nolint:errcheck
+				os.Remove(mainConf)          //nolint:errcheck
 				os.Rename(sslConf, mainConf) //nolint:errcheck
 			} else {
 				if err := nginx.GenerateVhost(site, phpVer); err != nil {

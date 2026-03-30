@@ -271,7 +271,6 @@ func mergeMCPServersJSON(path string, lerdEntry map[string]any) error {
 	return os.WriteFile(path, append(data, '\n'), 0644)
 }
 
-
 // bt is a backtick character for use inside raw string literals.
 const bt = "`"
 

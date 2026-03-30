@@ -9,8 +9,8 @@ import (
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/envfile"
 	phpDet "github.com/geodro/lerd/internal/php"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
 	"github.com/geodro/lerd/internal/podman"
+	lerdSystemd "github.com/geodro/lerd/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +56,6 @@ func newQueueStopCmd(use string) *cobra.Command {
 		RunE:  func(_ *cobra.Command, _ []string) error { return runQueueStop() },
 	}
 }
-
 
 func queueSiteName(cwd string) (string, error) {
 	reg, err := config.LoadSites()

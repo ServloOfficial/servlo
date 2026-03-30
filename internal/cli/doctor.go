@@ -274,4 +274,3 @@ func portInUse(port string) bool {
 	needle := ":" + port + " "
 	return strings.Contains(string(out), needle)
 }
-

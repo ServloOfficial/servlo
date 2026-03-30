@@ -649,16 +649,16 @@ func toolList() []mcpTool {
 			mcpTool{
 				Name:        "reverb_start",
 				Description: "Start the Laravel Reverb WebSocket server for a registered site as a systemd user service. The server runs php artisan reverb:start inside the PHP-FPM container.",
-			InputSchema: mcpSchema{
-				Type: "object",
-				Properties: map[string]mcpProp{
-					"site": {
-						Type:        "string",
-						Description: "Site name as shown by the sites tool",
+				InputSchema: mcpSchema{
+					Type: "object",
+					Properties: map[string]mcpProp{
+						"site": {
+							Type:        "string",
+							Description: "Site name as shown by the sites tool",
+						},
 					},
+					Required: []string{"site"},
 				},
-				Required: []string{"site"},
-			},
 			},
 			mcpTool{
 				Name:        "reverb_stop",
@@ -1900,12 +1900,16 @@ func execStatus() (any, *rpcError) {
 		Running bool   `json:"running"`
 	}
 	type result struct {
-		DNS     struct {
+		DNS struct {
 			OK  bool   `json:"ok"`
 			TLD string `json:"tld"`
 		} `json:"dns"`
-		Nginx   struct{ Running bool `json:"running"` } `json:"nginx"`
-		Watcher struct{ Running bool `json:"running"` } `json:"watcher"`
+		Nginx struct {
+			Running bool `json:"running"`
+		} `json:"nginx"`
+		Watcher struct {
+			Running bool `json:"running"`
+		} `json:"watcher"`
 		PHPFPMs []phpStatus `json:"php_fpms"`
 	}
 
