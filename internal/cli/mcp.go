@@ -150,7 +150,7 @@ func RunMCPEnableGlobal() error {
 		"args":    []string{"mcp"},
 	}
 
-	fmt.Println("Registering lerd MCP globally...\n")
+	fmt.Println("Registering lerd MCP globally...")
 
 	// Claude Code — user scope via CLI.
 	// Try remove first (idempotent re-registration), then add.
