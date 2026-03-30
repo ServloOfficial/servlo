@@ -27,11 +27,6 @@ func NewConsoleCmd() *cobra.Command {
 }
 
 func runConsole(_ *cobra.Command, args []string) error {
-	// Handle help flag manually since DisableFlagParsing is true
-	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
-		return nil // Help will be shown by cobra
-	}
-
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
