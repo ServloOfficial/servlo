@@ -6,10 +6,6 @@ on:
     paths:
       - 'internal/podman/quadlets/lerd-php-fpm.Containerfile'
       - '.github/workflows/base-images.yml'
-  pull_request:
-    paths:
-      - 'internal/podman/quadlets/lerd-php-fpm.Containerfile'
-      - '.github/workflows/base-images.yml'
   workflow_dispatch:
 
 jobs:
