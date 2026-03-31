@@ -8,7 +8,8 @@
 | `lerd start` | Start DNS, nginx, PHP-FPM containers, and all installed services |
 | `lerd stop` | Stop DNS, nginx, PHP-FPM containers, and all running services |
 | `lerd quit` | Stop all Lerd processes and containers including the UI, watcher, and tray |
-| `lerd update` | Check for updates, show changelog, and update after confirmation |
+| `lerd update` | Check for updates and update after confirmation |
+| `lerd whatsnew` | Show what changed between the installed version and the latest release |
 | `lerd uninstall` | Stop all containers and remove Lerd |
 | `lerd uninstall --force` | Same, skipping all confirmation prompts |
 | `lerd autostart enable` | Start Lerd automatically on every login |
@@ -17,7 +18,7 @@
 | `lerd autostart tray enable` | Start the tray applet automatically on graphical login |
 | `lerd autostart tray disable` | Disable tray autostart |
 | `lerd dns:check` | Verify that `*.test` resolves to `127.0.0.1` |
-| `lerd status` | Health summary: DNS, nginx, PHP-FPM containers, watcher, services, cert expiry |
+| `lerd status` | Health summary: DNS, nginx, PHP-FPM containers, watcher, services, cert expiry; shows a notice if an update is available |
 | `lerd about` | Show version, build info, and project URL |
 | `lerd man [page]` | Browse the built-in documentation in the terminal; pass a page name to jump directly (e.g. `lerd man sites`) |
 | `lerd doctor` | Full environment diagnostic — podman, systemd, DNS, ports, PHP images, config validity |
