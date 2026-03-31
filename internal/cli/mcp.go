@@ -249,7 +249,7 @@ func mergeJunieGuidelines(path, section string) error {
 func mergeMCPServersJSON(path string, lerdEntry map[string]any) error {
 	// Start with an empty config or read what's there.
 	cfg := map[string]any{}
-	if data, err := os.ReadFile(path); err == nil {
+	if data, err := os.ReadFile(path); err == nil && len(data) > 0 {
 		// Unmarshal preserving all existing keys.
 		if err := json.Unmarshal(data, &cfg); err != nil {
 			return fmt.Errorf("parsing %s: %w", path, err)
