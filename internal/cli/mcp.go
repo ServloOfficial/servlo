@@ -508,7 +508,7 @@ Arguments:
 - ` + bt + `site` + bt + ` (required): site name from ` + bt + `sites` + bt + ` tool
 
 ### ` + bt + `project_new` + bt + `
-Scaffold a new PHP project using a framework's create command. For Laravel, runs ` + bt + `composer create-project laravel/laravel <path>` + bt + `. Other frameworks must have a ` + bt + `create` + bt + ` field in their YAML definition.
+Scaffold a new PHP project using a framework's create command. For Laravel, runs ` + bt + `composer create-project --no-install --no-plugins --no-scripts laravel/laravel <path>` + bt + `. Other frameworks must have a ` + bt + `create` + bt + ` field in their YAML definition.
 
 Arguments:
 - ` + bt + `path` + bt + ` (required): absolute path for the new project directory (e.g. ` + bt + `/home/user/code/myapp` + bt + `)
