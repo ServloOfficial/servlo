@@ -66,8 +66,8 @@
 | `lerd use <version>` | Set the global PHP version and build the FPM image if needed |
 | `lerd isolate <version>` | Pin PHP version for cwd — writes `.php-version` and updates `.lerd.yaml` if present, then re-links |
 | `lerd php:list` | List all installed PHP-FPM versions |
-| `lerd php:rebuild` | Force-rebuild all installed PHP-FPM images |
-| `lerd fetch [version...]` | Pre-build PHP FPM images for the given (or all supported) versions |
+| `lerd php:rebuild [--local]` | Force-rebuild all installed PHP-FPM images (pulls pre-built base by default; `--local` builds from source) |
+| `lerd fetch [version...] [--local]` | Pull pre-built PHP FPM base images from ghcr.io for the given (or all supported) versions; `--local` builds from source instead |
 | `lerd xdebug on [version]` | Enable Xdebug for a PHP version |
 | `lerd xdebug off [version]` | Disable Xdebug |
 | `lerd xdebug status` | Show Xdebug enabled/disabled for all installed PHP versions |
