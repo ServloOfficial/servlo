@@ -9,8 +9,14 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Horizon appears in the Services panel** — when Laravel Horizon is running for a site it now shows up as its own entry in the Services panel (grouped under "Horizon"), with a stop button and a subtitle showing the site domain. Previously Horizon was only visible in the site detail view.
+- **Starting Horizon stops the queue worker** — `horizon:start` (CLI, UI, MCP) now automatically stops any running queue worker for the same site before starting Horizon, since the two must not run simultaneously.
+
 ### Fixed
 
+- **Tray no longer shows per-site workers** — Reverb, Horizon, queue workers, schedule workers, Stripe listeners, and custom framework workers are filtered out of the tray menu. Only real infrastructure services (MySQL, Redis, Mailpit, etc.) are listed there.
 - **`lerd php` can now run scripts outside `$HOME`** — IDEs like PhpStorm write their validation scripts to `/tmp` and call `php -d... /tmp/ide-phpinfo.php`. The container only mounts `$HOME`, so those scripts were unreachable and produced an empty output ("Failed to parse validation script output"). `runPhp` now detects any argument that is an absolute path to a host file outside `$HOME`, reads it, and streams it to the container via `stdin` / `/dev/stdin`.
 
 ---
