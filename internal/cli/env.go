@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/envfile"
@@ -400,11 +401,15 @@ func createS3Bucket(name string) (bool, error) {
 	return true, nil
 }
 
-// ensureServiceRunning starts the service if it is not already active.
+// ensureServiceRunning starts the service if it is not already active, then
+// waits until it is ready to accept connections before returning.
 func ensureServiceRunning(name string) error {
 	unit := "lerd-" + name
 	status, _ := podman.UnitStatus(unit)
 	if status == "active" {
+		if err := podman.WaitReady(name, 30*time.Second); err != nil {
+			return fmt.Errorf("%s is active but not yet ready: %w", name, err)
+		}
 		return nil
 	}
 	if isKnownService(name) {
@@ -427,7 +432,10 @@ func ensureServiceRunning(name string) error {
 			return err
 		}
 	}
-	return podman.StartUnit(unit)
+	if err := podman.StartUnit(unit); err != nil {
+		return err
+	}
+	return podman.WaitReady(name, 60*time.Second)
 }
 
 // siteURL returns the APP_URL for the project registered at path, or "".
