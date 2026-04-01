@@ -7,6 +7,14 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.3.1] — 2026-04-01
+
+### Fixed
+
+- **PHP FPM fails to start on fresh installs** — the shared hosts file (`~/.local/share/lerd/hosts`) is bind-mounted into every PHP-FPM container. If no site had ever been linked, the file did not exist and podman refused to start the container with `statfs: no such file or directory`. `WriteFPMQuadlet` now ensures the file is created before the container is started.
+
+---
+
 ## [1.3.0] — 2026-04-01
 
 ### Added
