@@ -255,6 +255,22 @@ func WriteFPMQuadlet(version string) error {
 		return fmt.Errorf("creating user ini: %w", err)
 	}
 
+	// The hosts file is bind-mounted into the container. Podman refuses to start if the
+	// source path does not exist, so create it when missing (WriteContainerHosts will
+	// populate it properly on the next link/unlink/start).
+	hostsPath := config.ContainerHostsFile()
+	if _, err := os.Stat(hostsPath); os.IsNotExist(err) {
+		if err := WriteContainerHosts(); err != nil {
+			// Non-fatal: write the static header so the mount succeeds and
+			// host.containers.internal resolves correctly even before lerd link runs.
+			_ = os.WriteFile(hostsPath, []byte(
+				"127.0.0.1 localhost\n"+
+					"::1 localhost\n"+
+					"169.254.1.2 host.containers.internal host.docker.internal\n",
+			), 0644)
+		}
+	}
+
 	tmplContent, err := GetQuadletTemplate("lerd-php-fpm.container.tmpl")
 	if err != nil {
 		return err
