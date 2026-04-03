@@ -659,6 +659,14 @@ Show the resolved PHP version, Node version, document root, and nginx config pat
 Arguments:
 - ` + bt + `path` + bt + ` (optional): absolute path to the project root — defaults to the current working directory (or ` + bt + `LERD_SITE_PATH` + bt + ` if set by ` + bt + `mcp:inject` + bt + `)
 
+### ` + bt + `check` + bt + `
+Validate a project's ` + bt + `.lerd.yaml` + bt + ` file. Checks YAML syntax, PHP version format and installation status, service definitions (built-in, custom, and inline), and framework references. Reports OK/WARN/FAIL per field with a summary.
+
+Arguments:
+- ` + bt + `path` + bt + ` (optional): absolute path to the project root containing ` + bt + `.lerd.yaml` + bt + ` — defaults to the current working directory (or ` + bt + `LERD_SITE_PATH` + bt + ` if set by ` + bt + `mcp:inject` + bt + `)
+
+> **Use this before** ` + bt + `env_setup` + bt + ` or ` + bt + `site_link` + bt + ` to catch configuration errors early.
+
 ### ` + bt + `doctor` + bt + `
 Run a full environment diagnostic. Checks podman availability, systemd user session, linger, quadlet/data dir writability, config validity, DNS resolution, port 80/443 conflicts, PHP image presence, and available updates. Returns a text report with OK/FAIL/WARN per check and hints for each failure. **Use this when the user reports setup issues or unexpected behaviour.**
 
@@ -821,6 +829,11 @@ artisan(args: ["migrate"])
 ` + "```" + `
 which()   // shows resolved PHP, Node, document root, nginx config
 ` + "```" + `
+
+**Validate project config before setup:**
+` + "```" + `
+check()   // validates .lerd.yaml syntax, services, PHP version
+` + "```" + `
 `
 
 // junieGuidelinesSection is the lerd block written into .junie/guidelines.md.
@@ -900,6 +913,7 @@ This project runs on **lerd**, a Podman-based Laravel development environment. T
 | ` + bt + `status` + bt + ` | Health snapshot of DNS, nginx, PHP-FPM containers, and the file watcher |
 | ` + bt + `doctor` + bt + ` | Full diagnostic: podman, systemd, DNS, ports, PHP images, config, updates |
 | ` + bt + `which` + bt + ` | Show resolved PHP version, Node version, document root, and nginx config for the current site |
+| ` + bt + `check` + bt + ` | Validate ` + bt + `.lerd.yaml` + bt + ` syntax, PHP version, services, and framework references — reports OK/WARN/FAIL per field |
 
 ### Key conventions
 
