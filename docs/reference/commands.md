@@ -24,6 +24,7 @@
 | `lerd which` | Show resolved PHP version, Node version, document root, and nginx config for the current site |
 | `lerd about` | Show version, build info, and project URL |
 | `lerd man [page]` | Browse the built-in documentation in the terminal; pass a page name to jump directly (e.g. `lerd man sites`) |
+| `lerd check` | Validate `.lerd.yaml` syntax, services, and PHP version before setup |
 | `lerd doctor` | Full environment diagnostic — podman, systemd, DNS, ports, PHP images, config validity |
 | `lerd logs [-f] [target]` | Show logs for the current project's FPM container, `nginx`, a service name, or a PHP version |
 
