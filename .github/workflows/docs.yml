@@ -30,8 +30,8 @@ jobs:
 
       - name: Copy screenshots
         run: |
-          mkdir -p docs/assets/screenshots
-          cp screenshots/app-*.png docs/assets/screenshots/
+          mkdir -p docs/public/assets/screenshots
+          cp screenshots/app-*.png docs/public/assets/screenshots/
 
       - name: Install dependencies
         working-directory: docs
