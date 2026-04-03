@@ -65,6 +65,27 @@ lerd use 8.4
 
 ---
 
+## FPM lifecycle
+
+Lerd starts a PHP-FPM container for each installed PHP version when you run `lerd start`. After that, it automatically manages which containers stay running based on whether any sites actually need them.
+
+**Auto-stop** — when you unlink a site, lerd checks every installed PHP version. If no remaining active (non-ignored, non-paused) site uses a version, its FPM container is stopped. The version itself stays installed — the container is just not running. The same cleanup runs at `lerd start` to stop any FPM containers left over from versions no longer in use.
+
+**Paused sites count** — a site that is paused still counts as using its PHP version, so that version's FPM container is not stopped. When the site is resumed, FPM is guaranteed to be running.
+
+**Auto-start** — FPM is started automatically when you link a site (`lerd link`, `lerd park`, `lerd isolate`) or change the global default (`lerd use`). When unpausing a site, lerd also ensures the required FPM container is running before restoring the nginx vhost.
+
+**Manual control** — unused PHP versions (no active sites) can be started and stopped manually from the dashboard (System → PHP → Start / Stop). From the CLI:
+
+```bash
+systemctl --user start  lerd-php84-fpm
+systemctl --user stop   lerd-php84-fpm
+```
+
+**`lerd status`** — stopped FPM containers for unused versions are reported as a warning, not an error.
+
+---
+
 ## Xdebug
 
 ??? info "Xdebug configuration values"

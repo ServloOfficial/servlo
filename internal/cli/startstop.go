@@ -195,6 +195,8 @@ func runStart(_ *cobra.Command, _ []string) error {
 		fmt.Printf("  WARN: DNS resolver config: %v\n", err)
 	}
 
+	autoStopUnusedFPMs()
+
 	// Restart the tray applet, stopping any existing instance first.
 	// Prefer the systemd service when enabled; otherwise launch directly.
 	fmt.Print("  --> lerd-tray ... ")
