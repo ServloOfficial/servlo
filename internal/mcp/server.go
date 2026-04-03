@@ -720,6 +720,19 @@ func toolList() []mcpTool {
 				},
 			},
 		},
+		{
+			Name:        "check",
+			Description: "Validate a project's .lerd.yaml file — checks YAML syntax, PHP version format, service definitions, and framework references. Reports OK/WARN/FAIL per field.",
+			InputSchema: mcpSchema{
+				Type: "object",
+				Properties: map[string]mcpProp{
+					"path": {
+						Type:        "string",
+						Description: "Absolute path to the project root containing .lerd.yaml. Defaults to LERD_SITE_PATH when omitted.",
+					},
+				},
+			},
+		},
 	}
 
 	if siteIsLaravel() {
@@ -1252,6 +1265,8 @@ func handleToolCall(params json.RawMessage) (any, *rpcError) {
 		return execDoctor()
 	case "which":
 		return execWhich(args)
+	case "check":
+		return execCheck(args)
 	case "service_env":
 		return execServiceEnv(args)
 	case "service_add":
@@ -2141,6 +2156,26 @@ func execWhich(args map[string]any) (any, *rpcError) {
 		return toolErr(fmt.Sprintf("which failed (%v):\n%s", err, out.String())), nil
 	}
 	return toolOK(strings.TrimSpace(out.String())), nil
+}
+
+func execCheck(args map[string]any) (any, *rpcError) {
+	projectPath := resolvedPath(args)
+	if projectPath == "" {
+		return toolErr("path is required — pass a path argument or open Claude in the project directory"), nil
+	}
+
+	self, err := os.Executable()
+	if err != nil {
+		return toolErr("could not resolve lerd executable: " + err.Error()), nil
+	}
+
+	var out bytes.Buffer
+	cmd := exec.Command(self, "check")
+	cmd.Dir = projectPath
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	cmd.Run() //nolint:errcheck
+	return toolOK(out.String()), nil
 }
 
 func execServiceAdd(args map[string]any) (any, *rpcError) {
