@@ -566,9 +566,9 @@ func buildServiceResponse(name string) ServiceResponse {
 		EnvVars:       envMap,
 		Dashboard:     builtinDashboards[name],
 		ConnectionURL: builtinConnectionURLs[name],
-		SiteCount:    countSitesUsingService(name),
-		SiteDomains:  sitesUsingService(name),
-		Pinned:       config.ServiceIsPinned(name),
+		SiteCount:     countSitesUsingService(name),
+		SiteDomains:   sitesUsingService(name),
+		Pinned:        config.ServiceIsPinned(name),
 	}
 }
 
