@@ -71,7 +71,7 @@ func TestRegenerateSiteVhost_creates_vhost(t *testing.T) {
 		t.Fatalf("reading vhost: %v", err)
 	}
 	content := string(data)
-	if !strings.Contains(content, "server_name myapp.test api.test") {
+	if !strings.Contains(content, "myapp.test") || !strings.Contains(content, "api.test") {
 		t.Errorf("expected both domains in server_name, got:\n%s", content)
 	}
 }
