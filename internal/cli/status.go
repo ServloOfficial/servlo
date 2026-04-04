@@ -164,6 +164,78 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		fmt.Println("  No services installed. Start one with: lerd service start <name>")
 	}
 
+	// Workers
+	fmt.Println("\n[Workers]")
+	{
+		workerReg, wErr := config.LoadSites()
+		if wErr == nil {
+			hasWorkers := false
+			for _, s := range workerReg.Sites {
+				if s.Ignored {
+					continue
+				}
+				// Check built-in worker types.
+				for _, w := range []string{"queue", "schedule", "reverb", "horizon"} {
+					unit := "lerd-" + w + "-" + s.Name
+					status, _ := podman.UnitStatus(unit)
+					switch status {
+					case "active":
+						ok2(fmt.Sprintf("%s/%s", s.Name, w))
+						hasWorkers = true
+					case "activating":
+						warn2(s.Name+"/"+w, "restarting — check logs: journalctl --user -u "+unit+" -n 20")
+						hasWorkers = true
+					case "failed":
+						fail2(s.Name+"/"+w, "failed", "journalctl --user -u "+unit+" -n 20")
+						hasWorkers = true
+					}
+				}
+				// Check custom framework workers.
+				fwName := s.Framework
+				if fwName == "" {
+					fwName, _ = config.DetectFramework(s.Path)
+				}
+				if fw, ok := config.GetFramework(fwName); ok && fw.Workers != nil {
+					for wName := range fw.Workers {
+						switch wName {
+						case "queue", "schedule", "reverb":
+							continue
+						}
+						unit := "lerd-" + wName + "-" + s.Name
+						status, _ := podman.UnitStatus(unit)
+						switch status {
+						case "active":
+							ok2(fmt.Sprintf("%s/%s", s.Name, wName))
+							hasWorkers = true
+						case "activating":
+							warn2(s.Name+"/"+wName, "restarting — check logs: journalctl --user -u "+unit+" -n 20")
+							hasWorkers = true
+						case "failed":
+							fail2(s.Name+"/"+wName, "failed", "journalctl --user -u "+unit+" -n 20")
+							hasWorkers = true
+						}
+					}
+				}
+				// Stripe listener.
+				if stripeStatus, _ := podman.UnitStatus("lerd-stripe-" + s.Name); stripeStatus == "active" {
+					ok2(fmt.Sprintf("%s/stripe", s.Name))
+					hasWorkers = true
+				} else if stripeStatus == "failed" || stripeStatus == "activating" {
+					label := s.Name + "/stripe"
+					if stripeStatus == "activating" {
+						warn2(label, "restarting")
+					} else {
+						fail2(label, "failed", "journalctl --user -u lerd-stripe-"+s.Name+" -n 20")
+					}
+					hasWorkers = true
+				}
+			}
+			if !hasWorkers {
+				fmt.Println("  No workers running.")
+			}
+		}
+	}
+
 	// Certificate expiry for secured sites
 	fmt.Println("\n[TLS Certificates]")
 	reg, err := config.LoadSites()

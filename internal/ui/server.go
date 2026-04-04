@@ -315,6 +315,7 @@ type WorkerStatus struct {
 	Name    string `json:"name"`
 	Label   string `json:"label"`
 	Running bool   `json:"running"`
+	Failing bool   `json:"failing,omitempty"`
 }
 
 // SiteResponse is the response for GET /api/sites.
@@ -331,13 +332,17 @@ type SiteResponse struct {
 	IsLaravel         bool               `json:"is_laravel"`
 	FrameworkLabel    string             `json:"framework_label"`
 	QueueRunning      bool               `json:"queue_running"`
+	QueueFailing      bool               `json:"queue_failing,omitempty"`
 	StripeRunning     bool               `json:"stripe_running"`
 	StripeSecretSet   bool               `json:"stripe_secret_set"`
 	ScheduleRunning   bool               `json:"schedule_running"`
+	ScheduleFailing   bool               `json:"schedule_failing,omitempty"`
 	ReverbRunning     bool               `json:"reverb_running"`
+	ReverbFailing     bool               `json:"reverb_failing,omitempty"`
 	HasReverb         bool               `json:"has_reverb"`
 	HasHorizon        bool               `json:"has_horizon"`
 	HorizonRunning    bool               `json:"horizon_running"`
+	HorizonFailing    bool               `json:"horizon_failing,omitempty"`
 	HasQueueWorker    bool               `json:"has_queue_worker"`
 	HasScheduleWorker bool               `json:"has_schedule_worker"`
 	FrameworkWorkers  []WorkerStatus     `json:"framework_workers,omitempty"`
@@ -463,6 +468,7 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 					Name:    wname,
 					Label:   label,
 					Running: unitStatus == "active",
+					Failing: unitStatus == "activating" || unitStatus == "failed",
 				})
 			}
 		}
@@ -492,13 +498,17 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 			FrameworkLabel:    frameworkLabel(fwName),
 			FPMRunning:        fpmRunning,
 			QueueRunning:      queueStatus == "active",
+			QueueFailing:      queueStatus == "activating" || queueStatus == "failed",
 			StripeRunning:     stripeStatus == "active",
 			StripeSecretSet:   stripeSecretSet,
 			ScheduleRunning:   scheduleStatus == "active",
+			ScheduleFailing:   scheduleStatus == "activating" || scheduleStatus == "failed",
 			ReverbRunning:     reverbStatus == "active",
+			ReverbFailing:     reverbStatus == "activating" || reverbStatus == "failed",
 			HasReverb:         hasReverb,
 			HasHorizon:        hasHorizon,
 			HorizonRunning:    horizonStatus == "active",
+			HorizonFailing:    horizonStatus == "activating" || horizonStatus == "failed",
 			HasQueueWorker:    hasQueueWorker,
 			HasScheduleWorker: hasScheduleWorker,
 			FrameworkWorkers:  fwWorkers,

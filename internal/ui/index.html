@@ -153,6 +153,7 @@
             <span class="flex-1 text-sm truncate" x-text="site.domain"></span>
             <svg x-show="site.tls" class="w-3 h-3 shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             <svg x-show="site.worktrees && site.worktrees.length > 0" class="w-3 h-3 shrink-0 text-violet-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M6 3v12M15 6a3 3 0 1 0 6 0a3 3 0 1 0-6 0M3 18a3 3 0 1 0 6 0a3 3 0 1 0-6 0M18 9a9 9 0 0 1-9 9"/></svg>
+            <span x-show="site.queue_failing || site.horizon_failing || site.schedule_failing || site.reverb_failing || (site.framework_workers || []).some(w => w.failing)" class="w-1.5 h-1.5 rounded-full shrink-0 bg-red-500 animate-pulse" title="Worker failing"></span>
             <span x-show="site.queue_running || site.horizon_running" class="w-1.5 h-1.5 rounded-full shrink-0 bg-amber-400"></span>
             <span x-show="site.stripe_running" class="w-1.5 h-1.5 rounded-full shrink-0 bg-violet-400"></span>
             <span x-show="site.schedule_running" class="w-1.5 h-1.5 rounded-full shrink-0 bg-emerald-400"></span>
@@ -635,10 +636,10 @@
 
                   <!-- Queue -->
                   <div x-show="selectedSite.has_queue_worker" class="flex items-center gap-1.5">
-                    <button @click="toggleQueue(selectedSite)" :disabled="selectedSite.queueLoading" :title="selectedSite.queue_running ? 'Stop queue worker' : 'Start queue worker'"
+                    <button @click="toggleQueue(selectedSite)" :disabled="selectedSite.queueLoading" :title="selectedSite.queue_failing ? 'Queue worker is failing — click to restart' : selectedSite.queue_running ? 'Stop queue worker' : 'Start queue worker'"
                       class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50"
-                      :class="selectedSite.queue_running ? 'bg-amber-500' : 'bg-gray-300 dark:bg-lerd-muted'">
-                      <span class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200" :class="selectedSite.queue_running ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
+                      :class="selectedSite.queue_failing ? 'bg-red-500 animate-pulse' : selectedSite.queue_running ? 'bg-amber-500' : 'bg-gray-300 dark:bg-lerd-muted'">
+                      <span class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200" :class="selectedSite.queue_running || selectedSite.queue_failing ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
                       <svg x-show="selectedSite.queueLoading" class="animate-spin absolute right-[-14px] w-2.5 h-2.5 text-gray-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                     </button>
                     <span class="text-xs text-gray-500 dark:text-gray-400">Queue</span>
@@ -647,10 +648,10 @@
 
                   <!-- Horizon -->
                   <div x-show="selectedSite.has_horizon" class="flex items-center gap-1.5">
-                    <button @click="toggleHorizon(selectedSite)" :disabled="selectedSite.horizonLoading" :title="selectedSite.horizon_running ? 'Stop Horizon' : 'Start Horizon'"
+                    <button @click="toggleHorizon(selectedSite)" :disabled="selectedSite.horizonLoading" :title="selectedSite.horizon_failing ? 'Horizon is failing — click to restart' : selectedSite.horizon_running ? 'Stop Horizon' : 'Start Horizon'"
                       class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50"
-                      :class="selectedSite.horizon_running ? 'bg-amber-500' : 'bg-gray-300 dark:bg-lerd-muted'">
-                      <span class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200" :class="selectedSite.horizon_running ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
+                      :class="selectedSite.horizon_failing ? 'bg-red-500 animate-pulse' : selectedSite.horizon_running ? 'bg-amber-500' : 'bg-gray-300 dark:bg-lerd-muted'">
+                      <span class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200" :class="selectedSite.horizon_running || selectedSite.horizon_failing ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
                       <svg x-show="selectedSite.horizonLoading" class="animate-spin absolute right-[-14px] w-2.5 h-2.5 text-gray-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                     </button>
                     <span class="text-xs text-gray-500 dark:text-gray-400">Horizon</span>
@@ -671,10 +672,10 @@
 
                   <!-- Schedule -->
                   <div x-show="selectedSite.has_schedule_worker" class="flex items-center gap-1.5">
-                    <button @click="toggleSchedule(selectedSite)" :disabled="selectedSite.scheduleLoading" :title="selectedSite.schedule_running ? 'Stop scheduler' : 'Start scheduler'"
+                    <button @click="toggleSchedule(selectedSite)" :disabled="selectedSite.scheduleLoading" :title="selectedSite.schedule_failing ? 'Scheduler is failing — click to restart' : selectedSite.schedule_running ? 'Stop scheduler' : 'Start scheduler'"
                       class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50"
-                      :class="selectedSite.schedule_running ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-lerd-muted'">
-                      <span class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200" :class="selectedSite.schedule_running ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
+                      :class="selectedSite.schedule_failing ? 'bg-red-500 animate-pulse' : selectedSite.schedule_running ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-lerd-muted'">
+                      <span class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200" :class="selectedSite.schedule_running || selectedSite.schedule_failing ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
                       <svg x-show="selectedSite.scheduleLoading" class="animate-spin absolute right-[-14px] w-2.5 h-2.5 text-gray-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                     </button>
                     <span class="text-xs text-gray-500 dark:text-gray-400">Schedule</span>
@@ -683,10 +684,10 @@
 
                   <!-- Reverb -->
                   <div x-show="selectedSite.has_reverb" class="flex items-center gap-1.5">
-                    <button @click="toggleReverb(selectedSite)" :disabled="selectedSite.reverbLoading" :title="selectedSite.reverb_running ? 'Stop Reverb' : 'Start Reverb WebSocket server'"
+                    <button @click="toggleReverb(selectedSite)" :disabled="selectedSite.reverbLoading" :title="selectedSite.reverb_failing ? 'Reverb is failing — click to restart' : selectedSite.reverb_running ? 'Stop Reverb' : 'Start Reverb WebSocket server'"
                       class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50"
-                      :class="selectedSite.reverb_running ? 'bg-sky-500' : 'bg-gray-300 dark:bg-lerd-muted'">
-                      <span class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200" :class="selectedSite.reverb_running ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
+                      :class="selectedSite.reverb_failing ? 'bg-red-500 animate-pulse' : selectedSite.reverb_running ? 'bg-sky-500' : 'bg-gray-300 dark:bg-lerd-muted'">
+                      <span class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200" :class="selectedSite.reverb_running || selectedSite.reverb_failing ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
                       <svg x-show="selectedSite.reverbLoading" class="animate-spin absolute right-[-14px] w-2.5 h-2.5 text-gray-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                     </button>
                     <span class="text-xs text-gray-500 dark:text-gray-400">Reverb</span>
@@ -696,10 +697,10 @@
                   <!-- Custom framework workers -->
                   <template x-for="worker in (selectedSite.framework_workers || [])" :key="'toggle-' + worker.name">
                     <div class="flex items-center gap-1.5">
-                      <button @click="toggleWorker(selectedSite, worker)" :disabled="worker.loading" :title="worker.running ? 'Stop ' + worker.label : 'Start ' + worker.label"
+                      <button @click="toggleWorker(selectedSite, worker)" :disabled="worker.loading" :title="worker.failing ? worker.label + ' is failing — click to restart' : worker.running ? 'Stop ' + worker.label : 'Start ' + worker.label"
                         class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50"
-                        :class="worker.running ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-lerd-muted'">
-                        <span class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200" :class="worker.running ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
+                        :class="worker.failing ? 'bg-red-500 animate-pulse' : worker.running ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-lerd-muted'">
+                        <span class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200" :class="worker.running || worker.failing ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
                         <svg x-show="worker.loading" class="animate-spin absolute right-[-14px] w-2.5 h-2.5 text-gray-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                       </button>
                       <span class="text-xs text-gray-500 dark:text-gray-400" x-text="worker.label"></span>
