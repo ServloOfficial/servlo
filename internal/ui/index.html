@@ -756,23 +756,23 @@
               <div class="flex-1 flex flex-col overflow-hidden min-h-0">
                 <div class="flex items-center gap-0 border-b border-gray-100 dark:border-lerd-border px-3 sm:px-5 pt-3 shrink-0">
                   <button @click="setSiteLogsTab('fpm')" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab==='fpm' ? 'border-lerd-red text-lerd-red' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'">PHP-FPM</button>
-                  <template x-if="selectedSite && selectedSite.queue_running">
-                    <button @click="setSiteLogsTab('queue')" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab==='queue' ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'">Queue</button>
+                  <template x-if="selectedSite && (selectedSite.queue_running || selectedSite.queue_failing)">
+                    <button @click="setSiteLogsTab('queue')" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab==='queue' ? 'border-amber-500 text-amber-600 dark:text-amber-400' : selectedSite.queue_failing ? 'border-transparent text-red-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'" x-text="selectedSite.queue_failing ? 'Queue !' : 'Queue'"></button>
                   </template>
-                  <template x-if="selectedSite && selectedSite.horizon_running">
-                    <button @click="setSiteLogsTab('horizon')" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab==='horizon' ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'">Horizon</button>
+                  <template x-if="selectedSite && (selectedSite.horizon_running || selectedSite.horizon_failing)">
+                    <button @click="setSiteLogsTab('horizon')" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab==='horizon' ? 'border-amber-500 text-amber-600 dark:text-amber-400' : selectedSite.horizon_failing ? 'border-transparent text-red-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'" x-text="selectedSite.horizon_failing ? 'Horizon !' : 'Horizon'"></button>
                   </template>
                   <template x-if="selectedSite && selectedSite.stripe_running">
                     <button @click="setSiteLogsTab('stripe')" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab==='stripe' ? 'border-violet-500 text-violet-600 dark:text-violet-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'">Stripe</button>
                   </template>
-                  <template x-if="selectedSite && selectedSite.schedule_running">
-                    <button @click="setSiteLogsTab('schedule')" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab==='schedule' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'">Schedule</button>
+                  <template x-if="selectedSite && (selectedSite.schedule_running || selectedSite.schedule_failing)">
+                    <button @click="setSiteLogsTab('schedule')" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab==='schedule' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : selectedSite.schedule_failing ? 'border-transparent text-red-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'" x-text="selectedSite.schedule_failing ? 'Schedule !' : 'Schedule'"></button>
                   </template>
-                  <template x-if="selectedSite && selectedSite.reverb_running">
-                    <button @click="setSiteLogsTab('reverb')" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab==='reverb' ? 'border-sky-500 text-sky-600 dark:text-sky-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'">Reverb</button>
+                  <template x-if="selectedSite && (selectedSite.reverb_running || selectedSite.reverb_failing)">
+                    <button @click="setSiteLogsTab('reverb')" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab==='reverb' ? 'border-sky-500 text-sky-600 dark:text-sky-400' : selectedSite.reverb_failing ? 'border-transparent text-red-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'" x-text="selectedSite.reverb_failing ? 'Reverb !' : 'Reverb'"></button>
                   </template>
-                  <template x-for="worker in (selectedSite && selectedSite.framework_workers || []).filter(w => w.running)" :key="'tab-' + worker.name">
-                    <button @click="setSiteLogsTab('worker:' + worker.name)" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab === 'worker:' + worker.name ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'" x-text="worker.label"></button>
+                  <template x-for="worker in (selectedSite && selectedSite.framework_workers || []).filter(w => w.running || w.failing)" :key="'tab-' + worker.name">
+                    <button @click="setSiteLogsTab('worker:' + worker.name)" class="pb-2 mr-5 text-xs font-medium transition-colors border-b-2" :class="siteLogsTab === 'worker:' + worker.name ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : worker.failing ? 'border-transparent text-red-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'" x-text="worker.failing ? worker.label + ' !' : worker.label"></button>
                   </template>
                 </div>
 
