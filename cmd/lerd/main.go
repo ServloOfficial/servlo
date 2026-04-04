@@ -55,6 +55,7 @@ func main() {
 	root.AddCommand(cli.NewPhpShellCmd())
 	root.AddCommand(cli.NewConsoleCmd())
 	root.AddCommand(cli.NewEnvCmd())
+	root.AddCommand(cli.NewEnvCheckCmd())
 	root.AddCommand(cli.NewNodeCmd())
 	root.AddCommand(cli.NewNpmCmd())
 	root.AddCommand(cli.NewNpxCmd())

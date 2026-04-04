@@ -284,7 +284,7 @@ This project runs on **lerd**, a Podman-based Laravel development environment fo
 
 ## Path resolution
 
-Tools that accept a ` + bt + `path` + bt + ` argument (` + bt + `artisan` + bt + `, ` + bt + `composer` + bt + `, ` + bt + `env_setup` + bt + `, ` + bt + `site_link` + bt + `, ` + bt + `site_unlink` + bt + `, ` + bt + `site_domain_add` + bt + `, ` + bt + `site_domain_remove` + bt + `, ` + bt + `db_export` + bt + `, ` + bt + `db_import` + bt + `, ` + bt + `db_create` + bt + `, etc.) resolve it in this order:
+Tools that accept a ` + bt + `path` + bt + ` argument (` + bt + `artisan` + bt + `, ` + bt + `composer` + bt + `, ` + bt + `env_setup` + bt + `, ` + bt + `env_check` + bt + `, ` + bt + `site_link` + bt + `, ` + bt + `site_unlink` + bt + `, ` + bt + `site_domain_add` + bt + `, ` + bt + `site_domain_remove` + bt + `, ` + bt + `db_export` + bt + `, ` + bt + `db_import` + bt + `, ` + bt + `db_create` + bt + `, etc.) resolve it in this order:
 1. Explicit ` + bt + `path` + bt + ` argument
 2. ` + bt + `LERD_SITE_PATH` + bt + ` env var (set when using project-scoped ` + bt + `mcp:inject` + bt + `)
 3. **Current working directory** — the directory Claude was opened in
@@ -474,6 +474,12 @@ Arguments:
 - ` + bt + `path` + bt + ` (optional): absolute path to the Laravel project root — defaults to the current working directory (or ` + bt + `LERD_SITE_PATH` + bt + ` if set by ` + bt + `mcp:inject` + bt + `)
 
 > Run this right after ` + bt + `site_link` + bt + ` when setting up a fresh project.
+
+### ` + bt + `env_check` + bt + `
+Compare all ` + bt + `.env` + bt + ` files (` + bt + `.env` + bt + `, ` + bt + `.env.testing` + bt + `, ` + bt + `.env.local` + bt + `, …) against ` + bt + `.env.example` + bt + ` and show a table of missing or extra keys. Useful for catching "works on my machine" bugs caused by env drift after pulling new code.
+
+Arguments:
+- ` + bt + `path` + bt + ` (optional): absolute path to the project root — defaults to the current working directory (or ` + bt + `LERD_SITE_PATH` + bt + ` if set by ` + bt + `mcp:inject` + bt + `)
 
 ### ` + bt + `site_link` + bt + ` / ` + bt + `site_unlink` + bt + `
 Register or unregister a directory as a lerd site. Arguments for ` + bt + `site_link` + bt + `:
@@ -874,6 +880,7 @@ This project runs on **lerd**, a Podman-based Laravel development environment. T
 | ` + bt + `node_install` + bt + ` | Install a Node.js version via fnm (e.g. ` + bt + `"20"` + bt + `, ` + bt + `"lts"` + bt + `) |
 | ` + bt + `node_uninstall` + bt + ` | Uninstall a Node.js version via fnm |
 | ` + bt + `env_setup` + bt + ` | Configure ` + bt + `.env` + bt + ` for lerd: detects services, starts them, creates DB, generates APP_KEY |
+| ` + bt + `env_check` + bt + ` | Compare all ` + bt + `.env` + bt + ` files against ` + bt + `.env.example` + bt + ` and flag missing or extra keys |
 | ` + bt + `site_link` + bt + ` | Register a directory as a lerd site (creates nginx vhost + ` + bt + `.test` + bt + ` domain) |
 | ` + bt + `site_unlink` + bt + ` | Unregister a site and remove its nginx vhost (all domains) |
 | ` + bt + `site_domain_add` + bt + ` | Add an additional domain to a site (without TLD) |
