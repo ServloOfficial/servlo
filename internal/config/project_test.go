@@ -221,9 +221,9 @@ func TestProjectConfig_NoWorkers(t *testing.T) {
 
 func TestProjectConfig_DomainsAndWorkers(t *testing.T) {
 	cfg := ProjectConfig{
-		Domains:  []string{"myapp", "api"},
-		Workers:  []string{"queue", "schedule"},
-		Secured:  true,
+		Domains: []string{"myapp", "api"},
+		Workers: []string{"queue", "schedule"},
+		Secured: true,
 	}
 	data, err := yaml.Marshal(cfg)
 	if err != nil {

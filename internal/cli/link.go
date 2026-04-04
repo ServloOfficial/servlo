@@ -9,11 +9,11 @@ import (
 	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/nginx"
-	"golang.org/x/term"
 	nodeDet "github.com/geodro/lerd/internal/node"
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 // linkSkipSetupPrompt suppresses the "Run lerd setup?" prompt when runLink
