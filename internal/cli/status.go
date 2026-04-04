@@ -171,7 +171,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		if wErr == nil {
 			hasWorkers := false
 			for _, s := range workerReg.Sites {
-				if s.Ignored {
+				if s.Ignored || s.Paused {
 					continue
 				}
 				// Check built-in worker types.
