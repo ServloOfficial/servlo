@@ -467,6 +467,19 @@ func toolList() []mcpTool {
 			},
 		},
 		{
+			Name:        "env_check",
+			Description: "Compare .env against .env.example and flag missing or extra keys. Useful for catching 'works on my machine' bugs caused by env drift.",
+			InputSchema: mcpSchema{
+				Type: "object",
+				Properties: map[string]mcpProp{
+					"path": {
+						Type:        "string",
+						Description: "Absolute path to the project root. Defaults to LERD_SITE_PATH when omitted.",
+					},
+				},
+			},
+		},
+		{
 			Name:        "site_link",
 			Description: "Register a directory as a lerd site, generating an nginx vhost and a <name>.test domain. Use this to set up a new project.",
 			InputSchema: mcpSchema{
@@ -1308,6 +1321,8 @@ func handleToolCall(params json.RawMessage) (any, *rpcError) {
 		return execServiceExpose(args)
 	case "env_setup":
 		return execEnvSetup(args)
+	case "env_check":
+		return execEnvCheck(args)
 	case "site_link":
 		return execSiteLink(args)
 	case "site_unlink":
@@ -2415,6 +2430,26 @@ func execEnvSetup(args map[string]any) (any, *rpcError) {
 	if err := cmd.Run(); err != nil {
 		return toolErr(fmt.Sprintf("env setup failed (%v):\n%s", err, out.String())), nil
 	}
+	return toolOK(strings.TrimSpace(out.String())), nil
+}
+
+func execEnvCheck(args map[string]any) (any, *rpcError) {
+	projectPath := resolvedPath(args)
+	if projectPath == "" {
+		return toolErr("path is required — pass a path argument or open Claude in the project directory"), nil
+	}
+
+	self, err := os.Executable()
+	if err != nil {
+		return toolErr("could not resolve lerd executable: " + err.Error()), nil
+	}
+
+	var out bytes.Buffer
+	cmd := exec.Command(self, "env:check")
+	cmd.Dir = projectPath
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	_ = cmd.Run() // non-zero exit is expected when keys are missing
 	return toolOK(strings.TrimSpace(out.String())), nil
 }
 

@@ -53,7 +53,7 @@ lerd mcp:inject --path ~/Lerd/another-app
 
 ### Path resolution
 
-Tools like `artisan`, `composer`, `env_setup`, `db_export`, `db_import`, and `db_create` accept an optional `path` argument. When omitted, the server resolves the path in this order:
+Tools like `artisan`, `composer`, `env_setup`, `env_check`, `db_export`, `db_import`, and `db_create` accept an optional `path` argument. When omitted, the server resolves the path in this order:
 
 1. Explicit `path` argument (highest priority)
 2. `LERD_SITE_PATH` env var (set by `mcp:inject`)
@@ -79,6 +79,7 @@ Once the MCP server is connected, your AI assistant has access to:
 | `node_install` | Install a Node.js version via fnm (e.g. `"20"`, `"lts"`) |
 | `node_uninstall` | Uninstall a Node.js version via fnm |
 | `env_setup` | Configure `.env` for lerd: detects services, starts them, creates DB, sets APP_KEY and APP_URL |
+| `env_check` | Compare all `.env` files against `.env.example` and flag missing or extra keys |
 | `site_link` | Register a directory as a lerd site — generates nginx vhost and `.test` domain |
 | `site_unlink` | Unregister a site and remove its nginx vhost (all domains) |
 | `site_domain_add` | Add an additional domain to a site (without TLD) |

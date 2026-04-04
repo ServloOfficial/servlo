@@ -63,6 +63,7 @@
 | `lerd pause [name]` | Pause a site: stop its workers and replace the vhost with a landing page |
 | `lerd unpause [name]` | Resume a paused site: restore its vhost and restart previously running workers |
 | `lerd env` | Configure `.env` for the current project with lerd service connection settings |
+| `lerd env:check` | Compare all `.env` files against `.env.example` and flag missing or extra keys |
 
 ## PHP
 
