@@ -9,6 +9,7 @@ import (
 	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/nginx"
+	"golang.org/x/term"
 	nodeDet "github.com/geodro/lerd/internal/node"
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
@@ -241,9 +242,26 @@ func runLink(args []string) error {
 			}
 		}
 
-		// Start workers listed in .lerd.yaml.
+		// Start workers listed in .lerd.yaml, but only if the project looks ready
+		// (vendor/ exists). On first clone, offer to run lerd setup instead.
 		if len(proj.Workers) > 0 {
-			startWorkersForSite(&site, proj.Workers, phpVersion)
+			vendorDir := filepath.Join(cwd, "vendor")
+			if _, statErr := os.Stat(vendorDir); statErr == nil {
+				startWorkersForSite(&site, proj.Workers, phpVersion)
+			} else if isInteractive() {
+				fmt.Printf("\n  Workers configured (%s) but vendor/ is missing.\n", strings.Join(proj.Workers, ", "))
+				fmt.Print("  Run lerd setup to install dependencies and start workers? [Y/n]: ")
+				var answer string
+				fmt.Scanln(&answer)
+				answer = strings.TrimSpace(strings.ToLower(answer))
+				if answer == "" || answer == "y" || answer == "yes" {
+					if err := runSetup(false, false); err != nil {
+						fmt.Printf("[WARN] setup: %v\n", err)
+					}
+				}
+			} else {
+				fmt.Printf("  Skipping workers (vendor/ not found — run lerd setup)\n")
+			}
 		}
 	}
 
@@ -289,6 +307,11 @@ func startWorkersForSite(site *config.Site, workers []string, phpVersion string)
 			fmt.Printf("[WARN] starting worker %s: %v\n", w, err)
 		}
 	}
+}
+
+// isInteractive returns true if stdin is a terminal.
+func isInteractive() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
 }
 
 // resolveFramework returns the framework name for the project at dir.
