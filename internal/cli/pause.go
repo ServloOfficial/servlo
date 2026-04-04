@@ -239,16 +239,18 @@ func CollectRunningWorkerNames(site *config.Site) []string {
 	return workers
 }
 
-// collectRunningWorkers returns the names of all active workers for the site.
+// collectRunningWorkers returns the names of all active or restarting workers
+// for the site. Uses IsServiceActiveOrRestarting so crash-looping workers are
+// also detected and can be stopped on unlink/pause.
 func collectRunningWorkers(site *config.Site) []string {
 	var active []string
 
 	for _, w := range []string{"queue", "schedule", "reverb", "horizon"} {
-		if lerdSystemd.IsServiceActive("lerd-" + w + "-" + site.Name) {
+		if lerdSystemd.IsServiceActiveOrRestarting("lerd-" + w + "-" + site.Name) {
 			active = append(active, w)
 		}
 	}
-	if lerdSystemd.IsServiceActive("lerd-stripe-" + site.Name) {
+	if lerdSystemd.IsServiceActiveOrRestarting("lerd-stripe-" + site.Name) {
 		active = append(active, "stripe")
 	}
 
@@ -264,7 +266,7 @@ func collectRunningWorkers(site *config.Site) []string {
 		}
 		sort.Strings(names)
 		for _, wName := range names {
-			if lerdSystemd.IsServiceActive("lerd-" + wName + "-" + site.Name) {
+			if lerdSystemd.IsServiceActiveOrRestarting("lerd-" + wName + "-" + site.Name) {
 				active = append(active, wName)
 			}
 		}
