@@ -1517,7 +1517,7 @@ function lerdApp() {
     sites: [],
     sitesLoading: false,
     selectedSiteDomain: null,
-    domainModal: { open: false, site: null, domains: [], newDomain: '', editIndex: -1, editValue: '', error: '', loading: false },
+    domainModal: { open: false, site: null, domains: [], newDomain: '', editIndex: -1, editValue: '', error: '', flash: '', loading: false, dirty: false },
     linkModal: { open: false, currentDir: '', dirs: [], loading: false, linking: false, error: '' },
     phpVersions: [],
     nodeVersions: [],
@@ -1712,8 +1712,10 @@ function lerdApp() {
           this.sites = raw.map(s => ({ ...s, tlsLoading: false, tlsError: '', versionLoading: false, queueLoading: false, queueError: '', stripeLoading: false, stripeError: '', scheduleLoading: false, scheduleError: '', reverbLoading: false, reverbError: '', horizonLoading: false, horizonError: '', unlinkLoading: false, pauseLoading: false, framework_workers: (s.framework_workers || []).map(w => ({ ...w, loading: false, error: '' })) }));
         } else {
           raw.forEach(s => {
-            const e = this.sites.find(x => x.domain === s.domain);
+            const e = this.sites.find(x => x.name === s.name);
             if (e) {
+              e.domain = s.domain;
+              e.domains = s.domains;
               e.php_version = s.php_version;
               e.node_version = s.node_version;
               e.tls = s.tls;
@@ -1746,7 +1748,7 @@ function lerdApp() {
               this.sites.push({ ...s, tlsLoading: false, tlsError: '', versionLoading: false, queueLoading: false, queueError: '', stripeLoading: false, stripeError: '', scheduleLoading: false, scheduleError: '', reverbLoading: false, reverbError: '', horizonLoading: false, horizonError: '', unlinkLoading: false, pauseLoading: false, framework_workers: (s.framework_workers || []).map(w => ({ ...w, loading: false, error: '' })) });
             }
           });
-          this.sites = this.sites.filter(e => raw.some(s => s.domain === e.domain));
+          this.sites = this.sites.filter(e => raw.some(s => s.name === e.name));
         }
       } catch (_) {
         if (firstLoad) this.sites = [];
@@ -2150,7 +2152,9 @@ function lerdApp() {
         editIndex: -1,
         editValue: '',
         error: '',
+        flash: '',
         loading: false,
+        dirty: false,
       };
     },
 
@@ -2207,6 +2211,12 @@ function lerdApp() {
     },
 
     closeDomainModal() {
+      if (this.domainModal.dirty) {
+        const updated = this.sites.find(s => s.name === this.domainModal.site.name);
+        if (updated) {
+          this.selectedSiteDomain = updated.domain;
+        }
+      }
       this.domainModal.open = false;
     },
 
@@ -2238,6 +2248,9 @@ function lerdApp() {
         m.editValue = '';
         await this.loadSites();
         this._refreshDomainModal(siteName);
+        m.dirty = true;
+        m.flash = 'Domain updated';
+        setTimeout(() => { m.flash = ''; }, 3000);
       } catch (e) { m.error = e.message; }
       m.loading = false;
     },
@@ -2256,6 +2269,9 @@ function lerdApp() {
         m.newDomain = '';
         await this.loadSites();
         this._refreshDomainModal(siteName);
+        m.dirty = true;
+        m.flash = 'Domain added';
+        setTimeout(() => { m.flash = ''; }, 3000);
       } catch (e) { m.error = e.message; }
       m.loading = false;
     },
@@ -2274,6 +2290,9 @@ function lerdApp() {
         if (m.editIndex === index) this.domainModalCancelEdit();
         await this.loadSites();
         this._refreshDomainModal(siteName);
+        m.dirty = true;
+        m.flash = 'Domain removed';
+        setTimeout(() => { m.flash = ''; }, 3000);
       } catch (e) { m.error = e.message; }
       m.loading = false;
     },
@@ -2974,7 +2993,10 @@ function lerdApp() {
         </div>
       </div>
 
-      <!-- Error -->
+      <!-- Flash / Error -->
+      <div x-show="domainModal.flash" class="px-5 py-2 border-t border-gray-100 dark:border-lerd-border">
+        <p class="text-xs text-emerald-700 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-2 py-1.5 text-center" x-text="domainModal.flash"></p>
+      </div>
       <template x-if="domainModal.error">
         <div class="px-5 py-2 border-t border-gray-100 dark:border-lerd-border">
           <p class="text-xs text-red-500" x-text="domainModal.error"></p>
