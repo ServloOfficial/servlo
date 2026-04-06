@@ -11,6 +11,14 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.6.2] — 2026-04-06
+
+### Fixed
+
+- **MissingAppKeyException on fresh project** — `lerd env` now generates `APP_KEY` directly in `.env` when `vendor/` does not exist yet, instead of failing silently on `artisan key:generate`. This prevents Laravel's `MissingAppKeyException` during `composer install` post-install scripts in the `lerd new` → `lerd link` → `lerd setup` flow.
+
+---
+
 ## [1.6.1] — 2026-04-06
 
 ### Fixed
