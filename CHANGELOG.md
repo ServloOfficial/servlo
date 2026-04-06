@@ -20,8 +20,17 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **omarchy OS support** — systems with systemd-resolved but no NetworkManager can now install and run lerd. The installer accepts either resolver.
 - **Reverb prerequisite check** — `lerd reverb:start` and `lerd reverb:stop` now check for `laravel/reverb` in composer.json before proceeding, with install instructions and a link to the Laravel Broadcasting docs.
 
+### Changed
+
+- **Worker state synced to `.lerd.yaml`** — all worker start/stop commands (`queue`, `schedule`, `reverb`, `horizon`, `stripe:listen`, `worker start/stop`) now persist the active workers list in `.lerd.yaml` when the file exists. Previously `worker start/stop` and `stripe:listen` did not update the file.
+- **`lerd start` restores site infrastructure** — after an uninstall/reinstall cycle, `lerd start` reads `.lerd.yaml` from each active site and recreates missing FPM quadlets, service quadlets, and worker units automatically.
+- **`lerd install` restores FPM quadlets** — reinstalling now restores PHP-FPM quadlets for all PHP versions used by registered sites, not just the default version.
+- **Improved `lerd uninstall`** — stops all `lerd-*` systemd units (workers, stripe listeners, etc.) instead of only the hardcoded watcher and UI services. DNS teardown and the data-removal prompt now run before the step runner to avoid stdin conflicts.
+
 ### Fixed
 
+- **DNS teardown leaves stale DNS on virtual interfaces** — `lerd uninstall` now reverts all network interfaces that have lerd DNS configured (e.g. `virbr0`, `vnet*`), not just the default interface.
+- **Internet DNS broken after uninstall** — after reverting interfaces and restarting NetworkManager, lerd now explicitly pushes the DHCP-assigned upstream DNS servers so name resolution works immediately.
 - **Domain modal stale state** — the web UI domain modal now properly updates the domain list after add/edit/remove operations. The site list merge was matching by domain (which changes) instead of name (stable).
 - **`lerd env` runs automatically in setup** — `lerd env` now runs at the start of `lerd setup` instead of being a selectable step, ensuring `.env` is configured before `composer install` triggers post-install scripts.
 - **Definition conflict resolution** — when `.lerd.yaml` and the local framework/service definition differ, lerd now offers a three-way choice: use .lerd.yaml version, use local definition, or skip. Both sync directions persist immediately.
