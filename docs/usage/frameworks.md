@@ -2,7 +2,7 @@
 
 Lerd uses **framework definitions** to describe how a PHP project type behaves: where the document root is, how to detect it automatically, which env file to use, and which background workers it supports.
 
-Laravel has a built-in definition. Any other PHP framework (Symfony, WordPress, Drupal, etc.) can be added via a YAML file stored at `~/.config/lerd/frameworks/<name>.yaml`.
+Laravel has a built-in definition. Other frameworks (Symfony, WordPress, Drupal, CakePHP, Statamic, etc.) can be installed from the [community store](https://github.com/geodro/lerd-frameworks) or defined manually.
 
 ---
 
@@ -11,9 +11,123 @@ Laravel has a built-in definition. Any other PHP framework (Symfony, WordPress, 
 | Command | Description |
 |---|---|
 | `lerd new <name-or-path>` | Scaffold a new PHP project using a framework's create command |
-| `lerd framework list` | List all framework definitions including workers |
-| `lerd framework add <name>` | Add or update a framework definition (flags or `--from-file`) |
+| `lerd framework list` | List all framework definitions with source and workers |
+| `lerd framework list --check` | Compare local definitions against the store |
+| `lerd framework search [query]` | Search the community store for available definitions |
+| `lerd framework install <name>[@version]` | Install a framework definition from the store |
+| `lerd framework update [name[@version]]` | Update installed definitions from the store |
+| `lerd framework update --diff` | Preview changes before applying updates |
+| `lerd framework add <name>` | Add or update a user-defined framework definition |
 | `lerd framework remove <name>` | Remove a user-defined framework definition |
+
+---
+
+## Framework store
+
+Lerd has a community-driven framework store backed by [geodro/lerd-frameworks](https://github.com/geodro/lerd-frameworks). The store hosts definitions for popular PHP frameworks, versioned by major release.
+
+### Available frameworks
+
+```bash
+lerd framework search
+```
+
+```
+Name            Label           Latest       Versions
+───────────────────────────────────────────────────────
+laravel         Laravel         13           13, 12
+symfony         Symfony         8            8, 7
+wordpress       WordPress       6            6, 5
+drupal          Drupal          11           11, 10
+cakephp         CakePHP         5            5, 4
+statamic        Statamic        6            6, 5
+```
+
+### Installing from the store
+
+```bash
+lerd framework install symfony          # auto-detects version from composer.lock
+lerd framework install laravel@12       # explicit version
+lerd framework install wordpress        # latest version
+```
+
+When no version is specified, lerd reads `composer.lock` to detect the installed major version. If the version can't be determined, it falls back to the latest available.
+
+Store-installed definitions are saved to `~/.local/share/lerd/frameworks/<name>@<version>.yaml`, separate from user-defined frameworks.
+
+### Checking for updates
+
+```bash
+lerd framework list --check
+```
+
+```
+Name            Version  Source     Latest     Status
+───────────────────────────────────────────────────────
+laravel         —        built-in   13         built-in
+symfony         8        store      8          up to date
+wordpress       6        store      6          up to date
+magento         —        user       —          not in store
+```
+
+### Updating
+
+```bash
+lerd framework update symfony         # update a single framework
+lerd framework update symfony@7       # update to a specific version
+lerd framework update                 # update all installed frameworks
+lerd framework update --diff          # show changes before applying
+```
+
+### Auto-detection
+
+When `lerd link`, `lerd init`, or `lerd setup` detects a framework with no local definition, it checks the store:
+
+- **Interactive mode**: prompts to install from the store
+- **Non-interactive mode**: fetches silently when `.lerd.yaml` specifies a framework name
+
+Framework detection only happens during `lerd link`, `lerd init`, `lerd env`, and `lerd setup`. All other commands read the saved framework from the site registry.
+
+### Contributing to the store
+
+Submit a pull request to [geodro/lerd-frameworks](https://github.com/geodro/lerd-frameworks) with a YAML file under `frameworks/<name>/<version>.yaml` and update `frameworks/index.json`.
+
+---
+
+## Definition sources and priority
+
+Lerd resolves framework definitions from multiple sources. Higher priority wins:
+
+| Priority | Source | Location | Purpose |
+|----------|--------|----------|---------|
+| 1 | User-defined | `~/.config/lerd/frameworks/<name>.yaml` | Manual overrides and custom frameworks |
+| 2 | Project embedded | `.lerd.yaml` `framework_def` | Portability for user-defined frameworks |
+| 3 | Store-installed | `~/.local/share/lerd/frameworks/<name>@<version>.yaml` | Community definitions |
+| 4 | Built-in | Compiled into lerd binary | Laravel only |
+
+### Worker merging
+
+When a store or built-in definition is used, workers from the user-defined overlay (`~/.config/lerd/frameworks/<name>.yaml`) are merged on top. Project-specific custom workers from `.lerd.yaml` are also merged. This means you can add workers without replacing the base definition:
+
+```yaml
+# ~/.config/lerd/frameworks/laravel.yaml — adds Pulse to the built-in Laravel definition
+name: laravel
+workers:
+  pulse:
+    label: Pulse
+    command: php artisan pulse:work
+    restart: always
+```
+
+### Version resolution
+
+When loading a framework definition for a project, the version is resolved in order:
+
+1. `composer.lock` — the actual installed version (source of truth)
+2. `.lerd.yaml` `framework_version` — pinned version (fallback when no `composer.lock`)
+3. Latest available in store
+
+When `composer.lock` shows a different version than `.lerd.yaml`, the pinned version is auto-updated.
 
 ---
 
@@ -36,54 +150,26 @@ The installer walks you through starter kit selection, database setup, and other
 
 `lerd new` is a framework-agnostic shortcut that runs the framework's scaffold command:
 
+
 ```bash
-lerd new myapp                          # create ./myapp using Laravel (default)
+lerd new myapp                          # create using Laravel (default)
 lerd new myapp --framework=symfony      # create using Symfony's create command
 lerd new /path/to/myapp                 # create at an absolute path
 lerd new myapp -- --no-interaction      # pass extra flags to the scaffold command
 ```
 
-For Laravel, this runs:
-```bash
-composer create-project --no-install --no-plugins --no-scripts laravel/laravel /abs/path/to/myapp
-```
-
-After creation, register the site and bootstrap it:
+After creation:
 ```bash
 cd myapp
 lerd link
 lerd setup
 ```
 
-Or let your AI assistant do it via MCP:
-```
-project_new(path: "/home/user/code/myapp")
-site_link(path: "/home/user/code/myapp")
-env_setup(path: "/home/user/code/myapp")
-```
-
-### Defining a create command for custom frameworks
-
-Add a `create` field to a framework's YAML definition. The target directory is appended automatically when `lerd new` runs:
-
-```yaml
-# ~/.config/lerd/frameworks/symfony.yaml
-name: symfony
-create: composer create-project symfony/skeleton
-# ... rest of definition
-```
-
-Then:
-```bash
-lerd new myapp --framework=symfony
-# runs: composer create-project symfony/skeleton /abs/path/to/myapp
-```
-
 ---
 
 ## Framework workers
 
-Each framework can define one or more **workers** — long-running processes managed as systemd user services inside the PHP-FPM container. Laravel has three built-in: `queue`, `schedule`, and `reverb`.
+Each framework can define **workers** — long-running processes managed as systemd user services inside the PHP-FPM container.
 
 | Command | Description |
 |---|---|
@@ -91,9 +177,80 @@ Each framework can define one or more **workers** — long-running processes man
 | `lerd worker stop <name>` | Stop a named worker |
 | `lerd worker list` | List all workers defined for this project's framework |
 
-The shortcut commands `lerd queue:start`, `lerd schedule:start`, and `lerd reverb:start` are aliases for `lerd worker start queue/schedule/reverb` — they work for any framework that defines a worker with that name, not just Laravel.
+The shortcut commands `lerd queue:start`, `lerd schedule:start`, `lerd reverb:start`, and `lerd horizon:start` are aliases — they look up the worker from the framework definition and delegate to the generic handler. They work for any framework that defines a worker with that name.
 
-Worker systemd units follow the naming pattern `lerd-<worker>-<sitename>` (e.g. `lerd-messenger-myapp`). Logs:
+### Worker features
+
+**Conditional workers** — Workers with a `check` rule only appear when the condition passes (e.g. `laravel/horizon` is in `composer.json`):
+
+```yaml
+workers:
+  horizon:
+    command: php artisan horizon
+    check:
+      composer: laravel/horizon
+```
+
+**Conflict resolution** — Workers can declare conflicts. When a conflicting worker starts, the other is stopped automatically:
+
+```yaml
+workers:
+  horizon:
+    command: php artisan horizon
+    conflicts_with:
+      - queue      # stops queue before starting horizon
+```
+
+**WebSocket/HTTP proxy** — Workers that need an nginx proxy block define a `proxy` config. Lerd auto-assigns a collision-free port and regenerates the nginx vhost:
+
+```yaml
+workers:
+  reverb:
+    command: php artisan reverb:start
+    proxy:
+      path: /app                    # URL path for the proxy location block
+      port_env_key: REVERB_SERVER_PORT  # env key holding the port
+      default_port: 8080            # starting port for auto-assignment
+```
+
+Port assignment scans all proxy port env keys across all sites to prevent collisions between different workers and frameworks.
+
+### Project-specific custom workers
+
+Add workers to `.lerd.yaml` for project-specific needs that don't belong in the framework definition:
+
+```yaml
+# .lerd.yaml
+framework: symfony
+framework_version: "8"
+workers:
+  - messenger
+  - pdf-generator
+custom_workers:
+  pdf-generator:
+    label: PDF Generator
+    command: php bin/console app:generate-pdfs --daemon
+    restart: always
+```
+
+Custom workers with proxy support:
+
+```yaml
+custom_workers:
+  mercure:
+    label: Mercure Hub
+    command: php bin/console mercure:run
+    restart: always
+    proxy:
+      path: /.well-known/mercure
+      port_env_key: MERCURE_PORT
+      default_port: 3000
+```
+
+Custom workers are merged with the framework's workers at runtime. They are committed to git so teammates get the same setup.
+
+### Worker logs
+
 ```bash
 journalctl --user -u lerd-messenger-myapp -f
 ```
@@ -102,48 +259,25 @@ journalctl --user -u lerd-messenger-myapp -f
 
 ## Built-in Laravel definition
 
-Laravel is the only framework with a built-in definition. It is always available without any YAML file.
+Laravel is the only framework with a built-in definition compiled into the binary. It is always available without any YAML file or store install.
 
 Built-in workers:
 
-| Worker | Label | Command | Restart |
-|---|---|---|---|
-| `queue` | Queue Worker | `php artisan queue:work --queue=default --tries=3 --timeout=60` | on-failure |
-| `schedule` | Task Scheduler | `php artisan schedule:work` | always |
-| `reverb` | Reverb WebSocket | `php artisan reverb:start` | on-failure |
+| Worker | Label | Command | Check | Extra |
+|---|---|---|---|---|
+| `queue` | Queue Worker | `php artisan queue:work --queue=default --tries=3 --timeout=60` | — | — |
+| `schedule` | Task Scheduler | `php artisan schedule:work` | — | — |
+| `reverb` | Reverb WebSocket | `php artisan reverb:start` | `laravel/reverb` | proxy at `/app`, auto-assigned port |
+| `horizon` | Horizon | `php artisan horizon` | `laravel/horizon` | conflicts with `queue` |
 
-The `reverb` worker toggle only appears in the UI when the project actually uses Reverb (detected via `laravel/reverb` in `composer.json` or `BROADCAST_CONNECTION=reverb` in `.env`).
+### Adding workers to Laravel
 
-Each site that uses Reverb gets its own `REVERB_SERVER_PORT` assigned automatically — starting at `8080` and incrementing for each additional site — so multiple Reverb-enabled sites can run at the same time without port collisions. The port is written to the site's `.env` on first `lerd env` run or on the first `reverb:start`, and stays fixed after that.
-
----
-
-## Adding custom workers to Laravel
-
-You can add extra workers to Laravel (e.g. Horizon, Pulse) without overriding its built-in definition. Custom workers are merged on top:
-
-```bash
-lerd framework add laravel \
-  --from-file horizon.yaml
-```
-
-Or inline:
-
-```bash
-lerd framework add laravel \
-  # (no --public-dir needed for laravel)
-```
-
-Using a YAML file (recommended):
+User-defined workers are merged on top of the built-in. Use `lerd framework add` to create an overlay:
 
 ```yaml
 # horizon.yaml
 name: laravel
 workers:
-  horizon:
-    label: Horizon
-    command: php artisan horizon
-    restart: always
   pulse:
     label: Pulse
     command: php artisan pulse:work
@@ -152,46 +286,47 @@ workers:
 
 ```bash
 lerd framework add laravel --from-file horizon.yaml
-lerd worker start horizon    # starts lerd-horizon-<sitename>
 ```
 
-To remove your custom additions (the built-in queue/schedule/reverb remain):
+To remove the overlay (built-in workers remain):
 ```bash
 lerd framework remove laravel
 ```
 
 ---
 
-## User-defined frameworks
+## Environment setup
 
-### Adding a framework
+The `env` section in a framework definition controls how `lerd env` works:
 
-**With flags** (quick):
+```yaml
+env:
+  file: .env                        # primary env file
+  example_file: .env.example        # copied to file if missing
+  format: dotenv                    # dotenv | php-const
+  fallback_file: wp-config.php      # used when file doesn't exist
+  fallback_format: php-const        # format for fallback_file
+  url_key: APP_URL                  # env key holding the app URL
 
-```bash
-lerd framework add symfony \
-  --label "Symfony" \
-  --public-dir public \
-  --detect-file symfony.lock \
-  --detect-composer symfony/framework-bundle \
-  --env-file .env \
-  --env-format dotenv \
-  --composer auto \
-  --npm auto
-```
+  # Application key generation
+  key_generation:
+    env_key: APP_KEY                # env var to check/set
+    command: key:generate           # artisan command to run if vendor/ exists
+    fallback_prefix: "base64:"     # prefix for random key fallback
 
-**From a YAML file** (recommended for sharing):
-
-```bash
-lerd framework add symfony --from-file symfony.yaml
-```
-
-Framework YAML files are stored at `~/.config/lerd/frameworks/<name>.yaml`.
-
-### Removing a framework
-
-```bash
-lerd framework remove symfony
+  # Per-service detection and env variable injection
+  services:
+    mysql:
+      detect:
+        - key: DB_CONNECTION
+          value_prefix: mysql
+      vars:
+        - DB_CONNECTION=mysql
+        - DB_HOST=lerd-mysql
+        - DB_PORT=3306
+        - DB_DATABASE={{site}}
+        - DB_USERNAME=root
+        - DB_PASSWORD=lerd
 ```
 
 ---
@@ -202,21 +337,28 @@ lerd framework remove symfony
 # Required
 name: symfony                     # slug [a-z0-9-], must match filename stem
 label: Symfony                    # display name
-public_dir: public                # document root relative to project (e.g. public, web, .)
+public_dir: public                # document root relative to project
+
+# Version (required for store definitions)
+version: "8"                      # framework major version this definition targets
 
 # Detection rules — any match is sufficient
 detect:
-  - file: symfony.lock            # file must exist in project root
-  - composer: symfony/framework-bundle  # package in composer.json require/require-dev
+  - file: symfony.lock
+  - composer: symfony/framework-bundle
 
 # Env file configuration
 env:
-  file: .env                      # primary env file (default: .env)
-  example_file: .env.dist         # copied to file if missing (like .env.example for Laravel)
-  format: dotenv                  # dotenv (default) | php-const (for wp-config.php style)
-  fallback_file: wp-config.php    # used when file doesn't exist (optional)
-  fallback_format: php-const      # format for fallback_file (optional)
+  file: .env.local
+  example_file: .env
+  format: dotenv                  # dotenv | php-const
+  fallback_file: settings.php     # used when file doesn't exist (optional)
+  fallback_format: php-const
   url_key: DEFAULT_URI            # env key holding the app URL (default: APP_URL)
+  key_generation:                 # application key generation (optional)
+    env_key: APP_KEY
+    command: key:generate
+    fallback_prefix: "base64:"
 
   # Per-service env detection and variable injection for `lerd env`
   #
@@ -235,44 +377,40 @@ env:
         - key: DATABASE_URL
           value_prefix: "mysql://"
       vars:
-        - "DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/{{site}}?serverVersion={{mysql_version}}"
-    redis:
-      detect:
-        - key: REDIS_URL
-        - key: REDIS_DSN
-      vars:
-        - "REDIS_URL=redis://lerd-redis:6379"
+        - "DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/{{site}}"
 
-# Scaffold command for "lerd new" — target directory is appended automatically
-create: composer create-project myvendor/myframework
+# Scaffold command for "lerd new"
+create: composer create-project symfony/skeleton
 
 # Dependency installation
-composer: auto                    # auto | true | false (auto = run if vendor/ missing)
-npm: auto                         # auto | true | false (auto = run if node_modules/ missing)
+composer: auto                    # auto | true | false
+npm: auto
 
 # Console command (without 'php' prefix)
-console: artisan                  # artisan (Laravel), bin/console (Symfony), etc.
+console: bin/console
 
-# Background workers (systemd user services)
+# Background workers
 workers:
   messenger:
-    label: Messenger               # display name (optional)
+    label: Messenger
     command: php bin/console messenger:consume async --time-limit=3600
     restart: always               # always | on-failure (default: always)
-    check:                         # only shown when check passes (optional)
+    check:                        # only shown when check passes (optional)
       composer: symfony/messenger
+    conflicts_with:               # workers to stop before starting (optional)
+      - other-worker
+    proxy:                        # nginx proxy config (optional)
+      path: /ws
+      port_env_key: WS_PORT
+      default_port: 8080
 
-# One-off setup commands shown in `lerd setup` wizard
+# One-off setup commands
 setup:
-  - label: "Run migrations"                     # display name and identifier
+  - label: "Run migrations"
     command: "php bin/console doctrine:migrations:migrate --no-interaction"
-    default: true                               # pre-selected in the wizard
-    check:                                      # only shown when check passes (optional)
-      composer: doctrine/doctrine-migrations-bundle
-  - label: "Load fixtures"
-    command: "php bin/console doctrine:fixtures:load --no-interaction"
+    default: true
     check:
-      composer: doctrine/doctrine-fixtures-bundle  # skipped if package not installed
+      composer: doctrine/doctrine-migrations-bundle  # skipped if package not installed
 
 # Application log files shown in the UI "App Logs" tab
 logs:
@@ -284,12 +422,15 @@ logs:
 
 ## Framework detection
 
-When you run `lerd link` or `lerd park`, lerd inspects the project directory and tries to match it against framework definitions in this order:
+Framework detection only runs during `lerd link`, `lerd init`, `lerd env`, `lerd setup`, and `lerd park`. All other commands read the saved framework from the site registry.
+
+Detection order:
 
 1. **Laravel** (built-in): checks for `artisan` file or `laravel/framework` in `composer.json`
-2. **User-defined frameworks**: iterates `~/.config/lerd/frameworks/*.yaml` alphabetically, applying each detection rule
+2. **Local definitions**: iterates user-defined and store-installed YAML files, applying detection rules
+3. **Framework store** (interactive): checks the store index and prompts to install, or fetches silently when `.lerd.yaml` specifies the framework name
 
-The **first match wins**. Detection rules are OR-based — any single matching rule is enough to identify the framework.
+The first match wins. Detection rules are OR-based — any single matching rule is enough.
 
 ---
 
@@ -345,112 +486,6 @@ logs:
 
 ## Web UI
 
-Framework workers appear as toggles in the **Sites** panel alongside queue/schedule/reverb. Each running worker also gets a log tab in the site detail drawer and an indicator dot in the site list.
+Framework workers appear as toggles in the Sites panel. Workers with a `check` rule only appear when the condition passes. Workers with `conflicts_with` suppress each other (e.g. when Horizon is available, the queue toggle is hidden).
 
-Workers defined in the framework are shown regardless of framework type — Laravel gets its built-in queue/schedule/reverb workers; Symfony shows the `messenger` worker if defined; etc.
-
----
-
-## Example: Symfony
-
-```yaml
-# ~/.config/lerd/frameworks/symfony.yaml
-name: symfony
-label: Symfony
-detect:
-  - file: symfony.lock
-  - composer: symfony/framework-bundle
-public_dir: public
-env:
-  file: .env
-  example_file: .env.dist
-  format: dotenv
-  url_key: DEFAULT_URI
-  services:
-    mysql:
-      detect:
-        - key: DATABASE_URL
-          value_prefix: "mysql://"
-        - key: DATABASE_URL
-          value_prefix: "mariadb://"
-      vars:
-        - "DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/{{site}}?serverVersion={{mysql_version}}"
-    postgres:
-      detect:
-        - key: DATABASE_URL
-          value_prefix: "postgresql://"
-        - key: DATABASE_URL
-          value_prefix: "postgres://"
-      vars:
-        - "DATABASE_URL=postgresql://postgres:lerd@lerd-postgres:5432/{{site}}?serverVersion={{postgres_version}}"
-    redis:
-      detect:
-        - key: REDIS_URL
-        - key: REDIS_DSN
-      vars:
-        - "REDIS_URL=redis://lerd-redis:6379"
-    mailpit:
-      detect:
-        - key: MAILER_DSN
-      vars:
-        - "MAILER_DSN=smtp://lerd-mailpit:1025"
-    meilisearch:
-      detect:
-        - key: MEILISEARCH_HOST
-        - key: MEILISEARCH_DSN
-      vars:
-        - "MEILISEARCH_HOST=http://lerd-meilisearch:7700"
-composer: auto
-npm: auto
-workers:
-  messenger:
-    label: Messenger
-    command: php bin/console messenger:consume async --time-limit=3600
-    restart: always
-    check:
-      composer: symfony/messenger
-setup:
-  - label: "Run migrations"
-    command: "php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration"
-    default: true
-    check:
-      composer: doctrine/doctrine-migrations-bundle
-  - label: "Load fixtures"
-    command: "php bin/console doctrine:fixtures:load --no-interaction"
-    check:
-      composer: doctrine/doctrine-fixtures-bundle
-  - label: "Clear cache"
-    command: "php bin/console cache:clear"
-    default: true
-```
-
-```bash
-lerd framework add symfony --from-file ~/.config/lerd/frameworks/symfony.yaml
-lerd link                          # auto-detected as Symfony
-lerd setup                         # shows migrations, fixtures, and other steps
-lerd worker start messenger        # starts lerd-messenger-<sitename>
-```
-
----
-
-## Example: WordPress
-
-```yaml
-# ~/.config/lerd/frameworks/wordpress.yaml
-name: wordpress
-label: WordPress
-detect:
-  - file: wp-login.php
-  - file: wp-config.php
-public_dir: .
-env:
-  fallback_file: wp-config.php
-  fallback_format: php-const
-composer: false
-npm: false
-```
-
-```bash
-lerd framework add wordpress --from-file ~/.config/lerd/frameworks/wordpress.yaml
-lerd link                          # auto-detected as WordPress
-```
+Custom framework workers from `.lerd.yaml` also appear as toggles alongside the framework's standard workers.

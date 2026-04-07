@@ -46,9 +46,6 @@ func runSites(_ *cobra.Command, _ []string) error {
 			continue
 		}
 		fwName := s.Framework
-		if fwName == "" {
-			fwName, _ = config.DetectFramework(s.Path)
-		}
 		fwLabel := ""
 		if fw, ok := config.GetFramework(fwName); ok {
 			fwLabel = fw.Label

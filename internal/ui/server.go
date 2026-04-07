@@ -438,66 +438,47 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 			fpmRunning, _ = podman.ContainerRunning("lerd-php" + short + "-fpm")
 		}
 		fwName := s.Framework
-		if fwName == "" {
-			fwName, _ = config.DetectFramework(s.Path)
-		}
-		isLaravel := fwName == "laravel"
-		fw, hasFw := config.GetFramework(fwName)
+		fw, hasFw := config.GetFrameworkForDir(fwName, s.Path)
 
 		var queueStatus, stripeStatus, scheduleStatus, reverbStatus string
 		var stripeSecretSet, hasReverb, hasQueueWorker, hasScheduleWorker bool
 
-		// Stripe is Laravel-only
-		if isLaravel {
+		// Stripe: check if the framework defines stripe support (currently Laravel only by convention)
+		if cli.StripeSecretSet(s.Path) {
 			stripeStatus, _ = podman.UnitStatus("lerd-stripe-" + s.Name)
-			stripeSecretSet = cli.StripeSecretSet(s.Path)
+			stripeSecretSet = true
 		}
 
-		// queue/schedule/reverb: driven by framework worker definitions
+		// queue/schedule/reverb/horizon: driven by framework worker definitions
+		var horizonStatus string
+		var hasHorizon bool
 		if hasFw && fw.Workers != nil {
-			if _, ok := fw.Workers["queue"]; ok {
+			if fw.HasWorker("queue", s.Path) {
 				hasQueueWorker = true
 				queueStatus, _ = podman.UnitStatus("lerd-queue-" + s.Name)
 			}
-			if _, ok := fw.Workers["schedule"]; ok {
+			if fw.HasWorker("schedule", s.Path) {
 				hasScheduleWorker = true
 				scheduleStatus, _ = podman.UnitStatus("lerd-schedule-" + s.Name)
 			}
-			if _, ok := fw.Workers["reverb"]; ok {
-				// For Laravel, reverb toggle still requires the package/env to be present.
-				// For other frameworks, defining the worker is enough to show the toggle.
-				if isLaravel {
-					hasReverb = cli.SiteUsesReverb(s.Path)
-				} else {
-					hasReverb = true
-				}
-				if hasReverb {
-					reverbStatus, _ = podman.UnitStatus("lerd-reverb-" + s.Name)
-				}
+			if fw.HasWorker("reverb", s.Path) {
+				hasReverb = true
+				reverbStatus, _ = podman.UnitStatus("lerd-reverb-" + s.Name)
+			}
+			if fw.HasWorker("horizon", s.Path) {
+				hasHorizon = true
+				horizonStatus, _ = podman.UnitStatus("lerd-horizon-" + s.Name)
+				hasQueueWorker = false // Horizon manages queues; suppress the plain queue toggle
 			}
 		}
-		// For Laravel without reverb in workers map (shouldn't happen with built-in, but guard anyway)
-		if isLaravel && !hasReverb {
-			reverbStatus, _ = podman.UnitStatus("lerd-reverb-" + s.Name)
-			hasReverb = cli.SiteUsesReverb(s.Path)
-		}
 
-		// Horizon: auto-detected from composer.json; replaces the queue toggle.
-		var horizonStatus string
-		var hasHorizon bool
-		if isLaravel && cli.SiteHasHorizon(s.Path) {
-			hasHorizon = true
-			horizonStatus, _ = podman.UnitStatus("lerd-horizon-" + s.Name)
-			hasQueueWorker = false // Horizon manages queues; suppress the plain queue toggle
-		}
-
-		// Collect custom framework workers (non-builtin names)
+		// Collect framework workers that aren't the well-known ones handled above.
 		var fwWorkers []WorkerStatus
 		if hasFw && fw.Workers != nil {
 			names := make([]string, 0, len(fw.Workers))
 			for n, wDef := range fw.Workers {
 				switch n {
-				case "queue", "schedule", "reverb":
+				case "queue", "schedule", "reverb", "horizon":
 					continue
 				}
 				if wDef.Check != nil && !config.MatchesRule(s.Path, *wDef.Check) {
@@ -613,7 +594,7 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 			NodeVersion:        nodeVersion,
 			TLS:                s.Secured,
 			Framework:          s.Framework,
-			IsLaravel:          isLaravel,
+			IsLaravel:          fwName == "laravel",
 			FrameworkLabel:     frameworkLabel(fwName),
 			FPMRunning:         fpmRunning,
 			QueueRunning:       queueStatus == "active",
@@ -862,9 +843,6 @@ func handleServices(w http.ResponseWriter, _ *http.Request) {
 				continue
 			}
 			fwN := s.Framework
-			if fwN == "" {
-				fwN, _ = config.DetectFramework(s.Path)
-			}
 			fw2, ok2 := config.GetFramework(fwN)
 			if !ok2 || fw2.Workers == nil {
 				continue
@@ -1138,9 +1116,6 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				fwN3 := s.Framework
-				if fwN3 == "" {
-					fwN3, _ = config.DetectFramework(s.Path)
-				}
 				fw3, ok3 := config.GetFramework(fwN3)
 				if !ok3 || fw3.Workers == nil {
 					continue
@@ -1857,10 +1832,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			if len(parts) == 3 && (parts[2] == "start" || parts[2] == "stop") {
 				workerName := parts[1]
 				fwN := site.Framework
-				if fwN == "" {
-					fwN, _ = config.DetectFramework(site.Path)
-				}
-				fw, ok := config.GetFramework(fwN)
+				fw, ok := config.GetFrameworkForDir(fwN, site.Path)
 				if !ok || fw.Workers == nil {
 					writeJSON(w, SiteActionResponse{Error: "framework has no workers defined"})
 					return

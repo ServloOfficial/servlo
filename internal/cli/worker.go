@@ -5,9 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/envfile"
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	lerdSystemd "github.com/geodro/lerd/internal/systemd"
@@ -131,12 +133,10 @@ func resolveSiteAndFramework(cwd string) (*config.Site, *config.Framework, strin
 
 	fwName := site.Framework
 	if fwName == "" {
-		if detected, ok := config.DetectFramework(cwd); ok {
-			fwName = detected
-		}
+		return nil, nil, "", fmt.Errorf("site %q has no framework assigned — run 'lerd link' first", site.Name)
 	}
 
-	fw, ok := config.GetFramework(fwName)
+	fw, ok := config.GetFrameworkForDir(fwName, cwd)
 	if !ok {
 		return nil, nil, "", fmt.Errorf("site %q has no framework assigned — run 'lerd link' or 'lerd framework add'", site.Name)
 	}
@@ -170,7 +170,22 @@ func requireFrameworkWorker(cwd, workerName string) error {
 
 // WorkerStartForSite writes a systemd unit for the given framework worker and starts it.
 // The unit name is lerd-{workerName}-{siteName}.
+// If the worker has a Proxy config, the proxy port is auto-assigned and the
+// nginx vhost is regenerated to include the WebSocket/HTTP proxy block.
 func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w config.FrameworkWorker) error {
+	command := w.Command
+
+	// Handle proxy port assignment and command augmentation.
+	if w.Proxy != nil && w.Proxy.PortEnvKey != "" {
+		envPath := filepath.Join(sitePath, ".env")
+		port := envfile.ReadKey(envPath, w.Proxy.PortEnvKey)
+		if port == "" {
+			port = strconv.Itoa(assignWorkerProxyPort(sitePath, w.Proxy.PortEnvKey, w.Proxy.DefaultPort))
+			_ = envfile.ApplyUpdates(envPath, map[string]string{w.Proxy.PortEnvKey: port})
+		}
+		command = command + " --port=" + port
+	}
+
 	versionShort := strings.ReplaceAll(phpVersion, ".", "")
 	fpmUnit := "lerd-php" + versionShort + "-fpm"
 	container := "lerd-php" + versionShort + "-fpm"
@@ -198,7 +213,7 @@ ExecStart=podman exec -w %s %s %s
 
 [Install]
 WantedBy=default.target
-`, label, siteName, fpmUnit, fpmUnit, restart, sitePath, container, w.Command)
+`, label, siteName, fpmUnit, fpmUnit, restart, sitePath, container, command)
 
 	changed, err := lerdSystemd.WriteServiceIfChanged(unitName, unit)
 	if err != nil {
@@ -219,7 +234,23 @@ WantedBy=default.target
 
 	fmt.Printf("%s started for %s\n", label, siteName)
 	fmt.Printf("  Logs: journalctl --user -u %s -f\n", unitName)
+
+	// Regenerate nginx vhost if the worker has proxy config.
+	if w.Proxy != nil {
+		regenNginxVhost(siteName, sitePath)
+	}
+
 	return nil
+}
+
+// siteFrameworkName returns the saved framework name for the given site, or "".
+// Does not auto-detect — framework should already be set at link time.
+func siteFrameworkName(siteName string) string {
+	site, err := config.FindSite(siteName)
+	if err != nil {
+		return ""
+	}
+	return site.Framework
 }
 
 // WorkerStopForSite stops and removes the named worker unit for the given site.

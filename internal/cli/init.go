@@ -155,31 +155,28 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 	secured := defaults.Secured
 
 	// Detect available workers from the framework definition.
-	// If horizon is installed, show it instead of queue (they're mutually exclusive).
+	// Workers with ConflictsWith suppress conflicted workers (e.g. horizon suppresses queue).
 	framework, _ := resolveFramework(cwd)
-	hasHorizon := SiteHasHorizon(cwd)
-	hasReverb := SiteUsesReverb(cwd)
 	var workerOptions []string
-	if fw, ok := config.GetFramework(framework); ok && fw.Workers != nil {
-		for name, wDef := range fw.Workers {
-			// Skip workers whose check doesn't pass.
+	if fw, ok := config.GetFrameworkForDir(framework, cwd); ok && fw.Workers != nil {
+		// Build set of workers suppressed by conflict rules.
+		suppressed := map[string]bool{}
+		for _, wDef := range fw.Workers {
 			if wDef.Check != nil && !config.MatchesRule(cwd, *wDef.Check) {
 				continue
 			}
-			// Skip queue when horizon is installed — horizon manages queues.
-			if name == "queue" && hasHorizon {
+			for _, c := range wDef.ConflictsWith {
+				suppressed[c] = true
+			}
+		}
+		for name, wDef := range fw.Workers {
+			if wDef.Check != nil && !config.MatchesRule(cwd, *wDef.Check) {
 				continue
 			}
-			// Skip reverb when not configured.
-			if name == "reverb" && !hasReverb {
+			if suppressed[name] {
 				continue
 			}
 			workerOptions = append(workerOptions, name)
-		}
-		// Horizon is not in the framework workers map — it's auto-detected from
-		// composer.json. Add it explicitly when installed.
-		if hasHorizon {
-			workerOptions = append(workerOptions, "horizon")
 		}
 		sort.Strings(workerOptions)
 	}
@@ -237,12 +234,16 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 	selectedServices = append(selectedServices, dbChoice)
 	selectedServices = append(selectedServices, nonDBSelected...)
 
-	// For custom (non-built-in) frameworks, embed the definition so the project
-	// is fully portable — another machine can restore it from .lerd.yaml alone.
+	// Only embed the framework definition in .lerd.yaml for user-defined
+	// frameworks that aren't available from the store. Built-in (laravel) and
+	// store-installed frameworks can be fetched on any machine.
 	var frameworkDef *config.Framework
-	if framework != "" && framework != "laravel" {
-		if fw, ok := config.GetFramework(framework); ok {
-			frameworkDef = fw
+	if framework != "" {
+		info := config.GetFrameworkSource(framework)
+		if info == config.SourceUser {
+			if fw, ok := config.GetFramework(framework); ok {
+				frameworkDef = fw
+			}
 		}
 	}
 
@@ -287,14 +288,23 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 		services[i] = config.ProjectService{Name: name, Custom: loaded}
 	}
 
+	// Resolve framework version from the definition that was used.
+	frameworkVersion := ""
+	if frameworkDef != nil && frameworkDef.Version != "" {
+		frameworkVersion = frameworkDef.Version
+	} else if fw, ok := config.GetFrameworkForDir(framework, cwd); ok && fw.Version != "" {
+		frameworkVersion = fw.Version
+	}
+
 	return &config.ProjectConfig{
-		PHPVersion:   phpVersion,
-		NodeVersion:  nodeVersion,
-		Framework:    framework,
-		FrameworkDef: frameworkDef,
-		Secured:      secured,
-		Services:     services,
-		Workers:      selectedWorkers,
+		PHPVersion:       phpVersion,
+		NodeVersion:      nodeVersion,
+		Framework:        framework,
+		FrameworkVersion: frameworkVersion,
+		FrameworkDef:     frameworkDef,
+		Secured:          secured,
+		Services:         services,
+		Workers:          selectedWorkers,
 	}, nil
 }
 
