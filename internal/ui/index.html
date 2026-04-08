@@ -894,13 +894,13 @@
                     </button>
                     <svg x-show="appLogs.loading" class="animate-spin w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                   </div>
-                  <div class="flex-1 overflow-y-auto">
+                  <div x-ref="appLogScroll" class="flex-1 overflow-y-auto">
                     <template x-if="appLogs.entries.length === 0 && !appLogs.loading">
                       <div class="text-gray-400 dark:text-gray-600 italic text-xs p-4">No log entries found.</div>
                     </template>
-                    <template x-for="(entry, i) in appLogs.entries.filter(e => !appLogs.search || (e.message && e.message.toLowerCase().includes(appLogs.search.toLowerCase())) || (e.level && e.level.toLowerCase().includes(appLogs.search.toLowerCase())) || (e.detail && e.detail.toLowerCase().includes(appLogs.search.toLowerCase())) || (e.date && e.date.includes(appLogs.search)))" :key="i">
+                    <template x-for="(entry, i) in appLogs.entries.filter(e => !appLogs.search || (e.message && e.message.toLowerCase().includes(appLogs.search.toLowerCase())) || (e.level && e.level.toLowerCase().includes(appLogs.search.toLowerCase())) || (e.detail && e.detail.toLowerCase().includes(appLogs.search.toLowerCase())) || (e.date && e.date.includes(appLogs.search))).slice().reverse()" :key="i">
                       <div class="border-b border-gray-100 dark:border-lerd-border/50">
-                        <button @click="appLogs.expandedIdx = appLogs.expandedIdx === i ? -1 : i"
+                        <button @click="toggleAppLogEntry(i, $event)"
                           class="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors">
                           <span class="shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded leading-tight"
                             :class="{
@@ -2047,6 +2047,27 @@ function lerdApp() {
       } finally {
         this.appLogs.loading = false;
       }
+      // Match container/queue/etc. log panes: oldest at top, newest at bottom,
+      // pinned to the bottom on every update.
+      this.$nextTick(() => {
+        const el = this.$refs.appLogScroll;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    },
+
+    toggleAppLogEntry(i, ev) {
+      const wasExpanded = this.appLogs.expandedIdx === i;
+      this.appLogs.expandedIdx = wasExpanded ? -1 : i;
+      if (wasExpanded) return;
+      // Wait for x-collapse to finish animating, then scroll the row (header
+      // + expanded detail) fully into view. Without this, expanding the
+      // bottom-most entry leaves the detail panel below the viewport.
+      const row = ev && ev.currentTarget ? ev.currentTarget.parentElement : null;
+      if (!row) return;
+      setTimeout(() => {
+        if (this.appLogs.expandedIdx !== i) return;
+        row.scrollIntoView({ block: 'end', behavior: 'smooth' });
+      }, 220);
     },
 
     startAppLogPolling() {
