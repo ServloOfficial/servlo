@@ -11,6 +11,14 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.1] — 2026-04-08
+
+### Fixed
+
+- **`vendor_bins` / `vendor_run` missing from injected MCP skills** — the new vendor/bin tooling shipped in v1.7.0 was registered with the MCP server but absent from the skill content that `lerd mcp:inject` writes into `.claude/skills/lerd/SKILL.md` and `.junie/guidelines.md`, so AI assistants weren't told the tools existed. Both files now describe the tools with examples for pest, phpunit, pint, phpstan, and rector. Re-run `lerd mcp:inject` in existing projects to pick up the updated skill content.
+
+---
+
 ## [1.7.0] — 2026-04-08
 
 ### Added
