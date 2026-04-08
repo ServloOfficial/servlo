@@ -373,6 +373,26 @@ composer(args: ["dump-autoload"])
 composer(args: ["update", "laravel/framework"])
 ` + "```" + `
 
+### ` + bt + `vendor_bins` + bt + ` / ` + bt + `vendor_run` + bt + `
+Discover and execute composer-installed binaries from the project's ` + bt + `vendor/bin` + bt + ` directory inside the PHP-FPM container. Use ` + bt + `vendor_bins` + bt + ` first to see what tooling is available (pest, phpunit, pint, phpstan, rector, paratest, psalm, etc.), then ` + bt + `vendor_run` + bt + ` to invoke one. Both accept an optional ` + bt + `path` + bt + ` argument that defaults to the current site.
+
+Arguments:
+- ` + bt + `vendor_bins(path?)` + bt + ` — returns the sorted list of executables in ` + bt + `vendor/bin` + bt + `
+- ` + bt + `vendor_run(path?, bin, args?)` + bt + ` — runs ` + bt + `php vendor/bin/<bin> [args]` + bt + ` inside the FPM container; ` + bt + `bin` + bt + ` must be a plain filename, not a path
+
+Examples:
+` + "```" + `
+vendor_bins()                                      // list available tools
+vendor_run(bin: "pest")                            // run the full pest suite
+vendor_run(bin: "pest", args: ["--filter", "UserTest"])
+vendor_run(bin: "phpunit", args: ["--testsuite", "Feature"])
+vendor_run(bin: "pint", args: ["--test"])          // dry-run pint
+vendor_run(bin: "phpstan", args: ["analyse", "--memory-limit=2G"])
+vendor_run(bin: "rector", args: ["process", "--dry-run"])
+` + "```" + `
+
+Prefer ` + bt + `vendor_run` + bt + ` over ` + bt + `composer(args: ["exec", ...])` + bt + ` — it's faster, doesn't go through composer's plugin pipeline, and the same shortcut is available on the CLI as ` + bt + `lerd <bin>` + bt + ` (e.g. ` + bt + `lerd pest` + bt + `, ` + bt + `lerd pint` + bt + `).
+
 ### ` + bt + `node_install` + bt + ` / ` + bt + `node_uninstall` + bt + `
 Install or uninstall a Node.js version via fnm. Accepts a version number or alias:
 ` + "```" + `
@@ -881,6 +901,8 @@ This project runs on **lerd**, a Podman-based Laravel development environment. T
 | ` + bt + `artisan` + bt + ` | Run ` + bt + `php artisan` + bt + ` inside the PHP-FPM container (Laravel only) |
 | ` + bt + `console` + bt + ` | Run the framework's console command (e.g. ` + bt + `php bin/console` + bt + ` for Symfony) — non-Laravel frameworks with a ` + bt + `console` + bt + ` field |
 | ` + bt + `composer` + bt + ` | Run ` + bt + `composer` + bt + ` inside the PHP-FPM container |
+| ` + bt + `vendor_bins` + bt + ` | List composer-installed binaries available in the project's ` + bt + `vendor/bin` + bt + ` directory |
+| ` + bt + `vendor_run` + bt + ` | Run a binary from ` + bt + `vendor/bin` + bt + ` (pest, phpunit, pint, phpstan, rector, …) inside the PHP-FPM container |
 | ` + bt + `node_install` + bt + ` | Install a Node.js version via fnm (e.g. ` + bt + `"20"` + bt + `, ` + bt + `"lts"` + bt + `) |
 | ` + bt + `node_uninstall` + bt + ` | Uninstall a Node.js version via fnm |
 | ` + bt + `env_setup` + bt + ` | Configure ` + bt + `.env` + bt + ` for lerd: detects services, starts them, creates DB, generates APP_KEY |
@@ -938,6 +960,7 @@ This project runs on **lerd**, a Podman-based Laravel development environment. T
 
 - ` + bt + `path` + bt + ` argument is optional on most tools — defaults to the directory the AI assistant was opened in (cwd), then ` + bt + `LERD_SITE_PATH` + bt + ` if set; you can almost always omit it
 - ` + bt + `artisan` + bt + ` is Laravel-only; ` + bt + `console` + bt + ` is the equivalent for non-Laravel frameworks — both take ` + bt + `path` + bt + ` (absolute project root) and ` + bt + `args` + bt + ` (array)
+- ` + bt + `vendor_run` + bt + ` is the right way to invoke project tooling like pest, phpunit, pint, phpstan, rector — call ` + bt + `vendor_bins` + bt + ` first to discover what's installed, then ` + bt + `vendor_run(bin: "<name>", args: [...])` + bt + `; prefer it over ` + bt + `composer(args: ["exec", ...])` + bt + `
 - ` + bt + `tinker` + bt + ` must use ` + bt + `--execute=<code>` + bt + ` for non-interactive use
 - Built-in service hosts follow the pattern ` + bt + `lerd-<name>` + bt + ` (e.g. ` + bt + `lerd-mysql` + bt + `, ` + bt + `lerd-redis` + bt + `)
 - Default DB credentials: username ` + bt + `root` + bt + `, password ` + bt + `lerd` + bt + `
