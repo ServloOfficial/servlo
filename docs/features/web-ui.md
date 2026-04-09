@@ -72,10 +72,10 @@ Selecting an item opens its detail panel:
 - **Node.js cards** — show which sites use the version, with a remove button. The **Install Node.js version** entry has an inline form — enter a version number (e.g. `22`) and click **Install**, equivalent to `lerd node:install <version>`.
 - **Watcher card** — shows whether `lerd-watcher` is running; a Start button appears when stopped. Streams live watcher logs (DNS repair events, fsnotify errors, worktree timeouts).
 - **Autostart card** — enable or disable automatic start of all services at login.
-- **Lerd card** — shows the current version and a **Check for updates** button. When an update is available, the version number and a `lerd update` instruction are shown.
+- **Lerd card** — shows the current version and a **Check for updates** button. The status dot next to the entry is green when DNS, nginx, and the watcher are all running, red when any of them is down, and yellow when an update is available. When an update is available, an **Open terminal & update** button spawns the user's preferred terminal emulator with `lerd update` pre-filled (loopback only — the host needs to prompt for sudo). A small yellow dot also appears on the lerd logo in the left rail; clicking the logo jumps straight to this entry.
 
 The **Start** / **Stop** buttons in the System panel header start or stop all core services (DNS, nginx, and all PHP-FPM containers for versions that have active sites).
 
 ## Updates
 
-Shows the current version. When an update is available, a notice with the version number is shown alongside an instruction to run `lerd update` in a terminal (the update requires `sudo` for sysctl/sudoers steps and cannot run in the background).
+Shows the current version. When an update is available, the Lerd entry exposes an **Open terminal & update** button that launches your terminal emulator running `lerd update`. The update requires `sudo` for sysctl/sudoers steps and so needs an interactive terminal — the button is loopback-only and is hidden when the dashboard is reached over the LAN.
