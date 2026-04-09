@@ -126,6 +126,8 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/status", withCORS(handleStatus))
 	mux.HandleFunc("/api/sites", withCORS(handleSites))
 	mux.HandleFunc("/api/services", withCORS(handleServices))
+	mux.HandleFunc("/api/services/presets", withCORS(handleServicePresets))
+	mux.HandleFunc("/api/services/presets/", withCORS(handleServicePresetInstall))
 	mux.HandleFunc("/api/services/", withCORS(func(w http.ResponseWriter, r *http.Request) {
 		handleServiceAction(w, r)
 	}))
@@ -389,6 +391,10 @@ type SiteResponse struct {
 	Paused             bool                `json:"paused"`
 	Branch             string              `json:"branch"`
 	Worktrees          []WorktreeResponse  `json:"worktrees"`
+	// Services lists the service names this site uses, sourced from the
+	// project's .lerd.yaml. Used by the dashboard to render service badges
+	// on the site detail panel.
+	Services []string `json:"services,omitempty"`
 }
 
 func handleSites(w http.ResponseWriter, _ *http.Request) {
@@ -516,13 +522,25 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 			}
 		}
 
+		// Load .lerd.yaml once for both conflicting-domain detection and
+		// the services list rendered as badges in the site detail panel.
+		proj, projErr := config.LoadProjectConfig(s.Path)
+		var siteServices []string
+		if projErr == nil && proj != nil {
+			for _, ps := range proj.Services {
+				if ps.Name != "" {
+					siteServices = append(siteServices, ps.Name)
+				}
+			}
+		}
+
 		// Compute conflicting domains: ones declared in .lerd.yaml that weren't
 		// registered because another site on this machine already owns them.
 		// The check happens at link/auto-register time but the original list
 		// in .lerd.yaml is preserved on disk, so we surface the discrepancy
 		// here for the UI to render with a warning icon.
 		var conflicting []ConflictingDomain
-		if proj, projErr := config.LoadProjectConfig(s.Path); projErr == nil && proj != nil && len(proj.Domains) > 0 {
+		if projErr == nil && proj != nil && len(proj.Domains) > 0 {
 			gcfg, _ := config.LoadGlobal()
 			tld := ""
 			if gcfg != nil {
@@ -597,6 +615,7 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 			Paused:             s.Paused,
 			Branch:             mainBranch,
 			Worktrees:          worktreeResponses,
+			Services:           siteServices,
 		})
 	}
 	if sites == nil {
@@ -761,16 +780,17 @@ func handleServices(w http.ResponseWriter, _ *http.Request) {
 			}
 		}
 		services = append(services, ServiceResponse{
-			Name:        svc.Name,
-			Status:      status,
-			EnvVars:     envMap,
-			Dashboard:   svc.Dashboard,
-			Custom:      true,
-			SiteCount:   countSitesUsingService(svc.Name),
-			SiteDomains: sitesUsingService(svc.Name),
-			Pinned:      config.ServiceIsPinned(svc.Name),
-			Paused:      config.ServiceIsPaused(svc.Name),
-			DependsOn:   svc.DependsOn,
+			Name:          svc.Name,
+			Status:        status,
+			EnvVars:       envMap,
+			Dashboard:     svc.Dashboard,
+			ConnectionURL: svc.ConnectionURL,
+			Custom:        true,
+			SiteCount:     countSitesUsingService(svc.Name),
+			SiteDomains:   sitesUsingService(svc.Name),
+			Pinned:        config.ServiceIsPinned(svc.Name),
+			Paused:        config.ServiceIsPaused(svc.Name),
+			DependsOn:     svc.DependsOn,
 		})
 	}
 	for _, siteName := range listActiveQueueWorkers() {
@@ -852,6 +872,106 @@ func handleServices(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, services)
 }
 
+// PresetResponse describes a bundled service preset for the web UI.
+type PresetResponse struct {
+	Name           string                 `json:"name"`
+	Description    string                 `json:"description"`
+	Image          string                 `json:"image,omitempty"`
+	Dashboard      string                 `json:"dashboard,omitempty"`
+	DependsOn      []string               `json:"depends_on,omitempty"`
+	MissingDeps    []string               `json:"missing_deps,omitempty"`
+	Installed      bool                   `json:"installed"`
+	Versions       []config.PresetVersion `json:"versions,omitempty"`
+	DefaultVersion string                 `json:"default_version,omitempty"`
+	InstalledTags  []string               `json:"installed_tags,omitempty"`
+}
+
+// handleServicePresets returns the list of bundled presets and whether each is
+// already installed as a custom service.
+func handleServicePresets(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	presets, err := config.ListPresets()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	out := make([]PresetResponse, 0, len(presets))
+	for _, p := range presets {
+		var missing []string
+		var resolvedSvc *config.CustomService
+		if loaded, err := config.LoadPreset(p.Name); err == nil {
+			if svc, rerr := loaded.Resolve(""); rerr == nil {
+				resolvedSvc = svc
+				missing = cli.MissingPresetDependencies(svc)
+			}
+		}
+		// For single-version presets installed reflects "is the canonical
+		// service installed". For multi-version presets it reflects "are any
+		// version-suffixed instances installed", and InstalledTags lists them.
+		installed := false
+		var installedTags []string
+		if len(p.Versions) == 0 {
+			if _, err := config.LoadCustomService(p.Name); err == nil {
+				installed = true
+			}
+		} else {
+			for _, v := range p.Versions {
+				name := p.Name + "-" + config.SanitizeImageTag(v.Tag)
+				if _, err := config.LoadCustomService(name); err == nil {
+					installed = true
+					installedTags = append(installedTags, v.Tag)
+				}
+			}
+		}
+		image := p.Image
+		if resolvedSvc != nil && len(p.Versions) == 0 {
+			image = resolvedSvc.Image
+		}
+		out = append(out, PresetResponse{
+			Name:           p.Name,
+			Description:    p.Description,
+			Image:          image,
+			Dashboard:      p.Dashboard,
+			DependsOn:      p.DependsOn,
+			MissingDeps:    missing,
+			Installed:      installed,
+			Versions:       p.Versions,
+			DefaultVersion: p.DefaultVersion,
+			InstalledTags:  installedTags,
+		})
+	}
+	writeJSON(w, out)
+}
+
+// handleServicePresetInstall installs a bundled preset by name.
+func handleServicePresetInstall(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	name := strings.TrimPrefix(r.URL.Path, "/api/services/presets/")
+	name = strings.Trim(name, "/")
+	if name == "" || strings.Contains(name, "/") {
+		http.NotFound(w, r)
+		return
+	}
+	version := r.URL.Query().Get("version")
+	svc, err := cli.InstallPresetByName(name, version)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, map[string]any{
+		"ok":         true,
+		"name":       svc.Name,
+		"dashboard":  svc.Dashboard,
+		"depends_on": svc.DependsOn,
+	})
+}
+
 // ServiceActionResponse wraps the service state plus any error details.
 type ServiceActionResponse struct {
 	ServiceResponse
@@ -880,8 +1000,15 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If the name matches a registered custom service, skip the prefix-based
+	// per-site routes below — otherwise a custom service named e.g. "stripe-mock"
+	// would be routed as a per-site stripe listener and fail with
+	// "unsupported action for stripe listener".
+	_, customLoadErr := config.LoadCustomService(name)
+	isCustom := customLoadErr == nil
+
 	// Handle queue worker services (queue-{sitename})
-	if strings.HasPrefix(name, "queue-") {
+	if !isCustom && strings.HasPrefix(name, "queue-") {
 		siteName := strings.TrimPrefix(name, "queue-")
 		if action == "stop" {
 			opErr := podman.StopUnit("lerd-queue-" + siteName)
@@ -901,7 +1028,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Handle stripe listener services (stripe-{sitename})
-	if strings.HasPrefix(name, "stripe-") {
+	if !isCustom && strings.HasPrefix(name, "stripe-") {
 		siteName := strings.TrimPrefix(name, "stripe-")
 		if action == "stop" {
 			opErr := cli.StripeStopForSite(siteName)
@@ -921,7 +1048,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Handle schedule worker services (schedule-{sitename})
-	if strings.HasPrefix(name, "schedule-") {
+	if !isCustom && strings.HasPrefix(name, "schedule-") {
 		siteName := strings.TrimPrefix(name, "schedule-")
 		if action == "stop" {
 			opErr := cli.ScheduleStopForSite(siteName)
@@ -941,7 +1068,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Handle horizon worker services (horizon-{sitename})
-	if strings.HasPrefix(name, "horizon-") {
+	if !isCustom && strings.HasPrefix(name, "horizon-") {
 		siteName := strings.TrimPrefix(name, "horizon-")
 		if action == "stop" {
 			opErr := cli.HorizonStopForSite(siteName)
@@ -961,7 +1088,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Handle reverb server services (reverb-{sitename})
-	if strings.HasPrefix(name, "reverb-") {
+	if !isCustom && strings.HasPrefix(name, "reverb-") {
 		siteName := strings.TrimPrefix(name, "reverb-")
 		if action == "stop" {
 			opErr := cli.ReverbStopForSite(siteName)
@@ -1059,6 +1186,21 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, resp)
 			return
 		}
+		// Bring every declared dependency up first. Without this, starting
+		// mongo-express from the dashboard would leave mongo stopped and the
+		// container would fail to connect.
+		if !isBuiltin {
+			if depErr := cli.StartServiceDependencies(customSvc); depErr != nil {
+				resp := ServiceActionResponse{
+					ServiceResponse: buildServiceResponse(name),
+					OK:              false,
+					Error:           depErr.Error(),
+					Logs:            serviceRecentLogs(unit),
+				}
+				writeJSON(w, resp)
+				return
+			}
+		}
 		// Retry to handle Quadlet generator latency after daemon-reload.
 		for attempt := range 5 {
 			opErr = podman.StartUnit(unit)
@@ -1070,12 +1212,21 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 		if opErr == nil {
 			_ = config.SetServicePaused(name, false)
 			_ = config.SetServiceManuallyStarted(name, true)
+			cli.RegenerateFamilyConsumersForService(name)
 		}
 	case "stop":
+		// Stop any custom services that depend on this one before stopping
+		// it, mirroring the CLI's `lerd service stop` behaviour. Otherwise
+		// stopping mysql leaves phpmyadmin running with a dead backend (and
+		// the same for postgres+pgadmin, mongo+mongo-express).
+		cli.StopServiceAndDependents(name)
+		// Cover the parent itself in case the recursive helper short-circuited
+		// (e.g. unit was reported inactive but the user explicitly clicked stop).
 		opErr = podman.StopUnit(unit)
 		if opErr == nil {
 			_ = config.SetServicePaused(name, true)
 			_ = config.SetServiceManuallyStarted(name, false)
+			cli.RegenerateFamilyConsumersForService(name)
 		}
 	case "remove":
 		if isBuiltin {
