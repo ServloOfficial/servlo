@@ -56,9 +56,10 @@
   ════════════════════════════════════════════ -->
   <aside class="hidden md:flex flex-col items-center w-14 shrink-0 bg-white dark:bg-lerd-card border-r border-gray-200 dark:border-lerd-border py-3 z-20">
     <!-- Logo -->
-    <div class="mb-4 flex items-center justify-center">
+    <button @click="setTab('system'); selectSystem('lerd')" class="mb-4 flex items-center justify-center relative" :title="version.hasUpdate ? 'Update available' : 'Lerd'">
       <img src="/icons/icon.svg" class="w-7 h-7 rounded-lg" alt="Lerd">
-    </div>
+      <span x-show="version.hasUpdate" class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-400 ring-2 ring-white dark:ring-lerd-card"></span>
+    </button>
 
     <!-- Nav icons -->
     <div class="flex flex-col gap-1">
@@ -305,7 +306,12 @@
         <button @click="selectSystem('lerd')"
           class="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left transition-colors border-t border-gray-100 dark:border-lerd-border"
           :class="selectedSystem==='lerd' ? 'bg-lerd-red/10 text-lerd-red' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.03]'">
-          <span class="w-2 h-2 rounded-full shrink-0" :class="version.hasUpdate ? 'bg-yellow-400' : 'bg-gray-300 dark:bg-gray-600'"></span>
+          <span class="w-2 h-2 rounded-full shrink-0" :class="{
+            'bg-emerald-500': lerdStatusColor === 'green',
+            'bg-yellow-400': lerdStatusColor === 'yellow',
+            'bg-red-500': lerdStatusColor === 'red',
+            'bg-gray-300 dark:bg-gray-600': lerdStatusColor === 'gray',
+          }"></span>
           <span class="font-medium flex-1">Lerd</span>
           <span x-show="version.hasUpdate" class="ml-auto text-xs font-medium text-yellow-600 dark:text-yellow-400">update</span>
         </button>
@@ -475,7 +481,12 @@
             <svg class="w-4 h-4 text-gray-300 dark:text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
           </button>
           <button @click="selectSystem('lerd')" class="w-full flex items-center gap-2.5 px-4 py-3.5 text-sm text-left transition-colors border-t border-gray-100 dark:border-lerd-border" :class="selectedSystem==='lerd' ? 'bg-lerd-red/5 text-lerd-red' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.03]'">
-            <span class="w-2 h-2 rounded-full shrink-0" :class="version.hasUpdate ? 'bg-yellow-400' : 'bg-gray-300 dark:bg-gray-600'"></span>
+            <span class="w-2 h-2 rounded-full shrink-0" :class="{
+              'bg-emerald-500': lerdStatusColor === 'green',
+              'bg-yellow-400': lerdStatusColor === 'yellow',
+              'bg-red-500': lerdStatusColor === 'red',
+              'bg-gray-300 dark:bg-gray-600': lerdStatusColor === 'gray',
+            }"></span>
             <span class="font-medium flex-1">Lerd</span>
             <span x-show="version.hasUpdate" class="text-xs font-medium text-yellow-600 dark:text-yellow-400 mr-1">update</span>
             <svg class="w-4 h-4 text-gray-300 dark:text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
@@ -1569,8 +1580,19 @@
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
                         <span x-text="version.latest + ' available'"></span>
                       </span>
-                      <code class="text-xs bg-gray-100 dark:bg-white/10 px-2 py-1 rounded font-mono text-gray-700 dark:text-gray-300">lerd update</code>
                     </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                      Lerd updates by re-running its installer, which needs an interactive terminal so it can prompt for sudo and show the download progress. Click below to open one with the update command pre-filled, or run <code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">lerd update</code> in any terminal yourself.
+                    </p>
+                    <div x-show="accessMode.loopback" class="flex items-center gap-2">
+                      <button @click="openUpdateTerminal()" :disabled="updateTerminal.loading"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 disabled:opacity-50 transition-colors">
+                        <svg x-show="updateTerminal.loading" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                        <svg x-show="!updateTerminal.loading" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span x-text="updateTerminal.loading ? 'Opening…' : 'Open terminal & update'"></span>
+                      </button>
+                    </div>
+                    <p x-show="updateTerminal.error" class="text-xs text-red-500" x-text="updateTerminal.error"></p>
                     <template x-if="version.changelog">
                       <div>
                         <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">What's new</p>
@@ -1947,6 +1969,7 @@ function lerdApp() {
       checking: false,
       changelog: '',
     },
+    updateTerminal: { loading: false, error: '' },
     remoteControl: { enabled: false, username: '', loading: false, error: '' },
     lanExposure: { exposed: false, lanIP: '', loading: false, error: '', justExposed: false, setupCode: '', setupCurl: '', setupExpiresIn: '', setupLoading: false, setupError: '', setupCopied: false, progressSteps: [] },
     remoteControlModal: { open: false, username: '', password: '', loading: false, error: '' },
@@ -2352,6 +2375,22 @@ function lerdApp() {
         this.remoteControl.error = e.message || 'Failed to disable remote control';
       } finally {
         this.remoteControl.loading = false;
+      }
+    },
+
+    async openUpdateTerminal() {
+      this.updateTerminal.loading = true;
+      this.updateTerminal.error = '';
+      try {
+        const res = await fetch('/api/lerd/update-terminal', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!data.ok) {
+          this.updateTerminal.error = data.error || 'Failed to open terminal';
+        }
+      } catch (e) {
+        this.updateTerminal.error = e.message || 'Failed to open terminal';
+      } finally {
+        this.updateTerminal.loading = false;
       }
     },
 
@@ -3750,6 +3789,18 @@ function lerdApp() {
       return !!(this.systemStatus.dns?.ok &&
         this.systemStatus.nginx?.running &&
         (this.systemStatus.php_fpms || []).every(f => f.running || this.phpSiteCount(f.version) === 0));
+    },
+
+    // Overall lerd health for the "Lerd" entry dot in the System list.
+    // red wins over yellow because a broken core is more urgent than an update.
+    get lerdStatusColor() {
+      if (this.statusLoading || !this.systemStatus || Object.keys(this.systemStatus).length === 0) return 'gray';
+      const dnsOk = !!(this.systemStatus.dns && this.systemStatus.dns.ok);
+      const nginxOk = !!(this.systemStatus.nginx && this.systemStatus.nginx.running);
+      const watcherOk = !!this.systemStatus.watcher_running;
+      if (!dnsOk || !nginxOk || !watcherOk) return 'red';
+      if (this.version.hasUpdate) return 'yellow';
+      return 'green';
     },
 
     async lerdStart() {

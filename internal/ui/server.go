@@ -158,6 +158,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/lerd/start", withCORS(handleLerdStart))
 	mux.HandleFunc("/api/lerd/stop", withCORS(handleLerdStop))
 	mux.HandleFunc("/api/lerd/quit", withCORS(handleLerdQuit))
+	mux.HandleFunc("/api/lerd/update-terminal", withCORS(handleLerdUpdateTerminal))
 	mux.HandleFunc("/api/remote-control", withCORS(handleRemoteControl))
 	mux.HandleFunc("/api/access-mode", withCORS(handleAccessMode))
 	mux.HandleFunc("/api/lan/status", withCORS(handleLANStatus))
@@ -2119,7 +2120,7 @@ type SettingsResponse struct {
 
 func handleSettings(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, SettingsResponse{
-		AutostartOnLogin: lerdSystemd.IsServiceEnabled("lerd-autostart"),
+		AutostartOnLogin: lerdSystemd.IsAutostartEnabled(),
 	})
 }
 
@@ -2136,25 +2137,9 @@ func handleSettingsAutostart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.Enabled {
-		content, err := lerdSystemd.GetUnit("lerd-autostart")
-		if err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-			return
-		}
-		if err := lerdSystemd.WriteService("lerd-autostart", content); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-			return
-		}
-		if err := lerdSystemd.EnableService("lerd-autostart"); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-			return
-		}
-	} else {
-		if err := lerdSystemd.DisableService("lerd-autostart"); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-			return
-		}
+	if err := cli.ApplyAutostart(!body.Enabled); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "autostart_on_login": body.Enabled})
 }
@@ -2194,6 +2179,61 @@ func handleLerdQuit(w http.ResponseWriter, r *http.Request) {
 		f.Flush()
 	}
 	go cli.RunQuit() //nolint:errcheck
+}
+
+// handleLerdUpdateTerminal opens the user's terminal emulator running
+// `lerd update`, with a "press Enter to close" tail so the user can read
+// the output. Loopback-only — listed in loopbackOnlyRoutes.
+func handleLerdUpdateTerminal(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	script := `lerd update; echo; read -rp "Press Enter to close..."`
+	if err := openTerminalCommand(script); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+// openTerminalCommand opens the user's terminal emulator and runs the given
+// shell script in it. Mirrors openTerminalAt's candidate list — the two
+// could merge later but the arg shapes diverge enough that keeping them
+// separate is clearer for now.
+func openTerminalCommand(script string) error {
+	type termCmd struct {
+		bin  string
+		args []string
+	}
+	combined := "sh -c " + shQuote(script)
+	candidates := []termCmd{
+		{"kitty", []string{"sh", "-c", script}},
+		{"foot", []string{"sh", "-c", script}},
+		{"alacritty", []string{"-e", "sh", "-c", script}},
+		{"wezterm", []string{"start", "--", "sh", "-c", script}},
+		{"ghostty", []string{"-e", combined}},
+		{"konsole", []string{"-e", "sh", "-c", script}},
+		{"gnome-terminal", []string{"--", "sh", "-c", script}},
+		{"xfce4-terminal", []string{"-e", combined}},
+		{"tilix", []string{"-e", combined}},
+		{"terminator", []string{"-e", combined}},
+		{"xterm", []string{"-e", "sh", "-c", script}},
+	}
+	for _, t := range candidates {
+		bin, err := exec.LookPath(t.bin)
+		if err != nil {
+			continue
+		}
+		return exec.Command(bin, t.args...).Start()
+	}
+	return fmt.Errorf("no terminal emulator found; set $TERMINAL or install kitty, foot, alacritty, wezterm, ghostty, konsole, or gnome-terminal")
+}
+
+// shQuote wraps s in single quotes, escaping any embedded single quotes
+// using the standard '\” dance so the result is safe for /bin/sh -c.
+func shQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 func handleXdebugAction(w http.ResponseWriter, r *http.Request) {
