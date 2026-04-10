@@ -226,7 +226,7 @@ func tryPullBaseImage(version string, w io.Writer) string {
 		defer os.Remove(tmpAuth.Name())
 	}
 
-	args := []string{"pull"}
+	args := []string{"pull", "--policy=always"}
 	if tmpAuth != nil {
 		args = append(args, "--authfile="+tmpAuth.Name())
 	}
@@ -270,6 +270,9 @@ func buildFPMImage(version string, force, local bool, customExts []string, w io.
 			containerfile = "FROM " + baseRef + "\n" +
 				buildCustomExtBlock(customExts) +
 				mkcertCABlock(tmp)
+			if force {
+				buildArgs = append(buildArgs, "--no-cache")
+			}
 			goto build
 		}
 	}
