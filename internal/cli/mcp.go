@@ -18,7 +18,7 @@ func NewMCPCmd() *cobra.Command {
 		Use:   "mcp",
 		Short: "Start the lerd MCP server (JSON-RPC 2.0 over stdio)",
 		Long: `Starts a Model Context Protocol server that allows AI assistants
-(Claude Code, JetBrains Junie, etc.) to manage lerd sites, run artisan
+(Claude Code, Cursor, JetBrains Junie, etc.) to manage lerd sites, run artisan
 commands, and control services.
 
 This command is normally invoked automatically by the AI assistant via
@@ -38,8 +38,10 @@ func NewMCPInjectCmd() *cobra.Command {
 		Short: "Inject lerd MCP config and AI skill files into a project",
 		Long: `Writes the following files into the target project directory:
 
-  .mcp.json                    MCP server config for Claude Code
+  .mcp.json                     MCP server config for Claude Code
   .claude/skills/lerd/SKILL.md  Claude Code skill (lerd tools reference)
+  .cursor/mcp.json              MCP server config for Cursor
+  .cursor/rules/lerd.mdc        Cursor rules file (lerd tools reference)
   .junie/mcp/mcp.json           MCP server config for JetBrains Junie
 
 Run this from a Laravel project root, or use --path to specify a directory.`,
@@ -79,6 +81,16 @@ func runMCPInject(targetPath string) error {
 	rel1 := ".mcp.json"
 	fmt.Printf("  updated %s\n", rel1)
 
+	// .cursor/mcp.json — Cursor
+	cursorPath := filepath.Join(abs, ".cursor", "mcp.json")
+	if err := os.MkdirAll(filepath.Dir(cursorPath), 0755); err != nil {
+		return fmt.Errorf("creating .cursor: %w", err)
+	}
+	if err := mergeMCPServersJSON(cursorPath, lerdEntry); err != nil {
+		return err
+	}
+	fmt.Printf("  updated .cursor/mcp.json\n")
+
 	// .ai/mcp/mcp.json — same mcpServers format (Windsurf and others)
 	aiPath := filepath.Join(abs, ".ai", "mcp", "mcp.json")
 	if err := os.MkdirAll(filepath.Dir(aiPath), 0755); err != nil {
@@ -109,6 +121,16 @@ func runMCPInject(targetPath string) error {
 	}
 	fmt.Printf("  wrote   .claude/skills/lerd/SKILL.md\n")
 
+	// .cursor/rules/lerd.mdc — Cursor rules file (always overwrite, we own it)
+	cursorRulesPath := filepath.Join(abs, ".cursor", "rules", "lerd.mdc")
+	if err := os.MkdirAll(filepath.Dir(cursorRulesPath), 0755); err != nil {
+		return fmt.Errorf("creating .cursor/rules: %w", err)
+	}
+	if err := os.WriteFile(cursorRulesPath, []byte(cursorRulesContent), 0644); err != nil {
+		return fmt.Errorf("writing lerd.mdc: %w", err)
+	}
+	fmt.Printf("  wrote   .cursor/rules/lerd.mdc\n")
+
 	// .junie/guidelines.md — merge our section (Junie's equivalent of Claude skills)
 	guidelinesPath := filepath.Join(abs, ".junie", "guidelines.md")
 	if err := mergeJunieGuidelines(guidelinesPath, junieGuidelinesSection); err != nil {
@@ -133,6 +155,7 @@ no LERD_SITE_PATH configuration needed.
 
 This command updates:
   claude mcp add --scope user   Claude Code user-scope MCP registration
+  ~/.cursor/mcp.json            Cursor global MCP config
   ~/.ai/mcp/mcp.json            Windsurf global MCP config
   ~/.junie/mcp/mcp.json         JetBrains Junie global MCP config`,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -167,6 +190,16 @@ func RunMCPEnableGlobal() error {
 	if err != nil {
 		return err
 	}
+
+	// Cursor global.
+	cursorPath := filepath.Join(home, ".cursor", "mcp.json")
+	if err := os.MkdirAll(filepath.Dir(cursorPath), 0755); err != nil {
+		return fmt.Errorf("creating ~/.cursor: %w", err)
+	}
+	if err := mergeMCPServersJSON(cursorPath, lerdEntry); err != nil {
+		return err
+	}
+	fmt.Println("  updated ~/.cursor/mcp.json")
 
 	// Windsurf global.
 	aiPath := filepath.Join(home, ".ai", "mcp", "mcp.json")
@@ -1058,3 +1091,11 @@ This project runs on **lerd**, a Podman-based Laravel development environment. T
 - ` + bt + `db_create` + bt + ` always creates both ` + bt + `<name>` + bt + ` and ` + bt + `<name>_testing` + bt + ` databases; safe to call if they already exist
 - ` + bt + `park` + bt + ` auto-registers all PHP subdirectories as sites in one call; ` + bt + `unpark` + bt + ` removes them all — project files are NOT deleted
 `
+
+// cursorRulesContent is the Cursor rules file written to .cursor/rules/lerd.mdc.
+const cursorRulesContent = `---
+description: Lerd local PHP development environment — use the lerd MCP tools to manage sites, services, workers, and PHP/Node runtimes.
+globs:
+alwaysApply: true
+---
+` + junieGuidelinesSection
