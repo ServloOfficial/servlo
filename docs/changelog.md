@@ -11,6 +11,14 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.9.4] — 2026-04-10
+
+### Fixed
+
+- **Extra volume mounts lost after install/update** — `lerd install` rewrote nginx and service quadlets from raw templates, dropping extra volume mounts for projects outside `$HOME`. Mounts now survive install and update cycles.
+
+---
+
 ## [1.9.3] — 2026-04-10
 
 ### Fixed
