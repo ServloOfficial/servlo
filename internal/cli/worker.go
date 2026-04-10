@@ -470,4 +470,3 @@ func WorkerStopForSite(siteName, workerName string) error {
 	fmt.Printf("%s stopped for %s\n", label, siteName)
 	return nil
 }
-
