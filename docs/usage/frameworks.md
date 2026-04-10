@@ -122,6 +122,56 @@ workers:
     restart: always
 ```
 
+### Managing custom workers
+
+Use `lerd worker add` to add project-specific or global custom workers without manually editing YAML:
+
+```bash
+# Add a project-specific worker (saved to .lerd.yaml)
+lerd worker add pulse --command "php artisan pulse:work" --label "Pulse" --check-composer laravel/pulse
+
+# Add a worker that conflicts with another (stops it on start, hides it in UI)
+lerd worker add custom-queue --command "php artisan queue:work --queue=emails" --conflicts-with queue
+
+# Add a global worker (saved to ~/.config/lerd/frameworks/<name>.yaml)
+lerd worker add pulse --command "php artisan pulse:work" --global
+
+# Remove a custom worker (stops it if running)
+lerd worker remove pulse
+lerd worker remove pulse --global
+```
+
+Project workers (`.lerd.yaml`) apply to a single project and are committed to git. Global workers (user overlay) apply to all projects using that framework. Both survive framework store updates.
+
+The resulting `.lerd.yaml` looks like:
+
+```yaml
+framework: laravel
+custom_workers:
+  pulse:
+    label: Pulse
+    command: php artisan pulse:work
+    check:
+      composer: laravel/pulse
+  custom-queue:
+    command: php artisan queue:work --queue=emails
+    conflicts_with:
+      - queue
+```
+
+After adding, start the worker with `lerd worker start pulse`.
+
+When running `lerd init --fresh`, existing custom workers are shown in a multi-select step before the workers step. Deselecting a custom worker removes it from `.lerd.yaml` and excludes it from the workers selection. If the removed worker had `conflicts_with`, those workers become available again.
+
+### Orphaned workers
+
+A worker becomes orphaned when its systemd unit is still running but its definition has been removed from `.lerd.yaml` (e.g. after a `git pull` or manual edit). Orphaned workers are detected and surfaced in several places:
+
+- **`lerd worker list`** — shows orphaned workers with a stop hint
+- **`lerd worker stop <name>`** — can stop orphaned workers even without a definition
+- **`lerd setup`** — offers orphaned workers as pre-selected stop steps before framework worker starts
+- **UI** — the stop button works for orphaned workers directly
+
 ### Version resolution
 
 When loading a framework definition for a project, the version is resolved in order:
@@ -194,14 +244,14 @@ workers:
       composer: laravel/horizon
 ```
 
-**Conflict resolution** — Workers can declare conflicts. When a conflicting worker starts, the other is stopped automatically:
+**Conflict resolution** — Workers can declare conflicts. When a conflicting worker starts, the other is stopped automatically and hidden from the UI:
 
 ```yaml
 workers:
   horizon:
     command: php artisan horizon
     conflicts_with:
-      - queue      # stops queue before starting horizon
+      - queue      # stops queue before starting horizon; hides queue toggle in UI
 ```
 
 **WebSocket/HTTP proxy** — Workers that need an nginx proxy block define a `proxy` config. Lerd auto-assigns a collision-free port and regenerates the nginx vhost:

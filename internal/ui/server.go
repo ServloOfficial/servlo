@@ -449,23 +449,38 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 			stripeSecretSet = true
 		}
 
+		// Build a set of workers suppressed by a running worker's ConflictsWith.
+		suppressed := make(map[string]bool)
+		if hasFw && fw.Workers != nil {
+			for wn, wDef := range fw.Workers {
+				if len(wDef.ConflictsWith) == 0 {
+					continue
+				}
+				if st, _ := podman.UnitStatus("lerd-" + wn + "-" + s.Name); st == "active" {
+					for _, c := range wDef.ConflictsWith {
+						suppressed[c] = true
+					}
+				}
+			}
+		}
+
 		// queue/schedule/reverb/horizon: driven by framework worker definitions
 		var horizonStatus string
 		var hasHorizon bool
 		if hasFw && fw.Workers != nil {
-			if fw.HasWorker("queue", s.Path) {
+			if fw.HasWorker("queue", s.Path) && !suppressed["queue"] {
 				hasQueueWorker = true
 				queueStatus, _ = podman.UnitStatus("lerd-queue-" + s.Name)
 			}
-			if fw.HasWorker("schedule", s.Path) {
+			if fw.HasWorker("schedule", s.Path) && !suppressed["schedule"] {
 				hasScheduleWorker = true
 				scheduleStatus, _ = podman.UnitStatus("lerd-schedule-" + s.Name)
 			}
-			if fw.HasWorker("reverb", s.Path) {
+			if fw.HasWorker("reverb", s.Path) && !suppressed["reverb"] {
 				hasReverb = true
 				reverbStatus, _ = podman.UnitStatus("lerd-reverb-" + s.Name)
 			}
-			if fw.HasWorker("horizon", s.Path) {
+			if fw.HasWorker("horizon", s.Path) && !suppressed["horizon"] {
 				hasHorizon = true
 				horizonStatus, _ = podman.UnitStatus("lerd-horizon-" + s.Name)
 				hasQueueWorker = false // Horizon manages queues; suppress the plain queue toggle
@@ -473,6 +488,7 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 		}
 
 		// Collect framework workers that aren't the well-known ones handled above.
+
 		var fwWorkers []WorkerStatus
 		if hasFw && fw.Workers != nil {
 			names := make([]string, 0, len(fw.Workers))
@@ -482,6 +498,9 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 					continue
 				}
 				if wDef.Check != nil && !config.MatchesRule(s.Path, *wDef.Check) {
+					continue
+				}
+				if suppressed[n] {
 					continue
 				}
 				names = append(names, n)
@@ -1834,30 +1853,31 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			parts := strings.SplitN(action, ":", 3)
 			if len(parts) == 3 && (parts[2] == "start" || parts[2] == "stop") {
 				workerName := parts[1]
-				fwN := site.Framework
-				fw, ok := config.GetFrameworkForDir(fwN, site.Path)
-				if !ok || fw.Workers == nil {
-					writeJSON(w, SiteActionResponse{Error: "framework has no workers defined"})
-					return
-				}
-				worker, ok := fw.Workers[workerName]
-				if !ok {
-					writeJSON(w, SiteActionResponse{Error: "worker " + workerName + " not defined for this framework"})
-					return
-				}
-				phpVersion := site.PHPVersion
-				if detected, err := phpPkg.DetectVersion(site.Path); err == nil && detected != "" {
-					phpVersion = detected
-				}
-				if parts[2] == "start" {
-					go cli.WorkerStartForSite(site.Name, site.Path, phpVersion, workerName, worker) //nolint:errcheck
-					go syncLerdYAMLWorkersDelayed(site)
-				} else {
+				if parts[2] == "stop" {
+					// Allow stopping orphaned workers that have no definition.
 					if err := cli.WorkerStopForSite(site.Name, workerName); err != nil {
 						writeJSON(w, SiteActionResponse{Error: err.Error()})
 						return
 					}
 					syncLerdYAMLWorkers(site)
+				} else {
+					fwN := site.Framework
+					fw, ok := config.GetFrameworkForDir(fwN, site.Path)
+					if !ok || fw.Workers == nil {
+						writeJSON(w, SiteActionResponse{Error: "framework has no workers defined"})
+						return
+					}
+					worker, ok := fw.Workers[workerName]
+					if !ok {
+						writeJSON(w, SiteActionResponse{Error: "worker " + workerName + " not defined for this framework"})
+						return
+					}
+					phpVersion := site.PHPVersion
+					if detected, err := phpPkg.DetectVersion(site.Path); err == nil && detected != "" {
+						phpVersion = detected
+					}
+					go cli.WorkerStartForSite(site.Name, site.Path, phpVersion, workerName, worker) //nolint:errcheck
+					go syncLerdYAMLWorkersDelayed(site)
 				}
 				writeJSON(w, SiteActionResponse{OK: true})
 				return

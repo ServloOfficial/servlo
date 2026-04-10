@@ -260,6 +260,13 @@ func collectRunningWorkers(site *config.Site) []string {
 		active = append(active, "stripe")
 	}
 
+	// Detect orphaned workers — running units with no framework definition.
+	known := make(map[string]bool, len(active))
+	for _, a := range active {
+		known[a] = true
+	}
+	active = append(active, lerdSystemd.FindOrphanedWorkers(site.Name, known)...)
+
 	return active
 }
 

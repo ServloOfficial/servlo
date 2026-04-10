@@ -165,34 +165,22 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 	nodeVersion := defaults.NodeVersion
 	secured := defaults.Secured
 
-	// Detect available workers from the framework definition.
-	// Workers with ConflictsWith suppress conflicted workers (e.g. horizon suppresses queue).
-	var workerOptions []string
-	if fw, ok := config.GetFrameworkForDir(framework, cwd); ok && fw.Workers != nil {
-		// Build set of workers suppressed by conflict rules.
-		suppressed := map[string]bool{}
-		for _, wDef := range fw.Workers {
-			if wDef.Check != nil && !config.MatchesRule(cwd, *wDef.Check) {
-				continue
-			}
-			for _, c := range wDef.ConflictsWith {
-				suppressed[c] = true
-			}
-		}
-		for name, wDef := range fw.Workers {
-			if wDef.Check != nil && !config.MatchesRule(cwd, *wDef.Check) {
-				continue
-			}
-			if suppressed[name] {
-				continue
-			}
-			workerOptions = append(workerOptions, name)
-		}
-		sort.Strings(workerOptions)
-	}
 	selectedWorkers := defaults.Workers
 	if len(selectedWorkers) == 0 {
 		selectedWorkers = []string{}
+	}
+
+	// If there are custom workers from the existing config, let the user
+	// choose which to keep before the workers step.
+	var customWorkerNames []string
+	var keepCustomWorkers []string
+	if len(defaults.CustomWorkers) > 0 {
+		for name := range defaults.CustomWorkers {
+			customWorkerNames = append(customWorkerNames, name)
+		}
+		sort.Strings(customWorkerNames)
+		keepCustomWorkers = make([]string, len(customWorkerNames))
+		copy(keepCustomWorkers, customWorkerNames)
 	}
 
 	formGroups := []*huh.Group{
@@ -224,18 +212,93 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 		),
 	}
 
-	if len(workerOptions) > 0 {
+	if len(customWorkerNames) > 0 {
 		formGroups = append(formGroups, huh.NewGroup(
 			huh.NewMultiSelect[string]().
-				Title("Workers").
-				Description("Auto-start when linking").
-				Options(huh.NewOptions(workerOptions...)...).
-				Value(&selectedWorkers),
+				Title("Custom workers").
+				Description("Deselect to remove from .lerd.yaml").
+				Options(huh.NewOptions(customWorkerNames...)...).
+				Value(&keepCustomWorkers),
 		))
 	}
 
 	if err := huh.NewForm(formGroups...).WithTheme(huh.ThemeCatppuccin()).Run(); err != nil {
 		return nil, err
+	}
+
+	// Build the set of kept custom workers.
+	keptSet := make(map[string]bool, len(keepCustomWorkers))
+	for _, name := range keepCustomWorkers {
+		keptSet[name] = true
+	}
+
+	// Detect available workers from the framework definition.
+	// Workers with ConflictsWith suppress conflicted workers (e.g. horizon suppresses queue).
+	// Custom workers that were removed are excluded, and their conflict rules
+	// no longer apply — so previously suppressed workers become available again.
+	var workerOptions []string
+	if fw, ok := config.GetFrameworkForDir(framework, cwd); ok && fw.Workers != nil {
+		// First pass: identify which workers are removed custom workers.
+		removedCustom := map[string]bool{}
+		for name := range fw.Workers {
+			if defaults.CustomWorkers[name].Command != "" && !keptSet[name] {
+				removedCustom[name] = true
+			}
+		}
+		// Build suppression set only from workers that are NOT removed.
+		suppressed := map[string]bool{}
+		for name, wDef := range fw.Workers {
+			if removedCustom[name] {
+				continue
+			}
+			if wDef.Check != nil && !config.MatchesRule(cwd, *wDef.Check) {
+				continue
+			}
+			for _, c := range wDef.ConflictsWith {
+				suppressed[c] = true
+			}
+		}
+		for name, wDef := range fw.Workers {
+			if removedCustom[name] {
+				continue
+			}
+			if wDef.Check != nil && !config.MatchesRule(cwd, *wDef.Check) {
+				continue
+			}
+			if suppressed[name] {
+				continue
+			}
+			workerOptions = append(workerOptions, name)
+		}
+		sort.Strings(workerOptions)
+	}
+
+	// Remove any selected workers that are no longer available.
+	filtered := selectedWorkers[:0]
+	availableSet := make(map[string]bool, len(workerOptions))
+	for _, w := range workerOptions {
+		availableSet[w] = true
+	}
+	for _, w := range selectedWorkers {
+		if availableSet[w] {
+			filtered = append(filtered, w)
+		}
+	}
+	selectedWorkers = filtered
+
+	if len(workerOptions) > 0 {
+		workerGroups := []*huh.Group{
+			huh.NewGroup(
+				huh.NewMultiSelect[string]().
+					Title("Workers").
+					Description("Auto-start when linking").
+					Options(huh.NewOptions(workerOptions...)...).
+					Value(&selectedWorkers),
+			),
+		}
+		if err := huh.NewForm(workerGroups...).WithTheme(huh.ThemeCatppuccin()).Run(); err != nil {
+			return nil, err
+		}
 	}
 
 	// Recombine the database pick and the non-DB multi-select into a single
@@ -306,6 +369,17 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 		frameworkVersion = fw.Version
 	}
 
+	// Filter custom workers to only those the user chose to keep.
+	var filteredCustomWorkers map[string]config.FrameworkWorker
+	if len(keepCustomWorkers) > 0 {
+		filteredCustomWorkers = make(map[string]config.FrameworkWorker, len(keepCustomWorkers))
+		for _, name := range keepCustomWorkers {
+			if w, ok := defaults.CustomWorkers[name]; ok {
+				filteredCustomWorkers[name] = w
+			}
+		}
+	}
+
 	return &config.ProjectConfig{
 		PHPVersion:       phpVersion,
 		NodeVersion:      nodeVersion,
@@ -315,6 +389,9 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 		Secured:          secured,
 		Services:         services,
 		Workers:          selectedWorkers,
+		CustomWorkers:    filteredCustomWorkers,
+		AppURL:           defaults.AppURL,
+		Domains:          defaults.Domains,
 	}, nil
 }
 

@@ -15,6 +15,7 @@ import (
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/store"
+	lerdSystemd "github.com/geodro/lerd/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -200,6 +201,28 @@ func runSetup(allSteps, skipOpen bool) error {
 		})
 	}
 
+	// Orphaned workers — running units with no framework definition.
+	// Shown before framework workers so they are stopped first.
+	if site != nil {
+		known := make(map[string]bool)
+		if fw, ok := config.GetFrameworkForDir(site.Framework, cwd); ok {
+			for wn := range fw.Workers {
+				known[wn] = true
+			}
+		}
+		orphans := lerdSystemd.FindOrphanedWorkers(site.Name, known)
+		for _, oName := range orphans {
+			on := oName
+			steps = append(steps, setupStep{
+				label:   on + ":stop (orphaned)",
+				enabled: true,
+				run: func() error {
+					return WorkerStopForSite(site.Name, on)
+				},
+			})
+		}
+	}
+
 	// Framework workers — driven entirely by the framework definition.
 	// Workers with ConflictsWith suppress the conflicted worker from the list
 	// (e.g. horizon replaces queue when horizon's check passes).
@@ -209,7 +232,6 @@ func runSetup(allSteps, skipOpen bool) error {
 			fwName, _ = store.DetectFrameworkWithStore(cwd)
 		}
 		if fw, ok := config.GetFramework(fwName); ok && fw.Workers != nil {
-			// Build a set of workers suppressed by conflict rules.
 			suppressed := map[string]bool{}
 			for _, wDef := range fw.Workers {
 				if wDef.Check != nil && !config.MatchesRule(cwd, *wDef.Check) {
@@ -246,7 +268,6 @@ func runSetup(allSteps, skipOpen bool) error {
 								phpVersion = cfg.PHP.DefaultVersion
 							}
 						}
-						// Stop conflicting workers before starting.
 						for _, conflict := range wd.ConflictsWith {
 							WorkerStopForSite(s.Name, conflict) //nolint:errcheck
 						}

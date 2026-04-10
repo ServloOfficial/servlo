@@ -98,10 +98,6 @@ func HorizonStartForSite(siteName, sitePath, phpVersion string) error {
 	if !ok {
 		return fmt.Errorf("framework %q has no worker named \"horizon\"", fw.Label)
 	}
-	// Stop conflicting workers (e.g. queue).
-	for _, conflict := range worker.ConflictsWith {
-		WorkerStopForSite(siteName, conflict) //nolint:errcheck
-	}
 	return WorkerStartForSite(siteName, sitePath, phpVersion, "horizon", worker)
 }
 
