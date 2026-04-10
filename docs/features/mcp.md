@@ -1,6 +1,6 @@
 # AI Integration (MCP)
 
-Lerd ships a [Model Context Protocol](https://modelcontextprotocol.io/) server, letting AI assistants (Claude Code, JetBrains Junie, and any other MCP-compatible tool) manage your dev environment directly — run migrations, start services, toggle queue workers, and inspect logs without leaving the chat.
+Lerd ships a [Model Context Protocol](https://modelcontextprotocol.io/) server, letting AI assistants (Claude Code, Cursor, JetBrains Junie, and any other MCP-compatible tool) manage your dev environment directly — run migrations, start services, toggle queue workers, and inspect logs without leaving the chat.
 
 ---
 
@@ -16,7 +16,7 @@ Run once after installing lerd:
 lerd mcp:enable-global
 ```
 
-This registers the lerd MCP server at **user scope** — available in every Claude Code session, regardless of which directory you open. It also updates Windsurf and JetBrains Junie global configs.
+This registers the lerd MCP server at **user scope** — available in every Claude Code session, regardless of which directory you open. It also updates Cursor, Windsurf, and JetBrains Junie global configs.
 
 When running globally, the server uses the **directory Claude is opened in** as the site context. No further configuration is needed — just open your AI assistant in a project directory and lerd tools work immediately.
 
@@ -31,12 +31,14 @@ cd ~/Lerd/my-app
 lerd mcp:inject
 ```
 
-This writes five files into the project directory:
+This writes seven files into the project directory:
 
 | File | Purpose |
 |---|---|
 | `.mcp.json` | MCP server entry for Claude Code |
 | `.claude/skills/lerd/SKILL.md` | Skill file that teaches Claude about lerd tools |
+| `.cursor/mcp.json` | MCP server entry for Cursor |
+| `.cursor/rules/lerd.mdc` | Cursor rules file that teaches Cursor about lerd tools |
 | `.ai/mcp/mcp.json` | MCP server entry for Windsurf and other MCP-compatible tools |
 | `.junie/mcp/mcp.json` | MCP server entry for JetBrains Junie |
 | `.junie/guidelines.md` | Lerd context section for JetBrains Junie (merged, not overwritten) |
