@@ -525,11 +525,33 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 		// Load .lerd.yaml once for both conflicting-domain detection and
 		// the services list rendered as badges in the site detail panel.
 		proj, projErr := config.LoadProjectConfig(s.Path)
+		svcSet := make(map[string]bool)
 		var siteServices []string
 		if projErr == nil && proj != nil {
 			for _, ps := range proj.Services {
-				if ps.Name != "" {
+				if ps.Name != "" && !svcSet[ps.Name] {
 					siteServices = append(siteServices, ps.Name)
+					svcSet[ps.Name] = true
+				}
+			}
+		}
+
+		// Auto-detect services from the site's .env file, matching
+		// the same logic the Services tab uses to show linked sites.
+		if envData, err := os.ReadFile(filepath.Join(s.Path, ".env")); err == nil {
+			envStr := string(envData)
+			for _, svcName := range knownServices {
+				if !svcSet[svcName] && strings.Contains(envStr, "lerd-"+svcName) {
+					siteServices = append(siteServices, svcName)
+					svcSet[svcName] = true
+				}
+			}
+			if customs, err := config.ListCustomServices(); err == nil {
+				for _, cs := range customs {
+					if !svcSet[cs.Name] && strings.Contains(envStr, "lerd-"+cs.Name) {
+						siteServices = append(siteServices, cs.Name)
+						svcSet[cs.Name] = true
+					}
 				}
 			}
 		}
