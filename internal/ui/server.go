@@ -634,7 +634,7 @@ func handleSites(w http.ResponseWriter, _ *http.Request) {
 			FrameworkWorkers:   fwWorkers,
 			HasAppLogs:         hasLogFiles(hasFw, fw, s.Path),
 			LatestLogTime:      latestLogTime(hasFw, fw, s.Path),
-			HasFavicon:         detectFavicon(s.Path, s.PublicDir) != "",
+			HasFavicon:         detectFavicon(s.Path, s.PublicDir, s.Framework) != "",
 			Paused:             s.Paused,
 			Branch:             mainBranch,
 			Worktrees:          worktreeResponses,
@@ -1431,9 +1431,13 @@ var faviconCandidates = []string{
 // detectFavicon returns the absolute path of the first favicon file found in
 // the site's public directory (or project root when publicDir is "." or empty).
 // Returns "" when no favicon is found.
-func detectFavicon(sitePath, publicDir string) string {
+func detectFavicon(sitePath, publicDir, framework string) string {
 	if publicDir == "" {
-		publicDir = config.DetectPublicDir(sitePath)
+		if fw, ok := config.GetFrameworkForDir(framework, sitePath); ok && fw.PublicDir != "" {
+			publicDir = fw.PublicDir
+		} else {
+			publicDir = config.DetectPublicDir(sitePath)
+		}
 	}
 	base := sitePath
 	if publicDir != "." {
@@ -1459,7 +1463,7 @@ func handleSiteFavicon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := detectFavicon(site.Path, site.PublicDir)
+	path := detectFavicon(site.Path, site.PublicDir, site.Framework)
 	if path == "" {
 		http.NotFound(w, r)
 		return
