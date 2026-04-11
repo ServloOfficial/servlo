@@ -133,35 +133,34 @@ func runLink(args []string) error {
 	warnFilteredDomains(removed)
 	domains = kept
 
-	phpVersion, err := phpDet.DetectVersion(cwd)
-	if err != nil {
-		phpVersion = cfg.PHP.DefaultVersion
-	}
-	if proj != nil && proj.PHPVersion != "" {
-		phpVersion = proj.PHPVersion
-	}
-
-	nodeVersion, err := nodeDet.DetectVersion(cwd)
-	if err != nil {
-		nodeVersion = cfg.Node.DefaultVersion
-	}
-
 	framework, ok := resolveFramework(cwd)
 	detectedPublicDir := ""
 	if !ok {
 		detectedPublicDir = config.DetectPublicDir(cwd)
 	}
 
-	// Clamp PHP version to the framework's supported range.
+	phpMin, phpMax := "", ""
 	if framework != "" {
-		if fw, fwOk := config.GetFrameworkForDir(framework, cwd); fwOk && (fw.PHP.Min != "" || fw.PHP.Max != "") {
-			clamped := phpDet.ClampToRange(phpVersion, fw.PHP.Min, fw.PHP.Max)
-			if clamped != phpVersion {
-				fmt.Printf("PHP %s is outside %s's supported range (%s–%s), using PHP %s.\n",
-					phpVersion, fw.Label, fw.PHP.Min, fw.PHP.Max, clamped)
-				phpVersion = clamped
-			}
+		if fw, fwOk := config.GetFrameworkForDir(framework, cwd); fwOk {
+			phpMin, phpMax = fw.PHP.Min, fw.PHP.Max
 		}
+	}
+	phpVersion := phpDet.DetectVersionClamped(cwd, phpMin, phpMax, cfg.PHP.DefaultVersion)
+	if proj != nil && proj.PHPVersion != "" {
+		phpVersion = phpDet.ClampToRange(proj.PHPVersion, phpMin, phpMax)
+	}
+	if unclamped, _ := phpDet.DetectVersion(cwd); unclamped != phpVersion && (phpMin != "" || phpMax != "") {
+		label := framework
+		if fw, fwOk := config.GetFrameworkForDir(framework, cwd); fwOk {
+			label = fw.Label
+		}
+		fmt.Printf("PHP %s is outside %s's supported range (%s–%s), using PHP %s.\n",
+			unclamped, label, phpMin, phpMax, phpVersion)
+	}
+
+	nodeVersion, err := nodeDet.DetectVersion(cwd)
+	if err != nil {
+		nodeVersion = cfg.Node.DefaultVersion
 	}
 
 	// Check if this path already has registered sites (re-link scenario).
@@ -459,25 +458,10 @@ func resolveFramework(dir string) (string, bool) {
 func fetchFrameworkFromStore(name, dir string) bool {
 	client := store.NewClient()
 	version := ""
-	// Try to detect version from the store index + composer.lock.
 	if idx, err := client.FetchIndex(); err == nil {
 		for _, entry := range idx.Frameworks {
 			if entry.Name == name {
-				for _, rule := range entry.Detect {
-					if rule.Composer != "" {
-						if v := store.DetectFrameworkVersion(dir, rule.Composer); v != "" {
-							for _, ev := range entry.Versions {
-								if ev == v {
-									version = v
-									break
-								}
-							}
-						}
-					}
-					if version != "" {
-						break
-					}
-				}
+				version = store.ResolveVersion(dir, entry.Detect, entry.Versions, "")
 				break
 			}
 		}
@@ -496,3 +480,4 @@ func fetchFrameworkFromStore(name, dir string) bool {
 	fmt.Printf("  Installed %s@%s from store\n", name, v)
 	return true
 }
+

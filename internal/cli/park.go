@@ -242,10 +242,13 @@ func RegisterProject(projectDir string, cfg *config.GlobalConfig) (bool, error) 
 	warnFilteredDomains(removed)
 	domains = kept
 
-	phpVersion, err := phpDet.DetectVersion(projectDir)
-	if err != nil {
-		phpVersion = cfg.PHP.DefaultVersion
+	phpMin, phpMax := "", ""
+	if framework != "" {
+		if fw, fwOk := config.GetFrameworkForDir(framework, projectDir); fwOk {
+			phpMin, phpMax = fw.PHP.Min, fw.PHP.Max
+		}
 	}
+	phpVersion := phpDet.DetectVersionClamped(projectDir, phpMin, phpMax, cfg.PHP.DefaultVersion)
 
 	nodeVersion, err := nodeDet.DetectVersion(projectDir)
 	if err != nil {

@@ -3258,16 +3258,6 @@ func execSiteLink(args map[string]any) (any, *rpcError) {
 		}
 	}
 
-	phpVersion, err := phpDet.DetectVersion(projectPath)
-	if err != nil {
-		phpVersion = cfg.PHP.DefaultVersion
-	}
-
-	nodeVersion, err := nodeDet.DetectVersion(projectPath)
-	if err != nil {
-		nodeVersion = cfg.Node.DefaultVersion
-	}
-
 	// Detect framework so the correct public_dir and workers are used.
 	framework := ""
 	if name, ok := config.DetectFramework(projectPath); ok {
@@ -3276,14 +3266,17 @@ func execSiteLink(args map[string]any) (any, *rpcError) {
 		framework = name
 	}
 
-	// Clamp PHP version to the framework's supported range.
+	phpMin, phpMax := "", ""
 	if framework != "" {
-		if fw, fwOk := config.GetFrameworkForDir(framework, projectPath); fwOk && (fw.PHP.Min != "" || fw.PHP.Max != "") {
-			clamped := phpDet.ClampToRange(phpVersion, fw.PHP.Min, fw.PHP.Max)
-			if clamped != phpVersion {
-				phpVersion = clamped
-			}
+		if fw, fwOk := config.GetFrameworkForDir(framework, projectPath); fwOk {
+			phpMin, phpMax = fw.PHP.Min, fw.PHP.Max
 		}
+	}
+	phpVersion := phpDet.DetectVersionClamped(projectPath, phpMin, phpMax, cfg.PHP.DefaultVersion)
+
+	nodeVersion, err := nodeDet.DetectVersion(projectPath)
+	if err != nil {
+		nodeVersion = cfg.Node.DefaultVersion
 	}
 
 	// Check if this path already has registered sites (re-link scenario).
@@ -4435,25 +4428,10 @@ func execFrameworkInstall(args map[string]any) (any, *rpcError) {
 	if version == "" {
 		sitePath := defaultSitePath
 		if sitePath != "" {
-			idx, err := client.FetchIndex()
-			if err == nil {
+			if idx, err := client.FetchIndex(); err == nil {
 				for _, entry := range idx.Frameworks {
 					if entry.Name == name {
-						for _, rule := range entry.Detect {
-							if rule.Composer != "" {
-								if v := store.DetectFrameworkVersion(sitePath, rule.Composer); v != "" {
-									for _, ev := range entry.Versions {
-										if ev == v {
-											version = v
-											break
-										}
-									}
-								}
-							}
-							if version != "" {
-								break
-							}
-						}
+						version = store.ResolveVersion(sitePath, entry.Detect, entry.Versions, "")
 						break
 					}
 				}
@@ -4474,7 +4452,11 @@ func execFrameworkInstall(args map[string]any) (any, *rpcError) {
 	if versionStr == "" {
 		versionStr = "latest"
 	}
-	return toolOK(fmt.Sprintf("Installed %s@%s (%s). Saved to %s/%s.yaml", fw.Name, versionStr, fw.Label, config.StoreFrameworksDir(), fw.Name)), nil
+	filename := fw.Name + ".yaml"
+	if fw.Version != "" {
+		filename = fw.Name + "@" + fw.Version + ".yaml"
+	}
+	return toolOK(fmt.Sprintf("Installed %s@%s (%s). Saved to %s/%s", fw.Name, versionStr, fw.Label, config.StoreFrameworksDir(), filename)), nil
 }
 
 func execProjectNew(args map[string]any) (any, *rpcError) {
