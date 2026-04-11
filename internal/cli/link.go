@@ -140,21 +140,25 @@ func runLink(args []string) error {
 	if proj != nil && proj.PHPVersion != "" {
 		phpVersion = phpDet.ClampToRange(proj.PHPVersion, versions.PHPMin, versions.PHPMax)
 	}
-	if unclamped, _ := phpDet.DetectVersion(cwd); unclamped != phpVersion && (versions.PHPMin != "" || versions.PHPMax != "") {
-		fmt.Printf("PHP %s is outside %s's supported range (%s–%s), using PHP %s.\n",
-			unclamped, versions.FrameworkLabel, versions.PHPMin, versions.PHPMax, phpVersion)
-	}
-	if versions.SuggestedPHP != "" {
-		fmt.Printf("PHP %s is recommended for %s. Install it? [Y/n] ", versions.SuggestedPHP, versions.FrameworkLabel)
-		var answer string
-		fmt.Scanln(&answer) //nolint:errcheck
-		if answer == "" || answer[0] == 'Y' || answer[0] == 'y' {
-			fmt.Printf("Installing PHP %s...\n", versions.SuggestedPHP)
-			if err := ensureFPMQuadlet(versions.SuggestedPHP); err != nil {
-				fmt.Printf("[WARN] installing PHP %s: %v\n", versions.SuggestedPHP, err)
+	if versions.PHPMin != "" || versions.PHPMax != "" {
+		unclamped, _ := phpDet.DetectVersion(cwd)
+		if unclamped != phpVersion {
+			if versions.SuggestedPHP != "" {
+				fmt.Printf("Using PHP %s (best installed in range %s–%s). Install PHP %s? [Y/n] ",
+					phpVersion, versions.PHPMin, versions.PHPMax, versions.SuggestedPHP)
+				var answer string
+				fmt.Scanln(&answer) //nolint:errcheck
+				if answer == "" || answer[0] == 'Y' || answer[0] == 'y' {
+					fmt.Printf("Installing PHP %s...\n", versions.SuggestedPHP)
+					if err := ensureFPMQuadlet(versions.SuggestedPHP); err != nil {
+						fmt.Printf("[WARN] installing PHP %s: %v\n", versions.SuggestedPHP, err)
+					} else {
+						phpVersion = versions.SuggestedPHP
+					}
+				}
 			} else {
-				phpVersion = versions.SuggestedPHP
-				fmt.Printf("PHP %s installed, using it for this site.\n", versions.SuggestedPHP)
+				fmt.Printf("Using PHP %s (%s supports %s–%s).\n",
+					phpVersion, versions.FrameworkLabel, versions.PHPMin, versions.PHPMax)
 			}
 		}
 	}
