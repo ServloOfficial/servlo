@@ -193,7 +193,31 @@ func runLink(args []string) error {
 	fmt.Printf("Linked: %s -> %s (PHP %s, Node %s, Framework: %s)\n", name, strings.Join(domains, ", "), phpVersion, nodeVersion, frameworkLabel)
 
 	if proj == nil {
-		fmt.Println("\nNo .lerd.yaml found. Run 'lerd init' to configure domains, services, and workers.")
+		if isInteractive() {
+			fmt.Print("\nNo .lerd.yaml found. Run lerd init? [Y/n] ")
+			var answer string
+			fmt.Scanln(&answer) //nolint:errcheck
+			if answer == "" || answer[0] == 'Y' || answer[0] == 'y' {
+				if err := runInit(false); err != nil {
+					fmt.Printf("[WARN] init: %v\n", err)
+				}
+			}
+		} else {
+			fmt.Println("\nNo .lerd.yaml found. Run 'lerd init' to configure domains, services, and workers.")
+		}
+	} else if !linkSkipSetupPrompt {
+		if isInteractive() {
+			fmt.Print("\nRun lerd setup? [Y/n] ")
+			var answer string
+			fmt.Scanln(&answer) //nolint:errcheck
+			if answer == "" || answer[0] == 'Y' || answer[0] == 'y' {
+				if err := runSetup(false, false); err != nil {
+					fmt.Printf("[WARN] setup: %v\n", err)
+				}
+			}
+		} else {
+			fmt.Println("\nRun 'lerd setup' to install dependencies, run migrations, and start workers.")
+		}
 	}
 
 	// Apply remaining .lerd.yaml settings: HTTPS and services.
@@ -261,26 +285,6 @@ func runLink(args []string) error {
 			}
 		}
 
-		// Workers are configured — prompt for setup so the user can choose to
-		// install dependencies, run migrations, and start workers in the right order.
-		// Skip if workers are already running (re-link of an active site) or if
-		// we're already inside a setup/init call (prevents infinite recursion).
-		if len(proj.Workers) > 0 && !linkSkipSetupPrompt && !hasRunningWorkers(&site) {
-			if isInteractive() {
-				fmt.Printf("\n  Workers configured: %s\n", strings.Join(proj.Workers, ", "))
-				fmt.Print("  Run lerd setup? [Y/n]: ")
-				var answer string
-				fmt.Scanln(&answer)
-				answer = strings.TrimSpace(strings.ToLower(answer))
-				if answer == "" || answer == "y" || answer == "yes" {
-					if err := runSetup(false, false); err != nil {
-						fmt.Printf("[WARN] setup: %v\n", err)
-					}
-				}
-			} else {
-				fmt.Printf("  Workers configured — run lerd setup to start them\n")
-			}
-		}
 	}
 
 	return nil
