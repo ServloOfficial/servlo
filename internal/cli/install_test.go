@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -31,39 +32,52 @@ func TestIsShell_empty(t *testing.T) {
 	}
 }
 
-func TestEnsurePortForwarding_linux(t *testing.T) {
-	// On Linux, ensurePortForwarding is a no-op
+func TestEnsurePortForwarding(t *testing.T) {
+	// Should not error on any platform
 	if err := ensurePortForwarding(); err != nil {
-		t.Errorf("ensurePortForwarding should be nil on linux, got: %v", err)
+		t.Errorf("ensurePortForwarding error: %v", err)
 	}
 }
 
-func TestNeedsDNSServiceInstall_linux(t *testing.T) {
-	if needsDNSServiceInstall() {
-		t.Error("needsDNSServiceInstall should return false on linux")
+func TestNeedsDNSServiceInstall(t *testing.T) {
+	if runtime.GOOS == "linux" {
+		if needsDNSServiceInstall() {
+			t.Error("needsDNSServiceInstall should return false on linux")
+		}
+	}
+	// On macOS the result depends on whether plists exist — skip assertion
+}
+
+func TestIsDNSContainerUnit(t *testing.T) {
+	if runtime.GOOS == "linux" {
+		if !isDNSContainerUnit() {
+			t.Error("isDNSContainerUnit should return true on linux")
+		}
+	} else {
+		if isDNSContainerUnit() {
+			t.Error("isDNSContainerUnit should return false on macOS")
+		}
 	}
 }
 
-func TestIsDNSContainerUnit_linux(t *testing.T) {
-	if !isDNSContainerUnit() {
-		t.Error("isDNSContainerUnit should return true on linux")
-	}
-}
-
-func TestPullDNSImages_linux(t *testing.T) {
+func TestPullDNSImages(t *testing.T) {
 	jobs := pullDNSImages()
-	if len(jobs) == 0 {
-		t.Error("pullDNSImages should return build jobs on linux")
+	if runtime.GOOS == "linux" {
+		if len(jobs) == 0 {
+			t.Error("pullDNSImages should return build jobs on linux")
+		}
+	} else {
+		if len(jobs) != 0 {
+			t.Error("pullDNSImages should return nil on macOS")
+		}
 	}
 }
 
-func TestInstallAutostart_linux(t *testing.T) {
-	// On Linux, installAutostart is a no-op — should not panic
+func TestInstallAutostart(t *testing.T) {
 	installAutostart()
 }
 
-func TestInstallCleanupScript_linux(t *testing.T) {
-	// On Linux, installCleanupScript is a no-op — should not panic
+func TestInstallCleanupScript(t *testing.T) {
 	installCleanupScript()
 }
 

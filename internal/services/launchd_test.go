@@ -28,11 +28,11 @@ func TestXmlEscStr(t *testing.T) {
 }
 
 func TestBuildPlist(t *testing.T) {
-	plist := buildPlist("com.lerd.test", []string{"/usr/bin/test", "--flag"}, true, true, "/tmp/out.log", "/tmp/err.log")
+	plist := buildPlist("com.lerd.test", []string{"/bin/sh", "--flag"}, true, true, "/tmp/out.log", "/tmp/err.log")
 
 	checks := []string{
 		`<string>com.lerd.test</string>`,
-		`<string>/usr/bin/test</string>`,
+		`<string>/bin/sh</string>`,
 		`<string>--flag</string>`,
 		`<key>RunAtLoad</key>`,
 		`<true/>`,
@@ -74,15 +74,15 @@ func TestBuildPlistXMLEscaping(t *testing.T) {
 
 func TestParseSection(t *testing.T) {
 	content := `[Service]
-ExecStart=/usr/bin/test --flag
+ExecStart=/bin/sh --flag
 Type=simple
 
 [Install]
 WantedBy=default.target
 `
 	svc := parseSection(content, "Service")
-	if got := svc["ExecStart"]; len(got) != 1 || got[0] != "/usr/bin/test --flag" {
-		t.Errorf("ExecStart = %v, want [/usr/bin/test --flag]", got)
+	if got := svc["ExecStart"]; len(got) != 1 || got[0] != "/bin/sh --flag" {
+		t.Errorf("ExecStart = %v, want [/bin/sh --flag]", got)
 	}
 	if got := svc["Type"]; len(got) != 1 || got[0] != "simple" {
 		t.Errorf("Type = %v, want [simple]", got)
@@ -198,7 +198,7 @@ func TestWriteAndRemoveServiceUnit(t *testing.T) {
 	os.MkdirAll(filepath.Join(tmp, "Library", "Logs", "lerd"), 0755)
 
 	mgr := &darwinServiceManager{}
-	content := "[Service]\nExecStart=/usr/bin/test --flag\n"
+	content := "[Service]\nExecStart=/bin/sh --flag\n"
 
 	if err := mgr.WriteServiceUnit("lerd-watcher", content); err != nil {
 		t.Fatalf("WriteServiceUnit: %v", err)
@@ -212,7 +212,7 @@ func TestWriteAndRemoveServiceUnit(t *testing.T) {
 	if !strings.Contains(string(data), "com.lerd.lerd-watcher") {
 		t.Error("plist missing expected label")
 	}
-	if !strings.Contains(string(data), "/usr/bin/test") {
+	if !strings.Contains(string(data), "/bin/sh") {
 		t.Error("plist missing expected ExecStart binary")
 	}
 
@@ -238,7 +238,7 @@ func TestWriteServiceUnitIfChangedNoChange(t *testing.T) {
 	os.MkdirAll(filepath.Join(tmp, "Library", "Logs", "lerd"), 0755)
 
 	mgr := &darwinServiceManager{}
-	content := "[Service]\nExecStart=/usr/bin/test\n"
+	content := "[Service]\nExecStart=/bin/sh\n"
 
 	mgr.WriteServiceUnit("lerd-test", content)
 
