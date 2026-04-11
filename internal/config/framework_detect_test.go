@@ -76,7 +76,7 @@ func TestDetectFrameworkForDir_LerdYAMLTakesPriority(t *testing.T) {
 	// .lerd.yaml says statamic, but dir also has artisan (which matches Laravel)
 	proj := &ProjectConfig{Framework: "statamic"}
 	data, _ := yaml.Marshal(proj)
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), data, 0644) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), data, 0644)                      //nolint:errcheck
 	os.WriteFile(filepath.Join(dir, "artisan"), []byte("#!/usr/bin/env php"), 0644) //nolint:errcheck
 
 	name, ok := DetectFrameworkForDir(dir)

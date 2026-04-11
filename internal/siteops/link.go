@@ -13,11 +13,11 @@ import (
 
 // VersionResult holds the detected and suggested versions for a site.
 type VersionResult struct {
-	PHP          string // best installed PHP version (clamped to framework range)
-	Node         string // detected Node version
-	PHPMin       string // framework minimum PHP version (empty if no framework)
-	PHPMax       string // framework maximum PHP version (empty if no framework)
-	SuggestedPHP string // better PHP version to install (empty if current is optimal)
+	PHP            string // best installed PHP version (clamped to framework range)
+	Node           string // detected Node version
+	PHPMin         string // framework minimum PHP version (empty if no framework)
+	PHPMax         string // framework maximum PHP version (empty if no framework)
+	SuggestedPHP   string // better PHP version to install (empty if current is optimal)
 	FrameworkLabel string // human-readable framework name for messages
 }
 
