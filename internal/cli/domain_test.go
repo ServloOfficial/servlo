@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/siteops"
 )
 
 // ── SyncProjectDomains (config package) ────────────────────────────────────
@@ -61,7 +62,7 @@ func TestRegenerateSiteVhost_creates_vhost(t *testing.T) {
 		PHPVersion: "8.4",
 	}
 
-	if err := RegenerateSiteVhost(site, "myapp.test"); err != nil {
+	if err := siteops.RegenerateSiteVhost(site, "myapp.test"); err != nil {
 		t.Fatalf("RegenerateSiteVhost: %v", err)
 	}
 
@@ -93,7 +94,7 @@ func TestRegenerateSiteVhost_removes_old_on_primary_change(t *testing.T) {
 		PHPVersion: "8.4",
 	}
 
-	if err := RegenerateSiteVhost(site, "old.test"); err != nil {
+	if err := siteops.RegenerateSiteVhost(site, "old.test"); err != nil {
 		t.Fatal(err)
 	}
 

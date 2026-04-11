@@ -9,6 +9,7 @@ import (
 	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/nginx"
+	"github.com/geodro/lerd/internal/siteops"
 	nodeDet "github.com/geodro/lerd/internal/node"
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
@@ -94,7 +95,7 @@ func runLink(args []string) error {
 		rawName = args[0]
 	}
 
-	baseName, _ := siteNameAndDomain(rawName, cfg.DNS.TLD)
+	baseName, _ := siteops.SiteNameAndDomain(rawName, cfg.DNS.TLD)
 	name := freeSiteName(baseName, cwd)
 
 	// Build the domains list.

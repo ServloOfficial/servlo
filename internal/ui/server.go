@@ -28,6 +28,7 @@ import (
 	phpPkg "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/geodro/lerd/internal/siteops"
 	lerdSystemd "github.com/geodro/lerd/internal/systemd"
 	lerdUpdate "github.com/geodro/lerd/internal/update"
 )
@@ -1726,7 +1727,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
-		if err := uiRegenerateSiteVhost(site, oldPrimary); err != nil {
+		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
@@ -1774,7 +1775,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
-		if err := uiRegenerateSiteVhost(site, oldPrimary); err != nil {
+		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
@@ -1847,7 +1848,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
-		if err := uiRegenerateSiteVhost(site, oldPrimary); err != nil {
+		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
@@ -2540,24 +2541,6 @@ func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
 		fmt.Fprintf(w, "id: %s\ndata: %s\n\n", entry.Cursor, msg)
 		flusher.Flush()
 	}
-}
-
-// uiRegenerateSiteVhost regenerates the nginx vhost for a site after a domain change.
-func uiRegenerateSiteVhost(site *config.Site, oldPrimary string) error {
-	newPrimary := site.PrimaryDomain()
-	if oldPrimary != newPrimary {
-		_ = nginx.RemoveVhost(oldPrimary)
-	}
-	if site.Secured {
-		if err := nginx.GenerateSSLVhost(*site, site.PHPVersion); err != nil {
-			return err
-		}
-		sslConf := filepath.Join(config.NginxConfD(), newPrimary+"-ssl.conf")
-		mainConf := filepath.Join(config.NginxConfD(), newPrimary+".conf")
-		_ = os.Remove(mainConf)
-		return os.Rename(sslConf, mainConf)
-	}
-	return nginx.GenerateVhost(*site, site.PHPVersion)
 }
 
 // handleBrowse returns a listing of directories for the file browser.

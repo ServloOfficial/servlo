@@ -9,6 +9,7 @@ import (
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/nginx"
+	"github.com/geodro/lerd/internal/siteops"
 	nodeDet "github.com/geodro/lerd/internal/node"
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
@@ -170,28 +171,6 @@ func freeSiteName(desired, path string) string {
 	}
 }
 
-// siteNameAndDomain converts a directory name into a clean site name and .test domain.
-// Strips well-known TLDs (e.g. .com, .ltd) and replaces remaining dots with dashes.
-// Examples:
-//   - "myapp"            → "myapp",         "myapp.test"
-//   - "admin.astrolov.com" → "admin-astrolov", "admin-astrolov.test"
-//   - "my.project.io"   → "my-project",     "my-project.test"
-func siteNameAndDomain(dirName, tld string) (string, string) {
-	knownTLDs := []string{
-		".com", ".net", ".org", ".io", ".co", ".ltd", ".dev", ".app", ".me",
-		".info", ".biz", ".uk", ".us", ".eu", ".de", ".fr", ".ca", ".au",
-	}
-	name := strings.ToLower(dirName)
-	for _, ext := range knownTLDs {
-		if strings.HasSuffix(name, ext) {
-			name = name[:len(name)-len(ext)]
-			break
-		}
-	}
-	name = strings.ReplaceAll(name, ".", "-")
-	return name, name + "." + tld
-}
-
 // RegisterProject registers a single project directory as a lerd site if it
 // looks like a PHP project. It detects the framework first; if none matches it
 // falls back to auto-detecting the public directory. Returns true if newly registered.
@@ -216,7 +195,7 @@ func RegisterProject(projectDir string, cfg *config.GlobalConfig) (bool, error) 
 		}
 	}
 
-	baseName, domain := siteNameAndDomain(filepath.Base(projectDir), cfg.DNS.TLD)
+	baseName, domain := siteops.SiteNameAndDomain(filepath.Base(projectDir), cfg.DNS.TLD)
 	if isReservedDomain(domain) {
 		return false, nil
 	}

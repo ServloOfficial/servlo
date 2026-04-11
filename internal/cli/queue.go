@@ -8,6 +8,7 @@ import (
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/envfile"
+	"github.com/geodro/lerd/internal/siteops"
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/spf13/cobra"
@@ -67,7 +68,7 @@ func queueSiteName(cwd string) (string, error) {
 		}
 	}
 	// Fall back to directory name.
-	name, _ := siteNameAndDomain(filepath.Base(cwd), "test")
+	name, _ := siteops.SiteNameAndDomain(filepath.Base(cwd), "test")
 	return name, nil
 }
 

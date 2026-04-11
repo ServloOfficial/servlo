@@ -21,6 +21,7 @@ import (
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/geodro/lerd/internal/siteops"
 	"github.com/geodro/lerd/internal/store"
 	lerdSystemd "github.com/geodro/lerd/internal/systemd"
 	lerdUpdate "github.com/geodro/lerd/internal/update"
@@ -3243,7 +3244,7 @@ func execSiteLink(args map[string]any) (any, *rpcError) {
 	if rawName == "" {
 		rawName = filepath.Base(projectPath)
 	}
-	name, domain := siteLinkNameAndDomain(rawName, cfg.DNS.TLD)
+	name, domain := siteops.SiteNameAndDomain(rawName, cfg.DNS.TLD)
 	domains := []string{domain}
 
 	// Validate domains are not used by other sites.
@@ -3408,7 +3409,7 @@ func execSiteDomainAdd(args map[string]any) (any, *rpcError) {
 
 	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
 
-	if err := mcpRegenerateSiteVhost(site, oldPrimary); err != nil {
+	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 		return toolErr("regenerating vhost: " + err.Error()), nil
 	}
 
@@ -3471,7 +3472,7 @@ func execSiteDomainRemove(args map[string]any) (any, *rpcError) {
 
 	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
 
-	if err := mcpRegenerateSiteVhost(site, oldPrimary); err != nil {
+	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 		return toolErr("regenerating vhost: " + err.Error()), nil
 	}
 
@@ -3488,24 +3489,6 @@ func execSiteDomainRemove(args map[string]any) (any, *rpcError) {
 	}
 
 	return toolOK(fmt.Sprintf("Removed domain %s from site %s", fullDomain, site.Name)), nil
-}
-
-// mcpRegenerateSiteVhost regenerates the nginx vhost for a site after a domain change.
-func mcpRegenerateSiteVhost(site *config.Site, oldPrimary string) error {
-	newPrimary := site.PrimaryDomain()
-	if oldPrimary != newPrimary {
-		_ = nginx.RemoveVhost(oldPrimary)
-	}
-	if site.Secured {
-		if err := nginx.GenerateSSLVhost(*site, site.PHPVersion); err != nil {
-			return err
-		}
-		sslConf := filepath.Join(config.NginxConfD(), newPrimary+"-ssl.conf")
-		mainConf := filepath.Join(config.NginxConfD(), newPrimary+".conf")
-		_ = os.Remove(mainConf)
-		return os.Rename(sslConf, mainConf)
-	}
-	return nginx.GenerateVhost(*site, site.PHPVersion)
 }
 
 func execSecure(args map[string]any) (any, *rpcError) {
@@ -3733,24 +3716,6 @@ func readDBEnv(projectPath string) (*mcpDBEnv, error) {
 		username:   vals["DB_USERNAME"],
 		password:   vals["DB_PASSWORD"],
 	}, nil
-}
-
-// siteLinkNameAndDomain derives a clean site name and domain from a directory name.
-// Mirrors the logic in internal/cli/park.go — kept in sync manually.
-func siteLinkNameAndDomain(dirName, tld string) (string, string) {
-	knownTLDs := []string{
-		".com", ".net", ".org", ".io", ".co", ".ltd", ".dev", ".app", ".me",
-		".info", ".biz", ".uk", ".us", ".eu", ".de", ".fr", ".ca", ".au",
-	}
-	name := strings.ToLower(dirName)
-	for _, ext := range knownTLDs {
-		if strings.HasSuffix(name, ext) {
-			name = name[:len(name)-len(ext)]
-			break
-		}
-	}
-	name = strings.ReplaceAll(name, ".", "-")
-	return name, name + "." + tld
 }
 
 // ---- Framework management tools ----

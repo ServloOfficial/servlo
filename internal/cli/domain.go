@@ -8,6 +8,7 @@ import (
 
 	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/siteops"
 	"github.com/geodro/lerd/internal/envfile"
 	"github.com/geodro/lerd/internal/nginx"
 	"github.com/geodro/lerd/internal/podman"
@@ -106,7 +107,7 @@ func runDomainAdd(_ *cobra.Command, args []string) error {
 	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
 
 	// Regenerate vhost (file stays named after primary domain).
-	if err := RegenerateSiteVhost(site, oldPrimary); err != nil {
+	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 		return err
 	}
 
@@ -177,7 +178,7 @@ func runDomainRemove(_ *cobra.Command, args []string) error {
 	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
 
 	// If the primary domain changed (we removed the old primary), rename the vhost file.
-	if err := RegenerateSiteVhost(site, oldPrimary); err != nil {
+	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 		return err
 	}
 
@@ -218,34 +219,6 @@ func runDomainList(_ *cobra.Command, _ []string) error {
 			fmt.Printf("  %s (primary)\n", d)
 		} else {
 			fmt.Printf("  %s\n", d)
-		}
-	}
-	return nil
-}
-
-// RegenerateSiteVhost regenerates the nginx vhost for a site. If the primary
-// domain changed (oldPrimary != current primary), it removes the old vhost file first.
-func RegenerateSiteVhost(site *config.Site, oldPrimary string) error {
-	newPrimary := site.PrimaryDomain()
-
-	// If primary changed, remove the old conf file.
-	if oldPrimary != newPrimary {
-		_ = nginx.RemoveVhost(oldPrimary)
-	}
-
-	if site.Secured {
-		if err := nginx.GenerateSSLVhost(*site, site.PHPVersion); err != nil {
-			return fmt.Errorf("generating SSL vhost: %w", err)
-		}
-		sslConf := filepath.Join(config.NginxConfD(), newPrimary+"-ssl.conf")
-		mainConf := filepath.Join(config.NginxConfD(), newPrimary+".conf")
-		_ = os.Remove(mainConf)
-		if err := os.Rename(sslConf, mainConf); err != nil {
-			return fmt.Errorf("installing SSL vhost: %w", err)
-		}
-	} else {
-		if err := nginx.GenerateVhost(*site, site.PHPVersion); err != nil {
-			return fmt.Errorf("generating vhost: %w", err)
 		}
 	}
 	return nil
