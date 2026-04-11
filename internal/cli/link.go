@@ -194,20 +194,11 @@ func runLink(args []string) error {
 		return fmt.Errorf("registering site: %w", err)
 	}
 
-	// Write domains to .lerd.yaml (creates or updates). Preserve any domain
-	// that was originally declared but got filtered out by resolveSiteDomains
-	// (because another site already owns it) — the user's declared intent is
-	// the source of truth on disk, and surfacing the conflict in the UI
-	// requires the dropped entry to remain visible. The conflict will be
-	// re-evaluated on the next link, so the filtered domain self-heals when
-	// the conflicting site is removed.
-	{
-		proj, _ := config.LoadProjectConfig(cwd)
+	// Sync domains back to .lerd.yaml if it already exists (never create it).
+	if proj != nil {
 		suffix := "." + cfg.DNS.TLD
 		seen := make(map[string]bool)
 		var names []string
-		// First, the registered (post-filter) domains in their current order —
-		// preserves the "explicit arg becomes primary" behavior of `lerd link`.
 		for _, d := range site.Domains {
 			name := strings.TrimSuffix(d, suffix)
 			low := strings.ToLower(name)
@@ -216,9 +207,6 @@ func runLink(args []string) error {
 				seen[low] = true
 			}
 		}
-		// Then, any pre-existing .lerd.yaml entries that didn't survive the
-		// conflict filter. They get appended at the end so they don't become
-		// primary, but they stay visible to the UI as conflict warnings.
 		for _, d := range proj.Domains {
 			low := strings.ToLower(d)
 			if !seen[low] {
