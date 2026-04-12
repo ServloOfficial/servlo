@@ -377,13 +377,8 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// declared in the site registry, so restored unit files get started here
 	// rather than waiting for the next session.
 	workerUnits = append(workerUnits, registeredFrameworkWorkerUnits()...)
-	// Scheduled workers ship a sibling .timer that drives the oneshot
-	// .service. The .service alone is harmless to start (it runs once and
-	// exits 0), but the timer is what kicks the cron-like cadence — without
-	// adding it explicitly, `lerd start` would leave the timer dead until
-	// the next login.
 	workerUnits = append(workerUnits, registeredTimerUnits()...)
-	workerUnits = dedupeStrings(workerUnits)
+	workerUnits = collapseTimerSiblings(dedupeStrings(workerUnits))
 
 	fmt.Println("Starting Lerd...")
 
@@ -391,7 +386,7 @@ func runStart(_ *cobra.Command, _ []string) error {
 		jobs := make([]BuildJob, len(us))
 		for i, u := range us {
 			unit := u
-			label := strings.TrimPrefix(unit, "lerd-")
+			label := strings.TrimSuffix(strings.TrimPrefix(unit, "lerd-"), ".timer")
 			jobs[i] = BuildJob{
 				Label: label,
 				Run: func(w io.Writer) error {
@@ -512,7 +507,7 @@ func startRestoredServices() {
 	var startJobs []BuildJob
 	for _, u := range units {
 		unit := u
-		label := strings.TrimPrefix(unit, "lerd-")
+		label := strings.TrimSuffix(strings.TrimPrefix(unit, "lerd-"), ".timer")
 		startJobs = append(startJobs, BuildJob{
 			Label: label,
 			Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
@@ -530,14 +525,14 @@ func startRestoredServices() {
 	workerUnits = append(workerUnits, registeredReverbUnits()...)
 	workerUnits = append(workerUnits, registeredFrameworkWorkerUnits()...)
 	workerUnits = append(workerUnits, registeredTimerUnits()...)
-	workerUnits = dedupeStrings(workerUnits)
+	workerUnits = collapseTimerSiblings(dedupeStrings(workerUnits))
 	if len(workerUnits) == 0 {
 		return
 	}
 	var workerJobs []BuildJob
 	for _, u := range workerUnits {
 		unit := u
-		label := strings.TrimPrefix(unit, "lerd-")
+		label := strings.TrimSuffix(strings.TrimPrefix(unit, "lerd-"), ".timer")
 		workerJobs = append(workerJobs, BuildJob{
 			Label: label,
 			Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
@@ -738,6 +733,26 @@ func registeredFrameworkWorkerUnits() []string {
 	return out
 }
 
+// collapseTimerSiblings drops a worker's bare .service entry when its
+// .timer sibling is also in the list — the timer is what drives the
+// oneshot, the bare .service would just fire schedule:run a second time.
+func collapseTimerSiblings(in []string) []string {
+	hasTimer := map[string]bool{}
+	for _, u := range in {
+		if strings.HasSuffix(u, ".timer") {
+			hasTimer[strings.TrimSuffix(u, ".timer")] = true
+		}
+	}
+	out := make([]string, 0, len(in))
+	for _, u := range in {
+		if !strings.HasSuffix(u, ".timer") && hasTimer[u] {
+			continue
+		}
+		out = append(out, u)
+	}
+	return out
+}
+
 func dedupeStrings(in []string) []string {
 	seen := make(map[string]struct{}, len(in))
 	out := make([]string, 0, len(in))
@@ -781,7 +796,7 @@ func runStop(_ *cobra.Command, _ []string) error {
 	jobs := make([]BuildJob, len(units))
 	for i, u := range units {
 		unit := u
-		label := strings.TrimPrefix(unit, "lerd-")
+		label := strings.TrimSuffix(strings.TrimPrefix(unit, "lerd-"), ".timer")
 		jobs[i] = BuildJob{
 			Label: label,
 			Run:   func(w io.Writer) error { return podman.StopUnit(unit) },
