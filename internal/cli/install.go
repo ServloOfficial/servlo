@@ -487,7 +487,7 @@ func ensureSystemdLinger() error {
 	fmt.Println("    Without it, lerd's containers (DNS, nginx, PHP-FPM) are torn down")
 	fmt.Println("    by systemd-logind on screen blank, lock, or logout, and lerd will")
 	fmt.Println("    appear to stop working until you manually restart it.")
-	fmt.Print("  --> Enabling linger via `sudo loginctl enable-linger ", user, "` ... ")
+	fmt.Print("  --> Enabling linger via `sudo loginctl enable-linger ", user, "` ...\n\n")
 
 	cmd := exec.Command("sudo", "loginctl", "enable-linger", user)
 	cmd.Stdin = os.Stdin
