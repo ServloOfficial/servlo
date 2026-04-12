@@ -283,12 +283,20 @@ else
 fi
 
 # ── 2. install the lerd root CA ──────────────────────────────────────────
-step "Installing the lerd root CA into the system trust store"
-CAROOT="$(mkcert -CAROOT)"
-mkdir -p "$CAROOT"
-echo "$CA_B64" | base64 --decode > "$CAROOT/rootCA.pem"
-mkcert -install
-ok "lerd root CA trusted"
+# Use a dedicated CAROOT directory just for the remote lerd CA so we never
+# touch the user's existing local mkcert CA. mkcert reads CAROOT from the
+# env var, so pointing it at a separate dir keeps the local rootCA.pem and
+# rootCA-key.pem pair untouched. Without this, dropping the remote
+# rootCA.pem on top of a pre-existing local one leaves cert and key out of
+# sync, and every later 'mkcert <domain>' fails with "provided PrivateKey
+# doesn't match parent's PublicKey" — breaking 'lerd secure' on any host
+# that had ever run this script.
+step "Installing the lerd remote root CA into the system trust store"
+LERD_REMOTE_CAROOT="$HOME/.local/share/lerd-remote-ca"
+mkdir -p "$LERD_REMOTE_CAROOT"
+echo "$CA_B64" | base64 --decode > "$LERD_REMOTE_CAROOT/rootCA.pem"
+CAROOT="$LERD_REMOTE_CAROOT" mkcert -install
+ok "lerd remote root CA trusted (isolated from any local mkcert CA)"
 
 # ── 3. configure DNS forwarding ──────────────────────────────────────────
 step "Configuring local resolver to forward .$TLD to $SERVER_IP"
@@ -376,6 +384,6 @@ To revert later:
   • Linux dnsmasq:   sudo rm /etc/dnsmasq.d/lerd.conf && sudo systemctl restart dnsmasq
   • Linux resolved: sudo rm /etc/systemd/resolved.conf.d/lerd-test.conf && sudo systemctl restart systemd-resolved
   • macOS:           sudo rm /etc/resolver/$TLD
-  • Cert:            mkcert -uninstall && rm "$CAROOT/rootCA.pem"
+  • Cert:            CAROOT="$LERD_REMOTE_CAROOT" mkcert -uninstall && rm -rf "$LERD_REMOTE_CAROOT"
 EOF
 `
