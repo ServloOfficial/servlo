@@ -386,6 +386,17 @@ func (m *darwinServiceManager) WriteServiceUnitIfChanged(name, content string) (
 	return true, os.WriteFile(plistPath(name), []byte(newPlist), 0644)
 }
 
+// WriteTimerUnitIfChanged is a no-op on macOS until launchd
+// StartCalendarInterval support is added. Scheduled framework workers
+// (like Laravel 10's `schedule:run`) currently log a warning and skip
+// on macOS rather than restart-loop as long-running daemons.
+func (m *darwinServiceManager) WriteTimerUnitIfChanged(_, _ string) (bool, error) {
+	return false, nil
+}
+
+// RemoveTimerUnit is a no-op on macOS — see WriteTimerUnitIfChanged.
+func (m *darwinServiceManager) RemoveTimerUnit(_ string) error { return nil }
+
 func (m *darwinServiceManager) RemoveServiceUnit(name string) error {
 	if err := os.Remove(plistPath(name)); err != nil && !os.IsNotExist(err) {
 		return err

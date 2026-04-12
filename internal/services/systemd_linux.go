@@ -28,6 +28,14 @@ func (m *linuxServiceManager) WriteServiceUnitIfChanged(name, content string) (b
 	return lerdSystemd.WriteServiceIfChanged(name, content)
 }
 
+func (m *linuxServiceManager) WriteTimerUnitIfChanged(name, content string) (bool, error) {
+	return lerdSystemd.WriteTimerIfChanged(name, content)
+}
+
+func (m *linuxServiceManager) RemoveTimerUnit(name string) error {
+	return lerdSystemd.RemoveTimer(name)
+}
+
 func (m *linuxServiceManager) RemoveServiceUnit(name string) error {
 	path := filepath.Join(config.SystemdUserDir(), name+".service")
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
