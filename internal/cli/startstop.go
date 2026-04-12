@@ -126,11 +126,16 @@ func NewQuitCmd() *cobra.Command {
 
 // coreUnits returns the container units managed by lerd start/stop.
 // Does not include lerd-ui or lerd-watcher — those are added separately in runStart.
-// Only PHP-FPM versions that are referenced by at least one site are included;
-// unused versions are left stopped.
+// The configured default PHP version is ALWAYS included so the `php`, `composer`,
+// and `laravel new` shims have a working FPM container even on a fresh install
+// with zero registered sites. Other installed versions are only started when
+// at least one site references them; unused versions are left stopped.
 func coreUnits() []string {
 	units := []string{"lerd-dns", "lerd-nginx"}
 	active := activePHPVersions()
+	if cfg, err := config.LoadGlobal(); err == nil && cfg != nil && cfg.PHP.DefaultVersion != "" {
+		active[cfg.PHP.DefaultVersion] = true
+	}
 	versions, _ := phpPkg.ListInstalled()
 	for _, v := range versions {
 		if !active[v] {
