@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -244,6 +245,16 @@ func openTerminalAt(dir string) error {
 		termCmd{"terminator", []string{"--working-directory", dir}},
 		termCmd{"xterm", []string{"-e", "cd " + dir + " && exec $SHELL"}},
 	)
+
+	if runtime.GOOS == "darwin" {
+		cdScript := "cd " + shQuote(dir) + " && exec $SHELL"
+		if _, err := os.Stat("/Applications/iTerm.app"); err == nil {
+			as := "tell application \"iTerm2\"\n\tcreate window with default profile\n\ttell current session of current window\n\t\twrite text " + appleScriptStr(cdScript) + "\n\tend tell\nend tell"
+			candidates = append(candidates, termCmd{"osascript", []string{"-e", as}})
+		}
+		as := "tell application \"Terminal\"\n\tdo script " + appleScriptStr(cdScript) + "\n\tactivate\nend tell"
+		candidates = append(candidates, termCmd{"osascript", []string{"-e", as}})
+	}
 
 	for _, t := range candidates {
 		bin, err := exec.LookPath(t.bin)
@@ -1993,6 +2004,15 @@ func openTerminalCommand(script string) error {
 		{"terminator", []string{"-e", combined}},
 		{"xterm", []string{"-e", "sh", "-c", script}},
 	}
+
+	if runtime.GOOS == "darwin" {
+		if _, err := os.Stat("/Applications/iTerm.app"); err == nil {
+			as := "tell application \"iTerm2\"\n\tcreate window with default profile\n\ttell current session of current window\n\t\twrite text " + appleScriptStr(script) + "\n\tend tell\nend tell"
+			candidates = append(candidates, termCmd{"osascript", []string{"-e", as}})
+		}
+		as := "tell application \"Terminal\"\n\tdo script " + appleScriptStr(script) + "\n\tactivate\nend tell"
+		candidates = append(candidates, termCmd{"osascript", []string{"-e", as}})
+	}
 	for _, t := range candidates {
 		bin, err := exec.LookPath(t.bin)
 		if err != nil {
@@ -2009,9 +2029,20 @@ func openTerminalCommand(script string) error {
 }
 
 // shQuote wraps s in single quotes, escaping any embedded single quotes
-// using the standard '\” dance so the result is safe for /bin/sh -c.
+// using the standard '\" dance so the result is safe for /bin/sh -c.
 func shQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// appleScriptStr returns an AppleScript string expression for s.
+// AppleScript has no escape sequences; double quotes are spliced in via & quote &.
+func appleScriptStr(s string) string {
+	parts := strings.Split(s, `"`)
+	quoted := make([]string, len(parts))
+	for i, p := range parts {
+		quoted[i] = `"` + p + `"`
+	}
+	return strings.Join(quoted, " & quote & ")
 }
 
 func handleXdebugAction(w http.ResponseWriter, r *http.Request) {
