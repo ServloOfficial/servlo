@@ -60,9 +60,37 @@ func Teardown() {
 	}
 }
 
-// InstallSudoers is a no-op on macOS. /etc/resolver writes happen interactively
-// during lerd install and do not require a passwordless sudoers drop-in.
+// InstallSudoers writes a sudoers drop-in granting the current user passwordless
+// access to write /etc/resolver/<tld>. This is required so the DNS watcher can
+// automatically repair the resolver config after sleep/wake without prompting.
 func InstallSudoers() error {
+	user := os.Getenv("USER")
+	if user == "" {
+		user = os.Getenv("LOGNAME")
+	}
+	if user == "" {
+		return fmt.Errorf("cannot determine current user")
+	}
+
+	// sudoWriteFile calls: sudo mkdir -p <dir>, sudo cp <tmp> <dst>, sudo chmod <mode> <dst>
+	// $TMPDIR on macOS is /var/folders/<2-char>/<hash>/T/ — two wildcard levels needed.
+	content := fmt.Sprintf(
+		"# Lerd: allow writing /etc/resolver/<tld> without password\n"+
+			"%s ALL=(root) NOPASSWD: /bin/mkdir -p /etc/resolver\n"+
+			"%s ALL=(root) NOPASSWD: /bin/cp /var/folders/*/*/T/lerd-sudo-* /etc/resolver/*\n"+
+			"%s ALL=(root) NOPASSWD: /bin/chmod 644 /etc/resolver/*\n",
+		user, user, user,
+	)
+
+	const sudoersPath = "/etc/sudoers.d/lerd"
+	if isFileContent(sudoersPath, []byte(content)) {
+		return nil
+	}
+
+	fmt.Println("  [sudo required] Installing DNS sudoers rule")
+	if err := sudoWriteFile(sudoersPath, []byte(content), 0440); err != nil {
+		return fmt.Errorf("writing sudoers drop-in: %w", err)
+	}
 	return nil
 }
 

@@ -259,6 +259,28 @@ func runInstall(_ *cobra.Command, _ []string) error {
 		}
 	}
 
+	// On macOS, DNS runs natively (no container image needed) and DaemonReload
+	// is a no-op, so we can start lerd-dns and configure the resolver here —
+	// before RunParallel — keeping all sudo prompts before the image-pull spinner.
+	if !isDNSContainerUnit() {
+		step("Starting lerd-dns")
+		if err := services.Mgr.Restart("lerd-dns"); err != nil {
+			fmt.Printf("    WARN: %v\n", err)
+		}
+		ok()
+
+		step("Waiting for lerd-dns to be ready")
+		if err := dns.WaitReady(15 * time.Second); err != nil {
+			fmt.Printf("    WARN: %v\n", err)
+		}
+		ok()
+
+		fmt.Println("  --> Configuring DNS resolver")
+		if err := dns.ConfigureResolver(); err != nil {
+			fmt.Printf("    WARN: %v\n", err)
+		}
+	}
+
 	// 7. Pull images in parallel, then build dnsmasq.
 	pullJobs := []BuildJob{
 		{
@@ -303,21 +325,25 @@ func runInstall(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	step("Starting lerd-dns")
-	if err := services.Mgr.Restart("lerd-dns"); err != nil {
-		fmt.Printf("    WARN: %v\n", err)
-	}
-	ok()
+	// On Linux, DNS is a container — start it after images are pulled.
+	// On macOS it was already started before RunParallel above.
+	if isDNSContainerUnit() {
+		step("Starting lerd-dns")
+		if err := services.Mgr.Restart("lerd-dns"); err != nil {
+			fmt.Printf("    WARN: %v\n", err)
+		}
+		ok()
 
-	step("Waiting for lerd-dns to be ready")
-	if err := dns.WaitReady(15 * time.Second); err != nil {
-		fmt.Printf("    WARN: %v\n", err)
-	}
-	ok()
+		step("Waiting for lerd-dns to be ready")
+		if err := dns.WaitReady(15 * time.Second); err != nil {
+			fmt.Printf("    WARN: %v\n", err)
+		}
+		ok()
 
-	fmt.Println("  --> Configuring DNS resolver")
-	if err := dns.ConfigureResolver(); err != nil {
-		fmt.Printf("    WARN: %v\n", err)
+		fmt.Println("  --> Configuring DNS resolver")
+		if err := dns.ConfigureResolver(); err != nil {
+			fmt.Printf("    WARN: %v\n", err)
+		}
 	}
 
 	// Read the autostart flag once. When disabled (set explicitly via
