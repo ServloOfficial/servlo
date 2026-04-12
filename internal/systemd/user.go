@@ -123,6 +123,13 @@ func IsServiceActiveOrRestarting(name string) bool {
 	return state == "active" || state == "activating"
 }
 
+// IsTimerActive returns true if the worker's sibling .timer is active.
+func IsTimerActive(name string) bool {
+	cmd := exec.Command("systemctl", "--user", "is-active", name+".timer")
+	out, _ := cmd.Output()
+	return strings.TrimSpace(string(out)) == "active"
+}
+
 // FindOrphanedWorkers scans systemd unit files for worker units belonging to
 // the given site that are running but not present in the known workers set.
 func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
