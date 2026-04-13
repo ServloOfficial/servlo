@@ -2,6 +2,7 @@ package ui
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -131,11 +132,26 @@ func Start(currentVersion string) error {
 	// pushes a fresh snapshot to every connected browser. The bus debounces,
 	// so bursty mutations (e.g. restarting a set of workers) still collapse
 	// into one broadcast.
+	// Start the container state cache. One background goroutine polls
+	// podman ps every N seconds; all hot paths (buildStatus, siteinfo,
+	// IsActive) read from the cache instead of spawning per-container
+	// podman inspect subprocesses.
+	podman.Cache.Start(context.Background())
+
 	podman.AfterUnitChange = func(name string) {
-		siteinfo.InvalidateUnitCache()
-		eventbus.Default.Publish(eventbus.KindSites)
-		eventbus.Default.Publish(eventbus.KindServices)
-		eventbus.Default.Publish(eventbus.KindStatus)
+		// Run the poll and snapshot publish in a goroutine so the HTTP
+		// handler (and the unit start/stop call that triggered this) returns
+		// immediately. PollNow blocks until podman ps completes, ensuring
+		// the snapshot broadcast carries current container states rather than
+		// a stale pre-mutation value — which would cause the UI toggle to
+		// appear to revert.
+		go func() {
+			podman.Cache.PollNow()
+			siteinfo.InvalidateUnitCache()
+			eventbus.Default.Publish(eventbus.KindSites)
+			eventbus.Default.Publish(eventbus.KindServices)
+			eventbus.Default.Publish(eventbus.KindStatus)
+		}()
 	}
 
 	// A single goroutine subscribes to the eventbus and invalidates the
@@ -379,14 +395,14 @@ func buildStatus() StatusResponse {
 	}
 
 	dnsOK, _ := dns.Check(tld)
-	nginxRunning, _ := podman.ContainerRunning("lerd-nginx")
+	nginxRunning := podman.Cache.Running("lerd-nginx")
 	watcherRunning := services.Mgr.IsActive("lerd-watcher")
 
 	versions, _ := phpPkg.ListInstalled()
 	var phpStatuses []PHPStatus
 	for _, v := range versions {
 		short := strings.ReplaceAll(v, ".", "")
-		running, _ := podman.ContainerRunning("lerd-php" + short + "-fpm")
+		running := podman.Cache.Running("lerd-php" + short + "-fpm")
 		xdebugEnabled := cfg != nil && cfg.IsXdebugEnabled(v)
 		phpStatuses = append(phpStatuses, PHPStatus{Version: v, Running: running, XdebugEnabled: xdebugEnabled})
 	}
