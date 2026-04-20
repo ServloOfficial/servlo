@@ -11,6 +11,27 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.17.0] — 2026-04-20
+
+### Added
+
+- **Nginx per-site overrides** (#225). User snippets dropped in `~/.local/share/lerd/nginx/custom.d/{domain}.conf` now survive every vhost regeneration and every `lerd update`. Each generated server block ends with an `include` that pulls that file in, and lerd never writes into `custom.d/` so your edits stay put. Fixes #223.
+- **X-Forwarded-* propagation into PHP** (#225). Generated vhosts now set `HTTP_HOST`, `SERVER_NAME`, `HTTP_X_FORWARDED_HOST`, `HTTP_X_FORWARDED_PROTO`, `HTTP_X_FORWARDED_PORT`, `HTTP_X_REAL_IP`, and `HTTP_X_FORWARDED_FOR` via two http-level `map` blocks (`$real_forwarded_host`, `$real_forwarded_proto`) declared once in a new `conf.d/_forwarded.conf`. Direct browser access is unchanged because the maps fall back to `$host` and `$scheme`; tunnels like `lerd share`, ngrok, and cloudflared now produce correct absolute URLs out of the box, without any app-side `trust_proxies` config. Fixes #224.
+- **Global AI skill docs refreshed on `lerd update`** (#222). `mcp:enable-global` now also writes user-scope `SKILL.md`, cursor rules, and junie guidelines so AI assistants know about the current lerd MCP tools. `lerd update` rewrites those three files from the new binary whenever global MCP is enabled, keeping them aligned with any added or renamed tools. The gate detects both Claude user-scope registration and the lerd-owned marker files, so users without Claude Code installed are still covered.
+- **TUI responsive layout, scrollbars, and color refresh** (#217). Below 100 columns the dashboard stacks into a narrow layout: list pane (40%) above detail (60%), `v` toggles between sites and services, `tab` cycles only through the active list and detail. Sites, services, and the site detail pane gained a scrollbar; the log pane is scrollable with `{` and `}` and its header shows the current offset. Colors were rebalanced to match the web UI palette: emerald for running, violet for accents, amber for paused, red for failing.
+
+### Fixed
+
+- **Country-code TLDs incorrectly encoded in auto-generated site names** (#221). `SiteNameAndDomain` used a curated TLD list that missed most ccTLDs, so a directory named `astrolov.ro` produced `astrolov-ro.test` instead of `astrolov.test`. Replaced with a regex matching any trailing two-letter suffix, covering every ISO 3166 code without a maintenance list. Multi-letter gTLDs (`.com`, `.net`, `.info`, `.dev`, `.app`, `.ltd`, and friends) stay on the curated list so `app.v2` and `backup.old` survive unchanged.
+- **Invalid `AWS_BUCKET` names on rustfs sites** (#220). The framework template wrote the underscored database handle, which rustfs rejects. `envMap["AWS_BUCKET"]` now flows through `s3BucketName` on every run so stale invalid values auto-heal, and a new `{{bucket}}` template placeholder resolves to the S3-safe form. Existing sites with a broken bucket name are repaired on the next `lerd env`.
+- **Auto-stop skipped Podman services on macOS after all sites were paused** (#216). Services using Podman's `--restart=always` policy sit with a launchd plist in the "not running, never exited" state; `UnitStatus` fell through to `ContainerRunning`, but a transient `podman inspect` failure (common under VM socket contention) returned "failed" and auto-stop silently skipped the service. `ContainerRunning` is now the authoritative check, with `UnitStatus` kept as a fallback when the container is not found. Postgres and meilisearch now stop as expected.
+
+### Changed
+
+- **Docs workflow deploys only on tag release** (#219). The GitHub Pages deploy now triggers on `v*` tag pushes instead of every push to main, so the published site tracks tagged versions and doesn't republish on internal-only merges.
+
+---
+
 ## [1.16.0] — 2026-04-17
 
 ### Added
