@@ -41,7 +41,8 @@ func GenerateCustomContainerQuadlet(siteName, projectPath string, port int) stri
 // WriteCustomContainerQuadlet writes the quadlet for a custom container site.
 func WriteCustomContainerQuadlet(siteName, projectPath string, port int) error {
 	content := GenerateCustomContainerQuadlet(siteName, projectPath, port)
-	return WriteContainerUnitFn(CustomContainerName(siteName), content)
+	_, err := WriteQuadletDiff(CustomContainerName(siteName), content)
+	return err
 }
 
 // RemoveCustomContainerQuadlet removes the unit file for a custom container.

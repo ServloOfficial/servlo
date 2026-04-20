@@ -1047,11 +1047,37 @@ func handleServicePresetInstall(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
+
+	// Auto-start the service after installation, just like clicking Start
+	// from the dashboard. Start dependencies first so the service can connect.
+	unit := "lerd-" + svc.Name
+	var startErr string
+	if depErr := cli.StartServiceDependencies(svc); depErr != nil {
+		startErr = depErr.Error()
+	} else {
+		var opErr error
+		for attempt := range 5 {
+			opErr = podman.StartUnit(unit)
+			if opErr == nil || !strings.Contains(opErr.Error(), "not found") {
+				break
+			}
+			time.Sleep(time.Duration(attempt+1) * 300 * time.Millisecond)
+		}
+		if opErr == nil {
+			_ = config.SetServicePaused(svc.Name, false)
+			_ = config.SetServiceManuallyStarted(svc.Name, true)
+			cli.RegenerateFamilyConsumersForService(svc.Name)
+		} else {
+			startErr = opErr.Error()
+		}
+	}
+
 	writeJSON(w, map[string]any{
 		"ok":         true,
 		"name":       svc.Name,
 		"dashboard":  svc.Dashboard,
 		"depends_on": svc.DependsOn,
+		"startError": startErr,
 	})
 }
 
@@ -1378,7 +1404,7 @@ func ensureServiceQuadlet(name string) error {
 	if err != nil {
 		return fmt.Errorf("unknown service %q", name)
 	}
-	if err := podman.WriteContainerUnitFn(quadletName, content); err != nil {
+	if _, err := podman.WriteQuadletDiff(quadletName, content); err != nil {
 		return fmt.Errorf("writing unit for %s: %w", name, err)
 	}
 	return podman.DaemonReloadFn()

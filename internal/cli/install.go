@@ -318,31 +318,10 @@ func runInstall(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// On macOS, DNS runs natively (no container image needed) and DaemonReload
-	// is a no-op, so we can start lerd-dns and configure the resolver here —
-	// before RunParallel — keeping all sudo prompts before the image-pull spinner.
-	if !isDNSContainerUnit() {
-		step("Starting lerd-dns")
-		if err := services.Mgr.Restart("lerd-dns"); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
-		}
-		ok()
-
-		step("Waiting for lerd-dns to be ready")
-		if err := dns.WaitReady(15 * time.Second); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
-		}
-		ok()
-
-		fmt.Println("  --> Configuring DNS resolver")
-		if err := dns.ConfigureResolver(); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
-		}
-	}
-
-	// 7. Pull images sequentially, then build dnsmasq. Sequential output
-	// keeps any sudo password prompt from later steps visible instead of
-	// being clobbered by a live-updating spinner.
+	// 7. Pull images before touching DNS so registry lookups use the system
+	// resolver. On macOS ConfigureResolver() redirects .test queries through
+	// lerd-dns; doing pulls first ensures the system DNS is intact for all
+	// registry traffic (docker.io, ghcr.io, etc.).
 	pullJobs := []BuildJob{
 		{
 			Label: "Pulling nginx:alpine",
@@ -362,6 +341,35 @@ func runInstall(_ *cobra.Command, _ []string) error {
 			continue
 		}
 		ok()
+	}
+
+	// Pull/build all service and FPM images before touching DNS. On macOS,
+	// ConfigureResolver() redirects .test DNS through lerd-dns; any registry
+	// pull after that point uses the overridden resolver which may not yet
+	// forward non-.test queries correctly on a fresh install.
+	if lerdSystemd.IsAutostartEnabled() {
+		ensureImages()
+	}
+
+	// On macOS, DNS runs natively (no container image needed) and DaemonReload
+	// is a no-op, so we can start lerd-dns and configure the resolver here.
+	if !isDNSContainerUnit() {
+		step("Starting lerd-dns")
+		if err := services.Mgr.Restart("lerd-dns"); err != nil {
+			fmt.Printf("    WARN: %v\n", err)
+		}
+		ok()
+
+		step("Waiting for lerd-dns to be ready")
+		if err := dns.WaitReady(15 * time.Second); err != nil {
+			fmt.Printf("    WARN: %v\n", err)
+		}
+		ok()
+
+		fmt.Println("  --> Configuring DNS resolver")
+		if err := dns.ConfigureResolver(); err != nil {
+			fmt.Printf("    WARN: %v\n", err)
+		}
 	}
 
 	// 8. Systemd / services
@@ -503,6 +511,26 @@ func runInstall(_ *cobra.Command, _ []string) error {
 	// stopped — `lerd update` running install via re-exec must not flip
 	// disabled units back on.
 	if autostartOn {
+		// Start installed PHP FPM containers whose images are now available.
+		if fpmVersions, _ := phpDet.ListInstalled(); len(fpmVersions) > 0 {
+			var fpmJobs []BuildJob
+			for _, v := range fpmVersions {
+				ver := v
+				short := strings.ReplaceAll(ver, ".", "")
+				if podman.RunSilent("image", "exists", "lerd-php"+short+"-fpm:local") != nil {
+					continue // image still missing, skip
+				}
+				unit := "lerd-php" + short + "-fpm"
+				fpmJobs = append(fpmJobs, BuildJob{
+					Label: "php" + short + "-fpm",
+					Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
+				})
+			}
+			if len(fpmJobs) > 0 {
+				RunParallel(fpmJobs) //nolint:errcheck
+			}
+		}
+
 		startRestoredServices()
 	}
 
@@ -800,7 +828,12 @@ func (p *progressReader) Read(b []byte) (int, error) {
 func addShellShims(manageNode bool) error {
 	home, _ := os.UserHomeDir()
 	binDir := config.BinDir()
-	lerdBin := filepath.Join(home, ".local", "bin", "lerd")
+	// Use the running binary so shims work regardless of install method
+	// (Homebrew at /opt/homebrew/bin/lerd, manual at ~/.local/bin/lerd, etc.).
+	lerdBin, _ := os.Executable()
+	if lerdBin == "" {
+		lerdBin = filepath.Join(home, ".local", "bin", "lerd")
+	}
 	fnmBin := filepath.Join(binDir, "fnm")
 
 	// Write php shim
@@ -918,6 +951,10 @@ func isShell(shell, name string) bool {
 // installCompletion generates and writes a shell completion script for lerd.
 func installCompletion(lerdBin, shell, dir, filename string) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
+		return
+	}
+	// Skip if lerdBin looks like a test binary to avoid re-entering test code.
+	if strings.HasSuffix(lerdBin, ".test") || strings.Contains(lerdBin, "/tmp/") {
 		return
 	}
 	out, err := exec.Command(lerdBin, "completion", shell).Output()

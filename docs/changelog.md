@@ -11,6 +11,24 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.17.1] — 2026-04-20
+
+### Fixed
+
+- **Services not started after fresh macOS install**. `ensureServiceQuadlet` on macOS called `WriteContainerUnitFn` which only writes the launchd plist, not a `.container` file in `QuadletDir`. `startRestoredServices` later reads that directory via `quadletImage()` to decide what to pre-pull; with no file it returns empty and skips the pull, leaving `podman run` to auto-pull mysql/postgres/etc. on a brand-new Podman Machine where those pulls often fail or time out. Switched to `WriteQuadletDiff`, which writes both the `.container` file and the launchd plist via `AfterQuadletWriteFn`, so pre-pull works on first install.
+- **PHP FPM images silently missed on first install**. `ensureFPMQuadletTo` wrote the launchd plist only after a successful image build; a failed build left the PHP version unregistered, invisible to `ensureImages()`, and never retried. The plist is now written before the build so the version shows up in `lerd status` (as `image missing`) and `lerd start` rebuilds it on the next run. `lerd install`'s autostart block also re-runs `ensureImages()` before starting FPM containers so transient build failures heal automatically.
+- **Image pulls routed through lerd-dns on macOS install**. `ensureImages()` ran after `ConfigureResolver()`, so every registry pull (nginx, DNS, services, FPM) went through the `.test` override. Moved the call before the DNS block so pulls use the clean system resolver.
+- **`.container` file missing for service and custom-container units on macOS**. All call sites (FPM, custom services, custom containers, UI server, MCP server) used `WriteContainerUnitFn`, which on macOS writes only the launchd plist. `quadletImage()` then had no file to read, so the pre-pull step was skipped and containers failed on first start. Every site now calls `WriteQuadletDiff`, which writes both artifacts.
+- **Certificates reissued on every `lerd setup`**. `IssueCert` re-ran mkcert even when the cert and key were already present. Now skips when both files exist.
+- **Shims broken under Homebrew installs**. php/composer/laravel shims hardcoded `~/.local/bin/lerd` as the target binary, so they failed for Homebrew installs at `/opt/homebrew/bin/lerd`. Shims now resolve the running binary with `os.Executable()` and use whichever path ran `lerd install`.
+- **PHP commands failing on fresh installs because `.env` services weren't running**. `ensureServicesForCwd` only acted on paused sites, so mysql/postgres/etc. referenced in a site's `.env` stayed down and migrations failed with connection errors. It now starts any referenced service that isn't running, silently, regardless of pause state.
+- **Dashboard preset install left services stopped**. `InstallPresetByName` only wrote the quadlet without starting the container, so services added from the Web UI (mongodb and others) sat idle after install. The UI now starts dependencies and then the service itself, matching the dashboard's Start button.
+- **`lerd share` URL unreachable while a VPN is active**. `detectPrimaryLANIP` returned the VPN tunnel address (`utun*`/`tun*`) instead of the physical LAN interface, so the shared URL worked on the host but nothing else on the LAN could reach it. The detector now validates which interface the routing-table probe selected and falls back to scanning physical interfaces, skipping `utun`, `tun`, `tap`, `wg`, and container bridges.
+- **fnm install fails on ARM Linux**. The installer only fetched `fnm-linux.zip`, which is x86_64-only; arm64 machines need `fnm-arm64.zip`. Arch detection now picks the correct archive, matching the existing logic used for mkcert.
+- **Go test runs hang for the full timeout**. `installCompletion` called `os.Executable()` during tests; the resulting path pointed at the test binary, which then re-invoked itself with `completion bash` and hung until CI's 10-minute timeout. The installer now skips when the executable name ends in `.test`.
+
+---
+
 ## [1.17.0] — 2026-04-20
 
 ### Added

@@ -1811,7 +1811,7 @@ func execServiceStart(args map[string]any) (any, *rpcError) {
 				}
 			}
 		}
-		if err := podman.WriteContainerUnitFn(unitName, content); err != nil {
+		if _, err := podman.WriteQuadletDiff(unitName, content); err != nil {
 			return toolErr("writing quadlet: " + err.Error()), nil
 		}
 	} else {
@@ -3131,7 +3131,7 @@ func execServiceExpose(args map[string]any) (any, *rpcError) {
 	if len(svcCfg.ExtraPorts) > 0 {
 		content = podman.ApplyExtraPorts(content, svcCfg.ExtraPorts)
 	}
-	if err := podman.WriteContainerUnitFn(unitName, content); err != nil {
+	if _, err := podman.WriteQuadletDiff(unitName, content); err != nil {
 		return toolErr("writing quadlet: " + err.Error()), nil
 	}
 	if err := podman.DaemonReloadFn(); err != nil {

@@ -190,15 +190,19 @@ func UnpauseSite(name string) error {
 	return nil
 }
 
-// ensureServicesForCwd checks whether the site at cwd is paused and, if so,
-// starts any services its .env references that are not already running. Only
-// prints a notice when at least one service actually needs to be started.
+// ensureServicesForCwd starts any services referenced in the site's .env that
+// are not already running. When the site is paused it prints a notice; when it
+// is active it starts any missing services silently.
 func ensureServicesForCwd(cwd string) {
 	site, err := config.FindSiteByPath(cwd)
-	if err != nil || !site.Paused {
+	if err != nil {
 		return
 	}
-	startServicesForSiteNoticed(cwd, site.Name)
+	siteName := ""
+	if site.Paused {
+		siteName = site.Name
+	}
+	startServicesForSiteNoticed(cwd, siteName)
 }
 
 // startServicesForSite reads the site's .env file and ensures every lerd service

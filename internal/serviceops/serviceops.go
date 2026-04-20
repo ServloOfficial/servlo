@@ -98,7 +98,7 @@ func EnsureCustomServiceQuadlet(svc *config.CustomService) error {
 	}
 	content := podman.GenerateCustomQuadlet(svc)
 	quadletName := "lerd-" + svc.Name
-	if err := podman.WriteContainerUnitFn(quadletName, content); err != nil {
+	if _, err := podman.WriteQuadletDiff(quadletName, content); err != nil {
 		return fmt.Errorf("writing unit for %s: %w", svc.Name, err)
 	}
 	return podman.DaemonReloadFn()

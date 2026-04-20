@@ -504,7 +504,7 @@ func WriteFPMQuadlet(version string) error {
 		}
 	}
 
-	if err := WriteContainerUnitFn(unitName, content); err != nil {
+	if _, err := WriteQuadletDiff(unitName, content); err != nil {
 		return err
 	}
 	return DaemonReloadFn()
