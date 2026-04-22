@@ -87,7 +87,8 @@ Once the MCP server is connected, your AI assistant has access to:
 | `console` | Run the framework's console command (e.g. `php bin/console` for Symfony); shown for non-Laravel frameworks that define a `console` field |
 | `composer` | Run `composer` in the PHP-FPM container: install, require, dump-autoload, etc. |
 | `node` | Install or uninstall a Node.js version via fnm — `action`: `install` / `uninstall` (e.g. `"20"`, `"lts"`) |
-| `env_setup` | Configure `.env` for lerd: detects services, starts them, creates DB, sets APP_KEY and APP_URL |
+| `env_setup` | Configure `.env` for lerd: detects services, starts them, creates DB (sqlite auto-created when `DB_CONNECTION=sqlite`), sets APP_KEY and APP_URL. Always follow with `setup` to run migrations. |
+| `setup` | Run the framework's post-install bootstrap steps (Laravel: `storage:link` + `migrate`; Symfony: `doctrine:migrations:migrate` when `doctrine-migrations-bundle` is installed). Mandatory after `env_setup` on new or cloned projects; idempotent. |
 | `env_check` | Compare all `.env` files against `.env.example` and flag missing or extra keys (returns structured JSON) |
 | `site_link` | Register a directory as a lerd site; generates nginx vhost and `.test` domain |
 | `site_unlink` | Unregister a site and remove its nginx vhost (all domains) |
@@ -132,11 +133,13 @@ The `path` argument is omitted from most calls; the server resolves it from the 
 
 ```
 You: create a new Laravel project and get it running
-AI:  → composer(args: ["create-project", "laravel/laravel", "."])
-     → site_link()
-     → env_setup()
-       # detects MySQL + Redis, starts them, creates database, generates APP_KEY
-     → artisan(args: ["migrate"])
+AI:  → project_new(path: "/home/me/Code/myapp", framework: "laravel")
+       # scaffolds + runs composer install, returns with vendor/ populated
+     → site_link(path: "/home/me/Code/myapp")
+     → env_setup(path: "/home/me/Code/myapp")
+       # detects MySQL + Redis (or keeps sqlite), starts services, creates/touches DB, generates APP_KEY
+     → setup(path: "/home/me/Code/myapp")
+       # runs storage:link + migrate
      ✓  myapp -> myapp.test ready
 
 You: run migrations
@@ -167,10 +170,12 @@ AI:  → runtime_versions()
 
 You: set up the project I just cloned
 AI:  → site_link()
+     → composer(args: ["install"])
+       # runs BEFORE env_setup so APP_KEY generation has vendor/
      → env_setup()
        # detects MySQL + Redis, starts them, creates database, generates APP_KEY
-     → composer(args: ["install"])
-     → artisan(args: ["migrate", "--seed"])
+     → setup()
+       # framework migrations + storage:link (or doctrine:migrations:migrate for Symfony)
      ✓  whitewaters -> whitewaters.test ready
 
 You: enable xdebug so I can step through a failing job

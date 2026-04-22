@@ -423,7 +423,17 @@ func toolList() []mcpTool {
 		},
 		{
 			Name:        "env_setup",
-			Description: "Configure .env: start services, create DBs, APP_KEY, APP_URL. Run once after clone. For fresh Laravel with DB_CONNECTION=sqlite, call db_set first.",
+			Description: "Configure .env (services, DBs, APP_KEY, APP_URL). Call after site_link, then ALWAYS follow with setup to run migrations. For sqlite DB_CONNECTION, pick db_set first if you want mysql/postgres instead.",
+			InputSchema: mcpSchema{
+				Type: "object",
+				Properties: map[string]mcpProp{
+					"path": {Type: "string", Description: "Project root. Defaults to cwd."},
+				},
+			},
+		},
+		{
+			Name:        "setup",
+			Description: "Run the framework's post-install steps (migrations, storage:link, etc.). MANDATORY after env_setup on new or cloned projects — otherwise migrations never run. Idempotent.",
 			InputSchema: mcpSchema{
 				Type: "object",
 				Properties: map[string]mcpProp{
@@ -1142,6 +1152,8 @@ func handleToolCall(params json.RawMessage) (any, *rpcError) {
 		return execFrameworkInstall(args)
 	case "project_new":
 		return execProjectNew(args)
+	case "setup":
+		return execSetup(args)
 	case "site_php":
 		return execSitePHP(args)
 	case "site_node":
@@ -4126,8 +4138,116 @@ func execProjectNew(args map[string]any) (any, *rpcError) {
 	if err := cmd.Run(); err != nil {
 		return toolErr(fmt.Sprintf("scaffold command failed (%v):\n%s", err, stripANSI(out.String()))), nil
 	}
+
+	// Framework create commands use --no-install --no-plugins --no-scripts so
+	// the scaffolder doesn't race with lerd's post-link setup. Chase with
+	// `composer install` in the FPM container so project_new returns a
+	// ready-to-work vendor/ directory and any post-install scripts fire.
+	if composerErr := runComposerInstallIfNeeded(projectPath, &out); composerErr != nil {
+		return toolErr(fmt.Sprintf("scaffold succeeded but composer install failed: %v\n%s", composerErr, stripANSI(out.String()))), nil
+	}
+
 	return toolOK(fmt.Sprintf("Project created at %s\n\nNext steps:\n  site_link(path: %q)\n  env_setup(path: %q)\n\n%s",
 		projectPath, projectPath, projectPath, stripANSI(strings.TrimSpace(out.String())))), nil
+}
+
+// runComposerInstallIfNeeded runs `composer install` inside the FPM container
+// matching projectPath's PHP version when composer.json exists but vendor/
+// does not. Output is appended to the provided buffer.
+func runComposerInstallIfNeeded(projectPath string, out *bytes.Buffer) error {
+	if _, err := os.Stat(filepath.Join(projectPath, "composer.json")); err != nil {
+		return nil
+	}
+	if _, err := os.Stat(filepath.Join(projectPath, "vendor")); err == nil {
+		return nil
+	}
+
+	phpVersion, err := phpDet.DetectVersion(projectPath)
+	if err != nil || phpVersion == "" {
+		cfg, cfgErr := config.LoadGlobal()
+		if cfgErr != nil || cfg == nil {
+			return fmt.Errorf("could not determine PHP version: %w", err)
+		}
+		phpVersion = cfg.PHP.DefaultVersion
+	}
+	container := "lerd-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
+
+	out.WriteString("\n\n--- composer install ---\n")
+	cmd := podman.Cmd("exec", "-w", projectPath, container, "composer", "install", "--no-interaction")
+	cmd.Stdout = out
+	cmd.Stderr = out
+	return cmd.Run()
+}
+
+// execSetup runs every Default: true entry in the site framework's Setup list
+// whose Check rule passes, mirroring what the `lerd setup` CLI does when the
+// user keeps the default selections. Commands run in the site's PHP-FPM
+// container via `podman exec`. A single step failure is reported but doesn't
+// abort the rest — these commands are idempotent by convention.
+func execSetup(args map[string]any) (any, *rpcError) {
+	projectPath := resolvedPath(args)
+	if projectPath == "" {
+		return toolErr("path is required — pass a path argument or open Claude in the project directory"), nil
+	}
+	site, err := config.FindSiteByPath(projectPath)
+	if err != nil || site == nil {
+		return toolErr("no site registered at " + projectPath + " — run site_link first"), nil
+	}
+	fwName := site.Framework
+	if fwName == "" {
+		fwName, _ = config.DetectFrameworkForDir(projectPath)
+	}
+	if fwName == "" {
+		return toolErr("no framework detected — nothing to set up"), nil
+	}
+	fw, ok := config.GetFramework(fwName)
+	if !ok {
+		return toolErr(fmt.Sprintf("framework %q is not defined", fwName)), nil
+	}
+
+	phpVersion, phpErr := phpDet.DetectVersion(projectPath)
+	if phpErr != nil || phpVersion == "" {
+		cfg, cfgErr := config.LoadGlobal()
+		if cfgErr != nil || cfg == nil {
+			return toolErr("could not determine PHP version"), nil
+		}
+		phpVersion = cfg.PHP.DefaultVersion
+	}
+	container := "lerd-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
+
+	var out bytes.Buffer
+	ran, skipped, failed := 0, 0, 0
+	for _, step := range fw.Setup {
+		if !step.Default {
+			skipped++
+			continue
+		}
+		if step.Check != nil && !config.MatchesRule(projectPath, *step.Check) {
+			skipped++
+			continue
+		}
+		parts := strings.Fields(step.Command)
+		if len(parts) == 0 {
+			continue
+		}
+		fmt.Fprintf(&out, "\n--- %s ---\n", step.Label)
+		cmdArgs := append([]string{"exec", "-i", "-w", projectPath, container}, parts...)
+		cmd := podman.Cmd(cmdArgs...)
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(&out, "[WARN] %s failed: %v\n", step.Label, err)
+			failed++
+			continue
+		}
+		ran++
+	}
+
+	if ran == 0 && failed == 0 {
+		return toolOK(fmt.Sprintf("No default setup steps to run for %s.", fw.Label)), nil
+	}
+	summary := fmt.Sprintf("%s setup: %d ran, %d skipped, %d failed.", fw.Label, ran, skipped, failed)
+	return toolOK(summary + "\n" + stripANSI(strings.TrimSpace(out.String()))), nil
 }
 
 func execSitePHP(args map[string]any) (any, *rpcError) {

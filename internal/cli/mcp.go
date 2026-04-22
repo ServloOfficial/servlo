@@ -307,14 +307,32 @@ func WriteGlobalAISkills(home string, verbose bool) error {
 	return nil
 }
 
-// IsMCPGloballyRegistered reports whether lerd is already registered at user scope
-// in Claude Code. Used by the install command to skip the prompt if already set up.
+// IsMCPGloballyRegistered reports whether lerd is registered with Claude Code.
+// Uses `claude mcp get lerd` which returns exit 0 when the server is known and
+// exit 1 otherwise. The older `claude mcp list --scope user` flag form breaks
+// on newer Claude CLI releases.
 func IsMCPGloballyRegistered() bool {
-	out, err := exec.Command("claude", "mcp", "list", "--scope", "user").CombinedOutput()
-	if err != nil {
+	if _, err := exec.LookPath("claude"); err != nil {
 		return false
 	}
-	return strings.Contains(string(out), "lerd")
+	return exec.Command("claude", "mcp", "get", "lerd").Run() == nil
+}
+
+// ensureClaudeMCPRegistered adds lerd to Claude Code at user scope only when
+// `claude mcp get lerd` reports it missing. Add-only (no remove-then-add) so
+// a failing add can't leave the user unregistered. No-op when claude isn't
+// installed or lerd is already registered.
+func ensureClaudeMCPRegistered() {
+	if _, err := exec.LookPath("claude"); err != nil {
+		return
+	}
+	if exec.Command("claude", "mcp", "get", "lerd").Run() == nil {
+		return
+	}
+	if err := exec.Command("claude", "mcp", "add", "-s", "user", "lerd", "--", "lerd", "mcp").Run(); err != nil {
+		fmt.Printf("  [WARN] could not register lerd with Claude Code: %v\n", err)
+		fmt.Println("  Run manually: claude mcp add -s user lerd -- lerd mcp")
+	}
 }
 
 // mergeJunieGuidelines upserts the lerd section inside .junie/guidelines.md.
@@ -1142,20 +1160,43 @@ Returns: ` + bt + `{"version": "...", "checks": [{name, status, detail}], "failu
 
 Single-tool tasks are covered by the tool definitions above (e.g. ` + bt + `site_tls` + bt + ` enables HTTPS, ` + bt + `doctor` + bt + ` runs a full diagnostic, ` + bt + `logs` + bt + ` tails FPM/nginx). These flows only cover multi-step compositions where ordering or non-obvious glue matters.
 
-**New Laravel project from scratch:**
+**Bootstrap a new project from scratch, end-to-end** — works for any lerd-known framework (laravel, symfony, etc.). **Run every step, in order. Do not stop until ` + bt + `setup` + bt + ` returns.**
 ` + "```" + `
-composer(args: ["create-project", "laravel/laravel", "."])
-site_link()           // registers the cwd as a lerd site
-env_setup()           // configures .env, starts services, creates DB, generates APP_KEY
-artisan(args: ["migrate"])
+project_new(path: "/abs/path/myapp", framework: "laravel")
+// project_new scaffolds AND runs composer install — vendor/ is populated on return
+site_link(path: "/abs/path/myapp")
+env_setup(path: "/abs/path/myapp")    // .env, services, DB (sqlite auto-created), APP_KEY
+setup(path: "/abs/path/myapp")        // framework Default:true steps — migrations, storage:link, etc.
+// Optional:
+site_tls(action: "enable", site: "myapp")   // HTTPS via mkcert
 ` + "```" + `
 
-**Cloned project setup:**
+**Set up a cloned project, end-to-end** — framework-agnostic. **Run every step, in order.**
 ` + "```" + `
-site_link()
-env_setup()                          // auto-configures .env, starts services, creates DB
+site_link()                           // registers cwd as a lerd site
+composer(args: ["install"])           // BEFORE env_setup — APP_KEY generation needs vendor/
+env_setup()                           // .env, services, DB (sqlite auto-created), APP_KEY
+setup()                               // framework migrations + other Default:true setup steps
+// Optional:
+// vendor_run(bin: "pest")            // run tests to confirm everything works
+` + "```" + `
+
+**Debugging a 500 on a lerd site** (ordered, stop at the first signal):
+` + "```" + `
+logs()                                 // current site's FPM + recent errors
+logs(target: "nginx")                  // if FPM logs are clean
+env_check()                            // missing .env keys vs .env.example
+which()                                // confirm PHP version, docroot, vhost
+// If the error mentions vendor/, autoload, or class-not-found:
 composer(args: ["install"])
-artisan(args: ["migrate", "--seed"])
+// If the error mentions APP_KEY:
+artisan(args: ["key:generate"])        // or framework's equivalent
+// If the error mentions the database file / connection:
+//   sqlite: env_setup() auto-creates database/database.sqlite
+//   mysql/postgres: service_control(action: "start", name: "<service>")
+setup()                                // re-runs pending migrations + setup steps
+status()                               // DNS / nginx / FPM container health at a glance
+doctor()                               // full diagnostic if nothing above explains it
 ` + "```" + `
 
 **Install a package that needs publish + migration:**

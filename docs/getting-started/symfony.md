@@ -7,7 +7,7 @@ You've already run `lerd install` once on this machine. If not, see [Installatio
 :::
 
 ::: tip Drive it from your AI assistant
-Run `lerd mcp:enable-global` once and your AI assistant (Claude Code, Junie, Windsurf) can call every command below as an MCP tool: `project_new`, `site_link`, `env_setup`, `db_create`, `secure`, `worker_start`, etc. See [AI Integration](../features/mcp.md).
+Run `lerd mcp:enable-global` once and your AI assistant (Claude Code, Junie, Windsurf) can call every command below as an MCP tool: `project_new`, `site_link`, `env_setup`, `setup`, `db_create`, `site_tls`, `worker`, etc. See [AI Integration](../features/mcp.md).
 :::
 
 ---
