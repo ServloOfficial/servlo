@@ -891,6 +891,14 @@ Arguments:
 
 Use ` + bt + `pause` + bt + ` / ` + bt + `unpause` + bt + ` to free up resources for sites you're not actively working on without fully unlinking them.
 
+### ` + bt + `site_runtime` + bt + `
+Switch the PHP runtime for a site between the shared PHP-FPM container (` + bt + `fpm` + bt + `, default) and a per-site FrankenPHP container (` + bt + `frankenphp` + bt + `). Arguments:
+- ` + bt + `site` + bt + ` (required): site name from ` + bt + `sites` + bt + ` tool
+- ` + bt + `runtime` + bt + ` (required): ` + bt + `fpm` + bt + ` or ` + bt + `frankenphp` + bt + `
+- ` + bt + `worker` + bt + ` (optional, default false): when runtime=frankenphp, enable worker mode (keeps PHP resident for ~10-50x faster requests)
+
+FrankenPHP is framework-aware: Laravel uses ` + bt + `octane:start --server=frankenphp --workers=auto` + bt + ` (needs pcntl, installed at container start); Symfony uses ` + bt + `frankenphp php-server --worker=public/index.php --watch` + bt + ` for live reload; unknown frameworks fall back to ` + bt + `frankenphp php-server` + bt + ` rooted at the framework's public dir. Switching to ` + bt + `fpm` + bt + ` removes the runtime fields from ` + bt + `.lerd.yaml` + bt + ` and regenerates the FPM vhost. Not supported on custom-container sites (their runtime comes from their Containerfile). Xdebug is not wired up for FrankenPHP; switch back to ` + bt + `fpm` + bt + ` to debug.
+
 ### ` + bt + `stripe` + bt + `
 Start or stop a Stripe webhook listener for a site using the Stripe CLI container. On ` + bt + `start` + bt + ` it reads ` + bt + `STRIPE_SECRET` + bt + ` from the site's ` + bt + `.env` + bt + ` and forwards webhooks to ` + bt + `/stripe/webhook` + bt + ` by default.
 
@@ -1082,6 +1090,13 @@ site_control(action: "unpause", site: "old-project")     // restore and restart
 ` + "```" + `
 site_control(action: "restart", site: "nestjs-app")      // restarts container (no rebuild)
 site_control(action: "rebuild", site: "nestjs-app")      // rebuilds image from Containerfile + restarts
+` + "```" + `
+
+**Switch a site to FrankenPHP (per-site container, optional worker mode):**
+` + "```" + `
+site_runtime(site: "myapp", runtime: "frankenphp")                  // non-worker
+site_runtime(site: "myapp", runtime: "frankenphp", worker: true)    // worker mode
+site_runtime(site: "myapp", runtime: "fpm")                         // back to shared FPM
 ` + "```" + `
 
 **Keep a service always running regardless of active site:**
@@ -1308,6 +1323,7 @@ This project runs on **lerd**, a Podman-based Laravel development environment. T
 | ` + bt + `site_php` + bt + ` | Change PHP version for a site — writes ` + bt + `.php-version` + bt + `, updates registry, regenerates nginx vhost |
 | ` + bt + `site_node` + bt + ` | Change Node.js version for a site — writes ` + bt + `.node-version` + bt + `, installs via fnm if needed |
 | ` + bt + `site_control` + bt + ` | Pause, unpause, restart, or rebuild a site — ` + bt + `action` + bt + `: ` + bt + `pause` + bt + ` / ` + bt + `unpause` + bt + ` / ` + bt + `restart` + bt + ` / ` + bt + `rebuild` + bt + ` (pause replaces vhost with landing page; rebuild only for custom containers) |
+| ` + bt + `site_runtime` + bt + ` | Switch between shared PHP-FPM and per-site FrankenPHP runtime (supports worker mode) |
 | ` + bt + `stripe` + bt + ` | Start or stop a Stripe webhook listener for a site — ` + bt + `action` + bt + `: ` + bt + `start` + bt + ` / ` + bt + `stop` + bt + ` |
 | ` + bt + `logs` + bt + ` | Fetch container logs — defaults to current site's FPM; optionally specify nginx, service name, PHP version, or site name |
 | ` + bt + `status` + bt + ` | Health snapshot of DNS, nginx, PHP-FPM containers, and the file watcher |

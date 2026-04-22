@@ -116,6 +116,7 @@ Once the MCP server is connected, your AI assistant has access to:
 | `site_php` | Change the PHP version for a registered site: writes `.php-version`, updates registry, regenerates nginx vhost |
 | `site_node` | Change the Node.js version for a registered site: writes `.node-version`, installs via fnm if needed |
 | `site_control` | Pause, unpause, restart, or rebuild a site — `action`: `pause` / `unpause` / `restart` / `rebuild` (pause replaces vhost with landing page; rebuild only for custom containers) |
+| `site_runtime` | Switch between shared PHP-FPM and per-site FrankenPHP runtime; supports framework-aware worker mode (Laravel Octane, Symfony runtime) |
 | `stripe` | Start or stop a Stripe webhook listener for a site — `action`: `start` / `stop` (reads `STRIPE_SECRET` from `.env` on start) |
 | `logs` | Fetch container logs; defaults to current site's FPM; optionally specify nginx, service name, PHP version, or site name |
 | `status` | Health snapshot of DNS, nginx, PHP-FPM containers, and the watcher; use when a site isn't loading |
