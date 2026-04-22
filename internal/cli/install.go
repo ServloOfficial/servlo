@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -76,9 +77,25 @@ func runInstall(_ *cobra.Command, _ []string) error {
 	}
 
 	// 2. Podman network
+	// Containers removed by the v4→v6 migration are restarted AFTER the
+	// quadlet refresh phase below — restarting inline here would bring them
+	// back on the stale pre-PairIPv6Binds quadlets.
+	var migrated []string
 	step("Creating lerd podman network")
 	if err := podman.EnsureNetwork("lerd"); err != nil {
-		return err
+		if errors.Is(err, podman.ErrNetworkNeedsMigration) {
+			fmt.Println()
+			fmt.Println("    Migrating lerd network to dual-stack v4+v6.")
+			fmt.Println("    Existing containers on this network will be recreated.")
+			restored, mErr := podman.MigrateNetworkToIPv6("lerd")
+			if mErr != nil {
+				return fmt.Errorf("migrating lerd network: %w", mErr)
+			}
+			migrated = restored
+			step("Creating lerd podman network")
+		} else {
+			return err
+		}
 	}
 	if err := podman.EnsureNetworkDNS("lerd", dns.ReadContainerDNS()); err != nil {
 		return err
@@ -156,7 +173,8 @@ func runInstall(_ *cobra.Command, _ []string) error {
 			if site.Paused || site.Ignored {
 				continue
 			}
-			if site.IsCustomContainer() {
+			switch {
+			case site.IsCustomContainer():
 				if site.Secured {
 					if err := nginx.GenerateCustomSSLVhost(site); err != nil {
 						fmt.Printf("\n    WARN %s: %v", site.PrimaryDomain(), err)
@@ -171,7 +189,22 @@ func runInstall(_ *cobra.Command, _ []string) error {
 						fmt.Printf("\n    WARN %s: %v", site.PrimaryDomain(), err)
 					}
 				}
-			} else {
+			case site.IsFrankenPHP():
+				if site.Secured {
+					if err := nginx.GenerateFrankenPHPSSLVhost(site); err != nil {
+						fmt.Printf("\n    WARN %s: %v", site.PrimaryDomain(), err)
+						continue
+					}
+					sslConf := filepath.Join(config.NginxConfD(), site.PrimaryDomain()+"-ssl.conf")
+					mainConf := filepath.Join(config.NginxConfD(), site.PrimaryDomain()+".conf")
+					os.Remove(mainConf)          //nolint:errcheck
+					os.Rename(sslConf, mainConf) //nolint:errcheck
+				} else {
+					if err := nginx.GenerateFrankenPHPVhost(site); err != nil {
+						fmt.Printf("\n    WARN %s: %v", site.PrimaryDomain(), err)
+					}
+				}
+			default:
 				phpVer := site.PHPVersion
 				if phpVer == "" && cfg != nil {
 					phpVer = cfg.PHP.DefaultVersion
@@ -316,6 +349,8 @@ func runInstall(_ *cobra.Command, _ []string) error {
 				}
 			}
 		}
+
+		refreshUnreferencedCustomQuadlets(seenSvc, reg)
 	}
 
 	// 7. Pull images before touching DNS so registry lookups use the system
@@ -379,15 +414,25 @@ func runInstall(_ *cobra.Command, _ []string) error {
 	}
 	ok()
 
+	// Start containers removed by the v4→v6 network migration. Runs after
+	// the quadlet refresh phase + DaemonReload so they come up on the
+	// freshly written dual-stack quadlets.
+	migratedSet := make(map[string]bool, len(migrated))
+	for _, c := range migrated {
+		migratedSet[c] = true
+		fmt.Printf("  --> Starting %s (network migration) ", c)
+		if err := podman.StartUnit(c); err != nil {
+			fmt.Printf("WARN: %v\n", err)
+		} else {
+			ok()
+		}
+	}
+
 	// Migration safety net: restart any container whose quadlet content
-	// actually changed during this install run, EXCEPT lerd-nginx and
-	// lerd-dns which are already restarted unconditionally below. The
-	// scenario this catches: a user updating from a release where every
-	// container was bound to 0.0.0.0 by default. Without this restart
-	// the running services would silently keep their old LAN-exposed
-	// bind even though the new quadlet on disk says 127.0.0.1.
+	// actually changed during this install run, EXCEPT lerd-nginx /
+	// lerd-dns (handled separately) and anything we just started above.
 	for _, name := range changedQuadlets {
-		if name == "lerd-nginx" || name == "lerd-dns" {
+		if name == "lerd-nginx" || name == "lerd-dns" || migratedSet[name] {
 			continue
 		}
 		if running, _ := podman.ContainerRunning(name); !running {
@@ -565,6 +610,43 @@ func runInstall(_ *cobra.Command, _ []string) error {
 	fmt.Println("\n  Dashboard: \033[96mhttp://lerd.localhost\033[0m")
 	fmt.Println("  Terminal:  \033[96mlerd tui\033[0m")
 	return nil
+}
+
+// refreshUnreferencedCustomQuadlets rewrites quadlets for globally installed
+// custom services, per-site custom containers, and per-site FrankenPHP
+// containers that the earlier per-site walk would otherwise skip, so the v4→v6
+// migration and other quadlet-schema changes reach every managed container.
+func refreshUnreferencedCustomQuadlets(seenSvc map[string]bool, reg *config.SiteRegistry) {
+	if customs, err := config.ListCustomServices(); err == nil {
+		for _, svc := range customs {
+			if seenSvc[svc.Name] {
+				continue
+			}
+			seenSvc[svc.Name] = true
+			ensureCustomServiceQuadlet(svc) //nolint:errcheck
+		}
+	}
+	if reg == nil {
+		return
+	}
+	for _, s := range reg.Sites {
+		if s.Paused || s.Ignored {
+			continue
+		}
+		switch {
+		case s.IsCustomContainer():
+			if err := podman.WriteCustomContainerQuadlet(s.Name, s.Path, s.ContainerPort); err != nil {
+				fmt.Printf("  WARN: refreshing %s quadlet: %v\n", podman.CustomContainerName(s.Name), err)
+			}
+		case s.IsFrankenPHP():
+			fw, _ := config.GetFrameworkForDir(s.Framework, s.Path)
+			entrypoint := fw.FrankenPHPEntrypoint(s.RuntimeWorker)
+			env := fw.FrankenPHPEnv(s.RuntimeWorker)
+			if err := podman.WriteFrankenPHPQuadlet(s.Name, s.Path, s.PHPVersion, entrypoint, env); err != nil {
+				fmt.Printf("  WARN: refreshing %s quadlet: %v\n", podman.FrankenPHPContainerName(s.Name), err)
+			}
+		}
+	}
 }
 
 // ensureSystemdLinger checks whether systemd user linger is enabled for the

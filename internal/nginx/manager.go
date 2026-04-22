@@ -385,12 +385,14 @@ func GeneratePausedVhost(site config.Site) error {
 	if site.Secured {
 		conf = fmt.Sprintf(`server {
     listen 80;
+    listen [::]:80;
     server_name %s;
     return 302 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
+    listen [::]:443 ssl;
     server_name %s;
     ssl_certificate /etc/nginx/certs/%s.crt;
     ssl_certificate_key /etc/nginx/certs/%s.key;
@@ -404,6 +406,7 @@ server {
 	} else {
 		conf = fmt.Sprintf(`server {
     listen 80;
+    listen [::]:80;
     server_name %s;
     root %s;
     location / {
@@ -437,12 +440,14 @@ func GeneratePausedWorktreeVhost(domain, certDomain, pausedDir string, secured b
 	if secured {
 		conf = fmt.Sprintf(`server {
     listen 80;
+    listen [::]:80;
     server_name %s;
     return 302 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
+    listen [::]:443 ssl;
     server_name %s;
     ssl_certificate /etc/nginx/certs/%s.crt;
     ssl_certificate_key /etc/nginx/certs/%s.key;
@@ -456,6 +461,7 @@ server {
 	} else {
 		conf = fmt.Sprintf(`server {
     listen 80;
+    listen [::]:80;
     server_name %s;
     root %s;
     location / {
@@ -656,6 +662,7 @@ func EnsureDefaultVhost() error {
 	errorDir := config.ErrorPagesDir()
 	content := fmt.Sprintf(`server {
     listen 80 default_server;
+    listen [::]:80 default_server;
     root %s;
     location / {
         try_files /404.html =404;
@@ -664,6 +671,7 @@ func EnsureDefaultVhost() error {
 }
 server {
     listen 443 default_server ssl;
+    listen [::]:443 default_server ssl;
     ssl_reject_handshake on;
 }
 `, errorDir)
@@ -826,6 +834,7 @@ func EnsureLerdVhost() error {
 		}
 		content = fmt.Sprintf(`server {
     listen 80;
+    listen [::]:80;
     server_name lerd.localhost;
 
     proxy_http_version 1.1;
@@ -855,6 +864,7 @@ func EnsureLerdVhost() error {
 	} else {
 		content = fmt.Sprintf(`server {
     listen 80;
+    listen [::]:80;
     server_name lerd.localhost;
 
     proxy_http_version 1.1;
