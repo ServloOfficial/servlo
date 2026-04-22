@@ -385,6 +385,181 @@ func mergeMCPServersJSON(path string, lerdEntry map[string]any) error {
 	return os.WriteFile(path, append(data, '\n'), 0644)
 }
 
+// removeMCPServerEntry drops the named server from a shared mcp.json file.
+// Returns (changed, err). Missing file or missing entry is a no-op. When the
+// resulting config is empty the file is removed entirely.
+func removeMCPServerEntry(path, name string) (bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	cfg := map[string]any{}
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return false, fmt.Errorf("parsing %s: %w", path, err)
+		}
+	}
+	servers, _ := cfg["mcpServers"].(map[string]any)
+	if _, exists := servers[name]; !exists {
+		return false, nil
+	}
+	delete(servers, name)
+	if len(servers) == 0 {
+		delete(cfg, "mcpServers")
+	} else {
+		cfg["mcpServers"] = servers
+	}
+	if len(cfg) == 0 {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return true, err
+		}
+		return true, nil
+	}
+	out, err := json.MarshalIndent(cfg, "", "    ")
+	if err != nil {
+		return false, err
+	}
+	return true, os.WriteFile(path, append(out, '\n'), 0644)
+}
+
+// stripJunieLerdSection removes the lerd-delimited block from a guidelines.md
+// file. Returns (changed, err). When the file is empty after the block is
+// stripped it is removed.
+func stripJunieLerdSection(path string) (bool, error) {
+	const begin = "<!-- lerd:begin -->"
+	const end = "<!-- lerd:end -->"
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	s := string(data)
+	startIdx := strings.Index(s, begin)
+	if startIdx == -1 {
+		return false, nil
+	}
+	endIdx := strings.Index(s, end)
+	if endIdx == -1 {
+		s = s[:startIdx]
+	} else {
+		s = s[:startIdx] + s[endIdx+len(end):]
+	}
+	s = strings.TrimSpace(s)
+	if s == "" {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return true, err
+		}
+		return true, nil
+	}
+	return true, os.WriteFile(path, []byte(s+"\n"), 0644)
+}
+
+// RemoveGlobalAISkills tears down every user-scope artefact written by the
+// Write/RunMCPEnableGlobal path: skill + rules files, shared mcp.json entries,
+// Claude Code user-scope MCP registration, and the Junie guidelines block.
+func RemoveGlobalAISkills(home string, verbose bool) error {
+	log := func(msg string) {
+		if verbose {
+			fmt.Println(msg)
+		}
+	}
+
+	if err := exec.Command("claude", "mcp", "remove", "--scope", "user", "lerd").Run(); err == nil {
+		log("  removed Claude Code user-scope MCP registration")
+	}
+
+	for _, rel := range []string{
+		filepath.Join(".claude", "skills", "lerd", "SKILL.md"),
+		filepath.Join(".cursor", "rules", "lerd.mdc"),
+	} {
+		full := filepath.Join(home, rel)
+		if err := os.Remove(full); err == nil {
+			log("  removed " + full)
+			_ = os.Remove(filepath.Dir(full))
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+
+	for _, rel := range []string{
+		filepath.Join(".cursor", "mcp.json"),
+		filepath.Join(".ai", "mcp", "mcp.json"),
+		filepath.Join(".junie", "mcp", "mcp.json"),
+	} {
+		full := filepath.Join(home, rel)
+		changed, err := removeMCPServerEntry(full, "lerd")
+		if err != nil {
+			fmt.Printf("  warn: %s: %v\n", full, err)
+			continue
+		}
+		if changed {
+			log("  cleaned " + full)
+		}
+	}
+
+	guidelinesPath := filepath.Join(home, ".junie", "guidelines.md")
+	if changed, err := stripJunieLerdSection(guidelinesPath); err != nil {
+		return err
+	} else if changed {
+		log("  cleaned " + guidelinesPath)
+	}
+	return nil
+}
+
+// RemoveProjectAISkills removes every lerd-owned artefact under abs: skill +
+// rules files, MCP entries in the project's shared mcp.json files, and the
+// lerd section of .junie/guidelines.md. Opt-out counterpart of Write.
+func RemoveProjectAISkills(abs string, verbose bool) error {
+	log := func(msg string) {
+		if verbose {
+			fmt.Println(msg)
+		}
+	}
+
+	for _, rel := range []string{
+		filepath.Join(".claude", "skills", "lerd", "SKILL.md"),
+		filepath.Join(".cursor", "rules", "lerd.mdc"),
+	} {
+		full := filepath.Join(abs, rel)
+		if err := os.Remove(full); err == nil {
+			log("  removed " + full)
+			_ = os.Remove(filepath.Dir(full))
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+
+	for _, rel := range []string{
+		".mcp.json",
+		filepath.Join(".cursor", "mcp.json"),
+		filepath.Join(".ai", "mcp", "mcp.json"),
+		filepath.Join(".junie", "mcp", "mcp.json"),
+	} {
+		full := filepath.Join(abs, rel)
+		changed, err := removeMCPServerEntry(full, "lerd")
+		if err != nil {
+			fmt.Printf("  warn: %s: %v\n", full, err)
+			continue
+		}
+		if changed {
+			log("  cleaned " + full)
+		}
+	}
+
+	guidelinesPath := filepath.Join(abs, ".junie", "guidelines.md")
+	if changed, err := stripJunieLerdSection(guidelinesPath); err != nil {
+		return err
+	} else if changed {
+		log("  cleaned " + guidelinesPath)
+	}
+	return nil
+}
+
 // bt is a backtick character for use inside raw string literals.
 const bt = "`"
 

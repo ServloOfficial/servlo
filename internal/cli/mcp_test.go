@@ -295,3 +295,208 @@ func mtimeOrFail(t *testing.T, path string) time.Time {
 	}
 	return info.ModTime()
 }
+
+func TestRemoveMCPServerEntry_missingFileIsNoop(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing.json")
+	changed, err := removeMCPServerEntry(path, "lerd")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if changed {
+		t.Errorf("missing file should not report changed=true")
+	}
+}
+
+func TestRemoveMCPServerEntry_missingEntryIsNoop(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mcp.json")
+	_ = os.WriteFile(path, []byte(`{"mcpServers":{"other":{"command":"x"}}}`), 0644)
+
+	changed, err := removeMCPServerEntry(path, "lerd")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if changed {
+		t.Errorf("missing entry should not report changed=true")
+	}
+	data, _ := os.ReadFile(path)
+	if !strings.Contains(string(data), `"other"`) {
+		t.Errorf("other entry was lost: %s", data)
+	}
+}
+
+func TestRemoveMCPServerEntry_preservesOtherEntries(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mcp.json")
+	_ = os.WriteFile(path, []byte(`{"mcpServers":{"lerd":{"command":"lerd"},"other":{"command":"x"}}}`), 0644)
+
+	changed, err := removeMCPServerEntry(path, "lerd")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !changed {
+		t.Fatal("expected changed=true")
+	}
+	data, _ := os.ReadFile(path)
+	if strings.Contains(string(data), `"lerd"`) {
+		t.Errorf("lerd entry should be gone: %s", data)
+	}
+	if !strings.Contains(string(data), `"other"`) {
+		t.Errorf("other entry was dropped: %s", data)
+	}
+}
+
+func TestRemoveMCPServerEntry_deletesFileWhenEmpty(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mcp.json")
+	_ = os.WriteFile(path, []byte(`{"mcpServers":{"lerd":{"command":"lerd"}}}`), 0644)
+
+	changed, err := removeMCPServerEntry(path, "lerd")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !changed {
+		t.Fatal("expected changed=true")
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("file should be removed when empty, got err=%v", err)
+	}
+}
+
+func TestStripJunieLerdSection_removesDelimitedBlock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "guidelines.md")
+	content := "# Project guidelines\n\nsomething custom\n\n<!-- lerd:begin -->\nlerd stuff\n<!-- lerd:end -->\n"
+	_ = os.WriteFile(path, []byte(content), 0644)
+
+	changed, err := stripJunieLerdSection(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !changed {
+		t.Fatal("expected changed=true")
+	}
+	got, _ := os.ReadFile(path)
+	if strings.Contains(string(got), "lerd:begin") || strings.Contains(string(got), "lerd stuff") {
+		t.Errorf("lerd block should be gone:\n%s", got)
+	}
+	if !strings.Contains(string(got), "something custom") {
+		t.Errorf("user content was lost:\n%s", got)
+	}
+}
+
+func TestStripJunieLerdSection_deletesFileWhenOnlyLerdBlock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "guidelines.md")
+	content := "<!-- lerd:begin -->\nlerd stuff\n<!-- lerd:end -->\n"
+	_ = os.WriteFile(path, []byte(content), 0644)
+
+	changed, err := stripJunieLerdSection(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !changed {
+		t.Fatal("expected changed=true")
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("file should be removed when only lerd block present, got err=%v", err)
+	}
+}
+
+func TestStripJunieLerdSection_missingFileIsNoop(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "guidelines.md")
+	changed, err := stripJunieLerdSection(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if changed {
+		t.Errorf("missing file should not report changed=true")
+	}
+}
+
+func TestRemoveGlobalAISkills_roundTripWithWrite(t *testing.T) {
+	home := t.TempDir()
+	if err := WriteGlobalAISkills(home, false); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := RemoveGlobalAISkills(home, false); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	for _, rel := range []string{
+		".claude/skills/lerd/SKILL.md",
+		".cursor/rules/lerd.mdc",
+		".junie/guidelines.md",
+	} {
+		if _, err := os.Stat(filepath.Join(home, rel)); !os.IsNotExist(err) {
+			t.Errorf("%s should be removed, err=%v", rel, err)
+		}
+	}
+}
+
+func TestRemoveProjectAISkills_roundTripWithWrite(t *testing.T) {
+	abs := t.TempDir()
+	if err := WriteProjectAISkills(abs, false); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if ProjectHasLerdSkills(abs) == false {
+		t.Fatal("precondition: write should have produced markers")
+	}
+	if err := RemoveProjectAISkills(abs, false); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if ProjectHasLerdSkills(abs) {
+		t.Errorf("ProjectHasLerdSkills should be false after remove")
+	}
+	for _, rel := range []string{
+		".claude/skills/lerd/SKILL.md",
+		".cursor/rules/lerd.mdc",
+		".mcp.json",
+		".cursor/mcp.json",
+		".ai/mcp/mcp.json",
+		".junie/mcp/mcp.json",
+		".junie/guidelines.md",
+	} {
+		if _, err := os.Stat(filepath.Join(abs, rel)); !os.IsNotExist(err) {
+			t.Errorf("%s should be removed, err=%v", rel, err)
+		}
+	}
+}
+
+func TestRemoveProjectAISkills_preservesUnrelatedMCPEntries(t *testing.T) {
+	abs := t.TempDir()
+	_ = os.WriteFile(filepath.Join(abs, ".mcp.json"),
+		[]byte(`{"mcpServers":{"lerd":{"command":"lerd"},"other":{"command":"x"}}}`), 0644)
+
+	if err := RemoveProjectAISkills(abs, false); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(abs, ".mcp.json"))
+	if err != nil {
+		t.Fatalf("file should be preserved when other entries remain: %v", err)
+	}
+	if strings.Contains(string(data), `"lerd"`) {
+		t.Errorf("lerd should be gone: %s", data)
+	}
+	if !strings.Contains(string(data), `"other"`) {
+		t.Errorf("other should be preserved: %s", data)
+	}
+}
+
+func TestIsLerdBuiltImage_matchers(t *testing.T) {
+	tests := []struct {
+		ref  string
+		want bool
+	}{
+		{"lerd-php84-fpm:local", true},
+		{"lerd-php83-fpm:local", true},
+		{"lerd-custom-my-app:local", true},
+		{"lerd-dnsmasq:local", true},
+		{"docker.io/library/mysql:8.0", false},
+		{"docker.io/dunglas/frankenphp:php8.4-alpine", false},
+		{"lerd-nginx:alpine", false},
+		{"some-other:tag", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.ref, func(t *testing.T) {
+			if got := isLerdBuiltImage(tt.ref); got != tt.want {
+				t.Errorf("isLerdBuiltImage(%q) = %v, want %v", tt.ref, got, tt.want)
+			}
+		})
+	}
+}
