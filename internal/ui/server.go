@@ -748,6 +748,7 @@ func buildSites() []SiteResponse {
 type ServiceResponse struct {
 	Name               string            `json:"name"`
 	Status             string            `json:"status"`
+	Version            string            `json:"version,omitempty"`
 	EnvVars            map[string]string `json:"env_vars"`
 	Dashboard          string            `json:"dashboard,omitempty"`
 	ConnectionURL      string            `json:"connection_url,omitempty"`
@@ -799,6 +800,7 @@ func buildServiceResponse(name string) ServiceResponse {
 	return ServiceResponse{
 		Name:          name,
 		Status:        status,
+		Version:       podman.ServiceVersionLabel(podman.InstalledImage(unit)),
 		EnvVars:       envMap,
 		Dashboard:     builtinDashboards[name],
 		ConnectionURL: builtinConnectionURLs[name],
@@ -872,6 +874,7 @@ func buildServicesList() []ServiceResponse {
 		services = append(services, ServiceResponse{
 			Name:          svc.Name,
 			Status:        status,
+			Version:       podman.ServiceVersionLabel(svc.Image),
 			EnvVars:       envMap,
 			Dashboard:     svc.Dashboard,
 			ConnectionURL: svc.ConnectionURL,
@@ -1336,6 +1339,13 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 		if opErr == nil {
 			_ = config.SetServicePaused(name, true)
 			_ = config.SetServiceManuallyStarted(name, false)
+			cli.RegenerateFamilyConsumersForService(name)
+		}
+	case "restart":
+		opErr = podman.RestartUnit(unit)
+		if opErr == nil {
+			_ = config.SetServicePaused(name, false)
+			_ = config.SetServiceManuallyStarted(name, true)
 			cli.RegenerateFamilyConsumersForService(name)
 		}
 	case "remove":

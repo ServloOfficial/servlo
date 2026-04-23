@@ -11,6 +11,15 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Service version label across every surface**. `lerd service list`, `lerd status`, the Web UI service list and detail header, and the TUI services pane now show the version alongside each built-in, preset, and custom service (e.g. `mysql v8.0`, `redis v7`, `postgres v16`, `meilisearch v1.7`). The label is derived from the installed quadlet's `Image=` tag via a new `podman.ServiceVersionLabel` helper that strips distro/variant suffixes (`-alpine`, `-slim`, `-3.5`), keeps leading `v`, and passes rolling tags (`latest`, `main`) through verbatim. Works for any service the user has overridden via `config.yaml` because the label reads the installed file, not the embedded template.
+- **Restart button in the Web UI service detail**. Built-in and custom services now expose a Restart action alongside Start/Stop, matching the site container row. Hits a new `POST /api/services/{name}/restart` handler which wraps `podman.RestartUnit` and clears the paused flag on success. Workers (queue, schedule, horizon, reverb, stripe, site-scoped custom workers) are intentionally excluded since their stop-only flow is unchanged.
+
+---
+
 ## [1.18.0-beta.3] — 2026-04-23
 
 ### Fixed

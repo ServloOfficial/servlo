@@ -223,7 +223,10 @@
             class="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left transition-colors border-b border-gray-50 dark:border-lerd-border/50"
             :class="selectedSvc===svc.name ? 'bg-lerd-red/10 text-lerd-red' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.03]'">
             <span class="w-2 h-2 rounded-full shrink-0" :class="svc.status==='active' ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'"></span>
-            <span class="font-medium truncate flex-1" x-text="serviceLabel(svc)"></span>
+            <span class="font-medium truncate flex-1">
+              <span x-text="serviceLabel(svc)"></span>
+              <template x-if="svc.version"><span class="ml-1 text-[10px] font-normal tabular-nums text-gray-400 dark:text-gray-500" x-text="svc.version"></span></template>
+            </span>
             <template x-if="svc.depends_on && svc.depends_on.length > 0">
               <span class="shrink-0 text-gray-300 dark:text-gray-600" title="has dependencies">
                 <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
@@ -417,7 +420,10 @@
               class="w-full flex items-center gap-2.5 px-4 py-3.5 text-left transition-colors border-b border-gray-100 dark:border-lerd-border"
               :class="selectedSvc===svc.name ? 'bg-lerd-red/5 text-lerd-red' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.03]'">
               <span class="w-2 h-2 rounded-full shrink-0" :class="svc.status==='active' ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'"></span>
-              <span class="font-medium flex-1" x-text="serviceLabel(svc)"></span>
+              <span class="font-medium flex-1">
+                <span x-text="serviceLabel(svc)"></span>
+                <template x-if="svc.version"><span class="ml-1 text-[10px] font-normal tabular-nums text-gray-400 dark:text-gray-500" x-text="svc.version"></span></template>
+              </span>
               <svg class="w-4 h-4 text-gray-300 dark:text-gray-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </button>
           </template>
@@ -1119,6 +1125,9 @@
                     <div class="flex items-center gap-2">
                       <span class="font-semibold text-gray-900 dark:text-white text-base"
                         x-text="selectedService.queue_site ? 'Queue worker' : selectedService.horizon_site ? 'Horizon' : selectedService.stripe_listener_site ? 'Stripe listener' : serviceLabel(selectedService)"></span>
+                      <template x-if="selectedService.version && !selectedService.queue_site && !selectedService.horizon_site && !selectedService.stripe_listener_site && !selectedService.schedule_worker_site && !selectedService.reverb_site && !selectedService.worker_site">
+                        <span class="text-xs font-normal tabular-nums text-gray-500 dark:text-gray-400" x-text="selectedService.version"></span>
+                      </template>
                       <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full"
                         :class="selectedService.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-500' : 'bg-gray-100 dark:bg-white/5 text-gray-500'">
                         <span class="w-1.5 h-1.5 rounded-full" :class="selectedService.status === 'active' ? 'bg-emerald-500' : 'bg-gray-400 dark:bg-gray-600'"></span>
@@ -1204,6 +1213,15 @@
                       class="flex items-center gap-1.5 text-xs font-medium bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-lerd-border rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50">
                       <svg x-show="selectedService.loading" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                       <span x-show="!selectedService.loading">Stop</span>
+                    </button>
+                  </template>
+                  <template x-if="selectedService.status === 'active' && !selectedService.queue_site && !selectedService.horizon_site && !selectedService.stripe_listener_site && !selectedService.schedule_worker_site && !selectedService.reverb_site && !selectedService.worker_site">
+                    <button @click="toggleService(selectedService, 'restart')" :disabled="selectedService.loading"
+                      title="Restart container"
+                      class="flex items-center gap-1.5 text-xs font-medium bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-lerd-border rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50">
+                      <svg x-show="selectedService.loading" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                      <svg x-show="!selectedService.loading" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                      <span x-show="!selectedService.loading">Restart</span>
                     </button>
                   </template>
                   <template x-if="!selectedService.queue_site && !selectedService.horizon_site && !selectedService.stripe_listener_site && !selectedService.schedule_worker_site && !selectedService.reverb_site && !selectedService.worker_site">
@@ -2392,13 +2410,12 @@ function lerdApp() {
       if (this.serviceDisplayLabels[svc.name]) return this.serviceDisplayLabels[svc.name];
       // Versioned alternates: name is "<family>-<sanitized-tag>" where the tag
       // starts with a digit (mysql-5-7, mongo-6, postgres-14-2, mariadb-11).
-      // Display as "<Family Label> <tag-with-dots>".
+      // The tag is rendered separately via the version badge, so return only
+      // the family label here to avoid duplicating the version in the row.
       const m = svc.name.match(/^([a-z][a-z0-9]*?)-(\d[\w-]*)$/);
       if (m) {
         const family = m[1];
-        const tag = m[2].replace(/-/g, '.');
-        const familyLabel = this.serviceDisplayLabels[family] || this.capitalize(family);
-        return familyLabel + ' ' + tag;
+        return this.serviceDisplayLabels[family] || this.capitalize(family);
       }
       return this.capitalize(svc.name);
     },
@@ -4129,17 +4146,17 @@ function lerdApp() {
         const res = await fetch(`/api/services/${svc.name}/${action}`, { method: 'POST', signal: ctrl.signal });
         const data = await res.json();
         if (data.ok) {
-          svc.status = data.status || (action === 'start' ? 'active' : 'inactive');
-          svc.flash = action === 'start' ? 'Service started' : 'Service stopped';
+          svc.status = data.status || (action === 'stop' ? 'inactive' : 'active');
+          svc.flash = action === 'start' ? 'Service started' : action === 'restart' ? 'Service restarted' : 'Service stopped';
           setTimeout(() => { svc.flash = ''; }, 3000);
-          if (action === 'start') this.openServiceLogs(svc);
+          if (action === 'start' || action === 'restart') this.openServiceLogs(svc);
         } else {
           svc.error = data.error || 'Action failed';
         }
         await this.loadServices();
       } catch (e) {
         if (e.name === 'AbortError') {
-          svc.flash = action === 'start' ? 'Starting in background…' : 'Stopping in background…';
+          svc.flash = action === 'start' ? 'Starting in background…' : action === 'restart' ? 'Restarting in background…' : 'Stopping in background…';
           setTimeout(() => { svc.flash = ''; }, 4000);
         } else {
           svc.error = e.message || 'Request failed';
