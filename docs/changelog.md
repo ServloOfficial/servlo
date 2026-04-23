@@ -13,10 +13,18 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+---
+
+## [1.18.0-beta.4] — 2026-04-23
+
 ### Added
 
-- **Service version label across every surface**. `lerd service list`, `lerd status`, the Web UI service list and detail header, and the TUI services pane now show the version alongside each built-in, preset, and custom service (e.g. `mysql v8.0`, `redis v7`, `postgres v16`, `meilisearch v1.7`). The label is derived from the installed quadlet's `Image=` tag via a new `podman.ServiceVersionLabel` helper that strips distro/variant suffixes (`-alpine`, `-slim`, `-3.5`), keeps leading `v`, and passes rolling tags (`latest`, `main`) through verbatim. Works for any service the user has overridden via `config.yaml` because the label reads the installed file, not the embedded template.
-- **Restart button in the Web UI service detail**. Built-in and custom services now expose a Restart action alongside Start/Stop, matching the site container row. Hits a new `POST /api/services/{name}/restart` handler which wraps `podman.RestartUnit` and clears the paused flag on success. Workers (queue, schedule, horizon, reverb, stripe, site-scoped custom workers) are intentionally excluded since their stop-only flow is unchanged.
+- **Service version label across every surface** (#246). `lerd service list`, `lerd status`, the Web UI service list and detail header, and the TUI services pane now show the version alongside each built-in, preset, and custom service (e.g. `mysql v8.0`, `redis v7`, `postgres v16`, `meilisearch v1.7`). The label is derived from the installed quadlet's `Image=` tag via a new `podman.ServiceVersionLabel` helper that strips distro/variant suffixes (`-alpine`, `-slim`, `-3.5`), keeps leading `v`, and passes rolling tags (`latest`, `main`) through verbatim. Works for any service the user has overridden via `config.yaml` because the label reads the installed file, not the embedded template.
+- **Restart button in the Web UI service detail** (#246). Built-in and custom services now expose a Restart action alongside Start/Stop, matching the site container row. Hits a new `POST /api/services/{name}/restart` handler which wraps `podman.RestartUnit` and clears the paused flag on success. Workers (queue, schedule, horizon, reverb, stripe, site-scoped custom workers) are intentionally excluded since their stop-only flow is unchanged.
+
+### Fixed
+
+- **aardvark-dns still failed to bind the IPv6 gateway on some "v6-capable" hosts** (#247). The beta.3 `HostHasUsableIPv6` probe read `/proc/net/if_inet6` and the `disable_ipv6` sysctl, but on rootless podman with certain netavark/pasta routing gaps (seen on upgrade from 1.17.1 on a handful of Fedora and Arch hosts) aardvark-dns still failed with `Cannot assign requested address` on `[fd00:1e7d::1]:53`, taking php-fpm, mysql, and nginx down with it. The migration path now runs a throw-away probe container against the freshly created dual-stack network; if aardvark-dns cannot bind the v6 gateway, `RecreateNetwork` tears it down and recreates as v4-only, and a marker file is written so the next `lerd install` does not re-enter the dual-stack migration loop. Migrations now stop containers via `StopUnit` (systemctl) instead of `podman stop` to avoid systemd auto-restart races that left aardvark-dns with partial registrations. The rollback path in `lerd update` also runs `RecreateNetwork` before re-execing the old binary, so rolling back from a dual-stack install to an older v4-only build gets a clean network regardless of the target version.
 
 ---
 
