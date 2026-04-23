@@ -1756,10 +1756,10 @@
                   </div>
                   <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
                     <template x-if="lanExposure.exposed">
-                      <span>Sites are reachable from other devices on the LAN at <code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono" x-text="lanExposure.lanIP"></code>. The dnsmasq resolver answers <code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">*.test</code> with this address. Database, cache, and mail containers stay bound to 127.0.0.1 — Laravel apps reach them through the internal bridge, no need to expose them to the network.</span>
+                      <span>Sites are reachable from other devices on the LAN at <code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono" x-text="lanExposure.lanIP"></code>. The dnsmasq resolver answers <code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">*.test</code> with this address. Database, cache, and mail containers stay on loopback only (<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">127.0.0.1</code> and <code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">::1</code> on dual-stack hosts) — Laravel apps reach them through the internal bridge, no need to expose them to the network.</span>
                     </template>
                     <template x-if="!lanExposure.exposed">
-                      <span>Lerd is bound to 127.0.0.1 only — invisible to other devices on the network. Safe for untrusted wifi (cafés, conference networks). Expose to share your sites with another machine on a trusted LAN.</span>
+                      <span>Lerd is bound to loopback only (<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">127.0.0.1</code> and <code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">::1</code> on dual-stack hosts) — invisible to other devices on the network. Safe for untrusted wifi (cafés, conference networks). Expose to share your sites with another machine on a trusted LAN.</span>
                     </template>
                   </p>
                   <template x-if="lanExposure.macos">
@@ -1879,7 +1879,7 @@
                     </span>
                   </div>
                   <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    When disabled, only loopback (127.0.0.1) can reach the dashboard. Enable to grant LAN clients access with HTTP Basic auth. Loopback always bypasses authentication, so you can never lock yourself out from this machine.
+                    When disabled, only loopback (<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">127.0.0.1</code> and <code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono">::1</code>) can reach the dashboard. Enable to grant LAN clients access with HTTP Basic auth. Loopback always bypasses authentication, so you can never lock yourself out from this machine.
                   </p>
                   <template x-if="remoteControl.enabled">
                     <div class="space-y-2">

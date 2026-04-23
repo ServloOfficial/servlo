@@ -149,6 +149,27 @@ func TestBindForLANHandlesProtocolSuffixes(t *testing.T) {
 	}
 }
 
+func TestBindForLANTogglesIPv6InLockstep(t *testing.T) {
+	// Both stacks must flip together. Leaving [::1] behind on expose
+	// dedups against the bare v4 line and loses LAN reach; leaving [::]
+	// behind on unexpose loses loopback-only safety.
+	loopback := "PublishPort=127.0.0.1:80:80\nPublishPort=[::1]:80:80\n"
+	exposed := BindForLAN(loopback, true)
+	if strings.Contains(exposed, "127.0.0.1:") || strings.Contains(exposed, "[::1]:") {
+		t.Errorf("loopback prefixes must be stripped on expose, got:\n%s", exposed)
+	}
+	if !strings.Contains(exposed, "PublishPort=80:80") || !strings.Contains(exposed, "PublishPort=[::]:80:80") {
+		t.Errorf("expected bare + [::] after expose, got:\n%s", exposed)
+	}
+	back := BindForLAN(exposed, false)
+	if !strings.Contains(back, "PublishPort=127.0.0.1:80:80") || !strings.Contains(back, "PublishPort=[::1]:80:80") {
+		t.Errorf("expected 127.0.0.1 + [::1] after unexpose, got:\n%s", back)
+	}
+	if strings.Contains(back, "PublishPort=[::]:80:80") {
+		t.Errorf("[::] should be converted back to [::1] on unexpose, got:\n%s", back)
+	}
+}
+
 func TestInjectExtraVolumesAfterHomeMount(t *testing.T) {
 	in := strings.Join([]string{
 		"[Container]",
@@ -254,14 +275,23 @@ func TestSortPaths(t *testing.T) {
 
 // --- PairIPv6Binds ---
 
-func TestPairIPv6Binds_pairsBarePublishPort(t *testing.T) {
+func TestPairIPv6Binds_rewritesBareToDualStack(t *testing.T) {
+	// Bare binds are rewritten to [::] (single dual-stack socket), not
+	// paired. Keeping both 80:80 and [::]:80:80 collides on Linux default
+	// bindv6only=0 and crashes nginx with `bind: address already in use`.
 	in := "[Container]\nNetwork=lerd\nPublishPort=80:80\nPublishPort=443:443\n"
 	out := PairIPv6Binds(in)
 	if !strings.Contains(out, "PublishPort=[::]:80:80") {
-		t.Errorf("expected v6 pair for :80:80, got:\n%s", out)
+		t.Errorf("expected [::]:80:80, got:\n%s", out)
 	}
 	if !strings.Contains(out, "PublishPort=[::]:443:443") {
-		t.Errorf("expected v6 pair for :443:443, got:\n%s", out)
+		t.Errorf("expected [::]:443:443, got:\n%s", out)
+	}
+	if strings.Contains(out, "PublishPort=80:80\n") || strings.HasSuffix(out, "PublishPort=80:80") {
+		t.Errorf("bare 80:80 must be replaced, not paired (conflicts with [::]:80:80 on bindv6only=0):\n%s", out)
+	}
+	if strings.Contains(out, "PublishPort=443:443\n") || strings.HasSuffix(out, "PublishPort=443:443") {
+		t.Errorf("bare 443:443 must be replaced, not paired:\n%s", out)
 	}
 }
 
@@ -300,7 +330,10 @@ func TestPairIPv6Binds_handles0000(t *testing.T) {
 	in := "Network=lerd\nPublishPort=0.0.0.0:80:80\n"
 	out := PairIPv6Binds(in)
 	if !strings.Contains(out, "PublishPort=[::]:80:80") {
-		t.Errorf("expected v6 :: pair for 0.0.0.0, got:\n%s", out)
+		t.Errorf("expected [::]:80:80, got:\n%s", out)
+	}
+	if strings.Contains(out, "PublishPort=0.0.0.0:80:80") {
+		t.Errorf("0.0.0.0 must be rewritten, not paired:\n%s", out)
 	}
 }
 
