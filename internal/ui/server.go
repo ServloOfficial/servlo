@@ -1038,7 +1038,9 @@ func handleServicePresets(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, out)
 }
 
-// handleServicePresetInstall installs a bundled preset by name.
+// handleServicePresetInstall installs a bundled preset and streams per-phase
+// progress as NDJSON so the UI can show what step is active and surface the
+// podman pull output instead of one opaque spinner.
 func handleServicePresetInstall(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1051,42 +1053,32 @@ func handleServicePresetInstall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	version := r.URL.Query().Get("version")
-	svc, err := cli.InstallPresetByName(name, version)
+
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	flusher, _ := w.(http.Flusher)
+	writeLine := func(payload any) {
+		data, _ := json.Marshal(payload)
+		_, _ = w.Write(append(data, '\n'))
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+
+	svc, err := serviceops.InstallPresetStreaming(name, version, func(ev serviceops.PhaseEvent) {
+		writeLine(ev)
+	})
 	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		writeLine(map[string]any{"phase": "error", "error": err.Error()})
 		return
 	}
-
-	// Auto-start the service after installation, just like clicking Start
-	// from the dashboard. Start dependencies first so the service can connect.
-	unit := "lerd-" + svc.Name
-	var startErr string
-	if depErr := cli.StartServiceDependencies(svc); depErr != nil {
-		startErr = depErr.Error()
-	} else {
-		var opErr error
-		for attempt := range 5 {
-			opErr = podman.StartUnit(unit)
-			if opErr == nil || !strings.Contains(opErr.Error(), "not found") {
-				break
-			}
-			time.Sleep(time.Duration(attempt+1) * 300 * time.Millisecond)
-		}
-		if opErr == nil {
-			_ = config.SetServicePaused(svc.Name, false)
-			_ = config.SetServiceManuallyStarted(svc.Name, true)
-			cli.RegenerateFamilyConsumersForService(svc.Name)
-		} else {
-			startErr = opErr.Error()
-		}
-	}
-
-	writeJSON(w, map[string]any{
-		"ok":         true,
+	cli.RegenerateFamilyConsumersForService(svc.Name)
+	writeLine(map[string]any{
+		"phase":      "done",
 		"name":       svc.Name,
 		"dashboard":  svc.Dashboard,
 		"depends_on": svc.DependsOn,
-		"startError": startErr,
 	})
 }
 

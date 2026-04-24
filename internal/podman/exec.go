@@ -70,6 +70,54 @@ func PullImageTo(image string, w io.Writer) error {
 	return nil
 }
 
+// PullImageWithProgress pulls the named image and invokes onLine for each
+// complete line of podman's output so callers can forward live progress.
+func PullImageWithProgress(image string, onLine func(string)) error {
+	if onLine == nil {
+		return PullImageIfMissing(image)
+	}
+	cmd := exec.Command(PodmanBin(), "pull", image)
+	w := &lineWriter{onLine: onLine}
+	cmd.Stdout = w
+	cmd.Stderr = w
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("pulling %s: %w", image, err)
+	}
+	w.flush()
+	return nil
+}
+
+// lineWriter invokes onLine per full line. Both \n and \r terminate, so
+// podman's TTY progress-bar rewrites still surface as discrete events.
+type lineWriter struct {
+	buf    []byte
+	onLine func(string)
+}
+
+func (w *lineWriter) Write(p []byte) (int, error) {
+	w.buf = append(w.buf, p...)
+	for {
+		i := bytes.IndexAny(w.buf, "\r\n")
+		if i < 0 {
+			break
+		}
+		line := strings.TrimRight(string(w.buf[:i]), "\r\n")
+		w.buf = w.buf[i+1:]
+		if line != "" {
+			w.onLine(line)
+		}
+	}
+	return len(p), nil
+}
+
+func (w *lineWriter) flush() {
+	line := strings.TrimRight(string(w.buf), "\r\n")
+	w.buf = w.buf[:0]
+	if line != "" {
+		w.onLine(line)
+	}
+}
+
 // PullImageIfMissing pulls the named image when it is not already in the
 // local store. No-op when the image exists.
 func PullImageIfMissing(image string) error {

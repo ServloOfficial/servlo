@@ -1283,9 +1283,10 @@
                       <p x-show="suggestedPresetFor(selectedService).error" class="text-[11px] text-red-500 mt-1" x-text="suggestedPresetFor(selectedService).error"></p>
                     </div>
                     <button @click="installPreset(suggestedPresetFor(selectedService))" :disabled="suggestedPresetFor(selectedService).installing"
+                      :title="suggestedPresetFor(selectedService).installingMessage || ''"
                       class="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium bg-sky-600 hover:bg-sky-700 text-white rounded px-3 py-1.5 transition-colors disabled:opacity-50">
                       <svg x-show="suggestedPresetFor(selectedService).installing" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
-                      <span x-text="suggestedPresetFor(selectedService).installing ? 'Adding…' : 'Add'"></span>
+                      <span x-text="presetPhaseLabel(suggestedPresetFor(selectedService))"></span>
                     </button>
                     <button @click="dismissPresetSuggestion(suggestedPresetFor(selectedService).name)"
                       title="Dismiss — you can still add this from the Services + button"
@@ -3597,36 +3598,83 @@ function lerdApp() {
         return;
       }
       p.installing = true;
+      p.installingPhase = '';
+      p.installingMessage = '';
+      p.installingDep = '';
       p.error = '';
       let installedSvcName = p.name;
+      let finalEvent = null;
       try {
         let url = '/api/services/presets/' + encodeURIComponent(p.name);
         if ((p.versions || []).length > 0 && p.selected_version) {
           url += '?version=' + encodeURIComponent(p.selected_version);
         }
         const res = await fetch(url, { method: 'POST' });
-        const data = await res.json();
-        if (!data.ok) {
-          p.error = data.error || 'install failed';
+        if (!res.ok) {
+          p.error = (await res.text()).trim() || 'install failed';
           return;
         }
-        installedSvcName = data.name || p.name;
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let nl;
+          while ((nl = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, nl).trim();
+            buffer = buffer.slice(nl + 1);
+            if (!line) continue;
+            let evt;
+            try { evt = JSON.parse(line); } catch (_) { continue; }
+            if (evt.phase === 'done' || evt.phase === 'error') {
+              finalEvent = evt;
+              continue;
+            }
+            p.installingPhase = evt.phase || '';
+            if (evt.phase === 'starting_deps') {
+              p.installingDep = evt.dep || '';
+            } else if (evt.phase === 'pulling_image') {
+              p.installingMessage = evt.message || (evt.image ? 'pulling ' + evt.image : '');
+            } else {
+              p.installingMessage = '';
+            }
+          }
+        }
+        if (!finalEvent || finalEvent.phase === 'error') {
+          p.error = (finalEvent && finalEvent.error) || 'install failed without a final result';
+          return;
+        }
+        installedSvcName = finalEvent.name || p.name;
         await this.loadServices();
         const svc = this.services.find(s => s.name === installedSvcName);
         if (svc) {
           this.setTab('services');
           this.closePresetModal();
           this.selectService(svc);
-          if (svc.status !== 'active') {
-            this.toggleService(svc, 'start');
-          }
         }
       } catch (e) {
         p.error = e.message;
       } finally {
         p.installing = false;
+        p.installingPhase = '';
+        p.installingMessage = '';
+        p.installingDep = '';
       }
       this.loadPresets();
+    },
+
+    presetPhaseLabel(p) {
+      if (!p || !p.installing) return 'Add';
+      switch (p.installingPhase) {
+        case 'installing_config': return 'Writing config…';
+        case 'starting_deps':     return p.installingDep ? 'Starting ' + p.installingDep + '…' : 'Starting dependencies…';
+        case 'pulling_image':     return 'Pulling image…';
+        case 'starting_unit':     return 'Starting service…';
+        case 'waiting_ready':     return 'Waiting for ready…';
+        default:                  return 'Adding…';
+      }
     },
 
     closeLinkModal() {
@@ -4520,12 +4568,13 @@ function lerdApp() {
               </template>
               <button @click="installPreset(p)"
                 :disabled="!!(p.installing || (p.missing_deps || []).length > 0)"
-                :title="(p.missing_deps || []).length > 0 ? 'Install ' + p.missing_deps.join(', ') + ' first' : ''"
+                :title="(p.missing_deps || []).length > 0 ? 'Install ' + p.missing_deps.join(', ') + ' first' : (p.installingMessage || '')"
                 class="text-xs font-medium bg-lerd-red text-white rounded px-3 py-1.5 hover:bg-lerd-redhov transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center gap-1.5">
                 <svg x-show="p.installing" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
-                <span x-text="p.installing ? 'Adding…' : 'Add'"></span>
+                <span x-text="presetPhaseLabel(p)"></span>
               </button>
             </div>
+            <p x-show="p.installing && p.installingMessage" class="text-[11px] text-gray-400 dark:text-gray-500 mt-2 font-mono truncate" x-text="p.installingMessage"></p>
             <p x-show="p.error" class="text-[11px] text-red-500 mt-2" x-text="p.error"></p>
           </div>
         </template>

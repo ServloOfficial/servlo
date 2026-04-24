@@ -46,6 +46,13 @@ presets like `mysql` and `mariadb` show a version dropdown next to the **Add**
 button. Already-installed presets are filtered out; for multi-version
 families, only the still-uninstalled versions appear.
 
+The Add button streams per-phase progress while it works, so the spinner label
+tracks the real step: *Writing config…*, *Starting elasticsearch…* for each
+dependency, *Pulling image…* with live podman output underneath, *Starting
+service…*, then *Waiting for ready…*. Most of the perceived latency on a
+first install is the image pull; the progress line shows what layer is being
+copied so a slow registry is distinguishable from a stuck install.
+
 The detail panel of every database service (built-in `mysql` / `postgres`, any
 installed `mongo`, and any installed alternate like `mysql-5-7`) surfaces a
 sky-blue suggestion banner offering to install the paired admin UI when it

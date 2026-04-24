@@ -28,6 +28,67 @@ func IsBuiltin(name string) bool {
 	return false
 }
 
+// PhaseEvent is one step of the streaming preset-install flow.
+type PhaseEvent struct {
+	Phase   string `json:"phase"`
+	Image   string `json:"image,omitempty"`
+	Message string `json:"message,omitempty"`
+	Dep     string `json:"dep,omitempty"`
+	State   string `json:"state,omitempty"`
+	Unit    string `json:"unit,omitempty"`
+}
+
+// InstallPresetStreaming runs the full install flow and emits a PhaseEvent
+// at every step. The image is pulled before StartUnit so the hidden
+// on-demand pull latency becomes visible progress in the UI.
+func InstallPresetStreaming(name, version string, emit func(PhaseEvent)) (*config.CustomService, error) {
+	emit(PhaseEvent{Phase: "installing_config"})
+	svc, err := InstallPresetByName(name, version)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, dep := range svc.DependsOn {
+		emit(PhaseEvent{Phase: "starting_deps", Dep: dep, State: "starting"})
+		if err := EnsureServiceRunning(dep); err != nil {
+			return svc, fmt.Errorf("starting dependency %q: %w", dep, err)
+		}
+		emit(PhaseEvent{Phase: "starting_deps", Dep: dep, State: "ready"})
+	}
+
+	if svc.Image != "" && !podman.ImageExists(svc.Image) {
+		emit(PhaseEvent{Phase: "pulling_image", Image: svc.Image})
+		pullErr := podman.PullImageWithProgress(svc.Image, func(line string) {
+			emit(PhaseEvent{Phase: "pulling_image", Message: line})
+		})
+		if pullErr != nil {
+			return svc, pullErr
+		}
+	}
+
+	unit := "lerd-" + svc.Name
+	emit(PhaseEvent{Phase: "starting_unit", Unit: unit})
+	var startErr error
+	for attempt := range 5 {
+		startErr = podman.StartUnit(unit)
+		if startErr == nil || !strings.Contains(startErr.Error(), "not found") {
+			break
+		}
+		time.Sleep(time.Duration(attempt+1) * 300 * time.Millisecond)
+	}
+	if startErr != nil {
+		return svc, startErr
+	}
+	_ = config.SetServicePaused(svc.Name, false)
+	_ = config.SetServiceManuallyStarted(svc.Name, true)
+
+	emit(PhaseEvent{Phase: "waiting_ready", Unit: unit})
+	if err := podman.WaitReady(svc.Name, 60*time.Second); err != nil {
+		return svc, err
+	}
+	return svc, nil
+}
+
 // InstallPresetByName materialises a bundled preset as a custom service.
 // version selects a tag for multi-version presets; empty falls back to the
 // preset's DefaultVersion.
