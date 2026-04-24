@@ -15,6 +15,23 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.18.0-beta.7] — 2026-04-24
+
+### Added
+
+- **Offline landing page for the installed PWA** (#258). A service worker now ships with the dashboard and falls back to a dedicated offline page whenever `lerd-ui` is unreachable, including the whole-stack `lerd quit` case. Previously the installed PWA surfaced the browser's generic "this site can't be reached" error on any backend outage. The new page shows `lerd start` with a copy button and the lerd logo, probes `/api/status` every five seconds, and auto-reloads the dashboard the moment the backend returns. `/api/*` is deliberately not intercepted so the WebSocket and every mutating call keep their normal error semantics. The `lerd.localhost` nginx vhost allowlists `/sw.js` and `/offline.html` alongside the existing `/`, `/icons/`, and `/manifest.webmanifest` entries (Linux unix-socket and macOS `host.containers.internal` templates both updated). Cache name is versioned with the lerd build so every update invalidates the previous shell cache cleanly.
+- **Three new service presets** (#252): `memcached`, `rabbitmq`, `elasticsearch`. They follow the existing preset convention (`lerd service preset <name>`), each with a fixed host-port and bundled runtime config where needed. The `rabbitmq` preset exposes the management UI at `http://localhost:15672`; `elasticsearch` binds `127.0.0.1:9200` so the bundled `elasticvue` preset becomes a natural one-click install on top.
+
+### Changed
+
+- **Preset install in the Web UI streams per-phase progress** (#257). `POST /api/services/presets/{name}` returns `application/x-ndjson` with events for `installing_config`, `starting_deps`, `pulling_image`, `starting_unit`, `waiting_ready`, and `done`. The image pull is now explicit and happens before `StartUnit`, so the formerly invisible on-demand pull surfaces as live `Copying blob …` feedback in the UI. The Add button's label tracks the active phase ("Pulling image…", "Starting elasticsearch…", "Waiting for ready…") instead of one opaque "Adding…". The CLI (`lerd service preset <name>`) and the MCP `service_preset_install` tool keep their existing synchronous behavior; only the HTTP UI response shape is new.
+
+### Fixed
+
+- **Scheduled `check-upstream-php` workflow never triggered a base-image rebuild** (#256). Two compounding bugs: the dispatch step ran with the default restricted `GITHUB_TOKEN` so `createWorkflowDispatch` returned `403 Resource not accessible by integration`, and the digest cache was saved in the `check` job before the (failing) `trigger` job, which advanced the cached digests without an actual rebuild so every subsequent run reported "no change" for updates that were never propagated. The two jobs are merged, `permissions: actions: write` is declared on the job, and the cache save is gated on dispatch success. On failure the prior cache is preserved so the next cron retries.
+
+---
+
 ## [1.18.0-beta.6] — 2026-04-24
 
 ### Added
