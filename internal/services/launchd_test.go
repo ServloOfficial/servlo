@@ -311,6 +311,58 @@ func TestIsEnabledBasedOnPlistExistence(t *testing.T) {
 	}
 }
 
+func TestUnquoteSystemdValue(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{`"FOO=bar"`, `FOO=bar`},
+		{`"ES_JAVA_OPTS=-Xms512m -Xmx512m"`, `ES_JAVA_OPTS=-Xms512m -Xmx512m`},
+		{`"http.cors.allow-origin=\"*\""`, `http.cors.allow-origin="*"`},
+		{`FOO=bar`, `FOO=bar`},
+		{`"unclosed`, `"unclosed`},
+		{``, ``},
+	}
+	for _, tt := range cases {
+		if got := unquoteSystemdValue(tt.in); got != tt.want {
+			t.Errorf("unquoteSystemdValue(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestContainerToPodmanArgsQuotedEnv(t *testing.T) {
+	c := map[string][]string{
+		"ContainerName": {"lerd-elasticsearch"},
+		"Image":         {"docker.elastic.co/elasticsearch/elasticsearch:8.13.4"},
+		"Network":       {"lerd"},
+		"Environment": {
+			`"ES_JAVA_OPTS=-Xms512m -Xmx512m"`,
+			`"http.cors.allow-origin=\"*\""`,
+			`"discovery.type=single-node"`,
+		},
+		"UserNS": {"keep-id:uid=1000,gid=0"},
+	}
+	args, err := containerToPodmanArgs(c)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	argStr := strings.Join(args, " ")
+
+	for _, want := range []string{
+		"-e ES_JAVA_OPTS=-Xms512m -Xmx512m",
+		`-e http.cors.allow-origin="*"`,
+		"-e discovery.type=single-node",
+		"--userns keep-id:uid=1000,gid=0",
+	} {
+		if !strings.Contains(argStr, want) {
+			t.Errorf("args missing %q in:\n%s", want, argStr)
+		}
+	}
+	// Confirm no literal quotes bleed through into env values
+	for _, bad := range []string{`-e "ES_JAVA_OPTS`, `"discovery.type`} {
+		if strings.Contains(argStr, bad) {
+			t.Errorf("args contain literal quote in env: %q found in:\n%s", bad, argStr)
+		}
+	}
+}
+
 func TestStripPrivilegedIPBind_v4(t *testing.T) {
 	cases := map[string]string{
 		"127.0.0.1:80:80":     "80:80",

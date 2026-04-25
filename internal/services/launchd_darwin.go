@@ -199,6 +199,17 @@ func parseSection(content, section string) map[string][]string {
 	return result
 }
 
+// unquoteSystemdValue strips the outer double-quotes that systemd / quadlet
+// uses for values that contain spaces or special chars (e.g. Environment=
+// "KEY=hello world"). The shell never processes these args, so the quotes
+// must be removed before passing to exec.Command.
+func unquoteSystemdValue(s string) string {
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		return strings.ReplaceAll(s[1:len(s)-1], `\"`, `"`)
+	}
+	return s
+}
+
 // expandSpecifiers replaces Quadlet path specifiers (%h → home dir).
 func expandSpecifiers(s string) string {
 	home, _ := os.UserHomeDir()
@@ -314,7 +325,10 @@ func containerToPodmanArgs(c map[string][]string) ([]string, error) {
 		args = append(args, "-v", stripSELinuxVolOpts(expandSpecifiers(vol)))
 	}
 	for _, env := range c["Environment"] {
-		args = append(args, "-e", env)
+		args = append(args, "-e", unquoteSystemdValue(env))
+	}
+	if userns := c["UserNS"]; len(userns) > 0 {
+		args = append(args, "--userns", userns[0])
 	}
 	if dirs := c["WorkingDir"]; len(dirs) > 0 {
 		args = append(args, "--workdir", expandSpecifiers(dirs[0]))
