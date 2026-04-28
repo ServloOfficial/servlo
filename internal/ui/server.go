@@ -41,9 +41,6 @@ import (
 	"github.com/geodro/lerd/internal/xdebugops"
 )
 
-//go:embed index.html
-var indexHTML []byte
-
 //go:embed icons/icon.svg
 var iconSVG []byte
 
@@ -299,15 +296,7 @@ func Start(currentVersion string) error {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Write(offlineHTML) //nolint:errcheck
 	})
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		// The shell embeds the entire JS/CSS inline and changes on
-		// every binary update. Without this, browsers cache the HTML
-		// indefinitely and keep running stale client code — which hid
-		// the WebSocket URL-rewrite fix during local testing.
-		w.Header().Set("Cache-Control", "no-store")
-		w.Write(indexHTML) //nolint:errcheck
-	})
+	mux.Handle("/", serveSvelte())
 
 	handler := withRemoteControlGate(mux)
 
@@ -2252,6 +2241,13 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no") // tell nginx not to buffer
+
+	// Flush headers immediately so the EventSource client fires `onopen` even
+	// when the container is idle (e.g. dnsmasq with no log-queries). Without
+	// this, scanner.Scan below blocks before any bytes hit the wire and the
+	// browser's "live" indicator never turns on.
+	_, _ = io.WriteString(w, ": connected\n\n")
+	flusher.Flush()
 
 	// If no container exists for this unit, route to the platform log stream
 	// (file tail for native services) or report not-running for container units.
