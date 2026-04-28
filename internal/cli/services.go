@@ -624,7 +624,9 @@ func migrateServiceUnits() {
 	}
 }
 
-// ensureServiceQuadlet writes the unit file for a known service and reloads the service manager.
+// ensureServiceQuadlet writes the unit file for a known service and reloads
+// the service manager only when the on-disk quadlet actually changed, so a
+// migrate-all pass over unchanged services skips redundant reloads entirely.
 func ensureServiceQuadlet(name string) error {
 	quadletName := "lerd-" + name
 	content, err := podman.GetQuadletTemplate(quadletName + ".container")
@@ -650,10 +652,11 @@ func ensureServiceQuadlet(name string) error {
 	// WriteQuadletDiff writes the .container file to QuadletDir (needed on macOS
 	// so quadletImage() can resolve the image for pre-pull in startRestoredServices)
 	// and calls AfterQuadletWriteFn (writes the launchd plist on macOS).
-	if _, err := podman.WriteQuadletDiff(quadletName, content); err != nil {
+	changed, err := podman.WriteQuadletDiff(quadletName, content)
+	if err != nil {
 		return fmt.Errorf("writing unit for %s: %w", name, err)
 	}
-	return podman.DaemonReloadFn()
+	return podman.DaemonReloadIfNeeded(changed)
 }
 
 // ensureCustomServiceQuadlet defers to serviceops so the CLI and the MCP

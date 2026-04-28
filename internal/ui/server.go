@@ -170,6 +170,27 @@ func Start(currentVersion string) error {
 		}()
 	}
 
+	// Drop the cache to idle cadence whenever the desktop session is idle
+	// or locked, so a focused tab on an unattended laptop still saves
+	// battery. Recomputes on every transition.
+	startIdleWatcher(context.Background())
+
+	// Event-driven push from systemd covers mutations that didn't go through
+	// lerd-ui's AfterUnitChange path: external systemctl calls, container
+	// crashes, external podman restart, unit timeouts. Mirrors the same
+	// invalidate-and-broadcast flow so the dashboard stays current without
+	// waiting for the 15s cache poll. AfterUnitChange stays as a fast path
+	// for in-process mutations; the DBus push catches everything else.
+	_ = lerdSystemd.SubscribeLerdUnitStateChanges(context.Background(), func(string) {
+		go func() {
+			podman.Cache.PollNow()
+			siteinfo.InvalidateUnitCache()
+			eventbus.Default.Publish(eventbus.KindSites)
+			eventbus.Default.Publish(eventbus.KindServices)
+			eventbus.Default.Publish(eventbus.KindStatus)
+		}()
+	})
+
 	// A single goroutine subscribes to the eventbus and invalidates the
 	// relevant snapshot on every mutation. The /api/ws handler broadcasts
 	// the freshly rebuilt bytes to every connected browser.
@@ -325,8 +346,15 @@ func Start(currentVersion string) error {
 		}
 	}
 
+	ln, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		return fmt.Errorf("listen %s: %w", listenAddr, err)
+	}
 	fmt.Printf("Lerd UI listening on http://%s\n", listenAddr)
-	return http.ListenAndServe(listenAddr, handler)
+	// Notify systemd we're ready only after the listener is accepting, so
+	// Type=notify units make systemctl start block until the UI can serve.
+	lerdSystemd.NotifyReady()
+	return http.Serve(ln, handler)
 }
 
 var allowedCORSOrigins = map[string]bool{
