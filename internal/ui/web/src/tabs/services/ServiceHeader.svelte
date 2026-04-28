@@ -13,6 +13,8 @@
     isServiceWorker,
     parentSiteDomain,
     serviceAction,
+    streamServiceAction,
+    updateProgress,
     loadServices
   } from '$stores/services';
   import { adminServiceFor } from '$stores/presetSuggestions';
@@ -50,14 +52,33 @@
   const active = $derived(svc.status === 'active');
   const parent = $derived(parentSiteDomain(svc));
 
-  let busy = $state(false);
+  let localBusy = $state(false);
+  const updating = $derived($updateProgress[svc.name]);
+  const busy = $derived(localBusy || Boolean(updating));
+
   async function run(action: Parameters<typeof serviceAction>[1]) {
-    busy = true;
+    localBusy = true;
     try {
       await serviceAction(svc.name, action);
     } finally {
-      busy = false;
+      localBusy = false;
     }
+  }
+
+  async function runUpdate(tag?: string) {
+    await streamServiceAction(svc.name, 'update', tag ? { tag } : {});
+  }
+  async function runMigrate(tag: string) {
+    await streamServiceAction(svc.name, 'migrate', { tag });
+  }
+  async function runRollback() {
+    await streamServiceAction(svc.name, 'rollback');
+  }
+
+  function rollbackTagFromImage(image: string | undefined): string {
+    if (!image) return '';
+    const at = image.lastIndexOf(':');
+    return at > 0 ? image.slice(at + 1) : image;
   }
 
   function openSite(domain: string) {
@@ -69,6 +90,10 @@
     start: Snippet;
     stop: Snippet;
     restart: Snippet;
+    update: Snippet;
+    upgrade: Snippet;
+    migrate: Snippet;
+    rollback: Snippet;
     pin: Snippet;
     trash: Snippet;
   }): ButtonMenuAction[] {
@@ -102,13 +127,61 @@
       });
     }
 
-    if (!isWorker && !active) {
+    if (!isWorker && !active && !updating) {
       list.push({
         id: 'start',
         tone: 'primary',
         icon: icons.start,
         label: m.common_start(),
         onclick: () => run('start')
+      });
+    }
+
+    if (svc.update_available || updating) {
+      const tag = svc.latest_version || '';
+      list.push({
+        id: 'update',
+        tone: 'success',
+        icon: icons.update,
+        label: m.services_update(),
+        title: tag ? m.services_updateTo({ tag }) : m.services_update(),
+        onclick: () => runUpdate()
+      });
+    }
+
+    if (svc.upgrade_version && !svc.migration_supported && !updating) {
+      const tag = svc.upgrade_version;
+      list.push({
+        id: 'upgrade',
+        tone: 'warn',
+        icon: icons.upgrade,
+        label: m.services_upgradeTo({ tag }),
+        title: m.services_upgradeWarning({ tag }),
+        onclick: () => runUpdate(tag)
+      });
+    }
+
+    if (svc.upgrade_version && svc.migration_supported && !updating) {
+      const tag = svc.upgrade_version;
+      list.push({
+        id: 'migrate',
+        tone: 'info',
+        icon: icons.migrate,
+        label: m.services_migrateTo({ tag }),
+        title: m.services_migrateExplain({ tag }),
+        onclick: () => runMigrate(tag)
+      });
+    }
+
+    if (svc.previous_version && !updating) {
+      const tag = rollbackTagFromImage(svc.previous_version);
+      list.push({
+        id: 'rollback',
+        tone: 'secondary',
+        icon: icons.rollback,
+        label: m.services_rollbackTo({ tag }),
+        title: m.services_rollbackExplain({ tag }),
+        onclick: () => runRollback()
       });
     }
 
@@ -209,6 +282,32 @@
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
     </svg>
   {/snippet}
+  {#snippet updateIcon()}
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+  {/snippet}
+  {#snippet upgradeIcon()}
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+      <path d="M12 9v4M12 17h.01"/>
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+    </svg>
+  {/snippet}
+  {#snippet migrateIcon()}
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+      <line x1="12" y1="22.08" x2="12" y2="12"/>
+    </svg>
+  {/snippet}
+  {#snippet rollbackIcon()}
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+      <path d="M3 12a9 9 0 1 0 3-6.7"/>
+      <polyline points="3 4 3 10 9 10"/>
+    </svg>
+  {/snippet}
   {#snippet pinIcon()}
     {#if svc.pinned}
       <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -239,10 +338,17 @@
         start: startIcon,
         stop: stopIcon,
         restart: restartIcon,
+        update: updateIcon,
+        upgrade: upgradeIcon,
+        migrate: migrateIcon,
+        rollback: rollbackIcon,
         pin: pinIcon,
         trash: trashIcon
       })}
       {busy}
     />
+    {#if updating}
+      <span class="text-[11px] text-gray-500 dark:text-gray-400 ml-2 truncate max-w-[18ch]" title={updating.message}>{updating.message}</span>
+    {/if}
   </div>
 </div>

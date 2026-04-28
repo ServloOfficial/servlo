@@ -69,6 +69,12 @@
         {#if svc.version}
           <span class="ml-1 text-[10px] font-normal tabular-nums text-gray-400 dark:text-gray-500">{svc.version}</span>
         {/if}
+        {#if svc.update_available}
+          <span
+            class="ml-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
+            title={svc.latest_version ? m.services_updateAvailableTo({ tag: svc.latest_version }) : m.services_updateAvailable()}
+          >↑</span>
+        {/if}
       </ListRow>
     {/each}
 

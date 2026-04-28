@@ -27,10 +27,30 @@ func setIsolatedXDG(t *testing.T) {
 	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(tmp, "data"))
+	t.Setenv("LERD_REGISTRY_CACHE_DIR", filepath.Join(tmp, "registry-cache"))
+}
+
+// pinMysqlImage writes a global config that pins mysql so the
+// track_latest registry probe is skipped, keeping reload-counting
+// tests deterministic regardless of network availability.
+func pinMysqlImage(t *testing.T, image string) {
+	t.Helper()
+	cfg, err := config.LoadGlobal()
+	if err != nil {
+		t.Fatalf("LoadGlobal: %v", err)
+	}
+	if cfg.Services == nil {
+		cfg.Services = map[string]config.ServiceConfig{}
+	}
+	cfg.Services["mysql"] = config.ServiceConfig{Image: image}
+	if err := config.SaveGlobal(cfg); err != nil {
+		t.Fatalf("SaveGlobal: %v", err)
+	}
 }
 
 func TestEnsureServiceQuadlet_reloadsOnlyWhenContentChanges(t *testing.T) {
 	setIsolatedXDG(t)
+	pinMysqlImage(t, "docker.io/library/mysql:8.4")
 	count := swapDaemonReload(t)
 
 	if err := ensureServiceQuadlet("mysql"); err != nil {
@@ -50,6 +70,7 @@ func TestEnsureServiceQuadlet_reloadsOnlyWhenContentChanges(t *testing.T) {
 
 func TestEnsureServiceQuadlet_retriesAfterFailedReload(t *testing.T) {
 	setIsolatedXDG(t)
+	pinMysqlImage(t, "docker.io/library/mysql:8.4")
 
 	failures := 0
 	orig := podman.DaemonReloadFn
@@ -89,6 +110,7 @@ func TestEnsureServiceQuadlet_retriesAfterFailedReload(t *testing.T) {
 
 func TestEnsureServiceQuadlet_reloadsAgainWhenImageOverrideChanges(t *testing.T) {
 	setIsolatedXDG(t)
+	pinMysqlImage(t, "docker.io/library/mysql:8.0")
 	count := swapDaemonReload(t)
 
 	if err := ensureServiceQuadlet("mysql"); err != nil {

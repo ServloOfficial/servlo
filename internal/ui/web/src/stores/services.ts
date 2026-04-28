@@ -23,7 +23,30 @@ export interface Service {
   horizon_site?: string;
   worker_site?: string;
   worker_name?: string;
+  update_strategy?: string;
+  update_available?: boolean;
+  latest_version?: string;
+  upgrade_version?: string;
+  previous_version?: string;
+  migration_supported?: boolean;
 }
+
+export interface PhaseEvent {
+  phase: string;
+  image?: string;
+  message?: string;
+  dep?: string;
+  state?: string;
+  unit?: string;
+  error?: string;
+}
+
+export interface UpdateProgress {
+  phase: string;
+  message: string;
+}
+
+export const updateProgress = writable<Record<string, UpdateProgress>>({});
 
 export const services = writable<Service[]>([]);
 export const servicesLoaded = writable<boolean>(false);
@@ -96,6 +119,100 @@ export async function serviceAction(name: string, action: ServiceAction): Promis
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+export type UpdateAction = 'update' | 'migrate' | 'rollback';
+
+function setProgress(name: string, p: UpdateProgress | null) {
+  updateProgress.update((m) => {
+    const next = { ...m };
+    if (p === null) delete next[name];
+    else next[name] = p;
+    return next;
+  });
+}
+
+function phaseLabel(phase: string): string {
+  switch (phase) {
+    case 'checking_registry':
+      return 'Checking registry…';
+    case 'pulling_image':
+      return 'Pulling image…';
+    case 'writing_quadlet':
+      return 'Writing unit…';
+    case 'restarting_unit':
+      return 'Restarting…';
+    case 'waiting_ready':
+      return 'Waiting for ready…';
+    case 'dumping_data':
+      return 'Dumping data…';
+    case 'restoring_data':
+      return 'Restoring data…';
+    case 'swapping_data_dir':
+      return 'Swapping data dir…';
+    case 'starting_deps':
+      return 'Starting dependencies…';
+    case 'done':
+      return 'Done';
+    default:
+      return phase || 'Working…';
+  }
+}
+
+export async function streamServiceAction(
+  name: string,
+  action: UpdateAction,
+  opts: { tag?: string } = {}
+): Promise<{ ok: boolean; error?: string }> {
+  const params = new URLSearchParams();
+  if (opts.tag) params.set('tag', opts.tag);
+  const url = '/api/services/' + encodeURIComponent(name) + '/' + action + (params.toString() ? '?' + params.toString() : '');
+
+  setProgress(name, { phase: 'checking_registry', message: phaseLabel('checking_registry') });
+  try {
+    const res = await apiFetch(url, { method: 'POST' });
+    if (!res.body) {
+      setProgress(name, null);
+      return { ok: false, error: 'streaming not supported' };
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let finalError: string | undefined;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line) continue;
+        let evt: PhaseEvent;
+        try {
+          evt = JSON.parse(line) as PhaseEvent;
+        } catch {
+          continue;
+        }
+        if (evt.phase === 'error') {
+          finalError = evt.error || 'failed';
+          continue;
+        }
+        if (evt.phase === 'done') continue;
+        const message =
+          evt.phase === 'pulling_image' && evt.image
+            ? 'Pulling ' + evt.image
+            : evt.message || phaseLabel(evt.phase);
+        setProgress(name, { phase: evt.phase, message });
+      }
+    }
+    setProgress(name, null);
+    await loadServices();
+    return { ok: !finalError, error: finalError };
+  } catch (e) {
+    setProgress(name, null);
+    return { ok: false, error: e instanceof Error ? e.message : 'request failed' };
   }
 }
 
