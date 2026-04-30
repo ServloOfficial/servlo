@@ -210,6 +210,10 @@ func requireFrameworkWorker(cwd, workerName string) error {
 // If the worker has a Proxy config, the proxy port is auto-assigned and the
 // nginx vhost is regenerated to include the WebSocket/HTTP proxy block.
 func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w config.FrameworkWorker) error {
+	if err := workerStartPreflight(sitePath, workerName, w); err != nil {
+		return err
+	}
+
 	// Stop conflicting workers before starting.
 	for _, conflict := range w.ConflictsWith {
 		WorkerStopForSite(siteName, conflict) //nolint:errcheck
@@ -274,7 +278,12 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 		}
 	}
 
-	if err := services.Mgr.Start(lifecycleTarget); err != nil {
+	// Route through podman.StartUnit (not services.Mgr.Start directly) so
+	// AfterUnitChange fires the dashboard cache invalidate + WS push. On
+	// Linux the systemd DBus subscription catches direct services.Mgr
+	// calls as a fallback; macOS has no equivalent, so a direct call
+	// leaves the UI stale until the next 15s cache poll.
+	if err := podman.StartUnit(lifecycleTarget); err != nil {
 		return fmt.Errorf("starting %s worker: %w", workerName, err)
 	}
 
@@ -484,6 +493,10 @@ func WorkerStopForSite(siteName, workerName string) error {
 	if err := services.Mgr.RemoveServiceUnit(unitName); err != nil {
 		return fmt.Errorf("removing unit file: %w", err)
 	}
+	// Drop the macOS exec-mode guard script + pid file (no-op on Linux).
+	// Without this they linger in ~/.local/share/lerd/run/workers after
+	// a normal stop and confuse later mode-migration discovery.
+	removeWorkerExecArtifacts(unitName)
 	if err := podman.DaemonReloadFn(); err != nil {
 		fmt.Printf("[WARN] daemon-reload: %v\n", err)
 	}

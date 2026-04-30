@@ -216,6 +216,36 @@ export async function streamServiceAction(
       setProgress(name, null);
     }
     await loadServices();
+    // Optimistic patch on success. The server's snapshot rebuild is async
+    // (runs in the eventbus subscriber goroutine), so loadServices above
+    // can race in and return the pre-rebuild snapshot — leaving the
+    // "update available" badge and the latest_version pointer stuck on
+    // the values we just resolved. Patch the relevant fields locally so
+    // the badge disappears immediately; the next WS push will reconcile
+    // with authoritative state (including the new version label).
+    if (!finalError) {
+      const tagApplied = opts.tag || '';
+      services.update((list) =>
+        list.map((s) => {
+          if (s.name !== name) return s;
+          if (action === 'update' || action === 'migrate') {
+            return {
+              ...s,
+              update_available: false,
+              latest_version: '',
+              upgrade_version: action === 'migrate' ? '' : s.upgrade_version,
+              version: tagApplied ? 'v' + tagApplied : s.version
+            };
+          }
+          if (action === 'rollback') {
+            // rollback target is the previous_version image; leave update_available
+            // alone since the server may flip it back true on the next check.
+            return { ...s, previous_version: '', can_rollback: false };
+          }
+          return s;
+        })
+      );
+    }
     return { ok: !finalError, error: finalError };
   } catch (e) {
     setProgress(name, null);

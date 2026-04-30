@@ -135,7 +135,9 @@ func stripeStartExplicit(siteName, apiKey, forwardTo string) error {
 		return err
 	}
 	unitName := "lerd-stripe-" + siteName
-	if err := services.Mgr.Start(unitName); err != nil {
+	// podman.StartUnit (not services.Mgr.Start) so AfterUnitChange fires
+	// and the dashboard reflects the new state without a manual refresh.
+	if err := podman.StartUnit(unitName); err != nil {
 		return fmt.Errorf("starting stripe listener: %w", err)
 	}
 

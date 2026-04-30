@@ -143,8 +143,8 @@
         id: 'update',
         tone: 'success',
         icon: icons.update,
-        label: m.services_update(),
-        title: tag ? m.services_updateTo({ tag }) : m.services_update(),
+        label: tag ? m.services_updateTo({ tag }) : m.services_update(),
+        title: tag ? m.services_updateAvailableTo({ tag }) : m.services_updateAvailable(),
         onclick: () => runUpdate()
       });
     }

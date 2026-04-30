@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/podman"
 )
 
@@ -24,12 +25,27 @@ func lerdLogPath(unit string) string {
 // isContainerUnit returns true for units that run as detached podman containers
 // (podman run -d). Their logs come from `podman logs`, not the launchd log file.
 //
-// On macOS only a few native services (dnsmasq, watcher, UI) are non-container;
-// everything else — including all worker units — runs as a container.
+// In exec mode, framework workers run as launchd service units; their output
+// goes to the launchd log file instead. Detection uses the plist when present
+// (RunAtLoad = service unit), falling back to the global config for known
+// worker patterns when the plist is absent (unit not yet started or migration
+// cleaned it up before the new plist was written).
 func isContainerUnit(unit string) bool {
 	switch unit {
 	case "lerd-dns", "lerd-watcher", "lerd-ui":
 		return false
+	}
+	home, _ := os.UserHomeDir()
+	plist, err := os.ReadFile(filepath.Join(home, "Library", "LaunchAgents", "lerd."+unit+".plist"))
+	if err == nil {
+		return !strings.Contains(string(plist), "<key>RunAtLoad</key>")
+	}
+	// No plist: fall back to config for known framework worker prefixes.
+	if isFrameworkWorkerUnit(unit) {
+		cfg, _ := config.LoadGlobal()
+		if cfg != nil && cfg.WorkerExecMode() != config.WorkerExecModeContainer {
+			return false
+		}
 	}
 	return true
 }
@@ -86,8 +102,17 @@ func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
 		if r.Header.Get("Last-Event-ID") != "" {
 			tail = "0"
 		}
+		// Wrap r.Context() in a cancel so the worker-mode migration can
+		// kill this stream pre-emptively. Otherwise its `podman logs -f`
+		// child holds a gvproxy slot and races the migration's `podman
+		// rm -f` against the same container.
+		streamCtx, streamCancel := context.WithCancel(r.Context())
+		defer streamCancel()
+		if isFrameworkWorkerUnit(unit) {
+			defer logStreams.Register(unit, streamCancel)()
+		}
 		script := `for i in $(seq 1 20); do ` + bin + ` container exists ` + unit + ` 2>/dev/null && break; sleep 0.5; done; exec ` + bin + ` logs -f --tail ` + tail + ` ` + unit
-		cmd := exec.CommandContext(r.Context(), "/bin/sh", "-c", script)
+		cmd := exec.CommandContext(streamCtx, "/bin/sh", "-c", script)
 		pr, pw := io.Pipe()
 		cmd.Stdout = pw
 		cmd.Stderr = pw

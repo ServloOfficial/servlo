@@ -9,6 +9,7 @@
     toggleHorizon,
     toggleSchedule,
     toggleReverb,
+    toggleStripe,
     toggleWorker,
     loadSites
   } from '$stores/sites';
@@ -26,12 +27,73 @@
 
   let tlsBusy = $state(false);
   let lanBusy = $state(false);
-  let queueBusy = $state(false);
-  let horizonBusy = $state(false);
-  let scheduleBusy = $state(false);
-  let reverbBusy = $state(false);
   let versionBusy = $state(false);
-  const workerBusy = $state<Record<string, boolean>>({});
+
+  // Worker toggles need a different busy semantic than the other toggles:
+  // the API returns when the unit is asked to start, but the actual
+  // running/failing state in `site` only catches up after AfterUnitChange's
+  // PollNow goroutine completes and the WS push lands. Without this delay,
+  // the toggle re-enables in its old position for a beat before the new
+  // state arrives, looking broken. We track the desired post-action value
+  // per worker and keep the toggle loading+disabled until site state
+  // matches it (or 15s elapses, in case the unit failed to come up).
+  type Pending = { desired: boolean; timeoutId: ReturnType<typeof setTimeout> };
+  const pending = $state<Record<string, Pending | undefined>>({});
+
+  function isPending(key: string): boolean {
+    return pending[key] !== undefined;
+  }
+
+  function startTransition(key: string, desired: boolean): boolean {
+    if (pending[key]) return false;
+    const timeoutId = setTimeout(() => {
+      delete pending[key];
+    }, 15000);
+    pending[key] = { desired, timeoutId };
+    return true;
+  }
+
+  function clearTransition(key: string) {
+    const p = pending[key];
+    if (!p) return;
+    clearTimeout(p.timeoutId);
+    delete pending[key];
+  }
+
+  function reconcile(key: string, actual: boolean) {
+    const p = pending[key];
+    if (p && p.desired === actual) clearTransition(key);
+  }
+
+  // Reconcile every time site state changes (from WS push or loadSites).
+  $effect(() => {
+    reconcile('queue', Boolean(site.queue_running));
+    reconcile('horizon', Boolean(site.horizon_running));
+    reconcile('schedule', Boolean(site.schedule_running));
+    reconcile('reverb', Boolean(site.reverb_running));
+    reconcile('stripe', Boolean(site.stripe_running));
+    for (const w of site.framework_workers || []) {
+      reconcile('worker:' + w.name, Boolean(w.running));
+    }
+  });
+
+  async function transition(
+    key: string,
+    desired: boolean,
+    action: () => Promise<{ ok: boolean; error?: string }>
+  ) {
+    if (!startTransition(key, desired)) return;
+    const r = await action();
+    // Server refused — clear immediately so the user can retry. Successful
+    // calls leave the transition in flight; the $effect above clears it
+    // when site state catches up.
+    if (!r.ok) {
+      clearTransition(key);
+      return;
+    }
+    // Kick a refresh so we pick up the change even if the WS push is late.
+    await Promise.all([loadSites(), loadServices()]);
+  }
 
   async function runAction(
     setBusy: (b: boolean) => void,
@@ -135,8 +197,9 @@
           on={Boolean(site.queue_running)}
           failing={Boolean(site.queue_failing)}
           tone="amber"
-          loading={queueBusy}
-          onclick={() => runAction((b) => (queueBusy = b), () => toggleQueue(site))}
+          loading={isPending('queue')}
+          disabled={isPending('queue')}
+          onclick={() => transition('queue', !site.queue_running, () => toggleQueue(site))}
           title={site.queue_failing ? m.sites_controls_queueToggle_failing() : site.queue_running ? m.sites_controls_queueToggle_on() : m.sites_controls_queueToggle_off()}
         />
         <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_queue()}</span>
@@ -149,8 +212,9 @@
           on={Boolean(site.horizon_running)}
           failing={Boolean(site.horizon_failing)}
           tone="amber"
-          loading={horizonBusy}
-          onclick={() => runAction((b) => (horizonBusy = b), () => toggleHorizon(site))}
+          loading={isPending('horizon')}
+          disabled={isPending('horizon')}
+          onclick={() => transition('horizon', !site.horizon_running, () => toggleHorizon(site))}
           title={site.horizon_failing ? m.sites_controls_horizonToggle_failing() : site.horizon_running ? m.sites_controls_horizonToggle_on() : m.sites_controls_horizonToggle_off()}
         />
         <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_horizon()}</span>
@@ -163,8 +227,9 @@
           on={Boolean(site.schedule_running)}
           failing={Boolean(site.schedule_failing)}
           tone="emerald"
-          loading={scheduleBusy}
-          onclick={() => runAction((b) => (scheduleBusy = b), () => toggleSchedule(site))}
+          loading={isPending('schedule')}
+          disabled={isPending('schedule')}
+          onclick={() => transition('schedule', !site.schedule_running, () => toggleSchedule(site))}
           title={site.schedule_running ? m.sites_controls_scheduleToggle_on() : m.sites_controls_scheduleToggle_off()}
         />
         <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_schedule()}</span>
@@ -177,11 +242,26 @@
           on={Boolean(site.reverb_running)}
           failing={Boolean(site.reverb_failing)}
           tone="sky"
-          loading={reverbBusy}
-          onclick={() => runAction((b) => (reverbBusy = b), () => toggleReverb(site))}
+          loading={isPending('reverb')}
+          disabled={isPending('reverb')}
+          onclick={() => transition('reverb', !site.reverb_running, () => toggleReverb(site))}
           title={site.reverb_running ? m.sites_controls_reverbToggle_on() : m.sites_controls_reverbToggle_off()}
         />
         <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_reverb()}</span>
+      </div>
+    {/if}
+
+    {#if site.stripe_secret_set}
+      <div class="flex items-center gap-1.5">
+        <Toggle
+          on={Boolean(site.stripe_running)}
+          tone="violet"
+          loading={isPending('stripe')}
+          disabled={isPending('stripe')}
+          onclick={() => transition('stripe', !site.stripe_running, () => toggleStripe(site))}
+          title={site.stripe_running ? m.sites_controls_stripeToggle_on() : m.sites_controls_stripeToggle_off()}
+        />
+        <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_stripe()}</span>
       </div>
     {/if}
 
@@ -191,8 +271,9 @@
           on={Boolean(w.running)}
           failing={Boolean(w.failing)}
           tone="indigo"
-          loading={Boolean(workerBusy[w.name])}
-          onclick={() => runAction((b) => (workerBusy[w.name] = b), () => toggleWorker(site, w))}
+          loading={isPending('worker:' + w.name)}
+          disabled={isPending('worker:' + w.name)}
+          onclick={() => transition('worker:' + w.name, !w.running, () => toggleWorker(site, w))}
           title={w.running ? 'Stop ' + (w.label || w.name) : 'Start ' + (w.label || w.name)}
         />
         <span class="text-xs text-gray-500 dark:text-gray-400">{w.label || w.name}</span>

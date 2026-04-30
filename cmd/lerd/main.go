@@ -142,6 +142,7 @@ func main() {
 	root.AddCommand(cli.NewDomainCmd())
 	root.AddCommand(cli.NewFrameworkCmd())
 	root.AddCommand(cli.NewWorkerCmd())
+	root.AddCommand(cli.NewWorkersCmd())
 	root.AddCommand(cli.NewNewCmd())
 	root.AddCommand(cli.NewSetupCmd())
 	root.AddCommand(cli.NewMinioMigrateCmd())
@@ -379,6 +380,12 @@ func newWatchCmd() *cobra.Command {
 			// watcher verifies the current entry every tick and reprobes
 			// only when it stops responding.
 			go watcher.WatchHostGateway(30 * time.Second)
+
+			// Self-heal exec-mode framework workers on macOS. Container mode
+			// uses podman --restart=always; exec mode runs guard scripts
+			// under launchd that can be left orphaned by an interrupted
+			// migration or sleep/wake bridge churn. No-op on Linux.
+			go watcher.WatchExecWorkers(60 * time.Second)
 
 			// Watch key site config files and signal queue:restart on change.
 			go func() {

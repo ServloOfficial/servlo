@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/podman"
 )
 
@@ -127,7 +128,9 @@ func ensurePodmanMachineRunning() {
 		// Target memory scales with host RAM so 8 GB MacBooks aren't squeezed.
 		// {{.Resources.Memory}} returns MiB directly (not bytes).
 		hostGiB := hostMemoryGiB()
-		targetMemoryMiB := recommendedVMMemoryMiB(hostGiB)
+		cfg, _ := config.LoadGlobal()
+		execMode := cfg != nil && cfg.WorkerExecMode() != config.WorkerExecModeContainer
+		targetMemoryMiB := recommendedVMMemoryMiB(hostGiB, execMode)
 		if inspectMem, err := exec.Command(podman.PodmanBin(), "machine", "inspect",
 			"--format", "{{.Resources.Memory}}", m.name).Output(); err == nil {
 			if memMiB, parseErr := strconv.ParseInt(strings.TrimSpace(string(inspectMem)), 10, 64); parseErr == nil && memMiB > 0 {

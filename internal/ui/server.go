@@ -190,6 +190,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/watcher/start", withCORS(handleWatcherStart))
 	mux.HandleFunc("/api/settings", withCORS(handleSettings))
 	mux.HandleFunc("/api/settings/autostart", withCORS(handleSettingsAutostart))
+	mux.HandleFunc("/api/settings/worker-mode", withCORS(handleSettingsWorkerMode))
 	mux.HandleFunc("/api/xdebug/", withCORS(publishAfter(handleXdebugAction, eventbus.KindStatus)))
 	mux.HandleFunc("/api/lerd/start", withCORS(handleLerdStart))
 	mux.HandleFunc("/api/lerd/stop", withCORS(handleLerdStop))
@@ -2311,8 +2312,18 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		tail = "0"
 	}
 
+	// Wrap r.Context() in a cancel so the worker-mode migration can kill
+	// this stream pre-emptively. Otherwise its `podman logs -f` child holds
+	// a gvproxy slot and races the migration's `podman rm -f` against the
+	// same container, jamming the podman API socket.
+	streamCtx, streamCancel := context.WithCancel(r.Context())
+	defer streamCancel()
+	if isFrameworkWorkerUnit(container) {
+		defer logStreams.Register(container, streamCancel)()
+	}
+
 	pr, pw := io.Pipe()
-	cmd := exec.CommandContext(r.Context(), podman.PodmanBin(), "logs", "-f", "--tail", tail, container)
+	cmd := exec.CommandContext(streamCtx, podman.PodmanBin(), "logs", "-f", "--tail", tail, container)
 	cmd.Stdout = pw
 	cmd.Stderr = pw
 
@@ -2369,13 +2380,50 @@ func handleQueueLogs(w http.ResponseWriter, r *http.Request) {
 
 // SettingsResponse is the response for GET /api/settings.
 type SettingsResponse struct {
-	AutostartOnLogin bool `json:"autostart_on_login"`
+	AutostartOnLogin  bool   `json:"autostart_on_login"`
+	WorkerExecMode    string `json:"worker_exec_mode"`
+	WorkerModeApplies bool   `json:"worker_mode_applies"` // true on macOS only
 }
 
 func handleSettings(w http.ResponseWriter, _ *http.Request) {
+	cfg, _ := config.LoadGlobal()
+	mode := config.WorkerExecModeExec
+	if cfg != nil {
+		mode = cfg.WorkerExecMode()
+	}
 	writeJSON(w, SettingsResponse{
-		AutostartOnLogin: lerdSystemd.IsAutostartEnabled(),
+		AutostartOnLogin:  lerdSystemd.IsAutostartEnabled(),
+		WorkerExecMode:    mode,
+		WorkerModeApplies: runtime.GOOS == "darwin",
 	})
+}
+
+func handleSettingsWorkerMode(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Mode string `json:"mode"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	if body.Mode != config.WorkerExecModeExec && body.Mode != config.WorkerExecModeContainer {
+		writeJSON(w, map[string]any{"ok": false, "error": "unknown mode"})
+		return
+	}
+	// NDJSON: stream phase events so the dashboard modal can show live
+	// per-worker progress instead of a 30-60s blank spinner. Each line is
+	// a cli.WorkerModePhaseEvent; the client treats {"phase":"done"} as
+	// success and {"phase":"error"} as failure.
+	writeLine, _ := startNDJSONStream(w, r)
+	if err := cli.ApplyWorkersModeStreaming(body.Mode, func(evt cli.WorkerModePhaseEvent) {
+		writeLine(evt)
+	}); err != nil {
+		writeLine(cli.WorkerModePhaseEvent{Phase: "error", Error: err.Error()})
+	}
 }
 
 func handleSettingsAutostart(w http.ResponseWriter, r *http.Request) {

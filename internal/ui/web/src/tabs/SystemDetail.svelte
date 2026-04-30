@@ -6,6 +6,7 @@
   import PhpDetail from './system/PhpDetail.svelte';
   import NodePage from './system/NodePage.svelte';
   import LerdDetail from './system/LerdDetail.svelte';
+  import WorkerModeDetail from './system/WorkerModeDetail.svelte';
 
   const selected = $derived($routeRest || 'lerd');
   const phpVersion = $derived(selected.startsWith('php-') ? selected.slice(4) : '');
@@ -21,6 +22,8 @@
   <PhpDetail version={phpVersion} />
 {:else if selected === 'node' || selected === 'node-install' || selected.startsWith('node-')}
   <NodePage />
+{:else if selected === 'workermode'}
+  <WorkerModeDetail />
 {:else}
   <LerdDetail />
 {/if}
