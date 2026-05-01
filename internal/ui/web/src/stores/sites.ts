@@ -154,6 +154,95 @@ export const toggleStripe = (s: Site) =>
 export const toggleWorker = (s: Site, w: FrameworkWorker) =>
   postAction(site(s.domain, 'worker:' + w.name + (w.running ? ':stop' : ':start')));
 
+export type TinkerResponse = {
+  ok: boolean;
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+  duration_ms: number;
+  mode: 'tinker' | 'php';
+  error?: string;
+};
+
+export type TinkerSymbols = {
+  models: string[];
+  classes: string[];
+  functions: string[];
+};
+
+export type TinkerLintDiagnostic = {
+  line: number;
+  column: number;
+  message: string;
+  severity: 'error' | 'warning';
+};
+
+export type TinkerLintResponse = {
+  ok: boolean;
+  diagnostics: TinkerLintDiagnostic[];
+  error?: string;
+};
+
+export async function lintTinker(domain: string, code: string): Promise<TinkerLintResponse> {
+  try {
+    const res = await apiFetch(site(domain, 'tinker:lint'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+    return (await res.json()) as TinkerLintResponse;
+  } catch (e) {
+    return {
+      ok: false,
+      diagnostics: [],
+      error: e instanceof Error ? e.message : 'Request failed'
+    };
+  }
+}
+
+// Symbol responses are stable for the lifetime of the tab session
+// (project classes, composer helpers, PHP internals don't change while
+// the user is at the editor). Cache per-domain so quick tab switches
+// don't re-trigger the ~80 ms PHP exec on the backend.
+const tinkerSymbolsCache = new Map<string, Promise<TinkerSymbols>>();
+
+export async function loadTinkerSymbols(domain: string): Promise<TinkerSymbols> {
+  const cached = tinkerSymbolsCache.get(domain);
+  if (cached) return cached;
+  const p = (async () => {
+    try {
+      const res = await apiFetch(site(domain, 'tinker:symbols'), { method: 'POST' });
+      return (await res.json()) as TinkerSymbols;
+    } catch {
+      return { models: [], classes: [], functions: [] };
+    }
+  })();
+  tinkerSymbolsCache.set(domain, p);
+  return p;
+}
+
+export async function runTinker(domain: string, code: string): Promise<TinkerResponse> {
+  try {
+    const res = await apiFetch(site(domain, 'tinker'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+    const data = (await res.json()) as TinkerResponse;
+    return data;
+  } catch (e) {
+    return {
+      ok: false,
+      stdout: '',
+      stderr: '',
+      exit_code: -1,
+      duration_ms: 0,
+      mode: 'php',
+      error: e instanceof Error ? e.message : 'Request failed'
+    };
+  }
+}
+
 export async function setSiteVersion(s: Site, type: 'php' | 'node', version: string) {
   try {
     const res = await apiFetch(site(s.domain, type) + '?version=' + encodeURIComponent(version), {

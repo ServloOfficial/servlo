@@ -47,6 +47,10 @@ type Framework struct {
 	// Console is the console command to run (without 'php' prefix).
 	// Example: "artisan", "bin/console"
 	Console string `yaml:"console,omitempty"`
+	// Tinker, when set, defines how to run an interactive PHP REPL for
+	// this framework (the in-browser Tinker tab + `lerd tinker` CLI).
+	// Absent → fall back to plain `php` execution.
+	Tinker *FrameworkTinker `yaml:"tinker,omitempty"`
 	// Create is the scaffold command used by "lerd new". The target directory is appended automatically.
 	// Example: "composer create-project --no-install --no-plugins --no-scripts laravel/laravel"
 	Create string `yaml:"create,omitempty"`
@@ -315,6 +319,12 @@ var laravelFramework = &Framework{
 	Composer: "auto",
 	NPM:      "auto",
 	Console:  "artisan",
+	Tinker: &FrameworkTinker{
+		Command:         []string{"artisan", "tinker"},
+		ExecuteFlag:     "--execute",
+		RequiresPackage: "laravel/tinker",
+		RequiresFile:    "artisan",
+	},
 	Workers: map[string]FrameworkWorker{
 		"queue": {
 			Label:        "Queue Worker",
@@ -1010,6 +1020,69 @@ func SaveFramework(fw *Framework) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(FrameworksDir(), fw.Name+".yaml"), data, 0644)
+}
+
+// FrameworkTinker describes how to launch a REPL for a framework. Lerd
+// uses these to drive both the Tinker tab in the Web UI and the
+// (future) `lerd tinker` CLI command. The schema is intentionally minimal
+// so frameworks don't need to ship a full executable spec — just the
+// argv (relative to a `php …` invocation) and how user code is fed in.
+type FrameworkTinker struct {
+	// Command is the argv to run, the first item is typically the entry
+	// script (e.g. "artisan", "bin/console psysh"). Each item is passed
+	// verbatim to `podman exec … php <Command…>`.
+	// Example for Laravel: ["artisan", "tinker"]
+	// Example for Symfony+psysh: ["vendor/bin/psysh"]
+	Command []string `yaml:"command"`
+	// ExecuteFlag, when set, is the flag used to pass user code as a
+	// single argument. Example: "--execute" → `--execute=<code>`.
+	// Mutually exclusive with ExecutePositional.
+	ExecuteFlag string `yaml:"execute_flag,omitempty"`
+	// ExecutePositional, when true, appends user code as a final
+	// positional argv element instead of using a flag. Useful for tools
+	// like `drush php:eval <code>` and `wp eval <code>` that take code
+	// as a bare argument. Mutually exclusive with ExecuteFlag.
+	ExecutePositional bool `yaml:"execute_positional,omitempty"`
+	// When neither ExecuteFlag nor ExecutePositional is set, user code
+	// is piped to the process via stdin.
+	//
+	// RequiresPackage is the composer package that must be installed in
+	// vendor/ for this REPL to work. Example: "laravel/tinker".
+	// When the package isn't found, lerd falls back to plain PHP.
+	RequiresPackage string `yaml:"requires_package,omitempty"`
+	// RequiresFile, similarly, is a relative path that must exist for
+	// this REPL to be usable (e.g. "artisan"). Defaults to no check.
+	RequiresFile string `yaml:"requires_file,omitempty"`
+}
+
+// GetTinkerForDir returns the framework's Tinker spec when:
+//   - the project belongs to a registered framework,
+//   - the framework definition declares a `tinker` block,
+//   - all `requires_*` checks pass against the project directory.
+//
+// Otherwise returns nil so callers fall back to plain `php`.
+func GetTinkerForDir(projectDir string) *FrameworkTinker {
+	site, err := FindSiteByPath(projectDir)
+	if err != nil || site.Framework == "" {
+		return nil
+	}
+	fw, ok := GetFrameworkForDir(site.Framework, projectDir)
+	if !ok || fw.Tinker == nil || len(fw.Tinker.Command) == 0 {
+		return nil
+	}
+	t := fw.Tinker
+	if t.RequiresFile != "" {
+		if _, err := os.Stat(filepath.Join(projectDir, t.RequiresFile)); err != nil {
+			return nil
+		}
+	}
+	if t.RequiresPackage != "" {
+		pkgPath := filepath.Join(projectDir, "vendor", t.RequiresPackage)
+		if _, err := os.Stat(pkgPath); err != nil {
+			return nil
+		}
+	}
+	return t
 }
 
 // GetConsoleCommand returns the console binary (without the "php" prefix) for

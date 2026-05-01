@@ -2076,6 +2076,57 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		_ = nginx.Reload()
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
+	case "tinker:symbols":
+		writeJSON(w, cli.CollectTinkerSymbols(site.Path))
+		return
+	case "tinker:lint":
+		var body struct {
+			Code string `json:"code"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&body); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid body: " + err.Error()})
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		diags, err := cli.LintTinkerCode(ctx, site.Path, body.Code)
+		resp := map[string]any{
+			"ok":          err == nil,
+			"diagnostics": diags,
+		}
+		if err != nil {
+			resp["error"] = err.Error()
+		}
+		writeJSON(w, resp)
+		return
+	case "tinker":
+		var body struct {
+			Code string `json:"code"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&body); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid body: " + err.Error()})
+			return
+		}
+		if strings.TrimSpace(body.Code) == "" {
+			writeJSON(w, map[string]any{"ok": false, "error": "code is empty"})
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		defer cancel()
+		res, err := cli.RunTinker(ctx, site.Path, body.Code)
+		resp := map[string]any{
+			"ok":          err == nil && res.ExitCode == 0,
+			"stdout":      res.Stdout,
+			"stderr":      res.Stderr,
+			"exit_code":   res.ExitCode,
+			"duration_ms": res.DurationMs,
+			"mode":        res.Mode,
+		}
+		if err != nil {
+			resp["error"] = err.Error()
+		}
+		writeJSON(w, resp)
+		return
 	default:
 		// Handle framework worker actions: worker:{name}:start or worker:{name}:stop
 		if strings.HasPrefix(action, "worker:") {

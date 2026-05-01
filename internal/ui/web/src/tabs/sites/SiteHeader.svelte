@@ -17,10 +17,13 @@
   import DomainMorePill from './DomainMorePill.svelte';
   import { m } from '../../paraglide/messages.js';
 
+  import type { Snippet } from 'svelte';
+
   interface Props {
     site: Site;
+    tabs?: Snippet;
   }
-  let { site }: Props = $props();
+  let { site, tabs }: Props = $props();
 
   let pauseBusy = $state(false);
   let unlinkBusy = $state(false);
@@ -60,9 +63,9 @@
 
 </script>
 
-<div class="px-3 sm:px-5 py-4 border-b border-gray-100 dark:border-lerd-border shrink-0">
-  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-    <div>
+<div class="px-3 sm:px-5 pt-4 border-b border-gray-100 dark:border-lerd-border shrink-0">
+  <div class="flex flex-col sm:flex-row sm:items-stretch sm:justify-between gap-3 sm:gap-4">
+    <div class="pb-4">
       <div class="flex items-center gap-2 flex-wrap">
         {#if site.has_favicon}
           <img src={apiBase + '/api/sites/' + site.domain + '/favicon'} class="w-5 h-5 rounded-sm object-contain" loading="lazy" alt="" />
@@ -136,7 +139,8 @@
       <ServiceBadgeRow {site} />
     </div>
 
-    <div class="flex items-center gap-2 shrink-0 flex-wrap">
+    <div class="flex flex-col items-end gap-2 shrink-0 sm:justify-between pb-0">
+    <div class="flex items-center gap-2 flex-wrap justify-end pt-0">
       <button
         onclick={togglePause}
         disabled={pauseBusy}
@@ -171,6 +175,10 @@
           {m.common_terminal()}
         </button>
       {/if}
+    </div>
+    {#if tabs}
+      <div class="flex items-center gap-5 -mb-px">{@render tabs()}</div>
+    {/if}
     </div>
   </div>
 </div>

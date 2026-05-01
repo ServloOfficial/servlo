@@ -93,6 +93,7 @@ nav:
       - Queue Workers: usage/queue-workers.md
   - Features:
       - Web UI: features/web-ui.md
+      - Tinker tab: features/tinker.md
       - System Tray: features/system-tray.md
       - HTTPS / TLS: features/https.md
       - Git Worktrees: features/git-worktrees.md
