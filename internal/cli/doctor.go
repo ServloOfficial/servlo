@@ -172,11 +172,27 @@ func RunDoctorTo(w io.Writer, useColor bool) (fails, warns int, err error) {
 		fail("DNS TLD configured", "empty TLD in config", "set dns.tld in "+cfgFile)
 	} else {
 		ok(fmt.Sprintf("DNS TLD (.%s)", tld))
-		if resolved, _ := dns.Check(tld); resolved {
-			ok(fmt.Sprintf(".%s resolution working", tld))
-		} else {
-			fail(fmt.Sprintf(".%s resolution", tld), "not resolving to 127.0.0.1",
-				dnsRestartHint())
+		// Layered diagnostic: walk the chain (container, config, port,
+		// dig at 5300, resolver hookup, interface routing, system
+		// lookup) so a one-line failure points at exactly which rung
+		// broke instead of the historical "not resolving to 127.0.0.1".
+		diag := dns.Diagnose(tld)
+		for _, s := range diag.Steps {
+			label := "  " + s.Name
+			switch s.Status {
+			case dns.StepOK:
+				if s.Detail != "" {
+					info(label, s.Detail)
+				} else {
+					ok(label)
+				}
+			case dns.StepFail:
+				fail(label, s.Detail, s.Hint)
+			case dns.StepWarn:
+				warn(label, s.Detail)
+			case dns.StepSkip:
+				info(label, "skipped — "+s.Detail)
+			}
 		}
 	}
 

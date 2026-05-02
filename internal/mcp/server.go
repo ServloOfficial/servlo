@@ -905,6 +905,7 @@ func toolList() []mcpTool {
 			},
 		},
 		worktreeTool(),
+		dnsDiagnoseTool(),
 	)
 
 	return tools
@@ -1162,6 +1163,8 @@ func handleToolCall(params json.RawMessage) (any, *rpcError) {
 
 	case "worktree":
 		return dispatchWorktree(args)
+	case "dns_diagnose":
+		return execDNSDiagnose(args)
 
 	case "db_import":
 		return execDBImport(args)

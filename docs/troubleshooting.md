@@ -32,31 +32,39 @@ lerd bug-report --output /tmp/report.txt --log-lines 500
 ::: details `.test` domains not resolving
 First, confirm DNS is actually meant to be managed by lerd. If `lerd dns:check` reports `DNS managed externally`, you opted out of dnsmasq during install and your sites should be on `*.localhost` rather than `*.test`. See [DNS](features/dns.md) for switching modes.
 
-Otherwise, run the DNS check:
+Otherwise, the fastest way to find the broken rung is `lerd doctor`. The DNS section walks the chain top to bottom and surfaces exactly where it breaks, with a hint per failure:
 
-```bash
-lerd dns:check
+```
+[DNS]
+  DNS TLD (.test)                     OK
+    lerd-dns container                running
+    dnsmasq config                    address=/.test/127.0.0.1, port=5300
+    port 5300 listening               127.0.0.1:5300
+    dig @127.0.0.1 -p 5300            127.0.0.1
+    resolver hookup                   NetworkManager dispatcher: /etc/NetworkManager/dispatcher.d/99-lerd-dns
+    interface routes .test to 5300    enp14s0
+    system DNS lookup                 127.0.0.1
 ```
 
-If it fails, restart your DNS resolver and check again:
+The chain in order:
+
+| Rung | What it checks | If it fails |
+|---|---|---|
+| `lerd-dns container` | The dnsmasq container is running. | `lerd start` (or `podman logs lerd-dns` to see why it crashed). |
+| `dnsmasq config` | `~/.local/share/lerd/dnsmasq/lerd.conf` exists with `port=5300` and `address=/.<tld>/`. | `lerd start` regenerates the config from your registered TLD. |
+| `port 5300 listening` | TCP/UDP 5300 is reachable on 127.0.0.1. | Another process owns the port. Find it with `ss -tlnp sport = :5300`. |
+| `dig @127.0.0.1 -p 5300` | A direct query at port 5300 returns 127.0.0.1 for `lerd-probe.<tld>`. | dnsmasq is up but its config drifted. `systemctl --user restart lerd-dns`. |
+| `resolver hookup` | The NetworkManager dispatcher script or systemd-resolved drop-in is installed. | Rerun `lerd install`. |
+| `interface routes .test to 5300` | `resolvectl status` shows `127.0.0.1:5300` and `~<tld>` on the active interface. | `sudo systemctl restart NetworkManager`, or set the routing manually with `sudo resolvectl domain <iface> ~test ~.`. |
+| `system DNS lookup` | `host lerd-probe.test` (the system resolver) returns 127.0.0.1. | The drop-in is installed but resolved isn't honouring it. Check whether cloud-init or another tool wrote a higher-priority resolver config. Common on EC2 / cloud images. |
+
+You can also call this programmatically over MCP via the `dns_diagnose` tool, useful for AI-driven troubleshooting:
 
 ```bash
-# NetworkManager systems:
-sudo systemctl restart NetworkManager
-
-# systemd-resolved only (e.g. omarchy):
-sudo systemctl restart systemd-resolved
-
-lerd dns:check
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"dns_diagnose","arguments":{}}}' | lerd mcp
 ```
 
-On systems using systemd-resolved, check that the DNS configuration was applied:
-
-```bash
-resolvectl status
-# Look for your default interface, it should show 127.0.0.1:5300 as DNS server
-# and ~test as a routing domain
-```
+The response includes a `steps` array with a `status` (`ok` / `fail` / `warn` / `skip`) and `hint` per rung, plus a `first_failure` index so an LLM can jump straight to the broken layer.
 :::
 
 ::: details Nginx not serving a site

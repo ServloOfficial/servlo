@@ -236,7 +236,7 @@ func newServeUICmd() *cobra.Command {
 func newDNSCheckCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "dns:check",
-		Short: "Check that .test DNS resolution is working",
+		Short: "Check that .test DNS resolution is working (with layered breakdown on failure)",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			cfg, err := config.LoadGlobal()
 			if err != nil {
@@ -248,15 +248,34 @@ func newDNSCheckCmd() *cobra.Command {
 				return nil
 			}
 
-			ok, err := dns.Check(cfg.DNS.TLD)
-			if err != nil {
-				return err
-			}
-			if ok {
-				fmt.Printf("DNS is working: *.%s resolves to 127.0.0.1\n", cfg.DNS.TLD)
+			diag := dns.Diagnose(cfg.DNS.TLD)
+			if diag.FirstFailure < 0 {
+				fmt.Printf("DNS is working: *.%s resolves to 127.0.0.1\n\n", cfg.DNS.TLD)
 			} else {
-				fmt.Printf("DNS is NOT working for .%s\n", cfg.DNS.TLD)
-				fmt.Println("Run 'lerd install' or check NetworkManager dnsmasq configuration.")
+				fmt.Printf("DNS is NOT working for .%s\n\n", cfg.DNS.TLD)
+			}
+			for _, s := range diag.Steps {
+				marker := "  "
+				switch s.Status {
+				case dns.StepOK:
+					marker = "✓ "
+				case dns.StepFail:
+					marker = "✗ "
+				case dns.StepWarn:
+					marker = "! "
+				case dns.StepSkip:
+					marker = "  "
+				}
+				if s.Detail != "" {
+					fmt.Printf("%s%-34s %s\n", marker, s.Name, s.Detail)
+				} else {
+					fmt.Printf("%s%s\n", marker, s.Name)
+				}
+				if s.Status == dns.StepFail && s.Hint != "" {
+					fmt.Printf("    hint: %s\n", s.Hint)
+				}
+			}
+			if diag.FirstFailure >= 0 {
 				os.Exit(1)
 			}
 			return nil
