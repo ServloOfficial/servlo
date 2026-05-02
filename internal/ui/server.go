@@ -28,6 +28,7 @@ import (
 	"github.com/geodro/lerd/internal/dns"
 	"github.com/geodro/lerd/internal/envfile"
 	"github.com/geodro/lerd/internal/eventbus"
+	gitpkg "github.com/geodro/lerd/internal/git"
 	"github.com/geodro/lerd/internal/nginx"
 	phpPkg "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
@@ -575,10 +576,22 @@ func buildStatus() StatusResponse {
 func buildStatusJSON() []byte { return []byte(mustJSON(buildStatus())) }
 
 // WorktreeResponse is embedded in SiteResponse for each git worktree.
+// PHP/NodeVersion are the effective values; *Override flags signal whether
+// the worktree's .lerd.yaml set them explicitly or it's inherited.
 type WorktreeResponse struct {
-	Branch string `json:"branch"`
-	Domain string `json:"domain"`
-	Path   string `json:"path"`
+	Branch              string `json:"branch"`
+	Domain              string `json:"domain"`
+	Path                string `json:"path"`
+	PHPVersion          string `json:"php_version,omitempty"`
+	NodeVersion         string `json:"node_version,omitempty"`
+	PHPVersionOverride  bool   `json:"php_version_override,omitempty"`
+	NodeVersionOverride bool   `json:"node_version_override,omitempty"`
+	FrameworkVersion    string `json:"framework_version,omitempty"`
+	FrameworkLabel      string `json:"framework_label,omitempty"`
+	DBIsolated          bool   `json:"db_isolated,omitempty"`
+	DBDatabase          string `json:"db_database,omitempty"`
+	LANPort             int    `json:"lan_port,omitempty"`
+	LANShareURL         string `json:"lan_share_url,omitempty"`
 }
 
 // WorkerStatus represents a single framework worker and its running state.
@@ -682,10 +695,26 @@ func buildSites() []SiteResponse {
 
 		var worktreeResponses []WorktreeResponse
 		for _, wt := range e.Worktrees {
+			lanPort := 0
+			lanURL := ""
+			if entry, ok, err := config.FindWorktreeLAN(e.Name, wt.Branch); err == nil && ok {
+				lanPort = entry.Port
+				lanURL = cli.LANShareURL(entry.Port)
+			}
 			worktreeResponses = append(worktreeResponses, WorktreeResponse{
-				Branch: wt.Branch,
-				Domain: wt.Domain,
-				Path:   wt.Path,
+				Branch:              wt.Branch,
+				Domain:              wt.Domain,
+				Path:                wt.Path,
+				PHPVersion:          wt.PHPVersion,
+				NodeVersion:         wt.NodeVersion,
+				PHPVersionOverride:  wt.PHPVersionOverride,
+				NodeVersionOverride: wt.NodeVersionOverride,
+				FrameworkVersion:    wt.FrameworkVersion,
+				FrameworkLabel:      wt.FrameworkLabel,
+				DBIsolated:          wt.DBIsolated,
+				DBDatabase:          wt.DBDatabase,
+				LANPort:             lanPort,
+				LANShareURL:         lanURL,
 			})
 		}
 		if worktreeResponses == nil {
@@ -1641,16 +1670,30 @@ func handleSiteFavicon(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
-// handleLANQR serves a QR code PNG for the LAN share URL of a site.
-// Path: /api/lan-qr/{domain}
+// handleLANQR serves a QR code PNG for the LAN share URL of a site or one
+// of its worktrees.
+// Path: /api/lan-qr/{domain}[?branch=<sanitized>]
 func handleLANQR(w http.ResponseWriter, r *http.Request) {
 	domain := strings.TrimPrefix(r.URL.Path, "/api/lan-qr/")
 	site, err := config.FindSiteByDomain(domain)
-	if err != nil || site.LANPort == 0 {
+	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	shareURL := cli.LANShareURL(site.LANPort)
+	port := site.LANPort
+	if branch := r.URL.Query().Get("branch"); branch != "" {
+		entry, found, err := config.FindWorktreeLAN(site.Name, branch)
+		if err != nil || !found {
+			http.NotFound(w, r)
+			return
+		}
+		port = entry.Port
+	}
+	if port == 0 {
+		http.NotFound(w, r)
+		return
+	}
+	shareURL := cli.LANShareURL(port)
 	if shareURL == "" {
 		http.NotFound(w, r)
 		return
@@ -1723,6 +1766,14 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, SiteActionResponse{Error: "version parameter required"})
 			return
 		}
+		if branch := r.URL.Query().Get("branch"); branch != "" {
+			if err := setWorktreePHPVersion(site, branch, version); err != nil {
+				writeJSON(w, SiteActionResponse{Error: err.Error()})
+				return
+			}
+			needsReload = true
+			break
+		}
 		// Write .php-version into project directory (keeps CLI php and other tools in sync).
 		if err := os.WriteFile(filepath.Join(site.Path, ".php-version"), []byte(version+"\n"), 0644); err != nil {
 			writeJSON(w, SiteActionResponse{Error: "writing .php-version: " + err.Error()})
@@ -1762,6 +1813,22 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		if version == "" {
 			writeJSON(w, SiteActionResponse{Error: "version parameter required"})
 			return
+		}
+		if branch := r.URL.Query().Get("branch"); branch != "" {
+			wtPath := resolveSitePath(site, branch)
+			if wtPath == "" {
+				writeJSON(w, SiteActionResponse{Error: "unknown worktree branch"})
+				return
+			}
+			if err := os.WriteFile(filepath.Join(wtPath, ".node-version"), []byte(version+"\n"), 0644); err != nil {
+				writeJSON(w, SiteActionResponse{Error: "writing .node-version: " + err.Error()})
+				return
+			}
+			if err := config.SetWorktreeNodeVersion(wtPath, version); err != nil {
+				writeJSON(w, SiteActionResponse{Error: err.Error()})
+				return
+			}
+			break
 		}
 		if err := os.WriteFile(filepath.Join(site.Path, ".node-version"), []byte(version+"\n"), 0644); err != nil {
 			writeJSON(w, SiteActionResponse{Error: "writing .node-version: " + err.Error()})
@@ -1899,6 +1966,14 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "lan:share":
+		if branch := r.URL.Query().Get("branch"); branch != "" {
+			if _, err := cli.LANShareStartWorktree(site.Name, branch); err != nil {
+				writeJSON(w, SiteActionResponse{Error: err.Error()})
+				return
+			}
+			writeJSON(w, SiteActionResponse{OK: true})
+			return
+		}
 		if _, err := cli.LANShareStart(site.Name); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
@@ -1906,14 +1981,41 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "lan:unshare":
+		if branch := r.URL.Query().Get("branch"); branch != "" {
+			if err := cli.LANShareStopWorktree(site.Name, branch); err != nil {
+				writeJSON(w, SiteActionResponse{Error: err.Error()})
+				return
+			}
+			writeJSON(w, SiteActionResponse{OK: true})
+			return
+		}
 		if err := cli.LANShareStop(site.Name); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
+	case "db:isolate":
+		branch := r.URL.Query().Get("branch")
+		if branch == "" {
+			writeJSON(w, SiteActionResponse{Error: "branch parameter required"})
+			return
+		}
+		on := r.URL.Query().Get("isolated") == "true"
+		source := r.URL.Query().Get("source")
+		if err := setWorktreeDBIsolated(site, branch, on, source); err != nil {
+			writeJSON(w, SiteActionResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, SiteActionResponse{OK: true})
+		return
 	case "terminal":
-		if err := openTerminalAt(site.Path); err != nil {
+		path := resolveSitePath(site, r.URL.Query().Get("branch"))
+		if path == "" {
+			writeJSON(w, SiteActionResponse{Error: "unknown worktree branch"})
+			return
+		}
+		if err := openTerminalAt(path); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
@@ -2080,7 +2182,14 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "tinker:symbols":
-		writeJSON(w, cli.CollectTinkerSymbols(site.Path))
+		branch := r.URL.Query().Get("branch")
+		tinkerPath := resolveSitePath(site, branch)
+		if tinkerPath == "" {
+			http.NotFound(w, r)
+			return
+		}
+		ensureWorktreeEnvIfBranch(site, branch)
+		writeJSON(w, cli.CollectTinkerSymbols(tinkerPath))
 		return
 	case "tinker:lint":
 		var body struct {
@@ -2090,9 +2199,16 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, map[string]any{"ok": false, "error": "invalid body: " + err.Error()})
 			return
 		}
+		branch := r.URL.Query().Get("branch")
+		tinkerPath := resolveSitePath(site, branch)
+		if tinkerPath == "" {
+			writeJSON(w, map[string]any{"ok": false, "error": "unknown worktree branch"})
+			return
+		}
+		ensureWorktreeEnvIfBranch(site, branch)
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		diags, err := cli.LintTinkerCode(ctx, site.Path, body.Code)
+		diags, err := cli.LintTinkerCode(ctx, tinkerPath, body.Code)
 		resp := map[string]any{
 			"ok":          err == nil,
 			"diagnostics": diags,
@@ -2114,9 +2230,16 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, map[string]any{"ok": false, "error": "code is empty"})
 			return
 		}
+		branch := r.URL.Query().Get("branch")
+		tinkerPath := resolveSitePath(site, branch)
+		if tinkerPath == "" {
+			writeJSON(w, map[string]any{"ok": false, "error": "unknown worktree branch"})
+			return
+		}
+		ensureWorktreeEnvIfBranch(site, branch)
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
-		res, err := cli.RunTinker(ctx, site.Path, body.Code)
+		res, err := cli.RunTinker(ctx, tinkerPath, body.Code)
 		resp := map[string]any{
 			"ok":          err == nil && res.ExitCode == 0,
 			"stdout":      res.Stdout,
@@ -2754,10 +2877,87 @@ func handleWatcherLogs(w http.ResponseWriter, r *http.Request) {
 	streamUnitLogs(w, r, "lerd-watcher")
 }
 
+// setWorktreeDBIsolated forwards to cli.SetWorktreeDBIsolated; the shared
+// implementation in cli is also used by `lerd db:isolate`.
+func setWorktreeDBIsolated(site *config.Site, branch string, isolated bool, source string) error {
+	return cli.SetWorktreeDBIsolated(site, branch, isolated, source)
+}
+
+// setWorktreePHPVersion writes the override to the worktree's .lerd.yaml and
+// .php-version, then regenerates its nginx vhost so the next request lands on
+// the new PHP-FPM upstream.
+func setWorktreePHPVersion(site *config.Site, branch, version string) error {
+	wtPath := resolveSitePath(site, branch)
+	if wtPath == "" {
+		return fmt.Errorf("unknown worktree branch")
+	}
+	if err := os.WriteFile(filepath.Join(wtPath, ".php-version"), []byte(version+"\n"), 0644); err != nil {
+		return fmt.Errorf("writing .php-version: %w", err)
+	}
+	if err := config.SetWorktreePHPVersion(wtPath, version); err != nil {
+		return fmt.Errorf("updating .lerd.yaml: %w", err)
+	}
+	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
+	if err != nil {
+		return fmt.Errorf("detecting worktrees: %w", err)
+	}
+	for _, wt := range worktrees {
+		if wt.Branch != branch {
+			continue
+		}
+		if site.Secured {
+			return nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, version, site.PrimaryDomain())
+		}
+		return nginx.GenerateWorktreeVhost(wt.Domain, wt.Path, version)
+	}
+	return fmt.Errorf("worktree %s not found", branch)
+}
+
+// ensureWorktreeEnvIfBranch materialises the worktree's .env when the request
+// targets a worktree, so Laravel's env() works on freshly added worktrees
+// where .env hasn't been carried over yet. Cheap and idempotent.
+func ensureWorktreeEnvIfBranch(site *config.Site, branch string) {
+	if branch == "" {
+		return
+	}
+	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
+	if err != nil {
+		return
+	}
+	for _, wt := range worktrees {
+		if wt.Branch == branch {
+			gitpkg.EnsureWorktreeEnv(site.Path, wt.Path, wt.Domain, site.Secured)
+			return
+		}
+	}
+}
+
+// resolveSitePath returns the filesystem path for the site or one of its
+// worktrees. Empty branch = site.Path; a known branch = wt.Path; an unknown
+// branch = "" so callers can 404 without leaking parent logs.
+func resolveSitePath(site *config.Site, branch string) string {
+	if branch == "" {
+		return site.Path
+	}
+	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
+	if err != nil {
+		return ""
+	}
+	for _, wt := range worktrees {
+		if wt.Branch == branch {
+			return wt.Path
+		}
+	}
+	return ""
+}
+
 // handleAppLogs serves application-level log files (e.g. Laravel's storage/logs/*.log).
 //
-//	GET /api/app-logs/{domain}            → list available log files
-//	GET /api/app-logs/{domain}/{filename} → parsed log entries
+//	GET /api/app-logs/{domain}[?branch=<sanitized>]            → list available log files
+//	GET /api/app-logs/{domain}/{filename}[?branch=<sanitized>] → parsed log entries
+//
+// When ?branch= is set, files are read from that worktree's checkout directory
+// rather than the parent site's path, scoping logs to the active branch.
 func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/app-logs/"), "/")
 	if len(parts) == 0 || parts[0] == "" {
@@ -2772,9 +2972,15 @@ func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	basePath := resolveSitePath(site, r.URL.Query().Get("branch"))
+	if basePath == "" {
+		http.NotFound(w, r)
+		return
+	}
+
 	fwName := site.Framework
 	if fwName == "" {
-		fwName, _ = config.DetectFrameworkForDir(site.Path)
+		fwName, _ = config.DetectFrameworkForDir(basePath)
 	}
 	fw, hasFw := config.GetFramework(fwName)
 	if !hasFw || len(fw.Logs) == 0 {
@@ -2783,8 +2989,7 @@ func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(parts) == 1 {
-		// List available log files
-		files, _ := applog.DiscoverLogFiles(site.Path, fw.Logs)
+		files, _ := applog.DiscoverLogFiles(basePath, fw.Logs)
 		if files == nil {
 			files = []applog.LogFile{}
 		}
@@ -2792,9 +2997,7 @@ func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse entries for a specific file
 	filename := parts[1]
-	// Validate filename: only safe characters
 	for _, c := range filename {
 		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-') {
 			http.NotFound(w, r)
@@ -2802,7 +3005,7 @@ func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fullPath := applog.ResolveLogFilePath(site.Path, fw.Logs, filename)
+	fullPath := applog.ResolveLogFilePath(basePath, fw.Logs, filename)
 	if fullPath == "" {
 		http.NotFound(w, r)
 		return

@@ -499,11 +499,12 @@ func unpauseWorktrees(site *config.Site, phpVersion string) {
 		return
 	}
 	for _, wt := range worktrees {
+		effectivePHP := config.WorktreePHPVersion(wt.Path, phpVersion)
 		var vhostErr error
 		if site.Secured {
-			vhostErr = nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, phpVersion, site.PrimaryDomain())
+			vhostErr = nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, effectivePHP, site.PrimaryDomain())
 		} else {
-			vhostErr = nginx.GenerateWorktreeVhost(wt.Domain, wt.Path, phpVersion)
+			vhostErr = nginx.GenerateWorktreeVhost(wt.Domain, wt.Path, effectivePHP)
 		}
 		if vhostErr != nil {
 			fmt.Printf("  [WARN] restoring worktree vhost %s: %v\n", wt.Domain, vhostErr)

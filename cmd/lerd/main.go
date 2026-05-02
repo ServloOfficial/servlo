@@ -80,6 +80,9 @@ func main() {
 	root.AddCommand(cli.NewUseCmd())
 	root.AddCommand(cli.NewIsolateCmd())
 	root.AddCommand(cli.NewIsolateNodeCmd())
+	root.AddCommand(cli.NewDBIsolateCmd())
+	root.AddCommand(cli.NewDBShareCmd())
+	root.AddCommand(cli.NewWorktreeCmd())
 	root.AddCommand(cli.NewRuntimeCmd())
 	root.AddCommand(cli.NewNodeInstallCmd())
 	root.AddCommand(cli.NewNodeUninstallCmd())
@@ -363,11 +366,19 @@ func newWatchCmd() *cobra.Command {
 						if err != nil {
 							return
 						}
+						// Cleanup order on plain `git worktree remove`:
+						// vhost first (URL stops resolving), then LAN
+						// share. Isolated databases are intentionally NOT
+						// dropped here — `lerd worktree remove` prompts
+						// the user about the DB explicitly, and the
+						// daemon's startup `scanWorktrees` pass catches
+						// any orphans left by direct git users.
 						if cleanupWorktreeVhosts(site) {
 							if err := nginx.Reload(); err != nil {
 								fmt.Printf("[WARN] nginx reload: %v\n", err)
 							}
 						}
+						cli.DropOrphanedWorktreeLANShares(site, liveBranchesForSite(site))
 					},
 				)
 				if err != nil {
@@ -498,6 +509,21 @@ func newWatchCmd() *cobra.Command {
 }
 
 // mainRepoSitePaths returns the paths of non-ignored sites whose .git is a directory.
+// liveBranchesForSite returns the set of sanitized branches that currently
+// have a worktree on disk for the given site. Used by the watcher's
+// onRemoved hook so it can hand the live set to the LAN-cleanup helper.
+func liveBranchesForSite(site *config.Site) map[string]bool {
+	out := map[string]bool{}
+	wts, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
+	if err != nil {
+		return out
+	}
+	for _, w := range wts {
+		out[w.Branch] = true
+	}
+	return out
+}
+
 func mainRepoSitePaths() []string {
 	reg, err := config.LoadSites()
 	if err != nil {
@@ -527,8 +553,22 @@ func scanWorktrees() bool {
 		if s.Ignored || s.Paused {
 			continue
 		}
+		// Catch up on isolated-DB cleanup for any worktree removed while
+		// the watcher was offline (event-driven cleanup needs fsnotify).
+		site := s
+		cli.DropOrphanedWorktreeDBs(&site)
 		worktrees, err := gitpkg.DetectWorktrees(s.Path, s.PrimaryDomain())
-		if err != nil || len(worktrees) == 0 {
+		if err != nil {
+			continue
+		}
+		// Drop any *.<site>.conf vhost that doesn't correspond to a live
+		// worktree any more — branch renames and detached→named transitions
+		// leave the previous name behind, and that orphan still routes to
+		// the same checkout, masking the new vhost.
+		if removeStaleWorktreeVhosts(&site, worktrees) {
+			generated = true
+		}
+		if len(worktrees) == 0 {
 			continue
 		}
 		for _, wt := range worktrees {
@@ -570,11 +610,12 @@ func syncWorktree(sitePath, worktreeName, action string, pruneStale bool) bool {
 			continue
 		}
 		gitpkg.EnsureWorktreeDeps(sitePath, wt.Path, wt.Domain, site.Secured)
+		effectivePHP := config.WorktreePHPVersion(wt.Path, site.PHPVersion)
 		var vhostErr error
 		if site.Secured {
-			vhostErr = nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, site.PHPVersion, site.PrimaryDomain())
+			vhostErr = nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, effectivePHP, site.PrimaryDomain())
 		} else {
-			vhostErr = nginx.GenerateWorktreeVhost(wt.Domain, wt.Path, site.PHPVersion)
+			vhostErr = nginx.GenerateWorktreeVhost(wt.Domain, wt.Path, effectivePHP)
 		}
 		if vhostErr != nil {
 			fmt.Printf("[WARN] worktree vhost for %s: %v\n", wt.Domain, vhostErr)
@@ -593,11 +634,12 @@ func cleanupWorktreeVhosts(site *config.Site) bool {
 	changed := removeWorktreeVhosts(site)
 	worktrees, _ := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
 	for _, wt := range worktrees {
+		effectivePHP := config.WorktreePHPVersion(wt.Path, site.PHPVersion)
 		var vhostErr error
 		if site.Secured {
-			vhostErr = nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, site.PHPVersion, site.PrimaryDomain())
+			vhostErr = nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, effectivePHP, site.PrimaryDomain())
 		} else {
-			vhostErr = nginx.GenerateWorktreeVhost(wt.Domain, wt.Path, site.PHPVersion)
+			vhostErr = nginx.GenerateWorktreeVhost(wt.Domain, wt.Path, effectivePHP)
 		}
 		if vhostErr != nil {
 			fmt.Printf("[WARN] worktree vhost for %s: %v\n", wt.Domain, vhostErr)

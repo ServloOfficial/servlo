@@ -13,8 +13,9 @@
 
   interface Props {
     site: Site;
+    activeWorktreeBranch?: string;
   }
-  let { site }: Props = $props();
+  let { site, activeWorktreeBranch = '' }: Props = $props();
 
   type TabId = string;
 
@@ -22,6 +23,9 @@
     const xs: TabItem<TabId>[] = [];
     if (site.has_app_logs) xs.push({ id: 'app', label: m.sites_tabs_appLogs() });
     xs.push({ id: 'fpm', label: fpmTabLabelI18n(site) });
+    // Worker units run against main; their journals are not worktree-scoped,
+    // so hide the tabs while a worktree is active to avoid implying isolation.
+    if (activeWorktreeBranch) return xs;
     if (site.queue_running || site.queue_failing) xs.push({ id: 'queue', label: m.sites_tabs_queue() + (site.queue_failing ? ' !' : '') });
     if (site.horizon_running || site.horizon_failing) xs.push({ id: 'horizon', label: m.sites_tabs_horizon() + (site.horizon_failing ? ' !' : '') });
     if (site.stripe_running) xs.push({ id: 'stripe', label: m.sites_tabs_stripe() });
@@ -67,8 +71,8 @@
 <div class="flex-1 flex flex-col overflow-hidden min-h-0">
   <DetailTabs {tabs} {active} onchange={(id) => (active = id)} />
   {#if active === 'app'}
-    {#key site.domain}
-      <AppLogsTab {site} />
+    {#key site.domain + '@' + activeWorktreeBranch}
+      <AppLogsTab {site} branch={activeWorktreeBranch} />
     {/key}
   {:else if streamPath}
     {#key active + '@' + streamPath}

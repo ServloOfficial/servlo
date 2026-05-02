@@ -62,7 +62,16 @@ func DetectVersion(dir string) (string, error) {
 		}
 	}
 
-	// 3. composer.json require.php — pick the best installed version that
+	// 3. Worktree inheritance — when dir is a worktree of a registered site
+	//    and no explicit override was set, fall back to the parent's pinned
+	//    version before composer's constraint, otherwise composer's "^8.2"
+	//    would resolve to the highest installed PHP and silently override
+	//    what the parent picked.
+	if site, ok := config.ParentSiteForWorktreeDir(dir); ok && site.PHPVersion != "" {
+		return site.PHPVersion, nil
+	}
+
+	// 4. composer.json require.php — pick the best installed version that
 	//    satisfies the constraint (e.g. ^8.3 with 8.4 installed → 8.4).
 	//    Falls back to the literal minimum from the constraint when no
 	//    installed version matches.

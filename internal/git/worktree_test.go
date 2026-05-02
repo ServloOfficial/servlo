@@ -288,6 +288,110 @@ func TestEnsureWorktreeDeps_copiesInsteadOfSymlinking(t *testing.T) {
 	}
 }
 
+// When the worktree's composer.lock differs from main's, copying main's
+// vendor would leave stale autoload entries pointing at packages the
+// worktree's lock doesn't list (or vice-versa). Skip the copy so composer
+// install rebuilds vendor from scratch.
+func TestEnsureWorktreeDeps_skipsVendorCopyWhenComposerLockDiffers(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local/share"))
+
+	main := filepath.Join(home, "main")
+	wt := filepath.Join(home, "wt")
+	for _, d := range []string{main, wt} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(main, "vendor", "ryangjchandler"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(main, "vendor", "ryangjchandler", "marker"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(main, "composer.lock"), []byte(`{"packages":["a"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wt, "composer.lock"), []byte(`{"packages":["b"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	EnsureWorktreeDeps(main, wt, "branch.main.test", false)
+
+	if _, err := os.Stat(filepath.Join(wt, "vendor")); !os.IsNotExist(err) {
+		t.Errorf("vendor should NOT be copied when composer.lock differs, got err=%v", err)
+	}
+}
+
+// When lockfiles match byte-for-byte, the copy proceeds — the package set is
+// identical so no stale-state risk.
+func TestEnsureWorktreeDeps_copiesVendorWhenComposerLockMatches(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local/share"))
+
+	main := filepath.Join(home, "main")
+	wt := filepath.Join(home, "wt")
+	for _, d := range []string{main, wt} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(main, "vendor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(main, "vendor", "autoload.php"), []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lock := []byte(`{"packages":["a"]}`)
+	if err := os.WriteFile(filepath.Join(main, "composer.lock"), lock, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wt, "composer.lock"), lock, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	EnsureWorktreeDeps(main, wt, "branch.main.test", false)
+
+	if _, err := os.Stat(filepath.Join(wt, "vendor", "autoload.php")); err != nil {
+		t.Errorf("vendor not copied even though composer.lock matches: %v", err)
+	}
+}
+
+// public/build/ is a build artefact of the source tree — copying it from main
+// would cause the worktree to silently serve main's compiled UI even when the
+// branch has touched assets. EnsureWorktreeDeps must never seed it; users run
+// `npm run dev` / `npm run build` to produce the worktree's manifest.
+func TestEnsureWorktreeDeps_skipsPublicBuild(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local/share"))
+
+	main := filepath.Join(home, "main")
+	wt := filepath.Join(home, "wt")
+	for _, d := range []string{main, wt} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(main, "public", "build"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(main, "public", "build", "manifest.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	EnsureWorktreeDeps(main, wt, "branch.main.test", false)
+
+	if _, err := os.Stat(filepath.Join(wt, "public", "build", "manifest.json")); !os.IsNotExist(err) {
+		t.Errorf("public/build/manifest.json should NOT be copied into the worktree, got err=%v", err)
+	}
+}
+
 // EnsureWorktreeDeps replaces a legacy symlink left by an older lerd
 // version with a real copy.
 func TestEnsureWorktreeDeps_migratesLegacySymlink(t *testing.T) {

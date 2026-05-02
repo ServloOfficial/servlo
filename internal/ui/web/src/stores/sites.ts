@@ -30,7 +30,21 @@ export interface Site {
   custom_container?: boolean;
   container_image?: string;
   container_port?: number;
-  worktrees?: Array<{ branch?: string; domain?: string; path?: string }>;
+  worktrees?: Array<{
+    branch?: string;
+    domain?: string;
+    path?: string;
+    php_version?: string;
+    node_version?: string;
+    php_version_override?: boolean;
+    node_version_override?: boolean;
+    framework_version?: string;
+    framework_label?: string;
+    db_isolated?: boolean;
+    db_database?: string;
+    lan_port?: number;
+    lan_share_url?: string;
+  }>;
   has_queue_worker?: boolean;
   has_schedule_worker?: boolean;
   has_horizon?: boolean;
@@ -114,9 +128,17 @@ export function siteWorkerFailing(s: Site): boolean {
   );
 }
 
-export function openSiteInBrowser(s: Site) {
-  const url = (s.tls ? 'https://' : 'http://') + s.domain;
+export function openSiteInBrowser(s: Site, branch: string = '') {
+  const target = activeWorktreeDomain(s, branch);
+  const useTLS = Boolean(s.tls) && branch === '';
+  const url = (useTLS ? 'https://' : 'http://') + target;
   window.open(url, '_blank', 'noopener');
+}
+
+export function activeWorktreeDomain(s: Site, branch: string): string {
+  if (!branch) return s.domain;
+  const wt = (s.worktrees || []).find((w) => w.branch === branch);
+  return wt?.domain || s.domain;
 }
 
 async function postAction(path: string): Promise<{ ok: boolean; error?: string }> {
@@ -137,10 +159,28 @@ export const restartSite = (d: string) => postAction(site(d, 'restart'));
 export const pauseSite = (d: string) => postAction(site(d, 'pause'));
 export const resumeSite = (d: string) => postAction(site(d, 'unpause'));
 export const unlinkSite = (d: string) => postAction(site(d, 'unlink'));
-export const openTerminal = (d: string) => postAction(site(d, 'terminal'));
+export const openTerminal = (d: string, branch: string = '') =>
+  postAction(site(d, 'terminal') + (branch ? `?branch=${encodeURIComponent(branch)}` : ''));
+
+export function setWorktreeDBIsolated(
+  d: string,
+  branch: string,
+  isolated: boolean,
+  source: string = ''
+) {
+  const params = new URLSearchParams({ branch, isolated: String(isolated) });
+  if (isolated && source) params.set('source', source);
+  return postAction(site(d, 'db:isolate') + '?' + params.toString());
+}
 
 export const toggleTLS = (s: Site) => postAction(site(s.domain, s.tls ? 'unsecure' : 'secure'));
-export const toggleLANShare = (s: Site) => postAction(site(s.domain, s.lan_port ? 'lan:unshare' : 'lan:share'));
+export const toggleLANShare = (s: Site, branch: string = '') => {
+  const wt = branch ? (s.worktrees || []).find((w) => w.branch === branch) : undefined;
+  const isOn = branch ? Boolean(wt?.lan_port) : Boolean(s.lan_port);
+  const action = isOn ? 'lan:unshare' : 'lan:share';
+  const qs = branch ? `?branch=${encodeURIComponent(branch)}` : '';
+  return postAction(site(s.domain, action) + qs);
+};
 export const toggleQueue = (s: Site) =>
   postAction(site(s.domain, s.queue_running ? 'queue:stop' : 'queue:start'));
 export const toggleHorizon = (s: Site) =>
@@ -183,9 +223,18 @@ export type TinkerLintResponse = {
   error?: string;
 };
 
-export async function lintTinker(domain: string, code: string): Promise<TinkerLintResponse> {
+function tinkerURL(domain: string, action: string, branch: string): string {
+  const base = site(domain, action);
+  return branch ? `${base}?branch=${encodeURIComponent(branch)}` : base;
+}
+
+export async function lintTinker(
+  domain: string,
+  code: string,
+  branch: string = ''
+): Promise<TinkerLintResponse> {
   try {
-    const res = await apiFetch(site(domain, 'tinker:lint'), {
+    const res = await apiFetch(tinkerURL(domain, 'tinker:lint', branch), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code })
@@ -202,28 +251,37 @@ export async function lintTinker(domain: string, code: string): Promise<TinkerLi
 
 // Symbol responses are stable for the lifetime of the tab session
 // (project classes, composer helpers, PHP internals don't change while
-// the user is at the editor). Cache per-domain so quick tab switches
-// don't re-trigger the ~80 ms PHP exec on the backend.
+// the user is at the editor). Cache per-domain+branch so quick tab
+// switches don't re-trigger the ~80 ms PHP exec on the backend, but
+// switching worktree pulls the worktree's own symbol set.
 const tinkerSymbolsCache = new Map<string, Promise<TinkerSymbols>>();
 
-export async function loadTinkerSymbols(domain: string): Promise<TinkerSymbols> {
-  const cached = tinkerSymbolsCache.get(domain);
+export async function loadTinkerSymbols(
+  domain: string,
+  branch: string = ''
+): Promise<TinkerSymbols> {
+  const key = `${domain}@${branch}`;
+  const cached = tinkerSymbolsCache.get(key);
   if (cached) return cached;
   const p = (async () => {
     try {
-      const res = await apiFetch(site(domain, 'tinker:symbols'), { method: 'POST' });
+      const res = await apiFetch(tinkerURL(domain, 'tinker:symbols', branch), { method: 'POST' });
       return (await res.json()) as TinkerSymbols;
     } catch {
       return { models: [], classes: [], functions: [] };
     }
   })();
-  tinkerSymbolsCache.set(domain, p);
+  tinkerSymbolsCache.set(key, p);
   return p;
 }
 
-export async function runTinker(domain: string, code: string): Promise<TinkerResponse> {
+export async function runTinker(
+  domain: string,
+  code: string,
+  branch: string = ''
+): Promise<TinkerResponse> {
   try {
-    const res = await apiFetch(site(domain, 'tinker'), {
+    const res = await apiFetch(tinkerURL(domain, 'tinker', branch), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code })
@@ -243,9 +301,16 @@ export async function runTinker(domain: string, code: string): Promise<TinkerRes
   }
 }
 
-export async function setSiteVersion(s: Site, type: 'php' | 'node', version: string) {
+export async function setSiteVersion(
+  s: Site,
+  type: 'php' | 'node',
+  version: string,
+  branch: string = ''
+) {
   try {
-    const res = await apiFetch(site(s.domain, type) + '?version=' + encodeURIComponent(version), {
+    const params = new URLSearchParams({ version });
+    if (branch) params.set('branch', branch);
+    const res = await apiFetch(site(s.domain, type) + '?' + params.toString(), {
       method: 'POST'
     });
     const data = (await res.json()) as { ok?: boolean; error?: string };

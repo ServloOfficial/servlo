@@ -564,6 +564,103 @@ func frameworkServiceDetected(def config.FrameworkServiceDef, envMap map[string]
 	return false
 }
 
+// CreateDatabase is the exported variant of createDatabase. Used by callers
+// outside the cli package (e.g. the worktree DB-isolation flow).
+func CreateDatabase(svc, name string) (bool, error) { return createDatabase(svc, name) }
+
+// CloneDatabase copies the schema and data from src into dst inside the same
+// service container. dst must already exist. Returns an error if the family
+// has no clone strategy or the dump/restore fails.
+func CloneDatabase(svc, src, dst string) error {
+	container := "lerd-" + svc
+	family := svc
+	if inferred := config.InferFamily(svc); inferred != "" {
+		family = inferred
+	}
+	switch family {
+	case "mysql", "mariadb":
+		dumpBin := "mysqldump"
+		clientBin := "mysql"
+		if family == "mariadb" {
+			dumpBin = "mariadb-dump"
+			clientBin = "mariadb"
+		}
+		shellCmd := fmt.Sprintf(
+			"%s -uroot -plerd --single-transaction --quick --no-tablespaces %s | %s -uroot -plerd %s",
+			dumpBin, src, clientBin, dst,
+		)
+		cmd := podman.Cmd("exec", container, "sh", "-c", shellCmd)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("clone %s -> %s: %s", src, dst, strings.TrimSpace(string(out)))
+		}
+		return nil
+	case "postgres":
+		shellCmd := fmt.Sprintf(`pg_dump -U postgres %s | psql -U postgres -d %s`, src, dst)
+		cmd := podman.Cmd("exec", container, "sh", "-c", shellCmd)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("clone %s -> %s: %s", src, dst, strings.TrimSpace(string(out)))
+		}
+		return nil
+	default:
+		return fmt.Errorf("clone unsupported for service family %q", family)
+	}
+}
+
+// DropDatabase removes the named database from the service container. Returns
+// (true, nil) if it was dropped, (false, nil) if it was already gone, or
+// (false, err) on failure.
+func DropDatabase(svc, name string) (bool, error) {
+	container := "lerd-" + svc
+	family := svc
+	if inferred := config.InferFamily(svc); inferred != "" {
+		family = inferred
+	}
+	switch family {
+	case "mysql", "mariadb":
+		binaries := []string{"mysql", "mariadb"}
+		if family == "mariadb" {
+			binaries = []string{"mariadb", "mysql"}
+		}
+		var lastErr error
+		for _, bin := range binaries {
+			check := podman.Cmd("exec", container, bin, "-uroot", "-plerd",
+				"-sNe", fmt.Sprintf("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='%s';", name))
+			out, err := check.Output()
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			if strings.TrimSpace(string(out)) == "0" {
+				return false, nil
+			}
+			cmd := podman.Cmd("exec", container, bin, "-uroot", "-plerd",
+				"-e", fmt.Sprintf("DROP DATABASE IF EXISTS `%s`;", name))
+			cmd.Stderr = os.Stderr
+			return true, cmd.Run()
+		}
+		return false, lastErr
+	case "postgres":
+		// Postgres refuses DROP if any session has the DB open, so terminate
+		// stragglers (queue workers, lingering psql shells) first.
+		_ = podman.Cmd("exec", container, "psql", "-U", "postgres",
+			"-c", fmt.Sprintf(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%s' AND pid <> pg_backend_pid();`, name)).Run()
+		cmd := podman.Cmd("exec", container, "psql", "-U", "postgres",
+			"-c", fmt.Sprintf(`DROP DATABASE IF EXISTS "%s";`, name))
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			if strings.Contains(string(out), "does not exist") {
+				return false, nil
+			}
+			return false, fmt.Errorf("%s", strings.TrimSpace(string(out)))
+		}
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
 // createDatabase creates a database with the given name in the mysql or postgres container.
 // Returns (true, nil) if created, (false, nil) if it already existed, or (false, err) on failure.
 // createDatabase creates dbName inside the named service container if it does

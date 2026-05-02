@@ -30,10 +30,11 @@
 
   interface Props {
     site: Site;
+    branch?: string;
   }
-  let { site }: Props = $props();
+  let { site, branch = '' }: Props = $props();
 
-  const draftKey = $derived(`tinker:${site.domain}:draft`);
+  const draftKey = $derived(`tinker:${site.domain}${branch ? '@' + branch : ''}:draft`);
 
   let code = $state('');
   let running = $state(false);
@@ -109,7 +110,7 @@
     running = true;
     result = null;
     try {
-      result = await runTinker(site.domain, code);
+      result = await runTinker(site.domain, code, branch);
     } finally {
       running = false;
     }
@@ -126,8 +127,9 @@
 
   $effect(() => {
     const domain = site.domain;
-    loadTinkerSymbols(domain).then((s) => {
-      if (site.domain === domain) symbols = s;
+    const b = branch;
+    loadTinkerSymbols(domain, b).then((s) => {
+      if (site.domain === domain && branch === b) symbols = s;
     });
   });
 
@@ -325,7 +327,7 @@
 
       let res;
       try {
-        res = await lintTinker(site.domain, code);
+        res = await lintTinker(site.domain, code, branch);
       } catch {
         return lastLintDiags;
       }

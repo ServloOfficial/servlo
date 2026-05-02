@@ -48,10 +48,20 @@ type WorkerInfo struct {
 }
 
 // WorktreeInfo describes a git worktree associated with a site.
+// PHP/NodeVersion are the effective values (override or inherited);
+// the *Override flags say which it is so callers can render an "inherited" hint.
 type WorktreeInfo struct {
-	Branch string
-	Domain string
-	Path   string
+	Branch              string
+	Domain              string
+	Path                string
+	PHPVersion          string
+	NodeVersion         string
+	PHPVersionOverride  bool
+	NodeVersionOverride bool
+	FrameworkVersion    string
+	FrameworkLabel      string
+	DBIsolated          bool
+	DBDatabase          string
 }
 
 // ConflictingDomain describes a domain declared in .lerd.yaml that is owned
@@ -469,11 +479,32 @@ func (e *EnrichedSite) enrichGit() {
 	e.Branch = gitpkg.MainBranch(e.Path)
 	if wts, err := gitpkg.DetectWorktrees(e.Path, e.PrimaryDomain()); err == nil {
 		for _, wt := range wts {
-			e.Worktrees = append(e.Worktrees, WorktreeInfo{
-				Branch: wt.Branch,
-				Domain: wt.Domain,
-				Path:   wt.Path,
-			})
+			info := WorktreeInfo{
+				Branch:      wt.Branch,
+				Domain:      wt.Domain,
+				Path:        wt.Path,
+				PHPVersion:  e.PHPVersion,
+				NodeVersion: e.NodeVersion,
+			}
+			if cfg, err := config.LoadProjectConfig(wt.Path); err == nil && cfg != nil {
+				if cfg.PHPVersion != "" {
+					info.PHPVersion = cfg.PHPVersion
+					info.PHPVersionOverride = true
+				}
+				if cfg.NodeVersion != "" {
+					info.NodeVersion = cfg.NodeVersion
+					info.NodeVersionOverride = true
+				}
+				info.DBIsolated = cfg.DBIsolated
+			}
+			info.DBDatabase = envfile.ReadKey(filepath.Join(wt.Path, ".env"), "DB_DATABASE")
+			if fw, ok := config.GetFrameworkForDir(e.FrameworkName, wt.Path); ok {
+				info.FrameworkVersion = fw.Version
+				info.FrameworkLabel = frameworkLabel(e.FrameworkName, wt.Path, fw, true)
+			} else {
+				info.FrameworkLabel = e.FrameworkLabel
+			}
+			e.Worktrees = append(e.Worktrees, info)
 		}
 	}
 }

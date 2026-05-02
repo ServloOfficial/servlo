@@ -129,29 +129,92 @@ func readCheckoutPath(wtDir string) string {
 // against the main repo directory and silently load stale classes from
 // there.
 func EnsureWorktreeDeps(mainRepoPath, worktreePath, worktreeDomain string, secured bool) {
-	for _, dir := range []string{"vendor", "node_modules"} {
-		dst := filepath.Join(worktreePath, dir)
+	// Each entry: filesystem dir to seed from main, plus a sibling lockfile
+	// (or files) that gates the copy. When the worktree's lockfile differs
+	// from main's, skip the copy and let composer/npm rebuild the tree from
+	// scratch — copying main's vendor/node_modules with a different package
+	// set leaves stale autoload paths and bootstrap caches that fail to load
+	// classes the worktree's lock doesn't include.
+	//
+	// public/build (Laravel's Vite manifest output) is intentionally NOT
+	// seeded: it's a build artefact of the source tree, not a dependency
+	// cache, and copying it makes the worktree silently render main's UI
+	// even when the branch has touched assets. Fresh worktrees get
+	// ViteManifestNotFoundException until `npm run dev` / `npm run build`
+	// runs inside them, which is the honest signal.
+	type seed struct {
+		dir       string
+		lockfiles []string // any one matching is enough; empty = always copy
+	}
+	seeds := []seed{
+		{dir: "vendor", lockfiles: []string{"composer.lock"}},
+		{dir: "node_modules", lockfiles: []string{
+			"pnpm-lock.yaml", "yarn.lock", "bun.lockb", "bun.lock",
+			"package-lock.json", "npm-shrinkwrap.json",
+		}},
+	}
+	for _, s := range seeds {
+		dst := filepath.Join(worktreePath, s.dir)
 		if info, err := os.Lstat(dst); err == nil {
 			if info.Mode()&os.ModeSymlink == 0 {
 				continue // real dir already exists, leave it
 			}
 			_ = os.Remove(dst) // legacy symlink from older lerd, replace it
 		}
-		src := filepath.Join(mainRepoPath, dir)
+		src := filepath.Join(mainRepoPath, s.dir)
 		if _, err := os.Stat(src); err != nil {
 			continue
 		}
+		if !lockfilesMatch(mainRepoPath, worktreePath, s.lockfiles) {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+			_, _ = os.Stderr.WriteString("[WARN] mkdir for " + s.dir + " into worktree: " + err.Error() + "\n")
+			continue
+		}
 		if err := CopyTree(src, dst); err != nil {
-			_, _ = os.Stderr.WriteString("[WARN] copy " + dir + " into worktree: " + err.Error() + "\n")
+			_, _ = os.Stderr.WriteString("[WARN] copy " + s.dir + " into worktree: " + err.Error() + "\n")
 		}
 	}
+
+	// .env must be in place BEFORE InstallDependencies, since the JS build
+	// step reads VITE_* env vars at compile time. Without this, the worktree
+	// ships with assets compiled against missing env (Reverb host empty,
+	// APP_URL falling back to literal "/", etc.).
+	EnsureWorktreeEnv(mainRepoPath, worktreePath, worktreeDomain, secured)
 
 	if err := InstallDependencies(worktreePath); err != nil {
 		_, _ = os.Stderr.WriteString("[WARN] worktree dependency install: " + err.Error() + "\n")
 	}
+}
 
-	// .env: copy from main repo when missing, and always keep APP_URL aligned
-	// with the worktree vhost domain on subsequent scans.
+// lockfilesMatch returns true when the first lockfile that exists in main
+// has byte-identical contents to the same file in the worktree. An empty
+// list (no lockfile-gated dir) returns true so callers always copy.
+// A lockfile that exists in main but is missing in the worktree counts as a
+// mismatch — the package set differs, do not seed stale state.
+func lockfilesMatch(mainRepoPath, worktreePath string, lockfiles []string) bool {
+	if len(lockfiles) == 0 {
+		return true
+	}
+	for _, name := range lockfiles {
+		mainData, err := os.ReadFile(filepath.Join(mainRepoPath, name))
+		if err != nil {
+			continue
+		}
+		wtData, err := os.ReadFile(filepath.Join(worktreePath, name))
+		if err != nil {
+			return false
+		}
+		return bytes.Equal(mainData, wtData)
+	}
+	return true
+}
+
+// EnsureWorktreeEnv copies .env from the main repo when missing (gitignored,
+// so `git worktree add` never carries it across) and rewrites APP_URL to the
+// worktree domain. Idempotent and cheap; safe to call on every request.
+func EnsureWorktreeEnv(mainRepoPath, worktreePath, worktreeDomain string, secured bool) {
 	scheme := "http"
 	if secured {
 		scheme = "https"

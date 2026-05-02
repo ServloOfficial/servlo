@@ -8,13 +8,15 @@
     restartSite,
     openSiteInBrowser,
     openTerminal,
-    loadSites
+    loadSites,
+    activeWorktreeDomain
   } from '$stores/sites';
   import { openDomainModal } from '$stores/modals';
   import { accessMode } from '$stores/accessMode';
   import { apiBase } from '$lib/api';
   import ServiceBadgeRow from './ServiceBadgeRow.svelte';
   import DomainMorePill from './DomainMorePill.svelte';
+  import WorktreePicker from './WorktreePicker.svelte';
   import { m } from '../../paraglide/messages.js';
 
   import type { Snippet } from 'svelte';
@@ -22,12 +24,22 @@
   interface Props {
     site: Site;
     tabs?: Snippet;
+    activeWorktreeBranch?: string;
+    onWorktreeChange?: (branch: string) => void;
   }
-  let { site, tabs }: Props = $props();
+  let { site, tabs, activeWorktreeBranch = '', onWorktreeChange = () => {} }: Props = $props();
 
   let pauseBusy = $state(false);
   let unlinkBusy = $state(false);
   let restartBusy = $state(false);
+
+  const activeDomain = $derived(activeWorktreeDomain(site, activeWorktreeBranch));
+  const activeWorktree = $derived.by(() => {
+    if (!activeWorktreeBranch) return undefined;
+    return (site.worktrees || []).find((w) => w.branch === activeWorktreeBranch);
+  });
+  const activePath = $derived(activeWorktree?.path || site.path);
+  const activeFrameworkLabel = $derived(activeWorktree?.framework_label || site.framework_label);
 
   async function togglePause() {
     pauseBusy = true;
@@ -71,17 +83,17 @@
           <img src={apiBase + '/api/sites/' + site.domain + '/favicon'} class="w-5 h-5 rounded-sm object-contain" loading="lazy" alt="" />
         {/if}
         <a
-          href={(site.tls ? 'https://' : 'http://') + site.domain}
+          href={(site.tls && !activeWorktreeBranch ? 'https://' : 'http://') + activeDomain}
           onclick={(e) => {
             e.preventDefault();
-            openSiteInBrowser(site);
+            openSiteInBrowser(site, activeWorktreeBranch);
           }}
           class="font-semibold text-lerd-red hover:text-lerd-redhov transition-colors"
-        >{site.domain}</a>
+        >{activeDomain}</a>
 
         <DomainMorePill {site} />
 
-        {#if !site.paused}
+        {#if !site.paused && !activeWorktreeBranch}
           <button
             onclick={() => openDomainModal(site)}
             class="text-gray-400 hover:text-lerd-red transition-colors"
@@ -91,6 +103,8 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
             </svg>
           </button>
+        {/if}
+        {#if !site.paused}
           {#if site.fpm_running}
             <Badge tone="running" dot>{m.common_running().toLowerCase()}</Badge>
           {:else}
@@ -115,8 +129,8 @@
           </button>
         {/if}
 
-        {#if site.framework_label}
-          <Badge tone="framework">{site.framework_label}</Badge>
+        {#if activeFrameworkLabel}
+          <Badge tone="framework">{activeFrameworkLabel}</Badge>
         {/if}
 
         {#if site.paused}
@@ -130,10 +144,8 @@
       </div>
 
       <div class="text-xs text-gray-400 font-mono mt-1 flex items-center gap-2">
-        <span>{site.path}</span>
-        {#if site.branch}
-          <span class="text-violet-500 dark:text-violet-400 shrink-0">git:({site.branch})</span>
-        {/if}
+        <span class="truncate">{activePath}</span>
+        <WorktreePicker {site} activeBranch={activeWorktreeBranch} onchange={onWorktreeChange} />
       </div>
 
       <ServiceBadgeRow {site} />
@@ -154,9 +166,9 @@
         class="text-xs border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded px-2 py-1 transition-colors disabled:opacity-50"
       >{unlinkBusy ? '...' : m.sites_unlink()}</button>
       <button
-        onclick={() => openSiteInBrowser(site)}
+        onclick={() => openSiteInBrowser(site, activeWorktreeBranch)}
         class="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 rounded px-2 py-1 transition-colors"
-        title={m.sites_openInBrowser()}
+        title={activeDomain}
       >
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -165,7 +177,7 @@
       </button>
       {#if $accessMode.loopback}
         <button
-          onclick={() => openTerminal(site.domain)}
+          onclick={() => openTerminal(site.domain, activeWorktreeBranch)}
           class="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 rounded px-2 py-1 transition-colors"
           title={m.sites_openInTerminal()}
         >

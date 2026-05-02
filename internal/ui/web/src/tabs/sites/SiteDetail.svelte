@@ -3,7 +3,6 @@
   import SiteHeader from './SiteHeader.svelte';
   import SiteControls from './SiteControls.svelte';
   import SiteLogs from './SiteLogs.svelte';
-  import WorktreeList from './WorktreeList.svelte';
   import SiteTinkerTab from './SiteTinkerTab.svelte';
   import type { Site } from '$stores/sites';
 
@@ -22,6 +21,7 @@
   }
 
   let active = $state<TabId>(readStoredTab());
+  let activeWorktreeBranch = $state<string>('');
   const canTinker = $derived(Boolean(site.php_version));
 
   $effect(() => {
@@ -32,6 +32,13 @@
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(TAB_STORAGE_KEY, active);
     }
+  });
+
+  // Reset selection when the site changes or the chosen branch disappears.
+  $effect(() => {
+    if (!activeWorktreeBranch) return;
+    const exists = (site.worktrees || []).some((w) => w.branch === activeWorktreeBranch);
+    if (!exists) activeWorktreeBranch = '';
   });
 
   const tabBtn = (tab: TabId, isActive: boolean) =>
@@ -49,14 +56,20 @@
 {/snippet}
 
 <DetailPanel>
-  <SiteHeader {site} {tabs} />
+  <SiteHeader
+    {site}
+    {tabs}
+    {activeWorktreeBranch}
+    onWorktreeChange={(b) => (activeWorktreeBranch = b)}
+  />
   {#if active === 'overview'}
     {#if !site.paused}
-      <SiteControls {site} />
+      <SiteControls {site} {activeWorktreeBranch} />
     {/if}
-    <WorktreeList {site} />
-    <SiteLogs {site} />
+    <SiteLogs {site} {activeWorktreeBranch} />
   {:else if active === 'tinker'}
-    <SiteTinkerTab {site} />
+    {#key site.domain + '@' + activeWorktreeBranch}
+      <SiteTinkerTab {site} branch={activeWorktreeBranch} />
+    {/key}
   {/if}
 </DetailPanel>

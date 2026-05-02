@@ -11,8 +11,9 @@
 
   interface Props {
     site: Site;
+    branch?: string;
   }
-  let { site }: Props = $props();
+  let { site, branch = '' }: Props = $props();
 
   let files = $state<AppLogFile[]>([]);
   let selectedFile = $state('');
@@ -26,7 +27,7 @@
   async function loadFiles() {
     loading = true;
     try {
-      const list = await listAppLogFiles(site.domain);
+      const list = await listAppLogFiles(site.domain, branch);
       files = list;
       if (list.length > 0) {
         selectedFile = list[0].name;
@@ -43,7 +44,7 @@
     if (!selectedFile) return;
     loading = true;
     try {
-      entries = await loadAppLogEntries(site.domain, selectedFile, showAll);
+      entries = await loadAppLogEntries(site.domain, selectedFile, showAll, branch);
     } finally {
       loading = false;
     }
@@ -89,10 +90,10 @@
     <select
       bind:value={selectedFile}
       onchange={loadEntries}
-      class="text-xs bg-transparent border border-gray-200 dark:border-lerd-border rounded px-2 py-1 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-lerd-muted focus:outline-none focus:border-orange-500/50 cursor-pointer transition-colors"
+      class="text-xs bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded px-2 py-1 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-lerd-muted focus:outline-none focus:border-orange-500/50 cursor-pointer transition-colors"
     >
       {#each files as f (f.name)}
-        <option value={f.name}>{f.name}</option>
+        <option value={f.name} class="bg-white text-gray-700 dark:bg-lerd-bg dark:text-gray-300">{f.name}</option>
       {/each}
     </select>
 

@@ -470,7 +470,7 @@ func GetFramework(name string) (*Framework, bool) {
 	}
 
 	// Merge user overlay (if any) on top of the base.
-	return mergeBuiltinFrankenPHP(mergeUserOverlay(base)), true
+	return mergeBuiltinTinker(mergeBuiltinFrankenPHP(mergeUserOverlay(base))), true
 }
 
 // loadBaseFramework returns the base definition for a framework:
@@ -530,6 +530,21 @@ func mergeBuiltinFrankenPHP(fw *Framework) *Framework {
 	}
 	cp := *src.FrankenPHP
 	fw.FrankenPHP = &cp
+	return fw
+}
+
+// mergeBuiltinTinker backfills the Tinker REPL spec from a built-in when the
+// store yaml predates the tinker block. Same shape as mergeBuiltinFrankenPHP.
+func mergeBuiltinTinker(fw *Framework) *Framework {
+	if fw == nil || fw.Tinker != nil {
+		return fw
+	}
+	src := builtinFramework(fw.Name)
+	if src == nil || src.Tinker == nil {
+		return fw
+	}
+	cp := *src.Tinker
+	fw.Tinker = &cp
 	return fw
 }
 
@@ -623,6 +638,7 @@ func GetFrameworkForDir(name, projectDir string) (*Framework, bool) {
 	if base != nil {
 		base = mergeUserOverlay(base)
 		base = mergeBuiltinFrankenPHP(base)
+		base = mergeBuiltinTinker(base)
 		return mergeProjectWorkers(base, projectDir), true
 	}
 
@@ -1062,11 +1078,21 @@ type FrameworkTinker struct {
 //
 // Otherwise returns nil so callers fall back to plain `php`.
 func GetTinkerForDir(projectDir string) *FrameworkTinker {
-	site, err := FindSiteByPath(projectDir)
-	if err != nil || site.Framework == "" {
+	frameworkName := ""
+	if site, err := FindSiteByPath(projectDir); err == nil {
+		frameworkName = site.Framework
+	}
+	if frameworkName == "" {
+		// Worktree paths are not registered as sites; auto-detect from the
+		// directory contents so tinker still bootstraps Laravel/etc.
+		if name, ok := DetectFrameworkForDir(projectDir); ok {
+			frameworkName = name
+		}
+	}
+	if frameworkName == "" {
 		return nil
 	}
-	fw, ok := GetFrameworkForDir(site.Framework, projectDir)
+	fw, ok := GetFrameworkForDir(frameworkName, projectDir)
 	if !ok || fw.Tinker == nil || len(fw.Tinker.Command) == 0 {
 		return nil
 	}

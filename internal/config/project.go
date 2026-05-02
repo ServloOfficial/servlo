@@ -56,6 +56,10 @@ type ProjectConfig struct {
 	// FrankenPHP container in worker mode. Framework-specific entrypoints
 	// decide whether this flag is honoured.
 	RuntimeWorker bool `yaml:"runtime_worker,omitempty"`
+	// DBIsolated, when true on a worktree's .lerd.yaml, opts the worktree
+	// into its own database (named <parent_db>_<sanitized_branch>) so
+	// migrations don't bleed into the parent. Off by default.
+	DBIsolated bool `yaml:"db_isolated,omitempty"`
 }
 
 // IsEmpty returns true when the config has no meaningful content, which
@@ -65,7 +69,7 @@ func (c *ProjectConfig) IsEmpty() bool {
 		c.Framework == "" && len(c.Services) == 0 && len(c.Workers) == 0 &&
 		len(c.CustomWorkers) == 0 && !c.Secured && c.AppURL == "" &&
 		c.DB.Service == "" && c.DB.Database == "" && c.Container == nil &&
-		c.Runtime == "" && !c.RuntimeWorker
+		c.Runtime == "" && !c.RuntimeWorker && !c.DBIsolated
 }
 
 // ServiceNames returns the name of every service in the config, for callers

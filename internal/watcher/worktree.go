@@ -174,8 +174,13 @@ func WatchWorktrees(
 }
 
 // handleNewEntry waits for the gitdir file to appear in entryDir, reads the
-// checkout path from it, then polls until the checkout directory exists before
-// calling onAdded. Safe to call multiple times — onAdded is idempotent.
+// checkout path from it, then polls until the checkout directory exists AND
+// HEAD has been written with a real ref/SHA before calling onAdded. The HEAD
+// poll closes a race where fsnotify fires Create on the entry dir before git
+// has finalised HEAD: lerd would otherwise read an empty HEAD, treat the
+// worktree as detached, and write a `detached.<site>.conf` vhost that
+// shadows the eventual `<branch>.<site>.conf`. Safe to call multiple times —
+// onAdded is idempotent.
 func handleNewEntry(entryDir, sitePath, name string, onAdded func(string, string)) {
 	// Wait up to 5s for gitdir to be written.
 	gitdirPath := filepath.Join(entryDir, "gitdir")
@@ -193,14 +198,36 @@ func handleNewEntry(entryDir, sitePath, name string, onAdded func(string, string
 		return
 	}
 	// Wait up to 10s for the checkout directory to be fully created.
+	checkoutReady := false
 	for i := 0; i < 20; i++ {
 		if _, err := os.Stat(checkoutPath); err == nil {
-			onAdded(sitePath, name)
-			return
+			checkoutReady = true
+			break
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	logger.Warn("timed out waiting for worktree checkout directory", "path", checkoutPath)
+	if !checkoutReady {
+		logger.Warn("timed out waiting for worktree checkout directory", "path", checkoutPath)
+		return
+	}
+	// Wait up to 5s for HEAD to be a non-empty ref or SHA.
+	headPath := filepath.Join(entryDir, "HEAD")
+	for i := 0; i < 10; i++ {
+		data, err := os.ReadFile(headPath)
+		if err == nil {
+			line := strings.TrimSpace(string(data))
+			if strings.HasPrefix(line, "ref: refs/heads/") || len(line) >= 7 {
+				onAdded(sitePath, name)
+				return
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	// HEAD never settled; call onAdded anyway so we don't lose the worktree
+	// entirely — vhost will use whatever readBranch returns (detached) and
+	// the user can resync after.
+	logger.Warn("timed out waiting for HEAD to settle in worktree entry", "entry", entryDir)
+	onAdded(sitePath, name)
 }
 
 // checkoutPathFromGitdir reads the gitdir file and returns the checkout path.

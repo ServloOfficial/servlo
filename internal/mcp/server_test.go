@@ -169,8 +169,9 @@ func TestExecEnvCheck_missingKeys(t *testing.T) {
 // content addition, not by accreting description verbosity.
 func TestToolList_underSizeCeiling(t *testing.T) {
 	// Raised from 17000 to 17500 in v1.19.0-beta.2 for the two new
-	// workers_heal / workers_health tools.
-	const ceiling = 17500
+	// workers_heal / workers_health tools. Raised again to 18500 when
+	// the `worktree` tool landed (list/add/remove/db_isolate/db_share).
+	const ceiling = 18500
 	got, err := json.Marshal(toolList())
 	if err != nil {
 		t.Fatalf("marshal tool list: %v", err)

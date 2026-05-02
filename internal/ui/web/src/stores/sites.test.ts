@@ -20,4 +20,28 @@ describe('sites store', () => {
     expect(nodeSiteCount('22')).toBe(2);
     expect(nodeSiteCount('24')).toBe(0);
   });
+
+  it('activeWorktreeDomain returns the parent domain when branch is empty', async () => {
+    const { activeWorktreeDomain } = await import('./sites');
+    const s = {
+      domain: 'acme.test',
+      worktrees: [{ branch: 'feat-a', domain: 'feat-a.acme.test' }]
+    };
+    expect(activeWorktreeDomain(s, '')).toBe('acme.test');
+  });
+
+  it('activeWorktreeDomain returns the worktree domain when branch matches', async () => {
+    const { activeWorktreeDomain } = await import('./sites');
+    const s = {
+      domain: 'acme.test',
+      worktrees: [{ branch: 'feat-a', domain: 'feat-a.acme.test' }]
+    };
+    expect(activeWorktreeDomain(s, 'feat-a')).toBe('feat-a.acme.test');
+  });
+
+  it('activeWorktreeDomain falls back to the parent when branch is unknown', async () => {
+    const { activeWorktreeDomain } = await import('./sites');
+    const s = { domain: 'acme.test', worktrees: [] };
+    expect(activeWorktreeDomain(s, 'mystery')).toBe('acme.test');
+  });
 });

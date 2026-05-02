@@ -904,6 +904,7 @@ func toolList() []mcpTool {
 				Required: []string{"site", "runtime"},
 			},
 		},
+		worktreeTool(),
 	)
 
 	return tools
@@ -1158,6 +1159,9 @@ func handleToolCall(params json.RawMessage) (any, *rpcError) {
 
 	case "site_runtime":
 		return execSiteRuntime(args)
+
+	case "worktree":
+		return dispatchWorktree(args)
 
 	case "db_import":
 		return execDBImport(args)

@@ -119,11 +119,12 @@ func migrateWorktreeVhosts(worktrees []gitpkg.Worktree, newPrimary, phpVersion s
 	for _, wt := range worktrees {
 		removeStaleVhosts(wt.Domain)
 		newWTDomain := wt.Branch + "." + newPrimary
+		effectivePHP := config.WorktreePHPVersion(wt.Path, phpVersion)
 		var err error
 		if secured {
-			err = nginx.GenerateWorktreeSSLVhost(newWTDomain, wt.Path, phpVersion, newPrimary)
+			err = nginx.GenerateWorktreeSSLVhost(newWTDomain, wt.Path, effectivePHP, newPrimary)
 		} else {
-			err = nginx.GenerateWorktreeVhost(newWTDomain, wt.Path, phpVersion)
+			err = nginx.GenerateWorktreeVhost(newWTDomain, wt.Path, effectivePHP)
 		}
 		if err != nil {
 			fmt.Printf("    WARN: worktree %s: regenerate vhost: %v\n", wt.Branch, err)

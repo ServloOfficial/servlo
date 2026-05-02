@@ -117,7 +117,30 @@ func InstallDependencies(projectPath string) error {
 		}
 	}
 
+	// `npm run build` is intentionally NOT called here. The watcher invokes
+	// InstallDependencies on every worktree add, and a build is heavy
+	// (5-30s+), can fail silently, and is project-specific in a way the
+	// universal install steps are not. `lerd worktree add` triggers the
+	// build explicitly via RunFrontendBuild after dependencies are in place.
+
 	return errors.Join(errs...)
+}
+
+// RunNpmScript executes `<package-manager> run <script>` in projectPath,
+// using the lerd npm shim for npm projects so fnm's current Node version
+// wins and falling back to PATH for pnpm/yarn/bun. Exported for callers like
+// `lerd worktree add` that opt into a build step interactively.
+func RunNpmScript(projectPath, script string) error {
+	name, _ := jsPackageManager(projectPath)
+	var bin string
+	if name == "npm" {
+		bin = filepath.Join(config.BinDir(), "npm")
+	} else if p, err := exec.LookPath(name); err == nil {
+		bin = p
+	} else {
+		return fmt.Errorf("%s not found on PATH", name)
+	}
+	return runIn(projectPath, bin, "run", script)
 }
 
 // composerNeedsInstall reports whether composer install must run for the

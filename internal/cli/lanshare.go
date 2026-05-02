@@ -166,6 +166,42 @@ func RestoreLANShareProxies() {
 		lanShareServers[s.Name] = srv
 		lanShareMu.Unlock()
 	}
+
+	// Worktree-scoped shares persist alongside their parent site.
+	wtEntries, err := config.LoadWorktreeLANRegistry()
+	if err != nil {
+		return
+	}
+	siteByName := map[string]config.Site{}
+	for _, s := range reg.Sites {
+		siteByName[s.Name] = s
+	}
+	liveByPath := map[string]map[string]bool{}
+	for _, e := range wtEntries {
+		s, ok := siteByName[e.Site]
+		if !ok || s.Paused {
+			continue
+		}
+		live, cached := liveByPath[s.Path]
+		if !cached {
+			live = liveWorktreeBranches(&s)
+			liveByPath[s.Path] = live
+		}
+		// Skip orphans: the worktree was removed while lerd-ui was down, so
+		// the listener should not come back. The watcher's startup pass will
+		// drop the registry entry shortly.
+		if !live[e.Branch] {
+			continue
+		}
+		domain := e.Branch + "." + s.PrimaryDomain()
+		srv, err := startLANShareProxy(domain, e.Port, httpPort, httpsPort, s.Secured)
+		if err != nil {
+			continue
+		}
+		lanShareMu.Lock()
+		lanShareServers[worktreeLANServerKey(e.Site, e.Branch)] = srv
+		lanShareMu.Unlock()
+	}
 }
 
 // shouldRunLANShareProxy reports whether the daemon should keep a LAN share
@@ -175,25 +211,156 @@ func shouldRunLANShareProxy(s config.Site) bool {
 	return s.LANPort != 0 && !s.Paused
 }
 
-// assignLANSharePort finds the lowest unused port >= 9100 across all sites.
+// assignLANSharePort finds the lowest unused port >= 9100 across all site +
+// worktree LAN shares. excludeSiteName is the site whose port is being
+// (re)assigned and should not block itself.
 func assignLANSharePort(excludeSiteName string) int {
 	const base = 9100
 	used := map[int]bool{}
-	reg, err := config.LoadSites()
-	if err != nil {
-		return base
-	}
-	for _, s := range reg.Sites {
-		if s.Name == excludeSiteName || s.LANPort == 0 {
-			continue
+	if reg, err := config.LoadSites(); err == nil {
+		for _, s := range reg.Sites {
+			if s.Name == excludeSiteName || s.LANPort == 0 {
+				continue
+			}
+			used[s.LANPort] = true
 		}
-		used[s.LANPort] = true
+	}
+	if entries, err := config.LoadWorktreeLANRegistry(); err == nil {
+		for _, e := range entries {
+			used[e.Port] = true
+		}
 	}
 	port := base
 	for used[port] {
 		port++
 	}
 	return port
+}
+
+// assignWorktreeLANPort finds the lowest unused port across all site and
+// worktree LAN shares, excluding the (site, branch) that is being assigned.
+func assignWorktreeLANPort(siteName, branch string) int {
+	const base = 9100
+	used := map[int]bool{}
+	if reg, err := config.LoadSites(); err == nil {
+		for _, s := range reg.Sites {
+			if s.LANPort != 0 {
+				used[s.LANPort] = true
+			}
+		}
+	}
+	if entries, err := config.LoadWorktreeLANRegistry(); err == nil {
+		for _, e := range entries {
+			if e.Site == siteName && e.Branch == branch {
+				continue
+			}
+			used[e.Port] = true
+		}
+	}
+	port := base
+	for used[port] {
+		port++
+	}
+	return port
+}
+
+// worktreeLANServerKey is the lanShareServers map key for a worktree share.
+func worktreeLANServerKey(siteName, branch string) string {
+	return siteName + "@" + branch
+}
+
+// LANShareStartWorktree starts the LAN share proxy for a worktree and
+// persists its port. The proxy targets <branch>.<parent_domain> so nginx
+// routes to the worktree's vhost. Idempotent.
+func LANShareStartWorktree(siteName, branch string) (int, error) {
+	site, err := config.FindSite(siteName)
+	if err != nil {
+		return 0, err
+	}
+	if site.Paused {
+		return 0, fmt.Errorf("site %q is paused", siteName)
+	}
+
+	worktreeDomain := branch + "." + site.PrimaryDomain()
+
+	port := 0
+	if entry, found, err := config.FindWorktreeLAN(siteName, branch); err == nil && found {
+		port = entry.Port
+	}
+	if port == 0 {
+		port = assignWorktreeLANPort(siteName, branch)
+	}
+
+	if err := config.AddWorktreeLAN(config.WorktreeLANEntry{
+		Site: siteName, Branch: branch, Port: port,
+	}); err != nil {
+		return 0, fmt.Errorf("saving worktree LAN port: %w", err)
+	}
+
+	key := worktreeLANServerKey(siteName, branch)
+	lanShareMu.Lock()
+	if _, running := lanShareServers[key]; running {
+		lanShareMu.Unlock()
+		return port, nil
+	}
+	lanShareMu.Unlock()
+
+	cfg, _ := config.LoadGlobal()
+	httpPort := cfg.Nginx.HTTPPort
+	if httpPort == 0 {
+		httpPort = 80
+	}
+	httpsPort := cfg.Nginx.HTTPSPort
+	if httpsPort == 0 {
+		httpsPort = 443
+	}
+
+	srv, err := startLANShareProxy(worktreeDomain, port, httpPort, httpsPort, site.Secured)
+	if err != nil {
+		return 0, err
+	}
+	lanShareMu.Lock()
+	lanShareServers[key] = srv
+	lanShareMu.Unlock()
+	return port, nil
+}
+
+// LANShareStopWorktree stops the proxy and clears the registry entry.
+func LANShareStopWorktree(siteName, branch string) error {
+	closeLANShareServer(worktreeLANServerKey(siteName, branch))
+	_, _, err := config.RemoveWorktreeLAN(siteName, branch)
+	return err
+}
+
+// LANShareWorktreeRunning reports whether a worktree share proxy is bound.
+func LANShareWorktreeRunning(siteName, branch string) bool {
+	lanShareMu.Lock()
+	defer lanShareMu.Unlock()
+	_, ok := lanShareServers[worktreeLANServerKey(siteName, branch)]
+	return ok
+}
+
+// DropOrphanedWorktreeLANShares removes registry entries and stops proxies
+// for worktrees that no longer exist. Notifies the daemon over HTTP first so
+// the close happens in lerd-ui's process where the listener actually lives;
+// the watcher process's lanShareServers map is empty so a direct close would
+// leave the listener bound. Falls back to in-process close + registry remove
+// if the daemon is unreachable.
+func DropOrphanedWorktreeLANShares(site *config.Site, liveBranches map[string]bool) {
+	entries, err := config.WorktreeLANsForSite(site.Name)
+	if err != nil || len(entries) == 0 {
+		return
+	}
+	for _, e := range entries {
+		if liveBranches[e.Branch] {
+			continue
+		}
+		action := "lan:unshare?branch=" + url.QueryEscape(e.Branch)
+		if err := notifyDaemon(site.PrimaryDomain(), action); err != nil {
+			closeLANShareServer(worktreeLANServerKey(e.Site, e.Branch))
+			_, _, _ = config.RemoveWorktreeLAN(e.Site, e.Branch)
+		}
+	}
 }
 
 // startLANShareProxy starts an HTTP reverse proxy listening on 0.0.0.0:<port>.

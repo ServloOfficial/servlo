@@ -50,6 +50,13 @@ func DetectVersion(dir string) (string, error) {
 		}
 	}
 
+	// 2.5 Worktree inheritance — fall back to the parent's pinned version
+	// before package.json constraints would otherwise let any installed
+	// version satisfying engines.node win.
+	if site, ok := config.ParentSiteForWorktreeDir(dir); ok && site.NodeVersion != "" {
+		return site.NodeVersion, nil
+	}
+
 	// 3. package.json engines.node
 	pkgJSON := filepath.Join(dir, "package.json")
 	if data, err := os.ReadFile(pkgJSON); err == nil {
