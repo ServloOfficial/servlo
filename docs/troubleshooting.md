@@ -17,14 +17,24 @@ If you need help on the [issue tracker](https://github.com/geodro/lerd/issues), 
 lerd bug-report
 ```
 
-This writes a single plain-text file (default: `./lerd-bug-report-<timestamp>.txt`) containing the full `lerd doctor` output, your `config.yaml` and `sites.yaml`, the state of every `lerd-*` systemd unit, recent journal and container logs, listening sockets on the lerd ports, and a curated set of environment variables. Site `.env` files are intentionally excluded; home paths are replaced with `$HOME`.
+This writes a single plain-text file (default: `./lerd-bug-report-<timestamp>.txt`) containing the full `lerd doctor` output, your `config.yaml` and `sites.yaml`, the state of every `lerd-*` systemd unit, recent journal and container logs for lerd's own infra units, listening sockets on the lerd ports, and a curated set of environment variables.
+
+What gets filtered before it lands on disk:
+
+- Site `.env` files are excluded outright.
+- Home paths render as `$HOME` and the username as `$USER`.
+- Site names, domains and parked-directory paths are replaced with `site-1`/`site1.<tld>`/`$PARK_1` placeholders. Pass `--show-real-names` to keep the raw values for local debugging.
+- Logs are kept only for lerd's own infra (`lerd-nginx`, `lerd-ui`, `lerd-dns`, `lerd-watcher`, `lerd-tray`, etc.). Preset services (mysql, redis, meilisearch, gotenberg, …), FPM containers and per-site workers still appear in the unit-state and container tables but their logs are dropped — they were producing repetitive request-shaped noise that didn't help triage.
+- Custom services and per-site custom / FrankenPHP containers are omitted entirely so the report doesn't expose user app identifiers.
+- Nginx structured error lines have their `request:` / `upstream:` / `referrer:` URI fields redacted, and HTTP access lines are dropped.
 
 Skim the file before posting (it's plain text — open it in any editor) and attach it to your GitHub issue.
 
-Override the destination with `--output`, or change how many log lines per service to include with `--log-lines`:
+Override the destination with `--output`, change how many log lines per service to include with `--log-lines`, or keep raw site names with `--show-real-names`:
 
 ```bash
 lerd bug-report --output /tmp/report.txt --log-lines 500
+lerd bug-report --show-real-names
 ```
 
 ---

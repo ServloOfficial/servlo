@@ -15,6 +15,21 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.19.0-beta.6] — 2026-05-03
+
+### Fixed
+
+- **`lerd update` no longer silently bumps preset minors past the user's installed version**. `EnsureDefaultPresetQuadlet` now reads the existing on-disk image when `update_strategy` is `patch` / `minor` / `none` and the user has no explicit pin in `config.yaml`, so `lerd update` (which calls `install --from-update`) keeps users on their current minor instead of replacing it with whatever the new preset declared. Meilisearch v1.7 → v1.42 used to swap engines in one step and hard-fail because the older data dir won't load under a newer binary; mysql 8.0 → 8.4 happened to upgrade in place but bypassed the per-service migration UX that `lerd service update` enforces. Rolling-strategy services (mailpit, rustfs, gotenberg) still pick up the preset image as before via the existing `track_latest` block.
+- **`lerd-tray.service` now caps its restart loop at 3 failures per 60 seconds**. Two unrecoverable failure modes (missing GTK runtime / no graphical session under launchd's bootstrap context) used to spin the unit through `RestartSec=2 Restart=on-failure` indefinitely; the cap stops the churn while leaving normal transient failures recoverable.
+- **Dashboard root page no longer renders the "Lerd info" banner twice**. A duplicate include slipped in during the dashboard rewrite; the canonical banner stays, the duplicate beneath it is gone.
+
+### Changed
+
+- **`lerd bug-report` collects logs only for lerd's own infra units** (`lerd-nginx`, `lerd-ui`, `lerd-watcher`, `lerd-dns`, `lerd-tray`, `lerd-autostart`, `lerd-fpm-init`). Preset services like redis, mysql, gotenberg and meilisearch were producing repetitive noise that didn't help triage; their state still appears in the unit-state and container tables, but their logs no longer ride along. FPM containers (`lerd-php<N>-fpm`) and per-site workers (`lerd-{queue,schedule,horizon,stripe,reverb}-<site>`) keep the existing log-skip and bucket-state behaviour. Custom services (defined under `~/.config/lerd/services/`), per-site custom containers (`lerd-custom-*`) and FrankenPHP per-site containers (`lerd-fp-*`) are now omitted from listings entirely so the report doesn't leak user app identifiers.
+- **`lerd bug-report` anonymizes site names, domains, parked-directory paths and the username by default**. Site names render as `site-1`/`site-2`, domains as `site1.<tld>`, parked directories as `$PARK_1`/`$PARK_2`, the username as `$USER`. Pass `--show-real-names` to keep the raw values for local debugging.
+
+---
+
 ## [1.19.0-beta.5] — 2026-05-03
 
 ### Fixed
