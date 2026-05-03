@@ -68,6 +68,15 @@ func WriteQuadletDiff(name, content string) (changed bool, err error) {
 	content = BindForLAN(content, lanExposed)
 	content = PairIPv6Binds(content)
 	content = StripInstallSection(content, autostartDisabled)
+	// Centralised platform podman-run flags (e.g. --platform=linux/amd64 for
+	// postgis on darwin) so every quadlet writer emits identical units.
+	if svc := strings.TrimPrefix(name, "lerd-"); svc != name {
+		if img := CurrentImage(content); img != "" {
+			if arg := PlatformPodmanArgs(svc, img); arg != "" {
+				content = InjectPodmanArgs(content, arg)
+			}
+		}
+	}
 	path := filepath.Join(dir, name+".container")
 	fileChanged := true
 	if existing, err := os.ReadFile(path); err == nil && string(existing) == content {
@@ -126,6 +135,7 @@ var UnitLifecycle interface {
 	Stop(name string) error
 	Restart(name string) error
 	UnitStatus(name string) (string, error)
+	AllUnitStates() map[string]string
 }
 
 // DaemonReload runs the equivalent of systemctl --user daemon-reload.

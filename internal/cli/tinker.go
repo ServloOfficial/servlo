@@ -28,6 +28,13 @@ var psyshEvalLocRe = regexp.MustCompile(` // vendor/psy/psysh/[^\s]+\(\d+\) : ev
 // used. They're internal REPL chatter, not user output.
 var tinkerAliasNoticeRe = regexp.MustCompile(`(?m)^\[!\] Aliasing '[^']+' to '[^']+' for this Tinker session\.\s*\n?`)
 
+// tinkerMemoryLimit overrides PHP's 128M CLI default. Laravel's tinker
+// boot path (ClassAliasAutoloader requires the full composer class map)
+// blows past the default on any non-trivial project. 512M leaves enough
+// headroom for medium projects with fat vendor trees while still surfacing
+// runaway code (deep recursion, accidental N+1 over a large table).
+const tinkerMemoryLimit = "512M"
+
 func cleanTinkerOutput(s string) string {
 	// Split on the multi-statement separator first so per-chunk regexes that
 	// rely on `^` (start-of-line) also match notices that landed at the
@@ -111,7 +118,7 @@ func RunTinker(ctx context.Context, sitePath, code string) (TinkerResult, error)
 		// separator to render one block per statement.
 		payload := transformForMultiStatementWithDump(code, dumpFn)
 		argv = append([]string{"exec", "-i", "-w", sitePath}, envArgs...)
-		argv = append(argv, container, "php")
+		argv = append(argv, container, "php", "-d", "memory_limit="+tinkerMemoryLimit)
 		argv = append(argv, tinkerSpec.Command...)
 		switch {
 		case tinkerSpec.ExecuteFlag != "":
@@ -131,7 +138,7 @@ func RunTinker(ctx context.Context, sitePath, code string) (TinkerResult, error)
 		}
 		defer os.Remove(tmpFile)
 		argv = append([]string{"exec", "-i", "-w", sitePath}, envArgs...)
-		argv = append(argv, container, "php", tmpFile)
+		argv = append(argv, container, "php", "-d", "memory_limit="+tinkerMemoryLimit, tmpFile)
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -163,8 +170,10 @@ func RunTinker(ctx context.Context, sitePath, code string) (TinkerResult, error)
 
 // tinkerEnvArgs builds the shared `--env KEY=VAL` argv chunks used by
 // every tinker exec invocation: HOME, COMPOSER_HOME, PATH (so vendor/bin
-// shims work inside the container), and TERM/NO_COLOR so dump output is
-// not ANSI-colored.
+// shims work inside the container), TERM/NO_COLOR so dump output is not
+// ANSI-colored, and PSYSH_TRUST_PROJECT so PsySH skips its non-interactive
+// "Restricted Mode" warning — the user is running their own project code
+// in their own container; restricting it adds noise without security gain.
 func tinkerEnvArgs(sitePath, home, composerHome string) []string {
 	projectVendorBin := filepath.Join(sitePath, "vendor", "bin")
 	composerBin := filepath.Join(composerHome, "vendor", "bin")
@@ -174,6 +183,7 @@ func tinkerEnvArgs(sitePath, home, composerHome string) []string {
 		"--env", "PATH=" + projectVendorBin + ":/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:" + composerBin,
 		"--env", "NO_COLOR=1",
 		"--env", "TERM=dumb",
+		"--env", "PSYSH_TRUST_PROJECT=1",
 	}
 }
 
