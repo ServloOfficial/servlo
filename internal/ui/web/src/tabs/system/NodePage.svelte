@@ -6,7 +6,10 @@
   import DetailButton from '$components/DetailButton.svelte';
   import { m } from '../../paraglide/messages.js';
 
-  const nodeDefault = $derived($status.node_default);
+  // Mirror the store value into local $state via subscribe so the
+  // reactivity is direct (bypasses any auto-subscription edge case).
+  let nodeDefault = $state('');
+  $effect(() => status.subscribe((s) => { nodeDefault = s.node_default || ''; }));
 
   let defaultBusy = $state<string | null>(null);
   let removeBusy = $state<string | null>(null);
@@ -17,13 +20,22 @@
   let installDone = $state(false);
   let installError = $state('');
 
-  async function onSetDefault(v: string) {
-    if (v === nodeDefault) return;
-    defaultBusy = v;
+  // staged holds a pending pick the user has clicked but not saved. null
+  // means no staged change (radio reflects nodeDefault). After a successful
+  // save we reset to null explicitly so the Save button disables.
+  let staged = $state<string | null>(null);
+  const selectedDefault = $derived(staged ?? nodeDefault);
+  const dirty = $derived(staged !== null && staged !== nodeDefault);
+
+  async function onSaveDefault() {
+    if (!dirty || staged === null) return;
+    const target = staged;
+    defaultBusy = target;
     try {
-      await setDefaultNode(v);
+      await setDefaultNode(target);
       await loadStatus();
       await loadNodeVersions();
+      staged = null;
     } finally {
       defaultBusy = null;
     }
@@ -88,25 +100,45 @@
     {#if $nodeVersions.length === 0}
       <p class="text-sm text-gray-400">{m.system_node_noneInstalled()}</p>
     {:else}
+      {#if $nodeVersions.length > 1}
+        <div class="flex items-center justify-end">
+          <DetailButton
+            tone="primary"
+            onclick={onSaveDefault}
+            disabled={!dirty || defaultBusy !== null}
+            loading={defaultBusy !== null}
+          >{m.common_save()}</DetailButton>
+        </div>
+      {/if}
       <div class="space-y-2">
         {#each $nodeVersions as v (v)}
           {@const siteList = sitesForVersion(v)}
           {@const siteCount = $sitesByNode.get(v) ?? 0}
           {@const isDefault = v === nodeDefault}
+          {@const isSelected = v === selectedDefault}
           {@const canRemove = siteCount === 0 && $status.node_managed_by_lerd && !isDefault}
-          <div class="border border-gray-200 dark:border-lerd-border rounded-lg p-3 bg-white dark:bg-lerd-card">
+          <div class="border {isSelected && !isDefault ? 'border-lerd-red/60 dark:border-lerd-red/60' : 'border-gray-200 dark:border-lerd-border'} rounded-lg p-3 bg-white dark:bg-lerd-card transition-colors">
             <div class="flex items-center gap-3 flex-wrap">
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="node-default"
-                  checked={isDefault}
-                  onchange={() => onSetDefault(v)}
-                  disabled={defaultBusy !== null}
-                  class="accent-lerd-red"
-                />
+              <button
+                type="button"
+                onclick={() => (staged = v === nodeDefault ? null : v)}
+                disabled={defaultBusy !== null}
+                aria-pressed={isSelected}
+                aria-label={'Node ' + v}
+                class="flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span
+                  class="relative w-4 h-4 rounded-full border-2 shrink-0 transition-colors
+                    {isSelected
+                      ? 'border-lerd-red'
+                      : 'border-gray-400 dark:border-gray-500 hover:border-gray-500 dark:hover:border-gray-400'}"
+                >
+                  {#if isSelected}
+                    <span class="absolute inset-[2px] rounded-full bg-lerd-red"></span>
+                  {/if}
+                </span>
                 <span class="text-sm font-semibold text-gray-900 dark:text-white">Node {v}</span>
-              </label>
+              </button>
               {#if isDefault}
                 <span class="text-[10px] font-medium text-lerd-red bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">{m.common_default()}</span>
               {/if}

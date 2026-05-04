@@ -97,49 +97,12 @@
     pin: Snippet;
     trash: Snippet;
   }): ButtonMenuAction[] {
-    const list: ButtonMenuAction[] = [];
-
-    if (active && admin) {
-      const adminLabel = m.services_openAdmin({ name: serviceLabel(admin.name) });
-      list.push({
-        id: 'admin',
-        tone: 'info',
-        icon: icons.external,
-        label: adminLabel,
-        title: adminLabel,
-        onclick: openAdmin
-      });
-    } else if (active && svc.dashboard) {
-      list.push({
-        id: 'dashboard',
-        icon: icons.external,
-        label: m.services_dashboard(),
-        title: m.services_dashboard(),
-        onclick: () => openDashboard(svc)
-      });
-    } else if (active && svc.connection_url) {
-      list.push({
-        id: 'connection',
-        icon: icons.external,
-        label: m.services_openConnection(),
-        title: svc.connection_url,
-        href: svc.connection_url
-      });
-    }
-
-    if (!isWorker && !active && !updating) {
-      list.push({
-        id: 'start',
-        tone: 'primary',
-        icon: icons.start,
-        label: m.common_start(),
-        onclick: () => run('start')
-      });
-    }
+    const lifecycle: ButtonMenuAction[] = [];
+    const rest: ButtonMenuAction[] = [];
 
     if (svc.update_available || updating) {
       const tag = svc.latest_version || '';
-      list.push({
+      lifecycle.push({
         id: 'update',
         tone: 'success',
         icon: icons.update,
@@ -151,7 +114,7 @@
 
     if (svc.upgrade_version && svc.migration_supported === false && !updating) {
       const tag = svc.upgrade_version;
-      list.push({
+      lifecycle.push({
         id: 'upgrade',
         tone: 'warn',
         icon: icons.upgrade,
@@ -163,7 +126,7 @@
 
     if (svc.upgrade_version && svc.migration_supported === true && !updating) {
       const tag = svc.upgrade_version;
-      list.push({
+      lifecycle.push({
         id: 'migrate',
         tone: 'info',
         icon: icons.migrate,
@@ -175,7 +138,7 @@
 
     if (svc.previous_version && svc.can_rollback !== false && !updating) {
       const tag = rollbackTagFromImage(svc.previous_version);
-      list.push({
+      lifecycle.push({
         id: 'rollback',
         tone: 'secondary',
         icon: icons.rollback,
@@ -185,8 +148,46 @@
       });
     }
 
+    if (active && admin) {
+      const adminLabel = m.services_openAdmin({ name: serviceLabel(admin.name) });
+      rest.push({
+        id: 'admin',
+        tone: 'info',
+        icon: icons.external,
+        label: adminLabel,
+        title: adminLabel,
+        onclick: openAdmin
+      });
+    } else if (active && svc.dashboard) {
+      rest.push({
+        id: 'dashboard',
+        icon: icons.external,
+        label: m.services_dashboard(),
+        title: m.services_dashboard(),
+        onclick: () => openDashboard(svc)
+      });
+    } else if (active && svc.connection_url) {
+      rest.push({
+        id: 'connection',
+        icon: icons.external,
+        label: m.services_openConnection(),
+        title: svc.connection_url,
+        href: svc.connection_url
+      });
+    }
+
+    if (!isWorker && !active && !updating) {
+      rest.push({
+        id: 'start',
+        tone: 'primary',
+        icon: icons.start,
+        label: m.common_start(),
+        onclick: () => run('start')
+      });
+    }
+
     if (active && !isWorker) {
-      list.push({
+      rest.push({
         id: 'restart',
         icon: icons.restart,
         label: m.common_restart(),
@@ -196,7 +197,7 @@
     }
 
     if (active) {
-      list.push({
+      rest.push({
         id: 'stop',
         icon: icons.stop,
         label: m.common_stop(),
@@ -205,7 +206,7 @@
     }
 
     if (!isWorker) {
-      list.push({
+      rest.push({
         id: 'pin',
         tone: svc.pinned ? 'warn' : 'secondary',
         icon: icons.pin,
@@ -216,7 +217,7 @@
     }
 
     if (!isWorker && svc.custom && !active) {
-      list.push({
+      rest.push({
         id: 'remove',
         tone: 'danger',
         icon: icons.trash,
@@ -226,7 +227,7 @@
       });
     }
 
-    return list;
+    return [...lifecycle, ...rest];
   }
 </script>
 
@@ -331,7 +332,7 @@
     </svg>
   {/snippet}
 
-  <div class="flex items-center gap-2">
+  <div class="flex flex-col items-end gap-1.5">
     <ButtonMenu
       actions={buildActions({
         external: externalIcon,
@@ -348,7 +349,14 @@
       {busy}
     />
     {#if updating}
-      <span class="text-[11px] text-gray-500 dark:text-gray-400 ml-2 truncate max-w-[18ch]" title={updating.message}>{updating.message}</span>
+      <span
+        class="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[32ch]"
+        title={updating.message}
+      >{updating.message}</span>
+    {:else if svc.update_available && svc.latest_version}
+      <span class="text-[11px] text-emerald-600 dark:text-emerald-400 truncate max-w-[32ch]">
+        {svc.latest_version} available
+      </span>
     {/if}
   </div>
 </div>

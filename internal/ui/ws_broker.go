@@ -14,11 +14,18 @@ import (
 // the response status was 2xx — lerd-ui actions either succeed and change
 // state or fail and write an error body; in both cases the cached snapshot
 // needs to be re-read, so the broadcast is harmless on failure.
+//
+// Snapshot invalidation runs synchronously before publish so that a client
+// making a follow-up GET right after the mutation always reads fresh data.
+// The publish then drives the WS broadcast asynchronously as before.
 func publishAfter(h http.HandlerFunc, kinds ...string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		h(w, r)
 		if r.Method == http.MethodGet || r.Method == http.MethodOptions {
 			return
+		}
+		for _, k := range kinds {
+			snapshots.Invalidate(k)
 		}
 		for _, k := range kinds {
 			eventbus.Default.Publish(k)
