@@ -143,3 +143,7 @@ Shows a live snapshot: DNS reachability, nginx, PHP-FPM containers, watcher, ser
 | Free up CPU / RAM during a heavy build | `lerd stop` |
 | Full shutdown before a reinstall | `lerd quit` |
 | Verify everything's healthy | `lerd status` |
+| Uninstall a service entirely (data preserved) | `lerd service remove <name>` |
+| Uninstall and wipe data | `lerd service remove <name> --purge` |
+| Reinstall a service in place | `lerd service reinstall <name>` |
+| Reinstall with fresh data + reprovision linked sites | `lerd service reinstall <name> --reset-data` |

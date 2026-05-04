@@ -11,6 +11,7 @@ export interface Service {
   dashboard_external?: boolean;
   connection_url?: string;
   custom?: boolean;
+  is_default?: boolean;
   site_count: number;
   site_domains?: string[];
   pinned?: boolean;
@@ -112,11 +113,21 @@ export const workerGroups = derived(services, ($s): WorkerGroup[] => {
 
 export type ServiceAction = 'start' | 'stop' | 'restart' | 'pin' | 'unpin' | 'remove';
 
-export async function serviceAction(name: string, action: ServiceAction): Promise<boolean> {
+export async function serviceAction(
+  name: string,
+  action: ServiceAction,
+  opts: { removeData?: boolean } = {}
+): Promise<boolean> {
   try {
-    const res = await apiFetch('/api/services/' + encodeURIComponent(name) + '/' + action, {
-      method: 'POST'
-    });
+    const params = new URLSearchParams();
+    if (action === 'remove' && opts.removeData) params.set('removeData', 'true');
+    const url =
+      '/api/services/' +
+      encodeURIComponent(name) +
+      '/' +
+      action +
+      (params.toString() ? '?' + params.toString() : '');
+    const res = await apiFetch(url, { method: 'POST' });
     if (res.ok) await loadServices();
     return res.ok;
   } catch {
@@ -124,7 +135,7 @@ export async function serviceAction(name: string, action: ServiceAction): Promis
   }
 }
 
-export type UpdateAction = 'update' | 'migrate' | 'rollback';
+export type UpdateAction = 'update' | 'migrate' | 'rollback' | 'reinstall';
 
 function setProgress(name: string, p: UpdateProgress | null) {
   updateProgress.update((m) => {
@@ -155,6 +166,30 @@ function phaseLabel(phase: string): string {
       return 'Swapping data dir…';
     case 'starting_deps':
       return 'Starting dependencies…';
+    case 'reinstall_starting':
+      return 'Reinstalling…';
+    case 'stopping_unit':
+      return 'Stopping…';
+    case 'removing_container':
+      return 'Removing container…';
+    case 'removing_data':
+      return 'Renaming data dir aside…';
+    case 'removing_quadlet':
+      return 'Removing unit…';
+    case 'removing_config':
+      return 'Removing config…';
+    case 'regenerating_consumers':
+      return 'Refreshing consumers…';
+    case 'reprovisioning_sites':
+      return 'Reprovisioning linked sites…';
+    case 'reprovisioning_site':
+      return 'Reprovisioning…';
+    case 'reprovisioning_skipped':
+      return 'Reprovisioning skipped';
+    case 'starting_unit':
+      return 'Starting…';
+    case 'installing_config':
+      return 'Writing config…';
     case 'done':
       return 'Done';
     default:
@@ -165,13 +200,15 @@ function phaseLabel(phase: string): string {
 export async function streamServiceAction(
   name: string,
   action: UpdateAction,
-  opts: { tag?: string } = {}
+  opts: { tag?: string; resetData?: boolean } = {}
 ): Promise<{ ok: boolean; error?: string }> {
   const params = new URLSearchParams();
   if (opts.tag) params.set('tag', opts.tag);
+  if (action === 'reinstall' && opts.resetData) params.set('resetData', 'true');
   const url = '/api/services/' + encodeURIComponent(name) + '/' + action + (params.toString() ? '?' + params.toString() : '');
 
-  setProgress(name, { phase: 'checking_registry', message: phaseLabel('checking_registry') });
+  const initialPhase = action === 'reinstall' ? 'reinstall_starting' : 'checking_registry';
+  setProgress(name, { phase: initialPhase, message: phaseLabel(initialPhase) });
   try {
     const res = await apiFetch(url, { method: 'POST' });
     if (!res.body) {

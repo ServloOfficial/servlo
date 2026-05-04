@@ -778,6 +778,7 @@ type ServiceResponse struct {
 	DashboardExternal  bool              `json:"dashboard_external,omitempty"`
 	ConnectionURL      string            `json:"connection_url,omitempty"`
 	Custom             bool              `json:"custom,omitempty"`
+	IsDefault          bool              `json:"is_default,omitempty"`
 	SiteCount          int               `json:"site_count"`
 	SiteDomains        []string          `json:"site_domains,omitempty"`
 	Pinned             bool              `json:"pinned"`
@@ -828,6 +829,7 @@ func buildServiceResponse(name string) ServiceResponse {
 		SiteDomains:   sitesUsingService(name),
 		Pinned:        config.ServiceIsPinned(name),
 		Paused:        config.ServiceIsPaused(name),
+		IsDefault:     config.IsDefaultPreset(name),
 	}
 	// Default-preset services advertise update availability so the dashboard
 	// can show an "→ v8.4.3" badge. Stopped services also run the check so the
@@ -1209,6 +1211,17 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Streaming reinstall: stop, remove (optionally with data wipe), reinstall,
+	// and reprovision linked sites' DBs/buckets when resetData=true.
+	if action == "reinstall" && r.Method == http.MethodPost {
+		resetData := r.URL.Query().Get("resetData") == "true"
+		writeLine, _ := startNDJSONStream(w, r)
+		if err := serviceops.ReinstallService(name, resetData, func(ev serviceops.PhaseEvent) { writeLine(ev) }); err != nil {
+			writeLine(map[string]any{"phase": "error", "error": err.Error()})
+		}
+		return
+	}
+
 	// Streaming update flow. Accepts ?tag=<tag> to target an explicit upgrade
 	// (e.g. cross-minor jumps that the safe-update strategy wouldn't suggest).
 	if action == "update" && r.Method == http.MethodPost {
@@ -1472,22 +1485,11 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 			cli.RegenerateFamilyConsumersForService(name)
 		}
 	case "remove":
-		if isBuiltin {
-			http.Error(w, "cannot remove built-in service", http.StatusForbidden)
-			return
-		}
-		_ = podman.StopUnit(unit)
-		podman.RemoveContainer(unit)
-		if err := podman.RemoveQuadlet(unit); err != nil {
+		removeData := r.URL.Query().Get("removeData") == "true"
+		if err := serviceops.RemoveService(name, serviceops.RemoveOptions{RemoveData: removeData}, nil); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 			return
 		}
-		_ = podman.DaemonReloadFn()
-		if err := config.RemoveCustomService(name); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-			return
-		}
-		cli.RegenerateFamilyConsumersForService(name)
 		writeJSON(w, map[string]any{"ok": true})
 		return
 	case "pin":

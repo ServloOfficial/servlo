@@ -57,6 +57,7 @@ func NewServiceCmd() *cobra.Command {
 	cmd.AddCommand(newServiceRollbackCmd())
 	cmd.AddCommand(newServiceMigrateCmd())
 	cmd.AddCommand(newServiceRemoveCmd())
+	cmd.AddCommand(newServiceReinstallCmd())
 	cmd.AddCommand(newServiceExposeCmd())
 	cmd.AddCommand(newServicePinCmd())
 	cmd.AddCommand(newServiceUnpinCmd())
@@ -698,63 +699,101 @@ func MissingPresetDependencies(svc *config.CustomService) []string {
 
 // newServiceRemoveCmd returns the `service remove` command.
 func newServiceRemoveCmd() *cobra.Command {
-	return &cobra.Command{
+	var purge bool
+	cmd := &cobra.Command{
 		Use:   "remove <service>",
-		Short: "Stop and remove a custom service",
+		Short: "Stop and remove a service (custom or default)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			name := args[0]
 
-			if isKnownService(name) {
-				return fmt.Errorf("%q is a built-in service and cannot be removed", name)
+			if purge {
+				dataPath := config.DataSubDir(name)
+				fmt.Printf("Removing service %q and ALL its data at %s.\n", name, dataPath)
 			}
 
-			// Capture the family before deletion so consumers can be regenerated.
-			var family string
-			if existing, err := config.LoadCustomService(name); err == nil {
-				family = existing.Family
-			}
-
-			unit := "lerd-" + name
-
-			// Stop the unit if it is running.
-			status, _ := podman.UnitStatus(unit)
-			if status == "active" || status == "activating" {
-				fmt.Printf("Stopping %s...\n", unit)
-				if err := podman.StopUnit(unit); err != nil {
-					return fmt.Errorf("could not stop %s: %w\nRemove aborted — the service is still running", unit, err)
+			emit := func(e serviceops.PhaseEvent) {
+				switch e.Phase {
+				case "stopping_unit":
+					fmt.Printf("Stopping %s...\n", e.Unit)
+				case "removing_data":
+					fmt.Printf("Renaming data dir aside: %s\n", e.Message)
+				case "done":
+					fmt.Printf("Removed service %q.\n", name)
 				}
 			}
-			podman.RemoveContainer(unit)
 
-			if err := podman.RemoveQuadlet(unit); err != nil {
-				fmt.Printf("  WARN: could not remove quadlet: %v\n", err)
-			}
-			if err := podman.DaemonReloadFn(); err != nil {
-				fmt.Printf("  WARN: daemon-reload failed: %v\n", err)
+			if err := serviceops.RemoveService(name, serviceops.RemoveOptions{RemoveData: purge}, emit); err != nil {
+				return err
 			}
 
-			if err := config.RemoveCustomService(name); err != nil {
-				return fmt.Errorf("removing service config: %w", err)
+			if !purge {
+				fmt.Printf("Data at %s was NOT removed. Pass --purge to wipe it.\n", config.DataSubDir(name))
 			}
-
-			if family != "" {
-				serviceops.RegenerateFamilyConsumers(family)
-			}
-
-			dataPath := config.DataSubDir(name)
-			fmt.Printf("Removed service %q.\n", name)
-			fmt.Printf("Data at %s was NOT removed. Delete it manually if no longer needed.\n", dataPath)
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&purge, "purge", false, "also rename the service data dir aside (recoverable as <dir>.pre-remove-<ts>)")
+	return cmd
+}
+
+// newServiceReinstallCmd returns the `service reinstall` command. Stops,
+// removes, and reinstalls the same version. With --reset-data the data dir
+// is renamed-aside and per-site DBs/buckets are recreated on the fresh service.
+func newServiceReinstallCmd() *cobra.Command {
+	var resetData bool
+	cmd := &cobra.Command{
+		Use:   "reinstall <service>",
+		Short: "Stop, remove, and reinstall a service in place",
+		Long:  "Reinstall the service at its current version. With --reset-data the data dir is renamed-aside (recoverable) and any linked sites' databases or buckets are recreated on the fresh service.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			name := args[0]
+			emit := func(e serviceops.PhaseEvent) {
+				switch e.Phase {
+				case "reinstall_starting":
+					fmt.Printf("Reinstalling %s...\n", name)
+				case "stopping_unit":
+					fmt.Printf("  stopping %s\n", e.Unit)
+				case "removing_data":
+					fmt.Printf("  renaming data dir aside: %s\n", e.Message)
+				case "pulling_image":
+					if e.Message == "" && e.Image != "" {
+						fmt.Printf("  pulling %s\n", e.Image)
+					}
+				case "starting_unit":
+					fmt.Printf("  starting %s\n", e.Unit)
+				case "waiting_ready":
+					fmt.Printf("  waiting for %s to be ready\n", e.Unit)
+				case "reprovisioning_sites":
+					fmt.Printf("  reprovisioning linked sites: %s\n", e.Message)
+				case "reprovisioning_site":
+					fmt.Printf("    %s\n", e.Message)
+				case "reprovisioning_skipped":
+					fmt.Printf("  reprovisioning skipped: %s\n", e.Message)
+				}
+			}
+			if err := serviceops.ReinstallService(name, resetData, emit); err != nil {
+				return err
+			}
+			fmt.Printf("Reinstalled %q.\n", name)
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&resetData, "reset-data", false, "wipe data dir (rename-aside) and recreate linked-site databases/buckets on the fresh service")
+	return cmd
 }
 
 // migrateServiceUnits rewrites unit files for all globally configured services.
 // This ensures BindForLAN and other install-time settings are applied even for
-// services that already have a unit file on disk.
+// services that already have a unit file on disk. Default presets are skipped
+// when no quadlet exists for them (i.e. the user removed the service); without
+// this skip a subsequent CLI invocation would silently recreate the quadlet.
 func migrateServiceUnits() {
 	for _, svc := range knownServices() {
+		if !podman.QuadletInstalled("lerd-" + svc) {
+			continue
+		}
 		ensureServiceQuadlet(svc) //nolint:errcheck
 	}
 	customs, _ := config.ListCustomServices()

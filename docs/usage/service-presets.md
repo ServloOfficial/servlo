@@ -186,3 +186,9 @@ natively. Right-click "Copy link" works.
 
 `mongo` declares its own `connection_url:` (see [YAML schema](custom-services.md#yaml-schema)
 in the custom services reference) so it gets the same treatment as the built-in databases.
+
+## Removing and reinstalling presets
+
+Default presets can be removed: `lerd service remove postgres` (or any other) stops the unit, deletes the quadlet, and frees the slot. The preset itself stays available in `lerd service preset list` as not-installed, so a future `lerd service preset postgres` brings it back. Pass `--purge` to also rename the data dir aside.
+
+`lerd service reinstall <name>` stops, removes, and reinstalls at the current version. `--reset-data` wipes the data and recreates per-site state on the fresh container (databases for mysql/mariadb/postgres, buckets for rustfs). See [custom services](custom-services.md#reinstalling-a-service) for the resolution rules.

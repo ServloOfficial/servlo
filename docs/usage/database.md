@@ -113,3 +113,11 @@ lerd db:shell --service postgres --database myapp
 #   database: myapp
 lerd db:shell
 ```
+
+## Recovering after a service reinstall
+
+`lerd service reinstall <name> --reset-data` wipes the database server's data dir (rename-aside, recoverable) and then walks every active site that depends on the service to recreate the database it expects via `CREATE DATABASE IF NOT EXISTS`. Database name resolution is the same as `lerd env`: `.lerd.yaml` `db.database` first, then `.env` `DB_DATABASE`, then a name derived from the site name.
+
+The DBs come back empty. The previous data lives next door as `~/.local/share/lerd/data/<name>.pre-remove-<timestamp>`. If you need the old contents, stop the service, rename the aside dir back over the new data dir, and start the service again.
+
+If you only want to recreate a single missing database without wiping the whole server, use `lerd db:create` against the live service instead.

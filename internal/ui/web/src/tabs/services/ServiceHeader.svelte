@@ -4,6 +4,8 @@
   import ButtonMenu, { type ButtonMenuAction } from '$components/ButtonMenu.svelte';
   import ParentSiteBadge from './ParentSiteBadge.svelte';
   import ServiceDependencies from './ServiceDependencies.svelte';
+  import ServiceDeleteModal from './ServiceDeleteModal.svelte';
+  import ServiceReinstallModal from './ServiceReinstallModal.svelte';
   import { goToTab } from '$stores/route';
   import {
     type Service,
@@ -53,6 +55,8 @@
   const parent = $derived(parentSiteDomain(svc));
 
   let localBusy = $state(false);
+  let deleteOpen = $state(false);
+  let reinstallOpen = $state(false);
   const updating = $derived($updateProgress[svc.name]);
   const busy = $derived(localBusy || Boolean(updating));
 
@@ -63,6 +67,19 @@
     } finally {
       localBusy = false;
     }
+  }
+
+  async function confirmDelete(opts: { removeData: boolean }) {
+    localBusy = true;
+    try {
+      await serviceAction(svc.name, 'remove', { removeData: opts.removeData });
+    } finally {
+      localBusy = false;
+    }
+  }
+
+  async function confirmReinstall(opts: { resetData: boolean }) {
+    await streamServiceAction(svc.name, 'reinstall', { resetData: opts.resetData });
   }
 
   async function runUpdate(tag?: string) {
@@ -114,7 +131,7 @@
 
     if (svc.upgrade_version && svc.migration_supported === false && !updating) {
       const tag = svc.upgrade_version;
-      lifecycle.push({
+      rest.push({
         id: 'upgrade',
         tone: 'warn',
         icon: icons.upgrade,
@@ -126,25 +143,13 @@
 
     if (svc.upgrade_version && svc.migration_supported === true && !updating) {
       const tag = svc.upgrade_version;
-      lifecycle.push({
+      rest.push({
         id: 'migrate',
         tone: 'info',
         icon: icons.migrate,
         label: m.services_migrateTo({ tag }),
         title: m.services_migrateExplain({ tag }),
         onclick: () => runMigrate(tag)
-      });
-    }
-
-    if (svc.previous_version && svc.can_rollback !== false && !updating) {
-      const tag = rollbackTagFromImage(svc.previous_version);
-      lifecycle.push({
-        id: 'rollback',
-        tone: 'secondary',
-        icon: icons.rollback,
-        label: m.services_rollbackTo({ tag }),
-        title: m.services_rollbackExplain({ tag }),
-        onclick: () => runRollback()
       });
     }
 
@@ -216,14 +221,38 @@
       });
     }
 
-    if (!isWorker && svc.custom && !active) {
+    if (!isWorker && !updating) {
+      rest.push({
+        id: 'reinstall',
+        tone: 'secondary',
+        icon: icons.restart,
+        label: 'Reinstall',
+        title: 'Stop, remove, and reinstall at the current version. Optional reset-data wipes the data dir and reprovisions linked sites.',
+        onclick: () => (reinstallOpen = true)
+      });
+    }
+
+    if (svc.previous_version && svc.can_rollback !== false && !updating) {
+      const tag = rollbackTagFromImage(svc.previous_version);
+      rest.push({
+        id: 'rollback',
+        tone: 'secondary',
+        icon: icons.rollback,
+        label: m.services_rollbackTo({ tag }),
+        title: m.services_rollbackExplain({ tag }),
+        onclick: () => runRollback()
+      });
+    }
+
+    if (!isWorker) {
+      const removeLabel = svc.is_default ? 'Remove' : m.services_removeCustom();
       rest.push({
         id: 'remove',
         tone: 'danger',
         icon: icons.trash,
-        label: m.services_removeCustom(),
-        title: m.services_removeCustom(),
-        onclick: () => run('remove')
+        label: removeLabel,
+        title: removeLabel,
+        onclick: () => (deleteOpen = true)
       });
     }
 
@@ -360,3 +389,17 @@
     {/if}
   </div>
 </div>
+
+<ServiceDeleteModal
+  open={deleteOpen}
+  {svc}
+  onclose={() => (deleteOpen = false)}
+  onconfirm={confirmDelete}
+/>
+
+<ServiceReinstallModal
+  open={reinstallOpen}
+  {svc}
+  onclose={() => (reinstallOpen = false)}
+  onconfirm={confirmReinstall}
+/>

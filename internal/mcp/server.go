@@ -206,13 +206,15 @@ func toolList() []mcpTool {
 		},
 		{
 			Name:        "service_control",
-			Description: "Lifecycle. update=pull. migrate=dump+restore across data-breaking versions. rollback=revert. remove=delete custom.",
+			Description: "Lifecycle. update=pull. migrate=dump+restore. rollback=revert. remove=delete; remove_data also wipes data dir (rename-aside). reinstall=stop+remove+install same version; reset_data wipes data and reprovisions linked sites' DBs/buckets.",
 			InputSchema: mcpSchema{
 				Type: "object",
 				Properties: map[string]mcpProp{
-					"action": {Type: "string", Enum: []string{"start", "stop", "restart", "pin", "unpin", "update", "rollback", "migrate", "remove"}},
-					"name":   {Type: "string"},
-					"tag":    {Type: "string", Description: "For update/migrate."},
+					"action":      {Type: "string", Enum: []string{"start", "stop", "restart", "pin", "unpin", "update", "rollback", "migrate", "remove", "reinstall"}},
+					"name":        {Type: "string"},
+					"tag":         {Type: "string", Description: "For update/migrate."},
+					"remove_data": {Type: "boolean", Description: "remove: rename data aside."},
+					"reset_data":  {Type: "boolean", Description: "reinstall: wipe data, reprovision."},
 				},
 				Required: []string{"action", "name"},
 			},
@@ -965,6 +967,8 @@ func handleToolCall(params json.RawMessage) (any, *rpcError) {
 			return execServiceMigrate(args)
 		case "remove":
 			return execServiceRemove(args)
+		case "reinstall":
+			return execServiceReinstall(args)
 		default:
 			return unknownAction("service_control")
 		}
@@ -2584,22 +2588,31 @@ func execServiceRemove(args map[string]any) (any, *rpcError) {
 	if name == "" {
 		return toolErr("name is required"), nil
 	}
-	if isKnownService(name) {
-		return toolErr(name + " is a built-in service and cannot be removed"), nil
+	removeData := boolArg(args, "remove_data")
+
+	if err := serviceops.RemoveService(name, serviceops.RemoveOptions{RemoveData: removeData}, nil); err != nil {
+		return toolErr(err.Error()), nil
 	}
 
-	unit := "lerd-" + name
-	_ = podman.StopUnit(unit)
-	podman.RemoveContainer(unit)
-	if err := podman.RemoveQuadlet(unit); err != nil {
-		return toolErr("removing quadlet: " + err.Error()), nil
+	if removeData {
+		return toolOK(fmt.Sprintf("Service %q removed. Data renamed aside as %s.pre-remove-<ts>.", name, config.DataSubDir(name))), nil
 	}
-	_ = podman.DaemonReloadFn()
-	if err := config.RemoveCustomService(name); err != nil {
-		return toolErr("removing service config: " + err.Error()), nil
-	}
-
 	return toolOK(fmt.Sprintf("Service %q removed. Persistent data was NOT deleted.", name)), nil
+}
+
+func execServiceReinstall(args map[string]any) (any, *rpcError) {
+	name := strArg(args, "name")
+	if name == "" {
+		return toolErr("name is required"), nil
+	}
+	resetData := boolArg(args, "reset_data")
+	if err := serviceops.ReinstallService(name, resetData, nil); err != nil {
+		return toolErr(err.Error()), nil
+	}
+	if resetData {
+		return toolOK(fmt.Sprintf("Service %q reinstalled with fresh data; linked sites' DBs/buckets were recreated.", name)), nil
+	}
+	return toolOK(fmt.Sprintf("Service %q reinstalled (data preserved).", name)), nil
 }
 
 func execServicePresetList(_ map[string]any) (any, *rpcError) {
