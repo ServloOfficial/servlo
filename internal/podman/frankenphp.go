@@ -92,13 +92,9 @@ func sortedKeys(m map[string]string) []string {
 }
 
 // RemoveFrankenPHPQuadlet removes the unit file for a FrankenPHP site.
+// RemoveQuadlet drops the launchd plist on macOS too via RemoveContainerUnitFn.
 func RemoveFrankenPHPQuadlet(siteName string) error {
-	name := FrankenPHPContainerName(siteName)
-	_ = RemoveQuadlet(name)
-	if RemoveContainerUnitFn != nil {
-		return RemoveContainerUnitFn(name)
-	}
-	return nil
+	return RemoveQuadlet(FrankenPHPContainerName(siteName))
 }
 
 // shellJoin quotes each argument for embedding in a quadlet Exec= line.

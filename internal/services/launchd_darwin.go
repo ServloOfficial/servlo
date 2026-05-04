@@ -584,8 +584,11 @@ func (m *darwinServiceManager) Start(name string) error {
 			if !strings.Contains(string(content2), "<key>RunAtLoad</key>") {
 				if args, aerr := plistArgs(p); aerr == nil && len(args) > 0 {
 					podmanStartSem <- struct{}{}
-					exec.Command(args[0], args[1:]...).Run() //nolint:errcheck
+					rerr := runPodmanWithError(args)
 					<-podmanStartSem
+					if rerr != nil {
+						return fmt.Errorf("podman run %s: %w", name, rerr)
+					}
 					return nil
 				}
 			}
@@ -628,9 +631,30 @@ func (m *darwinServiceManager) Start(name string) error {
 		return nil
 	}
 	podmanStartSem <- struct{}{}
-	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Run() //nolint:errcheck
+	rerr := runPodmanWithError(args)
 	<-podmanStartSem
+	if rerr != nil {
+		return fmt.Errorf("podman run %s: %w", name, rerr)
+	}
+	return nil
+}
+
+// runPodmanWithError invokes the podman command and surfaces stderr in the
+// returned error. The launcher process detaches once `podman run -d` accepts
+// the request, so a non-nil error here means podman itself rejected the run
+// (image missing, port collision, machine down) — exactly the cases that
+// were previously masked under //nolint:errcheck and made the heal loop
+// report success on a unit that never started.
+func runPodmanWithError(args []string) error {
+	cmd := exec.Command(args[0], args[1:]...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		trimmed := strings.TrimSpace(string(out))
+		if trimmed == "" {
+			return err
+		}
+		return fmt.Errorf("%w: %s", err, trimmed)
+	}
 	return nil
 }
 
@@ -758,10 +782,66 @@ func (m *darwinServiceManager) UnitStatus(name string) (string, error) {
 	if podman.Cache.Running(name) {
 		return "active", nil
 	}
+	// Universal failure signal: an explicit non-zero last exit code is
+	// "this is broken" regardless of whether the plist is a container
+	// launcher (mysql, postgres, …) or a runtime-mode worker (queue,
+	// schedule, horizon — `/bin/sh worker.sh` → `podman exec ... php
+	// artisan ...`). Without this, runtime workers between retries would
+	// fall through to the state=waiting/exit=0 branch and surface as
+	// "inactive" even though the previous run aborted with exit != 0.
+	if hasNonZeroExitCode(s) {
+		return "failed", nil
+	}
+	// Container units that exited cleanly (last exit code = 0) but whose
+	// detached container isn't currently running are crashed post-detach —
+	// `podman run -d` returned 0, the container died after, --restart=always
+	// can't bring it back (data dir / image / port issue). Treat as failed
+	// so workerheal.Detect picks them up. Skip when the launcher hasn't
+	// completed yet ("(never exited)"): that's the brief window between
+	// Start() returning and ContainerCache picking up the new state, and
+	// reporting "failed" there would be a false positive that could trigger
+	// spurious heal cycles on every fresh start.
+	if isContainerPlist(out) && strings.Contains(s, "last exit code = 0") {
+		return "failed", nil
+	}
 	if strings.Contains(s, "state = waiting") || strings.Contains(s, "last exit code = 0") {
 		return "inactive", nil
 	}
 	return "failed", nil
+}
+
+// hasNonZeroExitCode reports whether the launchctl print output has a
+// "last exit code = N" line where N is neither 0 nor "(never exited)".
+// Returns false when the field is absent so newly-bootstrapped units that
+// haven't run yet aren't misreported as failed.
+func hasNonZeroExitCode(s string) bool {
+	const key = "last exit code = "
+	idx := strings.Index(s, key)
+	if idx < 0 {
+		return false
+	}
+	rest := s[idx+len(key):]
+	end := strings.IndexByte(rest, '\n')
+	if end < 0 {
+		end = len(rest)
+	}
+	val := strings.TrimSpace(rest[:end])
+	if val == "" || val == "0" || val == "(never exited)" {
+		return false
+	}
+	return true
+}
+
+// isContainerPlist reports whether the launchctl print output describes a
+// container-unit plist (i.e. the launcher exec'd `podman run`). Runtime-mode
+// workers launch via `/bin/sh worker.sh` so the launchctl-visible program
+// path doesn't include `/podman`; the embedded `podman exec` call lives
+// inside the script and is invisible here. Used by UnitStatus to
+// differentiate container units that crashed post-detach from runtime
+// workers in transient inactive states.
+func isContainerPlist(out []byte) bool {
+	s := string(out)
+	return strings.Contains(s, "/podman") && strings.Contains(s, "run")
 }
 
 // AllUnitStates enumerates every lerd-* plist in ~/Library/LaunchAgents and

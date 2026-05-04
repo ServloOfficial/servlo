@@ -1,0 +1,14 @@
+# Sponsorship buttons that GitHub renders on the repo "Sponsor" header.
+# Documentation: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+github: [geodro]
+
+# Other supported keys (uncomment + fill in as you set them up):
+# patreon: <username>
+# open_collective: <project-or-username>
+# ko_fi: <username>
+# buy_me_a_coffee: <username>
+# liberapay: <username>
+# tidelift: <package-manager>/<package-name>
+# polar: <username>
+# custom: ['https://george.dumitres.co/sponsor']

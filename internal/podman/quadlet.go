@@ -105,11 +105,18 @@ func QuadletInstalled(name string) bool {
 	return err == nil
 }
 
-// RemoveQuadlet removes a Podman quadlet container unit file.
+// RemoveQuadlet removes a Podman quadlet container unit file. On macOS it
+// also removes the launchd plist that AfterQuadletWriteFn keeps in sync, so
+// callers don't leave an orphan agent in ~/Library/LaunchAgents/.
 func RemoveQuadlet(name string) error {
 	path := filepath.Join(config.QuadletDir(), name+".container")
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return err
+	}
+	if RemoveContainerUnitFn != nil {
+		if err := RemoveContainerUnitFn(name); err != nil {
+			return err
+		}
 	}
 	return nil
 }

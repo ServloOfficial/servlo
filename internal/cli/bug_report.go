@@ -88,6 +88,7 @@ func writeBugReport(outputPath string, logLines int, anonymize bool) (string, er
 
 	scrubbed := scrubHomePath(buf.String())
 	scrubbed = anon.Apply(scrubbed)
+	scrubbed = redactGenericPII(scrubbed)
 	if _, err := io.WriteString(f, scrubbed); err != nil {
 		return "", fmt.Errorf("writing report: %w", err)
 	}
@@ -436,7 +437,7 @@ func dumpNetwork(w io.Writer) {
 	for _, port := range []string{"53", "80", "443", "5300", "7073"} {
 		for _, line := range strings.Split(listing, "\n") {
 			if strings.Contains(line, ":"+port+" ") {
-				fmt.Fprintf(w, "  port %-4s  %s\n", port, strings.TrimSpace(line))
+				fmt.Fprintf(w, "  port %-4s  %s\n", port, redactNonLoopbackAddrs(strings.TrimSpace(line)))
 			}
 		}
 	}
@@ -444,7 +445,7 @@ func dumpNetwork(w io.Writer) {
 
 	fmt.Fprintln(w, "── /etc/resolv.conf")
 	if data, err := os.ReadFile("/etc/resolv.conf"); err == nil {
-		fmt.Fprintln(w, strings.TrimRight(string(data), "\n"))
+		fmt.Fprintln(w, redactResolvConf(strings.TrimRight(string(data), "\n")))
 	} else {
 		fmt.Fprintf(w, "(unreadable: %v)\n", err)
 	}
@@ -489,10 +490,38 @@ func dumpEnvironment(w io.Writer) {
 		fmt.Fprintf(w, "%s=%s\n", key, val)
 	}
 	for _, kv := range os.Environ() {
-		if strings.HasPrefix(kv, "LERD_") {
+		if !strings.HasPrefix(kv, "LERD_") {
+			continue
+		}
+		eq := strings.IndexByte(kv, '=')
+		if eq < 0 {
 			fmt.Fprintln(w, kv)
+			continue
+		}
+		key, val := kv[:eq], kv[eq+1:]
+		if isSecretShapedKey(key) {
+			fmt.Fprintf(w, "%s=<redacted>\n", key)
+			continue
+		}
+		fmt.Fprintf(w, "%s=%s\n", key, val)
+	}
+}
+
+// isSecretShapedKey returns true when the env-var name suggests its value is
+// sensitive. Used for the LERD_* dump in bug reports — even though the rest
+// of the bug-report scrubbers redact common secret value shapes, key names
+// containing TOKEN/SECRET/PASSWORD/PASSWD/KEY are a stronger signal.
+func isSecretShapedKey(key string) bool {
+	upper := strings.ToUpper(key)
+	for _, needle := range []string{"TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "PRIVATE_KEY"} {
+		if strings.Contains(upper, needle) {
+			return true
 		}
 	}
+	if strings.HasSuffix(upper, "_KEY") || upper == "KEY" {
+		return true
+	}
+	return false
 }
 
 // scrubHomePath replaces occurrences of the user's home directory with
@@ -768,6 +797,96 @@ lineLoop:
 			line = r.re.ReplaceAllString(line, r.replace)
 		}
 		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
+}
+
+// piiRedactors is the ordered set of regex/replace pairs applied to the
+// fully-assembled bug report. Defined as a package-level var so the regexes
+// are compiled once. Applied AFTER scrubHomePath and the site anonymizer so
+// it cleans whatever the earlier passes left behind without re-rewriting the
+// substitutions they introduced ($HOME, site-N, etc).
+//
+// Coverage: emails, JWTs, common bearer/Authorization headers, RFC 1918 +
+// public IPv4 (loopback and link-local survive), and git remote URLs.
+var piiRedactors = []struct {
+	re      *regexp.Regexp
+	replace string
+}{
+	// Bearer/Authorization tokens before the email regex catches the prefix.
+	{regexp.MustCompile(`(?i)(authorization:\s*(?:bearer|basic|token)\s+)\S+`), `${1}<redacted>`},
+	{regexp.MustCompile(`\b(?:bearer|token)\s+[A-Za-z0-9_\-\.~+/]{16,}=*\b`), `<redacted-token>`},
+	// JWTs: three base64url segments separated by dots. Length floor at 16
+	// per segment to avoid matching arbitrary dotted tokens.
+	{regexp.MustCompile(`\b[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\b`), `<redacted-jwt>`},
+	// Slack/GitHub/AWS-style API keys (long alnum strings prefixed by a
+	// recognisable marker). Keep tight so we don't false-positive on hashes.
+	{regexp.MustCompile(`\b(xox[bopas]-|ghp_|ghu_|gho_|ghs_|github_pat_|sk-)[A-Za-z0-9_-]{16,}\b`), `<redacted-token>`},
+	// Git SSH/HTTPS remotes BEFORE the email regex, because `git@host:path`
+	// parses as an email otherwise (the `@` and TLD-shaped host fool it).
+	{regexp.MustCompile(`\bgit@[A-Za-z0-9._-]+:[A-Za-z0-9._/-]+(?:\.git)?\b`), `<redacted-git-remote>`},
+	{regexp.MustCompile(`\bhttps?://[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+\.git\b`), `<redacted-git-remote>`},
+	// Emails. The pattern keeps the trailing word-boundary tight so we don't
+	// chew through the next token.
+	{regexp.MustCompile(`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b`), `<redacted-email>`},
+}
+
+// redactGenericPII applies the regex-based PII redactors in piiRedactors.
+// Idempotent: applying it twice is a no-op because every replacement starts
+// with `<redacted` which none of the patterns match.
+func redactGenericPII(s string) string {
+	for _, r := range piiRedactors {
+		s = r.re.ReplaceAllString(s, r.replace)
+	}
+	return s
+}
+
+// nonLoopbackIPv4Re matches an IPv4 address (each octet 0–255). The loopback
+// (127.x) / link-local (169.254.x) / 0.0.0.0 carve-outs are applied in the
+// ReplaceAllStringFunc callback below, not in the regex itself, so the
+// pattern stays simple and readable.
+var nonLoopbackIPv4Re = regexp.MustCompile(`\b(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\b`)
+
+// nonLoopbackIPv6Re catches IPv6 addresses, including the `::` compressed
+// form. Heuristic: at least two colons, hex/colon characters only, length
+// 3+. The ::1 / fe80::/10 carve-outs are applied in the callback.
+var nonLoopbackIPv6Re = regexp.MustCompile(`\b[0-9a-fA-F]*(?::[0-9a-fA-F]*){2,}\b`)
+
+func redactNonLoopbackAddrs(line string) string {
+	out := nonLoopbackIPv4Re.ReplaceAllStringFunc(line, func(m string) string {
+		if strings.HasPrefix(m, "127.") || strings.HasPrefix(m, "169.254.") || m == "0.0.0.0" {
+			return m
+		}
+		return "<redacted-ip>"
+	})
+	out = nonLoopbackIPv6Re.ReplaceAllStringFunc(out, func(m string) string {
+		lower := strings.ToLower(m)
+		if lower == "::1" || strings.HasPrefix(lower, "fe80:") {
+			return m
+		}
+		return "<redacted-ip>"
+	})
+	return out
+}
+
+// redactResolvConf scrubs nameserver / search / domain values from
+// /etc/resolv.conf. Corporate or VPN setups put internal IPs here that
+// identify the user's employer. We keep the directive name and a redacted
+// placeholder so the structure is still legible.
+func redactResolvConf(s string) string {
+	var out []string
+	for _, line := range strings.Split(s, "\n") {
+		trimmed := strings.TrimLeft(line, " \t")
+		switch {
+		case strings.HasPrefix(trimmed, "nameserver"):
+			out = append(out, "nameserver <redacted>")
+		case strings.HasPrefix(trimmed, "search"):
+			out = append(out, "search <redacted>")
+		case strings.HasPrefix(trimmed, "domain"):
+			out = append(out, "domain <redacted>")
+		default:
+			out = append(out, line)
+		}
 	}
 	return strings.Join(out, "\n")
 }

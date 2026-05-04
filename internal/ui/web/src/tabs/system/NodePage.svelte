@@ -12,6 +12,7 @@
   $effect(() => status.subscribe((s) => { nodeDefault = s.node_default || ''; }));
 
   let defaultBusy = $state<string | null>(null);
+  let saveError = $state('');
   let removeBusy = $state<string | null>(null);
   let removeError = $state<Record<string, string>>({});
 
@@ -31,11 +32,18 @@
     if (!dirty || staged === null) return;
     const target = staged;
     defaultBusy = target;
+    saveError = '';
     try {
-      await setDefaultNode(target);
+      const ok = await setDefaultNode(target);
       await loadStatus();
       await loadNodeVersions();
-      staged = null;
+      if (ok) {
+        staged = null;
+      } else {
+        saveError = m.common_failed();
+      }
+    } catch (e) {
+      saveError = e instanceof Error ? e.message : m.common_failed();
     } finally {
       defaultBusy = null;
     }
@@ -101,7 +109,8 @@
       <p class="text-sm text-gray-400">{m.system_node_noneInstalled()}</p>
     {:else}
       {#if $nodeVersions.length > 1}
-        <div class="flex items-center justify-end">
+        <div class="flex items-center justify-end gap-2">
+          {#if saveError}<span class="text-xs text-red-500">{saveError}</span>{/if}
           <DetailButton
             tone="primary"
             onclick={onSaveDefault}

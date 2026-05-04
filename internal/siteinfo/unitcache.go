@@ -29,6 +29,12 @@ var (
 	// unit→state map directly. Set from unitcache_darwin.go's init() to
 	// route through podman.UnitLifecycle (launchd-backed on macOS).
 	allUnitStatesFn func() map[string]string
+
+	// invalidateExtraFn clears any platform-specific TTL cache layered on
+	// top of allUnitStatesFn. Set from unitcache_darwin.go to drop the
+	// launchd-states cache; nil on Linux where the systemctl path uses the
+	// shared globalUnitCache directly.
+	invalidateExtraFn func()
 )
 
 func defaultUnitCacheList() (string, error) {
@@ -38,11 +44,15 @@ func defaultUnitCacheList() (string, error) {
 
 // InvalidateUnitCache forces the next UnitStatus lookup to re-run systemctl.
 // Call this after any mutation that changes lerd-* unit state (start, stop,
-// enable, disable, etc.) so cached "active" values do not go stale.
+// enable, disable, etc.) so cached "active" values do not go stale. Also
+// invalidates any platform-specific cache (launchd states on darwin).
 func InvalidateUnitCache() {
 	globalUnitCache.mu.Lock()
 	globalUnitCache.at = time.Time{}
 	globalUnitCache.mu.Unlock()
+	if invalidateExtraFn != nil {
+		invalidateExtraFn()
+	}
 }
 
 // AllUnitStates returns a snapshot of every cached lerd-* unit state

@@ -9,6 +9,64 @@ import (
 	"testing"
 )
 
+// TestHasNonZeroExitCode covers the failure-detection helper for both
+// container plists (mysql / postgres / …) and runtime-mode worker plists
+// (queue / schedule / horizon — `/bin/sh worker.sh` → `podman exec`).
+// The (never exited) sentinel must NOT count as failure: it's the brief
+// in-flight window between Start() returning and ContainerCache catching
+// up, and surfacing it as failed would trigger spurious heal cycles on
+// every fresh start.
+func TestHasNonZeroExitCode(t *testing.T) {
+	cases := map[string]bool{
+		"state = waiting\n\tlast exit code = 0\n":                  false,
+		"state = waiting\n\tlast exit code = 1\n":                  true,
+		"state = not running\n\tlast exit code = 1\n":              true,
+		"state = not running\n\tlast exit code = 137\n":            true,
+		"state = not running\n\tlast exit code = (never exited)\n": false,
+		"state = running\n":                                        false, // no exit code line at all
+		"":                                                         false,
+	}
+	for in, want := range cases {
+		if got := hasNonZeroExitCode(in); got != want {
+			t.Errorf("hasNonZeroExitCode(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+// TestIsContainerPlist verifies the heuristic distinguishing container
+// launchers from runtime-mode workers and native-binary plists. Misclassifying
+// a runtime worker as container would cause the "container crashed
+// post-detach" failure branch in UnitStatus to fire on idle workers.
+func TestIsContainerPlist(t *testing.T) {
+	containerOut := []byte(`	program = /opt/homebrew/bin/podman
+	arguments = {
+		/opt/homebrew/bin/podman
+		run
+		-d
+		--restart=always
+		--name
+		lerd-mysql
+	}`)
+	if !isContainerPlist(containerOut) {
+		t.Error("expected container plist to be classified as container")
+	}
+
+	runtimeOut := []byte(`	program = /bin/sh
+	arguments = {
+		/bin/sh
+		/Users/x/.local/share/lerd/run/workers/lerd-queue-app.sh
+	}`)
+	if isContainerPlist(runtimeOut) {
+		t.Error("runtime worker plist must NOT be classified as container")
+	}
+
+	binaryOut := []byte(`	program = /Users/x/.local/bin/lerd-tray
+	arguments = { /Users/x/.local/bin/lerd-tray }`)
+	if isContainerPlist(binaryOut) {
+		t.Error("native-binary plist must NOT be classified as container")
+	}
+}
+
 func TestXmlEscStr(t *testing.T) {
 	tests := []struct {
 		in, want string

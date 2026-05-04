@@ -144,6 +144,21 @@ func MissingPresetDependencies(svc *config.CustomService) []string {
 // This replaces the older embedded-template flow (cli.ensureServiceQuadlet)
 // so default services and add-on presets share one code path.
 func EnsureDefaultPresetQuadlet(name string) error {
+	return EnsureDefaultPresetQuadletPinned(name, "")
+}
+
+// EnsureDefaultPresetQuadletPinned is the reinstall-aware sibling of
+// EnsureDefaultPresetQuadlet. When pinnedImage is non-empty, it is used as
+// the source-of-truth for the Image= line, taking precedence over both the
+// preset.Image fallback and the on-disk preserved image. Reinstall captures
+// the on-disk image *before* RemoveService deletes the quadlet, then passes
+// it here so the fresh install pins the same tag the user was running —
+// otherwise the rolling preset.Image bump that the v1.19.0-beta.6 fix was
+// designed to prevent fires on every reinstall.
+//
+// Callers outside the reinstall path should use EnsureDefaultPresetQuadlet
+// (which passes pinnedImage="").
+func EnsureDefaultPresetQuadletPinned(name, pinnedImage string) error {
 	if !config.IsDefaultPreset(name) {
 		return fmt.Errorf("not a default preset: %q", name)
 	}
@@ -167,16 +182,22 @@ func EnsureDefaultPresetQuadlet(name string) error {
 			}
 		}
 	}
-	// Honor the on-disk image when the preset's update_strategy says we
-	// shouldn't auto-jump to a newer line. Without this, the install rewrite
-	// (`lerd update` → `install --from-update` → this function) silently bumps
-	// users from their installed minor (e.g. meilisearch v1.7.x) to whatever
-	// the new preset.Image declares (v1.42), bypassing the per-service
-	// migration UX that `lerd service update` enforces. Rolling-strategy
-	// services (mailpit, rustfs, gotenberg) intentionally fall through to the
-	// preset image and the track_latest block below.
 	preservedExisting := false
-	if !hasUserPin {
+	if pinnedImage != "" {
+		// Reinstall path: preserve the user's pre-remove tag verbatim. Skip
+		// the strategy / track_latest blocks below so a reinstall really
+		// reinstalls "the same thing", not "the same thing + an upgrade".
+		svc.Image = pinnedImage
+		preservedExisting = true
+	} else if !hasUserPin {
+		// Honor the on-disk image when the preset's update_strategy says we
+		// shouldn't auto-jump to a newer line. Without this, the install rewrite
+		// (`lerd update` → `install --from-update` → this function) silently bumps
+		// users from their installed minor (e.g. meilisearch v1.7.x) to whatever
+		// the new preset.Image declares (v1.42), bypassing the per-service
+		// migration UX that `lerd service update` enforces. Rolling-strategy
+		// services (mailpit, rustfs, gotenberg) intentionally fall through to the
+		// preset image and the track_latest block below.
 		strategy := registry.Strategy(p.UpdateStrategy)
 		if strategy == registry.StrategyPatch || strategy == registry.StrategyMinor || strategy == registry.StrategyNone {
 			if installed := podman.InstalledImage("lerd-" + name); installed != "" {

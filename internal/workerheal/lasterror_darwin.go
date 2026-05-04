@@ -25,9 +25,13 @@ func readLastErrorPlatform(unit string) string {
 }
 
 // lastNonBlankLine returns the final non-empty line of path, walking from
-// the end so a multi-megabyte log doesn't load into memory. The 64 KiB
-// trailing window is more than enough for one log line under any sane
-// PHP / supervisor config — runtime stack traces top out well below that.
+// the end so a multi-megabyte log doesn't load into memory. The 1 MiB
+// trailing window comfortably fits even pathological PHP fatal stack traces
+// (default xdebug.var_display_max_data is 512 KiB) and matches the scanner
+// buffer ceiling so a single oversize line never gets silently dropped via
+// bufio.ErrTooLong — the Linux journalctl path has no such limit, and
+// surfacing an empty LastError on darwin only would defeat the purpose of
+// the heal-banner enrichment.
 func lastNonBlankLine(path string) string {
 	f, err := os.Open(path)
 	if err != nil {
@@ -39,7 +43,7 @@ func lastNonBlankLine(path string) string {
 	if err != nil {
 		return ""
 	}
-	const window = 64 * 1024
+	const window = 1 << 20 // 1 MiB
 	start := info.Size() - window
 	if start < 0 {
 		start = 0
@@ -48,7 +52,7 @@ func lastNonBlankLine(path string) string {
 		return ""
 	}
 	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 64*1024), 64*1024)
+	scanner.Buffer(make([]byte, 0, 64*1024), window)
 	last := ""
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

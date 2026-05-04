@@ -386,6 +386,88 @@ func TestLogFilter_dropsLinesMentioningUserDomain(t *testing.T) {
 	}
 }
 
+func TestRedactGenericPII_redactsCommonShapes(t *testing.T) {
+	cases := map[string]string{
+		"contact alice@example.com please":                                                             "contact <redacted-email> please",
+		"Authorization: Bearer ya29.A0AbcDEFghijklmnop":                                                "Authorization: Bearer <redacted>",
+		"token ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789 leaked":                                        "<redacted-token> leaked",
+		"jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c done": "jwt <redacted-jwt> done",
+		"clone git@github.com:secret/myrepo.git here":                                                  "clone <redacted-git-remote> here",
+		"https origin: https://github.com/private/internal.git pulled":                                 "https origin: <redacted-git-remote> pulled",
+	}
+	for in, want := range cases {
+		if got := redactGenericPII(in); got != want {
+			t.Errorf("redactGenericPII(%q)\n  got:  %q\n  want: %q", in, got, want)
+		}
+	}
+}
+
+func TestRedactGenericPII_keepsNonSensitive(t *testing.T) {
+	in := "podman version 5.6.1 running on Linux 6.18.5 — sha256:abcd1234"
+	if got := redactGenericPII(in); got != in {
+		t.Errorf("clean input mutated: %q", got)
+	}
+}
+
+func TestRedactGenericPII_idempotent(t *testing.T) {
+	in := "contact alice@example.com today"
+	once := redactGenericPII(in)
+	twice := redactGenericPII(once)
+	if once != twice {
+		t.Errorf("not idempotent:\n  once:  %q\n  twice: %q", once, twice)
+	}
+}
+
+func TestRedactNonLoopbackAddrs_keepsLoopback(t *testing.T) {
+	cases := map[string]string{
+		"LISTEN 0 0 127.0.0.1:53 0.0.0.0:* lerd-dns": "LISTEN 0 0 127.0.0.1:53 0.0.0.0:* lerd-dns",
+		"LISTEN 0 0 ::1:443 *:*":                     "LISTEN 0 0 ::1:443 *:*",
+		"LISTEN 0 0 192.168.1.10:80 *:*":             "LISTEN 0 0 <redacted-ip>:80 *:*",
+		"LISTEN 0 0 169.254.169.254:80 *:*":          "LISTEN 0 0 169.254.169.254:80 *:*",
+		"connection from 10.89.7.8 to 10.89.0.1":     "connection from <redacted-ip> to <redacted-ip>",
+		"fe80::1%en0 link-local":                     "fe80::1%en0 link-local",
+		"2001:db8::1 public ipv6":                    "<redacted-ip> public ipv6",
+	}
+	for in, want := range cases {
+		if got := redactNonLoopbackAddrs(in); got != want {
+			t.Errorf("redactNonLoopbackAddrs(%q)\n  got:  %q\n  want: %q", in, got, want)
+		}
+	}
+}
+
+func TestRedactResolvConf_redactsServersAndSearch(t *testing.T) {
+	in := "# managed by NetworkManager\nnameserver 10.0.0.1\nnameserver 8.8.8.8\nsearch corp.example.com\ndomain example.com\noptions edns0 trust-ad\n"
+	out := redactResolvConf(in)
+	if strings.Contains(out, "10.0.0.1") || strings.Contains(out, "8.8.8.8") || strings.Contains(out, "corp.example.com") || strings.Contains(out, "example.com") {
+		t.Errorf("expected redaction, got: %q", out)
+	}
+	if !strings.Contains(out, "options edns0 trust-ad") {
+		t.Errorf("non-sensitive options line dropped: %q", out)
+	}
+	if !strings.Contains(out, "# managed by NetworkManager") {
+		t.Errorf("comment dropped: %q", out)
+	}
+}
+
+func TestIsSecretShapedKey(t *testing.T) {
+	cases := map[string]bool{
+		"LERD_GITHUB_TOKEN":  true,
+		"LERD_API_KEY":       true,
+		"LERD_DB_PASSWORD":   true,
+		"LERD_PRIVATE_KEY":   true,
+		"LERD_DEBUG":         false,
+		"LERD_LOG_LEVEL":     false,
+		"LERD_SSH_KEY":       true,
+		"LERD_DATA_DIR":      false,
+		"LERD_SOMETHING_KEY": true,
+	}
+	for k, want := range cases {
+		if got := isSecretShapedKey(k); got != want {
+			t.Errorf("isSecretShapedKey(%q) = %v, want %v", k, got, want)
+		}
+	}
+}
+
 func TestEnvAllowlist_excludesSecrets(t *testing.T) {
 	for _, key := range envAllowlist {
 		switch strings.ToUpper(key) {

@@ -26,8 +26,8 @@ func stubReinstallSeams(t *testing.T) *reinstallRecorder {
 
 	prevInstall := reinstallInstallFn
 	prevReprov := reinstallReprovFn
-	reinstallInstallFn = func(name, version string, emit func(PhaseEvent)) (*config.CustomService, error) {
-		rec.installCalls = append(rec.installCalls, reinstallCall{Name: name, Version: version})
+	reinstallInstallFn = func(name string, spec reinstallSpec, emit func(PhaseEvent)) (*config.CustomService, error) {
+		rec.installCalls = append(rec.installCalls, reinstallCall{Name: name, Version: spec.version})
 		emit(PhaseEvent{Phase: "starting_unit"})
 		return &config.CustomService{Name: name}, rec.installErr
 	}

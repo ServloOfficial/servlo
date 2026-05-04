@@ -46,17 +46,11 @@ func WriteCustomContainerQuadlet(siteName, projectPath string, port int) error {
 }
 
 // RemoveCustomContainerQuadlet removes the unit file for a custom container.
-// On Linux this removes the systemd quadlet; on macOS the launchd plist.
+// RemoveQuadlet removes both the systemd .container file (Linux) and the
+// launchd plist via RemoveContainerUnitFn (macOS), so this is now a thin
+// wrapper kept for naming clarity at call sites.
 func RemoveCustomContainerQuadlet(siteName string) error {
-	name := CustomContainerName(siteName)
-	// Remove the quadlet file (Linux).
-	_ = RemoveQuadlet(name)
-	// Also remove the platform-specific unit (macOS plist) via the service
-	// manager, which is a no-op on Linux where the quadlet IS the unit.
-	if RemoveContainerUnitFn != nil {
-		return RemoveContainerUnitFn(name)
-	}
-	return nil
+	return RemoveQuadlet(CustomContainerName(siteName))
 }
 
 // RemoveContainerUnitFn removes the platform-specific container unit file.

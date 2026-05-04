@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/geodro/lerd/internal/config"
@@ -244,6 +245,48 @@ func TestRemoveService_NilEmit(t *testing.T) {
 	}()
 	if err := RemoveService("redis", RemoveOptions{}, nil); err != nil {
 		t.Fatalf("RemoveService nil-emit: %v", err)
+	}
+}
+
+// TestRenameDataAside_CrossDeviceFallbackPreservesData simulates the EXDEV
+// branch by faking the Rename so it always returns a *os.LinkError wrapping
+// syscall.EXDEV, even though src and dst live on the same tmpfs. The
+// fallback must copy the directory aside before deleting the source, not
+// silently os.RemoveAll the data.
+func TestRenameDataAside_CrossDeviceFallbackPreservesData(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+
+	dir := mkTestDataDir(t, "redis", "preserve-me")
+
+	// Force the rename to return EXDEV so we exercise the cross-device path.
+	prev := osRenameFn
+	osRenameFn = func(_, _ string) error {
+		return &os.LinkError{Op: "rename", Old: "x", New: "y", Err: syscall.EXDEV}
+	}
+	t.Cleanup(func() { osRenameFn = prev })
+
+	if err := renameDataAside(dir); err != nil {
+		t.Fatalf("renameDataAside: %v", err)
+	}
+
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Errorf("source dir should be removed after copy, stat err=%v", err)
+	}
+	parent := filepath.Dir(dir)
+	entries, _ := os.ReadDir(parent)
+	var aside string
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "redis.pre-remove-") {
+			aside = filepath.Join(parent, e.Name())
+		}
+	}
+	if aside == "" {
+		t.Fatalf("expected rename-aside dir under %s, got %v", parent, entries)
+	}
+	body, err := os.ReadFile(filepath.Join(aside, "marker.txt"))
+	if err != nil || string(body) != "preserve-me" {
+		t.Errorf("EXDEV fallback must preserve content, got body=%q err=%v", body, err)
 	}
 }
 

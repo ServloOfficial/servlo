@@ -11,18 +11,26 @@
   let { open, svc, onclose, onconfirm }: Props = $props();
 
   let resetData = $state(false);
+  let typedName = $state('');
   let submitting = $state(false);
 
   const dependents = $derived(svc.site_count || 0);
+  // Type-the-name confirmation only fires for the destructive combo:
+  // resetting data on a default service that linked sites depend on. Mirrors
+  // ServiceDeleteModal's gating so the friction is consistent.
+  const requiresTypedConfirm = $derived(resetData && Boolean(svc.is_default) && dependents > 0);
+  const canConfirm = $derived(!submitting && (!requiresTypedConfirm || typedName.trim() === svc.name));
 
   $effect(() => {
     if (open) {
       resetData = false;
+      typedName = '';
       submitting = false;
     }
   });
 
   async function confirm() {
+    if (!canConfirm) return;
     submitting = true;
     try {
       await onconfirm({ resetData });
@@ -58,6 +66,21 @@
         Data will be wiped. The reinstall will recreate empty databases or buckets for the linked site{dependents === 1 ? '' : 's'}, but their previous content is gone (the rename-aside copy can be restored manually).
       </div>
     {/if}
+
+    {#if requiresTypedConfirm}
+      <div class="space-y-1">
+        <label for="reinstall-confirm-name" class="text-xs text-gray-600 dark:text-gray-400">
+          Type <span class="font-mono font-medium text-gray-800 dark:text-gray-200">{svc.name}</span> to confirm:
+        </label>
+        <input
+          id="reinstall-confirm-name"
+          type="text"
+          bind:value={typedName}
+          class="w-full text-sm bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded px-2.5 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-lerd-red/50"
+          autocomplete="off"
+        />
+      </div>
+    {/if}
   </div>
   {#snippet footer()}
     <button
@@ -68,7 +91,7 @@
     <button
       type="button"
       onclick={confirm}
-      disabled={submitting}
+      disabled={!canConfirm}
       class="text-xs px-3 py-1.5 rounded {resetData ? 'bg-lerd-red hover:bg-lerd-redhov' : 'bg-lerd-red/80 hover:bg-lerd-red'} text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
     >{submitting ? 'Reinstalling…' : resetData ? 'Reinstall + reset data' : 'Reinstall'}</button>
   {/snippet}

@@ -2,7 +2,27 @@
 
 package siteinfo
 
-import "github.com/geodro/lerd/internal/podman"
+import (
+	"sync"
+	"time"
+
+	"github.com/geodro/lerd/internal/podman"
+)
+
+// darwinUnitStatesCache mirrors the 3s TTL the linux path enforces around
+// `systemctl list-units`. AllUnitStates is called on every dashboard render
+// AND every workerheal.Detect invocation, and on darwin each call shells out
+// to `launchctl print` once per plist (N round-trips per call). Without this
+// throttle a 25-worker install burns ~25 launchctl subprocesses per render.
+type darwinUnitStates struct {
+	mu     sync.Mutex
+	states map[string]string
+	at     time.Time
+}
+
+var darwinUnitStatesCache darwinUnitStates
+
+const darwinUnitStatesTTL = 3 * time.Second
 
 func init() {
 	// On macOS, workers are managed by launchd + podman containers — there is
@@ -18,11 +38,27 @@ func init() {
 	// Plug the launchd plist walker (implemented in services/launchd_darwin.go
 	// on darwinServiceManager) into AllUnitStates so cross-platform callers —
 	// worker-heal Detect, dashboard banner, MCP workers_health — see real
-	// failed-unit state instead of an empty map.
+	// failed-unit state instead of an empty map. The result is cached for
+	// darwinUnitStatesTTL to match the systemctl-list throttle on Linux.
 	allUnitStatesFn = func() map[string]string {
 		if podman.UnitLifecycle == nil {
 			return map[string]string{}
 		}
-		return podman.UnitLifecycle.AllUnitStates()
+		darwinUnitStatesCache.mu.Lock()
+		defer darwinUnitStatesCache.mu.Unlock()
+		if darwinUnitStatesCache.states == nil || time.Since(darwinUnitStatesCache.at) > darwinUnitStatesTTL {
+			darwinUnitStatesCache.states = podman.UnitLifecycle.AllUnitStates()
+			darwinUnitStatesCache.at = time.Now()
+		}
+		out := make(map[string]string, len(darwinUnitStatesCache.states))
+		for k, v := range darwinUnitStatesCache.states {
+			out[k] = v
+		}
+		return out
+	}
+	invalidateExtraFn = func() {
+		darwinUnitStatesCache.mu.Lock()
+		darwinUnitStatesCache.at = time.Time{}
+		darwinUnitStatesCache.mu.Unlock()
 	}
 }
