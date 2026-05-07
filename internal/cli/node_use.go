@@ -21,6 +21,9 @@ func NewNodeUseCmd() *cobra.Command {
 }
 
 func runNodeUse(_ *cobra.Command, args []string) error {
+	if err := ensureNodeManaged(); err != nil {
+		return err
+	}
 	major := strings.SplitN(args[0], ".", 2)[0]
 	fnmPath := filepath.Join(config.BinDir(), "fnm")
 

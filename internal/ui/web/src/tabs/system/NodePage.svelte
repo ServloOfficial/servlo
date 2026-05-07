@@ -210,13 +210,14 @@
           bind:value={newVersion}
           onkeydown={(e) => e.key === 'Enter' && onInstall()}
           placeholder={m.system_node_installPlaceholder()}
-          disabled={installBusy}
-          class="text-sm bg-white dark:bg-lerd-card border border-gray-200 dark:border-lerd-border rounded-lg px-3 py-1.5 w-28 text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-lerd-red/50 transition-colors"
+          disabled={installBusy || !$status.node_managed_by_lerd}
+          title={!$status.node_managed_by_lerd ? m.system_node_managedBySystem() : ''}
+          class="text-sm bg-white dark:bg-lerd-card border border-gray-200 dark:border-lerd-border rounded-lg px-3 py-1.5 w-28 text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-lerd-red/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <DetailButton
           tone="primary"
           onclick={onInstall}
-          disabled={installBusy || !newVersion.trim()}
+          disabled={installBusy || !newVersion.trim() || !$status.node_managed_by_lerd}
           loading={installBusy}
         >{m.common_install()}</DetailButton>
         {#if installDone}<span class="text-xs text-emerald-600 dark:text-emerald-500">{m.system_node_installed()}</span>{/if}

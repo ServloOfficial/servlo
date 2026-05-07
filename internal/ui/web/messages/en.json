@@ -321,7 +321,7 @@
   "system_node_setDefault": "Set as default",
   "system_node_defaultVersion": "Default version",
   "system_node_managedBySystem": "Using system Node.js.",
-  "system_node_managedBySystemHint": "Installing a version below will switch to lerd-managed Node.js via fnm and override your system node.",
+  "system_node_managedBySystemHint": "To install or change Node.js versions from here, run `lerd install` in a terminal and accept lerd-managed Node.",
   "system_node_cannotRemove": "Cannot remove, sites are using this version",
   "system_node_cannotRemoveDefault": "Cannot remove the default version",
   "system_node_cannotRemoveSystem": "Node is managed by the system",

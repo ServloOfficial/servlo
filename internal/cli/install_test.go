@@ -331,3 +331,68 @@ func TestAddShellShims_LaravelShimRespectsComposerHome(t *testing.T) {
 		t.Errorf("laravel shim should use COMPOSER_HOME=%q, got:\n%s", customHome, shim)
 	}
 }
+
+func TestAddShellShims_NodeShimChecksDefaultAlias(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	t.Setenv("HOME", tmp)
+	t.Setenv("SHELL", "/bin/sh")
+
+	binDir := filepath.Join(tmp, "lerd", "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := addShellShims(true); err != nil {
+		t.Fatalf("addShellShims: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(binDir, "npm"))
+	if err != nil {
+		t.Fatalf("npm shim not created: %v", err)
+	}
+	shim := string(data)
+	if !strings.Contains(shim, `"$FNM" exec --using=default -- true`) {
+		t.Errorf("npm shim should probe the default alias before exec, got:\n%s", shim)
+	}
+	if !strings.Contains(shim, "No Node.js version available via lerd") {
+		t.Errorf("npm shim should print friendly fallback hint, got:\n%s", shim)
+	}
+}
+
+func TestDetectSystemNode_findsNvmDirEvenWhenPathIsEmpty(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("PATH", filepath.Join(tmp, "lerd", "bin"))
+
+	nvm := filepath.Join(tmp, ".nvm", "versions", "node", "v22.0.0")
+	if err := os.MkdirAll(nvm, 0755); err != nil {
+		t.Fatal(err)
+	}
+	got := detectSystemNode()
+	if got == "" {
+		t.Fatal("detectSystemNode returned empty even though ~/.nvm contains a version")
+	}
+	if !strings.Contains(got, ".nvm") {
+		t.Errorf("expected detectSystemNode to point at the nvm dir, got %q", got)
+	}
+}
+
+func TestDetectSystemNode_findsNpmInPath(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	binDir := filepath.Join(tmp, "shim-bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(binDir, "npm"), []byte("#!/bin/sh\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
+	got := detectSystemNode()
+	if got == "" {
+		t.Fatal("detectSystemNode returned empty even though npm is on PATH")
+	}
+	if !strings.HasSuffix(got, "/npm") {
+		t.Errorf("expected detectSystemNode to find npm, got %q", got)
+	}
+}

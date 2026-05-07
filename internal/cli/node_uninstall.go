@@ -20,6 +20,9 @@ func NewNodeUninstallCmd() *cobra.Command {
 }
 
 func runNodeUninstall(_ *cobra.Command, args []string) error {
+	if !lerdManagesNode() {
+		return fmt.Errorf("lerd is not managing Node.js; nothing to uninstall")
+	}
 	version := args[0]
 	fnmPath := filepath.Join(config.BinDir(), "fnm")
 	cmd := exec.Command(fnmPath, "uninstall", version)

@@ -2373,6 +2373,10 @@ func handleNodeVersionAction(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if _, err := os.Stat(filepath.Join(config.BinDir(), "node")); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "lerd is not managing Node.js"})
+		return
+	}
 	version, action := parts[0], parts[1]
 	if !validVersion.MatchString(version) {
 		http.NotFound(w, r)
@@ -2434,6 +2438,10 @@ var validVersion = regexp.MustCompile(`^[0-9]+(\.[0-9]+)*$`)
 func handleInstallNodeVersion(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if _, err := os.Stat(filepath.Join(config.BinDir(), "node")); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "lerd is not managing Node.js"})
 		return
 	}
 	var req struct {

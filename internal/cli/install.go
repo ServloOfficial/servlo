@@ -705,6 +705,10 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 	ok()
 
+	if wantLerdNode {
+		ensureDefaultNode()
+	}
+
 	refreshGlobalMCPSkills()
 	refreshProjectMCPSkills()
 
@@ -964,18 +968,89 @@ func lerdManagesNode() bool {
 	return err == nil
 }
 
-// detectSystemNode returns the path to a node binary found in PATH outside of
-// lerd's own bin dir, or "" if none exists. Used during install to decide
-// whether to write fnm-backed node/npm/npx shims.
+// ensureNodeManaged is called by the node:install/use/uninstall commands to
+// guard against running fnm operations while the user has opted out of
+// lerd-managed Node. Prompts for confirmation and writes shims on accept.
+// Returns an error when stdin is not a TTY so scripted callers fail loudly
+// instead of silently flipping the user's choice.
+func ensureNodeManaged() error {
+	if lerdManagesNode() {
+		return nil
+	}
+	if fi, err := os.Stdin.Stat(); err != nil || (fi.Mode()&os.ModeCharDevice) == 0 {
+		return fmt.Errorf("lerd is not managing Node.js; run 'lerd install' to enable it")
+	}
+	fmt.Println("Lerd is currently using your system Node.js.")
+	fmt.Println("Continuing will install fnm-managed shims into", config.BinDir(), "and override your system node, npm and npx in PATH.")
+	if !confirmInstallPromptDefault("Switch to lerd-managed Node.js?", false) {
+		return fmt.Errorf("aborted")
+	}
+	if err := addShellShims(true); err != nil {
+		return fmt.Errorf("writing shims: %w", err)
+	}
+	return nil
+}
+
+// ensureDefaultNode installs the configured default Node.js version via fnm
+// and pins it as the fnm default if no version is already set up. Skips when
+// fnm already has a working default so reruns of `lerd install` stay quiet.
+func ensureDefaultNode() {
+	fnmPath := filepath.Join(config.BinDir(), "fnm")
+	if _, err := os.Stat(fnmPath); err != nil {
+		fmt.Printf("    WARN: fnm not found at %s, skipping default Node install\n", fnmPath)
+		return
+	}
+	if exec.Command(fnmPath, "exec", "--using=default", "--", "true").Run() == nil {
+		return
+	}
+	version := "22"
+	if cfg, err := config.LoadGlobal(); err == nil && cfg != nil && cfg.Node.DefaultVersion != "" {
+		version = cfg.Node.DefaultVersion
+	}
+	step(fmt.Sprintf("Installing Node.js %s", version))
+	if out, err := exec.Command(fnmPath, "install", version).CombinedOutput(); err != nil {
+		fmt.Printf("    WARN: fnm install %s: %s\n", version, strings.TrimSpace(string(out)))
+		return
+	}
+	if out, err := exec.Command(fnmPath, "default", version).CombinedOutput(); err != nil {
+		fmt.Printf("    WARN: fnm default %s: %s\n", version, strings.TrimSpace(string(out)))
+		return
+	}
+	ok()
+}
+
+// detectSystemNode returns a hint about an existing node install outside of
+// lerd's own bin dir, or "" if none can be found. Probes node/npm/npx in PATH
+// and well-known version-manager directories (nvm, volta, mise, asdf, fnm),
+// since most version managers inject node via a shell hook rather than a
+// static PATH entry and would otherwise be invisible here.
 func detectSystemNode() string {
 	lerdBin := config.BinDir()
 	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
 		if dir == lerdBin {
 			continue
 		}
-		candidate := filepath.Join(dir, "node")
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			return candidate
+		for _, bin := range []string{"node", "npm", "npx"} {
+			candidate := filepath.Join(dir, bin)
+			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+				return candidate
+			}
+		}
+	}
+	home, _ := os.UserHomeDir()
+	if home != "" {
+		for _, rel := range []string{
+			".nvm/versions/node",
+			".volta/bin",
+			".local/share/mise/installs/node",
+			".asdf/installs/nodejs",
+			".local/share/fnm/node-versions",
+			"Library/Application Support/fnm/node-versions",
+		} {
+			p := filepath.Join(home, rel)
+			if entries, err := os.ReadDir(p); err == nil && len(entries) > 0 {
+				return p
+			}
 		}
 	}
 	return ""
@@ -1111,8 +1186,8 @@ if [ -n "$VERSION" ]; then
   "$FNM" install "$VERSION" >/dev/null 2>&1 || true
   exec "$FNM" exec --using="$VERSION" -- %s "$@"
 else
-  if [ -z "$("$FNM" list 2>/dev/null)" ]; then
-    printf 'No Node.js version installed. Run: lerd node:install 22\n' >&2
+  if ! "$FNM" exec --using=default -- true >/dev/null 2>&1; then
+    printf 'No Node.js version available via lerd. Run: lerd node:install 22\n' >&2
     exit 1
   fi
   exec "$FNM" exec --using=default -- %s "$@"

@@ -20,6 +20,9 @@ func NewNodeInstallCmd() *cobra.Command {
 }
 
 func runNodeInstall(_ *cobra.Command, args []string) error {
+	if err := ensureNodeManaged(); err != nil {
+		return err
+	}
 	version := args[0]
 	fnmPath := filepath.Join(config.BinDir(), "fnm")
 	cmd := exec.Command(fnmPath, "install", version)
