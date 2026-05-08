@@ -89,9 +89,6 @@
                   pulse={failing}
                 />
                 <span class="flex-1 truncate text-gray-600 dark:text-gray-300 group-hover:text-lerd-red transition-colors">{workerSiteName(item)}</span>
-                {#if g.key === 'workers' && item.worker_name}
-                  <span class="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate">{item.worker_name}</span>
-                {/if}
               </button>
             {/each}
           </div>

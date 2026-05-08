@@ -24,6 +24,7 @@ export interface Service {
   horizon_site?: string;
   worker_site?: string;
   worker_name?: string;
+  worker_label?: string;
   update_strategy?: string;
   update_available?: boolean;
   latest_version?: string;
@@ -100,19 +101,32 @@ export interface WorkerGroup {
 }
 
 export const workerGroups = derived(services, ($s): WorkerGroup[] => {
-  // The backend emits Laravel Horizon under both the `horizon_site` lens and
-  // the generic `worker_site` lens with `worker_name=horizon`, which would
-  // double up in the sidebar. Drop the framework-worker copy for 'horizon'.
+  // Horizon double-emits: the backend lists it under horizon_site AND the
+  // generic worker_site lens. Drop the worker_site copy here.
   const workers = $s.filter(
     (x) => x.worker_site && !(x.worker_name === 'horizon' || x.name?.startsWith('horizon-'))
   );
+  // Bucket store-defined workers (vite, etc.) by worker_name so each worker
+  // gets its own group instead of all sharing a generic "Workers" header.
+  const byName = new Map<string, { label: string; items: Service[] }>();
+  for (const w of workers) {
+    const key = w.worker_name || 'workers';
+    const label = w.worker_label || w.worker_name || 'Workers';
+    const bucket = byName.get(key) || { label, items: [] };
+    bucket.items.push(w);
+    byName.set(key, bucket);
+  }
+  const dynamic: WorkerGroup[] = [...byName.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, b]) => ({ key, label: b.label, items: b.items }));
+
   const groups: WorkerGroup[] = [
     { key: 'queue', label: 'Queues', items: $s.filter((x) => x.queue_site) },
     { key: 'horizon', label: 'Horizon', items: $s.filter((x) => x.horizon_site) },
     { key: 'schedule', label: 'Schedules', items: $s.filter((x) => x.schedule_worker_site) },
     { key: 'reverb', label: 'Reverb', items: $s.filter((x) => x.reverb_site) },
     { key: 'stripe', label: 'Stripe', items: $s.filter((x) => x.stripe_listener_site) },
-    { key: 'workers', label: 'Workers', items: workers }
+    ...dynamic
   ];
   return groups.filter((g) => g.items.length > 0);
 });

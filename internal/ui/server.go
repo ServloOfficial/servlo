@@ -797,6 +797,7 @@ type ServiceResponse struct {
 	HorizonSite        string            `json:"horizon_site,omitempty"`
 	WorkerSite         string            `json:"worker_site,omitempty"`
 	WorkerName         string            `json:"worker_name,omitempty"`
+	WorkerLabel        string            `json:"worker_label,omitempty"`
 	UpdateStrategy     string            `json:"update_strategy,omitempty"`
 	UpdateAvailable    bool              `json:"update_available,omitempty"`
 	LatestVersion      string            `json:"latest_version,omitempty"`
@@ -1015,14 +1016,15 @@ func buildServicesList() []ServiceResponse {
 			HorizonSite: siteName,
 		})
 	}
-	// Custom framework workers (non-builtin: not queue/schedule/reverb)
+	// GetFrameworkForDir reads the versioned store YAML; plain GetFramework
+	// returns the built-in skeleton and misses store-defined workers like vite.
 	if reg2, err2 := config.LoadSites(); err2 == nil {
 		for _, s := range reg2.Sites {
 			if s.Ignored {
 				continue
 			}
 			fwN := s.Framework
-			fw2, ok2 := config.GetFramework(fwN)
+			fw2, ok2 := config.GetFrameworkForDir(fwN, s.Path)
 			if !ok2 || fw2.Workers == nil {
 				continue
 			}
@@ -1038,11 +1040,12 @@ func buildServicesList() []ServiceResponse {
 						label = wname
 					}
 					services = append(services, ServiceResponse{
-						Name:       wname + "-" + s.Name,
-						Status:     "active",
-						EnvVars:    map[string]string{},
-						WorkerSite: s.Name,
-						WorkerName: wname,
+						Name:        wname + "-" + s.Name,
+						Status:      "active",
+						EnvVars:     map[string]string{},
+						WorkerSite:  s.Name,
+						WorkerName:  wname,
+						WorkerLabel: label,
 					})
 				}
 			}
@@ -2337,7 +2340,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 					if detected, err := phpPkg.DetectVersion(site.Path); err == nil && detected != "" {
 						phpVersion = detected
 					}
-					go cli.WorkerStartForSite(site.Name, site.Path, phpVersion, workerName, worker) //nolint:errcheck
+					go cli.WorkerStartForSite(site.Name, site.Path, phpVersion, workerName, worker, true) //nolint:errcheck
 					go syncLerdYAMLWorkersDelayed(site)
 				}
 				writeJSON(w, SiteActionResponse{OK: true})
