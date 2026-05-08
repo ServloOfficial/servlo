@@ -138,12 +138,13 @@ func restartStripeIfActive(site *config.Site) {
 	fmt.Printf("  Restarted stripe listener → %s/stripe/webhook\n", baseURL)
 }
 
-// updateEnvAppURL sets APP_URL in the project's .env to scheme://domain.
-// Silently does nothing if no .env exists.
+// updateEnvAppURL syncs APP_URL plus VITE_REVERB_HOST/SCHEME/PORT in the
+// project's .env to match the new TLS state, so a secure flip doesn't
+// leave Vite-baked browser Echo wedged on wss://host:80.
 func updateEnvAppURL(projectPath, scheme, domain string) {
-	if err := envfile.UpdateAppURL(projectPath, scheme, domain); err != nil {
-		fmt.Printf("  [WARN] could not update APP_URL in .env: %v\n", err)
+	if err := envfile.SyncPrimaryDomain(projectPath, domain, scheme == "https"); err != nil {
+		fmt.Printf("  [WARN] could not sync .env: %v\n", err)
 	} else {
-		fmt.Printf("  Updated APP_URL=%s://%s\n", scheme, domain)
+		fmt.Printf("  Updated APP_URL=%s://%s and VITE_REVERB_* in .env\n", scheme, domain)
 	}
 }

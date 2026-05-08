@@ -1801,7 +1801,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		site.Secured = true
-		envfile.UpdateAppURL(site.Path, "https", site.PrimaryDomain()) //nolint:errcheck
+		envfile.SyncPrimaryDomain(site.Path, site.PrimaryDomain(), true) //nolint:errcheck
 		_ = config.SetProjectSecured(site.Path, true)
 		needsReload = true
 	case "unsecure":
@@ -1810,7 +1810,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		site.Secured = false
-		envfile.UpdateAppURL(site.Path, "http", site.PrimaryDomain()) //nolint:errcheck
+		envfile.SyncPrimaryDomain(site.Path, site.PrimaryDomain(), false) //nolint:errcheck
 		_ = config.SetProjectSecured(site.Path, false)
 		needsReload = true
 	case "php":
