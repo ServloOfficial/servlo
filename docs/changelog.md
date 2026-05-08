@@ -9,6 +9,10 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dashboard DNS dot stayed red after boot until manual refresh.** When `lerd-ui` came up before `lerd-dns` finished starting, the initial `/api/status` snapshot baked in `dns.ok=false`. Once DNS naturally became reachable a few seconds later nothing pushed an update to the live WebSocket, so the DNS pill on the dashboard stayed red until the user reloaded. The first attempted fix added the publish to `WatchDNS` in the watcher binary, but `lerd watch` and `lerd serve-ui` are separate processes and `eventbus.Default` is per-process, so that publish never reached the broker. The actual fix lives in `internal/ui/dns_status_watcher.go`: a small in-process probe runs inside `lerd-ui`, ticks every 30s while a tab is visible, compares against the last observation, and publishes `eventbus.KindStatus` on transition. `runSnapshotInvalidator` then rebuilds the status snapshot and the broker pushes it to every tab. Cost is one local `net.LookupHost` per 30s when the dashboard is open, zero work when no tab is open. The `WatchDNS` immediate-probe-at-startup change still applies and shaves 30s off the first repair tick. Table-driven tests cover the boot-up-publish, boot-down, steady-up, steady-down, recovery, regression, and idle-skip paths.
+
 ---
 
 ## [1.19.1] — 2026-05-07
