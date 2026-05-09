@@ -7,6 +7,14 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **TUI service lifecycle keybinds** (`u` update, `b` rollback). Pressing `u` while focused on the Services pane runs `lerd service update <name>` for the highlighted service (no tag, applies the safe in-strategy update). Pressing `b` runs `lerd service rollback <name>`. Both fire and refresh the snapshot, mirroring the dashboard's Update / Rollback buttons. No-op on worker rows (queue-alpha, etc.) since they have no upstream image. Help reference (`?`) lists both. Migrate, remove, and reinstall stay CLI/dashboard-only for now since they need tag pickers or destructive-action confirmation.
+
+---
+
 ## [1.20.0-beta.1] — 2026-05-09
 
 First beta of the 1.20.0 line. The headline is a deeper pass on git worktrees: per-worktree workers as a first-class concept driven by framework yaml intent, a built-in Vite dev server worker that runs on the host (HMR with no port publishing), automatic wildcard cert SANs for worktree subdomains, `env_overrides` templating for multi-tenant apps, and a unified asset-worker / build prompt on `lerd worktree add`. Plus dashboard surfaces for per-worktree workers and the post-1.19.1 regression fixes around secured sites, certs, and the DNS pill.
