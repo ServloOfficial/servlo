@@ -19,6 +19,7 @@ type dnsWatchDeps struct {
 	check             func(tld string) (bool, error)
 	waitReady         func(time.Duration) error
 	configureResolver func() error
+	repairPossible    func() bool
 	idleOrLocked      func() bool
 	publishStatus     func()
 	log               func(level, msg string, kv ...any)
@@ -28,8 +29,9 @@ type dnsWatchDeps struct {
 // so the first observation always publishes, in case the snapshot built
 // during boot baked in a stale dns.ok=false.
 type dnsWatchState struct {
-	lastOK    *bool
-	tickCount int
+	lastOK            *bool
+	tickCount         int
+	repairUnavailable bool
 }
 
 // WatchDNS polls DNS health for the given TLD every interval. When resolution
@@ -46,6 +48,7 @@ func WatchDNS(interval time.Duration, tld string) {
 		check:             dns.Check,
 		waitReady:         dns.WaitReady,
 		configureResolver: dns.ConfigureResolver,
+		repairPossible:    dns.RepairPossible,
 		idleOrLocked:      systemd.SessionIsIdleOrLocked,
 		publishStatus:     func() { eventbus.Default.Publish(eventbus.KindStatus) },
 		log: func(level, msg string, kv ...any) {
@@ -93,6 +96,18 @@ func tickDNS(d dnsWatchDeps, s *dnsWatchState, tld string) {
 	if ok {
 		return
 	}
+
+	// Skip repair when the platform can't write the resolver config from
+	// this process (macOS without /etc/sudoers.d/lerd in place). Logging
+	// this every tick would spam — emit once and remember the gate.
+	if d.repairPossible != nil && !d.repairPossible() {
+		if !s.repairUnavailable {
+			d.log("warn", "DNS resolution broken; automatic repair unavailable on this host (run lerd install to grant the watcher resolver write access)", "tld", tld)
+			s.repairUnavailable = true
+		}
+		return
+	}
+	s.repairUnavailable = false
 
 	d.log("warn", "DNS resolution broken, repairing", "tld", tld)
 

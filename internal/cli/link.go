@@ -413,7 +413,7 @@ func startWorkersForSite(site *config.Site, workers []string, phpVersion string)
 		}
 		// Stop conflicting workers before starting.
 		for _, conflict := range worker.ConflictsWith {
-			WorkerStopForSite(site.Name, conflict) //nolint:errcheck
+			WorkerStopForSite(site.Name, site.Path, conflict) //nolint:errcheck
 		}
 		if err := WorkerStartForSite(site.Name, site.Path, phpVersion, w, worker, true); err != nil {
 			fmt.Printf("[WARN] starting worker %s: %v\n", w, err)

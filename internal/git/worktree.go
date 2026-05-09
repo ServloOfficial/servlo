@@ -240,11 +240,26 @@ func EnsureWorktreeEnv(mainRepoPath, worktreePath, worktreeDomain string, secure
 
 	cfg, _ := config.LoadProjectConfig(mainRepoPath)
 	if cfg != nil && len(cfg.EnvOverrides) > 0 {
+		// {{site}}: legacy DB-safe slug of the FULL worktree domain, e.g.
+		// feat_a_acme_test. Kept for backward compatibility — new templates
+		// should prefer {{branch}} or {{parent}} which match user intent.
+		// {{branch}}: first segment of the worktree domain, e.g. "feat-a".
+		// {{parent}}: parent site name slug (DB-safe), e.g. "acme".
 		site := config.SiteSlug(worktreeDomain)
+		branch := worktreeDomain
+		if i := strings.IndexByte(worktreeDomain, '.'); i > 0 {
+			branch = worktreeDomain[:i]
+		}
+		parent := ""
+		if s, err := config.FindSiteByPath(mainRepoPath); err == nil && s != nil {
+			parent = config.SiteSlug(s.Name)
+		}
 		for k, v := range cfg.EnvOverrides {
 			v = strings.ReplaceAll(v, "{{domain}}", worktreeDomain)
 			v = strings.ReplaceAll(v, "{{scheme}}", scheme)
 			v = strings.ReplaceAll(v, "{{site}}", site)
+			v = strings.ReplaceAll(v, "{{branch}}", branch)
+			v = strings.ReplaceAll(v, "{{parent}}", parent)
 			updates[k] = v
 		}
 	}

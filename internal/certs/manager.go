@@ -5,9 +5,34 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/geodro/lerd/internal/config"
 )
+
+// issueCertMu serialises issueCertAtomic calls per primaryDomain. Two
+// concurrent reissues for the same site (e.g. boot scanWorktrees racing the
+// watcher's syncWorktree on the same site) must not interleave their
+// renames — pre-fix both used a fixed "<primary>.crt.new" tempfile path,
+// so one would clobber the other's tempfile or rename a partially-flushed
+// file. Lock per domain so unrelated sites still issue in parallel.
+var issueCertMu sync.Map // map[string]*sync.Mutex
+
+func lockForDomain(domain string) *sync.Mutex {
+	if m, ok := issueCertMu.Load(domain); ok {
+		return m.(*sync.Mutex)
+	}
+	m, _ := issueCertMu.LoadOrStore(domain, &sync.Mutex{})
+	return m.(*sync.Mutex)
+}
+
+// tempSuffixSeq increments per call to issueCertAtomic so concurrent
+// callers (across processes too) don't share a tempfile path even if the
+// per-domain mutex is bypassed somehow.
+var tempSuffixSeq atomic.Uint64
 
 // MkcertPath returns the path to the mkcert binary.
 func MkcertPath() string {
@@ -48,14 +73,23 @@ func IssueCertForce(primaryDomain string, allDomains []string, certsDir string) 
 }
 
 func issueCertAtomic(primaryDomain string, allDomains []string, certsDir string) error {
+	mu := lockForDomain(primaryDomain)
+	mu.Lock()
+	defer mu.Unlock()
+
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		return err
 	}
 
 	certFile := filepath.Join(certsDir, primaryDomain+".crt")
 	keyFile := filepath.Join(certsDir, primaryDomain+".key")
-	tmpCert := certFile + ".new"
-	tmpKey := keyFile + ".new"
+	// Per-call unique suffix: pid + monotonic seq + ns time. Ensures
+	// cross-process concurrent issuers (e.g. lerd-watcher and lerd-ui)
+	// don't collide on the .new path even when the in-process mutex
+	// can't help.
+	suffix := ".new." + strconv.Itoa(os.Getpid()) + "." + strconv.FormatUint(tempSuffixSeq.Add(1), 10) + "." + strconv.FormatInt(time.Now().UnixNano(), 10)
+	tmpCert := certFile + suffix
+	tmpKey := keyFile + suffix
 
 	var sans []string
 	for _, d := range allDomains {

@@ -3,6 +3,8 @@ package certs
 import (
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -54,6 +56,93 @@ func TestCertExists_onlyCrtRequired(t *testing.T) {
 
 	if !CertExists("site.test") {
 		t.Error("expected true when only .crt file exists")
+	}
+}
+
+// ── IssueCertForce concurrency ───────────────────────────────────────────────
+
+// TestIssueCertForce_concurrentCallsDontCollide pins the fix for the shared
+// .new tempfile race: two parallel IssueCertForce calls for the same domain
+// (e.g. boot scanWorktrees + a watcher syncWorktree event firing on the same
+// site) must not interleave their renames. Pre-fix both writers used a
+// fixed "<primary>.crt.new" path; one would clobber the other's tempfile
+// mid-write or rename a partially-flushed file. The fix uses a unique
+// tempfile per goroutine.
+func TestIssueCertForce_concurrentCallsDontCollide(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+
+	binDir := filepath.Join(tmp, "lerd", "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Fake mkcert that writes its SAN list into the cert/key tempfiles
+	// so we can detect a half-written / clobbered cert. A 50ms sleep
+	// widens the race window beyond filesystem-rename atomicity.
+	fakeMkcert := `#!/bin/sh
+CRT=""
+KEY=""
+SANS=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -cert-file) shift; CRT="$1" ;;
+    -key-file)  shift; KEY="$1" ;;
+    *) SANS="$SANS $1" ;;
+  esac
+  shift
+done
+sleep 0.05
+echo "$SANS" > "$CRT"
+echo "FAKE-KEY" > "$KEY"
+`
+	if err := os.WriteFile(filepath.Join(binDir, "mkcert"), []byte(fakeMkcert), 0755); err != nil {
+		t.Fatal(err)
+	}
+	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	if err := os.MkdirAll(certsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	const goroutines = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, goroutines)
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := IssueCertForce("alpha.test", []string{"alpha.test"}, certsDir)
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for e := range errs {
+		if e != nil {
+			t.Errorf("concurrent IssueCertForce returned error: %v", e)
+		}
+	}
+
+	// Cert must exist and contain a complete SAN write (the fake echoes
+	// SANs verbatim; truncation or interleaving would break the prefix).
+	body, err := os.ReadFile(filepath.Join(certsDir, "alpha.test.crt"))
+	if err != nil {
+		t.Fatalf("cert missing after concurrent issue: %v", err)
+	}
+	if !strings.Contains(string(body), "alpha.test") {
+		t.Errorf("cert content corrupted by concurrent rename; got %q", body)
+	}
+
+	// No leftover temp files: each goroutine should have cleaned up its
+	// own .new.* paths even on the rename-loser side.
+	entries, _ := os.ReadDir(certsDir)
+	for _, e := range entries {
+		name := e.Name()
+		if name == "alpha.test.crt" || name == "alpha.test.key" {
+			continue
+		}
+		if strings.Contains(name, ".new") {
+			t.Errorf("leftover temp file %q after concurrent issue", name)
+		}
 	}
 }
 

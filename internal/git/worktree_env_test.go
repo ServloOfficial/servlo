@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/geodro/lerd/internal/config"
 )
 
 // EnsureWorktreeEnv must materialise .env in a fresh worktree (git worktree
@@ -114,6 +116,67 @@ func TestEnsureWorktreeEnv_siteTemplatePlaceholder(t *testing.T) {
 	}
 	if !strings.Contains(string(got), "DB_DATABASE=feat_a_acme_test") {
 		t.Errorf("{{site}} not resolved:\n%s", got)
+	}
+}
+
+// TestEnsureWorktreeEnv_branchAndParentTokens pins the new explicit
+// templating tokens that disambiguate the surprising {{site}} semantics:
+//
+//   - {{branch}}: the worktree branch slug, no parent context. Lets users
+//     write DB_DATABASE=app_{{branch}} and get app_feat_a (sane).
+//   - {{parent}}: the parent site name, slugified. Lets users write
+//     DB_PREFIX={{parent}}_ and get acme_ (matches their mental model
+//     of "this is project acme").
+//
+// {{site}} is intentionally left alone for backward compatibility — it
+// continues to resolve to the worktree FQDN slug (feat_a_acme_test).
+// Documented as such; new templates should prefer {{parent}}/{{branch}}.
+func TestEnsureWorktreeEnv_branchAndParentTokens(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+	t.Setenv("XDG_DATA_HOME", tmp)
+	main := filepath.Join(tmp, "acme")
+	if err := os.MkdirAll(main, 0755); err != nil {
+		t.Fatal(err)
+	}
+	wt := t.TempDir()
+
+	if err := config.AddSite(config.Site{
+		Name: "acme", Path: main, Domains: []string{"acme.test"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	mainEnv := "APP_URL=http://acme.test\n"
+	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
+		t.Fatal(err)
+	}
+	lerdYAML := `domains:
+  - acme
+env_overrides:
+  DB_BRANCH: "{{branch}}"
+  DB_PARENT: "{{parent}}"
+  DB_NAME: "{{parent}}_{{branch}}"
+`
+	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	EnsureWorktreeEnv(main, wt, "feat-a.acme.test", false)
+
+	got, err := os.ReadFile(filepath.Join(wt, ".env"))
+	if err != nil {
+		t.Fatalf("worktree .env not created: %v", err)
+	}
+	s := string(got)
+	if !strings.Contains(s, "DB_BRANCH=feat-a") {
+		t.Errorf("{{branch}} should resolve to the worktree branch slug; got:\n%s", s)
+	}
+	if !strings.Contains(s, "DB_PARENT=acme") {
+		t.Errorf("{{parent}} should resolve to the parent site primary subdomain slug; got:\n%s", s)
+	}
+	if !strings.Contains(s, "DB_NAME=acme_feat-a") {
+		t.Errorf("composite {{parent}}_{{branch}} should resolve; got:\n%s", s)
 	}
 }
 

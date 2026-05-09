@@ -104,5 +104,5 @@ func ScheduleStartForSite(siteName, sitePath, phpVersion string) error {
 
 // ScheduleStopForSite stops and removes the scheduler unit for the named site.
 func ScheduleStopForSite(siteName string) error {
-	return WorkerStopForSite(siteName, "schedule")
+	return WorkerStopForSite(siteName, "", "schedule")
 }

@@ -113,7 +113,7 @@ func ReverbStartForSite(siteName, sitePath, phpVersion string) error {
 
 // ReverbStopForSite stops and removes the Reverb unit for the named site.
 func ReverbStopForSite(siteName string) error {
-	return WorkerStopForSite(siteName, "reverb")
+	return WorkerStopForSite(siteName, "", "reverb")
 }
 
 // regenNginxVhost regenerates the nginx vhost for the site so proxy blocks are updated.

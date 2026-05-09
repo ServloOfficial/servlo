@@ -33,7 +33,9 @@ After git completes, the wrapper:
 3. Prompts how to set up the worktree's database — see [Per-worktree database](#per-worktree-database) below.
 4. If you pick "isolated empty", asks whether to run `php artisan migrate --force` against the new schema right away.
 
-When the framework defines a host worker like `vite` (with `host: true` and a passing `check`), the build prompt is skipped and the watcher auto-starts `npm run dev` as a per-worktree systemd unit instead. Multiple worktrees can run Vite simultaneously — each gets its own unit (`lerd-vite-site-branch`) and Vite auto-increments ports.
+When the framework defines a host worker like `vite` (with `host: true` and a passing `check`), the build prompt is skipped and the watcher auto-starts `npm run dev` as a per-worktree systemd unit instead. Multiple worktrees can run Vite simultaneously — each gets its own unit (`lerd-vite-<site>-<branch>`) and Vite auto-increments ports.
+
+The same auto-start runs at daemon boot too, so per-worktree units recover after a host reboot or `lerd stop && lerd start` even when fsnotify hasn't fired. On `lerd worktree remove`, the matching units are stopped and their `.service` files removed before git tears the worktree down — without that step, systemd would restart-loop the unit against the deleted `WorkingDirectory`.
 
 If no host worker is defined, skipping the build step leaves the worktree without a Vite manifest, which means the first request will throw `ViteManifestNotFoundException` until you run `npm run dev` or `npm run build` yourself. That's intentional — the alternative is silently rendering main's compiled UI on the worktree, which is worse.
 
@@ -98,16 +100,19 @@ By default lerd only rewrites `APP_URL` in worktree `.env` files. Multi-tenant a
 env_overrides:
     APP_URL: "{{scheme}}://app.{{domain}}"
     CENTRAL_DOMAIN: "{{domain}}"
+    DB_DATABASE: "{{parent}}_{{branch}}"
     CACHE_DRIVER: redis
 ```
 
-Values can use template placeholders or be plain static strings. When a worktree is created (or the watcher re-syncs), each value is resolved and written into the worktree's `.env`.
+Values can use template placeholders or be plain static strings. When a worktree is created (or the watcher re-syncs), each value is resolved and written into the worktree's `.env`. Newlines or `\r` characters in a value are rejected so a malformed override can't inject a second key into `.env`; the same check rejects `=` or newline characters in keys.
 
 | Placeholder | Resolves to | Example |
 |-------------|-------------|---------|
 | `{{domain}}` | Worktree domain | `feature-branch.myapp.test` |
 | `{{scheme}}` | `http` or `https` | `https` |
-| `{{site}}` | Database-safe name (underscored) | `feature_branch_myapp_test` |
+| `{{branch}}` | Worktree branch slug (no parent) | `feature-branch` |
+| `{{parent}}` | Parent site name, slugified | `myapp` |
+| `{{site}}` | Database-safe slug of the *full* worktree domain. Prefer `{{branch}}` / `{{parent}}` for clarity | `feature_branch_myapp_test` |
 
 When `APP_URL` is present in `env_overrides` it takes precedence over the default `scheme://domain` rewrite. Without `env_overrides`, behaviour is unchanged.
 
@@ -171,9 +176,10 @@ LAN share has a separate toggle that's worktree-aware: when a worktree is active
 
 When a worktree is removed (via `git worktree remove` directly or `lerd worktree remove`) the watcher tears state down in this order so that any earlier failure leaves the database intact:
 
-1. nginx vhost (URL stops resolving)
-2. LAN-share proxy + registry entry (port released)
-3. Isolated database — *only* via `lerd worktree remove`'s explicit prompt or the daemon's `scanWorktrees` startup sweep. Plain `git worktree remove` leaves the DB and its registry entry alone, so the user can recover by re-adding the worktree without losing migrations or seed data.
+1. Per-worktree host-worker units (`lerd-<worker>-<site>-<branch>.service`) — stopped and removed so systemd doesn't restart-loop them against the deleted `WorkingDirectory`.
+2. nginx vhost (URL stops resolving).
+3. LAN-share proxy + registry entry (port released).
+4. Isolated database — *only* via `lerd worktree remove`'s explicit prompt or the daemon's `scanWorktrees` startup sweep. Plain `git worktree remove` leaves the DB and its registry entry alone, so the user can recover by re-adding the worktree without losing migrations or seed data.
 
 The startup sweep also catches any registry entries whose worktree directory disappeared while the watcher was offline — restarting `lerd-watcher` reconciles state.
 

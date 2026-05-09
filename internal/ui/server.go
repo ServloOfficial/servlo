@@ -1504,7 +1504,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 					}
 					prefix := wname + "-" + s.Name
 					if name == prefix {
-						opErr := cli.WorkerStopForSite(s.Name, wname)
+						opErr := cli.WorkerStopForSite(s.Name, s.Path, wname)
 						resp := ServiceActionResponse{
 							ServiceResponse: ServiceResponse{Name: name, Status: "inactive", EnvVars: map[string]string{}, WorkerSite: s.Name, WorkerName: wname},
 							OK:              opErr == nil,
@@ -1521,17 +1521,17 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 					}
 					wtBase := strings.TrimPrefix(name, prefix+"-")
 					wts, _ := gitpkg.DetectWorktrees(s.Path, s.PrimaryDomain())
-					matched := false
+					var wtPath string
 					for _, wt := range wts {
 						if filepath.Base(wt.Path) == wtBase {
-							matched = true
+							wtPath = wt.Path
 							break
 						}
 					}
-					if !matched {
+					if wtPath == "" {
 						continue
 					}
-					opErr := cli.WorkerStopForSite(s.Name+"-"+wtBase, wname)
+					opErr := cli.WorkerStopForSite(s.Name, wtPath, wname)
 					resp := ServiceActionResponse{
 						ServiceResponse: ServiceResponse{
 							Name: name, Status: "inactive", EnvVars: map[string]string{},
@@ -2420,7 +2420,6 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 				workerName := parts[1]
 				branch := r.URL.Query().Get("branch")
 				targetPath := site.Path
-				targetUnitSite := site.Name
 				if branch != "" {
 					wtPath := resolveSitePath(site, branch)
 					if wtPath == "" {
@@ -2428,11 +2427,10 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 					targetPath = wtPath
-					targetUnitSite = site.Name + "-" + filepath.Base(wtPath)
 				}
 				if parts[2] == "stop" {
 					// Stops orphans without a framework definition too.
-					if err := cli.WorkerStopForSite(targetUnitSite, workerName); err != nil {
+					if err := cli.WorkerStopForSite(site.Name, targetPath, workerName); err != nil {
 						writeJSON(w, SiteActionResponse{Error: err.Error()})
 						return
 					}

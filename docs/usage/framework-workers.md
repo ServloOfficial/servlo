@@ -61,7 +61,15 @@ workers:
       file: vite.config.js
 ```
 
-Host workers auto-start when a worktree is created, with per-worktree systemd units (`lerd-vite-site-branch`) so multiple Vite instances can run simultaneously with auto-incremented ports.
+The `command` is wrapped in `/bin/sh -c` so shell features (`&&`, `|`, env-var expansion, redirects) work as written. A composite command like `npm run build && npm run preview` runs end-to-end without quoting tricks.
+
+Host workers auto-start in three places:
+
+- when a worktree is created, with per-worktree systemd units (`lerd-vite-<site>-<branch>`) so multiple Vite instances can run simultaneously with auto-incremented ports.
+- at daemon boot, so worktree units recover after a host reboot or `lerd stop && lerd start` even when fsnotify hasn't fired.
+- on `lerd worktree remove`, the matching unit is stopped and its file removed; without this the unit would restart-loop against the deleted `WorkingDirectory`.
+
+Host workers are not yet supported on macOS — the watcher prints a one-line `[WARN]` and skips the lifecycle calls; container-mode workers remain unaffected.
 
 ## Project-specific custom workers
 

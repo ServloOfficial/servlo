@@ -434,6 +434,31 @@ func OptedInBuildReplacers(site *config.Site, path string) []string {
 	return out
 }
 
+// AutoStartOptedInWorktreeWorkers writes (and starts, on Linux) every
+// host worker the user opted into via the parent's .lerd.yaml workers
+// list, scoped to the given worktree path. Idempotent — used by the
+// watcher's onAdded hook AND by the daemon's boot-time scanWorktrees pass
+// so per-worktree units survive a daemon restart cleanly. Errors are
+// surfaced as warnings so a single broken unit doesn't block siblings.
+func AutoStartOptedInWorktreeWorkers(site *config.Site, worktreePath, phpVersion string) {
+	if site == nil || worktreePath == "" {
+		return
+	}
+	for _, name := range OptedInHostWorkers(site, worktreePath) {
+		fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
+		if !ok {
+			return
+		}
+		w, ok := fw.Workers[name]
+		if !ok {
+			continue
+		}
+		if err := WorkerStartForSite(site.Name, worktreePath, phpVersion, name, w, false); err != nil {
+			fmt.Printf("[WARN] auto-start %s for worktree %s: %v\n", name, filepath.Base(worktreePath), err)
+		}
+	}
+}
+
 // OptedInHostWorkers returns the names of host-mode workers the user has
 // opted into for this project (.lerd.yaml workers:) and whose check rule
 // matches the worktree path. Worker auto-start now follows project intent

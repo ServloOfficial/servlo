@@ -225,6 +225,34 @@ func TestGenerateWorktreeSSLVhost_usesParentCert(t *testing.T) {
 	}
 }
 
+// ── GenerateWorktreeVhostFor ──────────────────────────────────────────────────
+
+// TestGenerateWorktreeVhostFor_routesByFlag pins the behaviour of the
+// shared wrapper that callers (scanWorktrees, syncWorktree, migrateTLD)
+// use to avoid repeating the secured-vs-plain branch around the two
+// underlying generators.
+func TestGenerateWorktreeVhostFor_routesByFlag(t *testing.T) {
+	confD := setupConfD(t)
+
+	if err := GenerateWorktreeVhostFor("feat-x.myapp.test", "/srv/myapp-feat", "8.3", "myapp.test", false); err != nil {
+		t.Fatalf("HTTP wrapper: %v", err)
+	}
+	httpContent := readConf(t, filepath.Join(confD, "feat-x.myapp.test.conf"))
+	if strings.Contains(httpContent, "ssl_certificate") {
+		t.Error("HTTP variant must not emit ssl_certificate")
+	}
+
+	// Re-run with secured=true; the same conf path should now point at
+	// the parent's wildcard cert.
+	if err := GenerateWorktreeVhostFor("feat-x.myapp.test", "/srv/myapp-feat", "8.3", "myapp.test", true); err != nil {
+		t.Fatalf("HTTPS wrapper: %v", err)
+	}
+	sslContent := readConf(t, filepath.Join(confD, "feat-x.myapp.test.conf"))
+	if !strings.Contains(sslContent, "myapp.test.crt") {
+		t.Errorf("HTTPS variant should reference parent cert, got:\n%s", sslContent)
+	}
+}
+
 // ── RemoveVhost ───────────────────────────────────────────────────────────────
 
 func TestRemoveVhost_removesConfAndSSLConf(t *testing.T) {

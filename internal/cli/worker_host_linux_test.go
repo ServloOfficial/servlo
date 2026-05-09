@@ -96,6 +96,79 @@ func TestWriteWorkerUnitFile_hostFalse_usesPodman(t *testing.T) {
 	}
 }
 
+// TestWriteHostWorkerUnitFile_shellCommandPreserved pins the fix for the
+// raw-ExecStart bug: framework worker commands containing shell
+// metacharacters (&&, |, env-var expansion, redirects) must be wrapped in
+// /bin/sh -c so systemd's argv-style splitting doesn't pass them as
+// literal arguments to fnm. Without the wrap, "npm run build && npm run
+// preview" would invoke fnm with "&&" as an argument and silently fail.
+func TestWriteHostWorkerUnitFile_shellCommandPreserved(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+	t.Setenv("XDG_DATA_HOME", tmp)
+
+	binDir := filepath.Join(tmp, "lerd", "bin")
+	os.MkdirAll(binDir, 0755)
+	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
+
+	sitePath := t.TempDir()
+	os.WriteFile(filepath.Join(sitePath, ".node-version"), []byte("20"), 0644)
+
+	cases := []struct {
+		name    string
+		command string
+		want    string
+	}{
+		{
+			name:    "simple command works as before",
+			command: "npm run dev",
+			want:    "npm run dev",
+		},
+		{
+			name:    "command with && passes through to shell",
+			command: "npm run build && npm run preview",
+			want:    "npm run build && npm run preview",
+		},
+		{
+			name:    "command with pipe",
+			command: "tail -f log | grep error",
+			want:    "tail -f log | grep error",
+		},
+		{
+			name:    "command with single quote escapes safely",
+			command: "echo 'hello world'",
+			want:    "echo",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			os.RemoveAll(filepath.Join(tmp, "systemd"))
+			_, err := writeWorkerUnitFile(
+				"lerd-vite-shellcase", "Test", "shellcase",
+				sitePath, "8.4", c.command,
+				"on-failure", "", "lerd-php84-fpm", true,
+			)
+			if err != nil {
+				t.Fatalf("writeWorkerUnitFile: %v", err)
+			}
+			data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "lerd-vite-shellcase.service"))
+			if err != nil {
+				t.Fatalf("read unit: %v", err)
+			}
+			unit := string(data)
+			// ExecStart must invoke /bin/sh -c with the raw command so
+			// shell metacharacters work. Verify the wrapper presence
+			// and that the command substring survives.
+			if !strings.Contains(unit, "/bin/sh -c") && !strings.Contains(unit, "/bin/sh' -c") {
+				t.Errorf("ExecStart should wrap in /bin/sh -c for shell parsing; got:\n%s", unit)
+			}
+			if !strings.Contains(unit, c.want) {
+				t.Errorf("command substring %q missing from unit:\n%s", c.want, unit)
+			}
+		})
+	}
+}
+
 func TestWorkerStartForSite_worktreeUnitNaming(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)

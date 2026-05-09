@@ -565,14 +565,14 @@ func updateAllFrameworks(client *store.Client, showDiff bool) error {
 		// entry.Latest for every entry, so users with multiple versions
 		// (laravel@10..@13) ended up only refreshing the latest file and
 		// the others stayed stale forever.
-		var indexed *store.IndexEntry
-		for i, entry := range idx.Frameworks {
+		inIndex := false
+		for _, entry := range idx.Frameworks {
 			if entry.Name == info.Name {
-				indexed = &idx.Frameworks[i]
+				inIndex = true
 				break
 			}
 		}
-		if indexed == nil {
+		if !inIndex {
 			continue
 		}
 		remote, fetchErr := client.FetchFramework(info.Name, info.Version)

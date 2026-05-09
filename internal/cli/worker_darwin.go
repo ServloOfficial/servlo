@@ -61,16 +61,12 @@ func writeWorkerExecUnit(unitName, siteName, sitePath, phpVersion, command, rest
 	scriptPath := filepath.Join(workersDir, unitName+".sh")
 	pidFile := filepath.Join(workersDir, unitName+".pid")
 
-	// Resolve the container to exec into: custom site → its own container,
-	// PHP site → shared FPM for that version.
-	var container string
-	if site, _ := config.FindSite(siteName); site != nil && site.IsCustomContainer() {
-		container = podman.CustomContainerName(siteName)
-	} else {
-		versionShort := strings.ReplaceAll(phpVersion, ".", "")
-		container = "lerd-php" + versionShort + "-fpm"
-		_ = fpmUnit // kept for API parity with the Linux implementation
-	}
+	// Resolve the container to exec into via the shared helper, which
+	// handles custom container + FrankenPHP + default shared FPM. fpmUnit
+	// is the same value the Linux backend sets via BindsTo=, kept on the
+	// signature for API parity.
+	_ = fpmUnit
+	container := resolveWorkerFPMUnit(siteName, phpVersion)
 
 	podmanExec := fmt.Sprintf("%s exec -w %s %s %s", podman.PodmanBin(), sitePath, container, command)
 	script := buildDarwinExecWorkerGuardScript(pidFile, podman.PodmanBin(), container, sitePath, command, podmanExec)
@@ -148,14 +144,8 @@ func removeWorkerExecArtifacts(unitName string) {
 // phase 2 of runStart so we don't saturate the Podman Machine SSH connection
 // before containers are ready.
 func restoreWorker(siteName, sitePath, phpVersion, workerName string, w config.FrameworkWorker) {
-	var fpmUnit string
-	if site, _ := config.FindSite(siteName); site != nil && site.IsCustomContainer() {
-		fpmUnit = podman.CustomContainerName(siteName)
-	} else {
-		versionShort := strings.ReplaceAll(phpVersion, ".", "")
-		fpmUnit = "lerd-php" + versionShort + "-fpm"
-	}
-	unitName := "lerd-" + workerName + "-" + siteName
+	fpmUnit := resolveWorkerFPMUnit(siteName, phpVersion)
+	unitName, displaySite := workerNames(siteName, sitePath, workerName)
 	restart := w.Restart
 	if restart == "" {
 		restart = "always"
@@ -164,5 +154,5 @@ func restoreWorker(siteName, sitePath, phpVersion, workerName string, w config.F
 	if label == "" {
 		label = workerName
 	}
-	writeWorkerUnitFile(unitName, label, siteName, sitePath, phpVersion, w.Command, restart, w.Schedule, fpmUnit, w.Host) //nolint:errcheck
+	writeWorkerUnitFile(unitName, label, displaySite, sitePath, phpVersion, w.Command, restart, w.Schedule, fpmUnit, w.Host) //nolint:errcheck
 }

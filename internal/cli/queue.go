@@ -259,5 +259,5 @@ func QueueRestartForSite(siteName, sitePath, phpVersion string) error {
 
 // QueueStopForSite stops and removes the queue worker for the named site.
 func QueueStopForSite(siteName string) error {
-	return WorkerStopForSite(siteName, "queue")
+	return WorkerStopForSite(siteName, "", "queue")
 }

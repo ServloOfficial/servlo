@@ -224,7 +224,7 @@ func runSetup(allSteps, skipOpen bool) error {
 				label:   on + ":stop (orphaned)",
 				enabled: true,
 				run: func() error {
-					return WorkerStopForSite(site.Name, on)
+					return WorkerStopForSite(site.Name, site.Path, on)
 				},
 			})
 		}
@@ -273,7 +273,7 @@ func runSetup(allSteps, skipOpen bool) error {
 							}
 						}
 						for _, conflict := range wd.ConflictsWith {
-							WorkerStopForSite(ownerSite.Name, conflict) //nolint:errcheck
+							WorkerStopForSite(ownerSite.Name, cwd, conflict) //nolint:errcheck
 						}
 						return WorkerStartForSite(ownerSite.Name, cwd, phpVersion, wn, wd, true)
 					},

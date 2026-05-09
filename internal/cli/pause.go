@@ -324,7 +324,7 @@ func stopWorkerByName(site *config.Site, workerName string) {
 		StripeStopForSite(site.Name) //nolint:errcheck
 		return
 	}
-	WorkerStopForSite(site.Name, workerName) //nolint:errcheck
+	WorkerStopForSite(site.Name, site.Path, workerName) //nolint:errcheck
 }
 
 // resumeWorkerByName restarts a single named worker for the site.

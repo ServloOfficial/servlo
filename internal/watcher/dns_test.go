@@ -230,6 +230,95 @@ func TestTickDNS(t *testing.T) {
 	}
 }
 
+// TestTickDNS_repairUnavailable_logsOnceAndSkipsResolverWrite pins the
+// macOS-without-sudoers fix: when repairPossible() returns false, the
+// watcher must not call configureResolver (which would prompt for a sudo
+// password from a non-interactive systemd / launchd context and spam the
+// log every tick). Instead, log exactly once until the gate opens again.
+func TestTickDNS_repairUnavailable_logsOnceAndSkipsResolverWrite(t *testing.T) {
+	var checks, repairs, waits int
+	var logs []string
+
+	deps := dnsWatchDeps{
+		check:             func(string) (bool, error) { checks++; return false, nil },
+		waitReady:         func(time.Duration) error { waits++; return nil },
+		configureResolver: func() error { repairs++; return nil },
+		repairPossible:    func() bool { return false },
+		idleOrLocked:      func() bool { return false },
+		publishStatus:     func() {},
+		log: func(level, _ string, _ ...any) {
+			logs = append(logs, level)
+		},
+	}
+	state := &dnsWatchState{}
+
+	// Three consecutive ticks with DNS down; only the first should log.
+	for i := 0; i < 3; i++ {
+		tickDNS(deps, state, "test")
+	}
+
+	if checks != 3 {
+		t.Errorf("expected 3 checks, got %d", checks)
+	}
+	if waits != 0 {
+		t.Errorf("expected zero waitReady calls when repair is unavailable, got %d", waits)
+	}
+	if repairs != 0 {
+		t.Errorf("expected zero configureResolver calls when repair is unavailable, got %d", repairs)
+	}
+	// Two log entries: first publish-on-transition (no log) then a single
+	// "repair unavailable" warn. Subsequent ticks must not re-log.
+	if len(logs) != 1 {
+		t.Errorf("expected 1 log line over 3 ticks, got %d (%v)", len(logs), logs)
+	}
+}
+
+// TestTickDNS_repairAvailableAfterUnavailable_relogsOnNextOutage pins the
+// reset behaviour: once DNS comes back up (or the gate opens), the
+// "repair unavailable" warn flag clears so the next outage logs again.
+func TestTickDNS_repairAvailableAfterUnavailable_relogsOnNextOutage(t *testing.T) {
+	gate := false
+	var logs []string
+	deps := dnsWatchDeps{
+		check:             func(string) (bool, error) { return false, nil },
+		waitReady:         func(time.Duration) error { return errors.New("not relevant") },
+		configureResolver: func() error { return nil },
+		repairPossible:    func() bool { return gate },
+		idleOrLocked:      func() bool { return false },
+		publishStatus:     func() {},
+		log:               func(level, _ string, _ ...any) { logs = append(logs, level) },
+	}
+	state := &dnsWatchState{}
+
+	// Tick with gate closed: one warn.
+	tickDNS(deps, state, "test")
+	if len(logs) != 1 {
+		t.Fatalf("expected 1 log, got %d (%v)", len(logs), logs)
+	}
+	logs = nil
+
+	// Open the gate: next tick should run the normal repair pipeline,
+	// which logs warn + error (waitReady fails). Importantly the
+	// repairUnavailable flag must be cleared so a future close-of-gate
+	// re-emits the once warn.
+	gate = true
+	tickDNS(deps, state, "test")
+	if len(logs) < 1 {
+		t.Fatalf("expected repair pipeline logs after gate reopened, got %v", logs)
+	}
+	if state.repairUnavailable {
+		t.Error("expected repairUnavailable flag to clear when gate reopens")
+	}
+
+	// Close gate again — should re-log the once-warn.
+	logs = nil
+	gate = false
+	tickDNS(deps, state, "test")
+	if len(logs) != 1 {
+		t.Errorf("expected re-log after gate re-closes, got %v", logs)
+	}
+}
+
 func ptrBool(b bool) *bool { return &b }
 
 func ptrBoolEq(a, b *bool) bool {
