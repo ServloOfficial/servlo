@@ -9,31 +9,42 @@ import (
 	"strings"
 
 	"github.com/geodro/lerd/internal/config"
+	nodeDet "github.com/geodro/lerd/internal/node"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/services"
 )
 
+// defaultMacOSNodeVersion is the version `fnm exec --using=…` falls
+// back to when the site has no detectable .nvmrc / package.json engines
+// and config.Node.DefaultVersion is unset. Picked to match the Linux
+// path's defaultNodeVersion so host workers behave the same across
+// platforms by default.
+const defaultMacOSNodeVersion = "22"
+
 // writeWorkerUnitFile writes the macOS launch artifacts for a framework
-// worker. Which shape we produce depends on cfg.WorkerExecMode():
+// worker. Three shapes:
 //
-//   - "exec" (default): a service unit whose ExecStart runs a generated
-//     guard script that `podman exec`s into the shared FPM container.
-//     launchd supervises the outer process; the guard prevents duplicate
-//     workers when the podman-machine SSH bridge hiccups.
-//   - "container": one detached container per worker, spawned from the
-//     FPM image. Higher memory but 1:1 supervisor boundary.
+//   - host: true → a launchd plist whose ExecStart runs a guard script
+//     that `cd`s into the site/worktree and `fnm exec --using=<node>`s
+//     the command on the host. No podman involvement. Used for Vite +
+//     other Node tooling that needs direct host access (HMR, file
+//     watchers, etc.).
+//   - cfg.WorkerExecMode() == "exec" (default for containerised
+//     workers): a service unit whose ExecStart runs a guard script that
+//     `podman exec`s into the shared FPM container.
+//   - cfg.WorkerExecMode() == "container": one detached container per
+//     worker, spawned from the FPM image.
 //
-// Scheduled workers (Schedule != "") and host workers still aren't supported
-// on macOS. Host workers would need a launchd plist that runs through fnm on
-// the host instead of routing through the podman-machine FPM container.
+// Scheduled workers (Schedule != "") still aren't supported on macOS —
+// launchd's StartCalendarInterval would work but the unit translation
+// isn't wired through services.Mgr yet.
 func writeWorkerUnitFile(unitName, label, siteName, sitePath, phpVersion, command, restart, schedule, fpmUnit string, host bool) (bool, error) {
-	if host {
-		fmt.Printf("[WARN] worker %s is host: true which is not yet supported on macOS — skipping. Run the command manually from the project root.\n", unitName)
-		return false, nil
-	}
 	if schedule != "" {
 		fmt.Printf("[WARN] worker %s has schedule=%q which is not yet supported on macOS — skipping\n", unitName, schedule)
 		return false, nil
+	}
+	if host {
+		return writeWorkerHostUnit(unitName, sitePath, command, restart)
 	}
 
 	cfg, _ := config.LoadGlobal()
@@ -48,6 +59,54 @@ func writeWorkerUnitFile(unitName, label, siteName, sitePath, phpVersion, comman
 	default:
 		return writeWorkerExecUnit(unitName, siteName, sitePath, phpVersion, command, restart, fpmUnit)
 	}
+}
+
+// writeWorkerHostUnit is the `host: true` path: write a guard script
+// that resolves the node version via fnm and exec's the worker command
+// in the site/worktree directory. The launchd plist supervises the
+// outer /bin/sh; KeepAlive=true (from Restart=always|on-failure)
+// restarts it on exit.
+//
+// Lives under run/workers alongside the exec-mode guard scripts so
+// removeWorkerExecArtifacts cleans both up on stop.
+func writeWorkerHostUnit(unitName, sitePath, command, restart string) (bool, error) {
+	workersDir := filepath.Join(config.RunDir(), "workers")
+	if err := os.MkdirAll(workersDir, 0755); err != nil {
+		return false, fmt.Errorf("creating worker run dir: %w", err)
+	}
+	scriptPath := filepath.Join(workersDir, unitName+".sh")
+
+	fnmBin := filepath.Join(config.BinDir(), "fnm")
+	nodeVersion := resolveNodeVersionForHostWorker(sitePath)
+
+	script := buildDarwinHostWorkerGuardScript(fnmBin, nodeVersion, sitePath, command)
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+		return false, fmt.Errorf("writing host worker guard script: %w", err)
+	}
+
+	unit := buildDarwinHostWorkerService(scriptPath, restart)
+	if err := services.Mgr.WriteServiceUnit(unitName, unit); err != nil {
+		return false, err
+	}
+	if err := podman.DaemonReloadFn(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// resolveNodeVersionForHostWorker picks the node version a host worker
+// should run with at sitePath. Order: detector (reads .nvmrc /
+// package.json engines), then cfg.Node.DefaultVersion, then the
+// hard-coded default. fnm accepts both major-only ("22") and pinned
+// ("22.15.0") strings, so we don't normalise.
+func resolveNodeVersionForHostWorker(sitePath string) string {
+	if v, err := nodeDet.DetectVersion(sitePath); err == nil && v != "" {
+		return v
+	}
+	if cfg, _ := config.LoadGlobal(); cfg != nil && cfg.Node.DefaultVersion != "" {
+		return cfg.Node.DefaultVersion
+	}
+	return defaultMacOSNodeVersion
 }
 
 // writeWorkerExecUnit is the `exec` macOS path: write a guard script and a
@@ -113,15 +172,19 @@ func writeWorkerContainerUnit(unitName, siteName, sitePath, phpVersion, command,
 }
 
 // workerLogHint returns the hint for viewing worker logs on macOS.
-// In exec mode logs go to the launchd log file; in container mode they
-// come from the dedicated worker container.
-func workerLogHint(unitName string) string {
-	cfg, _ := config.LoadGlobal()
-	if cfg != nil && cfg.WorkerExecMode() != config.WorkerExecModeContainer {
-		home, _ := os.UserHomeDir()
-		return "tail -f " + filepath.Join(home, "Library", "Logs", "lerd", unitName+".log")
+// Host-mode and exec-mode workers always log to ~/Library/Logs/lerd —
+// launchd writes the unit's stdout/stderr there via the plist's
+// StandardOutPath / StandardErrorPath. Container-mode (FPM-bound)
+// workers log to their own podman container. host=true overrides the
+// container-mode check because host workers never have a container.
+func workerLogHint(unitName string, host bool) string {
+	if !host {
+		if cfg, _ := config.LoadGlobal(); cfg != nil && cfg.WorkerExecMode() == config.WorkerExecModeContainer {
+			return "podman logs -f " + unitName
+		}
 	}
-	return "podman logs -f " + unitName
+	home, _ := os.UserHomeDir()
+	return "tail -f " + filepath.Join(home, "Library", "Logs", "lerd", unitName+".log")
 }
 
 // removeWorkerExecArtifacts deletes the on-disk files writeWorkerExecUnit

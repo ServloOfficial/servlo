@@ -139,7 +139,10 @@ WantedBy=default.target
 }
 
 // workerLogHint returns the hint for viewing worker logs on Linux.
-func workerLogHint(unitName string) string {
+// host is accepted for cross-platform API parity but Linux journalctl
+// works for both host and containerised workers so it's ignored.
+func workerLogHint(unitName string, host bool) string {
+	_ = host
 	return "journalctl --user -u " + unitName + " -f"
 }
 

@@ -774,6 +774,12 @@ func restoreSiteInfrastructure() {
 			if !ok {
 				continue
 			}
+			// Skip restore entirely when the platform can't run this worker
+			// shape — writeWorkerUnitFile would print a WARN and return
+			// (false, nil) for every worktree, every boot.
+			if ok, _ := workerSupportedOnPlatform(wDef); !ok {
+				continue
+			}
 			if !parentEnabled {
 				restoreWorker(s.Name, s.Path, phpVersion, w, wDef)
 			}

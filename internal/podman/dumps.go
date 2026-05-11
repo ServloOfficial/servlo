@@ -25,16 +25,17 @@ func DumpBridgePHP() (string, error) {
 }
 
 // DumpBridgeIni returns the conf.d ini content with runtime placeholders
-// substituted. {{ DUMP_TARGET }} resolves to the lerd-ui Unix socket path
-// (already reachable inside every FPM container via the standard %h:%h
-// bind mount) and {{ DUMP_PASSTHROUGH }} is "1" or "0" depending on
-// Dumps.Passthrough.
+// substituted. {{ DUMP_TARGET }} resolves through config.DumpsBridgeTarget
+// — `unix://…` on Linux (reachable via the standard %h:%h bind mount) or
+// `tcp://host.containers.internal:9913` on macOS where unix sockets don't
+// traverse podman-machine's virtio-fs boundary. {{ DUMP_PASSTHROUGH }} is
+// "1" or "0" depending on Dumps.Passthrough.
 func DumpBridgeIni() (string, error) {
 	b, err := dumpBridgeFS.ReadFile("dumpbridge/97-lerd-dump.ini")
 	if err != nil {
 		return "", fmt.Errorf("dump bridge ini embed: %w", err)
 	}
-	target := "unix://" + config.DumpsSocketPath()
+	target := config.DumpsBridgeTarget()
 	passthrough := "0"
 	if cfg, _ := config.LoadGlobal(); cfg != nil && cfg.IsDumpsPassthrough() {
 		passthrough = "1"

@@ -8,6 +8,19 @@ import (
 	"github.com/geodro/lerd/internal/config"
 )
 
+// pinPlatformSupported forces workerSupportedOnPlatform to accept every
+// worker for the duration of the test. The opted-in / build-replacer
+// helpers now filter on the platform gate, so on darwin these tests
+// would otherwise drop the very vite worker they assert against.
+func pinPlatformSupported(t *testing.T) {
+	t.Helper()
+	prev := workerSupportedOnPlatform
+	workerSupportedOnPlatform = func(_ config.FrameworkWorker) (bool, string) {
+		return true, ""
+	}
+	t.Cleanup(func() { workerSupportedOnPlatform = prev })
+}
+
 // setupOptedInProject seeds .lerd.yaml with a host-mode custom worker named
 // "vite" and the given workers opt-in list, returning the project dir. We use
 // CustomWorkers so the worker definition lands in GetFrameworkForDir without
@@ -40,6 +53,7 @@ func setupOptedInProject(t *testing.T, optedIn []string) string {
 }
 
 func TestOptedInHostWorkers_optedIn(t *testing.T) {
+	pinPlatformSupported(t)
 	dir := setupOptedInProject(t, []string{"vite"})
 	site := &config.Site{Name: "site", Path: dir, Framework: "laravel"}
 	wt := filepath.Join(dir, "wt-main")
@@ -77,6 +91,7 @@ func TestOptedInHostWorkers_emptyWorkers(t *testing.T) {
 }
 
 func TestOptedInHostWorkers_skipsContainerWorkers(t *testing.T) {
+	pinPlatformSupported(t)
 	// queue is opted in but is not host:true. Auto-start belongs to other
 	// code paths (queue:start, the systemd queue services); we should not
 	// surface it here regardless.
@@ -101,6 +116,7 @@ func TestOptedInHostWorkers_emptyFramework(t *testing.T) {
 }
 
 func TestOptedInBuildReplacers_optedInWorktree(t *testing.T) {
+	pinPlatformSupported(t)
 	dir := setupOptedInProject(t, []string{"vite"})
 	site := &config.Site{Name: "site", Path: dir, Framework: "laravel"}
 	wt := filepath.Join(dir, "wt-main")
@@ -114,6 +130,7 @@ func TestOptedInBuildReplacers_optedInWorktree(t *testing.T) {
 }
 
 func TestOptedInBuildReplacers_optedInParent(t *testing.T) {
+	pinPlatformSupported(t)
 	dir := setupOptedInProject(t, []string{"vite"})
 	site := &config.Site{Name: "site", Path: dir, Framework: "laravel"}
 	got := OptedInBuildReplacers(site, dir) // parent path == site.Path
@@ -131,6 +148,7 @@ func TestOptedInBuildReplacers_notOptedIn(t *testing.T) {
 }
 
 func TestOptedInBuildReplacers_skipsWhenNotPerWorktree(t *testing.T) {
+	pinPlatformSupported(t)
 	// A replaces_build worker that lacks per_worktree:true must NOT suppress
 	// the build prompt for a worktree (it wouldn't run there). It should
 	// still suppress for the parent.
@@ -154,6 +172,34 @@ func TestOptedInBuildReplacers_skipsWhenNotPerWorktree(t *testing.T) {
 	}
 	if got := OptedInBuildReplacers(site, dir); len(got) != 1 || got[0] != "docs" {
 		t.Errorf("docs should replace build at the parent, got %v", got)
+	}
+}
+
+// TestOptedInHostWorkers_filtersUnsupportedPlatform pins that
+// workerSupportedOnPlatform gates the result. host:true is now
+// supported on every platform so the test substitutes the var with a
+// fake "host unsupported" gate, then verifies the filter pipeline
+// drops vite. Future unsupported shapes (e.g. a new worker.WindowsOnly
+// flag) would hook into the same gate.
+func TestOptedInHostWorkers_filtersUnsupportedPlatform(t *testing.T) {
+	prev := workerSupportedOnPlatform
+	workerSupportedOnPlatform = func(w config.FrameworkWorker) (bool, string) {
+		if w.Host {
+			return false, "host workers unsupported in test"
+		}
+		return true, ""
+	}
+	t.Cleanup(func() { workerSupportedOnPlatform = prev })
+
+	dir := setupOptedInProject(t, []string{"vite"})
+	site := &config.Site{Name: "site", Path: dir, Framework: "laravel"}
+	wt := filepath.Join(dir, "wt-main")
+	_ = os.MkdirAll(wt, 0755)
+	if got := OptedInHostWorkers(site, wt); len(got) != 0 {
+		t.Errorf("platform reports vite unsupported; want [], got %v", got)
+	}
+	if got := OptedInBuildReplacers(site, wt); len(got) != 0 {
+		t.Errorf("OptedInBuildReplacers should also drop unsupported workers; got %v", got)
 	}
 }
 

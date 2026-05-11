@@ -478,6 +478,9 @@ func eligibleBuildReplacers(site *config.Site, path string) []string {
 		if w.Check != nil && !config.MatchesRule(path, *w.Check) {
 			continue
 		}
+		if ok, _ := workerSupportedOnPlatform(w); !ok {
+			continue
+		}
 		out = append(out, name)
 	}
 	sort.Strings(out)
@@ -516,6 +519,9 @@ func OptedInBuildReplacers(site *config.Site, path string) []string {
 		if w.Check != nil && !config.MatchesRule(path, *w.Check) {
 			continue
 		}
+		if ok, _ := workerSupportedOnPlatform(w); !ok {
+			continue
+		}
 		out = append(out, name)
 	}
 	sort.Strings(out)
@@ -551,6 +557,11 @@ func AutoStartOptedInWorktreeWorkers(site *config.Site, worktreePath, phpVersion
 // opted into for this project (.lerd.yaml workers:) and whose check rule
 // matches the worktree path. Worker auto-start now follows project intent
 // instead of treating every host:true worker as implicitly desired.
+//
+// Platform support is consulted before adding a name to the list — a
+// host worker that workerSupportedOnPlatform rejects (macOS today) is
+// excluded so the caller doesn't go on to print "Started …, skipping
+// build" for a worker that will silently no-op in WorkerStartForSite.
 func OptedInHostWorkers(site *config.Site, worktreePath string) []string {
 	if site.Framework == "" {
 		return nil
@@ -573,6 +584,9 @@ func OptedInHostWorkers(site *config.Site, worktreePath string) []string {
 			continue
 		}
 		if w.Check != nil && !config.MatchesRule(worktreePath, *w.Check) {
+			continue
+		}
+		if ok, _ := workerSupportedOnPlatform(w); !ok {
 			continue
 		}
 		out = append(out, name)

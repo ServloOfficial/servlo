@@ -148,6 +148,71 @@ echo "FAKE-KEY" > "$KEY"
 
 // ── IssueCertForce atomicity ─────────────────────────────────────────────────
 
+// TestIssueCertForce_keyRenameFailureRollsBackCert pins the cert/key
+// pair atomicity guarantee: when the key rename fails after the cert
+// rename succeeded, the previous cert is restored so we don't leave a
+// new-cert + old-key mismatch that nginx refuses to load. Failure is
+// triggered by making the fake mkcert emit a directory at the key
+// tempfile path — POSIX rename(directory, regular file) → ENOTDIR.
+func TestIssueCertForce_keyRenameFailureRollsBackCert(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+
+	binDir := filepath.Join(tmp, "lerd", "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	fakeMkcert := `#!/bin/sh
+CRT=""
+KEY=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -cert-file) shift; CRT="$1" ;;
+    -key-file)  shift; KEY="$1" ;;
+  esac
+  shift
+done
+printf 'NEW-CERT' > "$CRT"
+mkdir -p "$KEY"
+exit 0
+`
+	if err := os.WriteFile(filepath.Join(binDir, "mkcert"), []byte(fakeMkcert), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	if err := os.MkdirAll(certsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	certPath := filepath.Join(certsDir, "myapp.test.crt")
+	keyPath := filepath.Join(certsDir, "myapp.test.key")
+	if err := os.WriteFile(certPath, []byte("OLD-CERT"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(keyPath, []byte("OLD-KEY"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := IssueCertForce("myapp.test", []string{"myapp.test"}, certsDir); err == nil {
+		t.Fatal("expected error when key rename fails, got nil")
+	}
+
+	gotCert, err := os.ReadFile(certPath)
+	if err != nil {
+		t.Fatalf("cert missing after rollback: %v", err)
+	}
+	if string(gotCert) != "OLD-CERT" {
+		t.Errorf("cert not rolled back; got %q, want OLD-CERT", gotCert)
+	}
+	gotKey, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatalf("key missing after rollback: %v", err)
+	}
+	if string(gotKey) != "OLD-KEY" {
+		t.Errorf("key shouldn't have changed; got %q, want OLD-KEY", gotKey)
+	}
+}
+
 // IssueCertForce must leave the existing cert/key intact when mkcert fails,
 // otherwise a transient error would trip RepairVhosts into flipping the site
 // to plain HTTP on the next start.

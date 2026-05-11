@@ -108,14 +108,40 @@ func issueCertAtomic(primaryDomain string, allDomains []string, certsDir string)
 		return fmt.Errorf("mkcert for %s: %w", primaryDomain, err)
 	}
 
+	// Two-phase rename: back up the previous cert (if any), swap in the
+	// new cert, then swap in the new key. If the key rename fails the
+	// cert is rolled back so we don't leave a cert/key mismatch on disk
+	// — nginx with mismatched cert and key refuses to start the site,
+	// which is worse than the transient mkcert failure we're guarding
+	// against in the first place.
+	bakCert := certFile + ".bak." + strconv.Itoa(os.Getpid())
+	hadPrevCert := false
+	if _, err := os.Stat(certFile); err == nil {
+		if err := os.Rename(certFile, bakCert); err != nil {
+			os.Remove(tmpCert) //nolint:errcheck
+			os.Remove(tmpKey)  //nolint:errcheck
+			return fmt.Errorf("backing up cert for %s: %w", primaryDomain, err)
+		}
+		hadPrevCert = true
+	}
 	if err := os.Rename(tmpCert, certFile); err != nil {
 		os.Remove(tmpCert) //nolint:errcheck
 		os.Remove(tmpKey)  //nolint:errcheck
+		if hadPrevCert {
+			os.Rename(bakCert, certFile) //nolint:errcheck
+		}
 		return fmt.Errorf("renaming cert for %s: %w", primaryDomain, err)
 	}
 	if err := os.Rename(tmpKey, keyFile); err != nil {
-		os.Remove(tmpKey) //nolint:errcheck
+		os.Remove(tmpKey)   //nolint:errcheck
+		os.Remove(certFile) //nolint:errcheck
+		if hadPrevCert {
+			os.Rename(bakCert, certFile) //nolint:errcheck
+		}
 		return fmt.Errorf("renaming key for %s: %w", primaryDomain, err)
+	}
+	if hadPrevCert {
+		os.Remove(bakCert) //nolint:errcheck
 	}
 	return nil
 }

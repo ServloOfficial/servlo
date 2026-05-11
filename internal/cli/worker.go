@@ -10,6 +10,7 @@ import (
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/envfile"
+	gitpkg "github.com/geodro/lerd/internal/git"
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/services"
@@ -299,7 +300,7 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 	}
 
 	fmt.Printf("%s started for %s\n", label, siteName)
-	fmt.Printf("  Logs: %s\n", workerLogHint(unitName))
+	fmt.Printf("  Logs: %s\n", workerLogHint(unitName, w.Host))
 
 	// Regenerate nginx vhost if the worker has proxy config.
 	if w.Proxy != nil {
@@ -435,10 +436,21 @@ func newWorkerRemoveCmd() *cobra.Command {
 				return fmt.Errorf("not a registered site — run 'lerd link' first")
 			}
 
-			// Stop the worker if running.
-			unitName := "lerd-" + name + "-" + site.Name
-			if isServiceActiveOrRestarting(unitName) {
-				_ = WorkerStopForSite(site.Name, site.Path, name)
+			// Stop the worker if running — on the parent and on every
+			// worktree. Without the worktree pass, per-worktree units
+			// (lerd-<name>-<site>-<wt>) keep running against a
+			// definition that's about to be deleted from .lerd.yaml.
+			paths := []string{site.Path}
+			if worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain()); err == nil {
+				for _, wt := range worktrees {
+					paths = append(paths, wt.Path)
+				}
+			}
+			for _, p := range paths {
+				unit := workerUnitName(site.Name, p, name)
+				if isServiceActiveOrRestarting(unit) {
+					_ = WorkerStopForSite(site.Name, p, name)
+				}
 			}
 
 			if global {

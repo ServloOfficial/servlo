@@ -104,6 +104,63 @@ func TestBuildDarwinContainerWorkerUnit_CustomContainerUsesSiteImage(t *testing.
 	}
 }
 
+func TestBuildDarwinHostWorkerService_PointsAtGuardScript(t *testing.T) {
+	unit := buildDarwinHostWorkerService("/run/workers/lerd-vite-alpha.sh", "always")
+
+	if !strings.Contains(unit, "ExecStart=/bin/sh /run/workers/lerd-vite-alpha.sh") {
+		t.Errorf("host worker service unit should /bin/sh the guard, got:\n%s", unit)
+	}
+	if !strings.Contains(unit, "Restart=always") {
+		t.Errorf("host worker service unit missing Restart=always")
+	}
+	if !strings.Contains(unit, "Description=Lerd Worker (host mode)") {
+		t.Errorf("host worker service unit missing host-mode description")
+	}
+
+	line := findLine(unit, "ExecStart=")
+	rhs := strings.TrimPrefix(line, "ExecStart=")
+	if fields := strings.Fields(rhs); len(fields) != 2 {
+		t.Errorf("ExecStart RHS must split into 2 fields for the launchd translator; got %d: %q", len(fields), rhs)
+	}
+}
+
+func TestBuildDarwinHostWorkerGuardScript_WrapsFnmExec(t *testing.T) {
+	fnm := "/Users/u/.local/share/lerd/bin/fnm"
+	sitePath := "/Users/u/alpha"
+	command := "npm run dev"
+
+	script := buildDarwinHostWorkerGuardScript(fnm, "22", sitePath, command)
+
+	if !strings.HasPrefix(script, "#!/bin/sh") {
+		t.Errorf("guard script should start with shebang, got:\n%s", script)
+	}
+	for _, want := range []string{
+		"cd '/Users/u/alpha'",
+		"'/Users/u/.local/share/lerd/bin/fnm' exec --using=22",
+		"-- /bin/sh -c 'npm run dev'",
+		"export PATH=",
+	} {
+		if !strings.Contains(script, want) {
+			t.Errorf("guard script missing %q:\n%s", want, script)
+		}
+	}
+}
+
+func TestBuildDarwinHostWorkerGuardScript_EscapesSingleQuotes(t *testing.T) {
+	// A worker command containing a single quote must survive the
+	// '"'"' shell-escape idiom we use to keep the surrounding 'sh -c …'
+	// quoting intact. Without the escape, the trailing ' would close
+	// the sh -c string early and the rest of the command would parse
+	// as separate shell tokens.
+	script := buildDarwinHostWorkerGuardScript(
+		"/bin/fnm", "22", "/site",
+		`node -e 'console.log("x")'`,
+	)
+	if !strings.Contains(script, `'"'"'console.log("x")'"'"'`) {
+		t.Errorf("expected escaped single quotes in guard script, got:\n%s", script)
+	}
+}
+
 func findLine(body, prefix string) string {
 	for _, line := range strings.Split(body, "\n") {
 		if strings.HasPrefix(line, prefix) {

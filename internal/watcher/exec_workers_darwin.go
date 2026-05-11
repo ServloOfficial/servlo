@@ -50,9 +50,7 @@ func WatchExecWorkers(interval time.Duration) {
 		if err != nil {
 			continue
 		}
-		if cfg.WorkerExecMode() != config.WorkerExecModeExec {
-			continue
-		}
+		execMode := cfg.WorkerExecMode()
 
 		expected := expectedExecWorkers()
 		expectedNames := make(map[string]bool, len(expected))
@@ -64,6 +62,14 @@ func WatchExecWorkers(interval time.Duration) {
 		for _, w := range expected {
 			if cli.WorkerMigrationActive() {
 				break
+			}
+			// Only FPM-bound workers in exec mode need launchd-level
+			// self-heal; container-mode FPM workers get podman
+			// --restart=always. Host-mode workers (vite + friends) always
+			// need launchd healing because they aren't under podman at
+			// all, regardless of WorkerExecMode.
+			if !w.def.Host && execMode != config.WorkerExecModeExec {
+				continue
 			}
 			if last, ok := cooldown[w.unit]; ok && time.Since(last) < minHealInterval {
 				continue
@@ -151,6 +157,13 @@ func expectedExecWorkers() []expectedExecWorker {
 			}
 			def, ok := fw.Workers[kind]
 			if !ok {
+				continue
+			}
+			// Drop workers the platform can't run — without this gate the
+			// heal loop logs "self-healing exec-mode worker" + the WARN
+			// from workerSupportedOnPlatform every cooldown window for a
+			// unit that never came up.
+			if ok, _ := cli.WorkerSupportedOnPlatform(def); !ok {
 				continue
 			}
 			out = append(out, expectedExecWorker{

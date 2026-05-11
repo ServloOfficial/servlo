@@ -282,7 +282,11 @@ func CollectRunningWorkerNames(site *config.Site) []string {
 func collectRunningWorkers(site *config.Site) []string {
 	var active []string
 
-	// Enumerate all workers from the framework definition.
+	// Enumerate all workers from the framework definition. Use
+	// podman.UnitStatus rather than systemd.IsServiceActiveOrRestarting
+	// because the latter is a no-op stub on darwin, which would make
+	// every `lerd worker start … && SetProjectWorkers(CollectRunningWorkerNames)`
+	// chain wipe the workers list it just appended to.
 	if fw, ok := config.GetFrameworkForDir(site.Framework, site.Path); ok && fw.Workers != nil {
 		names := make([]string, 0, len(fw.Workers))
 		for wName := range fw.Workers {
@@ -292,7 +296,7 @@ func collectRunningWorkers(site *config.Site) []string {
 		for _, wName := range names {
 			unit := "lerd-" + wName + "-" + site.Name
 			// Scheduled workers' .service sits at inactive between timer firings.
-			if lerdSystemd.IsServiceActiveOrRestarting(unit) ||
+			if unitIsActiveOrActivating(unit) ||
 				lerdSystemd.IsTimerActive(unit) {
 				active = append(active, wName)
 			}
@@ -300,7 +304,7 @@ func collectRunningWorkers(site *config.Site) []string {
 	}
 
 	// Stripe is not a framework worker — check it separately.
-	if lerdSystemd.IsServiceActiveOrRestarting("lerd-stripe-" + site.Name) {
+	if unitIsActiveOrActivating("lerd-stripe-" + site.Name) {
 		active = append(active, "stripe")
 	}
 
@@ -312,6 +316,15 @@ func collectRunningWorkers(site *config.Site) []string {
 	active = append(active, lerdSystemd.FindOrphanedWorkers(site.Name, known)...)
 
 	return active
+}
+
+// unitIsActiveOrActivating routes through podman.UnitStatus so the check
+// works on macOS too (UnitLifecycle is the darwin service manager, which
+// reads launchctl). systemd.IsServiceActiveOrRestarting falls through to
+// the DBus stub on darwin and always reports "inactive".
+func unitIsActiveOrActivating(unit string) bool {
+	state, _ := podman.UnitStatus(unit)
+	return state == "active" || state == "activating"
 }
 
 // stopWorkerByName stops a single named worker for the site.

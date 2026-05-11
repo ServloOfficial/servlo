@@ -22,29 +22,39 @@ import (
 // down) — every handler tolerates the nil case so the UI keeps working.
 var dumpsServer atomic.Pointer[dumps.Server]
 
-// startDumpsServer binds the Unix-socket receiver and stores it in the
-// global pointer. Errors are logged and swallowed: a bind failure
-// shouldn't take the UI down. The receiver is always-on regardless of the
-// Dumps.Enabled toggle because the toggle controls FPM volume mounts (the
-// *senders*), while listening is essentially free and lets us pick up
-// dumps the moment the user enables the bridge without restarting lerd-ui.
+// startDumpsServer binds the dump receiver and stores it in the global
+// pointer. Errors are logged and swallowed: a bind failure shouldn't
+// take the UI down. The receiver is always-on regardless of the
+// Dumps.Enabled toggle because the toggle controls FPM volume mounts
+// (the *senders*), while listening is essentially free and lets us
+// pick up dumps the moment the user enables the bridge without
+// restarting lerd-ui.
 //
-// We listen on a Unix socket under ~/.local/share/lerd/run/ (already
-// covered by the %h:%h bind mount every FPM container ships with) so the
-// receiver isn't reachable from anywhere outside the user's home — no LAN
-// surface, no host firewall exposure, no IP allowlist to babysit.
+// Transport is platform-specific (config.DumpsListenNetwork):
+//   - Linux: unix socket under ~/.local/share/lerd/run/, covered by
+//     the %h:%h bind mount every FPM container ships with. Not
+//     reachable from outside the user's home.
+//   - macOS: 127.0.0.1:9913. The host home virtio-fs mount in podman-
+//     machine doesn't forward unix sockets as functional sockets, so
+//     the FPM container reaches us via gvproxy's
+//     host.containers.internal:9913 → 127.0.0.1:9913 mapping. Loopback
+//     bind keeps the LAN surface zero.
 func startDumpsServer() {
-	if err := os.MkdirAll(filepath.Dir(config.DumpsSocketPath()), 0755); err != nil {
-		fmt.Printf("[WARN] creating run dir for dumps socket: %v\n", err)
-		return
+	network := config.DumpsListenNetwork()
+	addr := config.DumpsListenAddr()
+	if network == "unix" {
+		if err := os.MkdirAll(filepath.Dir(addr), 0755); err != nil {
+			fmt.Printf("[WARN] creating run dir for dumps socket: %v\n", err)
+			return
+		}
 	}
-	srv, err := dumps.ListenOn(context.Background(), "unix", config.DumpsSocketPath())
+	srv, err := dumps.ListenOn(context.Background(), network, addr)
 	if err != nil {
 		fmt.Printf("[WARN] dumps receiver: %v — `lerd dump tail` and the dashboard Dumps tab will be empty\n", err)
 		return
 	}
 	dumpsServer.Store(srv)
-	fmt.Printf("Lerd dumps receiver listening on unix:%s\n", srv.Addr())
+	fmt.Printf("Lerd dumps receiver listening on %s:%s\n", network, srv.Addr())
 }
 
 // handleDumpsList returns a JSON array of buffered events. Supports
@@ -92,7 +102,7 @@ func handleDumpsStatus(w http.ResponseWriter, r *http.Request) {
 	}{
 		Enabled:     cfg != nil && cfg.IsDumpsEnabled(),
 		Passthrough: cfg != nil && cfg.IsDumpsPassthrough(),
-		Addr:        "unix:" + config.DumpsSocketPath(),
+		Addr:        config.DumpsListenNetwork() + ":" + config.DumpsListenAddr(),
 	}
 	if srv != nil {
 		resp.Listening = true

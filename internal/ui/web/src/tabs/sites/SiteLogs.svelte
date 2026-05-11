@@ -19,13 +19,26 @@
 
   type TabId = string;
 
+  const activeWorktree = $derived.by(() => {
+    if (!activeWorktreeBranch) return undefined;
+    return (site.worktrees || []).find((w) => w.branch === activeWorktreeBranch);
+  });
+
   const tabs: TabItem<TabId>[] = $derived.by(() => {
     const xs: TabItem<TabId>[] = [];
     if (site.has_app_logs) xs.push({ id: 'app', label: m.sites_tabs_appLogs() });
     xs.push({ id: 'fpm', label: fpmTabLabelI18n(site) });
-    // Worker units run against main; their journals are not worktree-scoped,
-    // so hide the tabs while a worktree is active to avoid implying isolation.
-    if (activeWorktreeBranch) return xs;
+    if (activeWorktreeBranch) {
+      // Shared queue/horizon/stripe/schedule/reverb run against main and
+      // their journals don't filter per worktree, so drop them here to
+      // avoid implying isolation. Per-worktree host workers (vite, etc.)
+      // do have their own launchd units — surface those off the
+      // worktree's own framework_workers list.
+      for (const w of activeWorktree?.framework_workers || []) {
+        if (w.running || w.failing) xs.push({ id: 'worker:' + w.name, label: (w.label || w.name) + (w.failing ? ' !' : '') });
+      }
+      return xs;
+    }
     if (site.queue_running || site.queue_failing) xs.push({ id: 'queue', label: m.sites_tabs_queue() + (site.queue_failing ? ' !' : '') });
     if (site.horizon_running || site.horizon_failing) xs.push({ id: 'horizon', label: m.sites_tabs_horizon() + (site.horizon_failing ? ' !' : '') });
     if (site.stripe_running) xs.push({ id: 'stripe', label: m.sites_tabs_stripe() });
@@ -63,7 +76,17 @@
     if (active === 'stripe') return `/api/stripe/${name}/logs`;
     if (active === 'schedule') return `/api/schedule/${name}/logs`;
     if (active === 'reverb') return `/api/reverb/${name}/logs`;
-    if (active.startsWith('worker:')) return `/api/worker/${name}/${active.slice(7)}/logs`;
+    if (active.startsWith('worker:')) {
+      const workerName = active.slice(7);
+      // Per-worktree units live under lerd-<worker>-<site>-<wtBase>;
+      // the backend handler builds the unit from <site>/<worker> in the
+      // path, so concat the worktree dir's basename onto the site slug.
+      if (activeWorktree?.path) {
+        const base = activeWorktree.path.split('/').pop();
+        if (base) return `/api/worker/${name}-${base}/${workerName}/logs`;
+      }
+      return `/api/worker/${name}/${workerName}/logs`;
+    }
     return '';
   });
 </script>

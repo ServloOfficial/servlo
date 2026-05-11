@@ -3,7 +3,15 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 )
+
+// DumpsTCPPort is the loopback port the dump receiver binds on darwin
+// (where a unix socket on the macOS host can't be reached from FPM
+// inside the podman-machine VM). Linux uses a unix socket instead so
+// this is unused there. Picked to avoid Symfony var-dump-server's
+// default :9912 — see internal/dumps.DefaultAddr.
+const DumpsTCPPort = "9913"
 
 func xdgConfigHome() string {
 	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
@@ -141,6 +149,39 @@ func DumpsSocketPath() string {
 // so the FPM container never restarts.
 func DumpsEnabledFlagFile() string {
 	return filepath.Join(DumpsAssetsDir(), "enabled.flag")
+}
+
+// DumpsListenNetwork reports the net.Listen network lerd-ui should bind
+// for the dump receiver. On macOS we fall back to TCP because unix
+// sockets don't traverse the podman-machine virtio-fs boundary as
+// functional sockets (same constraint that drives EnsureLerdVhost's
+// host.containers.internal:7073 fallback). On Linux the unix socket is
+// reachable inside FPM via the %h:%h bind mount.
+func DumpsListenNetwork() string {
+	if runtime.GOOS == "darwin" {
+		return "tcp"
+	}
+	return "unix"
+}
+
+// DumpsListenAddr is the address paired with DumpsListenNetwork.
+func DumpsListenAddr() string {
+	if runtime.GOOS == "darwin" {
+		return "127.0.0.1:" + DumpsTCPPort
+	}
+	return DumpsSocketPath()
+}
+
+// DumpsBridgeTarget is the stream_socket_client target the PHP bridge
+// reads from the conf.d ini. On macOS gvproxy forwards
+// host.containers.internal:<port> from inside the podman-machine VM to
+// the lerd-ui process on the host; on Linux the FPM container hits the
+// host unix socket directly via the %h:%h bind mount.
+func DumpsBridgeTarget() string {
+	if runtime.GOOS == "darwin" {
+		return "tcp://host.containers.internal:" + DumpsTCPPort
+	}
+	return "unix://" + DumpsSocketPath()
 }
 
 // CustomServicesDir returns the directory for custom service YAML files.
