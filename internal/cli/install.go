@@ -41,6 +41,20 @@ func NewInstallCmd() *cobra.Command {
 func step(label string) { fmt.Printf("  --> %s ... ", label) }
 func ok()               { fmt.Println("OK") }
 
+// fileChangedBy runs mutate and reports whether the file at path differs
+// before vs after. A read error on either side is treated as empty content,
+// so a file that didn't exist before and does after counts as a change. Used
+// by the install pass to bounce a unit only when its on-disk config actually
+// moved, rather than on every reinstall.
+func fileChangedBy(path string, mutate func() error) (bool, error) {
+	before, _ := os.ReadFile(path)
+	if err := mutate(); err != nil {
+		return false, err
+	}
+	after, _ := os.ReadFile(path)
+	return string(after) != string(before), nil
+}
+
 func runInstall(cmd *cobra.Command, _ []string) error {
 	fmt.Println("==> Installing Lerd")
 
@@ -221,6 +235,12 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		teardownDNS()
 	}
 
+	// Tracks whether the dnsmasq config or the lerd-dns quadlet actually
+	// changed this run. A no-op reinstall (the common case after a version
+	// bump) then leaves the running container alone instead of bouncing it,
+	// which used to drop .test resolution for a few seconds.
+	dnsChanged := false
+
 	if wantDNS {
 		// 4. mkcert CA, interactive (may prompt for sudo)
 		fmt.Println("  --> Installing mkcert CA")
@@ -232,9 +252,14 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 		// 5. DNS config + sudoers
 		step("Writing DNS configuration")
-		if err := dns.WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
+		dnsConfPath := filepath.Join(config.DnsmasqDir(), "lerd.conf")
+		confChanged, err := fileChangedBy(dnsConfPath, func() error {
+			return dns.WriteDnsmasqConfig(config.DnsmasqDir())
+		})
+		if err != nil {
 			return err
 		}
+		dnsChanged = dnsChanged || confChanged
 		ok()
 
 		fmt.Println("  --> Installing DNS sudoers rule")
@@ -380,9 +405,14 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	if wantDNS {
 		step("Writing DNS service unit")
-		if err := writeDNSUnit(os.Stdout); err != nil {
+		dnsUnitPath := filepath.Join(config.QuadletDir(), "lerd-dns.container")
+		unitChanged, err := fileChangedBy(dnsUnitPath, func() error {
+			return writeDNSUnit(os.Stdout)
+		})
+		if err != nil {
 			return err
 		}
+		dnsChanged = dnsChanged || unitChanged
 		ok()
 	}
 
@@ -563,9 +593,20 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// On Linux, DNS is a container — start it after images are pulled.
 	// On macOS it was already started before RunParallel above.
 	if wantDNS && isDNSContainerUnit() {
-		step("Starting lerd-dns")
-		if err := services.Mgr.Restart("lerd-dns"); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
+		// Only bounce the running container when its config or quadlet
+		// actually changed. Otherwise Start is a no-op against the live
+		// unit, so a routine reinstall doesn't drop .test resolution.
+		dnsRunning, _ := podman.ContainerRunning("lerd-dns")
+		if dnsChanged || !dnsRunning {
+			step("Starting lerd-dns")
+			if err := services.Mgr.Restart("lerd-dns"); err != nil {
+				fmt.Printf("    WARN: %v\n", err)
+			}
+		} else {
+			step("Checking lerd-dns")
+			if err := services.Mgr.Start("lerd-dns"); err != nil {
+				fmt.Printf("    WARN: %v\n", err)
+			}
 		}
 		ok()
 

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -73,6 +74,48 @@ func TestPullDNSImages(t *testing.T) {
 		if len(jobs) != 0 {
 			t.Error("pullDNSImages should return nil on macOS")
 		}
+	}
+}
+
+func TestFileChangedBy(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "f")
+
+	// Missing before, written after -> changed.
+	changed, err := fileChangedBy(path, func() error { return os.WriteFile(path, []byte("a"), 0644) })
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if !changed {
+		t.Error("creating the file should count as a change")
+	}
+
+	// Same content rewritten -> not changed.
+	changed, err = fileChangedBy(path, func() error { return os.WriteFile(path, []byte("a"), 0644) })
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if changed {
+		t.Error("rewriting identical content should not count as a change")
+	}
+
+	// Different content -> changed.
+	changed, err = fileChangedBy(path, func() error { return os.WriteFile(path, []byte("b"), 0644) })
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if !changed {
+		t.Error("new content should count as a change")
+	}
+
+	// mutate error is propagated and reported as no change.
+	wantErr := errors.New("boom")
+	changed, err = fileChangedBy(path, func() error { return wantErr })
+	if !errors.Is(err, wantErr) {
+		t.Errorf("expected mutate error to propagate, got %v", err)
+	}
+	if changed {
+		t.Error("a failed mutate should report no change")
 	}
 }
 

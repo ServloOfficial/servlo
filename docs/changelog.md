@@ -7,10 +7,13 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased]
+## [1.20.0-beta.2] — 2026-05-11
+
+Second beta of the 1.20.0 line. The TUI catches up to the dashboard: service update / rollback keybinds, a failing-workers header pill, and per-worktree controls (workers, isolated DB, LAN share, PHP / Node pickers) in the site detail pane. PHP 7.4 and 8.0 land as a frozen legacy tier for old apps, `lerd php:ext add` learns `--apk-deps` for extensions that need extra Alpine build packages, the dashboard ships in German, Indonesian and Dutch (plus a wide i18n pass across all seven locales), and the MCP server gains `workers_mode`, `bug_report`, and a `branch` param on the PHP / Node version tools. Plus the dashboard update-banner fixes from the post-beta.1 queue.
 
 ### Fixed
 
+- **`lerd install` (and `lerd update`, which runs install) briefly dropped `.test` resolution on every run.** The installer unconditionally `systemctl restart`ed `lerd-dns`, which tears down and recreates the podman container — a few-second window where port 5300 isn't bound and `*.test` won't resolve. It now diffs the dnsmasq config (`lerd.conf`) and the `lerd-dns` quadlet against what's already on disk and only restarts when one of them actually changed (or the container isn't running); a no-op reinstall, the common case after a version bump, leaves the live container alone. New `fileChangedBy` helper wraps the read-mutate-read diff. macOS (native dnsmasq, no container teardown) is unchanged.
 - **Dashboard "Open terminal & update" button failed with `lerd: command not found`.** The handler shelled out via `sh -c "lerd update; …"`, but the spawned terminal inherits a non-login shell environment that doesn't source `.bashrc` / `.zshrc`, so `~/.local/bin` is off `PATH`. The script now uses `os.Executable()` to resolve the absolute path of the running `lerd-ui` binary (which is the `lerd` binary itself) before passing it to the shell. Same fix pattern the TUI's `runLerd` already uses.
 - **Dashboard update banner showed `Lerd vv1.19.2 is available`.** Two bugs compounded: the wire payload from `/api/version` returned the GitHub tag verbatim (with leading `v`) while the Svelte template `Lerd v{version} is available` already prepends `v`, producing the double-`v`. `handleVersion` now strips the `v` via `lerdUpdate.StripV` before sending so the wire data is bare and the template renders cleanly.
 - **`internal/update` test pollution rewrote the user's real `update-check.json`.** `withTempCache` set `XDG_CONFIG_HOME` but `config.UpdateCheckFile` reads `XDG_DATA_HOME`, so test cache writes leaked to `~/.local/share/lerd/update-check.json` and surfaced bogus version tags (e.g. `v1.19.2`) in the dashboard banner for 24h. Test now sets the correct env var so writes stay in the temp dir.
