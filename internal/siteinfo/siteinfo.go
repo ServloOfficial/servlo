@@ -449,17 +449,14 @@ func (e *EnrichedSite) enrichWorkers(fw *config.Framework, hasFw bool) {
 		e.HasQueueWorker = false // Horizon manages queues
 	}
 
-	// Custom framework workers. Skip per_worktree:true workers — those
-	// only run as lerd-<w>-<site>-<wt> per worktree and are enriched
-	// separately via enrichWorktreeWorkers. Including them here surfaces
-	// an always-inactive row on the parent (e.g. vite for Laravel 12+).
+	// Custom framework workers. per_worktree workers still surface on the
+	// parent so the toggle and log tab stay available when the check rule
+	// matches at the parent path (e.g. node_modules/vite). enrichWorktreeWorkers
+	// reports per-worktree unit state separately on each worktree row.
 	names := make([]string, 0, len(fw.Workers))
 	for n, wDef := range fw.Workers {
 		switch n {
 		case "queue", "schedule", "reverb", "horizon":
-			continue
-		}
-		if wDef.IsPerWorktree() {
 			continue
 		}
 		if wDef.Check != nil && !config.MatchesRule(e.Path, *wDef.Check) {
