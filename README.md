@@ -9,7 +9,7 @@
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey)]()
 [![Docs](https://img.shields.io/badge/docs-geodro.github.io%2Flerd-blue)](https://geodro.github.io/lerd/)
 
-![Lerd Web UI](screenshots/app-1.png)
+![Lerd dashboard tour](docs/assets/screenshots/tour.gif)
 
 Lerd runs Nginx, PHP-FPM, and your services as rootless Podman containers,
 designed for PHP developers on Linux and macOS.
@@ -23,14 +23,15 @@ If you're a PHP developer on Linux and want frictionless local development — a
 ## Features
 
 - 🌐 **Automatic `.test` domains** with one-command TLS, or [opt out of lerd-managed DNS](https://geodro.github.io/lerd/features/dns/) and use `*.localhost` (no dnsmasq, no system resolver tweak, no sudo for the DNS bits)
-- 🐘 **Per-project PHP version** (8.1–8.5), switch with one click
+- 🐘 **Per-project PHP version** (8.1–8.5, plus a frozen 7.4 / 8.0 legacy tier for hosted-on-the-old-stack projects), switch with one click
 - ⚡ **FrankenPHP runtime** per site as an alternative to shared PHP-FPM, with Laravel Octane and Symfony Runtime worker mode
 - 📦 **Node.js isolation** per project (Node 22, 24)
-- 🖥️ **Built-in Web UI** with a dashboard root, live widgets, and a global Cmd+K command palette to jump to any site, service, or page
+- 🖥️ **Built-in Web UI** with a dashboard root, live widgets, a global Cmd+K command palette, and seven dashboard languages (English, German, Spanish, French, Indonesian, Dutch, Portuguese)
 - 🧪 **Tinker tab** - in-browser PHP REPL per site with autocomplete (project models, composer helpers, PHP built-ins), live `php -l` syntax checking, and a collapsible tree view for `dump()` output. Works on Laravel (`artisan tinker`), Symfony, and any composer-based PHP project
+- 🛰️ **Live dump() / dd() viewer** that intercepts every `dump()` and `dd()` call from your running app and streams it to the dashboard, TUI (`D` key), MCP, and `lerd dump tail`, scoped per site and per worktree branch, with the original response left clean unless you flip passthrough on
 - 💻 **Terminal dashboard** (`lerd tui`) - btop-style TUI with live status, site detail pane, inline domain and version editing, shell drop-in, log tailing, and filter/sort — the same operations surface as the web UI, for tmux and SSH workflows
 - 🗄️ **One-click services**: MySQL, PostgreSQL, Redis, Meilisearch, RustFS, Mailpit, Gotenberg, Stripe Mock, Reverb and more. Every default service is a YAML preset you can update, migrate, rollback, or reinstall in place, including a reset-data reinstall that auto-recreates linked sites' databases and buckets
-- 🌳 **First-class git worktrees** with auto-detected branch domains, per-worktree PHP/Node versions, optional per-worktree database isolation (clone from main or empty), and a per-worktree LAN-share proxy
+- 🌳 **First-class git worktrees** with auto-detected branch domains, per-worktree PHP/Node versions, optional per-worktree database isolation (clone from main or empty), a per-worktree LAN-share proxy, `env_overrides` templating in `.lerd.yaml` for multi-tenant apps, automatic wildcard cert SANs for `*.branch.site.test`, a built-in Vite dev server worker that runs on the host per branch, and a dashboard modal for adding and removing worktrees without touching the CLI
 - ⚒️ **Worker self-heal**, failed queue, schedule, horizon, reverb, and stripe workers are surfaced everywhere (CLI, dashboard banner, TUI, MCP) and recovered with one click or `lerd worker heal`
 - 📋 **Live logs** for PHP-FPM, Queue, Schedule, Reverb, per site
 - 🔒 **Rootless & daemonless** - Podman-native, no Docker required, dual-stack IPv4 + IPv6

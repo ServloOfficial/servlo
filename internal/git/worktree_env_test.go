@@ -271,6 +271,92 @@ func TestEnsureWorktreeEnv_fallsBackWithoutOverrides(t *testing.T) {
 	}
 }
 
+// TestEnsureWorktreeEnv_isolatedDBOverrideSkipped pins the isolation /
+// env_overrides conflict resolution. When the user opts into an isolated
+// worktree DB (lerd db:isolate writes a per-branch DB_DATABASE into the
+// worktree's .env and sets db_isolated:true in its .lerd.yaml), subsequent
+// EnsureWorktreeEnv ticks must NOT clobber DB_DATABASE from a parent
+// env_overrides template, or the isolated DB silently goes back to the
+// templated value on the next watcher refresh.
+//
+// Modelled on the real theregistry.test fixture (Laravel parent at
+// /home/george/Projects/whitewaters with a branch worktree), but uses
+// tempdirs so the suite stays hermetic.
+func TestEnsureWorktreeEnv_isolatedDBOverrideSkipped(t *testing.T) {
+	main := t.TempDir()
+	wt := t.TempDir()
+
+	mainEnv := "APP_URL=http://theregistry.test\nDB_DATABASE=whitewaters\n"
+	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
+		t.Fatal(err)
+	}
+	lerdYAML := "domains:\n  - theregistry\nenv_overrides:\n  DB_DATABASE: \"{{parent}}_{{branch}}\"\n"
+	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Seed the worktree as if `lerd db:isolate` already ran: explicit
+	// DB_DATABASE plus db_isolated:true in its .lerd.yaml.
+	wtEnv := "APP_URL=http://theregistry.test\nDB_DATABASE=whitewaters_feat_x\n"
+	if err := os.WriteFile(filepath.Join(wt, ".env"), []byte(wtEnv), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.SetWorktreeDBIsolated(wt, true); err != nil {
+		t.Fatal(err)
+	}
+
+	EnsureWorktreeEnv(main, wt, "feat-x.theregistry.test", false)
+
+	got, err := os.ReadFile(filepath.Join(wt, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(got)
+	if !strings.Contains(s, "DB_DATABASE=whitewaters_feat_x") {
+		t.Errorf("isolated DB_DATABASE was clobbered by env_overrides:\n%s", s)
+	}
+	if strings.Contains(s, "DB_DATABASE=whitewaters_feat-x") || strings.Contains(s, "DB_DATABASE=_feat-x") {
+		t.Errorf("env_overrides template replaced isolated DB:\n%s", s)
+	}
+	// APP_URL must still be rewritten — only DB_DATABASE is sticky.
+	if !strings.Contains(s, "APP_URL=http://feat-x.theregistry.test") {
+		t.Errorf("APP_URL rewrite skipped alongside DB_DATABASE:\n%s", s)
+	}
+}
+
+// TestEnsureWorktreeEnv_envOverridesWinWhenNotIsolated is the symmetric
+// invariant: with db_isolated:false (the default), env_overrides for
+// DB_DATABASE still apply. This protects users who deliberately template
+// per-branch DBs without going through `lerd db:isolate`.
+func TestEnsureWorktreeEnv_envOverridesWinWhenNotIsolated(t *testing.T) {
+	main := t.TempDir()
+	wt := t.TempDir()
+
+	mainEnv := "APP_URL=http://theregistry.test\nDB_DATABASE=whitewaters\n"
+	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
+		t.Fatal(err)
+	}
+	lerdYAML := "domains:\n  - theregistry\nenv_overrides:\n  DB_DATABASE: \"{{parent}}_{{branch}}\"\n"
+	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	EnsureWorktreeEnv(main, wt, "feat-x.theregistry.test", false)
+
+	got, err := os.ReadFile(filepath.Join(wt, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), "DB_DATABASE=_feat-x") {
+		// The exact value depends on whether parent resolves; with no
+		// site registered, {{parent}} resolves to "". The point is that
+		// env_overrides DID apply (DB_DATABASE changed away from the
+		// inherited "whitewaters").
+		if strings.Contains(string(got), "DB_DATABASE=whitewaters\n") {
+			t.Errorf("env_overrides was skipped even though db_isolated is false:\n%s", got)
+		}
+	}
+}
+
 // No-op when the main repo has no .env (lerd should not invent one out of
 // thin air; it simply has nothing to copy).
 func TestEnsureWorktreeEnv_noopWhenMainHasNoEnv(t *testing.T) {

@@ -163,13 +163,23 @@
   border-color: #e02419 !important;
 }
 
-/* Home features: promote the first two cards (MCP, Rootless Podman) to
-   span two columns on wide viewports so the flagship features breathe.
-   VitePress applies .grid-4 when features.length > 3 and not divisible
-   by 3, giving every card 25% width at ≥768px. We override the first
-   two to 50% so they share one row above the rest. */
-@media (min-width: 768px) {
-  .VPFeatures.VPHomeFeatures .items .item:nth-child(-n+2) {
-    width: 50% !important;
+/* Home features grid: VitePress applies .grid-6 when features.length is a
+   multiple of 3, which lands the cards at 50% width on viewports between
+   640–767px (2 per row) and 33% from 768px upward (3 per row). With 12
+   cards the default never reaches 4 per row, so the bottom rows end up
+   stretched out. These overrides promote grid-6 to 3 per row from 640px
+   and 4 per row from 960px so 12 cards become a clean 4 × 3 grid on
+   desktop while staying readable on tablets. */
+@media (min-width: 640px) {
+  .VPFeatures .item.grid-6 {
+    width: calc(100% / 3) !important;
   }
 }
+
+@media (min-width: 960px) {
+  .VPFeatures .item.grid-6 {
+    width: calc(100% / 4) !important;
+  }
+}
+
+

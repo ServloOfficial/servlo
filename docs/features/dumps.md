@@ -2,6 +2,8 @@
 
 `dump()` and `dd()` are the fastest way to inspect a value in PHP, but the output gets lost the moment it ships through Blade, a queue worker, or an XHR response. lerd's dump viewer captures every `dump()` / `dd()` call and streams it to the dashboard, the System sidebar, the TUI, and the MCP tools, so the value is always one click away even when the response itself isn't readable.
 
+![Dump viewer on a site's Dumps tab](/assets/screenshots/site-detail-dumps.png)
+
 The feature is **off by default**. Enable it with `lerd dump on`, the antenna toggle in the Sites sidebar, the Enable button on a per-site Dumps tab, or `dumps_toggle` via MCP. All of these flip the same global flag.
 
 ## How it works
@@ -24,6 +26,9 @@ The receiver's transport depends on the host:
 - **Web dashboard** — three places:
   - Each site detail pane has a **Dumps** tab next to Overview and Tinker, pre-filtered to that site.
   - **System > Dump bridge** opens a global view with the listener address, the buffered count, an Enable/Disable button, and every dump across every project.
+
+    ![System Dump bridge detail](/assets/screenshots/system-dump-bridge.png)
+
   - The Sites list header has a small antenna toggle. Pulsing emerald dot when capturing, grey when off.
   - The System Health card on the dashboard shows the bridge state alongside DNS / nginx / watcher.
 - **TUI** — press **D** in `lerd tui` to swap the detail pane for the live dump feed (global).
@@ -43,6 +48,7 @@ Each event is one line of JSON. The shape is stable from v1 of the protocol:
   "ctx": {
     "type": "fpm",
     "site": "acme",
+    "branch": "feat-a",
     "domain": "acme.test",
     "request": "GET /users/42",
     "pid": 1234
@@ -52,6 +58,8 @@ Each event is one line of JSON. The shape is stable from v1 of the protocol:
   "text": "App\\Models\\User {#42 ...}"
 }
 ```
+
+`ctx.branch` is set when the dump came from a worktree, so a request to `feat-a.acme.test` carries `branch: "feat-a"` alongside the parent `site: "acme"`. Plumbed end-to-end via `LERD_SITE` and `LERD_BRANCH` fastcgi params on the worktree vhost, so the dashboard renders a branch chip per row, the CLI tail prints `<site>/<branch>` in the header, and TUI / MCP filters can scope by branch. Parent-site requests leave the field empty.
 
 Reserved fields: `tree` (structured cloner output, populated in a future revision) and `trunc` (set to `true` when the cloner output exceeded the per-event cap).
 

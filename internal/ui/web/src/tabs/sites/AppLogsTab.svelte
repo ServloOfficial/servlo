@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import type { Site } from '$stores/sites';
   import {
     listAppLogFiles,
@@ -33,6 +33,7 @@
         selectedFile = list[0].name;
         await loadEntries();
       } else {
+        selectedFile = '';
         entries = [];
       }
     } finally {
@@ -52,8 +53,15 @@
     if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
   }
 
-  onMount(() => {
-    loadFiles();
+  // Re-fetch the file list whenever the active site or branch changes.
+  // Without this the dropdown sticks on the first mount's branch, so
+  // switching from parent to a worktree (or between worktrees) leaves a
+  // stale "No log entries found." state — the API was scoped to the
+  // wrong path, not actually empty.
+  $effect(() => {
+    site.domain;
+    branch;
+    untrack(() => loadFiles());
   });
 
   function toggleEntry(i: number) {
@@ -87,15 +95,17 @@
 
 <div class="flex-1 flex flex-col overflow-hidden min-h-0">
   <div class="flex items-center gap-2 px-3 sm:px-5 py-2 shrink-0 border-b border-gray-100 dark:border-lerd-border">
-    <select
-      bind:value={selectedFile}
-      onchange={loadEntries}
-      class="text-xs bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-lerd-muted focus:outline-hidden focus:border-orange-500/50 cursor-pointer transition-colors"
-    >
-      {#each files as f (f.name)}
-        <option value={f.name} class="bg-white text-gray-700 dark:bg-lerd-bg dark:text-gray-300">{f.name}</option>
-      {/each}
-    </select>
+    {#if files.length > 0}
+      <select
+        bind:value={selectedFile}
+        onchange={loadEntries}
+        class="text-xs bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-lerd-muted focus:outline-hidden focus:border-orange-500/50 cursor-pointer transition-colors"
+      >
+        {#each files as f (f.name)}
+          <option value={f.name} class="bg-white text-gray-700 dark:bg-lerd-bg dark:text-gray-300">{f.name}</option>
+        {/each}
+      </select>
+    {/if}
 
     <div class="flex items-center rounded-sm border border-gray-200 dark:border-lerd-border overflow-hidden shrink-0">
       <button
@@ -149,7 +159,11 @@
   </div>
 
   <div bind:this={scrollEl} class="flex-1 overflow-y-auto">
-    {#if reversed.length === 0 && !loading}
+    {#if files.length === 0 && !loading}
+      <div class="text-gray-400 dark:text-gray-600 italic text-xs p-4">
+        {branch ? m.sites_appLogs_noFilesWorktree() : m.sites_appLogs_noFiles()}
+      </div>
+    {:else if reversed.length === 0 && !loading}
       <div class="text-gray-400 dark:text-gray-600 italic text-xs p-4">{m.sites_appLogs_empty()}</div>
     {/if}
     {#each reversed as entry, i (i + ':' + (entry.date ?? '') + ':' + (entry.message ?? '').slice(0, 40))}

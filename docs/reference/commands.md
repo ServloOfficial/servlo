@@ -95,6 +95,8 @@ See [Remote / LAN Development](/usage/remote-development) for the full walkthrou
 
 ## PHP
 
+Supported PHP versions: **8.5**, **8.4**, **8.3**, **8.2**, **8.1**, and the frozen legacy tier **8.0** and **7.4**. The legacy tier is opt-in only (you have to `lerd use 7.4` or `lerd isolate 7.4` explicitly), pulls from `php:7.4-fpm-alpine` / `php:8.0-fpm-alpine` upstream tags, and intentionally skips ext-mongodb (unavailable on those PHP versions). Use the legacy tier for hosted legacy apps; default new projects to 8.4 LTS or 8.5.
+
 | Command | Description |
 |---|---|
 | `lerd use <version>` | Set the global PHP version and build the FPM image if needed |
@@ -105,7 +107,7 @@ See [Remote / LAN Development](/usage/remote-development) for the full walkthrou
 | `lerd xdebug on [version] [--mode MODE]` | Enable Xdebug for a PHP version. `--mode` defaults to `debug`; accepts `coverage`, `develop`, `profile`, `trace`, `gcstats`, or comma combos like `debug,coverage` |
 | `lerd xdebug off [version]` | Disable Xdebug |
 | `lerd xdebug status` | Show Xdebug enabled/disabled state and active mode for all installed PHP versions |
-| `lerd php:ext add <ext> [version]` | Add a custom PHP extension and rebuild the FPM image |
+| `lerd php:ext add <ext> [version] [--apk-deps PKG[,PKG]]` | Add a custom PHP extension and rebuild the FPM image. `--apk-deps` accepts additional Alpine packages that the extension needs at build time (e.g. `--apk-deps libwebp-dev,libpng-dev` for `gd` with WebP support); the package list is persisted in `~/.config/lerd/config.yaml` so future rebuilds reapply it |
 | `lerd php:ext remove <ext> [version]` | Remove a custom PHP extension and rebuild |
 | `lerd php:ext list [version]` | List custom extensions for a PHP version |
 | `lerd php:ini [version]` | Open the user php.ini for a PHP version in `$EDITOR` |

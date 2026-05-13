@@ -254,7 +254,14 @@ func EnsureWorktreeEnv(mainRepoPath, worktreePath, worktreeDomain string, secure
 		if s, err := config.FindSiteByPath(mainRepoPath); err == nil && s != nil {
 			parent = config.SiteSlug(s.Name)
 		}
+		// When the user opted into an isolated worktree DB, DB_DATABASE is
+		// owned by SetWorktreeDBIsolated and any env_overrides template for
+		// the same key would clobber it on the next watcher tick.
+		dbIsolated := config.WorktreeDBIsolated(worktreePath)
 		for k, v := range cfg.EnvOverrides {
+			if dbIsolated && k == "DB_DATABASE" {
+				continue
+			}
 			v = strings.ReplaceAll(v, "{{domain}}", worktreeDomain)
 			v = strings.ReplaceAll(v, "{{scheme}}", scheme)
 			v = strings.ReplaceAll(v, "{{site}}", site)
