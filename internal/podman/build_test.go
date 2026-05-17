@@ -49,6 +49,66 @@ func TestBuildCustomExtBlock_UserDepsUnionedWithBuiltin(t *testing.T) {
 	}
 }
 
+func TestBuildCustomExtRuntimeDeps_Empty(t *testing.T) {
+	if got := buildCustomExtRuntimeDeps(nil, nil); got != "" {
+		t.Errorf("empty input should produce empty runtime block, got: %q", got)
+	}
+	if got := buildCustomExtRuntimeDeps([]string{"redis"}, nil); got != "" {
+		t.Errorf("extension with no apk deps should produce empty block, got: %q", got)
+	}
+}
+
+func TestBuildCustomExtRuntimeDeps_MatchesBuilderDeps(t *testing.T) {
+	// The runtime block must install exactly the apk packages that the
+	// builder block (buildCustomExtBlock) installs for the same input.
+	// Drift between the two would mean compiled .so files can dlopen at
+	// build time but fail at runtime.
+	cases := []struct {
+		exts     []string
+		userDeps map[string][]string
+	}{
+		{[]string{"imap"}, nil},
+		{[]string{"imap", "ssh2"}, map[string][]string{"ssh2": {"libssh2-dev"}}},
+		{[]string{"imap"}, map[string][]string{"imap": {"extra-pkg"}}},
+	}
+	for _, c := range cases {
+		runtime := buildCustomExtRuntimeDeps(c.exts, c.userDeps)
+		builder := buildCustomExtBlock(c.exts, c.userDeps)
+		if runtime == "" {
+			t.Errorf("exts=%v deps=%v: runtime block unexpectedly empty", c.exts, c.userDeps)
+			continue
+		}
+		// Every package that appears in the builder block's `apk add` must
+		// also appear in the runtime block.
+		var seen []string
+		for _, ext := range c.exts {
+			seen = append(seen, apkDepsForExt(ext, c.userDeps)...)
+		}
+		for _, pkg := range seen {
+			if !strings.Contains(runtime, " "+pkg+" ") && !strings.HasSuffix(strings.TrimSpace(runtime), pkg+" && rm -rf /var/cache/apk/*") {
+				if !strings.Contains(runtime, pkg) {
+					t.Errorf("exts=%v: runtime block missing pkg %q\n  builder: %s\n  runtime: %s", c.exts, pkg, builder, runtime)
+				}
+			}
+		}
+	}
+}
+
+func TestBuildCustomExtRuntimeDeps_DedupsAcrossExts(t *testing.T) {
+	// Two extensions sharing the same dep (krb5-dev appears in imap's
+	// built-in list and is also a user dep) must list it exactly once.
+	got := buildCustomExtRuntimeDeps(
+		[]string{"imap", "ssh2"},
+		map[string][]string{
+			"imap": {"krb5-dev"},
+			"ssh2": {"krb5-dev", "libssh2-dev"},
+		},
+	)
+	if strings.Count(got, " krb5-dev ") > 1 {
+		t.Errorf("krb5-dev should appear once in the runtime apk list, got:\n%s", got)
+	}
+}
+
 func TestApkDepsForExt_Dedup(t *testing.T) {
 	got := apkDepsForExt("imap", map[string][]string{"imap": {" krb5-dev ", "extra", "", "imap-dev"}})
 	want := []string{"imap-dev", "krb5-dev", "openssl-dev", "c-client", "extra"}
