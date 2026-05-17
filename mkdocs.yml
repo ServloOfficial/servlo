@@ -93,6 +93,7 @@ nav:
       - Queue Workers: usage/queue-workers.md
   - Features:
       - Web UI: features/web-ui.md
+      - Framework Commands: features/commands.md
       - Tinker tab: features/tinker.md
       - Dump viewer: features/dumps.md
       - System Tray: features/system-tray.md

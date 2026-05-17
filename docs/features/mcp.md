@@ -112,6 +112,10 @@ Once the MCP server is connected, your AI assistant has access to:
 | `schedule` | Start or stop the task scheduler for a site — `action`: `start` / `stop` |
 | `worker` | Start or stop any named framework worker (e.g. `messenger`, `pulse`) — `action`: `start` / `stop`. Accepts an optional `branch` to target a per-worktree unit (e.g. `vite` on `feat-a`) instead of the parent site's worker |
 | `worker_list` | List all workers defined for a site's framework with running status. Accepts an optional `branch` so worktree-scoped runtime can be inspected separately from the parent |
+| `commands_list` | List one-shot framework commands available for a site (resolved from framework yaml + `.lerd.yaml`). Same set the dashboard dropdown and `lerd run` see |
+| `commands_run` | Execute a named command on a site (e.g. `optimize:clear`, `drush uli`, `cache:flush`). Returns combined stdout/stderr + exit code. Destructive commands (`confirm: true`) require `force: true` |
+| `command_add` | Add or update a project command in `.lerd.yaml`'s `commands:` block. Same name as a framework default replaces it. Use `disabled: true` to suppress a framework default |
+| `command_remove` | Remove a project command from `.lerd.yaml` by name. Does not affect framework defaults |
 | `workers_mode` | Get or set the worker exec mode for a site — `action`: `get` / `set`, `mode`: `exec` (default; one container shared by all workers) or `container` (one container per worker). Used when an Octane-style runtime needs process isolation per worker |
 | `workers_heal` | Restart every worker reported as failing in one pass. Mirrors the dashboard's heal-all button and the TUI `H` keybind |
 | `workers_health` | Snapshot of every framework worker across every site with its running / failing state and the last error captured from journalctl, useful before deciding to heal |

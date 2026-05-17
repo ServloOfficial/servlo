@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Modal from '$components/Modal.svelte';
+  import Dropdown from '$components/Dropdown.svelte';
   import DetailButton from '$components/DetailButton.svelte';
   import { closeModal } from '$stores/modals';
   import {
@@ -94,15 +95,13 @@
               {/if}
             </div>
             {#if (p.versions || []).length > 0}
-              <select
-                value={p.selected_version ?? ''}
-                onchange={(e) => setSelectedVersion(p.name, (e.target as HTMLSelectElement).value)}
-                class="shrink-0 text-xs bg-gray-50 dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-lerd-red/50"
-              >
-                {#each availableVersions(p) as v (v.tag)}
-                  <option value={v.tag}>{v.label || v.tag}</option>
-                {/each}
-              </select>
+              <div class="shrink-0">
+                <Dropdown
+                  value={p.selected_version ?? ''}
+                  options={availableVersions(p).map((v) => ({ value: v.tag, label: v.label || v.tag }))}
+                  onchange={(v) => setSelectedVersion(p.name, v)}
+                />
+              </div>
             {/if}
             <DetailButton
               tone="primary"

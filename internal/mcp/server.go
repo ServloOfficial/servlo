@@ -784,6 +784,64 @@ func toolList() []mcpTool {
 			},
 		},
 		mcpTool{
+			Name:        "commands_list",
+			Description: "List on-demand framework commands available for a site (framework defaults merged with the project's .lerd.yaml commands: block).",
+			InputSchema: mcpSchema{
+				Type: "object",
+				Properties: map[string]mcpProp{
+					"site": {Type: "string", Description: "Site name (from sites)."},
+				},
+				Required: []string{"site"},
+			},
+		},
+		mcpTool{
+			Name:        "commands_run",
+			Description: "Run a framework command on a site by name (same names as commands_list). Returns combined stdout/stderr and exit code. Confirm-gated commands require force: true.",
+			InputSchema: mcpSchema{
+				Type: "object",
+				Properties: map[string]mcpProp{
+					"site":  {Type: "string", Description: "Site name (from sites)."},
+					"name":  {Type: "string", Description: "Command name (e.g. optimize:clear, drush uli)."},
+					"force": {Type: "boolean", Description: "Required for commands with confirm: true. Skips the safety prompt."},
+				},
+				Required: []string{"site", "name"},
+			},
+		},
+		mcpTool{
+			Name:        "command_add",
+			Description: "Add or update a project command in .lerd.yaml's commands: block. Same name as a framework default replaces it.",
+			InputSchema: mcpSchema{
+				Type: "object",
+				Properties: map[string]mcpProp{
+					"site":           {Type: "string", Description: "Site name (from sites)."},
+					"name":           {Type: "string", Description: "Stable identifier (e.g. deploy, optimize:clear). Also the lerd run argument."},
+					"command":        {Type: "string", Description: "Shell command, passed to sh -c. Required unless disabled: true."},
+					"label":          {Type: "string", Description: "Human label shown in the dashboard."},
+					"description":    {Type: "string", Description: "Tooltip / one-line description."},
+					"output":         {Type: "string", Enum: []string{"silent", "text", "url", "terminal"}, Description: "silent | text | url | terminal (default: silent)."},
+					"confirm":        {Type: "boolean", Description: "Gate behind a confirm modal (destructive commands)."},
+					"icon":           {Type: "string", Description: "Icon name (broom, database, refresh, link, check, list, key, edit, arrow-down, arrow-up, play, terminal)."},
+					"cwd":            {Type: "string", Description: "Working dir relative to project root (default: .)."},
+					"check_file":     {Type: "string", Description: "Hide unless this file exists."},
+					"check_composer": {Type: "string", Description: "Hide unless this composer package is installed."},
+					"disabled":       {Type: "boolean", Description: "Suppress a framework default of the same name without replacing it."},
+				},
+				Required: []string{"site", "name"},
+			},
+		},
+		mcpTool{
+			Name:        "command_remove",
+			Description: "Remove a project command from .lerd.yaml by name. Does not affect framework defaults (use command_add with disabled: true to hide a framework command).",
+			InputSchema: mcpSchema{
+				Type: "object",
+				Properties: map[string]mcpProp{
+					"site": {Type: "string", Description: "Site name (from sites)."},
+					"name": {Type: "string", Description: "Command name to remove."},
+				},
+				Required: []string{"site", "name"},
+			},
+		},
+		mcpTool{
 			Name:        "bug_report",
 			Description: "Generate a plain-text diagnostic report (lerd doctor + config + systemd / podman state + recent logs + env vars) for attaching to a GitHub issue. Site names, domains and parked-directory paths are anonymised by default. Returns the file path.",
 			InputSchema: mcpSchema{
@@ -1075,6 +1133,14 @@ func handleToolCall(params json.RawMessage) (any, *rpcError) {
 		return execWorkersHeal(args)
 	case "workers_mode":
 		return execWorkersMode(args)
+	case "commands_list":
+		return execCommandsList(args)
+	case "commands_run":
+		return execCommandsRun(args)
+	case "command_add":
+		return execCommandAdd(args)
+	case "command_remove":
+		return execCommandRemove(args)
 	case "bug_report":
 		return execBugReport(args)
 
@@ -3815,6 +3881,176 @@ func resolveWorkerCwd(site *config.Site, branch string) (string, map[string]any)
 		return "", toolErr(fmt.Sprintf("worktree branch %q not found on site %q", branch, site.Name))
 	}
 	return wtPath, nil
+}
+
+func execCommandsList(args map[string]any) (any, *rpcError) {
+	siteName := strArg(args, "site")
+	if siteName == "" {
+		return toolErr("site is required"), nil
+	}
+	site, err := config.FindSite(siteName)
+	if err != nil {
+		return toolErr("site not found: " + siteName), nil
+	}
+	proj, _ := config.LoadProjectConfig(site.Path)
+	var fw *config.Framework
+	if site.Framework != "" {
+		fw, _ = config.GetFrameworkForDir(site.Framework, site.Path)
+	}
+	cmds := config.ResolveCommands(fw, proj, site.Path)
+	if len(cmds) == 0 {
+		return toolOK("(no commands defined for this site)"), nil
+	}
+	var b strings.Builder
+	for _, c := range cmds {
+		marker := " "
+		if c.Confirm {
+			marker = "*"
+		}
+		desc := c.Description
+		if desc == "" {
+			desc = c.Label
+		}
+		fmt.Fprintf(&b, "  %s %-30s  %s\n", marker, c.Name, desc)
+	}
+	b.WriteString("\n  * = asks for confirmation. Pass force: true to commands_run.\n")
+	return toolOK(b.String()), nil
+}
+
+func execCommandsRun(args map[string]any) (any, *rpcError) {
+	siteName := strArg(args, "site")
+	if siteName == "" {
+		return toolErr("site is required"), nil
+	}
+	name := strArg(args, "name")
+	if name == "" {
+		return toolErr("name is required"), nil
+	}
+	site, err := config.FindSite(siteName)
+	if err != nil {
+		return toolErr("site not found: " + siteName), nil
+	}
+	proj, _ := config.LoadProjectConfig(site.Path)
+	var fw *config.Framework
+	if site.Framework != "" {
+		fw, _ = config.GetFrameworkForDir(site.Framework, site.Path)
+	}
+	cmds := config.ResolveCommands(fw, proj, site.Path)
+	var target *config.FrameworkCommand
+	for i := range cmds {
+		if cmds[i].Name == name {
+			target = &cmds[i]
+			break
+		}
+	}
+	if target == nil {
+		return toolErr(fmt.Sprintf("command %q not found. Run commands_list(site: %q) to see available names", name, siteName)), nil
+	}
+	if target.Command == "" {
+		return toolErr(fmt.Sprintf("command %q has no shell invocation", name)), nil
+	}
+	if target.Confirm {
+		force, _ := args["force"].(bool)
+		if !force {
+			return toolErr(fmt.Sprintf("command %q is destructive (confirm: true). Re-run with force: true to confirm. Will execute: %s", name, target.Command)), nil
+		}
+	}
+	if target.Output == config.CommandOutputTerminal {
+		return toolErr(fmt.Sprintf("command %q has output: terminal — only runnable from the dashboard or `lerd run`, not via MCP", name)), nil
+	}
+	cwd := site.Path
+	if target.CWD != "" && target.CWD != "." {
+		cwd = filepath.Join(site.Path, target.CWD)
+	}
+	cmd := exec.Command("sh", "-c", target.Command)
+	cmd.Dir = cwd
+	out, runErr := cmd.CombinedOutput()
+	body := string(out)
+	if runErr != nil {
+		if ee, ok := runErr.(*exec.ExitError); ok {
+			return toolErr(fmt.Sprintf("exit %d:\n%s", ee.ExitCode(), body)), nil
+		}
+		return toolErr(fmt.Sprintf("run failed: %v\n%s", runErr, body)), nil
+	}
+	return toolOK(body), nil
+}
+
+func execCommandAdd(args map[string]any) (any, *rpcError) {
+	siteName := strArg(args, "site")
+	if siteName == "" {
+		return toolErr("site is required"), nil
+	}
+	name := strArg(args, "name")
+	if name == "" {
+		return toolErr("name is required"), nil
+	}
+	site, err := config.FindSite(siteName)
+	if err != nil {
+		return toolErr("site not found: " + siteName), nil
+	}
+
+	disabled := boolArg(args, "disabled")
+	command := strArg(args, "command")
+	if !disabled && command == "" {
+		return toolErr("command is required (or set disabled: true to suppress a framework default)"), nil
+	}
+
+	cmd := config.FrameworkCommand{
+		Name:        name,
+		Label:       strArg(args, "label"),
+		Command:     command,
+		Description: strArg(args, "description"),
+		Output:      strArg(args, "output"),
+		Confirm:     boolArg(args, "confirm"),
+		Icon:        strArg(args, "icon"),
+		CWD:         strArg(args, "cwd"),
+		Disabled:    disabled,
+	}
+	if checkFile, checkComposer := strArg(args, "check_file"), strArg(args, "check_composer"); checkFile != "" || checkComposer != "" {
+		cmd.Check = &config.FrameworkRule{File: checkFile, Composer: checkComposer}
+	}
+
+	// Detect whether this name overwrites an existing project entry vs replacing
+	// a framework default vs being net-new, to give the agent a useful response.
+	proj, _ := config.LoadProjectConfig(site.Path)
+	action := "added"
+	for _, c := range proj.Commands {
+		if c.Name == name {
+			action = "updated"
+			break
+		}
+	}
+
+	if err := config.SetProjectCommand(site.Path, cmd); err != nil {
+		return toolErr("saving .lerd.yaml: " + err.Error()), nil
+	}
+	hint := ""
+	if disabled {
+		hint = " (suppresses framework default)"
+	}
+	return toolOK(fmt.Sprintf("Command %q %s in .lerd.yaml%s. Run it via commands_run(site: %q, name: %q) or `lerd run %s`.", name, action, hint, siteName, name, name)), nil
+}
+
+func execCommandRemove(args map[string]any) (any, *rpcError) {
+	siteName := strArg(args, "site")
+	if siteName == "" {
+		return toolErr("site is required"), nil
+	}
+	name := strArg(args, "name")
+	if name == "" {
+		return toolErr("name is required"), nil
+	}
+	site, err := config.FindSite(siteName)
+	if err != nil {
+		return toolErr("site not found: " + siteName), nil
+	}
+	if err := config.RemoveProjectCommand(site.Path, name); err != nil {
+		if _, ok := err.(*config.CommandNotFoundError); ok {
+			return toolErr(fmt.Sprintf("command %q not found in .lerd.yaml for site %q", name, siteName)), nil
+		}
+		return toolErr("saving .lerd.yaml: " + err.Error()), nil
+	}
+	return toolOK(fmt.Sprintf("Command %q removed from .lerd.yaml.", name)), nil
 }
 
 func execWorkerStart(args map[string]any) (any, *rpcError) {

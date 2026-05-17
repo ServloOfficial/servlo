@@ -171,6 +171,66 @@ func (e *WorkerNotFoundError) Error() string {
 	return "custom worker " + e.Name + " not found in .lerd.yaml"
 }
 
+// SetProjectCommand adds or replaces a command in .lerd.yaml's commands: block,
+// matched by Name. Creates the file if it doesn't exist (commands can land on
+// fresh projects, unlike custom workers which presume a registered site).
+func SetProjectCommand(dir string, cmd FrameworkCommand) error {
+	if cmd.Name == "" {
+		return &CommandValidationError{Reason: "name is required"}
+	}
+	cfg, err := LoadProjectConfig(dir)
+	if err != nil {
+		return err
+	}
+	replaced := false
+	for i := range cfg.Commands {
+		if cfg.Commands[i].Name == cmd.Name {
+			cfg.Commands[i] = cmd
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		cfg.Commands = append(cfg.Commands, cmd)
+	}
+	return SaveProjectConfig(dir, cfg)
+}
+
+// RemoveProjectCommand deletes a project-level command entry by Name.
+// Returns CommandNotFoundError if .lerd.yaml has no entry with that name.
+func RemoveProjectCommand(dir string, name string) error {
+	path := filepath.Join(dir, ".lerd.yaml")
+	if _, err := os.Stat(path); err != nil {
+		return &CommandNotFoundError{Name: name}
+	}
+	cfg, err := LoadProjectConfig(dir)
+	if err != nil {
+		return err
+	}
+	for i := range cfg.Commands {
+		if cfg.Commands[i].Name == name {
+			cfg.Commands = append(cfg.Commands[:i], cfg.Commands[i+1:]...)
+			if len(cfg.Commands) == 0 {
+				cfg.Commands = nil
+			}
+			return SaveProjectConfig(dir, cfg)
+		}
+	}
+	return &CommandNotFoundError{Name: name}
+}
+
+// CommandNotFoundError is returned when a project command name is not in .lerd.yaml.
+type CommandNotFoundError struct{ Name string }
+
+func (e *CommandNotFoundError) Error() string {
+	return "command " + e.Name + " not found in .lerd.yaml"
+}
+
+// CommandValidationError flags structural problems before we touch the yaml.
+type CommandValidationError struct{ Reason string }
+
+func (e *CommandValidationError) Error() string { return "invalid command: " + e.Reason }
+
 // ReplaceProjectDBService removes any existing sqlite/mysql/postgres service
 // and adds the given choice. Creates .lerd.yaml entries even if the file
 // doesn't exist yet (database choice is typically part of initial setup).

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Modal from '$components/Modal.svelte';
+  import Dropdown from '$components/Dropdown.svelte';
   import DetailButton from '$components/DetailButton.svelte';
   import { closeModal } from '$stores/modals';
   import { sites, loadSites, type Site } from '$stores/sites';
@@ -295,48 +296,39 @@
           />
           {#if hasAnyBranch}
             <div class="text-xs text-gray-400 pt-1">{m.worktreeMgr_basedOn()}</div>
-            <select bind:value={baseRef} class="w-full text-sm bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300">
-              <option value="">{currentBranchLabel(opts?.default_branch_label || 'HEAD')}</option>
-              {#each localBranches as b (b)}
-                <option value={b}>{b}</option>
-              {/each}
-              {#if remoteBranches.length}
-                <optgroup label="remote">
-                  {#each remoteBranches as b (b)}
-                    <option value={b}>{b}</option>
-                  {/each}
-                </optgroup>
-              {/if}
-            </select>
+            <Dropdown
+              value={baseRef}
+              width="full"
+              options={[
+                { value: '', label: currentBranchLabel(opts?.default_branch_label || 'HEAD') },
+                ...localBranches.map((b) => ({ value: b, label: b })),
+                ...remoteBranches.map((b) => ({ value: b, label: b, description: 'remote' }))
+              ]}
+              onchange={(v) => (baseRef = v)}
+            />
           {/if}
         {:else}
-          <select bind:value={existingBranch} class="w-full text-sm bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300">
-            {#each localBranches as b (b)}
-              <option value={b}>{b}</option>
-            {/each}
-            {#if remoteBranches.length}
-              <optgroup label="remote">
-                {#each remoteBranches as b (b)}
-                  <option value={b}>{b}</option>
-                {/each}
-              </optgroup>
-            {/if}
-          </select>
+          <Dropdown
+            value={existingBranch}
+            width="full"
+            options={[
+              ...localBranches.map((b) => ({ value: b, label: b })),
+              ...remoteBranches.map((b) => ({ value: b, label: b, description: 'remote' }))
+            ]}
+            onchange={(v) => (existingBranch = v)}
+          />
         {/if}
       </div>
 
       <!-- database -->
       <div class="space-y-1.5">
         <div class="text-xs font-medium text-gray-500 dark:text-gray-400">{m.worktreeMgr_databaseHeading()}</div>
-        <select bind:value={db} class="w-full text-sm bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300">
-          {#if dbOptions.length}
-            {#each dbOptions as o (o.value)}
-              <option value={o.value}>{o.label}</option>
-            {/each}
-          {:else}
-            <option value="share">…</option>
-          {/if}
-        </select>
+        <Dropdown
+          value={db}
+          width="full"
+          options={dbOptions.length ? dbOptions : [{ value: 'share', label: '…' }]}
+          onchange={(v) => (db = v)}
+        />
         {#if showMigrate}
           <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 pt-0.5">
             <input type="checkbox" bind:checked={migrate} class="rounded-sm border-gray-300 dark:border-lerd-border" />
@@ -348,15 +340,12 @@
       <!-- assets -->
       <div class="space-y-1.5">
         <div class="text-xs font-medium text-gray-500 dark:text-gray-400">{m.worktreeMgr_assetsHeading()}</div>
-        <select bind:value={build} class="w-full text-sm bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300">
-          {#if buildOptions.length}
-            {#each buildOptions as o (o.value)}
-              <option value={o.value}>{o.label}</option>
-            {/each}
-          {:else}
-            <option value="auto">…</option>
-          {/if}
-        </select>
+        <Dropdown
+          value={build}
+          width="full"
+          options={buildOptions.length ? buildOptions : [{ value: 'auto', label: '…' }]}
+          onchange={(v) => (build = v)}
+        />
       </div>
     </div>
   {:else}

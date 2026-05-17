@@ -41,6 +41,11 @@ type ProjectConfig struct {
 	Services         []ProjectService           `yaml:"services,omitempty"`
 	Workers          []string                   `yaml:"workers,omitempty"`
 	CustomWorkers    map[string]FrameworkWorker `yaml:"custom_workers,omitempty"`
+	// Commands extends or overrides the framework's command set. Entries with
+	// a Name matching a framework command replace it (set Disabled: true to
+	// suppress instead). Entries with a new Name are appended. See
+	// ResolveCommands for the merge logic.
+	Commands []FrameworkCommand `yaml:"commands,omitempty"`
 	// AppURL, when set, is the value lerd writes to the project's APP_URL (or
 	// the framework-configured URL key) on every `lerd env` run. Committed to
 	// the repo so the choice is shared across machines. Takes precedence over

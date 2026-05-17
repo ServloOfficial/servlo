@@ -24,6 +24,7 @@
   import WorkerHealthBanner from '$components/WorkerHealthBanner.svelte';
   import NotifyBanner from '$components/NotifyBanner.svelte';
   import CommandPalette from '$components/CommandPalette.svelte';
+  import CommandRunModal from '$components/CommandRunModal.svelte';
   import { initNotify } from '$lib/notify';
 
   import SitesTab from '$tabs/SitesTab.svelte';
@@ -138,4 +139,5 @@
   <WorkerHealthBanner />
   <NotifyBanner />
   <CommandPalette />
+  <CommandRunModal />
 </div>

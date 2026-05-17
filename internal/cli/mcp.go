@@ -1011,6 +1011,20 @@ Arguments:
 - ` + bt + `site` + bt + ` (required): site name from ` + bt + `sites` + bt + ` tool
 - ` + bt + `branch` + bt + ` (optional): worktree branch name. With ` + bt + `branch` + bt + `, status is reported for ` + bt + `lerd-<worker>-<site>-<branch>` + bt + ` units instead of the parent-site units
 
+### ` + bt + `commands_list` + bt + ` / ` + bt + `commands_run` + bt + ` / ` + bt + `command_add` + bt + ` / ` + bt + `command_remove` + bt + `
+One-shot framework commands (` + bt + `optimize:clear` + bt + `, ` + bt + `migrate` + bt + `, ` + bt + `drush uli` + bt + `, ` + bt + `cache:flush` + bt + `, etc). Set = framework yaml + project ` + bt + `.lerd.yaml` + bt + ` ` + bt + `commands:` + bt + `. Prefer over invoking ` + bt + `php artisan` + bt + ` / ` + bt + `drush` + bt + ` / ` + bt + `wp` + bt + ` directly because per-project overrides are honored. ` + bt + `command_add` + bt + ` writes to ` + bt + `.lerd.yaml` + bt + `; use ` + bt + `disabled: true` + bt + ` to suppress a framework default without replacement.
+
+Arguments:
+- ` + bt + `site` + bt + ` (required): site name
+- ` + bt + `name` + bt + ` (commands_run / command_add / command_remove): name from ` + bt + `commands_list` + bt + ` or a new identifier
+- ` + bt + `command` + bt + ` (command_add): shell command (required unless ` + bt + `disabled: true` + bt + `)
+- ` + bt + `label` + bt + `, ` + bt + `description` + bt + `, ` + bt + `icon` + bt + ` (command_add, optional)
+- ` + bt + `output` + bt + ` (command_add): ` + bt + `silent | text | url | terminal` + bt + ` (default silent)
+- ` + bt + `confirm` + bt + ` (command_add): gate behind a safety modal
+- ` + bt + `check_file` + bt + ` / ` + bt + `check_composer` + bt + ` (command_add): hide unless the rule passes
+- ` + bt + `disabled` + bt + ` (command_add): suppress a framework default of the same name
+- ` + bt + `force` + bt + ` (commands_run): required for confirm-gated commands
+
 ### ` + bt + `worker_add` + bt + `
 Add or update a custom worker for a project. Saves to ` + bt + `.lerd.yaml` + bt + ` ` + bt + `custom_workers` + bt + ` by default, or to the global framework overlay (` + bt + `~/.config/lerd/frameworks/` + bt + `) with ` + bt + `global: true` + bt + `. Does not auto-start — use ` + bt + `worker(action: "start", ...)` + bt + ` afterwards.
 

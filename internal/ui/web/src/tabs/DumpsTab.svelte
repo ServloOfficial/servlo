@@ -16,6 +16,7 @@
   } from '$stores/dumps';
   import DumpEntry from '$components/DumpEntry.svelte';
   import EmptyState from '$components/EmptyState.svelte';
+  import Dropdown from '$components/Dropdown.svelte';
   import { m } from '../paraglide/messages.js';
 
   interface Props {
@@ -91,34 +92,35 @@
       bind:value={textInput}
     />
     {#if !scoped}
-      <select
-        class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border bg-white dark:bg-lerd-card"
-        bind:value={$filterSite}
-      >
-        <option value="">{m.dumps_filter_allSites()}</option>
-        {#each $knownSites as site}
-          <option value={site}>{site || m.dumps_unknownSite()}</option>
-        {/each}
-      </select>
+      <Dropdown
+        value={$filterSite}
+        options={[
+          { value: '', label: m.dumps_filter_allSites() },
+          ...$knownSites.map((s) => ({ value: s, label: s || m.dumps_unknownSite() }))
+        ]}
+        onchange={(v) => filterSite.set(v)}
+      />
     {/if}
     {#if scoped}
-      <select
-        class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border bg-white dark:bg-lerd-card"
-        bind:value={localCtx}
-      >
-        <option value="">{m.dumps_filter_allContexts()}</option>
-        <option value="fpm">{m.dumps_filter_web()}</option>
-        <option value="cli">{m.dumps_filter_cli()}</option>
-      </select>
+      <Dropdown
+        value={localCtx}
+        options={[
+          { value: '', label: m.dumps_filter_allContexts() },
+          { value: 'fpm', label: m.dumps_filter_web() },
+          { value: 'cli', label: m.dumps_filter_cli() }
+        ]}
+        onchange={(v) => (localCtx = v as '' | 'fpm' | 'cli')}
+      />
     {:else}
-      <select
-        class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border bg-white dark:bg-lerd-card"
-        bind:value={$filterCtx}
-      >
-        <option value="">{m.dumps_filter_allContexts()}</option>
-        <option value="fpm">{m.dumps_filter_web()}</option>
-        <option value="cli">{m.dumps_filter_cli()}</option>
-      </select>
+      <Dropdown
+        value={$filterCtx}
+        options={[
+          { value: '', label: m.dumps_filter_allContexts() },
+          { value: 'fpm', label: m.dumps_filter_web() },
+          { value: 'cli', label: m.dumps_filter_cli() }
+        ]}
+        onchange={(v) => filterCtx.set(v as '' | 'fpm' | 'cli')}
+      />
     {/if}
     <button
       type="button"

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -155,14 +156,51 @@ func TestHandleDumpsStatus_NoServerStillReturnsConfig(t *testing.T) {
 }
 
 // flusherRecorder wraps httptest.ResponseRecorder so handleDumpsStream sees
-// http.Flusher. The recorder's body grows synchronously, which is exactly
-// what we want so the test can assert on emitted SSE bytes deterministically.
+// http.Flusher. The handler runs on its own goroutine while the test polls
+// the body for SSE bytes, so writes and reads must be serialized — without
+// the mutex, go test -race trips on every poll loop iteration.
 type flusherRecorder struct {
 	*httptest.ResponseRecorder
+	mu      sync.Mutex
 	flushes int
 }
 
-func (f *flusherRecorder) Flush() { f.flushes++ }
+func (f *flusherRecorder) Write(p []byte) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ResponseRecorder.Write(p)
+}
+
+// WriteString shadows ResponseRecorder.WriteString so io.WriteString takes
+// the same mutex as Write. Without this, callers using io.WriteString
+// bypass the lock and race against bodyBytes / bodyString.
+func (f *flusherRecorder) WriteString(s string) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ResponseRecorder.WriteString(s)
+}
+
+func (f *flusherRecorder) bodyString() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ResponseRecorder.Body.String()
+}
+
+func (f *flusherRecorder) bodyBytes() []byte {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	// Return a copy so the caller can read it without holding the lock.
+	b := f.ResponseRecorder.Body.Bytes()
+	out := make([]byte, len(b))
+	copy(out, b)
+	return out
+}
+
+func (f *flusherRecorder) Flush() {
+	f.mu.Lock()
+	f.flushes++
+	f.mu.Unlock()
+}
 
 func TestHandleDumpsStream_ReplaysSnapshotThenExitsOnContextCancel(t *testing.T) {
 	srv := withDumpsServer(t)
@@ -179,10 +217,11 @@ func TestHandleDumpsStream_ReplaysSnapshotThenExitsOnContextCancel(t *testing.T)
 		handleDumpsStream(rec, req)
 	}()
 
-	// Wait until the replay events are in the body, then cancel.
+	// Wait until the replay events are in the body, then cancel. Use the
+	// mutex-protected accessors since the handler goroutine is still writing.
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if bytes.Count(rec.Body.Bytes(), []byte("data:")) >= 2 {
+		if bytes.Count(rec.bodyBytes(), []byte("data:")) >= 2 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -194,7 +233,7 @@ func TestHandleDumpsStream_ReplaysSnapshotThenExitsOnContextCancel(t *testing.T)
 		t.Fatal("handler did not return after context cancel")
 	}
 
-	body := rec.Body.String()
+	body := rec.bodyString()
 	for _, id := range []string{"old1", "old2"} {
 		if !strings.Contains(body, id) {
 			t.Errorf("SSE body missing %q\n--- body ---\n%s", id, body)
@@ -224,7 +263,7 @@ func TestHandleDumpsStream_DeliversLiveEvent(t *testing.T) {
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if strings.Contains(rec.Body.String(), "live1") {
+		if strings.Contains(rec.bodyString(), "live1") {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -232,7 +271,8 @@ func TestHandleDumpsStream_DeliversLiveEvent(t *testing.T) {
 	cancel()
 	<-done
 
-	if !strings.Contains(rec.Body.String(), "live1") {
-		t.Errorf("live event missing\n--- body ---\n%s", rec.Body.String())
+	body := rec.bodyString()
+	if !strings.Contains(body, "live1") {
+		t.Errorf("live event missing\n--- body ---\n%s", body)
 	}
 }

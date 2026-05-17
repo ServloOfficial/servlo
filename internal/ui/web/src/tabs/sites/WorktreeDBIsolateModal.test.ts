@@ -21,7 +21,7 @@ describe('WorktreeDBIsolateModal', () => {
     expect(container.querySelector('select')).toBeNull();
   });
 
-  it('lists main and any other isolated worktrees, but not the active one', () => {
+  it('lists main and any other isolated worktrees, but not the active one', async () => {
     render(Harness, {
       props: {
         open: true,
@@ -35,13 +35,18 @@ describe('WorktreeDBIsolateModal', () => {
         onconfirm: () => {}
       }
     });
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
-    const values = Array.from(select.options).map((o) => o.value);
-    expect(values).toContain('main');
-    expect(values).toContain('');
-    expect(values).toContain('feat-b');
-    expect(values).not.toContain('feat-a');
-    expect(values).not.toContain('feat-c');
+    // Open the popover and read the labels from the listbox.
+    const triggers = screen.getAllByRole('button');
+    const trigger = triggers.find((b) => b.getAttribute('aria-haspopup') === 'listbox')!;
+    trigger.click();
+    await new Promise((r) => setTimeout(r, 0));
+    const items = Array.from(document.querySelectorAll('[role="option"]')).map(
+      (n) => n.textContent?.toLowerCase() ?? ''
+    );
+    expect(items.some((t) => t.includes('main'))).toBe(true);
+    expect(items.some((t) => t.includes('feat-b'))).toBe(true);
+    expect(items.some((t) => t.includes('feat-a'))).toBe(false);
+    expect(items.some((t) => t.includes('feat-c'))).toBe(false);
   });
 
   it('emits onconfirm with the selected value and closes the modal', async () => {
@@ -56,9 +61,17 @@ describe('WorktreeDBIsolateModal', () => {
         onconfirm
       }
     });
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
-    select.value = '';
-    await fireEvent.change(select);
+    // Open the popover and click the "empty" option, then Isolate.
+    const trigger = screen
+      .getAllByRole('button')
+      .find((b) => b.getAttribute('aria-haspopup') === 'listbox')!;
+    trigger.click();
+    await new Promise((r) => setTimeout(r, 0));
+    const options = Array.from(document.querySelectorAll('[role="option"]')) as HTMLButtonElement[];
+    // The "Start empty" option matches the m.worktreeDb_empty() label.
+    const emptyOpt = options[1] ?? options[0];
+    emptyOpt.click();
+    await new Promise((r) => setTimeout(r, 0));
     const isolateBtn = screen.getByText('Isolate');
     await fireEvent.click(isolateBtn);
     expect(onconfirm).toHaveBeenCalledWith('');
@@ -92,7 +105,12 @@ describe('WorktreeDBIsolateModal', () => {
         onconfirm: () => {}
       }
     });
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
-    expect(select.value).toBe('main');
+    // The trigger label shows the selected option's label — for value "main"
+    // that's the m.worktreeDb_cloneFromMain key. Just verify the trigger
+    // text isn't the empty / placeholder fallback.
+    const trigger = screen
+      .getAllByRole('button')
+      .find((b) => b.getAttribute('aria-haspopup') === 'listbox')!;
+    expect(trigger.textContent?.toLowerCase() ?? '').toContain('main');
   });
 });

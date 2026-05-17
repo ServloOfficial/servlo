@@ -1,5 +1,6 @@
 <script lang="ts">
   import Modal from '$components/Modal.svelte';
+  import Dropdown from '$components/Dropdown.svelte';
   import type { Site } from '$stores/sites';
   import { m } from '../../paraglide/messages.js';
 
@@ -49,14 +50,12 @@
     <p class="text-sm text-gray-600 dark:text-gray-400">
       {m.worktreeDb_body({ branch })}
     </p>
-    <select
-      bind:value={selected}
-      class="w-full text-sm bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-lerd-muted focus:outline-hidden focus:border-lerd-red/50 cursor-pointer transition-colors"
-    >
-      {#each options as opt (opt.value)}
-        <option value={opt.value} class="bg-white text-gray-700 dark:bg-lerd-bg dark:text-gray-300">{opt.label}</option>
-      {/each}
-    </select>
+    <Dropdown
+      value={selected}
+      width="full"
+      options={options}
+      onchange={(v) => (selected = v)}
+    />
     <p class="text-[11px] text-gray-400 dark:text-gray-500">
       {m.worktreeDb_cloningHint()}
     </p>

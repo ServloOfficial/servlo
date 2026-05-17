@@ -44,6 +44,10 @@ type Framework struct {
 	NPM       string                     `yaml:"npm,omitempty"`      // auto | true | false
 	Workers   map[string]FrameworkWorker `yaml:"workers,omitempty"`
 	Setup     []FrameworkSetupCmd        `yaml:"setup,omitempty"`
+	// Commands are on-demand actions surfaced in the dashboard "Run command"
+	// dropdown. See FrameworkCommand for the schema. Projects extend or
+	// override this list in .lerd.yaml; use ResolveCommands to merge.
+	Commands []FrameworkCommand `yaml:"commands,omitempty"`
 	// Console is the console command to run (without 'php' prefix).
 	// Example: "artisan", "bin/console"
 	Console string `yaml:"console,omitempty"`
@@ -139,6 +143,94 @@ type FrameworkSetupCmd struct {
 	Command string         `yaml:"command"`
 	Default bool           `yaml:"default,omitempty"`
 	Check   *FrameworkRule `yaml:"check,omitempty"` // only show when check passes (file exists or composer package installed)
+}
+
+// FrameworkCommand describes a one-shot, on-demand action surfaced in the
+// dashboard "Commands" dropdown and as `lerd run <name>`. The framework yaml
+// ships canonical defaults; projects extend or override them by name in
+// .lerd.yaml. Distinct from FrameworkWorker (long-running) and
+// FrameworkSetupCmd (install-time only).
+type FrameworkCommand struct {
+	Name        string         `yaml:"name" json:"name"`                                   // stable identifier, also the `lerd run` argument
+	Label       string         `yaml:"label" json:"label"`                                 // human label shown in the UI
+	Command     string         `yaml:"command" json:"command"`                             // shell command, passed to `sh -c`
+	Description string         `yaml:"description,omitempty" json:"description,omitempty"` // one-line description for tooltips
+	Output      string         `yaml:"output,omitempty" json:"output,omitempty"`           // silent | text | url | terminal (default: silent)
+	Confirm     bool           `yaml:"confirm,omitempty" json:"confirm,omitempty"`         // gate behind a confirm modal before running
+	Icon        string         `yaml:"icon,omitempty" json:"icon,omitempty"`               // icon name from the known set
+	Check       *FrameworkRule `yaml:"check,omitempty" json:"check,omitempty"`             // hide the command when this rule fails
+	CWD         string         `yaml:"cwd,omitempty" json:"cwd,omitempty"`                 // working dir relative to project root (default: ".")
+	// Disabled, in a project .lerd.yaml entry, suppresses the framework default
+	// of the same Name without replacing it. Ignored when read from a framework yaml.
+	Disabled bool `yaml:"disabled,omitempty" json:"disabled,omitempty"`
+}
+
+// Valid Output values for FrameworkCommand.
+const (
+	CommandOutputSilent   = "silent"
+	CommandOutputText     = "text"
+	CommandOutputURL      = "url"
+	CommandOutputTerminal = "terminal" // spawn the user's terminal emulator instead of streaming to the modal
+)
+
+// ValidCommandOutputs lists the accepted Output values; used by validation.
+var ValidCommandOutputs = []string{CommandOutputSilent, CommandOutputText, CommandOutputURL, CommandOutputTerminal}
+
+// KnownCommandIcons is the curated icon vocabulary. .lerd.yaml entries with an
+// icon outside this set fail `lerd check`. Keep in sync with the UI Icon
+// component so an icon present here always resolves to a visual on screen.
+var KnownCommandIcons = []string{
+	"broom", "database", "refresh", "link", "check", "list",
+	"key", "edit", "arrow-down", "arrow-up", "play", "terminal",
+}
+
+// ResolveCommands merges the framework's command set with project-level entries
+// from .lerd.yaml. Rules:
+//   - Project entry with the same Name as a framework entry fully replaces it.
+//   - Project entry with Disabled=true suppresses the framework default and
+//     does not contribute a runnable command.
+//   - Project entries with no matching framework entry are appended.
+//   - Framework entries with a failing Check are dropped before merging.
+//
+// The resulting slice preserves framework ordering, with project-only
+// additions appended in declaration order.
+func ResolveCommands(fw *Framework, proj *ProjectConfig, projectDir string) []FrameworkCommand {
+	overrides := map[string]FrameworkCommand{}
+	var extras []FrameworkCommand
+	frameworkNames := map[string]bool{}
+	if fw != nil {
+		for _, c := range fw.Commands {
+			frameworkNames[c.Name] = true
+		}
+	}
+	if proj != nil {
+		for _, c := range proj.Commands {
+			if frameworkNames[c.Name] {
+				overrides[c.Name] = c
+			} else if !c.Disabled {
+				extras = append(extras, c)
+			}
+		}
+	}
+
+	var out []FrameworkCommand
+	if fw != nil {
+		for _, c := range fw.Commands {
+			if ov, ok := overrides[c.Name]; ok {
+				if ov.Disabled {
+					continue
+				}
+				out = append(out, ov)
+				continue
+			}
+			if c.Check != nil && !MatchesRule(projectDir, *c.Check) {
+				continue
+			}
+			out = append(out, c)
+		}
+	}
+	out = append(out, extras...)
+	return out
 }
 
 // FrameworkPHP defines the supported PHP version range for a framework version.
@@ -392,6 +484,11 @@ var laravelFramework = &Framework{
 				`exec php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto`},
 		SupportsWorker: true,
 	},
+	Commands: []FrameworkCommand{
+		{Name: "optimize:clear", Label: "Clear all caches", Command: "php artisan optimize:clear", Description: "Clear config, route, view, event, and compiled caches", Output: "silent", Icon: "broom"},
+		{Name: "migrate", Label: "Run migrations", Command: "php artisan migrate --force", Description: "Apply pending database migrations", Output: "silent", Icon: "database"},
+		{Name: "migrate:fresh", Label: "Drop and re-migrate", Command: "php artisan migrate:fresh --seed --force", Description: "Wipe the database, re-run all migrations, then seed", Output: "silent", Confirm: true, Icon: "refresh"},
+	},
 }
 
 // symfonyFramework is a built-in Symfony adapter. It detects Symfony via
@@ -463,6 +560,11 @@ var symfonyFramework = &Framework{
 			"--worker=public/index.php", "--watch",
 		},
 		SupportsWorker: true,
+	},
+	Commands: []FrameworkCommand{
+		{Name: "cache:clear", Label: "Clear cache", Command: "bin/console cache:clear", Description: "Clear the Symfony cache for the current environment", Output: "silent", Icon: "broom"},
+		{Name: "doctrine:migrations:migrate", Label: "Run migrations", Command: "bin/console doctrine:migrations:migrate --no-interaction", Description: "Apply pending Doctrine migrations", Output: "silent", Icon: "database", Check: &FrameworkRule{Composer: "doctrine/doctrine-migrations-bundle"}},
+		{Name: "doctrine:fixtures:load", Label: "Load fixtures", Command: "bin/console doctrine:fixtures:load --no-interaction", Description: "Wipe data and load fixtures", Output: "silent", Confirm: true, Icon: "refresh", Check: &FrameworkRule{Composer: "doctrine/doctrine-fixtures-bundle"}},
 	},
 }
 

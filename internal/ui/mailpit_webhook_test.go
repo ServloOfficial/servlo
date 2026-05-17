@@ -5,37 +5,67 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
+// broadcastCapture buffers wsMessages broadcast during a test. Reads and
+// writes happen on different goroutines (the broker drains on its own),
+// so all access is serialized via mu, without which go test -race trips
+// on every assertion.
+type broadcastCapture struct {
+	mu   sync.Mutex
+	msgs []wsMessage
+}
+
+func (b *broadcastCapture) append(m wsMessage) {
+	b.mu.Lock()
+	b.msgs = append(b.msgs, m)
+	b.mu.Unlock()
+}
+
+func (b *broadcastCapture) len() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.msgs)
+}
+
+func (b *broadcastCapture) snapshot() []wsMessage {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := make([]wsMessage, len(b.msgs))
+	copy(out, b.msgs)
+	return out
+}
+
 // captureBroadcast swaps the package-level broker for one whose peers we
-// can drain. Returns a slice that accumulates every wsMessage broadcast
+// can drain. Returns a buffer that accumulates every wsMessage broadcast
 // during the test and a cleanup func to restore the original broker.
-func captureBroadcast(t *testing.T) (*[]wsMessage, func()) {
+func captureBroadcast(t *testing.T) (*broadcastCapture, func()) {
 	t.Helper()
 	prev := broker
 	repl := &wsBroker{peers: make(map[chan wsMessage]struct{})}
 	ch := repl.add()
-	var got []wsMessage
+	cap := &broadcastCapture{}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		for msg := range ch {
-			got = append(got, msg)
+			cap.append(msg)
 		}
 	}()
 	broker = repl
-	return &got, func() {
+	return cap, func() {
 		repl.remove(ch)
 		<-done
 		broker = prev
 	}
 }
 
-func waitForBroadcast(got *[]wsMessage) {
+func waitForBroadcast(cap *broadcastCapture) {
 	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) && len(*got) == 0 {
+	for time.Now().Before(deadline) && cap.len() == 0 {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
@@ -82,10 +112,10 @@ func TestMailpitWebhook_BroadcastsAsGenericNotification(t *testing.T) {
 	}
 
 	waitForBroadcast(got)
-	if len(*got) != 1 {
-		t.Fatalf("broadcasts = %d, want 1", len(*got))
+	if got.len() != 1 {
+		t.Fatalf("broadcasts = %d, want 1", got.len())
 	}
-	msg := (*got)[0]
+	msg := got.snapshot()[0]
 	if len(msg.Kinds) != 1 || msg.Kinds[0] != "notification" {
 		t.Errorf("Kinds = %v, want [notification]", msg.Kinds)
 	}
@@ -132,10 +162,10 @@ func TestMailpitWebhook_AddressOnlySender(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	waitForBroadcast(got)
-	if len(*got) != 1 {
-		t.Fatalf("broadcasts = %d, want 1", len(*got))
+	if got.len() != 1 {
+		t.Fatalf("broadcasts = %d, want 1", got.len())
 	}
-	_, _, _, _, _, params, _ := decodeMailNotification(t, (*got)[0].Notification)
+	_, _, _, _, _, params, _ := decodeMailNotification(t, got.snapshot()[0].Notification)
 	if params["from"] != "bob@example.com" {
 		t.Errorf("from = %q, want bob@example.com", params["from"])
 	}

@@ -173,7 +173,10 @@ func TestToolList_underSizeCeiling(t *testing.T) {
 	// Bumped to 23000 for the four new dumps_* tools (recent/status/clear/toggle).
 	// Descriptions trimmed in dumpToolDefs to keep the delta as small as possible.
 	// Bumped to 23200 for the php_ext `apk_deps` parameter (new content, not verbosity).
-	const ceiling = 23200
+	// Bumped to 24200 for commands_list / commands_run tools.
+	// Bumped to 26000 for command_add / command_remove tools (let agents
+	// author .lerd.yaml commands blocks alongside the read/run path).
+	const ceiling = 26000
 	got, err := json.Marshal(toolList())
 	if err != nil {
 		t.Fatalf("marshal tool list: %v", err)

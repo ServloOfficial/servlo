@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/geodro/lerd/internal/config"
 	phpPkg "github.com/geodro/lerd/internal/php"
@@ -223,6 +224,45 @@ func runCheck(_ *cobra.Command, _ []string) error {
 		} else {
 			fmt.Printf("  OK    custom_worker.%s\n", name)
 		}
+	}
+
+	// commands
+	seenCmdNames := map[string]bool{}
+	for i, c := range cfg.Commands {
+		if c.Name == "" {
+			fmt.Printf("  FAIL  commands[%d]: name is required\n", i)
+			errors++
+			continue
+		}
+		if seenCmdNames[c.Name] {
+			fmt.Printf("  FAIL  command %q: duplicate name\n", c.Name)
+			errors++
+			continue
+		}
+		seenCmdNames[c.Name] = true
+		if c.Disabled {
+			fmt.Printf("  OK    command.%s (disabled)\n", c.Name)
+			continue
+		}
+		if c.Command == "" {
+			fmt.Printf("  FAIL  command %q: command is required (or set disabled: true)\n", c.Name)
+			errors++
+			continue
+		}
+		if c.Label == "" {
+			fmt.Printf("  WARN  command %q: label is empty, the UI will fall back to the name\n", c.Name)
+			warnings++
+		}
+		if c.Output != "" && !slices.Contains(config.ValidCommandOutputs, c.Output) {
+			fmt.Printf("  FAIL  command %q: output %q is invalid (expected: %v)\n", c.Name, c.Output, config.ValidCommandOutputs)
+			errors++
+			continue
+		}
+		if c.Icon != "" && !slices.Contains(config.KnownCommandIcons, c.Icon) {
+			fmt.Printf("  WARN  command %q: icon %q is not in the known set, UI will fall back to a generic icon\n", c.Name, c.Icon)
+			warnings++
+		}
+		fmt.Printf("  OK    command.%s\n", c.Name)
 	}
 
 	// db

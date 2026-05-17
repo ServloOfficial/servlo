@@ -1915,11 +1915,21 @@ type SiteActionResponse struct {
 func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	// path: /api/sites/{domain}/secure or /api/sites/{domain}/unsecure
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/sites/"), "/")
+	if len(parts) < 2 {
+		http.NotFound(w, r)
+		return
+	}
+	domain := parts[0]
+	// Commands subroutes have more than two segments
+	// (/api/sites/{d}/commands and /api/sites/{d}/commands/{name}/run).
+	if commandRoute(w, r, domain, parts[1:]) {
+		return
+	}
 	if len(parts) != 2 {
 		http.NotFound(w, r)
 		return
 	}
-	domain, action := parts[0], parts[1]
+	action := parts[1]
 
 	// Favicon is a GET endpoint served separately.
 	if action == "favicon" {

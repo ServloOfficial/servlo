@@ -1,6 +1,18 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { sites, openSiteInBrowser } from '$stores/sites';
+  import {
+    sites,
+    openSiteInBrowser,
+    toggleTLS,
+    toggleLANShare,
+    toggleQueue,
+    toggleHorizon,
+    toggleSchedule,
+    toggleReverb,
+    toggleStripe,
+    toggleWorker,
+    loadSites
+  } from '$stores/sites';
   import { coreServices, serviceLabel } from '$stores/services';
   import { unhealthyWorkers, healAll, loadWorkerHealth } from '$stores/workerHealth';
   import { openLinkModal, openPresetModal } from '$stores/modals';
@@ -10,9 +22,15 @@
   import { goToTab } from '$stores/route';
   import { accessMode } from '$stores/accessMode';
   import { paletteOpen, openCommandPalette, closeCommandPalette } from '$stores/commandPalette';
+  import {
+    commandsBySiteStore,
+    preloadCommandsFor,
+    launchCommand,
+    type Command
+  } from '$stores/commands';
   import { m } from '../paraglide/messages.js';
 
-  type Group = 'pages' | 'sites' | 'services' | 'actions';
+  type Group = 'pages' | 'sites' | 'services' | 'toggles' | 'commands' | 'actions';
   interface Entry {
     id: string;
     label: string;
@@ -54,6 +72,117 @@
       });
     }
 
+    // Toggles: site-level state toggles (HTTPS, LAN share) and worker
+    // start/stop entries. Labels flip between Enable/Disable or Start/Stop
+    // based on current state, so searches like "stop queue" only surface
+    // running queues and "enable https" only insecure sites.
+    for (const s of $sites) {
+      const d = s.domain;
+      const refresh = async () => { await loadSites(); };
+
+      // HTTPS toggle
+      {
+        const on = Boolean(s.tls);
+        list.push({
+          id: 'tgl:' + d + ':tls',
+          label: (on ? 'Disable' : 'Enable') + ' HTTPS',
+          hint: d,
+          group: 'toggles',
+          action: async () => { await toggleTLS(s); await refresh(); }
+        });
+      }
+
+      // LAN share toggle
+      {
+        const on = Boolean(s.lan_port);
+        list.push({
+          id: 'tgl:' + d + ':lan',
+          label: (on ? 'Stop' : 'Start') + ' LAN share',
+          hint: d,
+          group: 'toggles',
+          action: async () => { await toggleLANShare(s, ''); await refresh(); }
+        });
+      }
+
+      if (s.has_queue_worker) {
+        const on = Boolean(s.queue_running);
+        list.push({
+          id: 'tgl:' + d + ':queue',
+          label: (on ? 'Stop' : 'Start') + ' queue worker',
+          hint: d,
+          group: 'toggles',
+          action: async () => { await toggleQueue(s); await refresh(); }
+        });
+      }
+      if (s.has_horizon) {
+        const on = Boolean(s.horizon_running);
+        list.push({
+          id: 'tgl:' + d + ':horizon',
+          label: (on ? 'Stop' : 'Start') + ' Horizon',
+          hint: d,
+          group: 'toggles',
+          action: async () => { await toggleHorizon(s); await refresh(); }
+        });
+      }
+      if (s.has_schedule_worker) {
+        const on = Boolean(s.schedule_running);
+        list.push({
+          id: 'tgl:' + d + ':schedule',
+          label: (on ? 'Stop' : 'Start') + ' scheduler',
+          hint: d,
+          group: 'toggles',
+          action: async () => { await toggleSchedule(s); await refresh(); }
+        });
+      }
+      if (s.has_reverb) {
+        const on = Boolean(s.reverb_running);
+        list.push({
+          id: 'tgl:' + d + ':reverb',
+          label: (on ? 'Stop' : 'Start') + ' Reverb',
+          hint: d,
+          group: 'toggles',
+          action: async () => { await toggleReverb(s); await refresh(); }
+        });
+      }
+      if (s.stripe_secret_set) {
+        const on = Boolean(s.stripe_running);
+        list.push({
+          id: 'tgl:' + d + ':stripe',
+          label: (on ? 'Stop' : 'Start') + ' Stripe listener',
+          hint: d,
+          group: 'toggles',
+          action: async () => { await toggleStripe(s); await refresh(); }
+        });
+      }
+      for (const w of s.framework_workers || []) {
+        const on = Boolean(w.running);
+        const lbl = w.label || w.name;
+        list.push({
+          id: 'tgl:' + d + ':fw:' + w.name,
+          label: (on ? 'Stop' : 'Start') + ' ' + lbl,
+          hint: d,
+          group: 'toggles',
+          action: async () => { await toggleWorker(s, w); await refresh(); }
+        });
+      }
+    }
+
+    // Commands: per (site, command) entry from the cached lists. Cache
+    // populates on palette open; entries appear once the fetch lands.
+    for (const s of $sites) {
+      const list2 = $commandsBySiteStore[s.domain] as Command[] | undefined;
+      if (!list2) continue;
+      for (const c of list2) {
+        list.push({
+          id: 'cmd:' + s.domain + ':' + c.name,
+          label: 'Run ' + (c.label || c.name),
+          hint: s.domain + ' · ' + c.name,
+          group: 'commands',
+          action: () => launchCommand(s.domain, c)
+        });
+      }
+    }
+
     if ($accessMode.loopback) {
       list.push({ id: 'act:link', label: m.palette_action_link(), group: 'actions', action: openLinkModal });
       list.push({ id: 'act:preset', label: m.palette_action_addService(), group: 'actions', action: openPresetModal });
@@ -92,17 +221,20 @@
   });
 
   const filtered = $derived.by(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter(
-      (e) => e.label.toLowerCase().includes(q) || (e.hint && e.hint.toLowerCase().includes(q))
-    );
+    const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return entries;
+    return entries.filter((e) => {
+      const hay = (e.label + ' ' + (e.hint || '')).toLowerCase();
+      return terms.every((t) => hay.includes(t));
+    });
   });
 
   const groupLabel: Record<Group, () => string> = {
     pages: () => m.palette_group_pages(),
     sites: () => m.palette_group_sites(),
     services: () => m.palette_group_services(),
+    toggles: () => 'Toggles',
+    commands: () => 'Commands',
     actions: () => m.palette_group_actions()
   };
 
@@ -111,6 +243,7 @@
     selected = 0;
     openCommandPalette();
     queueMicrotask(() => inputEl?.focus());
+    void preloadCommandsFor($sites.map((s) => s.domain));
   }
 
   function closePalette() {

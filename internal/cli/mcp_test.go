@@ -506,9 +506,9 @@ func TestIsLerdBuiltImage_matchers(t *testing.T) {
 // and globally; drift upward gets expensive fast. Raise the ceiling only
 // when adding content that justifies the bytes.
 func TestClaudeSkillContent_underSizeCeiling(t *testing.T) {
-	// Bumped to 50000 for the four new dumps_* tool sections and the dump
-	// bridge entry in the quick-reference table.
-	const ceiling = 50000
+	// Bumped to 51000 for commands_list / commands_run tools (framework
+	// command runner) plus their quick-reference table entries.
+	const ceiling = 51000
 	if got := len(claudeSkillContent); got > ceiling {
 		t.Errorf("claudeSkillContent is %d bytes, ceiling is %d — trim before raising", got, ceiling)
 	}

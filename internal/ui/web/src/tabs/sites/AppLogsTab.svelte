@@ -7,6 +7,7 @@
     type AppLogFile,
     type AppLogEntry
   } from '$stores/appLogs';
+  import Dropdown from '$components/Dropdown.svelte';
   import { m } from '../../paraglide/messages.js';
 
   interface Props {
@@ -96,15 +97,11 @@
 <div class="flex-1 flex flex-col overflow-hidden min-h-0">
   <div class="flex items-center gap-2 px-3 sm:px-5 py-2 shrink-0 border-b border-gray-100 dark:border-lerd-border">
     {#if files.length > 0}
-      <select
-        bind:value={selectedFile}
-        onchange={loadEntries}
-        class="text-xs bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-lerd-muted focus:outline-hidden focus:border-orange-500/50 cursor-pointer transition-colors"
-      >
-        {#each files as f (f.name)}
-          <option value={f.name} class="bg-white text-gray-700 dark:bg-lerd-bg dark:text-gray-300">{f.name}</option>
-        {/each}
-      </select>
+      <Dropdown
+        value={selectedFile}
+        options={files.map((f) => ({ value: f.name, label: f.name }))}
+        onchange={(v) => { selectedFile = v; loadEntries(); }}
+      />
     {/if}
 
     <div class="flex items-center rounded-sm border border-gray-200 dark:border-lerd-border overflow-hidden shrink-0">

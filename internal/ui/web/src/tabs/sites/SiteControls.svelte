@@ -20,6 +20,9 @@
   import { status } from '$stores/status';
   import LANShareLink from './LANShareLink.svelte';
   import WorktreeDBIsolateModal from './WorktreeDBIsolateModal.svelte';
+  import CommandsDropdown from '$components/CommandsDropdown.svelte';
+  import Dropdown from '$components/Dropdown.svelte';
+  import ToggleButton from '$components/ToggleButton.svelte';
   import { m } from '../../paraglide/messages.js';
 
   interface Props {
@@ -39,7 +42,6 @@
   const dbCapable = $derived((site.services || []).some((s) => /^(mysql|mariadb|postgres)/.test(s)));
   const dbIsolated = $derived(Boolean(activeWorktree?.db_isolated));
   let dbBusy = $state(false);
-
   let isolateModalOpen = $state(false);
 
   function onDBIsolatedChange() {
@@ -188,61 +190,60 @@
 </script>
 
 <div class="px-3 sm:px-5 py-3 border-b border-gray-100 dark:border-lerd-border shrink-0">
-  <div class="flex items-center gap-4 overflow-x-auto">
+  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-3 overflow-x-auto flex-1 min-w-0">
     {#if site.custom_container}
       <span class="text-xs text-violet-500 dark:text-violet-400 border border-violet-200 dark:border-violet-500/30 rounded-sm px-2 py-1">
         {(site.container_image || 'container') + ' :' + site.container_port}
       </span>
     {:else if $phpVersions.length > 0}
-      <select
+      <Dropdown
+        label="PHP"
         value={effectivePhp}
-        onchange={onPhpChange}
+        options={$phpVersions}
         disabled={versionBusy}
+        inherited={phpInherited}
+        inheritedSuffix={m.sites_controls_inheritedSuffix()}
         title={phpInherited ? m.sites_controls_inheritsFromMain() : ''}
-        class="text-xs bg-white dark:bg-lerd-bg border rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-lerd-muted focus:outline-hidden focus:border-lerd-red/50 disabled:opacity-50 cursor-pointer transition-colors {phpInherited ? 'border-dashed border-violet-300 dark:border-violet-700' : 'border-gray-200 dark:border-lerd-border'}"
-      >
-        <option value="" disabled class="bg-white text-gray-700 dark:bg-lerd-bg dark:text-gray-300">{m.sites_controls_phpPlaceholder()}</option>
-        {#each $phpVersions as v (v)}<option value={v} class="bg-white text-gray-700 dark:bg-lerd-bg dark:text-gray-300">PHP {v}{activeWorktreeBranch && v === effectivePhp && phpInherited ? ' ' + m.sites_controls_inheritedSuffix() : ''}</option>{/each}
-      </select>
+        placeholder={m.sites_controls_phpPlaceholder()}
+        onchange={(v) => onPhpChange({ target: { value: v } } as unknown as Event)}
+      />
     {:else}
       <span class="text-xs text-gray-400 border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1 opacity-50">PHP ...</span>
     {/if}
 
     {#if $status.node_managed_by_lerd && $nodeVersions.length > 0}
-      <select
+      <Dropdown
+        label="Node"
         value={effectiveNode}
-        onchange={onNodeChange}
+        options={$nodeVersions}
         disabled={versionBusy}
+        inherited={nodeInherited}
+        inheritedSuffix={m.sites_controls_inheritedSuffix()}
         title={nodeInherited ? m.sites_controls_inheritsFromMain() : ''}
-        class="text-xs bg-white dark:bg-lerd-bg border rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-lerd-muted focus:outline-hidden focus:border-lerd-red/50 disabled:opacity-50 cursor-pointer transition-colors {nodeInherited ? 'border-dashed border-violet-300 dark:border-violet-700' : 'border-gray-200 dark:border-lerd-border'}"
-      >
-        <option value="" class="bg-white text-gray-700 dark:bg-lerd-bg dark:text-gray-300">{m.sites_controls_nodeDefault()}</option>
-        {#each $nodeVersions as v (v)}<option value={v} class="bg-white text-gray-700 dark:bg-lerd-bg dark:text-gray-300">Node {v}{activeWorktreeBranch && v === effectiveNode && nodeInherited ? ' ' + m.sites_controls_inheritedSuffix() : ''}</option>{/each}
-      </select>
+        placeholder={m.sites_controls_nodeDefault()}
+        onchange={(v) => onNodeChange({ target: { value: v } } as unknown as Event)}
+      />
     {/if}
 
     {#if $status.dns?.enabled !== false}
-      <div class="flex items-center gap-1.5">
-        <Toggle
-          on={Boolean(site.tls)}
-          loading={tlsBusy}
-          onclick={() => runAction((b) => (tlsBusy = b), () => toggleTLS(site))}
-          title={site.tls ? m.sites_controls_httpsToggle_on() : m.sites_controls_httpsToggle_off()}
-        />
-        <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_https()}</span>
-      </div>
+      <ToggleButton
+        label={m.sites_controls_https()}
+        on={Boolean(site.tls)}
+        loading={tlsBusy}
+        onclick={() => runAction((b) => (tlsBusy = b), () => toggleTLS(site))}
+        title={site.tls ? m.sites_controls_httpsToggle_on() : m.sites_controls_httpsToggle_off()}
+      />
     {/if}
 
     {#if activeWorktreeBranch && dbCapable}
-      <div class="flex items-center gap-1.5" title={dbIsolated ? m.sites_controls_dbIsolatedTitle({ db: activeWorktree?.db_database ?? '' }) : m.sites_controls_dbShareParent()}>
-        <Toggle
-          on={dbIsolated}
-          tone="teal"
-          loading={dbBusy}
-          onclick={onDBIsolatedChange}
-        />
-        <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_dbIsolated()}</span>
-      </div>
+      <ToggleButton
+        label={m.sites_controls_dbIsolated()}
+        on={dbIsolated}
+        loading={dbBusy}
+        onclick={onDBIsolatedChange}
+        title={dbIsolated ? m.sites_controls_dbIsolatedTitle({ db: activeWorktree?.db_database ?? '' }) : m.sites_controls_dbShareParent()}
+      />
     {/if}
 
     {#snippet lanShare()}
@@ -250,23 +251,19 @@
       {@const lanPort = isWT ? activeWorktree?.lan_port ?? 0 : site.lan_port ?? 0}
       {@const lanURL = isWT ? activeWorktree?.lan_share_url ?? '' : site.lan_share_url ?? ''}
       {@const lanDomain = isWT ? (activeWorktree?.domain ?? site.domain) : site.domain}
-      <div class="flex items-center gap-1.5">
-        <Toggle
-          on={Boolean(lanPort)}
-          tone="teal"
-          loading={lanBusy}
-          onclick={() => runAction((b) => (lanBusy = b), () => toggleLANShare(site, activeWorktreeBranch))}
-          title={lanPort ? m.sites_controls_lanToggle_on() : m.sites_controls_lanToggle_off()}
-        />
-        <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_lan()}</span>
-        {#if lanURL}
-          <LANShareLink domain={lanDomain} url={lanURL} siteDomain={site.domain} branch={activeWorktreeBranch} />
-        {/if}
-      </div>
+      <ToggleButton
+        label={m.sites_controls_lan()}
+        on={Boolean(lanPort)}
+        loading={lanBusy}
+        onclick={() => runAction((b) => (lanBusy = b), () => toggleLANShare(site, activeWorktreeBranch))}
+        title={lanPort ? m.sites_controls_lanToggle_on() : m.sites_controls_lanToggle_off()}
+      />
+      {#if lanURL}
+        <LANShareLink domain={lanDomain} url={lanURL} siteDomain={site.domain} branch={activeWorktreeBranch} />
+      {/if}
     {/snippet}
-    {@render lanShare()}
 
-    <div class="w-px h-4 bg-gray-200 dark:bg-lerd-border mx-0.5"></div>
+    {@render lanShare()}
 
     {#if activeWorktreeBranch}
       {@const wtWorkers = activeWorktree?.framework_workers || []}
@@ -279,118 +276,100 @@
         </span>
       {:else}
         {#each wtWorkers as w (w.name)}
-          <div class="flex items-center gap-1.5">
-            <Toggle
-              on={Boolean(w.running)}
-              failing={Boolean(w.failing)}
-              tone="indigo"
-              loading={isPending('worker:' + w.name)}
-              disabled={isPending('worker:' + w.name)}
-              onclick={() => transition('worker:' + w.name, !w.running, () => toggleWorker(site, w, activeWorktreeBranch))}
-              title={w.running ? m.sites_controls_workerToggle_on({ label: w.label || w.name }) : m.sites_controls_workerToggle_off({ label: w.label || w.name })}
-            />
-            <span class="text-xs text-gray-500 dark:text-gray-400">{w.label || w.name}</span>
-          </div>
+          <ToggleButton
+            label={w.label || w.name}
+            on={Boolean(w.running)}
+            failing={Boolean(w.failing)}
+            loading={isPending('worker:' + w.name)}
+            disabled={isPending('worker:' + w.name)}
+            onclick={() => transition('worker:' + w.name, !w.running, () => toggleWorker(site, w, activeWorktreeBranch))}
+            title={w.running ? m.sites_controls_workerToggle_on({ label: w.label || w.name }) : m.sites_controls_workerToggle_off({ label: w.label || w.name })}
+          />
         {/each}
       {/if}
     {:else}
       {#if site.has_queue_worker}
-        <div class="flex items-center gap-1.5">
-          <Toggle
-            on={Boolean(site.queue_running)}
-            failing={Boolean(site.queue_failing)}
-            tone="amber"
-            loading={isPending('queue')}
-            disabled={isPending('queue')}
-            onclick={() => transition('queue', !site.queue_running, () => toggleQueue(site))}
-            title={site.queue_failing ? m.sites_controls_queueToggle_failing() : site.queue_running ? m.sites_controls_queueToggle_on() : m.sites_controls_queueToggle_off()}
-          />
-          <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_queue()}</span>
-        </div>
+        <ToggleButton
+          label={m.sites_controls_queue()}
+          on={Boolean(site.queue_running)}
+          failing={Boolean(site.queue_failing)}
+          loading={isPending('queue')}
+          disabled={isPending('queue')}
+          onclick={() => transition('queue', !site.queue_running, () => toggleQueue(site))}
+          title={site.queue_failing ? m.sites_controls_queueToggle_failing() : site.queue_running ? m.sites_controls_queueToggle_on() : m.sites_controls_queueToggle_off()}
+        />
       {/if}
 
       {#if site.has_horizon}
-        <div class="flex items-center gap-1.5">
-          <Toggle
-            on={Boolean(site.horizon_running)}
-            failing={Boolean(site.horizon_failing)}
-            tone="amber"
-            loading={isPending('horizon')}
-            disabled={isPending('horizon')}
-            onclick={() => transition('horizon', !site.horizon_running, () => toggleHorizon(site))}
-            title={site.horizon_failing ? m.sites_controls_horizonToggle_failing() : site.horizon_running ? m.sites_controls_horizonToggle_on() : m.sites_controls_horizonToggle_off()}
-          />
-          <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_horizon()}</span>
-        </div>
+        <ToggleButton
+          label={m.sites_controls_horizon()}
+          on={Boolean(site.horizon_running)}
+          failing={Boolean(site.horizon_failing)}
+          loading={isPending('horizon')}
+          disabled={isPending('horizon')}
+          onclick={() => transition('horizon', !site.horizon_running, () => toggleHorizon(site))}
+          title={site.horizon_failing ? m.sites_controls_horizonToggle_failing() : site.horizon_running ? m.sites_controls_horizonToggle_on() : m.sites_controls_horizonToggle_off()}
+        />
       {/if}
 
       {#if site.has_schedule_worker}
-        <div class="flex items-center gap-1.5">
-          <Toggle
-            on={Boolean(site.schedule_running)}
-            failing={Boolean(site.schedule_failing)}
-            tone="emerald"
-            loading={isPending('schedule')}
-            disabled={isPending('schedule')}
-            onclick={() => transition('schedule', !site.schedule_running, () => toggleSchedule(site))}
-            title={site.schedule_running ? m.sites_controls_scheduleToggle_on() : m.sites_controls_scheduleToggle_off()}
-          />
-          <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_schedule()}</span>
-        </div>
+        <ToggleButton
+          label={m.sites_controls_schedule()}
+          on={Boolean(site.schedule_running)}
+          failing={Boolean(site.schedule_failing)}
+          loading={isPending('schedule')}
+          disabled={isPending('schedule')}
+          onclick={() => transition('schedule', !site.schedule_running, () => toggleSchedule(site))}
+          title={site.schedule_running ? m.sites_controls_scheduleToggle_on() : m.sites_controls_scheduleToggle_off()}
+        />
       {/if}
 
       {#if site.has_reverb}
-        <div class="flex items-center gap-1.5">
-          <Toggle
-            on={Boolean(site.reverb_running)}
-            failing={Boolean(site.reverb_failing)}
-            tone="sky"
-            loading={isPending('reverb')}
-            disabled={isPending('reverb')}
-            onclick={() => transition('reverb', !site.reverb_running, () => toggleReverb(site))}
-            title={site.reverb_running ? m.sites_controls_reverbToggle_on() : m.sites_controls_reverbToggle_off()}
-          />
-          <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_reverb()}</span>
-        </div>
+        <ToggleButton
+          label={m.sites_controls_reverb()}
+          on={Boolean(site.reverb_running)}
+          failing={Boolean(site.reverb_failing)}
+          loading={isPending('reverb')}
+          disabled={isPending('reverb')}
+          onclick={() => transition('reverb', !site.reverb_running, () => toggleReverb(site))}
+          title={site.reverb_running ? m.sites_controls_reverbToggle_on() : m.sites_controls_reverbToggle_off()}
+        />
       {/if}
 
       {#if site.stripe_secret_set}
-        <div class="flex items-center gap-1.5">
-          <Toggle
-            on={Boolean(site.stripe_running)}
-            tone="violet"
-            loading={isPending('stripe')}
-            disabled={isPending('stripe')}
-            onclick={() => transition('stripe', !site.stripe_running, () => toggleStripe(site))}
-            title={site.stripe_running ? m.sites_controls_stripeToggle_on() : m.sites_controls_stripeToggle_off()}
-          />
-          <span class="text-xs text-gray-500 dark:text-gray-400">{m.sites_controls_stripe()}</span>
-        </div>
+        <ToggleButton
+          label={m.sites_controls_stripe()}
+          on={Boolean(site.stripe_running)}
+          loading={isPending('stripe')}
+          disabled={isPending('stripe')}
+          onclick={() => transition('stripe', !site.stripe_running, () => toggleStripe(site))}
+          title={site.stripe_running ? m.sites_controls_stripeToggle_on() : m.sites_controls_stripeToggle_off()}
+        />
       {/if}
 
       {#each site.framework_workers || [] as w (w.name)}
         {@const isVite = w.name === 'vite'}
         {@const shortLabel = isVite ? m.sites_controls_vite() : w.label || w.name}
-        <div class="flex items-center gap-1.5">
-          <Toggle
-            on={Boolean(w.running)}
-            failing={Boolean(w.failing)}
-            tone="indigo"
-            loading={isPending('worker:' + w.name)}
-            disabled={isPending('worker:' + w.name)}
-            onclick={() => transition('worker:' + w.name, !w.running, () => toggleWorker(site, w))}
-            title={isVite
-              ? w.running
-                ? m.sites_controls_viteToggle_on()
-                : m.sites_controls_viteToggle_off()
-              : w.running
-                ? 'Stop ' + shortLabel
-                : 'Start ' + shortLabel}
-          />
-          <span class="text-xs text-gray-500 dark:text-gray-400">{shortLabel}</span>
-        </div>
+        <ToggleButton
+          label={shortLabel}
+          on={Boolean(w.running)}
+          failing={Boolean(w.failing)}
+          loading={isPending('worker:' + w.name)}
+          disabled={isPending('worker:' + w.name)}
+          onclick={() => transition('worker:' + w.name, !w.running, () => toggleWorker(site, w))}
+          title={isVite
+            ? w.running
+              ? m.sites_controls_viteToggle_on()
+              : m.sites_controls_viteToggle_off()
+            : w.running
+              ? 'Stop ' + shortLabel
+              : 'Start ' + shortLabel}
+        />
       {/each}
     {/if}
+  </div>
+
+    <CommandsDropdown domain={site.domain} branch={activeWorktreeBranch} />
   </div>
 </div>
 
