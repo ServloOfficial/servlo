@@ -2323,8 +2323,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if site.Secured {
-			certsDir := filepath.Join(config.CertsDir(), "sites")
-			_ = certs.IssueCert(site.PrimaryDomain(), site.Domains, certsDir)
+			_ = certs.ReissueCertForWorktree(*site)
 		}
 		_ = podman.WriteContainerHosts()
 		_ = nginx.Reload()
@@ -2371,8 +2370,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if site.Secured {
-			certsDir := filepath.Join(config.CertsDir(), "sites")
-			_ = certs.IssueCert(site.PrimaryDomain(), site.Domains, certsDir)
+			_ = certs.ReissueCertForWorktree(*site)
 		}
 		_ = podman.WriteContainerHosts()
 		_ = nginx.Reload()
@@ -2444,8 +2442,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if site.Secured {
-			certsDir := filepath.Join(config.CertsDir(), "sites")
-			_ = certs.IssueCert(site.PrimaryDomain(), site.Domains, certsDir)
+			_ = certs.ReissueCertForWorktree(*site)
 		}
 		_ = podman.WriteContainerHosts()
 		_ = nginx.Reload()
