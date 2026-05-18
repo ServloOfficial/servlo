@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { get } from 'svelte/store';
-import { dumpGroups, dumps, filterSite, filterCtx, filterText, buildDumpGroups } from './dumps';
+import { dumpGroups, dumps, filterSite, filterCtx, filterText, buildDumpGroups, status } from './dumps';
+import { wsMessage } from '$lib/ws';
 import type { DumpEvent } from '$lib/dumpsStream';
 
 function ev(over: Partial<DumpEvent> & { id: string; ts: string }): DumpEvent {
@@ -111,5 +112,41 @@ describe('dumpGroups', () => {
     const groups = get(dumpGroups);
     const ids = groups.flatMap((g) => g.events.map((e) => e.id)).sort();
     expect(ids).toEqual(['b', 'c']);
+  });
+});
+
+describe('dumps status WS sync', () => {
+  beforeEach(() => {
+    status.set(null);
+  });
+
+  it('updates status when a dumps_status WS frame arrives', () => {
+    wsMessage.set({
+      type: 'dumps_status',
+      dumps_status: {
+        enabled: true,
+        passthrough: false,
+        listening: true,
+        addr: 'unix:/tmp/x',
+        count: 0,
+        subscribers: 0,
+        last_ts: ''
+      }
+    });
+    expect(get(status)?.enabled).toBe(true);
+  });
+
+  it('ignores WS frames without a dumps_status payload', () => {
+    status.set({
+      enabled: false,
+      passthrough: false,
+      listening: false,
+      addr: '',
+      count: 0,
+      subscribers: 0,
+      last_ts: ''
+    });
+    wsMessage.set({ type: 'sites' });
+    expect(get(status)?.enabled).toBe(false);
   });
 });

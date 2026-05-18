@@ -24,6 +24,7 @@ export interface WsMessage {
   services?: unknown;
   status?: unknown;
   unhealthy_workers?: unknown;
+  dumps_status?: unknown;
   notification?: NotificationEvent;
 }
 

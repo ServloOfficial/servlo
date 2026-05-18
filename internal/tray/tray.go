@@ -33,16 +33,18 @@ const dashboardURL = "http://lerd.localhost"
 
 // Snapshot holds the state polled from the Lerd API.
 type Snapshot struct {
-	Running          bool
-	NginxRunning     bool
-	DNSOK            bool
-	DNSDisabled      bool // explicit dns.enabled=false from API; zero value falls through to ok/error
-	PHPVersions      []phpInfo
-	PHPDefault       string
-	Services         []serviceInfo
-	AutostartEnabled bool
-	LANExposed       bool   // lerd lan expose state — drives the LAN toggle item
-	LatestVersion    string // non-empty (e.g. "v0.8.5") when a newer version is available
+	Running              bool
+	NginxRunning         bool
+	DNSOK                bool
+	DNSDisabled          bool // explicit dns.enabled=false from API; zero value falls through to ok/error
+	PHPVersions          []phpInfo
+	PHPDefault           string
+	Services             []serviceInfo
+	AutostartEnabled     bool
+	LANExposed           bool   // lerd lan expose state — drives the LAN toggle item
+	DumpsEnabled         bool   // lerd dump on/off state — drives the dump toggle item
+	NotificationsEnabled bool   // lerd notify on/off state — drives the notifications toggle item
+	LatestVersion        string // non-empty (e.g. "v0.8.5") when a newer version is available
 }
 
 type phpInfo struct {
@@ -153,17 +155,30 @@ func onReady(mono bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	updateCh := make(chan *Snapshot, 1)
+	// refresh schedules an immediate fetch so menu labels redraw right
+	// after a click instead of waiting for the next 30s poll tick.
+	refresh := func() {
+		go func() {
+			snap := fetchSnapshot()
+			select {
+			case updateCh <- snap:
+			default:
+			}
+		}()
+	}
 
 	go runPoller(ctx, updateCh)
 	go applyLoop(menu, updateCh, mono)
 	go handleDash(menu.mDash)
-	go handleToggle(menu.mToggle)
-	go handleServices(menu)
-	go handlePHP(menu)
-	go handleAutostart(menu.mAutostart)
+	go handleToggle(menu.mToggle, refresh)
+	go handleServices(menu, refresh)
+	go handlePHP(menu, refresh)
+	go handleAutostart(menu.mAutostart, refresh)
 	if menu.mLAN != nil {
-		go handleLAN(menu.mLAN)
+		go handleLAN(menu.mLAN, refresh)
 	}
+	go handleDumps(menu.mDumps, refresh)
+	go handleNotifications(menu.mNotifications, refresh)
 	go handleUpdate(menu.mUpdate)
 	go handleQuit(menu.mQuit, cancel)
 }
@@ -230,11 +245,13 @@ func fetchSnapshot() *Snapshot {
 
 	snap.AutostartEnabled = lerdSystemd.IsAutostartEnabled()
 
-	// LAN exposure state — read directly from config rather than the API
-	// because the tray cares about the persisted intent, not the live bind
-	// state (which we'd need a new API for).
+	// LAN, dump bridge, and notifications all read straight from config —
+	// the tray cares about persisted intent and avoids a new API surface
+	// for each toggle.
 	if cfg, err := config.LoadGlobal(); err == nil && cfg != nil {
 		snap.LANExposed = cfg.LAN.Exposed
+		snap.DumpsEnabled = cfg.IsDumpsEnabled()
+		snap.NotificationsEnabled = cfg.IsNotificationsEnabled()
 	}
 
 	// /api/services — only real services (exclude queue/schedule/stripe per-site workers)
@@ -293,7 +310,7 @@ func handleDash(item *systray.MenuItem) {
 	}
 }
 
-func handleToggle(item *systray.MenuItem) {
+func handleToggle(item *systray.MenuItem, refresh func()) {
 	for range item.ClickedCh {
 		go func() {
 			snap := fetchSnapshot()
@@ -303,12 +320,12 @@ func handleToggle(item *systray.MenuItem) {
 			} else {
 				arg = "start"
 			}
-			_ = exec.Command("lerd", arg).Start()
+			runAndRefresh(exec.Command("lerd", arg), refresh)
 		}()
 	}
 }
 
-func handleServices(menu *menuState) {
+func handleServices(menu *menuState, refresh func()) {
 	for i := 0; i < maxServices; i++ {
 		go func(idx int) {
 			for range menu.svcItems[idx].ClickedCh {
@@ -323,13 +340,13 @@ func handleServices(menu *menuState) {
 				if status == "active" {
 					arg = "stop"
 				}
-				_ = exec.Command("lerd", "service", arg, name).Start()
+				runAndRefresh(exec.Command("lerd", "service", arg, name), refresh)
 			}
 		}(i)
 	}
 }
 
-func handlePHP(menu *menuState) {
+func handlePHP(menu *menuState, refresh func()) {
 	for i := 0; i < maxPHP; i++ {
 		go func(idx int) {
 			for range menu.phpItems[idx].ClickedCh {
@@ -339,37 +356,74 @@ func handlePHP(menu *menuState) {
 				if version == "" {
 					continue
 				}
-				_ = exec.Command("lerd", "use", version).Start()
+				runAndRefresh(exec.Command("lerd", "use", version), refresh)
 			}
 		}(i)
 	}
 }
 
-func handleAutostart(item *systray.MenuItem) {
+func handleAutostart(item *systray.MenuItem, refresh func()) {
 	for range item.ClickedCh {
+		arg := "enable"
 		if lerdSystemd.IsAutostartEnabled() {
-			_ = exec.Command("lerd", "autostart", "disable").Start()
-		} else {
-			_ = exec.Command("lerd", "autostart", "enable").Start()
+			arg = "disable"
 		}
+		runAndRefresh(exec.Command("lerd", "autostart", arg), refresh)
 	}
 }
 
 // handleLAN toggles `lerd lan expose` / `lerd lan unexpose` on click. We
 // read the current state from config rather than relying on the snapshot
 // so the click is robust to a stale in-memory copy.
-func handleLAN(item *systray.MenuItem) {
+func handleLAN(item *systray.MenuItem, refresh func()) {
 	for range item.ClickedCh {
 		exposed := false
 		if cfg, err := config.LoadGlobal(); err == nil && cfg != nil {
 			exposed = cfg.LAN.Exposed
 		}
+		arg := "expose"
 		if exposed {
-			_ = exec.Command("lerd", "lan", "unexpose").Start()
-		} else {
-			_ = exec.Command("lerd", "lan", "expose").Start()
+			arg = "unexpose"
 		}
+		runAndRefresh(exec.Command("lerd", "lan", arg), refresh)
 	}
+}
+
+func handleDumps(item *systray.MenuItem, refresh func()) {
+	for range item.ClickedCh {
+		enabled := false
+		if cfg, err := config.LoadGlobal(); err == nil && cfg != nil {
+			enabled = cfg.IsDumpsEnabled()
+		}
+		runAndRefresh(exec.Command("lerd", "dump", offOn(enabled)), refresh)
+	}
+}
+
+func handleNotifications(item *systray.MenuItem, refresh func()) {
+	for range item.ClickedCh {
+		enabled := true
+		if cfg, err := config.LoadGlobal(); err == nil && cfg != nil {
+			enabled = cfg.IsNotificationsEnabled()
+		}
+		runAndRefresh(exec.Command("lerd", "notify", offOn(enabled)), refresh)
+	}
+}
+
+// runAndRefresh waits for cmd to finish then calls refresh, so the menu
+// redraws against the post-command state instead of the next poll tick.
+// Errors are swallowed; the user sees the resulting state, not the trace.
+func runAndRefresh(cmd *exec.Cmd, refresh func()) {
+	_ = cmd.Run()
+	refresh()
+}
+
+// offOn returns the next-state CLI subcommand for a current boolean: true →
+// "off", false → "on". Keeps the two new toggle handlers DRY.
+func offOn(currentlyEnabled bool) string {
+	if currentlyEnabled {
+		return "off"
+	}
+	return "on"
 }
 
 func handleUpdate(item *systray.MenuItem) {

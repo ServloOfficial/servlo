@@ -63,8 +63,9 @@ All endpoints sit behind the standard `withRemoteControlGate` (loopback-only by 
 
 ## Disabling notifications
 
-Three layers; each is enough on its own:
+Four layers; each is enough on its own:
 
+- **Global mute**: `lerd notify off` (or click *Notifications* in the system tray). The central dispatcher short-circuits before either the WebSocket broadcast or the Web Push fanout runs, so every category, every device, every tab is silenced at once. Persists to `~/.config/lerd/config.yaml` under `notifications.disabled: true`. `lerd notify on` flips it back; `lerd notify status` reports the current state. On by default.
 - Toggle off in **System → Notifications** (per-category or master).
 - Reset the browser's notification permission for the dashboard origin (Brave / Chrome / Firefox → site settings).
 - `rm ~/.local/share/lerd/push-subscriptions.json` — server-side wipe; the browser will silently re-subscribe on the next page load if permission is still granted, so combine with the first two options if you want a permanent uninstall.

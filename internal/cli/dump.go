@@ -115,7 +115,16 @@ func runDumpToggle(enable bool) error {
 	} else {
 		fmt.Println("Dump bridge disabled.")
 	}
+	nudgeUIDumpsChanged()
 	return nil
+}
+
+// nudgeUIDumpsChanged is a best-effort ping to lerd-ui so every connected
+// dashboard tab refreshes its dump-bridge indicator over the WebSocket
+// instead of waiting for the next manual reload. Silent on any error: a
+// missing lerd-ui means there are no WS subscribers to update anyway.
+func nudgeUIDumpsChanged() {
+	_, _, _ = postUnix("/api/dumps/notify-changed", nil)
 }
 
 func runDumpStatus(_ *cobra.Command, _ []string) error {

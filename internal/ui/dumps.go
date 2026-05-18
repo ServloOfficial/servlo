@@ -15,6 +15,7 @@ import (
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/dumps"
 	"github.com/geodro/lerd/internal/dumpsops"
+	"github.com/geodro/lerd/internal/eventbus"
 )
 
 // dumpsServer is the singleton dump receiver started by ui.Start. It's nil
@@ -90,6 +91,13 @@ func handleDumpsStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(buildDumpsStatusJSON())
+}
+
+// buildDumpsStatusJSON renders the same payload as handleDumpsStatus so the
+// WS broadcast and the HTTP handler stay in sync from a single source.
+func buildDumpsStatusJSON() []byte {
 	cfg, _ := config.LoadGlobal()
 	srv := dumpsServer.Load()
 	resp := struct {
@@ -107,15 +115,14 @@ func handleDumpsStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if srv != nil {
 		resp.Listening = true
-		// Keep the "unix:" prefix that resp.Addr was initialised with;
-		// srv.Addr() returns just the path which reads as ambiguous.
 		resp.Count = srv.Len()
 		resp.Subscribers = srv.Subscribers()
 		if snap := srv.Snapshot(); len(snap) > 0 {
 			resp.LastTS = snap[len(snap)-1].TS
 		}
 	}
-	writeJSON(w, resp)
+	b, _ := json.Marshal(resp)
+	return b
 }
 
 // handleDumpsStream is a Server-Sent Events stream of new events. The client
@@ -252,6 +259,23 @@ func handleDumpsPassthrough(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, res)
+}
+
+// handleDumpsNotifyChanged is a CLI-callable ping. The CLI mutates dump
+// state in its own process, so lerd-ui has no way to know it happened
+// without polling. Calling this after `lerd dump on/off` republishes the
+// kind so every open dashboard tab refreshes its indicator over the WS.
+func handleDumpsNotifyChanged(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !isLoopbackRequest(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	eventbus.Default.Publish(eventbus.KindDumpsStatus)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleDumpsToggle flips Dumps.Enabled by delegating to dumpsops.Apply,

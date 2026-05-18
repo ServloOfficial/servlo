@@ -57,6 +57,7 @@ type wsMessage struct {
 	Services         []byte
 	Status           []byte
 	UnhealthyWorkers []byte
+	DumpsStatus      []byte
 	Notification     []byte
 }
 
@@ -146,6 +147,8 @@ func runSnapshotInvalidator() {
 				notifyOnServiceUpdates(msg.Services)
 			case eventbus.KindStatus:
 				msg.Status = snapshots.Status()
+			case eventbus.KindDumpsStatus:
+				msg.DumpsStatus = buildDumpsStatusJSON()
 			}
 		}
 		broker.broadcast(msg)

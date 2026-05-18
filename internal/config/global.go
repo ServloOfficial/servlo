@@ -139,6 +139,12 @@ type GlobalConfig struct {
 		// ships it.
 		Passthrough bool `yaml:"passthrough,omitempty" mapstructure:"passthrough"`
 	} `yaml:"dumps,omitempty" mapstructure:"dumps"`
+	Notifications struct {
+		// Disabled globally mutes the notifier (WebSocket banners + Web
+		// Push fanout). Inverted form so the zero value keeps existing
+		// installs on. Toggled via `lerd notify on/off` and the tray.
+		Disabled bool `yaml:"disabled,omitempty" mapstructure:"disabled"`
+	} `yaml:"notifications,omitempty" mapstructure:"notifications"`
 	ParkedDirectories []string                 `yaml:"parked_directories" mapstructure:"parked_directories"`
 	Services          map[string]ServiceConfig `yaml:"services"           mapstructure:"services"`
 }
@@ -561,6 +567,19 @@ func (c *GlobalConfig) IsDumpsPassthrough() bool {
 // effect (PHP reads ini directives at FPM startup, not per request).
 func (c *GlobalConfig) SetDumpsPassthrough(enabled bool) {
 	c.Dumps.Passthrough = enabled
+}
+
+// IsNotificationsEnabled reports whether the global notifier is allowed
+// to fan out (WebSocket banners + Web Push). Inverted storage so existing
+// installs default to enabled.
+func (c *GlobalConfig) IsNotificationsEnabled() bool {
+	return !c.Notifications.Disabled
+}
+
+// SetNotificationsEnabled flips the global notifier toggle. Persist via
+// SaveGlobal; dispatchNotification re-reads the flag on every event.
+func (c *GlobalConfig) SetNotificationsEnabled(enabled bool) {
+	c.Notifications.Disabled = !enabled
 }
 
 // SaveGlobal writes the configuration to config.yaml.

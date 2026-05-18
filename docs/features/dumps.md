@@ -4,7 +4,7 @@
 
 ![Dump viewer on a site's Dumps tab](/assets/screenshots/site-detail-dumps.png)
 
-The feature is **off by default**. Enable it with `lerd dump on`, the antenna toggle in the Sites sidebar, the Enable button on a per-site Dumps tab, or `dumps_toggle` via MCP. All of these flip the same global flag.
+The feature is **off by default**. Enable it with `lerd dump on`, the antenna toggle in the Sites sidebar, the Enable button on a per-site Dumps tab, the *Dump bridge* item in the system tray menu, or `dumps_toggle` via MCP. All of these flip the same global flag.
 
 ## How it works
 

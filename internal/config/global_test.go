@@ -443,3 +443,73 @@ func TestWorkerExecMode_RoundTripsThroughYAML(t *testing.T) {
 		t.Errorf("after round trip: got %q, want %q", got, WorkerExecModeContainer)
 	}
 }
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+func TestNotifications_DefaultEnabled(t *testing.T) {
+	cfg := &GlobalConfig{}
+	if !cfg.IsNotificationsEnabled() {
+		t.Error("zero-value config should report notifications enabled")
+	}
+}
+
+func TestNotifications_Toggle(t *testing.T) {
+	cfg := &GlobalConfig{}
+	cfg.SetNotificationsEnabled(false)
+	if cfg.IsNotificationsEnabled() {
+		t.Error("after SetNotificationsEnabled(false), IsNotificationsEnabled should be false")
+	}
+	if !cfg.Notifications.Disabled {
+		t.Error("Notifications.Disabled should be true when disabled")
+	}
+	cfg.SetNotificationsEnabled(true)
+	if !cfg.IsNotificationsEnabled() {
+		t.Error("after SetNotificationsEnabled(true), IsNotificationsEnabled should be true")
+	}
+	if cfg.Notifications.Disabled {
+		t.Error("Notifications.Disabled should be false when enabled")
+	}
+}
+
+func TestNotifications_DefaultsEnabledForLegacyConfig(t *testing.T) {
+	setConfigDir(t)
+	invalidateGlobalCache()
+	t.Cleanup(invalidateGlobalCache)
+
+	if err := os.MkdirAll(ConfigDir(), 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	legacy := []byte("php:\n  default_version: 8.4\n")
+	if err := os.WriteFile(GlobalConfigFile(), legacy, 0644); err != nil {
+		t.Fatalf("write legacy: %v", err)
+	}
+	got, err := LoadGlobal()
+	if err != nil {
+		t.Fatalf("LoadGlobal: %v", err)
+	}
+	if !got.IsNotificationsEnabled() {
+		t.Error("legacy config without notifications key should default to enabled")
+	}
+}
+
+func TestNotifications_RoundTripsThroughYAML(t *testing.T) {
+	setConfigDir(t)
+	invalidateGlobalCache()
+	t.Cleanup(invalidateGlobalCache)
+
+	cfg, err := LoadGlobal()
+	if err != nil {
+		t.Fatalf("LoadGlobal: %v", err)
+	}
+	cfg.SetNotificationsEnabled(false)
+	if err := SaveGlobal(cfg); err != nil {
+		t.Fatalf("SaveGlobal: %v", err)
+	}
+	got, err := LoadGlobal()
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if got.IsNotificationsEnabled() {
+		t.Error("notifications should remain disabled after YAML round trip")
+	}
+}

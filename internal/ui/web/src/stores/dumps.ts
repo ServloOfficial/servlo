@@ -1,6 +1,7 @@
 import { derived, writable, get, type Readable } from 'svelte/store';
 import { apiFetch, apiJson } from '$lib/api';
 import { createDumpsStream, type DumpEvent } from '$lib/dumpsStream';
+import { wsMessage } from '$lib/ws';
 
 export interface DumpsStatus {
   enabled: boolean;
@@ -178,6 +179,13 @@ export async function refreshStatus(): Promise<void> {
     status.set(null);
   }
 }
+
+// Live-update from WS so any out-of-band toggle (CLI, tray, MCP, another
+// browser tab) is reflected without a manual refresh.
+wsMessage.subscribe((msg) => {
+  const fresh = msg?.dumps_status as DumpsStatus | undefined;
+  if (fresh) status.set(fresh);
+});
 
 export async function clearDumps(): Promise<void> {
   await apiFetch('/api/dumps/clear', { method: 'POST' });
