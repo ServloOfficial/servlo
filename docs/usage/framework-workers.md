@@ -69,6 +69,8 @@ Host workers auto-start in three places:
 - at daemon boot, so worktree units recover after a host reboot or `lerd stop && lerd start` even when fsnotify hasn't fired.
 - on `lerd worktree remove`, the matching unit is stopped and its file removed; without this the unit would restart-loop against the deleted `WorkingDirectory`.
 
+Host workers run with lerd's bin dir prepended to `PATH`, so subprocesses spawned by `npm run dev` (for example Inertia's wayfinder Vite plugin shelling out to `php artisan`) reach lerd's `php`, `composer` and `laravel` shims and route into the containerised runtime. Stopping a host worker via the UI or `lerd worker stop` is now sticky: a HEAD-write event (commit, checkout, rebase, branch rename) inside a worktree no longer resurrects it, and on macOS the heal loop respects a missing plist as a user-stop signal instead of recreating it.
+
 On macOS the unit is a launchd plist (`~/Library/LaunchAgents/lerd-<worker>-<site>[-<branch>].plist`) backed by a guard script under `~/.local/share/lerd/run/workers/` that `cd`s into the site/worktree and `fnm exec`s the command. The watcher self-heals the unit independently of the worker exec mode — host workers always need launchd-level supervision because they aren't behind podman's `--restart=always`. Scheduled workers (`schedule != ""`) still aren't supported on macOS; launchd's `StartCalendarInterval` isn't wired through the unit translator yet.
 
 ## Project-specific custom workers

@@ -79,7 +79,7 @@ func writeWorkerHostUnit(unitName, sitePath, command, restart string) (bool, err
 	fnmBin := filepath.Join(config.BinDir(), "fnm")
 	nodeVersion := resolveNodeVersionForHostWorker(sitePath)
 
-	script := buildDarwinHostWorkerGuardScript(fnmBin, nodeVersion, sitePath, command)
+	script := buildDarwinHostWorkerGuardScript(fnmBin, config.BinDir(), nodeVersion, sitePath, command)
 	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
 		return false, fmt.Errorf("writing host worker guard script: %w", err)
 	}

@@ -169,6 +169,42 @@ func TestWriteHostWorkerUnitFile_shellCommandPreserved(t *testing.T) {
 	}
 }
 
+// Vite's Inertia/Wayfinder plugin shells out to `php artisan` from
+// inside `npm run dev`. lerd's BinDir holds the php shim, so the host
+// worker's PATH must lead with BinDir — issue #375.
+func TestWriteHostWorkerUnitFile_pathLeadsWithLerdBinDir(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+	t.Setenv("XDG_DATA_HOME", tmp)
+
+	binDir := filepath.Join(tmp, "lerd", "bin")
+	os.MkdirAll(binDir, 0755)
+	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
+
+	sitePath := t.TempDir()
+	os.WriteFile(filepath.Join(sitePath, ".node-version"), []byte("20"), 0644)
+
+	_, err := writeWorkerUnitFile(
+		"lerd-vite-mysite", "Vite", "mysite",
+		sitePath, "8.4", "npm run dev",
+		"on-failure", "", "lerd-php84-fpm", true,
+	)
+	if err != nil {
+		t.Fatalf("writeWorkerUnitFile: %v", err)
+	}
+
+	unitPath := filepath.Join(tmp, "systemd", "user", "lerd-vite-mysite.service")
+	data, err := os.ReadFile(unitPath)
+	if err != nil {
+		t.Fatalf("read unit: %v", err)
+	}
+	unit := string(data)
+	want := "Environment=PATH=" + config.BinDir() + ":"
+	if !strings.Contains(unit, want) {
+		t.Errorf("host worker unit must prepend lerd BinDir to PATH; got:\n%s", unit)
+	}
+}
+
 func TestWorkerStartForSite_worktreeUnitNaming(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)

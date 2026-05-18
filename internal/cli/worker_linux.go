@@ -4,6 +4,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -119,6 +120,11 @@ func writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, resta
 	// so the wrapper survives any user-provided string verbatim.
 	shellCommand := fmt.Sprintf("%s exec --using=%s -- %s", fnm, nodeVersion, command)
 	escaped := strings.ReplaceAll(shellCommand, "'", `'"'"'`)
+	// lerd's shim must lead PATH so wayfinder + friends find `php`; we
+	// rebuild the path systemd's user default would have supplied so
+	// `~/.local/bin` stays reachable — issue #375.
+	home, _ := os.UserHomeDir()
+	envPath := config.BinDir() + ":" + filepath.Join(home, ".local", "bin") + ":/usr/local/bin:/usr/bin:/bin"
 	unit := fmt.Sprintf(`[Unit]
 Description=Lerd %s (%s)
 
@@ -127,12 +133,13 @@ Type=simple
 Restart=%s
 RestartSec=5
 WorkingDirectory=%s
+Environment=PATH=%s
 SuccessExitStatus=1 130 143
 ExecStart=/bin/sh -c '%s'
 
 [Install]
 WantedBy=default.target
-`, label, siteName, restart, sitePath, escaped)
+`, label, siteName, restart, sitePath, envPath, escaped)
 
 	_ = services.Mgr.RemoveTimerUnit(unitName)
 	return services.Mgr.WriteServiceUnitIfChanged(unitName, unit)

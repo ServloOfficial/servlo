@@ -127,6 +127,23 @@ func TestWorkerNeedsHealing_PlistFileName(t *testing.T) {
 	}
 }
 
+// "plist missing" is the user-stopped state — WorkerStopForSite calls
+// RemoveServiceUnit which deletes the file. Resurrecting it on the next
+// 60s tick clobbered user stops — issue #375 (Bruno's Vite re-enable).
+func TestShouldHealOnReason(t *testing.T) {
+	cases := map[string]bool{
+		"":                           false,
+		"plist missing":              false,
+		"not loaded in launchd":      true,
+		"loaded but no live process": true,
+	}
+	for reason, want := range cases {
+		if got := shouldHealOnReason(reason); got != want {
+			t.Errorf("shouldHealOnReason(%q) = %v, want %v", reason, got, want)
+		}
+	}
+}
+
 // sweepOrphanWorkerArtifacts must keep .sh / .pid files whose plist still
 // exists on disk under the unit-name convention. The earlier `lerd.`+unit
 // path looked for a file that never existed, so the sweep happily deleted

@@ -126,10 +126,11 @@ func TestBuildDarwinHostWorkerService_PointsAtGuardScript(t *testing.T) {
 
 func TestBuildDarwinHostWorkerGuardScript_WrapsFnmExec(t *testing.T) {
 	fnm := "/Users/u/.local/share/lerd/bin/fnm"
+	binDir := "/Users/u/.local/share/lerd/bin"
 	sitePath := "/Users/u/alpha"
 	command := "npm run dev"
 
-	script := buildDarwinHostWorkerGuardScript(fnm, "22", sitePath, command)
+	script := buildDarwinHostWorkerGuardScript(fnm, binDir, "22", sitePath, command)
 
 	if !strings.HasPrefix(script, "#!/bin/sh") {
 		t.Errorf("guard script should start with shebang, got:\n%s", script)
@@ -153,11 +154,23 @@ func TestBuildDarwinHostWorkerGuardScript_EscapesSingleQuotes(t *testing.T) {
 	// the sh -c string early and the rest of the command would parse
 	// as separate shell tokens.
 	script := buildDarwinHostWorkerGuardScript(
-		"/bin/fnm", "22", "/site",
+		"/bin/fnm", "/Users/u/.local/share/lerd/bin", "22", "/site",
 		`node -e 'console.log("x")'`,
 	)
 	if !strings.Contains(script, `'"'"'console.log("x")'"'"'`) {
 		t.Errorf("expected escaped single quotes in guard script, got:\n%s", script)
+	}
+}
+
+// Vite's Inertia/Wayfinder plugin shells out to `php artisan` from inside
+// `npm run dev`. lerd's BinDir holds the php/composer/laravel shims, so
+// it must lead PATH for the subprocess to find them — issue #375.
+func TestBuildDarwinHostWorkerGuardScript_PrependsLerdBinDirToPath(t *testing.T) {
+	binDir := "/Users/u/.local/share/lerd/bin"
+	script := buildDarwinHostWorkerGuardScript("/bin/fnm", binDir, "22", "/site", "npm run dev")
+	want := `export PATH="/Users/u/.local/share/lerd/bin:/opt/homebrew/bin:`
+	if !strings.Contains(script, want) {
+		t.Errorf("guard script must prepend lerd BinDir to PATH; got:\n%s", script)
 	}
 }
 

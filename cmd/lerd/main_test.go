@@ -141,3 +141,20 @@ func TestCleanupWorktreeVhosts_doesNotTouchSurvivorEnv(t *testing.T) {
 		t.Fatalf("unexpected stat error on survivor .env: %v", err)
 	}
 }
+
+// HEAD writes (commit, checkout, rebase, rename) fire "changed" via
+// fsnotify. Resurrecting host workers on every HEAD write resurrected
+// user stops on every commit — issue #375 (Bruno's Vite).
+func TestShouldAutoStartWorkersOnSync(t *testing.T) {
+	cases := map[string]bool{
+		"added":   true,
+		"changed": false,
+		"":        false,
+		"removed": false,
+	}
+	for action, want := range cases {
+		if got := shouldAutoStartWorkersOnSync(action); got != want {
+			t.Errorf("shouldAutoStartWorkersOnSync(%q) = %v, want %v", action, got, want)
+		}
+	}
+}

@@ -20,13 +20,15 @@ import (
 // plist that gets booted out (e.g. mid-flight migration interrupted by a
 // kickstart) leaves nothing for launchd to resurrect.
 //
-// Three classes of drift get repaired on each tick:
+// Two classes of drift get repaired on each tick:
 //
-//  1. site declares a worker but no plist exists in LaunchAgents → write
-//     the plist + bootstrap by calling cli.WorkerStartForSite.
-//  2. plist exists but launchctl shows no PID and the .pid file is dead
+//  1. plist exists but launchctl shows no PID and the .pid file is dead
 //     → re-run WorkerStartForSite (RemoveServiceUnit + bootstrap).
-//  3. orphan .sh/.pid in run/workers with no matching plist → delete.
+//  2. orphan .sh/.pid in run/workers with no matching plist → delete.
+//
+// A missing plist is treated as user intent (WorkerStopForSite deletes
+// it via RemoveServiceUnit), not drift — see shouldHealOnReason and
+// issue #375.
 //
 // Skipped while a worker-mode migration is in flight (cli.WorkerMigrationActive)
 // so a tick that lands between the migration's stop loop and start loop
@@ -88,7 +90,7 @@ func WatchExecWorkers(interval time.Duration) {
 				continue
 			}
 			reason := workerNeedsHealing(w.unit)
-			if reason == "" {
+			if !shouldHealOnReason(reason) {
 				continue
 			}
 			cooldown[w.unit] = time.Now()
@@ -236,6 +238,12 @@ func conflictingWorkerRunning(w expectedExecWorker) bool {
 		}
 	}
 	return false
+}
+
+// "plist missing" is the user-stopped state (RemoveServiceUnit deleted
+// it). Resurrecting overrides that intent — issue #375.
+func shouldHealOnReason(reason string) bool {
+	return reason != "" && reason != "plist missing"
 }
 
 // workerNeedsHealing returns a non-empty reason string when unit is in a

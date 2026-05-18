@@ -714,14 +714,20 @@ func syncWorktree(sitePath, worktreeName, action string, pruneStale bool) bool {
 		}
 		fmt.Printf("Worktree %s: %s -> %s\n", action, wt.Branch, wt.Domain)
 
-		// Auto-start only the host workers the user opted into via
-		// .lerd.yaml workers:. Worktrees inherit the parent's project
-		// intent rather than every host:true worker the framework defines.
-		cli.AutoStartOptedInWorktreeWorkers(site, wt.Path, effectivePHP)
+		if shouldAutoStartWorkersOnSync(action) {
+			cli.AutoStartOptedInWorktreeWorkers(site, wt.Path, effectivePHP)
+		}
 
 		return true
 	}
 	return false
+}
+
+// "changed" fires on every HEAD write (commit, checkout, rebase);
+// worktree path is stable so existing units need no kick. Resurrecting
+// them clobbered user stops — issue #375.
+func shouldAutoStartWorkersOnSync(action string) bool {
+	return action == "added"
 }
 
 // cleanupWorktreeVhosts removes all subdomain vhosts for the given site's
