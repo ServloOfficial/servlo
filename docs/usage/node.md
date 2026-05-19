@@ -65,6 +65,18 @@ Node version management is handled by [fnm](https://github.com/Schniz/fnm), whic
 
 ---
 
+## Global npm packages
+
+`npm install -g <pkg>` works through the lerd shim. The package goes to a lerd managed prefix at `~/.local/share/lerd/node-global/`, and lerd writes a small wrapper script for every binary into `~/.local/share/lerd/bin/`, which is already on your `PATH` because `lerd install` adds it. After `npm install -g pm2` you can call `pm2` from any shell directly, no extra setup, on both Linux and macOS regardless of whether lerd itself was installed via Homebrew or curl-pipe.
+
+The wrapper exec's the real binary through `fnm exec --using=default`, so globally installed tools always run on the fnm default node version regardless of the project you are inside when you call them. If you need a specific version for a global tool, change the default with `lerd node:use <version>` before installing it.
+
+`npm uninstall -g <pkg>` removes the wrapper as well. Files in `~/.local/share/lerd/bin/` that lerd did not create with its own marker comment are never touched, so the existing `node`, `npm`, `npx`, `php`, `composer`, and `laravel` shims in the same directory stay safe.
+
+The same mechanism applies to `composer global require`. Composer's global vendor/bin (`~/.config/composer/vendor/bin/` by default, respecting `COMPOSER_HOME` and `XDG_CONFIG_HOME`) is mirrored into `~/.local/share/lerd/bin/` after every `composer` run, with wrappers that exec the real bin through `lerd php` so `#!/usr/bin/env php` shebangs resolve against the FPM container. After `composer global require psy/psysh` you can call `psysh` from any shell directly. `composer global remove` cleans the wrapper too.
+
+---
+
 ## System-managed vs lerd-managed Node
 
 If `lerd install` detects an existing `node`, `npm`, or `npx` on your `PATH` or under a known version-manager directory (nvm, volta, mise, asdf, fnm), it asks **"Let lerd manage Node.js?"** before writing any shims.

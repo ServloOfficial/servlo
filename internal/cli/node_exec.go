@@ -56,10 +56,12 @@ func runWithFnm(bin string, args []string) error {
 		return err
 	}
 
-	version, err := nodeDet.DetectVersion(cwd)
-	if err != nil {
-		cfg, _ := config.LoadGlobal()
-		version = cfg.Node.DefaultVersion
+	version, _ := nodeDet.DetectVersion(cwd)
+	// Empty means the user has no .nvmrc / .node-version / global default; fall
+	// through to the fnm `default` alias so we still surface a friendly error
+	// instead of an unhelpful "Can't find version in dotfiles".
+	if version == "" {
+		version = "default"
 	}
 
 	fnm := filepath.Join(config.BinDir(), "fnm")
@@ -67,9 +69,11 @@ func runWithFnm(bin string, args []string) error {
 		return fmt.Errorf("fnm not found at %s — run 'lerd install' first", fnm)
 	}
 
-	// Ensure the version is installed (suppress output — fnm prints even when already installed)
-	installCmd := exec.Command(fnm, "install", version)
-	_ = installCmd.Run() // best-effort
+	if version != "default" {
+		_ = exec.Command(fnm, "install", version).Run()
+	} else if exec.Command(fnm, "exec", "--using=default", "--", "true").Run() != nil {
+		return fmt.Errorf("no Node.js version available via lerd — run: lerd node:install 22")
+	}
 
 	cmdArgs := []string{"exec", "--using=" + version, "--", bin}
 	cmdArgs = append(cmdArgs, args...)
@@ -78,11 +82,25 @@ func runWithFnm(bin string, args []string) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		if exit, ok := err.(*exec.ExitError); ok {
+
+	manageGlobals := bin == "npm" || bin == "npx"
+	prefix := config.NodeGlobalDir()
+	if manageGlobals {
+		if err := os.MkdirAll(filepath.Join(prefix, "bin"), 0o755); err == nil {
+			cmd.Env = append(os.Environ(), "npm_config_prefix="+prefix)
+		}
+	}
+	runErr := cmd.Run()
+	if manageGlobals {
+		if syncErr := syncNodeGlobalBins(filepath.Join(prefix, "bin"), config.BinDir(), fnm); syncErr != nil {
+			fmt.Fprintf(os.Stderr, "lerd: warning: failed to sync npm global wrappers: %v\n", syncErr)
+		}
+	}
+	if runErr != nil {
+		if exit, ok := runErr.(*exec.ExitError); ok {
 			os.Exit(exit.ExitCode())
 		}
-		return err
+		return runErr
 	}
 	return nil
 }

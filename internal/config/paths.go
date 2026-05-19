@@ -44,6 +44,13 @@ func BinDir() string {
 	return filepath.Join(DataDir(), "bin")
 }
 
+// NodeGlobalDir is the npm prefix lerd points its node shim at, so
+// `npm install -g foo` lands in a stable per-user path instead of a
+// version-specific fnm directory that nothing has on PATH.
+func NodeGlobalDir() string {
+	return filepath.Join(DataDir(), "node-global")
+}
+
 // NginxDir returns the nginx data directory.
 func NginxDir() string {
 	return filepath.Join(DataDir(), "nginx")

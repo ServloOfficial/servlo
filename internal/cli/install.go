@@ -1241,8 +1241,11 @@ func addShellShims(manageNode bool) error {
 		return fmt.Errorf("writing php shim: %w", err)
 	}
 
-	// Write composer shim
-	composerShim := fmt.Sprintf("#!/bin/sh\nexec %s php %s/.local/share/lerd/bin/composer.phar \"$@\"\n", lerdBin, home)
+	// Write composer shim. Routes through `lerd composer` so global installs
+	// land in lerd's bin dir as wrappers (mirroring the npm flow), falling
+	// back to a direct `lerd php composer.phar` invocation when the lerd
+	// binary is not reachable (containers where the glibc binary can't run).
+	composerShim := fmt.Sprintf("#!/bin/sh\nLERD=%q\nif [ -x \"$LERD\" ]; then\n  exec \"$LERD\" composer \"$@\"\nfi\nexec %s php %s/.local/share/lerd/bin/composer.phar \"$@\"\n", lerdBin, lerdBin, home)
 	if err := os.WriteFile(filepath.Join(binDir, "composer"), []byte(composerShim), 0755); err != nil {
 		return fmt.Errorf("writing composer shim: %w", err)
 	}
@@ -1261,13 +1264,20 @@ func addShellShims(manageNode bool) error {
 		return fmt.Errorf("writing laravel shim: %w", err)
 	}
 
-	// Write node/npm/npx shims — use fnm directly so they work inside containers
-	// (lerd is glibc-linked and cannot run inside Alpine-based PHP containers).
+	// Write node/npm/npx shims. Prefer routing through the lerd binary so
+	// `npm install -g` lands in lerd's managed prefix and the per-bin
+	// wrappers under ~/.local/bin/ stay in sync, but fall back to a direct
+	// fnm invocation when lerd is not reachable (e.g. inside Alpine-based
+	// PHP containers, since lerd is glibc-linked).
 	// Only written when lerd is managing Node versions; otherwise existing
 	// shims are removed so the user's system node stops being masked by a
 	// stale fnm shim from a prior managed install.
 	if manageNode {
 		nodeShimTmpl := `#!/bin/sh
+LERD="%s"
+if [ -x "$LERD" ]; then
+  exec "$LERD" %s "$@"
+fi
 FNM="%s"
 VERSION=""
 for f in .node-version .nvmrc; do
@@ -1285,7 +1295,7 @@ else
 fi
 `
 		for _, bin := range []string{"node", "npm", "npx"} {
-			shim := fmt.Sprintf(nodeShimTmpl, fnmBin, bin, bin)
+			shim := fmt.Sprintf(nodeShimTmpl, lerdBin, bin, fnmBin, bin, bin)
 			if err := os.WriteFile(filepath.Join(binDir, bin), []byte(shim), 0755); err != nil {
 				return fmt.Errorf("writing %s shim: %w", bin, err)
 			}
