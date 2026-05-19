@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -265,7 +266,9 @@ func TestRemoteControlGate_loopbackOnlyRoutesBlockedFromLAN(t *testing.T) {
 		"/api/lerd/stop",
 		"/api/sites/link",
 		"/api/sites/myapp.test/terminal",
+		"/api/sites/myapp.test/env",
 		"/api/browse",
+		"/api/push/test",
 	}
 	for _, path := range cases {
 		t.Run(path, func(t *testing.T) {
@@ -342,6 +345,107 @@ func TestRemoteControlGate_unixSocketTreatedAsLoopback(t *testing.T) {
 	}
 	if rec.Code != http.StatusOK {
 		t.Errorf("unix socket status = %d, want 200", rec.Code)
+	}
+}
+
+// The mailpit container POSTs to host.containers.internal:7073 and is
+// source-NAT'd onto one of the host's interface IPs. The gate must let
+// that through pre-auth (so fresh installs receive mail notifications)
+// while still rejecting LAN attackers who arrive from a different IP.
+func TestRemoteControlGate_mailpitWebhookHostAllowedLanBlocked(t *testing.T) {
+	setupConfigDirRaw(t, "", "", false) // LAN off, no creds, default state
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil || len(addrs) == 0 {
+		t.Skip("no interface addresses available")
+	}
+	var v4, v6 string
+	for _, a := range addrs {
+		ipNet, ok := a.(*net.IPNet)
+		if !ok || ipNet.IP == nil || ipNet.IP.IsLoopback() {
+			continue
+		}
+		if ipNet.IP.To4() != nil && v4 == "" {
+			v4 = ipNet.IP.String()
+		} else if ipNet.IP.To4() == nil && v6 == "" {
+			v6 = ipNet.IP.String()
+		}
+	}
+
+	allowCases := []struct{ name, ip string }{}
+	if v4 != "" {
+		allowCases = append(allowCases, struct{ name, ip string }{"v4", v4})
+		// A v6-only client that connects to a v4 listener arrives with the
+		// v4-mapped form (::ffff:HOSTV4). fromHost relies on IP.Equal to
+		// normalise across both shapes; pin it here so a future readers
+		// don't reintroduce a string compare and break this path.
+		allowCases = append(allowCases, struct{ name, ip string }{"v4_mapped_v6", "::ffff:" + v4})
+	}
+	if v6 != "" {
+		allowCases = append(allowCases, struct{ name, ip string }{"v6", v6})
+	}
+	if len(allowCases) == 0 {
+		t.Skip("no non-loopback host interfaces to probe")
+	}
+	for _, c := range allowCases {
+		t.Run("allow_"+c.name, func(t *testing.T) {
+			next := &nextHandler{}
+			gate := withRemoteControlGate(next)
+			req := httptest.NewRequest(http.MethodPost, "/api/webhooks/mailpit", nil)
+			req.RemoteAddr = net.JoinHostPort(c.ip, "34567")
+			rec := httptest.NewRecorder()
+			gate.ServeHTTP(rec, req)
+			if !next.called {
+				t.Errorf("mailpit webhook from host IP %s blocked, status=%d", c.ip, rec.Code)
+			}
+		})
+	}
+
+	denyCases := []struct{ name, ip string }{
+		{"v4_lan", "198.51.100.42"},
+		{"v6_documentation", "2001:db8::1"},
+	}
+	for _, c := range denyCases {
+		t.Run("deny_"+c.name, func(t *testing.T) {
+			next := &nextHandler{}
+			gate := withRemoteControlGate(next)
+			req := httptest.NewRequest(http.MethodPost, "/api/webhooks/mailpit", nil)
+			req.RemoteAddr = net.JoinHostPort(c.ip, "34567")
+			rec := httptest.NewRecorder()
+			gate.ServeHTTP(rec, req)
+			if next.called {
+				t.Errorf("mailpit webhook from non-host %s reached handler, want 403", c.ip)
+			}
+			if rec.Code != http.StatusForbidden {
+				t.Errorf("status = %d, want 403", rec.Code)
+			}
+		})
+	}
+}
+
+// fromHost must compare by IP value so an IPv6 source carrying a zone
+// suffix (fe80::1%eth0) still matches the zoneless interface address.
+func TestFromHost_acceptsZonedIPv6Source(t *testing.T) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		t.Skip("no interface addresses available")
+	}
+	var v6 string
+	for _, a := range addrs {
+		ipNet, ok := a.(*net.IPNet)
+		if !ok || ipNet.IP == nil || ipNet.IP.To4() != nil {
+			continue
+		}
+		v6 = ipNet.IP.String()
+		break
+	}
+	if v6 == "" {
+		t.Skip("no IPv6 interface address to probe")
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/webhooks/mailpit", nil)
+	req.RemoteAddr = "[" + v6 + "%eth0]:34567"
+	if !fromHost(req) {
+		t.Errorf("fromHost rejected zoned IPv6 source %s%%eth0", v6)
 	}
 }
 
