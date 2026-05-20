@@ -51,6 +51,7 @@ func runInit(fresh bool) error {
 		if err != nil {
 			return err
 		}
+		existing = applyImportSeed(cwd, existing)
 		cfg, err := runWizard(cwd, existing)
 		if err != nil {
 			return err
@@ -912,6 +913,7 @@ func runSetupInit(cwd string, skipWizard bool) error {
 
 	if !hasExisting {
 		existing, _ := config.LoadProjectConfig(cwd)
+		existing = applyImportSeed(cwd, existing)
 		cfg, err := runWizard(cwd, existing)
 		if err != nil {
 			return err

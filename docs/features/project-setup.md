@@ -46,6 +46,30 @@ Use `--fresh` when you want to change the database engine, swap PHP versions, ad
 
 ---
 
+## Migrating from Herd, DDEV or Lando
+
+When you run `lerd init` in a project that still carries a `herd.yml`, `.ddev/config.yaml`, or `.lando.yml`, lerd detects it and offers to pre-fill the wizard from that file:
+
+```
+Detected herd.yml. Use it for wizard defaults? [Y/n]
+```
+
+Accept and the PHP version, Node version, HTTPS preference, document root, domains, and database/services are translated into the wizard's defaults, which you then review and confirm exactly like any other run. Decline and the wizard starts from plain auto-detection instead.
+
+The translation is intentionally partial, and anything it drops or changes is printed before the wizard opens:
+
+| Source field | Becomes | Note |
+|---|---|---|
+| PHP version | `php_version` | direct |
+| `secured` (Herd) | HTTPS | direct |
+| docroot / webroot | `public_dir` | direct |
+| project name + aliases / hostnames / proxy | `domains` | wildcards and full FQDNs are skipped |
+| database engine | a database service | pinned versions and ports are dropped; lerd resolves them per machine |
+
+MariaDB folds into MySQL because lerd's `mariadb` preset is an opt-in alternate; run `lerd service preset mariadb` first if you need MariaDB specifically. The framework is never translated from the source file because lerd auto-detects it. The seed only ever runs when no `.lerd.yaml` exists yet, so it never overwrites an existing lerd configuration.
+
+---
+
 ## `lerd setup`
 
 `lerd setup` is the one-shot bootstrap command for a fresh PHP project. It runs `lerd init` first (so the wizard described above appears), then shows a checkbox list of install/migrate/build steps:
