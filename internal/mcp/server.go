@@ -999,6 +999,7 @@ func toolList() []mcpTool {
 		dnsDiagnoseTool(),
 	)
 	tools = append(tools, dumpToolDefs()...)
+	tools = append(tools, profilerToolDefs()...)
 
 	return tools
 }
@@ -1304,6 +1305,11 @@ func handleToolCall(params json.RawMessage) (any, *rpcError) {
 		return execDumpsClear(args)
 	case "dumps_toggle":
 		return execDumpsToggle(args)
+
+	case "profiler_toggle":
+		return execProfilerToggle(args)
+	case "profiler_status":
+		return execProfilerStatus(args)
 
 	default:
 		return toolErr("unknown tool: " + p.Name), nil

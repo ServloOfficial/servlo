@@ -139,6 +139,12 @@ type GlobalConfig struct {
 		// ships it.
 		Passthrough bool `yaml:"passthrough,omitempty" mapstructure:"passthrough"`
 	} `yaml:"dumps,omitempty" mapstructure:"dumps"`
+	Profiler struct {
+		// Enabled toggles the SPX profiler globally. When on, nginx injects
+		// SPX_ENABLED into every PHP-FPM site's requests so each is profiled.
+		// Toggled via `lerd profile on/off` and the dashboard Profiler view.
+		Enabled bool `yaml:"enabled,omitempty" mapstructure:"enabled"`
+	} `yaml:"profiler,omitempty" mapstructure:"profiler"`
 	Notifications struct {
 		// Disabled globally mutes the notifier (WebSocket banners + Web
 		// Push fanout). Inverted form so the zero value keeps existing
@@ -553,6 +559,11 @@ func (c *GlobalConfig) IsDumpsEnabled() bool {
 // run dumpsops.Apply to actually rewrite the FPM quadlets.
 func (c *GlobalConfig) SetDumpsEnabled(enabled bool) {
 	c.Dumps.Enabled = enabled
+}
+
+// IsProfilerEnabled reports whether the SPX profiler is globally armed.
+func (c *GlobalConfig) IsProfilerEnabled() bool {
+	return c.Profiler.Enabled
 }
 
 // IsDumpsPassthrough reports whether the bridge should also forward each

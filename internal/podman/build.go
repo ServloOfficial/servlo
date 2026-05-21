@@ -599,6 +599,9 @@ func WriteFPMQuadlet(version string) error {
 	if err := EnsureDumpAssets(); err != nil {
 		return fmt.Errorf("ensuring dump assets: %w", err)
 	}
+	if err := EnsureProfilerAssets(); err != nil {
+		return fmt.Errorf("ensuring profiler assets: %w", err)
+	}
 
 	if err := ensureFPMHostsFile(); err != nil {
 		return err
@@ -614,6 +617,8 @@ func WriteFPMQuadlet(version string) error {
 	content = strings.ReplaceAll(content, "{{.UserIniPath}}", config.PHPUserIniFile(version))
 	content = strings.ReplaceAll(content, "{{.DumpsDir}}", config.DumpsAssetsDir())
 	content = strings.ReplaceAll(content, "{{.DumpsIniPath}}", config.DumpsIniFile())
+	content = strings.ReplaceAll(content, "{{.SpxIniPath}}", config.SpxIniFile())
+	content = strings.ReplaceAll(content, "{{.SpxDataDir}}", config.SpxDataDir())
 	content = strings.ReplaceAll(content, "{{.HostNameLine}}", hostNameLine())
 	content = applyShellMounts(content, short)
 	content = InjectExtraVolumes(content, ExtraVolumePaths())
@@ -659,6 +664,8 @@ func RewriteFPMQuadlets() error {
 		content = strings.ReplaceAll(content, "{{.UserIniPath}}", config.PHPUserIniFile(v))
 		content = strings.ReplaceAll(content, "{{.DumpsDir}}", config.DumpsAssetsDir())
 		content = strings.ReplaceAll(content, "{{.DumpsIniPath}}", config.DumpsIniFile())
+		content = strings.ReplaceAll(content, "{{.SpxIniPath}}", config.SpxIniFile())
+		content = strings.ReplaceAll(content, "{{.SpxDataDir}}", config.SpxDataDir())
 		content = strings.ReplaceAll(content, "{{.HostNameLine}}", hostNameLine())
 		content = applyShellMounts(content, short)
 		content = InjectExtraVolumes(content, extraPaths)

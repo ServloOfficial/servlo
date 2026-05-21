@@ -19,6 +19,16 @@ const DOCS_REF: DashboardRef = {
   dashboard: 'https://geodro.github.io/lerd/'
 };
 
+// PROFILER_REF is the synthetic entry for the SPX profiler. The UI is proxied
+// same-origin under /_spx/ by lerd-ui so the overlay can drive the iframe
+// (back, reload) directly. /_spx/ reaches the profiler.localhost nginx vhost,
+// which routes to a PHP-FPM container where SPX serves its report UI.
+const PROFILER_REF: DashboardRef = {
+  name: 'profiler',
+  label: 'Profiler',
+  dashboard: '/_spx/?SPX_UI_URI=/'
+};
+
 function fallbackHash(): string {
   const h = location.hash.slice(1);
   for (const t of ['sites', 'services', 'system']) {
@@ -70,6 +80,17 @@ export function openDocs() {
   location.hash = 'docs';
 }
 
+export function openProfiler() {
+  const cur = get(dashboardOpen);
+  if (cur && cur.name === 'profiler') {
+    dashboardOpen.set(null);
+    location.hash = fallbackHash();
+    return;
+  }
+  dashboardOpen.set(PROFILER_REF);
+  location.hash = 'profiler';
+}
+
 export function closeDashboard() {
   dashboardOpen.set(null);
   location.hash = fallbackHash();
@@ -83,6 +104,7 @@ export const dashboardServices = derived(services, ($s) =>
 function refFromHash(): DashboardRef | null {
   const h = location.hash.slice(1);
   if (h === 'docs') return DOCS_REF;
+  if (h === 'profiler') return PROFILER_REF;
   if (h.startsWith('service/')) {
     const rest = h.slice('service/'.length);
     // service/mailpit/view/<id> deep-links into a specific captured email.

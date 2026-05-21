@@ -440,6 +440,9 @@ func runStart(_ *cobra.Command, _ []string) error {
 	if err := nginx.EnsureLerdVhost(); err != nil {
 		fmt.Printf("  WARN: lerd vhost: %v\n", err)
 	}
+	if err := nginx.EnsureProfilerVhost(); err != nil {
+		fmt.Printf("  WARN: profiler vhost: %v\n", err)
+	}
 	// The lerd-nginx quadlet bind-mounts RunDir so the lerd.localhost vhost
 	// can reach lerd-ui over a unix socket. The directory must exist before
 	// the container starts or podman will create it root-owned.
@@ -469,6 +472,12 @@ func runStart(_ *cobra.Command, _ []string) error {
 				fmt.Printf("  WARN: removed orphan SSL vhost for %s\n", r.Domain)
 			}
 		}
+	}
+
+	// Reload nginx if it is already running so regenerated base vhosts (the
+	// dashboard and profiler vhosts) take effect without a full restart.
+	if running, _ := podman.ContainerRunning("lerd-nginx"); running {
+		_ = nginx.Reload()
 	}
 
 	// Phase 1: start all infrastructure (containers, FPM, custom containers,

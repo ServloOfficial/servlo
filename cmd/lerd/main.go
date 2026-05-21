@@ -140,6 +140,7 @@ func main() {
 	root.AddCommand(cli.NewDbShellCmd())
 	root.AddCommand(cli.NewXdebugCmd())
 	root.AddCommand(cli.NewDumpCmd())
+	root.AddCommand(cli.NewProfileCmd())
 	root.AddCommand(cli.NewNotifyCmd())
 	root.AddCommand(cli.NewPhpExtCmd())
 	root.AddCommand(cli.NewPhpIniCmd())

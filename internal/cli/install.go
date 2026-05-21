@@ -279,6 +279,9 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	if err := nginx.EnsureLerdVhost(); err != nil {
 		return err
 	}
+	if err := nginx.EnsureProfilerVhost(); err != nil {
+		return err
+	}
 	// The lerd-nginx quadlet bind-mounts RunDir so the lerd.localhost vhost
 	// can reach lerd-ui over a unix socket. Must exist before nginx starts.
 	if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
@@ -493,6 +496,9 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		// where the user hasn't toggled the bridge yet.
 		if err := podman.EnsureDumpAssets(); err != nil {
 			fmt.Printf("  WARN: writing dump bridge assets: %v\n", err)
+		}
+		if err := podman.EnsureProfilerAssets(); err != nil {
+			fmt.Printf("  WARN: writing profiler assets: %v\n", err)
 		}
 	}
 

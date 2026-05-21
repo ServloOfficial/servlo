@@ -57,6 +57,13 @@ func RunPHP(cwd string, args []string) error {
 // version detection failure, etc.), so callers can run their own work after
 // the child exits before propagating the code to the parent shell.
 func RunPHPCapture(cwd string, args []string) (int, error) {
+	return RunPHPCaptureEnv(cwd, args, nil)
+}
+
+// RunPHPCaptureEnv is RunPHPCapture with extra KEY=VALUE environment entries
+// injected into the container exec — used by `lerd profile run` to set
+// SPX_ENABLED so a CLI command is profiled.
+func RunPHPCaptureEnv(cwd string, args []string, extraEnv []string) (int, error) {
 	version, err := phpDet.DetectVersion(cwd)
 	if err != nil {
 		cfg, cfgErr := config.LoadGlobal()
@@ -115,8 +122,11 @@ func RunPHPCapture(cwd string, args []string) (int, error) {
 		"--env", "HOME="+home,
 		"--env", "COMPOSER_HOME="+composerHome,
 		"--env", "PATH="+projectVendorBin+":/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:"+composerBin,
-		container, "php",
 	)
+	for _, e := range extraEnv {
+		cmdArgs = append(cmdArgs, "--env", e)
+	}
+	cmdArgs = append(cmdArgs, container, "php")
 	cmdArgs = append(cmdArgs, args...)
 
 	cmd := podman.Cmd(cmdArgs...)
