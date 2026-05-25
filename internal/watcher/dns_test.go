@@ -359,6 +359,46 @@ func TestTickDNS_containerDNSResync(t *testing.T) {
 	}
 }
 
+// TestRunDNSLoop_linkChangeKicksTick pins that an interface change wakes
+// the watcher early, otherwise the user sees the dashboard pill stuck red
+// for up to the full poll interval after a VPN connect or disconnect.
+func TestRunDNSLoop_linkChangeKicksTick(t *testing.T) {
+	ticks := make(chan struct{}, 16)
+	deps := dnsWatchDeps{
+		check:         func(string) (bool, error) { ticks <- struct{}{}; return true, nil },
+		idleOrLocked:  func() bool { return false },
+		publishStatus: func() {},
+		log:           func(string, string, ...any) {},
+	}
+	state := &dnsWatchState{}
+	tickerC := make(chan time.Time, 4)
+	linkC := make(chan struct{}, 4)
+	done := make(chan struct{})
+	stopped := make(chan struct{})
+	go func() { runDNSLoop(deps, state, "test", tickerC, linkC, done); close(stopped) }()
+	defer func() { close(done); <-stopped }()
+
+	select {
+	case <-ticks:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("initial tick missing")
+	}
+
+	linkC <- struct{}{}
+	select {
+	case <-ticks:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("link change did not kick a tick")
+	}
+
+	tickerC <- time.Now()
+	select {
+	case <-ticks:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("ticker fire did not trigger a tick")
+	}
+}
+
 func ptrBool(b bool) *bool { return &b }
 
 func ptrBoolEq(a, b *bool) bool {

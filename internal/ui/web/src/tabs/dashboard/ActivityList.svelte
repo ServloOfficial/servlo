@@ -30,7 +30,10 @@
     service_update: 'amber',
     service_version: 'violet',
     worker_failed: 'red',
-    worker_healed: 'green'
+    worker_healed: 'green',
+    dns_degraded: 'amber',
+    dns_down: 'red',
+    dns_recovered: 'green'
   };
 
   function label(e: ActivityEvent): string {
@@ -51,6 +54,9 @@
       case 'service_version': return m.activity_service_version({ subject: e.subject, version: v });
       case 'worker_failed': return m.activity_worker_failed({ worker: w, subject: e.subject });
       case 'worker_healed': return m.activity_worker_healed({ subject: e.subject });
+      case 'dns_degraded': return e.meta?.vpn === '1' ? m.activity_dns_degraded_vpn() : m.activity_dns_degraded();
+      case 'dns_down': return m.activity_dns_down();
+      case 'dns_recovered': return m.activity_dns_recovered();
     }
   }
 

@@ -67,11 +67,23 @@ func defaultResyncContainerDNS() error {
 	return podman.ReloadNetworks()
 }
 
+// linkChangeDebounce caps how long the netlink burst from a single VPN
+// connect or disconnect is allowed to settle before we re-tick. The kernel
+// emits a flurry of RTM_NEWLINK / RTM_NEWADDR over the first few hundred
+// milliseconds; re-syncing mid-burst would aim aardvark-dns at an
+// intermediate resolver set that the network doesn't actually settle on.
+const linkChangeDebounce = 750 * time.Millisecond
+
 // WatchDNS polls DNS health for the given TLD every interval. When resolution
 // is broken it waits for lerd-dns to be ready and re-applies the resolver
 // configuration, replicating the DNS repair done by lerd start. When the
 // user session is idle or locked it backs off to one probe every 10 ticks
 // so laptops don't pay the per-30s DNS lookup battery cost while away.
+//
+// On Linux it also subscribes to rtnetlink link and address changes via
+// linkChanges, so a VPN connect or disconnect kicks an immediate tick
+// instead of waiting up to interval for the next poll. The poll stays as
+// a safety net so a missed netlink event can't strand the system.
 //
 // Every observed transition and every successful repair publishes
 // eventbus.KindStatus so the dashboard reflects the live state via the
@@ -107,14 +119,40 @@ func WatchDNS(interval time.Duration, tld string) {
 
 	state := &dnsWatchState{}
 
-	// Probe immediately so a UI opened during boot doesn't sit on stale
-	// dns.ok=false for up to 30s while DNS comes online naturally.
-	tickDNS(deps, state, tld)
-
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
-	for range ticker.C {
-		tickDNS(deps, state, tld)
+
+	done := make(chan struct{})
+	defer close(done)
+
+	linkRaw := make(chan struct{}, 32)
+	linkSettled := make(chan struct{}, 4)
+	go func() {
+		if err := dns.LinkChanges(linkRaw, done); err != nil {
+			logger.Warn("rtnetlink unavailable, DNS reacts on the safety-net poll only", "err", err)
+		}
+	}()
+	go dns.DebounceEvents(linkRaw, linkSettled, linkChangeDebounce, done)
+
+	runDNSLoop(deps, state, tld, ticker.C, linkSettled, done)
+}
+
+// runDNSLoop runs the tick state machine: an immediate first probe, then
+// a tick on every ticker fire and every settled link change. done unblocks
+// the loop so tests can shut down deterministically.
+func runDNSLoop(d dnsWatchDeps, state *dnsWatchState, tld string,
+	tickerC <-chan time.Time, linkC <-chan struct{}, done <-chan struct{}) {
+
+	tickDNS(d, state, tld)
+	for {
+		select {
+		case <-done:
+			return
+		case <-tickerC:
+			tickDNS(d, state, tld)
+		case <-linkC:
+			tickDNS(d, state, tld)
+		}
 	}
 }
 

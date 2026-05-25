@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   diffSitesEvents,
   diffServicesEvents,
-  diffUnhealthyEvents
+  diffUnhealthyEvents,
+  diffDNSEvents,
+  type DNSSnapshot
 } from './activity';
 import type { Site } from './sites';
 import type { Service } from './services';
@@ -128,6 +130,52 @@ describe('diffServicesEvents', () => {
     expect(diffServicesEvents(prev, [service('mysql', { version: 'v8.5' })])).toEqual([
       { kind: 'service_version', subject: 'mysql', meta: { version: 'v8.5' } }
     ]);
+  });
+});
+
+describe('diffDNSEvents', () => {
+  const ok: DNSSnapshot = { status: 'ok', vpn: false };
+  const degraded: DNSSnapshot = { status: 'degraded', vpn: false };
+  const degradedVPN: DNSSnapshot = { status: 'degraded', vpn: true };
+  const down: DNSSnapshot = { status: 'down', vpn: false };
+
+  it('returns empty when prev is null (initial hydration is silent)', () => {
+    expect(diffDNSEvents(null, ok)).toEqual([]);
+    expect(diffDNSEvents(null, degraded)).toEqual([]);
+    expect(diffDNSEvents(null, down)).toEqual([]);
+  });
+
+  it('returns empty when the status is unchanged', () => {
+    expect(diffDNSEvents(ok, ok)).toEqual([]);
+    expect(diffDNSEvents(degraded, degraded)).toEqual([]);
+    expect(diffDNSEvents(down, down)).toEqual([]);
+  });
+
+  it('emits dns_degraded on ok → degraded with vpn meta when VPN is active', () => {
+    expect(diffDNSEvents(ok, degradedVPN)).toEqual([
+      { kind: 'dns_degraded', subject: 'DNS', meta: { vpn: '1' } }
+    ]);
+  });
+
+  it('emits dns_degraded without vpn meta when no tunnel is up', () => {
+    expect(diffDNSEvents(ok, degraded)).toEqual([
+      { kind: 'dns_degraded', subject: 'DNS' }
+    ]);
+  });
+
+  it('emits dns_down on transition to down', () => {
+    expect(diffDNSEvents(ok, down)).toEqual([{ kind: 'dns_down', subject: 'DNS' }]);
+    expect(diffDNSEvents(degraded, down)).toEqual([{ kind: 'dns_down', subject: 'DNS' }]);
+  });
+
+  it('emits dns_recovered on transition to ok from anything else', () => {
+    expect(diffDNSEvents(degraded, ok)).toEqual([{ kind: 'dns_recovered', subject: 'DNS' }]);
+    expect(diffDNSEvents(down, ok)).toEqual([{ kind: 'dns_recovered', subject: 'DNS' }]);
+  });
+
+  it('tracks the vpn flag changing under steady degraded (no false events)', () => {
+    expect(diffDNSEvents(degraded, degradedVPN)).toEqual([]);
+    expect(diffDNSEvents(degradedVPN, degraded)).toEqual([]);
   });
 });
 

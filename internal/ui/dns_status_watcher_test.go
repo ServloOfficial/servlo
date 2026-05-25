@@ -120,6 +120,87 @@ func TestTickDNSStatus(t *testing.T) {
 	}
 }
 
+// TestTickDNSStatusForced pins the netlink path: a settled link change
+// kicks an immediate tick that latches and publishes on a single probe,
+// bypassing the two-tick debounce the time-based path uses. Without this
+// the dashboard pill, and now the Recent Activity feed, would lag a VPN
+// connect by up to one full poll interval after the watcher already
+// re-synced container DNS in lerd-watcher.
+func TestTickDNSStatusForced(t *testing.T) {
+	cases := []struct {
+		name        string
+		visible     bool
+		start       int32
+		probe       dns.Status
+		wantObs     int32
+		wantPublish int
+	}{
+		{
+			name:    "skipped when no tab is visible",
+			visible: false,
+			start:   dnsObsOK,
+			probe:   dns.StatusDegraded,
+			wantObs: dnsObsOK,
+		},
+		{
+			name:    "no change when probe matches last observation",
+			visible: true,
+			start:   dnsObsOK,
+			probe:   dns.StatusOK,
+			wantObs: dnsObsOK,
+		},
+		{
+			name:        "change latches and publishes on a single probe",
+			visible:     true,
+			start:       dnsObsOK,
+			probe:       dns.StatusDegraded,
+			wantObs:     dnsObsDegraded,
+			wantPublish: 1,
+		},
+		{
+			name:        "recovery to ok latches and publishes on a single probe",
+			visible:     true,
+			start:       dnsObsDegraded,
+			probe:       dns.StatusOK,
+			wantObs:     dnsObsOK,
+			wantPublish: 1,
+		},
+		{
+			name:        "first observation from unknown latches and publishes",
+			visible:     true,
+			start:       dnsObsUnknown,
+			probe:       dns.StatusDegraded,
+			wantObs:     dnsObsDegraded,
+			wantPublish: 1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			lastDNSObs.Store(tc.start)
+			pendingDNSObs.Store(tc.start)
+			t.Cleanup(resetDNSObs)
+
+			published := 0
+			deps := dnsStatusDeps{
+				tld:     func() string { return "test" },
+				check:   func(string) dns.Status { return tc.probe },
+				visible: func() bool { return tc.visible },
+				publish: func() { published++ },
+			}
+
+			tickDNSStatusForced(deps)
+
+			if got := lastDNSObs.Load(); got != tc.wantObs {
+				t.Fatalf("lastDNSObs = %d, want %d", got, tc.wantObs)
+			}
+			if published != tc.wantPublish {
+				t.Fatalf("publishes = %d, want %d", published, tc.wantPublish)
+			}
+		})
+	}
+}
+
 func TestTickDNSStatusTLDFromConfig(t *testing.T) {
 	resetDNSObs()
 	t.Cleanup(resetDNSObs)
