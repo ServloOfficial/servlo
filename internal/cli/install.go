@@ -119,7 +119,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 			fmt.Println()
 			restored, dualStack, mErr := podman.RecreateNetwork("lerd", desiredDNS)
 			if mErr != nil {
-				return fmt.Errorf("recreating lerd network: %w", mErr)
+				return mErr
 			}
 			if dualStack {
 				fmt.Println("    Recreated lerd network as dual-stack v4+v6.")
