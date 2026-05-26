@@ -159,12 +159,18 @@ func NeedsFPMRebuild() bool {
 	return strings.TrimSpace(string(stored)) != current
 }
 
+// fpmHashMu serializes StoreFPMHash so the per-version buildFPMImage calls
+// fired in parallel by php:rebuild can't truncate-and-write each other.
+var fpmHashMu sync.Mutex
+
 // StoreFPMHash writes the current Containerfile hash to disk.
 func StoreFPMHash() error {
 	hash, err := ContainerfileHash()
 	if err != nil {
 		return err
 	}
+	fpmHashMu.Lock()
+	defer fpmHashMu.Unlock()
 	return os.WriteFile(config.PHPImageHashFile(), []byte(hash), 0644)
 }
 
@@ -326,6 +332,13 @@ build:
 	cmd.Stderr = w
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("building PHP %s image: %w", version, err)
+	}
+
+	// Stamp the hash only after a real build — callers that no-op when the
+	// image already exists must not advance the hash, otherwise a later
+	// install would skip rebuilds for a template that never hit disk.
+	if err := StoreFPMHash(); err != nil {
+		fmt.Fprintf(w, "  WARN: storing PHP-FPM image hash: %v\n", err)
 	}
 
 	fmt.Fprintf(w, "  PHP %s image built successfully.\n", version)
