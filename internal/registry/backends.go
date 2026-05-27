@@ -395,6 +395,24 @@ func writeCache(ref ImageRef, tags []TagInfo) {
 	}
 }
 
+// InvalidateTagCache drops the on-disk ListTags entry for image. Used by
+// manual "check for updates" flows so the next CheckUpdateAvailable bypasses
+// the cacheTTL window and re-fetches from the registry. Missing or
+// unparseable images return nil (the next ListTags will re-hit the registry
+// regardless).
+func InvalidateTagCache(image string) error {
+	ref, err := ParseImage(image)
+	if err != nil {
+		return nil
+	}
+	cacheMu.Lock()
+	defer cacheMu.Unlock()
+	if err := os.Remove(cachePath(ref)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
 // warnCache rate-limits write-failure logs so a read-only cache dir doesn't
 // flood the log on every check. Logs at most once per minute per process.
 var (

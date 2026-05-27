@@ -1328,9 +1328,19 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read-only update-availability check.
+	// Read-only update-availability check. POST forces a fresh registry
+	// fetch (used by the manual "Check for updates" button); GET uses the
+	// cached value so snapshot rebuilds stay cheap.
 	if action == "updates" {
-		avail, err := serviceops.CheckUpdateAvailable(name)
+		var (
+			avail *serviceops.UpdateAvailability
+			err   error
+		)
+		if r.Method == http.MethodPost {
+			avail, err = serviceops.RefreshUpdateAvailability(name)
+		} else {
+			avail, err = serviceops.CheckUpdateAvailable(name)
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

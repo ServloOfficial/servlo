@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { onDestroy, type Snippet } from 'svelte';
   import StatusPill from '$components/StatusPill.svelte';
   import ButtonMenu, { type ButtonMenuAction } from '$components/ButtonMenu.svelte';
   import ParentSiteBadge from './ParentSiteBadge.svelte';
@@ -16,6 +16,7 @@
     parentSiteDomain,
     serviceAction,
     streamServiceAction,
+    checkServiceUpdates,
     updateProgress,
     loadServices
   } from '$stores/services';
@@ -66,8 +67,40 @@
   let localBusy = $state(false);
   let deleteOpen = $state(false);
   let reinstallOpen = $state(false);
+  let checking = $state(false);
+  let checkMessage = $state<{ text: string; tone: 'ok' | 'info' | 'error' } | null>(null);
+  let checkMessageTimer: ReturnType<typeof setTimeout> | null = null;
   const updating = $derived($updateProgress[svc.name]);
-  const busy = $derived(localBusy || Boolean(updating));
+  const busy = $derived(localBusy || checking || Boolean(updating));
+
+  function setCheckMessage(text: string, tone: 'ok' | 'info' | 'error') {
+    if (checkMessageTimer) clearTimeout(checkMessageTimer);
+    checkMessage = { text, tone };
+    checkMessageTimer = setTimeout(() => (checkMessage = null), 4000);
+  }
+
+  onDestroy(() => {
+    if (checkMessageTimer) clearTimeout(checkMessageTimer);
+  });
+
+  async function runCheckUpdates() {
+    checking = true;
+    try {
+      const res = await checkServiceUpdates(svc.name);
+      if (!res.ok) {
+        setCheckMessage(m.services_checkUpdatesFailed(), 'error');
+        return;
+      }
+      const tag = res.avail?.latest_tag || res.avail?.upgrade_tag || '';
+      if (res.avail?.available && tag) {
+        setCheckMessage(m.services_checkUpdatesFound({ tag }), 'info');
+      } else {
+        setCheckMessage(m.services_checkUpdatesUpToDate(), 'ok');
+      }
+    } finally {
+      checking = false;
+    }
+  }
 
   async function run(action: Parameters<typeof serviceAction>[1]) {
     localBusy = true;
@@ -122,6 +155,7 @@
     rollback: Snippet;
     pin: Snippet;
     trash: Snippet;
+    checkUpdates: Snippet;
   }): ButtonMenuAction[] {
     const lifecycle: ButtonMenuAction[] = [];
     const rest: ButtonMenuAction[] = [];
@@ -227,6 +261,17 @@
         label: svc.pinned ? m.services_pinned() : m.services_pin(),
         title: svc.pinned ? m.services_unpinTitle() : m.services_pinTitle(),
         onclick: () => run(svc.pinned ? 'unpin' : 'pin')
+      });
+    }
+
+    if (!isWorker && !updating) {
+      rest.push({
+        id: 'check-updates',
+        tone: 'secondary',
+        icon: icons.checkUpdates,
+        label: checking ? m.services_checkUpdatesChecking() : m.services_checkUpdates(),
+        title: m.services_checkUpdatesTitle(),
+        onclick: runCheckUpdates
       });
     }
 
@@ -384,6 +429,20 @@
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
     </svg>
   {/snippet}
+  {#snippet checkUpdatesIcon()}
+    <svg
+      class={`w-3.5 h-3.5 ${checking ? 'animate-spin' : ''}`}
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <path d="M21 12a9 9 0 1 1-3-6.7"/>
+      <polyline points="21 4 21 10 15 10"/>
+    </svg>
+  {/snippet}
 
   <div class="flex flex-col items-end gap-1.5">
     <ButtonMenu
@@ -397,7 +456,8 @@
         migrate: migrateIcon,
         rollback: rollbackIcon,
         pin: pinIcon,
-        trash: trashIcon
+        trash: trashIcon,
+        checkUpdates: checkUpdatesIcon
       })}
       {busy}
     />
@@ -406,6 +466,17 @@
         class="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[32ch]"
         title={updating.message}
       >{updating.message}</span>
+    {:else if checkMessage}
+      <span
+        class={'text-[11px] truncate max-w-[32ch] ' + (
+          checkMessage.tone === 'error'
+            ? 'text-rose-600 dark:text-rose-400'
+            : checkMessage.tone === 'info'
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-gray-500 dark:text-gray-400'
+        )}
+        title={checkMessage.text}
+      >{checkMessage.text}</span>
     {:else if svc.update_available && svc.latest_version}
       <span class="text-[11px] text-emerald-600 dark:text-emerald-400 truncate max-w-[32ch]">
         {m.system_lerd_available({ version: svc.latest_version })}

@@ -332,6 +332,52 @@ func TestListTags_Pagination(t *testing.T) {
 
 // TestListTags_ConcurrentSingleflight collapses concurrent fetches for the
 // same image into a single registry call.
+func TestInvalidateTagCache_ForcesRefetch(t *testing.T) {
+	hits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"results": [{"name": "1.0", "last_updated": "2026-01-01T00:00:00Z"}]}`))
+	}))
+	defer srv.Close()
+	withStubHTTP(t, srv)
+	withTempCacheDir(t)
+
+	if _, err := ListTags("docker.io/library/redis:7"); err != nil {
+		t.Fatalf("first ListTags: %v", err)
+	}
+	if _, err := ListTags("docker.io/library/redis:7"); err != nil {
+		t.Fatalf("cached ListTags: %v", err)
+	}
+	if hits != 1 {
+		t.Fatalf("expected 1 hit before invalidate, got %d", hits)
+	}
+
+	if err := InvalidateTagCache("docker.io/library/redis:7"); err != nil {
+		t.Fatalf("InvalidateTagCache: %v", err)
+	}
+
+	if _, err := ListTags("docker.io/library/redis:7"); err != nil {
+		t.Fatalf("post-invalidate ListTags: %v", err)
+	}
+	if hits != 2 {
+		t.Errorf("expected a second HTTP hit after invalidation, got hits=%d", hits)
+	}
+}
+
+func TestInvalidateTagCache_MissingFileIsNoError(t *testing.T) {
+	withTempCacheDir(t)
+	if err := InvalidateTagCache("docker.io/library/redis:7"); err != nil {
+		t.Errorf("expected nil when cache file does not exist, got %v", err)
+	}
+}
+
+func TestInvalidateTagCache_BadImageIsNoError(t *testing.T) {
+	if err := InvalidateTagCache(""); err != nil {
+		t.Errorf("expected nil for unparseable image, got %v", err)
+	}
+}
+
 func TestListTags_ConcurrentSingleflight(t *testing.T) {
 	hits := 0
 	gate := make(chan struct{})

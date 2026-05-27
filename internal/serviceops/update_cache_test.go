@@ -53,3 +53,22 @@ func TestUpdateAvailabilityCache_storeNilIsNoop(t *testing.T) {
 		t.Fatalf("storing nil should be no-op, got %+v", got)
 	}
 }
+
+// RefreshUpdateAvailability must drop the cached entry even when the service
+// is unknown to resolveServiceForUpdate (so a stale cached entry from a
+// previous run can't survive an explicit user-triggered refresh).
+func TestRefreshUpdateAvailability_DropsInMemoryCache(t *testing.T) {
+	const name = "definitely-not-a-real-service"
+	t.Cleanup(func() { invalidateUpdateAvailability(name) })
+
+	storeUpdateAvailability(name, &UpdateAvailability{Service: name, LatestTag: "stale"})
+	if got := cachedUpdateAvailability(name); got == nil {
+		t.Fatalf("setup: expected entry present before refresh")
+	}
+
+	_, _ = RefreshUpdateAvailability(name)
+
+	if got := cachedUpdateAvailability(name); got != nil {
+		t.Fatalf("expected cache empty after RefreshUpdateAvailability, got %+v", got)
+	}
+}

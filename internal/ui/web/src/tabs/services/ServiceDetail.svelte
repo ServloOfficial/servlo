@@ -43,7 +43,9 @@
 </script>
 
 <DetailPanel>
-  <ServiceHeader {svc} />
+  {#key svc.name}
+    <ServiceHeader {svc} />
+  {/key}
   <PresetSuggestionBanner {svc} />
   <DetailTabs {tabs} {active} onchange={(id) => (active = id)} />
   {#if active === 'logs'}

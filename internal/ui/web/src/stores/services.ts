@@ -158,6 +158,53 @@ export async function serviceAction(
   }
 }
 
+export interface UpdateAvailability {
+  service: string;
+  current_image?: string;
+  current_tag?: string;
+  latest_tag?: string;
+  latest_image?: string;
+  available: boolean;
+  strategy?: string;
+  upgrade_tag?: string;
+  upgrade_image?: string;
+  previous_image?: string;
+  can_rollback?: boolean;
+}
+
+export async function checkServiceUpdates(
+  name: string
+): Promise<{ ok: boolean; avail?: UpdateAvailability; error?: string }> {
+  try {
+    const url = '/api/services/' + encodeURIComponent(name) + '/updates';
+    const res = await apiFetch(url, { method: 'POST' });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { ok: false, error: text || res.statusText };
+    }
+    const avail = (await res.json()) as UpdateAvailability;
+    await loadServices();
+    // Optimistic patch — the server's snapshot rebuild runs in a background
+    // goroutine, so loadServices above can race and return the pre-rebuild
+    // snapshot. Patch the relevant fields locally so the badge reflects the
+    // freshly-resolved availability immediately; the next WS push reconciles.
+    services.update((list) =>
+      list.map((s) => {
+        if (s.name !== name) return s;
+        return {
+          ...s,
+          update_available: Boolean(avail.available && avail.latest_tag),
+          latest_version: avail.latest_tag || '',
+          upgrade_version: avail.upgrade_tag || ''
+        };
+      })
+    );
+    return { ok: true, avail };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'request failed' };
+  }
+}
+
 export type UpdateAction = 'update' | 'migrate' | 'rollback' | 'reinstall';
 
 function setProgress(name: string, p: UpdateProgress | null) {

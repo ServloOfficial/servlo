@@ -44,11 +44,37 @@ func CheckUpdateAvailable(name string) (*UpdateAvailability, error) {
 	return out, err
 }
 
+// RefreshUpdateAvailability forces a fresh CheckUpdateAvailable by dropping
+// both the in-memory availability cache and the on-disk registry tag cache
+// for the service's image. Used by the manual "check for updates" UI so the
+// user can bypass the 30s/6h cache windows on demand. Resolves the service
+// once and threads it through computeUpdateAvailableResolved to avoid
+// re-reading preset YAML.
+func RefreshUpdateAvailability(name string) (*UpdateAvailability, error) {
+	invalidateUpdateAvailability(name)
+	svc, strategy, allowMajor, err := resolveServiceForUpdate(name)
+	if err != nil {
+		return nil, err
+	}
+	if svc != nil && svc.Image != "" {
+		_ = registry.InvalidateTagCache(svc.Image)
+	}
+	out := computeUpdateAvailableResolved(name, svc, strategy, allowMajor)
+	if out != nil {
+		storeUpdateAvailability(name, out)
+	}
+	return out, nil
+}
+
 func computeUpdateAvailable(name string) (*UpdateAvailability, error) {
 	svc, strategy, allowMajor, err := resolveServiceForUpdate(name)
 	if err != nil {
 		return nil, err
 	}
+	return computeUpdateAvailableResolved(name, svc, strategy, allowMajor), nil
+}
+
+func computeUpdateAvailableResolved(name string, svc *config.CustomService, strategy registry.Strategy, allowMajor bool) *UpdateAvailability {
 	prevImage, _, lastOp, _ := previousImageFor(name)
 	out := &UpdateAvailability{
 		Service:       name,
@@ -78,10 +104,10 @@ func computeUpdateAvailable(name string) (*UpdateAvailability, error) {
 	// Cross-strategy upgrade: skipped for strategy=none and for patch presets
 	// without a registered migrator (otherwise the in-place button is a trap).
 	if strategy == registry.StrategyNone || strategy == "" {
-		return out, nil
+		return out
 	}
 	if strategy == registry.StrategyPatch && !SupportsMigration(name) {
-		return out, nil
+		return out
 	}
 	if upgrade, _ := registry.NewestStable(svc.Image, allowMajor); upgrade != nil {
 		alreadyOn := upgrade.Digest != "" && alreadyOnDigest(name, svc.Image, upgrade.Digest)
@@ -92,7 +118,7 @@ func computeUpdateAvailable(name string) (*UpdateAvailability, error) {
 			}
 		}
 	}
-	return out, nil
+	return out
 }
 
 // alreadyOnDigest reports whether a local image already matches the candidate
