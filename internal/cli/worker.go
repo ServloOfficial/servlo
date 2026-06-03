@@ -212,6 +212,41 @@ func requireFrameworkWorker(cwd, workerName string) error {
 	return nil
 }
 
+// resolveHorizonCommand swaps `php artisan horizon` for `php artisan
+// horizon:listen --poll` when the operator opted into auto-reload
+// (workers.horizon_reload) AND the project can support Horizon's watcher.
+//
+// Horizon's listen command shells out to `node bin/file-watcher.cjs` and
+// resolves chokidar from the project's node_modules. lerd's runtime image
+// always ships node, so the only project-side requirement is chokidar; when it
+// is missing we keep the standard command and tell the user how to enable the
+// watcher rather than letting Horizon fail to boot. `--poll` is mandatory
+// because the project is bind-mounted over virtiofs on macOS, where native
+// filesystem events never reach the container — without it the watcher runs but
+// never sees a change. The command is derived from the base (not hardcoded) so
+// any extra flags such as `--environment` are preserved.
+func resolveHorizonCommand(workerName, sitePath, command string) string {
+	if workerName != "horizon" {
+		return command
+	}
+	cfg, err := config.LoadGlobal()
+	if err != nil || !cfg.HorizonReloadEnabled() {
+		return command
+	}
+	if !projectHasChokidar(sitePath) {
+		fmt.Printf("[WARN] workers.horizon_reload is on but chokidar is not installed in %s — running standard horizon. Install it with: npm install\n", sitePath)
+		return command
+	}
+	return strings.Replace(command, "php artisan horizon", "php artisan horizon:listen", 1) + " --poll"
+}
+
+// projectHasChokidar reports whether the chokidar package — required by
+// Horizon's `horizon:listen` file watcher — is installed in the project.
+func projectHasChokidar(sitePath string) bool {
+	info, err := os.Stat(filepath.Join(sitePath, "node_modules", "chokidar"))
+	return err == nil && info.IsDir()
+}
+
 // WorkerStartForSite writes a systemd unit for the given framework worker and starts it.
 // The unit name is lerd-{workerName}-{siteName}.
 // If the worker has a Proxy config, the proxy port is auto-assigned and the
@@ -240,7 +275,7 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 		WorkerStopForSite(siteName, sitePath, conflict) //nolint:errcheck
 	}
 
-	command := w.Command
+	command := resolveHorizonCommand(workerName, sitePath, w.Command)
 
 	// Handle proxy port assignment and command augmentation.
 	if w.Proxy != nil && w.Proxy.PortEnvKey != "" {

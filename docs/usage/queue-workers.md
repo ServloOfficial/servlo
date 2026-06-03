@@ -26,8 +26,10 @@ If `laravel/horizon` is present in `composer.json`, lerd detects it automaticall
 |---|---|
 | `lerd horizon:start` | Start Horizon for the current project as a systemd service |
 | `lerd horizon:stop` | Stop Horizon for the current project |
+| `lerd horizon:reload [on\|off]` | Toggle auto-reload on file changes (prints the current state with no argument) |
 | `lerd horizon start` | Same as `horizon:start` (subcommand form) |
 | `lerd horizon stop` | Same as `horizon:stop` (subcommand form) |
+| `lerd horizon reload [on\|off]` | Same as `horizon:reload` (subcommand form) |
 
 Horizon manages its own worker pools via `config/horizon.php` and does not accept `--queue`, `--tries`, or `--timeout` flags. Those are configured in the Horizon config file instead.
 
@@ -35,6 +37,25 @@ The systemd unit is named `lerd-horizon-{sitename}`. Logs:
 ```bash
 journalctl --user -u lerd-horizon-my-app -f
 ```
+
+### Auto-reload on file changes
+
+By default lerd runs `php artisan horizon`, which boots the app once and caches your code — so after editing a job, listener, or any class a worker touches, you have to restart Horizon for the change to take effect.
+
+Turn on auto-reload to run `php artisan horizon:listen` instead. Horizon then watches your project and restarts its workers automatically whenever a file changes, so you never stop/restart Horizon by hand while developing — the dashboard and `config/horizon.php` keep working exactly the same.
+
+```bash
+lerd horizon:reload on    # use horizon:listen (auto-restart on file changes)
+lerd horizon:reload off   # back to standard horizon
+lerd horizon:reload       # show the current state
+```
+
+The setting is global (one switch per machine, stored under `workers.horizon_reload`). Toggling it restarts a running Horizon worker for the current project so the change applies immediately.
+
+Two notes:
+
+- The watcher shells out to Node and resolves [`chokidar`](https://www.npmjs.com/package/chokidar) from your project's `node_modules`. lerd's runtime image already ships Node, and most Laravel projects pull in chokidar via Vite — but if it is missing, lerd keeps the standard `horizon` command and tells you to run `npm install`.
+- lerd passes `--poll` because your project is bind-mounted into the container over virtiofs on macOS, where native filesystem events don't reach the watcher. Polling works on every platform.
 
 ## Generic workers (`lerd worker`)
 

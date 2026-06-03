@@ -128,6 +128,15 @@ type GlobalConfig struct {
 		// dependable supervisor there). Use WorkerExecMode() to read the
 		// effective value.
 		ExecMode string `yaml:"exec_mode,omitempty" mapstructure:"exec_mode"`
+
+		// HorizonReload runs Laravel Horizon via `horizon:listen` instead of
+		// `horizon`, so a code edit restarts the workers automatically and you
+		// never have to stop/restart Horizon by hand while developing. Off by
+		// default (production-like, lower overhead); opt in per machine. The
+		// swap only applies when the project can support it (chokidar present);
+		// otherwise the standard `horizon` command is kept. Read the effective
+		// value with HorizonReloadEnabled().
+		HorizonReload bool `yaml:"horizon_reload,omitempty" mapstructure:"horizon_reload"`
 	} `yaml:"workers,omitempty" mapstructure:"workers"`
 	Dumps struct {
 		// Enabled is the single switch for the whole debug window: the dump
@@ -590,6 +599,18 @@ func (c *GlobalConfig) IsDumpsEnabled() bool {
 // run dumpsops.Apply to actually rewrite the FPM quadlets.
 func (c *GlobalConfig) SetDumpsEnabled(enabled bool) {
 	c.Dumps.Enabled = enabled
+}
+
+// HorizonReloadEnabled reports whether Horizon should run via `horizon:listen`
+// (auto-restart on file changes) instead of `horizon`.
+func (c *GlobalConfig) HorizonReloadEnabled() bool {
+	return c.Workers.HorizonReload
+}
+
+// SetHorizonReload flips the Horizon auto-reload mode. Persist via SaveGlobal,
+// then restart the Horizon worker so the new command takes effect.
+func (c *GlobalConfig) SetHorizonReload(enabled bool) {
+	c.Workers.HorizonReload = enabled
 }
 
 // IsDevtoolsWorkers reports whether queue/scheduler worker queries are captured.

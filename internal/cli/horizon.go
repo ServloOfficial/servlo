@@ -20,6 +20,7 @@ func NewHorizonCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newHorizonStartCmd("start"))
 	cmd.AddCommand(newHorizonStopCmd("stop"))
+	cmd.AddCommand(newHorizonReloadCmd("reload"))
 	return cmd
 }
 
@@ -28,6 +29,104 @@ func NewHorizonStartCmd() *cobra.Command { return newHorizonStartCmd("horizon:st
 
 // NewHorizonStopCmd returns the standalone horizon:stop command.
 func NewHorizonStopCmd() *cobra.Command { return newHorizonStopCmd("horizon:stop") }
+
+// NewHorizonReloadCmd returns the standalone horizon:reload command.
+func NewHorizonReloadCmd() *cobra.Command { return newHorizonReloadCmd("horizon:reload") }
+
+// newHorizonReloadCmd toggles auto-reload mode (`horizon:listen`) on or off. With
+// no argument it prints the current state. When toggled it persists the global
+// setting and, if a Horizon worker is running for the current site, restarts it
+// so the new command takes effect immediately.
+func newHorizonReloadCmd(use string) *cobra.Command {
+	return &cobra.Command{
+		Use:   use + " [on|off]",
+		Short: "Toggle Horizon auto-reload on file changes (horizon:listen)",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			cfg, err := config.LoadGlobal()
+			if err != nil {
+				return err
+			}
+
+			if len(args) == 0 {
+				state := "off"
+				if cfg.HorizonReloadEnabled() {
+					state = "on"
+				}
+				fmt.Printf("Horizon auto-reload (horizon:listen): %s\n", state)
+				return nil
+			}
+
+			var enable bool
+			switch strings.ToLower(args[0]) {
+			case "on", "true", "1", "enable", "enabled":
+				enable = true
+			case "off", "false", "0", "disable", "disabled":
+				enable = false
+			default:
+				return fmt.Errorf("expected 'on' or 'off', got %q", args[0])
+			}
+
+			cfg.SetHorizonReload(enable)
+			if err := config.SaveGlobal(cfg); err != nil {
+				return err
+			}
+
+			if enable {
+				fmt.Println("Horizon auto-reload enabled — Horizon will restart workers on file changes.")
+			} else {
+				fmt.Println("Horizon auto-reload disabled — Horizon runs in standard mode.")
+			}
+
+			restartRunningHorizon()
+			return nil
+		},
+	}
+}
+
+// restartRunningHorizon restarts the Horizon worker for the current site, but
+// only when one is already running, so toggling auto-reload applies immediately
+// without starting Horizon on a site that wasn't using it. All failures are
+// non-fatal: the new command is already persisted and will apply on next start.
+func restartRunningHorizon() {
+	cwd, err := os.Getwd()
+	if err != nil || !SiteHasHorizon(cwd) {
+		return
+	}
+	siteName, err := queueSiteName(cwd)
+	if err != nil {
+		return
+	}
+	site, err := config.FindSite(siteName)
+	if err != nil {
+		return
+	}
+	running := false
+	for _, n := range CollectRunningWorkerNames(site) {
+		if n == "horizon" {
+			running = true
+			break
+		}
+	}
+	if !running {
+		fmt.Println("Start Horizon to apply: lerd horizon start")
+		return
+	}
+
+	phpVersion, err := phpDet.DetectVersion(cwd)
+	if err != nil {
+		cfg, _ := config.LoadGlobal()
+		phpVersion = cfg.PHP.DefaultVersion
+	}
+	if err := HorizonStopForSite(siteName); err != nil {
+		fmt.Printf("[WARN] stop horizon: %v\n", err)
+	}
+	if err := HorizonStartForSite(siteName, cwd, phpVersion); err != nil {
+		fmt.Printf("[WARN] restart horizon: %v\n", err)
+		return
+	}
+	fmt.Println("Restarted Horizon to apply the change.")
+}
 
 func newHorizonStartCmd(use string) *cobra.Command {
 	return &cobra.Command{
