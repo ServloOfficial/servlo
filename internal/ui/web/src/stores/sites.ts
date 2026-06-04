@@ -58,6 +58,7 @@ export interface Site {
   queue_failing?: boolean;
   horizon_running?: boolean;
   horizon_failing?: boolean;
+  horizon_reload?: boolean;
   stripe_running?: boolean;
   stripe_secret_set?: boolean;
   schedule_running?: boolean;
@@ -423,6 +424,8 @@ export const toggleQueue = (s: Site) =>
   postAction(site(s.domain, s.queue_running ? 'queue:stop' : 'queue:start'));
 export const toggleHorizon = (s: Site) =>
   postAction(site(s.domain, s.horizon_running ? 'horizon:stop' : 'horizon:start'));
+export const setHorizonReload = (s: Site, enabled: boolean) =>
+  postAction(site(s.domain, 'horizon:reload') + `?enabled=${enabled ? 'true' : 'false'}`);
 export const toggleSchedule = (s: Site) =>
   postAction(site(s.domain, s.schedule_running ? 'schedule:stop' : 'schedule:start'));
 export const toggleReverb = (s: Site) =>

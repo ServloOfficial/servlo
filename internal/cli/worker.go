@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -212,36 +213,41 @@ func requireFrameworkWorker(cwd, workerName string) error {
 	return nil
 }
 
-// resolveHorizonCommand swaps `php artisan horizon` for `php artisan
-// horizon:listen --poll` when the operator opted into auto-reload
-// (workers.horizon_reload) AND the project can support Horizon's watcher.
+// resolveWorkerCommand returns the command to run for a worker, substituting the
+// worker's reload variant (restart on file changes) when the project opted the
+// worker into reload mode and the framework declares the variant. The variant
+// text comes from the framework definition (FrameworkWorker.ReloadCommand), so
+// the store stays the single source of truth and core never rewrites command
+// strings.
 //
-// Horizon's listen command shells out to `node bin/file-watcher.cjs` and
-// resolves chokidar from the project's node_modules. lerd's runtime image
-// always ships node, so the only project-side requirement is chokidar; when it
-// is missing we keep the standard command and tell the user how to enable the
-// watcher rather than letting Horizon fail to boot. `--poll` is mandatory
-// because the project is bind-mounted over virtiofs on macOS, where native
-// filesystem events never reach the container — without it the watcher runs but
-// never sees a change. The command is derived from the base (not hardcoded) so
-// any extra flags such as `--environment` are preserved.
-func resolveHorizonCommand(workerName, sitePath, command string) string {
-	if workerName != "horizon" {
-		return command
-	}
-	cfg, err := config.LoadGlobal()
-	if err != nil || !cfg.HorizonReloadEnabled() {
-		return command
+// On macOS the polling flag is appended. lerd runs workers inside a container,
+// and on macOS that container lives in the podman virtual machine while the
+// project is shared in from the host, so filesystem events raised on the host
+// do not reach the watcher inside the VM and it has to poll. On native Linux
+// the container shares the host filesystem directly and inotify works, so
+// polling is left off to avoid the wasted CPU.
+//
+// The reload command's watcher shells out to node and resolves the chokidar npm
+// package from the project's node_modules; when chokidar is missing we keep the
+// standard command and tell the user how to enable the watcher rather than
+// letting the worker fail to boot.
+func resolveWorkerCommand(sitePath, workerName string, w config.FrameworkWorker) string {
+	if w.ReloadCommand == "" || !config.ProjectReloadsWorker(sitePath, workerName) {
+		return w.Command
 	}
 	if !projectHasChokidar(sitePath) {
-		fmt.Printf("[WARN] workers.horizon_reload is on but chokidar is not installed in %s — running standard horizon. Install it with: npm install\n", sitePath)
-		return command
+		fmt.Printf("[WARN] %s auto-reload is on but chokidar is not installed in %s, running the standard command. Install it with: npm install\n", workerName, sitePath)
+		return w.Command
 	}
-	return strings.Replace(command, "php artisan horizon", "php artisan horizon:listen", 1) + " --poll"
+	command := w.ReloadCommand
+	if runtime.GOOS == "darwin" {
+		command += " --poll"
+	}
+	return command
 }
 
-// projectHasChokidar reports whether the chokidar package — required by
-// Horizon's `horizon:listen` file watcher — is installed in the project.
+// projectHasChokidar reports whether the chokidar package, required by the
+// reload command's file watcher, is installed in the project.
 func projectHasChokidar(sitePath string) bool {
 	info, err := os.Stat(filepath.Join(sitePath, "node_modules", "chokidar"))
 	return err == nil && info.IsDir()
@@ -275,7 +281,7 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 		WorkerStopForSite(siteName, sitePath, conflict) //nolint:errcheck
 	}
 
-	command := resolveHorizonCommand(workerName, sitePath, w.Command)
+	command := resolveWorkerCommand(sitePath, workerName, w)
 
 	// Handle proxy port assignment and command augmentation.
 	if w.Proxy != nil && w.Proxy.PortEnvKey != "" {

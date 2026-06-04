@@ -40,9 +40,9 @@ journalctl --user -u lerd-horizon-my-app -f
 
 ### Auto-reload on file changes
 
-By default lerd runs `php artisan horizon`, which boots the app once and caches your code — so after editing a job, listener, or any class a worker touches, you have to restart Horizon for the change to take effect.
+By default lerd runs `php artisan horizon`, which boots the app once and caches your code, so after editing a job, listener, or any class a worker touches you have to restart Horizon for the change to take effect.
 
-Turn on auto-reload to run `php artisan horizon:listen` instead. Horizon then watches your project and restarts its workers automatically whenever a file changes, so you never stop/restart Horizon by hand while developing — the dashboard and `config/horizon.php` keep working exactly the same.
+Turn on auto-reload to run `php artisan horizon:listen` instead. Horizon then watches your project and restarts its workers automatically whenever a file changes, so you never stop/restart Horizon by hand while developing. The dashboard and `config/horizon.php` keep working exactly the same.
 
 ```bash
 lerd horizon:reload on    # use horizon:listen (auto-restart on file changes)
@@ -50,12 +50,12 @@ lerd horizon:reload off   # back to standard horizon
 lerd horizon:reload       # show the current state
 ```
 
-The setting is global (one switch per machine, stored under `workers.horizon_reload`). Toggling it restarts a running Horizon worker for the current project so the change applies immediately.
+The preference is per project, stored as `reload_workers` in the project's `.lerd.yaml`, so one project can develop with auto-reload while another stays in standard mode. You can also toggle it from the small reload button next to the Horizon worker in the dashboard. Either way, a running Horizon worker for the project is restarted so the change applies immediately.
 
 Two notes:
 
-- The watcher shells out to Node and resolves [`chokidar`](https://www.npmjs.com/package/chokidar) from your project's `node_modules`. lerd's runtime image already ships Node, and most Laravel projects pull in chokidar via Vite — but if it is missing, lerd keeps the standard `horizon` command and tells you to run `npm install`.
-- lerd passes `--poll` because your project is bind-mounted into the container over virtiofs on macOS, where native filesystem events don't reach the watcher. Polling works on every platform.
+- The watcher shells out to Node and resolves [`chokidar`](https://www.npmjs.com/package/chokidar) from your project's `node_modules`. lerd's runtime image already ships Node, and most Laravel projects pull in chokidar via Vite, but if it is missing lerd keeps the standard `horizon` command and tells you to run `npm install`.
+- On macOS lerd adds `--poll`. Workers run inside a container that lives in the podman virtual machine, and filesystem events raised on your host do not reach the watcher inside the VM, so it has to poll. On native Linux the container shares the host filesystem directly and inotify works, so polling is left off to avoid the wasted CPU.
 
 ## Generic workers (`lerd worker`)
 
