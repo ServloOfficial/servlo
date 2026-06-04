@@ -56,20 +56,38 @@ func AddProjectWorker(dir, name string) error {
 }
 
 // SetProjectWorkerReload opts the named worker into or out of auto-reload mode
-// (restart on file changes) for the project. No-op if .lerd.yaml does not exist.
+// (restart on file changes) for the project, persisting to .lerd.yaml. Enabling
+// creates .lerd.yaml when it does not exist yet, so the preference survives
+// rather than silently no-op'ing. Disabling on a project with no .lerd.yaml is
+// a no-op: the worker is already in standard mode, so no file is created.
 func SetProjectWorkerReload(dir, name string, enabled bool) error {
-	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
-		out := cfg.ReloadWorkers[:0:0]
-		for _, w := range cfg.ReloadWorkers {
-			if w != name {
-				out = append(out, w)
-			}
+	if !enabled {
+		return updateProjectConfig(dir, func(cfg *ProjectConfig) {
+			cfg.ReloadWorkers = removeWorkerName(cfg.ReloadWorkers, name)
+		})
+	}
+
+	cfg, err := LoadProjectConfig(dir)
+	if err != nil {
+		return err
+	}
+	if cfg.ReloadsWorker(name) {
+		return nil
+	}
+	cfg.ReloadWorkers = append(cfg.ReloadWorkers, name)
+	return SaveProjectConfig(dir, cfg)
+}
+
+// removeWorkerName returns names with every occurrence of name removed, reusing
+// the backing array.
+func removeWorkerName(names []string, name string) []string {
+	out := names[:0:0]
+	for _, w := range names {
+		if w != name {
+			out = append(out, w)
 		}
-		if enabled {
-			out = append(out, name)
-		}
-		cfg.ReloadWorkers = out
-	})
+	}
+	return out
 }
 
 // SetProjectDomains replaces the domains list. No-op if .lerd.yaml does not exist.
