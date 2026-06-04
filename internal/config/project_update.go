@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -79,15 +80,9 @@ func SetProjectWorkerReload(dir, name string, enabled bool) error {
 }
 
 // removeWorkerName returns names with every occurrence of name removed, reusing
-// the backing array.
+// the backing array (the caller's slice is a fresh clone from LoadProjectConfig).
 func removeWorkerName(names []string, name string) []string {
-	out := names[:0:0]
-	for _, w := range names {
-		if w != name {
-			out = append(out, w)
-		}
-	}
-	return out
+	return slices.DeleteFunc(names, func(w string) bool { return w == name })
 }
 
 // SetProjectDomains replaces the domains list. No-op if .lerd.yaml does not exist.

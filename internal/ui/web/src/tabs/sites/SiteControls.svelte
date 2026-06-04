@@ -18,6 +18,8 @@
   import { nodeVersions } from '$stores/nodeVersions';
   import { status } from '$stores/status';
   import WorktreeDBIsolateModal from './WorktreeDBIsolateModal.svelte';
+  import HorizonControl from './HorizonControl.svelte';
+  import HorizonReloadWatcherModal from './HorizonReloadWatcherModal.svelte';
   import CommandsDropdown from '$components/CommandsDropdown.svelte';
   import Dropdown from '$components/Dropdown.svelte';
   import ToggleButton from '$components/ToggleButton.svelte';
@@ -118,7 +120,6 @@
   $effect(() => {
     reconcile('queue', Boolean(site.queue_running));
     reconcile('horizon', Boolean(site.horizon_running));
-    reconcile('horizon-reload', Boolean(site.horizon_reload));
     reconcile('schedule', Boolean(site.schedule_running));
     reconcile('reverb', Boolean(site.reverb_running));
     reconcile('stripe', Boolean(site.stripe_running));
@@ -146,6 +147,45 @@
     }
     // Kick a refresh so we pick up the change even if the WS push is late.
     await Promise.all([loadSites(), loadServices()]);
+  }
+
+  let watcherModalOpen = $state(false);
+  // Held for the whole reload toggle, which restarts Horizon under the hood.
+  // Horizon's running flag dips false mid-restart; without this the segment
+  // would flicker to "off". We keep it in its loading-dot state instead, the
+  // same as a worker that's starting, until the restart settles.
+  let reloadRestarting = $state(false);
+
+  // Flip Horizon auto-reload and ride out the restart. Any failure surfaces so
+  // a click always gives feedback rather than silently reverting.
+  async function applyReload(desired: boolean) {
+    if (reloadRestarting) return;
+    reloadRestarting = true;
+    try {
+      const r = await setHorizonReload(site, desired);
+      if (!r.ok) {
+        alert(m.sites_controls_horizonReloadFailed({ error: r.error || '' }));
+        return;
+      }
+      await Promise.all([loadSites(), loadServices()]);
+    } finally {
+      // Always release the guard, even on a thrown rejection, so the toggle
+      // can't deadlock in its loading state.
+      reloadRestarting = false;
+    }
+  }
+
+  // Enabling needs the chokidar watcher. When it's missing (Vite 8 no longer
+  // ships it) we open a modal offering to install it rather than letting the
+  // toggle silently refuse. Disabling, and enabling when chokidar is already
+  // present, go straight through.
+  async function onToggleHorizonReload() {
+    const desired = !site.horizon_reload;
+    if (desired && !site.horizon_reload_ready) {
+      watcherModalOpen = true;
+      return;
+    }
+    await applyReload(desired);
   }
 
   async function onPhpChange(e: Event) {
@@ -258,40 +298,15 @@
       {/if}
 
       {#if site.has_horizon}
-        <div class="inline-flex items-center gap-1">
-          <ToggleButton
-            label={m.sites_controls_horizon()}
-            on={Boolean(site.horizon_running)}
-            failing={Boolean(site.horizon_failing)}
-            loading={isPending('horizon')}
-            disabled={isPending('horizon')}
-            onclick={() => transition('horizon', !site.horizon_running, () => toggleHorizon(site))}
-            title={site.horizon_failing ? m.sites_controls_horizonToggle_failing() : site.horizon_running ? m.sites_controls_horizonToggle_on() : m.sites_controls_horizonToggle_off()}
-          />
-          <button
-            type="button"
-            class="inline-flex items-center justify-center h-7 w-7 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed {site.horizon_reload
-              ? 'border-emerald-300 dark:border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-900/15 hover:bg-emerald-50 dark:hover:bg-emerald-900/25'
-              : 'border-gray-200 dark:border-lerd-border text-gray-400 dark:text-gray-500 bg-white dark:bg-lerd-card hover:bg-gray-50 dark:hover:bg-white/5'}"
-            disabled={isPending('horizon-reload')}
-            aria-pressed={Boolean(site.horizon_reload)}
-            title={site.horizon_reload ? m.sites_controls_horizonReloadToggle_on() : m.sites_controls_horizonReloadToggle_off()}
-            onclick={() => transition('horizon-reload', !site.horizon_reload, () => setHorizonReload(site, !site.horizon_reload))}
-          >
-            {#if isPending('horizon-reload')}
-              <svg class="w-3 h-3 animate-spin text-amber-500" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-            {:else}
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="23 4 23 10 17 10" />
-                <polyline points="1 20 1 14 7 14" />
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-              </svg>
-            {/if}
-          </button>
-        </div>
+        <HorizonControl
+          running={Boolean(site.horizon_running)}
+          failing={Boolean(site.horizon_failing)}
+          reload={Boolean(site.horizon_reload)}
+          horizonLoading={isPending('horizon') || reloadRestarting}
+          reloadLoading={reloadRestarting}
+          onToggle={() => transition('horizon', !site.horizon_running, () => toggleHorizon(site))}
+          onToggleReload={onToggleHorizonReload}
+        />
       {/if}
 
       {#if site.has_schedule_worker}
@@ -367,3 +382,10 @@
     }}
   />
 {/if}
+
+<HorizonReloadWatcherModal
+  open={watcherModalOpen}
+  {site}
+  onclose={() => (watcherModalOpen = false)}
+  oninstalled={() => void applyReload(true)}
+/>

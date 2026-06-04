@@ -50,12 +50,12 @@ lerd horizon:reload off   # back to standard horizon
 lerd horizon:reload       # show the current state
 ```
 
-The preference is per project, stored as `reload_workers` in the project's `.lerd.yaml`, so one project can develop with auto-reload while another stays in standard mode. You can also toggle it from the small reload button next to the Horizon worker in the dashboard. Either way, a running Horizon worker for the project is restarted so the change applies immediately.
+Auto-reload is off by default. The preference is per project, stored as `reload_workers` in the project's `.lerd.yaml` (a list of worker names opted into reload mode, currently just `horizon`), so one project can develop with auto-reload while another stays in standard mode. In the dashboard the Horizon toggle and the reload toggle sit together as one grouped control, and the reload toggle only appears while Horizon is running, since reload is a property of a live worker. Either way, the running Horizon worker for the project is restarted so the change applies immediately, and the new state is pushed to every open dashboard over the websocket.
 
 Two notes:
 
-- The watcher shells out to Node and resolves [`chokidar`](https://www.npmjs.com/package/chokidar) from your project's `node_modules`. lerd's runtime image already ships Node, and most Laravel projects pull in chokidar via Vite, but if it is missing lerd keeps the standard `horizon` command and tells you to run `npm install`.
-- On macOS lerd adds `--poll`. Workers run inside a container that lives in the podman virtual machine, and filesystem events raised on your host do not reach the watcher inside the VM, so it has to poll. On native Linux the container shares the host filesystem directly and inotify works, so polling is left off to avoid the wasted CPU.
+- The watcher shells out to Node and resolves [`chokidar`](https://www.npmjs.com/package/chokidar) from your project's `node_modules`. Horizon ships the watcher script but not chokidar itself, so the project has to provide it. It used to arrive for free as a transitive dependency of Vite, but Vite 8 dropped it, so a plain `npm install` is no longer enough. If chokidar is missing, the toggle never silently reads as on: from the dashboard, enabling pops a modal that offers a one-click `npm install --save-dev chokidar` and then turns reload on once the watcher is present; from the CLI, `lerd horizon:reload on` refuses with the same `npm install -D chokidar` hint.
+- lerd adds `--poll` where the container can't see host filesystem events: on macOS, where workers run in the podman virtual machine, and under WSL2, where projects on `/mnt` (9p) mounts get no inotify delivery. On native Linux the container shares the host filesystem directly and inotify works, so polling is left off to avoid the wasted CPU.
 
 ## Generic workers (`lerd worker`)
 

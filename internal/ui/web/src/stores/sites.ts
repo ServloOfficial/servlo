@@ -59,6 +59,7 @@ export interface Site {
   horizon_running?: boolean;
   horizon_failing?: boolean;
   horizon_reload?: boolean;
+  horizon_reload_ready?: boolean;
   stripe_running?: boolean;
   stripe_secret_set?: boolean;
   schedule_running?: boolean;
@@ -426,6 +427,8 @@ export const toggleHorizon = (s: Site) =>
   postAction(site(s.domain, s.horizon_running ? 'horizon:stop' : 'horizon:start'));
 export const setHorizonReload = (s: Site, enabled: boolean) =>
   postAction(site(s.domain, 'horizon:reload') + `?enabled=${enabled ? 'true' : 'false'}`);
+export const installHorizonReloadWatcher = (s: Site) =>
+  postAction(site(s.domain, 'horizon:install-watcher'));
 export const toggleSchedule = (s: Site) =>
   postAction(site(s.domain, s.schedule_running ? 'schedule:stop' : 'schedule:start'));
 export const toggleReverb = (s: Site) =>

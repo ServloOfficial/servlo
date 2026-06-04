@@ -99,6 +99,13 @@ func newHorizonReloadCmd(use string) *cobra.Command {
 // which resolves the command (standard or horizon:listen) from the freshly
 // persisted preference.
 func ApplyHorizonReload(siteName, sitePath, phpVersion string, enabled bool) error {
+	// Refuse to enable when the watcher prerequisite is missing rather than
+	// persisting a preference the worker can't honour. Without this the toggle
+	// would read "on" while resolveWorkerCommand quietly ran the standard
+	// command, so the displayed state would diverge from reality.
+	if enabled && !projectHasChokidar(sitePath) {
+		return fmt.Errorf("Horizon auto-reload needs the chokidar npm package, which is not installed in this project\nInstall it with: npm install -D chokidar\n(Vite 8 no longer ships it, so a plain npm install is not enough)")
+	}
 	if err := config.SetProjectWorkerReload(sitePath, "horizon", enabled); err != nil {
 		return err
 	}

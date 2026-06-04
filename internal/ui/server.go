@@ -687,7 +687,8 @@ type SiteResponse struct {
 	HasHorizon         bool                `json:"has_horizon"`
 	HorizonRunning     bool                `json:"horizon_running"`
 	HorizonFailing     bool                `json:"horizon_failing,omitempty"`
-	HorizonReload      bool                `json:"horizon_reload,omitempty"` // horizon runs via horizon:listen (auto-reload)
+	HorizonReload      bool                `json:"horizon_reload,omitempty"`       // horizon runs via horizon:listen (auto-reload)
+	HorizonReloadReady bool                `json:"horizon_reload_ready,omitempty"` // chokidar present, so auto-reload can be enabled without installing it
 	HasQueueWorker     bool                `json:"has_queue_worker"`
 	HasScheduleWorker  bool                `json:"has_schedule_worker"`
 	FrameworkWorkers   []WorkerStatus      `json:"framework_workers,omitempty"`
@@ -810,6 +811,7 @@ func buildSites() []SiteResponse {
 			HorizonRunning:     e.HorizonRunning,
 			HorizonFailing:     e.HorizonFailing,
 			HorizonReload:      e.HasHorizon && config.ProjectReloadsWorker(e.Path, "horizon"),
+			HorizonReloadReady: e.HasHorizon && cli.ProjectHasChokidar(e.Path),
 			HasQueueWorker:     e.HasQueueWorker,
 			HasScheduleWorker:  e.HasScheduleWorker,
 			FrameworkWorkers:   fwWorkers,
@@ -3072,6 +3074,13 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			phpVersion = detected
 		}
 		if err := cli.ApplyHorizonReload(site.Name, site.Path, phpVersion, enabled); err != nil {
+			writeJSON(w, SiteActionResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, SiteActionResponse{OK: true})
+		return
+	case "horizon:install-watcher":
+		if err := cli.InstallChokidar(site.Path); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
