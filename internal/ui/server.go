@@ -710,6 +710,8 @@ type SiteResponse struct {
 	ContainerImage   string   `json:"container_image,omitempty"`
 	Runtime          string   `json:"runtime,omitempty"`
 	RuntimeWorker    bool     `json:"runtime_worker,omitempty"`
+	HostProxy        bool     `json:"host_proxy,omitempty"`
+	HostPort         int      `json:"host_port,omitempty"`
 	HostHasDevServer bool     `json:"host_has_dev_server,omitempty"`
 }
 
@@ -831,6 +833,8 @@ func buildSites() []SiteResponse {
 			ContainerImage:     e.ContainerImage,
 			Runtime:            e.Runtime,
 			RuntimeWorker:      e.RuntimeWorker,
+			HostProxy:          e.HostPort > 0,
+			HostPort:           e.HostPort,
 			HostHasDevServer:   e.HostPort > 0 && e.HostCommand != "",
 		})
 	}

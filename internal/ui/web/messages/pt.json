@@ -271,6 +271,7 @@
   "sites_controls_phpPlaceholder": "— PHP —",
   "sites_controls_nodeDefault": "Node padrão",
   "sites_controls_nodeDefaultVersion": "Node {version} (padrão)",
+  "sites_controls_proxyBadge": "Proxy",
   "sites_controls_versionChangeFailed": "Mudança de versão falhou: {error}",
   "sites_controls_inheritsFromMain": "Herda de main",
   "sites_controls_inheritedSuffix": "(herdado)",

@@ -256,6 +256,7 @@
   "sites_controls_phpPlaceholder": "— PHP —",
   "sites_controls_nodeDefault": "Node default",
   "sites_controls_nodeDefaultVersion": "Node {version} (default)",
+  "sites_controls_proxyBadge": "Proxy",
   "sites_controls_versionChangeFailed": "Version change failed: {error}",
   "sites_controls_inheritsFromMain": "Inherits from main",
   "sites_controls_inheritedSuffix": "(inherited)",

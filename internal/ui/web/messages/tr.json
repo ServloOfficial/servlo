@@ -271,6 +271,7 @@
   "sites_controls_phpPlaceholder": "— PHP —",
   "sites_controls_nodeDefault": "Varsayılan Node",
   "sites_controls_nodeDefaultVersion": "Node {version} (varsayılan)",
+  "sites_controls_proxyBadge": "Proxy",
   "sites_controls_versionChangeFailed": "Sürüm değiştirme başarısız: {error}",
   "sites_controls_inheritsFromMain": "Main'den miras alıyor",
   "sites_controls_inheritedSuffix": "(miras alınmış)",

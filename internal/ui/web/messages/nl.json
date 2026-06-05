@@ -271,6 +271,7 @@
   "sites_controls_phpPlaceholder": "— PHP —",
   "sites_controls_nodeDefault": "Node-standaard",
   "sites_controls_nodeDefaultVersion": "Node {version} (standaard)",
+  "sites_controls_proxyBadge": "Proxy",
   "sites_controls_versionChangeFailed": "Versiewissel mislukt: {error}",
   "sites_controls_inheritsFromMain": "Erft van main",
   "sites_controls_inheritedSuffix": "(geërfd)",

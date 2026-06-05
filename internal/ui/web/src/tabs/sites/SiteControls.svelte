@@ -220,6 +220,10 @@
       <span class="text-xs text-violet-500 dark:text-violet-400 border border-violet-200 dark:border-violet-500/30 rounded-sm px-2 py-1">
         {(site.container_image || 'container') + ' :' + site.container_port}
       </span>
+    {:else if site.host_proxy}
+      <span class="text-xs text-violet-500 dark:text-violet-400 border border-violet-200 dark:border-violet-500/30 rounded-sm px-2 py-1">
+        {m.sites_controls_proxyBadge()}{site.host_port ? ' :' + site.host_port : ''}
+      </span>
     {:else if site.uses_php}
       {#if $phpVersions.length > 0}
         <Dropdown
