@@ -134,6 +134,19 @@ func portFromCommand(command string) int {
 	return n
 }
 
+// isNodeProject reports whether dir is a Node project, used to decide whether a
+// host worker's command runs through fnm (Node) or directly (host-proxy sites in
+// Python, Ruby, Go, and other languages). A package.json, .nvmrc, or
+// .node-version all count; none of these exist in a non-Node project.
+func isNodeProject(dir string) bool {
+	for _, f := range []string{"package.json", ".nvmrc", ".node-version"} {
+		if _, err := os.Stat(filepath.Join(dir, f)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // firstFreePort returns the first port at or above start for which isTaken is
 // false. Pure (isTaken is injected) so the search logic is unit-testable
 // without binding real sockets. Falls back to start if nothing is free.
