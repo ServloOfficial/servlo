@@ -32,7 +32,11 @@ func runMachineReset(assumeYes bool) error {
 		line, _ := reader.ReadString('\n')
 		ans := strings.ToLower(strings.TrimSpace(line))
 		if ans != "y" && ans != "yes" {
-			return fmt.Errorf("aborted")
+			// Declining the prompt is a normal choice, not a failure — print a
+			// plain notice and exit zero rather than letting cobra render
+			// "Error: aborted" with a non-zero status.
+			fmt.Println("Cancelled.")
+			return nil
 		}
 	}
 

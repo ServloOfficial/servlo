@@ -581,14 +581,20 @@ func runStart(_ *cobra.Command, _ []string) error {
 	}
 
 	serviceErr := RunParallel(makeJobs(serviceUnits))
-	// When the Podman Machine's container storage is left with a stale overlay
-	// mount after an unclean host shutdown, every container start fails. Restart
-	// the VM to remount storage (data is host bind-mounted, so this is safe) and
-	// retry the start pass once; if it still fails, surface recovery guidance.
+	// When the Podman Machine's container storage is left corrupt after an
+	// unclean host shutdown, every container start fails. Remount storage and
+	// rebuild the stale containers (data is host bind-mounted, so this is safe),
+	// then retry the start pass once.
 	if healOverlayCorruptionIfNeeded(serviceErr) {
-		serviceErr = RunParallel(makeJobs(serviceUnits)) //nolint:errcheck
+		serviceErr = RunParallel(makeJobs(serviceUnits))
 	}
-	reportOverlayHealOutcome(serviceErr)
+	// If the storage is still corrupt, every worker — and the DNS and tray steps
+	// below — would fail the same way and bury the recovery guidance. Stop here
+	// so the guidance is the last thing the user sees.
+	if isOverlayStorageError(serviceErr) {
+		reportOverlayHealOutcome(serviceErr)
+		return nil
+	}
 	if len(workerUnits) > 0 {
 		RunParallel(makeJobs(workerUnits)) //nolint:errcheck
 	}

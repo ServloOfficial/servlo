@@ -10,17 +10,22 @@ import (
 	"github.com/geodro/lerd/internal/podman"
 )
 
-// healOverlayCorruptionIfNeeded restarts the Podman Machine when the service
-// start pass failed with the overlay-storage error (see isOverlayStorageError).
-// A clean stop+start remounts the VM's container storage, which clears the
-// stale-mount form of the corruption. lerd's persistent data is host
-// bind-mounted, so the restart is non-destructive. Returns true when a restart
-// was performed and the caller should retry the start pass once.
+// healOverlayCorruptionIfNeeded recovers from the overlay-storage error (see
+// isOverlayStorageError) on the service start pass, then asks the caller to
+// retry once. Two things are corrupt after an unclean shutdown: the VM's
+// overlay base mount, and the lerd-* container layers built on it. A machine
+// restart remounts the base; force-removing the stale containers makes the
+// retry's `podman run` allocate fresh container storage — the path a manual
+// `podman run` takes when it succeeds where a remount alone doesn't. lerd's
+// persistent data is host bind-mounted, so both steps are non-destructive.
+// Returns true when recovery ran and the caller should retry the start pass.
 func healOverlayCorruptionIfNeeded(err error) bool {
 	if !isOverlayStorageError(err) {
 		return false
 	}
 	restartPodmanMachineForHeal()
+	forceRemoveLerdContainers(true,
+		"  --> Clearing stale lerd containers so they rebuild on fresh storage ...")
 	return true
 }
 

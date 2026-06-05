@@ -89,6 +89,23 @@ The system tray's **Quit Lerd** menu item calls `lerd quit`.
 
 ---
 
+## `lerd machine reset` (macOS)
+
+```bash
+lerd machine reset        # asks for confirmation first
+lerd machine reset --yes  # skip the prompt
+```
+
+Recreates the Podman Machine VM. Reach for it only when `lerd start` reports a container-storage error such as `getting graph driver info ... overlay: invalid argument`, which happens after the macOS host is shut down ungracefully while the VM is still running and leaves the VM's container storage corrupt. See [Troubleshooting → Podman Machine overlay-storage error](../troubleshooting.md).
+
+The command stops the VM, removes it (`podman machine rm -f`), and re-initialises it. **Your data is preserved:** lerd bind-mounts every database and site directory to the host, not into the VM, so only the VM's container storage and images are discarded. Images are rebuilt automatically on the next `lerd start`.
+
+::: tip lerd start already tries to self-heal
+On macOS, `lerd start` detects this exact error and attempts an automatic recovery first (remount the VM's storage, rebuild the stale containers, retry once). `lerd machine reset` is the manual fallback for when that recovery isn't enough. This command is macOS-only; Linux runs podman natively with no VM.
+:::
+
+---
+
 ## Autostart on login
 
 Lerd can boot itself every time you log in. Autostart is a single switch over every lerd-owned systemd user unit on the machine:
@@ -142,6 +159,7 @@ Shows a live snapshot: DNS reachability, nginx, PHP-FPM containers, watcher, ser
 | Reboot, autostart enabled | Nothing, happens automatically |
 | Free up CPU / RAM during a heavy build | `lerd stop` |
 | Full shutdown before a reinstall | `lerd quit` |
+| `lerd start` fails with an overlay / graph-driver storage error (macOS) | `lerd machine reset` |
 | Verify everything's healthy | `lerd status` |
 | Uninstall a service entirely (data preserved) | `lerd service remove <name>` |
 | Uninstall and wipe data | `lerd service remove <name> --purge` |
