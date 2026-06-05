@@ -580,7 +580,15 @@ func runStart(_ *cobra.Command, _ []string) error {
 		return jobs
 	}
 
-	RunParallel(makeJobs(serviceUnits)) //nolint:errcheck
+	serviceErr := RunParallel(makeJobs(serviceUnits))
+	// When the Podman Machine's container storage is left with a stale overlay
+	// mount after an unclean host shutdown, every container start fails. Restart
+	// the VM to remount storage (data is host bind-mounted, so this is safe) and
+	// retry the start pass once; if it still fails, surface recovery guidance.
+	if healOverlayCorruptionIfNeeded(serviceErr) {
+		serviceErr = RunParallel(makeJobs(serviceUnits)) //nolint:errcheck
+	}
+	reportOverlayHealOutcome(serviceErr)
 	if len(workerUnits) > 0 {
 		RunParallel(makeJobs(workerUnits)) //nolint:errcheck
 	}
