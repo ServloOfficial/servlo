@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -65,10 +66,12 @@ var devScriptCandidates = []string{"start:dev", "dev", "serve", "start"}
 
 // packageManifest is the slice of package.json the host-proxy wizard reads.
 type packageManifest struct {
-	Scripts         map[string]string `json:"scripts"`
-	Dependencies    map[string]string `json:"dependencies"`
-	DevDependencies map[string]string `json:"devDependencies"`
+	Scripts map[string]string `json:"scripts"`
 }
+
+// defaultDevServerPort is where host-port allocation starts when the command
+// doesn't name a port; the allocator walks up from here to the first free port.
+const defaultDevServerPort = 3000
 
 // readPackageManifest parses package.json once; nil if absent or invalid. The
 // methods below are nil-safe so callers don't have to branch.
@@ -99,55 +102,17 @@ func (m *packageManifest) devScripts() []string {
 	return out
 }
 
-// devTool identifies the dev-server tool from dependencies, so the wizard can
-// pick a sensible default port and the right port flag.
-func (m *packageManifest) devTool() string {
-	if m == nil {
-		return ""
-	}
-	has := func(name string) bool {
-		_, a := m.Dependencies[name]
-		_, b := m.DevDependencies[name]
-		return a || b
-	}
-	switch {
-	case has("@angular/core") || has("@angular/cli"):
-		return "angular"
-	case has("vite"):
-		return "vite"
-	case has("@nestjs/core"):
-		return "nest"
-	}
-	return ""
-}
-
 // AvailableDevScripts returns the dev-server scripts present in the project's
 // package.json, in preference order, each rendered as "npm run <name>".
 func AvailableDevScripts(cwd string) []string {
 	return readPackageManifest(cwd).devScripts()
 }
 
-// detectDevTool inspects package.json dependencies to identify the dev-server
-// tool, so the wizard can pick a sensible default port and the right port flag.
-func detectDevTool(cwd string) string {
-	return readPackageManifest(cwd).devTool()
-}
-
-// defaultDevPort returns the conventional dev-server port for a tool.
-func defaultDevPort(tool string) int {
-	switch tool {
-	case "vite":
-		return 5173
-	case "angular":
-		return 4200
-	default:
-		return 3000
-	}
-}
-
 var portFlagRe = regexp.MustCompile(`(?:--port[ =]|PORT=)(\d+)`)
 
 // portFromCommand extracts an explicit port from a command string, or 0 if none.
+// A dev command that already names a port keeps it; otherwise the port is
+// auto-assigned and injected via the PORT env var.
 func portFromCommand(command string) int {
 	m := portFlagRe.FindStringSubmatch(command)
 	if m == nil {
@@ -157,20 +122,64 @@ func portFromCommand(command string) int {
 	return n
 }
 
-// appendPortFlag adds the port flag for tools that won't honour the PORT env
-// var on their own. Vite needs --strictPort or it silently moves to another
-// port and breaks the proxy. A command that already names a port is left alone.
-func appendPortFlag(command, tool string, port int) string {
-	if portFromCommand(command) != 0 {
-		return command
+// firstFreePort returns the first port at or above start for which isTaken is
+// false. Pure (isTaken is injected) so the search logic is unit-testable
+// without binding real sockets. Falls back to start if nothing is free.
+func firstFreePort(start int, isTaken func(int) bool) int {
+	if start < 1 {
+		start = 1
 	}
-	switch tool {
-	case "vite":
-		return fmt.Sprintf("%s -- --port %d --strictPort", command, port)
-	case "angular":
-		return fmt.Sprintf("%s -- --port %d", command, port)
+	for p := start; p <= 65535; p++ {
+		if !isTaken(p) {
+			return p
+		}
 	}
-	return command
+	return start
+}
+
+// portBoundOnHost reports whether something is already listening on the host's
+// loopback at port p. Used as the live half of host-port allocation so a dev
+// server isn't assigned a port a lerd service (or any process) already holds.
+// Both IPv4 and IPv6 loopback are probed so a service bound only to [::1] (as
+// some lerd quadlets are) is still detected as taken.
+func portBoundOnHost(p int) bool {
+	for _, host := range []string{"127.0.0.1", "::1"} {
+		ln, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(p)))
+		if err != nil {
+			return true
+		}
+		_ = ln.Close()
+	}
+	return false
+}
+
+// reservedHostPorts returns host ports already claimed by other host-proxy
+// sites in the registry, so two sites never get assigned the same port even
+// when the other site's dev server isn't currently running. exceptSite is
+// skipped so re-running init on a site keeps its own port.
+func reservedHostPorts(exceptSite string) map[int]bool {
+	out := map[int]bool{}
+	reg, err := config.LoadSites()
+	if err != nil {
+		return out
+	}
+	for _, s := range reg.Sites {
+		if s.Name == exceptSite || s.HostPort == 0 {
+			continue
+		}
+		out[s.HostPort] = true
+	}
+	return out
+}
+
+// allocateHostPort picks a free host port for a dev server, starting from the
+// tool's conventional default and walking up past anything another host-proxy
+// site reserves or any process currently binds (e.g. lerd-gotenberg on 3000).
+func allocateHostPort(start int, exceptSite string) int {
+	reserved := reservedHostPorts(exceptSite)
+	return firstFreePort(start, func(p int) bool {
+		return reserved[p] || portBoundOnHost(p)
+	})
 }
 
 // startHostProxyWorker supervises the dev command for a host-proxy site as a

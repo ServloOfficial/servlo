@@ -699,7 +699,6 @@ func buildProjectServices(selectedServices []string, defaults *config.ProjectCon
 // proxies the domain to it. Collects the command, port, HTTPS, and services.
 func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config.GlobalConfig) (*config.ProjectConfig, error) {
 	manifest := readPackageManifest(cwd)
-	tool := manifest.devTool()
 	devScripts := manifest.devScripts()
 
 	const otherOption = "Other (enter a command)"
@@ -749,7 +748,13 @@ func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config
 		if p := portFromCommand(command); p > 0 {
 			port = p
 		} else {
-			port = defaultDevPort(tool)
+			// No explicit port: auto-assign from the default base, walking up
+			// past anything already taken (other sites, lerd services).
+			siteName := ""
+			if s, err := config.FindSiteByPath(cwd); err == nil {
+				siteName = s.Name
+			}
+			port = allocateHostPort(defaultDevServerPort, siteName)
 		}
 	}
 	portStr := strconv.Itoa(port)
@@ -784,12 +789,6 @@ func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config
 	}
 	port = 0
 	fmt.Sscanf(portStr, "%d", &port)
-
-	// For tools that don't read PORT (Vite, Angular), append the right port flag
-	// to the command so it binds where nginx proxies. Editable later in .lerd.yaml.
-	if command != "" {
-		command = appendPortFlag(command, tool, port)
-	}
 
 	// Services multi-select (same flow as the custom container wizard).
 	serviceOptions := nonDatabaseServiceOptions()
