@@ -18,6 +18,13 @@ func init() {
 		for _, w := range collectRunningWorkers(site) {
 			stopWorkerByName(site, w)
 		}
+		// collectRunningWorkers only reports active units (correct for pause,
+		// which resumes them later). On unlink the site is going away, so tear
+		// the dev-server unit down unconditionally — a stopped or failed one
+		// would otherwise orphan its .service file. stopWorkerUnit is idempotent.
+		if site.IsHostProxy() {
+			WorkerStopForSite(site.Name, site.Path, hostProxyWorkerName) //nolint:errcheck
+		}
 	}
 }
 
