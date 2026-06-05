@@ -594,7 +594,7 @@ func workerNames(siteName, sitePath, workerName string) (unit, display string) {
 		return unit, display
 	}
 	wtBase := filepath.Base(sitePath)
-	return unit + "-" + wtBase, display + "/" + wtBase
+	return unit + "-" + config.WorktreeUnitSlug(wtBase), display + "/" + wtBase
 }
 
 // workerUnitName is a thin wrapper around workerNames for callers that only
@@ -682,6 +682,8 @@ func StopAllWorkersForWorktree(siteName, wtBase string) error {
 	if siteName == "" || wtBase == "" {
 		return nil
 	}
+	// Unit names sanitize dots, so match against the same slug used at creation.
+	wtBase = config.WorktreeUnitSlug(wtBase)
 	suffix := "-" + siteName + "-" + wtBase
 	pattern := "lerd-*" + suffix
 	units := services.Mgr.ListServiceUnits(pattern)

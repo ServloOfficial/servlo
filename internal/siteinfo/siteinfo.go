@@ -521,7 +521,7 @@ func enrichWorktreeWorkers(siteName, wtPath string, fw *config.Framework) []Work
 	if fw == nil || fw.Workers == nil {
 		return nil
 	}
-	wtBase := filepath.Base(wtPath)
+	wtBase := config.WorktreeUnitSlug(filepath.Base(wtPath))
 	names := make([]string, 0, len(fw.Workers))
 	for n, wDef := range fw.Workers {
 		if !wDef.IsPerWorktree() {
