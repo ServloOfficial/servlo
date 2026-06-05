@@ -483,10 +483,10 @@ func newWatchCmd() *cobra.Command {
 						}
 						siteChanged := false
 
-						// Custom container sites don't use PHP/Node version
-						// detection — skip re-detection to avoid overwriting
+						// Custom container and host-proxy sites don't use PHP/Node
+						// version detection — skip re-detection to avoid overwriting
 						// the empty values with defaults.
-						if !site.IsCustomContainer() {
+						if !site.IsCustomContainer() && !site.IsHostProxy() {
 							// Re-detect PHP version in case .lerd.yaml or .php-version changed.
 							{
 								phpMin, phpMax := "", ""

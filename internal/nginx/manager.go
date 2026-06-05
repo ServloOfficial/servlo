@@ -64,7 +64,9 @@ type VhostData struct {
 	ProxyPort       int    // port the worker listens on inside the PHP-FPM container
 	CustomContainer string // container name for custom container sites (e.g. "lerd-custom-nestapp")
 	CustomPort      int    // port the app listens on inside the custom container
-	BackendSSL      bool   // proxy to the container via HTTPS (app serves TLS on its own port)
+	UpstreamHost    string // host-proxy upstream address (e.g. "host.containers.internal")
+	UpstreamPort    int    // host-proxy upstream port (the dev server's host port)
+	BackendSSL      bool   // proxy to the backend via HTTPS (app serves TLS on its own port)
 	// LerdSite / LerdBranch surface the parent site name and (for worktrees)
 	// the branch to PHP via fastcgi_param so the debug bridge can tag events
 	// with stable identifiers instead of guessing from DOCUMENT_ROOT.
@@ -357,6 +359,68 @@ func GenerateCustomSSLVhost(site config.Site) error {
 		return err
 	}
 	confPath := filepath.Join(config.NginxConfD(), site.PrimaryDomain()+"-ssl.conf")
+	return os.WriteFile(confPath, buf.Bytes(), 0644)
+}
+
+// hostProxyUpstream returns the address nginx (inside its container) uses to
+// reach a host-proxy site's dev server running on the host. On macOS the
+// container resolves host.containers.internal via the shared /etc/hosts written
+// by podman.WriteContainerHosts. On Linux the bridge gateway IP is preferred,
+// falling back to the same hostname.
+func hostProxyUpstream() string {
+	if runtime.GOOS == "darwin" {
+		return "host.containers.internal"
+	}
+	if ip := podman.DetectHostGatewayIP(); ip != "" {
+		return ip
+	}
+	return "host.containers.internal"
+}
+
+// GenerateHostProxyVhost renders the HTTP vhost for a host-proxy site and writes
+// it to conf.d. Nginx reverse-proxies to a process on the host instead of a
+// container.
+func GenerateHostProxyVhost(site config.Site) error {
+	return generateHostProxyVhost(site, "vhost-hostproxy.conf.tmpl", site.PrimaryDomain()+".conf", false)
+}
+
+// GenerateHostProxySSLVhost renders the SSL vhost for a host-proxy site and
+// writes it to conf.d/<domain>-ssl.conf.
+func GenerateHostProxySSLVhost(site config.Site) error {
+	return generateHostProxyVhost(site, "vhost-hostproxy-ssl.conf.tmpl", site.PrimaryDomain()+"-ssl.conf", true)
+}
+
+func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl bool) error {
+	tmplData, err := GetTemplate(tmplName)
+	if err != nil {
+		return err
+	}
+	tmpl, err := template.New(tmplName).Parse(string(tmplData))
+	if err != nil {
+		return err
+	}
+
+	data := VhostData{
+		Domain:         site.PrimaryDomain(),
+		ServerNames:    serverNamesWithWildcards(site.Domains),
+		UpstreamHost:   hostProxyUpstream(),
+		UpstreamPort:   site.HostPort,
+		BackendSSL:     site.HostSSL,
+		RequestTimeout: resolveRequestTimeout(site.Path),
+	}
+	if ssl {
+		data.CertDomain = site.PrimaryDomain()
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
+		return err
+	}
+	confPath := filepath.Join(config.NginxConfD(), confName)
 	return os.WriteFile(confPath, buf.Bytes(), 0644)
 }
 
@@ -700,6 +764,8 @@ func RepairVhosts() []VhostRepair {
 			// Regenerate as plain HTTP vhost.
 			var regenErr error
 			switch {
+			case site.IsHostProxy():
+				regenErr = GenerateHostProxyVhost(site)
 			case site.IsCustomContainer():
 				regenErr = GenerateCustomVhost(site)
 			case site.IsFrankenPHP():

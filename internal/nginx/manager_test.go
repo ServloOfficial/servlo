@@ -175,6 +175,57 @@ func TestGenerateCustomVhost_honoursProjectRequestTimeout(t *testing.T) {
 	}
 }
 
+// ── GenerateHostProxyVhost ────────────────────────────────────────────────────
+
+func TestGenerateHostProxyVhost_proxiesToHostPort(t *testing.T) {
+	confD := setupConfD(t)
+	site := config.Site{Name: "nestapp", Domains: []string{"nestapp.test"}, Path: t.TempDir(), HostPort: 3000}
+	if err := GenerateHostProxyVhost(site); err != nil {
+		t.Fatalf("GenerateHostProxyVhost: %v", err)
+	}
+	content := readConf(t, filepath.Join(confD, "nestapp.test.conf"))
+	if !strings.Contains(content, "proxy_pass http://"+hostProxyUpstream()+":3000;") {
+		t.Errorf("expected proxy_pass to host upstream port 3000 in:\n%s", content)
+	}
+	// HMR / WebSocket support must be present for Vite/NestJS.
+	if !strings.Contains(content, `proxy_set_header Upgrade $http_upgrade;`) {
+		t.Errorf("expected WebSocket upgrade header in:\n%s", content)
+	}
+	if !strings.Contains(content, "include /etc/nginx/custom.d/nestapp.test.conf*;") {
+		t.Errorf("expected custom.d include in:\n%s", content)
+	}
+}
+
+func TestGenerateHostProxyVhost_backendSSL(t *testing.T) {
+	confD := setupConfD(t)
+	site := config.Site{Name: "secureapp", Domains: []string{"secureapp.test"}, Path: t.TempDir(), HostPort: 8443, HostSSL: true}
+	if err := GenerateHostProxyVhost(site); err != nil {
+		t.Fatalf("GenerateHostProxyVhost: %v", err)
+	}
+	content := readConf(t, filepath.Join(confD, "secureapp.test.conf"))
+	if !strings.Contains(content, "proxy_pass https://"+hostProxyUpstream()+":8443;") {
+		t.Errorf("expected https proxy_pass for backend SSL in:\n%s", content)
+	}
+	if !strings.Contains(content, "proxy_ssl_verify off;") {
+		t.Errorf("expected proxy_ssl_verify off for backend SSL in:\n%s", content)
+	}
+}
+
+func TestGenerateHostProxySSLVhost_createsSSLConfWithCert(t *testing.T) {
+	confD := setupConfD(t)
+	site := config.Site{Name: "nestapp", Domains: []string{"nestapp.test"}, Path: t.TempDir(), HostPort: 3000}
+	if err := GenerateHostProxySSLVhost(site); err != nil {
+		t.Fatalf("GenerateHostProxySSLVhost: %v", err)
+	}
+	content := readConf(t, filepath.Join(confD, "nestapp.test-ssl.conf"))
+	if !strings.Contains(content, "ssl_certificate /etc/nginx/certs/nestapp.test.crt;") {
+		t.Errorf("expected ssl_certificate directive in:\n%s", content)
+	}
+	if !strings.Contains(content, "proxy_pass http://"+hostProxyUpstream()+":3000;") {
+		t.Errorf("expected proxy_pass to host upstream in:\n%s", content)
+	}
+}
+
 // ── phpShort ──────────────────────────────────────────────────────────────────
 
 func TestPhpShort(t *testing.T) {

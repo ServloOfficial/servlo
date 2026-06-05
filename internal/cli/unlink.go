@@ -10,6 +10,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Wire worker teardown into the shared unlink core so every unlink path (CLI,
+// MCP, parked-directory watcher) stops the site's workers — including a
+// host-proxy site's always-restart dev server.
+func init() {
+	siteops.StopSiteWorkers = func(site *config.Site) {
+		for _, w := range collectRunningWorkers(site) {
+			stopWorkerByName(site, w)
+		}
+	}
+}
+
 // NewUnlinkCmd returns the unlink command.
 func NewUnlinkCmd() *cobra.Command {
 	return &cobra.Command{
@@ -41,9 +52,9 @@ func UnlinkSite(name string) error {
 		return fmt.Errorf("site %q not found", name)
 	}
 
-	for _, w := range collectRunningWorkers(site) {
-		stopWorkerByName(site, w)
-	}
+	// Workers are stopped by UnlinkSiteCore via the siteops.StopSiteWorkers
+	// hook registered in this package's init, so every unlink path tears them
+	// down uniformly.
 
 	cfg, _ := config.LoadGlobal()
 	var parkedDirs []string

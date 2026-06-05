@@ -2961,6 +2961,10 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, SiteActionResponse{Error: "custom container sites do not use PHP versions"})
 			return
 		}
+		if site.IsHostProxy() {
+			writeJSON(w, SiteActionResponse{Error: "host-proxy sites do not use PHP versions"})
+			return
+		}
 		_ = config.SetProjectPHPVersion(site.Path, version)
 		site.PHPVersion = version
 		if site.IsFrankenPHP() {
