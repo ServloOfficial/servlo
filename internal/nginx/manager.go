@@ -362,16 +362,14 @@ func GenerateCustomSSLVhost(site config.Site) error {
 	return os.WriteFile(confPath, buf.Bytes(), 0644)
 }
 
-// hostProxyUpstream returns the address nginx (inside its container) uses to
-// reach a host-proxy site's dev server running on the host. On macOS the
-// container resolves host.containers.internal via the shared /etc/hosts written
-// by podman.WriteContainerHosts. On Linux the bridge gateway IP is preferred,
-// falling back to the same hostname.
+// hostProxyUpstream returns the host address nginx proxies a host-proxy site to.
+// macOS resolves host.containers.internal via gvproxy; on Linux we reuse the
+// routable gateway IP the probe cached in the hosts file (pure read, no podman).
 func hostProxyUpstream() string {
 	if runtime.GOOS == "darwin" {
 		return "host.containers.internal"
 	}
-	if ip := podman.DetectHostGatewayIP(); ip != "" {
+	if ip := podman.ReadHostGatewayFromFile(); ip != "" {
 		return ip
 	}
 	return "host.containers.internal"
