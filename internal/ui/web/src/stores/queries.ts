@@ -1,6 +1,7 @@
 import { derived, writable, type Readable } from 'svelte/store';
 import { apiFetch, apiJson } from '$lib/api';
 import type { DumpEvent, QueryData } from '$lib/dumpsStream';
+import { groupKey, sitePrefix } from '$lib/eventGroup';
 import { dumps, toggleDumps, status as dumpsStatus, type DumpsStatus } from '$stores/dumps';
 import { wsMessage } from '$lib/ws';
 
@@ -62,24 +63,9 @@ export function normalizeSql(sql: string): string {
     .toLowerCase();
 }
 
-function groupKey(ev: DumpEvent): string {
-  // Prefer the per-request id: it makes every HTTP request its own group, even
-  // two hits to the same URL on a reused FPM pool worker. Falls back to
-  // method+path+pid (older bridges / events without rid).
-  if (ev.ctx.rid) return `rid:${ev.ctx.rid}`;
-  if (ev.ctx.type === 'fpm') {
-    return `fpm:${ev.ctx.site ?? ''}:${ev.ctx.request ?? ''}:${ev.ctx.pid ?? ''}`;
-  }
-  const bucket = Math.floor(new Date(ev.ts).getTime() / 5000);
-  return `cli:${ev.ctx.site ?? ''}:${ev.ctx.pid ?? ''}:${bucket}`;
-}
-
 function groupLabel(ev: DumpEvent, hideSitePrefix: boolean): string {
-  if (ev.ctx.worker) {
-    const prefix = !hideSitePrefix && ev.ctx.site ? `[${ev.ctx.site}] ` : '';
-    return prefix + ev.ctx.worker;
-  }
-  const prefix = !hideSitePrefix && ev.ctx.site ? `[${ev.ctx.site}] ` : '';
+  const prefix = sitePrefix(ev, hideSitePrefix);
+  if (ev.ctx.worker) return prefix + ev.ctx.worker;
   if (ev.ctx.type === 'fpm') {
     return prefix + (ev.ctx.request || '(request)');
   }
@@ -108,7 +94,15 @@ export function buildQueryGroups(events: DumpEvent[], site = '', text = '', hide
     if (worker && ev.ctx.worker !== worker) continue;
     const data = queryData(ev);
     if (!data) continue;
-    if (needle && !(data.sql.toLowerCase().includes(needle) || (ev.src.file ?? '').toLowerCase().includes(needle) || (ev.ctx.worker ?? '').toLowerCase().includes(needle))) {
+    if (
+      needle &&
+      !(
+        data.sql.toLowerCase().includes(needle) ||
+        (ev.src.file ?? '').toLowerCase().includes(needle) ||
+        (ev.ctx.worker ?? '').toLowerCase().includes(needle) ||
+        (ev.ctx.branch ?? '').toLowerCase().includes(needle)
+      )
+    ) {
       continue;
     }
     const key = groupKey(ev);

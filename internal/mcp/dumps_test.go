@@ -78,6 +78,16 @@ func TestExecDumpsRecent_KindPassedThrough(t *testing.T) {
 	}
 }
 
+func TestExecDumpsRecent_BranchPassedThrough(t *testing.T) {
+	path := stubRoundTrip(t, `[]`)
+	if _, rpcErr := execDumpsRecent(map[string]any{"site": "acme", "branch": "feature-x"}); rpcErr != nil {
+		t.Fatalf("rpcErr: %v", rpcErr)
+	}
+	if !strings.Contains(*path, "branch=feature-x") {
+		t.Errorf("path %q missing branch filter", *path)
+	}
+}
+
 func TestDumpsToggle_RequiresEnable(t *testing.T) {
 	got, rpcErr := execDumpsToggle(map[string]any{})
 	if rpcErr != nil {

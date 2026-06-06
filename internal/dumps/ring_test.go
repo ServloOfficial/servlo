@@ -70,6 +70,17 @@ func TestRing_FilterBySite(t *testing.T) {
 	}
 }
 
+func TestRing_FilterByBranch(t *testing.T) {
+	r := NewRing(8)
+	r.Append(Event{V: 1, ID: "a", Kind: KindDump, Ctx: Context{Type: "fpm", Site: "acme"}})
+	r.Append(Event{V: 1, ID: "b", Kind: KindDump, Ctx: Context{Type: "fpm", Site: "acme", Branch: "feature-x"}})
+	r.Append(Event{V: 1, ID: "c", Kind: KindDump, Ctx: Context{Type: "fpm", Site: "acme", Branch: "feature-x"}})
+	got := r.Filter(FilterOpts{Branch: "feature-x"})
+	if !equalIDs(got, []string{"b", "c"}) {
+		t.Errorf("filter branch feature-x = %v", ids(got))
+	}
+}
+
 func TestRing_FilterByCtx(t *testing.T) {
 	r := NewRing(8)
 	r.Append(Event{V: 1, ID: "a", Kind: KindDump, Ctx: Context{Type: "fpm"}})

@@ -59,7 +59,7 @@ Each event is one line of JSON. The shape is stable from v1 of the protocol:
 }
 ```
 
-`ctx.branch` is set when the dump came from a worktree, so a request to `feat-a.acme.test` carries `branch: "feat-a"` alongside the parent `site: "acme"`. Plumbed end-to-end via `LERD_SITE` and `LERD_BRANCH` fastcgi params on the worktree vhost, so the dashboard renders a branch chip per row, the CLI tail prints `<site>/<branch>` in the header, and TUI / MCP filters can scope by branch. Parent-site requests leave the field empty.
+`ctx.branch` is set when the dump came from a worktree, so a request to `feat-a.acme.test` carries `branch: "feat-a"` alongside the parent `site: "acme"`. It is plumbed end-to-end via the `LERD_SITE` and `LERD_BRANCH` fastcgi params on the worktree vhost. Because every worktree shares the parent's `site`, the branch is what separates a worktree's events from the parent's: request grouping keys on it (a worktree request never merges into the parent's group), every group is labelled `[site@branch]` in the dashboard and the TUI, the CLI tail prints `site@branch` in each event header, and the search box matches the branch name. To isolate a single worktree, filter by branch: `lerd dump tail --branch feat-a`, the `branch` query param on `/api/dumps`, or the `branch` argument to the `dumps_recent` MCP tool. Parent-site requests leave the field empty and render as plain `[site]`.
 
 Reserved fields: `tree` (structured cloner output, populated in a future revision) and `trunc` (set to `true` when the cloner output exceeded the per-event cap).
 
@@ -70,7 +70,7 @@ Reserved fields: `tree` (structured cloner output, populated in a future revisio
 | `lerd dump on` | Touch the sentinel; the next PHP request captures into the dashboard. |
 | `lerd dump off` | Remove the sentinel; subsequent requests are no-ops. |
 | `lerd dump status` | Print enabled/disabled, listener address, buffered count. |
-| `lerd dump tail [--site X] [--ctx fpm\|cli]` | Stream events to the terminal until Ctrl-C. |
+| `lerd dump tail [--site X] [--branch Y] [--ctx fpm\|cli]` | Stream events to the terminal until Ctrl-C. |
 | `lerd dump clear` | Clear the in-memory ring without disabling the bridge. |
 
 None of these commands restart any FPM container or worker.

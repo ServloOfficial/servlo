@@ -1,6 +1,7 @@
 import { derived, writable, get, type Readable } from 'svelte/store';
 import { apiFetch, apiJson } from '$lib/api';
 import { createDumpsStream, type DumpEvent } from '$lib/dumpsStream';
+import { groupKey, sitePrefix } from '$lib/eventGroup';
 import { wsMessage } from '$lib/ws';
 
 export interface DumpsStatus {
@@ -54,7 +55,9 @@ export function buildDumpGroups(
     if (site && ev.ctx.site !== site) return false;
     if (ctx && ev.ctx.type !== ctx) return false;
     if (needle) {
-      const haystack = [ev.label ?? '', ev.text ?? '', ev.src.file ?? ''].join(' ').toLowerCase();
+      const haystack = [ev.label ?? '', ev.text ?? '', ev.src.file ?? '', ev.ctx.branch ?? '']
+        .join(' ')
+        .toLowerCase();
       if (!haystack.includes(needle)) return false;
     }
     return true;
@@ -92,18 +95,8 @@ export const dumpGroups: Readable<DumpGroup[]> = derived(
   ([$dumps, $site, $ctx, $text]) => buildDumpGroups($dumps, $site, $ctx, $text)
 );
 
-function groupKey(ev: DumpEvent): string {
-  if (ev.ctx.type === 'fpm') {
-    return `fpm:${ev.ctx.site ?? ''}:${ev.ctx.request ?? ''}:${ev.ctx.pid ?? ''}`;
-  }
-  // CLI events tend to come from a single artisan invocation; cluster them
-  // into 5-second buckets so a tinker session shows as one card.
-  const bucket = Math.floor(new Date(ev.ts).getTime() / 5000);
-  return `cli:${ev.ctx.site ?? ''}:${ev.ctx.pid ?? ''}:${bucket}`;
-}
-
 function groupLabel(ev: DumpEvent, hideSitePrefix = false): string {
-  const prefix = !hideSitePrefix && ev.ctx.site ? `[${ev.ctx.site}] ` : '';
+  const prefix = sitePrefix(ev, hideSitePrefix);
   if (ev.ctx.type === 'fpm') {
     return prefix + (ev.ctx.request || '(request)');
   }

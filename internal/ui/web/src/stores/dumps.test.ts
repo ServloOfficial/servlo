@@ -89,6 +89,31 @@ describe('dumpGroups', () => {
     expect(groups[0].events[0].id).toBe('b');
   });
 
+  it('keeps a worktree request in its own group and tags the branch', () => {
+    dumps.set([
+      ev({ id: 'a', ts: '2026-05-10T12:00:00.000Z', ctx: { type: 'fpm', site: 'acme', request: 'GET /checkout', pid: 7 } }),
+      ev({ id: 'b', ts: '2026-05-10T12:00:01.000Z', ctx: { type: 'fpm', site: 'acme', request: 'GET /checkout', pid: 7, branch: 'feature-x' } })
+    ]);
+    const groups = get(dumpGroups);
+    expect(groups.length).toBe(2);
+    const labels = groups.map((g) => g.label);
+    expect(labels).toContain('[acme] GET /checkout');
+    expect(labels).toContain('[acme@feature-x] GET /checkout');
+  });
+
+  it('groups one request\'s dumps together even when their rids differ', () => {
+    // Without the lerd_devtools extension the bridge stamps a fresh rid per
+    // dump() call; the Dumps tab must still show one card per request, not
+    // one per dump.
+    dumps.set([
+      ev({ id: 'a', ts: '2026-05-10T12:00:00.000Z', ctx: { type: 'fpm', site: 's', request: 'GET /', pid: 9, rid: 'vol-1' } }),
+      ev({ id: 'b', ts: '2026-05-10T12:00:01.000Z', ctx: { type: 'fpm', site: 's', request: 'GET /', pid: 9, rid: 'vol-2' } })
+    ]);
+    const groups = get(dumpGroups);
+    expect(groups.length).toBe(1);
+    expect(groups[0].events.map((e) => e.id).sort()).toEqual(['a', 'b']);
+  });
+
   it('hides [site] prefix when hideSitePrefix is set', () => {
     const groups = buildDumpGroups(
       [ev({ id: 'a', ts: '2026-05-10T12:00:00.000Z', ctx: { type: 'fpm', site: 'whitewaters', request: 'GET /x' } })],
