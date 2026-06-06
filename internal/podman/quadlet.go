@@ -269,6 +269,12 @@ func RestartUnit(name string) error {
 // 127.0.0.1 holds on macOS and IPv6-only host networks too.
 var mysqlReadyArgs = []string{"mysqladmin", "ping", "-h127.0.0.1", "-P3306", "-uroot", "-plerd", "--silent"}
 
+// mariadbReadyArgs mirrors mysqlReadyArgs but calls mariadb-admin. The
+// mariadb:11 image dropped the legacy mysqladmin symlink, so probing it with
+// mysqladmin can never succeed and WaitReady would time out on every poll.
+// mariadb-admin is present in every mariadb version lerd ships (10.5+).
+var mariadbReadyArgs = []string{"mariadb-admin", "ping", "-h127.0.0.1", "-P3306", "-uroot", "-plerd", "--silent"}
+
 // readyFamily strips known version suffixes ("mariadb-10-11" →
 // "mariadb", "mysql-8.0" → "mysql", "postgres-16" → "postgres") so
 // WaitReady's family-aware probes apply to versioned preset names too.
@@ -279,11 +285,6 @@ var mysqlReadyArgs = []string{"mysqladmin", "ping", "-h127.0.0.1", "-P3306", "-u
 func readyFamily(service string) string {
 	for _, fam := range []string{"mariadb", "mysql", "postgres", "redis", "rustfs"} {
 		if service == fam || strings.HasPrefix(service, fam+"-") {
-			// mariadb and mysql share the same container probe
-			// (mysqladmin ping) so collapse mariadb onto mysql.
-			if fam == "mariadb" {
-				return "mysql"
-			}
 			return fam
 		}
 	}
@@ -292,9 +293,9 @@ func readyFamily(service string) string {
 
 // WaitReady polls until the named service is ready to accept connections, or
 // timeout is reached. Readiness is tested by running a lightweight probe inside
-// the container: mysqladmin ping for mysql/mariadb, pg_isready for postgres,
-// redis-cli ping for redis. For other services it falls back to waiting until
-// the systemd unit is "active".
+// the container: mysqladmin ping for mysql, mariadb-admin ping for mariadb,
+// pg_isready for postgres, redis-cli ping for redis. For other services it
+// falls back to waiting until the systemd unit is "active".
 func WaitReady(service string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	unit := "lerd-" + service
@@ -304,6 +305,11 @@ func WaitReady(service string, timeout time.Duration) error {
 	switch family {
 	case "mysql":
 		args := append([]string{"exec", unit}, mysqlReadyArgs...)
+		probe = func() bool {
+			return exec.Command(PodmanBin(), args...).Run() == nil
+		}
+	case "mariadb":
+		args := append([]string{"exec", unit}, mariadbReadyArgs...)
 		probe = func() bool {
 			return exec.Command(PodmanBin(), args...).Run() == nil
 		}
