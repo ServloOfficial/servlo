@@ -580,7 +580,23 @@ func runStart(_ *cobra.Command, _ []string) error {
 		return jobs
 	}
 
-	RunParallel(makeJobs(serviceUnits)) //nolint:errcheck
+	serviceErr := RunParallel(makeJobs(serviceUnits))
+	// When the Podman Machine's container storage is left corrupt after an
+	// unclean host shutdown, every container start fails. Remount storage and
+	// rebuild the stale containers (data is host bind-mounted, so this is safe),
+	// then retry the start pass once.
+	if healOverlayCorruptionIfNeeded(serviceErr) {
+		serviceErr = RunParallel(makeJobs(serviceUnits))
+	}
+	// If the storage is still corrupt the heal couldn't fix it; every worker
+	// (and the DNS and tray steps below) would fail the same way and bury the
+	// recovery guidance. reportOverlayHealOutcome prints the guidance and
+	// reports true only on the platform where this error occurs (macOS), so we
+	// stop there; on every other platform it is a no-op that returns false and
+	// the start continues as normal.
+	if reportOverlayHealOutcome(serviceErr) {
+		return nil
+	}
 	if len(workerUnits) > 0 {
 		RunParallel(makeJobs(workerUnits)) //nolint:errcheck
 	}

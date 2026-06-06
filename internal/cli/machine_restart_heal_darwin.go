@@ -114,7 +114,21 @@ func healMachineRestartIfNeeded(preEnsureLastUp string) {
 // container so the next StartUnit pass invokes `podman run -p` fresh from
 // the host and gvproxy re-registers the host port forwards.
 func removeLerdContainersForGvproxyHeal() {
-	out, err := podman.Run("ps", "--format", "{{.Names}}", "--filter", "name=^lerd-")
+	forceRemoveLerdContainers(false,
+		"  --> Podman Machine was restarted; recreating containers to restore host port forwards ...")
+}
+
+// forceRemoveLerdContainers force-removes lerd-* containers so the next
+// StartUnit pass recreates them fresh via `podman run`. includeStopped adds
+// `-a` to also catch created/exited containers, used by the overlay heal,
+// where the failed containers never reached running state. announce is
+// printed only when at least one container matched.
+func forceRemoveLerdContainers(includeStopped bool, announce string) {
+	psArgs := []string{"ps", "--format", "{{.Names}}", "--filter", "name=^lerd-"}
+	if includeStopped {
+		psArgs = append(psArgs, "-a")
+	}
+	out, err := podman.Run(psArgs...)
 	if err != nil || strings.TrimSpace(out) == "" {
 		return
 	}
@@ -127,7 +141,7 @@ func removeLerdContainersForGvproxyHeal() {
 	if len(names) == 0 {
 		return
 	}
-	fmt.Println("  --> Podman Machine was restarted; recreating containers to restore host port forwards ...")
+	fmt.Println(announce)
 	args := append([]string{"rm", "-f"}, names...)
 	if out, err := exec.Command(podman.PodmanBin(), args...).CombinedOutput(); err != nil {
 		fmt.Printf("       WARN: podman rm -f failed: %v\n%s\n", err, strings.TrimSpace(string(out)))
