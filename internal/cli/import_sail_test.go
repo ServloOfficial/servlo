@@ -814,3 +814,49 @@ func TestSailPortRemapRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// ── sailDBProbes ────────────────────────────────────────────────────────────
+
+func TestSailDBProbesTriesBothMySQLBinaries(t *testing.T) {
+	for _, conn := range []string{"mysql", "mariadb"} {
+		probes := sailDBProbes("db", &dbEnv{connection: conn, username: "sail", password: "pw"})
+		if len(probes) != 2 {
+			t.Fatalf("conn=%q: expected 2 probes (mariadb-admin + mysqladmin), got %d", conn, len(probes))
+		}
+		// mariadb-admin must be tried first: mariadb:11 dropped mysqladmin.
+		if !containsArg(probes[0], "mariadb-admin") {
+			t.Errorf("conn=%q: first probe should call mariadb-admin, got %v", conn, probes[0])
+		}
+		if !containsArg(probes[1], "mysqladmin") {
+			t.Errorf("conn=%q: second probe should call mysqladmin, got %v", conn, probes[1])
+		}
+		for _, p := range probes {
+			joined := strings.Join(p, " ")
+			if !strings.Contains(joined, "-h 127.0.0.1") {
+				t.Errorf("conn=%q: probe must force TCP via -h 127.0.0.1, got %v", conn, p)
+			}
+			if !strings.Contains(joined, "MYSQL_PWD=pw") {
+				t.Errorf("conn=%q: probe must pass MYSQL_PWD, got %v", conn, p)
+			}
+		}
+	}
+}
+
+func TestSailDBProbesPostgresAndUnknown(t *testing.T) {
+	pg := sailDBProbes("pg", &dbEnv{connection: "pgsql", username: "sail"})
+	if len(pg) != 1 || !containsArg(pg[0], "pg_isready") {
+		t.Errorf("pgsql should yield a single pg_isready probe, got %v", pg)
+	}
+	if got := sailDBProbes("x", &dbEnv{connection: "sqlite"}); got != nil {
+		t.Errorf("unknown connection should yield no probes, got %v", got)
+	}
+}
+
+func containsArg(args []string, want string) bool {
+	for _, a := range args {
+		if a == want {
+			return true
+		}
+	}
+	return false
+}

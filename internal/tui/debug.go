@@ -86,6 +86,7 @@ func debugWorkersStateLabel() string {
 // kind-specific values (sql, job class, mail subject…) are searchable.
 func debugMatches(ev lerddumps.Event, needle string) bool {
 	if strings.Contains(strings.ToLower(ev.Ctx.Site), needle) ||
+		strings.Contains(strings.ToLower(ev.Ctx.Branch), needle) ||
 		strings.Contains(strings.ToLower(ev.Ctx.Request), needle) ||
 		strings.Contains(strings.ToLower(ev.Ctx.Worker), needle) ||
 		strings.Contains(strings.ToLower(ev.Label), needle) ||
@@ -165,19 +166,23 @@ func debugGroupKey(ev lerddumps.Event) string {
 		return "rid:" + ev.Ctx.RID
 	}
 	if ev.Ctx.Type == "fpm" {
-		return fmt.Sprintf("fpm:%s:%s:%d", ev.Ctx.Site, ev.Ctx.Request, ev.Ctx.PID)
+		return fmt.Sprintf("fpm:%s:%s:%s:%d", ev.Ctx.Site, ev.Ctx.Branch, ev.Ctx.Request, ev.Ctx.PID)
 	}
 	var bucket int64
 	if t, err := time.Parse(time.RFC3339Nano, ev.TS); err == nil {
 		bucket = t.Unix() / 5
 	}
-	return fmt.Sprintf("cli:%s:%d:%d", ev.Ctx.Site, ev.Ctx.PID, bucket)
+	return fmt.Sprintf("cli:%s:%s:%d:%d", ev.Ctx.Site, ev.Ctx.Branch, ev.Ctx.PID, bucket)
 }
 
 func debugGroupLabel(ev lerddumps.Event) string {
 	prefix := ""
 	if ev.Ctx.Site != "" {
-		prefix = "[" + ev.Ctx.Site + "] "
+		site := ev.Ctx.Site
+		if ev.Ctx.Branch != "" {
+			site += "@" + ev.Ctx.Branch
+		}
+		prefix = "[" + site + "] "
 	}
 	if ev.Ctx.Worker != "" {
 		return prefix + ev.Ctx.Worker

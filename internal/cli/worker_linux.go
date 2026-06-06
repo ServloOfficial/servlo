@@ -32,7 +32,7 @@ func removeWorkerExecArtifacts(_ string) {}
 // restart-loop every 5s under Restart=always.
 func writeWorkerUnitFile(unitName, label, siteName, sitePath, phpVersion, command, restart, schedule, fpmUnit string, host bool) (bool, error) {
 	if host {
-		return writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, restart)
+		return writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, restart, fpmUnit)
 	}
 	container := fpmUnit
 
@@ -99,8 +99,10 @@ const defaultNodeVersion = "22"
 // writeHostWorkerUnitFile writes a systemd service unit for a worker that runs
 // on the host rather than inside a container. Node projects run through fnm so
 // the right Node version is used (Vite, Nest, etc.); a host-proxy site in any
-// other language (Python, Ruby, Go, …) runs its command directly.
-func writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, restart string) (bool, error) {
+// other language (Python, Ruby, Go, …) runs its command directly. When the
+// worker backs a PHP site (fpmUnit set) the unit is ordered after and pulls up
+// that FPM container; host-proxy sites have no FPM and omit the dependency.
+func writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, restart, fpmUnit string) (bool, error) {
 	// Wrap the command in /bin/sh -c so shell features (&&, |, env-var
 	// expansion, redirects) work. systemd's ExecStart performs argv-style
 	// splitting on whitespace and execve's the result directly, so without the
@@ -127,9 +129,17 @@ func writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, resta
 	// `~/.local/bin` stays reachable — issue #375.
 	home, _ := os.UserHomeDir()
 	envPath := config.BinDir() + ":" + filepath.Join(home, ".local", "bin") + ":/usr/local/bin:/usr/bin:/bin"
+	// Order after and pull up the site's FPM container: host tools like Vite
+	// run wayfinder (php artisan) at startup, which fails if FPM isn't up yet
+	// at boot. Wants, not BindsTo, so a transient FPM restart can't kill Vite.
+	// Host-proxy sites in non-PHP languages have no FPM unit, so skip it.
+	fpmOrder := ""
+	if fpmUnit != "" {
+		fpmOrder = fmt.Sprintf("After=network.target %s.service\nWants=%s.service\n", fpmUnit, fpmUnit)
+	}
 	unit := fmt.Sprintf(`[Unit]
 Description=Lerd %s (%s)
-
+%s
 [Service]
 Type=simple
 Restart=%s
@@ -141,7 +151,7 @@ ExecStart=/bin/sh -c '%s'
 
 [Install]
 WantedBy=default.target
-`, label, siteName, restart, sitePath, envPath, escaped)
+`, label, siteName, fpmOrder, restart, sitePath, envPath, escaped)
 
 	_ = services.Mgr.RemoveTimerUnit(unitName)
 	return services.Mgr.WriteServiceUnitIfChanged(unitName, unit)

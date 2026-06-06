@@ -87,6 +87,22 @@ func TestHandleDumpsList_FiltersBySite(t *testing.T) {
 	}
 }
 
+func TestHandleDumpsList_FiltersByBranch(t *testing.T) {
+	srv := withDumpsServer(t)
+	srv.Push(dumps.Event{V: 1, ID: "a", Kind: "dump", Ctx: dumps.Context{Type: "fpm", Site: "acme"}})
+	srv.Push(dumps.Event{V: 1, ID: "b", Kind: "dump", Ctx: dumps.Context{Type: "fpm", Site: "acme", Branch: "feature-x"}})
+
+	req := httptest.NewRequest("GET", "/api/dumps?branch=feature-x", nil)
+	rec := httptest.NewRecorder()
+	handleDumpsList(rec, req)
+
+	var got []dumps.Event
+	_ = json.Unmarshal(rec.Body.Bytes(), &got)
+	if len(got) != 1 || got[0].ID != "b" {
+		t.Errorf("got %v", got)
+	}
+}
+
 func TestHandleDumpsList_FiltersByCtxAndSince(t *testing.T) {
 	srv := withDumpsServer(t)
 	for _, id := range []string{"a", "b", "c", "d"} {

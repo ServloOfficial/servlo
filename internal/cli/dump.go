@@ -82,6 +82,7 @@ func newDumpClearCmd() *cobra.Command {
 func newDumpTailCmd() *cobra.Command {
 	var (
 		site    string
+		branch  string
 		ctxKind string
 	)
 	cmd := &cobra.Command{
@@ -89,10 +90,11 @@ func newDumpTailCmd() *cobra.Command {
 		Short: "Stream dumps to the terminal as they arrive",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return runDumpTail(site, ctxKind)
+			return runDumpTail(site, branch, ctxKind)
 		},
 	}
 	cmd.Flags().StringVar(&site, "site", "", "filter to a single site by short name")
+	cmd.Flags().StringVar(&branch, "branch", "", "filter to a single worktree branch")
 	cmd.Flags().StringVar(&ctxKind, "ctx", "", "filter by context type: fpm or cli")
 	return cmd
 }
@@ -173,7 +175,7 @@ func runDumpClear() error {
 	return nil
 }
 
-func runDumpTail(site, ctxKind string) error {
+func runDumpTail(site, branch, ctxKind string) error {
 	cfg, err := config.LoadGlobal()
 	if err != nil {
 		return err
@@ -185,6 +187,9 @@ func runDumpTail(site, ctxKind string) error {
 	q := []string{}
 	if site != "" {
 		q = append(q, "site="+site)
+	}
+	if branch != "" {
+		q = append(q, "branch="+branch)
 	}
 	if ctxKind != "" {
 		if ctxKind != "fpm" && ctxKind != "cli" {
@@ -245,6 +250,9 @@ func printEvent(ev dumps.Event) {
 	hdr := fmt.Sprintf("\033[36m[%s]\033[0m \033[35m%s\033[0m", ev.TS, ev.Ctx.Type)
 	if ev.Ctx.Site != "" {
 		hdr += " " + ev.Ctx.Site
+		if ev.Ctx.Branch != "" {
+			hdr += "@" + ev.Ctx.Branch
+		}
 	}
 	if ev.Ctx.Request != "" {
 		hdr += " " + ev.Ctx.Request

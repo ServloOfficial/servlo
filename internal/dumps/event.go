@@ -49,7 +49,10 @@ type Context struct {
 	// RID is a unique per-request (FPM) / per-invocation (CLI) id stamped by
 	// the lerd_devtools extension so consumers can group events by the exact
 	// request, not just method+path+pid (which collapses repeat hits to the
-	// same URL on a reused pool worker). Empty for dump-bridge events.
+	// same URL on a reused pool worker). dump()/dd() events from the pure-PHP
+	// bridge carry a rid too, but when the extension isn't loaded the bridge's
+	// rid() falls back to a fresh id per call, so it is NOT stable per request:
+	// dump grouping must key on the request, not this field (see eventGroup.ts).
 	RID string `json:"rid,omitempty"`
 	// Worker names the queue/scheduler command this event came from (e.g.
 	// "queue:work", "scrape:rtb-data"). Set only for worker-process events,
