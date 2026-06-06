@@ -207,6 +207,37 @@ func TestSyncProjectDomains_CaseInsensitiveDedup(t *testing.T) {
 	}
 }
 
+func TestReplaceProjectDomain_dropsRenamedDomain(t *testing.T) {
+	// admin-astrolov grouped into admin.astrolov: the old standalone domain
+	// must not survive in .lerd.yaml, while a genuine conflict-filtered extra is.
+	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"admin-astrolov", "conflict-domain"}})
+	if err := ReplaceProjectDomain(dir, []string{"admin.astrolov.test"}, "admin-astrolov.test", "test"); err != nil {
+		t.Fatal(err)
+	}
+	cfg := loadConfig(t, dir)
+	want := []string{"admin.astrolov", "conflict-domain"}
+	if len(cfg.Domains) != len(want) {
+		t.Fatalf("Domains = %v, want %v", cfg.Domains, want)
+	}
+	for i, d := range want {
+		if cfg.Domains[i] != d {
+			t.Errorf("Domains[%d] = %q, want %q", i, cfg.Domains[i], d)
+		}
+	}
+}
+
+func TestReplaceProjectDomain_keepsStillCurrentDomain(t *testing.T) {
+	// When oldDomain is still in the new set (no real rename), it is kept.
+	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"myapp"}})
+	if err := ReplaceProjectDomain(dir, []string{"myapp.test", "api.test"}, "myapp.test", "test"); err != nil {
+		t.Fatal(err)
+	}
+	cfg := loadConfig(t, dir)
+	if len(cfg.Domains) != 2 || cfg.Domains[0] != "myapp" || cfg.Domains[1] != "api" {
+		t.Errorf("Domains = %v, want [myapp api]", cfg.Domains)
+	}
+}
+
 func TestSyncProjectDomains_NoOpWhenMissing(t *testing.T) {
 	dir := t.TempDir()
 	if err := SyncProjectDomains(dir, []string{"myapp.test"}, "test"); err != nil {
