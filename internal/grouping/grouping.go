@@ -348,7 +348,7 @@ func WorktreeLabelTaken(main *config.Site, label string) (bool, error) {
 // It is a package var so tests can stub out the heavy filesystem/container side
 // effects and assert on registry state alone.
 var regenerateSecondary = func(secondary *config.Site, oldPrimary string) error {
-	_ = config.SyncProjectDomains(secondary.Path, secondary.Domains, config.EffectiveTLD())
+	syncSecondaryProjectDomains(secondary, oldPrimary)
 	if err := siteops.RegenerateSiteVhost(secondary, oldPrimary); err != nil {
 		return err
 	}
@@ -363,6 +363,14 @@ var regenerateSecondary = func(secondary *config.Site, oldPrimary string) error 
 		fmt.Fprintf(os.Stderr, "lerd: syncing .env to new primary domain: %v\n", err)
 	}
 	return nil
+}
+
+// syncSecondaryProjectDomains mirrors the secondary's registry domains into its
+// .lerd.yaml, dropping the old primary: grouping replaces the standalone domain
+// rather than adding to it, so the replaced domain must not be left behind to
+// re-register on a future link.
+func syncSecondaryProjectDomains(secondary *config.Site, oldPrimary string) {
+	_ = config.ReplaceProjectDomain(secondary.Path, secondary.Domains, oldPrimary, config.EffectiveTLD())
 }
 
 // snapshot deep-copies a site so it can be restored verbatim on rollback.

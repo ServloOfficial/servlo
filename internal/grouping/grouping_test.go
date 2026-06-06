@@ -414,6 +414,28 @@ func TestUnassignSecondary_sharedDB_restoresOwnDB(t *testing.T) {
 	}
 }
 
+// ── .lerd.yaml domain sync ───────────────────────────────────────────────────
+
+func TestSyncSecondaryProjectDomains_replacesOldStandalone(t *testing.T) {
+	setup(t)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"),
+		[]byte("php_version: \"8.4\"\ndomains:\n  - admin-astrolov\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sec := &config.Site{Name: "admin-astrolov", Domains: []string{"admin.astrolov.test"}, Path: dir}
+
+	syncSecondaryProjectDomains(sec, "admin-astrolov.test")
+
+	cfg, err := config.LoadProjectConfig(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Domains) != 1 || cfg.Domains[0] != "admin.astrolov" {
+		t.Errorf(".lerd.yaml domains = %v, want [admin.astrolov] (old standalone dropped)", cfg.Domains)
+	}
+}
+
 // ── WorktreeLabelTaken ───────────────────────────────────────────────────────
 
 func TestWorktreeLabelTaken(t *testing.T) {

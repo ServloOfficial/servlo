@@ -3844,7 +3844,7 @@ func execSiteDomainRemove(args map[string]any) (any, *rpcError) {
 		return toolErr("updating site: " + err.Error()), nil
 	}
 
-	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
+	_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
 
 	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 		return toolErr("regenerating vhost: " + err.Error()), nil

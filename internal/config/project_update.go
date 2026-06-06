@@ -121,6 +121,28 @@ func SyncProjectDomains(dir string, fullDomains []string, tld string) error {
 	})
 }
 
+// ReplaceProjectDomain syncs the registry domains into .lerd.yaml (preserving
+// conflict-filtered extras via SyncProjectDomains) and then drops oldDomain when
+// it is no longer one of the site's domains. Use this on a rename or removal so
+// the replaced domain isn't left behind to re-register on a future link;
+// SyncProjectDomains alone merges and would re-append it. oldDomain is the full
+// domain (with TLD). No-op if .lerd.yaml does not exist.
+func ReplaceProjectDomain(dir string, fullDomains []string, oldDomain, tld string) error {
+	if err := SyncProjectDomains(dir, fullDomains, tld); err != nil {
+		return err
+	}
+	if oldDomain == "" {
+		return nil
+	}
+	stripped := strings.TrimSuffix(oldDomain, "."+tld)
+	for _, d := range fullDomains {
+		if strings.EqualFold(strings.TrimSuffix(d, "."+tld), stripped) {
+			return nil // still a current domain, keep it
+		}
+	}
+	return RemoveProjectDomain(dir, stripped)
+}
+
 // RemoveProjectDomain removes a single domain (case-insensitive match).
 // No-op if .lerd.yaml does not exist.
 func RemoveProjectDomain(dir string, domain string) error {

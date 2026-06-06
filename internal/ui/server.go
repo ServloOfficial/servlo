@@ -3345,7 +3345,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, SiteActionResponse{Error: "updating registry: " + err.Error()})
 			return
 		}
-		_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
+		_ = config.ReplaceProjectDomain(site.Path, site.Domains, oldDomain, cfg.DNS.TLD)
 		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
@@ -3425,7 +3425,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, SiteActionResponse{Error: "updating registry: " + err.Error()})
 			return
 		}
-		_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
+		_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
 		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return

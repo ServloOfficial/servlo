@@ -177,8 +177,8 @@ func runDomainRemove(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("updating site registry: %w", err)
 	}
 
-	// Sync to .lerd.yaml.
-	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
+	// Sync to .lerd.yaml, dropping the removed domain so it doesn't re-register.
+	_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
 
 	// If the primary domain changed (we removed the old primary), rename the vhost file.
 	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
