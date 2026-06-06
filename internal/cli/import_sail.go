@@ -938,27 +938,41 @@ func sailDetectDatabase(composeArgs []string, service string, env *dbEnv, compos
 	return "", nil
 }
 
+// sailDBProbes returns the in-container readiness probe command(s) tried each
+// poll. mysql/mariadb lists two binaries: mariadb-admin (mariadb:11 dropped the
+// mysqladmin symlink) and mysqladmin (mysql images lack mariadb-admin).
+func sailDBProbes(service string, env *dbEnv) [][]string {
+	switch env.connection {
+	case "mysql", "mariadb":
+		// -h 127.0.0.1 forces TCP: Sail sets MYSQL_ROOT_HOST="%" which allows
+		// TCP but not Unix socket (localhost) connections.
+		var cmds [][]string
+		for _, bin := range []string{"mariadb-admin", "mysqladmin"} {
+			cmds = append(cmds, []string{"-e", "MYSQL_PWD=" + env.password,
+				service, bin, "ping", "-h", "127.0.0.1", "-u" + env.username, "--silent"})
+		}
+		return cmds
+	case "pgsql", "postgres":
+		return [][]string{{service, "pg_isready", "-U", env.username}}
+	default:
+		return nil
+	}
+}
+
 // sailWaitDB polls until the Sail database is accepting connections (up to 60 s).
 func sailWaitDB(composeArgs []string, service string, env *dbEnv, composeBin string) error {
+	probes := sailDBProbes(service, env)
+	if probes == nil {
+		return nil
+	}
 	deadline := time.Now().Add(60 * time.Second)
 	for time.Now().Before(deadline) {
-		var args []string
-		args = append(args, composeArgs...)
-		args = append(args, "exec", "-T")
-		switch env.connection {
-		case "mysql", "mariadb":
-			// -h 127.0.0.1 forces TCP: Sail sets MYSQL_ROOT_HOST="%" which allows
-			// TCP but not Unix socket (localhost) connections.
-			args = append(args, "-e", "MYSQL_PWD="+env.password,
-				service, "mysqladmin", "ping", "-h", "127.0.0.1", "-u"+env.username, "--silent")
-		case "pgsql", "postgres":
-			args = append(args, service, "pg_isready", "-U", env.username)
-		default:
-			return nil
-		}
-		cmd := exec.Command(composeBin, args...)
-		if cmd.Run() == nil {
-			return nil
+		for _, p := range probes {
+			args := append(append([]string{}, composeArgs...), "exec", "-T")
+			args = append(args, p...)
+			if exec.Command(composeBin, args...).Run() == nil {
+				return nil
+			}
 		}
 		time.Sleep(2 * time.Second)
 	}

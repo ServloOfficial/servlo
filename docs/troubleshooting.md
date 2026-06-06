@@ -365,3 +365,24 @@ cat "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/containers/networks/aardvark-dns/ler
 # if only 10.89.7.1 is present, the drift fix didn't run — re-run lerd install
 ```
 :::
+
+::: details Podman Machine overlay-storage error (macOS)
+Symptom: on macOS, `lerd start` fails and **every** container start reports a graph-driver / overlay error:
+
+```
+exit status 125: Error: getting graph driver info "<id>":
+readlink /var/lib/containers/storage/overlay: invalid argument
+```
+
+Cause: the macOS host was shut down ungracefully (forced power-off, battery death, kernel panic) while the Podman Machine VM was still running. The VM's container storage is left with a stale overlay mount and corrupt container layers, so no container can start until the storage is remounted and the stale containers are rebuilt.
+
+`lerd start` detects this and **self-heals automatically** on the first run: it restarts the Podman Machine to remount the storage, force-removes the stale `lerd-*` containers so they rebuild on fresh storage, and retries the start pass once. Your data is safe throughout: lerd bind-mounts every database and site directory to the host, not into the VM.
+
+If the automatic recovery isn't enough (it prints guidance pointing here), recreate the VM:
+
+```bash
+lerd machine reset
+```
+
+This stops the VM, removes it, and re-initialises it. Databases and site data are preserved (they live on the host); container images are rebuilt automatically on the next `lerd start`. See [Start, Stop & Autostart → `lerd machine reset`](usage/lifecycle.md#lerd-machine-reset-macos).
+:::
