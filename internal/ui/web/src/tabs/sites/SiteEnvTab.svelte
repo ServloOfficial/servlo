@@ -188,7 +188,7 @@
   }
 </script>
 
-<div class="flex flex-col h-full">
+<div class="flex-1 flex flex-col min-h-0 overflow-hidden">
   <div class="sticky top-0 z-10">
     <div class="flex items-center justify-between bg-gray-50 dark:bg-white/3 px-3 py-1.5 border-b border-gray-200 dark:border-lerd-border">
       <div class="flex items-center gap-2">
@@ -237,7 +237,7 @@
     </div>
   </div>
 
-  <div class="flex-1 overflow-hidden bg-gray-50 dark:bg-black/40">
+  <div class="flex-1 min-h-0 overflow-hidden bg-gray-50 dark:bg-black/40">
     {#if loading}
       <p class="text-xs text-gray-400 px-3 py-2.5">{m.common_loading()}</p>
     {:else if error}
