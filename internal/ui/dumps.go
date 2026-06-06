@@ -60,8 +60,8 @@ func startDumpsServer() {
 }
 
 // handleDumpsList returns a JSON array of buffered events. Supports
-// ?site=<name>, ?ctx=fpm|cli, ?since=<id>, ?limit=N. Empty filters return
-// the full ring in insertion order.
+// ?site=<name>, ?branch=<name>, ?ctx=fpm|cli, ?since=<id>, ?limit=N. Empty
+// filters return the full ring in insertion order.
 func handleDumpsList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -76,6 +76,7 @@ func handleDumpsList(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	out := srv.Filter(dumps.FilterOpts{
 		Site:    q.Get("site"),
+		Branch:  q.Get("branch"),
 		Ctx:     q.Get("ctx"),
 		Kind:    q.Get("kind"),
 		SinceID: q.Get("since"),
@@ -156,8 +157,9 @@ func handleDumpsStream(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 	filt := dumps.FilterOpts{
-		Site: q.Get("site"),
-		Ctx:  q.Get("ctx"),
+		Site:   q.Get("site"),
+		Branch: q.Get("branch"),
+		Ctx:    q.Get("ctx"),
 	}
 
 	// Replay the ring up front so a reconnecting browser sees recent dumps
@@ -194,6 +196,9 @@ func handleDumpsStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if filt.Site != "" && ev.Ctx.Site != filt.Site {
+				continue
+			}
+			if filt.Branch != "" && ev.Ctx.Branch != filt.Branch {
 				continue
 			}
 			if filt.Ctx != "" && ev.Ctx.Type != filt.Ctx {

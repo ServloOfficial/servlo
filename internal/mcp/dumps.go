@@ -22,15 +22,16 @@ func dumpToolDefs() []mcpTool {
 	return []mcpTool{
 		{
 			Name:        "dumps_recent",
-			Description: "Recent lerd debug events: dumps, queries (bindings+timing), mail, views, jobs/cache/events/http. Filter site/ctx/kind/since/limit.",
+			Description: "Recent lerd debug events: dumps, queries (bindings+timing), mail, views, jobs/cache/events/http. Filter site/branch/ctx/kind/since/limit.",
 			InputSchema: mcpSchema{
 				Type: "object",
 				Properties: map[string]mcpProp{
-					"site":  {Type: "string"},
-					"ctx":   {Type: "string", Enum: []string{"fpm", "cli"}},
-					"kind":  {Type: "string", Enum: []string{"dump", "query", "job", "view", "mail", "cache", "event", "http"}},
-					"since": {Type: "string"},
-					"limit": {Type: "integer"},
+					"site":   {Type: "string"},
+					"branch": {Type: "string"},
+					"ctx":    {Type: "string", Enum: []string{"fpm", "cli"}},
+					"kind":   {Type: "string", Enum: []string{"dump", "query", "job", "view", "mail", "cache", "event", "http"}},
+					"since":  {Type: "string"},
+					"limit":  {Type: "integer"},
 				},
 			},
 		},
@@ -78,6 +79,9 @@ func execDumpsRecent(args map[string]any) (any, *rpcError) {
 	q := []string{}
 	if s := strArg(args, "site"); s != "" {
 		q = append(q, "site="+s)
+	}
+	if b := strArg(args, "branch"); b != "" {
+		q = append(q, "branch="+b)
 	}
 	if c := strArg(args, "ctx"); c != "" {
 		if c != "fpm" && c != "cli" {

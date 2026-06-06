@@ -1,5 +1,6 @@
 import { derived, type Readable } from 'svelte/store';
 import type { DumpEvent } from '$lib/dumpsStream';
+import { groupKey, sitePrefix } from '$lib/eventGroup';
 import { dumps } from '$stores/dumps';
 
 // Generic per-request grouping shared by the non-dump/non-query Debug lenses
@@ -13,17 +14,8 @@ export interface DebugGroup {
   worker: string;
 }
 
-function groupKey(ev: DumpEvent): string {
-  if (ev.ctx.rid) return `rid:${ev.ctx.rid}`;
-  if (ev.ctx.type === 'fpm') {
-    return `fpm:${ev.ctx.site ?? ''}:${ev.ctx.request ?? ''}:${ev.ctx.pid ?? ''}`;
-  }
-  const bucket = Math.floor(new Date(ev.ts).getTime() / 5000);
-  return `cli:${ev.ctx.site ?? ''}:${ev.ctx.pid ?? ''}:${bucket}`;
-}
-
 function groupLabel(ev: DumpEvent, hideSitePrefix: boolean): string {
-  const prefix = !hideSitePrefix && ev.ctx.site ? `[${ev.ctx.site}] ` : '';
+  const prefix = sitePrefix(ev, hideSitePrefix);
   if (ev.ctx.worker) return prefix + ev.ctx.worker;
   if (ev.ctx.type === 'fpm') return prefix + (ev.ctx.request || '(request)');
   return `${prefix}cli (pid ${ev.ctx.pid ?? '?'})`;
@@ -50,7 +42,13 @@ export function buildKindGroups(
     if (!showWorkers && ev.ctx.worker) continue;
     if (worker && ev.ctx.worker !== worker) continue;
     if (needle) {
-      const hay = (JSON.stringify(ev.data ?? {}) + ' ' + (ev.ctx.worker ?? '')).toLowerCase();
+      const hay = (
+        JSON.stringify(ev.data ?? {}) +
+        ' ' +
+        (ev.ctx.worker ?? '') +
+        ' ' +
+        (ev.ctx.branch ?? '')
+      ).toLowerCase();
       if (!hay.includes(needle)) continue;
     }
     const key = groupKey(ev);

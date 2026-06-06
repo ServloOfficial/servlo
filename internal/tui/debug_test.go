@@ -73,6 +73,50 @@ func TestDebugGroups_SeparateRequestsStaySeparate(t *testing.T) {
 	}
 }
 
+// qEvBranch is qEv for a worktree: same shape, no rid (dump-bridge/fallback
+// grouping path), so the only thing distinguishing it from a parent-site
+// event with the same request is Ctx.Branch.
+func qEvBranch(id, branch, sql string) dumps.Event {
+	data, _ := json.Marshal(map[string]any{"sql": sql, "time_ms": 1.0})
+	return dumps.Event{
+		ID:   id,
+		TS:   "2026-05-10T00:00:0" + id + ".000Z",
+		Kind: dumps.KindQuery,
+		Ctx:  dumps.Context{Type: "fpm", Site: "acme", Request: "GET /checkout", PID: 7, Branch: branch},
+		Data: data,
+	}
+}
+
+func TestDebugGroups_SeparatesWorktreeFromParentByBranch(t *testing.T) {
+	m := NewModel("test")
+	setLens(m, dumps.KindQuery)
+	// Same site, request and pid, no rid: only the branch differs. Without
+	// branch in the group key these collapse into one parent-site request.
+	m.appendDebug(qEvBranch("1", "", "select 1"))
+	m.appendDebug(qEvBranch("2", "feature-x", "select 2"))
+	if got := len(m.debugGroups("")); got != 2 {
+		t.Errorf("parent and worktree request should stay separate, got %d groups", got)
+	}
+}
+
+func TestDebugGroupLabel_TagsWorktreeBranch(t *testing.T) {
+	parent := qEvBranch("1", "", "select 1")
+	if got := debugGroupLabel(parent); !strings.Contains(got, "[acme]") || strings.Contains(got, "@") {
+		t.Errorf("parent label should read [acme] with no branch tag, got %q", got)
+	}
+	wt := qEvBranch("2", "feature-x", "select 2")
+	if got := debugGroupLabel(wt); !strings.Contains(got, "[acme@feature-x]") {
+		t.Errorf("worktree label should tag the branch, got %q", got)
+	}
+}
+
+func TestDebugMatches_SearchesBranch(t *testing.T) {
+	wt := qEvBranch("1", "feature-x", "select 1")
+	if !debugMatches(wt, "feature-x") {
+		t.Error("search needle should match the worktree branch")
+	}
+}
+
 func TestDebugVisibleEvents_RestrictsToActiveLens(t *testing.T) {
 	m := NewModel("test")
 	m.appendDebug(dumpEv(DumpEntry{ID: "d", Text: "x"}))

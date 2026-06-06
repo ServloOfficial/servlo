@@ -79,6 +79,9 @@ func (r *Ring) Clear() {
 type FilterOpts struct {
 	// Site exact-matches Ctx.Site when non-empty.
 	Site string
+	// Branch exact-matches Ctx.Branch when non-empty, isolating one git
+	// worktree's events from the parent site they share a Site name with.
+	Branch string
 	// Ctx exact-matches Ctx.Type ("fpm" or "cli") when non-empty.
 	Ctx string
 	// Kind exact-matches Event.Kind when non-empty (e.g. "query", "dump").
@@ -96,6 +99,9 @@ func (r *Ring) Filter(opts FilterOpts) []Event {
 	out := make([]Event, 0, len(snap))
 	for _, e := range snap {
 		if opts.Site != "" && e.Ctx.Site != opts.Site {
+			continue
+		}
+		if opts.Branch != "" && e.Ctx.Branch != opts.Branch {
 			continue
 		}
 		if opts.Ctx != "" && e.Ctx.Type != opts.Ctx {
