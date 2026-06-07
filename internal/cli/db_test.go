@@ -69,6 +69,33 @@ func TestDbCmdPostgresUsesEnv(t *testing.T) {
 	}
 }
 
+func TestDbExportCmdMariaDBBinaryFallback(t *testing.T) {
+	env := &dbEnv{connection: "mariadb", database: "shop", username: "root", password: "lerd"}
+	cmd, err := dbExportCmd(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(cmd.Args, " ")
+	if !strings.Contains(joined, "command -v mysqldump || command -v mariadb-dump") {
+		t.Errorf("expected mariadb-dump fallback, got: %q", joined)
+	}
+	if !strings.Contains(joined, "shop") {
+		t.Errorf("expected database name in command, got: %q", joined)
+	}
+}
+
+func TestDbImportCmdMariaDBBinaryFallback(t *testing.T) {
+	env := &dbEnv{connection: "mysql", database: "shop", username: "root", password: "lerd"}
+	cmd, err := dbImportCmd(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(cmd.Args, " ")
+	if !strings.Contains(joined, "command -v mysql || command -v mariadb") {
+		t.Errorf("expected mariadb client fallback, got: %q", joined)
+	}
+}
+
 func TestDbCmdUnsupportedConnection(t *testing.T) {
 	env := &dbEnv{connection: "sqlite"}
 	_, err := dbImportCmd(env)
