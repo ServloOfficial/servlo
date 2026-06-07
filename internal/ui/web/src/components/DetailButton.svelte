@@ -13,6 +13,7 @@
     onclick?: (e: MouseEvent) => void;
     href?: string;
     target?: string;
+    block?: boolean;
     icon?: Snippet;
     children?: Snippet;
   }
@@ -25,6 +26,7 @@
     onclick,
     href,
     target,
+    block = false,
     icon,
     children
   }: Props = $props();
@@ -43,7 +45,8 @@
   };
 
   const cls = $derived(
-    'inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50 ' +
+    (block ? 'flex w-full justify-center' : 'inline-flex') +
+      ' items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50 ' +
       toneClass[tone]
   );
 </script>

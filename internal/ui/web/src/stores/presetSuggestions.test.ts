@@ -41,7 +41,7 @@ describe('detectServiceFamily', () => {
   });
 
   it('returns null for an unknown service and for nullish input', () => {
-    expect(detectServiceFamily(svc({ name: 'redis' }))).toBeNull();
+    expect(detectServiceFamily(svc({ name: 'mailpit' }))).toBeNull();
     expect(detectServiceFamily(null)).toBeNull();
     expect(detectServiceFamily(undefined)).toBeNull();
   });
