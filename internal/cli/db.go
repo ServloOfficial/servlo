@@ -309,10 +309,12 @@ func dbImportCmd(env *dbEnv) (*exec.Cmd, error) {
 	container := "lerd-" + env.service
 	switch env.connection {
 	case "mysql", "mariadb":
+		// MariaDB 11+ images ship `mariadb` instead of `mysql`; resolve whichever
+		// client exists in the container at runtime.
+		shellCmd := "$(command -v mysql || command -v mariadb) -u" + podman.ShellQuote(env.username) + " " + podman.ShellQuote(env.database)
 		return podman.Cmd("exec", "-i",
 			"-e", "MYSQL_PWD="+env.password,
-			container,
-			"mysql", "-u"+env.username, env.database), nil
+			container, "sh", "-c", shellCmd), nil
 	case "pgsql", "postgres":
 		return podman.Cmd("exec", "-i", "-e", "PGPASSWORD="+env.password,
 			container, "psql", "-U", env.username, env.database), nil
@@ -366,10 +368,12 @@ func dbExportCmd(env *dbEnv) (*exec.Cmd, error) {
 	container := "lerd-" + env.service
 	switch env.connection {
 	case "mysql", "mariadb":
+		// MariaDB 11+ images ship `mariadb-dump` instead of `mysqldump`; resolve
+		// whichever exists in the container at runtime.
+		shellCmd := "$(command -v mysqldump || command -v mariadb-dump) -u" + podman.ShellQuote(env.username) + " " + podman.ShellQuote(env.database)
 		return podman.Cmd("exec", "-i",
 			"-e", "MYSQL_PWD="+env.password,
-			container,
-			"mysqldump", "-u"+env.username, env.database), nil
+			container, "sh", "-c", shellCmd), nil
 	case "pgsql", "postgres":
 		return podman.Cmd("exec", "-i", "-e", "PGPASSWORD="+env.password,
 			container, "pg_dump", "-U", env.username, env.database), nil
