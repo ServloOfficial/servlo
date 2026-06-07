@@ -64,13 +64,37 @@ describe('presets store', () => {
     expect(get(installablePresets).map((p) => p.name)).toEqual(['part']);
   });
 
-  it('phaseLabel maps installing phases', async () => {
-    const { phaseLabel } = await import('./presets');
-    expect(phaseLabel({ name: 'x' } as never)).toBe('Add');
-    expect(phaseLabel({ name: 'x', installing: true } as never)).toBe('Adding...');
-    expect(phaseLabel({ name: 'x', installing: true, installingPhase: 'pulling_image' } as never)).toBe(
-      'Pulling image...'
-    );
+  it('discoverablePresets hides any preset with an installed version', async () => {
+    const { presets, discoverablePresets } = await import('./presets');
+    presets.set([
+      // mysql already installed at 8.4 — must not be promoted for 5.7 / 9.7
+      { name: 'mysql', installed: true, versions: [{ tag: '8.4' }, { tag: '5.7' }], installed_tags: ['8.4'] } as never,
+      // mariadb installed — hidden too
+      { name: 'mariadb', installed: true, versions: [{ tag: '11' }], installed_tags: ['11'] } as never,
+      // mongo not installed yet — discoverable
+      { name: 'mongo', installed: false, versions: [{ tag: '7' }], installed_tags: [] } as never,
+      // single-version service, not installed — discoverable
+      { name: 'mailpit', installed: false } as never
+    ]);
+    expect(get(discoverablePresets).map((p) => p.name)).toEqual(['mongo', 'mailpit']);
+  });
+
+  it('discoverablePresets still hides presets with missing deps', async () => {
+    const { presets, discoverablePresets } = await import('./presets');
+    presets.set([
+      { name: 'pgadmin', installed: false, missing_deps: ['postgres'] } as never,
+      { name: 'redis', installed: false } as never
+    ]);
+    expect(get(discoverablePresets).map((p) => p.name)).toEqual(['redis']);
+  });
+
+  it('presetAddLabel maps installing phases', async () => {
+    const { presetAddLabel } = await import('./presets');
+    expect(presetAddLabel({ name: 'x' } as never)).toBe('Add');
+    expect(presetAddLabel({ name: 'x', installing: true } as never)).toBe('Adding...');
+    expect(
+      presetAddLabel({ name: 'x', installing: true, installingPhase: 'pulling_image' } as never)
+    ).toBe('Pulling image...');
   });
 
   it('installPreset streams NDJSON events and sets phases', async () => {
@@ -103,5 +127,43 @@ describe('presets store', () => {
     const r = await installPreset({ name: 'x', missing_deps: ['mysql'] } as never);
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/mysql first/);
+  });
+
+  it('installPresetAndOpen installs, refreshes services + presets, runs onSuccess, and navigates', async () => {
+    location.hash = '';
+    const calls: string[] = [];
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const u = String(url);
+      calls.push(u);
+      if (u.includes('/api/services/presets/')) {
+        return new Response(readerFrom(['{"phase":"done","name":"mysql"}\n']), { status: 200 });
+      }
+      return new Response('[]', { status: 200 });
+    }) as unknown as typeof fetch;
+    const { installPresetAndOpen } = await import('./presets');
+    let opened = '';
+    const r = await installPresetAndOpen({ name: 'mysql', site_count: 0 } as never, {
+      onSuccess: (n) => (opened = n)
+    });
+    expect(r.ok).toBe(true);
+    expect(opened).toBe('mysql');
+    expect(location.hash).toBe('#services/mysql');
+    expect(calls.some((c) => c.endsWith('/api/services'))).toBe(true);
+    expect(calls.some((c) => c.endsWith('/api/services/presets'))).toBe(true);
+  });
+
+  it('installPresetAndOpen does not navigate when the install fails', async () => {
+    location.hash = '';
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const u = String(url);
+      if (u.includes('/api/services/presets/')) {
+        return new Response(readerFrom(['{"phase":"error","error":"boom"}\n']), { status: 200 });
+      }
+      return new Response('[]', { status: 200 });
+    }) as unknown as typeof fetch;
+    const { installPresetAndOpen } = await import('./presets');
+    const r = await installPresetAndOpen({ name: 'bad', site_count: 0 } as never);
+    expect(r.ok).toBe(false);
+    expect(location.hash).toBe('');
   });
 });

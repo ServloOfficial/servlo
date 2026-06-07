@@ -9,50 +9,23 @@
     presetsLoaded,
     installablePresets,
     availableVersions,
-    installPreset,
+    installPresetAndOpen,
     loadPresets,
+    presetAddLabel,
     type Preset
   } from '$stores/presets';
-  import { loadServices } from '$stores/services';
-  import { goToTab } from '$stores/route';
   import { m } from '../paraglide/messages.js';
 
   onMount(() => {
     loadPresets();
   });
 
-  function localPhaseLabel(p: Preset): string {
-    if (!p.installing) return m.services_preset_phase_add();
-    switch (p.installingPhase) {
-      case 'installing_config':
-        return m.services_preset_phase_installingConfig();
-      case 'starting_deps':
-        return p.installingDep
-          ? m.services_preset_phase_startingDep({ dep: p.installingDep })
-          : m.services_preset_phase_startingDeps();
-      case 'pulling_image':
-        return m.services_preset_phase_pullingImage();
-      case 'starting_unit':
-        return m.services_preset_phase_startingUnit();
-      case 'waiting_ready':
-        return m.services_preset_phase_waitingReady();
-      default:
-        return m.services_preset_phase_adding();
-    }
-  }
-
   function setSelectedVersion(name: string, tag: string) {
     presets.update((list) => list.map((p) => (p.name === name ? { ...p, selected_version: tag } : p)));
   }
 
   async function onInstall(p: Preset) {
-    const r = await installPreset(p);
-    if (r.ok && r.name) {
-      await loadServices();
-      closeModal();
-      goToTab('services', r.name);
-    }
-    loadPresets();
+    await installPresetAndOpen(p, { onSuccess: closeModal });
   }
 </script>
 
@@ -109,7 +82,7 @@
               disabled={Boolean(p.installing) || (p.missing_deps || []).length > 0}
               loading={Boolean(p.installing)}
             >
-              {localPhaseLabel(p)}
+              {presetAddLabel(p)}
             </DetailButton>
           </div>
           {#if p.installing && p.installingMessage}

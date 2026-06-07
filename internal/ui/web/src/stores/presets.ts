@@ -1,5 +1,8 @@
 import { writable, derived } from 'svelte/store';
 import { apiJson, apiFetch, apiUrl } from '$lib/api';
+import { loadServices } from './services';
+import { goToTab } from './route';
+import { m } from '../paraglide/messages.js';
 
 export interface PresetVersion {
   tag: string;
@@ -68,26 +71,38 @@ export const installablePresets = derived(presets, ($p) =>
   })
 );
 
+// Discovery promotes services you don't run at all yet. Unlike
+// installablePresets it hides any preset with an installed instance, so an
+// existing mysql / mariadb / postgres install never reappears here just to
+// offer its other versions — adding an alternate version stays in the modal.
+export const discoverablePresets = derived(presets, ($p) =>
+  $p.filter((p) => (p.missing_deps || []).length === 0 && !p.installed)
+);
+
 export function availableVersions(p: Preset): PresetVersion[] {
   const installed = new Set(p.installed_tags || []);
   return (p.versions || []).filter((v) => !installed.has(v.tag));
 }
 
-export function phaseLabel(p: Preset): string {
-  if (!p.installing) return 'Add';
+// Localized label for a preset's Add button, reflecting the live install
+// phase. Shared by the modal, the discovery cards, and the suggestion banner.
+export function presetAddLabel(p: Preset): string {
+  if (!p.installing) return m.services_preset_phase_add();
   switch (p.installingPhase) {
     case 'installing_config':
-      return 'Writing config...';
+      return m.services_preset_phase_installingConfig();
     case 'starting_deps':
-      return p.installingDep ? 'Starting ' + p.installingDep + '...' : 'Starting dependencies...';
+      return p.installingDep
+        ? m.services_preset_phase_startingDep({ dep: p.installingDep })
+        : m.services_preset_phase_startingDeps();
     case 'pulling_image':
-      return 'Pulling image...';
+      return m.services_preset_phase_pullingImage();
     case 'starting_unit':
-      return 'Starting service...';
+      return m.services_preset_phase_startingUnit();
     case 'waiting_ready':
-      return 'Waiting for ready...';
+      return m.services_preset_phase_waitingReady();
     default:
-      return 'Adding...';
+      return m.services_preset_phase_adding();
   }
 }
 
@@ -180,6 +195,27 @@ export async function installPreset(p: Preset): Promise<InstallResult> {
     updatePreset(p.name, (x) => ({ ...x, installing: false, error: err }));
     return { ok: false, error: err };
   }
+}
+
+// Install a preset, refresh state, and open the new service. Shared by the
+// preset modal, the discovery dashboard, and the suggestion banner so the
+// post-install sequence lives in one place. onSuccess runs after state is
+// refreshed and before navigation (the modal closes itself there).
+export async function installPresetAndOpen(
+  p: Preset,
+  opts: { onSuccess?: (name: string) => void } = {}
+): Promise<InstallResult> {
+  const r = await installPreset(p);
+  if (r.ok && r.name) {
+    await loadServices();
+    await loadPresets();
+    opts.onSuccess?.(r.name);
+    goToTab('services', r.name);
+  } else {
+    // Refresh so a failed install still reconciles dependency / installed state.
+    await loadPresets();
+  }
+  return r;
 }
 
 // exported for tests

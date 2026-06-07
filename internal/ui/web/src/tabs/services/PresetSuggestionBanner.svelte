@@ -1,31 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Service } from '$stores/services';
-  import { loadServices } from '$stores/services';
   import { suggestionFor, dismissSuggestion } from '$stores/presetSuggestions';
-  import { loadPresets, installPreset, phaseLabel as defaultPhaseLabel, type Preset } from '$stores/presets';
-  import { goToTab } from '$stores/route';
+  import { loadPresets, installPresetAndOpen, presetAddLabel } from '$stores/presets';
   import { m } from '../../paraglide/messages.js';
-
-  function phaseLabel(p: Preset): string {
-    if (!p.installing) return m.services_preset_phase_add();
-    switch (p.installingPhase) {
-      case 'installing_config':
-        return m.services_preset_phase_installingConfig();
-      case 'starting_deps':
-        return p.installingDep
-          ? m.services_preset_phase_startingDep({ dep: p.installingDep })
-          : m.services_preset_phase_startingDeps();
-      case 'pulling_image':
-        return m.services_preset_phase_pullingImage();
-      case 'starting_unit':
-        return m.services_preset_phase_startingUnit();
-      case 'waiting_ready':
-        return m.services_preset_phase_waitingReady();
-      default:
-        return m.services_preset_phase_adding();
-    }
-  }
 
   interface Props {
     svc: Service;
@@ -41,12 +19,7 @@
   async function install() {
     const p = $suggestion;
     if (!p) return;
-    const r = await installPreset(p);
-    if (r.ok && r.name) {
-      await loadServices();
-      await loadPresets();
-      goToTab('services', r.name);
-    }
+    await installPresetAndOpen(p);
   }
 
   function dismiss() {
@@ -82,7 +55,7 @@
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
           </svg>
         {/if}
-        {phaseLabel($suggestion)}
+        {presetAddLabel($suggestion)}
       </button>
       <button
         onclick={dismiss}
