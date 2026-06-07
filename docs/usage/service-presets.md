@@ -3,7 +3,7 @@
 Service presets are the YAML-driven definitions for every service lerd manages. There are two kinds:
 
 - **Default presets** (`default: true`) — the always-recognised services that ship with lerd: `mysql`, `redis`, `postgres`, `meilisearch`, `rustfs`, `mailpit`. They get auto-listed in `lerd service` everywhere; their lifecycle is identical to add-on presets but they don't need an explicit install step.
-- **Add-on presets** — opt-in installers for phpMyAdmin, pgAdmin, MongoDB, alternate MySQL / MariaDB versions, Selenium, Stripe Mock, Memcached, Valkey, RabbitMQ, Elasticsearch, Typesense, Typesense Dashboard, Elasticvue.
+- **Add-on presets** — opt-in installers for phpMyAdmin, pgAdmin, MongoDB, alternate MySQL / MariaDB versions, Selenium, Stripe Mock, Memcached, Valkey, RabbitMQ, Soketi, Beanstalkd, Elasticsearch, OpenSearch, Typesense, Typesense Dashboard, Elasticvue, RedisInsight.
 
 Both kinds use the same YAML schema in `internal/config/presets/*.yaml` and the same code path. Adding or replacing a default service is a YAML edit, not a code change. See [Service updates](service-updates.md) for the configuration knobs (`update_strategy`, `track_latest`, `allow_major_upgrade`).
 
@@ -35,10 +35,14 @@ Both kinds use the same YAML schema in `internal/config/presets/*.yaml` and the 
 | `memcached` | `docker.io/library/memcached:1.6-alpine` | - | `127.0.0.1:11211` |
 | `valkey` | `docker.io/valkey/valkey:9-alpine` | - | `127.0.0.1:6380` |
 | `rabbitmq` | `docker.io/library/rabbitmq:3-management-alpine` | - | `http://localhost:15672` (mgmt UI, opens in new tab) |
+| `soketi` | `quay.io/soketi/soketi:1.6-16-alpine` | - | `127.0.0.1:6001` |
+| `beanstalkd` | `docker.io/schickling/beanstalkd:latest` | - | `127.0.0.1:11300` |
 | `elasticsearch` | `docker.elastic.co/elasticsearch/elasticsearch:8.13.4` | - | `127.0.0.1:9200` |
+| `opensearch` | `docker.io/opensearchproject/opensearch:2.19.5` | - | `127.0.0.1:9201` |
 | `typesense` | `docker.io/typesense/typesense:30.2` | - | `127.0.0.1:8108` |
 | `typesense-dashboard` | `docker.io/bfritscher/typesense-dashboard:latest` | `typesense` (preset) | `http://localhost:8084` |
 | `elasticvue` | `docker.io/cars10/elasticvue:latest` | `elasticsearch` (preset) | `http://localhost:8083` |
+| `redisinsight` | `docker.io/redis/redisinsight:latest` | `redis` (preset) | `http://localhost:8085` (opens in new tab) |
 
 ```bash
 # List the bundled presets and their install state
@@ -72,8 +76,9 @@ first install is the image pull; the progress line shows what layer is being
 copied so a slow registry is distinguishable from a stuck install.
 
 The detail panel of every database service (built-in `mysql` / `postgres`, any
-installed `mongo`, and any installed alternate like `mysql-5-7`) and search
-engine (`elasticsearch` → Elasticvue, `typesense` → Typesense Dashboard)
+installed `mongo`, and any installed alternate like `mysql-5-7`), search
+engine (`elasticsearch` → Elasticvue, `typesense` → Typesense Dashboard) and
+`redis` → RedisInsight
 surfaces a sky-blue suggestion banner offering to install the paired admin UI
 when it isn't installed yet. The banner is dismissable per-preset and
 dismissal persists in `localStorage`.
@@ -184,10 +189,14 @@ A preset's `depends_on` is enforced two ways:
 | `memcached` | no auth (Memcached has no native authentication) |
 | `valkey` | no auth (no password set for local dev, same as `redis`) |
 | `rabbitmq` | management UI: `root` / `lerd` (also the default AMQP user) |
+| `soketi` | Pusher app id / key / secret all `lerd`, default cluster `mt1` |
+| `beanstalkd` | no auth (Beanstalkd has no native authentication) |
 | `elasticsearch` | no auth (`xpack.security.enabled=false` for local dev) |
+| `opensearch` | no auth (security plugin disabled for local dev) |
 | `typesense` | API key `lerd`, sent as the `X-TYPESENSE-API-KEY` header |
 | `typesense-dashboard` | no sign-in, opens pre-connected to the lerd Typesense node at `localhost:8108` |
 | `elasticvue` | no auth, opens straight to the pre-configured `Lerd Elasticsearch` cluster at `http://localhost:9200` |
+| `redisinsight` | no sign-in, opens pre-wired to the lerd Redis connection at `lerd-redis:6379` |
 
 ## Database service quality-of-life
 
