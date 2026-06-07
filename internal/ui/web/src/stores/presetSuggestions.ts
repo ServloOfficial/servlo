@@ -6,6 +6,7 @@ const SUGGESTIONS: Record<string, string> = {
   mysql: 'phpmyadmin',
   postgres: 'pgadmin',
   mongo: 'mongo-express',
+  redis: 'redisinsight',
   elasticsearch: 'elasticvue',
   typesense: 'typesense-dashboard'
 };

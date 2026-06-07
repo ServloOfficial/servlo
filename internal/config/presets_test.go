@@ -25,6 +25,10 @@ func TestListPresets_IncludesShippedPresets(t *testing.T) {
 		"typesense":           false,
 		"typesense-dashboard": false,
 		"valkey":              false,
+		"soketi":              false,
+		"opensearch":          false,
+		"redisinsight":        false,
+		"beanstalkd":          false,
 	}
 	for _, p := range presets {
 		if _, ok := want[p.Name]; ok {
@@ -474,6 +478,121 @@ func TestLoadPreset_Selenium(t *testing.T) {
 func TestLoadPreset_Unknown(t *testing.T) {
 	if _, err := LoadPreset("does-not-exist"); err == nil {
 		t.Errorf("LoadPreset(does-not-exist) expected error, got nil")
+	}
+}
+
+func TestLoadPreset_Soketi(t *testing.T) {
+	p, err := LoadPreset("soketi")
+	if err != nil {
+		t.Fatalf("LoadPreset(soketi) error = %v", err)
+	}
+	if p.Image == "" || len(p.Ports) != 1 || p.Ports[0] != "6001:6001" {
+		t.Errorf("soketi preset missing image or 6001:6001 port, got: %+v", p)
+	}
+	if p.Default {
+		t.Errorf("soketi is an opt-in add-on preset and must not be default")
+	}
+	// Soketi is a stateless relay; persisting a data dir would be meaningless.
+	if p.DataDir != "" {
+		t.Errorf("soketi is stateless and must not declare data_dir, got %q", p.DataDir)
+	}
+	wantEnv := map[string]bool{
+		"BROADCAST_CONNECTION=pusher": false,
+		"PUSHER_HOST=lerd-soketi":     false,
+		"PUSHER_PORT=6001":            false,
+	}
+	for _, kv := range p.EnvVars {
+		if _, ok := wantEnv[kv]; ok {
+			wantEnv[kv] = true
+		}
+	}
+	for kv, found := range wantEnv {
+		if !found {
+			t.Errorf("soketi must wire Laravel broadcasting via %q, got %v", kv, p.EnvVars)
+		}
+	}
+	if p.EnvDetect == nil || p.EnvDetect.Composer != "pusher/pusher-php-server" {
+		t.Errorf("soketi env_detect should fire on composer pusher/pusher-php-server, got %+v", p.EnvDetect)
+	}
+}
+
+func TestLoadPreset_OpenSearch(t *testing.T) {
+	p, err := LoadPreset("opensearch")
+	if err != nil {
+		t.Fatalf("LoadPreset(opensearch) error = %v", err)
+	}
+	// 9201 avoids colliding with the elasticsearch preset's 9200 on the host.
+	if len(p.Ports) != 1 || p.Ports[0] != "9201:9200" {
+		t.Errorf("opensearch must publish 9201:9200 to coexist with elasticsearch, got %v", p.Ports)
+	}
+	if p.Environment["discovery.type"] != "single-node" {
+		t.Errorf("opensearch must run single-node for local dev, got %q", p.Environment["discovery.type"])
+	}
+	if p.Environment["DISABLE_SECURITY_PLUGIN"] != "true" {
+		t.Errorf("opensearch must disable the security plugin so apps connect without TLS+auth in dev, got %q", p.Environment["DISABLE_SECURITY_PLUGIN"])
+	}
+	// The wildcard must be quoted: OpenSearch parses env as YAML and a bare '*'
+	// becomes an alias token that crashes the scanner on boot, same as ES.
+	if p.Environment["http.cors.allow-origin"] != `"*"` {
+		t.Errorf(`opensearch must allow any origin quoted to survive YAML parse, got %q`, p.Environment["http.cors.allow-origin"])
+	}
+	if p.Userns != "keep-id:uid=1000,gid=0" || !p.ChownData {
+		t.Errorf("opensearch must map host user to UID 1000 and chown its data dir, got userns=%q chown=%v", p.Userns, p.ChownData)
+	}
+	if p.EnvDetect == nil || p.EnvDetect.Composer != "opensearch-project/opensearch-php" {
+		t.Errorf("opensearch env_detect should fire on composer opensearch-project/opensearch-php, got %+v", p.EnvDetect)
+	}
+	if p.Default {
+		t.Errorf("opensearch is an opt-in add-on preset and must not be default")
+	}
+}
+
+func TestLoadPreset_RedisInsight(t *testing.T) {
+	p, err := LoadPreset("redisinsight")
+	if err != nil {
+		t.Fatalf("LoadPreset(redisinsight) error = %v", err)
+	}
+	if len(p.DependsOn) != 1 || p.DependsOn[0] != "redis" {
+		t.Errorf("redisinsight should depend on redis, got %v", p.DependsOn)
+	}
+	if p.Dashboard == "" {
+		t.Errorf("redisinsight must expose its UI as dashboard")
+	}
+	if !p.DashboardExternal {
+		t.Errorf("redisinsight must set dashboard_external because its consent cookies can't be carried by the iframe")
+	}
+	if p.Environment["RI_REDIS_HOST"] != "lerd-redis" {
+		t.Errorf("redisinsight must pre-wire the lerd Redis connection via RI_REDIS_HOST, got %q", p.Environment["RI_REDIS_HOST"])
+	}
+}
+
+func TestLoadPreset_Beanstalkd(t *testing.T) {
+	p, err := LoadPreset("beanstalkd")
+	if err != nil {
+		t.Fatalf("LoadPreset(beanstalkd) error = %v", err)
+	}
+	if p.Image == "" || len(p.Ports) != 1 || p.Ports[0] != "11300:11300" {
+		t.Errorf("beanstalkd preset missing image or 11300:11300 port, got: %+v", p)
+	}
+	// Beanstalkd runs in-memory in this preset; persisting a data dir would
+	// imply binlog durability we don't enable.
+	if p.DataDir != "" {
+		t.Errorf("beanstalkd is in-memory here and must not declare data_dir, got %q", p.DataDir)
+	}
+	hasQueueConn := false
+	for _, kv := range p.EnvVars {
+		if kv == "QUEUE_CONNECTION=beanstalkd" {
+			hasQueueConn = true
+		}
+	}
+	if !hasQueueConn {
+		t.Errorf("beanstalkd must set QUEUE_CONNECTION=beanstalkd for Laravel, got %v", p.EnvVars)
+	}
+	if p.EnvDetect == nil || p.EnvDetect.Composer != "pda/pheanstalk" {
+		t.Errorf("beanstalkd env_detect should fire on composer pda/pheanstalk, got %+v", p.EnvDetect)
+	}
+	if p.Default {
+		t.Errorf("beanstalkd is an opt-in add-on preset and must not be default")
 	}
 }
 
