@@ -365,10 +365,7 @@ func approveInlineService(svc *config.CustomService) bool {
 	if len(svc.Ports) > 0 {
 		fmt.Printf("  ports: %s\n", strings.Join(svc.Ports, ", "))
 	}
-	fmt.Printf("Install and start it? [y/N] ")
-	var ans string
-	fmt.Scanln(&ans) //nolint:errcheck
-	return ans != "" && (ans[0] == 'y' || ans[0] == 'Y')
+	return promptConfirm("Install and start it?")
 }
 
 func linkApplyServices(cwd string, proj *config.ProjectConfig) error {

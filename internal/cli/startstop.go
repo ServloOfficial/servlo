@@ -991,10 +991,11 @@ func registeredFrameworkWorkerUnits() []string {
 			}
 			out = append(out, "lerd-"+w+"-"+s.Name)
 		}
-		// Skip the dev-server unit when the command drifted from the approved
-		// one; restoreSiteInfrastructure deliberately didn't rewrite it.
-		if s.IsHostProxy() && proj.Proxy != nil && proj.Proxy.Command != "" &&
-			(s.HostCommand == "" || proj.Proxy.Command == s.HostCommand) {
+		// Enumerate the dev-server unit unconditionally: this list also drives
+		// stop/quit, so a drifted unit must stay visible to be stoppable. The
+		// drift guard lives in restoreSiteInfrastructure, which won't write the
+		// drifted command, so start can only ever launch the approved one.
+		if s.IsHostProxy() && proj.Proxy != nil && proj.Proxy.Command != "" {
 			out = append(out, hostProxyWorkerUnit(s.Name))
 		}
 	}

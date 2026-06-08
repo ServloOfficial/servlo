@@ -83,6 +83,7 @@ func TestHostProxyGate(t *testing.T) {
 	}{
 		{"disabled blocks even when approved", "npm run dev", true, false, true, true, false, false},
 		{"proxy-only empty command proceeds", "", false, false, false, false, true, false},
+		{"disabled still allows proxy-only", "", true, false, false, false, true, false},
 		{"already approved proceeds", "npm run dev", false, false, true, false, true, false},
 		{"skip_confirmation proceeds", "npm run dev", false, true, false, false, true, false},
 		{"interactive unapproved needs prompt", "npm run dev", false, false, false, true, false, true},

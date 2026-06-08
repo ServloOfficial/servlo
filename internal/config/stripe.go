@@ -79,8 +79,8 @@ func ValidateStripeWebhookPath(path string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
-	if strings.ContainsAny(path, " \t\r\n") {
-		return "", fmt.Errorf("invalid Stripe webhook path %q: must not contain whitespace", path)
+	if strings.ContainsAny(path, " \t\r\n\x00") {
+		return "", fmt.Errorf("invalid Stripe webhook path %q: must not contain whitespace or NUL", path)
 	}
 	return ensureLeadingSlash(path), nil
 }

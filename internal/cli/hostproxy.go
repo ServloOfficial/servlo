@@ -415,10 +415,15 @@ var hostProxyPreApproved bool
 // asking; prompt reports that an interactive confirmation is still owed; reason
 // explains a refusal. A site can only run a command the user has consented to.
 func hostProxyGate(command string, disabled, skipConfirm, approved, interactive bool) (proceed, prompt bool, reason string) {
+	if command == "" {
+		// Proxy-only: lerd supervises nothing, so neither the disable switch
+		// nor the confirmation applies.
+		return true, false, ""
+	}
 	if disabled {
 		return false, false, "host-proxy dev servers are disabled (set host_proxy.disabled: false to enable)"
 	}
-	if command == "" || approved || hostProxyPreApproved || skipConfirm {
+	if approved || hostProxyPreApproved || skipConfirm {
 		return true, false, ""
 	}
 	if !interactive {
@@ -440,10 +445,8 @@ func approveHostProxyCommand(siteName, command string, approved bool) error {
 	if !prompt {
 		return fmt.Errorf("host-proxy %s: %s", siteName, reason)
 	}
-	fmt.Printf("\nlerd supervises this dev-server command on your host, outside any container:\n\n  %s\n\nStart and auto-restart it for %s? [y/N] ", command, siteName)
-	var ans string
-	fmt.Scanln(&ans) //nolint:errcheck
-	if ans == "" || (ans[0] != 'y' && ans[0] != 'Y') {
+	fmt.Printf("\nlerd supervises this dev-server command on your host, outside any container:\n\n  %s\n", command)
+	if !promptConfirm(fmt.Sprintf("Start and auto-restart it for %s?", siteName)) {
 		return fmt.Errorf("host-proxy setup declined for %s", siteName)
 	}
 	return nil

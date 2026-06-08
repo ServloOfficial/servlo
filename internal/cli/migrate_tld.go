@@ -98,7 +98,14 @@ func migrateSiteTLD(oldTLD, newTLD string, forceUnsecure bool) []string {
 				fmt.Printf("    WARN: %s: migrate custom nginx override: %v\n", s.Name, err)
 			}
 		}
-		migrateWorktreeVhosts(worktrees, newPrimary, s.PHPVersion, s.Name, s.Secured, parentProxyConfig(s))
+		// Only mirror a proxy config for sites the registry records as
+		// host-proxy; a PHP site with a stray proxy block in .lerd.yaml must
+		// still get PHP worktree vhosts, not reverse-proxy ones.
+		var wtProxy *config.ProxyConfig
+		if s.IsHostProxy() {
+			wtProxy = parentProxyConfig(s)
+		}
+		migrateWorktreeVhosts(worktrees, newPrimary, s.PHPVersion, s.Name, s.Secured, wtProxy)
 
 		// Reissue the parent cert under the NEW primary so wildcard SANs
 		// cover the renamed worktree subdomains. Without this, SSL
