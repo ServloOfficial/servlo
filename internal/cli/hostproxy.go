@@ -385,6 +385,9 @@ func SetupHostProxyWorktree(site config.Site, wtPath, wtDomain string) error {
 		return err
 	}
 	if w, ok := hostProxyWorkerForPort(proxy, port); ok {
+		if err := gateHostProxyAutostart(site, proxy.Command); err != nil {
+			return err
+		}
 		if err := WorkerStartForSite(site.Name, wtPath, "", hostProxyWorkerName, w, false); err != nil {
 			return fmt.Errorf("starting worktree dev server: %w", err)
 		}
@@ -400,9 +403,21 @@ func startHostProxyWorker(site config.Site, proxy *config.ProxyConfig) {
 	if !ok {
 		return
 	}
+	if err := gateHostProxyAutostart(site, proxy.Command); err != nil {
+		fmt.Printf("[WARN] dev server not started: %v\n", err)
+		return
+	}
 	if err := WorkerStartForSite(site.Name, site.Path, "", hostProxyWorkerName, w, false); err != nil {
 		fmt.Printf("[WARN] starting dev server: %v\n", err)
 	}
+}
+
+// gateHostProxyAutostart authorises auto-(re)starting a host-proxy dev command
+// on a non-link path (watcher, unpause): the command must match the one approved
+// at link and host_proxy.disabled must be off, else it is refused unattended.
+func gateHostProxyAutostart(site config.Site, command string) error {
+	approved := command != "" && command == site.HostCommand
+	return approveHostProxyCommand(site.Name, command, approved)
 }
 
 // hostProxyPreApproved lets the init wizard mark the command the user just chose

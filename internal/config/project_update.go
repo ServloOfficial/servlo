@@ -329,6 +329,12 @@ func ReplaceProjectDBService(dir string, choice string) error {
 		}
 	}
 	cfg.Services = append(filtered, ProjectService{Name: choice})
+	// Keep an explicit db.service block in sync: resolveDB reads it before the
+	// services list and .env, so a stale value after db:move would point later
+	// `lerd db` commands at the old service. Only rewrite when already set.
+	if cfg.DB.Service != "" {
+		cfg.DB.Service = choice
+	}
 	return SaveProjectConfig(dir, cfg)
 }
 
