@@ -712,6 +712,69 @@ func StopAllWorkersForWorktree(siteName, wtBase string) error {
 	return firstErr
 }
 
+// workerNameForSiteUnit parses a worker unit name shaped lerd-<worker>-<site> or
+// lerd-<worker>-<site>-<slug> and returns <worker>. ok is false when the unit
+// is not a worker unit for siteName.
+func workerNameForSiteUnit(unit, siteName string) (string, bool) {
+	rem, ok := strings.CutPrefix(unit, "lerd-")
+	if !ok {
+		return "", false
+	}
+	marker := "-" + siteName
+	for idx := strings.Index(rem, marker); idx > 0; {
+		after := rem[idx+len(marker):]
+		if after == "" || strings.HasPrefix(after, "-") {
+			return rem[:idx], true
+		}
+		next := strings.Index(rem[idx+1:], marker)
+		if next < 0 {
+			break
+		}
+		idx += 1 + next
+	}
+	return "", false
+}
+
+// stopAllSiteWorkerUnits stops and removes every worker unit for a site, parent
+// and per-worktree, by listing units rather than walking git, so it works even
+// after the site path is deleted (watcher prune) when worktree detection can't
+// run. A unit an equal-or-longer-named registered site also matches is skipped,
+// so site "app" never tears down site "app-x"'s units.
+func stopAllSiteWorkerUnits(site *config.Site) {
+	var others []string
+	if reg, err := config.LoadSites(); err == nil {
+		for _, s := range reg.Sites {
+			if s.Name != "" && s.Name != site.Name {
+				others = append(others, s.Name)
+			}
+		}
+	}
+	seen := map[string]bool{}
+	for _, glob := range []string{"lerd-*-" + site.Name, "lerd-*-" + site.Name + "-*"} {
+		for _, unit := range services.Mgr.ListServiceUnits(glob) {
+			if seen[unit] {
+				continue
+			}
+			worker, ok := workerNameForSiteUnit(unit, site.Name)
+			if !ok {
+				continue
+			}
+			claimed := false
+			for _, o := range others {
+				if _, ok := workerNameForSiteUnit(unit, o); ok && len(o) >= len(site.Name) {
+					claimed = true
+					break
+				}
+			}
+			if claimed {
+				continue
+			}
+			seen[unit] = true
+			_ = stopWorkerUnit(unit, worker, site.Name)
+		}
+	}
+}
+
 // isServiceActiveOrRestarting returns true if the unit is active or activating.
 func isServiceActiveOrRestarting(name string) bool {
 	status, _ := podman.UnitStatus(name)

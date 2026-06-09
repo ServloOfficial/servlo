@@ -268,10 +268,26 @@ func reservedHostPorts(exceptSite string) map[int]bool {
 				exceptPort = s.HostPort
 				continue
 			}
-			if s.HostPort == 0 {
-				continue
+			if s.HostPort != 0 {
+				out[s.HostPort] = true
 			}
-			out[s.HostPort] = true
+			// Also reserve ports already assigned to this site's host-proxy
+			// worktrees (persisted in each worktree's .env): a stopped worktree
+			// dev server owns its port, which neither the registry HostPort nor a
+			// bind-probe reveals, so two worktrees could otherwise collide.
+			if s.IsHostProxy() {
+				if proxy := parentProxyConfig(s); proxy != nil {
+					key := hostProxyPortEnvKey(proxy)
+					wts, _ := gitpkg.ServableWorktrees(s.Path, s.PrimaryDomain())
+					for _, wt := range wts {
+						if v := envfile.ReadKey(filepath.Join(wt.Path, ".env"), key); v != "" {
+							if p, _ := strconv.Atoi(v); p > 0 {
+								out[p] = true
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 	// Reserve host ports lerd services publish (e.g. gotenberg on 3000) even when
