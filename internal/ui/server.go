@@ -33,6 +33,7 @@ import (
 	"github.com/geodro/lerd/internal/cli"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/dns"
+	"github.com/geodro/lerd/internal/envfile"
 	"github.com/geodro/lerd/internal/eventbus"
 	gitpkg "github.com/geodro/lerd/internal/git"
 	"github.com/geodro/lerd/internal/grouping"
@@ -665,6 +666,7 @@ type ConflictingDomain struct {
 // SiteResponse is the response for GET /api/sites.
 type SiteResponse struct {
 	Name               string              `json:"name"`
+	AppName            string              `json:"app_name,omitempty"`
 	Domain             string              `json:"domain"`
 	Domains            []string            `json:"domains"`
 	ConflictingDomains []ConflictingDomain `json:"conflicting_domains,omitempty"`
@@ -810,6 +812,7 @@ func buildSites() []SiteResponse {
 
 		sites = append(sites, SiteResponse{
 			Name:               e.Name,
+			AppName:            laravelAppName(e.FrameworkName, e.Path),
 			Domain:             e.PrimaryDomain(),
 			Domains:            e.Domains,
 			ConflictingDomains: conflicting,
@@ -4469,6 +4472,17 @@ func ensureWorktreeEnvIfBranch(site *config.Site, branch string) {
 
 // siteHasEnv reports whether the site root contains a .env file. Cheap,
 // stat-only check used to decide whether to surface the Env tab in the UI.
+// laravelAppName reads APP_NAME from a Laravel project's .env so the sites
+// dashboard can label a tile by its application name instead of just the URL.
+// Returns "" for non-Laravel projects, or when the .env is missing or has no
+// APP_NAME, in which case the dashboard falls back to the domain.
+func laravelAppName(frameworkName, sitePath string) string {
+	if frameworkName != "laravel" || sitePath == "" {
+		return ""
+	}
+	return envfile.ReadKey(filepath.Join(sitePath, ".env"), "APP_NAME")
+}
+
 func siteHasEnv(sitePath string) bool {
 	if sitePath == "" {
 		return false

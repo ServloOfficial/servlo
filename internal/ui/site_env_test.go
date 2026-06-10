@@ -649,3 +649,34 @@ func TestSiteHasEnv(t *testing.T) {
 		t.Error("expected false when .env is a directory")
 	}
 }
+
+// laravelAppName surfaces APP_NAME from .env, but only for Laravel projects so
+// the sites dashboard can title a tile by its friendly name. Non-Laravel sites,
+// a missing .env, or an absent APP_NAME all yield "" and fall back to the domain.
+func TestLaravelAppName(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("APP_NAME=\"My Shop\"\nAPP_URL=http://shop.test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := laravelAppName("laravel", dir); got != "My Shop" {
+		t.Errorf("laravel APP_NAME: got %q want %q", got, "My Shop")
+	}
+	if got := laravelAppName("nextjs", dir); got != "" {
+		t.Errorf("non-laravel framework: got %q want empty", got)
+	}
+	if got := laravelAppName("laravel", t.TempDir()); got != "" {
+		t.Errorf("missing .env: got %q want empty", got)
+	}
+	if got := laravelAppName("laravel", ""); got != "" {
+		t.Errorf("empty path: got %q want empty", got)
+	}
+
+	noName := t.TempDir()
+	if err := os.WriteFile(filepath.Join(noName, ".env"), []byte("APP_URL=http://x.test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := laravelAppName("laravel", noName); got != "" {
+		t.Errorf("APP_NAME absent: got %q want empty", got)
+	}
+}
