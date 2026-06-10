@@ -63,6 +63,7 @@ Actions: `setup`, `check`, `override`.
 #### `runtime` — PHP/Node versions & extensions
 Actions: `versions`, `node_install`, `node_uninstall`, `php_list`, `ext_list`, `ext_add`, `ext_remove`.
 - `ext_add`/`ext_remove` rebuild the FPM image and restart the container (slow); `ext_add` accepts `apk_deps` for extra Alpine build packages
+- **extra Alpine packages**: `lerd php:pkg add/remove/list <packages> [--php version]` (CLI) bakes runtime apk packages (CLI tools, libs) into the FPM image, saved in config under `php.packages` and re-applied on every rebuild, so they survive `php:rebuild` and base image updates. Layered onto the shared image, not the published base.
 - **bun**: lerd never installs or version-manages bun (user installs it; `bun upgrade` self-updates). On the host, JS install/dev/build run through bun when the project is a bun project (`bun.lockb`/`bun.lock`/`bunfig.toml`/`packageManager: bun`) or when Node is unmanaged and no system Node exists but bun is present. CLI-only host toggles: `lerd node:manage` / `lerd node:unmanage` opt into/out of fnm-managed Node and regenerate host workers (bun ↔ fnm). For an in-container bun (for `lerd shell`): `lerd php:bun install` drops a musl bun into a persistent `/root/.bun` volume that survives image rebuilds, `lerd php:bun update` upgrades it in place, `lerd php:bun version` reports it; auto-installed on `lerd link`/`setup` when host bun is present. These are CLI/host operations, not container exec actions.
 
 #### `worker` — background workers
