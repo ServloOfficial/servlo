@@ -827,7 +827,18 @@ func hostNameLine() string {
 
 // applyShellMounts substitutes shell-related template fields.
 func applyShellMounts(content, versionShort string) string {
-	return strings.ReplaceAll(content, "{{.ZshHistoryDir}}", zshHistoryDir(versionShort))
+	content = strings.ReplaceAll(content, "{{.ZshHistoryDir}}", zshHistoryDir(versionShort))
+	content = strings.ReplaceAll(content, "{{.BunVolumeDir}}", BunVolumeDir())
+	return content
+}
+
+// BunVolumeDir is the host directory backing the container's /root/.bun mount,
+// where an opt-in in-container musl bun lives (lerd php:bun install). Shared
+// across PHP versions and created so the bind mount succeeds on first start.
+func BunVolumeDir() string {
+	dir := filepath.Join(config.DataDir(), "bun")
+	_ = os.MkdirAll(dir, 0o755)
+	return dir
 }
 
 // listInstalledPHPVersions returns PHP versions that have a quadlet installed.
