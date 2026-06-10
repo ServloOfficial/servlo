@@ -4,6 +4,7 @@
   import {
     listAppLogFiles,
     loadAppLogEntries,
+    clearAppLogs,
     type AppLogFile,
     type AppLogEntry
   } from '$stores/appLogs';
@@ -24,6 +25,42 @@
   let search = $state('');
   let expandedIdx = $state(-1);
   let scrollEl: HTMLDivElement | null = $state(null);
+  // Clear-logs button: a two-step confirm avoids a modal for a low-stakes,
+  // self-healing action (the active log is recreated on the app's next write).
+  let confirming = $state(false);
+  let clearing = $state(false);
+  let confirmTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const totalBytes = $derived(files.reduce((sum, f) => sum + (f.size ?? 0), 0));
+
+  function fmtBytes(n: number): string {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function onClearClick() {
+    if (clearing) return;
+    if (!confirming) {
+      confirming = true;
+      if (confirmTimer) clearTimeout(confirmTimer);
+      confirmTimer = setTimeout(() => (confirming = false), 3000);
+      return;
+    }
+    if (confirmTimer) clearTimeout(confirmTimer);
+    confirming = false;
+    void doClear();
+  }
+
+  async function doClear() {
+    clearing = true;
+    try {
+      await clearAppLogs(site.domain, branch);
+      await loadFiles();
+    } finally {
+      clearing = false;
+    }
+  }
 
   async function loadFiles() {
     loading = true;
@@ -146,6 +183,26 @@
       </svg>
       {m.common_refresh()}
     </button>
+
+    {#if files.length > 0}
+      <button
+        onclick={onClearClick}
+        disabled={clearing}
+        title={m.sites_appLogs_clearTitle()}
+        class="flex items-center gap-1 text-xs rounded-sm px-2 py-1 border transition-colors disabled:opacity-50 {confirming
+          ? 'border-red-400 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10'
+          : 'border-gray-200 dark:border-lerd-border text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300'}"
+      >
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        {clearing
+          ? m.sites_appLogs_clearing()
+          : confirming
+            ? m.sites_appLogs_clearConfirm()
+            : `${m.sites_appLogs_clear()} · ${fmtBytes(totalBytes)}`}
+      </button>
+    {/if}
 
     {#if loading}
       <svg class="animate-spin w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24">

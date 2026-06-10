@@ -1,4 +1,4 @@
-import { render } from '@testing-library/svelte';
+import { render, screen } from '@testing-library/svelte';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import Harness from './AppLogsTab.test.svelte';
@@ -81,5 +81,50 @@ describe('AppLogsTab', () => {
     const parentCalls = calls.filter((u) => u.startsWith('/api/app-logs/theregistry.test'));
     expect(parentCalls.length).toBeGreaterThan(0);
     expect(parentCalls.every((u) => !u.includes('branch='))).toBe(true);
+  });
+
+  it('clears logs via a two-step confirm that POSTs to /clear', async () => {
+    const methodCalls: string[] = [];
+    globalThis.fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      methodCalls.push((init?.method || 'GET') + ' ' + url);
+      const seg = url.match(/\/api\/app-logs\/[^/?]+(?:\/([^?]+))?/)?.[1];
+      if (seg === 'clear') {
+        return new Response(JSON.stringify({ ok: true, files_cleared: 1, bytes_cleared: 2048 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      if (seg) {
+        return new Response(JSON.stringify({ entries: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      return new Response(JSON.stringify({ files: [{ name: 'laravel.log', size: 2048 }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }) as unknown as typeof fetch;
+
+    render(Harness, { props: { site: siteWith(), branch: '' } });
+    await Promise.resolve();
+    await Promise.resolve();
+    flushSync();
+    await Promise.resolve();
+
+    const btn = (await screen.findByTitle(/reclaim disk/i)) as HTMLButtonElement;
+    // First click only arms the confirm; nothing is sent yet.
+    btn.click();
+    flushSync();
+    expect(methodCalls.some((c) => c.includes('/clear'))).toBe(false);
+
+    // Second click executes the delete.
+    btn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    flushSync();
+    await Promise.resolve();
+
+    expect(methodCalls.some((c) => c.startsWith('POST') && c.includes('/clear'))).toBe(true);
   });
 });
