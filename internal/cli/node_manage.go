@@ -188,6 +188,11 @@ func regenerateWorkerUnit(siteName, sitePath, phpVersion, workerName string, wDe
 	// definition until a reload, so reload before the restart picks up the new
 	// ExecStart (StartUnit no-ops on an already-active unit).
 	_ = podman.DaemonReload()
+	// Clear any failed / start-rate-limit state first: a worker that
+	// crash-looped under the previous runtime (e.g. bun on a project bun can't
+	// run) would otherwise refuse to restart when switched back, so the toggle
+	// would not heal it.
+	podman.ResetFailedUnit(unitName)
 	if err := podman.RestartUnit(unitName); err != nil {
 		fmt.Printf("  [WARN] restarting %s: %v\n", unitName, err)
 	} else {
