@@ -9,6 +9,7 @@
     type AppLogEntry
   } from '$stores/appLogs';
   import Dropdown from '$components/Dropdown.svelte';
+  import ClearAppLogsModal from './ClearAppLogsModal.svelte';
   import { m } from '../../paraglide/messages.js';
 
   interface Props {
@@ -25,11 +26,12 @@
   let search = $state('');
   let expandedIdx = $state(-1);
   let scrollEl: HTMLDivElement | null = $state(null);
-  // Clear-logs button: a two-step confirm avoids a modal for a low-stakes,
-  // self-healing action (the active log is recreated on the app's next write).
-  let confirming = $state(false);
+  // Clearing deletes real log files, so it goes through a confirmation modal
+  // rather than an inline button: a deliberate confirm matches how lerd's other
+  // destructive actions work and guards against wiping a lot of history with a
+  // stray double click. The active log is recreated on the app's next write.
+  let confirmOpen = $state(false);
   let clearing = $state(false);
-  let confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
   const totalBytes = $derived(files.reduce((sum, f) => sum + (f.size ?? 0), 0));
 
@@ -39,24 +41,13 @@
     return `${(n / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  function onClearClick() {
-    if (clearing) return;
-    if (!confirming) {
-      confirming = true;
-      if (confirmTimer) clearTimeout(confirmTimer);
-      confirmTimer = setTimeout(() => (confirming = false), 3000);
-      return;
-    }
-    if (confirmTimer) clearTimeout(confirmTimer);
-    confirming = false;
-    void doClear();
-  }
-
   async function doClear() {
+    if (clearing) return;
     clearing = true;
     try {
       await clearAppLogs(site.domain, branch);
       await loadFiles();
+      confirmOpen = false;
     } finally {
       clearing = false;
     }
@@ -186,21 +177,15 @@
 
     {#if files.length > 0}
       <button
-        onclick={onClearClick}
+        onclick={() => (confirmOpen = true)}
         disabled={clearing}
         title={m.sites_appLogs_clearTitle()}
-        class="flex items-center gap-1 text-xs rounded-sm px-2 py-1 border transition-colors disabled:opacity-50 {confirming
-          ? 'border-red-400 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10'
-          : 'border-gray-200 dark:border-lerd-border text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300'}"
+        class="flex items-center gap-1 text-xs rounded-sm px-2 py-1 border transition-colors disabled:opacity-50 border-gray-200 dark:border-lerd-border text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300"
       >
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
         </svg>
-        {clearing
-          ? m.sites_appLogs_clearing()
-          : confirming
-            ? m.sites_appLogs_clearConfirm()
-            : `${m.sites_appLogs_clear()} · ${fmtBytes(totalBytes)}`}
+        {clearing ? m.sites_appLogs_clearing() : `${m.sites_appLogs_clear()} · ${fmtBytes(totalBytes)}`}
       </button>
     {/if}
 
@@ -247,3 +232,13 @@
     {/each}
   </div>
 </div>
+
+<ClearAppLogsModal
+  open={confirmOpen}
+  sizeLabel={fmtBytes(totalBytes)}
+  loading={clearing}
+  onconfirm={doClear}
+  onclose={() => {
+    if (!clearing) confirmOpen = false;
+  }}
+/>

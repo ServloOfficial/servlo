@@ -83,7 +83,7 @@ describe('AppLogsTab', () => {
     expect(parentCalls.every((u) => !u.includes('branch='))).toBe(true);
   });
 
-  it('clears logs via a two-step confirm that POSTs to /clear', async () => {
+  it('clears logs only after the confirmation modal is confirmed', async () => {
     const methodCalls: string[] = [];
     globalThis.fetch = vi.fn(async (url: string, init?: RequestInit) => {
       methodCalls.push((init?.method || 'GET') + ' ' + url);
@@ -112,14 +112,15 @@ describe('AppLogsTab', () => {
     flushSync();
     await Promise.resolve();
 
+    // Opening the modal must not delete anything on its own.
     const btn = (await screen.findByTitle(/reclaim disk/i)) as HTMLButtonElement;
-    // First click only arms the confirm; nothing is sent yet.
     btn.click();
     flushSync();
     expect(methodCalls.some((c) => c.includes('/clear'))).toBe(false);
 
-    // Second click executes the delete.
-    btn.click();
+    // The modal's confirm button is what executes the delete.
+    const confirm = (await screen.findByRole('button', { name: 'Clear logs' })) as HTMLButtonElement;
+    confirm.click();
     await Promise.resolve();
     await Promise.resolve();
     flushSync();
