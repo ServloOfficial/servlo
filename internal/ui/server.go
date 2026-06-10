@@ -211,6 +211,8 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/node-versions", withCORS(handleNodeVersions))
 	mux.HandleFunc("/api/node-versions/install", withCORS(publishAfter(handleInstallNodeVersion, eventbus.KindStatus)))
 	mux.HandleFunc("/api/node-versions/", withCORS(publishAfter(handleNodeVersionAction, eventbus.KindStatus, eventbus.KindSites)))
+	mux.HandleFunc("/api/node/manage", withCORS(publishAfter(handleNodeManage, eventbus.KindStatus, eventbus.KindSites)))
+	mux.HandleFunc("/api/node/unmanage", withCORS(publishAfter(handleNodeUnmanage, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/link", withCORS(publishAfter(handleSiteLink, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/reorder", withCORS(publishAfter(handleSiteReorder, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/worktree-options", withCORS(handleSiteWorktreeOptions))
@@ -551,7 +553,14 @@ type StatusResponse struct {
 	PHPDefault        string       `json:"php_default"`
 	NodeDefault       string       `json:"node_default"`
 	NodeManagedByLerd bool         `json:"node_managed_by_lerd"`
-	WatcherRunning    bool         `json:"watcher_running"`
+	// BunAvailable is true when a bun binary is installed on the host;
+	// BunVersion carries its version for an at-a-glance reference.
+	// UsingSystemBun is true when lerd isn't managing Node and there's no system
+	// Node, so bun is what actually runs JS host workers (Vite, installs).
+	BunAvailable   bool   `json:"bun_available"`
+	BunVersion     string `json:"bun_version"`
+	UsingSystemBun bool   `json:"using_system_bun"`
+	WatcherRunning bool   `json:"watcher_running"`
 }
 
 type DNSStatus struct {
@@ -612,6 +621,12 @@ func buildStatus() StatusResponse {
 	nodeShim := filepath.Join(config.BinDir(), "node")
 	_, nodeShimErr := os.Stat(nodeShim)
 	nodeManagedByLerd := nodeShimErr == nil
+	bunAvailable := lerdNode.BunPath() != ""
+	bunVersion := ""
+	if bunAvailable {
+		bunVersion = lerdNode.BunVersion()
+	}
+	usingSystemBun := bunAvailable && !nodeManagedByLerd && !lerdNode.SystemNodeAvailable()
 	return StatusResponse{
 		DNS:               DNSStatus{OK: dnsStatus == dns.StatusOK, Status: string(dnsStatus), VPN: dns.VPNActive(), Enabled: dnsEnabled, TLD: tld},
 		Nginx:             ServiceCheck{Running: nginxRunning},
@@ -619,6 +634,9 @@ func buildStatus() StatusResponse {
 		PHPDefault:        phpDefault,
 		NodeDefault:       nodeDefault,
 		NodeManagedByLerd: nodeManagedByLerd,
+		BunAvailable:      bunAvailable,
+		BunVersion:        bunVersion,
+		UsingSystemBun:    usingSystemBun,
 		WatcherRunning:    watcherRunning,
 	}
 }
@@ -3952,6 +3970,32 @@ func handleNodeVersionAction(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+// handleNodeManage / handleNodeUnmanage opt the host into or out of
+// lerd-managed Node by shelling out to the lerd binary, reusing the CLI's shim
+// + worker-regeneration logic rather than duplicating it here. Synchronous:
+// these can take a few seconds (fnm install, worker restarts), so the UI shows
+// a loading state.
+func handleNodeManage(w http.ResponseWriter, r *http.Request) { runNodeMgmtCmd(w, r, "node:manage") }
+func handleNodeUnmanage(w http.ResponseWriter, r *http.Request) {
+	runNodeMgmtCmd(w, r, "node:unmanage")
+}
+
+func runNodeMgmtCmd(w http.ResponseWriter, r *http.Request, sub string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	self, err := os.Executable()
+	if err != nil || self == "" {
+		self = "lerd"
+	}
+	if out, err := exec.Command(self, sub).CombinedOutput(); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": strings.TrimSpace(string(out))})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
 }
 
 var validVersion = regexp.MustCompile(`^[0-9]+(\.[0-9]+)*$`)

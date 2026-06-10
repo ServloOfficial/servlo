@@ -52,8 +52,10 @@ func runPhpShell(_ *cobra.Command, _ []string) error {
 	podman.EnsurePathMounted(workDir, version)
 	ensureServicesForCwd(workDir)
 
+	// Put the opt-in in-container bun (lerd php:bun install) on PATH so a bare
+	// `bun` resolves in the shell. Harmless no-op when bun isn't installed.
 	cmd := podman.Cmd("exec", "-it", "-w", workDir, container,
-		"sh", "-c", podman.InteractiveShellScript())
+		"sh", "-c", `export PATH="/root/.bun/bin:$PATH"; `+podman.InteractiveShellScript())
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
