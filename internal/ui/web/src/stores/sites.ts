@@ -19,6 +19,7 @@ export interface Site {
   php_version?: string;
   uses_php?: boolean;
   node_version?: string;
+  js_runtime?: string;
   runtime?: string;
   runtime_worker?: boolean;
   tls?: boolean;
