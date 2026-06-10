@@ -43,12 +43,17 @@
   const nodeInherited = $derived(Boolean(activeWorktree) && !activeWorktree?.node_version_override);
   // When host bun is available, the Node dropdown offers a "bun" entry that
   // pins .lerd.yaml js_runtime (project-level), leaving node_version intact.
-  const usingBun = $derived(site.js_runtime === 'bun');
+  // js_runtime is project-level, so the bun toggle only belongs on the main
+  // site dropdown — offering it per worktree would let a worktree action flip
+  // the whole project's runtime and show a confusing selection.
+  const usingBun = $derived(!activeWorktreeBranch && site.js_runtime === 'bun');
   // Bake "Node " into the version labels so the bun entry can stay bare "bun"
   // instead of reading "Node bun" (the Dropdown prefixes its label onto rows).
   const nodeOptions = $derived([
     ...$nodeVersions.map((v) => ({ value: v, label: 'Node ' + v })),
-    ...($status.bun_available ? [{ value: 'bun', label: 'bun', description: 'JS runtime' }] : [])
+    ...(!activeWorktreeBranch && $status.bun_available
+      ? [{ value: 'bun', label: 'bun', description: 'JS runtime' }]
+      : [])
   ]);
   const nodeValue = $derived(usingBun ? 'bun' : effectiveNode);
   const dbCapable = $derived((site.services || []).some((s) => /^(mysql|mariadb|postgres)/.test(s)));

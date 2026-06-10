@@ -115,9 +115,6 @@ func regenerateHostWorkers() {
 		return
 	}
 	for _, s := range reg.Sites {
-		if s.Paused || s.Ignored {
-			continue
-		}
 		RegenerateHostWorkersForSite(s)
 	}
 }
@@ -125,8 +122,12 @@ func regenerateHostWorkers() {
 // RegenerateHostWorkersForSite rewrites and restarts (only when changed) the
 // host worker units of one site, so a JS-runtime change (e.g. flipping
 // js_runtime to bun from the dashboard) takes effect on its Vite/dev worker
-// without a manual restart. Best-effort.
+// without a manual restart. Best-effort. Paused/ignored sites are skipped so a
+// runtime toggle does not resurrect a worker the user stopped.
 func RegenerateHostWorkersForSite(s config.Site) {
+	if s.Paused || s.Ignored {
+		return
+	}
 	proj, _ := config.LoadProjectConfig(s.Path)
 	if proj == nil {
 		return
