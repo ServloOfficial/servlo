@@ -41,6 +41,13 @@
   const effectiveNode = $derived(activeWorktree?.node_version ?? site.node_version ?? '');
   const phpInherited = $derived(Boolean(activeWorktree) && !activeWorktree?.php_version_override);
   const nodeInherited = $derived(Boolean(activeWorktree) && !activeWorktree?.node_version_override);
+  // When host bun is available, the Node dropdown offers a "bun" entry that
+  // pins .lerd.yaml js_runtime (project-level), leaving node_version intact.
+  const usingBun = $derived(site.js_runtime === 'bun');
+  const nodeOptions = $derived(
+    $status.bun_available ? [...$nodeVersions, { value: 'bun', label: 'bun' }] : $nodeVersions
+  );
+  const nodeValue = $derived(usingBun ? 'bun' : effectiveNode);
   const dbCapable = $derived((site.services || []).some((s) => /^(mysql|mariadb|postgres)/.test(s)));
   const dbIsolated = $derived(Boolean(activeWorktree?.db_isolated));
   let dbBusy = $state(false);
@@ -246,11 +253,11 @@
 
     {#if $status.node_managed_by_lerd && $nodeVersions.length > 0}
       <Dropdown
-        label="Node"
-        value={effectiveNode}
-        options={$nodeVersions}
+        label={usingBun ? 'JS' : 'Node'}
+        value={nodeValue}
+        options={nodeOptions}
         disabled={versionBusy}
-        inherited={nodeInherited}
+        inherited={nodeInherited && !usingBun}
         inheritedSuffix={m.sites_controls_inheritedSuffix()}
         title={nodeInherited ? m.sites_controls_inheritsFromMain() : ''}
         placeholder={$status.node_default ? m.sites_controls_nodeDefaultVersion({ version: $status.node_default }) : m.sites_controls_nodeDefault()}

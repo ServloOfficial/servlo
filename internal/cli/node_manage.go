@@ -118,40 +118,48 @@ func regenerateHostWorkers() {
 		if s.Paused || s.Ignored {
 			continue
 		}
-		proj, _ := config.LoadProjectConfig(s.Path)
-		if proj == nil {
-			continue
-		}
-		// Host-proxy sites run their dev command (`env PORT=N npm run ...`) as a
-		// host worker too but have no framework, so handle them directly — they
-		// are exactly the npm-on-host commands that should switch to bun.
-		if s.IsHostProxy() {
-			if proj.Proxy != nil {
-				if w, ok := hostProxyWorker(proj.Proxy); ok {
-					regenerateWorkerUnit(s.Name, s.Path, "", hostProxyWorkerName, w, hostProxyWorkerUnit(s.Name))
-				}
-			}
-			continue
-		}
-		fw, ok := config.GetFrameworkForDir(s.Framework, s.Path)
-		if !ok || fw.Workers == nil {
-			continue
-		}
-		phpVersion := s.PHPVersion
-		if phpVersion == "" {
-			if cfg, _ := config.LoadGlobal(); cfg != nil {
-				phpVersion = cfg.PHP.DefaultVersion
+		RegenerateHostWorkersForSite(s)
+	}
+}
+
+// RegenerateHostWorkersForSite rewrites and restarts (only when changed) the
+// host worker units of one site, so a JS-runtime change (e.g. flipping
+// js_runtime to bun from the dashboard) takes effect on its Vite/dev worker
+// without a manual restart. Best-effort.
+func RegenerateHostWorkersForSite(s config.Site) {
+	proj, _ := config.LoadProjectConfig(s.Path)
+	if proj == nil {
+		return
+	}
+	// Host-proxy sites run their dev command (`env PORT=N npm run ...`) as a
+	// host worker too but have no framework, so handle them directly — they
+	// are exactly the npm-on-host commands that should switch to bun.
+	if s.IsHostProxy() {
+		if proj.Proxy != nil {
+			if w, ok := hostProxyWorker(proj.Proxy); ok {
+				regenerateWorkerUnit(s.Name, s.Path, "", hostProxyWorkerName, w, hostProxyWorkerUnit(s.Name))
 			}
 		}
-		// Iterate the framework's host workers directly, not proj.Workers:
-		// some host workers (Vite is replaces_build/per_worktree) are enabled
-		// via the build flow and never persisted to the saved workers list.
-		for w, wDef := range fw.Workers {
-			if !wDef.Host {
-				continue
-			}
-			regenerateWorkerUnit(s.Name, s.Path, phpVersion, w, wDef, "lerd-"+w+"-"+s.Name)
+		return
+	}
+	fw, ok := config.GetFrameworkForDir(s.Framework, s.Path)
+	if !ok || fw.Workers == nil {
+		return
+	}
+	phpVersion := s.PHPVersion
+	if phpVersion == "" {
+		if cfg, _ := config.LoadGlobal(); cfg != nil {
+			phpVersion = cfg.PHP.DefaultVersion
 		}
+	}
+	// Iterate the framework's host workers directly, not proj.Workers:
+	// some host workers (Vite is replaces_build/per_worktree) are enabled
+	// via the build flow and never persisted to the saved workers list.
+	for w, wDef := range fw.Workers {
+		if !wDef.Host {
+			continue
+		}
+		regenerateWorkerUnit(s.Name, s.Path, phpVersion, w, wDef, "lerd-"+w+"-"+s.Name)
 	}
 }
 
