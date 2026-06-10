@@ -4470,19 +4470,26 @@ func ensureWorktreeEnvIfBranch(site *config.Site, branch string) {
 	}
 }
 
-// siteHasEnv reports whether the site root contains a .env file. Cheap,
-// stat-only check used to decide whether to surface the Env tab in the UI.
 // laravelAppName reads APP_NAME from a Laravel project's .env so the sites
 // dashboard can label a tile by its application name instead of just the URL.
-// Returns "" for non-Laravel projects, or when the .env is missing or has no
-// APP_NAME, in which case the dashboard falls back to the domain.
+// Returns "" for non-Laravel projects, when the .env is missing or has no
+// APP_NAME, or when APP_NAME is still the stock "Laravel" default, in which
+// case the dashboard falls back to the domain. Gating on the default keeps the
+// label purely additive: uncustomised sites stay titled by their scannable
+// domain instead of a wall of identical "Laravel" tiles.
 func laravelAppName(frameworkName, sitePath string) string {
 	if frameworkName != "laravel" || sitePath == "" {
 		return ""
 	}
-	return envfile.ReadKey(filepath.Join(sitePath, ".env"), "APP_NAME")
+	name := envfile.ReadKey(filepath.Join(sitePath, ".env"), "APP_NAME")
+	if strings.EqualFold(name, "Laravel") {
+		return ""
+	}
+	return name
 }
 
+// siteHasEnv reports whether the site root contains a .env file. Cheap,
+// stat-only check used to decide whether to surface the Env tab in the UI.
 func siteHasEnv(sitePath string) bool {
 	if sitePath == "" {
 		return false

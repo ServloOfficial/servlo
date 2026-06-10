@@ -679,4 +679,16 @@ func TestLaravelAppName(t *testing.T) {
 	if got := laravelAppName("laravel", noName); got != "" {
 		t.Errorf("APP_NAME absent: got %q want empty", got)
 	}
+
+	// The stock APP_NAME=Laravel default is treated as uncustomised (any case)
+	// so the tile falls back to the domain instead of a generic "Laravel" label.
+	for _, val := range []string{"Laravel", "laravel", "LARAVEL"} {
+		stock := t.TempDir()
+		if err := os.WriteFile(filepath.Join(stock, ".env"), []byte("APP_NAME="+val+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := laravelAppName("laravel", stock); got != "" {
+			t.Errorf("default APP_NAME %q: got %q want empty", val, got)
+		}
+	}
 }
