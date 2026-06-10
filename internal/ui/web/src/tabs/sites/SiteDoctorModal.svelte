@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Modal from '$components/Modal.svelte';
   import StatusDot from '$components/StatusDot.svelte';
   import type { StatusColor } from '$components/StatusDot.svelte';
   import { loadDoctor, type DoctorCheck, type DoctorReport } from '$stores/doctor';
@@ -7,14 +8,16 @@
   import { m } from '../../paraglide/messages.js';
 
   interface Props {
+    open: boolean;
     site: Site;
-    branch: string;
+    branch?: string;
+    onclose: () => void;
   }
-  let { site, branch }: Props = $props();
+  let { open, site, branch = '', onclose }: Props = $props();
 
   let report = $state<DoctorReport | null>(null);
   let commands = $state<Command[]>([]);
-  let loading = $state(true);
+  let loading = $state(false);
   let error = $state('');
   // Name of the check whose fix command is currently running, so only its
   // button shows a spinner and the rest stay disabled (one run at a time).
@@ -37,11 +40,17 @@
     }
   }
 
-  // Run checks whenever the site or branch changes.
+  // Run the checks only when the modal is opened, so the migrate:status exec
+  // fires on an explicit click rather than eagerly on every site view. Stale
+  // results from a prior site/branch are cleared so the spinner shows instead
+  // of last run's findings while the fresh report loads.
+  let wasOpen = false;
   $effect(() => {
-    void site.domain;
-    void branch;
-    reload();
+    if (open && !wasOpen) {
+      report = null;
+      reload();
+    }
+    wasOpen = open;
   });
 
   async function runFix(check: DoctorCheck) {
@@ -117,53 +126,55 @@
     Boolean(check.fix) && commands.some((c) => c.name === check.fix);
 </script>
 
-<div class="flex-1 overflow-y-auto p-4 space-y-3">
-  <div class="flex items-center justify-between gap-3">
-    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{summary}</p>
-    <button
-      type="button"
-      onclick={reload}
-      disabled={loading || Boolean(fixing)}
-      class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
-    >
-      {loading ? m.sites_doctor_running() : m.sites_doctor_refresh()}
-    </button>
-  </div>
-
-  {#if error}
-    <p class="text-xs text-red-500">{error}</p>
-  {:else if loading && !report}
-    <p class="text-xs text-gray-500 dark:text-gray-400">{m.sites_doctor_running()}</p>
-  {:else if report && report.checks.length === 0}
-    <p class="text-xs text-gray-500 dark:text-gray-400">{m.sites_doctor_empty()}</p>
-  {:else if report}
-    {#each report.checks as check (check.name)}
-      <div
-        class="flex items-start gap-3 rounded-lg border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card p-3"
+<Modal {open} title={m.sites_doctor_title()} size="lg" {onclose}>
+  <div class="max-h-[60vh] overflow-y-auto p-4 space-y-3">
+    <div class="flex items-center justify-between gap-3">
+      <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{summary}</p>
+      <button
+        type="button"
+        onclick={reload}
+        disabled={loading || Boolean(fixing)}
+        class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
       >
-        <span class="mt-1.5"><StatusDot color={dotColor(check.status)} /></span>
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-medium text-gray-900 dark:text-white">{checkTitle(check.name)}</span>
-            <span class="text-[10px] font-semibold uppercase tracking-wide {statusTextClass(check.status)}">
-              {statusLabel(check.status)}
-            </span>
+        {loading ? m.sites_doctor_running() : m.sites_doctor_refresh()}
+      </button>
+    </div>
+
+    {#if error}
+      <p class="text-xs text-red-500">{error}</p>
+    {:else if loading && !report}
+      <p class="text-xs text-gray-500 dark:text-gray-400">{m.sites_doctor_running()}</p>
+    {:else if report && report.checks.length === 0}
+      <p class="text-xs text-gray-500 dark:text-gray-400">{m.sites_doctor_empty()}</p>
+    {:else if report}
+      {#each report.checks as check (check.name)}
+        <div
+          class="flex items-start gap-3 rounded-lg border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card p-3"
+        >
+          <span class="mt-1.5"><StatusDot color={dotColor(check.status)} /></span>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-gray-900 dark:text-white">{checkTitle(check.name)}</span>
+              <span class="text-[10px] font-semibold uppercase tracking-wide {statusTextClass(check.status)}">
+                {statusLabel(check.status)}
+              </span>
+            </div>
+            {#if check.detail}
+              <p class="mt-0.5 text-[11px] leading-snug text-gray-500 dark:text-gray-400">{check.detail}</p>
+            {/if}
           </div>
-          {#if check.detail}
-            <p class="mt-0.5 text-[11px] leading-snug text-gray-500 dark:text-gray-400">{check.detail}</p>
+          {#if canFix(check)}
+            <button
+              type="button"
+              onclick={() => runFix(check)}
+              disabled={Boolean(fixing)}
+              class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-lerd-red hover:bg-lerd-redhov text-white disabled:opacity-50 transition-colors"
+            >
+              {fixing === check.name ? m.sites_doctor_fixing() : m.sites_doctor_fix()}
+            </button>
           {/if}
         </div>
-        {#if canFix(check)}
-          <button
-            type="button"
-            onclick={() => runFix(check)}
-            disabled={Boolean(fixing)}
-            class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-lerd-red hover:bg-lerd-redhov text-white disabled:opacity-50 transition-colors"
-          >
-            {fixing === check.name ? m.sites_doctor_fixing() : m.sites_doctor_fix()}
-          </button>
-        {/if}
-      </div>
-    {/each}
-  {/if}
-</div>
+      {/each}
+    {/if}
+  </div>
+</Modal>

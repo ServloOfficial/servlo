@@ -23,6 +23,7 @@
   import HorizonReloadWatcherModal from './HorizonReloadWatcherModal.svelte';
   import StripeControl from './StripeControl.svelte';
   import CommandsDropdown from '$components/CommandsDropdown.svelte';
+  import SiteDoctorModal from './SiteDoctorModal.svelte';
   import Dropdown from '$components/Dropdown.svelte';
   import ToggleButton from '$components/ToggleButton.svelte';
   import { m } from '../../paraglide/messages.js';
@@ -45,6 +46,12 @@
   const dbIsolated = $derived(Boolean(activeWorktree?.db_isolated));
   let dbBusy = $state(false);
   let isolateModalOpen = $state(false);
+
+  // Laravel Doctor lives behind an on-demand button next to Commands rather than
+  // a permanent tab: its checks (including a migrate:status exec) only run when
+  // the modal is opened, so a healthy site carries no extra weight.
+  const canDoctor = $derived(Boolean(site.is_laravel));
+  let doctorOpen = $state(false);
 
   function onDBIsolatedChange() {
     if (!activeWorktreeBranch || dbBusy) return;
@@ -371,9 +378,29 @@
     {/if}
   </div>
 
+    {#if canDoctor}
+      <button
+        type="button"
+        onclick={() => (doctorOpen = true)}
+        class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+        title={m.sites_doctor_title()}
+      >
+        {m.sites_doctor_button()}
+      </button>
+    {/if}
+
     <CommandsDropdown domain={site.domain} branch={activeWorktreeBranch} />
   </div>
 </div>
+
+{#if canDoctor}
+  <SiteDoctorModal
+    open={doctorOpen}
+    {site}
+    branch={activeWorktreeBranch}
+    onclose={() => (doctorOpen = false)}
+  />
+{/if}
 
 {#if activeWorktreeBranch}
   <WorktreeDBIsolateModal

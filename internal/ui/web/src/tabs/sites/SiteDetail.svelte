@@ -5,7 +5,6 @@
   import SiteLogs from './SiteLogs.svelte';
   import SiteTinkerTab from './SiteTinkerTab.svelte';
   import SiteEnvTab from './SiteEnvTab.svelte';
-  import SiteDoctorTab from './SiteDoctorTab.svelte';
   import SiteNginxModal from '../../modals/SiteNginxModal.svelte';
   import SiteDebugTab from '$tabs/sites/SiteDebugTab.svelte';
   import { resumeSite, loadSites, activeWorktreeDomain, type Site } from '$stores/sites';
@@ -28,13 +27,13 @@
   }
   let { site }: Props = $props();
 
-  type TabId = 'overview' | 'tinker' | 'env' | 'dumps' | 'doctor';
+  type TabId = 'overview' | 'tinker' | 'env' | 'dumps';
   const TAB_STORAGE_KEY = 'lerd:siteDetailTab';
 
   function readStoredTab(): TabId {
     if (typeof localStorage === 'undefined') return 'overview';
     const v = localStorage.getItem(TAB_STORAGE_KEY);
-    if (v === 'tinker' || v === 'env' || v === 'dumps' || v === 'doctor') return v;
+    if (v === 'tinker' || v === 'env' || v === 'dumps') return v;
     return 'overview';
   }
 
@@ -44,10 +43,9 @@
   const canTinker = $derived(Boolean(site.uses_php));
   const canDumps = $derived(Boolean(site.uses_php));
   const canEnv = $derived(Boolean(site.has_env));
-  const canDoctor = $derived(Boolean(site.is_laravel));
   // A lone Overview tab can't be switched to anything, so don't render the tab
   // row at all when no other tab is available (e.g. static sites).
-  const hasExtraTabs = $derived(canEnv || canTinker || canDumps || canDoctor);
+  const hasExtraTabs = $derived(canEnv || canTinker || canDumps);
 
   // The route can deep-link a sub-tab (e.g. dump notifications go to
   // #sites/<domain>/dumps). When the second segment names a tab, honour it
@@ -56,13 +54,7 @@
     const seg = $routeRest.split('/')[1] ?? '';
     if (seg === 'nginx') {
       nginxOpen = true;
-    } else if (
-      seg === 'tinker' ||
-      seg === 'env' ||
-      seg === 'dumps' ||
-      seg === 'doctor' ||
-      seg === 'overview'
-    ) {
+    } else if (seg === 'tinker' || seg === 'env' || seg === 'dumps' || seg === 'overview') {
       active = seg;
     }
   });
@@ -71,7 +63,6 @@
     if (active === 'tinker' && !canTinker) active = 'overview';
     if (active === 'env' && !canEnv) active = 'overview';
     if (active === 'dumps' && !canDumps) active = 'overview';
-    if (active === 'doctor' && !canDoctor) active = 'overview';
   });
 
   $effect(() => {
@@ -104,9 +95,6 @@
   {/if}
   {#if canDumps}
     <button class={tabBtn('dumps', active === 'dumps')} onclick={() => (active = 'dumps')}>{m.debug_title()}</button>
-  {/if}
-  {#if canDoctor}
-    <button class={tabBtn('doctor', active === 'doctor')} onclick={() => (active = 'doctor')}>{m.sites_tabs_doctor()}</button>
   {/if}
 {/snippet}
 
@@ -152,10 +140,6 @@
     {/key}
   {:else if active === 'dumps'}
     <SiteDebugTab siteName={site.name} framework={site.framework} />
-  {:else if active === 'doctor'}
-    {#key site.domain + '@' + activeWorktreeBranch}
-      <SiteDoctorTab {site} branch={activeWorktreeBranch} />
-    {/key}
   {/if}
 </DetailPanel>
 

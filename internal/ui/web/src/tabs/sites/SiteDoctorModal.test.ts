@@ -13,7 +13,7 @@ vi.mock('$stores/commands', () => ({
   executeCommand: (...a: unknown[]) => executeCommand(...a)
 }));
 
-import SiteDoctorTab from './SiteDoctorTab.svelte';
+import SiteDoctorModal from './SiteDoctorModal.svelte';
 import type { Site } from '$stores/sites';
 
 function site(over: Partial<Site> = {}): Site {
@@ -25,8 +25,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('SiteDoctorTab', () => {
-  it('renders each check title and detail, with a Fix button for fixable findings', async () => {
+describe('SiteDoctorModal', () => {
+  it('does not run the checks while closed', () => {
+    render(SiteDoctorModal, { props: { open: false, site: site(), branch: '', onclose: () => {} } });
+    expect(loadDoctor).not.toHaveBeenCalled();
+    expect(loadCommands).not.toHaveBeenCalled();
+  });
+
+  it('renders each check title and detail when opened, with a Fix button for fixable findings', async () => {
     loadDoctor.mockResolvedValue({
       checks: [
         { name: 'app_key', status: 'fail', detail: 'APP_KEY is empty', fix: 'key:generate' },
@@ -39,8 +45,9 @@ describe('SiteDoctorTab', () => {
       { name: 'key:generate', label: 'Generate APP_KEY', command: 'php artisan key:generate' }
     ]);
 
-    render(SiteDoctorTab, { props: { site: site(), branch: '' } });
+    render(SiteDoctorModal, { props: { open: true, site: site(), branch: '', onclose: () => {} } });
 
+    expect(loadDoctor).toHaveBeenCalled();
     expect(await screen.findByText('Application key')).toBeTruthy();
     expect(screen.getByText('Debug mode')).toBeTruthy();
     expect(screen.getByText('APP_KEY is empty')).toBeTruthy();
@@ -55,7 +62,7 @@ describe('SiteDoctorTab', () => {
     });
     loadCommands.mockResolvedValue([]);
 
-    render(SiteDoctorTab, { props: { site: site(), branch: '' } });
+    render(SiteDoctorModal, { props: { open: true, site: site(), branch: '', onclose: () => {} } });
 
     expect(await screen.findByText('Storage symlink')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Fix' })).toBeNull();
