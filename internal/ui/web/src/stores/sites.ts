@@ -11,6 +11,7 @@ export interface FrameworkWorker {
 
 export interface Site {
   name?: string;
+  app_name?: string;
   domain: string;
   domains?: string[];
   conflicting_domains?: Array<{ domain: string; owned_by?: string }>;
