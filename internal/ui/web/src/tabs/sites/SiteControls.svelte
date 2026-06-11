@@ -23,6 +23,7 @@
   import HorizonReloadWatcherModal from './HorizonReloadWatcherModal.svelte';
   import StripeControl from './StripeControl.svelte';
   import CommandsDropdown from '$components/CommandsDropdown.svelte';
+  import SiteDoctorModal from './SiteDoctorModal.svelte';
   import Dropdown from '$components/Dropdown.svelte';
   import ToggleButton from '$components/ToggleButton.svelte';
   import { m } from '../../paraglide/messages.js';
@@ -60,6 +61,12 @@
   const dbIsolated = $derived(Boolean(activeWorktree?.db_isolated));
   let dbBusy = $state(false);
   let isolateModalOpen = $state(false);
+
+  // Laravel Doctor lives behind an on-demand button next to Commands rather than
+  // a permanent tab: its checks (including a migrate:status exec) only run when
+  // the modal is opened, so a healthy site carries no extra weight.
+  const canDoctor = $derived(Boolean(site.is_laravel));
+  let doctorOpen = $state(false);
 
   function onDBIsolatedChange() {
     if (!activeWorktreeBranch || dbBusy) return;
@@ -389,9 +396,34 @@
     {/if}
   </div>
 
+    {#if canDoctor}
+      <button
+        type="button"
+        onclick={() => (doctorOpen = true)}
+        class="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card hover:border-lerd-red hover:text-lerd-red transition-colors text-gray-700 dark:text-gray-200"
+        title={m.sites_doctor_title()}
+        aria-label={m.sites_doctor_button()}
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 00-2 2v5a6 6 0 006 6 6 6 0 006-6V4a2 2 0 00-2-2h-1a.3.3 0 10.2.3" />
+          <path d="M8 15v1a6 6 0 006 6 6 6 0 006-6v-4" />
+          <circle cx="20" cy="10" r="2" />
+        </svg>
+      </button>
+    {/if}
+
     <CommandsDropdown domain={site.domain} branch={activeWorktreeBranch} />
   </div>
 </div>
+
+{#if canDoctor}
+  <SiteDoctorModal
+    open={doctorOpen}
+    {site}
+    branch={activeWorktreeBranch}
+    onclose={() => (doctorOpen = false)}
+  />
+{/if}
 
 {#if activeWorktreeBranch}
   <WorktreeDBIsolateModal

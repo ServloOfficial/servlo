@@ -11,8 +11,14 @@
   }
   let { site }: Props = $props();
 
+  // Laravel sites carry an app_name (APP_NAME from .env); when present it reads
+  // friendlier than the URL, so it becomes the tile title and the domain drops
+  // to the subline. Everything else keeps the domain as the title.
+  const title = $derived(site.app_name || site.domain);
+
   const subtitle = $derived.by(() => {
     const parts: string[] = [];
+    if (site.app_name) parts.push(site.domain);
     if (site.framework_label) parts.push(site.framework_label);
     if (site.php_version) parts.push('PHP ' + site.php_version);
     else if (site.node_version) parts.push('Node ' + site.node_version);
@@ -34,7 +40,7 @@
     </span>
     <div class="min-w-0 flex-1">
       <div class="flex items-center gap-1.5">
-        <span class="text-sm font-semibold text-gray-900 dark:text-white truncate" title={site.domain}>{site.domain}</span>
+        <span class="text-sm font-semibold text-gray-900 dark:text-white truncate" title={title}>{title}</span>
         {#if site.tls}
           <svg class="w-3 h-3 shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
