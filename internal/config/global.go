@@ -41,10 +41,15 @@ type GlobalConfig struct {
 	// known GUI editor (code/cursor/phpstorm/subl/zed), then xdg-open/open.
 	Editor string `yaml:"editor,omitempty" mapstructure:"editor"`
 	PHP    struct {
-		DefaultVersion string              `yaml:"default_version" mapstructure:"default_version"`
-		XdebugEnabled  map[string]bool     `yaml:"xdebug_enabled"  mapstructure:"xdebug_enabled"`
-		XdebugMode     map[string]string   `yaml:"xdebug_mode,omitempty" mapstructure:"xdebug_mode"`
-		Extensions     map[string][]string `yaml:"extensions"      mapstructure:"extensions"`
+		DefaultVersion string            `yaml:"default_version" mapstructure:"default_version"`
+		XdebugEnabled  map[string]bool   `yaml:"xdebug_enabled"  mapstructure:"xdebug_enabled"`
+		XdebugMode     map[string]string `yaml:"xdebug_mode,omitempty" mapstructure:"xdebug_mode"`
+		// XdebugStart maps a PHP version to its xdebug.start_with_request value
+		// (yes | trigger | no). Absent means the default "yes" (connect on every
+		// request). "trigger"/"no" support on-demand debugging via the control
+		// socket without flooding the IDE from every request and worker.
+		XdebugStart map[string]string   `yaml:"xdebug_start,omitempty" mapstructure:"xdebug_start"`
+		Extensions  map[string][]string `yaml:"extensions"      mapstructure:"extensions"`
 		// ExtApkDeps maps a custom extension name to extra Alpine packages its
 		// build needs. Keyed by extension (deps don't vary by PHP version).
 		// lerd already knows the deps for some extensions; this is for the rest.
@@ -370,6 +375,12 @@ func cloneGlobalConfig(in *GlobalConfig) *GlobalConfig {
 			out.PHP.XdebugMode[k] = v
 		}
 	}
+	if in.PHP.XdebugStart != nil {
+		out.PHP.XdebugStart = make(map[string]string, len(in.PHP.XdebugStart))
+		for k, v := range in.PHP.XdebugStart {
+			out.PHP.XdebugStart[k] = v
+		}
+	}
 	if in.PHP.Extensions != nil {
 		out.PHP.Extensions = make(map[string][]string, len(in.PHP.Extensions))
 		for k, v := range in.PHP.Extensions {
@@ -515,6 +526,28 @@ func (c *GlobalConfig) SetXdebugMode(version, mode string) {
 	}
 	c.PHP.XdebugEnabled[version] = true
 	c.PHP.XdebugMode[version] = mode
+}
+
+// GetXdebugStart returns the xdebug.start_with_request value for version,
+// defaulting to "yes" (connect on every request) when unset.
+func (c *GlobalConfig) GetXdebugStart(version string) string {
+	if v, ok := c.PHP.XdebugStart[version]; ok && v != "" {
+		return v
+	}
+	return "yes"
+}
+
+// SetXdebugStart records the xdebug.start_with_request value for version. An
+// empty value (or "yes", the default) clears the entry so the config stays lean.
+func (c *GlobalConfig) SetXdebugStart(version, value string) {
+	if value == "" || value == "yes" {
+		delete(c.PHP.XdebugStart, version)
+		return
+	}
+	if c.PHP.XdebugStart == nil {
+		c.PHP.XdebugStart = map[string]string{}
+	}
+	c.PHP.XdebugStart[version] = value
 }
 
 // GetExtensions returns the custom extensions configured for the given PHP version.

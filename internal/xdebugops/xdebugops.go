@@ -26,11 +26,19 @@ type Result struct {
 	RestartErr error
 }
 
-// Apply toggles Xdebug for version. An empty mode disables xdebug; a non-empty
-// mode is validated via podman.NormaliseXdebugMode and enables xdebug with
-// that canonical value. Apply is idempotent: passing the current mode is a
-// no-op that returns NoChange=true without touching the FPM container.
+// Apply toggles Xdebug for version with the default start_with_request=yes
+// (connect on every request). See ApplyWithStart for on-demand modes.
 func Apply(version, rawMode string) (Result, error) {
+	return ApplyWithStart(version, rawMode, "yes")
+}
+
+// ApplyWithStart toggles Xdebug for version and sets its start_with_request
+// value (yes | trigger | no). An empty mode disables xdebug; a non-empty mode
+// is validated via podman.NormaliseXdebugMode. With "trigger"/"no", debugging
+// is driven on demand (a trigger cookie, or the control socket via
+// `lerd xdebug pause`) instead of every request and worker connecting. It is
+// idempotent: passing the current mode and start returns NoChange=true.
+func ApplyWithStart(version, rawMode, start string) (Result, error) {
 	targetMode := ""
 	if rawMode != "" {
 		m, err := podman.NormaliseXdebugMode(rawMode)
@@ -39,13 +47,17 @@ func Apply(version, rawMode string) (Result, error) {
 		}
 		targetMode = m
 	}
+	if start == "" {
+		start = "yes"
+	}
 
 	cfg, err := config.LoadGlobal()
 	if err != nil {
 		return Result{Version: version}, fmt.Errorf("loading config: %w", err)
 	}
 
-	if cfg.GetXdebugMode(version) == targetMode {
+	// Disabled state ignores start; enabled state must match both to be a no-op.
+	if cfg.GetXdebugMode(version) == targetMode && (targetMode == "" || cfg.GetXdebugStart(version) == start) {
 		return Result{
 			Version:  version,
 			Mode:     targetMode,
@@ -55,11 +67,16 @@ func Apply(version, rawMode string) (Result, error) {
 	}
 
 	cfg.SetXdebugMode(version, targetMode)
+	if targetMode == "" {
+		cfg.SetXdebugStart(version, "")
+	} else {
+		cfg.SetXdebugStart(version, start)
+	}
 	if err := config.SaveGlobal(cfg); err != nil {
 		return Result{Version: version}, fmt.Errorf("saving config: %w", err)
 	}
 
-	if err := podman.WriteXdebugIni(version, targetMode); err != nil {
+	if err := podman.WriteXdebugIni(version, targetMode, start); err != nil {
 		return Result{Version: version}, fmt.Errorf("writing xdebug ini: %w", err)
 	}
 

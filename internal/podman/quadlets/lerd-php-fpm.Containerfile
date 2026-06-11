@@ -170,6 +170,29 @@ RUN mkdir -p /etc/my.cnf.d && printf '[client]\nssl=0\n' > /etc/my.cnf.d/lerd-no
 # Composer from the official image.
 COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
 
+# xdebugctl — Xdebug's control-socket CLI (Xdebug >= 3.3). `lerd xdebug pause`
+# uses it to break the IDE debugger into a running worker/CLI process on demand.
+# Pinned by SHA-256; bump BOTH hashes when upstream updates the binary. A bad
+# checksum fails the build (the binary changed under us); a network/arch miss is
+# tolerated and just leaves the pause feature unavailable in that image.
+RUN set -eu; \
+    apk add --no-cache --virtual .xdbgctl-dl ca-certificates wget; \
+    case "$(uname -m)" in \
+      x86_64)  U="https://xdebug.org/files/binaries/xdebugctl";       S="dbfe72bdb4e23e2245305b14cce2931cc86db40061b830d15f801d1249c4d3c8" ;; \
+      aarch64) U="https://xdebug.org/files/binaries/xdebugctl-arm64"; S="48543fb8aaae273c161efa05e07259cd49072a3ba0ad06669baa71b3f7f3ff32" ;; \
+      *)       U="" ;; \
+    esac; \
+    if [ -n "$U" ]; then \
+      if wget -qO /tmp/xdebugctl "$U"; then \
+        echo "$S  /tmp/xdebugctl" | sha256sum -c -; \
+        install -m 0755 /tmp/xdebugctl /usr/local/bin/xdebugctl; \
+        rm -f /tmp/xdebugctl; \
+      else \
+        echo "WARN: xdebugctl download failed; 'lerd xdebug pause' disabled in this image"; \
+      fi; \
+    fi; \
+    apk del .xdbgctl-dl
+
 # Interactive shell for lerd shell. zsh/fzf exist on every alpine base;
 # bat lands on 3.16+ and starship/eza/zoxide on 3.18+, so the optional
 # tools install tolerantly and zshrc inits starship only when present.

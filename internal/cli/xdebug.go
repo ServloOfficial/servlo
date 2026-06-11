@@ -20,25 +20,33 @@ func NewXdebugCmd() *cobra.Command {
 	cmd.AddCommand(newXdebugOnCmd())
 	cmd.AddCommand(newXdebugOffCmd())
 	cmd.AddCommand(newXdebugStatusCmd())
+	cmd.AddCommand(newXdebugPauseCmd())
 	return cmd
 }
 
 func newXdebugOnCmd() *cobra.Command {
 	var mode string
+	var onDemand bool
 	cmd := &cobra.Command{
 		Use:   "on [version]",
 		Short: "Enable Xdebug for a PHP version (rebuilds the FPM image)",
-		Long:  "Enable Xdebug for a PHP version. Use --mode to pick a non-default mode, e.g. --mode coverage for code coverage, or --mode debug,coverage to combine.",
-		Args:  cobra.MaximumNArgs(1),
+		Long: "Enable Xdebug for a PHP version. Use --mode to pick a non-default mode, e.g. --mode coverage for code coverage, or --mode debug,coverage to combine.\n\n" +
+			"Use --on-demand to set xdebug.start_with_request=trigger: requests and workers no longer auto-connect (no IDE flood); debug a running worker with `lerd xdebug pause`, or a web request via a trigger cookie.",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			normalised, err := podman.NormaliseXdebugMode(mode)
 			if err != nil {
 				return err
 			}
-			return runXdebugToggle(args, true, normalised)
+			start := "yes"
+			if onDemand {
+				start = "trigger"
+			}
+			return runXdebugToggle(args, true, normalised, start)
 		},
 	}
 	cmd.Flags().StringVar(&mode, "mode", "debug", "xdebug.mode value (debug, coverage, develop, profile, trace, gcstats, or a comma-separated combo)")
+	cmd.Flags().BoolVar(&onDemand, "on-demand", false, "set start_with_request=trigger so nothing auto-connects; attach with `lerd xdebug pause` or a trigger cookie")
 	return cmd
 }
 
@@ -48,7 +56,7 @@ func newXdebugOffCmd() *cobra.Command {
 		Short: "Disable Xdebug for a PHP version (rebuilds the FPM image)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return runXdebugToggle(args, false, "")
+			return runXdebugToggle(args, false, "", "yes")
 		},
 	}
 }
@@ -80,7 +88,7 @@ func xdebugVersion(args []string) (string, error) {
 	return v, nil
 }
 
-func runXdebugToggle(args []string, enable bool, mode string) error {
+func runXdebugToggle(args []string, enable bool, mode, start string) error {
 	version, err := xdebugVersion(args)
 	if err != nil {
 		return err
@@ -91,7 +99,7 @@ func runXdebugToggle(args []string, enable bool, mode string) error {
 		applyMode = mode
 	}
 
-	res, err := xdebugops.Apply(version, applyMode)
+	res, err := xdebugops.ApplyWithStart(version, applyMode, start)
 	if err != nil {
 		return err
 	}
@@ -118,7 +126,10 @@ func runXdebugToggle(args []string, enable bool, mode string) error {
 	restartCustomFPMContainersForVersion(version)
 
 	if res.Enabled {
-		fmt.Printf("Xdebug enabled for PHP %s (mode=%s, port 9003, host.containers.internal)\n", version, res.Mode)
+		fmt.Printf("Xdebug enabled for PHP %s (mode=%s, start_with_request=%s, port 9003, host.containers.internal)\n", version, res.Mode, start)
+		if start == "trigger" {
+			fmt.Println("On-demand mode: requests and workers won't auto-connect. Attach with `lerd xdebug pause` or a trigger cookie.")
+		}
 	} else {
 		fmt.Printf("Xdebug disabled for PHP %s\n", version)
 	}

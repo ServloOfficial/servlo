@@ -110,9 +110,10 @@ Supported PHP versions: **8.5**, **8.4**, **8.3**, **8.2**, **8.1**, and the fro
 | `lerd php:list` | List all installed PHP-FPM versions |
 | `lerd php:rebuild [--local]` | Force-rebuild all installed PHP-FPM images (pulls pre-built base by default; `--local` builds from source) |
 | `lerd fetch [version...] [--local]` | Pull pre-built PHP FPM base images from ghcr.io for the given (or all supported) versions; `--local` builds from source instead |
-| `lerd xdebug on [version] [--mode MODE]` | Enable Xdebug for a PHP version. `--mode` defaults to `debug`; accepts `coverage`, `develop`, `profile`, `trace`, `gcstats`, or comma combos like `debug,coverage` |
+| `lerd xdebug on [version] [--mode MODE] [--on-demand]` | Enable Xdebug for a PHP version. `--mode` defaults to `debug`; accepts `coverage`, `develop`, `profile`, `trace`, `gcstats`, or comma combos like `debug,coverage`. `--on-demand` sets `start_with_request=trigger` so nothing auto-connects |
 | `lerd xdebug off [version]` | Disable Xdebug |
 | `lerd xdebug status` | Show Xdebug enabled/disabled state and active mode for all installed PHP versions |
+| `lerd xdebug pause [site] [--list] [--pid PID]` | Break the IDE debugger into a running worker/CLI process via Xdebug's control socket (`xdebugctl`). `--list` shows candidate processes, `--pid` targets one |
 | `lerd php:ext add <ext> [version] [--apk-deps PKG[,PKG]]` | Add a custom PHP extension and rebuild the FPM image. `--apk-deps` accepts additional Alpine packages that the extension needs at build time (e.g. `--apk-deps libwebp-dev,libpng-dev` for `gd` with WebP support); the package list is persisted in `~/.config/lerd/config.yaml` so future rebuilds reapply it |
 | `lerd php:ext remove <ext> [version]` | Remove a custom PHP extension and rebuild |
 | `lerd php:ext list [version]` | List custom extensions for a PHP version |
