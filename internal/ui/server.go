@@ -33,6 +33,7 @@ import (
 	"github.com/geodro/lerd/internal/cli"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/dns"
+	"github.com/geodro/lerd/internal/envfile"
 	"github.com/geodro/lerd/internal/eventbus"
 	gitpkg "github.com/geodro/lerd/internal/git"
 	"github.com/geodro/lerd/internal/grouping"
@@ -683,6 +684,7 @@ type ConflictingDomain struct {
 // SiteResponse is the response for GET /api/sites.
 type SiteResponse struct {
 	Name               string              `json:"name"`
+	AppName            string              `json:"app_name,omitempty"`
 	Domain             string              `json:"domain"`
 	Domains            []string            `json:"domains"`
 	ConflictingDomains []ConflictingDomain `json:"conflicting_domains,omitempty"`
@@ -829,6 +831,7 @@ func buildSites() []SiteResponse {
 
 		sites = append(sites, SiteResponse{
 			Name:               e.Name,
+			AppName:            laravelAppName(e.FrameworkName, e.Path),
 			Domain:             e.PrimaryDomain(),
 			Domains:            e.Domains,
 			ConflictingDomains: conflicting,
@@ -4532,6 +4535,24 @@ func ensureWorktreeEnvIfBranch(site *config.Site, branch string) {
 			return
 		}
 	}
+}
+
+// laravelAppName reads APP_NAME from a Laravel project's .env so the sites
+// dashboard can label a tile by its application name instead of just the URL.
+// Returns "" for non-Laravel projects, when the .env is missing or has no
+// APP_NAME, or when APP_NAME is still the stock "Laravel" default, in which
+// case the dashboard falls back to the domain. Gating on the default keeps the
+// label purely additive: uncustomised sites stay titled by their scannable
+// domain instead of a wall of identical "Laravel" tiles.
+func laravelAppName(frameworkName, sitePath string) string {
+	if frameworkName != "laravel" || sitePath == "" {
+		return ""
+	}
+	name := envfile.ReadKey(filepath.Join(sitePath, ".env"), "APP_NAME")
+	if strings.EqualFold(name, "Laravel") {
+		return ""
+	}
+	return name
 }
 
 // siteHasEnv reports whether the site root contains a .env file. Cheap,
