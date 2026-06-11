@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
+
+	"github.com/geodro/lerd/internal/unitlog"
 )
 
 func serviceRecentLogs(unit string) string {
@@ -24,7 +26,7 @@ func logStreamCmd(ctx context.Context, unit string) *exec.Cmd {
 }
 
 // isContainerUnit returns true on Linux — all lerd units run as Podman containers.
-func isContainerUnit(_ string) bool { return true }
+func isContainerUnit(unit string) bool { return unitlog.IsContainerUnit(unit) }
 
 func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
 	flusher, ok := w.(http.Flusher)

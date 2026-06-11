@@ -2,7 +2,7 @@
 
 This project runs on **lerd**, a Podman-based Laravel development environment. The `lerd` MCP server is available — use it to manage the environment without leaving the chat.
 
-The MCP surface is **ten grouped tools**, each driven by an `action` argument: `site`, `service`, `db`, `env`, `runtime`, `worker`, `exec`, `framework`, `diag`, `worktree`. Always pass `action`. Most actions also accept an optional `path` that defaults to the directory the assistant was opened in (then `LERD_SITE_PATH` if set), so you can usually omit it. Start by calling `site` with `action: "list"` to discover sites.
+The MCP surface is **eleven grouped tools**, each driven by an `action` argument: `site`, `service`, `db`, `env`, `runtime`, `worker`, `exec`, `framework`, `diag`, `logs`, `worktree`. Always pass `action`. Most actions also accept an optional `path` that defaults to the directory the assistant was opened in (then `LERD_SITE_PATH` if set), so you can usually omit it. Start by calling `site` with `action: "list"` to discover sites.
 
 ### Architecture
 
@@ -28,7 +28,7 @@ Read `diag` `action: "status"` for `dns.tld` and `dns.enabled` instead of assumi
 
 ### MCP tools
 
-Ten grouped tools, each selecting behaviour via `action`.
+Eleven grouped tools, each selecting behaviour via `action`.
 
 #### `site` — sites and their configuration
 Actions: `list` (discover sites — CALL FIRST), `link`, `unlink`, `domain_add`, `domain_remove`, `group_assign`, `group_unassign`, `group_label`, `group_db`, `group_list`, `tls_enable`, `tls_disable`, `php`, `node`, `pause`, `unpause`, `restart`, `rebuild`, `runtime`, `nginx_read`, `nginx_write`, `nginx_reset`, `park`, `unpark`.
@@ -89,13 +89,20 @@ Actions: `list`, `add`, `remove`, `search`, `install`, `project_new`, `setup`.
 - `setup` runs the framework's post-install steps (migrations, storage:link…) — MANDATORY after `env setup` on new/cloned projects; idempotent
 
 #### `diag` — diagnostics & observability
-Actions: `status`, `doctor`, `logs`, `which`, `check`, `dns_diagnose`, `bug_report`, `analyze_queries`, `dumps_recent`, `dumps_status`, `dumps_clear`, `dumps_toggle`, `profiler_toggle`, `profiler_status`, `profiler_clear`, `xdebug_on`, `xdebug_off`, `xdebug_status`.
+Actions: `status`, `doctor`, `which`, `check`, `dns_diagnose`, `bug_report`, `analyze_queries`, `dumps_recent`, `dumps_status`, `dumps_clear`, `dumps_toggle`, `profiler_toggle`, `profiler_status`, `profiler_clear`, `xdebug_on`, `xdebug_off`, `xdebug_status`.
 - `status` (DNS/nginx/FPM/watcher health) and `doctor` (full JSON diagnostic) are the first stops when something is broken; `dns_diagnose` walks the DNS chain
-- `logs` defaults to the current site's FPM; `target` can be nginx, a service, a PHP version, or a site name
+- reading logs lives in the `logs` tool (below), not here
 - `which` shows resolved PHP/Node/docroot/nginx for a site; `check` validates `.lerd.yaml`
 - debug bridge loop: `dumps_toggle` (enable) → `dumps_clear` → hit the page → `analyze_queries` (N+1 / slow-query report with file:line) or `dumps_recent` (filter by site/branch/ctx/kind/since/limit)
 - `profiler_*` toggle the global SPX profiler and surface the flame-graph UI; `xdebug_*` control Xdebug on port 9003 (`mode` defaults to debug)
 - `bug_report` writes an anonymised diagnostic report for a GitHub issue
+
+#### `logs` — read logs from any source, filtered
+Actions: `sources`, `fetch`. Debug without opening files by hand.
+- `sources` lists every queryable source for the site plus shared infra: `app:<file>` (framework log files), `fpm`, `worker:<name>` (queue/horizon/schedule/custom), and the globals `nginx`, `dns`, `watcher`, `ui`, services, `php<ver>`. Call it first to learn the names
+- `fetch source=<name>` reads one source. Filter with `grep` (regex, falls back to literal substring), `since`/`until` (relative like `15m`/`1h`/`2h30m`, or a timestamp), `level` (app logs only: error/warning/info/debug), and `lines` (default 50)
+- streaming is polling: every `fetch` returns an opaque `cursor`; call again with `since=<cursor>` (or `cursor=<cursor>`) to get only the new lines. The cursor format differs per backend, so treat it as opaque and echo it back
+- entries come back chronological (oldest first). Raw logs with no timestamps ignore `since`/`level` and just return the last N; a not-running container returns partial output, not an error
 
 #### `worktree` — git worktrees
 Actions: `list`, `add`, `remove`, `db_isolate`, `db_share`.
