@@ -224,6 +224,29 @@ func TestXdebug_ModeRoundtrip(t *testing.T) {
 	}
 }
 
+func TestXdebug_StartRoundtrip(t *testing.T) {
+	cfg := &GlobalConfig{}
+
+	// Default is "yes" when unset.
+	if got := cfg.GetXdebugStart("8.4"); got != "yes" {
+		t.Errorf("default GetXdebugStart = %q, want yes", got)
+	}
+
+	cfg.SetXdebugStart("8.4", "trigger")
+	if got := cfg.GetXdebugStart("8.4"); got != "trigger" {
+		t.Errorf("GetXdebugStart = %q, want trigger", got)
+	}
+
+	// Setting back to the default clears the entry so the config stays lean.
+	cfg.SetXdebugStart("8.4", "yes")
+	if _, ok := cfg.PHP.XdebugStart["8.4"]; ok {
+		t.Error(`setting "yes" should clear the stored entry`)
+	}
+	if got := cfg.GetXdebugStart("8.4"); got != "yes" {
+		t.Errorf("after clear GetXdebugStart = %q, want yes", got)
+	}
+}
+
 // Legacy configs (lerd <= 1.15.1) only wrote xdebug_enabled. GetXdebugMode
 // must fall back to "debug" for those entries so upgrade keeps working.
 func TestXdebug_LegacyEnabledFallsBackToDebug(t *testing.T) {

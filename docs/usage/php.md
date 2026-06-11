@@ -9,9 +9,10 @@
 | `lerd php:list` | List all installed PHP-FPM versions |
 | `lerd php:rebuild [--local]` | Force-rebuild all installed PHP-FPM images; `--local` builds from source instead of pulling a base |
 | `lerd fetch [version...] [--local]` | Pull pre-built PHP FPM base images from ghcr.io; `--local` builds from source instead |
-| `lerd xdebug on [version] [--mode MODE]` | Enable Xdebug for a PHP version with the given mode (default `debug`) and restart the FPM container |
+| `lerd xdebug on [version] [--mode MODE] [--on-demand]` | Enable Xdebug for a PHP version with the given mode (default `debug`) and restart the FPM container. `--on-demand` sets `start_with_request=trigger` so nothing auto-connects |
 | `lerd xdebug off [version]` | Disable Xdebug and restart the FPM container |
 | `lerd xdebug status` | Show Xdebug enabled/disabled state and active mode for all installed PHP versions |
+| `lerd xdebug pause [site] [--list] [--pid PID]` | Break the IDE debugger into a running worker/CLI process via Xdebug's control socket. `--list` shows candidate processes |
 | `lerd php:ext add <ext> [version] [--apk-deps "pkg ..."]` | Add a custom PHP extension to the FPM image and rebuild; `--apk-deps` lists extra Alpine packages the extension needs to build |
 | `lerd php:ext remove <ext> [version]` | Remove a custom PHP extension and rebuild |
 | `lerd php:ext list [version]` | List custom extensions configured for a PHP version |
@@ -125,7 +126,7 @@ systemctl --user stop   lerd-php84-fpm
 Xdebug is configured with:
 
 - `xdebug.mode=<mode>` (defaults to `debug`, configurable per PHP version)
-- `xdebug.start_with_request=yes`
+- `xdebug.start_with_request=yes` (or `trigger` with `--on-demand`)
 - `xdebug.client_host=host.containers.internal` (reaches your host IDE from the container)
 - `xdebug.client_port=9003`
 
@@ -147,6 +148,20 @@ lerd xdebug on 8.4 --mode trace       # explicit version
 When combined with PCOV this matters in one direction: if your test runner's `phpunit.xml` prefers PCOV it still wins for coverage, but once you enable Xdebug in `coverage` mode your runner can fall back to Xdebug when PCOV isn't available or is disabled (`pcov.enabled = 0` in `lerd php:ini`). Running Xdebug in `coverage` mode carries the usual runtime cost, so only switch while you actually need coverage.
 
 Re-run `lerd xdebug on --mode <new>` at any time to swap modes without going through `off` first.
+
+### On-demand debugging (workers and CLI)
+
+By default `start_with_request=yes`, so with the debugger listening every request and every running worker tries to connect at once. To debug a single process on demand instead, enable on-demand mode and attach with `pause`:
+
+```bash
+lerd xdebug on --on-demand        # start_with_request=trigger — nothing auto-connects
+lerd xdebug pause --list          # list running PHP processes that expose a control socket
+lerd xdebug pause --pid 1234      # break the IDE into that process
+```
+
+`pause` uses Xdebug's [control socket](https://xdebug.org/docs/xdebugctl) (Xdebug >= 3.3, baked into lerd's FPM images) via the `xdebugctl` tool. It is the practical way to debug a **queue/Horizon worker, a scheduled task, or a CLI script** — processes where you can't set a trigger cookie. Run it from a project directory (or pass a site name); lerd resolves the site's container, scopes the candidate list to that site's own processes, and tells the running process to connect to your IDE on port `9003`. The worker must have been started *after* Xdebug was enabled, and your IDE must be listening.
+
+For ordinary web requests under `--on-demand`, use the [Xdebug Helper](https://xdebug.org/docs/step_debug#browser-extensions) browser extension (or append `?XDEBUG_TRIGGER=1`) to trigger a session per page.
 
 ---
 

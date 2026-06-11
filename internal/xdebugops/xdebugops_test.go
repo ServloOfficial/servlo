@@ -55,6 +55,36 @@ func TestApply_EnablesWithDefaultMode(t *testing.T) {
 	}
 }
 
+func TestApplyWithStart_TriggerPersistsAndWritesIni(t *testing.T) {
+	setupConfigHome(t)
+
+	if _, err := ApplyWithStart("8.4", "debug", "trigger"); err != nil {
+		t.Fatalf("ApplyWithStart: %v", err)
+	}
+
+	cfg, _ := config.LoadGlobal()
+	if got := cfg.GetXdebugStart("8.4"); got != "trigger" {
+		t.Errorf("start not persisted: %q", got)
+	}
+
+	body, _ := os.ReadFile(config.PHPConfFile("8.4"))
+	if !strings.Contains(string(body), "xdebug.start_with_request=trigger") {
+		t.Errorf("ini missing start_with_request=trigger:\n%s", body)
+	}
+
+	// Re-applying the same mode+start is a no-op; switching start is not.
+	if res, _ := ApplyWithStart("8.4", "debug", "trigger"); !res.NoChange {
+		t.Error("same mode+start should be NoChange")
+	}
+	if res, _ := ApplyWithStart("8.4", "debug", "yes"); res.NoChange {
+		t.Error("changing start should not be NoChange")
+	}
+	body, _ = os.ReadFile(config.PHPConfFile("8.4"))
+	if !strings.Contains(string(body), "xdebug.start_with_request=yes") {
+		t.Errorf("ini should flip back to start_with_request=yes:\n%s", body)
+	}
+}
+
 func TestApply_EnablesWithCoverageMode(t *testing.T) {
 	setupConfigHome(t)
 

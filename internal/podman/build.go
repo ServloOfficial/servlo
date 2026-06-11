@@ -625,7 +625,8 @@ func NormaliseXdebugMode(raw string) (string, error) {
 // The file is volume-mounted into the FPM container at /usr/local/etc/php/conf.d/99-xdebug.ini.
 // An empty mode writes xdebug.mode=off (extension loaded but inactive); any other value
 // is emitted as-is, so callers can pass "debug", "coverage", "debug,coverage", etc.
-func WriteXdebugIni(version, mode string) error {
+// start is the xdebug.start_with_request value (yes | trigger | no); empty defaults to "yes".
+func WriteXdebugIni(version, mode, start string) error {
 	path := config.PHPConfFile(version)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
@@ -638,7 +639,10 @@ func WriteXdebugIni(version, mode string) error {
 	if mode == "" {
 		mode = "off"
 	}
-	content := fmt.Sprintf("[xdebug]\nxdebug.mode=%s\nxdebug.start_with_request=yes\nxdebug.client_host=host.containers.internal\nxdebug.client_port=9003\n", mode)
+	if start == "" {
+		start = "yes"
+	}
+	content := fmt.Sprintf("[xdebug]\nxdebug.mode=%s\nxdebug.start_with_request=%s\nxdebug.client_host=host.containers.internal\nxdebug.client_port=9003\n", mode, start)
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
@@ -692,7 +696,7 @@ func EnsureXdebugIni(version string) error {
 	if cfgErr != nil {
 		return cfgErr
 	}
-	return WriteXdebugIni(version, cfg.GetXdebugMode(version))
+	return WriteXdebugIni(version, cfg.GetXdebugMode(version), cfg.GetXdebugStart(version))
 }
 
 // WriteFPMQuadlet writes the systemd quadlet for a PHP-FPM version and reloads the

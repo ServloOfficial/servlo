@@ -140,7 +140,7 @@ func TestWriteXdebugIni_healsStaleDirectoryDirectly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := WriteXdebugIni("8.4", "debug"); err != nil {
+	if err := WriteXdebugIni("8.4", "debug", "yes"); err != nil {
 		t.Fatalf("WriteXdebugIni: %v", err)
 	}
 	info, err := os.Stat(path)
@@ -171,7 +171,7 @@ func TestWriteXdebugIni_writesRequestedMode(t *testing.T) {
 		{"", "xdebug.mode=off"},
 	}
 	for _, c := range cases {
-		if err := WriteXdebugIni("8.4", c.in); err != nil {
+		if err := WriteXdebugIni("8.4", c.in, "yes"); err != nil {
 			t.Fatalf("WriteXdebugIni(%q): %v", c.in, err)
 		}
 		body, _ := os.ReadFile(config.PHPConfFile("8.4"))
