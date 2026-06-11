@@ -105,6 +105,7 @@ nav:
       - Project Setup: features/project-setup.md
       - Environment Setup: features/env-setup.md
       - AI Integration (MCP): features/mcp.md
+      - Logs: features/logs.md
   - Reference:
       - Command Reference: reference/commands.md
       - Configuration: reference/configuration.md

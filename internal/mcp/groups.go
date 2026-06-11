@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// This file consolidates what used to be ~80 flat MCP tools into ten
+// This file consolidates what used to be ~80 flat MCP tools into eleven
 // resource-grouped tools (site, service, db, env, runtime, worker, exec,
-// framework, diag, worktree), each selecting behaviour via an `action` enum.
+// framework, diag, logs, worktree), each selecting behaviour via an `action` enum.
 // The grouped manifest is a fraction of the old tools/list payload (cheaper per
 // session, sharper model focus) and is now STATIC — framework-specific actions
 // like queue/horizon are gated inside their handlers rather than by toggling the
@@ -31,6 +31,7 @@ func toolList() []mcpTool {
 		execTool(),
 		frameworkTool(),
 		diagTool(),
+		logsTool(),
 		worktreeTool(),
 	}
 }
@@ -160,7 +161,6 @@ var groupDispatch = map[string]map[string]handlerFn{
 	"diag": {
 		"status":          func(a map[string]any) (any, *rpcError) { return execStatus() },
 		"doctor":          func(a map[string]any) (any, *rpcError) { return execDoctor() },
-		"logs":            execLogs,
 		"which":           execWhich,
 		"check":           execCheck,
 		"dns_diagnose":    execDNSDiagnose,
@@ -176,6 +176,10 @@ var groupDispatch = map[string]map[string]handlerFn{
 		"xdebug_on":       func(a map[string]any) (any, *rpcError) { return execXdebugToggle(a, true) },
 		"xdebug_off":      func(a map[string]any) (any, *rpcError) { return execXdebugToggle(a, false) },
 		"xdebug_status":   func(a map[string]any) (any, *rpcError) { return execXdebugStatus() },
+	},
+	"logs": {
+		"sources": execLogsSources,
+		"fetch":   execLogsFetch,
 	},
 }
 
@@ -441,14 +445,12 @@ func frameworkTool() mcpTool {
 func diagTool() mcpTool {
 	return mcpTool{
 		Name:        "diag",
-		Description: "Diagnostics & observability. action: status, doctor, logs, which, check, dns_diagnose, bug_report, analyze_queries (N+1/slow queries), dumps_recent, dumps_status, dumps_clear, dumps_toggle, profiler_toggle, profiler_status, profiler_clear, xdebug_on, xdebug_off, xdebug_status.",
+		Description: "Diagnostics & observability. action: status, doctor, which, check, dns_diagnose, bug_report, analyze_queries (N+1/slow queries), dumps_recent, dumps_status, dumps_clear, dumps_toggle, profiler_toggle, profiler_status, profiler_clear, xdebug_on, xdebug_off, xdebug_status. (Reading logs moved to the `logs` tool.)",
 		InputSchema: mcpSchema{
 			Type: "object",
 			Properties: map[string]mcpProp{
-				"action":          {Type: "string", Enum: []string{"status", "doctor", "logs", "which", "check", "dns_diagnose", "bug_report", "analyze_queries", "dumps_recent", "dumps_status", "dumps_clear", "dumps_toggle", "profiler_toggle", "profiler_status", "profiler_clear", "xdebug_on", "xdebug_off", "xdebug_status"}},
+				"action":          {Type: "string", Enum: []string{"status", "doctor", "which", "check", "dns_diagnose", "bug_report", "analyze_queries", "dumps_recent", "dumps_status", "dumps_clear", "dumps_toggle", "profiler_toggle", "profiler_status", "profiler_clear", "xdebug_on", "xdebug_off", "xdebug_status"}},
 				"path":            {Type: "string", Description: "Project root (which/check). Defaults to cwd."},
-				"target":          {Type: "string", Description: "logs: nginx, service, PHP version, or site name."},
-				"lines":           {Type: "integer", Description: "logs: tail count (default 50)."},
 				"site":            {Type: "string", Description: "dumps/analyze_queries: site filter."},
 				"branch":          {Type: "string", Description: "dumps_recent: worktree branch filter."},
 				"ctx":             {Type: "string", Enum: []string{"fpm", "cli"}, Description: "dumps_recent: context filter."},

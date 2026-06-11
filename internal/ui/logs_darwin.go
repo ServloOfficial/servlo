@@ -8,56 +8,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/podman"
+	"github.com/geodro/lerd/internal/unitlog"
 )
 
-func lerdLogPath(unit string) string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "Library", "Logs", "lerd", unit+".log")
-}
+func lerdLogPath(unit string) string { return unitlog.LogPath(unit) }
 
-// isContainerUnit returns true for units that run as detached podman containers
-// (podman run -d). Their logs come from `podman logs`, not the launchd log file.
-//
-// In exec mode, framework workers run as launchd service units; host workers
-// (vite + future Node tooling) always do, regardless of mode. Detection
-// reads the plist when present (RunAtLoad = service unit), and the on-disk
-// guard script as a second tell — host workers always write one, container
-// workers never do. Falls back to the global config for known framework
-// worker patterns when neither artifact is on disk.
-func isContainerUnit(unit string) bool {
-	switch unit {
-	case "lerd-dns", "lerd-watcher", "lerd-ui":
-		return false
-	}
-	home, _ := os.UserHomeDir()
-	plist, err := os.ReadFile(filepath.Join(home, "Library", "LaunchAgents", unit+".plist"))
-	if err == nil {
-		return !strings.Contains(string(plist), "<key>RunAtLoad</key>")
-	}
-	// No plist on disk yet — the unit may have been removed mid-migration
-	// or never reached the write step. A guard script under run/workers
-	// is the second source of truth: writeWorkerExecUnit and
-	// writeWorkerHostUnit both create one, container workers don't.
-	if _, err := os.Stat(filepath.Join(config.RunDir(), "workers", unit+".sh")); err == nil {
-		return false
-	}
-	// Last resort: built-in framework worker prefix + exec mode means
-	// "launchd-supervised service unit", not a container.
-	if isFrameworkWorkerUnit(unit) {
-		cfg, _ := config.LoadGlobal()
-		if cfg != nil && cfg.WorkerExecMode() != config.WorkerExecModeContainer {
-			return false
-		}
-	}
-	return true
-}
+// isContainerUnit returns true for units whose logs come from `podman logs`
+// rather than the launchd log file.
+func isContainerUnit(unit string) bool { return unitlog.IsContainerUnit(unit) }
 
 func serviceRecentLogs(unit string) string {
 	if isContainerUnit(unit) {

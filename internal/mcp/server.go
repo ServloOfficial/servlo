@@ -18,6 +18,7 @@ import (
 	"github.com/geodro/lerd/internal/dns"
 	"github.com/geodro/lerd/internal/envfile"
 	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/geodro/lerd/internal/logsource"
 	"github.com/geodro/lerd/internal/nginx"
 	lerdNode "github.com/geodro/lerd/internal/node"
 	phpDet "github.com/geodro/lerd/internal/php"
@@ -46,7 +47,6 @@ func builtinServiceEnv(name string) []string { return config.DefaultPresetEnvVar
 
 // phpVersionRe matches PHP version strings like "8.4" or "8.3" — digits only, no domain names.
 var phpVersionRe = regexp.MustCompile(`^\d+\.\d+$`)
-var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
 // defaultSitePath is resolved at startup: LERD_SITE_PATH takes precedence (injected by
 // mcp:inject for project-scoped use); if not set, the working directory is used so that
@@ -201,7 +201,7 @@ func toolErr(text string) map[string]any {
 }
 
 func stripANSI(s string) string {
-	return ansiRe.ReplaceAllString(s, "")
+	return logsource.StripANSI(s)
 }
 
 func strArg(args map[string]any, key string) string {
@@ -898,61 +898,6 @@ func execStripeConfig(args map[string]any) (any, *rpcError) {
 	}
 	return toolOK(fmt.Sprintf("Updated Stripe config for %s\nWebhook path: %s",
 		siteName, config.StripeWebhookPath(site.Path))), nil
-}
-
-func execLogs(args map[string]any) (any, *rpcError) {
-	target := strArg(args, "target")
-	lines := intArg(args, "lines", 50)
-
-	// When no target is given, derive the FPM container from the current site path.
-	if target == "" {
-		projectPath := resolvedPath(args)
-		if projectPath == "" {
-			return toolErr("target is required (or set LERD_SITE_PATH via mcp:inject)"), nil
-		}
-		site, err := config.FindSiteByPath(projectPath)
-		if err != nil {
-			return toolErr("could not find site for path: " + projectPath), nil
-		}
-		target = site.Name
-	}
-
-	container, err := resolveLogsContainer(target)
-	if err != nil {
-		return toolErr(err.Error()), nil
-	}
-
-	var out bytes.Buffer
-	cmd := podman.Cmd("logs", "--tail", fmt.Sprintf("%d", lines), container)
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	_ = cmd.Run() // non-zero exit if container not running is fine — we return what we have
-
-	return toolOK(stripANSI(strings.TrimSpace(out.String()))), nil
-}
-
-func resolveLogsContainer(target string) (string, error) {
-	if target == "nginx" {
-		return "lerd-nginx", nil
-	}
-	if isKnownService(target) {
-		return "lerd-" + target, nil
-	}
-	// PHP version like "8.4" — match digits.digits only, not domain names
-	if phpVersionRe.MatchString(target) {
-		short := strings.ReplaceAll(target, ".", "")
-		return "lerd-php" + short + "-fpm", nil
-	}
-	// Site name — look up PHP version from registry
-	if site, err := config.FindSite(target); err == nil {
-		phpVersion := site.PHPVersion
-		if detected, err := phpDet.DetectVersion(site.Path); err == nil && detected != "" {
-			phpVersion = detected
-		}
-		short := strings.ReplaceAll(phpVersion, ".", "")
-		return "lerd-php" + short + "-fpm", nil
-	}
-	return "", fmt.Errorf("unknown log target %q — valid: nginx, service name, PHP version (e.g. 8.4), or site name", target)
 }
 
 func execComposer(args map[string]any) (any, *rpcError) {

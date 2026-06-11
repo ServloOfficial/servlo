@@ -27,8 +27,8 @@ type LogFile struct {
 	ModTime string `json:"mod_time"`
 }
 
-// maxReadBytes is the maximum number of bytes to read from the end of a file.
-const maxReadBytes = 512 * 1024
+// MaxReadBytes is the maximum number of bytes to read from the end of a file.
+const MaxReadBytes = 512 * 1024
 
 // laravelRe matches the opening line of a Laravel/Monolog log entry:
 // [2024-01-09 13:13:49] local.ERROR: message text
@@ -153,7 +153,7 @@ func FormatForFile(sources []config.FrameworkLogSource, filename string) string 
 // When maxEntries is 0, the entire file is read and all entries are returned.
 // Returns entries in reverse-chronological order (newest first).
 func ParseFile(path, format string, maxEntries int) ([]LogEntry, error) {
-	readLimit := maxReadBytes
+	readLimit := MaxReadBytes
 	if maxEntries == 0 {
 		readLimit = 0 // read entire file
 	}

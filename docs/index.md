@@ -48,7 +48,7 @@ features:
     details: One global toggle and every PHP-FPM request becomes a flame graph viewable in the dashboard's Profiler view. No FPM restart, no code changes, `lerd profile run` for one-shot CLI commands.
   - icon: 🤖
     title: AI integration (MCP)
-    details: Built-in Model Context Protocol server with ten grouped tools. Claude Code, Cursor, Codex, Gemini, GitHub Copilot, Google Antigravity, JetBrains Junie, and Windsurf scaffold projects and run migrations straight from chat.
+    details: Built-in Model Context Protocol server with eleven grouped tools. Claude Code, Cursor, Codex, Gemini, GitHub Copilot, Google Antigravity, JetBrains Junie, and Windsurf scaffold projects and run migrations straight from chat.
   - icon: ⚡
     title: FrankenPHP runtime
     details: Per-site FrankenPHP as an alternative to shared PHP-FPM, with Laravel Octane and Symfony Runtime worker mode wired up out of the box.
