@@ -27,6 +27,14 @@ describe('SiteTile', () => {
     expect(getByText('Next.js · Node 20')).toBeTruthy();
   });
 
+  it('uses the Laravel app_name as the title and drops the domain into the subline', () => {
+    const { getByText } = render(SiteTile, {
+      props: { site: site({ app_name: 'My Shop', framework_label: 'Laravel', php_version: '8.3' }) }
+    });
+    expect(getByText('My Shop')).toBeTruthy();
+    expect(getByText('app.test · Laravel · PHP 8.3')).toBeTruthy();
+  });
+
   it('offers an open-in-browser button for active sites', () => {
     const { getByLabelText } = render(SiteTile, { props: { site: site() } });
     expect(getByLabelText('Open in browser')).toBeTruthy();

@@ -19,7 +19,9 @@
   import { flip } from 'svelte/animate';
   import { m } from '../paraglide/messages.js';
 
-  const selected = $derived($routeRest);
+  // routeRest may carry a sub-tab (e.g. "<domain>/env"); match the domain segment
+  // so the sidebar row stays highlighted when a sub-tab is deep-linked.
+  const selected = $derived($routeRest.split('/')[0]);
   const active = $derived($sites.filter((s) => !s.paused));
   const paused = $derived($sites.filter((s) => s.paused));
 
