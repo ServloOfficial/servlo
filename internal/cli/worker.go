@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,7 +15,6 @@ import (
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/services"
 	lerdSystemd "github.com/geodro/lerd/internal/systemd"
-	"github.com/geodro/lerd/internal/wsl"
 	"github.com/spf13/cobra"
 )
 
@@ -252,22 +250,17 @@ func resolveWorkerCommand(sitePath, workerName string, w config.FrameworkWorker)
 }
 
 // watcherNeedsPolling reports whether the reload watcher has to poll because
-// host filesystem events don't reach it: always on macOS (workers run in the
-// podman VM), and on WSL2 only for projects under a /mnt (9p) mount, where
-// inotify isn't delivered. WSL projects on the native Linux filesystem get
-// inotify and are left alone, mirroring the doctor's /mnt check.
+// host filesystem events don't reach it. Delegates to config.WatcherNeedsPolling
+// (the canonical predicate, shared with the Octane reload path).
 func watcherNeedsPolling(sitePath string) bool {
-	if runtime.GOOS == "darwin" {
-		return true
-	}
-	return wsl.IsWSL() && strings.HasPrefix(sitePath, "/mnt/")
+	return config.WatcherNeedsPolling(sitePath)
 }
 
 // projectHasChokidar reports whether the chokidar package, required by the
-// reload command's file watcher, is installed in the project.
+// reload command's file watcher, is installed in the project. Delegates to
+// config.ProjectHasChokidar.
 func projectHasChokidar(sitePath string) bool {
-	info, err := os.Stat(filepath.Join(sitePath, "node_modules", "chokidar"))
-	return err == nil && info.IsDir()
+	return config.ProjectHasChokidar(sitePath)
 }
 
 // ProjectHasChokidar is the exported view of projectHasChokidar, for the UI

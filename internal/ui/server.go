@@ -714,6 +714,8 @@ type SiteResponse struct {
 	HorizonFailing     bool                `json:"horizon_failing,omitempty"`
 	HorizonReload      bool                `json:"horizon_reload,omitempty"`       // horizon runs via horizon:listen (auto-reload)
 	HorizonReloadReady bool                `json:"horizon_reload_ready,omitempty"` // chokidar present, so auto-reload can be enabled without installing it
+	OctaneReload       bool                `json:"octane_reload,omitempty"`        // FrankenPHP worker serves via octane:start --watch (auto-reload)
+	OctaneReloadReady  bool                `json:"octane_reload_ready,omitempty"`  // FrankenPHP worker mode + chokidar present, so auto-reload can be enabled
 	HasQueueWorker     bool                `json:"has_queue_worker"`
 	HasScheduleWorker  bool                `json:"has_schedule_worker"`
 	FrameworkWorkers   []WorkerStatus      `json:"framework_workers,omitempty"`
@@ -861,6 +863,8 @@ func buildSites() []SiteResponse {
 			HorizonFailing:     e.HorizonFailing,
 			HorizonReload:      e.HasHorizon && config.ProjectReloadsWorker(e.Path, "horizon"),
 			HorizonReloadReady: e.HasHorizon && cli.ProjectHasChokidar(e.Path),
+			OctaneReload:       e.Runtime == "frankenphp" && e.RuntimeWorker && config.ProjectReloadsWorker(e.Path, "octane"),
+			OctaneReloadReady:  e.Runtime == "frankenphp" && e.RuntimeWorker && cli.ProjectHasChokidar(e.Path),
 			HasQueueWorker:     e.HasQueueWorker,
 			HasScheduleWorker:  e.HasScheduleWorker,
 			FrameworkWorkers:   fwWorkers,
@@ -3169,6 +3173,25 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "horizon:install-watcher":
+		if err := cli.InstallChokidar(site.Path); err != nil {
+			writeJSON(w, SiteActionResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, SiteActionResponse{OK: true})
+		return
+	case "octane:reload":
+		enabled := r.URL.Query().Get("enabled") == "true"
+		phpVersion := site.PHPVersion
+		if detected, err := phpPkg.DetectVersion(site.Path); err == nil && detected != "" {
+			phpVersion = detected
+		}
+		if err := cli.ApplyOctaneReload(site.Name, site.Path, phpVersion, enabled); err != nil {
+			writeJSON(w, SiteActionResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, SiteActionResponse{OK: true})
+		return
+	case "octane:install-watcher":
 		if err := cli.InstallChokidar(site.Path); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return

@@ -135,6 +135,8 @@ func main() {
 	root.AddCommand(cli.NewHorizonStartCmd())
 	root.AddCommand(cli.NewHorizonStopCmd())
 	root.AddCommand(cli.NewHorizonReloadCmd())
+	root.AddCommand(cli.NewOctaneCmd())
+	root.AddCommand(cli.NewOctaneReloadCmd())
 	root.AddCommand(cli.NewAutostartCmd())
 	root.AddCommand(cli.NewMCPCmd())
 	root.AddCommand(cli.NewMCPInjectCmd())

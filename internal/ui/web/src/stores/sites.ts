@@ -70,6 +70,8 @@ export interface Site {
   horizon_failing?: boolean;
   horizon_reload?: boolean;
   horizon_reload_ready?: boolean;
+  octane_reload?: boolean;
+  octane_reload_ready?: boolean;
   stripe_running?: boolean;
   stripe_secret_set?: boolean;
   stripe_webhook_path?: string;
@@ -473,6 +475,10 @@ export const setHorizonReload = (s: Site, enabled: boolean) =>
   postAction(site(s.domain, 'horizon:reload') + `?enabled=${enabled ? 'true' : 'false'}`);
 export const installHorizonReloadWatcher = (s: Site) =>
   postAction(site(s.domain, 'horizon:install-watcher'));
+export const setOctaneReload = (s: Site, enabled: boolean) =>
+  postAction(site(s.domain, 'octane:reload') + `?enabled=${enabled ? 'true' : 'false'}`);
+export const installOctaneReloadWatcher = (s: Site) =>
+  postAction(site(s.domain, 'octane:install-watcher'));
 export const toggleSchedule = (s: Site) =>
   postAction(site(s.domain, s.schedule_running ? 'schedule:stop' : 'schedule:start'));
 export const toggleReverb = (s: Site) =>

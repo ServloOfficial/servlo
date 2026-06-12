@@ -6,6 +6,7 @@
     toggleQueue,
     toggleHorizon,
     setHorizonReload,
+    setOctaneReload,
     toggleSchedule,
     toggleReverb,
     toggleStripe,
@@ -21,6 +22,8 @@
   import WorktreeDBIsolateModal from './WorktreeDBIsolateModal.svelte';
   import HorizonControl from './HorizonControl.svelte';
   import HorizonReloadWatcherModal from './HorizonReloadWatcherModal.svelte';
+  import OctaneControl from './OctaneControl.svelte';
+  import OctaneReloadWatcherModal from './OctaneReloadWatcherModal.svelte';
   import StripeControl from './StripeControl.svelte';
   import CommandsDropdown from '$components/CommandsDropdown.svelte';
   import SiteDoctorModal from './SiteDoctorModal.svelte';
@@ -212,6 +215,36 @@
     await applyReload(desired);
   }
 
+  // Octane (FrankenPHP worker mode) auto-reload, mirroring the Horizon flow:
+  // re-applying the FrankenPHP container restarts it, so the control dips and
+  // settles the same way the Horizon segment does.
+  let octaneWatcherModalOpen = $state(false);
+  let octaneReloadRestarting = $state(false);
+
+  async function applyOctaneReload(desired: boolean) {
+    if (octaneReloadRestarting) return;
+    octaneReloadRestarting = true;
+    try {
+      const r = await setOctaneReload(site, desired);
+      if (!r.ok) {
+        alert(m.sites_controls_octaneReloadFailed({ error: r.error || '' }));
+        return;
+      }
+      await Promise.all([loadSites(), loadServices()]);
+    } finally {
+      octaneReloadRestarting = false;
+    }
+  }
+
+  async function onToggleOctaneReload() {
+    const desired = !site.octane_reload;
+    if (desired && !site.octane_reload_ready) {
+      octaneWatcherModalOpen = true;
+      return;
+    }
+    await applyOctaneReload(desired);
+  }
+
   async function onPhpChange(e: Event) {
     const v = (e.target as HTMLSelectElement).value;
     versionBusy = true;
@@ -340,6 +373,14 @@
         />
       {/if}
 
+      {#if site.runtime === 'frankenphp' && site.runtime_worker && site.is_laravel}
+        <OctaneControl
+          reload={Boolean(site.octane_reload)}
+          reloadLoading={octaneReloadRestarting}
+          onToggleReload={onToggleOctaneReload}
+        />
+      {/if}
+
       {#if site.has_schedule_worker}
         <ToggleButton
           label={m.sites_controls_schedule()}
@@ -443,4 +484,11 @@
   {site}
   onclose={() => (watcherModalOpen = false)}
   oninstalled={() => void applyReload(true)}
+/>
+
+<OctaneReloadWatcherModal
+  open={octaneWatcherModalOpen}
+  {site}
+  onclose={() => (octaneWatcherModalOpen = false)}
+  oninstalled={() => void applyOctaneReload(true)}
 />

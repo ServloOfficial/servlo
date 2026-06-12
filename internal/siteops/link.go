@@ -157,7 +157,7 @@ func FinishLink(site config.Site, phpVersion string) error {
 // vhost, update container hosts, and reload nginx.
 func FinishFrankenPHPLink(site config.Site) error {
 	fw, _ := config.GetFrameworkForDir(site.Framework, site.Path)
-	entrypoint := fw.FrankenPHPEntrypoint(site.RuntimeWorker)
+	entrypoint := fw.ResolveFrankenPHPWorkerEntrypoint(site.Path, site.RuntimeWorker)
 	env := fw.FrankenPHPEnv(site.RuntimeWorker)
 
 	_ = podman.WriteContainerHosts()
