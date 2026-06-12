@@ -39,6 +39,17 @@ func TestIsFrankenPHPVersion(t *testing.T) {
 	}
 }
 
+func TestLatestFrankenPHPVersion(t *testing.T) {
+	got := LatestFrankenPHPVersion()
+	want := FrankenPHPVersions()[len(FrankenPHPVersions())-1]
+	if got != want {
+		t.Errorf("LatestFrankenPHPVersion() = %q, want %q", got, want)
+	}
+	if got != "8.5" {
+		t.Errorf("LatestFrankenPHPVersion() = %q, want 8.5", got)
+	}
+}
+
 func TestPHPVersionAtLeast(t *testing.T) {
 	cases := []struct {
 		a, b string

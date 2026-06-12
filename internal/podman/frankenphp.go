@@ -19,8 +19,7 @@ func FrankenPHPContainerName(siteName string) string {
 // back to the latest one lerd knows about.
 func FrankenPHPImage(phpVersion string) string {
 	if !config.IsFrankenPHPVersion(phpVersion) {
-		published := config.FrankenPHPVersions()
-		phpVersion = published[len(published)-1]
+		phpVersion = config.LatestFrankenPHPVersion()
 	}
 	return "docker.io/dunglas/frankenphp:php" + phpVersion + "-alpine"
 }

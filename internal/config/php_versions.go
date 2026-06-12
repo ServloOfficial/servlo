@@ -41,6 +41,17 @@ func IsFrankenPHPVersion(v string) bool {
 	return IsSupportedPHPVersion(v) && phpVersionAtLeast(v, FrankenPHPMinVersion)
 }
 
+// LatestFrankenPHPVersion returns the newest PHP version dunglas/frankenphp
+// publishes an image for, used as the fallback for unsupported versions. Falls
+// back to FrankenPHPMinVersion so callers never index an empty slice.
+func LatestFrankenPHPVersion() string {
+	v := FrankenPHPVersions()
+	if len(v) == 0 {
+		return FrankenPHPMinVersion
+	}
+	return v[len(v)-1]
+}
+
 // phpVersionAtLeast reports whether "major.minor" version a is >= b.
 func phpVersionAtLeast(a, b string) bool {
 	amaj, amin := splitMajorMinor(a)
