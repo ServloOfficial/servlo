@@ -159,6 +159,7 @@ func main() {
 	root.AddCommand(cli.NewPhpExtCmd())
 	root.AddCommand(cli.NewPhpBunCmd())
 	root.AddCommand(cli.NewPhpPkgCmd())
+	root.AddCommand(cli.NewPestBrowserCmd())
 	root.AddCommand(cli.NewPhpIniCmd())
 	for _, cmd := range cli.NewStripeCmds() {
 		root.AddCommand(cmd)
