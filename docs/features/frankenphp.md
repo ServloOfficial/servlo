@@ -95,7 +95,7 @@ Both modes use the same FrankenPHP binary, so you always get HTTP/2, HTTP/3, and
 Tradeoffs of worker mode:
 
 - **State leaks across requests.** Anything you stored in a static property, a singleton service, or the global `$_SERVER` / `$_SESSION` arrays from request A is still there for request B. This is usually fine for well-written frameworks (Octane's "state resetters" and Symfony's Runtime handle the common cases), but custom code that assumes a fresh process per request can misbehave.
-- **File edits are not picked up automatically.** The worker holds PHP in memory, so editing a controller doesn't affect the next request until the worker reloads. Symfony worker mode passes `--watch` so edits reload the worker within a second or two; Laravel worker mode requires `lerd restart <site>` or `lerd runtime fpm`.
+- **File edits are not picked up automatically.** The worker holds PHP in memory, so editing a controller doesn't affect the next request until the worker reloads. Symfony worker mode passes `--watch` so edits reload the worker within a second or two; Laravel worker mode reloads when you opt in with `lerd octane:reload on` (see [Dev iteration and hot reload](#dev-iteration-and-hot-reload)), otherwise it needs `lerd restart <site>` or `lerd runtime fpm`.
 - **Memory usage grows over time.** Leaks that would be invisible in FPM (where each request gets a fresh process) become visible over thousands of requests.
 
 Typical usage:
@@ -113,10 +113,21 @@ Non-worker mode (the default) serves each request with a fresh PHP request lifec
 Worker mode keeps PHP resident, so a source file change is **not** picked up on the next request unless the worker is told to reload:
 
 - **Symfony** worker mode passes `--watch` to `frankenphp php-server`, so edits under the project tree reload the worker within a second or two.
-- **Laravel** worker mode does not auto-reload. Octane's `--watch` flag needs `chokidar-cli` (npm) plus `pcntl`, and bundling npm+node into the stock image adds ~150MB to boot for a dev-only feature. Workarounds:
-  - `lerd restart <site>` rebuilds and restarts the container (~5s)
-  - `php artisan octane:reload` inside the project drops the warm workers so the next request rebuilds state; doesn't restart the container so it's noticeably faster
-  - `lerd runtime frankenphp --no-worker` if you'll be iterating for a while — non-worker hot reloads on every request like FPM
+- **Laravel** worker mode is opt-in for auto-reload:
+
+  ```bash
+  cd ~/Code/my-app
+  lerd octane:reload on    # serve via octane:start --watch
+  lerd octane:reload off   # back to standard worker mode
+  lerd octane:reload       # print the current state
+  ```
+
+  When on, lerd serves the site with `octane:start --watch` so edits restart the resident workers within a second or two. The toggle is also a refresh button next to the **Octane** segment in the Web UI site controls. Two prerequisites are handled for you:
+
+  - Octane's file watcher runs under `node` and resolves `chokidar` from the project. Reload-on stays off until `chokidar` is installed; the CLI and the Web UI both offer a one-click `npm install -D chokidar` (Vite 8 no longer ships it transitively). Node itself is installed into the FrankenPHP container at boot, but **only** on the reload path, so the default image stays slim.
+  - On macOS (and WSL2 `/mnt` projects) the container can't observe host filesystem events, so lerd appends `--poll` automatically.
+
+  If you'd rather not enable reload, the older workarounds still apply: `lerd restart <site>` (~5s), `php artisan octane:reload` inside the project (drops warm workers without restarting the container), or `lerd runtime frankenphp --no-worker` to hot-reload every request like FPM.
 
 ---
 

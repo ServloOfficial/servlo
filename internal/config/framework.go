@@ -81,6 +81,16 @@ type FrameworkFrankenPHP struct {
 	// WorkerEntrypoint, when set and the site opts into worker mode, is used
 	// instead of Entrypoint. When SupportsWorker is false the flag is ignored.
 	WorkerEntrypoint []string `yaml:"worker_entrypoint,omitempty"`
+	// WorkerReloadEntrypoint, when set, is the watch-enabled variant of
+	// WorkerEntrypoint, selected instead of it when the project opts the
+	// "octane" worker into auto-reload (restart on file changes) for
+	// development. Keeping the watch flag in the framework definition rather
+	// than rewriting WorkerEntrypoint in Go means the store stays the single
+	// source of truth for what runs; core only appends the platform polling
+	// flag on hosts where the container can't observe filesystem events (see
+	// ResolveFrankenPHPWorkerEntrypoint). Laravel sets it to the octane:start
+	// command with --watch.
+	WorkerReloadEntrypoint []string `yaml:"worker_reload_entrypoint,omitempty"`
 	// SupportsWorker declares whether the framework ships a FrankenPHP worker
 	// script. If false, `--worker` is a no-op and the regular entrypoint is used.
 	SupportsWorker bool `yaml:"supports_worker,omitempty"`
@@ -497,10 +507,22 @@ var laravelFramework = &Framework{
 		// immediately (fresh request lifecycle), same UX as FPM.
 		Entrypoint: []string{"frankenphp", "php-server", "-l", ":8000", "-r", "public/"},
 		// Worker runs Octane; pcntl is installed at boot since dunglas/frankenphp
-		// doesn't ship it. Code edits need `lerd restart` until we add --watch.
+		// doesn't ship it. By default code edits need `lerd restart`; opting the
+		// octane worker into reload (lerd octane:reload on) selects the watch
+		// variant below so the server restarts workers on file changes.
 		WorkerEntrypoint: []string{"sh", "-c",
 			`install-php-extensions pcntl >/dev/null && ` +
 				`exec php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto`},
+		// Watch variant: same command plus --watch. Octane's watcher runs
+		// vendor/laravel/octane/bin/file-watcher.cjs under node and resolves the
+		// chokidar npm package from the project, so the otherwise node-less
+		// dunglas/frankenphp Alpine image needs node installed — done here (only on
+		// the opt-in reload path, so the default image stays slim). Core appends
+		// --poll on hosts where the container can't see host filesystem events.
+		WorkerReloadEntrypoint: []string{"sh", "-c",
+			`install-php-extensions pcntl >/dev/null && ` +
+				`apk add --no-cache nodejs >/dev/null 2>&1 && ` +
+				`exec php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto --watch`},
 		SupportsWorker: true,
 	},
 	Commands: []FrameworkCommand{
