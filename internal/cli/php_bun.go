@@ -93,7 +93,23 @@ func bunInstalledInContainer(version string) bool {
 // mounted in the running container, so we only restart it when the mount is
 // genuinely missing (e.g. a container created before this feature shipped).
 func bunVolumeMounted(container string) bool {
-	return podman.Cmd("exec", container, "sh", "-c", "grep -qF ' /root/.bun ' /proc/mounts").Run() == nil
+	return fpmVolumeMounted(container, "/root/.bun")
+}
+
+// fpmVolumeMounted reports whether mountPath is a live mount inside the running
+// container. Shared by the bun and Pest-browser volume probes so the /proc/mounts
+// matching logic lives in one place.
+func fpmVolumeMounted(container, mountPath string) bool {
+	return podman.Cmd("exec", container, "sh", "-c", "grep -qF ' "+mountPath+" ' /proc/mounts").Run() == nil
+}
+
+// restartFPMAndWait restarts a PHP-FPM unit and blocks until it reports running,
+// so an exec right after the restart doesn't race the container.
+func restartFPMAndWait(container string) error {
+	if err := podman.RestartUnit(container); err != nil {
+		return fmt.Errorf("restarting %s: %w", container, err)
+	}
+	return waitContainerRunning(container, 20*time.Second)
 }
 
 // installContainerBun installs (or reinstalls) a musl bun into the version's
@@ -111,10 +127,7 @@ func installContainerBun(version, pin string, w io.Writer) error {
 	}
 	if !bunVolumeMounted(container) {
 		fmt.Fprintf(w, "Preparing PHP %s container for bun...\n", version)
-		if err := podman.RestartUnit(container); err != nil {
-			return fmt.Errorf("restarting %s: %w", container, err)
-		}
-		if err := waitContainerRunning(container, 20*time.Second); err != nil {
+		if err := restartFPMAndWait(container); err != nil {
 			return err
 		}
 	}
