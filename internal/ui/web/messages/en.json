@@ -300,6 +300,7 @@
   "horizonWatcher_installing": "Installing…",
   "horizonWatcher_installFailed": "Install failed",
   "sites_controls_octane": "Octane",
+  "sites_controls_octaneRunning": "Octane is running in FrankenPHP worker mode",
   "sites_controls_octaneReloadToggle_on": "Auto-reload on file changes is on, click to turn off",
   "sites_controls_octaneReloadToggle_off": "Auto-reload on file changes is off, click to turn on (octane:start --watch)",
   "sites_controls_octaneReloadFailed": "Could not change Octane auto-reload: {error}",

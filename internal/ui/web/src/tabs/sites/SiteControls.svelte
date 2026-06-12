@@ -319,6 +319,14 @@
       />
     {/if}
 
+    {#if site.runtime === 'frankenphp' && site.runtime_worker && site.is_laravel}
+      <OctaneControl
+        reload={Boolean(site.octane_reload)}
+        reloadLoading={octaneReloadRestarting}
+        onToggleReload={onToggleOctaneReload}
+      />
+    {/if}
+
     {#if activeWorktreeBranch && dbCapable}
       <ToggleButton
         label={m.sites_controls_dbIsolated()}
@@ -373,14 +381,6 @@
           reloadLoading={reloadRestarting}
           onToggle={() => transition('horizon', !site.horizon_running, () => toggleHorizon(site))}
           onToggleReload={onToggleHorizonReload}
-        />
-      {/if}
-
-      {#if site.runtime === 'frankenphp' && site.runtime_worker && site.is_laravel}
-        <OctaneControl
-          reload={Boolean(site.octane_reload)}
-          reloadLoading={octaneReloadRestarting}
-          onToggleReload={onToggleOctaneReload}
         />
       {/if}
 

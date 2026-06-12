@@ -869,7 +869,7 @@ func buildSites() []SiteResponse {
 			HorizonReload:      e.HasHorizon && config.ProjectReloadsWorker(e.Path, "horizon"),
 			HorizonReloadReady: e.HasHorizon && cli.ProjectHasChokidar(e.Path),
 			OctaneReload:       e.Runtime == "frankenphp" && e.RuntimeWorker && config.ProjectReloadsWorker(e.Path, "octane"),
-			OctaneReloadReady:  e.Runtime == "frankenphp" && e.RuntimeWorker && cli.ProjectHasChokidar(e.Path),
+			OctaneReloadReady:  e.Runtime == "frankenphp" && e.RuntimeWorker && cli.SiteHasOctane(e.Path) && cli.ProjectHasChokidar(e.Path),
 			HasQueueWorker:     e.HasQueueWorker,
 			HasScheduleWorker:  e.HasScheduleWorker,
 			FrameworkWorkers:   fwWorkers,

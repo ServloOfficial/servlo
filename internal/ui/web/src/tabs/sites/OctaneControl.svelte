@@ -1,9 +1,10 @@
 <script lang="ts">
+  import ToggleButton from '$components/ToggleButton.svelte';
   import { m } from '../../paraglide/messages.js';
 
-  // Octane (FrankenPHP worker mode) auto-reload toggle. Unlike Horizon there is
-  // no separate on/off here: serving via Octane IS the site runtime, so this is
-  // a single segmented control — a static "Octane" label joined to a refresh
+  // Octane (FrankenPHP worker mode) control. Serving via Octane IS the site
+  // runtime, so it can't be turned off here: the left segment is a disabled,
+  // always-on ToggleButton that signals "Octane is running", joined to a refresh
   // toggle that flips octane:start --watch. When watch is on the refresh icon
   // lights emerald and glows, mirroring HorizonControl's reload segment.
   interface Props {
@@ -37,11 +38,13 @@
 </script>
 
 <div class="inline-flex items-center">
-  <span
-    class="inline-flex items-center h-7 px-2.5 rounded-l-md border border-r-0 border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap"
-  >
-    {m.sites_controls_octane()}
-  </span>
+  <ToggleButton
+    label={m.sites_controls_octane()}
+    on={true}
+    disabled={true}
+    rounding="rounded-l-md border-r-0"
+    title={m.sites_controls_octaneRunning()}
+  />
   <button
     type="button"
     disabled={reloadLoading}

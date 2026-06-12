@@ -314,6 +314,7 @@
   "horizonWatcher_installing": "Memasang…",
   "horizonWatcher_installFailed": "Pemasangan gagal",
   "sites_controls_octane": "Octane",
+  "sites_controls_octaneRunning": "Octane sedang berjalan dalam mode worker FrankenPHP",
   "sites_controls_octaneReloadToggle_on": "Auto-reload saat file berubah aktif, klik untuk mematikan",
   "sites_controls_octaneReloadToggle_off": "Auto-reload saat file berubah nonaktif, klik untuk mengaktifkan (octane:start --watch)",
   "sites_controls_octaneReloadFailed": "Tidak dapat mengubah auto-reload Octane: {error}",

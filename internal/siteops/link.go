@@ -156,9 +156,7 @@ func FinishLink(site config.Site, phpVersion string) error {
 // quadlet that runs the framework's entrypoint, generate an nginx proxy
 // vhost, update container hosts, and reload nginx.
 func FinishFrankenPHPLink(site config.Site) error {
-	fw, _ := config.GetFrameworkForDir(site.Framework, site.Path)
-	entrypoint := fw.ResolveFrankenPHPWorkerEntrypoint(site.Path, site.RuntimeWorker)
-	env := fw.FrankenPHPEnv(site.RuntimeWorker)
+	entrypoint, env := site.FrankenPHPQuadletSpec()
 
 	_ = podman.WriteContainerHosts()
 

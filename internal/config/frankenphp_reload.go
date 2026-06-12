@@ -60,6 +60,16 @@ func (fw *Framework) ResolveFrankenPHPWorkerEntrypoint(sitePath string, worker b
 	return ep
 }
 
+// FrankenPHPQuadletSpec resolves the entrypoint and env a site's FrankenPHP
+// container should run with, applying the reload-aware worker entrypoint
+// (octane:start --watch) when the project opted in. Both the apply path
+// (siteops.FinishFrankenPHPLink) and the global install refresh resolve through
+// here, so a site's quadlet can't diverge between the two writers.
+func (s *Site) FrankenPHPQuadletSpec() (entrypoint []string, env map[string]string) {
+	fw, _ := GetFrameworkForDir(s.Framework, s.Path)
+	return fw.ResolveFrankenPHPWorkerEntrypoint(s.Path, s.RuntimeWorker), fw.FrankenPHPEnv(s.RuntimeWorker)
+}
+
 // appendPollFlag adds Octane's --poll to a resolved watch entrypoint. For the
 // `sh -c "<script>"` form used to install pcntl before exec'ing octane, the flag
 // must go inside the script (the trailing element); for a bare argv form it is a

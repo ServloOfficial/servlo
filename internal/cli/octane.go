@@ -125,11 +125,3 @@ func SiteHasOctane(sitePath string) bool {
 	}
 	return strings.Contains(string(data), `"laravel/octane"`)
 }
-
-// OctaneReloadReady reports whether Octane auto-reload can be enabled for the
-// site: it serves via FrankenPHP worker mode, ships laravel/octane, and has the
-// chokidar watcher installed. Used by the UI snapshot to gate the toggle.
-func OctaneReloadReady(site *config.Site) bool {
-	return site != nil && site.IsFrankenPHP() && site.RuntimeWorker &&
-		SiteHasOctane(site.Path) && config.ProjectHasChokidar(site.Path)
-}

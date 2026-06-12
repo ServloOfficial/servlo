@@ -923,9 +923,7 @@ func refreshUnreferencedCustomQuadlets(seenSvc map[string]bool, reg *config.Site
 				fmt.Printf("  WARN: refreshing %s quadlet: %v\n", podman.CustomContainerName(s.Name), err)
 			}
 		case s.IsFrankenPHP():
-			fw, _ := config.GetFrameworkForDir(s.Framework, s.Path)
-			entrypoint := fw.FrankenPHPEntrypoint(s.RuntimeWorker)
-			env := fw.FrankenPHPEnv(s.RuntimeWorker)
+			entrypoint, env := s.FrankenPHPQuadletSpec()
 			if err := podman.WriteFrankenPHPQuadlet(s.Name, s.Path, s.PHPVersion, entrypoint, env); err != nil {
 				fmt.Printf("  WARN: refreshing %s quadlet: %v\n", podman.FrankenPHPContainerName(s.Name), err)
 			}

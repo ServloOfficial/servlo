@@ -102,6 +102,34 @@ func TestResolveFrankenPHPWorkerEntrypoint(t *testing.T) {
 	})
 }
 
+// TestSiteFrankenPHPQuadletSpec guards the shared resolver both quadlet writers
+// (siteops.FinishFrankenPHPLink and the global install refresh) now go through,
+// so the install path can't drop --watch for a site that opted into reload.
+// Sandboxing the store dir forces GetFrameworkForDir onto the built-in Laravel
+// definition, which carries WorkerReloadEntrypoint.
+func TestSiteFrankenPHPQuadletSpec(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	dir := t.TempDir()
+	site := &Site{Name: "demo", Path: dir, Framework: "laravel", Runtime: "frankenphp", RuntimeWorker: true}
+
+	ep, _ := site.FrankenPHPQuadletSpec()
+	if strings.Contains(strings.Join(ep, " "), "--watch") {
+		t.Fatalf("did not expect --watch without reload opt-in, got %v", ep)
+	}
+
+	if err := SetProjectWorkerReload(dir, "octane", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "node_modules", "chokidar"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ep, _ = site.FrankenPHPQuadletSpec()
+	if !strings.Contains(strings.Join(ep, " "), "--watch") {
+		t.Fatalf("expected --watch after opt-in with chokidar, got %v", ep)
+	}
+}
+
 func TestAppendPollFlag(t *testing.T) {
 	t.Run("sh -c form appends inside the script", func(t *testing.T) {
 		got := appendPollFlag([]string{"sh", "-c", "exec php artisan octane:start --watch"})
