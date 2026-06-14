@@ -257,6 +257,13 @@ func worktreeWorkerFailing(wt *siteinfo.WorktreeInfo, name string) bool {
 	return false
 }
 
+func worktreeWorkerSuspended(wt *siteinfo.WorktreeInfo, name string) bool {
+	if wt == nil {
+		return false
+	}
+	return containsStr(wt.IdleSuspended, name)
+}
+
 func worktreeWorkerLabel(wt *siteinfo.WorktreeInfo, name string) string {
 	if wt == nil {
 		return name
@@ -383,6 +390,23 @@ func workerFailing(s *siteinfo.EnrichedSite, name string) bool {
 	for _, fw := range s.FrameworkWorkers {
 		if fw.Name == name {
 			return fw.Failing
+		}
+	}
+	return false
+}
+
+// workerSuspended reports whether the idle engine has gracefully stopped this
+// worker. It covers both well-known and framework workers via the site's
+// recorded suspend list, so a sleeping worker reads "suspended" instead of a
+// misleading "stopped".
+func workerSuspended(s *siteinfo.EnrichedSite, name string) bool {
+	return containsStr(s.IdleSuspendedWorkers, name)
+}
+
+func containsStr(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
 		}
 	}
 	return false
@@ -816,6 +840,8 @@ func worktreeWorkerGlyph(wt *siteinfo.WorktreeInfo, name string) string {
 		return failingStyle.Render(glyphFailing)
 	case worktreeWorkerRunning(wt, name):
 		return runningStyle.Render(glyphRunning)
+	case worktreeWorkerSuspended(wt, name):
+		return suspendedStyle.Render(glyphSuspended)
 	}
 	return stoppedStyle.Render(glyphStopped)
 }
@@ -826,6 +852,8 @@ func worktreeWorkerStateText(wt *siteinfo.WorktreeInfo, name string) string {
 		return failingStyle.Render("failing")
 	case worktreeWorkerRunning(wt, name):
 		return runningStyle.Render("running")
+	case worktreeWorkerSuspended(wt, name):
+		return suspendedStyle.Render("suspended")
 	}
 	return dimStyle.Render("stopped")
 }
@@ -860,6 +888,8 @@ func workerGlyphFor(s *siteinfo.EnrichedSite, name string) string {
 		return failingStyle.Render(glyphFailing)
 	case workerRunning(s, name):
 		return runningStyle.Render(glyphRunning)
+	case workerSuspended(s, name):
+		return suspendedStyle.Render(glyphSuspended)
 	}
 	return stoppedStyle.Render(glyphStopped)
 }
@@ -870,6 +900,8 @@ func workerStateText(s *siteinfo.EnrichedSite, name string) string {
 		return failingStyle.Render("failing")
 	case workerRunning(s, name):
 		return runningStyle.Render("running")
+	case workerSuspended(s, name):
+		return suspendedStyle.Render("suspended")
 	}
 	return dimStyle.Render("stopped")
 }

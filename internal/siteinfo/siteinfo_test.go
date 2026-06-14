@@ -90,6 +90,25 @@ func TestEnrichVersions_CustomContainerSkipped(t *testing.T) {
 
 // ── Enrich: UsesPHP detection ──────────────────────────────────────────────
 
+func TestEnrich_CarriesIdleSuspendedWorkers(t *testing.T) {
+	setDataDir(t)
+	stubPodman(t)
+
+	dir := t.TempDir()
+	e := Enrich(config.Site{
+		Name:                  "alpha",
+		Path:                  dir,
+		IdleSuspendedWorkers:  []string{"queue", "vite"},
+		WorktreeIdleSuspended: map[string][]string{"feature": {"vite"}},
+	}, 0)
+	if len(e.IdleSuspendedWorkers) != 2 {
+		t.Fatalf("IdleSuspendedWorkers = %v, want [queue vite]", e.IdleSuspendedWorkers)
+	}
+	if e.WorktreeIdleSuspended["feature"][0] != "vite" {
+		t.Errorf("WorktreeIdleSuspended not carried: %v", e.WorktreeIdleSuspended)
+	}
+}
+
 func TestEnrich_UsesPHP(t *testing.T) {
 	setDataDir(t)
 	stubPodman(t)

@@ -68,6 +68,9 @@ type WorktreeInfo struct {
 	// Per-worktree worker state (lerd-<wname>-<site>-<wtBase>).
 	// queue/schedule/reverb/horizon are excluded; those bind to the parent.
 	FrameworkWorkers []WorkerInfo
+	// IdleSuspended names the worktree's workers the idle engine stopped, so a
+	// row can read "suspended" instead of "stopped".
+	IdleSuspended []string
 }
 
 // ConflictingDomain describes a domain declared in .lerd.yaml that is owned
@@ -124,6 +127,13 @@ type EnrichedSite struct {
 
 	// Custom framework workers
 	FrameworkWorkers []WorkerInfo
+
+	// Idle suspension — IdleSuspendedWorkers names the parent-site workers the
+	// idle engine gracefully stopped (queue, schedule, vite, …) so a row can
+	// show "suspended" rather than a misleading "stopped". WorktreeIdleSuspended
+	// is the same, keyed by each worktree's unit slug, consumed by enrichGit.
+	IdleSuspendedWorkers  []string
+	WorktreeIdleSuspended map[string][]string
 
 	// Grouping — Group is the group key (the main site's name); GroupSubdomain
 	// is the label a secondary occupies on the main's base domain.
@@ -247,31 +257,33 @@ func LoadAll(flags EnrichFlag) ([]EnrichedSite, error) {
 // Enrich populates an EnrichedSite from a config.Site according to the given flags.
 func Enrich(s config.Site, flags EnrichFlag) EnrichedSite {
 	e := EnrichedSite{
-		Name:                s.Name,
-		Domains:             s.Domains,
-		Path:                s.Path,
-		PHPVersion:          s.PHPVersion,
-		NodeVersion:         s.NodeVersion,
-		Secured:             s.Secured,
-		Paused:              s.Paused,
-		PausedWorkers:       s.PausedWorkers,
-		PublicDir:           s.PublicDir,
-		AppURL:              s.AppURL,
-		LANPort:             s.LANPort,
-		ContainerPort:       s.ContainerPort,
-		ContainerSSL:        s.ContainerSSL,
-		ContainerImage:      containerImage(s),
-		HostPort:            s.HostPort,
-		HostSSL:             s.HostSSL,
-		HostCommand:         s.HostCommand,
-		Runtime:             s.Runtime,
-		RuntimeWorker:       s.RuntimeWorker,
-		FrameworkName:       s.Framework,
-		Group:               s.Group,
-		GroupSubdomain:      s.GroupSubdomain,
-		GroupSharedDB:       s.GroupSharedDB,
-		OriginalPHPVersion:  s.PHPVersion,
-		OriginalNodeVersion: s.NodeVersion,
+		Name:                  s.Name,
+		Domains:               s.Domains,
+		Path:                  s.Path,
+		PHPVersion:            s.PHPVersion,
+		NodeVersion:           s.NodeVersion,
+		Secured:               s.Secured,
+		Paused:                s.Paused,
+		PausedWorkers:         s.PausedWorkers,
+		PublicDir:             s.PublicDir,
+		AppURL:                s.AppURL,
+		LANPort:               s.LANPort,
+		ContainerPort:         s.ContainerPort,
+		ContainerSSL:          s.ContainerSSL,
+		ContainerImage:        containerImage(s),
+		HostPort:              s.HostPort,
+		HostSSL:               s.HostSSL,
+		HostCommand:           s.HostCommand,
+		Runtime:               s.Runtime,
+		RuntimeWorker:         s.RuntimeWorker,
+		FrameworkName:         s.Framework,
+		Group:                 s.Group,
+		GroupSubdomain:        s.GroupSubdomain,
+		GroupSharedDB:         s.GroupSharedDB,
+		IdleSuspendedWorkers:  s.IdleSuspendedWorkers,
+		WorktreeIdleSuspended: s.WorktreeIdleSuspended,
+		OriginalPHPVersion:    s.PHPVersion,
+		OriginalNodeVersion:   s.NodeVersion,
 	}
 
 	e.UsesPHP = phpPkg.SiteUsesPHP(s)
@@ -595,6 +607,10 @@ func (e *EnrichedSite) enrichGit() {
 				info.FrameworkWorkers = enrichWorktreeWorkers(e.Name, wt.Path, fw)
 			} else {
 				info.FrameworkLabel = e.FrameworkLabel
+			}
+			if e.WorktreeIdleSuspended != nil {
+				wtBase := config.WorktreeUnitSlug(filepath.Base(wt.Path))
+				info.IdleSuspended = e.WorktreeIdleSuspended[wtBase]
 			}
 			e.Worktrees = append(e.Worktrees, info)
 		}

@@ -472,7 +472,7 @@ func fpmGlyph(s siteinfo.EnrichedSite) string {
 
 func workerGlyphs(s siteinfo.EnrichedSite) string {
 	var out []string
-	add := func(has, running, failing bool, label string) {
+	add := func(has, running, failing, suspended bool, label string) {
 		if !has {
 			return
 		}
@@ -481,16 +481,18 @@ func workerGlyphs(s siteinfo.EnrichedSite) string {
 			out = append(out, failingStyle.Render(label))
 		case running:
 			out = append(out, runningStyle.Render(label))
+		case suspended:
+			out = append(out, suspendedStyle.Render(label))
 		default:
 			out = append(out, stoppedStyle.Render(label))
 		}
 	}
-	add(s.HasQueueWorker, s.QueueRunning, s.QueueFailing, "q")
-	add(s.HasScheduleWorker, s.ScheduleRunning, s.ScheduleFailing, "s")
-	add(s.HasReverb, s.ReverbRunning, s.ReverbFailing, "v")
-	add(s.HasHorizon, s.HorizonRunning, s.HorizonFailing, "h")
+	add(s.HasQueueWorker, s.QueueRunning, s.QueueFailing, workerSuspended(&s, "queue"), "q")
+	add(s.HasScheduleWorker, s.ScheduleRunning, s.ScheduleFailing, workerSuspended(&s, "schedule"), "s")
+	add(s.HasReverb, s.ReverbRunning, s.ReverbFailing, workerSuspended(&s, "reverb"), "v")
+	add(s.HasHorizon, s.HorizonRunning, s.HorizonFailing, workerSuspended(&s, "horizon"), "h")
 	for _, fw := range s.FrameworkWorkers {
-		add(true, fw.Running, fw.Failing, "•")
+		add(true, fw.Running, fw.Failing, workerSuspended(&s, fw.Name), "•")
 	}
 	return strings.Join(out, " ")
 }

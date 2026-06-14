@@ -18,7 +18,7 @@ This is the terminal-native counterpart to the [Web UI](/features/web-ui) and th
 - **Status bar** briefly shows the most recent action (e.g. `✓ lerd service stop redis` or `✖ …exit 1`).
 - **Footer** summarises active keybindings for the current mode.
 
-Dots follow the same convention everywhere: green `●` running, grey `○` stopped, amber `◐` paused, red `✖` failing.
+Dots follow the same convention everywhere: green `●` running, grey `○` stopped, amber `◐` paused, red `✖` failing. A worker the idle engine has put to sleep reads `suspended` with an amber `◔` glyph, so a deliberately stopped-for-idle worker isn't mistaken for one that crashed or never started; it wakes on the next request.
 
 ## Keybindings
 
