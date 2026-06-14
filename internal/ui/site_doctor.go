@@ -3,10 +3,12 @@ package ui
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -88,10 +90,20 @@ func doctorRoute(w http.ResponseWriter, r *http.Request, domain string, rest []s
 	branch := r.URL.Query().Get("branch")
 	path := site.Path
 	if branch != "" {
-		if wt := resolveSitePath(site, branch); wt != "" {
-			path = wt
+		// An unresolved branch must not fall back to the parent checkout, or the
+		// doctor would diagnose the main site's .env and database while the UI
+		// thinks it's looking at the worktree. Refuse, as the command runner does.
+		wt := resolveSitePath(site, branch)
+		if wt == "" {
+			writeJSON(w, map[string]any{"error": "unknown worktree branch: " + branch})
+			return true
 		}
+		path = wt
 	}
+	// Freshly added worktrees don't carry .env (it's gitignored), so materialise
+	// it first — otherwise every file check reads a missing .env and reports a
+	// healthy worktree as broken. No-op for the parent and idempotent.
+	ensureWorktreeEnvIfBranch(site, branch)
 	writeJSON(w, runSiteDoctor(r.Context(), path))
 	return true
 }
@@ -158,11 +170,103 @@ func checkEnvDrift(path, envPath string) (DoctorCheck, bool) {
 	if len(missing) == 0 {
 		return DoctorCheck{Name: "env_drift", Status: doctorOK}, true
 	}
+	// Not every missing key matters: Laravel only breaks on keys read with no
+	// default (env('KEY') vs env('KEY', 'fallback')). Split on that signal so
+	// the warning fires only for keys the app genuinely needs.
+	required, optional := classifyMissingEnvKeys(path, missing)
+	if len(required) == 0 {
+		return DoctorCheck{
+			Name:   "env_drift",
+			Status: doctorOK,
+			Detail: fmt.Sprintf("%d key(s) in .env.example aren't set, but the app reads them with defaults, so this is fine.", len(optional)),
+		}, true
+	}
+	detail := fmt.Sprintf("%d required key(s) missing from .env: %s", len(required), summariseKeys(required, 12))
+	if len(optional) > 0 {
+		detail += fmt.Sprintf(" (%d more have code defaults and were skipped)", len(optional))
+	}
 	return DoctorCheck{
 		Name:   "env_drift",
 		Status: doctorWarn,
-		Detail: fmt.Sprintf("%d key(s) in .env.example missing from .env: %s", len(missing), strings.Join(missing, ", ")),
+		Detail: detail,
 	}, true
+}
+
+// envCallRe matches a Laravel env('KEY'...) read, capturing the key and the
+// char after it: ',' means a default follows (optional), ')' means none does
+// (required). The \b stops getenv( and app_env( from matching.
+var envCallRe = regexp.MustCompile(`\benv\(\s*['"]([A-Za-z0-9_]+)['"]\s*([,)])`)
+
+// envKeyUsage records how the project's code reads one env key: whether it's
+// ever read without a default (so a missing value really breaks something).
+type envKeyUsage struct {
+	noDefault bool
+}
+
+// scanEnvUsage walks the project's PHP for env() reads (skipping vendor and
+// build dirs) and returns per-key usage plus the total calls found, so the
+// caller can fall back to warning on everything when the scan finds nothing.
+func scanEnvUsage(path string) (map[string]envKeyUsage, int) {
+	usage := map[string]envKeyUsage{}
+	total := 0
+	filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case "vendor", "node_modules", ".git", "storage":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(d.Name(), ".php") {
+			return nil
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return nil
+		}
+		for _, m := range envCallRe.FindAllStringSubmatch(string(data), -1) {
+			total++
+			u := usage[m[1]]
+			if m[2] == ")" {
+				u.noDefault = true
+			}
+			usage[m[1]] = u
+		}
+		return nil
+	})
+	return usage, total
+}
+
+// classifyMissingEnvKeys splits missing keys into required (read with no
+// default, or VITE_-prefixed so the frontend build needs them) and optional
+// (read only with defaults, or unreferenced). No env() calls found, all required.
+func classifyMissingEnvKeys(path string, missing []string) (required, optional []string) {
+	usage, total := scanEnvUsage(path)
+	for _, k := range missing {
+		switch {
+		case total == 0:
+			required = append(required, k)
+		case strings.HasPrefix(k, "VITE_"):
+			required = append(required, k)
+		case usage[k].noDefault:
+			required = append(required, k)
+		default:
+			optional = append(optional, k)
+		}
+	}
+	return required, optional
+}
+
+// summariseKeys joins keys for a detail line, capping the list so a project
+// with dozens of missing keys doesn't produce a runaway message.
+func summariseKeys(keys []string, max int) string {
+	if len(keys) <= max {
+		return strings.Join(keys, ", ")
+	}
+	return strings.Join(keys[:max], ", ") + fmt.Sprintf(", +%d more", len(keys)-max)
 }
 
 // checkAppDebug warns about the production footgun of APP_DEBUG=true while
