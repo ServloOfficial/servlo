@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/geodro/lerd/internal/siteinfo"
@@ -44,6 +45,36 @@ func TestWorkerRows_SynthesizesFromSites(t *testing.T) {
 		if row.WorkerSite == "" || row.WorkerKind == "" || row.WorkerPath == "" {
 			t.Errorf("%s: worker fields missing: %+v", row.Name, row)
 		}
+	}
+}
+
+func TestWorkerRows_MarksIdleSuspended(t *testing.T) {
+	sites := []siteinfo.EnrichedSite{{
+		Name: "alpha", Path: "/sites/alpha",
+		HasQueueWorker:       true,
+		QueueRunning:         false,
+		IdleSuspendedWorkers: []string{"queue", "vite"},
+		FrameworkWorkers:     []siteinfo.WorkerInfo{{Name: "vite"}},
+	}}
+	want := map[string]ServiceState{
+		"queue-alpha": stateSuspended,
+		"vite-alpha":  stateSuspended,
+	}
+	for _, row := range workerRows(sites) {
+		if got := want[row.Name]; row.State != got {
+			t.Errorf("%s: state %v, want %v (suspended)", row.Name, row.State, got)
+		}
+	}
+}
+
+func TestRenderServiceRow_WorkerOmitsSiteCount(t *testing.T) {
+	worker := stripANSI(renderServiceRow(false, ServiceRow{Name: "queue-acme", WorkerKind: "queue", SiteCount: 1, State: stateRunning}, 80))
+	if strings.Contains(worker, "site") {
+		t.Errorf("worker row should not show a site count, got %q", worker)
+	}
+	svc := stripANSI(renderServiceRow(false, ServiceRow{Name: "mysql", SiteCount: 3, State: stateRunning}, 80))
+	if !strings.Contains(svc, "(3 sites)") {
+		t.Errorf("service row should keep its site count, got %q", svc)
 	}
 }
 

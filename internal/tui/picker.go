@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/geodro/lerd/internal/config"
+	nodeDet "github.com/geodro/lerd/internal/node"
 	phpPkg "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/siteinfo"
 )
@@ -20,6 +21,7 @@ func (m *Model) openPHPPicker(s *siteinfo.EnrichedSite) {
 		m.setStatus("no PHP versions installed", 3*time.Second)
 		return
 	}
+	versions = frankenPHPRunnable(s.Runtime, versions, s.PHPVersion)
 	m.pickerKind = kindPHP
 	m.pickerOptions = versions
 	m.pickerCursor = indexOf(versions, s.PHPVersion)
@@ -30,13 +32,24 @@ func (m *Model) openPHPPicker(s *siteinfo.EnrichedSite) {
 // A no-op when fnm reports nothing.
 func (m *Model) openNodePicker(s *siteinfo.EnrichedSite) {
 	versions := listNodeMajors()
-	if len(versions) == 0 {
+	bunAvailable := nodeDet.BunPath() != ""
+	if len(versions) == 0 && !bunAvailable {
 		m.setStatus("no Node versions installed (run 'lerd node install 20')", 3*time.Second)
 		return
 	}
+	// bun is a JS-runtime toggle rather than a Node version, so it joins the
+	// list as a project-level pin (main site only, never per-worktree) when a
+	// host bun exists, mirroring the web Node dropdown.
+	if bunAvailable {
+		versions = append(versions, "bun")
+	}
 	m.pickerKind = kindNode
 	m.pickerOptions = versions
-	m.pickerCursor = indexOf(versions, s.NodeVersion)
+	if nodeDet.JSRuntime(s.Path) == "bun" {
+		m.pickerCursor = indexOf(versions, "bun")
+	} else {
+		m.pickerCursor = indexOf(versions, s.NodeVersion)
+	}
 }
 
 // openWorktreePHPPicker mirrors openPHPPicker but scopes the apply to the
@@ -52,6 +65,7 @@ func (m *Model) openWorktreePHPPicker(s *siteinfo.EnrichedSite, row detailRow) {
 		m.setStatus("no PHP versions installed", 3*time.Second)
 		return
 	}
+	versions = frankenPHPRunnable(s.Runtime, versions, wt.PHPVersion)
 	m.pickerKind = kindWorktreePHP
 	m.pickerOptions = versions
 	m.pickerCursor = indexOf(versions, wt.PHPVersion)
@@ -110,8 +124,16 @@ func (m *Model) applyPicker() tea.Cmd {
 		m.setStatus("switching "+s.Name+" to PHP "+ver+"…", 5*time.Second)
 		return runLerd(s.Path, "isolate", ver)
 	case kindNode:
-		m.setStatus("switching "+s.Name+" to Node "+ver+"…", 5*time.Second)
-		return runLerd(s.Path, "isolate:node", ver)
+		if ver == "bun" {
+			m.setStatus("switching "+s.Name+" to bun…", 5*time.Second)
+		} else {
+			m.setStatus("switching "+s.Name+" to Node "+ver+"…", 5*time.Second)
+		}
+		var cmds []tea.Cmd
+		for _, a := range nodePickerArgs(ver, nodeDet.UsesBun(s.Path)) {
+			cmds = append(cmds, runLerd(s.Path, a...))
+		}
+		return tea.Sequence(cmds...)
 	case kindWorktreePHP:
 		path, branch := m.pickerWorktreePath, m.pickerWorktreeName
 		m.pickerWorktreePath, m.pickerWorktreeName = "", ""
@@ -156,6 +178,46 @@ func listNodeMajors() []string {
 	}
 	sort.Strings(versions)
 	return versions
+}
+
+// nodePickerArgs maps a Node-picker choice to the lerd command(s) to run.
+// "bun" pins the JS runtime; a real Node version pins the version, first forcing
+// Node when the site currently resolves to bun so the dev/Vite worker actually
+// switches off bun rather than ignoring the chosen version. currentlyBun is the
+// effective runtime (node.UsesBun), so it covers an explicit pin and a
+// lockfile auto-detect alike.
+func nodePickerArgs(ver string, currentlyBun bool) [][]string {
+	if ver == "bun" {
+		return [][]string{{"js:runtime", "bun"}}
+	}
+	if currentlyBun {
+		// The site currently resolves to bun — whether from an explicit pin or
+		// a lockfile auto-detect — so pin Node before isolate:node, or the
+		// dev/Vite worker keeps running bun and ignores the chosen version.
+		return [][]string{{"js:runtime", "node"}, {"isolate:node", ver}}
+	}
+	return [][]string{{"isolate:node", ver}}
+}
+
+// frankenPHPRunnable narrows the installed PHP versions to the set
+// dunglas/frankenphp publishes an image for when the site runs under FrankenPHP,
+// since FrankenPHP can only boot those and picking another silently downgrades.
+// The current version is always kept so the picker never goes blank, and a
+// non-FrankenPHP site (or a filter that would empty the list) is left untouched.
+func frankenPHPRunnable(runtime string, versions []string, current string) []string {
+	if runtime != "frankenphp" {
+		return versions
+	}
+	out := versions[:0:0]
+	for _, v := range versions {
+		if config.IsFrankenPHPVersion(v) || v == current {
+			out = append(out, v)
+		}
+	}
+	if len(out) == 0 {
+		return versions
+	}
+	return out
 }
 
 func indexOf(ss []string, target string) int {

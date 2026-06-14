@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/geodro/lerd/internal/config"
 )
@@ -89,6 +90,110 @@ func TestEnrichVersions_CustomContainerSkipped(t *testing.T) {
 }
 
 // ── Enrich: UsesPHP detection ──────────────────────────────────────────────
+
+func TestEnrich_CarriesIdleSuspendedWorkers(t *testing.T) {
+	setDataDir(t)
+	stubPodman(t)
+
+	dir := t.TempDir()
+	e := Enrich(config.Site{
+		Name:                  "alpha",
+		Path:                  dir,
+		IdleSuspendedWorkers:  []string{"queue", "vite"},
+		WorktreeIdleSuspended: map[string][]string{"feature": {"vite"}},
+	}, 0)
+	if len(e.IdleSuspendedWorkers) != 2 {
+		t.Fatalf("IdleSuspendedWorkers = %v, want [queue vite]", e.IdleSuspendedWorkers)
+	}
+	if e.WorktreeIdleSuspended["feature"][0] != "vite" {
+		t.Errorf("WorktreeIdleSuspended not carried: %v", e.WorktreeIdleSuspended)
+	}
+}
+
+func TestLaravelAppName(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("APP_NAME=My Shop\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := LaravelAppName("laravel", dir); got != "My Shop" {
+		t.Errorf("LaravelAppName = %q, want \"My Shop\"", got)
+	}
+	if got := LaravelAppName("nextjs", dir); got != "" {
+		t.Errorf("non-Laravel framework should yield no app name, got %q", got)
+	}
+
+	stock := t.TempDir()
+	if err := os.WriteFile(filepath.Join(stock, ".env"), []byte("APP_NAME=Laravel\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := LaravelAppName("laravel", stock); got != "" {
+		t.Errorf("stock default APP_NAME should be treated as uncustomised, got %q", got)
+	}
+	if got := LaravelAppName("laravel", t.TempDir()); got != "" {
+		t.Errorf("missing .env should yield no app name, got %q", got)
+	}
+}
+
+func TestLaravelAppName_CachesByModTime(t *testing.T) {
+	dir := t.TempDir()
+	envPath := filepath.Join(dir, ".env")
+	pin := func(content string, mod time.Time) {
+		if err := os.WriteFile(envPath, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(envPath, mod, mod); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t0 := time.Unix(1_000_000, 0)
+	pin("APP_NAME=One\n", t0)
+	if got := LaravelAppName("laravel", dir); got != "One" {
+		t.Fatalf("first read = %q, want One", got)
+	}
+
+	// Content changes but the mod time doesn't: the cache must return the prior
+	// value rather than re-reading, which is the whole point of the optimisation.
+	pin("APP_NAME=Two\n", t0)
+	if got := LaravelAppName("laravel", dir); got != "One" {
+		t.Errorf("unchanged mod time should serve the cached value, got %q", got)
+	}
+
+	// A new mod time invalidates the entry and the fresh value is read.
+	pin("APP_NAME=Two\n", time.Unix(2_000_000, 0))
+	if got := LaravelAppName("laravel", dir); got != "Two" {
+		t.Errorf("new mod time should refresh the cache, got %q", got)
+	}
+
+	// A same-mod-time edit that changes the file size must still invalidate, so a
+	// same-second rewrite isn't served stale.
+	t2 := time.Unix(3_000_000, 0)
+	pin("APP_NAME=Three\n", t2)
+	if got := LaravelAppName("laravel", dir); got != "Three" {
+		t.Fatalf("setup read = %q, want Three", got)
+	}
+	pin("APP_NAME=A different and clearly longer app name\n", t2)
+	if got := LaravelAppName("laravel", dir); got != "A different and clearly longer app name" {
+		t.Errorf("a same-mod-time size change should refresh the cache, got %q", got)
+	}
+}
+
+func TestEnrich_SetsAppNameUnderFramework(t *testing.T) {
+	setDataDir(t)
+	stubPodman(t)
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("APP_NAME=Acme\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if e := Enrich(config.Site{Name: "acme", Path: dir, Framework: "laravel"}, EnrichFramework); e.AppName != "Acme" {
+		t.Errorf("Enrich AppName = %q, want \"Acme\"", e.AppName)
+	}
+	// Without the framework flag the cheap .env read is skipped.
+	if e := Enrich(config.Site{Name: "acme", Path: dir, Framework: "laravel"}, 0); e.AppName != "" {
+		t.Errorf("AppName should be empty without EnrichFramework, got %q", e.AppName)
+	}
+}
 
 func TestEnrich_UsesPHP(t *testing.T) {
 	setDataDir(t)

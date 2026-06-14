@@ -2,13 +2,34 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/siteinfo"
 )
+
+// workerVisual is the single source for how a worker's live state renders: its
+// style, dot glyph, and one-word label, applying the one precedence used
+// everywhere — failing > running > suspended > stopped. The five render sites
+// (site rows, detail rows, worktree rows) all route through this so the
+// orderings and colours can't drift apart. stoppedStyle and dimStyle share a
+// colour, so the stopped word looks identical to the old dimStyle rendering.
+func workerVisual(failing, running, suspended bool) (style lipgloss.Style, glyph, word string) {
+	switch {
+	case failing:
+		return failingStyle, glyphFailing, "failing"
+	case running:
+		return runningStyle, glyphRunning, "running"
+	case suspended:
+		return suspendedStyle, glyphSuspended, "suspended"
+	default:
+		return stoppedStyle, glyphStopped, "stopped"
+	}
+}
 
 // detailRow is one line in the detail overlay that reacts to input.
 // Informational rows use kindInfo and are skipped by cursor navigation.
@@ -257,6 +278,13 @@ func worktreeWorkerFailing(wt *siteinfo.WorktreeInfo, name string) bool {
 	return false
 }
 
+func worktreeWorkerSuspended(wt *siteinfo.WorktreeInfo, name string) bool {
+	if wt == nil {
+		return false
+	}
+	return slices.Contains(wt.IdleSuspended, name)
+}
+
 func worktreeWorkerLabel(wt *siteinfo.WorktreeInfo, name string) string {
 	if wt == nil {
 		return name
@@ -388,6 +416,14 @@ func workerFailing(s *siteinfo.EnrichedSite, name string) bool {
 	return false
 }
 
+// workerSuspended reports whether the idle engine has gracefully stopped this
+// worker. It covers both well-known and framework workers via the site's
+// recorded suspend list, so a sleeping worker reads "suspended" instead of a
+// misleading "stopped".
+func workerSuspended(s *siteinfo.EnrichedSite, name string) bool {
+	return slices.Contains(s.IdleSuspendedWorkers, name)
+}
+
 func workerLabel(s *siteinfo.EnrichedSite, name string) string {
 	for _, fw := range s.FrameworkWorkers {
 		if fw.Name == name && fw.Label != "" {
@@ -434,7 +470,15 @@ func (m *Model) renderDetailInline(w, h int, focused bool) string {
 				padToWidth(dimStyle.Render("no site selected"), contentW),
 			}
 		} else {
-			switch m.siteTab {
+			// The Doctor tab is Laravel-only; render Overview instead when the
+			// focused site can't run it, computed locally so the render path
+			// stays free of side effects (tab selection is clamped on navigation
+			// by the key handler, not here).
+			tab := m.siteTab
+			if tab == tabSiteDoctor && !siteIsLaravel(site) {
+				tab = tabSiteOverview
+			}
+			switch tab {
 			case tabSiteEnv:
 				content = siteEnvContentLines(m, site, contentW)
 				cursorLine = -1
@@ -443,6 +487,9 @@ func (m *Model) renderDetailInline(w, h int, focused bool) string {
 				cursorLine = -1
 			case tabSiteAppLogs:
 				content = siteAppLogsContentLines(m, site, contentW)
+				cursorLine = -1
+			case tabSiteDoctor:
+				content = siteDoctorContentLines(m, site, contentW)
 				cursorLine = -1
 			default:
 				content, cursorLine = detailContentLines(m, site, focused, contentW)
@@ -503,7 +550,7 @@ func detailContentLines(m *Model, site *siteinfo.EnrichedSite, focused bool, inn
 		return -1
 	}
 
-	out := renderSiteTabHeader(tabSiteOverview, innerW)
+	out := renderSiteTabHeader(tabSiteOverview, innerW, availableSiteTabs(site))
 	cursorLine := 0
 	add := func(s string, selected bool) {
 		if selected && len(out) > 0 {
@@ -521,6 +568,9 @@ func detailContentLines(m *Model, site *siteinfo.EnrichedSite, focused bool, inn
 		header = site.Name
 	}
 	addPlain(sectionStyle.Render(header))
+	if site.AppName != "" {
+		addPlain(dimStyle.Render("  app: ") + site.AppName)
+	}
 	if site.Name != header {
 		addPlain(dimStyle.Render("  name: ") + site.Name)
 	}
@@ -811,23 +861,13 @@ func domainRole(s *siteinfo.EnrichedSite, domain string) string {
 }
 
 func worktreeWorkerGlyph(wt *siteinfo.WorktreeInfo, name string) string {
-	switch {
-	case worktreeWorkerFailing(wt, name):
-		return failingStyle.Render(glyphFailing)
-	case worktreeWorkerRunning(wt, name):
-		return runningStyle.Render(glyphRunning)
-	}
-	return stoppedStyle.Render(glyphStopped)
+	st, glyph, _ := workerVisual(worktreeWorkerFailing(wt, name), worktreeWorkerRunning(wt, name), worktreeWorkerSuspended(wt, name))
+	return st.Render(glyph)
 }
 
 func worktreeWorkerStateText(wt *siteinfo.WorktreeInfo, name string) string {
-	switch {
-	case worktreeWorkerFailing(wt, name):
-		return failingStyle.Render("failing")
-	case worktreeWorkerRunning(wt, name):
-		return runningStyle.Render("running")
-	}
-	return dimStyle.Render("stopped")
+	st, _, word := workerVisual(worktreeWorkerFailing(wt, name), worktreeWorkerRunning(wt, name), worktreeWorkerSuspended(wt, name))
+	return st.Render(word)
 }
 
 func worktreeDBStateText(wt siteinfo.WorktreeInfo) string {
@@ -855,23 +895,13 @@ func worktreeVersionText(version string, override bool) string {
 }
 
 func workerGlyphFor(s *siteinfo.EnrichedSite, name string) string {
-	switch {
-	case workerFailing(s, name):
-		return failingStyle.Render(glyphFailing)
-	case workerRunning(s, name):
-		return runningStyle.Render(glyphRunning)
-	}
-	return stoppedStyle.Render(glyphStopped)
+	st, glyph, _ := workerVisual(workerFailing(s, name), workerRunning(s, name), workerSuspended(s, name))
+	return st.Render(glyph)
 }
 
 func workerStateText(s *siteinfo.EnrichedSite, name string) string {
-	switch {
-	case workerFailing(s, name):
-		return failingStyle.Render("failing")
-	case workerRunning(s, name):
-		return runningStyle.Render("running")
-	}
-	return dimStyle.Render("stopped")
+	st, _, word := workerVisual(workerFailing(s, name), workerRunning(s, name), workerSuspended(s, name))
+	return st.Render(word)
 }
 
 func onOffGlyph(on bool) string {

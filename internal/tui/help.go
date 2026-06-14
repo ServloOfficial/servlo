@@ -37,7 +37,7 @@ var helpReference = []helpSection{
 			{"r", "restart the focused site or service"},
 			{"p", "pause / unpause toggle for a site"},
 			{"t", "open an interactive shell inside the focused container"},
-			{"O", "open the focused site's primary domain in the default browser"},
+			{"O", "open in the browser: the focused site's primary domain, or the focused service's dashboard URL"},
 			{"u", "service update — pull a newer image and restart (services pane)"},
 			{"b", "service rollback — revert to the previously-running image (services pane)"},
 		},
@@ -49,6 +49,7 @@ var helpReference = []helpSection{
 			{"2", "Env tab (read-only .env display)"},
 			{"3", "Debug tab (this site's lenses: dumps, queries, jobs, mail, …)"},
 			{"4", "App logs tab (every framework-declared log file with size and mtime)"},
+			{"5", "Doctor tab (Laravel only — APP_KEY, env drift, migrations, storage link; press again to re-run)"},
 		},
 	},
 	{

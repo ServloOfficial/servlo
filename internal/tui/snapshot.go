@@ -47,6 +47,7 @@ const (
 	stateStopped ServiceState = iota
 	stateRunning
 	statePaused
+	stateSuspended
 )
 
 // StatusRow drives the top header bar.
@@ -90,10 +91,15 @@ func workerRows(sites []siteinfo.EnrichedSite) []ServiceRow {
 	var out []ServiceRow
 	add := func(site siteinfo.EnrichedSite, kind string, running, failing bool) {
 		state := stateStopped
-		if failing {
+		switch {
+		case failing:
 			state = stateStopped
-		} else if running {
+		case running:
 			state = stateRunning
+		case workerSuspended(&site, kind):
+			// A worker the idle engine put to sleep is intentionally down and
+			// wakes on the next request, so it must not read as a plain stop.
+			state = stateSuspended
 		}
 		out = append(out, ServiceRow{
 			Name:       kind + "-" + site.Name,
@@ -168,6 +174,10 @@ func buildServiceRow(name string, custom bool) ServiceRow {
 		Custom:    custom,
 		Pinned:    config.ServiceIsPinned(name),
 		SiteCount: config.CountSitesUsingService(name),
+		// Default presets (mailpit, …) carry a dashboard URL too; custom
+		// services have theirs set by the caller. Populating it here lets the
+		// detail pane offer "open dashboard" for built-ins, not just customs.
+		Dashboard: config.DefaultPresetDashboard(name),
 	}
 }
 

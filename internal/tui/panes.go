@@ -472,25 +472,19 @@ func fpmGlyph(s siteinfo.EnrichedSite) string {
 
 func workerGlyphs(s siteinfo.EnrichedSite) string {
 	var out []string
-	add := func(has, running, failing bool, label string) {
+	add := func(has, running, failing, suspended bool, label string) {
 		if !has {
 			return
 		}
-		switch {
-		case failing:
-			out = append(out, failingStyle.Render(label))
-		case running:
-			out = append(out, runningStyle.Render(label))
-		default:
-			out = append(out, stoppedStyle.Render(label))
-		}
+		st, _, _ := workerVisual(failing, running, suspended)
+		out = append(out, st.Render(label))
 	}
-	add(s.HasQueueWorker, s.QueueRunning, s.QueueFailing, "q")
-	add(s.HasScheduleWorker, s.ScheduleRunning, s.ScheduleFailing, "s")
-	add(s.HasReverb, s.ReverbRunning, s.ReverbFailing, "v")
-	add(s.HasHorizon, s.HorizonRunning, s.HorizonFailing, "h")
+	add(s.HasQueueWorker, s.QueueRunning, s.QueueFailing, workerSuspended(&s, "queue"), "q")
+	add(s.HasScheduleWorker, s.ScheduleRunning, s.ScheduleFailing, workerSuspended(&s, "schedule"), "s")
+	add(s.HasReverb, s.ReverbRunning, s.ReverbFailing, workerSuspended(&s, "reverb"), "v")
+	add(s.HasHorizon, s.HorizonRunning, s.HorizonFailing, workerSuspended(&s, "horizon"), "h")
 	for _, fw := range s.FrameworkWorkers {
-		add(true, fw.Running, fw.Failing, "•")
+		add(true, fw.Running, fw.Failing, workerSuspended(&s, fw.Name), "•")
 	}
 	return strings.Join(out, " ")
 }
@@ -613,8 +607,9 @@ func classifyService(s ServiceRow) serviceGroup {
 // indexes the flat services slice unchanged — only the visual layout is
 // grouped, navigation never lands on a header.
 func renderGroupedServiceRows(services []ServiceRow, cursor int, paneFocused bool, contentW int) (rows []string, cursorLine int) {
-	rows = make([]string, 0, len(services)+3)
+	rows = make([]string, 0, len(services)+6)
 	currentGroup := serviceGroup(-1)
+	currentSite := ""
 	for i, s := range services {
 		g := classifyService(s)
 		if g != currentGroup {
@@ -623,11 +618,24 @@ func renderGroupedServiceRows(services []ServiceRow, cursor int, paneFocused boo
 			}
 			rows = append(rows, padToWidth("  "+sectionStyle.Render(g.label()), contentW))
 			currentGroup = g
+			currentSite = ""
+		}
+		// Within Workers, sub-group by owning site: the site shows once as a
+		// dim header and each worker below it reads as just its kind + state.
+		if g == groupWorkers && s.WorkerSite != currentSite {
+			rows = append(rows, padToWidth("    "+dimStyle.Render(s.WorkerSite), contentW))
+			currentSite = s.WorkerSite
 		}
 		if i == cursor && paneFocused {
 			cursorLine = len(rows)
 		}
-		row := renderServiceRow(i == cursor && paneFocused, s, contentW)
+		selected := i == cursor && paneFocused
+		var row string
+		if g == groupWorkers {
+			row = renderWorkerRow(selected, s, contentW)
+		} else {
+			row = renderServiceRow(selected, s, contentW)
+		}
 		rows = append(rows, padToWidth(clipLine(row, contentW), contentW))
 	}
 	return rows, cursorLine
@@ -639,18 +647,51 @@ func renderGroupedServiceRows(services []ServiceRow, cursor int, paneFocused boo
 // which tags are present, mirroring the aligned layout in the sites pane.
 const serviceMetaColWidth = 32
 
-func renderServiceRow(selected bool, s ServiceRow, paneW int) string {
-	var glyph string
-	switch s.State {
+// serviceStateGlyph maps a service/worker state to its coloured dot, shared by
+// the service and worker row renderers so the two never drift.
+func serviceStateGlyph(state ServiceState) string {
+	switch state {
 	case stateRunning:
-		glyph = runningStyle.Render(glyphRunning)
+		return runningStyle.Render(glyphRunning)
 	case statePaused:
-		glyph = pausedStyle.Render(glyphPaused)
+		return pausedStyle.Render(glyphPaused)
+	case stateSuspended:
+		return suspendedStyle.Render(glyphSuspended)
 	default:
-		glyph = stoppedStyle.Render(glyphStopped)
+		return stoppedStyle.Render(glyphStopped)
 	}
+}
 
-	meta := fmt.Sprintf("(%d site%s)", s.SiteCount, plural(s.SiteCount))
+// workerKindColWidth aligns the state column across worker rows. 14 cells fit
+// the longest framework worker kind (e.g. "broadcaster") without truncating.
+const workerKindColWidth = 14
+
+// renderWorkerRow draws a worker beneath its site sub-header in the Workers
+// group: just the kind and a state word, since the owning site is already the
+// header above it. Indented one level deeper than the site header so the
+// nesting reads at a glance.
+func renderWorkerRow(selected bool, s ServiceRow, paneW int) string {
+	prefix := "   "
+	if selected {
+		prefix = "  " + accentStyle.Render("▸")
+	}
+	kind := padRight(truncatePlain(s.WorkerKind, workerKindColWidth), workerKindColWidth)
+	if selected {
+		kind = selectedStyle.Render(kind)
+	}
+	return fmt.Sprintf("%s %s %s %s", prefix, serviceStateGlyph(s.State), kind, serviceStateText(s.State))
+}
+
+func renderServiceRow(selected bool, s ServiceRow, paneW int) string {
+	glyph := serviceStateGlyph(s.State)
+
+	// A worker row already names its single owning site (queue-<site>), so the
+	// "(1 site)" count every worker would carry is noise — only real services,
+	// which several sites can share, show the count.
+	meta := ""
+	if s.WorkerKind == "" {
+		meta = fmt.Sprintf("(%d site%s)", s.SiteCount, plural(s.SiteCount))
+	}
 	if s.Version != "" {
 		meta = dimStyle.Render(s.Version) + "  " + meta
 	}

@@ -68,6 +68,9 @@ type WorktreeInfo struct {
 	// Per-worktree worker state (lerd-<wname>-<site>-<wtBase>).
 	// queue/schedule/reverb/horizon are excluded; those bind to the parent.
 	FrameworkWorkers []WorkerInfo
+	// IdleSuspended names the worktree's workers the idle engine stopped, so a
+	// row can read "suspended" instead of "stopped".
+	IdleSuspended []string
 }
 
 // ConflictingDomain describes a domain declared in .lerd.yaml that is owned
@@ -125,6 +128,13 @@ type EnrichedSite struct {
 	// Custom framework workers
 	FrameworkWorkers []WorkerInfo
 
+	// Idle suspension — IdleSuspendedWorkers names the parent-site workers the
+	// idle engine gracefully stopped (queue, schedule, vite, …) so a row can
+	// show "suspended" rather than a misleading "stopped". WorktreeIdleSuspended
+	// is the same, keyed by each worktree's unit slug, consumed by enrichGit.
+	IdleSuspendedWorkers  []string
+	WorktreeIdleSuspended map[string][]string
+
 	// Grouping — Group is the group key (the main site's name); GroupSubdomain
 	// is the label a secondary occupies on the main's base domain.
 	Group          string
@@ -165,6 +175,10 @@ type EnrichedSite struct {
 	HasAppLogs    bool
 	LatestLogTime string
 	HasFavicon    bool
+	// AppName is the Laravel APP_NAME from .env, or "" for non-Laravel sites and
+	// for the stock "Laravel" default, so a surface can title a site by its
+	// application name without burying customised ones under identical defaults.
+	AppName string
 
 	// Version change tracking (for write-back by caller)
 	PHPVersionChanged   bool
@@ -247,31 +261,33 @@ func LoadAll(flags EnrichFlag) ([]EnrichedSite, error) {
 // Enrich populates an EnrichedSite from a config.Site according to the given flags.
 func Enrich(s config.Site, flags EnrichFlag) EnrichedSite {
 	e := EnrichedSite{
-		Name:                s.Name,
-		Domains:             s.Domains,
-		Path:                s.Path,
-		PHPVersion:          s.PHPVersion,
-		NodeVersion:         s.NodeVersion,
-		Secured:             s.Secured,
-		Paused:              s.Paused,
-		PausedWorkers:       s.PausedWorkers,
-		PublicDir:           s.PublicDir,
-		AppURL:              s.AppURL,
-		LANPort:             s.LANPort,
-		ContainerPort:       s.ContainerPort,
-		ContainerSSL:        s.ContainerSSL,
-		ContainerImage:      containerImage(s),
-		HostPort:            s.HostPort,
-		HostSSL:             s.HostSSL,
-		HostCommand:         s.HostCommand,
-		Runtime:             s.Runtime,
-		RuntimeWorker:       s.RuntimeWorker,
-		FrameworkName:       s.Framework,
-		Group:               s.Group,
-		GroupSubdomain:      s.GroupSubdomain,
-		GroupSharedDB:       s.GroupSharedDB,
-		OriginalPHPVersion:  s.PHPVersion,
-		OriginalNodeVersion: s.NodeVersion,
+		Name:                  s.Name,
+		Domains:               s.Domains,
+		Path:                  s.Path,
+		PHPVersion:            s.PHPVersion,
+		NodeVersion:           s.NodeVersion,
+		Secured:               s.Secured,
+		Paused:                s.Paused,
+		PausedWorkers:         s.PausedWorkers,
+		PublicDir:             s.PublicDir,
+		AppURL:                s.AppURL,
+		LANPort:               s.LANPort,
+		ContainerPort:         s.ContainerPort,
+		ContainerSSL:          s.ContainerSSL,
+		ContainerImage:        containerImage(s),
+		HostPort:              s.HostPort,
+		HostSSL:               s.HostSSL,
+		HostCommand:           s.HostCommand,
+		Runtime:               s.Runtime,
+		RuntimeWorker:         s.RuntimeWorker,
+		FrameworkName:         s.Framework,
+		Group:                 s.Group,
+		GroupSubdomain:        s.GroupSubdomain,
+		GroupSharedDB:         s.GroupSharedDB,
+		IdleSuspendedWorkers:  s.IdleSuspendedWorkers,
+		WorktreeIdleSuspended: s.WorktreeIdleSuspended,
+		OriginalPHPVersion:    s.PHPVersion,
+		OriginalNodeVersion:   s.NodeVersion,
 	}
 
 	e.UsesPHP = phpPkg.SiteUsesPHP(s)
@@ -288,6 +304,7 @@ func Enrich(s config.Site, flags EnrichFlag) EnrichedSite {
 
 	if flags&EnrichFramework != 0 {
 		e.FrameworkLabel = frameworkLabel(s.Framework, s.Path, fw, hasFw)
+		e.AppName = LaravelAppName(s.Framework, s.Path)
 	}
 
 	if flags&EnrichVersions != 0 {
@@ -596,6 +613,10 @@ func (e *EnrichedSite) enrichGit() {
 			} else {
 				info.FrameworkLabel = e.FrameworkLabel
 			}
+			if e.WorktreeIdleSuspended != nil {
+				wtBase := config.WorktreeUnitSlug(filepath.Base(wt.Path))
+				info.IdleSuspended = e.WorktreeIdleSuspended[wtBase]
+			}
 			e.Worktrees = append(e.Worktrees, info)
 		}
 	}
@@ -686,6 +707,54 @@ func frameworkLabel(name, path string, fw *config.Framework, hasFw bool) string 
 		}
 		return fw.Label
 	}
+	return name
+}
+
+// appNameCacheEntry caches a site's resolved APP_NAME against its .env mod time
+// and size, so the dashboard poll (which runs LaravelAppName for every Laravel
+// site every few seconds) only opens and parses the file when it actually
+// changes. Pairing size with mod time matches the config caches and catches a
+// same-second edit that leaves the mod time unchanged.
+type appNameCacheEntry struct {
+	mod  time.Time
+	size int64
+	name string
+}
+
+// appNameCache is keyed by site path. sync.Map suits the read-mostly,
+// concurrent access from LoadAll's per-site goroutines; a racing double-read on
+// a changed .env just recomputes the same value, which is harmless.
+var appNameCache sync.Map
+
+// LaravelAppName reads APP_NAME from a Laravel project's .env so a surface can
+// label a site by its application name instead of just the URL. Returns "" for
+// non-Laravel projects, a missing .env or APP_NAME, and the stock "Laravel"
+// default, which keeps the label purely additive: uncustomised sites stay
+// titled by their scannable domain rather than a wall of identical names.
+//
+// The result is cached against the .env's mod time, so a steady-state dashboard
+// poll costs one stat per site rather than an open-and-parse of the whole file.
+func LaravelAppName(frameworkName, sitePath string) string {
+	if frameworkName != "laravel" || sitePath == "" {
+		return ""
+	}
+	envPath := filepath.Join(sitePath, ".env")
+	fi, err := os.Stat(envPath)
+	if err != nil {
+		appNameCache.Delete(sitePath)
+		return ""
+	}
+	mod, size := fi.ModTime(), fi.Size()
+	if v, ok := appNameCache.Load(sitePath); ok {
+		if e := v.(appNameCacheEntry); e.mod.Equal(mod) && e.size == size {
+			return e.name
+		}
+	}
+	name := envfile.ReadKey(envPath, "APP_NAME")
+	if strings.EqualFold(name, "Laravel") {
+		name = ""
+	}
+	appNameCache.Store(sitePath, appNameCacheEntry{mod: mod, size: size, name: name})
 	return name
 }
 

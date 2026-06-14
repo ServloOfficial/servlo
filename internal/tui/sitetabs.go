@@ -25,6 +25,7 @@ const (
 	tabSiteEnv
 	tabSiteDebug
 	tabSiteAppLogs
+	tabSiteDoctor
 )
 
 // envReadLimit caps how much of a site's .env we slurp. 256 KB is two
@@ -41,6 +42,8 @@ func siteTabLabel(t siteTab) string {
 		return "Debug"
 	case tabSiteAppLogs:
 		return "App logs"
+	case tabSiteDoctor:
+		return "Doctor"
 	default:
 		return "Overview"
 	}
@@ -51,8 +54,7 @@ func siteTabLabel(t siteTab) string {
 // tab is highlighted in the accent colour; the others are dimmed. Lives at
 // the head of every site detail variant so the user always sees the
 // shortcuts and which tab is active without scrolling.
-func siteTabsHeader(active siteTab) string {
-	tabs := []siteTab{tabSiteOverview, tabSiteEnv, tabSiteDebug, tabSiteAppLogs}
+func siteTabsHeader(active siteTab, tabs []siteTab) string {
 	parts := make([]string, 0, len(tabs))
 	for i, t := range tabs {
 		label := fmt.Sprintf("[%d] %s", i+1, siteTabLabel(t))
@@ -68,11 +70,29 @@ func siteTabsHeader(active siteTab) string {
 // renderSiteTabHeader returns the two-line block that precedes every site
 // tab's content: the tab strip and a divider. Centralised so each tab
 // renderer pads to the same width and the user sees a consistent header.
-func renderSiteTabHeader(active siteTab, innerW int) []string {
+func renderSiteTabHeader(active siteTab, innerW int, tabs []siteTab) []string {
 	return []string{
-		padToWidth(clipLine(siteTabsHeader(active), innerW), innerW),
+		padToWidth(clipLine(siteTabsHeader(active, tabs), innerW), innerW),
 		"",
 	}
+}
+
+// availableSiteTabs returns the tabs a site offers, in display order. Doctor is
+// Laravel-only. This is the single source the strip numbering, the number-key
+// shortcuts, and the render dispatch all derive from, so a tab's position,
+// label, and availability can never drift apart.
+func availableSiteTabs(s *siteinfo.EnrichedSite) []siteTab {
+	tabs := []siteTab{tabSiteOverview, tabSiteEnv, tabSiteDebug, tabSiteAppLogs}
+	if siteIsLaravel(s) {
+		tabs = append(tabs, tabSiteDoctor)
+	}
+	return tabs
+}
+
+// siteIsLaravel reports whether the site can run the Laravel Doctor checks,
+// gating both the tab strip entry and the `5` shortcut.
+func siteIsLaravel(s *siteinfo.EnrichedSite) bool {
+	return s != nil && s.FrameworkName == "laravel"
 }
 
 // siteEnvContentLines reads the site's .env file and renders one line per
@@ -81,7 +101,7 @@ func renderSiteTabHeader(active siteTab, innerW int) []string {
 // state so users understand the file isn't on disk yet.
 func siteEnvContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []string {
 	out := make([]string, 0, 32)
-	out = append(out, renderSiteTabHeader(tabSiteEnv, innerW)...)
+	out = append(out, renderSiteTabHeader(tabSiteEnv, innerW, availableSiteTabs(site))...)
 	add := func(s string) { out = append(out, padToWidth(clipLine(s, innerW), innerW)) }
 
 	if site == nil {
@@ -120,7 +140,7 @@ func siteEnvContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []st
 // is a per-site debug feed, not just dumps.
 func siteDebugContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []string {
 	out := make([]string, 0, 32)
-	out = append(out, renderSiteTabHeader(tabSiteDebug, innerW)...)
+	out = append(out, renderSiteTabHeader(tabSiteDebug, innerW, availableSiteTabs(site))...)
 	add := func(s string) { out = append(out, padToWidth(clipLine(s, innerW), innerW)) }
 
 	if site == nil {
@@ -214,7 +234,7 @@ func siteDebugContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []
 // the right thing.
 func siteAppLogsContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []string {
 	out := make([]string, 0, 32)
-	out = append(out, renderSiteTabHeader(tabSiteAppLogs, innerW)...)
+	out = append(out, renderSiteTabHeader(tabSiteAppLogs, innerW, availableSiteTabs(site))...)
 	add := func(s string) { out = append(out, padToWidth(clipLine(s, innerW), innerW)) }
 
 	if site == nil {
@@ -285,11 +305,14 @@ func humanSize(n int64) string {
 	}
 }
 
-// openInBrowserCmd shells out to xdg-open / open with the primary domain
-// of the focused site. Falls back to a status-bar message when no domain
-// is set or the platform lacks a known opener. Returns nil when the focus
-// isn't on a site so other key handlers can carry on.
+// openInBrowserCmd opens the focused row in the browser: a service's dashboard
+// URL when the Services pane is focused, otherwise the focused site's primary
+// domain. Falls back to a status-bar message when there's nothing to open or
+// the platform lacks a known opener.
 func (m *Model) openInBrowserCmd() tea.Cmd {
+	if m.focus == paneServices {
+		return m.openServiceDashboardCmd()
+	}
 	site := m.currentSite()
 	if site == nil {
 		return nil
@@ -303,7 +326,28 @@ func (m *Model) openInBrowserCmd() tea.Cmd {
 	if site.Secured {
 		scheme = "https"
 	}
-	url := scheme + "://" + domain
+	return m.openURL(scheme + "://" + domain)
+}
+
+// openServiceDashboardCmd opens the focused service's dashboard URL. Worker
+// rows and services without a dashboard get a status-bar note rather than a
+// silent no-op, so the user knows the key was heard.
+func (m *Model) openServiceDashboardCmd() tea.Cmd {
+	svc := m.currentService()
+	if svc == nil {
+		return nil
+	}
+	if svc.Dashboard == "" {
+		m.setStatus(svc.Name+" has no dashboard to open", 3*time.Second)
+		return nil
+	}
+	return m.openURL(svc.Dashboard)
+}
+
+// openURL launches the default browser on url via the platform opener, or
+// surfaces a status message when no opener exists. The browser detaches, so the
+// command returns as soon as the opener is spawned.
+func (m *Model) openURL(url string) tea.Cmd {
 	opener := browserOpener()
 	if opener == "" {
 		m.setStatus("no browser opener available on "+runtime.GOOS, 3*time.Second)
@@ -313,11 +357,7 @@ func (m *Model) openInBrowserCmd() tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.Command(opener, url)
 		runErr := cmd.Start()
-		// Don't wait — xdg-open returns quickly, the browser detaches.
-		return ActionResult{
-			Summary: "open " + url,
-			Err:     runErr,
-		}
+		return ActionResult{Summary: "open " + url, Err: runErr}
 	}
 }
 

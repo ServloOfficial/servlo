@@ -13,12 +13,12 @@ This is the terminal-native counterpart to the [Web UI](/features/web-ui) and th
 - **Header** shows the lerd version, DNS / nginx / FPM status, watcher state, the wall clock, and an `update: vX.Y.Z` banner when a newer release is available (populated from the same 24-hour cache `lerd status` and `lerd doctor` use, so no extra network on startup). When any framework worker is failing a red `⚠ N` pill appears alongside the clock; press `H` to fire `lerd worker heal` and clear it.
 - **Sites pane (left column, top)** lists every linked site by its primary domain, with an FPM running dot, PHP version, and worker glyphs (`q` queue, `s` schedule, `v` reverb, `h` horizon, plus a dot per custom framework worker). Paused sites are dimmed and marked. Columns line up across rows regardless of how many workers each site runs.
 - **Services pane (left column, bottom)** is a compact list of built-in services (mysql, redis, postgres, meilisearch, rustfs, mailpit), custom services, and every site-owned worker (`queue-<site>`, `schedule-<site>`, `horizon-<site>`, `reverb-<site>`, and custom framework workers). Each row shows a running dot, how many sites use it, and `pinned` / `custom` tags where applicable.
-- **Site detail (right column, full height)** always mirrors the focused site and shows primary domain, internal name, disk path, all domains, services used (with live state), workers, git worktrees, HTTPS / LAN share toggles, and PHP / Node version pickers. `S` swaps it for global Settings, `?` swaps it for the Keybindings reference.
+- **Site detail (right column, full height)** always mirrors the focused site and shows primary domain, the Laravel `APP_NAME` when the site sets a custom one, internal name, disk path, all domains, services used (with live state), workers, git worktrees, HTTPS / LAN share toggles, and PHP / Node version pickers. `S` swaps it for global Settings, `?` swaps it for the Keybindings reference.
 - **Logs pane** (toggle with `l`) tails the container, worker-journal, or app log file behind the focused item. Takes at least half the window and renders a right-edge scrollbar showing position in the buffer.
 - **Status bar** briefly shows the most recent action (e.g. `✓ lerd service stop redis` or `✖ …exit 1`).
 - **Footer** summarises active keybindings for the current mode.
 
-Dots follow the same convention everywhere: green `●` running, grey `○` stopped, amber `◐` paused, red `✖` failing.
+Dots follow the same convention everywhere: green `●` running, grey `○` stopped, amber `◐` paused, red `✖` failing. A worker the idle engine has put to sleep reads `suspended` with an amber `◔` glyph, so a deliberately stopped-for-idle worker isn't mistaken for one that crashed or never started; it wakes on the next request.
 
 ## Keybindings
 
@@ -51,7 +51,7 @@ Dots follow the same convention everywhere: green `●` running, grey `○` stop
 | `r` | Restart the focused site / service / worker |
 | `p` | Pause / unpause toggle for a site |
 | `t` | Open an interactive shell inside the focused container (FPM or custom for sites, the service container for services, the owning site's FPM for worker rows) |
-| `O` | Open the focused site's primary domain in the default browser (uses `xdg-open` on Linux, `open` on macOS) |
+| `O` | Open in the default browser (uses `xdg-open` on Linux, `open` on macOS): the focused site's primary domain, or — when the Services pane is focused — the focused service's dashboard URL (phpMyAdmin, Mailpit, RabbitMQ, RedisInsight, …). A service with no dashboard says so in the status bar |
 | `u` | Run `lerd service update <name>` for the focused service so a presets bump or version pin lands without leaving the TUI. The action is in-strategy and reversible. |
 | `b` | Run `lerd service rollback <name>` to swap the focused service back to its previous version; pairs with `u` as the symmetric undo |
 | `H` | Run `lerd worker heal` to restart every failing framework worker in one pass. The header pill shows the count and the keybind is most relevant when it's lit |
@@ -109,7 +109,7 @@ The pane title shows which source is active and the index, e.g. `Logs · astrolo
 
 When focus is on the Services pane, the right column swaps to a service-focused detail mirroring the web UI's `ServiceDetail`. Sections, top to bottom:
 
-- **Header** — service name, version, state, systemd unit, pinned flag, and the dashboard URL (when the preset declares one).
+- **Header** — service name, version, state, systemd unit, pinned flag, and the dashboard URL (when the preset declares one); press `O` to open that URL in the browser.
 - **Depends on** — services in `depends_on`, each with its live state so you can confirm a stack is fully up before debugging.
 - **Sites using** — every active site (excluding paused/ignored) whose `.lerd.yaml` references this service.
 - **Env vars** — the preset's `env_vars` template list for default presets, or the merged `env_vars` + `environment` map for custom services. Read-only.
@@ -128,6 +128,7 @@ The site detail pane is split into four read-side tabs the user can jump between
 | `2` | Env | Read-only display of the site's `.env` file (read up to 256 KB so a runaway file can't wedge the render loop) |
 | `3` | Debug | This site's slice of the Debug window: the active lens (Dumps · Queries · Jobs · Views · Mail · Cache · Events · HTTP) scoped to the focused site, with `[` / `]` to switch lens and `w` to toggle worker capture. Rows show their detail inline; press `D` for the full cross-site window |
 | `4` | App logs | Every framework-declared log file with size and modification time; press `l` to actually tail one — the file targets are wired into `logTargetsForSite`, so `[` / `]` cycle through them once the log pane is open |
+| `5` | Doctor | Laravel only — the same app-level health checks the web dashboard runs (`APP_KEY`, `.env` drift against `.env.example` warning only on keys the code reads without a default, the `APP_DEBUG`-in-production footgun, the `public/storage` symlink, and pending migrations). The migrations check execs artisan in the container, so the run is on-demand: the tab appears only for Laravel sites, press `5` to run and again to re-run. The panel is read-only and names the suggested fix (e.g. `key:generate`, `migrate`) rather than running it, so a status view can never migrate a database |
 
 Switching tabs resets the detail-pane scroll so the user lands at the top of the new tab. Picker overlays (PHP / Node version) only show in Overview; selecting a different tab dismisses them.
 
@@ -143,7 +144,7 @@ Sections, top to bottom:
 - **Services used** — every service referenced in `.lerd.yaml` with its live state, so you can see at a glance whether redis / mysql / etc. are up for this site.
 - **Workers** — queue, schedule, horizon, reverb, and any custom framework workers, each with a running / failing indicator. `space` on a worker row toggles it (calls `lerd queue start/stop`, etc.).
 - **Worktrees** — every git worktree with its branch, domain, and path when the site uses them. Each worktree row carries its own controls — PHP / Node version pickers, LAN-share toggle, isolated-DB toggle, and per-worktree framework worker toggles (e.g. vite) — so a branch's runtime can be tuned without affecting the parent. `space` on a worktree-scoped row toggles the matching state via the same CLI commands the parent rows use, just with the worktree's path threaded through.
-- **Toggles** — HTTPS (runs `lerd secure` / `lerd unsecure`), LAN share (runs `lerd lan share` / `unshare` — shows the full `http://<lan-ip>:<port>` URL when enabled), PHP version (opens an inline picker from installed versions → `lerd isolate <ver>`), Node version (picker backed by `fnm list` → `lerd isolate:node <ver>`).
+- **Toggles** — HTTPS (runs `lerd secure` / `lerd unsecure`), LAN share (runs `lerd lan share` / `unshare` — shows the full `http://<lan-ip>:<port>` URL when enabled), PHP version (opens an inline picker from installed versions → `lerd isolate <ver>`; a FrankenPHP site only lists the versions FrankenPHP publishes an image for, so the picker never offers one that would silently downgrade), Node version (picker backed by `fnm list` → `lerd isolate:node <ver>`; when a host bun is installed the list also carries a `bun` entry that pins the site's JS runtime via `lerd js:runtime bun`, and picking a Node version while pinned to bun clears the pin first so the dev worker actually switches back).
 
 ## Settings view
 

@@ -44,6 +44,63 @@ func TestDetailRows_CustomContainerSkipsPHP(t *testing.T) {
 	assertKindCount(t, kinds, kindLANShare, 1)
 }
 
+func TestWorkerStateText_SuspendedBeatsStopped(t *testing.T) {
+	s := &siteinfo.EnrichedSite{
+		Name:                 "alpha",
+		HasQueueWorker:       true,
+		IdleSuspendedWorkers: []string{"queue", "vite"},
+		FrameworkWorkers:     []siteinfo.WorkerInfo{{Name: "vite"}},
+	}
+	if got := workerStateText(s, "queue"); !strings.Contains(got, "suspended") {
+		t.Errorf("idle-suspended queue should read suspended, got %q", got)
+	}
+	if got := workerStateText(s, "vite"); !strings.Contains(got, "suspended") {
+		t.Errorf("idle-suspended framework worker should read suspended, got %q", got)
+	}
+	if !strings.Contains(workerGlyphFor(s, "queue"), glyphSuspended) {
+		t.Errorf("suspended worker glyph should be %q", glyphSuspended)
+	}
+}
+
+func TestWorkerStateText_RunningBeatsSuspended(t *testing.T) {
+	// A worker the engine resumed is briefly still in the suspend list until
+	// config clears it; a live unit must win so the row never lies.
+	s := &siteinfo.EnrichedSite{
+		Name:                 "alpha",
+		HasQueueWorker:       true,
+		QueueRunning:         true,
+		IdleSuspendedWorkers: []string{"queue"},
+	}
+	if got := workerStateText(s, "queue"); !strings.Contains(got, "running") {
+		t.Errorf("running worker should read running even if still listed suspended, got %q", got)
+	}
+}
+
+func TestWorktreeWorkerStateText_Suspended(t *testing.T) {
+	wt := &siteinfo.WorktreeInfo{
+		Branch:           "feature",
+		FrameworkWorkers: []siteinfo.WorkerInfo{{Name: "vite"}},
+		IdleSuspended:    []string{"vite"},
+	}
+	if got := worktreeWorkerStateText(wt, "vite"); !strings.Contains(got, "suspended") {
+		t.Errorf("idle-suspended worktree worker should read suspended, got %q", got)
+	}
+}
+
+func TestDetailContent_ShowsAppName(t *testing.T) {
+	m := &Model{}
+	s := &siteinfo.EnrichedSite{
+		Name:    "shop",
+		Domains: []string{"shop.test"},
+		AppName: "My Shop",
+	}
+	lines, _ := detailContentLines(m, s, true, 80)
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "My Shop") {
+		t.Errorf("detail header should surface the app name, got:\n%s", joined)
+	}
+}
+
 func TestNavigableRows_SkipsInfo(t *testing.T) {
 	rows := []detailRow{
 		{kind: kindInfo},
