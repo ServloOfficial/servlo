@@ -710,19 +710,48 @@ func frameworkLabel(name, path string, fw *config.Framework, hasFw bool) string 
 	return name
 }
 
+// appNameCacheEntry caches a site's resolved APP_NAME against its .env mod time,
+// so the dashboard poll (which runs LaravelAppName for every Laravel site every
+// few seconds) only opens and parses the file when it actually changes.
+type appNameCacheEntry struct {
+	mod  time.Time
+	name string
+}
+
+// appNameCache is keyed by site path. sync.Map suits the read-mostly,
+// concurrent access from LoadAll's per-site goroutines; a racing double-read on
+// a changed .env just recomputes the same value, which is harmless.
+var appNameCache sync.Map
+
 // LaravelAppName reads APP_NAME from a Laravel project's .env so a surface can
 // label a site by its application name instead of just the URL. Returns "" for
 // non-Laravel projects, a missing .env or APP_NAME, and the stock "Laravel"
 // default, which keeps the label purely additive: uncustomised sites stay
 // titled by their scannable domain rather than a wall of identical names.
+//
+// The result is cached against the .env's mod time, so a steady-state dashboard
+// poll costs one stat per site rather than an open-and-parse of the whole file.
 func LaravelAppName(frameworkName, sitePath string) string {
 	if frameworkName != "laravel" || sitePath == "" {
 		return ""
 	}
-	name := envfile.ReadKey(filepath.Join(sitePath, ".env"), "APP_NAME")
-	if strings.EqualFold(name, "Laravel") {
+	envPath := filepath.Join(sitePath, ".env")
+	fi, err := os.Stat(envPath)
+	if err != nil {
+		appNameCache.Delete(sitePath)
 		return ""
 	}
+	mod := fi.ModTime()
+	if v, ok := appNameCache.Load(sitePath); ok {
+		if e := v.(appNameCacheEntry); e.mod.Equal(mod) {
+			return e.name
+		}
+	}
+	name := envfile.ReadKey(envPath, "APP_NAME")
+	if strings.EqualFold(name, "Laravel") {
+		name = ""
+	}
+	appNameCache.Store(sitePath, appNameCacheEntry{mod: mod, name: name})
 	return name
 }
 

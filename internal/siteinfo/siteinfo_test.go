@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/geodro/lerd/internal/config"
 )
@@ -130,6 +131,38 @@ func TestLaravelAppName(t *testing.T) {
 	}
 	if got := LaravelAppName("laravel", t.TempDir()); got != "" {
 		t.Errorf("missing .env should yield no app name, got %q", got)
+	}
+}
+
+func TestLaravelAppName_CachesByModTime(t *testing.T) {
+	dir := t.TempDir()
+	envPath := filepath.Join(dir, ".env")
+	pin := func(content string, mod time.Time) {
+		if err := os.WriteFile(envPath, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(envPath, mod, mod); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t0 := time.Unix(1_000_000, 0)
+	pin("APP_NAME=One\n", t0)
+	if got := LaravelAppName("laravel", dir); got != "One" {
+		t.Fatalf("first read = %q, want One", got)
+	}
+
+	// Content changes but the mod time doesn't: the cache must return the prior
+	// value rather than re-reading, which is the whole point of the optimisation.
+	pin("APP_NAME=Two\n", t0)
+	if got := LaravelAppName("laravel", dir); got != "One" {
+		t.Errorf("unchanged mod time should serve the cached value, got %q", got)
+	}
+
+	// A new mod time invalidates the entry and the fresh value is read.
+	pin("APP_NAME=Two\n", time.Unix(2_000_000, 0))
+	if got := LaravelAppName("laravel", dir); got != "Two" {
+		t.Errorf("new mod time should refresh the cache, got %q", got)
 	}
 }
 
