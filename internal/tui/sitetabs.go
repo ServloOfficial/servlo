@@ -25,6 +25,7 @@ const (
 	tabSiteEnv
 	tabSiteDebug
 	tabSiteAppLogs
+	tabSiteDoctor
 )
 
 // envReadLimit caps how much of a site's .env we slurp. 256 KB is two
@@ -41,6 +42,8 @@ func siteTabLabel(t siteTab) string {
 		return "Debug"
 	case tabSiteAppLogs:
 		return "App logs"
+	case tabSiteDoctor:
+		return "Doctor"
 	default:
 		return "Overview"
 	}
@@ -51,8 +54,13 @@ func siteTabLabel(t siteTab) string {
 // tab is highlighted in the accent colour; the others are dimmed. Lives at
 // the head of every site detail variant so the user always sees the
 // shortcuts and which tab is active without scrolling.
-func siteTabsHeader(active siteTab) string {
+func siteTabsHeader(active siteTab, showDoctor bool) string {
 	tabs := []siteTab{tabSiteOverview, tabSiteEnv, tabSiteDebug, tabSiteAppLogs}
+	if showDoctor {
+		// Doctor is Laravel-only, so it joins the strip only when the focused
+		// site can actually run the checks, matching the web dashboard.
+		tabs = append(tabs, tabSiteDoctor)
+	}
 	parts := make([]string, 0, len(tabs))
 	for i, t := range tabs {
 		label := fmt.Sprintf("[%d] %s", i+1, siteTabLabel(t))
@@ -68,11 +76,17 @@ func siteTabsHeader(active siteTab) string {
 // renderSiteTabHeader returns the two-line block that precedes every site
 // tab's content: the tab strip and a divider. Centralised so each tab
 // renderer pads to the same width and the user sees a consistent header.
-func renderSiteTabHeader(active siteTab, innerW int) []string {
+func renderSiteTabHeader(active siteTab, innerW int, showDoctor bool) []string {
 	return []string{
-		padToWidth(clipLine(siteTabsHeader(active), innerW), innerW),
+		padToWidth(clipLine(siteTabsHeader(active, showDoctor), innerW), innerW),
 		"",
 	}
+}
+
+// siteIsLaravel reports whether the site can run the Laravel Doctor checks,
+// gating both the tab strip entry and the `5` shortcut.
+func siteIsLaravel(s *siteinfo.EnrichedSite) bool {
+	return s != nil && s.FrameworkName == "laravel"
 }
 
 // siteEnvContentLines reads the site's .env file and renders one line per
@@ -81,7 +95,7 @@ func renderSiteTabHeader(active siteTab, innerW int) []string {
 // state so users understand the file isn't on disk yet.
 func siteEnvContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []string {
 	out := make([]string, 0, 32)
-	out = append(out, renderSiteTabHeader(tabSiteEnv, innerW)...)
+	out = append(out, renderSiteTabHeader(tabSiteEnv, innerW, siteIsLaravel(site))...)
 	add := func(s string) { out = append(out, padToWidth(clipLine(s, innerW), innerW)) }
 
 	if site == nil {
@@ -120,7 +134,7 @@ func siteEnvContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []st
 // is a per-site debug feed, not just dumps.
 func siteDebugContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []string {
 	out := make([]string, 0, 32)
-	out = append(out, renderSiteTabHeader(tabSiteDebug, innerW)...)
+	out = append(out, renderSiteTabHeader(tabSiteDebug, innerW, siteIsLaravel(site))...)
 	add := func(s string) { out = append(out, padToWidth(clipLine(s, innerW), innerW)) }
 
 	if site == nil {
@@ -214,7 +228,7 @@ func siteDebugContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []
 // the right thing.
 func siteAppLogsContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []string {
 	out := make([]string, 0, 32)
-	out = append(out, renderSiteTabHeader(tabSiteAppLogs, innerW)...)
+	out = append(out, renderSiteTabHeader(tabSiteAppLogs, innerW, siteIsLaravel(site))...)
 	add := func(s string) { out = append(out, padToWidth(clipLine(s, innerW), innerW)) }
 
 	if site == nil {

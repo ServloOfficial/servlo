@@ -15,6 +15,7 @@ import (
 	lerddumps "github.com/geodro/lerd/internal/dumps"
 	"github.com/geodro/lerd/internal/eventbus"
 	"github.com/geodro/lerd/internal/podman"
+	"github.com/geodro/lerd/internal/sitedoctor"
 	"github.com/geodro/lerd/internal/siteinfo"
 	"github.com/geodro/lerd/internal/stats"
 	lerdUpdate "github.com/geodro/lerd/internal/update"
@@ -81,6 +82,14 @@ type Model struct {
 	// app logs). Only meaningful when detailMode == detailSite; tabs other
 	// than overview are read-only views.
 	siteTab siteTab
+
+	// Laravel Doctor tab state. doctorChecks caches the last run keyed by
+	// doctorSite, so switching away and back shows the result instantly while
+	// pressing 5 again forces a fresh run. doctorLoading is set while the
+	// (potentially slow, container-execing) checks are in flight.
+	doctorChecks  []sitedoctor.Check
+	doctorSite    string
+	doctorLoading bool
 
 	// Picker state (PHP/Node version). When active, up/down navigates
 	// pickerOptions instead of detail rows and enter applies the pick.
@@ -290,6 +299,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case statsMsg:
 		m.stats = msg.snap
+		return m, nil
+
+	case doctorResultMsg:
+		// Discard a result that landed after the user moved to another site,
+		// so the panel never shows one site's checks under another.
+		if msg.site == m.doctorSite {
+			m.doctorChecks = msg.resp.Checks
+			m.doctorLoading = false
+		}
 		return m, nil
 
 	case spinnerTickMsg:
@@ -664,6 +682,14 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.siteTab = tabSiteAppLogs
 			m.detailScroll = 0
 			m.focus = paneDetail
+		}
+		return m, nil
+
+	case "5":
+		// Doctor is the Laravel-only fifth tab; openDoctorTab no-ops for other
+		// sites and kicks off the (async) checks when needed.
+		if m.detailMode == detailSite {
+			return m, m.openDoctorTab()
 		}
 		return m, nil
 	}

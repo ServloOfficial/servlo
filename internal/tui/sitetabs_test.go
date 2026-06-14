@@ -12,11 +12,20 @@ import (
 
 func TestSiteTabsHeader_HighlightsActive(t *testing.T) {
 	for _, tab := range []siteTab{tabSiteOverview, tabSiteEnv, tabSiteDebug, tabSiteAppLogs} {
-		got := stripANSI(siteTabsHeader(tab))
+		got := stripANSI(siteTabsHeader(tab, false))
 		want := siteTabLabel(tab)
 		if !strings.Contains(got, want) {
 			t.Errorf("active=%v: expected label %q in %q", tab, want, got)
 		}
+	}
+}
+
+func TestSiteTabsHeader_DoctorOnlyForLaravel(t *testing.T) {
+	if got := stripANSI(siteTabsHeader(tabSiteOverview, false)); strings.Contains(got, "Doctor") {
+		t.Errorf("non-Laravel strip should omit Doctor, got %q", got)
+	}
+	if got := stripANSI(siteTabsHeader(tabSiteOverview, true)); !strings.Contains(got, "[5] Doctor") {
+		t.Errorf("Laravel strip should carry [5] Doctor, got %q", got)
 	}
 }
 

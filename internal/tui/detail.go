@@ -458,6 +458,12 @@ func (m *Model) renderDetailInline(w, h int, focused bool) string {
 				padToWidth(dimStyle.Render("no site selected"), contentW),
 			}
 		} else {
+			// The Doctor tab is Laravel-only; if the user lands on a non-Laravel
+			// site while it's active, fall back to Overview so the content never
+			// shows a tab the strip doesn't offer.
+			if m.siteTab == tabSiteDoctor && !siteIsLaravel(site) {
+				m.siteTab = tabSiteOverview
+			}
 			switch m.siteTab {
 			case tabSiteEnv:
 				content = siteEnvContentLines(m, site, contentW)
@@ -467,6 +473,9 @@ func (m *Model) renderDetailInline(w, h int, focused bool) string {
 				cursorLine = -1
 			case tabSiteAppLogs:
 				content = siteAppLogsContentLines(m, site, contentW)
+				cursorLine = -1
+			case tabSiteDoctor:
+				content = siteDoctorContentLines(m, site, contentW)
 				cursorLine = -1
 			default:
 				content, cursorLine = detailContentLines(m, site, focused, contentW)
@@ -527,7 +536,7 @@ func detailContentLines(m *Model, site *siteinfo.EnrichedSite, focused bool, inn
 		return -1
 	}
 
-	out := renderSiteTabHeader(tabSiteOverview, innerW)
+	out := renderSiteTabHeader(tabSiteOverview, innerW, siteIsLaravel(site))
 	cursorLine := 0
 	add := func(s string, selected bool) {
 		if selected && len(out) > 0 {

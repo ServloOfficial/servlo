@@ -128,6 +128,7 @@ The site detail pane is split into four read-side tabs the user can jump between
 | `2` | Env | Read-only display of the site's `.env` file (read up to 256 KB so a runaway file can't wedge the render loop) |
 | `3` | Debug | This site's slice of the Debug window: the active lens (Dumps · Queries · Jobs · Views · Mail · Cache · Events · HTTP) scoped to the focused site, with `[` / `]` to switch lens and `w` to toggle worker capture. Rows show their detail inline; press `D` for the full cross-site window |
 | `4` | App logs | Every framework-declared log file with size and modification time; press `l` to actually tail one — the file targets are wired into `logTargetsForSite`, so `[` / `]` cycle through them once the log pane is open |
+| `5` | Doctor | Laravel only — the same app-level health checks the web dashboard runs (`APP_KEY`, `.env` drift against `.env.example` warning only on keys the code reads without a default, the `APP_DEBUG`-in-production footgun, the `public/storage` symlink, and pending migrations). The migrations check execs artisan in the container, so the run is on-demand: the tab appears only for Laravel sites, press `5` to run and again to re-run. The panel is read-only and names the suggested fix (e.g. `key:generate`, `migrate`) rather than running it, so a status view can never migrate a database |
 
 Switching tabs resets the detail-pane scroll so the user lands at the top of the new tab. Picker overlays (PHP / Node version) only show in Overview; selecting a different tab dismisses them.
 

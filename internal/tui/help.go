@@ -49,6 +49,7 @@ var helpReference = []helpSection{
 			{"2", "Env tab (read-only .env display)"},
 			{"3", "Debug tab (this site's lenses: dumps, queries, jobs, mail, …)"},
 			{"4", "App logs tab (every framework-declared log file with size and mtime)"},
+			{"5", "Doctor tab (Laravel only — APP_KEY, env drift, migrations, storage link; press again to re-run)"},
 		},
 	},
 	{
