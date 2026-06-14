@@ -648,11 +648,19 @@ func renderServiceRow(selected bool, s ServiceRow, paneW int) string {
 		glyph = runningStyle.Render(glyphRunning)
 	case statePaused:
 		glyph = pausedStyle.Render(glyphPaused)
+	case stateSuspended:
+		glyph = suspendedStyle.Render(glyphSuspended)
 	default:
 		glyph = stoppedStyle.Render(glyphStopped)
 	}
 
-	meta := fmt.Sprintf("(%d site%s)", s.SiteCount, plural(s.SiteCount))
+	// A worker row already names its single owning site (queue-<site>), so the
+	// "(1 site)" count every worker would carry is noise — only real services,
+	// which several sites can share, show the count.
+	meta := ""
+	if s.WorkerKind == "" {
+		meta = fmt.Sprintf("(%d site%s)", s.SiteCount, plural(s.SiteCount))
+	}
 	if s.Version != "" {
 		meta = dimStyle.Render(s.Version) + "  " + meta
 	}

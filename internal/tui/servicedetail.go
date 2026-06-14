@@ -185,6 +185,8 @@ func serviceStateText(state ServiceState) string {
 		return runningStyle.Render("running")
 	case statePaused:
 		return pausedStyle.Render("paused")
+	case stateSuspended:
+		return suspendedStyle.Render("suspended")
 	default:
 		return strings.TrimSpace(dimStyle.Render("stopped"))
 	}
