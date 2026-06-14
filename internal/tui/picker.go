@@ -20,6 +20,7 @@ func (m *Model) openPHPPicker(s *siteinfo.EnrichedSite) {
 		m.setStatus("no PHP versions installed", 3*time.Second)
 		return
 	}
+	versions = frankenPHPRunnable(s.Runtime, versions, s.PHPVersion)
 	m.pickerKind = kindPHP
 	m.pickerOptions = versions
 	m.pickerCursor = indexOf(versions, s.PHPVersion)
@@ -52,6 +53,7 @@ func (m *Model) openWorktreePHPPicker(s *siteinfo.EnrichedSite, row detailRow) {
 		m.setStatus("no PHP versions installed", 3*time.Second)
 		return
 	}
+	versions = frankenPHPRunnable(s.Runtime, versions, wt.PHPVersion)
 	m.pickerKind = kindWorktreePHP
 	m.pickerOptions = versions
 	m.pickerCursor = indexOf(versions, wt.PHPVersion)
@@ -156,6 +158,27 @@ func listNodeMajors() []string {
 	}
 	sort.Strings(versions)
 	return versions
+}
+
+// frankenPHPRunnable narrows the installed PHP versions to the set
+// dunglas/frankenphp publishes an image for when the site runs under FrankenPHP,
+// since FrankenPHP can only boot those and picking another silently downgrades.
+// The current version is always kept so the picker never goes blank, and a
+// non-FrankenPHP site (or a filter that would empty the list) is left untouched.
+func frankenPHPRunnable(runtime string, versions []string, current string) []string {
+	if runtime != "frankenphp" {
+		return versions
+	}
+	out := versions[:0:0]
+	for _, v := range versions {
+		if config.IsFrankenPHPVersion(v) || v == current {
+			out = append(out, v)
+		}
+	}
+	if len(out) == 0 {
+		return versions
+	}
+	return out
 }
 
 func indexOf(ss []string, target string) int {
