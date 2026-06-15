@@ -38,6 +38,62 @@ func TestRegisteredFrameworkWorkerUnits_EnumeratesDriftedHostProxy(t *testing.T)
 	}
 }
 
+func TestFilterSuspendedUnits(t *testing.T) {
+	suspended := map[string]bool{
+		"lerd-queue-site":          true,
+		"lerd-schedule-site":       true,
+		"lerd-vite-site-feature-x": true,
+	}
+	units := []string{
+		"lerd-queue-site",          // suspended -> dropped
+		"lerd-schedule-site.timer", // suspended (timer sibling) -> dropped
+		"lerd-reverb-site",         // running -> kept
+		"lerd-vite-site-feature-x", // suspended worktree worker -> dropped
+		"lerd-queue-other",         // different site -> kept
+	}
+	got := filterSuspendedUnits(units, suspended)
+	want := []string{"lerd-reverb-site", "lerd-queue-other"}
+	if len(got) != len(want) {
+		t.Fatalf("filterSuspendedUnits = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("filterSuspendedUnits[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+	// No suspended set is a passthrough.
+	if out := filterSuspendedUnits(units, nil); len(out) != len(units) {
+		t.Errorf("nil suspended set should be a passthrough, got %v", out)
+	}
+}
+
+// A site with idle-suspended workers must not have those workers (or a suspended
+// worktree worker) resurrected by the start path, so lerd start doesn't drift the
+// registry's suspend state apart from what is actually running.
+func TestSuspendedWorkerUnitSet_CoversMainAndWorktree(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	if err := config.AddSite(config.Site{
+		Name: "site", Domains: []string{"site.test"}, Path: t.TempDir(),
+		IdleSuspendedWorkers:  []string{"queue", "schedule"},
+		WorktreeIdleSuspended: map[string][]string{"feature-x": {"vite"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	set := suspendedWorkerUnitSet()
+	for _, want := range []string{"lerd-queue-site", "lerd-schedule-site", "lerd-vite-site-feature-x"} {
+		if !set[want] {
+			t.Errorf("suspended set missing %q: %v", want, set)
+		}
+	}
+	// And the start filter actually drops them.
+	start := []string{"lerd-queue-site", "lerd-schedule-site.timer", "lerd-vite-site-feature-x", "lerd-reverb-site"}
+	got := dropIdleSuspendedUnits(start)
+	if len(got) != 1 || got[0] != "lerd-reverb-site" {
+		t.Errorf("dropIdleSuspendedUnits kept %v, want only lerd-reverb-site", got)
+	}
+}
+
 func TestQuadletImage_found(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)

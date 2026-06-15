@@ -3,6 +3,8 @@ package podman
 import (
 	"strings"
 	"testing"
+
+	"github.com/geodro/lerd/internal/config"
 )
 
 // TestFrankenPHPRuntimeExtensionParity guards against the FPM image gaining a
@@ -116,7 +118,12 @@ func TestRenderFrankenPHPContainerfile(t *testing.T) {
 // imageLabelFn seam so a stale or missing image triggers a rebuild and a current
 // one does not.
 func TestNeedsFrankenPHPRebuild(t *testing.T) {
-	current, err := frankenPHPContainerfileHash()
+	cfg, err := config.LoadGlobal()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	exts, packages := frankenPHPBuildInputs(cfg, "8.4")
+	current, err := frankenPHPContainerfileHash(exts, packages)
 	if err != nil {
 		t.Fatalf("hash: %v", err)
 	}
@@ -140,6 +147,100 @@ func TestNeedsFrankenPHPRebuild(t *testing.T) {
 
 	if NeedsFrankenPHPRebuild(nil) {
 		t.Error("no active versions should never need a rebuild")
+	}
+}
+
+// TestFrankenPHPContainerfileHashTracksConfig guards the regression where a
+// php:ext / php:pkg change did not drift the image hash, so the staleness check
+// considered the image current and the new extension never reached Octane.
+func TestFrankenPHPContainerfileHashTracksConfig(t *testing.T) {
+	base, err := frankenPHPContainerfileHash(nil, nil)
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	withExt, err := frankenPHPContainerfileHash([]string{"imap"}, nil)
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	withPkg, err := frankenPHPContainerfileHash(nil, []string{"jq"})
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	if base == withExt {
+		t.Error("adding a custom extension must change the hash")
+	}
+	if base == withPkg {
+		t.Error("adding a custom package must change the hash")
+	}
+	if withExt == withPkg {
+		t.Error("an extension and a package change must hash differently")
+	}
+}
+
+// TestSplitFrankenPHPExtensions checks the core set installs reliably while the
+// PECL-built runtime extensions, custom extensions, and xdebug are routed to the
+// tolerant optional set so one failure can't brick the image.
+func TestSplitFrankenPHPExtensions(t *testing.T) {
+	exts := append(append([]string{}, frankenPHPRuntimeExtensions...), "myext")
+	core, optional := splitFrankenPHPExtensions(exts)
+
+	in := func(set []string, v string) bool {
+		for _, s := range set {
+			if s == v {
+				return true
+			}
+		}
+		return false
+	}
+	for _, reliable := range []string{"gd", "pdo_mysql", "intl", "opcache"} {
+		if !in(core, reliable) || in(optional, reliable) {
+			t.Errorf("%q should be a core extension", reliable)
+		}
+	}
+	for _, flaky := range []string{"redis", "igbinary", "imagick", "mongodb", "myext", "xdebug"} {
+		if !in(optional, flaky) || in(core, flaky) {
+			t.Errorf("%q should be an optional (tolerant) extension", flaky)
+		}
+	}
+
+	// xdebug is always baked, but a user who added it as a custom extension must
+	// not get it installed twice.
+	_, optional = splitFrankenPHPExtensions([]string{"xdebug"})
+	xcount := 0
+	for _, e := range optional {
+		if e == "xdebug" {
+			xcount++
+		}
+	}
+	if xcount != 1 {
+		t.Errorf("xdebug should appear exactly once, got %d in %v", xcount, optional)
+	}
+}
+
+// TestFrankenPHPContainerfileToleratesOptionalFailures asserts the rendered build
+// keeps the optional extensions in a per-extension tolerant loop rather than one
+// hard install that a single unavailable extension would fail.
+func TestFrankenPHPContainerfileToleratesOptionalFailures(t *testing.T) {
+	exts := append(append([]string{}, frankenPHPRuntimeExtensions...), "myext")
+	cf, err := renderFrankenPHPContainerfile("8.4", exts, nil, "")
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if !strings.Contains(cf, "for ext in") || !strings.Contains(cf, "install-php-extensions \"$ext\"") {
+		t.Errorf("optional extensions should install in a tolerant per-extension loop:\n%s", cf)
+	}
+	// The core install must not carry a flaky/custom extension that could fail it.
+	coreLine := ""
+	for _, ln := range strings.Split(cf, "\n") {
+		if strings.Contains(ln, "install-php-extensions {{") || strings.Contains(ln, "install-php-extensions ") && !strings.Contains(ln, "$ext") {
+			coreLine = ln
+			break
+		}
+	}
+	for _, flaky := range []string{"myext", "redis", "imagick", "mongodb"} {
+		if strings.Contains(coreLine, " "+flaky) {
+			t.Errorf("core install line should not include flaky/custom %q: %q", flaky, coreLine)
+		}
 	}
 }
 

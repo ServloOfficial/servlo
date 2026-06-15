@@ -42,6 +42,48 @@ func TestTick_pinnedSiteStillTicksWorktrees(t *testing.T) {
 	}
 }
 
+// TestPruneStaleWorktrees clears suspended state for a worktree that no longer
+// exists while leaving a still-present one untouched, so a removed worktree stops
+// showing as suspended forever.
+func TestPruneStaleWorktrees(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	if err := config.AddSite(config.Site{
+		Name: "myapp", Path: "/srv/myapp", PHPVersion: "8.4", Domains: []string{"myapp.test"},
+		WorktreeIdleSuspended: map[string][]string{"gone": {"vite"}, "alive": {"vite"}},
+	}); err != nil {
+		t.Fatalf("seed site: %v", err)
+	}
+
+	e := newIdleEngine(idle.NewTracker(nil))
+	goneKey := wtKey("myapp", "gone")
+	aliveKey := wtKey("myapp", "alive")
+	e.suspended[goneKey] = true
+	e.suspended[aliveKey] = true
+
+	// Only "alive" is detected this tick.
+	e.pruneStaleWorktrees("myapp", map[string]bool{aliveKey: true})
+
+	if e.suspended[goneKey] {
+		t.Error("deleted worktree should be pruned from the suspended map")
+	}
+	if !e.suspended[aliveKey] {
+		t.Error("still-present worktree must not be pruned")
+	}
+	reg, err := config.LoadSites()
+	if err != nil {
+		t.Fatalf("reload sites: %v", err)
+	}
+	s := reg.Sites[0]
+	if _, ok := s.WorktreeIdleSuspended["gone"]; ok {
+		t.Error("deleted worktree's persisted suspend slot should be cleared")
+	}
+	if _, ok := s.WorktreeIdleSuspended["alive"]; !ok {
+		t.Error("present worktree's persisted suspend slot must remain")
+	}
+}
+
 func TestWtKeyRoundTrip(t *testing.T) {
 	key := wtKey("myapp", "feature-x")
 	if key != "myapp/feature-x" {

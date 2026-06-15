@@ -82,6 +82,10 @@ func TestRewriteLocation(t *testing.T) {
 		"/_svc/rabbitmq/already":       "/_svc/rabbitmq/already",
 		"http://localhost:15672/login": "/_svc/rabbitmq/login",
 		"https://elsewhere.test/x":     "https://elsewhere.test/x",
+		// A redirect to the upstream's bare origin must land at the mount root,
+		// not become an empty Location (no-op reload).
+		"http://localhost:15672":          "/_svc/rabbitmq/",
+		"http://localhost:15672?next=/ui": "/_svc/rabbitmq/?next=/ui",
 	}
 	for in, want := range cases {
 		if got := rewriteLocation(in, "localhost:15672", "/_svc/rabbitmq"); got != want {

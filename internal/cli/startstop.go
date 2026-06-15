@@ -578,6 +578,12 @@ func runStart(_ *cobra.Command, _ []string) error {
 	workerUnits = append(workerUnits, registeredFrameworkWorkerUnits()...)
 	workerUnits = append(workerUnits, registeredTimerUnits()...)
 	workerUnits = collapseTimerSiblings(dedupeStrings(workerUnits))
+	// Don't resurrect workers the idle engine has gracefully suspended. Without
+	// this, a boot or a manual start after stop would start a deliberately-asleep
+	// worker while the registry still records it suspended, drifting the dashboard
+	// (site shown asleep, workers actually running) and making workerheal skip it.
+	// Mirrors the worktree autostart filter; real activity wakes it via the engine.
+	workerUnits = dropIdleSuspendedUnits(workerUnits)
 
 	fmt.Println("Starting Lerd...")
 
@@ -1035,6 +1041,52 @@ func registeredFrameworkWorkerUnits() []string {
 		if s.IsHostProxy() && proj.Proxy != nil && proj.Proxy.Command != "" {
 			out = append(out, hostProxyWorkerUnit(s.Name))
 		}
+	}
+	return out
+}
+
+// suspendedWorkerUnitSet returns the worker unit names (without any .timer
+// suffix) the idle engine currently has suspended across all sites, covering
+// both main-site workers (lerd-{worker}-{site}) and per-worktree workers
+// (lerd-{worker}-{site}-{wtslug}). Naming matches workerNames.
+func suspendedWorkerUnitSet() map[string]bool {
+	reg, err := config.LoadSites()
+	if err != nil || reg == nil {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, s := range reg.Sites {
+		for _, w := range s.IdleSuspendedWorkers {
+			out["lerd-"+w+"-"+s.Name] = true
+		}
+		for wtBase, workers := range s.WorktreeIdleSuspended {
+			for _, w := range workers {
+				out["lerd-"+w+"-"+s.Name+"-"+wtBase] = true
+			}
+		}
+	}
+	return out
+}
+
+// dropIdleSuspendedUnits removes idle-suspended worker units from a start list,
+// matching on the unit name with any .timer suffix stripped so a suspended
+// scheduled worker's timer is dropped too.
+func dropIdleSuspendedUnits(units []string) []string {
+	return filterSuspendedUnits(units, suspendedWorkerUnitSet())
+}
+
+// filterSuspendedUnits is the pure filter behind dropIdleSuspendedUnits: it
+// removes any unit whose .timer-stripped name is in suspended.
+func filterSuspendedUnits(units []string, suspended map[string]bool) []string {
+	if len(suspended) == 0 {
+		return units
+	}
+	out := make([]string, 0, len(units))
+	for _, u := range units {
+		if suspended[strings.TrimSuffix(u, ".timer")] {
+			continue
+		}
+		out = append(out, u)
 	}
 	return out
 }

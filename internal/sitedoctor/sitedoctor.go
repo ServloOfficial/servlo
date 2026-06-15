@@ -157,30 +157,41 @@ type envKeyUsage struct {
 	noDefault bool
 }
 
+// projectSkipDirs are directories the doctor's source scans never descend into.
+var projectSkipDirs = map[string]bool{"vendor": true, "node_modules": true, ".git": true, "storage": true}
+
+// walkProjectSource walks path and invokes onFile with the contents of every
+// file whose lowercased extension (without the dot) is in exts, skipping the
+// vendor/build/VCS dirs. Best-effort: walk and per-file read errors are ignored.
+func walkProjectSource(path string, exts map[string]bool, onFile func(data []byte)) {
+	filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if projectSkipDirs[d.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(d.Name())), ".")
+		if !exts[ext] {
+			return nil
+		}
+		if data, err := os.ReadFile(p); err == nil {
+			onFile(data)
+		}
+		return nil
+	})
+}
+
 // scanEnvUsage walks the project's PHP for env() reads (skipping vendor and
 // build dirs) and returns per-key usage plus the total calls found, so the
 // caller can fall back to warning on everything when the scan finds nothing.
 func scanEnvUsage(path string) (map[string]envKeyUsage, int) {
 	usage := map[string]envKeyUsage{}
 	total := 0
-	filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			switch d.Name() {
-			case "vendor", "node_modules", ".git", "storage":
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(d.Name(), ".php") {
-			return nil
-		}
-		data, err := os.ReadFile(p)
-		if err != nil {
-			return nil
-		}
+	walkProjectSource(path, map[string]bool{"php": true}, func(data []byte) {
 		for _, m := range envCallRe.FindAllStringSubmatch(string(data), -1) {
 			total++
 			u := usage[m[1]]
@@ -189,21 +200,31 @@ func scanEnvUsage(path string) (map[string]envKeyUsage, int) {
 			}
 			usage[m[1]] = u
 		}
-		return nil
 	})
 	return usage, total
 }
 
 // classifyMissingEnvKeys splits missing keys into required (read with no
-// default, or VITE_-prefixed so the frontend build needs them) and optional
-// (read only with defaults, or unreferenced). No env() calls found, all required.
+// default, or a VITE_ key the frontend actually references) and optional (read
+// only with defaults, unreferenced, or a VITE_ key nothing in the JS uses). A
+// VITE_ key is judged by the frontend scan, not PHP env() usage, since Vite reads
+// it via import.meta.env; non-VITE keys fall back to "all required" when no
+// env() call is found at all.
 func classifyMissingEnvKeys(path string, missing []string) (required, optional []string) {
 	usage, total := scanEnvUsage(path)
+	var viteRefs map[string]bool
 	for _, k := range missing {
 		switch {
-		case total == 0:
-			required = append(required, k)
 		case strings.HasPrefix(k, "VITE_"):
+			if viteRefs == nil {
+				viteRefs = scanViteEnvRefs(path)
+			}
+			if viteRefs[k] {
+				required = append(required, k)
+			} else {
+				optional = append(optional, k)
+			}
+		case total == 0:
 			required = append(required, k)
 		case usage[k].noDefault:
 			required = append(required, k)
@@ -212,6 +233,30 @@ func classifyMissingEnvKeys(path string, missing []string) (required, optional [
 		}
 	}
 	return required, optional
+}
+
+// viteKeyRe matches a VITE_-prefixed env identifier referenced in frontend code.
+var viteKeyRe = regexp.MustCompile(`VITE_[A-Za-z0-9_]+`)
+
+// viteSourceExts are the frontend file types that can reference import.meta.env.
+var viteSourceExts = map[string]bool{
+	"js": true, "mjs": true, "cjs": true, "ts": true,
+	"jsx": true, "tsx": true, "vue": true, "svelte": true,
+}
+
+// scanViteEnvRefs walks the project's frontend source and returns the set of
+// VITE_ env keys it references. VITE_ vars are read in JS through
+// import.meta.env, never PHP env(), so a missing VITE_ key only matters when the
+// frontend uses it — this stops the doctor flagging a stale VITE_ entry in
+// .env.example that nothing reads.
+func scanViteEnvRefs(path string) map[string]bool {
+	refs := map[string]bool{}
+	walkProjectSource(path, viteSourceExts, func(data []byte) {
+		for _, m := range viteKeyRe.FindAllString(string(data), -1) {
+			refs[m] = true
+		}
+	})
+	return refs
 }
 
 // summariseKeys joins keys for a detail line, capping the list so a project

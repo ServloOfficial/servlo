@@ -64,6 +64,14 @@ func runRuntime(cmd *cobra.Command, args []string) error {
 		}
 		return switchToFPM(site)
 	case "frankenphp":
+		// dunglas/frankenphp only publishes images for PHP >= 8.2; without this
+		// guard the build would normalize the version up (e.g. 8.1 -> 8.5) and
+		// silently run a different PHP than the site reports, with its ini files
+		// still mounted from the old version's path.
+		if !config.IsFrankenPHPVersion(site.PHPVersion) {
+			return fmt.Errorf("FrankenPHP requires PHP %s or newer; this site is on PHP %s — bump it first with 'lerd isolate %s' (or higher)",
+				config.FrankenPHPMinVersion, site.PHPVersion, config.FrankenPHPMinVersion)
+		}
 		fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
 		if !ok {
 			return fmt.Errorf("site has no framework assigned — FrankenPHP needs a framework entrypoint or the generic public/ fallback")

@@ -172,12 +172,19 @@ func (e *idleEngine) tick() {
 // aren't suspended inside their first window.
 func (e *idleEngine) tickWorktrees(s *config.Site, enabled bool, timeout time.Duration, now time.Time, outPath, outDomain map[string]string) {
 	wts, err := detectWorktrees(s.Path, s.PrimaryDomain())
-	if err != nil || len(wts) == 0 {
+	if err != nil {
+		// Detection failed (transient git error): leave state alone rather than
+		// risk pruning a worktree that still exists.
 		return
 	}
+	// Track which worktree keys still exist so stale suspended state for a deleted
+	// worktree can be cleared below; a deleted worktree is never revisited
+	// otherwise and would show as suspended forever.
+	detected := make(map[string]bool, len(wts))
 	for _, wt := range wts {
 		wtBase := config.WorktreeUnitSlug(filepath.Base(wt.Path))
 		key := wtKey(s.Name, wtBase)
+		detected[key] = true
 		outPath[key] = wt.Path
 		if wt.Domain != "" {
 			outDomain[strings.ToLower(wt.Domain)] = key
@@ -204,6 +211,33 @@ func (e *idleEngine) tickWorktrees(s *config.Site, enabled bool, timeout time.Du
 			e.suspendWorktree(s.Name, wtBase, wt.Path)
 		case idle.ActionResume:
 			e.resumeWorktree(s.Name, wtBase, wt.Path)
+		}
+	}
+	e.pruneStaleWorktrees(s.Name, detected)
+}
+
+// pruneStaleWorktrees clears in-memory and persisted suspended state for the
+// site's worktrees that no longer exist (detected is the set of worktree keys
+// present this tick), so a removed worktree stops showing as suspended forever.
+func (e *idleEngine) pruneStaleWorktrees(siteName string, detected map[string]bool) {
+	e.mu.Lock()
+	var stale []string
+	for key, susp := range e.suspended {
+		site, _, isWt := splitWtKey(key)
+		if !isWt || site != siteName || !susp {
+			continue
+		}
+		if !detected[key] {
+			stale = append(stale, key)
+		}
+	}
+	for _, key := range stale {
+		delete(e.suspended, key)
+	}
+	e.mu.Unlock()
+	for _, key := range stale {
+		if _, wtBase, ok := splitWtKey(key); ok {
+			_ = config.SetWorktreeIdleSuspendedWorkers(siteName, wtBase, nil)
 		}
 	}
 }
