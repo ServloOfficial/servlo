@@ -92,6 +92,26 @@ func runRuntime(cmd *cobra.Command, args []string) error {
 	}
 }
 
+// removeFrankenPHPContainer stops a site's per-site FrankenPHP container,
+// removes its quadlet, and reloads systemd so the generated unit disappears.
+// Shared by switchToFPM and link's stale-quadlet reconcile.
+func removeFrankenPHPContainer(siteName string) {
+	_ = podman.StopUnit(podman.FrankenPHPContainerName(siteName))
+	_ = podman.RemoveFrankenPHPQuadlet(siteName)
+	_ = podman.DaemonReloadFn()
+}
+
+// reconcileStaleFrankenPHP removes a leftover per-site FrankenPHP quadlet when a
+// (re)linked site is no longer FrankenPHP. That quadlet is WantedBy=default.target
+// with Restart=always, so podman's generator keeps auto-starting an orphan that
+// lerd start/stop never enumerate.
+func reconcileStaleFrankenPHP(site config.Site) {
+	if site.IsFrankenPHP() || !podman.QuadletInstalled(podman.FrankenPHPContainerName(site.Name)) {
+		return
+	}
+	removeFrankenPHPContainer(site.Name)
+}
+
 func runtimeLabel(site *config.Site) string {
 	if site.IsFrankenPHP() {
 		if site.RuntimeWorker {
@@ -111,9 +131,7 @@ func switchToFPM(site *config.Site) error {
 		WorkerStopForSite(site.Name, site.Path, w) //nolint:errcheck
 	}
 
-	_ = podman.StopUnit(podman.FrankenPHPContainerName(site.Name))
-	_ = podman.RemoveFrankenPHPQuadlet(site.Name)
-	_ = podman.DaemonReloadFn()
+	removeFrankenPHPContainer(site.Name)
 
 	site.Runtime = ""
 	site.RuntimeWorker = false
