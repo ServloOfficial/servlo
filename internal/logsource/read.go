@@ -67,14 +67,25 @@ func Read(src Source, opts Opts) (Result, error) {
 	return Result{}, fmt.Errorf("unsupported log source kind %d", src.Kind)
 }
 
+// fileScanCap bounds the entries parsed when a filter is active. The real bound
+// is the byte tail ParseFile reads (applog.MaxReadBytes); this only has to be
+// high enough never to drop an entry that fits in that window, so it is sized to
+// the byte cap (one entry per byte being the theoretical maximum). Passing 0
+// here instead would make ParseFile read the entire file uncapped, risking an
+// OOM on a multi-hundred-MB log.
+const fileScanCap = applog.MaxReadBytes
+
 func readFile(src Source, opts Opts) (Result, error) {
 	structured := src.Format == "monolog" || src.Format == "laravel"
 
-	// When any filter is active, scan the whole capped tail rather than just the
-	// last N raw entries, so matches further back aren't missed.
+	// When a filter that needs to look past the last N entries is active, scan
+	// the whole capped tail. Level and time filters only apply to structured
+	// formats (see below), so for a raw source they don't widen the scan — a bare
+	// last-N read is correct there and avoids reading the whole tail for nothing.
+	needScan := opts.Grep != "" || (structured && (opts.Level != "" || opts.Since != "" || opts.Until != ""))
 	readCount := opts.Lines
-	if opts.Grep != "" || opts.Level != "" || opts.Since != "" || opts.Until != "" {
-		readCount = 0
+	if needScan {
+		readCount = fileScanCap
 	}
 	entries, err := applog.ParseFile(src.Locator, src.Format, readCount) // newest first
 	if err != nil {
@@ -99,7 +110,10 @@ func readFile(src Source, opts Opts) (Result, error) {
 		}
 		if structured && (sinceOK || untilOK) {
 			if t, ok := parseEntryTime(e.Date); ok {
-				if sinceOK && t.Before(since) {
+				// since is exclusive so polling with a returned Cursor yields only
+				// newer lines rather than re-emitting the boundary entry (and every
+				// other entry sharing its whole-second timestamp) on each call.
+				if sinceOK && !t.After(since) {
 					continue
 				}
 				if untilOK && t.After(until) {

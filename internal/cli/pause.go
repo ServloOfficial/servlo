@@ -462,8 +462,15 @@ func stopWorkerByName(site *config.Site, workerName string) {
 	WorkerStopForSite(site.Name, site.Path, workerName) //nolint:errcheck
 }
 
-// resumeWorkerByName restarts a single named worker for the site.
+// resumeWorkerByName restarts a single named worker for the site. It gates on
+// idleWorkerResumable so the set of workers it can bring back is identical to the
+// set idle-suspend is allowed to stop — keeping the two in lockstep means a
+// worker can never be suspended-but-unresumable (stranded). A new resumable
+// worker kind must be taught to idleWorkerResumable or this gate blocks it.
 func resumeWorkerByName(site *config.Site, workerName, phpVersion string) {
+	if !idleWorkerResumable(site, workerName) {
+		return
+	}
 	if workerName == "stripe" {
 		scheme := "http"
 		if site.Secured {

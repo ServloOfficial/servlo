@@ -84,7 +84,7 @@ func newPhpPkgAddCmd() *cobra.Command {
 				return fmt.Errorf("rebuild failed (config reverted): %w", err)
 			}
 
-			restartFPMUnit(version)
+			applyPHPImageChange(version)
 			fmt.Printf("Packages installed for PHP %s.\n", version)
 			return nil
 		},
@@ -119,7 +119,7 @@ func newPhpPkgRemoveCmd() *cobra.Command {
 			if err := podman.RebuildFPMImage(version, false); err != nil {
 				return err
 			}
-			restartFPMUnit(version)
+			applyPHPImageChange(version)
 			fmt.Printf("Packages removed for PHP %s.\n", version)
 			return nil
 		},

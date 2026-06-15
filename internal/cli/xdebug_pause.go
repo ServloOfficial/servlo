@@ -52,6 +52,9 @@ func runXdebugPause(args []string, pid int, list bool) error {
 		return fmt.Errorf("`lerd xdebug pause` is only available on PHP-FPM sites; %q runs its own container without xdebugctl", site.Name)
 	}
 	version := pauseSiteVersion(site)
+	if version == "" {
+		return fmt.Errorf("could not determine the PHP version for %q — set it with `lerd isolate <version>` first", site.Name)
+	}
 	container := resolveWorkerFPMUnit(site.Name, version)
 	if container == "" {
 		return fmt.Errorf("site %q runs no container to attach to", site.Name)
@@ -180,6 +183,11 @@ func procsForSite(procs []xdebugProc, sitePath string) []xdebugProc {
 // ensureXdebugctl confirms the baked-in xdebugctl binary is present in the
 // container. It ships in the FPM image; an older image won't have it.
 func ensureXdebugctl(container string) (string, error) {
+	// Distinguish a stopped container from a genuinely missing binary: exec fails
+	// either way, but the fix differs (start the site vs rebuild the image).
+	if running, _ := podman.ContainerRunning(container); !running {
+		return "", fmt.Errorf("container %s is not running — start the site (and its worker or CLI script) first, then retry", container)
+	}
 	if podman.Cmd("exec", container, "test", "-x", xdebugctlInContainer).Run() == nil {
 		return xdebugctlInContainer, nil
 	}

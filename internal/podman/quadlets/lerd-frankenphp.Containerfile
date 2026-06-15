@@ -12,9 +12,16 @@ FROM docker.io/dunglas/frankenphp:php{{.Version}}-alpine
 
 # Runtime extensions + Xdebug. install-php-extensions (shipped in the base) builds
 # each for the ZTS runtime, pulls its runtime libs, and trims the build toolchain.
-# Xdebug loads but stays inert until its bind-mounted 99-xdebug.ini arms it,
-# exactly like the FPM image.
-RUN install-php-extensions {{.Extensions}} xdebug \
+# The core set installs in one step; the PECL-built extensions, any user custom
+# extension, and xdebug install one-at-a-time and tolerantly, so a single one that
+# can't build on this base degrades to "extension missing" instead of bricking the
+# whole image (mirroring the FPM build's per-PECL `|| true`). Xdebug loads but
+# stays inert until its bind-mounted 99-xdebug.ini arms it, like the FPM image.
+RUN install-php-extensions {{.CoreExtensions}} \
+    && for ext in {{.OptionalExtensions}}; do \
+         install-php-extensions "$ext" \
+           || echo "WARN: optional PHP extension $ext unavailable for PHP {{.Version}}, skipping"; \
+       done \
     && rm -rf /tmp/* /var/cache/apk/*
 
 # nodejs+npm so the Octane file-watcher (lerd octane:reload on) and JS tooling

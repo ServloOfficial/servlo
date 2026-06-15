@@ -75,7 +75,7 @@ func newPhpExtAddCmd() *cobra.Command {
 				return fmt.Errorf("extension %q was not installed (config reverted): %w", ext, err)
 			}
 
-			restartFPMUnit(version)
+			applyPHPImageChange(version)
 
 			fmt.Printf("Extension %q installed for PHP %s.\n", ext, version)
 			return nil
@@ -115,7 +115,7 @@ func newPhpExtRemoveCmd() *cobra.Command {
 				return err
 			}
 
-			restartFPMUnit(version)
+			applyPHPImageChange(version)
 
 			fmt.Printf("Extension %q removed for PHP %s.\n", ext, version)
 			return nil

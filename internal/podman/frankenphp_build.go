@@ -28,6 +28,15 @@ var frankenPHPRuntimeExtensions = []string{
 	"redis", "igbinary", "imagick", "mongodb",
 }
 
+// frankenPHPFlakyExtensions are the runtime extensions install-php-extensions
+// builds from PECL/source, which can fail on a brand-new PHP base before upstream
+// catches up. They (and any user custom extension) install tolerantly so one
+// failure degrades to "extension missing" instead of bricking the whole image,
+// mirroring the FPM build's per-PECL `|| true`.
+var frankenPHPFlakyExtensions = map[string]bool{
+	"redis": true, "igbinary": true, "imagick": true, "mongodb": true,
+}
+
 // frankenPHPContainerfileHashLabel stamps the derived image with the hash of the
 // Containerfile + extension list it was built from, so NeedsFrankenPHPRebuild can
 // tell an up-to-date image from one a newer lerd would build differently.
@@ -43,10 +52,12 @@ func FrankenPHPImageName(version string) string {
 	return "localhost/lerd-frankenphp" + strings.ReplaceAll(version, ".", "") + ":local"
 }
 
-// frankenPHPContainerfileHash hashes the embedded Containerfile template plus the
-// baked extension list, so a change to either drifts the hash and triggers a
-// rebuild after a lerd update.
-func frankenPHPContainerfileHash() (string, error) {
+// frankenPHPContainerfileHash hashes the embedded Containerfile template, the
+// baked standard extension list, the user-configured custom extensions and extra
+// packages, and the devtools source, so a change to any of them drifts the hash
+// and triggers a rebuild. The custom exts/packages are folded in so that a
+// `php:ext`/`php:pkg` change is detected as drift rather than silently skipped.
+func frankenPHPContainerfileHash(customExts, packages []string) (string, error) {
 	tmpl, err := GetQuadletTemplate("lerd-frankenphp.Containerfile")
 	if err != nil {
 		return "", err
@@ -57,20 +68,45 @@ func frankenPHPContainerfileHash() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256([]byte(tmpl + "\n" + strings.Join(frankenPHPRuntimeExtensions, " ") + "\n" + dt))
+	parts := []string{
+		tmpl,
+		strings.Join(frankenPHPRuntimeExtensions, " "),
+		strings.Join(customExts, " "),
+		strings.Join(packages, " "),
+		dt,
+	}
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\n")))
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// frankenPHPBuildInputs returns the custom extensions and the full package set
+// (each custom extension's apk build deps folded in) baked into the derived image
+// for a version, so the build and the staleness check hash the same inputs.
+func frankenPHPBuildInputs(cfg *config.GlobalConfig, version string) (exts, packages []string) {
+	exts = cfg.GetExtensions(version)
+	packages = cfg.GetPackages(version)
+	for _, ext := range exts {
+		packages = append(packages, cfg.GetExtApkDeps(ext)...)
+	}
+	return exts, packages
 }
 
 // NeedsFrankenPHPRebuild reports whether any active FrankenPHP version's derived
 // image is missing or stamped with a different Containerfile hash than the
-// current binary builds, so a lerd update that changes the template or extension
-// set rebuilds the image. False when nothing is stale.
+// current binary builds, so a lerd update (or a php:ext/php:pkg change) that
+// alters the template, extension set or packages rebuilds the image. False when
+// nothing is stale.
 func NeedsFrankenPHPRebuild(activeVersions []string) bool {
-	current, err := frankenPHPContainerfileHash()
+	cfg, err := config.LoadGlobal()
 	if err != nil {
 		return true
 	}
 	for _, v := range activeVersions {
+		exts, packages := frankenPHPBuildInputs(cfg, v)
+		current, err := frankenPHPContainerfileHash(exts, packages)
+		if err != nil {
+			return true
+		}
 		if imageLabelFn(FrankenPHPImageName(v), frankenPHPContainerfileHashLabel) != current {
 			return true
 		}
@@ -86,15 +122,12 @@ func BuildFrankenPHPImage(version string, force bool, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	exts := cfg.GetExtensions(version)
-	packages := cfg.GetPackages(version)
 	// Custom extensions may need extra Alpine packages to compile;
 	// install-php-extensions only auto-resolves deps for extensions it knows, so
-	// fold the user-configured ext apk deps into the package set the way the FPM
-	// build does, otherwise a custom extension that builds on FPM fails here.
-	for _, ext := range exts {
-		packages = append(packages, cfg.GetExtApkDeps(ext)...)
-	}
+	// frankenPHPBuildInputs folds the user-configured ext apk deps into the
+	// package set the way the FPM build does, otherwise a custom extension that
+	// builds on FPM fails here.
+	exts, packages := frankenPHPBuildInputs(cfg, version)
 	return buildFrankenPHPImage(version, force, exts, packages, w)
 }
 
@@ -104,7 +137,7 @@ func buildFrankenPHPImage(version string, force bool, customExts, packages []str
 
 	// Compute the Containerfile hash once and use it for both the freshness check
 	// and the image label, instead of re-hashing via NeedsFrankenPHPRebuild.
-	hash, err := frankenPHPContainerfileHash()
+	hash, err := frankenPHPContainerfileHash(customExts, packages)
 	if err != nil {
 		return fmt.Errorf("hashing FrankenPHP Containerfile: %w", err)
 	}
@@ -168,12 +201,44 @@ func renderFrankenPHPContainerfile(version string, exts, packages []string, mkce
 	if err != nil {
 		return "", err
 	}
+	core, optional := splitFrankenPHPExtensions(exts)
 	cf := strings.ReplaceAll(tmpl, "{{.Version}}", version)
-	cf = strings.ReplaceAll(cf, "{{.Extensions}}", strings.Join(exts, " "))
+	cf = strings.ReplaceAll(cf, "{{.CoreExtensions}}", strings.Join(core, " "))
+	cf = strings.ReplaceAll(cf, "{{.OptionalExtensions}}", strings.Join(optional, " "))
 	cf = strings.ReplaceAll(cf, "{{.DevtoolsHash}}", dt)
 	cf = strings.ReplaceAll(cf, "{{.CustomPackages}}", buildCustomPackagesBlock(packages))
 	cf = strings.ReplaceAll(cf, "{{.MkcertCA}}", mkcertBlock)
 	return cf, nil
+}
+
+// splitFrankenPHPExtensions partitions the full extension list into a core set
+// installed in one hard step (a failure there is a real toolchain problem) and an
+// optional set installed one-at-a-time and tolerantly: the PECL-built runtime
+// extensions, any user custom extension, and xdebug, none of which should brick
+// the image when a single one can't build on a given base.
+func splitFrankenPHPExtensions(exts []string) (core, optional []string) {
+	runtime := make(map[string]bool, len(frankenPHPRuntimeExtensions))
+	for _, e := range frankenPHPRuntimeExtensions {
+		runtime[e] = true
+	}
+	hasXdebug := false
+	for _, e := range exts {
+		switch {
+		case runtime[e] && !frankenPHPFlakyExtensions[e]:
+			core = append(core, e)
+		default: // flaky runtime PECL extension or a user custom extension
+			optional = append(optional, e)
+			if e == "xdebug" {
+				hasXdebug = true
+			}
+		}
+	}
+	// xdebug is always baked, but skip the duplicate when the user already added
+	// it as a custom extension (otherwise the install loop runs it twice).
+	if !hasXdebug {
+		optional = append(optional, "xdebug")
+	}
+	return core, optional
 }
 
 // sanitizeExtNames keeps only well-formed extension tokens, dropping anything a
