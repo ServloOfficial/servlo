@@ -171,6 +171,12 @@ func rewriteLocation(loc, targetHost, prefix string) string {
 			return loc // points somewhere else entirely, leave it
 		}
 		loc = u.EscapedPath()
+		if loc == "" {
+			// A redirect to the upstream's bare origin (no path) must map to the
+			// mount root, not an empty Location that the browser resolves to a
+			// no-op reload of the current page.
+			loc = "/"
+		}
 		if u.RawQuery != "" {
 			loc += "?" + u.RawQuery
 		}

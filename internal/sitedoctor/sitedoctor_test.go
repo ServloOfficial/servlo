@@ -74,11 +74,11 @@ func TestCheckEnvDrift_classifiesRequiredVsOptional(t *testing.T) {
 	dir := t.TempDir()
 	envPath := filepath.Join(dir, ".env")
 
-	writeEnv(t, dir, ".env.example", "APP_KEY=\nDB_HOST=\nLOG_LEVEL=\nVITE_THING=\nUNUSED_KEY=\n")
+	writeEnv(t, dir, ".env.example", "APP_KEY=\nDB_HOST=\nLOG_LEVEL=\nVITE_THING=\nVITE_STALE=\nUNUSED_KEY=\n")
 	writeEnv(t, dir, ".env", "") // every example key is missing
 
 	// config/ reads APP_KEY with no default (required) and the other two with
-	// defaults (optional). VITE_THING and UNUSED_KEY aren't read in PHP.
+	// defaults (optional). VITE_* and UNUSED_KEY aren't read in PHP.
 	mustMkdir(t, filepath.Join(dir, "config"))
 	writeEnv(t, dir, filepath.Join("config", "app.php"),
 		"<?php return [\n"+
@@ -87,16 +87,22 @@ func TestCheckEnvDrift_classifiesRequiredVsOptional(t *testing.T) {
 			"  'log' => env('LOG_LEVEL', 'debug'),\n"+
 			"];\n")
 
+	// The frontend references VITE_THING (required) but not VITE_STALE, a leftover
+	// .env.example entry nothing reads (optional, must not turn the row red).
+	mustMkdir(t, filepath.Join(dir, "resources", "js"))
+	writeEnv(t, dir, filepath.Join("resources", "js", "app.js"),
+		"const api = import.meta.env.VITE_THING;\nconsole.log(api);\n")
+
 	c, ok := checkEnvDrift(dir, envPath)
 	if !ok || c.Status != StatusWarn {
 		t.Fatalf("got ok=%v status=%q, want true/warn", ok, c.Status)
 	}
-	// Required: APP_KEY (no default) and VITE_THING (frontend prefix).
+	// Required: APP_KEY (no default) and VITE_THING (referenced in JS).
 	if !strings.Contains(c.Detail, "APP_KEY") || !strings.Contains(c.Detail, "VITE_THING") {
 		t.Errorf("detail should name required keys APP_KEY and VITE_THING, got %q", c.Detail)
 	}
-	// Optional keys must not be listed as required.
-	for _, opt := range []string{"DB_HOST", "LOG_LEVEL", "UNUSED_KEY"} {
+	// Optional keys (including an unreferenced VITE_ key) must not be required.
+	for _, opt := range []string{"DB_HOST", "LOG_LEVEL", "UNUSED_KEY", "VITE_STALE"} {
 		if strings.Contains(c.Detail, opt) {
 			t.Errorf("optional key %q should not appear in the required list: %q", opt, c.Detail)
 		}

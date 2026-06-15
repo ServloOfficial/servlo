@@ -35,10 +35,39 @@ func SuspendWorkersForIdle(site *config.Site) []string {
 		if w == "vite" && !viteSleepable {
 			continue // no usable build; keep vite running so the page isn't broken
 		}
+		if !idleWorkerResumable(site, w) {
+			// An orphaned unit (no framework definition) can't be brought back by
+			// ResumeWorkersForIdle, so leave it running rather than strand it
+			// suspended forever. collectRunningWorkers includes such orphans.
+			continue
+		}
 		stopWorkerByName(site, w)
 		suspended = append(suspended, w)
 	}
 	return suspended
+}
+
+// idleWorkerResumable reports whether ResumeWorkersForIdle (resumeWorkerByName)
+// can bring a worker back. Idle-suspend must never stop a worker it can't
+// restart, or the worker is stranded suspended forever. Mirrors the branches of
+// resumeWorkerByName so the two stay in lockstep.
+func idleWorkerResumable(site *config.Site, workerName string) bool {
+	switch workerName {
+	case "stripe":
+		return true
+	case hostProxyWorkerName:
+		// resumeWorkerByName only restarts the host-proxy worker when the project
+		// still declares a proxy command; without this guard a site whose proxy
+		// block was removed would be suspended but never resumed.
+		proj, _ := config.LoadProjectConfig(site.Path)
+		return proj != nil && proj.Proxy != nil
+	}
+	fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
+	if !ok || fw.Workers == nil {
+		return false
+	}
+	_, ok = fw.Workers[workerName]
+	return ok
 }
 
 // ResumeWorkersForIdle restarts workers previously suspended by idle-suspend.

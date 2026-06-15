@@ -123,9 +123,61 @@ func TestRead_File_CursorAdvances(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Read poll: %v", err)
 	}
-	// Only the boundary (newest) entry remains, not the whole file again.
-	if len(second.Entries) != 1 || !contains(second.Entries[0].Text, "table missing") {
-		t.Fatalf("polling with cursor should narrow to the newest entry, got %d: %+v", len(second.Entries), second.Entries)
+	// No new lines were written, so polling with the cursor returns nothing — the
+	// boundary entry is not re-emitted (since is exclusive of the cursor instant).
+	if len(second.Entries) != 0 {
+		t.Fatalf("polling with cursor and no new lines should return 0 entries, got %d: %+v", len(second.Entries), second.Entries)
+	}
+
+	// A line newer than the cursor is delivered; an appended same-second sibling
+	// of an already-seen line is not (the cursor only resolves to the second).
+	appended := monologFixture + "[2026-06-11 10:20:00] local.INFO: fresh line\n"
+	if err := os.WriteFile(src.Locator, []byte(appended), 0644); err != nil {
+		t.Fatalf("append fixture: %v", err)
+	}
+	third, err := Read(src, Opts{Lines: 10, Since: first.Cursor})
+	if err != nil {
+		t.Fatalf("Read poll after append: %v", err)
+	}
+	if len(third.Entries) != 1 || !contains(third.Entries[0].Text, "fresh line") {
+		t.Fatalf("polling after a new line should return just that line, got %d: %+v", len(third.Entries), third.Entries)
+	}
+}
+
+// A large structured log with a grep filter must not be read in full: ParseFile
+// is byte-capped at applog.MaxReadBytes, and the filtered path must keep that cap
+// rather than reading the whole file into memory.
+func TestRead_File_FilteredReadIsByteCapped(t *testing.T) {
+	var b strings.Builder
+	for i := 0; i < 40000; i++ { // well over MaxReadBytes once rendered
+		b.WriteString("[2026-06-11 10:00:00] local.INFO: noise line padding padding padding padding\n")
+	}
+	b.WriteString("[2026-06-11 23:59:59] local.ERROR: needle in the recent tail\n")
+	src := monologSource(t, b.String())
+
+	res, err := Read(src, Opts{Lines: 10, Grep: "needle"})
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if !res.Truncated {
+		t.Errorf("a file larger than the byte cap should report Truncated")
+	}
+	if len(res.Entries) != 1 || !contains(res.Entries[0].Text, "needle") {
+		t.Fatalf("grep should find the needle in the capped tail, got %d: %+v", len(res.Entries), res.Entries)
+	}
+}
+
+// A level filter on a raw (non-structured) source can't apply, so it must not be
+// silently ignored by reading the whole file — it falls back to a plain last-N.
+func TestRead_RawFile_LevelIsBestEffortNoOp(t *testing.T) {
+	raw := "line one\nline two\nline three\n"
+	src := Source{Name: "raw", Kind: KindFile, Locator: writeFixture(t, raw), Format: "raw"}
+	res, err := Read(src, Opts{Lines: 2, Level: "error"})
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if len(res.Entries) != 2 {
+		t.Fatalf("raw level filter should be a last-N no-op, got %d entries", len(res.Entries))
 	}
 }
 
