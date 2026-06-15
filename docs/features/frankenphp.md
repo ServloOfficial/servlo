@@ -26,6 +26,8 @@ lerd runtime frankenphp --worker
 
 Flip back to FPM with `lerd runtime fpm`. `lerd runtime` without an argument prints the current runtime. Both surfaces restart the container, regenerate the nginx vhost, and reload nginx automatically.
 
+If a site loses its `runtime: frankenphp` line in `.lerd.yaml` (a git revert, a branch switch, a manual edit) and you re-link it, lerd reconciles the change for you: the leftover `lerd-fp-<site>.container` quadlet and its container are removed during the link, so a stale FrankenPHP container is never left running outside lerd's start/stop control.
+
 ---
 
 ## What happens under the hood

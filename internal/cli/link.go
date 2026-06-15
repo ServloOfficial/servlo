@@ -268,6 +268,10 @@ func runLink(args []string) error {
 		return fmt.Errorf("registering site: %w", err)
 	}
 
+	// A re-link of a site that dropped its frankenphp runtime leaves the old
+	// per-site FrankenPHP quadlet behind; reconcile it to the site's real type.
+	reconcileStaleFrankenPHP(site)
+
 	_ = config.SyncProjectDomains(cwd, site.Domains, cfg.DNS.TLD)
 
 	if site.IsCustomFPM() {
