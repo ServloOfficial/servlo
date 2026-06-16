@@ -502,7 +502,7 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 		FrameworkVersion: frameworkVersion,
 		FrameworkDef:     frameworkDef,
 		PublicDir:        defaults.PublicDir,
-		Secured:          secured,
+		Secured:          persistedSecured(secured, httpsAvailable, defaults.Secured),
 		Services:         services,
 		Workers:          selectedWorkers,
 		CustomWorkers:    filteredCustomWorkers,
@@ -623,7 +623,7 @@ func runCustomContainerWizard(cwd string, defaults *config.ProjectConfig, gcfg *
 	}
 
 	return &config.ProjectConfig{
-		Secured:       secured,
+		Secured:       persistedSecured(secured, httpsAvailable, defaults.Secured),
 		Services:      services,
 		CustomWorkers: filteredCustomWorkers,
 		Container:     containerCfg,
@@ -803,7 +803,7 @@ func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config
 	}
 
 	return &config.ProjectConfig{
-		Secured:     secured,
+		Secured:     persistedSecured(secured, httpsAvailable, defaults.Secured),
 		Services:    buildProjectServices(selectedServices, defaults),
 		Proxy:       &config.ProxyConfig{Command: command, Port: port, SSL: false},
 		AppURL:      defaults.AppURL,
@@ -966,6 +966,18 @@ func resolveSecuredDefault(cwd string, defaultsSecured bool, gcfg *config.Global
 		}
 	}
 	return secured, httpsAvailable
+}
+
+// persistedSecured keeps the user's HTTPS intent in .lerd.yaml even when DNS is
+// disabled. Without DNS the wizard force-gates `secured` off, but the link path
+// re-gates at runtime via ResolveSecured, so persisting the gated-off value
+// would silently strip a committed `secured: true` for teammates on a
+// DNS-managed box. When HTTPS is available we persist the user's choice.
+func persistedSecured(chosen, httpsAvailable, committed bool) bool {
+	if httpsAvailable {
+		return chosen
+	}
+	return committed
 }
 
 // appendHTTPSField adds the "Enable HTTPS?" confirm to a wizard's field list

@@ -86,6 +86,22 @@ func TestEnsureViteSleepable_buildsAtMostOnce(t *testing.T) {
 	}
 }
 
+// TestWorktreeIdleSuspendStateIsStale covers the conservative guards: an empty
+// persisted set is never stale, and an unknown framework (workers can't be
+// enumerated) keeps the worktree suspended rather than wrongly clearing it.
+func TestWorktreeIdleSuspendStateIsStale(t *testing.T) {
+	site := &config.Site{Name: "myapp", Path: "/srv/myapp", Framework: "laravel"}
+
+	if WorktreeIdleSuspendStateIsStale(site, "feature-x", nil) {
+		t.Errorf("empty suspended set reported stale")
+	}
+
+	noFW := &config.Site{Name: "myapp", Path: "/srv/myapp", Framework: "__nope__"}
+	if WorktreeIdleSuspendStateIsStale(noFW, "feature-x", []string{"vite"}) {
+		t.Errorf("unknown framework reported stale; should stay suspended")
+	}
+}
+
 // TestWorktreeWorkerUnitNaming pins that the unit name collectRunningWorktreeWorkers
 // checks (lerd-<w>-<site>-<wtBase>) is exactly what workerNames produces for a
 // worktree checkout, so idle-suspend detects, stops, and restarts the same unit.

@@ -748,6 +748,13 @@ func startRestoredServices() {
 	workerUnits = append(workerUnits, registeredFrameworkWorkerUnits()...)
 	workerUnits = append(workerUnits, registeredTimerUnits()...)
 	workerUnits = collapseTimerSiblings(dedupeStrings(workerUnits))
+	// Don't resurrect workers the idle engine has gracefully suspended, exactly
+	// as runStart does. Without this, `lerd install`/`update` (which re-creates
+	// and re-enables every worker via restoreSiteInfrastructure) restarts a
+	// deliberately-asleep worker on an idle site and wedges the engine: the
+	// registry still records it suspended, so the dashboard shows the site asleep
+	// while its workers run and the engine never re-suspends them.
+	workerUnits = dropIdleSuspendedUnits(workerUnits)
 	if len(workerUnits) == 0 {
 		return
 	}
@@ -892,6 +899,14 @@ func restoreSiteInfrastructure() {
 		// decides whether to start immediately (Linux) or just write the unit
 		// file and let phase 2 of runStart launch it (macOS).
 		for _, w := range proj.Workers {
+			// Leave a worker the idle engine suspended fully down: don't recreate,
+			// enable, or start it. Restoring it here re-enables it (so a later boot
+			// resurrects it) and feeds it to the start passes, which is how an idle
+			// site ends up with running workers after `lerd install`. The engine
+			// owns a suspended worker's lifecycle and resumes it on real activity.
+			if containsString(s.IdleSuspendedWorkers, w) {
+				continue
+			}
 			unitName := "lerd-" + w + "-" + s.Name
 			parentEnabled := services.Mgr.IsEnabled(unitName)
 			phpVersion := s.PHPVersion

@@ -1,12 +1,30 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/geodro/lerd/internal/config"
 	gitpkg "github.com/geodro/lerd/internal/git"
 	"github.com/geodro/lerd/internal/idle"
+	"github.com/geodro/lerd/internal/podman"
 )
+
+// stubUnitStatus reports the named units as running and everything else stopped,
+// so a tick test can pin the ground-truth worker state behind podman.UnitStatus.
+type stubUnitStatus struct{ active map[string]bool }
+
+func (s stubUnitStatus) Start(string) error   { return nil }
+func (s stubUnitStatus) Stop(string) error    { return nil }
+func (s stubUnitStatus) Restart(string) error { return nil }
+func (s stubUnitStatus) UnitStatus(name string) (string, error) {
+	if s.active[name] {
+		return "active", nil
+	}
+	return "inactive", nil
+}
+func (s stubUnitStatus) AllUnitStates() map[string]string { return nil }
 
 // TestTick_pinnedSiteStillTicksWorktrees is the regression guard for a pinned
 // site stranding its worktrees. Pinning used to `continue` past tickWorktrees, so
@@ -122,6 +140,65 @@ func TestTick_reconcilesStaleSuspendedCache(t *testing.T) {
 
 	if e.suspended["myapp"] {
 		t.Error("stale suspended cache should be reconciled to false against the empty persisted list")
+	}
+}
+
+// TestTick_reconcilesStaleSuspendedListAgainstReality is the regression guard for
+// the live wedge: workers up on an idle site after an install/boot restore that
+// re-created and re-started them but left the persisted list intact. Here the list
+// still says [queue] suspended while the unit is actually running. Trusting the
+// list alone would keep believing the site asleep forever; the tick must verify
+// reality, drop the stale list, and reconcile the cache to not-suspended.
+func TestTick_reconcilesStaleSuspendedListAgainstReality(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+
+	dir := filepath.Join(tmp, "site")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	proj, err := config.LoadProjectConfig(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proj.CustomWorkers = map[string]config.FrameworkWorker{"queue": {Command: "php artisan queue:work"}}
+	if err := config.SaveProjectConfig(dir, proj); err != nil {
+		t.Fatal(err)
+	}
+
+	// Persisted list still claims queue suspended (the restore path never cleared it).
+	if err := config.AddSite(config.Site{
+		Name: "myapp", Path: dir, PHPVersion: "8.4", Domains: []string{"myapp.test"},
+		Framework: "laravel", IdleSuspendedWorkers: []string{"queue"},
+	}); err != nil {
+		t.Fatalf("seed site: %v", err)
+	}
+	prev := detectWorktrees
+	detectWorktrees = func(string, string) ([]gitpkg.Worktree, error) { return nil, nil }
+	t.Cleanup(func() { detectWorktrees = prev })
+
+	// queue unit is actually running, contradicting the suspended claim.
+	podman.UnitLifecycle = stubUnitStatus{active: map[string]bool{"lerd-queue-myapp": true}}
+	t.Cleanup(func() { podman.UnitLifecycle = nil })
+
+	e := newIdleEngine(idle.NewTracker(nil))
+	e.suspended["myapp"] = true
+
+	e.tick()
+
+	if e.suspended["myapp"] {
+		t.Error("stale suspended list with a running worker must reconcile to not-suspended")
+	}
+	site, err := config.FindSite("myapp")
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if len(site.IdleSuspendedWorkers) != 0 {
+		t.Errorf("stale persisted list should be cleared, got %v", site.IdleSuspendedWorkers)
 	}
 }
 
