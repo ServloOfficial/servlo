@@ -4607,6 +4607,10 @@ func handleXdebugAction(w http.ResponseWriter, r *http.Request) {
 	if res.RestartErr != nil {
 		fmt.Printf("[WARN] restart %s: %v\n", xdebugops.FPMUnit(version), res.RestartErr)
 	}
+	// Per-site FrankenPHP and custom-FPM containers mount the same per-version
+	// 99-xdebug.ini, so the shared-FPM restart above doesn't reach them; restart
+	// them too or the toggle is a silent no-op on those sites.
+	podman.RestartSiteContainersForVersion(version)
 	writeJSON(w, map[string]any{"ok": true, "xdebug_enabled": res.Enabled, "xdebug_mode": res.Mode})
 }
 
