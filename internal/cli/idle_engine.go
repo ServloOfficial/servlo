@@ -220,6 +220,7 @@ var runViteBuildAt = func(site *config.Site, dir string) {
 	fnm := filepath.Join(config.BinDir(), "fnm")
 	cmd := exec.Command(fnm, "exec", "--using="+nodeVersion, "--", "npm", "run", "build")
 	cmd.Dir = dir
+	cmd.Env = shimLeadingEnv(os.Environ()) // wayfinder needs lerd's php shim to lead PATH — issue #381
 	if out, err := cmd.CombinedOutput(); err != nil {
 		fmt.Printf("[idle] %s: `npm run build` failed, keeping vite running: %v\n%s\n",
 			site.Name, err, lastBytes(out, 600))
