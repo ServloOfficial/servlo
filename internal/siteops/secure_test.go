@@ -194,6 +194,36 @@ func TestSetSecured_skipsNotificationsOnNginxReloadError(t *testing.T) {
 	}
 }
 
+func TestSetSecured_refusesWhenDNSDisabled(t *testing.T) {
+	stubs := stubSecureDeps(t)
+	projectDir := withTempEnv(t)
+
+	gcfg, err := config.LoadGlobal()
+	if err != nil {
+		t.Fatalf("load global: %v", err)
+	}
+	gcfg.DNS.Enabled = false
+	if err := config.SaveGlobal(gcfg); err != nil {
+		t.Fatalf("save global: %v", err)
+	}
+
+	site := &config.Site{Name: "myapp", Domains: []string{"myapp.test"}, Path: projectDir}
+	if err := config.AddSite(*site); err != nil {
+		t.Fatal(err)
+	}
+
+	err = SetSecured(site, true)
+	if !errors.Is(err, certs.ErrDNSDisabled) {
+		t.Fatalf("SetSecured err = %v, want ErrDNSDisabled", err)
+	}
+	if stubs.secureCallCount != 0 {
+		t.Errorf("certs.SecureSite ran despite DNS disabled (calls = %d)", stubs.secureCallCount)
+	}
+	if site.Secured {
+		t.Errorf("site.Secured flipped despite DNS disabled")
+	}
+}
+
 func equalStrings(a, b []string) bool {
 	if len(a) != len(b) {
 		return false

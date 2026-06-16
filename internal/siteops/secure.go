@@ -59,6 +59,12 @@ func defaultNotifyDaemon(domain, action string) error {
 //     identical post-toggle path.
 func SetSecured(site *config.Site, secured bool) error {
 	if secured {
+		// HTTPS needs the lerd-managed DNS/cert layer; gate here so UI and MCP
+		// callers fail the same clean way the CLI does instead of erroring deep
+		// in the cert layer.
+		if gcfg, _ := config.LoadGlobal(); !gcfg.DNSManaged() {
+			return certs.ErrDNSDisabled
+		}
 		if err := secureCertFn(*site); err != nil {
 			return fmt.Errorf("issuing certificate: %w", err)
 		}
