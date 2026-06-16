@@ -96,9 +96,17 @@ func newIdleEngine(t *idle.Tracker) *idleEngine {
 				}
 			}
 			for wtBase, workers := range s.WorktreeIdleSuspended {
-				if len(workers) > 0 {
-					e.suspended[wtKey(s.Name, wtBase)] = true
+				if len(workers) == 0 {
+					continue
 				}
+				// Same reality check as the main site above: drop a worktree slot whose
+				// workers are actually running so the engine doesn't believe a live
+				// worktree is asleep and never re-suspend it.
+				if cli.WorktreeIdleSuspendStateIsStale(&s, wtBase, workers) {
+					_ = config.SetWorktreeIdleSuspendedWorkers(s.Name, wtBase, nil)
+					continue
+				}
+				e.suspended[wtKey(s.Name, wtBase)] = true
 			}
 		}
 	}
@@ -143,13 +151,21 @@ func (e *idleEngine) tick() {
 		}
 		e.mu.Lock()
 		if !e.inFlight[s.Name] {
-			// Reconcile our cached belief against the persisted source of truth. If
-			// the workers were (re)started outside the engine (install, relink,
-			// `lerd worker start`), that path cleared the persisted list but our
-			// cache still says suspended; trust the list so an idle site gets
-			// re-suspended instead of staying up forever. Skipped mid-flight so a
-			// slow suspend/resume goroutine isn't second-guessed before it persists.
-			e.suspended[s.Name] = len(s.IdleSuspendedWorkers) > 0
+			// Reconcile our cached belief against reality, not just the persisted
+			// list. A restore/install/boot path can re-create, re-enable, and
+			// re-start the workers we suspended without clearing the list (they're
+			// left enabled), so trusting the list alone would wedge the site as
+			// "believed asleep" while its workers actually run, never re-suspending.
+			// When the list claims suspended but a listed worker is in fact running,
+			// drop the stale list so this same tick re-suspends the idle site.
+			// Skipped mid-flight so a slow suspend/resume goroutine isn't
+			// second-guessed before it persists.
+			believed := len(s.IdleSuspendedWorkers) > 0
+			if believed && cli.IdleSuspendStateIsStale(&s) {
+				_ = config.SetSiteIdleSuspendedWorkers(s.Name, nil)
+				believed = false
+			}
+			e.suspended[s.Name] = believed
 		}
 		suspended := e.suspended[s.Name]
 		e.mu.Unlock()
@@ -210,9 +226,16 @@ func (e *idleEngine) tickWorktrees(s *config.Site, enabled bool, timeout time.Du
 
 		e.mu.Lock()
 		if !e.inFlight[key] {
-			// Same reconcile as the main site: a worktree worker started outside the
-			// engine clears its persisted slot, so trust that over the stale cache.
-			e.suspended[key] = len(s.WorktreeIdleSuspended[wtBase]) > 0
+			// Same reality-based reconcile as the main site: if the slot claims
+			// suspended but the worktree's worker is actually running (a restore
+			// path restarted it without clearing the slot), drop the stale slot so
+			// this tick re-suspends it instead of believing it asleep forever.
+			believed := len(s.WorktreeIdleSuspended[wtBase]) > 0
+			if believed && cli.WorktreeIdleSuspendStateIsStale(s, wtBase, s.WorktreeIdleSuspended[wtBase]) {
+				_ = config.SetWorktreeIdleSuspendedWorkers(s.Name, wtBase, nil)
+				believed = false
+			}
+			e.suspended[key] = believed
 		}
 		suspended := e.suspended[key]
 		e.mu.Unlock()
@@ -355,7 +378,14 @@ func (e *idleEngine) ResumeAllSuspended() {
 			e.mu.Lock()
 			e.suspended[key] = true // ensure resumeWorktree proceeds
 			e.mu.Unlock()
-			if wtPath := e.worktreePathForBase(&s, wtBase); wtPath != "" {
+			wtPath, err := e.worktreePathForBase(&s, wtBase)
+			if err != nil {
+				// Transient git error: leave the worker suspended rather than clear
+				// the slot and flip state, which would strand it down forever. The
+				// next tick resumes it (Decide returns Resume while disabled).
+				continue
+			}
+			if wtPath != "" {
 				e.resumeWorktree(s.Name, wtBase, wtPath)
 			} else {
 				_ = config.SetWorktreeIdleSuspendedWorkers(s.Name, wtBase, nil)
@@ -372,18 +402,21 @@ func (e *idleEngine) ResumeAllSuspended() {
 }
 
 // worktreePathForBase resolves a worktree's checkout dir from its unit-slug base
-// by detecting the site's current worktrees. Returns "" if the worktree is gone.
-func (e *idleEngine) worktreePathForBase(s *config.Site, wtBase string) string {
+// by detecting the site's current worktrees. Returns ("", nil) when detection
+// succeeds but the worktree is genuinely gone, and ("", err) on a transient git
+// error so callers can tell the two apart instead of treating a hiccup as a
+// removal and stranding a suspended worker.
+func (e *idleEngine) worktreePathForBase(s *config.Site, wtBase string) (string, error) {
 	wts, err := detectWorktrees(s.Path, s.PrimaryDomain())
 	if err != nil {
-		return ""
+		return "", err
 	}
 	for _, wt := range wts {
 		if config.WorktreeUnitSlug(filepath.Base(wt.Path)) == wtBase {
-			return wt.Path
+			return wt.Path, nil
 		}
 	}
-	return ""
+	return "", nil
 }
 
 // IsSuspended reports whether the site's workers are currently idle-suspended.

@@ -161,6 +161,14 @@ func RegenerateHostWorkersForSite(s config.Site) {
 		if !wDef.Host {
 			continue
 		}
+		// Don't resurrect a host worker the idle engine has suspended. Restarting
+		// it here also runs ClearIdleSuspendOnStart, dropping it from the suspended
+		// list, so the engine can no longer see it running and it stays up forever
+		// on an idle site. The worktree path below already filters via
+		// worktreeWorkersToStart; this is the main-site equivalent.
+		if containsString(s.IdleSuspendedWorkers, w) {
+			continue
+		}
 		regenerateWorkerUnit(s.Name, s.Path, phpVersion, w, wDef, "lerd-"+w+"-"+s.Name)
 	}
 	// A site's git worktrees run their own per-worktree host workers (e.g. Vite)

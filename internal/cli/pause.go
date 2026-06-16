@@ -421,11 +421,17 @@ func collectRunningWorkers(site *config.Site) []string {
 // (lerd-<w>-<site>-<wtBase>). Only workers a framework marks per_worktree:true
 // run per worktree (for Laravel, just vite), so only those are enumerated.
 func collectRunningWorktreeWorkers(site *config.Site, wtPath string) []string {
+	return collectRunningWorktreeWorkersByBase(site, config.WorktreeUnitSlug(filepath.Base(wtPath)))
+}
+
+// collectRunningWorktreeWorkersByBase is collectRunningWorktreeWorkers keyed by
+// the worktree's unit-slug base directly, for callers that hold the base (e.g. a
+// persisted WorktreeIdleSuspended key) but not the checkout path.
+func collectRunningWorktreeWorkersByBase(site *config.Site, wtBase string) []string {
 	fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
 	if !ok || fw.Workers == nil {
 		return nil
 	}
-	wtBase := config.WorktreeUnitSlug(filepath.Base(wtPath))
 	names := make([]string, 0, len(fw.Workers))
 	for wName, w := range fw.Workers {
 		if w.IsPerWorktree() {

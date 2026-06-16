@@ -148,6 +148,25 @@ func IdleSuspendStateIsStale(site *config.Site) bool {
 	return false
 }
 
+// WorktreeIdleSuspendStateIsStale is IdleSuspendStateIsStale for a single git
+// worktree: it reports whether the worktree's persisted idle-suspended set has
+// drifted from reality (a worker it claims suspended is actually running, e.g.
+// an install/relink restarted it without clearing the slot). The engine calls it
+// at startup so a stale worktree list is discarded rather than seeded from, which
+// would wedge the worktree as suspended forever and never re-suspend it.
+func WorktreeIdleSuspendStateIsStale(site *config.Site, wtBase string, suspended []string) bool {
+	if len(suspended) == 0 {
+		return false
+	}
+	running := collectRunningWorktreeWorkersByBase(site, wtBase)
+	for _, w := range suspended {
+		if containsString(running, w) {
+			return true
+		}
+	}
+	return false
+}
+
 // ensureViteSleepable makes a site safe to stop vite on. Vite needs a built
 // asset manifest to fall back to once its dev server stops; if one is missing it
 // runs `npm run build` (blocking) and reports whether a manifest now exists.
