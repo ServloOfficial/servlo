@@ -78,7 +78,7 @@ func runNpmCaptured(dir string, args ...string) (string, error) {
 	cmdArgs := append([]string{"exec", "--using=" + version, "--", "npm"}, args...)
 	cmd := exec.Command(fnm, cmdArgs...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "npm_config_prefix="+config.NodeGlobalDir())
+	cmd.Env = append(shimLeadingEnv(os.Environ()), "npm_config_prefix="+config.NodeGlobalDir())
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
@@ -126,6 +126,7 @@ func runBun(dir, bun string, args []string) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = shimLeadingEnv(os.Environ())
 	if err := cmd.Run(); err != nil {
 		if exit, ok := err.(*exec.ExitError); ok {
 			os.Exit(exit.ExitCode())
@@ -166,6 +167,27 @@ func runJSScript(dir, script string) error {
 	return runWithFnm("npm", []string{"run", script})
 }
 
+// shimLeadingEnv prepends lerd's bin dir (home of the `php` shim) to PATH so
+// child processes (e.g. Vite's wayfinder step) resolve `php` to lerd's managed
+// version instead of a global host php ahead of the shim on PATH — issue #381.
+func shimLeadingEnv(env []string) []string {
+	binDir := config.BinDir()
+	out := make([]string, 0, len(env)+1)
+	found := false
+	for _, kv := range env {
+		if name, val, ok := strings.Cut(kv, "="); ok && strings.EqualFold(name, "PATH") {
+			out = append(out, name+"="+binDir+string(os.PathListSeparator)+val)
+			found = true
+			continue
+		}
+		out = append(out, kv)
+	}
+	if !found {
+		out = append(out, "PATH="+binDir)
+	}
+	return out
+}
+
 func runWithFnm(bin string, args []string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -202,9 +224,10 @@ func runWithFnm(bin string, args []string) error {
 
 	manageGlobals := bin == "npm" || bin == "npx"
 	prefix := config.NodeGlobalDir()
+	cmd.Env = shimLeadingEnv(os.Environ())
 	if manageGlobals {
 		if err := os.MkdirAll(filepath.Join(prefix, "bin"), 0o755); err == nil {
-			cmd.Env = append(os.Environ(), "npm_config_prefix="+prefix)
+			cmd.Env = append(cmd.Env, "npm_config_prefix="+prefix)
 		}
 	}
 	runErr := cmd.Run()
