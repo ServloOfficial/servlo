@@ -26,7 +26,8 @@ func TestResolveSecured(t *testing.T) {
 		{"secured project, DNS disabled stays http", false, securedProj, dnsOff, false},
 		{"plain project, DNS managed", false, plainProj, dnsOn, false},
 		{"no .lerd.yaml", false, nil, dnsOn, false},
-		{"re-link preserves prior secured even with DNS disabled", true, plainProj, dnsOff, true},
+		{"re-link preserves prior secured when DNS managed", true, plainProj, dnsOn, true},
+		{"re-link degrades to http when DNS disabled", true, plainProj, dnsOff, false},
 	}
 
 	for _, tc := range cases {

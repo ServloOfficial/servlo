@@ -3897,6 +3897,15 @@ func execSitePHP(args map[string]any) (any, *rpcError) {
 	// per-site quadlet (with restart-on-change) via the shared link helper
 	// instead of touching FPM state or the FPM vhost.
 	if site.IsFrankenPHP() {
+		// FrankenPHP only publishes images for PHP >= 8.2; building below that
+		// normalizes the version up and silently runs a different PHP than the
+		// site reports. Match the CLI and fall back to FPM rather than upgrade.
+		if !config.IsFrankenPHPVersion(version) {
+			if err := siteops.DemoteFrankenPHPToFPM(site); err != nil {
+				return toolErr(err.Error()), nil
+			}
+			return toolOK(fmt.Sprintf("PHP version for %s set to %s; FrankenPHP has no image for it, so the site was switched to FPM.", siteName, version)), nil
+		}
 		if err := siteops.FinishFrankenPHPLink(*site); err != nil {
 			return toolErr("re-linking FrankenPHP site: " + err.Error()), nil
 		}
@@ -4059,6 +4068,14 @@ func execSiteRuntime(args map[string]any) (any, *rpcError) {
 		}
 		_ = nginx.Reload()
 		return toolOK(fmt.Sprintf("%s: runtime set to fpm", siteName)), nil
+	}
+
+	// FrankenPHP only publishes images for PHP >= 8.2; without this guard the
+	// build normalizes the version up (e.g. 8.1 -> 8.5) and silently runs a
+	// different PHP than the site reports. Mirror the `lerd runtime` guard.
+	if !config.IsFrankenPHPVersion(site.PHPVersion) {
+		return toolErr(fmt.Sprintf("FrankenPHP requires PHP %s or newer; this site is on PHP %s — bump it first.",
+			config.FrankenPHPMinVersion, site.PHPVersion)), nil
 	}
 
 	site.Runtime = "frankenphp"

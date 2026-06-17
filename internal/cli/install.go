@@ -21,6 +21,7 @@ import (
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/serviceops"
 	"github.com/geodro/lerd/internal/services"
+	"github.com/geodro/lerd/internal/siteops"
 	lerdSystemd "github.com/geodro/lerd/internal/systemd"
 	"github.com/spf13/cobra"
 )
@@ -940,6 +941,17 @@ func refreshUnreferencedCustomQuadlets(seenSvc map[string]bool, reg *config.Site
 				fmt.Printf("  WARN: refreshing %s quadlet: %v\n", podman.CustomContainerName(s.Name), err)
 			}
 		case s.IsFrankenPHP():
+			// A site stuck on a sub-8.2 PHP with the FrankenPHP runtime (only
+			// reachable on registries written before the version guards landed)
+			// would otherwise be rebuilt at a normalized-up image every refresh,
+			// silently running a different PHP than it reports. Heal it to FPM.
+			if !config.IsFrankenPHPVersion(s.PHPVersion) {
+				site := s
+				if err := siteops.DemoteFrankenPHPToFPM(&site); err != nil {
+					fmt.Printf("  WARN: switching %s off FrankenPHP (no PHP %s image): %v\n", s.Name, s.PHPVersion, err)
+				}
+				continue
+			}
 			entrypoint, env := s.FrankenPHPQuadletSpec()
 			if err := podman.WriteFrankenPHPQuadlet(s.Name, s.Path, s.PHPVersion, entrypoint, env); err != nil {
 				fmt.Printf("  WARN: refreshing %s quadlet: %v\n", podman.FrankenPHPContainerName(s.Name), err)

@@ -83,7 +83,17 @@ func newDashProxy(name string, target *url.URL, bootstrap string) *httputil.Reve
 	proxy.Director = func(req *http.Request) {
 		orig(req)
 		req.Host = target.Host
-		req.Header.Set("X-Forwarded-Proto", "http")
+		// Preserve the scheme the browser actually used (nginx forwards it, and
+		// lerd.localhost is served over https) so an upstream that builds absolute
+		// URLs from X-Forwarded-Proto doesn't downgrade them to http. Default to
+		// http only when nothing upstream told us otherwise.
+		if req.Header.Get("X-Forwarded-Proto") == "" {
+			if req.TLS != nil {
+				req.Header.Set("X-Forwarded-Proto", "https")
+			} else {
+				req.Header.Set("X-Forwarded-Proto", "http")
+			}
+		}
 		// We rewrite the HTML to inject the auth bootstrap, so ask the upstream
 		// for an uncompressed body we can edit.
 		if bootstrap != "" {
@@ -220,6 +230,19 @@ func injectDashboardBootstrap(resp *http.Response, script string) error {
 // /_svc/<name>/. Loopback-only, since it forwards into a local admin UI.
 func handleDashProxy(w http.ResponseWriter, r *http.Request) {
 	if !isLoopbackRequest(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	// The global CSRF gate trusts the unix socket unconditionally, but every
+	// /_svc/ request arrives over it (the lerd.localhost vhost proxies to the
+	// socket), so that trust alone would forward a cross-origin request straight
+	// into the third-party admin API (RabbitMQ management, RedisInsight) with the
+	// dashboard's first-party cookies attached. Re-apply the cross-origin check
+	// here without the socket bypass: the dashboard is embedded same-origin, so
+	// its own traffic is same-origin/none; reject a cross-site or same-site
+	// initiator. A missing header (host tooling, old clients) keeps loopback trust.
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "cross-site", "same-site":
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}

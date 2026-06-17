@@ -19,6 +19,8 @@ export type ActivityKind =
   | 'service_version'
   | 'worker_failed'
   | 'worker_healed'
+  | 'worker_slept'
+  | 'worker_woke'
   | 'dns_degraded'
   | 'dns_down'
   | 'dns_recovered';
@@ -55,6 +57,15 @@ type RawEvent = Pick<ActivityEvent, 'kind' | 'subject'> & { meta?: Record<string
 // Pure diff helpers — kept side-effect free so tests can drive them with
 // fixture data without touching stores or the WebSocket layer.
 
+// suspendedWorkerCount totals a site's idle-suspended workers across the main
+// checkout and every worktree, so the activity diff can emit a single per-site
+// sleep/wake event rather than one per worker.
+function suspendedWorkerCount(s: Site): number {
+  let n = (s.idle_suspended_workers || []).length;
+  for (const wt of s.worktrees || []) n += (wt.idle_suspended_workers || []).length;
+  return n;
+}
+
 export function diffSitesEvents(prev: Map<string, Site> | null, current: Site[]): RawEvent[] {
   const out: RawEvent[] = [];
   const cur = new Map(current.map((s) => [s.domain, s]));
@@ -70,6 +81,16 @@ export function diffSitesEvents(prev: Map<string, Site> | null, current: Site[])
     }
     if (Boolean(old.fpm_running) !== Boolean(s.fpm_running) && !s.paused) {
       out.push({ kind: s.fpm_running ? 'site_running' : 'site_stopped', subject: domain });
+    }
+    // One event when a site's workers first go to sleep and one when they all
+    // wake, mirroring the per-site granularity of pause/resume so a multi-worker
+    // site doesn't flood the timeline.
+    const wasAsleep = suspendedWorkerCount(old);
+    const nowAsleep = suspendedWorkerCount(s);
+    if (wasAsleep === 0 && nowAsleep > 0) {
+      out.push({ kind: 'worker_slept', subject: domain });
+    } else if (wasAsleep > 0 && nowAsleep === 0) {
+      out.push({ kind: 'worker_woke', subject: domain });
     }
   }
   for (const [domain] of prev) {

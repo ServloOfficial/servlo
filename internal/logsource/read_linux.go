@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -26,8 +27,17 @@ func readJournal(src Source, opts Opts) (Result, error) {
 	if opts.Until != "" {
 		args = append(args, "--until", journalTime(opts.Until))
 	}
+	// journalctl -g takes a regex; an invalid one makes it error out and we'd
+	// silently return nothing. When the pattern won't compile, drop the push-down
+	// and filter in-process with the shared literal fallback, matching the file
+	// and podman paths so the same grep input behaves the same on every source.
+	var fallback func(string) bool
 	if opts.Grep != "" {
-		args = append(args, "-g", opts.Grep)
+		if _, err := regexp.Compile(opts.Grep); err == nil {
+			args = append(args, "-g", opts.Grep)
+		} else {
+			fallback = compileGrep(opts.Grep)
+		}
 	}
 	args = append(args, "-n", strconv.Itoa(opts.Lines))
 
@@ -45,10 +55,16 @@ func readJournal(src Source, opts Opts) (Result, error) {
 		if err := dec.Decode(&je); err != nil {
 			break
 		}
-		out = append(out, Entry{Time: je.timeString(), Text: je.message()})
+		// Advance the cursor past every decoded entry, including ones the literal
+		// fallback drops, so the next poll resumes after them rather than re-scanning.
 		if je.Cursor != "" {
 			cursor = je.Cursor
 		}
+		text := je.message()
+		if fallback != nil && !fallback(text) {
+			continue
+		}
+		out = append(out, Entry{Time: je.timeString(), Text: text})
 	}
 	return Result{Entries: out, Cursor: cursor}, nil
 }

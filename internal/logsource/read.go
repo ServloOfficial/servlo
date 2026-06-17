@@ -179,8 +179,9 @@ func readPodman(src Source, opts Opts) (Result, error) {
 	// Drop entries at or before `since` here, mirroring the file path's exclusive
 	// cursor so a poll yields only genuinely newer lines.
 	since, sinceOK := parseSince(opts.Since)
+	rawLines := strings.Split(strings.TrimRight(StripANSI(buf.String()), "\n"), "\n")
 	var out []Entry
-	for _, line := range strings.Split(strings.TrimRight(StripANSI(buf.String()), "\n"), "\n") {
+	for _, line := range rawLines {
 		if line == "" {
 			continue
 		}
@@ -203,7 +204,11 @@ func readPodman(src Source, opts Opts) (Result, error) {
 	if len(out) > 0 {
 		cursor = out[len(out)-1].Time
 	}
-	return Result{Entries: out, Cursor: cursor}, nil
+	// When filtering we capped the scan at podmanScanCap; if podman returned a
+	// full cap's worth of lines, older matching history was dropped, so report it
+	// truncated like the file path does past MaxReadBytes.
+	truncated := tail == podmanScanCap && len(rawLines) >= podmanScanCap
+	return Result{Entries: out, Cursor: cursor, Truncated: truncated}, nil
 }
 
 // ---- shared filter helpers ----

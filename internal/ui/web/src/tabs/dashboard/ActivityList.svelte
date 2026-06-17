@@ -31,6 +31,8 @@
     service_version: 'violet',
     worker_failed: 'red',
     worker_healed: 'green',
+    worker_slept: 'sky',
+    worker_woke: 'green',
     dns_degraded: 'amber',
     dns_down: 'red',
     dns_recovered: 'green'
@@ -54,6 +56,8 @@
       case 'service_version': return m.activity_service_version({ subject: e.subject, version: v });
       case 'worker_failed': return m.activity_worker_failed({ worker: w, subject: e.subject });
       case 'worker_healed': return m.activity_worker_healed({ subject: e.subject });
+      case 'worker_slept': return m.activity_worker_slept({ subject: e.subject });
+      case 'worker_woke': return m.activity_worker_woke({ subject: e.subject });
       case 'dns_degraded': return e.meta?.vpn === '1' ? m.activity_dns_degraded_vpn() : m.activity_dns_degraded();
       case 'dns_down': return m.activity_dns_down();
       case 'dns_recovered': return m.activity_dns_recovered();
