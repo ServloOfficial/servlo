@@ -70,6 +70,36 @@ describe('diffSitesEvents', () => {
     // pause toggle is emitted, but stopped is not (it's a side-effect of the pause)
     expect(events).toEqual([{ kind: 'site_paused', subject: 'a.test' }]);
   });
+
+  it('emits worker_slept when a site first suspends a worker', () => {
+    const prev = new Map<string, Site>([['a.test', site('a.test', { idle_suspended_workers: [] })]]);
+    expect(diffSitesEvents(prev, [site('a.test', { idle_suspended_workers: ['queue'] })])).toEqual([
+      { kind: 'worker_slept', subject: 'a.test' }
+    ]);
+  });
+
+  it('emits worker_woke when the last suspended worker wakes', () => {
+    const prev = new Map<string, Site>([
+      ['a.test', site('a.test', { idle_suspended_workers: ['queue'] })]
+    ]);
+    expect(diffSitesEvents(prev, [site('a.test', { idle_suspended_workers: [] })])).toEqual([
+      { kind: 'worker_woke', subject: 'a.test' }
+    ]);
+  });
+
+  it('does not re-emit while workers stay asleep, and counts worktree workers', () => {
+    const asleep = site('a.test', {
+      idle_suspended_workers: ['queue'],
+      worktrees: [{ branch: 'feat', idle_suspended_workers: ['vite'] }] as Site['worktrees']
+    });
+    const prev = new Map<string, Site>([['a.test', asleep]]);
+    // queue wakes but the worktree's vite is still asleep — no wake event yet.
+    const stillAsleep = site('a.test', {
+      idle_suspended_workers: [],
+      worktrees: [{ branch: 'feat', idle_suspended_workers: ['vite'] }] as Site['worktrees']
+    });
+    expect(diffSitesEvents(prev, [stillAsleep])).toEqual([]);
+  });
 });
 
 describe('diffServicesEvents', () => {

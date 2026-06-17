@@ -145,12 +145,12 @@
     <div class="space-y-2">
       {#each groups as g (g.key)}
         {@const activeN = g.running.filter((i) => i.status === 'active').length}
-        {@const up = activeN + g.asleep.length}
         {@const total = g.running.length + g.asleep.length}
+        {@const allUp = activeN + g.asleep.length === total}
         <div>
           <div class="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             <span>{g.label}</span>
-            <span class="font-mono tabular-nums {up === total ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-500 dark:text-gray-400'}">{up}/{total}</span>
+            <span class="font-mono tabular-nums {allUp ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-500 dark:text-gray-400'}">{activeN}/{total}</span>
           </div>
           <div class="mt-1 space-y-0.5">
             {#each g.running as item (item.name)}

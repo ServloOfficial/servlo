@@ -109,6 +109,35 @@ func TestCheckEnvDrift_classifiesRequiredVsOptional(t *testing.T) {
 	}
 }
 
+// TestCheckEnvDrift_ignoresCompiledPublicBundle: a VITE_ key that only appears
+// inlined in a compiled bundle under public/ must not be classified required —
+// the source scan skips public/ so a genuinely stale key stays optional.
+func TestCheckEnvDrift_ignoresCompiledPublicBundle(t *testing.T) {
+	dir := t.TempDir()
+	envPath := filepath.Join(dir, ".env")
+
+	writeEnv(t, dir, ".env.example", "VITE_STALE=\n")
+	writeEnv(t, dir, ".env", "") // missing
+
+	// The only reference to VITE_STALE is in a compiled bundle, not real source.
+	mustMkdir(t, filepath.Join(dir, "public", "build", "assets"))
+	writeEnv(t, dir, filepath.Join("public", "build", "assets", "app-abc123.js"),
+		"const x=import.meta.env.VITE_STALE;console.log(x);\n")
+
+	refs := scanViteEnvRefs(dir)
+	if refs["VITE_STALE"] {
+		t.Errorf("VITE_STALE in public/ should be ignored, got referenced")
+	}
+
+	c, ok := checkEnvDrift(dir, envPath)
+	if !ok {
+		t.Fatalf("expected a drift check result")
+	}
+	if strings.Contains(c.Detail, "VITE_STALE") && c.Status == StatusWarn {
+		t.Errorf("a public/-only VITE_ key must not be flagged required: %q", c.Detail)
+	}
+}
+
 // TestCheckEnvDrift_allOptionalStaysGreen: when every missing key is read with a
 // default, the check passes quietly with an informational note instead of
 // warning.

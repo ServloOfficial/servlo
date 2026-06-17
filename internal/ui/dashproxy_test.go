@@ -170,6 +170,22 @@ func TestHandleDashProxy_RejectsNonLoopback(t *testing.T) {
 	}
 }
 
+func TestHandleDashProxy_RejectsCrossOrigin(t *testing.T) {
+	// A loopback request (over the lerd.localhost unix socket) that a malicious
+	// .test page initiated cross-site must be refused before it reaches the admin
+	// upstream, even though the global CSRF gate trusts the socket.
+	for _, site := range []string{"cross-site", "same-site"} {
+		req := httptest.NewRequest("POST", "http://lerd.localhost/_svc/rabbitmq/api/queues", nil)
+		req.RemoteAddr = "127.0.0.1:5050"
+		req.Header.Set("Sec-Fetch-Site", site)
+		rec := httptest.NewRecorder()
+		handleDashProxy(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("Sec-Fetch-Site=%s: status = %d, want 403", site, rec.Code)
+		}
+	}
+}
+
 func TestHandleDashProxy_UnknownService404(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://lerd.localhost/_svc/not-installed-xyz/", nil)
 	req.RemoteAddr = "127.0.0.1:5050"

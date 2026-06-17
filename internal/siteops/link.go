@@ -115,14 +115,17 @@ func CleanupRelink(path, newName string) bool {
 	return secured
 }
 
-// ResolveSecured decides whether a freshly linked site is secured. A re-link
-// preserves the prior secured state (relinkSecured, from CleanupRelink),
-// otherwise .lerd.yaml's secured flag is honoured only when lerd manages DNS,
-// so a project authored with secured: true degrades to http on a localhost
-// install rather than being registered as a non-functional HTTPS site that
-// the cert layer would refuse with ErrDNSDisabled.
+// ResolveSecured decides whether a freshly linked site is secured. Both the
+// re-link path (relinkSecured, from CleanupRelink) and .lerd.yaml's secured flag
+// are honoured only when lerd manages DNS, so a site secured before DNS was
+// switched off, or a project authored with secured: true, degrades to http on a
+// localhost install rather than being registered as a non-functional HTTPS site
+// that the cert layer would refuse with ErrDNSDisabled.
 func ResolveSecured(relinkSecured bool, proj *config.ProjectConfig, cfg *config.GlobalConfig) bool {
-	return relinkSecured || (proj != nil && proj.Secured && cfg.DNSManaged())
+	if !cfg.DNSManaged() {
+		return false
+	}
+	return relinkSecured || (proj != nil && proj.Secured)
 }
 
 // FinishLink performs the post-registration steps shared by link, park, and MCP:
@@ -220,6 +223,37 @@ func FinishFrankenPHPLink(site config.Site) error {
 		podman.AfterUnitChange("site:" + site.Name)
 	}
 
+	return nil
+}
+
+// DemoteFrankenPHPToFPM drops a FrankenPHP site back to the FPM runtime: it
+// tears down the per-site FrankenPHP quadlet, clears the runtime in the registry
+// and the project's .lerd.yaml, and regenerates the normal fastcgi vhost. It is
+// the fallback the CLI takes (via runLink) when a site's PHP version is changed
+// below the FrankenPHP minimum, mirrored here so the UI and MCP never silently
+// upgrade PHP behind the user's back. The passed site is mutated to FPM.
+func DemoteFrankenPHPToFPM(site *config.Site) error {
+	_ = podman.RemoveFrankenPHPQuadlet(site.Name)
+	_ = podman.DaemonReloadFn()
+
+	site.Runtime = ""
+	site.RuntimeWorker = false
+	if err := config.AddSite(*site); err != nil {
+		return fmt.Errorf("updating site registry: %w", err)
+	}
+	_ = config.SetProjectRuntime(site.Path, "", false)
+
+	if site.Secured {
+		if err := certs.SecureSite(*site); err != nil {
+			return fmt.Errorf("regenerating SSL vhost: %w", err)
+		}
+	} else if err := nginx.GenerateVhost(*site, site.PHPVersion); err != nil {
+		return fmt.Errorf("regenerating vhost: %w", err)
+	}
+
+	if err := nginx.Reload(); err != nil {
+		return fmt.Errorf("nginx reload: %w", err)
+	}
 	return nil
 }
 

@@ -13,7 +13,7 @@
     if (stop) stop();
   });
 
-  const top = $derived($stats.containers.slice(0, 5));
+  const rows = $derived($stats.containers);
   const memPercentOfHost = $derived(
     $stats.host_mem_bytes > 0 ? ($stats.total_mem_bytes / $stats.host_mem_bytes) * 100 : 0
   );
@@ -58,16 +58,18 @@
       </div>
     </div>
 
-    {#if top.length > 0}
+    {#if rows.length > 0}
       <div class="pt-2 border-t border-gray-100 dark:border-lerd-border space-y-1">
         <div class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{m.dashboard_resources_top()}</div>
-        {#each top as c (c.name)}
-          <div class="flex items-center gap-2 text-xs">
-            <span class="flex-1 truncate text-gray-600 dark:text-gray-300">{shortName(c.name)}</span>
-            <span class="shrink-0 font-mono tabular-nums text-gray-500 dark:text-gray-400 w-16 text-right">{formatBytes(c.mem_bytes)}</span>
-            <span class="shrink-0 font-mono tabular-nums text-gray-400 dark:text-gray-500 w-12 text-right">{c.cpu_percent.toFixed(1)}%</span>
-          </div>
-        {/each}
+        <div class="space-y-1 max-h-44 overflow-y-auto pr-1">
+          {#each rows as c (c.name)}
+            <div class="flex items-center gap-2 text-xs">
+              <span class="flex-1 truncate text-gray-600 dark:text-gray-300">{shortName(c.name)}</span>
+              <span class="shrink-0 font-mono tabular-nums text-gray-500 dark:text-gray-400 w-16 text-right">{formatBytes(c.mem_bytes)}</span>
+              <span class="shrink-0 font-mono tabular-nums text-gray-400 dark:text-gray-500 w-12 text-right">{c.cpu_percent.toFixed(1)}%</span>
+            </div>
+          {/each}
+        </div>
       </div>
     {/if}
   {/if}

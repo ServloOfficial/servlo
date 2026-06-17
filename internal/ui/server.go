@@ -3109,6 +3109,17 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		_ = config.SetProjectPHPVersion(site.Path, version)
 		site.PHPVersion = version
 		if site.IsFrankenPHP() {
+			// FrankenPHP only publishes images for PHP >= 8.2; building below that
+			// normalizes the version up and silently runs a different PHP than the
+			// site reports. Match the CLI and fall back to FPM rather than upgrade.
+			if !config.IsFrankenPHPVersion(version) {
+				if err := siteops.DemoteFrankenPHPToFPM(site); err != nil {
+					writeJSON(w, SiteActionResponse{Error: err.Error()})
+					return
+				}
+				needsReload = true
+				break
+			}
 			if err := config.AddSite(*site); err != nil {
 				writeJSON(w, SiteActionResponse{Error: "updating site registry: " + err.Error()})
 				return

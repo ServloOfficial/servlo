@@ -162,14 +162,15 @@ var projectSkipDirs = map[string]bool{"vendor": true, "node_modules": true, ".gi
 
 // walkProjectSource walks path and invokes onFile with the contents of every
 // file whose lowercased extension (without the dot) is in exts, skipping the
-// vendor/build/VCS dirs. Best-effort: walk and per-file read errors are ignored.
-func walkProjectSource(path string, exts map[string]bool, onFile func(data []byte)) {
+// vendor/build/VCS dirs plus any names in extraSkip. Best-effort: walk and
+// per-file read errors are ignored.
+func walkProjectSource(path string, exts map[string]bool, extraSkip map[string]bool, onFile func(data []byte)) {
 	filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
 		if d.IsDir() {
-			if projectSkipDirs[d.Name()] {
+			if projectSkipDirs[d.Name()] || extraSkip[d.Name()] {
 				return filepath.SkipDir
 			}
 			return nil
@@ -191,7 +192,7 @@ func walkProjectSource(path string, exts map[string]bool, onFile func(data []byt
 func scanEnvUsage(path string) (map[string]envKeyUsage, int) {
 	usage := map[string]envKeyUsage{}
 	total := 0
-	walkProjectSource(path, map[string]bool{"php": true}, func(data []byte) {
+	walkProjectSource(path, map[string]bool{"php": true}, nil, func(data []byte) {
 		for _, m := range envCallRe.FindAllStringSubmatch(string(data), -1) {
 			total++
 			u := usage[m[1]]
@@ -251,7 +252,9 @@ var viteSourceExts = map[string]bool{
 // .env.example that nothing reads.
 func scanViteEnvRefs(path string) map[string]bool {
 	refs := map[string]bool{}
-	walkProjectSource(path, viteSourceExts, func(data []byte) {
+	// Skip public/: Vite compiles bundles there with VITE_* literals inlined, so a
+	// genuinely stale key would look referenced and defeat the env-drift refinement.
+	walkProjectSource(path, viteSourceExts, map[string]bool{"public": true}, func(data []byte) {
 		for _, m := range viteKeyRe.FindAllString(string(data), -1) {
 			refs[m] = true
 		}

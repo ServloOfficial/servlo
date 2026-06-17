@@ -185,7 +185,10 @@ func (e *idleEngine) tick() {
 			continue
 		}
 		e.mu.Lock()
-		if !e.inFlight[s.Name] {
+		inFlight := e.inFlight[s.Name]
+		suspended := e.suspended[s.Name]
+		e.mu.Unlock()
+		if !inFlight {
 			// Reconcile our cached belief against reality, not just the persisted
 			// list. A restore/install/boot path can re-create, re-enable, and
 			// re-start the workers we suspended without clearing the list (they're
@@ -193,17 +196,22 @@ func (e *idleEngine) tick() {
 			// "believed asleep" while its workers actually run, never re-suspending.
 			// When the list claims suspended but a listed worker is in fact running,
 			// drop the stale list so this same tick re-suspends the idle site.
-			// Skipped mid-flight so a slow suspend/resume goroutine isn't
-			// second-guessed before it persists.
+			// IdleSuspendStateIsStale shells out (systemctl/launchctl per worker), so
+			// it runs outside e.mu to keep the nginx access-datagram wake path off the
+			// subprocess critical path; we re-lock to store and re-check inFlight so a
+			// suspend/resume goroutine that started meanwhile isn't second-guessed.
 			believed := len(s.IdleSuspendedWorkers) > 0
 			if believed && cli.IdleSuspendStateIsStale(&s) {
 				_ = config.SetSiteIdleSuspendedWorkers(s.Name, nil)
 				believed = false
 			}
-			e.suspended[s.Name] = believed
+			e.mu.Lock()
+			if !e.inFlight[s.Name] {
+				e.suspended[s.Name] = believed
+			}
+			suspended = e.suspended[s.Name]
+			e.mu.Unlock()
 		}
-		suspended := e.suspended[s.Name]
-		e.mu.Unlock()
 		if s.Pinned {
 			// Pinned sites never go idle. If one was pinned while already
 			// suspended, wake it so the pin takes effect immediately. Still tick
@@ -260,20 +268,28 @@ func (e *idleEngine) tickWorktrees(s *config.Site, enabled bool, timeout time.Du
 		}
 
 		e.mu.Lock()
-		if !e.inFlight[key] {
+		inFlight := e.inFlight[key]
+		suspended := e.suspended[key]
+		e.mu.Unlock()
+		if !inFlight {
 			// Same reality-based reconcile as the main site: if the slot claims
 			// suspended but the worktree's worker is actually running (a restore
 			// path restarted it without clearing the slot), drop the stale slot so
-			// this tick re-suspends it instead of believing it asleep forever.
+			// this tick re-suspends it instead of believing it asleep forever. The
+			// staleness probe shells out, so it runs outside e.mu and we re-lock to
+			// store, re-checking inFlight so an in-flight goroutine wins.
 			believed := len(s.WorktreeIdleSuspended[wtBase]) > 0
 			if believed && cli.WorktreeIdleSuspendStateIsStale(s, wtBase, s.WorktreeIdleSuspended[wtBase]) {
 				_ = config.SetWorktreeIdleSuspendedWorkers(s.Name, wtBase, nil)
 				believed = false
 			}
-			e.suspended[key] = believed
+			e.mu.Lock()
+			if !e.inFlight[key] {
+				e.suspended[key] = believed
+			}
+			suspended = e.suspended[key]
+			e.mu.Unlock()
 		}
-		suspended := e.suspended[key]
-		e.mu.Unlock()
 
 		if s.Pinned {
 			if suspended {

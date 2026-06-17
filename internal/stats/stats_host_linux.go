@@ -24,8 +24,9 @@ const hostCmdTimeout = 3 * time.Second
 // readHostProcesses reports the resource usage of lerd's own host-side processes
 // (the lerd-ui/watcher/tray daemons and any host-side workers such as a Vite or
 // host-proxy dev server run via fnm) using systemd's per-unit cgroup accounting.
-// Container units appear here too — Read drops those by name so the podman
-// measurement wins. Linux only; the macOS stub returns nothing.
+// Memory is reported as the working set (page cache excluded) to match podman's
+// container metric. Container units appear here too — Read drops those by name so
+// the podman measurement wins. Linux only; the macOS stub returns nothing.
 func readHostProcesses() ([]ContainerStat, error) {
 	units := listLerdServices()
 	if len(units) == 0 {
@@ -92,6 +93,7 @@ func listLerdServices() []string {
 type hostProps struct {
 	cpuNsec  uint64
 	memBytes int64
+	cgroup   string
 }
 
 // showProps batches one `systemctl show` over all units and parses the per-unit
@@ -100,7 +102,7 @@ type hostProps struct {
 func showProps(units []string) map[string]hostProps {
 	ctx, cancel := context.WithTimeout(context.Background(), hostCmdTimeout)
 	defer cancel()
-	args := append([]string{"--user", "show", "-p", "Id", "-p", "CPUUsageNSec", "-p", "MemoryCurrent"}, units...)
+	args := append([]string{"--user", "show", "-p", "Id", "-p", "CPUUsageNSec", "-p", "MemoryCurrent", "-p", "ControlGroup"}, units...)
 	out, err := exec.CommandContext(ctx, "systemctl", args...).Output()
 	if err != nil {
 		return nil
@@ -110,6 +112,13 @@ func showProps(units []string) map[string]hostProps {
 	var p hostProps
 	flush := func() {
 		if id != "" {
+			// systemd's MemoryCurrent is the raw cgroup memory.current, which counts
+			// reclaimable page cache; prefer the working set (cache excluded) so a
+			// daemon that reads big log files isn't reported holding memory it can
+			// release on demand, and so these rows match podman's container metric.
+			if ws, ok := cgroupWorkingSet(p.cgroup); ok {
+				p.memBytes = ws
+			}
 			res[id] = p
 		}
 		id, p = "", hostProps{}
@@ -135,10 +144,62 @@ func showProps(units []string) map[string]hostProps {
 			if n, err := strconv.ParseInt(val, 10, 64); err == nil {
 				p.memBytes = n
 			}
+		case "ControlGroup":
+			p.cgroup = val
 		}
 	}
 	flush()
 	return res
+}
+
+// cgroupWorkingSet returns a unit's working-set memory: memory.current minus the
+// readily-reclaimable inactive file cache, the same accounting `podman stats`
+// uses for containers (and what cAdvisor/k8s call working set). This keeps the
+// host-process rows comparable to the container rows in the same list instead of
+// inflating them with page cache. Returns false when the cgroup v2 files aren't
+// present or readable, so the caller falls back to MemoryCurrent.
+func cgroupWorkingSet(cg string) (int64, bool) {
+	if cg == "" {
+		return 0, false
+	}
+	base := "/sys/fs/cgroup" + cg
+	cur, err := readCgroupInt(base + "/memory.current")
+	if err != nil {
+		return 0, false
+	}
+	ws := cur - readCgroupStatKey(base+"/memory.stat", "inactive_file")
+	if ws < 0 {
+		ws = cur
+	}
+	return ws, true
+}
+
+// readCgroupInt reads a single-integer cgroup file (e.g. memory.current).
+func readCgroupInt(path string) (int64, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+}
+
+// readCgroupStatKey returns one key's value from a "key value" cgroup file
+// (e.g. memory.stat). Missing key or unreadable file yields 0.
+func readCgroupStatKey(path, key string) int64 {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		k, v, ok := strings.Cut(line, " ")
+		if ok && k == key {
+			if n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64); err == nil {
+				return n
+			}
+			return 0
+		}
+	}
+	return 0
 }
 
 // hostTotalRAM reads MemTotal from /proc/meminfo (bytes), used as the host

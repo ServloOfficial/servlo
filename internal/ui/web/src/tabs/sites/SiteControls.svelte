@@ -290,7 +290,7 @@
       </span>
     {:else if site.runtime === 'fpm-custom'}
       <span class="text-xs text-violet-500 dark:text-violet-400 border border-violet-200 dark:border-violet-500/30 rounded-sm px-2 py-1">
-        PHP {effectivePhp} · custom image
+        PHP {effectivePhp} · {m.sites_controls_customImageBadge()}
       </span>
     {:else if site.uses_php}
       {#if phpOptions.length > 0}
