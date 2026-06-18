@@ -47,7 +47,7 @@ detect_os() {
 }
 
 detect_arch() {
-  # macOS reports arm64; Linux reports aarch64 — both map to the arm64 release.
+  # macOS reports arm64; Linux reports aarch64: both map to the arm64 release.
   case "$(uname -m)" in
     x86_64)        echo "amd64" ;;
     aarch64|arm64) echo "arm64" ;;
@@ -536,9 +536,13 @@ cmd_uninstall_macos() {
     info "Removed launchd agents from $agents_dir"
   fi
 
-  # Detached `podman run -d` containers outlive their plists — remove them too.
+  # Detached `podman run -d` containers outlive their plists, so remove them
+  # too. Capture with `|| true` first: under `set -o pipefail` a no-match grep
+  # would otherwise abort the whole uninstall before the binary is removed.
   if command -v podman &>/dev/null; then
-    podman ps -a --format '{{.Names}}' 2>/dev/null | grep '^lerd-' | while read -r c; do
+    local containers
+    containers="$(podman ps -a --format '{{.Names}}' 2>/dev/null | grep '^lerd-' || true)"
+    for c in $containers; do
       podman rm -f "$c" 2>/dev/null || true
     done
   fi
