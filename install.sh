@@ -38,10 +38,19 @@ star_note() {
 }
 
 # ── Platform detection ───────────────────────────────────────────────────────
+detect_os() {
+  case "$(uname -s)" in
+    Linux)  echo "linux" ;;
+    Darwin) echo "darwin" ;;
+    *) die "Unsupported OS: $(uname -s). Lerd supports Linux and macOS." ;;
+  esac
+}
+
 detect_arch() {
+  # macOS reports arm64; Linux reports aarch64 — both map to the arm64 release.
   case "$(uname -m)" in
-    x86_64)  echo "amd64" ;;
-    aarch64) echo "arm64" ;;
+    x86_64)        echo "amd64" ;;
+    aarch64|arm64) echo "arm64" ;;
     *) die "Unsupported architecture: $(uname -m)" ;;
   esac
 }
@@ -90,7 +99,7 @@ ask_dns_mode() {
   read -r _ans </dev/tty 2>/dev/null || true
   if [[ "$_ans" =~ ^[Nn]$ ]]; then
     DNS_MODE="localhost"
-    info "Using *.localhost over HTTP, mkcert and nss-tools are not required"
+    info "Using *.localhost over HTTP, no certificates or extra packages required"
   else
     DNS_MODE="managed"
   fi
@@ -158,6 +167,34 @@ check_podman_rootless() {
 }
 
 check_prerequisites() {
+  if [ "$(detect_os)" = "darwin" ]; then
+    check_prerequisites_macos
+  else
+    check_prerequisites_linux
+  fi
+}
+
+# macOS needs only the podman CLI on PATH; `lerd install` brings the Podman
+# machine up itself, and mkcert/DNS/launchd are all handled inside the binary.
+# Missing packages are installed via Homebrew (no sudo, unlike the Linux path).
+check_prerequisites_macos() {
+  header "Checking prerequisites"
+
+  check_cmd podman podman "container runtime"
+
+  if [ ${#MISSING_PKGS[@]} -eq 0 ]; then
+    success "All prerequisites met"
+    return
+  fi
+
+  echo ""
+  warn "Missing: ${MISSING_PKGS[*]}"
+  if ask "Install missing packages now (via Homebrew)?"; then
+    install_packages "${MISSING_PKGS[@]}"
+  fi
+}
+
+check_prerequisites_linux() {
   header "Checking prerequisites"
 
   check_cmd podman podman "container runtime"
@@ -201,9 +238,19 @@ check_prerequisites() {
 
 install_packages() {
   local pkgs=("$@")
-  local family; family="$(distro_family)"
 
   header "Installing: ${pkgs[*]}"
+
+  if [ "$(detect_os)" = "darwin" ]; then
+    if ! command -v brew &>/dev/null; then
+      die "Homebrew not found. Install it from https://brew.sh then re-run, or install manually: ${pkgs[*]}"
+    fi
+    brew install "${pkgs[@]}"
+    success "Packages installed"
+    return
+  fi
+
+  local family; family="$(distro_family)"
 
   case "$family" in
     arch)
@@ -288,7 +335,8 @@ latest_version() {
 # All output goes to stderr — nothing is printed to stdout.
 download_binary() {
   local version="$1" arch="$2" destdir="$3"
-  local filename="lerd_${version}_linux_${arch}.tar.gz"
+  local os; os="$(detect_os)"
+  local filename="lerd_${version}_${os}_${arch}.tar.gz"
   local url="https://github.com/${REPO}/releases/download/v${version}/${filename}"
 
   info "Downloading lerd v${version} (${arch}) via $(_download_tool) ..."
@@ -453,6 +501,65 @@ cmd_update() {
 
 # ── Uninstall ────────────────────────────────────────────────────────────────
 cmd_uninstall() {
+  if [ "$(detect_os)" = "darwin" ]; then
+    cmd_uninstall_macos
+  else
+    cmd_uninstall_linux
+  fi
+}
+
+# macOS teardown: boot out and remove the user LaunchAgents, stop any detached
+# lerd-* podman containers, then drop the binary. The DNS resolver file in
+# /etc/resolver and the Podman machine are left to `lerd uninstall` (run before
+# the binary is removed) since removing the resolver needs sudo.
+cmd_uninstall_macos() {
+  header "Uninstalling Lerd"
+
+  local domain="gui/$(id -u)"
+  local agents_dir="$HOME/Library/LaunchAgents"
+
+  if [ -d "$agents_dir" ]; then
+    for f in "$agents_dir"/com.lerd.*.plist; do
+      [ -f "$f" ] || continue
+      local label; label="$(basename "$f" .plist)"
+      launchctl bootout "$domain/$label" 2>/dev/null || true
+      rm -f "$f"
+    done
+    info "Removed launchd agents from $agents_dir"
+  fi
+
+  # Detached `podman run -d` containers outlive their plists — remove them too.
+  if command -v podman &>/dev/null; then
+    podman ps -a --format '{{.Names}}' 2>/dev/null | grep '^lerd-' | while read -r c; do
+      podman rm -f "$c" 2>/dev/null || true
+    done
+  fi
+
+  rm -rf "$HOME/Library/Logs/lerd"
+
+  # Remove binaries
+  for b in "$BINARY" lerd-tray; do
+    if [ -f "${INSTALL_DIR}/${b}" ]; then
+      rm -f "${INSTALL_DIR}/${b}"
+      success "Removed ${INSTALL_DIR}/${b}"
+    fi
+  done
+
+  remove_from_path
+
+  if ask "Remove all Lerd data and config? (~/.config/lerd, ~/.local/share/lerd)"; then
+    rm -rf "$LERD_CONFIG_DIR"
+    rm -rf "$LERD_DATA_DIR"
+    success "Removed config and data directories"
+  else
+    info "Config kept at $LERD_CONFIG_DIR"
+    info "Data kept at $LERD_DATA_DIR"
+  fi
+
+  success "Lerd uninstalled"
+}
+
+cmd_uninstall_linux() {
   header "Uninstalling Lerd"
 
   # Stop and remove systemd units — discover from quadlet files on disk
@@ -516,7 +623,7 @@ main() {
   echo "  ███████╗███████╗██║  ██║██████╔╝"
   echo "  ╚══════╝╚══════╝╚═╝  ╚═╝╚═════╝ "
   echo -e "${RESET}"
-  echo "  Lerd — Podman-powered local PHP dev environment for Linux"
+  echo "  Lerd — Podman-powered local PHP dev environment for Linux and macOS"
   echo "  https://github.com/${REPO}"
   echo ""
 

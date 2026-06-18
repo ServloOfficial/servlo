@@ -104,19 +104,29 @@ lerd update
 
 ### macOS
 
-Install via Homebrew:
+```bash
+curl -fsSL https://raw.githubusercontent.com/geodro/lerd/main/install.sh | bash
+```
+
+Update later with:
+
+```bash
+lerd update
+```
+
+The installer needs the `podman` CLI; it will offer to `brew install podman` if it's missing.
+
+<details>
+<summary>Install via Homebrew instead</summary>
 
 ```bash
 brew install geodro/lerd/lerd
 lerd install
 ```
 
-Update later with:
+Recent Homebrew versions block third-party taps until trusted, so you may need to run `brew trust geodro/lerd` first. Update later with `brew upgrade lerd && lerd install`.
 
-```bash
-brew upgrade lerd
-lerd install
-```
+</details>
 
 > [!NOTE]
 > See the [installation docs](https://geodro.github.io/lerd/getting-started/installation/) for details.
