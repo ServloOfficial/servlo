@@ -203,6 +203,29 @@ func TestExecServiceEnv_returnsContent(t *testing.T) {
 	}
 }
 
+// TestExecDNSDiagnose_returnsContent guards the same "no output" regression for
+// the diag dns_diagnose action, whose handler returned a bare Diagnostic struct.
+// The result must come back inside a content block regardless of probe outcome.
+func TestExecDNSDiagnose_returnsContent(t *testing.T) {
+	result, rpcErr := execDNSDiagnose(map[string]any{"tld": "test"})
+	if rpcErr != nil {
+		t.Fatal("unexpected rpc error:", rpcErr.Message)
+	}
+	content, ok := result.(map[string]any)["content"].([]map[string]any)
+	if !ok || len(content) != 1 {
+		t.Fatal("result has no content block")
+	}
+	var parsed struct {
+		TLD string `json:"tld"`
+	}
+	if err := json.Unmarshal([]byte(content[0]["text"].(string)), &parsed); err != nil {
+		t.Fatal("content is not valid JSON:", err)
+	}
+	if parsed.TLD != "test" {
+		t.Errorf("expected tld=test, got %q", parsed.TLD)
+	}
+}
+
 // TestToolList_underSizeCeiling guards against regrowth of the tools/list
 // manifest sent on every MCP session. Every byte above the ceiling is in
 // context for the whole session; raise the ceiling only with a justified
