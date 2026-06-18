@@ -165,6 +165,44 @@ func TestExecEnvCheck_missingKeys(t *testing.T) {
 	}
 }
 
+// TestExecServiceEnv_returnsContent guards the same "no output" regression for
+// the service env action: a built-in service's env vars must come back inside a
+// content block, not as a bare map the host can't render.
+func TestExecServiceEnv_returnsContent(t *testing.T) {
+	var name string
+	for _, s := range knownServices() {
+		if builtinServiceEnv(s) != nil {
+			name = s
+			break
+		}
+	}
+	if name == "" {
+		t.Skip("no built-in service exposes env vars")
+	}
+
+	result, rpcErr := execServiceEnv(map[string]any{"name": name})
+	if rpcErr != nil {
+		t.Fatal("unexpected rpc error:", rpcErr.Message)
+	}
+	content, ok := result.(map[string]any)["content"].([]map[string]any)
+	if !ok || len(content) != 1 {
+		t.Fatal("result has no content block")
+	}
+	var parsed struct {
+		Service string            `json:"service"`
+		Vars    map[string]string `json:"vars"`
+	}
+	if err := json.Unmarshal([]byte(content[0]["text"].(string)), &parsed); err != nil {
+		t.Fatal("content is not valid JSON:", err)
+	}
+	if parsed.Service != name {
+		t.Errorf("expected service=%q, got %q", name, parsed.Service)
+	}
+	if len(parsed.Vars) == 0 {
+		t.Error("expected at least one env var")
+	}
+}
+
 // TestToolList_underSizeCeiling guards against regrowth of the tools/list
 // manifest sent on every MCP session. Every byte above the ceiling is in
 // context for the whole session; raise the ceiling only with a justified

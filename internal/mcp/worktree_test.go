@@ -28,10 +28,9 @@ func TestToolJSON_wrapsValueInContent(t *testing.T) {
 	}
 }
 
-// TestExecWorktreeList_returnsContent guards the regression where every
-// worktree handler returned a bare map with no "content" key, so the MCP host
-// rendered a live worktree as "no output". The result must carry a content
-// block whose JSON lists the detected worktree.
+// TestExecWorktreeList_returnsContent guards the regression where a handler
+// returned a bare map with no "content" key, so the MCP host rendered a live
+// worktree as "no output". The result must carry a content block.
 func TestExecWorktreeList_returnsContent(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")

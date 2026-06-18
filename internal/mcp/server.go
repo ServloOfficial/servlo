@@ -1936,7 +1936,7 @@ func execServiceCheckUpdates(args map[string]any) (any, *rpcError) {
 		}
 		results = append(results, entry)
 	}
-	return map[string]any{"services": results}, nil
+	return toolJSON(map[string]any{"services": results}), nil
 }
 
 func execServiceUpdate(args map[string]any) (any, *rpcError) {
@@ -2089,7 +2089,7 @@ func execServiceEnv(args map[string]any) (any, *rpcError) {
 			k, v, _ := strings.Cut(kv, "=")
 			vars[k] = v
 		}
-		return map[string]any{"service": name, "vars": vars}, nil
+		return toolJSON(map[string]any{"service": name, "vars": vars}), nil
 	}
 
 	// Fall back to custom service env_vars.
@@ -2102,7 +2102,7 @@ func execServiceEnv(args map[string]any) (any, *rpcError) {
 		k, v, _ := strings.Cut(kv, "=")
 		vars[k] = v
 	}
-	return map[string]any{"service": name, "vars": vars}, nil
+	return toolJSON(map[string]any{"service": name, "vars": vars}), nil
 }
 
 func execEnvSetup(args map[string]any) (any, *rpcError) {
