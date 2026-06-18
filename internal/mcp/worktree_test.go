@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,17 +11,11 @@ import (
 
 func TestToolJSON_wrapsValueInContent(t *testing.T) {
 	result := toolJSON(map[string]any{"site": "demo", "worktrees": []string{"a"}})
-	content, ok := result["content"].([]map[string]any)
-	if !ok || len(content) != 1 {
-		t.Fatal("expected a content array with one element")
-	}
 	if _, has := result["isError"]; has {
 		t.Error("toolJSON must not set isError on success")
 	}
 	var parsed map[string]any
-	if err := json.Unmarshal([]byte(content[0]["text"].(string)), &parsed); err != nil {
-		t.Fatal("content text is not valid JSON:", err)
-	}
+	decodeContent(t, result, &parsed)
 	if parsed["site"] != "demo" {
 		t.Errorf("expected site=demo, got %v", parsed["site"])
 	}
@@ -61,10 +54,6 @@ func TestExecWorktreeList_returnsContent(t *testing.T) {
 	if rpcErr != nil {
 		t.Fatal("unexpected rpc error:", rpcErr.Message)
 	}
-	content, ok := result.(map[string]any)["content"].([]map[string]any)
-	if !ok || len(content) != 1 {
-		t.Fatal("result has no content block")
-	}
 	var parsed struct {
 		Site      string `json:"site"`
 		Worktrees []struct {
@@ -72,9 +61,7 @@ func TestExecWorktreeList_returnsContent(t *testing.T) {
 			Domain string `json:"domain"`
 		} `json:"worktrees"`
 	}
-	if err := json.Unmarshal([]byte(content[0]["text"].(string)), &parsed); err != nil {
-		t.Fatal("content is not valid JSON:", err)
-	}
+	decodeContent(t, result, &parsed)
 	if parsed.Site != "demo" {
 		t.Errorf("expected site=demo, got %q", parsed.Site)
 	}

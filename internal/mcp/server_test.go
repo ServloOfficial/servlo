@@ -10,6 +10,28 @@ import (
 	"github.com/geodro/lerd/internal/config"
 )
 
+// decodeContent asserts a tool result carries exactly one text content block
+// and unmarshals that block's JSON text into v. It is the shared shape every
+// "handler returns content" regression test checks.
+func decodeContent(t *testing.T, result any, v any) {
+	t.Helper()
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("result is not a map")
+	}
+	content, ok := m["content"].([]map[string]any)
+	if !ok || len(content) != 1 {
+		t.Fatal("result has no content block")
+	}
+	text, ok := content[0]["text"].(string)
+	if !ok {
+		t.Fatal("content block has no text")
+	}
+	if err := json.Unmarshal([]byte(text), v); err != nil {
+		t.Fatal("content is not valid JSON:", err)
+	}
+}
+
 func TestStripANSI_removesColorCodes(t *testing.T) {
 	input := "\x1b[32mOK\x1b[0m some text \x1b[31mFAIL\x1b[0m"
 	got := stripANSI(input)
@@ -171,7 +193,7 @@ func TestExecEnvCheck_missingKeys(t *testing.T) {
 func TestExecServiceEnv_returnsContent(t *testing.T) {
 	var name string
 	for _, s := range knownServices() {
-		if builtinServiceEnv(s) != nil {
+		if len(builtinServiceEnv(s)) > 0 {
 			name = s
 			break
 		}
@@ -184,17 +206,11 @@ func TestExecServiceEnv_returnsContent(t *testing.T) {
 	if rpcErr != nil {
 		t.Fatal("unexpected rpc error:", rpcErr.Message)
 	}
-	content, ok := result.(map[string]any)["content"].([]map[string]any)
-	if !ok || len(content) != 1 {
-		t.Fatal("result has no content block")
-	}
 	var parsed struct {
 		Service string            `json:"service"`
 		Vars    map[string]string `json:"vars"`
 	}
-	if err := json.Unmarshal([]byte(content[0]["text"].(string)), &parsed); err != nil {
-		t.Fatal("content is not valid JSON:", err)
-	}
+	decodeContent(t, result, &parsed)
 	if parsed.Service != name {
 		t.Errorf("expected service=%q, got %q", name, parsed.Service)
 	}
@@ -211,16 +227,10 @@ func TestExecDNSDiagnose_returnsContent(t *testing.T) {
 	if rpcErr != nil {
 		t.Fatal("unexpected rpc error:", rpcErr.Message)
 	}
-	content, ok := result.(map[string]any)["content"].([]map[string]any)
-	if !ok || len(content) != 1 {
-		t.Fatal("result has no content block")
-	}
 	var parsed struct {
 		TLD string `json:"tld"`
 	}
-	if err := json.Unmarshal([]byte(content[0]["text"].(string)), &parsed); err != nil {
-		t.Fatal("content is not valid JSON:", err)
-	}
+	decodeContent(t, result, &parsed)
 	if parsed.TLD != "test" {
 		t.Errorf("expected tld=test, got %q", parsed.TLD)
 	}
