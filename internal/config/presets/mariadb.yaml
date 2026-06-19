@@ -11,15 +11,19 @@ versions:
   - tag: "12.3"
     label: "12.3 LTS"
     image: docker.io/library/mariadb:12.3
-    host_port: 34123
+    host_port: 3423
   - tag: "11.8"
     label: "11.8 LTS"
     image: docker.io/library/mariadb:11.8
-    host_port: 3411
+    host_port: 3418
   - tag: "11.4"
     label: "11.4 LTS"
     image: docker.io/library/mariadb:11.4
-    host_port: 34114
+    host_port: 3414
+  - tag: "11"
+    label: "11 (legacy)"
+    image: docker.io/library/mariadb:11
+    host_port: 3411
   - tag: "10.11"
     label: "10.11 LTS"
     image: docker.io/library/mariadb:10.11
