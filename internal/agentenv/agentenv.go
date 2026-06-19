@@ -5,6 +5,11 @@ package agentenv
 
 import "strings"
 
+// MCPMarker is the AI_AGENT value injected for MCP-originated commands when no
+// real agent var is present on the host. An MCP call proves an agent is
+// driving the command, and agent-detector treats any AI_AGENT value as one.
+const MCPMarker = "lerd-mcp"
+
 // Vars are the environment variables laravel/agent-detector inspects to
 // decide an AI agent is driving the process. Kept in sync with that library's
 // AGENT_ENV_VARS set so detection survives `lerd php`, tinker, and MCP exec.
@@ -50,6 +55,17 @@ func Passthrough(environ []string) []string {
 		} else {
 			out = append(out, e)
 		}
+	}
+	return out
+}
+
+// MCPInject is Passthrough for commands lerd runs on behalf of an MCP client.
+// It forwards any real host agent vars, and when none are present injects a
+// neutral marker so detection succeeds without depending on host env leaking.
+func MCPInject(environ []string) []string {
+	out := Passthrough(environ)
+	if len(out) == 0 {
+		out = append(out, "AI_AGENT="+MCPMarker)
 	}
 	return out
 }

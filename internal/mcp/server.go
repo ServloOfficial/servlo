@@ -293,7 +293,7 @@ func execArtisan(args map[string]any) (any, *rpcError) {
 
 	// No -it flags — non-interactive, output captured to buffer.
 	cmdArgs := []string{"exec", "-w", projectPath}
-	for _, e := range agentenv.Passthrough(os.Environ()) {
+	for _, e := range agentenv.MCPInject(os.Environ()) {
 		cmdArgs = append(cmdArgs, "--env", e)
 	}
 	cmdArgs = append(cmdArgs, container, "php", consoleCmd)
@@ -938,7 +938,11 @@ func execComposer(args map[string]any) (any, *rpcError) {
 	short := strings.ReplaceAll(phpVersion, ".", "")
 	container := "lerd-php" + short + "-fpm"
 
-	cmdArgs := []string{"exec", "-w", projectPath, "--env", composer.ProcessTimeoutEnv(), container, "composer"}
+	cmdArgs := []string{"exec", "-w", projectPath, "--env", composer.ProcessTimeoutEnv()}
+	for _, e := range agentenv.MCPInject(os.Environ()) {
+		cmdArgs = append(cmdArgs, "--env", e)
+	}
+	cmdArgs = append(cmdArgs, container, "composer")
 	cmdArgs = append(cmdArgs, composerArgs...)
 
 	var out bytes.Buffer
@@ -1010,7 +1014,11 @@ func execVendorRun(args map[string]any) (any, *rpcError) {
 	short := strings.ReplaceAll(phpVersion, ".", "")
 	container := "lerd-php" + short + "-fpm"
 
-	cmdArgs := []string{"exec", "-w", projectPath, container, "php", "vendor/bin/" + bin}
+	cmdArgs := []string{"exec", "-w", projectPath}
+	for _, e := range agentenv.MCPInject(os.Environ()) {
+		cmdArgs = append(cmdArgs, "--env", e)
+	}
+	cmdArgs = append(cmdArgs, container, "php", "vendor/bin/"+bin)
 	cmdArgs = append(cmdArgs, binArgs...)
 
 	var out bytes.Buffer

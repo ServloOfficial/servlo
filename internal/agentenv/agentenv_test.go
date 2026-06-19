@@ -51,3 +51,35 @@ func TestPassthrough(t *testing.T) {
 		})
 	}
 }
+
+func TestMCPInject(t *testing.T) {
+	tests := []struct {
+		name    string
+		environ []string
+		want    []string
+	}{
+		{
+			name:    "injects neutral marker when host has no agent var",
+			environ: []string{"PATH=/bin", "HOME=/root"},
+			want:    []string{"AI_AGENT=lerd-mcp"},
+		},
+		{
+			name:    "forwards real host agent var instead of the marker",
+			environ: []string{"CLAUDECODE=1"},
+			want:    []string{"CLAUDECODE=1"},
+		},
+		{
+			name:    "does not double up when AI_AGENT already set on host",
+			environ: []string{"AI_AGENT=cursor"},
+			want:    []string{"AI_AGENT=cursor"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := MCPInject(tt.environ)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MCPInject(%v) = %v, want %v", tt.environ, got, tt.want)
+			}
+		})
+	}
+}
