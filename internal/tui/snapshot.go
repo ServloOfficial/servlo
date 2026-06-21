@@ -9,6 +9,7 @@ import (
 	phpPkg "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/siteinfo"
+	lerdSystemd "github.com/geodro/lerd/internal/systemd"
 )
 
 // Snapshot is the full view-model the TUI renders from. Produced by
@@ -60,6 +61,8 @@ type StatusRow struct {
 	WatcherRunning bool
 	PHPRunning     []string
 	Version        string
+	Autostart      bool
+	LANExposed     bool
 }
 
 // loadSnapshot collects everything the TUI needs in one shot. Called on every
@@ -196,6 +199,8 @@ func loadStatus() StatusRow {
 		DNSDegraded:  dnsStatus == dns.StatusDegraded,
 		DNSDisabled:  dnsDisabled,
 		NginxRunning: podman.Cache.Running("lerd-nginx"),
+		Autostart:    lerdSystemd.IsAutostartEnabled(),
+		LANExposed:   cfg != nil && cfg.LAN.Exposed,
 	}
 
 	if versions, err := phpPkg.ListInstalled(); err == nil {

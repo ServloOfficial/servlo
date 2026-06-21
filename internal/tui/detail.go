@@ -449,8 +449,6 @@ func (m *Model) renderDetailInline(w, h int, focused bool) string {
 		content = settingsContentLines(m, focused, contentW)
 	case detailSystem:
 		content, cursorLine = systemContentLinesWithCursor(m, focused, contentW)
-	case detailDashboard:
-		content, cursorLine = dashboardContentLinesWithCursor(m, focused, contentW)
 	case detailDumps:
 		content, cursorLine = debugContentLines(m, focused, contentW)
 	default:
@@ -485,9 +483,6 @@ func (m *Model) renderDetailInline(w, h int, focused bool) string {
 			case tabSiteDebug:
 				content = siteDebugContentLines(m, site, contentW)
 				cursorLine = -1
-			case tabSiteAppLogs:
-				content = siteAppLogsContentLines(m, site, contentW)
-				cursorLine = -1
 			case tabSiteDoctor:
 				content = siteDoctorContentLines(m, site, contentW)
 				cursorLine = -1
@@ -497,7 +492,11 @@ func (m *Model) renderDetailInline(w, h int, focused bool) string {
 		}
 	}
 
-	visible := viewport(content, cursorLine, innerH, &m.detailScroll)
+	cur := -1
+	if focused && m.followCursor {
+		cur = cursorLine
+	}
+	visible := viewport(content, cur, innerH, &m.detailScroll)
 	bar := renderScrollbar(innerH, len(content), m.detailScroll, len(visible))
 
 	lines := make([]string, 0, innerH)
