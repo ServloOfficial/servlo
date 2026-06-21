@@ -19,6 +19,7 @@ import (
 	"github.com/geodro/lerd/internal/siteinfo"
 	"github.com/geodro/lerd/internal/stats"
 	lerdUpdate "github.com/geodro/lerd/internal/update"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 // focusPane identifies which pane currently owns keyboard focus. Detail sits
@@ -43,8 +44,34 @@ const (
 	detailSettings
 	detailDumps
 	detailSystem
-	detailDashboard
 )
+
+// topTab identifies the active top-level screen. The tab bar switches the
+// whole body between a 6-card dashboard overview, the sites screen (list +
+// site detail) and the services screen (list + service detail). Clickable in
+// the tab strip and cyclable with ctrl+left / ctrl+right.
+type topTab int
+
+const (
+	tabDashboard topTab = iota
+	tabSites
+	tabServices
+)
+
+func (t topTab) label() string {
+	switch t {
+	case tabDashboard:
+		return "Dashboard"
+	case tabServices:
+		return "Services"
+	default:
+		return "Sites"
+	}
+}
+
+// orderedTabs is the left-to-right order the tab bar renders and the order
+// nextTab cycles through.
+var orderedTabs = []topTab{tabDashboard, tabSites, tabServices}
 
 // Model is the bubbletea root. Panes are all projections of snap plus small
 // per-pane cursor/scroll state, so every refresh cycle rebuilds from a single
@@ -54,6 +81,7 @@ type Model struct {
 
 	snap Snapshot
 
+	activeTab  topTab
 	detailMode detailMode
 	focus      focusPane
 
@@ -110,11 +138,10 @@ type Model struct {
 	domainInput        string
 	domainInputEditing string
 
-	showLogs     bool
-	logScroll    int // lines scrolled back from tail (0 = live tail)
-	hideServices bool
-	logTail      *logTail
-	logCursor    int // index into currentLogTargets() for the focused item
+	showLogs  bool
+	logScroll int // lines scrolled back from tail (0 = live tail)
+	logTail   *logTail
+	logCursor int // index into currentLogTargets() for the focused item
 
 	status       string
 	statusExpiry time.Time
@@ -185,6 +212,37 @@ type Model struct {
 	// once the snapshot is zero-valued (Available=false) and the
 	// dashboard renders a "collecting…" placeholder.
 	stats stats.Snapshot
+
+	// Dashboard grid state: which of the numDashCards cards has focus (so
+	// j/k and the mouse wheel know what to scroll) and the per-card vertical
+	// scroll offset. Cards show their whole list and clip to a scroll window.
+	dashFocus  int
+	dashScroll [numDashCards]int
+
+	// Activity feed: a capped ring of recent state-change events derived by
+	// diffing successive snapshots, mirroring the web UI's Recent Activity.
+	// prevSnap holds the last snapshot the diff ran against.
+	activity []activityEvent
+	prevSnap *Snapshot
+
+	// overviewLogScroll is how many lines the Overview app-logs pane is
+	// scrolled back from the live tail (0 = newest at the bottom).
+	overviewLogScroll int
+
+	// Overview app-log read cache: the file is re-read only when its path,
+	// mtime or size changes, so wheel-scrolling and idle ticks don't re-read
+	// (and re-style) the same bytes off disk every frame.
+	appLogCachePath  string
+	appLogCacheMod   time.Time
+	appLogCacheSize  int64
+	appLogCacheLines []string
+
+	// followCursor is set by keyboard navigation so the next render scrolls
+	// the focused pane to keep the selected row visible. The mouse wheel
+	// leaves it false and moves the scroll offset directly, so wheeling scrolls
+	// the viewport without dragging the selection along. Cleared after each
+	// render.
+	followCursor bool
 }
 
 // DumpEntry is a TUI-side mirror of dumps.Event with the fields rendering
@@ -205,11 +263,13 @@ type DumpEntry struct {
 // podman.Cache.Start before running; NewModel itself is pure.
 func NewModel(version string) *Model {
 	return &Model{
-		width:   100,
-		height:  30,
-		logTail: newLogTail(),
-		sub:     eventbus.Default.Subscribe(),
-		version: version,
+		width:     100,
+		height:    30,
+		activeTab: tabDashboard,
+		focus:     paneDetail,
+		logTail:   newLogTail(),
+		sub:       eventbus.Default.Subscribe(),
+		version:   version,
 	}
 }
 
@@ -246,6 +306,11 @@ func updateCheckCmd(current string) tea.Cmd {
 
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// followCursor is a one-shot consumed by the render that follows this
+	// update: clear it here, before any handler runs, so keyboard navigation
+	// can re-arm it and the wheel (which doesn't) leaves the scroll offset put.
+	m.followCursor = false
+
 	switch msg := msg.(type) {
 	case dumpsClearedMsg:
 		m.debug = nil
@@ -260,6 +325,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
+
 	case refreshMsg:
 		return m, loadCmd()
 
@@ -269,6 +337,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(loadCmd(), busCmd(m.sub))
 
 	case snapshotMsg:
+		m.recordActivity(msg.snap, time.Now())
 		m.snap = msg.snap
 		m.clampCursors()
 		return m, tickCmd(10 * time.Second)
@@ -396,6 +465,11 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "S":
+		// Settings / system / dumps swap the Sites tab's detail pane; they
+		// have no surface on the other tabs, so they no-op there.
+		if m.activeTab != tabSites {
+			return m, nil
+		}
 		if m.detailMode == detailSettings {
 			m.detailMode = detailSite
 		} else {
@@ -418,6 +492,9 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "D":
+		if m.activeTab != tabSites {
+			return m, nil
+		}
 		if m.detailMode == detailDumps {
 			m.detailMode = detailSite
 		} else {
@@ -430,6 +507,9 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "Y":
+		if m.activeTab != tabSites {
+			return m, nil
+		}
 		if m.detailMode == detailSystem {
 			m.detailMode = detailSite
 		} else {
@@ -440,21 +520,29 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case "F":
-		if m.detailMode == detailDashboard {
-			m.detailMode = detailSite
-		} else {
-			m.detailMode = detailDashboard
-			m.detailScroll = 0
-			m.focus = paneDetail
-		}
-		return m, nil
+	case "ctrl+right":
+		m.switchTab(m.nextTab(+1))
+		return m, m.syncLogs()
+
+	case "ctrl+left":
+		m.switchTab(m.nextTab(-1))
+		return m, m.syncLogs()
 
 	case "tab":
+		// On the Dashboard tab there are no list panes; tab moves focus
+		// between the grid cards so j/k and the wheel scroll the right one.
+		if m.activeTab == tabDashboard {
+			m.dashFocus = (m.dashFocus + 1) % numDashCards
+			return m, nil
+		}
 		m.focus = m.nextFocus(+1)
 		return m, m.syncLogs()
 
 	case "shift+tab":
+		if m.activeTab == tabDashboard {
+			m.dashFocus = (m.dashFocus - 1 + numDashCards) % numDashCards
+			return m, nil
+		}
 		m.focus = m.nextFocus(-1)
 		return m, m.syncLogs()
 
@@ -487,22 +575,6 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "t":
 		return m, m.actionShell()
-
-	case "v":
-		if m.width < narrowWidth {
-			// Narrow: v switches the top list between sites and services.
-			if m.focus == paneServices {
-				m.focus = paneSites
-			} else {
-				m.focus = paneServices
-			}
-		} else {
-			m.hideServices = !m.hideServices
-			if m.hideServices && m.focus == paneServices {
-				m.focus = paneSites
-			}
-		}
-		return m, nil
 
 	case "/":
 		if m.detailMode == detailDumps {
@@ -583,6 +655,8 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "{":
 		if m.showLogs {
 			m.logScroll += 10
+		} else if _, _, ok := m.overviewLogsActive(); ok {
+			m.overviewLogScroll += 5
 		}
 		return m, nil
 
@@ -591,6 +665,11 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.logScroll -= 10
 			if m.logScroll < 0 {
 				m.logScroll = 0
+			}
+		} else if _, _, ok := m.overviewLogsActive(); ok {
+			m.overviewLogScroll -= 5
+			if m.overviewLogScroll < 0 {
+				m.overviewLogScroll = 0
 			}
 		}
 		return m, nil
@@ -948,7 +1027,12 @@ func (m *Model) resetFilteredCursor() {
 // change. Resets to the first target of the new selection; previous logCursor
 // doesn't transfer since target lists differ per item.
 func (m *Model) syncLogs() tea.Cmd {
-	if !m.showLogs {
+	// The Services tab keeps a logs sub-pane open for the selected service even
+	// without the manual `l` toggle, so the tail follows the selection there too.
+	// When neither surface wants logs, stop the tail so it doesn't keep
+	// streaming a container we've navigated away from.
+	if !m.showLogs && !m.serviceLogsActive() {
+		m.logTail.Stop()
 		return nil
 	}
 	targets := m.currentLogTargets()
@@ -967,6 +1051,243 @@ func (m *Model) syncLogs() tea.Cmd {
 	return m.logTail.Start(targets[0])
 }
 
+// nextTab returns the tab `dir` steps (±1) along orderedTabs, wrapping at
+// both ends so ctrl+left from Dashboard lands on Services and ctrl+right
+// from Services lands on Dashboard.
+func (m *Model) nextTab(dir int) topTab {
+	n := len(orderedTabs)
+	idx := 0
+	for i, t := range orderedTabs {
+		if t == m.activeTab {
+			idx = i
+			break
+		}
+	}
+	idx = ((idx+dir)%n + n) % n
+	return orderedTabs[idx]
+}
+
+// switchTab moves to tab t and parks focus on the pane that screen leads
+// with: the sites list on the Sites tab, the services list on the Services
+// tab, and the (non-list) detail surface on the Dashboard so j/k scrolls the
+// grid. Closes any open picker so a half-finished version pick doesn't bleed
+// across screens.
+func (m *Model) switchTab(t topTab) {
+	if t == m.activeTab {
+		return
+	}
+	m.activeTab = t
+	m.closePicker()
+	switch t {
+	case tabServices:
+		m.focus = paneServices
+	case tabSites:
+		m.focus = paneSites
+		m.detailMode = detailSite
+	case tabDashboard:
+		m.focus = paneDetail
+		m.detailScroll = 0
+	}
+}
+
+// handleMouse turns mouse input into tab switches, row selections, card focus
+// and scrolling. The wheel scrolls whichever dashboard card it's over; a
+// left-click switches tabs, selects a list row, or (on the dashboard) jumps to
+// a clicked site/service's tab or focuses a card. Every clickable region is a
+// bubblezone mark laid down during render, so hit-testing is a bounds check.
+func (m *Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
+		return m.handleWheel(msg)
+	}
+	if msg.Action != tea.MouseActionPress || msg.Button != tea.MouseButtonLeft {
+		return m, nil
+	}
+	for _, t := range orderedTabs {
+		if zone.Get("tab:" + t.label()).InBounds(msg) {
+			m.switchTab(t)
+			return m, m.syncLogs()
+		}
+	}
+	// The Debug lens tabs (Dumps / Queries / …) are clickable wherever the
+	// Debug view is showing — the per-site Debug tab or the full window.
+	if m.inDebugView() {
+		for i := range debugLenses {
+			if zone.Get(fmt.Sprintf("debuglens:%d", i)).InBounds(msg) {
+				m.debugLens = i
+				m.dumpsCursor = 0
+				m.dumpsScroll = 0
+				m.detailScroll = 0
+				return m, nil
+			}
+		}
+	}
+	switch m.activeTab {
+	case tabSites:
+		for i := range m.visibleSites() {
+			if zone.Get(fmt.Sprintf("site:%d", i)).InBounds(msg) {
+				m.focus = paneSites
+				m.siteCursor = i
+				m.closePicker()
+				return m, m.syncLogs()
+			}
+		}
+		// The site-detail tab strip ([1] Overview · [2] Env · …) is clickable.
+		if m.detailMode == detailSite {
+			tabs := availableSiteTabs(m.currentSite())
+			for i := range tabs {
+				if zone.Get(fmt.Sprintf("sitetab:%d", i)).InBounds(msg) {
+					return m, m.selectSiteTab(i + 1)
+				}
+			}
+		}
+	case tabServices:
+		for i := range m.visibleServices() {
+			if zone.Get(fmt.Sprintf("svc:%d", i)).InBounds(msg) {
+				m.focus = paneServices
+				m.svcCursor = i
+				return m, m.syncLogs()
+			}
+		}
+	case tabDashboard:
+		// Clicking a site or service row jumps to that item on its own tab.
+		for i := range m.snap.Sites {
+			if zone.Get(fmt.Sprintf("dashsite:%d", i)).InBounds(msg) {
+				m.switchTab(tabSites)
+				m.selectSiteByName(m.snap.Sites[i].Name)
+				return m, m.syncLogs()
+			}
+		}
+		for i := range m.snap.Services {
+			if zone.Get(fmt.Sprintf("dashsvc:%d", i)).InBounds(msg) {
+				m.switchTab(tabServices)
+				m.selectServiceByName(m.snap.Services[i].Name)
+				return m, m.syncLogs()
+			}
+		}
+		// Worker rows live in the services list too, so a click jumps there
+		// with the worker selected.
+		for i := range m.snap.Services {
+			if zone.Get(fmt.Sprintf("dashworker:%d", i)).InBounds(msg) {
+				m.switchTab(tabServices)
+				m.selectServiceByName(m.snap.Services[i].Name)
+				return m, m.syncLogs()
+			}
+		}
+		// A click elsewhere on a card just focuses it for keyboard scrolling.
+		for i := 0; i < numDashCards; i++ {
+			if zone.Get(fmt.Sprintf("card:%d", i)).InBounds(msg) {
+				m.dashFocus = i
+				return m, nil
+			}
+		}
+	}
+	return m, nil
+}
+
+// handleWheel scrolls whichever scrollable pane the cursor is over: a
+// dashboard card, the app-logs / logs panes, the detail pane, or a list. Each
+// pane is a bubblezone region laid down during render; if the wheel isn't over
+// any known pane it falls back to scrolling the currently focused one.
+func (m *Model) handleWheel(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	up := msg.Button == tea.MouseButtonWheelUp
+	delta := 3
+	if up {
+		delta = -3
+	}
+
+	if m.activeTab == tabDashboard {
+		for i := 0; i < numDashCards; i++ {
+			if zone.Get(fmt.Sprintf("card:%d", i)).InBounds(msg) {
+				m.dashFocus = i
+				m.dashScroll[i] += delta
+				if m.dashScroll[i] < 0 {
+					m.dashScroll[i] = 0
+				}
+				return m, nil
+			}
+		}
+		return m, nil
+	}
+
+	// Logs pane (full-width when open) takes priority.
+	if m.showLogs && zone.Get("pane:logs").InBounds(msg) {
+		if up {
+			m.logScroll += 3
+		} else if m.logScroll -= 3; m.logScroll < 0 {
+			m.logScroll = 0
+		}
+		return m, nil
+	}
+	if _, _, ok := m.overviewLogsActive(); ok && zone.Get("pane:overviewlogs").InBounds(msg) {
+		if up {
+			m.overviewLogScroll += 3
+		} else if m.overviewLogScroll -= 3; m.overviewLogScroll < 0 {
+			m.overviewLogScroll = 0
+		}
+		return m, nil
+	}
+	if zone.Get("pane:detail").InBounds(msg) {
+		m.scrollOffset(&m.detailScroll, delta)
+		return m, nil
+	}
+	if zone.Get("pane:sites").InBounds(msg) {
+		m.scrollOffset(&m.siteScroll, delta)
+		return m, nil
+	}
+	if zone.Get("pane:services").InBounds(msg) {
+		m.scrollOffset(&m.svcScroll, delta)
+		return m, nil
+	}
+	// Fallback: scroll the offset of whatever pane currently holds focus.
+	switch m.focus {
+	case paneSites:
+		m.scrollOffset(&m.siteScroll, delta)
+	case paneServices:
+		m.scrollOffset(&m.svcScroll, delta)
+	case paneDetail:
+		m.scrollOffset(&m.detailScroll, delta)
+	}
+	return m, nil
+}
+
+// scrollOffset nudges a viewport scroll offset by delta, clamping the lower
+// bound; the upper bound is clamped by viewport() against the content height at
+// render time. It deliberately leaves the selection cursor alone, so wheeling
+// moves the view without changing what's selected.
+func (m *Model) scrollOffset(off *int, delta int) {
+	*off += delta
+	if *off < 0 {
+		*off = 0
+	}
+}
+
+// selectSiteByName focuses the Sites list on the site with the given name,
+// matched against the current (filtered/sorted) view so the cursor lands on
+// the row the user actually sees.
+func (m *Model) selectSiteByName(name string) {
+	for i, s := range m.visibleSites() {
+		if s.Name == name {
+			m.focus = paneSites
+			m.siteCursor = i
+			m.followCursor = true // scroll the destination list to it
+			return
+		}
+	}
+}
+
+// selectServiceByName focuses the Services list on the service with the given
+// name, matched against the current view.
+func (m *Model) selectServiceByName(name string) {
+	for i, s := range m.visibleServices() {
+		if s.Name == name {
+			m.focus = paneServices
+			m.svcCursor = i
+			m.followCursor = true // scroll the destination list to it
+			return
+		}
+	}
+}
+
 // nextFocus returns the focus after moving `dir` steps (±1) through the
 // list of panes that are currently visible and usable. Wide-mode order is
 // sites → detail → services so tab from a selected site lands on its
@@ -976,23 +1297,20 @@ func (m *Model) syncLogs() tea.Cmd {
 // moves between the current list pane and detail.
 func (m *Model) nextFocus(dir int) focusPane {
 	var panes []focusPane
-	if m.width < narrowWidth {
-		// In narrow mode, tab only moves between the current list pane and detail.
-		listPane := paneSites
-		if m.focus == paneServices {
-			listPane = paneServices
-		}
-		panes = []focusPane{listPane}
-		if m.currentSite() != nil {
+	switch m.activeTab {
+	case tabDashboard:
+		// The dashboard grid has no list panes; focus stays on detail so
+		// j/k scrolls the grid.
+		return paneDetail
+	case tabServices:
+		panes = []focusPane{paneServices}
+		if m.currentService() != nil {
 			panes = append(panes, paneDetail)
 		}
-	} else {
+	default: // tabSites
 		panes = []focusPane{paneSites}
 		if m.currentSite() != nil {
 			panes = append(panes, paneDetail)
-		}
-		if !m.hideServices {
-			panes = append(panes, paneServices)
 		}
 	}
 	n := len(panes)
@@ -1011,6 +1329,17 @@ func (m *Model) nextFocus(dir int) focusPane {
 }
 
 func (m *Model) moveCursor(delta int) {
+	// The Dashboard tab has no list selection — j/k scrolls the focused card.
+	if m.activeTab == tabDashboard {
+		m.dashScroll[m.dashFocus] += delta
+		if m.dashScroll[m.dashFocus] < 0 {
+			m.dashScroll[m.dashFocus] = 0
+		}
+		return
+	}
+	// Keyboard navigation should keep the moved selection on screen; the next
+	// render follows the cursor for the focused pane.
+	m.followCursor = true
 	switch m.focus {
 	case paneSites:
 		m.siteCursor = clamp(m.siteCursor+delta, 0, max(0, len(m.visibleSites())-1))
@@ -1033,14 +1362,6 @@ func (m *Model) moveCursor(delta int) {
 		case detailSystem:
 			nav := navigableSystemRows(m.systemRows())
 			m.systemRow = clamp(m.systemRow+delta, 0, max(0, len(nav)-1))
-		case detailDashboard:
-			// Dashboard has no selection — j/k just scrolls the content.
-			// Without this case the default branch would silently advance
-			// m.detailCursor on the hidden site-overview rows.
-			m.detailScroll += delta
-			if m.detailScroll < 0 {
-				m.detailScroll = 0
-			}
 		case detailDumps:
 			visible := len(m.debugVisibleEvents(""))
 			m.dumpsCursor = clamp(m.dumpsCursor+delta, 0, max(0, visible-1))
@@ -1064,6 +1385,7 @@ func (m *Model) moveCursor(delta int) {
 }
 
 func (m *Model) setCursor(pos int) {
+	m.followCursor = true
 	switch m.focus {
 	case paneSites:
 		m.siteCursor = clamp(pos, 0, max(0, len(m.visibleSites())-1))
@@ -1465,8 +1787,9 @@ func (m *Model) actionPauseToggle() tea.Cmd {
 // command registry.
 func Run(version string) error {
 	podman.Cache.Start(context.Background())
+	zone.NewGlobal()
 	m := NewModel(version)
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 
 	// Wire the cache's change callback into the program so an external
 	// state change (CLI mutation in another process, container crash,

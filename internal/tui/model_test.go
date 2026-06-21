@@ -30,6 +30,7 @@ func fakeSnap() Snapshot {
 func TestMoveCursor_Sites_Bounds(t *testing.T) {
 	m := NewModel("test")
 	m.snap = fakeSnap()
+	m.activeTab = tabSites
 	m.focus = paneSites
 
 	m.moveCursor(1)
@@ -49,6 +50,7 @@ func TestMoveCursor_Sites_Bounds(t *testing.T) {
 func TestMoveCursor_Services_Bounds(t *testing.T) {
 	m := NewModel("test")
 	m.snap = fakeSnap()
+	m.activeTab = tabServices
 	m.focus = paneServices
 
 	m.moveCursor(2)
@@ -64,12 +66,12 @@ func TestMoveCursor_Services_Bounds(t *testing.T) {
 func TestTabCyclesFocus(t *testing.T) {
 	m := NewModel("test")
 	m.snap = fakeSnap()
+	m.switchTab(tabSites)
 	if m.focus != paneSites {
 		t.Fatalf("initial focus should be sites, got %d", m.focus)
 	}
-	// Tab order is sites → detail → services so the user who just
-	// selected a site lands on its detail next (the most likely
-	// next action) rather than jumping sideways to services.
+	// On the Sites tab, focus cycles sites → detail → sites. Services now
+	// live on their own tab, so they're no longer in the cycle.
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	m = next.(*Model)
 	if m.focus != paneDetail {
@@ -77,26 +79,20 @@ func TestTabCyclesFocus(t *testing.T) {
 	}
 	next, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	m = next.(*Model)
-	if m.focus != paneServices {
-		t.Fatalf("second tab should move focus to services, got %d", m.focus)
-	}
-	next, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
-	m = next.(*Model)
 	if m.focus != paneSites {
-		t.Fatalf("third tab should return focus to sites, got %d", m.focus)
+		t.Fatalf("second tab should wrap back to sites, got %d", m.focus)
 	}
 }
 
 func TestTabSkipsDetailWhenNoSite(t *testing.T) {
 	m := NewModel("test")
-	m.snap = Snapshot{
-		Services: []ServiceRow{{Name: "mysql", State: stateRunning}},
-	}
-	m.focus = paneServices
+	m.snap = Snapshot{} // no sites
+	m.switchTab(tabSites)
+	// With no site selected there is no detail pane, so tab stays on the list.
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	m = next.(*Model)
 	if m.focus != paneSites {
-		t.Fatalf("tab with no sites should skip detail and wrap to sites, got %d", m.focus)
+		t.Fatalf("tab with no sites should stay on the sites pane, got %d", m.focus)
 	}
 }
 
@@ -120,11 +116,21 @@ func TestViewRendersCoreContent(t *testing.T) {
 	m := NewModel("v1.0.0")
 	m.snap = fakeSnap()
 	m.width, m.height = 120, 30
+	m.switchTab(tabSites)
 
+	// Sites tab: tab-bar labels plus the sites list and detail.
 	out := m.View()
-	for _, want := range []string{"Sites", "Services", "alpha", "beta", "mysql", "redis"} {
+	for _, want := range []string{"Dashboard", "Sites", "Services", "alpha", "beta"} {
 		if !strings.Contains(out, want) {
-			t.Fatalf("view missing %q\n---\n%s", want, out)
+			t.Fatalf("sites view missing %q\n---\n%s", want, out)
+		}
+	}
+	// Services tab renders the services list.
+	m.switchTab(tabServices)
+	out = m.View()
+	for _, want := range []string{"mysql", "redis"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("services view missing %q\n---\n%s", want, out)
 		}
 	}
 }

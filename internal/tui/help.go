@@ -13,8 +13,10 @@ var helpReference = []helpSection{
 	{
 		title: "Navigation",
 		rows: [][2]string{
-			{"tab / shift+tab", "cycle focus through Sites · Detail · Services (use `v` to hide services from the cycle)"},
-			{"↑ ↓  j k", "move selection within the focused pane"},
+			{"ctrl+← / ctrl+→", "switch the top tab (Dashboard · Sites · Services); tabs are also clickable"},
+			{"tab / shift+tab", "cycle focus between the list and the detail pane on the current tab"},
+			{"click", "click a tab to switch screens, or a site / service row to select it"},
+			{"↑ ↓  j k", "move selection within the focused pane (scrolls the grid on the Dashboard)"},
 			{"pgup / pgdn", "jump by 10 rows"},
 			{"home / end · g G", "jump to first / last row"},
 		},
@@ -45,11 +47,11 @@ var helpReference = []helpSection{
 	{
 		title: "Site detail tabs",
 		rows: [][2]string{
-			{"1", "Overview tab (default — workers, toggles, worktrees)"},
+			{"1", "Overview tab (default — workers, toggles, worktrees, app-logs pane beneath)"},
 			{"2", "Env tab (read-only .env display)"},
 			{"3", "Debug tab (this site's lenses: dumps, queries, jobs, mail, …)"},
-			{"4", "App logs tab (every framework-declared log file with size and mtime)"},
-			{"5", "Doctor tab (Laravel only — APP_KEY, env drift, migrations, storage link; press again to re-run)"},
+			{"4", "Doctor tab (Laravel only — APP_KEY, env drift, migrations, storage link; press again to re-run)"},
+			{"{ / }", "scroll the Overview app-logs pane (or the logs pane when open)"},
 		},
 	},
 	{
@@ -96,11 +98,10 @@ var helpReference = []helpSection{
 	{
 		title: "Panes & overlays",
 		rows: [][2]string{
-			{"v", "show / hide the services pane"},
-			{"F", "swap the detail pane for the Dashboard (counts, system health, resources)"},
-			{"S", "swap the detail pane for global Settings (LAN expose, autostart, Xdebug)"},
-			{"Y", "swap the detail pane for the System overview (DNS, Nginx, Watcher, PHP, Node, Lerd)"},
-			{"D", "open the Debug window (dumps, queries with N+1, jobs, mail, …)"},
+			{"Dashboard tab", "six-card overview (Sites · Services · Workers · System Health · Resources · Lerd)"},
+			{"S", "swap the detail pane for global Settings (LAN expose, autostart, Xdebug) — Sites tab"},
+			{"Y", "swap the detail pane for the System overview (DNS, Nginx, Watcher, PHP, Node, Lerd) — Sites tab"},
+			{"D", "open the Debug window (dumps, queries with N+1, jobs, mail, …) — Sites tab"},
 			{"?", "swap the detail pane for this help reference"},
 			{"esc", "close picker or return to site detail"},
 		},

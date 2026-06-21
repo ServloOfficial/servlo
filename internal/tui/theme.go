@@ -35,6 +35,20 @@ var (
 	helpStyle      = lipgloss.NewStyle().Foreground(colDim)
 )
 
+// Top tab bar styles. The active tab reads as a filled accent pill so it
+// stands out as the current screen; inactive tabs sit dim until hovered or
+// clicked. Both keep the same padding so the bar's hit regions line up.
+var (
+	tabActiveStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#0b0b0b")).Background(colAccent).Padding(0, 2)
+	tabInactiveStyle = lipgloss.NewStyle().Foreground(colDim).Padding(0, 2)
+	tabBarStyle      = lipgloss.NewStyle().Padding(0, 1)
+)
+
+// cardStyle is the bordered box every dashboard grid card draws inside. It
+// mirrors unfocusedPane (rounded divider border, single-cell padding) so the
+// grid reads as a set of panels in the same visual language as the lists.
+var cardStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(colDivider).Padding(0, 1)
+
 const (
 	glyphRunning   = "●"
 	glyphStopped   = "○"
