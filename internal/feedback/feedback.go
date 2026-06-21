@@ -18,14 +18,16 @@ import (
 // Canonical lerd palette (Tailwind hex values). The TUI theme aliases these so
 // CLI feedback and the dashboard share one set of colours.
 var (
-	ColTitle   = lipgloss.Color("#FF2D20") // lerd red
+	ColTitle   = lipgloss.Color("#FF2D20") // lerd red (Laravel brand)
 	ColDim     = lipgloss.Color("#6b7280") // gray-500
 	ColDivider = lipgloss.Color("#374151") // gray-700
 	ColRunning = lipgloss.Color("#10b981") // emerald-500
 	ColStopped = lipgloss.Color("#6b7280") // gray-500
 	ColFailing = lipgloss.Color("#ef4444") // red-500
 	ColPaused  = lipgloss.Color("#f59e0b") // amber-400
-	ColAccent  = lipgloss.Color("#a78bfa") // violet-400
+	// Interactive accent is the brand red so the TUI, CLI feedback, and the web
+	// UI all share one accent rather than diverging on a separate hue.
+	ColAccent = lipgloss.Color("#FF2D20") // lerd red
 )
 
 var (

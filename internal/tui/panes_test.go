@@ -169,8 +169,8 @@ func TestCountFailingWorkers_AggregatesAcrossSitesAndWorktrees(t *testing.T) {
 			{HorizonFailing: true}, // +1
 		},
 	}
-	if got := countFailingWorkers(snap); got != 4 {
-		t.Errorf("countFailingWorkers = %d, want 4", got)
+	if got := len(failingWorkerNames(snap)); got != 4 {
+		t.Errorf("failingWorkerNames count = %d, want 4", got)
 	}
 }
 
@@ -183,7 +183,7 @@ func TestCountFailingWorkers_ZeroWhenAllHealthy(t *testing.T) {
 			{HasHorizon: true, HorizonRunning: true},
 		},
 	}
-	if got := countFailingWorkers(snap); got != 0 {
-		t.Errorf("countFailingWorkers = %d, want 0", got)
+	if got := len(failingWorkerNames(snap)); got != 0 {
+		t.Errorf("failingWorkerNames count = %d, want 0", got)
 	}
 }

@@ -8,27 +8,27 @@ import (
 	"github.com/geodro/lerd/internal/siteinfo"
 )
 
-func TestNextFocus_SkipsServicesWhenHidden(t *testing.T) {
+func TestNextFocus_SitesTabCyclesSitesAndDetail(t *testing.T) {
 	m := NewModel("test")
 	m.snap = fakeSnap()
-	m.hideServices = true
+	m.activeTab = tabSites
 	m.focus = paneSites
 
+	// Sites tab cycles sites → detail; services is never in the cycle.
 	got := m.nextFocus(+1)
 	if got != paneDetail {
-		t.Fatalf("hideServices + tab should skip to detail, got %d", got)
+		t.Fatalf("sites tab: tab from sites should land on detail, got %d", got)
 	}
 }
 
-func TestNextFocus_NoSitesSkipsDetail(t *testing.T) {
+func TestNextFocus_ServicesTabNoServiceSkipsDetail(t *testing.T) {
 	m := NewModel("test")
-	m.snap = Snapshot{
-		Services: []ServiceRow{{Name: "mysql", State: stateRunning}},
-	}
+	m.snap = Snapshot{} // no services → detail has nothing to show
+	m.activeTab = tabServices
 	m.focus = paneServices
 	got := m.nextFocus(+1)
-	if got != paneSites {
-		t.Fatalf("without sites, tab from services should wrap to sites (skipping detail), got %d", got)
+	if got != paneServices {
+		t.Fatalf("services tab with no service should stay on services, got %d", got)
 	}
 }
 
@@ -76,6 +76,7 @@ func TestFilterInput_CollectsRunes(t *testing.T) {
 func TestDetailMode_SToggleSetsFocus(t *testing.T) {
 	m := NewModel("test")
 	m.snap = fakeSnap()
+	m.activeTab = tabSites
 	m.focus = paneSites
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'S'}})
 	m = next.(*Model)
@@ -109,17 +110,25 @@ func TestHelpModal_Toggle(t *testing.T) {
 	}
 }
 
-func TestHideServicesToggle(t *testing.T) {
+func TestTabSwitch_CtrlArrowsCycle(t *testing.T) {
 	m := NewModel("test")
 	m.snap = fakeSnap()
-	m.focus = paneServices
-	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m.switchTab(tabSites)
+	// From Sites: ctrl+right → Services, ctrl+left twice → Dashboard.
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlRight})
 	m = next.(*Model)
-	if !m.hideServices {
-		t.Fatalf("v should hide services")
+	if m.activeTab != tabServices {
+		t.Fatalf("ctrl+right from Sites should land on Services, got %d", m.activeTab)
 	}
-	if m.focus == paneServices {
-		t.Fatalf("focus should move off hidden pane, got %d", m.focus)
+	if m.focus != paneServices {
+		t.Fatalf("switching to Services should focus the services pane, got %d", m.focus)
+	}
+	next, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlLeft})
+	m = next.(*Model)
+	next, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlLeft})
+	m = next.(*Model)
+	if m.activeTab != tabDashboard {
+		t.Fatalf("ctrl+left twice should reach Dashboard, got %d", m.activeTab)
 	}
 }
 
@@ -127,6 +136,7 @@ func TestViewRendersUnderSettingsMode(t *testing.T) {
 	m := NewModel("test")
 	m.snap = fakeSnap()
 	m.width, m.height = 150, 40
+	m.switchTab(tabSites)
 	m.detailMode = detailSettings
 	out := m.View()
 	if !strings.Contains(out, "Settings") {

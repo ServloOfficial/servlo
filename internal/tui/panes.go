@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/geodro/lerd/internal/siteinfo"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 // narrowWidth is the terminal width below which the TUI switches from the
@@ -41,47 +42,140 @@ func (m *Model) View() string {
 		return out
 	}
 
-	header := m.renderHeader()
+	tabs := m.renderTabs(m.width)
 	footer := m.renderFooter()
 	statusBar := m.renderStatus()
 
-	toasts := m.renderToasts(m.width)
-	reserved := lipgloss.Height(header) + lipgloss.Height(footer)
+	// Toasts float over the content as an overlay rather than claiming layout
+	// rows, so a transient notification never reflows the panes underneath.
+	reserved := lipgloss.Height(tabs) + lipgloss.Height(footer)
 	if statusBar != "" {
 		reserved += lipgloss.Height(statusBar)
-	}
-	if toasts != "" {
-		reserved += lipgloss.Height(toasts)
 	}
 	bodyH := m.height - reserved
 	if bodyH < 6 {
 		bodyH = 6
 	}
 
-	// Logs pane gets at least half the full window when open. Clamp so the
-	// top lists always keep at least 6 rows to stay useful.
+	// The full-width logs pane is the manual `l` toggle. On the Services tab the
+	// logs live in a sub-pane inside the detail column instead, so the
+	// full-width one steps aside to avoid showing the tail twice.
+	showFullLogs := m.showLogs && !m.serviceLogsActive()
+
+	// Logs pane takes at least half the window when open, and can grow larger,
+	// leaving only a sliver of the top pane so the log view dominates.
 	logH := 0
-	if m.showLogs {
-		logH = m.height / 2
-		if half := bodyH / 2; logH < half {
-			logH = half
+	if showFullLogs {
+		logH = bodyH / 2
+		if h := m.height / 2; h > logH {
+			logH = h
 		}
 		if logH < 10 {
 			logH = 10
 		}
-		if logH > bodyH-6 {
-			logH = bodyH - 6
+		if logH > bodyH-4 {
+			logH = bodyH - 4
 		}
 	}
 	topH := bodyH - logH
-	if topH < 6 {
-		topH = 6
+	if topH < 4 {
+		topH = 4
 	}
 
-	var top string
+	top := m.renderBody(topH)
+
+	sections := []string{tabs, top}
+	if showFullLogs {
+		sections = append(sections, zone.Mark("pane:logs", m.renderLogs(m.width, logH)))
+	}
+	if statusBar != "" {
+		sections = append(sections, statusBar)
+	}
+	sections = append(sections, footer)
+
+	out := lipgloss.JoinVertical(lipgloss.Left, sections...)
+	// Composite toasts over the bottom-right, just above the footer, without
+	// having reserved any rows for them above.
+	if stack := m.toastStack(); stack != "" {
+		out = overlayBottomRight(out, stack, lipgloss.Height(footer))
+	}
+	return zone.Scan(out)
+}
+
+// overlayBottomRight paints overlay onto base anchored to the right edge, with
+// its last line marginBottom rows above the bottom of base. Each overlay line
+// is right-aligned individually and only the cells it covers are overwritten,
+// so content to the left of the overlay shows through.
+func overlayBottomRight(base, overlay string, marginBottom int) string {
+	baseLines := strings.Split(base, "\n")
+	ovLines := strings.Split(overlay, "\n")
+	start := len(baseLines) - marginBottom - len(ovLines)
+	if start < 0 {
+		start = 0
+	}
+	for i, ol := range ovLines {
+		row := start + i
+		if row < 0 || row >= len(baseLines) {
+			continue
+		}
+		olW := ansi.StringWidth(ol)
+		col := ansi.StringWidth(baseLines[row]) - olW
+		if col < 0 {
+			col = 0
+		}
+		left := padToWidth(ansi.Truncate(baseLines[row], col, ""), col)
+		baseLines[row] = left + ol
+	}
+	return strings.Join(baseLines, "\n")
+}
+
+// renderTabs draws the clickable top tab strip. Each label is wrapped in a
+// bubblezone mark ("tab:<label>") so handleMouse can hit-test a click without
+// tracking column offsets by hand; the active tab reads as a filled accent
+// pill, the rest sit dim.
+func (m *Model) renderTabs(width int) string {
+	parts := make([]string, 0, len(orderedTabs))
+	for _, t := range orderedTabs {
+		style := tabInactiveStyle
+		if t == m.activeTab {
+			style = tabActiveStyle
+		}
+		parts = append(parts, zone.Mark("tab:"+t.label(), style.Render(t.label())))
+	}
+	bar := lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+
+	// The version sits on the far right of the same row; an update banner
+	// follows it in accent when a newer release is available.
+	right := titleStyle.Render("lerd " + m.version)
+	if m.updateAvailable != "" {
+		right += "  " + accentStyle.Render("update "+m.updateAvailable)
+	}
+	inner := width - 2 // tabBarStyle horizontal padding
+	gap := inner - lipgloss.Width(bar) - lipgloss.Width(right)
+	if gap < 1 {
+		gap = 1
+	}
+	return tabBarStyle.Render(bar + spaces(gap) + right)
+}
+
+// renderBody renders the active tab's screen into the given height: the
+// six-card dashboard grid, the sites list + site detail, or the services list
+// + service detail. Sites/Services reuse the wide/narrow split that the old
+// combined layout used, minus the second list pane.
+func (m *Model) renderBody(topH int) string {
+	if m.activeTab == tabDashboard {
+		return m.renderDashboardGrid(m.width, topH)
+	}
+
+	listPane := m.renderSites
+	listZone := "pane:sites"
+	if m.activeTab == tabServices {
+		listPane = m.renderServices
+		listZone = "pane:services"
+	}
+
 	if m.width < narrowWidth {
-		// Narrow: stack list on top, detail below — both always visible.
-		// Give the list 40% of the body height, detail gets the rest.
+		// Narrow: stack the list on top, detail below.
 		listH := topH * 2 / 5
 		if listH < 6 {
 			listH = 6
@@ -91,124 +185,67 @@ func (m *Model) View() string {
 		}
 		detailH := topH - listH
 
-		switch {
-		case m.focus == paneServices:
-			// Services focused: take the full height, hide detail.
-			top = m.renderServices(m.width, topH)
-		case m.detailMode == detailSettings || m.detailMode == detailSystem || m.detailMode == detailDumps || m.detailMode == detailDashboard:
-			// Help / settings / system / dumps: take full height so content
-			// isn't cramped between the list and a slim detail pane.
-			top = m.renderDetailInline(m.width, topH, true)
-		default:
-			list := m.renderSites(m.width, listH)
-			detail := m.renderDetailInline(m.width, detailH, m.focus == paneDetail)
-			top = lipgloss.JoinVertical(lipgloss.Left, list, detail)
+		// Settings / system / dumps take the full height so the content isn't
+		// cramped between the list and a slim detail pane (Sites tab only).
+		if m.activeTab == tabSites && (m.detailMode == detailSettings || m.detailMode == detailSystem || m.detailMode == detailDumps) {
+			return zone.Mark("pane:detail", m.renderDetailInline(m.width, topH, true))
 		}
-	} else {
-		// Wide: left column stacks sites on top of services; right column is
-		// the site detail (full topH). When services is hidden, sites takes
-		// the whole left column.
-		leftW := m.width * 2 / 5
-		if leftW < 36 {
-			leftW = 36
-		}
-		if leftW > m.width-30 {
-			leftW = m.width - 30
-		}
-		rightW := m.width - leftW
-
-		var left string
-		if m.hideServices {
-			left = m.renderSites(leftW, topH)
-		} else {
-			// +3 was the original budget for title + filter + scrollbar
-			// padding; the grouped renderer adds up to 2 lines per group
-			// header (blank separator + label), so reserve 6 extra cells
-			// for the worst case of three visible groups.
-			svcNeeded := len(m.snap.Services) + 9
-			if svcNeeded < 8 {
-				svcNeeded = 8
-			}
-			svcH := svcNeeded
-			if lim := topH / 2; svcH > lim {
-				svcH = lim
-			}
-			if svcH > topH-6 {
-				svcH = topH - 6
-			}
-			if svcH < 4 {
-				svcH = 4
-			}
-			siteH := topH - svcH
-			sites := m.renderSites(leftW, siteH)
-			services := m.renderServices(leftW, svcH)
-			left = lipgloss.JoinVertical(lipgloss.Left, sites, services)
-		}
-		detail := m.renderDetailInline(rightW, topH, m.focus == paneDetail)
-		top = lipgloss.JoinHorizontal(lipgloss.Top, left, detail)
+		list := zone.Mark(listZone, listPane(m.width, listH))
+		detail := m.renderDetailColumn(m.width, detailH, m.focus == paneDetail)
+		return lipgloss.JoinVertical(lipgloss.Left, list, detail)
 	}
 
-	sections := []string{header, top}
-	if m.showLogs {
-		sections = append(sections, m.renderLogs(m.width, logH))
+	// Wide: list on the left, detail on the right. The lists are slim (status
+	// dot, name, short meta), so they take about a quarter of the width and are
+	// capped so they never sprawl on a wide terminal — the detail gets the rest.
+	leftW := m.width / 4
+	if leftW < 28 {
+		leftW = 28
 	}
-	if statusBar != "" {
-		sections = append(sections, statusBar)
+	if leftW > 46 {
+		leftW = 46
 	}
-	if toasts != "" {
-		sections = append(sections, toasts)
+	if leftW > m.width-30 {
+		leftW = m.width - 30
 	}
-	sections = append(sections, footer)
-
-	return lipgloss.JoinVertical(lipgloss.Left, sections...)
+	rightW := m.width - leftW
+	left := zone.Mark(listZone, listPane(leftW, topH))
+	detail := m.renderDetailColumn(rightW, topH, m.focus == paneDetail)
+	return lipgloss.JoinHorizontal(lipgloss.Top, left, detail)
 }
 
-func (m *Model) renderHeader() string {
-	parts := []string{titleStyle.Render("lerd " + m.version)}
-
-	if m.updateAvailable != "" {
-		parts = append(parts, accentStyle.Render("update: "+m.updateAvailable+" (run `lerd update`)"))
+// renderDetailColumn renders the right-hand detail surface, splitting off a
+// scrollable app-logs pane beneath it when the Overview tab is showing a site
+// with declared log files. Falls back to the plain detail pane otherwise.
+func (m *Model) renderDetailColumn(w, h int, focused bool) string {
+	// A bottom logs sub-pane opens for the Sites Overview (app-log file tail)
+	// and for the selected service/worker on the Services tab (streaming logs).
+	_, logPath, siteLogs := m.overviewLogsActive()
+	svcLogs := m.serviceLogsActive()
+	if !siteLogs && !svcLogs {
+		return zone.Mark("pane:detail", m.renderDetailInline(w, h, focused))
 	}
-
-	if m.snap.Status.DNSDisabled {
-		parts = append(parts, dimStyle.Render("DNS off"))
-	} else if m.snap.Status.DNSOk {
-		parts = append(parts, runningStyle.Render("DNS ok"))
-	} else if m.snap.Status.DNSDegraded {
-		parts = append(parts, accentStyle.Render("DNS degraded"))
+	// The logs sub-pane takes at least half the detail column so it's actually
+	// usable; the detail keeps the rest.
+	logsH := h / 2
+	if logsH < 6 {
+		logsH = 6
+	}
+	if logsH > h-6 {
+		logsH = h - 6
+	}
+	if logsH < 4 || h-logsH < 4 {
+		// Too short to split usefully; show the detail alone.
+		return zone.Mark("pane:detail", m.renderDetailInline(w, h, focused))
+	}
+	detail := zone.Mark("pane:detail", m.renderDetailInline(w, h-logsH, focused))
+	var logPane string
+	if siteLogs {
+		logPane = zone.Mark("pane:overviewlogs", m.renderOverviewLogs(logPath, w, logsH))
 	} else {
-		parts = append(parts, failingStyle.Render("DNS down"))
+		logPane = zone.Mark("pane:logs", m.renderLogs(w, logsH))
 	}
-
-	if m.snap.Status.NginxRunning {
-		parts = append(parts, runningStyle.Render("nginx up"))
-	} else {
-		parts = append(parts, stoppedStyle.Render("nginx down"))
-	}
-
-	if len(m.snap.Status.PHPRunning) > 0 {
-		parts = append(parts, accentStyle.Render("FPM "+strings.Join(m.snap.Status.PHPRunning, ",")))
-	}
-
-	if m.snap.Status.WatcherRunning {
-		parts = append(parts, dimStyle.Render("watcher"))
-	}
-
-	if names := failingWorkerNames(m.snap); len(names) > 0 {
-		parts = append(parts, failingStyle.Render(fmt.Sprintf("⚠ %s failing · H to heal", joinTruncated(names, 3))))
-	}
-
-	parts = append(parts, dimStyle.Render(time.Now().Format("15:04:05")))
-
-	return strings.Join(parts, "  ·  ")
-}
-
-// countFailingWorkers totals workers in the systemd "failed" state. Kept
-// for callers that only need the count (dashboard hero); the header now
-// uses failingWorkerNames so users see which units are red, not just how
-// many.
-func countFailingWorkers(snap Snapshot) int {
-	return len(failingWorkerNames(snap))
+	return lipgloss.JoinVertical(lipgloss.Left, detail, logPane)
 }
 
 // failingWorkerNames returns kind-site pairs ("queue-acme", "vite-shop")
@@ -277,36 +314,27 @@ func (m *Model) renderFooter() string {
 	if m.filterActive {
 		return helpStyle.Render("  filter: type to match · enter apply · esc clear")
 	}
+
+	// Narrow terminals only have room for the essentials; `?` reveals the rest.
 	if m.width < narrowWidth {
-		keys := []string{
-			"tab panes",
-			"↑↓ nav",
-			"space toggle",
-			"l logs",
-			"v services",
-			"q quit",
-		}
-		return helpStyle.Render("  " + strings.Join(keys, "   "))
+		return helpStyle.Render("  " + strings.Join([]string{
+			"ctrl+←→ tabs", "↑↓ nav", "space toggle", "? help", "q quit",
+		}, "  ·  "))
 	}
-	keys := []string{
-		"tab panes",
-		"↑↓ nav",
-		"space toggle",
-		"/ filter",
-		"o sort",
-		"s start",
-		"x stop",
-		"r restart",
-		"l logs",
-		"t shell",
-		"v services",
-		"F dash",
-		"S settings",
-		"Y system",
-		"? help",
-		"q quit",
+
+	// Context-aware: each tab shows only the keys that act on it, so the bar
+	// reads as a relevant cheat-sheet rather than a wall of every binding.
+	var keys []string
+	switch m.activeTab {
+	case tabDashboard:
+		keys = []string{"ctrl+←→ tabs", "↑↓ scroll", "tab card", "click open", "H heal", "? help", "q quit"}
+	case tabServices:
+		keys = []string{"ctrl+←→ tabs", "↑↓ nav", "/ filter", "s start", "x stop", "r restart", "u update", "b rollback", "t shell", "O open", "? help", "q quit"}
+	default: // tabSites
+		keys = []string{"ctrl+←→ tabs", "tab panes", "↑↓ nav", "space toggle", "/ filter", "s start", "x stop", "r restart", "l logs", "t shell", "S settings", "Y system", "D debug", "? help", "q quit"}
 	}
-	return helpStyle.Render("  " + strings.Join(keys, "   "))
+	// Clip to the window so a long bar can't overflow and break the layout.
+	return helpStyle.Render(clipLine("  "+strings.Join(keys, "  ·  "), m.width))
 }
 
 func (m *Model) renderStatus() string {
@@ -372,11 +400,19 @@ func (m *Model) renderSites(w, h int) string {
 	default:
 		for i, s := range sites {
 			row := renderSiteRow(i == m.siteCursor && m.focus == paneSites, s, contentW)
-			rowData = append(rowData, padToWidth(clipLine(row, contentW), contentW))
+			row = padToWidth(clipLine(row, contentW), contentW)
+			// Mark the padded row so a click anywhere on it selects this site.
+			// The marker wraps the final content, so width math above is
+			// unaffected (bubblezone markers are zero-width to ansi).
+			rowData = append(rowData, zone.Mark(fmt.Sprintf("site:%d", i), row))
 		}
 	}
 
-	visible := viewport(rowData, m.siteCursor, availRows, &m.siteScroll)
+	cur := -1
+	if m.focus == paneSites && m.followCursor {
+		cur = m.siteCursor
+	}
+	visible := viewport(rowData, cur, availRows, &m.siteScroll)
 	bar := renderScrollbar(availRows, len(rowData), m.siteScroll, len(visible))
 	for i := 0; i < availRows; i++ {
 		row := ""
@@ -418,16 +454,11 @@ func renderSiteRow(selected bool, s siteinfo.EnrichedSite, paneW int) string {
 		name += " (paused)"
 	}
 
-	php := s.PHPVersion
-	if php == "" && s.ContainerPort > 0 {
-		php = "custom"
-	}
-
-	// Reserve the SAME budget on every row so PHP and worker columns line
-	// up vertically, regardless of which workers a site happens to run.
-	// The previous version subtracted workersW per row, which left empty-
-	// worker rows with a wider name column and shifted PHP leftward.
-	reserved := 4 /* prefix + glyph + spaces */ + 7 /* php %-7s */ + 1 + siteWorkerColWidth
+	// Reserve the SAME budget on every row so the worker column lines up
+	// vertically, regardless of which workers a site happens to run. The
+	// previous version subtracted workersW per row, which left empty-worker
+	// rows with a wider name column.
+	reserved := 4 /* prefix + glyph + spaces */ + 1 + siteWorkerColWidth
 	nameW := paneW - reserved
 	if nameW < 16 {
 		nameW = 16
@@ -457,7 +488,7 @@ func renderSiteRow(selected bool, s siteinfo.EnrichedSite, paneW int) string {
 		styled = selectedStyle.Render(name)
 	}
 
-	return fmt.Sprintf("%s %s %s %-7s %s", prefix, glyph, styled, php, padToWidth(workers, siteWorkerColWidth))
+	return fmt.Sprintf("%s %s %s %s", prefix, glyph, styled, padToWidth(workers, siteWorkerColWidth))
 }
 
 func fpmGlyph(s siteinfo.EnrichedSite) string {
@@ -535,7 +566,11 @@ func (m *Model) renderServices(w, h int) string {
 		rowData, cursorLine = renderGroupedServiceRows(services, m.svcCursor, m.focus == paneServices, contentW)
 	}
 
-	visible := viewport(rowData, cursorLine, availRows, &m.svcScroll)
+	cur := -1
+	if m.focus == paneServices && m.followCursor {
+		cur = cursorLine
+	}
+	visible := viewport(rowData, cur, availRows, &m.svcScroll)
 	bar := renderScrollbar(availRows, len(rowData), m.svcScroll, len(visible))
 	for i := 0; i < availRows; i++ {
 		row := ""
@@ -636,7 +671,8 @@ func renderGroupedServiceRows(services []ServiceRow, cursor int, paneFocused boo
 		} else {
 			row = renderServiceRow(selected, s, contentW)
 		}
-		rows = append(rows, padToWidth(clipLine(row, contentW), contentW))
+		row = padToWidth(clipLine(row, contentW), contentW)
+		rows = append(rows, zone.Mark(fmt.Sprintf("svc:%d", i), row))
 	}
 	return rows, cursorLine
 }
@@ -645,7 +681,7 @@ func renderGroupedServiceRows(services []ServiceRow, cursor int, paneFocused boo
 // (version + site count + pinned/custom tags). Reserved identically on
 // every row so the meta column starts at the same column regardless of
 // which tags are present, mirroring the aligned layout in the sites pane.
-const serviceMetaColWidth = 32
+const serviceMetaColWidth = 18
 
 // serviceStateGlyph maps a service/worker state to its coloured dot, shared by
 // the service and worker row renderers so the two never drift.
@@ -685,15 +721,11 @@ func renderWorkerRow(selected bool, s ServiceRow, paneW int) string {
 func renderServiceRow(selected bool, s ServiceRow, paneW int) string {
 	glyph := serviceStateGlyph(s.State)
 
-	// A worker row already names its single owning site (queue-<site>), so the
-	// "(1 site)" count every worker would carry is noise — only real services,
-	// which several sites can share, show the count.
+	// The site-count lives in the service detail pane now, so the list row
+	// just carries the version and any pinned/custom tags.
 	meta := ""
-	if s.WorkerKind == "" {
-		meta = fmt.Sprintf("(%d site%s)", s.SiteCount, plural(s.SiteCount))
-	}
 	if s.Version != "" {
-		meta = dimStyle.Render(s.Version) + "  " + meta
+		meta = dimStyle.Render(s.Version)
 	}
 	if s.Pinned {
 		meta += "  " + accentStyle.Render("pinned")
@@ -967,11 +999,4 @@ func spaces(n int) string {
 		b[i] = ' '
 	}
 	return string(b)
-}
-
-func plural(n int) string {
-	if n == 1 {
-		return ""
-	}
-	return "s"
 }
