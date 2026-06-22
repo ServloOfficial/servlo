@@ -79,8 +79,10 @@ func handleLSPPhp(w http.ResponseWriter, r *http.Request) {
 	// on it before cmd.Wait() because Wait closes the StdoutPipe, and os/exec
 	// documents that reading the pipe concurrently with Wait is a data race.
 	pumpDone := make(chan struct{})
+	pingDone := make(chan struct{})
 	defer func() {
 		cancel()
+		<-pingDone
 		<-pumpDone
 		_ = cmd.Wait()
 	}()
@@ -107,16 +109,13 @@ func handleLSPPhp(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Hand the browser the resolved workspace root before any LSP traffic: it
-	// needs the absolute host path to build the document URI and rootUri. This
-	// is the only non-LSP frame on the wire, and always arrives first.
-	if err := sendText([]byte(`{"type":"lerd-root","root":` + strconv.Quote(root) + `}`)); err != nil {
-		return
-	}
-
 	// Probe a silent socket so a dead browser tab releases the process.
 	// Browsers auto-reply to pings; the pong refreshes the read deadline.
+	// Started before the lerd-root frame so the deferred join always has a live
+	// goroutine to close pingDone, even when the send below returns early, and so
+	// the ping can never write to the socket after the deferred ws.Close.
 	go func() {
+		defer close(pingDone)
 		t := time.NewTicker(wsPingInterval)
 		defer t.Stop()
 		for {
@@ -134,6 +133,13 @@ func handleLSPPhp(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
+
+	// Hand the browser the resolved workspace root before any LSP traffic: it
+	// needs the absolute host path to build the document URI and rootUri. This
+	// is the only non-LSP frame on the wire, and always arrives first.
+	if err := sendText([]byte(`{"type":"lerd-root","root":` + strconv.Quote(root) + `}`)); err != nil {
+		return
+	}
 
 	// ws frames -> stdin (Content-Length framed).
 	for {

@@ -50,14 +50,14 @@ func LinkChanges(out chan<- struct{}, done <-chan struct{}) error {
 		if err != nil {
 			if errors.Is(err, unix.EAGAIN) || errors.Is(err, unix.EWOULDBLOCK) {
 				if waitErr := waitReadable(fd, done); waitErr != nil {
-					return nil
+					return errUnlessDone(done, fmt.Errorf("rtnetlink poll: %w", waitErr))
 				}
 				continue
 			}
-			return nil
+			return errUnlessDone(done, fmt.Errorf("rtnetlink read: %w", err))
 		}
 		if n <= 0 {
-			return nil
+			return errUnlessDone(done, errors.New("rtnetlink socket closed"))
 		}
 		select {
 		case out <- struct{}{}:

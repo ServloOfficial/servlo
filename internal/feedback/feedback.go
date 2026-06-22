@@ -122,20 +122,37 @@ func Begin() {
 // prints until the finishing call writes the line once.
 type Step struct {
 	msg  string
+	w    io.Writer // fixed render target; nil → the live target() (honours redirects)
 	stop chan struct{}
 	wg   sync.WaitGroup
 }
 
 // Start records a step with the given present-tense label (e.g. "detecting
 // framework") and begins its spinner on an animated terminal.
-func Start(msg string) *Step {
-	s := &Step{msg: msg}
+func Start(msg string) *Step { return start(msg, nil) }
+
+// StartOn is Start with a fixed render target. The spinner and finishing line
+// write to w rather than the live os.Stdout, so the step can animate while the
+// caller redirects os.Stdout elsewhere (e.g. capturing a sub-step's output)
+// without the spinner frames leaking into that redirect.
+func StartOn(w io.Writer, msg string) *Step { return start(msg, w) }
+
+func start(msg string, w io.Writer) *Step {
+	s := &Step{msg: msg, w: w}
 	if Animated() {
 		s.stop = make(chan struct{})
 		s.wg.Add(1)
 		go s.spin()
 	}
 	return s
+}
+
+// dst is the step's render target: its fixed writer when set, else the live one.
+func (s *Step) dst() io.Writer {
+	if s.w != nil {
+		return s.w
+	}
+	return target()
 }
 
 func (s *Step) spin() {
@@ -158,7 +175,7 @@ func (s *Step) spin() {
 func (s *Step) frame(f string) {
 	mu.Lock()
 	defer mu.Unlock()
-	fmt.Fprintf(target(), "\r\033[2K%s%s %s %s", pad, paint(dimStyle, "→"), paint(dimStyle, s.msg), paint(spinStyle, f))
+	fmt.Fprintf(s.dst(), "\r\033[2K%s%s %s %s", pad, paint(dimStyle, "→"), paint(dimStyle, s.msg), paint(spinStyle, f))
 }
 
 func (s *Step) finish(mark, result string) {
@@ -176,9 +193,9 @@ func (s *Step) finish(mark, result string) {
 		line += " " + result
 	}
 	if Animated() {
-		fmt.Fprintf(target(), "\r\033[2K%s\n", line)
+		fmt.Fprintf(s.dst(), "\r\033[2K%s\n", line)
 	} else {
-		fmt.Fprintln(target(), line)
+		fmt.Fprintln(s.dst(), line)
 	}
 }
 

@@ -290,7 +290,7 @@ func (m *Model) dashWorkersCard(width int) cardContent {
 			asleep++
 		}
 	}
-	failing := failingWorkerNames(m.snap)
+	failing := failingWorkers(m.snap)
 	summary := runningStyle.Render(fmt.Sprintf("%d active", active))
 	if asleep > 0 {
 		summary += " · " + suspendedStyle.Render(fmt.Sprintf("%d asleep", asleep))
@@ -319,8 +319,9 @@ func (m *Model) dashWorkersCard(width int) cardContent {
 	}
 	if len(failing) > 0 {
 		lines = append(lines, "")
-		for _, n := range failing {
-			lines = append(lines, failingStyle.Render("⚠ "+n))
+		for _, f := range failing {
+			zones[len(lines)] = fmt.Sprintf("dashfailsite:%d", f.siteIdx)
+			lines = append(lines, failingStyle.Render("⚠ "+f.name))
 		}
 		lines = append(lines, dimStyle.Render("press H to heal"))
 	}

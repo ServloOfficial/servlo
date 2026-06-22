@@ -29,17 +29,24 @@ func ensureSiteForCwd() (*config.Site, error) {
 		return nil, errNotLinked()
 	}
 
-	fmt.Print("This directory isn't linked to lerd. Link it now? [Y/n] ")
-	var answer string
-	fmt.Scanln(&answer) //nolint:errcheck
-	if !(answer == "" || answer[0] == 'Y' || answer[0] == 'y') {
-		return nil, errNotLinked()
-	}
-
-	// runLinkOrInit, not runLink, so a fresh non-PHP/empty project gets the same
-	// init wizard `lerd link` now offers instead of a bare PHP link.
-	if err := runLinkOrInit(nil); err != nil {
-		return nil, err
+	// Wrap the prompt and link in envInterrupt so, when reached from `lerd env`
+	// under its live spinner, the prompt and wizard print cleanly instead of
+	// being clobbered by the spinner's redraw. Outside runEnvLive it just runs.
+	var linkErr error
+	envInterrupt(func() {
+		fmt.Print("This directory isn't linked to lerd. Link it now? [Y/n] ")
+		var answer string
+		fmt.Scanln(&answer) //nolint:errcheck
+		if !(answer == "" || answer[0] == 'Y' || answer[0] == 'y') {
+			linkErr = errNotLinked()
+			return
+		}
+		// runLinkOrInit, not runLink, so a fresh non-PHP/empty project gets the
+		// same init wizard `lerd link` now offers instead of a bare PHP link.
+		linkErr = runLinkOrInit(nil)
+	})
+	if linkErr != nil {
+		return nil, linkErr
 	}
 	site, err := config.FindSiteByPath(cwd)
 	if err != nil {

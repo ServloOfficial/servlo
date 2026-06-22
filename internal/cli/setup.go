@@ -25,7 +25,10 @@ import (
 type setupStep struct {
 	label   string
 	enabled bool // default selection
-	run     func() error
+	// optional marks a non-essential step whose failure is surfaced as a warning
+	// and skipped rather than aborting setup (e.g. the in-container bun install).
+	optional bool
+	run      func() error
 }
 
 // NewSetupCmd returns the setup command.
@@ -231,18 +234,16 @@ func runSetup(allSteps, skipOpen bool) error {
 	// non-fatal: skips when the container bun is already present.
 	if siteServedByPHPFPM(site) && nodeDet.BunPath() != "" && bunPHPVersion != "" {
 		steps = append(steps, setupStep{
-			label:   "bun (container)",
-			enabled: true,
+			label:    "bun (container)",
+			enabled:  true,
+			optional: true,
 			run: func() error {
 				// Cheap exec check deferred to run time so setup planning never
 				// blocks on podman; installContainerBun is the no-op fast path.
 				if bunInstalledInContainer(bunPHPVersion) {
 					return nil
 				}
-				if err := installContainerBun(bunPHPVersion, "", os.Stdout); err != nil {
-					feedback.Warn("could not install bun in the container: %v", err)
-				}
-				return nil
+				return installContainerBun(bunPHPVersion, "", os.Stdout)
 			},
 		})
 	}
@@ -262,13 +263,11 @@ func runSetup(allSteps, skipOpen bool) error {
 		}
 		if !alreadyBaked {
 			steps = append(steps, setupStep{
-				label:   "pest:browser (container)",
-				enabled: false,
+				label:    "pest:browser (container)",
+				enabled:  false,
+				optional: true,
 				run: func() error {
-					if err := installPestBrowser(bunPHPVersion, os.Stdout); err != nil {
-						feedback.Warn("could not set up Pest browser testing: %v", err)
-					}
-					return nil
+					return installPestBrowser(bunPHPVersion, os.Stdout)
 				},
 			})
 		}
@@ -461,12 +460,19 @@ func runSetup(allSteps, skipOpen bool) error {
 		if !selectedSet[s.label] {
 			continue
 		}
-		// Capture first, then render the step: starting an animated step before
-		// runCapturingStdout swaps os.Stdout would race the spinner goroutine
-		// against the swap and leak spinner frames into the captured buffer.
+		// Animate the spinner on the real stdout (StartOn) while runCapturingStdout
+		// swaps the global os.Stdout to capture the step's own verbose output. The
+		// spinner targets the fixed writer, so the swap can't leak frames into the
+		// captured buffer and long steps still show live progress.
+		prev := os.Stdout
+		step := feedback.StartOn(prev, s.label)
 		out, err := runCapturingStdout(s.run)
-		step := feedback.Start(s.label)
 		if err != nil {
+			if s.optional {
+				step.Info("skipped")
+				feedback.Warn("%s: %v", s.label, err)
+				continue
+			}
 			step.Fail(err)
 			_, _ = os.Stdout.Write(out)
 			if !promptContinue() {

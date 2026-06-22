@@ -95,18 +95,16 @@ func defaultRepairExposeMapping(tld string) (bool, error) {
 	if cfg == nil || !cfg.LAN.Exposed {
 		return false, nil
 	}
-	target := primaryLANIP()
-	if target == "" {
-		return false, nil
-	}
-	if answer, err := dns.DnsmasqAnswer(tld); err == nil && answer == target {
+	if primaryLANIP() == "" {
 		return false, nil
 	}
 	// Gate the restart on the rendered config actually changing, not on the live
-	// answer: a freshly restarted lerd-dns lags a tick or two before it serves
-	// the new IP, and keying off DnsmasqAnswer alone would re-render and restart
-	// it again every failed tick until it settled. Comparing the on-disk config
-	// makes the repair idempotent so it restarts exactly once per real drift.
+	// dnsmasq answer: a freshly restarted lerd-dns lags a tick or two before it
+	// serves the new IP, and keying off the answer would re-render and restart it
+	// again every failed tick until it settled. Comparing the on-disk config also
+	// covers the AAAA record (DnsmasqAnswer is IPv4-only, so an answer check would
+	// never heal an IPv6 drift), and makes the repair idempotent so it restarts
+	// exactly once per real drift.
 	confPath := filepath.Join(config.DnsmasqDir(), "lerd.conf")
 	before, _ := os.ReadFile(confPath)
 	if err := dns.WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
@@ -184,7 +182,7 @@ func WatchDNS(interval time.Duration, tld string) {
 	linkSettled := make(chan struct{}, 4)
 	go func() {
 		if err := dns.LinkChanges(linkRaw, done); err != nil {
-			logger.Warn("rtnetlink unavailable, DNS reacts on the safety-net poll only", "err", err)
+			logger.Warn("host network change watcher unavailable, DNS reacts on the safety-net poll only", "err", err)
 		}
 	}()
 	go dns.DebounceEvents(linkRaw, linkSettled, linkChangeDebounce, done)
