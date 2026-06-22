@@ -1097,6 +1097,14 @@ func (m *Model) switchTab(t topTab) {
 // a clicked site/service's tab or focuses a card. Every clickable region is a
 // bubblezone mark laid down during render, so hit-testing is a bounds check.
 func (m *Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	// While a modal overlay is open, View() returns the modal frame without
+	// rescanning zones, so the registered click regions are stale from the last
+	// base frame. Swallow mouse input here (mirroring handleMainKey, which routes
+	// through the modal handlers before any pane action) so a stray click can't
+	// switch tabs, move a cursor, or silently dismiss a half-finished picker.
+	if m.modalActive() {
+		return m, nil
+	}
 	if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
 		return m.handleWheel(msg)
 	}
@@ -1176,10 +1184,14 @@ func (m *Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		// A failing-worker row carries no service entry of its own, so it jumps
 		// to the owning site's detail where the worker state and heal action live.
-		for i := range m.snap.Sites {
-			if zone.Get(fmt.Sprintf("dashfailsite:%d", i)).InBounds(msg) {
+		// Zones are keyed by failing-worker index, mapped back to the site here.
+		failing := failingWorkers(m.snap)
+		for fi, f := range failing {
+			if zone.Get(fmt.Sprintf("dashfailsite:%d", fi)).InBounds(msg) {
 				m.switchTab(tabSites)
-				m.selectSiteByName(m.snap.Sites[i].Name)
+				if f.siteIdx >= 0 && f.siteIdx < len(m.snap.Sites) {
+					m.selectSiteByName(m.snap.Sites[f.siteIdx].Name)
+				}
 				return m, m.syncLogs()
 			}
 		}
@@ -1275,27 +1287,52 @@ func (m *Model) scrollOffset(off *int, delta int) {
 // matched against the current (filtered/sorted) view so the cursor lands on
 // the row the user actually sees.
 func (m *Model) selectSiteByName(name string) {
+	if m.focusSiteIfVisible(name) {
+		return
+	}
+	// A leftover filter on the destination tab can hide the target (e.g. when
+	// jumping in from a dashboard click). Clear it and retry so the navigation
+	// lands rather than silently doing nothing.
+	if m.siteFilter != "" {
+		m.siteFilter = ""
+		m.focusSiteIfVisible(name)
+	}
+}
+
+func (m *Model) focusSiteIfVisible(name string) bool {
 	for i, s := range m.visibleSites() {
 		if s.Name == name {
 			m.focus = paneSites
 			m.siteCursor = i
 			m.followCursor = true // scroll the destination list to it
-			return
+			return true
 		}
 	}
+	return false
 }
 
 // selectServiceByName focuses the Services list on the service with the given
 // name, matched against the current view.
 func (m *Model) selectServiceByName(name string) {
+	if m.focusServiceIfVisible(name) {
+		return
+	}
+	if m.svcFilter != "" {
+		m.svcFilter = ""
+		m.focusServiceIfVisible(name)
+	}
+}
+
+func (m *Model) focusServiceIfVisible(name string) bool {
 	for i, s := range m.visibleServices() {
 		if s.Name == name {
 			m.focus = paneServices
 			m.svcCursor = i
 			m.followCursor = true // scroll the destination list to it
-			return
+			return true
 		}
 	}
+	return false
 }
 
 // nextFocus returns the focus after moving `dir` steps (±1) through the
