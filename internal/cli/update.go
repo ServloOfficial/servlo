@@ -244,7 +244,7 @@ func refreshGlobalMCPSkills() {
 	}
 	feedback.Line("refreshing global MCP skills and guidelines")
 	if err := RefreshGlobalAISkills(home, true); err != nil {
-		fmt.Fprintf(os.Stderr, "  warn: could not refresh global AI skills: %v\n", err)
+		feedback.Warn("could not refresh global AI skills: %v", err)
 	}
 	if !IsMCPGloballyRegistered() {
 		fmt.Println("  Re-registering lerd with Claude Code (was missing)")
@@ -274,7 +274,7 @@ func refreshProjectMCPSkills() {
 	fmt.Printf("\n==> Refreshing project MCP skills (%d project%s)\n", len(opted), pluralS(len(opted)))
 	for _, p := range opted {
 		if err := RefreshProjectAISkills(p, false); err != nil {
-			fmt.Fprintf(os.Stderr, "  warn: %s: %v\n", p, err)
+			feedback.Warn("%s: %v", p, err)
 			continue
 		}
 		fmt.Printf("  refreshed %s\n", p)
@@ -458,7 +458,7 @@ func stripV(v string) string { return lerdUpdate.StripV(v) }
 // backupBinary copies the current binary and version to backup locations for rollback.
 func backupBinary(self, currentVersion string) {
 	if err := copyFile(self, config.BackupBinaryFile(), 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "  warn: could not back up binary for rollback: %v\n", err)
+		feedback.Warn("could not back up binary for rollback: %v", err)
 		return
 	}
 
@@ -466,7 +466,7 @@ func backupBinary(self, currentVersion string) {
 	trayPath := filepath.Join(filepath.Dir(self), "lerd-tray")
 	if _, err := os.Stat(trayPath); err == nil {
 		if err := copyFile(trayPath, config.BackupTrayFile(), 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "  warn: could not back up lerd-tray: %v\n", err)
+			feedback.Warn("could not back up lerd-tray: %v", err)
 		}
 	}
 

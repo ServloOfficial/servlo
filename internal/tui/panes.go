@@ -254,13 +254,32 @@ func (m *Model) renderDetailColumn(w, h int, focused bool) string {
 // plus per-worktree workers all funnel through here so the header pill,
 // dashboard hero, and future toast notifier render the same names.
 func failingWorkerNames(snap Snapshot) []string {
-	var names []string
-	add := func(kind, site string, failing bool) {
-		if failing {
-			names = append(names, kind+"-"+site)
-		}
+	fw := failingWorkers(snap)
+	names := make([]string, len(fw))
+	for i := range fw {
+		names[i] = fw[i].name
 	}
-	for _, s := range snap.Sites {
+	return names
+}
+
+// failingWorker is one failed worker plus the index of the owning site in
+// snap.Sites, so the dashboard can make a failing row click through to that
+// site's detail.
+type failingWorker struct {
+	name    string
+	siteIdx int
+}
+
+// failingWorkers is the single source the name list and the clickable dashboard
+// rows both derive from, so their ordering can't drift apart.
+func failingWorkers(snap Snapshot) []failingWorker {
+	var out []failingWorker
+	for i, s := range snap.Sites {
+		add := func(kind, site string, failing bool) {
+			if failing {
+				out = append(out, failingWorker{kind + "-" + site, i})
+			}
+		}
 		add("queue", s.Name, s.QueueFailing)
 		add("schedule", s.Name, s.ScheduleFailing)
 		add("horizon", s.Name, s.HorizonFailing)
@@ -274,7 +293,7 @@ func failingWorkerNames(snap Snapshot) []string {
 			}
 		}
 	}
-	return names
+	return out
 }
 
 // joinTruncated joins names with ", " up to max entries; anything beyond

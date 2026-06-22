@@ -205,6 +205,14 @@ export function attachPhpLsp(opts: {
   ws.onclose = () => {
     if (disposed) return;
     onStatus?.('unavailable');
+    // Reject in-flight requests immediately instead of letting each wait out its
+    // 5s timeout: a completion or hover provider would otherwise leave a stalled
+    // suggestion widget open until the timer fires.
+    for (const p of pending.values()) {
+      clearTimeout(p.timer);
+      p.reject(new Error('lsp connection closed'));
+    }
+    pending.clear();
     const model = editor.getModel();
     if (model) monaco.editor.setModelMarkers(model, 'phpantom', []);
   };

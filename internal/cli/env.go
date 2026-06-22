@@ -188,16 +188,21 @@ func NewEnvCmd() *cobra.Command {
 var envLive *feedback.Live
 
 // runEnvLive runs runEnv under a live "configuring .env" line that accumulates
-// each service as it is applied.
+// each service as it is applied. It saves and restores the previous live line
+// so it is reentrant: `lerd env` in an unlinked dir links first, and that link
+// runs its own setup env step (another runEnvLive) — nilling the global here
+// instead of restoring it would crash the outer line's Done/Fail on return.
 func runEnvLive(cmd *cobra.Command, args []string) error {
-	envLive = feedback.StartLive("configuring .env")
+	prev := envLive
+	live := feedback.StartLive("configuring .env")
+	envLive = live
 	err := runEnv(cmd, args)
 	if err != nil {
-		envLive.Fail(err)
+		live.Fail(err)
 	} else {
-		envLive.Done()
+		live.Done()
 	}
-	envLive = nil
+	envLive = prev
 	return err
 }
 
@@ -455,8 +460,10 @@ func runEnv(_ *cobra.Command, _ []string) error {
 					Options(options...).
 					Value(&dbChoice),
 			)).WithTheme(huh.ThemeCatppuccin())
-			if err := dbForm.Run(); err != nil {
-				return fmt.Errorf("database prompt: %w", err)
+			var formErr error
+			envInterrupt(func() { formErr = dbForm.Run() })
+			if formErr != nil {
+				return fmt.Errorf("database prompt: %w", formErr)
 			}
 		} else {
 			envInfo("  Defaulting to SQLite (non-interactive). Run `lerd db set <service>` or call db_set to switch.\n")

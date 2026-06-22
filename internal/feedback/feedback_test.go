@@ -22,6 +22,23 @@ func TestStepOKPlain(t *testing.T) {
 	}
 }
 
+// StartOn renders to its own writer so a step can animate on the real stdout
+// while the caller redirects the package target elsewhere (e.g. to capture a
+// sub-step's output), without the step line leaking into that redirect.
+func TestStartOnWritesToGivenWriter(t *testing.T) {
+	var pkg, fixed bytes.Buffer
+	defer SetTestWriter(&pkg)()
+
+	StartOn(&fixed, "installing deps").OK("ok")
+
+	if pkg.Len() != 0 {
+		t.Errorf("StartOn wrote to the package target, want only the fixed writer: %q", pkg.String())
+	}
+	if got := fixed.String(); got != " → installing deps… ✓ ok\n" {
+		t.Errorf("StartOn output = %q", got)
+	}
+}
+
 func TestStepInfoAndFail(t *testing.T) {
 	var buf bytes.Buffer
 	defer SetTestWriter(&buf)()

@@ -1006,7 +1006,11 @@ func activePHPVersions() map[string]bool {
 		}
 		phpMin, phpMax := "", ""
 		if s.Framework != "" {
-			if fw, fwOk := config.GetFrameworkForDir(s.Framework, s.Path); fwOk {
+			// A guessed framework definition's PHP range must not constrain the
+			// site (a Laravel 6 served by the Laravel 10 def still runs on 7.4),
+			// so skip its range and let the real detected version drive which
+			// FPM unit coreUnits starts.
+			if fw, fwOk := config.GetFrameworkForDir(s.Framework, s.Path); fwOk && !fw.VersionGuessed {
 				phpMin, phpMax = fw.PHP.Min, fw.PHP.Max
 			}
 		}

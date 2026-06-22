@@ -744,9 +744,6 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "4":
 		return m, m.selectSiteTab(4)
-
-	case "5":
-		return m, m.selectSiteTab(5)
 	}
 	return m, nil
 }
@@ -754,9 +751,9 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // selectSiteTab switches to the n-th site tab (1-based) drawn from the focused
 // site's available tabs — the single mapping the number-key shortcuts and the
 // tab strip both derive from, so the displayed number and the working key can't
-// diverge. Out-of-range numbers (e.g. 5 on a non-Laravel site that offers only
-// four tabs) are no-ops, and the Doctor tab routes through openDoctorTab so its
-// on-demand run still fires.
+// diverge. Out-of-range numbers (e.g. 4 on a non-Laravel site, which offers only
+// the three non-Doctor tabs) are no-ops, and the Doctor tab routes through
+// openDoctorTab so its on-demand run still fires.
 func (m *Model) selectSiteTab(n int) tea.Cmd {
 	if m.detailMode != detailSite {
 		return nil
@@ -1174,6 +1171,15 @@ func (m *Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			if zone.Get(fmt.Sprintf("dashworker:%d", i)).InBounds(msg) {
 				m.switchTab(tabServices)
 				m.selectServiceByName(m.snap.Services[i].Name)
+				return m, m.syncLogs()
+			}
+		}
+		// A failing-worker row carries no service entry of its own, so it jumps
+		// to the owning site's detail where the worker state and heal action live.
+		for i := range m.snap.Sites {
+			if zone.Get(fmt.Sprintf("dashfailsite:%d", i)).InBounds(msg) {
+				m.switchTab(tabSites)
+				m.selectSiteByName(m.snap.Sites[i].Name)
 				return m, m.syncLogs()
 			}
 		}

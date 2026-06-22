@@ -172,7 +172,9 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 	}
 	phpMin, phpMax := "", ""
 	if framework != "" {
-		if fw, fwOk := config.GetFrameworkForDir(framework, cwd); fwOk {
+		// Skip a guessed definition's range so a legacy project keeps its real
+		// detected default (Laravel 6 on 7.4, not the borrowed Laravel 10 8.1).
+		if fw, fwOk := config.GetFrameworkForDir(framework, cwd); fwOk && !fw.VersionGuessed {
 			phpMin, phpMax = fw.PHP.Min, fw.PHP.Max
 		}
 	}
