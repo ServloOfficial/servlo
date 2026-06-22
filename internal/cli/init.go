@@ -51,7 +51,7 @@ func runInit(fresh bool) error {
 
 	feedback.Begin()
 
-	if !hasExisting || fresh {
+	if initShouldRunWizard(hasExisting, fresh) {
 		existing, err := config.LoadProjectConfig(cwd)
 		if err != nil {
 			return err
@@ -86,6 +86,14 @@ func runInit(fresh bool) error {
 	}
 
 	return nil
+}
+
+// initShouldRunWizard reports whether runInit runs the configuration wizard
+// rather than applying an existing .lerd.yaml directly. It runs when no config
+// file is present, or when fresh forces it (the `lerd link` route passes fresh
+// for an absent-or-empty config, and `lerd init --fresh` for an explicit redo).
+func initShouldRunWizard(hasExisting, fresh bool) bool {
+	return !hasExisting || fresh
 }
 
 func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfig, error) {

@@ -319,8 +319,11 @@ func (m *Model) dashWorkersCard(width int) cardContent {
 	}
 	if len(failing) > 0 {
 		lines = append(lines, "")
-		for _, f := range failing {
-			zones[len(lines)] = fmt.Sprintf("dashfailsite:%d", f.siteIdx)
+		// Key the zone by the failing-worker index, not f.siteIdx: two failing
+		// workers on the same site would otherwise share one id and bubblezone
+		// keeps a single region per id, leaving the second row a dead click.
+		for fi, f := range failing {
+			zones[len(lines)] = fmt.Sprintf("dashfailsite:%d", fi)
 			lines = append(lines, failingStyle.Render("⚠ "+f.name))
 		}
 		lines = append(lines, dimStyle.Render("press H to heal"))

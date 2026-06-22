@@ -105,6 +105,9 @@ func (c *wsConn) WriteClose() error {
 }
 
 func (c *wsConn) writeFrame(op byte, payload []byte) error {
+	if err := c.conn.SetWriteDeadline(time.Now().Add(wsWriteTimeout)); err != nil {
+		return err
+	}
 	header := make([]byte, 2, 10)
 	header[0] = 0x80 | op // FIN | opcode
 	n := len(payload)

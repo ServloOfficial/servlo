@@ -33,6 +33,12 @@ const (
 	wsReadTimeout  = 75 * time.Second
 )
 
+// wsWriteTimeout bounds a single outbound frame write. Without it a peer that
+// stops reading (suspended tab, half-open TCP) wedges conn.Write forever while
+// holding the write lock, so the ping/pump goroutines never observe cancel and
+// the handler's deferred join leaks. A var so tests can shorten it.
+var wsWriteTimeout = 10 * time.Second
+
 // chooseInterval returns the cache poll cadence implied by the current
 // (visibility, session-idle) pair. Fast cadence requires both an engaged
 // browser tab and an active desktop session: a focused tab on a locked

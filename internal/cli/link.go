@@ -91,7 +91,11 @@ func runLinkOrInit(args []string) error {
 	hasConfig := proj != nil && !proj.IsEmpty()
 	_, _, isWorktree := findOwningWorktree(cwd)
 	if linkShouldRunWizard(hasConfig, isInteractive(), len(args) > 0, isWorktree) {
-		return runInit(false)
+		// fresh=true: linkShouldRunWizard already gated on !hasConfig (absent or
+		// empty .lerd.yaml), so force the wizard. Without it runInit re-decides on
+		// file existence and a present-but-empty file would skip the wizard into a
+		// bare link, contradicting the IsEmpty routing above.
+		return runInit(true)
 	}
 	return runLink(args)
 }
