@@ -232,14 +232,19 @@ func runSetup(allSteps, skipOpen bool) error {
 	// runtime elsewhere — so the step is omitted entirely for them, not just left
 	// unchecked, since `lerd setup -a` runs every listed step. Idempotent and
 	// non-fatal: skips when the container bun is already present.
-	if siteServedByPHPFPM(site) && nodeDet.BunPath() != "" && bunPHPVersion != "" {
+	// Mirror bun into the container only when it isn't already there. The volume
+	// is host-backed at BunVolumeDir(), so a plain stat of its bun binary tells us
+	// this without a podman exec, keeping setup planning off podman. Once bun is
+	// present, updates go through `bun upgrade`, so there's nothing to offer here.
+	_, bunStatErr := os.Stat(filepath.Join(podman.BunVolumeDir(), "bin", "bun"))
+	if siteServedByPHPFPM(site) && nodeDet.BunPath() != "" && bunPHPVersion != "" && os.IsNotExist(bunStatErr) {
 		steps = append(steps, setupStep{
 			label:    "bun (container)",
 			enabled:  true,
 			optional: true,
 			run: func() error {
-				// Cheap exec check deferred to run time so setup planning never
-				// blocks on podman; installContainerBun is the no-op fast path.
+				// Exec check deferred to run time as a final guard; installContainerBun
+				// is the no-op fast path if bun appeared since planning.
 				if bunInstalledInContainer(bunPHPVersion) {
 					return nil
 				}

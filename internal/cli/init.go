@@ -480,6 +480,13 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 			}
 			continue
 		}
+		// A bundled tool preset (e.g. phpmyadmin, pgadmin) selected but not yet
+		// installed has no on-disk custom service; record it as a preset so link
+		// installs it, rather than a bare name that resolves to nothing and warns.
+		if loaded == nil && config.PresetExists(name) && !config.IsDefaultPreset(name) {
+			services[i] = config.ProjectService{Name: name, Preset: name}
+			continue
+		}
 		services[i] = config.ProjectService{Name: name, Custom: loaded}
 	}
 
@@ -700,6 +707,13 @@ func buildProjectServices(selectedServices []string, defaults *config.ProjectCon
 				Preset:        loaded.Preset,
 				PresetVersion: loaded.PresetVersion,
 			}
+			continue
+		}
+		// A bundled tool preset (e.g. phpmyadmin, pgadmin) selected but not yet
+		// installed has no on-disk custom service; record it as a preset so link
+		// installs it, rather than a bare name that resolves to nothing and warns.
+		if loaded == nil && config.PresetExists(name) && !config.IsDefaultPreset(name) {
+			services[i] = config.ProjectService{Name: name, Preset: name}
 			continue
 		}
 		services[i] = config.ProjectService{Name: name, Custom: loaded}
@@ -1345,19 +1359,24 @@ func applyEnvStep(cwd string) {
 // setup step's verbose output behind a single feedback line, surfacing it only
 // when the step fails.
 func runCapturingStdout(fn func() error) ([]byte, error) {
-	prev := os.Stdout
+	prevOut, prevErr := os.Stdout, os.Stderr
 	r, w, err := os.Pipe()
 	if err != nil {
 		return nil, fn()
 	}
+	// Swap both streams: subprocesses (npm/vite, artisan) write progress and
+	// warnings to stderr too (e.g. Browserslist), and a leaked stderr line would
+	// clobber the live spinner the caller animates on the real stdout.
 	os.Stdout = w
+	os.Stderr = w
 	captured := make(chan []byte, 1)
 	go func() {
 		b, _ := io.ReadAll(r)
 		captured <- b
 	}()
 	runErr := fn()
-	os.Stdout = prev
+	os.Stdout = prevOut
+	os.Stderr = prevErr
 	_ = w.Close()
 	return <-captured, runErr
 }

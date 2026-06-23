@@ -55,6 +55,82 @@ func TestStepInfoAndFail(t *testing.T) {
 	}
 }
 
+// A Step/Live Fail records its error so the top-level handler can tell it was
+// already shown to the user, covering both the bare error returned as-is and a
+// wrapped error that adds context around it. An unrelated error stays unshown.
+func TestAlreadyShownAfterFail(t *testing.T) {
+	var buf bytes.Buffer
+	defer SetTestWriter(&buf)()
+
+	bare := errors.New("mkcert missing")
+	Start("provisioning TLS").Fail(bare)
+
+	if !AlreadyShown(bare) {
+		t.Error("bare error not marked AlreadyShown after Fail")
+	}
+	wrapped := fmt.Errorf("provisioning TLS: %w", bare)
+	if !AlreadyShown(wrapped) {
+		t.Error("error wrapping a shown error not detected as AlreadyShown")
+	}
+	if AlreadyShown(errors.New("something else")) {
+		t.Error("unrelated error wrongly reported as AlreadyShown")
+	}
+	if AlreadyShown(nil) {
+		t.Error("nil error reported as AlreadyShown")
+	}
+}
+
+// Header frames a section with a ▸ glyph and a blank line above and below, so
+// the steps beneath it read as a group rather than a flat wall of output.
+// The *If helpers gate colour on an explicit flag: on=false always returns the
+// plain string (so a renderer writing a plain-text bug report gets no escapes),
+// while on=true delegates to the same palette painter as the unconditional form.
+func TestColourIf(t *testing.T) {
+	if got := GreenIf(false, "ok"); got != "ok" {
+		t.Errorf("GreenIf(false) = %q, want plain", got)
+	}
+	if got := RedIf(false, "bad"); got != "bad" {
+		t.Errorf("RedIf(false) = %q, want plain", got)
+	}
+	if got := AmberIf(false, "warn"); got != "warn" {
+		t.Errorf("AmberIf(false) = %q, want plain", got)
+	}
+	if GreenIf(true, "ok") != Green("ok") {
+		t.Error("GreenIf(true) should match Green()")
+	}
+	if RedIf(true, "bad") != Red("bad") {
+		t.Error("RedIf(true) should match Red()")
+	}
+}
+
+func TestHeader(t *testing.T) {
+	var buf bytes.Buffer
+	defer SetTestWriter(&buf)()
+
+	Header("Rebuilding PHP images")
+
+	if got := buf.String(); got != "\n ▸ Rebuilding PHP images\n\n" {
+		t.Fatalf("Header output = %q", got)
+	}
+}
+
+// Prompt renders the same styled question as Confirm (blank line, "?", dim
+// hint) but reads nothing, for callers that read from their own source.
+func TestPrompt(t *testing.T) {
+	var buf bytes.Buffer
+	defer SetTestWriter(&buf)()
+
+	Prompt("Continue?", true)
+	if got := buf.String(); got != "\n ? Continue? [Y/n] " {
+		t.Fatalf("Prompt(Y) = %q", got)
+	}
+	buf.Reset()
+	Prompt("Wipe data?", false)
+	if got := buf.String(); got != "\n ? Wipe data? [y/N] " {
+		t.Fatalf("Prompt(N) = %q", got)
+	}
+}
+
 func TestLine(t *testing.T) {
 	var buf bytes.Buffer
 	defer SetTestWriter(&buf)()

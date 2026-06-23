@@ -117,8 +117,9 @@ type ProjectConfig struct {
 func (c *ProjectConfig) IsEmpty() bool {
 	return len(c.Domains) == 0 && c.PHPVersion == "" && c.NodeVersion == "" &&
 		c.JSRuntime == "" &&
-		c.Framework == "" && c.PublicDir == "" && len(c.Services) == 0 &&
-		len(c.Workers) == 0 && len(c.CustomWorkers) == 0 && len(c.ReloadWorkers) == 0 && !c.Secured &&
+		c.Framework == "" && c.FrameworkVersion == "" && c.FrameworkDef == nil &&
+		c.PublicDir == "" && len(c.Services) == 0 &&
+		len(c.Workers) == 0 && len(c.CustomWorkers) == 0 && len(c.ReloadWorkers) == 0 && len(c.Commands) == 0 && !c.Secured &&
 		c.AppURL == "" && c.DB.Service == "" && c.DB.Database == "" &&
 		c.Container == nil && c.Proxy == nil && c.Runtime == "" && !c.RuntimeWorker &&
 		!c.DBIsolated && len(c.EnvOverrides) == 0 && c.RequestTimeout == 0 && c.Stripe == nil

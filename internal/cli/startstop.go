@@ -738,6 +738,7 @@ func startRestoredServices() {
 			Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
 		})
 	}
+	feedback.Header("Starting services")
 	RunParallel(startJobs) //nolint:errcheck
 
 	// Workers exec into the FPM containers and depend on lerd-redis et al.
@@ -770,6 +771,7 @@ func startRestoredServices() {
 			Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
 		})
 	}
+	feedback.Header("Starting workers")
 	RunParallel(workerJobs) //nolint:errcheck
 }
 

@@ -168,6 +168,7 @@ func NewEnvCmd() *cobra.Command {
   - Starts any referenced services that are not already running
   - Generates APP_KEY if missing
   - Sets APP_URL to the registered .test domain`,
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// --verbose (and any non-animated output, e.g. the MCP server or a
 			// pipe) prints the full per-step detail. An interactive terminal gets

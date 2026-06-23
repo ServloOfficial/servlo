@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/geodro/lerd/internal/feedback"
@@ -27,5 +28,28 @@ func TestRunEnvLive_RestoresPreviousLive(t *testing.T) {
 	}
 	if envLive != sentinel {
 		t.Errorf("runEnvLive left envLive = %v, want the previous live line restored", envLive)
+	}
+}
+
+// On the animated path runEnvLive shows the failure through live.Fail, which
+// marks the error as already shown so the top-level handler in main doesn't
+// reprint it as a second "Error: …" line. Verify the returned error is flagged
+// AlreadyShown, and that a non-nil error still propagates for the non-zero exit.
+func TestEnvCmd_AnimatedFailureIsMarkedAlreadyShown(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Chdir(t.TempDir())
+
+	var buf bytes.Buffer
+	defer feedback.SetTestWriter(&buf)()
+	defer feedback.SetAnimated(true)()
+
+	cmd := NewEnvCmd()
+	err := cmd.RunE(cmd, nil)
+	if err == nil {
+		t.Fatal("expected an error running env in an unlinked, non-interactive dir")
+	}
+	if !feedback.AlreadyShown(err) {
+		t.Error("env animated failure was not marked AlreadyShown; main will reprint the error")
 	}
 }

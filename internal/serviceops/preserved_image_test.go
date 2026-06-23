@@ -133,6 +133,21 @@ func TestMatchVersionByImageTag(t *testing.T) {
 	if got := matchVersionByImageTag("docker.io/library/mysql:8.4.9", mysqlVersions); got != "8.4" {
 		t.Errorf("mysql 8.4.9 should match 8.4, got %q", got)
 	}
+
+	// timescaledb pins floating tags (latest-pgNN) that aren't derived from the
+	// version string, so the tag heuristic can't recover the version — the full
+	// image must be matched instead, or canonical-pin sync silently flips the
+	// major on the next update.
+	tsVersions := []config.PresetVersion{
+		{Tag: "17", Image: "docker.io/timescale/timescaledb:latest-pg17"},
+		{Tag: "16", Image: "docker.io/timescale/timescaledb:latest-pg16"},
+	}
+	if got := matchVersionByImageTag("docker.io/timescale/timescaledb:latest-pg16", tsVersions); got != "16" {
+		t.Errorf("timescaledb latest-pg16 should match 16, got %q", got)
+	}
+	if got := matchVersionByImageTag("docker.io/timescale/timescaledb:latest-pg17", tsVersions); got != "17" {
+		t.Errorf("timescaledb latest-pg17 should match 17, got %q", got)
+	}
 }
 
 func TestEnsureDefaultPresetQuadlet_honorsCanonicalPinAcrossFlip(t *testing.T) {

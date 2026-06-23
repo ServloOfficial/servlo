@@ -565,7 +565,7 @@ func TestSuperviseLinkChanges_RestartsOnTransientError(t *testing.T) {
 		return nil
 	}
 
-	go superviseLinkChanges(fn, make(chan struct{}, 1), done, func(int) time.Duration { return 0 })
+	go superviseLinkChanges(fn, make(chan struct{}, 1), done, func(int) time.Duration { return 0 }, time.Minute)
 
 	// We expect three attempts: two that error and restart, one that sticks.
 	for want := 1; want <= 3; want++ {
@@ -577,6 +577,54 @@ func TestSuperviseLinkChanges_RestartsOnTransientError(t *testing.T) {
 		case <-time.After(time.Second):
 			t.Fatalf("attempt %d never happened", want)
 		}
+	}
+}
+
+func TestSuperviseLinkChanges_ResetsBackoffAfterHealthyRun(t *testing.T) {
+	done := make(chan struct{})
+	defer close(done)
+
+	// Reset threshold of 15ms; the "healthy" run below sleeps 30ms before failing.
+	attempts := make(chan int, 16)
+	backoff := func(a int) time.Duration { attempts <- a; return 0 }
+
+	var n int
+	fn := func(out chan<- struct{}, d <-chan struct{}) error {
+		n++
+		switch {
+		case n <= 3:
+			return errors.New("rapid transient failure") // short runs grow the backoff
+		case n == 4:
+			time.Sleep(30 * time.Millisecond) // healthy run, then a late error
+			return errors.New("late transient failure")
+		default:
+			<-d // stay up until shutdown
+			return nil
+		}
+	}
+
+	go superviseLinkChanges(fn, make(chan struct{}, 1), done, backoff, 15*time.Millisecond)
+
+	// The three rapid failures grow the backoff attempt: 0, 1, 2.
+	for want := 0; want <= 2; want++ {
+		select {
+		case got := <-attempts:
+			if got != want {
+				t.Fatalf("backoff attempt %d, want %d", got, want)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("backoff not called")
+		}
+	}
+	// The fourth attempt ran longer than the reset threshold before failing, so
+	// the next restart must reset the backoff to 0 rather than stay near the cap.
+	select {
+	case got := <-attempts:
+		if got != 0 {
+			t.Fatalf("backoff after a healthy run = %d, want 0 (reset)", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("backoff not called after the healthy run")
 	}
 }
 
@@ -592,7 +640,7 @@ func TestSuperviseLinkChanges_StopsAfterDone(t *testing.T) {
 
 	stopped := make(chan struct{})
 	go func() {
-		superviseLinkChanges(fn, make(chan struct{}, 1), done, func(int) time.Duration { return 0 })
+		superviseLinkChanges(fn, make(chan struct{}, 1), done, func(int) time.Duration { return 0 }, time.Minute)
 		close(stopped)
 	}()
 

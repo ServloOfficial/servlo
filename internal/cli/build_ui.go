@@ -38,7 +38,10 @@ func RunParallel(jobs []BuildJob) error {
 func runSequential(jobs []BuildJob) error {
 	var firstErr error
 	for _, job := range jobs {
-		fmt.Printf("==> %s\n", job.Label)
+		// Non-TTY path: announce the label BEFORE the job runs so it heads the
+		// job's streamed output. feedback.Start is non-animated here and prints
+		// nothing until OK/Fail, which would leave the label trailing its output.
+		feedback.Line(job.Label)
 		if err := job.Run(os.Stdout); err != nil {
 			feedback.Warn("%s: %v", job.Label, err)
 			if firstErr == nil {
@@ -172,6 +175,7 @@ func runParallelTUI(jobs []BuildJob) error {
 			fmt.Fprintf(&sb, "\033[%dA\033[J", prevLines)
 		}
 		lines := 0
+		lw := maxLabelWidth(states)
 
 		for _, s := range states {
 			done, err, end, _ := s.snapshot()
@@ -185,19 +189,19 @@ func runParallelTUI(jobs []BuildJob) error {
 			var icon string
 			switch {
 			case done && err != nil:
-				icon = "\033[31m✗\033[0m"
+				icon = feedback.Red("✗")
 			case done:
-				icon = "\033[32m✓\033[0m"
+				icon = feedback.Green("✓")
 			default:
-				icon = "\033[33m" + string(spinnerFrames[frame%len(spinnerFrames)]) + "\033[0m"
+				icon = feedback.Amber(string(spinnerFrames[frame%len(spinnerFrames)]))
 			}
 
 			if elapsed >= time.Second {
 				mins := int(elapsed.Minutes())
 				secs := int(elapsed.Seconds()) % 60
-				fmt.Fprintf(&sb, "  %s  %-26s  %02d:%02d\r\n", icon, s.label, mins, secs)
+				fmt.Fprintf(&sb, " %s %-*s  %02d:%02d\r\n", icon, lw, s.label, mins, secs)
 			} else {
-				fmt.Fprintf(&sb, "  %s  %-26s\r\n", icon, s.label)
+				fmt.Fprintf(&sb, " %s %s\r\n", icon, s.label)
 			}
 			lines++
 		}
@@ -207,7 +211,7 @@ func runParallelTUI(jobs []BuildJob) error {
 			if show {
 				hint = "Ctrl+O: hide output"
 			}
-			fmt.Fprintf(&sb, "  \033[2m%s\033[0m\r\n", hint)
+			fmt.Fprintf(&sb, "  %s\r\n", feedback.Dim(hint))
 			lines++
 		}
 
@@ -217,7 +221,7 @@ func runParallelTUI(jobs []BuildJob) error {
 				if len(out) == 0 {
 					continue
 				}
-				fmt.Fprintf(&sb, "  \033[2m─── %s ───\033[0m\r\n", s.label)
+				fmt.Fprintf(&sb, "  %s\r\n", feedback.Dim("─── "+s.label+" ───"))
 				lines++
 				for _, l := range strings.Split(tailLines(out, 20, termWidth-4), "\n") {
 					fmt.Fprintf(&sb, "  %s\r\n", l)
@@ -248,9 +252,9 @@ func runParallelTUI(jobs []BuildJob) error {
 					if firstErr == nil {
 						firstErr = err
 					}
-					fmt.Printf("\033[31m✗ %s:\033[0m %v\n", s.label, err)
+					fmt.Printf("%s %v\n", feedback.Red("✗ "+s.label+":"), err)
 					if len(out) > 0 {
-						fmt.Printf("  \033[2m─── output ───\033[0m\n%s\n", out)
+						fmt.Printf("  %s\n%s\n", feedback.Dim("─── output ───"), out)
 					}
 				}
 			}
@@ -355,12 +359,12 @@ func NewStepRunner() *StepRunner {
 // while running and ✓/✗ when done. Returns fn's error.
 func (r *StepRunner) Run(label string, fn func(w io.Writer) error) error {
 	if !r.isTTY {
-		fmt.Printf("  --> %s ... ", label)
+		s := feedback.Start(label)
 		err := fn(io.Discard)
 		if err != nil {
-			fmt.Printf("[WARN: %v]\n", err)
+			s.Fail(err)
 		} else {
-			fmt.Println("OK")
+			s.OK("")
 		}
 		return err
 	}
@@ -380,10 +384,10 @@ func (r *StepRunner) Run(label string, fn func(w io.Writer) error) error {
 // The spinner pauses, the step runs with full terminal access, then raw mode resumes.
 func (r *StepRunner) RunInteractive(label string, fn func() error) error {
 	if !r.isTTY {
-		fmt.Printf("  --> %s\n", label)
+		feedback.Line(label)
 		err := fn()
 		if err != nil {
-			fmt.Printf("  [WARN: %v]\n", err)
+			feedback.Warn("%v", err)
 		}
 		return err
 	}
@@ -398,10 +402,10 @@ func (r *StepRunner) RunInteractive(label string, fn func() error) error {
 		r.stdinDup = nil
 	}
 
-	fmt.Printf("  --> %s\n", label)
+	feedback.Line(label)
 	err := fn()
 	if err != nil {
-		fmt.Printf("  [WARN: %v]\n", err)
+		feedback.Warn("%v", err)
 	}
 
 	if oldState, rawErr := term.MakeRaw(int(os.Stdin.Fd())); rawErr == nil {
@@ -440,6 +444,7 @@ func (r *StepRunner) renderSteps(prevLines, frame int, final bool) (int, int) {
 		fmt.Fprintf(&sb, "\033[%dA\033[J", prevLines)
 	}
 	lines := 0
+	lw := maxLabelWidth(steps)
 
 	for _, s := range steps {
 		done, err, end, _ := s.snapshot()
@@ -452,19 +457,19 @@ func (r *StepRunner) renderSteps(prevLines, frame int, final bool) (int, int) {
 		var icon string
 		switch {
 		case done && err != nil:
-			icon = "\033[31m✗\033[0m"
+			icon = feedback.Red("✗")
 		case done:
-			icon = "\033[32m✓\033[0m"
+			icon = feedback.Green("✓")
 		default:
-			icon = "\033[33m" + string(spinnerFrames[frame%len(spinnerFrames)]) + "\033[0m"
+			icon = feedback.Amber(string(spinnerFrames[frame%len(spinnerFrames)]))
 		}
 
 		if elapsed >= time.Second {
 			mins := int(elapsed.Minutes())
 			secs := int(elapsed.Seconds()) % 60
-			fmt.Fprintf(&sb, "  %s  %-32s  %02d:%02d\r\n", icon, s.label, mins, secs)
+			fmt.Fprintf(&sb, " %s %-*s  %02d:%02d\r\n", icon, lw, s.label, mins, secs)
 		} else {
-			fmt.Fprintf(&sb, "  %s  %-32s\r\n", icon, s.label)
+			fmt.Fprintf(&sb, " %s %s\r\n", icon, s.label)
 		}
 		lines++
 	}
@@ -474,7 +479,7 @@ func (r *StepRunner) renderSteps(prevLines, frame int, final bool) (int, int) {
 		if show {
 			hint = "Ctrl+O: hide output"
 		}
-		fmt.Fprintf(&sb, "  \033[2m%s\033[0m\r\n", hint)
+		fmt.Fprintf(&sb, "  %s\r\n", feedback.Dim(hint))
 		lines++
 	}
 
@@ -484,7 +489,7 @@ func (r *StepRunner) renderSteps(prevLines, frame int, final bool) (int, int) {
 			if len(out) == 0 {
 				continue
 			}
-			fmt.Fprintf(&sb, "  \033[2m─── %s ───\033[0m\r\n", s.label)
+			fmt.Fprintf(&sb, "  %s\r\n", feedback.Dim("─── "+s.label+" ───"))
 			lines++
 			for _, l := range strings.Split(tailLines(out, 20, r.termWidth-4), "\n") {
 				fmt.Fprintf(&sb, "  %s\r\n", l)
@@ -495,6 +500,23 @@ func (r *StepRunner) renderSteps(prevLines, frame int, final bool) (int, int) {
 
 	fmt.Print(sb.String())
 	return lines, frame + 1
+}
+
+// maxLabelWidth returns the longest label across states (rune count), capped so
+// one very long label can't push the timing column off the right edge. Used to
+// align the timing column without over-padding short labels into a ragged run
+// of trailing whitespace.
+func maxLabelWidth(states []*jobState) int {
+	w := 0
+	for _, s := range states {
+		if n := len([]rune(s.label)); n > w {
+			w = n
+		}
+	}
+	if w > 40 {
+		w = 40
+	}
+	return w
 }
 
 // tailLines returns the last n lines of b, truncated to maxWidth chars each.

@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sync"
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/feedback"
@@ -118,11 +119,21 @@ func runNodeUnmanage(_ *cobra.Command, _ []string) error {
 // host worker units (Vite and other host:true workers) so they pick up the
 // current JS-runtime decision after node:manage / node:unmanage flips what Node
 // is available. Best-effort: failures are warned, not fatal.
+// hostWorkerHeader, when set, prints the "Starting host workers" section header
+// exactly once, just before the first worker is actually started. It is wired
+// up only by the install-time regenerateHostWorkers sweep, so the per-site
+// dashboard runtime toggle (which also calls RegenerateHostWorkersForSite)
+// doesn't emit a header, and a sweep that starts nothing leaves no orphan.
+var hostWorkerHeader func()
+
 func regenerateHostWorkers() {
 	reg, err := config.LoadSites()
 	if err != nil {
 		return
 	}
+	var once sync.Once
+	hostWorkerHeader = func() { once.Do(func() { feedback.Header("Re-syncing host workers") }) }
+	defer func() { hostWorkerHeader = nil }()
 	for _, s := range reg.Sites {
 		RegenerateHostWorkersForSite(s)
 	}
@@ -221,28 +232,36 @@ func regenerateWorkerUnit(siteName, sitePath, phpVersion, workerName string, wDe
 	// Snapshot the unit before rewriting so we only restart it when its
 	// ExecStart actually changed. On macOS the unit is a launchd plist
 	// elsewhere, so before is empty and we always fall through to restart.
+	// Rewrite the unit quietly first so we can tell whether the runtime actually
+	// changed, without starting or announcing it. startRestoredServices already
+	// started this worker during install (or it's a build-replacer like Vite that
+	// isn't persisted), so an unchanged rewrite should stay silent rather than
+	// print a second time under its own header.
 	unitPath := filepath.Join(config.SystemdUserDir(), unitName+".service")
 	before, _ := os.ReadFile(unitPath)
-	if err := WorkerStartForSite(siteName, sitePath, phpVersion, workerName, wDef, false); err != nil {
-		feedback.Warn("regenerating %s: %v", unitName, err)
-		return
-	}
+	restoreWorker(siteName, sitePath, phpVersion, workerName, wDef)
 	after, _ := os.ReadFile(unitPath)
 	if len(before) > 0 && string(before) == string(after) {
+		// Linux, genuinely unchanged: StartUnit no-ops on an active unit, so just
+		// make sure it's running without announcing it again.
+		_ = podman.StartUnit(unitName)
 		return
 	}
-	// WorkerStartForSite only writes the unit file; systemd caches the old
-	// definition until a reload, so reload before the restart picks up the new
-	// ExecStart (StartUnit no-ops on an already-active unit).
-	_ = podman.DaemonReload()
-	// Clear any failed / start-rate-limit state first: a worker that
-	// crash-looped under the previous runtime (e.g. bun on a project bun can't
-	// run) would otherwise refuse to restart when switched back, so the toggle
-	// would not heal it.
-	podman.ResetFailedUnit(unitName)
-	if err := podman.RestartUnit(unitName); err != nil {
-		feedback.Warn("restarting %s: %v", unitName, err)
-	} else {
-		feedback.Note("regenerated " + unitName)
+	// The unit changed, or can't be diffed (macOS host workers are launchd plists,
+	// not .service files, so both reads come back empty): announce under the
+	// host-workers header, then do a full platform-correct (re)start.
+	// WorkerStartForSite owns the macOS launchd lifecycle, clears stale
+	// idle-suspend state, and regenerates the proxy vhost; the reload+restart
+	// afterward bounces a running Linux worker onto the new ExecStart, which
+	// StartUnit alone would not.
+	if hostWorkerHeader != nil {
+		hostWorkerHeader()
 	}
+	if err := WorkerStartForSite(siteName, sitePath, phpVersion, workerName, wDef, false); err != nil {
+		feedback.Warn("re-syncing %s: %v", unitName, err)
+		return
+	}
+	_ = podman.DaemonReload()
+	podman.ResetFailedUnit(unitName)
+	_ = podman.RestartUnit(unitName)
 }
