@@ -39,8 +39,16 @@ func LinkChanges(out chan<- struct{}, done <-chan struct{}) error {
 		return fmt.Errorf("rtnetlink bind: %w", err)
 	}
 
+	// stopped lets the interrupt goroutine exit when LinkChanges returns on its
+	// own (e.g. a read error the supervisor will restart from), so a restart
+	// loop doesn't accumulate one parked goroutine per attempt.
+	stopped := make(chan struct{})
+	defer close(stopped)
 	go func() {
-		<-done
+		select {
+		case <-done:
+		case <-stopped:
+		}
 		_ = unix.Shutdown(fd, unix.SHUT_RDWR)
 	}()
 

@@ -16,7 +16,7 @@ func TestDashWorkersCard_DistinctZonesPerFailingWorker(t *testing.T) {
 			{Name: "alpha", QueueFailing: true, ScheduleFailing: true},
 		},
 	}
-	c := m.dashWorkersCard(80)
+	c := m.dashWorkersCard(80, -1)
 
 	var failZones []string
 	for _, id := range c.rowZones {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -58,6 +59,34 @@ type cardContent struct {
 	rowZones map[int]string
 }
 
+// orderedZoneIDs returns a card's clickable zone ids ordered by line, so the
+// row cursor index lines up with the visual top-to-bottom order of the rows.
+func orderedZoneIDs(c cardContent) []string {
+	if len(c.rowZones) == 0 {
+		return nil
+	}
+	lis := make([]int, 0, len(c.rowZones))
+	for li := range c.rowZones {
+		lis = append(lis, li)
+	}
+	sort.Ints(lis)
+	ids := make([]string, len(lis))
+	for i, li := range lis {
+		ids[i] = c.rowZones[li]
+	}
+	return ids
+}
+
+// dashSelGutter is the 2-col left margin on a selectable dashboard row: a caret
+// in the accent (navigation) colour when selected, blank otherwise. Reserving
+// it on every selectable row keeps the rows aligned whether or not focused.
+func dashSelGutter(rowIdx, sel int) string {
+	if rowIdx == sel {
+		return accentStyle.Render("▸ ")
+	}
+	return "  "
+}
+
 // renderDashboardGrid draws the Dashboard tab as a responsive grid of six
 // cards mirroring the lerd web UI: Sites, Services, Workers, System Health,
 // Resources and Lerd. Three columns when wide, two at medium width, one when
@@ -71,7 +100,9 @@ func (m *Model) renderDashboardGrid(w, h int) string {
 	case w < narrowWidth:
 		cols = 2
 	}
-	const gap = 1
+	// No gap between cards: tmux-style flush panels read cleaner than columns
+	// floating apart, especially in terminals that don't draw inter-pane gaps.
+	const gap = 0
 	cardW := (w - (cols-1)*gap) / cols
 	if cardW < 24 {
 		cardW = 24
@@ -82,14 +113,26 @@ func (m *Model) renderDashboardGrid(w, h int) string {
 	}
 
 	titles := []string{"Sites", "Services", "Workers", "System Health", "Resources", "Lerd"}
-	cw := innerW - 1 // content width inside the scrollbar column
+	cw := innerW - 2 // content width inside the 1-col gap + scrollbar column
+
+	// The focused navigable card gets its selected-row index so it can draw the
+	// caret; every other card passes -1 (no selection highlight).
+	sels := [numDashCards]int{-1, -1, -1, -1, -1, -1}
+	if m.activeTab == tabDashboard {
+		sels[m.dashFocus] = m.dashRowCursor[m.dashFocus]
+	}
 	contents := []cardContent{
-		m.dashSitesCard(cw),
-		m.dashServicesCard(cw),
-		m.dashWorkersCard(cw),
+		m.dashSitesCard(cw, sels[0]),
+		m.dashServicesCard(cw, sels[1]),
+		m.dashWorkersCard(cw, sels[2]),
 		m.dashSystemHealthCard(cw),
 		m.dashResourcesCard(cw),
 		m.dashLerdCard(cw),
+	}
+	// Cache each card's ordered clickable zone ids so the row cursor and enter
+	// resolve against exactly what was just rendered.
+	for i := range contents {
+		m.dashZones[i] = orderedZoneIDs(contents[i])
 	}
 
 	rows := (numDashCards + cols - 1) / cols
@@ -152,6 +195,15 @@ func (m *Model) renderScrollableCard(idx int, title string, c cardContent, inner
 		maxScroll = 0
 	}
 	scroll := m.dashScroll[idx]
+	// Keep the selected row in view on the focused navigable card.
+	if selLine := m.dashSelectedLine(idx, c); selLine >= 0 {
+		if selLine < scroll {
+			scroll = selLine
+		}
+		if selLine >= scroll+avail {
+			scroll = selLine - avail + 1
+		}
+	}
 	if scroll > maxScroll {
 		scroll = maxScroll
 	}
@@ -160,7 +212,7 @@ func (m *Model) renderScrollableCard(idx int, title string, c cardContent, inner
 	}
 	m.dashScroll[idx] = scroll
 
-	contentW := innerW - 1 // reserve the scrollbar column
+	contentW := innerW - 2 // reserve a 1-col gap before the scrollbar column
 	if contentW < 1 {
 		contentW = innerW
 	}
@@ -183,7 +235,7 @@ func (m *Model) renderScrollableCard(idx int, title string, c cardContent, inner
 				row = zone.Mark(z, row)
 			}
 		}
-		body = append(body, row+bar[i])
+		body = append(body, row+" "+bar[i])
 	}
 
 	style := cardStyle
@@ -191,6 +243,26 @@ func (m *Model) renderScrollableCard(idx int, title string, c cardContent, inner
 		style = style.BorderForeground(colAccent)
 	}
 	return zone.Mark(fmt.Sprintf("card:%d", idx), style.Render(strings.Join(body, "\n")))
+}
+
+// dashSelectedLine returns the line index of the focused navigable card's
+// selected row, or -1 when this card isn't the focused one or has no selection.
+func (m *Model) dashSelectedLine(idx int, c cardContent) int {
+	if m.activeTab != tabDashboard || m.dashFocus != idx {
+		return -1
+	}
+	zones := m.dashZones[idx]
+	if len(zones) == 0 {
+		return -1
+	}
+	cur := clamp(m.dashRowCursor[idx], 0, len(zones)-1)
+	want := zones[cur]
+	for li, id := range c.rowZones {
+		if id == want {
+			return li
+		}
+	}
+	return -1
 }
 
 // dashRowRight lays a label on the left and its value flush against the right
@@ -204,7 +276,7 @@ func dashRowRight(label, value string, width int) string {
 	return label + spaces(gap) + value
 }
 
-func (m *Model) dashSitesCard(width int) cardContent {
+func (m *Model) dashSitesCard(width, sel int) cardContent {
 	running, paused := 0, 0
 	for _, s := range m.snap.Sites {
 		if s.Paused {
@@ -234,12 +306,12 @@ func (m *Model) dashSitesCard(width int) cardContent {
 			right = dimStyle.Render(s.FrameworkLabel)
 		}
 		zones[len(lines)] = fmt.Sprintf("dashsite:%d", i)
-		lines = append(lines, dashRowRight(fpmGlyph(s)+" "+name, right, width))
+		lines = append(lines, dashSelGutter(i, sel)+dashRowRight(fpmGlyph(s)+" "+name, right, width-2))
 	}
 	return cardContent{lines, zones}
 }
 
-func (m *Model) dashServicesCard(width int) cardContent {
+func (m *Model) dashServicesCard(width, sel int) cardContent {
 	total, running := 0, 0
 	for _, s := range m.snap.Services {
 		if s.WorkerKind != "" {
@@ -258,6 +330,7 @@ func (m *Model) dashServicesCard(width int) cardContent {
 		return cardContent{append(lines, dimStyle.Render("no services configured")), nil}
 	}
 	zones := map[int]string{}
+	si := 0
 	for i, s := range m.snap.Services {
 		if s.WorkerKind != "" {
 			continue
@@ -268,12 +341,13 @@ func (m *Model) dashServicesCard(width int) cardContent {
 			right = dimStyle.Render(s.Version)
 		}
 		zones[len(lines)] = fmt.Sprintf("dashsvc:%d", i)
-		lines = append(lines, dashRowRight(serviceStateGlyph(s.State)+" "+s.Name, right, width))
+		lines = append(lines, dashSelGutter(si, sel)+dashRowRight(serviceStateGlyph(s.State)+" "+s.Name, right, width-2))
+		si++
 	}
 	return cardContent{lines, zones}
 }
 
-func (m *Model) dashWorkersCard(width int) cardContent {
+func (m *Model) dashWorkersCard(width, sel int) cardContent {
 	active, asleep := 0, 0
 	// Track each worker's index into m.snap.Services so a clicked row can map
 	// back to the matching service-list entry.
@@ -303,6 +377,7 @@ func (m *Model) dashWorkersCard(width int) cardContent {
 		return cardContent{append(lines, runningStyle.Render("all workers healthy")), nil}
 	}
 	zones := map[int]string{}
+	si := 0
 	for _, idx := range workerIdx {
 		wk := m.snap.Services[idx]
 		// The status dot already conveys running/stopped/suspended, so the
@@ -315,7 +390,8 @@ func (m *Model) dashWorkersCard(width int) cardContent {
 			right = ""
 		}
 		zones[len(lines)] = fmt.Sprintf("dashworker:%d", idx)
-		lines = append(lines, dashRowRight(left, right, width))
+		lines = append(lines, dashSelGutter(si, sel)+dashRowRight(left, right, width-2))
+		si++
 	}
 	if len(failing) > 0 {
 		lines = append(lines, "")
@@ -324,7 +400,8 @@ func (m *Model) dashWorkersCard(width int) cardContent {
 		// keeps a single region per id, leaving the second row a dead click.
 		for fi, f := range failing {
 			zones[len(lines)] = fmt.Sprintf("dashfailsite:%d", fi)
-			lines = append(lines, failingStyle.Render("⚠ "+f.name))
+			lines = append(lines, dashSelGutter(si, sel)+failingStyle.Render("⚠ "+f.name))
+			si++
 		}
 		lines = append(lines, dimStyle.Render("press H to heal"))
 	}

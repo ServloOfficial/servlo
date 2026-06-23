@@ -160,7 +160,7 @@ func TestLiveInterrupt_SuppressesSpinnerWhilePaused(t *testing.T) {
 	var buf bytes.Buffer
 	withAnimatedBuffer(t, &buf)
 
-	l := &Live{msg: "configuring .env"}
+	l := &Live{msg: "configuring .env", animated: true}
 	buf.Reset()
 
 	// A spinner tick that fires during the interrupt must not redraw, and the
@@ -205,9 +205,9 @@ func TestWarn_PausesActiveLine(t *testing.T) {
 	var buf bytes.Buffer
 	withAnimatedBuffer(t, &buf)
 
-	l := &Live{msg: "configuring .env"}
-	prev := liveActive.Swap(l)
-	t.Cleanup(func() { liveActive.Store(prev) })
+	l := &Live{msg: "configuring .env", animated: true}
+	prev := pushActive(l)
+	t.Cleanup(func() { popActive(prev) })
 
 	buf.Reset()
 	Warn("could not start %s: boom", "mysql")
@@ -233,16 +233,23 @@ func TestStartLive_TracksActiveAcrossNesting(t *testing.T) {
 	baseline := liveActive.Load()
 	t.Cleanup(func() { liveActive.Store(baseline) })
 
+	activeLine := func() interruptible {
+		if b := liveActive.Load(); b != nil {
+			return b.line
+		}
+		return nil
+	}
+
 	outer := StartLive("outer")
-	if liveActive.Load() != outer {
+	if activeLine() != outer {
 		t.Fatal("StartLive did not register the outer line")
 	}
 	inner := StartLive("inner")
-	if liveActive.Load() != inner {
+	if activeLine() != inner {
 		t.Fatal("nested StartLive did not register the inner line")
 	}
 	inner.Done()
-	if liveActive.Load() != outer {
+	if activeLine() != outer {
 		t.Fatal("inner Done did not restore the outer line")
 	}
 	outer.Fail(nil)

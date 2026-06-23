@@ -302,7 +302,7 @@ func worktreeWorkerLabel(wt *siteinfo.WorktreeInfo, name string) string {
 // Returns handled=true once the prompt opens; the actual command fires
 // later from handleConfirmKey when the user presses y.
 func (m *Model) removeFocusedDomain() (handled bool, cmd tea.Cmd) {
-	if m.focus != paneDetail || m.detailMode != detailSite {
+	if m.activeTab != tabSites || m.focus != paneDetail || m.detailMode != detailSite {
 		return false, nil
 	}
 	s := m.currentSite()
@@ -452,11 +452,11 @@ func (m *Model) renderDetailInline(w, h int, focused bool) string {
 	case detailDumps:
 		content, cursorLine = debugContentLines(m, focused, contentW)
 	default:
-		// When focus is on the services list, the detail pane shows the
-		// matching service — same surface area the web UI's ServiceDetail
-		// covers. Site detail is only the right answer when sites or detail
-		// itself is focused.
-		if m.focus == paneServices {
+		// On the Services tab the detail pane always shows the selected
+		// service, same surface area the web UI's ServiceDetail covers,
+		// whether focus sits on the list or has moved onto the pane itself.
+		// Site detail is only the right answer on the Sites tab.
+		if m.activeTab == tabServices {
 			content = serviceDetailContentLines(m, m.currentService(), contentW)
 			cursorLine = -1
 			break

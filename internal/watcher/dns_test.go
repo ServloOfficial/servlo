@@ -548,3 +548,88 @@ func deref(p *bool) any {
 	}
 	return *p
 }
+
+func TestSuperviseLinkChanges_RestartsOnTransientError(t *testing.T) {
+	done := make(chan struct{})
+	defer close(done)
+
+	calls := make(chan int, 8)
+	var n int
+	fn := func(out chan<- struct{}, d <-chan struct{}) error {
+		n++
+		calls <- n
+		if n < 3 {
+			return errors.New("transient netlink failure")
+		}
+		<-d // the third attempt stays up until shutdown
+		return nil
+	}
+
+	go superviseLinkChanges(fn, make(chan struct{}, 1), done, func(int) time.Duration { return 0 })
+
+	// We expect three attempts: two that error and restart, one that sticks.
+	for want := 1; want <= 3; want++ {
+		select {
+		case got := <-calls:
+			if got != want {
+				t.Fatalf("attempt %d, want %d", got, want)
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("attempt %d never happened", want)
+		}
+	}
+}
+
+func TestSuperviseLinkChanges_StopsAfterDone(t *testing.T) {
+	done := make(chan struct{})
+	close(done) // already shutting down
+
+	var n int
+	fn := func(out chan<- struct{}, d <-chan struct{}) error {
+		n++
+		return errors.New("read after shutdown")
+	}
+
+	stopped := make(chan struct{})
+	go func() {
+		superviseLinkChanges(fn, make(chan struct{}, 1), done, func(int) time.Duration { return 0 })
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		t.Fatal("supervisor did not return after done was closed")
+	}
+	if n != 1 {
+		t.Fatalf("expected exactly one attempt with done closed, got %d", n)
+	}
+}
+
+func TestExposeConfigChanged_IgnoresAAAAOnlyDrift(t *testing.T) {
+	base := "# Lerd DNS configuration\nport=5300\nno-resolv\nserver=1.1.1.1\naddress=/.test/192.168.1.5\n"
+	withV6 := base + "address=/.test/2001:db8::1\n"
+	withOtherV6 := base + "address=/.test/2001:db8::2\n"
+
+	// A v6 address appearing, rotating, or disappearing must not trigger a restart.
+	if exposeConfigChanged([]byte(base), []byte(withV6)) {
+		t.Fatal("adding an AAAA record should not warrant a restart")
+	}
+	if exposeConfigChanged([]byte(withV6), []byte(withOtherV6)) {
+		t.Fatal("rotating the AAAA record should not warrant a restart")
+	}
+	if exposeConfigChanged([]byte(withV6), []byte(base)) {
+		t.Fatal("dropping the AAAA record should not warrant a restart")
+	}
+
+	// A v4 drift (the real LAN IP change) must still trigger a restart.
+	v4Changed := "# Lerd DNS configuration\nport=5300\nno-resolv\nserver=1.1.1.1\naddress=/.test/192.168.1.9\n"
+	if !exposeConfigChanged([]byte(base), []byte(v4Changed)) {
+		t.Fatal("a v4 address change must warrant a restart")
+	}
+	// An upstream change must still trigger a restart.
+	upstreamChanged := "# Lerd DNS configuration\nport=5300\nno-resolv\nserver=8.8.8.8\naddress=/.test/192.168.1.5\n"
+	if !exposeConfigChanged([]byte(base), []byte(upstreamChanged)) {
+		t.Fatal("an upstream change must warrant a restart")
+	}
+}

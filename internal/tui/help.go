@@ -15,8 +15,9 @@ var helpReference = []helpSection{
 		rows: [][2]string{
 			{"ctrl+← / ctrl+→", "switch the top tab (Dashboard · Sites · Services); tabs are also clickable"},
 			{"tab / shift+tab", "cycle focus between the list and the detail pane on the current tab"},
-			{"click", "click a tab to switch screens, or a site / service row to select it"},
-			{"↑ ↓  j k", "move selection within the focused pane (scrolls the grid on the Dashboard)"},
+			{"click", "click a tab to switch screens, or a site / service / worker row to open it"},
+			{"↑ ↓  j k", "move the selection in the focused pane or Dashboard card (info cards scroll)"},
+			{"enter", "on the Dashboard, open the selected row (same as clicking it)"},
 			{"pgup / pgdn", "jump by 10 rows"},
 			{"home / end · g G", "jump to first / last row"},
 		},

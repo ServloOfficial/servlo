@@ -278,10 +278,12 @@ func TestDeriveV6Target(t *testing.T) {
 			t.Errorf("deriveV6Target(%q) = %q, want %q", c.v4, got, c.want)
 		}
 	}
-	// LAN target derives to either a global v6 (if host has one) or ::1
-	// fallback. Both are acceptable; assert it never returns empty.
-	if got := deriveV6Target("10.0.0.5"); got == "" {
-		t.Error("deriveV6Target(LAN) returned empty, expected global v6 or ::1")
+	// A LAN target derives to the host's global v6 when it has one, or ""
+	// (no AAAA record) when it doesn't. It must never fall back to ::1, which
+	// would wrongly answer remote AAAA queries with loopback. We can't pin the
+	// exact value (host-dependent), but it must not be ::1.
+	if got := deriveV6Target("10.0.0.5"); got == "::1" {
+		t.Error("deriveV6Target(LAN) must not fall back to ::1")
 	}
 }
 
