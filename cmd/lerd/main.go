@@ -18,6 +18,7 @@ import (
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/dns"
 	"github.com/geodro/lerd/internal/eventbus"
+	"github.com/geodro/lerd/internal/feedback"
 	gitpkg "github.com/geodro/lerd/internal/git"
 	"github.com/geodro/lerd/internal/nginx"
 	nodeDet "github.com/geodro/lerd/internal/node"
@@ -61,6 +62,10 @@ func main() {
 		Use:     "lerd",
 		Short:   "Lerd — Podman-powered local PHP dev environment for Linux and macOS",
 		Version: version.String(),
+		// Errors are printed once below: a command that already surfaced its
+		// failure through the feedback UI (a red ✗ line) is suppressed here so
+		// cobra doesn't reprint the same message as a second "Error: …" line.
+		SilenceErrors: true,
 	}
 
 	// Register all subcommands
@@ -201,6 +206,11 @@ func main() {
 	maybeDispatchVendorBin(root)
 
 	if err := root.Execute(); err != nil {
+		// Only print errors the command didn't already show the user via a
+		// feedback Fail line, so the same failure never appears twice.
+		if !feedback.AlreadyShown(err) {
+			fmt.Fprintf(os.Stderr, "\nError: %s\n\n", err.Error())
+		}
 		os.Exit(1)
 	}
 }

@@ -134,21 +134,22 @@ func (m *Model) handlePickerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter", " ":
 		return m, m.applyPicker()
 	case "up", "k":
-		if m.pickerCursor > 0 {
-			m.pickerCursor--
-		}
+		m.movePickerCursor(-1)
 		return m, nil
 	case "down", "j":
-		if m.pickerCursor < len(m.pickerOptions)-1 {
-			m.pickerCursor++
-		}
+		m.movePickerCursor(1)
 		return m, nil
 	case "home", "g":
-		m.pickerCursor = 0
+		m.pickerCursor = firstEnabledFrom(0, m.pickerDisabled)
 		return m, nil
 	case "end", "G":
-		if n := len(m.pickerOptions); n > 0 {
-			m.pickerCursor = n - 1
+		// Land on the last enabled entry, scanning back past any disabled tail.
+		cur := len(m.pickerOptions) - 1
+		for cur > 0 && m.pickerIsDisabled(cur) {
+			cur--
+		}
+		if cur >= 0 && !m.pickerIsDisabled(cur) {
+			m.pickerCursor = cur
 		}
 		return m, nil
 	case "ctrl+c":
@@ -296,12 +297,18 @@ func (m *Model) renderPickerModal(w, h int) string {
 	}
 	for i, opt := range m.pickerOptions {
 		marker := "  "
-		styled := opt
-		if i == m.pickerCursor {
+		switch {
+		case m.pickerIsDisabled(i):
+			// Out-of-range PHP version: shown for context, but dimmed and not
+			// selectable, so the framework's constraint is visible.
+			lines = append(lines, marker+dimStyle.Render(opt+"  out of range"))
+			continue
+		case i == m.pickerCursor:
 			marker = accentStyle.Render("▸ ")
-			styled = selectedStyle.Render(opt)
+			lines = append(lines, marker+selectedStyle.Render(opt))
+		default:
+			lines = append(lines, marker+opt)
 		}
-		lines = append(lines, marker+styled)
 	}
 	return renderModal(w, h,
 		title,

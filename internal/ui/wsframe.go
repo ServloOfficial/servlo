@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -38,9 +39,35 @@ type wsConn struct {
 	br   *bufio.Reader
 }
 
+// wsOriginAllowed defends against cross-site WebSocket hijacking: browsers
+// don't apply CORS to the WS handshake, so without this an arbitrary page
+// could open a socket to the dashboard. A missing Origin means a non-browser
+// client (lerd's own tools, curl), which isn't a hijack vector. Otherwise the
+// Origin must be in the CORS allowlist or be same-origin with the request Host,
+// which keeps custom-domain and LAN access working.
+func wsOriginAllowed(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	if allowedCORSOrigins[origin] {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	// Hostnames are case-insensitive (RFC 3986), and r.Host casing isn't
+	// guaranteed to match the browser-normalised Origin, so compare case-folded.
+	return strings.EqualFold(u.Host, r.Host)
+}
+
 // wsUpgrade performs the RFC6455 handshake and returns a wsConn ready for
 // ReadFrame / WriteText. The http.ResponseWriter must support Hijack.
 func wsUpgrade(w http.ResponseWriter, r *http.Request) (*wsConn, error) {
+	if !wsOriginAllowed(r) {
+		return nil, errors.New("websocket origin not allowed")
+	}
 	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 		return nil, errors.New("missing Upgrade: websocket header")
 	}
@@ -105,6 +132,9 @@ func (c *wsConn) WriteClose() error {
 }
 
 func (c *wsConn) writeFrame(op byte, payload []byte) error {
+	if err := c.conn.SetWriteDeadline(time.Now().Add(wsWriteTimeout)); err != nil {
+		return err
+	}
 	header := make([]byte, 2, 10)
 	header[0] = 0x80 | op // FIN | opcode
 	n := len(payload)

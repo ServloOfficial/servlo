@@ -10,6 +10,7 @@ import (
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/dns"
+	"github.com/geodro/lerd/internal/feedback"
 	phpPkg "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/services"
@@ -18,19 +19,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	colorGreen  = "\033[32m"
-	colorRed    = "\033[31m"
-	colorYellow = "\033[33m"
-	colorReset  = "\033[0m"
-)
-
-func ok2(label string) { fmt.Printf("  %s%-30s%s OK\n", colorGreen, label, colorReset) }
+func ok2(label string) {
+	fmt.Printf("  %s %s\n", feedback.Green(feedback.GlyphOK), label)
+}
 
 // paused2 reports an idle-suspended worker: stopped on purpose, resumes on the
 // next request, so it's shown green (healthy) as paused rather than missing.
 func paused2(label string) {
-	fmt.Printf("  %s%-30s%s paused (idle)\n", colorGreen, label, colorReset)
+	fmt.Printf("  %s %s %s\n", feedback.Green(feedback.GlyphOK), label, feedback.Dim("(paused, idle)"))
 }
 
 // siteWorkerIdleSuspended reports whether the named worker is currently
@@ -45,10 +41,10 @@ func siteWorkerIdleSuspended(s config.Site, worker string) bool {
 }
 
 func fail2(label, msg, hint string) {
-	fmt.Printf("  %s%-30s%s FAIL (%s)\n    hint: %s\n", colorRed, label, colorReset, msg, hint)
+	fmt.Printf("  %s %s %s\n    %s %s\n", feedback.Red(feedback.GlyphFail), label, feedback.Dim("("+msg+")"), feedback.Dim("hint:"), hint)
 }
 func warn2(label, msg string) {
-	fmt.Printf("  %s%-30s%s WARN (%s)\n", colorYellow, label, colorReset, msg)
+	fmt.Printf("  %s %s %s\n", feedback.Amber(feedback.GlyphWarn), label, feedback.Dim("("+msg+")"))
 }
 
 // NewStatusCmd returns the status command.
@@ -301,8 +297,8 @@ func runStatus(_ *cobra.Command, _ []string) error {
 			// already point at journalctl for the underlying cause; this
 			// surfaces the recovery primitive once instead of N times.
 			if failedCount > 0 {
-				fmt.Printf("\n  %d failed worker(s). Reset and restart with: %slerd worker heal%s\n",
-					failedCount, colorYellow, colorReset)
+				fmt.Printf("\n  %d failed worker(s). Reset and restart with: %s\n",
+					failedCount, feedback.Amber("lerd worker heal"))
 			}
 		}
 	}
@@ -374,10 +370,10 @@ func printRemoteAccessStatus(cfg *config.GlobalConfig, lanIP string) {
 func printUpdateNotice(info *lerdUpdate.UpdateInfo) {
 	bar := "══════════════════════════════════════════════"
 	fmt.Println()
-	fmt.Printf("%s%s%s\n", colorYellow, bar, colorReset)
-	fmt.Printf("%s  Update available: %s  →  run: lerd update%s\n", colorYellow, info.LatestVersion, colorReset)
-	fmt.Printf("%s  Run lerd whatsnew to see what changed.%s\n", colorYellow, colorReset)
-	fmt.Printf("%s%s%s\n", colorYellow, bar, colorReset)
+	fmt.Println(feedback.Amber(bar))
+	fmt.Println(feedback.Amber("  Update available: " + info.LatestVersion + "  →  run: lerd update"))
+	fmt.Println(feedback.Amber("  Run lerd whatsnew to see what changed."))
+	fmt.Println(feedback.Amber(bar))
 }
 
 // certExpiry reads the expiry date from a PEM certificate file.

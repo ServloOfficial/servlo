@@ -359,6 +359,15 @@ func EnsureDefaultPresetQuadletPinned(name, pinnedImage string) error {
 // the installed image's tag. Lets backfill recognise postgis:16.5-3.5-alpine
 // as version "16" and mysql:8.4.9 as version "8.4".
 func matchVersionByImageTag(image string, versions []config.PresetVersion) string {
+	// Exact full-image match first: presets whose image tag isn't derived from
+	// the version string (e.g. timescaledb's …/timescaledb:latest-pg17 for
+	// version "17") can only be recovered this way. Without it the tag heuristic
+	// below returns "", and canonical-pin sync silently flips the major on update.
+	for _, v := range versions {
+		if v.Image != "" && image == v.Image {
+			return v.Tag
+		}
+	}
 	at := strings.LastIndex(image, ":")
 	if at < 0 {
 		return ""

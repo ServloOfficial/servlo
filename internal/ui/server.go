@@ -178,6 +178,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/sites", withCORS(handleSites))
 	mux.HandleFunc("/api/services", withCORS(handleServices))
 	mux.HandleFunc("/api/ws", handleWS)
+	mux.HandleFunc("/api/lsp/php", handleLSPPhp)
 	mux.HandleFunc("/api/webhooks/mailpit", handleMailpitWebhook)
 	mux.HandleFunc("/api/push/vapid-public-key", withCORS(handlePushVAPIDPublicKey))
 	mux.HandleFunc("/api/push/subscribe", withCORS(handlePushSubscribe))
@@ -250,6 +251,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/settings/autostart", withCORS(handleSettingsAutostart))
 	mux.HandleFunc("/api/settings/worker-mode", withCORS(handleSettingsWorkerMode))
 	mux.HandleFunc("/api/settings/idle-suspend", withCORS(publishAfter(handleSettingsIdleSuspend, eventbus.KindSites)))
+	mux.HandleFunc("/api/settings/dns-upstream", withCORS(handleSettingsDNSUpstream))
 	mux.HandleFunc("/api/workers/health", withCORS(handleWorkersHealth))
 	mux.HandleFunc("/api/workers/heal", withCORS(handleWorkersHeal))
 	mux.HandleFunc("/api/stats", withCORS(handleStats))
@@ -659,6 +661,8 @@ type WorktreeResponse struct {
 	Domain              string         `json:"domain"`
 	Path                string         `json:"path"`
 	PHPVersion          string         `json:"php_version,omitempty"`
+	PHPMin              string         `json:"php_min,omitempty"`
+	PHPMax              string         `json:"php_max,omitempty"`
 	NodeVersion         string         `json:"node_version,omitempty"`
 	PHPVersionOverride  bool           `json:"php_version_override,omitempty"`
 	NodeVersionOverride bool           `json:"node_version_override,omitempty"`
@@ -701,39 +705,44 @@ type SiteResponse struct {
 	ConflictingDomains []ConflictingDomain `json:"conflicting_domains,omitempty"`
 	Path               string              `json:"path"`
 	PHPVersion         string              `json:"php_version"`
-	UsesPHP            bool                `json:"uses_php"`
-	NodeVersion        string              `json:"node_version"`
-	JSRuntime          string              `json:"js_runtime,omitempty"`
-	TLS                bool                `json:"tls"`
-	Framework          string              `json:"framework"`
-	FPMRunning         bool                `json:"fpm_running"`
-	IsLaravel          bool                `json:"is_laravel"`
-	FrameworkLabel     string              `json:"framework_label"`
-	QueueRunning       bool                `json:"queue_running"`
-	QueueFailing       bool                `json:"queue_failing,omitempty"`
-	StripeRunning      bool                `json:"stripe_running"`
-	StripeSecretSet    bool                `json:"stripe_secret_set"`
-	StripeWebhookPath  string              `json:"stripe_webhook_path,omitempty"`
-	ScheduleRunning    bool                `json:"schedule_running"`
-	ScheduleFailing    bool                `json:"schedule_failing,omitempty"`
-	ReverbRunning      bool                `json:"reverb_running"`
-	ReverbFailing      bool                `json:"reverb_failing,omitempty"`
-	HasReverb          bool                `json:"has_reverb"`
-	HasHorizon         bool                `json:"has_horizon"`
-	HorizonRunning     bool                `json:"horizon_running"`
-	HorizonFailing     bool                `json:"horizon_failing,omitempty"`
-	HorizonReload      bool                `json:"horizon_reload,omitempty"`       // horizon runs via horizon:listen (auto-reload)
-	HorizonReloadReady bool                `json:"horizon_reload_ready,omitempty"` // chokidar present, so auto-reload can be enabled without installing it
-	OctaneReload       bool                `json:"octane_reload,omitempty"`        // FrankenPHP worker serves via octane:start --watch (auto-reload)
-	OctaneReloadReady  bool                `json:"octane_reload_ready,omitempty"`  // FrankenPHP worker mode + chokidar present, so auto-reload can be enabled
-	HasQueueWorker     bool                `json:"has_queue_worker"`
-	HasScheduleWorker  bool                `json:"has_schedule_worker"`
-	FrameworkWorkers   []WorkerStatus      `json:"framework_workers,omitempty"`
-	HasAppLogs         bool                `json:"has_app_logs"`
-	LatestLogTime      string              `json:"latest_log_time,omitempty"`
-	HasFavicon         bool                `json:"has_favicon"`
-	HasEnv             bool                `json:"has_env"`
-	Paused             bool                `json:"paused"`
+	// PHPMin/PHPMax are the framework's supported PHP range. The dashboard
+	// disables out-of-range versions in the picker. Empty when there is no
+	// framework or its version was guessed (clamped), so nothing is disabled.
+	PHPMin             string         `json:"php_min,omitempty"`
+	PHPMax             string         `json:"php_max,omitempty"`
+	UsesPHP            bool           `json:"uses_php"`
+	NodeVersion        string         `json:"node_version"`
+	JSRuntime          string         `json:"js_runtime,omitempty"`
+	TLS                bool           `json:"tls"`
+	Framework          string         `json:"framework"`
+	FPMRunning         bool           `json:"fpm_running"`
+	IsLaravel          bool           `json:"is_laravel"`
+	FrameworkLabel     string         `json:"framework_label"`
+	QueueRunning       bool           `json:"queue_running"`
+	QueueFailing       bool           `json:"queue_failing,omitempty"`
+	StripeRunning      bool           `json:"stripe_running"`
+	StripeSecretSet    bool           `json:"stripe_secret_set"`
+	StripeWebhookPath  string         `json:"stripe_webhook_path,omitempty"`
+	ScheduleRunning    bool           `json:"schedule_running"`
+	ScheduleFailing    bool           `json:"schedule_failing,omitempty"`
+	ReverbRunning      bool           `json:"reverb_running"`
+	ReverbFailing      bool           `json:"reverb_failing,omitempty"`
+	HasReverb          bool           `json:"has_reverb"`
+	HasHorizon         bool           `json:"has_horizon"`
+	HorizonRunning     bool           `json:"horizon_running"`
+	HorizonFailing     bool           `json:"horizon_failing,omitempty"`
+	HorizonReload      bool           `json:"horizon_reload,omitempty"`       // horizon runs via horizon:listen (auto-reload)
+	HorizonReloadReady bool           `json:"horizon_reload_ready,omitempty"` // chokidar present, so auto-reload can be enabled without installing it
+	OctaneReload       bool           `json:"octane_reload,omitempty"`        // FrankenPHP worker serves via octane:start --watch (auto-reload)
+	OctaneReloadReady  bool           `json:"octane_reload_ready,omitempty"`  // FrankenPHP worker mode + chokidar present, so auto-reload can be enabled
+	HasQueueWorker     bool           `json:"has_queue_worker"`
+	HasScheduleWorker  bool           `json:"has_schedule_worker"`
+	FrameworkWorkers   []WorkerStatus `json:"framework_workers,omitempty"`
+	HasAppLogs         bool           `json:"has_app_logs"`
+	LatestLogTime      string         `json:"latest_log_time,omitempty"`
+	HasFavicon         bool           `json:"has_favicon"`
+	HasEnv             bool           `json:"has_env"`
+	Paused             bool           `json:"paused"`
 	// Pinned excludes the site from idle-suspend (kept always-warm).
 	Pinned bool `json:"pinned,omitempty"`
 	// LastActive is the unix-seconds time the site last saw a request, from the
@@ -878,6 +887,8 @@ func buildSites() []SiteResponse {
 				Domain:               wt.Domain,
 				Path:                 wt.Path,
 				PHPVersion:           wt.PHPVersion,
+				PHPMin:               e.FrameworkPHPMin,
+				PHPMax:               e.FrameworkPHPMax,
 				NodeVersion:          wt.NodeVersion,
 				PHPVersionOverride:   wt.PHPVersionOverride,
 				NodeVersionOverride:  wt.NodeVersionOverride,
@@ -905,6 +916,8 @@ func buildSites() []SiteResponse {
 			ConflictingDomains:   conflicting,
 			Path:                 e.Path,
 			PHPVersion:           e.PHPVersion,
+			PHPMin:               e.FrameworkPHPMin,
+			PHPMax:               e.FrameworkPHPMax,
 			UsesPHP:              e.UsesPHP,
 			NodeVersion:          e.NodeVersion,
 			JSRuntime:            projectJSRuntime(e.Path),
@@ -3691,43 +3704,6 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
-	case "tinker:symbols":
-		branch := r.URL.Query().Get("branch")
-		tinkerPath := resolveSitePath(site, branch)
-		if tinkerPath == "" {
-			http.NotFound(w, r)
-			return
-		}
-		ensureWorktreeEnvIfBranch(site, branch)
-		writeJSON(w, cli.CollectTinkerSymbols(tinkerPath))
-		return
-	case "tinker:lint":
-		var body struct {
-			Code string `json:"code"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&body); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "invalid body: " + err.Error()})
-			return
-		}
-		branch := r.URL.Query().Get("branch")
-		tinkerPath := resolveSitePath(site, branch)
-		if tinkerPath == "" {
-			writeJSON(w, map[string]any{"ok": false, "error": "unknown worktree branch"})
-			return
-		}
-		ensureWorktreeEnvIfBranch(site, branch)
-		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-		defer cancel()
-		diags, err := cli.LintTinkerCode(ctx, tinkerPath, body.Code)
-		resp := map[string]any{
-			"ok":          err == nil,
-			"diagnostics": diags,
-		}
-		if err != nil {
-			resp["error"] = err.Error()
-		}
-		writeJSON(w, resp)
-		return
 	case "tinker":
 		var body struct {
 			Code string `json:"code"`
@@ -4305,11 +4281,14 @@ func handleQueueLogs(w http.ResponseWriter, r *http.Request) {
 
 // SettingsResponse is the response for GET /api/settings.
 type SettingsResponse struct {
-	AutostartOnLogin          bool   `json:"autostart_on_login"`
-	WorkerExecMode            string `json:"worker_exec_mode"`
-	WorkerModeApplies         bool   `json:"worker_mode_applies"` // true on macOS only
-	IdleSuspendEnabled        bool   `json:"idle_suspend_enabled"`
-	IdleSuspendTimeoutMinutes int    `json:"idle_suspend_timeout_minutes"`
+	AutostartOnLogin          bool     `json:"autostart_on_login"`
+	WorkerExecMode            string   `json:"worker_exec_mode"`
+	WorkerModeApplies         bool     `json:"worker_mode_applies"` // true on macOS only
+	IdleSuspendEnabled        bool     `json:"idle_suspend_enabled"`
+	IdleSuspendTimeoutMinutes int      `json:"idle_suspend_timeout_minutes"`
+	DNSEnabled                bool     `json:"dns_enabled"`
+	DNSUpstream               []string `json:"dns_upstream"`          // pinned upstreams, empty = auto-detect
+	DNSUpstreamDetected       []string `json:"dns_upstream_detected"` // what auto-detection currently sees
 }
 
 func handleSettings(w http.ResponseWriter, _ *http.Request) {
@@ -4317,10 +4296,14 @@ func handleSettings(w http.ResponseWriter, _ *http.Request) {
 	mode := config.WorkerExecModeExec
 	idleEnabled := false
 	idleMinutes := int(config.DefaultIdleSuspendTimeout / time.Minute)
+	dnsEnabled := true
+	var dnsUpstream []string
 	if cfg != nil {
 		mode = cfg.WorkerExecMode()
 		idleEnabled = cfg.IdleSuspend.Enabled
 		idleMinutes = int(cfg.IdleSuspendTimeout() / time.Minute)
+		dnsEnabled = cfg.DNSManaged()
+		dnsUpstream = cfg.DNS.Upstream
 	}
 	writeJSON(w, SettingsResponse{
 		AutostartOnLogin:          lerdSystemd.IsAutostartEnabled(),
@@ -4328,6 +4311,9 @@ func handleSettings(w http.ResponseWriter, _ *http.Request) {
 		WorkerModeApplies:         runtime.GOOS == "darwin",
 		IdleSuspendEnabled:        idleEnabled,
 		IdleSuspendTimeoutMinutes: idleMinutes,
+		DNSEnabled:                dnsEnabled,
+		DNSUpstream:               dnsUpstream,
+		DNSUpstreamDetected:       dns.ReadUpstreamDNS(),
 	})
 }
 
@@ -4370,6 +4356,57 @@ func handleSettingsIdleSuspend(w http.ResponseWriter, r *http.Request) {
 		activityping.Disable()
 	}
 	writeJSON(w, map[string]any{"ok": true})
+}
+
+// handleSettingsDNSUpstream pins (or clears) the upstream DNS servers dnsmasq
+// forwards non-.test queries to. An empty list restores auto-detection. On
+// success it rewrites the dnsmasq config and restarts lerd-dns so the change
+// takes effect without a manual `lerd install`.
+func handleSettingsDNSUpstream(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Upstream []string `json:"upstream"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	cleaned := make([]string, 0, len(body.Upstream))
+	for _, entry := range body.Upstream {
+		if strings.TrimSpace(entry) == "" {
+			continue
+		}
+		norm, ok := dns.NormalizeUpstreamEntry(entry)
+		if !ok {
+			writeJSON(w, map[string]any{"ok": false, "error": "invalid upstream: " + entry})
+			return
+		}
+		cleaned = append(cleaned, norm)
+	}
+	cfg, err := config.LoadGlobal()
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	cfg.DNS.Upstream = cleaned
+	if err := config.SaveGlobal(cfg); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if cfg.DNSManaged() {
+		if err := dns.WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "saved, but rewriting dnsmasq config failed: " + err.Error()})
+			return
+		}
+		if err := podman.RestartUnit("lerd-dns"); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "saved, but restarting lerd-dns failed: " + err.Error()})
+			return
+		}
+	}
+	writeJSON(w, map[string]any{"ok": true, "upstream": cleaned})
 }
 
 func handleSettingsWorkerMode(w http.ResponseWriter, r *http.Request) {

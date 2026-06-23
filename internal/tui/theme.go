@@ -1,17 +1,22 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/lipgloss"
+	"github.com/geodro/lerd/internal/feedback"
+)
 
+// Palette is shared with the CLI feedback package so the TUI and the
+// command-line progress output stay in lockstep.
 var (
-	colTitle    = lipgloss.Color("#FF2D20") // lerd red
-	colDim      = lipgloss.Color("#6b7280") // gray-500
-	colDivider  = lipgloss.Color("#374151") // gray-700
-	colRunning  = lipgloss.Color("#10b981") // emerald-500
-	colStopped  = lipgloss.Color("#6b7280") // gray-500
-	colFailing  = lipgloss.Color("#ef4444") // red-500
-	colPaused   = lipgloss.Color("#f59e0b") // amber-400
-	colAccent   = lipgloss.Color("#a78bfa") // violet-400
-	colSelected = lipgloss.Color("#FF2D20") // lerd red
+	colTitle    = feedback.ColTitle
+	colDim      = feedback.ColDim
+	colDivider  = feedback.ColDivider
+	colRunning  = feedback.ColRunning
+	colStopped  = feedback.ColStopped
+	colFailing  = feedback.ColFailing
+	colPaused   = feedback.ColPaused
+	colAccent   = feedback.ColAccent
+	colSelected = feedback.ColTitle
 )
 
 var (
@@ -29,6 +34,32 @@ var (
 	accentStyle    = lipgloss.NewStyle().Foreground(colAccent)
 	helpStyle      = lipgloss.NewStyle().Foreground(colDim)
 )
+
+// Footer key-hint styles. Navigation/view keys stay in the main accent colour
+// so movement reads as one family; keys that act on something (start, stop,
+// toggle, heal, …) are amber so destructive/mutating shortcuts stand apart at
+// a glance. Labels stay dim so the coloured key is what the eye catches.
+var (
+	footNavKeyStyle    = lipgloss.NewStyle().Foreground(colAccent).Bold(true)
+	footActionKeyStyle = lipgloss.NewStyle().Foreground(colPaused).Bold(true)
+	footLabelStyle     = lipgloss.NewStyle().Foreground(colDim)
+)
+
+// Top tab bar styles. The active tab reads as a filled accent pill so it
+// stands out as the current screen; inactive tabs sit dim until hovered or
+// clicked. Both keep the same padding so the bar's hit regions line up.
+var (
+	tabActiveStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#0b0b0b")).Background(colAccent).Padding(0, 2)
+	tabInactiveStyle = lipgloss.NewStyle().Foreground(colDim).Padding(0, 2)
+	// A blank row above the tabs keeps the active pill off the terminal's own
+	// top chrome (tmux/term tab line) instead of butting right against it.
+	tabBarStyle = lipgloss.NewStyle().Padding(1, 1, 0, 1)
+)
+
+// cardStyle is the bordered box every dashboard grid card draws inside. It
+// mirrors unfocusedPane (rounded divider border, single-cell padding) so the
+// grid reads as a set of panels in the same visual language as the lists.
+var cardStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(colDivider).Padding(0, 1)
 
 const (
 	glyphRunning   = "●"

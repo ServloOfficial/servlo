@@ -197,7 +197,7 @@ func TestTickDNS(t *testing.T) {
 				},
 			}
 			state := &dnsWatchState{lastOK: c.lastOK, tickCount: c.tickCount}
-			tickDNS(deps, state, "test")
+			tickDNS(deps, state, "test", false)
 
 			if got.checks != c.wantChecks {
 				t.Errorf("check() calls=%d, want %d", got.checks, c.wantChecks)
@@ -254,7 +254,7 @@ func TestTickDNS_repairUnavailable_logsOnceAndSkipsResolverWrite(t *testing.T) {
 
 	// Three consecutive ticks with DNS down; only the first should log.
 	for i := 0; i < 3; i++ {
-		tickDNS(deps, state, "test")
+		tickDNS(deps, state, "test", false)
 	}
 
 	if checks != 3 {
@@ -291,7 +291,7 @@ func TestTickDNS_repairAvailableAfterUnavailable_relogsOnNextOutage(t *testing.T
 	state := &dnsWatchState{}
 
 	// Tick with gate closed: one warn.
-	tickDNS(deps, state, "test")
+	tickDNS(deps, state, "test", false)
 	if len(logs) != 1 {
 		t.Fatalf("expected 1 log, got %d (%v)", len(logs), logs)
 	}
@@ -302,7 +302,7 @@ func TestTickDNS_repairAvailableAfterUnavailable_relogsOnNextOutage(t *testing.T
 	// repairUnavailable flag must be cleared so a future close-of-gate
 	// re-emits the once warn.
 	gate = true
-	tickDNS(deps, state, "test")
+	tickDNS(deps, state, "test", false)
 	if len(logs) < 1 {
 		t.Fatalf("expected repair pipeline logs after gate reopened, got %v", logs)
 	}
@@ -313,7 +313,7 @@ func TestTickDNS_repairAvailableAfterUnavailable_relogsOnNextOutage(t *testing.T
 	// Close gate again — should re-log the once-warn.
 	logs = nil
 	gate = false
-	tickDNS(deps, state, "test")
+	tickDNS(deps, state, "test", false)
 	if len(logs) != 1 {
 		t.Errorf("expected re-log after gate re-closes, got %v", logs)
 	}
@@ -337,26 +337,120 @@ func TestTickDNS_containerDNSResync(t *testing.T) {
 	state := &dnsWatchState{}
 
 	// First tick only records the baseline.
-	tickDNS(deps, state, "test")
+	tickDNS(deps, state, "test", false)
 	if resyncs != 0 {
 		t.Fatalf("first tick re-synced; want baseline only, got %d", resyncs)
 	}
 	// Unchanged environment: still quiet.
-	tickDNS(deps, state, "test")
+	tickDNS(deps, state, "test", false)
 	if resyncs != 0 {
 		t.Fatalf("unchanged env re-synced=%d, want 0", resyncs)
 	}
 	// VPN connects: the fingerprint changes, re-sync fires once.
 	fp = "1.1.1.1,10.0.0.1|1"
-	tickDNS(deps, state, "test")
+	tickDNS(deps, state, "test", false)
 	if resyncs != 1 {
 		t.Fatalf("changed env re-syncs=%d, want 1", resyncs)
 	}
 	// Stable at the new value: no further re-sync.
-	tickDNS(deps, state, "test")
+	tickDNS(deps, state, "test", false)
 	if resyncs != 1 {
 		t.Fatalf("re-syncs after settle=%d, want 1", resyncs)
 	}
+}
+
+// TestTickDNS_exposeMappingRepair pins the lan:expose heal: when DNS reads
+// down because the published .tld mapping drifted from the host's current LAN
+// IP (sleep/wake DHCP renew), the watcher must re-render the mapping and
+// reload lerd-dns *before* the sudo-gated resolver repair, then re-check and
+// publish the recovery. A no-op or a failed re-render must fall through to the
+// existing resolver repair so neither path is shadowed.
+func TestTickDNS_exposeMappingRepair(t *testing.T) {
+	t.Run("re-render heals and skips resolver repair", func(t *testing.T) {
+		var checks, exposeCalls, resolverCalls, waits, publishes int
+		var logs []string
+		deps := dnsWatchDeps{
+			// First probe down, second (post re-render) up.
+			check: func(string) (bool, error) {
+				checks++
+				return checks > 1, nil
+			},
+			waitReady:           func(time.Duration) error { waits++; return nil },
+			configureResolver:   func() error { resolverCalls++; return nil },
+			repairExposeMapping: func() (bool, error) { exposeCalls++; return true, nil },
+			idleOrLocked:        func() bool { return false },
+			publishStatus:       func() { publishes++ },
+			log:                 func(level, _ string, _ ...any) { logs = append(logs, level) },
+		}
+		state := &dnsWatchState{lastOK: ptrBool(true)}
+		tickDNS(deps, state, "test", false)
+
+		if exposeCalls != 1 {
+			t.Errorf("expose repair calls=%d, want 1", exposeCalls)
+		}
+		if checks != 2 {
+			t.Errorf("checks=%d, want 2 (probe + re-check after re-render)", checks)
+		}
+		if resolverCalls != 0 || waits != 0 {
+			t.Errorf("resolver repair must not run after a successful re-render: waits=%d resolver=%d", waits, resolverCalls)
+		}
+		// down transition + post-heal up flip.
+		if publishes != 2 {
+			t.Errorf("publishes=%d, want 2", publishes)
+		}
+		if !ptrBoolEq(state.lastOK, ptrBool(true)) {
+			t.Errorf("lastOK=%v, want true", deref(state.lastOK))
+		}
+		// info log for the re-render only (down transition doesn't log).
+		if len(logs) != 1 || logs[0] != "info" {
+			t.Errorf("logs=%v, want one info", logs)
+		}
+	})
+
+	t.Run("no-op re-render falls through to resolver repair", func(t *testing.T) {
+		var exposeCalls, resolverCalls, waits int
+		deps := dnsWatchDeps{
+			check:               func(string) (bool, error) { return false, nil },
+			waitReady:           func(time.Duration) error { waits++; return nil },
+			configureResolver:   func() error { resolverCalls++; return nil },
+			repairExposeMapping: func() (bool, error) { exposeCalls++; return false, nil },
+			idleOrLocked:        func() bool { return false },
+			publishStatus:       func() {},
+			log:                 func(string, string, ...any) {},
+		}
+		state := &dnsWatchState{lastOK: ptrBool(false)}
+		tickDNS(deps, state, "test", false)
+
+		if exposeCalls != 1 {
+			t.Errorf("expose repair calls=%d, want 1", exposeCalls)
+		}
+		if waits != 1 || resolverCalls != 1 {
+			t.Errorf("a no-op re-render must fall through to resolver repair: waits=%d resolver=%d", waits, resolverCalls)
+		}
+	})
+
+	t.Run("re-render error logs warn and falls through", func(t *testing.T) {
+		var resolverCalls int
+		var logs []string
+		deps := dnsWatchDeps{
+			check:               func(string) (bool, error) { return false, nil },
+			waitReady:           func(time.Duration) error { return nil },
+			configureResolver:   func() error { resolverCalls++; return nil },
+			repairExposeMapping: func() (bool, error) { return false, errors.New("reload lerd-dns: boom") },
+			idleOrLocked:        func() bool { return false },
+			publishStatus:       func() {},
+			log:                 func(level, _ string, _ ...any) { logs = append(logs, level) },
+		}
+		state := &dnsWatchState{lastOK: ptrBool(false)}
+		tickDNS(deps, state, "test", false)
+
+		if resolverCalls != 1 {
+			t.Errorf("resolver repair must still run after a re-render error, got %d", resolverCalls)
+		}
+		if len(logs) < 1 || logs[0] != "warn" {
+			t.Errorf("expected a leading warn for the re-render error, got %v", logs)
+		}
+	})
 }
 
 // TestRunDNSLoop_linkChangeKicksTick pins that an interface change wakes
@@ -399,6 +493,46 @@ func TestRunDNSLoop_linkChangeKicksTick(t *testing.T) {
 	}
 }
 
+// TestRunDNSLoop_linkChangeKicksTickWhileIdle pins the whole point of the link
+// watcher: a host network change must re-probe immediately even on an idle or
+// locked session. The polling backoff (idleSkipEveryN) exists to save battery
+// on the timer path, but a VPN connect/disconnect or wifi switch frequently
+// happens while the laptop is asleep or on the lock screen, so routing the
+// link-change tick through the same idle skip would drop ~9 of every 10 events
+// and leave containers on the stale resolver until the next Nth poll.
+func TestRunDNSLoop_linkChangeKicksTickWhileIdle(t *testing.T) {
+	ticks := make(chan struct{}, 16)
+	deps := dnsWatchDeps{
+		check:         func(string) (bool, error) { ticks <- struct{}{}; return true, nil },
+		idleOrLocked:  func() bool { return true },
+		publishStatus: func() {},
+		log:           func(string, string, ...any) {},
+	}
+	state := &dnsWatchState{}
+	tickerC := make(chan time.Time, 4)
+	linkC := make(chan struct{}, 4)
+	done := make(chan struct{})
+	stopped := make(chan struct{})
+	go func() { runDNSLoop(deps, state, "test", tickerC, linkC, done); close(stopped) }()
+	defer func() { close(done); <-stopped }()
+
+	// The initial poll is skipped while idle (tickCount 1, not the Nth), so it
+	// must not probe — confirm the loop is genuinely in the backoff state.
+	select {
+	case <-ticks:
+		t.Fatal("idle initial poll probed; backoff should have skipped it")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// The link change must probe right away despite being idle.
+	linkC <- struct{}{}
+	select {
+	case <-ticks:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("link change did not kick a tick while idle")
+	}
+}
+
 func ptrBool(b bool) *bool { return &b }
 
 func ptrBoolEq(a, b *bool) bool {
@@ -413,4 +547,137 @@ func deref(p *bool) any {
 		return "<nil>"
 	}
 	return *p
+}
+
+func TestSuperviseLinkChanges_RestartsOnTransientError(t *testing.T) {
+	done := make(chan struct{})
+	defer close(done)
+
+	calls := make(chan int, 8)
+	var n int
+	fn := func(out chan<- struct{}, d <-chan struct{}) error {
+		n++
+		calls <- n
+		if n < 3 {
+			return errors.New("transient netlink failure")
+		}
+		<-d // the third attempt stays up until shutdown
+		return nil
+	}
+
+	go superviseLinkChanges(fn, make(chan struct{}, 1), done, func(int) time.Duration { return 0 }, time.Minute)
+
+	// We expect three attempts: two that error and restart, one that sticks.
+	for want := 1; want <= 3; want++ {
+		select {
+		case got := <-calls:
+			if got != want {
+				t.Fatalf("attempt %d, want %d", got, want)
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("attempt %d never happened", want)
+		}
+	}
+}
+
+func TestSuperviseLinkChanges_ResetsBackoffAfterHealthyRun(t *testing.T) {
+	done := make(chan struct{})
+	defer close(done)
+
+	// Reset threshold of 15ms; the "healthy" run below sleeps 30ms before failing.
+	attempts := make(chan int, 16)
+	backoff := func(a int) time.Duration { attempts <- a; return 0 }
+
+	var n int
+	fn := func(out chan<- struct{}, d <-chan struct{}) error {
+		n++
+		switch {
+		case n <= 3:
+			return errors.New("rapid transient failure") // short runs grow the backoff
+		case n == 4:
+			time.Sleep(30 * time.Millisecond) // healthy run, then a late error
+			return errors.New("late transient failure")
+		default:
+			<-d // stay up until shutdown
+			return nil
+		}
+	}
+
+	go superviseLinkChanges(fn, make(chan struct{}, 1), done, backoff, 15*time.Millisecond)
+
+	// The three rapid failures grow the backoff attempt: 0, 1, 2.
+	for want := 0; want <= 2; want++ {
+		select {
+		case got := <-attempts:
+			if got != want {
+				t.Fatalf("backoff attempt %d, want %d", got, want)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("backoff not called")
+		}
+	}
+	// The fourth attempt ran longer than the reset threshold before failing, so
+	// the next restart must reset the backoff to 0 rather than stay near the cap.
+	select {
+	case got := <-attempts:
+		if got != 0 {
+			t.Fatalf("backoff after a healthy run = %d, want 0 (reset)", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("backoff not called after the healthy run")
+	}
+}
+
+func TestSuperviseLinkChanges_StopsAfterDone(t *testing.T) {
+	done := make(chan struct{})
+	close(done) // already shutting down
+
+	var n int
+	fn := func(out chan<- struct{}, d <-chan struct{}) error {
+		n++
+		return errors.New("read after shutdown")
+	}
+
+	stopped := make(chan struct{})
+	go func() {
+		superviseLinkChanges(fn, make(chan struct{}, 1), done, func(int) time.Duration { return 0 }, time.Minute)
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		t.Fatal("supervisor did not return after done was closed")
+	}
+	if n != 1 {
+		t.Fatalf("expected exactly one attempt with done closed, got %d", n)
+	}
+}
+
+func TestExposeConfigChanged_IgnoresAAAAOnlyDrift(t *testing.T) {
+	base := "# Lerd DNS configuration\nport=5300\nno-resolv\nserver=1.1.1.1\naddress=/.test/192.168.1.5\n"
+	withV6 := base + "address=/.test/2001:db8::1\n"
+	withOtherV6 := base + "address=/.test/2001:db8::2\n"
+
+	// A v6 address appearing, rotating, or disappearing must not trigger a restart.
+	if exposeConfigChanged([]byte(base), []byte(withV6)) {
+		t.Fatal("adding an AAAA record should not warrant a restart")
+	}
+	if exposeConfigChanged([]byte(withV6), []byte(withOtherV6)) {
+		t.Fatal("rotating the AAAA record should not warrant a restart")
+	}
+	if exposeConfigChanged([]byte(withV6), []byte(base)) {
+		t.Fatal("dropping the AAAA record should not warrant a restart")
+	}
+
+	// A v4 drift (the real LAN IP change) must still trigger a restart.
+	v4Changed := "# Lerd DNS configuration\nport=5300\nno-resolv\nserver=1.1.1.1\naddress=/.test/192.168.1.9\n"
+	if !exposeConfigChanged([]byte(base), []byte(v4Changed)) {
+		t.Fatal("a v4 address change must warrant a restart")
+	}
+	// An upstream change must still trigger a restart.
+	upstreamChanged := "# Lerd DNS configuration\nport=5300\nno-resolv\nserver=8.8.8.8\naddress=/.test/192.168.1.5\n"
+	if !exposeConfigChanged([]byte(base), []byte(upstreamChanged)) {
+		t.Fatal("an upstream change must warrant a restart")
+	}
 }

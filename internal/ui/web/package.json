@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "npm run i18n && vite",
     "build": "npm run i18n && vite build",
+    "build:demo": "npm run i18n && vite build --config vite.demo.config.ts",
     "preview": "vite preview",
     "check": "npm run i18n && svelte-check --tsconfig ./tsconfig.json",
     "test": "npm run i18n && vitest run",
@@ -29,17 +30,12 @@
     "vitest": "^4.1.8"
   },
   "dependencies": {
-    "@codemirror/autocomplete": "^6.20.1",
-    "@codemirror/commands": "^6.10.3",
-    "@codemirror/lang-php": "^6.0.2",
-    "@codemirror/lint": "^6.9.5",
-    "@codemirror/state": "^6.6.0",
-    "@codemirror/view": "^6.41.1",
     "@inlang/paraglide-js": "^2.16.1",
-    "codemirror": "^6.0.2",
+    "monaco-editor": "^0.55.1",
     "svelte-dnd-action": "^0.9.69"
   },
   "overrides": {
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "dompurify": "^3.4.9"
   }
 }

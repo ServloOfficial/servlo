@@ -1,11 +1,15 @@
 package watcher
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/dns"
 	"github.com/geodro/lerd/internal/eventbus"
 	"github.com/geodro/lerd/internal/podman"
@@ -20,15 +24,16 @@ const idleSkipEveryN = 10
 // dnsWatchDeps is the injection surface for tickDNS so the orchestration
 // can be unit-tested without an actual resolver or eventbus subscriber.
 type dnsWatchDeps struct {
-	check              func(tld string) (bool, error)
-	waitReady          func(time.Duration) error
-	configureResolver  func() error
-	repairPossible     func() bool
-	idleOrLocked       func() bool
-	publishStatus      func()
-	dnsEnvFingerprint  func() string
-	resyncContainerDNS func() error
-	log                func(level, msg string, kv ...any)
+	check               func(tld string) (bool, error)
+	waitReady           func(time.Duration) error
+	configureResolver   func() error
+	repairPossible      func() bool
+	idleOrLocked        func() bool
+	publishStatus       func()
+	dnsEnvFingerprint   func() string
+	resyncContainerDNS  func() error
+	repairExposeMapping func() (changed bool, err error)
+	log                 func(level, msg string, kv ...any)
 }
 
 // dnsWatchState is the cross-tick memory for WatchDNS. lastOK starts nil
@@ -65,6 +70,75 @@ func defaultResyncContainerDNS() error {
 		return err
 	}
 	return podman.ReloadNetworks()
+}
+
+// defaultRepairExposeMapping re-renders the host dnsmasq .tld answer to the
+// current primary LAN IP and reloads lerd-dns when lan:expose is on and the
+// published mapping has drifted. lerd only regenerates that mapping on
+// `lerd start`, so a sleep/wake DHCP renew or a network switch leaves dnsmasq
+// answering the old IP; CheckStatus compares that answer against the live
+// primaryLANIP and reports the dashboard pill down even though lerd-dns is
+// serving fine, and in lan:expose mode the published address eventually stops
+// routing once the old lease is gone. The config dir (DnsmasqDir) is
+// user-owned and mounted read-only into the lerd-dns container, so the
+// rewrite needs no privilege escalation and a unit reload picks it up on both
+// macOS (launchd) and Linux (systemd).
+//
+// Returns (false, nil), a safe no-op, when expose is off, the host has no
+// LAN IP yet, or the mapping already matches, so it can run on every failed
+// health tick without thrashing the daemon.
+func defaultRepairExposeMapping(tld string) (bool, error) {
+	cfg, err := config.LoadGlobal()
+	if err != nil {
+		return false, err
+	}
+	if cfg == nil || !cfg.LAN.Exposed {
+		return false, nil
+	}
+	if primaryLANIP() == "" {
+		return false, nil
+	}
+	// Gate the restart on the rendered config actually changing, not on the live
+	// dnsmasq answer: a freshly restarted lerd-dns lags a tick or two before it
+	// serves the new IP, and keying off the answer would re-render and restart it
+	// again every failed tick until it settled. Comparing the on-disk config also
+	// covers the AAAA record (DnsmasqAnswer is IPv4-only, so an answer check would
+	// never heal an IPv6 drift), and makes the repair idempotent so it restarts
+	// exactly once per real drift.
+	confPath := filepath.Join(config.DnsmasqDir(), "lerd.conf")
+	before, _ := os.ReadFile(confPath)
+	if err := dns.WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
+		return false, err
+	}
+	after, _ := os.ReadFile(confPath)
+	if !exposeConfigChanged(before, after) {
+		return false, nil
+	}
+	return true, podman.RestartUnit("lerd-dns")
+}
+
+// exposeConfigChanged reports whether the rendered dnsmasq config changed in a
+// way that warrants restarting lerd-dns. A change confined to the AAAA (IPv6)
+// address lines is ignored: a global v6 coming and going, or a privacy address
+// rotating, would otherwise restart lerd-dns on every tick, while v4 is what
+// LAN clients overwhelmingly rely on. The new config is still written to disk,
+// so a later v4 drift or a fresh setup picks up the current AAAA.
+func exposeConfigChanged(before, after []byte) bool {
+	return !bytes.Equal(stripAAAALines(before), stripAAAALines(after))
+}
+
+// stripAAAALines drops the IPv6 `address=/.test/<v6>` lines (those whose target
+// contains a colon) so AAAA-only drift compares equal.
+func stripAAAALines(conf []byte) []byte {
+	lines := strings.Split(string(conf), "\n")
+	kept := lines[:0]
+	for _, ln := range lines {
+		if strings.HasPrefix(ln, "address=/") && strings.Contains(ln[strings.LastIndex(ln, "/")+1:], ":") {
+			continue
+		}
+		kept = append(kept, ln)
+	}
+	return []byte(strings.Join(kept, "\n"))
 }
 
 // linkChangeDebounce caps how long the netlink burst from a single VPN
@@ -117,6 +191,10 @@ func WatchDNS(interval time.Duration, tld string) {
 		deps.resyncContainerDNS = defaultResyncContainerDNS
 	}
 
+	// Cross-platform: heal a stale lan:expose .tld mapping after the host LAN
+	// IP changes. Bind the configured TLD so the tick body stays no-arg.
+	deps.repairExposeMapping = func() (bool, error) { return defaultRepairExposeMapping(tld) }
+
 	state := &dnsWatchState{}
 
 	ticker := time.NewTicker(interval)
@@ -127,14 +205,66 @@ func WatchDNS(interval time.Duration, tld string) {
 
 	linkRaw := make(chan struct{}, 32)
 	linkSettled := make(chan struct{}, 4)
-	go func() {
-		if err := dns.LinkChanges(linkRaw, done); err != nil {
-			logger.Warn("rtnetlink unavailable, DNS reacts on the safety-net poll only", "err", err)
-		}
-	}()
+	go superviseLinkChanges(dns.LinkChanges, linkRaw, done, linkChangeBackoff, linkChangeResetAfter)
 	go dns.DebounceEvents(linkRaw, linkSettled, linkChangeDebounce, done)
 
 	runDNSLoop(deps, state, tld, ticker.C, linkSettled, done)
+}
+
+// linkChangeBackoff is the capped exponential delay before restarting the
+// host-network-change watcher after a transient error: 1s, 2s, 4s … up to 30s.
+func linkChangeBackoff(attempt int) time.Duration {
+	d := time.Second << attempt
+	if d <= 0 || d > 30*time.Second {
+		d = 30 * time.Second
+	}
+	return d
+}
+
+// linkChangeResetAfter is how long a single watch must stay up before the next
+// restart is treated as fresh: a watch that ran healthy for this long and then
+// hit one late transient error should restart promptly, not at the grown 30s
+// cap. Passed into superviseLinkChanges so tests can shrink it without a shared
+// global.
+const linkChangeResetAfter = 60 * time.Second
+
+// superviseLinkChanges keeps dns.LinkChanges alive: when it returns an error
+// before done closes (a transient netlink/route socket failure) it restarts it
+// after a backoff, so the watcher doesn't go permanently deaf to host network
+// changes and fall back to the safety-net poll for the rest of the daemon's
+// life. It returns once done is closed or LinkChanges returns nil (a clean
+// shutdown, or an unsupported platform that simply waits on done).
+func superviseLinkChanges(fn func(chan<- struct{}, <-chan struct{}) error,
+	out chan<- struct{}, done <-chan struct{}, backoff func(int) time.Duration, resetAfter time.Duration) {
+
+	attempt := 0
+	for {
+		start := time.Now()
+		err := fn(out, done)
+		healthyRun := time.Since(start) >= resetAfter
+		select {
+		case <-done:
+			return
+		default:
+		}
+		if err == nil {
+			return
+		}
+		// A watch that stayed up a long time before failing was healthy, so one
+		// late transient error shouldn't inherit the grown backoff and leave us
+		// capped at 30s; restart it promptly instead.
+		if healthyRun {
+			attempt = 0
+		}
+		logger.Warn("host network change watcher errored, restarting; DNS reacts on the safety-net poll meanwhile",
+			"err", err, "attempt", attempt+1)
+		select {
+		case <-time.After(backoff(attempt)):
+		case <-done:
+			return
+		}
+		attempt++
+	}
 }
 
 // runDNSLoop runs the tick state machine: an immediate first probe, then
@@ -143,25 +273,29 @@ func WatchDNS(interval time.Duration, tld string) {
 func runDNSLoop(d dnsWatchDeps, state *dnsWatchState, tld string,
 	tickerC <-chan time.Time, linkC <-chan struct{}, done <-chan struct{}) {
 
-	tickDNS(d, state, tld)
+	tickDNS(d, state, tld, false)
 	for {
 		select {
 		case <-done:
 			return
 		case <-tickerC:
-			tickDNS(d, state, tld)
+			tickDNS(d, state, tld, false)
 		case <-linkC:
-			tickDNS(d, state, tld)
+			// A real host network change must re-probe immediately, even on
+			// an idle/locked session, so it bypasses the polling backoff.
+			tickDNS(d, state, tld, true)
 		}
 	}
 }
 
-// tickDNS runs one iteration of the DNS health loop. It returns early
-// during idle backoff. On every tick that probes, the previous
-// observation is compared and a transition publishes KindStatus.
-func tickDNS(d dnsWatchDeps, s *dnsWatchState, tld string) {
+// tickDNS runs one iteration of the DNS health loop. A poll tick returns
+// early during idle backoff; a linkTriggered tick (a host network change)
+// always probes since that is the event the watcher exists to react to. On
+// every tick that probes, the previous observation is compared and a
+// transition publishes KindStatus.
+func tickDNS(d dnsWatchDeps, s *dnsWatchState, tld string, linkTriggered bool) {
 	s.tickCount++
-	if d.idleOrLocked() && s.tickCount%idleSkipEveryN != 0 {
+	if !linkTriggered && d.idleOrLocked() && s.tickCount%idleSkipEveryN != 0 {
 		return
 	}
 
@@ -196,6 +330,28 @@ func tickDNS(d dnsWatchDeps, s *dnsWatchState, tld string) {
 
 	if ok {
 		return
+	}
+
+	// A stale lan:expose mapping (the dnsmasq .tld answer drifting from the
+	// host's current primary LAN IP after a sleep/wake or DHCP renew) makes
+	// CheckStatus report down even though lerd-dns is healthy. Re-render the
+	// mapping and reload lerd-dns first: the config dir is user-owned, so this
+	// needs no privilege escalation and heals even on a host where the
+	// sudo-gated resolver repair below is unavailable. A no-op (expose off or
+	// the mapping already current) returns false and falls through.
+	if d.repairExposeMapping != nil {
+		switch changed, err := d.repairExposeMapping(); {
+		case err != nil:
+			d.log("warn", "lan:expose DNS mapping repair failed", "err", err)
+		case changed:
+			d.log("info", "lan:expose DNS mapping re-rendered to the current LAN IP")
+			if ok2, _ := d.check(tld); ok2 {
+				up := true
+				s.lastOK = &up
+				d.publishStatus()
+				return
+			}
+		}
 	}
 
 	// Skip repair when the platform can't write the resolver config from

@@ -8,54 +8,48 @@ import (
 	"github.com/geodro/lerd/internal/stats"
 )
 
-// TestDashboardContent_RendersAllSections ensures every promised section
-// header is present so the dashboard never silently loses a widget after a
-// refactor.
-func TestDashboardContent_RendersAllSections(t *testing.T) {
+// TestDashboardGrid_RendersAllCards ensures every promised card title is
+// present so the dashboard never silently loses a widget after a refactor.
+func TestDashboardGrid_RendersAllCards(t *testing.T) {
 	m := NewModel("test")
-	lines, _ := dashboardContentLinesWithCursor(m, false, 120)
-	joined := stripANSI(strings.Join(lines, "\n"))
-	for _, want := range []string{"Dashboard", "Overview", "System health", "Resources", "Lerd"} {
+	joined := stripANSI(m.renderDashboardGrid(150, 30))
+	for _, want := range []string{"Sites", "Services", "Workers", "System Health", "Resources", "Lerd"} {
 		if !strings.Contains(joined, want) {
-			t.Errorf("missing section %q in dashboard:\n%s", want, joined)
+			t.Errorf("missing card %q in dashboard grid:\n%s", want, joined)
 		}
 	}
 }
 
-// TestDashboardContent_ShowsHealthyWhenNoFailures verifies the hero line
-// reflects the heal state so users see the positive signal even when the
-// header banner is hidden.
-func TestDashboardContent_ShowsHealthyWhenNoFailures(t *testing.T) {
+// TestWorkersCard_HealthyWhenNoFailures verifies the workers card reflects the
+// heal state so users see the positive signal at a glance.
+func TestWorkersCard_HealthyWhenNoFailures(t *testing.T) {
 	m := NewModel("test")
-	lines, _ := dashboardContentLinesWithCursor(m, false, 120)
-	joined := stripANSI(strings.Join(lines, "\n"))
+	joined := stripANSI(strings.Join(m.dashWorkersCard(60, -1).lines, "\n"))
 	if !strings.Contains(joined, "all workers healthy") {
-		t.Errorf("expected healthy hero with no failing workers:\n%s", joined)
+		t.Errorf("expected healthy state with no failing workers:\n%s", joined)
 	}
 }
 
-// TestDashboardContent_ShowsFailingWorkerCount counts failing workers from
-// the snapshot so the dashboard summary always matches the heal hint in the
-// header.
-func TestDashboardContent_ShowsFailingWorkerCount(t *testing.T) {
+// TestWorkersCard_ShowsFailingCount counts failing workers from the snapshot
+// so the card summary always matches the heal hint in the header.
+func TestWorkersCard_ShowsFailingCount(t *testing.T) {
 	m := NewModel("test")
 	m.snap.Sites = []siteinfo.EnrichedSite{
 		{Name: "a", QueueFailing: true, HasQueueWorker: true},
 		{Name: "b", ScheduleFailing: true, HasScheduleWorker: true},
 	}
-	lines, _ := dashboardContentLinesWithCursor(m, false, 120)
-	joined := stripANSI(strings.Join(lines, "\n"))
-	if !strings.Contains(joined, "2 workers failing") {
-		t.Errorf("expected '2 workers failing':\n%s", joined)
+	joined := stripANSI(strings.Join(m.dashWorkersCard(60, -1).lines, "\n"))
+	if !strings.Contains(joined, "2 failing") {
+		t.Errorf("expected '2 failing':\n%s", joined)
 	}
 	if !strings.Contains(joined, "press H") {
-		t.Errorf("dashboard should hint at H to heal:\n%s", joined)
+		t.Errorf("workers card should hint at H to heal:\n%s", joined)
 	}
 }
 
-// TestDashboardContent_ShowsStatsWhenAvailable verifies the resources block
+// TestResourcesCard_ShowsStatsWhenAvailable verifies the resources card
 // renders concrete numbers from the cached snapshot, not the placeholder.
-func TestDashboardContent_ShowsStatsWhenAvailable(t *testing.T) {
+func TestResourcesCard_ShowsStatsWhenAvailable(t *testing.T) {
 	m := NewModel("test")
 	m.stats = stats.Snapshot{
 		Available:       true,
@@ -67,8 +61,7 @@ func TestDashboardContent_ShowsStatsWhenAvailable(t *testing.T) {
 			{Name: "lerd-redis", CPUPercent: 1.0, MemBytes: 28 * 1024 * 1024},
 		},
 	}
-	lines, _ := dashboardContentLinesWithCursor(m, false, 120)
-	joined := stripANSI(strings.Join(lines, "\n"))
+	joined := stripANSI(strings.Join(m.dashResourcesCard(60).lines, "\n"))
 	if !strings.Contains(joined, "12.5%") {
 		t.Errorf("expected '12.5%%' total CPU:\n%s", joined)
 	}
@@ -80,13 +73,12 @@ func TestDashboardContent_ShowsStatsWhenAvailable(t *testing.T) {
 	}
 }
 
-// TestDashboardContent_PlaceholderWhenStatsCollecting renders the polite
-// "collecting…" message during the first window before the poller has run.
-func TestDashboardContent_PlaceholderWhenStatsCollecting(t *testing.T) {
+// TestResourcesCard_PlaceholderWhenCollecting renders the polite "collecting…"
+// message during the first window before the poller has run.
+func TestResourcesCard_PlaceholderWhenCollecting(t *testing.T) {
 	m := NewModel("test")
 	// stats zero-valued: Available=false
-	lines, _ := dashboardContentLinesWithCursor(m, false, 120)
-	joined := stripANSI(strings.Join(lines, "\n"))
+	joined := stripANSI(strings.Join(m.dashResourcesCard(60).lines, "\n"))
 	if !strings.Contains(joined, "collecting") {
 		t.Errorf("expected 'collecting…' placeholder when stats unavailable:\n%s", joined)
 	}
@@ -103,7 +95,13 @@ func stripANSI(s string) string {
 			continue
 		}
 		if inEsc {
-			if r == 'm' {
+			// CSI introducer; params/intermediates are skipped until the
+			// final byte (0x40–0x7E) ends the sequence. Handles both SGR
+			// colour codes (…m) and bubblezone markers (…z).
+			if r == '[' {
+				continue
+			}
+			if r >= 0x40 && r <= 0x7e {
 				inEsc = false
 			}
 			continue

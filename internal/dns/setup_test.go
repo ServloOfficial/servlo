@@ -162,6 +162,35 @@ func TestWriteDnsmasqConfig_noUpstreamsFallsBackToPasta(t *testing.T) {
 	}
 }
 
+func TestWriteDnsmasqConfig_pinnedUpstreamOverridesResolv(t *testing.T) {
+	writeGlobalConfig(t, "dns:\n  upstream:\n    - 192.168.100.129\n")
+	dir := t.TempDir()
+	fakeResolv := writeTempFile(t, "nameserver 9.9.9.9\nnameserver 8.8.8.8\n")
+	origPaths := resolvPaths
+	resolvPaths = []string{fakeResolv}
+	defer func() { resolvPaths = origPaths }()
+
+	if err := WriteDnsmasqConfig(dir); err != nil {
+		t.Fatalf("WriteDnsmasqConfig: %v", err)
+	}
+	content := readFile(t, filepath.Join(dir, "lerd.conf"))
+	assertContains(t, content, "server=192.168.100.129")
+	if strings.Contains(content, "server=9.9.9.9") || strings.Contains(content, "server=8.8.8.8") {
+		t.Errorf("pinned upstream must replace detected resolv.conf servers, got:\n%s", content)
+	}
+}
+
+// --- NM dispatcher script ---
+
+func TestNMDispatcherScript_runsAsRealUser(t *testing.T) {
+	assertContains(t, nmDispatcherScript, "runuser -u")
+}
+
+func TestNMDispatcherScript_prefersPinnedUpstream(t *testing.T) {
+	assertContains(t, nmDispatcherScript, "upstream:")
+	assertContains(t, nmDispatcherScript, "dns_servers=\"$LERD_DNS\"")
+}
+
 // --- WriteDnsmasqConfigFor ---
 
 func TestWriteDnsmasqConfigFor_customTarget(t *testing.T) {
@@ -249,10 +278,12 @@ func TestDeriveV6Target(t *testing.T) {
 			t.Errorf("deriveV6Target(%q) = %q, want %q", c.v4, got, c.want)
 		}
 	}
-	// LAN target derives to either a global v6 (if host has one) or ::1
-	// fallback. Both are acceptable; assert it never returns empty.
-	if got := deriveV6Target("10.0.0.5"); got == "" {
-		t.Error("deriveV6Target(LAN) returned empty, expected global v6 or ::1")
+	// A LAN target derives to the host's global v6 when it has one, or ""
+	// (no AAAA record) when it doesn't. It must never fall back to ::1, which
+	// would wrongly answer remote AAAA queries with loopback. We can't pin the
+	// exact value (host-dependent), but it must not be ::1.
+	if got := deriveV6Target("10.0.0.5"); got == "::1" {
+		t.Error("deriveV6Target(LAN) must not fall back to ::1")
 	}
 }
 

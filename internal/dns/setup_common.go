@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -66,6 +67,43 @@ func sanitizeDNSIP(ip string) string {
 		return ""
 	}
 	return ip
+}
+
+// NormalizeUpstreamEntry validates a single dns.upstream entry, an IP with an
+// optional dnsmasq-style "#port" suffix, and returns its cleaned form. ok is
+// false when the IP is missing, malformed, loopback/unspecified, or the port
+// is not a number, so callers can report the bad entry back to the user.
+func NormalizeUpstreamEntry(entry string) (string, bool) {
+	ip, port, hasPort := strings.Cut(strings.TrimSpace(entry), "#")
+	clean := sanitizeDNSIP(ip)
+	if clean == "" {
+		return "", false
+	}
+	if hasPort {
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
+			return "", false
+		}
+		clean += "#" + port
+	}
+	return clean, true
+}
+
+// configuredUpstreamDNS returns the upstream DNS servers pinned in the global
+// config (dns.upstream), sanitized. Returns nil when none are configured or
+// none are usable, in which case callers fall back to auto-detection.
+func configuredUpstreamDNS() []string {
+	cfg, err := config.LoadGlobal()
+	if err != nil || cfg == nil {
+		return nil
+	}
+	var out []string
+	for _, entry := range cfg.DNS.Upstream {
+		if clean, ok := NormalizeUpstreamEntry(entry); ok {
+			out = append(out, clean)
+		}
+	}
+	return out
 }
 
 // WaitReady blocks until lerd-dns is accepting TCP connections on port 5300
@@ -210,15 +248,17 @@ func primaryLANIPv6() string {
 }
 
 // deriveV6Target picks the AAAA target for .test mirroring v4's reach:
-// loopback or empty → ::1; LAN-exposed → host's primary global v6, else ::1.
+// loopback or empty → ::1; LAN-exposed → host's primary global v6, or "" (no
+// AAAA record) when there is no reachable global v6.
 func deriveV6Target(v4 string) string {
 	if v4 == "" || v4 == "127.0.0.1" {
 		return "::1"
 	}
-	if v6 := primaryLANIPv6(); v6 != "" {
-		return v6
-	}
-	return "::1"
+	// LAN-exposed: publish only a real, reachable global v6. Falling back to
+	// ::1 here would answer remote AAAA queries with their own loopback, and
+	// flipping between a real v6 and ::1 as v6 connectivity comes and goes
+	// would churn the config. Omit AAAA entirely when there's no global v6.
+	return primaryLANIPv6()
 }
 
 // WriteDnsmasqConfigFor writes the lerd dnsmasq config with `target` as the

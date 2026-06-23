@@ -7,12 +7,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/dns"
+	"github.com/geodro/lerd/internal/feedback"
 	gitpkg "github.com/geodro/lerd/internal/git"
 	"github.com/geodro/lerd/internal/nginx"
 	phpPkg "github.com/geodro/lerd/internal/php"
@@ -585,7 +587,8 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// Mirrors the worktree autostart filter; real activity wakes it via the engine.
 	workerUnits = dropIdleSuspendedUnits(workerUnits)
 
-	fmt.Println("Starting Lerd...")
+	feedback.Begin()
+	feedback.Line("starting lerd")
 
 	makeJobs := func(us []string) []BuildJob {
 		jobs := make([]BuildJob, len(us))
@@ -662,15 +665,15 @@ func runStart(_ *cobra.Command, _ []string) error {
 
 	// Restart the tray applet, stopping any existing instance first.
 	// Prefer the systemd service when enabled; otherwise launch directly.
-	fmt.Print("  --> lerd-tray ... ")
+	tray := feedback.Start("starting lerd-tray")
 	if services.Mgr.IsEnabled("lerd-tray") {
 		// Use Start (bootout+bootstrap) instead of Restart (kickstart -k) to
 		// avoid launchctl hanging while waiting for the tray process to die.
 		killTray()
 		if err := services.Mgr.Start("lerd-tray"); err != nil {
-			fmt.Printf("WARN (%v)\n", err)
+			tray.Fail(err)
 		} else {
-			fmt.Println("OK")
+			tray.OK("")
 		}
 	} else {
 		killTray()
@@ -679,9 +682,9 @@ func runStart(_ *cobra.Command, _ []string) error {
 			err = exec.Command(exe, "tray").Start()
 		}
 		if err != nil {
-			fmt.Printf("WARN (%v)\n", err)
+			tray.Fail(err)
 		} else {
-			fmt.Println("OK")
+			tray.OK("")
 		}
 	}
 
@@ -735,6 +738,7 @@ func startRestoredServices() {
 			Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
 		})
 	}
+	feedback.Header("Starting services")
 	RunParallel(startJobs) //nolint:errcheck
 
 	// Workers exec into the FPM containers and depend on lerd-redis et al.
@@ -767,6 +771,7 @@ func startRestoredServices() {
 			Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
 		})
 	}
+	feedback.Header("Starting workers")
 	RunParallel(workerJobs) //nolint:errcheck
 }
 
@@ -819,7 +824,7 @@ func restoreSiteInfrastructure() {
 				proj, _ := config.LoadProjectConfig(s.Path)
 				if proj != nil && proj.Container != nil {
 					if err := podman.WriteCustomContainerQuadlet(s.Name, s.Path, s.ContainerPort); err != nil {
-						fmt.Printf("[WARN] restoring custom container unit for %s: %v\n", s.Name, err)
+						feedback.Warn("restoring custom container unit for %s: %v", s.Name, err)
 					}
 				}
 			}
@@ -836,7 +841,7 @@ func restoreSiteInfrastructure() {
 						_ = podman.BuildCustomImage(s.Name, s.Path, proj.Container)
 					}
 					if err := podman.WriteCustomFPMQuadlet(s.Name, s.PHPVersion); err != nil {
-						fmt.Printf("[WARN] restoring custom FPM unit for %s: %v\n", s.Name, err)
+						feedback.Warn("restoring custom FPM unit for %s: %v", s.Name, err)
 					}
 				}
 			}
@@ -869,7 +874,7 @@ func restoreSiteInfrastructure() {
 		// new one, warn and wait for a re-link to re-approve it.
 		if s.IsHostProxy() && proj.Proxy != nil {
 			if s.HostCommand != "" && proj.Proxy.Command != s.HostCommand {
-				fmt.Printf("[WARN] %s: dev command in .lerd.yaml changed since link; not auto-starting. Run `lerd link` to review and approve.\n", s.Name)
+				feedback.Warn("%s: dev command in .lerd.yaml changed since link; not auto-starting. Run `lerd link` to review and approve.", s.Name)
 			} else if w, ok := hostProxyWorker(proj.Proxy); ok && !services.Mgr.IsEnabled(hostProxyWorkerUnit(s.Name)) {
 				restoreWorker(s.Name, s.Path, "", hostProxyWorkerName, w)
 			}
@@ -885,7 +890,7 @@ func restoreSiteInfrastructure() {
 			seenSvc[svc.Name] = true
 			cs, err := svc.Resolve()
 			if err != nil {
-				fmt.Printf("[WARN] resolving service %q for %s: %v\n", svc.Name, s.Name, err)
+				feedback.Warn("resolving service %q for %s: %v", svc.Name, s.Name, err)
 				continue
 			}
 			if cs != nil {
@@ -1155,7 +1160,10 @@ func RunStop() error { return runStop(nil, nil) }
 // RunQuit stops all lerd processes and containers (exported for use by the UI server).
 func RunQuit() error { return runQuit(nil, nil) }
 
-func runStop(_ *cobra.Command, _ []string) error {
+// stopUnitSet returns every unit `lerd stop` tears down. lerd-dns is
+// deliberately excluded: the resolver points .test at it until uninstall, so
+// it stays up as install-level DNS plumbing (the watcher would restart it).
+func stopUnitSet() []string {
 	units := append(coreUnits(), allInstalledServiceUnits()...)
 	units = append(units, installedCustomContainerUnits()...)
 	units = append(units, registeredQueueUnits()...)
@@ -1167,8 +1175,14 @@ func runStop(_ *cobra.Command, _ []string) error {
 	// oneshot .service is a no-op (it isn't running between firings),
 	// so without this the timer keeps dispatching after `lerd stop`.
 	units = append(units, registeredTimerUnits()...)
+	return slices.DeleteFunc(units, func(u string) bool { return u == "lerd-dns" })
+}
 
-	fmt.Println("Stopping Lerd...")
+func runStop(_ *cobra.Command, _ []string) error {
+	units := stopUnitSet()
+
+	feedback.Begin()
+	feedback.Line("stopping lerd")
 
 	// Mark the intentional shutdown before tearing anything down, so the worker
 	// health watcher (which keeps running) suppresses heal/notification noise for
@@ -1193,19 +1207,30 @@ func runStop(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
+// quitProcessUnits is the ordered set of host process units `lerd quit` tears
+// down after runStop. Unlike `lerd stop`, quit is a full teardown, so it
+// includes lerd-dns. lerd-watcher precedes lerd-dns because the watcher is the
+// only thing that restarts lerd-dns; stopping it first keeps dns down.
+func quitProcessUnits() []string {
+	return []string{"lerd-ui", "lerd-watcher", "lerd-tray", "lerd-dns"}
+}
+
 func runQuit(_ *cobra.Command, _ []string) error {
-	// Stop containers and services (same as stop).
+	// Stop containers and services (same as stop). `lerd stop` leaves lerd-dns
+	// up as install-level plumbing; `lerd quit` is a full teardown, so it also
+	// stops lerd-dns below.
 	if err := runStop(nil, nil); err != nil {
 		return err
 	}
 
-	// Stop process units.
-	for _, unit := range []string{"lerd-ui", "lerd-watcher", "lerd-tray"} {
-		fmt.Printf("  --> %s ... ", unit)
+	// Stop process units. lerd-watcher comes before lerd-dns: the watcher is the
+	// only thing that restarts lerd-dns, so stopping it first keeps dns down.
+	for _, unit := range quitProcessUnits() {
+		s := feedback.Start("stopping " + unit)
 		if err := podman.StopUnit(unit); err != nil {
-			fmt.Printf("WARN (%v)\n", err)
+			s.Fail(err)
 		} else {
-			fmt.Println("OK")
+			s.OK("")
 		}
 	}
 	// Also kill any directly-launched tray instance not managed by launchd/systemd.

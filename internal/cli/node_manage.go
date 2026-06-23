@@ -6,8 +6,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sync"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/feedback"
 	gitpkg "github.com/geodro/lerd/internal/git"
 	nodeDet "github.com/geodro/lerd/internal/node"
 	"github.com/geodro/lerd/internal/podman"
@@ -29,22 +31,27 @@ func NewNodeManageCmd() *cobra.Command {
 
 func runNodeManage(_ *cobra.Command, _ []string) error {
 	if lerdManagesNode() {
-		fmt.Println("lerd is already managing Node.js.")
+		feedback.Begin()
+		feedback.Line("lerd is already managing Node.js")
 		return nil
 	}
 	fnmPath := filepath.Join(config.BinDir(), "fnm")
 	if _, err := os.Stat(fnmPath); err != nil {
 		return fmt.Errorf("fnm not found at %s — run 'lerd install' first", fnmPath)
 	}
-	fmt.Println("Installing fnm-managed node/npm/npx shims into", config.BinDir())
+	feedback.Begin()
+	step := feedback.Start("installing fnm-managed node/npm/npx shims")
 	if err := addShellShims(true); err != nil {
+		step.Fail(err)
 		return fmt.Errorf("writing shims: %w", err)
 	}
+	step.OK("")
 	ensureDefaultNode()
 	// Host workers (Vite etc.) were generated to run directly or via bun while
 	// Node was unmanaged; rewrite them so they route through fnm again.
 	regenerateHostWorkers()
-	fmt.Println("lerd is now managing Node.js. Pin a version per project with `lerd isolate:node <v>`.")
+	feedback.Done("lerd is now managing Node.js")
+	feedback.Note("pin a version per project with `lerd isolate:node <v>`")
 	return nil
 }
 
@@ -76,9 +83,9 @@ func runNodeUnmanage(_ *cobra.Command, _ []string) error {
 				}
 				seen[v] = true
 				if uo, uerr := exec.Command(fnmPath, "uninstall", v).CombinedOutput(); uerr != nil {
-					fmt.Printf("  [WARN] fnm uninstall %s: %s\n", v, string(uo))
+					feedback.Warn("fnm uninstall %s: %s", v, string(uo))
 				} else {
-					fmt.Printf("  removed Node %s\n", v)
+					feedback.Note("removed Node " + v)
 				}
 			}
 		}
@@ -93,16 +100,18 @@ func runNodeUnmanage(_ *cobra.Command, _ []string) error {
 	// Existing host worker units still reference `fnm exec --using=… -- npm …`,
 	// which now has no Node to run; rewrite them so they use bun (when present)
 	// or the user's system Node directly.
-	fmt.Println("Regenerating host worker units...")
+	feedback.Begin()
+	regen := feedback.Start("regenerating host worker units")
 	regenerateHostWorkers()
+	regen.OK("")
 
-	fmt.Println("lerd is no longer managing Node.js.")
+	feedback.Done("lerd is no longer managing Node.js")
 	if nodeDet.BunPath() != "" {
-		fmt.Println("bun is installed, so JS host workers (e.g. Vite) now run through bun.")
+		feedback.Note("bun is installed, so JS host workers (e.g. Vite) now run through bun")
 	} else {
-		fmt.Println("JS host workers (e.g. Vite) now use your system Node. Install bun or a system Node if you have neither.")
+		feedback.Note("JS host workers (e.g. Vite) now use your system Node; install bun or a system Node if you have neither")
 	}
-	fmt.Println("Re-enable lerd-managed Node with `lerd node:manage`.")
+	feedback.Note("re-enable lerd-managed Node with `lerd node:manage`")
 	return nil
 }
 
@@ -110,11 +119,21 @@ func runNodeUnmanage(_ *cobra.Command, _ []string) error {
 // host worker units (Vite and other host:true workers) so they pick up the
 // current JS-runtime decision after node:manage / node:unmanage flips what Node
 // is available. Best-effort: failures are warned, not fatal.
+// hostWorkerHeader, when set, prints the "Starting host workers" section header
+// exactly once, just before the first worker is actually started. It is wired
+// up only by the install-time regenerateHostWorkers sweep, so the per-site
+// dashboard runtime toggle (which also calls RegenerateHostWorkersForSite)
+// doesn't emit a header, and a sweep that starts nothing leaves no orphan.
+var hostWorkerHeader func()
+
 func regenerateHostWorkers() {
 	reg, err := config.LoadSites()
 	if err != nil {
 		return
 	}
+	var once sync.Once
+	hostWorkerHeader = func() { once.Do(func() { feedback.Header("Re-syncing host workers") }) }
+	defer func() { hostWorkerHeader = nil }()
 	for _, s := range reg.Sites {
 		RegenerateHostWorkersForSite(s)
 	}
@@ -213,28 +232,36 @@ func regenerateWorkerUnit(siteName, sitePath, phpVersion, workerName string, wDe
 	// Snapshot the unit before rewriting so we only restart it when its
 	// ExecStart actually changed. On macOS the unit is a launchd plist
 	// elsewhere, so before is empty and we always fall through to restart.
+	// Rewrite the unit quietly first so we can tell whether the runtime actually
+	// changed, without starting or announcing it. startRestoredServices already
+	// started this worker during install (or it's a build-replacer like Vite that
+	// isn't persisted), so an unchanged rewrite should stay silent rather than
+	// print a second time under its own header.
 	unitPath := filepath.Join(config.SystemdUserDir(), unitName+".service")
 	before, _ := os.ReadFile(unitPath)
-	if err := WorkerStartForSite(siteName, sitePath, phpVersion, workerName, wDef, false); err != nil {
-		fmt.Printf("  [WARN] regenerating %s: %v\n", unitName, err)
-		return
-	}
+	restoreWorker(siteName, sitePath, phpVersion, workerName, wDef)
 	after, _ := os.ReadFile(unitPath)
 	if len(before) > 0 && string(before) == string(after) {
+		// Linux, genuinely unchanged: StartUnit no-ops on an active unit, so just
+		// make sure it's running without announcing it again.
+		_ = podman.StartUnit(unitName)
 		return
 	}
-	// WorkerStartForSite only writes the unit file; systemd caches the old
-	// definition until a reload, so reload before the restart picks up the new
-	// ExecStart (StartUnit no-ops on an already-active unit).
-	_ = podman.DaemonReload()
-	// Clear any failed / start-rate-limit state first: a worker that
-	// crash-looped under the previous runtime (e.g. bun on a project bun can't
-	// run) would otherwise refuse to restart when switched back, so the toggle
-	// would not heal it.
-	podman.ResetFailedUnit(unitName)
-	if err := podman.RestartUnit(unitName); err != nil {
-		fmt.Printf("  [WARN] restarting %s: %v\n", unitName, err)
-	} else {
-		fmt.Printf("  regenerated %s\n", unitName)
+	// The unit changed, or can't be diffed (macOS host workers are launchd plists,
+	// not .service files, so both reads come back empty): announce under the
+	// host-workers header, then do a full platform-correct (re)start.
+	// WorkerStartForSite owns the macOS launchd lifecycle, clears stale
+	// idle-suspend state, and regenerates the proxy vhost; the reload+restart
+	// afterward bounces a running Linux worker onto the new ExecStart, which
+	// StartUnit alone would not.
+	if hostWorkerHeader != nil {
+		hostWorkerHeader()
 	}
+	if err := WorkerStartForSite(siteName, sitePath, phpVersion, workerName, wDef, false); err != nil {
+		feedback.Warn("re-syncing %s: %v", unitName, err)
+		return
+	}
+	_ = podman.DaemonReload()
+	podman.ResetFailedUnit(unitName)
+	_ = podman.RestartUnit(unitName)
 }

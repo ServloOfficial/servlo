@@ -8,10 +8,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/envfile"
+	"github.com/geodro/lerd/internal/feedback"
 	phpPkg "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/spf13/cobra"
@@ -47,7 +49,9 @@ func runInit(fresh bool) error {
 	_, statErr := os.Stat(lerdYAMLPath)
 	hasExisting := statErr == nil
 
-	if !hasExisting || fresh {
+	feedback.Begin()
+
+	if initShouldRunWizard(hasExisting, fresh) {
 		existing, err := config.LoadProjectConfig(cwd)
 		if err != nil {
 			return err
@@ -57,10 +61,12 @@ func runInit(fresh bool) error {
 		if err != nil {
 			return err
 		}
+		write := feedback.Start("writing .lerd.yaml")
 		if err := config.SaveProjectConfig(cwd, cfg); err != nil {
+			write.Fail(err)
 			return fmt.Errorf("saving .lerd.yaml: %w", err)
 		}
-		fmt.Println("Saved .lerd.yaml")
+		write.OK("")
 		// The wizard already had the user choose the dev command, so the link
 		// it triggers below shouldn't prompt to confirm that same command again.
 		hostProxyPreApproved = true
@@ -72,17 +78,22 @@ func runInit(fresh bool) error {
 	}
 
 	if isInteractive() {
-		fmt.Print("\nRun lerd setup? [Y/n] ")
-		var answer string
-		fmt.Scanln(&answer) //nolint:errcheck
-		if answer == "" || answer[0] == 'Y' || answer[0] == 'y' {
+		if feedback.Confirm("Run lerd setup?", true) {
 			if err := runSetup(false, false); err != nil {
-				fmt.Printf("[WARN] setup: %v\n", err)
+				feedback.Warn("setup: %v", err)
 			}
 		}
 	}
 
 	return nil
+}
+
+// initShouldRunWizard reports whether runInit runs the configuration wizard
+// rather than applying an existing .lerd.yaml directly. It runs when no config
+// file is present, or when fresh forces it (the `lerd link` route passes fresh
+// for an absent-or-empty config, and `lerd init --fresh` for an explicit redo).
+func initShouldRunWizard(hasExisting, fresh bool) bool {
+	return !hasExisting || fresh
 }
 
 func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfig, error) {
@@ -98,7 +109,6 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 	framework, hasFramework := resolveFramework(cwd)
 	hasComposer := fileExists(filepath.Join(cwd, "composer.json"))
 	hasContainerfile := podman.HasContainerfile(cwd)
-	hasPkgJSON := fileExists(filepath.Join(cwd, "package.json"))
 	alreadyCustom := defaults.Container != nil
 	alreadyProxy := defaults.Proxy != nil
 
@@ -112,37 +122,39 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 		return runCustomContainerWizard(cwd, defaults, gcfg)
 	}
 	if !hasFramework && !hasComposer {
-		// Non-PHP project. With a package.json, offer to run the dev server on
-		// the host (proxy) — the default — or build a custom container.
-		if hasPkgJSON {
-			const proxyChoice = "Dev server (proxy to a host port)"
-			const customChoice = "Custom container"
-			choice := proxyChoice
-			if err := huh.NewForm(huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("This looks like a Node project. How should lerd run it?").
-					Options(huh.NewOptions(proxyChoice, customChoice)...).
-					Value(&choice),
-			)).WithTheme(huh.ThemeCatppuccin()).Run(); err != nil {
-				return nil, err
-			}
-			if choice == customChoice {
-				return runCustomContainerWizard(cwd, defaults, gcfg)
-			}
-			return runHostProxyWizard(cwd, defaults, gcfg)
+		// Non-PHP project. Offer the same language-aware choice to every runtime,
+		// not just Node: run the dev server on the host (proxy) or build a custom
+		// container. When the project's runtime is recognised we say so and drop
+		// the plain-PHP option; an unknown/empty directory keeps it as a fallback
+		// (declining both non-PHP paths sets the project up as a PHP site).
+		const proxyChoice = "Dev server (proxy to a host port)"
+		const customChoice = "Custom container (Containerfile.lerd)"
+		const phpChoice = "Plain PHP site"
+
+		rt, knownRuntime := detectProjectRuntime(cwd)
+		title := "No PHP project detected. How should lerd run it?"
+		options := []string{proxyChoice, customChoice, phpChoice}
+		if knownRuntime {
+			title = fmt.Sprintf("This looks like a %s project. How should lerd run it?", rt.label)
+			options = []string{proxyChoice, customChoice}
 		}
-		useCustom := false
+
+		choice := proxyChoice
 		if err := huh.NewForm(huh.NewGroup(
-			huh.NewConfirm().
-				Title("No PHP project detected. Set up a custom container?").
-				Description("A Containerfile.lerd in the project root defines the container image").
-				Value(&useCustom),
+			huh.NewSelect[string]().
+				Title(title).
+				Options(huh.NewOptions(options...)...).
+				Value(&choice),
 		)).WithTheme(huh.ThemeCatppuccin()).Run(); err != nil {
 			return nil, err
 		}
-		if useCustom {
+		switch choice {
+		case proxyChoice:
+			return runHostProxyWizard(cwd, defaults, gcfg)
+		case customChoice:
 			return runCustomContainerWizard(cwd, defaults, gcfg)
 		}
+		// phpChoice falls through to the PHP wizard below.
 	}
 
 	// Seed defaults from the site registry when no saved config exists yet,
@@ -168,7 +180,9 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 	}
 	phpMin, phpMax := "", ""
 	if framework != "" {
-		if fw, fwOk := config.GetFrameworkForDir(framework, cwd); fwOk {
+		// Skip a guessed definition's range so a legacy project keeps its real
+		// detected default (Laravel 6 on 7.4, not the borrowed Laravel 10 8.1).
+		if fw, fwOk := config.GetFrameworkForDir(framework, cwd); fwOk && !fw.VersionGuessed {
 			phpMin, phpMax = fw.PHP.Min, fw.PHP.Max
 		}
 	}
@@ -466,6 +480,13 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 			}
 			continue
 		}
+		// A bundled tool preset (e.g. phpmyadmin, pgadmin) selected but not yet
+		// installed has no on-disk custom service; record it as a preset so link
+		// installs it, rather than a bare name that resolves to nothing and warns.
+		if loaded == nil && config.PresetExists(name) && !config.IsDefaultPreset(name) {
+			services[i] = config.ProjectService{Name: name, Preset: name}
+			continue
+		}
 		services[i] = config.ProjectService{Name: name, Custom: loaded}
 	}
 
@@ -558,6 +579,10 @@ func runCustomContainerWizard(cwd string, defaults *config.ProjectConfig, gcfg *
 
 	port := 0
 	fmt.Sscanf(portStr, "%d", &port)
+
+	// Offer to scaffold the Containerfile if it isn't there yet, so picking
+	// "custom container" on a project without one isn't a dead end.
+	maybeCreateContainerfile(cwd, containerfile, port)
 
 	// Services: same flow as the PHP wizard but without the database select
 	// since custom containers manage their own database connections.
@@ -684,57 +709,47 @@ func buildProjectServices(selectedServices []string, defaults *config.ProjectCon
 			}
 			continue
 		}
+		// A bundled tool preset (e.g. phpmyadmin, pgadmin) selected but not yet
+		// installed has no on-disk custom service; record it as a preset so link
+		// installs it, rather than a bare name that resolves to nothing and warns.
+		if loaded == nil && config.PresetExists(name) && !config.IsDefaultPreset(name) {
+			services[i] = config.ProjectService{Name: name, Preset: name}
+			continue
+		}
 		services[i] = config.ProjectService{Name: name, Custom: loaded}
 	}
 	return services
 }
 
-// runHostProxyWizard runs the init wizard for a host-proxy (Node) project: lerd
-// supervises the dev command on the host and nginx proxies the domain to it.
-// Collects the command, port, HTTPS, and services.
+// runHostProxyWizard runs the init wizard for a host-proxy project (Node, or
+// any runtime that serves on a host port): lerd supervises the dev command on
+// the host and nginx proxies the domain to it. Command, port, and HTTPS are
+// collected on a single screen (like the custom container wizard), followed by
+// services.
 func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config.GlobalConfig) (*config.ProjectConfig, error) {
 	manifest := readPackageManifest(cwd)
 	devScripts := manifest.devScripts()
 
-	const otherOption = "Other (enter a command)"
+	// Default command: a saved one wins, else the first detected dev script,
+	// else a runtime-appropriate guess. Blank is allowed (proxy-only mode).
 	command := ""
 	if defaults.Proxy != nil {
 		command = defaults.Proxy.Command
 	}
-
-	// Pick the dev command: choose a detected npm script or enter a custom one.
-	selected := otherOption
+	if command == "" {
+		if len(devScripts) > 0 {
+			command = devScripts[0]
+		} else {
+			command = defaultDevCommand(cwd)
+		}
+	}
+	commandDesc := "How lerd starts the app (lerd supervises and restarts it). Blank = run it yourself."
 	if len(devScripts) > 0 {
-		selected = devScripts[0]
-		options := append(append([]string{}, devScripts...), otherOption)
-		if err := huh.NewForm(huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Dev command").
-				Description("How lerd starts the app (lerd supervises and restarts it)").
-				Options(huh.NewOptions(options...)...).
-				Value(&selected),
-		)).WithTheme(huh.ThemeCatppuccin()).Run(); err != nil {
-			return nil, err
-		}
-	}
-	if selected == otherOption {
-		if command == "" {
-			command = "npm run start:dev"
-		}
-		if err := huh.NewForm(huh.NewGroup(
-			huh.NewInput().
-				Title("Dev command").
-				Description("Leave blank to run the server yourself (proxy-only mode)").
-				Value(&command),
-		)).WithTheme(huh.ThemeCatppuccin()).Run(); err != nil {
-			return nil, err
-		}
-	} else {
-		command = selected
+		commandDesc = "Detected scripts: " + strings.Join(devScripts, ", ") + ". Blank = run it yourself."
 	}
 
-	// Port: default from an explicit flag in the command, else the tool's
-	// conventional port, else 3000.
+	// Port default: a saved one wins, else parse a --port from the command, else
+	// auto-assign the next free dev-server port.
 	port := 0
 	if defaults.Proxy != nil && defaults.Proxy.Port > 0 {
 		port = defaults.Proxy.Port
@@ -743,8 +758,6 @@ func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config
 		if p := portFromCommand(command); p > 0 {
 			port = p
 		} else {
-			// No explicit port: auto-assign from the default base, walking up
-			// past anything already taken (other sites, lerd services).
 			siteName := ""
 			if s, err := config.FindSiteByPath(cwd); err == nil {
 				siteName = s.Name
@@ -756,6 +769,10 @@ func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config
 	secured, httpsAvailable := resolveSecuredDefault(cwd, defaults.Secured, gcfg)
 
 	proxyFields := []huh.Field{
+		huh.NewInput().
+			Title("Dev command").
+			Description(commandDesc).
+			Value(&command),
 		huh.NewInput().
 			Title("Port").
 			Description("The port the dev server listens on (lerd injects PORT and proxies here)").
@@ -778,6 +795,12 @@ func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config
 	}
 	port = 0
 	fmt.Sscanf(portStr, "%d", &port)
+	// An explicit --port in the (possibly edited) command is the port the server
+	// actually binds, so let it win over the port field, which only carried the
+	// pre-form default derived from the default command.
+	if p := portFromCommand(command); p > 0 {
+		port = p
+	}
 
 	// Services multi-select (same flow as the custom container wizard).
 	serviceOptions := nonDatabaseServiceOptions()
@@ -952,6 +975,137 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
+// projectRuntime describes how lerd runs a non-PHP project of a given language.
+// One entry drives all three consumers (detection, the host-proxy default dev
+// command, and the custom-container starter), so adding a language is a single
+// table entry rather than three switch/maps that must stay in sync.
+type projectRuntime struct {
+	label      string   // human name shown in the wizard
+	manifests  []string // files whose presence identifies the runtime
+	devCommand string   // default host-proxy dev command
+	// container is the Containerfile body for this runtime. lerd bind-mounts the
+	// project at runtime (same absolute path), so it needs no COPY or WORKDIR; it
+	// only provides the base image and global tools, app deps come from the mount.
+	container string
+}
+
+// knownRuntimes is the single source of truth for non-PHP runtime support.
+// First match wins on detection. Node's manifests mirror isNodeProject so the
+// two agree on what a Node project is.
+var knownRuntimes = []projectRuntime{
+	{
+		label:      "Node",
+		manifests:  []string{"package.json", ".nvmrc", ".node-version"},
+		devCommand: "npm run dev",
+		container:  "FROM node:20-alpine\nRUN npm install -g nodemon\nCMD [\"npm\", \"run\", \"dev\"]\n",
+	},
+	{
+		label:      "Go",
+		manifests:  []string{"go.mod"},
+		devCommand: "go run .",
+		container:  "FROM golang:1.23-alpine\n# Optional hot reload: RUN go install github.com/air-verse/air@latest (then CMD [\"air\"])\nCMD [\"go\", \"run\", \".\"]\n",
+	},
+	{
+		label:      "Python",
+		manifests:  []string{"pyproject.toml", "requirements.txt", "Pipfile", "manage.py"},
+		devCommand: "python app.py",
+		container:  "FROM python:3.12-slim\n# Install app deps at build time only if they aren't in the mounted project.\nCMD [\"python\", \"app.py\"]\n",
+	},
+	{
+		label:      "Ruby",
+		manifests:  []string{"Gemfile"},
+		devCommand: "ruby app.rb",
+		container:  "FROM ruby:3.3-alpine\nCMD [\"ruby\", \"app.rb\"]\n",
+	},
+	{
+		label:      "Rust",
+		manifests:  []string{"Cargo.toml"},
+		devCommand: "cargo run",
+		container:  "FROM rust:1-alpine\nCMD [\"cargo\", \"run\"]\n",
+	},
+}
+
+// detectProjectRuntime returns the runtime whose manifest is present in cwd, so
+// the wizard can give every language the same language-aware prompt instead of
+// treating anything without a package.json as an unknown blob.
+func detectProjectRuntime(cwd string) (*projectRuntime, bool) {
+	for i := range knownRuntimes {
+		for _, f := range knownRuntimes[i].manifests {
+			if fileExists(filepath.Join(cwd, f)) {
+				return &knownRuntimes[i], true
+			}
+		}
+	}
+	return nil, false
+}
+
+// defaultDevCommand guesses the host-proxy dev command from the detected
+// runtime, refining Python to Django's runserver when manage.py is present
+// (the table default of python app.py is wrong for Django/Flask). Returns "" for
+// an unknown runtime so the wizard offers a blank (proxy-only) default.
+func defaultDevCommand(cwd string) string {
+	rt, ok := detectProjectRuntime(cwd)
+	if !ok {
+		return ""
+	}
+	if rt.label == "Python" && fileExists(filepath.Join(cwd, "manage.py")) {
+		return "python manage.py runserver"
+	}
+	return rt.devCommand
+}
+
+// starterContainerfile returns a commented starter Containerfile.lerd tailored
+// to the project's detected runtime. It's a scaffold for the user to edit; an
+// unrecognised runtime gets a generic skeleton. See projectRuntime.container for
+// why there is no COPY/WORKDIR.
+func starterContainerfile(cwd string, port int) string {
+	header := fmt.Sprintf("# Containerfile.lerd — lerd builds this image and runs your app in it.\n"+
+		"# Your project is bind-mounted into the container at runtime (no COPY or WORKDIR\n"+
+		"# needed) so your edits are live. Install global dev tools here; app dependencies\n"+
+		"# come from the mounted project. Your app must listen on port %d.\n\n", port)
+	body := "FROM alpine:latest\n# RUN <install the global dev tools your app needs>\n# CMD [\"<command that starts your server>\"]\n"
+	if rt, ok := detectProjectRuntime(cwd); ok {
+		body = rt.container
+	}
+	return header + body
+}
+
+// maybeCreateContainerfile offers to scaffold a missing Containerfile and open
+// it in the user's editor. No-op when the file already exists or the shell is
+// non-interactive (scripts/CI shouldn't block on an editor). Best-effort: a
+// failure to write or open is warned, not fatal, since the link still proceeds.
+func maybeCreateContainerfile(cwd, containerfile string, port int) {
+	if !isInteractive() {
+		return
+	}
+	path := filepath.Join(cwd, containerfile)
+	if fileExists(path) {
+		return
+	}
+	create := true
+	if err := huh.NewForm(huh.NewGroup(
+		huh.NewConfirm().
+			Title(fmt.Sprintf("%s doesn't exist yet. Create it and open your editor?", containerfile)).
+			Description("Lerd writes a starter image for your runtime; edit it to fit your app.").
+			Value(&create),
+	)).WithTheme(huh.ThemeCatppuccin()).Run(); err != nil || !create {
+		return
+	}
+	if dir := filepath.Dir(path); dir != "" {
+		_ = os.MkdirAll(dir, 0755)
+	}
+	if err := os.WriteFile(path, []byte(starterContainerfile(cwd, port)), 0644); err != nil {
+		feedback.Warn("could not create %s: %v", containerfile, err)
+		return
+	}
+	fmt.Printf("Created %s\n", containerfile)
+	if launched, err := launchEditor(path); err != nil {
+		feedback.Warn("%v", err)
+	} else if !launched {
+		fmt.Printf("Set $EDITOR to edit it automatically; the starter file is at %s\n", containerfile)
+	}
+}
+
 // resolveSecuredDefault computes a wizard's initial "secured" value and whether
 // the HTTPS prompt should be offered at all. HTTPS is only available when lerd
 // manages DNS; otherwise secured is forced off and the prompt is hidden so the
@@ -1094,14 +1248,15 @@ func runSetupInit(cwd string, skipWizard bool) error {
 
 	if !hasExisting && skipWizard {
 		// CI path: link with auto-detection, then run env so the caller
-		// (lerd setup) doesn't have to do it itself.
+		// (lerd setup) doesn't have to do it itself. No interactive data import.
 		linkSkipSetupPrompt = true
-		defer func() { linkSkipSetupPrompt = false }()
+		linkSkipDataImport = true
+		defer func() { linkSkipSetupPrompt = false; linkSkipDataImport = false }()
 		if err := runLink([]string{}); err != nil {
 			return err
 		}
 		if err := runEnv(nil, nil); err != nil {
-			fmt.Printf("[WARN] lerd env: %v\n", err)
+			feedback.Warn("lerd env: %v", err)
 		}
 		return nil
 	}
@@ -1113,50 +1268,115 @@ func runSetupInit(cwd string, skipWizard bool) error {
 		if err != nil {
 			return err
 		}
+		write := feedback.Start("writing .lerd.yaml")
 		if err := config.SaveProjectConfig(cwd, cfg); err != nil {
+			write.Fail(err)
 			return fmt.Errorf("saving .lerd.yaml: %w", err)
 		}
-		fmt.Println("Saved .lerd.yaml")
+		write.OK("")
 	}
 
 	return applyProjectConfig(cwd)
 }
 
 func applyProjectConfig(cwd string) error {
-	// Suppress the "Run lerd setup?" prompt inside runLink — we're already
-	// in init/setup and the caller handles worker steps separately.
+	// Suppress the "Run lerd setup?" prompt and the link summary inside runLink —
+	// we're already in init/setup, the caller handles worker steps, and the
+	// summary is printed here after the .env step so it lands last.
 	linkSkipSetupPrompt = true
-	defer func() { linkSkipSetupPrompt = false }()
+	linkSkipSummary = true
+	defer func() { linkSkipSetupPrompt = false; linkSkipSummary = false }()
+
+	start := time.Now()
 	proj, err := config.LoadProjectConfig(cwd)
 	if err != nil {
 		return err
 	}
 
-	// Install PHP FPM with a progress loader if the version is not yet installed.
-	// runLink handles everything else (framework restore, node-version, secure, services).
-	if proj.PHPVersion != "" && !phpPkg.IsInstalled(proj.PHPVersion) {
-		phpVersion := proj.PHPVersion
-		jobs := []BuildJob{{
-			Label: "PHP " + phpVersion + " FPM",
-			Run: func(w io.Writer) error {
-				return ensureFPMQuadletTo(phpVersion, w)
-			},
-		}}
-		if err := RunParallel(jobs); err != nil {
-			fmt.Printf("[WARN] PHP %s FPM: %v\n", phpVersion, err)
+	// Skip work that already ran earlier in this process. When a `lerd link`
+	// flows into `lerd setup` via the prompt, the link (and often .env) is
+	// already done, so re-running it would just repeat the same output.
+	ranLink := false
+	if !linkApplied {
+		// Install PHP FPM with a progress loader if the version is not yet installed.
+		// runLink handles everything else (framework restore, node-version, secure, services).
+		if proj.PHPVersion != "" && !phpPkg.IsInstalled(proj.PHPVersion) {
+			phpVersion := proj.PHPVersion
+			jobs := []BuildJob{{
+				Label: "PHP " + phpVersion + " FPM",
+				Run: func(w io.Writer) error {
+					return ensureFPMQuadletTo(phpVersion, w)
+				},
+			}}
+			if err := RunParallel(jobs); err != nil {
+				feedback.Warn("PHP %s FPM: %v", phpVersion, err)
+			}
 		}
-	}
 
-	if err := runLink([]string{}); err != nil {
-		return err
+		if err := runLink([]string{}); err != nil {
+			return err
+		}
+		ranLink = true
 	}
 
 	// Apply the wizard's service choices (database, etc.) to .env so the user
 	// sees DB_CONNECTION/DB_HOST/etc. updated immediately after the wizard.
-	// Best-effort — failures are warned, not fatal, since the link itself
-	// succeeded and the user can re-run `lerd env` manually.
-	if err := runEnv(nil, nil); err != nil {
-		fmt.Printf("[WARN] lerd env: %v\n", err)
+	if !envApplied {
+		applyEnvStep(cwd)
+	}
+
+	// Print the deferred link summary now, so it reads as the final word after
+	// every provisioning step (including .env) has reported. Skip it when we
+	// didn't link this pass — the summary was already shown.
+	linkSkipSummary = false
+	if ranLink {
+		if site, err := config.FindSiteByPath(cwd); err == nil {
+			printLinkSummary(*site, start)
+		}
 	}
 	return nil
+}
+
+// applyEnvStep runs `lerd env` quietly under a single condensed feedback step,
+// listing the services it configured (from envSummary) rather than its full
+// per-service output.
+func applyEnvStep(cwd string) {
+	envApplied = true
+	if !feedback.Animated() {
+		if err := runEnv(nil, nil); err != nil {
+			feedback.Warn("lerd env: %v", err)
+		}
+		return
+	}
+	if err := runEnvLive(nil, nil); err != nil {
+		feedback.Warn("lerd env: %v", err)
+	}
+}
+
+// runCapturingStdout redirects os.Stdout to a pipe for the duration of fn and
+// returns everything it wrote. A reader goroutine drains continuously so even
+// large output (composer/npm) never blocks on the pipe buffer. Used to fold a
+// setup step's verbose output behind a single feedback line, surfacing it only
+// when the step fails.
+func runCapturingStdout(fn func() error) ([]byte, error) {
+	prevOut, prevErr := os.Stdout, os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, fn()
+	}
+	// Swap both streams: subprocesses (npm/vite, artisan) write progress and
+	// warnings to stderr too (e.g. Browserslist), and a leaked stderr line would
+	// clobber the live spinner the caller animates on the real stdout.
+	os.Stdout = w
+	os.Stderr = w
+	captured := make(chan []byte, 1)
+	go func() {
+		b, _ := io.ReadAll(r)
+		captured <- b
+	}()
+	runErr := fn()
+	os.Stdout = prevOut
+	os.Stderr = prevErr
+	_ = w.Close()
+	return <-captured, runErr
 }

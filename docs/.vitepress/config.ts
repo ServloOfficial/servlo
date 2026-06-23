@@ -1,12 +1,12 @@
 import { defineConfig } from 'vitepress'
 
-const SITE_URL = 'https://geodro.github.io/lerd'
+const SITE_URL = 'https://lerd.sh'
 const OG_IMAGE = `${SITE_URL}/assets/social-preview.png`
 
 export default defineConfig({
   title: 'Lerd',
-  description: 'Open-source Herd-like local PHP development environment for Linux. Automatic .test domains, PHP 8.2–8.5, rootless Podman. Works on Ubuntu, Fedora, Arch, and Debian.',
-  base: '/lerd/',
+  description: 'Open-source, Herd-like local PHP development for Linux and macOS. Automatic .test domains, HTTPS, per-project PHP and Node, rootless Podman, no Docker daemon.',
+  base: '/',
   lang: 'en-US',
   cleanUrls: true,
 
@@ -16,17 +16,17 @@ export default defineConfig({
       // Static digest pages live in public/ and aren't page-derived, so add them by hand.
       items.push({ url: 'digest/v1.25.0.html' })
       items.push({ url: 'digest/v1.24.0.html' })
-      return items.map(item => ({ ...item, url: `lerd/${item.url}` }))
+      return items
     },
   },
 
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/lerd/assets/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/assets/logo.svg' }],
 
     // Display fonts for the home page hero (Archivo + JetBrains Mono)
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap' }],
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap' }],
 
     ['meta', { name: 'theme-color', content: '#FF2D20' }],
 
@@ -35,14 +35,48 @@ export default defineConfig({
     ['meta', { property: 'og:site_name', content: 'Lerd' }],
     ['meta', { property: 'og:locale', content: 'en_US' }],
     ['meta', { property: 'og:image', content: OG_IMAGE }],
-    ['meta', { property: 'og:image:width', content: '1280' }],
-    ['meta', { property: 'og:image:height', content: '640' }],
-    ['meta', { property: 'og:image:alt', content: 'Lerd — local PHP development for Linux and macOS' }],
+    ['meta', { property: 'og:image:type', content: 'image/png' }],
+    ['meta', { property: 'og:image:width', content: '1499' }],
+    ['meta', { property: 'og:image:height', content: '787' }],
+    ['meta', { property: 'og:image:alt', content: 'Lerd, local PHP development for Linux and macOS' }],
 
     // Twitter / X
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:image', content: OG_IMAGE }],
-    ['meta', { name: 'twitter:image:alt', content: 'Lerd — local PHP development for Linux and macOS' }],
+    ['meta', { name: 'twitter:image:alt', content: 'Lerd, local PHP development for Linux and macOS' }],
+
+    // Structured data (rich results / knowledge graph)
+    [
+      'script',
+      { type: 'application/ld+json' },
+      JSON.stringify({
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'SoftwareApplication',
+            name: 'Lerd',
+            applicationCategory: 'DeveloperApplication',
+            operatingSystem: 'Linux, macOS',
+            description:
+              'Open-source, Herd-like local PHP development environment for Linux and macOS: automatic .test domains and HTTPS, per-project PHP 7.4–8.5 and Node, rootless Podman, a built-in Web UI, and an MCP server for AI agents. No Docker daemon, no sudo.',
+            url: SITE_URL,
+            downloadUrl: `${SITE_URL}/install.sh`,
+            softwareVersion: '1.25.0',
+            license: 'https://opensource.org/licenses/MIT',
+            image: OG_IMAGE,
+            author: { '@type': 'Person', name: 'George Dumitrescu' },
+            offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+          },
+          {
+            '@type': 'WebSite',
+            name: 'Lerd',
+            url: SITE_URL,
+            description:
+              'Documentation and downloads for Lerd, the open-source local PHP development environment for Linux and macOS.',
+          },
+        ],
+      }),
+    ],
   ],
 
   transformPageData(pageData, { siteConfig }) {

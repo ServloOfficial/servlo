@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	lerddumps "github.com/geodro/lerd/internal/dumps"
 	"github.com/geodro/lerd/internal/siteinfo"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 // siteTab identifies which sub-view of Site detail is showing. Tabs let the
@@ -24,7 +26,6 @@ const (
 	tabSiteOverview siteTab = iota
 	tabSiteEnv
 	tabSiteDebug
-	tabSiteAppLogs
 	tabSiteDoctor
 )
 
@@ -40,8 +41,6 @@ func siteTabLabel(t siteTab) string {
 		return "Env"
 	case tabSiteDebug:
 		return "Debug"
-	case tabSiteAppLogs:
-		return "App logs"
 	case tabSiteDoctor:
 		return "Doctor"
 	default:
@@ -59,10 +58,12 @@ func siteTabsHeader(active siteTab, tabs []siteTab) string {
 	for i, t := range tabs {
 		label := fmt.Sprintf("[%d] %s", i+1, siteTabLabel(t))
 		if t == active {
-			parts = append(parts, selectedStyle.Render(label))
+			label = selectedStyle.Render(label)
 		} else {
-			parts = append(parts, dimStyle.Render(label))
+			label = dimStyle.Render(label)
 		}
+		// Each tab label is clickable; handleMouse maps the zone to selectSiteTab.
+		parts = append(parts, zone.Mark(fmt.Sprintf("sitetab:%d", i), label))
 	}
 	return "  " + strings.Join(parts, "  ")
 }
@@ -82,7 +83,7 @@ func renderSiteTabHeader(active siteTab, innerW int, tabs []siteTab) []string {
 // shortcuts, and the render dispatch all derive from, so a tab's position,
 // label, and availability can never drift apart.
 func availableSiteTabs(s *siteinfo.EnrichedSite) []siteTab {
-	tabs := []siteTab{tabSiteOverview, tabSiteEnv, tabSiteDebug, tabSiteAppLogs}
+	tabs := []siteTab{tabSiteOverview, tabSiteEnv, tabSiteDebug}
 	if siteIsLaravel(s) {
 		tabs = append(tabs, tabSiteDoctor)
 	}
@@ -150,7 +151,9 @@ func siteDebugContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []
 
 	kind := m.activeLensKind()
 	add(sectionStyle.Render("Debug for "+site.Name) + "  " + dumpsBridgeStateLabel())
+	add("")
 	add("  " + renderDebugTabs(m, site.Name))
+	add("")
 	hint := "  [ ] switch lens · D for the full window"
 	if m.dumpsCtxFilter != "" {
 		hint += " · ctx:" + m.dumpsCtxFilter
@@ -227,50 +230,160 @@ func siteDebugContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []
 	return out
 }
 
-// siteAppLogsContentLines lists every tail-able file behind the focused
-// site (framework-declared app logs) with its size and modification time.
-// Informational only; users press `l` to actually tail one — the file
-// targets are wired into logTargetsForSite so `l` / `[` / `]` already do
-// the right thing.
-func siteAppLogsContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []string {
-	out := make([]string, 0, 32)
-	out = append(out, renderSiteTabHeader(tabSiteAppLogs, innerW, availableSiteTabs(site))...)
-	add := func(s string) { out = append(out, padToWidth(clipLine(s, innerW), innerW)) }
-
-	if site == nil {
-		add(dimStyle.Render("  no site selected"))
-		return out
+// overviewLogsActive reports whether the Overview app-logs pane should render:
+// on the Sites tab, viewing a site's Overview, with at least one declared app
+// log path. It resolves the log paths once and also returns the newest log's
+// path (empty when none is written yet) so the renderer doesn't re-glob.
+func (m *Model) overviewLogsActive() (site *siteinfo.EnrichedSite, newest string, ok bool) {
+	if m.activeTab != tabSites || m.detailMode != detailSite || m.siteTab != tabSiteOverview {
+		return nil, "", false
 	}
-
-	add(sectionStyle.Render("App logs"))
-	add(dimStyle.Render("  press l to tail · [ / ] to cycle through targets"))
-	add("")
-
+	site = m.currentSite()
+	if site == nil {
+		return nil, "", false
+	}
 	paths := appLogPathsForSite(site)
 	if len(paths) == 0 {
-		add(dimStyle.Render("  no app log paths declared for this framework"))
-		add("")
-		add("  " + dimStyle.Render("for Laravel: ") + accentStyle.Render("storage/logs/*.log") + dimStyle.Render(" once the app starts writing them"))
-		add("  " + dimStyle.Render("for FPM containers: press ") + accentStyle.Render("l") + dimStyle.Render(" to tail the container log instead"))
-		return out
+		return nil, "", false
 	}
+	return site, newestOf(paths), true
+}
 
+// serviceLogsActive reports whether the Services tab should show a logs
+// sub-pane beneath the service detail: any time a service or worker row is
+// selected on that tab. The streaming tail is fed by the same logTail the
+// manual `l` pane uses, retargeted by syncLogs as the selection moves.
+func (m *Model) serviceLogsActive() bool {
+	return m.activeTab == tabServices && m.currentService() != nil
+}
+
+// newestOf returns the most-recently-modified path among the given app-log
+// paths, or "" if none can be stat'd. Takes pre-resolved paths so the caller
+// globs only once per render.
+func newestOf(paths []string) string {
+	newest := ""
+	var newestT time.Time
 	for _, p := range paths {
 		info, err := os.Stat(p)
 		if err != nil {
-			add(failingStyle.Render("  ! ") + p + "  " + dimStyle.Render(err.Error()))
 			continue
 		}
-		size := humanSize(info.Size())
-		mtime := info.ModTime().Local().Format("15:04:05")
-		short := filepath.Base(p)
-		add("  " + accentStyle.Render("·") + " " +
-			padRight(truncatePlain(short, 30), 30) + " " +
-			dimStyle.Render(padRight(size, 9)) + " " +
-			dimStyle.Render(mtime) + "  " +
-			dimStyle.Render(p))
+		if newest == "" || info.ModTime().After(newestT) {
+			newest, newestT = p, info.ModTime()
+		}
 	}
+	return newest
+}
+
+// appLogTailBytes bounds how much of the newest app log the Overview pane
+// reads. 64 KB of tail is plenty of recent history without risking the render
+// loop on a multi-megabyte log.
+const appLogTailBytes = 64 * 1024
+
+// siteAppLogTail returns the severity-styled tail of the given app-log file.
+// The result is cached against the file's path, mtime and size so repeated
+// renders (wheel scrolling, idle ticks) reuse it instead of re-reading and
+// re-styling the same bytes every frame. The returned slice is owned by the
+// cache — callers must treat it as read-only.
+func (m *Model) siteAppLogTail(path string) []string {
+	if path == "" {
+		return []string{dimStyle.Render("no app log file written yet")}
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return []string{failingStyle.Render("! " + err.Error())}
+	}
+	if m.appLogCacheLines != nil && path == m.appLogCachePath &&
+		info.ModTime().Equal(m.appLogCacheMod) && info.Size() == m.appLogCacheSize {
+		return m.appLogCacheLines
+	}
+
+	data, err := readTailBytes(path, appLogTailBytes)
+	if err != nil {
+		return []string{failingStyle.Render("! " + err.Error())}
+	}
+	raw := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	// When we seeked into the file the first line is probably a fragment; drop
+	// it so the pane never opens on half a log line.
+	if info.Size() > appLogTailBytes && len(raw) > 1 {
+		raw = raw[1:]
+	}
+	out := make([]string, 0, len(raw))
+	for _, l := range raw {
+		out = append(out, styleLogLine(l, ""))
+	}
+	m.appLogCachePath = path
+	m.appLogCacheMod = info.ModTime()
+	m.appLogCacheSize = info.Size()
+	m.appLogCacheLines = out
 	return out
+}
+
+// readTailBytes returns up to max bytes from the end of path.
+func readTailBytes(path string, max int64) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() > max {
+		if _, err := f.Seek(info.Size()-max, io.SeekStart); err != nil {
+			return nil, err
+		}
+	}
+	return io.ReadAll(f)
+}
+
+// renderOverviewLogs draws the scrollable app-logs pane shown beneath the site
+// Overview. overviewLogScroll counts lines back from the live tail, so the
+// newest output sits at the bottom by default and `{` / `}` page through the
+// history.
+func (m *Model) renderOverviewLogs(path string, w, h int) string {
+	style := unfocusedPane
+	innerW, innerH := innerSize(style, w, h)
+	contentW := innerW - 1
+	if contentW < 10 {
+		contentW = innerW
+	}
+
+	header := sectionStyle.Render("App logs")
+	if path != "" {
+		header += "  " + dimStyle.Render(filepath.Base(path)+" · { } scroll")
+	}
+	header = padToWidth(clipLine(header, innerW), innerW)
+
+	lines := m.siteAppLogTail(path)
+	avail := innerH - 1
+	if avail < 1 {
+		avail = 1
+	}
+	maxScroll := len(lines) - avail
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if m.overviewLogScroll > maxScroll {
+		m.overviewLogScroll = maxScroll
+	}
+	if m.overviewLogScroll < 0 {
+		m.overviewLogScroll = 0
+	}
+	start := maxScroll - m.overviewLogScroll
+	window := lines[start:min(start+avail, len(lines))]
+	bar := renderScrollbar(avail, len(lines), start, len(window))
+
+	body := []string{header}
+	for i := 0; i < avail; i++ {
+		row := spaces(contentW)
+		if i < len(window) {
+			row = padToWidth(clipLine(window[i], contentW), contentW)
+		}
+		body = append(body, row+bar[i])
+	}
+	return style.Render(strings.Join(body, "\n"))
 }
 
 // readBoundedFile reads up to max bytes of path. Used for the env reader so
@@ -289,44 +402,31 @@ func readBoundedFile(path string, max int64) ([]byte, error) {
 	return buf[:n], nil
 }
 
-// humanSize formats a byte count as the smallest unit ≥1: "512B", "12KB",
-// "3.4MB". Kept terser than stats.FormatBytes so the file-list column stays
-// narrow when several logs share a row.
-func humanSize(n int64) string {
-	switch {
-	case n < 1024:
-		return fmt.Sprintf("%dB", n)
-	case n < 1024*1024:
-		return fmt.Sprintf("%.0fKB", float64(n)/1024)
-	case n < 1024*1024*1024:
-		return fmt.Sprintf("%.1fMB", float64(n)/(1024*1024))
-	default:
-		return fmt.Sprintf("%.1fGB", float64(n)/(1024*1024*1024))
-	}
-}
-
 // openInBrowserCmd opens the focused row in the browser: a service's dashboard
 // URL when the Services pane is focused, otherwise the focused site's primary
 // domain. Falls back to a status-bar message when there's nothing to open or
 // the platform lacks a known opener.
 func (m *Model) openInBrowserCmd() tea.Cmd {
-	if m.focus == paneServices {
+	switch m.activeTab {
+	case tabServices:
 		return m.openServiceDashboardCmd()
+	case tabSites:
+		site := m.currentSite()
+		if site == nil {
+			return nil
+		}
+		domain := site.PrimaryDomain()
+		if domain == "" {
+			m.setStatus("no domain to open for "+site.Name, 3*time.Second)
+			return nil
+		}
+		scheme := "http"
+		if site.Secured {
+			scheme = "https"
+		}
+		return m.openURL(scheme + "://" + domain)
 	}
-	site := m.currentSite()
-	if site == nil {
-		return nil
-	}
-	domain := site.PrimaryDomain()
-	if domain == "" {
-		m.setStatus("no domain to open for "+site.Name, 3*time.Second)
-		return nil
-	}
-	scheme := "http"
-	if site.Secured {
-		scheme = "https"
-	}
-	return m.openURL(scheme + "://" + domain)
+	return nil
 }
 
 // openServiceDashboardCmd opens the focused service's dashboard URL. Worker

@@ -2,11 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/grouping"
 	"github.com/geodro/lerd/internal/nginx"
 	"github.com/geodro/lerd/internal/podman"
@@ -54,15 +54,7 @@ func newDomainListCmd() *cobra.Command {
 
 // resolveSiteForCwd finds the site registered for the current working directory.
 func resolveSiteForCwd() (*config.Site, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-	site, err := config.FindSiteByPath(cwd)
-	if err != nil {
-		return nil, fmt.Errorf("no site registered for %s — link it first with lerd link", cwd)
-	}
-	return site, nil
+	return ensureSiteForCwd()
 }
 
 func runDomainAdd(_ *cobra.Command, args []string) error {
@@ -116,27 +108,28 @@ func runDomainAdd(_ *cobra.Command, args []string) error {
 	// here would clobber those worktree SANs.
 	if site.Secured {
 		if err := certs.ReissueCertForWorktree(*site); err != nil {
-			fmt.Printf("[WARN] reissuing certificate: %v\n", err)
+			feedback.Warn("reissuing certificate: %v", err)
 		}
 	}
 
 	if err := podman.WriteContainerHosts(); err != nil {
-		fmt.Printf("[WARN] updating container hosts file: %v\n", err)
+		feedback.Warn("updating container hosts file: %v", err)
 	}
 
 	nginx.ReloadOrWarn("")
 
 	if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-		fmt.Printf("[WARN] syncing .env to new primary domain: %v\n", err)
+		feedback.Warn("syncing .env to new primary domain: %v", err)
 	}
 
 	if site.IsGroupMain() {
 		if err := grouping.CascadeMainDomainChange(site); err != nil {
-			fmt.Printf("[WARN] cascading group domain change: %v\n", err)
+			feedback.Warn("cascading group domain change: %v", err)
 		}
 	}
 
-	fmt.Printf("Added domain %s to site %s\n", fullDomain, site.Name)
+	feedback.Begin()
+	feedback.Done("added " + feedback.Val(fullDomain) + " to " + site.Name)
 	return nil
 }
 
@@ -190,27 +183,28 @@ func runDomainRemove(_ *cobra.Command, args []string) error {
 	// worktree subdomains.
 	if site.Secured {
 		if err := certs.ReissueCertForWorktree(*site); err != nil {
-			fmt.Printf("[WARN] reissuing certificate: %v\n", err)
+			feedback.Warn("reissuing certificate: %v", err)
 		}
 	}
 
 	if err := podman.WriteContainerHosts(); err != nil {
-		fmt.Printf("[WARN] updating container hosts file: %v\n", err)
+		feedback.Warn("updating container hosts file: %v", err)
 	}
 
 	nginx.ReloadOrWarn("")
 
 	if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-		fmt.Printf("[WARN] syncing .env to new primary domain: %v\n", err)
+		feedback.Warn("syncing .env to new primary domain: %v", err)
 	}
 
 	if site.IsGroupMain() {
 		if err := grouping.CascadeMainDomainChange(site); err != nil {
-			fmt.Printf("[WARN] cascading group domain change: %v\n", err)
+			feedback.Warn("cascading group domain change: %v", err)
 		}
 	}
 
-	fmt.Printf("Removed domain %s from site %s\n", fullDomain, site.Name)
+	feedback.Begin()
+	feedback.Done("removed " + feedback.Val(fullDomain) + " from " + site.Name)
 	return nil
 }
 

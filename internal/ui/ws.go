@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -32,6 +33,12 @@ const (
 	wsPingInterval = 30 * time.Second
 	wsReadTimeout  = 75 * time.Second
 )
+
+// wsWriteTimeout bounds a single outbound frame write. Without it a peer that
+// stops reading (suspended tab, half-open TCP) wedges conn.Write forever while
+// holding the write lock, so the ping/pump goroutines never observe cancel and
+// the handler's deferred join leaks. A var so tests can shorten it.
+var wsWriteTimeout = 10 * time.Second
 
 // chooseInterval returns the cache poll cadence implied by the current
 // (visibility, session-idle) pair. Fast cadence requires both an engaged
@@ -91,6 +98,31 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
+	// All frame writes funnel through these helpers: the reader goroutine
+	// writes pong/close frames while the main loop writes snapshots and pings,
+	// and the hand-rolled wsConn is not write-safe.
+	var writeMu sync.Mutex
+	sendText := func(b []byte) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return ws.WriteText(b)
+	}
+	sendPing := func() error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return ws.WritePing(nil)
+	}
+	sendPong := func(b []byte) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return ws.WritePong(b)
+	}
+	sendClose := func() error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return ws.WriteClose()
+	}
+
 	ch := broker.add()
 	defer broker.remove(ch)
 
@@ -116,7 +148,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		nil,
 		[]string{"snapshot"},
 	)
-	if err := ws.WriteText(initial); err != nil {
+	if err := sendText(initial); err != nil {
 		return
 	}
 
@@ -149,13 +181,13 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			}
 			switch op {
 			case wsOpPing:
-				if err := ws.WritePong(payload); err != nil {
+				if err := sendPong(payload); err != nil {
 					return
 				}
 			case wsOpPong:
 				// Client responded to our ping; loop body resets the deadline.
 			case wsOpClose:
-				_ = ws.WriteClose()
+				_ = sendClose()
 				return
 			case wsOpText:
 				var msg struct {
@@ -180,11 +212,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			frame := assembleSnapshot(msg.Sites, msg.Services, msg.Status, msg.UnhealthyWorkers, msg.DumpsStatus, msg.DevtoolsStatus, msg.ProfilerStatus, msg.Notification, msg.Kinds)
-			if err := ws.WriteText(frame); err != nil {
+			if err := sendText(frame); err != nil {
 				return
 			}
 		case <-pingTicker.C:
-			if err := ws.WritePing(nil); err != nil {
+			if err := sendPing(); err != nil {
 				return
 			}
 		case <-done:

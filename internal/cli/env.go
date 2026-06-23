@@ -19,6 +19,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/envfile"
+	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/grouping"
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
@@ -157,7 +158,8 @@ func projectDBName(path string) string {
 
 // NewEnvCmd returns the env command.
 func NewEnvCmd() *cobra.Command {
-	return &cobra.Command{
+	var verbose bool
+	cmd := &cobra.Command{
 		Use:   "env",
 		Short: "Configure .env for this project with lerd service connection settings",
 		Long: `Sets up .env for the current project:
@@ -166,7 +168,75 @@ func NewEnvCmd() *cobra.Command {
   - Starts any referenced services that are not already running
   - Generates APP_KEY if missing
   - Sets APP_URL to the registered .test domain`,
-		RunE: runEnv,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// --verbose (and any non-animated output, e.g. the MCP server or a
+			// pipe) prints the full per-step detail. An interactive terminal gets
+			// the single live "configuring .env" line instead.
+			if verbose || !feedback.Animated() {
+				return runEnv(cmd, args)
+			}
+			feedback.Begin()
+			return runEnvLive(cmd, args)
+		},
+	}
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Print detailed per-service output (used by the MCP server)")
+	return cmd
+}
+
+// envLive, when set, redirects runEnv's per-service reporting to a single live
+// progress line instead of the detailed multi-line output.
+var envLive *feedback.Live
+
+// runEnvLive runs runEnv under a live "configuring .env" line that accumulates
+// each service as it is applied. It saves and restores the previous live line
+// so it is reentrant: `lerd env` in an unlinked dir links first, and that link
+// runs its own setup env step (another runEnvLive) — nilling the global here
+// instead of restoring it would crash the outer line's Done/Fail on return.
+func runEnvLive(cmd *cobra.Command, args []string) error {
+	prev := envLive
+	live := feedback.StartLive("configuring .env")
+	envLive = live
+	err := runEnv(cmd, args)
+	if err != nil {
+		live.Fail(err)
+	} else {
+		live.Done()
+	}
+	envLive = prev
+	return err
+}
+
+// envInfo prints a detailed runEnv line, suppressed while the live line is active.
+func envInfo(format string, a ...any) {
+	if envLive == nil {
+		fmt.Printf(format, a...)
+	}
+}
+
+// envInterrupt runs fn, pausing the live line first (when active) so fn's raw
+// stdout — a service-start notice, a child process's output — prints cleanly
+// above the spinner instead of fighting its in-place redraw. With no live line
+// it just runs fn, so callers reached outside runEnvLive are unaffected.
+func envInterrupt(fn func()) {
+	if envLive != nil {
+		envLive.Interrupt(fn)
+		return
+	}
+	fn()
+}
+
+// envApplyLine reports a service as its connection values are applied: it feeds
+// the live line when active, otherwise prints the detailed "applying" line.
+func envApplyLine(svc string, detectedFromEnv bool) {
+	if envLive != nil {
+		envLive.Add(svc)
+		return
+	}
+	if detectedFromEnv {
+		fmt.Printf("  Detected %-12s — applying lerd connection values\n", svc)
+	} else {
+		fmt.Printf("  From .lerd.yaml %-4s — applying lerd connection values\n", svc)
 	}
 }
 
@@ -243,9 +313,9 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	}
 
 	// Determine framework-specific env file path and format
-	site, _ := config.FindSiteByPath(cwd)
-	if site == nil {
-		return fmt.Errorf("no site registered for this directory\nRun 'lerd link' first")
+	site, err := ensureSiteForCwd()
+	if err != nil {
+		return err
 	}
 
 	fwName := site.Framework
@@ -277,7 +347,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	// 1. Create env file from example if it doesn't exist
 	if _, err := os.Stat(envPath); os.IsNotExist(err) {
 		if _, err := os.Stat(examplePath); err == nil {
-			fmt.Printf("Creating %s from %s...\n", envRelPath, exampleRelPath)
+			envInfo("Creating %s from %s...\n", envRelPath, exampleRelPath)
 			if err := copyEnvFile(examplePath, envPath); err != nil {
 				return fmt.Errorf("copying %s: %w", exampleRelPath, err)
 			}
@@ -287,7 +357,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			if dir := filepath.Dir(envPath); dir != "." {
 				_ = os.MkdirAll(dir, 0755)
 			}
-			fmt.Printf("Creating empty %s (no example file found)...\n", envRelPath)
+			envInfo("Creating empty %s (no example file found)...\n", envRelPath)
 			if err := os.WriteFile(envPath, []byte(""), 0644); err != nil {
 				return fmt.Errorf("creating %s: %w", envRelPath, err)
 			}
@@ -295,7 +365,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			return fmt.Errorf("no %s or %s found in %s", envRelPath, exampleRelPath, cwd)
 		}
 	} else {
-		fmt.Printf("Updating existing %s...\n", envRelPath)
+		envInfo("Updating existing %s...\n", envRelPath)
 		// Back up the original .env the first time lerd modifies it (so the user
 		// can inspect what changed and restore with `lerd env:restore`), but only
 		// if lerd hasn't already written to it — detected by presence of the word
@@ -304,9 +374,9 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		if !envFileHasLerd(envPath) {
 			if _, err := os.Stat(backupPath); os.IsNotExist(err) {
 				if err := copyEnvFile(envPath, backupPath); err != nil {
-					fmt.Printf("  [WARN] could not back up %s: %v\n", envRelPath, err)
+					feedback.Warn("could not back up %s: %v", envRelPath, err)
 				} else {
-					fmt.Printf("  Backed up original %s → .env.before_lerd\n", envRelPath)
+					envInfo("  Backed up original %s → .env.before_lerd\n", envRelPath)
 					addToGitignore(cwd, ".env.before_lerd")
 				}
 			}
@@ -350,7 +420,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		}
 		val := applySiteHandle(v, tplCtx)
 		updates[k] = val
-		fmt.Printf("  Setting %s=%s\n", k, val)
+		envInfo("  Setting %s=%s\n", k, val)
 	}
 
 	// Load .lerd.yaml service hints so we can apply env vars for services
@@ -391,11 +461,13 @@ func runEnv(_ *cobra.Command, _ []string) error {
 					Options(options...).
 					Value(&dbChoice),
 			)).WithTheme(huh.ThemeCatppuccin())
-			if err := dbForm.Run(); err != nil {
-				return fmt.Errorf("database prompt: %w", err)
+			var formErr error
+			envInterrupt(func() { formErr = dbForm.Run() })
+			if formErr != nil {
+				return fmt.Errorf("database prompt: %w", formErr)
 			}
 		} else {
-			fmt.Println("  Defaulting to SQLite (non-interactive). Run `lerd db set <service>` or call db_set to switch.")
+			envInfo("  Defaulting to SQLite (non-interactive). Run `lerd db set <service>` or call db_set to switch.\n")
 		}
 
 		// Persist the choice to .lerd.yaml so future runs don't re-ask, and
@@ -406,7 +478,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		}
 		proj.Services = append(proj.Services, config.ProjectService{Name: dbChoice})
 		if err := config.SaveProjectConfig(cwd, proj); err != nil {
-			fmt.Printf("  [WARN] could not save .lerd.yaml: %v\n", err)
+			feedback.Warn("could not save .lerd.yaml: %v", err)
 		}
 		lerdYAMLServices[dbChoice] = true
 	}
@@ -429,11 +501,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				continue
 			}
 
-			if detectedFromEnv {
-				fmt.Printf("  Detected %-12s — applying lerd connection values\n", svc)
-			} else {
-				fmt.Printf("  From .lerd.yaml %-4s — applying lerd connection values\n", svc)
-			}
+			envApplyLine(svc, detectedFromEnv)
 			isDB := svc == "mysql" || svc == "postgres"
 			for _, kv := range def.Vars {
 				k, v, _ := strings.Cut(kv, "=")
@@ -444,16 +512,16 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			}
 			if isDB {
 				if err := ensureServiceRunning(svc); err != nil {
-					fmt.Printf("  [WARN] could not start %s: %v\n", svc, err)
+					feedback.Warn("could not start %s: %v", svc, err)
 				} else {
 					for _, name := range []string{dbName, dbName + "_testing"} {
 						created, err := createDatabase(svc, name)
 						if err != nil {
-							fmt.Printf("  [WARN] could not create database %q: %v\n", name, err)
+							feedback.Warn("could not create database %q: %v", name, err)
 						} else if created {
-							fmt.Printf("  Created database %q\n", name)
+							envInfo("  Created database %q\n", name)
 						} else {
-							fmt.Printf("  Database %q already exists\n", name)
+							envInfo("  Database %q already exists\n", name)
 						}
 					}
 				}
@@ -470,20 +538,20 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				updates["AWS_BUCKET"] = bucketName
 				updates["AWS_URL"] = "http://localhost:9000/" + bucketName
 				if err := ensureServiceRunning(svc); err != nil {
-					fmt.Printf("  [WARN] could not start %s: %v\n", svc, err)
+					feedback.Warn("could not start %s: %v", svc, err)
 				}
 				created, err := createS3Bucket(bucketName)
 				if err != nil {
-					fmt.Printf("  [WARN] could not create bucket %q: %v\n", bucketName, err)
+					feedback.Warn("could not create bucket %q: %v", bucketName, err)
 				} else if created {
-					fmt.Printf("  Created bucket %q\n", bucketName)
+					envInfo("  Created bucket %q\n", bucketName)
 				} else {
-					fmt.Printf("  Bucket %q already exists\n", bucketName)
+					envInfo("  Bucket %q already exists\n", bucketName)
 				}
 				continue
 			}
 			if err := ensureServiceRunning(svc); err != nil {
-				fmt.Printf("  [WARN] could not start %s: %v\n", svc, err)
+				feedback.Warn("could not start %s: %v", svc, err)
 			}
 		}
 	} else {
@@ -508,11 +576,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				continue
 			}
 
-			if detectedFromEnv {
-				fmt.Printf("  Detected %-12s — applying lerd connection values\n", svc)
-			} else {
-				fmt.Printf("  From .lerd.yaml %-4s — applying lerd connection values\n", svc)
-			}
+			envApplyLine(svc, detectedFromEnv)
 			for _, kv := range envs {
 				k, v, _ := strings.Cut(kv, "=")
 				updates[k] = v
@@ -528,16 +592,16 @@ func runEnv(_ *cobra.Command, _ []string) error {
 
 			if isDB {
 				if err := ensureServiceRunning(svc); err != nil {
-					fmt.Printf("  [WARN] could not start %s: %v\n", svc, err)
+					feedback.Warn("could not start %s: %v", svc, err)
 				} else {
 					for _, name := range []string{dbName, dbName + "_testing"} {
 						created, err := createDatabase(svc, name)
 						if err != nil {
-							fmt.Printf("  [WARN] could not create database %q: %v\n", name, err)
+							feedback.Warn("could not create database %q: %v", name, err)
 						} else if created {
-							fmt.Printf("  Created database %q\n", name)
+							envInfo("  Created database %q\n", name)
 						} else {
-							fmt.Printf("  Database %q already exists\n", name)
+							envInfo("  Database %q already exists\n", name)
 						}
 					}
 				}
@@ -555,24 +619,24 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				updates["AWS_BUCKET"] = bucketName
 				updates["AWS_URL"] = "http://localhost:9000/" + bucketName
 				if err := ensureServiceRunning(svc); err != nil {
-					fmt.Printf("  [WARN] could not start %s: %v\n", svc, err)
+					feedback.Warn("could not start %s: %v", svc, err)
 				}
 				// Always attempt bucket creation — ensureServiceRunning may have
 				// timed out on the host probe while the container network is already
 				// up, or rustfs was already running before lerd env ran.
 				created, err := createS3Bucket(bucketName)
 				if err != nil {
-					fmt.Printf("  [WARN] could not create bucket %q: %v\n", bucketName, err)
+					feedback.Warn("could not create bucket %q: %v", bucketName, err)
 				} else if created {
-					fmt.Printf("  Created bucket %q\n", bucketName)
+					envInfo("  Created bucket %q\n", bucketName)
 				} else {
-					fmt.Printf("  Bucket %q already exists\n", bucketName)
+					envInfo("  Bucket %q already exists\n", bucketName)
 				}
 				continue
 			}
 
 			if err := ensureServiceRunning(svc); err != nil {
-				fmt.Printf("  [WARN] could not start %s: %v\n", svc, err)
+				feedback.Warn("could not start %s: %v", svc, err)
 			}
 		}
 	}
@@ -582,7 +646,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	// standard Laravel sqlite env vars and ensure the database file exists so
 	// migrations can run immediately. No service to start, no SQL DB to create.
 	if lerdYAMLServices["sqlite"] {
-		fmt.Printf("  From .lerd.yaml %-4s — applying lerd connection values\n", "sqlite")
+		envApplyLine("sqlite", false)
 		for _, kv := range serviceEnvVars("sqlite") {
 			k, v, _ := strings.Cut(kv, "=")
 			updates[k] = v
@@ -592,7 +656,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			if err := os.MkdirAll(filepath.Dir(sqlitePath), 0o755); err == nil {
 				if f, err := os.Create(sqlitePath); err == nil {
 					_ = f.Close()
-					fmt.Printf("  Created %s\n", filepath.Join("database", "database.sqlite"))
+					envInfo("  Created %s\n", filepath.Join("database", "database.sqlite"))
 				}
 			}
 		}
@@ -629,16 +693,12 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			// project can reach it once running, unless it's externally managed.
 			if !extServices[svc.Name] {
 				if err := ensureServiceRunning(svc.Name); err != nil {
-					fmt.Printf("  [WARN] could not start %s: %v\n", svc.Name, err)
+					feedback.Warn("could not start %s: %v", svc.Name, err)
 				}
 			}
 			continue
 		}
-		if pickedFromYAML {
-			fmt.Printf("  From .lerd.yaml %-4s — applying lerd connection values\n", svc.Name)
-		} else {
-			fmt.Printf("  Detected %-12s — applying lerd connection values\n", svc.Name)
-		}
+		envApplyLine(svc.Name, !pickedFromYAML)
 		for _, kv := range svc.EnvVars {
 			k, v, _ := strings.Cut(kv, "=")
 			updates[k] = applySiteHandle(v, tplCtx)
@@ -652,23 +712,23 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			continue
 		}
 		if err := ensureServiceRunning(svc.Name); err != nil {
-			fmt.Printf("  [WARN] could not start %s: %v\n", svc.Name, err)
+			feedback.Warn("could not start %s: %v", svc.Name, err)
 			continue
 		}
 		if isDB {
 			for _, name := range []string{dbName, dbName + "_testing"} {
 				created, err := createDatabase(svc.Name, name)
 				if err != nil {
-					fmt.Printf("  [WARN] could not create database %q: %v\n", name, err)
+					feedback.Warn("could not create database %q: %v", name, err)
 				} else if created {
-					fmt.Printf("  Created database %q\n", name)
+					envInfo("  Created database %q\n", name)
 				} else {
-					fmt.Printf("  Database %q already exists\n", name)
+					envInfo("  Database %q already exists\n", name)
 				}
 			}
 		}
 		if svc.SiteInit != nil && svc.SiteInit.Exec != "" {
-			runSiteInit(svc, tplCtx)
+			envInterrupt(func() { runSiteInit(svc, tplCtx) })
 		}
 	}
 
@@ -683,7 +743,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	if config.ComposerHasPackage(cwd, "pestphp/pest-plugin-browser") {
 		if v, derr := phpDet.DetectVersion(cwd); derr == nil && pestBrowserSupportedVersion(v) == nil {
 			if gcfg, cerr := config.LoadGlobal(); cerr == nil && !slices.Contains(gcfg.GetPackages(v), pestBrowserPkg) {
-				fmt.Println("  Detected pest-plugin-browser — run `lerd pest:browser install` to enable in-container browser testing")
+				envInfo("  Detected pest-plugin-browser — run `lerd pest:browser install` to enable in-container browser testing\n")
 			}
 		}
 	}
@@ -692,7 +752,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	// BROADCAST_CONNECTION=reverb is set.
 	if fw.HasWorker("reverb", cwd) &&
 		strings.ToLower(strings.Trim(overrideOr(envOverrides, envMap, "BROADCAST_CONNECTION"), `"'`)) == "reverb" {
-		fmt.Println("  Detected reverb     — configuring REVERB_ connection values")
+		envApplyLine("reverb", true)
 		for k, v := range reverbEnvUpdates(envMap, site.PrimaryDomain(), site.Secured, cwd) {
 			updates[k] = v
 		}
@@ -708,7 +768,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	}
 	if url := resolveAppURL(cwd, site); url != "" {
 		updates[urlKey] = url
-		fmt.Printf("  Setting %s=%s\n", urlKey, url)
+		envInfo("  Setting %s=%s\n", urlKey, url)
 	}
 
 	// 4d. Host-proxy apps run on the host, so point service connections at
@@ -724,7 +784,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	// 4e. Apply personal .env.lerd_override values last so they win over lerd's
 	// defaults and every computed value (DB_DATABASE, APP_URL, reverb, …).
 	if len(envOverrides) > 0 {
-		fmt.Printf("  Applying %d override(s) from %s\n", len(envOverrides), envOverrideFile)
+		envInfo("  Applying %d override(s) from %s\n", len(envOverrides), envOverrideFile)
 		for k, v := range envOverrides {
 			updates[k] = v
 		}
@@ -748,30 +808,32 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	if kg := fw.Env.KeyGeneration; kg != nil && strings.TrimSpace(overrideOr(envOverrides, envMap, kg.EnvKey)) == "" {
 		if kg.Command != "" {
 			if _, statErr := os.Stat(filepath.Join(cwd, "vendor")); statErr == nil {
-				fmt.Printf("  Generating %s...\n", kg.EnvKey)
+				envInfo("  Generating %s...\n", kg.EnvKey)
 				// Use the framework's console binary (e.g. "spark" for
 				// CodeIgniter), not a hardcoded "artisan", so key generation
 				// works for non-Laravel frameworks.
-				if err := consoleIn(cwd, fw.Console, kg.Command); err != nil {
-					fmt.Printf("  [WARN] %s failed: %v\n", kg.Command, err)
+				var keyErr error
+				envInterrupt(func() { keyErr = consoleIn(cwd, fw.Console, kg.Command) })
+				if keyErr != nil {
+					feedback.Warn("%s failed: %v", kg.Command, keyErr)
 				}
 			} else if kg.FallbackPrefix != "" {
-				fmt.Printf("  Generating %s (vendor not installed yet)...\n", kg.EnvKey)
+				envInfo("  Generating %s (vendor not installed yet)...\n", kg.EnvKey)
 				key := generateRandomKey(kg.FallbackPrefix)
 				if err := envfile.ApplyUpdates(envPath, map[string]string{kg.EnvKey: key}); err != nil {
-					fmt.Printf("  [WARN] writing %s: %v\n", kg.EnvKey, err)
+					feedback.Warn("writing %s: %v", kg.EnvKey, err)
 				}
 			}
 		} else if kg.FallbackPrefix != "" {
-			fmt.Printf("  Generating %s...\n", kg.EnvKey)
+			envInfo("  Generating %s...\n", kg.EnvKey)
 			key := generateRandomKey(kg.FallbackPrefix)
 			if err := envfile.ApplyUpdates(envPath, map[string]string{kg.EnvKey: key}); err != nil {
-				fmt.Printf("  [WARN] writing %s: %v\n", kg.EnvKey, err)
+				feedback.Warn("writing %s: %v", kg.EnvKey, err)
 			}
 		}
 	}
 
-	fmt.Println("Done.")
+	envInfo("Done.\n")
 	return nil
 }
 
@@ -858,7 +920,7 @@ func ensureServiceRunning(name string) error {
 		return nil
 	}
 	if isKnownService(name) {
-		fmt.Printf("  Starting %s...\n", name)
+		envInterrupt(func() { fmt.Printf("  Starting %s...\n", name) })
 		if err := ensureServiceQuadlet(name); err != nil {
 			return err
 		}
@@ -872,7 +934,7 @@ func ensureServiceRunning(name string) error {
 				return fmt.Errorf("starting dependency %q for %q: %w", dep, name, err)
 			}
 		}
-		fmt.Printf("  Starting %s...\n", name)
+		envInterrupt(func() { fmt.Printf("  Starting %s...\n", name) })
 		if err := ensureCustomServiceQuadlet(svc); err != nil {
 			return err
 		}
@@ -1072,7 +1134,7 @@ func runSiteInit(svc *config.CustomService, ctx siteTemplateCtx) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("  [WARN] site_init for %s failed: %v\n", svc.Name, err)
+		feedback.Warn("site_init for %s failed: %v", svc.Name, err)
 	}
 }
 
@@ -1295,7 +1357,7 @@ func patchDuskTestCase(dir string) {
 
 	if changed {
 		if err := os.WriteFile(path, []byte(src), 0644); err != nil {
-			fmt.Printf("  [WARN] could not patch DuskTestCase.php: %v\n", err)
+			feedback.Warn("could not patch DuskTestCase.php: %v", err)
 			return
 		}
 		fmt.Println("  Patched tests/DuskTestCase.php for lerd Selenium")

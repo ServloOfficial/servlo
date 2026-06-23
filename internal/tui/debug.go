@@ -12,6 +12,7 @@ import (
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/devtoolsops"
 	lerddumps "github.com/geodro/lerd/internal/dumps"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 // debugLenses are the Debug view's switchable lenses, in tab order, mirroring
@@ -294,13 +295,16 @@ func renderDebugTabs(m *Model, site string) string {
 		if c := counts[l.kind]; c > 0 {
 			label = fmt.Sprintf("%s %d", l.label, c)
 		}
+		var chip string
 		if i == m.debugLens {
-			parts = append(parts, keyChipStyle.Render(" "+label+" "))
+			chip = keyChipStyle.Render(" " + label + " ")
 		} else {
-			parts = append(parts, dimStyle.Render(label))
+			chip = dimStyle.Render(" " + label + " ")
 		}
+		// Each lens is a clickable tab; handleMouse maps the zone to the lens.
+		parts = append(parts, zone.Mark(fmt.Sprintf("debuglens:%d", i), chip))
 	}
-	return strings.Join(parts, "  ")
+	return strings.Join(parts, " ")
 }
 
 // debugContentLines renders the whole Debug pane: the bridge/worker state, the
@@ -311,7 +315,9 @@ func debugContentLines(m *Model, focused bool, innerW int) ([]string, int) {
 	add := func(s string) { out = append(out, padToWidth(clipLine(s, innerW), innerW)) }
 
 	add(sectionStyle.Render("Debug") + "  " + dumpsBridgeStateLabel() + "  " + debugWorkersStateLabel())
+	add("")
 	add("  " + renderDebugTabs(m, ""))
+	add("")
 	add(dimStyle.Render("  [ ] lens · / search · 1/2 ctx · enter expand · w workers · c clear · T bridge · D return"))
 	add("  " + renderDumpsChips(m.dumpsCtxFilter))
 	if m.dumpsFilterActive || m.dumpsFilter != "" {
