@@ -329,6 +329,32 @@ func siteHasFailingWorker(s siteinfo.EnrichedSite) bool {
 	return false
 }
 
+// footChip is one footer key-hint. action=true colours the key amber (it
+// mutates state); otherwise it's accent-coloured navigation/view.
+type footChip struct {
+	key    string
+	label  string
+	action bool
+}
+
+func nav(key, label string) footChip { return footChip{key, label, false} }
+func act(key, label string) footChip { return footChip{key, label, true} }
+
+// renderFootChips joins coloured key-hints with dim dot separators and clips
+// the result to the window width.
+func (m *Model) renderFootChips(chips []footChip) string {
+	parts := make([]string, len(chips))
+	for i, c := range chips {
+		keyStyle := footNavKeyStyle
+		if c.action {
+			keyStyle = footActionKeyStyle
+		}
+		parts[i] = keyStyle.Render(c.key) + " " + footLabelStyle.Render(c.label)
+	}
+	sep := footLabelStyle.Render("  ·  ")
+	return clipLine("  "+strings.Join(parts, sep), m.width)
+}
+
 func (m *Model) renderFooter() string {
 	if m.filterActive {
 		return helpStyle.Render("  filter: type to match · enter apply · esc clear")
@@ -336,24 +362,34 @@ func (m *Model) renderFooter() string {
 
 	// Narrow terminals only have room for the essentials; `?` reveals the rest.
 	if m.width < narrowWidth {
-		return helpStyle.Render("  " + strings.Join([]string{
-			"ctrl+←→ tabs", "↑↓ nav", "space toggle", "? help", "q quit",
-		}, "  ·  "))
+		return m.renderFootChips([]footChip{
+			nav("ctrl+←→", "tabs"), nav("↑↓", "nav"), act("space", "toggle"), nav("?", "help"), act("q", "quit"),
+		})
 	}
 
 	// Context-aware: each tab shows only the keys that act on it, so the bar
 	// reads as a relevant cheat-sheet rather than a wall of every binding.
-	var keys []string
+	var chips []footChip
 	switch m.activeTab {
 	case tabDashboard:
-		keys = []string{"ctrl+←→ tabs", "↑↓ scroll", "tab card", "click open", "H heal", "? help", "q quit"}
+		chips = []footChip{
+			nav("ctrl+←→", "tabs"), nav("↑↓", "nav"), nav("tab", "card"), nav("enter", "open"),
+			act("H", "heal"), nav("?", "help"), act("q", "quit"),
+		}
 	case tabServices:
-		keys = []string{"ctrl+←→ tabs", "↑↓ nav", "/ filter", "s start", "x stop", "r restart", "u update", "b rollback", "t shell", "O open", "? help", "q quit"}
+		chips = []footChip{
+			nav("ctrl+←→", "tabs"), nav("↑↓", "nav"), nav("/", "filter"),
+			act("s", "start"), act("x", "stop"), act("r", "restart"), act("u", "update"), act("b", "rollback"),
+			act("t", "shell"), act("O", "open"), nav("?", "help"), act("q", "quit"),
+		}
 	default: // tabSites
-		keys = []string{"ctrl+←→ tabs", "tab panes", "↑↓ nav", "space toggle", "/ filter", "s start", "x stop", "r restart", "l logs", "t shell", "S settings", "Y system", "D debug", "? help", "q quit"}
+		chips = []footChip{
+			nav("ctrl+←→", "tabs"), nav("tab", "panes"), nav("↑↓", "nav"), act("space", "toggle"), nav("/", "filter"),
+			act("s", "start"), act("x", "stop"), act("r", "restart"), nav("l", "logs"), act("t", "shell"),
+			nav("S", "settings"), nav("Y", "system"), nav("D", "debug"), nav("?", "help"), act("q", "quit"),
+		}
 	}
-	// Clip to the window so a long bar can't overflow and break the layout.
-	return helpStyle.Render(clipLine("  "+strings.Join(keys, "  ·  "), m.width))
+	return m.renderFootChips(chips)
 }
 
 func (m *Model) renderStatus() string {
@@ -899,8 +935,10 @@ func renderScrollbar(height, total, start, visible int) []string {
 		return out
 	}
 	if total <= visible || total == 0 {
+		// Nothing to scroll: leave the column blank rather than drawing a full
+		// track, which otherwise reads as a stray second border inside the box.
 		for i := range out {
-			out[i] = dimStyle.Render("│")
+			out[i] = " "
 		}
 		return out
 	}

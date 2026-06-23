@@ -24,7 +24,7 @@ func TestDashboardGrid_RendersAllCards(t *testing.T) {
 // heal state so users see the positive signal at a glance.
 func TestWorkersCard_HealthyWhenNoFailures(t *testing.T) {
 	m := NewModel("test")
-	joined := stripANSI(strings.Join(m.dashWorkersCard(60).lines, "\n"))
+	joined := stripANSI(strings.Join(m.dashWorkersCard(60, -1).lines, "\n"))
 	if !strings.Contains(joined, "all workers healthy") {
 		t.Errorf("expected healthy state with no failing workers:\n%s", joined)
 	}
@@ -38,7 +38,7 @@ func TestWorkersCard_ShowsFailingCount(t *testing.T) {
 		{Name: "a", QueueFailing: true, HasQueueWorker: true},
 		{Name: "b", ScheduleFailing: true, HasScheduleWorker: true},
 	}
-	joined := stripANSI(strings.Join(m.dashWorkersCard(60).lines, "\n"))
+	joined := stripANSI(strings.Join(m.dashWorkersCard(60, -1).lines, "\n"))
 	if !strings.Contains(joined, "2 failing") {
 		t.Errorf("expected '2 failing':\n%s", joined)
 	}

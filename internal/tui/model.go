@@ -222,6 +222,13 @@ type Model struct {
 	// scroll offset. Cards show their whole list and clip to a scroll window.
 	dashFocus  int
 	dashScroll [numDashCards]int
+	// dashRowCursor is the selected row within each card (an index into
+	// dashZones[card]); ↑↓ moves it on the Sites/Services/Workers cards and
+	// enter activates it like a click. dashZones caches, per card, the ordered
+	// clickable zone ids laid down at the last render so the cursor and enter
+	// resolve against exactly what's on screen.
+	dashRowCursor [numDashCards]int
+	dashZones     [numDashCards][]string
 
 	// Activity feed: a capped ring of recent state-change events derived by
 	// diffing successive snapshots, mirroring the web UI's Recent Activity.
@@ -441,6 +448,11 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "enter", " ":
+		// On the Dashboard, enter (or space) acts like a click on the selected
+		// row: it jumps to that site / service / worker on its own tab.
+		if m.activeTab == tabDashboard {
+			return m, m.activateDashSelection()
+		}
 		if m.focus == paneDetail {
 			if m.pickerKind != kindInfo {
 				return m, m.applyPicker()
@@ -694,7 +706,7 @@ func (m *Model) handleMainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.actionStop()
 
 	case "a":
-		if m.focus == paneDetail && m.detailMode == detailSite && m.currentSite() != nil {
+		if m.activeTab == tabSites && m.focus == paneDetail && m.detailMode == detailSite && m.currentSite() != nil {
 			m.openDomainInput()
 			return m, nil
 		}
@@ -844,7 +856,7 @@ func (m *Model) openDomainEdit(full string) {
 // the detail cursor on a domain row. Returns false when the focus/row
 // doesn't match so other bindings keep working.
 func (m *Model) editFocusedDomain() (handled bool) {
-	if m.focus != paneDetail || m.detailMode != detailSite {
+	if m.activeTab != tabSites || m.focus != paneDetail || m.detailMode != detailSite {
 		return false
 	}
 	s := m.currentSite()
@@ -1167,44 +1179,21 @@ func (m *Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tabDashboard:
-		// Clicking a site or service row jumps to that item on its own tab.
-		for i := range m.snap.Sites {
-			if zone.Get(fmt.Sprintf("dashsite:%d", i)).InBounds(msg) {
-				m.switchTab(tabSites)
-				m.selectSiteByName(m.snap.Sites[i].Name)
-				return m, m.syncLogs()
-			}
-		}
-		for i := range m.snap.Services {
-			if zone.Get(fmt.Sprintf("dashsvc:%d", i)).InBounds(msg) {
-				m.switchTab(tabServices)
-				m.selectServiceByName(m.snap.Services[i].Name)
-				return m, m.syncLogs()
-			}
-		}
-		// Worker rows live in the services list too, so a click jumps there
-		// with the worker selected.
-		for i := range m.snap.Services {
-			if zone.Get(fmt.Sprintf("dashworker:%d", i)).InBounds(msg) {
-				m.switchTab(tabServices)
-				m.selectServiceByName(m.snap.Services[i].Name)
-				return m, m.syncLogs()
-			}
-		}
-		// A failing-worker row carries no service entry of its own, so it jumps
-		// to the owning site's detail where the worker state and heal action live.
-		// Zones are keyed by failing-worker index, mapped back to the site here.
-		failing := failingWorkers(m.snap)
-		for fi, f := range failing {
-			if zone.Get(fmt.Sprintf("dashfailsite:%d", fi)).InBounds(msg) {
-				m.switchTab(tabSites)
-				if f.siteIdx >= 0 && f.siteIdx < len(m.snap.Sites) {
-					m.selectSiteByName(m.snap.Sites[f.siteIdx].Name)
+		// A click on any clickable row jumps to that item via the same path as
+		// the keyboard enter. Each card's selectable zone ids are cached at
+		// render time, so we just hit-test those rather than rebuilding them.
+		for ci := 0; ci < numDashCards; ci++ {
+			for ri, id := range m.dashZones[ci] {
+				if zone.Get(id).InBounds(msg) {
+					// Keep the keyboard cursor in sync so returning to the
+					// dashboard lands on the row the user last clicked.
+					m.dashFocus = ci
+					m.dashRowCursor[ci] = ri
+					return m, m.activateDashZone(id)
 				}
-				return m, m.syncLogs()
 			}
 		}
-		// A click elsewhere on a card just focuses it for keyboard scrolling.
+		// A click elsewhere on a card just focuses it for keyboard navigation.
 		for i := 0; i < numDashCards; i++ {
 			if zone.Get(fmt.Sprintf("card:%d", i)).InBounds(msg) {
 				m.dashFocus = i
@@ -1290,6 +1279,60 @@ func (m *Model) scrollOffset(off *int, delta int) {
 	if *off < 0 {
 		*off = 0
 	}
+}
+
+// activateDashSelection activates the focused dashboard card's selected row,
+// the keyboard equivalent of clicking it. No-op on info-only cards.
+func (m *Model) activateDashSelection() tea.Cmd {
+	zones := m.dashZones[m.dashFocus]
+	cur := m.dashRowCursor[m.dashFocus]
+	if cur < 0 || cur >= len(zones) {
+		return nil
+	}
+	return m.activateDashZone(zones[cur])
+}
+
+// activateDashZone performs the jump for a dashboard row zone id, shared by the
+// mouse click handler and keyboard enter so both behave identically. A site /
+// service / worker jumps to its own tab with that item selected; a failing
+// worker jumps to its owning site's detail.
+func (m *Model) activateDashZone(id string) tea.Cmd {
+	idx := func(prefix string) (int, bool) {
+		if !strings.HasPrefix(id, prefix) {
+			return 0, false
+		}
+		var n int
+		if _, err := fmt.Sscanf(id[len(prefix):], "%d", &n); err != nil {
+			return 0, false
+		}
+		return n, true
+	}
+	if i, ok := idx("dashsite:"); ok && i >= 0 && i < len(m.snap.Sites) {
+		m.switchTab(tabSites)
+		m.selectSiteByName(m.snap.Sites[i].Name)
+		return m.syncLogs()
+	}
+	if i, ok := idx("dashsvc:"); ok && i >= 0 && i < len(m.snap.Services) {
+		m.switchTab(tabServices)
+		m.selectServiceByName(m.snap.Services[i].Name)
+		return m.syncLogs()
+	}
+	if i, ok := idx("dashworker:"); ok && i >= 0 && i < len(m.snap.Services) {
+		m.switchTab(tabServices)
+		m.selectServiceByName(m.snap.Services[i].Name)
+		return m.syncLogs()
+	}
+	if fi, ok := idx("dashfailsite:"); ok {
+		failing := failingWorkers(m.snap)
+		if fi >= 0 && fi < len(failing) {
+			m.switchTab(tabSites)
+			if si := failing[fi].siteIdx; si >= 0 && si < len(m.snap.Sites) {
+				m.selectSiteByName(m.snap.Sites[si].Name)
+			}
+			return m.syncLogs()
+		}
+	}
+	return nil
 }
 
 // selectSiteByName focuses the Sites list on the site with the given name,
@@ -1385,8 +1428,14 @@ func (m *Model) nextFocus(dir int) focusPane {
 }
 
 func (m *Model) moveCursor(delta int) {
-	// The Dashboard tab has no list selection — j/k scrolls the focused card.
+	// On the Dashboard, a card with selectable rows (Sites, Services, Workers)
+	// moves its row cursor; the render follows it. Info-only cards (System
+	// Health, Resources, Lerd) have nothing to select, so j/k scrolls them.
 	if m.activeTab == tabDashboard {
+		if zones := m.dashZones[m.dashFocus]; len(zones) > 0 {
+			m.dashRowCursor[m.dashFocus] = clamp(m.dashRowCursor[m.dashFocus]+delta, 0, len(zones)-1)
+			return
+		}
 		m.dashScroll[m.dashFocus] += delta
 		if m.dashScroll[m.dashFocus] < 0 {
 			m.dashScroll[m.dashFocus] = 0
@@ -1449,6 +1498,11 @@ func (m *Model) setCursor(pos int) {
 func (m *Model) clampCursors() {
 	m.siteCursor = clamp(m.siteCursor, 0, max(0, len(m.visibleSites())-1))
 	m.svcCursor = clamp(m.svcCursor, 0, max(0, len(m.visibleServices())-1))
+	// Keep each dashboard card's row cursor within the rows it had at the last
+	// render; the next render rebuilds dashZones and re-clamps as needed.
+	for i := range m.dashRowCursor {
+		m.dashRowCursor[i] = clamp(m.dashRowCursor[i], 0, max(0, len(m.dashZones[i])-1))
+	}
 }
 
 // visibleSites is the view-ready sites list: m.snap.Sites with the active

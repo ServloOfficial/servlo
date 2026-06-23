@@ -248,15 +248,17 @@ func primaryLANIPv6() string {
 }
 
 // deriveV6Target picks the AAAA target for .test mirroring v4's reach:
-// loopback or empty → ::1; LAN-exposed → host's primary global v6, else ::1.
+// loopback or empty → ::1; LAN-exposed → host's primary global v6, or "" (no
+// AAAA record) when there is no reachable global v6.
 func deriveV6Target(v4 string) string {
 	if v4 == "" || v4 == "127.0.0.1" {
 		return "::1"
 	}
-	if v6 := primaryLANIPv6(); v6 != "" {
-		return v6
-	}
-	return "::1"
+	// LAN-exposed: publish only a real, reachable global v6. Falling back to
+	// ::1 here would answer remote AAAA queries with their own loopback, and
+	// flipping between a real v6 and ::1 as v6 connectivity comes and goes
+	// would churn the config. Omit AAAA entirely when there's no global v6.
+	return primaryLANIPv6()
 }
 
 // WriteDnsmasqConfigFor writes the lerd dnsmasq config with `target` as the

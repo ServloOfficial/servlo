@@ -110,10 +110,35 @@ func defaultRepairExposeMapping(tld string) (bool, error) {
 	if err := dns.WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
 		return false, err
 	}
-	if after, _ := os.ReadFile(confPath); bytes.Equal(before, after) {
+	after, _ := os.ReadFile(confPath)
+	if !exposeConfigChanged(before, after) {
 		return false, nil
 	}
 	return true, podman.RestartUnit("lerd-dns")
+}
+
+// exposeConfigChanged reports whether the rendered dnsmasq config changed in a
+// way that warrants restarting lerd-dns. A change confined to the AAAA (IPv6)
+// address lines is ignored: a global v6 coming and going, or a privacy address
+// rotating, would otherwise restart lerd-dns on every tick, while v4 is what
+// LAN clients overwhelmingly rely on. The new config is still written to disk,
+// so a later v4 drift or a fresh setup picks up the current AAAA.
+func exposeConfigChanged(before, after []byte) bool {
+	return !bytes.Equal(stripAAAALines(before), stripAAAALines(after))
+}
+
+// stripAAAALines drops the IPv6 `address=/.test/<v6>` lines (those whose target
+// contains a colon) so AAAA-only drift compares equal.
+func stripAAAALines(conf []byte) []byte {
+	lines := strings.Split(string(conf), "\n")
+	kept := lines[:0]
+	for _, ln := range lines {
+		if strings.HasPrefix(ln, "address=/") && strings.Contains(ln[strings.LastIndex(ln, "/")+1:], ":") {
+			continue
+		}
+		kept = append(kept, ln)
+	}
+	return []byte(strings.Join(kept, "\n"))
 }
 
 // linkChangeDebounce caps how long the netlink burst from a single VPN
@@ -180,14 +205,49 @@ func WatchDNS(interval time.Duration, tld string) {
 
 	linkRaw := make(chan struct{}, 32)
 	linkSettled := make(chan struct{}, 4)
-	go func() {
-		if err := dns.LinkChanges(linkRaw, done); err != nil {
-			logger.Warn("host network change watcher unavailable, DNS reacts on the safety-net poll only", "err", err)
-		}
-	}()
+	go superviseLinkChanges(dns.LinkChanges, linkRaw, done, linkChangeBackoff)
 	go dns.DebounceEvents(linkRaw, linkSettled, linkChangeDebounce, done)
 
 	runDNSLoop(deps, state, tld, ticker.C, linkSettled, done)
+}
+
+// linkChangeBackoff is the capped exponential delay before restarting the
+// host-network-change watcher after a transient error: 1s, 2s, 4s … up to 30s.
+func linkChangeBackoff(attempt int) time.Duration {
+	d := time.Second << attempt
+	if d <= 0 || d > 30*time.Second {
+		d = 30 * time.Second
+	}
+	return d
+}
+
+// superviseLinkChanges keeps dns.LinkChanges alive: when it returns an error
+// before done closes (a transient netlink/route socket failure) it restarts it
+// after a backoff, so the watcher doesn't go permanently deaf to host network
+// changes and fall back to the safety-net poll for the rest of the daemon's
+// life. It returns once done is closed or LinkChanges returns nil (a clean
+// shutdown, or an unsupported platform that simply waits on done).
+func superviseLinkChanges(fn func(chan<- struct{}, <-chan struct{}) error,
+	out chan<- struct{}, done <-chan struct{}, backoff func(int) time.Duration) {
+
+	for attempt := 0; ; attempt++ {
+		err := fn(out, done)
+		select {
+		case <-done:
+			return
+		default:
+		}
+		if err == nil {
+			return
+		}
+		logger.Warn("host network change watcher errored, restarting; DNS reacts on the safety-net poll meanwhile",
+			"err", err, "attempt", attempt+1)
+		select {
+		case <-time.After(backoff(attempt)):
+		case <-done:
+			return
+		}
+	}
 }
 
 // runDNSLoop runs the tick state machine: an immediate first probe, then

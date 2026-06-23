@@ -121,10 +121,13 @@ func Begin() {
 // finishes it. On a colour TTY a spinner animates until then; otherwise nothing
 // prints until the finishing call writes the line once.
 type Step struct {
-	msg  string
-	w    io.Writer // fixed render target; nil → the live target() (honours redirects)
-	stop chan struct{}
-	wg   sync.WaitGroup
+	msg      string
+	w        io.Writer // fixed render target; nil → the live target() (honours redirects)
+	animated bool      // snapshotted at Start so finish() can't disagree with start()
+	stop     chan struct{}
+	wg       sync.WaitGroup
+	prev     *activeBox // active spinner this one suspends, restored on finish
+	paused   bool       // guarded by the package mu; set by Interrupt
 }
 
 // Start records a step with the given present-tense label (e.g. "detecting
@@ -138,9 +141,10 @@ func Start(msg string) *Step { return start(msg, nil) }
 func StartOn(w io.Writer, msg string) *Step { return start(msg, w) }
 
 func start(msg string, w io.Writer) *Step {
-	s := &Step{msg: msg, w: w}
-	if Animated() {
+	s := &Step{msg: msg, w: w, animated: Animated()}
+	if s.animated {
 		s.stop = make(chan struct{})
+		s.prev = pushActive(s)
 		s.wg.Add(1)
 		go s.spin()
 	}
@@ -175,13 +179,39 @@ func (s *Step) spin() {
 func (s *Step) frame(f string) {
 	mu.Lock()
 	defer mu.Unlock()
+	if s.paused {
+		return
+	}
 	fmt.Fprintf(s.dst(), "\r\033[2K%s%s %s %s", pad, paint(dimStyle, "→"), paint(dimStyle, s.msg), paint(spinStyle, f))
 }
 
+// Interrupt suspends the step's spinner and clears its line so fn can print
+// standalone output above it, mirroring Live.Interrupt. On a non-animated step
+// it just runs fn. paused is read and written under the package mu, the same
+// lock frame() holds, so no redraw slips between the clear and fn's output.
+func (s *Step) Interrupt(fn func()) {
+	if !s.animated {
+		fn()
+		return
+	}
+	mu.Lock()
+	wasPaused := s.paused
+	s.paused = true
+	if !wasPaused {
+		fmt.Fprint(s.dst(), "\r\033[2K")
+	}
+	mu.Unlock()
+	fn()
+	mu.Lock()
+	s.paused = wasPaused
+	mu.Unlock()
+}
+
 func (s *Step) finish(mark, result string) {
-	if Animated() {
+	if s.animated {
 		close(s.stop)
 		s.wg.Wait()
+		popActive(s.prev)
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -192,7 +222,7 @@ func (s *Step) finish(mark, result string) {
 	if result != "" {
 		line += " " + result
 	}
-	if Animated() {
+	if s.animated {
 		fmt.Fprintf(s.dst(), "\r\033[2K%s\n", line)
 	} else {
 		fmt.Fprintln(s.dst(), line)
@@ -242,17 +272,32 @@ func Warn(format string, a ...any) {
 	})
 }
 
+// interruptible is anything that animates a spinner line and can pause it so a
+// standalone print lands cleanly above it. Both Step and Live implement it.
+type interruptible interface{ Interrupt(fn func()) }
+
+// activeBox boxes the active interruptible so it can live in an atomic.Pointer
+// (which needs a concrete element type).
+type activeBox struct{ line interruptible }
+
 // liveActive holds the spinner currently animating, if any, so standalone
 // prints (Warn / Note) can pause it and print cleanly above the live line
 // instead of being clobbered by its in-place redraw.
-var liveActive atomic.Pointer[Live]
+var liveActive atomic.Pointer[activeBox]
 
-// emit runs a standalone print, routing it through the active live line's
-// Interrupt when one is animating so the spinner doesn't overwrite it. With no
-// live line it just runs fn.
+// pushActive registers l as the active spinner, returning the one it suspends
+// (restored later via popActive).
+func pushActive(l interruptible) *activeBox { return liveActive.Swap(&activeBox{line: l}) }
+
+// popActive restores the previously-active spinner saved by pushActive.
+func popActive(prev *activeBox) { liveActive.Store(prev) }
+
+// emit runs a standalone print, routing it through the active spinner's
+// Interrupt when one is animating so it doesn't overwrite it. With no active
+// spinner it just runs fn.
 func emit(fn func()) {
-	if l := liveActive.Load(); l != nil {
-		l.Interrupt(fn)
+	if b := liveActive.Load(); b != nil {
+		b.line.Interrupt(fn)
 		return
 	}
 	fn()
@@ -302,25 +347,26 @@ func Animated() bool { return colorOn.Load() }
 // accumulates completed items, e.g. "→ configuring .env… ✓ a · b · c ⠙". When
 // it finishes the spinner is dropped and the ✓ line stays put.
 type Live struct {
-	msg    string
-	imu    sync.Mutex
-	items  []string
-	paused bool  // guarded by the package mu; set by Interrupt
-	prev   *Live // the live line this one suspends, restored on Done/Fail
-	stop   chan struct{}
-	wg     sync.WaitGroup
+	msg      string
+	imu      sync.Mutex
+	items    []string
+	animated bool       // snapshotted at StartLive so Done/Fail can't disagree
+	paused   bool       // guarded by the package mu; set by Interrupt
+	prev     *activeBox // the spinner this one suspends, restored on Done/Fail
+	stop     chan struct{}
+	wg       sync.WaitGroup
 }
 
 // StartLive begins a live line with the given label. On a non-animated output
 // it just prints the header and each Add on its own line.
 func StartLive(msg string) *Live {
-	l := &Live{msg: msg}
-	if Animated() {
+	l := &Live{msg: msg, animated: Animated()}
+	if l.animated {
 		// Register as the active line (saving any line we nest inside) so
 		// Warn/Note route through Interrupt while this spinner animates. Only
 		// the animated spinner clobbers standalone prints, so plain mode skips
 		// this and prints warnings on their own line as before.
-		l.prev = liveActive.Swap(l)
+		l.prev = pushActive(l)
 		l.stop = make(chan struct{})
 		l.wg.Add(1)
 		go l.spin()
@@ -379,7 +425,7 @@ func (l *Live) draw(frame string) {
 // and written under the package mu, the same lock draw holds while writing, so
 // no redraw can slip between the clear and fn's output.
 func (l *Live) Interrupt(fn func()) {
-	if !Animated() {
+	if !l.animated {
 		fn()
 		return
 	}
@@ -401,7 +447,7 @@ func (l *Live) Interrupt(fn func()) {
 
 // Add records a completed item; the spinning line redraws to include it.
 func (l *Live) Add(item string) {
-	if !Animated() {
+	if !l.animated {
 		mu.Lock()
 		fmt.Fprintf(target(), "%s  %s\n", pad, item)
 		mu.Unlock()
@@ -414,15 +460,17 @@ func (l *Live) Add(item string) {
 
 // Done stops the spinner, leaving the ✓ line (checkbox replaces the loader).
 func (l *Live) Done() {
-	liveActive.Store(l.prev)
-	if !Animated() {
+	if !l.animated {
 		mu.Lock()
 		fmt.Fprintf(target(), "%s%s %s\n", pad, paint(okStyle, "✓"), l.msg)
 		mu.Unlock()
 		return
 	}
+	// Stop the spinner before deregistering, so a concurrent Warn never routes
+	// past this line while the goroutine is still drawing it.
 	close(l.stop)
 	l.wg.Wait()
+	popActive(l.prev)
 	l.draw("")
 	mu.Lock()
 	fmt.Fprintln(target())
@@ -431,14 +479,15 @@ func (l *Live) Done() {
 
 // Fail stops the spinner and finalises the line with a red cross.
 func (l *Live) Fail(err error) {
-	liveActive.Store(l.prev)
-	if Animated() {
+	if l.animated {
+		// Stop the spinner before deregistering (see Done).
 		close(l.stop)
 		l.wg.Wait()
+		popActive(l.prev)
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if Animated() {
+	if l.animated {
 		fmt.Fprint(target(), "\r\033[2K")
 	}
 	msg := ""

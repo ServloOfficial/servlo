@@ -29,7 +29,10 @@
   }: Props = $props();
 
   let container: HTMLDivElement | undefined = $state();
-  let editor: Monaco.editor.IStandaloneCodeEditor | undefined;
+  // $state so the value-mirroring $effect below re-runs once the async monaco
+  // load assigns the editor, reconciling any value change that arrived while
+  // the module was still loading.
+  let editor: Monaco.editor.IStandaloneCodeEditor | undefined = $state();
   // Guards external value writes from looping back through onChange.
   let internalUpdate = false;
   let disposed = false;

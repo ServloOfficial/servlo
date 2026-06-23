@@ -560,7 +560,12 @@ export function attachPhpLsp(opts: {
     dispose() {
       disposed = true;
       for (const d of disposables) d.dispose();
-      for (const p of pending.values()) clearTimeout(p.timer);
+      // Reject in-flight requests (not just clear their timers): a provider
+      // awaiting one would otherwise hang on a promise that never settles.
+      for (const p of pending.values()) {
+        clearTimeout(p.timer);
+        p.reject(new Error('lsp disposed'));
+      }
       pending.clear();
       const model = editor.getModel();
       if (model) monaco.editor.setModelMarkers(model, 'phpantom', []);
