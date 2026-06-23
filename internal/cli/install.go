@@ -43,8 +43,14 @@ func NewInstallCmd() *cobra.Command {
 	return cmd
 }
 
-func step(label string) { fmt.Printf("  --> %s ... ", label) }
-func ok()               { fmt.Println("OK") }
+// step/ok render one install action in the shared feedback vocabulary: step
+// prints a dim "→ label…" in place (no spinner, so steps that wrap verbose
+// subprocess output don't fight an animation), ok finishes the line with a
+// green check. There's no trailing newline after step, so on the error path a
+// feedback.Warn completes the dangling line as "→ label… ⚠ msg" in place of the
+// check; steps that print multi-line output first emit their own newline.
+func step(label string) { fmt.Printf(" %s %s ", feedback.Dim("→"), feedback.Dim(label+"…")) }
+func ok()               { fmt.Println(feedback.Green("✓")) }
 
 // fileChangedBy runs mutate and reports whether the file at path differs
 // before vs after. A read error on either side is treated as empty content,
@@ -61,7 +67,7 @@ func fileChangedBy(path string, mutate func() error) (bool, error) {
 }
 
 func runInstall(cmd *cobra.Command, _ []string) error {
-	fmt.Println("==> Installing Lerd")
+	feedback.Header("Installing Lerd")
 
 	noIPv6, _ := cmd.Flags().GetBool("no-ipv6")
 	if !noIPv6 && os.Getenv("LERD_DISABLE_IPV6") == "1" {
@@ -71,9 +77,8 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	dnsFlag, _ := cmd.Flags().GetString("dns")
 	if noIPv6 {
 		podman.MarkIPv6Disabled("lerd")
-		fmt.Println("  IPv6 disabled by user; lerd network will be v4-only.")
-		fmt.Printf("  Delete %s and re-run `lerd install` to re-enable.\n",
-			podman.IPv6DisabledMarkerPath("lerd"))
+		feedback.Line("IPv6 disabled by user, lerd network will be v4-only")
+		feedback.Note("delete " + podman.IPv6DisabledMarkerPath("lerd") + " and re-run `lerd install` to re-enable")
 	}
 
 	// Sample LastUp before ensure so an internal stop+start isn't mistaken
@@ -131,11 +136,11 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 				return mErr
 			}
 			if dualStack {
-				fmt.Println("    Recreated lerd network as dual-stack v4+v6.")
+				feedback.Note("recreated lerd network as dual-stack v4+v6")
 			} else {
-				fmt.Println("    Recreated lerd network as v4-only (IPv6 not available for containers).")
+				feedback.Note("recreated lerd network as v4-only (IPv6 not available for containers)")
 			}
-			fmt.Println("    Existing containers on this network were recreated.")
+			feedback.Note("existing containers on this network were recreated")
 			migrated = restored
 			step("Creating lerd podman network")
 		} else {
@@ -172,12 +177,12 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// and mirrored into the PHP container on setup.
 	bunPath := nodeDet.BunPath()
 	if bunPath != "" {
-		fmt.Printf("  --> bun detected at %s — lerd will use it automatically for projects that use bun\n", bunPath)
+		feedback.Line(fmt.Sprintf("bun detected at %s, lerd will use it automatically for projects that use bun", bunPath))
 	}
 
 	wantLerdNode := true
 	if systemNode := detectSystemNode(); systemNode != "" {
-		fmt.Printf("  --> Node.js detected at %s\n", systemNode)
+		feedback.Line("Node.js detected at " + systemNode)
 		prompt := "Let lerd manage Node.js versions (installs fnm shims, may override system node)?"
 		if bunPath != "" {
 			prompt += " Decline to keep your system Node and use bun."
@@ -226,8 +231,8 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 		if newTLD != prevTLD {
 			if affected := sitesWithTLD(prevTLD); len(affected) > 0 {
-				fmt.Printf("  --> TLD change: %d site(s) currently on .%s -> .%s\n", len(affected), prevTLD, newTLD)
-				fmt.Printf("      %s\n", strings.Join(affected, ", "))
+				feedback.Line(fmt.Sprintf("TLD change: %d site(s) currently on .%s -> .%s", len(affected), prevTLD, newTLD))
+				feedback.Note(strings.Join(affected, ", "))
 				migrate := fromUpdate || confirmInstallPromptDefault(
 					fmt.Sprintf("Rewrite domains, .env APP_URL, and vhosts to .%s?", newTLD),
 					true,
@@ -235,7 +240,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 				if migrate {
 					migrateSiteTLD(prevTLD, newTLD, !wantDNS)
 				} else {
-					fmt.Println("      skipped, sites still reference ." + prevTLD)
+					feedback.Note("skipped, sites still reference ." + prevTLD)
 				}
 			}
 		}
@@ -255,7 +260,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// already matches the desired state (e.g. fresh install with no
 	// lerd-dns yet, or rerun where the unit is already gone).
 	if !wantDNS {
-		fmt.Println("  --> Tearing down lerd-dns service")
+		feedback.Line("tearing down lerd-dns service")
 		teardownDNS()
 	}
 
@@ -267,7 +272,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	if wantDNS {
 		// 4. mkcert CA, interactive (may prompt for sudo)
-		fmt.Println("  --> Installing mkcert CA")
+		feedback.Line("installing mkcert CA")
 		mkcertCmd := exec.Command(certs.MkcertPath(), "-install")
 		mkcertCmd.Stdin = os.Stdin
 		mkcertCmd.Stdout = os.Stdout
@@ -286,10 +291,10 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		dnsChanged = dnsChanged || confChanged
 		ok()
 
-		fmt.Println("  --> Installing DNS sudoers rule")
+		feedback.Line("installing DNS sudoers rule")
 		dns.InstallSudoers() //nolint:errcheck
 	} else {
-		fmt.Println("  --> DNS disabled, skipping mkcert CA, dnsmasq and sudoers")
+		feedback.Line("DNS disabled, skipping mkcert CA, dnsmasq and sudoers")
 	}
 
 	// 6. Nginx
@@ -605,7 +610,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		}
 		ok()
 
-		fmt.Println("  --> Configuring DNS resolver")
+		feedback.Line("configuring DNS resolver")
 		if err := dns.ConfigureResolver(); err != nil {
 			fmt.Printf("    WARN: %v\n", err)
 		}
@@ -623,9 +628,9 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	migratedSet := make(map[string]bool, len(migrated))
 	for _, c := range migrated {
 		migratedSet[c] = true
-		fmt.Printf("  --> Starting %s (network migration) ", c)
+		step("starting " + c + " (network migration)")
 		if err := podman.StartUnit(c); err != nil {
-			fmt.Printf("WARN: %v\n", err)
+			feedback.Warn("%v", err)
 		} else {
 			ok()
 		}
@@ -641,9 +646,9 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		if running, _ := podman.ContainerRunning(name); !running {
 			continue
 		}
-		fmt.Printf("  --> Restarting %s (PublishPort changed) ", name)
+		step("restarting " + name + " (PublishPort changed)")
 		if err := services.Mgr.Restart(name); err != nil {
-			fmt.Printf("WARN: %v\n", err)
+			feedback.Warn("%v", err)
 		} else {
 			ok()
 		}
@@ -675,7 +680,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		}
 		ok()
 
-		fmt.Println("  --> Configuring DNS resolver")
+		feedback.Line("configuring DNS resolver")
 		if err := dns.ConfigureResolver(); err != nil {
 			fmt.Printf("    WARN: %v\n", err)
 		}
@@ -789,7 +794,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		// php:rebuild restarts FPM and worker units unconditionally.
 		activeFPM, _ := phpDet.ListInstalled()
 		if podman.NeedsFPMRebuild(activeFPM) || podman.NeedsFrankenPHPRebuild(activeFrankenPHPVersions()) {
-			fmt.Println("\n==> PHP image definitions changed — rebuilding images")
+			feedback.Header("Rebuilding PHP images")
 			self, err := os.Executable()
 			if err != nil {
 				fmt.Printf("  WARN: locating lerd binary for php:rebuild: %v\n", err)
@@ -820,6 +825,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 				})
 			}
 			if len(fpmJobs) > 0 {
+				feedback.Header("Starting PHP-FPM")
 				RunParallel(fpmJobs) //nolint:errcheck
 			}
 		}
@@ -829,11 +835,11 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 
 	if wantLaravelInstaller {
-		fmt.Println("  --> Installing Laravel installer")
+		step("installing Laravel installer")
 		if err := installLaravelInstaller(); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
+			feedback.Warn("%v", err)
 		} else {
-			fmt.Println("    OK")
+			ok()
 		}
 	}
 
@@ -873,9 +879,12 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	refreshGlobalMCPSkills()
 	refreshProjectMCPSkills()
 
+	feedback.Begin()
 	feedback.Done("lerd installation complete")
+	feedback.Begin()
 	feedback.Note("Dashboard: " + feedback.Val("http://lerd.localhost"))
 	feedback.Note("Terminal:  " + feedback.Val("lerd tui"))
+	feedback.Begin()
 	return nil
 }
 
@@ -913,6 +922,7 @@ func startPerSiteContainers() {
 			Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
 		}
 	}
+	feedback.Header("Starting per-site containers")
 	RunParallel(jobs) //nolint:errcheck
 }
 
@@ -990,11 +1000,12 @@ func ensureSystemdLinger() error {
 		return nil
 	}
 
-	fmt.Println("\n  ! systemd user linger is disabled for this account.")
-	fmt.Println("    Without it, lerd's containers (DNS, nginx, PHP-FPM) are torn down")
-	fmt.Println("    by systemd-logind on screen blank, lock, or logout, and lerd will")
-	fmt.Println("    appear to stop working until you manually restart it.")
-	fmt.Print("  --> Enabling linger via `sudo loginctl enable-linger ", user, "` ...\n\n")
+	feedback.Warn("systemd user linger is disabled for this account")
+	feedback.Note("without it, lerd's containers (DNS, nginx, PHP-FPM) are torn down by")
+	feedback.Note("systemd-logind on screen blank, lock, or logout, and lerd will appear")
+	feedback.Note("to stop working until you manually restart it")
+	step("enabling linger via `sudo loginctl enable-linger " + user + "`")
+	fmt.Println()
 
 	cmd := exec.Command("sudo", "loginctl", "enable-linger", user)
 	cmd.Stdin = os.Stdin
@@ -1004,7 +1015,7 @@ func ensureSystemdLinger() error {
 		fmt.Println()
 		return fmt.Errorf("enabling linger: %w", err)
 	}
-	fmt.Println("OK")
+	ok()
 	return nil
 }
 
@@ -1023,10 +1034,11 @@ func ensureUnprivilegedPorts() error {
 		return nil // already fine
 	}
 
-	fmt.Printf("\n  ! Port 80/443 require net.ipv4.ip_unprivileged_port_start ≤ 80 (current: %d)\n", val)
-	fmt.Println("    This is needed for rootless Podman to run Nginx on standard HTTP/HTTPS ports.")
+	feedback.Warn("port 80/443 require net.ipv4.ip_unprivileged_port_start ≤ 80 (current: %d)", val)
+	feedback.Note("this is needed for rootless Podman to run Nginx on standard HTTP/HTTPS ports")
 
-	fmt.Print("  --> Setting net.ipv4.ip_unprivileged_port_start=80 ... ")
+	step("setting net.ipv4.ip_unprivileged_port_start=80")
+	fmt.Println()
 	cmds := [][]string{
 		{"sudo", "sysctl", "-w", "net.ipv4.ip_unprivileged_port_start=80"},
 		{"sudo", "sh", "-c", "echo 'net.ipv4.ip_unprivileged_port_start=80' > /etc/sysctl.d/99-lerd-ports.conf"},
@@ -1040,7 +1052,7 @@ func ensureUnprivilegedPorts() error {
 			return fmt.Errorf("setting unprivileged port start: %w", err)
 		}
 	}
-	fmt.Println("OK")
+	ok()
 	return nil
 }
 
@@ -1255,13 +1267,12 @@ func parseDNSMode(flag string) (enabled bool, ok bool) {
 func confirmInstallPromptDefault(question string, defaultYes bool) bool {
 	src, closer, ok := promptSource()
 	if !ok {
-		hint := "[Y/n]"
 		ans := "yes"
 		if !defaultYes {
-			hint = "[y/N]"
 			ans = "no"
 		}
-		fmt.Printf("  --> %s %s (no terminal, defaulting to %s)\n", question, hint, ans)
+		feedback.Prompt(question, defaultYes)
+		fmt.Println(feedback.Dim("(no terminal, defaulting to " + ans + ")"))
 		return defaultYes
 	}
 	if closer != nil {
@@ -1284,11 +1295,7 @@ func promptSource() (io.Reader, io.Closer, bool) {
 }
 
 func readConfirmAnswer(r io.Reader, question string, defaultYes bool) bool {
-	hint := "[Y/n]"
-	if !defaultYes {
-		hint = "[y/N]"
-	}
-	fmt.Printf("  --> %s %s ", question, hint)
+	feedback.Prompt(question, defaultYes)
 	reader := bufio.NewReader(r)
 	answer, _ := reader.ReadString('\n')
 	answer = strings.TrimSpace(strings.ToLower(answer))

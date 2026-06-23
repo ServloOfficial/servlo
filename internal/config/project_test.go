@@ -317,6 +317,30 @@ func TestProjectConfig_Container_RoundTrip(t *testing.T) {
 	}
 }
 
+// A .lerd.yaml that carries only custom commands (or a framework version/def)
+// is meaningful user config: IsEmpty must report false so the link wizard
+// doesn't classify it as a blank file and overwrite it.
+func TestProjectConfig_Commands_IsEmpty(t *testing.T) {
+	cfg := &ProjectConfig{}
+	if !cfg.IsEmpty() {
+		t.Error("empty config should be empty")
+	}
+	cfg.Commands = []FrameworkCommand{{Name: "deploy", Command: "php artisan deploy"}}
+	if cfg.IsEmpty() {
+		t.Error("config with custom commands should not be empty")
+	}
+
+	cfg = &ProjectConfig{FrameworkVersion: "11"}
+	if cfg.IsEmpty() {
+		t.Error("config with a framework version should not be empty")
+	}
+
+	cfg = &ProjectConfig{FrameworkDef: &Framework{Name: "laravel"}}
+	if cfg.IsEmpty() {
+		t.Error("config with an embedded framework definition should not be empty")
+	}
+}
+
 func TestProjectConfig_Container_IsEmpty(t *testing.T) {
 	cfg := &ProjectConfig{}
 	if !cfg.IsEmpty() {

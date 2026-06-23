@@ -40,21 +40,16 @@ func runDoctor(_ *cobra.Command, _ []string) error {
 // safe to embed in a plain-text file (used by `lerd bug-report`). Returns
 // the failure and warning counts for callers that want to summarise.
 func RunDoctorTo(w io.Writer, useColor bool) (fails, warns int, err error) {
-	cR, cG, cY, cReset := colorRed, colorGreen, colorYellow, colorReset
-	if !useColor {
-		cR, cG, cY, cReset = "", "", "", ""
-	}
-
 	ok := func(label string) {
-		fmt.Fprintf(w, "  %s✓%s %s\n", cG, cReset, label)
+		fmt.Fprintf(w, "  %s %s\n", feedback.GreenIf(useColor, feedback.GlyphOK), label)
 	}
 	fail := func(label, msg, hint string) {
 		fails++
-		fmt.Fprintf(w, "  %s✗%s %s  %s\n    hint: %s\n", cR, cReset, label, msg, hint)
+		fmt.Fprintf(w, "  %s %s  %s\n    hint: %s\n", feedback.RedIf(useColor, feedback.GlyphFail), label, msg, hint)
 	}
 	warn := func(label, msg string) {
 		warns++
-		fmt.Fprintf(w, "  %s⚠%s %s  %s\n", cY, cReset, label, msg)
+		fmt.Fprintf(w, "  %s %s  %s\n", feedback.AmberIf(useColor, feedback.GlyphWarn), label, msg)
 	}
 	info := func(label, val string) {
 		fmt.Fprintf(w, "  %-34s %s\n", label, val)
@@ -403,13 +398,13 @@ func RunDoctorTo(w io.Writer, useColor bool) (fails, warns int, err error) {
 	fmt.Fprintln(w, "\n══════════════════════════════════════════════")
 	switch {
 	case fails > 0 && warns > 0:
-		fmt.Fprintf(w, "%s%d failure(s), %d warning(s) found.%s\n", cR, fails, warns, cReset)
+		fmt.Fprintln(w, feedback.RedIf(useColor, fmt.Sprintf("%d failure(s), %d warning(s) found.", fails, warns)))
 	case fails > 0:
-		fmt.Fprintf(w, "%s%d failure(s) found.%s\n", cR, fails, cReset)
+		fmt.Fprintln(w, feedback.RedIf(useColor, fmt.Sprintf("%d failure(s) found.", fails)))
 	case warns > 0:
-		fmt.Fprintf(w, "%s%d warning(s) found.%s  All critical checks passed.\n", cY, warns, cReset)
+		fmt.Fprintf(w, "%s  All critical checks passed.\n", feedback.AmberIf(useColor, fmt.Sprintf("%d warning(s) found.", warns)))
 	default:
-		fmt.Fprintf(w, "%sAll checks passed.%s\n", cG, cReset)
+		fmt.Fprintln(w, feedback.GreenIf(useColor, "All checks passed."))
 	}
 
 	return fails, warns, nil

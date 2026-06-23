@@ -64,7 +64,9 @@ func runUnlink(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("no site registered for %s — link it first with lerd link", cwd)
 	}
 	feedback.Begin()
-	return UnlinkSite(site.Name)
+	unlinkErr := UnlinkSite(site.Name)
+	feedback.Begin()
+	return unlinkErr
 }
 
 // UnlinkSite removes the nginx vhost for the named site. For sites under a parked

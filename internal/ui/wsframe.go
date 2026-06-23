@@ -57,7 +57,9 @@ func wsOriginAllowed(r *http.Request) bool {
 	if err != nil || u.Host == "" {
 		return false
 	}
-	return u.Host == r.Host
+	// Hostnames are case-insensitive (RFC 3986), and r.Host casing isn't
+	// guaranteed to match the browser-normalised Origin, so compare case-folded.
+	return strings.EqualFold(u.Host, r.Host)
 }
 
 // wsUpgrade performs the RFC6455 handshake and returns a wsConn ready for

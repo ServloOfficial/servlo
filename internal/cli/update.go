@@ -207,7 +207,7 @@ func refreshStoreFrameworks() {
 	if len(targets) == 0 {
 		return
 	}
-	feedback.Line(fmt.Sprintf("refreshing %d framework definition%s", len(targets), pluralS(len(targets))))
+	feedback.Header(fmt.Sprintf("Refreshing %d framework%s", len(targets), pluralS(len(targets))))
 	client := store.NewClient()
 	for _, t := range targets {
 		label := t.name
@@ -242,12 +242,12 @@ func refreshGlobalMCPSkills() {
 	if !mcpEnabledGlobally(home) {
 		return
 	}
-	feedback.Line("refreshing global MCP skills and guidelines")
+	feedback.Header("Refreshing global AI skills")
 	if err := RefreshGlobalAISkills(home, true); err != nil {
 		feedback.Warn("could not refresh global AI skills: %v", err)
 	}
 	if !IsMCPGloballyRegistered() {
-		fmt.Println("  Re-registering lerd with Claude Code (was missing)")
+		feedback.Note("re-registering lerd with Claude Code (was missing)")
 		ensureClaudeMCPRegistered()
 	}
 }
@@ -271,13 +271,14 @@ func refreshProjectMCPSkills() {
 		return
 	}
 
-	fmt.Printf("\n==> Refreshing project MCP skills (%d project%s)\n", len(opted), pluralS(len(opted)))
+	feedback.Header(fmt.Sprintf("Refreshing project AI skills (%d)", len(opted)))
 	for _, p := range opted {
+		s := feedback.Start(p)
 		if err := RefreshProjectAISkills(p, false); err != nil {
-			feedback.Warn("%s: %v", p, err)
+			s.Fail(err)
 			continue
 		}
-		fmt.Printf("  refreshed %s\n", p)
+		s.OK("")
 	}
 }
 

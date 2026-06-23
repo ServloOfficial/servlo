@@ -17,6 +17,7 @@ func TestWSOriginAllowed(t *testing.T) {
 		{"allowlisted lerd.localhost", "lerd.localhost", "http://lerd.localhost", true},
 		{"same-origin custom domain", "myapp.test", "http://myapp.test", true},
 		{"same-origin LAN ip", "192.168.1.10:7073", "http://192.168.1.10:7073", true},
+		{"same-origin with host casing divergence", "MyApp.test", "http://myapp.test", true},
 		{"cross-site hijack attempt", "localhost:7073", "http://evil.example", false},
 		{"foreign origin same path", "myapp.test", "https://attacker.test", false},
 		{"malformed origin", "localhost:7073", "::::not a url", false},

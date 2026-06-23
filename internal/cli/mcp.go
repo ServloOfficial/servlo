@@ -224,7 +224,7 @@ func RunMCPEnableGlobal() error {
 func writeGlobalMCPConfigs(home string, verbose bool) error {
 	log := func(msg string) {
 		if verbose {
-			fmt.Println(msg)
+			feedback.Note(msg)
 		}
 	}
 	for _, c := range aiClients {
@@ -233,10 +233,10 @@ func writeGlobalMCPConfigs(home string, verbose bool) error {
 			_, _ = claudeMCP("remove", "--scope", "user", "lerd")
 			out, err := claudeMCP("add", "--scope", "user", "lerd", "--", "lerd", "mcp")
 			if err != nil {
-				fmt.Printf("  warning: could not register with Claude Code (%v): %s\n", err, strings.TrimSpace(string(out)))
-				fmt.Println("  Run manually: claude mcp add --scope user lerd -- lerd mcp")
+				feedback.Warn("could not register with Claude Code (%v): %s", err, strings.TrimSpace(string(out)))
+				feedback.Note("run manually: claude mcp add --scope user lerd -- lerd mcp")
 			} else {
-				log("  registered in Claude Code (user scope)")
+				log("registered in Claude Code (user scope)")
 			}
 			continue
 		}
@@ -246,7 +246,7 @@ func writeGlobalMCPConfigs(home string, verbose bool) error {
 		if err := writeClientMCP(filepath.Join(home, c.GlobalMCP), c, ""); err != nil {
 			return err
 		}
-		log("  updated ~/" + c.GlobalMCP)
+		log("updated ~/" + c.GlobalMCP)
 	}
 	return nil
 }
@@ -281,7 +281,7 @@ func writeGlobalContexts(home string, verbose, createMissing bool) error {
 				return fmt.Errorf("writing %s: %w", cx.Global, err)
 			}
 			if verbose {
-				fmt.Println("  wrote   ~/" + cx.Global)
+				feedback.Note("wrote ~/" + cx.Global)
 			}
 		}
 	}

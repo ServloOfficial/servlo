@@ -205,7 +205,7 @@ func WatchDNS(interval time.Duration, tld string) {
 
 	linkRaw := make(chan struct{}, 32)
 	linkSettled := make(chan struct{}, 4)
-	go superviseLinkChanges(dns.LinkChanges, linkRaw, done, linkChangeBackoff)
+	go superviseLinkChanges(dns.LinkChanges, linkRaw, done, linkChangeBackoff, linkChangeResetAfter)
 	go dns.DebounceEvents(linkRaw, linkSettled, linkChangeDebounce, done)
 
 	runDNSLoop(deps, state, tld, ticker.C, linkSettled, done)
@@ -221,6 +221,13 @@ func linkChangeBackoff(attempt int) time.Duration {
 	return d
 }
 
+// linkChangeResetAfter is how long a single watch must stay up before the next
+// restart is treated as fresh: a watch that ran healthy for this long and then
+// hit one late transient error should restart promptly, not at the grown 30s
+// cap. Passed into superviseLinkChanges so tests can shrink it without a shared
+// global.
+const linkChangeResetAfter = 60 * time.Second
+
 // superviseLinkChanges keeps dns.LinkChanges alive: when it returns an error
 // before done closes (a transient netlink/route socket failure) it restarts it
 // after a backoff, so the watcher doesn't go permanently deaf to host network
@@ -228,10 +235,13 @@ func linkChangeBackoff(attempt int) time.Duration {
 // life. It returns once done is closed or LinkChanges returns nil (a clean
 // shutdown, or an unsupported platform that simply waits on done).
 func superviseLinkChanges(fn func(chan<- struct{}, <-chan struct{}) error,
-	out chan<- struct{}, done <-chan struct{}, backoff func(int) time.Duration) {
+	out chan<- struct{}, done <-chan struct{}, backoff func(int) time.Duration, resetAfter time.Duration) {
 
-	for attempt := 0; ; attempt++ {
+	attempt := 0
+	for {
+		start := time.Now()
 		err := fn(out, done)
+		healthyRun := time.Since(start) >= resetAfter
 		select {
 		case <-done:
 			return
@@ -240,6 +250,12 @@ func superviseLinkChanges(fn func(chan<- struct{}, <-chan struct{}) error,
 		if err == nil {
 			return
 		}
+		// A watch that stayed up a long time before failing was healthy, so one
+		// late transient error shouldn't inherit the grown backoff and leave us
+		// capped at 30s; restart it promptly instead.
+		if healthyRun {
+			attempt = 0
+		}
 		logger.Warn("host network change watcher errored, restarting; DNS reacts on the safety-net poll meanwhile",
 			"err", err, "attempt", attempt+1)
 		select {
@@ -247,6 +263,7 @@ func superviseLinkChanges(fn func(chan<- struct{}, <-chan struct{}) error,
 		case <-done:
 			return
 		}
+		attempt++
 	}
 }
 

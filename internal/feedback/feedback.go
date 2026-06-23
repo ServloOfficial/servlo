@@ -4,6 +4,7 @@
 package feedback
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -62,6 +63,15 @@ func Red(s string) string   { return paint(redStyle, s) }
 func Amber(s string) string { return paint(warnStyle, s) }
 func Dim(s string) string   { return paint(dimStyle, s) }
 
+// GreenIf, RedIf, and AmberIf colour s from the palette only when on is true,
+// else return it plain — for renderers that target an arbitrary writer and gate
+// colour per-writer (e.g. doctor forcing plain text into a bug report). When on
+// is true the usual global NO_COLOR/TTY state is still honoured, so a coloured
+// caller never produces escapes the environment asked to suppress.
+func GreenIf(on bool, s string) string { return paintIf(on, okStyle, s) }
+func RedIf(on bool, s string) string   { return paintIf(on, redStyle, s) }
+func AmberIf(on bool, s string) string { return paintIf(on, warnStyle, s) }
+
 // spinnerFrames is the Braille spinner used by the Live progress line.
 var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
@@ -79,6 +89,48 @@ var (
 )
 
 func init() { colorOn.Store(detectColor()) }
+
+// reported collects errors already shown to the user by a Step/Live Fail. The
+// top-level command handler consults it so a failure surfaced through the
+// feedback UI isn't reprinted as a second raw "Error: …" line by cobra. It is
+// capped because long-running processes (lerd-ui, the MCP server) also drive
+// Fail through shared CLI helpers and would otherwise grow it without bound; a
+// CLI command only ever checks the most recent failure, so an old-entry cap is
+// harmless. The trim copies into a fresh slice so the backing array is freed.
+const maxReported = 64
+
+var (
+	reportedMu sync.Mutex
+	reported   []error
+)
+
+func markReported(err error) {
+	if err == nil {
+		return
+	}
+	reportedMu.Lock()
+	reported = append(reported, err)
+	if len(reported) > maxReported {
+		reported = append([]error(nil), reported[len(reported)-maxReported:]...)
+	}
+	reportedMu.Unlock()
+}
+
+// AlreadyShown reports whether err, or any error it wraps, was already displayed
+// to the user by a Fail. Callers in main use it to avoid double-printing.
+func AlreadyShown(err error) bool {
+	if err == nil {
+		return false
+	}
+	reportedMu.Lock()
+	defer reportedMu.Unlock()
+	for _, r := range reported {
+		if errors.Is(err, r) {
+			return true
+		}
+	}
+	return false
+}
 
 // target returns the writer to render to: an explicit test writer when set,
 // otherwise the live os.Stdout (looked up per call so os.Stdout redirection,
@@ -104,6 +156,15 @@ func paint(st lipgloss.Style, s string) string {
 		return s
 	}
 	return st.Render(s)
+}
+
+// paintIf is paint gated by an explicit flag (and still honours global colour
+// state), for callers that decide per-writer whether to colour.
+func paintIf(on bool, st lipgloss.Style, s string) string {
+	if !on {
+		return s
+	}
+	return paint(st, s)
 }
 
 // Val styles a value fragment (violet) for embedding inside a step or summary.
@@ -237,6 +298,7 @@ func (s *Step) Info(result string) { s.finish("", result) }
 
 // Fail collapses the step with a red cross and the error text.
 func (s *Step) Fail(err error) {
+	markReported(err)
 	msg := ""
 	if err != nil {
 		msg = err.Error()
@@ -250,6 +312,19 @@ func Line(msg string) {
 	mu.Lock()
 	defer mu.Unlock()
 	fmt.Fprintf(target(), "%s%s %s\n", pad, paint(dimStyle, "→"), msg)
+}
+
+// Header prints a section header — a brand-red "▸ title" with a blank line
+// above and below — to delimit the major phases of a long multi-step command
+// (install, update) so the step lines beneath read as a group instead of one
+// flat wall of output. Routed through emit so it lands cleanly above any live
+// spinner that is still animating.
+func Header(title string) {
+	emit(func() {
+		mu.Lock()
+		defer mu.Unlock()
+		fmt.Fprintf(target(), "\n%s%s %s\n\n", pad, paint(titleStyle, "▸"), paint(titleStyle, title))
+	})
 }
 
 // Note prints a dim, indented sub-detail under a step (e.g. a log hint). It has
@@ -337,6 +412,20 @@ func Confirm(question string, defaultYes bool) bool {
 		return defaultYes
 	}
 	return answer[0] == 'y'
+}
+
+// Prompt renders a styled yes/no question (violet "?", dim "[Y/n]" hint),
+// preceded by a blank line, WITHOUT reading the answer — for callers that read
+// from a custom source (e.g. /dev/tty so `curl … | bash` prompts still work)
+// instead of stdin. Mirrors Confirm's styling so every prompt looks the same.
+func Prompt(question string, defaultYes bool) {
+	hint := "[Y/n]"
+	if !defaultYes {
+		hint = "[y/N]"
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	fmt.Fprintf(target(), "\n%s%s %s %s ", pad, paint(promptStyle, "?"), question, paint(dimStyle, hint))
 }
 
 // Animated reports whether output supports in-place animation (a colour TTY).
@@ -479,6 +568,7 @@ func (l *Live) Done() {
 
 // Fail stops the spinner and finalises the line with a red cross.
 func (l *Live) Fail(err error) {
+	markReported(err)
 	if l.animated {
 		// Stop the spinner before deregistering (see Done).
 		close(l.stop)
@@ -494,7 +584,9 @@ func (l *Live) Fail(err error) {
 	if err != nil {
 		msg = err.Error()
 	}
-	fmt.Fprintf(target(), "%s%s %s\n", pad, paint(failStyle, "✗"), paint(failStyle, msg))
+	// A live line fails the whole operation, so give the cross some breathing
+	// room with a blank line above and below, matching the top-level handler.
+	fmt.Fprintf(target(), "\n%s%s %s\n\n", pad, paint(failStyle, "✗"), paint(failStyle, msg))
 }
 
 // Summary is an aligned key/value block printed after an operation completes.
@@ -544,6 +636,15 @@ func SetTestWriter(w io.Writer) func() {
 		colorOn.Store(prevColor)
 		mu.Unlock()
 	}
+}
+
+// SetAnimated forces Animated() to on (or off) and returns a restore func.
+// Pair it with SetTestWriter so a test can exercise an animated code path while
+// the spinner frames land in a buffer instead of os.Stdout.
+func SetAnimated(on bool) func() {
+	prev := colorOn.Load()
+	colorOn.Store(on)
+	return func() { colorOn.Store(prev) }
 }
 
 func humanDur(d time.Duration) string {

@@ -42,8 +42,13 @@ func LinkChanges(out chan<- struct{}, done <-chan struct{}) error {
 	// own (e.g. a read error the supervisor will restart from), so a restart
 	// loop doesn't accumulate one parked goroutine per attempt.
 	stopped := make(chan struct{})
-	defer close(stopped)
+	gone := make(chan struct{})
+	// Join the interrupt goroutine (via gone) before the deferred unix.Close(fd)
+	// runs, so its unix.Shutdown(fd) can't land on an fd the runtime has already
+	// closed and reassigned to a freshly-opened socket on a fast restart.
+	defer func() { close(stopped); <-gone }()
 	go func() {
+		defer close(gone)
 		select {
 		case <-done:
 		case <-stopped:

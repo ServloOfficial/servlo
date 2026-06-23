@@ -571,6 +571,13 @@ func linkApplyServices(cwd string, proj *config.ProjectConfig) error {
 		return nil
 	}
 	for _, svc := range proj.Services {
+		// A bare entry whose name is a bundled tool preset (e.g. phpmyadmin from a
+		// detected docker-compose, or an older .lerd.yaml written before this was
+		// normalised) has no Preset/Custom set; resolve it to its preset so it
+		// installs instead of failing as a missing custom service.
+		if svc.Preset == "" && svc.Custom == nil && config.PresetExists(svc.Name) && !config.IsDefaultPreset(svc.Name) {
+			svc.Preset = svc.Name
+		}
 		if svc.Preset != "" {
 			if _, err := config.LoadCustomService(svc.Name); err != nil {
 				fmt.Printf("  Installing preset %s%s\n", svc.Preset, presetVersionSuffix(svc.PresetVersion))

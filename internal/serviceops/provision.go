@@ -42,8 +42,14 @@ func CreateDatabase(svc, name string) (bool, error) {
 			}
 			cmd := podman.Cmd("exec", container, bin, "-uroot", "-plerd",
 				"-e", fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`;", name))
-			cmd.Stderr = os.Stderr
-			return true, cmd.Run()
+			// Capture stderr rather than inheriting it: mysql prints a noisy
+			// "[Warning] Using a password on the command line interface" that would
+			// otherwise clobber the live "configuring .env" spinner. Surface it only
+			// on a real failure.
+			if out, err := cmd.CombinedOutput(); err != nil {
+				return false, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+			}
+			return true, nil
 		}
 		return false, lastErr
 	case "postgres":
