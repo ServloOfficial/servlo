@@ -3,9 +3,10 @@
 package cli
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/geodro/lerd/internal/feedback"
 )
 
 const lerdCleanupScript = `#!/bin/sh
@@ -75,11 +76,11 @@ echo "Run 'brew uninstall lerd' if you haven't already."
 func installCleanupScript() {
 	binDir := filepath.Join(os.Getenv("HOME"), ".local", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
-		fmt.Printf("    WARN: could not create %s: %v\n", binDir, err)
+		feedback.Warn("could not create %s: %v", binDir, err)
 		return
 	}
 	dest := filepath.Join(binDir, "lerd-cleanup")
 	if err := os.WriteFile(dest, []byte(lerdCleanupScript), 0755); err != nil {
-		fmt.Printf("    WARN: could not write lerd-cleanup script: %v\n", err)
+		feedback.Warn("could not write lerd-cleanup script: %v", err)
 	}
 }

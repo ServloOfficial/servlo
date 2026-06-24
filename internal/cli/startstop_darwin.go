@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/podman"
 )
 
@@ -145,9 +146,8 @@ func machineMissingHomeMount(name string) bool {
 // (every bind mount fails), so nothing of value is lost. The caller starts the
 // freshly-initialised machine.
 func recreateBrokenMachine(name string, running bool, targetMemoryMiB int64) {
-	fmt.Println("  --> Podman Machine is missing the host home mount and can't be repaired")
-	fmt.Println("      in place; recreating it. No running containers are affected (a")
-	fmt.Println("      machine in this state can't start any).")
+	feedback.Line("Podman Machine is missing the host home mount; recreating it (can't be repaired in place)…")
+	feedback.Note("No running containers are affected; a machine in this state can't start any.")
 	if running {
 		stopCmd := exec.Command(podman.PodmanBin(), "machine", "stop", name)
 		stopCmd.Stdout = os.Stdout
@@ -158,14 +158,14 @@ func recreateBrokenMachine(name string, running bool, targetMemoryMiB int64) {
 	rmCmd.Stdout = os.Stdout
 	rmCmd.Stderr = os.Stderr
 	if err := rmCmd.Run(); err != nil {
-		fmt.Printf("  WARN: podman machine rm: %v\n", err)
+		feedback.Warn("podman machine rm: %v", err)
 		return
 	}
 	initCmd := exec.Command(podman.PodmanBin(), machineInitArgs(name, targetMemoryMiB)...)
 	initCmd.Stdout = os.Stdout
 	initCmd.Stderr = os.Stderr
 	if err := initCmd.Run(); err != nil {
-		fmt.Printf("  WARN: podman machine init: %v\n", err)
+		feedback.Warn("podman machine init: %v", err)
 	}
 }
 
@@ -225,7 +225,7 @@ func ensurePodmanMachineRunning() {
 	}
 
 	if len(machines) == 0 {
-		fmt.Println("  --> Initialising Podman Machine (first run, this may take a minute) ...")
+		feedback.Line("Initialising Podman Machine (first run, this may take a minute)…")
 		// Size memory at init so a fresh VM (first run, or one recreated by
 		// `lerd machine reset`) boots at the host-scaled target rather than
 		// podman's stock default. The existing-machine branch below only
@@ -237,7 +237,7 @@ func ensurePodmanMachineRunning() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			fmt.Printf("  WARN: podman machine init: %v\n", err)
+			feedback.Warn("podman machine init: %v", err)
 			return
 		}
 	} else {
@@ -278,34 +278,34 @@ func ensurePodmanMachineRunning() {
 						parts = append(parts, fmt.Sprintf("increase memory to %d MB", targetMemoryMiB))
 					}
 					reason := strings.Join(parts, " and ")
-					fmt.Printf("  --> Stopping Podman Machine to %s ...\n", reason)
+					feedback.Line(fmt.Sprintf("Stopping Podman Machine to %s…", reason))
 					stopCmd := exec.Command(podman.PodmanBin(), "machine", "stop", m.name)
 					stopCmd.Stdout = os.Stdout
 					stopCmd.Stderr = os.Stderr
 					stopCmd.Run() //nolint:errcheck
 				}
 				if needsRootful {
-					fmt.Println("  --> Enabling rootful mode for Podman Machine (required for ports 80/443) ...")
+					feedback.Line("Enabling rootful mode for Podman Machine (required for ports 80/443)…")
 					setCmd := exec.Command(podman.PodmanBin(), "machine", "set", "--rootful", m.name)
 					setCmd.Stdout = os.Stdout
 					setCmd.Stderr = os.Stderr
 					if err := setCmd.Run(); err != nil {
-						fmt.Printf("  WARN: podman machine set --rootful: %v\n", err)
+						feedback.Warn("podman machine set --rootful: %v", err)
 					}
 				}
 				if needsMemory {
 					if hostGiB > 0 && hostGiB <= 8 {
-						fmt.Printf("  --> Host has %d GB RAM; setting Podman Machine to %d MB (tight but workable) ...\n", hostGiB, targetMemoryMiB)
-						fmt.Println("       If sites slow down under load, run: podman machine set --memory 4096")
+						feedback.Line(fmt.Sprintf("Host has %d GB RAM; setting Podman Machine to %d MB (tight but workable)…", hostGiB, targetMemoryMiB))
+						feedback.Note("If sites slow down under load, run: podman machine set --memory 4096")
 					} else {
-						fmt.Printf("  --> Setting Podman Machine memory to %d MB ...\n", targetMemoryMiB)
+						feedback.Line(fmt.Sprintf("Setting Podman Machine memory to %d MB…", targetMemoryMiB))
 					}
 					setCmd := exec.Command(podman.PodmanBin(), "machine", "set",
 						"--memory", strconv.FormatInt(targetMemoryMiB, 10), m.name)
 					setCmd.Stdout = os.Stdout
 					setCmd.Stderr = os.Stderr
 					if err := setCmd.Run(); err != nil {
-						fmt.Printf("  WARN: podman machine set --memory: %v\n", err)
+						feedback.Warn("podman machine set --memory: %v", err)
 					}
 				}
 			} else if m.running {
@@ -314,12 +314,12 @@ func ensurePodmanMachineRunning() {
 		}
 	}
 
-	fmt.Println("  --> Starting Podman Machine ...")
+	feedback.Line("Starting Podman Machine…")
 	cmd := exec.Command(podman.PodmanBin(), "machine", "start")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("  WARN: podman machine start: %v\n", err)
+		feedback.Warn("podman machine start: %v", err)
 		return
 	}
 
@@ -327,18 +327,21 @@ func ensurePodmanMachineRunning() {
 	// container operations. Poll `podman ps` (which exercises the full
 	// container stack, not just the info endpoint) until it succeeds, then
 	// wait a few extra seconds for the socket to fully settle.
-	fmt.Print("  --> Waiting for Podman Machine to be ready ...")
+	// Printed in place (no feedback.Line) so the polling dots and the final
+	// "ready" land on the same line; the leading pad + dim arrow still match
+	// the surrounding feedback vocabulary.
+	fmt.Printf(" %s %s", feedback.Dim("→"), feedback.Dim("Waiting for Podman Machine to be ready…"))
 	deadline := time.Now().Add(120 * time.Second)
 	for time.Now().Before(deadline) {
 		if err := exec.Command(podman.PodmanBin(), "ps", "-q").Run(); err == nil {
 			time.Sleep(3 * time.Second) // grace period before container ops
-			fmt.Println(" ready")
+			fmt.Println(" " + feedback.Green("ready"))
 			return
 		}
 		time.Sleep(500 * time.Millisecond)
-		fmt.Print(".")
+		fmt.Print(feedback.Dim("."))
 	}
-	fmt.Println(" timed out (proceeding anyway)")
+	fmt.Println(" " + feedback.Amber("timed out (proceeding anyway)"))
 }
 
 // stopPodmanMachine stops the running Podman Machine VM. Called by runQuit so
@@ -357,12 +360,12 @@ func stopPodmanMachine() {
 			continue
 		}
 		name := strings.TrimSuffix(fields[0], "*")
-		fmt.Printf("  --> Stopping Podman Machine (%s) ...\n", name)
+		feedback.Line(fmt.Sprintf("Stopping Podman Machine (%s)…", name))
 		cmd := exec.Command(podman.PodmanBin(), "machine", "stop", name)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			fmt.Printf("  WARN: podman machine stop: %v\n", err)
+			feedback.Warn("podman machine stop: %v", err)
 		}
 	}
 }

@@ -3,9 +3,9 @@
 package cli
 
 import (
-	"fmt"
 	"os"
 
+	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/services"
 	lerdSystemd "github.com/geodro/lerd/internal/systemd"
 )
@@ -16,14 +16,14 @@ import (
 func installAutostart() {
 	content, err := lerdSystemd.GetUnit("lerd-autostart")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "  WARN: autostart unit: %v\n", err)
+		feedback.WarnOn(os.Stderr, "autostart unit: %v", err)
 		return
 	}
 	if err := services.Mgr.WriteServiceUnit("lerd-autostart", content); err != nil {
-		fmt.Fprintf(os.Stderr, "  WARN: writing autostart service: %v\n", err)
+		feedback.WarnOn(os.Stderr, "writing autostart service: %v", err)
 		return
 	}
 	if err := services.Mgr.Enable("lerd-autostart"); err != nil {
-		fmt.Fprintf(os.Stderr, "  WARN: enabling autostart: %v\n", err)
+		feedback.WarnOn(os.Stderr, "enabling autostart: %v", err)
 	}
 }

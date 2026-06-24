@@ -3,13 +3,13 @@
 package cli
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/podman"
 )
 
@@ -115,7 +115,7 @@ func healMachineRestartIfNeeded(preEnsureLastUp string) {
 // the host and gvproxy re-registers the host port forwards.
 func removeLerdContainersForGvproxyHeal() {
 	forceRemoveLerdContainers(false,
-		"  --> Podman Machine was restarted; recreating containers to restore host port forwards ...")
+		"Podman Machine was restarted; recreating containers to restore host port forwards…")
 }
 
 // forceRemoveLerdContainers force-removes lerd-* containers so the next
@@ -141,9 +141,12 @@ func forceRemoveLerdContainers(includeStopped bool, announce string) {
 	if len(names) == 0 {
 		return
 	}
-	fmt.Println(announce)
+	feedback.Line(announce)
 	args := append([]string{"rm", "-f"}, names...)
 	if out, err := exec.Command(podman.PodmanBin(), args...).CombinedOutput(); err != nil {
-		fmt.Printf("       WARN: podman rm -f failed: %v\n%s\n", err, strings.TrimSpace(string(out)))
+		feedback.Warn("podman rm -f failed: %v", err)
+		if trimmed := strings.TrimSpace(string(out)); trimmed != "" {
+			feedback.Note(trimmed)
+		}
 	}
 }

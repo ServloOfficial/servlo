@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/services"
 )
@@ -25,7 +26,7 @@ func installDNSService(w io.Writer) error {
 		if _, berr := exec.LookPath("brew"); berr != nil {
 			return fmt.Errorf("dnsmasq not found and Homebrew not available — install dnsmasq manually")
 		}
-		fmt.Fprintln(w, "==> Installing dnsmasq via Homebrew")
+		feedback.LineOn(w, "Installing dnsmasq via Homebrew…")
 		cmd := exec.Command("brew", "install", "dnsmasq")
 		cmd.Stdout = w
 		cmd.Stderr = w
@@ -148,7 +149,7 @@ func writeDNSUnit(_ io.Writer) error {
 // container-based approach, migrating to native dnsmasq automatically.
 func ensureDNSServiceUpdated(w io.Writer) error {
 	if needsDNSServiceInstall() {
-		fmt.Fprintln(w, "  --> Migrating DNS from container to native dnsmasq ...")
+		feedback.LineOn(w, "Migrating DNS from container to native dnsmasq…")
 		return installDNSService(w)
 	}
 	return nil

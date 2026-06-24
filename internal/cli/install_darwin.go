@@ -13,6 +13,7 @@ import (
 
 	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/phpantom"
 )
 
@@ -69,7 +70,7 @@ func downloadBinaries(w io.Writer) error {
 	// here (offline install, unsupported arch) must not abort setup.
 	if !phpantom.Installed() {
 		if err := phpantom.EnsureBinary(context.Background(), w); err != nil {
-			fmt.Fprintf(w, "      Warning: phpantom_lsp download failed (%v); tinker autocomplete loads on first use instead\n", err)
+			feedback.WarnOn(w, "phpantom_lsp download failed (%v); tinker autocomplete loads on first use instead", err)
 		}
 	}
 
@@ -94,19 +95,19 @@ func ensurePortForwarding() error {
 	// Locate the podman-mac-helper binary.
 	helperPath, err := findPodmanMacHelper()
 	if err != nil {
-		fmt.Printf("    WARN: podman-mac-helper not found — ports 80/443 may not work.\n")
-		fmt.Printf("    Install Podman via Homebrew and re-run 'lerd install'.\n")
+		feedback.Warn("podman-mac-helper not found — ports 80/443 may not work.")
+		feedback.Note("Install Podman via Homebrew and re-run 'lerd install'.")
 		return nil // not fatal; containers still work on non-privileged ports
 	}
 
-	fmt.Println("  [sudo required] Installing podman-mac-helper for ports 80/443")
+	feedback.Sudo("Installing podman-mac-helper for ports 80/443")
 	cmd := exec.Command("sudo", helperPath, "install")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("    WARN: podman-mac-helper install: %v\n", err)
-		fmt.Printf("    Ports 80/443 may not work — run manually: sudo %s install\n", helperPath)
+		feedback.Warn("podman-mac-helper install: %v", err)
+		feedback.Note(fmt.Sprintf("Ports 80/443 may not work — run manually: sudo %s install", helperPath))
 	}
 	return nil
 }

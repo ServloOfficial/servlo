@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/feedback"
 )
 
 // readUpstreamDNS reads upstream DNS servers from /etc/resolv.conf.
@@ -47,7 +48,7 @@ func ConfigureResolver() error {
 		return nil
 	}
 
-	fmt.Println("  [sudo required] Configuring /etc/resolver for ." + tld + " DNS resolution")
+	feedback.Sudo("Configuring /etc/resolver for ." + tld + " DNS resolution")
 	return sudoWriteFile(resolverFile, content, 0644)
 }
 
@@ -94,7 +95,7 @@ func InstallSudoers() error {
 		return nil
 	}
 
-	fmt.Println("  [sudo required] Installing DNS sudoers rule")
+	feedback.Sudo("Installing DNS sudoers rule")
 	if err := sudoWriteFile(sudoersPath, []byte(content), 0440); err != nil {
 		return fmt.Errorf("writing sudoers drop-in: %w", err)
 	}
