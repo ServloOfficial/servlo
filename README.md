@@ -82,7 +82,6 @@ Eleven grouped tools, each driven by an `action`: `site`, `service`, `db`, `env`
 | macOS              | ✅   | ✅   | ✅    | ✅           |
 | Windows (WSL2)     | 🧪   | ✅   | ✅    | ✅           |
 | MCP server         | ✅   | ❌   | ❌    | ✅           |
-| Free & open source | ✅   | ✅   | ✅    | ❌           |
 
 🟡 DDEV runs on Docker by default and can also use Podman as an alternative runtime; Lerd is built exclusively for rootless Podman.
 
@@ -104,19 +103,29 @@ lerd update
 
 ### macOS
 
-Install via Homebrew:
+```bash
+curl -fsSL https://lerd.sh/install.sh | bash
+```
+
+Update later with:
+
+```bash
+lerd update
+```
+
+The installer needs the `podman` CLI; it will offer to `brew install podman` if it's missing.
+
+<details>
+<summary>Install via Homebrew instead</summary>
 
 ```bash
 brew install geodro/lerd/lerd
 lerd install
 ```
 
-Update later with:
+Recent Homebrew versions block third-party taps until trusted, so you may need to run `brew trust geodro/lerd` first. Update later with `brew upgrade lerd && lerd install`.
 
-```bash
-brew upgrade lerd
-lerd install
-```
+</details>
 
 > [!NOTE]
 > See the [installation docs](https://lerd.sh/getting-started/installation) for details.

@@ -12,8 +12,8 @@ import (
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/podman"
+	"github.com/geodro/lerd/internal/services"
 	"github.com/geodro/lerd/internal/store"
-	"github.com/geodro/lerd/internal/systemd"
 	lerdUpdate "github.com/geodro/lerd/internal/update"
 	"github.com/spf13/cobra"
 )
@@ -89,11 +89,14 @@ func runUpdate(currentVersion string, beta bool) error {
 		fmt.Printf("  https://github.com/%s/releases/tag/v%s\n", githubRepo, lat)
 	}
 
-	// On macOS, Homebrew manages the binary — instruct the user rather than
-	// attempting a self-replace which would overwrite Homebrew's managed files.
+	// A Homebrew-managed binary lives under a Cellar prefix; self-replacing it
+	// would fight `brew`, so defer to it. Curl-installed binaries (the default
+	// on macOS now) live in ~/.local/bin and self-update like Linux does below.
 	if runtime.GOOS == "darwin" {
-		fmt.Printf("\nTo update, run:\n\n  brew upgrade lerd\n\n")
-		return nil
+		if self, err := selfPath(); err == nil && isHomebrewManaged(self) {
+			fmt.Printf("\nThis is a Homebrew install. To update, run:\n\n  brew upgrade lerd\n\n")
+			return nil
+		}
 	}
 
 	// Ask for confirmation.
@@ -361,17 +364,17 @@ func mcpEnabledGlobally(home string) bool {
 	return false
 }
 
-// restartLerdUserServices restarts the long-running lerd user units so they
-// pick up the freshly replaced binary. Linux keeps the old inode alive for
-// processes that have the binary open, so without an explicit restart the
-// daemons keep executing the pre-update code and report the old version.
-// Only currently-active units are restarted, so disabled services are left
-// alone.
+// restartLerdUserServices restarts the long-running lerd user units (systemd on
+// Linux, launchd on macOS) so they pick up the freshly replaced binary. Both
+// keep the old executable alive for processes that already have it open, so
+// without an explicit restart the daemons keep running the pre-update code and
+// report the old version. Only currently-active units are restarted, so
+// disabled services are left alone.
 func restartLerdUserServices() {
-	units := []string{"lerd-ui.service", "lerd-watcher.service", "lerd-tray.service"}
+	units := []string{"lerd-ui", "lerd-watcher", "lerd-tray"}
 	var active []string
 	for _, u := range units {
-		if systemd.IsServiceActive(u) {
+		if services.Mgr.IsActive(u) {
 			active = append(active, u)
 		}
 	}
@@ -381,7 +384,7 @@ func restartLerdUserServices() {
 	fmt.Println("\n==> Restarting lerd services to pick up the new binary")
 	for _, u := range active {
 		fmt.Printf("  --> %s ... ", u)
-		if err := systemd.RestartService(u); err != nil {
+		if err := services.Mgr.Restart(u); err != nil {
 			fmt.Printf("WARN (%v)\n", err)
 		} else {
 			fmt.Println("OK")
@@ -397,7 +400,7 @@ func downloadReleaseBinary(version string) (string, func(), error) {
 	arch := runtime.GOARCH // "amd64" or "arm64"
 	ver := stripV(version)
 
-	filename := fmt.Sprintf("lerd_%s_linux_%s.tar.gz", ver, arch)
+	filename := fmt.Sprintf("lerd_%s_%s_%s.tar.gz", ver, runtime.GOOS, arch)
 	url := fmt.Sprintf("%s/v%s/%s", githubDownloadBase, ver, filename)
 
 	tmp, err := os.MkdirTemp("", "lerd-update-*")
@@ -423,6 +426,13 @@ func downloadReleaseBinary(version string) (string, func(), error) {
 		return "", func() {}, fmt.Errorf("binary not found in archive")
 	}
 	return tmp, cleanup, nil
+}
+
+// isHomebrewManaged reports whether the resolved binary path lives inside a
+// Homebrew Cellar, in which case `lerd update` defers to `brew upgrade` rather
+// than self-replacing files brew owns.
+func isHomebrewManaged(path string) bool {
+	return strings.Contains(path, "/Cellar/")
 }
 
 func selfPath() (string, error) {

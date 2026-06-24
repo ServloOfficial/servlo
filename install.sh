@@ -38,10 +38,19 @@ star_note() {
 }
 
 # ── Platform detection ───────────────────────────────────────────────────────
+detect_os() {
+  case "$(uname -s)" in
+    Linux)  echo "linux" ;;
+    Darwin) echo "darwin" ;;
+    *) die "Unsupported OS: $(uname -s). Lerd supports Linux and macOS." ;;
+  esac
+}
+
 detect_arch() {
+  # macOS reports arm64; Linux reports aarch64: both map to the arm64 release.
   case "$(uname -m)" in
-    x86_64)  echo "amd64" ;;
-    aarch64) echo "arm64" ;;
+    x86_64)        echo "amd64" ;;
+    aarch64|arm64) echo "arm64" ;;
     *) die "Unsupported architecture: $(uname -m)" ;;
   esac
 }
@@ -90,7 +99,7 @@ ask_dns_mode() {
   read -r _ans </dev/tty 2>/dev/null || true
   if [[ "$_ans" =~ ^[Nn]$ ]]; then
     DNS_MODE="localhost"
-    info "Using *.localhost over HTTP, mkcert and nss-tools are not required"
+    info "Using *.localhost over HTTP, no certificates or extra packages required"
   else
     DNS_MODE="managed"
   fi
@@ -158,6 +167,34 @@ check_podman_rootless() {
 }
 
 check_prerequisites() {
+  if [ "$(detect_os)" = "darwin" ]; then
+    check_prerequisites_macos
+  else
+    check_prerequisites_linux
+  fi
+}
+
+# macOS needs only the podman CLI on PATH; `lerd install` brings the Podman
+# machine up itself, and mkcert/DNS/launchd are all handled inside the binary.
+# Missing packages are installed via Homebrew (no sudo, unlike the Linux path).
+check_prerequisites_macos() {
+  header "Checking prerequisites"
+
+  check_cmd podman podman "container runtime"
+
+  if [ ${#MISSING_PKGS[@]} -eq 0 ]; then
+    success "All prerequisites met"
+    return
+  fi
+
+  echo ""
+  warn "Missing: ${MISSING_PKGS[*]}"
+  if ask "Install missing packages now (via Homebrew)?"; then
+    install_packages "${MISSING_PKGS[@]}"
+  fi
+}
+
+check_prerequisites_linux() {
   header "Checking prerequisites"
 
   check_cmd podman podman "container runtime"
@@ -201,9 +238,19 @@ check_prerequisites() {
 
 install_packages() {
   local pkgs=("$@")
-  local family; family="$(distro_family)"
 
   header "Installing: ${pkgs[*]}"
+
+  if [ "$(detect_os)" = "darwin" ]; then
+    if ! command -v brew &>/dev/null; then
+      die "Homebrew not found. Install it from https://brew.sh then re-run, or install manually: ${pkgs[*]}"
+    fi
+    brew install "${pkgs[@]}"
+    success "Packages installed"
+    return
+  fi
+
+  local family; family="$(distro_family)"
 
   case "$family" in
     arch)
@@ -288,7 +335,8 @@ latest_version() {
 # All output goes to stderr — nothing is printed to stdout.
 download_binary() {
   local version="$1" arch="$2" destdir="$3"
-  local filename="lerd_${version}_linux_${arch}.tar.gz"
+  local os; os="$(detect_os)"
+  local filename="lerd_${version}_${os}_${arch}.tar.gz"
   local url="https://github.com/${REPO}/releases/download/v${version}/${filename}"
 
   info "Downloading lerd v${version} (${arch}) via $(_download_tool) ..."
@@ -309,6 +357,38 @@ installed_version() {
   fi
 }
 
+# Full version token including any git-describe suffix (e.g.
+# 1.25.0-6-g7d030096-dirty). installed_version() collapses that to the bare
+# 1.25.0, which is what version_is_dev needs the suffix from.
+installed_version_raw() {
+  if command -v lerd &>/dev/null; then
+    lerd --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[A-Za-z0-9.-]*' | head -1 || echo ""
+  else
+    echo ""
+  fi
+}
+
+# True when the version token carries a git-describe suffix. Release binaries
+# report a clean X.Y.Z, so a suffix means an ahead-of-release local build that
+# the installer must not silently overwrite with the matching base release.
+version_is_dev() {
+  [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+- ]]
+}
+
+# Guards an overwrite of a local development build. Prints a warning and asks
+# before replacing it; keeps the build and exits 0 when declined or when no tty
+# is available to confirm. $1 is the release version about to be installed.
+guard_dev_build() {
+  local target="$1" current_raw; current_raw="$(installed_version_raw)"
+  version_is_dev "$current_raw" || return 0
+  warn "A local development build (v${current_raw}) is installed."
+  if [ -r /dev/tty ] && ask "Replace it with release v${target}?"; then
+    return 0
+  fi
+  info "Keeping your local build. Reinstall a dev build with: install.sh --local <path>"
+  exit 0
+}
+
 # ── Shell integration ────────────────────────────────────────────────────────
 SHELL_MARKER="# Added by Lerd installer"
 
@@ -317,7 +397,15 @@ detect_shell_rc() {
   case "$shell" in
     fish) echo "$HOME/.config/fish/conf.d/lerd.fish" ;;
     zsh)  echo "$HOME/.zshrc" ;;
-    *)    echo "$HOME/.bashrc" ;;
+    *)
+      # macOS Terminal launches bash as a login shell, which reads
+      # .bash_profile, not .bashrc; Linux interactive bash reads .bashrc.
+      if [ "$(detect_os)" = "darwin" ]; then
+        echo "$HOME/.bash_profile"
+      else
+        echo "$HOME/.bashrc"
+      fi
+      ;;
   esac
 }
 
@@ -354,11 +442,10 @@ remove_from_path() {
   local rc; rc="$(detect_shell_rc)"
   if [ ! -f "$rc" ]; then return; fi
 
-  # Remove the block: marker line + the next line
+  # Remove the block: marker line + the next line. {N;d;} is POSIX and works on
+  # both GNU and BSD/macOS sed, unlike the GNU-only `,+1` relative address.
   if grep -q "$SHELL_MARKER" "$rc" 2>/dev/null; then
-    # portable: works on both GNU and BSD sed
-    sed -i.bak "/^${SHELL_MARKER}/,+1d" "$rc" && rm -f "${rc}.bak"
-    # also remove blank line before marker if present
+    sed -i.bak -e "/^${SHELL_MARKER}/{N;d;}" "$rc" && rm -f "${rc}.bak"
     info "Removed PATH entry from $rc"
   fi
 }
@@ -401,6 +488,7 @@ cmd_install() {
       success "Lerd v${version} is already installed and up to date"
       exit 0
     fi
+    guard_dev_build "$version"
 
     local tmpdir; tmpdir="$(mktemp -d)"
     download_binary "$version" "$arch" "$tmpdir"
@@ -440,6 +528,7 @@ cmd_update() {
     success "Already on latest: v${latest}"
     exit 0
   fi
+  guard_dev_build "$latest"
 
   info "Updating v${current:-unknown} → v${latest}"
   local tmpdir; tmpdir="$(mktemp -d)"
@@ -453,6 +542,91 @@ cmd_update() {
 
 # ── Uninstall ────────────────────────────────────────────────────────────────
 cmd_uninstall() {
+  if [ "$(detect_os)" = "darwin" ]; then
+    cmd_uninstall_macos
+  else
+    cmd_uninstall_linux
+  fi
+}
+
+# macOS teardown: boot out and remove the user LaunchAgents, stop any detached
+# lerd-* podman containers, then drop the binary. The DNS resolver file in
+# /etc/resolver and the Podman machine are left to `lerd uninstall` (run before
+# the binary is removed) since removing the resolver needs sudo.
+cmd_uninstall_macos() {
+  header "Uninstalling Lerd"
+
+  # Only `lerd uninstall` drops the DNS resolver (/etc/resolver/test, sudo) and
+  # the Podman machine, and it's gone once we delete the binary below. Surface
+  # the two-step order while the binary is here so the resolver isn't orphaned.
+  if command -v lerd &>/dev/null; then
+    warn "This script does not remove the DNS resolver (/etc/resolver/test) or the Podman machine."
+    info "Those are torn down by 'lerd uninstall' (needs sudo), which is unavailable once the binary is gone."
+    if [ -r /dev/tty ] && ! ask "Continue and remove the lerd binary now?"; then
+      info "Aborted. Run 'lerd uninstall' first, then re-run this uninstaller."
+      exit 0
+    fi
+  fi
+
+  local domain="gui/$(id -u)"
+  local agents_dir="$HOME/Library/LaunchAgents"
+
+  # lerd's launch agents are named lerd-*.plist on disk and their launchctl
+  # label is com.lerd.<filename-without-.plist> (see plistLabel in
+  # launchd_darwin.go), so derive it from the name rather than `defaults read`,
+  # which mis-resolves a .plist-suffixed path and would skip the bootout.
+  if [ -d "$agents_dir" ]; then
+    for f in "$agents_dir"/lerd-*.plist; do
+      [ -f "$f" ] || continue
+      local label; label="com.lerd.$(basename "$f" .plist)"
+      launchctl bootout "$domain/$label" 2>/dev/null || true
+      rm -f "$f"
+    done
+    info "Removed launchd agents from $agents_dir"
+  fi
+
+  # Detached `podman run -d` containers outlive their plists, so remove them
+  # too. Capture with `|| true` first: under `set -o pipefail` a no-match grep
+  # would otherwise abort the whole uninstall before the binary is removed.
+  if command -v podman &>/dev/null; then
+    local containers
+    containers="$(podman ps -a --format '{{.Names}}' 2>/dev/null | grep '^lerd-' || true)"
+    for c in $containers; do
+      podman rm -f "$c" 2>/dev/null || true
+    done
+  fi
+
+  rm -rf "$HOME/Library/Logs/lerd"
+
+  # Remove binaries
+  for b in "$BINARY" lerd-tray; do
+    if [ -f "${INSTALL_DIR}/${b}" ]; then
+      rm -f "${INSTALL_DIR}/${b}"
+      success "Removed ${INSTALL_DIR}/${b}"
+    fi
+  done
+
+  remove_from_path
+
+  if ask "Remove all Lerd data and config? (~/.config/lerd, ~/.local/share/lerd)"; then
+    rm -rf "$LERD_CONFIG_DIR"
+    rm -rf "$LERD_DATA_DIR"
+    success "Removed config and data directories"
+  else
+    info "Config kept at $LERD_CONFIG_DIR"
+    info "Data kept at $LERD_DATA_DIR"
+  fi
+
+  if [ -f /etc/resolver/test ]; then
+    warn "DNS resolver /etc/resolver/test is still present (not removed here)."
+    info "Remove it with: sudo rm -f /etc/resolver/test"
+    info "Remove the Podman machine with: podman machine rm <name>  (see 'podman machine ls')"
+  fi
+
+  success "Lerd uninstalled"
+}
+
+cmd_uninstall_linux() {
   header "Uninstalling Lerd"
 
   # Stop and remove systemd units — discover from quadlet files on disk
@@ -516,7 +690,7 @@ main() {
   echo "  ███████╗███████╗██║  ██║██████╔╝"
   echo "  ╚══════╝╚══════╝╚═╝  ╚═╝╚═════╝ "
   echo -e "${RESET}"
-  echo "  Lerd — Podman-powered local PHP dev environment for Linux"
+  echo "  Lerd — Podman-powered local PHP dev environment for Linux and macOS"
   echo "  https://github.com/${REPO}"
   echo ""
 

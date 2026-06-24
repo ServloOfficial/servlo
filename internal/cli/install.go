@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -1469,7 +1470,7 @@ fi
 		}
 		return nil
 	default:
-		if err := appendShellRC(filepath.Join(home, ".bashrc"), binDir); err != nil {
+		if err := appendShellRC(bashRCPath(home), binDir); err != nil {
 			return err
 		}
 		bashCompDir := filepath.Join(home, ".local", "share", "bash-completion", "completions")
@@ -1478,6 +1479,16 @@ fi
 		}
 		return nil
 	}
+}
+
+// bashRCPath picks the bash startup file lerd should write its PATH line to.
+// macOS Terminal launches bash as a login shell that reads .bash_profile (not
+// .bashrc); Linux interactive bash reads .bashrc.
+func bashRCPath(home string) string {
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(home, ".bash_profile")
+	}
+	return filepath.Join(home, ".bashrc")
 }
 
 func appendShellRC(rcFile, binDir string) error {

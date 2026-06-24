@@ -124,29 +124,62 @@ bash install.sh --check
 
 ## macOS
 
-Install via the Homebrew tap:
+### One-line installer (recommended)
+
+::: code-group
+
+```bash [curl]
+curl -fsSL https://lerd.sh/install.sh | bash
+```
+
+```bash [wget]
+wget -qO- https://lerd.sh/install.sh | bash
+```
+
+:::
+
+The same installer powers Linux and macOS. On macOS it will:
+
+- Check for the `podman` CLI and offer to `brew install podman` if it's missing
+- Download the latest `darwin` binary for your architecture (amd64 / arm64)
+- Install it to `~/.local/bin/lerd` and add that directory to your `PATH`
+- Automatically run `lerd install`, which starts Podman Machine, mkcert, DNS, and nginx
+
+::: info Homebrew is only used for Podman
+The installer itself doesn't require Homebrew. It's used only to install the `podman` dependency when it isn't already present, so you can also install Podman by any other means beforehand.
+:::
+
+### Install via Homebrew (alternative)
 
 ```bash
 brew install geodro/lerd/lerd
 lerd install
 ```
 
-Podman is installed automatically as a Homebrew dependency. `lerd install` sets up
-Podman Machine, DNS, and nginx on first run.
+Podman is installed automatically as a Homebrew dependency.
 
-**Update:**
+::: warning Untrusted tap
+Recent Homebrew versions refuse to load formulae from third-party taps until they're trusted. If you see `Refusing to load formula ... from untrusted tap`, run `brew trust geodro/lerd` once, then retry.
+:::
 
-```bash
-brew upgrade lerd
-lerd install
-```
-
-**Uninstall:**
+### Update
 
 ```bash
-lerd uninstall
-brew uninstall lerd
+lerd update
 ```
+
+If you installed via Homebrew instead, update with `brew upgrade lerd && lerd install`.
+
+If you're running a local development build (a `git describe` version like `1.25.0-6-g7d03`), the one-line installer and `--update` detect it and ask before replacing it with a release binary, so an ahead-of-release build isn't overwritten silently. Decline to keep your build, or reinstall one explicitly with `install.sh --local <path>`.
+
+### Uninstall
+
+```bash
+lerd uninstall                                    # tears down launchd agents, DNS resolver, containers
+curl -fsSL https://lerd.sh/install.sh | bash -s -- --uninstall
+```
+
+Run `lerd uninstall` first (while the binary is still present) so the DNS resolver and Podman state are cleaned up, then the installer's `--uninstall` removes the launchd agents and the binary. If you installed via Homebrew, finish with `brew uninstall lerd` instead of the second command. On macOS the installer detects when the binary is still present and pauses to remind you to run `lerd uninstall` first, since the DNS resolver (`/etc/resolver/test`, removed with sudo) and the Podman machine are unreachable once the binary is gone; if it can't reach a terminal it prints the manual removal commands at the end instead.
 
 ## Windows (beta)
 

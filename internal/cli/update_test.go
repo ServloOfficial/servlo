@@ -33,6 +33,26 @@ func TestStripV(t *testing.T) {
 	}
 }
 
+// ── isHomebrewManaged ──────────────────────────────────────────────────────────
+
+func TestIsHomebrewManaged(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"/opt/homebrew/Cellar/lerd/1.25.0/bin/lerd", true},
+		{"/usr/local/Cellar/lerd/1.25.0/bin/lerd", true},
+		{"/Users/me/.local/bin/lerd", false},
+		{"/home/me/.local/bin/lerd", false},
+		{"/usr/local/bin/lerd", false},
+	}
+	for _, c := range cases {
+		if got := isHomebrewManaged(c.path); got != c.want {
+			t.Errorf("isHomebrewManaged(%q) = %v, want %v", c.path, got, c.want)
+		}
+	}
+}
+
 // ── fetchLatestVersion ───────────────────────────────────────────────────────
 
 func TestFetchLatestVersion_success(t *testing.T) {
