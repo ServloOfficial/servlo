@@ -668,14 +668,14 @@ func (e *EnrichedSite) enrichServices() {
 	}
 	envStr := string(envData)
 	for _, svcName := range KnownServices() {
-		if !svcSet[svcName] && strings.Contains(envStr, "lerd-"+svcName) {
+		if !svcSet[svcName] && envfile.ReferencesContainer(envStr, svcName) {
 			e.Services = append(e.Services, svcName)
 			svcSet[svcName] = true
 		}
 	}
 	if customs, err := config.ListCustomServices(); err == nil {
 		for _, cs := range customs {
-			if !svcSet[cs.Name] && strings.Contains(envStr, "lerd-"+cs.Name) {
+			if !svcSet[cs.Name] && envfile.ReferencesContainer(envStr, cs.Name) {
 				e.Services = append(e.Services, cs.Name)
 				svcSet[cs.Name] = true
 			}

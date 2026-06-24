@@ -159,6 +159,33 @@ func ReadKey(path, key string) string {
 	return ""
 }
 
+// ReferencesContainer reports whether content references the lerd container
+// hostname "lerd-<serviceName>" as a whole token, so bare "postgres" is not
+// matched by a "lerd-postgres-18" reference (and vice versa).
+func ReferencesContainer(content, serviceName string) bool {
+	needle := "lerd-" + serviceName
+	for i := 0; ; {
+		j := strings.Index(content[i:], needle)
+		if j < 0 {
+			return false
+		}
+		end := i + j + len(needle)
+		if end >= len(content) || !isServiceNameByte(content[end]) {
+			return true
+		}
+		i += j + 1
+	}
+}
+
+// isServiceNameByte reports whether b can be part of a service name following
+// the "lerd-" prefix (alphanumerics and '-', as in postgres-18 or mysql-5-7).
+func isServiceNameByte(b byte) bool {
+	return b == '-' ||
+		(b >= '0' && b <= '9') ||
+		(b >= 'a' && b <= 'z') ||
+		(b >= 'A' && b <= 'Z')
+}
+
 // ReadKeys returns all non-comment key names from the .env file at path,
 // in the order they appear.
 func ReadKeys(path string) ([]string, error) {

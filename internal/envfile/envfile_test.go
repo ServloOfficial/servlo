@@ -359,3 +359,31 @@ func TestApplyUpdates_deterministicAppendOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestReferencesContainer(t *testing.T) {
+	cases := []struct {
+		name    string
+		content string
+		service string
+		want    bool
+	}{
+		{"bare host match", "DB_HOST=lerd-postgres\n", "postgres", true},
+		{"host with port", "DB_HOST=lerd-postgres:5432\n", "postgres", true},
+		{"host in url", "DB_URL=pgsql://u@lerd-postgres:5432/app\n", "postgres", true},
+		{"bare not matched by versioned ref", "DB_HOST=lerd-postgres-18\n", "postgres", false},
+		{"versioned matches itself", "DB_HOST=lerd-postgres-18\n", "postgres-18", true},
+		{"versioned with port", "DB_HOST=lerd-postgres-18:5432\n", "postgres-18", true},
+		{"bare not matched by suffix alternate", "DB_HOST=lerd-postgres-pgvector\n", "postgres", false},
+		{"family alternate not matched by mismatch", "DB_HOST=lerd-mysql-5-7\n", "mysql", false},
+		{"family alternate matches itself", "DB_HOST=lerd-mysql-5-7\n", "mysql-5-7", true},
+		{"no reference", "DB_HOST=127.0.0.1\n", "postgres", false},
+		{"match at EOF no newline", "DB_HOST=lerd-redis", "redis", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ReferencesContainer(tc.content, tc.service); got != tc.want {
+				t.Errorf("ReferencesContainer(%q, %q) = %v, want %v", tc.content, tc.service, got, tc.want)
+			}
+		})
+	}
+}

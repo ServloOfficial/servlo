@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/envfile"
 	"github.com/geodro/lerd/internal/feedback"
 	gitpkg "github.com/geodro/lerd/internal/git"
 	"github.com/geodro/lerd/internal/nginx"
@@ -344,7 +345,7 @@ func startServicesForSiteNoticed(sitePath, siteName string) {
 
 	headerPrinted := false
 	for _, name := range candidates {
-		if !strings.Contains(envContent, "lerd-"+name) {
+		if !envfile.ReferencesContainer(envContent, name) {
 			continue
 		}
 		if siteName != "" && !headerPrinted && !lerdSystemd.IsServiceActive("lerd-"+name) {
