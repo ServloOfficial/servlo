@@ -10,6 +10,15 @@ import (
 	"github.com/geodro/lerd/internal/podman"
 )
 
+// escapeIdentBacktick makes name safe inside a MySQL/MariaDB `...` identifier
+// by doubling embedded backticks; escapeIdentDQuote does the same for a
+// PostgreSQL "..." identifier, and escapeSQLLiteral for a '...' string literal.
+// Callers already pass slugged names, but these guard the SQL sinks directly so
+// a name that ever reaches here unsanitised cannot break out of its quoting.
+func escapeIdentBacktick(name string) string { return strings.ReplaceAll(name, "`", "``") }
+func escapeIdentDQuote(name string) string   { return strings.ReplaceAll(name, `"`, `""`) }
+func escapeSQLLiteral(v string) string       { return strings.ReplaceAll(v, "'", "''") }
+
 // CreateDatabase creates dbName inside the named service container if it does
 // not already exist. svc is the service name (e.g. "mysql", "mysql-5-6",
 // "mariadb-11", "postgres-14"); the container is always "lerd-<svc>". The
@@ -31,7 +40,7 @@ func CreateDatabase(svc, name string) (bool, error) {
 		var lastErr error
 		for _, bin := range binaries {
 			check := podman.Cmd("exec", container, bin, "-uroot", "-plerd",
-				"-sNe", fmt.Sprintf("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='%s';", name))
+				"-sNe", fmt.Sprintf("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='%s';", escapeSQLLiteral(name)))
 			out, err := check.Output()
 			if err != nil {
 				lastErr = err
@@ -41,7 +50,7 @@ func CreateDatabase(svc, name string) (bool, error) {
 				return false, nil
 			}
 			cmd := podman.Cmd("exec", container, bin, "-uroot", "-plerd",
-				"-e", fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`;", name))
+				"-e", fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`;", escapeIdentBacktick(name)))
 			// Capture stderr rather than inheriting it: mysql prints a noisy
 			// "[Warning] Using a password on the command line interface" that would
 			// otherwise clobber the live "configuring .env" spinner. Surface it only
@@ -54,7 +63,7 @@ func CreateDatabase(svc, name string) (bool, error) {
 		return false, lastErr
 	case "postgres":
 		cmd := podman.Cmd("exec", container, "psql", "-U", "postgres",
-			"-c", fmt.Sprintf(`CREATE DATABASE "%s";`, name))
+			"-c", fmt.Sprintf(`CREATE DATABASE "%s";`, escapeIdentDQuote(name)))
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			if strings.Contains(string(out), "already exists") {
@@ -86,7 +95,7 @@ func DropDatabase(svc, name string) (bool, error) {
 		var lastErr error
 		for _, bin := range binaries {
 			check := podman.Cmd("exec", container, bin, "-uroot", "-plerd",
-				"-sNe", fmt.Sprintf("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='%s';", name))
+				"-sNe", fmt.Sprintf("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='%s';", escapeSQLLiteral(name)))
 			out, err := check.Output()
 			if err != nil {
 				lastErr = err
@@ -96,7 +105,7 @@ func DropDatabase(svc, name string) (bool, error) {
 				return false, nil
 			}
 			cmd := podman.Cmd("exec", container, bin, "-uroot", "-plerd",
-				"-e", fmt.Sprintf("DROP DATABASE IF EXISTS `%s`;", name))
+				"-e", fmt.Sprintf("DROP DATABASE IF EXISTS `%s`;", escapeIdentBacktick(name)))
 			cmd.Stderr = os.Stderr
 			return true, cmd.Run()
 		}
@@ -105,9 +114,9 @@ func DropDatabase(svc, name string) (bool, error) {
 		// Postgres refuses DROP if any session has the DB open, so terminate
 		// stragglers (queue workers, lingering psql shells) first.
 		_ = podman.Cmd("exec", container, "psql", "-U", "postgres",
-			"-c", fmt.Sprintf(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%s' AND pid <> pg_backend_pid();`, name)).Run()
+			"-c", fmt.Sprintf(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%s' AND pid <> pg_backend_pid();`, escapeSQLLiteral(name))).Run()
 		cmd := podman.Cmd("exec", container, "psql", "-U", "postgres",
-			"-c", fmt.Sprintf(`DROP DATABASE IF EXISTS "%s";`, name))
+			"-c", fmt.Sprintf(`DROP DATABASE IF EXISTS "%s";`, escapeIdentDQuote(name)))
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			if strings.Contains(string(out), "does not exist") {

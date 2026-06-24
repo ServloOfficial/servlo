@@ -21,6 +21,13 @@ func TestWSOriginAllowed(t *testing.T) {
 		{"cross-site hijack attempt", "localhost:7073", "http://evil.example", false},
 		{"foreign origin same path", "myapp.test", "https://attacker.test", false},
 		{"malformed origin", "localhost:7073", "::::not a url", false},
+		// DNS rebinding: a public domain rebound to a local address sends
+		// matching Origin and Host, so a bare same-origin test would accept it.
+		// The local-host requirement rejects it because the domain is neither an
+		// IP literal nor under a reserved local TLD.
+		{"rebinding public domain", "evil.example", "http://evil.example", false},
+		{"rebinding public domain with port", "attacker.com:7073", "http://attacker.com:7073", false},
+		{"mdns .local same-origin", "my-mac.local:7073", "http://my-mac.local:7073", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

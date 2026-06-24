@@ -56,9 +56,11 @@ else
     exit 0
 fi
 
-# Sync lerd-dns config and restart for any user running it. systemctl --user
-# runs via runuser as the real user (XDG_RUNTIME_DIR/DBUS from the root
-# dispatcher alone is not enough); the > rewrite keeps the file's user ownership.
+# Sync lerd-dns config and restart for any user running it. The dispatcher runs
+# as root, so the config rewrite is piped through runuser ($as_user) and written
+# by the owning user, never by root: a user who symlinks their lerd.conf at a
+# root-owned path then can only write where they already could, closing the
+# arbitrary-file-write escalation. systemctl --user likewise runs via runuser.
 for uid_dir in /run/user/[0-9]*/; do
     [ -d "$uid_dir" ] || continue
     bus="${uid_dir}bus"
@@ -88,10 +90,16 @@ for uid_dir in /run/user/[0-9]*/; do
     {
         printf '# Lerd DNS configuration\nport=5300\nno-resolv\n'
         for dns_ip in $dns_servers; do
+            # Defensive filter: emit only tokens shaped like an IP with an
+            # optional #port. The Go side validates dns.upstream, but the awk
+            # re-parse above does not, so reject anything outside IP/port chars.
+            case "$dns_ip" in
+                ''|*[!0-9A-Fa-f:.#]*) continue ;;
+            esac
             printf 'server=%s\n' "$dns_ip"
         done
         printf 'address=/.%s/127.0.0.1\n' "$tld"
-    } > "$config_file"
+    } | $as_user tee "$config_file" >/dev/null
     $as_user systemctl --user restart lerd-dns 2>/dev/null || true
 done
 `
