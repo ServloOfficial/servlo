@@ -521,11 +521,11 @@ onBeforeUnmount(() => {
 
       <!-- ============ DEV DIGEST BANNER ============ -->
       <div class="wrap">
-        <a class="digest" :href="withBase('/digest/v1.25.0.html')" target="_blank" rel="noopener">
+        <a class="digest" :href="withBase('/digest/v1.26.0.html')" target="_blank" rel="noopener">
           <span class="digest-pill">NEW</span>
           <span class="digest-body">
-            <span class="digest-title">v1.25.0 dev digest</span>
-            <span class="digest-sub">Idle-suspend, bun runtime, custom PHP images, FrankenPHP parity, and a broader dashboard.</span>
+            <span class="digest-title">v1.26.0 dev digest</span>
+            <span class="digest-sub">macOS installer, Monaco editors with a PHP language server behind Tinker, a tabbed TUI, a styled CLI, and a security pass.</span>
           </span>
           <span class="digest-cta">Read the digest&nbsp;→</span>
         </a>
