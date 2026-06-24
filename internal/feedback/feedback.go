@@ -26,7 +26,8 @@ var (
 	ColRunning = lipgloss.Color("#10b981") // emerald-500
 	ColStopped = lipgloss.Color("#6b7280") // gray-500
 	ColFailing = lipgloss.Color("#ef4444") // red-500
-	ColPaused  = lipgloss.Color("#f59e0b") // amber-400
+	ColPaused  = lipgloss.Color("#f59e0b") // amber-500
+	ColGold    = lipgloss.Color("#fbbf24") // amber-400 (brighter gold for sudo prompts)
 	// Interactive accent is the brand red so the TUI, CLI feedback, and the web
 	// UI all share one accent rather than diverging on a separate hue.
 	ColAccent = lipgloss.Color("#FF2D20") // lerd red
@@ -42,6 +43,7 @@ var (
 	warnStyle   = lipgloss.NewStyle().Foreground(ColPaused)
 	redStyle    = lipgloss.NewStyle().Foreground(ColFailing)
 	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(ColTitle)
+	goldStyle   = lipgloss.NewStyle().Bold(true).Foreground(ColGold)
 )
 
 // Status glyphs for query/report output that renders its own layout rather than
@@ -50,6 +52,7 @@ const (
 	GlyphOK   = "✓"
 	GlyphFail = "✗"
 	GlyphWarn = "⚠"
+	GlyphLock = "🔒"
 )
 
 // Title styles a fragment as the bold lerd-red wordmark colour.
@@ -147,6 +150,18 @@ func detectColor() bool {
 		return false
 	}
 	return term.IsTerminal(int(os.Stdout.Fd()))
+}
+
+// colorEnabledFor reports whether coloured output should be written to w: only
+// when NO_COLOR is unset and w is itself a terminal. Writer-targeted helpers
+// (LineOn/WarnOn) gate on it so ANSI codes never leak into a captured buffer or
+// a discarded/redirected writer, regardless of os.Stdout's TTY state.
+func colorEnabledFor(w io.Writer) bool {
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	f, ok := w.(*os.File)
+	return ok && term.IsTerminal(int(f.Fd()))
 }
 
 // paint applies a style only when colour is enabled, so plain-mode output (and
@@ -314,6 +329,16 @@ func Line(msg string) {
 	fmt.Fprintf(target(), "%s%s %s\n", pad, paint(dimStyle, "→"), msg)
 }
 
+// LineOn is Line targeted at an explicit writer — for an install step that
+// captures or discards its sub-output (e.g. via io.Discard) rather than writing
+// to the live stdout. Mirrors Line's styling so captured output reads the same.
+func LineOn(w io.Writer, msg string) {
+	on := colorEnabledFor(w)
+	mu.Lock()
+	defer mu.Unlock()
+	fmt.Fprintf(w, "%s%s %s\n", pad, paintIf(on, dimStyle, "→"), msg)
+}
+
 // Header prints a section header — a brand-red "▸ title" with a blank line
 // above and below — to delimit the major phases of a long multi-step command
 // (install, update) so the step lines beneath read as a group instead of one
@@ -337,6 +362,19 @@ func Note(msg string) {
 	})
 }
 
+// Sudo prints a privileged-step line: a gold lock glyph and gold message, so
+// the password prompt the next command (mkcert, a sudo write) raises reads as
+// expected rather than a surprise. Use it in place of a bare "[sudo required] …"
+// print so every privileged step looks the same. Routed through emit so it
+// lands cleanly above any live spinner.
+func Sudo(msg string) {
+	emit(func() {
+		mu.Lock()
+		defer mu.Unlock()
+		fmt.Fprintf(target(), "%s%s %s\n", pad, paint(goldStyle, GlyphLock), paint(goldStyle, msg))
+	})
+}
+
 // Warn prints a warning line: an amber warning glyph and amber message. Use in
 // place of a plain "[WARN] …" print.
 func Warn(format string, a ...any) {
@@ -345,6 +383,16 @@ func Warn(format string, a ...any) {
 		defer mu.Unlock()
 		fmt.Fprintf(target(), "%s%s %s\n", pad, paint(warnStyle, "⚠"), paint(warnStyle, fmt.Sprintf(format, a...)))
 	})
+}
+
+// WarnOn is Warn targeted at an explicit writer rather than the live stdout,
+// for callers that capture or discard their sub-output. Mirrors Warn's styling.
+func WarnOn(w io.Writer, format string, a ...any) {
+	on := colorEnabledFor(w)
+	msg := fmt.Sprintf(format, a...)
+	mu.Lock()
+	defer mu.Unlock()
+	fmt.Fprintf(w, "%s%s %s\n", pad, paintIf(on, warnStyle, "⚠"), paintIf(on, warnStyle, msg))
 }
 
 // interruptible is anything that animates a spinner line and can pause it so a

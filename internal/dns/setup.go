@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/feedback"
 )
 
 const nmDnsConf = `[main]
@@ -323,7 +324,7 @@ func setupNMWithResolved() error {
 	dispatcherScript := "/etc/NetworkManager/dispatcher.d/99-lerd-dns"
 
 	if !isFileContent(dispatcherScript, []byte(nmDispatcherScript)) {
-		fmt.Println("  [sudo required] Configuring NetworkManager dispatcher for .test DNS resolution")
+		feedback.Sudo("Configuring NetworkManager dispatcher for .test DNS resolution")
 
 		if err := sudoWriteFile(dispatcherScript, []byte(nmDispatcherScript), 0755); err != nil {
 			return fmt.Errorf("writing NM dispatcher script: %w", err)
@@ -404,7 +405,7 @@ func setupSystemdResolved() error {
 		}
 	}
 
-	fmt.Println("  [sudo required] Configuring systemd-resolved for .test DNS resolution")
+	feedback.Sudo("Configuring systemd-resolved for .test DNS resolution")
 
 	if err := sudoWriteFile(dropin, []byte(resolvedDropin), 0644); err != nil {
 		return fmt.Errorf("writing resolved drop-in: %w", err)
@@ -429,7 +430,7 @@ func setupNetworkManager() error {
 		return nil
 	}
 
-	fmt.Println("  [sudo required] Configuring NetworkManager for .test DNS resolution")
+	feedback.Sudo("Configuring NetworkManager for .test DNS resolution")
 
 	if err := sudoWriteFile(nmConfFile, []byte(nmDnsConf), 0644); err != nil {
 		return fmt.Errorf("writing NetworkManager conf: %w", err)
@@ -499,7 +500,7 @@ func Teardown() {
 
 	// Restart the resolver to apply the removal and re-establish upstream DNS.
 	if isNetworkManagerActive() {
-		fmt.Println("  Restarting NetworkManager (may take a moment)...")
+		feedback.Line("Restarting NetworkManager (may take a moment)…")
 		cmd := exec.Command("sudo", "systemctl", "restart", "NetworkManager")
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout

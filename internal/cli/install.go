@@ -273,7 +273,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	if wantDNS {
 		// 4. mkcert CA, interactive (may prompt for sudo)
-		feedback.Line("installing mkcert CA")
+		feedback.Sudo("Installing mkcert CA")
 		mkcertCmd := exec.Command(certs.MkcertPath(), "-install")
 		mkcertCmd.Stdin = os.Stdin
 		mkcertCmd.Stdout = os.Stdout
@@ -292,7 +292,8 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		dnsChanged = dnsChanged || confChanged
 		ok()
 
-		feedback.Line("installing DNS sudoers rule")
+		// InstallSudoers prints its own gold "🔒 Installing DNS sudoers rule"
+		// line when it actually writes the drop-in, so no header is printed here.
 		dns.InstallSudoers() //nolint:errcheck
 	} else {
 		feedback.Line("DNS disabled, skipping mkcert CA, dnsmasq and sudoers")

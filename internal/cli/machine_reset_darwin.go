@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/podman"
 )
 
@@ -40,13 +41,13 @@ func runMachineReset(assumeYes bool) error {
 		}
 	}
 
-	fmt.Printf("  --> Stopping Podman Machine %q ...\n", name)
+	feedback.Line(fmt.Sprintf("Stopping Podman Machine %q…", name))
 	stop := exec.Command(podman.PodmanBin(), "machine", "stop", name)
 	stop.Stdout = os.Stdout
 	stop.Stderr = os.Stderr
 	_ = stop.Run() // a stopped machine still removes fine
 
-	fmt.Printf("  --> Removing Podman Machine %q ...\n", name)
+	feedback.Line(fmt.Sprintf("Removing Podman Machine %q…", name))
 	rm := exec.Command(podman.PodmanBin(), "machine", "rm", "-f", name)
 	rm.Stdout = os.Stdout
 	rm.Stderr = os.Stderr
