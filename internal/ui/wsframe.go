@@ -51,8 +51,9 @@ type wsConn struct {
 // don't apply CORS to the WS handshake, so without this an arbitrary page
 // could open a socket to the dashboard. A missing Origin means a non-browser
 // client (lerd's own tools, curl), which isn't a hijack vector. Otherwise the
-// Origin must be in the CORS allowlist or be same-origin with the request Host,
-// which keeps custom-domain and LAN access working.
+// Origin must be in the CORS allowlist, or be same-origin with the request Host
+// AND target a local-network host, which keeps custom-domain and LAN access
+// working while closing the DNS-rebinding hole (see isLocalNetworkHost).
 func wsOriginAllowed(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
@@ -67,7 +68,40 @@ func wsOriginAllowed(r *http.Request) bool {
 	}
 	// Hostnames are case-insensitive (RFC 3986), and r.Host casing isn't
 	// guaranteed to match the browser-normalised Origin, so compare case-folded.
-	return strings.EqualFold(u.Host, r.Host)
+	if !strings.EqualFold(u.Host, r.Host) {
+		return false
+	}
+	return isLocalNetworkHost(u.Host)
+}
+
+// isLocalNetworkHost reports whether hostport (host or host:port) names a
+// machine on the local network. The same-origin check above is not enough on
+// its own: under DNS rebinding a page on http://evil.example whose A record is
+// rebound to a loopback or LAN address sends Origin and Host both equal to
+// evil.example, so a bare same-origin test passes and the socket opens.
+//
+// Rebinding fundamentally needs a DNS name (an IP-literal Host can't be
+// rebound), so the rule is: any IP literal is fine (it's a host the user
+// pointed a browser at directly: loopback, a LAN address, or an explicit
+// public bind that is already gated by remote-control auth), while a hostname
+// is accepted only under localhost or one of the reserved local TLDs. .test and
+// .localhost are lerd's own managed TLDs (resolved to loopback by lerd-dns,
+// never publicly resolvable per RFC 6761) and .local is mDNS, so none can be
+// pointed at an attacker's server. An attacker's public domain is rejected.
+func isLocalNetworkHost(hostport string) bool {
+	host := hostport
+	if h, _, err := net.SplitHostPort(hostport); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]") // strip IPv6 literal brackets
+	if net.ParseIP(host) != nil {
+		return true
+	}
+	h := strings.ToLower(host)
+	return h == "localhost" ||
+		strings.HasSuffix(h, ".localhost") ||
+		strings.HasSuffix(h, ".test") ||
+		strings.HasSuffix(h, ".local")
 }
 
 // wsUpgrade performs the RFC6455 handshake and returns a wsConn ready for

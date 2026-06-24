@@ -16,6 +16,16 @@ func TestSiteSlug(t *testing.T) {
 		{"mixed.dots-and-hyphens", "mixed_dots_and_hyphens"},
 		{"simple", "simple"},
 		{"", ""},
+		// Security: shell/SQL metacharacters must be neutralised so a hostile
+		// directory or branch name cannot reach a site_init `sh -c` or a
+		// CREATE DATABASE identifier carrying an injection payload. They map to
+		// underscores, so the output is always [a-z0-9_].
+		{"app`id`x", "app_id_x"},
+		{`app"x`, "app_x"},
+		{"a b;c", "a_b_c"},
+		{"feature/x", "feature_x"},
+		{"drop`whoami`", "drop_whoami_"},
+		{`x";DROP`, "x__drop"},
 	}
 	for _, tc := range cases {
 		if got := SiteSlug(tc.in); got != tc.want {

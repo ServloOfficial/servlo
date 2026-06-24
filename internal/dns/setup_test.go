@@ -191,6 +191,23 @@ func TestNMDispatcherScript_prefersPinnedUpstream(t *testing.T) {
 	assertContains(t, nmDispatcherScript, "dns_servers=\"$LERD_DNS\"")
 }
 
+// The dispatcher runs as root, so writing the per-user lerd.conf with a plain
+// root `> "$config_file"` redirect lets a user symlink that path at a root-owned
+// file and have root truncate it (CWE-59 privesc). The write must go through
+// runuser ($as_user) so it happens with the owning user's privileges.
+func TestNMDispatcherScript_writesConfigAsUser(t *testing.T) {
+	assertContains(t, nmDispatcherScript, `| $as_user tee "$config_file"`)
+	if strings.Contains(nmDispatcherScript, `} > "$config_file"`) {
+		t.Error("dispatcher still writes lerd.conf via a root redirect; must pipe through $as_user")
+	}
+}
+
+// The awk re-parse of dns.upstream applies no validation, so the server-entry
+// loop must filter to IP/port-shaped tokens before emitting server= lines.
+func TestNMDispatcherScript_filtersUpstreamEntries(t *testing.T) {
+	assertContains(t, nmDispatcherScript, "*[!0-9A-Fa-f:.#]*) continue")
+}
+
 // --- WriteDnsmasqConfigFor ---
 
 func TestWriteDnsmasqConfigFor_customTarget(t *testing.T) {

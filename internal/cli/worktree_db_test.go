@@ -77,7 +77,7 @@ func TestFindParentSiteForWorktree_unregisteredDir(t *testing.T) {
 func TestWorktreeDBName_underscoreSlug(t *testing.T) {
 	cases := map[[2]string]string{
 		{"acme", "feat-a"}:       "acme_feat_a",
-		{"my_app", "feature/x"}:  "my_app_feature/x", // sanitization happens at branch detection time, not here
+		{"my_app", "feature/x"}:  "my_app_feature_x", // SiteSlug maps the slash to _ along with every other non-[a-z0-9_] char
 		{"acme_app", "feat-x-y"}: "acme_app_feat_x_y",
 		{"acme", "RELEASE-1"}:    "acme_release_1",
 	}
