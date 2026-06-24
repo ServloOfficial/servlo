@@ -365,12 +365,17 @@ func startPodmanMachineWithRetry() error {
 
 	feedback.Warn("podman machine start: %v", err)
 	feedback.Line("Retrying Podman Machine start once…")
+	// Brief settle before retrying: when vfkit crashes it can take a moment to
+	// fully exit and release the SSH port it grabbed. Retrying instantly can
+	// race that release; a short pause lets podman reassign the port cleanly.
+	time.Sleep(3 * time.Second)
 	err = run()
 	if err == nil {
 		return nil
 	}
 
-	feedback.Warn("podman machine start: %v", err)
+	// The error itself is surfaced once by main as the command's exit error, so
+	// we only add the actionable guidance here rather than re-Warn the same text.
 	feedback.Note("The Podman Machine VM would not boot. On new macOS releases this is often a vfkit issue that leaves a stale SSH port behind.")
 	feedback.Note("Try: podman machine stop && podman machine start. If it keeps failing, run `lerd machine reset` to recreate the VM, then `lerd install` again.")
 	return fmt.Errorf("podman machine start: %w", err)
