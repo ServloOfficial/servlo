@@ -87,14 +87,16 @@ lerd env
 The one reserved key, `LERD_EXTERNAL_SERVICES`, lists services lerd should treat as externally managed (you run your own instance). For each named service lerd still writes its connection variables into `.env`, but it does **not** start the container and does **not** create the project database or S3 bucket. Combine it with the connection overrides that point at your own instance:
 
 ```dotenv
-# .env.lerd_override — point this project at my host postgres
-DB_HOST=127.0.0.1
+# .env.lerd_override: point this project at a host (system) database
+DB_HOST=host.containers.internal
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=mysecret
 
 LERD_EXTERNAL_SERVICES=postgres
 ```
+
+Use `host.containers.internal` for the host rather than `127.0.0.1`. The override is read inside the PHP-FPM container, where `127.0.0.1` is the container's own loopback, not your machine. lerd keeps a `host.containers.internal` entry in the container that resolves to the host, so a containerized app reaches a host MySQL, MariaDB or Postgres over it with no extra setup. For MySQL use `DB_PORT=3306`.
 
 The value is comma or space separated, so `LERD_EXTERNAL_SERVICES=postgres, redis` opts both out. The reserved key is consumed by lerd and is never written into `.env`.
 
