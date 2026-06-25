@@ -104,23 +104,50 @@ func EnableLANExposure(progress LANProgressFunc) (lanIP string, err error) {
 			return "", err
 		}
 
-		if err := preflightForwarderPort(lanIP, emit); err != nil {
+		if err := ensureLANForwarder(lanIP, emit); err != nil {
 			return "", err
-		}
-
-		emit("Installing lerd-dns-forwarder.service")
-		if err := installDNSForwarderUnit(lanIP); err != nil {
-			return "", fmt.Errorf("installing dns forwarder: %w", err)
-		}
-
-		emit("Starting lerd-dns-forwarder")
-		if err := reloadAndRestartUnit("lerd-dns-forwarder"); err != nil {
-			return "", fmt.Errorf("starting dns forwarder: %w", err)
 		}
 	}
 
 	emit("Done — lerd is reachable on " + lanIP)
 	return lanIP, nil
+}
+
+// ensureLANForwarder installs the host-side LAN DNS forwarder when the platform
+// needs it. The forwarder is the Linux rootless-pasta workaround: there the
+// lerd-dns container cannot bind the host LAN address, so a forwarder bridges
+// lanIP:5300 → 127.0.0.1:5300. On macOS lerd-dns is a host dnsmasq that already
+// binds all interfaces (including lanIP), so installing a forwarder would
+// double-bind lanIP:5300 and crash lerd-dns; there this is a no-op.
+func ensureLANForwarder(lanIP string, emit func(string)) error {
+	if lerdDNSBindsLANPort {
+		if emit != nil {
+			emit("lerd-dns binds the LAN address directly; no forwarder needed")
+		}
+		return nil
+	}
+	return installLANForwarderFn(lanIP, emit)
+}
+
+// installAndStartForwarder runs the preflight, installs the lerd-dns-forwarder
+// unit, and starts it. Default implementation behind installLANForwarderFn.
+func installAndStartForwarder(lanIP string, emit func(string)) error {
+	if err := preflightForwarderPort(lanIP, emit); err != nil {
+		return err
+	}
+	if emit != nil {
+		emit("Installing lerd-dns-forwarder.service")
+	}
+	if err := installDNSForwarderUnit(lanIP); err != nil {
+		return fmt.Errorf("installing dns forwarder: %w", err)
+	}
+	if emit != nil {
+		emit("Starting lerd-dns-forwarder")
+	}
+	if err := reloadAndRestartUnit("lerd-dns-forwarder"); err != nil {
+		return fmt.Errorf("starting dns forwarder: %w", err)
+	}
+	return nil
 }
 
 // DisableLANExposure flips lerd back to the safe loopback default. Inverts
@@ -231,6 +258,17 @@ var (
 		s, _ := services.Mgr.UnitStatus("lerd-dns-forwarder")
 		return s
 	}
+	// lerdDNSBindsLANPort is true on platforms where the main lerd-dns daemon
+	// binds lanIP:5300 itself (macOS host dnsmasq) instead of via the separate
+	// lerd-dns-forwarder (the Linux rootless-pasta workaround). On such
+	// platforms LAN exposure must NOT install the forwarder: it would
+	// double-bind lanIP:5300 and crash lerd-dns. Seam so both models are
+	// testable from any build host.
+	lerdDNSBindsLANPort = runtime.GOOS == "darwin"
+	// installLANForwarderFn installs and starts the host-side LAN DNS
+	// forwarder. Seam so the macOS skip can be asserted without touching real
+	// units.
+	installLANForwarderFn = installAndStartForwarder
 	forwarderPortFreeFn   = forwarderPortFree
 	forwarderPortHolderFn = forwarderPortHolderLsof
 )

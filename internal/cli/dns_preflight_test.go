@@ -104,6 +104,60 @@ func TestPreflightForwarderPort_PortInUseSurfacesHolder(t *testing.T) {
 	}
 }
 
+func TestEnsureLANForwarder_DarwinSkipsForwarderInstall(t *testing.T) {
+	// macOS model: lerd-dns binds the LAN address directly, so installing the
+	// forwarder would double-bind lanIP:5300 and crash lerd-dns. It must be
+	// skipped entirely.
+	prevBinds := lerdDNSBindsLANPort
+	prevInstall := installLANForwarderFn
+	t.Cleanup(func() {
+		lerdDNSBindsLANPort = prevBinds
+		installLANForwarderFn = prevInstall
+	})
+
+	lerdDNSBindsLANPort = true
+	installLANForwarderFn = func(string, func(string)) error {
+		t.Error("forwarder must not be installed when lerd-dns binds the LAN port directly")
+		return nil
+	}
+
+	var events []string
+	if err := ensureLANForwarder("192.168.1.10", func(s string) { events = append(events, s) }); err != nil {
+		t.Errorf("ensureLANForwarder should be a no-op on the macOS model, got %v", err)
+	}
+	if len(events) == 0 || !strings.Contains(events[0], "no forwarder needed") {
+		t.Errorf("expected a progress line explaining the skip, got %v", events)
+	}
+}
+
+func TestEnsureLANForwarder_NonDarwinInstallsForwarder(t *testing.T) {
+	// Linux model: lerd-dns can't bind the host LAN port, so the forwarder is
+	// required and must be installed.
+	prevBinds := lerdDNSBindsLANPort
+	prevInstall := installLANForwarderFn
+	t.Cleanup(func() {
+		lerdDNSBindsLANPort = prevBinds
+		installLANForwarderFn = prevInstall
+	})
+
+	lerdDNSBindsLANPort = false
+	called := false
+	installLANForwarderFn = func(lanIP string, _ func(string)) error {
+		called = true
+		if lanIP != "192.168.1.10" {
+			t.Errorf("forwarder installed with wrong lanIP %q", lanIP)
+		}
+		return nil
+	}
+
+	if err := ensureLANForwarder("192.168.1.10", nil); err != nil {
+		t.Errorf("ensureLANForwarder should install the forwarder on the Linux model, got %v", err)
+	}
+	if !called {
+		t.Error("expected the forwarder to be installed on the Linux model")
+	}
+}
+
 func TestForwarderPortFree_DetectsBoundUDP(t *testing.T) {
 	conn, err := net.ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
