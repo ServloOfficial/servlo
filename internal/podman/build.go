@@ -299,6 +299,23 @@ func baseContainerfileHash() (string, error) {
 	return fmt.Sprintf("%x", sum)[:12], nil
 }
 
+// basePullArgs builds the `podman pull` args for a base image ref. The
+// --policy=always flag is podman 5.0+ only (older podman rejects it with
+// "unknown flag: --policy"), so withPolicy gates it; without the flag a plain
+// pull still fetches the hash-pinned tag. authFile is the anonymous authfile
+// path, omitted when empty. Extracted so the version-gated flag has test cover.
+func basePullArgs(ref, authFile string, withPolicy bool) []string {
+	args := []string{"pull"}
+	if withPolicy {
+		args = append(args, "--policy=always")
+	}
+	args = append(args, PlatformPullArgs(ref)...)
+	if authFile != "" {
+		args = append(args, "--authfile="+authFile)
+	}
+	return append(args, ref)
+}
+
 // tryPullBaseImage attempts to pull the pre-built base image from ghcr.io.
 // Returns the image reference on success, or "" if unavailable.
 func tryPullBaseImage(version string, w io.Writer) string {
@@ -314,31 +331,53 @@ func tryPullBaseImage(version string, w io.Writer) string {
 	// expired or mismatched credentials would otherwise cause a 401 for this
 	// public image and force a slow local build.
 	tmpAuth, err := os.CreateTemp("", "lerd-auth-*.json")
+	authFile := ""
 	if err == nil {
 		tmpAuth.WriteString("{}")
 		tmpAuth.Close()
+		authFile = tmpAuth.Name()
 		defer os.Remove(tmpAuth.Name())
 	}
 
+	// --policy=always (podman 5.0+) re-pulls a republished base on rebuild; on
+	// older podman it's an unknown flag that would fail the pull, so gate it.
+	withPolicy := supportsPullPolicy()
+
 	// Try each registry in order (old org first, new org fallback) so a binary
 	// keeps pulling across the org move without a rebuild.
+	var lastErr string
 	for _, ref := range origin.BaseImageRefs(short, hash) {
-		args := []string{"pull", "--policy=always"}
-		args = append(args, PlatformPullArgs(ref)...)
-		if tmpAuth != nil {
-			args = append(args, "--authfile="+tmpAuth.Name())
-		}
-		args = append(args, ref)
-
-		cmd := exec.Command(PodmanBin(), args...)
+		cmd := exec.Command(PodmanBin(), basePullArgs(ref, authFile, withPolicy)...)
 		cmd.Stdout = w
-		cmd.Stderr = io.Discard
+		// Capture stderr instead of discarding it: a swallowed pull failure
+		// (an unknown flag, a 404, a network or storage error) used to surface
+		// only as a confusing full local build with no reason given.
+		var stderr strings.Builder
+		cmd.Stderr = &stderr
 		if err := cmd.Run(); err == nil {
 			origin.NoteFetched(ref)
 			return ref
+		} else if s := strings.TrimSpace(stderr.String()); s != "" {
+			lastErr = lastLine(s)
 		}
 	}
-	fmt.Fprintf(w, "  Pre-built image unavailable, falling back to local build (may take a few minutes)...\n")
+	if lastErr != "" {
+		fmt.Fprintf(w, "  Pre-built image unavailable (%s), falling back to local build (may take a few minutes)...\n", lastErr)
+	} else {
+		fmt.Fprintf(w, "  Pre-built image unavailable, falling back to local build (may take a few minutes)...\n")
+	}
+	return ""
+}
+
+// lastLine returns the last non-empty line of s, the most useful part of a
+// podman error (the trailing "Error: ..." rather than progress noise).
+func lastLine(s string) string {
+	lines := strings.Split(s, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if t := strings.TrimSpace(lines[i]); t != "" {
+			return t
+		}
+	}
 	return ""
 }
 

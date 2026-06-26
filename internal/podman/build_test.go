@@ -4,11 +4,43 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/geodro/lerd/internal/config"
 )
+
+func TestBasePullArgs(t *testing.T) {
+	ref := "ghcr.io/geodro/lerd-php85-fpm-base:abc123def456"
+
+	withPolicy := basePullArgs(ref, "/tmp/auth.json", true)
+	if withPolicy[0] != "pull" {
+		t.Errorf("first arg must be pull, got %v", withPolicy)
+	}
+	if !slices.Contains(withPolicy, "--policy=always") {
+		t.Errorf("withPolicy=true must include --policy=always, got %v", withPolicy)
+	}
+	if !slices.Contains(withPolicy, "--authfile=/tmp/auth.json") {
+		t.Errorf("must include the authfile, got %v", withPolicy)
+	}
+	if withPolicy[len(withPolicy)-1] != ref {
+		t.Errorf("ref must be the last arg, got %v", withPolicy)
+	}
+
+	// podman < 5.0 rejects --policy with "unknown flag", so it must be omitted.
+	noPolicy := basePullArgs(ref, "/tmp/auth.json", false)
+	if slices.Contains(noPolicy, "--policy=always") {
+		t.Errorf("withPolicy=false must omit --policy, got %v", noPolicy)
+	}
+
+	noAuth := basePullArgs(ref, "", true)
+	for _, a := range noAuth {
+		if strings.HasPrefix(a, "--authfile=") {
+			t.Errorf("empty authFile must omit --authfile, got %v", noAuth)
+		}
+	}
+}
 
 func TestBuildCustomExtBlock_Empty(t *testing.T) {
 	if got := buildCustomExtBlock(nil, nil); got != "" {
