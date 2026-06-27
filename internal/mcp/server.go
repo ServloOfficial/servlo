@@ -2437,7 +2437,12 @@ func execSiteLink(args map[string]any) (any, *rpcError) {
 	// proceeds, while an unapproved command in this non-interactive context is
 	// refused with guidance rather than run blindly.
 	if proj != nil && proj.Proxy != nil && proj.Proxy.Port > 0 {
-		out, err := runIn(projectPath, "lerd", "link", name)
+		// No positional name: a positional is treated by runLink as an explicit
+		// primary domain to prepend, which would register the directory-derived
+		// name alongside the .lerd.yaml domains (and SyncProjectDomains would then
+		// persist the spurious entry). Plain `lerd link` honors proj.Domains
+		// verbatim, matching the container and PHP branches above.
+		out, err := runIn(projectPath, "lerd", "link")
 		if err != nil {
 			msg := strings.TrimSpace(out)
 			if msg == "" {
