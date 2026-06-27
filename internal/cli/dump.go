@@ -208,7 +208,7 @@ func runDumpTail(site, branch, ctxKind string) error {
 
 	conn, err := dialUnixHTTP(ctx)
 	if err != nil {
-		return fmt.Errorf("lerd-ui not reachable on %s: %w", config.UISocketPath(), err)
+		return fmt.Errorf("lerd-ui not reachable on %s: %w", config.UIClientAddr(), err)
 	}
 	defer conn.Close()
 
@@ -304,7 +304,7 @@ func fetchStatus() (*statusResponse, error) {
 // body without a transport layer that buffers internally.
 func dialUnixHTTP(ctx context.Context) (net.Conn, error) {
 	d := net.Dialer{Timeout: 2 * time.Second}
-	return d.DialContext(ctx, "unix", config.UISocketPath())
+	return d.DialContext(ctx, config.UIClientNetwork(), config.UIClientAddr())
 }
 
 func unixHTTPClient() *http.Client {
@@ -312,7 +312,7 @@ func unixHTTPClient() *http.Client {
 		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				return (&net.Dialer{Timeout: 2 * time.Second}).DialContext(ctx, "unix", config.UISocketPath())
+				return (&net.Dialer{Timeout: 2 * time.Second}).DialContext(ctx, config.UIClientNetwork(), config.UIClientAddr())
 			},
 		},
 	}
