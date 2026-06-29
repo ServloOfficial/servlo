@@ -369,7 +369,12 @@ func bootPlaywrightServer(ctx context.Context, container, cwd string) (bool, str
 	browsersEnv := "PLAYWRIGHT_BROWSERS_PATH=" + pestBrowserCachePath
 	cmd := podman.CmdContext(ctx, "exec", "-w", cwd, "--env", browsersEnv, container,
 		"sh", "-c", playwrightServerBootCmd)
-	return watchPlaywrightBoot(ctx, cmd)
+	ok, out := watchPlaywrightBoot(ctx, cmd)
+	// Killing the podman exec client does not reap the run-server it spawned
+	// inside the container. Stop it explicitly; the --port 0 command line is
+	// unique to this probe, so a real test run's server is never matched.
+	_ = podman.Cmd("exec", container, "pkill", "-f", playwrightServerBootCmd).Run()
+	return ok, out
 }
 
 // watchPlaywrightBoot starts cmd and waits for the ready marker, returning true
