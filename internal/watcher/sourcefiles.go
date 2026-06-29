@@ -71,9 +71,15 @@ func WatchSourceFiles(getTargets func() []SourceTarget, debounce time.Duration, 
 			}
 			mu.Lock()
 			_, already := dirKey[p]
+			wasSkipped := skipped[p]
 			mu.Unlock()
 			if already {
 				return nil
+			}
+			// Already known oversized on a prior pass: skip without re-reading its
+			// (potentially 150k-entry) tree, so rescans stay off it entirely.
+			if wasSkipped {
+				return filepath.SkipDir
 			}
 			entries, derr := os.ReadDir(p)
 			if derr != nil {
@@ -84,11 +90,12 @@ func WatchSourceFiles(getTargets func() []SourceTarget, debounce time.Duration, 
 			// pile up. Log once per dir so 30s rescans don't spam.
 			if len(entries) > maxSourceDirEntries {
 				mu.Lock()
-				if !skipped[p] {
-					skipped[p] = true
+				firstTime := !skipped[p]
+				skipped[p] = true
+				mu.Unlock()
+				if firstTime {
 					logger.Warn("source watcher: skipping oversized dir (assets, not source)", "path", p, "entries", len(entries))
 				}
-				mu.Unlock()
 				return filepath.SkipDir
 			}
 			files := 0
