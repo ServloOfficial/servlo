@@ -41,11 +41,12 @@ Actions: `list` (discover sites — CALL FIRST), `link`, `unlink`, `domain_add`,
 - `park` registers a parent dir and auto-registers every PHP project under it; `unpark` reverses it (project files kept)
 
 #### `service` — built-in & custom services
-Actions: `start`, `stop`, `restart`, `pin`, `unpin`, `update`, `rollback`, `migrate`, `remove`, `reinstall`, `add`, `expose`, `env`, `config_read`, `config_write`, `config_restore`, `config_reset`, `config_list_backups`, `preset_list`, `preset_install`, `check_updates`.
+Actions: `start`, `stop`, `restart`, `pin`, `unpin`, `update`, `rollback`, `migrate`, `remove`, `reinstall`, `add`, `expose`, `port`, `env`, `config_read`, `config_write`, `config_restore`, `config_reset`, `config_list_backups`, `preset_list`, `preset_install`, `check_updates`.
 - `update` pulls a newer image (safe, in-strategy); `migrate` dumps + restores across a cross-strategy upgrade; `reinstall` with `reset_data: true` wipes data and reprovisions; `remove` with `remove_data: true` renames the data dir aside
 - `stop` marks the service paused — `lerd start` skips it until started again; `pin` keeps it always running
 - `add` registers a custom OCI service (`depends_on` wires dependencies, `init: true` for mysql/mariadb); prefer `preset_install` for anything in `preset_list` (phpmyadmin, pgadmin, mongo, mongo-express, selenium, stripe-mock, mysql, mariadb…)
-- `env` returns the recommended `.env` connection keys; `expose` publishes an extra port
+- `env` returns the recommended `.env` connection keys; `expose` publishes an extra `host:container` port
+- `port` moves the service's primary published host port (`published_port`, or `reset: true` for the default); it stays bound to 127.0.0.1, the container-internal port is unchanged, and a host-proxy site that points at the old port is realigned automatically
 - `config_*` read/write/restore/reset a service's runtime tuning override
 
 #### `db` — databases
@@ -83,10 +84,12 @@ Actions: `artisan` (Laravel), `console` (other frameworks), `composer`, `vendor_
 - `artisan`/`console`/`composer` take `args` (array); tinker must use `--execute=<code>` for non-interactive use
 - `vendor_run` is the right way to run project tooling (pest, phpunit, pint, phpstan, rector) — call `vendor_bins` first to discover what's installed, then `vendor_run` with `bin` + `args`; prefer it over `composer exec`
 - `commands_*`/`command_*` list, run, add and remove the on-demand commands in a site's `.lerd.yaml` `commands:` block; `commands_run` needs `force: true` for confirm-gated commands
+- **composer over git SSH (CLI-only)**: when `composer` needs a private repo reachable only over SSH, `lerd auth ssh` starts a shared ssh-agent container and loads the host's `~/.ssh/id_*` (or named keys) so passphrase-protected keys work in the FPM container; `lerd auth ssh --list` shows loaded keys, `--remove` flushes them. Keys live only in agent memory and clear on machine restart
 
 #### `framework` — framework definitions & scaffolding
-Actions: `list`, `add`, `remove`, `search`, `install`, `project_new`, `setup`.
+Actions: `list`, `add`, `remove`, `prune`, `search`, `install`, `project_new`, `setup`.
 - `add` with `name: "laravel"` merges custom workers/setup into the built-in framework
+- `remove` refuses to drop a definition a linked site still uses (pass `force: true` to override); `prune` removes every framework definition no site uses
 - `search`/`install` use the community store (install auto-detects version from `composer.lock`)
 - `project_new` scaffolds a new project (requires absolute `path`, default framework laravel); follow with `site` `link` + `env` `setup`
 - `setup` runs the framework's post-install steps (migrations, storage:link…) — MANDATORY after `env setup` on new/cloned projects; idempotent
@@ -100,6 +103,7 @@ Actions: `status`, `doctor`, `site_doctor`, `which`, `check`, `dns_diagnose`, `b
 - debug bridge loop: `dumps_toggle` (enable) → `dumps_clear` → hit the page → `analyze_queries` (N+1 / slow-query report with file:line) or `dumps_recent` (filter by site/branch/ctx/kind/since/limit)
 - `profiler_*` toggle the global SPX profiler and surface the flame-graph UI; `xdebug_*` control Xdebug on port 9003 (`mode` defaults to debug)
 - `bug_report` writes an anonymised diagnostic report for a GitHub issue
+- **disk cleanup (CLI-only)**: `lerd cleanup` reclaims podman disk from orphaned lerd images (`--dry-run` to preview, `--deep` for the aggressive tier); a daily safe-tier sweep plus post-rebuild/service-change reaping runs automatically, toggled with `lerd cleanup auto on|off|status`
 
 #### `logs` — read logs from any source, filtered
 Actions: `sources`, `fetch`. Debug without opening files by hand.
