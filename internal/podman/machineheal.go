@@ -29,10 +29,13 @@ var (
 // stall it heals once (cooldown-guarded) and re-probes, turning a post-sleep
 // freeze into a self-healed retry or a fast error instead of an unbounded hang.
 func EnsureMachineResponsive() error {
+	if MachineHeal == nil {
+		return nil // no machine VM to stall or heal (Linux, tests): skip the probe
+	}
 	if machineResponds() {
 		return nil
 	}
-	if MachineHeal == nil || !healOnceWithinCooldown() {
+	if !healOnceWithinCooldown() {
 		return fmt.Errorf("podman machine is not responding (try: lerd start)")
 	}
 	if machineResponds() {
@@ -45,9 +48,6 @@ func EnsureMachineResponsive() error {
 // returning whether a heal actually ran. Guards against stop-start loops when
 // the machine stays dead across successive calls.
 func healOnceWithinCooldown() bool {
-	if MachineHeal == nil {
-		return false
-	}
 	healMu.Lock()
 	if !lastHealAt.IsZero() && time.Since(lastHealAt) < healCooldown {
 		healMu.Unlock()

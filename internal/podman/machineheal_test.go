@@ -106,12 +106,16 @@ func TestEnsureMachineResponsiveCooldownBlocksSecondHeal(t *testing.T) {
 	}
 }
 
-func TestEnsureMachineResponsiveNoHealHookErrors(t *testing.T) {
+func TestEnsureMachineResponsiveNoHealHookIsNoop(t *testing.T) {
 	resetHealState(t)
-	execCommandContext = fakeExecContextExit(func() int { return 1 })
-	MachineHeal = nil
+	probed := 0
+	execCommandContext = fakeExecContextExit(func() int { probed++; return 1 })
+	MachineHeal = nil // Linux: no machine VM
 
-	if err := EnsureMachineResponsive(); err == nil {
-		t.Fatal("no heal hook (Linux): want error, got nil")
+	if err := EnsureMachineResponsive(); err != nil {
+		t.Fatalf("no heal hook (Linux): want nil no-op, got %v", err)
+	}
+	if probed != 0 {
+		t.Errorf("no heal hook must skip the probe, probed %d times", probed)
 	}
 }
