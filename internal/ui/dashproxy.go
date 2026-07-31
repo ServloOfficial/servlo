@@ -259,9 +259,9 @@ func resolveDashboardURL(svc *config.CustomService, services map[string]config.S
 }
 
 // handleDashProxy serves a bundled service dashboard same-origin under
-// /_svc/<name>/. Loopback-only, since it forwards into a local admin UI.
+// /_svc/<name>/. It requires dashboard-control authority.
 func handleDashProxy(w http.ResponseWriter, r *http.Request) {
-	if !isLoopbackRequest(r) {
+	if !hasHostActionAuthority(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}

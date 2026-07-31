@@ -222,14 +222,14 @@ func writeSSEEvent(w http.ResponseWriter, flusher http.Flusher, ev dumps.Event) 
 	flusher.Flush()
 }
 
-// handleDumpsClear empties the receiver's ring. Restricted to loopback so a
-// LAN client can't wipe a developer's working buffer.
+// handleDumpsClear empties the receiver's ring. It requires dashboard-control
+// authority because it deletes the developer's working buffer.
 func handleDumpsClear(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !isLoopbackRequest(r) {
+	if !hasHostActionAuthority(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -241,14 +241,14 @@ func handleDumpsClear(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleDumpsPassthrough flips Dumps.Passthrough by delegating to
-// dumpsops.SetPassthrough. Loopback-only because this restarts every
-// installed FPM container — same trust boundary as the toggle.
+// dumpsops.SetPassthrough. It requires dashboard-control authority because it
+// restarts every installed FPM container.
 func handleDumpsPassthrough(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !isLoopbackRequest(r) {
+	if !hasHostActionAuthority(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -276,7 +276,7 @@ func handleDumpsNotifyChanged(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !isLoopbackRequest(r) {
+	if !hasHostActionAuthority(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -285,14 +285,13 @@ func handleDumpsNotifyChanged(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleDumpsToggle flips Dumps.Enabled by delegating to dumpsops.Apply,
-// then returns the post-state JSON. Loopback-only so LAN clients can't
-// toggle capture state without authorization.
+// then returns the post-state JSON. It requires dashboard-control authority.
 func handleDumpsToggle(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !isLoopbackRequest(r) {
+	if !hasHostActionAuthority(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}

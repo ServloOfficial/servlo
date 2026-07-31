@@ -82,14 +82,38 @@ lerd lan:expose
 
 This single command:
 
-- Rewrites the `lerd-nginx` quadlet so its `PublishPort=` bindings drop the `127.0.0.1:` prefix (port 80 / 443 become reachable from other devices on the LAN). **Service containers stay on `127.0.0.1` in both modes**; Laravel apps reach them through the internal podman bridge using container DNS names (`DB_HOST=lerd-mysql`, etc.), so there's no reason to expose mysql/postgres/redis/meilisearch/rustfs/mailpit ports to the network. If you need TablePlus or another tool from a second machine, use SSH port forwarding instead.
+- Rewrites `lerd-nginx` so ports 80 and 443 become reachable from other
+  devices. Managed databases, caches, and mail services remain loopback-only
+  unless you explicitly enable their LAN access.
 - Restarts `lerd-nginx` so the new bind takes effect.
 - Updates the dnsmasq config so `.test` queries return the server's auto-detected LAN IP instead of `127.0.0.1`, and starts the userspace `lerd-dns-forwarder.service` that bridges `LAN-IP:5300` to `127.0.0.1:5300` (rootless pasta cannot accept LAN-side traffic on its own).
 - Persists `lan.exposed: true` in `~/.config/lerd/config.yaml` so reboots and reinstalls restore the exposed state.
 
 Reverse with `lerd lan:unexpose` (also revokes any outstanding remote-setup code). Inspect the current state with `lerd lan:status`.
 
-You can do the same thing from the dashboard: in **Lerd settings > LAN exposure**, click **Expose to LAN** and watch the per-step progress stream live.
+#### Optional: expose managed services
+
+On a trusted development network, you can allow remote database clients and
+other tools to connect directly to Lerd-managed services:
+
+```bash
+lerd lan:services on
+```
+
+This setting is off by default and persists independently of `lan:expose`.
+When both settings are on, Lerd publishes every installed managed service on
+its configured host port. New services inherit the setting automatically.
+Port changes are reapplied, stopped services have no endpoint, and inactive
+services remain stopped. Use `lerd lan:services status` to inspect the setting
+or `lerd lan:services off` to return all managed services to loopback.
+
+This option exposes databases and caches without adding authentication. Limit
+their ports with the host firewall and use it only on a trusted network.
+
+The same controls are available on the dashboard **System** tab. Use **LAN
+exposure** for sites and DNS, and **Managed service LAN access** for databases,
+caches, mail, and custom services. The terminal UI exposes both settings in its
+Settings and System views.
 
 The dashboard at port 7073 is gated independently. By default it returns 403 to LAN clients even when `lan:expose` is on; set HTTP Basic auth credentials with `lerd remote-control on` (or via the **Remote dashboard access** card in the dashboard) to grant LAN access. The two switches are independent: you can have sites LAN-reachable without exposing the dashboard, or vice versa.
 
@@ -306,7 +330,23 @@ lerd remote-control on   # 2. set the Basic auth credentials
 # Remote dashboard access enabled.
 ```
 
-The password is bcrypt-hashed (default cost) and stored in `~/.config/lerd/config.yaml`. From this point on, loopback bypasses everything; LAN requests must present HTTP Basic auth. Re-running `lerd remote-control on` rotates the password.
+The password is bcrypt-hashed (default cost) and stored in `~/.config/lerd/config.yaml`. From this point on, loopback bypasses everything; LAN requests must present HTTP Basic auth. Actions run on the host that runs Lerd. Re-running `lerd remote-control on` rotates the password.
+
+### Host actions stay local by default
+
+An authenticated remote session drives the dashboard, but the actions that reach the host itself are held back: reading a site's raw `.env` (app key, database credentials, tokens), browsing the filesystem, linking arbitrary paths as sites, dropping or exporting databases, opening a terminal, replacing tooling on the host's PATH, and shutting lerd down. A remote client asking for one of those gets 403 even with valid credentials, and the dashboard hides the controls that map to them.
+
+Opt in when you want the full thing from another device:
+
+```bash
+lerd remote-control full-access on     # allow host actions remotely
+lerd remote-control full-access status # on, off, or enabled-but-inert
+lerd remote-control full-access off    # back to local-only
+```
+
+The same switch lives in the dashboard's **Remote dashboard access** card, as **Host actions from remote sessions**. Either way it can only be changed from the machine running lerd, so a remote session can never widen its own authority. `lerd remote-control off` clears it along with the credentials.
+
+Turning it on means the dashboard password is the only thing between the LAN and your files, secrets and shell, so treat it the way you would an SSH key: trusted networks only, and rotate the password with `lerd remote-control on` if it has ever been shared.
 
 Disable either flag at any time:
 
@@ -325,7 +365,26 @@ Once the dashboard is exposed and credentials are set, the **Remote dashboard ac
 
 ## Security caveats
 
-- **Coffee shop wifi: leave `lan:expose` off.** That's the default and it binds nginx to `127.0.0.1` only, so sites are invisible to other devices on the network. Service containers (mysql, postgres, redis, mailpit, etc.) are *always* loopback-only regardless of `lan:expose`, so even with the LAN flag on, your dev databases are not network-reachable. Only run `lerd lan:expose` on networks you trust.
+- **Coffee shop wifi: leave `lan:expose` off.** That is the default, and it
+  keeps sites and managed services invisible to other devices. Managed service
+  ports remain loopback-only during normal LAN exposure unless you explicitly
+  run `lerd lan:services on`. Only enable either setting on a trusted network.
+- **Managed service LAN access can publish unauthenticated databases and caches.**
+  MySQL, Redis, and similar development services may use weak or empty
+  credentials. Restrict their ports with the host firewall before running
+  `lerd lan:services on`.
+- **A reverse proxy in front of the dashboard does not inherit local trust.**
+  Tailscale Serve, Caddy or nginx relaying a remote browser connect from
+  127.0.0.1, which would otherwise look local. lerd treats a loopback request
+  carrying `X-Forwarded-For`, `X-Forwarded-Host`, `X-Real-IP` or `Forwarded` as
+  remote, so it still faces the LAN gate and Basic auth. A browser on the
+  machine itself is unaffected, including one reaching lerd by the machine's
+  own hostname. A proxy configured to strip those headers would appear local,
+  so terminate it in front of the auth you want, not behind it.
+- **`lerd remote-control full-access on` puts your host behind one password.**
+  Host actions are local-only by default for this reason. With the opt-in on,
+  anyone who guesses or obtains the dashboard password can read every site's
+  `.env`, browse the filesystem and run commands on the machine.
 - **`lerd lan:expose` makes your dnsmasq an open recursive resolver for anyone on the LAN.** Lock down with firewall rules to your subnet, not 0.0.0.0/0.
 - **The mkcert root CA has authority over any HTTPS site on the trusting machine.** Only install the CA on devices you own. Treat the private key (which never leaves the server) as a high-value secret.
 - **The `/api/remote-setup` endpoint hands out the public CA to anyone who can pass the source-IP and code checks.** Don't share active codes.

@@ -155,21 +155,18 @@ type GlobalConfig struct {
 		Upstream []string `yaml:"upstream,omitempty" mapstructure:"upstream"`
 	} `yaml:"dns" mapstructure:"dns"`
 	LAN struct {
-		// Exposed controls whether lerd's services are reachable from
-		// other devices on the local network. When false (the default,
-		// safe-on-coffee-shop-wifi state) every container PublishPort is
-		// rewritten to bind 127.0.0.1, lerd-ui binds 127.0.0.1:7073, and
-		// the lerd-dns-forwarder is stopped. When true, container ports
-		// bind 0.0.0.0, lerd-ui binds 0.0.0.0:7073, dnsmasq is rewritten
-		// to answer .test queries with the host's LAN IP, and the
-		// userspace lerd-dns-forwarder runs to bridge LAN-IP:5300 to the
-		// loopback-only DNS container.
+		// Exposed controls whether lerd sites are reachable from other devices
+		// on the local network. When false (the safe default), container ports
+		// and lerd-ui bind to loopback and the DNS forwarder is stopped. When
+		// true, nginx, DNS, and the dashboard bind to the LAN.
 		//
-		// Toggled via `lerd lan:expose on/off`. The previous standalone
-		// `dns:expose` flag was folded in here because there is no
-		// meaningful state where the DNS resolver answers the LAN but
-		// the actual services don't.
-		Exposed bool `yaml:"exposed,omitempty" mapstructure:"exposed"`
+		// ServicesExposed separately controls host access to lerd-managed
+		// databases, caches, and other services. It has no effect unless
+		// Exposed is also true. Keeping this opt-in separate preserves the safe
+		// default while allowing trusted development machines to publish
+		// services without per-port configuration.
+		Exposed         bool `yaml:"exposed,omitempty"          mapstructure:"exposed"`
+		ServicesExposed bool `yaml:"services_exposed,omitempty" mapstructure:"services_exposed"`
 	} `yaml:"lan,omitempty" mapstructure:"lan"`
 	Autostart struct {
 		// Disabled controls whether lerd boots itself at login. The
@@ -198,6 +195,17 @@ type GlobalConfig struct {
 		// (127.0.0.1, ::1) always bypasses both checks.
 		Username     string `yaml:"username,omitempty" mapstructure:"username"`
 		PasswordHash string `yaml:"password_hash,omitempty" mapstructure:"password_hash"`
+
+		// RemoteFullAccess opts authenticated remote sessions into the host
+		// actions that are otherwise reserved for the local dashboard: raw
+		// .env reads, filesystem browsing, database drops, terminals and
+		// command execution. Off by default, so a leaked or guessed password
+		// alone never reaches them. It widens which routes an authenticated
+		// session may use; it never substitutes for authentication.
+		//
+		// Toggled via `lerd remote-control full-access on/off`, which only
+		// the local dashboard or a local shell can do.
+		RemoteFullAccess bool `yaml:"remote_full_access,omitempty" mapstructure:"remote_full_access"`
 	} `yaml:"ui,omitempty" mapstructure:"ui"`
 	Workers struct {
 		// ExecMode controls how framework workers (queue, schedule, horizon,

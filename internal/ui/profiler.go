@@ -20,7 +20,7 @@ func handleProfilerToggle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !isLoopbackRequest(r) {
+	if !hasHostActionAuthority(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -57,14 +57,14 @@ func buildProfilerStatusJSON() []byte {
 	return b
 }
 
-// handleProfilerClear deletes every captured SPX report. Loopback-only: it
-// removes files from the shared profiler data directory.
+// handleProfilerClear deletes every captured SPX report. It requires
+// dashboard-control authority because it removes files from the host.
 func handleProfilerClear(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !isLoopbackRequest(r) {
+	if !hasHostActionAuthority(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}

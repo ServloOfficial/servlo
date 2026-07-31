@@ -7,8 +7,8 @@ import (
 	"github.com/geodro/lerd/internal/sitedoctor"
 )
 
-// doctorRoute handles the doctor subroutes for a site. Loopback-only: checks and
-// fixes exec in the site's container, the same trust level as the command runner.
+// doctorRoute handles the doctor subroutes for a site. It requires
+// dashboard-control authority because checks and fixes execute in containers.
 // Returns true when it owns the request. The check logic itself lives in
 // internal/sitedoctor so the TUI and CLI share it.
 //
@@ -18,7 +18,7 @@ func doctorRoute(w http.ResponseWriter, r *http.Request, domain string, rest []s
 	if len(rest) == 0 || rest[0] != "doctor" {
 		return false
 	}
-	if !isLoopbackRequest(r) {
+	if !hasHostActionAuthority(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return true
 	}
