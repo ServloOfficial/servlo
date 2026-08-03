@@ -20,7 +20,7 @@ It is **not** multi-tenant hosting. There are no per-client Linux users, no root
 
 Inherited from upstream and kept. Almost every mistake an agent makes here violates one of these.
 
-1. **Store-first, never hardcode.** Frameworks, services and apps are versioned YAML in the `servlo/frameworks`, `servlo/services` and `servlo/apps` stores. A new framework's deploy template, worker set, env wiring, doctor checks or exclude list is a YAML change, not a Go change. Copy the closest existing YAML; those files are the schema of record.
+1. **Store-first, never hardcode.** Frameworks, services and apps are versioned YAML in the `stores/frameworks/`, `stores/services/` and `stores/apps/` stores in this repository. A new framework's deploy template, worker set, env wiring, doctor checks or exclude list is a YAML change, not a Go change. Copy the closest existing YAML; those files are the schema of record.
 2. **Framework-agnostic.** No Go code may know the name "Laravel" (or WordPress, or any framework). If you find yourself branching on a framework name in Go, the logic belongs in the store as declarative data. This includes deploy scripts, cron behaviour and WordPress's exclude list — all declared in YAML.
 3. **Env belongs to sites, not workers.** All environment variables live in the site's `.env`. Workers never declare env vars. Services inject host/port/credentials into the site `.env` via the framework's `env.services` mapping.
 
@@ -103,7 +103,7 @@ internal/
   podman/            Quadlet generation, container lifecycle
   nginx/ certs/      site serving, vhost generation, ACME issuance & renewal
   services/ serviceops/  service-preset engine + operations
-  store/ registry/   fetch + verify the servlo/frameworks, servlo/services, servlo/apps stores
+  store/ registry/   fetch + verify the stores/frameworks, stores/services, stores/apps stores
   siteops/ siteinfo/ site creation (folder/zip/git/app), domains, aliases, redirects
   deploy/            git pull + deploy script runner, pre-deploy DB backup, redeploy-previous
   worker*/           queue/schedule/horizon/custom workers, self-heal, cron timers
@@ -112,20 +112,26 @@ internal/
   authz/             sessions, CSRF, TOTP, roles, permission registry, audit log
   ui/web/            Svelte panel (built + //go:embed'd into the binary)
 pkg/distro/          Ubuntu detection + refusal for everything else
-docs/                docs site published to servlo.sh
+docs/                VitePress docs site (docs/.vitepress/); root mkdocs.yml is stale, deleted in S0.1
 tests/installer/     bats tests for install.sh
 ```
 
+**The tree above is the target, after S0.1. It is not what you will find today.** The repository is still the lerd checkout: the entrypoints are `cmd/lerd` and `cmd/lerd-tray`, the module path is `github.com/geodro/lerd`, and roughly 1300 files under `internal/` contain the string "lerd". Read the tree above as where things are going, and the paths you actually see as where they are.
+
 Config: `~/.config/servlo/`. Data: `~/.local/share/servlo/`. systemd units are prefixed `servlo-`. Never install to `/usr/local/bin`; the binary goes to `~/.local/bin/servlo`.
 
-The web UI is Svelte under `internal/ui/web/`, built to `dist/` and embedded via `//go:embed`. `make build` builds the UI first; `make build-server` is the CGO-free production target.
+The web UI is Svelte under `internal/ui/web/`, built to `dist/` and embedded via `//go:embed`. `make build` builds the UI first.
+
+**Two commands this file relies on do not exist yet.** `make build-server`, the CGO-free production target, is built in S0.2, and `make surface-scan` is built as the standing gate during Phase 0. The Makefile currently offers `build`, `build-ui`, `build-tray`, `test`, `test-ui`, `test-installer`, `test-all`, `install`, `release` and `release-snapshot`. Until those two targets land, report them as missing rather than passing.
 
 ---
 
 ## 5. The contribution lifecycle — follow every step, in order
 
 ### Step 0 — An issue exists first
-Frame it as future work. One issue per unit of work. Never create GitHub issues, comments or PRs without explicit approval — draft the text, show it, wait.
+Recommended while the project is one person, required again the moment a second joins. Frame it as future work, one issue per unit of work. What does **not** relax: never create GitHub issues, comments or PRs without explicit approval, and never push without being asked. Draft the text, show it, wait.
+
+Sessions here have no `gh` CLI. GitHub goes through the MCP tools.
 
 ### Step 1 — Understand before you build
 Read the surrounding package and the closest existing example. Match its naming, comment density and idioms. Decide which layer the change belongs to using §2 and §3. If it is store data, you are editing YAML, not Go. If the story is in `STORY.md`, its acceptance criteria are the spec.
@@ -148,9 +154,11 @@ go vet ./...                           # vet
 test -z "$(gofmt -l .)"                # format
 make test-ui                           # Vitest, if UI changed
 bats tests/installer/installer.bats    # if install.sh changed
-make surface-scan                      # deleted-feature + permission audit
+make surface-scan                      # deleted-feature + permission audit (once it exists)
 ```
 Then install the local build on a **real Ubuntu 24.04 droplet or VM** and drive the change by hand. Tests do not catch runtime-surface bugs. Never rely on CI alone for anything with a runtime surface.
+
+A browser session has no droplet, so the smoke test cannot run there. That is a reason to say which steps were skipped, never a reason to call a change verified. Say plainly what ran and what did not.
 
 ### Step 6 — Commit only when asked
 No automatic commit, push, or PR. Wait for an explicit go-ahead, and pause at phase boundaries of a staged change so a human can smoke-test in the browser first.

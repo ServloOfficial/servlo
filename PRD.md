@@ -22,11 +22,23 @@ Concrete identity strings, used consistently everywhere:
 | Data directory | `~/.local/share/servlo/` |
 | Panel service | `servlo-panel` |
 | Watcher service | `servlo-watcher` |
-| GitHub organisation | `servlo` (owner to register) |
-| Docs / site domain | `servlo.sh` preferred, `servlo.com` defensively (owner to register) |
-| Store mirrors | `servlo/frameworks`, `servlo/services`, `servlo/apps` |
+| Repository | `realrashid/servlo`, private, single operator |
+| Go module path | `github.com/realrashid/servlo` (currently `github.com/geodro/lerd`; changed in S0.1) |
+| Stores | `stores/frameworks/`, `stores/services/`, `stores/apps/` inside this repository |
+
+Everything above is settled and safe to write into code.
+
+**Not settled, and not to be referenced anywhere until it exists.** The `servlo` GitHub organisation is unregistered, and so are `servlo.sh` and `servlo.com`. They remain the preferred destination, and if the organisation is registered later the module path and store locations move with it, but until then no constant, fetch URL, unit file, installer string or documentation page may name them. Write `realrashid/servlo` instead.
 
 The upstream MIT copyright notice is retained in `LICENSE`; the README states plainly that Servlo is a fork of Lerd and links upstream.
+
+### Inherited from upstream, deliberately not yet replaced
+
+Two upstream dependencies survive the fork on purpose, and both are tracked as debt rather than architecture.
+
+The PHP container images come from `lerd-env/lerd-php` on GHCR, referenced from ten places in Go. They are public and MIT, Servlo consumes them unchanged through Phases 0 and 1, and they are mirrored into an owned namespace before v1 ships.
+
+The framework and service stores are still fetched from the public `lerd-env/frameworks` and `lerd-env/services`. Servlo's own stores are authored in this repository under `stores/`, but a private repository cannot serve `raw.githubusercontent.com` fetches to an installed binary without a token, so the runtime fetch cannot move to them until either a public store mirror exists or this repository becomes public. S0.8 owns that decision.
 
 ---
 
@@ -87,7 +99,7 @@ Each of these is either a code-execution path, an information-disclosure path, o
 
 ### 4.3 Changed
 
-Certificates move from mkcert to ACME · nginx binds real 80/443 · sites are added from a ZIP, a GitHub repository, an existing folder or an app installer rather than by pointing at a local directory · databases become connections that may be local or managed · PHP defaults become production defaults · authentication becomes a real login with roles · the framework and service stores are mirrored under the `servlo` organisation rather than fetched from a third party
+Certificates move from mkcert to ACME · nginx binds real 80/443 · sites are added from a ZIP, a GitHub repository, an existing folder or an app installer rather than by pointing at a local directory · databases become connections that may be local or managed · PHP defaults become production defaults · authentication becomes a real login with roles · the framework and service stores move into this repository under `stores/` rather than being fetched from a third party
 
 ---
 
@@ -108,7 +120,7 @@ Four ways to create a site, all from the dashboard:
 - **Clone from GitHub.** Servlo generates an SSH deploy key, shows it for pasting into the repository's deploy keys, verifies the connection, then clones. This removes the most common friction point in server deployment.
 - **Upload a ZIP.** Uploaded, extracted, document root detected.
 - **Point at an existing folder** already on the server.
-- **Install an app.** A fresh WordPress in one click, with the database created, `wp-config.php` written and the admin account set up. WordPress ships at launch; further apps are YAML files in the `servlo/apps` store, needing no code release.
+- **Install an app.** A fresh WordPress in one click, with the database created, `wp-config.php` written and the admin account set up. WordPress ships at launch; further apps are YAML files in the `stores/apps/` store, needing no code release.
 
 In every case Servlo asks for the domain, PHP version and framework (auto-detected), creates the directory, generates the vhost and registers the site. The **Get SSL** button appears immediately with its DNS check already running.
 
@@ -177,6 +189,8 @@ phpMyAdmin is installed automatically alongside MySQL or MariaDB, pgAdmin alongs
 ### 5.10 Services
 
 Redis, Meilisearch, OpenSearch, Beanstalkd and the rest of the preset store, installed and started from the dashboard, with connection values injected into the site `.env` automatically. Inherited from Lerd; production hardening means services bind to the container network only and never publish to the public interface, with strong generated passwords.
+
+**Servlo's default stack is mysql, postgres, redis, meilisearch and rustfs.** Upstream ships Mailpit in that set; Servlo does not, because Mailpit is deleted (§4.2) and there is no mail server in this product at all. Everything outside the default stack is a preset in the service store rather than something the binary carries.
 
 ### 5.11 Workers and cron
 
@@ -260,7 +274,7 @@ This is the same model most single-operator panels ship, and it is a reasonable 
 ## 7. Non-functional requirements
 
 - **Security.** No permanent root process. Dangerous capabilities default-deny. A CI surface scan fails the build if any deleted dev feature reappears or any API route lacks a declared permission.
-- **Supply chain.** The framework, service and app stores are mirrored under the `servlo` organisation, versions pinned, manifests signed and verified before use. Upstream fetches YAML that runs commands and container images; on a production server that must not be a third party's decision.
+- **Supply chain.** The framework, service and app stores are authored in this repository under `stores/`, versions pinned, manifests signed and verified before use. Upstream fetches YAML that runs commands and container images; on a production server that must not be a third party's decision. The runtime fetch still points at the public upstream stores until the private-repository fetch problem in §0 is resolved, which is the single largest outstanding gap in this requirement and is owned by S0.8.
 - **Reliability.** Everything survives reboot through enabled systemd units plus linger. A CI job reboots a VM and asserts every site, service and worker returns unaided.
 - **Footprint.** A 2 GB droplet should comfortably run five to ten small PHP sites across one or two PHP versions with MySQL and Redis. The sizing model is published, and Servlo warns before a heavy asset build on a small server.
 - **Performance.** Deploy overhead under 10 seconds excluding `composer install` and the asset build. The panel adds nothing to the request path.
@@ -274,7 +288,7 @@ This is the same model most single-operator panels ship, and it is a reasonable 
 |---|---|---|
 | One compromised site reads every other site's credentials | High | Documented in §6; per-site database users in v1; per-site FPM pool as later hardening |
 | Upstream's API is effectively remote code execution by design (REPL, shell, arbitrary container install) | High | Deleted, not gated; CI surface scan fails the build if any returns |
-| Third-party stores execute code and container images on production servers | High | Self-hosted mirrors under `servlo`, pinning, signature verification, reviewed promotion |
+| Third-party stores execute code and container images on production servers | High | Stores authored in this repository under `stores/`, pinning, signature verification, reviewed promotion |
 | The file manager makes it easy to break a live site | Medium | Explicit live-site warning, full audit trail, permission-gated |
 | Certificate renewal fails silently and a client site goes dark | Medium | Loud failure by design: banner, audit entry, email; never serve expired |
 | An asset build OOM-kills MySQL on a small droplet | Medium | Swap at install, memory-capped build scope, pre-build warning on small servers |

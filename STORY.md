@@ -18,11 +18,12 @@ Companion to `PRD.md` v1.1. Sizes: **S** ≤ 1 day, **M** ≤ 3 days, **L** ≤ 
 *Goal: a clean, minimal, Ubuntu-only Servlo binary with nothing dangerous left in it.*
 
 **S0.1 — Rename to Servlo.**
-Binary `servlo`; systemd unit prefix `servlo-` (`servlo-nginx`, `servlo-php84-fpm`, `servlo-panel`, `servlo-watcher`, `servlo-queue-<site>`); config at `~/.config/servlo/`; data at `~/.local/share/servlo/`; docs reference `servlo.sh`.
+Binary `servlo`; systemd unit prefix `servlo-` (`servlo-nginx`, `servlo-php84-fpm`, `servlo-panel`, `servlo-watcher`, `servlo-queue-<site>`); config at `~/.config/servlo/`; data at `~/.local/share/servlo/`; the Go module path becomes `github.com/realrashid/servlo`; the stale root `mkdocs.yml` is deleted, the docs site is VitePress under `docs/`.
 *Done when:* no "lerd" string appears in user-facing output, unit names, paths or docs; the upstream MIT copyright notice is retained in `LICENSE`; the README states the fork relationship and links upstream. **M**
 
 **S0.2 — Server-only build.**
-*Done when:* `make build-server` produces a CGO-free `servlo` binary; system tray, desktop notifications, macOS and WSL2 code are excluded by build tag; amd64 and arm64 both build. **S**
+*Done when:* `make build-server` produces a CGO-free `servlo` binary; `cmd/lerd-tray` is **deleted outright**, along with desktop notifications and every macOS and WSL2 code path, and the `nogui` build tag goes with them; amd64 and arm64 both build.
+Deleted, not build-tagged. A tray excluded by a tag is still in the tree and still one tag away from shipping, which is exactly what CLAUDE.md 3.1 forbids and what the surface scan asserts against. **S**
 
 **S0.3 — Ubuntu-only platform gate.**
 *Done when:* distro detection collapses to Ubuntu; the installer refuses other distributions, and refuses Ubuntu 22.04 when Podman is below 4.5 while printing the upgrade path rather than half-installing. **M**
@@ -40,8 +41,9 @@ Tinker REPL, container shell, SPX profiler, dump bridge, Xdebug toggles, browser
 **S0.7 — Reject inline service definitions from the project config file.**
 *Done when:* a project declaring an inline service is linked without it and the operator is told why; only reviewed store presets can run a container. **S**
 
-**S0.8 — Self-host the stores under the `servlo` organisation.**
-*Done when:* `servlo/frameworks`, `servlo/services` and `servlo/apps` mirrors exist; versions are pinned in config; manifest signatures are verified before use; the promotion process is documented. **L**
+**S0.8 — Bring the stores in-repo, and solve serving them.**
+*Done when:* `stores/frameworks/`, `stores/services/` and `stores/apps/` exist in this repository, mirroring upstream's subdir layout so `internal/origin/origin.go` needs only new base URLs; versions are pinned in config; manifest signatures are verified before use; the promotion process is documented.
+**Blocked on a decision, and the story is not done until it is made.** An installed binary on a droplet fetches stores over `raw.githubusercontent.com`, which returns 404 for a private repository unless the request carries a token. So authoring the stores here does not by itself make them reachable. The two exits are a separate public store repository, or this repository becoming public. Until one is chosen, the runtime fetch stays pointed at the public `lerd-env/frameworks` and `lerd-env/services`, and that fallback must be visible in config rather than silent. **L**
 
 **S0.9 — CI on Ubuntu 24.04.**
 *Done when:* build, unit tests, installer tests and the surface scan all run on a real 24.04 VM rather than a container. **M**
@@ -264,7 +266,7 @@ Tinker REPL, container shell, SPX profiler, dump bridge, Xdebug toggles, browser
 **S20.1 — Staging sites:** own database, own certificate, `noindex` headers and password protection. **XL**
 **S20.2 — Refresh staging from live:** copy live files and database across on demand. **L**
 **S20.3 — Import an existing live site:** files plus a `.sql` dump, with the vhost and settings generated. **L**
-**S20.4 — More apps in the `servlo/apps` store,** each as YAML with no code release. **M**
+**S20.4 — More apps in the `stores/apps/` store,** each as YAML with no code release. **M**
 
 **Later, only if real use demands it:** atomic releases with true rollback · per-site Linux user isolation · Prometheus metrics · managing more than one server from a single panel
 
