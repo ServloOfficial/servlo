@@ -1,6 +1,6 @@
 # Configuration
 
-## Global config: `~/.config/lerd/config.yaml`
+## Global config: `~/.config/servlo/config.yaml`
 
 Created automatically on first run with sensible defaults:
 
@@ -9,35 +9,35 @@ php:
   default_version: "8.5"
 node:
   default_version: "22"
-  managed: true           # optional. Whether lerd manages Node (install/use/default
+  managed: true           # optional. Whether servlo manages Node (install/use/default
                           # via the active manager). With fnm that includes PATH
                           # shims; with nvm the user's shell keeps owning
                           # node/npm/npx. Written by the install prompt and by
-                          # lerd node:manage / node:unmanage; honoured on lerd
+                          # servlo node:manage / node:unmanage; honoured on servlo
                           # update so an opt-out is not undone. Omitted on
                           # configs predating it, which fall back to whether a
                           # node shim is on disk.
-  manager: fnm            # optional. Which version manager lerd drives: "fnm"
+  manager: fnm            # optional. Which version manager servlo drives: "fnm"
                           # (the bundled default) or "nvm" (a user-installed nvm,
                           # picked automatically when you decline managed Node and
                           # nvm is present). Switchable from the dashboard's Node
                           # page; switching to fnm downloads it on demand if an
                           # nvm-only install skipped it. Empty means fnm.
   nvm_dir: ~/.nvm         # optional. Where nvm lives when manager is nvm.
-                          # Written at install/switch so lerd-ui and the watcher
+                          # Written at install/switch so servlo-ui and the watcher
                           # (which never load your shell rc) find a custom
                           # $NVM_DIR. Empty falls back to $NVM_DIR or ~/.nvm.
 shims:
-  path_disabled: false    # optional. Set true (or run lerd path:disable) to keep
-                          # lerd's shims dir (~/.local/share/lerd/bin with php,
+  path_disabled: false    # optional. Set true (or run servlo path:disable) to keep
+                          # servlo's shims dir (~/.local/share/servlo/bin with php,
                           # composer, node…) off your shell PATH, for typing
-                          # `lerd php` explicitly instead. Honoured by install
-                          # and update, so the rc entry is not re-added. lerd's
+                          # `servlo php` explicitly instead. Honoured by install
+                          # and update, so the rc entry is not re-added. servlo's
                           # own commands and workers are unaffected.
 share:
-  default_tool: cloudflare  # optional. Tunnel tool lerd share uses when no tool
+  default_tool: cloudflare  # optional. Tunnel tool servlo share uses when no tool
                             # flag is given: ngrok, cloudflare, expose, serveo or
-                            # localhost-run. Written by lerd share:tool; omitted
+                            # localhost-run. Written by servlo share:tool; omitted
                             # (the default) means auto-detect.
 nginx:
   http_port: 80
@@ -47,10 +47,10 @@ nginx:
                         # fastcgi_read_timeout/fastcgi_send_timeout for PHP-FPM
                         # sites and proxy_read_timeout/proxy_send_timeout for
                         # proxy and custom-container sites. A project's
-                        # .lerd.yaml request_timeout overrides it per site.
+                        # .servlo.yaml request_timeout overrides it per site.
 dns:
-  enabled: true          # whether lerd manages DNS (dnsmasq, .test, HTTPS). Asked
-                         # once at first install, then flipped with lerd dns:enable
+  enabled: true          # whether servlo manages DNS (dnsmasq, .test, HTTPS). Asked
+                         # once at first install, then flipped with servlo dns:enable
                          # / dns:disable, never re-prompted. dns:repair re-runs the
                          # setup to fix a broken but enabled resolver.
   tld: "test"
@@ -63,23 +63,23 @@ dns:
                          # allowed (e.g. 192.168.100.129#5353).
 host_proxy:
   disabled: false         # set true to refuse setting up or starting any
-                          # host-proxy dev server (lerd never supervises a
+                          # host-proxy dev server (servlo never supervises a
                           # process on the host). Default false.
   skip_confirmation: false # set true to link a host-proxy project without the
                           # "start this command on your host?" confirmation.
                           # Default false so a command from a cloned repo is
                           # never run unconfirmed. See usage/host-proxy.md.
-auto_cleanup: true      # when true (default), lerd reclaims its own orphaned
-                        # podman images on its own: the lerd-watcher runs a safe
+auto_cleanup: true      # when true (default), servlo reclaims its own orphaned
+                        # podman images on its own: the servlo-watcher runs a safe
                         # daily sweep, and a PHP rebuild or a service update/remove
                         # reclaims the image it just superseded. Only ever removes
-                        # lerd's own images (old PHP build and base images,
+                        # servlo's own images (old PHP build and base images,
                         # superseded service versions), never data volumes or
-                        # images in use. Toggle with `lerd cleanup auto on/off`
-                        # (or set this key); `lerd cleanup` still works on demand
+                        # images in use. Toggle with `servlo cleanup auto on/off`
+                        # (or set this key); `servlo cleanup` still works on demand
                         # when off. See reference/commands.md.
 parked_directories:
-  - ~/Lerd
+  - ~/Servlo
 services:
   mysql:       { enabled: true,  image: "docker.io/library/mysql:8.4",             port: 3306 }
   redis:       { enabled: true,  image: "docker.io/library/redis:7-alpine",        port: 6379 }
@@ -88,7 +88,7 @@ services:
   rustfs:      { enabled: false, image: "docker.io/rustfs/rustfs:latest",          port: 9000 }
   mailpit:     { enabled: false, image: "docker.io/axllent/mailpit:latest",        port: 1025 }
 dumps:
-  enabled: false        # toggle via `lerd dump on/off` (or the antenna button in the
+  enabled: false        # toggle via `servlo dump on/off` (or the antenna button in the
                         # dashboard). The bridge file and its conf.d ini are always
                         # mounted into every PHP-FPM container; this flag controls a
                         # runtime sentinel that the bridge stats on each request.
@@ -98,34 +98,34 @@ dumps:
                         # response via Symfony's stock VarDumper handler. Default off so
                         # responses stay clean. Read at PHP-FPM startup, so changing it
                         # requires restarting the FPM container for the value to take
-                        # effect (`systemctl --user restart lerd-php<ver>-fpm` or
-                        # `lerd restart`).
+                        # effect (`systemctl --user restart servlo-php<ver>-fpm` or
+                        # `servlo restart`).
 php:
-  extensions: [mongodb] # custom PHP extensions (`lerd php:ext`). One declared set,
-                        # applied to every PHP image lerd builds: extensions belong
+  extensions: [mongodb] # custom PHP extensions (`servlo php:ext`). One declared set,
+                        # applied to every PHP image servlo builds: extensions belong
                         # to you, not to a version, so a site that changes version
                         # keeps them.
-  packages: [chromium]  # extra Alpine packages (`lerd php:pkg`), same model.
+  packages: [chromium]  # extra Alpine packages (`servlo php:pkg`), same model.
   ext_apk_deps:         # extra Alpine packages required at build time by
-                        # `lerd php:ext add <ext> --apk-deps <pkgs>` invocations.
+                        # `servlo php:ext add <ext> --apk-deps <pkgs>` invocations.
                         # Keyed by extension name (build deps don't vary by PHP
                         # version), value is a list of apk package names, e.g.
                         # `gd: [libwebp-dev, libpng-dev]`. The PHP-FPM
                         # Containerfile reads this block on rebuild so the extra
                         # build deps reattach to the layer automatically.
   realised:             # what each version's image actually loaded, verified
-                        # after its build. Managed by lerd, not hand-edited.
+                        # after its build. Managed by servlo, not hand-edited.
     "7.4":              # the declared set can't always be honoured (mongodb needs
-      packages: []      # 8.1+; the 7.4/8.0 images are Alpine 3.16), so lerd records
+      packages: []      # 8.1+; the 7.4/8.0 images are Alpine 3.16), so servlo records
       extensions: []    # the truth per version and never advertises what an image
                         # does not have.
 ```
 
 ---
 
-## Per-project config: `.lerd.yaml`
+## Per-project config: `.servlo.yaml`
 
-A portable, self-contained description of a project's local environment. Created by `lerd init` or written manually, committed to the repository, and applied automatically by `lerd link` and `lerd init`.
+A portable, self-contained description of a project's local environment. Created by `servlo init` or written manually, committed to the repository, and applied automatically by `servlo link` and `servlo init`.
 
 ### Fields
 
@@ -140,14 +140,14 @@ A portable, self-contained description of a project's local environment. Created
 | `secured` | When `true`, HTTPS is enabled on apply |
 | `domains` | Site hostnames without the TLD (e.g. `[myapp, api]`). The first entry is the primary; additional entries become aliases. Conflict-filtered domains stay in this list on disk but are not registered. A hostname may not contain whitespace, a slash, or nginx punctuation (`{`, `}`, `;`, `#`), since it is written into the generated vhost's `server_name` |
 | `app_url` | Override for `APP_URL` (or the framework's URL key) written to `.env`. Highest priority, it beats the per-machine `sites.yaml` override and the default `<scheme>://<primary-domain>` generator. Use for custom path prefixes, ports, or unrelated hostnames you want shared across machines |
-| `env_overrides` | Map of env var names to templated or static values applied to `.env` on `lerd setup` and to per-worktree `.env` files when worktrees are created. Values may use <code v-pre>{{domain}}</code>, <code v-pre>{{scheme}}</code>, <code v-pre>{{site}}</code>, <code v-pre>{{branch}}</code>, and <code v-pre>{{parent}}</code> placeholders, or be plain strings. When `APP_URL` is in `env_overrides` it takes precedence over the default rewrite; declared keys override defaults, undeclared defaults still apply. The one exception is `DB_DATABASE` on a worktree whose `db_isolated` is true: the isolation flow owns that key and the watcher won't re-render it from the parent's template until isolation is turned back off. See [Env overrides](./features/git-worktrees.md#env-overrides) |
+| `env_overrides` | Map of env var names to templated or static values applied to `.env` on `servlo setup` and to per-worktree `.env` files when worktrees are created. Values may use <code v-pre>{{domain}}</code>, <code v-pre>{{scheme}}</code>, <code v-pre>{{site}}</code>, <code v-pre>{{branch}}</code>, and <code v-pre>{{parent}}</code> placeholders, or be plain strings. When `APP_URL` is in `env_overrides` it takes precedence over the default rewrite; declared keys override defaults, undeclared defaults still apply. The one exception is `DB_DATABASE` on a worktree whose `db_isolated` is true: the isolation flow owns that key and the watcher won't re-render it from the parent's template until isolation is turned back off. See Env overrides |
 | `services` | Services to start on apply. Accepts built-in names, custom service names, or full inline definitions |
-| `workers` | Active worker names for the site (e.g. `queue`, `horizon`, `schedule`, `reverb`, `stripe`). Automatically kept in sync by start/stop commands. Used by `lerd start` to restore workers after reinstall |
-| `container` | Custom container config for non-PHP sites. When present, lerd builds a dedicated container from the project's Containerfile and nginx reverse-proxies to it. See below and [Custom Containers](./usage/custom-containers.md) |
+| `workers` | Active worker names for the site (e.g. `queue`, `horizon`, `schedule`, `reverb`, `stripe`). Automatically kept in sync by start/stop commands. Used by `servlo start` to restore workers after reinstall |
+| `container` | Custom container config for non-PHP sites. When present, servlo builds a dedicated container from the project's Containerfile and nginx reverse-proxies to it. See below and Custom Containers |
 | `custom_workers` | Custom worker definitions (name to config map). Works for both PHP and custom container sites. See below |
 | `db` | Database targeting for non-PHP projects: `service` (e.g. `mysql`, `postgres`) and `database` name |
-| `stripe` | Optional Stripe webhook listener config: `path` (forward route, defaults to `/stripe/webhook`) and `secret_env_key` (which `.env` key holds the secret, defaults to auto-detection). See [Stripe](./usage/stripe.md) |
-| `mcp_inject` | Set `false` to opt the project out of automatic AI/MCP config refresh. `lerd update`/`install` then never rewrites this project's committed MCP config or skill files. An explicit `lerd mcp:inject` still writes. See [MCP](./features/mcp.md#project-scoped-registration) |
+| `stripe` | Optional Stripe webhook listener config: `path` (forward route, defaults to `/stripe/webhook`) and `secret_env_key` (which `.env` key holds the secret, defaults to auto-detection). See Stripe |
+| `mcp_inject` | Set `false` to opt the project out of automatic AI/MCP config refresh. `servlo update`/`install` then never rewrites this project's committed MCP config or skill files. An explicit `servlo mcp:inject` still writes. See MCP |
 
 ### Basic example
 
@@ -170,7 +170,7 @@ framework: laravel
 public_dir: public_html
 ```
 
-On `lerd link` this value becomes the site's document root in the generated nginx vhost; it takes precedence over the framework's default. No need to define a full `framework_def` just to change the doc root.
+On `servlo link` this value becomes the site's document root in the generated nginx vhost; it takes precedence over the framework's default. No need to define a full `framework_def` just to change the doc root.
 
 ### Custom container example
 
@@ -181,7 +181,7 @@ domains:
   - nestapp
 container:
   port: 3000
-  containerfile: Containerfile.lerd
+  containerfile: Containerfile.servlo
 services:
   - mysql
   - redis
@@ -192,7 +192,7 @@ custom_workers:
     restart: always
 ```
 
-Every field of a worker becomes a line of the systemd unit lerd generates, so none of them may contain a newline or a NUL. A worker whose `label`, `command`, `restart` or `schedule` carries one is refused with the offending field named, rather than written out as a unit. `.lerd.yaml` is committed and travels with a checkout, so a cloned project cannot use a worker definition to add directives to a unit on your machine.
+Every field of a worker becomes a line of the systemd unit servlo generates, so none of them may contain a newline or a NUL. A worker whose `label`, `command`, `restart` or `schedule` carries one is refused with the offending field named, rather than written out as a unit. `.servlo.yaml` is committed and travels with a checkout, so a cloned project cannot use a worker definition to add directives to a unit on your machine.
 
 When `container` is present, `php_version`, `framework`, and `node_version` are ignored.
 
@@ -201,10 +201,10 @@ When `container` is present, `php_version`, `framework`, and `node_version` are 
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `port` | yes | | Port the app listens on inside the container |
-| `containerfile` | no | `Containerfile.lerd` | Path to the Containerfile (relative to project root) |
+| `containerfile` | no | `Containerfile.servlo` | Path to the Containerfile (relative to project root) |
 | `build_context` | no | `.` | Build context directory (relative to project root) |
 
-See [Custom Containers](./usage/custom-containers.md) for the full guide.
+See Custom Containers for the full guide.
 
 ### Custom workers
 
@@ -233,18 +233,18 @@ custom_workers:
 | `schedule` | no | | systemd OnCalendar expression for timer-based workers (e.g. `minutely`, `*-*-* *:00:00`) |
 | `conflicts_with` | no | | List of worker names to stop before starting this one |
 | `host` | no | `false` | Run on the host via fnm instead of inside the PHP-FPM container. Used for Node.js tools (Vite, Tailwind watcher, Encore) that need direct filesystem access for HMR |
-| `per_worktree` | no | `false` | Worker can run independently per git worktree under `lerd-<wname>-<site>-<wt>`. Required for worktree auto-start; without it, host workers stay bound to the parent site only |
-| `replaces_build` | no | `false` | While running, the worker provides the asset manifest so the static `npm run build` step is unnecessary. `lerd worktree add` skips its build prompt when an opted-in `replaces_build` worker is present |
+| `per_worktree` | no | `false` | Worker can run independently per git worktree under `servlo-<wname>-<site>-<wt>`. Required for worktree auto-start; without it, host workers stay bound to the parent site only |
+| `replaces_build` | no | `false` | While running, the worker provides the asset manifest so the static `npm run build` step is unnecessary. `servlo worktree add` skips its build prompt when an opted-in `replaces_build` worker is present |
 
 Worker definitions stay in `custom_workers` permanently. The `workers` field (a separate list of names) tracks which are currently active and is synced automatically by start/stop commands.
 
-Framework yamls (under `lerd-frameworks/frameworks/<framework>/<version>.yaml`) declare workers under a sibling `workers:` block with the same shape, so `host`, `per_worktree`, and `replaces_build` apply there too. The shipped Laravel 11 / 12 / 13 yamls use this for `vite` (`host: true`, `per_worktree: true`, `replaces_build: true`), and any custom framework can do the same to teach lerd about per-branch dev servers.
+Framework yamls (under `servlo-frameworks/frameworks/<framework>/<version>.yaml`) declare workers under a sibling `workers:` block with the same shape, so `host`, `per_worktree`, and `replaces_build` apply there too. The shipped Laravel 11 / 12 / 13 yamls use this for `vite` (`host: true`, `per_worktree: true`, `replaces_build: true`), and any custom framework can do the same to teach servlo about per-branch dev servers.
 
 ### Inline custom service definitions
 
-Custom services can be defined directly in `.lerd.yaml` instead of (or in addition to) registering them with `lerd service add`. This makes the project fully self-contained: cloning it and running `lerd link` is enough to reproduce the environment.
+Custom services can be defined directly in `.servlo.yaml` instead of (or in addition to) registering them with `servlo service add`. This makes the project fully self-contained: cloning it and running `servlo link` is enough to reproduce the environment.
 
-Because an inline service runs a container image and command that come from the project, `lerd link` shows the image, command, and ports of a not-yet-installed inline service and asks before installing it (a non-interactive or dashboard link, which is itself an explicit action, proceeds without the prompt). lerd also rejects control characters in service fields so a definition can't inject directives into the generated container unit. Only link projects you trust, the same as before running their build or dev scripts.
+Because an inline service runs a container image and command that come from the project, `servlo link` shows the image, command, and ports of a not-yet-installed inline service and asks before installing it (a non-interactive or dashboard link, which is itself an explicit action, proceeds without the prompt). servlo also rejects control characters in service fields so a definition can't inject directives into the generated container unit. Only link projects you trust, the same as before running their build or dev scripts.
 
 ```yaml
 php_version: "8.5"
@@ -263,14 +263,14 @@ services:
       data_dir: /data/db
       description: "MongoDB document store"
       env_vars:
-        - MONGO_URI=mongodb://root:secret@lerd-mongodb:27017/{{site}}
+        - MONGO_URI=mongodb://root:secret@servlo-mongodb:27017/{{site}}
       site_init:
         exec: >
           mongosh admin -u root -p secret --eval
           "db.getSiblingDB('{{site}}').createCollection('_init')"
 ```
 
-The inline definition schema is identical to a [custom service YAML file](./usage/custom-services.md#yaml-schema). On apply, the service is registered to `~/.config/lerd/services/<name>.yaml` then started.
+The inline definition schema is identical to a custom service YAML file. On apply, the service is registered to `~/.config/servlo/services/<name>.yaml` then started.
 
 If a service with that name already exists locally and the definitions differ, a diff is shown and you are asked whether to replace it:
 
@@ -278,19 +278,19 @@ If a service with that name already exists locally and the definitions differ, a
 ~ service/mongodb already exists and differs:
 
 --- service/mongodb (current)
-+++ service/mongodb (.lerd.yaml)
++++ service/mongodb (.servlo.yaml)
 @@ -1,4 +1,4 @@
  image: docker.io/library/mongo:7
 -description: MongoDB
 +description: MongoDB document store
  ...
 
-Replace service/mongodb with the version from .lerd.yaml? (y/N)
+Replace service/mongodb with the version from .servlo.yaml? (y/N)
 ```
 
 ### Custom frameworks
 
-When `lerd init` runs in a project that uses a custom framework (one added with `lerd framework add`), the full framework definition is embedded under `framework_def`. On a fresh machine the definition is restored automatically before linking, no manual `lerd framework add` step needed.
+When `servlo init` runs in a project that uses a custom framework (one added with `servlo framework add`), the full framework definition is embedded under `framework_def`. On a fresh machine the definition is restored automatically before linking, no manual `servlo framework add` step needed.
 
 ```yaml
 framework: wordpress
@@ -306,17 +306,17 @@ framework_def:
 
 If a framework with that name already exists locally and differs from the embedded definition, a diff is shown before applying.
 
-### Applying `.lerd.yaml`
+### Applying `.servlo.yaml`
 
-The config is applied whenever `lerd link` or `lerd init` runs in the project root:
+The config is applied whenever `servlo link` or `servlo init` runs in the project root:
 
-- **`lerd link`**: framework definition restored, `.node-version` written, PHP version applied, HTTPS toggled, services registered and started.
-- **`lerd init`**: installs PHP FPM if needed, then runs `lerd link` (which applies everything above). Re-runs the wizard if `--fresh` is passed.
+- **`servlo link`**: framework definition restored, `.node-version` written, PHP version applied, HTTPS toggled, services registered and started.
+- **`servlo init`**: installs PHP FPM if needed, then runs `servlo link` (which applies everything above). Re-runs the wizard if `--fresh` is passed.
 
-Commit `.lerd.yaml` to the repository. On a fresh machine, `lerd link` is sufficient to reproduce the full local environment. Lerd writes the file through a temp file and a rename so a crash or two concurrent writers can never leave it half-written, and it normalises the output (two-space indentation, `services` and `workers` sorted), so a worker starting or stopping produces a minimal, stable git diff rather than a reshuffled block.
+Commit `.servlo.yaml` to the repository. On a fresh machine, `servlo link` is sufficient to reproduce the full local environment. Servlo writes the file through a temp file and a rename so a crash or two concurrent writers can never leave it half-written, and it normalises the output (two-space indentation, `services` and `workers` sorted), so a worker starting or stopping produces a minimal, stable git diff rather than a reshuffled block.
 
-The Lerd watcher also monitors `.lerd.yaml` for changes. When you switch branches with a different config the PHP and Node versions are re-detected and applied automatically, no manual `lerd link` or `lerd init` needed. See [Automatic version switching](./features/project-setup.md#automatic-version-switching) for details.
+The Servlo watcher also monitors `.servlo.yaml` for changes. When you switch branches with a different config the PHP and Node versions are re-detected and applied automatically, no manual `servlo link` or `servlo init` needed. See [Automatic version switching](./features/project-setup.md#automatic-version-switching) for details.
 
-`lerd isolate`, the UI PHP version selector, and the MCP `site` tool's `php` action all keep `php_version` in sync when this file exists.
+`servlo isolate`, the UI PHP version selector, and the MCP `site` tool's `php` action all keep `php_version` in sync when this file exists.
 
-`lerd secure`, `lerd unsecure`, the UI HTTPS toggle, and the MCP `secure`/`unsecure` tools keep `secured` in sync when this file exists.
+`servlo secure`, `servlo unsecure`, the UI HTTPS toggle, and the MCP `secure`/`unsecure` tools keep `secured` in sync when this file exists.

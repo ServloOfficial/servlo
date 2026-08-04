@@ -8,7 +8,7 @@
   import { accessMode } from '$stores/accessMode';
   import { profilerEnabled } from '$stores/profiler';
   import { notifyPrefs } from '$lib/notify';
-  import { status, lerdStatusColor, dnsState } from '$stores/status';
+  import { status, servloStatusColor, dnsState } from '$stores/status';
   import { sitesByPhp, sitesByNode } from '$stores/sites';
   import { goToTab } from '$stores/route';
   import { m } from '../../paraglide/messages.js';
@@ -23,7 +23,7 @@
   });
 
   const headerTone = $derived.by(() => {
-    switch ($lerdStatusColor) {
+    switch ($servloStatusColor) {
       case 'green': return { tone: 'ok' as const, label: m.dashboard_health_healthy() };
       case 'yellow': return { tone: 'warn' as const, label: m.dashboard_health_attention() };
       case 'red': return { tone: 'error' as const, label: m.dashboard_health_problem() };
@@ -31,7 +31,7 @@
     }
   });
 
-  const cardTone = $derived($lerdStatusColor === 'red' ? 'critical' : 'default');
+  const cardTone = $derived($servloStatusColor === 'red' ? 'critical' : 'default');
 </script>
 
 <DashboardCard title={m.dashboard_health_title()} tone={cardTone}>
@@ -102,7 +102,7 @@
   </div>
 
   {#if $status.php_fpms.length > 0}
-    <div class="pt-2 border-t border-gray-100 dark:border-lerd-border">
+    <div class="pt-2 border-t border-gray-100 dark:border-servlo-border">
       <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">{m.dashboard_health_php()}</div>
       <div class="flex flex-wrap gap-2">
         {#each $status.php_fpms as fpm (fpm.version)}
@@ -120,7 +120,7 @@
   {/if}
 
   {#if nodeVersions.length > 0 || $status.bun_available}
-    <div class="pt-2 border-t border-gray-100 dark:border-lerd-border">
+    <div class="pt-2 border-t border-gray-100 dark:border-servlo-border">
       <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">{$status.using_system_bun ? m.dashboard_health_jsRuntime() : m.dashboard_health_node()}</div>
       <div class="flex flex-wrap gap-2">
         {#if !$status.using_system_bun}
@@ -146,7 +146,7 @@
   {/if}
 
   {#if ($status.tools ?? []).some((t) => t.present)}
-    <div class="pt-2 border-t border-gray-100 dark:border-lerd-border">
+    <div class="pt-2 border-t border-gray-100 dark:border-servlo-border">
       <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">{m.system_tools_title()}</div>
       <div class="flex flex-wrap gap-2">
         {#each ($status.tools ?? []).filter((t) => t.present) as tool (tool.name)}
@@ -167,8 +167,8 @@
 
   {#snippet footer()}
     <button
-      onclick={() => goToTab('system', 'lerd')}
-      class="text-xs font-medium text-lerd-red hover:text-lerd-redhov"
+      onclick={() => goToTab('system', 'servlo')}
+      class="text-xs font-medium text-servlo-red hover:text-servlo-redhov"
     >{m.dashboard_health_open()}</button>
   {/snippet}
 </DashboardCard>

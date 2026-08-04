@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // A self-mount whose host source has disappeared is the one line podman refuses
@@ -18,12 +18,12 @@ func TestPruneMissingVolumes(t *testing.T) {
 
 	content := strings.Join([]string{
 		"[Container]",
-		"Volume=%h/.local/share/lerd/nginx/nginx.conf:/etc/nginx/nginx.conf:ro,z",
+		"Volume=%h/.local/share/servlo/nginx/nginx.conf:/etc/nginx/nginx.conf:ro,z",
 		"Volume=%h:%h:ro",
 		"Volume=" + present + ":" + present + ":rw",
 		"Volume=" + missing + ":" + missing + ":rw",
 		"Volume=" + missing + ":/etc/nginx/custom.d:ro",
-		"Volume=lerd-ssh-agent:/ssh-agent",
+		"Volume=servlo-ssh-agent:/ssh-agent",
 		"",
 	}, "\n")
 
@@ -39,7 +39,7 @@ func TestPruneMissingVolumes(t *testing.T) {
 		"Volume=%h:%h:ro",
 		"Volume=" + present + ":" + present + ":rw",
 		"Volume=" + missing + ":/etc/nginx/custom.d:ro",
-		"Volume=lerd-ssh-agent:/ssh-agent",
+		"Volume=servlo-ssh-agent:/ssh-agent",
 	} {
 		if !strings.Contains(got, keep) {
 			t.Errorf("pruning dropped %q:\n%s", keep, got)
@@ -85,13 +85,13 @@ func TestRepairMissingMounts(t *testing.T) {
 	stale := "[Container]\nVolume=%h:%h:ro\nVolume=" + missing + ":" + missing + ":rw\n"
 	healthy := "[Container]\nVolume=%h:%h:ro\nVolume=" + site + ":" + site + ":rw\n"
 	// A user's own quadlet in the shared directory carries a stale mount too; it
-	// is not lerd's to rewrite, so the sweep must leave it exactly as found.
+	// is not servlo's to rewrite, so the sweep must leave it exactly as found.
 	foreign := "[Container]\nVolume=" + missing + ":" + missing + ":rw\n"
 	for name, content := range map[string]string{
-		"lerd-nginx.container":     stale,
-		"lerd-php85-fpm.container": stale,
-		"lerd-mysql.container":     healthy,
-		"backup.container":         foreign,
+		"servlo-nginx.container":     stale,
+		"servlo-php85-fpm.container": stale,
+		"servlo-mysql.container":     healthy,
+		"backup.container":           foreign,
 	} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
@@ -113,10 +113,10 @@ func TestRepairMissingMounts(t *testing.T) {
 			t.Errorf("repair site = %q, want erp", r.Site)
 		}
 	}
-	if !units["lerd-nginx"] || !units["lerd-php85-fpm"] {
-		t.Errorf("repaired units = %v, want lerd-nginx and lerd-php85-fpm", units)
+	if !units["servlo-nginx"] || !units["servlo-php85-fpm"] {
+		t.Errorf("repaired units = %v, want servlo-nginx and servlo-php85-fpm", units)
 	}
-	for _, name := range []string{"lerd-nginx.container", "lerd-php85-fpm.container"} {
+	for _, name := range []string{"servlo-nginx.container", "servlo-php85-fpm.container"} {
 		content, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
 			t.Fatal(err)
@@ -125,7 +125,7 @@ func TestRepairMissingMounts(t *testing.T) {
 			t.Errorf("%s still references the missing path:\n%s", name, content)
 		}
 	}
-	got, err := os.ReadFile(filepath.Join(dir, "lerd-mysql.container"))
+	got, err := os.ReadFile(filepath.Join(dir, "servlo-mysql.container"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestRepairMissingMounts_noopWhenNothingStale(t *testing.T) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "lerd-nginx.container"), []byte("[Container]\nVolume=%h:%h:ro\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "servlo-nginx.container"), []byte("[Container]\nVolume=%h:%h:ro\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

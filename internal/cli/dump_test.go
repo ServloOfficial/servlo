@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
-// withTempXDG isolates the test from the developer's real lerd state.
+// withTempXDG isolates the test from the developer's real servlo state.
 func withTempXDG(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()

@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-func TestCountSitesUsingService_LerdYAML(t *testing.T) {
+func TestCountSitesUsingService_ServloYAML(t *testing.T) {
 	setDataDir(t)
 
 	siteDir := t.TempDir()
-	lerdYAML := `services:
+	servloYAML := `services:
   - postgres
 `
-	os.WriteFile(filepath.Join(siteDir, ".lerd.yaml"), []byte(lerdYAML), 0644)
+	os.WriteFile(filepath.Join(siteDir, ".servlo.yaml"), []byte(servloYAML), 0644)
 
 	if err := AddSite(Site{
 		Name:    "goapp",
@@ -56,7 +56,7 @@ func TestCountSitesUsingService_EnvFallback(t *testing.T) {
 	setDataDir(t)
 
 	siteDir := t.TempDir()
-	os.WriteFile(filepath.Join(siteDir, ".env"), []byte("DB_HOST=lerd-mysql\n"), 0644)
+	os.WriteFile(filepath.Join(siteDir, ".env"), []byte("DB_HOST=servlo-mysql\n"), 0644)
 
 	if err := AddSite(Site{
 		Name:    "phpapp",
@@ -72,18 +72,18 @@ func TestCountSitesUsingService_EnvFallback(t *testing.T) {
 	}
 }
 
-func TestCountSitesUsingService_LerdYAMLTakesPriority(t *testing.T) {
+func TestCountSitesUsingService_ServloYAMLTakesPriority(t *testing.T) {
 	setDataDir(t)
 
 	siteDir := t.TempDir()
-	// .lerd.yaml declares postgres, .env also references lerd-mysql.
-	// The function should count the site for postgres via .lerd.yaml and
-	// NOT double-count it (goto next after .lerd.yaml match).
-	lerdYAML := `services:
+	// .servlo.yaml declares postgres, .env also references servlo-mysql.
+	// The function should count the site for postgres via .servlo.yaml and
+	// NOT double-count it (goto next after .servlo.yaml match).
+	servloYAML := `services:
   - postgres
 `
-	os.WriteFile(filepath.Join(siteDir, ".lerd.yaml"), []byte(lerdYAML), 0644)
-	os.WriteFile(filepath.Join(siteDir, ".env"), []byte("DB_HOST=lerd-postgres\n"), 0644)
+	os.WriteFile(filepath.Join(siteDir, ".servlo.yaml"), []byte(servloYAML), 0644)
+	os.WriteFile(filepath.Join(siteDir, ".env"), []byte("DB_HOST=servlo-postgres\n"), 0644)
 
 	if err := AddSite(Site{
 		Name:    "dualapp",
@@ -103,10 +103,10 @@ func TestCountSitesUsingService_IgnoredSiteSkipped(t *testing.T) {
 	setDataDir(t)
 
 	siteDir := t.TempDir()
-	lerdYAML := `services:
+	servloYAML := `services:
   - redis
 `
-	os.WriteFile(filepath.Join(siteDir, ".lerd.yaml"), []byte(lerdYAML), 0644)
+	os.WriteFile(filepath.Join(siteDir, ".servlo.yaml"), []byte(servloYAML), 0644)
 
 	if err := AddSite(Site{
 		Name:    "ignored",
@@ -127,10 +127,10 @@ func TestCountSitesUsingService_PausedSiteSkipped(t *testing.T) {
 	setDataDir(t)
 
 	siteDir := t.TempDir()
-	lerdYAML := `services:
+	servloYAML := `services:
   - redis
 `
-	os.WriteFile(filepath.Join(siteDir, ".lerd.yaml"), []byte(lerdYAML), 0644)
+	os.WriteFile(filepath.Join(siteDir, ".servlo.yaml"), []byte(servloYAML), 0644)
 
 	if err := AddSite(Site{
 		Name:    "paused",
@@ -151,19 +151,19 @@ func TestSitesUsingService_ReturnsLinkedSites(t *testing.T) {
 	setDataDir(t)
 
 	yamlSiteDir := t.TempDir()
-	os.WriteFile(filepath.Join(yamlSiteDir, ".lerd.yaml"), []byte("services:\n  - mariadb\n"), 0644)
+	os.WriteFile(filepath.Join(yamlSiteDir, ".servlo.yaml"), []byte("services:\n  - mariadb\n"), 0644)
 	if err := AddSite(Site{Name: "yaml-site", Domains: []string{"yaml.test"}, Path: yamlSiteDir}); err != nil {
 		t.Fatalf("AddSite yaml: %v", err)
 	}
 
 	envSiteDir := t.TempDir()
-	os.WriteFile(filepath.Join(envSiteDir, ".env"), []byte("DB_HOST=lerd-mariadb\n"), 0644)
+	os.WriteFile(filepath.Join(envSiteDir, ".env"), []byte("DB_HOST=servlo-mariadb\n"), 0644)
 	if err := AddSite(Site{Name: "env-site", Domains: []string{"env.test"}, Path: envSiteDir}); err != nil {
 		t.Fatalf("AddSite env: %v", err)
 	}
 
 	otherSiteDir := t.TempDir()
-	os.WriteFile(filepath.Join(otherSiteDir, ".env"), []byte("DB_HOST=lerd-postgres\n"), 0644)
+	os.WriteFile(filepath.Join(otherSiteDir, ".env"), []byte("DB_HOST=servlo-postgres\n"), 0644)
 	if err := AddSite(Site{Name: "other-site", Domains: []string{"other.test"}, Path: otherSiteDir}); err != nil {
 		t.Fatalf("AddSite other: %v", err)
 	}
@@ -188,19 +188,19 @@ func TestSitesUsingService_SkipsIgnoredAndPaused(t *testing.T) {
 	setDataDir(t)
 
 	activeDir := t.TempDir()
-	os.WriteFile(filepath.Join(activeDir, ".lerd.yaml"), []byte("services:\n  - redis\n"), 0644)
+	os.WriteFile(filepath.Join(activeDir, ".servlo.yaml"), []byte("services:\n  - redis\n"), 0644)
 	if err := AddSite(Site{Name: "active", Domains: []string{"active.test"}, Path: activeDir}); err != nil {
 		t.Fatalf("AddSite active: %v", err)
 	}
 
 	ignoredDir := t.TempDir()
-	os.WriteFile(filepath.Join(ignoredDir, ".lerd.yaml"), []byte("services:\n  - redis\n"), 0644)
+	os.WriteFile(filepath.Join(ignoredDir, ".servlo.yaml"), []byte("services:\n  - redis\n"), 0644)
 	if err := AddSite(Site{Name: "ignored", Domains: []string{"i.test"}, Path: ignoredDir, Ignored: true}); err != nil {
 		t.Fatalf("AddSite ignored: %v", err)
 	}
 
 	pausedDir := t.TempDir()
-	os.WriteFile(filepath.Join(pausedDir, ".lerd.yaml"), []byte("services:\n  - redis\n"), 0644)
+	os.WriteFile(filepath.Join(pausedDir, ".servlo.yaml"), []byte("services:\n  - redis\n"), 0644)
 	if err := AddSite(Site{Name: "paused", Domains: []string{"p.test"}, Path: pausedDir, Paused: true}); err != nil {
 		t.Fatalf("AddSite paused: %v", err)
 	}
@@ -211,12 +211,12 @@ func TestSitesUsingService_SkipsIgnoredAndPaused(t *testing.T) {
 	}
 }
 
-func TestSitesUsingService_LerdYAMLTakesPriorityOverEnv(t *testing.T) {
+func TestSitesUsingService_ServloYAMLTakesPriorityOverEnv(t *testing.T) {
 	setDataDir(t)
 
 	siteDir := t.TempDir()
-	os.WriteFile(filepath.Join(siteDir, ".lerd.yaml"), []byte("services:\n  - postgres\n"), 0644)
-	os.WriteFile(filepath.Join(siteDir, ".env"), []byte("DB_HOST=lerd-postgres\n"), 0644)
+	os.WriteFile(filepath.Join(siteDir, ".servlo.yaml"), []byte("services:\n  - postgres\n"), 0644)
+	os.WriteFile(filepath.Join(siteDir, ".env"), []byte("DB_HOST=servlo-postgres\n"), 0644)
 	if err := AddSite(Site{Name: "dual", Domains: []string{"d.test"}, Path: siteDir}); err != nil {
 		t.Fatalf("AddSite: %v", err)
 	}

@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // setDefaultPHP persists a global config whose default PHP version is v.

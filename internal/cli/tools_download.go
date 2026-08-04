@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/download"
-	"github.com/geodro/lerd/internal/tools"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/download"
+	"github.com/realrashid/servlo/internal/tools"
 )
 
 // pinnedTools resolves host-tool download URLs for the current platform,
@@ -36,7 +36,7 @@ func (p *pinnedTools) download(name, dest string, mode os.FileMode, w io.Writer)
 
 // ensureFnmBinary installs fnm into BinDir when it is missing. Called from
 // downloadBinaries on a normal (fnm) install, and on demand when switching
-// back to fnm with `lerd node:manager fnm` after an nvm-only setup.
+// back to fnm with `servlo node:manager fnm` after an nvm-only setup.
 func ensureFnmBinary(w io.Writer) error {
 	if _, err := os.Stat(filepath.Join(config.BinDir(), "fnm")); err == nil {
 		return nil

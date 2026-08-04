@@ -7,11 +7,11 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/geodro/lerd/internal/agentenv"
-	"github.com/geodro/lerd/internal/config"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/profiler"
+	"github.com/realrashid/servlo/internal/agentenv"
+	"github.com/realrashid/servlo/internal/config"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/profiler"
 )
 
 func execProfilerToggle(args map[string]any) (any, *rpcError) {
@@ -85,7 +85,7 @@ func execProfilerReport(args map[string]any) (any, *rpcError) {
 		phpVersion = cfg.PHP.DefaultVersion
 	}
 	short := strings.ReplaceAll(phpVersion, ".", "")
-	container := "lerd-php" + short + "-fpm"
+	container := "servlo-php" + short + "-fpm"
 	if errBody := ensureFPMStartedMCP(phpVersion, short, container); errBody != nil {
 		return errBody, nil
 	}

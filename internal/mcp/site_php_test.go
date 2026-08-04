@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // execSitePHP must reject an unsupported version before it writes .php-version

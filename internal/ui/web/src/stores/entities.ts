@@ -132,7 +132,7 @@ export function importEntity(
       'POST',
       apiUrl(`/api/entities/${encodeURIComponent(service)}/${encodeURIComponent(kind)}/import`)
     );
-    xhr.setRequestHeader('X-Lerd-CSRF', '1');
+    xhr.setRequestHeader('X-Servlo-CSRF', '1');
     xhr.upload.onprogress = (e) => {
       if (!onProgress || !e.lengthComputable || !e.total) return;
       onProgress({ percent: e.loaded / e.total, uploaded: e.loaded >= e.total });

@@ -5,24 +5,23 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/nginx"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/serviceops"
-	"github.com/geodro/lerd/internal/services"
-	"github.com/geodro/lerd/internal/shims"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/nginx"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/realrashid/servlo/internal/services"
+	"github.com/realrashid/servlo/internal/shims"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -57,9 +56,9 @@ func ensureImages() {
 		// On macOS there are no quadlet files, so quadletImage returns "".
 		// Derive the image name from the unit name for PHP-FPM units so that
 		// images are rebuilt after a VM reset without requiring manual intervention.
-		if image == "" && strings.HasPrefix(unit, "lerd-php") && strings.HasSuffix(unit, "-fpm") {
-			short := strings.TrimSuffix(strings.TrimPrefix(unit, "lerd-php"), "-fpm")
-			image = "lerd-php" + short + "-fpm:local"
+		if image == "" && strings.HasPrefix(unit, "servlo-php") && strings.HasSuffix(unit, "-fpm") {
+			short := strings.TrimSuffix(strings.TrimPrefix(unit, "servlo-php"), "-fpm")
+			image = "servlo-php" + short + "-fpm:local"
 		}
 
 		if image == "" || seen[image] {
@@ -73,12 +72,12 @@ func ensureImages() {
 
 		img := image
 		switch {
-		case img == "lerd-dnsmasq:local":
+		case img == "servlo-dnsmasq:local":
 			jobs = append(jobs, BuildJob{
 				Label: "Building dnsmasq",
 				Run: func(w io.Writer) error {
 					containerfile := "FROM docker.io/library/alpine:latest\nRUN apk add --no-cache dnsmasq\n"
-					cmd := podman.Cmd("build", "-t", "lerd-dnsmasq:local", "-")
+					cmd := podman.Cmd("build", "-t", "servlo-dnsmasq:local", "-")
 					cmd.Stdin = strings.NewReader(containerfile)
 					cmd.Stdout = w
 					cmd.Stderr = w
@@ -86,9 +85,9 @@ func ensureImages() {
 				},
 			})
 
-		case strings.HasPrefix(img, "lerd-php") && strings.HasSuffix(img, "-fpm:local"):
-			// Extract version from image name, e.g. lerd-php84-fpm:local → 8.4
-			short := strings.TrimSuffix(strings.TrimPrefix(img, "lerd-php"), "-fpm:local")
+		case strings.HasPrefix(img, "servlo-php") && strings.HasSuffix(img, "-fpm:local"):
+			// Extract version from image name, e.g. servlo-php84-fpm:local → 8.4
+			short := strings.TrimSuffix(strings.TrimPrefix(img, "servlo-php"), "-fpm:local")
 			ver := short[:1] + "." + short[1:]
 			v := ver
 			jobs = append(jobs, BuildJob{
@@ -99,10 +98,10 @@ func ensureImages() {
 				},
 			})
 
-		case strings.HasPrefix(img, "localhost/lerd-frankenphp") && strings.HasSuffix(img, ":local"):
+		case strings.HasPrefix(img, "localhost/servlo-frankenphp") && strings.HasSuffix(img, ":local"):
 			// Build the derived FrankenPHP image, e.g.
-			// localhost/lerd-frankenphp84:local → 8.4
-			short := strings.TrimSuffix(strings.TrimPrefix(img, "localhost/lerd-frankenphp"), ":local")
+			// localhost/servlo-frankenphp84:local → 8.4
+			short := strings.TrimSuffix(strings.TrimPrefix(img, "localhost/servlo-frankenphp"), ":local")
 			if len(short) < 2 {
 				continue // malformed tag with no version digits; skip rather than panic
 			}
@@ -112,9 +111,9 @@ func ensureImages() {
 				Run:   func(w io.Writer) error { return podman.BuildFrankenPHPImage(v, false, w) },
 			})
 
-		case strings.HasPrefix(img, "lerd-custom-") && strings.HasSuffix(img, ":local"):
+		case strings.HasPrefix(img, "servlo-custom-") && strings.HasSuffix(img, ":local"):
 			// Rebuild custom container from the site's Containerfile.
-			siteName := strings.TrimSuffix(strings.TrimPrefix(img, "lerd-custom-"), ":local")
+			siteName := strings.TrimSuffix(strings.TrimPrefix(img, "servlo-custom-"), ":local")
 			sn := siteName
 			jobs = append(jobs, BuildJob{
 				Label: "Custom: " + sn,
@@ -155,7 +154,7 @@ func ensureImages() {
 func NewStartCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
-		Short: "Start Lerd (DNS, nginx, PHP-FPM, and installed services)",
+		Short: "Start Servlo (DNS, nginx, PHP-FPM, and installed services)",
 		RunE:  runStart,
 	}
 }
@@ -164,7 +163,7 @@ func NewStartCmd() *cobra.Command {
 func NewStopCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "stop",
-		Short: "Stop Lerd containers (DNS, nginx, PHP-FPM, and running services)",
+		Short: "Stop Servlo containers (DNS, nginx, PHP-FPM, and running services)",
 		RunE:  runStop,
 	}
 }
@@ -173,7 +172,7 @@ func NewStopCmd() *cobra.Command {
 func NewQuitCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "quit",
-		Short: "Stop all Lerd processes and containers (including UI, watcher, and tray)",
+		Short: "Stop all Servlo processes and containers (including UI and watcher)",
 		RunE:  runQuit,
 	}
 }
@@ -181,7 +180,7 @@ func NewQuitCmd() *cobra.Command {
 // ensureDefaultPHPInstalled builds the FPM image and writes the unit file for
 // the configured default PHP version if it has never been installed. This
 // handles the case where the user sets a new default (e.g. 8.5) before running
-// `lerd php install`, so `lerd start` transparently installs it.
+// `servlo php install`, so `servlo start` transparently installs it.
 func ensureDefaultPHPInstalled() {
 	cfg, err := config.LoadGlobal()
 	if err != nil || cfg == nil || cfg.PHP.DefaultVersion == "" {
@@ -204,17 +203,17 @@ func ensureDefaultPHPInstalled() {
 	}
 }
 
-// coreUnits returns the container units managed by lerd start/stop.
-// Does not include lerd-ui or lerd-watcher — those are added separately in runStart.
+// coreUnits returns the container units managed by servlo start/stop.
+// Does not include servlo-panel or servlo-watcher — those are added separately in runStart.
 // The configured default PHP version is ALWAYS included so the `php`, `composer`,
 // and `laravel new` shims have a working FPM container even on a fresh install
 // with zero registered sites. Other installed versions are only started when
 // at least one site references them; unused versions are left stopped.
 func coreUnits() []string {
 	cfg, _ := config.LoadGlobal()
-	units := []string{"lerd-nginx"}
+	units := []string{"servlo-nginx"}
 	if cfg == nil || cfg.DNS.Enabled {
-		units = append([]string{"lerd-dns"}, units...)
+		units = append([]string{"servlo-dns"}, units...)
 	}
 	active := activePHPVersions()
 	if cfg != nil && cfg.PHP.DefaultVersion != "" {
@@ -226,7 +225,7 @@ func coreUnits() []string {
 			continue
 		}
 		short := strings.ReplaceAll(v, ".", "")
-		units = append(units, "lerd-php"+short+"-fpm")
+		units = append(units, "servlo-php"+short+"-fpm")
 	}
 	return units
 }
@@ -266,36 +265,36 @@ func installedCustomContainerUnits() []string {
 }
 
 // installedServiceUnits returns service units that have a unit file installed
-// and have not been manually stopped by the user. Used for lerd start.
+// and have not been manually stopped by the user. Used for servlo start.
 func installedServiceUnits() []string {
 	var units []string
 	for _, svc := range knownServices() {
-		if services.Mgr.ContainerUnitInstalled("lerd-"+svc) && !config.ServiceIsPaused(svc) {
-			units = append(units, "lerd-"+svc)
+		if services.Mgr.ContainerUnitInstalled("servlo-"+svc) && !config.ServiceIsPaused(svc) {
+			units = append(units, "servlo-"+svc)
 		}
 	}
 	customs, _ := config.ListCustomServices()
 	for _, svc := range customs {
-		if services.Mgr.ContainerUnitInstalled("lerd-"+svc.Name) && !config.ServiceIsPaused(svc.Name) {
-			units = append(units, "lerd-"+svc.Name)
+		if services.Mgr.ContainerUnitInstalled("servlo-"+svc.Name) && !config.ServiceIsPaused(svc.Name) {
+			units = append(units, "servlo-"+svc.Name)
 		}
 	}
 	return units
 }
 
 // allInstalledServiceUnits returns all service units that have a unit file
-// installed, regardless of paused state. Used for lerd stop.
+// installed, regardless of paused state. Used for servlo stop.
 func allInstalledServiceUnits() []string {
 	var units []string
 	for _, svc := range knownServices() {
-		if services.Mgr.ContainerUnitInstalled("lerd-" + svc) {
-			units = append(units, "lerd-"+svc)
+		if services.Mgr.ContainerUnitInstalled("servlo-" + svc) {
+			units = append(units, "servlo-"+svc)
 		}
 	}
 	customs, _ := config.ListCustomServices()
 	for _, svc := range customs {
-		if services.Mgr.ContainerUnitInstalled("lerd-" + svc.Name) {
-			units = append(units, "lerd-"+svc.Name)
+		if services.Mgr.ContainerUnitInstalled("servlo-" + svc.Name) {
+			units = append(units, "servlo-"+svc.Name)
 		}
 	}
 	return units
@@ -305,7 +304,7 @@ func allInstalledServiceUnits() []string {
 type PortCheck struct {
 	Port      string // host port number
 	Label     string // e.g. "nginx HTTP", "mysql"
-	Container string // lerd container name
+	Container string // servlo container name
 }
 
 // builtinExtraPorts lists secondary host ports for built-in services that are
@@ -334,7 +333,7 @@ func CollectPortChecks(units []string) []PortCheck {
 	var checks []PortCheck
 
 	// Nginx ports (configurable).
-	if unitSet["lerd-nginx"] {
+	if unitSet["servlo-nginx"] {
 		cfg, err := config.LoadGlobal()
 		httpPort := 80
 		httpsPort := 443
@@ -347,23 +346,23 @@ func CollectPortChecks(units []string) []PortCheck {
 			}
 		}
 		checks = append(checks,
-			PortCheck{strconv.Itoa(httpPort), "nginx HTTP", "lerd-nginx"},
-			PortCheck{strconv.Itoa(httpsPort), "nginx HTTPS", "lerd-nginx"},
+			PortCheck{strconv.Itoa(httpPort), "nginx HTTP", "servlo-nginx"},
+			PortCheck{strconv.Itoa(httpsPort), "nginx HTTPS", "servlo-nginx"},
 		)
 	}
 
 	// DNS port.
-	if unitSet["lerd-dns"] {
-		checks = append(checks, PortCheck{"5300", "dns", "lerd-dns"})
+	if unitSet["servlo-dns"] {
+		checks = append(checks, PortCheck{"5300", "dns", "servlo-dns"})
 	}
 
 	// Built-in services.
 	cfg, _ := config.LoadGlobal()
 	for _, svc := range knownServices() {
-		if !unitSet["lerd-"+svc] {
+		if !unitSet["servlo-"+svc] {
 			continue
 		}
-		container := "lerd-" + svc
+		container := "servlo-" + svc
 		if cfg != nil {
 			if sc, ok := cfg.Services[svc]; ok {
 				// A PublishedPort override moves the primary published port, so
@@ -388,10 +387,10 @@ func CollectPortChecks(units []string) []PortCheck {
 	// Custom services.
 	customs, _ := config.ListCustomServices()
 	for _, svc := range customs {
-		if !unitSet["lerd-"+svc.Name] {
+		if !unitSet["servlo-"+svc.Name] {
 			continue
 		}
-		container := "lerd-" + svc.Name
+		container := "servlo-" + svc.Name
 		for _, p := range svc.Ports {
 			checks = append(checks, PortCheck{hostPort(p), svc.Name, container})
 		}
@@ -400,7 +399,7 @@ func CollectPortChecks(units []string) []PortCheck {
 	return checks
 }
 
-// checkPortConflicts warns about ports already in use by non-lerd processes.
+// checkPortConflicts warns about ports already in use by non-servlo processes.
 func checkPortConflicts(units []string) {
 	checks := CollectPortChecks(units)
 	if len(checks) == 0 {
@@ -414,7 +413,7 @@ func checkPortConflicts(units []string) {
 
 	var conflicts []string
 	for _, c := range checks {
-		if isPortConflict(c, ss, podmanContainerRunning, lerdDNSAnswering) {
+		if isPortConflict(c, ss, podmanContainerRunning, servloDNSAnswering) {
 			conflicts = append(conflicts,
 				fmt.Sprintf("  WARN: port %s (%s) already in use, may fail to start (check: %s)", c.Port, c.Label, FindListenerCmd(c.Port)))
 		}
@@ -429,25 +428,25 @@ func checkPortConflicts(units []string) {
 }
 
 // isPortConflict reports whether a port check is a genuine clash with a foreign
-// process. A lerd service that already owns its port is never a conflict, in
-// three ways: a running container owns it directly; lerd-dns owns it when its
+// process. A servlo service that already owns its port is never a conflict, in
+// three ways: a running container owns it directly; servlo-dns owns it when its
 // own dnsmasq is already answering; and on macOS the podman machine's gvproxy
 // owns any published port by forwarding it into the VM.
 //
-// The dnsmasq case matters because on macOS lerd-dns runs as a launchd-managed
+// The dnsmasq case matters because on macOS servlo-dns runs as a launchd-managed
 // dnsmasq process, not a podman container, so containerRunning is always false
 // for it; without the dnsAnswering guard the still-listening dnsmasq from the
 // previous session looks like a foreign conflict and mis-fires the "port 5300
-// already in use" warning on every `lerd start`. The gvproxy case matters
-// because lerd's service containers never bind host ports directly on macOS
+// already in use" warning on every `servlo start`. The gvproxy case matters
+// because servlo's service containers never bind host ports directly on macOS
 // (no -p in their plists); host reachability comes from gvproxy forwarding into
-// the VM, so a gvproxy-held service port is lerd's own forward from a prior
+// the VM, so a gvproxy-held service port is servlo's own forward from a prior
 // session, not a foreign process. The func seams keep this pure and unit-testable.
 func isPortConflict(c PortCheck, portList string, containerRunning func(string) bool, dnsAnswering func() bool) bool {
 	if containerRunning(c.Container) {
 		return false
 	}
-	if c.Container == "lerd-dns" && dnsAnswering() {
+	if c.Container == "servlo-dns" && dnsAnswering() {
 		return false
 	}
 	if !PortInUseIn(c.Port, portList) {
@@ -458,8 +457,8 @@ func isPortConflict(c PortCheck, portList string, containerRunning func(string) 
 
 // portOwnedByMachineProxy reports whether the listener on the given port is the
 // podman machine's gvproxy. On macOS that proxy owns every published host port
-// (lerd's containers themselves carry no -p), so a gvproxy-held port is a
-// lerd/podman forward into the VM rather than a foreign blocker. On Linux there
+// (servlo's containers themselves carry no -p), so a gvproxy-held port is a
+// servlo/podman forward into the VM rather than a foreign blocker. On Linux there
 // is no gvproxy, so this never matches and the check is a harmless no-op.
 func portOwnedByMachineProxy(port, portList string) bool {
 	for _, line := range strings.Split(portList, "\n") {
@@ -477,10 +476,10 @@ func podmanContainerRunning(name string) bool {
 	return running
 }
 
-// lerdDNSAnswering reports whether lerd's own dnsmasq is currently answering for
-// the configured TLD, which means a listener on the DNS port is lerd-dns itself
+// servloDNSAnswering reports whether servlo's own dnsmasq is currently answering for
+// the configured TLD, which means a listener on the DNS port is servlo-dns itself
 // rather than a foreign process.
-func lerdDNSAnswering() bool {
+func servloDNSAnswering() bool {
 	cfg, _ := config.LoadGlobal()
 	tld := "test"
 	if cfg != nil && cfg.DNS.TLD != "" {
@@ -490,7 +489,7 @@ func lerdDNSAnswering() bool {
 }
 
 func runStart(_ *cobra.Command, _ []string) error {
-	// Clear the intentional-stop marker up front: we're bringing lerd up, so the
+	// Clear the intentional-stop marker up front: we're bringing servlo up, so the
 	// worker health watcher should resume reporting real drift once units are back.
 	_ = config.ClearStopped()
 
@@ -508,7 +507,7 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// Where network-online.target never activates (Fedora Silverblue and other
 	// atomic images) that unit only ever times out, so each container start,
 	// and the boot itself, stalls for 90s. Override it before starting anything.
-	if applied, err := lerdSystemd.EnsureNoNetworkWaitStall(); err != nil {
+	if applied, err := servloSystemd.EnsureNoNetworkWaitStall(); err != nil {
 		fmt.Printf("  WARN: skip podman network-online wait: %v\n", err)
 	} else if applied {
 		fmt.Println("  Skipping podman's network-online wait (this host never reaches that target)")
@@ -518,26 +517,26 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// containers. A major-version or backend change since the last run
 	// reshuffles rootless storage/networking and otherwise surfaces as the
 	// cryptic "rootless netns" container start failure (#635). No-op unless
-	// drift is detected. The heal force-removes the lerd containers; the start
+	// drift is detected. The heal force-removes the servlo containers; the start
 	// sequence below brings them back up, so the returned list is not needed
 	// here.
 	containerDNS := dns.ReadContainerDNS()
 	_ = healPodmanUpgrade(containerDNS)
 
-	// Ensure the lerd bridge network exists. On macOS the network is stored
+	// Ensure the servlo bridge network exists. On macOS the network is stored
 	// inside the Podman Machine VM; it may be absent after a fresh machine
-	// init or if it was pruned. All service containers use --network lerd so
+	// init or if it was pruned. All service containers use --network servlo so
 	// this must succeed before any container is started.
-	if err := podman.EnsureNetwork("lerd", containerDNS); err != nil {
+	if err := podman.EnsureNetwork("servlo", containerDNS); err != nil {
 		if errors.Is(err, podman.ErrNetworkNeedsMigration) {
-			fmt.Println("  WARN: lerd network schema doesn't match host IPv6 support; run 'lerd install' to recreate")
+			fmt.Println("  WARN: servlo network schema doesn't match host IPv6 support; run 'servlo install' to recreate")
 		} else {
-			fmt.Printf("  WARN: ensure lerd network: %v\n", err)
+			fmt.Printf("  WARN: ensure servlo network: %v\n", err)
 		}
 	}
 
 	// Restore quadlets and worker units that may be missing after an
-	// uninstall/reinstall cycle. Reads .lerd.yaml from each active site.
+	// uninstall/reinstall cycle. Reads .servlo.yaml from each active site.
 	restoreSiteInfrastructure()
 
 	// Reconcile custom services against their YAMLs (issue #678): regenerate a
@@ -559,20 +558,20 @@ func runStart(_ *cobra.Command, _ []string) error {
 	if err := nginx.EnsureNginxConfig(); err != nil {
 		fmt.Printf("  WARN: nginx config: %v\n", err)
 	}
-	if err := nginx.EnsureLerdVhost(); err != nil {
-		fmt.Printf("  WARN: lerd vhost: %v\n", err)
+	if err := nginx.EnsureServloVhost(); err != nil {
+		fmt.Printf("  WARN: servlo vhost: %v\n", err)
 	}
 	if err := nginx.EnsureProfilerVhost(); err != nil {
 		fmt.Printf("  WARN: profiler vhost: %v\n", err)
 	}
-	// The lerd-nginx quadlet bind-mounts RunDir so the lerd.localhost vhost
-	// can reach lerd-ui over a unix socket. The directory must exist before
+	// The servlo-nginx quadlet bind-mounts RunDir so the servlo.localhost vhost
+	// can reach servlo-panel over a unix socket. The directory must exist before
 	// the container starts or podman will create it root-owned.
 	if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
 		fmt.Printf("  WARN: run dir: %v\n", err)
 	}
 
-	// Refresh dnsmasq upstream config from the current system DNS before lerd-dns starts.
+	// Refresh dnsmasq upstream config from the current system DNS before servlo-dns starts.
 	// This ensures the config reflects any DNS changes (new servers added, DHCP change)
 	// that occurred since the last run without requiring a full reinstall.
 	if err := dns.WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
@@ -610,7 +609,7 @@ func runStart(_ *cobra.Command, _ []string) error {
 
 	// Reload nginx if it is already running so regenerated base vhosts (the
 	// dashboard and profiler vhosts) take effect without a full restart.
-	if running, _ := podman.ContainerRunning("lerd-nginx"); running {
+	if running, _ := podman.ContainerRunning("servlo-nginx"); running {
 		_ = nginx.Reload()
 	}
 
@@ -619,7 +618,7 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// be up first.
 	serviceUnits := append(coreUnits(), installedServiceUnits()...)
 	serviceUnits = append(serviceUnits, installedCustomContainerUnits()...)
-	serviceUnits = append(serviceUnits, "lerd-ui", "lerd-watcher")
+	serviceUnits = append(serviceUnits, "servlo-panel", "servlo-watcher")
 
 	// Phase 2: worker units that depend on running containers.
 	workerUnits := append(registeredQueueUnits(), registeredStripeUnits()...)
@@ -639,17 +638,17 @@ func runStart(_ *cobra.Command, _ []string) error {
 	workerUnits = dropIdleSuspendedUnits(workerUnits)
 
 	feedback.Begin()
-	feedback.Line("starting lerd")
+	feedback.Line("starting servlo")
 
 	makeJobs := func(us []string) []BuildJob {
 		jobs := make([]BuildJob, len(us))
 		for i, u := range us {
 			unit := u
-			label := strings.TrimSuffix(strings.TrimPrefix(unit, "lerd-"), ".timer")
+			label := strings.TrimSuffix(strings.TrimPrefix(unit, "servlo-"), ".timer")
 			jobs[i] = BuildJob{
 				Label: label,
 				Run: func(w io.Writer) error {
-					if unit == "lerd-dns" {
+					if unit == "servlo-dns" {
 						return podman.RestartUnit(unit)
 					}
 					return podman.StartUnit(unit)
@@ -669,13 +668,13 @@ func runStart(_ *cobra.Command, _ []string) error {
 	if healOverlayCorruptionIfNeeded(serviceErr) || healGhostContainersIfNeeded(serviceErr) {
 		serviceErr = RunParallel(makeJobs(serviceUnits))
 	}
-	// Bulk start does not go through lerd service start, so discover_family
+	// Bulk start does not go through servlo service start, so discover_family
 	// consumers (phpMyAdmin, pgAdmin) never got a post-engine regen. Reconcile
 	// may also have written empty host lists before any engine was up. Refresh
-	// once engines are running so PMA_HOSTS / LERD_POSTGRES_HOSTS match reality.
+	// once engines are running so PMA_HOSTS / SERVLO_POSTGRES_HOSTS match reality.
 	serviceops.RefreshDiscoverFamilyConsumers()
 	// If the storage is still corrupt the heal couldn't fix it; every worker
-	// (and the DNS and tray steps below) would fail the same way and bury the
+	// (and the DNS step below) would fail the same way and bury the
 	// recovery guidance. reportOverlayHealOutcome prints the guidance and
 	// reports true only on the platform where this error occurs (macOS), so we
 	// stop there; on every other platform it is a no-op that returns false and
@@ -690,20 +689,20 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// Regenerate the browser-testing hosts file now that nginx has its IP.
 	// The file was written earlier with a possibly stale address; update it
 	// so containers like Selenium resolve .test domains to the current
-	// lerd-nginx container IP.
+	// servlo-nginx container IP.
 	if err := podman.WriteContainerHosts(); err != nil {
 		fmt.Printf("  WARN: browser hosts file: %v\n", err)
 	}
 
-	// Sync the pasta DNS proxy (169.254.1.1) as the aardvark-dns upstream for the lerd
+	// Sync the pasta DNS proxy (169.254.1.1) as the aardvark-dns upstream for the servlo
 	// network. This address chains through systemd-resolved, which resolves both .test
-	// domains (via lerd-dns) and internet domains. Using 169.254.1.1 instead of the
+	// domains (via servlo-dns) and internet domains. Using 169.254.1.1 instead of the
 	// host's real upstream avoids NXDOMAIN for .test while retaining internet access.
-	if err := podman.EnsureNetworkDNS("lerd", dns.ReadContainerDNS()); err != nil {
+	if err := podman.EnsureNetworkDNS("servlo", dns.ReadContainerDNS()); err != nil {
 		fmt.Printf("  WARN: network DNS: %v\n", err)
 	}
 
-	// Wait for lerd-dns to be ready before configuring the resolver.
+	// Wait for servlo-dns to be ready before configuring the resolver.
 	// systemctl start returns when the unit is active, but dnsmasq inside the
 	// container may not be listening yet. If we set resolvectl to use port 5300
 	// before it's up, systemd-resolved marks it failed and falls back to the
@@ -714,9 +713,9 @@ func runStart(_ *cobra.Command, _ []string) error {
 
 	// Refresh the sudoers drop-in before reapplying DNS config, but only where a
 	// password prompt can be answered. A release that adds a privileged step ships
-	// new grants, and writing /etc/sudoers.d/lerd needs a real authentication:
+	// new grants, and writing /etc/sudoers.d/servlo needs a real authentication:
 	// granting `tee` on sudoers.d would itself be an escalation, so it can never be
-	// passwordless. Headless (lerd-ui driving a start), sudo has no tty and the
+	// passwordless. Headless (servlo-panel driving a start), sudo has no tty and the
 	// write just fails, so we skip it and let ConfigureResolver report what is
 	// missing rather than burying a prompt no one can see. Content-hashed, so on an
 	// unchanged drop-in this is a no-op either way.
@@ -726,46 +725,21 @@ func runStart(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Re-apply DNS routing so .test resolves via lerd-dns on every start.
+	// Re-apply DNS routing so .test resolves via servlo-dns on every start.
 	// resolvectl settings are ephemeral and reset on reboot; the NM dispatcher
-	// script fires on interface "up" but that event precedes lerd-dns starting.
+	// script fires on interface "up" but that event precedes servlo-dns starting.
 	if err := dns.ConfigureResolver(); err != nil {
 		fmt.Printf("  WARN: DNS resolver config: %v\n", err)
 	}
 
 	autoStopUnusedFPMs()
 
-	// Restart the tray applet, stopping any existing instance first.
-	// Prefer the systemd service when enabled; otherwise launch directly.
-	tray := feedback.Start("starting lerd-tray")
-	if services.Mgr.IsEnabled("lerd-tray") {
-		// Use Start (bootout+bootstrap) instead of Restart (kickstart -k) to
-		// avoid launchctl hanging while waiting for the tray process to die.
-		killTray()
-		if err := services.Mgr.Start("lerd-tray"); err != nil {
-			tray.Fail(err)
-		} else {
-			tray.OK("")
-		}
-	} else {
-		killTray()
-		exe, err := os.Executable()
-		if err == nil {
-			err = exec.Command(exe, "tray").Start()
-		}
-		if err != nil {
-			tray.Fail(err)
-		} else {
-			tray.OK("")
-		}
-	}
-
 	return nil
 }
 
 // startRestoredServices pulls images and starts service units that have a quadlet
-// installed but are not yet running. Called from lerd install to bring back services
-// (mysql, redis, etc.) that were restored from .lerd.yaml.
+// installed but are not yet running. Called from servlo install to bring back services
+// (mysql, redis, etc.) that were restored from .servlo.yaml.
 func startRestoredServices() {
 	units := installedServiceUnits()
 	if len(units) == 0 {
@@ -806,7 +780,7 @@ func startRestoredServices() {
 	var startJobs []BuildJob
 	for _, u := range units {
 		unit := u
-		label := strings.TrimSuffix(strings.TrimPrefix(unit, "lerd-"), ".timer")
+		label := strings.TrimSuffix(strings.TrimPrefix(unit, "servlo-"), ".timer")
 		startJobs = append(startJobs, BuildJob{
 			Label: label,
 			Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
@@ -818,9 +792,9 @@ func startRestoredServices() {
 	// together here without going through StartService.
 	serviceops.RefreshDiscoverFamilyConsumers()
 
-	// Workers exec into the FPM containers and depend on lerd-redis et al.
+	// Workers exec into the FPM containers and depend on servlo-redis et al.
 	// Start them after the service containers are up — same ordering as
-	// runStart's phase 1 → phase 2 split. Without this, `lerd install` would
+	// runStart's phase 1 → phase 2 split. Without this, `servlo install` would
 	// leave workers enabled-but-stopped after restoreSiteInfrastructure, since
 	// restoreWorker only writes the unit file and defers Start to here.
 	workerUnits := append(registeredQueueUnits(), registeredStripeUnits()...)
@@ -830,7 +804,7 @@ func startRestoredServices() {
 	workerUnits = append(workerUnits, registeredTimerUnits()...)
 	workerUnits = collapseTimerSiblings(dedupeStrings(workerUnits))
 	// Don't resurrect workers the idle engine has gracefully suspended, exactly
-	// as runStart does. Without this, `lerd install`/`update` (which re-creates
+	// as runStart does. Without this, `servlo install`/`update` (which re-creates
 	// and re-enables every worker via restoreSiteInfrastructure) restarts a
 	// deliberately-asleep worker on an idle site and wedges the engine: the
 	// registry still records it suspended, so the dashboard shows the site asleep
@@ -842,7 +816,7 @@ func startRestoredServices() {
 	var workerJobs []BuildJob
 	for _, u := range workerUnits {
 		unit := u
-		label := strings.TrimSuffix(strings.TrimPrefix(unit, "lerd-"), ".timer")
+		label := strings.TrimSuffix(strings.TrimPrefix(unit, "servlo-"), ".timer")
 		workerJobs = append(workerJobs, BuildJob{
 			Label: label,
 			Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
@@ -850,12 +824,6 @@ func startRestoredServices() {
 	}
 	feedback.Header("Starting workers")
 	RunParallel(workerJobs) //nolint:errcheck
-}
-
-// killTray kills any running lerd tray process (launched directly or as lerd-tray binary).
-func killTray() {
-	exec.Command("pkill", "-f", "lerd tray").Run()
-	exec.Command("pkill", "-f", "lerd-tray").Run()
 }
 
 // reconcileCustomServices heals custom-service drift on start (issue #678).
@@ -891,16 +859,16 @@ func reconcileCustomServices() {
 		feedback.Warn("removed orphan service %s (unit with no config; data left intact)", name)
 	}
 	for _, name := range res.RunningOrphansSkipped {
-		feedback.Warn("orphan service %s has no config but its container is running; left as-is (remove with: lerd service remove %s)", name, name)
+		feedback.Warn("orphan service %s has no config but its container is running; left as-is (remove with: servlo service remove %s)", name, name)
 	}
 }
 
-// registeredStripeUnits returns unit names for all lerd-stripe-* service files
-// present in the systemd user dir (i.e. started via `lerd stripe:listen`).
+// registeredStripeUnits returns unit names for all servlo-stripe-* service files
+// present in the systemd user dir (i.e. started via `servlo stripe:listen`).
 // restoreSiteInfrastructure ensures FPM quadlets, service quadlets, and worker
 // units exist for all registered (non-paused) sites. This repairs state after
 // an uninstall/reinstall cycle where unit files were deleted but site configs
-// (sites.yaml, .lerd.yaml) were preserved.
+// (sites.yaml, .servlo.yaml) were preserved.
 func restoreSiteInfrastructure() {
 	reg, err := config.LoadSites()
 	if err != nil {
@@ -931,7 +899,7 @@ func restoreSiteInfrastructure() {
 		// Restore custom container plist/quadlet for custom container sites.
 		// On macOS the plist lives in ~/Library/LaunchAgents; on Linux it is a
 		// systemd quadlet. After a reinstall the unit file may be gone even though
-		// the site is still registered in sites.yaml and .lerd.yaml is on disk.
+		// the site is still registered in sites.yaml and .servlo.yaml is on disk.
 		if s.IsCustomContainer() {
 			unitName := podman.CustomContainerName(s.Name)
 			if !services.Mgr.ContainerUnitInstalled(unitName) {
@@ -945,7 +913,7 @@ func restoreSiteInfrastructure() {
 		}
 
 		// Restore the per-site quadlet (and image, if missing) for custom-FPM
-		// PHP sites, so they come back up on `lerd start` after a reinstall.
+		// PHP sites, so they come back up on `servlo start` after a reinstall.
 		if s.IsCustomFPM() {
 			unitName := podman.CustomFPMContainerName(s.Name)
 			if !services.Mgr.ContainerUnitInstalled(unitName) {
@@ -975,7 +943,7 @@ func restoreSiteInfrastructure() {
 			}
 		}
 
-		// Read .lerd.yaml for service and worker info.
+		// Read .servlo.yaml for service and worker info.
 		proj, _ := config.LoadProjectConfig(s.Path)
 		if proj == nil {
 			continue
@@ -983,12 +951,12 @@ func restoreSiteInfrastructure() {
 
 		// Restore the host-proxy dev-server worker unit. Phase 2 of runStart
 		// launches it (it is enumerated by registeredFrameworkWorkerUnits).
-		// Bind to the command the user approved at link time: if .lerd.yaml's
+		// Bind to the command the user approved at link time: if .servlo.yaml's
 		// dev command drifted since (e.g. a git pull), don't silently run the
 		// new one, warn and wait for a re-link to re-approve it.
 		if s.IsHostProxy() && proj.Proxy != nil {
 			if s.HostCommand != "" && proj.Proxy.Command != s.HostCommand {
-				feedback.Warn("%s: dev command in .lerd.yaml changed since link; not auto-starting. Run `lerd link` to review and approve.", s.Name)
+				feedback.Warn("%s: dev command in .servlo.yaml changed since link; not auto-starting. Run `servlo link` to review and approve.", s.Name)
 			} else if w, ok := hostProxyWorker(proj.Proxy); ok && !services.Mgr.IsEnabled(hostProxyWorkerUnit(s.Name)) {
 				restoreWorker(s.Name, s.Path, "", hostProxyWorkerName, w)
 			}
@@ -1021,12 +989,12 @@ func restoreSiteInfrastructure() {
 			// Leave a worker the idle engine suspended fully down: don't recreate,
 			// enable, or start it. Restoring it here re-enables it (so a later boot
 			// resurrects it) and feeds it to the start passes, which is how an idle
-			// site ends up with running workers after `lerd install`. The engine
+			// site ends up with running workers after `servlo install`. The engine
 			// owns a suspended worker's lifecycle and resumes it on real activity.
 			if containsString(s.IdleSuspendedWorkers, w) {
 				continue
 			}
-			unitName := "lerd-" + w + "-" + s.Name
+			unitName := "servlo-" + w + "-" + s.Name
 			parentEnabled := services.Mgr.IsEnabled(unitName)
 			phpVersion := s.PHPVersion
 			if phpVersion == "" {
@@ -1064,7 +1032,7 @@ func restoreSiteInfrastructure() {
 			// Per-worktree host workers: rewrite each worktree's unit so
 			// stop/start cycles don't leave them stale. The parent unit
 			// alone is not enough because PR #319 shipped per-worktree
-			// units (lerd-<w>-<site>-<wtBase>) with a separate lifecycle.
+			// units (servlo-<w>-<site>-<wtBase>) with a separate lifecycle.
 			if !wDef.Host {
 				continue
 			}
@@ -1093,12 +1061,12 @@ func restoreSiteInfrastructure() {
 	}
 
 	// Restore unit files for standalone custom services (installed globally via
-	// `lerd service add`) whose config exists in ~/.config/lerd/services/ but
+	// `servlo service add`) whose config exists in ~/.config/servlo/services/ but
 	// whose unit file (plist on macOS, quadlet on Linux) is missing — e.g. after
 	// a reinstall that wiped ~/Library/LaunchAgents or ~/.config/containers/systemd/.
 	if customs, err := config.ListCustomServices(); err == nil {
 		for _, svc := range customs {
-			if !services.Mgr.ContainerUnitInstalled("lerd-" + svc.Name) {
+			if !services.Mgr.ContainerUnitInstalled("servlo-" + svc.Name) {
 				ensureCustomServiceQuadlet(svc) //nolint:errcheck
 			}
 		}
@@ -1109,11 +1077,11 @@ func restoreSiteInfrastructure() {
 	podman.DaemonReloadFn() //nolint:errcheck
 }
 
-// cleanOrphanTimerUnits removes lerd-*.timer files whose sibling .service
+// cleanOrphanTimerUnits removes servlo-*.timer files whose sibling .service
 // is missing — they can't fire and break parallel start with exit 1.
 func cleanOrphanTimerUnits() {
 	dir := config.SystemdUserDir()
-	entries, _ := filepath.Glob(filepath.Join(dir, "lerd-*.timer"))
+	entries, _ := filepath.Glob(filepath.Join(dir, "servlo-*.timer"))
 	for _, e := range entries {
 		base := strings.TrimSuffix(filepath.Base(e), ".timer")
 		if _, err := os.Stat(filepath.Join(dir, base+".service")); err == nil {
@@ -1124,34 +1092,34 @@ func cleanOrphanTimerUnits() {
 }
 
 func registeredStripeUnits() []string {
-	return services.Mgr.ListServiceUnits("lerd-stripe-*")
+	return services.Mgr.ListServiceUnits("servlo-stripe-*")
 }
 
-// registeredQueueUnits returns unit names for all lerd-queue-* service units
-// (i.e. started via `lerd queue:start`).
+// registeredQueueUnits returns unit names for all servlo-queue-* service units
+// (i.e. started via `servlo queue:start`).
 func registeredQueueUnits() []string {
-	return services.Mgr.ListServiceUnits("lerd-queue-*")
+	return services.Mgr.ListServiceUnits("servlo-queue-*")
 }
 
-// registeredScheduleUnits returns unit names for all lerd-schedule-* service units.
+// registeredScheduleUnits returns unit names for all servlo-schedule-* service units.
 func registeredScheduleUnits() []string {
-	return services.Mgr.ListServiceUnits("lerd-schedule-*")
+	return services.Mgr.ListServiceUnits("servlo-schedule-*")
 }
 
-// registeredReverbUnits returns unit names for all lerd-reverb-* service units.
+// registeredReverbUnits returns unit names for all servlo-reverb-* service units.
 func registeredReverbUnits() []string {
-	return services.Mgr.ListServiceUnits("lerd-reverb-*")
+	return services.Mgr.ListServiceUnits("servlo-reverb-*")
 }
 
-// registeredTimerUnits returns names for every lerd-* timer unit on disk,
+// registeredTimerUnits returns names for every servlo-* timer unit on disk,
 // each with the explicit `.timer` suffix so callers pass them straight to
 // systemctl. These drive scheduled (cron-style) framework workers like
 // Laravel <=10's `php artisan schedule:run`.
 func registeredTimerUnits() []string {
-	return services.Mgr.ListTimerUnits("lerd-*")
+	return services.Mgr.ListTimerUnits("servlo-*")
 }
 
-// registeredFrameworkWorkerUnits returns lerd-{worker}-{site} unit names for
+// registeredFrameworkWorkerUnits returns servlo-{worker}-{site} unit names for
 // every site/worker pair declared in the site registry. Used to make sure
 // non-standard workers (horizon, vite-dev, etc.) get started in phase 2 of
 // runStart, not just the queue/stripe/schedule/reverb glob.
@@ -1173,7 +1141,7 @@ func registeredFrameworkWorkerUnits() []string {
 			if w == "stripe" {
 				continue
 			}
-			out = append(out, "lerd-"+w+"-"+s.Name)
+			out = append(out, "servlo-"+w+"-"+s.Name)
 		}
 		// Enumerate the dev-server unit unconditionally: this list also drives
 		// stop/quit, so a drifted unit must stay visible to be stoppable. The
@@ -1188,8 +1156,8 @@ func registeredFrameworkWorkerUnits() []string {
 
 // suspendedWorkerUnitSet returns the worker unit names (without any .timer
 // suffix) the idle engine currently has suspended across all sites, covering
-// both main-site workers (lerd-{worker}-{site}) and per-worktree workers
-// (lerd-{worker}-{site}-{wtslug}). Naming matches workerNames.
+// both main-site workers (servlo-{worker}-{site}) and per-worktree workers
+// (servlo-{worker}-{site}-{wtslug}). Naming matches workerNames.
 func suspendedWorkerUnitSet() map[string]bool {
 	reg, err := config.LoadSites()
 	if err != nil || reg == nil {
@@ -1198,11 +1166,11 @@ func suspendedWorkerUnitSet() map[string]bool {
 	out := map[string]bool{}
 	for _, s := range reg.Sites {
 		for _, w := range s.IdleSuspendedWorkers {
-			out["lerd-"+w+"-"+s.Name] = true
+			out["servlo-"+w+"-"+s.Name] = true
 		}
 		for wtBase, workers := range s.WorktreeIdleSuspended {
 			for _, w := range workers {
-				out["lerd-"+w+"-"+s.Name+"-"+wtBase] = true
+				out["servlo-"+w+"-"+s.Name+"-"+wtBase] = true
 			}
 		}
 	}
@@ -1274,16 +1242,16 @@ func dedupeStrings(in []string) []string {
 	return out
 }
 
-// RunStart starts all lerd services (exported for use by the UI server).
+// RunStart starts all servlo services (exported for use by the UI server).
 func RunStart() error { return runStart(nil, nil) }
 
-// RunStop stops lerd containers (exported for use by the UI server).
+// RunStop stops servlo containers (exported for use by the UI server).
 func RunStop() error { return runStop(nil, nil) }
 
-// RunQuit stops all lerd processes and containers (exported for use by the UI server).
+// RunQuit stops all servlo processes and containers (exported for use by the UI server).
 func RunQuit() error { return runQuit(nil, nil) }
 
-// stopUnitSet returns every unit `lerd stop` tears down. lerd-dns is
+// stopUnitSet returns every unit `servlo stop` tears down. servlo-dns is
 // deliberately excluded: the resolver points .test at it until uninstall, so
 // it stays up as install-level DNS plumbing (the watcher would restart it).
 func stopUnitSet() []string {
@@ -1296,16 +1264,16 @@ func stopUnitSet() []string {
 	units = append(units, registeredFrameworkWorkerUnits()...)
 	// Stop scheduled-worker timers explicitly. Stopping the sibling
 	// oneshot .service is a no-op (it isn't running between firings),
-	// so without this the timer keeps dispatching after `lerd stop`.
+	// so without this the timer keeps dispatching after `servlo stop`.
 	units = append(units, registeredTimerUnits()...)
-	return slices.DeleteFunc(units, func(u string) bool { return u == "lerd-dns" })
+	return slices.DeleteFunc(units, func(u string) bool { return u == "servlo-dns" })
 }
 
 func runStop(_ *cobra.Command, _ []string) error {
 	units := stopUnitSet()
 
 	feedback.Begin()
-	feedback.Line("stopping lerd")
+	feedback.Line("stopping servlo")
 
 	// Mark the intentional shutdown before tearing anything down, so the worker
 	// health watcher (which keeps running) suppresses heal/notification noise for
@@ -1320,7 +1288,7 @@ func runStop(_ *cobra.Command, _ []string) error {
 	jobs := make([]BuildJob, len(units))
 	for i, u := range units {
 		unit := u
-		label := strings.TrimSuffix(strings.TrimPrefix(unit, "lerd-"), ".timer")
+		label := strings.TrimSuffix(strings.TrimPrefix(unit, "servlo-"), ".timer")
 		jobs[i] = BuildJob{
 			Label: label,
 			Run:   func(w io.Writer) error { return podman.StopUnit(unit) },
@@ -1330,24 +1298,24 @@ func runStop(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// quitProcessUnits is the ordered set of host process units `lerd quit` tears
-// down after runStop. Unlike `lerd stop`, quit is a full teardown, so it
-// includes lerd-dns. lerd-watcher precedes lerd-dns because the watcher is the
-// only thing that restarts lerd-dns; stopping it first keeps dns down.
+// quitProcessUnits is the ordered set of host process units `servlo quit` tears
+// down after runStop. Unlike `servlo stop`, quit is a full teardown, so it
+// includes servlo-dns. servlo-watcher precedes servlo-dns because the watcher is the
+// only thing that restarts servlo-dns; stopping it first keeps dns down.
 func quitProcessUnits() []string {
-	return []string{"lerd-ui", "lerd-watcher", "lerd-tray", "lerd-dns"}
+	return []string{"servlo-panel", "servlo-watcher", "servlo-dns"}
 }
 
 func runQuit(_ *cobra.Command, _ []string) error {
-	// Stop containers and services (same as stop). `lerd stop` leaves lerd-dns
-	// up as install-level plumbing; `lerd quit` is a full teardown, so it also
-	// stops lerd-dns below.
+	// Stop containers and services (same as stop). `servlo stop` leaves servlo-dns
+	// up as install-level plumbing; `servlo quit` is a full teardown, so it also
+	// stops servlo-dns below.
 	if err := runStop(nil, nil); err != nil {
 		return err
 	}
 
-	// Stop process units. lerd-watcher comes before lerd-dns: the watcher is the
-	// only thing that restarts lerd-dns, so stopping it first keeps dns down.
+	// Stop process units. servlo-watcher comes before servlo-dns: the watcher is the
+	// only thing that restarts servlo-dns, so stopping it first keeps dns down.
 	for _, unit := range quitProcessUnits() {
 		s := feedback.Start("stopping " + unit)
 		if err := podman.StopUnit(unit); err != nil {
@@ -1356,8 +1324,6 @@ func runQuit(_ *cobra.Command, _ []string) error {
 			s.OK("")
 		}
 	}
-	// Also kill any directly-launched tray instance not managed by launchd/systemd.
-	killTray()
 
 	stopPodmanMachine()
 
@@ -1366,7 +1332,7 @@ func runQuit(_ *cobra.Command, _ []string) error {
 
 // canPromptForPassword reports whether sudo would have someone to ask. sudo reads
 // the password from the controlling terminal, not from stdin, so /dev/tty is the
-// signal: `lerd start < /dev/null` in a terminal can still prompt, and a systemd
+// signal: `servlo start < /dev/null` in a terminal can still prompt, and a systemd
 // service with neither cannot. term.IsTerminal on stdin alone gets both wrong.
 func canPromptForPassword() bool {
 	if term.IsTerminal(int(os.Stdin.Fd())) {
@@ -1380,7 +1346,7 @@ func canPromptForPassword() bool {
 	return true
 }
 
-// dnsEnabled reports whether the user has lerd manage DNS. When off, start must
+// dnsEnabled reports whether the user has servlo manage DNS. When off, start must
 // not install DNS sudoers grants or touch any resolver state.
 func dnsEnabled() bool {
 	cfg, err := config.LoadGlobal()

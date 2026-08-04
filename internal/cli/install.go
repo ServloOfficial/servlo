@@ -11,32 +11,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/nginx"
-	nodeDet "github.com/geodro/lerd/internal/node"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/serviceops"
-	"github.com/geodro/lerd/internal/services"
-	"github.com/geodro/lerd/internal/shims"
-	"github.com/geodro/lerd/internal/siteops"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
-	"github.com/geodro/lerd/internal/tray"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/nginx"
+	nodeDet "github.com/realrashid/servlo/internal/node"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/realrashid/servlo/internal/services"
+	"github.com/realrashid/servlo/internal/shims"
+	"github.com/realrashid/servlo/internal/siteops"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
-
-// disableTrayUnit stops the tray and takes it out of the autostart set, then
-// clears any failure it already recorded. A tray whose library is missing exits
-// 127 on every start, and the leftover failed unit is what tips the systemd
-// user session into "degraded".
-func disableTrayUnit() {
-	_ = services.Mgr.Stop("lerd-tray")
-	_ = services.Mgr.Disable("lerd-tray")
-	_ = exec.Command("systemctl", "--user", "reset-failed", "lerd-tray.service").Run()
-}
 
 // healPodmanUpgrade runs the podman-upgrade self-heal, renders its progress,
 // and returns the containers it tore down so the caller can restart them. Both
@@ -47,7 +36,7 @@ func healPodmanUpgrade(containerDNS []string) []string {
 	if err != nil {
 		feedback.Warn("podman upgrade heal: %v", err)
 	} else if healed {
-		feedback.Note("podman upgrade detected — migrated storage and rebuilt the lerd network")
+		feedback.Note("podman upgrade detected — migrated storage and rebuilt the servlo network")
 	}
 	return restart
 }
@@ -56,17 +45,17 @@ func healPodmanUpgrade(containerDNS []string) []string {
 func NewInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
-		Short: "Run one-time Lerd setup",
+		Short: "Run one-time Servlo setup",
 		RunE:  runInstall,
 	}
 	cmd.Flags().Bool("no-ipv6", false,
-		"Force the lerd network to v4-only even if the host supports IPv6 (also: LERD_DISABLE_IPV6=1)")
+		"Force the servlo network to v4-only even if the host supports IPv6 (also: SERVLO_DISABLE_IPV6=1)")
 	cmd.Flags().String("dns", "",
 		"Preselect the DNS mode and skip the prompt: 'managed' (.test + HTTPS) or 'localhost' (.localhost, plain HTTP)")
 	cmd.Flags().Bool("from-update", false, "")
 	_ = cmd.Flags().MarkHidden("from-update")
 	cmd.Flags().Bool("unattended", false,
-		"Run non-interactively for package installs on Linux: no prompts, and skip the sudo-gated system steps that `lerd bootstrap` handles")
+		"Run non-interactively for package installs on Linux: no prompts, and skip the sudo-gated system steps that `servlo bootstrap` handles")
 	return cmd
 }
 
@@ -93,14 +82,14 @@ func fileChangedBy(path string, mutate func() error) (bool, error) {
 	return string(after) != string(before), nil
 }
 
-// portPreflightConflicts returns the core host ports lerd needs to bind first
+// portPreflightConflicts returns the core host ports servlo needs to bind first
 // (nginx HTTP/HTTPS and DNS) that are already held by a foreign process.
 // portList is the host listener dump from PortListOutput; the seams mirror
-// checkPortConflicts so lerd's own running container, an already-answering
+// checkPortConflicts so servlo's own running container, an already-answering
 // dnsmasq, and the macOS gvproxy forward are not reported as conflicts.
 func portPreflightConflicts(portList string, containerRunning func(string) bool, dnsAnswering func() bool) []PortCheck {
 	var conflicts []PortCheck
-	for _, c := range CollectPortChecks([]string{"lerd-nginx", "lerd-dns"}) {
+	for _, c := range CollectPortChecks([]string{"servlo-nginx", "servlo-dns"}) {
 		if isPortConflict(c, portList, containerRunning, dnsAnswering) {
 			conflicts = append(conflicts, c)
 		}
@@ -108,11 +97,11 @@ func portPreflightConflicts(portList string, containerRunning func(string) bool,
 	return conflicts
 }
 
-// ensurePortsAvailable warns, before any setup work runs, when a core port lerd
+// ensurePortsAvailable warns, before any setup work runs, when a core port servlo
 // needs is already taken by a foreign process. The usual culprit is a parallel
 // local-dev stack such as Laravel Herd or a system nginx/Apache holding 80/443.
 // It is advisory only: install continues so a user who knows the conflict (or
-// plans to remap lerd's ports) isn't blocked.
+// plans to remap servlo's ports) isn't blocked.
 func ensurePortsAvailable() {
 	step("Checking required host ports")
 	portList := PortListOutput()
@@ -120,7 +109,7 @@ func ensurePortsAvailable() {
 		ok()
 		return
 	}
-	conflicts := portPreflightConflicts(portList, podmanContainerRunning, lerdDNSAnswering)
+	conflicts := portPreflightConflicts(portList, podmanContainerRunning, servloDNSAnswering)
 	if len(conflicts) == 0 {
 		ok()
 		return
@@ -130,14 +119,14 @@ func ensurePortsAvailable() {
 		feedback.Warn("port %s (%s) is already in use, %s may fail to start", c.Port, c.Label, c.Container)
 		feedback.Note("find it: " + FindListenerCmd(c.Port))
 	}
-	feedback.Note("another local stack such as Laravel Herd may be hosting sites; stop it to free these ports, then re-run lerd install")
+	feedback.Note("another local stack such as Laravel Herd may be hosting sites; stop it to free these ports, then re-run servlo install")
 }
 
 func runInstall(cmd *cobra.Command, _ []string) error {
-	feedback.Header("Installing Lerd")
+	feedback.Header("Installing Servlo")
 
 	noIPv6, _ := cmd.Flags().GetBool("no-ipv6")
-	if !noIPv6 && os.Getenv("LERD_DISABLE_IPV6") == "1" {
+	if !noIPv6 && os.Getenv("SERVLO_DISABLE_IPV6") == "1" {
 		noIPv6 = true
 	}
 	fromUpdate, _ := cmd.Flags().GetBool("from-update")
@@ -151,9 +140,9 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	configExisted := cfgStatErr == nil
 	// Unattended runs are driven by a package maintainer script: reuse the
 	// non-interactive update path for prompts. The sudo-gated system steps are
-	// skipped here because `lerd bootstrap --system` performs them as root
+	// skipped here because `servlo bootstrap --system` performs them as root
 	// beforehand, and the mkcert CA's system-trust is done afterward by
-	// `lerd bootstrap --trust-ca`, so managed .test DNS works with no prompts.
+	// `servlo bootstrap --trust-ca`, so managed .test DNS works with no prompts.
 	if err := checkUnattendedSupported(unattended); err != nil {
 		return err
 	}
@@ -161,9 +150,9 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		fromUpdate = true
 	}
 	if noIPv6 {
-		podman.MarkIPv6Disabled("lerd")
-		feedback.Line("IPv6 disabled by user, lerd network will be v4-only")
-		feedback.Note("delete " + podman.IPv6DisabledMarkerPath("lerd") + " and re-run `lerd install` to re-enable")
+		podman.MarkIPv6Disabled("servlo")
+		feedback.Line("IPv6 disabled by user, servlo network will be v4-only")
+		feedback.Note("delete " + podman.IPv6DisabledMarkerPath("servlo") + " and re-run `servlo install` to re-enable")
 	}
 
 	// Sample LastUp before ensure so an internal stop+start isn't mistaken
@@ -183,7 +172,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	wantDNS, haveDNSConfig, prevEnabled, prevTLD := resolveDNSChoice(fromUpdate, configExisted, dnsFlag)
 
 	// Skipped under --unattended: this escalates to root, which a package
-	// maintainer script cannot answer for. `lerd bootstrap --system` already
+	// maintainer script cannot answer for. `servlo bootstrap --system` already
 	// applied the same steps beforehand.
 	if !unattended {
 		if err := runSystemSetup(wantDNS); err != nil {
@@ -229,24 +218,24 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// unit, which can only time out on hosts where network-online.target is
 	// never pulled in (Fedora Silverblue and other atomic images). Left alone
 	// it stalls every container start, and the boot, by 90s.
-	if applied, err := lerdSystemd.EnsureNoNetworkWaitStall(); err != nil {
+	if applied, err := servloSystemd.EnsureNoNetworkWaitStall(); err != nil {
 		feedback.Note(fmt.Sprintf("could not skip podman's network-online wait: %v", err))
 	} else if applied {
 		feedback.Note("skipping podman's network-online wait (this host never reaches that target)")
 	}
 
-	step("Creating lerd podman network")
-	if err := podman.EnsureNetwork("lerd", desiredDNS); err != nil {
+	step("Creating servlo podman network")
+	if err := podman.EnsureNetwork("servlo", desiredDNS); err != nil {
 		if errors.Is(err, podman.ErrNetworkNeedsMigration) {
 			fmt.Println()
-			restored, dualStack, mErr := podman.RecreateNetwork("lerd", desiredDNS)
+			restored, dualStack, mErr := podman.RecreateNetwork("servlo", desiredDNS)
 			if mErr != nil {
 				return mErr
 			}
 			if dualStack {
-				feedback.Note("recreated lerd network as dual-stack v4+v6")
+				feedback.Note("recreated servlo network as dual-stack v4+v6")
 			} else {
-				feedback.Note("recreated lerd network as v4-only (IPv6 not available for containers)")
+				feedback.Note("recreated servlo network as v4-only (IPv6 not available for containers)")
 			}
 			feedback.Note("existing containers on this network were recreated")
 			// Union, don't overwrite: `migrated` already holds the containers the
@@ -254,12 +243,12 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 			// here dropped those from the restart loop, leaving services stopped
 			// after a run that triggered both heal and a network migration.
 			migrated = mergeMigrationRestarts(migrated, restored)
-			step("Creating lerd podman network")
+			step("Creating servlo podman network")
 		} else {
 			return err
 		}
 	}
-	if err := podman.EnsureNetworkDNS("lerd", desiredDNS); err != nil {
+	if err := podman.EnsureNetworkDNS("servlo", desiredDNS); err != nil {
 		return err
 	}
 	ok()
@@ -268,7 +257,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// downloadBinaries, which skips the fnm zip when node.manager is "nvm".
 	bunPath := nodeDet.BunPath()
 	if bunPath != "" {
-		feedback.Line(fmt.Sprintf("bun detected at %s, lerd will use it automatically for projects that use bun", bunPath))
+		feedback.Line(fmt.Sprintf("bun detected at %s, servlo will use it automatically for projects that use bun", bunPath))
 	}
 
 	var savedNode *bool
@@ -283,37 +272,37 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 	systemNode := detectSystemNode()
 	nvmDetected := detectNvm()
-	wantLerdNode, promptNode, nodeDefault := nodeManageDecision(fromUpdate, unattended, savedNode, systemNode != "", nvmDetected, lerdManagesNode())
+	wantServloNode, promptNode, nodeDefault := nodeManageDecision(fromUpdate, unattended, savedNode, systemNode != "", nvmDetected, servloManagesNode())
 	if promptNode {
 		if systemNode != "" {
 			feedback.Line("Node.js detected at " + systemNode)
 		} else {
 			feedback.Line("nvm detected at " + nodeDet.DiscoverNvmDir())
 		}
-		prompt := "Let lerd manage Node.js versions (installs shims, may override system node)?"
+		prompt := "Let servlo manage Node.js versions (installs shims, may override system node)?"
 		switch {
 		case nvmDetected:
 			prompt += " Decline to leave Node to your existing nvm."
 		case bunPath != "":
 			prompt += " Decline to keep your system Node and use bun."
 		}
-		wantLerdNode = confirmInstallPromptDefault(prompt, nodeDefault)
+		wantServloNode = confirmInstallPromptDefault(prompt, nodeDefault)
 	}
 
 	// Only on the run that actually makes the choice: once persisted, savedManager
 	// is set and neither line comes back.
-	nodeManager := nodeManagerChoice(savedManager, wantLerdNode, nvmDetected)
+	nodeManager := nodeManagerChoice(savedManager, wantServloNode, nvmDetected)
 	if savedManager == "" && nvmDetected {
 		if nodeManager == "nvm" {
-			feedback.Line("leaving Node to your nvm, lerd will run npm and npx through it")
+			feedback.Line("leaving Node to your nvm, servlo will run npm and npx through it")
 		} else {
-			feedback.Line("using the bundled fnm for lerd-managed Node, switch with: lerd node:manager nvm")
+			feedback.Line("using the bundled fnm for servlo-managed Node, switch with: servlo node:manager nvm")
 		}
 	}
 
 	// Captured before the save below: a flip either way leaves existing host
 	// worker units routing through the old manager until they are regenerated.
-	nodeStateChanged := nodeStateFlipped(lerdManagesNode(), savedManager, wantLerdNode, nodeManager)
+	nodeStateChanged := nodeStateFlipped(servloManagesNode(), savedManager, wantServloNode, nodeManager)
 
 	nvmDirToSave := savedNvmDir
 	if nodeManager == "nvm" {
@@ -326,8 +315,8 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	if nodeCfg, err := config.LoadGlobal(); err == nil && nodeCfg != nil {
 		changed := false
-		if v, set := nodeCfg.NodeManagedPref(); !set || v != wantLerdNode {
-			nodeCfg.SetNodeManaged(wantLerdNode)
+		if v, set := nodeCfg.NodeManagedPref(); !set || v != wantServloNode {
+			nodeCfg.SetNodeManaged(wantServloNode)
 			changed = true
 		}
 		if nodeCfg.Node.Manager != nodeManager {
@@ -356,7 +345,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// Ask before RunParallel steals stdin. Only offer the Laravel installer
 	// when at least one PHP version is already installed — composer needs a
 	// PHP runtime, and asking the question on a fresh install (where no
-	// lerd-php*-fpm container exists) would just lead to a confusing failure.
+	// servlo-php*-fpm container exists) would just lead to a confusing failure.
 	// Skip the prompt entirely when laravel/installer is already present in
 	// the user's composer global vendor dir, since re-running install should
 	// not pester the user about something that is already set up.
@@ -423,13 +412,13 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// Idempotent: teardownDNS Stops/Removes via underlying calls that
 	// no-op against missing units, so this is cheap on a system that
 	// already matches the desired state (e.g. fresh install with no
-	// lerd-dns yet, or rerun where the unit is already gone).
+	// servlo-dns yet, or rerun where the unit is already gone).
 	if !wantDNS {
-		feedback.Line("tearing down lerd-dns service")
+		feedback.Line("tearing down servlo-dns service")
 		teardownDNS()
 	}
 
-	// Tracks whether the dnsmasq config or the lerd-dns quadlet actually
+	// Tracks whether the dnsmasq config or the servlo-dns quadlet actually
 	// changed this run. A no-op reinstall (the common case after a version
 	// bump) then leaves the running container alone instead of bouncing it,
 	// which used to drop .test resolution for a few seconds.
@@ -449,7 +438,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 		// 5. DNS config
 		step("Writing DNS configuration")
-		dnsConfPath := filepath.Join(config.DnsmasqDir(), "lerd.conf")
+		dnsConfPath := filepath.Join(config.DnsmasqDir(), "servlo.conf")
 		confChanged, err := fileChangedBy(dnsConfPath, func() error {
 			return dns.WriteDnsmasqConfig(config.DnsmasqDir())
 		})
@@ -477,14 +466,14 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	if err := nginx.EnsureDefaultVhost(); err != nil {
 		return err
 	}
-	if err := nginx.EnsureLerdVhost(); err != nil {
+	if err := nginx.EnsureServloVhost(); err != nil {
 		return err
 	}
 	if err := nginx.EnsureProfilerVhost(); err != nil {
 		return err
 	}
-	// The lerd-nginx quadlet bind-mounts RunDir so the lerd.localhost vhost
-	// can reach lerd-ui over a unix socket. Must exist before nginx starts.
+	// The servlo-nginx quadlet bind-mounts RunDir so the servlo.localhost vhost
+	// can reach servlo-panel over a unix socket. Must exist before nginx starts.
 	if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
 		return err
 	}
@@ -611,27 +600,27 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// override, so the install pass produces byte-identical output to the
 	// runtime service path (no perpetual "PublishPort changed" diff).
 	rewriteDefaultPreset := func(svc string) error {
-		path := filepath.Join(config.QuadletDir(), "lerd-"+svc+".container")
+		path := filepath.Join(config.QuadletDir(), "servlo-"+svc+".container")
 		before, _ := os.ReadFile(path)
 		if err := serviceops.EnsureDefaultPresetQuadlet(svc); err != nil {
 			return err
 		}
 		after, _ := os.ReadFile(path)
 		if string(before) != string(after) {
-			changedQuadlets = append(changedQuadlets, "lerd-"+svc)
+			changedQuadlets = append(changedQuadlets, "servlo-"+svc)
 		}
 		return nil
 	}
 
 	step("Writing nginx quadlet")
-	if err := rewriteEmbedded("lerd-nginx"); err != nil {
+	if err := rewriteEmbedded("servlo-nginx"); err != nil {
 		return err
 	}
 	ok()
 
 	if wantDNS {
 		step("Writing DNS service unit")
-		dnsUnitPath := filepath.Join(config.QuadletDir(), "lerd-dns.container")
+		dnsUnitPath := filepath.Join(config.QuadletDir(), "servlo-dns.container")
 		unitChanged, err := fileChangedBy(dnsUnitPath, func() error {
 			return writeDNSUnit(os.Stdout)
 		})
@@ -644,14 +633,14 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	step("Refreshing service quadlets")
 	for _, svc := range config.DefaultPresetNames() {
-		if !podman.QuadletInstalled("lerd-" + svc) {
+		if !podman.QuadletInstalled("servlo-" + svc) {
 			continue
 		}
 		_ = rewriteDefaultPreset(svc)
 	}
 	ok()
 
-	// Always ensure the default PHP-FPM is available (needed for lerd new on fresh installs).
+	// Always ensure the default PHP-FPM is available (needed for servlo new on fresh installs).
 	// Then restore quadlets for any additional PHP versions and services from registered sites.
 	{
 		cfg, _ := config.LoadGlobal()
@@ -685,7 +674,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 					}
 				}
 
-				// Restore service quadlets from .lerd.yaml.
+				// Restore service quadlets from .servlo.yaml.
 				proj, _ := config.LoadProjectConfig(s.Path)
 				if proj == nil {
 					continue
@@ -701,7 +690,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 					// on a v1.22.1 upgrade. Without this the mount lands on disk
 					// but the live container keeps its old config until a manual
 					// restart, like rewriteDefaultPreset already handles.
-					path := filepath.Join(config.QuadletDir(), "lerd-"+svc.Name+".container")
+					path := filepath.Join(config.QuadletDir(), "servlo-"+svc.Name+".container")
 					before, _ := os.ReadFile(path)
 					if svc.Custom != nil {
 						ensureCustomServiceQuadlet(svc.Custom) //nolint:errcheck
@@ -709,7 +698,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 						ensureServiceQuadlet(svc.Name) //nolint:errcheck
 					}
 					if after, _ := os.ReadFile(path); string(before) != string(after) {
-						changedQuadlets = append(changedQuadlets, "lerd-"+svc.Name)
+						changedQuadlets = append(changedQuadlets, "servlo-"+svc.Name)
 					}
 				}
 			}
@@ -741,7 +730,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	// 7. Pull images before touching DNS so registry lookups use the system
 	// resolver. On macOS ConfigureResolver() redirects .test queries through
-	// lerd-dns; doing pulls first ensures the system DNS is intact for all
+	// servlo-dns; doing pulls first ensures the system DNS is intact for all
 	// registry traffic (docker.io, ghcr.io, etc.).
 	pullJobs := []BuildJob{
 		{
@@ -767,23 +756,23 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Pull/build all service and FPM images before touching DNS. On macOS,
-	// ConfigureResolver() redirects .test DNS through lerd-dns; any registry
+	// ConfigureResolver() redirects .test DNS through servlo-dns; any registry
 	// pull after that point uses the overridden resolver which may not yet
 	// forward non-.test queries correctly on a fresh install.
-	if lerdSystemd.IsAutostartEnabled() {
+	if servloSystemd.IsAutostartEnabled() {
 		ensureImages()
 	}
 
 	// On macOS, DNS runs natively (no container image needed) and DaemonReload
-	// is a no-op, so we can start lerd-dns and configure the resolver here.
+	// is a no-op, so we can start servlo-dns and configure the resolver here.
 	if wantDNS && !isDNSContainerUnit() {
-		step("Starting lerd-dns")
-		if err := services.Mgr.Restart("lerd-dns"); err != nil {
+		step("Starting servlo-dns")
+		if err := services.Mgr.Restart("servlo-dns"); err != nil {
 			fmt.Printf("    WARN: %v\n", err)
 		}
 		ok()
 
-		step("Waiting for lerd-dns to be ready")
+		step("Waiting for servlo-dns to be ready")
 		if err := dns.WaitReady(15 * time.Second); err != nil {
 			fmt.Printf("    WARN: %v\n", err)
 		}
@@ -816,10 +805,10 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Migration safety net: restart any container whose quadlet content
-	// actually changed during this install run, EXCEPT lerd-nginx /
-	// lerd-dns (handled separately) and anything we just started above.
+	// actually changed during this install run, EXCEPT servlo-nginx /
+	// servlo-dns (handled separately) and anything we just started above.
 	for _, name := range changedQuadlets {
-		if name == "lerd-nginx" || name == "lerd-dns" || migratedSet[name] {
+		if name == "servlo-nginx" || name == "servlo-dns" || migratedSet[name] {
 			continue
 		}
 		if running, _ := podman.ContainerRunning(name); !running {
@@ -839,21 +828,21 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		// Only bounce the running container when its config or quadlet
 		// actually changed. Otherwise Start is a no-op against the live
 		// unit, so a routine reinstall doesn't drop .test resolution.
-		dnsRunning, _ := podman.ContainerRunning("lerd-dns")
+		dnsRunning, _ := podman.ContainerRunning("servlo-dns")
 		if dnsChanged || !dnsRunning {
-			step("Starting lerd-dns")
-			if err := services.Mgr.Restart("lerd-dns"); err != nil {
+			step("Starting servlo-dns")
+			if err := services.Mgr.Restart("servlo-dns"); err != nil {
 				fmt.Printf("    WARN: %v\n", err)
 			}
 		} else {
-			step("Checking lerd-dns")
-			if err := services.Mgr.Start("lerd-dns"); err != nil {
+			step("Checking servlo-dns")
+			if err := services.Mgr.Start("servlo-dns"); err != nil {
 				fmt.Printf("    WARN: %v\n", err)
 			}
 		}
 		ok()
 
-		step("Waiting for lerd-dns to be ready")
+		step("Waiting for servlo-dns to be ready")
 		if err := dns.WaitReady(15 * time.Second); err != nil {
 			fmt.Printf("    WARN: %v\n", err)
 		}
@@ -866,28 +855,28 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Read the autostart flag once. When disabled (set explicitly via
-	// `lerd autostart disable`), install must not enable or start any
+	// `servlo autostart disable`), install must not enable or start any
 	// service that the user has chosen to keep off — otherwise running
-	// `lerd update` would silently flip every disabled unit back on.
+	// `servlo update` would silently flip every disabled unit back on.
 	// The zero value (Disabled=false) is the historical autostart-on
 	// path, so existing users see no behaviour change.
-	autostartOn := lerdSystemd.IsAutostartEnabled()
+	autostartOn := servloSystemd.IsAutostartEnabled()
 
 	if autostartOn {
-		step("Starting lerd-nginx")
-		if err := services.Mgr.Restart("lerd-nginx"); err != nil {
+		step("Starting servlo-nginx")
+		if err := services.Mgr.Restart("servlo-nginx"); err != nil {
 			fmt.Printf("    WARN: %v\n", err)
 		}
 		ok()
 	}
 
 	step("Writing watcher service")
-	if content, err := lerdSystemd.GetUnit("lerd-watcher"); err == nil {
-		if err := writeUserServiceWithReload("lerd-watcher", content); err != nil {
+	if content, err := servloSystemd.GetUnit("servlo-watcher"); err == nil {
+		if err := writeUserServiceWithReload("servlo-watcher", content); err != nil {
 			return err
 		}
 		if autostartOn {
-			if err := services.Mgr.Enable("lerd-watcher"); err != nil {
+			if err := services.Mgr.Enable("servlo-watcher"); err != nil {
 				fmt.Printf("    WARN: %v\n", err)
 			}
 		}
@@ -896,19 +885,19 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	if autostartOn {
 		step("Restarting watcher service")
-		if err := services.Mgr.Restart("lerd-watcher"); err != nil {
+		if err := services.Mgr.Restart("servlo-watcher"); err != nil {
 			fmt.Printf("    WARN: %v\n", err)
 		}
 		ok()
 	}
 
 	step("Writing UI service")
-	if content, err := lerdSystemd.GetUnit("lerd-ui"); err == nil {
-		if err := writeUserServiceWithReload("lerd-ui", content); err != nil {
+	if content, err := servloSystemd.GetUnit("servlo-panel"); err == nil {
+		if err := writeUserServiceWithReload("servlo-panel", content); err != nil {
 			return err
 		}
 		if autostartOn {
-			if err := services.Mgr.Enable("lerd-ui"); err != nil {
+			if err := services.Mgr.Enable("servlo-panel"); err != nil {
 				fmt.Printf("    WARN: %v\n", err)
 			}
 		}
@@ -916,34 +905,14 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	ok()
 
 	if autostartOn {
-		step("Starting lerd-ui")
-		if err := services.Mgr.Restart("lerd-ui"); err != nil {
+		step("Starting servlo-panel")
+		if err := services.Mgr.Restart("servlo-panel"); err != nil {
 			fmt.Printf("    WARN: %v\n", err)
 		}
 		ok()
 	}
 
-	step("Writing tray service")
-	if content, err := lerdSystemd.GetUnit("lerd-tray"); err == nil {
-		if err := writeUserServiceWithReload("lerd-tray", content); err != nil {
-			return err
-		}
-		// The helper dies on every start when its appindicator library is
-		// absent, which an immutable image can't install without layering a
-		// package and rebooting. Leave the unit on disk but don't run it, or
-		// the failures drag the whole systemd user session to "degraded".
-		if missing := tray.MissingLibs(tray.HelperPath()); len(missing) > 0 {
-			disableTrayUnit()
-			feedback.Note("system tray unavailable: this host has no " + strings.Join(missing, ", "))
-		} else if autostartOn {
-			if err := services.Mgr.Enable("lerd-tray"); err != nil {
-				fmt.Printf("    WARN: %v\n", err)
-			}
-		}
-	}
-	ok()
-
-	// Restore worker / queue / schedule unit FILES from .lerd.yaml so the
+	// Restore worker / queue / schedule unit FILES from .servlo.yaml so the
 	// systemd state is repaired regardless of the autostart setting — the
 	// files have to exist for the user to be able to flip autostart back
 	// on later. restoreSiteInfrastructure only writes files for units
@@ -970,12 +939,12 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	// Start service containers and workers only when autostart is on.
 	// When the user has explicitly disabled autostart we leave them
-	// stopped — `lerd update` running install via re-exec must not flip
+	// stopped — `servlo update` running install via re-exec must not flip
 	// disabled units back on.
 	if autostartOn {
 		// Rebuild FPM images when the embedded Containerfile changed since
 		// the last build — BuildFPMImage no-ops when the image already
-		// exists, so `brew upgrade && lerd install` would otherwise ship
+		// exists, so `brew upgrade && servlo install` would otherwise ship
 		// new binary against stale images. Gated by autostartOn because
 		// php:rebuild restarts FPM and worker units unconditionally.
 		activeFPM, _ := phpDet.ListInstalled()
@@ -983,7 +952,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 			feedback.Header("Rebuilding PHP images")
 			self, err := os.Executable()
 			if err != nil {
-				fmt.Printf("  WARN: locating lerd binary for php:rebuild: %v\n", err)
+				fmt.Printf("  WARN: locating servlo binary for php:rebuild: %v\n", err)
 			} else {
 				rebuildCmd := exec.Command(self, "php:rebuild")
 				rebuildCmd.Stdout = os.Stdout
@@ -1001,10 +970,10 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 			for _, v := range activeFPM {
 				ver := v
 				short := strings.ReplaceAll(ver, ".", "")
-				if podman.RunSilent("image", "exists", "lerd-php"+short+"-fpm:local") != nil {
+				if podman.RunSilent("image", "exists", "servlo-php"+short+"-fpm:local") != nil {
 					continue // image still missing, skip
 				}
-				unit := "lerd-php" + short + "-fpm"
+				unit := "servlo-php" + short + "-fpm"
 				fpmJobs = append(fpmJobs, BuildJob{
 					Label: "php" + short + "-fpm",
 					Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
@@ -1029,20 +998,11 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	killTray()
-	if services.Mgr.IsEnabled("lerd-tray") {
-		_ = services.Mgr.Start("lerd-tray")
-	} else {
-		if exe, err := os.Executable(); err == nil {
-			_ = exec.Command(exe, "tray").Start()
-		}
-	}
-
 	installAutostart()
 	installCleanupScript()
 
 	step("Adding shell PATH configuration")
-	if err := addShellShims(wantLerdNode); err != nil {
+	if err := addShellShims(wantServloNode); err != nil {
 		fmt.Printf("    WARN: %v\n", err)
 	}
 	if err := shims.Reconcile(clientShimPrompter()); err != nil {
@@ -1050,12 +1010,12 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 	ok()
 
-	if wantLerdNode {
+	if wantServloNode {
 		ensureDefaultNode()
 	}
 
 	// Re-sync host workers to the current JS runtime once the Node-management
-	// state is finalized. This makes "install bun, then `lerd update`" switch
+	// state is finalized. This makes "install bun, then `servlo update`" switch
 	// Vite and friends onto bun with no manual re-link, and makes answering the
 	// management question move existing workers onto the manager that answer
 	// selects, the way node:manage / node:unmanage already do. Gated on autostart
@@ -1071,10 +1031,10 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	refreshProjectMCPSkills()
 
 	feedback.Begin()
-	feedback.Done("lerd installation complete")
+	feedback.Done("servlo installation complete")
 	feedback.Begin()
-	feedback.Note("Dashboard: " + feedback.Val("http://lerd.localhost"))
-	feedback.Note("Terminal:  " + feedback.Val("lerd tui"))
+	feedback.Note("Dashboard: " + feedback.Val("http://servlo.localhost"))
+	feedback.Note("Terminal:  " + feedback.Val("servlo tui"))
 	feedback.Begin()
 	return nil
 }
@@ -1107,7 +1067,7 @@ func startPerSiteContainers() {
 	jobs := make([]BuildJob, len(units))
 	for i, u := range units {
 		unit := u
-		label := strings.TrimPrefix(unit, "lerd-")
+		label := strings.TrimPrefix(unit, "servlo-")
 		jobs[i] = BuildJob{
 			Label: label,
 			Run:   func(_ io.Writer) error { return podman.StartUnit(unit) },
@@ -1176,10 +1136,10 @@ func refreshUnreferencedCustomQuadlets(seenSvc map[string]bool, reg *config.Site
 
 // ensureSystemdLinger checks whether systemd user linger is enabled for the
 // current user and runs `sudo loginctl enable-linger` if not. Without linger
-// the rootless Podman containers (lerd-dns, lerd-nginx, PHP-FPM, …) get torn
+// the rootless Podman containers (servlo-dns, servlo-nginx, PHP-FPM, …) get torn
 // down by systemd-logind when the session goes inactive — screen blank,
-// lock, switch user, logout — and lerd appears to silently stop working
-// until the user manually re-runs `lerd install` or restarts the units.
+// lock, switch user, logout — and servlo appears to silently stop working
+// until the user manually re-runs `servlo install` or restarts the units.
 //
 // We only act on a clear "Linger=no" reading. If loginctl is missing or its
 // output is unparseable (non-systemd init, container without logind, …) we
@@ -1191,8 +1151,8 @@ func ensureSystemdLinger() error {
 	user := currentUserName()
 
 	feedback.Warn("systemd user linger is disabled for this account")
-	feedback.Note("without it, lerd's containers (DNS, nginx, PHP-FPM) are torn down by")
-	feedback.Note("systemd-logind on screen blank, lock, or logout, and lerd will appear")
+	feedback.Note("without it, servlo's containers (DNS, nginx, PHP-FPM) are torn down by")
+	feedback.Note("systemd-logind on screen blank, lock, or logout, and servlo will appear")
 	feedback.Note("to stop working until you manually restart it")
 	step("enabling linger via `sudo loginctl enable-linger " + user + "`")
 	fmt.Println()
@@ -1211,7 +1171,7 @@ func ensureSystemdLinger() error {
 
 // checkUnattendedSupported refuses --unattended where the other half of the
 // arrangement does not exist. The flag skips the sudo-gated steps because
-// `lerd bootstrap --system` and `--trust-ca` do them as root around it, and
+// `servlo bootstrap --system` and `--trust-ca` do them as root around it, and
 // bootstrap is Linux-only; anywhere else the flag would silently leave the
 // resolver grant unwritten and the CA untrusted, which reads as broken HTTPS
 // and a watcher asking for a password rather than as a missing feature.
@@ -1219,7 +1179,7 @@ func checkUnattendedSupported(unattended bool) error {
 	if !unattended || runtime.GOOS == "linux" {
 		return nil
 	}
-	return fmt.Errorf("--unattended is for package installs on Linux, where `lerd bootstrap` applies the root-level setup around it; run `lerd install` without it")
+	return fmt.Errorf("--unattended is for package installs on Linux, where `servlo bootstrap` applies the root-level setup around it; run `servlo install` without it")
 }
 
 // currentUserName resolves the login name the per-user setup steps apply to.
@@ -1279,7 +1239,7 @@ func ensureUnprivilegedPorts() error {
 	fmt.Println()
 	cmds := [][]string{
 		{"sudo", "sysctl", "-w", "net.ipv4.ip_unprivileged_port_start=80"},
-		{"sudo", "sh", "-c", "echo 'net.ipv4.ip_unprivileged_port_start=80' > /etc/sysctl.d/99-lerd-ports.conf"},
+		{"sudo", "sh", "-c", "echo 'net.ipv4.ip_unprivileged_port_start=80' > /etc/sysctl.d/99-servlo-ports.conf"},
 	}
 	for _, args := range cmds {
 		cmd := exec.Command(args[0], args[1:]...)
@@ -1321,7 +1281,7 @@ func laravelInstallerPresent() bool {
 func installLaravelInstaller() error {
 	installed, err := phpDet.ListInstalled()
 	if err != nil || len(installed) == 0 {
-		return fmt.Errorf("no PHP version installed — install one with `lerd php:install <version>` first")
+		return fmt.Errorf("no PHP version installed — install one with `servlo php:install <version>` first")
 	}
 
 	// Prefer the configured default PHP, otherwise use the highest installed.
@@ -1336,7 +1296,7 @@ func installLaravelInstaller() error {
 	}
 
 	short := strings.ReplaceAll(version, ".", "")
-	container := "lerd-php" + short + "-fpm"
+	container := "servlo-php" + short + "-fpm"
 
 	if running, _ := podman.ContainerRunning(container); !running {
 		if err := podman.StartUnit(container); err != nil {
@@ -1380,13 +1340,13 @@ func installLaravelInstaller() error {
 	return cmd.Run()
 }
 
-// lerdManagesNode reports whether lerd is managing Node for this host
+// servloManagesNode reports whether servlo is managing Node for this host
 // (persisted node.managed preference, or the historical node PATH shim).
-func lerdManagesNode() bool {
+func servloManagesNode() bool {
 	return nodeDet.Managed()
 }
 
-// nodeManageDecision resolves whether lerd should manage Node.js for this
+// nodeManageDecision resolves whether servlo should manage Node.js for this
 // install run. The choice is asked once and then remembered: an explicit saved
 // preference always wins silently, and a config predating the field adopts the
 // current on-disk shim state as that choice without asking. Only a genuine
@@ -1398,7 +1358,7 @@ func lerdManagesNode() bool {
 // answer.
 //
 // A package install cannot ask, so it answers by detection instead: an existing
-// nvm drives Node, otherwise lerd manages it through fnm. It must not fall
+// nvm drives Node, otherwise servlo manages it through fnm. It must not fall
 // through to the update branch, which reads the answer off the shim state. On a
 // first install there is no shim yet, so that recorded "unmanaged" and left the
 // package to provision no Node at all, deferring it to whenever something first
@@ -1423,17 +1383,17 @@ func nodeManageDecision(fromUpdate, unattended bool, saved *bool, systemNodeDete
 }
 
 // nodeManagerChoice picks the Node version manager to drive. A saved choice is
-// never revisited. Otherwise it follows the one management question: lerd-managed
-// Node uses the bundled fnm, since managing means owning the versions in lerd's
-// own tool, and declining hands Node back to an existing nvm so `lerd npm`, npx
+// never revisited. Otherwise it follows the one management question: servlo-managed
+// Node uses the bundled fnm, since managing means owning the versions in servlo's
+// own tool, and declining hands Node back to an existing nvm so `servlo npm`, npx
 // and setup runs follow it instead of an fnm no version is ever installed into.
-// Users who want lerd to manage Node through their nvm switch with
-// `lerd node:manager nvm` or the dashboard.
-func nodeManagerChoice(saved string, wantLerdNode, nvmDetected bool) string {
+// Users who want servlo to manage Node through their nvm switch with
+// `servlo node:manager nvm` or the dashboard.
+func nodeManagerChoice(saved string, wantServloNode, nvmDetected bool) string {
 	if saved != "" {
 		return saved
 	}
-	if !wantLerdNode && nvmDetected {
+	if !wantServloNode && nvmDetected {
 		return "nvm"
 	}
 	return "fnm"
@@ -1452,23 +1412,23 @@ func nodeStateFlipped(prevManaged bool, prevManager string, managed bool, manage
 
 // ensureNodeManaged is called by the node:install/use/uninstall commands to
 // guard against running version-manager operations while the user has opted out of
-// lerd-managed Node. Prompts for confirmation and writes shims on accept.
+// servlo-managed Node. Prompts for confirmation and writes shims on accept.
 // Returns an error when stdin is not a TTY so scripted callers fail loudly
 // instead of silently flipping the user's choice.
 func ensureNodeManaged() error {
-	if lerdManagesNode() {
+	if servloManagesNode() {
 		return nil
 	}
 	if fi, err := os.Stdin.Stat(); err != nil || (fi.Mode()&os.ModeCharDevice) == 0 {
-		return fmt.Errorf("lerd is not managing Node.js; run 'lerd install' to enable it")
+		return fmt.Errorf("servlo is not managing Node.js; run 'servlo install' to enable it")
 	}
-	fmt.Println("Lerd is currently using your system Node.js.")
+	fmt.Println("Servlo is currently using your system Node.js.")
 	if nodeDet.WritesPathShims(nodeDet.Active()) {
-		fmt.Println("Continuing will install lerd-managed shims into", config.BinDir(), "and override your system node, npm and npx in PATH.")
+		fmt.Println("Continuing will install servlo-managed shims into", config.BinDir(), "and override your system node, npm and npx in PATH.")
 	} else {
-		fmt.Println("Continuing will let lerd drive your existing nvm for install/use/default (your shell's nvm keeps owning node/npm/npx on PATH).")
+		fmt.Println("Continuing will let servlo drive your existing nvm for install/use/default (your shell's nvm keeps owning node/npm/npx on PATH).")
 	}
-	if !confirmInstallPromptDefault("Switch to lerd-managed Node.js?", false) {
+	if !confirmInstallPromptDefault("Switch to servlo-managed Node.js?", false) {
 		return fmt.Errorf("aborted")
 	}
 	if err := addShellShims(true); err != nil {
@@ -1481,7 +1441,7 @@ func ensureNodeManaged() error {
 // ensureDefaultNode installs the configured default Node.js version via the
 // active version manager and pins it as the default if no version is already set
 // up. Skips when the manager already has a working default so reruns of
-// `lerd install` stay quiet.
+// `servlo install` stay quiet.
 func ensureDefaultNode() {
 	mgr := nodeDet.Active()
 	if !mgr.Available() {
@@ -1508,14 +1468,14 @@ func ensureDefaultNode() {
 }
 
 // detectSystemNode returns a hint about an existing node install outside of
-// lerd's own bin dir, or "" if none can be found. Probes node/npm/npx in PATH
+// servlo's own bin dir, or "" if none can be found. Probes node/npm/npx in PATH
 // and well-known version-manager directories (nvm, volta, mise, asdf, fnm),
 // since most version managers inject node via a shell hook rather than a
 // static PATH entry and would otherwise be invisible here.
 func detectSystemNode() string {
-	lerdBin := config.BinDir()
+	servloBin := config.BinDir()
 	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
-		if dir == lerdBin {
+		if dir == servloBin {
 			continue
 		}
 		for _, bin := range []string{"node", "npm", "npx"} {
@@ -1545,7 +1505,7 @@ func detectSystemNode() string {
 }
 
 // detectNvm reports whether a user-installed nvm is present, so declining
-// lerd-managed Node can hand Node back to it instead of the bundled fnm. Both
+// servlo-managed Node can hand Node back to it instead of the bundled fnm. Both
 // layouts count: the script install's $NVM_DIR/nvm.sh, and Homebrew's, which
 // keeps nvm.sh under its own prefix and leaves NVM_DIR holding only the
 // versions.
@@ -1562,7 +1522,7 @@ func confirmInstallPrompt(question string) bool {
 // parseDNSMode maps the --dns flag to a wantDNS bool. It lets the installer
 // script ask the .test/.localhost question up front (so it can skip the
 // HTTPS-only prerequisites for localhost mode) and hand the answer to
-// `lerd install` instead of prompting twice. An empty or unrecognised value
+// `servlo install` instead of prompting twice. An empty or unrecognised value
 // returns ok=false so the caller falls back to the interactive prompt.
 func parseDNSMode(flag string) (enabled bool, ok bool) {
 	switch strings.ToLower(strings.TrimSpace(flag)) {
@@ -1575,7 +1535,7 @@ func parseDNSMode(flag string) (enabled bool, ok bool) {
 	}
 }
 
-// dnsManageDecision resolves whether lerd should manage DNS for this install
+// dnsManageDecision resolves whether servlo should manage DNS for this install
 // run, and whether the question must be asked. The choice is asked once and then
 // remembered: the --dns flag always wins, an update honours the saved choice
 // silently, and any run over an existing config honours the saved choice without
@@ -1593,7 +1553,7 @@ func dnsManageDecision(fromUpdate, configExisted bool, flag *bool, savedEnabled 
 	return true, true
 }
 
-// resolveDNSChoice decides whether lerd manages local DNS for this run, and
+// resolveDNSChoice decides whether servlo manages local DNS for this run, and
 // prompts when the answer is not already settled. It runs early because the
 // answer decides whether the root pass installs the resolver sudoers grant.
 // haveConfig is false when the config could not be read, in which case the
@@ -1618,7 +1578,7 @@ func resolveDNSChoice(fromUpdate, configExisted bool, dnsFlag string) (want, hav
 	want, needPrompt := dnsManageDecision(fromUpdate, configExisted, flagDNS, prevEnabled)
 	if needPrompt {
 		want = confirmInstallPromptDefault(
-			"Let lerd manage DNS for local sites (No: use *.localhost, no dnsmasq, no HTTPS)?",
+			"Let servlo manage DNS for local sites (No: use *.localhost, no dnsmasq, no HTTPS)?",
 			true,
 		)
 	}
@@ -1628,7 +1588,7 @@ func resolveDNSChoice(fromUpdate, configExisted bool, dnsFlag string) (want, hav
 // confirmInstallPromptDefault is like confirmInstallPrompt but lets the caller
 // pick the default for an empty answer, so re-running install can mirror the
 // user's previous choice. Falls back to /dev/tty when stdin is not a TTY so
-// prompts still work when lerd is piped, e.g. `curl ... | bash` -> `lerd install`.
+// prompts still work when servlo is piped, e.g. `curl ... | bash` -> `servlo install`.
 func confirmInstallPromptDefault(question string, defaultYes bool) bool {
 	src, closer, ok := promptSource()
 	if !ok {
@@ -1695,23 +1655,23 @@ func addShellShims(manageNode bool) error {
 	home, _ := os.UserHomeDir()
 	binDir := config.BinDir()
 	// Use the running binary so shims work regardless of install method
-	// (Homebrew at /opt/homebrew/bin/lerd, manual at ~/.local/bin/lerd, etc.).
-	lerdBin, _ := os.Executable()
-	if lerdBin == "" {
-		lerdBin = filepath.Join(home, ".local", "bin", "lerd")
+	// (Homebrew at /opt/homebrew/bin/servlo, manual at ~/.local/bin/servlo, etc.).
+	servloBin, _ := os.Executable()
+	if servloBin == "" {
+		servloBin = filepath.Join(home, ".local", "bin", "servlo")
 	}
 
 	// Write php shim
-	phpShim := fmt.Sprintf("#!/bin/sh\nexec %s php \"$@\"\n", lerdBin)
+	phpShim := fmt.Sprintf("#!/bin/sh\nexec %s php \"$@\"\n", servloBin)
 	if err := os.WriteFile(filepath.Join(binDir, "php"), []byte(phpShim), 0755); err != nil {
 		return fmt.Errorf("writing php shim: %w", err)
 	}
 
-	// Write composer shim. Routes through `lerd composer` so global installs
-	// land in lerd's bin dir as wrappers (mirroring the npm flow), falling
-	// back to a direct `lerd php composer.phar` invocation when the lerd
+	// Write composer shim. Routes through `servlo composer` so global installs
+	// land in servlo's bin dir as wrappers (mirroring the npm flow), falling
+	// back to a direct `servlo php composer.phar` invocation when the servlo
 	// binary is not reachable (containers where the glibc binary can't run).
-	composerShim := fmt.Sprintf("#!/bin/sh\nLERD=%q\nif [ -x \"$LERD\" ]; then\n  exec \"$LERD\" composer \"$@\"\nfi\nexec %s php %s/.local/share/lerd/bin/composer.phar \"$@\"\n", lerdBin, lerdBin, home)
+	composerShim := fmt.Sprintf("#!/bin/sh\nLERD=%q\nif [ -x \"$SERVLO\" ]; then\n  exec \"$SERVLO\" composer \"$@\"\nfi\nexec %s php %s/.local/share/servlo/bin/composer.phar \"$@\"\n", servloBin, servloBin, home)
 	if err := os.WriteFile(filepath.Join(binDir, "composer"), []byte(composerShim), 0755); err != nil {
 		return fmt.Errorf("writing composer shim: %w", err)
 	}
@@ -1725,23 +1685,23 @@ func addShellShims(manageNode bool) error {
 		}
 		composerHome = filepath.Join(xdgConfig, "composer")
 	}
-	laravelShim := fmt.Sprintf("#!/bin/sh\nexec %s php %s/vendor/bin/laravel \"$@\"\n", lerdBin, composerHome)
+	laravelShim := fmt.Sprintf("#!/bin/sh\nexec %s php %s/vendor/bin/laravel \"$@\"\n", servloBin, composerHome)
 	if err := os.WriteFile(filepath.Join(binDir, "laravel"), []byte(laravelShim), 0755); err != nil {
 		return fmt.Errorf("writing laravel shim: %w", err)
 	}
 
 	// Write node/npm/npx PATH shims only when the active manager needs them.
 	// fnm has no shell hook, so the shims are how `node` on PATH reaches fnm.
-	// nvm is already loaded by the user's shell; putting lerd wrappers ahead of
+	// nvm is already loaded by the user's shell; putting servlo wrappers ahead of
 	// it makes `nvm ls` / `nvm use` hang, so managed-nvm only removes any stale
-	// shims and leaves PATH to nvm. CLI (`lerd node`/`npm`) and host workers
+	// shims and leaves PATH to nvm. CLI (`servlo node`/`npm`) and host workers
 	// still drive nvm through Active() either way.
 	// When manageNode is false, existing shims are removed so a prior managed
 	// install stops masking the user's node.
 	if manageNode && nodeDet.WritesPathShims(nodeDet.Active()) {
 		mgr := nodeDet.Active()
 		for _, bin := range []string{"node", "npm", "npx"} {
-			shim := mgr.ShimScript(lerdBin, bin)
+			shim := mgr.ShimScript(servloBin, bin)
 			if err := os.WriteFile(filepath.Join(binDir, bin), []byte(shim), 0755); err != nil {
 				return fmt.Errorf("writing %s shim: %w", bin, err)
 			}
@@ -1759,18 +1719,18 @@ func addShellShims(manageNode bool) error {
 	} else if err := writeShellPathEntry(home, binDir); err != nil {
 		return err
 	}
-	installShellCompletions(home, lerdBin)
+	installShellCompletions(home, servloBin)
 	return nil
 }
 
 // pathShimDisabled reports whether the user opted out of the shell PATH entry
-// (`lerd path:disable`). Best-effort: an unreadable config keeps the default.
+// (`servlo path:disable`). Best-effort: an unreadable config keeps the default.
 func pathShimDisabled() bool {
 	cfg, err := config.LoadGlobal()
 	return err == nil && cfg != nil && cfg.Shims.PathDisabled
 }
 
-// writeShellPathEntry puts lerd's bin dir on the PATH of the user's shell:
+// writeShellPathEntry puts servlo's bin dir on the PATH of the user's shell:
 // an rc export for bash/zsh, a dedicated conf.d file for fish.
 func writeShellPathEntry(home, binDir string) error {
 	shell := os.Getenv("SHELL")
@@ -1781,7 +1741,7 @@ func writeShellPathEntry(home, binDir string) error {
 			return err
 		}
 		content := fmt.Sprintf("set -gx PATH %s $PATH\n", binDir)
-		return os.WriteFile(filepath.Join(fishConfigDir, "lerd.fish"), []byte(content), 0644)
+		return os.WriteFile(filepath.Join(fishConfigDir, "servlo.fish"), []byte(content), 0644)
 	case isShell(shell, "zsh"):
 		return appendShellRC(filepath.Join(home, ".zshrc"), binDir)
 	default:
@@ -1790,10 +1750,10 @@ func writeShellPathEntry(home, binDir string) error {
 }
 
 // removeShellPathEntry removes the PATH entry writeShellPathEntry wrote, in
-// every shell's location so a shell switch leaves nothing behind: the "# Lerd"
-// block in bash/zsh rc files and the PATH line in fish's conf.d/lerd.fish
+// every shell's location so a shell switch leaves nothing behind: the "# Servlo"
+// block in bash/zsh rc files and the PATH line in fish's conf.d/servlo.fish
 // (deleting the file when nothing else remains). The installer's "# Added by
-// Lerd installer" block is left alone — it puts the lerd binary itself on
+// Servlo installer" block is left alone — it puts the servlo binary itself on
 // PATH, not the shims.
 func removeShellPathEntry(home string) {
 	for _, rc := range []string{
@@ -1801,9 +1761,9 @@ func removeShellPathEntry(home string) {
 		filepath.Join(home, ".bash_profile"),
 		filepath.Join(home, ".zshrc"),
 	} {
-		removeMarkedBlock(rc, "# Lerd", 1)
+		removeMarkedBlock(rc, "# Servlo", 1)
 	}
-	fishConf := filepath.Join(home, ".config", "fish", "conf.d", "lerd.fish")
+	fishConf := filepath.Join(home, ".config", "fish", "conf.d", "servlo.fish")
 	data, err := os.ReadFile(fishConf)
 	if err != nil {
 		return
@@ -1827,28 +1787,28 @@ func removeShellPathEntry(home string) {
 }
 
 // installShellCompletions installs the completion script for the user's shell.
-// Kept separate from the PATH entry so completions for `lerd` itself survive
+// Kept separate from the PATH entry so completions for `servlo` itself survive
 // path:disable.
-func installShellCompletions(home, lerdBin string) {
+func installShellCompletions(home, servloBin string) {
 	shell := os.Getenv("SHELL")
 	switch {
 	case isShell(shell, "fish"):
-		installCompletion(lerdBin, "fish", filepath.Join(home, ".config", "fish", "completions"), "lerd.fish")
+		installCompletion(servloBin, "fish", filepath.Join(home, ".config", "fish", "completions"), "servlo.fish")
 	case isShell(shell, "zsh"):
 		zshFunctionsDir := filepath.Join(home, ".local", "share", "zsh", "site-functions")
 		if err := os.MkdirAll(zshFunctionsDir, 0755); err == nil {
-			installCompletion(lerdBin, "zsh", zshFunctionsDir, "_lerd")
+			installCompletion(servloBin, "zsh", zshFunctionsDir, "_servlo")
 			ensureZshFpath(filepath.Join(home, ".zshrc"), zshFunctionsDir)
 		}
 	default:
 		bashCompDir := filepath.Join(home, ".local", "share", "bash-completion", "completions")
 		if err := os.MkdirAll(bashCompDir, 0755); err == nil {
-			installCompletion(lerdBin, "bash", bashCompDir, "lerd")
+			installCompletion(servloBin, "bash", bashCompDir, "servlo")
 		}
 	}
 }
 
-// bashRCPath picks the bash startup file lerd should write its PATH line to.
+// bashRCPath picks the bash startup file servlo should write its PATH line to.
 // macOS Terminal launches bash as a login shell that reads .bash_profile (not
 // .bashrc); Linux interactive bash reads .bashrc.
 func bashRCPath(home string) string {
@@ -1869,7 +1829,7 @@ func appendShellRC(rcFile, binDir string) error {
 		return err
 	}
 	defer f.Close()
-	_, err = f.WriteString(fmt.Sprintf("\n# Lerd\n%s\n", line))
+	_, err = f.WriteString(fmt.Sprintf("\n# Servlo\n%s\n", line))
 	return err
 }
 
@@ -1877,16 +1837,16 @@ func isShell(shell, name string) bool {
 	return len(shell) > 0 && filepath.Base(shell) == name
 }
 
-// installCompletion generates and writes a shell completion script for lerd.
-func installCompletion(lerdBin, shell, dir, filename string) {
+// installCompletion generates and writes a shell completion script for servlo.
+func installCompletion(servloBin, shell, dir, filename string) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return
 	}
-	// Skip if lerdBin looks like a test binary to avoid re-entering test code.
-	if strings.HasSuffix(lerdBin, ".test") || strings.Contains(lerdBin, "/tmp/") {
+	// Skip if servloBin looks like a test binary to avoid re-entering test code.
+	if strings.HasSuffix(servloBin, ".test") || strings.Contains(servloBin, "/tmp/") {
 		return
 	}
-	out, err := exec.Command(lerdBin, "completion", shell).Output()
+	out, err := exec.Command(servloBin, "completion", shell).Output()
 	if err != nil {
 		return
 	}
@@ -1905,5 +1865,5 @@ func ensureZshFpath(zshrc, dir string) {
 		return
 	}
 	defer f.Close()
-	fmt.Fprintf(f, "\n# Lerd completions\n%s\nautoload -Uz compinit && compinit\n", line)
+	fmt.Fprintf(f, "\n# Servlo completions\n%s\nautoload -Uz compinit && compinit\n", line)
 }

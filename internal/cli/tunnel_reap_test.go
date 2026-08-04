@@ -65,7 +65,7 @@ func TestReapSkipsReusedPID(t *testing.T) {
 	}
 }
 
-// A tunnel that outlived its lerd-ui is actually killed.
+// A tunnel that outlived its servlo-panel is actually killed.
 func TestReapKillsSurvivingTunnel(t *testing.T) {
 	withTunnelRecordFile(t)
 

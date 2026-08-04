@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-var fpmRe = regexp.MustCompile(`^lerd-php\d+-fpm$`)
+var fpmRe = regexp.MustCompile(`^servlo-php\d+-fpm$`)
 
 // seedSite points the data dir at a temp location and registers a site whose
 // project dir declares two workers.
@@ -20,8 +20,8 @@ func seedSite(t *testing.T) (siteName, sitePath string) {
 
 	sitePath = t.TempDir()
 	yaml := "workers:\n  - queue\n  - horizon\n"
-	if err := os.WriteFile(filepath.Join(sitePath, ".lerd.yaml"), []byte(yaml), 0644); err != nil {
-		t.Fatalf("write .lerd.yaml: %v", err)
+	if err := os.WriteFile(filepath.Join(sitePath, ".servlo.yaml"), []byte(yaml), 0644); err != nil {
+		t.Fatalf("write .servlo.yaml: %v", err)
 	}
 	site := config.Site{Name: "myapp", Domains: []string{"myapp.test"}, Path: sitePath, PHPVersion: "8.4"}
 	if err := config.AddSite(site); err != nil {
@@ -75,10 +75,10 @@ func TestSources_EnumeratesSiteAndGlobals(t *testing.T) {
 	// The FPM container follows the detected/registered PHP version; assert the
 	// shape rather than a fixed version, which varies by machine default.
 	if fpm, _ := sourceByName(srcs, "fpm"); !fpmRe.MatchString(fpm.Locator) {
-		t.Errorf("fpm locator = %q, want lerd-php<NN>-fpm", fpm.Locator)
+		t.Errorf("fpm locator = %q, want servlo-php<NN>-fpm", fpm.Locator)
 	}
-	if w, _ := sourceByName(srcs, "worker:queue"); w.Locator != "lerd-queue-myapp" {
-		t.Errorf("worker locator = %q, want lerd-queue-myapp", w.Locator)
+	if w, _ := sourceByName(srcs, "worker:queue"); w.Locator != "servlo-queue-myapp" {
+		t.Errorf("worker locator = %q, want servlo-queue-myapp", w.Locator)
 	}
 }
 
@@ -113,8 +113,8 @@ func TestResolve_FindsKnownSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if s.Locator != "lerd-horizon-myapp" {
-		t.Errorf("locator = %q, want lerd-horizon-myapp", s.Locator)
+	if s.Locator != "servlo-horizon-myapp" {
+		t.Errorf("locator = %q, want servlo-horizon-myapp", s.Locator)
 	}
 }
 
@@ -124,9 +124,9 @@ func TestFPMContainer_SiteTypes(t *testing.T) {
 		site config.Site
 		want string
 	}{
-		{"custom-container", config.Site{Name: "nestapp", ContainerPort: 3000}, "lerd-custom-nestapp"},
-		{"frankenphp", config.Site{Name: "fapp", Runtime: "frankenphp"}, "lerd-fp-fapp"},
-		{"custom-fpm", config.Site{Name: "cfapp", Runtime: "fpm-custom"}, "lerd-cfpm-cfapp"},
+		{"custom-container", config.Site{Name: "nestapp", ContainerPort: 3000}, "servlo-custom-nestapp"},
+		{"frankenphp", config.Site{Name: "fapp", Runtime: "frankenphp"}, "servlo-fp-fapp"},
+		{"custom-fpm", config.Site{Name: "cfapp", Runtime: "fpm-custom"}, "servlo-cfpm-cfapp"},
 		{"host-proxy", config.Site{Name: "hp", HostPort: 5173}, ""},
 	}
 	for _, tc := range cases {
@@ -140,7 +140,7 @@ func TestFPMContainer_SiteTypes(t *testing.T) {
 	// A normal site falls back to the shared per-version container.
 	plain := config.Site{Name: "plain", PHPVersion: "8.4", Path: t.TempDir()}
 	if got := FPMContainer(&plain); !fpmRe.MatchString(got) {
-		t.Errorf("normal FPMContainer = %q, want lerd-php<NN>-fpm", got)
+		t.Errorf("normal FPMContainer = %q, want servlo-php<NN>-fpm", got)
 	}
 }
 
@@ -148,10 +148,10 @@ func TestResolve_DirectSources(t *testing.T) {
 	name, path := seedSite(t)
 	cases := []struct{ in, wantLocator string }{
 		{"fpm", ""}, // matched by pattern below
-		{"worker:queue", "lerd-queue-myapp"},
-		{"nginx", "lerd-nginx"},
-		{"dns", "lerd-dns"},
-		{"php8.4", "lerd-php84-fpm"},
+		{"worker:queue", "servlo-queue-myapp"},
+		{"nginx", "servlo-nginx"},
+		{"dns", "servlo-dns"},
+		{"php8.4", "servlo-php84-fpm"},
 	}
 	for _, tc := range cases {
 		s, err := Resolve(name, path, tc.in)
@@ -161,7 +161,7 @@ func TestResolve_DirectSources(t *testing.T) {
 		}
 		if tc.in == "fpm" {
 			if !fpmRe.MatchString(s.Locator) {
-				t.Errorf("fpm locator = %q, want lerd-php<NN>-fpm", s.Locator)
+				t.Errorf("fpm locator = %q, want servlo-php<NN>-fpm", s.Locator)
 			}
 			continue
 		}

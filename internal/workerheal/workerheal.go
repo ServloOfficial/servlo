@@ -2,8 +2,8 @@
 // "failed" state. The detector is deliberately cheap — it walks the existing
 // batched unit-state cache shared with the dashboard, so polling stays free
 // even on busy installs. The healer is a single primitive: reset-failed +
-// start. It never writes .lerd.yaml or rewrites unit files; that belongs to
-// `lerd worker add/remove/start/stop` and `lerd init`.
+// start. It never writes .servlo.yaml or rewrites unit files; that belongs to
+// `servlo worker add/remove/start/stop` and `servlo init`.
 package workerheal
 
 import (
@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // StateOrphaned marks a per-worktree unit whose checkout is gone. It is kept
@@ -54,13 +54,13 @@ type Failure struct {
 	Err    string          `json:"error"`
 }
 
-// nonWorkerPerSitePrefixes lists lerd-<X>-<site> patterns that match a
+// nonWorkerPerSitePrefixes lists servlo-<X>-<site> patterns that match a
 // registered site suffix but are NOT worker units (per-site containers
 // rather than worker processes). Heal must skip these — restarting a
-// crashed lerd-fp-myapp via this path is a different operation.
+// crashed servlo-fp-myapp via this path is a different operation.
 var nonWorkerPerSitePrefixes = map[string]bool{
-	"custom": true, // lerd-custom-<site> — per-site custom container
-	"fp":     true, // lerd-fp-<site>     — per-site FrankenPHP container
+	"custom": true, // servlo-custom-<site> — per-site custom container
+	"fp":     true, // servlo-fp-<site>     — per-site FrankenPHP container
 }
 
 // Swappable for tests so the detector can be exercised without touching the
@@ -175,7 +175,7 @@ const lastErrorMaxLen = 220
 // readLastError returns the last log line emitted for a failed worker unit.
 // Best-effort: if no log source is available, the empty string is returned
 // and the dashboard simply omits the error excerpt. On Linux it reads the
-// systemd journal via journalctl; on macOS it tails ~/Library/Logs/lerd/
+// systemd journal via journalctl; on macOS it tails ~/Library/Logs/servlo/
 // where launchd redirects each unit's stdout+stderr.
 func readLastError(unit string) string {
 	if line := readLastErrorPlatform(unit); line != "" {
@@ -235,15 +235,15 @@ func Enrich(in []UnhealthyWorker) []UnhealthyWorker {
 // Two health problems are detected. "failed" — units that hit Restart= rate
 // limits or crash repeatedly and stay stuck until reset. "expected-but-stopped"
 // — units that are still enabled (systemd's wants-symlink present) yet inactive:
-// `lerd worker stop` disables the unit, so an enabled-yet-stopped worker was
+// `servlo worker stop` disables the unit, so an enabled-yet-stopped worker was
 // knocked out some other way (an FPM restart cascading through BindsTo, a
 // manual `systemctl stop`, a clean exit) and is drift, not intent. Plain
 // "inactive" alone is NOT enough — that's why the enabled check matters — and
 // timer-driven oneshots (a .timer sibling owns the lifecycle) are normally idle
 // between ticks, so they're left alone to avoid false positives.
 func Detect() ([]UnhealthyWorker, error) {
-	// When lerd was intentionally stopped, its workers are meant to be down, so
-	// reporting them as failing/expected-but-stopped is noise: the fix is `lerd
+	// When servlo was intentionally stopped, its workers are meant to be down, so
+	// reporting them as failing/expected-but-stopped is noise: the fix is `servlo
 	// start`, not a heal. Suppress detection (and the notifications, banners, and
 	// heals that read it) until the next start clears the marker.
 	if isStoppedFn() {
@@ -295,7 +295,7 @@ func Detect() ([]UnhealthyWorker, error) {
 	var out []UnhealthyWorker
 	for unit, state := range states {
 		// The unit-state cache aliases each .service unit under both
-		// "lerd-foo" and "lerd-foo.service"; pick one canonical form so
+		// "servlo-foo" and "servlo-foo.service"; pick one canonical form so
 		// we don't emit duplicates. .timer units (paired oneshot
 		// schedulers) are skipped — their .service sibling, if it ever
 		// fails, will surface here under its own key.
@@ -309,7 +309,7 @@ func Detect() ([]UnhealthyWorker, error) {
 		if state != "failed" && state != "inactive" && state != "active" && state != "activating" {
 			continue
 		}
-		body := strings.TrimPrefix(unit, "lerd-")
+		body := strings.TrimPrefix(unit, "servlo-")
 		body = strings.TrimSuffix(body, ".service")
 		// Resolve site + worker (longest site suffix for parents; the unit's
 		// WorkingDirectory disambiguates worktree units). probePath is the
@@ -388,7 +388,7 @@ func Detect() ([]UnhealthyWorker, error) {
 
 // HealUnit clears any failed state and starts the named worker unit. The
 // single "fix this" primitive — every surface (CLI / UI / TUI / MCP) goes
-// through here. Crucially, it does NOT touch .lerd.yaml or rewrite the
+// through here. Crucially, it does NOT touch .servlo.yaml or rewrite the
 // unit file: a failed worker is a transient runtime condition, not a
 // change of user intent. The reset-failed step is implicit: on Linux,
 // systemd.DBusStartUnit calls DBusResetFailed first; on macOS launchd's

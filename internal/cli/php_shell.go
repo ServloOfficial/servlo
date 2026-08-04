@@ -4,8 +4,8 @@ import (
 	"os"
 	"os/exec"
 
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -55,7 +55,7 @@ func runPhpShell(_ *cobra.Command, _ []string) error {
 	podman.EnsurePathMounted(workDir, version)
 	ensureServicesForCwd(workDir)
 
-	// Put the opt-in in-container bun (lerd php:bun install) on PATH so a bare
+	// Put the opt-in in-container bun (servlo php:bun install) on PATH so a bare
 	// `bun` resolves in the shell. Harmless no-op when bun isn't installed.
 	cmd := podman.Cmd("exec", "-it", "-w", workDir, container,
 		"sh", "-c", `export PATH="/root/.bun/bin:$PATH"; `+podman.InteractiveShellScript())

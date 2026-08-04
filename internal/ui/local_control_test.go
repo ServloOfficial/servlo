@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// A browser on the lerd host may reach the dashboard by a name that is not
+// A browser on the servlo host may reach the dashboard by a name that is not
 // "localhost": Debian and Ubuntu map the machine's hostname to 127.0.1.1, and
 // /etc/hosts aliases are common. Those requests must keep working, or the local
 // user is locked out of their own dashboard with no credential that helps.
@@ -17,7 +17,7 @@ func TestLocalControlAcceptsLoopbackHostnames(t *testing.T) {
 	for _, tc := range []struct{ name, peer, host string }{
 		{"localhost", "127.0.0.1:54321", "localhost:7073"},
 		{"loopback ip", "127.0.0.1:54321", "127.0.0.1:7073"},
-		{"nginx vhost", "127.0.0.1:54321", "lerd.localhost"},
+		{"nginx vhost", "127.0.0.1:54321", "servlo.localhost"},
 		{"machine hostname", "127.0.1.1:54321", "workstation:7073"},
 		{"hosts alias", "127.0.0.1:54321", "dev.internal"},
 		{"ipv6 loopback", "[::1]:54321", "[::1]:7073"},
@@ -70,7 +70,7 @@ func TestLocalControlAcceptsUnixSocketWithForeignHost(t *testing.T) {
 	next := &nextHandler{}
 	req := httptest.NewRequest(http.MethodGet, "/api/sites", nil)
 	req.RemoteAddr = ""
-	req.Host = "lerd.localhost"
+	req.Host = "servlo.localhost"
 	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUnixSocket{}, true))
 	rec := httptest.NewRecorder()
 	withRemoteControlGate(next).ServeHTTP(rec, req)

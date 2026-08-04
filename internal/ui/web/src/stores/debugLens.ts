@@ -13,7 +13,7 @@ export type DebugLens =
   | 'events'
   | 'http';
 
-const KEY = 'lerd:debugLens';
+const KEY = 'servlo:debugLens';
 
 const VALID: DebugLens[] = ['dumps', 'queries', 'jobs', 'views', 'mail', 'cache', 'events', 'http'];
 
@@ -33,7 +33,7 @@ export const debugSearch = writable<string>('');
 // showTests governs whether events captured inside a PHPUnit/Pest run are
 // rendered. Off by default (a suite buries everything else), shared across
 // every lens, and remembered so it isn't re-ticked on each visit.
-const TESTS_KEY = 'lerd:debugShowTests';
+const TESTS_KEY = 'servlo:debugShowTests';
 
 function initialShowTests(): boolean {
   if (typeof localStorage === 'undefined') return false;

@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/tools"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/tools"
 	"github.com/spf13/cobra"
 )
 

@@ -5,8 +5,8 @@ import (
 	"os"
 	"unicode/utf8"
 
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/siteinfo"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -35,7 +35,7 @@ func runSites(_ *cobra.Command, _ []string) error {
 	}
 
 	if len(sites) == 0 {
-		fmt.Println("No sites registered. Use 'lerd park' or 'lerd link' to add sites.")
+		fmt.Println("No sites registered. Use 'servlo park' or 'servlo link' to add sites.")
 		return nil
 	}
 

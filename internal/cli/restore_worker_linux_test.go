@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // captureWriteMgr records every WriteServiceUnitIfChanged call so a test can
@@ -41,7 +41,7 @@ func swapServiceMgr(t *testing.T, m services.ServiceManager) {
 }
 
 // TestRestoreWorker_parentPath_writesParentUnit pins the regression-free
-// case: a parent-path restore should produce lerd-<worker>-<site> exactly
+// case: a parent-path restore should produce servlo-<worker>-<site> exactly
 // like before the workerUnitName refactor.
 func TestRestoreWorker_parentPath_writesParentUnit(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
@@ -54,8 +54,8 @@ func TestRestoreWorker_parentPath_writesParentUnit(t *testing.T) {
 	if len(mgr.writes) == 0 {
 		t.Fatal("expected at least one WriteServiceUnitIfChanged call")
 	}
-	if got := mgr.writes[0].name; got != "lerd-vite-ws" {
-		t.Errorf("got unit %q, want %q", got, "lerd-vite-ws")
+	if got := mgr.writes[0].name; got != "servlo-vite-ws" {
+		t.Errorf("got unit %q, want %q", got, "servlo-vite-ws")
 	}
 	if !strings.Contains(mgr.writes[0].content, "WorkingDirectory=/p/ws") {
 		t.Errorf("expected WorkingDirectory=/p/ws in unit content, got %q", mgr.writes[0].content)
@@ -64,7 +64,7 @@ func TestRestoreWorker_parentPath_writesParentUnit(t *testing.T) {
 
 // TestRestoreWorker_worktreePath_writesSuffixedUnit pins the fix: when
 // restoreWorker is invoked for a worktree path under the parent site, the
-// produced unit must be lerd-<worker>-<site>-<wtBase> with WorkingDirectory
+// produced unit must be servlo-<worker>-<site>-<wtBase> with WorkingDirectory
 // set to the worktree path. Pre-fix, restoreWorker built the parent-shaped
 // unit name from siteName alone, so per-worktree workers couldn't survive
 // a daemon restart cleanly.
@@ -79,8 +79,8 @@ func TestRestoreWorker_worktreePath_writesSuffixedUnit(t *testing.T) {
 	if len(mgr.writes) == 0 {
 		t.Fatal("expected at least one WriteServiceUnitIfChanged call")
 	}
-	if got := mgr.writes[0].name; got != "lerd-vite-ws-main" {
-		t.Errorf("got unit %q, want %q", got, "lerd-vite-ws-main")
+	if got := mgr.writes[0].name; got != "servlo-vite-ws-main" {
+		t.Errorf("got unit %q, want %q", got, "servlo-vite-ws-main")
 	}
 	if !strings.Contains(mgr.writes[0].content, "WorkingDirectory=/p/ws/main") {
 		t.Errorf("expected WorkingDirectory=/p/ws/main in unit content, got %q", mgr.writes[0].content)

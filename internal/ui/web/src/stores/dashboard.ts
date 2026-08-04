@@ -20,11 +20,11 @@ export const dashboardOpen = writable<DashboardRef | null>(null);
 const DOCS_REF: DashboardRef = {
   name: 'docs',
   label: 'Documentation',
-  dashboard: 'https://lerd.sh/getting-started/requirements'
+  dashboard: 'https://realrashid.github.io/servlo/getting-started/requirements'
 };
 
 // PROFILER_REF is the synthetic entry for the SPX profiler. The UI is proxied
-// same-origin under /_spx/ by lerd-ui so the overlay can drive the iframe
+// same-origin under /_spx/ by servlo-panel so the overlay can drive the iframe
 // (back, reload) directly. /_spx/ reaches the profiler.localhost nginx vhost,
 // which routes to a PHP-FPM container where SPX serves its report UI.
 const PROFILER_REF: DashboardRef = {

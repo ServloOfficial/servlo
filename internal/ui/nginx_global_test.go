@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/nginx"
+	"github.com/realrashid/servlo/internal/nginx"
 )
 
 // setupGlobalNginx prepares an isolated data/config home and pre-writes the
-// lerd-nginx quadlet so the handler's RewriteNginxQuadlet call reports no
+// servlo-nginx quadlet so the handler's RewriteNginxQuadlet call reports no
 // change and the save takes the validate + reload path instead of restarting
 // a container that does not exist under test.
 func setupGlobalNginx(t *testing.T) string {
@@ -45,15 +45,15 @@ func postGlobalNginx(t *testing.T, content string) NginxConfigWriteResponse {
 
 func renderedNginxConf(t *testing.T, data string) string {
 	t.Helper()
-	body, err := os.ReadFile(filepath.Join(data, "lerd", "nginx", "nginx.conf"))
+	body, err := os.ReadFile(filepath.Join(data, "servlo", "nginx", "nginx.conf"))
 	if err != nil {
 		t.Fatalf("read nginx.conf: %v", err)
 	}
 	return string(body)
 }
 
-// Saving an override for a directive lerd already sets in http{} must leave
-// nginx.conf without lerd's own copy, or nginx refuses the config as a
+// Saving an override for a directive servlo already sets in http{} must leave
+// nginx.conf without servlo's own copy, or nginx refuses the config as a
 // duplicate directive (issue #1066).
 func TestHandleNginxConfig_saveDropsCollidingDefault(t *testing.T) {
 	data := setupGlobalNginx(t)
@@ -64,12 +64,12 @@ func TestHandleNginxConfig_saveDropsCollidingDefault(t *testing.T) {
 	conf := renderedNginxConf(t, data)
 	for _, line := range strings.Split(conf, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "client_max_body_size ") {
-			t.Fatalf("lerd default still active alongside the override:\n%s", conf)
+			t.Fatalf("servlo default still active alongside the override:\n%s", conf)
 		}
 	}
 }
 
-// Reset drops the override, so lerd's defaults have to come back with it.
+// Reset drops the override, so servlo's defaults have to come back with it.
 func TestHandleNginxConfigReset_restoresDefault(t *testing.T) {
 	data := setupGlobalNginx(t)
 	if resp := postGlobalNginx(t, "client_max_body_size 100m;\n"); !resp.OK {
@@ -85,6 +85,6 @@ func TestHandleNginxConfigReset_restoresDefault(t *testing.T) {
 		t.Fatalf("reset failed: %+v", resp)
 	}
 	if conf := renderedNginxConf(t, data); !strings.Contains(conf, "client_max_body_size 0;") {
-		t.Errorf("expected lerd's default back after reset, got:\n%s", conf)
+		t.Errorf("expected servlo's default back after reset, got:\n%s", conf)
 	}
 }

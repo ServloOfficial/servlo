@@ -23,7 +23,7 @@ func isVPNIface(name string) bool {
 // VPNActive reports whether a VPN tunnel interface is currently up. It is
 // used to word the "DNS degraded" hint and the doctor diagnostic, since a
 // VPN client rewriting the system resolver is by far the most common cause
-// of the system-resolver path failing while lerd-dns itself stays healthy.
+// of the system-resolver path failing while servlo-dns itself stays healthy.
 // Detection is name-prefix first and falls back to the POINTOPOINT flag so
 // branded clients (ProtonVPN's proton0, Mullvad's wg variants, custom names)
 // are recognised even when they don't follow the conventional prefix.

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // resolveDBEnvBinding must derive the env file, format and DB host/name keys from
@@ -21,7 +21,7 @@ func TestResolveDBEnvBinding(t *testing.T) {
 	}
 	// A Magento-shaped php-array framework: env under app/etc/env.php, database
 	// addressed by dotted keys.
-	magDef := "name: magish\nlabel: Magish\nenv:\n  file: app/etc/env.php\n  format: php-array\n  url_key: none\n  services:\n    mysql:\n      vars:\n        - db.connection.default.host=lerd-mysql\n        - db.connection.default.dbname={{site}}\n"
+	magDef := "name: magish\nlabel: Magish\nenv:\n  file: app/etc/env.php\n  format: php-array\n  url_key: none\n  services:\n    mysql:\n      vars:\n        - db.connection.default.host=servlo-mysql\n        - db.connection.default.dbname={{site}}\n"
 	if err := os.WriteFile(filepath.Join(storeDir, "magish.yaml"), []byte(magDef), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestResolveDBEnvBinding(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: "+tc.framework+"\n"), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: "+tc.framework+"\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
 			b := resolveDBEnvBinding(dir)

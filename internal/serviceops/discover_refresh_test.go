@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 func TestRefreshDiscoverFamilyConsumers_fillsEmptyHostsAfterBulkStart(t *testing.T) {
@@ -44,8 +44,8 @@ func TestRefreshDiscoverFamilyConsumers_fillsEmptyHostsAfterBulkStart(t *testing
 	if err := EnsureCustomServiceQuadlet(pma); err != nil {
 		t.Fatalf("seed empty hosts: %v", err)
 	}
-	empty := readQuadlet(t, "lerd-phpmyadmin")
-	if strings.Contains(empty, "lerd-mariadb-11-8") {
+	empty := readQuadlet(t, "servlo-phpmyadmin")
+	if strings.Contains(empty, "servlo-mariadb-11-8") {
 		t.Fatalf("seed quadlet should not list mariadb yet:\n%s", empty)
 	}
 
@@ -53,8 +53,8 @@ func TestRefreshDiscoverFamilyConsumers_fillsEmptyHostsAfterBulkStart(t *testing
 	config.ServiceRunning = func(name string) bool { return name == "mariadb-11-8" }
 	RefreshDiscoverFamilyConsumers()
 
-	got := readQuadlet(t, "lerd-phpmyadmin")
-	if !strings.Contains(got, "lerd-mariadb-11-8") {
+	got := readQuadlet(t, "servlo-phpmyadmin")
+	if !strings.Contains(got, "servlo-mariadb-11-8") {
 		t.Fatalf("RefreshDiscoverFamilyConsumers should set PMA_HOSTS to running mariadb:\n%s", got)
 	}
 }
@@ -79,7 +79,7 @@ func TestRefreshDiscoverFamilyConsumers_picksUpExpandEnvOnlyConsumer(t *testing.
 		Name:        "redisinsight",
 		Image:       "docker.io/redis/redisinsight:latest",
 		Ports:       []string{"127.0.0.1:8085:5540"},
-		Environment: map[string]string{"RI_REDIS_HOST": "lerd-redis"},
+		Environment: map[string]string{"RI_REDIS_HOST": "servlo-redis"},
 		ExpandEnv: map[string]string{
 			"RI_REDIS_HOST": "redis,valkey={host}",
 		},
@@ -94,8 +94,8 @@ func TestRefreshDiscoverFamilyConsumers_picksUpExpandEnvOnlyConsumer(t *testing.
 	config.ServiceRunning = func(name string) bool { return name == "valkey" }
 	RefreshDiscoverFamilyConsumers()
 
-	got := readQuadlet(t, "lerd-redisinsight")
-	if !strings.Contains(got, "RI_REDIS_HOST_1=lerd-valkey") {
+	got := readQuadlet(t, "servlo-redisinsight")
+	if !strings.Contains(got, "RI_REDIS_HOST_1=servlo-valkey") {
 		t.Fatalf("expand_env-only consumer should be refreshed with the running valkey:\n%s", got)
 	}
 	if strings.Contains(got, "\"RI_REDIS_HOST=") {
@@ -129,10 +129,10 @@ func TestRegenerateFamilyConsumers_skipsBounceWhenUnchanged(t *testing.T) {
 	if err := EnsureCustomServiceQuadlet(pma); err != nil {
 		t.Fatal(err)
 	}
-	before := readQuadlet(t, "lerd-phpmyadmin")
+	before := readQuadlet(t, "servlo-phpmyadmin")
 
 	RegenerateFamilyConsumers("mariadb")
-	after := readQuadlet(t, "lerd-phpmyadmin")
+	after := readQuadlet(t, "servlo-phpmyadmin")
 	if before != after {
 		t.Fatal("unchanged host list must not rewrite the quadlet")
 	}

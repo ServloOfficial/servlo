@@ -146,20 +146,20 @@ func TestDbCmdUnsupportedConnection(t *testing.T) {
 	}
 }
 
-func TestLerdServiceFromHost(t *testing.T) {
+func TestServloServiceFromHost(t *testing.T) {
 	cases := map[string]string{
-		"lerd-mariadb-11-8": "mariadb-11-8",
-		"lerd-mysql":        "mysql",
-		"lerd-postgres-18":  "postgres-18",
-		"  lerd-mysql ":     "mysql",
-		"127.0.0.1":         "",
-		"db.example.com":    "",
-		"":                  "",
-		"lerd-":             "",
+		"servlo-mariadb-11-8": "mariadb-11-8",
+		"servlo-mysql":        "mysql",
+		"servlo-postgres-18":  "postgres-18",
+		"  servlo-mysql ":     "mysql",
+		"127.0.0.1":           "",
+		"db.example.com":      "",
+		"":                    "",
+		"servlo-":             "",
 	}
 	for host, want := range cases {
-		if got := lerdServiceFromHost(host); got != want {
-			t.Errorf("lerdServiceFromHost(%q) = %q, want %q", host, got, want)
+		if got := servloServiceFromHost(host); got != want {
+			t.Errorf("servloServiceFromHost(%q) = %q, want %q", host, got, want)
 		}
 	}
 }
@@ -175,7 +175,7 @@ func writeEnvFixture(t *testing.T, lines string) string {
 
 func TestLoadDBEnvTargetsActualServiceFromHost(t *testing.T) {
 	// A mariadb-backed site: mysql dialect, but the container is the mariadb one.
-	dir := writeEnvFixture(t, "DB_CONNECTION=mysql\nDB_HOST=lerd-mariadb-11-8\nDB_DATABASE=shop\n")
+	dir := writeEnvFixture(t, "DB_CONNECTION=mysql\nDB_HOST=servlo-mariadb-11-8\nDB_DATABASE=shop\n")
 	env, err := loadDBEnv(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -189,7 +189,7 @@ func TestLoadDBEnvTargetsActualServiceFromHost(t *testing.T) {
 }
 
 func TestLoadDBEnvCanonicalHostUnchanged(t *testing.T) {
-	dir := writeEnvFixture(t, "DB_CONNECTION=pgsql\nDB_HOST=lerd-postgres\nDB_DATABASE=shop\n")
+	dir := writeEnvFixture(t, "DB_CONNECTION=pgsql\nDB_HOST=servlo-postgres\nDB_DATABASE=shop\n")
 	env, err := loadDBEnv(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -199,7 +199,7 @@ func TestLoadDBEnvCanonicalHostUnchanged(t *testing.T) {
 	}
 }
 
-func TestLoadDBEnvNonLerdHostFallsBackToCanonical(t *testing.T) {
+func TestLoadDBEnvNonServloHostFallsBackToCanonical(t *testing.T) {
 	dir := writeEnvFixture(t, "DB_CONNECTION=mysql\nDB_HOST=127.0.0.1\nDB_DATABASE=shop\n")
 	env, err := loadDBEnv(dir)
 	if err != nil {

@@ -5,15 +5,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/composer"
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/composer"
+	"github.com/realrashid/servlo/internal/config"
 	"github.com/spf13/cobra"
 )
 
 // NewComposerCmd returns the composer command. It runs `php composer.phar`
 // inside the project's FPM container (so composer always has the matching
 // PHP runtime) and, after the command exits, syncs `composer global` binaries
-// from `$COMPOSER_HOME/vendor/bin/` into lerd's bin dir as wrapper scripts,
+// from `$COMPOSER_HOME/vendor/bin/` into servlo's bin dir as wrapper scripts,
 // so globally required packages like psy/psysh or laravel/installer become
 // callable from the host shell on every supported platform.
 func NewComposerCmd() *cobra.Command {
@@ -39,13 +39,13 @@ func runComposer(args []string) error {
 
 	// Sync regardless of composer exit status, so a `composer global remove`
 	// that fails partway still cleans up wrappers whose source bin is gone.
-	lerdBin, _ := os.Executable()
-	if lerdBin == "" {
+	servloBin, _ := os.Executable()
+	if servloBin == "" {
 		home, _ := os.UserHomeDir()
-		lerdBin = filepath.Join(home, ".local", "bin", "lerd")
+		servloBin = filepath.Join(home, ".local", "bin", "servlo")
 	}
-	if syncErr := syncComposerGlobalBins(composerGlobalBinDir(), config.BinDir(), lerdBin); syncErr != nil {
-		fmt.Fprintf(os.Stderr, "lerd: warning: failed to sync composer global wrappers: %v\n", syncErr)
+	if syncErr := syncComposerGlobalBins(composerGlobalBinDir(), config.BinDir(), servloBin); syncErr != nil {
+		fmt.Fprintf(os.Stderr, "servlo: warning: failed to sync composer global wrappers: %v\n", syncErr)
 	}
 
 	if runErr != nil {

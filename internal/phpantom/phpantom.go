@@ -3,7 +3,7 @@
 //
 // phpantom_lsp (https://github.com/PHPantom-dev/phpantom_lsp) is a single,
 // self-contained Rust binary: it bundles phpstorm-stubs and the Mago parser
-// and needs no PHP runtime to analyze a project. That lets lerd run it on the
+// and needs no PHP runtime to analyze a project. That lets servlo run it on the
 // host pointed at the project directory, alongside the other host tools it
 // already manages (fnm, mkcert, composer) in BinDir, rather than baking it
 // into the per-version PHP container images.
@@ -20,11 +20,11 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/download"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/download"
 )
 
-// Version pins the phpantom_lsp release lerd installs. Bump alongside a
+// Version pins the phpantom_lsp release servlo installs. Bump alongside a
 // tested upgrade; the binary is re-fetched when the on-disk copy is missing.
 const Version = "0.9.0"
 

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/siteinfo"
-	"github.com/geodro/lerd/internal/stats"
+	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/stats"
 )
 
 // TestDashboardGrid_RendersAllCards ensures every promised card title is
@@ -13,7 +13,7 @@ import (
 func TestDashboardGrid_RendersAllCards(t *testing.T) {
 	m := NewModel("test")
 	joined := stripANSI(m.renderDashboardGrid(150, 30))
-	for _, want := range []string{"Sites", "Services", "Workers", "System Health", "Resources", "Lerd"} {
+	for _, want := range []string{"Sites", "Services", "Workers", "System Health", "Resources", "Servlo"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("missing card %q in dashboard grid:\n%s", want, joined)
 		}
@@ -57,16 +57,16 @@ func TestResourcesCard_ShowsStatsWhenAvailable(t *testing.T) {
 		TotalMemBytes:   128 * 1024 * 1024,
 		HostMemBytes:    32 * 1024 * 1024 * 1024,
 		Containers: []stats.ContainerStat{
-			{Name: "lerd-mysql", CPUPercent: 5.5, MemBytes: 100 * 1024 * 1024},
-			{Name: "lerd-redis", CPUPercent: 1.0, MemBytes: 28 * 1024 * 1024},
+			{Name: "servlo-mysql", CPUPercent: 5.5, MemBytes: 100 * 1024 * 1024},
+			{Name: "servlo-redis", CPUPercent: 1.0, MemBytes: 28 * 1024 * 1024},
 		},
 	}
 	joined := stripANSI(strings.Join(m.dashResourcesCard(60).lines, "\n"))
 	if !strings.Contains(joined, "12.5%") {
 		t.Errorf("expected '12.5%%' total CPU:\n%s", joined)
 	}
-	if !strings.Contains(joined, "lerd-mysql") {
-		t.Errorf("expected top container 'lerd-mysql':\n%s", joined)
+	if !strings.Contains(joined, "servlo-mysql") {
+		t.Errorf("expected top container 'servlo-mysql':\n%s", joined)
 	}
 	if strings.Contains(joined, "collecting") {
 		t.Errorf("should not show placeholder when Available=true:\n%s", joined)
@@ -111,7 +111,7 @@ func stripANSI(s string) string {
 	return b.String()
 }
 
-// The TUI shares lerd-ui's stats cache, so a poll at or above the TTL doesn't
+// The TUI shares servlo-panel's stats cache, so a poll at or above the TTL doesn't
 // just cost the TUI a miss, it keeps the ~2s `podman stats` stream running for
 // the web dashboard too.
 func TestStatsPollStaysUnderCacheTTL(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func writeEnv(t *testing.T, dir, host string) {
@@ -28,8 +28,8 @@ func TestSiteServiceForTool_NestedWorktreeUsesItsOwnEnv(t *testing.T) {
 	site := filepath.Join(tempRoot(t), "app")
 	wt := filepath.Join(site, "wt", "feature")
 	makeWorktree(t, site, wt, "feature")
-	writeEnv(t, site, "lerd-mysql-8.4")
-	writeEnv(t, wt, "lerd-postgres-17")
+	writeEnv(t, site, "servlo-mysql-8.4")
+	writeEnv(t, wt, "servlo-postgres-17")
 
 	if err := config.AddSite(config.Site{Name: "app", Path: site}); err != nil {
 		t.Fatal(err)
@@ -48,8 +48,8 @@ func TestSiteServiceForTool_SubdirOfWorktreeUsesTheWorktreeEnv(t *testing.T) {
 	site := filepath.Join(tempRoot(t), "app")
 	wt := filepath.Join(site, "wt", "feature")
 	makeWorktree(t, site, wt, "feature")
-	writeEnv(t, site, "lerd-mysql-8.4")
-	writeEnv(t, wt, "lerd-postgres-17")
+	writeEnv(t, site, "servlo-mysql-8.4")
+	writeEnv(t, wt, "servlo-postgres-17")
 	sub := filepath.Join(wt, "database", "dumps")
 	if err := os.MkdirAll(sub, 0755); err != nil {
 		t.Fatal(err)
@@ -72,7 +72,7 @@ func TestSiteServiceForTool_WorktreeWithoutEnvFallsBackToTheSite(t *testing.T) {
 	site := filepath.Join(tempRoot(t), "app")
 	wt := filepath.Join(site, "wt", "feature")
 	makeWorktree(t, site, wt, "feature")
-	writeEnv(t, site, "lerd-mysql-8.4")
+	writeEnv(t, site, "servlo-mysql-8.4")
 
 	if err := config.AddSite(config.Site{Name: "app", Path: site}); err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func TestSiteServiceForTool_PlainSiteUsesTheSiteRoot(t *testing.T) {
 	if err := os.MkdirAll(sub, 0755); err != nil {
 		t.Fatal(err)
 	}
-	writeEnv(t, site, "lerd-mariadb-11.4")
+	writeEnv(t, site, "servlo-mariadb-11.4")
 
 	if err := config.AddSite(config.Site{Name: "app", Path: site}); err != nil {
 		t.Fatal(err)

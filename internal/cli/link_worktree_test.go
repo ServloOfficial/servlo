@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // makeWorktreeLayout creates the minimal .git/worktrees/<wt>/ structure that
@@ -35,7 +35,7 @@ func makeWorktreeLayout(t *testing.T, parentName, wtBase string) (string, string
 // config.LoadSites returns the supplied sites.
 func writeSitesYAML(t *testing.T, sites []config.Site) {
 	t.Helper()
-	dir := filepath.Join(os.Getenv("XDG_DATA_HOME"), "lerd")
+	dir := filepath.Join(os.Getenv("XDG_DATA_HOME"), "servlo")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}

@@ -44,9 +44,9 @@ func hasAction(t *testing.T, tool, action string) bool {
 	return false
 }
 
-// A dump that needs postgis or pgvector reaches for a type and lerd creates the
+// A dump that needs postgis or pgvector reaches for a type and servlo creates the
 // extension for it, but an agent could not see what an engine offers or add one
-// up front, so `lerd db:extension` had no counterpart here.
+// up front, so `servlo db:extension` had no counterpart here.
 func TestDBToolExposesExtensions(t *testing.T) {
 	for _, action := range []string{"extension_list", "extension_add"} {
 		if !hasAction(t, "db", action) {

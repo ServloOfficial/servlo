@@ -4,7 +4,7 @@ import "testing"
 
 func TestParseAccessRecord(t *testing.T) {
 	// Full syslog framing nginx wraps the pipe-delimited message in.
-	dg := []byte("<190>Jul  2 10:00:00 lerdaccess: myapp.test|200|0.042|GET|/reports/5?p=2")
+	dg := []byte("<190>Jul  2 10:00:00 servloaccess: myapp.test|200|0.042|GET|/reports/5?p=2")
 	r, ok := ParseAccessRecord(dg)
 	if !ok {
 		t.Fatal("expected parse ok")
@@ -29,7 +29,7 @@ func TestParseAccessRecord(t *testing.T) {
 func TestParseAccessRecordRejects(t *testing.T) {
 	bad := [][]byte{
 		[]byte(""),
-		[]byte("<190>Jul  2 10:00:00 lerdaccess: -"),
+		[]byte("<190>Jul  2 10:00:00 servloaccess: -"),
 		[]byte("garbage-with-no-pipes"),
 		[]byte("myapp.test|notanumber|0.1|GET|/x"),
 	}

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 func TestWithURLPort(t *testing.T) {
@@ -14,9 +14,9 @@ func TestWithURLPort(t *testing.T) {
 		port int
 		want string
 	}{
-		{"mysql://root:lerd@127.0.0.1:3306/lerd", 3307, "mysql://root:lerd@127.0.0.1:3307/lerd"},
+		{"mysql://root:servlo@127.0.0.1:3306/servlo", 3307, "mysql://root:servlo@127.0.0.1:3307/servlo"},
 		{"", 3307, ""},
-		{"mysql://root:lerd@127.0.0.1:3306/lerd", 0, "mysql://root:lerd@127.0.0.1:3306/lerd"},
+		{"mysql://root:servlo@127.0.0.1:3306/servlo", 0, "mysql://root:servlo@127.0.0.1:3306/servlo"},
 	}
 	for _, c := range cases {
 		if got := WithURLPort(c.in, c.port); got != c.want {

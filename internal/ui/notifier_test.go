@@ -3,9 +3,9 @@ package ui
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/desktopnotify"
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/desktopnotify"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 func cfgWith(disabled bool, target string) *config.GlobalConfig {

@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestValidateMovePair(t *testing.T) {
@@ -39,8 +39,8 @@ func TestValidateMovePair(t *testing.T) {
 func TestSiteDBService(t *testing.T) {
 	t.Run("explicit services entry wins", func(t *testing.T) {
 		dir := t.TempDir()
-		writeFile(t, dir, ".lerd.yaml", "services:\n  - postgres-18\n")
-		writeFile(t, dir, ".env", "DB_HOST=lerd-postgres\n")
+		writeFile(t, dir, ".servlo.yaml", "services:\n  - postgres-18\n")
+		writeFile(t, dir, ".env", "DB_HOST=servlo-postgres\n")
 		if got := siteDBService(dir); got != "postgres-18" {
 			t.Fatalf("siteDBService = %q, want postgres-18", got)
 		}
@@ -48,7 +48,7 @@ func TestSiteDBService(t *testing.T) {
 
 	t.Run("db block service", func(t *testing.T) {
 		dir := t.TempDir()
-		writeFile(t, dir, ".lerd.yaml", "db:\n  service: postgres-17\n")
+		writeFile(t, dir, ".servlo.yaml", "db:\n  service: postgres-17\n")
 		if got := siteDBService(dir); got != "postgres-17" {
 			t.Fatalf("siteDBService = %q, want postgres-17", got)
 		}
@@ -56,7 +56,7 @@ func TestSiteDBService(t *testing.T) {
 
 	t.Run("falls back to .env DB_HOST", func(t *testing.T) {
 		dir := t.TempDir()
-		writeFile(t, dir, ".env", "DB_HOST=lerd-mysql-5-7\n")
+		writeFile(t, dir, ".env", "DB_HOST=servlo-mysql-5-7\n")
 		if got := siteDBService(dir); got != "mysql-5-7" {
 			t.Fatalf("siteDBService = %q, want mysql-5-7", got)
 		}
@@ -64,7 +64,7 @@ func TestSiteDBService(t *testing.T) {
 
 	t.Run("sqlite returns empty", func(t *testing.T) {
 		dir := t.TempDir()
-		writeFile(t, dir, ".lerd.yaml", "services:\n  - sqlite\n")
+		writeFile(t, dir, ".servlo.yaml", "services:\n  - sqlite\n")
 		if got := siteDBService(dir); got != "" {
 			t.Fatalf("siteDBService = %q, want empty", got)
 		}
@@ -80,11 +80,11 @@ func TestSiteDBService(t *testing.T) {
 
 func TestResolveMoveSites(t *testing.T) {
 	shop := t.TempDir()
-	writeFile(t, shop, ".lerd.yaml", "services:\n  - postgres\n")
+	writeFile(t, shop, ".servlo.yaml", "services:\n  - postgres\n")
 	blog := t.TempDir()
-	writeFile(t, blog, ".lerd.yaml", "services:\n  - postgres\n")
+	writeFile(t, blog, ".servlo.yaml", "services:\n  - postgres\n")
 	api := t.TempDir()
-	writeFile(t, api, ".lerd.yaml", "services:\n  - mysql\n")
+	writeFile(t, api, ".servlo.yaml", "services:\n  - mysql\n")
 
 	reg := &config.SiteRegistry{Sites: []config.Site{
 		{Name: "shop", Path: shop},

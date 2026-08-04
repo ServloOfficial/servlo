@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
-// NewDBIsolateCmd returns the `lerd db:isolate` command.
+// NewDBIsolateCmd returns the `servlo db:isolate` command.
 func NewDBIsolateCmd() *cobra.Command {
 	var source string
 	cmd := &cobra.Command{
@@ -18,9 +18,9 @@ func NewDBIsolateCmd() *cobra.Command {
 the parent. Run from inside the worktree directory.
 
 The new database is named <parent_db>_<sanitized_branch> in the same
-service the parent uses (mysql, mariadb, or postgres). On enable lerd
+service the parent uses (mysql, mariadb, or postgres). On enable servlo
 also rewrites DB_DATABASE in the worktree's .env and persists
-db_isolated: true to the worktree's .lerd.yaml so the choice travels
+db_isolated: true to the worktree's .servlo.yaml so the choice travels
 with the branch in git.
 
 The --source flag controls how the new schema is seeded:
@@ -34,7 +34,7 @@ The --source flag controls how the new schema is seeded:
 			}
 			site, branch, ok := FindParentSiteForWorktree(cwd)
 			if !ok {
-				return fmt.Errorf("not inside a registered worktree (cwd=%s); run `lerd db:isolate` from the worktree's checkout directory", cwd)
+				return fmt.Errorf("not inside a registered worktree (cwd=%s); run `servlo db:isolate` from the worktree's checkout directory", cwd)
 			}
 			if err := SetWorktreeDBIsolated(site, branch, true, source); err != nil {
 				return err
@@ -48,7 +48,7 @@ The --source flag controls how the new schema is seeded:
 	return cmd
 }
 
-// NewDBShareCmd returns the `lerd db:share` command (the off side of db:isolate).
+// NewDBShareCmd returns the `servlo db:share` command (the off side of db:isolate).
 func NewDBShareCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "db:share",

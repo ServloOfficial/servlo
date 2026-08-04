@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // RegenerateSiteVhost regenerates the nginx vhost for a site after domain changes.
@@ -22,7 +22,7 @@ func RegenerateSiteVhost(site *config.Site, oldPrimary string) error {
 	if oldPrimary != newPrimary {
 		_ = nginx.RemoveVhost(oldPrimary)
 		if err := MoveCustomNginxConfig(oldPrimary, newPrimary); err != nil {
-			fmt.Fprintf(os.Stderr, "lerd: migrating custom nginx override to %s: %v\n", newPrimary, err)
+			fmt.Fprintf(os.Stderr, "servlo: migrating custom nginx override to %s: %v\n", newPrimary, err)
 		}
 	}
 

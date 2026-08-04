@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/sitedoctor"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/sitedoctor"
 )
 
 // execSiteDoctor runs the framework-agnostic site doctor for a site (by domain)

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // reprovRecorder captures calls to the database/bucket creators. Tests swap
@@ -46,7 +46,7 @@ func stubReprovProvision(t *testing.T) *reprovRecorder {
 	return rec
 }
 
-func mkSiteWithLerdYAML(t *testing.T, name string, services ...string) {
+func mkSiteWithServloYAML(t *testing.T, name string, services ...string) {
 	t.Helper()
 	dir := t.TempDir()
 	var b strings.Builder
@@ -54,8 +54,8 @@ func mkSiteWithLerdYAML(t *testing.T, name string, services ...string) {
 	for _, s := range services {
 		b.WriteString("  - " + s + "\n")
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(b.String()), 0o644); err != nil {
-		t.Fatalf("write lerd.yaml: %v", err)
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(b.String()), 0o644); err != nil {
+		t.Fatalf("write servlo.yaml: %v", err)
 	}
 	if err := config.AddSite(config.Site{Name: name, Domains: []string{name + ".test"}, Path: dir}); err != nil {
 		t.Fatalf("AddSite %s: %v", name, err)
@@ -80,8 +80,8 @@ func TestReprovisionLinkedSites_MysqlFamily_CreatesDBPerSite(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	rec := stubReprovProvision(t)
 
-	mkSiteWithLerdYAML(t, "site-a", "mariadb")
-	mkSiteWithLerdYAML(t, "site-b", "mariadb")
+	mkSiteWithServloYAML(t, "site-a", "mariadb")
+	mkSiteWithServloYAML(t, "site-b", "mariadb")
 
 	if err := ReprovisionLinkedSites("mariadb", nil); err != nil {
 		t.Fatalf("ReprovisionLinkedSites: %v", err)
@@ -111,7 +111,7 @@ func TestReprovisionLinkedSites_PostgresFamily_CreatesDBPerSite(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	rec := stubReprovProvision(t)
 
-	mkSiteWithLerdYAML(t, "blog", "postgres")
+	mkSiteWithServloYAML(t, "blog", "postgres")
 
 	if err := ReprovisionLinkedSites("postgres", nil); err != nil {
 		t.Fatalf("ReprovisionLinkedSites: %v", err)
@@ -127,7 +127,7 @@ func TestReprovisionLinkedSites_ObjectStorage_CreatesBucketPerSite(t *testing.T)
 	t.Setenv("XDG_DATA_HOME", tmp)
 	rec := stubReprovProvision(t)
 
-	mkSiteWithEnv(t, "uploads-app", "AWS_BUCKET=uploads-app\nFILESYSTEM_DISK=s3\nlerd-rustfs\n")
+	mkSiteWithEnv(t, "uploads-app", "AWS_BUCKET=uploads-app\nFILESYSTEM_DISK=s3\nservlo-rustfs\n")
 
 	if err := ReprovisionLinkedSites("rustfs", nil); err != nil {
 		t.Fatalf("ReprovisionLinkedSites: %v", err)
@@ -143,7 +143,7 @@ func TestReprovisionLinkedSites_RedisFamily_NoOps(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	rec := stubReprovProvision(t)
 
-	mkSiteWithEnv(t, "cache-app", "REDIS_HOST=lerd-redis\n")
+	mkSiteWithEnv(t, "cache-app", "REDIS_HOST=servlo-redis\n")
 
 	if err := ReprovisionLinkedSites("redis", nil); err != nil {
 		t.Fatalf("ReprovisionLinkedSites: %v", err)
@@ -160,12 +160,12 @@ func TestReprovisionLinkedSites_SkipsIgnoredAndPaused(t *testing.T) {
 	rec := stubReprovProvision(t)
 
 	yamlActive := t.TempDir()
-	os.WriteFile(filepath.Join(yamlActive, ".lerd.yaml"), []byte("services:\n  - mariadb\n"), 0o644)
+	os.WriteFile(filepath.Join(yamlActive, ".servlo.yaml"), []byte("services:\n  - mariadb\n"), 0o644)
 	if err := config.AddSite(config.Site{Name: "active", Domains: []string{"a.test"}, Path: yamlActive}); err != nil {
 		t.Fatalf("AddSite: %v", err)
 	}
 	yamlPaused := t.TempDir()
-	os.WriteFile(filepath.Join(yamlPaused, ".lerd.yaml"), []byte("services:\n  - mariadb\n"), 0o644)
+	os.WriteFile(filepath.Join(yamlPaused, ".servlo.yaml"), []byte("services:\n  - mariadb\n"), 0o644)
 	if err := config.AddSite(config.Site{Name: "paused", Domains: []string{"p.test"}, Path: yamlPaused, Paused: true}); err != nil {
 		t.Fatalf("AddSite: %v", err)
 	}
@@ -185,9 +185,9 @@ func TestReprovisionLinkedSites_PerSiteFailure_ContinuesAndJoinsErrors(t *testin
 	rec := stubReprovProvision(t)
 	rec.dbErrFor["site_b"] = errors.New("boom")
 
-	mkSiteWithLerdYAML(t, "site-a", "mariadb")
-	mkSiteWithLerdYAML(t, "site-b", "mariadb")
-	mkSiteWithLerdYAML(t, "site-c", "mariadb")
+	mkSiteWithServloYAML(t, "site-a", "mariadb")
+	mkSiteWithServloYAML(t, "site-b", "mariadb")
+	mkSiteWithServloYAML(t, "site-c", "mariadb")
 
 	err := ReprovisionLinkedSites("mariadb", nil)
 	if err == nil {
@@ -209,7 +209,7 @@ func TestReprovisionLinkedSites_DBNameOverrideFromProjectConfig(t *testing.T) {
 
 	dir := t.TempDir()
 	yaml := "services:\n  - postgres\ndb:\n  database: custom_name\n"
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(yaml), 0o644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(yaml), 0o644)
 	if err := config.AddSite(config.Site{Name: "weird-site", Domains: []string{"w.test"}, Path: dir}); err != nil {
 		t.Fatalf("AddSite: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestReprovisionLinkedSites_DBNameOverrideFromProjectConfig(t *testing.T) {
 		t.Fatalf("ReprovisionLinkedSites: %v", err)
 	}
 	if len(rec.dbCalls) != 1 || rec.dbCalls[0].Name != "custom_name" {
-		t.Errorf("expected db name 'custom_name' from .lerd.yaml override, got %v", rec.dbCalls)
+		t.Errorf("expected db name 'custom_name' from .servlo.yaml override, got %v", rec.dbCalls)
 	}
 }
 
@@ -228,7 +228,7 @@ func TestReprovisionLinkedSites_DBNameFallbackToEnvFile(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	rec := stubReprovProvision(t)
 
-	mkSiteWithEnv(t, "envapp", "DB_HOST=lerd-mysql\nDB_DATABASE=env_chosen\n")
+	mkSiteWithEnv(t, "envapp", "DB_HOST=servlo-mysql\nDB_DATABASE=env_chosen\n")
 
 	if err := ReprovisionLinkedSites("mysql", nil); err != nil {
 		t.Fatalf("ReprovisionLinkedSites: %v", err)
@@ -244,8 +244,8 @@ func TestReprovisionLinkedSites_DBNameFallbackToSiteName(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	rec := stubReprovProvision(t)
 
-	// .lerd.yaml lists postgres but no db.database; .env is absent.
-	mkSiteWithLerdYAML(t, "no-overrides", "postgres")
+	// .servlo.yaml lists postgres but no db.database; .env is absent.
+	mkSiteWithServloYAML(t, "no-overrides", "postgres")
 
 	if err := ReprovisionLinkedSites("postgres", nil); err != nil {
 		t.Fatalf("ReprovisionLinkedSites: %v", err)
@@ -261,7 +261,7 @@ func TestReprovisionLinkedSites_EmitsPerSiteEvent(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	stubReprovProvision(t)
 
-	mkSiteWithLerdYAML(t, "site-x", "mariadb")
+	mkSiteWithServloYAML(t, "site-x", "mariadb")
 
 	var events []PhaseEvent
 	if err := ReprovisionLinkedSites("mariadb", func(e PhaseEvent) { events = append(events, e) }); err != nil {

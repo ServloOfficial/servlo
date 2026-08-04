@@ -38,7 +38,7 @@ func TestSpxStripPrefix(t *testing.T) {
 }
 
 func TestSpxProxyDirector_RewritesHostStripsPrefixAndForwardedHost(t *testing.T) {
-	req := httptest.NewRequest("GET", "http://lerd.localhost/_spx/?SPX_UI_URI=/", nil)
+	req := httptest.NewRequest("GET", "http://servlo.localhost/_spx/?SPX_UI_URI=/", nil)
 	req.Header.Set("X-Forwarded-Host", "evil.example")
 
 	newSpxProxy().Director(req)

@@ -62,8 +62,8 @@ func TestBrowserStoresMissingCAEmptyWhenEveryStoreHasIt(t *testing.T) {
 	}
 }
 
-// A certificate under the nickname lerd is looking for is not automatically the
-// CA lerd signs with. A CA regenerated after a store imported the old one is
+// A certificate under the nickname servlo is looking for is not automatically the
+// CA servlo signs with. A CA regenerated after a store imported the old one is
 // exactly this shape, and reporting it trusted is what the presence check did.
 func TestBrowserStoresMissingCARejectsADifferentCertificate(t *testing.T) {
 	browserTrustFixture(t)
@@ -109,7 +109,7 @@ func TestBrowserStoresMissingCAReportsNothingItCouldNotAsk(t *testing.T) {
 }
 
 // mkcert stores the CA under its own label and the certificate's serial in
-// decimal, and lerd has to ask for that exact nickname to find it.
+// decimal, and servlo has to ask for that exact nickname to find it.
 func TestCANSSNicknameMatchesMkcert(t *testing.T) {
 	caDir := t.TempDir()
 	writeTestCA(t, caDir)

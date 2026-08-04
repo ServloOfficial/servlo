@@ -12,15 +12,15 @@ import (
 )
 
 // The "Next" hint must cd into the path the user actually typed. Using only the
-// base name breaks for nested targets (lerd new apps/myapp → cd myapp).
+// base name breaks for nested targets (servlo new apps/myapp → cd myapp).
 func TestNewNextStep(t *testing.T) {
 	cases := []struct {
 		target string
 		want   string
 	}{
-		{"myapp", "cd myapp && lerd link && lerd setup"},
-		{"apps/myapp", "cd apps/myapp && lerd link && lerd setup"},
-		{"/abs/path/myapp", "cd /abs/path/myapp && lerd link && lerd setup"},
+		{"myapp", "cd myapp && servlo link && servlo setup"},
+		{"apps/myapp", "cd apps/myapp && servlo link && servlo setup"},
+		{"/abs/path/myapp", "cd /abs/path/myapp && servlo link && servlo setup"},
 	}
 	for _, tc := range cases {
 		if got := newNextStep(tc.target); got != tc.want {
@@ -47,8 +47,8 @@ func runNewCmd(t *testing.T, args ...string) (target, framework string, extra []
 	return
 }
 
-// The help text advertises `lerd new myapp --framework=symfony`, so a flag after
-// the positional must be lerd's own, not forwarded to composer.
+// The help text advertises `servlo new myapp --framework=symfony`, so a flag after
+// the positional must be servlo's own, not forwarded to composer.
 func TestNewCmdParsesFrameworkAfterTarget(t *testing.T) {
 	target, framework, extra, err := runNewCmd(t, "magento-real", "--framework=magento")
 	if err != nil {
@@ -136,16 +136,16 @@ func TestPrepareScaffoldParentMountsParent(t *testing.T) {
 	}
 }
 
-// A parent lerd will never bind-mount (a temp dir) and that no parked volume
+// A parent servlo will never bind-mount (a temp dir) and that no parked volume
 // covers must fail up front, not as a crun exit 127 out of composer.
 func TestPrepareScaffoldParentRejectsUnmountableParent(t *testing.T) {
 	mounted := stubMountSeams(t, false, false)
 
 	err := prepareScaffoldParent(filepath.Join(t.TempDir(), "oob", "app"))
 	if err == nil {
-		t.Fatal("expected an error for a parent lerd cannot mount")
+		t.Fatal("expected an error for a parent servlo cannot mount")
 	}
-	if !strings.Contains(err.Error(), "lerd park") {
+	if !strings.Contains(err.Error(), "servlo park") {
 		t.Errorf("error = %v, want it to suggest parking the parent", err)
 	}
 	if *mounted != "" {

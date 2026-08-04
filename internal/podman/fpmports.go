@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/freeport"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/freeport"
 )
 
 // fpmPortsBindable is the port-bindability probe, swapped in tests so the shift
@@ -39,7 +39,7 @@ func setVersionFPMPorts(cfg *config.GlobalConfig, version string, ports []string
 
 // SetFPMPorts replaces the extra published ports for a PHP version's shared FPM
 // container with the given "host:container" specs, shifting any requested host
-// port that is already claimed (by a lerd service, another version's pool, or an
+// port that is already claimed (by a servlo service, another version's pool, or an
 // external listener) to the next free port, then re-rendering and restarting the
 // version's FPM unit when it is running. It returns the resolved list actually
 // persisted, which may differ from specs where a port was shifted. Single entry
@@ -123,7 +123,7 @@ func SetFPMPorts(version string, specs []string) ([]string, error) {
 	// The override is saved regardless; only (re)write and restart the unit for a
 	// version whose FPM quadlet actually exists, so a save for a not-yet-installed
 	// version doesn't resurrect a unit that would grab a host port at boot.
-	unit := "lerd-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
+	unit := "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
 	if !fpmQuadletInstalled(unit) {
 		return resolved, nil
 	}
@@ -142,7 +142,7 @@ func SetFPMPorts(version string, specs []string) ([]string, error) {
 // new mapping failed (a port grabbed between the bindability probe and the restart
 // can leave the shared FPM down). On a clean restore it returns the previous ports
 // with an explanatory error; if the restore itself fails the unit may be down and
-// the operator is told to run `lerd start`.
+// the operator is told to run `servlo start`.
 func rollbackFPMPorts(version, unit string, prevPorts, resolved []string, cause error) ([]string, error) {
 	cfg, err := config.LoadGlobal()
 	if err == nil && cfg != nil {
@@ -151,7 +151,7 @@ func rollbackFPMPorts(version, unit string, prevPorts, resolved []string, cause 
 			return prevPorts, fmt.Errorf("could not restart %s on the new ports, restored the previous ports: %w", unit, cause)
 		}
 	}
-	return resolved, fmt.Errorf("could not restart %s and could not restore the previous ports, run `lerd start`: %w", unit, cause)
+	return resolved, fmt.Errorf("could not restart %s and could not restore the previous ports, run `servlo start`: %w", unit, cause)
 }
 
 // AddFPMPort appends a single "host:container" mapping to a version's FPM ports,

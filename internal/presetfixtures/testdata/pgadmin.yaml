@@ -1,16 +1,16 @@
 name: pgadmin
 image: docker.io/dpage/pgadmin4:latest
-description: pgAdmin web UI for the lerd Postgres service
+description: pgAdmin web UI for the servlo Postgres service
 ports:
   - "8081:80"
 environment:
   PGADMIN_DEFAULT_EMAIL: admin@pgadmin.org
-  PGADMIN_DEFAULT_PASSWORD: lerd
+  PGADMIN_DEFAULT_PASSWORD: servlo
   PGADMIN_CONFIG_SERVER_MODE: "False"
   PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
   PGADMIN_REPLACE_SERVERS_ON_STARTUP: "True"
 dynamic_env:
-  LERD_POSTGRES_HOSTS: discover_family:postgres
+  SERVLO_POSTGRES_HOSTS: discover_family:postgres
 depends_on:
   - postgres
 dashboard: http://localhost:8081
@@ -28,7 +28,7 @@ files:
       WTF_CSRF_CHECK_DEFAULT = False
 
       # Allow pgadmin's Flask session + CSRF cookies to flow inside a cross-origin
-      # iframe (the lerd-ui dashboard). SameSite=None requires Secure=True, which
+      # iframe (the servlo-panel dashboard). SameSite=None requires Secure=True, which
       # browsers accept over HTTP on localhost.
       SESSION_COOKIE_SAMESITE = 'None'
       SESSION_COOKIE_SECURE = True

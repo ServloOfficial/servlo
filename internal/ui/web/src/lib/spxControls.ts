@@ -1,17 +1,17 @@
 // Helpers for tailoring the embedded SPX profiler UI. SPX's web UI is
-// upstream php-spx, reverse-proxied same-origin under /_spx/; lerd reaches
+// upstream php-spx, reverse-proxied same-origin under /_spx/; servlo reaches
 // into that iframe to collapse the control panel's Configuration form, pad
 // the control panel page, and surface freshly captured reports without a
 // manual refresh. The selectors and the metadata URL below are the only
 // points of coupling to SPX's internals.
 
 // SPX_METADATA_URL is the endpoint the SPX control panel page itself uses to
-// list captured reports. Polling it lets lerd notice new captures.
+// list captured reports. Polling it lets servlo notice new captures.
 const SPX_METADATA_URL = '/_spx/?SPX_UI_URI=/data/reports/metadata';
 
 // CONFIG_FORM is the Configuration fieldset wrapper on the control panel page.
 const CONFIG_FORM = '#config';
-const PAD_STYLE_ID = 'lerd-spx-pad';
+const PAD_STYLE_ID = 'servlo-spx-pad';
 
 // True for the SPX single-report analysis screen, false for the control panel.
 export function isSpxReportView(href: string): boolean {

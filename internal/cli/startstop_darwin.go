@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // migrateExecWorkerPlists removes exec-based worker plists. On macOS, workers
@@ -24,7 +24,7 @@ import (
 func migrateExecWorkerPlists() {
 	home, _ := os.UserHomeDir()
 	dir := filepath.Join(home, "Library", "LaunchAgents")
-	for _, glob := range []string{"lerd-queue-*.plist", "lerd-schedule-*.plist", "lerd-reverb-*.plist", "lerd-horizon-*.plist"} {
+	for _, glob := range []string{"servlo-queue-*.plist", "servlo-schedule-*.plist", "servlo-reverb-*.plist", "servlo-horizon-*.plist"} {
 		matches, _ := filepath.Glob(filepath.Join(dir, glob))
 		for _, p := range matches {
 			data, err := os.ReadFile(p)
@@ -37,8 +37,8 @@ func migrateExecWorkerPlists() {
 			}
 			name := strings.TrimSuffix(filepath.Base(p), ".plist")
 			domain := fmt.Sprintf("gui/%d", os.Getuid())
-			exec.Command("launchctl", "bootout", domain+"/com.lerd."+name).Run() //nolint:errcheck
-			os.Remove(p)                                                         //nolint:errcheck
+			exec.Command("launchctl", "bootout", domain+"/com.servlo."+name).Run() //nolint:errcheck
+			os.Remove(p)                                                           //nolint:errcheck
 		}
 	}
 }
@@ -71,19 +71,19 @@ func getMachineJSONPath(name string) string {
 
 // requiredMachineMounts lists the macOS host paths mounted into the Podman
 // Machine VM at init. /Users carries the host home (and therefore
-// ~/.local/share/lerd, the source of every container bind mount); /private and
+// ~/.local/share/servlo, the source of every container bind mount); /private and
 // /var/folders are Podman's other defaults; /Volumes covers external drives.
 //
 // All four are passed explicitly to `machine init -v`. Podman's --volume is a
 // stringArray, so supplying any -v replaces the whole default set
-// (/Users, /private, /var/folders); passing only /Volumes (lerd <= 1.24.0)
+// (/Users, /private, /var/folders); passing only /Volumes (servlo <= 1.24.0)
 // dropped the host home mount, and every bind mount sourced from
-// ~/.local/share/lerd failed inside the VM with "statfs ...: no such file or
+// ~/.local/share/servlo failed inside the VM with "statfs ...: no such file or
 // directory".
 var requiredMachineMounts = []string{"/Users", "/private", "/var/folders", "/Volumes"}
 
 // homeMachineMount is the host path that carries the user home inside the VM.
-// A machine missing it can't see any lerd bind-mount source, so no container
+// A machine missing it can't see any servlo bind-mount source, so no container
 // can start.
 const homeMachineMount = "/Users"
 
@@ -91,7 +91,7 @@ const homeMachineMount = "/Users"
 // init`, or "" to accept podman's default. Podman 6 switched the macOS
 // Apple-Silicon default to libkrun, which needs a `krunkit` binary that is not
 // in Homebrew core, so an unpinned init fails with "krunkit: executable file
-// not found". Pin applehv (the vfkit backend bundled with podman, which lerd
+// not found". Pin applehv (the vfkit backend bundled with podman, which servlo
 // has always used) so init works with no extra dependency. Empty on podman <6,
 // where applehv is already the default and --provider may be unsupported.
 func machineProvider() string {
@@ -123,7 +123,7 @@ func machineInitArgs(name string, targetMemoryMiB int64, provider string) []stri
 }
 
 // machineMissingHomeMount reports whether the named machine's config lacks the
-// host home mount, i.e. it was initialised by the lerd <= 1.24.0 bug. Returns
+// host home mount, i.e. it was initialised by the servlo <= 1.24.0 bug. Returns
 // false on any read/parse error so we never recreate a machine we can't
 // positively diagnose as broken.
 //
@@ -248,7 +248,7 @@ func ensurePodmanMachineRunning() error {
 	if len(machines) == 0 {
 		feedback.Line("Initialising Podman Machine (first run, this may take a minute)…")
 		// Size memory at init so a fresh VM (first run, or one recreated by
-		// `lerd machine reset`) boots at the host-scaled target rather than
+		// `servlo machine reset`) boots at the host-scaled target rather than
 		// podman's stock default. The existing-machine branch below only
 		// resizes machines that already exist.
 		cfg, _ := config.LoadGlobal()
@@ -271,7 +271,7 @@ func ensurePodmanMachineRunning() error {
 		execMode := cfg != nil && cfg.WorkerExecMode() != config.WorkerExecModeContainer
 		targetMemoryMiB := recommendedVMMemoryMiB(hostGiB, execMode)
 
-		// A machine missing the host home mount was created by the lerd <= 1.24.0
+		// A machine missing the host home mount was created by the servlo <= 1.24.0
 		// init bug and can't be repaired in place (Ignition writes the guest
 		// mount units once at init; a config edit + restart won't add /Users).
 		// Recreate it, then fall through to start.
@@ -389,12 +389,12 @@ func startPodmanMachineWithRetry() error {
 	// The error itself is surfaced once by main as the command's exit error, so
 	// we only add the actionable guidance here rather than re-Warn the same text.
 	feedback.Note("The Podman Machine VM would not boot. On new macOS releases this is often a vfkit issue that leaves a stale SSH port behind.")
-	feedback.Note("Try: podman machine stop && podman machine start. If it keeps failing, run `lerd machine reset` to recreate the VM, then `lerd install` again.")
+	feedback.Note("Try: podman machine stop && podman machine start. If it keeps failing, run `servlo machine reset` to recreate the VM, then `servlo install` again.")
 	return fmt.Errorf("podman machine start: %w", err)
 }
 
 // stopPodmanMachine stops the running Podman Machine VM. Called by runQuit so
-// the VM is cleanly shut down when the user quits Lerd entirely.
+// the VM is cleanly shut down when the user quits Servlo entirely.
 func stopPodmanMachine() {
 	out, err := podman.Cmd("machine", "list", "--format", "{{.Name}}\t{{.Running}}").Output()
 	if err != nil {
@@ -419,14 +419,14 @@ func stopPodmanMachine() {
 	}
 }
 
-// batchStopContainers stops all running lerd-* containers in two podman calls
+// batchStopContainers stops all running servlo-* containers in two podman calls
 // (stop then rm) so the Podman Machine socket isn't flooded by N individual
 // stop requests from RunParallel. After this returns the individual Stop()
 // calls find no containers and go straight to launchctl bootout.
 func batchStopContainers(_ []string) {
-	// Query only running containers with name prefix "lerd-" to avoid passing
-	// non-existent names (native services like lerd-dns have no container).
-	out, err := podman.Run("ps", "--format", "{{.Names}}", "--filter", "name=^lerd-")
+	// Query only running containers with name prefix "servlo-" to avoid passing
+	// non-existent names (native services like servlo-dns have no container).
+	out, err := podman.Run("ps", "--format", "{{.Names}}", "--filter", "name=^servlo-")
 	if err != nil || strings.TrimSpace(out) == "" {
 		return
 	}

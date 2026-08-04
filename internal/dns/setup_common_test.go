@@ -151,16 +151,16 @@ func assertContains(t *testing.T, s, substr string) {
 }
 
 // writeGlobalConfig points XDG_CONFIG_HOME at a fresh temp dir and writes the
-// given YAML as the lerd global config there, so config.LoadGlobal picks it up.
+// given YAML as the servlo global config there, so config.LoadGlobal picks it up.
 func writeGlobalConfig(t *testing.T, yaml string) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
-	lerdDir := filepath.Join(dir, "lerd")
-	if err := os.MkdirAll(lerdDir, 0755); err != nil {
+	servloDir := filepath.Join(dir, "servlo")
+	if err := os.MkdirAll(servloDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(lerdDir, "config.yaml"), []byte(yaml), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(servloDir, "config.yaml"), []byte(yaml), 0644); err != nil {
 		t.Fatal(err)
 	}
 }

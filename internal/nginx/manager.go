@@ -18,9 +18,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // detectSiteProxy checks the site's framework definition for a worker with a
@@ -115,14 +115,14 @@ type VhostData struct {
 	PHPVersion      string
 	PHPVersionShort string
 	// FPMContainer is the container nginx fastcgi's to: the shared
-	// lerd-php<ver>-fpm, or a per-site container for custom-FPM sites.
+	// servlo-php<ver>-fpm, or a per-site container for custom-FPM sites.
 	FPMContainer    string
 	CertDomain      string // domain whose cert files to use (defaults to Domain)
 	PublicDir       string // document root subdirectory, e.g. "public", "web", "."
 	Proxy           bool   // true when the site has a worker with WebSocket/HTTP proxy config
 	ProxyPath       string // URL path for the proxy (e.g. "/app")
 	ProxyPort       int    // port the worker listens on inside the PHP-FPM container
-	CustomContainer string // container name for custom container sites (e.g. "lerd-custom-nestapp")
+	CustomContainer string // container name for custom container sites (e.g. "servlo-custom-nestapp")
 	CustomPort      int    // port the app listens on inside the custom container
 	// DevServerBase is the URL prefix a host dev server serves everything
 	// under, so one location covers its assets and its hot-reload socket.
@@ -131,11 +131,11 @@ type VhostData struct {
 	UpstreamHost  string // host-proxy upstream address (e.g. "host.containers.internal")
 	UpstreamPort  int    // host-proxy upstream port (the dev server's host port)
 	BackendSSL    bool   // proxy to the backend via HTTPS (app serves TLS on its own port)
-	// LerdSite / LerdBranch surface the parent site name and (for worktrees)
+	// ServloSite / ServloBranch surface the parent site name and (for worktrees)
 	// the branch to PHP via fastcgi_param so the debug bridge can tag events
 	// with stable identifiers instead of guessing from DOCUMENT_ROOT.
-	LerdSite   string
-	LerdBranch string
+	ServloSite   string
+	ServloBranch string
 	// Profiling arms the SPX profiler for the site: when true the .php
 	// location injects SPX_ENABLED=1 into HTTP_COOKIE so every request is
 	// profiled. SPX_KEY is injected regardless (gated by the $spx_key map)
@@ -143,7 +143,7 @@ type VhostData struct {
 	Profiling bool
 	// RequestTimeout is the nginx request timeout in seconds rendered into the
 	// fastcgi_*_timeout / proxy_*_timeout directives. Resolved per site by
-	// resolveRequestTimeout (project .lerd.yaml, then global config, then 60s).
+	// resolveRequestTimeout (project .servlo.yaml, then global config, then 60s).
 	RequestTimeout int
 	// FrameworkNginx is the framework definition's nginx block, already
 	// placeholder-expanded and indented. Rendered ahead of the generic
@@ -179,7 +179,7 @@ var (
 )
 
 // emitOnce writes msg to w only the first time this process sees it. A dropped
-// snippet then surfaces on `lerd link` without the watcher repeating it on every
+// snippet then surfaces on `servlo link` without the watcher repeating it on every
 // vhost regeneration, and the http/ssl pair for one site collapses to one line.
 func emitOnce(w io.Writer, msg string) {
 	if msg == "" {
@@ -219,7 +219,7 @@ func frameworkNginxBlock(w io.Writer, framework, domain, snippet, sitePath, publ
 const nginxValueForbidden = "{};#\n\r\x00"
 
 // validate refuses any value that could break out of the directive it lands in.
-// A project's .lerd.yaml supplies the domains, the public dir and the path, and
+// A project's .servlo.yaml supplies the domains, the public dir and the path, and
 // a worktree's domain carries a git branch name, which may legally contain `;`
 // and braces. Checked here rather than per field so a field added to the struct
 // later is covered without anyone remembering. Ints and bools cannot carry
@@ -240,8 +240,8 @@ func (d VhostData) validate() error {
 		"FPM container":    d.FPMContainer,
 		"custom container": d.CustomContainer,
 		"upstream host":    d.UpstreamHost,
-		"site":             d.LerdSite,
-		"branch":           d.LerdBranch,
+		"site":             d.ServloSite,
+		"branch":           d.ServloBranch,
 	} {
 		if i := strings.IndexAny(v, nginxValueForbidden); i >= 0 {
 			return fmt.Errorf("nginx %s %q contains %q, which would end the directive it lands in", name, v, string(v[i]))
@@ -282,8 +282,8 @@ func nginxQuote(p string) string {
 
 // Variables carrying the site paths for framework snippets to interpolate.
 const (
-	nginxRootVar   = "${lerd_root}"
-	nginxPublicVar = "${lerd_public}"
+	nginxRootVar   = "${servlo_root}"
+	nginxPublicVar = "${servlo_public}"
 )
 
 // nginxPathVars declares the variables a framework snippet interpolates. A
@@ -291,7 +291,7 @@ const (
 // and a quoted token cannot be glued to anything, so the path reaches the
 // snippet as a variable: nginx resolves it after tokenizing, spaces and all.
 func nginxPathVars(sitePath, docRoot string) string {
-	return fmt.Sprintf("set $lerd_root %s;\nset $lerd_public %s;\n\n",
+	return fmt.Sprintf("set $servlo_root %s;\nset $servlo_public %s;\n\n",
 		nginxQuote(sitePath), nginxQuote(docRoot))
 }
 
@@ -338,7 +338,7 @@ func indentBlock(s, indent string) string {
 }
 
 // resolveRequestTimeout returns the effective request timeout in seconds for
-// the site at sitePath: project .lerd.yaml wins, then global config, then 60s.
+// the site at sitePath: project .servlo.yaml wins, then global config, then 60s.
 // An empty sitePath skips the project lookup (site-less proxy vhosts).
 func resolveRequestTimeout(sitePath string) int {
 	if sitePath != "" {
@@ -366,10 +366,10 @@ func profilerEnabled() bool {
 }
 
 // resolvePublicDir returns the document root subdirectory for a site.
-// site.PublicDir wins (set from .lerd.yaml's public_dir, or from autodetect
+// site.PublicDir wins (set from .servlo.yaml's public_dir, or from autodetect
 // when no framework matched), then the framework definition's PublicDir, then
 // "public" as the final fallback. Each candidate runs through ValidatePublicDir
-// so a hostile .lerd.yaml can't pivot the nginx root out of the project.
+// so a hostile .servlo.yaml can't pivot the nginx root out of the project.
 func resolvePublicDir(site config.Site) string {
 	if site.PublicDir != "" {
 		if err := config.ValidatePublicDir(site.PublicDir); err == nil {
@@ -428,7 +428,7 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 		UpstreamHost:    hostProxyUpstream(),
 		DevServerBase:   devBase,
 		DevServerPort:   devPort,
-		LerdSite:        site.Name,
+		ServloSite:      site.Name,
 		Profiling:       profilerEnabled(),
 		RequestTimeout:  resolveRequestTimeout(site.Path),
 		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, fpmContainer),
@@ -480,7 +480,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 		UpstreamHost:    hostProxyUpstream(),
 		DevServerBase:   devBase,
 		DevServerPort:   devPort,
-		LerdSite:        site.Name,
+		ServloSite:      site.Name,
 		Profiling:       profilerEnabled(),
 		RequestTimeout:  resolveRequestTimeout(site.Path),
 		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, fpmContainer),
@@ -500,7 +500,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 }
 
 // GenerateFrankenPHPVhost renders the HTTP vhost template for a FrankenPHP
-// site. Nginx reverse-proxies to the per-site lerd-fp-<name>:8000 container
+// site. Nginx reverse-proxies to the per-site servlo-fp-<name>:8000 container
 // using the shared custom-container template.
 func GenerateFrankenPHPVhost(site config.Site) error {
 	tmplData, err := GetTemplate("vhost-custom.conf.tmpl")
@@ -702,7 +702,7 @@ func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl boo
 // migrateWorktreeVhosts) don't repeat the if/else around the two
 // underlying generators. parentDomain is consulted only on the SSL path.
 // siteName + branch are forwarded so the worktree's PHP requests get tagged
-// with LERD_SITE / LERD_BRANCH for dump grouping.
+// with SERVLO_SITE / SERVLO_BRANCH for dump grouping.
 func GenerateWorktreeVhostFor(domain, path, phpVersion, parentDomain, siteName, branch string, secured bool) error {
 	if secured {
 		return GenerateWorktreeSSLVhost(domain, path, phpVersion, parentDomain, siteName, branch)
@@ -757,8 +757,8 @@ func GenerateWorktreeVhost(domain, path, phpVersion, siteName, branch string) er
 		PHPVersionShort: phpShort(phpVersion),
 		FPMContainer:    fpmContainer,
 		PublicDir:       publicDir,
-		LerdSite:        siteName,
-		LerdBranch:      branch,
+		ServloSite:      siteName,
+		ServloBranch:    branch,
 		UpstreamHost:    hostProxyUpstream(),
 		DevServerBase:   devBase,
 		DevServerPort:   devPort,
@@ -804,8 +804,8 @@ func GenerateWorktreeSSLVhost(domain, path, phpVersion, parentDomain, siteName, 
 		FPMContainer:    fpmContainer,
 		CertDomain:      parentDomain,
 		PublicDir:       publicDir,
-		LerdSite:        siteName,
-		LerdBranch:      branch,
+		ServloSite:      siteName,
+		ServloBranch:    branch,
 		UpstreamHost:    hostProxyUpstream(),
 		DevServerBase:   devBase,
 		DevServerPort:   devPort,
@@ -1056,16 +1056,16 @@ func GenerateProxyVhost(domain, upstreamHost string, upstreamPort int) error {
 	return os.WriteFile(confPath, rendered, 0644)
 }
 
-// ErrNotRunning reports that lerd-nginx is down, so there is no process to
+// ErrNotRunning reports that servlo-nginx is down, so there is no process to
 // signal. The on-disk config is still authoritative: whoever starts nginx next
 // reads it. Callers that only need the config correct (the install reconcile,
 // which starts nginx later in the same run) treat this as benign.
-var ErrNotRunning = errors.New("lerd-nginx is not running")
+var ErrNotRunning = errors.New("servlo-nginx is not running")
 
 var (
 	containerRunningFn = podman.ContainerRunning
 	reloadExecFn       = func() error {
-		_, err := podman.Run("exec", "lerd-nginx", "nginx", "-s", "reload")
+		_, err := podman.Run("exec", "servlo-nginx", "nginx", "-s", "reload")
 		return err
 	}
 )
@@ -1079,7 +1079,7 @@ func Reload() error {
 	if err == nil {
 		return nil
 	}
-	if running, rerr := containerRunningFn("lerd-nginx"); rerr == nil && !running {
+	if running, rerr := containerRunningFn("servlo-nginx"); rerr == nil && !running {
 		return ErrNotRunning
 	}
 	return err
@@ -1112,7 +1112,7 @@ func reloadWithRetry(reload func() error, timeout time.Duration) error {
 	}
 }
 
-// Test runs `nginx -t` inside the lerd-nginx container and returns the
+// Test runs `nginx -t` inside the servlo-nginx container and returns the
 // combined stdout+stderr output along with the exit error. nginx writes its
 // per-directive validation diagnostics to stderr, so the output is the
 // useful payload regardless of success or failure, and callers should
@@ -1126,7 +1126,7 @@ func reloadWithRetry(reload func() error, timeout time.Duration) error {
 func Test() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := podman.CmdContext(ctx, "exec", "lerd-nginx", "nginx", "-t")
+	cmd := podman.CmdContext(ctx, "exec", "servlo-nginx", "nginx", "-t")
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
@@ -1173,8 +1173,8 @@ func RepairVhosts() []VhostRepair {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".conf") {
 			continue
 		}
-		// Skip internal configs (default catch-all and lerd dashboard proxy).
-		if entry.Name() == "_default.conf" || entry.Name() == "lerd.localhost.conf" {
+		// Skip internal configs (default catch-all and servlo dashboard proxy).
+		if entry.Name() == "_default.conf" || entry.Name() == "servlo.localhost.conf" {
 			continue
 		}
 
@@ -1252,10 +1252,10 @@ func hasMissingCert(content, certsDir string) bool {
 }
 
 // defaultVhostManagedHashSuffix is appended to the conf filename to form
-// a sentinel that records the sha256 of what lerd last wrote. nginx
+// a sentinel that records the sha256 of what servlo last wrote. nginx
 // ignores files that don't match its `*.conf` include glob, so the
 // sentinel stays out of the way.
-const defaultVhostManagedHashSuffix = ".lerd-managed-hash"
+const defaultVhostManagedHashSuffix = ".servlo-managed-hash"
 
 // EnsureDefaultVhost writes a catch-all default server that shows a branded
 // error page for any HTTP request that doesn't match a registered site. For
@@ -1265,10 +1265,10 @@ const defaultVhostManagedHashSuffix = ".lerd-managed-hash"
 // time. ssl_reject_handshake produces a clean connection error
 // (ERR_SSL_UNRECOGNIZED_NAME_ALERT) which is the best UX available.
 //
-// The file is left alone when the user has manually edited it: lerd
+// The file is left alone when the user has manually edited it: servlo
 // stores a sentinel hash of what it last wrote, and skips rewriting when
 // the on-disk content no longer matches that hash. Removing the file (or
-// the sentinel) restores lerd's automatic management.
+// the sentinel) restores servlo's automatic management.
 func EnsureDefaultVhost() error {
 	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
 		return err
@@ -1303,17 +1303,17 @@ func EnsureDefaultVhost() error {
 		if onDiskHash == canonicalHash {
 			return WriteFileAtomic(sentinelPath, []byte(canonicalHash), 0644)
 		}
-		fmt.Printf("  [INFO] %s has no lerd sentinel; preserving on-disk content. If this is from a lerd upgrade and you haven't edited it, run: rm %s\n", path, path)
+		fmt.Printf("  [INFO] %s has no servlo sentinel; preserving on-disk content. If this is from a servlo upgrade and you haven't edited it, run: rm %s\n", path, path)
 		return nil
 	}
 	if lastWritten != onDiskHash {
-		fmt.Printf("  [INFO] %s differs from lerd's recorded last-write; preserving your edits. Remove the file to restore lerd's catch-all.\n", path)
+		fmt.Printf("  [INFO] %s differs from servlo's recorded last-write; preserving your edits. Remove the file to restore servlo's catch-all.\n", path)
 		return nil
 	}
 	if onDiskHash == canonicalHash {
 		return nil
 	}
-	// On-disk matches what lerd last wrote, but the template moved on.
+	// On-disk matches what servlo last wrote, but the template moved on.
 	if err := WriteFileAtomic(path, canonical, 0644); err != nil {
 		return err
 	}
@@ -1359,7 +1359,7 @@ func WriteFileAtomic(path string, data []byte, mode os.FileMode) error {
 
 // renderDefaultVhost returns the canonical _default.conf content.
 // Separate from the writer so callers (and tests) can compute the same
-// bytes lerd would write without touching disk.
+// bytes servlo would write without touching disk.
 func renderDefaultVhost() []byte {
 	errorDir := config.ErrorPagesDir()
 	return []byte(fmt.Sprintf(`server {
@@ -1390,7 +1390,7 @@ const errorPageHTML = `<!DOCTYPE html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Site Not Found — Lerd</title>
+  <title>Site Not Found — Servlo</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -1472,7 +1472,7 @@ const errorPageHTML = `<!DOCTYPE html>
     <div class="logo">L</div>
     <h1>Site Not Found</h1>
     <p class="host" id="host"></p>
-    <p>This domain is not linked to any site. Run <code>lerd link</code> in your project directory to register it.</p>
+    <p>This domain is not linked to any site. Run <code>servlo link</code> in your project directory to register it.</p>
     <div class="actions">
       <a id="dashboard-link" href="#" class="btn-primary">Open Dashboard</a>
       <button class="btn-secondary" onclick="location.reload()">Retry</button>
@@ -1480,9 +1480,9 @@ const errorPageHTML = `<!DOCTYPE html>
   </div>
   <script>
     document.getElementById('host').textContent = location.hostname;
-    // The dashboard runs on lerd-ui at port 7073 on the same host the visitor
+    // The dashboard runs on servlo-panel at port 7073 on the same host the visitor
     // already reached. Using location.hostname (rather than a hardcoded
-    // lerd.localhost) means LAN clients get a working link to the server's
+    // servlo.localhost) means LAN clients get a working link to the server's
     // address, not their own loopback.
     document.getElementById('dashboard-link').href = location.protocol + '//' + location.hostname + ':7073/';
   </script>
@@ -1500,36 +1500,36 @@ func writeErrorPages() error {
 	return os.WriteFile(filepath.Join(dir, "404.html"), []byte(errorPageHTML), 0644)
 }
 
-// EnsureLerdVhost generates the nginx vhost for http://lerd.localhost,
-// which reverse-proxies to the lerd-ui process running on the host so the
-// browser's URL bar stays on lerd.localhost (no redirect to localhost:7073).
+// EnsureServloVhost generates the nginx vhost for http://servlo.localhost,
+// which reverse-proxies to the servlo-panel process running on the host so the
+// browser's URL bar stays on servlo.localhost (no redirect to localhost:7073).
 //
 // The upstream differs by platform because container → host connectivity
 // works differently on each:
 //
-//   - Linux: lerd-nginx runs in a rootless podman bridge. Reaching the
+//   - Linux: servlo-nginx runs in a rootless podman bridge. Reaching the
 //     host over TCP via host.containers.internal depends on netavark /
 //     pasta wiring up the 169.254.1.2 alias, which silently breaks
 //     across podman versions and host network changes. We bind-mount
-//     lerd-ui's unix socket into the container instead — filesystem
-//     access only, no networking, no detection. lerd-ui marks
+//     servlo-panel's unix socket into the container instead — filesystem
+//     access only, no networking, no detection. servlo-panel marks
 //     socket-arriving requests as loopback in isLoopbackRequest.
 //
-//   - macOS: lerd-ui runs as a native macOS process and lerd-nginx runs
+//   - macOS: servlo-panel runs as a native macOS process and servlo-nginx runs
 //     inside the podman-machine VM. Unix sockets don't traverse the
 //     virtio-fs / 9p hypervisor boundary as functional sockets, so
 //     binding one on the macOS host doesn't help the VM. We fall back
 //     to TCP via host.containers.internal:7073 — gvproxy reliably
 //     forwards this on podman-machine, and the request carries an
-//     X-Lerd-Trust header that the gate matches against the per-install
+//     X-Servlo-Trust header that the gate matches against the per-install
 //     token (proxy_set_header overwrites any client-supplied value, so
 //     a LAN attacker can't inject it).
 //
 // .localhost is RFC 6761 reserved and always resolves to the visiting
 // device's loopback, so this vhost is unreachable from a LAN browser doing
-// the obvious thing (http://lerd.localhost from a remote machine hits the
-// remote machine's own 127.0.0.1, not the lerd server).
-func EnsureLerdVhost() error {
+// the obvious thing (http://servlo.localhost from a remote machine hits the
+// remote machine's own 127.0.0.1, not the servlo server).
+func EnsureServloVhost() error {
 	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
 		return err
 	}
@@ -1543,14 +1543,14 @@ func EnsureLerdVhost() error {
 		content = fmt.Sprintf(`server {
     listen 80;
     listen [::]:80;
-    server_name lerd.localhost;
+    server_name servlo.localhost;
 
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Lerd-Trust %s;
+    proxy_set_header X-Servlo-Trust %s;
 
     location = / {
         proxy_pass http://host.containers.internal:7073;
@@ -1593,7 +1593,7 @@ func EnsureLerdVhost() error {
 		content = fmt.Sprintf(`server {
     listen 80;
     listen [::]:80;
-    server_name lerd.localhost;
+    server_name servlo.localhost;
 
     proxy_http_version 1.1;
     proxy_set_header Host $host;
@@ -1639,8 +1639,8 @@ func EnsureLerdVhost() error {
 }
 `, config.UISocketPath())
 	}
-	config.GuardRealWrite(filepath.Join(config.NginxConfD(), "lerd.localhost.conf"))
-	return os.WriteFile(filepath.Join(config.NginxConfD(), "lerd.localhost.conf"), []byte(content), 0644)
+	config.GuardRealWrite(filepath.Join(config.NginxConfD(), "servlo.localhost.conf"))
+	return os.WriteFile(filepath.Join(config.NginxConfD(), "servlo.localhost.conf"), []byte(content), 0644)
 }
 
 // EnsureNginxConfig copies the base nginx.conf to the data dir if it is missing.
@@ -1673,7 +1673,7 @@ func EnsureNginxConfig() error {
 	}
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, nginxConfData{
-		Resolver:        podman.NetworkGateway("lerd"),
+		Resolver:        podman.NetworkGateway("servlo"),
 		AccessLogTarget: config.AccessLogTarget(),
 	}); err != nil {
 		return fmt.Errorf("rendering nginx.conf: %w", err)
@@ -1690,8 +1690,8 @@ func EnsureNginxConfig() error {
 // (Ziggy, Symfony Request::getSchemeAndHttpHost) compute from
 // SERVER_PORT — without it a tunneled/LAN-shared site emits absolute
 // URLs with the nginx listen port (e.g. http://<ip>:443/foo).
-const forwardedConf = `# Generated by lerd. Declares variables used by per-site vhosts.
-# Edit user overrides in ~/.local/share/lerd/nginx/custom.d/ instead.
+const forwardedConf = `# Generated by servlo. Declares variables used by per-site vhosts.
+# Edit user overrides in ~/.local/share/servlo/nginx/custom.d/ instead.
 map $http_x_forwarded_host $real_forwarded_host {
     default $http_x_forwarded_host;
     ""      $host;
@@ -1758,10 +1758,10 @@ func EnsureProfilerVhost() error {
     server_name profiler.localhost;
 
     location / {
-        set $fpm "lerd-php%s-fpm";
+        set $fpm "servlo-php%s-fpm";
         fastcgi_pass $fpm:9000;
         include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME /usr/local/etc/lerd/dump-bridge.php;
+        fastcgi_param SCRIPT_FILENAME /usr/local/etc/servlo/dump-bridge.php;
         fastcgi_param HTTP_COOKIE "SPX_KEY=$spx_key";
     }
 }
@@ -1770,8 +1770,8 @@ func EnsureProfilerVhost() error {
 	return os.WriteFile(filepath.Join(config.NginxConfD(), "_profiler.conf"), []byte(content), 0644)
 }
 
-// EnsureCustomD creates the user-override directory. Lerd never writes here
-// after creation, so user snippets survive `lerd update`.
+// EnsureCustomD creates the user-override directory. Servlo never writes here
+// after creation, so user snippets survive `servlo update`.
 func EnsureCustomD() error {
 	return os.MkdirAll(config.NginxCustomD(), 0755)
 }
@@ -1783,22 +1783,22 @@ func EnsureHttpD() error {
 	return os.MkdirAll(config.NginxHttpD(), 0755)
 }
 
-// RewriteNginxQuadlet rewrites lerd-nginx.container from the bundled template
+// RewriteNginxQuadlet rewrites servlo-nginx.container from the bundled template
 // and reports whether the on-disk quadlet actually changed. Callers use this
 // to bring installs that pre-date a template change (e.g. the new http.d
 // mount) up to current shape on demand, instead of waiting for the next
-// `lerd start` / `lerd update`. The http config editor calls it before
+// `servlo start` / `servlo update`. The http config editor calls it before
 // writing the user override so the freshly written file is actually mounted
 // into the running nginx container — without this heal, the file would be
 // orphaned on disk and silently ignored.
 func RewriteNginxQuadlet() (changed bool, err error) {
-	content, err := podman.GetQuadletTemplate("lerd-nginx.container")
+	content, err := podman.GetQuadletTemplate("servlo-nginx.container")
 	if err != nil {
 		return false, fmt.Errorf("reading bundled nginx quadlet template: %w", err)
 	}
-	// The template carries only the lerd-owned mounts, so a site or parked
+	// The template carries only the servlo-owned mounts, so a site or parked
 	// directory outside $HOME must have its Volume= line re-injected here, the
 	// same way RewriteFPMQuadlets does, or nginx restarts without the docroot.
 	content = podman.InjectExtraVolumes(content, podman.ExtraVolumePaths())
-	return podman.WriteQuadletDiff("lerd-nginx", content)
+	return podman.WriteQuadletDiff("servlo-nginx", content)
 }

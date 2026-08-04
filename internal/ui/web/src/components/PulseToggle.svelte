@@ -33,7 +33,7 @@
 
   {#if enabled}
     <span class="absolute top-1 right-1 flex items-center justify-center w-2 h-2">
-      <span class="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-75 lerd-pulse-ping"></span>
+      <span class="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-75 servlo-pulse-ping"></span>
       <span class="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
     </span>
   {/if}
@@ -42,10 +42,10 @@
 <style>
   /* Slower-than-Tailwind ping so the dot reads as ambient activity rather
      than an attention-grabbing alert. */
-  .lerd-pulse-ping {
-    animation: lerd-pulse-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  .servlo-pulse-ping {
+    animation: servlo-pulse-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
   }
-  @keyframes lerd-pulse-ping {
+  @keyframes servlo-pulse-ping {
     0% {
       transform: scale(1);
       opacity: 0.75;

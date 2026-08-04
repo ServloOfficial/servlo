@@ -1,5 +1,5 @@
 // Package cfgedit is a small service for editing user-owned config files that
-// lerd seeds but never overwrites (per-site nginx overrides, the global
+// servlo seeds but never overwrites (per-site nginx overrides, the global
 // http-level nginx override, php.ini overrides). It owns the shared mechanics:
 // atomic staged writes, timestamped backups, snapshot/rollback, and the
 // process-wide save lock. Callers supply validation and apply (reload/restart)
@@ -414,7 +414,7 @@ func MentionsFile(output, path string) bool {
 // a config file. The dot prefix keeps the temp from matching an nginx include
 // glob such as custom.d/<domain>.conf*, so a concurrent reload during a
 // restore or rollback can never load the half-written temp.
-const atomicTmpPrefix = ".lerd-cfgtmp-"
+const atomicTmpPrefix = ".servlo-cfgtmp-"
 
 func writeFileAtomic(path string, data []byte, mode os.FileMode) error {
 	effective := mode

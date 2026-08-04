@@ -1,4 +1,4 @@
-// Package registry queries OCI registries for available tags so lerd can
+// Package registry queries OCI registries for available tags so servlo can
 // surface "update available" badges and apply minor/patch updates to default
 // services.
 //

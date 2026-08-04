@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/desktopnotify"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/desktopnotify"
 )
 
 type notifyTargetResponse struct {

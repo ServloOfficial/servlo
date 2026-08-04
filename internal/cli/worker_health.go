@@ -1,10 +1,10 @@
 package cli
 
-import "github.com/geodro/lerd/internal/workerheal"
+import "github.com/realrashid/servlo/internal/workerheal"
 
 // Re-exports of internal/workerheal so existing CLI / UI server callers
 // can keep importing from internal/cli. The MCP package can't import cli
-// (cli imports mcp for `lerd mcp:serve`), which is why the implementation
+// (cli imports mcp for `servlo mcp:serve`), which is why the implementation
 // itself lives in internal/workerheal.
 
 type (

@@ -13,23 +13,23 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dumps"
-	"github.com/geodro/lerd/internal/dumpsops"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dumps"
+	"github.com/realrashid/servlo/internal/dumpsops"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
-// NewDumpCmd returns the parent `lerd dump` command. Subcommands toggle the
+// NewDumpCmd returns the parent `servlo dump` command. Subcommands toggle the
 // debug bridge, tail received dumps, and inspect state.
 func NewDumpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dump",
-		Short: "Capture PHP dump()/dd() calls into the lerd dashboard",
-		Long: `Toggle the lerd debug bridge so that calls to dump() and dd() in your PHP
-code ship to the lerd dashboard, TUI, and MCP tools instead of (only) hitting
-the response. Off by default — enable with ` + "`lerd dump on`" + ` and disable
-with ` + "`lerd dump off`" + `.`,
+		Short: "Capture PHP dump()/dd() calls into the servlo dashboard",
+		Long: `Toggle the servlo debug bridge so that calls to dump() and dd() in your PHP
+code ship to the servlo dashboard, TUI, and MCP tools instead of (only) hitting
+the response. Off by default — enable with ` + "`servlo dump on`" + ` and disable
+with ` + "`servlo dump off`" + `.`,
 	}
 	cmd.AddCommand(newDumpOnCmd())
 	cmd.AddCommand(newDumpOffCmd())
@@ -124,10 +124,10 @@ func runDumpToggle(enable bool) error {
 	return nil
 }
 
-// nudgeUIDumpsChanged is a best-effort ping to lerd-ui so every connected
+// nudgeUIDumpsChanged is a best-effort ping to servlo-panel so every connected
 // dashboard tab refreshes its dump-bridge indicator over the WebSocket
 // instead of waiting for the next manual reload. Silent on any error: a
-// missing lerd-ui means there are no WS subscribers to update anyway.
+// missing servlo-panel means there are no WS subscribers to update anyway.
 func nudgeUIDumpsChanged() {
 	_, _, _ = postUnix("/api/dumps/notify-changed", nil)
 }
@@ -149,12 +149,12 @@ func runDumpStatus(_ *cobra.Command, _ []string) error {
 	if !cfg.IsDumpsEnabled() {
 		return nil
 	}
-	// Best-effort: ask lerd-ui for the buffer size. If the daemon isn't
-	// running we just say so without erroring — `lerd dump status` should
+	// Best-effort: ask servlo-panel for the buffer size. If the daemon isn't
+	// running we just say so without erroring — `servlo dump status` should
 	// be informational and never fail loudly.
 	st, err := fetchStatus()
 	if err != nil {
-		fmt.Printf("Buffered:    (lerd-ui not reachable: %v)\n", err)
+		fmt.Printf("Buffered:    (servlo-panel not reachable: %v)\n", err)
 		return nil
 	}
 	fmt.Printf("Buffered:    %d event(s)\n", st.Count)
@@ -167,10 +167,10 @@ func runDumpStatus(_ *cobra.Command, _ []string) error {
 func runDumpClear() error {
 	body, code, err := postUnix("/api/dumps/clear", nil)
 	if err != nil {
-		return fmt.Errorf("lerd-ui not reachable: %w", err)
+		return fmt.Errorf("servlo-panel not reachable: %w", err)
 	}
 	if code != http.StatusOK && code != http.StatusNoContent {
-		return fmt.Errorf("lerd-ui returned %d: %s", code, strings.TrimSpace(string(body)))
+		return fmt.Errorf("servlo-panel returned %d: %s", code, strings.TrimSpace(string(body)))
 	}
 	fmt.Println("Dump ring cleared.")
 	return nil
@@ -182,7 +182,7 @@ func runDumpTail(site, branch, ctxKind string) error {
 		return err
 	}
 	if !cfg.IsDumpsEnabled() {
-		fmt.Fprintln(os.Stderr, "[INFO] debug bridge is disabled. Run `lerd dump on` to enable.")
+		fmt.Fprintln(os.Stderr, "[INFO] debug bridge is disabled. Run `servlo dump on` to enable.")
 	}
 
 	q := []string{}
@@ -208,11 +208,11 @@ func runDumpTail(site, branch, ctxKind string) error {
 
 	conn, err := dialUnixHTTP(ctx)
 	if err != nil {
-		return fmt.Errorf("lerd-ui not reachable on %s: %w", config.UIClientAddr(), err)
+		return fmt.Errorf("servlo-panel not reachable on %s: %w", config.UIClientAddr(), err)
 	}
 	defer conn.Close()
 
-	req, _ := http.NewRequestWithContext(ctx, "GET", "http://lerd"+path, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http://servlo"+path, nil)
 	req.Header.Set("Accept", "text/event-stream")
 	if err := req.Write(conn); err != nil {
 		return err
@@ -224,7 +224,7 @@ func runDumpTail(site, branch, ctxKind string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("lerd-ui /api/dumps/stream returned %s", resp.Status)
+		return fmt.Errorf("servlo-panel /api/dumps/stream returned %s", resp.Status)
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
@@ -299,7 +299,7 @@ func fetchStatus() (*statusResponse, error) {
 	return &st, nil
 }
 
-// uiClientDial reports the transport the CLI uses to reach the lerd-ui daemon:
+// uiClientDial reports the transport the CLI uses to reach the servlo-panel daemon:
 // the unix socket on Linux, the TCP loopback on macOS (where the socket isn't
 // created). It's a var so tests can point it at a fake listener regardless of
 // the production per-OS default.
@@ -307,7 +307,7 @@ var uiClientDial = func() (network, addr string) {
 	return config.UIClientNetwork(), config.UIClientAddr()
 }
 
-// dialUnixHTTP opens a TCP-style net.Conn to the lerd-ui daemon over whichever
+// dialUnixHTTP opens a TCP-style net.Conn to the servlo-panel daemon over whichever
 // transport uiClientDial resolves (unix socket on Linux, TCP loopback on
 // macOS). Used for the SSE tail; we keep a raw connection so we can stream the
 // response body without a transport layer that buffers internally.
@@ -330,7 +330,7 @@ func unixHTTPClient() *http.Client {
 }
 
 func getUnix(path string) ([]byte, int, error) {
-	req, _ := http.NewRequest("GET", "http://lerd"+path, nil)
+	req, _ := http.NewRequest("GET", "http://servlo"+path, nil)
 	resp, err := unixHTTPClient().Do(req)
 	if err != nil {
 		return nil, 0, err
@@ -341,7 +341,7 @@ func getUnix(path string) ([]byte, int, error) {
 }
 
 func postUnix(path string, body []byte) ([]byte, int, error) {
-	req, _ := http.NewRequest("POST", "http://lerd"+path, strings.NewReader(string(body)))
+	req, _ := http.NewRequest("POST", "http://servlo"+path, strings.NewReader(string(body)))
 	resp, err := unixHTTPClient().Do(req)
 	if err != nil {
 		return nil, 0, err

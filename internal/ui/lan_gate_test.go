@@ -6,18 +6,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func localPost(path, body string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	req.RemoteAddr = "127.0.0.1:54321"
 	req.Host = "localhost:7073"
-	req.Header.Set("X-Lerd-CSRF", "1")
+	req.Header.Set("X-Servlo-CSRF", "1")
 	return req
 }
 
-// Opting managed services in while lerd is loopback only would persist a
+// Opting managed services in while servlo is loopback only would persist a
 // setting that publishes nothing, which reads as exposure that never happened.
 func TestServicesOnRefusedWhileLoopbackOnly(t *testing.T) {
 	setupConfigDirRaw(t, "", "", false)

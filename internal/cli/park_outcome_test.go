@@ -40,7 +40,7 @@ func TestParkAllUnrecognised(t *testing.T) {
 		},
 		{
 			"one declares its own runtime",
-			[]ParkOutcome{{Reason: "declares its own host-proxy runtime; run 'lerd link' in it"}},
+			[]ParkOutcome{{Reason: "declares its own host-proxy runtime; run 'servlo link' in it"}},
 			false,
 		},
 	}

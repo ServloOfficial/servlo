@@ -44,39 +44,39 @@ func newTestCache(pollFn func() (string, error)) *ContainerCache {
 
 func TestPollParsesRunningContainers(t *testing.T) {
 	c := newTestCache(func() (string, error) {
-		return "lerd-nginx\trunning\nlerd-mysql\texited\nlerd-redis\tRunning Up 2h", nil
+		return "servlo-nginx\trunning\nservlo-mysql\texited\nservlo-redis\tRunning Up 2h", nil
 	})
 	c.started = true
 	c.poll()
 
-	if !c.Running("lerd-nginx") {
-		t.Error("lerd-nginx should be running")
+	if !c.Running("servlo-nginx") {
+		t.Error("servlo-nginx should be running")
 	}
-	if c.Running("lerd-mysql") {
-		t.Error("lerd-mysql should not be running (exited)")
+	if c.Running("servlo-mysql") {
+		t.Error("servlo-mysql should not be running (exited)")
 	}
-	if !c.Running("lerd-redis") {
-		t.Error("lerd-redis should be running (Running prefix, mixed case)")
+	if !c.Running("servlo-redis") {
+		t.Error("servlo-redis should be running (Running prefix, mixed case)")
 	}
-	if c.Running("lerd-postgres") {
-		t.Error("lerd-postgres should not be running (not in output)")
+	if c.Running("servlo-postgres") {
+		t.Error("servlo-postgres should not be running (not in output)")
 	}
 }
 
 func TestPollEmptyOutputClearsState(t *testing.T) {
 	c := newTestCache(func() (string, error) {
-		return "lerd-nginx\trunning", nil
+		return "servlo-nginx\trunning", nil
 	})
 	c.started = true
 	c.poll()
-	if !c.Running("lerd-nginx") {
+	if !c.Running("servlo-nginx") {
 		t.Fatal("expected running after first poll")
 	}
 
 	// Simulate podman machine stopped: empty output (but no error).
 	c.pollFn = func() (string, error) { return "", nil }
 	c.poll()
-	if c.Running("lerd-nginx") {
+	if c.Running("servlo-nginx") {
 		t.Error("should not be running after empty poll (machine stopped)")
 	}
 }
@@ -87,18 +87,18 @@ func TestPollErrorKeepsLastState(t *testing.T) {
 	c := newTestCache(func() (string, error) {
 		calls++
 		if calls == 1 {
-			return "lerd-nginx\trunning", nil
+			return "servlo-nginx\trunning", nil
 		}
 		return "", errors.New("podman machine unreachable")
 	})
 	c.started = true
 	c.poll() // first poll: nginx running
-	if !c.Running("lerd-nginx") {
+	if !c.Running("servlo-nginx") {
 		t.Fatal("expected running after first poll")
 	}
 
 	c.poll() // second poll: error — fresh map is empty
-	if c.Running("lerd-nginx") {
+	if c.Running("servlo-nginx") {
 		t.Error("on error the cache should clear (all containers appear stopped)")
 	}
 }
@@ -109,7 +109,7 @@ func TestRunningUsesMapWhenStarted(t *testing.T) {
 	pollCalled := false
 	c := newTestCache(func() (string, error) {
 		pollCalled = true
-		return "lerd-nginx\trunning", nil
+		return "servlo-nginx\trunning", nil
 	})
 	c.started = true
 	c.poll()
@@ -117,32 +117,32 @@ func TestRunningUsesMapWhenStarted(t *testing.T) {
 	if !pollCalled {
 		t.Fatal("expected poll to be called")
 	}
-	if !c.Running("lerd-nginx") {
-		t.Error("lerd-nginx should be running from cache")
+	if !c.Running("servlo-nginx") {
+		t.Error("servlo-nginx should be running from cache")
 	}
-	if c.Running("lerd-notexist") {
+	if c.Running("servlo-notexist") {
 		t.Error("unknown container should not be running")
 	}
 }
 
 func TestSnapshotStartedReturnsCachedMap(t *testing.T) {
 	c := newTestCache(func() (string, error) {
-		return "lerd-nginx\trunning\nlerd-mysql\texited", nil
+		return "servlo-nginx\trunning\nservlo-mysql\texited", nil
 	})
 	c.started = true
 	c.poll()
 
 	snap := c.Snapshot()
-	if !snap["lerd-nginx"] {
-		t.Error("expected lerd-nginx running in snapshot")
+	if !snap["servlo-nginx"] {
+		t.Error("expected servlo-nginx running in snapshot")
 	}
-	if snap["lerd-mysql"] {
-		t.Error("expected lerd-mysql not running in snapshot")
+	if snap["servlo-mysql"] {
+		t.Error("expected servlo-mysql not running in snapshot")
 	}
 
 	// Mutating the returned map must not affect the cache.
-	snap["lerd-nginx"] = false
-	if !c.Running("lerd-nginx") {
+	snap["servlo-nginx"] = false
+	if !c.Running("servlo-nginx") {
 		t.Error("snapshot mutation leaked into cache")
 	}
 }
@@ -151,7 +151,7 @@ func TestSnapshotUnstartedFallsBackToPodman(t *testing.T) {
 	calls := 0
 	c := newTestCache(func() (string, error) {
 		calls++
-		return "lerd-nginx\trunning\nlerd-redis\texited", nil
+		return "servlo-nginx\trunning\nservlo-redis\texited", nil
 	})
 	// Note: c.started left false to exercise the CLI fallback path.
 
@@ -159,11 +159,11 @@ func TestSnapshotUnstartedFallsBackToPodman(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("expected 1 fallback poll, got %d", calls)
 	}
-	if !snap["lerd-nginx"] {
-		t.Error("expected lerd-nginx in fallback snapshot")
+	if !snap["servlo-nginx"] {
+		t.Error("expected servlo-nginx in fallback snapshot")
 	}
-	if snap["lerd-redis"] {
-		t.Error("expected lerd-redis not running in fallback snapshot")
+	if snap["servlo-redis"] {
+		t.Error("expected servlo-redis not running in fallback snapshot")
 	}
 }
 
@@ -171,7 +171,7 @@ func TestRefreshTriggersImmediatePoll(t *testing.T) {
 	polled := make(chan struct{}, 10)
 	c := newTestCache(func() (string, error) {
 		polled <- struct{}{}
-		return "lerd-nginx\trunning", nil
+		return "servlo-nginx\trunning", nil
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -249,7 +249,7 @@ func TestSetIntervalTakeEffect(t *testing.T) {
 
 func TestConcurrentReads(t *testing.T) {
 	c := newTestCache(func() (string, error) {
-		return "lerd-nginx\trunning\nlerd-mysql\texited", nil
+		return "servlo-nginx\trunning\nservlo-mysql\texited", nil
 	})
 	c.started = true
 	c.poll()
@@ -259,9 +259,9 @@ func TestConcurrentReads(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_ = c.Running("lerd-nginx")
-			_ = c.Running("lerd-mysql")
-			_ = c.Running("lerd-redis")
+			_ = c.Running("servlo-nginx")
+			_ = c.Running("servlo-mysql")
+			_ = c.Running("servlo-redis")
 		}()
 	}
 	wg.Wait()
@@ -277,9 +277,9 @@ func TestConcurrentPollAndRead(t *testing.T) {
 		n := calls
 		callsMu.Unlock()
 		if n%2 == 0 {
-			return "lerd-nginx\trunning", nil
+			return "servlo-nginx\trunning", nil
 		}
-		return "lerd-mysql\trunning", nil
+		return "servlo-mysql\trunning", nil
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -297,19 +297,19 @@ func TestConcurrentPollAndRead(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 20; j++ {
-				_ = c.Running("lerd-nginx")
-				_ = c.Running("lerd-mysql")
+				_ = c.Running("servlo-nginx")
+				_ = c.Running("servlo-mysql")
 			}
 		}()
 	}
 	wg.Wait()
 }
 
-// While lerd is intentionally stopped its containers are meant to be down, and
+// While servlo is intentionally stopped its containers are meant to be down, and
 // workerheal.Detect already suppresses itself, so nothing in the process needs
 // fresh container state. The timer must stop spending a podman round trip on
-// it, and must pick straight back up once `lerd start` clears the marker.
-func TestLoopStopsPollingWhileLerdIsStopped(t *testing.T) {
+// it, and must pick straight back up once `servlo start` clears the marker.
+func TestLoopStopsPollingWhileServloIsStopped(t *testing.T) {
 	var mu sync.Mutex
 	polls := 0
 	c := newTestCache(func() (string, error) {
@@ -354,7 +354,7 @@ func TestLoopStopsPollingWhileLerdIsStopped(t *testing.T) {
 	}
 }
 
-// `lerd stop` writes the marker before it tears anything down, so a tick can
+// `servlo stop` writes the marker before it tears anything down, so a tick can
 // land while containers are still on their way out. Going quiet after that one
 // poll would leave the map reporting them as running for the whole stopped
 // period, which is worse than the polling this saves.
@@ -362,15 +362,15 @@ func TestLoopKeepsPollingUntilTeardownSettles(t *testing.T) {
 	var mu sync.Mutex
 	polls := 0
 	// Mirrors a teardown in progress: still running on the first poll, gone by
-	// the second. lerd-dns stays up throughout, as it does in a real stop.
+	// the second. servlo-dns stays up throughout, as it does in a real stop.
 	c := newTestCache(func() (string, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		polls++
 		if polls == 1 {
-			return "lerd-dns\trunning\nlerd-fp-demo\trunning", nil
+			return "servlo-dns\trunning\nservlo-fp-demo\trunning", nil
 		}
-		return "lerd-dns\trunning\nlerd-fp-demo\texited", nil
+		return "servlo-dns\trunning\nservlo-fp-demo\texited", nil
 	})
 
 	prev := stoppedFn
@@ -385,11 +385,11 @@ func TestLoopKeepsPollingUntilTeardownSettles(t *testing.T) {
 
 	time.Sleep(250 * time.Millisecond)
 
-	if c.Running("lerd-fp-demo") {
+	if c.Running("servlo-fp-demo") {
 		t.Error("map still reports a container that went down during the teardown")
 	}
-	if !c.Running("lerd-dns") {
-		t.Error("lerd-dns stays up through a stop and must still read as running")
+	if !c.Running("servlo-dns") {
+		t.Error("servlo-dns stays up through a stop and must still read as running")
 	}
 
 	mu.Lock()
@@ -429,6 +429,6 @@ func TestRefreshPollsEvenWhileStopped(t *testing.T) {
 	select {
 	case <-polled:
 	case <-time.After(2 * time.Second):
-		t.Error("explicit Refresh() must poll even while lerd is stopped")
+		t.Error("explicit Refresh() must poll even while servlo is stopped")
 	}
 }

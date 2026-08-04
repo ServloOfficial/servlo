@@ -19,7 +19,7 @@ func defaultGuardArgs(pidFile, runCmd string) guardArgs {
 	return guardArgs{
 		pidFile:   pidFile,
 		podmanBin: "true",
-		container: "lerd-php84-fpm",
+		container: "servlo-php84-fpm",
 		sitePath:  "/Users/test/site",
 		workerCmd: "php artisan queue:work",
 		runCmd:    runCmd,
@@ -31,7 +31,7 @@ func (a guardArgs) build() string {
 }
 
 func TestBuildWorkerGuard_WrapsCommand(t *testing.T) {
-	a := defaultGuardArgs("/tmp/lerd-queue-alpha.pid", "podman exec -w /site lerd-php84-fpm php artisan queue:work")
+	a := defaultGuardArgs("/tmp/servlo-queue-alpha.pid", "podman exec -w /site servlo-php84-fpm php artisan queue:work")
 	got := a.build()
 
 	for _, want := range []string{a.pidFile, a.runCmd, "kill -0", "exec ", "pgrep -f", "readlink /proc/$p/cwd", "'php artisan queue:work'", "'/Users/test/site'"} {
@@ -46,7 +46,7 @@ func TestBuildWorkerGuard_WrapsCommand(t *testing.T) {
 // WAIT for the process to exit, then SIGKILL stragglers — otherwise the
 // replacement binds the port before the old one frees it (EADDRINUSE).
 func TestBuildWorkerGuard_WaitsForOrphanExit(t *testing.T) {
-	a := defaultGuardArgs("/tmp/lerd-reverb-alpha.pid", "podman exec -w /site lerd-php84-fpm php artisan reverb:start")
+	a := defaultGuardArgs("/tmp/servlo-reverb-alpha.pid", "podman exec -w /site servlo-php84-fpm php artisan reverb:start")
 	got := a.build()
 
 	for _, want := range []string{"kill -TERM", "while [ -n", "kill -KILL", "sleep 0.1"} {
@@ -132,7 +132,7 @@ func TestBuildWorkerGuard_RunsOrphanCleanupBeforeExec(t *testing.T) {
 	a := guardArgs{
 		pidFile:   pidFile,
 		podmanBin: stub,
-		container: "lerd-php84-fpm",
+		container: "servlo-php84-fpm",
 		sitePath:  "/Users/u/parkapp",
 		workerCmd: "php artisan queue:work --queue=default",
 		runCmd:    "true",
@@ -153,7 +153,7 @@ func TestBuildWorkerGuard_RunsOrphanCleanupBeforeExec(t *testing.T) {
 	gotStr := string(got)
 	for _, want := range []string{
 		"<exec>",
-		"<lerd-php84-fpm>",
+		"<servlo-php84-fpm>",
 		"<sh>",
 		"<-c>",
 		"php artisan queue:work --queue=default",
@@ -186,7 +186,7 @@ func TestBuildWorkerGuard_SkipsOrphanCleanupWhenOuterAlive(t *testing.T) {
 	a := guardArgs{
 		pidFile:   pidFile,
 		podmanBin: stub,
-		container: "lerd-php84-fpm",
+		container: "servlo-php84-fpm",
 		sitePath:  "/Users/u/parkapp",
 		workerCmd: "php artisan queue:work",
 		runCmd:    "false",
@@ -212,7 +212,7 @@ func TestBuildWorkerReapCommand_TargetsContainerAndCwd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reap := buildWorkerReapCommand(stub, "lerd-php85-fpm", "/Users/u/lferp", "php artisan horizon:listen")
+	reap := buildWorkerReapCommand(stub, "servlo-php85-fpm", "/Users/u/lferp", "php artisan horizon:listen")
 	if err := exec.Command("sh", "-c", reap).Run(); err != nil {
 		t.Fatalf("reap run failed: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestBuildWorkerReapCommand_TargetsContainerAndCwd(t *testing.T) {
 	gotStr := string(got)
 	for _, want := range []string{
 		"<exec>",
-		"<lerd-php85-fpm>",
+		"<servlo-php85-fpm>",
 		"<sh>",
 		"<-c>",
 		"php artisan horizon:listen",

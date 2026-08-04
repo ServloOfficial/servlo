@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // Two failing workers on the same site must get distinct zone ids, otherwise

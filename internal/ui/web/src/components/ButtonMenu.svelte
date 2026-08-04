@@ -16,12 +16,12 @@
   }
 
   export const buttonMenuToneClass: Record<DetailButtonTone, string> = {
-    primary: 'bg-lerd-red hover:bg-lerd-redhov text-white',
+    primary: 'bg-servlo-red hover:bg-servlo-redhov text-white',
     secondary:
-      'bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-lerd-border',
+      'bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-servlo-border',
     success: 'bg-emerald-600 hover:bg-emerald-700 text-white',
     danger:
-      'bg-gray-100 dark:bg-white/5 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-500/30 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-lerd-border',
+      'bg-gray-100 dark:bg-white/5 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-500/30 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-servlo-border',
     warn:
       'bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20',
     info:
@@ -196,7 +196,7 @@
       <div
         role="menu"
         data-testid="button-menu-list"
-        class="absolute right-0 top-full mt-2 z-50 min-w-64 max-w-xs rounded-xl bg-white dark:bg-lerd-card border border-gray-200 dark:border-lerd-border shadow-xl py-1 overflow-hidden"
+        class="absolute right-0 top-full mt-2 z-50 min-w-64 max-w-xs rounded-xl bg-white dark:bg-servlo-card border border-gray-200 dark:border-servlo-border shadow-xl py-1 overflow-hidden"
       >
         {#each rest as a (a.id)}
           <button

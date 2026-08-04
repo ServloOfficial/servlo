@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 // mailpitWebhookPayload is the subset of Mailpit's message-summary JSON we
@@ -93,7 +93,7 @@ func handleMailpitWebhook(w http.ResponseWriter, r *http.Request) {
 			"subject": subject,
 			"from":    from,
 		},
-		Tag:  "lerd-mail-" + p.ID,
+		Tag:  "servlo-mail-" + p.ID,
 		URL:  "#service/mailpit/view/" + p.ID,
 		Icon: "/icons/icon-192.png",
 		Data: map[string]string{"id": p.ID},

@@ -18,7 +18,7 @@
   // FrankenPHP sites run their own container instead of the shared FPM pool, so
   // their php.ini isn't reachable from the System → PHP per-version editor the
   // way FPM users edit it. Surface that same per-version editor here as a second
-  // tab; the FrankenPHP container mounts the shared 98-lerd-user.ini, so edits
+  // tab; the FrankenPHP container mounts the shared 98-servlo-user.ini, so edits
   // apply to it after the save restarts the container.
   const showPhpIni = $derived(site.runtime === 'frankenphp' && Boolean(site.php_version));
   let tab = $state<'nginx' | 'phpini'>('nginx');
@@ -34,7 +34,7 @@
   const tabBtn = (id: 'nginx' | 'phpini') =>
     'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ' +
     (tab === id
-      ? 'border-lerd-red text-lerd-red'
+      ? 'border-servlo-red text-servlo-red'
       : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300');
 </script>
 

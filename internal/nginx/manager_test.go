@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // setupConfD points NginxConfD() at a temp dir via XDG_DATA_HOME and returns the
@@ -18,7 +18,7 @@ func setupConfD(t *testing.T) string {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", tmp)
-	return filepath.Join(tmp, "lerd", "nginx", "conf.d")
+	return filepath.Join(tmp, "servlo", "nginx", "conf.d")
 }
 
 func readConf(t *testing.T, path string) string {
@@ -63,11 +63,11 @@ func TestGenerateVhost_customFPMUsesPerSiteContainer(t *testing.T) {
 		t.Fatalf("GenerateVhost: %v", err)
 	}
 	content := readConf(t, filepath.Join(confD, "myapp.test.conf"))
-	if !strings.Contains(content, `set $fpm "lerd-cfpm-myapp"`) {
-		t.Errorf("custom-FPM vhost should fastcgi to lerd-cfpm-myapp, got:\n%s", content)
+	if !strings.Contains(content, `set $fpm "servlo-cfpm-myapp"`) {
+		t.Errorf("custom-FPM vhost should fastcgi to servlo-cfpm-myapp, got:\n%s", content)
 	}
-	if strings.Contains(content, "lerd-php84-fpm") {
-		t.Errorf("custom-FPM vhost must not reference the shared lerd-php84-fpm:\n%s", content)
+	if strings.Contains(content, "servlo-php84-fpm") {
+		t.Errorf("custom-FPM vhost must not reference the shared servlo-php84-fpm:\n%s", content)
 	}
 }
 
@@ -78,8 +78,8 @@ func TestGenerateVhost_plainSiteUsesSharedContainer(t *testing.T) {
 		t.Fatalf("GenerateVhost: %v", err)
 	}
 	content := readConf(t, filepath.Join(confD, "plain.test.conf"))
-	if !strings.Contains(content, `set $fpm "lerd-php84-fpm"`) {
-		t.Errorf("plain vhost should fastcgi to lerd-php84-fpm, got:\n%s", content)
+	if !strings.Contains(content, `set $fpm "servlo-php84-fpm"`) {
+		t.Errorf("plain vhost should fastcgi to servlo-php84-fpm, got:\n%s", content)
 	}
 }
 
@@ -92,8 +92,8 @@ func TestGenerateWorktreeVhost_unknownSiteUsesSharedContainer(t *testing.T) {
 		t.Fatalf("GenerateWorktreeVhost: %v", err)
 	}
 	content := readConf(t, filepath.Join(confD, "feat.myapp.test.conf"))
-	if !strings.Contains(content, `set $fpm "lerd-php83-fpm"`) {
-		t.Errorf("worktree vhost should fastcgi to lerd-php83-fpm, got:\n%s", content)
+	if !strings.Contains(content, `set $fpm "servlo-php83-fpm"`) {
+		t.Errorf("worktree vhost should fastcgi to servlo-php83-fpm, got:\n%s", content)
 	}
 }
 
@@ -153,7 +153,7 @@ func TestResolveRequestTimeout_ProjectOverrideWins(t *testing.T) {
 		t.Fatalf("SaveProjectConfig: %v", err)
 	}
 	if got := resolveRequestTimeout(projectDir); got != 300 {
-		t.Errorf("resolveRequestTimeout = %d, want 300 (.lerd.yaml override)", got)
+		t.Errorf("resolveRequestTimeout = %d, want 300 (.servlo.yaml override)", got)
 	}
 }
 
@@ -223,14 +223,14 @@ func TestGenerateCustomVhost_honoursProjectRequestTimeout(t *testing.T) {
 
 // ── proxy path (worker Proxy) ─────────────────────────────────────────────────
 
-// proxySite writes a .lerd.yaml declaring a Laravel project with one custom
+// proxySite writes a .servlo.yaml declaring a Laravel project with one custom
 // worker carrying the given Proxy, and returns a config.Site pointing at it.
 // laravel is a builtinFramework, so GetFrameworkForDir resolves it (and merges
 // the custom worker) without needing a real frameworks store checkout.
 func proxySite(t *testing.T, name string, proxy *config.WorkerProxy) config.Site {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	proj, err := config.LoadProjectConfig(dir)
@@ -498,7 +498,7 @@ func TestGenerateVhost_createsConfFile(t *testing.T) {
 	if !strings.Contains(content, `root "/srv/myapp/public`) {
 		t.Errorf("expected root path in:\n%s", content)
 	}
-	if !strings.Contains(content, "lerd-php83-fpm") {
+	if !strings.Contains(content, "servlo-php83-fpm") {
 		t.Errorf("expected PHP FPM reference in:\n%s", content)
 	}
 }
@@ -510,12 +510,12 @@ func TestGenerateVhost_phpVersionShort(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Verify phpShort is applied correctly in the template
-	confD := filepath.Join(os.Getenv("XDG_DATA_HOME"), "lerd", "nginx", "conf.d")
+	confD := filepath.Join(os.Getenv("XDG_DATA_HOME"), "servlo", "nginx", "conf.d")
 	content := readConf(t, filepath.Join(confD, "app.test.conf"))
-	if !strings.Contains(content, "lerd-php84-fpm") {
-		t.Errorf("expected lerd-php84-fpm in:\n%s", content)
+	if !strings.Contains(content, "servlo-php84-fpm") {
+		t.Errorf("expected servlo-php84-fpm in:\n%s", content)
 	}
-	if strings.Contains(content, "lerd-php8.4-fpm") {
+	if strings.Contains(content, "servlo-php8.4-fpm") {
 		t.Error("PHP version should not contain dots in FPM name")
 	}
 }
@@ -702,12 +702,12 @@ func setupRepairEnv(t *testing.T, sitesYAML string) (confD, certsDir string) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "config"))
 
-	confD = filepath.Join(tmp, "lerd", "nginx", "conf.d")
-	certsDir = filepath.Join(tmp, "lerd", "certs", "sites")
+	confD = filepath.Join(tmp, "servlo", "nginx", "conf.d")
+	certsDir = filepath.Join(tmp, "servlo", "certs", "sites")
 	os.MkdirAll(confD, 0755)
 	os.MkdirAll(certsDir, 0755)
 
-	sitesDir := filepath.Join(tmp, "lerd")
+	sitesDir := filepath.Join(tmp, "servlo")
 	os.MkdirAll(sitesDir, 0755)
 	os.WriteFile(filepath.Join(sitesDir, "sites.yaml"), []byte(sitesYAML), 0644)
 	return confD, certsDir
@@ -849,7 +849,7 @@ func TestRepairVhosts_preservesInternalVhosts(t *testing.T) {
 
 	// Write internal vhosts that should never be removed.
 	os.WriteFile(filepath.Join(confD, "_default.conf"), []byte("server {}"), 0644)
-	os.WriteFile(filepath.Join(confD, "lerd.localhost.conf"), []byte("server { server_name lerd.localhost; }"), 0644)
+	os.WriteFile(filepath.Join(confD, "servlo.localhost.conf"), []byte("server { server_name servlo.localhost; }"), 0644)
 
 	repairs := RepairVhosts()
 
@@ -859,8 +859,8 @@ func TestRepairVhosts_preservesInternalVhosts(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(confD, "_default.conf")); err != nil {
 		t.Error("_default.conf should be preserved")
 	}
-	if _, err := os.Stat(filepath.Join(confD, "lerd.localhost.conf")); err != nil {
-		t.Error("lerd.localhost.conf should be preserved")
+	if _, err := os.Stat(filepath.Join(confD, "servlo.localhost.conf")); err != nil {
+		t.Error("servlo.localhost.conf should be preserved")
 	}
 }
 
@@ -904,7 +904,7 @@ func TestGenerateCustomVhost_createsConfFile(t *testing.T) {
 	if !strings.Contains(content, "proxy_pass http://$backend:3000") {
 		t.Errorf("expected proxy_pass with port 3000 in:\n%s", content)
 	}
-	if !strings.Contains(content, "lerd-custom-nestapp") {
+	if !strings.Contains(content, "servlo-custom-nestapp") {
 		t.Errorf("expected custom container name in:\n%s", content)
 	}
 	if strings.Contains(content, "fastcgi_pass") {
@@ -930,7 +930,7 @@ func TestGenerateCustomVhost_websocketHeaders(t *testing.T) {
 	if err := GenerateCustomVhost(site); err != nil {
 		t.Fatal(err)
 	}
-	confD := filepath.Join(os.Getenv("XDG_DATA_HOME"), "lerd", "nginx", "conf.d")
+	confD := filepath.Join(os.Getenv("XDG_DATA_HOME"), "servlo", "nginx", "conf.d")
 	content := readConf(t, filepath.Join(confD, "app.test.conf"))
 	if !strings.Contains(content, "proxy_set_header Upgrade") {
 		t.Error("expected WebSocket upgrade header")
@@ -958,7 +958,7 @@ func TestGenerateCustomSSLVhost_createsSSLConfFile(t *testing.T) {
 	if !strings.Contains(content, "proxy_pass http://$backend:3000") {
 		t.Errorf("expected proxy_pass in:\n%s", content)
 	}
-	if !strings.Contains(content, "lerd-custom-nestapp") {
+	if !strings.Contains(content, "servlo-custom-nestapp") {
 		t.Errorf("expected custom container name in:\n%s", content)
 	}
 	if !strings.Contains(content, "return 302 https://") {
@@ -985,12 +985,12 @@ func TestEnsureDefaultVhost_writesDefaultConf(t *testing.T) {
 		t.Errorf("expected ssl_reject_handshake in:\n%s", content)
 	}
 	// Verify error page HTML was written
-	errorPage := filepath.Join(os.Getenv("XDG_DATA_HOME"), "lerd", "error-pages", "404.html")
+	errorPage := filepath.Join(os.Getenv("XDG_DATA_HOME"), "servlo", "error-pages", "404.html")
 	if _, err := os.Stat(errorPage); err != nil {
 		t.Errorf("expected error page at %s", errorPage)
 	}
 	// Sentinel hash must be written alongside so subsequent runs can
-	// distinguish lerd-managed content from a user edit.
+	// distinguish servlo-managed content from a user edit.
 	sentinel := filepath.Join(confD, "_default.conf"+defaultVhostManagedHashSuffix)
 	if _, err := os.Stat(sentinel); err != nil {
 		t.Errorf("expected sentinel at %s", sentinel)
@@ -999,7 +999,7 @@ func TestEnsureDefaultVhost_writesDefaultConf(t *testing.T) {
 
 func TestEnsureDefaultVhost_preservesUserEdits(t *testing.T) {
 	confD := setupConfD(t)
-	// First pass: lerd writes the canonical content + sentinel.
+	// First pass: servlo writes the canonical content + sentinel.
 	if err := EnsureDefaultVhost(); err != nil {
 		t.Fatalf("first EnsureDefaultVhost: %v", err)
 	}
@@ -1041,13 +1041,13 @@ func TestEnsureDefaultVhost_idempotentWhenUntouched(t *testing.T) {
 
 func TestEnsureDefaultVhost_templateChangeAutoUpdatesWhenUnedited(t *testing.T) {
 	confD := setupConfD(t)
-	// Simulate a previously-installed lerd that wrote OLD content + a
+	// Simulate a previously-installed servlo that wrote OLD content + a
 	// sentinel matching that old content. Reaching EnsureDefaultVhost
 	// today should detect the template-vs-on-disk drift and rewrite.
 	if err := os.MkdirAll(confD, 0755); err != nil {
 		t.Fatal(err)
 	}
-	stale := []byte("# old lerd template, before the latest binary\nserver { listen 80; }\n")
+	stale := []byte("# old servlo template, before the latest binary\nserver { listen 80; }\n")
 	path := filepath.Join(confD, "_default.conf")
 	if err := os.WriteFile(path, stale, 0644); err != nil {
 		t.Fatal(err)
@@ -1061,13 +1061,13 @@ func TestEnsureDefaultVhost_templateChangeAutoUpdatesWhenUnedited(t *testing.T) 
 	}
 	got, _ := os.ReadFile(path)
 	if !strings.Contains(string(got), "default_server") {
-		t.Errorf("expected lerd to overwrite stale content with the current template, got:\n%s", got)
+		t.Errorf("expected servlo to overwrite stale content with the current template, got:\n%s", got)
 	}
 }
 
 func TestEnsureDefaultVhost_recoversManagementWhenSentinelMissingButContentMatches(t *testing.T) {
 	confD := setupConfD(t)
-	// Simulate a sentinel-write crash from a prior run: the conf is lerd's
+	// Simulate a sentinel-write crash from a prior run: the conf is servlo's
 	// canonical bytes, but the sentinel file never made it to disk. The
 	// next run must reclaim management (write the sentinel) rather than
 	// silently treat the file as user-managed.
@@ -1096,7 +1096,7 @@ func TestEnsureDefaultVhost_removingFileResetsManagement(t *testing.T) {
 	path := filepath.Join(confD, "_default.conf")
 	sentinel := path + defaultVhostManagedHashSuffix
 	// User deletes the file (and may have left the sentinel; either way,
-	// lerd should regenerate the catch-all on the next run).
+	// servlo should regenerate the catch-all on the next run).
 	if err := os.Remove(path); err != nil {
 		t.Fatalf("removing conf: %v", err)
 	}
@@ -1104,7 +1104,7 @@ func TestEnsureDefaultVhost_removingFileResetsManagement(t *testing.T) {
 		t.Fatalf("regenerate after delete: %v", err)
 	}
 	if _, err := os.Stat(path); err != nil {
-		t.Errorf("expected lerd to recreate the file after user removed it: %v", err)
+		t.Errorf("expected servlo to recreate the file after user removed it: %v", err)
 	}
 	if _, err := os.Stat(sentinel); err != nil {
 		t.Errorf("expected sentinel to be re-created alongside: %v", err)
@@ -1182,15 +1182,15 @@ func TestEnsureDefaultVhost_leavesNoTempFilesInConfD(t *testing.T) {
 	}
 }
 
-func TestEnsureLerdVhost_linuxProxiesUnixSocket(t *testing.T) {
+func TestEnsureServloVhost_linuxProxiesUnixSocket(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		t.Skip("Linux uses the unix socket vhost; macOS uses TCP via host.containers.internal")
 	}
 	confD := setupConfD(t)
-	if err := EnsureLerdVhost(); err != nil {
-		t.Fatalf("EnsureLerdVhost: %v", err)
+	if err := EnsureServloVhost(); err != nil {
+		t.Fatalf("EnsureServloVhost: %v", err)
 	}
-	content := readConf(t, filepath.Join(confD, "lerd.localhost.conf"))
+	content := readConf(t, filepath.Join(confD, "servlo.localhost.conf"))
 
 	// On Linux the vhost MUST proxy via the unix socket. host.containers.internal
 	// is the failure mode the fix removes; if a future refactor reintroduces
@@ -1209,10 +1209,10 @@ func TestEnsureLerdVhost_linuxProxiesUnixSocket(t *testing.T) {
 	}
 
 	// The bundled dashboard proxy (/_svc/) must be allow-listed like /_spx/, or
-	// the same-origin iframe to lerd.localhost/_svc/<name>/ hits the 444 catch-all
+	// the same-origin iframe to servlo.localhost/_svc/<name>/ hits the 444 catch-all
 	// and the dashboard fails to load.
 	if !strings.Contains(content, "location ^~ /_svc/") {
-		t.Errorf("expected /_svc/ location in vhost so proxied dashboards load over lerd.localhost:\n%s", content)
+		t.Errorf("expected /_svc/ location in vhost so proxied dashboards load over servlo.localhost:\n%s", content)
 	}
 }
 
@@ -1241,7 +1241,7 @@ func TestEnsureCustomD_createsDirectory(t *testing.T) {
 	if err := EnsureCustomD(); err != nil {
 		t.Fatalf("EnsureCustomD: %v", err)
 	}
-	customD := filepath.Join(tmp, "lerd", "nginx", "custom.d")
+	customD := filepath.Join(tmp, "servlo", "nginx", "custom.d")
 	info, err := os.Stat(customD)
 	if err != nil {
 		t.Fatalf("expected custom.d dir at %s: %v", customD, err)
@@ -1352,10 +1352,10 @@ func TestEnsureNginxConfig_writesForwardedAndCustomD(t *testing.T) {
 	if err := EnsureNginxConfig(); err != nil {
 		t.Fatalf("EnsureNginxConfig: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(tmp, "lerd", "nginx", "conf.d", "_forwarded.conf")); err != nil {
+	if _, err := os.Stat(filepath.Join(tmp, "servlo", "nginx", "conf.d", "_forwarded.conf")); err != nil {
 		t.Errorf("expected _forwarded.conf to be written: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(tmp, "lerd", "nginx", "custom.d")); err != nil {
+	if _, err := os.Stat(filepath.Join(tmp, "servlo", "nginx", "custom.d")); err != nil {
 		t.Errorf("expected custom.d dir to be created: %v", err)
 	}
 	// http.d dir + http.d include line in the rendered nginx.conf are the
@@ -1363,10 +1363,10 @@ func TestEnsureNginxConfig_writesForwardedAndCustomD(t *testing.T) {
 	// both here so the heal stays a no-op once it has run (and so a
 	// regression to either side surfaces as a unit failure rather than as
 	// a silent-write-on-stale-install bug).
-	if _, err := os.Stat(filepath.Join(tmp, "lerd", "nginx", "http.d")); err != nil {
+	if _, err := os.Stat(filepath.Join(tmp, "servlo", "nginx", "http.d")); err != nil {
 		t.Errorf("expected http.d dir to be created: %v", err)
 	}
-	body, err := os.ReadFile(filepath.Join(tmp, "lerd", "nginx", "nginx.conf"))
+	body, err := os.ReadFile(filepath.Join(tmp, "servlo", "nginx", "nginx.conf"))
 	if err != nil {
 		t.Fatalf("read rendered nginx.conf: %v", err)
 	}
@@ -1386,7 +1386,7 @@ func TestEnsureNginxConfigServerNamesHashBucket(t *testing.T) {
 	if err := EnsureNginxConfig(); err != nil {
 		t.Fatalf("EnsureNginxConfig: %v", err)
 	}
-	body, err := os.ReadFile(filepath.Join(tmp, "lerd", "nginx", "nginx.conf"))
+	body, err := os.ReadFile(filepath.Join(tmp, "servlo", "nginx", "nginx.conf"))
 	if err != nil {
 		t.Fatalf("read rendered nginx.conf: %v", err)
 	}
@@ -1416,24 +1416,24 @@ func TestEnsureForwardedConf_rewrittenOnEachCall(t *testing.T) {
 	}
 }
 
-func TestEnsureLerdVhost_darwinProxiesHostContainersInternal(t *testing.T) {
+func TestEnsureServloVhost_darwinProxiesHostContainersInternal(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("macOS uses TCP via host.containers.internal because unix sockets don't traverse the podman-machine virtio-fs boundary as functional sockets")
 	}
 	confD := setupConfD(t)
-	if err := EnsureLerdVhost(); err != nil {
-		t.Fatalf("EnsureLerdVhost: %v", err)
+	if err := EnsureServloVhost(); err != nil {
+		t.Fatalf("EnsureServloVhost: %v", err)
 	}
-	content := readConf(t, filepath.Join(confD, "lerd.localhost.conf"))
+	content := readConf(t, filepath.Join(confD, "servlo.localhost.conf"))
 
 	// On macOS the vhost MUST proxy via TCP to host.containers.internal:7073
-	// and MUST inject the X-Lerd-Trust header so lerd-ui's gate sees the
+	// and MUST inject the X-Servlo-Trust header so servlo-panel's gate sees the
 	// proxied request as loopback (it arrives via the bridge, not 127.0.0.1).
 	if !strings.Contains(content, "proxy_pass http://host.containers.internal:7073") {
 		t.Errorf("expected host.containers.internal proxy_pass in macOS vhost:\n%s", content)
 	}
-	if !strings.Contains(content, "X-Lerd-Trust") {
-		t.Errorf("macOS vhost must inject X-Lerd-Trust header:\n%s", content)
+	if !strings.Contains(content, "X-Servlo-Trust") {
+		t.Errorf("macOS vhost must inject X-Servlo-Trust header:\n%s", content)
 	}
 	if strings.Contains(content, "unix:") {
 		t.Errorf("macOS vhost must not use a unix socket (won't traverse the VM boundary):\n%s", content)

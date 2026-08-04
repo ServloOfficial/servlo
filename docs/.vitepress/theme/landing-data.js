@@ -1,7 +1,7 @@
 /* ===========================================================
-   Lerd landing page, shared data
+   Servlo landing page, shared data
    Ported from the standalone landing mockup (data.js).
-   Install commands use the canonical lerd.sh endpoints.
+   Install commands use the canonical install endpoints.
    =========================================================== */
 
 /* ---- Brand glyphs: lettered tiles (no fake brand logos) ---- */
@@ -43,16 +43,16 @@ export function glyph(name, size) {
     </svg>`
 }
 
-/* ---- Install commands per OS (canonical lerd.sh) ---- */
+/* ---- Install commands per OS (canonical install URL) ---- */
 export const INSTALL = {
-  linux: 'curl -fsSL https://lerd.sh/install.sh | bash',
-  macos: 'curl -fsSL https://lerd.sh/install.sh | bash',
-  wsl:   'wsl curl -fsSL https://lerd.sh/install.sh | bash',
+  linux: 'curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash',
+  macos: 'curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash',
+  wsl:   'wsl curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash',
 }
 
 /* ---- Comparison ---- */
 export const CMP = {
-  cols: ['Lerd', 'Laravel Herd', 'Laragon', 'DDEV', 'Lando', 'Sail'],
+  cols: ['Servlo', 'Laravel Herd', 'Laragon', 'DDEV', 'Lando', 'Sail'],
   rows: [
     { f: 'Runs on Linux',            v: ['yes', 'no', 'no', 'yes', 'yes', 'yes'] },
     { f: 'No Docker daemon',         v: ['yes', 'yes', 'yes', 'no', 'no', 'no'] },
@@ -81,13 +81,13 @@ export const SVC_SHOW = [
 /* ---- Quick-start steps ---- */
 export const STEPS = [
   {
-    n: '01', title: 'Install Lerd',
+    n: '01', title: 'Install Servlo',
     desc: 'One script. Rootless Podman, systemd user units, the CLI and Web UI, no sudo.',
     file: '~',
   },
   {
     n: '02', title: 'Link your project',
-    desc: 'cd into any PHP repo and run lerd link. It routes through the init wizard, installs dependencies, runs migrations, starts your workers and provisions TLS, live at project.test. Then lerd open to launch it, or wire up MCP.',
+    desc: 'cd into any PHP repo and run servlo link. It routes through the init wizard, installs dependencies, runs migrations, starts your workers and provisions TLS, live at project.test. Then servlo open to launch it, or wire up MCP.',
     file: '~/code/acme',
   },
 ]

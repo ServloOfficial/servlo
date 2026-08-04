@@ -4,8 +4,8 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -16,7 +16,7 @@ func NewConsoleCmd() *cobra.Command {
 		Use:                "console [args...]",
 		Aliases:            []string{"artisan", "a"},
 		Short:              "Run framework console command in the project's container",
-		Example:            "  lerd console cache:clear\n  lerd console make:controller User",
+		Example:            "  servlo console cache:clear\n  servlo console make:controller User",
 		DisableFlagParsing: true,
 		SilenceUsage:       true,
 		RunE:               runConsole,

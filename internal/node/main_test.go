@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/geodro/lerd/internal/hostbin"
+	"github.com/realrashid/servlo/internal/hostbin"
 )
 
 // The Node resolution tests build a whole host layout under a temp HOME and a

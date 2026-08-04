@@ -13,20 +13,20 @@ func TestSplitExecStart(t *testing.T) {
 	}{
 		{
 			name: "plain command",
-			line: "/usr/bin/podman exec -w /Users/me/shop lerd-php84-fpm php artisan queue:work",
-			want: []string{"/usr/bin/podman", "exec", "-w", "/Users/me/shop", "lerd-php84-fpm", "php", "artisan", "queue:work"},
+			line: "/usr/bin/podman exec -w /Users/me/shop servlo-php84-fpm php artisan queue:work",
+			want: []string{"/usr/bin/podman", "exec", "-w", "/Users/me/shop", "servlo-php84-fpm", "php", "artisan", "queue:work"},
 		},
 		{
 			// Without quote handling podman is handed "Projects/shop'" as the
 			// container name and the worker never starts (#893).
 			name: "single-quoted path with spaces",
-			line: "/usr/bin/podman exec -w '/Users/me/My Projects/shop' lerd-php84-fpm php artisan horizon",
-			want: []string{"/usr/bin/podman", "exec", "-w", "/Users/me/My Projects/shop", "lerd-php84-fpm", "php", "artisan", "horizon"},
+			line: "/usr/bin/podman exec -w '/Users/me/My Projects/shop' servlo-php84-fpm php artisan horizon",
+			want: []string{"/usr/bin/podman", "exec", "-w", "/Users/me/My Projects/shop", "servlo-php84-fpm", "php", "artisan", "horizon"},
 		},
 		{
 			name: "double-quoted path with spaces",
-			line: `/bin/sh "/Users/me/My Data/lerd/workers/queue.sh"`,
-			want: []string{"/bin/sh", "/Users/me/My Data/lerd/workers/queue.sh"},
+			line: `/bin/sh "/Users/me/My Data/servlo/workers/queue.sh"`,
+			want: []string{"/bin/sh", "/Users/me/My Data/servlo/workers/queue.sh"},
 		},
 		{
 			name: "escaped quote inside double quotes",
@@ -48,8 +48,8 @@ func TestSplitExecStart(t *testing.T) {
 			// round trip if an escape outside quotes is honoured. Folders like
 			// "Tim's Projects" are ordinary on macOS.
 			name: "apostrophe in path, as ShellQuote writes it",
-			line: `/usr/bin/podman exec -w '/Users/tim/Tim'\''s Projects/shop' lerd-php84-fpm php artisan queue:work`,
-			want: []string{"/usr/bin/podman", "exec", "-w", "/Users/tim/Tim's Projects/shop", "lerd-php84-fpm", "php", "artisan", "queue:work"},
+			line: `/usr/bin/podman exec -w '/Users/tim/Tim'\''s Projects/shop' servlo-php84-fpm php artisan queue:work`,
+			want: []string{"/usr/bin/podman", "exec", "-w", "/Users/tim/Tim's Projects/shop", "servlo-php84-fpm", "php", "artisan", "queue:work"},
 		},
 	}
 	for _, tc := range cases {

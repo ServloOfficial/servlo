@@ -18,7 +18,7 @@ func TestScaffoldPlan(t *testing.T) {
 	}{
 		{
 			// Every create command in the framework store starts with composer,
-			// and composer ships inside lerd rather than on the host.
+			// and composer ships inside servlo rather than on the host.
 			name:        "composer runs through the bundled phar",
 			create:      "composer create-project --no-install laravel/laravel",
 			wantPHP:     true,

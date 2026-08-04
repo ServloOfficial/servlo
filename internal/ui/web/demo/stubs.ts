@@ -1,4 +1,4 @@
-// Demo runtime stubs — make the real lerd UI run with no backend.
+// Demo runtime stubs — make the real servlo UI run with no backend.
 // Imported FIRST (before App) so window.fetch / WebSocket / open are patched
 // before any store ever calls them. Everything below is fixtures + a tiny
 // in-memory mock backend so clicking around the demo behaves like the app.
@@ -22,7 +22,7 @@ import databasesFixture from './fixtures/databases.json';
 // Demo follows the system theme (auto). Reset any stale value a previous demo
 // session may have pinned, so it isn't stuck on a forced light/dark.
 try {
-  localStorage.setItem('lerd-theme', 'auto');
+  localStorage.setItem('servlo-theme', 'auto');
 } catch {
   /* private mode */
 }
@@ -52,8 +52,8 @@ const ROUTES: Record<string, unknown> = {
 };
 
 // ---- Example payloads for the editor / REPL tabs ----
-// Hosts are the rootless Podman container names on lerd's shared network, not
-// 127.0.0.1 — this mirrors the env lerd actually injects (see services env_vars).
+// Hosts are the rootless Podman container names on servlo's shared network, not
+// 127.0.0.1 — this mirrors the env servlo actually injects (see services env_vars).
 const ENV_TEXT = `APP_NAME="Acme"
 APP_ENV=local
 APP_KEY=base64:0aF3l9Qx7sample0key0not0real0value0here=
@@ -64,13 +64,13 @@ LOG_CHANNEL=stack
 LOG_LEVEL=debug
 
 DB_CONNECTION=mysql
-DB_HOST=lerd-mysql
+DB_HOST=servlo-mysql
 DB_PORT=3306
 DB_DATABASE=acme
 DB_USERNAME=root
-DB_PASSWORD=lerd
+DB_PASSWORD=servlo
 
-REDIS_HOST=lerd-redis
+REDIS_HOST=servlo-redis
 REDIS_PORT=6379
 REDIS_PASSWORD=null
 
@@ -79,15 +79,15 @@ QUEUE_CONNECTION=redis
 SESSION_DRIVER=redis
 
 MAIL_MAILER=smtp
-MAIL_HOST=lerd-mailpit
+MAIL_HOST=servlo-mailpit
 MAIL_PORT=1025
 MAIL_FROM_ADDRESS="hello@acme.test"
 
 SCOUT_DRIVER=meilisearch
-MEILISEARCH_HOST=http://lerd-meilisearch:7700
+MEILISEARCH_HOST=http://servlo-meilisearch:7700
 
 FILESYSTEM_DISK=s3
-AWS_ENDPOINT=http://lerd-rustfs:9000
+AWS_ENDPOINT=http://servlo-rustfs:9000
 `;
 
 const NGINX_TEXT = `server {
@@ -96,8 +96,8 @@ const NGINX_TEXT = `server {
     server_name acme.test;
     root "/home/dev/code/acme/public";
 
-    ssl_certificate     "/home/dev/.config/lerd/certs/acme.test.crt";
-    ssl_certificate_key "/home/dev/.config/lerd/certs/acme.test.key";
+    ssl_certificate     "/home/dev/.config/servlo/certs/acme.test.crt";
+    ssl_certificate_key "/home/dev/.config/servlo/certs/acme.test.key";
 
     index index.php;
     charset utf-8;
@@ -107,7 +107,7 @@ const NGINX_TEXT = `server {
     }
 
     location ~ \\.php$ {
-        fastcgi_pass unix:/home/dev/.config/lerd/run/php8.4-fpm.sock;
+        fastcgi_pass unix:/home/dev/.config/servlo/run/php8.4-fpm.sock;
         fastcgi_index index.php;
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
@@ -119,7 +119,7 @@ const NGINX_TEXT = `server {
 }
 `;
 
-const PHP_INI_TEXT = `; Lerd-managed php.ini overrides — PHP 8.4
+const PHP_INI_TEXT = `; Servlo-managed php.ini overrides — PHP 8.4
 memory_limit = 512M
 max_execution_time = 120
 upload_max_filesize = 64M
@@ -459,7 +459,7 @@ function worktreeAddSSE(qs: URLSearchParams): Response {
           branch,
           domain: wtDomain,
           path: `${site.path}/${slug}`,
-          lan_share_url: 'https://lerd.sh',
+          lan_share_url: 'https://example.com',
         },
       ];
     }
@@ -615,12 +615,12 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   // Nginx — global /api/nginx and per-site /api/sites/<domain>/nginx (+ /backups)
   if (path.includes('/nginx')) {
     if (path.includes('/backups')) return /\/backups\/.+/.test(path) ? textResponse(NGINX_TEXT) : jsonResponse([]);
-    if (method === 'GET') return jsonResponse({ path: '/home/dev/.config/lerd/nginx/acme.test.conf', content: NGINX_TEXT, exists: true });
+    if (method === 'GET') return jsonResponse({ path: '/home/dev/.config/servlo/nginx/acme.test.conf', content: NGINX_TEXT, exists: true });
     return jsonResponse({ ok: true, content: NGINX_TEXT, exists: true });
   }
   // php.ini config (per PHP version, or per-site for FrankenPHP) — GET reads only
   if (method === 'GET' && /\/php-versions\/[^/]+\/config$/.test(path))
-    return jsonResponse({ path: '~/.config/lerd/php/8.4/php.ini', content: PHP_INI_TEXT, exists: true });
+    return jsonResponse({ path: '~/.config/servlo/php/8.4/php.ini', content: PHP_INI_TEXT, exists: true });
 
   // Overview "Actions": command list, doctor report, and running a command.
   const cmdRun = path.match(/^\/api\/sites\/([^/]+)\/commands\/([^/]+)\/run$/);
@@ -658,7 +658,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
 };
 
 // External opens (a site's .test URL, a service dashboard) have no server in the
-// demo — route them to a styled mockup page instead of a dead tab. lerd.sh links
+// demo — route them to a styled mockup page instead of a dead tab. external links
 // (docs, the LAN-share QR target) open for real.
 const realOpen = window.open.bind(window);
 (window as unknown as { open: typeof window.open }).open = ((
@@ -667,7 +667,7 @@ const realOpen = window.open.bind(window);
   features?: string
 ) => {
   const u = String(url ?? '');
-  if (/lerd\.sh/.test(u) || u === '' || u.startsWith('#')) return realOpen(url, target, features);
+  if (/servlo\.sh/.test(u) || u === '' || u.startsWith('#')) return realOpen(url, target, features);
   let host = u;
   try {
     host = new URL(u, location.href).host || u;

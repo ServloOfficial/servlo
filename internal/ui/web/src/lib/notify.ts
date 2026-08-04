@@ -3,13 +3,13 @@ import { wsMessage, type NotificationEvent } from './ws';
 import { apiFetch } from './api';
 import { m } from '../paraglide/messages.js';
 
-const PREFS_KEY = 'lerd:notify:prefs';
-const DISMISS_KEY = 'lerd:notify:dismissed';
+const PREFS_KEY = 'servlo:notify:prefs';
+const DISMISS_KEY = 'servlo:notify:dismissed';
 // AUTO_SUB_KEY records "user has forgotten this browser; don't silently
 // re-subscribe on next mount". Set to "0" by forgetCurrentBrowser, cleared
 // by enableNotifications. Without it, ensurePushSubscription would re-post
 // the same endpoint right after Forget undeleted the row from the server.
-const AUTO_SUB_KEY = 'lerd:notify:auto-subscribe';
+const AUTO_SUB_KEY = 'servlo:notify:auto-subscribe';
 
 // NotifyKind is the canonical set of notification categories the user can
 // toggle. The list lives client-side because the page-context dispatcher is
@@ -166,7 +166,7 @@ export interface InAppNotification {
 export const inAppNotifications = writable<InAppNotification[]>([]);
 
 // Severity drives how a notification is drawn on the in-page surfaces. The
-// diagnostic kinds report a problem lerd found in the user's app, so they read
+// diagnostic kinds report a problem servlo found in the user's app, so they read
 // as warnings rather than as a completed action.
 export type NotifySeverity = 'failure' | 'warning' | 'info';
 
@@ -180,7 +180,7 @@ export function notificationSeverity(kind: string, failed: boolean): NotifySever
 // HISTORY_KEY holds the notification centre's list. It is persisted because the
 // point of the centre is catching up on what happened while the user was
 // elsewhere, including before a reload.
-const HISTORY_KEY = 'lerd:notify:history';
+const HISTORY_KEY = 'servlo:notify:history';
 const historyLimit = 50;
 
 export interface NotificationRecord extends InAppNotification {
@@ -347,7 +347,7 @@ async function fireNotification(evt: NotificationEvent) {
     if (windowFocused()) return;
     // Under the native sink the daemon has already posted this to the desktop.
     // A second popup from the page duplicates it and takes the click away from
-    // the desktop app, which the daemon's copy opens through lerd://.
+    // the desktop app, which the daemon's copy opens through servlo://.
     if (get(notifyDelivery) === 'native') return;
   }
   if (typeof Notification === 'undefined') return;
@@ -377,8 +377,8 @@ async function fireNotification(evt: NotificationEvent) {
 // the daemon is delivering notifications natively.
 export const notifyDelivery = writable<'browser' | 'native'>('browser');
 
-// desktopAppInstalled mirrors whether the daemon sees the Lerd desktop app as
-// the lerd:// handler, so the web UI can offer "Open in app".
+// desktopAppInstalled mirrors whether the daemon sees the Servlo desktop app as
+// the servlo:// handler, so the web UI can offer "Open in app".
 export const desktopAppInstalled = writable<boolean>(false);
 
 // notifyNativeKinds mirrors the daemon's resolved per-kind native prefs. Under
@@ -405,29 +405,29 @@ export async function loadNotifyDelivery() {
   }
 }
 
-// insideDesktopApp is true when the dashboard is running inside the Lerd desktop
-// app (its preload exposes window.lerd), so "Open in app" hides there.
+// insideDesktopApp is true when the dashboard is running inside the Servlo desktop
+// app (its preload exposes window.servlo), so "Open in app" hides there.
 export function insideDesktopApp(): boolean {
-  return typeof window !== 'undefined' && typeof (window as { lerd?: unknown }).lerd !== 'undefined';
+  return typeof window !== 'undefined' && typeof (window as { servlo?: unknown }).servlo !== 'undefined';
 }
 
 // openInDesktopApp hands off to the desktop app at the current route via its
-// lerd:// scheme.
+// servlo:// scheme.
 export function openInDesktopApp() {
   if (typeof location === 'undefined') return;
   const route = location.hash || '/';
-  location.href = 'lerd://open/' + route;
+  location.href = 'servlo://open/' + route;
 }
 
-// handleProtocolLaunch routes a PWA opened via its web+lerd:// protocol handler.
-// The manifest maps the scheme to /?lerd=<full web+lerd:// url>; we extract the
+// handleProtocolLaunch routes a PWA opened via its web+servlo:// protocol handler.
+// The manifest maps the scheme to /?servlo=<full web+servlo:// url>; we extract the
 // route, navigate, and strip the query so a refresh doesn't re-trigger it.
 export function handleProtocolLaunch() {
   if (typeof location === 'undefined') return;
-  const raw = new URLSearchParams(location.search).get('lerd');
+  const raw = new URLSearchParams(location.search).get('servlo');
   if (!raw) return;
   history.replaceState(null, '', location.pathname + location.hash);
-  const m = /^web\+lerd:\/\/open\/?(.*)$/.exec(raw);
+  const m = /^web\+servlo:\/\/open\/?(.*)$/.exec(raw);
   const route = m ? m[1] : '';
   if (route) openOverlayUrl(route.startsWith('#') ? route : '#' + route);
 }
@@ -446,7 +446,7 @@ export function initNotify() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', (e: MessageEvent) => {
       const data = e.data as { kind?: string; url?: string } | undefined;
-      if (data?.kind === 'lerd-open' && data.url) {
+      if (data?.kind === 'servlo-open' && data.url) {
         openOverlayUrl(data.url);
       }
     });
@@ -518,7 +518,7 @@ export async function forgetCurrentBrowser(endpoint: string): Promise<boolean> {
     setAutoSubscribeDisabled(true);
     return true;
   } catch (err) {
-    console.warn('[lerd] forget current browser failed:', err);
+    console.warn('[servlo] forget current browser failed:', err);
     return false;
   }
 }
@@ -552,7 +552,7 @@ async function ensurePushSubscription(): Promise<void> {
     }
     await postSubscription(sub);
   } catch (err) {
-    console.warn('[lerd] push subscribe failed:', err);
+    console.warn('[servlo] push subscribe failed:', err);
   }
 }
 

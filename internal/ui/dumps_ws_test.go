@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/eventbus"
+	"github.com/realrashid/servlo/internal/eventbus"
 )
 
 func TestBuildDumpsStatusJSON_HasExpectedShape(t *testing.T) {

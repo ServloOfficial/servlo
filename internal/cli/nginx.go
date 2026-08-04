@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/siteops"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ func resolveNginxDomain(args []string, branch string) (*config.Site, string, err
 	}
 	site, err := config.FindSite(name)
 	if err != nil {
-		return nil, "", fmt.Errorf("site %q not found — run 'lerd link' first", name)
+		return nil, "", fmt.Errorf("site %q not found — run 'servlo link' first", name)
 	}
 	domain, err := siteops.WorktreeDomain(site, branch)
 	if err != nil {
@@ -29,7 +29,7 @@ func resolveNginxDomain(args []string, branch string) (*config.Site, string, err
 	return site, domain, nil
 }
 
-// NewNginxCmd returns the `lerd nginx` command group for the per-site custom
+// NewNginxCmd returns the `servlo nginx` command group for the per-site custom
 // nginx override. Saving goes through the same edit service as the web UI, so
 // `nginx -t` validation, backups, and the reload all behave identically.
 func NewNginxCmd() *cobra.Command {
@@ -93,7 +93,7 @@ func newNginxEditCmd() *cobra.Command {
 			}
 			// Edit a temp copy so the live file is untouched until SaveCustomNginx
 			// snapshots, backs up, validates, and reloads it atomically.
-			tmp, err := os.CreateTemp("", "lerd-nginx-*.conf")
+			tmp, err := os.CreateTemp("", "servlo-nginx-*.conf")
 			if err != nil {
 				return err
 			}

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestIsPrerelease(t *testing.T) {
@@ -128,7 +128,7 @@ func stubURLs(fn *func() []string, urls []string) func() {
 // withTempCache pre-seeds the on-disk update-check cache so CachedUpdateCheck
 // returns the given tag without hitting the network. Sets XDG_DATA_HOME (the
 // var DataDir() reads) so the writes land in the temp dir and never touch
-// the user's real ~/.local/share/lerd/update-check.json.
+// the user's real ~/.local/share/servlo/update-check.json.
 func withTempCache(t *testing.T, tag string) {
 	t.Helper()
 	dir := t.TempDir()

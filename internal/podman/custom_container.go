@@ -8,26 +8,26 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // CustomContainerName returns the Podman container name for a site's custom
-// container, e.g. "lerd-custom-nestapp".
+// container, e.g. "servlo-custom-nestapp".
 func CustomContainerName(siteName string) string {
-	return "lerd-custom-" + siteName
+	return "servlo-custom-" + siteName
 }
 
 // CustomImageName returns the local image tag for a site's custom container,
-// e.g. "lerd-custom-nestapp:local".
+// e.g. "servlo-custom-nestapp:local".
 func CustomImageName(siteName string) string {
 	return CustomContainerName(siteName) + ":local"
 }
 
 // ResolveContainerfile returns the absolute path to the Containerfile for a
 // project. If cfg specifies a Containerfile it is resolved relative to
-// projectPath; otherwise the default "Containerfile.lerd" is used.
+// projectPath; otherwise the default "Containerfile.servlo" is used.
 func ResolveContainerfile(projectPath string, cfg *config.ContainerConfig) string {
-	name := "Containerfile.lerd"
+	name := "Containerfile.servlo"
 	if cfg != nil && cfg.Containerfile != "" {
 		name = cfg.Containerfile
 	}
@@ -44,9 +44,9 @@ func ResolveBuildContext(projectPath string, cfg *config.ContainerConfig) string
 }
 
 // HasContainerfile returns true when the project directory contains a
-// Containerfile.lerd (the default custom container definition).
+// Containerfile.servlo (the default custom container definition).
 func HasContainerfile(projectPath string) bool {
-	_, err := os.Stat(filepath.Join(projectPath, "Containerfile.lerd"))
+	_, err := os.Stat(filepath.Join(projectPath, "Containerfile.servlo"))
 	return err == nil
 }
 
@@ -101,7 +101,7 @@ func hashContainerfile(projectPath string, cfg *config.ContainerConfig) string {
 		target = cfg.Target
 	}
 	// Mix the build target into the hash so flipping target: development to
-	// target: production in .lerd.yaml invalidates the cache. Without this,
+	// target: production in .servlo.yaml invalidates the cache. Without this,
 	// CustomImageUpToDate would return a stale image when only the target
 	// changed (issue #379).
 	return fmt.Sprintf("%x", md5.Sum([]byte(string(data)+"\x00--target="+target)))
@@ -128,7 +128,7 @@ func buildCustomImageArgs(imageName, containerfile, buildCtx string, cfg *config
 }
 
 // BuildCustomImage builds the OCI image for a site's custom container from
-// the user's Containerfile. The image is tagged as lerd-custom-{siteName}:local.
+// the user's Containerfile. The image is tagged as servlo-custom-{siteName}:local.
 func BuildCustomImage(siteName, projectPath string, cfg *config.ContainerConfig) error {
 	containerfile := ResolveContainerfile(projectPath, cfg)
 	if _, err := os.Stat(containerfile); err != nil {

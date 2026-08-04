@@ -29,7 +29,7 @@ describe('theme store', () => {
 
   it('auto follows a live system light/dark change', async () => {
     const media = mockMatchMedia(false);
-    localStorage.setItem('lerd-theme', 'auto');
+    localStorage.setItem('servlo-theme', 'auto');
     const { initTheme } = await import('./theme');
     initTheme();
     expect(document.documentElement.classList.contains('dark')).toBe(false);
@@ -43,7 +43,7 @@ describe('theme store', () => {
 
   it('explicit dark ignores the system preference', async () => {
     const media = mockMatchMedia(false);
-    localStorage.setItem('lerd-theme', 'dark');
+    localStorage.setItem('servlo-theme', 'dark');
     const { initTheme } = await import('./theme');
     initTheme();
     expect(document.documentElement.classList.contains('dark')).toBe(true);

@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // trackingHostMgr captures the (name, content) WriteServiceUnit was
@@ -36,8 +36,8 @@ func (m *trackingHostMgr) WriteServiceUnit(name, content string) error {
 // withTempXDGAndBin redirects XDG_DATA_HOME so config.RunDir /
 // config.BinDir resolve under a throwaway tempdir, and seeds empty `fnm`
 // and `node` binaries at config.BinDir() so resolveNodeVersionForHostWorker
-// can find fnm and lerdManagesNode() reports true (the host worker only
-// pins via fnm when lerd manages Node). Returns the tempdir for assertions.
+// can find fnm and servloManagesNode() reports true (the host worker only
+// pins via fnm when servlo manages Node). Returns the tempdir for assertions.
 func withTempXDGAndBin(t *testing.T) string {
 	t.Helper()
 	tmp := t.TempDir()
@@ -73,7 +73,7 @@ func TestWriteWorkerHostUnit_writesGuardAndServiceUnit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	changed, err := writeWorkerHostUnit("lerd-vite-mysite", sitePath, "npm run dev", "always")
+	changed, err := writeWorkerHostUnit("servlo-vite-mysite", sitePath, "npm run dev", "always")
 	if err != nil {
 		t.Fatalf("writeWorkerHostUnit: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestWriteWorkerHostUnit_writesGuardAndServiceUnit(t *testing.T) {
 	}
 
 	// Guard script written + readable + correctly shaped.
-	scriptPath := filepath.Join(config.RunDir(), "workers", "lerd-vite-mysite.sh")
+	scriptPath := filepath.Join(config.RunDir(), "workers", "servlo-vite-mysite.sh")
 	body, err := os.ReadFile(scriptPath)
 	if err != nil {
 		t.Fatalf("reading guard script: %v", err)
@@ -113,8 +113,8 @@ func TestWriteWorkerHostUnit_writesGuardAndServiceUnit(t *testing.T) {
 	if !mgr.called {
 		t.Fatalf("services.Mgr.WriteServiceUnit was not called")
 	}
-	if mgr.unitName != "lerd-vite-mysite" {
-		t.Errorf("unit name = %q, want lerd-vite-mysite", mgr.unitName)
+	if mgr.unitName != "servlo-vite-mysite" {
+		t.Errorf("unit name = %q, want servlo-vite-mysite", mgr.unitName)
 	}
 	if !strings.Contains(mgr.unitBody, "ExecStart=/bin/sh '"+scriptPath+"'") {
 		t.Errorf("service unit ExecStart missing or wrong:\n%s", mgr.unitBody)
@@ -138,7 +138,7 @@ func TestWriteWorkerHostUnit_servicesMgrErrorPropagates(t *testing.T) {
 	swapMgr(t, mgr)
 	swapDaemonReload(t)
 
-	_, err := writeWorkerHostUnit("lerd-vite-mysite", "/site", "npm run dev", "always")
+	_, err := writeWorkerHostUnit("servlo-vite-mysite", "/site", "npm run dev", "always")
 	if err == nil {
 		t.Fatalf("expected error from services.Mgr.WriteServiceUnit; got nil")
 	}

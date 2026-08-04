@@ -19,13 +19,13 @@ describe('loadEntities', () => {
   });
 
   it('merges the fetched kinds under the service name', async () => {
-    const kinds = [{ kind: 'buckets', columns: [], actions: [], rows: [{ name: 'lerd' }] }];
+    const kinds = [{ kind: 'buckets', columns: [], actions: [], rows: [{ name: 'servlo' }] }];
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(JSON.stringify(kinds), { status: 200 }))
     );
     await loadEntities('rustfs');
-    expect(get(entities)['rustfs']?.[0]?.rows?.[0]?.name).toBe('lerd');
+    expect(get(entities)['rustfs']?.[0]?.rows?.[0]?.name).toBe('servlo');
   });
 
   it('keeps the last good copy when the fetch fails', async () => {

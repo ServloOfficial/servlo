@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/power"
-	"github.com/geodro/lerd/internal/wsl"
+	"github.com/realrashid/servlo/internal/power"
+	"github.com/realrashid/servlo/internal/wsl"
 )
 
 // WatcherNeedsPolling reports whether a file-change watcher has to poll because
@@ -45,7 +45,7 @@ func HostCanPollWatchers() bool {
 const watcherPollIntervalMS = 1000
 
 // watcherPollIntervalFor scales the base interval by how much the host has
-// asked lerd to hold back. Waking the disk to stat a few hundred files is
+// asked servlo to hold back. Waking the disk to stat a few hundred files is
 // exactly the kind of background work a laptop on battery can do without, and
 // Low Power Mode is an explicit request for less of it, so it backs off twice
 // as far again.

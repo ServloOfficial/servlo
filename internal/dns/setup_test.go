@@ -124,7 +124,7 @@ func TestWriteDnsmasqConfig_withUpstreams(t *testing.T) {
 	if err := WriteDnsmasqConfig(dir); err != nil {
 		t.Fatalf("WriteDnsmasqConfig: %v", err)
 	}
-	content := readFile(t, filepath.Join(dir, "lerd.conf"))
+	content := readFile(t, filepath.Join(dir, "servlo.conf"))
 
 	assertContains(t, content, "port=5300")
 	assertContains(t, content, "no-resolv")
@@ -150,7 +150,7 @@ func TestWriteDnsmasqConfig_noUpstreamsFallsBackToPasta(t *testing.T) {
 	if err := WriteDnsmasqConfig(dir); err != nil {
 		t.Fatalf("WriteDnsmasqConfig: %v", err)
 	}
-	content := readFile(t, filepath.Join(dir, "lerd.conf"))
+	content := readFile(t, filepath.Join(dir, "servlo.conf"))
 
 	assertContains(t, content, "port=5300")
 	assertContains(t, content, "address=/.test/127.0.0.1")
@@ -173,7 +173,7 @@ func TestWriteDnsmasqConfig_pinnedUpstreamOverridesResolv(t *testing.T) {
 	if err := WriteDnsmasqConfig(dir); err != nil {
 		t.Fatalf("WriteDnsmasqConfig: %v", err)
 	}
-	content := readFile(t, filepath.Join(dir, "lerd.conf"))
+	content := readFile(t, filepath.Join(dir, "servlo.conf"))
 	assertContains(t, content, "server=192.168.100.129")
 	if strings.Contains(content, "server=9.9.9.9") || strings.Contains(content, "server=8.8.8.8") {
 		t.Errorf("pinned upstream must replace detected resolv.conf servers, got:\n%s", content)
@@ -188,17 +188,17 @@ func TestNMDispatcherScript_runsAsRealUser(t *testing.T) {
 
 func TestNMDispatcherScript_prefersPinnedUpstream(t *testing.T) {
 	assertContains(t, nmDispatcherScriptFor("test"), "upstream:")
-	assertContains(t, nmDispatcherScriptFor("test"), "dns_servers=\"$LERD_DNS\"")
+	assertContains(t, nmDispatcherScriptFor("test"), "dns_servers=\"$SERVLO_DNS\"")
 }
 
-// The dispatcher runs as root, so writing the per-user lerd.conf with a plain
+// The dispatcher runs as root, so writing the per-user servlo.conf with a plain
 // root `> "$config_file"` redirect lets a user symlink that path at a root-owned
 // file and have root truncate it (CWE-59 privesc). The write must go through
 // runuser ($as_user) so it happens with the owning user's privileges.
 func TestNMDispatcherScript_writesConfigAsUser(t *testing.T) {
 	assertContains(t, nmDispatcherScriptFor("test"), `| $as_user tee "$config_file"`)
 	if strings.Contains(nmDispatcherScriptFor("test"), `} > "$config_file"`) {
-		t.Error("dispatcher still writes lerd.conf via a root redirect; must pipe through $as_user")
+		t.Error("dispatcher still writes servlo.conf via a root redirect; must pipe through $as_user")
 	}
 }
 
@@ -208,7 +208,7 @@ func TestNMDispatcherScript_filtersUpstreamEntries(t *testing.T) {
 	assertContains(t, nmDispatcherScriptFor("test"), "*[!0-9A-Fa-f:.#]*) continue")
 }
 
-// The address records are lerd policy: loopback normally, the host's LAN IP
+// The address records are servlo policy: loopback normally, the host's LAN IP
 // under lan:expose, and only the Go side knows which. The dispatcher used to
 // regenerate them from a hardcoded template on every interface "up", which
 // clobbered lan:expose back to loopback and dropped the AAAA record (costing
@@ -235,48 +235,48 @@ func TestNMDispatcherScript_readsAddressRecordsBeforePipeline(t *testing.T) {
 	}
 }
 
-// lerd0 is unmanaged, so NM never dispatches for it. The script should bail out
+// servlo0 is unmanaged, so NM never dispatches for it. The script should bail out
 // early rather than trying to read upstream DNS off a link that has none.
 func TestNMDispatcherScript_ignoresDummyLink(t *testing.T) {
-	assertContains(t, nmDispatcherScriptFor("test"), `if [ "$IFACE" = "lerd0" ]; then`)
-	if strings.Contains(nmDispatcherScriptFor("test"), "resolvectl dns lerd0") {
-		t.Error("lerd-dns-link.service owns lerd0's route; the dispatcher must not set it")
+	assertContains(t, nmDispatcherScriptFor("test"), `if [ "$IFACE" = "servlo0" ]; then`)
+	if strings.Contains(nmDispatcherScriptFor("test"), "resolvectl dns servlo0") {
+		t.Error("servlo-dns-link.service owns servlo0's route; the dispatcher must not set it")
 	}
 }
 
-// lerd owns lerd0 through a system unit and tells NM to leave it alone. An
+// servlo owns servlo0 through a system unit and tells NM to leave it alone. An
 // NM-managed connection appears as a togglable network in the desktop's network
 // menu, where switching it off silently breaks offline .test resolution.
-func TestLerdLinkUnit_shape(t *testing.T) {
-	assertContains(t, lerdNMUnmanagedContent, "unmanaged-devices=interface-name:lerd0")
-	assertContains(t, lerdLinkUnitContentFor("test"), "ip link add lerd0 type dummy")
-	assertContains(t, lerdLinkUnitContentFor("test"), "resolvectl domain lerd0 ~test")
-	assertContains(t, lerdLinkUnitContentFor("test"), "After=systemd-resolved.service")
-	assertContains(t, lerdLinkUnitContentFor("test"), "WantedBy=multi-user.target")
-	assertContains(t, lerdLinkUnitContentFor("test"), "ip link del lerd0")
+func TestServloLinkUnit_shape(t *testing.T) {
+	assertContains(t, servloNMUnmanagedContent, "unmanaged-devices=interface-name:servlo0")
+	assertContains(t, servloLinkUnitContentFor("test"), "ip link add servlo0 type dummy")
+	assertContains(t, servloLinkUnitContentFor("test"), "resolvectl domain servlo0 ~test")
+	assertContains(t, servloLinkUnitContentFor("test"), "After=systemd-resolved.service")
+	assertContains(t, servloLinkUnitContentFor("test"), "WantedBy=multi-user.target")
+	assertContains(t, servloLinkUnitContentFor("test"), "ip link del servlo0")
 }
 
 // systemd-resolved only gives a link a DNS scope once it carries a routable
-// address. With a link-local address alone lerd0 reports "Current Scopes: none"
+// address. With a link-local address alone servlo0 reports "Current Scopes: none"
 // and .test does not resolve offline at all, which defeats the link's purpose.
 // The address must come from a range that cannot exist on a real network, so the
 // /32 local route can't shadow a host the user needs to reach: RFC 5737
 // TEST-NET-1 (192.0.2.0/24) is reserved for documentation and fits exactly.
-func TestLerdLinkUnit_carriesReservedAddress(t *testing.T) {
-	assertContains(t, lerdLinkUnitContentFor("test"), "ip addr replace "+lerdDummyAddr+" dev lerd0")
-	if !strings.HasPrefix(lerdDummyAddr, "192.0.2.") {
-		t.Errorf("lerd0 address %q must come from RFC 5737 TEST-NET-1, which never appears on a real network", lerdDummyAddr)
+func TestServloLinkUnit_carriesReservedAddress(t *testing.T) {
+	assertContains(t, servloLinkUnitContentFor("test"), "ip addr replace "+servloDummyAddr+" dev servlo0")
+	if !strings.HasPrefix(servloDummyAddr, "192.0.2.") {
+		t.Errorf("servlo0 address %q must come from RFC 5737 TEST-NET-1, which never appears on a real network", servloDummyAddr)
 	}
-	if !strings.HasSuffix(lerdDummyAddr, "/32") {
-		t.Errorf("lerd0 address %q must be a /32 so it claims exactly one address", lerdDummyAddr)
+	if !strings.HasSuffix(servloDummyAddr, "/32") {
+		t.Errorf("servlo0 address %q must be a /32 so it claims exactly one address", servloDummyAddr)
 	}
 }
 
-// lerd0 must carry ~test only, never ~.: with ~. every non-.test query offline
-// would be funnelled through lerd-dns into a then-unreachable upstream and stall.
-func TestLerdLinkUnit_routesTestDomainOnly(t *testing.T) {
-	if strings.Contains(lerdLinkUnitContentFor("test"), "~test ~.") {
-		t.Error("lerd0 must carry ~test only (~. would funnel all DNS through lerd-dns offline)")
+// servlo0 must carry ~test only, never ~.: with ~. every non-.test query offline
+// would be funnelled through servlo-dns into a then-unreachable upstream and stall.
+func TestServloLinkUnit_routesTestDomainOnly(t *testing.T) {
+	if strings.Contains(servloLinkUnitContentFor("test"), "~test ~.") {
+		t.Error("servlo0 must carry ~test only (~. would funnel all DNS through servlo-dns offline)")
 	}
 }
 
@@ -285,15 +285,15 @@ func TestLerdLinkUnit_routesTestDomainOnly(t *testing.T) {
 func TestLinuxSudoers_grantsDummyLinkOps(t *testing.T) {
 	content := renderLinuxSudoers("alice")
 	for _, want := range []string{
-		"/usr/bin/tee /etc/systemd/system/lerd-dns-link.service",
-		"/usr/bin/chmod 644 /etc/systemd/system/lerd-dns-link.service",
-		"/usr/bin/tee /etc/NetworkManager/conf.d/lerd-dns-link.conf",
-		"/usr/bin/chmod 644 /etc/NetworkManager/conf.d/lerd-dns-link.conf",
+		"/usr/bin/tee /etc/systemd/system/servlo-dns-link.service",
+		"/usr/bin/chmod 644 /etc/systemd/system/servlo-dns-link.service",
+		"/usr/bin/tee /etc/NetworkManager/conf.d/servlo-dns-link.conf",
+		"/usr/bin/chmod 644 /etc/NetworkManager/conf.d/servlo-dns-link.conf",
 		"/usr/bin/systemctl daemon-reload",
-		"/usr/bin/systemctl enable --now lerd-dns-link.service",
-		"/usr/bin/systemctl restart lerd-dns-link.service",
+		"/usr/bin/systemctl enable --now servlo-dns-link.service",
+		"/usr/bin/systemctl restart servlo-dns-link.service",
 		"/usr/bin/systemctl reload NetworkManager",
-		"/usr/bin/nmcli connection delete lerd-dns",
+		"/usr/bin/nmcli connection delete servlo-dns",
 	} {
 		assertContains(t, content, want)
 	}
@@ -306,9 +306,9 @@ func TestLinuxSudoers_grantsDummyLinkOps(t *testing.T) {
 func TestLinuxSudoers_grantsIpFromEveryLocationItShipsIn(t *testing.T) {
 	content := renderLinuxSudoers("alice")
 	for _, want := range []string{
-		"/usr/bin/ip link del lerd0",  // Arch, Fedora
-		"/usr/sbin/ip link del lerd0", // Debian, Ubuntu
-		"/sbin/ip link del lerd0",
+		"/usr/bin/ip link del servlo0",  // Arch, Fedora
+		"/usr/sbin/ip link del servlo0", // Debian, Ubuntu
+		"/sbin/ip link del servlo0",
 	} {
 		assertContains(t, content, want)
 	}
@@ -346,7 +346,7 @@ func TestWriteDnsmasqConfigFor_customTarget(t *testing.T) {
 	if err := WriteDnsmasqConfigFor(dir, "10.0.0.5"); err != nil {
 		t.Fatalf("WriteDnsmasqConfigFor: %v", err)
 	}
-	content := readFile(t, filepath.Join(dir, "lerd.conf"))
+	content := readFile(t, filepath.Join(dir, "servlo.conf"))
 	assertContains(t, content, "address=/.test/10.0.0.5")
 	assertContains(t, content, "no-resolv")
 	assertContains(t, content, "server="+pastaDefaultForwarder)
@@ -365,7 +365,7 @@ func TestWriteDnsmasqConfigFor_emptyTargetDefaults(t *testing.T) {
 	if err := WriteDnsmasqConfigFor(dir, ""); err != nil {
 		t.Fatalf("WriteDnsmasqConfigFor: %v", err)
 	}
-	content := readFile(t, filepath.Join(dir, "lerd.conf"))
+	content := readFile(t, filepath.Join(dir, "servlo.conf"))
 	assertContains(t, content, "address=/.test/127.0.0.1")
 }
 
@@ -382,7 +382,7 @@ func TestWriteDnsmasqConfig_emitsV6Listen(t *testing.T) {
 	if err := WriteDnsmasqConfig(dir); err != nil {
 		t.Fatalf("WriteDnsmasqConfig: %v", err)
 	}
-	content := readFile(t, filepath.Join(dir, "lerd.conf"))
+	content := readFile(t, filepath.Join(dir, "servlo.conf"))
 	assertContains(t, content, "address=/.test/127.0.0.1")
 	assertContains(t, content, "address=/.test/::1")
 }
@@ -398,7 +398,7 @@ func TestWriteDnsmasqConfigDual_skipsV6WhenEmpty(t *testing.T) {
 	if err := WriteDnsmasqConfigDual(dir, "10.0.0.5", ""); err != nil {
 		t.Fatalf("WriteDnsmasqConfigDual: %v", err)
 	}
-	content := readFile(t, filepath.Join(dir, "lerd.conf"))
+	content := readFile(t, filepath.Join(dir, "servlo.conf"))
 	assertContains(t, content, "address=/.test/10.0.0.5")
 	if strings.Contains(content, "address=/.test/::") {
 		t.Errorf("expected no v6 address record when v6Target empty, got:\n%s", content)
@@ -427,9 +427,9 @@ func TestDeriveV6Target(t *testing.T) {
 	}
 }
 
-// --- lerdDNSInterfaces parsing ---
+// --- servloDNSInterfaces parsing ---
 
-func TestLerdDNSInterfaces_multipleLinks(t *testing.T) {
+func TestServloDNSInterfaces_multipleLinks(t *testing.T) {
 	output := `Global
            Protocols: +LLMNR +mDNS
     resolv.conf mode: foreign
@@ -454,17 +454,17 @@ Current DNS Server: 127.0.0.1:5300
        DNS Servers: 127.0.0.1:5300
         DNS Domain: ~test ~.
 `
-	ifaces := parseLerdDNSInterfaces(output)
+	ifaces := parseServloDNSInterfaces(output)
 	want := []string{"virbr0", "vnet1"}
 	assertSliceEqual(t, ifaces, want)
 }
 
-func TestLerdDNSInterfaces_none(t *testing.T) {
+func TestServloDNSInterfaces_none(t *testing.T) {
 	output := `Link 2 (enp14s0)
 Current DNS Server: 192.168.0.151
        DNS Servers: 192.168.0.151
 `
-	ifaces := parseLerdDNSInterfaces(output)
+	ifaces := parseServloDNSInterfaces(output)
 	if len(ifaces) != 0 {
 		t.Errorf("expected empty, got %v", ifaces)
 	}
@@ -554,7 +554,7 @@ func TestDummyLinkNMRuleNeeded_neverWithoutNetworkManager(t *testing.T) {
 	}
 }
 
-// Enablement and health are different questions, and conflating them loses lerd0
+// Enablement and health are different questions, and conflating them loses servlo0
 // at the next boot: a link that happens to be up right now (left over, or made by
 // hand) must not stop the unit being enabled, because enabled is the only thing
 // that brings it back after a reboot.
@@ -570,35 +570,35 @@ func TestEnsureDummyLinkRunning_checksEnablementEvenWhenLinkAlreadyUp(t *testing
 	ensureDummyLinkRunning("test")
 
 	if !askedEnabled {
-		t.Error("enablement must be checked even when the link is already healthy, or lerd0 is gone after the next reboot")
+		t.Error("enablement must be checked even when the link is already healthy, or servlo0 is gone after the next reboot")
 	}
 }
 
-// lerd0 is what stops resolved answering "Network is down" instantly while
+// servlo0 is what stops resolved answering "Network is down" instantly while
 // offline, which is the point for .test, but the same flag makes resolved chase
 // unreachable fallback servers for every other name, hanging each offline lookup
 // for 20s+. Turning the fallbacks off is the only lever that removes the hang,
 // and it is a no-op on Debian, Ubuntu and Fedora, which ship them off already.
-func TestLerdFallbackDropin_disablesFallbackServers(t *testing.T) {
-	assertContains(t, lerdFallbackDropinContent, "[Resolve]")
-	assertContains(t, lerdFallbackDropinContent, "FallbackDNS=")
+func TestServloFallbackDropin_disablesFallbackServers(t *testing.T) {
+	assertContains(t, servloFallbackDropinContent, "[Resolve]")
+	assertContains(t, servloFallbackDropinContent, "FallbackDNS=")
 	// A value here would set fallbacks rather than clear them.
-	for _, line := range strings.Split(lerdFallbackDropinContent, "\n") {
+	for _, line := range strings.Split(servloFallbackDropinContent, "\n") {
 		if strings.HasPrefix(line, "FallbackDNS=") && strings.TrimSpace(line) != "FallbackDNS=" {
 			t.Errorf("FallbackDNS must be cleared, not assigned: %q", line)
 		}
 	}
-	if !strings.HasSuffix(lerdFallbackDropin, ".conf") || !strings.Contains(lerdFallbackDropin, "/etc/systemd/resolved.conf.d/") {
-		t.Errorf("fallback drop-in %q must live in resolved.conf.d", lerdFallbackDropin)
+	if !strings.HasSuffix(servloFallbackDropin, ".conf") || !strings.Contains(servloFallbackDropin, "/etc/systemd/resolved.conf.d/") {
+		t.Errorf("fallback drop-in %q must live in resolved.conf.d", servloFallbackDropin)
 	}
 	// Must not collide with the drop-in the no-NetworkManager path writes, which
 	// setupNMWithResolved deletes as a stale artefact.
-	if lerdFallbackDropin == "/etc/systemd/resolved.conf.d/lerd.conf" {
+	if servloFallbackDropin == "/etc/systemd/resolved.conf.d/servlo.conf" {
 		t.Error("fallback drop-in must not reuse the resolver drop-in's path; the NM path deletes that file")
 	}
 }
 
-// Turning the fallbacks off is lerd's doing and only justified while lerd0 is
+// Turning the fallbacks off is servlo's doing and only justified while servlo0 is
 // there. Leaving the drop-in behind on uninstall would silently keep the user's
 // DNS changed forever, so Teardown has to take it back out.
 func TestTeardown_removesFallbackDropin(t *testing.T) {
@@ -611,11 +611,11 @@ func TestTeardown_removesFallbackDropin(t *testing.T) {
 		t.Fatal("Teardown not found in setup.go")
 	}
 	if !strings.Contains(teardown, "restoreResolvedFallbacks()") {
-		t.Error("Teardown must remove the fallback drop-in, or uninstalling lerd leaves the system's fallback DNS off for good")
+		t.Error("Teardown must remove the fallback drop-in, or uninstalling servlo leaves the system's fallback DNS off for good")
 	}
 }
 
-// Left behind, /etc/sudoers.d/lerd is a standing NOPASSWD root grant (resolvectl,
+// Left behind, /etc/sudoers.d/servlo is a standing NOPASSWD root grant (resolvectl,
 // a root-run NM dispatcher script, restarting NetworkManager) for a tool being
 // removed, so Teardown must delete it. It has to go last, once nothing above
 // still depends on the grants it provides.
@@ -629,7 +629,7 @@ func TestTeardown_removesTheSudoersGrant(t *testing.T) {
 		t.Fatal("Teardown not found in setup.go")
 	}
 	if !strings.Contains(teardown, "removeSudoersGrant()") {
-		t.Fatal("Teardown must remove /etc/sudoers.d/lerd, or uninstalling lerd leaves a passwordless root grant behind")
+		t.Fatal("Teardown must remove /etc/sudoers.d/servlo, or uninstalling servlo leaves a passwordless root grant behind")
 	}
 	sudoersAt := strings.Index(teardown, "removeSudoersGrant()")
 	resolverAt := strings.LastIndex(teardown, `"restart", "systemd-resolved"`)
@@ -644,9 +644,9 @@ func TestTeardown_removesTheSudoersGrant(t *testing.T) {
 }
 
 // The write is guarded on the link coming up, but nothing ever walked it back. A
-// host that had lerd0 and lost it (dummy module dropped by a kernel update, unit
+// host that had servlo0 and lost it (dummy module dropped by a kernel update, unit
 // removed by hand) keeps the drop-in from the run that worked, and is left with
-// resolved's fallbacks off and no lerd0: exactly the state the guard exists to
+// resolved's fallbacks off and no servlo0: exactly the state the guard exists to
 // prevent, and strictly worse than never having touched the fallbacks at all.
 func TestSetupDummyLink_handsTheFallbacksBackWhenTheLinkStopsWorking(t *testing.T) {
 	src, err := os.ReadFile("setup.go")
@@ -668,21 +668,21 @@ func TestSetupDummyLink_handsTheFallbacksBackWhenTheLinkStopsWorking(t *testing.
 	restore := section(t, body, "func restoreResolvedFallbacks() {", "\n}")
 	// Unguarded this prompts for a password on every host that never had the
 	// drop-in, which is most of them.
-	assertContains(t, restore, "os.Stat(lerdFallbackDropin)")
+	assertContains(t, restore, "os.Stat(servloFallbackDropin)")
 	assertContains(t, restore, `"restart", "systemd-resolved"`)
 
-	// It used to run only from an interactive `lerd uninstall`; on the start path
+	// It used to run only from an interactive `servlo uninstall`; on the start path
 	// the watcher runs it headless, where an ungranted command is a prompt nobody
 	// can answer and the start hangs forever.
 	sudoers := renderLinuxSudoers("alice")
-	assertContains(t, sudoers, "/usr/bin/rm -f /etc/systemd/resolved.conf.d/lerd-fallback.conf")
+	assertContains(t, sudoers, "/usr/bin/rm -f /etc/systemd/resolved.conf.d/servlo-fallback.conf")
 	assertContains(t, sudoers, "/usr/bin/systemctl restart systemd-resolved")
 }
 
 // The grants-out-of-date early return must hand the fallbacks back too. An
-// upgrade that adds a required grant lands here until `lerd install` runs, and a
-// host that already had lerd0 still carries the fallback drop-in, so bailing
-// without restoring leaves resolved's fallbacks off with no lerd0, hanging every
+// upgrade that adds a required grant lands here until `servlo install` runs, and a
+// host that already had servlo0 still carries the fallback drop-in, so bailing
+// without restoring leaves resolved's fallbacks off with no servlo0, hanging every
 // offline lookup, with no later run repairing it because each takes the same
 // early return.
 func TestSetupDummyLink_handsTheFallbacksBackWhenTheGrantsAreStale(t *testing.T) {
@@ -699,14 +699,14 @@ func TestSetupDummyLink_handsTheFallbacksBackWhenTheGrantsAreStale(t *testing.T)
 	}
 }
 
-// The link and everything that reads it must agree on the TLD. lerd supports a
-// custom dns.tld, and hardcoding "test" in the unit means lerd0 carries a route
+// The link and everything that reads it must agree on the TLD. servlo supports a
+// custom dns.tld, and hardcoding "test" in the unit means servlo0 carries a route
 // for a domain the user does not use: offline .tld resolution silently does
 // nothing for them, and the diagnostic that checks it warns forever.
-func TestLerdLinkUnit_usesTheConfiguredTLD(t *testing.T) {
-	unit := lerdLinkUnitContentFor("dev")
-	assertContains(t, unit, "resolvectl domain lerd0 ~dev")
-	assertContains(t, unit, "Description=lerd .dev DNS link")
+func TestServloLinkUnit_usesTheConfiguredTLD(t *testing.T) {
+	unit := servloLinkUnitContentFor("dev")
+	assertContains(t, unit, "resolvectl domain servlo0 ~dev")
+	assertContains(t, unit, "Description=servlo .dev DNS link")
 	if strings.Contains(unit, "~test") {
 		t.Error("the unit must carry the configured TLD, not a hardcoded ~test")
 	}
@@ -714,7 +714,7 @@ func TestLerdLinkUnit_usesTheConfiguredTLD(t *testing.T) {
 
 // The grants probe must answer "does this go through without a password", not
 // "is george allowed to sudo at all". `sudo -n -l <cmd>` answers the second, and
-// on any normal desktop (george ALL=(ALL) ALL) it succeeds even with no lerd
+// on any normal desktop (george ALL=(ALL) ALL) it succeeds even with no servlo
 // grants at all, so the guard could never fire where it was needed.
 func TestDummyLinkGrantsLive_runsAGrantedCommandRatherThanAskingSudoL(t *testing.T) {
 	src, err := os.ReadFile("setup.go")
@@ -736,7 +736,7 @@ func TestDummyLinkGrantsLive_runsAGrantedCommandRatherThanAskingSudoL(t *testing
 }
 
 // The TLD is interpolated into the shell command of a root-owned systemd unit
-// that lerd writes and starts through its own passwordless sudo grants, so a
+// that servlo writes and starts through its own passwordless sudo grants, so a
 // config.yaml carrying a crafted dns.tld would be arbitrary code as root. Nothing
 // that is not a DNS label may reach ConfiguredTLD's callers.
 func TestConfiguredTLD_rejectsAnythingThatIsNotADNSLabel(t *testing.T) {
@@ -758,16 +758,16 @@ func TestConfiguredTLD_rejectsAnythingThatIsNotADNSLabel(t *testing.T) {
 
 // Belt and braces: a TLD that passes the pattern lands in the unit as an inert
 // word and cannot terminate the quoting around ExecStart's shell command.
-func TestLerdLinkUnit_tldLandsInertInTheUnit(t *testing.T) {
-	unit := lerdLinkUnitContentFor("my-tld")
-	assertContains(t, unit, "resolvectl domain lerd0 ~my-tld'")
+func TestServloLinkUnit_tldLandsInertInTheUnit(t *testing.T) {
+	unit := servloLinkUnitContentFor("my-tld")
+	assertContains(t, unit, "resolvectl domain servlo0 ~my-tld'")
 	if strings.Count(unit, "ExecStart=") != 1 {
 		t.Error("the TLD must not be able to introduce a second ExecStart")
 	}
 }
 
-// lerd0 is the offline enhancement, never a precondition. Hosts exist where the
-// dummy module is absent (the stock WSL2 kernel) or lerd's absolute-path grants
+// servlo0 is the offline enhancement, never a precondition. Hosts exist where the
+// dummy module is absent (the stock WSL2 kernel) or servlo's absolute-path grants
 // cannot match (NixOS). Making the link fatal took .tld down entirely on those
 // hosts, which is strictly worse than the behaviour it replaced: the baseline
 // hookup resolves .tld whenever a link is up, and must be written regardless.
@@ -817,7 +817,7 @@ func TestSetupPaths_treatTheLinkAsAnEnhancementNotAPrecondition(t *testing.T) {
 	assertContains(t, rem, "writeResolvedDropin(dropin, tld)")
 }
 
-// dns:disable flips the TLD to localhost and stops lerd-dns. Carrying on into
+// dns:disable flips the TLD to localhost and stops servlo-dns. Carrying on into
 // resolver setup there prompts for a password on a host that opted out and points
 // a ~localhost route at a container that is deliberately not running.
 func TestConfigureResolver_doesNothingWhenDNSIsDisabled(t *testing.T) {
@@ -866,7 +866,7 @@ func TestEnsureDummyLinkRunning_failsWhenTheUnitIsNotEnabled(t *testing.T) {
 	}
 }
 
-// Every file lerd removes in Teardown must have an rm grant, or the headless
+// Every file servlo removes in Teardown must have an rm grant, or the headless
 // watcher prompts and teardown silently leaves the resolver hijacked. Derived
 // from resolverArtifacts, the same canonical list ResolverConfigured and Teardown
 // use, so a file added there without a grant fails here rather than in the field.
@@ -882,26 +882,26 @@ func TestLinuxSudoers_grantsEveryFileTeardownRemoves(t *testing.T) {
 }
 
 // The write and control commands the setup paths run must be granted too, since a
-// mismatch is a silent prompt in the headless lerd-ui watcher.
+// mismatch is a silent prompt in the headless servlo-panel watcher.
 func TestLinuxSudoers_grantsEveryPrivilegedCommandTheCodeRuns(t *testing.T) {
 	grants := renderLinuxSudoers("alice")
 	for _, want := range []string{
 		// systemd-resolved drop-in write (setupSystemdResolved)
-		"/usr/bin/tee /etc/systemd/resolved.conf.d/lerd.conf",
-		"/usr/bin/chmod 644 /etc/systemd/resolved.conf.d/lerd.conf",
+		"/usr/bin/tee /etc/systemd/resolved.conf.d/servlo.conf",
+		"/usr/bin/chmod 644 /etc/systemd/resolved.conf.d/servlo.conf",
 		// the link unit, unmanaged rule, fallback drop-in
-		"/usr/bin/tee /etc/systemd/system/lerd-dns-link.service",
-		"/usr/bin/tee /etc/NetworkManager/conf.d/lerd-dns-link.conf",
-		"/usr/bin/tee /etc/systemd/resolved.conf.d/lerd-fallback.conf",
+		"/usr/bin/tee /etc/systemd/system/servlo-dns-link.service",
+		"/usr/bin/tee /etc/NetworkManager/conf.d/servlo-dns-link.conf",
+		"/usr/bin/tee /etc/systemd/resolved.conf.d/servlo-fallback.conf",
 		// NetworkManager embedded-dnsmasq path
-		"/usr/bin/tee /etc/NetworkManager/conf.d/lerd.conf",
-		"/usr/bin/tee /etc/NetworkManager/dnsmasq.d/lerd.conf",
+		"/usr/bin/tee /etc/NetworkManager/conf.d/servlo.conf",
+		"/usr/bin/tee /etc/NetworkManager/dnsmasq.d/servlo.conf",
 		"/usr/bin/mkdir -p /etc/NetworkManager/dnsmasq.d",
 		"/usr/bin/systemctl restart NetworkManager",
 		// link control
-		"/usr/bin/systemctl enable --now lerd-dns-link.service",
-		"/usr/bin/systemctl disable --now lerd-dns-link.service",
-		"/usr/bin/ip link del lerd0",
+		"/usr/bin/systemctl enable --now servlo-dns-link.service",
+		"/usr/bin/systemctl disable --now servlo-dns-link.service",
+		"/usr/bin/ip link del servlo0",
 	} {
 		if !strings.Contains(grants, want) {
 			t.Errorf("missing NOPASSWD grant, headless watcher would prompt: %s", want)

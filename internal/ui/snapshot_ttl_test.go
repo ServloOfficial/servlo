@@ -26,7 +26,7 @@ func TestCurrentSnapshotTTL_TracksVisibility(t *testing.T) {
 
 func TestSnapshotIdleTTLIsAtLeastFiveMinutes(t *testing.T) {
 	if snapshotTTLIdle < 5*time.Minute {
-		t.Errorf("idle TTL should keep tray polls off the rebuild path; got %v, want >= 5m", snapshotTTLIdle)
+		t.Errorf("idle TTL should keep background polls off the rebuild path; got %v, want >= 5m", snapshotTTLIdle)
 	}
 	if snapshotTTLActive >= snapshotTTLIdle {
 		t.Errorf("active TTL must be shorter than idle TTL; active=%v idle=%v", snapshotTTLActive, snapshotTTLIdle)

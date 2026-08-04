@@ -6,25 +6,25 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
-// NewDNSEnableCmd returns the dns:enable command, which turns on lerd-managed
+// NewDNSEnableCmd returns the dns:enable command, which turns on servlo-managed
 // DNS (dnsmasq + .test + HTTPS) after install and repairs an already-enabled
 // but broken setup.
 func NewDNSEnableCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "dns:enable",
-		Short: "Let lerd manage DNS: dnsmasq, .test resolution and HTTPS (repairs if already on)",
+		Short: "Let servlo manage DNS: dnsmasq, .test resolution and HTTPS (repairs if already on)",
 		Args:  cobra.NoArgs,
 		RunE:  runDNSEnable,
 	}
 }
 
-// NewDNSDisableCmd returns the dns:disable command, which stops lerd-managed
+// NewDNSDisableCmd returns the dns:disable command, which stops servlo-managed
 // DNS, tears down dnsmasq, and moves sites to *.localhost plain HTTP.
 func NewDNSDisableCmd() *cobra.Command {
 	return &cobra.Command{
@@ -54,7 +54,7 @@ func runDNSEnable(_ *cobra.Command, _ []string) error {
 	}
 	feedback.Begin()
 	if cfg.DNS.Enabled {
-		feedback.Line("lerd DNS is already enabled, repairing the setup")
+		feedback.Line("servlo DNS is already enabled, repairing the setup")
 		dns.ForgetSudoersMarker()
 		return reexecInstallReconcile()
 	}
@@ -64,7 +64,7 @@ func runDNSEnable(_ *cobra.Command, _ []string) error {
 	if err := config.SaveGlobal(cfg); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
-	feedback.Line("enabling lerd-managed DNS")
+	feedback.Line("enabling servlo-managed DNS")
 	return reexecInstallReconcile()
 }
 
@@ -75,7 +75,7 @@ func runDNSDisable(_ *cobra.Command, _ []string) error {
 	}
 	feedback.Begin()
 	if !cfg.DNS.Enabled {
-		feedback.Line("lerd DNS is already disabled")
+		feedback.Line("servlo DNS is already disabled")
 		return nil
 	}
 	newTLD := applyDNSTLDMigration(cfg.DNS.TLD, false)
@@ -84,7 +84,7 @@ func runDNSDisable(_ *cobra.Command, _ []string) error {
 	if err := config.SaveGlobal(cfg); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
-	feedback.Line("disabling lerd-managed DNS")
+	feedback.Line("disabling servlo-managed DNS")
 	return reexecInstallReconcile()
 }
 
@@ -94,10 +94,10 @@ func runDNSRepair(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 	if !cfg.DNS.Enabled {
-		return fmt.Errorf("DNS is disabled; enable it first with `lerd dns:enable`")
+		return fmt.Errorf("DNS is disabled; enable it first with `servlo dns:enable`")
 	}
 	feedback.Begin()
-	feedback.Line("repairing lerd-managed DNS")
+	feedback.Line("repairing servlo-managed DNS")
 	// Force the sudoers drop-in to be rewritten: repair exists to restore a
 	// broken setup, and the content marker alone can't tell a deleted drop-in
 	// from an up-to-date one.
@@ -160,13 +160,13 @@ func applyDNSTLDMigration(prevTLD string, enabling bool) string {
 	return prevTLD
 }
 
-// reexecInstallReconcile re-execs `lerd install --from-update`, the idempotent
+// reexecInstallReconcile re-execs `servlo install --from-update`, the idempotent
 // reconcile that sets up or tears down DNS to match the saved choice (and
-// repairs a broken enabled setup). Mirrors how `lerd update` applies changes.
+// repairs a broken enabled setup). Mirrors how `servlo update` applies changes.
 func reexecInstallReconcile() error {
 	self, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("locating lerd binary: %w", err)
+		return fmt.Errorf("locating servlo binary: %w", err)
 	}
 	c := exec.Command(self, "install", "--from-update")
 	c.Stdout = os.Stdout

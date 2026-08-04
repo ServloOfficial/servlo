@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestExpectedExecWorkers_filtersUnsupportedShapes pins the
@@ -29,7 +29,7 @@ func TestExpectedExecWorkers_filtersUnsupportedShapes(t *testing.T) {
 	if err := os.MkdirAll(sitePath, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(sitePath, ".lerd.yaml"), []byte(
+	if err := os.WriteFile(filepath.Join(sitePath, ".servlo.yaml"), []byte(
 		"framework: laravel\nworkers:\n  - vite\n  - schedule\n  - queue\n",
 	), 0644); err != nil {
 		t.Fatal(err)
@@ -66,13 +66,13 @@ func TestExpectedExecWorkers_filtersUnsupportedShapes(t *testing.T) {
 		}
 		return false
 	}
-	if !hasUnit("lerd-vite-acme") {
+	if !hasUnit("servlo-vite-acme") {
 		t.Errorf("expected vite (host:true, supported) to be enumerated; got %+v", units(expected))
 	}
-	if !hasUnit("lerd-queue-acme") {
+	if !hasUnit("servlo-queue-acme") {
 		t.Errorf("expected queue (plain exec-mode worker) to be enumerated; got %+v", units(expected))
 	}
-	if hasUnit("lerd-schedule-acme") {
+	if hasUnit("servlo-schedule-acme") {
 		t.Errorf("expected schedule (Schedule != \"\") to be filtered by WorkerSupportedOnPlatform; got %+v", units(expected))
 	}
 }
@@ -86,8 +86,8 @@ func units(ws []expectedExecWorker) []string {
 }
 
 // Locks in the LaunchAgents file-name convention: workerNeedsHealing must
-// read `~/Library/LaunchAgents/<unit>.plist`, NOT `lerd.<unit>.plist`. The
-// `com.lerd.` prefix lives only on the launchd Label inside the plist (see
+// read `~/Library/LaunchAgents/<unit>.plist`, NOT `servlo.<unit>.plist`. The
+// `com.servlo.` prefix lives only on the launchd Label inside the plist (see
 // services.plistPath / plistLabel). The earlier prefixed form mistook every
 // healthy worker for a missing plist, so the heal loop restarted them each
 // cooldown.
@@ -98,7 +98,7 @@ func TestWorkerNeedsHealing_PlistFileName(t *testing.T) {
 	if err := os.MkdirAll(laDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	const unit = "lerd-horizon-acme"
+	const unit = "servlo-horizon-acme"
 
 	if got := workerNeedsHealing(unit); got != "plist missing" {
 		t.Fatalf("no plist present: got %q, want \"plist missing\"", got)
@@ -106,12 +106,12 @@ func TestWorkerNeedsHealing_PlistFileName(t *testing.T) {
 
 	// Old buggy form only — the function must NOT match this, otherwise the
 	// path-prefix regression slips back in unnoticed.
-	legacy := filepath.Join(laDir, "lerd."+unit+".plist")
+	legacy := filepath.Join(laDir, "servlo."+unit+".plist")
 	if err := os.WriteFile(legacy, []byte("<plist/>"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if got := workerNeedsHealing(unit); got != "plist missing" {
-		t.Fatalf("legacy lerd.<unit>.plist only: got %q, want \"plist missing\"", got)
+		t.Fatalf("legacy servlo.<unit>.plist only: got %q, want \"plist missing\"", got)
 	}
 
 	// Correct form. The function should advance past the plist check —
@@ -145,7 +145,7 @@ func TestShouldHealOnReason(t *testing.T) {
 }
 
 // sweepOrphanWorkerArtifacts must keep .sh / .pid files whose plist still
-// exists on disk under the unit-name convention. The earlier `lerd.`+unit
+// exists on disk under the unit-name convention. The earlier `servlo.`+unit
 // path looked for a file that never existed, so the sweep happily deleted
 // guard scripts for healthy workers mid-launch.
 func TestSweepOrphanWorkerArtifacts_KeepsArtifactsWhenPlistPresent(t *testing.T) {
@@ -162,7 +162,7 @@ func TestSweepOrphanWorkerArtifacts_KeepsArtifactsWhenPlistPresent(t *testing.T)
 		t.Fatal(err)
 	}
 
-	const unit = "lerd-horizon-acme"
+	const unit = "servlo-horizon-acme"
 	shPath := filepath.Join(workersDir, unit+".sh")
 	pidPath := filepath.Join(workersDir, unit+".pid")
 	for _, p := range []string{shPath, pidPath} {

@@ -26,7 +26,7 @@ func sanitized(t *testing.T, family, dump string) (string, []ImportIssue) {
 }
 
 // A dump from a managed provider assigns ownership to roles that only exist
-// there. lerd's postgres has one role, so the statements mean nothing here and
+// there. servlo's postgres has one role, so the statements mean nothing here and
 // every one of them is an error the user cannot act on.
 func TestSanitizeDumpDropsPostgresOwnershipAndPrivileges(t *testing.T) {
 	dump := `CREATE TABLE public.users (id integer);
@@ -235,7 +235,7 @@ func TestSanitizeDumpNeverCreatesOnMysql(t *testing.T) {
 func TestSanitizeDumpMakesCreateSchemaConditional(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"CREATE SCHEMA public;\n", "CREATE SCHEMA IF NOT EXISTS public;\n"},
-		{"CREATE SCHEMA reporting AUTHORIZATION lerd;\n", "CREATE SCHEMA IF NOT EXISTS reporting AUTHORIZATION lerd;\n"},
+		{"CREATE SCHEMA reporting AUTHORIZATION servlo;\n", "CREATE SCHEMA IF NOT EXISTS reporting AUTHORIZATION servlo;\n"},
 		// Already conditional, and a lowercase spelling of it.
 		{"CREATE SCHEMA IF NOT EXISTS public;\n", "CREATE SCHEMA IF NOT EXISTS public;\n"},
 		{"create schema if not exists public;\n", "create schema if not exists public;\n"},

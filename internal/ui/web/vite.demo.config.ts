@@ -17,7 +17,7 @@ const demoOverrides = {
   },
 };
 
-// Builds the real lerd UI (src/) as a standalone, backend-free demo bundle
+// Builds the real servlo UI (src/) as a standalone, backend-free demo bundle
 // and drops it into the docs site at docs/public/demo so the marketing page
 // can iframe the genuine app. Fixtures + stubs live under demo/.
 export default defineConfig({

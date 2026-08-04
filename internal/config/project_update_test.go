@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// helper: create a .lerd.yaml with the given config in a temp dir.
+// helper: create a .servlo.yaml with the given config in a temp dir.
 func setupProjectConfig(t *testing.T, cfg *ProjectConfig) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -16,7 +16,7 @@ func setupProjectConfig(t *testing.T, cfg *ProjectConfig) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), data, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), data, 0644); err != nil {
 		t.Fatal(err)
 	}
 	return dir
@@ -43,7 +43,7 @@ func TestUpdateProjectConfig_NoOpWhenMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 	if called {
-		t.Error("callback should not be called when .lerd.yaml is missing")
+		t.Error("callback should not be called when .servlo.yaml is missing")
 	}
 }
 
@@ -84,8 +84,8 @@ func TestSetProjectSecured_NoOpWhenMissing(t *testing.T) {
 	if err := SetProjectSecured(dir, true); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); !os.IsNotExist(err) {
-		t.Error(".lerd.yaml should not be created")
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); !os.IsNotExist(err) {
+		t.Error(".servlo.yaml should not be created")
 	}
 }
 
@@ -132,8 +132,8 @@ func TestSetProjectPHPVersion_NoOpWhenMissing(t *testing.T) {
 	if err := SetProjectPHPVersion(dir, "8.4"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); !os.IsNotExist(err) {
-		t.Error(".lerd.yaml should not be created")
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); !os.IsNotExist(err) {
+		t.Error(".servlo.yaml should not be created")
 	}
 }
 
@@ -155,8 +155,8 @@ func TestSetProjectWorkers_NoOpWhenMissing(t *testing.T) {
 	if err := SetProjectWorkers(dir, []string{"queue"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); !os.IsNotExist(err) {
-		t.Error(".lerd.yaml should not be created")
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); !os.IsNotExist(err) {
+		t.Error(".servlo.yaml should not be created")
 	}
 }
 
@@ -209,7 +209,7 @@ func TestSyncProjectDomains_CaseInsensitiveDedup(t *testing.T) {
 
 func TestReplaceProjectDomain_dropsRenamedDomain(t *testing.T) {
 	// admin-starlane grouped into admin.starlane: the old standalone domain
-	// must not survive in .lerd.yaml, while a genuine conflict-filtered extra is.
+	// must not survive in .servlo.yaml, while a genuine conflict-filtered extra is.
 	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"admin-starlane", "conflict-domain"}})
 	if err := ReplaceProjectDomain(dir, []string{"admin.starlane.test"}, "admin-starlane.test", "test"); err != nil {
 		t.Fatal(err)
@@ -243,8 +243,8 @@ func TestSyncProjectDomains_NoOpWhenMissing(t *testing.T) {
 	if err := SyncProjectDomains(dir, []string{"myapp.test"}, "test"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); !os.IsNotExist(err) {
-		t.Error(".lerd.yaml should not be created")
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); !os.IsNotExist(err) {
+		t.Error(".servlo.yaml should not be created")
 	}
 }
 
@@ -502,14 +502,14 @@ func TestReplaceProjectDBService_CreatesFileIfMissing(t *testing.T) {
 func TestReplaceProjectDBService_ReplacesFamilyAlternate(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
-	if err := os.MkdirAll(filepath.Join(tmp, "lerd", "services"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmp, "servlo", "services"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 	yaml := `name: postgres-pgvector
 family: postgres
 image: docker.io/pgvector/pgvector:pg18
 `
-	if err := os.WriteFile(filepath.Join(tmp, "lerd", "services", "postgres-pgvector.yaml"), []byte(yaml), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, "servlo", "services", "postgres-pgvector.yaml"), []byte(yaml), 0o644); err != nil {
 		t.Fatalf("write fake service: %v", err)
 	}
 	dir := setupProjectConfig(t, &ProjectConfig{
@@ -532,14 +532,14 @@ image: docker.io/pgvector/pgvector:pg18
 func TestIsDBServiceName(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
-	if err := os.MkdirAll(filepath.Join(tmp, "lerd", "services"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmp, "servlo", "services"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 	yaml := `name: postgres-pgvector
 family: postgres
 image: docker.io/pgvector/pgvector:pg18
 `
-	if err := os.WriteFile(filepath.Join(tmp, "lerd", "services", "postgres-pgvector.yaml"), []byte(yaml), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, "servlo", "services", "postgres-pgvector.yaml"), []byte(yaml), 0o644); err != nil {
 		t.Fatalf("write fake service: %v", err)
 	}
 	for _, tc := range []struct {
@@ -566,13 +566,13 @@ image: docker.io/pgvector/pgvector:pg18
 // ── SetProjectWorkerReload ──────────────────────────────────────────────────
 
 func TestSetProjectWorkerReload_EnableCreatesMissingFile(t *testing.T) {
-	dir := t.TempDir() // no .lerd.yaml on disk
+	dir := t.TempDir() // no .servlo.yaml on disk
 
 	if err := SetProjectWorkerReload(dir, "horizon", true); err != nil {
 		t.Fatalf("SetProjectWorkerReload: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); err != nil {
-		t.Fatalf("expected .lerd.yaml to be created, stat: %v", err)
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); err != nil {
+		t.Fatalf("expected .servlo.yaml to be created, stat: %v", err)
 	}
 	if !ProjectReloadsWorker(dir, "horizon") {
 		t.Errorf("horizon should be opted into reload after enabling")
@@ -580,13 +580,13 @@ func TestSetProjectWorkerReload_EnableCreatesMissingFile(t *testing.T) {
 }
 
 func TestSetProjectWorkerReload_DisableOnMissingFileIsNoOp(t *testing.T) {
-	dir := t.TempDir() // no .lerd.yaml on disk
+	dir := t.TempDir() // no .servlo.yaml on disk
 
 	if err := SetProjectWorkerReload(dir, "horizon", false); err != nil {
 		t.Fatalf("SetProjectWorkerReload: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); !os.IsNotExist(err) {
-		t.Errorf("disabling on a project with no .lerd.yaml must not create one (stat err: %v)", err)
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); !os.IsNotExist(err) {
+		t.Errorf("disabling on a project with no .servlo.yaml must not create one (stat err: %v)", err)
 	}
 }
 
@@ -622,11 +622,11 @@ func TestSetProjectWorkerReload_Toggle(t *testing.T) {
 
 // GetFrameworkForDir is reached from every vhost render, dashboard poll and TUI
 // row, so it must not write to the project. It used to repin framework_version on
-// the way past, which rewrote a worktree's committed .lerd.yaml under the user.
+// the way past, which rewrote a worktree's committed .servlo.yaml under the user.
 func TestGetFrameworkForDirDoesNotWriteTheProject(t *testing.T) {
 	dir := t.TempDir()
 	body := "framework: laravel\nframework_version: \"11\"\n"
-	path := filepath.Join(dir, ".lerd.yaml")
+	path := filepath.Join(dir, ".servlo.yaml")
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -644,15 +644,15 @@ func TestGetFrameworkForDirDoesNotWriteTheProject(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(got) != body {
-		t.Errorf("resolving a framework rewrote .lerd.yaml:\ngot:  %q\nwant: %q", got, body)
+		t.Errorf("resolving a framework rewrote .servlo.yaml:\ngot:  %q\nwant: %q", got, body)
 	}
 }
 
 // SyncProjectFrameworkVersion is the explicit repin the commands that own
-// .lerd.yaml call instead.
+// .servlo.yaml call instead.
 func TestSyncProjectFrameworkVersion(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"),
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"),
 		[]byte("framework: laravel\nframework_version: \"11\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -673,11 +673,11 @@ func TestSyncProjectFrameworkVersion(t *testing.T) {
 }
 
 // AddProjectServices re-reads before it writes, so it cannot roll back the fields
-// another writer persisted earlier in the same command (lerd link writes the
+// another writer persisted earlier in the same command (servlo link writes the
 // domains, then folds in the framework's required services).
 func TestAddProjectServicesDoesNotClobberEarlierWrites(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"),
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"),
 		[]byte("domains:\n    - old\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

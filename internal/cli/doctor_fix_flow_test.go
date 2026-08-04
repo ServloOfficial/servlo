@@ -61,9 +61,9 @@ func TestRunDoctorFixLeavesPrivilegedRepairsToTheUser(t *testing.T) {
 	var buf bytes.Buffer
 	rep := reportWith(
 		Finding{Name: "resolver hookup", Status: "fail",
-			Fix: manualFixWith("run `lerd dns:repair` (it needs sudo to rewrite the resolver config)")},
+			Fix: manualFixWith("run `servlo dns:repair` (it needs sudo to rewrite the resolver config)")},
 		Finding{Name: "podman events_logger journald", Status: "warn",
-			Fix: manualFixWith("run `lerd wsl:setup` (it needs sudo to write the podman config)")},
+			Fix: manualFixWith("run `servlo wsl:setup` (it needs sudo to write the podman config)")},
 	)
 	if err := runDoctorFix(&buf, rep, true, false); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -73,7 +73,7 @@ func TestRunDoctorFixLeavesPrivilegedRepairsToTheUser(t *testing.T) {
 	if !strings.Contains(out, "These need elevated privileges") {
 		t.Errorf("privileged repairs were not listed for the user: %q", out)
 	}
-	if !strings.Contains(out, "lerd dns:repair") || !strings.Contains(out, "lerd wsl:setup") {
+	if !strings.Contains(out, "servlo dns:repair") || !strings.Contains(out, "servlo wsl:setup") {
 		t.Errorf("guidance should name the exact command: %q", out)
 	}
 	if strings.Contains(out, "Applied 1 fix") || strings.Contains(out, "Applied 2 fix") {
@@ -118,7 +118,7 @@ func TestRunDoctorFixListsInfoFindingsAsOptional(t *testing.T) {
 	var buf bytes.Buffer
 	rep := reportWith(
 		Finding{Name: "data dir", Status: "fail", Fix: autoFix(fixMkdir, "/x", "create the data directory")},
-		Finding{Name: "Reclaimable disk", Status: "info", Fix: autoFix(fixCleanup, "", "reclaim disk space (lerd cleanup)")},
+		Finding{Name: "Reclaimable disk", Status: "info", Fix: autoFix(fixCleanup, "", "reclaim disk space (servlo cleanup)")},
 	)
 	if err := runDoctorFix(&buf, rep, false, true); err != nil {
 		t.Fatalf("unexpected error: %v", err)

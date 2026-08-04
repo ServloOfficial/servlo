@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // machineLastUpFile records the Podman Machine LastUp from the prior run.
@@ -20,7 +20,7 @@ func machineLastUpFile() string {
 }
 
 // selectedMachineName mirrors ensurePodmanMachineRunning's selection order
-// (default-marked, else first) so inspect targets the VM lerd actually
+// (default-marked, else first) so inspect targets the VM servlo actually
 // uses. Returns "" when no machine exists yet.
 func selectedMachineName() string {
 	out, err := podman.Cmd("machine", "list",
@@ -49,7 +49,7 @@ func selectedMachineName() string {
 	return first
 }
 
-// currentMachineLastUp returns the LastUp of lerd's Podman Machine, or ""
+// currentMachineLastUp returns the LastUp of servlo's Podman Machine, or ""
 // when the machine doesn't exist or podman can't report it. The name is
 // pinned explicitly so other machines don't perturb the comparison.
 func currentMachineLastUp() string {
@@ -99,31 +99,31 @@ func shouldHealAfterMachineStart(preEnsureLastUp, priorBaseline string) bool {
 	return preEnsureLastUp != priorBaseline
 }
 
-// healMachineRestartIfNeeded force-removes running lerd-* containers when
+// healMachineRestartIfNeeded force-removes running servlo-* containers when
 // the machine was restarted externally, then records the post-ensure
 // LastUp so an interrupted run still leaves a usable baseline.
 func healMachineRestartIfNeeded(preEnsureLastUp string) {
 	if shouldHealAfterMachineStart(preEnsureLastUp, readPriorMachineLastUp()) {
-		removeLerdContainersForGvproxyHeal()
+		removeServloContainersForGvproxyHeal()
 	}
 	recordMachineLastUp()
 }
 
-// removeLerdContainersForGvproxyHeal force-removes every running lerd-*
+// removeServloContainersForGvproxyHeal force-removes every running servlo-*
 // container so the next StartUnit pass invokes `podman run -p` fresh from
 // the host and gvproxy re-registers the host port forwards.
-func removeLerdContainersForGvproxyHeal() {
-	forceRemoveLerdContainers(false,
+func removeServloContainersForGvproxyHeal() {
+	forceRemoveServloContainers(false,
 		"Podman Machine was restarted; recreating containers to restore host port forwards…")
 }
 
-// forceRemoveLerdContainers force-removes lerd-* containers so the next
+// forceRemoveServloContainers force-removes servlo-* containers so the next
 // StartUnit pass recreates them fresh via `podman run`. includeStopped adds
 // `-a` to also catch created/exited containers, used by the overlay heal,
 // where the failed containers never reached running state. announce is
 // printed only when at least one container matched.
-func forceRemoveLerdContainers(includeStopped bool, announce string) {
-	psArgs := []string{"ps", "--format", "{{.Names}}", "--filter", "name=^lerd-"}
+func forceRemoveServloContainers(includeStopped bool, announce string) {
+	psArgs := []string{"ps", "--format", "{{.Names}}", "--filter", "name=^servlo-"}
 	if includeStopped {
 		psArgs = append(psArgs, "-a")
 	}

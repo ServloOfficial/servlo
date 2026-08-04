@@ -86,8 +86,8 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestCmdUsesPodmanBinAndArgs(t *testing.T) {
-	cmd := Cmd("machine", "stop", "lerd")
-	want := []string{PodmanBin(), "machine", "stop", "lerd"}
+	cmd := Cmd("machine", "stop", "servlo")
+	want := []string{PodmanBin(), "machine", "stop", "servlo"}
 	if !reflect.DeepEqual(cmd.Args, want) {
 		t.Errorf("Cmd args = %v, want %v", cmd.Args, want)
 	}
@@ -107,7 +107,7 @@ func TestCmdContextPassesContextAndArgs(t *testing.T) {
 	}
 
 	ctx := context.WithValue(context.Background(), ctxKey{}, "v")
-	_ = CmdContext(ctx, "logs", "-f", "lerd-nginx")
+	_ = CmdContext(ctx, "logs", "-f", "servlo-nginx")
 
 	if gotCtx == nil || gotCtx.Value(ctxKey{}) != "v" {
 		t.Error("CmdContext did not pass the context through")
@@ -115,7 +115,7 @@ func TestCmdContextPassesContextAndArgs(t *testing.T) {
 	if gotName != PodmanBin() {
 		t.Errorf("CmdContext binary = %q, want %q", gotName, PodmanBin())
 	}
-	if want := []string{"logs", "-f", "lerd-nginx"}; !reflect.DeepEqual(gotArgs, want) {
+	if want := []string{"logs", "-f", "servlo-nginx"}; !reflect.DeepEqual(gotArgs, want) {
 		t.Errorf("CmdContext args = %v, want %v", gotArgs, want)
 	}
 }

@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/config"
-	phpPkg "github.com/geodro/lerd/internal/php"
+	"github.com/realrashid/servlo/internal/config"
+	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/spf13/cobra"
 )
 
@@ -29,8 +29,8 @@ func runPhpList(_ *cobra.Command, _ []string) error {
 	}
 
 	if len(versions) == 0 {
-		fmt.Println("No PHP versions installed in lerd bin directory.")
-		fmt.Println("Run 'lerd install' to set up PHP, or 'lerd use <version>' to install a specific version.")
+		fmt.Println("No PHP versions installed in servlo bin directory.")
+		fmt.Println("Run 'servlo install' to set up PHP, or 'servlo use <version>' to install a specific version.")
 		return nil
 	}
 

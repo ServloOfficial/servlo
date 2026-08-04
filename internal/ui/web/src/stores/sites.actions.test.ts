@@ -223,9 +223,9 @@ describe('sites actions', () => {
 
   it('fpmContainer handles custom/frankenphp/normal', async () => {
     const { fpmContainer } = await import('./sites');
-    expect(fpmContainer({ domain: 'a.test', name: 'a', custom_container: true })).toBe('lerd-custom-a');
-    expect(fpmContainer({ domain: 'a.test', name: 'a', runtime: 'frankenphp' })).toBe('lerd-fp-a');
-    expect(fpmContainer({ domain: 'a.test', php_version: '8.4' })).toBe('lerd-php84-fpm');
+    expect(fpmContainer({ domain: 'a.test', name: 'a', custom_container: true })).toBe('servlo-custom-a');
+    expect(fpmContainer({ domain: 'a.test', name: 'a', runtime: 'frankenphp' })).toBe('servlo-fp-a');
+    expect(fpmContainer({ domain: 'a.test', php_version: '8.4' })).toBe('servlo-php84-fpm');
   });
 
   it('siteWorkerFailing checks any worker field', async () => {

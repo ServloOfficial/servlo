@@ -34,7 +34,7 @@ func TestUpdateOneTool(t *testing.T) {
 	}
 }
 
-// A name that is not a tool lerd manages must be refused rather than turned
+// A name that is not a tool servlo manages must be refused rather than turned
 // into a download path.
 func TestUpdateOneToolRejectsAnUnknownName(t *testing.T) {
 	stubOutdatedTools(t)

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 // opNotification builds the op_done / op_failed notification for a long-running
@@ -38,7 +38,7 @@ func opNotification(opTitle, label, tag, url, dataOp string, start time.Time, op
 		TitleKey: "notify_op_done_title",
 		Title:    opTitle + " finished: " + label,
 		BodyKey:  "notify_op_done_body",
-		Body:     "Took " + duration + ". Click to open lerd.",
+		Body:     "Took " + duration + ". Click to open servlo.",
 		Params: map[string]string{
 			"op":       opTitle,
 			"service":  label,
@@ -56,7 +56,7 @@ func opNotification(opTitle, label, tag, url, dataOp string, start time.Time, op
 // operation that just finished.
 func notificationForServiceOp(op, service string, start time.Time, opErr error) push.Notification {
 	opTitled := strings.ToUpper(op[:1]) + op[1:]
-	return opNotification(opTitled, service, "lerd-op-"+op+"-"+service, "#services/"+service, op, start, opErr)
+	return opNotification(opTitled, service, "servlo-op-"+op+"-"+service, "#services/"+service, op, start, opErr)
 }
 
 // notificationForPHPInstall builds the op_done/op_failed notification for a PHP
@@ -68,13 +68,13 @@ func notificationForPHPInstall(version string, start time.Time, opErr error) pus
 	if opErr != nil {
 		url = "#system"
 	}
-	return opNotification("Install", "PHP "+version, "lerd-op-install-php-"+version, url, "install", start, opErr)
+	return opNotification("Install", "PHP "+version, "servlo-op-install-php-"+version, url, "install", start, opErr)
 }
 
 // notificationForPHPRebuild builds the op_done/op_failed notification for a PHP
 // image rebuild, which outlives the modal the same way an install does.
 func notificationForPHPRebuild(version string, start time.Time, opErr error) push.Notification {
-	return opNotification("Rebuild", "PHP "+version, "lerd-op-rebuild-php-"+version, "#system/php-"+version, "rebuild", start, opErr)
+	return opNotification("Rebuild", "PHP "+version, "servlo-op-rebuild-php-"+version, "#system/php-"+version, "rebuild", start, opErr)
 }
 
 func formatOpDuration(d time.Duration) string {

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// PR #255 switches lerd-ui and lerd-watcher to Type=notify so systemctl start
+// PR #255 switches servlo-panel and servlo-watcher to Type=notify so systemctl start
 // blocks until the process actually finishes setup (UI listener accepting,
 // watcher goroutines live). The two unit files in this package's units/
 // directory are the source of truth shipped by the installer; assert each
@@ -16,8 +16,8 @@ func TestServiceUnitsDeclareTypeNotify(t *testing.T) {
 	cases := []struct {
 		file string
 	}{
-		{"lerd-ui.service"},
-		{"lerd-watcher.service"},
+		{"servlo-panel.service"},
+		{"servlo-watcher.service"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.file, func(t *testing.T) {

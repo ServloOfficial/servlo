@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/serviceops"
-	"github.com/geodro/lerd/internal/services"
-	"github.com/geodro/lerd/internal/shims"
-	"github.com/geodro/lerd/internal/store"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/realrashid/servlo/internal/services"
+	"github.com/realrashid/servlo/internal/shims"
+	"github.com/realrashid/servlo/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +51,7 @@ func isKnownService(name string) bool { return config.IsDefaultPreset(name) }
 func NewServiceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "service",
-		Short: "Manage Lerd services (mysql, redis, postgres, meilisearch, rustfs, mailpit)",
+		Short: "Manage Servlo services (mysql, redis, postgres, meilisearch, rustfs, mailpit)",
 	}
 
 	cmd.AddCommand(newServiceStartCmd())
@@ -86,7 +86,7 @@ func newServiceStartCmd() *cobra.Command {
 
 			var image string
 			if isKnownService(name) {
-				image = podman.ServiceImage("lerd-" + name)
+				image = podman.ServiceImage("servlo-" + name)
 			} else {
 				svc, loadErr := config.LoadCustomService(name)
 				if loadErr != nil {
@@ -106,7 +106,7 @@ func newServiceStartCmd() *cobra.Command {
 			}
 
 			feedback.Begin()
-			svcStep := feedback.Start("starting lerd-" + name)
+			svcStep := feedback.Start("starting servlo-" + name)
 			if err := serviceops.StartService(name); err != nil {
 				svcStep.Fail(err)
 				return err
@@ -221,7 +221,7 @@ func newServiceMigrateCmd() *cobra.Command {
 image (postgres 18 becomes postgis/postgis:18-3.6-alpine). An argument that
 matches no preset version is used verbatim as the target image tag.
 
-Flow: dump current data into ~/.local/share/lerd/backups/<svc>-<ts>.sql, stop
+Flow: dump current data into ~/.local/share/servlo/backups/<svc>-<ts>.sql, stop
 the unit, move the data dir aside, pull the target image, start fresh, restore
 the dump. The old data dir is preserved alongside the dump so manual recovery
 is always possible.
@@ -243,7 +243,7 @@ Supported families: mysql, mariadb, postgres.`,
 			}
 			feedback.Begin()
 			feedback.Line("migrating " + name + ": " + avail.CurrentImage + " → " + feedback.Val(targetImage))
-			feedback.Note("dumps and the previous data dir are kept under ~/.local/share/lerd/backups")
+			feedback.Note("dumps and the previous data dir are kept under ~/.local/share/servlo/backups")
 			emit := func(ev serviceops.PhaseEvent) {
 				switch ev.Phase {
 				case "dumping_data":
@@ -320,7 +320,7 @@ func newServiceRestartCmd() *cobra.Command {
 		RunE: func(_ *cobra.Command, args []string) error {
 			name := args[0]
 			feedback.Begin()
-			svcStep := feedback.Start("restarting lerd-" + name)
+			svcStep := feedback.Start("restarting servlo-" + name)
 			if err := serviceops.RestartService(name); err != nil {
 				svcStep.Fail(err)
 				return err
@@ -338,7 +338,7 @@ func newServiceStatusCmd() *cobra.Command {
 		Short: "Show the status of a service",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			unit := "lerd-" + args[0]
+			unit := "servlo-" + args[0]
 			status, err := podman.UnitStatus(unit)
 			if err != nil {
 				return err
@@ -375,7 +375,7 @@ func newServiceListCmd() *cobra.Command {
 				if !serviceops.ServiceInstalled(svc) {
 					continue
 				}
-				unit := "lerd-" + svc
+				unit := "servlo-" + svc
 				status, err := podman.UnitStatus(unit)
 				if err != nil {
 					status = "unknown"
@@ -385,7 +385,7 @@ func newServiceListCmd() *cobra.Command {
 			}
 			customs, _ := config.ListCustomServices()
 			for _, svc := range customs {
-				unit := "lerd-" + svc.Name
+				unit := "servlo-" + svc.Name
 				status, err := podman.UnitStatus(unit)
 				if err != nil {
 					status = "unknown"
@@ -427,10 +427,10 @@ func newServiceAddCmd() *cobra.Command {
 		Long: `Define a new custom service and write its systemd quadlet.
 
 Load from a YAML file:
-  lerd service add mongodb.yaml
+  servlo service add mongodb.yaml
 
 Or specify inline with flags (--name and --image are required):
-  lerd service add --name mongodb --image docker.io/library/mongo:7 --port 27017:27017`,
+  servlo service add --name mongodb --image docker.io/library/mongo:7 --port 27017:27017`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var svc *config.CustomService
@@ -485,7 +485,7 @@ Or specify inline with flags (--name and --image are required):
 				return fmt.Errorf("%q is a built-in service and cannot be redefined", svc.Name)
 			}
 			if serviceops.ServiceInstalled(svc.Name) {
-				return fmt.Errorf("custom service %q already exists; remove it first with: lerd service remove %s", svc.Name, svc.Name)
+				return fmt.Errorf("custom service %q already exists; remove it first with: servlo service remove %s", svc.Name, svc.Name)
 			}
 
 			if err := config.SaveCustomService(svc); err != nil {
@@ -494,7 +494,7 @@ Or specify inline with flags (--name and --image are required):
 			if err := ensureCustomServiceQuadlet(svc); err != nil {
 				return fmt.Errorf("writing quadlet: %w", err)
 			}
-			fmt.Printf("Custom service %q added. Start it with: lerd service start %s\n", svc.Name, svc.Name)
+			fmt.Printf("Custom service %q added. Start it with: servlo service start %s\n", svc.Name, svc.Name)
 			return nil
 		},
 	}
@@ -503,14 +503,14 @@ Or specify inline with flags (--name and --image are required):
 	cmd.Flags().StringVar(&image, "image", "", "OCI image (e.g. docker.io/library/mongo:7)")
 	cmd.Flags().StringArrayVar(&ports, "port", nil, "Port mapping host:container (repeatable)")
 	cmd.Flags().StringArrayVar(&containerEnv, "env", nil, "Container environment variable KEY=VALUE (repeatable)")
-	cmd.Flags().StringArrayVar(&envVars, "env-var", nil, ".env variable KEY=VALUE injected by `lerd env` (repeatable)")
+	cmd.Flags().StringArrayVar(&envVars, "env-var", nil, ".env variable KEY=VALUE injected by `servlo env` (repeatable)")
 	cmd.Flags().StringVar(&dataDir, "data-dir", "", "Mount path inside container for persistent data (host dir auto-created)")
-	cmd.Flags().StringVar(&detectKey, "detect-key", "", "Env key for auto-detection in `lerd env`")
+	cmd.Flags().StringVar(&detectKey, "detect-key", "", "Env key for auto-detection in `servlo env`")
 	cmd.Flags().StringVar(&detectPrefix, "detect-prefix", "", "Value prefix filter for auto-detection (optional)")
 	cmd.Flags().StringVar(&description, "description", "", "Human-readable description")
 	cmd.Flags().StringVar(&dashboard, "dashboard", "", "URL to open when clicking the dashboard button in the web UI")
 	cmd.Flags().StringVar(&initExec, "init-exec", "", "Shell command to run inside the container once per site (supports {{site}} and {{site_testing}})")
-	cmd.Flags().StringVar(&initContainer, "init-container", "", "Container to run --init-exec in (default: lerd-<name>)")
+	cmd.Flags().StringVar(&initContainer, "init-container", "", "Container to run --init-exec in (default: servlo-<name>)")
 	cmd.Flags().StringArrayVar(&dependsOn, "depends-on", nil, "Service name that must be running before this service (repeatable)")
 
 	return cmd
@@ -525,16 +525,16 @@ func newServicePresetCmd() *cobra.Command {
 		Long: `Install a bundled, opt-in service preset.
 
 Run with no arguments to list the available presets:
-  lerd service preset
+  servlo service preset
 
 Install a preset by name:
-  lerd service preset phpmyadmin
+  servlo service preset phpmyadmin
 
 Pick a specific version on multi-version presets like mysql or postgres.
 When --version is omitted on a multi-version preset and the terminal is
-interactive, lerd prompts for the version:
-  lerd service preset mysql --version 5.7
-  lerd service preset mysql           # interactive picker
+interactive, servlo prompts for the version:
+  servlo service preset mysql --version 5.7
+  servlo service preset mysql           # interactive picker
 
 Presets are installed as ordinary custom services. They can then be started,
 stopped, removed, exposed, or pinned with the usual service subcommands.`,
@@ -561,7 +561,7 @@ stopped, removed, exposed, or pinned with the usual service subcommands.`,
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Installed preset %q. Start it with: lerd service start %s\n", svc.Name, svc.Name)
+			fmt.Printf("Installed preset %q. Start it with: servlo service start %s\n", svc.Name, svc.Name)
 			if svc.Dashboard != "" {
 				fmt.Printf("Dashboard: %s\n", svc.Dashboard)
 			}
@@ -701,13 +701,13 @@ func printPresetList() error {
 	}
 	feedback.Table([]string{"Preset", "Status", "Description"}, rows)
 	fmt.Println("\n* = default version")
-	fmt.Println("Install with: lerd service preset <name> [--version <tag>]")
+	fmt.Println("Install with: servlo service preset <name> [--version <tag>]")
 	return nil
 }
 
 // newServiceSearchCmd returns the `service search` command, which queries the
 // external service-preset store so users can discover presets that aren't
-// bundled with this build. Install any hit with `lerd service preset <name>`,
+// bundled with this build. Install any hit with `servlo service preset <name>`,
 // which fetches it on demand.
 func newServiceSearchCmd() *cobra.Command {
 	return &cobra.Command{
@@ -716,13 +716,13 @@ func newServiceSearchCmd() *cobra.Command {
 		Long: `Search the external service-preset store for installable presets.
 
 Run with no query to list everything the store offers:
-  lerd service search
+  servlo service search
 
 Filter by a substring of the name, description, or family:
-  lerd service search search-engine
+  servlo service search search-engine
 
 Install any result with the usual command, which fetches it on demand:
-  lerd service preset <name>`,
+  servlo service preset <name>`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			query := ""
@@ -752,7 +752,7 @@ Install any result with the usual command, which fetches it on demand:
 				rows = append(rows, []string{e.Name, family, where, e.Description})
 			}
 			feedback.Table([]string{"Name", "Family", "Where", "Description"}, rows)
-			fmt.Println("\nInstall with: lerd service preset <name>")
+			fmt.Println("\nInstall with: servlo service preset <name>")
 			return nil
 		},
 	}
@@ -868,7 +868,7 @@ func newServiceReinstallCmd() *cobra.Command {
 // this skip a subsequent CLI invocation would silently recreate the quadlet.
 func migrateServiceUnits() {
 	for _, svc := range knownServices() {
-		if !podman.QuadletInstalled("lerd-" + svc) {
+		if !podman.QuadletInstalled("servlo-" + svc) {
 			continue
 		}
 		ensureServiceQuadlet(svc) //nolint:errcheck
@@ -977,7 +977,7 @@ func newServiceUnpinCmd() *cobra.Command {
 }
 
 // newServicePortCmd returns the `service port` command, which moves a service's
-// published host port (e.g. lerd-mysql 3306 → 3307) so a host server can keep the
+// published host port (e.g. servlo-mysql 3306 → 3307) so a host server can keep the
 // default port. The container-internal port is untouched. Works for any built-in
 // or installed custom service.
 func newServicePortCmd() *cobra.Command {
@@ -989,10 +989,10 @@ func newServicePortCmd() *cobra.Command {
 		Long: `Move a service's published host port without touching its
 container-internal port. For example:
 
-    lerd service port mysql 3307
+    servlo service port mysql 3307
 
-frees 127.0.0.1:3306 for a host-installed MySQL while lerd-mysql stays reachable
-on 3307. Containerized apps reach the service over the lerd network by name, so
+frees 127.0.0.1:3306 for a host-installed MySQL while servlo-mysql stays reachable
+on 3307. Containerized apps reach the service over the servlo network by name, so
 they are unaffected. Works for any built-in or installed service. Use --reset
 (or "port mysql 0") to return to the default.
 
@@ -1000,7 +1000,7 @@ A multi-port service exposes more than its primary port (mailpit's 8025 web UI
 behind the 1025 SMTP port). Target a specific mapping with --container, the
 container-internal port of the mapping to move:
 
-    lerd service port mailpit 8026 --container 8025`,
+    servlo service port mailpit 8026 --container 8025`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			name := args[0]
@@ -1042,8 +1042,8 @@ container-internal port of the mapping to move:
 			case res.Requested == 0:
 				fmt.Printf("%s stays published on 127.0.0.1:%d — a host server owns its default port.\n", name, res.Actual)
 			default:
-				fmt.Printf("lerd-%s now publishes 127.0.0.1:%d (container-internal port unchanged).\n", name, res.Actual)
-				fmt.Printf("Update host clients pointed at lerd's %s to port %d; containerized apps are unaffected.\n", name, res.Actual)
+				fmt.Printf("servlo-%s now publishes 127.0.0.1:%d (container-internal port unchanged).\n", name, res.Actual)
+				fmt.Printf("Update host clients pointed at servlo's %s to port %d; containerized apps are unaffected.\n", name, res.Actual)
 			}
 			return nil
 		},
@@ -1054,10 +1054,10 @@ container-internal port of the mapping to move:
 }
 
 // refreshHostProxySitesForService regenerates the .env of every host-proxy site
-// that uses service, so a published-port change — set manually via `lerd service
+// that uses service, so a published-port change — set manually via `servlo service
 // port` or by the auto port-ownership guard — is reflected in the loopback
 // host:port those sites connect through. Container sites are left untouched: they
-// reach the service by name over the lerd network on its unchanged
+// reach the service by name over the servlo network on its unchanged
 // container-internal port, which a published-port move never alters. Per site it
 // warns rather than failing, so one unwritable site can't block the rest.
 func refreshHostProxySitesForService(service string) {
@@ -1066,7 +1066,7 @@ func refreshHostProxySitesForService(service string) {
 		if !s.IsHostProxy() {
 			continue
 		}
-		if err := runLerdEnv(s.Path); err != nil {
+		if err := runServloEnv(s.Path); err != nil {
 			fmt.Printf("Warning: could not refresh host-proxy site %q for the new %s port: %v\n", s.Name, service, err)
 			continue
 		}
@@ -1079,7 +1079,7 @@ func refreshHostProxySitesForService(service string) {
 
 // Wire the port-ownership guard's shift callback to the host-proxy refresh so any
 // quadlet-write path that auto-shifts a DB port (install, start, reinstall) keeps
-// host-proxy sites pointed at the right loopback port. `lerd service port` silences
+// host-proxy sites pointed at the right loopback port. `servlo service port` silences
 // this hook and refreshes once itself (see newServicePortCmd).
 func init() {
 	serviceops.OnPublishedPortShift = func(service string, _ int) {
@@ -1087,7 +1087,7 @@ func init() {
 	}
 	// Route reconcile's "is the unit installed" check through the platform
 	// service manager (launchd plist on macOS, .container quadlet on Linux) so
-	// it matches `lerd start`'s notion of an installed unit.
+	// it matches `servlo start`'s notion of an installed unit.
 	serviceops.UnitInstalledFn = services.Mgr.ContainerUnitInstalled
 	// Drop-in alternatives for missing depends_on (mariadb for mysql, valkey
 	// for redis) come from the store index so a clean box that has not cached
@@ -1134,7 +1134,7 @@ func autoStopUnusedServices() {
 	}
 	for _, name := range candidates {
 		if config.CountSitesUsingService(name) == 0 && !config.ServiceIsManuallyStarted(name) && !config.ServiceIsPinned(name) {
-			unit := "lerd-" + name
+			unit := "servlo-" + name
 			running, _ := podman.ContainerRunning(unit)
 			if !running {
 				status, _ := podman.UnitStatus(unit)
@@ -1143,7 +1143,7 @@ func autoStopUnusedServices() {
 			if running {
 				// Soft stop only: do not go through StopService, which sets the
 				// paused flag. Auto-stop means "nothing needs this right now",
-				// not "the user manually stopped it"; lerd start must bring
+				// not "the user manually stopped it"; servlo start must bring
 				// redis/mailpit back the way it did before the shared lifecycle.
 				_ = serviceops.StopWithDependents(name)
 			}
@@ -1222,7 +1222,7 @@ func autoStopUnusedFPMs() {
 		if active[v] {
 			continue
 		}
-		unit := "lerd-php" + strings.ReplaceAll(v, ".", "") + "-fpm"
+		unit := "servlo-php" + strings.ReplaceAll(v, ".", "") + "-fpm"
 		status, _ := podman.UnitStatus(unit)
 		if status == "active" || status == "activating" {
 			if err := podman.StopUnit(unit); err != nil {

@@ -4,29 +4,29 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // CustomFPMContainerName returns the per-site PHP-FPM container name for a site
 // that serves PHP via fastcgi from its own custom-built image (a PHP project
-// with a Containerfile and no port), e.g. "lerd-cfpm-myapp".
+// with a Containerfile and no port), e.g. "servlo-cfpm-myapp".
 func CustomFPMContainerName(siteName string) string {
-	return "lerd-cfpm-" + siteName
+	return "servlo-cfpm-" + siteName
 }
 
 // FPMContainerName resolves the FPM container nginx fastcgi's to and the php
 // shims exec into: a per-site container for custom-FPM sites, otherwise the
-// shared lerd-php<version>-fpm container.
+// shared servlo-php<version>-fpm container.
 func FPMContainerName(site config.Site, version string) string {
 	if site.IsCustomFPM() {
 		return CustomFPMContainerName(site.Name)
 	}
-	return "lerd-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
+	return "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
 }
 
 // WriteCustomFPMQuadlet writes a per-site PHP-FPM quadlet running the site's
 // custom-built image (CustomImageName) under a per-site container name. It
-// reuses the shared FPM template so the container inherits every lerd mount
+// reuses the shared FPM template so the container inherits every servlo mount
 // (xdebug, dumps, devtools, the bun volume, the shell), overriding only the
 // Image and ContainerName. Ensures the shared per-version ini/assets exist
 // first, like WriteFPMQuadlet.
@@ -72,9 +72,9 @@ func generateCustomFPMQuadlet(siteName, version string) (string, error) {
 		return "", err
 	}
 	short := strings.ReplaceAll(version, ".", "")
-	content = strings.ReplaceAll(content, "Image=lerd-php"+short+"-fpm:local", "Image="+CustomImageName(siteName))
-	content = strings.ReplaceAll(content, "ContainerName=lerd-php"+short+"-fpm", "ContainerName="+CustomFPMContainerName(siteName))
-	content = strings.ReplaceAll(content, "Description=Lerd PHP "+version+" FPM", "Description=Lerd PHP "+version+" FPM (custom: "+siteName+")")
+	content = strings.ReplaceAll(content, "Image=servlo-php"+short+"-fpm:local", "Image="+CustomImageName(siteName))
+	content = strings.ReplaceAll(content, "ContainerName=servlo-php"+short+"-fpm", "ContainerName="+CustomFPMContainerName(siteName))
+	content = strings.ReplaceAll(content, "Description=Servlo PHP "+version+" FPM", "Description=Servlo PHP "+version+" FPM (custom: "+siteName+")")
 	return content, nil
 }
 
@@ -84,8 +84,8 @@ func RemoveCustomFPMQuadlet(siteName string) error {
 }
 
 // CustomFPMBaseVersion returns the dotted PHP version a custom-FPM site's
-// Containerfile builds FROM (e.g. "FROM lerd-php84-fpm:local" -> "8.4"), or "" when
-// the base isn't a lerd FPM image. A custom-FPM site's PHP version is fixed by that
+// Containerfile builds FROM (e.g. "FROM servlo-php84-fpm:local" -> "8.4"), or "" when
+// the base isn't a servlo FPM image. A custom-FPM site's PHP version is fixed by that
 // FROM line, not project detection, so the caller can report the right version and
 // mount the matching per-version inis instead of a detected one that may differ.
 func CustomFPMBaseVersion(projectPath string, cfg *config.ContainerConfig) string {
@@ -93,10 +93,10 @@ func CustomFPMBaseVersion(projectPath string, cfg *config.ContainerConfig) strin
 	if i := strings.IndexByte(base, ':'); i >= 0 {
 		base = base[:i]
 	}
-	if !strings.HasPrefix(base, "lerd-php") || !strings.HasSuffix(base, "-fpm") {
+	if !strings.HasPrefix(base, "servlo-php") || !strings.HasSuffix(base, "-fpm") {
 		return ""
 	}
-	short := strings.TrimSuffix(strings.TrimPrefix(base, "lerd-php"), "-fpm")
+	short := strings.TrimSuffix(strings.TrimPrefix(base, "servlo-php"), "-fpm")
 	for _, v := range config.SupportedPHPVersions {
 		if strings.ReplaceAll(v, ".", "") == short {
 			return v

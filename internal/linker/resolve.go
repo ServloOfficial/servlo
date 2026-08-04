@@ -4,16 +4,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
-	"github.com/geodro/lerd/internal/store"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/realrashid/servlo/internal/store"
 )
 
 // Resolve decides everything about linking dir as a site without changing
-// anything. It reads the directory, the project's .lerd.yaml and the site
+// anything. It reads the directory, the project's .servlo.yaml and the site
 // registry, and returns the plan Apply carries out. A plan whose Skip is set
 // registers nothing.
 func Resolve(dir string, cfg *config.GlobalConfig, p Policy) (*Plan, error) {
@@ -160,7 +160,7 @@ func Resolve(dir string, cfg *config.GlobalConfig, p Policy) (*Plan, error) {
 }
 
 // desiredDomains builds the domain list to attempt, before conflict filtering.
-// A .lerd.yaml domains list wins over the generated one, and an explicitly
+// A .servlo.yaml domains list wins over the generated one, and an explicitly
 // requested name is forced to the front so it becomes the primary domain.
 func desiredDomains(proj *config.ProjectConfig, requested, name, tld string) []string {
 	var domains []string

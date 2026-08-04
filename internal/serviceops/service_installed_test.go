@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestServiceInstalled_defaultPresetQuadletIsTruth: built-in default presets
@@ -25,7 +25,7 @@ func TestServiceInstalled_defaultPresetQuadletIsTruth(t *testing.T) {
 	if err := os.MkdirAll(quadletDir, 0o755); err != nil {
 		t.Fatalf("mkdir quadlet dir: %v", err)
 	}
-	quadletPath := filepath.Join(quadletDir, "lerd-mysql.container")
+	quadletPath := filepath.Join(quadletDir, "servlo-mysql.container")
 	if err := os.WriteFile(quadletPath, []byte("[Container]\nImage=docker.io/library/mysql:8.4\n"), 0o644); err != nil {
 		t.Fatalf("write quadlet: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestServiceInstalled_customServiceYAMLIsTruth(t *testing.T) {
 	if err := os.MkdirAll(quadletDir, 0o755); err != nil {
 		t.Fatalf("mkdir quadlet dir: %v", err)
 	}
-	quadletPath := filepath.Join(quadletDir, "lerd-gotenberg.container")
+	quadletPath := filepath.Join(quadletDir, "servlo-gotenberg.container")
 	if err := os.WriteFile(quadletPath, []byte("[Container]\nImage=docker.io/gotenberg/gotenberg:8\n"), 0o644); err != nil {
 		t.Fatalf("write quadlet: %v", err)
 	}

@@ -24,15 +24,15 @@ type mcpFormat int
 const (
 	fmtJSONMcpServers mcpFormat = iota // {"mcpServers": {...}} — Claude, Cursor, Junie, Windsurf, Gemini
 	fmtJSONServers                     // {"servers": {...}} with "type":"stdio" — VS Code / Copilot
-	fmtTOMLCodex                       // [mcp_servers.lerd] in ~/.codex/config.toml
+	fmtTOMLCodex                       // [mcp_servers.servlo] in ~/.codex/config.toml
 )
 
 // ctxFormat selects how a client's context/instructions doc is written.
 type ctxFormat int
 
 const (
-	ctxOverwrite ctxFormat = iota // lerd owns the whole file (SKILL.md, lerd.mdc)
-	ctxSentinel                   // upsert the lerd block between sentinel comments
+	ctxOverwrite ctxFormat = iota // servlo owns the whole file (SKILL.md, servlo.mdc)
+	ctxSentinel                   // upsert the servlo block between sentinel comments
 )
 
 // ctxFile describes one context/instructions document a client auto-loads.
@@ -47,7 +47,7 @@ type ctxFile struct {
 	Content func() string
 }
 
-// aiClient is one supported AI coding assistant and where lerd registers with it.
+// aiClient is one supported AI coding assistant and where servlo registers with it.
 type aiClient struct {
 	Name         string    // identifier, used only in log lines
 	ProjectMCP   string    // MCP config path rel to project root; "" = no project scope (Codex)
@@ -59,7 +59,7 @@ type aiClient struct {
 	Contexts     []ctxFile // context/instructions docs this client loads
 }
 
-// aiClients is the single source of truth for every assistant lerd integrates
+// aiClients is the single source of truth for every assistant servlo integrates
 // with. Adding a client is a table entry, not new write/remove code. Claude
 // global MCP is the one file-write exception: ~/.claude.json holds all Claude
 // user state with an undocumented schema, so we register via the idempotent
@@ -73,8 +73,8 @@ var aiClients = []aiClient{
 		ServerKey:    "mcpServers",
 		GlobalViaCLI: true,
 		Contexts: []ctxFile{{
-			Project: filepath.Join(".claude", "skills", "lerd", "SKILL.md"),
-			Global:  filepath.Join(".claude", "skills", "lerd", "SKILL.md"),
+			Project: filepath.Join(".claude", "skills", "servlo", "SKILL.md"),
+			Global:  filepath.Join(".claude", "skills", "servlo", "SKILL.md"),
 			Format:  ctxOverwrite,
 			Content: renderClaudeSkill,
 		}},
@@ -86,8 +86,8 @@ var aiClients = []aiClient{
 		MCPFormat:  fmtJSONMcpServers,
 		ServerKey:  "mcpServers",
 		Contexts: []ctxFile{{
-			Project: filepath.Join(".cursor", "rules", "lerd.mdc"),
-			Global:  filepath.Join(".cursor", "rules", "lerd.mdc"),
+			Project: filepath.Join(".cursor", "rules", "servlo.mdc"),
+			Global:  filepath.Join(".cursor", "rules", "servlo.mdc"),
 			Format:  ctxOverwrite,
 			Content: renderCursorRules,
 		}},
@@ -102,15 +102,15 @@ var aiClients = []aiClient{
 			Project: filepath.Join(".junie", "guidelines.md"),
 			Global:  filepath.Join(".junie", "guidelines.md"),
 			Format:  ctxSentinel,
-			Content: func() string { return lerdReference },
+			Content: func() string { return servloReference },
 		}},
 	},
 	{
 		Name: "windsurf",
 		// Windsurf reads a single user-level config and has no project-scoped MCP
 		// file, so register globally only. The old .ai/mcp/mcp.json path was never
-		// Windsurf's — that directory belongs to Laravel Boost — so lerd no longer
-		// writes it; legacySharedAIMCP sweeps up any entry an older lerd left there.
+		// Windsurf's — that directory belongs to Laravel Boost — so servlo no longer
+		// writes it; legacySharedAIMCP sweeps up any entry an older servlo left there.
 		GlobalMCP: filepath.Join(".codeium", "windsurf", "mcp_config.json"),
 		MCPFormat: fmtJSONMcpServers,
 		ServerKey: "mcpServers",
@@ -124,7 +124,7 @@ var aiClients = []aiClient{
 			Project: "AGENTS.md",
 			Global:  filepath.Join(".codex", "AGENTS.md"),
 			Format:  ctxSentinel,
-			Content: func() string { return lerdReference },
+			Content: func() string { return servloReference },
 		}},
 	},
 	{
@@ -137,7 +137,7 @@ var aiClients = []aiClient{
 			Project: "GEMINI.md",
 			Global:  filepath.Join(".gemini", "GEMINI.md"),
 			Format:  ctxSentinel,
-			Content: func() string { return lerdReference },
+			Content: func() string { return servloReference },
 		}},
 	},
 	{
@@ -151,7 +151,7 @@ var aiClients = []aiClient{
 			// VS Code has no fixed global instructions file; project only.
 			Project: filepath.Join(".github", "copilot-instructions.md"),
 			Format:  ctxSentinel,
-			Content: func() string { return lerdReference },
+			Content: func() string { return servloReference },
 		}},
 	},
 	{
@@ -165,20 +165,20 @@ var aiClients = []aiClient{
 	},
 }
 
-// lerdJSONEntry builds the JSON MCP server entry. The entry is identical at
+// servloJSONEntry builds the JSON MCP server entry. The entry is identical at
 // every scope and carries no machine-specific data: the server resolves the
 // site from the directory the assistant is opened in (cwd) at runtime. Project
-// entries deliberately omit LERD_SITE_PATH so a committed .mcp.json / .ai config
+// entries deliberately omit SERVLO_SITE_PATH so a committed .mcp.json / .ai config
 // stays portable across every teammate's checkout.
-func lerdJSONEntry(needsType bool) map[string]any {
-	entry := map[string]any{"command": "lerd", "args": []string{"mcp"}}
+func servloJSONEntry(needsType bool) map[string]any {
+	entry := map[string]any{"command": "servlo", "args": []string{"mcp"}}
 	if needsType {
 		entry["type"] = "stdio"
 	}
 	return entry
 }
 
-// writeClientMCP writes/merges the lerd MCP entry into a client's config file,
+// writeClientMCP writes/merges the servlo MCP entry into a client's config file,
 // creating parent directories as needed.
 func writeClientMCP(path string, c aiClient) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -187,7 +187,7 @@ func writeClientMCP(path string, c aiClient) error {
 	if c.MCPFormat == fmtTOMLCodex {
 		return mergeCodexTOML(path)
 	}
-	return mergeServerJSON(path, c.ServerKey, lerdJSONEntry(c.NeedsType))
+	return mergeServerJSON(path, c.ServerKey, servloJSONEntry(c.NeedsType))
 }
 
 // writeClientContext writes a context/instructions doc per its format.
@@ -201,10 +201,10 @@ func writeClientContext(path string, cx ctxFile) error {
 	return writeIfChanged(path, []byte(cx.Content()))
 }
 
-// mcpConfigHasLerd reports whether a client's JSON MCP config already registers
-// lerd. Used by the refresh path to update only configs the user opted into,
+// mcpConfigHasServlo reports whether a client's JSON MCP config already registers
+// servlo. Used by the refresh path to update only configs the user opted into,
 // rather than expanding their footprint with new client files on every update.
-func mcpConfigHasLerd(path string, c aiClient) bool {
+func mcpConfigHasServlo(path string, c aiClient) bool {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false
@@ -214,40 +214,40 @@ func mcpConfigHasLerd(path string, c aiClient) bool {
 		return false
 	}
 	servers, _ := cfg[c.ServerKey].(map[string]any)
-	_, ok := servers["lerd"]
+	_, ok := servers["servlo"]
 	return ok
 }
 
 // contextAlreadyPresent reports whether a client's context doc already carries
-// lerd content: an overwrite-owned file simply exists; a sentinel-shared file
-// (guidelines.md, AGENTS.md, …) must contain the lerd block, so a user's own
+// servlo content: an overwrite-owned file simply exists; a sentinel-shared file
+// (guidelines.md, AGENTS.md, …) must contain the servlo block, so a user's own
 // unrelated AGENTS.md is not adopted on refresh.
 func contextAlreadyPresent(path string, cx ctxFile) bool {
 	if cx.Format == ctxSentinel {
 		data, err := os.ReadFile(path)
-		return err == nil && strings.Contains(string(data), "<!-- lerd:begin -->")
+		return err == nil && strings.Contains(string(data), "<!-- servlo:begin -->")
 	}
 	_, err := os.Stat(path)
 	return err == nil
 }
 
 // legacySharedAIMCP is the .ai/mcp/mcp.json path (relative to a project root or
-// $HOME) that an older lerd wrote as "Windsurf" config. Windsurf never read it
-// and it collides with Laravel Boost's .ai/ directory, so lerd no longer writes
-// it and sweeps up any stray lerd entry left behind.
+// $HOME) that an older servlo wrote as "Windsurf" config. Windsurf never read it
+// and it collides with Laravel Boost's .ai/ directory, so servlo no longer writes
+// it and sweeps up any stray servlo entry left behind.
 var legacySharedAIMCP = filepath.Join(".ai", "mcp", "mcp.json")
 
-// sweepLegacySharedAIMCP strips the lerd entry from dir/.ai/mcp/mcp.json,
+// sweepLegacySharedAIMCP strips the servlo entry from dir/.ai/mcp/mcp.json,
 // preserving any other MCP servers (e.g. laravel-boost) and removing the file
-// plus its now-empty parents when lerd was the only entry. Missing file is a
+// plus its now-empty parents when servlo was the only entry. Missing file is a
 // no-op. Returns whether anything changed.
 func sweepLegacySharedAIMCP(dir string) bool {
 	path := filepath.Join(dir, legacySharedAIMCP)
-	changed, err := removeServerJSON(path, "mcpServers", "lerd")
+	changed, err := removeServerJSON(path, "mcpServers", "servlo")
 	if err != nil || !changed {
 		return false
 	}
-	// removeServerJSON deletes the file when lerd was the only server; clear the
+	// removeServerJSON deletes the file when servlo was the only server; clear the
 	// empty .ai/mcp and .ai directories too so nothing dangles in the repo.
 	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
 		_ = os.Remove(filepath.Dir(path))
@@ -256,15 +256,15 @@ func sweepLegacySharedAIMCP(dir string) bool {
 	return true
 }
 
-// removeClientMCP drops the lerd entry from a client's MCP config file.
+// removeClientMCP drops the servlo entry from a client's MCP config file.
 func removeClientMCP(path string, c aiClient) (bool, error) {
 	if c.MCPFormat == fmtTOMLCodex {
 		return removeCodexTOML(path)
 	}
-	return removeServerJSON(path, c.ServerKey, "lerd")
+	return removeServerJSON(path, c.ServerKey, "servlo")
 }
 
-// removeClientContext removes the lerd context doc: sentinel files keep user
+// removeClientContext removes the servlo context doc: sentinel files keep user
 // content, overwrite files are deleted outright (with empty-parent cleanup).
 func removeClientContext(path string, cx ctxFile) (bool, error) {
 	if cx.Format == ctxSentinel {
@@ -280,7 +280,7 @@ func removeClientContext(path string, cx ctxFile) (bool, error) {
 	return true, nil
 }
 
-// mergeServerJSON reads an existing JSON config (if present), upserts the "lerd"
+// mergeServerJSON reads an existing JSON config (if present), upserts the "servlo"
 // key under serverKey, and writes it back indented. Unrelated servers and any
 // other top-level keys are preserved.
 func mergeServerJSON(path, serverKey string, entry map[string]any) error {
@@ -294,12 +294,12 @@ func mergeServerJSON(path, serverKey string, entry map[string]any) error {
 	if servers == nil {
 		servers = map[string]any{}
 	}
-	// Leave a file that already carries an equivalent lerd entry untouched, so a
+	// Leave a file that already carries an equivalent servlo entry untouched, so a
 	// committed, hand-formatted config isn't reindented on every install/update.
-	if existing, ok := servers["lerd"]; ok && jsonEqual(existing, entry) {
+	if existing, ok := servers["servlo"]; ok && jsonEqual(existing, entry) {
 		return nil
 	}
-	servers["lerd"] = entry
+	servers["servlo"] = entry
 	cfg[serverKey] = servers
 
 	data, err := json.MarshalIndent(cfg, "", "    ")
@@ -349,23 +349,23 @@ func removeServerJSON(path, serverKey, name string) (bool, error) {
 	return true, os.WriteFile(path, append(out, '\n'), 0644)
 }
 
-// codexLerdHeader is the TOML table header for lerd's Codex MCP entry.
-const codexLerdHeader = "[mcp_servers.lerd]"
+// codexServloHeader is the TOML table header for servlo's Codex MCP entry.
+const codexServloHeader = "[mcp_servers.servlo]"
 
-// mergeCodexTOML appends the [mcp_servers.lerd] table to ~/.codex/config.toml if
+// mergeCodexTOML appends the [mcp_servers.servlo] table to ~/.codex/config.toml if
 // it isn't already present. It edits the file textually rather than round-tripping
 // through a TOML decoder/encoder, because go-toml strips comments, reorders
-// tables, and rewrites quote styles — destructive for a hand-maintained file lerd
-// does not own. lerd's entry never changes, so once present it is left untouched.
+// tables, and rewrites quote styles — destructive for a hand-maintained file servlo
+// does not own. servlo's entry never changes, so once present it is left untouched.
 func mergeCodexTOML(path string) error {
-	block := codexLerdHeader + "\ncommand = \"lerd\"\nargs = [\"mcp\"]\n"
+	block := codexServloHeader + "\ncommand = \"servlo\"\nargs = [\"mcp\"]\n"
 
 	data, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	existing := string(data)
-	if strings.Contains(existing, codexLerdHeader) {
+	if strings.Contains(existing, codexServloHeader) {
 		return nil
 	}
 
@@ -376,7 +376,7 @@ func mergeCodexTOML(path string) error {
 	return writeIfChanged(path, []byte(out))
 }
 
-// removeCodexTOML strips the [mcp_servers.lerd] table (header through the line
+// removeCodexTOML strips the [mcp_servers.servlo] table (header through the line
 // before the next table, or EOF) from config.toml, leaving every other table and
 // any comments intact. Returns (changed, err). Missing file/entry is a no-op; an
 // emptied file is deleted.
@@ -389,15 +389,15 @@ func removeCodexTOML(path string) (bool, error) {
 		return false, err
 	}
 	s := string(data)
-	idx := strings.Index(s, codexLerdHeader)
+	idx := strings.Index(s, codexServloHeader)
 	if idx == -1 {
 		return false, nil
 	}
 	// Block ends at the next table header ("\n[") or EOF.
-	rest := s[idx+len(codexLerdHeader):]
+	rest := s[idx+len(codexServloHeader):]
 	end := len(s)
 	if j := strings.Index(rest, "\n["); j != -1 {
-		end = idx + len(codexLerdHeader) + j + 1 // position of the next '['
+		end = idx + len(codexServloHeader) + j + 1 // position of the next '['
 	}
 	out := strings.TrimSpace(s[:idx] + s[end:])
 	if out == "" {

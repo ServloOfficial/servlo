@@ -260,7 +260,7 @@
       ? 'text-violet-500 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20'
       : lanOn
         ? 'text-teal-500 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20'
-        : 'text-gray-500 dark:text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5'}"
+        : 'text-gray-500 dark:text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5'}"
   >
     {#if lanBusy || tunnelBusy || stopBusy}
       <Icon name="spinner" class="w-4 h-4 animate-spin" />
@@ -277,7 +277,7 @@
       aria-label={m.share_menuLabel({ domain: site.domain })}
       data-testid="share-menu"
       style="position:fixed; left:{menuX}px; top:{menuY}px; width:{MENU_WIDTH}px; z-index:40"
-      class="rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-bg shadow-lg py-1"
+      class="rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-bg shadow-lg py-1"
     >
       <div class="px-3 pt-1.5 pb-0.5 text-[9px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
         {m.share_localNetwork()}
@@ -300,7 +300,7 @@
             type="button"
             role="menuitem"
             onclick={onToggleLan}
-            class="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded border border-gray-200 dark:border-lerd-border text-gray-500 dark:text-gray-400 hover:text-red-600 hover:border-red-400 dark:hover:text-red-400 transition-colors"
+            class="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded border border-gray-200 dark:border-servlo-border text-gray-500 dark:text-gray-400 hover:text-red-600 hover:border-red-400 dark:hover:text-red-400 transition-colors"
           >{m.share_stop()}</button>
         </div>
       {:else}
@@ -313,7 +313,7 @@
         </button>
       {/if}
 
-      <div class="my-1 border-t border-gray-100 dark:border-lerd-border"></div>
+      <div class="my-1 border-t border-gray-100 dark:border-servlo-border"></div>
       <div class="px-3 pt-0.5 pb-0.5 text-[9px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
         {m.share_publicTunnel()}
       </div>
@@ -329,7 +329,7 @@
             type="button"
             role="menuitem"
             onclick={cancelStart}
-            class="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded border border-gray-200 dark:border-lerd-border text-gray-500 dark:text-gray-400 hover:text-red-600 hover:border-red-400 dark:hover:text-red-400 transition-colors"
+            class="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded border border-gray-200 dark:border-servlo-border text-gray-500 dark:text-gray-400 hover:text-red-600 hover:border-red-400 dark:hover:text-red-400 transition-colors"
           >{m.common_cancel()}</button>
         </div>
       {:else if tunnelOn}
@@ -347,7 +347,7 @@
             type="button"
             role="menuitem"
             onclick={stopT}
-            class="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded border border-gray-200 dark:border-lerd-border text-gray-500 dark:text-gray-400 hover:text-red-600 hover:border-red-400 dark:hover:text-red-400 transition-colors"
+            class="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded border border-gray-200 dark:border-servlo-border text-gray-500 dark:text-gray-400 hover:text-red-600 hover:border-red-400 dark:hover:text-red-400 transition-colors"
           >{m.share_stop()}</button>
         </div>
       {:else}

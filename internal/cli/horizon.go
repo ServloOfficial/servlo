@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -213,15 +213,15 @@ func HorizonStartForSite(siteName, sitePath, phpVersion string) error {
 }
 
 // buildHorizonUnit renders the Horizon systemd unit body. Horizon always
-// uses Redis so lerd-redis is in After=/Wants= alongside the FPM container.
+// uses Redis so servlo-redis is in After=/Wants= alongside the FPM container.
 // Pure: the caller resolves fpmUnit, so tests don't touch the live registry.
 func buildHorizonUnit(siteName, sitePath, fpmUnit string) string {
 	container := fpmUnit
 
 	return fmt.Sprintf(`[Unit]
-Description=Lerd Horizon (%s)
-After=network.target %s.service lerd-redis.service
-Wants=%s.service lerd-redis.service
+Description=Servlo Horizon (%s)
+After=network.target %s.service servlo-redis.service
+Wants=%s.service servlo-redis.service
 BindsTo=%s.service
 
 [Service]

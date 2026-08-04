@@ -3,7 +3,7 @@ package mcp
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // A workspace is a display-only grouping of sites (internal/config/workspaces.go).

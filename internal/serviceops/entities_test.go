@@ -107,13 +107,13 @@ func TestParseEntityRows(t *testing.T) {
 }
 
 // An image-less entity execs inside the service container with the fixed
-// admin credentials; one with a client image runs ephemerally on the lerd
+// admin credentials; one with a client image runs ephemerally on the servlo
 // network with only its own env, and the image's entrypoint is overridden
 // because client images make their tool the entrypoint.
 func TestEntityCommandArgs(t *testing.T) {
 	execArgs := entityCommandArgs("mysql", "", nil, "list-cmd", false)
 	joined := strings.Join(execArgs, " ")
-	if execArgs[0] != "exec" || !strings.Contains(joined, "lerd-mysql sh -c list-cmd") {
+	if execArgs[0] != "exec" || !strings.Contains(joined, "servlo-mysql sh -c list-cmd") {
 		t.Errorf("exec args = %v", execArgs)
 	}
 	if !strings.Contains(joined, "MYSQL_PWD=") {
@@ -122,7 +122,7 @@ func TestEntityCommandArgs(t *testing.T) {
 
 	runArgs := entityCommandArgs("rustfs", "docker.io/rclone/rclone:latest", []string{"A=b"}, "tar-cmd", true)
 	joined = strings.Join(runArgs, " ")
-	for _, want := range []string{"run --rm -i", "--network lerd", "--entrypoint sh", "-e A=b", "docker.io/rclone/rclone:latest -c tar-cmd"} {
+	for _, want := range []string{"run --rm -i", "--network servlo", "--entrypoint sh", "-e A=b", "docker.io/rclone/rclone:latest -c tar-cmd"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("run args missing %q: %v", want, runArgs)
 		}

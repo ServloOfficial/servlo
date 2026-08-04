@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestSetPrimaryHostPort(t *testing.T) {
@@ -237,8 +237,8 @@ func TestBindForLANRoundTrip(t *testing.T) {
 	}
 }
 
-func TestBindForLANPreservesLerdDNS(t *testing.T) {
-	// lerd-dns is the only quadlet that ships with explicit 127.0.0.1
+func TestBindForLANPreservesServloDNS(t *testing.T) {
+	// servlo-dns is the only quadlet that ships with explicit 127.0.0.1
 	// because LAN access to DNS is via the userspace forwarder. Both
 	// modes must leave it alone.
 	in := "PublishPort=127.0.0.1:5300:5300/udp\nPublishPort=127.0.0.1:5300:5300/tcp\n"
@@ -246,7 +246,7 @@ func TestBindForLANPreservesLerdDNS(t *testing.T) {
 		out := BindForLAN(in, exposed)
 		if !strings.Contains(out, "PublishPort=127.0.0.1:5300:5300/udp") ||
 			!strings.Contains(out, "PublishPort=127.0.0.1:5300:5300/tcp") {
-			t.Errorf("lerd-dns publish lines should be untouched (exposed=%v), got:\n%s", exposed, out)
+			t.Errorf("servlo-dns publish lines should be untouched (exposed=%v), got:\n%s", exposed, out)
 		}
 	}
 }
@@ -336,7 +336,7 @@ func TestInjectExtraVolumesNoDuplicates(t *testing.T) {
 }
 
 func TestInjectPodmanArgs_AppendsAfterImage(t *testing.T) {
-	in := "[Container]\nImage=docker.io/postgis/postgis:16-3.5-alpine\nContainerName=lerd-postgres\n"
+	in := "[Container]\nImage=docker.io/postgis/postgis:16-3.5-alpine\nContainerName=servlo-postgres\n"
 	out := InjectPodmanArgs(in, "--platform=linux/amd64")
 	if !strings.Contains(out, "Image=docker.io/postgis/postgis:16-3.5-alpine\nPodmanArgs=--platform=linux/amd64\n") {
 		t.Errorf("PodmanArgs should land directly under Image=, got:\n%s", out)
@@ -355,7 +355,7 @@ func TestInjectPodmanArgs_Idempotent(t *testing.T) {
 }
 
 func TestInjectPodmanArgs_NoImageLineNoChange(t *testing.T) {
-	in := "[Container]\nContainerName=lerd-x\n"
+	in := "[Container]\nContainerName=servlo-x\n"
 	if out := InjectPodmanArgs(in, "--platform=linux/amd64"); out != in {
 		t.Errorf("content with no Image= line must be returned unchanged, got:\n%s", out)
 	}
@@ -405,7 +405,7 @@ func TestGenerateCustomQuadlet_NoShareHosts(t *testing.T) {
 	}
 	out := GenerateCustomQuadlet(svc)
 	// Even without ShareHosts a sidecar must mount the managed /etc/hosts,
-	// otherwise podman inherits the host's own file and a "127.0.0.1 lerd-<svc>"
+	// otherwise podman inherits the host's own file and a "127.0.0.1 servlo-<svc>"
 	// line there shadows the container-DNS name and breaks connections.
 	wantVolume := "Volume=" + config.ContainerHostsFile() + ":/etc/hosts:ro,z"
 	if !strings.Contains(out, wantVolume) {
@@ -425,7 +425,7 @@ func TestGenerateCustomQuadlet_MountsTuningOverrideForDBFamily(t *testing.T) {
 		Family: "mariadb",
 	}
 	out := GenerateCustomQuadlet(svc)
-	want := "Volume=" + config.ServiceTuningFile(svc.Name) + ":/etc/mysql/conf.d/zz-lerd-user.cnf:ro,z"
+	want := "Volume=" + config.ServiceTuningFile(svc.Name) + ":/etc/mysql/conf.d/zz-servlo-user.cnf:ro,z"
 	if !strings.Contains(out, want) {
 		t.Errorf("expected tuning override volume for db family, got:\n%s", out)
 	}
@@ -438,7 +438,7 @@ func TestGenerateCustomQuadlet_NoTuningOverrideForUntunedFamily(t *testing.T) {
 		Family: "meilisearch",
 	}
 	out := GenerateCustomQuadlet(svc)
-	if strings.Contains(out, "lerd-user") {
+	if strings.Contains(out, "servlo-user") {
 		t.Errorf("must not mount a tuning override for an untuned family, got:\n%s", out)
 	}
 }
@@ -452,10 +452,10 @@ func TestGenerateCustomQuadlet_RedisTuningInjectsCommand(t *testing.T) {
 		Family: "redis",
 	}
 	out := GenerateCustomQuadlet(svc)
-	if !strings.Contains(out, "Volume="+config.ServiceTuningFile(svc.Name)+":/etc/redis/lerd-user.conf:ro,z") {
+	if !strings.Contains(out, "Volume="+config.ServiceTuningFile(svc.Name)+":/etc/redis/servlo-user.conf:ro,z") {
 		t.Errorf("expected redis tuning volume, got:\n%s", out)
 	}
-	if !strings.Contains(out, "Exec=redis-server /etc/redis/lerd-user.conf") {
+	if !strings.Contains(out, "Exec=redis-server /etc/redis/servlo-user.conf") {
 		t.Errorf("expected redis-server command to load the override, got:\n%s", out)
 	}
 }
@@ -463,20 +463,20 @@ func TestGenerateCustomQuadlet_RedisTuningInjectsCommand(t *testing.T) {
 func TestGenerateCustomQuadlet_PostgresTuningMountsWrapperAndCommand(t *testing.T) {
 	// Postgres can't read an external conf.d via `-c include_dir` (rejected at
 	// runtime), so the quadlet must mount BOTH the user override and the
-	// lerd-managed wrapper config_file, and point postgres at the wrapper.
+	// servlo-managed wrapper config_file, and point postgres at the wrapper.
 	svc := &config.CustomService{
 		Name:   "postgres",
 		Image:  "docker.io/postgis/postgis:16-3.5-alpine",
 		Family: "postgres",
 	}
 	out := GenerateCustomQuadlet(svc)
-	if !strings.Contains(out, "Volume="+config.ServiceTuningFile(svc.Name)+":/etc/postgresql/conf.d/zz-lerd-user.conf:ro,z") {
+	if !strings.Contains(out, "Volume="+config.ServiceTuningFile(svc.Name)+":/etc/postgresql/conf.d/zz-servlo-user.conf:ro,z") {
 		t.Errorf("expected postgres user override volume, got:\n%s", out)
 	}
-	if !strings.Contains(out, "Volume="+config.ServiceTuningAuxFile(svc.Name)+":/etc/postgresql/lerd.conf:ro,z") {
+	if !strings.Contains(out, "Volume="+config.ServiceTuningAuxFile(svc.Name)+":/etc/postgresql/servlo.conf:ro,z") {
 		t.Errorf("expected postgres wrapper config_file volume, got:\n%s", out)
 	}
-	if !strings.Contains(out, "Exec=postgres -c config_file=/etc/postgresql/lerd.conf") {
+	if !strings.Contains(out, "Exec=postgres -c config_file=/etc/postgresql/servlo.conf") {
 		t.Errorf("expected postgres to be pointed at the wrapper config_file, got:\n%s", out)
 	}
 }
@@ -494,7 +494,7 @@ func TestGenerateCustomQuadlet_ExplicitExecWinsOverTuningCommand(t *testing.T) {
 	if !strings.Contains(out, "Exec=redis-server --appendonly yes") {
 		t.Errorf("explicit Exec must be preserved, got:\n%s", out)
 	}
-	if strings.Contains(out, "Exec=redis-server /etc/redis/lerd-user.conf") {
+	if strings.Contains(out, "Exec=redis-server /etc/redis/servlo-user.conf") {
 		t.Errorf("tuning command must not override an explicit Exec, got:\n%s", out)
 	}
 }
@@ -563,12 +563,12 @@ func TestGenerateCustomQuadlet_EnvWithJSONPreservesQuotes(t *testing.T) {
 		Name:  "elasticvue",
 		Image: "docker.io/cars10/elasticvue:latest",
 		Environment: map[string]string{
-			"ELASTICVUE_CLUSTERS": `[{"name":"Lerd","uri":"http://localhost:9200"}]`,
+			"ELASTICVUE_CLUSTERS": `[{"name":"Servlo","uri":"http://localhost:9200"}]`,
 			"WILDCARD":            `"*"`,
 		},
 	}
 	out := GenerateCustomQuadlet(svc)
-	wantClusters := `Environment="ELASTICVUE_CLUSTERS=[{\"name\":\"Lerd\",\"uri\":\"http://localhost:9200\"}]"`
+	wantClusters := `Environment="ELASTICVUE_CLUSTERS=[{\"name\":\"Servlo\",\"uri\":\"http://localhost:9200\"}]"`
 	if !strings.Contains(out, wantClusters) {
 		t.Errorf("env value with JSON quotes must be wrapped + escaped (otherwise systemd strips inner quotes), got:\n%s", out)
 	}
@@ -620,31 +620,31 @@ func TestGenerateCustomQuadlet_StopTimeoutOldPodman(t *testing.T) {
 }
 
 func TestNginxQuadletMountsCustomD(t *testing.T) {
-	// Per-site override files under ~/.local/share/lerd/nginx/custom.d must
+	// Per-site override files under ~/.local/share/servlo/nginx/custom.d must
 	// be bind-mounted into the container; without this the include directive
 	// in the vhost templates resolves to nothing and user edits are silent.
-	content, err := GetQuadletTemplate("lerd-nginx.container")
+	content, err := GetQuadletTemplate("servlo-nginx.container")
 	if err != nil {
 		t.Fatalf("GetQuadletTemplate: %v", err)
 	}
-	if !strings.Contains(content, "%h/.local/share/lerd/nginx/custom.d:/etc/nginx/custom.d") {
-		t.Errorf("lerd-nginx.container missing custom.d volume mount:\n%s", content)
+	if !strings.Contains(content, "%h/.local/share/servlo/nginx/custom.d:/etc/nginx/custom.d") {
+		t.Errorf("servlo-nginx.container missing custom.d volume mount:\n%s", content)
 	}
 }
 
 func TestNginxQuadletMountsHttpD(t *testing.T) {
-	// Global http{}-level override files under ~/.local/share/lerd/nginx/http.d
+	// Global http{}-level override files under ~/.local/share/servlo/nginx/http.d
 	// must be bind-mounted into the container so the `include /etc/nginx/http.d/*.conf`
 	// directive in the nginx.conf template resolves. Without this, the http
 	// config editor would write user files that the running nginx never sees —
 	// regression guard for the silent-write-on-stale-quadlet bug surfaced in
 	// the #437 review.
-	content, err := GetQuadletTemplate("lerd-nginx.container")
+	content, err := GetQuadletTemplate("servlo-nginx.container")
 	if err != nil {
 		t.Fatalf("GetQuadletTemplate: %v", err)
 	}
-	if !strings.Contains(content, "%h/.local/share/lerd/nginx/http.d:/etc/nginx/http.d") {
-		t.Errorf("lerd-nginx.container missing http.d volume mount:\n%s", content)
+	if !strings.Contains(content, "%h/.local/share/servlo/nginx/http.d:/etc/nginx/http.d") {
+		t.Errorf("servlo-nginx.container missing http.d volume mount:\n%s", content)
 	}
 }
 
@@ -652,7 +652,7 @@ func TestPHPFPMContainerfileBundlesFullICUData(t *testing.T) {
 	// icu-data-full carries ext-intl's full CLDR set (#332) but only exists on
 	// Alpine 3.16+. The install must tolerate its absence (|| true) so
 	// legacy-PHP builds on older Alpine bases don't hard-fail.
-	content, err := GetQuadletTemplate("lerd-php-fpm.Containerfile")
+	content, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 	if err != nil {
 		t.Fatalf("GetQuadletTemplate: %v", err)
 	}
@@ -667,14 +667,14 @@ func TestPHPFPMContainerfileBundlesFullICUData(t *testing.T) {
 		}
 	}
 	if !installed {
-		t.Errorf("lerd-php-fpm.Containerfile must apk add icu-data-full so non-English locales work in ext-intl")
+		t.Errorf("servlo-php-fpm.Containerfile must apk add icu-data-full so non-English locales work in ext-intl")
 	}
 }
 
 func TestPHPFPMContainerfilePinsLegacyXdebug(t *testing.T) {
 	// xdebug 3.2+ requires PHP 8.0+ and 3.4+ requires PHP 8.1+, so the frozen
 	// legacy 7.2 / 7.4 / 8.0 images must select an older xdebug at build time.
-	content, err := GetQuadletTemplate("lerd-php-fpm.Containerfile")
+	content, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 	if err != nil {
 		t.Fatalf("GetQuadletTemplate: %v", err)
 	}
@@ -684,7 +684,7 @@ func TestPHPFPMContainerfilePinsLegacyXdebug(t *testing.T) {
 		`8.0) XDEBUG_PKG="xdebug-3.3.2"`,
 	} {
 		if !strings.Contains(content, want) {
-			t.Errorf("lerd-php-fpm.Containerfile must pin legacy xdebug (%q):\n%s", want, content)
+			t.Errorf("servlo-php-fpm.Containerfile must pin legacy xdebug (%q):\n%s", want, content)
 		}
 	}
 }
@@ -693,13 +693,13 @@ func TestPHPFPMContainerfileBuildsLegacyPHP(t *testing.T) {
 	// PHP 7.2's Alpine 3.12 base predates gd's 7.4 configure flags and modern
 	// phpredis, so the Containerfile branches on PHP_VERSION_ID; without the
 	// older forms a 7.2 build hard-fails at gd configure.
-	content, err := GetQuadletTemplate("lerd-php-fpm.Containerfile")
+	content, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 	if err != nil {
 		t.Fatalf("GetQuadletTemplate: %v", err)
 	}
 	for _, want := range []string{"PHP_VERSION_ID", "--with-freetype-dir", "REDIS_PKG=redis-5.3.7"} {
 		if !strings.Contains(content, want) {
-			t.Errorf("lerd-php-fpm.Containerfile missing legacy-PHP build branch (%q)", want)
+			t.Errorf("servlo-php-fpm.Containerfile missing legacy-PHP build branch (%q)", want)
 		}
 	}
 }
@@ -718,7 +718,7 @@ func TestPairIPv6Binds_rewritesBareToDualStack(t *testing.T) {
 	// Bare binds are rewritten to [::] (single dual-stack socket), not
 	// paired. Keeping both 80:80 and [::]:80:80 collides on Linux default
 	// bindv6only=0 and crashes nginx with `bind: address already in use`.
-	in := "[Container]\nNetwork=lerd\nPublishPort=80:80\nPublishPort=443:443\n"
+	in := "[Container]\nNetwork=servlo\nPublishPort=80:80\nPublishPort=443:443\n"
 	out := PairIPv6Binds(in)
 	if !strings.Contains(out, "PublishPort=[::]:80:80") {
 		t.Errorf("expected [::]:80:80, got:\n%s", out)
@@ -735,7 +735,7 @@ func TestPairIPv6Binds_rewritesBareToDualStack(t *testing.T) {
 }
 
 func TestPairIPv6Binds_pairsLoopbackWithLinkLocal(t *testing.T) {
-	in := "Network=lerd\nPublishPort=127.0.0.1:5300:5300/udp\nPublishPort=127.0.0.1:5300:5300/tcp\n"
+	in := "Network=servlo\nPublishPort=127.0.0.1:5300:5300/udp\nPublishPort=127.0.0.1:5300:5300/tcp\n"
 	out := PairIPv6Binds(in)
 	if !strings.Contains(out, "PublishPort=[::1]:5300:5300/udp") {
 		t.Errorf("expected v6 pair [::1]:5300:5300/udp, got:\n%s", out)
@@ -746,7 +746,7 @@ func TestPairIPv6Binds_pairsLoopbackWithLinkLocal(t *testing.T) {
 }
 
 func TestPairIPv6Binds_idempotent(t *testing.T) {
-	in := "Network=lerd\nPublishPort=80:80\n"
+	in := "Network=servlo\nPublishPort=80:80\n"
 	once := PairIPv6Binds(in)
 	twice := PairIPv6Binds(once)
 	if once != twice {
@@ -758,7 +758,7 @@ func TestPairIPv6Binds_idempotent(t *testing.T) {
 }
 
 func TestPairIPv6Binds_preservesOperatorOverrides(t *testing.T) {
-	in := "Network=lerd\nPublishPort=192.168.1.10:80:80\nPublishPort=[fe80::1%eth0]:80:80\n"
+	in := "Network=servlo\nPublishPort=192.168.1.10:80:80\nPublishPort=[fe80::1%eth0]:80:80\n"
 	out := PairIPv6Binds(in)
 	if out != in {
 		t.Errorf("operator overrides should be preserved verbatim:\nin:\n%s\nout:\n%s", in, out)
@@ -766,7 +766,7 @@ func TestPairIPv6Binds_preservesOperatorOverrides(t *testing.T) {
 }
 
 func TestPairIPv6Binds_handles0000(t *testing.T) {
-	in := "Network=lerd\nPublishPort=0.0.0.0:80:80\n"
+	in := "Network=servlo\nPublishPort=0.0.0.0:80:80\n"
 	out := PairIPv6Binds(in)
 	if !strings.Contains(out, "PublishPort=[::]:80:80") {
 		t.Errorf("expected [::]:80:80, got:\n%s", out)
@@ -787,16 +787,16 @@ func TestPairIPv6Binds_skipsWhenNoNetworkDirective(t *testing.T) {
 }
 
 // TestDNSQuadletHasNoStartRateLimit: the NetworkManager dispatcher restarts
-// lerd-dns on every interface event, so a resume that brings several links back
+// servlo-dns on every interface event, so a resume that brings several links back
 // at once can fire more restarts than systemd's default five-in-ten-seconds
 // allows and park the unit in failed for good (issue #1087).
 func TestDNSQuadletHasNoStartRateLimit(t *testing.T) {
-	tpl, err := GetQuadletTemplate("lerd-dns.container")
+	tpl, err := GetQuadletTemplate("servlo-dns.container")
 	if err != nil {
 		t.Fatalf("GetQuadletTemplate: %v", err)
 	}
 	if !strings.Contains(tpl, "StartLimitIntervalSec=0") {
-		t.Errorf("lerd-dns must disable the start rate limit:\n%s", tpl)
+		t.Errorf("servlo-dns must disable the start rate limit:\n%s", tpl)
 	}
 	// The directive only works in [Unit]; systemd ignores it under [Service],
 	// which is exactly how #1087 shipped broken. Assert its section, not just

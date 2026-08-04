@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // These builder tests are platform-agnostic — they exercise pure string
@@ -13,9 +13,9 @@ import (
 // We test them here so the logic stays covered on Linux CI runs too.
 
 func TestBuildDarwinExecWorkerService_PointsAtGuardScript(t *testing.T) {
-	serviceUnit := buildDarwinExecWorkerService("/run/workers/lerd-queue-alpha.sh", "always")
+	serviceUnit := buildDarwinExecWorkerService("/run/workers/servlo-queue-alpha.sh", "always")
 
-	if !strings.Contains(serviceUnit, "ExecStart=/bin/sh '/run/workers/lerd-queue-alpha.sh'") {
+	if !strings.Contains(serviceUnit, "ExecStart=/bin/sh '/run/workers/servlo-queue-alpha.sh'") {
 		t.Errorf("service unit should call guard script via /bin/sh, got:\n%s", serviceUnit)
 	}
 	if !strings.Contains(serviceUnit, "Restart=always") {
@@ -29,7 +29,7 @@ func TestBuildDarwinExecWorkerService_PointsAtGuardScript(t *testing.T) {
 func TestBuildDarwinExecWorkerService_ScriptPathSurvivesTheSplit(t *testing.T) {
 	// The launchd translator splits ExecStart into argv, so a guard script
 	// under a data dir with a space in it has to come back as one argument.
-	script := "/Users/me/My Data/lerd/workers/lerd-queue-alpha.sh"
+	script := "/Users/me/My Data/servlo/workers/servlo-queue-alpha.sh"
 	unit := buildDarwinExecWorkerService(script, "always")
 	line := findLine(unit, "ExecStart=")
 	if line == "" {
@@ -43,12 +43,12 @@ func TestBuildDarwinExecWorkerService_ScriptPathSurvivesTheSplit(t *testing.T) {
 }
 
 func TestBuildDarwinExecWorkerGuardScript_WrapsPodmanExec(t *testing.T) {
-	pidFile := "/run/workers/lerd-queue-alpha.pid"
+	pidFile := "/run/workers/servlo-queue-alpha.pid"
 	podmanBin := "/opt/homebrew/bin/podman"
-	container := "lerd-php84-fpm"
+	container := "servlo-php84-fpm"
 	sitePath := "/Users/u/alpha"
 	workerCmd := "php artisan queue:work"
-	runCmd := "/opt/homebrew/bin/podman exec -w /Users/u/alpha lerd-php84-fpm php artisan queue:work"
+	runCmd := "/opt/homebrew/bin/podman exec -w /Users/u/alpha servlo-php84-fpm php artisan queue:work"
 
 	script := buildDarwinExecWorkerGuardScript(pidFile, podmanBin, container, sitePath, workerCmd, runCmd)
 
@@ -64,25 +64,25 @@ func TestBuildDarwinExecWorkerGuardScript_WrapsPodmanExec(t *testing.T) {
 
 func TestBuildDarwinContainerWorkerUnit_UsesFPMImage(t *testing.T) {
 	unit := buildDarwinContainerWorkerUnit(
-		"lerd-queue-alpha",     // unitName
-		"8.4",                  // phpVersion
-		"/Users/u/alpha",       // sitePath
-		"/Users/u/home",        // homeDir
-		"/lerd/php.conf",       // phpConfFile
-		"/lerd/php-user.ini",   // phpUserIniFile
-		"/lerd/php-shared.ini", // phpSharedIniFile
+		"servlo-queue-alpha",     // unitName
+		"8.4",                    // phpVersion
+		"/Users/u/alpha",         // sitePath
+		"/Users/u/home",          // homeDir
+		"/servlo/php.conf",       // phpConfFile
+		"/servlo/php-user.ini",   // phpUserIniFile
+		"/servlo/php-shared.ini", // phpSharedIniFile
 		"php artisan queue:work",
 		"always",
 		false, // custom container
 	)
 
 	for _, want := range []string{
-		"Image=lerd-php84-fpm:local",
-		"ContainerName=lerd-queue-alpha",
+		"Image=servlo-php84-fpm:local",
+		"ContainerName=servlo-queue-alpha",
 		"WorkingDir=/Users/u/alpha",
 		"Exec=php artisan queue:work",
 		"Restart=always",
-		"Volume=/lerd/php-shared.ini:/usr/local/etc/php/conf.d/95-lerd-shared.ini:ro",
+		"Volume=/servlo/php-shared.ini:/usr/local/etc/php/conf.d/95-servlo-shared.ini:ro",
 	} {
 		if !strings.Contains(unit, want) {
 			t.Errorf("container unit missing %q:\n%s", want, unit)
@@ -92,7 +92,7 @@ func TestBuildDarwinContainerWorkerUnit_UsesFPMImage(t *testing.T) {
 
 func TestBuildDarwinContainerWorkerUnit_CustomContainerUsesSiteImage(t *testing.T) {
 	unit := buildDarwinContainerWorkerUnit(
-		"lerd-custom-alpha",
+		"servlo-custom-alpha",
 		"",
 		"/Users/u/alpha",
 		"/Users/u/home",
@@ -101,21 +101,21 @@ func TestBuildDarwinContainerWorkerUnit_CustomContainerUsesSiteImage(t *testing.
 		"always",
 		true, // custom container = true, image comes from caller
 	)
-	if strings.Contains(unit, "lerd-php") {
+	if strings.Contains(unit, "servlo-php") {
 		t.Errorf("custom container unit should not reference a PHP FPM image:\n%s", unit)
 	}
 }
 
 func TestBuildDarwinHostWorkerService_PointsAtGuardScript(t *testing.T) {
-	unit := buildDarwinHostWorkerService("/run/workers/lerd-vite-alpha.sh", "always")
+	unit := buildDarwinHostWorkerService("/run/workers/servlo-vite-alpha.sh", "always")
 
-	if !strings.Contains(unit, "ExecStart=/bin/sh '/run/workers/lerd-vite-alpha.sh'") {
+	if !strings.Contains(unit, "ExecStart=/bin/sh '/run/workers/servlo-vite-alpha.sh'") {
 		t.Errorf("host worker service unit should /bin/sh the guard, got:\n%s", unit)
 	}
 	if !strings.Contains(unit, "Restart=always") {
 		t.Errorf("host worker service unit missing Restart=always")
 	}
-	if !strings.Contains(unit, "Description=Lerd Worker (host mode)") {
+	if !strings.Contains(unit, "Description=Servlo Worker (host mode)") {
 		t.Errorf("host worker service unit missing host-mode description")
 	}
 
@@ -127,8 +127,8 @@ func TestBuildDarwinHostWorkerService_PointsAtGuardScript(t *testing.T) {
 }
 
 func TestBuildDarwinHostWorkerGuardScript_WrapsFnmExec(t *testing.T) {
-	fnm := "/Users/u/.local/share/lerd/bin/fnm"
-	binDir := "/Users/u/.local/share/lerd/bin"
+	fnm := "/Users/u/.local/share/servlo/bin/fnm"
+	binDir := "/Users/u/.local/share/servlo/bin"
 	sitePath := "/Users/u/alpha"
 	command := "npm run dev"
 
@@ -140,7 +140,7 @@ func TestBuildDarwinHostWorkerGuardScript_WrapsFnmExec(t *testing.T) {
 	}
 	for _, want := range []string{
 		"cd '/Users/u/alpha'",
-		"'/Users/u/.local/share/lerd/bin/fnm' exec --using=22",
+		"'/Users/u/.local/share/servlo/bin/fnm' exec --using=22",
 		"-- /bin/sh -c 'npm run dev'",
 		"export PATH=",
 	} {
@@ -157,7 +157,7 @@ func TestBuildDarwinHostWorkerGuardScript_EscapesSingleQuotes(t *testing.T) {
 	// the sh -c string early and the rest of the command would parse
 	// as separate shell tokens.
 	script := buildDarwinHostWorkerGuardScript(
-		"'/bin/fnm' exec --using=22 --", "/Users/u/.local/share/lerd/bin", "/site",
+		"'/bin/fnm' exec --using=22 --", "/Users/u/.local/share/servlo/bin", "/site",
 		`node -e 'console.log("x")'`, "",
 	)
 	if !strings.Contains(script, `'"'"'console.log("x")'"'"'`) {
@@ -166,14 +166,14 @@ func TestBuildDarwinHostWorkerGuardScript_EscapesSingleQuotes(t *testing.T) {
 }
 
 // Vite's Inertia/Wayfinder plugin shells out to `php artisan` from inside
-// `npm run dev`. lerd's BinDir holds the php/composer/laravel shims, so
+// `npm run dev`. servlo's BinDir holds the php/composer/laravel shims, so
 // it must lead PATH for the subprocess to find them — issue #375.
-func TestBuildDarwinHostWorkerGuardScript_PrependsLerdBinDirToPath(t *testing.T) {
-	binDir := "/Users/u/.local/share/lerd/bin"
+func TestBuildDarwinHostWorkerGuardScript_PrependsServloBinDirToPath(t *testing.T) {
+	binDir := "/Users/u/.local/share/servlo/bin"
 	script := buildDarwinHostWorkerGuardScript("'/bin/fnm' exec --using=22 --", binDir, "/site", "npm run dev", "")
-	want := `export PATH="/Users/u/.local/share/lerd/bin:/opt/homebrew/bin:`
+	want := `export PATH="/Users/u/.local/share/servlo/bin:/opt/homebrew/bin:`
 	if !strings.Contains(script, want) {
-		t.Errorf("guard script must prepend lerd BinDir to PATH; got:\n%s", script)
+		t.Errorf("guard script must prepend servlo BinDir to PATH; got:\n%s", script)
 	}
 }
 
@@ -182,10 +182,10 @@ func TestBuildDarwinHostWorkerGuardScript_PrependsLerdBinDirToPath(t *testing.T)
 // PATH so npm resolves at launchd time — issue #1143.
 func TestBuildDarwinHostWorkerGuardScript_BakesResolvedNodeDirs(t *testing.T) {
 	script := buildDarwinHostWorkerGuardScript(
-		"", "/Users/u/.local/share/lerd/bin", "/site", "npm run dev",
+		"", "/Users/u/.local/share/servlo/bin", "/site", "npm run dev",
 		"/Users/u/.nvm/versions/node/v22.9.1/bin",
 	)
-	if !strings.Contains(script, `export PATH="/Users/u/.nvm/versions/node/v22.9.1/bin:/Users/u/.local/share/lerd/bin:`) {
+	if !strings.Contains(script, `export PATH="/Users/u/.nvm/versions/node/v22.9.1/bin:/Users/u/.local/share/servlo/bin:`) {
 		t.Errorf("guard script must lead PATH with the resolved node dir; got:\n%s", script)
 	}
 	if !strings.Contains(script, "exec /bin/sh -c 'npm run dev'") {
@@ -205,8 +205,8 @@ func findLine(body, prefix string) string {
 func TestWorkerBuilders_ForceColour(t *testing.T) {
 	t.Setenv("NO_COLOR", "") // the assertions below are the colour-on path
 	unit := buildDarwinContainerWorkerUnit(
-		"lerd-queue-alpha", "8.4", "/Users/u/alpha", "/Users/u/home",
-		"/lerd/php.conf", "/lerd/php-user.ini", "/lerd/php-shared.ini",
+		"servlo-queue-alpha", "8.4", "/Users/u/alpha", "/Users/u/home",
+		"/servlo/php.conf", "/servlo/php-user.ini", "/servlo/php-shared.ini",
 		"php artisan queue:work", "always", false,
 	)
 	if !strings.Contains(unit, `Environment="FORCE_COLOR=1"`) {
@@ -214,23 +214,23 @@ func TestWorkerBuilders_ForceColour(t *testing.T) {
 	}
 
 	custom := buildDarwinContainerWorkerUnit(
-		"lerd-custom-alpha", "", "/Users/u/alpha", "/Users/u/home",
+		"servlo-custom-alpha", "", "/Users/u/alpha", "/Users/u/home",
 		"", "", "", "node worker.js", "always", true,
 	)
 	if !strings.Contains(custom, `Environment="FORCE_COLOR=1"`) {
 		t.Errorf("custom container worker unit should force colour:\n%s", custom)
 	}
 
-	guard := buildDarwinHostWorkerGuardScript("'/bin/fnm' exec --using=22 --", "/lerd/bin", "/site", "npm run dev", "")
+	guard := buildDarwinHostWorkerGuardScript("'/bin/fnm' exec --using=22 --", "/servlo/bin", "/site", "npm run dev", "")
 	if !strings.Contains(guard, "export FORCE_COLOR=1") {
 		t.Errorf("host worker guard should export the colour vars:\n%s", guard)
 	}
 
-	exec := buildWorkerExecCommand("/usr/bin/podman", "/site", "lerd-php84-fpm", "php artisan queue:work", nil)
+	exec := buildWorkerExecCommand("/usr/bin/podman", "/site", "servlo-php84-fpm", "php artisan queue:work", nil)
 	if !strings.Contains(exec, "--env=FORCE_COLOR=1") {
 		t.Errorf("exec worker command should pass the colour vars:\n%s", exec)
 	}
-	if !strings.HasSuffix(exec, "lerd-php84-fpm php artisan queue:work") {
+	if !strings.HasSuffix(exec, "servlo-php84-fpm php artisan queue:work") {
 		t.Errorf("exec worker command should end with container and command:\n%s", exec)
 	}
 }
@@ -238,23 +238,23 @@ func TestWorkerBuilders_ForceColour(t *testing.T) {
 // The worker's own env has to land before the container name, or podman reads
 // it as part of the command instead of as a flag.
 func TestBuildWorkerExecCommand_EnvArgsPrecedeContainer(t *testing.T) {
-	exec := buildWorkerExecCommand("/usr/bin/podman", "/site", "lerd-php84-fpm", "php artisan queue:work",
+	exec := buildWorkerExecCommand("/usr/bin/podman", "/site", "servlo-php84-fpm", "php artisan queue:work",
 		[]string{"--env=CHOKIDAR_INTERVAL=2000"})
 
 	if !strings.Contains(exec, "--env=CHOKIDAR_INTERVAL=2000") {
 		t.Fatalf("exec worker command should carry the env args:\n%s", exec)
 	}
-	if strings.Index(exec, "--env=CHOKIDAR_INTERVAL=2000") > strings.Index(exec, "lerd-php84-fpm") {
+	if strings.Index(exec, "--env=CHOKIDAR_INTERVAL=2000") > strings.Index(exec, "servlo-php84-fpm") {
 		t.Errorf("env args must come before the container name:\n%s", exec)
 	}
-	if !strings.HasSuffix(exec, "lerd-php84-fpm php artisan queue:work") {
+	if !strings.HasSuffix(exec, "servlo-php84-fpm php artisan queue:work") {
 		t.Errorf("exec worker command should end with container and command:\n%s", exec)
 	}
 }
 
 func TestWorkerBuilders_RespectNoColor(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
-	guard := buildDarwinHostWorkerGuardScript("'/bin/fnm' exec --using=22 --", "/lerd/bin", "/site", "npm run dev", "")
+	guard := buildDarwinHostWorkerGuardScript("'/bin/fnm' exec --using=22 --", "/servlo/bin", "/site", "npm run dev", "")
 	if strings.Contains(guard, "FORCE_COLOR") {
 		t.Errorf("NO_COLOR should suppress the colour exports:\n%s", guard)
 	}

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestPersistPHPVersion_NestedWorktreePinsTheWorktree covers switching version from
@@ -38,7 +38,7 @@ func TestPersistPHPVersion_NestedWorktreePinsTheWorktree(t *testing.T) {
 
 // TestPersistPHPVersion_SiblingWorktreePinsTheWorktree covers the same switch from a
 // worktree checked out beside its project. It matches no registered site, so the pin
-// file already landed here, but only the .lerd.yaml override actually takes effect.
+// file already landed here, but only the .servlo.yaml override actually takes effect.
 func TestPersistPHPVersion_SiblingWorktreePinsTheWorktree(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)

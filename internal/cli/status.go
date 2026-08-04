@@ -9,15 +9,15 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/feedback"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
-	"github.com/geodro/lerd/internal/tools"
-	lerdUpdate "github.com/geodro/lerd/internal/update"
-	"github.com/geodro/lerd/internal/version"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
+	"github.com/realrashid/servlo/internal/tools"
+	servloUpdate "github.com/realrashid/servlo/internal/update"
+	"github.com/realrashid/servlo/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -53,7 +53,7 @@ func warn2(label, msg string) {
 func NewStatusCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
-		Short: "Show overall Lerd health status",
+		Short: "Show overall Servlo health status",
 		RunE:  runStatus,
 	}
 }
@@ -64,7 +64,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	fmt.Println("Lerd Status")
+	fmt.Println("Servlo Status")
 	fmt.Println("═══════════════════════════════════════")
 
 	// DNS check
@@ -77,7 +77,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 			ok2(fmt.Sprintf(".%s resolution", cfg.DNS.TLD))
 		case dns.StatusDegraded:
 			warn2(fmt.Sprintf(".%s resolution", cfg.DNS.TLD),
-				"lerd-dns healthy, system resolver bypassed (VPN?)")
+				"servlo-dns healthy, system resolver bypassed (VPN?)")
 		default:
 			fail2(fmt.Sprintf(".%s resolution", cfg.DNS.TLD),
 				"not resolving",
@@ -87,20 +87,20 @@ func runStatus(_ *cobra.Command, _ []string) error {
 
 	// Nginx
 	fmt.Println("\n[Nginx]")
-	running, _ := podman.ContainerRunning("lerd-nginx")
+	running, _ := podman.ContainerRunning("servlo-nginx")
 	if running {
-		ok2("lerd-nginx container")
+		ok2("servlo-nginx container")
 	} else {
-		fail2("lerd-nginx container",
+		fail2("servlo-nginx container",
 			"not running",
-			serviceStatusHint("lerd-nginx"))
+			serviceStatusHint("servlo-nginx"))
 	}
 
 	// PHP FPM
 	fmt.Println("\n[PHP FPM]")
 	versions, _ := phpPkg.ListInstalled()
 	if len(versions) == 0 {
-		warn2("PHP versions", "none installed — run: lerd use 8.4")
+		warn2("PHP versions", "none installed — run: servlo use 8.4")
 	}
 	for _, v := range versions {
 		short := ""
@@ -109,12 +109,12 @@ func runStatus(_ *cobra.Command, _ []string) error {
 				short += string(c)
 			}
 		}
-		image := "lerd-php" + short + "-fpm:local"
-		containerName := "lerd-php" + short + "-fpm"
+		image := "servlo-php" + short + "-fpm:local"
+		containerName := "servlo-php" + short + "-fpm"
 		if err := podman.RunSilent("image", "exists", image); err != nil {
 			fail2("PHP "+v+" FPM",
 				"image missing",
-				"lerd php:rebuild "+v)
+				"servlo php:rebuild "+v)
 			continue
 		}
 		running, _ := podman.ContainerRunning(containerName)
@@ -142,13 +142,13 @@ func runStatus(_ *cobra.Command, _ []string) error {
 
 	// Watcher
 	fmt.Println("\n[Watcher]")
-	if services.Mgr.IsActive("lerd-watcher") {
-		ok2("lerd-watcher")
+	if services.Mgr.IsActive("servlo-watcher") {
+		ok2("servlo-watcher")
 	} else {
-		fail2("lerd-watcher", "not running", serviceStartHint("lerd-watcher"))
+		fail2("servlo-watcher", "not running", serviceStartHint("servlo-watcher"))
 	}
 
-	// Tools — the host binaries lerd manages, against their pinned versions.
+	// Tools — the host binaries servlo manages, against their pinned versions.
 	fmt.Println("\n[Tools]")
 	for _, s := range tools.StatusAll(context.Background()) {
 		if s.Name == "fnm" && cfg.NodeManager() == "nvm" {
@@ -156,11 +156,11 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		}
 		switch {
 		case !s.Present:
-			warn2(s.Name, "not installed — run: lerd install")
+			warn2(s.Name, "not installed — run: servlo install")
 		case s.UpdateAvailable:
-			warn2(s.Name+" "+s.Installed, s.Pinned+" available — run: lerd tools:update")
+			warn2(s.Name+" "+s.Installed, s.Pinned+" available — run: servlo tools:update")
 		case s.Installed == "":
-			warn2(s.Name, "version unknown — refresh with: lerd tools:update")
+			warn2(s.Name, "version unknown — refresh with: servlo tools:update")
 		default:
 			ok2(s.Name + " " + s.Installed)
 		}
@@ -170,7 +170,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 	fmt.Println("\n[Services]")
 	installedCount := 0
 	for _, svc := range knownServices() {
-		unit := "lerd-" + svc
+		unit := "servlo-" + svc
 		if !services.Mgr.ContainerUnitInstalled(unit) {
 			continue
 		}
@@ -187,7 +187,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 			if config.CountSitesUsingService(svc) == 0 {
 				warn2(label, "no sites using this service")
 			} else {
-				warn2(label, "inactive — start with: lerd service start "+svc)
+				warn2(label, "inactive — start with: servlo service start "+svc)
 			}
 		default:
 			fail2(label, status, serviceStatusHint(unit))
@@ -195,7 +195,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 	}
 	customs, _ := config.ListCustomServices()
 	for _, svc := range customs {
-		unit := "lerd-" + svc.Name
+		unit := "servlo-" + svc.Name
 		if !services.Mgr.ContainerUnitInstalled(unit) {
 			continue
 		}
@@ -217,14 +217,14 @@ func runStatus(_ *cobra.Command, _ []string) error {
 			if config.CountSitesUsingService(svc.Name) == 0 {
 				warn2(label, "no sites using this service")
 			} else {
-				warn2(label, "inactive — start with: lerd service start "+svc.Name)
+				warn2(label, "inactive — start with: servlo service start "+svc.Name)
 			}
 		default:
 			fail2(label, status, serviceStatusHint(unit))
 		}
 	}
 	if installedCount == 0 {
-		fmt.Println("  No services installed. Start one with: lerd service start <name>")
+		fmt.Println("  No services installed. Start one with: servlo service start <name>")
 	}
 
 	// Workers
@@ -240,7 +240,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 				}
 				// Check built-in worker types.
 				for _, w := range []string{"queue", "schedule", "reverb", "horizon"} {
-					unit := "lerd-" + w + "-" + s.Name
+					unit := "servlo-" + w + "-" + s.Name
 					if siteWorkerIdleSuspended(s, w) {
 						paused2(fmt.Sprintf("%s/%s", s.Name, w))
 						hasWorkers = true
@@ -271,7 +271,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 						if wDef.Check != nil && !config.MatchesRule(s.Path, *wDef.Check) {
 							continue
 						}
-						unit := "lerd-" + wName + "-" + s.Name
+						unit := "servlo-" + wName + "-" + s.Name
 						if siteWorkerIdleSuspended(s, wName) {
 							paused2(fmt.Sprintf("%s/%s", s.Name, wName))
 							hasWorkers = true
@@ -296,7 +296,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 				if siteWorkerIdleSuspended(s, "stripe") {
 					paused2(fmt.Sprintf("%s/stripe", s.Name))
 					hasWorkers = true
-				} else if stripeStatus, _ := podman.UnitStatus("lerd-stripe-" + s.Name); stripeStatus == "active" {
+				} else if stripeStatus, _ := podman.UnitStatus("servlo-stripe-" + s.Name); stripeStatus == "active" {
 					ok2(fmt.Sprintf("%s/stripe", s.Name))
 					hasWorkers = true
 				} else if stripeStatus == "failed" || stripeStatus == "activating" {
@@ -304,7 +304,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 					if stripeStatus == "activating" {
 						warn2(label, "restarting")
 					} else {
-						fail2(label, "failed", unitLogHint("lerd-stripe-"+s.Name))
+						fail2(label, "failed", unitLogHint("servlo-stripe-"+s.Name))
 						failedCount++
 					}
 					hasWorkers = true
@@ -318,7 +318,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 			// surfaces the recovery primitive once instead of N times.
 			if failedCount > 0 {
 				fmt.Printf("\n  %d failed worker(s). Reset and restart with: %s\n",
-					failedCount, feedback.Amber("lerd worker heal"))
+					failedCount, feedback.Amber("servlo worker heal"))
 			}
 		}
 	}
@@ -335,7 +335,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 			hasSecured = true
 			certPath := filepath.Join(config.CertsDir(), "sites", s.PrimaryDomain()+".crt")
 			if exp, err := certExpiry(certPath); err != nil {
-				fail2(s.PrimaryDomain(), "cannot read cert", "run: lerd secure "+s.PrimaryDomain())
+				fail2(s.PrimaryDomain(), "cannot read cert", "run: servlo secure "+s.PrimaryDomain())
 			} else {
 				remaining := time.Until(exp)
 				days := int(remaining.Hours() / 24)
@@ -357,7 +357,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 	printRemoteAccessStatus(cfg, lanIP)
 
 	// Update notice
-	if info, _ := lerdUpdate.CachedUpdateCheck(version.Version); info != nil {
+	if info, _ := servloUpdate.CachedUpdateCheck(version.Version); info != nil {
 		printUpdateNotice(info)
 	}
 
@@ -365,7 +365,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// printRemoteAccessStatus renders the [Remote Access] section of `lerd status`.
+// printRemoteAccessStatus renders the [Remote Access] section of `servlo status`.
 // Split out from runStatus so it can be tested without mocking podman/DNS/sites.
 // lanIP may be empty — the caller is responsible for detection so tests can
 // inject a deterministic value.
@@ -377,7 +377,7 @@ func printRemoteAccessStatus(cfg *config.GlobalConfig, lanIP string) {
 		}
 		ok2(fmt.Sprintf("LAN exposure (%s)", ip))
 	} else {
-		warn2("LAN exposure", "loopback only — enable with: lerd lan expose")
+		warn2("LAN exposure", "loopback only — enable with: servlo lan expose")
 	}
 	switch {
 	case cfg.LAN.ServicesExposed && cfg.LAN.Exposed:
@@ -390,17 +390,17 @@ func printRemoteAccessStatus(cfg *config.GlobalConfig, lanIP string) {
 	if cfg.UI.PasswordHash != "" {
 		ok2(fmt.Sprintf("Dashboard remote access (user: %s)", cfg.UI.Username))
 	} else {
-		warn2("Dashboard remote access", "LAN clients get 403 — enable with: lerd remote-control on")
+		warn2("Dashboard remote access", "LAN clients get 403 — enable with: servlo remote-control on")
 	}
 }
 
-// printUpdateNotice prints a highlighted banner when a new lerd version is available.
-func printUpdateNotice(info *lerdUpdate.UpdateInfo) {
+// printUpdateNotice prints a highlighted banner when a new servlo version is available.
+func printUpdateNotice(info *servloUpdate.UpdateInfo) {
 	bar := "══════════════════════════════════════════════"
 	fmt.Println()
 	fmt.Println(feedback.Amber(bar))
-	fmt.Println(feedback.Amber("  Update available: " + info.LatestVersion + "  →  run: lerd update"))
-	fmt.Println(feedback.Amber("  Run lerd whatsnew to see what changed."))
+	fmt.Println(feedback.Amber("  Update available: " + info.LatestVersion + "  →  run: servlo update"))
+	fmt.Println(feedback.Amber("  Run servlo whatsnew to see what changed."))
 	fmt.Println(feedback.Amber(bar))
 }
 

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // fakeUnitLifecycle records which unit was restarted.
@@ -40,8 +40,8 @@ func TestRestartSite_CustomContainer(t *testing.T) {
 	if err := RestartSite("nestapp"); err != nil {
 		t.Fatalf("RestartSite: %v", err)
 	}
-	if fake.restartedUnit != "lerd-custom-nestapp" {
-		t.Errorf("restarted unit = %q, want lerd-custom-nestapp", fake.restartedUnit)
+	if fake.restartedUnit != "servlo-custom-nestapp" {
+		t.Errorf("restarted unit = %q, want servlo-custom-nestapp", fake.restartedUnit)
 	}
 }
 
@@ -67,8 +67,8 @@ func TestRestartSite_PHPSite(t *testing.T) {
 	if err := RestartSite("phpapp"); err != nil {
 		t.Fatalf("RestartSite: %v", err)
 	}
-	if fake.restartedUnit != "lerd-php84-fpm" {
-		t.Errorf("restarted unit = %q, want lerd-php84-fpm", fake.restartedUnit)
+	if fake.restartedUnit != "servlo-php84-fpm" {
+		t.Errorf("restarted unit = %q, want servlo-php84-fpm", fake.restartedUnit)
 	}
 }
 
@@ -167,7 +167,7 @@ func TestRestartSite_HostProxyWaitsForPortRelease(t *testing.T) {
 	if err := RestartSite("nuxtapp"); err != nil {
 		t.Fatalf("RestartSite: %v", err)
 	}
-	want := []string{"stop lerd-app-nuxtapp", "start lerd-app-nuxtapp"}
+	want := []string{"stop servlo-app-nuxtapp", "start servlo-app-nuxtapp"}
 	if len(fake.ops) != len(want) || fake.ops[0] != want[0] || fake.ops[1] != want[1] {
 		t.Fatalf("ops = %v, want %v", fake.ops, want)
 	}
@@ -197,7 +197,7 @@ func TestRestartSite_HostProxyStartsWhenPortNeverFrees(t *testing.T) {
 	if err := RestartSite("stuckapp"); err != nil {
 		t.Fatalf("RestartSite: %v", err)
 	}
-	want := []string{"stop lerd-app-stuckapp", "start lerd-app-stuckapp"}
+	want := []string{"stop servlo-app-stuckapp", "start servlo-app-stuckapp"}
 	if len(fake.ops) != len(want) || fake.ops[0] != want[0] || fake.ops[1] != want[1] {
 		t.Fatalf("ops = %v, want %v", fake.ops, want)
 	}
@@ -223,7 +223,7 @@ func TestRestartDevServerHonoursItsWait(t *testing.T) {
 	defer func() { devServerPortInUse, hostProxyStopPoll = prevProbe, prevPoll }()
 
 	start := time.Now()
-	if err := restartDevServer("lerd-app-rebound", 5173, 20*time.Millisecond); err != nil {
+	if err := restartDevServer("servlo-app-rebound", 5173, 20*time.Millisecond); err != nil {
 		t.Fatalf("restartDevServer: %v", err)
 	}
 	if elapsed := time.Since(start); elapsed > time.Second {
@@ -236,7 +236,7 @@ func TestRestartSite_NotFound(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	// Write an empty sites.yaml so FindSite returns not found.
-	dir := filepath.Join(tmp, "lerd")
+	dir := filepath.Join(tmp, "servlo")
 	os.MkdirAll(dir, 0755)
 	os.WriteFile(filepath.Join(dir, "sites.yaml"), []byte("sites: []\n"), 0644)
 

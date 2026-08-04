@@ -15,15 +15,15 @@ func TestGenerateCustomContainerQuadlet(t *testing.T) {
 		label    string
 		contains string
 	}{
-		{"image", "Image=lerd-custom-nestapp:local"},
-		{"container name", "ContainerName=lerd-custom-nestapp"},
-		{"network", "Network=lerd"},
+		{"image", "Image=servlo-custom-nestapp:local"},
+		{"container name", "ContainerName=servlo-custom-nestapp"},
+		{"network", "Network=servlo"},
 		{"project volume", "Volume=/home/user/projects/nestapp:/home/user/projects/nestapp:rw"},
 		{"hosts volume", "/etc/hosts:ro,z"},
 		{"security opt", "--security-opt=label=disable"},
 		{"workdir", "--workdir=/home/user/projects/nestapp"},
 		{"restart", "Restart=always"},
-		{"description", "Description=Lerd custom container (nestapp)"},
+		{"description", "Description=Servlo custom container (nestapp)"},
 		{"install", "WantedBy=default.target"},
 	}
 
@@ -40,10 +40,10 @@ func TestGenerateCustomContainerQuadlet_DifferentSite(t *testing.T) {
 		t.Fatalf("GenerateCustomContainerQuadlet: %v", err)
 	}
 
-	if !strings.Contains(content, "Image=lerd-custom-goapp:local") {
+	if !strings.Contains(content, "Image=servlo-custom-goapp:local") {
 		t.Error("wrong image name")
 	}
-	if !strings.Contains(content, "ContainerName=lerd-custom-goapp") {
+	if !strings.Contains(content, "ContainerName=servlo-custom-goapp") {
 		t.Error("wrong container name")
 	}
 	if !strings.Contains(content, "Volume=/var/www/goapp:/var/www/goapp:rw") {

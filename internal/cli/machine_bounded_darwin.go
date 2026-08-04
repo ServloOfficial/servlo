@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // A podman machine subcommand blocks forever when the VM is wedged (post-sleep

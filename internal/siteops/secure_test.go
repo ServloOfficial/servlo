@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 type secureStubs struct {

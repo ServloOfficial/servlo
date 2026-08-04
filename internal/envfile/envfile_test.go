@@ -367,23 +367,23 @@ func TestReferencesContainer(t *testing.T) {
 		service string
 		want    bool
 	}{
-		{"bare host match", "DB_HOST=lerd-postgres\n", "postgres", true},
-		{"host with port", "DB_HOST=lerd-postgres:5432\n", "postgres", true},
-		{"host in url", "DB_URL=pgsql://u@lerd-postgres:5432/app\n", "postgres", true},
-		{"bare not matched by versioned ref", "DB_HOST=lerd-postgres-18\n", "postgres", false},
-		{"versioned matches itself", "DB_HOST=lerd-postgres-18\n", "postgres-18", true},
-		{"versioned with port", "DB_HOST=lerd-postgres-18:5432\n", "postgres-18", true},
-		{"bare not matched by suffix alternate", "DB_HOST=lerd-postgres-pgvector\n", "postgres", false},
-		{"family alternate not matched by mismatch", "DB_HOST=lerd-mysql-5-7\n", "mysql", false},
-		{"family alternate matches itself", "DB_HOST=lerd-mysql-5-7\n", "mysql-5-7", true},
+		{"bare host match", "DB_HOST=servlo-postgres\n", "postgres", true},
+		{"host with port", "DB_HOST=servlo-postgres:5432\n", "postgres", true},
+		{"host in url", "DB_URL=pgsql://u@servlo-postgres:5432/app\n", "postgres", true},
+		{"bare not matched by versioned ref", "DB_HOST=servlo-postgres-18\n", "postgres", false},
+		{"versioned matches itself", "DB_HOST=servlo-postgres-18\n", "postgres-18", true},
+		{"versioned with port", "DB_HOST=servlo-postgres-18:5432\n", "postgres-18", true},
+		{"bare not matched by suffix alternate", "DB_HOST=servlo-postgres-pgvector\n", "postgres", false},
+		{"family alternate not matched by mismatch", "DB_HOST=servlo-mysql-5-7\n", "mysql", false},
+		{"family alternate matches itself", "DB_HOST=servlo-mysql-5-7\n", "mysql-5-7", true},
 		{"no reference", "DB_HOST=127.0.0.1\n", "postgres", false},
-		{"match at EOF no newline", "DB_HOST=lerd-redis", "redis", true},
-		{"commented reference ignored", "#DB_HOST=lerd-mysql\nDB_HOST=lerd-mariadb-10-11\n", "mysql", false},
-		{"indented comment ignored", "  # DB_HOST=lerd-mysql\n", "mysql", false},
-		{"active wins over commented", "#DB_HOST=lerd-mysql\nDB_HOST=lerd-mysql\n", "mysql", true},
-		{"inline comment ignored", "DB_HOST=lerd-mariadb # was lerd-mysql\n", "mysql", false},
-		{"live token before inline comment matches", "DB_HOST=lerd-mysql # note\n", "mysql", true},
-		{"hash without leading space is not a comment", "DB_HOST=lerd-mysql#x\n", "mysql", true},
+		{"match at EOF no newline", "DB_HOST=servlo-redis", "redis", true},
+		{"commented reference ignored", "#DB_HOST=servlo-mysql\nDB_HOST=servlo-mariadb-10-11\n", "mysql", false},
+		{"indented comment ignored", "  # DB_HOST=servlo-mysql\n", "mysql", false},
+		{"active wins over commented", "#DB_HOST=servlo-mysql\nDB_HOST=servlo-mysql\n", "mysql", true},
+		{"inline comment ignored", "DB_HOST=servlo-mariadb # was servlo-mysql\n", "mysql", false},
+		{"live token before inline comment matches", "DB_HOST=servlo-mysql # note\n", "mysql", true},
+		{"hash without leading space is not a comment", "DB_HOST=servlo-mysql#x\n", "mysql", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -397,10 +397,10 @@ func TestReferencesContainer(t *testing.T) {
 // ── ReadValues ───────────────────────────────────────────────────────────────
 
 func TestReadValues_parsesUnquotesSkipsComments(t *testing.T) {
-	f := writeEnv(t, "# comment\nDB_HOST=lerd-postgres\nDB_PORT=\"5432\"\nEMPTY=\nbroken line\n")
+	f := writeEnv(t, "# comment\nDB_HOST=servlo-postgres\nDB_PORT=\"5432\"\nEMPTY=\nbroken line\n")
 	got := ReadValues(f)
-	if got["DB_HOST"] != "lerd-postgres" {
-		t.Errorf("DB_HOST = %q, want lerd-postgres", got["DB_HOST"])
+	if got["DB_HOST"] != "servlo-postgres" {
+		t.Errorf("DB_HOST = %q, want servlo-postgres", got["DB_HOST"])
 	}
 	if got["DB_PORT"] != "5432" {
 		t.Errorf("DB_PORT = %q, want 5432 (quotes stripped)", got["DB_PORT"])

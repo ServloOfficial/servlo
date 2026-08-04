@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
 // A non-fatal daemon-reload warning must be emitted after the step completes,

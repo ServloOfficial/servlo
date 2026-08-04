@@ -1,6 +1,6 @@
 package config
 
-import "github.com/geodro/lerd/internal/presetfixtures"
+import "github.com/realrashid/servlo/internal/presetfixtures"
 
 // Add-ons ship in the external store, not the binary. Tests resolve them through
 // the seam's extra layer so mechanism and functionality coverage (dependencies,

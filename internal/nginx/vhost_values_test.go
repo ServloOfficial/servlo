@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // nginx is whitespace insensitive, so a value only needs a `;` and braces to
 // close the directive it lands in and open a server block of its own. A
-// project's .lerd.yaml supplies the domains, the public dir and the path, so
+// project's .servlo.yaml supplies the domains, the public dir and the path, so
 // none of them may carry those characters into a generated vhost.
 const nginxPayload = `x; } server { listen 80; server_name pwn.test; root /etc; autoindex on; }`
 

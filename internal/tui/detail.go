@@ -8,8 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // workerVisual is the single source for how a worker's live state renders: its
@@ -37,7 +37,7 @@ func workerVisual(failing, unreachable, running, suspended bool) (style lipgloss
 // Informational rows use kindInfo and are skipped by cursor navigation.
 type detailRow struct {
 	kind detailKind
-	// Worker kind: logical name used for `lerd queue/schedule/worker start`.
+	// Worker kind: logical name used for `servlo queue/schedule/worker start`.
 	workerName string
 	// Domain kind: the full domain (including the TLD) this row represents.
 	domain string
@@ -131,7 +131,7 @@ func detailRows(s *siteinfo.EnrichedSite) []detailRow {
 	return rows
 }
 
-// siteHasManagedDB reports whether the site uses a lerd-managed database
+// siteHasManagedDB reports whether the site uses a servlo-managed database
 // service that supports per-worktree isolation. Mirrors the gate the
 // dashboard uses to render the Isolated DB toggle.
 func siteHasManagedDB(s *siteinfo.EnrichedSite) bool {
@@ -184,17 +184,17 @@ func (m *Model) detailToggleSelected(s *siteinfo.EnrichedSite, rows []detailRow,
 	case kindHTTPS:
 		if s.Secured {
 			m.setStatus("disabling HTTPS for "+s.Name+"…", 5*time.Second)
-			return runLerd(s.Path, "unsecure", s.Name)
+			return runServlo(s.Path, "unsecure", s.Name)
 		}
 		m.setStatus("enabling HTTPS for "+s.Name+"…", 5*time.Second)
-		return runLerd(s.Path, "secure", s.Name)
+		return runServlo(s.Path, "secure", s.Name)
 	case kindLANShare:
 		if s.LANPort > 0 {
 			m.setStatus("stopping LAN share for "+s.Name+"…", 5*time.Second)
-			return runLerd(s.Path, "lan", "unshare")
+			return runServlo(s.Path, "lan", "unshare")
 		}
 		m.setStatus("starting LAN share for "+s.Name+"…", 5*time.Second)
-		return runLerd(s.Path, "lan", "share")
+		return runServlo(s.Path, "lan", "share")
 	case kindPHP:
 		m.openPHPPicker(s)
 		return nil
@@ -230,10 +230,10 @@ func (m *Model) toggleWorktreeLAN(s *siteinfo.EnrichedSite, row detailRow) tea.C
 	}
 	if wt.LANPort > 0 {
 		m.setStatus("stopping LAN share on "+row.branch+"…", 5*time.Second)
-		return runLerd(row.branchPath, "lan", "unshare")
+		return runServlo(row.branchPath, "lan", "unshare")
 	}
 	m.setStatus("starting LAN share on "+row.branch+"…", 5*time.Second)
-	return runLerd(row.branchPath, "lan", "share")
+	return runServlo(row.branchPath, "lan", "share")
 }
 
 func (m *Model) toggleWorktreeWorker(s *siteinfo.EnrichedSite, row detailRow) tea.Cmd {
@@ -247,7 +247,7 @@ func (m *Model) toggleWorktreeWorker(s *siteinfo.EnrichedSite, row detailRow) te
 		verb = "stop"
 	}
 	m.setStatus(verb+"ing "+row.workerName+" on "+row.branch+"…", 5*time.Second)
-	return runLerd(row.branchPath, "worker", verb, row.workerName)
+	return runServlo(row.branchPath, "worker", verb, row.workerName)
 }
 
 func (m *Model) toggleWorktreeDB(s *siteinfo.EnrichedSite, row detailRow) tea.Cmd {
@@ -257,10 +257,10 @@ func (m *Model) toggleWorktreeDB(s *siteinfo.EnrichedSite, row detailRow) tea.Cm
 	}
 	if wt.DBIsolated {
 		m.setStatus("sharing parent DB on "+row.branch+"…", 5*time.Second)
-		return runLerd(row.branchPath, "db:share")
+		return runServlo(row.branchPath, "db:share")
 	}
 	m.setStatus("isolating DB on "+row.branch+"…", 5*time.Second)
-	return runLerd(row.branchPath, "db:isolate")
+	return runServlo(row.branchPath, "db:isolate")
 }
 
 func worktreeWorkerRunning(wt *siteinfo.WorktreeInfo, name string) bool {
@@ -318,7 +318,7 @@ func worktreeWorkerLabel(wt *siteinfo.WorktreeInfo, name string) string {
 	return name
 }
 
-// removeFocusedDomain gates `lerd domain remove <name>` behind a confirm
+// removeFocusedDomain gates `servlo domain remove <name>` behind a confirm
 // modal so a stray `x` keypress doesn't silently destroy a working alias.
 // Returns handled=true once the prompt opens; the actual command fires
 // later from handleConfirmKey when the user presses y.
@@ -346,13 +346,13 @@ func (m *Model) removeFocusedDomain() (handled bool, cmd tea.Cmd) {
 	m.openConfirm(
 		"Remove domain",
 		"Remove "+full+" from "+siteName+"?\nThis unregisters the alias from nginx and dnsmasq immediately.",
-		runLerd(sitePath, "domain", "remove", short),
+		runServlo(sitePath, "domain", "remove", short),
 	)
 	return true, nil
 }
 
 // trimTLD strips the configured TLD suffix from a full domain so the short
-// form is what `lerd domain add/remove` expects. Falls back to stripping
+// form is what `servlo domain add/remove` expects. Falls back to stripping
 // the last dotted component if the config can't be read.
 func trimTLD(full string) string {
 	cfg, _ := config.LoadGlobal()
@@ -387,15 +387,15 @@ func (m *Model) toggleWorker(s *siteinfo.EnrichedSite, name string) tea.Cmd {
 	m.setStatus(verb+"ing "+name+" worker for "+s.Name+"…", 5*time.Second)
 	switch name {
 	case "queue":
-		return runLerd(s.Path, "queue", verb)
+		return runServlo(s.Path, "queue", verb)
 	case "schedule":
-		return runLerd(s.Path, "schedule", verb)
+		return runServlo(s.Path, "schedule", verb)
 	case "horizon":
-		return runLerd(s.Path, "horizon", verb)
+		return runServlo(s.Path, "horizon", verb)
 	case "reverb":
-		return runLerd(s.Path, "reverb", verb)
+		return runServlo(s.Path, "reverb", verb)
 	default:
-		return runLerd(s.Path, "worker", verb, name)
+		return runServlo(s.Path, "worker", verb, name)
 	}
 }
 
@@ -943,7 +943,7 @@ func worktreeDBStateText(wt siteinfo.WorktreeInfo) string {
 
 // worktreeVersionText shows the effective PHP/Node version with an
 // "(inherited)" hint when the value comes from the parent rather than a
-// .lerd.yaml override on the worktree.
+// .servlo.yaml override on the worktree.
 func worktreeVersionText(version string, override bool) string {
 	if version == "" {
 		return dimStyle.Render("not set")

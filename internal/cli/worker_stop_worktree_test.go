@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // stopTrackingMgr extends fakeServiceMgr with call tracking for the stop /
@@ -40,7 +40,7 @@ func (s *stopTrackingMgr) ListServiceUnits(pattern string) []string {
 	if out, ok := s.listResults[pattern]; ok {
 		return out
 	}
-	// Allow callers to register a single canonical glob. If lerd ever
+	// Allow callers to register a single canonical glob. If servlo ever
 	// passes a different pattern we'd fail to match, surfacing a real bug
 	// rather than silently returning empty.
 	for _, v := range s.listResults {
@@ -55,7 +55,7 @@ func registerSite(t *testing.T, name, path string) {
 	t.Helper()
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
-	dir := filepath.Join(tmp, "lerd")
+	dir := filepath.Join(tmp, "servlo")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -80,8 +80,8 @@ func registerSite(t *testing.T, name, path string) {
 func TestWorkerUnitName_parentPath(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
 	got := WorkerUnitName("ws", "/p/ws", "vite")
-	if got != "lerd-vite-ws" {
-		t.Errorf("got %q, want %q", got, "lerd-vite-ws")
+	if got != "servlo-vite-ws" {
+		t.Errorf("got %q, want %q", got, "servlo-vite-ws")
 	}
 }
 
@@ -90,8 +90,8 @@ func TestWorkerUnitName_parentPath(t *testing.T) {
 func TestWorkerUnitName_worktreePath(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
 	got := WorkerUnitName("ws", "/p/ws/feat-x", "vite")
-	if got != "lerd-vite-ws-feat-x" {
-		t.Errorf("got %q, want %q", got, "lerd-vite-ws-feat-x")
+	if got != "servlo-vite-ws-feat-x" {
+		t.Errorf("got %q, want %q", got, "servlo-vite-ws-feat-x")
 	}
 }
 
@@ -100,23 +100,23 @@ func TestWorkerUnitName_worktreePath(t *testing.T) {
 func TestWorkerUnitName_emptyPath(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
 	got := WorkerUnitName("ws", "", "vite")
-	if got != "lerd-vite-ws" {
-		t.Errorf("got %q, want %q", got, "lerd-vite-ws")
+	if got != "servlo-vite-ws" {
+		t.Errorf("got %q, want %q", got, "servlo-vite-ws")
 	}
 }
 
 // TestStopAllWorkersForWorktree pins that every per-worktree unit attached
 // to the given (site, worktree) pair is disabled and its unit file removed,
 // while parent-site units and other-worktree units are left alone. This is
-// the regression that #319 left behind: lerd worktree remove never stopped
+// the regression that #319 left behind: servlo worktree remove never stopped
 // these units, so they restart-looped against a deleted WorkingDirectory.
 func TestStopAllWorkersForWorktree(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
 	fake := &stopTrackingMgr{
 		listResults: map[string][]string{
-			"lerd-*-ws-feat-x": {
-				"lerd-vite-ws-feat-x",
-				"lerd-queue-ws-feat-x",
+			"servlo-*-ws-feat-x": {
+				"servlo-vite-ws-feat-x",
+				"servlo-queue-ws-feat-x",
 			},
 		},
 	}
@@ -128,7 +128,7 @@ func TestStopAllWorkersForWorktree(t *testing.T) {
 
 	gotRemoved := append([]string(nil), fake.removeServiceCalls...)
 	sort.Strings(gotRemoved)
-	wantRemoved := []string{"lerd-queue-ws-feat-x", "lerd-vite-ws-feat-x"}
+	wantRemoved := []string{"servlo-queue-ws-feat-x", "servlo-vite-ws-feat-x"}
 	if !equalStrings(gotRemoved, wantRemoved) {
 		t.Errorf("removeServiceCalls = %v, want %v", gotRemoved, wantRemoved)
 	}
@@ -163,10 +163,10 @@ func TestStopAllWorkersForWorktree_noUnits(t *testing.T) {
 }
 
 // TestStopAllWorkersForWorktree_emptyArgs guards against a glob that would
-// match every parent-site unit (`lerd-*--`) or every unit whatsoever.
+// match every parent-site unit (`servlo-*--`) or every unit whatsoever.
 func TestStopAllWorkersForWorktree_emptyArgs(t *testing.T) {
 	fake := &stopTrackingMgr{listResults: map[string][]string{
-		"shouldNotBeQueried": {"lerd-vite-ws"},
+		"shouldNotBeQueried": {"servlo-vite-ws"},
 	}}
 	swapMgr(t, fake)
 
@@ -185,16 +185,16 @@ func TestStopAllWorkersForWorktree_emptyArgs(t *testing.T) {
 }
 
 // TestStopAllWorkersForWorktree_filtersSpuriousMatches guards the suffix
-// match: a glob like lerd-*-ws-feat-x can theoretically match a unit that
+// match: a glob like servlo-*-ws-feat-x can theoretically match a unit that
 // happens to *contain* the suffix mid-string. Defensive trimming is what
 // keeps the operation safe if Mgr returns unexpected results.
 func TestStopAllWorkersForWorktree_filtersSpuriousMatches(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
 	fake := &stopTrackingMgr{
 		listResults: map[string][]string{
-			"lerd-*-ws-feat-x": {
-				"lerd-vite-ws-feat-x",
-				"lerd-vite-ws", // parent unit, should not be touched
+			"servlo-*-ws-feat-x": {
+				"servlo-vite-ws-feat-x",
+				"servlo-vite-ws", // parent unit, should not be touched
 			},
 		},
 	}
@@ -219,9 +219,9 @@ func TestStopAllWorkersForWorktree_propagatesError(t *testing.T) {
 	fake := &errOnRemoveMgr{
 		stopTrackingMgr: stopTrackingMgr{
 			listResults: map[string][]string{
-				"lerd-*-ws-feat-x": {
-					"lerd-vite-ws-feat-x",
-					"lerd-queue-ws-feat-x",
+				"servlo-*-ws-feat-x": {
+					"servlo-vite-ws-feat-x",
+					"servlo-queue-ws-feat-x",
 				},
 			},
 		},

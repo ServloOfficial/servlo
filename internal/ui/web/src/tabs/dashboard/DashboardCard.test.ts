@@ -40,7 +40,7 @@ describe('DashboardCard', () => {
   });
 
   it('applies warn tone accent', () => {
-    const { container } = render(Harness, { props: { title: 'Lerd', tone: 'warn' } });
+    const { container } = render(Harness, { props: { title: 'Servlo', tone: 'warn' } });
     const root = container.querySelector('div');
     expect(root!.className).toMatch(/border-l-4/);
     expect(root!.className).toMatch(/border-l-yellow-500/);

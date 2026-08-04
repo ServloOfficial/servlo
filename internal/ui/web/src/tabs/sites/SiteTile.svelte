@@ -32,7 +32,7 @@
 </script>
 
 <div
-  class="group flex items-center gap-3 rounded-xl border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card p-3 transition duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/5 hover:border-gray-300 dark:hover:border-white/15 {site.paused ? 'opacity-60' : ''}"
+  class="group flex items-center gap-3 rounded-xl border border-gray-200/80 dark:border-servlo-border bg-white dark:bg-servlo-card p-3 transition duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/5 hover:border-gray-300 dark:hover:border-white/15 {site.paused ? 'opacity-60' : ''}"
 >
   <button onclick={() => goToTab('sites', site.domain)} class="flex items-center gap-3 min-w-0 flex-1 text-left">
     <span class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 dark:bg-white/5 transition-transform group-hover:scale-105">

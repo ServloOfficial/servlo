@@ -8,7 +8,7 @@ import (
 )
 
 // tuningMount describes where a service family's user tuning override is
-// bind-mounted inside the container, plus the commented template lerd seeds on
+// bind-mounted inside the container, plus the commented template servlo seeds on
 // first use. Only families listed in tuningMounts expose a tuning file as a
 // FALLBACK; user-authored services can also declare their own tuning via the
 // inline TuningSpec on CustomService, which takes precedence over the family
@@ -26,7 +26,7 @@ type tuningMount struct {
 	// directory (mysql/mariadb) leave this empty. e.g. redis must be told
 	// "redis-server <conf>" since it loads no config file by default.
 	Command string
-	// AuxTarget / AuxContent declare a lerd-managed helper file the Command
+	// AuxTarget / AuxContent declare a servlo-managed helper file the Command
 	// depends on, bind-mounted read-only at AuxTarget. Unlike the user override
 	// (seed-once, never clobbered) this is rewritten on every start so version
 	// bumps to the helper land automatically. Used by postgres: `-c include_dir`
@@ -39,27 +39,27 @@ type tuningMount struct {
 
 // TuningSpec is the YAML shape user-authored CustomService entries use to
 // declare their own tuning override without having to match a recognised
-// family. Set svc.Tuning to expose the Config tab + lerd service config
+// family. Set svc.Tuning to expose the Config tab + servlo service config
 // for any image whose config loader reads from a specific in-container
 // path.
 //
 //	tuning:
 //	  target: /etc/memcached.conf
 //	  template: |
-//	    # Lerd user tuning for this memcached service.
+//	    # Servlo user tuning for this memcached service.
 //	    # -m 128
 //	  command: memcached -f /etc/memcached.conf   # optional, only when the
 //	                                                # image needs to be told
 //	                                                # to read the file
 type TuningSpec struct {
 	// Target is the absolute in-container path the override is mounted
-	// to. Required. Lerd bind-mounts the host file
+	// to. Required. Servlo bind-mounts the host file
 	// (ServiceTuningFile(svc.Name)) read-only at this path; the image
 	// must auto-include the file or be pointed at it via Command.
 	Target string `yaml:"target"`
-	// Template is the body lerd seeds the host file with on first use.
+	// Template is the body servlo seeds the host file with on first use.
 	// Optional; defaults to an empty file. Conventionally a commented
-	// hint sheet so users discover the available knobs without lerd
+	// hint sheet so users discover the available knobs without servlo
 	// having to ship working defaults.
 	Template string `yaml:"template,omitempty"`
 	// Command, when set, overrides the container Exec so the image
@@ -81,7 +81,7 @@ func (s *TuningSpec) inlineMount() (tuningMount, bool) {
 
 // resolveTuningMount returns the effective tuningMount for svc, preferring
 // the inline YAML TuningSpec when present so a user-authored custom service
-// can opt into the Config tab without lerd having to recognise its family.
+// can opt into the Config tab without servlo having to recognise its family.
 // Falls back to the family-keyed tuningMounts map for the built-in mysql /
 // mariadb / redis presets.
 func resolveTuningMount(svc *CustomService) (tuningMount, bool) {
@@ -95,24 +95,24 @@ func resolveTuningMount(svc *CustomService) (tuningMount, bool) {
 	return m, ok
 }
 
-// MySQLImportMaxPacket is the client-side max_allowed_packet lerd passes whenever
+// MySQLImportMaxPacket is the client-side max_allowed_packet servlo passes whenever
 // it loads a dump into mysql/mariadb (db:import, snapshot restore, cross-version
 // migrate), so a large extended-insert statement is never truncated by the client's
 // 16MB default. The server ceiling still governs the effective limit, set in the
-// bundled lerd.cnf and raiseable from the service Config tab.
+// bundled servlo.cnf and raiseable from the service Config tab.
 const MySQLImportMaxPacket = "1G"
 
 // mysqlTuningTemplate seeds the mysql/mariadb override. The zz- filename prefix
-// makes it sort after the bundled /etc/mysql/conf.d/lerd.cnf, so anything the
+// makes it sort after the bundled /etc/mysql/conf.d/servlo.cnf, so anything the
 // user sets here overrides the defaults. Everything ships commented out so the
 // file is an inert no-op until the user opts in.
 const mysqlTuningTemplate = `[mysqld]
-# Lerd user tuning for this service.
+# Servlo user tuning for this service.
 #
-# Lerd created this file once and will never overwrite it, so your edits survive
-# ` + "`lerd service reinstall`" + ` and ` + "`lerd update`" + `. It loads after the bundled
+# Servlo created this file once and will never overwrite it, so your edits survive
+# ` + "`servlo service reinstall`" + ` and ` + "`servlo update`" + `. It loads after the bundled
 # config, so any value set here wins. Uncomment, tune, then run
-# ` + "`lerd service restart <name>`" + ` to apply.
+# ` + "`servlo service restart <name>`" + ` to apply.
 
 # max_allowed_packet = 1G
 # innodb_buffer_pool_size = 512M
@@ -120,7 +120,7 @@ const mysqlTuningTemplate = `[mysqld]
 # max_connections = 200
 
 # Restoring a large dump with an external client (a GUI, a manual mysql call)?
-# Raise the client ceiling too, lerd's own db:import already does:
+# Raise the client ceiling too, servlo's own db:import already does:
 # [client]
 # max_allowed_packet = 1G
 `
@@ -129,11 +129,11 @@ const mysqlTuningTemplate = `[mysqld]
 // default, so the override is passed to redis-server as its config (see the
 // Command below). Leaving "dir" unset keeps redis writing to its WORKDIR (/data,
 // the mounted data dir), so persistence is unaffected.
-const redisTuningTemplate = `# Lerd user tuning for this service.
+const redisTuningTemplate = `# Servlo user tuning for this service.
 #
-# Lerd created this file once and will never overwrite it, so your edits survive
-# ` + "`lerd service reinstall`" + ` and ` + "`lerd update`" + `. redis-server loads it on
-# startup. Uncomment, tune, then run ` + "`lerd service restart redis`" + ` to apply.
+# Servlo created this file once and will never overwrite it, so your edits survive
+# ` + "`servlo service reinstall`" + ` and ` + "`servlo update`" + `. redis-server loads it on
+# startup. Uncomment, tune, then run ` + "`servlo service restart redis`" + ` to apply.
 
 # maxmemory 256mb
 # maxmemory-policy allkeys-lru
@@ -142,15 +142,15 @@ const redisTuningTemplate = `# Lerd user tuning for this service.
 `
 
 // postgresTuningTemplate seeds the postgres override. Postgres reads it via the
-// include_dir in the lerd config_file wrapper (postgresTuningWrapper), loaded
+// include_dir in the servlo config_file wrapper (postgresTuningWrapper), loaded
 // after the cluster's own postgresql.conf so user values win. Everything ships
 // commented so the file is an inert no-op until the user opts in.
-const postgresTuningTemplate = `# Lerd user tuning for this service.
+const postgresTuningTemplate = `# Servlo user tuning for this service.
 #
-# Lerd created this file once and will never overwrite it, so your edits survive
-# ` + "`lerd service reinstall`" + ` and ` + "`lerd update`" + `. Postgres loads it after the
+# Servlo created this file once and will never overwrite it, so your edits survive
+# ` + "`servlo service reinstall`" + ` and ` + "`servlo update`" + `. Postgres loads it after the
 # cluster defaults, so any value set here wins. Uncomment, tune, then run
-# ` + "`lerd service restart postgres`" + ` to apply.
+# ` + "`servlo service restart postgres`" + ` to apply.
 
 # shared_buffers = 256MB
 # effective_cache_size = 768MB
@@ -159,15 +159,15 @@ const postgresTuningTemplate = `# Lerd user tuning for this service.
 # max_connections = 100
 `
 
-// postgresTuningWrapper is the lerd-managed config_file postgres is pointed at
+// postgresTuningWrapper is the servlo-managed config_file postgres is pointed at
 // via `-c config_file=`. A bare `-c include_dir=...` is rejected at runtime
 // because include_dir is a config-file directive, not a GUC, so the override
 // directory has to be pulled in from inside a real config file. This wrapper
 // includes the cluster's own postgresql.conf (every initdb default) first, then
-// the user override directory, so user values win without lerd ever mutating
+// the user override directory, so user values win without servlo ever mutating
 // PGDATA. The PGDATA path matches the value pinned by the postgres preset; if it
 // is ever absent, include_if_exists degrades gracefully rather than failing.
-const postgresTuningWrapper = `# Lerd-managed postgres config wrapper, do not edit.
+const postgresTuningWrapper = `# Servlo-managed postgres config wrapper, do not edit.
 # postgres runs with -c config_file pointing here (see service_tuning.go).
 include_if_exists = '/var/lib/postgresql/data/postgresql.conf'
 include_dir = '/etc/postgresql/conf.d'
@@ -182,26 +182,26 @@ include_dir = '/etc/postgresql/conf.d'
 // parameter") because include_dir is a config-file directive, not a GUC. So its
 // Command points postgres at an AuxContent wrapper config_file that includes the
 // cluster's own postgresql.conf and then the user override directory, additive,
-// never mutating PGDATA. Verified at runtime against the postgis image lerd runs.
+// never mutating PGDATA. Verified at runtime against the postgis image servlo runs.
 var tuningMounts = map[string]tuningMount{
 	"mysql": {
-		Target:   "/etc/mysql/conf.d/zz-lerd-user.cnf",
+		Target:   "/etc/mysql/conf.d/zz-servlo-user.cnf",
 		Template: mysqlTuningTemplate,
 	},
 	"mariadb": {
-		Target:   "/etc/mysql/conf.d/zz-lerd-user.cnf",
+		Target:   "/etc/mysql/conf.d/zz-servlo-user.cnf",
 		Template: mysqlTuningTemplate,
 	},
 	"redis": {
-		Target:   "/etc/redis/lerd-user.conf",
+		Target:   "/etc/redis/servlo-user.conf",
 		Template: redisTuningTemplate,
-		Command:  "redis-server /etc/redis/lerd-user.conf",
+		Command:  "redis-server /etc/redis/servlo-user.conf",
 	},
 	"postgres": {
-		Target:     "/etc/postgresql/conf.d/zz-lerd-user.conf",
+		Target:     "/etc/postgresql/conf.d/zz-servlo-user.conf",
 		Template:   postgresTuningTemplate,
-		Command:    "postgres -c config_file=/etc/postgresql/lerd.conf",
-		AuxTarget:  "/etc/postgresql/lerd.conf",
+		Command:    "postgres -c config_file=/etc/postgresql/servlo.conf",
+		AuxTarget:  "/etc/postgresql/servlo.conf",
 		AuxContent: postgresTuningWrapper,
 	},
 }
@@ -266,7 +266,7 @@ func ServiceTuningCommand(svc *CustomService) (command string, ok bool) {
 }
 
 // ServiceTuningAux returns the in-container mount target and content of svc's
-// lerd-managed tuning helper file, and whether one applies. ok is false unless
+// servlo-managed tuning helper file, and whether one applies. ok is false unless
 // the effective tuningMount declares an AuxTarget (only postgres does today).
 // The matching host file is ServiceTuningAuxFile(svc.Name).
 func ServiceTuningAux(svc *CustomService) (target, content string, ok bool) {
@@ -280,8 +280,8 @@ func ServiceTuningAux(svc *CustomService) (target, content string, ok bool) {
 // MaterializeServiceTuning seeds svc's tuning override with its commented
 // template when the host file does not exist yet, and is a no-op once the file
 // is present so user edits are never clobbered. When the family declares a
-// lerd-managed helper file (AuxTarget), that file is (re)written every call so
-// helper changes from a new lerd version land automatically. Services without a
+// servlo-managed helper file (AuxTarget), that file is (re)written every call so
+// helper changes from a new servlo version land automatically. Services without a
 // tuning mount (neither inline nor family-keyed) are skipped. Call this before
 // GenerateCustomQuadlet so every mounted host path always exists.
 func MaterializeServiceTuning(svc *CustomService) error {
@@ -294,7 +294,7 @@ func MaterializeServiceTuning(svc *CustomService) error {
 		return err
 	}
 
-	// Helper file: lerd-managed, always rewritten (not user-editable).
+	// Helper file: servlo-managed, always rewritten (not user-editable).
 	if m.AuxTarget != "" {
 		guardRealWrite(ServiceTuningAuxFile(svc.Name))
 		if err := os.WriteFile(ServiceTuningAuxFile(svc.Name), []byte(m.AuxContent), 0644); err != nil {

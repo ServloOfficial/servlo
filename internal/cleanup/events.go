@@ -1,8 +1,8 @@
 package cleanup
 
 import (
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // autoEnabled reports whether automatic cleanup is on. Seam for tests.
@@ -18,7 +18,7 @@ func defaultAutoEnabled() bool {
 // reaping it at once instead of waiting for the daily watcher.
 func SweepSafe() (images int, bytes int64, err error) { return sweep(ScopeSafe) }
 
-// SweepManaged runs the managed tier (safe orphans plus lerd's unused catalog
+// SweepManaged runs the managed tier (safe orphans plus servlo's unused catalog
 // images), the daily watcher's sweep: it reclaims an upgrade's leftovers
 // unattended without ever touching a foreign dangling image.
 func SweepManaged() (images int, bytes int64, err error) { return sweep(ScopeManaged) }
@@ -47,9 +47,9 @@ func sweep(scope Scope) (images int, bytes int64, err error) {
 	return removed, bytesFreed, nil
 }
 
-// SweepRefs reaps the exact image references lerd is dropping (the superseded
+// SweepRefs reaps the exact image references servlo is dropping (the superseded
 // version after a service update, the removed service's images after a remove).
-// Each ref is one lerd itself recorded, so it is provably lerd's; a ref another
+// Each ref is one servlo itself recorded, so it is provably servlo's; a ref another
 // service still references (in the protected set) is skipped. Reaping precise
 // refs rather than a whole repo means a user's own same-repo image is never
 // touched. Gated by auto_cleanup.

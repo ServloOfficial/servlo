@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/idle"
-	"github.com/geodro/lerd/internal/reqstats"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/idle"
+	"github.com/realrashid/servlo/internal/reqstats"
 )
 
 // TestForgetSiteState_dropsInMemoryAndFiles proves a "forget <site>" control

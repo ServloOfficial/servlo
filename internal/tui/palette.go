@@ -10,15 +10,15 @@ import (
 )
 
 // Command palette: press `:` (vim-style) anywhere to open an inline prompt
-// for an arbitrary lerd subcommand. The user types `service restart redis`
-// and hits enter; we shell out exactly as if they'd typed `lerd service
+// for an arbitrary servlo subcommand. The user types `service restart redis`
+// and hits enter; we shell out exactly as if they'd typed `servlo service
 // restart redis` in a terminal. Mirrors the web UI's CommandRunModal /
 // CommandPalette without requiring focus on any particular pane.
 
 // paletteCommands is the curated list of command paths the palette
 // autocompletes against. Hardcoded rather than walked off cobra at runtime
 // to avoid an import cycle (cli already imports tui via NewTuiCmd). Keep
-// this list synced with cmd/lerd/main.go's AddCommand calls when adding
+// this list synced with cmd/servlo/main.go's AddCommand calls when adding
 // new top-level verbs; sub-command depth is deliberately shallow because
 // the goal is discovery, not exhaustive completion.
 var paletteCommands = []string{
@@ -132,7 +132,7 @@ func (m *Model) openPalette() {
 }
 
 // handlePaletteKey collects characters for the palette input, commits on
-// enter (shells `lerd <args>`), cancels on esc, completes on tab. Mirrors
+// enter (shells `servlo <args>`), cancels on esc, completes on tab. Mirrors
 // the shape of the other modal-key handlers (handleFilterKey,
 // handleDomainInputKey) so adding a future history (`↑` / `↓`) only
 // touches this one function.
@@ -236,7 +236,7 @@ func longestCommonPrefix(in []string) string {
 	return prefix
 }
 
-// runPaletteCommand suspends the bubbletea program and runs `lerd <args>`
+// runPaletteCommand suspends the bubbletea program and runs `servlo <args>`
 // with the user's real terminal attached, so they see the full streamed
 // output exactly as a manual invocation would print it. After the
 // subprocess exits we run a short shell pause so quick commands don't
@@ -250,23 +250,23 @@ func runPaletteCommand(raw string, args []string) tea.Cmd {
 	}
 	self, err := os.Executable()
 	if err != nil {
-		self = "lerd"
+		self = "servlo"
 	}
 	// Build a sh -c invocation so we can append a portable "press enter"
 	// pause without re-implementing a TTY waiter in Go. The bubbletea
 	// program is already suspended (tea.ExecProcess hands the terminal
 	// back), so plain `read` reads from the user's tty.
 	script := shQuote(self) + " " + shQuoteAll(args) +
-		`; status=$?; printf '\n[press enter to return to lerd tui] '; read _; exit $status`
+		`; status=$?; printf '\n[press enter to return to servlo tui] '; read _; exit $status`
 	cmd := exec.Command("sh", "-c", script)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		if err != nil {
-			return ActionResult{Summary: "lerd " + raw, Err: err, Detail: err.Error()}
+			return ActionResult{Summary: "servlo " + raw, Err: err, Detail: err.Error()}
 		}
-		return ActionResult{Summary: "lerd " + raw}
+		return ActionResult{Summary: "servlo " + raw}
 	})
 }
 

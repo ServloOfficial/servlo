@@ -2,7 +2,7 @@ import { get, writable } from 'svelte/store';
 
 export type Theme = 'light' | 'dark' | 'auto';
 
-const KEY = 'lerd-theme';
+const KEY = 'servlo-theme';
 
 function read(): Theme {
   const v = localStorage.getItem(KEY);

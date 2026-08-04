@@ -26,7 +26,7 @@ func TestNetworkWaitStalls(t *testing.T) {
 			target:    "active",
 		},
 		{
-			name:      "already neutralised by lerd",
+			name:      "already neutralised by servlo",
 			loadState: "loaded",
 			dropIn:    true,
 			target:    "inactive",
@@ -87,7 +87,7 @@ func TestNetworkWaitDropInPath(t *testing.T) {
 	if got := filepath.Base(filepath.Dir(path)); got != "podman-user-wait-network-online.service.d" {
 		t.Errorf("drop-in parent dir = %q, want the wait unit's .d directory", got)
 	}
-	if got := filepath.Base(path); got != "10-lerd-no-network-wait.conf" {
+	if got := filepath.Base(path); got != "10-servlo-no-network-wait.conf" {
 		t.Errorf("drop-in file = %q", got)
 	}
 }

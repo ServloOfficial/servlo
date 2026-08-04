@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 func fakeSnap() Snapshot {
@@ -193,7 +193,7 @@ func names(ss []siteinfo.EnrichedSite) []string {
 }
 
 func TestFormatActionOK(t *testing.T) {
-	got := formatAction(ActionResult{Summary: "lerd service start redis"})
+	got := formatAction(ActionResult{Summary: "servlo service start redis"})
 	if !strings.HasPrefix(got, "✓") {
 		t.Fatalf("expected ok prefix, got %q", got)
 	}
@@ -201,7 +201,7 @@ func TestFormatActionOK(t *testing.T) {
 
 func TestFormatActionError(t *testing.T) {
 	got := formatAction(ActionResult{
-		Summary: "lerd service start redis",
+		Summary: "servlo service start redis",
 		Err:     errors.New("exit 1"),
 		Detail:  "boom\ntrace",
 	})

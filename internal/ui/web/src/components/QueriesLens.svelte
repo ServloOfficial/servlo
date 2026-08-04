@@ -132,10 +132,10 @@
 </script>
 
 <div class="flex flex-col h-full overflow-hidden">
-  <div class="flex items-center gap-2 px-3 py-3 border-b border-gray-200 dark:border-lerd-border flex-wrap">
+  <div class="flex items-center gap-2 px-3 py-3 border-b border-gray-200 dark:border-servlo-border flex-wrap">
     <div class="relative flex-1 min-w-[140px]">
       <input
-        class="w-full text-xs pl-2 pr-6 py-1 rounded-sm border border-gray-300 dark:border-lerd-border bg-white dark:bg-lerd-card"
+        class="w-full text-xs pl-2 pr-6 py-1 rounded-sm border border-gray-300 dark:border-servlo-border bg-white dark:bg-servlo-card"
         placeholder={m.queries_searchPlaceholder()}
         bind:value={textInput}
       />
@@ -180,7 +180,7 @@
     <TestEventsToggle />
     <button
       type="button"
-      class="text-xs rounded-sm border border-gray-300 dark:border-lerd-border px-2 py-1 hover:bg-gray-50 dark:hover:bg-white/5"
+      class="text-xs rounded-sm border border-gray-300 dark:border-servlo-border px-2 py-1 hover:bg-gray-50 dark:hover:bg-white/5"
       onclick={onClear}
       title={m.queries_clearCaptured()}
     >
@@ -214,7 +214,7 @@
       {#each win.pages as page (page.group.key)}
         {@const group = page.group}
         <section class="mb-4">
-          <header class="flex items-center gap-2 mb-1 sticky top-0 bg-gray-50 dark:bg-lerd-bg py-1 -mx-3 px-3 z-1">
+          <header class="flex items-center gap-2 mb-1 sticky top-0 bg-gray-50 dark:bg-servlo-bg py-1 -mx-3 px-3 z-1">
             {#if group.worker}
               <span class="text-[10px] font-semibold uppercase tracking-wide rounded-sm px-1.5 py-0.5 bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 shrink-0">{m.queries_worker_badge()}</span>
             {/if}
@@ -231,7 +231,7 @@
             <div
               class="rounded-sm border mb-1.5 overflow-hidden {row.duplicate
                 ? 'border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-900/10'
-                : 'border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card'}"
+                : 'border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card'}"
             >
               <div class="flex items-stretch">
                 <button
@@ -251,7 +251,7 @@
                 </button>
                 <button
                   type="button"
-                  class="shrink-0 px-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 border-l border-gray-100 dark:border-lerd-border/50 {copied[row.event.id] ? 'text-emerald-600 dark:text-emerald-500' : ''}"
+                  class="shrink-0 px-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 border-l border-gray-100 dark:border-servlo-border/50 {copied[row.event.id] ? 'text-emerald-600 dark:text-emerald-500' : ''}"
                   onclick={() => copyRow(row)}
                   title={m.queries_copySql()}
                   aria-label={m.queries_copySql()}
@@ -264,7 +264,7 @@
                 </button>
               </div>
               {#if expanded[row.event.id]}
-                <div class="px-2.5 pb-2 pt-1 border-t border-gray-100 dark:border-lerd-border/50 text-[11px] space-y-1.5">
+                <div class="px-2.5 pb-2 pt-1 border-t border-gray-100 dark:border-servlo-border/50 text-[11px] space-y-1.5">
                   {#if row.data.connection}
                     <div class="text-gray-400">{row.data.connection}{#if row.data.rw_type}&nbsp;({row.data.rw_type}){/if}</div>
                   {/if}

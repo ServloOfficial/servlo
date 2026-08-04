@@ -13,11 +13,11 @@ func TestServiceTuningMount_KnownFamilies(t *testing.T) {
 		want   string
 		wantOK bool
 	}{
-		{"mysql family", &CustomService{Name: "mysql", Family: "mysql"}, "/etc/mysql/conf.d/zz-lerd-user.cnf", true},
-		{"mariadb family", &CustomService{Name: "mariadb-10-11", Family: "mariadb"}, "/etc/mysql/conf.d/zz-lerd-user.cnf", true},
-		{"family inferred from name", &CustomService{Name: "mariadb-11"}, "/etc/mysql/conf.d/zz-lerd-user.cnf", true},
-		{"redis family", &CustomService{Name: "redis", Family: "redis"}, "/etc/redis/lerd-user.conf", true},
-		{"postgres family", &CustomService{Name: "postgres", Family: "postgres"}, "/etc/postgresql/conf.d/zz-lerd-user.conf", true},
+		{"mysql family", &CustomService{Name: "mysql", Family: "mysql"}, "/etc/mysql/conf.d/zz-servlo-user.cnf", true},
+		{"mariadb family", &CustomService{Name: "mariadb-10-11", Family: "mariadb"}, "/etc/mysql/conf.d/zz-servlo-user.cnf", true},
+		{"family inferred from name", &CustomService{Name: "mariadb-11"}, "/etc/mysql/conf.d/zz-servlo-user.cnf", true},
+		{"redis family", &CustomService{Name: "redis", Family: "redis"}, "/etc/redis/servlo-user.conf", true},
+		{"postgres family", &CustomService{Name: "postgres", Family: "postgres"}, "/etc/postgresql/conf.d/zz-servlo-user.conf", true},
 		{"untuned family", &CustomService{Name: "meilisearch", Family: "meilisearch"}, "", false},
 		{"unknown family", &CustomService{Name: "whatever"}, "", false},
 		{"nil service", nil, "", false},
@@ -138,7 +138,7 @@ func TestMaterializeServiceTuning_SkipsUntunedFamily(t *testing.T) {
 // a custom service that doesn't match any known family can still expose
 // the Config tab by declaring tuning: inline in its YAML. The inline
 // spec wins over the family map, so users can opt arbitrary services
-// into the editor without lerd having to recognise their image.
+// into the editor without servlo having to recognise their image.
 func TestServiceTuningMount_InlineTuningSpec(t *testing.T) {
 	svc := &CustomService{
 		Name:   "my-cache",
@@ -200,7 +200,7 @@ func TestServiceTuningMount_InlineRequiresTarget(t *testing.T) {
 }
 
 // TestMaterializeServiceTuning_InlineSeedsTemplate covers the seeding
-// path for inline specs: lerd writes the template once and never
+// path for inline specs: servlo writes the template once and never
 // clobbers afterwards, same contract as the family-keyed path.
 func TestMaterializeServiceTuning_InlineSeedsTemplate(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
@@ -230,8 +230,8 @@ func TestServiceTuningCommand(t *testing.T) {
 		want   string
 		wantOK bool
 	}{
-		{"redis needs a command", &CustomService{Name: "redis", Family: "redis"}, "redis-server /etc/redis/lerd-user.conf", true},
-		{"postgres points at the wrapper config_file", &CustomService{Name: "postgres", Family: "postgres"}, "postgres -c config_file=/etc/postgresql/lerd.conf", true},
+		{"redis needs a command", &CustomService{Name: "redis", Family: "redis"}, "redis-server /etc/redis/servlo-user.conf", true},
+		{"postgres points at the wrapper config_file", &CustomService{Name: "postgres", Family: "postgres"}, "postgres -c config_file=/etc/postgresql/servlo.conf", true},
 		{"mysql auto-includes, no command", &CustomService{Name: "mysql", Family: "mysql"}, "", false},
 		{"untuned family", &CustomService{Name: "meilisearch", Family: "meilisearch"}, "", false},
 		{"nil service", nil, "", false},
@@ -249,7 +249,7 @@ func TestServiceTuningCommand(t *testing.T) {
 	}
 }
 
-// TestServiceTuningAux covers the lerd-managed helper file: only postgres
+// TestServiceTuningAux covers the servlo-managed helper file: only postgres
 // declares one today, and it must carry the wrapper config_file target plus
 // the include_dir content the Command depends on.
 func TestServiceTuningAux(t *testing.T) {
@@ -257,8 +257,8 @@ func TestServiceTuningAux(t *testing.T) {
 	if !ok {
 		t.Fatal("postgres should declare a tuning aux file")
 	}
-	if target != "/etc/postgresql/lerd.conf" {
-		t.Errorf("aux target = %q, want /etc/postgresql/lerd.conf", target)
+	if target != "/etc/postgresql/servlo.conf" {
+		t.Errorf("aux target = %q, want /etc/postgresql/servlo.conf", target)
 	}
 	if !strings.Contains(content, "include_dir = '/etc/postgresql/conf.d'") {
 		t.Errorf("aux content missing include_dir directive:\n%s", content)
@@ -277,7 +277,7 @@ func TestServiceTuningAux(t *testing.T) {
 
 // TestMaterializeServiceTuning_WritesAndRefreshesAux verifies the helper file is
 // materialised for postgres and, unlike the user override, is always rewritten
-// so a new lerd version's wrapper lands without a reinstall.
+// so a new servlo version's wrapper lands without a reinstall.
 func TestMaterializeServiceTuning_WritesAndRefreshesAux(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	svc := &CustomService{Name: "postgres", Family: "postgres"}
@@ -294,7 +294,7 @@ func TestMaterializeServiceTuning_WritesAndRefreshesAux(t *testing.T) {
 		t.Errorf("aux file missing include_dir:\n%s", body)
 	}
 
-	// Aux is lerd-managed: a stale value must be overwritten on re-materialize.
+	// Aux is servlo-managed: a stale value must be overwritten on re-materialize.
 	if err := os.WriteFile(auxPath, []byte("# stale\n"), 0644); err != nil {
 		t.Fatalf("write stale aux: %v", err)
 	}

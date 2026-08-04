@@ -1,0 +1,10 @@
+[Unit]
+Description=Servlo Autostart
+After=default.target
+
+[Service]
+ExecStart=%h/.local/bin/servlo start
+Restart=no
+
+[Install]
+WantedBy=default.target

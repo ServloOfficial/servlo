@@ -4,11 +4,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // hostGatewayDeps is the injection surface for tickHostGateway so the
-// orchestration can be unit-tested without spinning up lerd-nginx.
+// orchestration can be unit-tested without spinning up servlo-nginx.
 type hostGatewayDeps struct {
 	primaryLANIP       func() string
 	readCurrent        func() string
@@ -67,7 +67,7 @@ func hostGatewayDepsFromPodman() hostGatewayDeps {
 // The two halves of this watch cost wildly different amounts. Comparing the LAN
 // address is a UDP dial with no process behind it, so it runs every tick and a
 // laptop changing networks is still noticed within one interval. Looking up
-// lerd-nginx's bridge address forks podman, which at one fork per tick was the
+// servlo-nginx's bridge address forks podman, which at one fork per tick was the
 // largest single source of this daemon's idle wakeups, measurably more than
 // everything else it does combined. That address only moves when the container
 // is recreated, so it is checked on the first tick and then only occasionally,
@@ -79,7 +79,7 @@ const hostGatewayInspectEvery = 10
 var hostGatewayDepsForWatch = hostGatewayDepsFromPodman
 
 // WatchHostGateway keeps both addresses in the shared hosts files fresh:
-// lerd-nginx's bridge IP, and the host.containers.internal gateway that Xdebug
+// servlo-nginx's bridge IP, and the host.containers.internal gateway that Xdebug
 // needs. Runs until stop is closed; pass nil to run forever.
 func WatchHostGateway(interval time.Duration, stop <-chan struct{}) {
 	deps := hostGatewayDepsForWatch()
@@ -130,7 +130,7 @@ func tickHostGatewayWith(d hostGatewayDeps, s *hostGatewayState, inspect bool) b
 	return changed
 }
 
-// tickNginxIP repoints the hosts files when lerd-nginx returns on a new bridge
+// tickNginxIP repoints the hosts files when servlo-nginx returns on a new bridge
 // IP, as it does on every recreation. It rewrites when either file has drifted,
 // so a write that updated one and failed on the other is retried next tick.
 func tickNginxIP(d hostGatewayDeps, fresh string) bool {
@@ -155,7 +155,7 @@ func tickNginxIP(d hostGatewayDeps, fresh string) bool {
 		d.log("warn", "rewriting container hosts file", "err", err)
 		return false
 	}
-	d.log("info", "container hosts files repointed at lerd-nginx", "ip", fresh)
+	d.log("info", "container hosts files repointed at servlo-nginx", "ip", fresh)
 	return true
 }
 

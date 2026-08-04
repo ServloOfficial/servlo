@@ -1,4 +1,4 @@
-// Package power reports the host's power state so lerd can back off work that
+// Package power reports the host's power state so servlo can back off work that
 // is cheap on mains and expensive on a laptop running from its battery.
 package power
 
@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// State is how the host is currently powered, ordered by how much lerd should
+// State is how the host is currently powered, ordered by how much servlo should
 // hold back.
 type State int
 
@@ -35,7 +35,7 @@ func (s State) String() string {
 }
 
 // probeTTL caches the answer briefly. The probe shells out on macOS and crosses
-// the system bus on Linux, and callers arrive in bursts (a `lerd start` writes
+// the system bus on Linux, and callers arrive in bursts (a `servlo start` writes
 // one unit per worker per site), so a short window collapses a dozen probes
 // into one without letting the answer go stale enough to matter for the
 // cadences that read it.

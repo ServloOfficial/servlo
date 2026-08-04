@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // phpExtrasSummary describes what a PHP version's image carries of the declared
@@ -38,7 +38,7 @@ func phpExtrasSummary(cfg *config.GlobalConfig, version string) string {
 	have := append(slices.Clone(realised.Extensions), realised.Packages...)
 	if len(have) == 0 {
 		if realised.Hash == "" {
-			return "not in this image yet · lerd php:rebuild " + version
+			return "not in this image yet · servlo php:rebuild " + version
 		}
 		return "none of the declared set is in this image"
 	}

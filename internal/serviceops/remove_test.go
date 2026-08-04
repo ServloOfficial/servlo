@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // stubPodmanRemove swaps the podman seams used by RemoveService for in-memory
@@ -234,11 +234,11 @@ func TestRemoveService_DefaultPresetSucceeds(t *testing.T) {
 	if err := RemoveService("postgres", RemoveOptions{RemoveData: false}, func(PhaseEvent) {}); err != nil {
 		t.Fatalf("RemoveService(postgres) for default preset: %v", err)
 	}
-	if got := rec.removed; len(got) != 1 || got[0] != "lerd-postgres" {
-		t.Errorf("expected RemoveContainer(\"lerd-postgres\"), got %v", got)
+	if got := rec.removed; len(got) != 1 || got[0] != "servlo-postgres" {
+		t.Errorf("expected RemoveContainer(\"servlo-postgres\"), got %v", got)
 	}
-	if got := rec.removedQuadlets; len(got) != 1 || got[0] != "lerd-postgres" {
-		t.Errorf("expected RemoveQuadlet(\"lerd-postgres\"), got %v", got)
+	if got := rec.removedQuadlets; len(got) != 1 || got[0] != "servlo-postgres" {
+		t.Errorf("expected RemoveQuadlet(\"servlo-postgres\"), got %v", got)
 	}
 }
 
@@ -257,7 +257,7 @@ func TestRemoveService_OrphanQuadlet_NoYAML_Succeeds(t *testing.T) {
 	if err := os.MkdirAll(qdir, 0o755); err != nil {
 		t.Fatalf("mkdir quadlet dir: %v", err)
 	}
-	quadletPath := filepath.Join(qdir, "lerd-mysql.container")
+	quadletPath := filepath.Join(qdir, "servlo-mysql.container")
 	if err := os.WriteFile(quadletPath, []byte("[Container]\nImage=docker.io/library/mysql:8.4\n"), 0o644); err != nil {
 		t.Fatalf("write quadlet: %v", err)
 	}
@@ -271,8 +271,8 @@ func TestRemoveService_OrphanQuadlet_NoYAML_Succeeds(t *testing.T) {
 	if err := RemoveService("mysql", RemoveOptions{RemoveData: false}, func(PhaseEvent) {}); err != nil {
 		t.Fatalf("RemoveService for orphan quadlet should not error: %v", err)
 	}
-	if got := rec.removedQuadlets; len(got) != 1 || got[0] != "lerd-mysql" {
-		t.Errorf("expected RemoveQuadlet(\"lerd-mysql\"), got %v", got)
+	if got := rec.removedQuadlets; len(got) != 1 || got[0] != "servlo-mysql" {
+		t.Errorf("expected RemoveQuadlet(\"servlo-mysql\"), got %v", got)
 	}
 }
 

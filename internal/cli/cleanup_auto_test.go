@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/cleanup"
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/cleanup"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // The held-by-containers hint is silent when nothing is held, and otherwise
@@ -15,7 +15,7 @@ func TestHeldHint(t *testing.T) {
 		t.Errorf("no held images should give an empty hint, got %q", got)
 	}
 	got := heldHint(cleanup.Plan{Held: cleanup.HeldByContainers{Count: 8, Bytes: 2 << 30}})
-	if !strings.Contains(got, "8 image") || !strings.Contains(got, "lerd restart") {
+	if !strings.Contains(got, "8 image") || !strings.Contains(got, "servlo restart") {
 		t.Errorf("hint should mention the count and restart, got %q", got)
 	}
 }

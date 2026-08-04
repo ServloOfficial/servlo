@@ -12,14 +12,14 @@ func TestWorkerNameForSiteUnit(t *testing.T) {
 		wantWorker string
 		wantOK     bool
 	}{
-		{"lerd-queue-app", "app", "queue", true},               // parent unit
-		{"lerd-vite-app-feat", "app", "vite", true},            // worktree unit
-		{"lerd-queue-other", "app", "", false},                 // different site
-		{"lerd-vite-app-x", "app-x", "vite", true},             // parent unit of the longer-named site
-		{"lerd-vite-app-x", "app", "vite", true},               // also matches "app" as a worktree (slug "x")
-		{"lerd-app", "app", "", false},                         // no worker segment
-		{"queue-app", "app", "", false},                        // missing lerd- prefix
-		{"lerd-messenger-my-app", "my-app", "messenger", true}, // hyphenated site name
+		{"servlo-queue-app", "app", "queue", true},               // parent unit
+		{"servlo-vite-app-feat", "app", "vite", true},            // worktree unit
+		{"servlo-queue-other", "app", "", false},                 // different site
+		{"servlo-vite-app-x", "app-x", "vite", true},             // parent unit of the longer-named site
+		{"servlo-vite-app-x", "app", "vite", true},               // also matches "app" as a worktree (slug "x")
+		{"servlo-app", "app", "", false},                         // no worker segment
+		{"queue-app", "app", "", false},                          // missing servlo- prefix
+		{"servlo-messenger-my-app", "my-app", "messenger", true}, // hyphenated site name
 	}
 	for _, c := range cases {
 		gotWorker, gotOK := workerNameForSiteUnit(c.unit, c.site)
@@ -32,19 +32,19 @@ func TestWorkerNameForSiteUnit(t *testing.T) {
 
 // TestSiteOwnsWorkerUnit_declinesAmbiguous guards against tearing down another
 // site's unit: unlinking a site named "feat" must NOT claim site "web"'s
-// "lerd-horizon-web-feat" worktree unit, because "web" is also a registered site.
+// "servlo-horizon-web-feat" worktree unit, because "web" is also a registered site.
 func TestSiteOwnsWorkerUnit_declinesAmbiguous(t *testing.T) {
-	// "feat" parses lerd-horizon-web-feat as its own (worker "horizon-web"), but
+	// "feat" parses servlo-horizon-web-feat as its own (worker "horizon-web"), but
 	// "web" is a registered site that also parses it, so ownership is declined.
-	if _, ok := siteOwnsWorkerUnit("lerd-horizon-web-feat", "feat", []string{"web"}); ok {
-		t.Error("site \"feat\" must not claim web's worktree unit lerd-horizon-web-feat")
+	if _, ok := siteOwnsWorkerUnit("servlo-horizon-web-feat", "feat", []string{"web"}); ok {
+		t.Error("site \"feat\" must not claim web's worktree unit servlo-horizon-web-feat")
 	}
 	// With no colliding site registered, "feat" legitimately owns its own units.
-	if _, ok := siteOwnsWorkerUnit("lerd-queue-feat", "feat", []string{"web"}); !ok {
-		t.Error("site \"feat\" should own its own parent unit lerd-queue-feat")
+	if _, ok := siteOwnsWorkerUnit("servlo-queue-feat", "feat", []string{"web"}); !ok {
+		t.Error("site \"feat\" should own its own parent unit servlo-queue-feat")
 	}
 	// A site cleanly owns its worktree unit when no other site collides.
-	if _, ok := siteOwnsWorkerUnit("lerd-vite-app-feat", "app", []string{"web"}); !ok {
-		t.Error("site \"app\" should own its worktree unit lerd-vite-app-feat")
+	if _, ok := siteOwnsWorkerUnit("servlo-vite-app-feat", "app", []string{"web"}); !ok {
+		t.Error("site \"app\" should own its worktree unit servlo-vite-app-feat")
 	}
 }

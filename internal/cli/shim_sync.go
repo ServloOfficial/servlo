@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// shimSync describes one category of lerd-managed wrappers in targetBin.
+// shimSync describes one category of servlo-managed wrappers in targetBin.
 // Each category uses its own marker so a sync over one source dir never
 // touches wrappers belonging to another category.
 type shimSync struct {
@@ -19,7 +19,7 @@ type shimSync struct {
 
 // run mirrors every regular file in sourceBin into targetBin as a small
 // shell wrapper, preserving any file in targetBin that does not carry the
-// marker (so user-installed binaries or other lerd shims are left alone)
+// marker (so user-installed binaries or other servlo shims are left alone)
 // and removing orphan wrappers whose source has disappeared.
 func (s shimSync) run() error {
 	if err := os.MkdirAll(s.targetBin, 0o755); err != nil {
@@ -94,11 +94,11 @@ func readShimHead(path string) (string, bool) {
 	return string(buf[:n]), true
 }
 
-// nodeShimMarker tags wrapper scripts lerd writes for npm globals.
-const nodeShimMarker = "lerd-managed npm global shim"
+// nodeShimMarker tags wrapper scripts servlo writes for npm globals.
+const nodeShimMarker = "servlo-managed npm global shim"
 
-// composerShimMarker tags wrapper scripts lerd writes for composer globals.
-const composerShimMarker = "lerd-managed composer global shim"
+// composerShimMarker tags wrapper scripts servlo writes for composer globals.
+const composerShimMarker = "servlo-managed composer global shim"
 
 // syncNodeGlobalBins mirrors sourceBin into targetBin via the active version
 // manager's default-version exec prefix, so `#!/usr/bin/env node` shebangs
@@ -116,16 +116,16 @@ func syncNodeGlobalBins(sourceBin, targetBin, execPrefix string) error {
 	}.run()
 }
 
-// syncComposerGlobalBins mirrors sourceBin into targetBin via `lerd php`, so
+// syncComposerGlobalBins mirrors sourceBin into targetBin via `servlo php`, so
 // `#!/usr/bin/env php` shebangs on composer globals (psysh, phpunit, carbon,
-// laravel/installer, etc.) resolve against lerd's container-backed PHP.
-func syncComposerGlobalBins(sourceBin, targetBin, lerdPath string) error {
+// laravel/installer, etc.) resolve against servlo's container-backed PHP.
+func syncComposerGlobalBins(sourceBin, targetBin, servloPath string) error {
 	return shimSync{
 		sourceBin: sourceBin,
 		targetBin: targetBin,
 		marker:    composerShimMarker,
 		bodyFor: func(realBin string) string {
-			return fmt.Sprintf("#!/bin/sh\n# %s\nexec %q php %q \"$@\"\n", composerShimMarker, lerdPath, realBin)
+			return fmt.Sprintf("#!/bin/sh\n# %s\nexec %q php %q \"$@\"\n", composerShimMarker, servloPath, realBin)
 		},
 	}.run()
 }

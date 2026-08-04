@@ -317,7 +317,7 @@ func TestProjectConfig_Container_RoundTrip(t *testing.T) {
 	}
 }
 
-// A .lerd.yaml that carries only custom commands (or a framework version/def)
+// A .servlo.yaml that carries only custom commands (or a framework version/def)
 // is meaningful user config: IsEmpty must report false so the link wizard
 // doesn't classify it as a blank file and overwrite it.
 func TestProjectConfig_Commands_IsEmpty(t *testing.T) {
@@ -393,7 +393,7 @@ proxy:
 }
 
 func TestProjectConfig_Proxy_PortOnly(t *testing.T) {
-	// Proxy-only mode: no command, just a port lerd proxies to.
+	// Proxy-only mode: no command, just a port servlo proxies to.
 	input := `proxy:
   port: 4200
 `
@@ -650,7 +650,7 @@ func TestProjectConfig_MCPInject_IsEmpty(t *testing.T) {
 }
 
 func TestProjectConfig_OldFormatCompat(t *testing.T) {
-	// Old .lerd.yaml used services: [mysql, redis] — must still parse.
+	// Old .servlo.yaml used services: [mysql, redis] — must still parse.
 	input := `php_version: "8.3"
 secured: true
 services:

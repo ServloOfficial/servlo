@@ -26,7 +26,7 @@ describe('LANServicesSetting', () => {
 
   // The setting is what tells you managed services stay private even while
   // sites are exposed, so it has to be readable before you expose anything.
-  it('renders its control once lerd is exposed', () => {
+  it('renders its control once servlo is exposed', () => {
     setLAN({ exposed: true });
     const { getByRole, container } = render(LANServicesSetting);
     expect(getByRole('button')).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe('LANServicesSetting', () => {
   });
 });
 
-describe('LANServicesSetting while lerd is loopback only', () => {
+describe('LANServicesSetting while servlo is loopback only', () => {
   beforeEach(() => {
     accessMode.set({ localControl: true, lanExposed: false, checked: true });
     setLAN({ exposed: false, servicesEnabled: false });
@@ -80,7 +80,7 @@ describe('LANServicesSetting while lerd is loopback only', () => {
     expect(container.textContent).toContain('Managed service LAN access');
   });
 
-  it('reappears once lerd is exposed', () => {
+  it('reappears once servlo is exposed', () => {
     setLAN({ exposed: true, servicesEnabled: false });
     const { getByRole } = render(LANServicesSetting);
     expect(getByRole('button')).not.toBeDisabled();

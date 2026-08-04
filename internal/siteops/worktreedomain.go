@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // WorktreeDomain resolves a site plus an optional branch to the domain whose

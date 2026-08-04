@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
-// NewPathDisableCmd returns the path:disable command, which takes lerd's shims
+// NewPathDisableCmd returns the path:disable command, which takes servlo's shims
 // (php, composer, node, npm, npx…) off the shell PATH for users who prefer
-// typing `lerd php` explicitly — e.g. so a host PHP's exec() keeps the real
+// typing `servlo php` explicitly — e.g. so a host PHP's exec() keeps the real
 // host environment. The choice is persisted, so installs and updates stop
 // re-writing the rc entry.
 func NewPathDisableCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "path:disable",
-		Short: "Take lerd's shims (php, composer, node…) off your shell PATH",
+		Short: "Take servlo's shims (php, composer, node…) off your shell PATH",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := applyPathShim(true); err != nil {
@@ -25,8 +25,8 @@ func NewPathDisableCmd() *cobra.Command {
 			}
 			feedback.Begin()
 			feedback.Done("PATH shim disabled — open a new shell for it to take effect")
-			feedback.Note("`lerd php`, `lerd composer`, `lerd npm` keep working as before")
-			feedback.Note("re-enable with `lerd path:enable`")
+			feedback.Note("`servlo php`, `servlo composer`, `servlo npm` keep working as before")
+			feedback.Note("re-enable with `servlo path:enable`")
 			return nil
 		},
 	}
@@ -36,7 +36,7 @@ func NewPathDisableCmd() *cobra.Command {
 func NewPathEnableCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "path:enable",
-		Short: "Put lerd's shims (php, composer, node…) back on your shell PATH",
+		Short: "Put servlo's shims (php, composer, node…) back on your shell PATH",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := applyPathShim(false); err != nil {

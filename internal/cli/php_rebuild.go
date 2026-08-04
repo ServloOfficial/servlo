@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -69,7 +69,7 @@ func rebuildFrankenPHPForVersion(version string) {
 		feedback.Note("rebuilding FrankenPHP " + v + " image for Octane sites")
 		if err := podman.BuildFrankenPHPImage(v, false, os.Stdout); err != nil {
 			feedback.Warn("rebuild FrankenPHP %s image: %v", v, err)
-			fmt.Printf("       the change is live under FPM; run 'lerd php:rebuild %s' to retry the Octane image\n", v)
+			fmt.Printf("       the change is live under FPM; run 'servlo php:rebuild %s' to retry the Octane image\n", v)
 			return
 		}
 	}
@@ -106,7 +106,7 @@ func restartFrankenPHPUnits(units []frankenRestart) {
 // RebuildPHPVersion force-rebuilds one version's image against the current
 // prebuilt base and brings everything running on it back up, streaming the
 // build to w. The dashboard's rebuild action goes through here so it means the
-// same thing as `lerd php:rebuild <version>`.
+// same thing as `servlo php:rebuild <version>`.
 func RebuildPHPVersion(version string, w io.Writer) error {
 	version, err := config.NormalizePHPVersion(version)
 	if err != nil {
@@ -131,10 +131,10 @@ func RebuildPHPVersion(version string, w io.Writer) error {
 // bring them back when it returns, so a rebuild has to do it explicitly.
 func restartInContainerWorkers() {
 	for _, unit := range append(append(registeredReverbUnits(), registeredQueueUnits()...), registeredScheduleUnits()...) {
-		if !lerdSystemd.IsServiceActive(unit) && !lerdSystemd.IsServiceEnabled(unit) {
+		if !servloSystemd.IsServiceActive(unit) && !servloSystemd.IsServiceEnabled(unit) {
 			continue
 		}
-		if err := lerdSystemd.RestartService(unit); err != nil {
+		if err := servloSystemd.RestartService(unit); err != nil {
 			feedback.Warn("restart %s: %v", unit, err)
 		} else {
 			feedback.Note("restarted " + unit)
@@ -147,7 +147,7 @@ func NewPhpRebuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "php:rebuild [version]",
 		Short: "Force-rebuild PHP-FPM image(s)",
-		Long:  "Force-rebuilds lerd PHP-FPM container images. Pulls a pre-built base from ghcr.io by default; pass --local to build entirely from source.\nPass a version (e.g. 8.3) to rebuild only that version, or omit to rebuild all installed versions.",
+		Long:  "Force-rebuilds servlo PHP-FPM container images. Pulls a pre-built base from ghcr.io by default; pass --local to build entirely from source.\nPass a version (e.g. 8.3) to rebuild only that version, or omit to rebuild all installed versions.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE:  runPhpRebuild,
 	}
@@ -213,7 +213,7 @@ func runPhpRebuild(cmd *cobra.Command, args []string) error {
 	}
 	feedback.Line("restarting containers")
 	for _, v := range versions {
-		unit := "lerd-php" + strings.ReplaceAll(v, ".", "") + "-fpm"
+		unit := "servlo-php" + strings.ReplaceAll(v, ".", "") + "-fpm"
 		if err := podman.RestartUnit(unit); err != nil {
 			feedback.Warn("restart %s: %v", unit, err)
 		} else {

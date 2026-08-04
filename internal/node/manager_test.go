@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestManagerByName(t *testing.T) {
@@ -123,7 +123,7 @@ func TestUninstallVersions(t *testing.T) {
 }
 
 func TestFnmShellFragments(t *testing.T) {
-	// Isolate lerd's data dir so ExecPrefix/ShimScript resolve fnm's path under a
+	// Isolate servlo's data dir so ExecPrefix/ShimScript resolve fnm's path under a
 	// temp tree rather than the developer's real install.
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	m := fnmManager{}
@@ -136,8 +136,8 @@ func TestFnmShellFragments(t *testing.T) {
 	if prefix := m.ExecPrefix(""); !strings.Contains(prefix, "--using='default'") {
 		t.Errorf("fnm ExecPrefix(\"\") = %q, want default alias", prefix)
 	}
-	shim := m.ShimScript("/home/u/.local/bin/lerd", "npm")
-	for _, want := range []string{"#!/bin/sh", "/home/u/.local/bin/lerd", "exec --using=", "-- npm"} {
+	shim := m.ShimScript("/home/u/.local/bin/servlo", "npm")
+	for _, want := range []string{"#!/bin/sh", "/home/u/.local/bin/servlo", "exec --using=", "-- npm"} {
 		if !strings.Contains(shim, want) {
 			t.Errorf("fnm ShimScript missing %q:\n%s", want, shim)
 		}
@@ -164,7 +164,7 @@ func TestNvmShellFragments(t *testing.T) {
 func TestNvmApplyEnv_ExportsAfterActivation(t *testing.T) {
 	m := nvmManager{}
 	cmd := m.Command("20", "npm", []string{"root", "-g"})
-	m.ApplyEnv(cmd, []string{"npm_config_prefix=/tmp/lerd-global"})
+	m.ApplyEnv(cmd, []string{"npm_config_prefix=/tmp/servlo-global"})
 	script := ""
 	for i := 0; i+1 < len(cmd.Args); i++ {
 		if cmd.Args[i] == "-c" {
@@ -184,10 +184,10 @@ func TestNvmApplyEnv_ExportsAfterActivation(t *testing.T) {
 	if !(useIdx < exportIdx && exportIdx < execIdx) {
 		t.Errorf("export must sit after nvm use and before exec:\n%s", script)
 	}
-	if strings.Contains(script, "export npm_config_prefix=/tmp/lerd-global") {
+	if strings.Contains(script, "export npm_config_prefix=/tmp/servlo-global") {
 		t.Errorf("value must be shell-quoted:\n%s", script)
 	}
-	if !strings.Contains(script, "export npm_config_prefix='/tmp/lerd-global'") {
+	if !strings.Contains(script, "export npm_config_prefix='/tmp/servlo-global'") {
 		t.Errorf("expected quoted export:\n%s", script)
 	}
 }

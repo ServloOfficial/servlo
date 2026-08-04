@@ -11,7 +11,7 @@ import (
 // watchedSiteFiles lists the file names in a site root that trigger queue:restart.
 var watchedSiteFiles = map[string]bool{
 	".env":          true,
-	".lerd.yaml":    true,
+	".servlo.yaml":  true,
 	"composer.json": true,
 	"composer.lock": true,
 	".php-version":  true,

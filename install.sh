@@ -1,25 +1,21 @@
 #!/usr/bin/env bash
-# Lerd installer — https://lerd.sh
+# Servlo installer — https://github.com/realrashid/servlo
 # Usage:
-#   Install:   curl -fsSL https://lerd.sh/install.sh | bash
-#      or:     wget -qO- https://lerd.sh/install.sh | bash
-#   Update:    lerd-installer --update
-#   Uninstall: lerd-installer --uninstall
+#   Install:   curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash
+#      or:     wget -qO- https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash
+#   Update:    servlo-installer --update
+#   Uninstall: servlo-installer --uninstall
 
 set -euo pipefail
 
 # ── Constants ────────────────────────────────────────────────────────────────
 # REPO is the GitHub owner/name release assets are fetched from; override with
-# LERD_REPO so a future org move needs no installer change.
-REPO="${LERD_REPO:-lerd-env/lerd}"
-BINARY="lerd"
-# Command shown to install the optional Lerd desktop app (a dedicated window
-# with native desktop notifications), distributed as a Flatpak. Overridable so
-# the ref URL can move.
-DESKTOP_INSTALL_CMD="${LERD_DESKTOP_INSTALL_CMD:-flatpak install --user https://lerd.sh/lerd.flatpakref}"
-INSTALL_DIR="${LERD_INSTALL_DIR:-$HOME/.local/bin}"
-LERD_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/lerd"
-LERD_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/lerd"
+# SERVLO_REPO so a future org move needs no installer change.
+REPO="${SERVLO_REPO:-realrashid/servlo}"
+BINARY="servlo"
+INSTALL_DIR="${SERVLO_INSTALL_DIR:-$HOME/.local/bin}"
+SERVLO_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/servlo"
+SERVLO_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/servlo"
 
 # ── Colors ───────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then
@@ -39,7 +35,7 @@ header()  { echo -e "\n${BOLD}$*${RESET}"; }
 ask()     { echo -en "  ${BOLD}?${RESET}  $* [y/N] "; read -r _ans </dev/tty 2>/dev/null || true; [[ "$_ans" =~ ^[Yy]$ ]]; }
 star_note() {
   echo ""
-  echo -e "  ${CYAN}★${RESET}  If lerd is useful to you, a GitHub star helps others find it:"
+  echo -e "  ${CYAN}★${RESET}  If servlo is useful to you, a GitHub star helps others find it:"
   echo -e "     https://github.com/${REPO}"
 }
 
@@ -48,7 +44,7 @@ detect_os() {
   case "$(uname -s)" in
     Linux)  echo "linux" ;;
     Darwin) echo "darwin" ;;
-    *) die "Unsupported OS: $(uname -s). Lerd supports Linux and macOS." ;;
+    *) die "Unsupported OS: $(uname -s). Servlo supports Linux and macOS." ;;
   esac
 }
 
@@ -112,9 +108,9 @@ distro_family() {
 MISSING_PKGS=()
 
 # DNS mode chosen by the user before prerequisites are checked. "managed" runs
-# lerd's dnsmasq + mkcert so sites resolve at https://<name>.test with trusted
+# servlo's dnsmasq + mkcert so sites resolve at https://<name>.test with trusted
 # certs; "localhost" skips all of that and serves http://<name>.localhost over
-# plain HTTP. The choice is passed straight to `lerd install --dns` so the
+# plain HTTP. The choice is passed straight to `servlo install --dns` so the
 # prompt isn't shown twice, and it lets us skip the HTTPS-only packages
 # (certutil / nss-tools) when the user only wants .localhost.
 DNS_MODE="managed"
@@ -122,12 +118,12 @@ DNS_MODE="managed"
 ask_dns_mode() {
   local _ans=""
   header "DNS mode"
-  echo "  lerd can manage local DNS so sites resolve at https://<name>.test with"
+  echo "  servlo can manage local DNS so sites resolve at https://<name>.test with"
   echo "  trusted certificates, or stay out of the way and serve them at"
   echo "  http://<name>.localhost over plain HTTP. The .localhost mode needs no"
   echo "  dnsmasq, no mkcert, and no extra packages."
   echo ""
-  echo -en "  ${BOLD}?${RESET}  Let lerd manage DNS for .test sites with HTTPS? [Y/n] "
+  echo -en "  ${BOLD}?${RESET}  Let servlo manage DNS for .test sites with HTTPS? [Y/n] "
   read -r _ans </dev/tty 2>/dev/null || true
   if [[ "$_ans" =~ ^[Nn]$ ]]; then
     DNS_MODE="localhost"
@@ -188,7 +184,7 @@ check_certutil() {
     # queue it for the package installer, which would die or fail on ostree.
     # Guide instead, and leave localhost as the no-package alternative.
     warn "certutil not found — mkcert can't trust HTTPS certs in Chrome/Firefox on this atomic image"
-    info "For browser trust: rpm-ostree install $pkg, reboot, then run 'lerd dns:repair'"
+    info "For browser trust: rpm-ostree install $pkg, reboot, then run 'servlo dns:repair'"
     info "Or re-run and choose localhost DNS to serve plain http with no certificates"
     return
   fi
@@ -215,7 +211,7 @@ check_prerequisites() {
   fi
 }
 
-# macOS needs only the podman CLI on PATH; `lerd install` brings the Podman
+# macOS needs only the podman CLI on PATH; `servlo install` brings the Podman
 # machine up itself, and mkcert/DNS/launchd are all handled inside the binary.
 # Missing packages are installed via Homebrew (no sudo, unlike the Linux path).
 check_prerequisites_macos() {
@@ -270,7 +266,7 @@ check_prerequisites_linux() {
       _systemd_linger)
         if ask "Enable systemd linger for $USER now?"; then
           loginctl enable-linger "$USER"
-          success "Linger enabled — please log out and back in before running 'lerd install'"
+          success "Linger enabled — please log out and back in before running 'servlo install'"
         fi
         ;;
     esac
@@ -371,10 +367,10 @@ latest_version() {
   local location
   case "$(_download_tool)" in
     curl) location="$(curl -fsSLI "${CURL_RETRY[@]}" --stderr /dev/null \
-            -H "User-Agent: lerd-installer" \
+            -H "User-Agent: servlo-installer" \
             "$url" | grep -i '^location:' | tail -1)" ;;
     wget) location="$(wget -qS --spider "${WGET_RETRY[@]}" \
-            --header "User-Agent: lerd-installer" \
+            --header "User-Agent: servlo-installer" \
             "$url" 2>&1 | grep -i 'Location:'  | tail -1)" ;;
   esac
 
@@ -384,17 +380,17 @@ latest_version() {
 
 # download_binary <version> <arch> <destdir>
 # Downloads and extracts the release archive into <destdir>.
-# The extracted binary will be at <destdir>/lerd.
+# The extracted binary will be at <destdir>/servlo.
 # All output goes to stderr — nothing is printed to stdout.
 download_binary() {
   local version="$1" arch="$2" destdir="$3"
   local os; os="$(detect_os)"
-  local filename="lerd_${version}_${os}_${arch}.tar.gz"
+  local filename="servlo_${version}_${os}_${arch}.tar.gz"
   local url="https://github.com/${REPO}/releases/download/v${version}/${filename}"
 
-  info "Downloading lerd v${version} (${arch}) via $(_download_tool) ..."
+  info "Downloading servlo v${version} (${arch}) via $(_download_tool) ..."
   if ! fetch "$url" "${destdir}/${filename}"; then
-    die "Download failed (HTTP 404).\nNo release v${version} found at:\n  ${url}\n\nIf you built lerd locally, use:\n  bash install.sh --local ./build/lerd"
+    die "Download failed (HTTP 404).\nNo release v${version} found at:\n  ${url}\n\nIf you built servlo locally, use:\n  bash install.sh --local ./build/servlo"
   fi
 
   if ! tar -xzf "${destdir}/${filename}" -C "$destdir" 2>&1; then
@@ -403,8 +399,8 @@ download_binary() {
 }
 
 installed_version() {
-  if command -v lerd &>/dev/null; then
-    lerd --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "unknown"
+  if command -v servlo &>/dev/null; then
+    servlo --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "unknown"
   else
     echo ""
   fi
@@ -414,8 +410,8 @@ installed_version() {
 # 1.25.0-6-g7d030096-dirty). installed_version() collapses that to the bare
 # 1.25.0, which is what version_is_dev needs the suffix from.
 installed_version_raw() {
-  if command -v lerd &>/dev/null; then
-    lerd --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[A-Za-z0-9.-]*' | head -1 || echo ""
+  if command -v servlo &>/dev/null; then
+    servlo --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[A-Za-z0-9.-]*' | head -1 || echo ""
   else
     echo ""
   fi
@@ -443,12 +439,12 @@ guard_dev_build() {
 }
 
 # ── Shell integration ────────────────────────────────────────────────────────
-SHELL_MARKER="# Added by Lerd installer"
+SHELL_MARKER="# Added by Servlo installer"
 
 detect_shell_rc() {
   local shell; shell="$(basename "${SHELL:-bash}")"
   case "$shell" in
-    fish) echo "$HOME/.config/fish/conf.d/lerd.fish" ;;
+    fish) echo "$HOME/.config/fish/conf.d/servlo.fish" ;;
     zsh)  echo "$HOME/.zshrc" ;;
     *)
       # macOS Terminal launches bash as a login shell, which reads
@@ -506,11 +502,7 @@ remove_from_path() {
 # ── Install ──────────────────────────────────────────────────────────────────
 cmd_install() {
   local local_binary="${1:-}"
-  header "Installing Lerd"
-
-  # Sampled before anything installs: empty means a genuinely fresh install,
-  # the only time we offer the desktop app.
-  local was_installed; was_installed="$(installed_version)"
+  header "Installing Servlo"
 
   # Validate local binary path before running any checks so the error is clear.
   if [ -n "$local_binary" ]; then
@@ -527,41 +519,40 @@ cmd_install() {
   mkdir -p "$INSTALL_DIR"
 
   if [ -n "$local_binary" ]; then
-    # ── Local binary path supplied (e.g. ./build/lerd) ──
+    # ── Local binary path supplied (e.g. ./build/servlo) ──
     [ -f "$local_binary" ] || die "File not found: $local_binary"
     install -m 755 "$local_binary" "${INSTALL_DIR}/${BINARY}"
     local version; version="$("${INSTALL_DIR}/${BINARY}" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "dev")"
-    success "Installed lerd ${version} (local) → ${INSTALL_DIR}/${BINARY}"
+    success "Installed servlo ${version} (local) → ${INSTALL_DIR}/${BINARY}"
   else
     # ── Download from GitHub releases ──
     local arch; arch="$(detect_arch)"
     local version; version="$(latest_version)"
     if [ -z "$version" ]; then
-      die "No releases found at https://github.com/${REPO}/releases\n\nIf you built lerd locally, install with:\n  bash install.sh --local ./build/lerd"
+      die "No releases found at https://github.com/${REPO}/releases\n\nIf you built servlo locally, install with:\n  bash install.sh --local ./build/servlo"
     fi
 
     local current; current="$(installed_version)"
     if [ -n "$current" ] && [ "$current" = "$version" ]; then
-      success "Lerd v${version} is already installed and up to date"
+      success "Servlo v${version} is already installed and up to date"
       exit 0
     fi
     guard_dev_build "$version"
 
     local tmpdir; tmpdir="$(mktemp -d)"
     download_binary "$version" "$arch" "$tmpdir"
-    install -m 755 "${tmpdir}/lerd" "${INSTALL_DIR}/${BINARY}"
-    [ -f "${tmpdir}/lerd-tray" ] && install -m 755 "${tmpdir}/lerd-tray" "${INSTALL_DIR}/lerd-tray"
+    install -m 755 "${tmpdir}/servlo" "${INSTALL_DIR}/${BINARY}"
     rm -rf "$tmpdir"
-    success "Installed lerd v${version} → ${INSTALL_DIR}/${BINARY}"
+    success "Installed servlo v${version} → ${INSTALL_DIR}/${BINARY}"
   fi
 
   add_to_path
 
   echo ""
-  info "Running 'lerd install' to complete setup ..."
+  info "Running 'servlo install' to complete setup ..."
   echo ""
   # When this script is piped through `curl|bash`, our own stdin is the pipe
-  # and lerd's prompts would silently hit EOF. Hand it /dev/tty when one is
+  # and servlo's prompts would silently hit EOF. Hand it /dev/tty when one is
   # available so [Y/n] questions reach the user.
   if [ -r /dev/tty ]; then
     "${INSTALL_DIR}/${BINARY}" install --dns "$DNS_MODE" </dev/tty
@@ -569,38 +560,12 @@ cmd_install() {
     "${INSTALL_DIR}/${BINARY}" install --dns "$DNS_MODE"
   fi
 
-  # Offer the desktop app on a fresh Linux install. Its own installer does the
-  # download; here we only record the notification sink the user prefers.
-  if [ -z "$was_installed" ] && [ "$(uname -s)" = "Linux" ] && [ -r /dev/tty ]; then
-    offer_desktop_app
-  fi
-
   star_note
-}
-
-# offer_desktop_app asks whether to use the Lerd desktop app (which delivers
-# native desktop notifications) or stay on the browser, records the choice via
-# `lerd notify target`, and always prints the command to install the app.
-offer_desktop_app() {
-  header "Desktop app"
-  info "Lerd has a desktop app: a dedicated window with native desktop notifications,"
-  info "no browser tab needed. The app installs separately with one command."
-  echo ""
-  if ask "Use the Lerd desktop app? (choose native notifications)"; then
-    "${INSTALL_DIR}/${BINARY}" notify target native >/dev/null 2>&1 || true
-    success "Native desktop notifications enabled"
-    info "Install the desktop app with:"
-  else
-    "${INSTALL_DIR}/${BINARY}" notify target browser >/dev/null 2>&1 || true
-    success "Using browser notifications"
-    info "Prefer a dedicated app later? Install it anytime with:"
-  fi
-  echo -e "     ${CYAN}${DESKTOP_INSTALL_CMD}${RESET}"
 }
 
 # ── Update ───────────────────────────────────────────────────────────────────
 cmd_update() {
-  header "Updating Lerd"
+  header "Updating Servlo"
 
   local arch; arch="$(detect_arch)"
   local latest; latest="$(latest_version)"
@@ -617,10 +582,9 @@ cmd_update() {
   info "Updating v${current:-unknown} → v${latest}"
   local tmpdir; tmpdir="$(mktemp -d)"
   download_binary "$latest" "$arch" "$tmpdir"
-  install -m 755 "${tmpdir}/lerd" "${INSTALL_DIR}/${BINARY}"
-  [ -f "${tmpdir}/lerd-tray" ] && install -m 755 "${tmpdir}/lerd-tray" "${INSTALL_DIR}/lerd-tray"
+  install -m 755 "${tmpdir}/servlo" "${INSTALL_DIR}/${BINARY}"
   rm -rf "$tmpdir"
-  success "Updated to lerd v${latest}"
+  success "Updated to servlo v${latest}"
   star_note
 }
 
@@ -634,20 +598,20 @@ cmd_uninstall() {
 }
 
 # macOS teardown: boot out and remove the user LaunchAgents, stop any detached
-# lerd-* podman containers, then drop the binary. The DNS resolver file in
-# /etc/resolver and the Podman machine are left to `lerd uninstall` (run before
+# servlo-* podman containers, then drop the binary. The DNS resolver file in
+# /etc/resolver and the Podman machine are left to `servlo uninstall` (run before
 # the binary is removed) since removing the resolver needs sudo.
 cmd_uninstall_macos() {
-  header "Uninstalling Lerd"
+  header "Uninstalling Servlo"
 
-  # Only `lerd uninstall` drops the DNS resolver (/etc/resolver/test, sudo) and
+  # Only `servlo uninstall` drops the DNS resolver (/etc/resolver/test, sudo) and
   # the Podman machine, and it's gone once we delete the binary below. Surface
   # the two-step order while the binary is here so the resolver isn't orphaned.
-  if command -v lerd &>/dev/null; then
+  if command -v servlo &>/dev/null; then
     warn "This script does not remove the DNS resolver (/etc/resolver/test) or the Podman machine."
-    info "Those are torn down by 'lerd uninstall' (needs sudo), which is unavailable once the binary is gone."
-    if [ -r /dev/tty ] && ! ask "Continue and remove the lerd binary now?"; then
-      info "Aborted. Run 'lerd uninstall' first, then re-run this uninstaller."
+    info "Those are torn down by 'servlo uninstall' (needs sudo), which is unavailable once the binary is gone."
+    if [ -r /dev/tty ] && ! ask "Continue and remove the servlo binary now?"; then
+      info "Aborted. Run 'servlo uninstall' first, then re-run this uninstaller."
       exit 0
     fi
   fi
@@ -655,14 +619,14 @@ cmd_uninstall_macos() {
   local domain="gui/$(id -u)"
   local agents_dir="$HOME/Library/LaunchAgents"
 
-  # lerd's launch agents are named lerd-*.plist on disk and their launchctl
-  # label is com.lerd.<filename-without-.plist> (see plistLabel in
+  # servlo's launch agents are named servlo-*.plist on disk and their launchctl
+  # label is com.servlo.<filename-without-.plist> (see plistLabel in
   # launchd_darwin.go), so derive it from the name rather than `defaults read`,
   # which mis-resolves a .plist-suffixed path and would skip the bootout.
   if [ -d "$agents_dir" ]; then
-    for f in "$agents_dir"/lerd-*.plist; do
+    for f in "$agents_dir"/servlo-*.plist; do
       [ -f "$f" ] || continue
-      local label; label="com.lerd.$(basename "$f" .plist)"
+      local label; label="com.servlo.$(basename "$f" .plist)"
       launchctl bootout "$domain/$label" 2>/dev/null || true
       rm -f "$f"
     done
@@ -674,31 +638,29 @@ cmd_uninstall_macos() {
   # would otherwise abort the whole uninstall before the binary is removed.
   if command -v podman &>/dev/null; then
     local containers
-    containers="$(podman ps -a --format '{{.Names}}' 2>/dev/null | grep '^lerd-' || true)"
+    containers="$(podman ps -a --format '{{.Names}}' 2>/dev/null | grep '^servlo-' || true)"
     for c in $containers; do
       podman rm -f "$c" 2>/dev/null || true
     done
   fi
 
-  rm -rf "$HOME/Library/Logs/lerd"
+  rm -rf "$HOME/Library/Logs/servlo"
 
-  # Remove binaries
-  for b in "$BINARY" lerd-tray; do
-    if [ -f "${INSTALL_DIR}/${b}" ]; then
-      rm -f "${INSTALL_DIR}/${b}"
-      success "Removed ${INSTALL_DIR}/${b}"
-    fi
-  done
+  # Remove the binary
+  if [ -f "${INSTALL_DIR}/${BINARY}" ]; then
+    rm -f "${INSTALL_DIR}/${BINARY}"
+    success "Removed ${INSTALL_DIR}/${BINARY}"
+  fi
 
   remove_from_path
 
-  if ask "Remove all Lerd data and config? (~/.config/lerd, ~/.local/share/lerd)"; then
-    rm -rf "$LERD_CONFIG_DIR"
-    rm -rf "$LERD_DATA_DIR"
+  if ask "Remove all Servlo data and config? (~/.config/servlo, ~/.local/share/servlo)"; then
+    rm -rf "$SERVLO_CONFIG_DIR"
+    rm -rf "$SERVLO_DATA_DIR"
     success "Removed config and data directories"
   else
-    info "Config kept at $LERD_CONFIG_DIR"
-    info "Data kept at $LERD_DATA_DIR"
+    info "Config kept at $SERVLO_CONFIG_DIR"
+    info "Data kept at $SERVLO_DATA_DIR"
   fi
 
   if [ -f /etc/resolver/test ]; then
@@ -707,65 +669,65 @@ cmd_uninstall_macos() {
     info "Remove the Podman machine with: podman machine rm <name>  (see 'podman machine ls')"
   fi
 
-  success "Lerd uninstalled"
+  success "Servlo uninstalled"
 }
 
-# The root-owned files lerd's managed DNS writes. None of them live under $HOME
+# The root-owned files servlo's managed DNS writes. None of them live under $HOME
 # and only the binary can take them back out, so the uninstaller uses this list
 # both to detect the setup and to tell the user how to clear it by hand.
-LERD_DNS_FILES=(
-  /etc/sudoers.d/lerd
-  /etc/systemd/system/lerd-dns-link.service
-  /etc/systemd/resolved.conf.d/lerd-fallback.conf
-  /etc/systemd/resolved.conf.d/lerd.conf
-  /etc/NetworkManager/conf.d/lerd-dns-link.conf
-  /etc/NetworkManager/conf.d/lerd.conf
-  /etc/NetworkManager/dnsmasq.d/lerd.conf
-  /etc/NetworkManager/dispatcher.d/99-lerd-dns
+SERVLO_DNS_FILES=(
+  /etc/sudoers.d/servlo
+  /etc/systemd/system/servlo-dns-link.service
+  /etc/systemd/resolved.conf.d/servlo-fallback.conf
+  /etc/systemd/resolved.conf.d/servlo.conf
+  /etc/NetworkManager/conf.d/servlo-dns-link.conf
+  /etc/NetworkManager/conf.d/servlo.conf
+  /etc/NetworkManager/dnsmasq.d/servlo.conf
+  /etc/NetworkManager/dispatcher.d/99-servlo-dns
 )
 
-lerd_dns_config_present() {
+servlo_dns_config_present() {
   local f
-  for f in "${LERD_DNS_FILES[@]}"; do
+  for f in "${SERVLO_DNS_FILES[@]}"; do
     [ -e "$f" ] && return 0
   done
   return 1
 }
 
-lerd_dns_cleanup_hint() {
-  warn "Lerd's DNS configuration is still on this system and only root can remove it:"
-  info "sudo systemctl disable --now lerd-dns-link.service"
-  info "sudo rm -f ${LERD_DNS_FILES[*]}"
+servlo_dns_cleanup_hint() {
+  warn "Servlo's DNS configuration is still on this system and only root can remove it:"
+  info "sudo systemctl disable --now servlo-dns-link.service"
+  info "sudo rm -f ${SERVLO_DNS_FILES[*]}"
   info "sudo systemctl daemon-reload && sudo systemctl restart systemd-resolved"
-  info "If the interface is still up: sudo ip link del lerd0"
+  info "If the interface is still up: sudo ip link del servlo0"
 }
 
-# Left in place, the link unit recreates lerd0 at every boot pointing .test at a
+# Left in place, the link unit recreates servlo0 at every boot pointing .test at a
 # dnsmasq that no longer exists, and the fallback drop-in keeps systemd-resolved's
 # fallback servers switched off for good. The binary is removed further down and
 # it is the only thing that can undo any of it, so offer the teardown here.
 uninstall_linux_dns() {
-  lerd_dns_config_present || return 0
+  servlo_dns_config_present || return 0
 
-  if ! command -v lerd &>/dev/null; then
-    lerd_dns_cleanup_hint
+  if ! command -v servlo &>/dev/null; then
+    servlo_dns_cleanup_hint
     return 0
   fi
 
-  warn "The system DNS setup (the lerd0 link, its root unit, the NetworkManager rules and systemd-resolved's fallback servers) is removed only by lerd itself."
+  warn "The system DNS setup (the servlo0 link, its root unit, the NetworkManager rules and systemd-resolved's fallback servers) is removed only by servlo itself."
   info "Nothing on this machine can undo it once the binary is gone."
-  if ask "Remove the DNS setup now? (runs 'lerd dns:disable', needs sudo)"; then
-    if lerd dns:disable; then
-      success "Removed lerd DNS configuration"
+  if ask "Remove the DNS setup now? (runs 'servlo dns:disable', needs sudo)"; then
+    if servlo dns:disable; then
+      success "Removed servlo DNS configuration"
       return 0
     fi
-    warn "'lerd dns:disable' did not complete."
+    warn "'servlo dns:disable' did not complete."
   fi
-  lerd_dns_cleanup_hint
+  servlo_dns_cleanup_hint
 }
 
 cmd_uninstall_linux() {
-  header "Uninstalling Lerd"
+  header "Uninstalling Servlo"
 
   uninstall_linux_dns
 
@@ -774,7 +736,7 @@ cmd_uninstall_linux() {
   local systemd_user_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 
   if [ -d "$quadlet_dir" ]; then
-    for f in "$quadlet_dir"/lerd-*.container; do
+    for f in "$quadlet_dir"/servlo-*.container; do
       [ -f "$f" ] || continue
       local unit; unit="$(basename "$f" .container)"
       if systemctl --user is-active --quiet "$unit" 2>/dev/null; then
@@ -783,12 +745,12 @@ cmd_uninstall_linux() {
       fi
       systemctl --user disable "$unit" 2>/dev/null || true
     done
-    rm -f "$quadlet_dir"/lerd-*.container
+    rm -f "$quadlet_dir"/servlo-*.container
     info "Removed Quadlet units from $quadlet_dir"
   fi
 
   # Stop and remove user service unit files
-  for svc in lerd-watcher lerd-ui; do
+  for svc in servlo-watcher servlo-panel; do
     if systemctl --user is-active --quiet "$svc" 2>/dev/null; then
       systemctl --user stop "$svc" 2>/dev/null || true
     fi
@@ -808,30 +770,30 @@ cmd_uninstall_linux() {
   remove_from_path
 
   # Optionally remove data
-  if ask "Remove all Lerd data and config? (~/.config/lerd, ~/.local/share/lerd)"; then
-    rm -rf "$LERD_CONFIG_DIR"
-    rm -rf "$LERD_DATA_DIR"
+  if ask "Remove all Servlo data and config? (~/.config/servlo, ~/.local/share/servlo)"; then
+    rm -rf "$SERVLO_CONFIG_DIR"
+    rm -rf "$SERVLO_DATA_DIR"
     success "Removed config and data directories"
   else
-    info "Config kept at $LERD_CONFIG_DIR"
-    info "Data kept at $LERD_DATA_DIR"
+    info "Config kept at $SERVLO_CONFIG_DIR"
+    info "Data kept at $SERVLO_DATA_DIR"
   fi
 
-  success "Lerd uninstalled"
+  success "Servlo uninstalled"
 }
 
 # ── Entry point ──────────────────────────────────────────────────────────────
 main() {
   echo -e "${BOLD}"
-  echo "  ██╗     ███████╗██████╗ ██████╗ "
-  echo "  ██║     ██╔════╝██╔══██╗██╔══██╗"
-  echo "  ██║     █████╗  ██████╔╝██║  ██║"
-  echo "  ██║     ██╔══╝  ██╔══██╗██║  ██║"
-  echo "  ███████╗███████╗██║  ██║██████╔╝"
-  echo "  ╚══════╝╚══════╝╚═╝  ╚═╝╚═════╝ "
+  echo "  ███████╗███████╗██████╗ ██╗   ██╗██╗      ██████╗ "
+  echo "  ██╔════╝██╔════╝██╔══██╗██║   ██║██║     ██╔═══██╗"
+  echo "  ███████╗█████╗  ██████╔╝██║   ██║██║     ██║   ██║"
+  echo "  ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██║     ██║   ██║"
+  echo "  ███████║███████╗██║  ██║ ╚████╔╝ ███████╗╚██████╔╝"
+  echo "  ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝ ╚═════╝ "
   echo -e "${RESET}"
-  echo "  Lerd — Podman-powered local PHP dev environment for Linux and macOS"
-  echo "  https://lerd.sh"
+  echo "  Servlo — Podman-powered PHP server panel for Ubuntu 24.04 LTS"
+  echo "  https://github.com/realrashid/servlo"
   echo ""
 
   case "${1:-install}" in
@@ -845,16 +807,16 @@ main() {
       check_prerequisites
       ;;
     --local)
-      [ -n "${2:-}" ] || die "--local requires a path argument, e.g: --local ./build/lerd"
+      [ -n "${2:-}" ] || die "--local requires a path argument, e.g: --local ./build/servlo"
       cmd_install "$2"
       ;;
     --help|-h)
       echo "Usage: $0 [--update | --uninstall | --check | --local <path>]"
       echo ""
-      echo "  (no args)       Install Lerd from latest GitHub release"
+      echo "  (no args)       Install Servlo from latest GitHub release"
       echo "  --local <path>  Install from a locally built binary"
       echo "  --update        Update to the latest release"
-      echo "  --uninstall     Remove Lerd and optionally its data"
+      echo "  --uninstall     Remove Servlo and optionally its data"
       echo "  --check         Check prerequisites only"
       ;;
     --install|install|"") cmd_install ;;
@@ -867,9 +829,9 @@ main() {
 # which triggers set -u on some bash versions even with the :- operator.
 # Suspend nounset briefly to read it safely.
 set +u
-_lerd_src="${BASH_SOURCE[0]:-}"
+_servlo_src="${BASH_SOURCE[0]:-}"
 set -u
-if [[ -z "$_lerd_src" || "$_lerd_src" == "$0" ]]; then
+if [[ -z "$_servlo_src" || "$_servlo_src" == "$0" ]]; then
   main "$@"
 fi
-unset _lerd_src
+unset _servlo_src

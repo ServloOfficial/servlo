@@ -33,7 +33,7 @@ export interface Service {
   secondary_ports?: ServicePortMapping[];
   custom?: boolean;
   is_default?: boolean;
-  // True when lerd ships this service as a bundled preset (default-stack or
+  // True when servlo ships this service as a bundled preset (default-stack or
   // optional). Drives the ports modal's extra-ports affordance.
   preset_owned?: boolean;
   tunable?: boolean;

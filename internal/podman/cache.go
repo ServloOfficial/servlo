@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // ContainerCache polls podman for container states on a configurable interval
@@ -43,7 +43,7 @@ type ContainerCache struct {
 
 // SetOnChange installs a callback that fires after a poll detects a change
 // in the running map. Used by the daemon to trigger a snapshot publish on
-// external state changes (container crash, systemctl outside of lerd-ui)
+// external state changes (container crash, systemctl outside of servlo-panel)
 // without paying for a DBus PropertiesChanged subscription. Pass nil to
 // remove the callback.
 func (c *ContainerCache) SetOnChange(fn func()) {
@@ -52,7 +52,7 @@ func (c *ContainerCache) SetOnChange(fn func()) {
 	c.onChangeMu.Unlock()
 }
 
-// stoppedFn reports whether lerd was intentionally stopped. A var so the loop
+// stoppedFn reports whether servlo was intentionally stopped. A var so the loop
 // test can drive the transition without touching the real marker file.
 var stoppedFn = config.IsStopped
 
@@ -64,7 +64,7 @@ func defaultPollFn() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), pollTimeout)
 	defer cancel()
 	out, err := CmdContext(ctx, "ps", "-a",
-		"--filter", "name=lerd-",
+		"--filter", "name=servlo-",
 		"--format", "{{.Names}}\t{{.State}}").Output()
 	if err != nil {
 		return "", err
@@ -187,7 +187,7 @@ func (c *ContainerCache) Pause()  { atomic.AddInt32(&c.pauseCount, 1) }
 func (c *ContainerCache) Resume() { atomic.AddInt32(&c.pauseCount, -1) }
 
 func (c *ContainerCache) loop(ctx context.Context) {
-	// settledWhileStopped records that the map has stopped moving since lerd was
+	// settledWhileStopped records that the map has stopped moving since servlo was
 	// stopped, so the quiet period costs nothing further. lastStopped is the
 	// previous poll it is judged against.
 	settledWhileStopped := false
@@ -204,7 +204,7 @@ func (c *ContainerCache) loop(ctx context.Context) {
 			if atomic.LoadInt32(&c.pauseCount) > 0 {
 				continue
 			}
-			// While lerd is stopped its containers are meant to be down and
+			// While servlo is stopped its containers are meant to be down and
 			// workerheal.Detect suppresses itself, so nothing needs fresh state
 			// and the podman round trip is waste. The timer keeps ticking (a
 			// stat, not a subprocess) so polling resumes once the marker clears.
@@ -215,7 +215,7 @@ func (c *ContainerCache) loop(ctx context.Context) {
 				c.poll()
 				cur := c.Snapshot()
 				// Two polls must agree, and never a poll against the map it
-				// replaced: `lerd stop` marks before tearing down, so a tick
+				// replaced: `servlo stop` marks before tearing down, so a tick
 				// landing mid-teardown reads back what the map already held.
 				settledWhileStopped = lastStopped != nil && maps.Equal(lastStopped, cur)
 				lastStopped = cur

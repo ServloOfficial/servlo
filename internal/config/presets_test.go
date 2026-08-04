@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
 func TestListPresets_IncludesShippedPresets(t *testing.T) {
@@ -134,12 +134,12 @@ func TestLoadPreset_Valkey(t *testing.T) {
 	}
 	hasRedisHost := false
 	for _, kv := range p.EnvVars {
-		if kv == "REDIS_HOST=lerd-valkey" {
+		if kv == "REDIS_HOST=servlo-valkey" {
 			hasRedisHost = true
 		}
 	}
 	if !hasRedisHost {
-		t.Errorf("valkey must point REDIS_HOST at lerd-valkey, got %v", p.EnvVars)
+		t.Errorf("valkey must point REDIS_HOST at servlo-valkey, got %v", p.EnvVars)
 	}
 	if p.Default {
 		t.Errorf("valkey is an opt-in add-on preset and must not be default")
@@ -227,7 +227,7 @@ func TestLoadPreset_Elasticvue(t *testing.T) {
 		t.Errorf("elasticvue must expose its UI as dashboard")
 	}
 	if got := p.Environment["ELASTICVUE_CLUSTERS"]; got == "" {
-		t.Errorf("elasticvue must pre-configure the lerd ES cluster via ELASTICVUE_CLUSTERS")
+		t.Errorf("elasticvue must pre-configure the servlo ES cluster via ELASTICVUE_CLUSTERS")
 	}
 }
 
@@ -333,12 +333,12 @@ func TestPresetResolve_MultiVersion(t *testing.T) {
 	}
 	foundHost := false
 	for _, kv := range svc.EnvVars {
-		if kv == "DB_HOST=lerd-mysql-5-7" {
+		if kv == "DB_HOST=servlo-mysql-5-7" {
 			foundHost = true
 		}
 	}
 	if !foundHost {
-		t.Errorf("expected DB_HOST=lerd-mysql-5-7 in env_vars, got %v", svc.EnvVars)
+		t.Errorf("expected DB_HOST=servlo-mysql-5-7 in env_vars, got %v", svc.EnvVars)
 	}
 }
 
@@ -367,11 +367,11 @@ func TestPresetResolve_DefaultVersion(t *testing.T) {
 		}
 	}
 	for _, kv := range svc.EnvVars {
-		if kv == "DB_HOST=lerd-mysql" {
+		if kv == "DB_HOST=servlo-mysql" {
 			return
 		}
 	}
-	t.Errorf("expected DB_HOST=lerd-mysql in canonical env_vars, got %v", svc.EnvVars)
+	t.Errorf("expected DB_HOST=servlo-mysql in canonical env_vars, got %v", svc.EnvVars)
 }
 
 func TestPresetResolve_UnknownVersion(t *testing.T) {
@@ -391,8 +391,8 @@ func TestServicesInFamily_BuiltinAndCustom(t *testing.T) {
 
 	// Built-in mysql is always in family "mysql".
 	hosts := ServicesInFamily("mysql")
-	if len(hosts) != 1 || hosts[0] != "lerd-mysql" {
-		t.Errorf("expected [lerd-mysql], got %v", hosts)
+	if len(hosts) != 1 || hosts[0] != "servlo-mysql" {
+		t.Errorf("expected [servlo-mysql], got %v", hosts)
 	}
 
 	// Install a fake mysql alternate.
@@ -406,8 +406,8 @@ func TestServicesInFamily_BuiltinAndCustom(t *testing.T) {
 	}
 
 	hosts = ServicesInFamily("mysql")
-	if len(hosts) != 2 || hosts[0] != "lerd-mysql" || hosts[1] != "lerd-mysql-5-7" {
-		t.Errorf("expected [lerd-mysql lerd-mysql-5-7], got %v", hosts)
+	if len(hosts) != 2 || hosts[0] != "servlo-mysql" || hosts[1] != "servlo-mysql-5-7" {
+		t.Errorf("expected [servlo-mysql servlo-mysql-5-7], got %v", hosts)
 	}
 }
 
@@ -426,8 +426,8 @@ func TestResolveDynamicEnv_DiscoverFamily(t *testing.T) {
 	if err := ResolveDynamicEnv(svc); err != nil {
 		t.Fatalf("ResolveDynamicEnv: %v", err)
 	}
-	if got := svc.Environment["PMA_HOSTS"]; got != "lerd-mysql" {
-		t.Errorf("PMA_HOSTS = %q, want lerd-mysql", got)
+	if got := svc.Environment["PMA_HOSTS"]; got != "servlo-mysql" {
+		t.Errorf("PMA_HOSTS = %q, want servlo-mysql", got)
 	}
 }
 
@@ -452,8 +452,8 @@ func TestResolveDynamicEnv_DiscoverFamily_OnlyRunning(t *testing.T) {
 	if err := ResolveDynamicEnv(svc); err != nil {
 		t.Fatal(err)
 	}
-	if got := svc.Environment["PMA_HOSTS"]; got != "lerd-mysql" {
-		t.Errorf("PMA_HOSTS = %q, want only running lerd-mysql, got stopped members too", got)
+	if got := svc.Environment["PMA_HOSTS"]; got != "servlo-mysql" {
+		t.Errorf("PMA_HOSTS = %q, want only running servlo-mysql, got stopped members too", got)
 	}
 }
 
@@ -470,9 +470,9 @@ func TestResolveDynamicEnv_ExpandEnv(t *testing.T) {
 		// The static values are the fallback older binaries keep serving; a
 		// binary that resolves expand_env must replace them with numbered sets.
 		Environment: map[string]string{
-			"RI_REDIS_HOST":  "lerd-redis",
+			"RI_REDIS_HOST":  "servlo-redis",
 			"RI_REDIS_PORT":  "6379",
-			"RI_REDIS_ALIAS": "lerd-redis",
+			"RI_REDIS_ALIAS": "servlo-redis",
 		},
 		ExpandEnv: map[string]string{
 			"RI_REDIS_HOST":  "redis,valkey={host}",
@@ -483,10 +483,10 @@ func TestResolveDynamicEnv_ExpandEnv(t *testing.T) {
 	if err := ResolveDynamicEnv(svc); err != nil {
 		t.Fatalf("ResolveDynamicEnv: %v", err)
 	}
-	// uniqueFamilyHosts sorts, so lerd-redis is _1 and lerd-valkey is _2.
+	// uniqueFamilyHosts sorts, so servlo-redis is _1 and servlo-valkey is _2.
 	want := map[string]string{
-		"RI_REDIS_HOST_1": "lerd-redis", "RI_REDIS_PORT_1": "6379", "RI_REDIS_ALIAS_1": "redis",
-		"RI_REDIS_HOST_2": "lerd-valkey", "RI_REDIS_PORT_2": "6379", "RI_REDIS_ALIAS_2": "valkey",
+		"RI_REDIS_HOST_1": "servlo-redis", "RI_REDIS_PORT_1": "6379", "RI_REDIS_ALIAS_1": "redis",
+		"RI_REDIS_HOST_2": "servlo-valkey", "RI_REDIS_PORT_2": "6379", "RI_REDIS_ALIAS_2": "valkey",
 	}
 	for k, v := range want {
 		if got := svc.Environment[k]; got != v {
@@ -514,7 +514,7 @@ func TestCustomService_ExpandEnvRoundTrip(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	in := &CustomService{
 		Name: "redisinsight", Image: "x",
-		Environment: map[string]string{"RI_REDIS_HOST": "lerd-redis"},
+		Environment: map[string]string{"RI_REDIS_HOST": "servlo-redis"},
 		ExpandEnv:   map[string]string{"RI_REDIS_HOST": "redis,valkey={host}"},
 	}
 	if err := SaveCustomService(in); err != nil {
@@ -527,7 +527,7 @@ func TestCustomService_ExpandEnvRoundTrip(t *testing.T) {
 	if out.ExpandEnv["RI_REDIS_HOST"] != "redis,valkey={host}" {
 		t.Errorf("expand_env lost in round trip: %#v", out.ExpandEnv)
 	}
-	if out.Environment["RI_REDIS_HOST"] != "lerd-redis" {
+	if out.Environment["RI_REDIS_HOST"] != "servlo-redis" {
 		t.Errorf("static fallback lost in round trip: %#v", out.Environment)
 	}
 }
@@ -543,7 +543,7 @@ func TestResolveDynamicEnv_RepeatFamily(t *testing.T) {
 		DynamicEnv: map[string]string{
 			"PMA_HOSTS":     "discover_family:mysql,mariadb",
 			"PMA_USERS":     "repeat_family:mysql,mariadb=root",
-			"PMA_PASSWORDS": "repeat_family:mysql,mariadb=lerd",
+			"PMA_PASSWORDS": "repeat_family:mysql,mariadb=servlo",
 		},
 	}
 	if err := ResolveDynamicEnv(svc); err != nil {
@@ -565,8 +565,8 @@ func TestResolveDynamicEnv_RepeatFamily(t *testing.T) {
 		}
 	}
 	for _, p := range passes {
-		if p != "lerd" {
-			t.Errorf("password = %q, want lerd", p)
+		if p != "servlo" {
+			t.Errorf("password = %q, want servlo", p)
 		}
 	}
 }
@@ -603,7 +603,7 @@ func TestRewriteDependencyHosts_DropIn(t *testing.T) {
 	prev := ResolveDepHost
 	ResolveDepHost = func(dep string) string {
 		if dep == "redis" {
-			return "lerd-valkey"
+			return "servlo-valkey"
 		}
 		return ""
 	}
@@ -613,17 +613,17 @@ func TestRewriteDependencyHosts_DropIn(t *testing.T) {
 		Name: "redisinsight", Image: "x",
 		DependsOn: []string{"redis"},
 		Environment: map[string]string{
-			"RI_REDIS_HOST":  "lerd-redis",
-			"RI_REDIS_ALIAS": "lerd-redis",
+			"RI_REDIS_HOST":  "servlo-redis",
+			"RI_REDIS_ALIAS": "servlo-redis",
 			"RI_REDIS_PORT":  "6379",
 		},
 	}
 	RewriteDependencyHosts(svc)
-	if got := svc.Environment["RI_REDIS_HOST"]; got != "lerd-valkey" {
-		t.Errorf("RI_REDIS_HOST = %q, want lerd-valkey", got)
+	if got := svc.Environment["RI_REDIS_HOST"]; got != "servlo-valkey" {
+		t.Errorf("RI_REDIS_HOST = %q, want servlo-valkey", got)
 	}
-	if got := svc.Environment["RI_REDIS_ALIAS"]; got != "lerd-valkey" {
-		t.Errorf("RI_REDIS_ALIAS = %q, want lerd-valkey", got)
+	if got := svc.Environment["RI_REDIS_ALIAS"]; got != "servlo-valkey" {
+		t.Errorf("RI_REDIS_ALIAS = %q, want servlo-valkey", got)
 	}
 	if got := svc.Environment["RI_REDIS_PORT"]; got != "6379" {
 		t.Errorf("RI_REDIS_PORT = %q, want it left untouched", got)
@@ -634,7 +634,7 @@ func TestRewriteDependencyHosts_InURLTemplate(t *testing.T) {
 	prev := ResolveDepHost
 	ResolveDepHost = func(dep string) string {
 		if dep == "mongo" {
-			return "lerd-mongo-7"
+			return "servlo-mongo-7"
 		}
 		return ""
 	}
@@ -644,11 +644,11 @@ func TestRewriteDependencyHosts_InURLTemplate(t *testing.T) {
 		Name: "mongo-express", Image: "x",
 		DependsOn: []string{"mongo"},
 		Environment: map[string]string{
-			"ME_CONFIG_MONGODB_URL": "mongodb://root:lerd@lerd-mongo:27017/?authSource=admin",
+			"ME_CONFIG_MONGODB_URL": "mongodb://root:servlo@servlo-mongo:27017/?authSource=admin",
 		},
 	}
 	RewriteDependencyHosts(svc)
-	want := "mongodb://root:lerd@lerd-mongo-7:27017/?authSource=admin"
+	want := "mongodb://root:servlo@servlo-mongo-7:27017/?authSource=admin"
 	if got := svc.Environment["ME_CONFIG_MONGODB_URL"]; got != want {
 		t.Errorf("ME_CONFIG_MONGODB_URL = %q, want %q", got, want)
 	}
@@ -656,17 +656,17 @@ func TestRewriteDependencyHosts_InURLTemplate(t *testing.T) {
 
 func TestRewriteDependencyHosts_CanonicalUnchanged(t *testing.T) {
 	prev := ResolveDepHost
-	ResolveDepHost = func(dep string) string { return "lerd-" + dep }
+	ResolveDepHost = func(dep string) string { return "servlo-" + dep }
 	t.Cleanup(func() { ResolveDepHost = prev })
 
 	svc := &CustomService{
 		Name: "redisinsight", Image: "x",
 		DependsOn:   []string{"redis"},
-		Environment: map[string]string{"RI_REDIS_HOST": "lerd-redis"},
+		Environment: map[string]string{"RI_REDIS_HOST": "servlo-redis"},
 	}
 	RewriteDependencyHosts(svc)
-	if got := svc.Environment["RI_REDIS_HOST"]; got != "lerd-redis" {
-		t.Errorf("RI_REDIS_HOST = %q, want lerd-redis (satisfier is the literal dep)", got)
+	if got := svc.Environment["RI_REDIS_HOST"]; got != "servlo-redis" {
+		t.Errorf("RI_REDIS_HOST = %q, want servlo-redis (satisfier is the literal dep)", got)
 	}
 }
 
@@ -722,7 +722,7 @@ func TestLoadPreset_Soketi(t *testing.T) {
 	}
 	wantEnv := map[string]bool{
 		"BROADCAST_CONNECTION=pusher": false,
-		"PUSHER_HOST=lerd-soketi":     false,
+		"PUSHER_HOST=servlo-soketi":   false,
 		"PUSHER_PORT=6001":            false,
 	}
 	for _, kv := range p.EnvVars {
@@ -839,8 +839,8 @@ func TestLoadPreset_OpenSearchDashboards(t *testing.T) {
 	}
 	// Reaches the engine over the podman network on 9200; the 9201 publish is
 	// a host-side shift to dodge elasticsearch and must not leak in here.
-	if got := p.Environment["OPENSEARCH_HOSTS"]; got != `["http://lerd-opensearch:9200"]` {
-		t.Errorf("opensearch-dashboards must point at the lerd OpenSearch container via OPENSEARCH_HOSTS, got %q", got)
+	if got := p.Environment["OPENSEARCH_HOSTS"]; got != `["http://servlo-opensearch:9200"]` {
+		t.Errorf("opensearch-dashboards must point at the servlo OpenSearch container via OPENSEARCH_HOSTS, got %q", got)
 	}
 	if p.Environment["DISABLE_SECURITY_DASHBOARDS_PLUGIN"] != "true" {
 		t.Errorf("opensearch-dashboards must disable its security plugin to match the engine preset, got %q", p.Environment["DISABLE_SECURITY_DASHBOARDS_PLUGIN"])
@@ -873,8 +873,8 @@ func TestLoadPreset_RedisInsight(t *testing.T) {
 	if !p.DashboardExternal {
 		t.Errorf("redisinsight must set dashboard_external because its consent cookies can't be carried by the iframe")
 	}
-	if got := p.Environment["RI_REDIS_HOST"]; got != "lerd-redis" {
-		t.Errorf("redisinsight must pin RI_REDIS_HOST to lerd-redis so old binaries parse it and the host rewrite can retarget it, got %q", got)
+	if got := p.Environment["RI_REDIS_HOST"]; got != "servlo-redis" {
+		t.Errorf("redisinsight must pin RI_REDIS_HOST to servlo-redis so old binaries parse it and the host rewrite can retarget it, got %q", got)
 	}
 	if _, ok := p.DynamicEnv["RI_REDIS_HOST"]; ok {
 		t.Errorf("RI_REDIS_HOST must not use a dynamic_env directive; that breaks binaries that predate it")
@@ -912,7 +912,7 @@ func TestLoadPreset_Beanstalkd(t *testing.T) {
 }
 
 func TestLoadPreset_DefaultsTrackLatest(t *testing.T) {
-	// Auto-bumping via track_latest is the user-facing promise that lerd, not
+	// Auto-bumping via track_latest is the user-facing promise that servlo, not
 	// users, keeps fresh installs current. The 4 versioned default presets
 	// must opt in. Mailpit/rustfs already use rolling :latest tags so the
 	// flag is redundant for them.
@@ -1177,11 +1177,11 @@ func TestPresetResolvePinned_KeepsBareName(t *testing.T) {
 		t.Errorf("pinned alternate Image = %q, want a :17- tag", svc.Image)
 	}
 	for _, kv := range svc.EnvVars {
-		if kv == "DB_HOST=lerd-postgres" {
+		if kv == "DB_HOST=servlo-postgres" {
 			return
 		}
 	}
-	t.Errorf("expected DB_HOST=lerd-postgres in pinned env_vars, got %v", svc.EnvVars)
+	t.Errorf("expected DB_HOST=servlo-postgres in pinned env_vars, got %v", svc.EnvVars)
 }
 
 func TestPresetResolvePinned_UnknownTag(t *testing.T) {
@@ -1318,7 +1318,7 @@ func TestPresetResolve_PostgresCanonical(t *testing.T) {
 	if len(svc.Ports) != 1 || svc.Ports[0] != "5432:5432" {
 		t.Errorf("canonical postgres Ports = %v, want [5432:5432]", svc.Ports)
 	}
-	if svc.ConnectionURL != "postgresql://postgres:lerd@127.0.0.1:5432/lerd" {
+	if svc.ConnectionURL != "postgresql://postgres:servlo@127.0.0.1:5432/servlo" {
 		t.Errorf("canonical postgres ConnectionURL = %q", svc.ConnectionURL)
 	}
 }
@@ -1405,10 +1405,10 @@ func TestPresetResolve_PostgresPgvectorCanonical(t *testing.T) {
 	if len(svc.Ports) != 1 || svc.Ports[0] != "5432:5432" {
 		t.Errorf("canonical postgres-pgvector Ports = %v, want [5432:5432] (family canonical, #704)", svc.Ports)
 	}
-	if svc.ConnectionURL != "postgresql://postgres:lerd@127.0.0.1:5432/lerd" {
+	if svc.ConnectionURL != "postgresql://postgres:servlo@127.0.0.1:5432/servlo" {
 		t.Errorf("canonical postgres-pgvector ConnectionURL = %q", svc.ConnectionURL)
 	}
-	wantHost := "DB_HOST=lerd-postgres-pgvector"
+	wantHost := "DB_HOST=servlo-postgres-pgvector"
 	found := false
 	for _, kv := range svc.EnvVars {
 		if kv == wantHost {
@@ -1469,7 +1469,7 @@ func TestDefaultPresetMeta_Caches(t *testing.T) {
 	if DefaultPresetDashboard("mailpit") != "http://localhost:8025" {
 		t.Errorf("DefaultPresetDashboard(mailpit) wrong")
 	}
-	if DefaultPresetConnectionURL("postgres") != "postgresql://postgres:lerd@127.0.0.1:5432/lerd" {
+	if DefaultPresetConnectionURL("postgres") != "postgresql://postgres:servlo@127.0.0.1:5432/servlo" {
 		t.Errorf("DefaultPresetConnectionURL(postgres) wrong")
 	}
 }
@@ -1501,29 +1501,29 @@ func TestPresetPorts(t *testing.T) {
 }
 
 func TestLoadPreset_DefaultEnvVarsParity(t *testing.T) {
-	// Each default preset must encode the same env_vars that lerd shipped from
+	// Each default preset must encode the same env_vars that servlo shipped from
 	// the hardcoded cli.serviceEnvVars map. This is the no-regression test for
 	// the migration: swapping the map for preset reads must not change a single
 	// .env line a Laravel project sees.
 	cases := map[string][]string{
 		"mysql": {
 			"DB_CONNECTION=mysql",
-			"DB_HOST=lerd-mysql",
+			"DB_HOST=servlo-mysql",
 			"DB_PORT=3306",
-			"DB_DATABASE=lerd",
+			"DB_DATABASE=servlo",
 			"DB_USERNAME=root",
-			"DB_PASSWORD=lerd",
+			"DB_PASSWORD=servlo",
 		},
 		"postgres": {
 			"DB_CONNECTION=pgsql",
-			"DB_HOST=lerd-postgres",
+			"DB_HOST=servlo-postgres",
 			"DB_PORT=5432",
-			"DB_DATABASE=lerd",
+			"DB_DATABASE=servlo",
 			"DB_USERNAME=postgres",
-			"DB_PASSWORD=lerd",
+			"DB_PASSWORD=servlo",
 		},
 		"redis": {
-			"REDIS_HOST=lerd-redis",
+			"REDIS_HOST=servlo-redis",
 			"REDIS_PORT=6379",
 			"REDIS_PASSWORD=null",
 			"CACHE_STORE=redis",
@@ -1532,21 +1532,21 @@ func TestLoadPreset_DefaultEnvVarsParity(t *testing.T) {
 		},
 		"meilisearch": {
 			"SCOUT_DRIVER=meilisearch",
-			"MEILISEARCH_HOST=http://lerd-meilisearch:7700",
+			"MEILISEARCH_HOST=http://servlo-meilisearch:7700",
 		},
 		"rustfs": {
 			"FILESYSTEM_DISK=s3",
-			"AWS_ACCESS_KEY_ID=lerd",
-			"AWS_SECRET_ACCESS_KEY=lerdpassword",
+			"AWS_ACCESS_KEY_ID=servlo",
+			"AWS_SECRET_ACCESS_KEY=servlopassword",
 			"AWS_DEFAULT_REGION=us-east-1",
-			"AWS_BUCKET=lerd",
+			"AWS_BUCKET=servlo",
 			"AWS_URL=http://localhost:9000",
-			"AWS_ENDPOINT=http://lerd-rustfs:9000",
+			"AWS_ENDPOINT=http://servlo-rustfs:9000",
 			"AWS_USE_PATH_STYLE_ENDPOINT=true",
 		},
 		"mailpit": {
 			"MAIL_MAILER=smtp",
-			"MAIL_HOST=lerd-mailpit",
+			"MAIL_HOST=servlo-mailpit",
 			"MAIL_PORT=1025",
 			"MAIL_USERNAME=null",
 			"MAIL_PASSWORD=null",
@@ -1578,13 +1578,13 @@ func TestLoadPreset_DefaultEnvVarsParity(t *testing.T) {
 
 // The canonical host is a prefix of every versioned install of the same engine
 // and of any longer container name, so the rewrite has to stop at a name
-// boundary. Replacing it as a bare substring turns a pinned lerd-mysql-8-4 into
+// boundary. Replacing it as a bare substring turns a pinned servlo-mysql-8-4 into
 // a host that does not exist.
 func TestRewriteDependencyHosts_StopsAtANameBoundary(t *testing.T) {
 	prev := ResolveDepHost
 	ResolveDepHost = func(dep string) string {
 		if dep == "mysql" {
-			return "lerd-mariadb-11-8"
+			return "servlo-mariadb-11-8"
 		}
 		return ""
 	}
@@ -1594,20 +1594,20 @@ func TestRewriteDependencyHosts_StopsAtANameBoundary(t *testing.T) {
 		Name: "adminer", Image: "x",
 		DependsOn: []string{"mysql"},
 		Environment: map[string]string{
-			"PINNED":    "lerd-mysql-8-4",
-			"CANONICAL": "lerd-mysql",
-			"URL":       "mysql://lerd-mysql:3306/app",
+			"PINNED":    "servlo-mysql-8-4",
+			"CANONICAL": "servlo-mysql",
+			"URL":       "mysql://servlo-mysql:3306/app",
 		},
 	}
 	RewriteDependencyHosts(svc)
 
-	if got := svc.Environment["PINNED"]; got != "lerd-mysql-8-4" {
+	if got := svc.Environment["PINNED"]; got != "servlo-mysql-8-4" {
 		t.Errorf("a host pinned to a different install was rewritten to %q", got)
 	}
-	if got := svc.Environment["CANONICAL"]; got != "lerd-mariadb-11-8" {
-		t.Errorf("CANONICAL = %q, want lerd-mariadb-11-8", got)
+	if got := svc.Environment["CANONICAL"]; got != "servlo-mariadb-11-8" {
+		t.Errorf("CANONICAL = %q, want servlo-mariadb-11-8", got)
 	}
-	if got := svc.Environment["URL"]; got != "mysql://lerd-mariadb-11-8:3306/app" {
+	if got := svc.Environment["URL"]; got != "mysql://servlo-mariadb-11-8:3306/app" {
 		t.Errorf("URL = %q, want the host rewritten in place", got)
 	}
 }

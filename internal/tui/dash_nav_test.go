@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 func dashNavModel() *Model {
@@ -53,7 +53,7 @@ func TestDashNav_ArrowsMoveRowCursorAndEnterJumps(t *testing.T) {
 
 func TestDashNav_InfoCardScrollsInsteadOfSelecting(t *testing.T) {
 	m := dashNavModel()
-	m.dashFocus = 5 // Lerd card: info only, no selectable rows
+	m.dashFocus = 5 // Servlo card: info only, no selectable rows
 	if len(m.dashZones[5]) != 0 {
 		t.Fatalf("info card should have no selectable zones")
 	}

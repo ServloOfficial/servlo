@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/workerheal"
+	"github.com/realrashid/servlo/internal/workerheal"
 )
 
 // testHealthDeps returns a deps set wired to counters plus pointers to them,
@@ -32,7 +32,7 @@ func TestTickWorkerHealth_HiddenStillDetectsAndNotifies(t *testing.T) {
 	healthWatcherInitialized.Store(true)
 
 	d, detects, notifies, publishes := testHealthDeps(false,
-		[]workerheal.UnhealthyWorker{{Unit: "lerd-horizon-a", State: "failed"}})
+		[]workerheal.UnhealthyWorker{{Unit: "servlo-horizon-a", State: "failed"}})
 	tickWorkerHealth(d)
 
 	if *detects != 1 {
@@ -53,7 +53,7 @@ func TestTickWorkerHealth_VisiblePublishes(t *testing.T) {
 	healthWatcherInitialized.Store(true)
 
 	d, _, _, publishes := testHealthDeps(true,
-		[]workerheal.UnhealthyWorker{{Unit: "lerd-horizon-a", State: "failed"}})
+		[]workerheal.UnhealthyWorker{{Unit: "servlo-horizon-a", State: "failed"}})
 	tickWorkerHealth(d)
 
 	if *publishes != 1 {
@@ -67,7 +67,7 @@ func TestTickWorkerHealth_UnchangedSignatureDoesNotPublish(t *testing.T) {
 	resetHealthState()
 	healthWatcherInitialized.Store(true)
 
-	unhealthy := []workerheal.UnhealthyWorker{{Unit: "lerd-horizon-a", State: "failed"}}
+	unhealthy := []workerheal.UnhealthyWorker{{Unit: "servlo-horizon-a", State: "failed"}}
 	d, _, _, publishes := testHealthDeps(true, unhealthy)
 	tickWorkerHealth(d)
 	tickWorkerHealth(d)
@@ -124,9 +124,9 @@ func TestCleanStartThenFirstFailureFires(t *testing.T) {
 
 	// Now a worker fails for the first time.
 	got := diffNewFailuresAndCommit([]workerheal.UnhealthyWorker{
-		{Unit: "lerd-horizon-a", State: "failed"},
+		{Unit: "servlo-horizon-a", State: "failed"},
 	})
-	if len(got) != 1 || got[0].Unit != "lerd-horizon-a" {
+	if len(got) != 1 || got[0].Unit != "servlo-horizon-a" {
 		t.Errorf("first failure after clean start must dispatch: got %+v", got)
 	}
 }
@@ -139,8 +139,8 @@ func TestDiffNewFailuresAndCommit_FirstTickSilent(t *testing.T) {
 	resetHealthState()
 
 	pre := []workerheal.UnhealthyWorker{
-		{Unit: "lerd-horizon-a", State: "failed"},
-		{Unit: "lerd-horizon-b", State: "failed"},
+		{Unit: "servlo-horizon-a", State: "failed"},
+		{Unit: "servlo-horizon-b", State: "failed"},
 	}
 	got := diffNewFailuresAndCommit(pre)
 	if len(got) != 0 {
@@ -154,15 +154,15 @@ func TestDiffNewFailuresAndCommit_SecondTickReportsNewOnly(t *testing.T) {
 	t.Cleanup(resetHealthState)
 	resetHealthState()
 
-	pre := []workerheal.UnhealthyWorker{{Unit: "lerd-horizon-a", State: "failed"}}
+	pre := []workerheal.UnhealthyWorker{{Unit: "servlo-horizon-a", State: "failed"}}
 	_ = diffNewFailuresAndCommit(pre)
 
 	next := []workerheal.UnhealthyWorker{
-		{Unit: "lerd-horizon-a", State: "failed"},
-		{Unit: "lerd-horizon-b", State: "failed"},
+		{Unit: "servlo-horizon-a", State: "failed"},
+		{Unit: "servlo-horizon-b", State: "failed"},
 	}
 	got := diffNewFailuresAndCommit(next)
-	if len(got) != 1 || got[0].Unit != "lerd-horizon-b" {
+	if len(got) != 1 || got[0].Unit != "servlo-horizon-b" {
 		t.Errorf("second tick should report only horizon-b: %+v", got)
 	}
 }

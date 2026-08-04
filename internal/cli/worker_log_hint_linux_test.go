@@ -11,7 +11,7 @@ import "testing"
 // `host`. The bool is on the signature for cross-platform parity with
 // the darwin path that does branch on it.
 func TestWorkerLogHint_linux(t *testing.T) {
-	const unit = "lerd-vite-acme"
+	const unit = "servlo-vite-acme"
 	want := "journalctl --user -u " + unit + " -f"
 	if got := workerLogHint(unit, true); got != want {
 		t.Errorf("host=true: got %q, want %q", got, want)

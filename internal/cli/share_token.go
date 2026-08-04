@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
@@ -16,8 +16,8 @@ func NewShareTokenCmd() *cobra.Command {
 		Short: "Show or set the ngrok auth token public shares use",
 		Long: `Without an argument, reports whether an ngrok auth token is stored.
 
-With a token, lerd remembers it and uses it for every ngrok share. This is what
-lets a machine without ngrok installed share anyway: lerd runs the published
+With a token, servlo remembers it and uses it for every ngrok share. This is what
+lets a machine without ngrok installed share anyway: servlo runs the published
 ngrok image instead, and a container carries none of the host's ngrok
 configuration, so the token has to come from here.
 
@@ -26,13 +26,13 @@ with "ngrok config add-authtoken" still works.
 
 "none" forgets the token.
 
-"lerd share --token" still wins for a single run.
+"servlo share --token" still wins for a single run.
 
-The token is a credential: it is stored in the lerd config file, which is
+The token is a credential: it is stored in the servlo config file, which is
 tightened to owner-only the moment one is saved. It is never printed back.`,
-		Example: `  lerd share:token
-  lerd share:token 2abcXYZ...
-  lerd share:token none`,
+		Example: `  servlo share:token
+  servlo share:token 2abcXYZ...
+  servlo share:token none`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runShareToken,
 	}
@@ -50,7 +50,7 @@ func runShareToken(_ *cobra.Command, args []string) error {
 		} else {
 			fmt.Println("none (ngrok has to be installed to share through it)")
 		}
-		fmt.Println("\nChange it with: lerd share:token <token>|none")
+		fmt.Println("\nChange it with: servlo share:token <token>|none")
 		fmt.Println("Get a token at: https://dashboard.ngrok.com/get-started/your-authtoken")
 		return nil
 	}

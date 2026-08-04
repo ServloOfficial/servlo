@@ -66,7 +66,7 @@
             bind:value={newName}
             placeholder={m.databases_newPlaceholder()}
             onkeydown={(e) => e.key === 'Enter' && create()}
-            class="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-lerd-red/30"
+            class="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-servlo-red/30"
           />
           <DetailButton tone="primary" onclick={create} loading={creating} disabled={creating || !newName.trim()}>
             <span class="flex items-center gap-1"><Icon name="plus" class="w-3.5 h-3.5" />{m.databases_create()}</span>

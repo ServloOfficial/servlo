@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
@@ -104,7 +104,7 @@ func RecordRemoteSetupFailure() (closed bool, err error) {
 }
 
 // GenerateRemoteSetupToken creates a fresh one-time setup code, persists it
-// with the given TTL, and returns the code. Used by both the `lerd
+// with the given TTL, and returns the code. Used by both the `servlo
 // remote-setup` cobra command and the dashboard UI's loopback-only generate
 // endpoint, so they share the exact same token format and storage path.
 func GenerateRemoteSetupToken(ttl time.Duration) (string, error) {
@@ -138,22 +138,22 @@ func generateRemoteSetupCode() (string, error) {
 	return string(b), nil
 }
 
-// NewRemoteSetupCmd returns the `lerd remote-setup` command — generates a
+// NewRemoteSetupCmd returns the `servlo remote-setup` command — generates a
 // one-time code that authorizes a single laptop to call /api/remote-setup
-// and provision itself against this lerd instance.
+// and provision itself against this servlo instance.
 func NewRemoteSetupCmd() *cobra.Command {
 	var ttl time.Duration
 	var revoke bool
 	cmd := &cobra.Command{
 		Use:   "remote-setup",
-		Short: "Generate a one-time code that lets a laptop provision itself against this lerd server",
+		Short: "Generate a one-time code that lets a laptop provision itself against this servlo server",
 		Long: `Generates an 8-character one-time code and prints the curl one-liner the
-laptop should run to set itself up against this lerd server. Auto-enables
-'lerd lan:expose' if it isn't already active — exposing lerd to the LAN
+laptop should run to set itself up against this servlo server. Auto-enables
+'servlo lan:expose' if it isn't already active — exposing servlo to the LAN
 is required for the remote device to reach the sites and resolve .test
 hostnames.
 
-The /api/remote-setup endpoint on the lerd dashboard server is gated by:
+The /api/remote-setup endpoint on the servlo dashboard server is gated by:
   • the code being present and not expired (default TTL 15 minutes)
   • the source IP being in an RFC 1918 private range (10/8, 172.16/12, 192.168/16)
 
@@ -170,17 +170,17 @@ Re-run this command to generate a new code if it expires or is consumed.`,
 			}
 
 			if cfg, _ := config.LoadGlobal(); cfg != nil && !cfg.DNS.Enabled {
-				return fmt.Errorf("remote-setup requires lerd-managed DNS, the remote machine has no way to resolve *.localhost to this host; set dns.enabled: true and re-run lerd install, or use `lerd lan:share` per site for individual port-based access")
+				return fmt.Errorf("remote-setup requires servlo-managed DNS, the remote machine has no way to resolve *.localhost to this host; set dns.enabled: true and re-run servlo install, or use `servlo lan:share` per site for individual port-based access")
 			}
 
 			// Always (re)apply LAN exposure. EnableLANExposure is idempotent
 			// and reapplying it heals any state drift between cfg.LAN.Exposed
 			// and the actual on-disk container quadlets / forwarder unit /
-			// dnsmasq config / lerd-ui bind. The whole point of generating
+			// dnsmasq config / servlo-panel bind. The whole point of generating
 			// a setup code is to provision a remote device, which can't
-			// work unless lerd is reachable from the LAN.
+			// work unless servlo is reachable from the LAN.
 			feedback.Begin()
-			expose := feedback.Start("exposing lerd on the LAN")
+			expose := feedback.Start("exposing servlo on the LAN")
 			lanIP, err := EnableLANExposure(func(step string) {
 				feedback.Note(step)
 			})
@@ -189,10 +189,10 @@ Re-run this command to generate a new code if it expires or is consumed.`,
 				return fmt.Errorf("enabling lan:expose: %w", err)
 			}
 			expose.OK(feedback.Val(lanIP))
-			if lerdDNSBindsLANPort {
-				feedback.Note("lerd-dns binds " + lanIP + ":5300 (UDP+TCP) directly, answering *.test → " + lanIP)
+			if servloDNSBindsLANPort {
+				feedback.Note("servlo-dns binds " + lanIP + ":5300 (UDP+TCP) directly, answering *.test → " + lanIP)
 			} else {
-				feedback.Note("lerd-dns-forwarder on " + lanIP + ":5300 (UDP+TCP), answering *.test → " + lanIP)
+				feedback.Note("servlo-dns-forwarder on " + lanIP + ":5300 (UDP+TCP), answering *.test → " + lanIP)
 			}
 			feedback.Note("allow port 5300 through your firewall from the devices you want to grant access")
 

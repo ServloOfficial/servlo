@@ -24,13 +24,13 @@ func TestWriteWorkerUnitFileForcesColour(t *testing.T) {
 	}
 
 	for _, tc := range []struct{ name, schedule, unitName string }{
-		{"daemon", "", "lerd-queue-alpha"},
-		{"scheduled", "minutely", "lerd-schedule-alpha"},
+		{"daemon", "", "servlo-queue-alpha"},
+		{"scheduled", "minutely", "servlo-schedule-alpha"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, err := writeWorkerUnitFile(
 				tc.unitName, "Queue Worker", "alpha", sitePath, "8.4",
-				"php artisan queue:work", "always", tc.schedule, "lerd-php84-fpm", false,
+				"php artisan queue:work", "always", tc.schedule, "servlo-php84-fpm", false,
 			); err != nil {
 				t.Fatalf("writeWorkerUnitFile: %v", err)
 			}
@@ -42,19 +42,19 @@ func TestWriteWorkerUnitFileForcesColour(t *testing.T) {
 			if !strings.Contains(unit, "--env=FORCE_COLOR=1") {
 				t.Errorf("unit should pass the colour env to podman exec:\n%s", unit)
 			}
-			if !strings.Contains(unit, "lerd-php84-fpm php artisan queue:work") {
+			if !strings.Contains(unit, "servlo-php84-fpm php artisan queue:work") {
 				t.Errorf("colour flags should sit before the container name:\n%s", unit)
 			}
 		})
 	}
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-vite-alpha", "Vite", "alpha", sitePath, "",
+		"servlo-vite-alpha", "Vite", "alpha", sitePath, "",
 		"npm run dev", "always", "", "", true,
 	); err != nil {
 		t.Fatalf("writeWorkerUnitFile host: %v", err)
 	}
-	host, err := os.ReadFile(unitPath("lerd-vite-alpha"))
+	host, err := os.ReadFile(unitPath("servlo-vite-alpha"))
 	if err != nil {
 		t.Fatalf("read host unit: %v", err)
 	}
@@ -70,12 +70,12 @@ func TestWriteWorkerUnitFileRespectsNoColor(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-queue-alpha", "Queue Worker", "alpha", t.TempDir(), "8.4",
-		"php artisan queue:work", "always", "", "lerd-php84-fpm", false,
+		"servlo-queue-alpha", "Queue Worker", "alpha", t.TempDir(), "8.4",
+		"php artisan queue:work", "always", "", "servlo-php84-fpm", false,
 	); err != nil {
 		t.Fatalf("writeWorkerUnitFile: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "lerd-queue-alpha.service"))
+	data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "servlo-queue-alpha.service"))
 	if err != nil {
 		t.Fatalf("read unit: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestWriteWorkerUnitFileRespectsNoColor(t *testing.T) {
 	if strings.Contains(unit, "FORCE_COLOR") {
 		t.Errorf("NO_COLOR should leave the unit unchanged:\n%s", unit)
 	}
-	if !strings.Contains(unit, "--env=LERD_SITE=alpha lerd-php84-fpm php artisan queue:work") {
+	if !strings.Contains(unit, "--env=SERVLO_SITE=alpha servlo-php84-fpm php artisan queue:work") {
 		t.Errorf("empty colour args should not leave a double space:\n%s", unit)
 	}
 }

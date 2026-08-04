@@ -10,7 +10,7 @@ import (
 func TestSyncComposerGlobalBins_CreatesWrappers(t *testing.T) {
 	root := t.TempDir()
 	sourceBin := filepath.Join(root, "composer", "vendor", "bin")
-	targetBin := filepath.Join(root, "lerd-bin")
+	targetBin := filepath.Join(root, "servlo-bin")
 	if err := os.MkdirAll(sourceBin, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -18,7 +18,7 @@ func TestSyncComposerGlobalBins_CreatesWrappers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := syncComposerGlobalBins(sourceBin, targetBin, "/fake/lerd"); err != nil {
+	if err := syncComposerGlobalBins(sourceBin, targetBin, "/fake/servlo"); err != nil {
 		t.Fatalf("sync: %v", err)
 	}
 
@@ -30,8 +30,8 @@ func TestSyncComposerGlobalBins_CreatesWrappers(t *testing.T) {
 	if !strings.Contains(bs, composerShimMarker) {
 		t.Errorf("wrapper missing marker: %q", bs)
 	}
-	if !strings.Contains(bs, "/fake/lerd") {
-		t.Errorf("wrapper missing lerd path: %q", bs)
+	if !strings.Contains(bs, "/fake/servlo") {
+		t.Errorf("wrapper missing servlo path: %q", bs)
 	}
 	if !strings.Contains(bs, filepath.Join(sourceBin, "psysh")) {
 		t.Errorf("wrapper missing real bin path: %q", bs)
@@ -44,10 +44,10 @@ func TestSyncComposerGlobalBins_CreatesWrappers(t *testing.T) {
 func TestSyncComposerGlobalBins_IgnoresNodeWrappers(t *testing.T) {
 	// Cross-category isolation: composer sync must not remove a node-managed
 	// wrapper that happens to share targetBin, and vice versa, so the two
-	// syncs can coexist in ~/.local/share/lerd/bin/.
+	// syncs can coexist in ~/.local/share/servlo/bin/.
 	root := t.TempDir()
 	sourceBin := filepath.Join(root, "composer", "vendor", "bin")
-	targetBin := filepath.Join(root, "lerd-bin")
+	targetBin := filepath.Join(root, "servlo-bin")
 	if err := os.MkdirAll(sourceBin, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestSyncComposerGlobalBins_IgnoresNodeWrappers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := syncComposerGlobalBins(sourceBin, targetBin, "/fake/lerd"); err != nil {
+	if err := syncComposerGlobalBins(sourceBin, targetBin, "/fake/servlo"); err != nil {
 		t.Fatalf("sync: %v", err)
 	}
 
@@ -72,7 +72,7 @@ func TestSyncComposerGlobalBins_IgnoresNodeWrappers(t *testing.T) {
 func TestSyncComposerGlobalBins_RemovesOrphans(t *testing.T) {
 	root := t.TempDir()
 	sourceBin := filepath.Join(root, "composer", "vendor", "bin")
-	targetBin := filepath.Join(root, "lerd-bin")
+	targetBin := filepath.Join(root, "servlo-bin")
 	if err := os.MkdirAll(sourceBin, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -80,12 +80,12 @@ func TestSyncComposerGlobalBins_RemovesOrphans(t *testing.T) {
 		t.Fatal(err)
 	}
 	orphan := filepath.Join(targetBin, "psysh")
-	body := "#!/bin/sh\n# " + composerShimMarker + "\nexec /old/lerd php /old/psysh\n"
+	body := "#!/bin/sh\n# " + composerShimMarker + "\nexec /old/servlo php /old/psysh\n"
 	if err := os.WriteFile(orphan, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := syncComposerGlobalBins(sourceBin, targetBin, "/fake/lerd"); err != nil {
+	if err := syncComposerGlobalBins(sourceBin, targetBin, "/fake/servlo"); err != nil {
 		t.Fatalf("sync: %v", err)
 	}
 

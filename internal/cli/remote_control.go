@@ -5,15 +5,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 )
 
-// NewRemoteControlCmd returns the `lerd remote-control` parent command with
-// on / off / status subcommands. Controls whether the lerd dashboard at
+// NewRemoteControlCmd returns the `servlo remote-control` parent command with
+// on / off / status subcommands. Controls whether the servlo dashboard at
 // http://<server>:7073 accepts requests from non-loopback (LAN) sources.
 //
 // State machine (single field, presence of cfg.UI.PasswordHash):
@@ -29,9 +29,9 @@ func NewRemoteControlCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remote-control",
 		Short: "Toggle dashboard access from LAN clients (off by default)",
-		Long: `By default the lerd dashboard at port 7073 only accepts requests from
+		Long: `By default the servlo dashboard at port 7073 only accepts requests from
 the loopback interface (127.0.0.1) — LAN sources get 403 Forbidden. Run
-'lerd remote-control on' to set a Basic-auth password and grant LAN
+'servlo remote-control on' to set a Basic-auth password and grant LAN
 clients access. The local user is never affected: loopback always
 bypasses authentication so you can't lock yourself out of your own
 machine.
@@ -46,7 +46,7 @@ flag — it has its own token + IP + brute-force gate.`,
 	return cmd
 }
 
-// NewRemoteControlOnCmd returns the `lerd remote-control:on` colon alias.
+// NewRemoteControlOnCmd returns the `servlo remote-control:on` colon alias.
 func NewRemoteControlOnCmd() *cobra.Command {
 	cmd := newRemoteControlOnCmd()
 	cmd.Use = "remote-control:on"
@@ -54,7 +54,7 @@ func NewRemoteControlOnCmd() *cobra.Command {
 	return cmd
 }
 
-// NewRemoteControlOffCmd returns the `lerd remote-control:off` colon alias.
+// NewRemoteControlOffCmd returns the `servlo remote-control:off` colon alias.
 func NewRemoteControlOffCmd() *cobra.Command {
 	cmd := newRemoteControlOffCmd()
 	cmd.Use = "remote-control:off"
@@ -62,7 +62,7 @@ func NewRemoteControlOffCmd() *cobra.Command {
 	return cmd
 }
 
-// NewRemoteControlStatusCmd returns the `lerd remote-control:status` colon alias.
+// NewRemoteControlStatusCmd returns the `servlo remote-control:status` colon alias.
 func NewRemoteControlStatusCmd() *cobra.Command {
 	cmd := newRemoteControlStatusCmd()
 	cmd.Use = "remote-control:status"
@@ -76,7 +76,7 @@ func newRemoteControlOnCmd() *cobra.Command {
 		Use:   "on [--user <name>]",
 		Short: "Enable LAN access to the dashboard with HTTP Basic auth",
 		Long: `Prompts for a password (twice for confirmation), bcrypt-hashes it, and
-stores the hash and username in ~/.config/lerd/config.yaml. From this
+stores the hash and username in ~/.config/servlo/config.yaml. From this
 point on, LAN clients hitting the dashboard must present HTTP Basic
 auth with the configured username and password. Loopback continues to
 bypass authentication.
@@ -89,7 +89,7 @@ Re-running this command rotates the password.`,
 			}
 
 			if !cfg.LAN.Exposed {
-				return fmt.Errorf("LAN exposure is off — run `lerd lan:expose` first. Dashboard credentials are only meaningful while the dashboard is reachable from other devices")
+				return fmt.Errorf("LAN exposure is off — run `servlo lan:expose` first. Dashboard credentials are only meaningful while the dashboard is reachable from other devices")
 			}
 
 			if username == "" {
@@ -98,7 +98,7 @@ Re-running this command rotates the password.`,
 					username = os.Getenv("LOGNAME")
 				}
 				if username == "" {
-					username = "lerd"
+					username = "servlo"
 				}
 			}
 
@@ -122,7 +122,7 @@ Re-running this command rotates the password.`,
 			feedback.Done("remote dashboard access enabled (user: " + feedback.Val(username) + ")")
 			feedback.Note("LAN clients can now reach http://<server-ip>:7073 with HTTP Basic auth")
 			feedback.Note("loopback (127.0.0.1) bypasses authentication as always")
-			feedback.Note("run `lerd remote-control off` to lock LAN access back down")
+			feedback.Note("run `servlo remote-control off` to lock LAN access back down")
 			return nil
 		},
 	}
@@ -157,7 +157,7 @@ the password — you cannot lock yourself out of your own machine.`,
 	}
 }
 
-// NewRemoteControlFullAccessCmd returns the `lerd remote-control:full-access`
+// NewRemoteControlFullAccessCmd returns the `servlo remote-control:full-access`
 // colon alias.
 func NewRemoteControlFullAccessCmd() *cobra.Command {
 	cmd := newRemoteControlFullAccessCmd()
@@ -175,7 +175,7 @@ actions that reach the host itself stay local-only by default: reading a
 site's raw .env, browsing the filesystem, dropping or exporting databases,
 opening a terminal, and running commands.
 
-Run 'lerd remote-control full-access on' to let authenticated remote
+Run 'servlo remote-control full-access on' to let authenticated remote
 sessions use them too. The setting never replaces authentication, and only
 the local dashboard or a local shell can change it.`,
 		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
@@ -192,7 +192,7 @@ the local dashboard or a local shell can change it.`,
 				case cfg.UI.RemoteFullAccess && cfg.UI.PasswordHash != "":
 					feedback.Done("remote sessions may run host actions")
 				case cfg.UI.RemoteFullAccess:
-					feedback.Line("remote host actions are enabled but inactive until `lerd remote-control on`")
+					feedback.Line("remote host actions are enabled but inactive until `servlo remote-control on`")
 				default:
 					feedback.Line("remote host actions are off; they stay local-only")
 				}
@@ -201,10 +201,10 @@ the local dashboard or a local shell can change it.`,
 
 			enabled := args[0] == "on"
 			if enabled && !cfg.LAN.Exposed {
-				return fmt.Errorf("LAN exposure is off — run `lerd lan:expose` first. There are no remote sessions to widen while the dashboard is loopback-only")
+				return fmt.Errorf("LAN exposure is off — run `servlo lan:expose` first. There are no remote sessions to widen while the dashboard is loopback-only")
 			}
 			if enabled && cfg.UI.PasswordHash == "" {
-				return fmt.Errorf("dashboard credentials are not configured — run `lerd remote-control on` first")
+				return fmt.Errorf("dashboard credentials are not configured — run `servlo remote-control on` first")
 			}
 			cfg.UI.RemoteFullAccess = enabled
 			if err := config.SaveGlobal(cfg); err != nil {
@@ -215,7 +215,7 @@ the local dashboard or a local shell can change it.`,
 			if enabled {
 				feedback.Done("remote host actions " + feedback.Val("enabled"))
 				feedback.Note("anyone with the dashboard password can now read site .env files, browse the filesystem, drop databases and run commands on this machine")
-				feedback.Note("use only on a trusted network, and rotate the password with `lerd remote-control on` if it has ever been shared")
+				feedback.Note("use only on a trusted network, and rotate the password with `servlo remote-control on` if it has ever been shared")
 			} else {
 				feedback.Done("remote host actions " + feedback.Val("local-only"))
 			}
@@ -237,17 +237,17 @@ func newRemoteControlStatusCmd() *cobra.Command {
 			if cfg.UI.PasswordHash == "" {
 				feedback.Line("remote dashboard access: " + feedback.Amber("disabled"))
 				feedback.Note("LAN clients get 403 Forbidden; loopback (127.0.0.1) is always allowed")
-				feedback.Note("enable with: lerd remote-control on")
+				feedback.Note("enable with: servlo remote-control on")
 				return nil
 			}
 			feedback.Line("remote dashboard access: " + feedback.Green("enabled") + " (user: " + cfg.UI.Username + ")")
 			feedback.Note("LAN clients must present HTTP Basic auth; loopback bypasses it")
 			if cfg.UI.RemoteFullAccess {
-				feedback.Note("host actions: allowed remotely (`lerd remote-control full-access off` to restrict)")
+				feedback.Note("host actions: allowed remotely (`servlo remote-control full-access off` to restrict)")
 			} else {
-				feedback.Note("host actions: local-only (`lerd remote-control full-access on` to allow)")
+				feedback.Note("host actions: local-only (`servlo remote-control full-access on` to allow)")
 			}
-			feedback.Note("disable with: lerd remote-control off")
+			feedback.Note("disable with: servlo remote-control off")
 			return nil
 		},
 	}
@@ -255,7 +255,7 @@ func newRemoteControlStatusCmd() *cobra.Command {
 
 // promptAndPersistRemoteControl prompts on stdin for a username (defaulting to
 // $USER) and a password (twice), bcrypt-hashes the password, and saves both
-// into ~/.config/lerd/config.yaml. Used by `lerd lan:expose` in disabled-DNS
+// into ~/.config/servlo/config.yaml. Used by `servlo lan:expose` in disabled-DNS
 // mode to bundle the credential setup into a single command.
 func promptAndPersistRemoteControl() error {
 	cfg, err := config.LoadGlobal()
@@ -267,7 +267,7 @@ func promptAndPersistRemoteControl() error {
 		username = os.Getenv("LOGNAME")
 	}
 	if username == "" {
-		username = "lerd"
+		username = "servlo"
 	}
 	fmt.Fprintf(os.Stderr, "  Username [%s]: ", username)
 	var input string
@@ -294,7 +294,7 @@ func promptAndPersistRemoteControl() error {
 }
 
 // readPasswordTwice prompts for a password on stdin twice and returns it
-// when the two inputs match. Used by `lerd remote-control on` so the user
+// when the two inputs match. Used by `servlo remote-control on` so the user
 // doesn't accidentally store a typo'd password they can't reproduce.
 func readPasswordTwice() (string, error) {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {

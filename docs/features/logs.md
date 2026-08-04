@@ -1,6 +1,6 @@
 # Logs
 
-lerd gives AI assistants a single, filtered view over every log it can reach, so debugging a broken site doesn't mean opening files by hand. It is exposed as the `logs` MCP tool with two actions: `sources` and `fetch`.
+servlo gives AI assistants a single, filtered view over every log it can reach, so debugging a broken site doesn't mean opening files by hand. It is exposed as the `logs` MCP tool with two actions: `sources` and `fetch`.
 
 ## Sources
 
@@ -13,7 +13,7 @@ Call `logs` with `action: "sources"` to enumerate what you can query for the cur
 | `worker:<name>` | journal | A declared worker unit: `worker:queue`, `worker:horizon`, `worker:schedule`, custom workers |
 | `nginx` | container | nginx access/error output |
 | `dns` | container | dnsmasq |
-| `watcher`, `ui` | journal | The lerd file watcher and UI server |
+| `watcher`, `ui` | journal | The servlo file watcher and UI server |
 | `<service>` | container | A default service (`mysql`, `redis`, `mailpit`, …) |
 | `php<ver>` | container | An installed PHP-FPM container, for site-less sessions |
 
@@ -38,5 +38,5 @@ MCP is a request/response protocol, so there is no live follow. Instead every `f
 
 - Raw logs without timestamps (most non-monolog files) ignore `since`/`until`/`level` and simply return the last N lines; their cursor is empty.
 - A container or unit that isn't running returns whatever partial output exists rather than an error.
-- On macOS, worker/watcher/ui sources read from `~/Library/Logs/lerd/<unit>.log` (or `podman logs` for container-mode workers) since there is no systemd journal; on Linux they read the user journal.
+- On macOS, worker/watcher/ui sources read from `~/Library/Logs/servlo/<unit>.log` (or `podman logs` for container-mode workers) since there is no systemd journal; on Linux they read the user journal.
 - Large files are read from a 512 KB tail; when that cap is hit the result is flagged as truncated.

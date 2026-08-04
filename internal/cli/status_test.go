@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // captureStdout runs fn with os.Stdout redirected into a buffer and returns
 // everything fn wrote. Used to assert on the text printed by the [Remote Access]
-// section of `lerd status`.
+// section of `servlo status`.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	orig := os.Stdout
@@ -52,10 +52,10 @@ func TestPrintRemoteAccessStatus(t *testing.T) {
 				"LAN exposure",
 				"loopback only",
 				"Managed service LAN access (off; services loopback-only)",
-				"lerd lan expose",
+				"servlo lan expose",
 				"Dashboard remote access",
 				"LAN clients get 403",
-				"lerd remote-control on",
+				"servlo remote-control on",
 			},
 		},
 		{

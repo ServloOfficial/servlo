@@ -35,14 +35,14 @@ const dockerHubMaxTags = 5000
 const fetchTimeout = 15 * time.Second
 
 func cacheDir() string {
-	if d := os.Getenv("LERD_REGISTRY_CACHE_DIR"); d != "" {
+	if d := os.Getenv("SERVLO_REGISTRY_CACHE_DIR"); d != "" {
 		return d
 	}
 	if d := os.Getenv("XDG_CACHE_HOME"); d != "" {
-		return filepath.Join(d, "lerd", "registry-tags")
+		return filepath.Join(d, "servlo", "registry-tags")
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".cache", "lerd", "registry-tags")
+	return filepath.Join(home, ".cache", "servlo", "registry-tags")
 }
 
 // AuthRequiredErr is returned when the registry needs credentials we don't

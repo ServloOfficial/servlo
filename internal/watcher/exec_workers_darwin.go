@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/cli"
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/cli"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // WatchExecWorkers self-heals macOS framework workers when the configured
@@ -114,9 +114,9 @@ type expectedExecWorker struct {
 }
 
 // expectedExecWorkers walks the site registry and returns one entry per
-// worker the site has explicitly enabled in .lerd.yaml's `workers:` list,
+// worker the site has explicitly enabled in .servlo.yaml's `workers:` list,
 // honoring site-wide and per-worker pause flags. Mirrors the enumeration
-// `lerd start` does so the watcher's idea of "what should be running"
+// `servlo start` does so the watcher's idea of "what should be running"
 // matches what the user has actually opted into — not the union of every
 // framework-declared worker, which would heal workers the user disabled
 // (e.g. reverb on a site without laravel/reverb installed).
@@ -169,7 +169,7 @@ func expectedExecWorkers() []expectedExecWorker {
 				continue
 			}
 			out = append(out, expectedExecWorker{
-				unit:       "lerd-" + kind + "-" + s.Name,
+				unit:       "servlo-" + kind + "-" + s.Name,
 				site:       s.Name,
 				sitePath:   s.Path,
 				phpVersion: php,
@@ -179,7 +179,7 @@ func expectedExecWorkers() []expectedExecWorker {
 		}
 
 		// Per-worktree host workers (vite, etc.) get a unit per worktree
-		// (lerd-<kind>-<site>-<wtBase>) under PR #319. The self-heal loop
+		// (servlo-<kind>-<site>-<wtBase>) under PR #319. The self-heal loop
 		// must enumerate them too — without this, a worktree unit booted
 		// out of launchd never recovers because the watcher pretends it
 		// doesn't exist.
@@ -198,7 +198,7 @@ func expectedExecWorkers() []expectedExecWorker {
 					continue
 				}
 				out = append(out, expectedExecWorker{
-					unit:       "lerd-" + kind + "-" + s.Name + "-" + filepath.Base(wt.Path),
+					unit:       "servlo-" + kind + "-" + s.Name + "-" + filepath.Base(wt.Path),
 					site:       s.Name,
 					sitePath:   wt.Path,
 					phpVersion: wtPHP,
@@ -212,8 +212,8 @@ func expectedExecWorkers() []expectedExecWorker {
 }
 
 // siteEnabledWorkers picks the worker names the site has actually opted
-// into. Empty .lerd.yaml `workers:` falls back to every framework worker —
-// matches the behavior of `lerd worker start <name>` resolving against
+// into. Empty .servlo.yaml `workers:` falls back to every framework worker —
+// matches the behavior of `servlo worker start <name>` resolving against
 // fw.Workers when the site hasn't been explicitly configured.
 func siteEnabledWorkers(fw *config.Framework, proj *config.ProjectConfig) []string {
 	if proj != nil && len(proj.Workers) > 0 {
@@ -232,7 +232,7 @@ func siteEnabledWorkers(fw *config.Framework, proj *config.ProjectConfig) []stri
 // and shouldn't be healed — its rival owns the slot.
 func conflictingWorkerRunning(w expectedExecWorker) bool {
 	for _, conflict := range w.def.ConflictsWith {
-		conflictUnit := "lerd-" + conflict + "-" + w.site
+		conflictUnit := "servlo-" + conflict + "-" + w.site
 		if launchctlPID(conflictUnit) != "" {
 			return true
 		}
@@ -251,9 +251,9 @@ func shouldHealOnReason(reason string) bool {
 // means the worker looks healthy.
 func workerNeedsHealing(unit string) string {
 	home, _ := os.UserHomeDir()
-	// Plist file name mirrors the unit name (e.g. "lerd-horizon-acme.plist") —
-	// only the launchd Label inside the plist gets the "com.lerd." prefix
-	// (see services.plistPath / plistLabel). The earlier "lerd."+unit form
+	// Plist file name mirrors the unit name (e.g. "servlo-horizon-acme.plist") —
+	// only the launchd Label inside the plist gets the "com.servlo." prefix
+	// (see services.plistPath / plistLabel). The earlier "servlo."+unit form
 	// looked for a file that never existed, so the heal loop fired every
 	// cooldown and pointlessly restarted healthy workers.
 	plistPath := filepath.Join(home, "Library", "LaunchAgents", unit+".plist")
@@ -284,7 +284,7 @@ func launchctlPID(unit string) string {
 	if err != nil {
 		return ""
 	}
-	label := "com.lerd." + unit
+	label := "com.servlo." + unit
 	for _, line := range strings.Split(string(out), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) >= 3 && fields[2] == label {
@@ -338,7 +338,7 @@ func sweepOrphanWorkerArtifacts(expected map[string]bool) {
 		}
 		// Also keep artifacts whose plist still exists — sweeping those
 		// would race a freshly-bootstrapped worker mid-launch. Plist file
-		// is named after the unit (no "lerd." prefix; that lives on the
+		// is named after the unit (no "servlo." prefix; that lives on the
 		// launchd Label only).
 		home, _ := os.UserHomeDir()
 		if _, err := os.Stat(filepath.Join(home, "Library", "LaunchAgents", unit+".plist")); err == nil {

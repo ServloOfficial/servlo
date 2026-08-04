@@ -28,7 +28,7 @@ func writeGlobalConfig(t *testing.T, body string) string {
 }
 
 // Extensions and packages belong to the user, not to a PHP version. A config
-// written by an older lerd keys them per version, which is what makes a site
+// written by an older servlo keys them per version, which is what makes a site
 // silently lose chromium when it moves to a version nobody added it to. The
 // migration folds every version's entries into one declared set.
 func TestLoadGlobal_migratesPerVersionSetsToUnifiedSet(t *testing.T) {
@@ -240,7 +240,7 @@ func TestPHPSetAccessors(t *testing.T) {
 	}
 }
 
-// The realised set records what a version's image actually loaded, so lerd can
+// The realised set records what a version's image actually loaded, so servlo can
 // warn about a gap instead of advertising what the image does not have.
 func TestRealisedSetRoundTrips(t *testing.T) {
 	cfg := defaultConfig()

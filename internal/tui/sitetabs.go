@@ -10,9 +10,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	lerddumps "github.com/geodro/lerd/internal/dumps"
-	"github.com/geodro/lerd/internal/siteinfo"
 	zone "github.com/lrstanley/bubblezone/v2"
+	servlodumps "github.com/realrashid/servlo/internal/dumps"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // siteTab identifies which sub-view of Site detail is showing. Tabs let the
@@ -162,7 +162,7 @@ func siteDebugContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []
 
 	buffered := countKind(m.debug, kind, site.Name)
 
-	if kind == lerddumps.KindDump {
+	if kind == servlodumps.KindDump {
 		vis := m.debugVisibleEvents(site.Name) // newest-first dump events
 		add(dimStyle.Render(fmt.Sprintf("  %d shown / %d buffered", len(vis), buffered)))
 		add("")
@@ -207,7 +207,7 @@ func siteDebugContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []
 		}
 		add(head)
 		var dup map[string]int
-		if kind == lerddumps.KindQuery {
+		if kind == servlodumps.KindQuery {
 			dup = map[string]int{}
 			for _, ev := range g.events {
 				if q, ok := ev.Query(); ok {

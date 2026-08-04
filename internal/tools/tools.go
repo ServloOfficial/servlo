@@ -1,5 +1,5 @@
 // Package tools resolves the pinned versions and download URLs of the host
-// tools lerd installs (composer, fnm, mkcert). tools.yaml is the source of
+// tools servlo installs (composer, fnm, mkcert). tools.yaml is the source of
 // truth: embedded at build time as the offline fallback, and fetched from
 // GitHub before use so a bad pin can be fixed without a binary release.
 package tools
@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/origin"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/origin"
 	"gopkg.in/yaml.v3"
 )
 
@@ -61,7 +61,7 @@ var (
 // from a branch at runtime rather than shipped in the release, so it reaches
 // every install without review; without this, editing one file would redirect
 // what every host downloads and marks executable. Extendable through
-// LERD_TOOLS_HOSTS for the same reason LERD_TOOLS_URL exists.
+// SERVLO_TOOLS_HOSTS for the same reason SERVLO_TOOLS_URL exists.
 var downloadHosts = []string{
 	"getcomposer.org",
 	"github.com",
@@ -230,7 +230,7 @@ func WriteStamp(name, version string) error {
 // version probe. Empty when the binary is missing or undeterminable.
 //
 // A probed answer is stamped on the way out. The stamp is otherwise only
-// written when lerd downloads a tool, and composer is only downloaded when it
+// written when servlo downloads a tool, and composer is only downloaded when it
 // is absent, so an install that already had composer.phar before stamping
 // existed never got one. With composer unprobeable by execution, it read as
 // unknown forever and, because the update check needs a known version, was
@@ -271,7 +271,7 @@ var composerVersionRe = regexp.MustCompile(`const VERSION = '([^']+)'`)
 const composerPharMaxScan = 64 << 20
 
 // composerVersion reads composer's version out of the phar without running it.
-// Executing it would need a PHP runtime lerd only has in containers, so the
+// Executing it would need a PHP runtime servlo only has in containers, so the
 // bytes are the only source available on the host.
 func composerVersion(path string) string {
 	info, err := os.Stat(path)

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	lerdcli "github.com/geodro/lerd/internal/cli"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
+	servlocli "github.com/realrashid/servlo/internal/cli"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -20,18 +20,18 @@ type ctxKeyRemoteDashboard struct{}
 
 // loopbackOnlyRoutes are dashboard endpoints that perform actions too
 // destructive or sensitive to hand to a remote (LAN) client on the strength
-// of a password alone: shutting lerd down entirely, opening a terminal on
+// of a password alone: shutting servlo down entirely, opening a terminal on
 // the host, linking arbitrary host filesystem paths as new sites. The local
 // user can still use them as normal, and a remote session reaches them only
-// after `lerd remote-control full-access on`.
+// after `servlo remote-control full-access on`.
 var loopbackOnlyRoutes = []string{
-	"/api/lerd/stop",            // shuts down all lerd containers
-	"/api/lerd/quit",            // exits the dashboard process
-	"/api/lerd/update-terminal", // spawns a terminal emulator on the host
-	"/api/logs/terminal",        // spawns a terminal emulator on the host
-	"/api/sites/link",           // links arbitrary host filesystem paths
-	"/api/browse",               // browses host filesystem
-	"/api/push/test",            // fires notifications onto subscribed devices
+	"/api/servlo/stop",            // shuts down all servlo containers
+	"/api/servlo/quit",            // exits the dashboard process
+	"/api/servlo/update-terminal", // spawns a terminal emulator on the host
+	"/api/logs/terminal",          // spawns a terminal emulator on the host
+	"/api/sites/link",             // links arbitrary host filesystem paths
+	"/api/browse",                 // browses host filesystem
+	"/api/push/test",              // fires notifications onto subscribed devices
 }
 
 // loopbackOnlyRoutePrefixes are endpoint subtrees restricted in full, so a
@@ -97,7 +97,7 @@ func remoteFullAccessEnabled() bool {
 // fromHost reports whether r's source IP belongs to one of the host's
 // own interfaces. The mailpit container reaches the dashboard via
 // host.containers.internal, which pasta (Linux) and gvproxy / vmnet
-// (macOS) source-NAT to the host, so lerd-ui sees the request as coming
+// (macOS) source-NAT to the host, so servlo-panel sees the request as coming
 // from one of its own addresses. A LAN attacker arrives from a different
 // IP and is rejected. Spoofing a host-owned address would break the TCP
 // handshake because the SYN-ACK routes back into the host rather than
@@ -147,11 +147,11 @@ func unsafeMethod(m string) bool {
 	return false
 }
 
-// csrfHeader is the request header lerd's own clients set to clear the
+// csrfHeader is the request header servlo's own clients set to clear the
 // cross-origin gate. Its presence is the proof; the value is ignored. The
 // gate reads it here and withCORS advertises it in Access-Control-Allow-Headers
 // so the split-origin dashboard's preflight succeeds.
-const csrfHeader = "X-Lerd-CSRF"
+const csrfHeader = "X-Servlo-CSRF"
 
 // csrfExemptPath reports whether path skips the cross-origin gate. These
 // endpoints are reached by non-browser clients (or cross-origin pages we
@@ -171,17 +171,17 @@ func csrfExemptPath(path string) bool {
 }
 
 // passesCSRF reports whether an unsafe-method request carries proof it was
-// initiated by lerd's own dashboard or a trusted local client.
+// initiated by servlo's own dashboard or a trusted local client.
 //
 // Browsers attach Sec-Fetch-Site automatically and scripts cannot forge it:
 // same-origin / same-site / none are first-party and pass; cross-site only
-// passes when the Origin is one of lerd's own dashboard origins, because the
-// lerd.localhost-to-localhost:7073 apiBase rewrite is itself labelled
+// passes when the Origin is one of servlo's own dashboard origins, because the
+// servlo.localhost-to-localhost:7073 apiBase rewrite is itself labelled
 // cross-site. A real attacker's Origin is never in the allowlist.
 //
 // Older browsers and non-browser callers omit Sec-Fetch; for those we require
-// the X-Lerd-CSRF header. A cross-origin CORS-simple request (the RCE vector)
-// can't set a custom header without a preflight, and lerd only answers
+// the X-Servlo-CSRF header. A cross-origin CORS-simple request (the RCE vector)
+// can't set a custom header without a preflight, and servlo only answers
 // preflight for its own origins, so the header's presence is proof enough.
 func passesCSRF(r *http.Request) bool {
 	if v, _ := r.Context().Value(ctxKeyUnixSocket{}).(bool); v {
@@ -199,9 +199,9 @@ func passesCSRF(r *http.Request) bool {
 // withRemoteControlGate wraps the dashboard mux with the LAN-access gate.
 // Two independent flags control LAN access:
 //
-//   - cfg.LAN.Exposed   — "may LAN clients reach lerd at all?" (lerd lan:expose)
+//   - cfg.LAN.Exposed   — "may LAN clients reach servlo at all?" (servlo lan:expose)
 //   - cfg.UI.PasswordHash — "if they may, what credentials do they need?"
-//     (lerd remote-control on)
+//     (servlo remote-control on)
 //
 // Behavior matrix for non-loopback requests:
 //
@@ -230,14 +230,14 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 		}
 
 		// 1b. Cross-origin (CSRF) gate. A state-changing request must prove it
-		// came from lerd's own dashboard rather than a malicious page open in
+		// came from servlo's own dashboard rather than a malicious page open in
 		// the developer's browser. This is the one check that also applies to
 		// loopback, because the RCE vector is exactly a local browser POSTing
 		// to 127.0.0.1:7073/api/sites/<d>/tinker. Exempt endpoints are reached
 		// by non-browser clients that have their own source protection.
 		if unsafeMethod(r.Method) && !csrfExemptPath(r.URL.Path) && !passesCSRF(r) {
 			w.Header().Set("Cache-Control", "no-store")
-			http.Error(w, "Forbidden — cross-origin request blocked. Use the Lerd dashboard itself.", http.StatusForbidden)
+			http.Error(w, "Forbidden — cross-origin request blocked. Use the Servlo dashboard itself.", http.StatusForbidden)
 			return
 		}
 
@@ -278,7 +278,7 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 		// so an unopted install answers the same way whatever is guessed.
 		if isLoopbackOnlyPath(r.URL.Path) && (cfg == nil || !cfg.UI.RemoteFullAccess) {
 			w.Header().Set("Cache-Control", "no-store")
-			http.Error(w, "Forbidden — this action is only available from the lerd host. Run `lerd remote-control full-access on` to allow it remotely.", http.StatusForbidden)
+			http.Error(w, "Forbidden — this action is only available from the servlo host. Run `servlo remote-control full-access on` to allow it remotely.", http.StatusForbidden)
 			return
 		}
 
@@ -286,10 +286,10 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 		// LAN clients are denied regardless of whether credentials are
 		// set — this prevents stale credentials from a previous expose
 		// session from surviving lan:unexpose, and matches the safe
-		// default state of "lerd is invisible to the network".
+		// default state of "servlo is invisible to the network".
 		if cfg == nil || !cfg.LAN.Exposed {
 			w.Header().Set("Cache-Control", "no-store")
-			http.Error(w, "Forbidden — lerd is not exposed to the LAN. Run `lerd lan:expose` on the server to enable LAN access.", http.StatusForbidden)
+			http.Error(w, "Forbidden — servlo is not exposed to the LAN. Run `servlo lan:expose` on the server to enable LAN access.", http.StatusForbidden)
 			return
 		}
 
@@ -298,7 +298,7 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 		// access would be a free-for-all, so deny.
 		if cfg.UI.PasswordHash == "" {
 			w.Header().Set("Cache-Control", "no-store")
-			http.Error(w, "Forbidden — dashboard credentials are not configured. Run `lerd remote-control on` on the server to enable.", http.StatusForbidden)
+			http.Error(w, "Forbidden — dashboard credentials are not configured. Run `servlo remote-control on` on the server to enable.", http.StatusForbidden)
 			return
 		}
 
@@ -317,19 +317,19 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 		// 6. Validate HTTP Basic auth.
 		user, pass, ok := r.BasicAuth()
 		if !ok {
-			w.Header().Set("WWW-Authenticate", `Basic realm="lerd dashboard"`)
+			w.Header().Set("WWW-Authenticate", `Basic realm="servlo dashboard"`)
 			w.Header().Set("Cache-Control", "no-store")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		if subtle.ConstantTimeCompare([]byte(user), []byte(cfg.UI.Username)) != 1 {
-			w.Header().Set("WWW-Authenticate", `Basic realm="lerd dashboard"`)
+			w.Header().Set("WWW-Authenticate", `Basic realm="servlo dashboard"`)
 			w.Header().Set("Cache-Control", "no-store")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		if bcrypt.CompareHashAndPassword([]byte(cfg.UI.PasswordHash), []byte(pass)) != nil {
-			w.Header().Set("WWW-Authenticate", `Basic realm="lerd dashboard"`)
+			w.Header().Set("WWW-Authenticate", `Basic realm="servlo dashboard"`)
 			w.Header().Set("Cache-Control", "no-store")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
@@ -405,13 +405,13 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		switch body.Action {
 		case "expose", "unexpose", "services_on", "services_off":
-			// Managed services can only reach the LAN while lerd itself does,
+			// Managed services can only reach the LAN while servlo itself does,
 			// so opting in beforehand would persist a setting that publishes
 			// nothing. Opting out stays available so a setting armed before an
 			// unexpose can still be cleared.
 			if body.Action == "services_on" {
 				if cfg, _ := config.LoadGlobal(); cfg == nil || !cfg.LAN.Exposed {
-					http.Error(w, "LAN exposure is off — managed services can only reach the LAN while lerd itself does.", http.StatusBadRequest)
+					http.Error(w, "LAN exposure is off — managed services can only reach the LAN while servlo itself does.", http.StatusBadRequest)
 					return
 				}
 			}
@@ -449,7 +449,7 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 
 		switch body.Action {
 		case "expose":
-			lanIP, err := lerdcli.EnableLANExposure(progress)
+			lanIP, err := servlocli.EnableLANExposure(progress)
 			if err != nil {
 				writeLine(map[string]any{"result": "error", "error": err.Error()})
 				return
@@ -464,7 +464,7 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		case "unexpose":
-			if err := lerdcli.DisableLANExposure(progress); err != nil {
+			if err := servlocli.DisableLANExposure(progress); err != nil {
 				writeLine(map[string]any{"result": "error", "error": err.Error()})
 				return
 			}
@@ -479,7 +479,7 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 			return
 		case "services_on", "services_off":
 			enabled := body.Action == "services_on"
-			if err := lerdcli.SetManagedServiceLANExposure(enabled, progress); err != nil {
+			if err := servlocli.SetManagedServiceLANExposure(enabled, progress); err != nil {
 				writeLine(map[string]any{"result": "error", "error": err.Error()})
 				return
 			}
@@ -572,7 +572,7 @@ func handleRemoteControl(w http.ResponseWriter, r *http.Request) {
 			// (sites can't resolve over .localhost on remote devices). So we
 			// only require lan:expose to be on first when DNS is enabled.
 			if !cfg.LAN.Exposed && cfg.DNS.Enabled {
-				http.Error(w, "LAN exposure is off — run `lerd lan:expose` first. Dashboard credentials are only meaningful while the dashboard is reachable from other devices.", http.StatusBadRequest)
+				http.Error(w, "LAN exposure is off — run `servlo lan:expose` first. Dashboard credentials are only meaningful while the dashboard is reachable from other devices.", http.StatusBadRequest)
 				return
 			}
 			if body.Username == "" || body.Password == "" {
@@ -608,7 +608,7 @@ func handleRemoteControl(w http.ResponseWriter, r *http.Request) {
 			// Only the local dashboard may widen remote authority, so a
 			// remote session can never grant itself host actions.
 			if !isLocalControlRequest(r) {
-				http.Error(w, "Forbidden — remote full access can only be changed from the lerd host.", http.StatusForbidden)
+				http.Error(w, "Forbidden — remote full access can only be changed from the servlo host.", http.StatusForbidden)
 				return
 			}
 			if body.Enabled && !cfg.LAN.Exposed {
@@ -616,7 +616,7 @@ func handleRemoteControl(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if body.Enabled && cfg.UI.PasswordHash == "" {
-				http.Error(w, "dashboard credentials are not configured — run `lerd remote-control on` first", http.StatusBadRequest)
+				http.Error(w, "dashboard credentials are not configured — run `servlo remote-control on` first", http.StatusBadRequest)
 				return
 			}
 			cfg.UI.RemoteFullAccess = body.Enabled
@@ -652,11 +652,11 @@ func handleRemoteSetupGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if cfg, _ := config.LoadGlobal(); cfg != nil && !cfg.DNS.Enabled {
-		http.Error(w, "remote-setup requires lerd-managed DNS, the remote machine has no way to resolve *.localhost; set dns.enabled: true and re-run lerd install.", http.StatusBadRequest)
+		http.Error(w, "remote-setup requires servlo-managed DNS, the remote machine has no way to resolve *.localhost; set dns.enabled: true and re-run servlo install.", http.StatusBadRequest)
 		return
 	}
 
-	code, err := lerdcli.GenerateRemoteSetupToken(15 * time.Minute)
+	code, err := servlocli.GenerateRemoteSetupToken(15 * time.Minute)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -690,7 +690,7 @@ func forwardedByProxy(r *http.Request) bool {
 	return false
 }
 
-// isLocalControlRequest reports whether a request may control the lerd host.
+// isLocalControlRequest reports whether a request may control the servlo host.
 // Unix-socket requests and requests carrying the private nginx trust token are
 // authoritative. A direct TCP request qualifies when its peer is loopback and
 // it carries no forwarding headers, which rejects reverse proxies such as
@@ -702,7 +702,7 @@ func forwardedByProxy(r *http.Request) bool {
 // local user with no way in.
 
 func hasValidTrustToken(r *http.Request) bool {
-	claimed := r.Header.Get("X-Lerd-Trust")
+	claimed := r.Header.Get("X-Servlo-Trust")
 	if claimed == "" {
 		return false
 	}
@@ -739,7 +739,7 @@ func remoteSessionMayActOnHost(r *http.Request) bool {
 // hasHostActionAuthority reports whether r may perform an action that reaches
 // the host itself: executing commands, reading raw .env content, touching the
 // filesystem, deleting captured data. The local dashboard always may; a remote
-// session only after `lerd remote-control full-access on`. The middleware has
+// session only after `servlo remote-control full-access on`. The middleware has
 // already applied the stricter local check to anything that reaches a handler,
 // so the loopback test here is the peer one.
 func hasHostActionAuthority(r *http.Request) bool {
@@ -758,11 +758,11 @@ func hasDashboardControl(r *http.Request) bool {
 //
 //  1. The connection arrived over the unix socket listener. Only host
 //     processes with filesystem access to the socket can connect, so this is
-//     at least as trusted as TCP loopback. The lerd.localhost nginx vhost
-//     reaches lerd-ui via this path.
+//     at least as trusted as TCP loopback. The servlo.localhost nginx vhost
+//     reaches servlo-panel via this path.
 //  2. The TCP peer is a loopback IP (127.x, ::1). This catches direct visits
 //     to http://localhost:7073 / http://127.0.0.1:7073.
-//  3. The request carries an X-Lerd-Trust header whose value matches the
+//  3. The request carries an X-Servlo-Trust header whose value matches the
 //     per-install token. Kept for backward compatibility with old vhosts
 //     that may still inject the header; new installs use the unix socket.
 func isLoopbackRequest(r *http.Request) bool {

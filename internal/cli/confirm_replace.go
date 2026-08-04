@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/geodro/lerd/internal/linker"
 	"github.com/pmezard/go-difflib/difflib"
+	"github.com/realrashid/servlo/internal/linker"
 	"gopkg.in/yaml.v3"
 )
 
@@ -21,8 +21,8 @@ type replaceAction int
 
 const (
 	replaceSkip        replaceAction = iota // keep both as-is
-	replaceFromProject                      // apply .lerd.yaml → disk
-	replaceFromDisk                         // apply disk → .lerd.yaml
+	replaceFromProject                      // apply .servlo.yaml → disk
+	replaceFromDisk                         // apply disk → .servlo.yaml
 )
 
 // replaceOptions are the resolutions offered, in the order they are presented.
@@ -31,8 +31,8 @@ var replaceOptions = []struct {
 	label  string
 	action replaceAction
 }{
-	{"Use version from .lerd.yaml (update local definition)", replaceFromProject},
-	{"Use local definition (update .lerd.yaml)", replaceFromDisk},
+	{"Use version from .servlo.yaml (update local definition)", replaceFromProject},
+	{"Use local definition (update .servlo.yaml)", replaceFromDisk},
 	{"Skip (keep both as-is)", replaceSkip},
 }
 
@@ -43,7 +43,7 @@ func confirmReplace(kind, name string, existing, replacement interface{}) (repla
 }
 
 // confirmReplaceWith compares existing (on disk) and replacement (from
-// .lerd.yaml) by marshalling both to YAML. Identical definitions resolve to
+// .servlo.yaml) by marshalling both to YAML. Identical definitions resolve to
 // replaceSkip without a word. Otherwise it prints a unified diff and asks which
 // direction to sync.
 //
@@ -69,7 +69,7 @@ func confirmReplaceWith(prompt linker.Prompter, kind, name string, existing, rep
 		// dashboard, an assistant, a script), and lipgloss emits colour into a
 		// pipe regardless, which would land as escape codes in their output.
 		fmt.Printf("\n  ~ %s/%s differs from the one this project commits; keeping both as they are.\n", kind, name)
-		fmt.Printf("    Run 'lerd link' in a terminal to choose which to keep.\n")
+		fmt.Printf("    Run 'servlo link' in a terminal to choose which to keep.\n")
 		return replaceSkip, nil
 	}
 
@@ -77,7 +77,7 @@ func confirmReplaceWith(prompt linker.Prompter, kind, name string, existing, rep
 		A:        difflib.SplitLines(string(oldYAML)),
 		B:        difflib.SplitLines(string(newYAML)),
 		FromFile: fmt.Sprintf("%s/%s (current)", kind, name),
-		ToFile:   fmt.Sprintf("%s/%s (.lerd.yaml)", kind, name),
+		ToFile:   fmt.Sprintf("%s/%s (.servlo.yaml)", kind, name),
 		Context:  3,
 	})
 	if err != nil {

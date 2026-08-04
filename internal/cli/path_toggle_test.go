@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // pathShimTestEnv points HOME and the XDG dirs at a temp tree so config,
@@ -45,7 +45,7 @@ func TestAddShellShimsWritesPathEntryByDefault(t *testing.T) {
 
 	got, _ := os.ReadFile(filepath.Join(tmp, ".zshrc"))
 	if !strings.Contains(string(got), `export PATH="`+config.BinDir()) {
-		t.Errorf(".zshrc should contain the lerd PATH export, got:\n%s", got)
+		t.Errorf(".zshrc should contain the servlo PATH export, got:\n%s", got)
 	}
 }
 
@@ -57,7 +57,7 @@ func TestAddShellShimsSkipsPathEntryWhenDisabled(t *testing.T) {
 	// A prior install already wrote the PATH block; disabling must remove it.
 	zshrc := filepath.Join(tmp, ".zshrc")
 	os.WriteFile(zshrc, []byte(
-		"alias gco='git checkout'\n\n# Lerd\nexport PATH=\""+config.BinDir()+":$PATH\"\n",
+		"alias gco='git checkout'\n\n# Servlo\nexport PATH=\""+config.BinDir()+":$PATH\"\n",
 	), 0o644)
 
 	if err := addShellShims(false); err != nil {
@@ -66,12 +66,12 @@ func TestAddShellShimsSkipsPathEntryWhenDisabled(t *testing.T) {
 
 	got, _ := os.ReadFile(zshrc)
 	if strings.Contains(string(got), "export PATH=\""+config.BinDir()) {
-		t.Errorf(".zshrc should no longer contain the lerd PATH export, got:\n%s", got)
+		t.Errorf(".zshrc should no longer contain the servlo PATH export, got:\n%s", got)
 	}
 	if !strings.Contains(string(got), "alias gco") {
 		t.Error("pre-existing content should be preserved")
 	}
-	// The shim scripts themselves must still exist: `lerd php` and internal
+	// The shim scripts themselves must still exist: `servlo php` and internal
 	// child processes rely on them regardless of the user's PATH.
 	if _, err := os.Stat(filepath.Join(config.BinDir(), "php")); err != nil {
 		t.Error("php shim should still be written when the PATH entry is disabled")
@@ -83,12 +83,12 @@ func TestAddShellShimsKeepsInstallerBinaryPathWhenDisabled(t *testing.T) {
 	t.Setenv("SHELL", "/bin/bash")
 	savePathDisabled(t, true)
 
-	// install.sh's block puts the lerd binary itself on PATH; it is not the
+	// install.sh's block puts the servlo binary itself on PATH; it is not the
 	// shims entry and must survive path:disable.
 	bashrc := filepath.Join(tmp, ".bashrc")
 	os.WriteFile(bashrc, []byte(
-		"# Added by Lerd installer\nexport PATH=\""+filepath.Join(tmp, ".local", "bin")+":$PATH\"\n"+
-			"# Lerd\nexport PATH=\""+config.BinDir()+":$PATH\"\n",
+		"# Added by Servlo installer\nexport PATH=\""+filepath.Join(tmp, ".local", "bin")+":$PATH\"\n"+
+			"# Servlo\nexport PATH=\""+config.BinDir()+":$PATH\"\n",
 	), 0o644)
 
 	if err := addShellShims(false); err != nil {
@@ -96,8 +96,8 @@ func TestAddShellShimsKeepsInstallerBinaryPathWhenDisabled(t *testing.T) {
 	}
 
 	got, _ := os.ReadFile(bashrc)
-	if !strings.Contains(string(got), "Added by Lerd installer") {
-		t.Error("the installer's lerd-binary PATH block must be kept")
+	if !strings.Contains(string(got), "Added by Servlo installer") {
+		t.Error("the installer's servlo-binary PATH block must be kept")
 	}
 	if strings.Contains(string(got), config.BinDir()) {
 		t.Errorf("the shims PATH export should be gone, got:\n%s", got)
@@ -109,7 +109,7 @@ func TestAddShellShimsRemovesFishEntryWhenDisabled(t *testing.T) {
 	t.Setenv("SHELL", "/usr/bin/fish")
 	savePathDisabled(t, true)
 
-	fishConf := filepath.Join(tmp, ".config", "fish", "conf.d", "lerd.fish")
+	fishConf := filepath.Join(tmp, ".config", "fish", "conf.d", "servlo.fish")
 	os.MkdirAll(filepath.Dir(fishConf), 0o755)
 	os.WriteFile(fishConf, []byte("set -gx PATH "+config.BinDir()+" $PATH\n"), 0o644)
 
@@ -119,7 +119,7 @@ func TestAddShellShimsRemovesFishEntryWhenDisabled(t *testing.T) {
 
 	if _, err := os.Stat(fishConf); !os.IsNotExist(err) {
 		got, _ := os.ReadFile(fishConf)
-		t.Errorf("lerd.fish should be removed when the PATH entry is disabled, got:\n%s", got)
+		t.Errorf("servlo.fish should be removed when the PATH entry is disabled, got:\n%s", got)
 	}
 }
 
@@ -127,7 +127,7 @@ func TestApplyPathShimRoundTrip(t *testing.T) {
 	tmp := pathShimTestEnv(t)
 	t.Setenv("SHELL", "/bin/zsh")
 	zshrc := filepath.Join(tmp, ".zshrc")
-	os.WriteFile(zshrc, []byte("# Lerd\nexport PATH=\""+config.BinDir()+":$PATH\"\n"), 0o644)
+	os.WriteFile(zshrc, []byte("# Servlo\nexport PATH=\""+config.BinDir()+":$PATH\"\n"), 0o644)
 
 	if err := applyPathShim(true); err != nil {
 		t.Fatal(err)

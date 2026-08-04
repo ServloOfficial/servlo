@@ -141,7 +141,7 @@ func TestMailpitWebhook_BroadcastsAsGenericNotification(t *testing.T) {
 	if params["from"] != "Alice <alice@example.com>" {
 		t.Errorf("params.from = %q", params["from"])
 	}
-	if tag != "lerd-mail-abc123" {
+	if tag != "servlo-mail-abc123" {
 		t.Errorf("tag = %q", tag)
 	}
 	if url != "#service/mailpit/view/abc123" {

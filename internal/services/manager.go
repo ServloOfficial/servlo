@@ -6,11 +6,11 @@
 // at init time via build-tag-selected files.
 package services
 
-// ServiceManager is the interface for managing lerd's user-space services and
+// ServiceManager is the interface for managing servlo's user-space services and
 // container units. On Linux it is backed by systemd + Podman Quadlets; on
 // macOS it will be backed by launchd.
 type ServiceManager interface {
-	// --- Service unit files (lerd-watcher, lerd-ui, lerd-queue-*, …) ---
+	// --- Service unit files (servlo-watcher, servlo-panel, servlo-queue-*, …) ---
 
 	// WriteServiceUnit writes a named service unit file.
 	WriteServiceUnit(name, content string) error
@@ -42,10 +42,10 @@ type ServiceManager interface {
 	ListTimerUnits(nameGlob string) []string
 
 	// ListServiceUnits returns unit names whose files match nameGlob.
-	// e.g. nameGlob="lerd-queue-*" → ["lerd-queue-myapp", …]
+	// e.g. nameGlob="servlo-queue-*" → ["servlo-queue-myapp", …]
 	ListServiceUnits(nameGlob string) []string
 
-	// --- Container unit files (lerd-dns, lerd-nginx, lerd-php*-fpm, …) ---
+	// --- Container unit files (servlo-dns, servlo-nginx, servlo-php*-fpm, …) ---
 
 	// WriteContainerUnit writes a named container unit file.
 	WriteContainerUnit(name, content string) error
@@ -57,7 +57,7 @@ type ServiceManager interface {
 	RemoveContainerUnit(name string) error
 
 	// ListContainerUnits returns container unit names whose files match nameGlob.
-	// e.g. nameGlob="lerd-*" → ["lerd-dns", "lerd-nginx", …]
+	// e.g. nameGlob="servlo-*" → ["servlo-dns", "servlo-nginx", …]
 	ListContainerUnits(nameGlob string) []string
 
 	// --- Service lifecycle ---

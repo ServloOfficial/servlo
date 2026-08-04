@@ -7,7 +7,7 @@ import type { DumpEvent } from '$lib/dumpsStream';
 // and the label have to fold the branch in.
 
 // groupKey buckets events into one request: the per-request id when the
-// lerd_devtools extension supplied one, else method+path+pid for web requests,
+// servlo_devtools extension supplied one, else method+path+pid for web requests,
 // else a 5s pid bucket for CLI invocations. site and branch lead both fallback
 // keys so a worktree request never merges into the parent site's request.
 //

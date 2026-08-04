@@ -97,7 +97,7 @@
     {#if $accessMode.localControl && $sitesLoaded && total > 0}
       <button
         onclick={openLinkModal}
-        class="inline-flex items-center gap-1 text-xs font-medium text-lerd-red hover:text-lerd-redhov"
+        class="inline-flex items-center gap-1 text-xs font-medium text-servlo-red hover:text-servlo-redhov"
       >
         <Icon name="plus" class="w-3.5 h-3.5" />
         {m.sites_linkNew()}
@@ -126,5 +126,5 @@
 {/snippet}
 
 {#snippet parkHint()}
-  {@html m.sites_emptyHint({ cmd: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm">lerd park</code>' })}
+  {@html m.sites_emptyHint({ cmd: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm">servlo park</code>' })}
 {/snippet}

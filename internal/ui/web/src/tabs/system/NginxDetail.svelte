@@ -35,6 +35,6 @@
   {#if active === 'config'}
     <NginxConfigTab />
   {:else if active === 'logs'}
-    <LogViewer path="/api/logs/lerd-nginx" {highlight} />
+    <LogViewer path="/api/logs/servlo-nginx" {highlight} />
   {/if}
 </DetailPanel>

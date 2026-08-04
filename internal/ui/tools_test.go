@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/tools"
+	"github.com/realrashid/servlo/internal/tools"
 )
 
 func toolUpdateResult(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {

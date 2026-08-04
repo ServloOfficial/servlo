@@ -32,11 +32,11 @@
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
     </svg>
-    {m.system_lerd_checking()}
+    {m.system_servlo_checking()}
   {:else}
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M20.49 9A9 9 0 005.64 5.64L4 4m16 16l-1.64-1.64A9 9 0 014.51 15"/>
     </svg>
-    {m.system_lerd_checkForUpdates()}
+    {m.system_servlo_checkForUpdates()}
   {/if}
 </button>

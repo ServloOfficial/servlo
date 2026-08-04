@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // handleSiteAction routes GET /api/sites/{domain}/env to handleSiteEnv and
@@ -59,7 +59,7 @@ func TestHandleSiteEnvPropose_insertsInPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(sitePath, ".env"),
-		[]byte("DB_HOST=lerd-postgres\nDB_DATABASE=app\n"), 0o644); err != nil {
+		[]byte("DB_HOST=servlo-postgres\nDB_DATABASE=app\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := config.AddSite(config.Site{Name: "prop", Path: sitePath, Domains: []string{"prop.test"}}); err != nil {
@@ -81,7 +81,7 @@ func TestHandleSiteEnvPropose_insertsInPlace(t *testing.T) {
 	if len(resp.Added) != 1 || resp.Added[0] != "DB_PORT" {
 		t.Errorf("Added = %v, want [DB_PORT]", resp.Added)
 	}
-	want := "DB_HOST=lerd-postgres\nDB_PORT=5432\nDB_DATABASE=app\n"
+	want := "DB_HOST=servlo-postgres\nDB_PORT=5432\nDB_DATABASE=app\n"
 	if resp.Merged != want {
 		t.Errorf("Merged mismatch\n got: %q\nwant: %q", resp.Merged, want)
 	}
@@ -111,7 +111,7 @@ func TestHandleSiteEnvPropose_selectsKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(sitePath, ".env"),
-		[]byte("DB_HOST=lerd-postgres\n"), 0o644); err != nil {
+		[]byte("DB_HOST=servlo-postgres\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := config.AddSite(config.Site{Name: "sel", Path: sitePath, Domains: []string{"sel.test"}}); err != nil {
@@ -133,7 +133,7 @@ func TestHandleSiteEnvPropose_selectsKeys(t *testing.T) {
 	if len(resp.Added) != 1 || resp.Added[0] != "DB_PORT" {
 		t.Errorf("Added = %v, want [DB_PORT]", resp.Added)
 	}
-	want := "DB_HOST=lerd-postgres\nDB_PORT=5432\n"
+	want := "DB_HOST=servlo-postgres\nDB_PORT=5432\n"
 	if resp.Merged != want {
 		t.Errorf("Merged mismatch\n got: %q\nwant: %q", resp.Merged, want)
 	}
@@ -309,7 +309,7 @@ func TestWithCORS_advertisesPUT(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 	req := httptest.NewRequest(http.MethodOptions, "/api/sites/acme.test/env", nil)
-	req.Header.Set("Origin", "http://lerd.localhost")
+	req.Header.Set("Origin", "http://servlo.localhost")
 	rec := httptest.NewRecorder()
 	handler(rec, req)
 
@@ -333,7 +333,7 @@ func TestListEnvFiles_returnsEnvVariantsWithDefaultFirst(t *testing.T) {
 	must(".env.example", 0o644)
 	must(".env.bkp.20260528-103045", 0o644)         // backup of .env, excluded
 	must(".env.testing.bkp.20260528-103045", 0o644) // backup of .env.testing, excluded
-	must(".env.before_lerd", 0o644)                 // lerd's own restore file, excluded
+	must(".env.before_servlo", 0o644)               // servlo's own restore file, excluded
 	must(".env.tmp.abc", 0o644)                     // matches via two-segment, excluded by regex
 	must("regular.txt", 0o644)                      // not an env file
 
@@ -362,7 +362,7 @@ func TestEnvFileFromQuery(t *testing.T) {
 		{"file=.env", ".env", true},
 		{"file=.env.testing", ".env.testing", true},
 		{"file=.env.local", ".env.local", true},
-		{"file=.env.before_lerd", "", false},
+		{"file=.env.before_servlo", "", false},
 		{"file=.env.bkp.20260528-103045", "", false}, // backup, two-segment suffix
 		{"file=../etc/passwd", "", false},
 		{"file=.env/extra", "", false},
@@ -667,7 +667,7 @@ func TestHandleSiteEnv_backupContentRejectsTraversalAndOtherNames(t *testing.T) 
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 	sitePath := t.TempDir()
-	if err := os.WriteFile(filepath.Join(sitePath, ".env.before_lerd"), []byte("nope"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(sitePath, ".env.before_servlo"), []byte("nope"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := config.AddSite(config.Site{Name: "acme", Path: sitePath, Domains: []string{"acme.test"}}); err != nil {
@@ -676,7 +676,7 @@ func TestHandleSiteEnv_backupContentRejectsTraversalAndOtherNames(t *testing.T) 
 
 	// Path traversal: the / segment makes parts longer than 4, falling
 	// through to the no-match branch.
-	req := httptest.NewRequest(http.MethodGet, "/api/sites/acme.test/env/backups/.env.before_lerd", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/sites/acme.test/env/backups/.env.before_servlo", nil)
 	rec := httptest.NewRecorder()
 	handleSiteAction(rec, req)
 	if rec.Code != http.StatusNotFound {
@@ -895,7 +895,7 @@ func TestSiteEnv_frameworkResolvesVersionedStoreDef(t *testing.T) {
 	}
 
 	sitePath := t.TempDir()
-	if err := os.WriteFile(filepath.Join(sitePath, ".lerd.yaml"), []byte("framework_version: \"8\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(sitePath, ".servlo.yaml"), []byte("framework_version: \"8\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(sitePath, ".env.local"), []byte("APP_ENV=dev\n"), 0o644); err != nil {
@@ -1078,7 +1078,7 @@ func TestHandleSiteEnvPropose_targetsTheFileTheTabOpens(t *testing.T) {
 
 	sitePath := t.TempDir()
 	for name, body := range map[string]string{
-		".lerd.yaml":   "framework_version: \"8\"\n",
+		".servlo.yaml": "framework_version: \"8\"\n",
 		".env.local":   "APP_ENV=dev\n",
 		".env":         "APP_ENV=prod\n",
 		".env.example": "APP_ENV=\nAPP_SECRET=\n",

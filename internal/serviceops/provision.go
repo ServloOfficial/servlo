@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // databaseNamePattern is the strict shape an entity name must have to reach a
 // path or SQL sink: it must start with a letter, digit or underscore and carry
 // only those plus dashes and interior dots (S3 bucket names carry dots), which
-// covers every name lerd generates while excluding path separators, leading-dot
+// covers every name servlo generates while excluding path separators, leading-dot
 // segments like ".." and every shell and SQL metacharacter.
 var databaseNamePattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]*$`)
 
@@ -105,21 +105,21 @@ func S3BucketName(name string) string {
 		out = out[:63]
 	}
 	if out == "" {
-		out = "lerd"
+		out = "servlo"
 	}
 	return out
 }
 
-// EnsureS3Bucket creates a bucket for the given name in lerd-rustfs using an
+// EnsureS3Bucket creates a bucket for the given name in servlo-rustfs using an
 // ephemeral mc container. Returns (true, nil) if created, (false, nil) if it
 // already existed, or (false, err) on failure. Retries up to 3 times (2s apart)
 // to bridge the window between the host TCP port becoming reachable and the
 // container network being fully ready for mc operations.
 func EnsureS3Bucket(name string) (bool, error) {
 	const (
-		alias   = "lerd"
+		alias   = "servlo"
 		mcImage = "docker.io/minio/mc:latest"
-		mcEnv   = "MC_HOST_lerd=http://lerd:lerdpassword@lerd-rustfs:9000"
+		mcEnv   = "MC_HOST_servlo=http://servlo:servlopassword@servlo-rustfs:9000"
 	)
 
 	var lastErr error
@@ -128,13 +128,13 @@ func EnsureS3Bucket(name string) (bool, error) {
 			time.Sleep(2 * time.Second)
 		}
 
-		lsCmd := podman.Cmd("run", "--rm", "--network", "lerd",
+		lsCmd := podman.Cmd("run", "--rm", "--network", "servlo",
 			"-e", mcEnv, mcImage, "ls", alias+"/"+name)
 		if lsCmd.Run() == nil {
 			return false, nil
 		}
 
-		mbCmd := podman.Cmd("run", "--rm", "--network", "lerd",
+		mbCmd := podman.Cmd("run", "--rm", "--network", "servlo",
 			"-e", mcEnv, mcImage, "mb", alias+"/"+name)
 		out, err := mbCmd.CombinedOutput()
 		if err != nil {
@@ -142,7 +142,7 @@ func EnsureS3Bucket(name string) (bool, error) {
 			continue
 		}
 
-		pubCmd := podman.Cmd("run", "--rm", "--network", "lerd",
+		pubCmd := podman.Cmd("run", "--rm", "--network", "servlo",
 			"-e", mcEnv, mcImage, "anonymous", "set", "public", alias+"/"+name)
 		if out, err := pubCmd.CombinedOutput(); err != nil {
 			return false, fmt.Errorf("mc anonymous set public: %s", strings.TrimSpace(string(out)))

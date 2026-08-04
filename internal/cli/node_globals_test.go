@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestUserNPMPrefixFromEnv(t *testing.T) {
@@ -56,32 +56,32 @@ func TestNpmGlobalPrefixEnvRespectsUserPrefix(t *testing.T) {
 	t.Setenv("npm_config_prefix", "/opt/npm-globals")
 	t.Setenv("NPM_CONFIG_PREFIX", "")
 
-	env, lerdOwned := npmGlobalPrefixEnv()
-	if lerdOwned {
-		t.Error("a user-configured prefix must not be lerd-owned (no wrapper sync)")
+	env, servloOwned := npmGlobalPrefixEnv()
+	if servloOwned {
+		t.Error("a user-configured prefix must not be servlo-owned (no wrapper sync)")
 	}
 	if !reflect.DeepEqual(env, []string{"npm_config_prefix=/opt/npm-globals"}) {
 		t.Errorf("env = %v, want the user's own prefix", env)
 	}
 }
 
-func TestNpmGlobalPrefixEnvDefaultsToLerdPrefix(t *testing.T) {
+func TestNpmGlobalPrefixEnvDefaultsToServloPrefix(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", filepath.Join(tmp, ".local", "share"))
 	t.Setenv("npm_config_prefix", "")
 	t.Setenv("NPM_CONFIG_PREFIX", "")
 
-	env, lerdOwned := npmGlobalPrefixEnv()
-	if !lerdOwned {
-		t.Error("without a user prefix the lerd prefix is used and wrappers sync")
+	env, servloOwned := npmGlobalPrefixEnv()
+	if !servloOwned {
+		t.Error("without a user prefix the servlo prefix is used and wrappers sync")
 	}
 	want := []string{"npm_config_prefix=" + config.NodeGlobalDir()}
 	if !reflect.DeepEqual(env, want) {
 		t.Errorf("env = %v, want %v", env, want)
 	}
 	if _, err := os.Stat(filepath.Join(config.NodeGlobalDir(), "bin")); err != nil {
-		t.Error("the lerd prefix bin dir should be created")
+		t.Error("the servlo prefix bin dir should be created")
 	}
 }
 
@@ -117,7 +117,7 @@ func TestRemoveNodeGlobalWrappers(t *testing.T) {
 	os.WriteFile(filepath.Join(bin, "codex"),
 		[]byte("#!/bin/sh\n# "+nodeShimMarker+"\nexec fnm exec --using default codex\n"), 0o755)
 	os.WriteFile(filepath.Join(bin, "php"),
-		[]byte("#!/bin/sh\nexec lerd php \"$@\"\n"), 0o755)
+		[]byte("#!/bin/sh\nexec servlo php \"$@\"\n"), 0o755)
 	fakeBinary := append([]byte{0x7f, 'E', 'L', 'F', 0, 0, 0, 0}, []byte(nodeShimMarker)...)
 	os.WriteFile(filepath.Join(bin, "native"), fakeBinary, 0o755)
 

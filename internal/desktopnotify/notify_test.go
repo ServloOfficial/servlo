@@ -4,9 +4,9 @@ import "testing"
 
 func TestClickURLs(t *testing.T) {
 	cases := []struct{ route, app, pwa, browser string }{
-		{"#system", "lerd://open/#system", "web+lerd://open/#system", "http://lerd.localhost/#system"},
-		{"/sites/foo", "lerd://open/sites/foo", "web+lerd://open/sites/foo", "http://lerd.localhost/sites/foo"},
-		{"", "lerd://open/", "web+lerd://open/", "http://lerd.localhost/"},
+		{"#system", "servlo://open/#system", "web+servlo://open/#system", "http://servlo.localhost/#system"},
+		{"/sites/foo", "servlo://open/sites/foo", "web+servlo://open/sites/foo", "http://servlo.localhost/sites/foo"},
+		{"", "servlo://open/", "web+servlo://open/", "http://servlo.localhost/"},
 	}
 	for _, tc := range cases {
 		if got := appSchemeURL(tc.route); got != tc.app {

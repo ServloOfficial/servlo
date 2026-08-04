@@ -11,16 +11,16 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/geodro/lerd/internal/config"
-	lerddumps "github.com/geodro/lerd/internal/dumps"
-	"github.com/geodro/lerd/internal/eventbus"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/reqstats"
-	"github.com/geodro/lerd/internal/sitedoctor"
-	"github.com/geodro/lerd/internal/siteinfo"
-	"github.com/geodro/lerd/internal/stats"
-	lerdUpdate "github.com/geodro/lerd/internal/update"
 	zone "github.com/lrstanley/bubblezone/v2"
+	"github.com/realrashid/servlo/internal/config"
+	servlodumps "github.com/realrashid/servlo/internal/dumps"
+	"github.com/realrashid/servlo/internal/eventbus"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/realrashid/servlo/internal/sitedoctor"
+	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/stats"
+	servloUpdate "github.com/realrashid/servlo/internal/update"
 )
 
 // focusPane identifies which pane currently owns keyboard focus. Detail sits
@@ -149,7 +149,7 @@ type Model struct {
 	pickerWorktreeName string
 
 	// Domain-input state: when active, typing adds characters to the
-	// pending domain name; enter runs `lerd domain add`, esc cancels.
+	// pending domain name; enter runs `servlo domain add`, esc cancels.
 	// When domainInputEditing is non-empty, the input is editing that
 	// existing full domain — commit chains an add-new + remove-old.
 	domainInputActive  bool
@@ -169,7 +169,7 @@ type Model struct {
 
 	// Latest version reported by the 24h-cached update check. Non-empty
 	// when a newer release is available; rendered as a banner in the
-	// header so users see it without running lerd status.
+	// header so users see it without running servlo status.
 	updateAvailable string
 
 	// Buffer of recent debug events surfaced by the Debug pane (D key).
@@ -177,9 +177,9 @@ type Model struct {
 	// raw so each lens can render its own fields; capped at dumpsBufferCap.
 	// New events arrive batched via debugBatchMsg from the goroutine started by Run
 	// when the program boots. Independent of the in-memory ring inside
-	// lerd-ui because the TUI runs in its own process and only sees what
+	// servlo-panel because the TUI runs in its own process and only sees what
 	// the SSE connection delivers.
-	debug             []lerddumps.Event
+	debug             []servlodumps.Event
 	debugLens         int // index into debugLenses; which kind is shown
 	dumpsCursor       int
 	dumpsScroll       int
@@ -194,7 +194,7 @@ type Model struct {
 
 	// Command palette state: when paletteActive is true, all keystrokes go
 	// into paletteInput until enter or esc. Press `:` to open from any
-	// pane; commits as `lerd <args>` via runLerd.
+	// pane; commits as `servlo <args>` via runServlo.
 	paletteActive bool
 	paletteInput  string
 
@@ -308,12 +308,12 @@ func (m *Model) Init() tea.Cmd {
 // the model. Empty Latest means "on the latest version or check failed".
 type updateCheckMsg struct{ Latest string }
 
-// updateCheckCmd reads the 24h update cache (populated by lerd status /
-// lerd doctor). We don't fire a live GitHub request ourselves — if no
+// updateCheckCmd reads the 24h update cache (populated by servlo status /
+// servlo doctor). We don't fire a live GitHub request ourselves — if no
 // other command has run lately, the banner just stays hidden.
 func updateCheckCmd(current string) tea.Cmd {
 	return func() tea.Msg {
-		info, _ := lerdUpdate.CachedUpdateCheck(current)
+		info, _ := servloUpdate.CachedUpdateCheck(current)
 		if info == nil {
 			return updateCheckMsg{}
 		}
@@ -847,7 +847,7 @@ func (m *Model) selectSiteTabByID(tab siteTab) tea.Cmd {
 	return nil
 }
 
-// actionServiceUpdate runs `lerd service update <name>` for the focused
+// actionServiceUpdate runs `servlo service update <name>` for the focused
 // service row (no tag — applies the safe in-strategy update). Worker rows
 // have no upstream image so we no-op there.
 func (m *Model) actionServiceUpdate() tea.Cmd {
@@ -859,10 +859,10 @@ func (m *Model) actionServiceUpdate() tea.Cmd {
 		return nil
 	}
 	m.setStatus("updating "+svc.Name+"…", 30*time.Second)
-	return runLerd("", "service", "update", svc.Name)
+	return runServlo("", "service", "update", svc.Name)
 }
 
-// actionServiceRollback runs `lerd service rollback <name>` for the focused
+// actionServiceRollback runs `servlo service rollback <name>` for the focused
 // service row, reverting to the previously-running image.
 func (m *Model) actionServiceRollback() tea.Cmd {
 	if m.focus != paneServices {
@@ -873,17 +873,17 @@ func (m *Model) actionServiceRollback() tea.Cmd {
 		return nil
 	}
 	m.setStatus("rolling back "+svc.Name+"…", 30*time.Second)
-	return runLerd("", "service", "rollback", svc.Name)
+	return runServlo("", "service", "rollback", svc.Name)
 }
 
-// actionHealWorkers shells out to `lerd worker heal` so every failed
+// actionHealWorkers shells out to `servlo worker heal` so every failed
 // worker on the box gets reset-failed + start. The CLI command is the
 // single source of heal logic; the TUI just triggers it and refreshes
 // the snapshot once it returns. No site context required — heal scans
 // every registered site.
 func (m *Model) actionHealWorkers() tea.Cmd {
 	m.setStatus("healing failed workers…", 10*time.Second)
-	return tea.Sequence(runLerd("", "worker", "heal"), loadCmd())
+	return tea.Sequence(runServlo("", "worker", "heal"), loadCmd())
 }
 
 // openDomainInput switches into domain-input mode for adding a new domain.
@@ -898,7 +898,7 @@ func (m *Model) openDomainInput() {
 
 // openDomainEdit enters domain-input mode pre-filled with the short form
 // of `full`. On commit the handler runs add-new + remove-old as a sequence,
-// which gives rename semantics without a dedicated `lerd domain rename`
+// which gives rename semantics without a dedicated `servlo domain rename`
 // command.
 func (m *Model) openDomainEdit(full string) {
 	m.domainInputActive = true
@@ -932,7 +932,7 @@ func (m *Model) editFocusedDomain() (handled bool) {
 }
 
 // handleDomainInputKey collects characters for the new domain, commits on
-// enter (running `lerd domain add <short>` from the site dir), cancels on
+// enter (running `servlo domain add <short>` from the site dir), cancels on
 // esc. Unlike filter input we're not narrowing a list in real time, so no
 // refresh is needed until the subprocess exits.
 func (m *Model) handleDomainInputKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -961,12 +961,12 @@ func (m *Model) handleDomainInputKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			oldShort := trimTLD(editing)
 			m.setStatus("renaming "+editing+" → "+value+"…", 5*time.Second)
 			return m, tea.Sequence(
-				runLerd(s.Path, "domain", "add", value),
-				runLerd(s.Path, "domain", "remove", oldShort),
+				runServlo(s.Path, "domain", "add", value),
+				runServlo(s.Path, "domain", "remove", oldShort),
 			)
 		}
 		m.setStatus("adding domain "+value+"…", 5*time.Second)
-		return m, runLerd(s.Path, "domain", "add", value)
+		return m, runServlo(s.Path, "domain", "add", value)
 	case "ctrl+c":
 		m.logTail.Stop()
 		return m, tea.Quit
@@ -1487,7 +1487,7 @@ func (m *Model) nextFocus(dir int) focusPane {
 func (m *Model) moveCursor(delta int) {
 	// On the Dashboard, a card with selectable rows (Sites, Services, Workers)
 	// moves its row cursor; the render follows it. Info-only cards (System
-	// Health, Resources, Lerd) have nothing to select, so j/k scrolls them.
+	// Health, Resources, Servlo) have nothing to select, so j/k scrolls them.
 	if m.activeTab == tabDashboard {
 		if zones := m.dashZones[m.dashFocus]; len(zones) > 0 {
 			m.dashRowCursor[m.dashFocus] = clamp(m.dashRowCursor[m.dashFocus]+delta, 0, len(zones)-1)
@@ -1655,14 +1655,14 @@ func (m *Model) currentLogTargets() []LogTarget {
 		}
 		if svc.WorkerKind != "" {
 			// Worker-backed services run as systemd user units; tail the
-			// journal, matching lerd-ui's handleQueueLogs / handleHorizonLogs.
+			// journal, matching servlo-panel's handleQueueLogs / handleHorizonLogs.
 			return []LogTarget{{
 				Kind:  kindJournal,
-				ID:    "lerd-" + svc.WorkerKind + "-" + svc.WorkerSite,
+				ID:    "servlo-" + svc.WorkerKind + "-" + svc.WorkerSite,
 				Label: svc.WorkerKind + " · " + svc.WorkerSite,
 			}}
 		}
-		return []LogTarget{{Kind: kindPodman, ID: "lerd-" + svc.Name, Label: svc.Name}}
+		return []LogTarget{{Kind: kindPodman, ID: "servlo-" + svc.Name, Label: svc.Name}}
 	}
 	return nil
 }
@@ -1684,7 +1684,7 @@ func logTargetsForSite(s *siteinfo.EnrichedSite) []LogTarget {
 	} else if s.PHPVersion != "" {
 		out = append(out, LogTarget{
 			Kind:  kindPodman,
-			ID:    "lerd-php" + strings.ReplaceAll(s.PHPVersion, ".", "") + "-fpm",
+			ID:    "servlo-php" + strings.ReplaceAll(s.PHPVersion, ".", "") + "-fpm",
 			Label: s.Name + " · fpm " + s.PHPVersion,
 		})
 	}
@@ -1695,7 +1695,7 @@ func logTargetsForSite(s *siteinfo.EnrichedSite) []LogTarget {
 		}
 		out = append(out, LogTarget{
 			Kind:  kindJournal,
-			ID:    "lerd-" + unitSuffix + "-" + s.Name,
+			ID:    "servlo-" + unitSuffix + "-" + s.Name,
 			Label: s.Name + " · " + label,
 		})
 	}
@@ -1710,7 +1710,7 @@ func logTargetsForSite(s *siteinfo.EnrichedSite) []LogTarget {
 		}
 		out = append(out, LogTarget{
 			Kind:  kindJournal,
-			ID:    "lerd-" + fw.Name + "-" + s.Name,
+			ID:    "servlo-" + fw.Name + "-" + s.Name,
 			Label: s.Name + " · " + label,
 		})
 	}
@@ -1784,7 +1784,7 @@ func (m *Model) actionStart() tea.Cmd {
 	case tabSites:
 		if s := m.currentSite(); s != nil {
 			m.setStatus("starting "+s.Name+"…", 5*time.Second)
-			return runLerd(s.Path, "unpause", s.Name)
+			return runServlo(s.Path, "unpause", s.Name)
 		}
 	case tabServices:
 		if svc := m.currentService(); svc != nil {
@@ -1792,7 +1792,7 @@ func (m *Model) actionStart() tea.Cmd {
 				return cmd
 			}
 			m.setStatus("starting "+svc.Name+"…", 5*time.Second)
-			return runLerd("", "service", "start", svc.Name)
+			return runServlo("", "service", "start", svc.Name)
 		}
 	}
 	return nil
@@ -1800,7 +1800,7 @@ func (m *Model) actionStart() tea.Cmd {
 
 // workerActionCmd returns a tea.Cmd for start/stop/restart on a worker-
 // backed service row. Returns nil for regular service rows so the caller
-// can fall through to `lerd service <verb>`.
+// can fall through to `servlo service <verb>`.
 func (m *Model) workerActionCmd(svc *ServiceRow, verb string) tea.Cmd {
 	if svc.WorkerKind == "" || svc.WorkerPath == "" {
 		return nil
@@ -1810,23 +1810,23 @@ func (m *Model) workerActionCmd(svc *ServiceRow, verb string) tea.Cmd {
 	case "queue", "schedule", "horizon", "reverb":
 		if verb == "restart" {
 			// Worker restart = stop + start via systemd; we use the unit
-			// directly because `lerd queue restart` doesn't exist as a
-			// CLI verb on every worker. Two sequenced lerd invocations
+			// directly because `servlo queue restart` doesn't exist as a
+			// CLI verb on every worker. Two sequenced servlo invocations
 			// keep us inside the public CLI.
 			return tea.Sequence(
-				runLerd(svc.WorkerPath, svc.WorkerKind, "stop"),
-				runLerd(svc.WorkerPath, svc.WorkerKind, "start"),
+				runServlo(svc.WorkerPath, svc.WorkerKind, "stop"),
+				runServlo(svc.WorkerPath, svc.WorkerKind, "start"),
 			)
 		}
-		return runLerd(svc.WorkerPath, svc.WorkerKind, verb)
+		return runServlo(svc.WorkerPath, svc.WorkerKind, verb)
 	default:
 		if verb == "restart" {
 			return tea.Sequence(
-				runLerd(svc.WorkerPath, "worker", "stop", svc.WorkerKind),
-				runLerd(svc.WorkerPath, "worker", "start", svc.WorkerKind),
+				runServlo(svc.WorkerPath, "worker", "stop", svc.WorkerKind),
+				runServlo(svc.WorkerPath, "worker", "start", svc.WorkerKind),
 			)
 		}
-		return runLerd(svc.WorkerPath, "worker", verb, svc.WorkerKind)
+		return runServlo(svc.WorkerPath, "worker", verb, svc.WorkerKind)
 	}
 }
 
@@ -1835,7 +1835,7 @@ func (m *Model) actionStop() tea.Cmd {
 	case tabSites:
 		if s := m.currentSite(); s != nil {
 			m.setStatus("pausing "+s.Name+"…", 5*time.Second)
-			return runLerd(s.Path, "pause", s.Name)
+			return runServlo(s.Path, "pause", s.Name)
 		}
 	case tabServices:
 		if svc := m.currentService(); svc != nil {
@@ -1843,7 +1843,7 @@ func (m *Model) actionStop() tea.Cmd {
 				return cmd
 			}
 			m.setStatus("stopping "+svc.Name+"…", 5*time.Second)
-			return runLerd("", "service", "stop", svc.Name)
+			return runServlo("", "service", "stop", svc.Name)
 		}
 	}
 	return nil
@@ -1854,7 +1854,7 @@ func (m *Model) actionRestart() tea.Cmd {
 	case tabSites:
 		if s := m.currentSite(); s != nil {
 			m.setStatus("restarting "+s.Name+"…", 5*time.Second)
-			return runLerd(s.Path, "restart", s.Name)
+			return runServlo(s.Path, "restart", s.Name)
 		}
 	case tabServices:
 		if svc := m.currentService(); svc != nil {
@@ -1862,7 +1862,7 @@ func (m *Model) actionRestart() tea.Cmd {
 				return cmd
 			}
 			m.setStatus("restarting "+svc.Name+"…", 5*time.Second)
-			return runLerd("", "service", "restart", svc.Name)
+			return runServlo("", "service", "restart", svc.Name)
 		}
 	}
 	return nil
@@ -1916,7 +1916,7 @@ func (m *Model) actionShell() tea.Cmd {
 			}
 			return runShellIn(container, site.Path)
 		}
-		container := "lerd-" + svc.Name
+		container := "servlo-" + svc.Name
 		if running, _ := podman.ContainerRunning(container); !running {
 			m.setStatus(container+" is not running", 4*time.Second)
 			return nil
@@ -1948,10 +1948,10 @@ func (m *Model) actionPauseToggle() tea.Cmd {
 	}
 	if s.Paused {
 		m.setStatus("resuming "+s.Name+"…", 5*time.Second)
-		return runLerd(s.Path, "unpause", s.Name)
+		return runServlo(s.Path, "unpause", s.Name)
 	}
 	m.setStatus("pausing "+s.Name+"…", 5*time.Second)
-	return runLerd(s.Path, "pause", s.Name)
+	return runServlo(s.Path, "pause", s.Name)
 }
 
 // Run starts the bubbletea program with the shared podman cache warmed up.
@@ -1965,7 +1965,7 @@ func Run(version string) error {
 
 	// Wire the cache's change callback into the program so an external
 	// state change (CLI mutation in another process, container crash,
-	// systemctl outside lerd) shows up at the next 15s cache poll instead
+	// systemctl outside servlo) shows up at the next 15s cache poll instead
 	// of waiting up to 2s+15s. Cleared on exit so the package-level Cache
 	// doesn't keep holding a reference to a dead program.
 	podman.Cache.SetOnChange(func() {
@@ -1973,15 +1973,15 @@ func Run(version string) error {
 	})
 	defer podman.Cache.SetOnChange(nil)
 
-	// Background goroutine streams dumps from lerd-ui into the program. If
+	// Background goroutine streams dumps from servlo-panel into the program. If
 	// the daemon isn't running, runDumpsListener reconnects with backoff;
-	// the TUI keeps working without any dumps until lerd-ui comes back.
+	// the TUI keeps working without any dumps until servlo-panel comes back.
 	dumpsCtx, cancelDumps := context.WithCancel(context.Background())
 	defer cancelDumps()
 	go runDumpsListener(dumpsCtx, p)
 
 	// Background goroutine polls container resource stats for the dashboard
-	// pane. The poll TTL matches lerd-ui's server-side cache so users see
+	// pane. The poll TTL matches servlo-panel's server-side cache so users see
 	// the same numbers across both surfaces.
 	statsCtx, cancelStats := context.WithCancel(context.Background())
 	defer cancelStats()

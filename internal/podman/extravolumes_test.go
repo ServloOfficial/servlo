@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // bindMountable is the shared guard every Volume=path:path line goes through. It
@@ -19,7 +19,7 @@ func TestBindMountable(t *testing.T) {
 			t.Errorf("bindMountable(%q) = true, want false", p)
 		}
 	}
-	accepted := []string{"/var/www/app", "/home/user/Lerd/site", "/srv/x"}
+	accepted := []string{"/var/www/app", "/home/user/Servlo/site", "/srv/x"}
 	for _, p := range accepted {
 		if !bindMountable(p) {
 			t.Errorf("bindMountable(%q) = false, want true", p)

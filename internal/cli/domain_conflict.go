@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
 // warnFilteredDomains prints a single-line warning for each domain that

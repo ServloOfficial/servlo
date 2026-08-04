@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // Grouping a plain-HTTP site under a secured main must lift it to HTTPS in the
@@ -25,14 +25,14 @@ func TestAssignSecondary_inheritsSecuredFromMain(t *testing.T) {
 	}
 }
 
-// The inherited flag must reach .lerd.yaml too. Without a committed intent a
+// The inherited flag must reach .servlo.yaml too. Without a committed intent a
 // dns disable/enable round trip has nothing to restore from, which is the shape
 // the broken site in #811 was in.
 func TestAssignSecondary_commitsInheritedSecuredToProjectConfig(t *testing.T) {
 	setup(t)
 	blogDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(blogDir, ".lerd.yaml"), []byte("domains:\n  - blog.test\n"), 0644); err != nil {
-		t.Fatalf("seed .lerd.yaml: %v", err)
+	if err := os.WriteFile(filepath.Join(blogDir, ".servlo.yaml"), []byte("domains:\n  - blog.test\n"), 0644); err != nil {
+		t.Fatalf("seed .servlo.yaml: %v", err)
 	}
 	mustAdd(t, config.Site{Name: "astrolov", Domains: []string{"astrolov.test"}, Path: "/srv/astrolov", Secured: true})
 	mustAdd(t, config.Site{Name: "blog", Domains: []string{"blog.test"}, Path: blogDir})
@@ -45,7 +45,7 @@ func TestAssignSecondary_commitsInheritedSecuredToProjectConfig(t *testing.T) {
 		t.Fatalf("LoadProjectConfig: %v", err)
 	}
 	if !cfg.Secured {
-		t.Error(".lerd.yaml should record the inherited HTTPS intent")
+		t.Error(".servlo.yaml should record the inherited HTTPS intent")
 	}
 }
 
@@ -79,13 +79,13 @@ func TestAssignSecondary_rollsBackInheritedSecured(t *testing.T) {
 	}
 }
 
-// A rolled-back grouping must not commit HTTPS intent to .lerd.yaml either.
+// A rolled-back grouping must not commit HTTPS intent to .servlo.yaml either.
 func TestAssignSecondary_rollbackLeavesProjectConfigOnHTTP(t *testing.T) {
 	setup(t)
 	regenerateSecondary = func(_ *config.Site, _ string) error { return errors.New("boom") }
 	blogDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(blogDir, ".lerd.yaml"), []byte("domains:\n  - blog.test\n"), 0644); err != nil {
-		t.Fatalf("seed .lerd.yaml: %v", err)
+	if err := os.WriteFile(filepath.Join(blogDir, ".servlo.yaml"), []byte("domains:\n  - blog.test\n"), 0644); err != nil {
+		t.Fatalf("seed .servlo.yaml: %v", err)
 	}
 	mustAdd(t, config.Site{Name: "astrolov", Domains: []string{"astrolov.test"}, Path: "/srv/astrolov", Secured: true})
 	mustAdd(t, config.Site{Name: "blog", Domains: []string{"blog.test"}, Path: blogDir})
@@ -94,7 +94,7 @@ func TestAssignSecondary_rollbackLeavesProjectConfigOnHTTP(t *testing.T) {
 		t.Fatal("expected the regen failure to surface")
 	}
 	if cfg, _ := config.LoadProjectConfig(blogDir); cfg != nil && cfg.Secured {
-		t.Error("a failed grouping must not leave secured: true in .lerd.yaml")
+		t.Error("a failed grouping must not leave secured: true in .servlo.yaml")
 	}
 }
 

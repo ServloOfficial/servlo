@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
 	"github.com/spf13/cobra"
 )
 
@@ -142,7 +142,7 @@ func renderQueueCommand(w config.FrameworkWorker, queue string, tries, timeout i
 }
 
 // queueStartTuned starts the queue worker with a specific queue/tries/timeout by
-// rendering the framework's TuneCommand. Used by `lerd queue:start` and, via the
+// rendering the framework's TuneCommand. Used by `servlo queue:start` and, via the
 // mcp.QueueStartFn hook, by the MCP queue_start tool.
 func queueStartTuned(siteName, sitePath, phpVersion, queue string, tries, timeout int) error {
 	// The queue name is interpolated into the worker command; whitespace or a
@@ -151,12 +151,12 @@ func queueStartTuned(siteName, sitePath, phpVersion, queue string, tries, timeou
 		return fmt.Errorf("invalid queue name: must not contain whitespace")
 	}
 	// Pre-flight: if the site uses Redis as its queue connection, make sure
-	// lerd-redis is actually running. Without it the queue worker fails immediately
-	// with a cryptic PHP "getaddrinfo for lerd-redis failed" DNS error.
+	// servlo-redis is actually running. Without it the queue worker fails immediately
+	// with a cryptic PHP "getaddrinfo for servlo-redis failed" DNS error.
 	envPath := filepath.Join(sitePath, ".env")
 	if envfile.ReadKey(envPath, "QUEUE_CONNECTION") == "redis" {
-		if running, _ := podman.ContainerRunning("lerd-redis"); !running {
-			return fmt.Errorf("queue worker requires Redis (QUEUE_CONNECTION=redis in .env) but lerd-redis is not running\nStart it first: lerd services start redis")
+		if running, _ := podman.ContainerRunning("servlo-redis"); !running {
+			return fmt.Errorf("queue worker requires Redis (QUEUE_CONNECTION=redis in .env) but servlo-redis is not running\nStart it first: servlo services start redis")
 		}
 	}
 
@@ -196,7 +196,7 @@ func QueueStartForSite(siteName, sitePath, phpVersion string) error {
 // framework's RestartCommand in the FPM container. No-op when the site has no
 // queue unit or the framework declares no restart command (e.g. CodeIgniter).
 func QueueRestartForSite(siteName, sitePath, phpVersion string) error {
-	unitFile := filepath.Join(config.SystemdUserDir(), "lerd-queue-"+siteName+".service")
+	unitFile := filepath.Join(config.SystemdUserDir(), "servlo-queue-"+siteName+".service")
 	if _, err := os.Stat(unitFile); os.IsNotExist(err) {
 		return nil
 	}
@@ -223,7 +223,7 @@ func QueueRestartForSite(siteName, sitePath, phpVersion string) error {
 	}
 	container := resolveWorkerFPMUnit(siteName, phpVersion)
 	if container == "" {
-		container = "lerd-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
+		container = "servlo-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
 	}
 	if running, _ := podman.ContainerRunning(container); !running {
 		return nil

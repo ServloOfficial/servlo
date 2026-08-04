@@ -771,11 +771,11 @@ export async function setSiteVersion(
 }
 
 export function fpmContainer(s: Site): string {
-  if (s.custom_container) return 'lerd-custom-' + (s.name || s.domain);
-  if (s.runtime === 'frankenphp') return 'lerd-fp-' + (s.name || s.domain);
-  if (s.runtime === 'fpm-custom') return 'lerd-cfpm-' + (s.name || s.domain);
+  if (s.custom_container) return 'servlo-custom-' + (s.name || s.domain);
+  if (s.runtime === 'frankenphp') return 'servlo-fp-' + (s.name || s.domain);
+  if (s.runtime === 'fpm-custom') return 'servlo-cfpm-' + (s.name || s.domain);
   if (!s.php_version) return '';
-  return 'lerd-php' + s.php_version.replace('.', '') + '-fpm';
+  return 'servlo-php' + s.php_version.replace('.', '') + '-fpm';
 }
 
 export function fpmTabLabel(s: Site): string {

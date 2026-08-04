@@ -7,7 +7,7 @@
   import HeroStatus from './dashboard/HeroStatus.svelte';
   import OnboardingPanel from './dashboard/OnboardingPanel.svelte';
   import SystemHealthWidget from './dashboard/SystemHealthWidget.svelte';
-  import LerdInfoWidget from './dashboard/LerdInfoWidget.svelte';
+  import ServloInfoWidget from './dashboard/ServloInfoWidget.svelte';
   import SitesWidget from './dashboard/SitesWidget.svelte';
   import ServicesWidget from './dashboard/ServicesWidget.svelte';
   import WorkersWidget from './dashboard/WorkersWidget.svelte';
@@ -33,7 +33,7 @@
 </script>
 
 <div class="flex-1 min-h-0 flex flex-col overflow-y-auto">
-  <div class="shrink-0 flex flex-wrap items-center justify-between gap-y-2 px-3 py-3 border-b border-gray-100 dark:border-lerd-border">
+  <div class="shrink-0 flex flex-wrap items-center justify-between gap-y-2 px-3 py-3 border-b border-gray-100 dark:border-servlo-border">
     <div class="min-w-0">
       <h1 class="font-semibold text-gray-900 dark:text-white text-xl tracking-tight">{m.dashboard_title()}</h1>
       {#if everythingHealthy}
@@ -58,7 +58,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
       </svg>
       <span class="text-xs">{m.dashboard_search()}</span>
-      <kbd class="text-[10px] font-mono bg-white dark:bg-white/10 border border-gray-200 dark:border-lerd-border rounded-sm px-1 py-px">⌘K</kbd>
+      <kbd class="text-[10px] font-mono bg-white dark:bg-white/10 border border-gray-200 dark:border-servlo-border rounded-sm px-1 py-px">⌘K</kbd>
     </button>
   </div>
 
@@ -73,7 +73,7 @@
       <WorkersWidget />
       <SystemHealthWidget />
       <ResourcesWidget />
-      <LerdInfoWidget />
+      <ServloInfoWidget />
     </div>
   </div>
 </div>

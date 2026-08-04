@@ -9,21 +9,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func viteDevServer() *config.DevServerTool {
 	return &config.DevServerTool{
 		Name:          "vite",
-		Base:          "/@lerd-vite/",
+		Base:          "/@servlo-vite/",
 		ProjectConfig: []string{"vite.config.js", "vite.config.ts", "vite.config.mjs"},
-		WrapperPath:   "node_modules/.lerd/vite.config.mjs",
+		WrapperPath:   "node_modules/.servlo/vite.config.mjs",
 		Args:          "--config {config} --port {port} --strictPort",
 		DefaultPort:   5173,
 		Wrapper: `import { mergeConfig } from 'vite';
 import projectConfig from %s;
 const publicUrl = %s;
-const lerd = { base: %s, server: { origin: %s, allowedHosts: %s, cors: { origin: %s } } };
+const servlo = { base: %s, server: { origin: %s, allowedHosts: %s, cors: { origin: %s } } };
 export default projectConfig;
 `,
 	}
@@ -86,7 +86,7 @@ func TestWriteDevServerWrapperMergesBaseAndOrigin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("writeDevServerWrapper() error: %v", err)
 	}
-	if rel != "node_modules/.lerd/vite.config.mjs" {
+	if rel != "node_modules/.servlo/vite.config.mjs" {
 		t.Fatalf("wrapper path = %q", rel)
 	}
 
@@ -95,7 +95,7 @@ func TestWriteDevServerWrapperMergesBaseAndOrigin(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`"/@lerd-vite/"`,
+		`"/@servlo-vite/"`,
 		`"https://myapp.test"`,
 		`".myapp.test"`,
 		`"../../vite.config.js"`,
@@ -124,7 +124,7 @@ func TestWriteDevServerWrapperPublishesTheProxiedURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(body), `const publicUrl = "https://myapp.test/@lerd-vite";`) {
+	if !strings.Contains(string(body), `const publicUrl = "https://myapp.test/@servlo-vite";`) {
 		t.Errorf("wrapper does not publish the proxied URL:\n%s", body)
 	}
 }
@@ -156,7 +156,7 @@ func TestWriteDevServerWrapperRendersTheShippedTemplate(t *testing.T) {
 	if strings.Contains(string(body), "%!") {
 		t.Errorf("wrapper carries a formatting error:\n%s", body)
 	}
-	if !strings.Contains(string(body), `"https://myapp.test/@lerd-vite"`) {
+	if !strings.Contains(string(body), `"https://myapp.test/@servlo-vite"`) {
 		t.Errorf("wrapper does not publish the proxied URL:\n%s", body)
 	}
 }
@@ -270,7 +270,7 @@ func TestRewriteDevServerWrapperSkipsAConfigItNeverWrote(t *testing.T) {
 	if rewriteDevServerWrapper(dir, viteDevServer(), securedAddr("myapp.test")) {
 		t.Error("rewriteDevServerWrapper() = true with no generated config on disk")
 	}
-	if _, err := os.Stat(filepath.Join(dir, "node_modules/.lerd/vite.config.mjs")); err == nil {
+	if _, err := os.Stat(filepath.Join(dir, "node_modules/.servlo/vite.config.mjs")); err == nil {
 		t.Error("a config was generated for a dev server that has never started here")
 	}
 }
@@ -282,7 +282,7 @@ func TestWriteDevServerWrapperOverwritesInheritedCopy(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "vite.config.js"), []byte("export default {}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	stale := filepath.Join(dir, "node_modules", ".lerd")
+	stale := filepath.Join(dir, "node_modules", ".servlo")
 	if err := os.MkdirAll(stale, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +321,7 @@ func TestWriteDevServerWrapperSkipsWhenPathIsTracked(t *testing.T) {
 	if rel != "" {
 		t.Fatalf("wrapper path = %q, want empty for a non-ignored path", rel)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "node_modules/.lerd/vite.config.mjs")); err == nil {
+	if _, err := os.Stat(filepath.Join(dir, "node_modules/.servlo/vite.config.mjs")); err == nil {
 		t.Error("wrapper was written into a path the project does not ignore")
 	}
 }
@@ -333,14 +333,14 @@ func TestWriteDevServerWrapperSkipsWhenPathIsCommitted(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "vite.config.js"), []byte("export default {}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	wrapper := filepath.Join(dir, "node_modules", ".lerd")
+	wrapper := filepath.Join(dir, "node_modules", ".servlo")
 	if err := os.MkdirAll(wrapper, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(wrapper, "vite.config.mjs"), []byte("// theirs"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	add := exec.Command("git", "add", "-f", "node_modules/.lerd/vite.config.mjs")
+	add := exec.Command("git", "add", "-f", "node_modules/.servlo/vite.config.mjs")
 	add.Dir = dir
 	if out, err := add.CombinedOutput(); err != nil {
 		t.Fatalf("git add: %v (%s)", err, out)
@@ -363,8 +363,8 @@ func TestWriteDevServerWrapperSkipsWhenPathIsCommitted(t *testing.T) {
 }
 
 func TestDevServerArgsSubstitutesConfigAndPort(t *testing.T) {
-	got := devServerArgs(viteDevServer(), "node_modules/.lerd/vite.config.mjs", 5180)
-	want := "--config node_modules/.lerd/vite.config.mjs --port 5180 --strictPort"
+	got := devServerArgs(viteDevServer(), "node_modules/.servlo/vite.config.mjs", 5180)
+	want := "--config node_modules/.servlo/vite.config.mjs --port 5180 --strictPort"
 	if got != want {
 		t.Fatalf("devServerArgs() = %q, want %q", got, want)
 	}
@@ -379,7 +379,7 @@ func TestDevServerArgsEmptyWithoutWrapper(t *testing.T) {
 }
 
 // The generated config is JavaScript the dev server executes, and a project's
-// own .lerd.yaml supplies the domains it is built from, so a quote in a domain
+// own .servlo.yaml supplies the domains it is built from, so a quote in a domain
 // must stay inside the string rather than close it and run what follows.
 func TestWriteDevServerWrapperEscapesAHostileOrigin(t *testing.T) {
 	dir := gitRepo(t, "/node_modules\n")

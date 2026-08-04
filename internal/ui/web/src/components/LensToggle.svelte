@@ -17,7 +17,7 @@
 >
   <input
     type="checkbox"
-    class="rounded-sm border-gray-300 dark:border-lerd-border bg-white dark:bg-lerd-card text-lerd-red focus:ring-lerd-red"
+    class="rounded-sm border-gray-300 dark:border-servlo-border bg-white dark:bg-servlo-card text-servlo-red focus:ring-servlo-red"
     {checked}
     {disabled}
     onchange={(e) => onchange((e.currentTarget as HTMLInputElement).checked)}

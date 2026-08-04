@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/feedback"
 	"gopkg.in/yaml.v3"
 )
 
 var validServiceName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
-// EnvDetect defines auto-detection rules for `lerd env`.
+// EnvDetect defines auto-detection rules for `servlo env`.
 type EnvDetect struct {
 	Key         string `yaml:"key,omitempty"`
 	ValuePrefix string `yaml:"value_prefix,omitempty"`
@@ -29,19 +29,19 @@ type EnvDetect struct {
 }
 
 // SiteInit defines an optional command to run inside the service container
-// once per project when `lerd env` detects this service.
+// once per project when `servlo env` detects this service.
 // Use it for any per-site setup: creating a database, a user, indexes, etc.
 // The exec string may contain {{site}} and {{site_testing}} placeholders,
 // which are replaced with the project site handle at runtime.
 type SiteInit struct {
-	// Container to exec into. Defaults to lerd-<service name>.
+	// Container to exec into. Defaults to servlo-<service name>.
 	Container string `yaml:"container,omitempty"`
 	// Exec is passed to sh -c inside the container.
 	Exec string `yaml:"exec"`
 }
 
 // Introspect declares engine-specific commands the databases UI runs inside
-// the service container. lerd stays framework-agnostic by executing the
+// the service container. servlo stays framework-agnostic by executing the
 // declared command and parsing its plain output, so no Go code branches on the
 // engine name.
 type Introspect struct {
@@ -71,12 +71,12 @@ type EntitySpec struct {
 	Format  string                  `yaml:"format,omitempty" json:"format,omitempty"`
 	Actions map[string]EntityAction `yaml:"actions,omitempty" json:"actions,omitempty"`
 	// Image, when set, runs every command of this entity in an ephemeral
-	// container of this image on the lerd network instead of inside the service
+	// container of this image on the servlo network instead of inside the service
 	// container, for services whose own image ships no client tooling (RustFS
 	// holds S3 buckets but carries no S3 client; mc does).
 	Image string `yaml:"image,omitempty" json:"image,omitempty"`
 	// Env is extra KEY=VALUE pairs for the command's environment, e.g. the
-	// client's connection alias with the fixed lerd credentials.
+	// client's connection alias with the fixed servlo credentials.
 	Env []string `yaml:"env,omitempty" json:"env,omitempty"`
 	// OwnerEnv names the site .env key whose value is the entity a site owns
 	// (AWS_BUCKET for buckets), so the UI can link each row to its site the way
@@ -173,7 +173,7 @@ type FileMount struct {
 	// for dynamic mounts a preset can't express as static Content, such as
 	// pgAdmin's family-discovered servers.json. Resolved to ContentFn when the
 	// preset's files are read; an unknown name is skipped, not fatal, so a store
-	// preset built for a newer lerd degrades gracefully.
+	// preset built for a newer servlo degrades gracefully.
 	Generator string `yaml:"generator,omitempty"`
 	// Mode is the octal permission bits, e.g. "0600". Defaults to "0644".
 	Mode string `yaml:"mode,omitempty"`
@@ -224,14 +224,14 @@ type CustomService struct {
 	EnvRole string `yaml:"env_role,omitempty"`
 	// Tuning, when set, exposes a user-editable runtime config override
 	// for this service via the web UI's Config tab and the
-	// `lerd service config` CLI. Custom services declare their own
+	// `servlo service config` CLI. Custom services declare their own
 	// override path here without needing a known family — the built-in
 	// mysql/mariadb/redis families remain the fallback when this is nil.
 	// See ServiceTuningMount / ServiceTuningTemplate / ServiceTuningCommand.
 	Tuning *TuningSpec `yaml:"tuning,omitempty"`
 	// Preset is the bundled preset name this service was installed from.
 	// Set by InstallPresetByName. Used so the init wizard can store a
-	// preset reference in .lerd.yaml instead of an inlined definition.
+	// preset reference in .servlo.yaml instead of an inlined definition.
 	Preset string `yaml:"preset,omitempty"`
 	// PresetVersion is the picked version tag for multi-version presets.
 	// Empty for single-version presets.
@@ -250,10 +250,10 @@ type CustomService struct {
 	// preserved when the most recent op was a migrate.
 	PreMigrateBackup string `yaml:"pre_migrate_backup,omitempty"`
 	// ShareHosts mounts the browser-testing hosts file
-	// (~/.local/share/lerd/browser-hosts) into the container at /etc/hosts,
+	// (~/.local/share/servlo/browser-hosts) into the container at /etc/hosts,
 	// so the container can resolve .test domains to the nginx container's IP
 	// on the Podman network. Used by browser testing services like Selenium
-	// that need to reach lerd sites by domain name.
+	// that need to reach servlo sites by domain name.
 	ShareHosts bool `yaml:"share_hosts,omitempty" json:"share_hosts,omitempty"`
 	// DynamicEnv declares container env vars whose value is computed at
 	// quadlet generation time. Supported directives:
@@ -290,7 +290,7 @@ type CustomService struct {
 	// this engine and read their sizes. Only database-engine presets declare it.
 	Introspect *Introspect `yaml:"introspect,omitempty" json:"introspect,omitempty"`
 	// Extensions lists the database extensions this engine's image can create.
-	// Only engines that ship any declare them, and lerd creates one only when a
+	// Only engines that ship any declare them, and servlo creates one only when a
 	// dump reaches for it, since some cost several megabytes per database.
 	Extensions []Extension `yaml:"extensions,omitempty" json:"extensions,omitempty"`
 }
@@ -301,13 +301,13 @@ type CustomService struct {
 type Extension struct {
 	Name  string   `yaml:"name" json:"name"`
 	Types []string `yaml:"types,omitempty" json:"types,omitempty"`
-	// Always creates the extension wherever lerd creates a database, for the ones
+	// Always creates the extension wherever servlo creates a database, for the ones
 	// that are cheap or that provide no distinctive type to match a dump against.
 	// The rest wait until a dump reaches for one of their types.
 	Always bool `yaml:"always,omitempty" json:"always,omitempty"`
 }
 
-// ClientShim declares a service client tool that lerd exposes as a host shim.
+// ClientShim declares a service client tool that servlo exposes as a host shim.
 // Name is the command written onto the host PATH; Binaries are the candidate
 // binaries to resolve inside the service container, tried in order, so a mariadb
 // service can back the mysqldump shim with mariadb-dump. In YAML a bare string
@@ -391,7 +391,7 @@ func loadFamilyIndex() {
 	}
 }
 
-// ServicesInFamily returns the container hostnames (lerd-<name>) of every
+// ServicesInFamily returns the container hostnames (servlo-<name>) of every
 // installed service that belongs to the named family. Built-ins match against
 // builtinFamilies; custom services match by their Family field, with a
 // fallback that infers family from the name prefix (e.g. mysql-5-7 -> mysql)
@@ -406,7 +406,7 @@ func ServicesInFamily(family string) []string {
 	var out []string
 	for name, fam := range builtinFamilies() {
 		if fam == family {
-			host := "lerd-" + name
+			host := "servlo-" + name
 			if !seen[host] {
 				seen[host] = true
 				out = append(out, host)
@@ -418,7 +418,7 @@ func ServicesInFamily(family string) []string {
 			if svc.Family != family && InferFamily(svc.Name) != family {
 				continue
 			}
-			host := "lerd-" + svc.Name
+			host := "servlo-" + svc.Name
 			if !seen[host] {
 				seen[host] = true
 				out = append(out, host)
@@ -535,7 +535,7 @@ func ResolveDynamicEnv(svc *CustomService) error {
 			// still generates with the preset's static environment. Erroring
 			// here would kill the service on every start after the store
 			// publishes a preset using a newer directive.
-			feedback.Warn("service %s: unknown dynamic_env directive %q, skipping %s (update lerd if %s needs it)", svc.Name, parts[0], k, k)
+			feedback.Warn("service %s: unknown dynamic_env directive %q, skipping %s (update servlo if %s needs it)", svc.Name, parts[0], k, k)
 		}
 	}
 	// expand_env: one env var per running member, the declared key suffixed
@@ -552,7 +552,7 @@ func ResolveDynamicEnv(svc *CustomService) error {
 		tmpl := spec[eq+1:]
 		for i, host := range uniqueFamilyHosts(spec[:eq]) {
 			value := strings.ReplaceAll(tmpl, "{host}", host)
-			value = strings.ReplaceAll(value, "{name}", strings.TrimPrefix(host, "lerd-"))
+			value = strings.ReplaceAll(value, "{name}", strings.TrimPrefix(host, "servlo-"))
 			svc.Environment[fmt.Sprintf("%s_%d", k, i+1)] = value
 		}
 	}
@@ -561,7 +561,7 @@ func ResolveDynamicEnv(svc *CustomService) error {
 
 // RewriteDependencyHosts retargets a preset's pinned dependency host to the
 // service that actually satisfies it: for each depends_on entry, an environment
-// value referencing lerd-<dep> is rewritten to lerd-<satisfier> when a drop-in
+// value referencing servlo-<dep> is rewritten to servlo-<satisfier> when a drop-in
 // (Valkey for redis, a versioned mongo) backs the dependency instead of the
 // literal name. Driven purely by depends_on so the published store YAML carries
 // no directive an older binary would reject.
@@ -570,7 +570,7 @@ func RewriteDependencyHosts(svc *CustomService) {
 		return
 	}
 	for _, dep := range svc.DependsOn {
-		canonical := "lerd-" + dep
+		canonical := "servlo-" + dep
 		actual := ResolveDepHost(dep)
 		if actual == "" || actual == canonical {
 			continue
@@ -585,7 +585,7 @@ func RewriteDependencyHosts(svc *CustomService) {
 
 // replaceHost swaps every whole occurrence of old for new in v. The canonical
 // name is a prefix of every versioned install of the same engine, so a bare
-// substring replace would turn a value pinned to lerd-mysql-8-4 into a host that
+// substring replace would turn a value pinned to servlo-mysql-8-4 into a host that
 // does not exist; a match only counts when what follows it cannot be more of the
 // same name.
 func replaceHost(v, old, new string) string {
@@ -602,9 +602,9 @@ func replaceHost(v, old, new string) string {
 	return b.String()
 }
 
-// continuesHostName reports whether the byte at i extends a lerd container
+// continuesHostName reports whether the byte at i extends a servlo container
 // name. Service names match validServiceName, so only those characters can, and
-// a dot is a domain separator (lerd-redis.dns.podman still names lerd-redis).
+// a dot is a domain separator (servlo-redis.dns.podman still names servlo-redis).
 func continuesHostName(v string, i int) bool {
 	if i >= len(v) {
 		return false
@@ -631,7 +631,7 @@ func uniqueFamilyHosts(families string) []string {
 	if ServiceRunning != nil {
 		var running []string
 		for _, host := range all {
-			name := strings.TrimPrefix(host, "lerd-")
+			name := strings.TrimPrefix(host, "servlo-")
 			if ServiceRunning(name) {
 				running = append(running, host)
 			}
@@ -646,7 +646,7 @@ func uniqueFamilyHosts(families string) []string {
 // uses it to omit stopped members. Nil keeps the installed-member list (tests).
 var ServiceRunning func(name string) bool
 
-// ResolveDepHost, when set, returns the container hostname (lerd-<name>) of an
+// ResolveDepHost, when set, returns the container hostname (servlo-<name>) of an
 // installed satisfier for the named depends_on entry. serviceops wires it so
 // RewriteDependencyHosts can prefer a running drop-in without config importing
 // serviceops.
@@ -655,7 +655,7 @@ var ResolveDepHost func(dep string) string
 // MaterializeServiceFiles writes each FileMount for svc to its host path,
 // creating the parent directory and applying the requested mode. The file
 // list is looked up from the hardcoded presetFiles map using svc.Preset, so
-// the Go binary is always the source of truth — updating lerd and restarting
+// the Go binary is always the source of truth — updating servlo and restarting
 // the service is enough to roll out new file contents.
 func MaterializeServiceFiles(svc *CustomService) error {
 	_, err := MaterializeServiceFilesChanged(svc)

@@ -6,16 +6,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// projectWithCommands writes a .lerd.yaml containing only a commands: block
+// projectWithCommands writes a .servlo.yaml containing only a commands: block
 // (no framework reference) so resolveCommandsForCwd returns the project
 // entries without needing a framework store fetch.
 func projectWithCommands(t *testing.T, body string) string {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return dir
@@ -96,7 +96,7 @@ commands:
 	}
 	got := resolveCommandsForCwd(sub)
 	if len(got) != 1 || got[0].Name != "ping" {
-		t.Errorf("walk-up should find .lerd.yaml in parent: %+v", got)
+		t.Errorf("walk-up should find .servlo.yaml in parent: %+v", got)
 	}
 }
 

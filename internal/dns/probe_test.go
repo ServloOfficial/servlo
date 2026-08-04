@@ -3,11 +3,11 @@ package dns
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // When dns.enabled is false, Check must short-circuit to OK without resolving.
-// The whole point of disabled mode is that lerd does not own resolution, so
+// The whole point of disabled mode is that servlo does not own resolution, so
 // probing would either succeed accidentally (RFC 6761 *.localhost) or fail in
 // a way that is not actionable.
 func TestCheck_DNSDisabledReturnsOK(t *testing.T) {
@@ -32,7 +32,7 @@ func TestCheck_DNSDisabledReturnsOK(t *testing.T) {
 }
 
 // CheckStatus must short-circuit to StatusOK in disabled mode for the same
-// reason Check does: lerd does not own resolution there, so probing would
+// reason Check does: servlo does not own resolution there, so probing would
 // be misleading rather than actionable.
 func TestCheckStatus_DNSDisabledReturnsOK(t *testing.T) {
 	tmp := t.TempDir()

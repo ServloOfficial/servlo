@@ -40,7 +40,7 @@ vi.mock('$lib/monaco', () => {
   };
   return {
     loadMonaco: () => Promise.resolve(monaco),
-    lerdThemeName: () => 'lerd-dark'
+    servloThemeName: () => 'servlo-dark'
   };
 });
 

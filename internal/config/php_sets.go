@@ -36,7 +36,7 @@ func UpdateGlobal(fn func(*GlobalConfig)) error {
 // its build. Not every declared entry can be honoured everywhere: mongodb does
 // not build below 8.1, and the legacy 7.4/8.0 images are Alpine 3.16, so apk
 // names and availability differ. Recording the truth per version is what lets
-// lerd warn about a gap instead of advertising what an image does not have.
+// servlo warn about a gap instead of advertising what an image does not have.
 type RealisedPHPSet struct {
 	// Hash is the declared-set fingerprint the image was measured against. It is
 	// always set, which is also what keeps a record from serializing as an empty

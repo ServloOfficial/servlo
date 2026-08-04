@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestWorktreeCertDomains_appendsWorktreeDomains(t *testing.T) {
@@ -53,7 +53,7 @@ func TestReissueCertForWorktree_includesWorktreeSubdomains(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ printf 'KEY' > "$KEY"
 		t.Fatalf("ReissueCertForWorktree: %v", err)
 	}
 
-	certPath := filepath.Join(tmp, "lerd", "certs", "sites", "harborlist.test.crt")
+	certPath := filepath.Join(tmp, "servlo", "certs", "sites", "harborlist.test.crt")
 	body, err := os.ReadFile(certPath)
 	if err != nil {
 		t.Fatalf("reading cert: %v", err)
@@ -153,7 +153,7 @@ func TestEnsureCert_reusesValidCert(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	fakeMkcertBin(t, tmp)
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestEnsureCert_reissuesAgingCert(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	fakeMkcertBin(t, tmp)
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}

@@ -6,7 +6,7 @@ import { writable } from 'svelte/store';
 // both read the request store: the last request served, and how many.
 export type SitesSort = 'manual' | 'recent' | 'used' | 'alpha' | 'newest';
 
-const KEY = 'lerd:sitesSort';
+const KEY = 'servlo:sitesSort';
 
 const VALID: SitesSort[] = ['manual', 'recent', 'used', 'alpha', 'newest'];
 

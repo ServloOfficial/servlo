@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestFrankenPHPRuntimeExtensionParity guards against the FPM image gaining a
@@ -14,7 +14,7 @@ import (
 // a base-image builtin the dunglas image already provides. dev-only tooling
 // (xdebug/pcov/spx) is handled separately and excluded.
 func TestFrankenPHPRuntimeExtensionParity(t *testing.T) {
-	cf, err := GetQuadletTemplate("lerd-php-fpm.Containerfile")
+	cf, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 	if err != nil {
 		t.Fatalf("reading FPM Containerfile: %v", err)
 	}
@@ -85,14 +85,14 @@ func fpmDockerExtInstallList(containerfile string) []string {
 
 // fpmContainerfileExtensions is everything the FPM Containerfile makes available:
 // the docker-php-ext-install block plus the docker-php-ext-enable names (opcache
-// and the pecl-built extensions). spx + lerd_devtools are lerd-internal best-effort
+// and the pecl-built extensions). spx + servlo_devtools are servlo-internal best-effort
 // tooling, not advertised as project extensions, so they are excluded.
 func fpmContainerfileExtensions(containerfile string) []string {
 	set := map[string]bool{}
 	for _, e := range fpmDockerExtInstallList(containerfile) {
 		set[e] = true
 	}
-	skip := map[string]bool{"spx": true, "lerd_devtools": true}
+	skip := map[string]bool{"spx": true, "servlo_devtools": true}
 	for _, ln := range strings.Split(containerfile, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(ln), "#") {
 			continue // a comment mentioning docker-php-ext-enable isn't an install
@@ -117,10 +117,10 @@ func fpmContainerfileExtensions(containerfile string) []string {
 }
 
 func TestFrankenPHPImageName(t *testing.T) {
-	if got := FrankenPHPImageName("8.4"); got != "localhost/lerd-frankenphp84:local" {
+	if got := FrankenPHPImageName("8.4"); got != "localhost/servlo-frankenphp84:local" {
 		t.Errorf("FrankenPHPImageName(8.4) = %q", got)
 	}
-	if got := FrankenPHPImage("8.4"); got != "localhost/lerd-frankenphp84:local" {
+	if got := FrankenPHPImage("8.4"); got != "localhost/servlo-frankenphp84:local" {
 		t.Errorf("FrankenPHPImage(8.4) = %q, want the derived image", got)
 	}
 	if got := FrankenPHPBaseImage("8.4"); got != "docker.io/dunglas/frankenphp:php8.4-alpine" {
@@ -145,8 +145,8 @@ func TestRenderFrankenPHPContainerfile(t *testing.T) {
 	}
 	for _, want := range []string{
 		"install-php-extensions", "redis", "gd", "pdo_mysql", "intl", "myext",
-		// dev-tooling baked into the image (xdebug + the compiled lerd_devtools)
-		"xdebug", "lerd_devtools",
+		// dev-tooling baked into the image (xdebug + the compiled servlo_devtools)
+		"xdebug", "servlo_devtools",
 	} {
 		if !strings.Contains(cf, want) {
 			t.Errorf("rendered Containerfile missing %q", want)

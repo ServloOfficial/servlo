@@ -1,10 +1,10 @@
-// Package linker owns the decision half of registering a directory as a lerd
+// Package linker owns the decision half of registering a directory as a servlo
 // site. Every caller that links a project — the CLI, the parked-directory
 // watcher, the web UI and the MCP server — resolves the same plan here and
 // differs only in the capabilities it grants through a Policy.
 package linker
 
-import "github.com/geodro/lerd/internal/config"
+import "github.com/realrashid/servlo/internal/config"
 
 // Prompter resolves a question a link cannot answer on its own. Callers with a
 // terminal supply one; every other caller passes nil, and the link takes the
@@ -23,14 +23,14 @@ type Policy struct {
 	// Name overrides the site name and primary domain. Empty derives both from
 	// the directory name.
 	Name string
-	// AssumeYes records consent given outside a prompt, such as `lerd link
+	// AssumeYes records consent given outside a prompt, such as `servlo link
 	// --yes` or the click that started a link from the web UI.
 	AssumeYes bool
 	// Prompt, when non-nil, may ask the user to resolve a decision. Nil means
 	// no question can be asked, whether or not a terminal is attached.
 	Prompt Prompter
 	// ProjectWrites allows writing into the project directory: the .php-version
-	// and .node-version pins, and the .lerd.yaml domain and framework writeback.
+	// and .node-version pins, and the .servlo.yaml domain and framework writeback.
 	ProjectWrites bool
 	// Services allows installing and starting the services the project declares
 	// and the ones its framework requires.
@@ -54,7 +54,7 @@ type Policy struct {
 	DeferPublish bool
 }
 
-// CLIPolicy is the policy for a user-invoked `lerd link`: everything is
+// CLIPolicy is the policy for a user-invoked `servlo link`: everything is
 // permitted, and prompt decides whether questions can be asked.
 func CLIPolicy(name string, assumeYes bool, prompt Prompter) Policy {
 	return Policy{
@@ -69,7 +69,7 @@ func CLIPolicy(name string, assumeYes bool, prompt Prompter) Policy {
 	}
 }
 
-// WatcherPolicy is the policy for `lerd park` and the parked-directory watcher.
+// WatcherPolicy is the policy for `servlo park` and the parked-directory watcher.
 // It runs unattended against every subdirectory of a parked tree, so it reads
 // the project's committed configuration but never asks a question, never writes
 // into the project, and never runs anything the repository authored.
@@ -115,7 +115,7 @@ type Plan struct {
 	// site that owns this checkout, and the branch it holds.
 	WorktreeParent *config.Site
 	WorktreeBranch string
-	// Project is the parsed .lerd.yaml, or nil when the project has none.
+	// Project is the parsed .servlo.yaml, or nil when the project has none.
 	Project *config.ProjectConfig
 	// DroppedDomains lists domains another site already owns, which were
 	// filtered out of Site.Domains.

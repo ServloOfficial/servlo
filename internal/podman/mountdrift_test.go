@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // fakeInspect stubs `podman inspect` with one canned line, the format
@@ -35,19 +35,19 @@ func (r *restartRecorder) AllUnitStates() map[string]string  { return nil }
 func TestUnitMissingMounts(t *testing.T) {
 	fakeInspect(t, "true#/home/george|/srv/apps|")
 
-	if UnitMissingMounts("lerd-php84-fpm", []string{"/srv/apps/shop"}) {
+	if UnitMissingMounts("servlo-php84-fpm", []string{"/srv/apps/shop"}) {
 		t.Error("a path under an existing mount source is not missing")
 	}
-	if UnitMissingMounts("lerd-php84-fpm", []string{"/srv/apps"}) {
+	if UnitMissingMounts("servlo-php84-fpm", []string{"/srv/apps"}) {
 		t.Error("the mount source itself is not missing")
 	}
-	if !UnitMissingMounts("lerd-php84-fpm", []string{"/data/Projects/app"}) {
+	if !UnitMissingMounts("servlo-php84-fpm", []string{"/data/Projects/app"}) {
 		t.Error("a path the running container has no mount for is missing")
 	}
-	if !UnitMissingMounts("lerd-php84-fpm", []string{"/srv/appsuite"}) {
+	if !UnitMissingMounts("servlo-php84-fpm", []string{"/srv/appsuite"}) {
 		t.Error("ancestor matching must respect the path separator")
 	}
-	if UnitMissingMounts("lerd-php84-fpm", nil) {
+	if UnitMissingMounts("servlo-php84-fpm", nil) {
 		t.Error("no paths means nothing is missing")
 	}
 }
@@ -56,7 +56,7 @@ func TestUnitMissingMounts(t *testing.T) {
 // counts as drifted and must not trigger a restart.
 func TestUnitMissingMountsIgnoresStoppedContainer(t *testing.T) {
 	fakeInspect(t, "false#")
-	if UnitMissingMounts("lerd-php84-fpm", []string{"/data/Projects/app"}) {
+	if UnitMissingMounts("servlo-php84-fpm", []string{"/data/Projects/app"}) {
 		t.Error("a stopped container must not report drift")
 	}
 }
@@ -66,7 +66,7 @@ func TestUnitMissingMountsIgnoresInspectFailure(t *testing.T) {
 	t.Cleanup(func() { execCommand = prev })
 	execCommand = func(string, ...string) *exec.Cmd { return exec.Command("false") }
 
-	if UnitMissingMounts("lerd-php84-fpm", []string{"/data/Projects/app"}) {
+	if UnitMissingMounts("servlo-php84-fpm", []string{"/data/Projects/app"}) {
 		t.Error("an unknown container must not report drift")
 	}
 }
@@ -85,12 +85,12 @@ func TestEnsurePathMountedRestartsDriftedContainer(t *testing.T) {
 	if err := os.MkdirAll(quadlets, 0755); err != nil {
 		t.Fatal(err)
 	}
-	fpm := filepath.Join(quadlets, "lerd-php84-fpm.container")
+	fpm := filepath.Join(quadlets, "servlo-php84-fpm.container")
 	content := "[Container]\nVolume=%h:%h:rw\nVolume=/data/Projects/app:/data/Projects/app:rw\n"
 	if err := os.WriteFile(fpm, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(quadlets, "lerd-nginx.container"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(quadlets, "servlo-nginx.container"), []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -103,7 +103,7 @@ func TestEnsurePathMountedRestartsDriftedContainer(t *testing.T) {
 	EnsurePathMounted("/data/Projects/app", "8.4")
 
 	if len(lc.restarted) != 2 {
-		t.Fatalf("restarted %v, want both lerd-php84-fpm and lerd-nginx", lc.restarted)
+		t.Fatalf("restarted %v, want both servlo-php84-fpm and servlo-nginx", lc.restarted)
 	}
 	if got, err := os.ReadFile(fpm); err != nil || string(got) != content {
 		t.Error("the quadlet file was already correct and must not be rewritten")
@@ -125,7 +125,7 @@ func TestRewriteFPMQuadletsRestartsDriftedContainer(t *testing.T) {
 	if err := os.MkdirAll(quadlets, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(quadlets, "lerd-php84-fpm.container"), []byte("[Container]\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(quadlets, "servlo-php84-fpm.container"), []byte("[Container]\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	sitePath := filepath.Join(t.TempDir(), "shop")
@@ -169,7 +169,7 @@ func TestEnsurePathMountedCoversCustomFPMSites(t *testing.T) {
 	if err := os.MkdirAll(quadlets, 0755); err != nil {
 		t.Fatal(err)
 	}
-	custom := filepath.Join(quadlets, "lerd-cfpm-shop.container")
+	custom := filepath.Join(quadlets, "servlo-cfpm-shop.container")
 	if err := os.WriteFile(custom, []byte("[Container]\nVolume=%h:%h:rw\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestEnsurePathMountedCoversCustomFPMSites(t *testing.T) {
 	if want := "Volume=/data/Projects/shop:/data/Projects/shop:rw"; !strings.Contains(string(got), want) {
 		t.Errorf("custom FPM quadlet missing %q:\n%s", want, got)
 	}
-	if len(lc.restarted) != 1 || lc.restarted[0] != "lerd-cfpm-shop" {
-		t.Errorf("restarted %v, want lerd-cfpm-shop", lc.restarted)
+	if len(lc.restarted) != 1 || lc.restarted[0] != "servlo-cfpm-shop" {
+		t.Errorf("restarted %v, want servlo-cfpm-shop", lc.restarted)
 	}
 }

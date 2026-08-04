@@ -3,42 +3,42 @@
 When something isn't working, start with the built-in diagnostics:
 
 ```bash
-lerd doctor   # full check: podman, systemd, DNS, ports, images, config
-lerd status   # quick health snapshot of all running services
+servlo doctor   # full check: podman, systemd, DNS, ports, images, config
+servlo status   # quick health snapshot of all running services
 ```
 
-`lerd doctor` reports OK/FAIL/WARN for each check with a hint for every failure.
+`servlo doctor` reports OK/FAIL/WARN for each check with a hint for every failure.
 
 ## Repairing findings automatically
 
-`lerd doctor --fix` runs the same diagnostic and then offers to repair the findings it safely can. It confirms each fix before applying it, so you can pick and choose:
+`servlo doctor --fix` runs the same diagnostic and then offers to repair the findings it safely can. It confirms each fix before applying it, so you can pick and choose:
 
 ```bash
-lerd doctor --fix             # confirm each repair
-lerd doctor --fix --yes       # apply without prompting (heavy fixes still confirm)
-lerd doctor --fix --dry-run   # list what would be repaired, change nothing
+servlo doctor --fix             # confirm each repair
+servlo doctor --fix --yes       # apply without prompting (heavy fixes still confirm)
+servlo doctor --fix --dry-run   # list what would be repaired, change nothing
 ```
 
-The fixes fall into three groups. lerd applies the safe ones itself, creating a missing data or config directory, enabling linger so services survive logout, installing the network-online drop-in, rebuilding a missing PHP image, and, after you confirm the heavier ones, reinstalling the services or reclaiming podman disk. Anything that needs `sudo` lerd never runs for you; it prints the exact command to copy. That covers installing podman, crun, fuse-overlayfs, the rootless network helpers or adding a subuid range, and also `lerd dns:repair` and `lerd wsl:setup`, which rewrite the resolver and podman configuration through `sudo` and so are yours to run even though lerd knows the command. Findings that are external state, a foreign process already holding port 80, a config file with a syntax error, are left untouched with their hint. The same safe, non-heavy repairs are available to AI assistants through the MCP `diag` tool's `doctor_fix` action, which therefore never elevates on your behalf.
+The fixes fall into three groups. servlo applies the safe ones itself, creating a missing data or config directory, enabling linger so services survive logout, installing the network-online drop-in, rebuilding a missing PHP image, and, after you confirm the heavier ones, reinstalling the services or reclaiming podman disk. Anything that needs `sudo` servlo never runs for you; it prints the exact command to copy. That covers installing podman, crun, fuse-overlayfs, the rootless network helpers or adding a subuid range, and also `servlo dns:repair` and `servlo wsl:setup`, which rewrite the resolver and podman configuration through `sudo` and so are yours to run even though servlo knows the command. Findings that are external state, a foreign process already holding port 80, a config file with a syntax error, are left untouched with their hint. The same safe, non-heavy repairs are available to AI assistants through the MCP `diag` tool's `doctor_fix` action, which therefore never elevates on your behalf.
 
-Reclaimable disk is listed separately as optional, because nothing is wrong when there is disk to reclaim. It runs the same interactive reclaim as `lerd cleanup`, so it takes the deep scope and can remove an unreferenced catalog image whoever pulled it, and the size doctor quotes is that same deep scope. If you run other podman workloads on the machine, run [`lerd cleanup --safe`](usage/cleanup.md) yourself instead. Optional fixes never count towards what a re-check reports as still outstanding.
+Reclaimable disk is listed separately as optional, because nothing is wrong when there is disk to reclaim. It runs the same interactive reclaim as `servlo cleanup`, so it takes the deep scope and can remove an unreferenced catalog image whoever pulled it, and the size doctor quotes is that same deep scope. If you run other podman workloads on the machine, run [`servlo cleanup --safe`](usage/cleanup.md) yourself instead. Optional fixes never count towards what a re-check reports as still outstanding.
 
 ## Filing a bug report
 
-If you need help on the [issue tracker](https://github.com/lerd-env/lerd/issues), run:
+If you need help on the [issue tracker](https://github.com/realrashid/servlo/issues), run:
 
 ```bash
-lerd bug-report
+servlo bug-report
 ```
 
-This writes a single plain-text file (default: `./lerd-bug-report-<timestamp>.txt`) containing the full `lerd doctor` output, your `config.yaml` and `sites.yaml`, the state of every `lerd-*` systemd unit, recent journal and container logs for lerd's own infra units, listening sockets on the lerd ports, and a curated set of environment variables.
+This writes a single plain-text file (default: `./servlo-bug-report-<timestamp>.txt`) containing the full `servlo doctor` output, your `config.yaml` and `sites.yaml`, the state of every `servlo-*` systemd unit, recent journal and container logs for servlo's own infra units, listening sockets on the servlo ports, and a curated set of environment variables.
 
 What gets filtered before it lands on disk:
 
 - Site `.env` files are excluded outright.
 - Home paths render as `$HOME` and the username as `$USER`.
 - Site names, domains and parked-directory paths are replaced with `site-1`/`site1.<tld>`/`$PARK_1` placeholders. Pass `--show-real-names` to keep the raw values for local debugging.
-- Logs are kept only for lerd's own infra (`lerd-nginx`, `lerd-ui`, `lerd-dns`, `lerd-watcher`, `lerd-tray`, etc.). Preset services (mysql, redis, meilisearch, gotenberg, …), FPM containers and per-site workers still appear in the unit-state and container tables but their logs are dropped, they were producing repetitive request-shaped noise that didn't help triage.
+- Logs are kept only for servlo's own infra (`servlo-nginx`, `servlo-ui`, `servlo-dns`, `servlo-watcher`, `servlo-tray`, etc.). Preset services (mysql, redis, meilisearch, gotenberg, …), FPM containers and per-site workers still appear in the unit-state and container tables but their logs are dropped, they were producing repetitive request-shaped noise that didn't help triage.
 - Custom services and per-site custom / FrankenPHP containers are omitted entirely so the report doesn't expose user app identifiers.
 - Nginx structured error lines have their `request:` / `upstream:` / `referrer:` URI fields redacted, and HTTP access lines are dropped.
 
@@ -47,20 +47,20 @@ Skim the file before posting (it's plain text, open it in any editor) and attach
 Override the destination with `--output`, change how many log lines per service to include with `--log-lines`, or keep raw site names with `--show-real-names`:
 
 ```bash
-lerd bug-report --output /tmp/report.txt --log-lines 500
-lerd bug-report --show-real-names
+servlo bug-report --output /tmp/report.txt --log-lines 500
+servlo bug-report --show-real-names
 ```
 
-## Profiling lerd-ui
+## Profiling servlo-ui
 
-If lerd-ui itself is using more CPU or memory than it should, you can capture a Go profile from the running process and attach it to an issue. Profiling is off until you turn it on, and lerd-ui only serves it to the local machine.
+If servlo-ui itself is using more CPU or memory than it should, you can capture a Go profile from the running process and attach it to an issue. Profiling is off until you turn it on, and servlo-ui only serves it to the local machine.
 
 Create the marker, capture, then remove it:
 
 ```bash
-touch ~/.local/share/lerd/run/pprof.enabled
-curl -o /tmp/lerd-cpu.prof 'http://127.0.0.1:7073/debug/pprof/profile?seconds=30'
-rm ~/.local/share/lerd/run/pprof.enabled
+touch ~/.local/share/servlo/run/pprof.enabled
+curl -o /tmp/servlo-cpu.prof 'http://127.0.0.1:7073/debug/pprof/profile?seconds=30'
+rm ~/.local/share/servlo/run/pprof.enabled
 ```
 
 The marker is read on every request, so nothing needs restarting. That matters when you are chasing a daemon that is busy right now, because restarting it would throw away the state worth capturing. Drive the site or wait for the symptom while the thirty seconds are running, otherwise you profile an idle process.
@@ -68,14 +68,14 @@ The marker is read on every request, so nothing needs restarting. That matters w
 Other useful captures, once the marker is in place:
 
 ```bash
-curl -o /tmp/lerd-heap.prof http://127.0.0.1:7073/debug/pprof/heap
+curl -o /tmp/servlo-heap.prof http://127.0.0.1:7073/debug/pprof/heap
 curl 'http://127.0.0.1:7073/debug/pprof/goroutine?debug=1' | head -50
 ```
 
 Read a profile by passing the binary alongside it, or just attach the file to the issue:
 
 ```bash
-go tool pprof -top ~/.local/bin/lerd /tmp/lerd-cpu.prof
+go tool pprof -top ~/.local/bin/servlo /tmp/servlo-cpu.prof
 ```
 
 Release binaries are stripped, so the plain-text views (`?debug=1`) print raw addresses rather than function names. Pass the binary as above and `go tool pprof` resolves them anyway, so a profile captured from an ordinary install is still readable.
@@ -85,18 +85,18 @@ Remove the marker when you are done. While it exists, anyone who can reach the m
 ---
 
 ::: details `.test` domains not resolving
-First, confirm DNS is actually meant to be managed by lerd. If `lerd dns:check` reports `DNS managed externally`, you opted out of dnsmasq during install and your sites should be on `*.localhost` rather than `*.test`. See [DNS](features/dns.md) for switching modes.
+First, confirm DNS is actually meant to be managed by servlo. If `servlo dns:check` reports `DNS managed externally`, you opted out of dnsmasq during install and your sites should be on `*.localhost` rather than `*.test`. See DNS for switching modes.
 
-Otherwise, the fastest way to find the broken rung is `lerd doctor`. The DNS section walks the chain top to bottom and surfaces exactly where it breaks, with a hint per failure:
+Otherwise, the fastest way to find the broken rung is `servlo doctor`. The DNS section walks the chain top to bottom and surfaces exactly where it breaks, with a hint per failure:
 
 ```
 [DNS]
   DNS TLD (.test)                     OK
-    lerd-dns container                running
+    servlo-dns container                running
     dnsmasq config                    address=/.test/127.0.0.1, port=5300
     port 5300 listening               127.0.0.1:5300
     dig @127.0.0.1 -p 5300            127.0.0.1
-    resolver hookup                   NetworkManager dispatcher: /etc/NetworkManager/dispatcher.d/99-lerd-dns
+    resolver hookup                   NetworkManager dispatcher: /etc/NetworkManager/dispatcher.d/99-servlo-dns
     interface routes .test to 5300    enp14s0
     system DNS lookup                 127.0.0.1
 ```
@@ -105,51 +105,51 @@ The chain in order:
 
 | Rung | What it checks | If it fails |
 |---|---|---|
-| `lerd-dns container` | The dnsmasq container is running. | `lerd start` (or `podman logs lerd-dns` to see why it crashed). |
-| `dnsmasq config` | `~/.local/share/lerd/dnsmasq/lerd.conf` exists with `port=5300` and `address=/.<tld>/`. | `lerd start` regenerates the config from your registered TLD. |
+| `servlo-dns container` | The dnsmasq container is running. | `servlo start` (or `podman logs servlo-dns` to see why it crashed). |
+| `dnsmasq config` | `~/.local/share/servlo/dnsmasq/servlo.conf` exists with `port=5300` and `address=/.<tld>/`. | `servlo start` regenerates the config from your registered TLD. |
 | `port 5300 listening` | TCP/UDP 5300 is reachable on 127.0.0.1. | Another process owns the port. Find it with `ss -tlnp sport = :5300` on Linux, or `lsof -nP -iTCP:5300 -sTCP:LISTEN` on macOS. |
-| `dig @127.0.0.1 -p 5300` | A direct query at port 5300 returns 127.0.0.1 for `lerd-probe.<tld>`, or the host's LAN IP when [`lan:expose`](usage/lan-sharing.md) is on. | dnsmasq is up but its config drifted. `lerd dns:repair`. |
-| `resolver hookup` | The NetworkManager dispatcher script or systemd-resolved drop-in is installed. | Rerun `lerd install`. |
+| `dig @127.0.0.1 -p 5300` | A direct query at port 5300 returns 127.0.0.1 for `servlo-probe.<tld>`, or the host's LAN IP when `lan:expose` is on. | dnsmasq is up but its config drifted. `servlo dns:repair`. |
+| `resolver hookup` | The NetworkManager dispatcher script or systemd-resolved drop-in is installed. | Rerun `servlo install`. |
 | `interface routes .test to 5300` | `resolvectl status` shows `127.0.0.1:5300` and `~<tld>` on the active interface. | `sudo systemctl restart NetworkManager`, or set the routing manually with `sudo resolvectl domain <iface> ~test ~.`. |
-| `system DNS lookup` | `host lerd-probe.test` (the system resolver) returns 127.0.0.1, or the host's LAN IP under `lan:expose`. | The drop-in is installed but resolved isn't honouring it. Check whether cloud-init or another tool wrote a higher-priority resolver config. Common on EC2 / cloud images. With a VPN connected this rung is reported as a warning rather than a failure, see the VPN section below. |
+| `system DNS lookup` | `host servlo-probe.test` (the system resolver) returns 127.0.0.1, or the host's LAN IP under `lan:expose`. | The drop-in is installed but resolved isn't honouring it. Check whether cloud-init or another tool wrote a higher-priority resolver config. Common on EC2 / cloud images. With a VPN connected this rung is reported as a warning rather than a failure, see the VPN section below. |
 
 You can also call this programmatically over MCP via the `diag` tool's `dns_diagnose` action, useful for AI-driven troubleshooting:
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"diag","arguments":{"action":"dns_diagnose"}}}' | lerd mcp
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"diag","arguments":{"action":"dns_diagnose"}}}' | servlo mcp
 ```
 
 The response includes a `steps` array with a `status` (`ok` / `fail` / `warn` / `skip`) and `hint` per rung, plus a `first_failure` index so an LLM can jump straight to the broken layer.
 :::
 
 ::: details `.test` domains stop resolving when offline (no internet)
-On systemd-resolved systems, `.test` used to reach lerd-dns only through a route that depended on your real network being up: per interface (`resolvectl domain <iface> ~test`) when NetworkManager manages resolved, or a global drop-in otherwise. Either way, systemd-resolved refuses to resolve anything at all, over both `resolvectl` and the glibc/NSS path a browser uses, once no real link is routable, so a fresh `.test` lookup failed even though lerd-dns kept answering on `127.0.0.1:5300`. A common symptom was a page that still worked while the browser stayed open (cached DNS) but failed the moment you closed and reopened it.
+On systemd-resolved systems, `.test` used to reach servlo-dns only through a route that depended on your real network being up: per interface (`resolvectl domain <iface> ~test`) when NetworkManager manages resolved, or a global drop-in otherwise. Either way, systemd-resolved refuses to resolve anything at all, over both `resolvectl` and the glibc/NSS path a browser uses, once no real link is routable, so a fresh `.test` lookup failed even though servlo-dns kept answering on `127.0.0.1:5300`. A common symptom was a page that still worked while the browser stayed open (cached DNS) but failed the moment you closed and reopened it.
 
-Lerd now keeps an always-up dummy interface, `lerd0`, that carries the `~test` route. Because that link never goes down, systemd-resolved keeps forwarding `.test` to lerd-dns with no network connection at all. It is created by a small system service, `lerd-dns-link.service`, which starts on every boot, so the fix survives reboots and applies automatically on your next `lerd start`, nothing to run by hand. This applies to both systemd-resolved setups: with NetworkManager (Ubuntu, Fedora, CachyOS) and without it (Arch, omarchy).
+Servlo now keeps an always-up dummy interface, `servlo0`, that carries the `~test` route. Because that link never goes down, systemd-resolved keeps forwarding `.test` to servlo-dns with no network connection at all. It is created by a small system service, `servlo-dns-link.service`, which starts on every boot, so the fix survives reboots and applies automatically on your next `servlo start`, nothing to run by hand. This applies to both systemd-resolved setups: with NetworkManager (Ubuntu, Fedora, CachyOS) and without it (Arch, omarchy).
 
-If you also saw a stall of up to twenty seconds on `.test` while offline, that was an AAAA (IPv6) lookup. lerd's dnsmasq config answers both `address=/.test/127.0.0.1` and `address=/.test/::1`, but the NetworkManager dispatcher used to regenerate that file from a v4-only template whenever an interface came up, dropping the AAAA record. dnsmasq then forwarded `.test` AAAA queries to your upstream, which times out once that upstream is unreachable. The dispatcher now leaves the address records alone, so AAAA is answered locally and returns instantly.
+If you also saw a stall of up to twenty seconds on `.test` while offline, that was an AAAA (IPv6) lookup. servlo's dnsmasq config answers both `address=/.test/127.0.0.1` and `address=/.test/::1`, but the NetworkManager dispatcher used to regenerate that file from a v4-only template whenever an interface came up, dropping the AAAA record. dnsmasq then forwarded `.test` AAAA queries to your upstream, which times out once that upstream is unreachable. The dispatcher now leaves the address records alone, so AAAA is answered locally and returns instantly.
 :::
 
-::: details What is the `lerd0` network interface?
-`lerd0` is a dummy (virtual) network interface lerd creates on Linux so that `.test` domains keep resolving when you have no network at all. It carries no traffic and connects to nothing; it exists purely to give systemd-resolved a link that is always up to hang the `.test` route on. See the offline entry above for why that is necessary.
+::: details What is the `servlo0` network interface?
+`servlo0` is a dummy (virtual) network interface servlo creates on Linux so that `.test` domains keep resolving when you have no network at all. It carries no traffic and connects to nothing; it exists purely to give systemd-resolved a link that is always up to hang the `.test` route on. See the offline entry above for why that is necessary.
 
-It is deliberately marked unmanaged in NetworkManager (`/etc/NetworkManager/conf.d/lerd-dns-link.conf`), so it does not appear as a connection in your desktop's network menu and cannot be switched off by accident. Its only address is `192.0.2.1/32`, from the range RFC 5737 reserves for documentation and which never appears on a real network, so it cannot conflict with anything you connect to.
+It is deliberately marked unmanaged in NetworkManager (`/etc/NetworkManager/conf.d/servlo-dns-link.conf`), so it does not appear as a connection in your desktop's network menu and cannot be switched off by accident. Its only address is `192.0.2.1/32`, from the range RFC 5737 reserves for documentation and which never appears on a real network, so it cannot conflict with anything you connect to.
 
-Alongside it, lerd turns off systemd-resolved's fallback DNS servers (`/etc/systemd/resolved.conf.d/lerd-fallback.conf`). This is the price of `lerd0`: it stops resolved refusing every lookup when you are offline, which is the point for `.test`, but the same switch makes resolved willing to try names it cannot reach, so it works through its fallback servers (Quad9, Cloudflare, Google) one at a time and every offline lookup of an ordinary domain hangs for 20 seconds or more instead of failing at once. Debian, Ubuntu and Fedora already ship these fallbacks off, so nothing changes there; on Arch and its derivatives this aligns them with the others. The trade is that if your own DNS server breaks, lookups now fail instead of quietly going to a public resolver. `lerd uninstall` puts the fallbacks back.
+Alongside it, servlo turns off systemd-resolved's fallback DNS servers (`/etc/systemd/resolved.conf.d/servlo-fallback.conf`). This is the price of `servlo0`: it stops resolved refusing every lookup when you are offline, which is the point for `.test`, but the same switch makes resolved willing to try names it cannot reach, so it works through its fallback servers (Quad9, Cloudflare, Google) one at a time and every offline lookup of an ordinary domain hangs for 20 seconds or more instead of failing at once. Debian, Ubuntu and Fedora already ship these fallbacks off, so nothing changes there; on Arch and its derivatives this aligns them with the others. The trade is that if your own DNS server breaks, lookups now fail instead of quietly going to a public resolver. `servlo uninstall` puts the fallbacks back.
 
-If it ever goes missing, `lerd doctor` reports it under the `offline .test route` check and the next `lerd start` recreates it. To recreate it by hand:
+If it ever goes missing, `servlo doctor` reports it under the `offline .test route` check and the next `servlo start` recreates it. To recreate it by hand:
 
 ```bash
-sudo systemctl restart lerd-dns-link.service
+sudo systemctl restart servlo-dns-link.service
 ```
 
-`lerd uninstall` removes the interface, its service, and the NetworkManager rule. To remove it without uninstalling lerd, use `lerd dns:disable`, which turns off lerd's DNS management entirely.
+`servlo uninstall` removes the interface, its service, and the NetworkManager rule. To remove it without uninstalling servlo, use `servlo dns:disable`, which turns off servlo's DNS management entirely.
 :::
 
 ::: details DNS shows "Degraded" while connected to a VPN
-VPN clients such as Cisco AnyConnect, ProtonVPN, Mullvad, and WireGuard take over the system resolver when they connect, rewriting systemd-resolved so `.test` no longer routes to lerd-dns through the normal path. lerd-dns itself keeps running and answering, so the dashboard shows a yellow **Degraded** pill rather than a red **Failed** one, and `lerd doctor` reports the `system DNS lookup` rung as a warning instead of a failure. Sites still resolve, because lerd-dns answers directly on `127.0.0.1:5300`.
+VPN clients such as Cisco AnyConnect, ProtonVPN, Mullvad, and WireGuard take over the system resolver when they connect, rewriting systemd-resolved so `.test` no longer routes to servlo-dns through the normal path. servlo-dns itself keeps running and answering, so the dashboard shows a yellow **Degraded** pill rather than a red **Failed** one, and `servlo doctor` reports the `system DNS lookup` rung as a warning instead of a failure. Sites still resolve, because servlo-dns answers directly on `127.0.0.1:5300`.
 
-The watcher subscribes to kernel rtnetlink link and address events on Linux, so it reacts to a VPN connect or disconnect within a second of the interface coming up or going down (a poll every 30 seconds covers the rare case of a missed kernel event). When the host resolver environment changes, it re-points the lerd network's aardvark-dns at the current host resolvers and reloads the network so containers pick them up with a fresh cache. This is what previously required a manual `lerd restart` after connecting the VPN before PHP could reach VPN-internal API endpoints. The re-sync briefly (about a second) interrupts DNS for lerd containers while aardvark-dns restarts.
+The watcher subscribes to kernel rtnetlink link and address events on Linux, so it reacts to a VPN connect or disconnect within a second of the interface coming up or going down (a poll every 30 seconds covers the rare case of a missed kernel event). When the host resolver environment changes, it re-points the servlo network's aardvark-dns at the current host resolvers and reloads the network so containers pick them up with a fresh cache. This is what previously required a manual `servlo restart` after connecting the VPN before PHP could reach VPN-internal API endpoints. The re-sync briefly (about a second) interrupts DNS for servlo containers while aardvark-dns restarts.
 
 If you want the system resolver path itself restored while the VPN is up, so the pill goes back to green, move `resolve` after `dns` in the `hosts:` line of `/etc/nsswitch.conf`:
 
@@ -161,84 +161,84 @@ This makes glibc consult the plain `dns` module before systemd-resolved's `nss-r
 :::
 
 ::: details "Secure Connection Failed" after the host wakes from suspend or hibernate
-After a long suspend or hibernate, rootless podman networking can come back in a bad state: the lerd-nginx container loses its host port forward (or stops), so nothing listens on 443 and the browser shows a generic "Secure Connection Failed" for your `.test` sites, or the lerd-dns container stops and names no longer resolve.
+After a long suspend or hibernate, rootless podman networking can come back in a bad state: the servlo-nginx container loses its host port forward (or stops), so nothing listens on 443 and the browser shows a generic "Secure Connection Failed" for your `.test` sites, or the servlo-dns container stops and names no longer resolve.
 
-On Linux the watcher now restarts nginx automatically. It notices the host has resumed from a real wall-clock gap in its tick loop (the timer is frozen while the machine is suspended), and on that one tick it checks whether lerd-nginx is accepting on its HTTPS port and restarts it if the listener died. Keying off the resume event rather than a continuous poll means it acts exactly once and can never fight a `lerd start` you ran yourself, since a start does not suspend the machine. DNS resolution is repaired by the same watcher's existing path, so `.test` names come back on their own too.
+On Linux the watcher now restarts nginx automatically. It notices the host has resumed from a real wall-clock gap in its tick loop (the timer is frozen while the machine is suspended), and on that one tick it checks whether servlo-nginx is accepting on its HTTPS port and restarts it if the listener died. Keying off the resume event rather than a continuous poll means it acts exactly once and can never fight a `servlo start` you ran yourself, since a start does not suspend the machine. DNS resolution is repaired by the same watcher's existing path, so `.test` names come back on their own too.
 
-A stopped lerd-dns is healed too. Whenever the watcher finds `.test` broken it now asks lerd's dnsmasq directly on port 5300 whether it is alive, and restarts the container when it is not, instead of only rewriting the host resolver config, which can never bring back a container that is gone. Waking is not the only way to lose it: the NetworkManager dispatcher restarts lerd-dns on every interface change, and a wake that brings wifi, ethernet and a VPN back at once used to fire enough restarts in a few seconds to exhaust systemd's start rate limit, which parks the unit in `failed` permanently. That limit is now lifted for lerd-dns, and the watcher clears any leftover failed state before it restarts.
+A stopped servlo-dns is healed too. Whenever the watcher finds `.test` broken it now asks servlo's dnsmasq directly on port 5300 whether it is alive, and restarts the container when it is not, instead of only rewriting the host resolver config, which can never bring back a container that is gone. Waking is not the only way to lose it: the NetworkManager dispatcher restarts servlo-dns on every interface change, and a wake that brings wifi, ethernet and a VPN back at once used to fire enough restarts in a few seconds to exhaust systemd's start rate limit, which parks the unit in `failed` permanently. That limit is now lifted for servlo-dns, and the watcher clears any leftover failed state before it restarts.
 
-One case it still leaves for `lerd start` rather than acting from a background timer: a host whose IPv6 support changed across the wake, since the lerd network must be recreated and that rebuilds every container. The same applies in the rare case the watcher itself was not running at the moment of resume.
+One case it still leaves for `servlo start` rather than acting from a background timer: a host whose IPv6 support changed across the wake, since the servlo network must be recreated and that rebuilds every container. The same applies in the rare case the watcher itself was not running at the moment of resume.
 :::
 
 ::: details Nginx not serving a site
 Check that nginx and the PHP-FPM container are running, then inspect the generated vhost:
 
 ```bash
-lerd status                         # check nginx and FPM are running
-podman logs lerd-nginx              # nginx error log
-cat ~/.local/share/lerd/nginx/conf.d/my-app.test.conf   # check generated vhost
+servlo status                         # check nginx and FPM are running
+podman logs servlo-nginx              # nginx error log
+cat ~/.local/share/servlo/nginx/conf.d/my-app.test.conf   # check generated vhost
 ```
 :::
 
 ::: details My custom nginx directive disappeared after an update
-Don't edit `~/.local/share/lerd/nginx/conf.d/*.conf` directly. Lerd regenerates those files on `lerd link`, `lerd secure`, `lerd site rebuild`, and every `lerd install` (which `lerd update` re-execs). Drop your snippet in `~/.local/share/lerd/nginx/custom.d/{domain}.conf` instead, the generated vhost ends with an `include` for that file, and lerd never writes into `custom.d/`. See [Nginx Overrides](./usage/nginx-overrides.md) for examples.
+Don't edit `~/.local/share/servlo/nginx/conf.d/*.conf` directly. Servlo regenerates those files on `servlo link`, `servlo secure`, `servlo site rebuild`, and every `servlo install` (which `servlo update` re-execs). Drop your snippet in `~/.local/share/servlo/nginx/custom.d/{domain}.conf` instead, the generated vhost ends with an `include` for that file, and servlo never writes into `custom.d/`. See [Nginx Overrides](./usage/nginx-overrides.md) for examples.
 :::
 
 ::: details PHP-FPM container not running
 Check the systemd unit status and logs:
 
 ```bash
-systemctl --user status lerd-php84-fpm
-systemctl --user start lerd-php84-fpm
-podman logs lerd-php84-fpm
+systemctl --user status servlo-php84-fpm
+systemctl --user start servlo-php84-fpm
+podman logs servlo-php84-fpm
 ```
 
 If the image is missing (e.g. after `podman rmi`):
 
 ```bash
-lerd php:rebuild
+servlo php:rebuild
 ```
 :::
 
 ::: details `podman exec` fails with "chdir: No such file or directory"
 This happens when your project is outside your home directory (e.g. `/var/www/`, `/opt/projects/`). The PHP-FPM and nginx containers only mount `$HOME` by default.
 
-Lerd handles this automatically: when you `lerd link`, `lerd park`, or run any exec command (`lerd php`, `composer`, `laravel new`) from an outside path, lerd adds the volume mount and restarts the affected containers.
+Servlo handles this automatically: when you `servlo link`, `servlo park`, or run any exec command (`servlo php`, `composer`, `laravel new`) from an outside path, servlo adds the volume mount and restarts the affected containers.
 
-If you see this error on an older lerd version, update to the latest and re-link the site:
+If you see this error on an older servlo version, update to the latest and re-link the site:
 
 ```bash
-lerd update
-lerd unlink && lerd link
+servlo update
+servlo unlink && servlo link
 ```
 
 To verify the mounts are in place:
 
 ```bash
-grep Volume ~/.config/containers/systemd/lerd-nginx.container
-grep Volume ~/.config/containers/systemd/lerd-php*-fpm.container
+grep Volume ~/.config/containers/systemd/servlo-nginx.container
+grep Volume ~/.config/containers/systemd/servlo-php*-fpm.container
 ```
 
 You should see your project path listed alongside the `%h:%h` mount. The quadlet is only half the answer though, a container keeps the mounts it booted with, so check the running one too:
 
 ```bash
-podman inspect lerd-php84-fpm --format '{{range .Mounts}}{{.Source}}
+podman inspect servlo-php84-fpm --format '{{range .Mounts}}{{.Source}}
 {{end}}'
 ```
 
-If the path is in the quadlet but not in that output, `lerd restart` picks it up.
+If the path is in the quadlet but not in that output, `servlo restart` picks it up.
 :::
 
 ::: details nginx fails to start with "statfs /path: no such file or directory"
-Podman refuses to start a container whose bind-mount source is gone, so a directory outside `$HOME` that lerd mounted while it existed, and that has since disappeared, stops the container dead. A Git branch checkout that removes a project subdirectory is the usual cause, and because nginx serves every site, one missing directory takes the whole stack down.
+Podman refuses to start a container whose bind-mount source is gone, so a directory outside `$HOME` that servlo mounted while it existed, and that has since disappeared, stops the container dead. A Git branch checkout that removes a project subdirectory is the usual cause, and because nginx serves every site, one missing directory takes the whole stack down.
 
-`lerd start` repairs this for you: it drops the stale mounts before starting anything and tells you which path and site was responsible.
+`servlo start` repairs this for you: it drops the stale mounts before starting anything and tells you which path and site was responsible.
 
 ```
-WARN: /var/www/erp/Modules/Accounts no longer exists (site erp), removed from lerd-nginx
+WARN: /var/www/erp/Modules/Accounts no longer exists (site erp), removed from servlo-nginx
 ```
 
-The mount comes back on its own once the directory is there again and you run any command from it, or after `lerd restart`.
+The mount comes back on its own once the directory is there again and you run any command from it, or after `servlo restart`.
 :::
 
 ::: details Permission denied on port 80/443
@@ -247,18 +247,18 @@ Rootless Podman cannot bind to ports below 1024 by default. Allow it:
 ```bash
 sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80
 # Make permanent:
-echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/99-lerd.conf
+echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/99-servlo.conf
 ```
 
-`lerd install` sets this automatically, but it may need to be re-applied after a kernel update.
+`servlo install` sets this automatically, but it may need to be re-applied after a kernel update.
 :::
 
 ::: details Watcher service not running
 The watcher monitors parked directories, site config files, git worktrees, and DNS health. If sites aren't being auto-registered or queue workers aren't restarting on `.env` changes:
 
 ```bash
-lerd status                            # shows watcher running/stopped
-systemctl --user start lerd-watcher   # start it from the terminal
+servlo status                            # shows watcher running/stopped
+systemctl --user start servlo-watcher   # start it from the terminal
 # or use the Start button in the UI under System > Watcher
 ```
 
@@ -267,41 +267,41 @@ The watcher reports itself ready as soon as its watch loops are live and does it
 To see what the watcher is doing:
 
 ```bash
-journalctl --user -u lerd-watcher -f
+journalctl --user -u servlo-watcher -f
 # or open the live log stream in the UI under System > Watcher
 ```
 
-For verbose output (DEBUG level), set `LERD_DEBUG=1` in the service environment:
+For verbose output (DEBUG level), set `SERVLO_DEBUG=1` in the service environment:
 
 ```bash
-systemctl --user edit lerd-watcher
+systemctl --user edit servlo-watcher
 # Add:
 # [Service]
-# Environment=LERD_DEBUG=1
-systemctl --user restart lerd-watcher
+# Environment=SERVLO_DEBUG=1
+systemctl --user restart servlo-watcher
 ```
 :::
 
 ::: details HTTPS certificate warning in browser
-The mkcert CA must be installed in your browser's trust store. Ensure `certutil` / `nss-tools` is installed, then re-run `lerd install`:
+The mkcert CA must be installed in your browser's trust store. Ensure `certutil` / `nss-tools` is installed, then re-run `servlo install`:
 
 - Arch: `sudo pacman -S nss`
 - Debian/Ubuntu: `sudo apt install libnss3-tools`
 - Fedora: `sudo dnf install nss-tools`
 
-After installing the package, run `lerd install` again to register the CA.
+After installing the package, run `servlo install` again to register the CA.
 
-On macOS, this can also show up after a reinstall even though everything worked the first time: a macOS update can drop a certificate's trust settings while leaving the certificate itself in the keychain. `lerd install` asks whether the keychain still trusts the CA now, rather than only whether the certificate is there, and repairs it (with the usual admin authorization prompt) when it finds that drifted state. Just re-run `lerd install`.
+On macOS, this can also show up after a reinstall even though everything worked the first time: a macOS update can drop a certificate's trust settings while leaving the certificate itself in the keychain. `servlo install` asks whether the keychain still trusts the CA now, rather than only whether the certificate is there, and repairs it (with the usual admin authorization prompt) when it finds that drifted state. Just re-run `servlo install`.
 :::
 
 ::: details PHP image build is slow on first run
-lerd normally pulls a pre-built base image from ghcr.io and finishes in ~30 seconds. If you see it fall back to a local build instead, the most common cause is being logged into ghcr.io with expired or unrelated credentials; the registry rejects the authenticated request even though the image is public.
+servlo normally pulls a pre-built base image from ghcr.io and finishes in ~30 seconds. If you see it fall back to a local build instead, the most common cause is being logged into ghcr.io with expired or unrelated credentials; the registry rejects the authenticated request even though the image is public.
 
-lerd handles this automatically since v1.3.4 by always pulling anonymously. If you are on an older version, running `podman logout ghcr.io` before the build will fix it.
+servlo handles this automatically since v1.3.4 by always pulling anonymously. If you are on an older version, running `podman logout ghcr.io` before the build will fix it.
 :::
 
 ::: details Nginx fails to start (missing certificates)
-`lerd start` automatically detects SSL vhosts that reference missing certificate files and repairs them before starting nginx:
+`servlo start` automatically detects SSL vhosts that reference missing certificate files and repairs them before starting nginx:
 
 - **Registered sites**: the site is switched back to HTTP and the vhost is regenerated. The registry is updated (`Secured = false`).
 - **Orphan SSL vhosts**: configs left behind by unlinked sites with missing certs are removed.
@@ -312,24 +312,24 @@ Repaired items are printed as warnings during startup:
   WARN: missing TLS certificate for myapp.test, switched to HTTP
 ```
 
-To re-enable HTTPS after the automatic repair, run `lerd secure <name>`.
+To re-enable HTTPS after the automatic repair, run `servlo secure <name>`.
 
 If nginx still fails to start, check the logs:
 
 ```bash
-journalctl --user -u lerd-nginx -n 30 --no-pager
+journalctl --user -u servlo-nginx -n 30 --no-pager
 ```
 :::
 
-::: details Port conflicts on `lerd start`
-`lerd start` checks for port conflicts before starting containers. If another process is already using a required port, you'll see a warning:
+::: details Port conflicts on `servlo start`
+`servlo start` checks for port conflicts before starting containers. If another process is already using a required port, you'll see a warning:
 
 ```
 Port conflicts detected:
   WARN: port 80 (nginx HTTP) already in use, may fail to start (check: ss -tlnp sport = :80)
 ```
 
-Common culprits are Apache, another nginx instance, or a previously running lerd that wasn't stopped cleanly. Find and stop the conflicting process:
+Common culprits are Apache, another nginx instance, or a previously running servlo that wasn't stopped cleanly. Find and stop the conflicting process:
 
 ```bash
 # Linux
@@ -339,33 +339,33 @@ ss -tlnp sport = :80
 lsof -nP -iTCP:80 -sTCP:LISTEN
 ```
 
-The exact command lerd suggests in `lerd doctor` and `lerd start` output is already platform-correct, so you can copy it from there.
+The exact command servlo suggests in `servlo doctor` and `servlo start` output is already platform-correct, so you can copy it from there.
 
-`lerd doctor` also checks for port conflicts as part of its full diagnostic, and adds a dedicated **[Stopped service ports]** section that flags installed services whose host port is already bound by another process. The same warning is shown next to the inactive status pill in the web UI, so you can spot the conflict without running anything: most often this is a system-installed service (Postgres, MySQL, Redis) listening on the default port. Stop the conflicting process and the warning clears on the next snapshot refresh.
+`servlo doctor` also checks for port conflicts as part of its full diagnostic, and adds a dedicated **[Stopped service ports]** section that flags installed services whose host port is already bound by another process. The same warning is shown next to the inactive status pill in the web UI, so you can spot the conflict without running anything: most often this is a system-installed service (Postgres, MySQL, Redis) listening on the default port. Stop the conflicting process and the warning clears on the next snapshot refresh.
 :::
 
 ::: details Workers missing after reinstall
-If you ran `lerd uninstall` and then reinstalled, worker units and service quadlets are deleted during uninstall. Running `lerd start` after reinstalling automatically restores them from the `workers` list saved in each site's `.lerd.yaml`. If `.lerd.yaml` does not exist or was not committed, you will need to start workers again manually (`lerd queue:start`, etc.).
+If you ran `servlo uninstall` and then reinstalled, worker units and service quadlets are deleted during uninstall. Running `servlo start` after reinstalling automatically restores them from the `workers` list saved in each site's `.servlo.yaml`. If `.servlo.yaml` does not exist or was not committed, you will need to start workers again manually (`servlo queue:start`, etc.).
 
 To check what was restored:
 ```bash
-lerd status   # shows all active workers and services
+servlo status   # shows all active workers and services
 ```
 :::
 
 ::: details Workers failing or crash-looping
-Check `lerd status`, the Workers section lists all active, restarting, or failed workers. In the web UI, failing workers show a pulsing red toggle and a **!** on their log tab.
+Check `servlo status`, the Workers section lists all active, restarting, or failed workers. In the web UI, failing workers show a pulsing red toggle and a **!** on their log tab.
 
 To inspect the error:
 
 ```bash
-journalctl --user -u lerd-queue-my-app -f    # or lerd-horizon-my-app, lerd-schedule-my-app
+journalctl --user -u servlo-queue-my-app -f    # or servlo-horizon-my-app, servlo-schedule-my-app
 ```
 
 Common causes:
-- Missing Redis when `QUEUE_CONNECTION=redis`, start it with `lerd service start redis`
-- Missing dependencies after a fresh clone, run `lerd setup` to install them
-- Bad `.env` values, run `lerd env` to reset service connection settings
+- Missing Redis when `QUEUE_CONNECTION=redis`, start it with `servlo service start redis`
+- Missing dependencies after a fresh clone, run `servlo setup` to install them
+- Bad `.env` values, run `servlo env` to reset service connection settings
 
 When you unlink a site, crash-looping workers are automatically detected and stopped.
 :::
@@ -385,10 +385,10 @@ podman system reset
 ```
 :::
 
-::: details Error: unknown flag: --dns (during `lerd install`)
-Symptom: `lerd install` aborts at the `podman network create` step with `Error: unknown flag: --dns`.
+::: details Error: unknown flag: --dns (during `servlo install`)
+Symptom: `servlo install` aborts at the `podman network create` step with `Error: unknown flag: --dns`.
 
-Cause: your podman is older than 4.5. The `--dns` flag on `podman network create` was added in podman 4.5 (April 2023), and lerd needs it to write upstream DNS servers into netavark's per-network JSON atomically (otherwise the post-create `network update --dns-add` path crashes on Ubuntu 24.04's netavark <1.11). Distributions that ship podman older than 4.5: Ubuntu 22.04 / Zorin 17 (3.4.4), Debian 12 (4.3.1), Debian 11 (3.0.1).
+Cause: your podman is older than 4.5. The `--dns` flag on `podman network create` was added in podman 4.5 (April 2023), and servlo needs it to write upstream DNS servers into netavark's per-network JSON atomically (otherwise the post-create `network update --dns-add` path crashes on Ubuntu 24.04's netavark <1.11). Distributions that ship podman older than 4.5: Ubuntu 22.04 / Zorin 17 (3.4.4), Debian 12 (4.3.1), Debian 11 (3.0.1).
 
 Fix: upgrade podman to 4.5 or newer. On Ubuntu 22.04 and Zorin 17 the main archive doesn't ship a new enough podman, but the [Kubic libcontainers OBS repo](https://podman.io/docs/installation#ubuntu-2204-2104-2010-2004) does (it's the path podman's own docs recommend). On Debian 12 enable bookworm-backports and run `sudo apt install -t bookworm-backports podman`. See the [requirements page](getting-started/requirements.md#podman-4-5-minimum) for the full distro/version table.
 :::
@@ -396,29 +396,29 @@ Fix: upgrade podman to 4.5 or newer. On Ubuntu 22.04 and Zorin 17 the main archi
 ::: details Error: unable to parse ip fe80::...%18 specified in AddDNSServer: invalid argument
 Your host's DNS configuration includes a zoned link-local IPv6 nameserver, typically advertised by your router via SLAAC + RDNSS. The zone identifier (`%18` is a kernel interface index) is meaningless inside a container's network namespace, and netavark refuses to accept it.
 
-Lerd 1.18+ filters these addresses automatically before handing them to podman. If you're still on 1.17 or older, upgrade with `lerd update` and rerun `lerd install`. The filter is conservative: only zoned link-local (`fe80::...%iface`) addresses are dropped; globally routable IPv6 nameservers (e.g. `2606:4700:4700::1111`) are preserved.
+Servlo 1.18+ filters these addresses automatically before handing them to podman. If you're still on 1.17 or older, upgrade with `servlo update` and rerun `servlo install`. The filter is conservative: only zoned link-local (`fe80::...%iface`) addresses are dropped; globally routable IPv6 nameservers (e.g. `2606:4700:4700::1111`) are preserved.
 
-When filtering empties the entire DNS list, lerd falls back to pasta's standard forwarder (`169.254.1.1`), which bridges into the host's resolver and preserves `.test` routing.
+When filtering empties the entire DNS list, servlo falls back to pasta's standard forwarder (`169.254.1.1`), which bridges into the host's resolver and preserves `.test` routing.
 :::
 
 ::: details Containers can resolve `.test` over IPv4 but not over IPv6
-Lerd 1.18+ creates the lerd podman network as dual-stack (v4 + v6) and writes both A and AAAA records for `.test` domains. If you upgraded from an older version, the existing v4-only `lerd` network is migrated automatically the next time you run `lerd install`: attached containers stop, the network is recreated with the `fd00:1e7d::/64` ULA prefix, the previous DNS server list is restored, and the containers restart. Quick check:
+Servlo 1.18+ creates the servlo podman network as dual-stack (v4 + v6) and writes both A and AAAA records for `.test` domains. If you upgraded from an older version, the existing v4-only `servlo` network is migrated automatically the next time you run `servlo install`: attached containers stop, the network is recreated with the `fd00:1e7d::/64` ULA prefix, the previous DNS server list is restored, and the containers restart. Quick check:
 
 ```bash
-podman network inspect lerd --format '{{.Subnets}}'
+podman network inspect servlo --format '{{.Subnets}}'
 # expect both an IPv4 subnet and one starting with fd00:1e7d::
 ```
 
-If the v6 subnet is missing, run `lerd install` once to migrate. To verify resolution from inside a container:
+If the v6 subnet is missing, run `servlo install` once to migrate. To verify resolution from inside a container:
 
 ```bash
-podman run --rm --network lerd alpine sh -c 'nslookup laravel.test; nslookup -type=AAAA laravel.test'
+podman run --rm --network servlo alpine sh -c 'nslookup laravel.test; nslookup -type=AAAA laravel.test'
 ```
 :::
 
 ::: details Services fail to start with "aardvark-dns failed to bind [fd00:1e7d::1]:53"
 
-Symptom: after `lerd install`, a subset of service containers (commonly `lerd-nginx`, `lerd-postgres`, `lerd-meilisearch`) fail to start. Journal shows:
+Symptom: after `servlo install`, a subset of service containers (commonly `servlo-nginx`, `servlo-postgres`, `servlo-meilisearch`) fail to start. Journal shows:
 
 ```
 Error: netavark: error while applying dns entries: IO error: aardvark-dns failed to start
@@ -428,55 +428,55 @@ IO error: Cannot assign requested address (os error 99)
 
 Cause: the host advertises IPv6 in the kernel but has no routable v6 address on any interface, only `::1` and `fe80::`, so netavark can't hold the ULA gateway on the rootless bridge, and aardvark-dns bind fails with `EADDRNOTAVAIL`. Typical in headless QEMU/KVM VMs and networks without v6 DHCP.
 
-Lerd 1.18+ detects this on every `lerd install` by reading `/proc/net/if_inet6` (any non-loopback, non-link-local v6 address counts as usable) and falls back to a v4-only `lerd` network. An existing dual-stack network on a v6-less host is recreated as v4-only automatically. Force it:
+Servlo 1.18+ detects this on every `servlo install` by reading `/proc/net/if_inet6` (any non-loopback, non-link-local v6 address counts as usable) and falls back to a v4-only `servlo` network. An existing dual-stack network on a v6-less host is recreated as v4-only automatically. Force it:
 
 ```bash
-lerd install
-# look for: "Recreated lerd network as v4-only (host has no usable IPv6)."
+servlo install
+# look for: "Recreated servlo network as v4-only (host has no usable IPv6)."
 ```
 
-If the host later gains v6 connectivity, the next `lerd install` will recreate the network as dual-stack again.
+If the host later gains v6 connectivity, the next `servlo install` will recreate the network as dual-stack again.
 
 If you'd rather skip the dual-stack code path entirely, even on a v6-capable host, opt out:
 
 ```bash
-lerd install --no-ipv6
+servlo install --no-ipv6
 # or persistently via shell rc:
-export LERD_DISABLE_IPV6=1
+export SERVLO_DISABLE_IPV6=1
 ```
 
-Either path writes `~/.local/share/lerd/ipv6-probe-failed-lerd`, which `EnsureNetwork` honors on every code path (initial create, migration, recreate). To re-enable dual-stack, delete that marker file and re-run `lerd install`.
+Either path writes `~/.local/share/servlo/ipv6-probe-failed-servlo`, which `EnsureNetwork` honors on every code path (initial create, migration, recreate). To re-enable dual-stack, delete that marker file and re-run `servlo install`.
 :::
 
-::: details Every DNS lookup inside a lerd container stalls ~5 seconds
-Symptom: pages that hit the database or any container-to-container hostname feel slow, and `time dig <anything> @<container>` takes roughly five seconds before returning an answer. The network looks fine in `podman network inspect lerd` (both IPv4 and IPv6 subnets present), but aardvark-dns's on-disk config has the v6 gateway absent from its listen-ips line.
+::: details Every DNS lookup inside a servlo container stalls ~5 seconds
+Symptom: pages that hit the database or any container-to-container hostname feel slow, and `time dig <anything> @<container>` takes roughly five seconds before returning an answer. The network looks fine in `podman network inspect servlo` (both IPv4 and IPv6 subnets present), but aardvark-dns's on-disk config has the v6 gateway absent from its listen-ips line.
 
 Cause: `podman network rm` doesn't clean up `$XDG_RUNTIME_DIR/containers/networks/aardvark-dns/<name>` between rm and recreate, so a network that was originally v4-only can leave aardvark with a v4-only listen header even after the network is recreated dual-stack. The container's `/etc/resolv.conf` still lists the v6 gateway as the primary nameserver, queries to it time out (~5s), then glibc falls back to the v4 gateway.
 
-Lerd 1.18+ detects this drift on `lerd install` (aardvark listen line is v4-only despite the network being dual-stack) and self-heals by recreating the network with the stale aardvark state wiped. If you're on an earlier 1.18 build or the heal didn't fire, force it:
+Servlo 1.18+ detects this drift on `servlo install` (aardvark listen line is v4-only despite the network being dual-stack) and self-heals by recreating the network with the stale aardvark state wiped. If you're on an earlier 1.18 build or the heal didn't fire, force it:
 
 ```bash
-lerd install
+servlo install
 ```
 
 Manual verification:
 
 ```bash
-cat "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/containers/networks/aardvark-dns/lerd" | head -1
+cat "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/containers/networks/aardvark-dns/servlo" | head -1
 # expect both gateways, e.g.: fd00:1e7d::1,10.89.7.1 169.254.1.1
-# if only 10.89.7.1 is present, the drift fix didn't run — re-run lerd install
+# if only 10.89.7.1 is present, the drift fix didn't run — re-run servlo install
 ```
 :::
 
 ::: details Every container takes 90 seconds to start (Fedora Silverblue and other atomic images)
-Symptom: `lerd start` sits there for a minute and a half per container, and after a reboot nothing is serving until well over a minute in. `systemctl --user list-units --state=failed` shows `podman-user-wait-network-online.service` failed with a timeout, and `lerd doctor` reports the `podman network-online wait` check as a warning.
+Symptom: `servlo start` sits there for a minute and a half per container, and after a reboot nothing is serving until well over a minute in. `systemctl --user list-units --state=failed` shows `podman-user-wait-network-online.service` failed with a timeout, and `servlo doctor` reports the `podman network-online wait` check as a warning.
 
 Cause: podman's quadlet generator makes every rootless container `Wants=` and `After=podman-user-wait-network-online.service`, a unit that polls the system's `network-online.target` until it gives up after 90 seconds. That target is only reached when some unit pulls it in, and on atomic images (Silverblue, Kinoite, Bazzite, CoreOS) nothing does, so the wait can never succeed. Every container start, and the boot itself, pays the full timeout.
 
-Lerd detects this on `lerd start` and `lerd install` and writes a drop-in that turns the wait into a no-op, since lerd publishes on loopback and needs no routable network:
+Servlo detects this on `servlo start` and `servlo install` and writes a drop-in that turns the wait into a no-op, since servlo publishes on loopback and needs no routable network:
 
 ```bash
-lerd start   # writes ~/.config/systemd/user/podman-user-wait-network-online.service.d/10-lerd-no-network-wait.conf
+servlo start   # writes ~/.config/systemd/user/podman-user-wait-network-online.service.d/10-servlo-no-network-wait.conf
 ```
 
 The override only lands on hosts where `network-online.target` is genuinely inactive; on an ordinary distro the wait is left alone. To confirm the target is the one at fault:
@@ -489,23 +489,23 @@ To go back to podman's stock behaviour, delete the drop-in and run `systemctl --
 :::
 
 ::: details System tray missing on Fedora Silverblue and other atomic images
-Symptom: no tray icon, and `systemctl --user is-system-running` reports `degraded` because `lerd-tray.service` failed with status 127.
+Symptom: no tray icon, and `systemctl --user is-system-running` reports `degraded` because `servlo-tray.service` failed with status 127.
 
-Cause: `lerd-tray` links `libayatana-appindicator3.so.1`, which these images don't ship, and an immutable OS can't just install it into `/usr` on demand.
+Cause: `servlo-tray` links `libayatana-appindicator3.so.1`, which these images don't ship, and an immutable OS can't just install it into `/usr` on demand.
 
-Lerd checks the helper's libraries at install time and leaves the tray unit stopped and disabled when one is missing, so the failure no longer drags the systemd user session into `degraded`. Everything else (CLI, dashboard, watcher, containers) is unaffected, the tray is the only thing you lose.
+Servlo checks the helper's libraries at install time and leaves the tray unit stopped and disabled when one is missing, so the failure no longer drags the systemd user session into `degraded`. Everything else (CLI, dashboard, watcher, containers) is unaffected, the tray is the only thing you lose.
 
 To get the tray back, layer the package and reboot, then re-enable the unit:
 
 ```bash
 rpm-ostree install libayatana-appindicator-gtk3
 systemctl reboot
-lerd install   # re-enables the tray now that the library resolves
+servlo install   # re-enables the tray now that the library resolves
 ```
 :::
 
 ::: details Podman Machine overlay-storage error (macOS)
-Symptom: on macOS, `lerd start` fails and **every** container start reports a graph-driver / overlay error:
+Symptom: on macOS, `servlo start` fails and **every** container start reports a graph-driver / overlay error:
 
 ```
 exit status 125: Error: getting graph driver info "<id>":
@@ -514,13 +514,13 @@ readlink /var/lib/containers/storage/overlay: invalid argument
 
 Cause: the macOS host was shut down ungracefully (forced power-off, battery death, kernel panic) while the Podman Machine VM was still running. The VM's container storage is left with a stale overlay mount and corrupt container layers, so no container can start until the storage is remounted and the stale containers are rebuilt.
 
-`lerd start` detects this and **self-heals automatically** on the first run: it restarts the Podman Machine to remount the storage, force-removes the stale `lerd-*` containers so they rebuild on fresh storage, and retries the start pass once. Your data is safe throughout: lerd bind-mounts every database and site directory to the host, not into the VM.
+`servlo start` detects this and **self-heals automatically** on the first run: it restarts the Podman Machine to remount the storage, force-removes the stale `servlo-*` containers so they rebuild on fresh storage, and retries the start pass once. Your data is safe throughout: servlo bind-mounts every database and site directory to the host, not into the VM.
 
 If the automatic recovery isn't enough (it prints guidance pointing here), recreate the VM:
 
 ```bash
-lerd machine reset
+servlo machine reset
 ```
 
-This stops the VM, removes it, and re-initialises it. Databases and site data are preserved (they live on the host); container images are rebuilt automatically on the next `lerd start`. See [Start, Stop & Autostart → `lerd machine reset`](usage/lifecycle.md#lerd-machine-reset-macos).
+This stops the VM, removes it, and re-initialises it. Databases and site data are preserved (they live on the host); container images are rebuilt automatically on the next `servlo start`. See [Start, Stop & Autostart → `servlo machine reset`](usage/lifecycle.md#servlo-machine-reset-macos).
 :::

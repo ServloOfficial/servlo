@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // introspectTimeout caps a single list-databases exec so a wedged engine can't
@@ -27,10 +27,10 @@ type DatabaseInfo struct {
 	SizeBytes int64  `json:"size_bytes"`
 }
 
-// introspectEnv supplies the fixed admin credentials lerd sets on every built-in
+// introspectEnv supplies the fixed admin credentials servlo sets on every built-in
 // DB container, passed via the exec env so no password lands in argv. The engine
 // picks whichever variable applies and ignores the rest.
-func introspectEnv() []string { return []string{"MYSQL_PWD=lerd", "PGPASSWORD=lerd"} }
+func introspectEnv() []string { return []string{"MYSQL_PWD=servlo", "PGPASSWORD=servlo"} }
 
 // IntrospectCommand resolves an engine's list-databases query through the
 // entity surface, so both the entities form and the legacy list_databases
@@ -51,7 +51,7 @@ func ListDatabases(service, listCommand string) ([]DatabaseInfo, error) {
 	if strings.TrimSpace(listCommand) == "" {
 		return nil, nil
 	}
-	out, err := containerExec("lerd-"+service, listCommand, introspectEnv(), nil, introspectTimeout)
+	out, err := containerExec("servlo-"+service, listCommand, introspectEnv(), nil, introspectTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("listing databases in %s: %w\n%s", service, err, strings.TrimSpace(string(out)))
 	}
@@ -153,7 +153,7 @@ type ImportIssue struct {
 
 // Omitted is how many further distinct complaints were dropped past the cap, so
 // a truncated list never reads as the whole of what went wrong. Skipped is what
-// the sanitizer held back on the way in, reported so lerd never rewrites a dump
+// the sanitizer held back on the way in, reported so servlo never rewrites a dump
 // silently.
 type ImportReport struct {
 	Errors  int           `json:"errors"`
@@ -184,7 +184,7 @@ func (r ImportReport) Summary() string {
 }
 
 // SkippedSummary renders what the sanitizer held back, so a load that came out
-// clean because lerd filtered it says so rather than looking untouched.
+// clean because servlo filtered it says so rather than looking untouched.
 func (r ImportReport) SkippedSummary() string {
 	if len(r.Skipped) == 0 {
 		return ""
@@ -196,7 +196,7 @@ func (r ImportReport) SkippedSummary() string {
 	return "skipped " + strings.Join(parts, "; ")
 }
 
-// CreatedSummary renders the extensions the load needed and lerd created, or
+// CreatedSummary renders the extensions the load needed and servlo created, or
 // could not, for the same reason.
 func (r ImportReport) CreatedSummary() string {
 	if len(r.Created) == 0 {

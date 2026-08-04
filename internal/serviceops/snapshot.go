@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // Snapshot is the meta.json sidecar describing one stored database snapshot.
@@ -51,16 +51,16 @@ const (
 )
 
 // reservedSnapshotName flags snapshot names that collide with command verbs,
-// catching mistakes like `lerd db snapshot list` (which would otherwise create
+// catching mistakes like `servlo db snapshot list` (which would otherwise create
 // a snapshot literally named "list" instead of listing).
 func reservedSnapshotName(name string) (hint string, reserved bool) {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "list", "ls", "snapshots":
-		return "did you mean `lerd db:snapshots` to list snapshots?", true
+		return "did you mean `servlo db:snapshots` to list snapshots?", true
 	case "rm", "remove", "delete", "del":
-		return "use `lerd db:snapshot:rm <name>` to delete a snapshot", true
+		return "use `servlo db:snapshot:rm <name>` to delete a snapshot", true
 	case "restore":
-		return "use `lerd db:restore <name>` to restore a snapshot", true
+		return "use `servlo db:restore <name>` to restore a snapshot", true
 	}
 	return "", false
 }
@@ -123,9 +123,9 @@ func readSnapshotMeta(dir string) (Snapshot, error) {
 // password for the target family.
 func snapshotEnv(family string) []string {
 	if family == "postgres" {
-		return []string{"PGPASSWORD=lerd"}
+		return []string{"PGPASSWORD=servlo"}
 	}
-	return []string{"MYSQL_PWD=lerd"}
+	return []string{"MYSQL_PWD=servlo"}
 }
 
 // snapshotDumpCommand builds the in-container shell command that writes a
@@ -315,7 +315,7 @@ func CreateSnapshot(t SnapshotTarget, name string, ctx SnapshotMeta, emit func(P
 	}
 	emit(PhaseEvent{Phase: "dumping_data", Message: "dumping " + label})
 	dumpPath := filepath.Join(dir, snapshotDumpFile)
-	if err := dumpToHost("lerd-"+t.Service, dumpCmd, introspectEnv(), dumpPath, dumpRestoreTimeout); err != nil {
+	if err := dumpToHost("servlo-"+t.Service, dumpCmd, introspectEnv(), dumpPath, dumpRestoreTimeout); err != nil {
 		_ = os.RemoveAll(dir)
 		return nil, fmt.Errorf("dumping %s: %w", label, err)
 	}
@@ -395,7 +395,7 @@ func RestoreSnapshot(t SnapshotTarget, name string, emit func(PhaseEvent)) (Impo
 	}
 
 	emit(PhaseEvent{Phase: "restoring_data", Message: "restoring " + clean})
-	rep, err := restoreFromHost("lerd-"+t.Service, restoreCmd, introspectEnv(), dumpPath, dumpRestoreTimeout)
+	rep, err := restoreFromHost("servlo-"+t.Service, restoreCmd, introspectEnv(), dumpPath, dumpRestoreTimeout)
 	if err != nil {
 		return rep, fmt.Errorf("restoring snapshot %q: %w", name, err)
 	}

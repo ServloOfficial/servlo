@@ -15,7 +15,7 @@ func stubBootstrapSystem(t *testing.T) (*[][]string, *[]string) {
 	t.Cleanup(func() {
 		unprivPortDropIn, bootstrapRunner, writeDNSSudoers = origPath, origRunner, origSudoers
 	})
-	unprivPortDropIn = filepath.Join(t.TempDir(), "99-lerd-ports.conf")
+	unprivPortDropIn = filepath.Join(t.TempDir(), "99-servlo-ports.conf")
 
 	var runs [][]string
 	bootstrapRunner = func(name string, args ...string) error {

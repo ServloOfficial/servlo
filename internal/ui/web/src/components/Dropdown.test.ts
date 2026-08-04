@@ -159,7 +159,7 @@ describe('Dropdown', () => {
     await tick();
     const selected = document.querySelector('[role="option"][aria-selected="true"]');
     expect(selected?.textContent?.trim()).toBe('b');
-    expect(selected?.className).toMatch(/text-lerd-red/);
+    expect(selected?.className).toMatch(/text-servlo-red/);
   });
 
   it('renders inherited dashed-violet border when inherited prop set', () => {

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // stopRecorder records Stop calls so reconcileStaleFrankenPHP's teardown can be
@@ -52,7 +52,7 @@ func writeFakeFPQuadlet(t *testing.T, siteName string) string {
 // TestReconcileStaleFrankenPHP covers the orphan a FrankenPHP->FPM re-link
 // leaves behind: the per-site fp quadlet is WantedBy=default.target with
 // Restart=always, so podman's generator keeps auto-starting a container that
-// lerd start/stop never enumerate. The reconcile must remove it only when the
+// servlo start/stop never enumerate. The reconcile must remove it only when the
 // site is no longer FrankenPHP, and never touch a still-FrankenPHP site.
 func TestReconcileStaleFrankenPHP(t *testing.T) {
 	t.Run("removes stale quadlet when site is no longer frankenphp", func(t *testing.T) {
@@ -66,8 +66,8 @@ func TestReconcileStaleFrankenPHP(t *testing.T) {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Errorf("stale fp quadlet should be removed, stat err = %v", err)
 		}
-		if len(rec.stopped) != 1 || rec.stopped[0] != "lerd-fp-scorediviner" {
-			t.Errorf("stopped = %v, want [lerd-fp-scorediviner]", rec.stopped)
+		if len(rec.stopped) != 1 || rec.stopped[0] != "servlo-fp-scorediviner" {
+			t.Errorf("stopped = %v, want [servlo-fp-scorediviner]", rec.stopped)
 		}
 	})
 
@@ -114,7 +114,7 @@ func writeFakeCFPMQuadlet(t *testing.T, siteName string) string {
 
 // TestReconcileStaleCustomFPM covers the mirror of the FrankenPHP orphan: a
 // custom-FPM site re-linked as plain FPM (or a reverse-proxied container) leaves
-// its per-site lerd-cfpm-<site> quadlet auto-starting. The reconcile removes it
+// its per-site servlo-cfpm-<site> quadlet auto-starting. The reconcile removes it
 // only when the site is no longer fpm-custom, and never touches one still custom.
 func TestReconcileStaleCustomFPM(t *testing.T) {
 	t.Run("removes stale quadlet when site is no longer custom-fpm", func(t *testing.T) {

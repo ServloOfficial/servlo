@@ -1,16 +1,16 @@
 # Terminal Dashboard (TUI)
 
-`lerd tui` opens a btop-inspired full-screen dashboard in your terminal. It shows sites, services, workers, and logs in one glance, updates live, and lets you drive most of the same operations the web UI exposes without ever leaving the terminal.
+`servlo tui` opens a btop-inspired full-screen dashboard in your terminal. It shows sites, services, workers, and logs in one glance, updates live, and lets you drive most of the same operations the web UI exposes without ever leaving the terminal.
 
 ```bash
-lerd tui
+servlo tui
 ```
 
-This is the terminal-native counterpart to the [Web UI](/features/web-ui) and the [System Tray](/features/system-tray). Use it when you prefer to keep everything in a tmux or terminal pane, or when you're on a remote machine over SSH.
+This is the terminal-native counterpart to the [Web UI](/features/web-ui) and the System Tray. Use it when you prefer to keep everything in a tmux or terminal pane, or when you're on a remote machine over SSH.
 
 ## Tabs
 
-A clickable tab strip sits at the top and switches the whole screen between three views: **Dashboard**, **Sites**, and **Services**. The TUI opens on the **Dashboard**. Click a tab to switch, or cycle with `ctrl+←` / `ctrl+→` from the keyboard. The active tab reads as a filled accent pill in the lerd palette; the others sit dim.
+A clickable tab strip sits at the top and switches the whole screen between three views: **Dashboard**, **Sites**, and **Services**. The TUI opens on the **Dashboard**. Click a tab to switch, or cycle with `ctrl+←` / `ctrl+→` from the keyboard. The active tab reads as a filled accent pill in the servlo palette; the others sit dim.
 
 - **Dashboard**: a six-card overview that mirrors the web UI's home page (see [Dashboard tab](#dashboard-tab)).
 - **Sites**: the sites list plus the full-height site detail pane.
@@ -26,7 +26,7 @@ Mouse support is on: clicking a tab switches screens, clicking a site or service
 - **Services pane (Services tab, left column)** is a compact list of built-in services (mysql, redis, postgres, meilisearch, rustfs, mailpit), custom services, and every site-owned worker (`queue-<site>`, `schedule-<site>`, `horizon-<site>`, `reverb-<site>`, and custom framework workers). Each row shows a running dot, how many sites use it, and `pinned` / `custom` tags where applicable.
 - **Site detail (Sites tab, right column, full height)** always mirrors the focused site and shows primary domain, the Laravel `APP_NAME` when the site sets a custom one, internal name, disk path, all domains, services used (with live state), workers, git worktrees, HTTPS / LAN share toggles, PHP / Node version pickers, and the [request-timing panel](#request-timing). On the Sites tab, `S` swaps it for global Settings, `?` swaps it for the Keybindings reference. Logs live on their own [tab](#site-detail-tabs) rather than in a pane beneath the detail.
 - **Logs pane** (toggle with `l`) tails the container, worker-journal, or app log file behind the focused item. On the Sites tab `l` opens the Logs tab instead, since the detail column already has room for the tail; on the Dashboard it opens a full-width pane taking at least half the window. Either way it renders a right-edge scrollbar showing position in the buffer.
-- **Status bar** briefly shows the most recent action (e.g. `✓ lerd service stop redis` or `✖ …exit 1`).
+- **Status bar** briefly shows the most recent action (e.g. `✓ servlo service stop redis` or `✖ …exit 1`).
 - **Footer** summarises active keybindings for the current mode.
 
 Dots follow the same convention everywhere: green `●` running, grey `○` stopped, amber `◐` paused, red `✖` failing. A worker the idle engine has put to sleep reads `suspended` with an amber `◔` glyph, so a deliberately stopped-for-idle worker isn't mistaken for one that crashed or never started; it wakes on the next request.
@@ -66,9 +66,9 @@ Dots follow the same convention everywhere: green `●` running, grey `○` stop
 | `p` | Pause / unpause toggle for a site |
 | `t` | Open an interactive shell inside the focused container (FPM or custom for sites, the service container for services, the owning site's FPM for worker rows) |
 | `O` | Open in the default browser (uses `xdg-open` on Linux, `open` on macOS): the focused site's primary domain, or, when the Services pane is focused, the focused service's dashboard URL (phpMyAdmin, Mailpit, RabbitMQ, RedisInsight, …). A service with no dashboard says so in the status bar |
-| `u` | Run `lerd service update <name>` for the focused service so a presets bump or version pin lands without leaving the TUI. The action is in-strategy and reversible. |
-| `b` | Run `lerd service rollback <name>` to swap the focused service back to its previous version; pairs with `u` as the symmetric undo |
-| `H` | Run `lerd worker heal` to restart every failing framework worker in one pass. The header pill shows the count and the keybind is most relevant when it's lit |
+| `u` | Run `servlo service update <name>` for the focused service so a presets bump or version pin lands without leaving the TUI. The action is in-strategy and reversible. |
+| `b` | Run `servlo service rollback <name>` to swap the focused service back to its previous version; pairs with `u` as the symmetric undo |
+| `H` | Run `servlo worker heal` to restart every failing framework worker in one pass. The header pill shows the count and the keybind is most relevant when it's lit |
 
 ### Logs
 
@@ -86,7 +86,7 @@ Available when focus is on the Detail pane with the cursor on a domain row.
 | Key | Action |
 | --- | --- |
 | `a` | Add a new domain to the focused site (opens inline input) |
-| `e` | Edit / rename the focused domain (opens inline input prefilled with the short name; commit runs `lerd domain add <new>` then `lerd domain remove <old>` as a sequence) |
+| `e` | Edit / rename the focused domain (opens inline input prefilled with the short name; commit runs `servlo domain add <new>` then `servlo domain remove <old>` as a sequence) |
 | `x` | Remove the focused domain |
 
 ### Panes and overlays
@@ -96,8 +96,8 @@ Available when focus is on the Detail pane with the cursor on a domain row.
 | Key | Action |
 | --- | --- |
 | `S` | Swap the Detail pane for global Settings (LAN expose, autostart, Xdebug) and focus it, Sites tab |
-| `Y` | Swap the Detail pane for the System overview (DNS, Nginx, Watcher, Notifications, Debug bridge, PHP per-version, Node, Lerd) and focus it, Sites tab |
-| `D` | Open the Debug window, the same capture the web dashboard shows. `[` / `]` switch lens across `Dumps · Queries · Jobs · Views · Mail · Cache · Events · HTTP`; the Queries lens groups by request with N+1 and slow-query (≥100ms) flags, and the other lenses group by request too. Use `/` to search the active lens (site, request, worker, file, text, payload) · `1`/`2` toggle the FPM / CLI context-filter chips · `enter` expands the selected row (query bindings and caller, job exception, view template, mail recipients, …) · `w` toggles worker capture (queue / scheduler events, off by default) · `c` clears the buffer (and runs `lerd dump clear`) · `T` toggles the bridge globally. The buffer is independent of the lerd-ui ring because the TUI runs in its own process and only sees what the SSE connection delivers |
+| `Y` | Swap the Detail pane for the System overview (DNS, Nginx, Watcher, Notifications, Debug bridge, PHP per-version, Node, Servlo) and focus it, Sites tab |
+| `D` | Open the Debug window, the same capture the web dashboard shows. `[` / `]` switch lens across `Dumps · Queries · Jobs · Views · Mail · Cache · Events · HTTP`; the Queries lens groups by request with N+1 and slow-query (≥100ms) flags, and the other lenses group by request too. Use `/` to search the active lens (site, request, worker, file, text, payload) · `1`/`2` toggle the FPM / CLI context-filter chips · `enter` expands the selected row (query bindings and caller, job exception, view template, mail recipients, …) · `w` toggles worker capture (queue / scheduler events, off by default) · `c` clears the buffer (and runs `servlo dump clear`) · `T` toggles the bridge globally. The buffer is independent of the servlo-ui ring because the TUI runs in its own process and only sees what the SSE connection delivers |
 | `?` | Open the Keybindings reference as a centered modal overlay; `?` again or `esc` closes it |
 | `esc` | Dismiss the active modal (palette / picker / help / confirm), return to the pane underneath |
 
@@ -105,7 +105,7 @@ Available when focus is on the Detail pane with the cursor on a domain row.
 
 | Key | Action |
 | --- | --- |
-| `:` | Open the command palette, type any `lerd <args>` (e.g. `service restart redis`) and press enter to shell out exactly as if you'd typed it in a regular terminal |
+| `:` | Open the command palette, type any `servlo <args>` (e.g. `service restart redis`) and press enter to shell out exactly as if you'd typed it in a regular terminal |
 | `R` | Force a state refresh |
 | `q` / `ctrl+c` | Quit |
 
@@ -113,8 +113,8 @@ Available when focus is on the Detail pane with the cursor on a domain row.
 
 Wherever logs are showing (a site's Logs tab, the service detail, or the full-width pane), `[` and `]` cycle through every tail-able source for whatever's focused:
 
-- **FPM / custom container**: `podman logs -f lerd-php<ver>-fpm` for PHP sites, or `lerd-custom-<name>` for custom container sites.
-- **Workers**: `journalctl --user -u lerd-queue-<site>` (and the same for schedule, reverb, horizon, custom framework workers). Workers are systemd user units, not containers, so their output lives in the user journal.
+- **FPM / custom container**: `podman logs -f servlo-php<ver>-fpm` for PHP sites, or `servlo-custom-<name>` for custom container sites.
+- **Workers**: `journalctl --user -u servlo-queue-<site>` (and the same for schedule, reverb, horizon, custom framework workers). Workers are systemd user units, not containers, so their output lives in the user journal.
 - **App logs**: any file matching the framework's declared log globs (Laravel: `storage/logs/*.log`). Tailed with `tail -F` so rotated Laravel-style logs keep following.
 
 The pane title shows which source is active and the index, e.g. `Logs · astrolov · laravel.log [3/5 · [ ] to switch]`.
@@ -125,9 +125,9 @@ When focus is on the Services pane, the right column swaps to a service-focused 
 
 - **Header**: service name, version, state, systemd unit, pinned flag, and the dashboard URL (when the preset declares one); press `O` to open that URL in the browser.
 - **Depends on**: services in `depends_on`, each with its live state so you can confirm a stack is fully up before debugging.
-- **Sites using**: every active site (excluding paused/ignored) whose `.lerd.yaml` references this service.
+- **Sites using**: every active site (excluding paused/ignored) whose `.servlo.yaml` references this service.
 - **Env vars**: the preset's `env_vars` template list for default presets, or the merged `env_vars` + `environment` map for custom services. Read-only.
-- **Preset suggestion**: a one-line nudge for the matching admin dashboard preset (e.g. `mysql` → install `phpmyadmin`) when it isn't already on disk. Install is destructive enough to stay CLI-only per the TUI scope rule, so the banner points at `lerd preset install <name>` rather than wiring an in-TUI installer.
+- **Preset suggestion**: a one-line nudge for the matching admin dashboard preset (e.g. `mysql` → install `phpmyadmin`) when it isn't already on disk. Install is destructive enough to stay CLI-only per the TUI scope rule, so the banner points at `servlo preset install <name>` rather than wiring an in-TUI installer.
 - **Actions**: quick reminder of the reversible verbs the services pane already handles: `s start`, `x stop`, `r restart`, `t shell`, `u update`, `b rollback`, `l logs`.
 
 For worker rows (queue-X, schedule-X, custom framework workers) the detail variant skips the env / dependency / sites-using sections and just shows the worker kind, the parent site, the systemd user unit, and the project path, workers run inside the owning site's FPM container, so they have no env or image of their own.
@@ -156,7 +156,7 @@ Because sections sit side by side, `left` and `right` cross between the two colu
 
 ## Request timing
 
-The bottom of the Overview tab carries the same request-timing view the web dashboard shows, read straight from the durable request store the watcher fills from the nginx access feed. Because it reads the store directly rather than calling `lerd-ui`, the panel works whether or not the dashboard daemon is up.
+The bottom of the Overview tab carries the same request-timing view the web dashboard shows, read straight from the durable request store the watcher fills from the nginx access feed. Because it reads the store directly rather than calling `servlo-ui`, the panel works whether or not the dashboard daemon is up.
 
 It shows the median and p95 response time, the request count, how many of those were cold starts (kept out of every timing figure, since a suspended worker waking would otherwise make a route look slow), the status-class mix, a response-time distribution, the slowest routes ranked by recent p95, and the tail of recent requests.
 
@@ -180,10 +180,10 @@ Sections, top to bottom:
 - **Header**: primary domain (the URL users visit), internal name, disk path.
 - **Domains**: every domain on one row, each tagged `primary · e edit · x remove` or `alias · e edit · x remove`. Ends with `+ add domain (space or a)` to insert new ones.
 - **PHP / Node / framework / git branch**: one-line summary.
-- **Services used**: every service referenced in `.lerd.yaml` with its live state, so you can see at a glance whether redis / mysql / etc. are up for this site.
-- **Workers**: queue, schedule, horizon, reverb, and any custom framework workers, each with a running / failing indicator. `space` on a worker row toggles it (calls `lerd queue start/stop`, etc.).
+- **Services used**: every service referenced in `.servlo.yaml` with its live state, so you can see at a glance whether redis / mysql / etc. are up for this site.
+- **Workers**: queue, schedule, horizon, reverb, and any custom framework workers, each with a running / failing indicator. `space` on a worker row toggles it (calls `servlo queue start/stop`, etc.).
 - **Worktrees**: every git worktree with its branch, domain, and path when the site uses them. Each worktree row carries its own controls, PHP / Node version pickers, LAN-share toggle, isolated-DB toggle, and per-worktree framework worker toggles (e.g. vite), so a branch's runtime can be tuned without affecting the parent. `space` on a worktree-scoped row toggles the matching state via the same CLI commands the parent rows use, just with the worktree's path threaded through.
-- **Toggles**: HTTPS (runs `lerd secure` / `lerd unsecure`), LAN share (runs `lerd lan share` / `unshare`, shows the full `http://<lan-ip>:<port>` URL when enabled), PHP version (opens an inline picker from installed versions → `lerd isolate <ver>`; a FrankenPHP site only lists the versions FrankenPHP publishes an image for, so the picker never offers one that would silently downgrade), Node version (picker backed by `fnm list` → `lerd isolate:node <ver>`; when a host bun is installed the list also carries a `bun` entry that pins the site's JS runtime via `lerd js:runtime bun`, and picking a Node version while pinned to bun clears the pin first so the dev worker actually switches back).
+- **Toggles**: HTTPS (runs `servlo secure` / `servlo unsecure`), LAN share (runs `servlo lan share` / `unshare`, shows the full `http://<lan-ip>:<port>` URL when enabled), PHP version (opens an inline picker from installed versions → `servlo isolate <ver>`; a FrankenPHP site only lists the versions FrankenPHP publishes an image for, so the picker never offers one that would silently downgrade), Node version (picker backed by `fnm list` → `servlo isolate:node <ver>`; when a host bun is installed the list also carries a `bun` entry that pins the site's JS runtime via `servlo js:runtime bun`, and picking a Node version while pinned to bun clears the pin first so the dev worker actually switches back).
 
 ## Dashboard tab
 
@@ -193,34 +193,34 @@ The **Dashboard** tab is the terminal counterpart to the web UI's home page: a r
 - **Services**: total · running counts, then every core / custom service with state dot and version. Clicking a service jumps to the Services tab on that service.
 - **Workers**: active · asleep · failing counts, then every worker (site · kind) with its state, and the failing units with a `press H to heal` hint.
 - **System Health**: DNS (ok / degraded / down / disabled), Nginx, Watcher, and the running PHP FPM versions.
-- **Resources**: total CPU% and memory across lerd's footprint, then every container by load. Polled in the background every 3 s, matching the cache TTL the web UI uses; a `collecting…` placeholder shows until the first sample lands.
-- **Lerd**: version, an `update:` banner when a newer release is available, autostart, LAN expose, platform, and a **Recent activity** feed (site link/pause/resume/start/stop, service add/remove/start/stop, worker fail/heal, DNS transitions) derived live, mirroring the web UI's activity list.
+- **Resources**: total CPU% and memory across servlo's footprint, then every container by load. Polled in the background every 3 s, matching the cache TTL the web UI uses; a `collecting…` placeholder shows until the first sample lands.
+- **Servlo**: version, an `update:` banner when a newer release is available, autostart, LAN expose, platform, and a **Recent activity** feed (site link/pause/resume/start/stop, service add/remove/start/stop, worker fail/heal, DNS transitions) derived live, mirroring the web UI's activity list.
 
 ## Settings view
 
 Press `S` (on the Sites tab) to swap the detail pane for global settings. Navigate with `↑` `↓`, toggle with `space`:
 
-- **LAN expose**: flip every container to 0.0.0.0 binds (`lerd lan expose on/off`).
-- **Autostart on login**: `lerd autostart enable/disable`.
+- **LAN expose**: flip every container to 0.0.0.0 binds (`servlo lan expose on/off`).
+- **Autostart on login**: `servlo autostart enable/disable`.
 - **Xdebug**: one toggle per installed PHP version; rebuilds the FPM container.
 
 `S` again (or `esc`) returns to Site detail.
 
 ## System view
 
-Press `Y` (on the Sites tab) to swap the detail pane for the System overview, the terminal-side counterpart to the web UI's System tab. Sections cover every shared subject lerd manages outside of an individual site, with informational rows for status and reversible toggles for safe operations:
+Press `Y` (on the Sites tab) to swap the detail pane for the System overview, the terminal-side counterpart to the web UI's System tab. Sections cover every shared subject servlo manages outside of an individual site, with informational rows for status and reversible toggles for safe operations:
 
 - **DNS**: TLD, live status (ok · degraded · down · disabled) computed by `dns.CheckStatus`, plus a VPN-active hint when an interface that typically rewrites the system resolver is up.
 - **Nginx**: running / stopped.
 - **Watcher**: running / stopped.
-- **Notifications**: `Enabled` toggle (runs `lerd notify on/off`).
-- **Debug bridge**: `Enabled` toggle (runs `lerd dump on/off`), passthrough indicator (web-UI managed), listen socket address, and the current TUI buffered count.
+- **Notifications**: `Enabled` toggle (runs `servlo notify on/off`).
+- **Debug bridge**: `Enabled` toggle (runs `servlo dump on/off`), passthrough indicator (web-UI managed), listen socket address, and the current TUI buffered count.
 - **PHP versions**: default version plus one row per installed PHP showing FPM running state and an Xdebug toggle that reflects the configured mode (`debug`, `profile`, or `trace`).
 - **Node**: default version (from the global config) and the installed major versions reported by `fnm list`.
-- **Worker mode**: macOS only; toggles `lerd workers mode exec|container`. Hidden on Linux where workers always run under systemd.
-- **Lerd**: current version, cached update check result, autostart toggle, LAN-expose toggle.
+- **Worker mode**: macOS only; toggles `servlo workers mode exec|container`. Hidden on Linux where workers always run under systemd.
+- **Servlo**: current version, cached update check result, autostart toggle, LAN-expose toggle.
 
-Navigate the rows with `↑` `↓` (the cursor skips section headers and info-only rows), `space` / `enter` to toggle. `Y` again or `esc` returns to Site detail. Every toggle shells out to the public CLI verb so the TUI shares the same code path as a manual `lerd …` invocation.
+Navigate the rows with `↑` `↓` (the cursor skips section headers and info-only rows), `space` / `enter` to toggle. `Y` again or `esc` returns to Site detail. Every toggle shells out to the public CLI verb so the TUI shares the same code path as a manual `servlo …` invocation.
 
 ## Keybindings reference
 
@@ -236,7 +236,7 @@ During an in-flight action the status line (just above the toasts) shows an anim
 
 A handful of focused surfaces render as centered modal overlays (rounded border, accent colour) rather than swapping the detail pane:
 
-- **Command palette** (`:`), `lerd <args>` prompt with tab-completion suggestions; runs the command in a suspended shell so the output is visible, then pauses for `enter` before returning to the dashboard.
+- **Command palette** (`:`), `servlo <args>` prompt with tab-completion suggestions; runs the command in a suspended shell so the output is visible, then pauses for `enter` before returning to the dashboard.
 - **PHP / Node version picker**: opens when `space` / `enter` lands on the PHP or Node row (site- or worktree-scoped). Pick with `↑` / `↓`, apply with `enter`, dismiss with `esc`.
 - **Keybindings reference** (`?`), described above.
 - **Confirmation prompt**: guards destructive single-key actions (e.g. `x` on a domain row). `y` confirms, `n` / `esc` cancels.
@@ -245,14 +245,14 @@ While any modal is open it owns every keystroke; `esc` returns to whatever pane 
 
 ## Live updates
 
-The TUI draws state from the same sources `lerd-ui` uses, in-process:
+The TUI draws state from the same sources `servlo-ui` uses, in-process:
 
 - Subscribes to the shared eventbus so any mutation the TUI itself triggers shows up immediately (150 ms debounce).
-- Re-queries every 2 seconds as a safety net, so changes made from another terminal (`lerd service stop redis` in a different shell) surface within a couple of seconds.
+- Re-queries every 2 seconds as a safety net, so changes made from another terminal (`servlo service stop redis` in a different shell) surface within a couple of seconds.
 - Services and site state are built from the same `siteinfo` + `podman.Cache` path the web UI uses, so the two surfaces can't disagree.
 
 ## Troubleshooting
 
 - **Terminal too small**: if the window is under 60 columns by 12 rows the dashboard refuses to render and asks you to resize. It picks up the new size on the next frame.
-- **Non-interactive shells**: `lerd tui` exits with an error when stdout isn't a TTY (piped output, CI). Run it inside a real terminal.
-- **Worker log says nothing**: check the worker is actually running (`lerd status` or the Workers section of the detail pane). Journal logs only exist while the unit has run at least once.
+- **Non-interactive shells**: `servlo tui` exits with an error when stdout isn't a TTY (piped output, CI). Run it inside a real terminal.
+- **Worker log says nothing**: check the worker is actually running (`servlo status` or the Workers section of the detail pane). Journal logs only exist while the unit has run at least once.

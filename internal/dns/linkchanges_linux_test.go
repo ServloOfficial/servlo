@@ -15,11 +15,11 @@ func TestLinkChanges_realKernel(t *testing.T) {
 	if _, err := exec.LookPath("ip"); err != nil {
 		t.Skip("ip(8) not available")
 	}
-	probe := exec.Command("ip", "link", "add", "lerd-nltest0", "type", "dummy")
+	probe := exec.Command("ip", "link", "add", "servlo-nltest0", "type", "dummy")
 	if out, err := probe.CombinedOutput(); err != nil {
 		t.Skipf("cannot create dummy interface (need CAP_NET_ADMIN): %v\n%s", err, out)
 	}
-	defer exec.Command("ip", "link", "del", "lerd-nltest0").Run()
+	defer exec.Command("ip", "link", "del", "servlo-nltest0").Run()
 
 	out := make(chan struct{}, 16)
 	done := make(chan struct{})
@@ -35,7 +35,7 @@ func TestLinkChanges_realKernel(t *testing.T) {
 	time.Sleep(150 * time.Millisecond)
 	drain(out)
 
-	if err := exec.Command("ip", "link", "set", "lerd-nltest0", "up").Run(); err != nil {
+	if err := exec.Command("ip", "link", "set", "servlo-nltest0", "up").Run(); err != nil {
 		t.Fatalf("link up: %v", err)
 	}
 	select {
@@ -45,7 +45,7 @@ func TestLinkChanges_realKernel(t *testing.T) {
 	}
 
 	drain(out)
-	if err := exec.Command("ip", "link", "set", "lerd-nltest0", "down").Run(); err != nil {
+	if err := exec.Command("ip", "link", "set", "servlo-nltest0", "down").Run(); err != nil {
 		t.Fatalf("link down: %v", err)
 	}
 	select {

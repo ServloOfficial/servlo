@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // ErrFPMNotInstalled is returned (wrapped) by StartFPM when the requested
@@ -17,7 +17,7 @@ var ErrFPMNotInstalled = errors.New("FPM container is not installed")
 // FPMInstalled reports whether the FPM container already exists (so it only
 // needs starting) rather than needing a fresh build. It checks both the shared
 // per-version units and the specific container's unit, so a custom-FPM container
-// (lerd-cfpm-<site>, whose version isn't in the shared list) is recognised too.
+// (servlo-cfpm-<site>, whose version isn't in the shared list) is recognised too.
 func FPMInstalled(version, container string) bool {
 	return IsInstalled(version) || services.Mgr.ContainerUnitInstalled(container)
 }

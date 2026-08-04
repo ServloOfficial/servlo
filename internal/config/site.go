@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Site represents a single registered Lerd site.
+// Site represents a single registered Servlo site.
 type Site struct {
 	Name        string   `yaml:"-"`
 	Domains     []string `yaml:"-"`
@@ -19,9 +19,9 @@ type Site struct {
 	PHPVersion  string   `yaml:"php_version"`
 	NodeVersion string   `yaml:"node_version"`
 	Secured     bool     `yaml:"secured"`
-	// SecuredBeforeDNSOff records that the site was on HTTPS when lerd DNS was
+	// SecuredBeforeDNSOff records that the site was on HTTPS when servlo DNS was
 	// last disabled, so re-enabling can restore it even for a site with no
-	// .lerd.yaml to carry the intent. Cleared once HTTPS is restored.
+	// .servlo.yaml to carry the intent. Cleared once HTTPS is restored.
 	SecuredBeforeDNSOff bool     `yaml:"secured_before_dns_off,omitempty"`
 	Ignored             bool     `yaml:"ignored,omitempty"`
 	Paused              bool     `yaml:"paused,omitempty"`
@@ -36,7 +36,7 @@ type Site struct {
 	// project's env file. Lower priority than ProjectConfig.AppURL (which is
 	// committed to the repo) and higher priority than the default generator
 	// (`<scheme>://<primary-domain>`). Use this for personal customizations
-	// you don't want to share via .lerd.yaml.
+	// you don't want to share via .servlo.yaml.
 	AppURL string `yaml:"app_url,omitempty"`
 	// LANPort, when non-zero, means a host-level reverse proxy is (or should
 	// be) listening on 0.0.0.0:LANPort, forwarding to the site with the Host
@@ -68,9 +68,9 @@ type Site struct {
 	// HostSSL, when true, means the host process serves TLS on its port; nginx
 	// proxies via HTTPS with ssl_verify off.
 	HostSSL bool `yaml:"host_ssl,omitempty"`
-	// HostCommand is the dev command lerd supervises for a host-proxy site
+	// HostCommand is the dev command servlo supervises for a host-proxy site
 	// (e.g. "npm run start:dev"). Empty means proxy-only: the user runs the
-	// server themselves and lerd only wires the proxy.
+	// server themselves and servlo only wires the proxy.
 	HostCommand string `yaml:"host_command,omitempty"`
 	// ApprovedCommands holds exact command strings the user has consented to run
 	// on the host for this site (project-origin custom host workers and commands).
@@ -89,7 +89,7 @@ type Site struct {
 	GroupSharedDB bool `yaml:"group_shared_db,omitempty"`
 	// IdleSuspendedWorkers records the workers the idle engine gracefully
 	// stopped while the site was quiet, so activity can resume them. Kept
-	// distinct from PausedWorkers (manual `lerd pause`) so an automatic suspend
+	// distinct from PausedWorkers (manual `servlo pause`) so an automatic suspend
 	// and a manual pause never clobber each other's restore list. Idle-suspend
 	// itself is configured globally (config.yaml idle_suspend), not per site.
 	IdleSuspendedWorkers []string `yaml:"idle_suspended_workers,omitempty"`
@@ -143,7 +143,7 @@ func (s *Site) IsHostProxy() bool {
 	return s.HostPort > 0
 }
 
-// IsProxyOnly returns true when the site is a host-proxy site lerd runs nothing
+// IsProxyOnly returns true when the site is a host-proxy site servlo runs nothing
 // for: nginx forwards to a dev server the user starts themselves, so there is no
 // supervised process to stop.
 func (s *Site) IsProxyOnly() bool {
@@ -155,10 +155,10 @@ func (s *Site) IsProxyOnly() bool {
 const HostProxyWorkerName = "app"
 
 // StripeWorkerName is the Stripe webhook listener, run through its own unit
-// (lerd-stripe-<site>) rather than declared by any framework.
+// (servlo-stripe-<site>) rather than declared by any framework.
 const StripeWorkerName = "stripe"
 
-// IsBuiltinWorker reports whether name is a lerd-managed worker that lives
+// IsBuiltinWorker reports whether name is a servlo-managed worker that lives
 // outside a framework's worker definitions: the Stripe listener and the
 // host-proxy dev server. A validator checking a site's workers against its
 // framework must treat these as valid rather than undefined, the same way the
@@ -168,10 +168,10 @@ func IsBuiltinWorker(name string) bool {
 }
 
 // HostProxyWorkerUnit returns the worker unit name for a host-proxy site's dev
-// server (lerd-app-<site>). Single source of truth for the cli (which starts
+// server (servlo-app-<site>). Single source of truth for the cli (which starts
 // and stops it) and siteinfo (which reports its health).
 func HostProxyWorkerUnit(siteName string) string {
-	return "lerd-" + HostProxyWorkerName + "-" + siteName
+	return "servlo-" + HostProxyWorkerName + "-" + siteName
 }
 
 // PrimaryDomain returns the first (primary) domain for the site.
@@ -471,14 +471,14 @@ const domainForbidden = "{};#\n\r\x00 \t/\\'\""
 // AddSite appends or updates a site in the registry.
 func AddSite(site Site) error {
 	// A site name flows into systemd unit file names and bodies (Description=,
-	// --env=LERD_SITE=, lerd-stripe-<name>, ...). Refuse newline/NUL (which
+	// --env=SERVLO_SITE=, servlo-stripe-<name>, ...). Refuse newline/NUL (which
 	// would inject a unit directive) and slash (which would escape the unit
 	// path), closing the injection even for callers that bypass SiteNameAndDomain.
 	if ContainsUnitInjectionChars(site.Name) || strings.ContainsRune(site.Name, '/') {
 		return fmt.Errorf("invalid site name %q: must not contain newline, NUL, or slash", site.Name)
 	}
 	// A domain is written into the vhost's server_name, and a project's
-	// .lerd.yaml supplies the list. The vhost generator refuses these too; this
+	// .servlo.yaml supplies the list. The vhost generator refuses these too; this
 	// is the registry side, so a bad domain is rejected when the site is linked
 	// rather than when nginx is next rendered.
 	for _, d := range site.Domains {
@@ -490,11 +490,11 @@ func AddSite(site Site) error {
 	// /home is a symlink to /var/home, and os.Getwd can return either) register
 	// and de-duplicate as a single site rather than two (#930).
 	site.Path = CanonicalPath(site.Path)
-	// The filesystem root can never be a site: lerd bind-mounts a site's path into
+	// The filesystem root can never be a site: servlo bind-mounts a site's path into
 	// its containers, and mounting / over a container's own rootfs shadows its
 	// entrypoint so it cannot start (issue #884).
 	if filepath.Clean(site.Path) == "/" {
-		return fmt.Errorf("invalid site path %q: lerd would bind-mount / into every container and shadow its rootfs", site.Path)
+		return fmt.Errorf("invalid site path %q: servlo would bind-mount / into every container and shadow its rootfs", site.Path)
 	}
 	siteWriteMu.Lock()
 	defer siteWriteMu.Unlock()
@@ -661,7 +661,7 @@ func SetSiteIdleSuspendedWorkers(name string, workers []string) error {
 
 // SetSitePinned atomically updates just a site's idle-suspend pin flag. Like
 // SetSiteIdleSuspendedWorkers it rewrites only that field under the write lock, so
-// `lerd idle pin/unpin` can't clobber a concurrent SetSiteIdleSuspendedWorkers
+// `servlo idle pin/unpin` can't clobber a concurrent SetSiteIdleSuspendedWorkers
 // write the idle engine makes for the same site.
 func SetSitePinned(name string, pinned bool) error {
 	siteWriteMu.Lock()

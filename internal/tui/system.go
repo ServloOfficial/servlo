@@ -7,12 +7,12 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	lerdNode "github.com/geodro/lerd/internal/node"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
-	lerdUpdate "github.com/geodro/lerd/internal/update"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	servloNode "github.com/realrashid/servlo/internal/node"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
+	servloUpdate "github.com/realrashid/servlo/internal/update"
 )
 
 // systemKind identifies each row in the System detail mode. Non-actionable
@@ -72,7 +72,7 @@ func (m *Model) systemRows() []systemRow {
 		info("Status", "disabled (system resolver only)")
 	}
 	if dns.VPNActive() {
-		info("VPN", "active (may bypass lerd-dns)")
+		info("VPN", "active (may bypass servlo-dns)")
 	}
 
 	// Nginx
@@ -157,10 +157,10 @@ func (m *Model) systemRows() []systemRow {
 	} else {
 		info("Default", "(none)")
 	}
-	if nodeVersions := lerdNode.ListInstalled(); len(nodeVersions) > 0 {
+	if nodeVersions := servloNode.ListInstalled(); len(nodeVersions) > 0 {
 		info("Installed", strings.Join(nodeVersions, ", "))
 	} else {
-		info("Installed", "none (run `lerd node:install <ver>`)")
+		info("Installed", "none (run `servlo node:install <ver>`)")
 	}
 
 	// Worker mode (macOS only — on Linux every worker is exec-mode under systemd)
@@ -174,19 +174,19 @@ func (m *Model) systemRows() []systemRow {
 		add(systemRow{kind: sysWorkerMode, label: label, on: containerMode})
 	}
 
-	// Lerd
-	header("Lerd")
+	// Servlo
+	header("Servlo")
 	info("Version", m.version)
 	if m.updateAvailable != "" {
-		info("Update", m.updateAvailable+" available (run `lerd update`)")
+		info("Update", m.updateAvailable+" available (run `servlo update`)")
 	} else {
-		if latest, _ := lerdUpdate.CachedUpdateCheck(m.version); latest != nil && latest.LatestVersion != "" {
+		if latest, _ := servloUpdate.CachedUpdateCheck(m.version); latest != nil && latest.LatestVersion != "" {
 			info("Update", "you are on the latest ("+latest.LatestVersion+")")
 		} else {
 			info("Update", "no cached check yet")
 		}
 	}
-	add(systemRow{kind: sysAutostart, label: "Autostart on login", on: lerdSystemd.IsAutostartEnabled()})
+	add(systemRow{kind: sysAutostart, label: "Autostart on login", on: servloSystemd.IsAutostartEnabled()})
 	add(systemRow{kind: sysLANExpose, label: "LAN expose (sites and DNS)", on: cfg != nil && cfg.LAN.Exposed})
 	add(systemRow{kind: sysLANServices, label: managedServiceLANLabel(cfg), on: cfg != nil && cfg.LAN.ServicesExposed})
 
@@ -209,7 +209,7 @@ func navigableSystemRows(rows []systemRow) []int {
 
 // systemToggle dispatches the action for the focused row. Mirrors
 // settingsToggle's shape: every branch shells out to the public CLI so the
-// TUI shares the same code paths as a manual `lerd ...` invocation.
+// TUI shares the same code paths as a manual `servlo ...` invocation.
 func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 	nav := navigableSystemRows(rows)
 	if len(nav) == 0 {
@@ -226,13 +226,13 @@ func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 			verb = "off"
 		}
 		m.setStatus("debug bridge "+verb+"…", 5*time.Second)
-		return runLerd("", "dump", verb)
+		return runServlo("", "dump", verb)
 	case sysDumpsPassthrough:
 		// No public CLI verb yet; surface the state but skip toggling.
 		// Leaving as a no-op is preferable to inventing a side-channel
 		// config write because dumps passthrough also requires the FPM
 		// bridge ini to be rewritten, which `dumpsops.Apply` handles.
-		m.setStatus("dumps passthrough: toggle via lerd-ui dashboard", 3*time.Second)
+		m.setStatus("dumps passthrough: toggle via servlo-panel dashboard", 3*time.Second)
 		return nil
 	case sysNotifEnabled:
 		verb := "on"
@@ -240,28 +240,28 @@ func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 			verb = "off"
 		}
 		m.setStatus("notifications "+verb+"…", 5*time.Second)
-		return runLerd("", "notify", verb)
+		return runServlo("", "notify", verb)
 	case sysProfiler:
 		verb := "on"
 		if row.on {
 			verb = "off"
 		}
 		m.setStatus("profiler "+verb+"…", 5*time.Second)
-		return runLerd("", "profile", verb)
+		return runServlo("", "profile", verb)
 	case sysAutostart:
 		sub := "enable"
 		if row.on {
 			sub = "disable"
 		}
 		m.setStatus("autostart "+sub+"…", 5*time.Second)
-		return runLerd("", "autostart", sub)
+		return runServlo("", "autostart", sub)
 	case sysLANExpose:
 		verb := "on"
 		if row.on {
 			verb = "off"
 		}
 		m.setStatus("LAN expose "+verb+"…", 5*time.Second)
-		return runLerd("", "lan", "expose", verb)
+		return runServlo("", "lan", "expose", verb)
 	case sysLANServices:
 		verb := "on"
 		if row.on {
@@ -272,21 +272,21 @@ func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 		} else {
 			m.setStatus("enabling managed service LAN access — trusted networks only…", 5*time.Second)
 		}
-		return runLerd("", "lan", "services", verb)
+		return runServlo("", "lan", "services", verb)
 	case sysWorkerMode:
 		target := config.WorkerExecModeContainer
 		if row.on {
 			target = config.WorkerExecModeExec
 		}
 		m.setStatus("switching worker mode to "+target+"…", 5*time.Second)
-		return runLerd("", "workers", "mode", target)
+		return runServlo("", "workers", "mode", target)
 	case sysXdebug:
 		verb := "on"
 		if row.on {
 			verb = "off"
 		}
 		m.setStatus("xdebug "+verb+" PHP "+row.arg+"…", 5*time.Second)
-		return runLerd("", "xdebug", verb, row.arg)
+		return runServlo("", "xdebug", verb, row.arg)
 	}
 	return nil
 }
@@ -353,7 +353,7 @@ func dnsStatusText(s dns.Status) string {
 	case dns.StatusOK:
 		return "ok"
 	case dns.StatusDegraded:
-		return "degraded (lerd-dns up, system resolver bypassed)"
+		return "degraded (servlo-dns up, system resolver bypassed)"
 	default:
 		return "down"
 	}

@@ -23,7 +23,7 @@ func TestReadEnvOverride_ParsesValuesAndStripsReservedKey(t *testing.T) {
 	writeFile(t, dir, envOverrideFile, `# personal overrides
 DB_USERNAME=postgres
 DB_PASSWORD="se cret"
-LERD_EXTERNAL_SERVICES = postgres, Redis  mysql
+SERVLO_EXTERNAL_SERVICES = postgres, Redis  mysql
 `)
 
 	overrides, external := readEnvOverride(dir)

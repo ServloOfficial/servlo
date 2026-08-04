@@ -102,7 +102,7 @@
       placeholder={m.system_dns_upstream_placeholder()}
       class="w-full h-32 font-mono text-xs rounded-sm border bg-gray-50 dark:bg-black/40 text-gray-800 dark:text-gray-200 px-2.5 py-2 focus:outline-none focus:ring-1 {invalid.length > 0
         ? 'border-red-400 dark:border-red-500 focus:ring-red-500/40'
-        : 'border-gray-200 dark:border-lerd-border focus:ring-lerd-red/40'}"
+        : 'border-gray-200 dark:border-servlo-border focus:ring-servlo-red/40'}"
     ></textarea>
 
     <p class="text-xs text-gray-400">
@@ -142,7 +142,7 @@
         type="button"
         onclick={save}
         disabled={!canSave}
-        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-lerd-red hover:bg-lerd-redhov text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-servlo-red hover:bg-servlo-redhov text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         {#if saving}
           <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">

@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	nodeDet "github.com/geodro/lerd/internal/node"
+	"github.com/realrashid/servlo/internal/config"
+	nodeDet "github.com/realrashid/servlo/internal/node"
 )
 
 // CopyTree copies src to dst recursively. It first tries a reflink-aware
@@ -90,7 +90,7 @@ func copyFileWithMode(src, dst string, mode os.FileMode) error {
 
 // InstallDependencies runs composer install and the JS package manager
 // matching whatever lockfile the project ships so vendor/ and node_modules/
-// match that checkout's own lockfiles. composer goes through the lerd
+// match that checkout's own lockfiles. composer goes through the servlo
 // shim (which routes into the project's PHP-FPM container); JS tooling
 // goes through whichever of pnpm/yarn/bun/npm is on PATH, preferring the
 // npm shim from BinDir when the project uses npm so the fnm Node version
@@ -108,7 +108,7 @@ func copyFileWithMode(src, dst string, mode os.FileMode) error {
 // trees from main. out receives both stdout and stderr from composer and
 // the JS package manager; pass nil to fall back to the watcher daemon's
 // own stdout/stderr (which the original launchd unit captures into
-// lerd-watcher.log).
+// servlo-watcher.log).
 func InstallDependencies(projectPath string, out io.Writer) error {
 	var errs []error
 
@@ -137,16 +137,16 @@ func InstallDependencies(projectPath string, out io.Writer) error {
 	// `npm run build` is intentionally NOT called here. The watcher invokes
 	// InstallDependencies on every worktree add, and a build is heavy
 	// (5-30s+), can fail silently, and is project-specific in a way the
-	// universal install steps are not. `lerd worktree add` triggers the
+	// universal install steps are not. `servlo worktree add` triggers the
 	// build explicitly via RunFrontendBuild after dependencies are in place.
 
 	return errors.Join(errs...)
 }
 
 // RunNpmScript executes `<package-manager> run <script>` in projectPath,
-// using the lerd npm shim for npm projects so fnm's current Node version
+// using the servlo npm shim for npm projects so fnm's current Node version
 // wins and falling back to PATH for pnpm/yarn/bun. Exported for callers like
-// `lerd worktree add` that opt into a build step interactively. out receives
+// `servlo worktree add` that opt into a build step interactively. out receives
 // both stdout and stderr from the build; pass os.Stdout for CLI use or an
 // SSE writer to surface vite/webpack failures in the dashboard modal.
 func RunNpmScript(projectPath, script string, out io.Writer) error {
@@ -349,8 +349,8 @@ func fileDigest(path string) string {
 }
 
 // runJSInstall resolves the chosen package manager's binary and runs the
-// install. For npm we use the lerd shim from BinDir so fnm's current Node
-// version wins; other managers go through PATH since lerd doesn't shim
+// install. For npm we use the servlo shim from BinDir so fnm's current Node
+// version wins; other managers go through PATH since servlo doesn't shim
 // them. Missing binary is logged and returned so the caller aggregates it
 // with other setup errors. out is forwarded to runIn.
 func runJSInstall(projectPath string, out io.Writer) error {
@@ -391,10 +391,10 @@ func runIn(dir string, out io.Writer, name string, args ...string) error {
 
 // lookJSBin resolves a JS package-manager binary (pnpm, yarn, bun) honoring
 // PATH first, then falling back to well-known macOS package-manager prefixes
-// when the lerd-watcher daemon runs under launchd's restricted PATH.
+// when the servlo-watcher daemon runs under launchd's restricted PATH.
 func lookJSBin(name string) (string, bool) {
 	// bun has its own resolver (handles ~/.bun/bin and Homebrew, both off the
-	// lerd-watcher daemon's restricted PATH); reuse it so the lookup stays in
+	// servlo-watcher daemon's restricted PATH); reuse it so the lookup stays in
 	// one place.
 	if name == "bun" {
 		if p := nodeDet.BunPath(); p != "" {

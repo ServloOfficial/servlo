@@ -1,6 +1,6 @@
 # Service updates
 
-Lerd watches Docker Hub / GHCR for newer images of every running default service and surfaces three escalation tiers depending on what kind of jump is needed:
+Servlo watches Docker Hub / GHCR for newer images of every running default service and surfaces three escalation tiers depending on what kind of jump is needed:
 
 | Tier | When it fires | What it does | Risk |
 |---|---|---|---|
@@ -12,7 +12,7 @@ Default services declare their policy in their preset YAML. The most common comb
 
 ## Update, same-major patches
 
-Click the green **Update → \<tag\>** button in the dashboard, run `lerd service update <name>`, or call MCP `service_control(action: "update", name)`. Lerd queries the registry for the newest tag matching the preset's `update_strategy`, applies the same digest comparison the rolling-tag flow uses (suppresses no-op updates), pulls, persists the chosen image, and restarts the unit. The previous image is recorded so a rollback button appears next to the version label.
+Click the green **Update → \<tag\>** button in the dashboard, run `servlo service update <name>`, or call MCP `service_control(action: "update", name)`. Servlo queries the registry for the newest tag matching the preset's `update_strategy`, applies the same digest comparison the rolling-tag flow uses (suppresses no-op updates), pulls, persists the chosen image, and restarts the unit. The previous image is recorded so a rollback button appears next to the version label.
 
 For services on rolling tags (`mailpit:latest`, `rustfs:latest`), Update only fires when the local manifest digest differs from the registry's, re-pulling the same `:latest` digest doesn't surface a phantom badge.
 
@@ -31,7 +31,7 @@ For mysql, mariadb, and postgres, the violet **Migrate → \<tag\>** button runs
 ```
 0. Start the engine if it is not running (a service no site uses is auto-stopped)
 1. Dump current data via the running container's native tool
-   (mysqldump --all-databases / pg_dumpall) → ~/.local/share/lerd/backups/<svc>-<ts>.sql
+   (mysqldump --all-databases / pg_dumpall) → ~/.local/share/servlo/backups/<svc>-<ts>.sql
 2. Stop the unit
 3. Move the on-disk data dir aside as <name>.pre-migrate-<ts> (preserved, NOT deleted)
 4. Pull the target image
@@ -44,45 +44,45 @@ If anything fails before step 5, the data dir is restored and the unit goes back
 
 ```bash
 # Migrate mysql to a specific 9.x tag (one major above the running 8.x)
-lerd service migrate mysql 9.7
+servlo service migrate mysql 9.7
 
-# Postgres takes the major version label; lerd resolves the compound image
+# Postgres takes the major version label; servlo resolves the compound image
 # tag for you (18 becomes postgis/postgis:18-3.6-alpine)
-lerd service migrate postgres 18
+servlo service migrate postgres 18
 ```
 
-`<version>` is a preset version label as shown in `lerd service list` or the install picker. lerd looks it up in the preset and substitutes the right registry image, so you never have to type a compound tag like `18-3.6-alpine` or `pg18`. An argument that matches no preset version is used verbatim as the image tag, which still lets you pin an exact patch release.
+`<version>` is a preset version label as shown in `servlo service list` or the install picker. servlo looks it up in the preset and substitutes the right registry image, so you never have to type a compound tag like `18-3.6-alpine` or `pg18`. An argument that matches no preset version is used verbatim as the image tag, which still lets you pin an exact patch release.
 
 ```jsonc
 // MCP
 {"tool": "service_control", "args": {"action": "migrate", "name": "mysql", "tag": "9.0"}}
 ```
 
-The Migrate flow is **only registered for SQL databases** because their dumps are stable text formats, every newer mysql/postgres/mariadb can replay any older version's `mysqldump` / `pg_dumpall` output. Engines whose dumps are version-specific binaries (Meilisearch, Elasticsearch, MongoDB) are intentionally **not** auto-migrated; lerd surfaces the Migrate button only when it has a tested handler. For those, follow the upstream migration guide manually.
+The Migrate flow is **only registered for SQL databases** because their dumps are stable text formats, every newer mysql/postgres/mariadb can replay any older version's `mysqldump` / `pg_dumpall` output. Engines whose dumps are version-specific binaries (Meilisearch, Elasticsearch, MongoDB) are intentionally **not** auto-migrated; servlo surfaces the Migrate button only when it has a tested handler. For those, follow the upstream migration guide manually.
 
 ### What the dump contains
 
-- **mysql / mariadb**: `mysqldump -uroot -plerd --all-databases --single-transaction --routines --triggers --events --quick`. All databases, stored procedures, triggers, and event scheduler entries. Excludes the `information_schema` and `performance_schema` (they're rebuilt by mysql at first start).
+- **mysql / mariadb**: `mysqldump -uroot -pservlo --all-databases --single-transaction --routines --triggers --events --quick`. All databases, stored procedures, triggers, and event scheduler entries. Excludes the `information_schema` and `performance_schema` (they're rebuilt by mysql at first start).
 - **postgres**: `pg_dumpall --clean --if-exists -U postgres`. All databases, roles, and tablespaces. The `--clean --if-exists` flags make the dump replayable against a fresh data dir without errors on objects that don't yet exist.
 
 ### Recovery if a migration fails
 
-The pre-migrate data dir lives at `~/.local/share/lerd/data/<svc>.pre-migrate-<ts>/`, the dump file at `~/.local/share/lerd/backups/<svc>-<ts>.sql`. To go back:
+The pre-migrate data dir lives at `~/.local/share/servlo/data/<svc>.pre-migrate-<ts>/`, the dump file at `~/.local/share/servlo/backups/<svc>-<ts>.sql`. To go back:
 
 ```bash
-lerd service stop <svc>
-mv ~/.local/share/lerd/data/<svc> ~/.local/share/lerd/data/<svc>.failed-migrate
-mv ~/.local/share/lerd/data/<svc>.pre-migrate-<ts> ~/.local/share/lerd/data/<svc>
-# edit ~/.config/lerd/config.yaml: set the image back to the old version
-lerd service start <svc>
+servlo service stop <svc>
+mv ~/.local/share/servlo/data/<svc> ~/.local/share/servlo/data/<svc>.failed-migrate
+mv ~/.local/share/servlo/data/<svc>.pre-migrate-<ts> ~/.local/share/servlo/data/<svc>
+# edit ~/.config/servlo/config.yaml: set the image back to the old version
+servlo service start <svc>
 ```
 
 ## Rollback, undo the last update
 
-Every successful Update / Upgrade records the previous image in `~/.config/lerd/config.yaml` (or the custom service YAML). The grey **Rollback → \<tag\>** button swaps back to it, pulling first if the image isn't local anymore. A second rollback returns to the post-update image, the swap is symmetric, so you can flip-flop while debugging.
+Every successful Update / Upgrade records the previous image in `~/.config/servlo/config.yaml` (or the custom service YAML). The grey **Rollback → \<tag\>** button swaps back to it, pulling first if the image isn't local anymore. A second rollback returns to the post-update image, the swap is symmetric, so you can flip-flop while debugging.
 
 ```bash
-lerd service rollback redis
+servlo service rollback redis
 ```
 
 Rollback uses no dump-and-restore: it's a pure image swap. Rollback is refused after a Migrate, running the previous binary against the freshly-migrated data dir would corrupt it. The Rollback button is hidden in that case (the API exposes `can_rollback: false`), and the CLI prints an error pointing at the pre-migrate backup directory for manual recovery.
@@ -102,18 +102,18 @@ allow_major_upgrade: false      # NewestStable stays in current major when false
 - `update_strategy: patch`: same major.minor only (1.7 → 1.7.6 OK; 1.7 → 1.8 rejected). Use for engines where minor bumps break data.
 - `update_strategy: minor`: same major (8.0 → 8.4 OK; 8.x → 9.x rejected). Default for SQL databases.
 - `update_strategy: rolling`: no version comparison; surfaces an Update only when the local image digest differs from the remote tag's digest.
-- `update_strategy: none`: disables Update suggestions entirely. Useful for hand-rolled custom services where lerd shouldn't second-guess the user.
+- `update_strategy: none`: disables Update suggestions entirely. Useful for hand-rolled custom services where servlo shouldn't second-guess the user.
 - `track_latest: true`: fresh installs (no saved image pin) resolve the actual newest tag from the registry instead of using the YAML's `image:` baseline. Existing users with a saved pin are untouched. Falls back to the YAML image if the registry is unreachable.
 - `allow_major_upgrade: true`: `NewestStable` is allowed to cross the numeric major boundary (so postgres 16 → 17 would surface as an Upgrade). Off by default; major upgrades are usually a maintainer judgment call, not a user-time impulse.
 
 ## CLI reference
 
 ```bash
-lerd service list                            # Update column shows badges
-lerd service update <name>                   # safe in-strategy patch
-lerd service update <name> <tag>             # explicit upgrade target
-lerd service migrate <name> <version>        # SQL dump + restore
-lerd service rollback <name>                 # toggle back to previous image
+servlo service list                            # Update column shows badges
+servlo service update <name>                   # safe in-strategy patch
+servlo service update <name> <tag>             # explicit upgrade target
+servlo service migrate <name> <version>        # SQL dump + restore
+servlo service rollback <name>                 # toggle back to previous image
 ```
 
 ## MCP
@@ -132,11 +132,11 @@ The `service` tool covers every service operation through its `action` argument:
 
 ## Backups directory
 
-Every migration writes a dump file under `~/.local/share/lerd/backups/`, named `<service>-<ts>.{sql,dump}`. Lerd never auto-deletes these, you remove them manually after verifying the new container is correct:
+Every migration writes a dump file under `~/.local/share/servlo/backups/`, named `<service>-<ts>.{sql,dump}`. Servlo never auto-deletes these, you remove them manually after verifying the new container is correct:
 
 ```bash
-ls -la ~/.local/share/lerd/backups/
-rm ~/.local/share/lerd/backups/<old-dump>
+ls -la ~/.local/share/servlo/backups/
+rm ~/.local/share/servlo/backups/<old-dump>
 ```
 
-The pre-migrate data dirs live alongside the active data dirs at `~/.local/share/lerd/data/<svc>.pre-migrate-<ts>/`. Same convention, clean up by hand once verified.
+The pre-migrate data dirs live alongside the active data dirs at `~/.local/share/servlo/data/<svc>.pre-migrate-<ts>/`. Same convention, clean up by hand once verified.

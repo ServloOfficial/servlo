@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/applog"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/applog"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 const defaultLines = 50

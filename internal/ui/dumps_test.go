@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/dumps"
+	"github.com/realrashid/servlo/internal/dumps"
 )
 
 // withDumpsServer swaps the package-level receiver for a fresh in-memory

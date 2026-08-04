@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// SupportedPHPVersions lists the PHP versions lerd can build FPM images for.
+// SupportedPHPVersions lists the PHP versions servlo can build FPM images for.
 // 7.4 and 8.0 are a frozen legacy tier for old projects: still buildable from
 // Alpine 3.16, but pinned (older xdebug, no mongodb ext) and not security-updated.
 var SupportedPHPVersions = []string{"7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"}
@@ -15,7 +15,7 @@ var SupportedPHPVersions = []string{"7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8
 // image for; supported versions below it run under FPM only.
 const FrankenPHPMinVersion = "8.2"
 
-// IsSupportedPHPVersion reports whether v is a version lerd can install.
+// IsSupportedPHPVersion reports whether v is a version servlo can install.
 func IsSupportedPHPVersion(v string) bool {
 	for _, s := range SupportedPHPVersions {
 		if s == v {

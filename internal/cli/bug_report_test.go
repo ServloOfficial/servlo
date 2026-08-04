@@ -12,12 +12,12 @@ func TestScrubHomePath_replacesHome(t *testing.T) {
 	t.Setenv("HOME", "/home/testuser")
 	t.Setenv("USER", "testuser")
 	t.Setenv("LOGNAME", "testuser")
-	in := "log line referencing /home/testuser/.config/lerd/config.yaml here"
+	in := "log line referencing /home/testuser/.config/servlo/config.yaml here"
 	out := scrubHomePath(in)
 	if strings.Contains(out, "/home/testuser") {
 		t.Fatalf("home path not scrubbed: %q", out)
 	}
-	if !strings.Contains(out, "$HOME/.config/lerd/config.yaml") {
+	if !strings.Contains(out, "$HOME/.config/servlo/config.yaml") {
 		t.Fatalf("expected $HOME placeholder, got: %q", out)
 	}
 }
@@ -69,7 +69,7 @@ func TestWriteBugReportHeader_includesVersionAndOS(t *testing.T) {
 	var buf bytes.Buffer
 	writeBugReportHeader(&buf, nil)
 	out := buf.String()
-	for _, want := range []string{"Lerd bug report", "lerd:", "OS:", "Generated:"} {
+	for _, want := range []string{"Servlo bug report", "servlo:", "OS:", "Generated:"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("header missing %q\n%s", want, out)
 		}
@@ -95,7 +95,7 @@ func TestWriteBugReport_createsFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read report: %v", err)
 	}
-	for _, want := range []string{"Lerd bug report", "Doctor", "Config files", "Environment"} {
+	for _, want := range []string{"Servlo bug report", "Doctor", "Config files", "Environment"} {
 		if !bytes.Contains(data, []byte(want)) {
 			t.Errorf("report missing %q", want)
 		}
@@ -119,8 +119,8 @@ func TestWriteBugReport_defaultPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("writeBugReport: %v", err)
 	}
-	if !strings.HasPrefix(filepath.Base(got), "lerd-bug-report-") {
-		t.Errorf("default filename doesn't start with lerd-bug-report-: %s", got)
+	if !strings.HasPrefix(filepath.Base(got), "servlo-bug-report-") {
+		t.Errorf("default filename doesn't start with servlo-bug-report-: %s", got)
 	}
 	// EvalSymlinks both sides because macOS resolves /var → /private/var,
 	// so t.TempDir() and os.Getwd()-after-chdir return different forms.
@@ -143,16 +143,16 @@ func setupAnonFixtures(t *testing.T, configYAML, sitesYAML string) {
 	t.Setenv("XDG_DATA_HOME", dataDir)
 	t.Setenv("HOME", t.TempDir())
 
-	if err := os.MkdirAll(filepath.Join(cfgDir, "lerd"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(cfgDir, "servlo"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfgDir, "lerd", "config.yaml"), []byte(configYAML), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(cfgDir, "servlo", "config.yaml"), []byte(configYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(dataDir, "lerd"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dataDir, "servlo"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dataDir, "lerd", "sites.yaml"), []byte(sitesYAML), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "servlo", "sites.yaml"), []byte(sitesYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -164,12 +164,12 @@ func TestAnonymizer_replacesSiteNamesAndDomains(t *testing.T) {
     path: /srv/laravel
 `)
 	a := newAnonymizer()
-	in := "lerd-queue-laravel restarted, see http://laravel.test/health and http://api.laravel.test/x"
+	in := "servlo-queue-laravel restarted, see http://laravel.test/health and http://api.laravel.test/x"
 	out := a.Apply(in)
 	if strings.Contains(out, "laravel") {
 		t.Errorf("expected `laravel` to be replaced, got: %s", out)
 	}
-	for _, want := range []string{"lerd-queue-site-1", "site-1.test", "site-1-extra1.test"} {
+	for _, want := range []string{"servlo-queue-site-1", "site-1.test", "site-1-extra1.test"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q: %s", want, out)
 		}
@@ -223,14 +223,14 @@ func TestAnonymizer_sitePathReplacedWholeBeforeBareName(t *testing.T) {
 
 func TestAnonymizer_sitePathInsideParkedDir(t *testing.T) {
 	t.Setenv("HOME", "/home/u")
-	setupAnonFixtures(t, "parked_directories:\n  - /home/u/Lerd\n", `sites:
+	setupAnonFixtures(t, "parked_directories:\n  - /home/u/Servlo\n", `sites:
   - name: laravel
     domains: [laravel.test]
-    path: /home/u/Lerd/laravel
+    path: /home/u/Servlo/laravel
 `)
 	t.Setenv("HOME", "/home/u")
 	a := newAnonymizer()
-	in := "site path /home/u/Lerd/laravel"
+	in := "site path /home/u/Servlo/laravel"
 	out := a.Apply(in)
 	if !strings.Contains(out, "$PARK_1/site-1") {
 		t.Errorf("expected $PARK_1/site-1, got: %s", out)
@@ -258,33 +258,32 @@ func TestAnonymizer_nilAndEmptySafe(t *testing.T) {
 
 func TestIsContentUnit(t *testing.T) {
 	cases := map[string]bool{
-		// Lerd-core infra: kept, .service/.container suffixes tolerated.
-		"lerd-nginx":           false,
-		"lerd-ui":              false,
-		"lerd-watcher":         false,
-		"lerd-dns":             false,
-		"lerd-tray":            false,
-		"lerd-autostart":       false,
-		"lerd-fpm-init":        false,
-		"lerd-nginx.container": false,
-		"lerd-ui.service":      false,
+		// Servlo-core infra: kept, .service/.container suffixes tolerated.
+		"servlo-nginx":           false,
+		"servlo-panel":           false,
+		"servlo-watcher":         false,
+		"servlo-dns":             false,
+		"servlo-autostart":       false,
+		"servlo-fpm-init":        false,
+		"servlo-nginx.container": false,
+		"servlo-panel.service":   false,
 		// Preset services: dropped — app-domain noise.
-		"lerd-redis":       true,
-		"lerd-mysql":       true,
-		"lerd-postgres":    true,
-		"lerd-gotenberg":   true,
-		"lerd-meilisearch": true,
+		"servlo-redis":       true,
+		"servlo-mysql":       true,
+		"servlo-postgres":    true,
+		"servlo-gotenberg":   true,
+		"servlo-meilisearch": true,
 		// FPM and per-site workers: dropped.
-		"lerd-php83-fpm":        true,
-		"lerd-php85-fpm":        true,
-		"lerd-queue-laravel":    true,
-		"lerd-schedule-laravel": true,
-		"lerd-horizon-myapp":    true,
-		"lerd-stripe-myapp":     true,
-		"lerd-reverb-myapp":     true,
+		"servlo-php83-fpm":        true,
+		"servlo-php85-fpm":        true,
+		"servlo-queue-laravel":    true,
+		"servlo-schedule-laravel": true,
+		"servlo-horizon-myapp":    true,
+		"servlo-stripe-myapp":     true,
+		"servlo-reverb-myapp":     true,
 		// Custom containers / FrankenPHP per-site: dropped.
-		"lerd-custom-myapp": true,
-		"lerd-fp-myapp":     true,
+		"servlo-custom-myapp": true,
+		"servlo-fp-myapp":     true,
 	}
 	for name, want := range cases {
 		if got := isContentUnit(name); got != want {
@@ -295,19 +294,19 @@ func TestIsContentUnit(t *testing.T) {
 
 func TestIsPrivateUnit(t *testing.T) {
 	custom := map[string]struct{}{
-		"lerd-myservice": {},
+		"servlo-myservice": {},
 	}
 	cases := map[string]bool{
-		"lerd-nginx":              false,
-		"lerd-redis":              false, // preset, not private
-		"lerd-myservice":          true,  // user-defined custom service
-		"lerd-myservice.service":  true,
-		"lerd-custom-myapp":       true,
-		"lerd-custom-x.container": true,
-		"lerd-fp-myapp":           true,
-		"lerd-fp-x.container":     true,
-		"lerd-queue-laravel":      false, // worker, not private
-		"lerd-php83-fpm":          false,
+		"servlo-nginx":              false,
+		"servlo-redis":              false, // preset, not private
+		"servlo-myservice":          true,  // user-defined custom service
+		"servlo-myservice.service":  true,
+		"servlo-custom-myapp":       true,
+		"servlo-custom-x.container": true,
+		"servlo-fp-myapp":           true,
+		"servlo-fp-x.container":     true,
+		"servlo-queue-laravel":      false, // worker, not private
+		"servlo-php83-fpm":          false,
 	}
 	for name, want := range cases {
 		if got := isPrivateUnit(name, custom); got != want {
@@ -320,8 +319,8 @@ func TestLogFilter_dropsCLF(t *testing.T) {
 	setupAnonFixtures(t, "", "sites: []\n")
 	f := newLogFilter()
 	in := strings.Join([]string{
-		`May 03 17:54:56 host lerd-nginx[1872]: 10.89.0.8 - - [03/May/2026:14:54:56 +0000] "GET / HTTP/1.1" 200 1205 "-" "UA"`,
-		`May 03 17:54:57 host lerd-nginx[1872]: 2026/05/03 14:54:57 [error] something broke`,
+		`May 03 17:54:56 host servlo-nginx[1872]: 10.89.0.8 - - [03/May/2026:14:54:56 +0000] "GET / HTTP/1.1" 200 1205 "-" "UA"`,
+		`May 03 17:54:57 host servlo-nginx[1872]: 2026/05/03 14:54:57 [error] something broke`,
 	}, "\n")
 	out := f.clean(in)
 	if strings.Contains(out, `"GET / HTTP/1.1"`) {
@@ -428,13 +427,13 @@ func TestRedactGenericPII_idempotent(t *testing.T) {
 
 func TestRedactNonLoopbackAddrs_keepsLoopback(t *testing.T) {
 	cases := map[string]string{
-		"LISTEN 0 0 127.0.0.1:53 0.0.0.0:* lerd-dns": "LISTEN 0 0 127.0.0.1:53 0.0.0.0:* lerd-dns",
-		"LISTEN 0 0 ::1:443 *:*":                     "LISTEN 0 0 ::1:443 *:*",
-		"LISTEN 0 0 192.168.1.10:80 *:*":             "LISTEN 0 0 <redacted-ip>:80 *:*",
-		"LISTEN 0 0 169.254.169.254:80 *:*":          "LISTEN 0 0 169.254.169.254:80 *:*",
-		"connection from 10.89.7.8 to 10.89.0.1":     "connection from <redacted-ip> to <redacted-ip>",
-		"fe80::1%en0 link-local":                     "fe80::1%en0 link-local",
-		"2001:db8::1 public ipv6":                    "<redacted-ip> public ipv6",
+		"LISTEN 0 0 127.0.0.1:53 0.0.0.0:* servlo-dns": "LISTEN 0 0 127.0.0.1:53 0.0.0.0:* servlo-dns",
+		"LISTEN 0 0 ::1:443 *:*":                       "LISTEN 0 0 ::1:443 *:*",
+		"LISTEN 0 0 192.168.1.10:80 *:*":               "LISTEN 0 0 <redacted-ip>:80 *:*",
+		"LISTEN 0 0 169.254.169.254:80 *:*":            "LISTEN 0 0 169.254.169.254:80 *:*",
+		"connection from 10.89.7.8 to 10.89.0.1":       "connection from <redacted-ip> to <redacted-ip>",
+		"fe80::1%en0 link-local":                       "fe80::1%en0 link-local",
+		"2001:db8::1 public ipv6":                      "<redacted-ip> public ipv6",
 	}
 	for in, want := range cases {
 		if got := redactNonLoopbackAddrs(in); got != want {
@@ -459,15 +458,15 @@ func TestRedactResolvConf_redactsServersAndSearch(t *testing.T) {
 
 func TestIsSecretShapedKey(t *testing.T) {
 	cases := map[string]bool{
-		"LERD_GITHUB_TOKEN":  true,
-		"LERD_API_KEY":       true,
-		"LERD_DB_PASSWORD":   true,
-		"LERD_PRIVATE_KEY":   true,
-		"LERD_DEBUG":         false,
-		"LERD_LOG_LEVEL":     false,
-		"LERD_SSH_KEY":       true,
-		"LERD_DATA_DIR":      false,
-		"LERD_SOMETHING_KEY": true,
+		"SERVLO_GITHUB_TOKEN":  true,
+		"SERVLO_API_KEY":       true,
+		"SERVLO_DB_PASSWORD":   true,
+		"SERVLO_PRIVATE_KEY":   true,
+		"SERVLO_DEBUG":         false,
+		"SERVLO_LOG_LEVEL":     false,
+		"SERVLO_SSH_KEY":       true,
+		"SERVLO_DATA_DIR":      false,
+		"SERVLO_SOMETHING_KEY": true,
 	}
 	for k, want := range cases {
 		if got := isSecretShapedKey(k); got != want {

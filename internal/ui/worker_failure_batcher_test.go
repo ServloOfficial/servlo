@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/workerheal"
+	"github.com/realrashid/servlo/internal/workerheal"
 )
 
 // installBatchTestSink swaps the dispatcher and shrinks the delay so a real
@@ -62,16 +62,16 @@ func confirmUnits(t *testing.T, units ...workerheal.UnhealthyWorker) {
 func TestQueueWorkerFailureNotifications_BatchesWithinWindow(t *testing.T) {
 	wait := installBatchTestSink(t, 200*time.Millisecond)
 	confirmUnits(t,
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
-		uw("lerd-horizon-a.service", "a.test", "horizon", "failed"),
-		uw("lerd-scheduler-b.service", "b.test", "scheduler", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-horizon-a.service", "a.test", "horizon", "failed"),
+		uw("servlo-scheduler-b.service", "b.test", "scheduler", "failed"),
 	)
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
 	})
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-horizon-a.service", "a.test", "horizon", "failed"),
-		uw("lerd-scheduler-b.service", "b.test", "scheduler", "failed"),
+		uw("servlo-horizon-a.service", "a.test", "horizon", "failed"),
+		uw("servlo-scheduler-b.service", "b.test", "scheduler", "failed"),
 	})
 	calls := wait()
 	if len(calls) != 1 {
@@ -87,9 +87,9 @@ func TestQueueWorkerFailureNotifications_BatchesWithinWindow(t *testing.T) {
 	}
 	sort.Strings(units)
 	want := []string{
-		"lerd-horizon-a.service",
-		"lerd-queue-a.service",
-		"lerd-scheduler-b.service",
+		"servlo-horizon-a.service",
+		"servlo-queue-a.service",
+		"servlo-scheduler-b.service",
 	}
 	for i := range want {
 		if units[i] != want[i] {
@@ -100,12 +100,12 @@ func TestQueueWorkerFailureNotifications_BatchesWithinWindow(t *testing.T) {
 
 func TestQueueWorkerFailureNotifications_DedupesByUnit(t *testing.T) {
 	wait := installBatchTestSink(t, 200*time.Millisecond)
-	confirmUnits(t, uw("lerd-queue-a.service", "a.test", "queue", "start-limit-hit"))
+	confirmUnits(t, uw("servlo-queue-a.service", "a.test", "queue", "start-limit-hit"))
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
 	})
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "start-limit-hit"),
+		uw("servlo-queue-a.service", "a.test", "queue", "start-limit-hit"),
 	})
 	calls := wait()
 	if len(calls) != 1 || len(calls[0]) != 1 {
@@ -119,27 +119,27 @@ func TestQueueWorkerFailureNotifications_DedupesByUnit(t *testing.T) {
 func TestQueueWorkerFailureNotifications_SecondBurstArmsFreshWindow(t *testing.T) {
 	wait := installBatchTestSink(t, 100*time.Millisecond)
 	confirmUnits(t,
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
-		uw("lerd-horizon-b.service", "b.test", "horizon", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-horizon-b.service", "b.test", "horizon", "failed"),
 	)
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
 	})
 	first := wait()
-	if len(first) != 1 || len(first[0]) != 1 || first[0][0].Unit != "lerd-queue-a.service" {
+	if len(first) != 1 || len(first[0]) != 1 || first[0][0].Unit != "servlo-queue-a.service" {
 		t.Fatalf("first burst dispatch malformed: %+v", first)
 	}
 	// After the first batch has fired and cleared state, a fresh failure
 	// must arm a brand-new window and dispatch independently. Without this
 	// the batcher would silently swallow all post-first-burst notifications.
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-horizon-b.service", "b.test", "horizon", "failed"),
+		uw("servlo-horizon-b.service", "b.test", "horizon", "failed"),
 	})
 	second := wait()
 	if len(second) != 2 {
 		t.Fatalf("expected two dispatches across two bursts, got %d", len(second))
 	}
-	if len(second[1]) != 1 || second[1][0].Unit != "lerd-horizon-b.service" {
+	if len(second[1]) != 1 || second[1][0].Unit != "servlo-horizon-b.service" {
 		t.Errorf("second burst payload wrong: %+v", second[1])
 	}
 }
@@ -160,7 +160,7 @@ func TestFlush_SkipsWorkersThatRecoveredDuringWindow(t *testing.T) {
 	confirmUnits(t) // everything came back on its own
 
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
 	})
 	time.Sleep(200 * time.Millisecond)
 	if fired {
@@ -172,17 +172,17 @@ func TestFlush_KeepsWorkersStillDownAndRefreshesState(t *testing.T) {
 	wait := installBatchTestSink(t, 50*time.Millisecond)
 	// One recovered, the other is still down and has since gone from a crash
 	// loop to plain stopped.
-	confirmUnits(t, uw("lerd-horizon-b.service", "b.test", "horizon", "expected-but-stopped"))
+	confirmUnits(t, uw("servlo-horizon-b.service", "b.test", "horizon", "expected-but-stopped"))
 
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
-		uw("lerd-horizon-b.service", "b.test", "horizon", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-horizon-b.service", "b.test", "horizon", "failed"),
 	})
 	calls := wait()
 	if len(calls) != 1 || len(calls[0]) != 1 {
 		t.Fatalf("expected one dispatch carrying one worker, got %+v", calls)
 	}
-	if calls[0][0].Unit != "lerd-horizon-b.service" {
+	if calls[0][0].Unit != "servlo-horizon-b.service" {
 		t.Errorf("dispatched %q, want the worker that stayed down", calls[0][0].Unit)
 	}
 	if calls[0][0].State != "expected-but-stopped" {
@@ -200,7 +200,7 @@ func TestFlush_KeepsBatchWhenRecheckFails(t *testing.T) {
 	t.Cleanup(func() { setWorkerFailureDetect(orig) })
 
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
 	})
 	calls := wait()
 	if len(calls) != 1 || len(calls[0]) != 1 {
@@ -227,19 +227,19 @@ func TestQueueWorkerFailureNotifications_EmptyNoDispatch(t *testing.T) {
 func TestQueueWorkerFailureNotifications_skipsOrphaned(t *testing.T) {
 	wait := installBatchTestSink(t, 10*time.Millisecond)
 	confirmUnits(t,
-		uw("lerd-vite-ws-feat-x.service", "ws.test", "vite", workerheal.StateOrphaned),
-		uw("lerd-queue-ws.service", "ws.test", "queue", "failed"),
+		uw("servlo-vite-ws-feat-x.service", "ws.test", "vite", workerheal.StateOrphaned),
+		uw("servlo-queue-ws.service", "ws.test", "queue", "failed"),
 	)
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-vite-ws-feat-x.service", "ws.test", "vite", workerheal.StateOrphaned),
-		uw("lerd-queue-ws.service", "ws.test", "queue", "failed"),
+		uw("servlo-vite-ws-feat-x.service", "ws.test", "vite", workerheal.StateOrphaned),
+		uw("servlo-queue-ws.service", "ws.test", "queue", "failed"),
 	})
 
 	calls := wait()
 	if len(calls) != 1 {
 		t.Fatalf("dispatch calls = %d, want 1", len(calls))
 	}
-	if len(calls[0]) != 1 || calls[0][0].Unit != "lerd-queue-ws.service" {
+	if len(calls[0]) != 1 || calls[0][0].Unit != "servlo-queue-ws.service" {
 		t.Fatalf("dispatched %v, want only the real failure", calls[0])
 	}
 }
@@ -268,7 +268,7 @@ func TestQueueWorkerFailureNotifications_allOrphanedDispatchesNothing(t *testing
 	})
 
 	queueWorkerFailureNotifications([]workerheal.UnhealthyWorker{
-		uw("lerd-vite-ws-feat-x.service", "ws.test", "vite", workerheal.StateOrphaned),
+		uw("servlo-vite-ws-feat-x.service", "ws.test", "vite", workerheal.StateOrphaned),
 	})
 	time.Sleep(150 * time.Millisecond)
 

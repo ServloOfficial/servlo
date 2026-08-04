@@ -7,10 +7,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/store"
 	"github.com/pmezard/go-difflib/difflib"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/store"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -164,12 +164,12 @@ func newFrameworkAddCmd() *cobra.Command {
 		Long: `Install a published framework or author a custom one.
 
 A bare name the store publishes is installed from the store, the natural next
-step after 'lerd framework search'. Passing --from-file or any of the definition
+step after 'servlo framework search'. Passing --from-file or any of the definition
 flags below instead authors a user-defined framework by hand.
 
 Provide a YAML file with --from-file, or specify fields via flags:
 
-  lerd framework add myfw --label "My Framework" --public-dir public \
+  servlo framework add myfw --label "My Framework" --public-dir public \
     --detect-file myfw.php --detect-composer myfw/core
 
 YAML file format:
@@ -267,7 +267,7 @@ YAML file format:
 			if fw.Name == "laravel" {
 				fmt.Println("Custom workers merged with built-in Laravel definition.")
 			} else {
-				fmt.Println("Use 'lerd link' in a project directory to register a site using this framework.")
+				fmt.Println("Use 'servlo link' in a project directory to register a site using this framework.")
 			}
 			return nil
 		},
@@ -283,7 +283,7 @@ YAML file format:
 	cmd.Flags().StringVar(&envFormat, "env-format", "", "Env file format: dotenv or php-const")
 	cmd.Flags().StringVar(&composer, "composer", "", "Run composer install: auto, true, or false")
 	cmd.Flags().StringVar(&npm, "npm", "", "Run npm install: auto, true, or false")
-	cmd.Flags().StringVar(&create, "create", "", "Scaffold command for 'lerd new' (target dir is appended automatically, e.g. \"composer create-project myvendor/myfw\")")
+	cmd.Flags().StringVar(&create, "create", "", "Scaffold command for 'servlo new' (target dir is appended automatically, e.g. \"composer create-project myvendor/myfw\")")
 	cmd.Flags().StringArrayVar(&setupCmds, "setup", nil, `Setup command as "label:command" (repeatable, e.g. --setup "Run migrations:php bin/console doctrine:migrations:migrate")`)
 
 	return cmd
@@ -316,7 +316,7 @@ func addFrameworkFromStore(client *store.Client, nameArg string) error {
 	}
 	entry := frameworkIndexEntry(idx, name)
 	if entry == nil {
-		return fmt.Errorf("framework %q is not in the store — run 'lerd framework search' to see published names, or pass --public-dir and detection flags to author one by hand", name)
+		return fmt.Errorf("framework %q is not in the store — run 'servlo framework search' to see published names, or pass --public-dir and detection flags to author one by hand", name)
 	}
 
 	if version == "" {
@@ -335,7 +335,7 @@ func addFrameworkFromStore(client *store.Client, nameArg string) error {
 
 	feedback.Begin()
 	feedback.Done(fmt.Sprintf("installed %s@%s (%s) from the store", remote.Name, versionOrLatest(remote), remote.Label))
-	fmt.Println("Use 'lerd link' in a project directory to register a site using this framework.")
+	fmt.Println("Use 'servlo link' in a project directory to register a site using this framework.")
 	return nil
 }
 
@@ -363,10 +363,10 @@ Use --all to remove all versions without prompting, and --force to skip the
 in-use confirmation.
 
 Examples:
-  lerd framework remove symfony          # prompt if multiple versions
-  lerd framework remove symfony@7        # remove specific version
-  lerd framework remove symfony --all    # remove all versions
-  lerd framework remove symfony --force  # skip the in-use confirmation`,
+  servlo framework remove symfony          # prompt if multiple versions
+  servlo framework remove symfony@7        # remove specific version
+  servlo framework remove symfony --all    # remove all versions
+  servlo framework remove symfony --force  # skip the in-use confirmation`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			name, version := parseNameVersion(args[0])
@@ -494,13 +494,13 @@ func newFrameworkPruneCmd() *cobra.Command {
 		Long: `Remove store-installed and user-defined framework definitions that no linked
 site references. Built-in definitions are never touched.
 
-This is safe: lerd re-fetches a definition from the store automatically the
+This is safe: servlo re-fetches a definition from the store automatically the
 moment a site needs one that is no longer present locally, so a pruned
 framework comes back on its own if it is needed again.
 
 Examples:
-  lerd framework prune          # list unused, then confirm
-  lerd framework prune --force  # remove without confirming`,
+  servlo framework prune          # list unused, then confirm
+  servlo framework prune --force  # remove without confirming`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			unused := config.UnusedInstalledFrameworks()
@@ -555,8 +555,8 @@ func newFrameworkSearchCmd() *cobra.Command {
 		Long: `Search the community framework store. Without a query, lists all available frameworks.
 
 Examples:
-  lerd framework search           # list all available
-  lerd framework search symfony   # search by name`,
+  servlo framework search           # list all available
+  servlo framework search symfony   # search by name`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			query := ""
@@ -603,10 +603,10 @@ version of every installed framework is re-fetched (e.g. laravel@10, @11, @12,
 Use --diff to preview changes before applying.
 
 Examples:
-  lerd framework update symfony       # update to latest
-  lerd framework update symfony@7     # update specific version
-  lerd framework update               # update all (every cached version)
-  lerd framework update --diff        # show what would change`,
+  servlo framework update symfony       # update to latest
+  servlo framework update symfony@7     # update specific version
+  servlo framework update               # update all (every cached version)
+  servlo framework update --diff        # show what would change`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			client := store.NewClient()

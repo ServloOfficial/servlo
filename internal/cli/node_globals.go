@@ -8,14 +8,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	nodeDet "github.com/geodro/lerd/internal/node"
+	"github.com/realrashid/servlo/internal/config"
+	nodeDet "github.com/realrashid/servlo/internal/node"
 )
 
 // userNPMPrefix returns the npm prefix the user configured themselves —
 // npm_config_prefix / NPM_CONFIG_PREFIX in the environment, or a prefix= line
 // in ~/.npmrc — so the npm shim can respect it instead of capturing globals
-// into lerd's own data dir. Empty when the user has none.
+// into servlo's own data dir. Empty when the user has none.
 func userNPMPrefix() string {
 	for _, key := range []string{"npm_config_prefix", "NPM_CONFIG_PREFIX"} {
 		if v := os.Getenv(key); v != "" {
@@ -54,11 +54,11 @@ func expandHomePath(p string) string {
 
 // npmGlobalPrefixEnv decides which npm prefix an npm/npx run gets: the user's
 // own prefix when they configured one (their globals stay theirs), otherwise
-// lerd's node-global dir. The returned entries are applied after version-
+// servlo's node-global dir. The returned entries are applied after version-
 // manager activation (shimLeadingEnv strips an inherited npm_config_prefix so
-// nvm activates cleanly). lerdOwned reports whether the prefix is lerd's,
-// which drives the wrapper sync into lerd's bin dir.
-func npmGlobalPrefixEnv() (env []string, lerdOwned bool) {
+// nvm activates cleanly). servloOwned reports whether the prefix is servlo's,
+// which drives the wrapper sync into servlo's bin dir.
+func npmGlobalPrefixEnv() (env []string, servloOwned bool) {
 	if user := userNPMPrefix(); user != "" {
 		return []string{"npm_config_prefix=" + user}, false
 	}
@@ -72,7 +72,7 @@ func npmGlobalPrefixEnv() (env []string, lerdOwned bool) {
 // nodeGlobalPackages lists the packages installed under an npm prefix as
 // name@version specs (bare name when the version is unreadable), sorted, so
 // uninstall and node:unmanage can tell the user exactly what npm captured
-// into lerd's prefix. Nil when the prefix holds nothing.
+// into servlo's prefix. Nil when the prefix holds nothing.
 func nodeGlobalPackages(prefix string) []string {
 	root := filepath.Join(prefix, "lib", "node_modules")
 	entries, err := os.ReadDir(root)
@@ -116,7 +116,7 @@ func packageSpec(root, name string) string {
 	return name + "@" + pkg.Version
 }
 
-// removeNodeGlobalWrappers deletes every npm-global wrapper lerd synced into
+// removeNodeGlobalWrappers deletes every npm-global wrapper servlo synced into
 // binDir. After node:unmanage the version manager behind them is gone, so a
 // stale wrapper would shadow a freshly reinstalled user global on PATH.
 func removeNodeGlobalWrappers(binDir string) {
@@ -136,7 +136,7 @@ func removeNodeGlobalWrappers(binDir string) {
 }
 
 // systemNPMPath returns the user's own npm binary — the first npm found in
-// the system Node bin dirs, outside lerd's shims. Empty when there is none.
+// the system Node bin dirs, outside servlo's shims. Empty when there is none.
 func systemNPMPath() string {
 	for _, dir := range nodeDet.SystemNodeBinDirs() {
 		npm := filepath.Join(dir, "npm")
@@ -155,7 +155,7 @@ func formatNodeGlobalsNote(specs []string) string {
 
 // reinstallNodeGlobals installs specs globally with the user's own npm,
 // streaming its output. npm's own dir leads PATH so its node resolves ahead
-// of lerd's shims, and any prefix pointing at lerd's dir is dropped so the
+// of servlo's shims, and any prefix pointing at servlo's dir is dropped so the
 // packages land in the user's real prefix.
 func reinstallNodeGlobals(npm string, specs []string) error {
 	cmd := exec.Command(npm, append([]string{"install", "-g"}, specs...)...)

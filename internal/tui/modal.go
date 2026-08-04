@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/geodro/lerd/internal/eventbus"
+	"github.com/realrashid/servlo/internal/eventbus"
 )
 
 // Modal overlays: centered floating boxes that replace the rendered view
@@ -210,12 +210,12 @@ func (m *Model) handleHelpModalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // renderPaletteModal draws the command palette as a centered overlay: the
-// `$ lerd <input>▌` prompt on top, suggestions listed below, footer with
+// `$ servlo <input>▌` prompt on top, suggestions listed below, footer with
 // key hints. Replaces the prior inline status-bar prompt so the user can
 // scan up to ~12 suggestions at once instead of squinting at the single
 // row that fit at the bottom of the screen.
 func (m *Model) renderPaletteModal(w, h int) string {
-	prompt := accentStyle.Render("$ lerd ") + m.paletteInput + "▌"
+	prompt := accentStyle.Render("$ servlo ") + m.paletteInput + "▌"
 	suggestions := paletteSuggestions(m.paletteInput, paletteCommands, 12)
 
 	bodyLines := []string{prompt, ""}
@@ -238,7 +238,7 @@ func (m *Model) renderPaletteModal(w, h int) string {
 	}
 
 	return renderModal(w, h,
-		"Run lerd command",
+		"Run servlo command",
 		strings.Join(bodyLines, "\n"),
 		renderKeyChips("tab", "complete", "enter", "run", "esc", "cancel"))
 }

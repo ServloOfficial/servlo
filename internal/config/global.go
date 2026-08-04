@@ -21,7 +21,7 @@ type ServiceConfig struct {
 	// PublishedPort overrides the host (published) port of this service's
 	// primary mapping. 0 = use the preset/version default (e.g. 3306 for MySQL
 	// 8.4). Set it to free the default port for a second server — e.g. move
-	// lerd-mysql to 3307 so the host system MySQL can keep 127.0.0.1:3306. The
+	// servlo-mysql to 3307 so the host system MySQL can keep 127.0.0.1:3306. The
 	// container-internal port is unchanged, so bridge clients still use 3306.
 	// Unlike Port (auto-seeded from the preset), this stays 0 until the user
 	// explicitly overrides, so it is an unambiguous "use default" sentinel.
@@ -50,15 +50,15 @@ type ServiceConfig struct {
 	CanonicalVersion string `yaml:"canonical_version,omitempty" mapstructure:"canonical_version"`
 }
 
-// GlobalConfig is the top-level lerd configuration.
+// GlobalConfig is the top-level servlo configuration.
 type GlobalConfig struct {
-	// Editor is the command lerd runs to open a file at a line (the
+	// Editor is the command servlo runs to open a file at a line (the
 	// "open in editor" links in the dashboard). Optional {file} and {line}
-	// placeholders; if omitted, lerd appends the file. Empty = autodetect a
+	// placeholders; if omitted, servlo appends the file. Empty = autodetect a
 	// known GUI editor (code/cursor/phpstorm/subl/zed), then xdg-open/open.
 	Editor string `yaml:"editor,omitempty" mapstructure:"editor"`
 	// IDEDataSource keeps a JetBrains project's database connection pointed at
-	// lerd, written only into a project that already has a .idea directory. Set
+	// servlo, written only into a project that already has a .idea directory. Set
 	// false to leave every IDE file alone.
 	IDEDataSource *bool `yaml:"ide_data_source,omitempty" mapstructure:"ide_data_source"`
 	PHP           struct {
@@ -70,58 +70,58 @@ type GlobalConfig struct {
 		// request). "trigger"/"no" support on-demand debugging via the control
 		// socket without flooding the IDE from every request and worker.
 		XdebugStart map[string]string `yaml:"xdebug_start,omitempty" mapstructure:"xdebug_start"`
-		// Extensions is the custom extension set (lerd php:ext), applied to every
-		// PHP image lerd builds. Extensions belong to the user, not to a version:
+		// Extensions is the custom extension set (servlo php:ext), applied to every
+		// PHP image servlo builds. Extensions belong to the user, not to a version:
 		// keying them per version made a site lose them on a version switch.
 		Extensions []string `yaml:"extensions"      mapstructure:"extensions"`
 		// ExtApkDeps maps a custom extension name to extra Alpine packages its
 		// build needs. Keyed by extension (deps don't vary by PHP version).
-		// lerd already knows the deps for some extensions; this is for the rest.
+		// servlo already knows the deps for some extensions; this is for the rest.
 		ExtApkDeps map[string][]string `yaml:"ext_apk_deps,omitempty" mapstructure:"ext_apk_deps"`
-		// Packages is the extra Alpine package set (lerd php:pkg) installed in
+		// Packages is the extra Alpine package set (servlo php:pkg) installed in
 		// every FPM image's runtime stage, for CLI tools and runtime libraries
 		// users want in the container; re-applied on rebuild.
 		Packages []string `yaml:"packages,omitempty" mapstructure:"packages"`
 		// Realised records what each version's image actually loaded, verified
 		// after its build. The declared set above is what the user asked for; not
 		// every version can honour all of it (mongodb needs 8.1+, the 7.4/8.0
-		// images are Alpine 3.16), and lerd must never advertise what an image
+		// images are Alpine 3.16), and servlo must never advertise what an image
 		// does not have.
 		Realised map[string]RealisedPHPSet `yaml:"realised,omitempty" mapstructure:"realised"`
 		// FPMPorts maps a PHP version to extra host ports published on that
-		// version's shared FPM container, so a process bound inside `lerd shell`
+		// version's shared FPM container, so a process bound inside `servlo shell`
 		// (a Vite dev server, a websocket, an ad-hoc listener) is reachable at
 		// localhost:PORT. Environment-wide per version, not per site; the one
 		// shared FPM container per version owns the list, so two sites wanting
 		// the same in-container port on the same version collide. Each mapping is
 		// a "host:container" spec; the loopback/LAN bind is applied centrally on
-		// write. Managed via the PHP page's Ports tab (lerd php:ports).
+		// write. Managed via the PHP page's Ports tab (servlo php:ports).
 		FPMPorts map[string][]string `yaml:"fpm_ports,omitempty" mapstructure:"fpm_ports"`
 	} `yaml:"php" mapstructure:"php"`
 	Node struct {
 		DefaultVersion string `yaml:"default_version" mapstructure:"default_version"`
-		// Managed records whether lerd manages Node.js via version-manager
+		// Managed records whether servlo manages Node.js via version-manager
 		// shims. A pointer so a config predating the field (nil) keeps the
 		// historical shim-presence behaviour, while an explicit false survives
 		// updates that would otherwise re-add the shims a `node:unmanage` removed.
 		Managed *bool `yaml:"managed,omitempty" mapstructure:"managed"`
-		// Manager selects the Node version manager lerd drives: "fnm" (the
+		// Manager selects the Node version manager servlo drives: "fnm" (the
 		// bundled default) or "nvm" (a user-installed nvm). Empty means fnm so
 		// configs predating the field keep working unchanged.
 		Manager string `yaml:"manager,omitempty" mapstructure:"manager"`
 		// NvmDir is the nvm install directory when Manager is "nvm". Persisted
-		// at install/switch time so daemons (lerd-ui, watcher) find nvm even
+		// at install/switch time so daemons (servlo-panel, watcher) find nvm even
 		// though systemd/launchd never load the user's shell rc that exports
 		// $NVM_DIR. Empty means fall back to $NVM_DIR or ~/.nvm.
 		NvmDir string `yaml:"nvm_dir,omitempty" mapstructure:"nvm_dir"`
 	} `yaml:"node" mapstructure:"node"`
 	Share struct {
-		// DefaultTool is the tunnel tool "lerd share" uses when no flag is
+		// DefaultTool is the tunnel tool "servlo share" uses when no flag is
 		// given: ngrok | cloudflare | expose | serveo | localhost-run.
-		// Empty = auto-detect. Set via "lerd share:tool".
+		// Empty = auto-detect. Set via "servlo share:tool".
 		DefaultTool string `yaml:"default_tool,omitempty" mapstructure:"default_tool"`
 		// BaseDomain is a Cloudflare-managed domain a share is served under:
-		// lerd routes "<site>.<base domain>" to a named tunnel instead of
+		// servlo routes "<site>.<base domain>" to a named tunnel instead of
 		// handing out a random trycloudflare.com URL.
 		BaseDomain string `yaml:"base_domain,omitempty" mapstructure:"base_domain"`
 		// BaseDomainAnswered records that the base-domain question has an
@@ -130,37 +130,37 @@ type GlobalConfig struct {
 		BaseDomainAnswered bool `yaml:"base_domain_answered,omitempty" mapstructure:"base_domain_answered"`
 		// NgrokToken authenticates ngrok. A container carries none of the
 		// host's ngrok configuration, so the published image needs this to
-		// run at all. Set via "lerd share:token".
+		// run at all. Set via "servlo share:token".
 		NgrokToken string `yaml:"ngrok_token,omitempty" mapstructure:"ngrok_token"`
 	} `yaml:"share,omitempty" mapstructure:"share"`
 	Nginx struct {
 		HTTPPort  int `yaml:"http_port"  mapstructure:"http_port"`
 		HTTPSPort int `yaml:"https_port" mapstructure:"https_port"`
 		// RequestTimeout is the default nginx request timeout in seconds,
-		// overridable per project via .lerd.yaml request_timeout. Zero falls
+		// overridable per project via .servlo.yaml request_timeout. Zero falls
 		// back to nginx's own 60s default; read it via RequestTimeoutSeconds.
 		RequestTimeout int `yaml:"request_timeout,omitempty" mapstructure:"request_timeout"`
 	} `yaml:"nginx" mapstructure:"nginx"`
 	DNS struct {
-		// Enabled=false skips lerd-dns, mkcert CA, sudoers, and resolver
+		// Enabled=false skips servlo-dns, mkcert CA, sudoers, and resolver
 		// config; sites use *.localhost (RFC 6761). HTTPS is unavailable
 		// in that mode. Default true preserves historical behaviour.
 		Enabled bool   `yaml:"enabled" mapstructure:"enabled"`
 		TLD     string `yaml:"tld"     mapstructure:"tld"`
 		// Upstream pins the upstream DNS servers dnsmasq forwards
-		// non-.test queries to. When empty, lerd auto-detects them from
+		// non-.test queries to. When empty, servlo auto-detects them from
 		// the system resolver. Set this when auto-detection picks the
 		// wrong servers (e.g. systemd-resolved fallbacks instead of your
 		// LAN resolver). Accepts plain IPs; #port is allowed.
 		Upstream []string `yaml:"upstream,omitempty" mapstructure:"upstream"`
 	} `yaml:"dns" mapstructure:"dns"`
 	LAN struct {
-		// Exposed controls whether lerd sites are reachable from other devices
+		// Exposed controls whether servlo sites are reachable from other devices
 		// on the local network. When false (the safe default), container ports
-		// and lerd-ui bind to loopback and the DNS forwarder is stopped. When
+		// and servlo-panel bind to loopback and the DNS forwarder is stopped. When
 		// true, nginx, DNS, and the dashboard bind to the LAN.
 		//
-		// ServicesExposed separately controls host access to lerd-managed
+		// ServicesExposed separately controls host access to servlo-managed
 		// databases, caches, and other services. It has no effect unless
 		// Exposed is also true. Keeping this opt-in separate preserves the safe
 		// default while allowing trusted development machines to publish
@@ -169,18 +169,17 @@ type GlobalConfig struct {
 		ServicesExposed bool `yaml:"services_exposed,omitempty" mapstructure:"services_exposed"`
 	} `yaml:"lan,omitempty" mapstructure:"lan"`
 	Autostart struct {
-		// Disabled controls whether lerd boots itself at login. The
-		// zero value (false) means lerd autostarts as it always has:
-		// every lerd-* container quadlet ships with its [Install]
+		// Disabled controls whether servlo boots itself at login. The
+		// zero value (false) means servlo autostarts as it always has:
+		// every servlo-* container quadlet ships with its [Install]
 		// section, the podman generator wires it into
 		// default.target.wants on every daemon-reload, and the
-		// lerd-ui / lerd-watcher / per-site worker units are enabled.
+		// servlo-panel / servlo-watcher / per-site worker units are enabled.
 		// Setting this to true makes WriteQuadletDiff strip the
 		// [Install] section before write (so the generator stops
 		// emitting wants symlinks), disables ui/watcher and every
 		// per-site worker, and stops them. Toggled via
-		// `lerd autostart enable / disable` and the dashboard / tray
-		// switches.
+		// `servlo autostart enable / disable` and the dashboard switch.
 		//
 		// Inverted form (Disabled rather than Enabled) so the YAML zero
 		// value preserves the historical autostart-on behaviour for
@@ -189,17 +188,17 @@ type GlobalConfig struct {
 		Disabled bool `yaml:"disabled,omitempty" mapstructure:"disabled"`
 	} `yaml:"autostart,omitempty" mapstructure:"autostart"`
 	Shims struct {
-		// PathDisabled stops lerd from writing its bin dir (the php/composer/
+		// PathDisabled stops servlo from writing its bin dir (the php/composer/
 		// node shims) onto the shell PATH, for users who prefer typing
-		// `lerd php` explicitly. Only the rc PATH entry is affected: the shim
+		// `servlo php` explicitly. Only the rc PATH entry is affected: the shim
 		// scripts are still written and every internal code path keeps
 		// injecting the dir for its own child processes. Inverted so the YAML
 		// zero value keeps the historical shims-on-PATH behaviour. Toggled via
-		// `lerd path:disable / path:enable`.
+		// `servlo path:disable / path:enable`.
 		PathDisabled bool `yaml:"path_disabled,omitempty" mapstructure:"path_disabled"`
 	} `yaml:"shims,omitempty" mapstructure:"shims"`
 	UI struct {
-		// RemoteControl gates non-loopback access to the lerd dashboard.
+		// RemoteControl gates non-loopback access to the servlo dashboard.
 		// Empty PasswordHash = disabled = LAN clients get 403. With a hash
 		// set, LAN clients must present matching HTTP Basic auth. Loopback
 		// (127.0.0.1, ::1) always bypasses both checks.
@@ -213,7 +212,7 @@ type GlobalConfig struct {
 		// alone never reaches them. It widens which routes an authenticated
 		// session may use; it never substitutes for authentication.
 		//
-		// Toggled via `lerd remote-control full-access on/off`, which only
+		// Toggled via `servlo remote-control full-access on/off`, which only
 		// the local dashboard or a local shell can do.
 		RemoteFullAccess bool `yaml:"remote_full_access,omitempty" mapstructure:"remote_full_access"`
 	} `yaml:"ui,omitempty" mapstructure:"ui"`
@@ -235,19 +234,19 @@ type GlobalConfig struct {
 	} `yaml:"workers,omitempty" mapstructure:"workers"`
 	Dumps struct {
 		// Enabled is the single switch for the whole debug window: the dump
-		// bridge AND the lerd_devtools collector (queries, mail, views, events,
+		// bridge AND the servlo_devtools collector (queries, mail, views, events,
 		// jobs, http). Both the bridge and the extension read one runtime
 		// sentinel (`enabled.flag`); their PHP/ini assets are always mounted
 		// regardless of this flag, so what Enabled controls is just that
 		// sentinel — touch = capture, missing = fast no-op, no FPM restart.
-		// Toggled via `lerd dump on/off` or the dashboard Debug view.
+		// Toggled via `servlo dump on/off` or the dashboard Debug view.
 		Enabled bool `yaml:"enabled,omitempty" mapstructure:"enabled"`
 		// Passthrough controls whether dump()/dd() ALSO emit to the response
 		// while the bridge is enabled. False (default) means captured-only:
 		// the dashboard is the single destination and the response stays
 		// clean (matching Herd's behaviour). True forwards each call through
 		// Symfony's stock VarDumper handler after capture, useful as a
-		// safety net when lerd-ui isn't running. No effect when Enabled is
+		// safety net when servlo-panel isn't running. No effect when Enabled is
 		// false — without the bridge, dump() behaves exactly as Symfony
 		// ships it.
 		Passthrough bool `yaml:"passthrough,omitempty" mapstructure:"passthrough"`
@@ -264,13 +263,13 @@ type GlobalConfig struct {
 	Profiler struct {
 		// Enabled toggles the SPX profiler globally. When on, nginx injects
 		// SPX_ENABLED into every PHP-FPM site's requests so each is profiled.
-		// Toggled via `lerd profile on/off` and the dashboard Profiler view.
+		// Toggled via `servlo profile on/off` and the dashboard Profiler view.
 		Enabled bool `yaml:"enabled,omitempty" mapstructure:"enabled"`
 	} `yaml:"profiler,omitempty" mapstructure:"profiler"`
 	Notifications struct {
 		// Disabled globally mutes the notifier (WebSocket banners + Web
 		// Push fanout). Inverted form so the zero value keeps existing
-		// installs on. Toggled via `lerd notify on/off` and the tray.
+		// installs on. Toggled via `servlo notify on/off`.
 		Disabled bool `yaml:"disabled,omitempty" mapstructure:"disabled"`
 		// Target selects the delivery sink: "browser" (WebSocket + Web
 		// Push) or "native" (the daemon posts to org.freedesktop.Notifications
@@ -283,17 +282,9 @@ type GlobalConfig struct {
 		// default (everything on except the noisy dump kind).
 		Kinds map[string]bool `yaml:"kinds,omitempty" mapstructure:"kinds"`
 	} `yaml:"notifications,omitempty" mapstructure:"notifications"`
-	Tray struct {
-		// HighContrastIcon swaps the running tray icon for a single green glyph
-		// that reads on any panel, instead of the light/dark swap that guesses
-		// wrong on mixed themes like KDE Breeze Twilight. Off by default so the
-		// zero value keeps the theme-adaptive icon; toggled via `lerd tray icon`
-		// and the tray menu.
-		HighContrastIcon bool `yaml:"high_contrast_icon,omitempty" mapstructure:"high_contrast_icon"`
-	} `yaml:"tray,omitempty" mapstructure:"tray"`
 	HostProxy struct {
 		// Disabled refuses to set up or start any host-proxy dev-server unit,
-		// for users who never want lerd supervising a process on the host.
+		// for users who never want servlo supervising a process on the host.
 		// Inverted so the zero value keeps the feature available.
 		Disabled bool `yaml:"disabled,omitempty" mapstructure:"disabled"`
 		// SkipConfirmation runs a newly-linked host-proxy command without the
@@ -303,7 +294,7 @@ type GlobalConfig struct {
 	} `yaml:"host_proxy,omitempty" mapstructure:"host_proxy"`
 	HostCommands struct {
 		// Disabled refuses to run any project-supplied host command or host
-		// worker (custom_workers / commands from a project .lerd.yaml). Inverted
+		// worker (custom_workers / commands from a project .servlo.yaml). Inverted
 		// so the zero value keeps the feature available.
 		Disabled bool `yaml:"disabled,omitempty" mapstructure:"disabled"`
 		// SkipConfirmation runs project-supplied host commands and workers without
@@ -323,7 +314,7 @@ type GlobalConfig struct {
 		// DefaultIdleSuspendTimeout; read it via IdleSuspendTimeout.
 		Timeout string `yaml:"timeout,omitempty" mapstructure:"timeout"`
 	} `yaml:"idle_suspend,omitempty" mapstructure:"idle_suspend"`
-	// AutoCleanup lets the watcher periodically reclaim orphaned lerd images
+	// AutoCleanup lets the watcher periodically reclaim orphaned servlo images
 	// (safe tier only, never service images). On by default; set false to turn
 	// off the daily sweep. Read it via AutoCleanupEnabled for nil-safety.
 	AutoCleanup       bool     `yaml:"auto_cleanup"       mapstructure:"auto_cleanup"`
@@ -334,7 +325,7 @@ type GlobalConfig struct {
 	// excluded system tree (e.g. a scratch root under /tmp for agent workflows):
 	// listing it here is the explicit "yes, mount this" the ephemeral denylist
 	// otherwise withholds. Same-location only, so an in-container path matches its
-	// host path and `lerd php` can chdir into it.
+	// host path and `servlo php` can chdir into it.
 	Mounts   []string                 `yaml:"mounts,omitempty"   mapstructure:"mounts"`
 	Services map[string]ServiceConfig `yaml:"services"           mapstructure:"services"`
 	// Workspaces group sites for display only, in the web UI and the TUI. See
@@ -396,11 +387,11 @@ func (c *GlobalConfig) WorkerExecMode() string {
 	return WorkerExecModeExec
 }
 
-// DNSManaged reports whether lerd is managing local DNS, which is the
+// DNSManaged reports whether servlo is managing local DNS, which is the
 // prerequisite for HTTPS (mkcert CA, *.test resolution). A nil receiver counts
 // as managed, matching how the rest of the codebase treats an absent config
 // (an unconfigured install behaves as if DNS is enabled). It is the single
-// predicate the install wizard, `lerd secure`, and the cert layer all share.
+// predicate the install wizard, `servlo secure`, and the cert layer all share.
 func (c *GlobalConfig) DNSManaged() bool {
 	return c == nil || c.DNS.Enabled
 }
@@ -416,11 +407,11 @@ func defaultConfig() *GlobalConfig {
 	cfg.AutoCleanup = true
 
 	home, _ := os.UserHomeDir()
-	cfg.ParkedDirectories = []string{home + "/Lerd"}
+	cfg.ParkedDirectories = []string{home + "/Servlo"}
 
 	// Hydrate the per-service defaults from each default-preset YAML so the
 	// preset is the single source of truth for image, host port and identity.
-	// Image overrides users have written into ~/.config/lerd/config.yaml are
+	// Image overrides users have written into ~/.config/servlo/config.yaml are
 	// merged on top by viper after this point in LoadGlobal.
 	cfg.Services = map[string]ServiceConfig{}
 	for _, name := range DefaultPresetNames() {
@@ -510,7 +501,7 @@ func mappingContainerPort(mapping string) int {
 	return n
 }
 
-// ReservedHostPorts returns every host port a lerd service may bind: each
+// ReservedHostPorts returns every host port a servlo service may bind: each
 // configured service entry's effective ports (HostPorts), every bundled preset's
 // default ports (including optional presets not in the default set), and every
 // installed custom service's ports. It is the single shared definition consumed
@@ -588,7 +579,7 @@ func resolveMappingPorts(cfg *GlobalConfig, name string, mappings []string) []in
 // publishes right now: a custom service's (including an installed preset's)
 // resolved Ports, or a default-preset's configured ServiceConfig ports. Nil
 // when name matches neither. Used by the client-tool shim to recognise an
-// explicit loopback host/port as one of lerd's own services rather than a
+// explicit loopback host/port as one of servlo's own services rather than a
 // truly external database — unlike ReservedHostPorts, which reserves every
 // bundled preset's potential ports whether installed or not, this reports
 // only the ports a specific installed service is actually bound to.
@@ -613,7 +604,7 @@ func HostPortsFor(name string) []int {
 
 // FPMPortsFor returns the extra published port mappings recorded for a PHP
 // version's shared FPM container, or nil when none are configured. Read by the
-// FPM quadlet renderer so a `lerd shell` process on one of these ports is
+// FPM quadlet renderer so a `servlo shell` process on one of these ports is
 // reachable from the host, and by the port-shift guard to skip a version's own
 // ports when relocating a colliding one.
 func FPMPortsFor(version string) []string {
@@ -730,7 +721,7 @@ func LoadGlobal() (*GlobalConfig, error) {
 }
 
 // normalizeDefaultPHPVersion repairs a default version stored raw by an older
-// `lerd use` (e.g. "php84"), which broke every derived image name. Values that
+// `servlo use` (e.g. "php84"), which broke every derived image name. Values that
 // don't resolve to a supported version are left for callers to reject.
 func normalizeDefaultPHPVersion(cfg *GlobalConfig) {
 	if v, err := NormalizePHPVersion(cfg.PHP.DefaultVersion); err == nil {
@@ -825,11 +816,11 @@ func cloneGlobalConfig(in *GlobalConfig) *GlobalConfig {
 }
 
 // staleServiceImages maps service name → list of historical default images
-// that earlier lerd releases persisted into user configs. When LoadGlobal
+// that earlier servlo releases persisted into user configs. When LoadGlobal
 // finds one of these on disk it transparently replaces it with the current
 // default from defaultConfig() so users picking up the upgrade automatically
 // move onto the new image (e.g. postgres → postgis/postgis for PostGIS
-// support) without having to hand-edit ~/.config/lerd/config.yaml.
+// support) without having to hand-edit ~/.config/servlo/config.yaml.
 var staleServiceImages = map[string][]string{
 	"mysql": {
 		"mysql:8.0",
@@ -898,7 +889,7 @@ func (c *GlobalConfig) IsXdebugEnabled(version string) bool {
 
 // GetXdebugMode returns the configured Xdebug mode for version, or "" when
 // disabled. Entries in the legacy xdebug_enabled map (no explicit mode) are
-// treated as mode "debug" so configs written by older lerd builds keep the
+// treated as mode "debug" so configs written by older servlo builds keep the
 // same behaviour they had before per-mode support existed.
 func (c *GlobalConfig) GetXdebugMode(version string) string {
 	if m, ok := c.PHP.XdebugMode[version]; ok && m != "" {
@@ -1001,7 +992,7 @@ func (c *GlobalConfig) RemovePackage(pkg string) {
 }
 
 // GetRealised returns what the given version's image actually loaded at its
-// last build. A zero value means lerd has not built that version yet.
+// last build. A zero value means servlo has not built that version yet.
 func (c *GlobalConfig) GetRealised(version string) RealisedPHPSet {
 	return c.PHP.Realised[version]
 }
@@ -1015,7 +1006,7 @@ func (c *GlobalConfig) SetRealised(version string, set RealisedPHPSet) {
 }
 
 // MissingFromImage returns the declared entries that the given version's image
-// did not load. A version with no recorded build returns nothing: lerd knows
+// did not load. A version with no recorded build returns nothing: servlo knows
 // nothing about it yet, and reporting everything as missing would be a lie in
 // the opposite direction.
 func (c *GlobalConfig) MissingFromImage(version string, declared []string) []string {
@@ -1063,7 +1054,7 @@ func (c *GlobalConfig) SetExtApkDeps(ext string, deps []string) {
 	c.PHP.ExtApkDeps[ext] = cp
 }
 
-// IsDumpsEnabled reports whether the lerd debug bridge is on for all PHP
+// IsDumpsEnabled reports whether the servlo debug bridge is on for all PHP
 // versions. The toggle is global because the bridge file is a single,
 // version-agnostic asset bind-mounted into every FPM container.
 func (c *GlobalConfig) IsDumpsEnabled() bool {
@@ -1100,7 +1091,7 @@ func (c *GlobalConfig) IsDumpsPassthrough() bool {
 }
 
 // SetDumpsPassthrough flips the passthrough flag. Persist via SaveGlobal
-// and follow up with a `lerd-php*-fpm` restart so the new ini value takes
+// and follow up with a `servlo-php*-fpm` restart so the new ini value takes
 // effect (PHP reads ini directives at FPM startup, not per request).
 func (c *GlobalConfig) SetDumpsPassthrough(enabled bool) {
 	c.Dumps.Passthrough = enabled
@@ -1179,18 +1170,6 @@ func (c *GlobalConfig) EffectiveNativeKinds() map[string]bool {
 	return out
 }
 
-// IsHighContrastTrayIcon reports whether the tray should show the always-visible
-// green running icon instead of the theme-adaptive light/dark one.
-func (c *GlobalConfig) IsHighContrastTrayIcon() bool {
-	return c.Tray.HighContrastIcon
-}
-
-// SetHighContrastTrayIcon flips the tray running-icon style. Persist via
-// SaveGlobal; the tray re-reads it on every poll.
-func (c *GlobalConfig) SetHighContrastTrayIcon(enabled bool) {
-	c.Tray.HighContrastIcon = enabled
-}
-
 // NodeManagedPref returns the persisted Node-management choice. set is false
 // when the config predates the field, so callers fall back to the on-disk shim
 // state instead of assuming a default.
@@ -1216,7 +1195,7 @@ func (c *GlobalConfig) NodeManager() string {
 	return c.Node.Manager
 }
 
-// SetNodeManager records which Node version manager lerd drives ("fnm" or
+// SetNodeManager records which Node version manager servlo drives ("fnm" or
 // "nvm"). Persist via SaveGlobal.
 func (c *GlobalConfig) SetNodeManager(manager string) {
 	c.Node.Manager = manager
@@ -1251,7 +1230,7 @@ func SaveGlobal(cfg *GlobalConfig) error {
 	return nil
 }
 
-// IDEDataSourceEnabled reports whether lerd may maintain a project's JetBrains
+// IDEDataSourceEnabled reports whether servlo may maintain a project's JetBrains
 // data source. On by default: it only ever touches a project that already has a
 // .idea directory, and only its own entry in it.
 func IDEDataSourceEnabled() bool {

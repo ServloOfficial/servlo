@@ -20,9 +20,9 @@ func TestSSHAuthSockEnv_StoppedReturnsNil(t *testing.T) {
 }
 
 func TestGenerateSSHAgentQuadlet(t *testing.T) {
-	content := GenerateSSHAgentQuadlet("lerd-php85-fpm:local")
+	content := GenerateSSHAgentQuadlet("servlo-php85-fpm:local")
 	for _, want := range []string{
-		"Image=lerd-php85-fpm:local",
+		"Image=servlo-php85-fpm:local",
 		"ContainerName=" + SSHAgentContainer,
 		"Volume=" + SSHAgentVolume + ":" + SSHAgentMountDir,
 		"Volume=%h/.ssh:%h/.ssh:ro",
@@ -38,7 +38,7 @@ func TestGenerateSSHAgentQuadlet(t *testing.T) {
 // The FPM container template must mount the agent volume, otherwise composer in
 // the FPM container can't reach the shared agent socket.
 func TestFPMTemplateMountsAgentVolume(t *testing.T) {
-	tmpl, err := GetQuadletTemplate("lerd-php-fpm.container.tmpl")
+	tmpl, err := GetQuadletTemplate("servlo-php-fpm.container.tmpl")
 	if err != nil {
 		t.Fatalf("reading FPM template: %v", err)
 	}

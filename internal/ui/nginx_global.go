@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/cfgedit"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/cfgedit"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 // nginxQuadletRestartTimeout bounds the readiness wait after a quadlet-changing
@@ -25,7 +25,7 @@ func globalNginxFile() cfgedit.File {
 	return cfgedit.File{
 		Path:     config.NginxHttpUserConf(),
 		BkpDir:   config.NginxHttpDBkp(),
-		BkpName:  "zz-lerd-user.conf",
+		BkpName:  "zz-servlo-user.conf",
 		Template: nginxHttpTemplate,
 	}
 }
@@ -134,7 +134,7 @@ func handleNginxConfigBackupContent(w http.ResponseWriter, r *http.Request, name
 }
 
 // handleNginxConfigReset deletes the global http override so nginx.conf falls
-// back to lerd's bundled defaults, then reloads. Unlike a per-site reset it
+// back to servlo's bundled defaults, then reloads. Unlike a per-site reset it
 // reloads even when the file was already missing: a running nginx may still
 // hold directives from a previous lifetime (out-of-band rm, crash, stale
 // mount) and Reset is the user's signal to sync the runtime to the empty disk.
@@ -220,7 +220,7 @@ func handleNginxConfig(w http.ResponseWriter, r *http.Request) {
 	defer cfgedit.Mu.Unlock()
 
 	// Heal preconditions for installs predating this feature: rerender
-	// nginx.conf (now carrying the http.d include) and the lerd-nginx quadlet
+	// nginx.conf (now carrying the http.d include) and the servlo-nginx quadlet
 	// (now carrying the http.d Volume= mount).
 	if err := nginx.EnsureNginxConfig(); err != nil {
 		writeJSON(w, NginxConfigWriteResponse{OK: false, Error: "ensuring nginx config: " + err.Error()})
@@ -255,7 +255,7 @@ func handleNginxConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Re-render with the new override in place: a directive the user now sets
-	// also lives in lerd's http{} defaults, and nginx fails on the duplicate
+	// also lives in servlo's http{} defaults, and nginx fails on the duplicate
 	// unless the default steps aside.
 	if err := nginx.EnsureNginxConfig(); err != nil {
 		_ = cfgedit.RestoreSnapshot(f.Path, snap)
@@ -268,7 +268,7 @@ func handleNginxConfig(w http.ResponseWriter, r *http.Request) {
 
 	if quadletChanged {
 		_ = podman.DaemonReloadFn()
-		restartErr := podman.RestartUnit("lerd-nginx")
+		restartErr := podman.RestartUnit("servlo-nginx")
 		if restartErr == nil {
 			// RestartUnit returning nil only means systemd issued the restart,
 			// not that nginx accepted the edited config. The container now
@@ -285,7 +285,7 @@ func handleNginxConfig(w http.ResponseWriter, r *http.Request) {
 				// can flash "active" mid-loop, fooling the readiness probe).
 				// Roll back on either; a neighbour's broken vhost on a healthy,
 				// running container is left alone, matching the reload path.
-				if running, _ := podman.ContainerRunning("lerd-nginx"); !running || cfgedit.MentionsFile(out, f.Path) {
+				if running, _ := podman.ContainerRunning("servlo-nginx"); !running || cfgedit.MentionsFile(out, f.Path) {
 					restartErr = errors.New("invalid config: " + out)
 				}
 			}
@@ -296,7 +296,7 @@ func handleNginxConfig(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			_ = nginx.EnsureNginxConfig()
-			if rb2Err := podman.RestartUnit("lerd-nginx"); rb2Err != nil {
+			if rb2Err := podman.RestartUnit("servlo-nginx"); rb2Err != nil {
 				writeJSON(w, NginxConfigWriteResponse{OK: false, Error: "nginx config invalid and rollback restart failed: " + rb2Err.Error() + " (original: " + restartErr.Error() + ")"})
 				return
 			}

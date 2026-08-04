@@ -81,9 +81,9 @@ func TestApplyShellMounts_RendersBunVolume(t *testing.T) {
 }
 
 // The fpm container template must carry the bun volume placeholder so the
-// in-container `lerd php:bun install` target has a persistent home.
+// in-container `servlo php:bun install` target has a persistent home.
 func TestFPMTemplateHasBunVolume(t *testing.T) {
-	tmpl, err := GetQuadletTemplate("lerd-php-fpm.container.tmpl")
+	tmpl, err := GetQuadletTemplate("servlo-php-fpm.container.tmpl")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestApplyShellMounts_RendersPlaywrightVolume(t *testing.T) {
 // The fpm container template must carry the Playwright cache volume so opt-in
 // Pest browser testing keeps its registry and chromium shims across rebuilds.
 func TestFPMTemplateHasPlaywrightVolume(t *testing.T) {
-	tmpl, err := GetQuadletTemplate("lerd-php-fpm.container.tmpl")
+	tmpl, err := GetQuadletTemplate("servlo-php-fpm.container.tmpl")
 	if err != nil {
 		t.Fatal(err)
 	}

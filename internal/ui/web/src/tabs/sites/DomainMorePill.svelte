@@ -48,7 +48,7 @@
             href={scheme() + d}
             target="_blank"
             rel="noopener"
-            class="flex items-center gap-1.5 py-0.5 font-mono text-white hover:text-lerd-red transition-colors cursor-pointer"
+            class="flex items-center gap-1.5 py-0.5 font-mono text-white hover:text-servlo-red transition-colors cursor-pointer"
           >
             <span>{d}</span>
             <svg class="w-3 h-3 shrink-0 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">

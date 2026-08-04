@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // DropOrphanedWorktreeDBs scans the registry for orphaned worktree state
@@ -43,7 +43,7 @@ func liveWorktreeBranches(site *config.Site) map[string]bool {
 }
 
 // SetWorktreeDBIsolated is the shared lifecycle helper used by both the HTTP
-// handler and the `lerd db:isolate` / `lerd db:share` CLI commands. On enable
+// handler and the `servlo db:isolate` / `servlo db:share` CLI commands. On enable
 // it creates `<parent_db>_<sanitized_branch>` in the same service the parent
 // uses, optionally clones from `source` (empty / "main" / another isolated
 // branch), records the worktree-DB pair in the registry, and rewrites the
@@ -51,14 +51,14 @@ func liveWorktreeBranches(site *config.Site) map[string]bool {
 // resolved from the framework definition (see resolveDBEnvBinding), so Laravel's
 // DB_DATABASE and Magento's db.connection.default.dbname are handled alike. On
 // disable it drops the DB and restores the parent's value. Idempotent.
-// resolveDBService returns the lerd service backing the parent site's database.
-// Container/PHP sites name it directly in DB_HOST (lerd-postgres -> postgres);
+// resolveDBService returns the servlo service backing the parent site's database.
+// Container/PHP sites name it directly in DB_HOST (servlo-postgres -> postgres);
 // host-proxy sites rewrite DB_HOST to loopback, so the service is recovered from
-// the mysql/mariadb/postgres-family entry in the site's .lerd.yaml instead.
-// Returns "" when no lerd-managed database can be resolved.
+// the mysql/mariadb/postgres-family entry in the site's .servlo.yaml instead.
+// Returns "" when no servlo-managed database can be resolved.
 func resolveDBService(site *config.Site, parentHost string) string {
-	if strings.HasPrefix(parentHost, "lerd-") {
-		return strings.TrimPrefix(parentHost, "lerd-")
+	if strings.HasPrefix(parentHost, "servlo-") {
+		return strings.TrimPrefix(parentHost, "servlo-")
 	}
 	proj, err := config.LoadProjectConfig(site.Path)
 	if err != nil {
@@ -75,7 +75,7 @@ func resolveDBService(site *config.Site, parentHost string) string {
 
 // dbEnvBinding describes how a framework's env file addresses its primary
 // database: the file and format to read and write, and the keys holding the DB
-// host (a lerd-<service> container name) and the database name. It is resolved
+// host (a servlo-<service> container name) and the database name. It is resolved
 // from the framework definition's mysql/mariadb/postgres service vars, so a
 // Laravel site (DB_HOST / DB_DATABASE), a Magento site
 // (db.connection.default.host / .dbname) and any future framework are addressed
@@ -114,7 +114,7 @@ func resolveDBEnvBinding(sitePath string) dbEnvBinding {
 			switch {
 			case val == "{{site}}":
 				b.nameKey = key
-			case strings.HasPrefix(val, "lerd-"):
+			case strings.HasPrefix(val, "servlo-"):
 				b.hostKey = key
 			}
 		}
@@ -163,7 +163,7 @@ func SetWorktreeDBIsolated(site *config.Site, branch string, isolated bool, sour
 	parentHost := readParent(binding.hostKey)
 	service := resolveDBService(site, parentHost)
 	if parentDB == "" || service == "" {
-		return fmt.Errorf("parent site does not use a lerd-managed mysql/postgres (%s=%q, %s=%q)", binding.hostKey, parentHost, binding.nameKey, parentDB)
+		return fmt.Errorf("parent site does not use a servlo-managed mysql/postgres (%s=%q, %s=%q)", binding.hostKey, parentHost, binding.nameKey, parentDB)
 	}
 	dbName := WorktreeDBName(parentDB, branch)
 	wtEnv := filepath.Join(wt.Path, binding.file)
@@ -187,7 +187,7 @@ func SetWorktreeDBIsolated(site *config.Site, branch string, isolated bool, sour
 			return fmt.Errorf("recording worktree db: %w", err)
 		}
 		if err := config.SetWorktreeDBIsolated(wt.Path, true); err != nil {
-			return fmt.Errorf("updating .lerd.yaml: %w", err)
+			return fmt.Errorf("updating .servlo.yaml: %w", err)
 		}
 		if err := applyDBEnvUpdate(wtEnv, binding.format, map[string]string{binding.nameKey: dbName}); err != nil {
 			return fmt.Errorf("rewriting worktree env: %w", err)
@@ -199,7 +199,7 @@ func SetWorktreeDBIsolated(site *config.Site, branch string, isolated bool, sour
 		_, _ = DropDatabase(entry.Service, entry.DBName)
 	}
 	if err := config.SetWorktreeDBIsolated(wt.Path, false); err != nil {
-		return fmt.Errorf("updating .lerd.yaml: %w", err)
+		return fmt.Errorf("updating .servlo.yaml: %w", err)
 	}
 	if _, err := os.Stat(wtEnv); err == nil {
 		if err := applyDBEnvUpdate(wtEnv, binding.format, map[string]string{binding.nameKey: parentDB}); err != nil {
@@ -210,7 +210,7 @@ func SetWorktreeDBIsolated(site *config.Site, branch string, isolated bool, sour
 }
 
 // EnsureWorktreeIsolatedDB provisions the isolated database for a worktree that
-// committed `db_isolated: true` in its .lerd.yaml but has no database yet. This
+// committed `db_isolated: true` in its .servlo.yaml but has no database yet. This
 // is the case when a site is linked with a pre-existing worktree (or one is
 // materialised on a daemon that was offline): the interactive add-time prompt
 // that normally creates the DB never ran, so the worktree's vhost and workers
@@ -219,7 +219,7 @@ func SetWorktreeDBIsolated(site *config.Site, branch string, isolated bool, sour
 // It is a no-op when the worktree didn't opt in or its DB is already in the
 // registry, so it is safe to call on every scan. The database is seeded empty
 // (the worktree's own migrations populate it); cloning from the parent stays an
-// explicit `lerd db:isolate` / `lerd worktree add` choice. Returns true only
+// explicit `servlo db:isolate` / `servlo worktree add` choice. Returns true only
 // when it created the database this call.
 func EnsureWorktreeIsolatedDB(site *config.Site, branch, worktreePath string) (bool, error) {
 	if !config.WorktreeDBIsolated(worktreePath) {

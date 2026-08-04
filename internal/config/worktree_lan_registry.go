@@ -10,7 +10,7 @@ import (
 
 // WorktreeLANEntry tracks one LAN share proxy bound to a worktree subdomain.
 // LAN ports are machine-local (don't travel with the branch), so this registry
-// lives under ~/.local/share/lerd, separate from the worktree's .lerd.yaml.
+// lives under ~/.local/share/servlo, separate from the worktree's .servlo.yaml.
 type WorktreeLANEntry struct {
 	Site   string `yaml:"site"`
 	Branch string `yaml:"branch"`

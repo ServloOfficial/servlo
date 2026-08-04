@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // resetPathMountAttempts clears the debounce cache so tests can drive the
@@ -47,8 +47,8 @@ func TestPathAutoMountable(t *testing.T) {
 		"/":                false,
 		"":                 false,
 		"relative/path":    false,
-		"/var/tmp/lerd":    false,
-		"/tmp/lerd":        false,
+		"/var/tmp/servlo":  false,
+		"/tmp/servlo":      false,
 		"/run/user/1000/x": false,
 	}
 	for path, want := range cases {
@@ -58,7 +58,7 @@ func TestPathAutoMountable(t *testing.T) {
 	}
 }
 
-// A path lerd refuses to auto-mount can still be reachable inside the container
+// A path servlo refuses to auto-mount can still be reachable inside the container
 // because it was parked: the Volume line is already in the FPM quadlet.
 func TestPathVisible(t *testing.T) {
 	home := t.TempDir()
@@ -71,7 +71,7 @@ func TestPathVisible(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := "[Container]\nVolume=/var/tmp/parked:/var/tmp/parked:rw\nVolume=/srv/apps:/srv/apps:rw\n"
-	if err := os.WriteFile(filepath.Join(quadlets, "lerd-php84-fpm.container"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(quadlets, "servlo-php84-fpm.container"), []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
 

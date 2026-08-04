@@ -79,7 +79,7 @@ func TestVAPIDKeys_PrivateKeyFilePermissions(t *testing.T) {
 	if _, _, err := VAPIDKeys(); err != nil {
 		t.Fatalf("VAPIDKeys: %v", err)
 	}
-	info, err := os.Stat(dir + "/lerd/" + vapidPrivateFile)
+	info, err := os.Stat(dir + "/servlo/" + vapidPrivateFile)
 	if err != nil {
 		t.Fatalf("stat private key: %v", err)
 	}

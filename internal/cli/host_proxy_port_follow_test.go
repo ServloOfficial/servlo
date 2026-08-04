@@ -3,12 +3,12 @@ package cli
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestServicePortMappings_appliesPublishedPortOverride proves the host-proxy
 // env writer reads the moved port: servicePortMappings must reflect a
-// PublishedPort override (set by `lerd service port` or the guard), since that
+// PublishedPort override (set by `servlo service port` or the guard), since that
 // override lives in global config, not the preset/quadlet meta the lookups read.
 func TestServicePortMappings_appliesPublishedPortOverride(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
@@ -50,7 +50,7 @@ func TestRewriteEnvForHostProxy_followsPublishedPortOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	updates := map[string]string{"DB_HOST": "lerd-mysql", "DB_PORT": "3306"}
+	updates := map[string]string{"DB_HOST": "servlo-mysql", "DB_PORT": "3306"}
 	rewriteEnvForHostProxy(updates, []string{"mysql"})
 	if updates["DB_HOST"] != "127.0.0.1" {
 		t.Errorf("DB_HOST = %q, want 127.0.0.1 (host-proxy reaches the service on loopback)", updates["DB_HOST"])

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
 )
 
 func writeEnv(t *testing.T, dir, name, body string) {

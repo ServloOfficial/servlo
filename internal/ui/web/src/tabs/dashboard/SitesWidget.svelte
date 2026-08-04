@@ -48,7 +48,7 @@
 
   {#if $sitesLoaded && total === 0}
     <p class="text-sm text-gray-500 dark:text-gray-400">
-      {@html m.sites_emptyHint({ cmd: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm font-mono">lerd park</code>' })}
+      {@html m.sites_emptyHint({ cmd: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm font-mono">servlo park</code>' })}
     </p>
   {:else}
     <div class="space-y-0.5">
@@ -85,7 +85,7 @@
             title={m.dashboard_sites_openInBrowser()}
             onclick={(e) => onOpen(s, e)}
             onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpen(s, e); }}
-            class="shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-sm text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            class="shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-sm text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
           >
             <Icon name="globe" class="w-3.5 h-3.5" />
           </span>
@@ -99,7 +99,7 @@
       {#if $accessMode.localControl}
         <button
           onclick={openLinkModal}
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-lerd-red hover:bg-lerd-redhov text-white transition-colors"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-servlo-red hover:bg-servlo-redhov text-white transition-colors"
         >
           <Icon name="plus" class="w-3.5 h-3.5" />
           {m.dashboard_sites_link()}
@@ -107,7 +107,7 @@
       {/if}
       <button
         onclick={() => goToTab('sites')}
-        class="ml-auto text-xs font-medium text-lerd-red hover:text-lerd-redhov"
+        class="ml-auto text-xs font-medium text-servlo-red hover:text-servlo-redhov"
       >{m.dashboard_sites_open()}</button>
     </div>
   {/snippet}

@@ -164,7 +164,7 @@
 </script>
 
 {#snippet kpi(label: string, value: string, unit: string, meta: string, tone: string)}
-  <div class="rounded-lg border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card p-3">
+  <div class="rounded-lg border border-gray-200/80 dark:border-servlo-border bg-white dark:bg-servlo-card p-3">
     <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{label}</div>
     <div class="mt-2 text-2xl font-semibold tracking-tight tabular-nums {tone}">
       {value}<span class="text-sm font-medium text-gray-400 dark:text-gray-500 ml-0.5">{unit}</span>
@@ -176,7 +176,7 @@
 {#snippet slowRow(r: RouteStat, clickable: boolean)}
   <span class="flex items-center gap-1.5 min-w-0">
     <span class="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded {methClass(r.method)}">{r.method}</span>
-    <span class="font-mono text-xs text-gray-700 dark:text-gray-200 truncate {clickable ? 'group-hover:text-lerd-red' : ''}">{r.route.replace(r.method + ' ', '')}</span>
+    <span class="font-mono text-xs text-gray-700 dark:text-gray-200 truncate {clickable ? 'group-hover:text-servlo-red' : ''}">{r.route.replace(r.method + ' ', '')}</span>
   </span>
   <span class="h-2 rounded-full bg-gray-100 dark:bg-white/5 overflow-hidden">
     <span class="block h-full rounded-full {SEV_BG[sev(recentP95(r))]}" style="width:{(recentP95(r) / slowMax) * 100}%"></span>
@@ -191,7 +191,7 @@
       onclick={(e) => { e.stopPropagation(); inspectRoute(routeKey); }}
       use:tooltip={m.sites_timing_inspectQueries()}
       aria-label={m.sites_timing_inspectQueries()}
-      class="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+      class="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
     >
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <ellipse cx="12" cy="5" rx="8" ry="3" />
@@ -206,13 +206,13 @@
     <h3 class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
       {m.sites_reqstats_title()}
     </h3>
-    <div class="inline-flex rounded-md border border-gray-200 dark:border-lerd-border bg-gray-50 dark:bg-white/5 p-0.5">
+    <div class="inline-flex rounded-md border border-gray-200 dark:border-servlo-border bg-gray-50 dark:bg-white/5 p-0.5">
       {#each TIME_RANGES as rg (rg)}
         <button
           type="button"
           onclick={() => (range = rg)}
           class="px-2 py-0.5 text-[11px] rounded-sm transition-colors {range === rg
-            ? 'bg-white dark:bg-lerd-card text-gray-800 dark:text-gray-100 font-medium shadow-sm'
+            ? 'bg-white dark:bg-servlo-card text-gray-800 dark:text-gray-100 font-medium shadow-sm'
             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}"
         >{rg}</button>
       {/each}
@@ -220,7 +220,7 @@
   </div>
 
   {#if !hasData}
-    <div class="rounded-lg border border-dashed border-gray-200 dark:border-lerd-border p-6 text-center text-xs text-gray-400 dark:text-gray-500">
+    <div class="rounded-lg border border-dashed border-gray-200 dark:border-servlo-border p-6 text-center text-xs text-gray-400 dark:text-gray-500">
       {m.sites_reqstats_watching()}
     </div>
   {:else if data}
@@ -241,7 +241,7 @@
 
     <!-- charts -->
     <div class="mt-3 grid md:grid-cols-2 gap-3">
-      <div class="rounded-lg border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card p-3">
+      <div class="rounded-lg border border-gray-200/80 dark:border-servlo-border bg-white dark:bg-servlo-card p-3">
         <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">{m.sites_timing_responseTime()}</div>
         <div class="flex items-end gap-1.5 h-24">
           {#each data.distribution as b, i (i)}
@@ -253,7 +253,7 @@
         </div>
       </div>
 
-      <div class="rounded-lg border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card p-3">
+      <div class="rounded-lg border border-gray-200/80 dark:border-servlo-border bg-white dark:bg-servlo-card p-3">
         <div class="flex items-baseline justify-between mb-3">
           <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{m.sites_timing_throughput()}</div>
           <div class="text-[10px] text-gray-400 dark:text-gray-500">{m.sites_timing_perMin()}</div>
@@ -267,8 +267,8 @@
             <div class="flex-1 min-w-0">
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-24">
                 <line x1="0" y1="4" x2="100" y2="4" class="stroke-gray-200/70 dark:stroke-white/5" stroke-width="1" vector-effect="non-scaling-stroke" />
-                <path d={tput.area} class="fill-lerd-red/10" />
-                <path d={tput.line} fill="none" class="stroke-lerd-red" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
+                <path d={tput.area} class="fill-servlo-red/10" />
+                <path d={tput.line} fill="none" class="stroke-servlo-red" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
               </svg>
               <div class="flex justify-between text-[9px] tabular-nums text-gray-400 dark:text-gray-500 mt-1">
                 <span>{fmtTime(tput.first)}</span>
@@ -283,7 +283,7 @@
     </div>
 
     <!-- slowest routes -->
-    <div class="mt-3 rounded-lg border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card p-3">
+    <div class="mt-3 rounded-lg border border-gray-200/80 dark:border-servlo-border bg-white dark:bg-servlo-card p-3">
       <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2.5">{m.sites_timing_slowest()}</div>
       <div class="flex flex-col gap-2">
         {#each slowest as r (r.method + r.route)}
@@ -303,12 +303,12 @@
     </div>
 
     <!-- routes / recent -->
-    <div class="mt-3 rounded-lg border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card">
-      <div class="flex items-center gap-4 px-3 pt-2.5 border-b border-gray-100 dark:border-lerd-border">
+    <div class="mt-3 rounded-lg border border-gray-200/80 dark:border-servlo-border bg-white dark:bg-servlo-card">
+      <div class="flex items-center gap-4 px-3 pt-2.5 border-b border-gray-100 dark:border-servlo-border">
         <button type="button" onclick={() => (tab = 'routes')}
-          class="pb-2 text-xs font-medium border-b-2 -mb-px transition-colors {tab === 'routes' ? 'border-lerd-red text-lerd-red' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}">{m.sites_timing_routes()}</button>
+          class="pb-2 text-xs font-medium border-b-2 -mb-px transition-colors {tab === 'routes' ? 'border-servlo-red text-servlo-red' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}">{m.sites_timing_routes()}</button>
         <button type="button" onclick={() => (tab = 'recent')}
-          class="pb-2 text-xs font-medium border-b-2 -mb-px transition-colors {tab === 'recent' ? 'border-lerd-red text-lerd-red' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}">{m.sites_timing_recent()}</button>
+          class="pb-2 text-xs font-medium border-b-2 -mb-px transition-colors {tab === 'recent' ? 'border-servlo-red text-servlo-red' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}">{m.sites_timing_recent()}</button>
       </div>
 
       {#if tab === 'routes'}
@@ -326,7 +326,7 @@
             </thead>
             <tbody>
               {#each data.routes as r (r.method + r.route)}
-                <tr class="border-t border-gray-100 dark:border-lerd-border hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                <tr class="border-t border-gray-100 dark:border-servlo-border hover:bg-gray-50 dark:hover:bg-white/[0.02]">
                   <td class="px-3 py-2">
                     <span class="flex items-center gap-1.5 min-w-0">
                       <span class="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded {methClass(r.method)}">{r.method}</span>
@@ -348,7 +348,7 @@
           </table>
         </div>
       {:else}
-        <div class="divide-y divide-gray-100 dark:divide-lerd-border">
+        <div class="divide-y divide-gray-100 dark:divide-servlo-border">
           {#each data.recent as r, i (r.at_millis + '-' + r.uri + '-' + i)}
             <div class="flex items-center gap-3 px-3 py-2 text-xs">
               <span class="shrink-0 font-mono text-[11px] tabular-nums text-gray-400 dark:text-gray-500">{fmtTime(r.at_millis)}</span>

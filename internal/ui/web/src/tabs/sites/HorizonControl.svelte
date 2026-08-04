@@ -81,7 +81,7 @@
         ? m.sites_controls_horizonReloadToggle_on()
         : m.sites_controls_horizonReloadToggle_off()}
       onclick={clickReload}
-      class="inline-flex items-center justify-center h-7 w-8 rounded-r-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      class="inline-flex items-center justify-center h-7 w-8 rounded-r-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <svg
         class="w-3.5 h-3.5 transition-colors {iconClass} {spinning ? 'animate-[spin_0.6s_ease-in-out]' : ''}"

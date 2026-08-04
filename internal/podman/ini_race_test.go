@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // setupConfigHome points config.PHPConfFile / PHPUserIniFile / GlobalConfigFile
@@ -135,7 +135,7 @@ func TestEnsureXdebugIni_healsStaleDirectory(t *testing.T) {
 // ── WriteXdebugIni ───────────────────────────────────────────────────────────
 
 func TestWriteXdebugIni_healsStaleDirectoryDirectly(t *testing.T) {
-	// Even when called directly (lerd xdebug on/off after a broken
+	// Even when called directly (servlo xdebug on/off after a broken
 	// install), WriteXdebugIni must heal a stale directory rather than
 	// fail with "is a directory" — otherwise users who hit the original
 	// bug have no recovery path short of manually rmdir'ing the file.
@@ -407,7 +407,7 @@ func TestEnsureFPMHostsFile_healsStaleDirectory(t *testing.T) {
 
 func TestEnsureUserIni_healsStaleDirectory(t *testing.T) {
 	// Same race as the original xdebug bug, on the user-ini bind-mount
-	// declared in lerd-php-fpm.container.tmpl. EnsureUserIni currently
+	// declared in servlo-php-fpm.container.tmpl. EnsureUserIni currently
 	// only checks whether the path exists, not whether it's a regular
 	// file, so a podman-auto-created directory passes the check and the
 	// real ini is never written. This test fails until EnsureUserIni

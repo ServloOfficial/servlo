@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // registerWorktreeSite wires a registered site plus one worktree checkout, the
@@ -29,7 +29,7 @@ func registerWorktreeSite(t *testing.T, branch string) string {
 	return wt
 }
 
-// A path lerd does not manage has to be rejected outright. Callers need "not
+// A path servlo does not manage has to be rejected outright. Callers need "not
 // mine" to be distinguishable from "gave up", and burning the whole timeout on
 // a path that will never be provisioned would make the command useless in a hook.
 func TestWaitForManagedWorktree_rejectsUnmanagedPathWithoutWaiting(t *testing.T) {
@@ -42,8 +42,8 @@ func TestWaitForManagedWorktree_rejectsUnmanagedPathWithoutWaiting(t *testing.T)
 	err := WaitForManagedWorktree(t.TempDir(), 30*time.Second)
 	elapsed := time.Since(start)
 
-	if !errors.Is(err, ErrNotLerdWorktree) {
-		t.Fatalf("err = %v, want ErrNotLerdWorktree", err)
+	if !errors.Is(err, ErrNotServloWorktree) {
+		t.Fatalf("err = %v, want ErrNotServloWorktree", err)
 	}
 	if elapsed > 5*time.Second {
 		t.Errorf("took %s, must fail fast rather than wait out the timeout", elapsed)
@@ -56,8 +56,8 @@ func TestWaitForManagedWorktree_rejectsTheParentSitePath(t *testing.T) {
 	wt := registerWorktreeSite(t, "feature")
 	sitePath := filepath.Dir(filepath.Dir(wt))
 
-	if err := WaitForManagedWorktree(sitePath, 2*time.Second); !errors.Is(err, ErrNotLerdWorktree) {
-		t.Errorf("err = %v, want ErrNotLerdWorktree for the parent checkout", err)
+	if err := WaitForManagedWorktree(sitePath, 2*time.Second); !errors.Is(err, ErrNotServloWorktree) {
+		t.Errorf("err = %v, want ErrNotServloWorktree for the parent checkout", err)
 	}
 }
 

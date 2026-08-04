@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // GenerateCustomContainerQuadlet builds a quadlet .container file for a
-// per-project custom container. The container joins the lerd network so it
-// can reach services (lerd-mysql, lerd-redis, etc.) and is reachable by
+// per-project custom container. The container joins the servlo network so it
+// can reach services (servlo-mysql, servlo-redis, etc.) and is reachable by
 // nginx via its container name.
 //
 // A project path that cannot be bind-mounted is refused rather than rendered
@@ -25,13 +25,13 @@ func GenerateCustomContainerQuadlet(siteName, projectPath string, port int) (str
 	var b strings.Builder
 
 	b.WriteString("[Unit]\n")
-	fmt.Fprintf(&b, "Description=Lerd custom container (%s)\n", siteName)
+	fmt.Fprintf(&b, "Description=Servlo custom container (%s)\n", siteName)
 	b.WriteString("After=network.target\n")
 
 	b.WriteString("\n[Container]\n")
 	fmt.Fprintf(&b, "Image=%s\n", imageName)
 	fmt.Fprintf(&b, "ContainerName=%s\n", containerName)
-	b.WriteString("Network=lerd\n")
+	b.WriteString("Network=servlo\n")
 	fmt.Fprintf(&b, "Volume=%s:/etc/hosts:ro,z\n", config.ContainerHostsFile())
 	fmt.Fprintf(&b, "Volume=%s:%s:rw\n", projectPath, projectPath)
 	fmt.Fprintf(&b, "PodmanArgs=--security-opt=label=disable --workdir=%s\n", projectPath)

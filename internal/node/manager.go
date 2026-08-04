@@ -6,17 +6,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// Manager abstracts a Node.js version manager so lerd can install, list, and
+// Manager abstracts a Node.js version manager so servlo can install, list, and
 // execute Node without hardcoding one tool. Two implementations exist: fnm (the
 // bundled default binary) and nvm (a user-installed shell function). Callers
 // select one via Active(), which reads the node.manager config setting.
 //
-// Two flavours of output are exposed because lerd drives the manager from two
+// Two flavours of output are exposed because servlo drives the manager from two
 // places: directly from Go (Command, used by the CLI/UI/MCP) and from generated
-// shell scripts where the lerd binary may be unreachable — worker units,
+// shell scripts where the servlo binary may be unreachable — worker units,
 // launchd guard scripts, and PATH shims (ExecPrefix and ShimScript).
 type Manager interface {
 	// Name is the manager's identifier: "fnm" or "nvm".
@@ -48,15 +48,15 @@ type Manager interface {
 	// Used to build worker units and npm global wrappers.
 	ExecPrefix(version string) string
 	// ExecPrefixWithEnv is ExecPrefix with env vars set after Node activation,
-	// so npm global wrappers see lerd's npm_config_prefix, not the manager's.
+	// so npm global wrappers see servlo's npm_config_prefix, not the manager's.
 	ExecPrefixWithEnv(version string, env []string) string
 	// ShimScript returns the full shell script for a node/npm/npx PATH shim
 	// named bin. Only used when WritesPathShims is true (fnm). nvm returns a
 	// stub that explains PATH shims are not installed for that manager.
-	ShimScript(lerdBin, bin string) string
+	ShimScript(servloBin, bin string) string
 }
 
-// Active returns the Node version manager lerd is configured to drive, honouring
+// Active returns the Node version manager servlo is configured to drive, honouring
 // the node.manager config setting and defaulting to fnm so configs predating the
 // setting keep the bundled behaviour.
 func Active() Manager {
@@ -67,7 +67,7 @@ func Active() Manager {
 	return ManagerByName(name)
 }
 
-// Managed reports whether lerd is managing Node for this host. An explicit
+// Managed reports whether servlo is managing Node for this host. An explicit
 // node.managed config preference wins; when the field is unset (configs from
 // before it existed), presence of the node PATH shim is the historical signal.
 // With nvm there is no node shim on PATH (nvm already owns node/npm/npx), so
@@ -83,8 +83,8 @@ func Managed() bool {
 }
 
 // WritesPathShims reports whether this manager should install node/npm/npx
-// wrappers into lerd's bin dir. fnm needs them (nothing else puts fnm on PATH);
-// nvm must not (the user's shell already loads nvm, and lerd shims ahead of it
+// wrappers into servlo's bin dir. fnm needs them (nothing else puts fnm on PATH);
+// nvm must not (the user's shell already loads nvm, and servlo shims ahead of it
 // make `nvm ls` / `nvm use` hang).
 func WritesPathShims(m Manager) bool {
 	return m.Name() != "nvm"

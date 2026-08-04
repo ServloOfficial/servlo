@@ -9,13 +9,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/logcolor"
-	nodeDet "github.com/geodro/lerd/internal/node"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/logcolor"
+	nodeDet "github.com/realrashid/servlo/internal/node"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // removeWorkerExecArtifacts is a no-op on Linux: workers run as systemd
@@ -35,7 +35,7 @@ func removeWorkerExecArtifacts(_ string) {}
 func writeWorkerUnitFile(unitName, label, siteName, sitePath, phpVersion, command, restart, schedule, fpmUnit string, host bool) (bool, error) {
 	// Generation-boundary guard so every caller is covered (incl. the boot
 	// restore path): every value below is a line of the unit, and a cloned
-	// repo's .lerd.yaml can set the worker ones.
+	// repo's .servlo.yaml can set the worker ones.
 	if err := validateWorkerUnitFields(unitName, map[string]string{
 		"command":     command,
 		"label":       label,
@@ -55,17 +55,17 @@ func writeWorkerUnitFile(unitName, label, siteName, sitePath, phpVersion, comman
 
 	if schedule != "" {
 		serviceUnit := fmt.Sprintf(`[Unit]
-Description=Lerd %s (%s)
+Description=Servlo %s (%s)
 After=network.target %s.service
 BindsTo=%s.service
 
 [Service]
 Type=oneshot
-ExecStart=%s exec -w %s --env=LERD_SITE=%s %s%s %s
+ExecStart=%s exec -w %s --env=SERVLO_SITE=%s %s%s %s
 `, label, siteName, fpmUnit, fpmUnit, podman.PodmanBin(), podman.ShellQuote(sitePath), siteName, workerColorArgs(), container, command)
 
 		timerUnit := fmt.Sprintf(`[Unit]
-Description=Lerd %s timer (%s)
+Description=Servlo %s timer (%s)
 
 [Timer]
 OnCalendar=%s
@@ -88,7 +88,7 @@ WantedBy=timers.target
 	}
 
 	unit := fmt.Sprintf(`[Unit]
-Description=Lerd %s (%s)
+Description=Servlo %s (%s)
 After=network.target %s.service
 BindsTo=%s.service
 
@@ -97,7 +97,7 @@ Type=simple
 Restart=%s
 RestartSec=5
 SuccessExitStatus=1 130 143
-ExecStart=%s exec -w %s --env=LERD_SITE=%s%s %s%s %s
+ExecStart=%s exec -w %s --env=SERVLO_SITE=%s%s %s%s %s
 
 [Install]
 WantedBy=default.target
@@ -127,7 +127,7 @@ func writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, resta
 	// argument. Single quotes are escaped via the standard '"'"' idiom so the
 	// wrapper survives any user-provided string verbatim.
 	home, _ := os.UserHomeDir()
-	// lerd's shim must lead PATH so wayfinder + friends find `php`; we
+	// servlo's shim must lead PATH so wayfinder + friends find `php`; we
 	// rebuild the path systemd's user default would have supplied so
 	// `~/.local/bin` stays reachable — issue #375.
 	envPath := config.BinDir() + ":" + filepath.Join(home, ".local", "bin") + ":/usr/local/bin:/usr/bin:/bin"
@@ -148,8 +148,8 @@ func writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, resta
 				nodeVersion = defaultNodeVersion
 			}
 		}
-		if lerdManagesNode() {
-			// Route through the version manager only when lerd is actually
+		if servloManagesNode() {
+			// Route through the version manager only when servlo is actually
 			// managing Node (after node:unmanage there is no managed Node).
 			shellCommand = nodeDet.Active().ExecPrefix(nodeVersion) + " " + command
 		} else if dirs := nodeDet.SystemNodeBinDirsFor(nodeVersion); len(dirs) > 0 {
@@ -173,7 +173,7 @@ func writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, resta
 		fpmOrder = fmt.Sprintf("After=network.target %s.service\nWants=%s.service\n", fpmUnit, fpmUnit)
 	}
 	unit := fmt.Sprintf(`[Unit]
-Description=Lerd %s (%s)
+Description=Servlo %s (%s)
 %s
 [Service]
 Type=simple
@@ -200,14 +200,14 @@ func workerLogHint(unitName string, host bool) string {
 	return "journalctl --user -u " + unitName + " -f"
 }
 
-// restoreWorker is called from restoreSiteInfrastructure during `lerd start`,
+// restoreWorker is called from restoreSiteInfrastructure during `servlo start`,
 // before phase 1 brings up containers. We only write the unit file and enable
-// it; the actual Start happens in phase 2 of runStart once lerd-redis and the
+// it; the actual Start happens in phase 2 of runStart once servlo-redis and the
 // other infra containers are up. Starting here would race against container
-// readiness and cause errors like "lerd-redis: name does not resolve".
+// readiness and cause errors like "servlo-redis: name does not resolve".
 func restoreWorker(siteName, sitePath, phpVersion, workerName string, w config.FrameworkWorker) {
 	// Resolve the same way WorkerStartForSite does so a project opted into
-	// auto-reload keeps its reload command across lerd start and reboots,
+	// auto-reload keeps its reload command across servlo start and reboots,
 	// instead of silently coming back in standard mode.
 	command := resolveWorkerCommand(sitePath, workerName, w)
 	// A project-supplied host worker only restores on boot if the user already

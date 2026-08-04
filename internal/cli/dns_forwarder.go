@@ -14,9 +14,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewDNSForwarderCmd returns the hidden `lerd dns-forwarder` command that
-// runs the userspace UDP+TCP relay used by `lerd lan:expose` to bridge LAN
-// traffic to the rootless lerd-dns container. lan:expose internally needs
+// NewDNSForwarderCmd returns the hidden `servlo dns-forwarder` command that
+// runs the userspace UDP+TCP relay used by `servlo lan:expose` to bridge LAN
+// traffic to the rootless servlo-dns container. lan:expose internally needs
 // this to make .test resolution work for remote machines.
 //
 // Why this exists: rootless podman + pasta cannot accept inbound packets on
@@ -25,23 +25,23 @@ import (
 // CAP_NET_RAW which rootless containers don't have. Without a userspace
 // helper, `lan:expose` would only work for clients on the server itself.
 //
-// The forwarder runs as a systemd user service alongside lerd-watcher and
-// lerd-ui, listening on <lan-ip>:5300 (UDP+TCP) and relaying every packet
-// to 127.0.0.1:5300 where pasta does intercept correctly. The lerd binary
+// The forwarder runs as a systemd user service alongside servlo-watcher and
+// servlo-panel, listening on <lan-ip>:5300 (UDP+TCP) and relaying every packet
+// to 127.0.0.1:5300 where pasta does intercept correctly. The servlo binary
 // owns this subcommand so users don't need socat or any other system tool.
 func NewDNSForwarderCmd() *cobra.Command {
 	var listen, forward string
 	cmd := &cobra.Command{
 		Use:    "dns-forwarder",
-		Short:  "Userspace UDP+TCP relay used by `lerd lan:expose` (internal)",
+		Short:  "Userspace UDP+TCP relay used by `servlo lan:expose` (internal)",
 		Hidden: true,
 		Long: `Long-running daemon that relays UDP and TCP packets from --listen to
---forward. Used by lerd lan:expose to bridge LAN traffic to the rootless
-lerd-dns container, since rootless pasta cannot bind on the host's LAN
+--forward. Used by servlo lan:expose to bridge LAN traffic to the rootless
+servlo-dns container, since rootless pasta cannot bind on the host's LAN
 interface directly.
 
 Not intended to be invoked manually — managed by the
-lerd-dns-forwarder.service systemd user unit that lerd lan:expose writes.`,
+servlo-dns-forwarder.service systemd user unit that servlo lan:expose writes.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if listen == "" || forward == "" {
 				return fmt.Errorf("--listen and --forward are required")
@@ -64,7 +64,7 @@ func runDNSForwarder(listen, forward string) error {
 	go func() { udpErr <- runUDPRelay(listen, forward) }()
 	go func() { tcpErr <- runTCPRelay(listen, forward) }()
 
-	fmt.Fprintf(os.Stderr, "lerd dns-forwarder: relaying %s ↔ %s (UDP+TCP)\n", listen, forward)
+	fmt.Fprintf(os.Stderr, "servlo dns-forwarder: relaying %s ↔ %s (UDP+TCP)\n", listen, forward)
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
@@ -75,7 +75,7 @@ func runDNSForwarder(listen, forward string) error {
 	case err := <-tcpErr:
 		return fmt.Errorf("tcp relay: %w", err)
 	case sig := <-sigCh:
-		fmt.Fprintf(os.Stderr, "lerd dns-forwarder: caught %s, exiting\n", sig)
+		fmt.Fprintf(os.Stderr, "servlo dns-forwarder: caught %s, exiting\n", sig)
 		return nil
 	}
 }

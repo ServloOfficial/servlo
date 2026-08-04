@@ -75,7 +75,7 @@
 </script>
 
 <DetailPanel>
-  <div class="bg-gray-50/60 dark:bg-white/[0.02] border-b border-gray-100 dark:border-lerd-border shrink-0">
+  <div class="bg-gray-50/60 dark:bg-white/[0.02] border-b border-gray-100 dark:border-servlo-border shrink-0">
     <div class="flex items-stretch gap-3 px-3 py-3 overflow-x-auto snap-x">
       {#each ordered as v (v)}
         <PhpVersionCard
@@ -91,7 +91,7 @@
       <button
         type="button"
         onclick={() => openPhpAddModal()}
-        class="shrink-0 w-24 snap-start flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-gray-200 dark:border-lerd-border text-gray-400 hover:text-lerd-red hover:border-lerd-red hover:bg-lerd-red/5 transition-colors"
+        class="shrink-0 w-24 snap-start flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-gray-200 dark:border-servlo-border text-gray-400 hover:text-servlo-red hover:border-servlo-red hover:bg-servlo-red/5 transition-colors"
         title={m.system_php_add()}
         aria-label={m.system_php_add()}
       >

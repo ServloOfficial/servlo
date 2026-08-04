@@ -17,8 +17,8 @@ func TestFormatUnitFailureDetail(t *testing.T) {
 		{"empty", "", "", ""},
 		{"header only", "result: exit-code, exit status 125", "",
 			" (result: exit-code, exit status 125)"},
-		{"logs only", "", "    lerd-nginx: name is already in use",
-			"\n    lerd-nginx: name is already in use"},
+		{"logs only", "", "    servlo-nginx: name is already in use",
+			"\n    servlo-nginx: name is already in use"},
 		{"both", "result: exit-code", "    boom",
 			" (result: exit-code)\n    boom"},
 	}
@@ -36,7 +36,7 @@ func TestFormatUnitFailureDetail(t *testing.T) {
 // unit has no journal (or journalctl is missing entirely, e.g. a container
 // without systemd) — the enrichment is best-effort and never the failure path.
 func TestJournalTailNoEntries(t *testing.T) {
-	got := journalTail("lerd-nonexistent-unit-xyz.service", 5)
+	got := journalTail("servlo-nonexistent-unit-xyz.service", 5)
 	if got != "" {
 		t.Errorf("journalTail for a unit with no journal = %q, want empty", got)
 	}

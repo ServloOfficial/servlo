@@ -28,13 +28,13 @@
 </script>
 
 <nav
-  class="md:hidden fixed bottom-0 left-0 right-0 z-30 flex h-16 border-t border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card"
+  class="md:hidden fixed bottom-0 left-0 right-0 z-30 flex h-16 border-t border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card"
 >
   {#each TABS as t (t)}
     <button
       onclick={() => goToTab(t)}
       class="grow basis-0 min-w-0 flex flex-col items-center justify-center gap-0.5 transition-colors {onTabView && $tab === t
-        ? 'text-lerd-red'
+        ? 'text-servlo-red'
         : 'text-gray-400 dark:text-gray-500'}"
     >
       <Icon name={icons[t]} class="w-5 h-5" />
@@ -45,7 +45,7 @@
     <button
       onclick={goToApps}
       class="grow basis-0 min-w-0 flex flex-col items-center justify-center gap-0.5 transition-colors {$mobileView === 'apps'
-        ? 'text-lerd-red'
+        ? 'text-servlo-red'
         : 'text-gray-400 dark:text-gray-500'}"
     >
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

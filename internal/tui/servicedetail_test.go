@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/serviceops"
 )
 
 func TestServiceDetail_ShowsPortsLine(t *testing.T) {
@@ -151,7 +151,7 @@ func TestServiceDetail_WorkerRowRendersWorkerVariant(t *testing.T) {
 	if !strings.Contains(joined, "site:") || !strings.Contains(joined, "acme") {
 		t.Errorf("expected worker site row:\n%s", joined)
 	}
-	if !strings.Contains(joined, "lerd-queue-acme") {
+	if !strings.Contains(joined, "servlo-queue-acme") {
 		t.Errorf("expected unit name:\n%s", joined)
 	}
 	// Workers have no preset/env block, so the regular Sites-using header

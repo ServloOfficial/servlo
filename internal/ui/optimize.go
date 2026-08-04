@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dumps"
-	"github.com/geodro/lerd/internal/reqstats"
-	"github.com/geodro/lerd/internal/siteops"
-	"github.com/geodro/lerd/internal/spxreport"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dumps"
+	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/realrashid/servlo/internal/spxreport"
 )
 
 // spxTopN and spxMinPct bound the CPU hotspots attached to a slow route: the top

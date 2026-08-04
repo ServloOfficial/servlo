@@ -10,15 +10,15 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/phpantom"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/phpantom"
 )
 
 // runSystemSetup applies the root-level steps individually. macOS has no
-// `lerd bootstrap` to route them through, and both of these are no-ops here:
+// `servlo bootstrap` to route them through, and both of these are no-ops here:
 // the port sysctl does not exist and there is no linger. The resolver grant is
 // deliberately not part of this pass, see ensureResolverSudoers.
 func runSystemSetup(_ bool) error {
@@ -96,8 +96,8 @@ func downloadBinaries(w io.Writer) error {
 	}
 
 	// fnm — macOS universal binary. Skipped when the user drives Node via their
-	// own nvm, since lerd never provisions nvm and fnm would sit unused.
-	// Switching back with `lerd node:manager fnm` calls ensureFnmBinary on demand.
+	// own nvm, since servlo never provisions nvm and fnm would sit unused.
+	// Switching back with `servlo node:manager fnm` calls ensureFnmBinary on demand.
 	cfg, _ := config.LoadGlobal()
 	if cfg == nil || cfg.NodeManager() != "nvm" {
 		if err := ensureFnmBinary(w); err != nil {
@@ -143,7 +143,7 @@ func ensurePortForwarding() error {
 	helperPath, err := findPodmanMacHelper()
 	if err != nil {
 		feedback.Warn("podman-mac-helper not found — ports 80/443 may not work.")
-		feedback.Note("Install Podman via Homebrew and re-run 'lerd install'.")
+		feedback.Note("Install Podman via Homebrew and re-run 'servlo install'.")
 		return nil // not fatal; containers still work on non-privileged ports
 	}
 

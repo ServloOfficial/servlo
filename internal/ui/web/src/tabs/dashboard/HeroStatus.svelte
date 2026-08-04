@@ -19,14 +19,14 @@
   type HeroPriority = 'error' | 'updates' | 'ok';
 
   const failingWorkers = $derived($unhealthyWorkers.length);
-  const hasLerdUpdate = $derived($version.hasUpdate);
+  const hasServloUpdate = $derived($version.hasUpdate);
 
   const coreDown = $derived.by(() => {
     if (!$statusLoaded) return [] as string[];
     const issues: string[] = [];
-    // Only a genuine lerd-dns outage is a core failure. "degraded" means
-    // lerd-dns is healthy but the system resolver is bypassed (typically a
-    // VPN), which lerd recovers from on its own, so it doesn't belong here.
+    // Only a genuine servlo-dns outage is a core failure. "degraded" means
+    // servlo-dns is healthy but the system resolver is bypassed (typically a
+    // VPN), which servlo recovers from on its own, so it doesn't belong here.
     if ($status.dns?.enabled !== false && dnsState($status) === 'down') issues.push('DNS');
     if (!$status.nginx.running) issues.push('Nginx');
     if (!$status.watcher_running) issues.push('Watcher');
@@ -35,7 +35,7 @@
 
   const priority = $derived.by((): HeroPriority => {
     if (failingWorkers > 0 || coreDown.length > 0) return 'error';
-    if (hasLerdUpdate) return 'updates';
+    if (hasServloUpdate) return 'updates';
     return 'ok';
   });
 
@@ -50,10 +50,10 @@
     await loadWorkerHealth();
   }
 
-  async function onUpdateLerd() {
+  async function onUpdateServlo() {
     updateTerminalLoading = true;
     try {
-      await apiFetch('/api/lerd/update-terminal', { method: 'POST' });
+      await apiFetch('/api/servlo/update-terminal', { method: 'POST' });
     } finally {
       updateTerminalLoading = false;
     }
@@ -92,7 +92,7 @@
       </div>
       {#if coreDown.length > 0}
         <button
-          onclick={() => goToTab('system', 'lerd')}
+          onclick={() => goToTab('system', 'servlo')}
           class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition-colors"
         >{m.dashboard_hero_openSystem()}</button>
       {:else}
@@ -118,16 +118,16 @@
       </svg>
       <div class="flex-1 min-w-0">
         <p class="text-sm font-semibold text-yellow-900 dark:text-yellow-200">
-          {m.dashboard_hero_lerdUpdate({ version: $version.latest })}
+          {m.dashboard_hero_servloUpdate({ version: $version.latest })}
         </p>
       </div>
       {#if $accessMode.localControl}
         <button
-          onclick={onUpdateLerd}
+          onclick={onUpdateServlo}
           disabled={updateTerminalLoading}
           class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-yellow-600 hover:bg-yellow-700 text-white disabled:opacity-50 transition-colors"
         >
-          {updateTerminalLoading ? m.system_lerd_openingTerminal() : m.system_lerd_openTerminal()}
+          {updateTerminalLoading ? m.system_servlo_openingTerminal() : m.system_servlo_openTerminal()}
         </button>
       {/if}
     </div>

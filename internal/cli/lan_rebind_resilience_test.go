@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // rebindMgr reports every unit active and fails the restart of one of them, the
@@ -39,7 +39,7 @@ func writeServiceQuadlet(t *testing.T, name, ports string) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	content := podman.CustomServiceQuadletMarker + "\n[Container]\nImage=docker.io/library/redis:7\nNetwork=lerd\n" + ports + "\n"
+	content := podman.CustomServiceQuadletMarker + "\n[Container]\nImage=docker.io/library/redis:7\nNetwork=servlo\n" + ports + "\n"
 	if err := os.WriteFile(filepath.Join(dir, name+".container"), []byte(content), 0o644); err != nil {
 		t.Fatalf("write %s: %v", name, err)
 	}
@@ -55,11 +55,11 @@ func TestRegenerateLANQuadletsRestartsEveryUnitDespiteFailure(t *testing.T) {
 		t.Fatalf("SaveGlobal: %v", err)
 	}
 	// Alphabetically first fails, so a loop that aborts never reaches the rest.
-	writeServiceQuadlet(t, "lerd-aaa", "PublishPort=[::]:1111:1111")
-	writeServiceQuadlet(t, "lerd-mmm", "PublishPort=[::]:2222:2222")
-	writeServiceQuadlet(t, "lerd-zzz", "PublishPort=[::]:3333:3333")
+	writeServiceQuadlet(t, "servlo-aaa", "PublishPort=[::]:1111:1111")
+	writeServiceQuadlet(t, "servlo-mmm", "PublishPort=[::]:2222:2222")
+	writeServiceQuadlet(t, "servlo-zzz", "PublishPort=[::]:3333:3333")
 
-	mgr := &rebindMgr{failing: "lerd-aaa"}
+	mgr := &rebindMgr{failing: "servlo-aaa"}
 	prev := services.Mgr
 	services.Mgr = mgr
 	t.Cleanup(func() { services.Mgr = prev })
@@ -68,10 +68,10 @@ func TestRegenerateLANQuadletsRestartsEveryUnitDespiteFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("a failed restart must be reported, not swallowed")
 	}
-	if !strings.Contains(err.Error(), "lerd-aaa") {
+	if !strings.Contains(err.Error(), "servlo-aaa") {
 		t.Errorf("error %q does not name the unit that failed", err)
 	}
-	for _, name := range []string{"lerd-mmm", "lerd-zzz"} {
+	for _, name := range []string{"servlo-mmm", "servlo-zzz"} {
 		if !slices.Contains(mgr.restarted, name) {
 			t.Errorf("%s was never restarted; restarted = %v", name, mgr.restarted)
 		}
@@ -86,10 +86,10 @@ func TestRegenerateLANQuadletsHealsRuntimeDrift(t *testing.T) {
 	if err := config.SaveGlobal(cfg); err != nil {
 		t.Fatalf("SaveGlobal: %v", err)
 	}
-	writeServiceQuadlet(t, "lerd-redis", "PublishPort=127.0.0.1:6379:6379")
+	writeServiceQuadlet(t, "servlo-redis", "PublishPort=127.0.0.1:6379:6379")
 
 	prevProbe := podman.ContainerPublishesLANFn
-	podman.ContainerPublishesLANFn = func(name string) (bool, bool) { return name == "lerd-redis", true }
+	podman.ContainerPublishesLANFn = func(name string) (bool, bool) { return name == "servlo-redis", true }
 	t.Cleanup(func() { podman.ContainerPublishesLANFn = prevProbe })
 
 	mgr := &rebindMgr{}
@@ -100,7 +100,7 @@ func TestRegenerateLANQuadletsHealsRuntimeDrift(t *testing.T) {
 	if err := regenerateLANContainerQuadlets(nil); err != nil {
 		t.Fatalf("regenerateLANContainerQuadlets: %v", err)
 	}
-	if !slices.Contains(mgr.restarted, "lerd-redis") {
+	if !slices.Contains(mgr.restarted, "servlo-redis") {
 		t.Fatalf("stranded container was not restarted; restarted = %v", mgr.restarted)
 	}
 }

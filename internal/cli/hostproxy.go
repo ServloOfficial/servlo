@@ -11,16 +11,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/freeport"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/linker"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/freeport"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/linker"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 func init() {
@@ -87,7 +87,7 @@ func RegenerateHostProxyVhostsOnGatewayChange() {
 // rebindHostProxyDevServer rewrites a host-proxy dev server's unit with the
 // current host-gateway bind address and restarts it so a network change can't
 // strand it on a stale IP. It only touches a server that is already running and
-// whose bind lerd injects (inject_host:false servers manage their own bind), and
+// whose bind servlo injects (inject_host:false servers manage their own bind), and
 // it restarts only when the rewritten unit actually changed, so an unchanged bind
 // never churns a running server. This is a rewrite-and-restart rather than the
 // full start path, which would tear down conflicts and emit a spurious "starting".
@@ -150,7 +150,7 @@ func hostProxyHostEnvKey(proxy *config.ProxyConfig) string {
 	return "HOST"
 }
 
-// hostProxyShouldBind reports whether lerd injects the bind-address env
+// hostProxyShouldBind reports whether servlo injects the bind-address env
 // (e.g. HOST=0.0.0.0). Defaults to true; a project sets `inject_host: false` to
 // opt out entirely, for a dev server that reads HOST for something else or
 // manages its own bind. The port injection is unaffected.
@@ -380,10 +380,10 @@ func reservedHostPorts(exceptSite string) map[int]bool {
 			}
 		}
 	}
-	// Reserve host ports lerd services publish (e.g. gotenberg on 3000) even when
+	// Reserve host ports servlo services publish (e.g. gotenberg on 3000) even when
 	// the container is stopped: a stopped service still owns its published port
 	// and would collide the moment it starts, which a bind probe can't foresee.
-	for p := range lerdServiceHostPorts() {
+	for p := range servloServiceHostPorts() {
 		out[p] = true
 	}
 	// Honour exceptSite across the whole set: re-running init on a site keeps its
@@ -395,20 +395,20 @@ func reservedHostPorts(exceptSite string) map[int]bool {
 	return out
 }
 
-// lerdServiceHostPorts returns every host port a lerd service may publish:
+// servloServiceHostPorts returns every host port a servlo service may publish:
 // installed/default services (with their resolved ports), all bundled presets
 // (including optional ones like gotenberg that aren't in the default set), and
 // installed custom services. It delegates to config.ReservedHostPorts, the single
 // shared definition the serviceops port-ownership guard consumes too, so a
 // host-proxy dev server is never assigned a port a service will reclaim and the
 // two reserved sets can't drift.
-func lerdServiceHostPorts() map[int]bool {
+func servloServiceHostPorts() map[int]bool {
 	return config.ReservedHostPorts()
 }
 
 // allocateHostPort picks a free host port for a dev server, starting from the
 // tool's conventional default and walking up past anything another host-proxy
-// site reserves or any process currently binds (e.g. lerd-gotenberg on 3000).
+// site reserves or any process currently binds (e.g. servlo-gotenberg on 3000).
 func allocateHostPort(start int, exceptSite string) int {
 	reserved := reservedHostPorts(exceptSite)
 	// freeport.FirstFree returns 0 when nothing in range is free; preserve this
@@ -440,7 +440,7 @@ func WorktreeHostPort(parentPort int, wtPath, portEnvKey string) int {
 }
 
 // parentProxyConfig returns the host-proxy config a worktree should mirror. It
-// prefers the parent's committed .lerd.yaml proxy block, falling back to the
+// prefers the parent's committed .servlo.yaml proxy block, falling back to the
 // fields persisted on the registered Site (proxy config is local config, so a
 // worktree checkout usually can't see it).
 func parentProxyConfig(site config.Site) *config.ProxyConfig {
@@ -456,7 +456,7 @@ func parentProxyConfig(site config.Site) *config.ProxyConfig {
 // SetupHostProxyWorktree wires a host-proxy site's worktree: it mirrors the
 // parent's dev command on a per-worktree port, generates the worktree proxy
 // vhost, and starts the dev server from the worktree checkout. The unit name
-// (lerd-app-<site>-<branch>) and teardown are handled by the shared per-worktree
+// (servlo-app-<site>-<branch>) and teardown are handled by the shared per-worktree
 // worker machinery.
 func SetupHostProxyWorktree(site config.Site, wtPath, wtDomain string) error {
 	if err := GenerateHostProxyWorktreeVhost(site, wtPath, wtDomain); err != nil {
@@ -532,7 +532,7 @@ var hostProxyPreApproved bool
 // command the user just chose.
 func hostProxyApproved(approved bool) bool { return approved || hostProxyPreApproved }
 
-// approveHostProxyCommand enforces the consent gates before lerd supervises a
+// approveHostProxyCommand enforces the consent gates before servlo supervises a
 // dev-server command on the host: the global disable switch and an interactive
 // confirmation of the exact command. approved short-circuits the prompt when the
 // command already matches the registry-approved one or the caller passed --yes.
@@ -545,7 +545,7 @@ func approveHostProxyCommand(siteName, command string, approved bool) error {
 	if !prompt {
 		return fmt.Errorf("host-proxy %s: %s", siteName, reason)
 	}
-	fmt.Printf("\nlerd supervises this dev-server command on your host, outside any container:\n\n  %s\n", command)
+	fmt.Printf("\nservlo supervises this dev-server command on your host, outside any container:\n\n  %s\n", command)
 	if !promptConfirm(fmt.Sprintf("Start and auto-restart it for %s?", siteName)) {
 		return fmt.Errorf("host-proxy setup declined for %s", siteName)
 	}

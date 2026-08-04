@@ -1,16 +1,16 @@
 // Package sitetpl expands the {{…}} placeholders a framework definition may use
 // in env vars, setup steps, and commands, so the store can declare a per-site
-// value (a base URL, a database name) without lerd knowing the framework.
+// value (a base URL, a database name) without servlo knowing the framework.
 package sitetpl
 
 import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/grouping"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/grouping"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/serviceops"
 )
 
 // Ctx holds the values available to placeholders. An empty field leaves its
@@ -45,7 +45,7 @@ func Apply(s string, ctx Ctx) string {
 	for _, svc := range versionedServices {
 		placeholder := "{{" + svc + "_version}}"
 		if strings.Contains(s, placeholder) {
-			s = strings.ReplaceAll(s, placeholder, podman.ServiceVersion("lerd-"+svc))
+			s = strings.ReplaceAll(s, placeholder, podman.ServiceVersion("servlo-"+svc))
 		}
 	}
 	return s

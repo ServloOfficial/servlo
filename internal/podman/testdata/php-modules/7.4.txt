@@ -21,7 +21,7 @@ imagick
 intl
 json
 ldap
-lerd_devtools
+servlo_devtools
 libxml
 mbstring
 mysqli

@@ -67,7 +67,7 @@
                   <input
                     type="checkbox"
                     bind:checked={checked[e.key]}
-                    class="rounded-sm border-gray-300 dark:border-lerd-border shrink-0"
+                    class="rounded-sm border-gray-300 dark:border-servlo-border shrink-0"
                   />
                   <span class="font-mono text-xs text-gray-800 dark:text-gray-200 shrink-0">{e.key}</span>
                   <span class="font-mono text-xs text-gray-400 dark:text-gray-500 truncate" title={e.value}>

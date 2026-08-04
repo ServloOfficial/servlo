@@ -90,7 +90,7 @@ func TestTickDNS(t *testing.T) {
 		},
 		{
 			// DNS broke and the repair pipeline can't even confirm
-			// lerd-dns is ready. Publish the down transition only — we
+			// servlo-dns is ready. Publish the down transition only — we
 			// haven't restored anything, so don't lie about up.
 			name:            "down with wait failure publishes once",
 			lastOK:          ptrBool(true),
@@ -161,7 +161,7 @@ func TestTickDNS(t *testing.T) {
 			wantLastOKAfter: ptrBool(true),
 		},
 		{
-			// Natural recovery: lerd-dns came up between ticks without
+			// Natural recovery: servlo-dns came up between ticks without
 			// a repair. Publish the transition, take no other action.
 			name:            "down to up natural recovery publishes",
 			lastOK:          ptrBool(false),
@@ -362,7 +362,7 @@ func TestTickDNS_containerDNSResync(t *testing.T) {
 // TestTickDNS_exposeMappingRepair pins the lan:expose heal: when DNS reads
 // down because the published .tld mapping drifted from the host's current LAN
 // IP (sleep/wake DHCP renew), the watcher must re-render the mapping and
-// reload lerd-dns *before* the sudo-gated resolver repair, then re-check and
+// reload servlo-dns *before* the sudo-gated resolver repair, then re-check and
 // publish the recovery. A no-op or a failed re-render must fall through to the
 // existing resolver repair so neither path is shadowed.
 func TestTickDNS_exposeMappingRepair(t *testing.T) {
@@ -436,7 +436,7 @@ func TestTickDNS_exposeMappingRepair(t *testing.T) {
 			check:               func(string) (bool, error) { return false, nil },
 			waitReady:           func(time.Duration) error { return nil },
 			configureResolver:   func() error { resolverCalls++; return nil },
-			repairExposeMapping: func() (bool, error) { return false, errors.New("reload lerd-dns: boom") },
+			repairExposeMapping: func() (bool, error) { return false, errors.New("reload servlo-dns: boom") },
 			idleOrLocked:        func() bool { return false },
 			publishStatus:       func() {},
 			log:                 func(level, _ string, _ ...any) { logs = append(logs, level) },
@@ -655,7 +655,7 @@ func TestSuperviseLinkChanges_StopsAfterDone(t *testing.T) {
 }
 
 func TestExposeConfigChanged_IgnoresAAAAOnlyDrift(t *testing.T) {
-	base := "# Lerd DNS configuration\nport=5300\nno-resolv\nserver=1.1.1.1\naddress=/.test/192.168.1.5\n"
+	base := "# Servlo DNS configuration\nport=5300\nno-resolv\nserver=1.1.1.1\naddress=/.test/192.168.1.5\n"
 	withV6 := base + "address=/.test/2001:db8::1\n"
 	withOtherV6 := base + "address=/.test/2001:db8::2\n"
 
@@ -671,12 +671,12 @@ func TestExposeConfigChanged_IgnoresAAAAOnlyDrift(t *testing.T) {
 	}
 
 	// A v4 drift (the real LAN IP change) must still trigger a restart.
-	v4Changed := "# Lerd DNS configuration\nport=5300\nno-resolv\nserver=1.1.1.1\naddress=/.test/192.168.1.9\n"
+	v4Changed := "# Servlo DNS configuration\nport=5300\nno-resolv\nserver=1.1.1.1\naddress=/.test/192.168.1.9\n"
 	if !exposeConfigChanged([]byte(base), []byte(v4Changed)) {
 		t.Fatal("a v4 address change must warrant a restart")
 	}
 	// An upstream change must still trigger a restart.
-	upstreamChanged := "# Lerd DNS configuration\nport=5300\nno-resolv\nserver=8.8.8.8\naddress=/.test/192.168.1.5\n"
+	upstreamChanged := "# Servlo DNS configuration\nport=5300\nno-resolv\nserver=8.8.8.8\naddress=/.test/192.168.1.5\n"
 	if !exposeConfigChanged([]byte(base), []byte(upstreamChanged)) {
 		t.Fatal("an upstream change must warrant a restart")
 	}
@@ -787,7 +787,7 @@ func TestHealNginxOnResume(t *testing.T) {
 
 // TestTickDNS_resumeTriggersNginxHeal: nginx is probed and restarted only on the
 // tick that detects a resume — never on the first tick or a normal-cadence tick,
-// so a `lerd start` (which a fresh watcher never reads as a resume) can't trip it.
+// so a `servlo start` (which a fresh watcher never reads as a resume) can't trip it.
 func TestTickDNS_resumeTriggersNginxHeal(t *testing.T) {
 	c := &fakeClock{t: time.Unix(1_000_000, 0)}
 	probes, restarts := 0, 0
@@ -890,7 +890,7 @@ func TestTickDNS_resumeHealsEvenWhenIdle(t *testing.T) {
 	}
 }
 
-// TestTickDNS_stoppedTickDoesNothing: after `lerd stop` the watcher must act on
+// TestTickDNS_stoppedTickDoesNothing: after `servlo stop` the watcher must act on
 // nothing — not the DNS repair, not even a resume-triggered nginx restart.
 func TestTickDNS_stoppedTickDoesNothing(t *testing.T) {
 	c := &fakeClock{t: time.Unix(1_000_000, 0)}
@@ -948,17 +948,17 @@ func newDNSDownHarness() *dnsDownHarness {
 // the resolver repair alone can never recover it, so the unit is restarted first
 // and the resolver repair still runs behind it.
 func TestTickDNS_restartsDeadDNSDaemon(t *testing.T) {
-	h := newDNSDownHarness() // answering=false: lerd-dns is gone
+	h := newDNSDownHarness() // answering=false: servlo-dns is gone
 	tickDNS(h.deps, &dnsWatchState{}, "test", false)
 	if h.restarts != 1 {
-		t.Fatalf("a dead lerd-dns must be restarted, restarts=%d", h.restarts)
+		t.Fatalf("a dead servlo-dns must be restarted, restarts=%d", h.restarts)
 	}
 	if h.waits != 1 || h.resolvers != 1 {
 		t.Fatalf("the resolver repair must still run: waits=%d resolvers=%d", h.waits, h.resolvers)
 	}
 }
 
-// TestTickDNS_answeringDaemonNotRestarted: a lerd-dns that answers directly is
+// TestTickDNS_answeringDaemonNotRestarted: a servlo-dns that answers directly is
 // healthy and only the system resolver is bypassed (the VPN case), so the unit
 // must be left alone.
 func TestTickDNS_answeringDaemonNotRestarted(t *testing.T) {
@@ -966,7 +966,7 @@ func TestTickDNS_answeringDaemonNotRestarted(t *testing.T) {
 	h.answering = true
 	tickDNS(h.deps, &dnsWatchState{}, "test", false)
 	if h.restarts != 0 {
-		t.Fatalf("a healthy lerd-dns must not be restarted, restarts=%d", h.restarts)
+		t.Fatalf("a healthy servlo-dns must not be restarted, restarts=%d", h.restarts)
 	}
 	if h.resolvers != 1 {
 		t.Fatalf("the resolver repair must still run, resolvers=%d", h.resolvers)
@@ -974,28 +974,28 @@ func TestTickDNS_answeringDaemonNotRestarted(t *testing.T) {
 }
 
 // TestTickDNS_restartsDeadDaemonWithoutResolverRepair: on a host where the
-// resolver repair is unavailable the tick returns early, but a dead lerd-dns must
+// resolver repair is unavailable the tick returns early, but a dead servlo-dns must
 // still be restarted — that heal needs no privilege.
 func TestTickDNS_restartsDeadDaemonWithoutResolverRepair(t *testing.T) {
 	h := newDNSDownHarness()
 	h.deps.repairPossible = func() bool { return false }
 	tickDNS(h.deps, &dnsWatchState{}, "test", false)
 	if h.restarts != 1 {
-		t.Fatalf("a dead lerd-dns must be restarted even with no resolver repair, restarts=%d", h.restarts)
+		t.Fatalf("a dead servlo-dns must be restarted even with no resolver repair, restarts=%d", h.restarts)
 	}
 	if h.resolvers != 0 {
 		t.Fatalf("the resolver repair must stay gated, resolvers=%d", h.resolvers)
 	}
 }
 
-// TestTickDNS_stoppedStackKeepsDNSDown: `lerd stop` must not be undone by the
+// TestTickDNS_stoppedStackKeepsDNSDown: `servlo stop` must not be undone by the
 // daemon heal.
 func TestTickDNS_stoppedStackKeepsDNSDown(t *testing.T) {
 	h := newDNSDownHarness()
 	h.deps.isStopped = func() bool { return true }
 	tickDNS(h.deps, &dnsWatchState{}, "test", false)
 	if h.restarts != 0 {
-		t.Fatalf("a stopped stack must not restart lerd-dns, restarts=%d", h.restarts)
+		t.Fatalf("a stopped stack must not restart servlo-dns, restarts=%d", h.restarts)
 	}
 }
 

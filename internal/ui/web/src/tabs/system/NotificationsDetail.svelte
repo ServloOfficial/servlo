@@ -240,7 +240,7 @@
   <DetailHeader title={m.notify_settings_title()} {trailing} />
 
   {#if nativeSupported}
-    <div class="p-3 shrink-0 border-b border-gray-100 dark:border-lerd-border">
+    <div class="p-3 shrink-0 border-b border-gray-100 dark:border-servlo-border">
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
           <p class="text-sm text-gray-900 dark:text-white">{m.notify_settings_delivery_label()}</p>
@@ -251,7 +251,7 @@
           </p>
         </div>
         <div
-          class="flex rounded-md border border-gray-200 dark:border-lerd-border overflow-hidden text-xs shrink-0"
+          class="flex rounded-md border border-gray-200 dark:border-servlo-border overflow-hidden text-xs shrink-0"
         >
           <button
             class="px-3 py-1.5 font-medium transition-colors {deliveryTarget === 'browser'
@@ -326,7 +326,7 @@
       </div>
       <div class="space-y-1">
         {#each ALL_KINDS as kind (kind)}
-          <div class="flex items-start justify-between gap-4 py-2.5 border-b border-gray-100 dark:border-lerd-border">
+          <div class="flex items-start justify-between gap-4 py-2.5 border-b border-gray-100 dark:border-servlo-border">
             <div class="flex-1 min-w-0">
               <p class="text-sm text-gray-900 dark:text-white">{kindLabel[kind]}</p>
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{kindHint[kind]}</p>
@@ -342,7 +342,7 @@
     {:else}
       <div class="space-y-1">
         {#each ALL_KINDS as kind (kind)}
-          <div class="flex items-start justify-between gap-4 py-2.5 border-b border-gray-100 dark:border-lerd-border">
+          <div class="flex items-start justify-between gap-4 py-2.5 border-b border-gray-100 dark:border-servlo-border">
             <div class="flex-1 min-w-0">
               <p class="text-sm text-gray-900 dark:text-white">{kindLabel[kind]}</p>
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{kindHint[kind]}</p>
@@ -362,7 +362,7 @@
       <button
         onclick={sendTest}
         disabled={testing || !canTest}
-        class="text-xs font-medium border border-gray-200 dark:border-lerd-border hover:border-gray-300 dark:hover:border-lerd-muted rounded-sm px-3 py-1.5 transition-colors disabled:opacity-50"
+        class="text-xs font-medium border border-gray-200 dark:border-servlo-border hover:border-gray-300 dark:hover:border-servlo-muted rounded-sm px-3 py-1.5 transition-colors disabled:opacity-50"
       >
         {testSent ? m.notify_settings_test_sent() : m.notify_settings_test()}
       </button>
@@ -380,7 +380,7 @@
       {:else}
         <ul class="space-y-1">
           {#each devices as d (d.endpoint)}
-            <li class="flex items-center justify-between gap-3 py-2 border-b border-gray-100 dark:border-lerd-border">
+            <li class="flex items-center justify-between gap-3 py-2 border-b border-gray-100 dark:border-servlo-border">
               <div class="min-w-0">
                 <p class="text-xs text-gray-900 dark:text-white truncate">{uaShort(d.ua)}</p>
                 <p class="text-[10px] text-gray-500 dark:text-gray-400">{whenShort(d.added_at)}</p>

@@ -29,7 +29,7 @@ func read(t *testing.T, dir string) string {
 }
 
 var pg = DataSource{
-	Key: "shop", Name: "shop (lerd)", Driver: "postgresql", Class: "org.postgresql.Driver",
+	Key: "shop", Name: "shop (servlo)", Driver: "postgresql", Class: "org.postgresql.Driver",
 	URL: "jdbc:postgresql://127.0.0.1:5433/shop", User: "postgres",
 }
 
@@ -43,7 +43,7 @@ func sync(dir string, ds DataSource) (Outcome, error) {
 }
 
 // The .idea directory existing is what says the project is open in a JetBrains
-// IDE. lerd creating one for a project that is not would be litter.
+// IDE. servlo creating one for a project that is not would be litter.
 func TestSyncSkipsAProjectWithoutIdea(t *testing.T) {
 	dir := project(t, false)
 	done, err := sync(dir, pg)
@@ -66,7 +66,7 @@ func TestSyncWritesAWholeFileWhenThereIsNone(t *testing.T) {
 	out := read(t, dir)
 	for _, want := range []string{
 		`<component name="DataSourceManagerImpl"`,
-		`name="shop (lerd)"`,
+		`name="shop (servlo)"`,
 		"<driver-ref>postgresql</driver-ref>",
 		"jdbc:postgresql://127.0.0.1:5433/shop",
 		"</project>",
@@ -88,7 +88,7 @@ const existing = `<?xml version="1.0" encoding="UTF-8"?>
 </project>
 `
 
-// A user's own sources live in the same file, so lerd owns exactly one entry
+// A user's own sources live in the same file, so servlo owns exactly one entry
 // and leaves every byte of the rest alone.
 func TestSyncLeavesOtherDataSourcesUntouched(t *testing.T) {
 	dir := project(t, true)
@@ -103,8 +103,8 @@ func TestSyncLeavesOtherDataSourcesUntouched(t *testing.T) {
 	if !strings.Contains(out, `name="production"`) || !strings.Contains(out, "db.example.com") {
 		t.Fatalf("the user's own data source was lost:\n%s", out)
 	}
-	if !strings.Contains(out, `name="shop (lerd)"`) {
-		t.Fatalf("lerd's entry was not added:\n%s", out)
+	if !strings.Contains(out, `name="shop (servlo)"`) {
+		t.Fatalf("servlo's entry was not added:\n%s", out)
 	}
 	if strings.Count(out, "<data-source ") != 2 {
 		t.Errorf("expected two data sources, got:\n%s", out)
@@ -132,7 +132,7 @@ func TestSyncUpdatesItsOwnEntryInPlace(t *testing.T) {
 	}
 }
 
-func TestRemoveDropsOnlyLerdsEntry(t *testing.T) {
+func TestRemoveDropsOnlyServlosEntry(t *testing.T) {
 	dir := project(t, true)
 	path := filepath.Join(dir, ".idea", "dataSources.xml")
 	if err := os.WriteFile(path, []byte(existing), 0o644); err != nil {
@@ -145,8 +145,8 @@ func TestRemoveDropsOnlyLerdsEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := read(t, dir)
-	if strings.Contains(out, "(lerd)") {
-		t.Errorf("lerd's entry survived:\n%s", out)
+	if strings.Contains(out, "(servlo)") {
+		t.Errorf("servlo's entry survived:\n%s", out)
 	}
 	if !strings.Contains(out, `name="production"`) {
 		t.Errorf("the user's own data source was removed:\n%s", out)
@@ -197,7 +197,7 @@ func TestSyncKeepsTheFileTidy(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := read(t, dir)
-	if !strings.Contains(out, "\n    <data-source source=\"LOCAL\" name=\"shop (lerd)\"") {
+	if !strings.Contains(out, "\n    <data-source source=\"LOCAL\" name=\"shop (servlo)\"") {
 		t.Errorf("entry is not indented with its siblings:\n%s", out)
 	}
 	if !strings.Contains(out, "\n  </component>") {
@@ -208,7 +208,7 @@ func TestSyncKeepsTheFileTidy(t *testing.T) {
 const handWired = `<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="postgres:lerd-postgres" uuid="0d073425-0b90-47fa-ad3d-859060bb86ac">
+    <data-source source="LOCAL" name="postgres:servlo-postgres" uuid="0d073425-0b90-47fa-ad3d-859060bb86ac">
       <driver-ref>postgresql</driver-ref>
       <jdbc-url>jdbc:postgresql://localhost:5433/shop</jdbc-url>
     </data-source>
@@ -217,7 +217,7 @@ const handWired = `<?xml version="1.0" encoding="UTF-8"?>
 `
 
 // Someone who already wired the connection by hand does not want a second entry
-// beside it pointing at the same database, however lerd would have spelled it.
+// beside it pointing at the same database, however servlo would have spelled it.
 func TestSyncSkipsWhenAnEquivalentConnectionExists(t *testing.T) {
 	dir := project(t, true)
 	path := filepath.Join(dir, ".idea", "dataSources.xml")
@@ -231,13 +231,13 @@ func TestSyncSkipsWhenAnEquivalentConnectionExists(t *testing.T) {
 	if wrote != AlreadyConfigured {
 		t.Error("added a duplicate of the user's own data source")
 	}
-	if out := read(t, dir); strings.Contains(out, "(lerd)") {
+	if out := read(t, dir); strings.Contains(out, "(servlo)") {
 		t.Errorf("file was modified:\n%s", out)
 	}
 }
 
 // A hand-wired entry pointing somewhere else is not the same connection, so
-// lerd still adds its own.
+// servlo still adds its own.
 func TestSyncStillWritesWhenTheExistingOnePointsElsewhere(t *testing.T) {
 	dir := project(t, true)
 	path := filepath.Join(dir, ".idea", "dataSources.xml")
@@ -254,7 +254,7 @@ func TestSyncStillWritesWhenTheExistingOnePointsElsewhere(t *testing.T) {
 	}
 }
 
-// Once lerd owns an entry it keeps it current, even if a matching hand-wired
+// Once servlo owns an entry it keeps it current, even if a matching hand-wired
 // one appears later, or the two would fight over every run.
 func TestSyncKeepsUpdatingItsOwnEntryDespiteALookalike(t *testing.T) {
 	dir := project(t, true)
@@ -274,7 +274,7 @@ func TestSyncKeepsUpdatingItsOwnEntryDespiteALookalike(t *testing.T) {
 		t.Fatalf("wrote=%v err=%v", wrote, err)
 	}
 	if out := read(t, dir); !strings.Contains(out, "5544") {
-		t.Errorf("lerd's own entry stopped being updated:\n%s", out)
+		t.Errorf("servlo's own entry stopped being updated:\n%s", out)
 	}
 }
 
@@ -288,7 +288,7 @@ func TestSameTarget(t *testing.T) {
 		{"jdbc:postgresql://localhost:5433/shop", "jdbc:postgresql://localhost:5432/shop", false},
 		{"jdbc:postgresql://localhost:5433/shop", "jdbc:postgresql://localhost:5433/other", false},
 		{"jdbc:postgresql://localhost:5433/shop", "jdbc:mysql://localhost:5433/shop", false},
-		{"jdbc:redis://lerd-redis:6379/0", "jdbc:postgresql://localhost:5433/shop", false},
+		{"jdbc:redis://servlo-redis:6379/0", "jdbc:postgresql://localhost:5433/shop", false},
 	}
 	for _, c := range cases {
 		if got := sameTarget(c.a, c.b); got != c.want {
@@ -313,7 +313,7 @@ func TestSyncWritesTheUserIntoTheCredentialsSidecar(t *testing.T) {
 		`<component name="dataSourceStorageLocal">`,
 		"<user-name>postgres</user-name>",
 		"<secret-storage>master_key</secret-storage>",
-		`name="shop (lerd)"`,
+		`name="shop (servlo)"`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
@@ -322,7 +322,7 @@ func TestSyncWritesTheUserIntoTheCredentialsSidecar(t *testing.T) {
 }
 
 // The sidecar is the IDE's own bookkeeping for every other data source, so
-// lerd's entry goes in beside them without disturbing any.
+// servlo's entry goes in beside them without disturbing any.
 func TestSyncLeavesTheSidecarsOtherEntriesAlone(t *testing.T) {
 	dir := project(t, true)
 	local := `<?xml version="1.0" encoding="UTF-8"?>
@@ -362,17 +362,17 @@ func TestRemoveClearsBothFiles(t *testing.T) {
 	}
 	for _, name := range []string{"dataSources.xml", "dataSources.local.xml"} {
 		b, _ := os.ReadFile(filepath.Join(dir, ".idea", name))
-		if strings.Contains(string(b), "(lerd)") {
-			t.Errorf("%s still holds lerd's entry:\n%s", name, b)
+		if strings.Contains(string(b), "(servlo)") {
+			t.Errorf("%s still holds servlo's entry:\n%s", name, b)
 		}
 	}
 }
 
-// Sync takes the whole set lerd owns, so two databases keep separate entries
+// Sync takes the whole set servlo owns, so two databases keep separate entries
 // rather than overwriting each other.
 func TestSyncWritesOneEntryPerDatabase(t *testing.T) {
 	dir := project(t, true)
-	staging := DataSource{Key: "shop_staging", Name: "shop_staging (lerd)", Driver: "postgresql",
+	staging := DataSource{Key: "shop_staging", Name: "shop_staging (servlo)", Driver: "postgresql",
 		Class: "org.postgresql.Driver", URL: "jdbc:postgresql://127.0.0.1:5433/shop_staging", User: "postgres"}
 	out, err := Sync(dir, []DataSource{pg, staging})
 	if err != nil {
@@ -385,7 +385,7 @@ func TestSyncWritesOneEntryPerDatabase(t *testing.T) {
 	if strings.Count(body, "<data-source ") != 2 {
 		t.Errorf("expected two entries:\n%s", body)
 	}
-	for _, want := range []string{`name="shop (lerd)"`, `name="shop_staging (lerd)"`} {
+	for _, want := range []string{`name="shop (servlo)"`, `name="shop_staging (servlo)"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("missing %s:\n%s", want, body)
 		}
@@ -393,11 +393,11 @@ func TestSyncWritesOneEntryPerDatabase(t *testing.T) {
 }
 
 // A database that is no longer the project's, because grouping moved the site
-// onto the group's shared one, takes its connection with it, without lerd
+// onto the group's shared one, takes its connection with it, without servlo
 // having to remember what it wrote last time.
 func TestSyncDropsAnEntryWhoseDatabaseIsGone(t *testing.T) {
 	dir := project(t, true)
-	staging := DataSource{Key: "shop_staging", Name: "shop_staging (lerd)", Driver: "postgresql",
+	staging := DataSource{Key: "shop_staging", Name: "shop_staging (servlo)", Driver: "postgresql",
 		Class: "org.postgresql.Driver", URL: "jdbc:postgresql://127.0.0.1:5433/shop_staging", User: "postgres"}
 	if _, err := Sync(dir, []DataSource{pg, staging}); err != nil {
 		t.Fatal(err)
@@ -409,7 +409,7 @@ func TestSyncDropsAnEntryWhoseDatabaseIsGone(t *testing.T) {
 	if strings.Contains(body, "shop_staging") {
 		t.Errorf("the connection for a database no longer in the set survived:\n%s", body)
 	}
-	if !strings.Contains(body, `name="shop (lerd)"`) {
+	if !strings.Contains(body, `name="shop (servlo)"`) {
 		t.Errorf("the site's own connection was lost:\n%s", body)
 	}
 	local, _ := os.ReadFile(filepath.Join(dir, ".idea", "dataSources.local.xml"))
@@ -418,12 +418,12 @@ func TestSyncDropsAnEntryWhoseDatabaseIsGone(t *testing.T) {
 	}
 }
 
-// Cleaning up lerd's own entries must never reach a user's, whatever they are
+// Cleaning up servlo's own entries must never reach a user's, whatever they are
 // called.
 func TestSyncCleanupLeavesUserEntriesAlone(t *testing.T) {
 	dir := project(t, true)
 	path := filepath.Join(dir, ".idea", "dataSources.xml")
-	mine := strings.Replace(existing, `name="production"`, `name="@lerd"`, 1)
+	mine := strings.Replace(existing, `name="production"`, `name="@servlo"`, 1)
 	if err := os.WriteFile(path, []byte(mine), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -434,15 +434,15 @@ func TestSyncCleanupLeavesUserEntriesAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := read(t, dir)
-	if !strings.Contains(body, `name="@lerd"`) {
-		t.Errorf("a user entry whose name merely mentions lerd was removed:\n%s", body)
+	if !strings.Contains(body, `name="@servlo"`) {
+		t.Errorf("a user entry whose name merely mentions servlo was removed:\n%s", body)
 	}
 }
 
 func TestOwns(t *testing.T) {
 	for name, want := range map[string]bool{
-		"shop (lerd)": true, "@lerd": false, "postgres@lerd": false,
-		"lerd": false, "my db (lerd) copy": false,
+		"shop (servlo)": true, "@servlo": false, "postgres@servlo": false,
+		"servlo": false, "my db (servlo) copy": false,
 	} {
 		if got := Owns(name); got != want {
 			t.Errorf("Owns(%q) = %v, want %v", name, got, want)
@@ -452,7 +452,7 @@ func TestOwns(t *testing.T) {
 
 // A sync that decides the user's own connection already covers the database has
 // nothing to write. Creating the credentials sidecar anyway drops a file into a
-// project lerd just decided to leave alone, and rewriting dataSources.xml
+// project servlo just decided to leave alone, and rewriting dataSources.xml
 // byte-identical moves its mtime, which the IDE reads as an external edit.
 func TestSyncWritesNothingWhenItChangesNothing(t *testing.T) {
 	dir := project(t, true)
@@ -483,7 +483,7 @@ func TestSyncWritesNothingWhenItChangesNothing(t *testing.T) {
 		t.Error("dataSources.xml was rewritten even though nothing changed")
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".idea", "dataSources.local.xml")); err == nil {
-		t.Error("an empty credentials sidecar was created in a project lerd left alone")
+		t.Error("an empty credentials sidecar was created in a project servlo left alone")
 	}
 }
 
@@ -494,6 +494,6 @@ func TestSyncCreatesNoSidecarForANonJetBrainsProject(t *testing.T) {
 		t.Fatalf("sync = %v, %v; want NotJetBrains", wrote, err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".idea")); err == nil {
-		t.Error("lerd created a .idea directory")
+		t.Error("servlo created a .idea directory")
 	}
 }

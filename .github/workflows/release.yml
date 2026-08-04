@@ -26,66 +26,24 @@ jobs:
       - name: Build UI
         run: make build-ui
 
-      - name: Install tray build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --fix-missing libayatana-appindicator3-dev
-
       - name: Download dependencies
         run: go mod download
 
       - name: Build
-        run: CGO_ENABLED=1 go build -o /dev/null ./cmd/lerd
+        run: go build -o /dev/null ./cmd/servlo
 
       - name: Test
-        run: CGO_ENABLED=1 go test ./...
+        run: go test ./...
 
       - name: Vet
-        run: CGO_ENABLED=1 go vet ./...
+        run: go vet ./...
 
       - name: Format
         run: test -z "$(gofmt -l .)"
 
-  build-darwin-tray:
-    name: Build macOS tray (${{ matrix.arch }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - runner: macos-latest
-            arch: arm64
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Build lerd-tray
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          COMMIT=$(git rev-parse --short HEAD)
-          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          mkdir -p dist/lerd-tray_darwin_${{ matrix.arch }}
-          CGO_ENABLED=1 go build \
-            -ldflags="-s -w \
-              -X github.com/geodro/lerd/internal/version.Version=${VERSION} \
-              -X github.com/geodro/lerd/internal/version.Commit=${COMMIT} \
-              -X github.com/geodro/lerd/internal/version.Date=${DATE}" \
-            -o dist/lerd-tray_darwin_${{ matrix.arch }}/lerd-tray \
-            ./cmd/lerd-tray
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: lerd-tray-darwin-${{ matrix.arch }}
-          path: dist/lerd-tray_darwin_${{ matrix.arch }}/lerd-tray
-          retention-days: 1
-
   release:
     name: GoReleaser
-    needs: [ci, build-darwin-tray]
+    needs: [ci]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -107,17 +65,6 @@ jobs:
 
       - name: Build UI
         run: make build-ui
-
-      - name: Install tray build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --fix-missing libayatana-appindicator3-dev
-
-      - name: Download macOS tray binaries
-        uses: actions/download-artifact@v4
-        with:
-          pattern: lerd-tray-darwin-*
-          path: dist-tray
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6

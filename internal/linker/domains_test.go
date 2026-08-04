@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // setupSitesYAML writes a sites.yaml into a temp XDG_DATA_HOME so the registry
@@ -15,7 +15,7 @@ func setupSitesYAML(t *testing.T, yaml string) {
 	t.Helper()
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
-	dir := filepath.Join(tmp, "lerd")
+	dir := filepath.Join(tmp, "servlo")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}

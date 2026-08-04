@@ -18,9 +18,9 @@ func TestWriteWorkerUnitFile_ScheduleEmitsTimer(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	changed, err := writeWorkerUnitFile(
-		"lerd-schedule-mysite", "Task Scheduler", "mysite",
+		"servlo-schedule-mysite", "Task Scheduler", "mysite",
 		"/srv/mysite", "8.3", "php artisan schedule:run",
-		"always", "minutely", "lerd-php83-fpm", false,
+		"always", "minutely", "servlo-php83-fpm", false,
 	)
 	if err != nil {
 		t.Fatalf("writeWorkerUnitFile: %v", err)
@@ -30,7 +30,7 @@ func TestWriteWorkerUnitFile_ScheduleEmitsTimer(t *testing.T) {
 	}
 
 	systemdDir := filepath.Join(tmp, "systemd", "user")
-	svc, err := os.ReadFile(filepath.Join(systemdDir, "lerd-schedule-mysite.service"))
+	svc, err := os.ReadFile(filepath.Join(systemdDir, "servlo-schedule-mysite.service"))
 	if err != nil {
 		t.Fatalf("read service: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestWriteWorkerUnitFile_ScheduleEmitsTimer(t *testing.T) {
 		t.Errorf("scheduled worker service must not declare Restart=:\n%s", svc)
 	}
 
-	timer, err := os.ReadFile(filepath.Join(systemdDir, "lerd-schedule-mysite.timer"))
+	timer, err := os.ReadFile(filepath.Join(systemdDir, "servlo-schedule-mysite.timer"))
 	if err != nil {
 		t.Fatalf("read timer: %v", err)
 	}
@@ -62,22 +62,22 @@ func TestWriteWorkerUnitFile_DaemonRemovesStaleTimer(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-queue-mysite", "Queue Worker", "mysite",
+		"servlo-queue-mysite", "Queue Worker", "mysite",
 		"/srv/mysite", "8.3", "php artisan queue:work",
-		"always", "minutely", "lerd-php83-fpm", false,
+		"always", "minutely", "servlo-php83-fpm", false,
 	); err != nil {
 		t.Fatalf("seed scheduled: %v", err)
 	}
 
-	timerPath := filepath.Join(tmp, "systemd", "user", "lerd-queue-mysite.timer")
+	timerPath := filepath.Join(tmp, "systemd", "user", "servlo-queue-mysite.timer")
 	if _, err := os.Stat(timerPath); err != nil {
 		t.Fatalf("stale timer not seeded: %v", err)
 	}
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-queue-mysite", "Queue Worker", "mysite",
+		"servlo-queue-mysite", "Queue Worker", "mysite",
 		"/srv/mysite", "8.3", "php artisan queue:work",
-		"always", "", "lerd-php83-fpm", false,
+		"always", "", "servlo-php83-fpm", false,
 	); err != nil {
 		t.Fatalf("rewrite as daemon: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestWriteWorkerUnitFile_DaemonRemovesStaleTimer(t *testing.T) {
 		t.Errorf("stale .timer still present after switching to daemon shape: %v", err)
 	}
 
-	svc, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "lerd-queue-mysite.service"))
+	svc, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "servlo-queue-mysite.service"))
 	if err != nil {
 		t.Fatalf("read service: %v", err)
 	}

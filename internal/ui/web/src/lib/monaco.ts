@@ -10,7 +10,7 @@ import { configLanguages } from '$lib/monaco-langs';
 // barrel: the barrel registers every bundled language plus the ts/json/
 // html/css language services (each with its own worker), none of which we
 // use. Pulling editor.api and contributing only the grammars we need keeps
-// the embedded dist (and therefore the lerd binary) lean.
+// the embedded dist (and therefore the servlo binary) lean.
 export type MonacoModule = typeof import('monaco-editor/esm/vs/editor/editor.api');
 
 let monacoPromise: Promise<MonacoModule> | null = null;
@@ -54,7 +54,7 @@ const CONFIG_RULES_DARK = [
 ];
 
 function defineThemes(monaco: MonacoModule) {
-  monaco.editor.defineTheme('lerd-light', {
+  monaco.editor.defineTheme('servlo-light', {
     base: 'vs',
     inherit: true,
     rules: CONFIG_RULES_LIGHT,
@@ -65,7 +65,7 @@ function defineThemes(monaco: MonacoModule) {
       'editor.lineHighlightBackground': '#00000008'
     }
   });
-  monaco.editor.defineTheme('lerd-dark', {
+  monaco.editor.defineTheme('servlo-dark', {
     base: 'vs-dark',
     inherit: true,
     rules: CONFIG_RULES_DARK,
@@ -109,7 +109,7 @@ export function loadMonaco(): Promise<MonacoModule> {
 // Mirrors the dark/light decision the theme store makes (see
 // $stores/theme.ts) without depending on the DOM class having been
 // toggled first, so theme switches are race-free.
-export function lerdThemeName(t: 'light' | 'dark' | 'auto'): 'lerd-light' | 'lerd-dark' {
+export function servloThemeName(t: 'light' | 'dark' | 'auto'): 'servlo-light' | 'servlo-dark' {
   const dark = t === 'dark' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  return dark ? 'lerd-dark' : 'lerd-light';
+  return dark ? 'servlo-dark' : 'servlo-light';
 }

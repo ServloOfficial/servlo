@@ -6,22 +6,22 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/sitedoctor"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/sitedoctor"
 	"github.com/spf13/cobra"
 )
 
 // NewSiteDoctorCmd returns the `site:doctor` command — framework-agnostic
-// app-level health checks for a single site (distinct from `lerd doctor`, which
-// diagnoses the lerd environment).
+// app-level health checks for a single site (distinct from `servlo doctor`, which
+// diagnoses the servlo environment).
 func NewSiteDoctorCmd() *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "site:doctor [domain]",
 		Short:        "Run app-level health checks for a site",
 		Long:         "Run app-level health checks (env, dependencies, security audit, framework specifics) for a site. Defaults to the site in the current directory; pass a domain to target another.",
-		Example:      "  lerd site:doctor\n  lerd site:doctor acme.test\n  lerd site:doctor --json",
+		Example:      "  servlo site:doctor\n  servlo site:doctor acme.test\n  servlo site:doctor --json",
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, args []string) error {

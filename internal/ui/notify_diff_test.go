@@ -3,8 +3,8 @@ package ui
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/workerheal"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/workerheal"
 )
 
 func uw(unit, site, worker, state string) workerheal.UnhealthyWorker {
@@ -13,31 +13,31 @@ func uw(unit, site, worker, state string) workerheal.UnhealthyWorker {
 
 func TestNewWorkerFailures_EmptyPrev_ReturnsAll(t *testing.T) {
 	cur := []workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
 	}
 	got := newWorkerFailures(nil, cur)
-	if len(got) != 1 || got[0].Unit != "lerd-queue-a.service" {
+	if len(got) != 1 || got[0].Unit != "servlo-queue-a.service" {
 		t.Errorf("got %+v", got)
 	}
 }
 
 func TestNewWorkerFailures_KnownUnitsAreFiltered(t *testing.T) {
 	prev := []workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
 	}
 	cur := []workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
-		uw("lerd-horizon-b.service", "b.test", "horizon", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-horizon-b.service", "b.test", "horizon", "failed"),
 	}
 	got := newWorkerFailures(prev, cur)
-	if len(got) != 1 || got[0].Unit != "lerd-horizon-b.service" {
+	if len(got) != 1 || got[0].Unit != "servlo-horizon-b.service" {
 		t.Errorf("expected only the newly-failed unit, got %+v", got)
 	}
 }
 
 func TestNewWorkerFailures_NoDeltas(t *testing.T) {
 	cur := []workerheal.UnhealthyWorker{
-		uw("lerd-queue-a.service", "a.test", "queue", "failed"),
+		uw("servlo-queue-a.service", "a.test", "queue", "failed"),
 	}
 	got := newWorkerFailures(cur, cur)
 	if len(got) != 0 {
@@ -49,8 +49,8 @@ func TestNewWorkerFailures_StateChangeIsNotNewFailure(t *testing.T) {
 	// Same unit transitioning from failed → start-limit-hit shouldn't fire a
 	// "new failure" notification — the worker was already broken; only the
 	// reason changed.
-	prev := []workerheal.UnhealthyWorker{uw("lerd-queue-a.service", "a", "queue", "failed")}
-	cur := []workerheal.UnhealthyWorker{uw("lerd-queue-a.service", "a", "queue", "start-limit-hit")}
+	prev := []workerheal.UnhealthyWorker{uw("servlo-queue-a.service", "a", "queue", "failed")}
+	cur := []workerheal.UnhealthyWorker{uw("servlo-queue-a.service", "a", "queue", "start-limit-hit")}
 	got := newWorkerFailures(prev, cur)
 	if len(got) != 0 {
 		t.Errorf("state-only transition should not be a new failure, got %+v", got)
@@ -58,21 +58,21 @@ func TestNewWorkerFailures_StateChangeIsNotNewFailure(t *testing.T) {
 }
 
 func TestNotificationForWorkerFailures_SinglePassthrough(t *testing.T) {
-	ws := []workerheal.UnhealthyWorker{uw("lerd-queue-a.service", "a.test", "queue", "failed")}
+	ws := []workerheal.UnhealthyWorker{uw("servlo-queue-a.service", "a.test", "queue", "failed")}
 	got := notificationForWorkerFailures(ws)
 	if got.TitleKey != "notify_worker_failed_title" {
 		t.Errorf("single failure should use per-unit title key, got %q", got.TitleKey)
 	}
-	if got.Tag != "lerd-worker-lerd-queue-a.service" {
+	if got.Tag != "servlo-worker-servlo-queue-a.service" {
 		t.Errorf("single failure should use per-unit tag, got %q", got.Tag)
 	}
 }
 
 func TestNotificationForWorkerFailures_GroupedShape(t *testing.T) {
 	ws := []workerheal.UnhealthyWorker{
-		uw("lerd-queue-b.service", "b.test", "queue", "failed"),
-		uw("lerd-horizon-a.service", "a.test", "horizon", "start-limit-hit"),
-		uw("lerd-scheduler-a.service", "a.test", "scheduler", "failed"),
+		uw("servlo-queue-b.service", "b.test", "queue", "failed"),
+		uw("servlo-horizon-a.service", "a.test", "horizon", "start-limit-hit"),
+		uw("servlo-scheduler-a.service", "a.test", "scheduler", "failed"),
 	}
 	got := notificationForWorkerFailures(ws)
 	if got.Kind != "worker_failed" {
@@ -94,7 +94,7 @@ func TestNotificationForWorkerFailures_GroupedShape(t *testing.T) {
 	if got.Params["workers"] != wantWorkers {
 		t.Errorf("Params.workers = %q, want %q", got.Params["workers"], wantWorkers)
 	}
-	if got.Tag != "lerd-workers-group" {
+	if got.Tag != "servlo-workers-group" {
 		t.Errorf("Tag = %q, want stable group tag for supersede", got.Tag)
 	}
 	if got.URL != "#sites" {
@@ -106,7 +106,7 @@ func TestNotificationForWorkerFailures_GroupedShape(t *testing.T) {
 }
 
 func TestNotificationForWorkerFailure_Shape(t *testing.T) {
-	n := notificationForWorkerFailure(uw("lerd-queue-default-a.service", "a.test", "queue-default", "failed"))
+	n := notificationForWorkerFailure(uw("servlo-queue-default-a.service", "a.test", "queue-default", "failed"))
 	if n.Kind != "worker_failed" {
 		t.Errorf("Kind = %q", n.Kind)
 	}
@@ -125,7 +125,7 @@ func TestNotificationForWorkerFailure_Shape(t *testing.T) {
 	if n.Params["state"] != "failed" {
 		t.Errorf("Params.state = %q", n.Params["state"])
 	}
-	if n.Tag != "lerd-worker-lerd-queue-default-a.service" {
+	if n.Tag != "servlo-worker-servlo-queue-default-a.service" {
 		t.Errorf("Tag = %q", n.Tag)
 	}
 	if n.URL == "" {
@@ -148,7 +148,7 @@ func TestNotificationForWorkerFailure_URLResolvesNameToDomain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	n := notificationForWorkerFailure(uw("lerd-queue-rapids.service", "rapids", "queue", "failed"))
+	n := notificationForWorkerFailure(uw("servlo-queue-rapids.service", "rapids", "queue", "failed"))
 	if n.URL != "#sites/harborlist.test" {
 		t.Errorf("URL = %q, want #sites/harborlist.test", n.URL)
 	}

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/hostbin"
 	toml "github.com/pelletier/go-toml/v2"
+	"github.com/realrashid/servlo/internal/hostbin"
 )
 
 // TestMain stubs the Claude Code CLI seam so the cli test suite never mutates the
@@ -49,15 +49,15 @@ func TestCopilotUsesServersKey(t *testing.T) {
 	if !ok {
 		t.Fatalf("VS Code config missing servers key: %s", data)
 	}
-	lerd, ok := servers["lerd"].(map[string]any)
+	servlo, ok := servers["servlo"].(map[string]any)
 	if !ok {
-		t.Fatalf("servers.lerd missing: %s", data)
+		t.Fatalf("servers.servlo missing: %s", data)
 	}
-	if lerd["type"] != "stdio" {
-		t.Errorf("servers.lerd.type should be stdio, got %v", lerd["type"])
+	if servlo["type"] != "stdio" {
+		t.Errorf("servers.servlo.type should be stdio, got %v", servlo["type"])
 	}
-	if lerd["command"] != "lerd" {
-		t.Errorf("servers.lerd.command should be lerd, got %v", lerd["command"])
+	if servlo["command"] != "servlo" {
+		t.Errorf("servers.servlo.command should be servlo, got %v", servlo["command"])
 	}
 }
 
@@ -106,11 +106,11 @@ func TestAntigravityGlobalConfig(t *testing.T) {
 		t.Fatalf("parse: %v", err)
 	}
 	servers, _ := cfg["mcpServers"].(map[string]any)
-	lerd, ok := servers["lerd"].(map[string]any)
+	servlo, ok := servers["servlo"].(map[string]any)
 	if !ok {
-		t.Fatalf("mcpServers.lerd missing: %s", data)
+		t.Fatalf("mcpServers.servlo missing: %s", data)
 	}
-	if _, hasType := lerd["type"]; hasType {
+	if _, hasType := servlo["type"]; hasType {
 		t.Errorf("antigravity entry should not carry a type field: %s", data)
 	}
 }
@@ -138,12 +138,12 @@ func TestMergeCodexTOML_createsAndPreservesOther(t *testing.T) {
 	if _, ok := servers["other"]; !ok {
 		t.Errorf("unrelated mcp_servers.other was dropped: %s", data)
 	}
-	lerd, ok := servers["lerd"].(map[string]any)
+	servlo, ok := servers["servlo"].(map[string]any)
 	if !ok {
-		t.Fatalf("mcp_servers.lerd not added: %s", data)
+		t.Fatalf("mcp_servers.servlo not added: %s", data)
 	}
-	if lerd["command"] != "lerd" {
-		t.Errorf("lerd.command should be lerd, got %v", lerd["command"])
+	if servlo["command"] != "servlo" {
+		t.Errorf("servlo.command should be servlo, got %v", servlo["command"])
 	}
 }
 
@@ -162,9 +162,9 @@ func TestMergeCodexTOML_idempotent(t *testing.T) {
 	}
 }
 
-func TestRemoveCodexTOML_removesOnlyLerd(t *testing.T) {
+func TestRemoveCodexTOML_removesOnlyServlo(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
-	seed := "[mcp_servers.lerd]\ncommand = \"lerd\"\n\n[mcp_servers.other]\ncommand = \"x\"\n"
+	seed := "[mcp_servers.servlo]\ncommand = \"servlo\"\n\n[mcp_servers.other]\ncommand = \"x\"\n"
 	if err := os.WriteFile(path, []byte(seed), 0644); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -177,8 +177,8 @@ func TestRemoveCodexTOML_removesOnlyLerd(t *testing.T) {
 		t.Fatal("expected changed=true")
 	}
 	data, _ := os.ReadFile(path)
-	if strings.Contains(string(data), "[mcp_servers.lerd]") {
-		t.Errorf("lerd entry should be gone: %s", data)
+	if strings.Contains(string(data), "[mcp_servers.servlo]") {
+		t.Errorf("servlo entry should be gone: %s", data)
 	}
 	if !strings.Contains(string(data), "[mcp_servers.other]") {
 		t.Errorf("other entry was dropped: %s", data)
@@ -187,7 +187,7 @@ func TestRemoveCodexTOML_removesOnlyLerd(t *testing.T) {
 
 func TestRemoveCodexTOML_deletesFileWhenEmpty(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
-	if err := os.WriteFile(path, []byte("[mcp_servers.lerd]\ncommand = \"lerd\"\n"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte("[mcp_servers.servlo]\ncommand = \"servlo\"\n"), 0644); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	changed, err := removeCodexTOML(path)
@@ -203,7 +203,7 @@ func TestRemoveCodexTOML_deletesFileWhenEmpty(t *testing.T) {
 }
 
 // TestCopilotInstructionsPreserveUserContent confirms the sentinel merge keeps a
-// user's existing copilot-instructions.md content when the lerd block is added.
+// user's existing copilot-instructions.md content when the servlo block is added.
 func TestCopilotInstructionsPreserveUserContent(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, ".github", "copilot-instructions.md")
@@ -222,8 +222,8 @@ func TestCopilotInstructionsPreserveUserContent(t *testing.T) {
 	if !strings.Contains(string(got), "Use tabs.") {
 		t.Errorf("user instructions were dropped:\n%s", got)
 	}
-	if !strings.Contains(string(got), "<!-- lerd:begin -->") {
-		t.Errorf("lerd block not added:\n%s", got)
+	if !strings.Contains(string(got), "<!-- servlo:begin -->") {
+		t.Errorf("servlo block not added:\n%s", got)
 	}
 }
 
@@ -254,19 +254,19 @@ func TestWriteGlobalMCPConfigs_writesFileBackedClients(t *testing.T) {
 			t.Errorf("global MCP config %s missing: %v", rel, err)
 		}
 	}
-	// Global JSON entries must not carry LERD_SITE_PATH.
+	// Global JSON entries must not carry SERVLO_SITE_PATH.
 	data, _ := os.ReadFile(filepath.Join(home, ".gemini", "settings.json"))
-	if strings.Contains(string(data), "LERD_SITE_PATH") {
-		t.Errorf("global entry should not pin LERD_SITE_PATH: %s", data)
+	if strings.Contains(string(data), "SERVLO_SITE_PATH") {
+		t.Errorf("global entry should not pin SERVLO_SITE_PATH: %s", data)
 	}
 }
 
-// TestRefreshGlobalAISkills_onlyTouchesExisting confirms `lerd update` does not
+// TestRefreshGlobalAISkills_onlyTouchesExisting confirms `servlo update` does not
 // expand a user's footprint: a global user who only had the Claude skill keeps
 // it refreshed but does not get ~/.gemini/GEMINI.md or ~/.codex/AGENTS.md created.
 func TestRefreshGlobalAISkills_onlyTouchesExisting(t *testing.T) {
 	home := t.TempDir()
-	skill := filepath.Join(home, ".claude", "skills", "lerd", "SKILL.md")
+	skill := filepath.Join(home, ".claude", "skills", "servlo", "SKILL.md")
 	if err := os.MkdirAll(filepath.Dir(skill), 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -284,7 +284,7 @@ func TestRefreshGlobalAISkills_onlyTouchesExisting(t *testing.T) {
 	for _, rel := range []string{
 		filepath.Join(".gemini", "GEMINI.md"),
 		filepath.Join(".codex", "AGENTS.md"),
-		filepath.Join(".cursor", "rules", "lerd.mdc"),
+		filepath.Join(".cursor", "rules", "servlo.mdc"),
 	} {
 		if _, err := os.Stat(filepath.Join(home, rel)); !os.IsNotExist(err) {
 			t.Errorf("refresh created %s for a client the user never enabled (err=%v)", rel, err)
@@ -293,7 +293,7 @@ func TestRefreshGlobalAISkills_onlyTouchesExisting(t *testing.T) {
 }
 
 // TestRefreshGlobalAISkills_skipsForeignSentinelFile confirms refresh does not
-// adopt a user's own AGENTS.md/GEMINI.md that lacks the lerd sentinel block.
+// adopt a user's own AGENTS.md/GEMINI.md that lacks the servlo sentinel block.
 func TestRefreshGlobalAISkills_skipsForeignSentinelFile(t *testing.T) {
 	home := t.TempDir()
 	agents := filepath.Join(home, ".codex", "AGENTS.md")
@@ -309,8 +309,8 @@ func TestRefreshGlobalAISkills_skipsForeignSentinelFile(t *testing.T) {
 	}
 
 	got, _ := os.ReadFile(agents)
-	if strings.Contains(string(got), "<!-- lerd:begin -->") {
-		t.Errorf("refresh injected a lerd block into a user's own AGENTS.md:\n%s", got)
+	if strings.Contains(string(got), "<!-- servlo:begin -->") {
+		t.Errorf("refresh injected a servlo block into a user's own AGENTS.md:\n%s", got)
 	}
 }
 
@@ -320,10 +320,10 @@ func TestRefreshProjectAISkills_onlyTouchesExisting(t *testing.T) {
 	dir := t.TempDir()
 	// Simulate an old opt-in: Claude MCP config + skill present, nothing else.
 	if err := os.WriteFile(filepath.Join(dir, ".mcp.json"),
-		[]byte(`{"mcpServers":{"lerd":{"command":"lerd","args":["mcp"]}}}`), 0644); err != nil {
+		[]byte(`{"mcpServers":{"servlo":{"command":"servlo","args":["mcp"]}}}`), 0644); err != nil {
 		t.Fatalf("seed mcp.json: %v", err)
 	}
-	skill := filepath.Join(dir, ".claude", "skills", "lerd", "SKILL.md")
+	skill := filepath.Join(dir, ".claude", "skills", "servlo", "SKILL.md")
 	if err := os.MkdirAll(filepath.Dir(skill), 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -346,23 +346,23 @@ func TestRefreshProjectAISkills_onlyTouchesExisting(t *testing.T) {
 }
 
 // TestRefreshProjectAISkills_respectsOptOut confirms a project with
-// mcp_inject: false in .lerd.yaml is left untouched on the automatic refresh
+// mcp_inject: false in .servlo.yaml is left untouched on the automatic refresh
 // path, so a self-update never rewrites its committed MCP config.
 func TestRefreshProjectAISkills_respectsOptOut(t *testing.T) {
 	dir := t.TempDir()
-	stale := []byte(`{"mcpServers":{"lerd":{"command":"lerd","args":["mcp"]}}}`)
+	stale := []byte(`{"mcpServers":{"servlo":{"command":"servlo","args":["mcp"]}}}`)
 	if err := os.WriteFile(filepath.Join(dir, ".mcp.json"), stale, 0644); err != nil {
 		t.Fatalf("seed mcp.json: %v", err)
 	}
-	skill := filepath.Join(dir, ".claude", "skills", "lerd", "SKILL.md")
+	skill := filepath.Join(dir, ".claude", "skills", "servlo", "SKILL.md")
 	if err := os.MkdirAll(filepath.Dir(skill), 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 	if err := os.WriteFile(skill, []byte("stale"), 0644); err != nil {
 		t.Fatalf("seed skill: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("mcp_inject: false\n"), 0644); err != nil {
-		t.Fatalf("seed .lerd.yaml: %v", err)
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("mcp_inject: false\n"), 0644); err != nil {
+		t.Fatalf("seed .servlo.yaml: %v", err)
 	}
 
 	if err := RefreshProjectAISkills(dir, false); err != nil {
@@ -377,17 +377,17 @@ func TestRefreshProjectAISkills_respectsOptOut(t *testing.T) {
 	}
 }
 
-// TestSweepLegacySharedAIMCP_removesLerdKeepsBoost confirms the .ai/mcp/mcp.json
-// cleanup strips only lerd's entry, leaves a Boost-owned entry intact, and
-// deletes the file plus its empty parents when lerd was the sole server.
-func TestSweepLegacySharedAIMCP_removesLerdKeepsBoost(t *testing.T) {
-	// Boost owns the file: lerd's entry is stripped, laravel-boost stays.
+// TestSweepLegacySharedAIMCP_removesServloKeepsBoost confirms the .ai/mcp/mcp.json
+// cleanup strips only servlo's entry, leaves a Boost-owned entry intact, and
+// deletes the file plus its empty parents when servlo was the sole server.
+func TestSweepLegacySharedAIMCP_removesServloKeepsBoost(t *testing.T) {
+	// Boost owns the file: servlo's entry is stripped, laravel-boost stays.
 	shared := t.TempDir()
 	p := filepath.Join(shared, ".ai", "mcp", "mcp.json")
 	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	body := `{"mcpServers":{"laravel-boost":{"command":"php"},"lerd":{"command":"lerd","args":["mcp"]}}}`
+	body := `{"mcpServers":{"laravel-boost":{"command":"php"},"servlo":{"command":"servlo","args":["mcp"]}}}`
 	if err := os.WriteFile(p, []byte(body), 0644); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -395,20 +395,20 @@ func TestSweepLegacySharedAIMCP_removesLerdKeepsBoost(t *testing.T) {
 		t.Fatal("sweep should report a change")
 	}
 	got, _ := os.ReadFile(p)
-	if strings.Contains(string(got), `"lerd"`) {
-		t.Errorf("lerd entry should be gone: %s", got)
+	if strings.Contains(string(got), `"servlo"`) {
+		t.Errorf("servlo entry should be gone: %s", got)
 	}
 	if !strings.Contains(string(got), "laravel-boost") {
 		t.Errorf("laravel-boost entry should survive: %s", got)
 	}
 
-	// lerd-only file: the whole .ai/mcp/mcp.json and its empty parents are removed.
+	// servlo-only file: the whole .ai/mcp/mcp.json and its empty parents are removed.
 	solo := t.TempDir()
 	sp := filepath.Join(solo, ".ai", "mcp", "mcp.json")
 	if err := os.MkdirAll(filepath.Dir(sp), 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if err := os.WriteFile(sp, []byte(`{"mcpServers":{"lerd":{"command":"lerd"}}}`), 0644); err != nil {
+	if err := os.WriteFile(sp, []byte(`{"mcpServers":{"servlo":{"command":"servlo"}}}`), 0644); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	if !sweepLegacySharedAIMCP(solo) {
@@ -425,7 +425,7 @@ func TestSweepLegacySharedAIMCP_removesLerdKeepsBoost(t *testing.T) {
 }
 
 // TestProjectMCP_isPortable confirms project-scoped JSON entries carry no
-// machine-specific data: no LERD_SITE_PATH and no absolute site path, so a
+// machine-specific data: no SERVLO_SITE_PATH and no absolute site path, so a
 // committed .mcp.json stays identical across every teammate's checkout.
 func TestProjectMCP_isPortable(t *testing.T) {
 	dir := t.TempDir()
@@ -433,15 +433,15 @@ func TestProjectMCP_isPortable(t *testing.T) {
 		t.Fatalf("WriteProjectAISkills: %v", err)
 	}
 	data, _ := os.ReadFile(filepath.Join(dir, ".mcp.json"))
-	if strings.Contains(string(data), "LERD_SITE_PATH") {
-		t.Errorf("project entry should not pin LERD_SITE_PATH: %s", data)
+	if strings.Contains(string(data), "SERVLO_SITE_PATH") {
+		t.Errorf("project entry should not pin SERVLO_SITE_PATH: %s", data)
 	}
 	if strings.Contains(string(data), dir) {
 		t.Errorf("project entry should not bake in the absolute site dir %s: %s", dir, data)
 	}
 }
 
-// mergeServerJSON must leave a config that already carries an equivalent lerd
+// mergeServerJSON must leave a config that already carries an equivalent servlo
 // entry byte-for-byte untouched, so a committed, hand-formatted .mcp.json isn't
 // reindented (a spurious git diff) on every install/update. A differing or
 // missing entry still writes, and unrelated servers are preserved.
@@ -451,8 +451,8 @@ func TestMergeServerJSON_IdempotentOnUnchangedEntry(t *testing.T) {
 
 	original := []byte(`{
   "mcpServers": {
-    "lerd": {
-      "command": "lerd",
+    "servlo": {
+      "command": "servlo",
       "args": ["mcp"]
     },
     "other": {
@@ -465,17 +465,17 @@ func TestMergeServerJSON_IdempotentOnUnchangedEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	entry := map[string]any{"command": "lerd", "args": []string{"mcp"}}
+	entry := map[string]any{"command": "servlo", "args": []string{"mcp"}}
 	if err := mergeServerJSON(path, "mcpServers", entry); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := os.ReadFile(path)
 	if string(after) != string(original) {
-		t.Errorf("file rewritten though the lerd entry was unchanged:\n--- before ---\n%s\n--- after ---\n%s", original, after)
+		t.Errorf("file rewritten though the servlo entry was unchanged:\n--- before ---\n%s\n--- after ---\n%s", original, after)
 	}
 
 	// A genuinely different entry must still be written, preserving other servers.
-	if err := mergeServerJSON(path, "mcpServers", map[string]any{"command": "lerd", "args": []string{"mcp", "--verbose"}}); err != nil {
+	if err := mergeServerJSON(path, "mcpServers", map[string]any{"command": "servlo", "args": []string{"mcp", "--verbose"}}); err != nil {
 		t.Fatal(err)
 	}
 	changed, _ := os.ReadFile(path)
@@ -486,6 +486,6 @@ func TestMergeServerJSON_IdempotentOnUnchangedEntry(t *testing.T) {
 		t.Fatal("unrelated server must be preserved on write")
 	}
 	if !strings.Contains(string(changed), "--verbose") {
-		t.Fatal("updated lerd entry must be written")
+		t.Fatal("updated servlo entry must be written")
 	}
 }

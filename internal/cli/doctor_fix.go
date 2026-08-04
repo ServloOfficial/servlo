@@ -6,13 +6,13 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/geodro/lerd/internal/feedback"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/feedback"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 )
 
 // Automatic fix keys. Each is attached to a finding by the doctor and dispatched
 // here. Trivial repairs run in-process; the orchestration-heavy ones re-enter
-// the same lerd subcommand the user would run, so there is one code path.
+// the same servlo subcommand the user would run, so there is one code path.
 const (
 	fixMkdir        = "mkdir"
 	fixEnableLinger = "enable-linger"
@@ -32,7 +32,7 @@ const (
 )
 
 // heavyFixKeys are auto fixes that rebuild images, reinstall units, or delete
-// data, so `lerd doctor --fix` re-confirms them even under --yes.
+// data, so `servlo doctor --fix` re-confirms them even under --yes.
 var heavyFixKeys = map[string]bool{
 	fixInstall: true,
 	fixCleanup: true,
@@ -44,8 +44,8 @@ var reCheckReport = RunDoctorReport
 
 // ensureNoNetworkWaitStallFn installs the podman network-online drop-in; a seam
 // tests override so the network-wait fix can be exercised without touching the
-// host's systemd, and to prove it routes here rather than into `lerd start`.
-var ensureNoNetworkWaitStallFn = lerdSystemd.EnsureNoNetworkWaitStall
+// host's systemd, and to prove it routes here rather than into `servlo start`.
+var ensureNoNetworkWaitStallFn = servloSystemd.EnsureNoNetworkWaitStall
 
 // IsHeavyFix reports whether a fix always warrants an extra confirmation.
 func IsHeavyFix(fix *DoctorFix) bool {
@@ -114,7 +114,7 @@ func runDoctorFix(w io.Writer, rep DoctorReport, yes, dryRun bool) error {
 			if remaining := len(after.RequiredAutoFixes()); remaining == 0 {
 				fmt.Fprintln(w, "Re-checked: nothing left to repair.")
 			} else {
-				fmt.Fprintf(w, "Re-checked: %d automatic fix(es) still needed, run `lerd doctor --fix` again.\n", remaining)
+				fmt.Fprintf(w, "Re-checked: %d automatic fix(es) still needed, run `servlo doctor --fix` again.\n", remaining)
 			}
 		}
 	}
@@ -165,7 +165,7 @@ func ApplyDoctorFix(fix *DoctorFix, out io.Writer) error {
 		return runSelf(out, "php:rebuild", fix.Arg)
 	case fixNetworkWait:
 		// A user-level drop-in and `systemctl --user` only; deliberately not
-		// `lerd start`, which would drag the privileged resolver reconfiguration
+		// `servlo start`, which would drag the privileged resolver reconfiguration
 		// into the auto tier that promises never to touch sudo.
 		fmt.Fprintln(out, "installing the podman network-online drop-in")
 		_, err := ensureNoNetworkWaitStallFn()
@@ -196,7 +196,7 @@ func runFixCommand(out io.Writer, name string, args ...string) error {
 	return cmd.Run()
 }
 
-// runSelf re-enters the running lerd binary so a fix reuses the exact code path
+// runSelf re-enters the running servlo binary so a fix reuses the exact code path
 // of the subcommand it stands for.
 func runSelf(out io.Writer, args ...string) error {
 	self, err := selfPath()

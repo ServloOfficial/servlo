@@ -22,7 +22,7 @@ import (
 // script, runs it under the host php, and returns every JSON line the script
 // shipped over the capture socket. `body` is spliced into the probe after the
 // collector is required; COLLECTOR is replaced with the collector's path.
-// Skipped where php isn't installed or can't reach host files (e.g. lerd's own
+// Skipped where php isn't installed or can't reach host files (e.g. servlo's own
 // container wrapper on a dev box).
 func runCollectorPHP(t *testing.T, body string) []string {
 	t.Helper()
@@ -41,7 +41,7 @@ func runCollectorPHP(t *testing.T, body string) []string {
 		t.Fatalf("write collector: %v", err)
 	}
 
-	// On dev boxes `php` is often lerd's container wrapper, which runs in an
+	// On dev boxes `php` is often servlo's container wrapper, which runs in an
 	// FPM container that can't see the host's temp dir or socket. Detect that
 	// (and any sandboxed php) by checking it can read a host file; skip if not,
 	// since the harness needs a native php.
@@ -85,7 +85,7 @@ func runCollectorPHP(t *testing.T, body string) []string {
 	}
 
 	cmd := exec.Command(php, scriptPath)
-	cmd.Env = append(os.Environ(), "LERD_DEVTOOLS_HOST=unix://"+sock)
+	cmd.Env = append(os.Environ(), "SERVLO_DEVTOOLS_HOST=unix://"+sock)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("php run failed: %v\n%s", err, out)
 	}
@@ -108,11 +108,11 @@ namespace Symfony\Component\Messenger { class Envelope { private $m; function __
 namespace App\Message { class SendInvoice {} }
 namespace {
     require COLLECTOR;
-    \Lerd\Collector\event(new \stdClass(), 'kernel.request');                 // framework noise -> dropped
-    \Lerd\Collector\event(new \stdClass(), 'App\\Domain\\OrderPlaced');       // app event -> emitted
-    \Lerd\Collector\http('GET', 'https://api.test/widgets');                  // emitted
-    \Lerd\Collector\job(new \stdClass());                                     // raw message -> class stdClass
-    \Lerd\Collector\job(new \Symfony\Component\Messenger\Envelope(new \App\Message\SendInvoice())); // unwrap to inner class
+    \Servlo\Collector\event(new \stdClass(), 'kernel.request');                 // framework noise -> dropped
+    \Servlo\Collector\event(new \stdClass(), 'App\\Domain\\OrderPlaced');       // app event -> emitted
+    \Servlo\Collector\http('GET', 'https://api.test/widgets');                  // emitted
+    \Servlo\Collector\job(new \stdClass());                                     // raw message -> class stdClass
+    \Servlo\Collector\job(new \Symfony\Component\Messenger\Envelope(new \App\Message\SendInvoice())); // unwrap to inner class
 }
 `)
 
@@ -193,7 +193,7 @@ func TestCollectorPHP_TagsTestRuns(t *testing.T) {
 	underTest := decode(t, runCollectorPHP(t, `<?php
 define('PHPUNIT_COMPOSER_INSTALL', '/app/vendor/autoload.php');
 require COLLECTOR;
-\Lerd\Collector\http('GET', 'https://api.test/widgets');
+\Servlo\Collector\http('GET', 'https://api.test/widgets');
 `))
 	if !underTest.Ctx.Test {
 		t.Errorf("ctx.test = false under a PHPUnit run, want true")
@@ -204,7 +204,7 @@ require COLLECTOR;
 
 	plain := decode(t, runCollectorPHP(t, `<?php
 require COLLECTOR;
-\Lerd\Collector\http('GET', 'https://api.test/widgets');
+\Servlo\Collector\http('GET', 'https://api.test/widgets');
 `))
 	if plain.Ctx.Test {
 		t.Errorf("ctx.test = true for a plain CLI invocation, want false")
@@ -225,7 +225,7 @@ func TestCollectorPHP_StampsCommandForCLI(t *testing.T) {
 	lines := runCollectorPHP(t, `<?php
 $_SERVER['argv'] = ['/app/artisan', 'tinker', '--queue=high', '--execute=for ($i = 0; $i < 4; $i++) { DB::select("select 1"); }'];
 require COLLECTOR;
-\Lerd\Collector\http('GET', 'https://api.test/widgets');
+\Servlo\Collector\http('GET', 'https://api.test/widgets');
 `)
 	if len(lines) != 1 {
 		t.Fatalf("got %d events, want 1: %v", len(lines), lines)

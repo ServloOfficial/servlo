@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // writeDNSDisabledConfig writes a global config with DNS management off so the
@@ -18,7 +18,7 @@ import (
 // which needs a running systemd/podman that the test environment lacks.
 func writeDNSDisabledConfig(t *testing.T) {
 	t.Helper()
-	dir := filepath.Join(t.TempDir(), "lerd")
+	dir := filepath.Join(t.TempDir(), "servlo")
 	t.Setenv("XDG_CONFIG_HOME", filepath.Dir(dir))
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)

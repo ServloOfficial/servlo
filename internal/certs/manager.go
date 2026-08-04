@@ -15,12 +15,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // certReissueWindow is how close to NotAfter a leaf cert may drift before the
 // IssueCert reuse path stops trusting it and reissues. Mirrors the 30-day
-// threshold `lerd status` warns at, so the self-heal kicks in as the warning
+// threshold `servlo status` warns at, so the self-heal kicks in as the warning
 // starts rather than waiting for the cert to actually expire.
 const certReissueWindow = 30 * 24 * time.Hour
 
@@ -120,7 +120,7 @@ func issueCertAtomic(primaryDomain string, allDomains []string, certsDir string)
 	certFile := filepath.Join(certsDir, primaryDomain+".crt")
 	keyFile := filepath.Join(certsDir, primaryDomain+".key")
 	// Per-call unique suffix: pid + monotonic seq + ns time. Ensures
-	// cross-process concurrent issuers (e.g. lerd-watcher and lerd-ui)
+	// cross-process concurrent issuers (e.g. servlo-watcher and servlo-panel)
 	// don't collide on the .new path even when the in-process mutex
 	// can't help.
 	suffix := ".new." + strconv.Itoa(os.Getpid()) + "." + strconv.FormatUint(tempSuffixSeq.Add(1), 10) + "." + strconv.FormatInt(time.Now().UnixNano(), 10)

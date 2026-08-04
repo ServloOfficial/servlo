@@ -26,10 +26,10 @@ type systemTrustStore struct {
 // order; the first whose directory exists wins. A var so tests can substitute
 // temp paths.
 var systemTrustStores = []systemTrustStore{
-	{"/etc/pki/ca-trust/source/anchors", "lerd-mkcert-rootCA.pem", []string{"update-ca-trust", "extract"}},       // Fedora/RHEL
-	{"/usr/local/share/ca-certificates", "lerd-mkcert-rootCA.crt", []string{"update-ca-certificates"}},           // Debian/Ubuntu
-	{"/etc/ca-certificates/trust-source/anchors", "lerd-mkcert-rootCA.crt", []string{"trust", "extract-compat"}}, // Arch
-	{"/usr/share/pki/trust/anchors", "lerd-mkcert-rootCA.crt", []string{"update-ca-certificates"}},               // openSUSE
+	{"/etc/pki/ca-trust/source/anchors", "servlo-mkcert-rootCA.pem", []string{"update-ca-trust", "extract"}},       // Fedora/RHEL
+	{"/usr/local/share/ca-certificates", "servlo-mkcert-rootCA.crt", []string{"update-ca-certificates"}},           // Debian/Ubuntu
+	{"/etc/ca-certificates/trust-source/anchors", "servlo-mkcert-rootCA.crt", []string{"trust", "extract-compat"}}, // Arch
+	{"/usr/share/pki/trust/anchors", "servlo-mkcert-rootCA.crt", []string{"update-ca-certificates"}},               // openSUSE
 }
 
 // updateSystemTrust refreshes the aggregated trust bundle. A var so tests can
@@ -44,7 +44,7 @@ var updateSystemTrust = func(command []string) error {
 // upgrade is cheap.
 //
 // mkcert normally does this itself via an interactive sudo, which a package
-// maintainer script cannot answer. `lerd bootstrap --trust-ca` runs as root and
+// maintainer script cannot answer. `servlo bootstrap --trust-ca` runs as root and
 // installs the user-generated CA directly instead.
 func TrustCAInSystemStore(caPEM []byte) error {
 	for _, store := range systemTrustStores {
@@ -66,7 +66,7 @@ func TrustCAInSystemStore(caPEM []byte) error {
 // UntrustCAFromSystemStore removes the anchor TrustCAInSystemStore wrote and
 // refreshes the bundle. The caller must be root. mkcert's own -uninstall keys
 // on the filename mkcert chose, so it never reaches this one; without this the
-// CA would stay trusted on the machine after lerd is gone. Idempotent, and
+// CA would stay trusted on the machine after servlo is gone. Idempotent, and
 // every store is swept rather than only the first so nothing is left behind.
 func UntrustCAFromSystemStore() error {
 	var sawStore bool
@@ -92,7 +92,7 @@ func UntrustCAFromSystemStore() error {
 	return nil
 }
 
-// SystemTrustAnchorPresent reports whether a lerd-written anchor is on disk, so
+// SystemTrustAnchorPresent reports whether a servlo-written anchor is on disk, so
 // an uninstall only escalates to root when there is something to remove.
 func SystemTrustAnchorPresent() bool {
 	for _, store := range systemTrustStores {

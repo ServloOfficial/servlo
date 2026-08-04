@@ -17,7 +17,7 @@ func TestTinkerEnvArgs(t *testing.T) {
 		"--env", "NO_COLOR=1",
 		"--env", "TERM=dumb",
 		"--env", "PSYSH_TRUST_PROJECT=1",
-		"--env", "LERD_DUMP_PASSTHROUGH=1",
+		"--env", "SERVLO_DUMP_PASSTHROUGH=1",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("env args mismatch.\n got:  %v\n want: %v", got, want)
@@ -57,8 +57,8 @@ func TestWriteTinkerScript_AddsPhpPrefix(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Remove(path)
-	if !strings.HasPrefix(filepath.Base(path), ".lerd-tinker-") {
-		t.Errorf("temp file name should start with .lerd-tinker-: %s", path)
+	if !strings.HasPrefix(filepath.Base(path), ".servlo-tinker-") {
+		t.Errorf("temp file name should start with .servlo-tinker-: %s", path)
 	}
 	if filepath.Dir(path) != dir {
 		t.Errorf("temp file should live in site dir, got %s", path)
@@ -223,7 +223,7 @@ func TestTransformForTinkerCapturesQueries(t *testing.T) {
 	// before the statement, and the statement is still auto-dumped.
 	for _, want := range []string{
 		`DB::listen(`,
-		`$GLOBALS['__lerd_line']=1;`,
+		`$GLOBALS['__servlo_line']=1;`,
 		`echo "\x1e1\x1f";`,
 		`dump(User::count());`,
 	} {
@@ -235,7 +235,7 @@ func TestTransformForTinkerCapturesQueries(t *testing.T) {
 
 func TestTransformForMultiStatementHasNoQueryCapture(t *testing.T) {
 	got := transformForMultiStatementWithDump("User::count()", "dump")
-	if strings.Contains(got, "DB::listen") || strings.Contains(got, "__lerd_line") {
+	if strings.Contains(got, "DB::listen") || strings.Contains(got, "__servlo_line") {
 		t.Errorf("plain transform should not capture queries, got: %s", got)
 	}
 }

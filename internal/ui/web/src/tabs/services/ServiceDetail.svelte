@@ -83,7 +83,7 @@
       const site = svc.worker_worktree ? `${svc.worker_site}-${svc.worker_worktree}` : svc.worker_site;
       return `/api/worker/${site}/${svc.worker_name}/logs`;
     }
-    return `/api/logs/lerd-${svc.name}`;
+    return `/api/logs/servlo-${svc.name}`;
   });
 
   function highlight(line: string): string | null {

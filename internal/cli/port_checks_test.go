@@ -3,12 +3,12 @@ package cli
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestCollectPortChecks_usesPublishedPortOverride covers the PublishedPort > 0
 // branch: when a built-in service has been moved off its preset default port
-// (e.g. lerd-mysql 3306 → 3307 to free 3306 for a host server), the boot-time
+// (e.g. servlo-mysql 3306 → 3307 to free 3306 for a host server), the boot-time
 // port conflict check must verify the REAL bound port, not the preset default.
 func TestCollectPortChecks_usesPublishedPortOverride(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
@@ -29,10 +29,10 @@ func TestCollectPortChecks_usesPublishedPortOverride(t *testing.T) {
 		t.Fatalf("SaveGlobal: %v", err)
 	}
 
-	checks := CollectPortChecks([]string{"lerd-" + svc})
+	checks := CollectPortChecks([]string{"servlo-" + svc})
 	var sawPublished, sawDefault bool
 	for _, c := range checks {
-		if c.Container != "lerd-"+svc {
+		if c.Container != "servlo-"+svc {
 			continue
 		}
 		switch c.Port {

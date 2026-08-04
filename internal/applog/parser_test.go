@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 const sampleLaravelLog = `[2024-01-08 14:05:08] local.ERROR: Database file at path [herd_templates] does not exist. Ensure this is an absolute path to the database. (Connection: sqlite, SQL: select * from "users") {"exception":"[object] (Illuminate\\Database\\QueryException(code: 0): Database file at path [herd_templates] does not exist.)"}

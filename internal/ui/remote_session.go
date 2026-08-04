@@ -18,7 +18,7 @@ import (
 // native password dialog pops on every page load. Once the user has cleared
 // the Basic gate once, we hand them this cookie and accept it in lieu of the
 // header on later requests.
-const remoteSessionCookie = "lerd_session"
+const remoteSessionCookie = "servlo_session"
 
 // remoteSessionTTL is how long a session cookie stays valid. A week keeps a
 // phone signed in across a normal working stretch while still expiring if a

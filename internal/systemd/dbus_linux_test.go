@@ -11,12 +11,12 @@ func TestWithServiceSuffix(t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
-		{"lerd-ui", "lerd-ui.service"},
-		{"lerd-watcher", "lerd-watcher.service"},
-		{"lerd-queue-myapp", "lerd-queue-myapp.service"},
-		{"lerd-ui.service", "lerd-ui.service"},
-		{"lerd-test.timer", "lerd-test.timer"},
-		{"lerd-stripe-my.app", "lerd-stripe-my.app"},
+		{"servlo-panel", "servlo-panel.service"},
+		{"servlo-watcher", "servlo-watcher.service"},
+		{"servlo-queue-myapp", "servlo-queue-myapp.service"},
+		{"servlo-panel.service", "servlo-panel.service"},
+		{"servlo-test.timer", "servlo-test.timer"},
+		{"servlo-stripe-my.app", "servlo-stripe-my.app"},
 		{"", ".service"},
 	}
 	for _, tc := range cases {
@@ -33,10 +33,10 @@ func TestWithDefaultSuffix(t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
-		{"lerd-ui", "lerd-ui.service"},
-		{"lerd-test.timer", "lerd-test.timer"},
-		{"lerd-test.service", "lerd-test.service"},
-		{"lerd-queue-myapp.timer", "lerd-queue-myapp.timer"},
+		{"servlo-panel", "servlo-panel.service"},
+		{"servlo-test.timer", "servlo-test.timer"},
+		{"servlo-test.service", "servlo-test.service"},
+		{"servlo-queue-myapp.timer", "servlo-queue-myapp.timer"},
 		{"some.weird.name", "some.weird.name"},
 	}
 	for _, tc := range cases {
@@ -48,18 +48,18 @@ func TestWithDefaultSuffix(t *testing.T) {
 
 // IsTimerActive composes name+".timer" and asks DBus. The suffix rule must
 // pass ".timer" through unchanged so IsTimerActive doesn't end up querying
-// "lerd-foo.timer.service".
+// "servlo-foo.timer.service".
 func TestTimerSuffixIsNotDoubleAppended(t *testing.T) {
-	if got := withServiceSuffix("lerd-foo.timer"); got != "lerd-foo.timer" {
-		t.Errorf("withServiceSuffix(%q) = %q, want passthrough — IsTimerActive would query the wrong unit", "lerd-foo.timer", got)
+	if got := withServiceSuffix("servlo-foo.timer"); got != "servlo-foo.timer" {
+		t.Errorf("withServiceSuffix(%q) = %q, want passthrough — IsTimerActive would query the wrong unit", "servlo-foo.timer", got)
 	}
-	if got := withDefaultSuffix("lerd-foo.timer"); got != "lerd-foo.timer" {
-		t.Errorf("withDefaultSuffix(%q) = %q, want passthrough", "lerd-foo.timer", got)
+	if got := withDefaultSuffix("servlo-foo.timer"); got != "servlo-foo.timer" {
+		t.Errorf("withDefaultSuffix(%q) = %q, want passthrough", "servlo-foo.timer", got)
 	}
 }
 
 // NotifyReady and NotifyStopping must be safe to call outside a systemd
-// notify-socket context: bare CLI runs (lerd serve-ui from a terminal,
+// notify-socket context: bare CLI runs (servlo serve-ui from a terminal,
 // go test) have no $NOTIFY_SOCKET and the underlying daemon.SdNotify
 // returns (false, nil) — no panic, no error surfaced.
 func TestNotifyReadyAndStoppingAreSafeWithoutSocket(t *testing.T) {
@@ -68,7 +68,7 @@ func TestNotifyReadyAndStoppingAreSafeWithoutSocket(t *testing.T) {
 	NotifyStopping()
 }
 
-// runUnitOpWithRetry is the stop-reliability fix for `lerd stop` leaving a
+// runUnitOpWithRetry is the stop-reliability fix for `servlo stop` leaving a
 // container running with "stop … failed: canceled" (a parallel "replace" stop
 // of an interdependent unit). It must re-issue only on "canceled", stop as
 // soon as the job is "done", give up after maxAttempts, and never swallow a

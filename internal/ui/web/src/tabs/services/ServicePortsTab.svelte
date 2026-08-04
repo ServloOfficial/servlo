@@ -114,7 +114,7 @@
 
 <div class="flex flex-col h-full">
   <div class="sticky top-0 z-10">
-    <div class="flex items-center justify-between bg-gray-50 dark:bg-white/3 px-3 py-1.5 border-b border-gray-200 dark:border-lerd-border">
+    <div class="flex items-center justify-between bg-gray-50 dark:bg-white/3 px-3 py-1.5 border-b border-gray-200 dark:border-servlo-border">
       <div class="flex items-center gap-2 min-w-0">
         {#if dirty && !saving}
           <span class="text-[10px] font-medium text-amber-600 dark:text-amber-400">{m.tuningEditor_unsaved()}</span>
@@ -126,7 +126,7 @@
             type="button"
             onclick={revert}
             disabled={saving}
-            class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
+            class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
           >
             {m.tuningEditor_revert()}
           </button>
@@ -134,7 +134,7 @@
             type="button"
             onclick={save}
             disabled={saving}
-            class="text-xs px-3 py-1 rounded-sm bg-lerd-red hover:bg-lerd-redhov text-white transition-colors disabled:opacity-40"
+            class="text-xs px-3 py-1 rounded-sm bg-servlo-red hover:bg-servlo-redhov text-white transition-colors disabled:opacity-40"
           >
             {saving ? m.services_ports_applying() : m.common_save()}
           </button>
@@ -159,7 +159,7 @@
       {/each}
     </div>
 
-    <div class="space-y-2 border-t border-gray-100 dark:border-lerd-border pt-4">
+    <div class="space-y-2 border-t border-gray-100 dark:border-servlo-border pt-4">
       <span class="text-sm font-medium text-gray-800 dark:text-gray-200">
         {m.services_ports_extraTitle()}
       </span>

@@ -1,5 +1,5 @@
 // Package stats reads cheap per-container resource usage via `podman stats`
-// and exposes a structured view both lerd-ui (for the dashboard widget) and
+// and exposes a structured view both servlo-panel (for the dashboard widget) and
 // the TUI (for its Dashboard pane) can share. Lives outside internal/ui so
 // the TUI can call it in-process without pulling in the HTTP server stack.
 package stats
@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
-// ContainerStat is one row of resource usage for a single lerd-prefixed
+// ContainerStat is one row of resource usage for a single servlo-prefixed
 // container. Mirrors the JSON the web UI consumes so callers can serialize
 // directly without an adapter struct.
 type ContainerStat struct {
@@ -39,7 +39,7 @@ type Snapshot struct {
 	Available       bool            `json:"available"`
 }
 
-// readerFn (containers, via podman) and hostReaderFn (lerd's own host-side
+// readerFn (containers, via podman) and hostReaderFn (servlo's own host-side
 // processes, via systemd accounting) are swappable for tests so callers don't
 // need a live podman or systemd.
 var readerFn = readPodmanStats
@@ -58,7 +58,7 @@ const readTimeout = 6 * time.Second
 const CacheTTL = 10 * time.Second
 
 // Read returns a fresh snapshot. Callers that need caching go through Cached,
-// which shares one refresh between lerd-ui and the TUI.
+// which shares one refresh between servlo-panel and the TUI.
 func Read() Snapshot {
 	out := Snapshot{
 		Containers: []ContainerStat{},
@@ -76,7 +76,7 @@ func Read() Snapshot {
 	wg.Wait()
 
 	rows := containers
-	// A container's quadlet unit (lerd-mysql.service, …) also surfaces in the
+	// A container's quadlet unit (servlo-mysql.service, …) also surfaces in the
 	// host list; drop it so podman's measurement wins and it isn't counted twice.
 	isContainer := make(map[string]bool, len(containers))
 	for _, c := range containers {
@@ -134,7 +134,7 @@ func Read() Snapshot {
 }
 
 // cached wraps Read with a TTL cache so multiple callers in the same process
-// (TUI: dashboard pane redraws every frame; lerd-ui: many open dashboards)
+// (TUI: dashboard pane redraws every frame; servlo-panel: many open dashboards)
 // don't each pay the podman cost. The `inflight` channel singleflights
 // concurrent refreshes: the first caller after expiry takes the cost,
 // every other caller waits on the same channel and reads the new value
@@ -205,7 +205,7 @@ func SetHostReader(fn func() ([]ContainerStat, error)) (restore func()) {
 }
 
 // readPodmanStats streams `podman stats` with a pipe-delimited template and
-// returns one row per `lerd-`-prefixed container using each container's SECOND
+// returns one row per `servlo-`-prefixed container using each container's SECOND
 // sample. podman's first CPU sample is the average over the container's whole
 // lifetime, not its current load, so a long-lived container that was busy at
 // startup (FPM/opcache warmup) would read as permanently busy. The second
@@ -307,7 +307,7 @@ func ParseRows(text string) []ContainerStat {
 }
 
 // parseStatLine parses one `{{.Name}}|{{.CPU}}|{{.MemUsage}}|{{.MemPerc}}` line,
-// returning ok=false for blanks, malformed rows, and non-`lerd-` containers (so
+// returning ok=false for blanks, malformed rows, and non-`servlo-` containers (so
 // unrelated host containers never surface).
 func parseStatLine(line string) (ContainerStat, bool) {
 	line = strings.TrimSpace(line)
@@ -319,7 +319,7 @@ func parseStatLine(line string) (ContainerStat, bool) {
 		return ContainerStat{}, false
 	}
 	name := strings.TrimSpace(parts[0])
-	if !strings.HasPrefix(name, "lerd-") {
+	if !strings.HasPrefix(name, "servlo-") {
 		return ContainerStat{}, false
 	}
 	cpu, _ := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
@@ -376,7 +376,7 @@ func parseSize(s string) int64 {
 }
 
 // FormatBytes turns a byte count into a short human string ("128MB",
-// "2.4GB"). Used by both the TUI dashboard and lerd-ui's resources widget
+// "2.4GB"). Used by both the TUI dashboard and servlo-panel's resources widget
 // so the units they show match.
 func FormatBytes(b int64) string {
 	const k = 1024

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
 // TestServiceList_excludesRemovedDefaultPreset covers the "a removed default
@@ -27,7 +27,7 @@ func TestServiceList_excludesRemovedDefaultPreset(t *testing.T) {
 	if err := os.MkdirAll(quadletDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	redisQuadlet := filepath.Join(quadletDir, "lerd-redis.container")
+	redisQuadlet := filepath.Join(quadletDir, "servlo-redis.container")
 	if err := os.WriteFile(redisQuadlet, []byte("[Container]\nImage=docker.io/library/redis:7\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

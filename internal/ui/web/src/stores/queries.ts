@@ -6,7 +6,7 @@ import { queryHaystack } from '$lib/eventSearch';
 import { dumps, toggleDumps, status as dumpsStatus, type DumpsStatus } from '$stores/dumps';
 import { wsMessage } from '$lib/ws';
 
-// Queries reuse the dumps receiver/stream: the lerd_devtools extension ships
+// Queries reuse the dumps receiver/stream: the servlo_devtools extension ships
 // kind === 'query' events to the same socket, so they arrive in the shared
 // `dumps` store. This module derives a query-only, request-grouped view with
 // N+1 detection, slow tagging, and per-request rollups computed client-side.

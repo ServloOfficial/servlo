@@ -1,14 +1,14 @@
 # Directory Layout
 
 ```
-~/.config/lerd/
+~/.config/servlo/
 └── config.yaml
 
 ~/.config/containers/systemd/        # Podman Quadlet units (auto-loaded)
 ~/.config/systemd/user/
-└── lerd-watcher.service
+└── servlo-watcher.service
 
-~/.local/share/lerd/
+~/.local/share/servlo/
 ├── bin/                             # mkcert, fnm, static PHP binaries
 ├── nginx/
 │   ├── nginx.conf
@@ -25,12 +25,12 @@
 │   ├── meilisearch/
 │   └── rustfs/
 ├── dnsmasq/
-│   └── lerd.conf
+│   └── servlo.conf
 ├── vapid-private.key                # Web Push signing key (mode 0600, see features/notifications.md)
 ├── vapid-public.key                 # Web Push public key, served to browsers
 ├── push-subscriptions.json          # Browser push subscriptions + per-category prefs (mode 0600)
-├── nginx-trust-token                # Per-install secret for lerd.localhost → lerd-ui proxy
+├── nginx-trust-token                # Per-install secret for servlo.localhost → servlo-ui proxy
 └── sites.yaml
 ```
 
-All directories follow the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/latest/). Lerd never writes to system directories except during `lerd install` (DNS setup) which requires `sudo`.
+All directories follow the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/latest/). Servlo never writes to system directories except during `servlo install` (DNS setup) which requires `sudo`.

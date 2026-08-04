@@ -139,7 +139,7 @@ func TestManifestDigest_AnonymousRegistry(t *testing.T) {
 	withStubHTTP(t, srv)
 	withTempCacheDir(t)
 
-	got, err := ManifestDigest("registry.example.com/lerd/base:tag")
+	got, err := ManifestDigest("registry.example.com/servlo/base:tag")
 	if err != nil {
 		t.Fatalf("ManifestDigest: %v", err)
 	}

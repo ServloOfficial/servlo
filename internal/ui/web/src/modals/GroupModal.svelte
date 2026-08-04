@@ -202,7 +202,7 @@
           onkeydown={(e) => e.key === 'Enter' && saveSelfLabel()}
           placeholder={current.group_subdomain}
           disabled={loading}
-          class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-lerd-red/50"
+          class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-servlo-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-servlo-red/50"
         />
         <span class="text-sm text-gray-400 shrink-0">.{current.group_main_domain}</span>
         <DetailButton
@@ -221,7 +221,7 @@
           onclick={() => toggleSharedDB(current)} />
       </div>
     </div>
-    <div class="px-5 py-3 border-t border-gray-100 dark:border-lerd-border flex justify-end">
+    <div class="px-5 py-3 border-t border-gray-100 dark:border-servlo-border flex justify-end">
       <DetailButton tone="danger" onclick={unassignSelf} disabled={loading}>{m.group_ungroupSite()}</DetailButton>
     </div>
   {:else}
@@ -231,8 +231,8 @@
           <button
             onclick={() => (mode = opt.id as 'main' | 'secondary')}
             class="flex-1 text-xs font-medium px-3 py-1.5 rounded-sm border transition-colors {mode === opt.id
-              ? 'border-lerd-red/40 bg-lerd-red/10 text-lerd-red'
-              : 'border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-400 hover:border-lerd-red/30'}"
+              ? 'border-servlo-red/40 bg-servlo-red/10 text-servlo-red'
+              : 'border-gray-200 dark:border-servlo-border text-gray-600 dark:text-gray-400 hover:border-servlo-red/30'}"
           >
             {opt.label}
           </button>
@@ -275,7 +275,7 @@
             </button>
             <button
               onclick={() => startEdit(sec)}
-              class="text-gray-400 hover:text-lerd-red transition-colors"
+              class="text-gray-400 hover:text-servlo-red transition-colors"
               title={m.group_editSubdomain()}
               aria-label={m.group_editSubdomain()}>
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
@@ -295,7 +295,7 @@
                 if (e.key === 'Enter') saveEdit(sec);
                 if (e.key === 'Escape') cancelEdit();
               }}
-              class="flex-1 text-sm font-mono bg-transparent border border-lerd-red/50 rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-lerd-red"
+              class="flex-1 text-sm font-mono bg-transparent border border-servlo-red/50 rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-servlo-red"
               disabled={loading} />
             <span class="text-sm text-gray-400 shrink-0">.{current.domain}</span>
             <button onclick={() => saveEdit(sec)} disabled={loading} class="text-emerald-500 hover:text-emerald-600 disabled:opacity-50" title={m.common_save()} aria-label={m.common_save()}><Icon name="check" class="w-4 h-4" /></button>
@@ -305,7 +305,7 @@
       {/each}
     </div>
 
-    <div class="px-5 py-3 border-t border-gray-100 dark:border-lerd-border space-y-2">
+    <div class="px-5 py-3 border-t border-gray-100 dark:border-servlo-border space-y-2">
       <div class="flex items-center gap-2">
         <Dropdown
           value={pickDomain}
@@ -322,12 +322,12 @@
             placeholder={m.group_subdomainPlaceholder()}
             onkeydown={(e) => e.key === 'Enter' && addSecondary()}
             disabled={loading}
-            class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-lerd-red/50" />
+            class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-servlo-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-servlo-red/50" />
           <span class="text-sm text-gray-400 shrink-0">.{current.domain}</span>
           <DetailButton tone="primary" onclick={addSecondary} disabled={loading || !pickLabel.trim()}>{m.common_add()}</DetailButton>
         </div>
         <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-          <input type="checkbox" bind:checked={pickShareDB} disabled={loading} class="accent-lerd-red" />
+          <input type="checkbox" bind:checked={pickShareDB} disabled={loading} class="accent-servlo-red" />
           {m.group_shareDbCheckbox({ name: current.name || 'main' })}
         </label>
       {/if}
@@ -356,12 +356,12 @@
               placeholder={m.group_subdomainPlaceholder()}
               onkeydown={(e) => e.key === 'Enter' && groupUnderMain()}
               disabled={loading}
-              class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-lerd-red/50" />
+              class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-servlo-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-servlo-red/50" />
             <span class="text-sm text-gray-400 shrink-0">.{pickMainSite.domain}</span>
             <DetailButton tone="primary" onclick={groupUnderMain} disabled={loading || !pickLabel.trim()}>{m.group_groupAction()}</DetailButton>
           </div>
           <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-            <input type="checkbox" bind:checked={pickShareDB} disabled={loading} class="accent-lerd-red" />
+            <input type="checkbox" bind:checked={pickShareDB} disabled={loading} class="accent-servlo-red" />
             {m.group_shareDbCheckbox({ name: pickMainSite.name || 'main' })}
           </label>
         {/if}
@@ -370,12 +370,12 @@
   {/if}
 
   {#if flash}
-    <div class="px-5 py-2 border-t border-gray-100 dark:border-lerd-border">
+    <div class="px-5 py-2 border-t border-gray-100 dark:border-servlo-border">
       <p class="text-xs text-emerald-700 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-2 py-1.5 text-center">{flash}</p>
     </div>
   {/if}
   {#if error}
-    <div class="px-5 py-2 border-t border-gray-100 dark:border-lerd-border">
+    <div class="px-5 py-2 border-t border-gray-100 dark:border-servlo-border">
       <p class="text-xs text-red-500">{error}</p>
     </div>
   {/if}

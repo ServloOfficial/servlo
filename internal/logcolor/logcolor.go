@@ -1,5 +1,5 @@
 // Package logcolor centralises the environment that makes CLI tools emit ANSI
-// colour when lerd runs them with no TTY attached. Workers, UI-run commands and
+// colour when servlo runs them with no TTY attached. Workers, UI-run commands and
 // container execs all write to a pipe, a log file or the journal, so tools like
 // artisan, composer, vite and pest disable colour on their own unless told
 // otherwise. The web UI renders the escapes, so we ask for them everywhere.

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // StartService is the shared start path for CLI, UI, TUI (via CLI), and MCP:
@@ -15,7 +15,7 @@ import (
 // unit (retrying briefly for quadlet generator lag), mark it manually started,
 // start reverse dependents, and regenerate dynamic_env consumers.
 func StartService(name string) error {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	if IsBuiltin(name) {
 		if err := EnsureDefaultPresetQuadlet(name); err != nil {
 			return err
@@ -24,7 +24,7 @@ func StartService(name string) error {
 		svc, err := config.LoadCustomService(name)
 		if err != nil {
 			if config.PresetExists(name) {
-				return fmt.Errorf("service %q is not installed; install it with 'lerd service preset %s'", name, name)
+				return fmt.Errorf("service %q is not installed; install it with 'servlo service preset %s'", name, name)
 			}
 			return fmt.Errorf("unknown service %q", name)
 		}
@@ -69,7 +69,7 @@ func StopService(name string) error {
 // refresh the quadlet (so dynamic_env and file mounts land), restart the
 // unit, clear paused, and regenerate dynamic_env consumers.
 func RestartService(name string) error {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	if err := refreshServiceQuadlet(name); err != nil {
 		feedback.Warn("regenerating quadlet for %s failed: %v; restarting with the existing one", name, err)
 	}

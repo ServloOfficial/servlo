@@ -21,7 +21,7 @@ import (
 //
 // Keys must not contain '=' or any newline character; values must not contain
 // newline characters. These checks reject the env_overrides injection vector
-// where a malicious .lerd.yaml value containing "\nADMIN_TOKEN=stolen" would
+// where a malicious .servlo.yaml value containing "\nADMIN_TOKEN=stolen" would
 // otherwise split a single .env line into two and silently introduce an
 // unrelated key.
 func ApplyUpdates(path string, updates map[string]string) error {
@@ -191,13 +191,13 @@ func ReadValues(path string) map[string]string {
 	return out
 }
 
-// ReferencesContainer reports whether content references the lerd container
-// hostname "lerd-<serviceName>" as a whole token, so bare "postgres" is not
-// matched by a "lerd-postgres-18" reference (and vice versa). Commented-out
-// lines are ignored so a disabled "#DB_HOST=lerd-mysql" doesn't keep a removed
+// ReferencesContainer reports whether content references the servlo container
+// hostname "servlo-<serviceName>" as a whole token, so bare "postgres" is not
+// matched by a "servlo-postgres-18" reference (and vice versa). Commented-out
+// lines are ignored so a disabled "#DB_HOST=servlo-mysql" doesn't keep a removed
 // service's badge alive on the site page.
 func ReferencesContainer(content, serviceName string) bool {
-	needle := "lerd-" + serviceName
+	needle := "servlo-" + serviceName
 	for _, line := range strings.Split(content, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "#") {
 			continue
@@ -238,7 +238,7 @@ func lineReferencesNeedle(line, needle string) bool {
 }
 
 // isServiceNameByte reports whether b can be part of a service name following
-// the "lerd-" prefix (alphanumerics and '-', as in postgres-18 or mysql-5-7).
+// the "servlo-" prefix (alphanumerics and '-', as in postgres-18 or mysql-5-7).
 func isServiceNameByte(b byte) bool {
 	return b == '-' ||
 		(b >= '0' && b <= '9') ||

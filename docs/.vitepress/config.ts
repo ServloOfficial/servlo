@@ -1,10 +1,11 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
 
-const SITE_URL = 'https://lerd.sh'
+// GitHub Pages for realrashid/servlo. PRD §0: servlo.sh is unregistered and
+// must not be named anywhere until it exists.
+const SITE_URL = 'https://realrashid.github.io/servlo'
 const OG_IMAGE = `${SITE_URL}/assets/social-preview.png`
-const DIGEST_DIR = fileURLToPath(new URL('../public/digest', import.meta.url))
 
 // Read the version off the Go source of truth so the structured data can't
 // drift behind a release.
@@ -12,22 +13,14 @@ const VERSION_GO = fileURLToPath(new URL('../../internal/version/version.go', im
 const SOFTWARE_VERSION = readFileSync(VERSION_GO, 'utf8').match(/Version\s*=\s*"([^"]+)"/)?.[1] ?? ''
 
 export default defineConfig({
-  title: 'Lerd',
+  title: 'Servlo',
   description: 'Open-source, Herd-like local PHP development for Linux and macOS. Automatic .test domains, HTTPS, per-project PHP and Node, rootless Podman, no Docker daemon.',
-  base: '/',
+  base: '/servlo/',
   lang: 'en-US',
   cleanUrls: true,
 
   sitemap: {
     hostname: SITE_URL,
-    transformItems(items) {
-      // Static digest pages live in public/ and aren't page-derived. Read the
-      // directory rather than listing them, so a new release is never missed.
-      for (const file of readdirSync(DIGEST_DIR).filter((f) => f.endsWith('.html')).sort().reverse()) {
-        items.push({ url: `digest/${file}` })
-      }
-      return items
-    },
   },
 
   head: [
@@ -42,18 +35,18 @@ export default defineConfig({
 
     // Open Graph
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:site_name', content: 'Lerd' }],
+    ['meta', { property: 'og:site_name', content: 'Servlo' }],
     ['meta', { property: 'og:locale', content: 'en_US' }],
     ['meta', { property: 'og:image', content: OG_IMAGE }],
     ['meta', { property: 'og:image:type', content: 'image/png' }],
     ['meta', { property: 'og:image:width', content: '1499' }],
     ['meta', { property: 'og:image:height', content: '787' }],
-    ['meta', { property: 'og:image:alt', content: 'Lerd, local PHP development for Linux and macOS' }],
+    ['meta', { property: 'og:image:alt', content: 'Servlo, local PHP development for Linux and macOS' }],
 
     // Twitter / X
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:image', content: OG_IMAGE }],
-    ['meta', { name: 'twitter:image:alt', content: 'Lerd, local PHP development for Linux and macOS' }],
+    ['meta', { name: 'twitter:image:alt', content: 'Servlo, local PHP development for Linux and macOS' }],
 
     // Structured data (rich results / knowledge graph)
     [
@@ -64,7 +57,7 @@ export default defineConfig({
         '@graph': [
           {
             '@type': 'SoftwareApplication',
-            name: 'Lerd',
+            name: 'Servlo',
             applicationCategory: 'DeveloperApplication',
             operatingSystem: 'Linux, macOS',
             description:
@@ -72,7 +65,7 @@ export default defineConfig({
             keywords:
               'local PHP development, Laravel Herd for Linux, Laragon for Linux, Laragon alternative Linux, .test domains, rootless Podman, PHP-FPM, local development environment',
             url: SITE_URL,
-            downloadUrl: `${SITE_URL}/install.sh`,
+            downloadUrl: 'https://raw.githubusercontent.com/realrashid/servlo/main/install.sh',
             softwareVersion: SOFTWARE_VERSION,
             license: 'https://opensource.org/licenses/MIT',
             image: OG_IMAGE,
@@ -81,10 +74,10 @@ export default defineConfig({
           },
           {
             '@type': 'WebSite',
-            name: 'Lerd',
+            name: 'Servlo',
             url: SITE_URL,
             description:
-              'Documentation and downloads for Lerd, the open-source local PHP development environment for Linux and macOS.',
+              'Documentation and downloads for Servlo, the open-source local PHP development environment for Linux and macOS.',
           },
         ],
       }),
@@ -109,7 +102,7 @@ export default defineConfig({
 
   themeConfig: {
     logo: '/assets/logo.svg',
-    siteTitle: 'Lerd',
+    siteTitle: 'Servlo',
 
     nav: [
       { text: 'Getting Started', link: '/getting-started/requirements' },
@@ -118,7 +111,6 @@ export default defineConfig({
       { text: 'Configuration', link: '/configuration' },
       { text: 'Reference', link: '/reference/commands' },
       { text: 'Contributing', link: '/contributing/building' },
-      { text: 'Changelog', link: '/changelog' },
     ],
 
     sidebar: {
@@ -128,12 +120,7 @@ export default defineConfig({
           items: [
             { text: 'Requirements', link: '/getting-started/requirements' },
             { text: 'Installation', link: '/getting-started/installation' },
-            { text: 'Windows (WSL2, beta)', link: '/getting-started/wsl2' },
-            { text: 'NixOS', link: '/getting-started/nixos' },
             { text: 'Quick Start', link: '/getting-started/quick-start' },
-            { text: 'Comparison', link: '/getting-started/comparison' },
-            { text: 'Laravel Herd for Linux', link: '/getting-started/herd-linux' },
-            { text: 'Laragon for Linux', link: '/getting-started/laragon-linux' },
           ],
         },
         {
@@ -166,8 +153,6 @@ export default defineConfig({
             { text: 'Site Groups', link: '/usage/site-groups' },
             { text: 'PHP', link: '/usage/php' },
             { text: 'Node', link: '/usage/node' },
-            { text: 'Custom Containers', link: '/usage/custom-containers' },
-            { text: 'Host-Proxy Sites', link: '/usage/host-proxy' },
             { text: 'Nginx Overrides', link: '/usage/nginx-overrides' },
           ],
         },
@@ -177,7 +162,6 @@ export default defineConfig({
             { text: 'Services', link: '/usage/services' },
             { text: 'Service updates', link: '/usage/service-updates' },
             { text: 'Service presets', link: '/usage/service-presets' },
-            { text: 'Custom services', link: '/usage/custom-services' },
             { text: 'Database', link: '/usage/database' },
             { text: 'Disk cleanup', link: '/usage/cleanup' },
           ],
@@ -190,19 +174,13 @@ export default defineConfig({
             { text: 'Framework Commands', link: '/features/commands' },
             { text: 'Framework Definitions', link: '/usage/framework-definitions' },
             { text: 'Queue Workers', link: '/usage/queue-workers' },
-            { text: 'Idle-Suspend', link: '/usage/idle-suspend' },
             { text: 'Worker Runtime (macOS)', link: '/usage/worker-runtime' },
             { text: 'Healing Failed Workers', link: '/usage/worker-heal' },
-            { text: 'Browser Testing', link: '/usage/browser-testing' },
           ],
         },
         {
           text: 'Integrations & Migration',
           items: [
-            { text: 'Stripe', link: '/usage/stripe' },
-            { text: 'LAN sharing', link: '/usage/lan-sharing' },
-            { text: 'Remote / LAN Development', link: '/usage/remote-development' },
-            { text: 'Importing from Sail', link: '/usage/import-sail' },
           ],
         },
       ],
@@ -212,13 +190,7 @@ export default defineConfig({
           items: [
             { text: 'Web UI', link: '/features/web-ui' },
             { text: 'Terminal Dashboard', link: '/features/tui' },
-            { text: 'System Tray', link: '/features/system-tray' },
-            { text: 'AI Integration (MCP)', link: '/features/mcp' },
-            { text: 'Tinker tab', link: '/features/tinker' },
-            { text: 'Dump viewer', link: '/features/dumps' },
             { text: 'Query viewer', link: '/features/queries' },
-            { text: 'Profiler', link: '/features/profiler' },
-            { text: 'Notifications', link: '/features/notifications' },
           ],
         },
         {
@@ -233,8 +205,6 @@ export default defineConfig({
           text: 'Networking',
           items: [
             { text: 'HTTPS / TLS', link: '/features/https' },
-            { text: 'DNS', link: '/features/dns' },
-            { text: 'Git Worktrees', link: '/features/git-worktrees' },
           ],
         },
       ],
@@ -243,7 +213,7 @@ export default defineConfig({
           text: 'Configuration',
           items: [
             { text: 'Overview', link: '/configuration' },
-            { text: 'Per-project (.lerd.yaml)', link: '/configuration#per-project-config-lerdyaml' },
+            { text: 'Per-project (.servlo.yaml)', link: '/configuration#per-project-config-servloyaml' },
           ],
         },
       ],
@@ -303,19 +273,19 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/lerd-env/lerd' },
+      { icon: 'github', link: 'https://github.com/realrashid/servlo' },
       { icon: 'discord', link: 'https://discord.gg/5JK54s7xCC' },
       {
         icon: {
           svg: '<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Reddit</title><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"></path></svg>',
         },
-        link: 'https://reddit.com/r/lerd',
+        link: 'https://reddit.com/r/servlo',
       },
     ],
 
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Lerd',
+      copyright: 'Servlo',
     },
 
     search: {
@@ -323,7 +293,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/lerd-env/lerd/edit/main/docs/:path',
+      pattern: 'https://github.com/realrashid/servlo/edit/main/docs/:path',
       text: 'Edit this page on GitHub',
     },
   },

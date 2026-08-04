@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/geodro/lerd/internal/config"
-	nodeDet "github.com/geodro/lerd/internal/node"
+	"github.com/realrashid/servlo/internal/config"
+	nodeDet "github.com/realrashid/servlo/internal/node"
 )
 
 // validateWorkerUnitFields refuses any value that would break out of its line
 // in a generated unit. Every one of these is interpolated into a single-line
-// directive, and a project's .lerd.yaml can set the worker ones, so checking
+// directive, and a project's .servlo.yaml can set the worker ones, so checking
 // only the command left label, restart and schedule free to open a [Service]
 // section of their own and add an ExecStartPre systemd would run. Checking the
 // whole set at the generation boundary makes that structural rather than a
@@ -51,7 +51,7 @@ func validateWorkerUnitFields(unitName string, fields map[string]string) error {
 // failure.
 func workerStartPreflight(sitePath, workerName string, w config.FrameworkWorker) error {
 	// Every one of these reaches a line of the generated unit, and a cloned
-	// repo's .lerd.yaml custom_workers entry can set them all. The unit writer
+	// repo's .servlo.yaml custom_workers entry can set them all. The unit writer
 	// checks the same set again at its own boundary; this one is here so a
 	// start reports the offending field rather than failing later.
 	if err := validateWorkerUnitFields(workerName, map[string]string{
@@ -85,14 +85,14 @@ func workerStartPreflight(sitePath, workerName string, w config.FrameworkWorker)
 // hostWorkerNotReadyMsg returns an actionable message for a host worker (vite et
 // al) that can't start because its dependency check fails. On a node project the
 // cause is almost always JS deps not yet installed on the host, so it names the
-// remedy; `lerd setup` is used rather than a bare `npm ci` so the advice holds
+// remedy; `servlo setup` is used rather than a bare `npm ci` so the advice holds
 // for bun/yarn/pnpm projects too. Returns "" when the worker isn't a host node
 // worker, so callers keep their own generic dependency message.
 func hostWorkerNotReadyMsg(workerName, sitePath string, w config.FrameworkWorker) string {
 	if !w.Host || !isNodeProject(sitePath) {
 		return ""
 	}
-	return fmt.Sprintf("%s worker not started: JS dependencies are not installed. Run `lerd setup` to install them, then `lerd worker start %s`.", workerName, workerName)
+	return fmt.Sprintf("%s worker not started: JS dependencies are not installed. Run `servlo setup` to install them, then `servlo worker start %s`.", workerName, workerName)
 }
 
 // hostWorkerNoNodeMsg returns an actionable message for a host node worker
@@ -101,7 +101,7 @@ func hostWorkerNotReadyMsg(workerName, sitePath string, w config.FrameworkWorker
 // would crash-loop on `npm: command not found`. Returns "" when the worker
 // isn't affected (managed Node, bun available, or a non-Node command).
 func hostWorkerNoNodeMsg(workerName, sitePath string, w config.FrameworkWorker) string {
-	if !w.Host || !isNodeProject(sitePath) || lerdManagesNode() {
+	if !w.Host || !isNodeProject(sitePath) || servloManagesNode() {
 		return ""
 	}
 	if !nodeDet.CommandUsesNode(w.Command) || bunRunnerFor(sitePath, false) != "" {
@@ -117,7 +117,7 @@ func hostWorkerNoNodeMsg(workerName, sitePath string, w config.FrameworkWorker) 
 // host-worker unit generators (the generators also hit it on the boot restore
 // path, which never runs the preflight).
 func errNoUsableNode() error {
-	return errors.New("lerd is not managing Node.js and no node/npm (or bun) could be found on this system. Install Node.js, or run `lerd install` to let lerd manage it")
+	return errors.New("servlo is not managing Node.js and no node/npm (or bun) could be found on this system. Install Node.js, or run `servlo install` to let servlo manage it")
 }
 
 // describeRule renders a FrameworkRule for an end-user error message.

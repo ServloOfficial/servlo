@@ -1,6 +1,6 @@
-// Package cleanup reclaims podman disk lerd's own image rebuilds leave behind.
-// The safe tier only ever removes what is provably lerd's: an image with a
-// dev.lerd.* label, or the lerd-php*-fpm-base repo name only lerd's pre-built
+// Package cleanup reclaims podman disk servlo's own image rebuilds leave behind.
+// The safe tier only ever removes what is provably servlo's: an image with a
+// dev.servlo.* label, or the lerd-php*-fpm-base repo name only the pre-built
 // base images use. The deep tier additionally reaps every dangling image, which
 // is untagged and unreferenced by definition so removing it strands nothing, and
 // catalog service images no service references any more. Neither tier ever
@@ -13,17 +13,18 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
-// lerdLabelPrefix is stamped (as a hash label) on every image lerd builds. Its
-// presence is the single proof that an image is lerd's, and the only gate for
+// servloLabelPrefix is stamped (as a hash label) on every image servlo builds. Its
+// presence is the single proof that an image is servlo's, and the only gate for
 // considering a built image for removal.
-const lerdLabelPrefix = "dev.lerd."
+const servloLabelPrefix = "dev.servlo."
 
-// baseImageRe matches a lerd pre-built PHP base image ref. These are pulled from
-// a registry and carry no dev.lerd.* label, so the repo name (which only lerd's
-// base images use) is the ownership signal.
+// baseImageRe matches a pre-built PHP base image ref. These are pulled from a
+// registry and carry no dev.servlo.* label, so the repo name is the ownership
+// signal. The name stays "lerd-php…" because the images themselves are the
+// retained upstream ones from PRD §0, not a missed rename.
 var baseImageRe = regexp.MustCompile(`/lerd-php\d+-fpm-base:`)
 
 // Target is one reclaimable resource.
@@ -34,7 +35,7 @@ type Target struct {
 	Bytes int64
 }
 
-// Plan is the set of lerd-owned resources that are safe to reclaim.
+// Plan is the set of servlo-owned resources that are safe to reclaim.
 type Plan struct {
 	Targets []Target
 	// Held counts dangling images a running container still holds that would
@@ -58,7 +59,7 @@ func (p Plan) ReclaimBytes() int64 {
 	return total
 }
 
-// image mirrors the fields lerd needs from `podman images --format json`.
+// image mirrors the fields servlo needs from `podman images --format json`.
 // SharedSize is the bytes of layers this image shares with others; subtracting
 // it from Size gives the disk actually freed by removing the image, since shared
 // base layers stay behind for the live images that still reference them.
@@ -136,22 +137,22 @@ func podmanImageLayers(ids []string) (map[string][]string, error) {
 type Scope int
 
 const (
-	// ScopeSafe reclaims only images provably lerd's own: orphaned derived builds
+	// ScopeSafe reclaims only images provably servlo's own: orphaned derived builds
 	// and unreferenced base images.
 	ScopeSafe Scope = iota
 	// ScopeManaged additionally reclaims catalog service images no service
-	// references any more (upgrade leftovers). Still lerd-scoped, so it is safe to
+	// references any more (upgrade leftovers). Still servlo-scoped, so it is safe to
 	// run unattended; this is the daily watcher's tier.
 	ScopeManaged
 	// ScopeDeep additionally reclaims every remaining dangling image on the host
 	// and every unreferenced catalog image regardless of who pulled it, foreign
-	// ones included. Interactive only, and the default for `lerd cleanup`.
+	// ones included. Interactive only, and the default for `servlo cleanup`.
 	ScopeDeep
 )
 
 // Inspect returns the cleanup plan. The always-safe tier reclaims what is
-// provably lerd's:
-//   - derived images lerd built and then orphaned: lerd tags every live build
+// provably servlo's:
+//   - derived images servlo built and then orphaned: servlo tags every live build
 //     with a fixed :local tag, so a rebuild re-points the tag and leaves the old
 //     image dangling — the unambiguous "superseded" signal.
 //   - pre-built base images nothing live is built on: a base for an old
@@ -159,7 +160,7 @@ const (
 //
 // Both removals are refcount-safe: layers a live image still shares are kept.
 //
-// ScopeManaged widens this to lerd's catalog upgrade leftovers, ScopeDeep to
+// ScopeManaged widens this to servlo's catalog upgrade leftovers, ScopeDeep to
 // every remaining dangling image (foreign included). An image a container holds
 // is always skipped, and the catalog reap is skipped if the protected set fails.
 func Inspect(scope Scope) (Plan, error) {
@@ -182,16 +183,16 @@ func Inspect(scope Scope) (Plan, error) {
 			// it. If it is a dangling image this tier would otherwise reap (an old
 			// build the container hasn't been recreated off yet), tally it so the
 			// caller can hint that a restart would release the space.
-			if isOrphaned(img) && (isLerd(img) || reapAllDangling) {
+			if isOrphaned(img) && (isServlo(img) || reapAllDangling) {
 				p.Held.Count++
 				p.Held.Bytes += reclaimable(img)
 			}
 			continue
 		case isOrphaned(img):
 			// A dangling image is untagged and unreferenced, so removing it frees
-			// disk and strands nothing. Provable lerd orphans go in every tier;
+			// disk and strands nothing. Provable servlo orphans go in every tier;
 			// other dangling leftovers only when the deep tier is on.
-			if isLerd(img) || reapAllDangling {
+			if isServlo(img) || reapAllDangling {
 				add(shortID(img.ID), describeOrphan(img), reclaimable(img))
 			}
 		default:
@@ -253,14 +254,14 @@ func imageIDs(imgs []image) []string {
 	return ids
 }
 
-// liveLayers collects every layer belonging to a live (still-tagged) lerd-built
+// liveLayers collects every layer belonging to a live (still-tagged) servlo-built
 // image, so a base image can be told apart from one nothing is built on. The
 // bool is false when any live image's layers couldn't be read, so the caller
 // can refuse to reap bases against an incomplete live set.
 func liveLayers(imgs []image) (map[string]bool, bool) {
 	var ids []string
 	for _, img := range imgs {
-		if isLerd(img) && !isOrphaned(img) {
+		if isServlo(img) && !isOrphaned(img) {
 			ids = append(ids, img.ID)
 		}
 	}
@@ -290,7 +291,7 @@ func builtUpon(layers []string, live map[string]bool) bool {
 	return live[layers[len(layers)-1]]
 }
 
-// baseName returns the image's lerd base-image ref, or "" if it isn't one.
+// baseName returns the image's servlo base-image ref, or "" if it isn't one.
 func baseName(img image) string {
 	for _, n := range img.Names {
 		if baseImageRe.MatchString(n) {
@@ -336,18 +337,18 @@ func Apply(p Plan) (removed int, reclaimed int64) {
 	return removed, reclaimed
 }
 
-// isLerd reports whether the image was built by lerd, proven by a dev.lerd.*
+// isServlo reports whether the image was built by servlo, proven by a dev.servlo.*
 // label. Only images that pass this are ever eligible for removal.
-func isLerd(img image) bool {
+func isServlo(img image) bool {
 	for k := range img.Labels {
-		if strings.HasPrefix(k, lerdLabelPrefix) {
+		if strings.HasPrefix(k, servloLabelPrefix) {
 			return true
 		}
 	}
 	return false
 }
 
-// isOrphaned reports whether a lerd image has lost its tag (no names, or only
+// isOrphaned reports whether a servlo image has lost its tag (no names, or only
 // the placeholder <none>:<none>), meaning a newer build superseded it.
 func isOrphaned(img image) bool {
 	for _, n := range img.Names {
@@ -358,10 +359,10 @@ func isOrphaned(img image) bool {
 	return true
 }
 
-// describeOrphan names a dangling image for the plan: its lerd build kind when
+// describeOrphan names a dangling image for the plan: its servlo build kind when
 // the image is labelled, or a generic dangling leftover otherwise.
 func describeOrphan(img image) string {
-	if isLerd(img) {
+	if isServlo(img) {
 		return describe(img.Labels)
 	}
 	return "dangling image"

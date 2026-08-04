@@ -1,8 +1,12 @@
-// Package origin centralises every URL lerd fetches its own assets from: release
+// Package origin centralises every URL servlo fetches its own assets from: release
 // binaries, the framework and service stores, the changelog, and the GHCR base
-// images. Everything is served from the lerd-env org (the geodro->lerd-env move
-// is complete), and each endpoint is overridable via its environment variable
-// for tests and mirrors.
+// images. Each endpoint is overridable via its environment variable for tests
+// and mirrors.
+//
+// The constants below straddle the fork boundary deliberately, so keep the two
+// groups apart. Servlo's own artefacts come from Servlo's repository; two
+// upstream dependencies are consumed unchanged for now and are tracked as debt
+// rather than architecture (PRD §0).
 package origin
 
 import (
@@ -10,9 +14,27 @@ import (
 	"strings"
 )
 
+// Servlo's own artefacts. The repository is private today, so these endpoints
+// 404 and every caller falls back: the tools manifest to its embedded copy, the
+// changelog to printing the release URL. That is acceptable because Servlo has
+// published no releases yet, and it is still the right target — resolving
+// Servlo's updates against Lerd's release feed would hand a different project's
+// binaries to a Servlo install.
+const mainRepo = "realrashid/servlo" // releases, installer, tools manifest, changelog
+
+// Retained upstream dependencies (PRD §0), not oversights.
 const (
-	owner          = "lerd-env"      // GitHub org, also the GHCR namespace
-	mainRepo       = "lerd-env/lerd" // releases, installer, changelog
+	// imageOwner is the GHCR namespace for the prebuilt PHP-FPM base images.
+	// They are public and MIT, Servlo consumes them unchanged through Phases 0
+	// and 1, and they are mirrored into an owned namespace before v1 ships.
+	imageOwner = "lerd-env"
+
+	// The framework and service stores are authored in this repository under
+	// stores/, but a private repository cannot serve raw.githubusercontent.com
+	// fetches to an installed binary without a token, so the runtime fetch stays
+	// on the public upstream stores. S0.8 owns choosing the exit (a separate
+	// public mirror, or this repository becoming public) and must make this
+	// fallback visible in config rather than silent.
 	frameworksRepo = "lerd-env/frameworks"
 	servicesRepo   = "lerd-env/services"
 )
@@ -20,7 +42,7 @@ const (
 // StoreBaseURLs returns the framework-store base. The definitions live under a
 // frameworks/ subdir (index.json + <name>.yaml), not at the repo root.
 func StoreBaseURLs() []string {
-	if list := splitList(os.Getenv("LERD_STORE_BASE_URL")); len(list) > 0 {
+	if list := splitList(os.Getenv("SERVLO_STORE_BASE_URL")); len(list) > 0 {
 		return list
 	}
 	return []string{"https://raw.githubusercontent.com/" + frameworksRepo + "/main/frameworks"}
@@ -29,7 +51,7 @@ func StoreBaseURLs() []string {
 // ServiceStoreBaseURLs returns the service-preset-store base, nested under a
 // services/ subdir.
 func ServiceStoreBaseURLs() []string {
-	if list := splitList(os.Getenv("LERD_SERVICES_BASE_URL")); len(list) > 0 {
+	if list := splitList(os.Getenv("SERVLO_SERVICES_BASE_URL")); len(list) > 0 {
 		return list
 	}
 	return []string{"https://raw.githubusercontent.com/" + servicesRepo + "/main/services"}
@@ -37,7 +59,7 @@ func ServiceStoreBaseURLs() []string {
 
 // ReleaseBaseURLs lists GitHub releases bases.
 func ReleaseBaseURLs() []string {
-	if list := splitList(os.Getenv("LERD_RELEASES_URL")); len(list) > 0 {
+	if list := splitList(os.Getenv("SERVLO_RELEASES_URL")); len(list) > 0 {
 		return list
 	}
 	return []string{"https://github.com/" + mainRepo + "/releases"}
@@ -45,7 +67,7 @@ func ReleaseBaseURLs() []string {
 
 // ReleaseDownloadBases lists release-asset download bases.
 func ReleaseDownloadBases() []string {
-	if list := splitList(os.Getenv("LERD_RELEASE_DOWNLOAD_URL")); len(list) > 0 {
+	if list := splitList(os.Getenv("SERVLO_RELEASE_DOWNLOAD_URL")); len(list) > 0 {
 		return list
 	}
 	out := ReleaseBaseURLs()
@@ -57,7 +79,7 @@ func ReleaseDownloadBases() []string {
 
 // ReleaseAPIBaseURLs lists GitHub API bases.
 func ReleaseAPIBaseURLs() []string {
-	if list := splitList(os.Getenv("LERD_RELEASES_API_URL")); len(list) > 0 {
+	if list := splitList(os.Getenv("SERVLO_RELEASES_API_URL")); len(list) > 0 {
 		return list
 	}
 	return []string{"https://api.github.com/repos/" + mainRepo}
@@ -67,7 +89,7 @@ func ReleaseAPIBaseURLs() []string {
 // (internal/tools/tools.yaml); the embedded copy is the fallback when none
 // answer.
 func ToolsManifestURLs() []string {
-	if list := splitList(os.Getenv("LERD_TOOLS_URL")); len(list) > 0 {
+	if list := splitList(os.Getenv("SERVLO_TOOLS_URL")); len(list) > 0 {
 		return list
 	}
 	return []string{"https://raw.githubusercontent.com/" + mainRepo + "/main/internal/tools/tools.yaml"}
@@ -76,11 +98,11 @@ func ToolsManifestURLs() []string {
 // ExtraToolHosts lists additional hosts a published tool manifest may point at,
 // for a test rig or a mirror. Empty by default: the built-in allowlist is what a
 // normal install trusts.
-func ExtraToolHosts() []string { return splitList(os.Getenv("LERD_TOOLS_HOSTS")) }
+func ExtraToolHosts() []string { return splitList(os.Getenv("SERVLO_TOOLS_HOSTS")) }
 
 // ChangelogURLs lists raw changelog URLs.
 func ChangelogURLs() []string {
-	if list := splitList(os.Getenv("LERD_CHANGELOG_URL")); len(list) > 0 {
+	if list := splitList(os.Getenv("SERVLO_CHANGELOG_URL")); len(list) > 0 {
 		return list
 	}
 	return []string{"https://raw.githubusercontent.com/" + mainRepo + "/main/CHANGELOG.md"}
@@ -90,11 +112,14 @@ func ChangelogURLs() []string {
 // is the dotless version (e.g. "85") and hash pins the image to the embedded
 // Containerfile template.
 func BaseImageRefs(phpShort, hash string) []string {
+	// "lerd-php…" is upstream's image name, not a missed rename: these are the
+	// retained GHCR base images from PRD §0. Renaming it here would point at an
+	// image that does not exist.
 	suffix := "/lerd-php" + phpShort + "-fpm-base:" + hash
-	if v := os.Getenv("LERD_BASE_IMAGE_REGISTRY"); v != "" {
+	if v := os.Getenv("SERVLO_BASE_IMAGE_REGISTRY"); v != "" {
 		return []string{v + suffix}
 	}
-	return []string{"ghcr.io/" + owner + suffix}
+	return []string{"ghcr.io/" + imageOwner + suffix}
 }
 
 // splitList parses a comma-separated override into trimmed, non-empty entries.

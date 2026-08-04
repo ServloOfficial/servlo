@@ -1,5 +1,5 @@
-const VERSION = '{{LERD_VERSION}}';
-const CACHE = 'lerd-shell-' + VERSION;
+const VERSION = '{{SERVLO_VERSION}}';
+const CACHE = 'servlo-shell-' + VERSION;
 
 const SHELL = [
   '/offline.html',
@@ -20,12 +20,12 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.filter((k) => k.startsWith('lerd-shell-') && k !== CACHE).map((k) => caches.delete(k))
+      keys.filter((k) => k.startsWith('servlo-shell-') && k !== CACHE).map((k) => caches.delete(k))
     )).then(() => self.clients.claim())
   );
 });
 
-// push fires when the browser receives a Web Push from lerd-ui. Payload is
+// push fires when the browser receives a Web Push from servlo-panel. Payload is
 // the kind-agnostic push.Notification JSON (kind, title, body, tag, url,
 // data, params, title_key, body_key). We show whatever the server sent
 // using title/body directly — the SW has no DOM and no Paraglide, so the
@@ -39,11 +39,11 @@ self.addEventListener('push', (event) => {
     evt = null;
   }
   if (!evt || !evt.kind) return;
-  const title = (evt.title || '').trim() || '(lerd)';
+  const title = (evt.title || '').trim() || '(servlo)';
   const body = (evt.body || '').trim();
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    tag: evt.tag || ('lerd-' + evt.kind),
+    tag: evt.tag || ('servlo-' + evt.kind),
     icon: evt.icon || '/icons/icon-192.png',
     data: {
       kind: evt.kind,
@@ -73,7 +73,7 @@ self.addEventListener('notificationclick', (event) => {
       } catch (_) {
         /* focus may be disallowed; postMessage still works */
       }
-      c.postMessage({ kind: 'lerd-open', url });
+      c.postMessage({ kind: 'servlo-open', url });
       return;
     }
     if (self.clients.openWindow) {
@@ -94,7 +94,7 @@ self.addEventListener('fetch', (event) => {
   // /_svc/ proxies live admin dashboards (rabbitmq, redisinsight) same-origin.
   // They must always reach the network: caching their assets would serve stale
   // cross-service content, and the navigate fallback would replace the embedded
-  // dashboard with lerd's offline page.
+  // dashboard with servlo's offline page.
   if (url.pathname.startsWith('/_svc/')) return;
 
   if (req.mode === 'navigate') {
@@ -103,7 +103,7 @@ self.addEventListener('fetch', (event) => {
         return await fetch(req);
       } catch (_) {
         const fallback = await caches.match('/offline.html');
-        return fallback || new Response('lerd-ui unreachable', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+        return fallback || new Response('servlo-panel unreachable', { status: 503, headers: { 'Content-Type': 'text/plain' } });
       }
     })());
     return;

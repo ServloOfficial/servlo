@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/version"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -12,20 +12,20 @@ import (
 func NewAboutCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "about",
-		Short: "Show information about Lerd",
+		Short: "Show information about Servlo",
 		RunE:  runAbout,
 	}
 }
 
 func runAbout(_ *cobra.Command, _ []string) error {
 	feedback.Begin()
-	fmt.Println("  " + feedback.Title("lerd"))
-	fmt.Println("  " + feedback.Dim("Podman-powered local PHP development for Linux & macOS"))
+	fmt.Println("  " + feedback.Title("servlo"))
+	fmt.Println("  " + feedback.Dim("Podman-powered PHP server panel for Ubuntu 24.04 LTS"))
 	feedback.NewSummary().
 		Row("Version", feedback.Val(version.Version)).
 		Row("Commit", version.Commit).
 		Row("Built", version.Date).
-		Row("Repo", feedback.Val("https://github.com/geodro/lerd")).
+		Row("Repo", feedback.Val("https://github.com/realrashid/servlo")).
 		Print()
 	feedback.Begin()
 	fmt.Println("  " + feedback.Dim("© George Dumitrescu"))

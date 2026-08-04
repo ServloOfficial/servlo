@@ -25,10 +25,10 @@ func TestLinkShouldImportSail(t *testing.T) {
 	}
 }
 
-// Regression guard: routing `lerd link` through the init wizard suppresses the
-// post-link "Run lerd setup?" prompt via linkSkipSetupPrompt. That suppression
+// Regression guard: routing `servlo link` through the init wizard suppresses the
+// post-link "Run servlo setup?" prompt via linkSkipSetupPrompt. That suppression
 // must not also drop the Sail data-import offer, which has its own
-// linkSkipDataImport flag — otherwise a fresh `lerd link` on a Sail project
+// linkSkipDataImport flag — otherwise a fresh `servlo link` on a Sail project
 // silently skips importing the existing Sail database.
 func TestLinkImportsSailWhenWizardSuppressesSetupPrompt(t *testing.T) {
 	linkSkipSetupPrompt = true

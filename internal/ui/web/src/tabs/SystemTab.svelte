@@ -6,13 +6,13 @@
   import StatusDot from '$components/StatusDot.svelte';
   import LoadingRow from '$components/LoadingRow.svelte';
   import { routeRest, goToTab } from '$stores/route';
-  import { status, statusLoaded, lerdStatusColor, allCoreRunning } from '$stores/status';
+  import { status, statusLoaded, servloStatusColor, allCoreRunning } from '$stores/status';
   import { phpVersions } from '$stores/phpVersions';
   import { nodeVersions } from '$stores/nodeVersions';
   import { sitesByNode } from '$stores/sites';
   import { version } from '$stores/version';
   import { accessMode } from '$stores/accessMode';
-  import { lerdStart, lerdStop, lerdStarting, lerdStopping } from '$stores/lerdLifecycle';
+  import { servloStart, servloStop, servloStarting, servloStopping } from '$stores/servloLifecycle';
   import { workerExecMode, workerModeApplies, loadWorkerMode } from '$stores/workerMode';
   import { status as dumpsStatusValue, refreshStatus as refreshDumpsStatus } from '$stores/dumps';
   import { notifyPrefs, permissionState, autoSubscribeDisabled, notifyDelivery } from '$lib/notify';
@@ -24,7 +24,7 @@
     void refreshDumpsStatus();
   });
 
-  const selected = $derived($routeRest || 'lerd');
+  const selected = $derived($routeRest || 'servlo');
   // Native delivery is on whenever the sink is native; browser delivery needs a
   // granted permission and an active subscription.
   const notifyEffectiveOn = $derived(
@@ -40,21 +40,21 @@
 {#snippet actions()}
   {#if $accessMode.localControl && !$allCoreRunning}
     <ActionButton
-      title={m.system_startLerd()}
+      title={m.system_startServlo()}
       tone="success"
-      onclick={lerdStart}
-      disabled={$lerdStarting || $lerdStopping}
-      loading={$lerdStarting}
+      onclick={servloStart}
+      disabled={$servloStarting || $servloStopping}
+      loading={$servloStarting}
     >
       <Icon name="play" class="w-3.5 h-3.5" />
     </ActionButton>
   {/if}
   {#if $accessMode.localControl}
     <ActionButton
-      title={m.system_stopLerd()}
-      onclick={lerdStop}
-      disabled={$lerdStarting || $lerdStopping}
-      loading={$lerdStopping}
+      title={m.system_stopServlo()}
+      onclick={servloStop}
+      disabled={$servloStarting || $servloStopping}
+      loading={$servloStopping}
     >
       <Icon name="stop" class="w-3.5 h-3.5" />
     </ActionButton>
@@ -78,17 +78,17 @@
       {@const anyFpmRunning = $status.php_fpms.some((f) => f.running)}
       {#snippet phpLeading()}<StatusDot color={anyFpmRunning ? 'green' : 'gray'} />{/snippet}
       {#snippet phpTrailing()}
-        <span class="text-[10px] font-medium tabular-nums shrink-0 {phpSelected ? 'text-lerd-red/70' : 'text-gray-400 dark:text-gray-600'}">{$phpVersions.length}</span>
+        <span class="text-[10px] font-medium tabular-nums shrink-0 {phpSelected ? 'text-servlo-red/70' : 'text-gray-400 dark:text-gray-600'}">{$phpVersions.length}</span>
       {/snippet}
       <ListRow active={phpSelected} onclick={() => select('php')} leading={phpLeading} trailing={phpTrailing}>PHP</ListRow>
     {/if}
 
-    {#snippet nodeLeading()}<StatusDot color={$status.using_system_bun ? 'amber' : $status.node_managed_by_lerd ? 'green' : 'blue'} />{/snippet}
+    {#snippet nodeLeading()}<StatusDot color={$status.using_system_bun ? 'amber' : $status.node_managed_by_servlo ? 'green' : 'blue'} />{/snippet}
     {#snippet nodeTrailing()}
       {#if $status.using_system_bun}
         <span class="text-[10px] font-medium shrink-0 text-amber-600 dark:text-amber-400">🥟 {$status.bun_version}</span>
       {:else}
-        <span class="text-[10px] font-medium tabular-nums shrink-0 {selected === 'node' ? 'text-lerd-red/70' : 'text-gray-400 dark:text-gray-600'}">{$nodeVersions.length}</span>
+        <span class="text-[10px] font-medium tabular-nums shrink-0 {selected === 'node' ? 'text-servlo-red/70' : 'text-gray-400 dark:text-gray-600'}">{$nodeVersions.length}</span>
       {/if}
     {/snippet}
     <ListRow active={selected === 'node'} onclick={() => select('node')} leading={nodeLeading} trailing={nodeTrailing}>
@@ -99,7 +99,7 @@
     {#snippet toolsDot()}<StatusDot color={toolsAttention ? 'amber' : 'green'} />{/snippet}
     {#snippet toolsTrailing()}
       {#if ($status.tools ?? []).some((t) => t.update_available)}
-        <span class="ml-auto text-xs font-medium text-yellow-600 dark:text-yellow-400">{m.system_lerd_updateTag()}</span>
+        <span class="ml-auto text-xs font-medium text-yellow-600 dark:text-yellow-400">{m.system_servlo_updateTag()}</span>
       {/if}
     {/snippet}
     <ListRow active={selected === 'tools'} onclick={() => select('tools')} leading={toolsDot} trailing={toolsTrailing}>
@@ -114,7 +114,7 @@
     {#snippet dumpBridgeDot()}<StatusDot color={$dumpsStatusValue?.enabled ? 'green' : 'gray'} pulse={Boolean($dumpsStatusValue?.enabled)} />{/snippet}
     {#snippet dumpBridgeTrailing()}
       {#if $dumpsStatusValue?.enabled && ($dumpsStatusValue?.count ?? 0) > 0}
-        <span class="text-[10px] font-medium tabular-nums shrink-0 {selected === 'dump-bridge' ? 'text-lerd-red/70' : 'text-gray-400 dark:text-gray-600'}">{$dumpsStatusValue.count}</span>
+        <span class="text-[10px] font-medium tabular-nums shrink-0 {selected === 'dump-bridge' ? 'text-servlo-red/70' : 'text-gray-400 dark:text-gray-600'}">{$dumpsStatusValue.count}</span>
       {/if}
     {/snippet}
     <ListRow active={selected === 'dump-bridge'} onclick={() => select('dump-bridge')} leading={dumpBridgeDot} trailing={dumpBridgeTrailing}>{m.debug_title()}</ListRow>
@@ -129,14 +129,14 @@
     {#snippet watcherDot()}<StatusDot color={$status.watcher_running ? 'green' : 'gray'} />{/snippet}
     <ListRow active={selected === 'watcher'} onclick={() => select('watcher')} leading={watcherDot}>{m.system_watcher()}</ListRow>
 
-    {#snippet lerdLeading()}<StatusDot color={$lerdStatusColor} />{/snippet}
-    {#snippet lerdTrailing()}
+    {#snippet servloLeading()}<StatusDot color={$servloStatusColor} />{/snippet}
+    {#snippet servloTrailing()}
       {#if $version.hasUpdate}
-        <span class="ml-auto text-xs font-medium text-yellow-600 dark:text-yellow-400">{m.system_lerd_updateTag()}</span>
+        <span class="ml-auto text-xs font-medium text-yellow-600 dark:text-yellow-400">{m.system_servlo_updateTag()}</span>
       {/if}
     {/snippet}
-    <ListRow active={selected === 'lerd'} onclick={() => select('lerd')} leading={lerdLeading} trailing={lerdTrailing}>
-      {m.system_lerd()}
+    <ListRow active={selected === 'servlo'} onclick={() => select('servlo')} leading={servloLeading} trailing={servloTrailing}>
+      {m.system_servlo()}
     </ListRow>
   {/if}
 </ListPanel>

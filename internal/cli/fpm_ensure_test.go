@@ -20,7 +20,7 @@ func TestStartInstalledFPM(t *testing.T) {
 	fpmContainerRunning = func(string) (bool, error) { return true, nil }
 	fpmIsInstalled = func(string, string) bool { return false }
 	fpmStart = func(string, string) error { started = true; return nil }
-	if handled, err := startInstalledFPM("8.4", "lerd-php84-fpm"); !handled || err != nil || started {
+	if handled, err := startInstalledFPM("8.4", "servlo-php84-fpm"); !handled || err != nil || started {
 		t.Errorf("running container: handled=%v err=%v started=%v, want true/nil/false", handled, err, started)
 	}
 
@@ -29,19 +29,19 @@ func TestStartInstalledFPM(t *testing.T) {
 	fpmContainerRunning = func(string) (bool, error) { return false, nil }
 	fpmIsInstalled = func(string, string) bool { return true }
 	fpmStart = func(string, string) error { started = true; return nil }
-	if handled, err := startInstalledFPM("8.4", "lerd-php84-fpm"); !handled || err != nil || !started {
+	if handled, err := startInstalledFPM("8.4", "servlo-php84-fpm"); !handled || err != nil || !started {
 		t.Errorf("installed-stopped: handled=%v err=%v started=%v, want true/nil/true", handled, err, started)
 	}
 	wantErr := errors.New("boom")
 	fpmStart = func(string, string) error { return wantErr }
-	if handled, err := startInstalledFPM("8.4", "lerd-php84-fpm"); !handled || !errors.Is(err, wantErr) {
+	if handled, err := startInstalledFPM("8.4", "servlo-php84-fpm"); !handled || !errors.Is(err, wantErr) {
 		t.Errorf("installed-stopped start failure: handled=%v err=%v, want true + boom", handled, err)
 	}
 
 	// Not installed: not handled so the caller prompts; nothing started.
 	started = false
 	fpmIsInstalled = func(string, string) bool { return false }
-	if handled, err := startInstalledFPM("8.4", "lerd-php84-fpm"); handled || err != nil || started {
+	if handled, err := startInstalledFPM("8.4", "servlo-php84-fpm"); handled || err != nil || started {
 		t.Errorf("not-installed: handled=%v err=%v started=%v, want false/nil/false", handled, err, started)
 	}
 }

@@ -12,7 +12,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/geodro/lerd/internal/unitlog"
+	"github.com/realrashid/servlo/internal/unitlog"
 )
 
 func serviceRecentLogs(unit string) string {
@@ -26,13 +26,13 @@ func logStreamCmd(ctx context.Context, unit string) *exec.Cmd {
 }
 
 // logFollowScript returns the shell command a spawned terminal runs to follow a
-// unit's logs. Every lerd unit is a systemd user unit, so journalctl covers
+// unit's logs. Every servlo unit is a systemd user unit, so journalctl covers
 // both container and host workers.
 func logFollowScript(unit string) string {
 	return "journalctl --user -u " + unit + " -f --no-pager -n 100"
 }
 
-// isContainerUnit returns true on Linux — all lerd units run as Podman containers.
+// isContainerUnit returns true on Linux — all servlo units run as Podman containers.
 func isContainerUnit(unit string) bool { return unitlog.IsContainerUnit(unit) }
 
 func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {

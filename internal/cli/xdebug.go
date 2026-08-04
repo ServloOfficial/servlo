@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/xdebugops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/xdebugops"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +32,7 @@ func newXdebugOnCmd() *cobra.Command {
 		Use:   "on [version]",
 		Short: "Enable Xdebug for a PHP version (rebuilds the FPM image)",
 		Long: "Enable Xdebug for a PHP version. Use --mode to pick a non-default mode, e.g. --mode coverage for code coverage, or --mode debug,coverage to combine.\n\n" +
-			"Use --on-demand to set xdebug.start_with_request=trigger: requests and workers no longer auto-connect (no IDE flood); debug a running worker with `lerd xdebug pause`, or a web request via a trigger cookie.",
+			"Use --on-demand to set xdebug.start_with_request=trigger: requests and workers no longer auto-connect (no IDE flood); debug a running worker with `servlo xdebug pause`, or a web request via a trigger cookie.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			normalised, err := podman.NormaliseXdebugMode(mode)
@@ -47,7 +47,7 @@ func newXdebugOnCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&mode, "mode", "debug", "xdebug.mode value (debug, coverage, develop, profile, trace, gcstats, or a comma-separated combo)")
-	cmd.Flags().BoolVar(&onDemand, "on-demand", false, "set start_with_request=trigger so nothing auto-connects; attach with `lerd xdebug pause` or a trigger cookie")
+	cmd.Flags().BoolVar(&onDemand, "on-demand", false, "set start_with_request=trigger so nothing auto-connects; attach with `servlo xdebug pause` or a trigger cookie")
 	return cmd
 }
 
@@ -130,7 +130,7 @@ func runXdebugToggle(args []string, enable bool, mode, start string) error {
 	if res.Enabled {
 		feedback.Done("Xdebug enabled for PHP " + version + " " + feedback.Val(fmt.Sprintf("mode=%s · start=%s · port 9003", res.Mode, start)))
 		if start == "trigger" {
-			feedback.Note("on-demand: requests and workers won't auto-connect; attach with `lerd xdebug pause` or a trigger cookie")
+			feedback.Note("on-demand: requests and workers won't auto-connect; attach with `servlo xdebug pause` or a trigger cookie")
 		}
 	} else {
 		feedback.Done("Xdebug disabled for PHP " + version)

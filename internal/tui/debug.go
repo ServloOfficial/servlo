@@ -9,10 +9,10 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/devtoolsops"
-	lerddumps "github.com/geodro/lerd/internal/dumps"
 	zone "github.com/lrstanley/bubblezone/v2"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/devtoolsops"
+	servlodumps "github.com/realrashid/servlo/internal/dumps"
 )
 
 // debugLenses are the Debug view's switchable lenses, in tab order, mirroring
@@ -22,14 +22,14 @@ import (
 var debugLenses = []struct {
 	kind, label string
 }{
-	{lerddumps.KindDump, "Dumps"},
-	{lerddumps.KindQuery, "Queries"},
-	{lerddumps.KindJob, "Jobs"},
-	{lerddumps.KindView, "Views"},
-	{lerddumps.KindMail, "Mail"},
-	{lerddumps.KindCache, "Cache"},
-	{lerddumps.KindEvent, "Events"},
-	{lerddumps.KindHTTP, "HTTP"},
+	{servlodumps.KindDump, "Dumps"},
+	{servlodumps.KindQuery, "Queries"},
+	{servlodumps.KindJob, "Jobs"},
+	{servlodumps.KindView, "Views"},
+	{servlodumps.KindMail, "Mail"},
+	{servlodumps.KindCache, "Cache"},
+	{servlodumps.KindEvent, "Events"},
+	{servlodumps.KindHTTP, "HTTP"},
 }
 
 // inDebugView reports whether the Debug lenses are on screen: the global D
@@ -42,7 +42,7 @@ func (m *Model) inDebugView() bool {
 
 func (m *Model) activeLensKind() string {
 	if m.debugLens < 0 || m.debugLens >= len(debugLenses) {
-		return lerddumps.KindDump
+		return servlodumps.KindDump
 	}
 	return debugLenses[m.debugLens].kind
 }
@@ -85,7 +85,7 @@ func debugWorkersStateLabel() string {
 // debugMatches reports whether an event matches the search needle across its
 // human-meaningful fields, including the raw Data JSON so a lens row's
 // kind-specific values (sql, job class, mail subject…) are searchable.
-func debugMatches(ev lerddumps.Event, needle string) bool {
+func debugMatches(ev servlodumps.Event, needle string) bool {
 	if strings.Contains(strings.ToLower(ev.Ctx.Site), needle) ||
 		strings.Contains(strings.ToLower(ev.Ctx.Branch), needle) ||
 		strings.Contains(strings.ToLower(ev.Ctx.Request), needle) ||
@@ -101,10 +101,10 @@ func debugMatches(ev lerddumps.Event, needle string) bool {
 // debugFiltered returns the active lens's events that pass the ctx chip and
 // search filters, in buffer (arrival) order. A non-empty site restricts to
 // that site's events (the per-site Debug tab); "" is the global D view.
-func (m *Model) debugFiltered(site string) []lerddumps.Event {
+func (m *Model) debugFiltered(site string) []servlodumps.Event {
 	kind := m.activeLensKind()
 	needle := strings.ToLower(strings.TrimSpace(m.dumpsFilter))
-	out := make([]lerddumps.Event, 0, len(m.debug))
+	out := make([]servlodumps.Event, 0, len(m.debug))
 	for _, ev := range m.debug {
 		if ev.Kind != kind {
 			continue
@@ -127,13 +127,13 @@ func (m *Model) debugFiltered(site string) []lerddumps.Event {
 // order the renderer walks, so the cursor index and enter-to-expand stay in
 // lockstep with what's on screen. Dumps are newest-first flat; grouped lenses
 // flatten their groups.
-func (m *Model) debugVisibleEvents(site string) []lerddumps.Event {
-	if m.activeLensKind() == lerddumps.KindDump {
+func (m *Model) debugVisibleEvents(site string) []servlodumps.Event {
+	if m.activeLensKind() == servlodumps.KindDump {
 		evs := m.debugFiltered(site)
 		reverseEvents(evs)
 		return evs
 	}
-	var out []lerddumps.Event
+	var out []servlodumps.Event
 	for _, g := range m.debugGroups(site) {
 		out = append(out, g.events...)
 	}
@@ -158,11 +158,11 @@ func (m *Model) toggleDumpExpand() tea.Cmd {
 // debugGroup is one request's worth of events for a grouped lens.
 type debugGroup struct {
 	label, ts, worker string
-	events            []lerddumps.Event // newest first
+	events            []servlodumps.Event // newest first
 	nPlusOne          bool
 }
 
-func debugGroupKey(ev lerddumps.Event) string {
+func debugGroupKey(ev servlodumps.Event) string {
 	if ev.Ctx.RID != "" {
 		return "rid:" + ev.Ctx.RID
 	}
@@ -176,7 +176,7 @@ func debugGroupKey(ev lerddumps.Event) string {
 	return fmt.Sprintf("cli:%s:%s:%d:%d", ev.Ctx.Site, ev.Ctx.Branch, ev.Ctx.PID, bucket)
 }
 
-func debugGroupLabel(ev lerddumps.Event) string {
+func debugGroupLabel(ev servlodumps.Event) string {
 	prefix := ""
 	if ev.Ctx.Site != "" {
 		site := ev.Ctx.Site
@@ -217,7 +217,7 @@ func (m *Model) debugGroups(site string) []debugGroup {
 			groups[i].ts = ev.TS
 		}
 	}
-	queryLens := m.activeLensKind() == lerddumps.KindQuery
+	queryLens := m.activeLensKind() == servlodumps.KindQuery
 	for i := range groups {
 		reverseEvents(groups[i].events)
 		if queryLens {
@@ -228,7 +228,7 @@ func (m *Model) debugGroups(site string) []debugGroup {
 	return groups
 }
 
-func reverseEvents(s []lerddumps.Event) {
+func reverseEvents(s []servlodumps.Event) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
@@ -254,7 +254,7 @@ func normalizeSQL(sql string) string {
 	return strings.ToLower(strings.TrimSpace(sql))
 }
 
-func queryGroupNPlusOne(evs []lerddumps.Event) bool {
+func queryGroupNPlusOne(evs []servlodumps.Event) bool {
 	counts := map[string]int{}
 	for _, ev := range evs {
 		if q, ok := ev.Query(); ok {
@@ -269,7 +269,7 @@ func queryGroupNPlusOne(evs []lerddumps.Event) bool {
 }
 
 // countKind counts buffered events of a kind, optionally scoped to one site.
-func countKind(evs []lerddumps.Event, kind, site string) int {
+func countKind(evs []servlodumps.Event, kind, site string) int {
 	n := 0
 	for _, ev := range evs {
 		if ev.Kind == kind && (site == "" || ev.Ctx.Site == site) {
@@ -325,7 +325,7 @@ func debugContentLines(m *Model, focused bool, innerW int) ([]string, int) {
 	}
 	add("")
 
-	if m.activeLensKind() == lerddumps.KindDump {
+	if m.activeLensKind() == servlodumps.KindDump {
 		return appendDumpsLens(m, focused, innerW, out)
 	}
 	return appendGroupedLens(m, focused, innerW, out)
@@ -335,7 +335,7 @@ func debugContentLines(m *Model, focused bool, innerW int) ([]string, int) {
 func appendDumpsLens(m *Model, focused bool, innerW int, out []string) ([]string, int) {
 	add := func(s string) { out = append(out, padToWidth(clipLine(s, innerW), innerW)) }
 	vis := m.debugVisibleEvents("")
-	buffered := countKind(m.debug, lerddumps.KindDump, "")
+	buffered := countKind(m.debug, servlodumps.KindDump, "")
 	add(dimStyle.Render(fmt.Sprintf("  %d shown / %d buffered (cap %d)", len(vis), buffered, dumpsBufferCap)))
 	add("")
 
@@ -343,7 +343,7 @@ func appendDumpsLens(m *Model, focused bool, innerW int, out []string) ([]string
 		if buffered == 0 {
 			add(dimStyle.Render("  no dumps yet"))
 			add("")
-			add("  " + dimStyle.Render("1. enable with ") + accentStyle.Render("T") + dimStyle.Render(" or ") + accentStyle.Render("lerd dump on"))
+			add("  " + dimStyle.Render("1. enable with ") + accentStyle.Render("T") + dimStyle.Render(" or ") + accentStyle.Render("servlo dump on"))
 			add("  " + dimStyle.Render("2. trigger a ") + accentStyle.Render("dump()") + dimStyle.Render(" / ") + accentStyle.Render("dd()") + dimStyle.Render(" in your PHP code"))
 		} else {
 			add(dimStyle.Render("  no dumps match this filter"))
@@ -425,7 +425,7 @@ func appendGroupedLens(m *Model, focused bool, innerW int, out []string) ([]stri
 		add(head)
 
 		var dup map[string]int
-		if kind == lerddumps.KindQuery {
+		if kind == servlodumps.KindQuery {
 			dup = map[string]int{}
 			for _, ev := range g.events {
 				if q, ok := ev.Query(); ok {
@@ -459,26 +459,26 @@ func appendGroupedLens(m *Model, focused bool, innerW int, out []string) ([]stri
 
 func lensNoun(kind string) string {
 	switch kind {
-	case lerddumps.KindQuery:
+	case servlodumps.KindQuery:
 		return "queries"
-	case lerddumps.KindJob:
+	case servlodumps.KindJob:
 		return "jobs"
-	case lerddumps.KindView:
+	case servlodumps.KindView:
 		return "views"
-	case lerddumps.KindMail:
+	case servlodumps.KindMail:
 		return "mail"
-	case lerddumps.KindCache:
+	case servlodumps.KindCache:
 		return "cache events"
-	case lerddumps.KindEvent:
+	case servlodumps.KindEvent:
 		return "events"
-	case lerddumps.KindHTTP:
+	case servlodumps.KindHTTP:
 		return "HTTP calls"
 	default:
 		return "events"
 	}
 }
 
-// Light decoders for the kind-specific Data payloads the lerd_devtools
+// Light decoders for the kind-specific Data payloads the servlo_devtools
 // adapters emit; only the fields the lens rows render are pulled out.
 type jobData struct {
 	Class      string `json:"class"`
@@ -519,9 +519,9 @@ type namedData struct {
 
 // debugRowMain returns the one-line summary for an event in the given lens.
 // dup is the per-group fingerprint counts (query lens only) for the ×N badge.
-func debugRowMain(kind string, ev lerddumps.Event, dup map[string]int) string {
+func debugRowMain(kind string, ev servlodumps.Event, dup map[string]int) string {
 	switch kind {
-	case lerddumps.KindQuery:
+	case servlodumps.KindQuery:
 		q, _ := ev.Query()
 		line := oneLine(q.SQL) + "  " + dimStyle.Render(fmtMS(q.TimeMS)+"ms")
 		if q.TimeMS >= 100 {
@@ -533,15 +533,15 @@ func debugRowMain(kind string, ev lerddumps.Event, dup map[string]int) string {
 			}
 		}
 		return line
-	case lerddumps.KindJob:
+	case servlodumps.KindJob:
 		var d jobData
 		_ = json.Unmarshal(ev.Data, &d)
 		return d.Class + "  " + statusTag(d.Status)
-	case lerddumps.KindView:
+	case servlodumps.KindView:
 		var d viewData
 		_ = json.Unmarshal(ev.Data, &d)
 		return d.Name
-	case lerddumps.KindMail:
+	case servlodumps.KindMail:
 		var d mailData
 		_ = json.Unmarshal(ev.Data, &d)
 		subject := d.Subject
@@ -552,11 +552,11 @@ func debugRowMain(kind string, ev lerddumps.Event, dup map[string]int) string {
 			subject += dimStyle.Render("  → " + d.To[0])
 		}
 		return subject
-	case lerddumps.KindCache:
+	case servlodumps.KindCache:
 		var d cacheData
 		_ = json.Unmarshal(ev.Data, &d)
 		return d.Key + "  " + statusTag(d.Op)
-	case lerddumps.KindHTTP:
+	case servlodumps.KindHTTP:
 		var d httpData
 		_ = json.Unmarshal(ev.Data, &d)
 		line := d.Method + " " + oneLine(d.URL)
@@ -577,10 +577,10 @@ func debugRowMain(kind string, ev lerddumps.Event, dup map[string]int) string {
 }
 
 // debugRowDetail returns the expanded detail lines for an event in the lens.
-func debugRowDetail(kind string, ev lerddumps.Event) []string {
+func debugRowDetail(kind string, ev servlodumps.Event) []string {
 	var out []string
 	switch kind {
-	case lerddumps.KindQuery:
+	case servlodumps.KindQuery:
 		q, _ := ev.Query()
 		if len(q.Bindings) > 0 {
 			out = append(out, "bindings: "+oneLine(fmt.Sprint(q.Bindings)))
@@ -593,7 +593,7 @@ func debugRowDetail(kind string, ev lerddumps.Event) []string {
 			out = append(out, conn)
 		}
 		out = appendCaller(out, ev)
-	case lerddumps.KindJob:
+	case servlodumps.KindJob:
 		var d jobData
 		_ = json.Unmarshal(ev.Data, &d)
 		if d.Connection != "" {
@@ -602,7 +602,7 @@ func debugRowDetail(kind string, ev lerddumps.Event) []string {
 		if d.Exception != "" {
 			out = append(out, "exception: "+oneLine(d.Exception))
 		}
-	case lerddumps.KindView:
+	case servlodumps.KindView:
 		var d viewData
 		_ = json.Unmarshal(ev.Data, &d)
 		if d.Path != "" {
@@ -611,7 +611,7 @@ func debugRowDetail(kind string, ev lerddumps.Event) []string {
 		if len(d.DataKeys) > 0 {
 			out = append(out, "data: "+strings.Join(d.DataKeys, ", "))
 		}
-	case lerddumps.KindMail:
+	case servlodumps.KindMail:
 		var d mailData
 		_ = json.Unmarshal(ev.Data, &d)
 		line := ""
@@ -623,7 +623,7 @@ func debugRowDetail(kind string, ev lerddumps.Event) []string {
 			line += " · cc " + strings.Join(d.Cc, ", ")
 		}
 		out = append(out, line)
-	case lerddumps.KindCache:
+	case servlodumps.KindCache:
 		var d cacheData
 		_ = json.Unmarshal(ev.Data, &d)
 		if d.Store != "" {
@@ -635,7 +635,7 @@ func debugRowDetail(kind string, ev lerddumps.Event) []string {
 	return out
 }
 
-func appendCaller(out []string, ev lerddumps.Event) []string {
+func appendCaller(out []string, ev servlodumps.Event) []string {
 	if ev.Src.File != "" {
 		out = append(out, fmt.Sprintf("%s:%d", shortPath(ev.Src.File), ev.Src.Line))
 	}

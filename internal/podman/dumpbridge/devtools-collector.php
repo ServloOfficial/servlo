@@ -1,35 +1,35 @@
 <?php
-// /usr/local/etc/lerd/devtools-collector.php
+// /usr/local/etc/servlo/devtools-collector.php
 //
-// Framework-neutral collector loaded lazily by the lerd_devtools extension
+// Framework-neutral collector loaded lazily by the servlo_devtools extension
 // when it observes a shared library (Symfony Mailer today). It extracts the
 // event data in PHP and ships it to the same socket as everything else, so a
 // single engine seam covers every framework that uses that library. The
 // extension only invokes this for kinds no framework adapter has claimed, so
 // there's no double capture. Must never throw or emit output.
 
-namespace Lerd\Collector;
+namespace Servlo\Collector;
 
 if (defined(__NAMESPACE__ . '\\LOADED')) {
     return;
 }
 const LOADED = 1;
 
-// host resolves the capture socket. Both the devtools ini (lerd.devtools_host)
-// and the dump ini (lerd.dump_host) point at the same socket, and either may be
+// host resolves the capture socket. Both the devtools ini (servlo.devtools_host)
+// and the dump ini (servlo.dump_host) point at the same socket, and either may be
 // the one present, so we accept both keys plus their env-var overrides for
 // CLI/tinker. This is the single transport target for every captured kind.
 // Kept 7.2-parse-safe: this file is also required by the debug bridge's
-// auto_prepend, which runs on every PHP version lerd builds down to 7.2.
+// auto_prepend, which runs on every PHP version servlo builds down to 7.2.
 function host(): string
 {
-    foreach (['LERD_DEVTOOLS_HOST', 'LERD_DUMP_HOST'] as $envKey) {
+    foreach (['SERVLO_DEVTOOLS_HOST', 'SERVLO_DUMP_HOST'] as $envKey) {
         $v = getenv($envKey);
         if ($v !== false && $v !== '') {
             return $v;
         }
     }
-    foreach (['lerd.devtools_host', 'lerd.dump_host'] as $cfgKey) {
+    foreach (['servlo.devtools_host', 'servlo.dump_host'] as $cfgKey) {
         $v = \get_cfg_var($cfgKey);
         if (is_string($v) && $v !== '') {
             return $v;
@@ -59,7 +59,7 @@ function send(array $payload): void
     @\fclose($sock);
 }
 
-function lerd_var(string $key): string
+function servlo_var(string $key): string
 {
     if (!empty($_SERVER[$key])) {
         return (string) $_SERVER[$key];
@@ -79,7 +79,7 @@ function new_id(): string
 
 function rid(): string
 {
-    return defined('LERD_DEVTOOLS_RID') ? (string) \LERD_DEVTOOLS_RID : new_id();
+    return defined('SERVLO_DEVTOOLS_RID') ? (string) \SERVLO_DEVTOOLS_RID : new_id();
 }
 
 function ts(): string
@@ -97,12 +97,12 @@ function in_test(): bool
     return defined('PHPUNIT_COMPOSER_INSTALL') || class_exists('PHPUnit\\Framework\\TestCase', false);
 }
 
-// detect_site names the site an event belongs to: the lerd-injected LERD_SITE
+// detect_site names the site an event belongs to: the servlo-injected SERVLO_SITE
 // wins, then the working-directory basename for CLI, then the parent of the
 // document root for web requests that didn't get the param.
 function detect_site(): string
 {
-    $v = lerd_var('LERD_SITE');
+    $v = servlo_var('SERVLO_SITE');
     if ($v !== '') {
         return $v;
     }
@@ -153,7 +153,7 @@ function context(): array
     $ctx = [
         'type'   => \PHP_SAPI === 'cli' ? 'cli' : 'fpm',
         'site'   => detect_site(),
-        'branch' => lerd_var('LERD_BRANCH'),
+        'branch' => servlo_var('SERVLO_BRANCH'),
         'rid'    => rid(),
         'pid'    => getmypid() ?: 0,
     ];
@@ -166,7 +166,7 @@ function context(): array
         // The CLI counterpart of request: what a console event points at.
         $ctx['command'] = command_line();
     }
-    $worker = defined('LERD_DEVTOOLS_WORKER') ? (string) \LERD_DEVTOOLS_WORKER : '';
+    $worker = defined('SERVLO_DEVTOOLS_WORKER') ? (string) \SERVLO_DEVTOOLS_WORKER : '';
     if ($worker !== '') {
         $ctx['worker'] = $worker;
     }

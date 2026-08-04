@@ -18,7 +18,7 @@ function setStatus(patch: Record<string, unknown>) {
 
 describe('NodePage manager switcher', () => {
   beforeEach(() => {
-    setStatus({ node_managed_by_lerd: true, using_system_bun: false, node_manager: 'fnm', nvm_available: false });
+    setStatus({ node_managed_by_servlo: true, using_system_bun: false, node_manager: 'fnm', nvm_available: false });
   });
 
   it('hides the fnm/nvm switcher when nvm is not installed', () => {

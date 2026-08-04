@@ -16,7 +16,7 @@
   aria-label={title}
   data-testid={testid}
   {onclick}
-  class="shrink-0 px-2.5 flex items-center text-gray-400 hover:text-lerd-red dark:text-gray-500 dark:hover:text-lerd-red transition-colors"
+  class="shrink-0 px-2.5 flex items-center text-gray-400 hover:text-servlo-red dark:text-gray-500 dark:hover:text-servlo-red transition-colors"
 >
   <Icon name="system" class="w-3.5 h-3.5" />
 </button>

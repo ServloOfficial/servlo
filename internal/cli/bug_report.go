@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
-	"github.com/geodro/lerd/internal/version"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
+	"github.com/realrashid/servlo/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +31,7 @@ func NewBugReportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bug-report",
 		Short: "Collect diagnostics into a single file for GitHub bug reports",
-		Long: "Generates a plain-text report containing the lerd doctor output, " +
+		Long: "Generates a plain-text report containing the servlo doctor output, " +
 			"config files, systemd unit state, recent service logs, network " +
 			"state and the relevant environment variables. Attach the file to " +
 			"your GitHub issue.\n\n" +
@@ -48,7 +48,7 @@ func NewBugReportCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "output file path (default: ./lerd-bug-report-<timestamp>.txt)")
+	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "output file path (default: ./servlo-bug-report-<timestamp>.txt)")
 	cmd.Flags().IntVar(&logLines, "log-lines", 200, "number of recent log lines to include per service/container")
 	cmd.Flags().BoolVar(&showRealNames, "show-real-names", false, "include real site names, domains and parked-directory paths instead of placeholders")
 	return cmd
@@ -60,7 +60,7 @@ func writeBugReport(outputPath string, logLines int, anonymize bool) (string, er
 	}
 	if outputPath == "" {
 		ts := time.Now().Format("20060102-150405")
-		outputPath = fmt.Sprintf("lerd-bug-report-%s.txt", ts)
+		outputPath = fmt.Sprintf("servlo-bug-report-%s.txt", ts)
 	}
 	abs, err := filepath.Abs(outputPath)
 	if err != nil {
@@ -129,13 +129,13 @@ func collectBugReport(w io.Writer, logLines int, anon *anonymizer, filter *logFi
 }
 
 func writeBugReportHeader(w io.Writer, anon *anonymizer) {
-	fmt.Fprintln(w, "Lerd bug report")
+	fmt.Fprintln(w, "Servlo bug report")
 	fmt.Fprintln(w, "════════════════════════════════════════════════════════")
 	fmt.Fprintln(w, "Review this file before posting publicly. It contains")
 	fmt.Fprintln(w, "your config and recent service logs but no .env contents.")
 	fmt.Fprintln(w, "Home paths and the username are replaced with $HOME / $USER.")
-	fmt.Fprintln(w, "Logs are kept only for lerd's own infra (nginx, ui, dns,")
-	fmt.Fprintln(w, "watcher, tray); preset services, FPM, workers and HTTP access")
+	fmt.Fprintln(w, "Logs are kept only for servlo's own infra (nginx, ui, dns,")
+	fmt.Fprintln(w, "watcher); preset services, FPM, workers and HTTP access")
 	fmt.Fprintln(w, "lines are dropped. Custom services and per-site containers")
 	fmt.Fprintln(w, "are omitted entirely.")
 	if anon.active() {
@@ -145,7 +145,7 @@ func writeBugReportHeader(w io.Writer, anon *anonymizer) {
 	}
 	fmt.Fprintln(w, "════════════════════════════════════════════════════════")
 	fmt.Fprintf(w, "Generated:  %s\n", time.Now().Format(time.RFC3339))
-	fmt.Fprintf(w, "lerd:       %s\n", version.String())
+	fmt.Fprintf(w, "servlo:       %s\n", version.String())
 	fmt.Fprintf(w, "OS:         %s/%s\n", runtime.GOOS, runtime.GOARCH)
 	fmt.Fprintf(w, "Go runtime: %s\n", runtime.Version())
 	if runtime.GOOS == "linux" {
@@ -201,13 +201,13 @@ func dumpRuntimes(w io.Writer) {
 }
 
 func dumpUnitState(w io.Writer) {
-	units := lerdUnits()
+	units := servloUnits()
 	if len(units) == 0 {
-		fmt.Fprintln(w, "(no lerd units found)")
+		fmt.Fprintln(w, "(no servlo units found)")
 		return
 	}
 	// Bucket per-site worker units by type so the listing reports
-	// "lerd-queue-* (N units, all active)" instead of one row per
+	// "servlo-queue-* (N units, all active)" instead of one row per
 	// (worker, site). The mapping between sites and which workers they
 	// run is metadata we don't need for infra debugging.
 	buckets := map[string][]string{}
@@ -259,11 +259,11 @@ func dumpUnitState(w io.Writer) {
 }
 
 // workerUnitPrefix returns the leading worker-type prefix for a unit
-// name (e.g. `lerd-queue` for `lerd-queue-laravel`), or "" if the unit
+// name (e.g. `servlo-queue` for `servlo-queue-laravel`), or "" if the unit
 // is not a per-site worker. Kept in sync with isContentUnit so the unit
 // state aggregation matches the log-skip policy.
 func workerUnitPrefix(name string) string {
-	for _, p := range []string{"lerd-queue", "lerd-schedule", "lerd-horizon", "lerd-stripe", "lerd-reverb"} {
+	for _, p := range []string{"servlo-queue", "servlo-schedule", "servlo-horizon", "servlo-stripe", "servlo-reverb"} {
 		if strings.HasPrefix(name, p+"-") {
 			return p
 		}
@@ -271,16 +271,16 @@ func workerUnitPrefix(name string) string {
 	return ""
 }
 
-// lerdUnits returns the union of installed container units and service units
-// matching the lerd-* prefix, deduplicated and sorted. Custom services and
+// servloUnits returns the union of installed container units and service units
+// matching the servlo-* prefix, deduplicated and sorted. Custom services and
 // per-site custom/FrankenPHP containers are filtered out — they expose user
-// app names and aren't useful for debugging lerd itself.
-func lerdUnits() []string {
+// app names and aren't useful for debugging servlo itself.
+func servloUnits() []string {
 	seen := map[string]struct{}{}
-	for _, n := range services.Mgr.ListContainerUnits("lerd-*") {
+	for _, n := range services.Mgr.ListContainerUnits("servlo-*") {
 		seen[n] = struct{}{}
 	}
-	for _, n := range services.Mgr.ListServiceUnits("lerd-*") {
+	for _, n := range services.Mgr.ListServiceUnits("servlo-*") {
 		seen[n] = struct{}{}
 	}
 	priv := privateUnitSet()
@@ -308,19 +308,19 @@ func privateUnitSet() map[string]struct{} {
 		if s == nil || s.Name == "" {
 			continue
 		}
-		out["lerd-"+s.Name] = struct{}{}
+		out["servlo-"+s.Name] = struct{}{}
 	}
 	return out
 }
 
 // isPrivateUnit reports whether a unit/container name belongs to user-defined
-// config: custom services, per-site custom containers (lerd-custom-*) and
-// FrankenPHP per-site containers (lerd-fp-*). These are dropped entirely
+// config: custom services, per-site custom containers (servlo-custom-*) and
+// FrankenPHP per-site containers (servlo-fp-*). These are dropped entirely
 // from the report — names alone reveal app identifiers and their state is
-// not useful for triaging lerd itself.
+// not useful for triaging servlo itself.
 func isPrivateUnit(name string, custom map[string]struct{}) bool {
 	base := stripUnitSuffix(name)
-	if strings.HasPrefix(base, "lerd-custom-") || strings.HasPrefix(base, "lerd-fp-") {
+	if strings.HasPrefix(base, "servlo-custom-") || strings.HasPrefix(base, "servlo-fp-") {
 		return true
 	}
 	_, ok := custom[base]
@@ -334,7 +334,7 @@ func stripUnitSuffix(s string) string {
 }
 
 func dumpContainers(w io.Writer) {
-	out, err := podman.Run("ps", "-a", "--filter", "name=lerd-", "--format",
+	out, err := podman.Run("ps", "-a", "--filter", "name=servlo-", "--format",
 		"{{.Names}}\t{{.Status}}\t{{.Image}}")
 	if err != nil {
 		fmt.Fprintf(w, "(podman ps failed: %v)\n", err)
@@ -342,7 +342,7 @@ func dumpContainers(w io.Writer) {
 	}
 	out = strings.TrimRight(out, "\n")
 	if out == "" {
-		fmt.Fprintln(w, "(no lerd containers)")
+		fmt.Fprintln(w, "(no servlo containers)")
 		return
 	}
 	// Same aggregation as dumpUnitState: collapse per-site worker
@@ -385,7 +385,7 @@ func dumpServiceLogs(w io.Writer, n int, filter *logFilter) {
 		fmt.Fprintln(w, "(skipped: journalctl is Linux-only)")
 		return
 	}
-	for _, unit := range lerdUnits() {
+	for _, unit := range servloUnits() {
 		if isContentUnit(unit) {
 			continue
 		}
@@ -402,14 +402,14 @@ func dumpServiceLogs(w io.Writer, n int, filter *logFilter) {
 }
 
 func dumpContainerLogs(w io.Writer, n int, filter *logFilter) {
-	out, err := podman.Run("ps", "-a", "--filter", "name=lerd-", "--format", "{{.Names}}")
+	out, err := podman.Run("ps", "-a", "--filter", "name=servlo-", "--format", "{{.Names}}")
 	if err != nil {
 		fmt.Fprintf(w, "(podman ps failed: %v)\n", err)
 		return
 	}
 	names := strings.Fields(out)
 	if len(names) == 0 {
-		fmt.Fprintln(w, "(no lerd containers)")
+		fmt.Fprintln(w, "(no servlo containers)")
 		return
 	}
 	priv := privateUnitSet()
@@ -432,7 +432,7 @@ func dumpContainerLogs(w io.Writer, n int, filter *logFilter) {
 }
 
 func dumpNetwork(w io.Writer) {
-	fmt.Fprintln(w, "── listening sockets (lerd-relevant ports)")
+	fmt.Fprintln(w, "── listening sockets (servlo-relevant ports)")
 	listing := PortListOutput()
 	for _, port := range []string{"53", "80", "443", "5300", "7073"} {
 		for _, line := range strings.Split(listing, "\n") {
@@ -452,8 +452,8 @@ func dumpNetwork(w io.Writer) {
 	fmt.Fprintln(w)
 
 	fmt.Fprintln(w, "── host gateway probe (host.containers.internal)")
-	if !services.Mgr.IsActive("lerd-nginx") || !services.Mgr.IsActive("lerd-ui") {
-		fmt.Fprintln(w, "skipped: lerd-nginx and/or lerd-ui not running")
+	if !services.Mgr.IsActive("servlo-nginx") || !services.Mgr.IsActive("servlo-panel") {
+		fmt.Fprintln(w, "skipped: servlo-nginx and/or servlo-panel not running")
 	} else if ip := podman.DetectHostGatewayIPProbeOnly(); ip != "" {
 		fmt.Fprintf(w, "reachable via %s\n", ip)
 	} else {
@@ -490,7 +490,7 @@ func dumpEnvironment(w io.Writer) {
 		fmt.Fprintf(w, "%s=%s\n", key, val)
 	}
 	for _, kv := range os.Environ() {
-		if !strings.HasPrefix(kv, "LERD_") {
+		if !strings.HasPrefix(kv, "SERVLO_") {
 			continue
 		}
 		eq := strings.IndexByte(kv, '=')
@@ -508,7 +508,7 @@ func dumpEnvironment(w io.Writer) {
 }
 
 // isSecretShapedKey returns true when the env-var name suggests its value is
-// sensitive. Used for the LERD_* dump in bug reports — even though the rest
+// sensitive. Used for the SERVLO_* dump in bug reports — even though the rest
 // of the bug-report scrubbers redact common secret value shapes, key names
 // containing TOKEN/SECRET/PASSWORD/PASSWD/KEY are a stronger signal.
 func isSecretShapedKey(key string) bool {
@@ -692,32 +692,31 @@ func tldSuffix(domain string) string {
 	return ""
 }
 
-// lerdInfraUnits is the allowlist of unit/container base names whose logs
+// servloInfraUnits is the allowlist of unit/container base names whose logs
 // are included in the bug report. Anything outside this set (preset
 // services like redis/mysql/gotenberg, per-site workers, FPM containers,
 // custom services and containers) is treated as app-domain content and
 // its logs are dropped — they're noisy, often request-shaped, and don't
-// help debug lerd itself. State for preset services still appears in the
+// help debug servlo itself. State for preset services still appears in the
 // unit-state and container tables.
-var lerdInfraUnits = map[string]struct{}{
-	"lerd-nginx":     {},
-	"lerd-ui":        {},
-	"lerd-watcher":   {},
-	"lerd-dns":       {},
-	"lerd-tray":      {},
-	"lerd-autostart": {},
-	"lerd-fpm-init":  {},
+var servloInfraUnits = map[string]struct{}{
+	"servlo-nginx":     {},
+	"servlo-panel":     {},
+	"servlo-watcher":   {},
+	"servlo-dns":       {},
+	"servlo-autostart": {},
+	"servlo-fpm-init":  {},
 }
 
 // isContentUnit reports whether logs for this unit should be skipped.
-// Inverse of the lerdInfraUnits allowlist.
+// Inverse of the servloInfraUnits allowlist.
 func isContentUnit(name string) bool {
-	_, ok := lerdInfraUnits[stripUnitSuffix(name)]
+	_, ok := servloInfraUnits[stripUnitSuffix(name)]
 	return !ok
 }
 
 // accessLogRes matches lines that look like per-request access logging
-// across the various formats lerd's services emit:
+// across the various formats servlo's services emit:
 //   - Common/Combined Log Format from nginx and phpMyAdmin's Apache
 //     (`[time] "VERB ..."` after a quoted-style header)
 //   - Meilisearch's `INFO HTTP request{method=...}` structured line

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // recordingMgr embeds the real ServiceManager interface (nil here, since only
@@ -38,7 +38,7 @@ func TestRegenerateHostWorkersForSite_skipsIdleSuspended(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	proj, err := config.LoadProjectConfig(dir)
@@ -65,10 +65,10 @@ func TestRegenerateHostWorkersForSite_skipsIdleSuspended(t *testing.T) {
 	}
 	RegenerateHostWorkersForSite(site)
 
-	if rec.enabledProbed["lerd-vite-myapp"] {
+	if rec.enabledProbed["servlo-vite-myapp"] {
 		t.Error("suspended host worker vite was regenerated; it must be skipped to stay asleep")
 	}
-	if !rec.enabledProbed["lerd-echo-myapp"] {
+	if !rec.enabledProbed["servlo-echo-myapp"] {
 		t.Error("non-suspended host worker echo should still be regenerated")
 	}
 }

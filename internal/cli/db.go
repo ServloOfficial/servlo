@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 )
 
@@ -60,8 +60,8 @@ func newDbImportCmd(use string) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&fresh, "fresh", false, "Empty the database before loading, so the dump replaces it")
-	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .lerd.yaml)")
-	cmd.Flags().StringVarP(&service, "service", "s", "", "Lerd DB service to target (e.g. mysql, postgres)")
+	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .servlo.yaml)")
+	cmd.Flags().StringVarP(&service, "service", "s", "", "Servlo DB service to target (e.g. mysql, postgres)")
 	return cmd
 }
 
@@ -75,38 +75,38 @@ func newDbExportCmd(use string) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file (default: <database>.sql)")
-	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .lerd.yaml)")
-	cmd.Flags().StringVarP(&service, "service", "s", "", "Lerd DB service to target (e.g. mysql, postgres)")
+	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .servlo.yaml)")
+	cmd.Flags().StringVarP(&service, "service", "s", "", "Servlo DB service to target (e.g. mysql, postgres)")
 	return cmd
 }
 
 type dbEnv struct {
-	service    string // lerd service name → container "lerd-<service>"
+	service    string // servlo service name → container "servlo-<service>"
 	connection string // dialect: "mysql"/"mariadb"/"pgsql"/"postgres"
 	database   string
 	username   string
 	password   string
 }
 
-// serviceToDBEnv returns dialect and default credentials for a given lerd service name.
+// serviceToDBEnv returns dialect and default credentials for a given servlo service name.
 // The family is inferred from the service name prefix.
 func serviceToDBEnv(name string) *dbEnv {
 	lower := strings.ToLower(name)
 	if strings.HasPrefix(lower, "postgres") || lower == "pgsql" {
-		return &dbEnv{service: name, connection: "pgsql", username: "postgres", password: "lerd"}
+		return &dbEnv{service: name, connection: "pgsql", username: "postgres", password: "servlo"}
 	}
 	// mysql, mariadb, mysql-5-7, etc.
-	return &dbEnv{service: name, connection: "mysql", username: "root", password: "lerd"}
+	return &dbEnv{service: name, connection: "mysql", username: "root", password: "servlo"}
 }
 
-// lerdServiceFromHost returns the lerd service a DB host of the form
-// "lerd-<service>" points at (e.g. "lerd-mariadb-11-8" -> "mariadb-11-8"), or ""
-// when the host is not a lerd service container (an external host, or the
+// servloServiceFromHost returns the servlo service a DB host of the form
+// "servlo-<service>" points at (e.g. "servlo-mariadb-11-8" -> "mariadb-11-8"), or ""
+// when the host is not a servlo service container (an external host, or the
 // loopback a host-proxy site uses). Lets the db commands target the exact
 // service a site runs on instead of collapsing to the family's canonical
 // service, so a mariadb- or postgres-18-backed site dumps the right server.
-func lerdServiceFromHost(host string) string {
-	svc, ok := strings.CutPrefix(strings.TrimSpace(host), "lerd-")
+func servloServiceFromHost(host string) string {
+	svc, ok := strings.CutPrefix(strings.TrimSpace(host), "servlo-")
 	if !ok || svc == "" {
 		return ""
 	}
@@ -115,7 +115,7 @@ func lerdServiceFromHost(host string) string {
 
 // resolveDB resolves database connection config using the following priority:
 //  1. --service flag (flagService)
-//  2. .lerd.yaml db: block (present even on unlinked sites)
+//  2. .servlo.yaml db: block (present even on unlinked sites)
 //  3. Framework definition service detection (uses framework-specific env file + detect rules)
 //  4. .env file with generic key inference (DB_CONNECTION, DB_TYPE, DATABASE_URL, DB_PORT…)
 //  5. Error with instructions
@@ -129,7 +129,7 @@ func resolveDB(cwd, flagService, flagDatabase string) (*dbEnv, error) {
 		env = serviceToDBEnv(flagService)
 
 	default:
-		// Try .lerd.yaml db: block
+		// Try .servlo.yaml db: block
 		if pc, err := config.LoadProjectConfig(cwd); err == nil && pc.DB.Service != "" {
 			env = serviceToDBEnv(pc.DB.Service)
 			if pc.DB.Database != "" {
@@ -145,7 +145,7 @@ func resolveDB(cwd, flagService, flagDatabase string) (*dbEnv, error) {
 		loaded, err := loadDBEnv(cwd)
 		if err != nil {
 			return nil, fmt.Errorf(
-				"no DB config found — use --service <name>, add a db: block to .lerd.yaml, or create a .env file with DB_CONNECTION and DB_DATABASE",
+				"no DB config found — use --service <name>, add a db: block to .servlo.yaml, or create a .env file with DB_CONNECTION and DB_DATABASE",
 			)
 		}
 		env = loaded
@@ -192,7 +192,7 @@ func resolveDBFromFramework(cwd string) *dbEnv {
 		env := serviceToDBEnv(svc)
 		// Target the exact service the site points at (an alternate like mariadb
 		// or postgres-18), not just the family's canonical service.
-		if s := lerdServiceFromHost(readKey("DB_HOST")); s != "" {
+		if s := servloServiceFromHost(readKey("DB_HOST")); s != "" {
 			env.service = s
 		}
 		// Resolve database name from the framework's env file.
@@ -286,7 +286,7 @@ func loadDBEnv(cwd string) (*dbEnv, error) {
 	// container (e.g. DB_USERNAME=root against pgsql).
 	svcDefaults := serviceToDBEnv(connToService(conn))
 	service := connToService(conn)
-	if s := lerdServiceFromHost(vals["DB_HOST"]); s != "" {
+	if s := servloServiceFromHost(vals["DB_HOST"]); s != "" {
 		service = s
 	}
 	return &dbEnv{
@@ -384,7 +384,7 @@ func dbEntityCmd(service, shellCmd string) *exec.Cmd {
 	for _, kv := range serviceops.EntityExecEnv() {
 		args = append(args, "-e", kv)
 	}
-	return podman.Cmd(append(args, "lerd-"+service, "sh", "-c", shellCmd)...)
+	return podman.Cmd(append(args, "servlo-"+service, "sh", "-c", shellCmd)...)
 }
 
 func runDbExport(output, service, database string) error {
@@ -447,7 +447,7 @@ func newDbCreateCmd(use string) *cobra.Command {
 			return runDbCreate(service, args)
 		},
 	}
-	cmd.Flags().StringVarP(&service, "service", "s", "", "Lerd DB service to target (e.g. mysql, postgres)")
+	cmd.Flags().StringVarP(&service, "service", "s", "", "Servlo DB service to target (e.g. mysql, postgres)")
 	return cmd
 }
 
@@ -500,7 +500,7 @@ func newDbShellCmd(use string) *cobra.Command {
 			return runDbShell(service, database)
 		},
 	}
-	cmd.Flags().StringVarP(&service, "service", "s", "", "Lerd DB service to target (e.g. mysql, postgres)")
+	cmd.Flags().StringVarP(&service, "service", "s", "", "Servlo DB service to target (e.g. mysql, postgres)")
 	cmd.Flags().StringVarP(&database, "database", "d", "", "Database to connect to")
 	return cmd
 }
@@ -527,7 +527,7 @@ func runDbShell(flagService, flagDatabase string) error {
 		}
 		if !exists {
 			if !isInteractive() {
-				return fmt.Errorf("database %q does not exist in %s — run 'lerd db:create %s'", env.database, env.service, env.database)
+				return fmt.Errorf("database %q does not exist in %s — run 'servlo db:create %s'", env.database, env.service, env.database)
 			}
 			if !feedback.Confirm(fmt.Sprintf("Database %q does not exist in %s. Create it?", env.database, env.service), true) {
 				return fmt.Errorf("database %q does not exist", env.database)
@@ -539,7 +539,7 @@ func runDbShell(flagService, flagDatabase string) error {
 		}
 	}
 
-	container := "lerd-" + env.service
+	container := "servlo-" + env.service
 	var cmd *exec.Cmd
 	switch env.connection {
 	case "pgsql", "postgres":
@@ -584,12 +584,12 @@ func pgDatabaseExistsQuery(name string) string {
 	return fmt.Sprintf("SELECT 1 FROM pg_database WHERE datname='%s';", escapeSQLLiteral(name))
 }
 
-// databaseExists returns whether the named database exists in the given lerd
+// databaseExists returns whether the named database exists in the given servlo
 // DB service's container. Uses the same admin credentials createDatabase uses.
 // The name comes from a project's .env, so it is escaped for the literal it
 // lands in rather than trusted.
 func databaseExists(svc, name string) (bool, error) {
-	container := "lerd-" + svc
+	container := "servlo-" + svc
 	family := svc
 	if inferred := config.FamilyOfName(svc); inferred != "" {
 		family = inferred
@@ -602,7 +602,7 @@ func databaseExists(svc, name string) (bool, error) {
 		}
 		var lastErr error
 		for _, bin := range binaries {
-			check := podman.Cmd("exec", container, bin, "-uroot", "-plerd",
+			check := podman.Cmd("exec", container, bin, "-uroot", "-pservlo",
 				"-sNe", mysqlDatabaseExistsQuery(name))
 			out, err := check.Output()
 			if err != nil {
@@ -624,7 +624,7 @@ func databaseExists(svc, name string) (bool, error) {
 	return true, nil
 }
 
-// connToService maps a DB_CONNECTION value to the lerd service name.
+// connToService maps a DB_CONNECTION value to the servlo service name.
 func connToService(conn string) string {
 	switch strings.ToLower(conn) {
 	case "pgsql", "postgres":
@@ -656,7 +656,7 @@ func inferDBConnection(vals map[string]string) string {
 
 // parseDBURL parses a DATABASE_URL connection string and returns the dialect and
 // database name. Supports postgresql://, postgres://, mysql://, mysql2://, mariadb://.
-// Credentials from the URL are intentionally ignored — lerd always connects via
+// Credentials from the URL are intentionally ignored — servlo always connects via
 // podman exec using the container's fixed credentials.
 func parseDBURL(rawURL string) *dbEnv {
 	if rawURL == "" {
@@ -724,7 +724,7 @@ func loadDBEnvLenient(cwd string) (*dbEnv, error) {
 
 	svcDefaults := serviceToDBEnv(connToService(conn))
 	service := connToService(conn)
-	if s := lerdServiceFromHost(vals["DB_HOST"]); s != "" {
+	if s := servloServiceFromHost(vals["DB_HOST"]); s != "" {
 		service = s
 	}
 	return &dbEnv{

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/siteinfo"
 	zone "github.com/lrstanley/bubblezone/v2"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // TestMain initialises the global bubblezone manager so View() (which marks
@@ -22,7 +22,7 @@ import (
 func TestMain(m *testing.M) {
 	zone.NewGlobal()
 	subprocessesAllowed = false
-	dir, err := os.MkdirTemp("", "lerd-tui-test-")
+	dir, err := os.MkdirTemp("", "servlo-tui-test-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "tui tests: temp XDG root:", err)
 		os.Exit(1)
@@ -142,7 +142,7 @@ func TestRenderDashboardGrid_HasAllSixCards(t *testing.T) {
 	m := NewModel("test")
 	m.snap = fakeSnap()
 	out := m.renderDashboardGrid(150, 30)
-	for _, title := range []string{"Sites", "Services", "Workers", "System Health", "Resources", "Lerd"} {
+	for _, title := range []string{"Sites", "Services", "Workers", "System Health", "Resources", "Servlo"} {
 		if !strings.Contains(out, title) {
 			t.Fatalf("dashboard grid missing %q card:\n%s", title, out)
 		}

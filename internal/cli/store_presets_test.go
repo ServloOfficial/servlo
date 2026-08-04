@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // refreshStorePresets must cache the store preset backing every installed
@@ -38,7 +38,7 @@ func TestRefreshStorePresets_CachesInstalledServicePresets(t *testing.T) {
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	t.Setenv("LERD_SERVICES_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_SERVICES_BASE_URL", srv.URL)
 
 	refreshStorePresets()
 
@@ -75,7 +75,7 @@ func TestRefreshStorePresets_SkipsPresetlessServices(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
-	t.Setenv("LERD_SERVICES_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_SERVICES_BASE_URL", srv.URL)
 
 	refreshStorePresets()
 

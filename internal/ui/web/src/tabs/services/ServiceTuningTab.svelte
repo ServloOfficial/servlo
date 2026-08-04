@@ -177,7 +177,7 @@
 
 <div class="flex flex-col h-full">
   <div class="sticky top-0 z-10">
-    <div class="flex items-center justify-between bg-gray-50 dark:bg-white/3 px-3 py-1.5 border-b border-gray-200 dark:border-lerd-border">
+    <div class="flex items-center justify-between bg-gray-50 dark:bg-white/3 px-3 py-1.5 border-b border-gray-200 dark:border-servlo-border">
       <div class="flex items-center gap-2 min-w-0">
         {#if target}
           <span class="text-[10px] text-gray-400 dark:text-gray-600 font-mono truncate" title={target}>{target}</span>
@@ -203,7 +203,7 @@
           type="button"
           onclick={copy}
           disabled={loading || !!error}
-          class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
+          class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
         >
           {copied ? m.common_copied() : m.common_copy()}
         </button>
@@ -211,7 +211,7 @@
           <button
             type="button"
             onclick={revert}
-            class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
+            class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
           >
             {m.tuningEditor_revert()}
           </button>
@@ -220,7 +220,7 @@
           <button
             type="button"
             onclick={reset}
-            class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
+            class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
           >
             {m.tuningEditor_reset()}
           </button>
@@ -230,7 +230,7 @@
             type="button"
             onclick={restore}
             disabled={restoring}
-            class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
+            class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
           >
             {m.tuningEditor_restore()}
           </button>
@@ -239,7 +239,7 @@
           <button
             type="button"
             onclick={save}
-            class="text-xs px-3 py-1 rounded-sm bg-lerd-red hover:bg-lerd-redhov text-white transition-colors"
+            class="text-xs px-3 py-1 rounded-sm bg-servlo-red hover:bg-servlo-redhov text-white transition-colors"
           >
             {m.common_save()}
           </button>

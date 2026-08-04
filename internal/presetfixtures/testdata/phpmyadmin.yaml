@@ -1,6 +1,6 @@
 name: phpmyadmin
 image: docker.io/library/phpmyadmin:latest
-description: phpMyAdmin web UI for every installed lerd MySQL service
+description: phpMyAdmin web UI for every installed servlo MySQL service
 ports:
   - "8080:80"
 environment:
@@ -8,7 +8,7 @@ environment:
 dynamic_env:
   PMA_HOSTS: discover_family:mysql,mariadb
   PMA_USERS: repeat_family:mysql,mariadb=root
-  PMA_PASSWORDS: repeat_family:mysql,mariadb=lerd
+  PMA_PASSWORDS: repeat_family:mysql,mariadb=servlo
 depends_on:
   - mysql
 dashboard: http://localhost:8080
@@ -17,7 +17,7 @@ files:
     content: |
       <?php
       // Allow phpmyadmin's session cookie to be sent when it's embedded in
-      // an iframe served from a different origin (the lerd-ui dashboard).
+      // an iframe served from a different origin (the servlo-panel dashboard).
       // The default SameSite=Strict drops the cookie on form POSTs, which
       // breaks the server-switch dropdown via CSRF token mismatch.
       // SameSite=None requires Secure=1, which phpmyadmin only sets when
@@ -41,7 +41,7 @@ files:
               'verbose'   => $host,
               'auth_type' => 'config',
               'user'      => $users[$i] ?? 'root',
-              'password'  => $passwords[$i] ?? 'lerd',
+              'password'  => $passwords[$i] ?? 'servlo',
               'AllowNoPassword' => false,
           ];
       }

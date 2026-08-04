@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // The worker-mode row should only be present on macOS so the Linux

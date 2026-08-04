@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// fakeQuadletOnDisk lays down a lerd-<name>.container file so
+// fakeQuadletOnDisk lays down a servlo-<name>.container file so
 // ServiceInstalled returns true without going through podman.
 func fakeQuadletOnDisk(t *testing.T, name string) {
 	t.Helper()
@@ -17,7 +17,7 @@ func fakeQuadletOnDisk(t *testing.T, name string) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir quadlet dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "lerd-"+name+".container"), []byte("[Container]\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "servlo-"+name+".container"), []byte("[Container]\n"), 0o644); err != nil {
 		t.Fatalf("write fake quadlet: %v", err)
 	}
 }
@@ -40,7 +40,7 @@ func TestSaveTuningOverride_NotInstalled(t *testing.T) {
 	}
 	// The hint must be runnable as-is so the user can recover without
 	// guessing the command shape.
-	if got := err.Error(); !contains(got, "lerd service preset install mysql") {
+	if got := err.Error(); !contains(got, "servlo service preset install mysql") {
 		t.Errorf("expected install hint in error, got: %v", got)
 	}
 }

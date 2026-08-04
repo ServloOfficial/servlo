@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestRollback_RequiresPreviousImage covers the contract that rollback fails
@@ -101,7 +101,7 @@ func TestCheckUpdateAvailable_CanRollback(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
-	t.Setenv("LERD_REGISTRY_CACHE_DIR", tmp+"/cache")
+	t.Setenv("SERVLO_REGISTRY_CACHE_DIR", tmp+"/cache")
 	// Empty cache + no network access in tests means the registry probe
 	// returns nothing useful, but CanRollback is computed before that.
 

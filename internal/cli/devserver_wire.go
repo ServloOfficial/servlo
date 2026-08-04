@@ -1,6 +1,6 @@
 package cli
 
-import "github.com/geodro/lerd/internal/siteops"
+import "github.com/realrashid/servlo/internal/siteops"
 
 // Wire the dev server refresh to the siteops paths that move a site's addresses,
 // securing it and changing its domains, which the CLI, the UI and MCP all share.

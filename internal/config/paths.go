@@ -29,22 +29,22 @@ func xdgDataHome() string {
 	return filepath.Join(home, ".local", "share")
 }
 
-// ConfigDir returns ~/.config/lerd/ (or $XDG_CONFIG_HOME/lerd/).
+// ConfigDir returns ~/.config/servlo/ (or $XDG_CONFIG_HOME/servlo/).
 func ConfigDir() string {
-	return filepath.Join(xdgConfigHome(), "lerd")
+	return filepath.Join(xdgConfigHome(), "servlo")
 }
 
-// DataDir returns ~/.local/share/lerd/ (or $XDG_DATA_HOME/lerd/).
+// DataDir returns ~/.local/share/servlo/ (or $XDG_DATA_HOME/servlo/).
 func DataDir() string {
-	return filepath.Join(xdgDataHome(), "lerd")
+	return filepath.Join(xdgDataHome(), "servlo")
 }
 
-// BinDir returns the lerd bin directory.
+// BinDir returns the servlo bin directory.
 func BinDir() string {
 	return filepath.Join(DataDir(), "bin")
 }
 
-// NodeGlobalDir is the npm prefix lerd points its node shim at, so
+// NodeGlobalDir is the npm prefix servlo points its node shim at, so
 // `npm install -g foo` lands in a stable per-user path instead of a
 // version-specific fnm directory that nothing has on PATH.
 func NodeGlobalDir() string {
@@ -62,8 +62,8 @@ func NginxConfD() string {
 }
 
 // NginxCustomD holds user-authored nginx snippets included at the end of
-// each per-site server block. Lerd never writes here, so edits survive
-// vhost regeneration and `lerd update`.
+// each per-site server block. Servlo never writes here, so edits survive
+// vhost regeneration and `servlo update`.
 func NginxCustomD() string {
 	return filepath.Join(NginxDir(), "custom.d")
 }
@@ -78,8 +78,8 @@ func NginxCustomDBkp() string {
 }
 
 // NginxHttpD holds user-authored nginx snippets included at the http{} level
-// (e.g. global gzip, proxy buffers, client_max_body_size). Lerd never writes
-// here, so edits survive nginx.conf regeneration and `lerd update`.
+// (e.g. global gzip, proxy buffers, client_max_body_size). Servlo never writes
+// here, so edits survive nginx.conf regeneration and `servlo update`.
 func NginxHttpD() string {
 	return filepath.Join(NginxDir(), "http.d")
 }
@@ -87,7 +87,7 @@ func NginxHttpD() string {
 // NginxHttpUserConf is the single global http-level tuning override file. The
 // zz- prefix sorts it after any other http.d snippets so user values win.
 func NginxHttpUserConf() string {
-	return filepath.Join(NginxHttpD(), "zz-lerd-user.conf")
+	return filepath.Join(NginxHttpD(), "zz-servlo-user.conf")
 }
 
 // NginxHttpDBkp holds timestamped backups of the global http-level override
@@ -198,7 +198,7 @@ func PHPUserIniBkpDir(version string) string {
 
 // DumpsAssetsDir returns the host directory holding the version-agnostic dump
 // bridge assets (PHP file + ini). Both files are bind-mounted read-only into
-// every FPM container when `lerd dump on` is active. Single shared copy
+// every FPM container when `servlo dump on` is active. Single shared copy
 // because the bridge is identical across PHP versions.
 func DumpsAssetsDir() string {
 	return filepath.Join(DataDir(), "php", "dumps")
@@ -212,30 +212,30 @@ func DumpsBridgeFile() string {
 
 // DumpsIniFile is the host path for the conf.d ini that turns the bridge on.
 func DumpsIniFile() string {
-	return filepath.Join(DumpsAssetsDir(), "97-lerd-dump.ini")
+	return filepath.Join(DumpsAssetsDir(), "97-servlo-dump.ini")
 }
 
 // DevtoolsCollectorFile is the host path for the framework-neutral collector
 // (agnostic mail and other shared-library capture), loaded lazily by the
-// lerd_devtools extension. Lives in the dumps assets dir (mounted at
-// /usr/local/etc/lerd), where the extension expects it.
+// servlo_devtools extension. Lives in the dumps assets dir (mounted at
+// /usr/local/etc/servlo), where the extension expects it.
 func DevtoolsCollectorFile() string {
 	return filepath.Join(DumpsAssetsDir(), "devtools-collector.php")
 }
 
 // LaravelAdapterFile is the host path for the Laravel devtools adapter, loaded
-// by the lerd_devtools extension at Application::boot. It lives in the dumps
+// by the servlo_devtools extension at Application::boot. It lives in the dumps
 // assets dir because that directory is bind-mounted into FPM at
-// /usr/local/etc/lerd, where the extension expects it.
+// /usr/local/etc/servlo, where the extension expects it.
 func LaravelAdapterFile() string {
 	return filepath.Join(DumpsAssetsDir(), "laravel-adapter.php")
 }
 
-// DumpsSocketPath is the Unix socket lerd-ui binds for dump payloads. Kept
+// DumpsSocketPath is the Unix socket servlo-panel binds for dump payloads. Kept
 // in RunDir so it sits alongside the UI socket and so the existing %h:%h
 // volume in every FPM container surfaces it at the same path inside.
 func DumpsSocketPath() string {
-	return filepath.Join(RunDir(), "lerd-dumps.sock")
+	return filepath.Join(RunDir(), "servlo-dumps.sock")
 }
 
 // DumpsEnabledFlagFile is the sentinel the debug bridge checks on every
@@ -255,7 +255,7 @@ func SpxAssetsDir() string {
 
 // SpxIniFile is the host path for the SPX conf.d ini.
 func SpxIniFile() string {
-	return filepath.Join(SpxAssetsDir(), "zz-lerd-spx.ini")
+	return filepath.Join(SpxAssetsDir(), "zz-servlo-spx.ini")
 }
 
 // SpxKeyFile holds the generated SPX http key.
@@ -269,10 +269,10 @@ func SpxDataDir() string {
 	return filepath.Join(DataDir(), "spx")
 }
 
-// DumpsListenNetwork reports the net.Listen network lerd-ui should bind
+// DumpsListenNetwork reports the net.Listen network servlo-panel should bind
 // for the dump receiver. On macOS we fall back to TCP because unix
 // sockets don't traverse the podman-machine virtio-fs boundary as
-// functional sockets (same constraint that drives EnsureLerdVhost's
+// functional sockets (same constraint that drives EnsureServloVhost's
 // host.containers.internal:7073 fallback). On Linux the unix socket is
 // reachable inside FPM via the %h:%h bind mount.
 func DumpsListenNetwork() string {
@@ -293,7 +293,7 @@ func DumpsListenAddr() string {
 // DumpsBridgeTarget is the stream_socket_client target the PHP bridge
 // reads from the conf.d ini. On macOS gvproxy forwards
 // host.containers.internal:<port> from inside the podman-machine VM to
-// the lerd-ui process on the host; on Linux the FPM container hits the
+// the servlo-panel process on the host; on Linux the FPM container hits the
 // host unix socket directly via the %h:%h bind mount.
 func DumpsBridgeTarget() string {
 	if runtime.GOOS == "darwin" {
@@ -309,21 +309,21 @@ func DevtoolsAssetsDir() string {
 }
 
 // DevtoolsIniFile is the host path for the conf.d ini that configures the
-// lerd_devtools extension (socket target + enabled kinds + sentinel path).
+// servlo_devtools extension (socket target + enabled kinds + sentinel path).
 func DevtoolsIniFile() string {
-	return filepath.Join(DevtoolsAssetsDir(), "96-lerd-devtools.ini")
+	return filepath.Join(DevtoolsAssetsDir(), "96-servlo-devtools.ini")
 }
 
 // DevtoolsWorkersFlagFile is the sentinel that opts worker (queue/scheduler)
 // queries into capture. Absent (default) = workers skipped. Lives beside the
-// devtools enable flag under the /usr/local/etc/lerd mount; toggling it never
+// devtools enable flag under the /usr/local/etc/servlo mount; toggling it never
 // restarts FPM.
 func DevtoolsWorkersFlagFile() string {
 	return filepath.Join(DumpsAssetsDir(), "devtools-workers.flag")
 }
 
 // DevtoolsBridgeTarget is the socket the extension ships events to — the same
-// receiver lerd-ui binds for dumps, so captured queries land in the shared
+// receiver servlo-panel binds for dumps, so captured queries land in the shared
 // ring and fan out through the same SSE stream.
 func DevtoolsBridgeTarget() string {
 	return DumpsBridgeTarget()
@@ -342,15 +342,15 @@ func ServiceFilesDir(name string) string {
 }
 
 // ServiceTuningFile returns the host path for a service's user-editable runtime
-// tuning override. Lerd seeds it once with a commented template and never
-// overwrites it afterwards, so edits survive `lerd service reinstall` and
-// `lerd update` — the same never-clobber contract as NginxCustomD and the
+// tuning override. Servlo seeds it once with a commented template and never
+// overwrites it afterwards, so edits survive `servlo service reinstall` and
+// `servlo update` — the same never-clobber contract as NginxCustomD and the
 // per-version PHP 98-user.ini.
 func ServiceTuningFile(name string) string {
 	return filepath.Join(DataDir(), "service-tuning", name+".conf")
 }
 
-// ServiceTuningAuxFile returns the host path for a service's lerd-managed
+// ServiceTuningAuxFile returns the host path for a service's servlo-managed
 // tuning helper file — a static config that the family's tuning Command depends
 // on (e.g. the postgres `config_file` wrapper that `include_dir`s the user
 // override directory, because `-c include_dir` is rejected at runtime). Unlike
@@ -405,14 +405,9 @@ func UpdateCheckFile() string {
 	return filepath.Join(DataDir(), "update-check.json")
 }
 
-// BackupBinaryFile returns the path to the backup lerd binary used for rollback.
+// BackupBinaryFile returns the path to the backup servlo binary used for rollback.
 func BackupBinaryFile() string {
-	return filepath.Join(DataDir(), "lerd.bak")
-}
-
-// BackupTrayFile returns the path to the backup lerd-tray binary used for rollback.
-func BackupTrayFile() string {
-	return filepath.Join(DataDir(), "lerd-tray.bak")
+	return filepath.Join(DataDir(), "servlo.bak")
 }
 
 // BackupVersionFile returns the path to the file storing the pre-update version string.
@@ -430,25 +425,25 @@ func ErrorPagesDir() string {
 	return filepath.Join(DataDir(), "error-pages")
 }
 
-// RunDir returns the directory for runtime sockets shared between lerd-ui
-// (host process) and lerd-nginx (container). Bind-mounted into lerd-nginx so
-// the lerd.localhost vhost can reach lerd-ui without depending on container
+// RunDir returns the directory for runtime sockets shared between servlo-panel
+// (host process) and servlo-nginx (container). Bind-mounted into servlo-nginx so
+// the servlo.localhost vhost can reach servlo-panel without depending on container
 // → host TCP routing (host.containers.internal / 169.254.1.2), which is
 // unreliable across podman/netavark/pasta versions and host network changes.
 func RunDir() string {
 	return filepath.Join(DataDir(), "run")
 }
 
-// UISocketPath returns the path to the lerd-ui unix domain socket.
+// UISocketPath returns the path to the servlo-panel unix domain socket.
 func UISocketPath() string {
-	return filepath.Join(RunDir(), "lerd-ui.sock")
+	return filepath.Join(RunDir(), "servlo-panel.sock")
 }
 
 // UIClientNetwork / UIClientAddr give the transport a CLI process uses to reach
-// the running lerd-ui daemon. On macOS the unix socket is never created (the
+// the running servlo-panel daemon. On macOS the unix socket is never created (the
 // server binds it Linux-only, see internal/ui/server.go), so the CLI dials the
 // same TCP loopback the dashboard uses; on Linux it stays on the unix socket.
-// Mirrors the DumpsListenNetwork/Addr split. The port matches lerd-ui's fixed
+// Mirrors the DumpsListenNetwork/Addr split. The port matches servlo-panel's fixed
 // listen port (internal/ui/server.go listenAddr).
 func UIClientNetwork() string {
 	if runtime.GOOS == "darwin" {
@@ -465,35 +460,35 @@ func UIClientAddr() string {
 	return UISocketPath()
 }
 
-// IdleActivityFile is where the lerd-watcher persists per-site last-active times
-// so a restart restores the idle countdowns instead of re-seeding to now; lerd-ui
+// IdleActivityFile is where the servlo-watcher persists per-site last-active times
+// so a restart restores the idle countdowns instead of re-seeding to now; servlo-panel
 // and the CLI read it to render each site's idle state. Lives in RunDir.
 func IdleActivityFile() string {
 	return filepath.Join(RunDir(), "idle-activity.json")
 }
 
 // RequestStatsFile is where the watcher persists its rolling per-site request
-// timing snapshot for lerd-ui to read, since the two run as separate processes
+// timing snapshot for servlo-panel to read, since the two run as separate processes
 // and only the watcher binds the nginx access feed. Ephemeral, lives in RunDir.
 func RequestStatsFile() string {
 	return filepath.Join(RunDir(), "request-stats.json")
 }
 
 // RequestStatsDB is the durable SQLite store of individual requests the watcher
-// writes and lerd-ui reads to build the request-timing analytics view over any
+// writes and servlo-panel reads to build the request-timing analytics view over any
 // window. Unlike the ephemeral snapshot it lives in DataDir so history survives
 // a reboot.
 func RequestStatsDB() string {
 	return filepath.Join(DataDir(), "request-stats.db")
 }
 
-// AccessSocketPath is the unix datagram socket the lerd-watcher binds to receive
+// AccessSocketPath is the unix datagram socket the servlo-watcher binds to receive
 // the nginx access feed (one "$host" line per request) that drives idle-suspend's
 // per-site last-active tracking. It lives in RunDir, which is bind-mounted into
-// the lerd-nginx container at the same path, so nginx's syslog access_log can
+// the servlo-nginx container at the same path, so nginx's syslog access_log can
 // reach it without container→host TCP routing.
 func AccessSocketPath() string {
-	return filepath.Join(RunDir(), "lerd-access.sock")
+	return filepath.Join(RunDir(), "servlo-access.sock")
 }
 
 // AccessFeedUDPPort is the UDP port the watcher binds on darwin for the nginx
@@ -517,21 +512,21 @@ func AccessLogTarget() string {
 	return "unix:" + AccessSocketPath()
 }
 
-// ControlSocketPath is the unix datagram socket the lerd-watcher binds for
+// ControlSocketPath is the unix datagram socket the servlo-watcher binds for
 // idle-suspend control messages: "enable"/"disable" from the CLI and dashboard
 // toggle, and "activity <site>" from the CLI shims and MCP.
 func ControlSocketPath() string {
-	return filepath.Join(RunDir(), "lerd-idle-control.sock")
+	return filepath.Join(RunDir(), "servlo-idle-control.sock")
 }
 
-// stoppedMarkerPath is the sentinel `lerd stop` writes and `lerd start` clears.
+// stoppedMarkerPath is the sentinel `servlo stop` writes and `servlo start` clears.
 // It lets long-running loops (the worker health watcher, heal notifications)
 // tell an intentional shutdown from worker drift.
 func stoppedMarkerPath() string {
 	return filepath.Join(RunDir(), "stopped")
 }
 
-// MarkStopped records that lerd was intentionally stopped, so background
+// MarkStopped records that servlo was intentionally stopped, so background
 // watchers suppress worker heal/notification noise until the next start.
 func MarkStopped() error {
 	if err := os.MkdirAll(RunDir(), 0755); err != nil {
@@ -541,7 +536,7 @@ func MarkStopped() error {
 	return os.WriteFile(stoppedMarkerPath(), []byte("stopped\n"), 0644)
 }
 
-// ClearStopped clears the intentional-stop marker (lerd is starting or running).
+// ClearStopped clears the intentional-stop marker (servlo is starting or running).
 func ClearStopped() error {
 	if err := os.Remove(stoppedMarkerPath()); err != nil && !os.IsNotExist(err) {
 		return err
@@ -549,13 +544,13 @@ func ClearStopped() error {
 	return nil
 }
 
-// IsStopped reports whether lerd was intentionally stopped via `lerd stop`.
+// IsStopped reports whether servlo was intentionally stopped via `servlo stop`.
 func IsStopped() bool {
 	_, err := os.Stat(stoppedMarkerPath())
 	return err == nil
 }
 
-// PprofMarkerPath is the sentinel that unlocks lerd-ui's profiling endpoints.
+// PprofMarkerPath is the sentinel that unlocks servlo-panel's profiling endpoints.
 // Exported so the CLI and docs can name the exact file a user has to create.
 func PprofMarkerPath() string {
 	return filepath.Join(RunDir(), "pprof.enabled")
@@ -577,7 +572,7 @@ func ContainerHostsFile() string {
 
 // BrowserHostsFile returns the path to the hosts file for browser testing
 // containers (e.g. Selenium). It maps .test domains to the nginx container's
-// IP so that Chromium inside the container can reach lerd sites directly over
+// IP so that Chromium inside the container can reach servlo sites directly over
 // the Podman network instead of going through the host gateway.
 func BrowserHostsFile() string {
 	return filepath.Join(DataDir(), "browser-hosts")

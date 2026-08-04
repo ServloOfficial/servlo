@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 func TestSitesWithTLD_PicksOnlyMatchingSuffix(t *testing.T) {
@@ -53,7 +53,7 @@ func TestMigrateSiteTLD_RewritesDomainsAndEnv(t *testing.T) {
 	}
 	// The project committed HTTPS intent; disabling DNS must leave it intact.
 	if err := config.SaveProjectConfig(siteDir, &config.ProjectConfig{Secured: true}); err != nil {
-		t.Fatalf("save .lerd.yaml: %v", err)
+		t.Fatalf("save .servlo.yaml: %v", err)
 	}
 
 	staleVhost := filepath.Join(config.NginxConfD(), "alpha.test.conf")
@@ -103,7 +103,7 @@ func TestMigrateSiteTLD_RewritesDomainsAndEnv(t *testing.T) {
 		t.Fatalf("LoadProjectConfig: %v", err)
 	}
 	if !proj.Secured {
-		t.Errorf(".lerd.yaml secured intent should survive DNS disable; got false")
+		t.Errorf(".servlo.yaml secured intent should survive DNS disable; got false")
 	}
 
 	envBytes, _ := os.ReadFile(envPath)
@@ -163,7 +163,7 @@ func TestMigrateWorktreeVhosts_RewritesConfsAndEnv(t *testing.T) {
 	}
 }
 
-// A host-proxy worktree checkout usually has no .lerd.yaml of its own, so the
+// A host-proxy worktree checkout usually has no .servlo.yaml of its own, so the
 // migration must mirror the parent's proxy config (passed in) rather than
 // loading config from the worktree path, or the new vhost never gets written.
 func TestMigrateWorktreeVhosts_HostProxyUsesParentProxy(t *testing.T) {
@@ -190,7 +190,7 @@ func TestMigrateWorktreeVhosts_HostProxyUsesParentProxy(t *testing.T) {
 
 	freshConf := filepath.Join(config.NginxConfD(), "feat-x.alpha.localhost.conf")
 	if _, err := os.Stat(freshConf); err != nil {
-		t.Errorf("host-proxy worktree vhost missing without a worktree .lerd.yaml: %v", err)
+		t.Errorf("host-proxy worktree vhost missing without a worktree .servlo.yaml: %v", err)
 	}
 	envBytes, _ := os.ReadFile(filepath.Join(wtPath, ".env"))
 	if !contains(envBytes, "APP_URL=http://feat-x.alpha.localhost") {
@@ -209,7 +209,7 @@ func TestMigrateSiteTLD_ReissuesCertForSecuredSiteWithWorktree(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -259,9 +259,9 @@ echo "FAKE-KEY" > "$KEY"
 	if err := os.WriteFile(filepath.Join(checkout, ".env"), []byte("APP_URL=https://feat-x.alpha.test\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	// The enable path restores HTTPS from the committed .lerd.yaml intent.
+	// The enable path restores HTTPS from the committed .servlo.yaml intent.
 	if err := config.SaveProjectConfig(siteDir, &config.ProjectConfig{Secured: true}); err != nil {
-		t.Fatalf("save .lerd.yaml: %v", err)
+		t.Fatalf("save .servlo.yaml: %v", err)
 	}
 
 	if err := config.AddSite(config.Site{
@@ -275,7 +275,7 @@ echo "FAKE-KEY" > "$KEY"
 	}
 
 	// Seed an OLD cert at the old primary so we can verify it's torn down.
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -315,14 +315,14 @@ echo "FAKE-KEY" > "$KEY"
 // TestMigrateSiteTLD_DNSRoundTripRestoresHTTPS pins the fix for #749: disabling
 // then re-enabling DNS must be lossless. A site secured on .test falls back to
 // plain .localhost http on disable (registry flag off) but keeps its committed
-// HTTPS intent in .lerd.yaml; re-enabling reads that intent and re-secures the
+// HTTPS intent in .servlo.yaml; re-enabling reads that intent and re-secures the
 // site on .test, reissuing the cert and syncing the .env back to https.
 func TestMigrateSiteTLD_DNSRoundTripRestoresHTTPS(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -355,7 +355,7 @@ echo "KEY" > "$KEY"
 		t.Fatal(err)
 	}
 	if err := config.SaveProjectConfig(siteDir, &config.ProjectConfig{Secured: true}); err != nil {
-		t.Fatalf("save .lerd.yaml: %v", err)
+		t.Fatalf("save .servlo.yaml: %v", err)
 	}
 	if err := config.AddSite(config.Site{
 		Name:       "alpha",
@@ -382,7 +382,7 @@ echo "KEY" > "$KEY"
 		t.Errorf("after disable .env = %q, want http://alpha.localhost", envBytes)
 	}
 	if proj, _ := config.LoadProjectConfig(siteDir); !proj.Secured {
-		t.Fatalf("after disable: .lerd.yaml secured intent lost")
+		t.Fatalf("after disable: .servlo.yaml secured intent lost")
 	}
 
 	// Re-enable DNS: site returns to .test and HTTPS is restored from intent.
@@ -406,7 +406,7 @@ echo "KEY" > "$KEY"
 }
 
 // TestMigrateSiteTLD_EnableLeavesPlainSiteHTTP confirms a site the user
-// intentionally kept on plain http (no .lerd.yaml secured intent) is not
+// intentionally kept on plain http (no .servlo.yaml secured intent) is not
 // promoted to HTTPS when DNS is enabled.
 func TestMigrateSiteTLD_EnableLeavesPlainSiteHTTP(t *testing.T) {
 	tmp := t.TempDir()
@@ -425,7 +425,7 @@ func TestMigrateSiteTLD_EnableLeavesPlainSiteHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := config.SaveProjectConfig(siteDir, &config.ProjectConfig{Secured: false}); err != nil {
-		t.Fatalf("save .lerd.yaml: %v", err)
+		t.Fatalf("save .servlo.yaml: %v", err)
 	}
 	if err := config.AddSite(config.Site{
 		Name: "beta", Path: siteDir, Domains: []string{"beta.localhost"}, PHPVersion: "8.4",
@@ -448,15 +448,15 @@ func TestMigrateSiteTLD_EnableLeavesPlainSiteHTTP(t *testing.T) {
 	}
 }
 
-// A site secured only in the registry, with no .lerd.yaml to carry the intent,
+// A site secured only in the registry, with no .servlo.yaml to carry the intent,
 // must still return to HTTPS after a disable/enable round trip. The enable path
-// used to read intent solely from .lerd.yaml, so such a site stayed plain http.
+// used to read intent solely from .servlo.yaml, so such a site stayed plain http.
 func TestMigrateSiteTLD_DNSRoundTripRestoresHTTPS_NoProjectFile(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -475,7 +475,7 @@ func TestMigrateSiteTLD_DNSRoundTripRestoresHTTPS_NoProjectFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(siteDir, ".env"), []byte("APP_URL=https://alpha.test\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	// Deliberately NO .lerd.yaml: the site's HTTPS state lives only in the registry.
+	// Deliberately NO .servlo.yaml: the site's HTTPS state lives only in the registry.
 	if err := config.AddSite(config.Site{
 		Name: "alpha", Path: siteDir, Domains: []string{"alpha.test"}, PHPVersion: "8.4", Secured: true,
 	}); err != nil {
@@ -497,7 +497,7 @@ func TestMigrateSiteTLD_DNSRoundTripRestoresHTTPS_NoProjectFile(t *testing.T) {
 		t.Fatalf("FindSite after enable: %v", err)
 	}
 	if !site.Secured {
-		t.Errorf("a registry-secured site with no .lerd.yaml must return to HTTPS after a DNS round trip")
+		t.Errorf("a registry-secured site with no .servlo.yaml must return to HTTPS after a DNS round trip")
 	}
 }
 
@@ -619,7 +619,7 @@ func contains(haystack []byte, needle string) bool {
 	return false
 }
 
-// mkGroupSite writes a site dir with a .env and, when wantsHTTPS, a .lerd.yaml
+// mkGroupSite writes a site dir with a .env and, when wantsHTTPS, a .servlo.yaml
 // recording the committed HTTPS intent that the DNS re-enable restores from.
 func mkGroupSite(t *testing.T, root, name, domain string, wantsHTTPS bool) string {
 	t.Helper()
@@ -633,8 +633,8 @@ func mkGroupSite(t *testing.T, root, name, domain string, wantsHTTPS bool) strin
 	}
 	if wantsHTTPS {
 		yml := "domains:\n  - " + domain + "\nsecured: true\n"
-		if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(yml), 0644); err != nil {
-			t.Fatalf("write .lerd.yaml: %v", err)
+		if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(yml), 0644); err != nil {
+			t.Fatalf("write .servlo.yaml: %v", err)
 		}
 	}
 	return dir
@@ -642,7 +642,7 @@ func mkGroupSite(t *testing.T, root, name, domain string, wantsHTTPS bool) strin
 
 // dns:disable followed by dns:enable must return a grouped, secured site *and
 // its secondary* to HTTPS, here from the registry's recorded pre-disable state
-// (no .lerd.yaml). A secondary left on http has no 443 block, so the main's
+// (no .servlo.yaml). A secondary left on http has no 443 block, so the main's
 // "*.<main>" wildcard answers its subdomain and serves the wrong app (#811).
 func TestMigrateSiteTLD_GroupedSecuredRoundTripRestoresFromRegistry(t *testing.T) {
 	tmp := t.TempDir()
@@ -732,7 +732,7 @@ func TestMigrateSiteTLD_SecondaryRestoresFromCommittedIntent(t *testing.T) {
 	migrateSiteTLD("localhost", "test", false)
 
 	if blog, _ := config.FindSite("astrolov-2"); !blog.Secured {
-		t.Error("a secondary with secured: true in .lerd.yaml should be restored to https")
+		t.Error("a secondary with secured: true in .servlo.yaml should be restored to https")
 	}
 }
 

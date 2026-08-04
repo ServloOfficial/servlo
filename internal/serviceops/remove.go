@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/geodro/lerd/internal/cleanup"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/cleanup"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // RemoveOptions controls optional side effects of RemoveService.
@@ -58,7 +58,7 @@ var (
 // Order:
 //  1. emit stopping_unit, StopUnit (only if active/activating; abort on error)
 //  2. emit removing_container, RemoveContainer
-//  3. (if RemoveData) emit removing_data, rename-aside ~/.local/share/lerd/data/<name>
+//  3. (if RemoveData) emit removing_data, rename-aside ~/.local/share/servlo/data/<name>
 //  4. emit removing_quadlet, RemoveQuadlet, DaemonReload
 //  5. emit removing_config, RemoveCustomService (no-op for default presets)
 //  6. emit regenerating_consumers, RegenerateFamilyConsumers (if family known)
@@ -87,7 +87,7 @@ func RemoveService(name string, opts RemoveOptions, emit func(PhaseEvent)) error
 	if emit == nil {
 		emit = func(PhaseEvent) {}
 	}
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 
 	// Capture the service's images before its config/quadlet are removed, so
 	// cleanup can reclaim exactly those once nothing references them.

@@ -28,7 +28,7 @@
   let { site }: Props = $props();
 
   type TabId = 'overview' | 'logs' | 'tinker' | 'env' | 'dumps';
-  const TAB_STORAGE_KEY = 'lerd:siteDetailTab';
+  const TAB_STORAGE_KEY = 'servlo:siteDetailTab';
 
   function readStoredTab(): TabId {
     if (typeof localStorage === 'undefined') return 'overview';
@@ -96,7 +96,7 @@
   const tabBtn = (tab: TabId, isActive: boolean) =>
     'pb-1 text-xs font-medium border-b-2 transition-colors ' +
     (isActive
-      ? 'border-lerd-red text-lerd-red'
+      ? 'border-servlo-red text-servlo-red'
       : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300');
 </script>
 
@@ -139,7 +139,7 @@
           type="button"
           onclick={onResume}
           disabled={resumeBusy}
-          class="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-lerd-red hover:bg-lerd-redhov text-white disabled:opacity-50 transition-colors"
+          class="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-servlo-red hover:bg-servlo-redhov text-white disabled:opacity-50 transition-colors"
         >
           {resumeBusy ? m.sites_pausedDetail_busy() : m.sites_pausedDetail_action()}
         </button>

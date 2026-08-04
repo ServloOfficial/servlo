@@ -170,7 +170,7 @@ func indexOf(s, substr string) int {
 }
 
 func TestApplyPhpConstUpdates_NoOpWhenUnchanged(t *testing.T) {
-	path := writePhpConfig(t, "<?php\ndefine( 'DB_HOST', 'lerd-mysql' );\n")
+	path := writePhpConfig(t, "<?php\ndefine( 'DB_HOST', 'servlo-mysql' );\n")
 
 	before, err := os.Stat(path)
 	if err != nil {
@@ -181,7 +181,7 @@ func TestApplyPhpConstUpdates_NoOpWhenUnchanged(t *testing.T) {
 	// Re-applying the value the file already holds must not touch it: wp-config.php
 	// is rewritten on every worktree sync otherwise.
 	time.Sleep(10 * time.Millisecond)
-	if err := ApplyPhpConstUpdates(path, map[string]string{"DB_HOST": "lerd-mysql"}); err != nil {
+	if err := ApplyPhpConstUpdates(path, map[string]string{"DB_HOST": "servlo-mysql"}); err != nil {
 		t.Fatalf("no-op write: %v", err)
 	}
 	after, err := os.Stat(path)
@@ -196,11 +196,11 @@ func TestApplyPhpConstUpdates_NoOpWhenUnchanged(t *testing.T) {
 	}
 
 	// A real change still lands.
-	if err := ApplyPhpConstUpdates(path, map[string]string{"DB_HOST": "lerd-mariadb-11-8"}); err != nil {
+	if err := ApplyPhpConstUpdates(path, map[string]string{"DB_HOST": "servlo-mariadb-11-8"}); err != nil {
 		t.Fatalf("real write: %v", err)
 	}
 	got, _ := ReadPhpConst(path)
-	if got["DB_HOST"] != "lerd-mariadb-11-8" {
-		t.Errorf("DB_HOST = %q, want lerd-mariadb-11-8", got["DB_HOST"])
+	if got["DB_HOST"] != "servlo-mariadb-11-8" {
+		t.Errorf("DB_HOST = %q, want servlo-mariadb-11-8", got["DB_HOST"])
 	}
 }

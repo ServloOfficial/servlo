@@ -29,7 +29,7 @@ function ensure(): HTMLDivElement {
   box = document.createElement('div');
   box.setAttribute('role', 'tooltip');
   box.className =
-    'pointer-events-none whitespace-nowrap rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card px-2 py-1 text-xs text-gray-800 dark:text-gray-100 shadow-lg transition-opacity duration-100';
+    'pointer-events-none whitespace-nowrap rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card px-2 py-1 text-xs text-gray-800 dark:text-gray-100 shadow-lg transition-opacity duration-100';
   box.style.position = 'fixed';
   box.style.zIndex = '9999';
   box.style.opacity = '0';
@@ -52,7 +52,7 @@ function place(node: HTMLElement, label: string, placement: TooltipPlacement) {
   const b = ensure();
   textEl!.textContent = label;
   arrowEl!.className =
-    'h-2 w-2 rotate-45 border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card ' +
+    'h-2 w-2 rotate-45 border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card ' +
     (placement === 'right' ? 'border-b border-l' : 'border-t border-l');
   b.style.opacity = '0';
   b.style.left = '0px';

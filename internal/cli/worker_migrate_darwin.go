@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // migrateWorkersOnModeChange applies the worker-mode flip to every active
@@ -21,7 +21,7 @@ import (
 //
 // Scope deliberately narrow: only workers are touched, not FPM, nginx,
 // services, watchers. That way toggling the mode is O(workers on this
-// machine) rather than a full `lerd stop && lerd start`.
+// machine) rather than a full `servlo stop && servlo start`.
 //
 // fromMode is the mode workers were actually launched in; toMode is what
 // the user just requested. Safe to call with fromMode == toMode (no-op).
@@ -45,7 +45,7 @@ func migrateWorkersOnModeChangeStreaming(fromMode, toMode string, emit func(Work
 	defer workerMigrationActive.Add(-1)
 	units := discoverActiveWorkerUnits()
 	// Quiesce competing podman traffic before we touch anything: cancel
-	// open `podman logs -f` SSE streams in lerd-ui and pause the cache
+	// open `podman logs -f` SSE streams in servlo-panel and pause the cache
 	// poller. Otherwise those long-lived connections race the migration's
 	// `podman rm -f` and saturate gvproxy, wedging the API socket. nil on
 	// CLI (no UI streams, no poller).
@@ -106,7 +106,7 @@ func migrateWorkersOnModeChangeStreaming(fromMode, toMode string, emit func(Work
 	// workers with a live plist, so a container left behind by a previous
 	// mode flip on an older build (or by a worker that exited before we
 	// looked) survives the per-step rm. exec mode never owns per-worker
-	// containers, so any lerd-{queue,schedule,horizon,reverb,custom}-*
+	// containers, so any servlo-{queue,schedule,horizon,reverb,custom}-*
 	// container is by definition stale and safe to drop.
 	if toMode == config.WorkerExecModeExec {
 		emit(WorkerModePhaseEvent{Phase: "sweeping_orphans"})
@@ -141,8 +141,8 @@ func sweepOrphanWorkerContainers() {
 	}
 }
 
-// workerContainerPrefixes turns the unit globs ("lerd-queue-*") into
-// container-name prefixes ("lerd-queue-") for substring matching.
+// workerContainerPrefixes turns the unit globs ("servlo-queue-*") into
+// container-name prefixes ("servlo-queue-") for substring matching.
 func workerContainerPrefixes() []string {
 	globs := workerUnitGlobs()
 	prefixes := make([]string, 0, len(globs))
@@ -152,7 +152,7 @@ func workerContainerPrefixes() []string {
 	return prefixes
 }
 
-// discoverActiveWorkerUnits returns the unit names of every lerd framework
+// discoverActiveWorkerUnits returns the unit names of every servlo framework
 // worker the service manager currently knows about, in either shape. We
 // union services + container units so the migration catches workers
 // regardless of which mode they were started under.
@@ -182,12 +182,12 @@ func discoverActiveWorkerUnits() []string {
 // else is framework-declared and prefixed by the framework's own name).
 func workerUnitGlobs() []string {
 	builtins := []string{
-		"lerd-queue-*",
-		"lerd-schedule-*",
-		"lerd-horizon-*",
-		"lerd-reverb-*",
+		"servlo-queue-*",
+		"servlo-schedule-*",
+		"servlo-horizon-*",
+		"servlo-reverb-*",
 	}
-	// Custom framework workers live under lerd-<worker-name>-<site>.
+	// Custom framework workers live under servlo-<worker-name>-<site>.
 	// We can't glob every framework; fall back to enumerating the
 	// registered ones from config.
 	reg, err := config.LoadSites()
@@ -210,7 +210,7 @@ func workerUnitGlobs() []string {
 			}
 			if !seen[name] {
 				seen[name] = true
-				builtins = append(builtins, "lerd-"+name+"-*")
+				builtins = append(builtins, "servlo-"+name+"-*")
 			}
 		}
 	}
@@ -231,12 +231,12 @@ func removeOldWorkerArtifacts(unit string, kind workerArtifactKind) {
 	}
 }
 
-// restartWorkerByUnitName parses a worker unit name (lerd-<kind>-<site>)
+// restartWorkerByUnitName parses a worker unit name (servlo-<kind>-<site>)
 // back into its kind + site, looks up the site's framework worker, and
 // calls the normal WorkerStartForSite code path. writeWorkerUnitFile
 // inside picks the current configured mode.
 func restartWorkerByUnitName(unit string) error {
-	const prefix = "lerd-"
+	const prefix = "servlo-"
 	if !strings.HasPrefix(unit, prefix) {
 		return fmt.Errorf("unit %q does not start with %s", unit, prefix)
 	}
@@ -262,7 +262,7 @@ func restartWorkerByUnitName(unit string) error {
 		return fmt.Errorf("worker %q not defined for framework %q", kind, fw.Label)
 	}
 	// Preserve the worktree dimension on restart: a unit named
-	// lerd-vite-mysite-feat-x must be brought back at the worktree path,
+	// servlo-vite-mysite-feat-x must be brought back at the worktree path,
 	// not the parent's, otherwise the migration silently rebinds the
 	// per-worktree unit to the parent's WorkingDirectory.
 	startPath := site.Path

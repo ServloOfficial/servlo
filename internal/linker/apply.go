@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 // fpmImageExists is a seam so tests can decide a version's image is present
@@ -182,14 +182,14 @@ func finish(plan *Plan, site config.Site, p Policy) error {
 // ensureServableFPMImage makes the selected version's image exist before the
 // shared FPM unit is (re)started, so a link onto a version this machine never
 // built serves instead of answering 502. The other modes build their own
-// per-site image in their finisher. On a build lerd cannot run here, or one that
+// per-site image in their finisher. On a build servlo cannot run here, or one that
 // fails, the site stays registered and the user is told the single command that
 // makes it serve, rather than being left on a silent 502.
 func ensureServableFPMImage(plan *Plan, site config.Site, p Policy, d Deps, r Reporter) {
 	if plan.Mode != ModeFPM || fpmImageExists(site.PHPVersion) {
 		return
 	}
-	rebuildHint := fmt.Sprintf("PHP %s is not built, so %s will answer 502 until you run 'lerd php:rebuild %s'",
+	rebuildHint := fmt.Sprintf("PHP %s is not built, so %s will answer 502 until you run 'servlo php:rebuild %s'",
 		site.PHPVersion, site.Name, site.PHPVersion)
 	// The watcher's unattended sweep withholds image builds; naming the command
 	// keeps it honest rather than silently registering a 502.
@@ -248,14 +248,14 @@ func offerBetterPHP(plan *Plan, p Policy, d Deps, r Reporter) error {
 	return nil
 }
 
-// gateProxyCommand enforces consent before lerd supervises a repository's dev
+// gateProxyCommand enforces consent before servlo supervises a repository's dev
 // command on the host. A policy that forbids repo commands refuses outright; a
 // caller with a prompt asks; anything else needs prior approval, --yes, or the
 // global skip switch.
 func gateProxyCommand(plan *Plan, p Policy, r Reporter) error {
 	command := plan.ProxyCommand
 	if command == "" {
-		return nil // proxy-only: lerd supervises nothing
+		return nil // proxy-only: servlo supervises nothing
 	}
 	if !p.RepoCommands {
 		r.Warn("not starting the dev command for %s: this context does not run repository commands", plan.Site.Name)
@@ -272,7 +272,7 @@ func gateProxyCommand(plan *Plan, p Policy, r Reporter) error {
 	proceed, ask, reason := HostProxyGate(command, gcfg.HostProxy.Disabled, gcfg.HostProxy.SkipConfirmation, approved, p.Prompt != nil)
 	if proceed {
 		// Consent given out of band (--yes, or a click in the dashboard) approves
-		// a command the user has not been shown. Name it, so the thing lerd is
+		// a command the user has not been shown. Name it, so the thing servlo is
 		// about to run on the host appears in the output either way.
 		if !known && command != "" {
 			r.Line(fmt.Sprintf("supervising this dev-server command on your host, outside any container:\n\n  %s", command))
@@ -282,7 +282,7 @@ func gateProxyCommand(plan *Plan, p Policy, r Reporter) error {
 	if !ask {
 		return fmt.Errorf("host-proxy %s: %s", plan.Site.Name, reason)
 	}
-	r.Line(fmt.Sprintf("lerd supervises this dev-server command on your host, outside any container:\n\n  %s", command))
+	r.Line(fmt.Sprintf("servlo supervises this dev-server command on your host, outside any container:\n\n  %s", command))
 	if !p.Prompt.Confirm(fmt.Sprintf("Start and auto-restart it for %s?", plan.Site.Name), false) {
 		return fmt.Errorf("host-proxy setup declined for %s", plan.Site.Name)
 	}

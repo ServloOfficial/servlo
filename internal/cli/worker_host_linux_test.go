@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestWriteHostWorkerUnitFile_useFnmExec(t *testing.T) {
@@ -16,19 +16,19 @@ func TestWriteHostWorkerUnitFile_useFnmExec(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	os.MkdirAll(binDir, 0755)
 	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
-	// node shim present => lerd manages Node, so host workers route through fnm.
+	// node shim present => servlo manages Node, so host workers route through fnm.
 	os.WriteFile(filepath.Join(binDir, "node"), []byte("#!/bin/sh"), 0755)
 
 	sitePath := t.TempDir()
 	os.WriteFile(filepath.Join(sitePath, ".node-version"), []byte("20"), 0644)
 
 	changed, err := writeWorkerUnitFile(
-		"lerd-vite-mysite", "Vite", "mysite",
+		"servlo-vite-mysite", "Vite", "mysite",
 		sitePath, "8.4", "npm run dev",
-		"on-failure", "", "lerd-php84-fpm", true,
+		"on-failure", "", "servlo-php84-fpm", true,
 	)
 	if err != nil {
 		t.Fatalf("writeWorkerUnitFile (host): %v", err)
@@ -37,7 +37,7 @@ func TestWriteHostWorkerUnitFile_useFnmExec(t *testing.T) {
 		t.Error("first write reported changed=false, want true")
 	}
 
-	unitPath := filepath.Join(tmp, "systemd", "user", "lerd-vite-mysite.service")
+	unitPath := filepath.Join(tmp, "systemd", "user", "servlo-vite-mysite.service")
 	data, err := os.ReadFile(unitPath)
 	if err != nil {
 		t.Fatalf("read unit: %v", err)
@@ -71,10 +71,10 @@ func TestWriteHostWorkerUnitFile_useFnmExec(t *testing.T) {
 	// Boot ordering: host tools like Vite run wayfinder (php artisan) at
 	// startup and crash if the FPM container isn't up yet. After+Wants
 	// orders Vite behind FPM and pulls it up, without BindsTo's teardown.
-	if !strings.Contains(unit, "After=network.target lerd-php84-fpm.service") {
+	if !strings.Contains(unit, "After=network.target servlo-php84-fpm.service") {
 		t.Errorf("host worker must order after the FPM unit; got:\n%s", unit)
 	}
-	if !strings.Contains(unit, "Wants=lerd-php84-fpm.service") {
+	if !strings.Contains(unit, "Wants=servlo-php84-fpm.service") {
 		t.Errorf("host worker must pull up the FPM unit at boot; got:\n%s", unit)
 	}
 }
@@ -93,7 +93,7 @@ func TestWriteHostWorkerUnitFile_useBun(t *testing.T) {
 	os.MkdirAll(bunBinDir, 0755)
 	os.WriteFile(filepath.Join(bunBinDir, "bun"), []byte("#!/bin/sh"), 0755)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	os.MkdirAll(binDir, 0755)
 	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
 
@@ -101,14 +101,14 @@ func TestWriteHostWorkerUnitFile_useBun(t *testing.T) {
 	os.WriteFile(filepath.Join(sitePath, "bun.lockb"), []byte("x"), 0644)
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-vite-bunsite", "Vite", "bunsite",
+		"servlo-vite-bunsite", "Vite", "bunsite",
 		sitePath, "8.4", "npm run dev",
-		"on-failure", "", "lerd-php84-fpm", true,
+		"on-failure", "", "servlo-php84-fpm", true,
 	); err != nil {
 		t.Fatalf("writeWorkerUnitFile (host): %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "lerd-vite-bunsite.service"))
+	data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "servlo-vite-bunsite.service"))
 	if err != nil {
 		t.Fatalf("read unit: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestWriteHostWorkerUnitFile_useBun(t *testing.T) {
 	}
 }
 
-// When lerd is NOT managing Node (no node shim) and there is no system Node on
+// When servlo is NOT managing Node (no node shim) and there is no system Node on
 // PATH, but bun is installed, an npm project's Vite worker falls back to bun
 // (the node:unmanage path) instead of a dead `fnm exec`.
 func TestWriteHostWorkerUnitFile_bunFallbackWhenNodeUnmanaged(t *testing.T) {
@@ -139,7 +139,7 @@ func TestWriteHostWorkerUnitFile_bunFallbackWhenNodeUnmanaged(t *testing.T) {
 	os.MkdirAll(bunBinDir, 0755)
 	os.WriteFile(filepath.Join(bunBinDir, "bun"), []byte("#!/bin/sh"), 0755)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	os.MkdirAll(binDir, 0755)
 	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
 	// No node shim => Node unmanaged. Pin PATH to a dir without `node` so the
@@ -151,14 +151,14 @@ func TestWriteHostWorkerUnitFile_bunFallbackWhenNodeUnmanaged(t *testing.T) {
 	os.WriteFile(filepath.Join(sitePath, "package.json"), []byte("{}"), 0644)
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-vite-npmsite", "Vite", "npmsite",
+		"servlo-vite-npmsite", "Vite", "npmsite",
 		sitePath, "8.4", "npm run dev",
-		"on-failure", "", "lerd-php84-fpm", true,
+		"on-failure", "", "servlo-php84-fpm", true,
 	); err != nil {
 		t.Fatalf("writeWorkerUnitFile (host): %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "lerd-vite-npmsite.service"))
+	data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "servlo-vite-npmsite.service"))
 	if err != nil {
 		t.Fatalf("read unit: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestWriteHostWorkerUnitFile_bunFallbackWhenNodeUnmanaged(t *testing.T) {
 	}
 }
 
-// When lerd is NOT managing Node and the user's node/npm live somewhere the
+// When servlo is NOT managing Node and the user's node/npm live somewhere the
 // unit's rebuilt PATH doesn't cover (nvm, snap, a self-installed fnm, …), the
 // generator must resolve where they actually are and bake that dir into the
 // unit's PATH instead of leaving `npm` unresolvable — issue #1143.
@@ -181,7 +181,7 @@ func TestWriteHostWorkerUnitFile_unmanagedNodeBakesResolvedDir(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	t.Setenv("HOME", filepath.Join(tmp, "home"))
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	os.MkdirAll(binDir, 0755)
 	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
 	// No node shim => Node unmanaged.
@@ -196,14 +196,14 @@ func TestWriteHostWorkerUnitFile_unmanagedNodeBakesResolvedDir(t *testing.T) {
 	os.WriteFile(filepath.Join(sitePath, "package.json"), []byte("{}"), 0644)
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-vite-sysnode", "Vite", "sysnode",
+		"servlo-vite-sysnode", "Vite", "sysnode",
 		sitePath, "8.4", "npm run dev",
-		"on-failure", "", "lerd-php84-fpm", true,
+		"on-failure", "", "servlo-php84-fpm", true,
 	); err != nil {
 		t.Fatalf("writeWorkerUnitFile (host): %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "lerd-vite-sysnode.service"))
+	data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "servlo-vite-sysnode.service"))
 	if err != nil {
 		t.Fatalf("read unit: %v", err)
 	}
@@ -228,7 +228,7 @@ func TestWriteHostWorkerUnitFile_unmanagedNoNodeHoldsBack(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	t.Setenv("HOME", filepath.Join(tmp, "home"))
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	os.MkdirAll(binDir, 0755)
 	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
 	t.Setenv("PATH", binDir)
@@ -237,13 +237,13 @@ func TestWriteHostWorkerUnitFile_unmanagedNoNodeHoldsBack(t *testing.T) {
 	os.WriteFile(filepath.Join(sitePath, "package.json"), []byte("{}"), 0644)
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-vite-nonode", "Vite", "nonode",
+		"servlo-vite-nonode", "Vite", "nonode",
 		sitePath, "8.4", "npm run dev",
-		"on-failure", "", "lerd-php84-fpm", true,
+		"on-failure", "", "servlo-php84-fpm", true,
 	); err == nil {
 		t.Fatal("want an error when no Node is resolvable, got nil")
 	}
-	if _, err := os.Stat(filepath.Join(tmp, "systemd", "user", "lerd-vite-nonode.service")); err == nil {
+	if _, err := os.Stat(filepath.Join(tmp, "systemd", "user", "servlo-vite-nonode.service")); err == nil {
 		t.Error("unit file must not be written when no Node is resolvable")
 	}
 }
@@ -256,7 +256,7 @@ func TestWriteHostWorkerUnitFile_unmanagedNoNodeNonNodeCommandRuns(t *testing.T)
 	t.Setenv("XDG_DATA_HOME", tmp)
 	t.Setenv("HOME", filepath.Join(tmp, "home"))
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	os.MkdirAll(binDir, 0755)
 	t.Setenv("PATH", binDir)
 
@@ -264,7 +264,7 @@ func TestWriteHostWorkerUnitFile_unmanagedNoNodeNonNodeCommandRuns(t *testing.T)
 	os.WriteFile(filepath.Join(sitePath, "package.json"), []byte("{}"), 0644)
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-app-gosite", "Dev Server", "gosite",
+		"servlo-app-gosite", "Dev Server", "gosite",
 		sitePath, "", "./server --port 8000",
 		"always", "", "", true,
 	); err != nil {
@@ -280,7 +280,7 @@ func TestWriteHostWorkerUnitFile_nonNodeRunsDirectly(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	os.MkdirAll(binDir, 0755)
 	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
 
@@ -289,14 +289,14 @@ func TestWriteHostWorkerUnitFile_nonNodeRunsDirectly(t *testing.T) {
 	os.WriteFile(filepath.Join(sitePath, "manage.py"), []byte("# django"), 0644)
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-app-pysite", "Dev Server", "pysite",
+		"servlo-app-pysite", "Dev Server", "pysite",
 		sitePath, "", "python manage.py runserver 0.0.0.0:8000",
 		"always", "", "", true,
 	); err != nil {
 		t.Fatalf("writeWorkerUnitFile (host): %v", err)
 	}
 
-	unit, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "lerd-app-pysite.service"))
+	unit, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "servlo-app-pysite.service"))
 	if err != nil {
 		t.Fatalf("read unit: %v", err)
 	}
@@ -317,9 +317,9 @@ func TestWriteWorkerUnitFile_hostFalse_usesPodman(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	changed, err := writeWorkerUnitFile(
-		"lerd-horizon-mysite", "Horizon", "mysite",
+		"servlo-horizon-mysite", "Horizon", "mysite",
 		"/srv/mysite", "8.4", "php artisan horizon",
-		"always", "", "lerd-php84-fpm", false,
+		"always", "", "servlo-php84-fpm", false,
 	)
 	if err != nil {
 		t.Fatalf("writeWorkerUnitFile (container): %v", err)
@@ -328,7 +328,7 @@ func TestWriteWorkerUnitFile_hostFalse_usesPodman(t *testing.T) {
 		t.Error("first write reported changed=false")
 	}
 
-	unitPath := filepath.Join(tmp, "systemd", "user", "lerd-horizon-mysite.service")
+	unitPath := filepath.Join(tmp, "systemd", "user", "servlo-horizon-mysite.service")
 	data, err := os.ReadFile(unitPath)
 	if err != nil {
 		t.Fatalf("read unit: %v", err)
@@ -338,7 +338,7 @@ func TestWriteWorkerUnitFile_hostFalse_usesPodman(t *testing.T) {
 	if !strings.Contains(unit, "podman") {
 		t.Error("container worker must use podman exec")
 	}
-	if !strings.Contains(unit, "BindsTo=lerd-php84-fpm.service") {
+	if !strings.Contains(unit, "BindsTo=servlo-php84-fpm.service") {
 		t.Error("container worker must bind to FPM unit")
 	}
 }
@@ -354,10 +354,10 @@ func TestWriteHostWorkerUnitFile_shellCommandPreserved(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	os.MkdirAll(binDir, 0755)
 	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
-	// node shim present => lerd manages Node, so host workers route through fnm.
+	// node shim present => servlo manages Node, so host workers route through fnm.
 	os.WriteFile(filepath.Join(binDir, "node"), []byte("#!/bin/sh"), 0755)
 
 	sitePath := t.TempDir()
@@ -393,14 +393,14 @@ func TestWriteHostWorkerUnitFile_shellCommandPreserved(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			os.RemoveAll(filepath.Join(tmp, "systemd"))
 			_, err := writeWorkerUnitFile(
-				"lerd-vite-shellcase", "Test", "shellcase",
+				"servlo-vite-shellcase", "Test", "shellcase",
 				sitePath, "8.4", c.command,
-				"on-failure", "", "lerd-php84-fpm", true,
+				"on-failure", "", "servlo-php84-fpm", true,
 			)
 			if err != nil {
 				t.Fatalf("writeWorkerUnitFile: %v", err)
 			}
-			data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "lerd-vite-shellcase.service"))
+			data, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "servlo-vite-shellcase.service"))
 			if err != nil {
 				t.Fatalf("read unit: %v", err)
 			}
@@ -419,32 +419,32 @@ func TestWriteHostWorkerUnitFile_shellCommandPreserved(t *testing.T) {
 }
 
 // Vite's Inertia/Wayfinder plugin shells out to `php artisan` from
-// inside `npm run dev`. lerd's BinDir holds the php shim, so the host
+// inside `npm run dev`. servlo's BinDir holds the php shim, so the host
 // worker's PATH must lead with BinDir — issue #375.
-func TestWriteHostWorkerUnitFile_pathLeadsWithLerdBinDir(t *testing.T) {
+func TestWriteHostWorkerUnitFile_pathLeadsWithServloBinDir(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	os.MkdirAll(binDir, 0755)
 	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
-	// node shim present => lerd manages Node, so host workers route through fnm.
+	// node shim present => servlo manages Node, so host workers route through fnm.
 	os.WriteFile(filepath.Join(binDir, "node"), []byte("#!/bin/sh"), 0755)
 
 	sitePath := t.TempDir()
 	os.WriteFile(filepath.Join(sitePath, ".node-version"), []byte("20"), 0644)
 
 	_, err := writeWorkerUnitFile(
-		"lerd-vite-mysite", "Vite", "mysite",
+		"servlo-vite-mysite", "Vite", "mysite",
 		sitePath, "8.4", "npm run dev",
-		"on-failure", "", "lerd-php84-fpm", true,
+		"on-failure", "", "servlo-php84-fpm", true,
 	)
 	if err != nil {
 		t.Fatalf("writeWorkerUnitFile: %v", err)
 	}
 
-	unitPath := filepath.Join(tmp, "systemd", "user", "lerd-vite-mysite.service")
+	unitPath := filepath.Join(tmp, "systemd", "user", "servlo-vite-mysite.service")
 	data, err := os.ReadFile(unitPath)
 	if err != nil {
 		t.Fatalf("read unit: %v", err)
@@ -452,7 +452,7 @@ func TestWriteHostWorkerUnitFile_pathLeadsWithLerdBinDir(t *testing.T) {
 	unit := string(data)
 	want := "Environment=PATH=" + config.BinDir() + ":"
 	if !strings.Contains(unit, want) {
-		t.Errorf("host worker unit must prepend lerd BinDir to PATH; got:\n%s", unit)
+		t.Errorf("host worker unit must prepend servlo BinDir to PATH; got:\n%s", unit)
 	}
 }
 
@@ -472,7 +472,7 @@ func TestWorkerStartForSite_worktreeUnitNaming(t *testing.T) {
 	wtPath := t.TempDir()
 	os.WriteFile(filepath.Join(wtPath, ".node-version"), []byte("20"), 0644)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	os.MkdirAll(binDir, 0755)
 	os.WriteFile(filepath.Join(binDir, "fnm"), []byte("#!/bin/sh"), 0755)
 
@@ -492,7 +492,7 @@ func TestWorkerStartForSite_worktreeUnitNaming(t *testing.T) {
 	entries, _ := os.ReadDir(systemdDir)
 	var found bool
 	for _, e := range entries {
-		if strings.Contains(e.Name(), "lerd-vite-mysite-") && strings.HasSuffix(e.Name(), ".service") {
+		if strings.Contains(e.Name(), "servlo-vite-mysite-") && strings.HasSuffix(e.Name(), ".service") {
 			found = true
 			break
 		}
@@ -502,6 +502,6 @@ func TestWorkerStartForSite_worktreeUnitNaming(t *testing.T) {
 		for _, e := range entries {
 			names = append(names, e.Name())
 		}
-		t.Errorf("expected per-worktree unit name lerd-vite-mysite-<dir>, got: %v", names)
+		t.Errorf("expected per-worktree unit name servlo-vite-mysite-<dir>, got: %v", names)
 	}
 }

@@ -85,7 +85,7 @@ func TestSaveCustomService_RejectsNewlineInQuadletFields(t *testing.T) {
 func TestLoadCustomServiceFromFile_StripsLegacyFilesField(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "phpmyadmin.yaml")
-	// Legacy YAML with a files: block (from older lerd versions, or a
+	// Legacy YAML with a files: block (from older servlo versions, or a
 	// malicious tamper). Must be stripped on load and the file re-saved
 	// without it. The authoritative source is presetFiles in Go.
 	yaml := `name: phpmyadmin
@@ -243,7 +243,7 @@ func TestCustomServiceExists(t *testing.T) {
 
 // A service name indexes straight into a file path, so a name that could never
 // have been saved must not be loadable either: a project .env naming
-// "lerd-../../../Code/evil/pwn" as its DB host would otherwise load an
+// "servlo-../../../Code/evil/pwn" as its DB host would otherwise load an
 // attacker-planted YAML as a service definition.
 func TestLoadCustomService_RejectsTraversingName(t *testing.T) {
 	tmp := t.TempDir()
@@ -276,7 +276,7 @@ func TestLoadCustomService_RejectsTraversingName(t *testing.T) {
 	}
 }
 
-// The names lerd itself generates keep working, so the guard costs nothing.
+// The names servlo itself generates keep working, so the guard costs nothing.
 func TestLoadCustomService_AcceptsRealServiceNames(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)

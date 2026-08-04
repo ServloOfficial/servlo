@@ -5,20 +5,20 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // FrankenPHPContainerName returns the Podman container name for a site's
-// FrankenPHP container, e.g. "lerd-fp-myapp".
+// FrankenPHP container, e.g. "servlo-fp-myapp".
 func FrankenPHPContainerName(siteName string) string {
-	return "lerd-fp-" + siteName
+	return "servlo-fp-" + siteName
 }
 
-// FrankenPHPImage returns the lerd-derived FrankenPHP image tag for the
-// requested PHP version, e.g. "localhost/lerd-frankenphp84:local". This is the
-// image the per-site quadlet runs: the dunglas base with lerd's standard
+// FrankenPHPImage returns the servlo-derived FrankenPHP image tag for the
+// requested PHP version, e.g. "localhost/servlo-frankenphp84:local". This is the
+// image the per-site quadlet runs: the dunglas base with servlo's standard
 // extension set baked in (see BuildFrankenPHPImage). Versions without a
-// published frankenphp base fall back to the latest one lerd knows about.
+// published frankenphp base fall back to the latest one servlo knows about.
 func FrankenPHPImage(phpVersion string) string {
 	return FrankenPHPImageName(config.NormalizeFrankenPHPVersion(phpVersion))
 }
@@ -35,7 +35,7 @@ const FrankenPHPPort = 8000
 
 // GenerateFrankenPHPQuadlet builds a quadlet .container file for a per-site
 // FrankenPHP container. The container mounts the project at its host path,
-// joins the lerd network, and runs the framework's declared entrypoint. Any
+// joins the servlo network, and runs the framework's declared entrypoint. Any
 // env map entries are written as Environment= lines.
 //
 // A project path that cannot be bind-mounted is refused rather than rendered
@@ -50,34 +50,34 @@ func GenerateFrankenPHPQuadlet(siteName, projectPath, phpVersion string, entrypo
 
 	var b strings.Builder
 	b.WriteString("[Unit]\n")
-	fmt.Fprintf(&b, "Description=Lerd FrankenPHP container (%s)\n", siteName)
+	fmt.Fprintf(&b, "Description=Servlo FrankenPHP container (%s)\n", siteName)
 	b.WriteString("After=network.target\n")
 
 	b.WriteString("\n[Container]\n")
 	fmt.Fprintf(&b, "Image=%s\n", image)
 	fmt.Fprintf(&b, "ContainerName=%s\n", containerName)
-	b.WriteString("Network=lerd\n")
+	b.WriteString("Network=servlo\n")
 	fmt.Fprintf(&b, "Volume=%s:/etc/hosts:ro,z\n", config.ContainerHostsFile())
 	fmt.Fprintf(&b, "Volume=%s:%s:rw\n", projectPath, projectPath)
 	// Debug tooling: bind-mount the same conf.d inis, bridge assets, and runtime
 	// socket dir the FPM container gets, so dump()/dd(), the Debug window
-	// (lerd_devtools), and Xdebug work for requests Octane serves from this
+	// (servlo_devtools), and Xdebug work for requests Octane serves from this
 	// container too. The baked extensions stay inert until these inis/sentinels
 	// arm them. RunDir carries the unix socket the bridges ship to; it must appear
 	// at its host path, matching the dump_host ini value. SPX is omitted: it can't
 	// profile Octane's resident-worker requests (see the Containerfile).
-	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/lerd:ro\n", config.DumpsAssetsDir())
-	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/97-lerd-dump.ini:ro\n", config.DumpsIniFile())
-	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/96-lerd-devtools.ini:ro\n", config.DevtoolsIniFile())
+	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/servlo:ro\n", config.DumpsAssetsDir())
+	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/97-servlo-dump.ini:ro\n", config.DumpsIniFile())
+	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/96-servlo-devtools.ini:ro\n", config.DevtoolsIniFile())
 	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/99-xdebug.ini:ro\n", config.PHPConfFile(phpVersion))
 	// Per-site user php.ini override, edited from the site's config modal. Scoped
 	// to this site (not the shared per-version file), since a FrankenPHP site runs
 	// its own container.
-	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/98-lerd-user.ini:ro\n", config.SitePHPUserIniFile(siteName))
+	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/98-servlo-user.ini:ro\n", config.SitePHPUserIniFile(siteName))
 	// Version-agnostic shared php.ini, below the per-site file so a per-site key
 	// still wins. Mounted here too so a site switched FPM->FrankenPHP keeps the
 	// shared baseline instead of silently losing it.
-	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/95-lerd-shared.ini:ro\n", config.SharedIniFile())
+	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/95-servlo-shared.ini:ro\n", config.SharedIniFile())
 	fmt.Fprintf(&b, "Volume=%s:%s:rw\n", config.RunDir(), config.RunDir())
 	fmt.Fprintf(&b, "PodmanArgs=--security-opt=label=disable --workdir=%s\n", projectPath)
 	for _, k := range sortedKeys(env) {

@@ -9,7 +9,7 @@ ports:
   - "6379:6379"
 data_dir: /data
 env_vars:
-  - REDIS_HOST=lerd-redis
+  - REDIS_HOST=servlo-redis
   - REDIS_PORT=6379
   - REDIS_PASSWORD=null
   - CACHE_STORE=redis

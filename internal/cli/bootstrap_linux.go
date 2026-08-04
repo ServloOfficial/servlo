@@ -9,9 +9,9 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
 // writeDNSSudoers is the seam tests override to keep the sudoers write off the
@@ -25,7 +25,7 @@ var writeDNSSudoers = dns.WriteSudoersForUser
 // interactive install by re-executing itself under sudo. skipSudoers leaves out
 // the resolver grant for an install that manages no DNS and would never use it.
 func runBootstrapSystem(target string, skipSudoers bool) error {
-	feedback.Header("Bootstrapping system for lerd")
+	feedback.Header("Bootstrapping system for servlo")
 
 	if err := writePortDropIn(unprivPortDropIn, bootstrapRunner); err != nil {
 		feedback.Warn("enabling unprivileged ports: %v", err)
@@ -52,7 +52,7 @@ func runBootstrapSystem(target string, skipSudoers bool) error {
 	return nil
 }
 
-// runBootstrapUntrustCA drops lerd's CA from the system trust store. Pairs with
+// runBootstrapUntrustCA drops servlo's CA from the system trust store. Pairs with
 // runBootstrapTrustCA on uninstall, since mkcert's own -uninstall only knows the
 // anchor filename mkcert itself wrote.
 func runBootstrapUntrustCA() error {

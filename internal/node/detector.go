@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,7 +18,7 @@ import (
 var safeVersionPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`)
 
 // SafeVersion returns v when it could be a version selector, and empty when it
-// could not. The committed .lerd.yaml is repository content, and the version it
+// could not. The committed .servlo.yaml is repository content, and the version it
 // pins reaches a worker unit's command line, so a value that is not version
 // shaped is dropped rather than passed along.
 func SafeVersion(v string) string {
@@ -31,23 +31,23 @@ func SafeVersion(v string) string {
 
 // DetectVersion detects the Node.js version for the given directory.
 // It checks, in order:
-//  1. .lerd.yaml node_version field (explicit lerd override)
+//  1. .servlo.yaml node_version field (explicit servlo override)
 //  2. .nvmrc
 //  3. .node-version
 //  4. package.json engines.node
 //  5. global config default
 func DetectVersion(dir string) (string, error) {
-	// 1. .lerd.yaml — explicit lerd override takes top priority
-	lerdYaml := filepath.Join(dir, ".lerd.yaml")
-	if data, err := os.ReadFile(lerdYaml); err == nil {
-		var lerdCfg struct {
+	// 1. .servlo.yaml — explicit servlo override takes top priority
+	servloYaml := filepath.Join(dir, ".servlo.yaml")
+	if data, err := os.ReadFile(servloYaml); err == nil {
+		var servloCfg struct {
 			NodeVersion string `yaml:"node_version"`
 		}
 		// Unlike .nvmrc and .node-version below, this value is not reduced to a
 		// numeric major, so a full pin survives. It still has to be version
 		// shaped: it is repository content and ends up on a command line.
-		if yaml.Unmarshal(data, &lerdCfg) == nil {
-			if v := SafeVersion(lerdCfg.NodeVersion); v != "" {
+		if yaml.Unmarshal(data, &servloCfg) == nil {
+			if v := SafeVersion(servloCfg.NodeVersion); v != "" {
 				return v, nil
 			}
 		}

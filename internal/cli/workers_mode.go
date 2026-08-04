@@ -5,8 +5,8 @@ import (
 	"runtime"
 	"sync/atomic"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
@@ -21,8 +21,8 @@ var workerMigrationActive atomic.Int32
 // running on this process. Nil-safe and zero-cost when not active.
 func WorkerMigrationActive() bool { return workerMigrationActive.Load() > 0 }
 
-// NewWorkersCmd returns the `lerd workers` parent command. Currently only
-// `lerd workers mode [exec|container]` lives here, but the subcommand is
+// NewWorkersCmd returns the `servlo workers` parent command. Currently only
+// `servlo workers mode [exec|container]` lives here, but the subcommand is
 // structured as a group so future runtime-level options (concurrency,
 // restart delay, ...) have an obvious home.
 func NewWorkersCmd() *cobra.Command {
@@ -53,7 +53,7 @@ which always uses exec-mode workers under systemd.
 
 Changing the mode on macOS stops each active worker in its old shape,
 cleans up the stale on-disk artifacts, and restarts it in the new shape.
-No manual 'lerd stop && lerd start' needed.`,
+No manual 'servlo stop && servlo start' needed.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			mode, show, err := workersModeFromArgs(args)
@@ -134,7 +134,7 @@ func ApplyWorkersMode(newMode string) error { return applyWorkersMode(newMode, n
 
 // ApplyWorkersModeStreaming is the streaming variant called by the web
 // dashboard. Emits phase events at every meaningful step so the modal
-// shows "Stopping lerd-horizon-parkapp", "Starting lerd-schedule-frontend",
+// shows "Stopping servlo-horizon-parkapp", "Starting servlo-schedule-frontend",
 // etc. rather than a blank spinner for the whole migration.
 func ApplyWorkersModeStreaming(newMode string, emit func(WorkerModePhaseEvent)) error {
 	return applyWorkersMode(newMode, emit)

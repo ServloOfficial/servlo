@@ -7,7 +7,7 @@ import (
 
 // logger is the package-level structured logger. Defaults to WARN level on
 // stderr so watcher noise is silent in normal use. Call SetLogger to override
-// (e.g. with a DEBUG-level handler when LERD_DEBUG is set).
+// (e.g. with a DEBUG-level handler when SERVLO_DEBUG is set).
 var logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 	Level: slog.LevelWarn,
 }))

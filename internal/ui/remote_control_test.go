@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
 )
@@ -73,7 +73,7 @@ func setupConfigDirWith(t *testing.T, username, plainPassword string, lanExposed
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	dir := filepath.Join(tmp, "lerd")
+	dir := filepath.Join(tmp, "servlo")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestRemoteControlGateAuthenticatedDashboardCanMutateLANSettings(t *testing.
 	req.Host = "robotbox.example.net"
 	req.Header.Set("X-Forwarded-For", "203.0.113.7")
 	req.SetBasicAuth("alice", "s3cret")
-	req.Header.Set("X-Lerd-CSRF", "1")
+	req.Header.Set("X-Servlo-CSRF", "1")
 	rec := httptest.NewRecorder()
 	gate.ServeHTTP(rec, req)
 
@@ -316,8 +316,8 @@ func TestRemoteControlGate_sessionCookie(t *testing.T) {
 // TestRemoteControlGate_lanOffOverridesCredentials verifies the top-level
 // LAN-exposure gate: when cfg.LAN.Exposed is false, LAN clients are denied
 // even if they present valid Basic auth credentials. This catches the
-// regression where stale credentials from a prior `lerd remote-control on`
-// session would survive `lerd lan:unexpose` and silently allow LAN access.
+// regression where stale credentials from a prior `servlo remote-control on`
+// session would survive `servlo lan:unexpose` and silently allow LAN access.
 func TestRemoteControlGate_lanOffOverridesCredentials(t *testing.T) {
 	// Credentials are set, but lan.exposed is explicitly false.
 	setupConfigDirRaw(t, "alice", "s3cret", false)
@@ -383,7 +383,7 @@ func TestRemoteControlGateAuthenticatedDashboardUsesOrdinaryRoutes(t *testing.T)
 	gate := withRemoteControlGate(next)
 
 	for _, path := range []string{
-		"/api/lerd/start",
+		"/api/servlo/start",
 		"/api/sites/myapp.test/secure",
 		"/api/sites/myapp.test/restart",
 		"/api/services/mysql/restart",
@@ -397,7 +397,7 @@ func TestRemoteControlGateAuthenticatedDashboardUsesOrdinaryRoutes(t *testing.T)
 			req.Header.Set("X-Forwarded-For", "203.0.113.7")
 			req.Header.Set("X-Forwarded-For", "203.0.113.7")
 			req.SetBasicAuth("alice", "s3cret")
-			req.Header.Set("X-Lerd-CSRF", "1")
+			req.Header.Set("X-Servlo-CSRF", "1")
 			rec := httptest.NewRecorder()
 			gate.ServeHTTP(rec, req)
 
@@ -424,11 +424,11 @@ func TestRemoteControlGate_optionsBypassesAuth(t *testing.T) {
 	}
 }
 
-// Unix socket connections must be treated as loopback. The lerd.localhost
-// nginx vhost reaches lerd-ui over the bind-mounted socket, and the request
+// Unix socket connections must be treated as loopback. The servlo.localhost
+// nginx vhost reaches servlo-panel over the bind-mounted socket, and the request
 // arrives with a non-IP RemoteAddr ("@"). Without the ctxKeyUnixSocket
 // fast-path, the gate would 403 it the same as a LAN client and the
-// dashboard would be unreachable via lerd.localhost. Regression test for
+// dashboard would be unreachable via servlo.localhost. Regression test for
 // the fix that replaced host.containers.internal:7073 with the unix socket.
 func TestRemoteControlGate_unixSocketTreatedAsLoopback(t *testing.T) {
 	setupConfigDirRaw(t, "", "", false) // LAN exposure off, no creds
@@ -445,7 +445,7 @@ func TestRemoteControlGate_unixSocketTreatedAsLoopback(t *testing.T) {
 	gate.ServeHTTP(rec, req)
 
 	if !next.called {
-		t.Error("unix socket request blocked — lerd.localhost vhost will 403")
+		t.Error("unix socket request blocked — servlo.localhost vhost will 403")
 	}
 	if rec.Code != http.StatusOK {
 		t.Errorf("unix socket status = %d, want 200", rec.Code)
@@ -557,7 +557,7 @@ func TestFromHost_acceptsZonedIPv6Source(t *testing.T) {
 // state-changing request, loopback included. The RCE vector is a malicious
 // page in the developer's own browser POSTing to 127.0.0.1:7073, so a
 // loopback source IP is no longer a free pass for unsafe methods: the request
-// must also prove it came from lerd's own dashboard.
+// must also prove it came from servlo's own dashboard.
 func TestRemoteControlGate_csrf(t *testing.T) {
 	const tinker = "/api/sites/myapp.test/tinker"
 
@@ -593,8 +593,8 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 		}
 	})
 
-	// lerd.localhost hitting localhost:7073 (apiBase rewrite) is labelled
-	// cross-site by the browser, but the Origin is one of lerd's own, so the
+	// servlo.localhost hitting localhost:7073 (apiBase rewrite) is labelled
+	// cross-site by the browser, but the Origin is one of servlo's own, so the
 	// dashboard's own requests must still pass.
 	t.Run("split-origin dashboard allowed via Origin allowlist", func(t *testing.T) {
 		next := &nextHandler{}
@@ -603,7 +603,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 		req.RemoteAddr = "127.0.0.1:54321"
 		req.Host = "localhost:7073"
 		req.Header.Set("Sec-Fetch-Site", "cross-site")
-		req.Header.Set("Origin", "http://lerd.localhost")
+		req.Header.Set("Origin", "http://servlo.localhost")
 		rec := httptest.NewRecorder()
 		gate.ServeHTTP(rec, req)
 		if !next.called {
@@ -615,7 +615,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 		next := &nextHandler{}
 		gate := withRemoteControlGate(next)
 		req := httptest.NewRequest(http.MethodPost, tinker, nil)
-		req.RemoteAddr = "127.0.0.1:54321" // no Sec-Fetch, no X-Lerd-CSRF
+		req.RemoteAddr = "127.0.0.1:54321" // no Sec-Fetch, no X-Servlo-CSRF
 		req.Host = "localhost:7073"
 		rec := httptest.NewRecorder()
 		gate.ServeHTTP(rec, req)
@@ -628,11 +628,11 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 		req2 := httptest.NewRequest(http.MethodPost, tinker, nil)
 		req2.RemoteAddr = "127.0.0.1:54321"
 		req2.Host = "localhost:7073"
-		req2.Header.Set("X-Lerd-CSRF", "1")
+		req2.Header.Set("X-Servlo-CSRF", "1")
 		rec2 := httptest.NewRecorder()
 		gate2.ServeHTTP(rec2, req2)
 		if !next2.called {
-			t.Errorf("POST with X-Lerd-CSRF blocked, status=%d", rec2.Code)
+			t.Errorf("POST with X-Servlo-CSRF blocked, status=%d", rec2.Code)
 		}
 	})
 
@@ -676,7 +676,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 				next := &nextHandler{}
 				gate := withRemoteControlGate(next)
 				req := httptest.NewRequest(http.MethodPost, path, nil)
-				req.RemoteAddr = "127.0.0.1:54321" // no Sec-Fetch, no X-Lerd-CSRF
+				req.RemoteAddr = "127.0.0.1:54321" // no Sec-Fetch, no X-Servlo-CSRF
 				req.Host = "localhost:7073"
 				rec := httptest.NewRecorder()
 				gate.ServeHTTP(rec, req)

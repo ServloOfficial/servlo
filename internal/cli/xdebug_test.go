@@ -12,7 +12,7 @@ func TestXdebugOnCmd_ModeFlag(t *testing.T) {
 	cmd := newXdebugOnCmd()
 	flag := cmd.Flags().Lookup("mode")
 	if flag == nil {
-		t.Fatal("--mode flag not registered on `lerd xdebug on`")
+		t.Fatal("--mode flag not registered on `servlo xdebug on`")
 	}
 	if flag.DefValue != "debug" {
 		t.Errorf("--mode default = %q, want %q", flag.DefValue, "debug")

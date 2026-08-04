@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // The System view rebuilds every frame, so this summary reads only config: what
@@ -22,7 +22,7 @@ func TestPHPExtrasSummary(t *testing.T) {
 	cfg.AddPackage("chromium")
 
 	// A version with no record has never been built since these were declared.
-	if got := phpExtrasSummary(cfg, "8.1"); got != "not in this image yet · lerd php:rebuild 8.1" {
+	if got := phpExtrasSummary(cfg, "8.1"); got != "not in this image yet · servlo php:rebuild 8.1" {
 		t.Errorf("unrecorded version = %q, want a rebuild hint", got)
 	}
 

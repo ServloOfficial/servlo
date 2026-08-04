@@ -7,7 +7,7 @@ import (
 
 func TestBrowserTrustGuidance_atomic(t *testing.T) {
 	msg := browserTrustGuidance(true)
-	for _, want := range []string{"certutil", "rpm-ostree install nss-tools", "reboot", "lerd dns:repair", "lerd dns:disable"} {
+	for _, want := range []string{"certutil", "rpm-ostree install nss-tools", "reboot", "servlo dns:repair", "servlo dns:disable"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("atomic guidance missing %q: %s", want, msg)
 		}
@@ -19,7 +19,7 @@ func TestBrowserTrustGuidance_atomic(t *testing.T) {
 
 func TestBrowserTrustGuidance_ordinary(t *testing.T) {
 	msg := browserTrustGuidance(false)
-	for _, want := range []string{"certutil", "nss-tools", "lerd dns:repair", "lerd dns:disable"} {
+	for _, want := range []string{"certutil", "nss-tools", "servlo dns:repair", "servlo dns:disable"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("guidance missing %q: %s", want, msg)
 		}
@@ -34,7 +34,7 @@ func TestBrowserTrustGuidance_ordinary(t *testing.T) {
 // things from the reader.
 func TestBrowserTrustStoreGuidanceNamesEveryStore(t *testing.T) {
 	msg := browserTrustStoreGuidance([]string{"/home/u/.pki/nssdb", "/home/u/.mozilla/firefox/p"})
-	for _, want := range []string{"/home/u/.pki/nssdb", "/home/u/.mozilla/firefox/p", "lerd dns:repair"} {
+	for _, want := range []string{"/home/u/.pki/nssdb", "/home/u/.mozilla/firefox/p", "servlo dns:repair"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("store guidance missing %q: %s", want, msg)
 		}

@@ -5,16 +5,16 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/nginx"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/nginx"
 )
 
-// ErrDNSDisabled signals that the operation requires the lerd-managed DNS /
+// ErrDNSDisabled signals that the operation requires the servlo-managed DNS /
 // mkcert CA stack, which the user has opted out of. Surfaces through the CLI
-// `lerd secure` command and the dashboard HTTPS toggle.
-var ErrDNSDisabled = fmt.Errorf("HTTPS requires lerd-managed DNS, set dns.enabled: true and re-run lerd install")
+// `servlo secure` command and the dashboard HTTPS toggle.
+var ErrDNSDisabled = fmt.Errorf("HTTPS requires servlo-managed DNS, set dns.enabled: true and re-run servlo install")
 
 // RegenerateHostProxyWorktreeVhost regenerates the proxy vhost for a single
 // worktree of a host-proxy site, switching it between HTTP and HTTPS. It is

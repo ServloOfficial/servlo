@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/idle"
+	"github.com/realrashid/servlo/internal/idle"
 )
 
 // listenAccessSock binds a unix datagram socket with a short relative name.
@@ -45,7 +45,7 @@ func TestReadAccessFeed_recordsTouch(t *testing.T) {
 		t.Fatalf("dial: %v", err)
 	}
 	defer sender.Close()
-	if _, err := sender.Write([]byte("<190>Jun 12 10:00:00 lerdaccess: myapp.test")); err != nil {
+	if _, err := sender.Write([]byte("<190>Jun 12 10:00:00 servloaccess: myapp.test")); err != nil {
 		t.Fatalf("send: %v", err)
 	}
 
@@ -85,7 +85,7 @@ func TestReadAccessFeed_overUDP(t *testing.T) {
 		t.Fatalf("dial: %v", err)
 	}
 	defer sender.Close()
-	if _, err := sender.Write([]byte("<190>Jun 12 10:00:00 lerdaccess: myapp.test")); err != nil {
+	if _, err := sender.Write([]byte("<190>Jun 12 10:00:00 servloaccess: myapp.test")); err != nil {
 		t.Fatalf("send: %v", err)
 	}
 

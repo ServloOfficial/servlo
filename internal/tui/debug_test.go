@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dumps"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dumps"
 )
 
 func setLens(m *Model, kind string) {

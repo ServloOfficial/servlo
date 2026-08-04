@@ -15,7 +15,7 @@ import (
 // One query has to serve the whole sweep no matter how many plists there are.
 func TestAllUnitStates_QueriesContainersOncePerSweep(t *testing.T) {
 	dir := t.TempDir()
-	for _, name := range []string{"lerd-queue-a", "lerd-queue-b", "lerd-horizon-c", "lerd-schedule-d"} {
+	for _, name := range []string{"servlo-queue-a", "servlo-queue-b", "servlo-horizon-c", "servlo-schedule-d"} {
 		if err := os.WriteFile(filepath.Join(dir, name+".plist"), []byte("<plist/>"), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -44,15 +44,15 @@ func TestAllUnitStates_QueriesContainersOncePerSweep(t *testing.T) {
 // The snapshot is only a batching shortcut, so it must give the same answer the
 // per-unit lookup would: a unit whose container is up reads as running.
 func TestContainerRunning_UsesSnapshotWhenPresent(t *testing.T) {
-	snap := map[string]bool{"lerd-queue-a": true, "lerd-queue-b": false}
+	snap := map[string]bool{"servlo-queue-a": true, "servlo-queue-b": false}
 
-	if !containerRunning("lerd-queue-a", snap) {
+	if !containerRunning("servlo-queue-a", snap) {
 		t.Error("unit present and running in the snapshot must read as running")
 	}
-	if containerRunning("lerd-queue-b", snap) {
+	if containerRunning("servlo-queue-b", snap) {
 		t.Error("unit present but stopped in the snapshot must read as not running")
 	}
-	if containerRunning("lerd-missing", snap) {
+	if containerRunning("servlo-missing", snap) {
 		t.Error("unit absent from the snapshot must read as not running")
 	}
 }

@@ -15,28 +15,28 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/agentenv"
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/composer"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/envfile"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/logsource"
-	"github.com/geodro/lerd/internal/nginx"
-	lerdNode "github.com/geodro/lerd/internal/node"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/serviceops"
-	"github.com/geodro/lerd/internal/siteinfo"
-	"github.com/geodro/lerd/internal/siteops"
-	"github.com/geodro/lerd/internal/sitetpl"
-	"github.com/geodro/lerd/internal/store"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
-	"github.com/geodro/lerd/internal/tools"
-	"github.com/geodro/lerd/internal/version"
-	"github.com/geodro/lerd/internal/workerheal"
-	"github.com/geodro/lerd/internal/xdebugops"
+	"github.com/realrashid/servlo/internal/agentenv"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/composer"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/envfile"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/logsource"
+	"github.com/realrashid/servlo/internal/nginx"
+	servloNode "github.com/realrashid/servlo/internal/node"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/realrashid/servlo/internal/sitetpl"
+	"github.com/realrashid/servlo/internal/store"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
+	"github.com/realrashid/servlo/internal/tools"
+	"github.com/realrashid/servlo/internal/version"
+	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/realrashid/servlo/internal/xdebugops"
 )
 
 const protocolVersion = "2024-11-05"
@@ -47,19 +47,19 @@ func knownServices() []string { return config.DefaultPresetNames() }
 
 // builtinServiceEnv returns the recommended Laravel .env KEY=VALUE pairs for
 // a default-preset service, or nil for non-defaults. Reads from the preset
-// YAML so it stays in sync with the env writer (lerd env).
+// YAML so it stays in sync with the env writer (servlo env).
 func builtinServiceEnv(name string) []string { return config.DefaultPresetEnvVars(name) }
 
 // phpVersionRe matches PHP version strings like "8.4" or "8.3" — digits only, no domain names.
 var phpVersionRe = regexp.MustCompile(`^\d+\.\d+$`)
 
-// defaultSitePath is resolved at startup: LERD_SITE_PATH takes precedence when set
+// defaultSitePath is resolved at startup: SERVLO_SITE_PATH takes precedence when set
 // (honoured for hand-written configs and older injected files), otherwise the working
-// directory is used. lerd no longer writes LERD_SITE_PATH into project configs — both
+// directory is used. servlo no longer writes SERVLO_SITE_PATH into project configs — both
 // global and project scopes resolve from the directory the assistant is opened in, so a
 // committed config stays portable across machines.
 var defaultSitePath = func() string {
-	if p := os.Getenv("LERD_SITE_PATH"); p != "" {
+	if p := os.Getenv("SERVLO_SITE_PATH"); p != "" {
 		return p
 	}
 	if cwd, err := os.Getwd(); err == nil {
@@ -135,7 +135,7 @@ var (
 func Serve() error {
 	// The JSON-RPC encoder owns the real stdout. Repoint os.Stdout at stderr for
 	// the session so any in-process handler that still prints to stdout — a service
-	// port-shift notice, the host-proxy .env refresh, a shelled-out `lerd env` that
+	// port-shift notice, the host-proxy .env refresh, a shelled-out `servlo env` that
 	// inherits os.Stdout — lands on stderr instead of corrupting a protocol frame.
 	stdout, restore := guardStdout()
 	defer restore()
@@ -192,7 +192,7 @@ func dispatch(req *rpcRequest) (any, *rpcError) {
 		return map[string]any{
 			"protocolVersion": protocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "lerd", "version": version.Version},
+			"serverInfo":      map[string]any{"name": "servlo", "version": version.Version},
 		}, nil
 	case "tools/list":
 		return map[string]any{"tools": toolList()}, nil
@@ -312,7 +312,7 @@ func ensureFPMStartedMCP(phpVersion, short, container string) map[string]any {
 		return nil
 	}
 	if errors.Is(err, phpDet.ErrFPMNotInstalled) {
-		return toolErr(fmt.Sprintf("PHP %s is not installed — install it with `lerd install`, or start it with service_start(name: \"php%s\")", phpVersion, short))
+		return toolErr(fmt.Sprintf("PHP %s is not installed — install it with `servlo install`, or start it with service_start(name: \"php%s\")", phpVersion, short))
 	}
 	return toolErr(fmt.Sprintf("could not start the PHP %s FPM container: %v", phpVersion, err))
 }
@@ -337,7 +337,7 @@ func execArtisan(args map[string]any) (any, *rpcError) {
 	}
 
 	short := strings.ReplaceAll(phpVersion, ".", "")
-	container := "lerd-php" + short + "-fpm"
+	container := "servlo-php" + short + "-fpm"
 	if errBody := ensureFPMStartedMCP(phpVersion, short, container); errBody != nil {
 		return errBody, nil
 	}
@@ -623,12 +623,12 @@ func execReverbStart(args map[string]any) (any, *rpcError) {
 		phpVersion = detected
 	}
 	versionShort := strings.ReplaceAll(phpVersion, ".", "")
-	fpmUnit := "lerd-php" + versionShort + "-fpm"
-	container := "lerd-php" + versionShort + "-fpm"
-	unitName := "lerd-reverb-" + siteName
+	fpmUnit := "servlo-php" + versionShort + "-fpm"
+	container := "servlo-php" + versionShort + "-fpm"
+	unitName := "servlo-reverb-" + siteName
 
 	unit := fmt.Sprintf(`[Unit]
-Description=Lerd Reverb (%s)
+Description=Servlo Reverb (%s)
 After=network.target %s.service
 BindsTo=%s.service
 
@@ -642,14 +642,14 @@ ExecStart=%s exec -w %s %s php artisan reverb:start
 WantedBy=default.target
 `, siteName, fpmUnit, fpmUnit, podman.PodmanBin(), site.Path, container)
 
-	if err := lerdSystemd.WriteService(unitName, unit); err != nil {
+	if err := servloSystemd.WriteService(unitName, unit); err != nil {
 		return toolErr("writing service unit: " + err.Error()), nil
 	}
 	if err := podman.DaemonReloadFn(); err != nil {
 		return toolErr("daemon-reload: " + err.Error()), nil
 	}
-	_ = lerdSystemd.EnableService(unitName)
-	if err := lerdSystemd.StartService(unitName); err != nil {
+	_ = servloSystemd.EnableService(unitName)
+	if err := servloSystemd.StartService(unitName); err != nil {
 		return toolErr("starting reverb: " + err.Error()), nil
 	}
 	return toolOK(fmt.Sprintf("Reverb started for %s\nLogs: journalctl --user -u %s -f", siteName, unitName)), nil
@@ -660,9 +660,9 @@ func execReverbStop(args map[string]any) (any, *rpcError) {
 	if siteName == "" {
 		return toolErr("site is required"), nil
 	}
-	unitName := "lerd-reverb-" + siteName
+	unitName := "servlo-reverb-" + siteName
 	unitFile := filepath.Join(config.SystemdUserDir(), unitName+".service")
-	_ = lerdSystemd.DisableService(unitName)
+	_ = servloSystemd.DisableService(unitName)
 	_ = podman.StopUnit(unitName)
 	if err := os.Remove(unitFile); err != nil && !os.IsNotExist(err) {
 		return toolErr("removing unit file: " + err.Error()), nil
@@ -690,12 +690,12 @@ func execHorizonStart(args map[string]any) (any, *rpcError) {
 		phpVersion = detected
 	}
 	versionShort := strings.ReplaceAll(phpVersion, ".", "")
-	fpmUnit := "lerd-php" + versionShort + "-fpm"
-	container := "lerd-php" + versionShort + "-fpm"
-	unitName := "lerd-horizon-" + siteName
+	fpmUnit := "servlo-php" + versionShort + "-fpm"
+	container := "servlo-php" + versionShort + "-fpm"
+	unitName := "servlo-horizon-" + siteName
 
 	unit := fmt.Sprintf(`[Unit]
-Description=Lerd Horizon (%s)
+Description=Servlo Horizon (%s)
 After=network.target %s.service
 BindsTo=%s.service
 
@@ -709,14 +709,14 @@ ExecStart=%s exec -w %s %s php artisan horizon
 WantedBy=default.target
 `, siteName, fpmUnit, fpmUnit, podman.PodmanBin(), site.Path, container)
 
-	if err := lerdSystemd.WriteService(unitName, unit); err != nil {
+	if err := servloSystemd.WriteService(unitName, unit); err != nil {
 		return toolErr("writing service unit: " + err.Error()), nil
 	}
 	if err := podman.DaemonReloadFn(); err != nil {
 		return toolErr("daemon-reload: " + err.Error()), nil
 	}
-	_ = lerdSystemd.EnableService(unitName)
-	if err := lerdSystemd.StartService(unitName); err != nil {
+	_ = servloSystemd.EnableService(unitName)
+	if err := servloSystemd.StartService(unitName); err != nil {
 		return toolErr("starting horizon: " + err.Error()), nil
 	}
 	return toolOK(fmt.Sprintf("Horizon started for %s\nLogs: journalctl --user -u %s -f", siteName, unitName)), nil
@@ -727,9 +727,9 @@ func execHorizonStop(args map[string]any) (any, *rpcError) {
 	if siteName == "" {
 		return toolErr("site is required"), nil
 	}
-	unitName := "lerd-horizon-" + siteName
+	unitName := "servlo-horizon-" + siteName
 	unitFile := filepath.Join(config.SystemdUserDir(), unitName+".service")
-	_ = lerdSystemd.DisableService(unitName)
+	_ = servloSystemd.DisableService(unitName)
 	_ = podman.StopUnit(unitName)
 	if err := os.Remove(unitFile); err != nil && !os.IsNotExist(err) {
 		return toolErr("removing unit file: " + err.Error()), nil
@@ -752,12 +752,12 @@ func execScheduleStart(args map[string]any) (any, *rpcError) {
 		phpVersion = detected
 	}
 	versionShort := strings.ReplaceAll(phpVersion, ".", "")
-	fpmUnit := "lerd-php" + versionShort + "-fpm"
-	container := "lerd-php" + versionShort + "-fpm"
-	unitName := "lerd-schedule-" + siteName
+	fpmUnit := "servlo-php" + versionShort + "-fpm"
+	container := "servlo-php" + versionShort + "-fpm"
+	unitName := "servlo-schedule-" + siteName
 
 	unit := fmt.Sprintf(`[Unit]
-Description=Lerd Scheduler (%s)
+Description=Servlo Scheduler (%s)
 After=network.target %s.service
 BindsTo=%s.service
 
@@ -771,14 +771,14 @@ ExecStart=%s exec -w %s %s php artisan schedule:work
 WantedBy=default.target
 `, siteName, fpmUnit, fpmUnit, podman.PodmanBin(), site.Path, container)
 
-	if err := lerdSystemd.WriteService(unitName, unit); err != nil {
+	if err := servloSystemd.WriteService(unitName, unit); err != nil {
 		return toolErr("writing service unit: " + err.Error()), nil
 	}
 	if err := podman.DaemonReloadFn(); err != nil {
 		return toolErr("daemon-reload: " + err.Error()), nil
 	}
-	_ = lerdSystemd.EnableService(unitName)
-	if err := lerdSystemd.StartService(unitName); err != nil {
+	_ = servloSystemd.EnableService(unitName)
+	if err := servloSystemd.StartService(unitName); err != nil {
 		return toolErr("starting scheduler: " + err.Error()), nil
 	}
 	return toolOK(fmt.Sprintf("Scheduler started for %s\nLogs: journalctl --user -u %s -f", siteName, unitName)), nil
@@ -789,9 +789,9 @@ func execScheduleStop(args map[string]any) (any, *rpcError) {
 	if siteName == "" {
 		return toolErr("site is required"), nil
 	}
-	unitName := "lerd-schedule-" + siteName
+	unitName := "servlo-schedule-" + siteName
 	unitFile := filepath.Join(config.SystemdUserDir(), unitName+".service")
-	_ = lerdSystemd.DisableService(unitName)
+	_ = servloSystemd.DisableService(unitName)
 	_ = podman.StopUnit(unitName)
 	if err := os.Remove(unitFile); err != nil && !os.IsNotExist(err) {
 		return toolErr("removing unit file: " + err.Error()), nil
@@ -841,11 +841,11 @@ func execStripeListen(args map[string]any) (any, *rpcError) {
 		scheme = "https"
 	}
 	forwardTo := scheme + "://" + site.PrimaryDomain() + webhookPath
-	unitName := "lerd-stripe-" + siteName
+	unitName := "servlo-stripe-" + siteName
 	containerName := unitName
 
 	unit := fmt.Sprintf(`[Unit]
-Description=Lerd Stripe Listener (%s)
+Description=Servlo Stripe Listener (%s)
 After=network.target
 
 [Service]
@@ -858,14 +858,14 @@ ExecStart=%s run --rm --replace --name %s --network host docker.io/stripe/stripe
 WantedBy=default.target
 `, siteName, podman.PodmanBin(), containerName, apiKey, forwardTo)
 
-	if err := lerdSystemd.WriteService(unitName, unit); err != nil {
+	if err := servloSystemd.WriteService(unitName, unit); err != nil {
 		return toolErr("writing service unit: " + err.Error()), nil
 	}
 	if err := podman.DaemonReloadFn(); err != nil {
 		return toolErr("daemon-reload: " + err.Error()), nil
 	}
-	_ = lerdSystemd.EnableService(unitName)
-	if err := lerdSystemd.StartService(unitName); err != nil {
+	_ = servloSystemd.EnableService(unitName)
+	if err := servloSystemd.StartService(unitName); err != nil {
 		return toolErr("starting stripe listener: " + err.Error()), nil
 	}
 	return toolOK(fmt.Sprintf("Stripe listener started for %s\nForwarding to: %s\nLogs: journalctl --user -u %s -f", siteName, forwardTo, unitName)), nil
@@ -876,9 +876,9 @@ func execStripeListenStop(args map[string]any) (any, *rpcError) {
 	if siteName == "" {
 		return toolErr("site is required"), nil
 	}
-	unitName := "lerd-stripe-" + siteName
+	unitName := "servlo-stripe-" + siteName
 	unitFile := filepath.Join(config.SystemdUserDir(), unitName+".service")
-	_ = lerdSystemd.DisableService(unitName)
+	_ = servloSystemd.DisableService(unitName)
 	_ = podman.StopUnit(unitName)
 	if err := os.Remove(unitFile); err != nil && !os.IsNotExist(err) {
 		return toolErr("removing unit file: " + err.Error()), nil
@@ -913,8 +913,8 @@ func execStripeConfig(args map[string]any) (any, *rpcError) {
 		return toolErr("saving stripe config: " + err.Error()), nil
 	}
 	// Re-forward a running listener to the new route by rewriting + restarting
-	// its unit; the start path reads the freshly saved path from .lerd.yaml.
-	if lerdSystemd.IsServiceActive("lerd-stripe-" + siteName) {
+	// its unit; the start path reads the freshly saved path from .servlo.yaml.
+	if servloSystemd.IsServiceActive("servlo-stripe-" + siteName) {
 		return execStripeListen(args)
 	}
 	return toolOK(fmt.Sprintf("Updated Stripe config for %s\nWebhook path: %s",
@@ -941,7 +941,7 @@ func execComposer(args map[string]any) (any, *rpcError) {
 	}
 
 	short := strings.ReplaceAll(phpVersion, ".", "")
-	container := "lerd-php" + short + "-fpm"
+	container := "servlo-php" + short + "-fpm"
 	if errBody := ensureFPMStartedMCP(phpVersion, short, container); errBody != nil {
 		return errBody, nil
 	}
@@ -1020,7 +1020,7 @@ func execVendorRun(args map[string]any) (any, *rpcError) {
 	}
 
 	short := strings.ReplaceAll(phpVersion, ".", "")
-	container := "lerd-php" + short + "-fpm"
+	container := "servlo-php" + short + "-fpm"
 	if errBody := ensureFPMStartedMCP(phpVersion, short, container); errBody != nil {
 		return errBody, nil
 	}
@@ -1048,9 +1048,9 @@ func execNodeInstall(args map[string]any) (any, *rpcError) {
 		return toolErr("version is required"), nil
 	}
 
-	mgr := lerdNode.Active()
+	mgr := servloNode.Active()
 	if !mgr.Available() {
-		return toolErr(mgr.Name() + " not found — run 'lerd install' to set up Node.js management"), nil
+		return toolErr(mgr.Name() + " not found — run 'servlo install' to set up Node.js management"), nil
 	}
 	if err := mgr.Install(version); err != nil {
 		return toolErr(fmt.Sprintf("node install %s failed: %v", version, err)), nil
@@ -1064,9 +1064,9 @@ func execNodeUninstall(args map[string]any) (any, *rpcError) {
 		return toolErr("version is required"), nil
 	}
 
-	mgr := lerdNode.Active()
+	mgr := servloNode.Active()
 	if !mgr.Available() {
-		return toolErr(mgr.Name() + " not found — run 'lerd install' to set up Node.js management"), nil
+		return toolErr(mgr.Name() + " not found — run 'servlo install' to set up Node.js management"), nil
 	}
 	if err := mgr.Uninstall(version); err != nil {
 		return toolErr(fmt.Sprintf("node uninstall %s failed: %v", version, err)), nil
@@ -1091,7 +1091,7 @@ func execRuntimeVersions() (any, *rpcError) {
 	if cfg != nil {
 		defaultNode = cfg.Node.DefaultVersion
 	}
-	nodeVersions := lerdNode.ListInstalled()
+	nodeVersions := servloNode.ListInstalled()
 
 	type runtimeEntry struct {
 		Installed      []string `json:"installed"`
@@ -1148,13 +1148,13 @@ func execStatus() (any, *rpcError) {
 	var r result
 	r.DNS.TLD = tld
 	r.DNS.OK, _ = dns.Check(tld)
-	r.Nginx.Running, _ = podman.ContainerRunning("lerd-nginx")
-	r.Watcher.Running = exec.Command("systemctl", "--user", "is-active", "--quiet", "lerd-watcher").Run() == nil
+	r.Nginx.Running, _ = podman.ContainerRunning("servlo-nginx")
+	r.Watcher.Running = exec.Command("systemctl", "--user", "is-active", "--quiet", "servlo-watcher").Run() == nil
 
 	versions, _ := phpDet.ListInstalled()
 	for _, v := range versions {
 		short := strings.ReplaceAll(v, ".", "")
-		running, _ := podman.ContainerRunning("lerd-php" + short + "-fpm")
+		running, _ := podman.ContainerRunning("servlo-php" + short + "-fpm")
 		r.PHPFPMs = append(r.PHPFPMs, phpStatus{Version: v, Running: running})
 	}
 	for _, s := range tools.StatusAll(context.Background()) {
@@ -1162,7 +1162,7 @@ func execStatus() (any, *rpcError) {
 			continue
 		}
 		if s.UpdateAvailable {
-			r.ToolsHint = "a tool differs from its pinned version; the user can apply it with `lerd tools:update` (CLI-only)"
+			r.ToolsHint = "a tool differs from its pinned version; the user can apply it with `servlo tools:update` (CLI-only)"
 		}
 		r.Tools = append(r.Tools, s)
 	}
@@ -1174,7 +1174,7 @@ func execStatus() (any, *rpcError) {
 func execDoctor() (any, *rpcError) {
 	self, err := os.Executable()
 	if err != nil {
-		return toolErr("could not resolve lerd executable: " + err.Error()), nil
+		return toolErr("could not resolve servlo executable: " + err.Error()), nil
 	}
 
 	// Reuse the CLI's structured diagnostic so the check set and its fix tiers
@@ -1192,7 +1192,7 @@ func execDoctor() (any, *rpcError) {
 		return toolOK(stripANSI(strings.TrimSpace(out.String()))), nil
 	}
 
-	report["how_to_fix"] = "Each finding carries fix.tier. 'auto': call diag action doctor_fix to apply the safe repairs (it runs the non-sudo fixes and re-checks), then call doctor again to confirm. 'manual': the repair needs sudo, so give the user the finding's hint as the exact command to run, never run sudo yourself. 'none': external state (a foreign process on a port, a config syntax error) to explain to the user. If a finding is unclear or cannot be fixed here, offer to file it on GitHub with diag action bug_report (an anonymised report to attach to a new issue at https://github.com/lerd-env/lerd/issues)."
+	report["how_to_fix"] = "Each finding carries fix.tier. 'auto': call diag action doctor_fix to apply the safe repairs (it runs the non-sudo fixes and re-checks), then call doctor again to confirm. 'manual': the repair needs sudo, so give the user the finding's hint as the exact command to run, never run sudo yourself. 'none': external state (a foreign process on a port, a config syntax error) to explain to the user. If a finding is unclear or cannot be fixed here, offer to file it on GitHub with diag action bug_report (an anonymised report to attach to a new issue at https://github.com/realrashid/servlo/issues)."
 
 	data, _ := json.MarshalIndent(report, "", "  ")
 	return toolOK(string(data)), nil
@@ -1206,7 +1206,7 @@ func execWhich(args map[string]any) (any, *rpcError) {
 
 	self, err := os.Executable()
 	if err != nil {
-		return toolErr("could not resolve lerd executable: " + err.Error()), nil
+		return toolErr("could not resolve servlo executable: " + err.Error()), nil
 	}
 
 	var out bytes.Buffer
@@ -1223,7 +1223,7 @@ func execWhich(args map[string]any) (any, *rpcError) {
 func execDoctorFix() (any, *rpcError) {
 	self, err := os.Executable()
 	if err != nil {
-		return toolErr("could not resolve lerd executable: " + err.Error()), nil
+		return toolErr("could not resolve servlo executable: " + err.Error()), nil
 	}
 
 	// Reuse the CLI fix path. With no tty the confirm prompts read EOF and fall
@@ -1243,14 +1243,14 @@ func execCheck(args map[string]any) (any, *rpcError) {
 		return toolErr("path is required — pass a path argument or open Claude in the project directory"), nil
 	}
 
-	path := filepath.Join(projectPath, ".lerd.yaml")
+	path := filepath.Join(projectPath, ".servlo.yaml")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return toolErr("no .lerd.yaml found in " + projectPath), nil
+		return toolErr("no .servlo.yaml found in " + projectPath), nil
 	}
 
 	cfg, err := config.LoadProjectConfig(projectPath)
 	if err != nil {
-		return toolErr("invalid .lerd.yaml: " + err.Error()), nil
+		return toolErr("invalid .servlo.yaml: " + err.Error()), nil
 	}
 
 	type checkItem struct {
@@ -1396,7 +1396,7 @@ func execCheck(args map[string]any) (any, *rpcError) {
 			if _, err := config.LoadPreset(svc.Preset); err != nil {
 				add("service_"+svc.Name, "fail", fmt.Sprintf("unknown preset %q", svc.Preset))
 			} else if !serviceops.ServiceInstalled(svc.Name) {
-				add("service_"+svc.Name, "warn", fmt.Sprintf("preset %q not installed — run: lerd service preset install %s", svc.Preset, svc.Preset))
+				add("service_"+svc.Name, "warn", fmt.Sprintf("preset %q not installed — run: servlo service preset install %s", svc.Preset, svc.Preset))
 			} else {
 				add("service_"+svc.Name, "ok", "preset: "+svc.Preset)
 			}
@@ -1409,7 +1409,7 @@ func execCheck(args map[string]any) (any, *rpcError) {
 		if serviceops.ServiceInstalled(svc.Name) {
 			add("service_"+svc.Name, "ok", "custom")
 		} else {
-			add("service_"+svc.Name, "fail", fmt.Sprintf("not installed — run `lerd service preset install %s` (if it's a bundled preset) or `lerd service add --name %s ...`", svc.Name, svc.Name))
+			add("service_"+svc.Name, "fail", fmt.Sprintf("not installed — run `servlo service preset install %s` (if it's a bundled preset) or `servlo service add --name %s ...`", svc.Name, svc.Name))
 		}
 	}
 
@@ -1422,10 +1422,10 @@ func execCheck(args map[string]any) (any, *rpcError) {
 		}
 		cfPath := cfg.Container.Containerfile
 		if cfPath == "" {
-			cfPath = "Containerfile.lerd"
+			cfPath = "Containerfile.servlo"
 		}
 		if _, err := os.Stat(filepath.Join(projectPath, cfPath)); os.IsNotExist(err) {
-			add("container.containerfile", "warn", cfPath+" not found — lerd link will fail")
+			add("container.containerfile", "warn", cfPath+" not found — servlo link will fail")
 		} else {
 			add("container.containerfile", "ok", cfPath)
 		}
@@ -1591,7 +1591,7 @@ func resolveTunableService(name string) (*config.CustomService, string, map[stri
 		return nil, "", toolErr("name is required")
 	}
 	if !serviceops.ServiceInstalled(name) {
-		return nil, "", toolErr(fmt.Sprintf("service %q is not installed; run `lerd service preset install %s` first", name, name))
+		return nil, "", toolErr(fmt.Sprintf("service %q is not installed; run `servlo service preset install %s` first", name, name))
 	}
 	svc, err := config.ResolveServiceForTuning(name)
 	if err != nil {
@@ -1865,7 +1865,7 @@ func execServiceCheckUpdates(args map[string]any) (any, *rpcError) {
 		names = []string{name}
 	} else {
 		for _, s := range knownServices() {
-			unit := "lerd-" + s
+			unit := "servlo-" + s
 			if status, _ := podman.UnitStatus(unit); status == "active" {
 				names = append(names, s)
 			}
@@ -1951,7 +1951,7 @@ func execServiceMigrate(args map[string]any) (any, *rpcError) {
 	if err := serviceops.MigrateService(name, target, emit); err != nil {
 		return toolErr(err.Error()), nil
 	}
-	return toolOK("Migrated " + name + " to " + lastImage + ". Backup preserved in ~/.local/share/lerd/backups."), nil
+	return toolOK("Migrated " + name + " to " + lastImage + ". Backup preserved in ~/.local/share/servlo/backups."), nil
 }
 
 func execServiceRollback(args map[string]any) (any, *rpcError) {
@@ -2029,7 +2029,7 @@ func execEnvSetup(args map[string]any) (any, *rpcError) {
 
 	self, err := os.Executable()
 	if err != nil {
-		return toolErr("could not resolve lerd executable: " + err.Error()), nil
+		return toolErr("could not resolve servlo executable: " + err.Error()), nil
 	}
 
 	var out bytes.Buffer
@@ -2043,8 +2043,8 @@ func execEnvSetup(args map[string]any) (any, *rpcError) {
 	return toolOK(stripANSI(strings.TrimSpace(out.String()))), nil
 }
 
-// execEnvOverride scaffolds/seeds the personal .env.lerd_override file by
-// shelling out to `lerd env:override` (same path as the CLI), then returns the
+// execEnvOverride scaffolds/seeds the personal .env.servlo_override file by
+// shelling out to `servlo env:override` (same path as the CLI), then returns the
 // resulting file contents so the agent can see the current overrides.
 func execEnvOverride(args map[string]any) (any, *rpcError) {
 	projectPath := resolvedPath(args)
@@ -2054,7 +2054,7 @@ func execEnvOverride(args map[string]any) (any, *rpcError) {
 
 	self, err := os.Executable()
 	if err != nil {
-		return toolErr("could not resolve lerd executable: " + err.Error()), nil
+		return toolErr("could not resolve servlo executable: " + err.Error()), nil
 	}
 
 	cmdArgs := append([]string{"env:override"}, strSliceArg(args, "set")...)
@@ -2067,17 +2067,17 @@ func execEnvOverride(args map[string]any) (any, *rpcError) {
 		return toolErr(fmt.Sprintf("env:override failed (%v):\n%s", err, stripANSI(out.String()))), nil
 	}
 
-	body, _ := os.ReadFile(filepath.Join(projectPath, ".env.lerd_override"))
+	body, _ := os.ReadFile(filepath.Join(projectPath, ".env.servlo_override"))
 	msg := stripANSI(strings.TrimSpace(out.String()))
 	if len(body) > 0 {
-		msg += "\n\n--- .env.lerd_override ---\n" + strings.TrimSpace(string(body))
+		msg += "\n\n--- .env.servlo_override ---\n" + strings.TrimSpace(string(body))
 	}
 	return toolOK(msg), nil
 }
 
 // execDbSet sets the database for a Laravel project: persists the choice to
-// .lerd.yaml (replacing any existing sqlite/mysql/postgres entry) and re-runs
-// `lerd env` so the .env file is rewritten and any required service is started
+// .servlo.yaml (replacing any existing sqlite/mysql/postgres entry) and re-runs
+// `servlo env` so the .env file is rewritten and any required service is started
 // + database created (or, for sqlite, the database file is touched).
 func execDbSet(args map[string]any) (any, *rpcError) {
 	projectPath := resolvedPath(args)
@@ -2089,7 +2089,7 @@ func execDbSet(args map[string]any) (any, *rpcError) {
 		return toolErr("database is required — pass sqlite, a built-in (mysql/postgres), or an installed family alternate (e.g. mariadb, postgres-pgvector, mysql-5-7)"), nil
 	}
 	if !config.IsDBServiceName(choice) {
-		return toolErr(fmt.Sprintf("invalid database %q — must be sqlite or a service in the mysql/mariadb/postgres/mongo families (install the preset with `lerd service preset %s` first if needed)", choice, choice)), nil
+		return toolErr(fmt.Sprintf("invalid database %q — must be sqlite or a service in the mysql/mariadb/postgres/mongo families (install the preset with `servlo service preset %s` first if needed)", choice, choice)), nil
 	}
 
 	// Check existing DB for the summary message.
@@ -2103,15 +2103,15 @@ func execDbSet(args map[string]any) (any, *rpcError) {
 		}
 	}
 	if err := config.ReplaceProjectDBService(projectPath, choice); err != nil {
-		return toolErr("saving .lerd.yaml: " + err.Error()), nil
+		return toolErr("saving .servlo.yaml: " + err.Error()), nil
 	}
 
-	// Re-exec `lerd env` so the choice is applied to .env immediately. We
+	// Re-exec `servlo env` so the choice is applied to .env immediately. We
 	// shell out to the same binary so the existing service-loop, sqlite file
 	// creation, and database provisioning logic all run unchanged.
 	self, err := os.Executable()
 	if err != nil {
-		return toolErr("could not resolve lerd executable: " + err.Error()), nil
+		return toolErr("could not resolve servlo executable: " + err.Error()), nil
 	}
 	var out bytes.Buffer
 	cmd := exec.Command(self, "env", "--verbose")
@@ -2119,7 +2119,7 @@ func execDbSet(args map[string]any) (any, *rpcError) {
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	if err := cmd.Run(); err != nil {
-		return toolErr(fmt.Sprintf("db_set saved .lerd.yaml but lerd env failed (%v):\n%s", err, out.String())), nil
+		return toolErr(fmt.Sprintf("db_set saved .servlo.yaml but servlo env failed (%v):\n%s", err, out.String())), nil
 	}
 
 	summary := fmt.Sprintf("Database set to %s", choice)
@@ -2142,11 +2142,11 @@ func execDbMove(args map[string]any) (any, *rpcError) {
 	}
 
 	// Re-exec the CLI so the move runs through the same code path as
-	// `lerd db:move`. --force skips the prompt; output is captured rather than
+	// `servlo db:move`. --force skips the prompt; output is captured rather than
 	// written to the MCP stdio channel.
 	self, err := os.Executable()
 	if err != nil {
-		return toolErr("could not resolve lerd executable: " + err.Error()), nil
+		return toolErr("could not resolve servlo executable: " + err.Error()), nil
 	}
 	cmdArgs := []string{"db:move", "--from", from, "--to", to, "--force"}
 	if all {
@@ -2272,7 +2272,7 @@ func execEnvCheck(args map[string]any) (any, *rpcError) {
 	return toolOK(string(data)), nil
 }
 
-// execSiteLink registers a project as a site by delegating to `lerd link`, so
+// execSiteLink registers a project as a site by delegating to `servlo link`, so
 // an assistant gets exactly what the CLI does: name and domain resolution, the
 // framework and PHP detection, every serving mode, and the services a framework
 // requires. Running it as a subprocess with no terminal is also what refuses a
@@ -2289,7 +2289,7 @@ func execSiteLink(args map[string]any) (any, *rpcError) {
 	// Strip styling: a subcommand that renders with lipgloss rather than the
 	// feedback layer colours its output even into a pipe, and escape codes are
 	// noise in a tool result.
-	out, err := runIn(projectPath, lerdSelf(), siteLinkArgs(strArg(args, "name"))...)
+	out, err := runIn(projectPath, servloSelf(), siteLinkArgs(strArg(args, "name"))...)
 	out = strings.TrimSpace(stripANSI(out))
 	if err != nil {
 		if out == "" {
@@ -2300,9 +2300,9 @@ func execSiteLink(args map[string]any) (any, *rpcError) {
 	return toolOK(out), nil
 }
 
-// siteLinkArgs builds the `lerd link` invocation. A requested name is passed as
+// siteLinkArgs builds the `servlo link` invocation. A requested name is passed as
 // the positional, which makes it the site's primary domain. Without one the
-// positional is omitted, so a project's committed .lerd.yaml domains are
+// positional is omitted, so a project's committed .servlo.yaml domains are
 // honoured verbatim rather than having a directory-derived name prepended.
 func siteLinkArgs(name string) []string {
 	if name == "" {
@@ -2462,7 +2462,7 @@ func execUnsecure(args map[string]any) (any, *rpcError) {
 }
 
 // execRenew force-reissues a secured site's certificate through
-// siteops.RenewCert, the same path `lerd secure --renew` uses, so the manual
+// siteops.RenewCert, the same path `servlo secure --renew` uses, so the manual
 // reset-the-clock behaviour is identical across MCP and CLI.
 func execRenew(args map[string]any) (any, *rpcError) {
 	siteName := strArg(args, "site")
@@ -2616,11 +2616,11 @@ type mcpDBEnv struct {
 }
 
 // mcpDBService resolves which installed engine a project's .env points at: a
-// lerd-<service> DB_HOST names the exact instance (including alternates like
+// servlo-<service> DB_HOST names the exact instance (including alternates like
 // mysql-5-7), with the connection's canonical family service as the fallback.
 func mcpDBService(env *mcpDBEnv) string {
 	if env != nil {
-		if s := strings.TrimPrefix(env.host, "lerd-"); s != env.host && s != "" {
+		if s := strings.TrimPrefix(env.host, "servlo-"); s != env.host && s != "" {
 			return s
 		}
 		switch strings.ToLower(env.connection) {
@@ -2977,7 +2977,7 @@ func execFrameworkAdd(args map[string]any) (any, *rpcError) {
 	return toolOK(fmt.Sprintf("Framework %q saved. Use site_link to register a project using this framework.", name)), nil
 }
 
-// resolveWorkerCwd picks the cwd to shell `lerd worker` into: site.Path for
+// resolveWorkerCwd picks the cwd to shell `servlo worker` into: site.Path for
 // parent, worktree path when branch is set. The CLI's workerNames helper
 // keys off cwd to pick parent vs per-worktree unit names.
 func resolveWorkerCwd(site *config.Site, branch string) (string, map[string]any) {
@@ -3058,7 +3058,7 @@ func execCommandsRun(args map[string]any) (any, *rpcError) {
 	if target.Command == "" {
 		return toolErr(fmt.Sprintf("command %q has no shell invocation", name)), nil
 	}
-	// A command from the project's untrusted .lerd.yaml runs on the host, so
+	// A command from the project's untrusted .servlo.yaml runs on the host, so
 	// require explicit consent (force: true) before running it; the approval is
 	// remembered per site. Framework-provided commands are unaffected.
 	if target.ProjectOrigin {
@@ -3068,7 +3068,7 @@ func execCommandsRun(args map[string]any) (any, *rpcError) {
 			return toolErr(fmt.Sprintf("command %q is project-supplied and project host commands are disabled (host_commands.disabled)", name)), nil
 		case !allowed:
 			if force, _ := args["force"].(bool); !force {
-				return toolErr(fmt.Sprintf("command %q comes from the project's .lerd.yaml and runs on your host. Re-run with force: true to approve it. Will execute: %s", name, target.Command)), nil
+				return toolErr(fmt.Sprintf("command %q comes from the project's .servlo.yaml and runs on your host. Re-run with force: true to approve it. Will execute: %s", name, target.Command)), nil
 			}
 			_ = config.ApproveSiteCommand(siteName, target.Command)
 		}
@@ -3080,7 +3080,7 @@ func execCommandsRun(args map[string]any) (any, *rpcError) {
 		}
 	}
 	if target.Output == config.CommandOutputTerminal {
-		return toolErr(fmt.Sprintf("command %q has output: terminal — only runnable from the dashboard or `lerd run`, not via MCP", name)), nil
+		return toolErr(fmt.Sprintf("command %q has output: terminal — only runnable from the dashboard or `servlo run`, not via MCP", name)), nil
 	}
 	cwd := site.Path
 	if target.CWD != "" && target.CWD != "." {
@@ -3146,13 +3146,13 @@ func execCommandAdd(args map[string]any) (any, *rpcError) {
 	}
 
 	if err := config.SetProjectCommand(site.Path, cmd); err != nil {
-		return toolErr("saving .lerd.yaml: " + err.Error()), nil
+		return toolErr("saving .servlo.yaml: " + err.Error()), nil
 	}
 	hint := ""
 	if disabled {
 		hint = " (suppresses framework default)"
 	}
-	return toolOK(fmt.Sprintf("Command %q %s in .lerd.yaml%s. Run it via commands_run(site: %q, name: %q) or `lerd run %s`.", name, action, hint, siteName, name, name)), nil
+	return toolOK(fmt.Sprintf("Command %q %s in .servlo.yaml%s. Run it via commands_run(site: %q, name: %q) or `servlo run %s`.", name, action, hint, siteName, name, name)), nil
 }
 
 func execCommandRemove(args map[string]any) (any, *rpcError) {
@@ -3170,11 +3170,11 @@ func execCommandRemove(args map[string]any) (any, *rpcError) {
 	}
 	if err := config.RemoveProjectCommand(site.Path, name); err != nil {
 		if _, ok := err.(*config.CommandNotFoundError); ok {
-			return toolErr(fmt.Sprintf("command %q not found in .lerd.yaml for site %q", name, siteName)), nil
+			return toolErr(fmt.Sprintf("command %q not found in .servlo.yaml for site %q", name, siteName)), nil
 		}
-		return toolErr("saving .lerd.yaml: " + err.Error()), nil
+		return toolErr("saving .servlo.yaml: " + err.Error()), nil
 	}
-	return toolOK(fmt.Sprintf("Command %q removed from .lerd.yaml.", name)), nil
+	return toolOK(fmt.Sprintf("Command %q removed from .servlo.yaml.", name)), nil
 }
 
 func execWorkerStart(args map[string]any) (any, *rpcError) {
@@ -3194,7 +3194,7 @@ func execWorkerStart(args map[string]any) (any, *rpcError) {
 	if errResp != nil {
 		return errResp, nil
 	}
-	out, err := runIn(cwd, lerdSelf(), "worker", "start", workerName)
+	out, err := runIn(cwd, servloSelf(), "worker", "start", workerName)
 	if err != nil {
 		msg := strings.TrimSpace(out)
 		if msg == "" {
@@ -3222,7 +3222,7 @@ func execWorkerStop(args map[string]any) (any, *rpcError) {
 	if errResp != nil {
 		return errResp, nil
 	}
-	out, err := runIn(cwd, lerdSelf(), "worker", "stop", workerName)
+	out, err := runIn(cwd, servloSelf(), "worker", "stop", workerName)
 	if err != nil {
 		msg := strings.TrimSpace(out)
 		if msg == "" {
@@ -3283,7 +3283,7 @@ func execWorkerList(args map[string]any) (any, *rpcError) {
 	var result []workerInfo
 	for wname, w := range fw.Workers {
 		known[wname] = true
-		unitName := "lerd-" + wname + "-" + siteName + unitSuffix
+		unitName := "servlo-" + wname + "-" + siteName + unitSuffix
 		status, _ := podman.UnitStatus(unitName)
 		label := w.Label
 		if label == "" {
@@ -3310,9 +3310,9 @@ func execWorkerList(args map[string]any) (any, *rpcError) {
 	// Skip orphan detection when scoped to a worktree — FindOrphanedWorkers
 	// walks the parent site only.
 	if branchArg == "" {
-		orphans := lerdSystemd.FindOrphanedWorkers(siteName, known)
+		orphans := servloSystemd.FindOrphanedWorkers(siteName, known)
 		for _, wname := range orphans {
-			unitName := "lerd-" + wname + "-" + siteName
+			unitName := "servlo-" + wname + "-" + siteName
 			result = append(result, workerInfo{
 				Name:     wname,
 				Label:    wname + " (orphaned)",
@@ -3345,8 +3345,8 @@ func execWorkersHealth() (any, *rpcError) {
 
 // execWorkersHeal heals every failed worker (or the named one if `unit` is
 // passed). Returns a per-unit summary so the agent can report what was
-// fixed without re-querying. Mirrors `lerd worker heal` exactly: no
-// .lerd.yaml writes, no unit-file rewrites.
+// fixed without re-querying. Mirrors `servlo worker heal` exactly: no
+// .servlo.yaml writes, no unit-file rewrites.
 func execWorkersHeal(args map[string]any) (any, *rpcError) {
 	if unit := strArg(args, "unit"); unit != "" {
 		if err := workerheal.HealUnit(unit); err != nil {
@@ -3367,14 +3367,14 @@ func execWorkersHeal(args map[string]any) (any, *rpcError) {
 	return toolOK(string(data)), nil
 }
 
-// execWorkersMode shells out to `lerd workers mode` so the same migration
+// execWorkersMode shells out to `servlo workers mode` so the same migration
 // path that restarts active workers in their new shape on macOS runs from
 // MCP too. Linux is a no-op at the CLI layer.
 func execWorkersMode(args map[string]any) (any, *rpcError) {
 	action := strArg(args, "action")
 	switch action {
 	case "get":
-		out, err := runIn("", lerdSelf(), "workers", "mode")
+		out, err := runIn("", servloSelf(), "workers", "mode")
 		if err != nil {
 			msg := strings.TrimSpace(out)
 			if msg == "" {
@@ -3388,7 +3388,7 @@ func execWorkersMode(args map[string]any) (any, *rpcError) {
 		if mode != "exec" && mode != "container" {
 			return toolErr("mode must be exec or container"), nil
 		}
-		out, err := runIn("", "lerd", "workers", "mode", mode)
+		out, err := runIn("", "servlo", "workers", "mode", mode)
 		if err != nil {
 			msg := strings.TrimSpace(out)
 			if msg == "" {
@@ -3402,7 +3402,7 @@ func execWorkersMode(args map[string]any) (any, *rpcError) {
 	}
 }
 
-// execBugReport shells out to `lerd bug-report` rather than re-implementing
+// execBugReport shells out to `servlo bug-report` rather than re-implementing
 // the doctor-output / config-collection logic. Returns the file path so the
 // agent can read or upload it; flags map 1:1 onto the CLI.
 func execBugReport(args map[string]any) (any, *rpcError) {
@@ -3421,7 +3421,7 @@ func execBugReport(args map[string]any) (any, *rpcError) {
 	if v, ok := args["show_real_names"].(bool); ok && v {
 		cmd = append(cmd, "--show-real-names")
 	}
-	output, err := runIn("", "lerd", cmd...)
+	output, err := runIn("", "servlo", cmd...)
 	if err != nil {
 		msg := strings.TrimSpace(output)
 		if msg == "" {
@@ -3502,9 +3502,9 @@ func execWorkerAdd(args map[string]any) (any, *rpcError) {
 		}
 	}
 	if err := config.SetProjectCustomWorker(site.Path, name, w); err != nil {
-		return toolErr("saving .lerd.yaml: " + err.Error()), nil
+		return toolErr("saving .servlo.yaml: " + err.Error()), nil
 	}
-	return toolOK(fmt.Sprintf("Custom worker %q %s in .lerd.yaml. Start it with worker_start(site: %q, worker: %q).", name, action, siteName, name)), nil
+	return toolOK(fmt.Sprintf("Custom worker %q %s in .servlo.yaml. Start it with worker_start(site: %q, worker: %q).", name, action, siteName, name)), nil
 }
 
 func execWorkerRemove(args map[string]any) (any, *rpcError) {
@@ -3523,9 +3523,9 @@ func execWorkerRemove(args map[string]any) (any, *rpcError) {
 	}
 
 	// Stop the worker if running.
-	unitName := "lerd-" + name + "-" + siteName
+	unitName := "servlo-" + name + "-" + siteName
 	if status, _ := podman.UnitStatus(unitName); status == "active" {
-		_ = lerdSystemd.DisableService(unitName)
+		_ = servloSystemd.DisableService(unitName)
 		podman.StopUnit(unitName) //nolint:errcheck
 		unitFile := filepath.Join(config.SystemdUserDir(), unitName+".service")
 		_ = os.Remove(unitFile)
@@ -3556,9 +3556,9 @@ func execWorkerRemove(args map[string]any) (any, *rpcError) {
 
 	if err := config.RemoveProjectCustomWorker(site.Path, name); err != nil {
 		if _, ok := err.(*config.WorkerNotFoundError); ok {
-			return toolErr(fmt.Sprintf("custom worker %q not found in .lerd.yaml for site %q", name, siteName)), nil
+			return toolErr(fmt.Sprintf("custom worker %q not found in .servlo.yaml for site %q", name, siteName)), nil
 		}
-		return toolErr("saving .lerd.yaml: " + err.Error()), nil
+		return toolErr("saving .servlo.yaml: " + err.Error()), nil
 	}
 	return toolOK(fmt.Sprintf("Custom worker %q removed from %s", name, siteName)), nil
 }
@@ -3767,7 +3767,7 @@ func execProjectNew(args map[string]any) (any, *rpcError) {
 	}
 
 	// Framework create commands use --no-install --no-plugins --no-scripts so
-	// the scaffolder doesn't race with lerd's post-link setup. Chase with
+	// the scaffolder doesn't race with servlo's post-link setup. Chase with
 	// `composer install` in the FPM container so project_new returns a
 	// ready-to-work vendor/ directory and any post-install scripts fire.
 	if composerErr := runComposerInstallIfNeeded(projectPath, &out); composerErr != nil {
@@ -3797,7 +3797,7 @@ func runComposerInstallIfNeeded(projectPath string, out *bytes.Buffer) error {
 		}
 		phpVersion = cfg.PHP.DefaultVersion
 	}
-	container := "lerd-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
+	container := "servlo-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
 
 	out.WriteString("\n\n--- composer install ---\n")
 	cmd := podman.Cmd("exec", "-w", projectPath, "--env", composer.ProcessTimeoutEnv(), container, "composer", "install", "--no-interaction")
@@ -3807,7 +3807,7 @@ func runComposerInstallIfNeeded(projectPath string, out *bytes.Buffer) error {
 }
 
 // execSetup runs every Default: true entry in the site framework's Setup list
-// whose Check rule passes, mirroring what the `lerd setup` CLI does when the
+// whose Check rule passes, mirroring what the `servlo setup` CLI does when the
 // user keeps the default selections. Commands run in the site's PHP-FPM
 // container via `podman exec`. A single step failure is reported but doesn't
 // abort the rest — these commands are idempotent by convention.
@@ -3840,7 +3840,7 @@ func execSetup(args map[string]any) (any, *rpcError) {
 		}
 		phpVersion = cfg.PHP.DefaultVersion
 	}
-	container := "lerd-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
+	container := "servlo-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
 	if errBody := ensureFPMStartedMCP(phpVersion, strings.ReplaceAll(phpVersion, ".", ""), container); errBody != nil {
 		return errBody, nil
 	}
@@ -3943,7 +3943,7 @@ func execSiteNode(args map[string]any) (any, *rpcError) {
 		if errResp != nil {
 			return errResp, nil
 		}
-		out, runErr := runIn(cwd, "lerd", "isolate:node", version)
+		out, runErr := runIn(cwd, "servlo", "isolate:node", version)
 		if runErr != nil {
 			msg := strings.TrimSpace(out)
 			if msg == "" {
@@ -3962,7 +3962,7 @@ func execSiteNode(args map[string]any) (any, *rpcError) {
 
 	// Install the version via the active manager (non-fatal if already installed
 	// or the manager is unavailable).
-	if mgr := lerdNode.Active(); mgr.Available() {
+	if mgr := servloNode.Active(); mgr.Available() {
 		_ = mgr.Install(version)
 	}
 
@@ -3980,7 +3980,7 @@ func execSitePause(args map[string]any) (any, *rpcError) {
 	if siteName == "" {
 		return toolErr("site is required"), nil
 	}
-	return runLerdCmd("pause", siteName)
+	return runServloCmd("pause", siteName)
 }
 
 func execSiteUnpause(args map[string]any) (any, *rpcError) {
@@ -3988,7 +3988,7 @@ func execSiteUnpause(args map[string]any) (any, *rpcError) {
 	if siteName == "" {
 		return toolErr("site is required"), nil
 	}
-	return runLerdCmd("unpause", siteName)
+	return runServloCmd("unpause", siteName)
 }
 
 func execSiteRestart(args map[string]any) (any, *rpcError) {
@@ -3996,7 +3996,7 @@ func execSiteRestart(args map[string]any) (any, *rpcError) {
 	if siteName == "" {
 		return toolErr("site is required"), nil
 	}
-	return runLerdCmd("restart", siteName)
+	return runServloCmd("restart", siteName)
 }
 
 func execSiteRebuild(args map[string]any) (any, *rpcError) {
@@ -4004,7 +4004,7 @@ func execSiteRebuild(args map[string]any) (any, *rpcError) {
 	if siteName == "" {
 		return toolErr("site is required"), nil
 	}
-	return runLerdCmd("rebuild", siteName)
+	return runServloCmd("rebuild", siteName)
 }
 
 func execSiteRuntime(args map[string]any) (any, *rpcError) {
@@ -4023,7 +4023,7 @@ func execSiteRuntime(args map[string]any) (any, *rpcError) {
 		return toolErr(fmt.Sprintf("site %q not found", siteName)), nil
 	}
 	if site.IsCustomContainer() {
-		return toolErr("site uses a custom Containerfile; runtime is defined by Containerfile.lerd"), nil
+		return toolErr("site uses a custom Containerfile; runtime is defined by Containerfile.servlo"), nil
 	}
 	if site.IsHostProxy() {
 		return toolErr("host-proxy sites run your dev command on the host, not a PHP runtime"), nil
@@ -4055,7 +4055,7 @@ func execSiteRuntime(args map[string]any) (any, *rpcError) {
 
 	// FrankenPHP only publishes images for PHP >= 8.2; without this guard the
 	// build normalizes the version up (e.g. 8.1 -> 8.5) and silently runs a
-	// different PHP than the site reports. Mirror the `lerd runtime` guard.
+	// different PHP than the site reports. Mirror the `servlo runtime` guard.
 	if !config.IsFrankenPHPVersion(site.PHPVersion) {
 		return toolErr(fmt.Sprintf("FrankenPHP requires PHP %s or newer; this site is on PHP %s — bump it first.",
 			config.FrankenPHPMinVersion, site.PHPVersion)), nil
@@ -4082,7 +4082,7 @@ func execServicePin(args map[string]any) (any, *rpcError) {
 	if name == "" {
 		return toolErr("name is required"), nil
 	}
-	return runLerdCmd("service", "pin", name)
+	return runServloCmd("service", "pin", name)
 }
 
 func execServiceUnpin(args map[string]any) (any, *rpcError) {
@@ -4090,7 +4090,7 @@ func execServiceUnpin(args map[string]any) (any, *rpcError) {
 	if name == "" {
 		return toolErr("name is required"), nil
 	}
-	return runLerdCmd("service", "unpin", name)
+	return runServloCmd("service", "unpin", name)
 }
 
 // execServicePort moves a service's published host port through the shared
@@ -4134,12 +4134,12 @@ func execServicePort(args map[string]any) (any, *rpcError) {
 	}
 }
 
-// runLerdCmd runs the lerd binary with the given arguments and returns its
+// runServloCmd runs the servlo binary with the given arguments and returns its
 // combined stdout+stderr output as a tool result.
-func runLerdCmd(cmdArgs ...string) (any, *rpcError) {
+func runServloCmd(cmdArgs ...string) (any, *rpcError) {
 	self, err := os.Executable()
 	if err != nil {
-		return toolErr("could not resolve lerd executable: " + err.Error()), nil
+		return toolErr("could not resolve servlo executable: " + err.Error()), nil
 	}
 	var out bytes.Buffer
 	cmd := exec.Command(self, cmdArgs...)
@@ -4193,7 +4193,7 @@ func execDBImport(args map[string]any) (any, *rpcError) {
 }
 
 // mcpSnapshotTarget resolves a snapshot target from MCP args. It honours an
-// explicit service override, then the project's .lerd.yaml db block (what
+// explicit service override, then the project's .servlo.yaml db block (what
 // db_set persists), then falls back to .env — the same priority the CLI uses.
 func mcpSnapshotTarget(args map[string]any) (serviceops.SnapshotTarget, error) {
 	all := boolArg(args, "all_databases")
@@ -4221,7 +4221,7 @@ func mcpSnapshotTarget(args map[string]any) (serviceops.SnapshotTarget, error) {
 	}
 	env, err := readDBEnvLenient(projectPath)
 	if err != nil || env == nil {
-		return serviceops.SnapshotTarget{}, fmt.Errorf("no .lerd.yaml db block or .env found in %s — pass a service argument", projectPath)
+		return serviceops.SnapshotTarget{}, fmt.Errorf("no .servlo.yaml db block or .env found in %s — pass a service argument", projectPath)
 	}
 	service := "mysql"
 	switch strings.ToLower(env.connection) {
@@ -4404,7 +4404,7 @@ func execPHPList() (any, *rpcError) {
 	}
 
 	if len(versions) == 0 {
-		return toolOK("No PHP versions installed. Run 'lerd install' to set up PHP."), nil
+		return toolOK("No PHP versions installed. Run 'servlo install' to set up PHP."), nil
 	}
 
 	type entry struct {
@@ -4504,7 +4504,7 @@ func execPHPExtAdd(args map[string]any) (any, *rpcError) {
 	}
 
 	short := strings.ReplaceAll(version, ".", "")
-	unit := "lerd-php" + short + "-fpm"
+	unit := "servlo-php" + short + "-fpm"
 	if err := podman.RestartUnit(unit); err != nil {
 		return toolOK(fmt.Sprintf("Extension %q added to PHP %s.\n[WARN] FPM restart failed: %v\nRun: systemctl --user restart %s", ext, version, err, unit)), nil
 	}
@@ -4532,7 +4532,7 @@ func execPHPExtRemove(args map[string]any) (any, *rpcError) {
 	}
 
 	short := strings.ReplaceAll(version, ".", "")
-	unit := "lerd-php" + short + "-fpm"
+	unit := "servlo-php" + short + "-fpm"
 	if err := podman.RestartUnit(unit); err != nil {
 		return toolOK(fmt.Sprintf("Extension %q removed from PHP %s.\n[WARN] FPM restart failed: %v\nRun: systemctl --user restart %s", ext, version, err, unit)), nil
 	}
@@ -4617,7 +4617,7 @@ func execPark(args map[string]any) (any, *rpcError) {
 	if path == "" {
 		return toolErr("path is required — pass a path argument or open Claude in the project directory"), nil
 	}
-	return runLerdCmd("park", path)
+	return runServloCmd("park", path)
 }
 
 func execUnpark(args map[string]any) (any, *rpcError) {
@@ -4625,5 +4625,5 @@ func execUnpark(args map[string]any) (any, *rpcError) {
 	if path == "" {
 		return toolErr("path is required"), nil
 	}
-	return runLerdCmd("unpark", path)
+	return runServloCmd("unpark", path)
 }

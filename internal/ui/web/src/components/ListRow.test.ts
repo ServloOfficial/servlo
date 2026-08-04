@@ -17,7 +17,7 @@ describe('ListRow', () => {
 
   it('applies active style class', () => {
     const { container } = render(Harness, { props: { label: 'A', active: true } });
-    expect(container.querySelector('button')!.className).toMatch(/bg-lerd-red/);
+    expect(container.querySelector('button')!.className).toMatch(/bg-servlo-red/);
   });
 
   it('omits leading when not provided', () => {

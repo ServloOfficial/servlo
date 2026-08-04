@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	nodeDet "github.com/geodro/lerd/internal/node"
-	phpDet "github.com/geodro/lerd/internal/php"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	nodeDet "github.com/realrashid/servlo/internal/node"
+	phpDet "github.com/realrashid/servlo/internal/php"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +30,7 @@ func runWhich(_ *cobra.Command, _ []string) error {
 
 	site, err := config.FindSiteByPath(cwd)
 	if err != nil {
-		return fmt.Errorf("no site registered for %s — link it first with lerd link", cwd)
+		return fmt.Errorf("no site registered for %s — link it first with servlo link", cwd)
 	}
 
 	phpVersion, _ := phpDet.DetectVersion(cwd)

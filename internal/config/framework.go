@@ -61,16 +61,16 @@ type Framework struct {
 	Worktree *FrameworkWorktree `yaml:"worktree,omitempty"`
 	// Commands are on-demand actions surfaced in the dashboard "Run command"
 	// dropdown. See FrameworkCommand for the schema. Projects extend or
-	// override this list in .lerd.yaml; use ResolveCommands to merge.
+	// override this list in .servlo.yaml; use ResolveCommands to merge.
 	Commands []FrameworkCommand `yaml:"commands,omitempty"`
 	// Console is the console command to run (without 'php' prefix).
 	// Example: "artisan", "bin/console"
 	Console string `yaml:"console,omitempty"`
 	// Tinker, when set, defines how to run an interactive PHP REPL for
-	// this framework (the in-browser Tinker tab + `lerd tinker` CLI).
+	// this framework (the in-browser Tinker tab + `servlo tinker` CLI).
 	// Absent → fall back to plain `php` execution.
 	Tinker *FrameworkTinker `yaml:"tinker,omitempty"`
-	// Create is the scaffold command used by "lerd new". The target directory is appended automatically.
+	// Create is the scaffold command used by "servlo new". The target directory is appended automatically.
 	// Example: "composer create-project --no-install --no-plugins --no-scripts laravel/laravel"
 	Create string `yaml:"create,omitempty"`
 	// Logs defines where application log files live for this framework.
@@ -79,8 +79,8 @@ type Framework struct {
 	// When set, detectFavicon checks this path in addition to the standard candidates.
 	// Example: "core/misc/favicon.ico" for Drupal.
 	Favicon string `yaml:"favicon,omitempty"`
-	// FrankenPHP, when set, tells lerd how to start a FrankenPHP container
-	// for this framework. When absent, lerd falls back to the generic
+	// FrankenPHP, when set, tells servlo how to start a FrankenPHP container
+	// for this framework. When absent, servlo falls back to the generic
 	// `frankenphp php-server -r <public>/` entrypoint.
 	FrankenPHP *FrameworkFrankenPHP `yaml:"frankenphp,omitempty"`
 	// Doctor, when set, declares framework-specific health checks the site
@@ -97,7 +97,7 @@ type Framework struct {
 }
 
 // FrameworkNginx carries a raw nginx block spliced into the site's server block
-// ahead of lerd's generic `location /` and `location ~ \.php$`, so a framework
+// ahead of servlo's generic `location /` and `location ~ \.php$`, so a framework
 // can claim paths those would otherwise swallow.
 type FrameworkNginx struct {
 	// Snippet is nginx config with three placeholders expanded before render:
@@ -162,7 +162,7 @@ type FrameworkFrankenPHP struct {
 	// script. If false, `--worker` is a no-op and the regular entrypoint is used.
 	SupportsWorker bool `yaml:"supports_worker,omitempty"`
 	// Env is the list of environment variables to set in the container in
-	// normal mode (appended to the defaults lerd always sets).
+	// normal mode (appended to the defaults servlo always sets).
 	Env map[string]string `yaml:"env,omitempty"`
 	// WorkerEnv, when the site opts into worker mode, is merged on top of Env.
 	// Example for Symfony: {"FRANKENPHP_CONFIG": "worker ./public/index.php"}.
@@ -185,7 +185,7 @@ type FrameworkWorker struct {
 	// framework definition rather than rewriting Command in Go means the store
 	// stays the single source of truth for what actually runs.
 	ReloadCommand string `yaml:"reload_command,omitempty"`
-	// TuneCommand is the parameterized variant of Command for `lerd queue:start`,
+	// TuneCommand is the parameterized variant of Command for `servlo queue:start`,
 	// a template with {queue}/{tries}/{timeout} placeholders so each framework
 	// declares its own flag syntax. Empty falls back to Command verbatim.
 	TuneCommand string `yaml:"tune_command,omitempty"`
@@ -201,15 +201,15 @@ type FrameworkWorker struct {
 	Health         *WorkerHealth  `yaml:"health,omitempty"`         // reachability probe: process alive but server not accepting = unhealthy
 	Host           bool           `yaml:"host,omitempty"`           // run on the host via fnm instead of inside the PHP-FPM container
 	// PerWorktree opts the worker into running independently per git worktree
-	// (lerd-<wname>-<site>-<wt>). Defaults to false; set true on workers that
+	// (servlo-<wname>-<site>-<wt>). Defaults to false; set true on workers that
 	// need a separate process per checkout (e.g. dev servers like vite).
 	PerWorktree *bool `yaml:"per_worktree,omitempty"`
 	// ReplacesBuild declares that, while this worker is running, the framework
-	// can render pages without a static asset build. Used by lerd worktree add
-	// and lerd setup to skip the npm run build step when the user opted into
+	// can render pages without a static asset build. Used by servlo worktree add
+	// and servlo setup to skip the npm run build step when the user opted into
 	// such a worker (vite is the canonical case).
 	ReplacesBuild bool `yaml:"replaces_build,omitempty"`
-	// ProjectOrigin marks a worker that came from the untrusted project .lerd.yaml
+	// ProjectOrigin marks a worker that came from the untrusted project .servlo.yaml
 	// (custom_workers), so the host-execution gate can require consent for it.
 	// Never persisted; set only at the merge point.
 	ProjectOrigin bool `yaml:"-" json:"-"`
@@ -271,12 +271,12 @@ type FrameworkSetupCmd struct {
 }
 
 // FrameworkCommand describes a one-shot, on-demand action surfaced in the
-// dashboard "Commands" dropdown and as `lerd run <name>`. The framework yaml
+// dashboard "Commands" dropdown and as `servlo run <name>`. The framework yaml
 // ships canonical defaults; projects extend or override them by name in
-// .lerd.yaml. Distinct from FrameworkWorker (long-running) and
+// .servlo.yaml. Distinct from FrameworkWorker (long-running) and
 // FrameworkSetupCmd (install-time only).
 type FrameworkCommand struct {
-	Name        string         `yaml:"name" json:"name"`                                   // stable identifier, also the `lerd run` argument
+	Name        string         `yaml:"name" json:"name"`                                   // stable identifier, also the `servlo run` argument
 	Label       string         `yaml:"label" json:"label"`                                 // human label shown in the UI
 	Command     string         `yaml:"command" json:"command"`                             // shell command, passed to `sh -c`
 	Description string         `yaml:"description,omitempty" json:"description,omitempty"` // one-line description for tooltips
@@ -285,10 +285,10 @@ type FrameworkCommand struct {
 	Icon        string         `yaml:"icon,omitempty" json:"icon,omitempty"`               // icon name from the known set
 	Check       *FrameworkRule `yaml:"check,omitempty" json:"check,omitempty"`             // hide the command when this rule fails
 	CWD         string         `yaml:"cwd,omitempty" json:"cwd,omitempty"`                 // working dir relative to project root (default: ".")
-	// Disabled, in a project .lerd.yaml entry, suppresses the framework default
+	// Disabled, in a project .servlo.yaml entry, suppresses the framework default
 	// of the same Name without replacing it. Ignored when read from a framework yaml.
 	Disabled bool `yaml:"disabled,omitempty" json:"disabled,omitempty"`
-	// ProjectOrigin marks a command that came from the untrusted project .lerd.yaml
+	// ProjectOrigin marks a command that came from the untrusted project .servlo.yaml
 	// (top-level commands or framework_def), so the host-execution gate can require
 	// consent before running it. Never persisted; set only at the merge point.
 	ProjectOrigin bool `yaml:"-" json:"-"`
@@ -305,8 +305,8 @@ const (
 // ValidCommandOutputs lists the accepted Output values; used by validation.
 var ValidCommandOutputs = []string{CommandOutputSilent, CommandOutputText, CommandOutputURL, CommandOutputTerminal}
 
-// KnownCommandIcons is the curated icon vocabulary. .lerd.yaml entries with an
-// icon outside this set fail `lerd check`. Keep in sync with the UI Icon
+// KnownCommandIcons is the curated icon vocabulary. .servlo.yaml entries with an
+// icon outside this set fail `servlo check`. Keep in sync with the UI Icon
 // component so an icon present here always resolves to a visual on screen.
 var KnownCommandIcons = []string{
 	"broom", "database", "refresh", "link", "check", "list",
@@ -314,7 +314,7 @@ var KnownCommandIcons = []string{
 }
 
 // ResolveCommands merges the framework's command set with project-level entries
-// from .lerd.yaml. Rules:
+// from .servlo.yaml. Rules:
 //   - Project entry with the same Name as a framework entry fully replaces it.
 //   - Project entry with Disabled=true suppresses the framework default and
 //     does not contribute a runnable command.
@@ -369,7 +369,7 @@ func ResolveCommands(fw *Framework, proj *ProjectConfig, projectDir string) []Fr
 type FrameworkPHP struct {
 	Min string `yaml:"min,omitempty"` // minimum PHP version (e.g. "8.2")
 	Max string `yaml:"max,omitempty"` // maximum PHP version (e.g. "8.4")
-	// CLIIni are php.ini directives every PHP process lerd runs for this
+	// CLIIni are php.ini directives every PHP process servlo runs for this
 	// framework needs. The CLI SAPI never reads a project's .user.ini, so a
 	// framework whose commands exhaust PHP's 128M default declares it here
 	// instead of prefixing every command with `php -d`.
@@ -430,11 +430,11 @@ type FrameworkEnvConf struct {
 	WorktreeURLKeys []string `yaml:"worktree_url_keys,omitempty"`
 
 	// Vars are unconditional KEY=VALUE env defaults the framework always wants
-	// applied during `lerd env`, regardless of which services are detected
+	// applied during `servlo env`, regardless of which services are detected
 	// (e.g. CodeIgniter's CI_ENVIRONMENT=development for local dev). They
 	// support the same {{...}} template placeholders as service vars and are
 	// applied as defaults, so detected-service values and personal
-	// .env.lerd_override entries still win over them.
+	// .env.servlo_override entries still win over them.
 	Vars []string `yaml:"vars,omitempty"`
 
 	// Services defines per-service detection rules and env vars to apply.
@@ -447,7 +447,7 @@ type FrameworkEnvConf struct {
 
 // HasEnvConfig reports whether the framework manages an env file at all. A
 // framework with no env section (a static or host-proxy app) is skipped by
-// `lerd env` and the doctor's env checks, not flagged for a file it never had.
+// `servlo env` and the doctor's env checks, not flagged for a file it never had.
 func (f *Framework) HasEnvConfig() bool {
 	if f == nil {
 		return false
@@ -587,11 +587,11 @@ var laravelFramework = &Framework{
 				},
 				Vars: []string{
 					"DB_CONNECTION=mysql",
-					"DB_HOST=lerd-mysql",
+					"DB_HOST=servlo-mysql",
 					"DB_PORT=3306",
 					"DB_DATABASE={{site}}",
 					"DB_USERNAME=root",
-					"DB_PASSWORD=lerd",
+					"DB_PASSWORD=servlo",
 				},
 			},
 			"postgres": {
@@ -600,11 +600,11 @@ var laravelFramework = &Framework{
 				},
 				Vars: []string{
 					"DB_CONNECTION=pgsql",
-					"DB_HOST=lerd-postgres",
+					"DB_HOST=servlo-postgres",
 					"DB_PORT=5432",
 					"DB_DATABASE={{site}}",
 					"DB_USERNAME=postgres",
-					"DB_PASSWORD=lerd",
+					"DB_PASSWORD=servlo",
 				},
 			},
 			"redis": {
@@ -615,7 +615,7 @@ var laravelFramework = &Framework{
 					{Key: "QUEUE_CONNECTION", ValuePrefix: "redis"},
 				},
 				Vars: []string{
-					"REDIS_HOST=lerd-redis",
+					"REDIS_HOST=servlo-redis",
 					"REDIS_PORT=6379",
 					"REDIS_PASSWORD=",
 				},
@@ -625,7 +625,7 @@ var laravelFramework = &Framework{
 					{Key: "SCOUT_DRIVER", ValuePrefix: "meilisearch"},
 				},
 				Vars: []string{
-					"MEILISEARCH_HOST=http://lerd-meilisearch:7700",
+					"MEILISEARCH_HOST=http://servlo-meilisearch:7700",
 					"MEILISEARCH_NO_ANALYTICS=true",
 				},
 			},
@@ -635,10 +635,10 @@ var laravelFramework = &Framework{
 					{Key: "AWS_ENDPOINT"},
 				},
 				Vars: []string{
-					"AWS_ACCESS_KEY_ID=lerd",
-					"AWS_SECRET_ACCESS_KEY=lerdpassword",
+					"AWS_ACCESS_KEY_ID=servlo",
+					"AWS_SECRET_ACCESS_KEY=servlopassword",
 					"AWS_BUCKET={{bucket}}",
-					"AWS_ENDPOINT=http://lerd-rustfs:9000",
+					"AWS_ENDPOINT=http://servlo-rustfs:9000",
 					"AWS_URL=http://localhost:9000/{{bucket}}",
 					"AWS_USE_PATH_STYLE_ENDPOINT=true",
 				},
@@ -649,7 +649,7 @@ var laravelFramework = &Framework{
 				},
 				Vars: []string{
 					"MAIL_MAILER=smtp",
-					"MAIL_HOST=lerd-mailpit",
+					"MAIL_HOST=servlo-mailpit",
 					"MAIL_PORT=1025",
 					"MAIL_USERNAME=null",
 					"MAIL_PASSWORD=null",
@@ -713,10 +713,10 @@ var laravelFramework = &Framework{
 		// Non-worker serves via plain frankenphp php-server so code edits take effect
 		// immediately (fresh request lifecycle), same UX as FPM.
 		Entrypoint: []string{"frankenphp", "php-server", "-l", ":8000", "-r", "public/"},
-		// Worker runs Octane. pcntl and nodejs are baked into lerd's derived
+		// Worker runs Octane. pcntl and nodejs are baked into servlo's derived
 		// FrankenPHP image now (see podman.BuildFrankenPHPImage), so the entrypoint
 		// no longer installs them at container start. By default code edits need
-		// `lerd restart`; opting the octane worker into reload (lerd octane:reload
+		// `servlo restart`; opting the octane worker into reload (servlo octane:reload
 		// on) selects the watch variant below so the server restarts on changes.
 		WorkerEntrypoint: []string{"sh", "-c",
 			`exec php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto`},
@@ -777,7 +777,7 @@ var symfonyFramework = &Framework{
 	},
 	Env: FrameworkEnvConf{
 		// Symfony commits .env and gitignores .env.local as the local override,
-		// so lerd writes its connection values into .env.local, seeded from .env.
+		// so servlo writes its connection values into .env.local, seeded from .env.
 		// Symfony's base URL lives under DEFAULT_URI, not APP_URL.
 		File:        ".env.local",
 		ExampleFile: ".env",
@@ -786,19 +786,19 @@ var symfonyFramework = &Framework{
 		Services: map[string]FrameworkServiceDef{
 			"mysql": {
 				Detect: []FrameworkServiceDetect{{Key: "DATABASE_URL", ValuePrefix: "mysql"}},
-				Vars:   []string{"DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/{{site}}?serverVersion=8.0"},
+				Vars:   []string{"DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/{{site}}?serverVersion=8.0"},
 			},
 			"postgres": {
 				Detect: []FrameworkServiceDetect{{Key: "DATABASE_URL", ValuePrefix: "postgres"}, {Key: "DATABASE_URL", ValuePrefix: "pgsql"}},
-				Vars:   []string{"DATABASE_URL=postgresql://postgres:lerd@lerd-postgres:5432/{{site}}?serverVersion=16"},
+				Vars:   []string{"DATABASE_URL=postgresql://postgres:servlo@servlo-postgres:5432/{{site}}?serverVersion=16"},
 			},
 			"redis": {
 				Detect: []FrameworkServiceDetect{{Key: "REDIS_URL"}, {Key: "MESSENGER_TRANSPORT_DSN", ValuePrefix: "redis"}},
-				Vars:   []string{"REDIS_URL=redis://lerd-redis:6379"},
+				Vars:   []string{"REDIS_URL=redis://servlo-redis:6379"},
 			},
 			"mailpit": {
 				Detect: []FrameworkServiceDetect{{Key: "MAILER_DSN"}},
-				Vars:   []string{"MAILER_DSN=smtp://lerd-mailpit:1025"},
+				Vars:   []string{"MAILER_DSN=smtp://servlo-mailpit:1025"},
 			},
 		},
 	},
@@ -1018,13 +1018,13 @@ func mergeUserOverlay(base *Framework) *Framework {
 //
 // It is a read-only resolver. Rendering a vhost, drawing a TUI row, or serving a
 // dashboard poll all land here, so it must never write to the project: use
-// SyncProjectFrameworkVersion from the commands that own .lerd.yaml.
+// SyncProjectFrameworkVersion from the commands that own .servlo.yaml.
 func GetFrameworkForDir(name, projectDir string) (*Framework, bool) {
 	if name == "" {
 		return nil, false
 	}
 
-	// 1. Resolve version from composer.lock (source of truth) or .lerd.yaml (fallback).
+	// 1. Resolve version from composer.lock (source of truth) or .servlo.yaml (fallback).
 	version := DetectMajorVersion(projectDir, name)
 	if version == "" {
 		if proj, err := LoadProjectConfig(projectDir); err == nil {
@@ -1113,7 +1113,7 @@ func GetFrameworkForDir(name, projectDir string) (*Framework, bool) {
 	return nil, false
 }
 
-// mergeProjectWorkers merges custom_workers from .lerd.yaml on top of the
+// mergeProjectWorkers merges custom_workers from .servlo.yaml on top of the
 // framework definition. These are project-specific workers that live in git.
 func mergeProjectWorkers(fw *Framework, projectDir string) *Framework {
 	if projectDir == "" {
@@ -1307,7 +1307,7 @@ func loadBestVersionedFramework(name, preferVersion string) *Framework {
 }
 
 // ValidatePublicDir returns nil when s is a safe relative subdirectory and
-// an error otherwise. A malicious .lerd.yaml could otherwise pivot the nginx
+// an error otherwise. A malicious .servlo.yaml could otherwise pivot the nginx
 // document root out of the project with `public_dir: ../../etc`. Callers
 // should reject the config or fall back to the framework default on error.
 func ValidatePublicDir(s string) error {
@@ -1351,7 +1351,7 @@ func DetectPublicDir(dir string) string {
 }
 
 // stripUntrustedDoctorChecks drops command-type doctor checks from a framework
-// definition. A project's .lerd.yaml is untrusted input and command checks run
+// definition. A project's .servlo.yaml is untrusted input and command checks run
 // via `sh -c` on the host when the site doctor runs, so they must not survive
 // import into the store; env, symlink, and combo checks are inert and stay.
 func stripUntrustedDoctorChecks(fw *Framework) {
@@ -1371,7 +1371,7 @@ func stripUntrustedDoctorChecks(fw *Framework) {
 }
 
 // SanitizeProjectFrameworkDef returns a copy of an embedded framework_def that is
-// safe to install into the store. A .lerd.yaml is untrusted, so command-type
+// safe to install into the store. A .servlo.yaml is untrusted, so command-type
 // doctor checks (which the site doctor would run on the host) are stripped. The
 // original is left untouched so config diffs and round-trips see the real file.
 func SanitizeProjectFrameworkDef(def *Framework) *Framework {
@@ -1406,27 +1406,27 @@ func SanitizeProjectFrameworkDef(def *Framework) *Framework {
 	// A required service pulls an image and starts a container, so an untrusted
 	// definition must not be able to drive that either.
 	safe.Requires = nil
-	// auto_prepend_file would make every PHP process lerd runs execute a file from
+	// auto_prepend_file would make every PHP process servlo runs execute a file from
 	// the repo, so php.ini directives come only from the trusted store.
 	safe.PHP.CLIIni = nil
 	return safe
 }
 
 // DetectFrameworkForDir is the primary entry point for framework detection.
-// It checks .lerd.yaml first (committed source of truth), restoring embedded
+// It checks .servlo.yaml first (committed source of truth), restoring embedded
 // definitions if needed, then falls back to file/composer-based detection.
 // Does NOT prompt or fetch from the remote store — callers that need store
 // interaction should fall back to store.DetectFrameworkWithStore.
 func DetectFrameworkForDir(dir string) (string, bool) {
-	// 1. .lerd.yaml — committed source of truth.
+	// 1. .servlo.yaml — committed source of truth.
 	if proj, err := LoadProjectConfig(dir); err == nil && proj.Framework != "" {
 		name := proj.Framework
 		// User-defined override always wins.
 		if LoadUserFramework(name) != nil {
 			return name, true
 		}
-		// Restore the embedded definition from .lerd.yaml (the committed source of
-		// truth, so inert edits propagate), sanitised so an untrusted .lerd.yaml
+		// Restore the embedded definition from .servlo.yaml (the committed source of
+		// truth, so inert edits propagate), sanitised so an untrusted .servlo.yaml
 		// can't seed host-executing doctor checks into the store.
 		if proj.FrameworkDef != nil && projectOwnsFramework(name) {
 			safe := SanitizeProjectFrameworkDef(proj.FrameworkDef)
@@ -1630,9 +1630,9 @@ func SaveFramework(fw *Framework) error {
 	return os.WriteFile(filepath.Join(FrameworksDir(), fw.Name+".yaml"), data, 0644)
 }
 
-// FrameworkTinker describes how to launch a REPL for a framework. Lerd
+// FrameworkTinker describes how to launch a REPL for a framework. Servlo
 // uses these to drive both the Tinker tab in the Web UI and the
-// (future) `lerd tinker` CLI command. The schema is intentionally minimal
+// (future) `servlo tinker` CLI command. The schema is intentionally minimal
 // so frameworks don't need to ship a full executable spec — just the
 // argv (relative to a `php …` invocation) and how user code is fed in.
 type FrameworkTinker struct {
@@ -1656,7 +1656,7 @@ type FrameworkTinker struct {
 	//
 	// RequiresPackage is the composer package that must be installed in
 	// vendor/ for this REPL to work. Example: "laravel/tinker".
-	// When the package isn't found, lerd falls back to plain PHP.
+	// When the package isn't found, servlo falls back to plain PHP.
 	RequiresPackage string `yaml:"requires_package,omitempty"`
 	// RequiresFile, similarly, is a relative path that must exist for
 	// this REPL to be usable (e.g. "artisan"). Defaults to no check.
@@ -1719,7 +1719,7 @@ func GetConsoleCommand(projectDir string) (string, error) {
 		}
 	}
 	if frameworkName == "" {
-		return "", fmt.Errorf("no framework assigned — run 'lerd link' first")
+		return "", fmt.Errorf("no framework assigned — run 'servlo link' first")
 	}
 
 	fw, ok := GetFrameworkForDir(frameworkName, projectDir)
@@ -1810,7 +1810,7 @@ func ListFrameworkFiles(name string) []FrameworkFile {
 	return files
 }
 
-// IsBuiltinFramework reports whether name is one of lerd's built-in frameworks
+// IsBuiltinFramework reports whether name is one of servlo's built-in frameworks
 // (laravel, symfony). Their definitions ship in the binary, so their store or
 // user files are overlays that prune and the unlink offer leave alone.
 func IsBuiltinFramework(name string) bool {

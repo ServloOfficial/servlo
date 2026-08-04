@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // The shim is the whole mechanism: Playwright's glibc browser can't run on
@@ -35,7 +35,7 @@ func TestPestBrowserInstall_PrefersLocalPlaywright(t *testing.T) {
 	if !strings.Contains(pestBrowserInstall, "./node_modules/.bin/playwright") {
 		t.Error("install script should use the locally installed playwright binary")
 	}
-	if !strings.Contains(pestBrowserInstall, "lerd npm install playwright") {
+	if !strings.Contains(pestBrowserInstall, "servlo npm install playwright") {
 		t.Error("install script should hint how to install playwright when missing")
 	}
 }
@@ -173,12 +173,12 @@ func TestPestBrowserCleanup_ClearsLockAndOrphans(t *testing.T) {
 	}
 	// The orphan a Ctrl+C leaves behind is now our own curl and the shell driving
 	// it, neither of which runs under a Playwright process name.
-	if !strings.Contains(pestBrowserCleanup, "lerd-playwrigh[t]") {
-		t.Errorf("cleanup must reap lerd's own downloader:\n%s", pestBrowserCleanup)
+	if !strings.Contains(pestBrowserCleanup, "servlo-playwrigh[t]") {
+		t.Errorf("cleanup must reap servlo's own downloader:\n%s", pestBrowserCleanup)
 	}
 	// A pattern that matches the cleanup's own command line would kill it before
 	// it reaps anything.
-	for _, pat := range []string{"oopDownloadBrowserMain", "playwright install", "lerd-playwright"} {
+	for _, pat := range []string{"oopDownloadBrowserMain", "playwright install", "servlo-playwright"} {
 		if strings.Contains(pestBrowserCleanup, pat) {
 			t.Errorf("pkill pattern %q matches the cleanup script itself", pat)
 		}

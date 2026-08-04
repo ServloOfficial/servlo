@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	nodeDet "github.com/geodro/lerd/internal/node"
+	"github.com/realrashid/servlo/internal/config"
+	nodeDet "github.com/realrashid/servlo/internal/node"
 )
 
 func TestJSRuntimeValue(t *testing.T) {
@@ -31,7 +31,7 @@ func TestJSRuntimeValue(t *testing.T) {
 	}
 }
 
-// setJSRuntime should write the chosen js_runtime into the site's .lerd.yaml,
+// setJSRuntime should write the chosen js_runtime into the site's .servlo.yaml,
 // and "auto" should clear it back to unset so detection takes over again.
 func TestSetJSRuntime_WritesAndClears(t *testing.T) {
 	home := t.TempDir()

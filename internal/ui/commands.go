@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/logcolor"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/sitetpl"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/logcolor"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/sitetpl"
 )
 
 // runLocks holds a per-site mutex so two browser tabs (or the palette + the
@@ -77,7 +77,7 @@ func commandRoute(w http.ResponseWriter, r *http.Request, domain string, rest []
 		handleCommandsList(w, r, site)
 	case len(rest) == 3 && rest[2] == "run" && r.Method == http.MethodPost:
 		// Running a command requires dashboard-control authority because it
-		// executes arbitrary shell code as the lerd-ui user.
+		// executes arbitrary shell code as the servlo-panel user.
 		if !hasHostActionAuthority(r) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return true
@@ -104,8 +104,8 @@ func handleCommandsList(w http.ResponseWriter, r *http.Request, site *config.Sit
 }
 
 // resolveSiteCommands merges the framework's command set with the project's
-// .lerd.yaml entries. When `branch` is non-empty, resolves from the
-// worktree's path so the worktree's .lerd.yaml overrides (or extras)
+// .servlo.yaml entries. When `branch` is non-empty, resolves from the
+// worktree's path so the worktree's .servlo.yaml overrides (or extras)
 // take precedence over the main checkout's.
 func resolveSiteCommands(site *config.Site, branch string) []config.FrameworkCommand {
 	if site == nil {

@@ -1,5 +1,5 @@
 // Package serviceops contains the shared business logic for installing,
-// starting, stopping, and removing lerd services. The CLI commands and the
+// starting, stopping, and removing servlo services. The CLI commands and the
 // MCP tools both call into here so they enforce identical preset gating,
 // dependency cascades, and dynamic_env regeneration.
 package serviceops
@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/freeport"
-	"github.com/geodro/lerd/internal/imgledger"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/registry"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/freeport"
+	"github.com/realrashid/servlo/internal/imgledger"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/registry"
 )
 
 func init() {
@@ -31,7 +31,7 @@ func init() {
 	// lag (especially on launchd) and would omit a just-started engine or keep
 	// a just-stopped one in the host list.
 	config.ServiceRunning = func(name string) bool {
-		ok, _ := podman.ContainerRunning("lerd-" + name)
+		ok, _ := podman.ContainerRunning("servlo-" + name)
 		return ok
 	}
 	// The dependency host rewrite prefers a running satisfier so RedisInsight /
@@ -44,11 +44,11 @@ func init() {
 		if name == "" {
 			return ""
 		}
-		return "lerd-" + name
+		return "servlo-" + name
 	}
 }
 
-// IsBuiltin reports whether name is a built-in (default-preset) lerd service.
+// IsBuiltin reports whether name is a built-in (default-preset) servlo service.
 // Kept as a passthrough so callers don't have to import config.
 func IsBuiltin(name string) bool { return config.IsDefaultPreset(name) }
 
@@ -57,7 +57,7 @@ func IsBuiltin(name string) bool { return config.IsDefaultPreset(name) }
 // YAML for custom services so it agrees with the services list, not the quadlet.
 func ServiceInstalled(name string) bool {
 	if config.IsDefaultPreset(name) {
-		return podman.QuadletInstalled("lerd-" + name)
+		return podman.QuadletInstalled("servlo-" + name)
 	}
 	return config.CustomServiceExists(name)
 }
@@ -69,7 +69,7 @@ var UnitInstalledFn = func(unit string) bool { return podman.QuadletInstalled(un
 
 // PortAvailable reports whether a TCP port is free to bind on both loopback
 // stacks. It is the exported form of the guard's own bindability test (now the
-// shared freeport.Bindable), used by the `lerd service port` pre-flight so the
+// shared freeport.Bindable), used by the `servlo service port` pre-flight so the
 // CLI and the guard agree on what "free" means — a plain dial test would miss a
 // port reserved only on ::1.
 func PortAvailable(port int) bool { return freeport.Bindable(port) }
@@ -83,11 +83,11 @@ func PortAvailable(port int) bool { return freeport.Bindable(port) }
 // the MCP server repoints os.Stdout at stderr so its output can't corrupt the
 // protocol. Fired from the guard so any quadlet-write path (install, start,
 // reinstall, `service port --reset`) refreshes followers, not just the explicit
-// `lerd service port` command.
+// `servlo service port` command.
 var OnPublishedPortShift func(service string, newPort int)
 
 // shiftHookMu guards OnPublishedPortShift and shiftSuppressN. SetPublishedPort
-// runs in the long-lived lerd-ui process where HTTP handlers are concurrent, so
+// runs in the long-lived servlo-panel process where HTTP handlers are concurrent, so
 // the hook must never be read or mutated without the lock, and suppression uses
 // a counter rather than nil-swapping the global (a nil-swap could race two
 // callers and leave the hook permanently nil for the process).
@@ -143,25 +143,25 @@ var ensureUnitStatus = podman.UnitStatus
 // generic port guard uses it to avoid treating the service's *own* published
 // listener as a foreign owner of the port (see maybeShiftPublishedPort).
 func unitActive(name string) bool {
-	status, _ := ensureUnitStatus("lerd-" + name)
+	status, _ := ensureUnitStatus("servlo-" + name)
 	return status == "active" || status == "activating"
 }
 
 // maybeShiftPublishedPort decides whether a service whose primary host port is
 // `primary` should be moved to a free port, returning the new port or 0 to keep
-// the default. Port availability is the ONLY signal — lerd never inspects host
+// the default. Port availability is the ONLY signal — servlo never inspects host
 // files, sockets, or binaries to decide. A port is only reclaimed while the
 // service is down (active == false): a running service holds its own port, and
 // counting that as a collision would shuffle a healthy service on every quadlet
 // rewrite (family regeneration, config edit, update). The next free port skips
-// anything another lerd service already publishes (reserved), even when stopped,
+// anything another servlo service already publishes (reserved), even when stopped,
 // so two units don't collide at boot. Returns 0 when the port is fine, the
 // service is up, or no free port exists.
 func maybeShiftPublishedPort(name string, primary int, active bool) int {
 	if primary <= 0 || active {
 		return 0
 	}
-	// Keep the port when it is free to bind AND no other installed lerd service
+	// Keep the port when it is free to bind AND no other installed servlo service
 	// already claims it. Since #704 every family member defaults to the family's
 	// canonical port, so two stopped siblings both bind-test free — the claim
 	// check is what shifts the later one so they can't collide at boot. A phantom
@@ -170,14 +170,14 @@ func maybeShiftPublishedPort(name string, primary int, active bool) int {
 	if freeport.Bindable(primary) && !portClaimedByOtherInstalled(name, primary) {
 		return 0
 	}
-	reserved := lerdReservedPorts()
+	reserved := servloReservedPorts()
 	return freeport.FirstFree(primary+1, func(p int) bool {
 		return reserved[p] || !freeport.Bindable(p)
 	})
 }
 
 // portClaimedByOtherInstalled reports whether host port p is held by an INSTALLED
-// lerd service other than self — the trigger for #704's canonical-port sharing.
+// servlo service other than self — the trigger for #704's canonical-port sharing.
 // Install state gates it (via ServiceInstalled) so a seeded-but-never-installed
 // default preset never blocks a single-instance install from the canonical port,
 // while a genuinely installed sibling does force the shift. Effective ports come
@@ -224,15 +224,15 @@ func portClaimedByOtherInstalled(self string, p int) bool {
 	return false
 }
 
-// lerdReservedPorts collects the host ports already claimed by lerd's own services
-// so the port-ownership guard never auto-picks a port another lerd service will
+// servloReservedPorts collects the host ports already claimed by servlo's own services
+// so the port-ownership guard never auto-picks a port another servlo service will
 // bind. It delegates to config.ReservedHostPorts, the single shared definition the
 // host-proxy dev-server allocator consumes too: configured services' effective
 // ports, every bundled preset's defaults, and installed customs. A preset default
 // matters even for a STOPPED service — nothing is listening, so freeport.Bindable()
 // would report it free, and handing it out would collide when both units start at
 // boot (the failure this guard exists to prevent).
-func lerdReservedPorts() map[int]bool {
+func servloReservedPorts() map[int]bool {
 	return config.ReservedHostPorts()
 }
 
@@ -370,7 +370,7 @@ func InstallPresetStreaming(name, version string, emit func(PhaseEvent)) (*confi
 		emit(PhaseEvent{Phase: "starting_deps", Dep: resolved, State: "ready"})
 	}
 
-	unit := "lerd-" + svc.Name
+	unit := "servlo-" + svc.Name
 	emit(PhaseEvent{Phase: "starting_unit", Unit: unit})
 	// StartService rewrites the quadlet after deps, starts the unit, and
 	// regenerates discover_family consumers — same path as CLI/UI/MCP start.
@@ -430,8 +430,8 @@ func resolvePresetForInstall(name, version string) (*config.CustomService, error
 	// Only a fully-installed service (YAML and unit both present) blocks install.
 	// A partial remnant (YAML-only after an interrupted install, or a quadlet-only
 	// orphan) is healed by letting registerPreset rewrite both here.
-	if config.CustomServiceExists(svc.Name) && UnitInstalledFn("lerd-"+svc.Name) {
-		return nil, fmt.Errorf("custom service %q already exists; remove it first with: lerd service remove %s", svc.Name, svc.Name)
+	if config.CustomServiceExists(svc.Name) && UnitInstalledFn("servlo-"+svc.Name) {
+		return nil, fmt.Errorf("custom service %q already exists; remove it first with: servlo service remove %s", svc.Name, svc.Name)
 	}
 	if missing := MissingPresetDependencies(svc); len(missing) > 0 {
 		return nil, fmt.Errorf("preset %q requires service(s) %s to be installed first", svc.Name, strings.Join(missing, ", "))
@@ -463,7 +463,7 @@ func registerPreset(svc *config.CustomService) error {
 
 // MissingPresetDependencies returns declared dependencies that ResolveDependency
 // cannot satisfy, or that are only met by a drop-in the consumer cannot bind
-// (no discover_family covering it and no pinned lerd-<dep> host to rewrite).
+// (no discover_family covering it and no pinned servlo-<dep> host to rewrite).
 // Each entry is the dependency name, with known drop-in alternatives listed
 // when the store or the consumer's admin_for declares any.
 func MissingPresetDependencies(svc *config.CustomService) []string {
@@ -479,9 +479,9 @@ func MissingPresetDependencies(svc *config.CustomService) []string {
 
 // consumerCanUseDropIn reports whether svc can wire a non-literal satisfier for
 // dep: discover_family that names dep or the satisfier's family, or a pinned
-// lerd-<dep> host that RewriteDependencyHosts can retarget. Without one of those,
+// servlo-<dep> host that RewriteDependencyHosts can retarget. Without one of those,
 // RedisInsight-on-Valkey (and similar) would install green and then time out
-// talking to a hardcoded lerd-redis host.
+// talking to a hardcoded servlo-redis host.
 func consumerCanUseDropIn(svc *config.CustomService, dep, resolved string) bool {
 	if svc == nil {
 		return false
@@ -734,7 +734,7 @@ func EnsureDefaultPresetQuadletPinned(name, pinnedImage string) error {
 		if hasUserPin {
 			probe = pinnedUserImage
 		} else {
-			probe = podman.InstalledImage("lerd-" + name)
+			probe = podman.InstalledImage("servlo-" + name)
 		}
 		if probe != "" {
 			canonicalPin = matchVersionByImageTag(probe, p.Versions)
@@ -762,15 +762,15 @@ func EnsureDefaultPresetQuadletPinned(name, pinnedImage string) error {
 	} else if !hasUserPin {
 		// Honor the on-disk image when the preset's update_strategy says we
 		// shouldn't auto-jump to a newer line. Without this, the install rewrite
-		// (`lerd update` → `install --from-update` → this function) silently bumps
+		// (`servlo update` → `install --from-update` → this function) silently bumps
 		// users from their installed minor (e.g. meilisearch v1.7.x) to whatever
 		// the new preset.Image declares (v1.42), bypassing the per-service
-		// migration UX that `lerd service update` enforces. Rolling-strategy
+		// migration UX that `servlo service update` enforces. Rolling-strategy
 		// services (mailpit, rustfs, gotenberg) intentionally fall through to the
 		// preset image and the track_latest block below.
 		strategy := registry.Strategy(p.UpdateStrategy)
 		if strategy == registry.StrategyPatch || strategy == registry.StrategyMinor || strategy == registry.StrategyNone {
-			if installed := podman.InstalledImage("lerd-" + name); installed != "" {
+			if installed := podman.InstalledImage("servlo-" + name); installed != "" {
 				svc.Image = installed
 				preservedExisting = true
 				if strategy != registry.StrategyNone {
@@ -898,28 +898,28 @@ func ensureCustomServiceQuadletDiff(svc *config.CustomService) (bool, error) {
 	// (DB presets, redis, meilisearch, custom) passes through. When this service
 	// has no published port recorded yet and its primary host port can't be bound,
 	// shift to the next free port and persist it. Port availability is the ONLY
-	// signal: lerd never inspects host files, sockets, or binaries. Persist FIRST,
+	// signal: servlo never inspects host files, sockets, or binaries. Persist FIRST,
 	// failing closed, so the quadlet never publishes a port the config doesn't
 	// record. Once a port is recorded it sticks (the published_port>0 apply below
-	// short-circuits the probe), never auto-reverting — `lerd service port` changes it.
+	// short-circuits the probe), never auto-reverting — `servlo service port` changes it.
 	pp := config.ServicePublishedPort(svc.Name)
 	if pp == 0 {
 		primary := podman.PrimaryHostPort(svc.Ports)
 		if free := maybeShiftPublishedPort(svc.Name, primary, unitActive(svc.Name)); free > 0 {
 			if err := persistPublishedPort(svc.Name, free); err != nil {
-				return false, fmt.Errorf("shifting lerd-%s off in-use port %d: %w", svc.Name, primary, err)
+				return false, fmt.Errorf("shifting servlo-%s off in-use port %d: %w", svc.Name, primary, err)
 			}
 			pp = free // use the just-persisted value directly — no second config read to diverge
 			// Stderr, never stdout: this path runs in-process inside the MCP stdio
 			// server, which reserves stdout for the JSON-RPC stream.
-			fmt.Fprintf(os.Stderr, "Note: 127.0.0.1:%d is in use; publishing lerd-%s on 127.0.0.1:%d instead.\n", primary, svc.Name, free)
-			fmt.Fprintf(os.Stderr, "      (override with: lerd service port %s <port>)\n", svc.Name)
+			fmt.Fprintf(os.Stderr, "Note: 127.0.0.1:%d is in use; publishing servlo-%s on 127.0.0.1:%d instead.\n", primary, svc.Name, free)
+			fmt.Fprintf(os.Stderr, "      (override with: servlo service port %s <port>)\n", svc.Name)
 			// Host-proxy sites reach this service over the published loopback port,
 			// so their .env must follow the shift. The CLI registers the refresh hook.
 			firePublishedPortShift(svc.Name, free)
 		}
 	}
-	// Apply the recorded published port (guard-shifted or set via `lerd service
+	// Apply the recorded published port (guard-shifted or set via `servlo service
 	// port`) to the primary host mapping and the connection URL, leaving the
 	// container-internal port — and every bridge/env reference to it — untouched.
 	// 0 means "use the preset/version default", a no-op for the unmoved majority.
@@ -947,13 +947,13 @@ func ensureCustomServiceQuadletDiff(svc *config.CustomService) (bool, error) {
 		host := podman.PrimaryHostPort([]string{spec})
 		if free := maybeShiftPublishedPort(svc.Name, host, unitActive(svc.Name)); free > 0 && free != host {
 			if err := persistPublishedPortFor(svc.Name, cport, free); err != nil {
-				return false, fmt.Errorf("shifting lerd-%s off in-use port %d: %w", svc.Name, host, err)
+				return false, fmt.Errorf("shifting servlo-%s off in-use port %d: %w", svc.Name, host, err)
 			}
 			svc.Ports = podman.SetHostPortForContainerPort(svc.Ports, cport, free)
-			fmt.Fprintf(os.Stderr, "Note: 127.0.0.1:%d is in use; publishing lerd-%s on 127.0.0.1:%d instead.\n", host, svc.Name, free)
+			fmt.Fprintf(os.Stderr, "Note: 127.0.0.1:%d is in use; publishing servlo-%s on 127.0.0.1:%d instead.\n", host, svc.Name, free)
 		}
 	}
-	// Extra published ports (set via `lerd service expose` / the Web UI ports
+	// Extra published ports (set via `servlo service expose` / the Web UI ports
 	// modal) apply to any bundled preset, not just default-stack ones. Appended
 	// here at the shared choke point — after the primary-port guard reads the
 	// unpolluted mapping — so the preset and materialised-preset paths behave
@@ -975,8 +975,8 @@ func ensureCustomServiceQuadletDiff(svc *config.CustomService) (bool, error) {
 	if err := config.ResolveDynamicEnv(svc); err != nil {
 		return false, err
 	}
-	// Retarget a pinned dependency host (RI_REDIS_HOST=lerd-redis) to the
-	// drop-in that actually satisfies it (lerd-valkey), driven by depends_on so
+	// Retarget a pinned dependency host (RI_REDIS_HOST=servlo-redis) to the
+	// drop-in that actually satisfies it (servlo-valkey), driven by depends_on so
 	// the store YAML stays parseable by binaries that predate this.
 	config.RewriteDependencyHosts(svc)
 	// Re-validate post dynamic_env and for inline services that skip
@@ -991,15 +991,15 @@ func ensureCustomServiceQuadletDiff(svc *config.CustomService) (bool, error) {
 		return false, fmt.Errorf("ensuring hosts mount source for %s: %w", svc.Name, err)
 	}
 	content := podman.GenerateCustomQuadlet(svc)
-	quadletName := "lerd-" + svc.Name
+	quadletName := "servlo-" + svc.Name
 	changed, err := podman.WriteQuadletDiff(quadletName, content)
 	if err != nil {
 		return false, fmt.Errorf("writing unit for %s: %w", svc.Name, err)
 	}
-	// Record the image lerd is installing so cleanup can reclaim it later even
-	// though podman, not lerd, pulls the bytes when the quadlet first starts.
-	// Without this the pull ledger only sees images pulled through lerd's own
-	// pull path, and cleanup's managed tier cannot tell this is lerd's to reap.
+	// Record the image servlo is installing so cleanup can reclaim it later even
+	// though podman, not servlo, pulls the bytes when the quadlet first starts.
+	// Without this the pull ledger only sees images pulled through servlo's own
+	// pull path, and cleanup's managed tier cannot tell this is servlo's to reap.
 	if svc.Image != "" {
 		imgledger.Record(svc.Image)
 	}
@@ -1013,7 +1013,7 @@ func ensureCustomServiceQuadletDiff(svc *config.CustomService) (bool, error) {
 // user-facing start side effects; this is the "bring it up for env/link/db"
 // helper.
 func EnsureServiceRunning(name string) error {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	status, _ := podman.UnitStatus(unit)
 	if status == "active" {
 		if err := waitReadyFn(name, 30*time.Second); err != nil {
@@ -1029,7 +1029,7 @@ func EnsureServiceRunning(name string) error {
 		svc, err := config.LoadCustomService(name)
 		if err != nil {
 			if config.PresetExists(name) {
-				return fmt.Errorf("service %q is not installed; install it with 'lerd service preset %s'", name, name)
+				return fmt.Errorf("service %q is not installed; install it with 'servlo service preset %s'", name, name)
 			}
 			return fmt.Errorf("custom service %q not found: %w", name, err)
 		}
@@ -1094,7 +1094,7 @@ func stopWithDependents(name string, seen map[string]bool) error {
 			firstErr = err
 		}
 	}
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	status, _ := podman.UnitStatus(unit)
 	up := status == "active" || status == "activating"
 	if !up {
@@ -1103,9 +1103,9 @@ func stopWithDependents(name string, seen map[string]bool) error {
 	if !up {
 		return firstErr
 	}
-	// Show the service name (not the lerd- unit) in the shared feedback
-	// vocabulary, so `lerd unlink`/`lerd stop` read as "stopping meilisearch"
-	// rather than the old "Stopping lerd-meilisearch...".
+	// Show the service name (not the servlo- unit) in the shared feedback
+	// vocabulary, so `servlo unlink`/`servlo stop` read as "stopping meilisearch"
+	// rather than the old "Stopping servlo-meilisearch...".
 	step := feedback.Start("stopping " + name)
 	if err := podman.StopUnit(unit); err != nil {
 		step.Fail(err)
@@ -1177,7 +1177,7 @@ func RegenerateFamilyConsumersForService(name string) {
 // RegenerateDynamicEnvConsumersForService regenerates discover_family and
 // pinned-dependency-host consumers after name starts or stops.
 func RegenerateDynamicEnvConsumersForService(name string) {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	status, _ := podman.UnitStatus(unit)
 	switch status {
 	case "active", "activating":
@@ -1198,7 +1198,7 @@ func RegenerateDynamicEnvConsumersForService(name string) {
 
 // RefreshDiscoverFamilyConsumers waits for running family members that any
 // installed discover_family consumer cares about, then rewrites those
-// consumers and every pinned-dependency-host consumer. Bulk start (lerd start / install)
+// consumers and every pinned-dependency-host consumer. Bulk start (servlo start / install)
 // brings engines and admin UIs up together via StartUnit and never hits
 // RegenerateDynamicEnvConsumersForService, so without this pass phpMyAdmin can
 // start with an empty PMA_HOSTS written during pre-start reconcile when no
@@ -1235,7 +1235,7 @@ func RefreshDiscoverFamilyConsumers() {
 }
 
 // RegenerateDependencyHostConsumers rewrites installed customs that pin a
-// dependency host name can satisfy, so RedisInsight picks up lerd-valkey when
+// dependency host name can satisfy, so RedisInsight picks up servlo-valkey when
 // Valkey starts (or drops it when the last redis-role engine stops).
 func RegenerateDependencyHostConsumers(name string) {
 	customs, err := config.ListCustomServices()
@@ -1265,14 +1265,14 @@ func consumesDependencyHostSatisfiedBy(svc *config.CustomService, name string) b
 }
 
 // eachDependencyHost calls fn with each depends_on entry whose canonical host
-// lerd-<dep> the preset pins somewhere in its environment (so
+// servlo-<dep> the preset pins somewhere in its environment (so
 // RewriteDependencyHosts will retarget it). Returns true on the first fn hit.
 func eachDependencyHost(svc *config.CustomService, fn func(dep string) bool) bool {
 	if svc == nil {
 		return false
 	}
 	for _, dep := range svc.DependsOn {
-		canonical := "lerd-" + dep
+		canonical := "servlo-" + dep
 		pinned := false
 		for _, v := range svc.Environment {
 			if strings.Contains(v, canonical) {
@@ -1296,7 +1296,7 @@ func bounceConsumerIfChanged(c *config.CustomService, reason string) {
 	if !changed {
 		return
 	}
-	unit := "lerd-" + c.Name
+	unit := "servlo-" + c.Name
 	status, _ := podman.UnitStatus(unit)
 	up := status == "active" || status == "activating"
 	if !up {
@@ -1319,8 +1319,8 @@ func bounceConsumerIfChanged(c *config.CustomService, reason string) {
 // activating, or whose container is already up so discover_family can see it.
 func waitFamilyMembersReady(family string) {
 	for _, host := range config.ServicesInFamily(family) {
-		name := strings.TrimPrefix(host, "lerd-")
-		unit := "lerd-" + name
+		name := strings.TrimPrefix(host, "servlo-")
+		unit := "servlo-" + name
 		status, _ := podman.UnitStatus(unit)
 		running, _ := podman.ContainerRunning(unit)
 		if status != "active" && status != "activating" && !running {
@@ -1347,7 +1347,7 @@ func waitUntilInactive(unit string, timeout time.Duration) {
 // RegenerateFamilyConsumers re-renders the quadlet of any installed custom
 // service whose dynamic_env references the named family. Active consumers are
 // bounced only when the rendered unit changed, so a bulk start that already
-// has the right host list does not restart phpMyAdmin on every lerd start.
+// has the right host list does not restart phpMyAdmin on every servlo start.
 func RegenerateFamilyConsumers(family string) {
 	customs, err := config.ListCustomServices()
 	if err != nil {

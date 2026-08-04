@@ -1,0 +1,16 @@
+[Unit]
+Description=Servlo Redis
+After=network.target
+
+[Container]
+Image=docker.io/library/redis:7-alpine
+ContainerName=servlo-redis
+Network=servlo
+PublishPort=6379:6379
+Volume=%h/.local/share/servlo/data/redis:/data
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

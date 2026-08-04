@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// A running lerd-ui memoises parsed presets for the process lifetime. Store
-// cache files are rewritten by other processes (lerd install, lerd service
+// A running servlo-panel memoises parsed presets for the process lifetime. Store
+// cache files are rewritten by other processes (servlo install, servlo service
 // update, the 24h refresh), so a memoised entry must notice the file changed
 // on disk and re-parse, or the daemon keeps serving the stale parse until the
 // next restart. Issue #1182.
@@ -52,7 +52,7 @@ func TestLoadPreset_ReParsesWhenStoreCacheFileMtimeChanges(t *testing.T) {
 }
 
 // A store cache file created for the first time while the daemon runs (fresh
-// install: lerd-ui starts before refreshStorePresets writes the files) must
+// install: servlo-panel starts before refreshStorePresets writes the files) must
 // supersede a memoised embedded parse on the next load. Issue #1182.
 func TestLoadPreset_PicksUpNewlyCreatedStoreCacheFile(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())

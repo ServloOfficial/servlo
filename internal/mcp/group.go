@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/grouping"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/grouping"
 )
 
 // secondaryForPath resolves the site registered at the MCP-provided path, which

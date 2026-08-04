@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
 )
 
 // A group main serves "<main> *.<main>". nginx prefers an exact server_name over
@@ -74,7 +74,7 @@ func cascadeGroupSecondaries(main *config.Site) ([]string, error) {
 
 // EnforceGroupSecondaries repairs the invariant across the whole registry: it
 // secures every secondary whose group main is secured. Install runs it as a
-// reconcile, which is also what `lerd dns:enable` re-execs into, so an install
+// reconcile, which is also what `servlo dns:enable` re-execs into, so an install
 // that has already drifted into the broken state is repaired.
 //
 // Returns the secondaries it changed. A failure on one is reported but does not

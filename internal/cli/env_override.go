@@ -7,35 +7,35 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
 // envOverrideFile is the personal, gitignored, per-project override file.
 // It is plain dotenv syntax: any KEY=VALUE is layered on top of what
-// `lerd env` writes, winning over lerd's defaults and computed values.
-const envOverrideFile = ".env.lerd_override"
+// `servlo env` writes, winning over servlo's defaults and computed values.
+const envOverrideFile = ".env.servlo_override"
 
 // envOverrideExternalKey is the one reserved key inside envOverrideFile. Its
-// comma/space separated value lists services lerd should NOT start or
-// provision for this project (you run your own). It is consumed by lerd and
+// comma/space separated value lists services servlo should NOT start or
+// provision for this project (you run your own). It is consumed by servlo and
 // never written into the project's .env.
-const envOverrideExternalKey = "LERD_EXTERNAL_SERVICES"
+const envOverrideExternalKey = "SERVLO_EXTERNAL_SERVICES"
 
-const envOverrideTemplate = `# lerd per-project overrides — personal, not committed (gitignored).
+const envOverrideTemplate = `# servlo per-project overrides — personal, not committed (gitignored).
 #
-# Any KEY=VALUE below is written into this project's .env on every ` + "`lerd env`" + `,
-# winning over lerd's defaults and computed values. Use it to keep your own
+# Any KEY=VALUE below is written into this project's .env on every ` + "`servlo env`" + `,
+# winning over servlo's defaults and computed values. Use it to keep your own
 # connection settings without hand-editing .env after each run, e.g.:
 #   DB_USERNAME=postgres
 #   DB_PASSWORD=secret
 #
-# List services lerd should NOT start or provision here (you run your own),
-# comma-separated. lerd still writes their connection vars to .env so you can
+# List services servlo should NOT start or provision here (you run your own),
+# comma-separated. servlo still writes their connection vars to .env so you can
 # point them at your instance with the lines above:
-#   LERD_EXTERNAL_SERVICES=postgres
+#   SERVLO_EXTERNAL_SERVICES=postgres
 `
 
 // readEnvOverride loads the personal override file from cwd. It returns the
@@ -82,7 +82,7 @@ func readEnvOverride(cwd string) (overrides map[string]string, external map[stri
 }
 
 // externalManaged reports whether name is marked externally managed in
-// .env.lerd_override, printing the standard notice when it is so callers can
+// .env.servlo_override, printing the standard notice when it is so callers can
 // `continue` past start/provision after writing the connection vars.
 func externalManaged(name string, external map[string]bool) bool {
 	if external[name] {
@@ -120,26 +120,26 @@ func overrideOr(overrides, base map[string]string, key string) string {
 }
 
 // NewEnvOverrideCmd returns the env:override command, which scaffolds (and
-// optionally seeds) the personal .env.lerd_override file and gitignores it.
+// optionally seeds) the personal .env.servlo_override file and gitignores it.
 func NewEnvOverrideCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "env:override [KEY=VALUE ...]",
 		Short: "Create/edit a personal, gitignored per-project .env override file",
-		Long: `Create (and optionally seed) .env.lerd_override for this project.
+		Long: `Create (and optionally seed) .env.servlo_override for this project.
 
-This file is personal and never committed: lerd adds it to .gitignore. Every
-KEY=VALUE in it is layered on top of what 'lerd env' writes, winning over
-lerd's defaults. Keep your own credentials there, e.g.:
+This file is personal and never committed: servlo adds it to .gitignore. Every
+KEY=VALUE in it is layered on top of what 'servlo env' writes, winning over
+servlo's defaults. Keep your own credentials there, e.g.:
 
-  lerd env:override DB_USERNAME=postgres DB_PASSWORD=secret
+  servlo env:override DB_USERNAME=postgres DB_PASSWORD=secret
 
-To run your own instance of a service instead of lerd's container, add the
-reserved key (lerd then writes the connection vars but won't start/provision it):
+To run your own instance of a service instead of servlo's container, add the
+reserved key (servlo then writes the connection vars but won't start/provision it):
 
-  lerd env:override LERD_EXTERNAL_SERVICES=postgres
+  servlo env:override SERVLO_EXTERNAL_SERVICES=postgres
 
 Run with no arguments to just create the file from a commented template.
-Re-run 'lerd env' to apply the overrides to your .env.`,
+Re-run 'servlo env' to apply the overrides to your .env.`,
 		RunE: runEnvOverride,
 	}
 }
@@ -163,7 +163,7 @@ func runEnvOverride(_ *cobra.Command, args []string) error {
 	for _, kv := range args {
 		feedback.Note(kv)
 	}
-	feedback.Note("run `lerd env` to apply these overrides to your .env")
+	feedback.Note("run `servlo env` to apply these overrides to your .env")
 	return nil
 }
 

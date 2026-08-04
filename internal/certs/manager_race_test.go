@@ -19,7 +19,7 @@ func TestIssueCertForce_certNeverAbsentDuringReissue(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ exit 0
 		t.Fatal(err)
 	}
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}

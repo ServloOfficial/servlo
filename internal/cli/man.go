@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/man"
+	"github.com/realrashid/servlo/internal/man"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -15,10 +15,10 @@ import (
 func NewManCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "man [page]",
-		Short: "Browse the Lerd documentation",
-		Long: "Browse and search the Lerd documentation in the terminal.\n\n" +
+		Short: "Browse the Servlo documentation",
+		Long: "Browse and search the Servlo documentation in the terminal.\n\n" +
 			"Run without arguments to open the interactive browser, or pass a page\n" +
-			"name to jump directly (e.g. lerd man sites, lerd man usage/sites).",
+			"name to jump directly (e.g. servlo man sites, servlo man usage/sites).",
 		RunE: runMan,
 	}
 }
@@ -64,7 +64,7 @@ func runManPlain(args []string) error {
 	}
 
 	// Print table of contents
-	fmt.Println("Lerd Documentation")
+	fmt.Println("Servlo Documentation")
 	fmt.Println(strings.Repeat("─", 40))
 	lastSection := "SENTINEL"
 	for _, p := range pages {
@@ -72,7 +72,7 @@ func runManPlain(args []string) error {
 			lastSection = p.Section
 			fmt.Printf("\n%s\n", man.SectionLabel(p.Section))
 		}
-		fmt.Printf("  %-32s  lerd man %s\n", p.Title, p.Slug)
+		fmt.Printf("  %-32s  servlo man %s\n", p.Title, p.Slug)
 	}
 	return nil
 }

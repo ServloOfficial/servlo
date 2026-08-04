@@ -5,7 +5,7 @@ import (
 	"io/fs"
 	"strings"
 
-	docsfs "github.com/geodro/lerd"
+	docsfs "github.com/realrashid/servlo"
 )
 
 // Page represents a single documentation page.

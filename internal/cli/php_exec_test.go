@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestPhpScriptArgIndex(t *testing.T) {
@@ -89,7 +89,7 @@ func TestDebugSiteEnvArgs(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := debugSiteEnvArgs(dir)
-	want := []string{"--env", "LERD_SITE=rapids"}
+	want := []string{"--env", "SERVLO_SITE=rapids"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("args = %v, want %v", got, want)
 	}

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/cleanup"
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/cleanup"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // autoCleanupInterval is the minimum gap between automatic sweeps. Orphaned and
@@ -21,7 +21,7 @@ const autoCleanupInterval = 24 * time.Hour
 // dangling image the way the interactive deep tier does. Seam for tests.
 var autoSweep = cleanup.SweepManaged
 
-// WatchCleanup periodically reclaims orphaned lerd images and unused service
+// WatchCleanup periodically reclaims orphaned servlo images and unused service
 // images (the managed tier). It ticks at interval but acts at most once per
 // autoCleanupInterval, throttled by a persisted timestamp so a restarting
 // watcher can't sweep more often. The auto_cleanup config gate turns it off.

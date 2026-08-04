@@ -85,9 +85,9 @@ func TestDeepTargets_KeepsInUseServiceImage(t *testing.T) {
 	}
 }
 
-// With the ledger gate on (managed tier), an unused catalog image lerd never
-// recorded pulling is kept: the ledger, not the repo name, marks it as lerd's.
-func TestDeepTargets_KeepsCatalogImageLerdNeverPulled(t *testing.T) {
+// With the ledger gate on (managed tier), an unused catalog image servlo never
+// recorded pulling is kept: the ledger, not the repo name, marks it as servlo's.
+func TestDeepTargets_KeepsCatalogImageServloNeverPulled(t *testing.T) {
 	imgs := []image{
 		{Names: []string{"docker.io/library/redis:6"}, Size: 300},
 	}
@@ -96,7 +96,7 @@ func TestDeepTargets_KeepsCatalogImageLerdNeverPulled(t *testing.T) {
 	got := deepTargets(imgs, repos, map[string]bool{}, map[string]bool{}, false)
 
 	if len(got) != 0 {
-		t.Fatalf("a catalog image lerd never pulled must be kept, got %+v", got)
+		t.Fatalf("a catalog image servlo never pulled must be kept, got %+v", got)
 	}
 }
 

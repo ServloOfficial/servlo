@@ -39,7 +39,7 @@
       <Icon name="bell" class="w-5 h-5" />
       {#if $unreadNotifications > 0}
         <span
-          class="absolute -top-1 -right-1 min-w-3.5 h-3.5 px-0.5 rounded-full bg-lerd-red text-white text-[9px] font-semibold flex items-center justify-center"
+          class="absolute -top-1 -right-1 min-w-3.5 h-3.5 px-0.5 rounded-full bg-servlo-red text-white text-[9px] font-semibold flex items-center justify-center"
         >{$unreadNotifications > 9 ? '9+' : $unreadNotifications}</span>
       {/if}
     </span>
@@ -47,14 +47,14 @@
 
   {#snippet children(close: () => void)}
     <div
-      class="flex items-center justify-between gap-2 border-b border-gray-100 dark:border-lerd-border/60 px-3 py-2"
+      class="flex items-center justify-between gap-2 border-b border-gray-100 dark:border-servlo-border/60 px-3 py-2"
     >
       <p class="text-xs font-semibold text-gray-800 dark:text-gray-100">{m.notify_center_title()}</p>
       {#if $notificationHistory.length > 0}
         <button
           type="button"
           onclick={clearNotificationHistory}
-          class="text-[11px] text-gray-400 hover:text-lerd-red transition-colors"
+          class="text-[11px] text-gray-400 hover:text-servlo-red transition-colors"
         >{m.common_clear()}</button>
       {/if}
     </div>
@@ -62,7 +62,7 @@
     {#if $notificationHistory.length === 0}
       <p class="px-3 py-4 text-[11px] text-gray-400 dark:text-gray-500">{m.notify_center_empty()}</p>
     {:else}
-      <ul class="max-h-[60vh] overflow-y-auto divide-y divide-gray-100 dark:divide-lerd-border/60">
+      <ul class="max-h-[60vh] overflow-y-auto divide-y divide-gray-100 dark:divide-servlo-border/60">
         {#each $notificationHistory as n (n.id)}
           {@const severity = notificationSeverity(n.kind, n.failed)}
           <li>

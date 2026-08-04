@@ -22,7 +22,7 @@ function buckets(): EntityKind {
       { name: 'import' },
       { name: 'delete', destructive: true }
     ],
-    rows: [{ name: 'lerd', values: ['3', '2048'], site: 'shop.test' }]
+    rows: [{ name: 'servlo', values: ['3', '2048'], site: 'shop.test' }]
   };
 }
 
@@ -42,7 +42,7 @@ describe('ServiceEntitiesTab', () => {
 
   it('renders rows with their declared columns formatted', () => {
     const { getByText } = render(ServiceEntitiesTab, { props: { svc: svc() } });
-    expect(getByText('lerd')).toBeInTheDocument();
+    expect(getByText('servlo')).toBeInTheDocument();
     expect(getByText('3')).toBeInTheDocument();
     expect(getByText('2.0 KB')).toBeInTheDocument();
   });
@@ -56,7 +56,7 @@ describe('ServiceEntitiesTab', () => {
     const { getByLabelText } = render(ServiceEntitiesTab, { props: { svc: svc() } });
     expect(getByLabelText('Export')).toHaveAttribute(
       'href',
-      expect.stringContaining('/api/entities/rustfs/buckets/export?name=lerd')
+      expect.stringContaining('/api/entities/rustfs/buckets/export?name=servlo')
     );
     expect(getByLabelText('Import')).toBeInTheDocument();
     // Streaming actions never double as generic row buttons.
@@ -103,6 +103,6 @@ describe('ServiceEntitiesTab', () => {
       vi.fn(async () => new Response(JSON.stringify([buckets()]), { status: 200 }))
     );
     await fireEvent.click(getByText('Retry'));
-    expect(await findByText('lerd')).toBeInTheDocument();
+    expect(await findByText('servlo')).toBeInTheDocument();
   });
 });

@@ -37,7 +37,7 @@ var (
 
 // sessionBus returns a cached connection to the session bus. Autostart is
 // deliberately off: godbus falls back to a bare dbus-launch, which spawns a
-// dbus-daemon that outlives lerd, so `lerd start` over SSH would leave an
+// dbus-daemon that outlives servlo, so `servlo start` over SSH would leave an
 // orphan behind on every host that has dbus installed but no session.
 func sessionBus() (*dbus.Conn, error) {
 	busMu.Lock()
@@ -115,7 +115,7 @@ func Emit(req Request) (uint32, error) {
 	// daemons fire, and a visible "Open" action for those that render buttons.
 	var actions []string
 	if req.Route != "" {
-		actions = []string{"default", "", "open", "Open Lerd"}
+		actions = []string{"default", "", "open", "Open Servlo"}
 	}
 	c := call(obj, notifyDest+".Notify",
 		req.AppName, // app_name
@@ -162,7 +162,7 @@ func trackRoute(id uint32, route string) {
 }
 
 // startActionListener subscribes to the notification daemon's signals and opens
-// the tracked route when the user clicks a lerd notification. Reports whether
+// the tracked route when the user clicks a servlo notification. Reports whether
 // the subscription is live. Swappable for tests.
 var startActionListener = func() bool {
 	conn, err := sessionBus()
@@ -206,13 +206,13 @@ var startActionListener = func() bool {
 }
 
 // openRoute sends the click to the best available target: the desktop app via
-// its lerd:// scheme, then an installed PWA via web+lerd://, then the dashboard
+// its servlo:// scheme, then an installed PWA via web+servlo://, then the dashboard
 // in the browser.
 func openRoute(route string) {
 	switch {
-	case hasSchemeHandler("lerd"):
+	case hasSchemeHandler("servlo"):
 		_ = exec.Command("xdg-open", appSchemeURL(route)).Run()
-	case hasSchemeHandler("web+lerd"):
+	case hasSchemeHandler("web+servlo"):
 		_ = exec.Command("xdg-open", pwaSchemeURL(route)).Run()
 	default:
 		_ = exec.Command("xdg-open", browserURL(route)).Run()
@@ -226,15 +226,15 @@ func hasSchemeHandler(scheme string) bool {
 	return err == nil && len(bytes.TrimSpace(out)) > 0
 }
 
-// AppInstalled reports whether the Lerd desktop app is registered as the lerd://
+// AppInstalled reports whether the Servlo desktop app is registered as the servlo://
 // scheme handler, so callers can prefer it over a browser.
 func AppInstalled() bool {
-	return hasSchemeHandler("lerd")
+	return hasSchemeHandler("servlo")
 }
 
 // OpenApp focuses (or launches) the desktop app at the given dashboard route via
-// its lerd:// scheme. Start, not Run: xdg-open can outlive the handoff, which
-// would block `lerd dashboard` and freeze the tray's Dashboard item behind it.
+// its servlo:// scheme. Start, not Run: xdg-open can outlive the handoff, which
+// would block `servlo dashboard` behind it.
 func OpenApp(route string) error {
 	return exec.Command("xdg-open", appSchemeURL(route)).Start()
 }

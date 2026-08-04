@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestPHPIniArgsSortedAndPaired(t *testing.T) {

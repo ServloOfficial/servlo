@@ -13,7 +13,7 @@ func TestNotification_Payload_IncludesAllUserVisibleFields(t *testing.T) {
 		Body:     "From: alice@example.com",
 		BodyKey:  "notify.mail.body",
 		Params:   map[string]string{"subject": "Welcome", "from": "alice@example.com"},
-		Tag:      "lerd-mail-abc",
+		Tag:      "servlo-mail-abc",
 		URL:      "#service/mailpit/view/abc",
 		Icon:     "/icons/icon-192.png",
 		Data:     map[string]string{"id": "abc"},
@@ -32,7 +32,7 @@ func TestNotification_Payload_IncludesAllUserVisibleFields(t *testing.T) {
 		"title_key": "notify.mail.title",
 		"body":      "From: alice@example.com",
 		"body_key":  "notify.mail.body",
-		"tag":       "lerd-mail-abc",
+		"tag":       "servlo-mail-abc",
 		"url":       "#service/mailpit/view/abc",
 		"icon":      "/icons/icon-192.png",
 	}

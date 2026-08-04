@@ -5,22 +5,22 @@ import (
 	"io"
 	"os"
 
-	"github.com/geodro/lerd/internal/config"
-	nodeDet "github.com/geodro/lerd/internal/node"
+	"github.com/realrashid/servlo/internal/config"
+	nodeDet "github.com/realrashid/servlo/internal/node"
 	"github.com/spf13/cobra"
 )
 
 // NewJSRuntimeCmd returns the js:runtime command, the CLI counterpart to the
 // dashboard's bun/Node toggle. It pins js_runtime in the current site's
-// .lerd.yaml and re-syncs the host workers so the dev/Vite worker switches
+// .servlo.yaml and re-syncs the host workers so the dev/Vite worker switches
 // runtime immediately, exactly like the UI does. With no argument it prints the
 // current setting and what it resolves to.
 func NewJSRuntimeCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "js:runtime [bun|node|auto]",
 		Short: "Pin the JS runtime (bun or Node) for the current site",
-		Long: "Pins the JavaScript runtime for the current site in .lerd.yaml, the CLI equivalent of the dashboard's bun/Node toggle. " +
-			"`bun` forces bun, `node` forces Node/npm (opting out of bun auto-detection), and `auto` clears the pin so lerd detects bun from a lockfile or the no-Node fallback. " +
+		Long: "Pins the JavaScript runtime for the current site in .servlo.yaml, the CLI equivalent of the dashboard's bun/Node toggle. " +
+			"`bun` forces bun, `node` forces Node/npm (opting out of bun auto-detection), and `auto` clears the pin so servlo detects bun from a lockfile or the no-Node fallback. " +
 			"Run with no argument to show the current setting.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -71,7 +71,7 @@ func jsRuntimeValue(choice string) (value, label string, ok bool) {
 }
 
 // showJSRuntime prints the pinned runtime, or "auto-detect" plus the runtime
-// lerd currently resolves to, so the user can see the effective choice.
+// servlo currently resolves to, so the user can see the effective choice.
 func showJSRuntime(site config.Site, w io.Writer) error {
 	switch nodeDet.JSRuntime(site.Path) {
 	case "bun":
@@ -83,7 +83,7 @@ func showJSRuntime(site config.Site, w io.Writer) error {
 		if nodeDet.UsesBun(site.Path) {
 			resolved = "bun"
 		}
-		fmt.Fprintf(w, "%s uses auto-detect (currently %s). Pin it with `lerd js:runtime bun|node`.\n", site.Name, resolved)
+		fmt.Fprintf(w, "%s uses auto-detect (currently %s). Pin it with `servlo js:runtime bun|node`.\n", site.Name, resolved)
 	}
 	return nil
 }

@@ -12,19 +12,19 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 	"github.com/spf13/cobra"
 )
 
-// NewWorktreeCmd returns the `lerd worktree` parent command, mirroring
+// NewWorktreeCmd returns the `servlo worktree` parent command, mirroring
 // `git worktree`'s subcommand layout. Today only `add` is implemented; we
 // can grow `list` / `remove` later if there's demand.
 func NewWorktreeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worktree",
-		Short: "Manage git worktrees with lerd's setup pipeline",
+		Short: "Manage git worktrees with servlo's setup pipeline",
 	}
 	cmd.AddCommand(newWorktreeAddCmd())
 	cmd.AddCommand(newWorktreeRemoveCmd())
@@ -32,17 +32,17 @@ func NewWorktreeCmd() *cobra.Command {
 	return cmd
 }
 
-// newWorktreeAddCmd is the `lerd worktree add` subcommand. All arguments are
+// newWorktreeAddCmd is the `servlo worktree add` subcommand. All arguments are
 // forwarded verbatim to `git worktree add`, so every git flag works (-b,
 // --detach, --track, --lock, etc.). After git completes, the wrapper waits
-// for lerd's watcher-driven install pipeline, presents a unified asset-worker
+// for servlo's watcher-driven install pipeline, presents a unified asset-worker
 // / npm-build prompt (eligible per_worktree+replaces_build workers + npm
 // production-build scripts + Skip), and prompts for DB isolation. LAN share
 // is intentionally not prompted.
 func newWorktreeAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                "add [git-worktree-add args...]",
-		Short:              "Create a git worktree (any git flags) and run lerd's interactive setup (asset-worker / build prompt + DB isolation)",
+		Short:              "Create a git worktree (any git flags) and run servlo's interactive setup (asset-worker / build prompt + DB isolation)",
 		DisableFlagParsing: true,
 		SilenceUsage:       true,
 		Args:               cobra.MinimumNArgs(1),
@@ -56,7 +56,7 @@ func newWorktreeAddCmd() *cobra.Command {
 			}
 			site, err := config.FindSiteByPath(cwd)
 			if err != nil {
-				return fmt.Errorf("not inside a registered lerd site (cwd=%s)", cwd)
+				return fmt.Errorf("not inside a registered servlo site (cwd=%s)", cwd)
 			}
 
 			gitArgs := append([]string{"worktree", "add"}, args...)
@@ -131,7 +131,7 @@ func ApplyWorktreeBuildChoice(site *config.Site, worktreePath string, choice wor
 	switch choice.kind {
 	case "worker":
 		if err := WorkerStartForSite(site.Name, worktreePath, site.PHPVersion, choice.value, choice.worker, false); err != nil {
-			logf(log, "[WARN] failed to start %s: %v, run `lerd worker start %s` or `npm run build` manually.", choice.value, err, choice.value)
+			logf(log, "[WARN] failed to start %s: %v, run `servlo worker start %s` or `npm run build` manually.", choice.value, err, choice.value)
 		} else {
 			logf(log, "Started %s, skipping build, it will provide assets.", choice.value)
 		}
@@ -150,7 +150,7 @@ func ApplyWorktreeBuildChoice(site *config.Site, worktreePath string, choice wor
 // promptWorktreeBuild merges the asset-worker decision and the npm-build
 // decision into one select. Options include every framework worker eligible
 // to replace the build for this worktree (per_worktree + replaces_build +
-// check passes) — even ones the user hasn't opted into via .lerd.yaml — plus
+// check passes) — even ones the user hasn't opted into via .servlo.yaml — plus
 // each available package.json build script. The default is the first
 // opted-in asset worker, then the first build script, then skip. Workers
 // that aren't opted in still appear so the user can start them ad-hoc for
@@ -301,8 +301,8 @@ func newestWorktree(sitePath string) (string, string, error) {
 }
 
 // WaitForWorktreeReady polls until the worktree's vendor + node_modules +
-// .env are in place, signalling that lerd's watcher-driven install pipeline
-// has finished. The frontend build is no longer part of this wait — `lerd
+// .env are in place, signalling that servlo's watcher-driven install pipeline
+// has finished. The frontend build is no longer part of this wait — `servlo
 // worktree add` invokes RunFrontendBuild explicitly after installs succeed.
 func WaitForWorktreeReady(worktreePath string, deadline time.Duration) error {
 	end := time.Now().Add(deadline)
@@ -523,7 +523,7 @@ func worktreePathForBranch(site *config.Site, branch string) (string, error) {
 // EligibleBuildReplacers returns every framework worker eligible to provide
 // assets at the given path: replaces_build:true, per_worktree:true (when
 // path is a worktree), and Check rule matches. Unlike OptedInBuildReplacers
-// it does NOT require the worker to be in the parent's .lerd.yaml workers:
+// it does NOT require the worker to be in the parent's .servlo.yaml workers:
 // list, so the worktree-add prompt can offer asset workers the user hasn't
 // explicitly opted into yet.
 func EligibleBuildReplacers(site *config.Site, path string) []string {
@@ -556,7 +556,7 @@ func EligibleBuildReplacers(site *config.Site, path string) []string {
 }
 
 // OptedInBuildReplacers returns names of workers (a) opted into via
-// .lerd.yaml workers:, (b) declared replaces_build:true in the framework
+// .servlo.yaml workers:, (b) declared replaces_build:true in the framework
 // yaml, and (c) able to run at the given path. When path != site.Path the
 // per_worktree:true gate applies; for the parent it doesn't.
 func OptedInBuildReplacers(site *config.Site, path string) []string {
@@ -597,7 +597,7 @@ func OptedInBuildReplacers(site *config.Site, path string) []string {
 }
 
 // AutoStartOptedInWorktreeWorkers writes (and starts, on Linux) every
-// host worker the user opted into via the parent's .lerd.yaml workers
+// host worker the user opted into via the parent's .servlo.yaml workers
 // list, scoped to the given worktree path. Idempotent — used by the
 // watcher's onAdded hook AND by the daemon's boot-time scanWorktrees pass
 // so per-worktree units survive a daemon restart cleanly. Errors are
@@ -659,7 +659,7 @@ func worktreeWorkersToStart(site *config.Site, wtBase string, names []string) []
 }
 
 // OptedInHostWorkers returns the names of host-mode workers the user has
-// opted into for this project (.lerd.yaml workers:) and whose check rule
+// opted into for this project (.servlo.yaml workers:) and whose check rule
 // matches the worktree path. Worker auto-start now follows project intent
 // instead of treating every host:true worker as implicitly desired.
 //

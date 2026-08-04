@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/composer"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/composer"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -31,12 +31,12 @@ func NewNewCmd() *cobra.Command {
 		Short: "Scaffold a new PHP project",
 		Long: `Create a new PHP project using the framework's scaffold command.
 
-  lerd new myapp                          # create ./myapp using Laravel (default)
-  lerd new myapp --framework=symfony      # create ./myapp using Symfony
-  lerd new /path/to/myapp                 # create at an absolute path
-  lerd new myapp -- --no-interaction      # pass extra args to the scaffold command
+  servlo new myapp                          # create ./myapp using Laravel (default)
+  servlo new myapp --framework=symfony      # create ./myapp using Symfony
+  servlo new /path/to/myapp                 # create at an absolute path
+  servlo new myapp -- --no-interaction      # pass extra args to the scaffold command
 
-Flags anywhere on the line belong to lerd; everything after '--' is handed to
+Flags anywhere on the line belong to servlo; everything after '--' is handed to
 the scaffold command untouched.
 
 For Laravel this runs:
@@ -47,8 +47,8 @@ Other frameworks must define a 'create' field in their YAML definition:
 
 After creation, register the site with:
   cd <target>
-  lerd link
-  lerd setup`,
+  servlo link
+  servlo setup`,
 		Args:                  cobra.MinimumNArgs(1),
 		DisableFlagsInUseLine: true,
 		SilenceUsage:          true,
@@ -67,7 +67,7 @@ After creation, register the site with:
 // newNextStep builds the post-scaffold hint, preserving the path the user
 // typed (filepath.Base would drop the parent dirs of a nested target).
 func newNextStep(typedTarget string) string {
-	return "cd " + typedTarget + " && lerd link && lerd setup"
+	return "cd " + typedTarget + " && servlo link && servlo setup"
 }
 
 // prepareScaffoldParent creates the target's parent directory and makes it
@@ -82,14 +82,14 @@ func prepareScaffoldParent(target string) error {
 	cfg, _ := config.LoadGlobal()
 	version := cfg.PHP.DefaultVersion
 	if !pathVisible(parent, version) && !pathAutoMountable(parent) {
-		return fmt.Errorf("cannot scaffold into %s: lerd does not mount temporary system directories (/tmp, /var/tmp, /run) into containers, so composer would have no such directory to run in. Pick a path under your home directory, or park the parent first with 'lerd park %s'", parent, parent)
+		return fmt.Errorf("cannot scaffold into %s: servlo does not mount temporary system directories (/tmp, /var/tmp, /run) into containers, so composer would have no such directory to run in. Pick a path under your home directory, or park the parent first with 'servlo park %s'", parent, parent)
 	}
 	ensurePathMounted(parent, version)
 	return nil
 }
 
 // scaffold is how a framework's create command will be run: either through the
-// composer lerd ships (inside the project's PHP container) or, for a create
+// composer servlo ships (inside the project's PHP container) or, for a create
 // command composer cannot serve, a plain host binary.
 type scaffold struct {
 	inContainer bool
@@ -97,7 +97,7 @@ type scaffold struct {
 }
 
 // scaffoldPlan turns a framework's create command into the argument list that
-// runs it. Every definition in the store starts with composer, which lerd
+// runs it. Every definition in the store starts with composer, which servlo
 // bundles as a phar rather than expecting on the host, so that prefix is
 // swapped for the bundled one and run with the container's PHP. Anything else
 // is left to the host binary it names.
@@ -183,7 +183,7 @@ func runNew(target, frameworkName string, extraArgs []string) error {
 	// the definition won't be local.
 	fw, ok := config.GetFrameworkOrFetch(frameworkName)
 	if !ok {
-		return fmt.Errorf("unknown framework %q — run 'lerd framework list' to see available frameworks", frameworkName)
+		return fmt.Errorf("unknown framework %q — run 'servlo framework list' to see available frameworks", frameworkName)
 	}
 	if fw.Create == "" {
 		return fmt.Errorf("framework %q has no create command — add a 'create' field to its YAML definition", frameworkName)

@@ -121,9 +121,9 @@
 </script>
 
 <div class="flex flex-col h-full overflow-hidden">
-  <div class="flex items-center gap-2 px-3 py-3 border-b border-gray-200 dark:border-lerd-border flex-wrap">
+  <div class="flex items-center gap-2 px-3 py-3 border-b border-gray-200 dark:border-servlo-border flex-wrap">
     <input
-      class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border bg-white dark:bg-lerd-card flex-1 min-w-[140px]"
+      class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-servlo-border bg-white dark:bg-servlo-card flex-1 min-w-[140px]"
       placeholder={m.debug_searchPlaceholder()}
       bind:value={textInput}
     />
@@ -154,7 +154,7 @@
       onchange={onToggleWorkers}
     />
     <TestEventsToggle />
-    <button type="button" class="text-xs rounded-sm border border-gray-300 dark:border-lerd-border px-2 py-1 hover:bg-gray-50 dark:hover:bg-white/5" onclick={() => clearDumps()}>{m.common_clear()}</button>
+    <button type="button" class="text-xs rounded-sm border border-gray-300 dark:border-servlo-border px-2 py-1 hover:bg-gray-50 dark:hover:bg-white/5" onclick={() => clearDumps()}>{m.common_clear()}</button>
   </div>
 
   <div class="flex-1 overflow-y-auto px-3 pb-3">
@@ -176,7 +176,7 @@
       {#each win.pages as page (page.group.key)}
         {@const group = page.group}
         <section class="mb-4">
-          <header class="flex items-center gap-2 mb-1 sticky top-0 bg-gray-50 dark:bg-lerd-bg py-1 -mx-3 px-3 z-1">
+          <header class="flex items-center gap-2 mb-1 sticky top-0 bg-gray-50 dark:bg-servlo-bg py-1 -mx-3 px-3 z-1">
             {#if group.worker}<span class="text-[10px] font-semibold uppercase tracking-wide rounded-sm px-1.5 py-0.5 bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 shrink-0">{m.queries_worker_badge()}</span>{/if}
             <LensGroupLabel label={group.label} />
             <span class="text-xs text-gray-400 ml-auto whitespace-nowrap font-mono">{localTime(group.ts)}</span>
@@ -184,7 +184,7 @@
           </header>
           {#each page.rows as ev (ev.id)}
             {@const d = (ev.data ?? {}) as Record<string, any>}
-            <div class="rounded-sm border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card mb-1.5 overflow-hidden">
+            <div class="rounded-sm border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card mb-1.5 overflow-hidden">
               <button type="button" class="w-full text-left px-2.5 py-1.5 flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-white/5" onclick={() => toggleRow(ev.id)}>
                 <span class="flex-1 break-all text-xs text-gray-800 dark:text-gray-200">
                   {#if wireKind === 'job'}{d.class}
@@ -203,14 +203,14 @@
                 </span>
               </button>
               {#if expanded[ev.id]}
-                <div class="px-2.5 pb-2 pt-1 border-t border-gray-100 dark:border-lerd-border/50 text-[11px] space-y-1.5">
+                <div class="px-2.5 pb-2 pt-1 border-t border-gray-100 dark:border-servlo-border/50 text-[11px] space-y-1.5">
                   {#if wireKind === 'job' && d.exception}<div class="text-rose-600 dark:text-rose-400 break-all">{d.exception}</div>{/if}
                   {#if wireKind === 'job' && d.connection}<div class="text-gray-400">{d.connection}</div>{/if}
                   {#if wireKind === 'cache' && d.store}<div class="text-gray-400">store: {d.store}</div>{/if}
                   {#if wireKind === 'view' && d.path}
                     <div>
                       <span class="text-gray-400 mr-1">{m.views_template()}:</span>
-                      <button type="button" class="font-mono text-lerd-red hover:underline break-all" onclick={() => openInEditor(d.path, 1)} title={m.queries_openInEditor()}>{d.path}</button>
+                      <button type="button" class="font-mono text-servlo-red hover:underline break-all" onclick={() => openInEditor(d.path, 1)} title={m.queries_openInEditor()}>{d.path}</button>
                     </div>
                   {/if}
                   {#if wireKind === 'view' && d.data_keys?.length}<div class="text-gray-500 dark:text-gray-400">{m.views_data()}: {d.data_keys.join(', ')}</div>{/if}
@@ -218,7 +218,7 @@
                     <div class="text-gray-400 break-all">
                       {#if d.from?.length}from {d.from.join(', ')} · {/if}to {(d.to ?? []).join(', ')}{#if d.cc?.length} · cc {d.cc.join(', ')}{/if}
                     </div>
-                    {#if d.html}<iframe sandbox="" class="w-full h-64 bg-white rounded-sm border border-gray-200 dark:border-lerd-border" srcdoc={d.html} title={d.subject ?? 'mail'}></iframe>{/if}
+                    {#if d.html}<iframe sandbox="" class="w-full h-64 bg-white rounded-sm border border-gray-200 dark:border-servlo-border" srcdoc={d.html} title={d.subject ?? 'mail'}></iframe>{/if}
                   {/if}
                   {#if wireKind !== 'view'}<TraceBlock src={ev.src} trace={d.trace} />{/if}
                 </div>

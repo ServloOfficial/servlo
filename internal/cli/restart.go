@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -115,7 +115,7 @@ func RestartSite(name string) error {
 
 	if site.IsHostProxy() {
 		if site.HostCommand == "" {
-			return fmt.Errorf("site %q is proxy-only (no command); lerd does not manage its process", name)
+			return fmt.Errorf("site %q is proxy-only (no command); servlo does not manage its process", name)
 		}
 		unit := hostProxyWorkerUnit(site.Name)
 		if err := restartDevServer(unit, site.HostPort, hostProxyStopTimeout); err != nil {
@@ -135,7 +135,7 @@ func RestartSite(name string) error {
 		return fmt.Errorf("site %q has no PHP version set", name)
 	}
 	short := strings.ReplaceAll(site.PHPVersion, ".", "")
-	unit := "lerd-php" + short + "-fpm"
+	unit := "servlo-php" + short + "-fpm"
 	if err := podman.RestartUnit(unit); err != nil {
 		return fmt.Errorf("restarting %s: %w", unit, err)
 	}

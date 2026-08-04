@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 // TestMain neutralises the real web-push client for the whole package so no

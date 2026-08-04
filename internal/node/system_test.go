@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // writeExec drops an executable stub named bin into dir, creating dir first.
@@ -52,21 +52,21 @@ func TestSystemNodeBinDirs_nodeAndNpmInDifferentPathDirs(t *testing.T) {
 	}
 }
 
-// lerd's own bin dir holds the fnm node shim when Node is managed; a stale
+// servlo's own bin dir holds the fnm node shim when Node is managed; a stale
 // shim must never count as a system Node, so the PATH walk skips it and finds
 // the real install further down.
-func TestSystemNodeBinDirs_skipsLerdBinDir(t *testing.T) {
+func TestSystemNodeBinDirs_skipsServloBinDir(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 	t.Setenv("HOME", filepath.Join(tmp, "home"))
 
-	lerdBin := filepath.Join(tmp, "lerd", "bin")
-	writeExec(t, lerdBin, "node")
-	writeExec(t, lerdBin, "npm")
+	servloBin := filepath.Join(tmp, "servlo", "bin")
+	writeExec(t, servloBin, "node")
+	writeExec(t, servloBin, "npm")
 	realBin := filepath.Join(tmp, "real")
 	writeExec(t, realBin, "node")
 	writeExec(t, realBin, "npm")
-	t.Setenv("PATH", lerdBin+string(os.PathListSeparator)+realBin)
+	t.Setenv("PATH", servloBin+string(os.PathListSeparator)+realBin)
 
 	dirs := SystemNodeBinDirs()
 	if len(dirs) != 1 || dirs[0] != realBin {
@@ -192,7 +192,7 @@ func TestSystemNodeBinDirs_fnmUserInstall(t *testing.T) {
 
 // `nvm alias default 20` is the common way to pin a major, and `nvm use
 // default` then runs the newest installed 20.x. Resolving it to the newest
-// version overall would hand a worker a different major than lerd's own npm.
+// version overall would hand a worker a different major than servlo's own npm.
 func TestSystemNodeBinDirs_nvmPartialDefaultAlias(t *testing.T) {
 	tmp := t.TempDir()
 	home := filepath.Join(tmp, "home")
@@ -257,7 +257,7 @@ func TestSystemNodeBinDirs_nvmSymbolicDefaultAlias(t *testing.T) {
 	}
 }
 
-// A site pinned to a major is what `lerd npm` runs in that directory, so an
+// A site pinned to a major is what `servlo npm` runs in that directory, so an
 // unmanaged worker for it has to get the same major out of nvm, not whatever
 // the user's default alias happens to be.
 func TestSystemNodeBinDirsFor_pinnedVersionBeatsNvmDefault(t *testing.T) {
@@ -287,7 +287,7 @@ func TestSystemNodeBinDirsFor_pinnedVersionBeatsNvmDefault(t *testing.T) {
 		t.Errorf("want [%s], got %v", want, dirs)
 	}
 
-	// Not installed in nvm: lerd must not install into the user's nvm, so the
+	// Not installed in nvm: servlo must not install into the user's nvm, so the
 	// default is the next best thing rather than nothing.
 	fallback := filepath.Join(home, ".nvm", "versions", "node", "v20.20.2", "bin")
 	if dirs := SystemNodeBinDirsFor("18"); len(dirs) != 1 || dirs[0] != fallback {
@@ -295,7 +295,7 @@ func TestSystemNodeBinDirsFor_pinnedVersionBeatsNvmDefault(t *testing.T) {
 	}
 }
 
-// Without nvm configured the pin changes nothing: lerd has no way to select a
+// Without nvm configured the pin changes nothing: servlo has no way to select a
 // version out of an arbitrary system install.
 func TestSystemNodeBinDirsFor_ignoredWithoutNvm(t *testing.T) {
 	tmp := t.TempDir()
@@ -328,7 +328,7 @@ func setNodeManager(t *testing.T, manager string) {
 	}
 }
 
-// With nvm configured, `lerd npm` runs through nvm, so a worker must not pick
+// With nvm configured, `servlo npm` runs through nvm, so a worker must not pick
 // up an unrelated node from PATH and end up on a different major.
 func TestSystemNodeBinDirs_configuredNvmBeatsPathNode(t *testing.T) {
 	tmp := t.TempDir()
@@ -380,7 +380,7 @@ func TestSystemNodeBinDirs_configuredNvmWithoutVersionsFallsBack(t *testing.T) {
 	}
 }
 
-// fnm is lerd's own bundled tool, not the user's install, so an unmanaged host
+// fnm is servlo's own bundled tool, not the user's install, so an unmanaged host
 // keeps resolving the user's own Node first exactly as before.
 func TestSystemNodeBinDirs_configuredFnmKeepsPathFirst(t *testing.T) {
 	tmp := t.TempDir()

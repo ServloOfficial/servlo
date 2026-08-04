@@ -62,13 +62,13 @@ describe('remote control host-action opt-in', () => {
 
   it('surfaces a rejection without flipping the toggle', async () => {
     globalThis.fetch = vi.fn(async () =>
-      new Response('Forbidden — remote full access can only be changed from the lerd host.', { status: 403 })
+      new Response('Forbidden — remote full access can only be changed from the servlo host.', { status: 403 })
     ) as unknown as typeof fetch;
 
     expect(await setRemoteFullAccess(true)).toBe(false);
     const state = get(remoteControl);
     expect(state.fullAccess).toBe(false);
     expect(state.fullAccessLoading).toBe(false);
-    expect(state.error).toContain('only be changed from the lerd host');
+    expect(state.error).toContain('only be changed from the servlo host');
   });
 });

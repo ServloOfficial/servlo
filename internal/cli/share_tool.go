@@ -5,8 +5,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
@@ -42,18 +42,18 @@ func shareToolBinary(name string) (string, bool) {
 func NewShareToolCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "share:tool [ngrok|cloudflare|expose|serveo|localhost-run|auto]",
-		Short: "Show or set the default tunnel tool for lerd share",
+		Short: "Show or set the default tunnel tool for servlo share",
 		Long: `Without an argument, prints the current default tunnel tool.
 
-With an argument, sets the tool "lerd share" uses when no tool flag is passed.
+With an argument, sets the tool "servlo share" uses when no tool flag is passed.
 "auto" clears the default and restores auto-detection
 (ngrok, then cloudflared, then Expose, then localhost.run).
 
-The tool must already be installed. A tool flag on "lerd share" still wins for
-that run, and "lerd share --domain" always uses Cloudflare Tunnel.`,
-		Example: `  lerd share:tool
-  lerd share:tool cloudflare
-  lerd share:tool auto`,
+The tool must already be installed. A tool flag on "servlo share" still wins for
+that run, and "servlo share --domain" always uses Cloudflare Tunnel.`,
+		Example: `  servlo share:tool
+  servlo share:tool cloudflare
+  servlo share:tool auto`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runShareTool,
 	}
@@ -71,7 +71,7 @@ func runShareTool(_ *cobra.Command, args []string) error {
 		} else {
 			fmt.Println(cfg.Share.DefaultTool)
 		}
-		fmt.Printf("\nChange it with: lerd share:tool %s|auto\n", strings.Join(shareToolNames(), "|"))
+		fmt.Printf("\nChange it with: servlo share:tool %s|auto\n", strings.Join(shareToolNames(), "|"))
 		return nil
 	}
 

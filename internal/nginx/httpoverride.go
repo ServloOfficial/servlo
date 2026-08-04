@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // httpOverrideNames returns the directive names declared at the top level of the
 // user snippets in http.d. nginx rejects a duplicate simple directive in the
-// same context rather than letting the later one win, so lerd's own http{}
+// same context rather than letting the later one win, so servlo's own http{}
 // defaults with these names have to step aside for the override to load.
 func httpOverrideNames() map[string]bool {
 	names := map[string]bool{}
@@ -45,8 +45,8 @@ func httpOverrideNames() map[string]bool {
 }
 
 // repeatableDirectives may appear more than once in the same context, so a
-// user declaring one adds to lerd's rather than colliding with it. Dropping
-// lerd's log_format leaves access_log naming a format nginx no longer knows.
+// user declaring one adds to servlo's rather than colliding with it. Dropping
+// servlo's log_format leaves access_log naming a format nginx no longer knows.
 var repeatableDirectives = map[string]bool{
 	"include":    true,
 	"log_format": true,

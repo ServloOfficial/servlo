@@ -8,7 +8,7 @@ import (
 )
 
 // UIClient{Network,Addr} must give the CLI a transport that actually exists on
-// the host: macOS has no lerd-ui unix socket (server binds it Linux-only), so
+// the host: macOS has no servlo-panel unix socket (server binds it Linux-only), so
 // the client dials the TCP loopback; Linux stays on the unix socket.
 func TestUIClientTransport_matchesOS(t *testing.T) {
 	net, addr := UIClientNetwork(), UIClientAddr()
@@ -56,7 +56,7 @@ func TestConfigDir_UsesXDGConfigHome(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	got := ConfigDir()
-	want := filepath.Join(tmp, "lerd")
+	want := filepath.Join(tmp, "servlo")
 	if got != want {
 		t.Errorf("ConfigDir() = %q, want %q", got, want)
 	}
@@ -67,7 +67,7 @@ func TestDataDir_UsesXDGDataHome(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	got := DataDir()
-	want := filepath.Join(tmp, "lerd")
+	want := filepath.Join(tmp, "servlo")
 	if got != want {
 		t.Errorf("DataDir() = %q, want %q", got, want)
 	}
@@ -85,19 +85,19 @@ func TestPathFunctions_ContainExpectedSuffixes(t *testing.T) {
 		got    string
 		suffix string
 	}{
-		{"BinDir", BinDir(), "lerd/bin"},
-		{"NginxDir", NginxDir(), "lerd/nginx"},
+		{"BinDir", BinDir(), "servlo/bin"},
+		{"NginxDir", NginxDir(), "servlo/nginx"},
 		{"NginxConfD", NginxConfD(), filepath.Join("nginx", "conf.d")},
-		{"CertsDir", CertsDir(), "lerd/certs"},
-		{"DnsmasqDir", DnsmasqDir(), "lerd/dnsmasq"},
+		{"CertsDir", CertsDir(), "servlo/certs"},
+		{"DnsmasqDir", DnsmasqDir(), "servlo/dnsmasq"},
 		{"SitesFile", SitesFile(), "sites.yaml"},
 		{"GlobalConfigFile", GlobalConfigFile(), "config.yaml"},
 		{"QuadletDir", QuadletDir(), filepath.Join("containers", "systemd")},
 		{"SystemdUserDir", SystemdUserDir(), filepath.Join("systemd", "user")},
-		{"CustomServicesDir", CustomServicesDir(), filepath.Join("lerd", "services")},
-		{"FrameworksDir", FrameworksDir(), filepath.Join("lerd", "frameworks")},
+		{"CustomServicesDir", CustomServicesDir(), filepath.Join("servlo", "services")},
+		{"FrameworksDir", FrameworksDir(), filepath.Join("servlo", "frameworks")},
 		{"UpdateCheckFile", UpdateCheckFile(), "update-check.json"},
-		{"PausedDir", PausedDir(), "lerd/paused"},
+		{"PausedDir", PausedDir(), "servlo/paused"},
 	}
 
 	for _, c := range cases {

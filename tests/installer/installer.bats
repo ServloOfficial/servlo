@@ -203,7 +203,7 @@ _force_linux_os() {
 
   add_to_path
 
-  grep -q "Added by Lerd installer" "$HOME/.bashrc"
+  grep -q "Added by Servlo installer" "$HOME/.bashrc"
   grep -q "$INSTALL_DIR" "$HOME/.bashrc"
 }
 
@@ -216,7 +216,7 @@ _force_linux_os() {
   add_to_path
   add_to_path
 
-  count=$(grep -c "Added by Lerd installer" "$HOME/.bashrc")
+  count=$(grep -c "Added by Servlo installer" "$HOME/.bashrc")
   [ "$count" -eq 1 ]
 }
 
@@ -227,18 +227,18 @@ _force_linux_os() {
 
   add_to_path
 
-  grep -q "fish_add_path" "$HOME/.config/fish/conf.d/lerd.fish"
+  grep -q "fish_add_path" "$HOME/.config/fish/conf.d/servlo.fish"
 }
 
-@test "remove_from_path removes the Lerd block from .bashrc" {
+@test "remove_from_path removes the Servlo block from .bashrc" {
   export SHELL="/bin/bash"
   _force_linux_os
   INSTALL_DIR="$HOME/.local/bin"
-  printf '\n# Added by Lerd installer\nexport PATH="%s:$PATH"\n' "$INSTALL_DIR" > "$HOME/.bashrc"
+  printf '\n# Added by Servlo installer\nexport PATH="%s:$PATH"\n' "$INSTALL_DIR" > "$HOME/.bashrc"
 
   remove_from_path
 
-  run grep "Added by Lerd installer" "$HOME/.bashrc"
+  run grep "Added by Servlo installer" "$HOME/.bashrc"
   [ "$status" -ne 0 ]
 }
 
@@ -255,7 +255,7 @@ _force_linux_os() {
 
 # ── installed_version ─────────────────────────────────────────────────────────
 
-@test "installed_version returns empty string when lerd not found" {
+@test "installed_version returns empty string when servlo not found" {
   # Create an empty bin dir first, then restrict PATH to it
   local empty_dir="$BATS_TMPDIR/empty-path-$$"
   mkdir -p "$empty_dir"
@@ -269,12 +269,12 @@ _force_linux_os() {
   export PATH="$OLD_PATH"
 }
 
-@test "installed_version returns version string when lerd is found" {
-  # Create a fake lerd binary
+@test "installed_version returns version string when servlo is found" {
+  # Create a fake servlo binary
   FAKE_BIN="$BATS_TMPDIR/fake-bin-$$"
   mkdir -p "$FAKE_BIN"
-  printf '#!/bin/sh\necho "lerd version 1.2.3"\n' > "$FAKE_BIN/lerd"
-  chmod +x "$FAKE_BIN/lerd"
+  printf '#!/bin/sh\necho "servlo version 1.2.3"\n' > "$FAKE_BIN/servlo"
+  chmod +x "$FAKE_BIN/servlo"
 
   OLD_PATH="$PATH"
   export PATH="$FAKE_BIN:$PATH"
@@ -290,8 +290,8 @@ _force_linux_os() {
 @test "installed_version_raw keeps the git-describe suffix" {
   FAKE_BIN="$BATS_TMPDIR/fake-bin-$$"
   mkdir -p "$FAKE_BIN"
-  printf '#!/bin/sh\necho "lerd version v1.25.0-6-g7d030096-dirty (commit 7d030096)"\n' > "$FAKE_BIN/lerd"
-  chmod +x "$FAKE_BIN/lerd"
+  printf '#!/bin/sh\necho "servlo version v1.25.0-6-g7d030096-dirty (commit 7d030096)"\n' > "$FAKE_BIN/servlo"
+  chmod +x "$FAKE_BIN/servlo"
 
   OLD_PATH="$PATH"
   export PATH="$FAKE_BIN:$PATH"
@@ -318,7 +318,7 @@ _force_linux_os() {
   # Mock curl -fsSLI to return headers containing a Location pointing to the tag
   function curl() {
     echo "HTTP/2 302"
-    echo "location: https://github.com/lerd-env/lerd/releases/tag/v2.0.0"
+    echo "location: https://github.com/realrashid/servlo/releases/tag/v2.0.0"
     echo ""
   }
   export -f curl
@@ -363,7 +363,7 @@ _force_linux_os() {
 # ── --local flag ──────────────────────────────────────────────────────────────
 
 @test "--local fails with a clear error when file does not exist" {
-  run bash "$INSTALLER" --local /tmp/nonexistent-lerd-binary-xyz
+  run bash "$INSTALLER" --local /tmp/nonexistent-servlo-binary-xyz
   [ "$status" -ne 0 ]
   [[ "$output" == *"not found"* ]]
 }
@@ -437,51 +437,31 @@ _force_linux_os() {
   [[ "$output" == *"certutil not found"* ]]
 }
 
-# ── offer_desktop_app ─────────────────────────────────────────────────────────
+# ── uninstall_linux_dns ───────────────────────────────────────────────────────
 
-_fake_lerd_dir() {
+# Stubs a servlo binary on PATH that records the arguments it was called with,
+# so a test can assert which servlo subcommand the installer invoked.
+_fake_servlo_dir() {
   local d="$BATS_TMPDIR/fakebin-$$"
   mkdir -p "$d"
-  cat > "$d/lerd" <<EOF
+  cat > "$d/servlo" <<EOF
 #!/usr/bin/env bash
 echo "\$@" >> "$d/calls"
 EOF
-  chmod +x "$d/lerd"
+  chmod +x "$d/servlo"
   rm -f "$d/calls"
   echo "$d"
 }
 
-@test "offer_desktop_app yes enables native and prints the install command" {
-  local d; d="$(_fake_lerd_dir)"
-  INSTALL_DIR="$d"; BINARY="lerd"
-  ask() { return 0; }
-  run offer_desktop_app
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"$DESKTOP_INSTALL_CMD"* ]]
-  grep -q "notify target native" "$d/calls"
-}
-
-@test "offer_desktop_app no selects browser and still prints the install command" {
-  local d; d="$(_fake_lerd_dir)"
-  INSTALL_DIR="$d"; BINARY="lerd"
-  ask() { return 1; }
-  run offer_desktop_app
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"$DESKTOP_INSTALL_CMD"* ]]
-  grep -q "notify target browser" "$d/calls"
-}
-
-# ── uninstall_linux_dns ───────────────────────────────────────────────────────
-
 _stub_dns_files() {
   local d="$BATS_TMPDIR/dnsconf-$$"
   mkdir -p "$d"
-  : > "$d/lerd-dns-link.service"
-  LERD_DNS_FILES=("$d/lerd-dns-link.service")
+  : > "$d/servlo-dns-link.service"
+  SERVLO_DNS_FILES=("$d/servlo-dns-link.service")
 }
 
 @test "uninstall_linux_dns runs the teardown when accepted" {
-  local d; d="$(_fake_lerd_dir)"
+  local d; d="$(_fake_servlo_dir)"
   PATH="$d:$PATH"
   _stub_dns_files
   ask() { return 0; }
@@ -491,13 +471,13 @@ _stub_dns_files() {
 }
 
 @test "uninstall_linux_dns prints the manual removal when declined" {
-  local d; d="$(_fake_lerd_dir)"
+  local d; d="$(_fake_servlo_dir)"
   PATH="$d:$PATH"
   _stub_dns_files
   ask() { return 1; }
   run uninstall_linux_dns
   [ "$status" -eq 0 ]
-  [[ "$output" == *"lerd-dns-link.service"* ]]
+  [[ "$output" == *"servlo-dns-link.service"* ]]
   [[ "$output" == *"systemd-resolved"* ]]
   [ ! -f "$d/calls" ]
 }
@@ -505,7 +485,7 @@ _stub_dns_files() {
 @test "uninstall_linux_dns falls back to the manual removal when the binary is gone" {
   function command() {
     case "$2" in
-      lerd) return 1 ;;
+      servlo) return 1 ;;
       *) builtin command "$@" ;;
     esac
   }
@@ -517,18 +497,18 @@ _stub_dns_files() {
   [[ "$output" == *"only root can remove it"* ]]
 }
 
-@test "lerd_dns_cleanup_hint lists the sudoers grant for hand removal" {
+@test "servlo_dns_cleanup_hint lists the sudoers grant for hand removal" {
   # The passwordless DNS grant is a root-owned file the setup writes; left
   # behind it is a standing NOPASSWD root grant for a tool being removed.
-  [[ " ${LERD_DNS_FILES[*]} " == *" /etc/sudoers.d/lerd "* ]]
-  run lerd_dns_cleanup_hint
-  [[ "$output" == *"/etc/sudoers.d/lerd"* ]]
+  [[ " ${SERVLO_DNS_FILES[*]} " == *" /etc/sudoers.d/servlo "* ]]
+  run servlo_dns_cleanup_hint
+  [[ "$output" == *"/etc/sudoers.d/servlo"* ]]
 }
 
-@test "uninstall_linux_dns stays quiet when lerd never configured DNS" {
-  local d; d="$(_fake_lerd_dir)"
+@test "uninstall_linux_dns stays quiet when servlo never configured DNS" {
+  local d; d="$(_fake_servlo_dir)"
   PATH="$d:$PATH"
-  LERD_DNS_FILES=("$BATS_TMPDIR/nope-$$/lerd-dns-link.service")
+  SERVLO_DNS_FILES=("$BATS_TMPDIR/nope-$$/servlo-dns-link.service")
   ask() { return 0; }
   run uninstall_linux_dns
   [ "$status" -eq 0 ]

@@ -7,10 +7,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,7 @@ func newPhpExtAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <ext>",
 		Short: "Install a custom PHP extension on every PHP version",
-		Long: "Adds an extension to your declared set, which applies to every PHP image lerd builds.\n" +
+		Long: "Adds an extension to your declared set, which applies to every PHP image servlo builds.\n" +
 			"The version you are on is rebuilt and verified now; other versions rebuild the next time they are used.",
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -192,7 +192,7 @@ func rejectPerVersionArg(rest []string, cmd string) error {
 		return nil
 	}
 	return fmt.Errorf("extensions and packages now apply to every PHP version, so %q takes no version.\n"+
-		"Run '%s', then 'lerd php:rebuild %s' if you want that image rebuilt right away", rest[0], cmd, rest[0])
+		"Run '%s', then 'servlo php:rebuild %s' if you want that image rebuilt right away", rest[0], cmd, rest[0])
 }
 
 // reportOtherVersionsStale tells the user which installed versions still carry
@@ -211,7 +211,7 @@ func reportOtherVersionsStale(rebuilt string) {
 	if len(others) == 0 {
 		return
 	}
-	feedback.Note("PHP " + strings.Join(others, ", ") + " rebuild on next use, or run 'lerd php:rebuild' now")
+	feedback.Note("PHP " + strings.Join(others, ", ") + " rebuild on next use, or run 'servlo php:rebuild' now")
 }
 
 // phpExtVersion resolves the PHP version from args, cwd detection, or global default.

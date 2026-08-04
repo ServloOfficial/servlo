@@ -26,13 +26,13 @@
   }
 </script>
 
-<div class="shrink-0 w-[11rem] flex flex-col gap-2.5 rounded-2xl border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card p-3">
+<div class="shrink-0 w-[11rem] flex flex-col gap-2.5 rounded-2xl border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card p-3">
   <div class="flex items-center justify-between gap-2">
     <span class="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300">{tool.name}</span>
     {#if !tool.present}
       <StatusPill tone="muted" label={m.system_tools_notInstalled()} />
     {:else if tool.update_available}
-      <StatusPill tone="warn" label={m.system_lerd_updateTag()} />
+      <StatusPill tone="warn" label={m.system_servlo_updateTag()} />
     {:else if !tool.installed}
       <StatusPill tone="muted" label={m.system_tools_versionUnknown()} />
     {:else}

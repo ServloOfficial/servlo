@@ -3,10 +3,10 @@ package node
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// SetDefault must persist into lerd's config only. The test env has no nvm at
+// SetDefault must persist into servlo's config only. The test env has no nvm at
 // all, so a nil error also proves no `nvm alias default` was attempted.
 func TestNvmSetDefaultWritesConfigNotAlias(t *testing.T) {
 	tmp := t.TempDir()
@@ -40,6 +40,6 @@ func TestNvmHasDefaultIgnoresConfig(t *testing.T) {
 		t.Fatalf("SetDefault: %v", err)
 	}
 	if m.HasDefault() {
-		t.Error("HasDefault should still consult only nvm's alias, not lerd's config")
+		t.Error("HasDefault should still consult only nvm's alias, not servlo's config")
 	}
 }

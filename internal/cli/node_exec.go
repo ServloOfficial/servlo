@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	nodeDet "github.com/geodro/lerd/internal/node"
+	"github.com/realrashid/servlo/internal/config"
+	nodeDet "github.com/realrashid/servlo/internal/node"
 	"github.com/spf13/cobra"
 )
 
@@ -61,7 +61,7 @@ func NewNpxCmd() *cobra.Command {
 func runNpmCaptured(dir string, args ...string) (string, error) {
 	mgr := nodeDet.Active()
 	if !mgr.Available() {
-		return "", fmt.Errorf("%s not found, run 'lerd install' first", mgr.Name())
+		return "", fmt.Errorf("%s not found, run 'servlo install' first", mgr.Name())
 	}
 
 	version, _ := nodeDet.DetectVersion(dir)
@@ -73,7 +73,7 @@ func runNpmCaptured(dir string, args ...string) (string, error) {
 			return "", fmt.Errorf("installing Node %s: %w", version, err)
 		}
 	} else if !mgr.HasDefault() {
-		return "", fmt.Errorf("no Node.js version available via lerd, run: lerd node:install 22")
+		return "", fmt.Errorf("no Node.js version available via servlo, run: servlo node:install 22")
 	}
 
 	cmd := mgr.Command(version, "npm", args)
@@ -90,7 +90,7 @@ func runNpmCaptured(dir string, args ...string) (string, error) {
 // warn is set it prints a one-line install hint and returns "" so the caller uses
 // npm instead of failing. warn is true only for interactive CLI runs; the worker
 // unit-generation path (which also runs on the daemon-side idle resume) passes
-// false so the hint doesn't spam the daemon's stderr on every reconcile. lerd
+// false so the hint doesn't spam the daemon's stderr on every reconcile. servlo
 // never installs or version-manages the host bun itself.
 func bunRunnerFor(dir string, warn bool) string {
 	// An explicit `js_runtime: node` pins the project to Node and opts out of
@@ -102,21 +102,21 @@ func bunRunnerFor(dir string, warn bool) string {
 	bun := nodeDet.BunPath()
 	if nodeDet.UsesBun(dir) {
 		if bun == "" && warn {
-			fmt.Fprintln(os.Stderr, "lerd: this project uses bun but bun isn't installed — falling back to npm.")
+			fmt.Fprintln(os.Stderr, "servlo: this project uses bun but bun isn't installed — falling back to npm.")
 			fmt.Fprintln(os.Stderr, "      install it with: curl -fsSL https://bun.sh/install | bash")
 		}
 		return bun
 	}
-	// Fallback: when lerd isn't managing Node and no system Node is resolvable
+	// Fallback: when servlo isn't managing Node and no system Node is resolvable
 	// but bun is installed, use bun as the JS runtime — it's a drop-in for
 	// npm and is the only thing left that can run JS (e.g. after node:unmanage).
-	if bun != "" && !lerdManagesNode() && !systemNodeAvailable() {
+	if bun != "" && !servloManagesNode() && !systemNodeAvailable() {
 		return bun
 	}
 	return ""
 }
 
-// systemNodeAvailable reports whether a system Node (outside lerd's own fnm
+// systemNodeAvailable reports whether a system Node (outside servlo's own fnm
 // shims) is resolvable on PATH or in a known version-manager install dir.
 // Used to decide the bun fallback.
 func systemNodeAvailable() bool {
@@ -201,8 +201,8 @@ func runJSScript(dir, script string) error {
 	}
 }
 
-// shimLeadingEnv prepends lerd's bin dir (home of the `php` shim) to PATH so
-// child processes (e.g. Vite's wayfinder step) resolve `php` to lerd's managed
+// shimLeadingEnv prepends servlo's bin dir (home of the `php` shim) to PATH so
+// child processes (e.g. Vite's wayfinder step) resolve `php` to servlo's managed
 // version instead of a global host php ahead of the shim on PATH — issue #381.
 func shimLeadingEnv(env []string) []string {
 	binDir := config.BinDir()
@@ -237,7 +237,7 @@ func runNode(bin string, args []string, exitOnFail bool) error {
 
 	mgr := nodeDet.Active()
 	if !mgr.Available() {
-		return fmt.Errorf("%s not found — run 'lerd install' first", mgr.Name())
+		return fmt.Errorf("%s not found — run 'servlo install' first", mgr.Name())
 	}
 
 	version, _ := nodeDet.DetectVersion(cwd)
@@ -251,7 +251,7 @@ func runNode(bin string, args []string, exitOnFail bool) error {
 	if version != "default" {
 		_ = mgr.Install(version)
 	} else if !mgr.HasDefault() {
-		return fmt.Errorf("no Node.js version available via lerd — run: lerd node:install 22")
+		return fmt.Errorf("no Node.js version available via servlo — run: servlo node:install 22")
 	}
 
 	cmd := mgr.Command(version, bin, args)
@@ -266,21 +266,21 @@ func runNode(bin string, args []string, exitOnFail bool) error {
 		// "Corepack is about to download…" prompt in a non-interactive setup.
 		extraEnv = append(extraEnv, "COREPACK_ENABLE_DOWNLOAD_PROMPT=0")
 	}
-	// A user-configured npm prefix (env or ~/.npmrc) wins over lerd's own, so
-	// `npm install -g` lands where the user expects and survives a lerd
-	// uninstall; the wrapper sync only runs for lerd's prefix.
+	// A user-configured npm prefix (env or ~/.npmrc) wins over servlo's own, so
+	// `npm install -g` lands where the user expects and survives a servlo
+	// uninstall; the wrapper sync only runs for servlo's prefix.
 	syncGlobals := false
 	if bin == "npm" || bin == "npx" {
-		prefixEnv, lerdOwned := npmGlobalPrefixEnv()
+		prefixEnv, servloOwned := npmGlobalPrefixEnv()
 		extraEnv = append(extraEnv, prefixEnv...)
-		syncGlobals = lerdOwned
+		syncGlobals = servloOwned
 	}
 	mgr.ApplyEnv(cmd, extraEnv)
 	runErr := cmd.Run()
 	if syncGlobals {
 		prefix := config.NodeGlobalDir()
 		if syncErr := syncNodeGlobalBins(filepath.Join(prefix, "bin"), config.BinDir(), mgr.ExecPrefixWithEnv("default", []string{"npm_config_prefix=" + prefix})); syncErr != nil {
-			fmt.Fprintf(os.Stderr, "lerd: warning: failed to sync npm global wrappers: %v\n", syncErr)
+			fmt.Fprintf(os.Stderr, "servlo: warning: failed to sync npm global wrappers: %v\n", syncErr)
 		}
 	}
 	if runErr != nil {

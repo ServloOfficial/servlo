@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	lerdUpdate "github.com/geodro/lerd/internal/update"
+	servloUpdate "github.com/realrashid/servlo/internal/update"
 )
 
 // ── package-managed detection ─────────────────────────────────────────────────
@@ -25,13 +25,13 @@ func TestIsSystemPackageManaged(t *testing.T) {
 		path string
 		want bool
 	}{
-		{"/usr/bin/lerd", linuxOnly},
-		{"/usr/local/bin/lerd", linuxOnly},
-		{"/var/usrlocal/bin/lerd", linuxOnly},
-		{"/nix/store/abc123-lerd-1.30.0/bin/lerd", true},
-		{"/home/george/.local/bin/lerd", false},
-		{"/opt/lerd/lerd", false},
-		{"/tmp/lerd", false},
+		{"/usr/bin/servlo", linuxOnly},
+		{"/usr/local/bin/servlo", linuxOnly},
+		{"/var/usrlocal/bin/servlo", linuxOnly},
+		{"/nix/store/abc123-servlo-1.30.0/bin/servlo", true},
+		{"/home/george/.local/bin/servlo", false},
+		{"/opt/servlo/servlo", false},
+		{"/tmp/servlo", false},
 	}
 	for _, c := range cases {
 		if got := isSystemPackageManaged(c.path); got != c.want {
@@ -56,33 +56,33 @@ func TestPackageManagerHints(t *testing.T) {
 	}
 
 	stub("dnf")
-	if got := packageManagerUpdateHint("/usr/bin/lerd"); got != "sudo dnf upgrade lerd" {
+	if got := packageManagerUpdateHint("/usr/bin/servlo"); got != "sudo dnf upgrade servlo" {
 		t.Errorf("dnf update hint = %q", got)
 	}
-	if got := packageManagerRemoveHint("/usr/bin/lerd"); got != "sudo dnf remove lerd" {
+	if got := packageManagerRemoveHint("/usr/bin/servlo"); got != "sudo dnf remove servlo" {
 		t.Errorf("dnf remove hint = %q", got)
 	}
 
 	stub("pacman")
-	if got := packageManagerUpdateHint("/usr/bin/lerd"); got != "sudo pacman -Syu lerd" {
+	if got := packageManagerUpdateHint("/usr/bin/servlo"); got != "sudo pacman -Syu servlo" {
 		t.Errorf("pacman update hint = %q", got)
 	}
 
 	// Atomic Fedora has both; rpm-ostree owns layered packages, so it wins.
 	stub("rpm-ostree", "dnf")
-	if got := packageManagerUpdateHint("/usr/bin/lerd"); got != "rpm-ostree upgrade" {
+	if got := packageManagerUpdateHint("/usr/bin/servlo"); got != "rpm-ostree upgrade" {
 		t.Errorf("rpm-ostree update hint = %q", got)
 	}
 
 	// A Nix store path decides by itself, whatever is on PATH.
 	stub("apt")
-	if got := packageManagerUpdateHint("/nix/store/abc-lerd/bin/lerd"); !strings.Contains(got, "nix profile upgrade") {
+	if got := packageManagerUpdateHint("/nix/store/abc-servlo/bin/servlo"); !strings.Contains(got, "nix profile upgrade") {
 		t.Errorf("nix update hint = %q", got)
 	}
 
 	// No known package manager present falls back to a generic sentence.
 	stub("")
-	if got := packageManagerUpdateHint("/usr/bin/lerd"); !strings.Contains(got, "package manager") {
+	if got := packageManagerUpdateHint("/usr/bin/servlo"); !strings.Contains(got, "package manager") {
 		t.Errorf("fallback update hint = %q", got)
 	}
 }
@@ -114,11 +114,11 @@ func TestIsHomebrewManaged(t *testing.T) {
 		path string
 		want bool
 	}{
-		{"/opt/homebrew/Cellar/lerd/1.25.0/bin/lerd", true},
-		{"/usr/local/Cellar/lerd/1.25.0/bin/lerd", true},
-		{"/Users/me/.local/bin/lerd", false},
-		{"/home/me/.local/bin/lerd", false},
-		{"/usr/local/bin/lerd", false},
+		{"/opt/homebrew/Cellar/servlo/1.25.0/bin/servlo", true},
+		{"/usr/local/Cellar/servlo/1.25.0/bin/servlo", true},
+		{"/Users/me/.local/bin/servlo", false},
+		{"/home/me/.local/bin/servlo", false},
+		{"/usr/local/bin/servlo", false},
 	}
 	for _, c := range cases {
 		if got := isHomebrewManaged(c.path); got != c.want {
@@ -135,11 +135,11 @@ func TestFetchLatestVersion_success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	orig := lerdUpdate.ReleaseBaseURLs
-	lerdUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
-	defer func() { lerdUpdate.ReleaseBaseURLs = orig }()
+	orig := servloUpdate.ReleaseBaseURLs
+	servloUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
+	defer func() { servloUpdate.ReleaseBaseURLs = orig }()
 
-	got, err := lerdUpdate.FetchLatestVersion()
+	got, err := servloUpdate.FetchLatestVersion()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -154,11 +154,11 @@ func TestFetchLatestVersion_withoutVPrefix(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	orig := lerdUpdate.ReleaseBaseURLs
-	lerdUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
-	defer func() { lerdUpdate.ReleaseBaseURLs = orig }()
+	orig := servloUpdate.ReleaseBaseURLs
+	servloUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
+	defer func() { servloUpdate.ReleaseBaseURLs = orig }()
 
-	got, err := lerdUpdate.FetchLatestVersion()
+	got, err := servloUpdate.FetchLatestVersion()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -173,11 +173,11 @@ func TestFetchLatestVersion_notFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	orig := lerdUpdate.ReleaseBaseURLs
-	lerdUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
-	defer func() { lerdUpdate.ReleaseBaseURLs = orig }()
+	orig := servloUpdate.ReleaseBaseURLs
+	servloUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
+	defer func() { servloUpdate.ReleaseBaseURLs = orig }()
 
-	_, err := lerdUpdate.FetchLatestVersion()
+	_, err := servloUpdate.FetchLatestVersion()
 	if err == nil {
 		t.Fatal("expected error for 404 response, got nil")
 	}
@@ -189,11 +189,11 @@ func TestFetchLatestVersion_emptyTag(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	orig := lerdUpdate.ReleaseBaseURLs
-	lerdUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
-	defer func() { lerdUpdate.ReleaseBaseURLs = orig }()
+	orig := servloUpdate.ReleaseBaseURLs
+	servloUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
+	defer func() { servloUpdate.ReleaseBaseURLs = orig }()
 
-	_, err := lerdUpdate.FetchLatestVersion()
+	_, err := servloUpdate.FetchLatestVersion()
 	if err == nil {
 		t.Fatal("expected error for empty tag, got nil")
 	}
@@ -205,11 +205,11 @@ func TestFetchLatestVersion_serverError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	orig := lerdUpdate.ReleaseBaseURLs
-	lerdUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
-	defer func() { lerdUpdate.ReleaseBaseURLs = orig }()
+	orig := servloUpdate.ReleaseBaseURLs
+	servloUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
+	defer func() { servloUpdate.ReleaseBaseURLs = orig }()
 
-	_, err := lerdUpdate.FetchLatestVersion()
+	_, err := servloUpdate.FetchLatestVersion()
 	if err == nil {
 		t.Fatal("expected error for 500 response, got nil")
 	}
@@ -217,11 +217,11 @@ func TestFetchLatestVersion_serverError(t *testing.T) {
 
 // ── downloadReleaseBinary ────────────────────────────────────────────────────
 
-// makeFakeTarGz creates a .tar.gz archive in dir containing a file named "lerd"
+// makeFakeTarGz creates a .tar.gz archive in dir containing a file named "servlo"
 // with the given content.
 func makeFakeTarGz(t *testing.T, dir, content string) string {
 	t.Helper()
-	archivePath := filepath.Join(dir, "lerd_0.1.0_linux_amd64.tar.gz")
+	archivePath := filepath.Join(dir, "servlo_0.1.0_linux_amd64.tar.gz")
 	f, err := os.Create(archivePath)
 	if err != nil {
 		t.Fatal(err)
@@ -234,7 +234,7 @@ func makeFakeTarGz(t *testing.T, dir, content string) string {
 	defer tw.Close()
 
 	data := []byte(content)
-	tw.WriteHeader(&tar.Header{Name: "lerd", Mode: 0755, Size: int64(len(data))})
+	tw.WriteHeader(&tar.Header{Name: "servlo", Mode: 0755, Size: int64(len(data))})
 	tw.Write(data)
 	return archivePath
 }
@@ -242,9 +242,9 @@ func makeFakeTarGz(t *testing.T, dir, content string) string {
 func TestDownloadReleaseBinary_success(t *testing.T) {
 	// Build a fake tar.gz to serve
 	tmp := t.TempDir()
-	makeFakeTarGz(t, tmp, "#!/bin/sh\necho lerd")
+	makeFakeTarGz(t, tmp, "#!/bin/sh\necho servlo")
 
-	archiveBytes, err := os.ReadFile(filepath.Join(tmp, "lerd_0.1.0_linux_amd64.tar.gz"))
+	archiveBytes, err := os.ReadFile(filepath.Join(tmp, "servlo_0.1.0_linux_amd64.tar.gz"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func TestCopyFile(t *testing.T) {
 	src := filepath.Join(tmp, "src")
 	dst := filepath.Join(tmp, "dst")
 
-	if err := os.WriteFile(src, []byte("hello lerd"), 0644); err != nil {
+	if err := os.WriteFile(src, []byte("hello servlo"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -306,8 +306,8 @@ func TestCopyFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != "hello lerd" {
-		t.Errorf("got %q, want %q", got, "hello lerd")
+	if string(got) != "hello servlo" {
+		t.Errorf("got %q, want %q", got, "hello servlo")
 	}
 
 	info, _ := os.Stat(dst)
@@ -332,9 +332,9 @@ func TestRunUpdate_alreadyLatest(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	orig := lerdUpdate.ReleaseBaseURLs
-	lerdUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
-	defer func() { lerdUpdate.ReleaseBaseURLs = orig }()
+	orig := servloUpdate.ReleaseBaseURLs
+	servloUpdate.ReleaseBaseURLs = func() []string { return []string{srv.URL} }
+	defer func() { servloUpdate.ReleaseBaseURLs = orig }()
 
 	// Should return nil without downloading anything
 	err := runUpdate("1.0.0", false)
@@ -364,7 +364,7 @@ func TestVersionGreaterThan_prerelease(t *testing.T) {
 		{"1.5.0", "1.5.0", false},
 	}
 	for _, c := range cases {
-		got := lerdUpdate.VersionGreaterThan(c.a, c.b)
+		got := servloUpdate.VersionGreaterThan(c.a, c.b)
 		if got != c.want {
 			t.Errorf("VersionGreaterThan(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
 		}
@@ -387,7 +387,7 @@ func TestStripGitDescribe(t *testing.T) {
 		{"1.5.0-beta.1-3-g1a2b3c4", "1.5.0-beta.1"},
 	}
 	for _, c := range cases {
-		got := lerdUpdate.StripGitDescribe(c.in)
+		got := servloUpdate.StripGitDescribe(c.in)
 		if got != c.want {
 			t.Errorf("StripGitDescribe(%q) = %q, want %q", c.in, got, c.want)
 		}
@@ -397,7 +397,7 @@ func TestStripGitDescribe(t *testing.T) {
 // ── FetchLatestPrerelease ───────────────────────────────────────────────────
 
 func TestFetchLatestPrerelease_success(t *testing.T) {
-	releases := []lerdUpdate.GithubReleaseForTest{
+	releases := []servloUpdate.GithubReleaseForTest{
 		{TagName: "v1.5.0-beta.1", Prerelease: true, Draft: false},
 		{TagName: "v1.4.0", Prerelease: false, Draft: false},
 	}
@@ -409,11 +409,11 @@ func TestFetchLatestPrerelease_success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	orig := lerdUpdate.APIBaseURLs
-	lerdUpdate.APIBaseURLs = func() []string { return []string{srv.URL} }
-	defer func() { lerdUpdate.APIBaseURLs = orig }()
+	orig := servloUpdate.APIBaseURLs
+	servloUpdate.APIBaseURLs = func() []string { return []string{srv.URL} }
+	defer func() { servloUpdate.APIBaseURLs = orig }()
 
-	got, err := lerdUpdate.FetchLatestPrerelease()
+	got, err := servloUpdate.FetchLatestPrerelease()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -423,7 +423,7 @@ func TestFetchLatestPrerelease_success(t *testing.T) {
 }
 
 func TestFetchLatestPrerelease_noPrerelease(t *testing.T) {
-	releases := []lerdUpdate.GithubReleaseForTest{
+	releases := []servloUpdate.GithubReleaseForTest{
 		{TagName: "v1.4.0", Prerelease: false, Draft: false},
 	}
 	body, _ := json.Marshal(releases)
@@ -434,11 +434,11 @@ func TestFetchLatestPrerelease_noPrerelease(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	orig := lerdUpdate.APIBaseURLs
-	lerdUpdate.APIBaseURLs = func() []string { return []string{srv.URL} }
-	defer func() { lerdUpdate.APIBaseURLs = orig }()
+	orig := servloUpdate.APIBaseURLs
+	servloUpdate.APIBaseURLs = func() []string { return []string{srv.URL} }
+	defer func() { servloUpdate.APIBaseURLs = orig }()
 
-	_, err := lerdUpdate.FetchLatestPrerelease()
+	_, err := servloUpdate.FetchLatestPrerelease()
 	if err == nil {
 		t.Fatal("expected error when no pre-release available, got nil")
 	}
@@ -450,11 +450,11 @@ func TestFetchLatestPrerelease_serverError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	orig := lerdUpdate.APIBaseURLs
-	lerdUpdate.APIBaseURLs = func() []string { return []string{srv.URL} }
-	defer func() { lerdUpdate.APIBaseURLs = orig }()
+	orig := servloUpdate.APIBaseURLs
+	servloUpdate.APIBaseURLs = func() []string { return []string{srv.URL} }
+	defer func() { servloUpdate.APIBaseURLs = orig }()
 
-	_, err := lerdUpdate.FetchLatestPrerelease()
+	_, err := servloUpdate.FetchLatestPrerelease()
 	if err == nil {
 		t.Fatal("expected error for 500 response, got nil")
 	}
@@ -467,19 +467,19 @@ func TestBackupBinary(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	// Create a data dir for the backup files.
-	dataDir := filepath.Join(tmp, "lerd")
+	dataDir := filepath.Join(tmp, "servlo")
 	os.MkdirAll(dataDir, 0755)
 
 	// Create a fake binary in a separate subdirectory to avoid collision.
 	binDir := filepath.Join(tmp, "bin")
 	os.MkdirAll(binDir, 0755)
-	fakeBin := filepath.Join(binDir, "lerd")
+	fakeBin := filepath.Join(binDir, "servlo")
 	os.WriteFile(fakeBin, []byte("fake-binary"), 0755)
 
 	backupBinary(fakeBin, "1.4.0")
 
 	// Check backup file exists.
-	bakData, err := os.ReadFile(filepath.Join(dataDir, "lerd.bak"))
+	bakData, err := os.ReadFile(filepath.Join(dataDir, "servlo.bak"))
 	if err != nil {
 		t.Fatalf("backup binary not created: %v", err)
 	}
@@ -502,7 +502,7 @@ func TestBackupBinary(t *testing.T) {
 func TestRunRollback_noBackup(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
-	os.MkdirAll(filepath.Join(tmp, "lerd"), 0755)
+	os.MkdirAll(filepath.Join(tmp, "servlo"), 0755)
 
 	err := runRollback()
 	if err == nil {
@@ -567,8 +567,8 @@ func TestPrepUserUnitsForRollback_rewritesOnlyChangedFiles(t *testing.T) {
 	withNotify := "[Service]\nType=notify\nExecStart=/bin/x\n"
 	withoutNotify := "[Service]\nExecStart=/bin/y\n"
 
-	uiPath := filepath.Join(dir, "lerd-ui.service")
-	watcherPath := filepath.Join(dir, "lerd-watcher.service")
+	uiPath := filepath.Join(dir, "servlo-panel.service")
+	watcherPath := filepath.Join(dir, "servlo-watcher.service")
 	if err := os.WriteFile(uiPath, []byte(withNotify), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -576,15 +576,15 @@ func TestPrepUserUnitsForRollback_rewritesOnlyChangedFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	prepUserUnitsForRollback("lerd-ui.service", "lerd-watcher.service")
+	prepUserUnitsForRollback("servlo-panel.service", "servlo-watcher.service")
 
 	gotUI, _ := os.ReadFile(uiPath)
 	if string(gotUI) != "[Service]\nExecStart=/bin/x\n" {
-		t.Errorf("lerd-ui.service was not stripped: %q", gotUI)
+		t.Errorf("servlo-panel.service was not stripped: %q", gotUI)
 	}
 	gotWatcher, _ := os.ReadFile(watcherPath)
 	if string(gotWatcher) != withoutNotify {
-		t.Errorf("lerd-watcher.service must not be rewritten when unchanged: %q", gotWatcher)
+		t.Errorf("servlo-watcher.service must not be rewritten when unchanged: %q", gotWatcher)
 	}
 }
 
@@ -592,5 +592,5 @@ func TestPrepUserUnitsForRollback_skipsMissingFiles(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
-	prepUserUnitsForRollback("lerd-ui.service")
+	prepUserUnitsForRollback("servlo-panel.service")
 }

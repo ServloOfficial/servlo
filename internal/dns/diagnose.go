@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // StepStatus is the outcome of a single rung in the layered DNS check.
@@ -74,13 +74,13 @@ func (p probeFns) exposedIP() string {
 	return p.lanExposedIP()
 }
 
-// answerAccepted reports whether a DNS answer is one lerd would legitimately
+// answerAccepted reports whether a DNS answer is one servlo would legitimately
 // return: loopback always, plus the host LAN IP when lan:expose is on.
 func answerAccepted(answer, lanIP string) bool {
 	return answer == "127.0.0.1" || (lanIP != "" && answer == lanIP)
 }
 
-// acceptedAnswer returns the first address in addrs that lerd would legitimately
+// acceptedAnswer returns the first address in addrs that servlo would legitimately
 // hand out, or "" if none qualifies.
 func acceptedAnswer(addrs []string, lanIP string) string {
 	for _, a := range addrs {
@@ -91,7 +91,7 @@ func acceptedAnswer(addrs []string, lanIP string) string {
 	return ""
 }
 
-// resolverHookup kinds. Both systemd-resolved paths rely on the lerd0 link;
+// resolverHookup kinds. Both systemd-resolved paths rely on the servlo0 link;
 // NetworkManager's own dnsmasq resolves .test without resolved and needs no link,
 // and macOS routes .test through /etc/resolver.
 const (
@@ -102,7 +102,7 @@ const (
 	macOSKind          = "macOS native dnsmasq"
 )
 
-// usesDummyLink reports whether a resolver hookup relies on lerd0 for offline
+// usesDummyLink reports whether a resolver hookup relies on servlo0 for offline
 // .test resolution.
 func usesDummyLink(kind string) bool {
 	return kind == nmDispatcherKind || kind == resolvedLinkKind || kind == resolvedDropinKind
@@ -120,15 +120,15 @@ func diagnose(tld string, p probeFns) Diagnostic {
 	}
 	d := Diagnostic{TLD: tld, FirstFailure: -1}
 
-	// Rung 1, lerd-dns container, with a fallback check so a host-side
+	// Rung 1, servlo-dns container, with a fallback check so a host-side
 	// dnsmasq owning :5300 (Homebrew, system package) doesn't get
 	// misreported as "container not running".
 	switch {
 	case p.containerRunning():
-		d.Steps = append(d.Steps, Step{Name: "lerd-dns container", Status: StepOK, Detail: "running"})
+		d.Steps = append(d.Steps, Step{Name: "servlo-dns container", Status: StepOK, Detail: "running"})
 	case p.portOpen("127.0.0.1", 5300):
 		// Something is on :5300 but it's not our container. Probe it:
-		//   - answer == 127.0.0.1: legacy resolver matching lerd's mapping
+		//   - answer == 127.0.0.1: legacy resolver matching servlo's mapping
 		//   - any other IP:        legacy resolver pointing elsewhere
 		//                          (e.g. LAN IP for cross-device testing)
 		//   - error or empty:      port squatted by something non-DNS
@@ -136,17 +136,17 @@ func diagnose(tld string, p probeFns) Diagnostic {
 		switch {
 		case err == nil && answer == "127.0.0.1":
 			d.Steps = append(d.Steps, Step{
-				Name:   "lerd-dns container",
+				Name:   "servlo-dns container",
 				Status: StepWarn,
 				Detail: "not running; a host-side resolver on :5300 is answering ." + tld + " with 127.0.0.1",
-				Hint:   "lerd is not managing DNS here. Either keep your host resolver (no action), or stop it (e.g. `brew services stop dnsmasq`) and run `lerd start` to switch to lerd-managed DNS.",
+				Hint:   "servlo is not managing DNS here. Either keep your host resolver (no action), or stop it (e.g. `brew services stop dnsmasq`) and run `servlo start` to switch to servlo-managed DNS.",
 			})
 		case err == nil && answer != "":
 			d.Steps = append(d.Steps, Step{
-				Name:   "lerd-dns container",
+				Name:   "servlo-dns container",
 				Status: StepWarn,
-				Detail: fmt.Sprintf("not running; a host-side resolver on :5300 is answering .%s with %s (lerd's default is 127.0.0.1)", tld, answer),
-				Hint:   "lerd is not managing DNS here. Your host resolver is mapping ." + tld + " to a different address. Keep using it, or stop it and run `lerd start` to switch to lerd-managed DNS pointing at 127.0.0.1.",
+				Detail: fmt.Sprintf("not running; a host-side resolver on :5300 is answering .%s with %s (servlo's default is 127.0.0.1)", tld, answer),
+				Hint:   "servlo is not managing DNS here. Your host resolver is mapping ." + tld + " to a different address. Keep using it, or stop it and run `servlo start` to switch to servlo-managed DNS pointing at 127.0.0.1.",
 			})
 		default:
 			detail := "not running; another process owns :5300 but didn't resolve ." + tld
@@ -156,7 +156,7 @@ func diagnose(tld string, p probeFns) Diagnostic {
 				detail += " (empty answer)"
 			}
 			d.Steps = append(d.Steps, Step{
-				Name:   "lerd-dns container",
+				Name:   "servlo-dns container",
 				Status: StepFail,
 				Detail: detail,
 				Hint:   "identify the holder: " + findListenerCmd(5300),
@@ -165,10 +165,10 @@ func diagnose(tld string, p probeFns) Diagnostic {
 		return finalize(d)
 	default:
 		d.Steps = append(d.Steps, Step{
-			Name:   "lerd-dns container",
+			Name:   "servlo-dns container",
 			Status: StepFail,
 			Detail: "not running",
-			Hint:   "lerd start  (or check podman logs lerd-dns)",
+			Hint:   "servlo start  (or check podman logs servlo-dns)",
 		})
 		return finalize(d)
 	}
@@ -181,7 +181,7 @@ func diagnose(tld string, p probeFns) Diagnostic {
 			Name:   "dnsmasq config",
 			Status: StepFail,
 			Detail: detail,
-			Hint:   "lerd start regenerates the config from your registered TLD",
+			Hint:   "servlo start regenerates the config from your registered TLD",
 		})
 		return finalize(d)
 	}
@@ -214,7 +214,7 @@ func diagnose(tld string, p probeFns) Diagnostic {
 			Name:   "dig @127.0.0.1 -p 5300",
 			Status: StepFail,
 			Detail: err.Error(),
-			Hint:   "lerd-dns config probably stale, repair with: lerd dns:repair",
+			Hint:   "servlo-dns config probably stale, repair with: servlo dns:repair",
 		})
 		return finalize(d)
 	case !answerAccepted(answer, lanIP):
@@ -222,7 +222,7 @@ func diagnose(tld string, p probeFns) Diagnostic {
 			Name:   "dig @127.0.0.1 -p 5300",
 			Status: StepFail,
 			Detail: fmt.Sprintf("got %q, want %s", answer, want),
-			Hint:   "lerd-dns address rule missing, repair with: lerd dns:repair",
+			Hint:   "servlo-dns address rule missing, repair with: servlo dns:repair",
 		})
 		return finalize(d)
 	default:
@@ -237,8 +237,8 @@ func diagnose(tld string, p probeFns) Diagnostic {
 		d.Steps = append(d.Steps, Step{
 			Name:   "resolver hookup",
 			Status: StepFail,
-			Detail: "no NetworkManager dispatcher, NetworkManager dnsmasq config, or lerd .test link installed",
-			Hint:   "rerun: lerd install",
+			Detail: "no NetworkManager dispatcher, NetworkManager dnsmasq config, or servlo .test link installed",
+			Hint:   "rerun: servlo install",
 		})
 		return finalize(d)
 	}
@@ -259,7 +259,7 @@ func diagnose(tld string, p probeFns) Diagnostic {
 				Name:   "interface routes .test to 5300",
 				Status: StepFail,
 				Detail: fmt.Sprintf("interface %q has no 127.0.0.1:5300 entry", iface),
-				Hint:   "sudo systemctl restart NetworkManager  (or sudo resolvectl revert " + iface + " && rerun lerd install)",
+				Hint:   "sudo systemctl restart NetworkManager  (or sudo resolvectl revert " + iface + " && rerun servlo install)",
 			})
 			return finalize(d)
 		case !hasTLD:
@@ -275,7 +275,7 @@ func diagnose(tld string, p probeFns) Diagnostic {
 		}
 	}
 
-	// Rung 6b — the offline .test route. Both systemd-resolved paths rely on lerd0;
+	// Rung 6b — the offline .test route. Both systemd-resolved paths rely on servlo0;
 	// NetworkManager's own dnsmasq and macOS resolve .test with no network already.
 	// These are warnings, not failures: with a link up .test resolves fine either
 	// way, and the damage only shows once the user goes offline, which is exactly
@@ -287,21 +287,21 @@ func diagnose(tld string, p probeFns) Diagnostic {
 			d.Steps = append(d.Steps, Step{
 				Name:   "offline ." + tld + " route",
 				Status: StepWarn,
-				Detail: lerdDummyIface + " is missing; ." + tld + " resolves now but will stop once every network link is down",
-				Hint:   "lerd start  (or: sudo systemctl restart " + lerdLinkUnitName + ")",
+				Detail: servloDummyIface + " is missing; ." + tld + " resolves now but will stop once every network link is down",
+				Hint:   "servlo start  (or: sudo systemctl restart " + servloLinkUnitName + ")",
 			})
 		case !routed:
 			d.Steps = append(d.Steps, Step{
 				Name:   "offline ." + tld + " route",
 				Status: StepWarn,
-				Detail: lerdDummyIface + " is up but carries no ~" + tld + " route to 127.0.0.1:5300",
-				Hint:   "sudo systemctl restart " + lerdLinkUnitName,
+				Detail: servloDummyIface + " is up but carries no ~" + tld + " route to 127.0.0.1:5300",
+				Hint:   "sudo systemctl restart " + servloLinkUnitName,
 			})
 		default:
 			d.Steps = append(d.Steps, Step{
 				Name:   "offline ." + tld + " route",
 				Status: StepOK,
-				Detail: lerdDummyIface,
+				Detail: servloDummyIface,
 			})
 		}
 	}
@@ -325,23 +325,23 @@ func diagnose(tld string, p probeFns) Diagnostic {
 
 // systemLookupFailStep builds the Rung 7 failure step. When a VPN tunnel
 // is up the system-resolver path failing is expected: the VPN client has
-// taken over DNS, .test still resolves via lerd-dns directly, and the
+// taken over DNS, .test still resolves via servlo-dns directly, and the
 // watcher re-syncs container DNS automatically. That is a warning, not a
-// failure, so the chain doesn't flag a broken state lerd already handles.
+// failure, so the chain doesn't flag a broken state servlo already handles.
 func systemLookupFailStep(detail string, vpn bool) Step {
 	if vpn {
 		return Step{
 			Name:   "system DNS lookup",
 			Status: StepWarn,
 			Detail: detail,
-			Hint:   "a VPN tunnel is up and has taken over the system resolver; .test still resolves via lerd-dns directly and lerd re-syncs container DNS automatically when the VPN changes",
+			Hint:   "a VPN tunnel is up and has taken over the system resolver; .test still resolves via servlo-dns directly and servlo re-syncs container DNS automatically when the VPN changes",
 		}
 	}
 	return Step{
 		Name:   "system DNS lookup",
 		Status: StepFail,
 		Detail: detail,
-		Hint:   "lerd-dns is reachable directly but the system resolver isn't using it; check cloud-init or other tools that may overwrite resolved.conf",
+		Hint:   "servlo-dns is reachable directly but the system resolver isn't using it; check cloud-init or other tools that may overwrite resolved.conf",
 	}
 }
 
@@ -395,24 +395,24 @@ func defaultLanExposedIP() string {
 	return ""
 }
 
-// defaultDummyLinkRouting reports whether lerd0 exists and still carries the
-// .test route to lerd-dns.
+// defaultDummyLinkRouting reports whether servlo0 exists and still carries the
+// .test route to servlo-dns.
 func defaultDummyLinkRouting(tld string) (bool, bool) {
-	out, err := exec.Command("resolvectl", "status", lerdDummyIface).Output()
+	out, err := exec.Command("resolvectl", "status", servloDummyIface).Output()
 	if err != nil {
 		return false, false
 	}
 	return parseDummyLinkRouting(string(out), tld)
 }
 
-// parseDummyLinkRouting reads `resolvectl status lerd0` output. Presence comes
+// parseDummyLinkRouting reads `resolvectl status servlo0` output. Presence comes
 // off stdout rather than the exit code: resolvectl still exits 0 for a link it
 // doesn't know, printing "No such device" to stderr, so an exit-code check would
 // report a deleted link as present-but-unrouted and send the user chasing a
 // routing problem on an interface that isn't there. A known link always prints a
-// "Link N (lerd0)" header; a missing one prints nothing at all.
+// "Link N (servlo0)" header; a missing one prints nothing at all.
 func parseDummyLinkRouting(output, tld string) (present bool, routed bool) {
-	if !strings.Contains(output, "("+lerdDummyIface+")") {
+	if !strings.Contains(output, "("+servloDummyIface+")") {
 		return false, false
 	}
 	// Match ~tld as a whole routing domain, not a substring: an unanchored
@@ -427,7 +427,7 @@ func parseDummyLinkRouting(output, tld string) (present bool, routed bool) {
 	return true, strings.Contains(output, "127.0.0.1:5300") && hasDomain
 }
 
-// serviceActive reports whether the lerd-dns service unit is active. It is a
+// serviceActive reports whether the servlo-dns service unit is active. It is a
 // var so tests can stub it; production resolves to the platform service
 // manager, which uses launchd on macOS and systemd on linux.
 var serviceActive = func(name string) bool { return services.Mgr.IsActive(name) }
@@ -436,16 +436,16 @@ func defaultContainerRunning() bool {
 	// Consult the service manager first so a launchd-managed host dnsmasq on
 	// macOS (no container, no systemctl) isn't misreported as a foreign
 	// resolver. Falls back to a direct container probe for the podman case.
-	if serviceActive("lerd-dns") {
+	if serviceActive("servlo-dns") {
 		return true
 	}
-	cmd := podman.Cmd("ps", "--filter", "name=^lerd-dns$", "--format", "{{.Names}}")
+	cmd := podman.Cmd("ps", "--filter", "name=^servlo-dns$", "--format", "{{.Names}}")
 	out, err := cmd.Output()
-	return err == nil && strings.TrimSpace(string(out)) == "lerd-dns"
+	return err == nil && strings.TrimSpace(string(out)) == "servlo-dns"
 }
 
 func defaultDnsmasqConfigOK(tld string) (bool, string) {
-	path := filepath.Join(config.DnsmasqDir(), "lerd.conf")
+	path := filepath.Join(config.DnsmasqDir(), "servlo.conf")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false, "missing " + path
@@ -478,12 +478,12 @@ func defaultPortOpen(host string, port int) bool {
 }
 
 func defaultDnsmasqAnswer(tld string) (string, error) {
-	// Query A records only — lerd's dnsmasq config has
+	// Query A records only — servlo's dnsmasq config has
 	// `address=/.tld/127.0.0.1`, which only matches A. Asking for the
 	// host generically (LookupHost) brings AAAA into the mix and the
 	// resolver may return ::1 first depending on system preference, even
 	// though dnsmasq itself answered the IPv4 question correctly.
-	host := "lerd-probe." + tld
+	host := "servlo-probe." + tld
 	r := &net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
@@ -506,20 +506,20 @@ func defaultDnsmasqAnswer(tld string) (string, error) {
 // defaultResolverHookup reports how .test is wired into the system resolver.
 //
 // Ordered, not a map: the NetworkManager path installs both the dispatcher and
-// the lerd0 link unit, so a map's random iteration would report either one at
+// the servlo0 link unit, so a map's random iteration would report either one at
 // random from run to run. First match wins, most specific first.
 func defaultResolverHookup() (string, bool, string) {
 	if runtime.GOOS != "linux" {
-		return macOSKind, true, "/usr/local/etc/dnsmasq.d/lerd.conf"
+		return macOSKind, true, "/usr/local/etc/dnsmasq.d/servlo.conf"
 	}
 	for _, h := range []struct{ kind, path string }{
-		{nmDispatcherKind, "/etc/NetworkManager/dispatcher.d/99-lerd-dns"},
-		{nmDnsmasqKind, "/etc/NetworkManager/dnsmasq.d/lerd.conf"},
-		// No NetworkManager: lerd0 alone carries .tld, so its unit is the hookup.
-		{resolvedLinkKind, lerdLinkUnit},
+		{nmDispatcherKind, "/etc/NetworkManager/dispatcher.d/99-servlo-dns"},
+		{nmDnsmasqKind, "/etc/NetworkManager/dnsmasq.d/servlo.conf"},
+		// No NetworkManager: servlo0 alone carries .tld, so its unit is the hookup.
+		{resolvedLinkKind, servloLinkUnit},
 		// Last: a host that has not re-run setup since the link landed still
 		// resolves through this, and reporting "no hookup" at it would be a lie.
-		{resolvedDropinKind, "/etc/systemd/resolved.conf.d/lerd.conf"},
+		{resolvedDropinKind, "/etc/systemd/resolved.conf.d/servlo.conf"},
 	} {
 		if _, err := os.Stat(h.path); err == nil {
 			return h.kind, true, h.path
@@ -570,7 +570,7 @@ func parseInterfaceRouting(output, tld string) (iface string, has5300 bool, hasT
 }
 
 func defaultSystemLookup(tld string) ([]string, error) {
-	host := "lerd-probe." + tld
+	host := "servlo-probe." + tld
 	addrs, err := net.LookupHost(host)
 	return addrs, err
 }

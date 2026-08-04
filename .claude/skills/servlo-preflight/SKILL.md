@@ -70,9 +70,9 @@ alone.
 ## Targets that do not exist yet
 
 `make build-server` arrives in S0.2 and `make surface-scan` during Phase 0. Until
-then the Makefile has `build`, `build-ui`, `build-tray`, `test`, `test-ui`,
+then the Makefile has `build`, `build-ui`, `test`, `test-ui`,
 `test-installer`, `test-all`, `install`, `release`, `release-snapshot`, and the
-entrypoint is still `./cmd/lerd`. Report a missing target as missing. Never
+entrypoint is still `./cmd/servlo`. Report a missing target as missing. Never
 substitute a different command and call the step passed.
 
 ## Rules

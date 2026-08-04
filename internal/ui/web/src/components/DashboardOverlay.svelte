@@ -30,7 +30,7 @@
   const isProfiler = $derived($dashboardOpen?.name === 'profiler');
 
   const headerBtnClass =
-    'text-xs rounded-sm border border-gray-200 dark:border-lerd-border px-2 py-1 ' +
+    'text-xs rounded-sm border border-gray-200 dark:border-servlo-border px-2 py-1 ' +
     'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors';
 
   // Reset iframe-history tracking whenever a different dashboard opens.
@@ -137,8 +137,8 @@
 {#if $dashboardOpen}
   {@const d = $dashboardOpen}
   {@const iframeSrc = d.dashboard + (d.extraPath ?? '')}
-  <div class="fixed top-0 right-0 left-0 bottom-16 md:left-14 md:bottom-0 z-30 flex flex-col bg-white dark:bg-lerd-bg">
-    <div class="flex items-center justify-between px-3 py-3 border-b border-gray-200 dark:border-lerd-border shrink-0">
+  <div class="fixed top-0 right-0 left-0 bottom-16 md:left-14 md:bottom-0 z-30 flex flex-col bg-white dark:bg-servlo-bg">
+    <div class="flex items-center justify-between px-3 py-3 border-b border-gray-200 dark:border-servlo-border shrink-0">
       <div class="flex items-center gap-3 min-w-0">
         {#if isProfiler}
           <button
@@ -187,7 +187,7 @@
             aria-pressed={$profilerEnabled}
             class="flex items-center gap-1.5 text-xs rounded-sm border px-2 py-1 transition-colors disabled:opacity-50 {$profilerEnabled
               ? 'border-emerald-500/40 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 hover:border-emerald-500'
-              : 'border-gray-200 dark:border-lerd-border text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}"
+              : 'border-gray-200 dark:border-servlo-border text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}"
           >
             {#if $profilerEnabled}
               <StatusDot color="emerald" size="xs" pulse />

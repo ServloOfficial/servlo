@@ -67,7 +67,7 @@
     )
   );
   // When host bun is available, the Node dropdown offers a "bun" entry that
-  // pins .lerd.yaml js_runtime (project-level), leaving node_version intact.
+  // pins .servlo.yaml js_runtime (project-level), leaving node_version intact.
   // js_runtime is project-level, so the bun toggle only belongs on the main
   // site dropdown — offering it per worktree would let a worktree action flip
   // the whole project's runtime and show a confusing selection.
@@ -320,11 +320,11 @@
           onchange={(v) => onPhpChange({ target: { value: v } } as unknown as Event)}
         />
       {:else}
-        <span class="text-xs text-gray-400 border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1 opacity-50">PHP ...</span>
+        <span class="text-xs text-gray-400 border border-gray-200 dark:border-servlo-border rounded-sm px-2 py-1 opacity-50">PHP ...</span>
       {/if}
     {/if}
 
-    {#if $status.node_managed_by_lerd && $nodeVersions.length > 0}
+    {#if $status.node_managed_by_servlo && $nodeVersions.length > 0}
       <Dropdown
         value={nodeValue}
         options={nodeOptions}
@@ -471,7 +471,7 @@
       <button
               type="button"
               onclick={() => (doctorOpen = true)}
-              class="shrink-0 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card hover:border-lerd-red hover:text-lerd-red transition-colors text-xs font-medium text-gray-700 dark:text-gray-200"
+              class="shrink-0 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card hover:border-servlo-red hover:text-servlo-red transition-colors text-xs font-medium text-gray-700 dark:text-gray-200"
               use:tooltip={m.sites_doctor_title()}
               aria-label={m.sites_doctor_button()}
       >

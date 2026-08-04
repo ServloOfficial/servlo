@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 func TestNginxShow_printsSavedOverride(t *testing.T) {

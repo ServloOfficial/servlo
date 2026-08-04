@@ -1,8 +1,8 @@
 package serviceops
 
 import (
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/presetfixtures"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/presetfixtures"
 )
 
 // Add-ons ship in the external store, not the binary. Tests resolve them through

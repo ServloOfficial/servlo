@@ -5,11 +5,11 @@
 </script>
 
 <div
-  class="md:hidden flex items-center justify-between px-3 py-3 border-b border-gray-100 dark:border-lerd-border sticky top-0 bg-white dark:bg-lerd-card z-10"
+  class="md:hidden flex items-center justify-between px-3 py-3 border-b border-gray-100 dark:border-servlo-border sticky top-0 bg-white dark:bg-servlo-card z-10"
 >
   <div class="flex items-center gap-2">
-    <img src="/icons/icon.svg" class="w-6 h-6 rounded-md" alt="Lerd" />
-    <span class="font-semibold text-sm text-gray-900 dark:text-white">Lerd</span>
+    <img src="/icons/icon.svg" class="w-6 h-6 rounded-md" alt="Servlo" />
+    <span class="font-semibold text-sm text-gray-900 dark:text-white">Servlo</span>
     <span class="text-xs text-gray-400 dark:text-gray-600 font-mono">v{$version.current}</span>
   </div>
   <NotificationCenter size="md" align="right" />

@@ -9,10 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/serviceops"
 )
 
 // entityKindResponse is one declared entity kind with its live rows, rendered
@@ -72,7 +72,7 @@ func entityOwnerIndex(service, ownerEnv string) map[string]string {
 		}
 		refsService := false
 		for _, v := range vals {
-			if strings.Contains(v, "lerd-"+service) {
+			if strings.Contains(v, "servlo-"+service) {
 				refsService = true
 				break
 			}
@@ -148,7 +148,7 @@ func rowEntityAction(action string) bool {
 
 func entityOverview(service string, specs []config.EntitySpec) []entityKindResponse {
 	active := false
-	if status, _ := podman.UnitStatus("lerd-" + service); status == "active" {
+	if status, _ := podman.UnitStatus("servlo-" + service); status == "active" {
 		active = true
 	}
 	out := make([]entityKindResponse, 0, len(specs))
@@ -226,7 +226,7 @@ func handleEntityAction(w http.ResponseWriter, r *http.Request, service, kind, a
 		writeDBError(w, "a name is required")
 		return
 	}
-	if status, _ := podman.UnitStatus("lerd-" + service); status != "active" {
+	if status, _ := podman.UnitStatus("servlo-" + service); status != "active" {
 		writeDBError(w, "start the service before running entity actions")
 		return
 	}
@@ -244,7 +244,7 @@ func handleEntityExport(w http.ResponseWriter, r *http.Request, service, kind st
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if status, _ := podman.UnitStatus("lerd-" + service); status != "active" {
+	if status, _ := podman.UnitStatus("servlo-" + service); status != "active" {
 		http.Error(w, "start the service before exporting", http.StatusConflict)
 		return
 	}
@@ -261,7 +261,7 @@ func handleEntityExport(w http.ResponseWriter, r *http.Request, service, kind st
 // form, streaming the body straight into the declared import the same way
 // database imports do.
 func handleEntityImport(w http.ResponseWriter, r *http.Request, service, kind string) {
-	if status, _ := podman.UnitStatus("lerd-" + service); status != "active" {
+	if status, _ := podman.UnitStatus("servlo-" + service); status != "active" {
 		writeDBError(w, "start the service before importing")
 		return
 	}

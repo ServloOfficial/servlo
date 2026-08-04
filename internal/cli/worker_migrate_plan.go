@@ -1,6 +1,6 @@
 package cli
 
-import "github.com/geodro/lerd/internal/config"
+import "github.com/realrashid/servlo/internal/config"
 
 // workerArtifactKind is the on-disk artifact a worker lives as in a given
 // mode. container mode writes a .container quadlet; exec mode writes a

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // phpVersionTestSite registers an unsecured site in a temp registry and returns
@@ -24,7 +24,7 @@ func phpVersionTestSite(t *testing.T, tweak func(*config.Site)) *config.Site {
 	// written under os.UserHomeDir() (~/Library/LaunchAgents on macOS), which
 	// reads $HOME rather than the XDG dirs. Without this the version switch
 	// clobbers the real service files with a fake-podman path from this temp
-	// tree, breaking the developer's own lerd install once the tree is cleaned up.
+	// tree, breaking the developer's own servlo install once the tree is cleaned up.
 	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", tmp)
@@ -132,7 +132,7 @@ func TestSetSitePHPVersion_clampsToFrameworkRange(t *testing.T) {
 		t.Errorf("result = %+v, want 8.1 clamped to 8.3", res)
 	}
 	// The pin file must carry the clamped version, not the request: a
-	// .php-version lerd overrides on every pass is a lie other tools trust.
+	// .php-version servlo overrides on every pass is a lie other tools trust.
 	if got := readPHPVersionFile(t, site.Path); got != "8.3" {
 		t.Errorf(".php-version = %q, want the clamped 8.3", got)
 	}
@@ -142,7 +142,7 @@ func TestSetSitePHPVersion_clampsToFrameworkRange(t *testing.T) {
 }
 
 // Input like "php8.2" must reduce to "8.2" before anything is derived from it;
-// stored raw it produces image names like lerd-phpphp82-fpm-base (#1173).
+// stored raw it produces image names like servlo-phpphp82-fpm-base (#1173).
 func TestSetSitePHPVersion_normalizesPrefixedInput(t *testing.T) {
 	site := phpVersionTestSite(t, asFPM)
 	stubPHPVersionDeps(t, "", "")
@@ -435,9 +435,9 @@ func TestSetSitePHPVersion_worktreeDoesTheSameRuntimeSetup(t *testing.T) {
 
 // The reported case. Definitions exist for Laravel 10 and up, so an older
 // project borrows one and is marked guessed. Clamping to a borrowed range
-// refuses the version the project actually requires: `lerd isolate 7.4` on a
+// refuses the version the project actually requires: `servlo isolate 7.4` on a
 // Laravel 8 app answered "7.4 isn't usable here" and moved it to 8.5.
-// `lerd link` already declined to clamp a guessed definition; this path did not.
+// `servlo link` already declined to clamp a guessed definition; this path did not.
 func TestPHPConstraintFor_GuessedFrameworkUsesComposer(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "composer.json"),

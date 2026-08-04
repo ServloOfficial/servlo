@@ -39,9 +39,9 @@
       onclick={onclose}
     ></button>
     <div
-      class="relative bg-white dark:bg-lerd-card border border-gray-200 dark:border-lerd-border rounded-xl shadow-2xl w-full {widthClass} mx-4"
+      class="relative bg-white dark:bg-servlo-card border border-gray-200 dark:border-servlo-border rounded-xl shadow-2xl w-full {widthClass} mx-4"
     >
-      <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-lerd-border">
+      <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-servlo-border">
         <h3 class="min-w-0 break-words font-semibold text-gray-900 dark:text-white">{title}</h3>
         <button
           onclick={onclose}
@@ -53,7 +53,7 @@
       </div>
       {@render children()}
       {#if footer}
-        <div class="px-5 py-3 border-t border-gray-100 dark:border-lerd-border flex items-center justify-end gap-2">
+        <div class="px-5 py-3 border-t border-gray-100 dark:border-servlo-border flex items-center justify-end gap-2">
           {@render footer()}
         </div>
       {/if}

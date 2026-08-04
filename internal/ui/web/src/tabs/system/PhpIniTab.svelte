@@ -20,7 +20,7 @@
     hint={m.system_php_iniScopeVersion()}
     label={'PHP ' + version}
   />
-  <div class="border-t lg:border-t-0 lg:border-l border-gray-100 dark:border-lerd-border"></div>
+  <div class="border-t lg:border-t-0 lg:border-l border-gray-100 dark:border-servlo-border"></div>
   <PhpIniPane
     scope="shared"
     title={m.system_php_iniScopeSharedLabel()}

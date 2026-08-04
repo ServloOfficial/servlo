@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// A SIGTERM (lerd stop, launchctl bootout, logout, a systemd restart) must take
+// A SIGTERM (servlo stop, launchctl bootout, logout, a systemd restart) must take
 // the public tunnels down with the process.
 func TestStopTunnelsOnShutdown(t *testing.T) {
 	stopped := make(chan struct{})

@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	nodePkg "github.com/geodro/lerd/internal/node"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	nodePkg "github.com/realrashid/servlo/internal/node"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // EnrichFlag controls which enrichment steps run during site loading.
@@ -25,7 +25,7 @@ const (
 	EnrichWorkers                                // worker status via podman
 	EnrichFPM                                    // FPM container running check
 	EnrichGit                                    // worktrees + main branch
-	EnrichServices                               // .env + .lerd.yaml service detection
+	EnrichServices                               // .env + .servlo.yaml service detection
 	EnrichDomainConflicts                        // conflicting domain check
 	EnrichLogs                                   // app log file detection
 	EnrichFavicon                                // favicon detection
@@ -71,7 +71,7 @@ type WorktreeInfo struct {
 	// LANPort, when non-zero, means a per-worktree reverse proxy is
 	// listening on 0.0.0.0:LANPort. Independent of the parent's LAN port.
 	LANPort int
-	// Per-worktree worker state (lerd-<wname>-<site>-<wtBase>).
+	// Per-worktree worker state (servlo-<wname>-<site>-<wtBase>).
 	// queue/schedule/reverb/horizon are excluded; those bind to the parent.
 	FrameworkWorkers []WorkerInfo
 	// IdleSuspended names the worktree's workers the idle engine stopped, so a
@@ -79,7 +79,7 @@ type WorktreeInfo struct {
 	IdleSuspended []string
 }
 
-// ConflictingDomain describes a domain declared in .lerd.yaml that is owned
+// ConflictingDomain describes a domain declared in .servlo.yaml that is owned
 // by a different site on this machine.
 type ConflictingDomain struct {
 	Domain  string
@@ -168,7 +168,7 @@ type EnrichedSite struct {
 	ContainerImage string
 
 	// Host proxy — non-zero HostPort means nginx proxies the domain to a dev
-	// server lerd supervises on the host (the "app" worker).
+	// server servlo supervises on the host (the "app" worker).
 	HostPort    int
 	HostSSL     bool
 	HostCommand string
@@ -206,7 +206,7 @@ func (e *EnrichedSite) PrimaryDomain() string {
 }
 
 // IsProxyOnly mirrors config.Site.IsProxyOnly on the enriched view: a host-proxy
-// site with no supervised dev command, so lerd runs nothing for it.
+// site with no supervised dev command, so servlo runs nothing for it.
 func (e *EnrichedSite) IsProxyOnly() bool {
 	return e.HostPort > 0 && e.HostCommand == ""
 }
@@ -415,7 +415,7 @@ func (e *EnrichedSite) enrichVersions(s config.Site, fw *config.Framework, hasFw
 	}
 
 	// A custom-FPM site's PHP version is fixed by its Containerfile FROM line, so
-	// don't let detection override it — otherwise this enrichment (run by lerd-ui
+	// don't let detection override it — otherwise this enrichment (run by servlo-panel
 	// and the TUI, then persisted) drifts the stored version away from the image the
 	// container actually runs, undoing what link pinned. Node tooling still applies.
 	if !s.IsCustomFPM() {
@@ -446,7 +446,7 @@ func (e *EnrichedSite) enrichVersions(s config.Site, fw *config.Framework, hasFw
 
 func (e *EnrichedSite) enrichFPM() {
 	if e.HostPort > 0 {
-		// Host-proxy sites have no container. When lerd supervises the dev
+		// Host-proxy sites have no container. When servlo supervises the dev
 		// server, "running" reflects that worker unit. Proxy-only sites have no
 		// worker, so their liveness is whether the user's own dev server is
 		// listening on the proxied port.
@@ -460,16 +460,16 @@ func (e *EnrichedSite) enrichFPM() {
 		return
 	}
 	if e.ContainerPort > 0 {
-		e.FPMRunning, _ = containerRunningFn("lerd-custom-" + e.Name)
+		e.FPMRunning, _ = containerRunningFn("servlo-custom-" + e.Name)
 		return
 	}
 	if e.Runtime == "frankenphp" {
-		e.FPMRunning, _ = containerRunningFn("lerd-fp-" + e.Name)
+		e.FPMRunning, _ = containerRunningFn("servlo-fp-" + e.Name)
 		return
 	}
 	if e.PHPVersion != "" {
 		short := strings.ReplaceAll(e.PHPVersion, ".", "")
-		e.FPMRunning, _ = containerRunningFn("lerd-php" + short + "-fpm")
+		e.FPMRunning, _ = containerRunningFn("servlo-php" + short + "-fpm")
 	}
 }
 
@@ -477,14 +477,14 @@ func (e *EnrichedSite) enrichStripe() {
 	if config.StripeSecretSet(e.Path) {
 		e.StripeSecretSet = true
 		e.StripeWebhookPath = config.StripeWebhookPath(e.Path)
-		status, _ := unitStatusFn("lerd-stripe-" + e.Name)
+		status, _ := unitStatusFn("servlo-stripe-" + e.Name)
 		e.StripeRunning = status == "active"
 	}
 }
 
 func (e *EnrichedSite) enrichWorkers(fw *config.Framework, hasFw bool) {
 	// Custom container sites without a framework get their workers from
-	// .lerd.yaml custom_workers. Build a synthetic framework so the rest
+	// .servlo.yaml custom_workers. Build a synthetic framework so the rest
 	// of the function works uniformly.
 	if !hasFw && e.ContainerPort > 0 {
 		if proj, err := config.LoadProjectConfig(e.Path); err == nil && len(proj.CustomWorkers) > 0 {
@@ -509,7 +509,7 @@ func (e *EnrichedSite) enrichWorkers(fw *config.Framework, hasFw bool) {
 		if len(wDef.ConflictsWith) == 0 {
 			continue
 		}
-		if st, _ := unitStatusFn("lerd-" + wn + "-" + e.Name); st == "active" {
+		if st, _ := unitStatusFn("servlo-" + wn + "-" + e.Name); st == "active" {
 			for _, c := range wDef.ConflictsWith {
 				suppressed[c] = true
 			}
@@ -519,16 +519,16 @@ func (e *EnrichedSite) enrichWorkers(fw *config.Framework, hasFw bool) {
 	// Well-known workers
 	if fw.HasWorker("queue", e.Path) && !suppressed["queue"] {
 		e.HasQueueWorker = true
-		status, _ := unitStatusFn("lerd-queue-" + e.Name)
+		status, _ := unitStatusFn("servlo-queue-" + e.Name)
 		e.QueueRunning = status == "active" || status == "activating"
 		e.QueueFailing = status == "failed"
 	}
 	if fw.HasWorker("schedule", e.Path) && !suppressed["schedule"] {
 		e.HasScheduleWorker = true
-		status, _ := unitStatusFn("lerd-schedule-" + e.Name)
+		status, _ := unitStatusFn("servlo-schedule-" + e.Name)
 		// Timer-driven scheduler: .service is static between firings.
 		if status != "active" && status != "activating" {
-			if t, _ := unitStatusFn("lerd-schedule-" + e.Name + ".timer"); t == "active" {
+			if t, _ := unitStatusFn("servlo-schedule-" + e.Name + ".timer"); t == "active" {
 				status = "active"
 			}
 		}
@@ -537,13 +537,13 @@ func (e *EnrichedSite) enrichWorkers(fw *config.Framework, hasFw bool) {
 	}
 	if fw.HasWorker("reverb", e.Path) && !suppressed["reverb"] {
 		e.HasReverb = true
-		status, _ := unitStatusFn("lerd-reverb-" + e.Name)
+		status, _ := unitStatusFn("servlo-reverb-" + e.Name)
 		e.ReverbRunning = status == "active" || status == "activating"
 		e.ReverbFailing = status == "failed"
 	}
 	if fw.HasWorker("horizon", e.Path) && !suppressed["horizon"] {
 		e.HasHorizon = true
-		status, _ := unitStatusFn("lerd-horizon-" + e.Name)
+		status, _ := unitStatusFn("servlo-horizon-" + e.Name)
 		e.HorizonRunning = status == "active" || status == "activating"
 		e.HorizonFailing = status == "failed"
 		e.HasQueueWorker = false // Horizon manages queues
@@ -571,7 +571,7 @@ func (e *EnrichedSite) enrichWorkers(fw *config.Framework, hasFw bool) {
 	meta := AllUnitMeta()
 	for _, wname := range names {
 		w := fw.Workers[wname]
-		unit := "lerd-" + wname + "-" + e.Name
+		unit := "servlo-" + wname + "-" + e.Name
 		serviceState, _ := unitStatusFn(unit)
 		timerState := ""
 		if w.Schedule != "" {
@@ -636,7 +636,7 @@ func enrichWorktreeWorkers(siteName, wtPath string, fw *config.Framework) []Work
 	out := make([]WorkerInfo, 0, len(names))
 	for _, wname := range names {
 		w := fw.Workers[wname]
-		unit := "lerd-" + wname + "-" + siteName + "-" + wtBase
+		unit := "servlo-" + wname + "-" + siteName + "-" + wtBase
 		serviceState, _ := unitStatusFn(unit)
 		timerState := ""
 		if w.Schedule != "" {
@@ -737,7 +737,7 @@ func (e *EnrichedSite) enrichServices() {
 		}
 		// Skip a referenced-but-uninstalled default preset so a removed service
 		// (quadlet gone) stops ghosting on sites whose .env still points at it.
-		if !podman.QuadletInstalled("lerd-" + svcName) {
+		if !podman.QuadletInstalled("servlo-" + svcName) {
 			continue
 		}
 		e.Services = append(e.Services, svcName)

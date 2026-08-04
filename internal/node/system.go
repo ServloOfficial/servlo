@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/hostbin"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/hostbin"
 )
 
 // SystemNodeBinDirs resolves the directories where an unmanaged node and npm
@@ -19,10 +19,10 @@ import (
 // living outside the standard dirs (snap, linuxbrew) is invisible at runtime
 // even though `node` works fine in the user's terminal — issue #1143.
 //
-// A configured manager lerd does not own comes first: `lerd npm` runs through
+// A configured manager servlo does not own comes first: `servlo npm` runs through
 // it, so resolving some other node from PATH would install modules under one
 // Node and run them under another. Otherwise the order mirrors detectSystemNode
-// at install time: the current PATH first (skipping lerd's own shim dir), then
+// at install time: the current PATH first (skipping servlo's own shim dir), then
 // the well-known version-manager install layouts, then static locations.
 // Returns nil when nothing usable is found.
 func SystemNodeBinDirs() []string {
@@ -31,7 +31,7 @@ func SystemNodeBinDirs() []string {
 
 // SystemNodeBinDirsFor is SystemNodeBinDirs for a site pinned to version (a
 // major like "22", empty for no pin). Only a borrowed manager can honour the
-// pin: it is the version `lerd npm` runs in that directory, so a worker on any
+// pin: it is the version `servlo npm` runs in that directory, so a worker on any
 // other one would run modules that were installed under a different Node. An
 // uninstalled pin falls back rather than installing into the user's manager.
 func SystemNodeBinDirsFor(version string) []string {
@@ -57,8 +57,8 @@ func SystemNodeBinDirsFor(version string) []string {
 }
 
 // unitPathDirs are the prefixes the generated worker unit puts on PATH itself
-// while a daemon's own PATH omits them: on macOS launchd hands lerd-ui and
-// lerd-watcher /usr/bin:/bin:/usr/sbin:/sbin, so a Homebrew node is invisible to
+// while a daemon's own PATH omits them: on macOS launchd hands servlo-panel and
+// servlo-watcher /usr/bin:/bin:/usr/sbin:/sbin, so a Homebrew node is invisible to
 // them and a unit written by the dashboard resolved a different Node than the
 // same unit written by the CLI. Walking them with PATH keeps the answer equal on
 // both routes, and equal to what the unit runs. A var so tests can drive it.
@@ -70,15 +70,15 @@ var unitPathDirs = func() []string {
 }
 
 // pathNodeBinDirs walks PATH for the first dirs holding node and npm, skipping
-// lerd's own bin dir so a stale managed-node shim never counts as a system
+// servlo's own bin dir so a stale managed-node shim never counts as a system
 // install. node and npm can resolve to different dirs (e.g. a distro node with
 // a separately installed npm); both are returned, node's dir first. complete
 // reports whether npm was found too.
 func pathNodeBinDirs() (dirs []string, complete bool) {
-	lerdBin := config.BinDir()
+	servloBin := config.BinDir()
 	var nodeDir, npmDir string
 	for _, dir := range append(filepath.SplitList(os.Getenv("PATH")), unitPathDirs()...) {
-		if dir == "" || dir == lerdBin {
+		if dir == "" || dir == servloBin {
 			continue
 		}
 		if nodeDir == "" && isExecutable(filepath.Join(dir, "node")) {
@@ -101,7 +101,7 @@ func pathNodeBinDirs() (dirs []string, complete bool) {
 }
 
 // borrowedManagerBinDir returns the node bin dir of a configured manager that
-// belongs to the user rather than to lerd, which today means nvm: lerd only
+// belongs to the user rather than to servlo, which today means nvm: servlo only
 // ever borrows an nvm install, while fnm is its own bundled tool and must not
 // override the user's Node on a host where they declined managed Node. version
 // selects a specific major when the manager has it, otherwise its default
@@ -157,7 +157,7 @@ func managerNodeBinDir() string {
 // nvmNodeBinDir resolves an nvm install's bin dir, matching what `nvm use
 // default` would run: the default alias when it names an installed version or
 // pins a major like "20", since that is how most people set a default. Alias
-// indirections lerd cannot resolve without nvm itself (lts/*, another alias)
+// indirections servlo cannot resolve without nvm itself (lts/*, another alias)
 // fall through to the newest install.
 func nvmNodeBinDir() string {
 	versions := filepath.Join(nvmDir(), "versions", "node")

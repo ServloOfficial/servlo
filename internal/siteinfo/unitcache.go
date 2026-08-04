@@ -31,7 +31,7 @@ var (
 	globalUnitCache unitCache
 
 	// unitCacheListFn is swappable for tests. It returns the raw output of
-	// `systemctl --user list-units --all --no-legend --plain 'lerd-*'`.
+	// `systemctl --user list-units --all --no-legend --plain 'servlo-*'`.
 	unitCacheListFn = defaultUnitCacheList
 
 	// unitShowFn is swappable for tests. Given the discovered unit names it
@@ -57,7 +57,7 @@ var (
 )
 
 func defaultUnitCacheList() (string, error) {
-	out, err := exec.Command("systemctl", "--user", "list-units", "--all", "--no-legend", "--plain", "lerd-*").Output()
+	out, err := exec.Command("systemctl", "--user", "list-units", "--all", "--no-legend", "--plain", "servlo-*").Output()
 	return string(out), err
 }
 
@@ -127,7 +127,7 @@ func parseUnitMeta(raw string) map[string]UnitMeta {
 }
 
 // InvalidateUnitCache forces the next UnitStatus lookup to re-run systemctl.
-// Call this after any mutation that changes lerd-* unit state (start, stop,
+// Call this after any mutation that changes servlo-* unit state (start, stop,
 // enable, disable, etc.) so cached "active" values do not go stale. Also
 // invalidates any platform-specific cache (launchd states on darwin).
 func InvalidateUnitCache() {
@@ -139,7 +139,7 @@ func InvalidateUnitCache() {
 	}
 }
 
-// AllUnitStates returns a snapshot of every cached lerd-* unit state
+// AllUnitStates returns a snapshot of every cached servlo-* unit state
 // (unit name → "active" | "inactive" | "failed" | …). The map is a copy
 // safe for callers to walk without holding the cache mutex. Triggers a
 // refresh if the cache is stale, but otherwise reuses the same batched
@@ -204,8 +204,8 @@ func AllUnitMeta() map[string]UnitMeta {
 	return out
 }
 
-// unitStatusCached returns the active state of a lerd-* unit, consulting a
-// short-lived batched snapshot. One systemctl call populates ~all lerd units
+// unitStatusCached returns the active state of a servlo-* unit, consulting a
+// short-lived batched snapshot. One systemctl call populates ~all servlo units
 // instead of one subprocess per worker.
 func unitStatusCached(name string) (string, error) {
 	globalUnitCache.mu.Lock()
@@ -249,7 +249,7 @@ func (c *unitCache) refreshLocked() error {
 		}
 		// Strip the .service suffix so callers can pass either form.
 		// Timer and other suffixes are preserved since enrichWorkers
-		// explicitly looks up "lerd-schedule-<site>.timer".
+		// explicitly looks up "servlo-schedule-<site>.timer".
 		states[unit] = active
 		if strings.HasSuffix(unit, ".service") {
 			states[strings.TrimSuffix(unit, ".service")] = active

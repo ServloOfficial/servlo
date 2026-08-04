@@ -408,7 +408,7 @@ func TestTunnelStatus_prefersTheDaemonsOwnTunnel(t *testing.T) {
 	}
 }
 
-// startSleeper runs a real process to stand in for a "lerd share" in a
+// startSleeper runs a real process to stand in for a "servlo share" in a
 // terminal, so a stop has something it can actually signal.
 func startSleeper(t *testing.T) *exec.Cmd {
 	t.Helper()

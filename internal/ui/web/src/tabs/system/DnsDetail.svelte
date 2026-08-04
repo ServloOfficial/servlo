@@ -46,8 +46,8 @@
           {@html m.system_dns_disabledHint({
             tld: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm">*.' + escapeHtml($status.dns.tld) + '</code>',
             setting: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm">dns.enabled: true</code>',
-            file: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm">~/.config/lerd/config.yaml</code>',
-            cmd: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm">lerd install</code>'
+            file: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm">~/.config/servlo/config.yaml</code>',
+            cmd: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm">servlo install</code>'
           })}
         </p>
       {:else if dnsState($status) === 'degraded'}
@@ -56,15 +56,15 @@
         <p class="text-xs text-gray-400">
           {@html m.system_dns_fixHint({
             start: '<strong class="text-gray-500">' + m.common_start() + '</strong>',
-            cmd: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm text-gray-500">lerd install</code>'
+            cmd: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm text-gray-500">servlo install</code>'
           })}
         </p>
       {/if}
     </div>
     {#if logsEnabled}
       <LogViewer
-        path="/api/logs/lerd-dns"
-        emptyLabel={m.system_dns_quietDefault({ option: '`log-queries`', path: '~/.local/share/lerd/dnsmasq/lerd.conf' })}
+        path="/api/logs/servlo-dns"
+        emptyLabel={m.system_dns_quietDefault({ option: '`log-queries`', path: '~/.local/share/servlo/dnsmasq/servlo.conf' })}
       />
     {/if}
   {/if}

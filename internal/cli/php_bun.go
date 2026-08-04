@@ -8,17 +8,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
 // NewPhpBunCmd returns the php:bun parent command, which manages an optional
-// in-container bun runtime. lerd never pins or version-manages bun: install
+// in-container bun runtime. servlo never pins or version-manages bun: install
 // pulls the latest musl build into a persistent volume via the bundled npm,
-// and `bun upgrade` (run inside `lerd shell`) self-updates from there.
+// and `bun upgrade` (run inside `servlo shell`) self-updates from there.
 func NewPhpBunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "php:bun",
@@ -46,7 +46,7 @@ func newPhpBunUpdateCmd() *cobra.Command {
 				return err
 			}
 			if !bunInstalledInContainer(version) {
-				return fmt.Errorf("bun is not installed in the PHP %s container — run: lerd php:bun install", version)
+				return fmt.Errorf("bun is not installed in the PHP %s container — run: servlo php:bun install", version)
 			}
 			feedback.Begin()
 			feedback.Line("updating bun in the PHP " + version + " container")
@@ -68,7 +68,7 @@ func newPhpBunInstallCmd() *cobra.Command {
 		Use:   "install [php-version]",
 		Short: "Install (or update) bun inside the PHP-FPM container",
 		Long: "Installs a musl bun into the container's persistent /root/.bun volume using the bundled npm, so it survives image rebuilds and is shared across every PHP version. " +
-			"Run `bun upgrade` inside `lerd shell` to update it later; lerd does not pin a version.",
+			"Run `bun upgrade` inside `servlo shell` to update it later; servlo does not pin a version.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			version, err := phpExtVersion(args)
@@ -114,13 +114,13 @@ func removeContainerBun(w io.Writer) error {
 			return fmt.Errorf("removing %s from the bun volume: %w", e.Name(), err)
 		}
 	}
-	fmt.Fprintln(w, "Removed the in-container bun and cleared its volume. Reinstall with `lerd php:bun install`.")
+	fmt.Fprintln(w, "Removed the in-container bun and cleared its volume. Reinstall with `servlo php:bun install`.")
 	return nil
 }
 
 // fpmContainerName returns the FPM container/unit name for a PHP version.
 func fpmContainerName(version string) string {
-	return "lerd-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
+	return "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
 }
 
 // bunFPMSite returns the custom-FPM site the current directory belongs to, or nil
@@ -139,7 +139,7 @@ func bunFPMSite() *config.Site {
 
 // bunFPMContainer resolves the FPM container php:bun should exec into for version:
 // the per-site custom-FPM container when run inside a custom-FPM site, otherwise
-// the shared lerd-php<version>-fpm container. bun lives in a host-backed volume
+// the shared servlo-php<version>-fpm container. bun lives in a host-backed volume
 // every FPM container shares, so a custom-FPM-only user can reach it through their
 // own running container instead of being told to start a shared one they don't use.
 func bunFPMContainer(version string) string {
@@ -241,7 +241,7 @@ func installContainerBun(version, pin string, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("bun did not run in the container after install: %w\n%s", err, out)
 	}
-	fmt.Fprintf(w, "bun %s installed in PHP %s container. Use it from `lerd shell`; update it with `bun upgrade`.\n", strings.TrimSpace(string(out)), version)
+	fmt.Fprintf(w, "bun %s installed in PHP %s container. Use it from `servlo shell`; update it with `bun upgrade`.\n", strings.TrimSpace(string(out)), version)
 	return nil
 }
 
@@ -262,7 +262,7 @@ func newPhpBunVersionCmd() *cobra.Command {
 			out, err := podman.Cmd("exec", container, "/root/.bun/bin/bun", "--version").CombinedOutput()
 			feedback.Begin()
 			if err != nil {
-				feedback.Line("bun is not installed in the PHP " + version + " container — run: lerd php:bun install")
+				feedback.Line("bun is not installed in the PHP " + version + " container — run: servlo php:bun install")
 				return nil
 			}
 			feedback.Line("bun " + feedback.Val(strings.TrimSpace(string(out))) + " (PHP " + version + " container)")

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 // handlePushVAPIDPublicKey returns the per-install VAPID public key for
@@ -131,10 +131,10 @@ func handlePushTest(w http.ResponseWriter, r *http.Request) {
 	dispatchNotification(push.Notification{
 		Kind:     "test",
 		TitleKey: "notify_test_title",
-		Title:    "lerd notifications test",
+		Title:    "servlo notifications test",
 		BodyKey:  "notify_test_body",
 		Body:     "If you see this, push notifications are working.",
-		Tag:      "lerd-test",
+		Tag:      "servlo-test",
 		URL:      "#system",
 		Icon:     "/icons/icon-192.png",
 		TTL:      60,

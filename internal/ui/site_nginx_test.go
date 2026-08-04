@@ -11,12 +11,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 // stubNginxReload swaps siteops.NginxReloadFn for the duration of a
-// test. The real reload shells out to podman exec lerd-nginx, which is not
+// test. The real reload shells out to podman exec servlo-nginx, which is not
 // available in CI; tests exercise the on-disk side effects of the handlers
 // and assert that reload was invoked at the expected moments.
 func stubNginxReload(t *testing.T) *int {
@@ -32,7 +32,7 @@ func stubNginxReload(t *testing.T) *int {
 }
 
 // stubNginxTest swaps siteops.NginxTestFn for the duration of a
-// test. By default `nginx -t` shells into the lerd-nginx container; tests
+// test. By default `nginx -t` shells into the servlo-nginx container; tests
 // here either want a quiet success (most common) or a controlled failure
 // to exercise the rollback path.
 func stubNginxTest(t *testing.T, output string, err error) *int {
@@ -71,7 +71,7 @@ func TestHandleSiteNginx_getReturnsTemplateWhenMissing(t *testing.T) {
 	if !strings.HasSuffix(resp.Path, "/custom.d/acme.test.conf") {
 		t.Errorf("path: got %q want suffix /custom.d/acme.test.conf", resp.Path)
 	}
-	if !strings.Contains(resp.Content, "Lerd per-site nginx overrides") {
+	if !strings.Contains(resp.Content, "Servlo per-site nginx overrides") {
 		t.Errorf("expected template content, got %q", resp.Content)
 	}
 	if resp.Exists {

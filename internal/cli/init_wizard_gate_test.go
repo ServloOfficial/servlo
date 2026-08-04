@@ -2,7 +2,7 @@ package cli
 
 import "testing"
 
-// A present-but-empty .lerd.yaml reached through `lerd link` must still run the
+// A present-but-empty .servlo.yaml reached through `servlo link` must still run the
 // wizard. runLinkOrInit routes on content (IsEmpty), but runInit decides on
 // file existence, so it must be forced with fresh=true. This pins the chain:
 // empty config -> linkShouldRunWizard=true -> runInit(fresh=true) ->
@@ -13,7 +13,7 @@ func TestInitShouldRunWizard_EmptyPresentConfigForcedByLinkPath(t *testing.T) {
 
 	// File present (empty), link path forces fresh -> wizard runs.
 	if !initShouldRunWizard(true, linkPathFresh) {
-		t.Fatal("empty present .lerd.yaml via lerd link should run the wizard")
+		t.Fatal("empty present .servlo.yaml via servlo link should run the wizard")
 	}
 	// Documents the regression: with fresh=false the present file skips the
 	// wizard into a bare link, which is what the old runInit(false) call did.
@@ -22,7 +22,7 @@ func TestInitShouldRunWizard_EmptyPresentConfigForcedByLinkPath(t *testing.T) {
 	}
 	// Absent config always runs the wizard regardless of fresh.
 	if !initShouldRunWizard(false, false) {
-		t.Fatal("absent .lerd.yaml should always run the wizard")
+		t.Fatal("absent .servlo.yaml should always run the wizard")
 	}
 }
 

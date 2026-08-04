@@ -23,8 +23,8 @@ export interface StatusResponse {
   php_fpms: PHPStatus[];
   php_default: string;
   node_default: string;
-  node_managed_by_lerd: boolean;
-  // Active Node version manager lerd drives: 'fnm' (bundled) or 'nvm' (user's).
+  node_managed_by_servlo: boolean;
+  // Active Node version manager servlo drives: 'fnm' (bundled) or 'nvm' (user's).
   node_manager: 'fnm' | 'nvm';
   // True when a user-installed nvm is present (so the nvm switch can be offered).
   nvm_available: boolean;
@@ -36,7 +36,7 @@ export interface StatusResponse {
   home: string;
   // Workspace names in display order, empty ones included.
   workspaces?: string[];
-  // Identifier of the lerd-ui process that answered. A change means the server
+  // Identifier of the servlo-panel process that answered. A change means the server
   // restarted, so the page is reloaded onto the assets it now serves.
   instance?: string;
   // Managed host binaries (composer, fnm, mkcert) against their pinned versions.
@@ -57,7 +57,7 @@ const empty: StatusResponse = {
   php_fpms: [],
   php_default: '',
   node_default: '',
-  node_managed_by_lerd: true,
+  node_managed_by_servlo: true,
   node_manager: 'fnm',
   nvm_available: false,
   bun_available: false,
@@ -84,7 +84,7 @@ export async function loadStatus() {
 let serverInstance: string | null = null;
 
 // noteInstance reloads the page when the server that answers is a different
-// process than the one this page loaded from. A restarted lerd-ui otherwise
+// process than the one this page loaded from. A restarted servlo-panel otherwise
 // leaves an open dashboard running the previous build's assets against it.
 function noteInstance(instance: string | undefined, reload: () => void) {
   if (!instance) return;
@@ -118,17 +118,17 @@ export type DnsState = 'ok' | 'degraded' | 'down';
 
 // dnsState collapses the payload into a three-way health value. It tolerates
 // older payloads without the `status` field by deriving it from `ok`, and
-// treats lerd-managed DNS being disabled as healthy since the system
-// resolver owns *.tld in that mode. "degraded" means lerd-dns answers fine
+// treats servlo-managed DNS being disabled as healthy since the system
+// resolver owns *.tld in that mode. "degraded" means servlo-dns answers fine
 // but the system resolver isn't routing to it, typically a VPN client.
 export function dnsState(s: StatusResponse): DnsState {
   if (s.dns.enabled === false) return 'ok';
   return s.dns.status ?? (s.dns.ok ? 'ok' : 'down');
 }
 
-export type LerdStatusColor = 'green' | 'yellow' | 'red' | 'gray';
+export type ServloStatusColor = 'green' | 'yellow' | 'red' | 'gray';
 
-export const lerdStatusColor = derived([status, statusLoaded, version], ([$s, $loaded, $v]): LerdStatusColor => {
+export const servloStatusColor = derived([status, statusLoaded, version], ([$s, $loaded, $v]): ServloStatusColor => {
   if (!$loaded) return 'gray';
   const dns = dnsState($s);
   if (dns === 'down' || !$s.nginx.running || !$s.watcher_running) return 'red';

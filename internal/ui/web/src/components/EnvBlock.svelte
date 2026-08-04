@@ -32,7 +32,7 @@
 </script>
 
 <div class="bg-black sticky top-0 z-10">
-  <div class="flex items-center justify-between bg-gray-50 dark:bg-white/3 px-3 py-1.5 border-b border-gray-200 dark:border-lerd-border">
+  <div class="flex items-center justify-between bg-gray-50 dark:bg-white/3 px-3 py-1.5 border-b border-gray-200 dark:border-servlo-border">
     <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{label}</span>
     <button onclick={copy} class="text-[10px] font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
       {#if copied}

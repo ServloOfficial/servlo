@@ -1,6 +1,6 @@
-// Package imgledger records the container image refs lerd itself pulled. Podman
-// has no way to label an image in place, so the ledger is lerd's provenance
-// marker: cleanup reclaims lerd's own catalog leftovers while leaving an image
+// Package imgledger records the container image refs servlo itself pulled. Podman
+// has no way to label an image in place, so the ledger is servlo's provenance
+// marker: cleanup reclaims servlo's own catalog leftovers while leaving an image
 // the user pulled independently that happens to share a catalog repo untouched.
 package imgledger
 
@@ -11,7 +11,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 var mu sync.Mutex
@@ -23,8 +23,8 @@ func defaultPath() string {
 	return filepath.Join(config.DataDir(), "pulled-images.json")
 }
 
-// Record notes that lerd has pulled ref. Best-effort: a write failure only keeps
-// cleanup conservative (an unrecorded image is never reaped as lerd's), so the
+// Record notes that servlo has pulled ref. Best-effort: a write failure only keeps
+// cleanup conservative (an unrecorded image is never reaped as servlo's), so the
 // pull path ignores the outcome.
 func Record(ref string) {
 	if ref == "" {
@@ -40,8 +40,8 @@ func Record(ref string) {
 	save(set)
 }
 
-// Load returns the set of refs lerd has recorded pulling. A missing or unreadable
-// ledger yields an empty set, so cleanup reaps nothing it can't prove is lerd's.
+// Load returns the set of refs servlo has recorded pulling. A missing or unreadable
+// ledger yields an empty set, so cleanup reaps nothing it can't prove is servlo's.
 func Load() map[string]bool {
 	mu.Lock()
 	defer mu.Unlock()

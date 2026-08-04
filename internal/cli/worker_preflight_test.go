@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestWorkerStartPreflight_RejectsInjectionCommand(t *testing.T) {
-	// A worker command from .lerd.yaml custom_workers reaches the unit's
+	// A worker command from .servlo.yaml custom_workers reaches the unit's
 	// ExecStart line; a newline would inject an extra systemd directive.
 	bad := config.FrameworkWorker{Command: "php artisan queue:work\nExecStartPost=/bin/sh -c pwned"}
 	if err := workerStartPreflight("/srv/x", "queue", bad); err == nil {
@@ -47,7 +47,7 @@ func TestWorkerStartPreflight_noUsableNodeIsActionable(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected a hold-back error when no Node is resolvable")
 	}
-	for _, want := range []string{"vite worker not started", "not managing Node", "lerd install"} {
+	for _, want := range []string{"vite worker not started", "not managing Node", "servlo install"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error missing %q: %s", want, err)
 		}

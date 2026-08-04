@@ -13,16 +13,16 @@ func TestUnitForLogPath(t *testing.T) {
 		path string
 		want string
 	}{
-		{"/api/logs/lerd-nginx", "lerd-nginx"},
-		{"/api/logs/lerd-php84-fpm", "lerd-php84-fpm"},
-		{"/api/watcher/logs", "lerd-watcher"},
-		{"/api/queue/alpha/logs", "lerd-queue-alpha"},
-		{"/api/horizon/alpha/logs", "lerd-horizon-alpha"},
-		{"/api/schedule/alpha/logs", "lerd-schedule-alpha"},
-		{"/api/reverb/alpha/logs", "lerd-reverb-alpha"},
-		{"/api/stripe/alpha/logs", "lerd-stripe-alpha"},
-		{"/api/worker/alpha/vite/logs", "lerd-vite-alpha"},
-		{"/api/worker/alpha-feature/app/logs", "lerd-app-alpha-feature"},
+		{"/api/logs/servlo-nginx", "servlo-nginx"},
+		{"/api/logs/servlo-php84-fpm", "servlo-php84-fpm"},
+		{"/api/watcher/logs", "servlo-watcher"},
+		{"/api/queue/alpha/logs", "servlo-queue-alpha"},
+		{"/api/horizon/alpha/logs", "servlo-horizon-alpha"},
+		{"/api/schedule/alpha/logs", "servlo-schedule-alpha"},
+		{"/api/reverb/alpha/logs", "servlo-reverb-alpha"},
+		{"/api/stripe/alpha/logs", "servlo-stripe-alpha"},
+		{"/api/worker/alpha/vite/logs", "servlo-vite-alpha"},
+		{"/api/worker/alpha-feature/app/logs", "servlo-app-alpha-feature"},
 	}
 	for _, c := range cases {
 		got, ok := unitForLogPath(c.path)
@@ -36,13 +36,13 @@ func TestUnitForLogPath_Rejects(t *testing.T) {
 	for _, p := range []string{
 		"",
 		"/api/logs/",
-		"/api/logs/nginx",               // not a lerd- unit
-		"/api/logs/lerd-nginx;rm -rf /", // shell metacharacters
-		"/api/logs/lerd-nginx/../etc",
+		"/api/logs/nginx",                 // not a servlo- unit
+		"/api/logs/servlo-nginx;rm -rf /", // shell metacharacters
+		"/api/logs/servlo-nginx/../etc",
 		"/api/queue//logs",
 		"/api/worker/alpha/logs",
 		"/api/app-logs/alpha",
-		"http://evil/api/logs/lerd-nginx",
+		"http://evil/api/logs/servlo-nginx",
 	} {
 		if got, ok := unitForLogPath(p); ok {
 			t.Errorf("unitForLogPath(%q) = %q, want rejected", p, got)
@@ -90,8 +90,8 @@ func TestHandleLogTerminal_FollowsTheResolvedUnit(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"ok":true`) {
 		t.Errorf("body = %s, want ok:true", rec.Body.String())
 	}
-	if !strings.Contains(*script, "lerd-queue-alpha") {
-		t.Errorf("script = %q, want it to follow lerd-queue-alpha", *script)
+	if !strings.Contains(*script, "servlo-queue-alpha") {
+		t.Errorf("script = %q, want it to follow servlo-queue-alpha", *script)
 	}
 }
 
@@ -100,7 +100,7 @@ func TestHandleLogTerminal_ReportsMissingEmulator(t *testing.T) {
 	// it opened one.
 	stubOpenTerminal(t, errors.New("no terminal emulator found"))
 	rec := httptest.NewRecorder()
-	body := strings.NewReader(`{"path":"/api/logs/lerd-nginx"}`)
+	body := strings.NewReader(`{"path":"/api/logs/servlo-nginx"}`)
 	handleLogTerminal(rec, httptest.NewRequest(http.MethodPost, "/api/logs/terminal", body))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
@@ -124,8 +124,8 @@ func TestHandleUnitLogStream_RejectsUnknownPath(t *testing.T) {
 }
 
 func TestLogFollowScript_MentionsUnit(t *testing.T) {
-	script := logFollowScript("lerd-nginx")
-	if !strings.Contains(script, "lerd-nginx") {
+	script := logFollowScript("servlo-nginx")
+	if !strings.Contains(script, "servlo-nginx") {
 		t.Errorf("logFollowScript = %q, want it to reference the unit", script)
 	}
 }

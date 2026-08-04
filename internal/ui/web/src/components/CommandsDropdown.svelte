@@ -36,7 +36,7 @@
     }
     if (!triggerEl) return;
     // Refresh in the background so external edits (MCP command_add, manual
-    // .lerd.yaml edits since mount) show up the moment the menu opens.
+    // .servlo.yaml edits since mount) show up the moment the menu opens.
     // Fire-and-forget; the menu opens with whatever's cached and updates
     // when the fetch resolves.
     void refresh();
@@ -113,7 +113,7 @@
     onclick={toggleMenu}
     disabled={$runningName !== null}
     title=""
-    class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card hover:border-lerd-red hover:text-lerd-red transition-colors text-xs font-medium text-gray-700 dark:text-gray-200 disabled:opacity-40"
+    class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card hover:border-servlo-red hover:text-servlo-red transition-colors text-xs font-medium text-gray-700 dark:text-gray-200 disabled:opacity-40"
   >
     {#if $runningName}
       <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -136,7 +136,7 @@
     <div
       id="cmds-dropdown-menu"
       style="position: fixed; top: {menuPos.top}px; left: {menuPos.left}px; width: {menuPos.width}px;"
-      class="z-50 rounded-lg border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card shadow-xl ring-1 ring-black/5 py-1 max-h-96 overflow-y-auto"
+      class="z-50 rounded-lg border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card shadow-xl ring-1 ring-black/5 py-1 max-h-96 overflow-y-auto"
     >
       {#each commands as c (c.name)}
         <button
@@ -145,7 +145,7 @@
           title={(c.description ?? '') + (c.description ? '\n\n' : '') + '$ ' + c.command}
           class="group w-full flex items-start gap-2.5 px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 text-left transition-colors"
         >
-          <span class="shrink-0 mt-0.5 w-5 h-5 rounded bg-gray-100 dark:bg-white/5 flex items-center justify-center text-gray-500 dark:text-gray-400 group-hover:text-lerd-red">
+          <span class="shrink-0 mt-0.5 w-5 h-5 rounded bg-gray-100 dark:bg-white/5 flex items-center justify-center text-gray-500 dark:text-gray-400 group-hover:text-servlo-red">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d={commandIconPath(c.icon)} />
             </svg>

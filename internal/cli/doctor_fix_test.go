@@ -68,7 +68,7 @@ func TestHeavyFixClassification(t *testing.T) {
 	}
 }
 
-// The network-online repair used to re-enter `lerd start`, which reconfigures
+// The network-online repair used to re-enter `servlo start`, which reconfigures
 // the resolver through sudo, elevating unattended under `doctor --fix --yes`.
 // It now installs a user-level drop-in in-process; assert it routes there and
 // never touches privilege, and that "start" is no longer a dispatchable key.
@@ -93,6 +93,6 @@ func TestApplyDoctorFixNetworkWaitStaysUnprivileged(t *testing.T) {
 	// The privileged `start` fix is gone: a doctor that re-adds it lands in the
 	// unknown-key default rather than silently running sudo from the auto tier.
 	if err := ApplyDoctorFix(&DoctorFix{Tier: FixAuto, Key: "start"}, &buf); err == nil {
-		t.Error(`"start" is dispatchable from the auto tier again but it runs lerd start (sudo)`)
+		t.Error(`"start" is dispatchable from the auto tier again but it runs servlo start (sudo)`)
 	}
 }

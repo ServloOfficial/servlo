@@ -11,7 +11,7 @@
 </script>
 
 {#if variant === 'compact'}
-  <div class="flex items-center rounded-md border border-gray-200 dark:border-lerd-border overflow-hidden">
+  <div class="flex items-center rounded-md border border-gray-200 dark:border-servlo-border overflow-hidden">
     {#each LOCALES as l (l)}
       <button
         title={LOCALE_LABELS[l]}

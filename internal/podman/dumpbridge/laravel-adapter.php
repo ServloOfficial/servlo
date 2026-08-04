@@ -1,10 +1,10 @@
 <?php
-// /usr/local/etc/lerd/laravel-adapter.php
+// /usr/local/etc/servlo/laravel-adapter.php
 //
-// Loaded by the lerd_devtools Zend extension when Illuminate\Foundation\
+// Loaded by the servlo_devtools Zend extension when Illuminate\Foundation\
 // Application::boot() returns, so the framework is up and app() is usable.
 // It registers Laravel event listeners and ships structured events to the same
-// socket the debug bridge uses, where lerd-ui buffers and fans them out.
+// socket the debug bridge uses, where servlo-panel buffers and fans them out.
 //
 // While this adapter is active the extension's engine-level PDO observer stops
 // emitting queries, because QueryExecuted gives us richer data: real bindings
@@ -13,9 +13,9 @@
 //
 // Like the debug bridge, this file must never throw, block, or emit output.
 
-namespace Lerd\LaravelAdapter;
+namespace Servlo\LaravelAdapter;
 
-if (!defined('LERD_DEVTOOLS_ON') || !\LERD_DEVTOOLS_ON) {
+if (!defined('SERVLO_DEVTOOLS_ON') || !\SERVLO_DEVTOOLS_ON) {
     return;
 }
 if (defined(__NAMESPACE__ . '\\REGISTERED')) {
@@ -25,7 +25,7 @@ const REGISTERED = 1;
 
 function target(): string
 {
-    $h = \get_cfg_var('lerd.devtools_host');
+    $h = \get_cfg_var('servlo.devtools_host');
     return (is_string($h) && $h !== '') ? $h : '';
 }
 
@@ -50,7 +50,7 @@ function send(array $payload): void
     @\fclose($sock);
 }
 
-function lerd_var(string $key): string
+function servlo_var(string $key): string
 {
     if (!empty($_SERVER[$key])) {
         return (string) $_SERVER[$key];
@@ -70,10 +70,10 @@ function new_id(): string
 
 // One request id per HTTP request / per job. Reset on JobProcessing so a
 // queue worker's jobs each form their own group instead of lumping together.
-$GLOBALS['__lerd_rid'] = new_id();
+$GLOBALS['__servlo_rid'] = new_id();
 function rid(): string
 {
-    return $GLOBALS['__lerd_rid'] ?? '';
+    return $GLOBALS['__servlo_rid'] ?? '';
 }
 
 function ts(): string
@@ -126,8 +126,8 @@ function context(): array
 {
     $ctx = [
         'type'   => \PHP_SAPI === 'cli' ? 'cli' : 'fpm',
-        'site'   => lerd_var('LERD_SITE'),
-        'branch' => lerd_var('LERD_BRANCH'),
+        'site'   => servlo_var('SERVLO_SITE'),
+        'branch' => servlo_var('SERVLO_BRANCH'),
         'rid'    => rid(),
     ];
     if (\PHP_SAPI !== 'cli') {
@@ -139,7 +139,7 @@ function context(): array
         // The CLI counterpart of request: what a console event points at.
         $ctx['command'] = command_line();
     }
-    $worker = defined('LERD_DEVTOOLS_WORKER') ? (string) \LERD_DEVTOOLS_WORKER : '';
+    $worker = defined('SERVLO_DEVTOOLS_WORKER') ? (string) \SERVLO_DEVTOOLS_WORKER : '';
     if ($worker !== '') {
         $ctx['worker'] = $worker;
     }
@@ -238,7 +238,7 @@ try {
     if ($events) {
         // Reset the request id per job so each queued job is its own group.
         $events->listen(\Illuminate\Queue\Events\JobProcessing::class, static function () {
-            $GLOBALS['__lerd_rid'] = new_id();
+            $GLOBALS['__servlo_rid'] = new_id();
         });
 
         // Jobs — terminal states.

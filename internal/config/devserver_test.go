@@ -34,7 +34,7 @@ func TestDevServerToolForMatchesADirectInvocation(t *testing.T) {
 	}
 }
 
-// The flags lerd appends are handed to whatever the command starts. A runner
+// The flags servlo appends are handed to whatever the command starts. A runner
 // that reaches vite later in the line would get them instead, so it must not
 // match.
 func TestDevServerToolForIgnoresARunnerWrappingTheTool(t *testing.T) {

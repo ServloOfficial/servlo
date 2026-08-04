@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/shims"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/shims"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -29,7 +29,7 @@ func clientShimPrompter() shims.Prompter {
 	}
 	return func(tool string) (bool, bool) {
 		e := confirmInstallPromptDefault(
-			fmt.Sprintf("You already have %s installed; install lerd's %s shim (it shadows yours on PATH)?", tool, tool), false)
+			fmt.Sprintf("You already have %s installed; install servlo's %s shim (it shadows yours on PATH)?", tool, tool), false)
 		return e, true
 	}
 }
@@ -139,7 +139,7 @@ func looksLikeConninfo(a string) bool {
 
 // loopbackHosts are the spellings of "this machine" a database client accepts
 // as -h/--host. An explicit host naming one of these is not automatically an
-// external database: it may be how the caller reaches the very port a lerd
+// external database: it may be how the caller reaches the very port a servlo
 // service published on the host, which resolveLoopbackTarget below detects.
 var loopbackHosts = map[string]bool{
 	"127.0.0.1": true,
@@ -225,23 +225,23 @@ func loopbackServiceOwningPort(tool, hostPort string) (string, bool) {
 var loopbackServiceOwningPortFn = loopbackServiceOwningPort
 
 // resolveLoopbackTarget rewrites args when they name an explicit loopback
-// host (127.0.0.1/localhost/::1) whose port matches one lerd's own installed
+// host (127.0.0.1/localhost/::1) whose port matches one servlo's own installed
 // services actually publishes. That combination isn't an external database:
-// it's the port `lerd service start` printed, reached the normal way — but
+// it's the port `servlo service start` printed, reached the normal way — but
 // runClientExec always execs the client tool inside a throwaway container on
 // its own network, where "127.0.0.1" is the container's own loopback, not
 // the host's. Passing such args straight through (the general "external host"
 // behaviour) therefore always fails with connection refused. Recognise the
 // case and route it exactly like a hostless call instead: strip the loopback
-// -h/-p pair and let the caller add "-h lerd-<service>" at the container's
+// -h/-p pair and let the caller add "-h servlo-<service>" at the container's
 // internal (family-default) port. Returns the original args unchanged, with
 // hostGiven=true, when the host isn't a loopback spelling or matches no
 // installed service (a genuinely external host, left untouched as before).
 //
 // It owns the whole "did the caller name a host" answer, every shape of it, so
 // hostGiven is safe to act on: a shape it missed would read as hostless, and
-// the caller would then aim a connection lerd doesn't own at a lerd service and
-// hand it lerd's own credentials.
+// the caller would then aim a connection servlo doesn't own at a servlo service and
+// hand it servlo's own credentials.
 func resolveLoopbackTarget(tool string, args []string) (out []string, hostGiven bool, prefer string) {
 	// A connection URI or a libpq conninfo string names its host inside a single
 	// token, so no -h flag appears and the flag scan below would read the call as
@@ -301,7 +301,7 @@ func hostEnvSet(tool string) bool {
 // real client would: an explicit -h flag always governs, so the env var is
 // only consulted when args named no host at all. Without this guard, an
 // unrelated PGHOST left set in the shell would silently re-flag a call
-// resolveLoopbackTarget already matched and rewrote to a local lerd service
+// resolveLoopbackTarget already matched and rewrote to a local servlo service
 // (prefer != "") as external again, discarding that rewrite's effect even
 // though the -h flag that triggered it should win.
 func effectiveHostGiven(tool string, argHostGiven bool, prefer string) bool {
@@ -311,15 +311,15 @@ func effectiveHostGiven(tool string, argHostGiven bool, prefer string) bool {
 	return hostEnvSet(tool)
 }
 
-// localCredsEnv returns the admin credentials for the backing lerd service so a
+// localCredsEnv returns the admin credentials for the backing servlo service so a
 // hostless dump connects to the local server. Postgres needs the superuser name
 // (the container user is root, which is not a role); the mysql families default
 // to root already, so only the password is needed.
 func localCredsEnv(tool string) []string {
 	if isPostgresTool(tool) {
-		return []string{"PGUSER=postgres", "PGPASSWORD=lerd"}
+		return []string{"PGUSER=postgres", "PGPASSWORD=servlo"}
 	}
-	return []string{"MYSQL_PWD=lerd"}
+	return []string{"MYSQL_PWD=servlo"}
 }
 
 func isPostgresTool(tool string) bool {
@@ -348,26 +348,26 @@ func isVersionProbe(args []string) bool {
 }
 
 // wantsLocalDefault reports whether the shim should aim a hostless invocation at
-// the backing lerd service. A version probe is excluded: prepending -h in front
+// the backing servlo service. A version probe is excluded: prepending -h in front
 // of it leaves pg_dump exiting non-zero with no version, and the IDE that asked
 // then rejects the shim path.
 func wantsLocalDefault(tool string, args []string, hostGiven bool) bool {
 	return !hostGiven && isSQLTool(tool) && !isVersionProbe(args)
 }
 
-// siteServiceForTool returns the lerd service the project at cwd points its
+// siteServiceForTool returns the servlo service the project at cwd points its
 // DB_HOST at, so a bare dump run from a project targets that project's own
-// database service (e.g. a mariadb-backed project routes to lerd-mariadb-<v>
-// rather than the global mysql owner). Returns "" when there is no lerd DB host
+// database service (e.g. a mariadb-backed project routes to servlo-mariadb-<v>
+// rather than the global mysql owner). Returns "" when there is no servlo DB host
 // to adopt; the caller falls back to the owner, and ResolveTarget still ignores
 // a service that does not actually expose the tool (so a Postgres project's
-// lerd-postgres host is not adopted by mysqldump).
+// servlo-postgres host is not adopted by mysqldump).
 func siteServiceForTool(cwd, tool string) string {
 	if !isSQLTool(tool) {
 		return ""
 	}
 	host := envfile.ReadKey(filepath.Join(dbEnvRootFor(cwd), ".env"), "DB_HOST")
-	svc, ok := strings.CutPrefix(host, "lerd-")
+	svc, ok := strings.CutPrefix(host, "servlo-")
 	if !ok || svc == "" {
 		return ""
 	}
@@ -418,7 +418,7 @@ func runClientExec(tool string, args []string) error {
 
 	// A hostless dump adopts the current project's own database service, falling
 	// back to the global owner. An explicit host is normally external and passes
-	// straight through — except a loopback host matching one of lerd's own
+	// straight through — except a loopback host matching one of servlo's own
 	// published ports, which resolveLoopbackTarget rewrites to route (and
 	// strips) like a hostless call; see its doc comment for why the pass-through
 	// path can never reach that case on its own.
@@ -434,20 +434,20 @@ func runClientExec(tool string, args []string) error {
 	}
 
 	// Autostart the backing service so its image is present and, for a dump
-	// against a local lerd database (-h lerd-<service>), the server is up. A
+	// against a local servlo database (-h servlo-<service>), the server is up. A
 	// version probe needs neither, so it skips the start once the image is there.
-	image := podman.InstalledImage("lerd-" + target.Service)
+	image := podman.InstalledImage("servlo-" + target.Service)
 	if image == "" || !isVersionProbe(args) {
 		if err := ensureServiceRunning(target.Service); err != nil {
 			return fmt.Errorf("could not start %s: %w", target.Service, err)
 		}
-		image = podman.InstalledImage("lerd-" + target.Service)
+		image = podman.InstalledImage("servlo-" + target.Service)
 	}
 	if image == "" {
 		return fmt.Errorf("could not resolve the image for service %q", target.Service)
 	}
 
-	// When the caller names no host, default the connection to the resolved lerd
+	// When the caller names no host, default the connection to the resolved servlo
 	// service with its admin credentials, so `pg_dump mydb` / `mysqldump mydb`
 	// work against the local server out of the box. Only for the SQL tools: they
 	// share the -h host flag and have known admin credentials, whereas mongosh
@@ -455,7 +455,7 @@ func runClientExec(tool string, args []string) error {
 	// those pass through and expect an explicit host.
 	var defaultEnv []string
 	if wantsLocalDefault(tool, args, hostGiven) {
-		args = append([]string{"-h", "lerd-" + target.Service}, args...)
+		args = append([]string{"-h", "servlo-" + target.Service}, args...)
 		defaultEnv = localCredsEnv(tool)
 	}
 
@@ -476,10 +476,10 @@ func runClientExec(tool string, args []string) error {
 	// so the tool reads a CA cert and writes its output file (an IDE's
 	// --result-file, pg_dump -f) to a host path exactly like a native client;
 	// rootless podman maps container root to the host user, so the file lands
-	// owned by you. A cwd outside home is mounted alongside. Joined to the lerd
-	// network so a local target (-h lerd-<service>) resolves and external hosts
+	// owned by you. A cwd outside home is mounted alongside. Joined to the servlo
+	// network so a local target (-h servlo-<service>) resolves and external hosts
 	// stay reachable.
-	runFlags := []string{"run", "--rm", "-i", "--network", "lerd", "--entrypoint", "sh"}
+	runFlags := []string{"run", "--rm", "-i", "--network", "servlo", "--entrypoint", "sh"}
 	home, _ := os.UserHomeDir()
 	mounted := map[string]bool{}
 	addMount := func(p string) {

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func writeDBSiteEnv(t *testing.T, dir, host, database string) {
@@ -26,7 +26,7 @@ func TestDatabaseSiteIndex_IsolatedWorktreeDBCarriesItsBranch(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 	site := filepath.Join(t.TempDir(), "app")
-	writeDBSiteEnv(t, site, "lerd-mysql", "astrolov")
+	writeDBSiteEnv(t, site, "servlo-mysql", "astrolov")
 	if err := config.AddSite(config.Site{Name: "astrolov", Path: site, Domains: []string{"astrolov.test"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestDatabaseSiteIndex_IgnoresWorktreeDBsOnAnotherService(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 	site := filepath.Join(t.TempDir(), "app")
-	writeDBSiteEnv(t, site, "lerd-mysql", "astrolov")
+	writeDBSiteEnv(t, site, "servlo-mysql", "astrolov")
 	if err := config.AddSite(config.Site{Name: "astrolov", Path: site, Domains: []string{"astrolov.test"}}); err != nil {
 		t.Fatal(err)
 	}

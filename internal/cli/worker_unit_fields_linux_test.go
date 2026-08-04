@@ -16,16 +16,16 @@ func TestWriteWorkerUnitFileWritesTheDescription(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	if _, err := writeWorkerUnitFile(
-		"lerd-queue-mysite", "Queue Worker", "mysite", t.TempDir(), "8.4",
-		"php artisan queue:work", "always", "", "lerd-php84-fpm", false,
+		"servlo-queue-mysite", "Queue Worker", "mysite", t.TempDir(), "8.4",
+		"php artisan queue:work", "always", "", "servlo-php84-fpm", false,
 	); err != nil {
 		t.Fatalf("writeWorkerUnitFile: %v", err)
 	}
-	b, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "lerd-queue-mysite.service"))
+	b, err := os.ReadFile(filepath.Join(tmp, "systemd", "user", "servlo-queue-mysite.service"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(b), "Description=Lerd Queue Worker (mysite)") {
+	if !strings.Contains(string(b), "Description=Servlo Queue Worker (mysite)") {
 		t.Errorf("unit lost its description:\n%s", b)
 	}
 }

@@ -37,7 +37,7 @@ func loadCachedStoreEntries() []cachedStoreEntry {
 // projectOwnsFramework reports whether a framework name belongs to the projects
 // that use it rather than to the published store. A project carrying its own
 // definition for its own framework is the source of truth for it, so the copy in
-// .lerd.yaml is installed and kept current.
+// .servlo.yaml is installed and kept current.
 //
 // A store-published name (laravel, symfony, …) is not: the store owns it and
 // every project on the machine shares it. Letting one project's embedded copy

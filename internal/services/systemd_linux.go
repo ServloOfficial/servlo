@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 )
 
 func init() {
@@ -21,19 +21,19 @@ type linuxServiceManager struct{}
 // --- Service unit files ---
 
 func (m *linuxServiceManager) WriteServiceUnit(name, content string) error {
-	return lerdSystemd.WriteService(name, content)
+	return servloSystemd.WriteService(name, content)
 }
 
 func (m *linuxServiceManager) WriteServiceUnitIfChanged(name, content string) (bool, error) {
-	return lerdSystemd.WriteServiceIfChanged(name, content)
+	return servloSystemd.WriteServiceIfChanged(name, content)
 }
 
 func (m *linuxServiceManager) WriteTimerUnitIfChanged(name, content string) (bool, error) {
-	return lerdSystemd.WriteTimerIfChanged(name, content)
+	return servloSystemd.WriteTimerIfChanged(name, content)
 }
 
 func (m *linuxServiceManager) RemoveTimerUnit(name string) error {
-	return lerdSystemd.RemoveTimer(name)
+	return servloSystemd.RemoveTimer(name)
 }
 
 func (m *linuxServiceManager) ListTimerUnits(nameGlob string) []string {
@@ -114,19 +114,19 @@ func (m *linuxServiceManager) Restart(name string) error {
 }
 
 func (m *linuxServiceManager) Enable(name string) error {
-	return lerdSystemd.EnableService(name)
+	return servloSystemd.EnableService(name)
 }
 
 func (m *linuxServiceManager) Disable(name string) error {
-	return lerdSystemd.DisableService(name)
+	return servloSystemd.DisableService(name)
 }
 
 func (m *linuxServiceManager) IsActive(name string) bool {
-	return lerdSystemd.IsServiceActive(name)
+	return servloSystemd.IsServiceActive(name)
 }
 
 func (m *linuxServiceManager) IsEnabled(name string) bool {
-	return lerdSystemd.IsServiceEnabled(name)
+	return servloSystemd.IsServiceEnabled(name)
 }
 
 func (m *linuxServiceManager) UnitStatus(name string) (string, error) {

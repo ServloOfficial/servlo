@@ -29,7 +29,7 @@
   <div bind:this={sentinel} class="py-3 flex justify-center">
     <button
       type="button"
-      class="text-xs rounded-sm border border-gray-300 dark:border-lerd-border px-3 py-1 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5"
+      class="text-xs rounded-sm border border-gray-300 dark:border-servlo-border px-3 py-1 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5"
       onclick={onmore}
     >
       {m.debug_loadMore({ shown, total })}

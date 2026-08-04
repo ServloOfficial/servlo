@@ -10,14 +10,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // fpmCustomSetHashLabel fingerprints the declared extension/package set an FPM
 // image was built from. The Containerfile hash tracks the base recipe only and
 // cannot tell that a version's image predates an extension the user has since
 // declared, so a second label carries what the first cannot.
-const fpmCustomSetHashLabel = "dev.lerd.fpm.custom-set-hash"
+const fpmCustomSetHashLabel = "dev.servlo.fpm.custom-set-hash"
 
 // customSetHash fingerprints the declared set. Sorted, so the order entries were
 // added in never rebuilds an image; empty for an empty set, so images built
@@ -201,7 +201,7 @@ func clearRealisedSet(version string) {
 
 // apkPackages folds `apk info` output into a set. It prints one package name per
 // line; `apk info -v` would append versions, so the name-only form is what the
-// caller runs and what a user would have typed into `lerd php:pkg add`.
+// caller runs and what a user would have typed into `servlo php:pkg add`.
 func apkPackages(out string) map[string]bool {
 	pkgs := map[string]bool{}
 	scanner := bufio.NewScanner(strings.NewReader(out))

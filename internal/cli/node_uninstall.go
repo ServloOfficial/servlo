@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	nodeDet "github.com/geodro/lerd/internal/node"
+	nodeDet "github.com/realrashid/servlo/internal/node"
 	"github.com/spf13/cobra"
 )
 
@@ -18,8 +18,8 @@ func NewNodeUninstallCmd() *cobra.Command {
 }
 
 func runNodeUninstall(_ *cobra.Command, args []string) error {
-	if !lerdManagesNode() {
-		return fmt.Errorf("lerd is not managing Node.js; nothing to uninstall")
+	if !servloManagesNode() {
+		return fmt.Errorf("servlo is not managing Node.js; nothing to uninstall")
 	}
 	if err := nodeDet.Active().Uninstall(args[0]); err != nil {
 		return err

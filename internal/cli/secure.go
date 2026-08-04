@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/siteops"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/siteops"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -67,7 +67,7 @@ func runUnsecure(_ *cobra.Command, args []string) error {
 
 // renewCert force-reissues the site's certificate through siteops.RenewCert (the
 // single source of truth shared with MCP) so a long-lived cert can be reset
-// without toggling HTTPS off and on. Backs `lerd secure --renew`.
+// without toggling HTTPS off and on. Backs `servlo secure --renew`.
 func renewCert(args []string) error {
 	name, err := resolveSiteName(args)
 	if err != nil {
@@ -75,7 +75,7 @@ func renewCert(args []string) error {
 	}
 	site, err := config.FindSite(name)
 	if err != nil {
-		return fmt.Errorf("site %q not found — run 'lerd link' first", name)
+		return fmt.Errorf("site %q not found — run 'servlo link' first", name)
 	}
 	feedback.Begin()
 	step := feedback.Start("renewing certificate")
@@ -87,8 +87,8 @@ func renewCert(args []string) error {
 	return nil
 }
 
-// toggleSecureCmd is the CLI entry-point shared by `lerd secure` and
-// `lerd unsecure`. It delegates the core flip to siteops.SetSecured (the
+// toggleSecureCmd is the CLI entry-point shared by `servlo secure` and
+// `servlo unsecure`. It delegates the core flip to siteops.SetSecured (the
 // single source of truth shared with the UI and MCP code paths) and
 // supplies CLI-specific post-toggle hooks: Stripe listener restart and a
 // best-effort lan:refresh notification to the daemon so any running LAN
@@ -100,7 +100,7 @@ func toggleSecureCmd(args []string, secured bool) error {
 	}
 	site, err := config.FindSite(name)
 	if err != nil {
-		return fmt.Errorf("site %q not found — run 'lerd link' first", name)
+		return fmt.Errorf("site %q not found — run 'servlo link' first", name)
 	}
 	if secured {
 		if gcfg, _ := config.LoadGlobal(); !gcfg.DNSManaged() {
@@ -138,8 +138,8 @@ func RestartStripeIfActive(site *config.Site) { restartStripeIfActive(site) }
 // restartStripeIfActive restarts the Stripe listener for the site if it is currently running,
 // so that --forward-to picks up the new http/https scheme.
 func restartStripeIfActive(site *config.Site) {
-	unitName := "lerd-stripe-" + site.Name
-	if !lerdSystemd.IsServiceActive(unitName) {
+	unitName := "servlo-stripe-" + site.Name
+	if !servloSystemd.IsServiceActive(unitName) {
 		return
 	}
 	scheme := "http"
@@ -151,7 +151,7 @@ func restartStripeIfActive(site *config.Site) {
 		feedback.Warn("updating stripe listener unit: %v", err)
 		return
 	}
-	if err := lerdSystemd.RestartService(unitName); err != nil {
+	if err := servloSystemd.RestartService(unitName); err != nil {
 		feedback.Warn("restarting stripe listener: %v", err)
 		return
 	}

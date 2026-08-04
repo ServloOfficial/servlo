@@ -14,7 +14,7 @@ describe('debugLens', () => {
   });
 
   it('restores a previously stored lens', async () => {
-    localStorage.setItem('lerd:debugLens', 'queries');
+    localStorage.setItem('servlo:debugLens', 'queries');
     const { debugLens } = await import('./debugLens');
     expect(get(debugLens)).toBe('queries');
   });
@@ -22,6 +22,6 @@ describe('debugLens', () => {
   it('persists changes to localStorage', async () => {
     const { debugLens } = await import('./debugLens');
     debugLens.set('queries');
-    expect(localStorage.getItem('lerd:debugLens')).toBe('queries');
+    expect(localStorage.getItem('servlo:debugLens')).toBe('queries');
   });
 });

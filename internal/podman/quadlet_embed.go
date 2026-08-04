@@ -291,7 +291,7 @@ func OCIRuntime() string {
 }
 
 // BindForLAN flips every PublishPort= between the loopback and LAN form on
-// both stacks in lockstep: 127.0.0.1 ↔ bare and [::1] ↔ [::]. lerd-dns
+// both stacks in lockstep: 127.0.0.1 ↔ bare and [::1] ↔ [::]. servlo-dns
 // (:5300) is pinned on 127.0.0.1 in the embed because LAN access routes
 // via the userspace forwarder, so its lines are preserved as-is.
 func BindForLAN(content string, lanExposed bool) string {
@@ -301,7 +301,7 @@ func BindForLAN(content string, lanExposed bool) string {
 		if !strings.HasPrefix(trimmed, "PublishPort=") {
 			continue
 		}
-		// Preserve lerd-dns (pinned to 127.0.0.1 in the embed because LAN
+		// Preserve servlo-dns (pinned to 127.0.0.1 in the embed because LAN
 		// DNS is routed via the userspace forwarder, not the publish).
 		if strings.Contains(trimmed, ":5300:5300") {
 			continue

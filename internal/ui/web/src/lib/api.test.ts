@@ -24,11 +24,11 @@ describe('apiFetch CSRF header', () => {
     return fetchMock;
   }
 
-  it('adds X-Lerd-CSRF to state-changing requests', async () => {
+  it('adds X-Servlo-CSRF to state-changing requests', async () => {
     const fetchMock = stubFetch();
     await apiFetch('/api/sites/x/tinker', { method: 'POST' });
     const sent = new Headers(fetchMock.mock.calls[0][1]?.headers);
-    expect(sent.get('X-Lerd-CSRF')).toBe('1');
+    expect(sent.get('X-Servlo-CSRF')).toBe('1');
   });
 
   it('leaves GET and HEAD untouched', async () => {
@@ -36,7 +36,7 @@ describe('apiFetch CSRF header', () => {
       const fetchMock = stubFetch();
       await apiFetch('/api/sites', method ? { method } : undefined);
       const sent = new Headers(fetchMock.mock.calls[0][1]?.headers);
-      expect(sent.has('X-Lerd-CSRF')).toBe(false);
+      expect(sent.has('X-Servlo-CSRF')).toBe(false);
     }
   });
 
@@ -44,11 +44,11 @@ describe('apiFetch CSRF header', () => {
     const fetchMock = stubFetch();
     await apiFetch('/api/dumps/clear', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Lerd-CSRF': 'custom' }
+      headers: { 'Content-Type': 'application/json', 'X-Servlo-CSRF': 'custom' }
     });
     const sent = new Headers(fetchMock.mock.calls[0][1]?.headers);
     expect(sent.get('Content-Type')).toBe('application/json');
-    expect(sent.get('X-Lerd-CSRF')).toBe('custom');
+    expect(sent.get('X-Servlo-CSRF')).toBe('custom');
   });
 });
 

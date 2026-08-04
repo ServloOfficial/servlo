@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/eventbus"
-	"github.com/geodro/lerd/internal/workerheal"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/eventbus"
+	"github.com/realrashid/servlo/internal/workerheal"
 )
 
 // healthWatchInterval is how often the watcher re-runs the detector while a
@@ -17,7 +17,7 @@ import (
 // where the only consumer is the failure push notification.
 //
 // The detector is not free on darwin: siteinfo.AllUnitStates shells out to
-// `launchctl print` once per lerd-*.plist, so a 25-worker install pays 25
+// `launchctl print` once per servlo-*.plist, so a 25-worker install pays 25
 // forks per uncached tick. The visible cadence stays above the 3s unit-state
 // cache TTL so back-to-back dashboard renders share one sweep, and the idle
 // cadence keeps an unattended machine off the CPU without going silent.
@@ -69,23 +69,23 @@ var lastUnhealthySet atomic.Value // []workerheal.UnhealthyWorker
 
 // healthWatcherInitialized gates first-tick notifications. The first run
 // seeds lastUnhealthySet from whatever workers were already failed when
-// lerd-ui came up, without firing — otherwise a launchd restart with N
+// servlo-panel came up, without firing — otherwise a launchd restart with N
 // pre-existing failures would dispatch N notifications instantly.
 var healthWatcherInitialized atomic.Bool
 
 // runWorkerHealthWatcher closes the gap between systemd's internal state
 // transitions (start-limit-hit, external `systemctl stop`, anything that
-// happens without lerd-ui's involvement) and the dashboard banner.
+// happens without servlo-panel's involvement) and the dashboard banner.
 //
 // The cadence is re-chosen after every tick so a dashboard opening or closing
 // takes effect on the next round rather than at process restart.
 //
 // The watcher does NOT run the heal itself; it only surfaces drift.
 func runWorkerHealthWatcher() {
-	// A fresh lerd-ui process means a running session (boot/autostart, update, or
-	// a manual restart) — `lerd stop` never restarts lerd-ui. Clear any stale
+	// A fresh servlo-panel process means a running session (boot/autostart, update, or
+	// a manual restart) — `servlo stop` never restarts servlo-panel. Clear any stale
 	// stop marker so a stop-then-reboot-autostart doesn't leave detection
-	// suppressed forever; an actual `lerd stop` re-sets it while this process
+	// suppressed forever; an actual `servlo stop` re-sets it while this process
 	// keeps running.
 	_ = config.ClearStopped()
 	seedHealthState()

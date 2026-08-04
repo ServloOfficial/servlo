@@ -15,10 +15,10 @@ func TestRenderVhost_devServerPrefixProxiesWithUpgrade(t *testing.T) {
 		ServerNames:   "myapp.test",
 		Path:          "/srv/myapp",
 		PublicDir:     "public",
-		FPMContainer:  "lerd-php84-fpm",
+		FPMContainer:  "servlo-php84-fpm",
 		CertDomain:    "myapp.test",
 		UpstreamHost:  "192.0.2.1",
-		DevServerBase: "/@lerd-vite/",
+		DevServerBase: "/@servlo-vite/",
 		DevServerPort: 5173,
 	}
 
@@ -28,7 +28,7 @@ func TestRenderVhost_devServerPrefixProxiesWithUpgrade(t *testing.T) {
 	}
 	got := string(out)
 	for _, want := range []string{
-		"location ^~ /@lerd-vite/ {",
+		"location ^~ /@servlo-vite/ {",
 		"proxy_pass http://192.0.2.1:5173;",
 		`proxy_set_header Upgrade $http_upgrade;`,
 	} {
@@ -46,7 +46,7 @@ func TestRenderVhost_noDevServerNoLocations(t *testing.T) {
 		ServerNames:  "myapp.test",
 		Path:         "/srv/myapp",
 		PublicDir:    "public",
-		FPMContainer: "lerd-php84-fpm",
+		FPMContainer: "servlo-php84-fpm",
 		CertDomain:   "myapp.test",
 	})
 	if err != nil {

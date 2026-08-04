@@ -24,7 +24,7 @@
   }: Props = $props();
 
   const onClass: Record<ToggleTone, string> = {
-    accent: 'bg-lerd-red',
+    accent: 'bg-servlo-red',
     amber: 'bg-amber-500',
     teal: 'bg-teal-500',
     red: 'bg-red-500',
@@ -35,7 +35,7 @@
   };
 
   const bgClass = $derived(
-    failing ? 'bg-red-500 animate-pulse' : on ? onClass[tone] : 'bg-gray-300 dark:bg-lerd-muted'
+    failing ? 'bg-red-500 animate-pulse' : on ? onClass[tone] : 'bg-gray-300 dark:bg-servlo-muted'
   );
 </script>
 

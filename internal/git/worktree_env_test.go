@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
 )
 
 // EnsureWorktreeEnv must materialise .env in a fresh worktree (git worktree
@@ -63,7 +63,7 @@ func TestEnsureWorktreeEnv_preservesExistingEnvAndRealignsURL(t *testing.T) {
 	}
 }
 
-// When .lerd.yaml has env_overrides, templates are resolved and applied.
+// When .servlo.yaml has env_overrides, templates are resolved and applied.
 func TestEnsureWorktreeEnv_appliesEnvOverrides(t *testing.T) {
 	main := t.TempDir()
 	wt := t.TempDir()
@@ -72,8 +72,8 @@ func TestEnsureWorktreeEnv_appliesEnvOverrides(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
 		t.Fatal(err)
 	}
-	lerdYAML := "domains:\n  - acme\nenv_overrides:\n  APP_URL: \"{{scheme}}://app.{{domain}}\"\n  CENTRAL_DOMAIN: \"{{domain}}\"\n"
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+	servloYAML := "domains:\n  - acme\nenv_overrides:\n  APP_URL: \"{{scheme}}://app.{{domain}}\"\n  CENTRAL_DOMAIN: \"{{domain}}\"\n"
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte(servloYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -104,8 +104,8 @@ func TestEnsureWorktreeEnv_siteTemplatePlaceholder(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
 		t.Fatal(err)
 	}
-	lerdYAML := "domains:\n  - acme\nenv_overrides:\n  DB_DATABASE: \"{{site}}\"\n"
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+	servloYAML := "domains:\n  - acme\nenv_overrides:\n  DB_DATABASE: \"{{site}}\"\n"
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte(servloYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -152,14 +152,14 @@ func TestEnsureWorktreeEnv_branchAndParentTokens(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
 		t.Fatal(err)
 	}
-	lerdYAML := `domains:
+	servloYAML := `domains:
   - acme
 env_overrides:
   DB_BRANCH: "{{branch}}"
   DB_PARENT: "{{parent}}"
   DB_NAME: "{{parent}}_{{branch}}"
 `
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte(servloYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -190,8 +190,8 @@ func TestEnsureWorktreeEnv_staticOverrideValues(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
 		t.Fatal(err)
 	}
-	lerdYAML := "domains:\n  - acme\nenv_overrides:\n  APP_URL: \"{{scheme}}://app.{{domain}}\"\n  CACHE_DRIVER: \"redis\"\n  NEW_KEY: \"static-value\"\n"
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+	servloYAML := "domains:\n  - acme\nenv_overrides:\n  APP_URL: \"{{scheme}}://app.{{domain}}\"\n  CACHE_DRIVER: \"redis\"\n  NEW_KEY: \"static-value\"\n"
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte(servloYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -227,8 +227,8 @@ func TestEnsureWorktreeEnv_partialOverridesStillRewriteAppURL(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
 		t.Fatal(err)
 	}
-	lerdYAML := "domains:\n  - acme\nenv_overrides:\n  SESSION_DOMAIN: \"{{domain}}\"\n"
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+	servloYAML := "domains:\n  - acme\nenv_overrides:\n  SESSION_DOMAIN: \"{{domain}}\"\n"
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte(servloYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -247,7 +247,7 @@ func TestEnsureWorktreeEnv_partialOverridesStillRewriteAppURL(t *testing.T) {
 	}
 }
 
-// Without env_overrides in .lerd.yaml, falls back to default APP_URL rewrite.
+// Without env_overrides in .servlo.yaml, falls back to default APP_URL rewrite.
 func TestEnsureWorktreeEnv_fallsBackWithoutOverrides(t *testing.T) {
 	main := t.TempDir()
 	wt := t.TempDir()
@@ -256,8 +256,8 @@ func TestEnsureWorktreeEnv_fallsBackWithoutOverrides(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
 		t.Fatal(err)
 	}
-	lerdYAML := "domains:\n  - acme\n"
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+	servloYAML := "domains:\n  - acme\n"
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte(servloYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -274,8 +274,8 @@ func TestEnsureWorktreeEnv_fallsBackWithoutOverrides(t *testing.T) {
 
 // TestEnsureWorktreeEnv_isolatedDBOverrideSkipped pins the isolation /
 // env_overrides conflict resolution. When the user opts into an isolated
-// worktree DB (lerd db:isolate writes a per-branch DB_DATABASE into the
-// worktree's .env and sets db_isolated:true in its .lerd.yaml), subsequent
+// worktree DB (servlo db:isolate writes a per-branch DB_DATABASE into the
+// worktree's .env and sets db_isolated:true in its .servlo.yaml), subsequent
 // EnsureWorktreeEnv ticks must NOT clobber DB_DATABASE from a parent
 // env_overrides template, or the isolated DB silently goes back to the
 // templated value on the next watcher refresh.
@@ -291,12 +291,12 @@ func TestEnsureWorktreeEnv_isolatedDBOverrideSkipped(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
 		t.Fatal(err)
 	}
-	lerdYAML := "domains:\n  - harborlist\nenv_overrides:\n  DB_DATABASE: \"{{parent}}_{{branch}}\"\n"
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+	servloYAML := "domains:\n  - harborlist\nenv_overrides:\n  DB_DATABASE: \"{{parent}}_{{branch}}\"\n"
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte(servloYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
-	// Seed the worktree as if `lerd db:isolate` already ran: explicit
-	// DB_DATABASE plus db_isolated:true in its .lerd.yaml.
+	// Seed the worktree as if `servlo db:isolate` already ran: explicit
+	// DB_DATABASE plus db_isolated:true in its .servlo.yaml.
 	wtEnv := "APP_URL=http://harborlist.test\nDB_DATABASE=rapids_feat_x\n"
 	if err := os.WriteFile(filepath.Join(wt, ".env"), []byte(wtEnv), 0644); err != nil {
 		t.Fatal(err)
@@ -327,7 +327,7 @@ func TestEnsureWorktreeEnv_isolatedDBOverrideSkipped(t *testing.T) {
 // TestEnsureWorktreeEnv_envOverridesWinWhenNotIsolated is the symmetric
 // invariant: with db_isolated:false (the default), env_overrides for
 // DB_DATABASE still apply. This protects users who deliberately template
-// per-branch DBs without going through `lerd db:isolate`.
+// per-branch DBs without going through `servlo db:isolate`.
 func TestEnsureWorktreeEnv_envOverridesWinWhenNotIsolated(t *testing.T) {
 	main := t.TempDir()
 	wt := t.TempDir()
@@ -336,8 +336,8 @@ func TestEnsureWorktreeEnv_envOverridesWinWhenNotIsolated(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
 		t.Fatal(err)
 	}
-	lerdYAML := "domains:\n  - harborlist\nenv_overrides:\n  DB_DATABASE: \"{{parent}}_{{branch}}\"\n"
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+	servloYAML := "domains:\n  - harborlist\nenv_overrides:\n  DB_DATABASE: \"{{parent}}_{{branch}}\"\n"
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte(servloYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -358,7 +358,7 @@ func TestEnsureWorktreeEnv_envOverridesWinWhenNotIsolated(t *testing.T) {
 	}
 }
 
-// No-op when the main repo has no .env (lerd should not invent one out of
+// No-op when the main repo has no .env (servlo should not invent one out of
 // thin air; it simply has nothing to copy).
 func TestEnsureWorktreeEnv_noopWhenMainHasNoEnv(t *testing.T) {
 	main := t.TempDir()
@@ -371,7 +371,7 @@ func TestEnsureWorktreeEnv_noopWhenMainHasNoEnv(t *testing.T) {
 	}
 }
 
-// Symfony commits .env and gitignores .env.local as the local override, so lerd
+// Symfony commits .env and gitignores .env.local as the local override, so servlo
 // writes its connection values into .env.local and its base URL under DEFAULT_URI.
 // A worktree must seed that file and rewrite that key, not a hardcoded root .env
 // with APP_URL, which the app never reads.
@@ -382,10 +382,10 @@ func TestEnsureWorktreeEnv_symfonySeedsEnvLocalAndDefaultURI(t *testing.T) {
 	main := t.TempDir()
 	wt := t.TempDir()
 
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte("framework: symfony\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte("framework: symfony\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	envLocal := "DEFAULT_URI=https://acme.test\nDATABASE_URL=mysql://root:lerd@lerd-mysql:3306/acme\n"
+	envLocal := "DEFAULT_URI=https://acme.test\nDATABASE_URL=mysql://root:servlo@servlo-mysql:3306/acme\n"
 	if err := os.WriteFile(filepath.Join(main, ".env.local"), []byte(envLocal), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -400,7 +400,7 @@ func TestEnsureWorktreeEnv_symfonySeedsEnvLocalAndDefaultURI(t *testing.T) {
 	if !strings.Contains(s, "DEFAULT_URI=https://feat-a.acme.test") {
 		t.Errorf("DEFAULT_URI not rewritten to worktree domain:\n%s", s)
 	}
-	if !strings.Contains(s, "DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/acme") {
+	if !strings.Contains(s, "DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/acme") {
 		t.Errorf(".env.local not seeded in full:\n%s", s)
 	}
 	if _, err := os.Stat(filepath.Join(wt, ".env")); !os.IsNotExist(err) {
@@ -426,7 +426,7 @@ func TestEnsureWorktreeEnv_resolvesStoreFileAndURLKey(t *testing.T) {
 
 	main := t.TempDir()
 	wt := t.TempDir()
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte("framework: igniter\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte("framework: igniter\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(main, "config"), 0o755); err != nil {
@@ -477,13 +477,13 @@ func TestEnsureWorktreeEnv_seedsPhpArrayEnvFile(t *testing.T) {
 
 	main := t.TempDir()
 	wt := t.TempDir()
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte("framework: magish\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte("framework: magish\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(main, "app", "etc"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	envPhp := "<?php\nreturn [\n    'db' => ['connection' => ['default' => ['host' => 'lerd-mysql', 'dbname' => 'shop']]],\n];\n"
+	envPhp := "<?php\nreturn [\n    'db' => ['connection' => ['default' => ['host' => 'servlo-mysql', 'dbname' => 'shop']]],\n];\n"
 	if err := os.WriteFile(filepath.Join(main, "app", "etc", "env.php"), []byte(envPhp), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -501,7 +501,7 @@ func TestEnsureWorktreeEnv_seedsPhpArrayEnvFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("worktree app/etc/env.php not seeded: %v", err)
 	}
-	if vals["db.connection.default.host"] != "lerd-mysql" || vals["db.connection.default.dbname"] != "shop" {
+	if vals["db.connection.default.host"] != "servlo-mysql" || vals["db.connection.default.dbname"] != "shop" {
 		t.Errorf("database credentials not carried across: %+v", vals)
 	}
 	if _, err := os.Stat(filepath.Join(wt, ".env")); !os.IsNotExist(err) {
@@ -528,13 +528,13 @@ func TestEnsureWorktreeEnv_writesWorktreeURLKeys(t *testing.T) {
 
 	main := t.TempDir()
 	wt := t.TempDir()
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte("framework: magish\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte("framework: magish\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(main, "app", "etc"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	envPhp := "<?php\nreturn [\n    'db' => ['connection' => ['default' => ['host' => 'lerd-mysql', 'dbname' => 'shop']]],\n];\n"
+	envPhp := "<?php\nreturn [\n    'db' => ['connection' => ['default' => ['host' => 'servlo-mysql', 'dbname' => 'shop']]],\n];\n"
 	if err := os.WriteFile(filepath.Join(main, "app", "etc", "env.php"), []byte(envPhp), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -578,7 +578,7 @@ func TestEnsureWorktreeEnv_seedsPhpConstAndRewritesURLKey(t *testing.T) {
 
 	main := t.TempDir()
 	wt := t.TempDir()
-	if err := os.WriteFile(filepath.Join(main, ".lerd.yaml"), []byte("framework: wpish\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(main, ".servlo.yaml"), []byte("framework: wpish\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	wpConfig := "<?php\ndefine('WP_HOME','http://acme.test');\ndefine('DB_NAME','wp');\n"

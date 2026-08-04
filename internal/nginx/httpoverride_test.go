@@ -10,11 +10,11 @@ import (
 // writeHTTPOverride seeds the user http-level override file.
 func writeHTTPOverride(t *testing.T, tmp, body string) {
 	t.Helper()
-	dir := filepath.Join(tmp, "lerd", "nginx", "http.d")
+	dir := filepath.Join(tmp, "servlo", "nginx", "http.d")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatalf("mkdir http.d: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "zz-lerd-user.conf"), []byte(body), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "zz-servlo-user.conf"), []byte(body), 0644); err != nil {
 		t.Fatalf("write override: %v", err)
 	}
 }
@@ -52,8 +52,8 @@ func TestHTTPOverrideNames_missingDir(t *testing.T) {
 	}
 }
 
-// A user override of a directive lerd already sets in http{} must remove
-// lerd's default: nginx rejects a duplicate simple directive in the same
+// A user override of a directive servlo already sets in http{} must remove
+// servlo's default: nginx rejects a duplicate simple directive in the same
 // context instead of letting the later one win (issue #1066).
 func TestEnsureNginxConfig_dropsOverriddenDefaults(t *testing.T) {
 	tmp := t.TempDir()
@@ -65,7 +65,7 @@ func TestEnsureNginxConfig_dropsOverriddenDefaults(t *testing.T) {
 	body := readRenderedConf(t, tmp)
 	for _, line := range strings.Split(body, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "client_max_body_size ") {
-			t.Fatalf("lerd default still active, nginx would reject it as duplicate:\n%s", body)
+			t.Fatalf("servlo default still active, nginx would reject it as duplicate:\n%s", body)
 		}
 	}
 	if !strings.Contains(body, "# client_max_body_size 0;") {
@@ -80,8 +80,8 @@ func TestEnsureNginxConfig_dropsOverriddenDefaults(t *testing.T) {
 }
 
 // log_format and access_log may repeat in the same context, so a user
-// declaring either must not retire lerd's own: nginx then fails to start
-// with "unknown log format lerd_access" and every site goes down.
+// declaring either must not retire servlo's own: nginx then fails to start
+// with "unknown log format servlo_access" and every site goes down.
 func TestEnsureNginxConfig_keepsRepeatableLogDirectives(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
@@ -90,11 +90,11 @@ func TestEnsureNginxConfig_keepsRepeatableLogDirectives(t *testing.T) {
 		t.Fatalf("EnsureNginxConfig: %v", err)
 	}
 	body := readRenderedConf(t, tmp)
-	if !hasActiveDirective(body, "log_format lerd_access ") {
-		t.Errorf("lerd's log_format must survive a user log_format, got:\n%s", body)
+	if !hasActiveDirective(body, "log_format servlo_access ") {
+		t.Errorf("servlo's log_format must survive a user log_format, got:\n%s", body)
 	}
 	if !hasActiveDirective(body, "access_log syslog:") {
-		t.Errorf("lerd's access_log feeds idle-suspend and request stats, got:\n%s", body)
+		t.Errorf("servlo's access_log feeds idle-suspend and request stats, got:\n%s", body)
 	}
 }
 
@@ -109,7 +109,7 @@ func hasActiveDirective(conf, prefix string) bool {
 	return false
 }
 
-// The filter only applies to lerd's own http{} defaults. A user directive that
+// The filter only applies to servlo's own http{} defaults. A user directive that
 // happens to share a name with something in another block (events{}, or the
 // nested location blocks of a vhost) must not disturb it.
 func TestEnsureNginxConfig_onlyFiltersHTTPLevel(t *testing.T) {
@@ -124,7 +124,7 @@ func TestEnsureNginxConfig_onlyFiltersHTTPLevel(t *testing.T) {
 	}
 }
 
-// Removing the override (the Reset flow) must bring lerd's defaults back.
+// Removing the override (the Reset flow) must bring servlo's defaults back.
 func TestEnsureNginxConfig_restoresDefaultsAfterReset(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
@@ -132,7 +132,7 @@ func TestEnsureNginxConfig_restoresDefaultsAfterReset(t *testing.T) {
 	if err := EnsureNginxConfig(); err != nil {
 		t.Fatalf("EnsureNginxConfig: %v", err)
 	}
-	if err := os.Remove(filepath.Join(tmp, "lerd", "nginx", "http.d", "zz-lerd-user.conf")); err != nil {
+	if err := os.Remove(filepath.Join(tmp, "servlo", "nginx", "http.d", "zz-servlo-user.conf")); err != nil {
 		t.Fatalf("remove override: %v", err)
 	}
 	if err := EnsureNginxConfig(); err != nil {
@@ -145,7 +145,7 @@ func TestEnsureNginxConfig_restoresDefaultsAfterReset(t *testing.T) {
 
 func readRenderedConf(t *testing.T, tmp string) string {
 	t.Helper()
-	body, err := os.ReadFile(filepath.Join(tmp, "lerd", "nginx", "nginx.conf"))
+	body, err := os.ReadFile(filepath.Join(tmp, "servlo", "nginx", "nginx.conf"))
 	if err != nil {
 		t.Fatalf("read rendered nginx.conf: %v", err)
 	}

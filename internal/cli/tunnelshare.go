@@ -12,19 +12,19 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/hostbin"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/hostbin"
 )
 
 // Public tunnels started from the UI. Unlike LAN share proxies these are
-// deliberately not persisted: a tunnel dies with lerd-ui and is never
+// deliberately not persisted: a tunnel dies with servlo-panel and is never
 // resurrected. Systemd kills the control group and Pdeathsig covers a
 // non-systemd run; on macOS neither applies, so StopAllTunnels runs from the
 // shutdown handler and anything that outlived a SIGKILL is reaped at the next
 // start (see tunnel_reap.go).
 
 // TunnelInfo describes a running tunnel for the sites payload. External marks
-// one started by "lerd share" in a terminal rather than from the dashboard.
+// one started by "servlo share" in a terminal rather than from the dashboard.
 type TunnelInfo struct {
 	Tool     string `json:"tool"`
 	URL      string `json:"url"`
@@ -153,7 +153,7 @@ func autoShareToolName(defaultTool, ngrokToken string) string {
 }
 
 // resolveTunnelTool maps a UI tool name to the shareTool the CLI flags would
-// produce. Empty or "auto" runs the same auto-detection as a bare lerd share.
+// produce. Empty or "auto" runs the same auto-detection as a bare servlo share.
 func resolveTunnelTool(name, defaultTool, ngrokToken string) (*shareTool, error) {
 	var ngrok, cloudflare, expose, serveo, localhostRun bool
 	switch name {
@@ -240,7 +240,7 @@ func tunnelKey(siteName, branch string) string {
 }
 
 // tunnelStatusByKey returns the running tunnel registered under key, falling
-// back to one a "lerd share" in a terminal recorded for us.
+// back to one a "servlo share" in a terminal recorded for us.
 func tunnelStatusByKey(key string) (TunnelInfo, bool) {
 	tunnelsMu.Lock()
 	p := tunnels[key]

@@ -9,7 +9,7 @@ ports:
   - "6380:6379"
 data_dir: /data
 env_vars:
-  - REDIS_HOST=lerd-valkey
+  - REDIS_HOST=servlo-valkey
   - REDIS_PORT=6379
   - REDIS_PASSWORD=null
   - CACHE_STORE=redis

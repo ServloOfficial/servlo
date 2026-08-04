@@ -2,9 +2,9 @@ package config
 
 import "testing"
 
-// TestServicePublishedPort reflects a shifted published port (set by `lerd
+// TestServicePublishedPort reflects a shifted published port (set by `servlo
 // service port` or the port-ownership guard) so host-facing surfaces — a
-// host-proxy app's .env, a connection URL — target where lerd's container
+// host-proxy app's .env, a connection URL — target where servlo's container
 // actually listens, not the engine default a coexisting host server may own.
 func TestServicePublishedPort(t *testing.T) {
 	setConfigDir(t)
@@ -14,7 +14,7 @@ func TestServicePublishedPort(t *testing.T) {
 		t.Errorf("ServicePublishedPort(postgres) with no override = %d, want 0", got)
 	}
 
-	// Guard auto-shifts lerd-postgres off a host-owned :5432 onto :5434.
+	// Guard auto-shifts servlo-postgres off a host-owned :5432 onto :5434.
 	cfg, err := LoadGlobal()
 	if err != nil {
 		t.Fatalf("LoadGlobal: %v", err)

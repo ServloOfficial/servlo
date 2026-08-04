@@ -28,7 +28,7 @@
   let expandedIdx = $state(-1);
   let scrollEl: HTMLDivElement | null = $state(null);
   // Clearing deletes real log files, so it goes through a confirmation modal
-  // rather than an inline button: a deliberate confirm matches how lerd's other
+  // rather than an inline button: a deliberate confirm matches how servlo's other
   // destructive actions work and guards against wiping a lot of history with a
   // stray double click. The active log is recreated on the app's next write.
   let confirmOpen = $state(false);
@@ -130,7 +130,7 @@
 </script>
 
 <div class="flex-1 flex flex-col overflow-hidden min-h-0">
-  <div class="flex flex-wrap items-center gap-2 px-3 py-2 shrink-0 border-b border-gray-100 dark:border-lerd-border">
+  <div class="flex flex-wrap items-center gap-2 px-3 py-2 shrink-0 border-b border-gray-100 dark:border-servlo-border">
     {#if files.length > 0}
       <Dropdown
         value={selectedFile}
@@ -139,7 +139,7 @@
       />
     {/if}
 
-    <div class="flex items-center rounded-sm border border-gray-200 dark:border-lerd-border overflow-hidden shrink-0">
+    <div class="flex items-center rounded-sm border border-gray-200 dark:border-servlo-border overflow-hidden shrink-0">
       <button
         onclick={() => {
           showAll = false;
@@ -154,7 +154,7 @@
           showAll = true;
           loadEntries();
         }}
-        class="text-[11px] px-2 py-1 transition-colors border-l border-gray-200 dark:border-lerd-border {showAll
+        class="text-[11px] px-2 py-1 transition-colors border-l border-gray-200 dark:border-servlo-border {showAll
           ? 'bg-orange-500 text-white'
           : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}"
       >{m.sites_appLogs_all()}</button>
@@ -175,13 +175,13 @@
         type="text"
         bind:value={search}
         placeholder={m.sites_appLogs_search()}
-        class="w-full text-xs bg-transparent border border-gray-200 dark:border-lerd-border rounded-sm pl-7 pr-2 py-1 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 hover:border-gray-300 dark:hover:border-lerd-muted focus:outline-hidden focus:border-orange-500/50 transition-colors"
+        class="w-full text-xs bg-transparent border border-gray-200 dark:border-servlo-border rounded-sm pl-7 pr-2 py-1 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 hover:border-gray-300 dark:hover:border-servlo-muted focus:outline-hidden focus:border-orange-500/50 transition-colors"
       />
     </div>
 
     <button
       onclick={loadEntries}
-      class="shrink-0 flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border border-gray-200 dark:border-lerd-border hover:border-gray-300 dark:hover:border-lerd-muted rounded-sm px-2 py-1 transition-colors"
+      class="shrink-0 flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border border-gray-200 dark:border-servlo-border hover:border-gray-300 dark:hover:border-servlo-muted rounded-sm px-2 py-1 transition-colors"
     >
       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -194,7 +194,7 @@
         onclick={() => (confirmOpen = true)}
         disabled={clearing}
         title={m.sites_appLogs_clearTitle()}
-        class="shrink-0 flex items-center gap-1 text-xs rounded-sm px-2 py-1 border transition-colors disabled:opacity-50 border-gray-200 dark:border-lerd-border text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300"
+        class="shrink-0 flex items-center gap-1 text-xs rounded-sm px-2 py-1 border transition-colors disabled:opacity-50 border-gray-200 dark:border-servlo-border text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300"
       >
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -213,7 +213,7 @@
       <div class="text-gray-400 dark:text-gray-600 italic text-xs p-4">{m.sites_appLogs_empty()}</div>
     {/if}
     {#each reversed as entry, i (i + ':' + (entry.date ?? '') + ':' + (entry.message ?? '').slice(0, 40))}
-      <div class="border-b border-gray-100 dark:border-lerd-border/50">
+      <div class="border-b border-gray-100 dark:border-servlo-border/50">
         <button
           onclick={() => toggleEntry(i)}
           class="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-white/3 transition-colors"
@@ -233,7 +233,7 @@
           </svg>
         </button>
         {#if expandedIdx === i}
-          <div class="px-3 py-3 bg-gray-50 dark:bg-lerd-bg border-t border-gray-100 dark:border-lerd-border/30 font-mono text-[11px] text-gray-600 dark:text-gray-400 whitespace-pre-wrap break-all max-h-80 overflow-y-auto leading-relaxed">{entry.detail || entry.message || ''}</div>
+          <div class="px-3 py-3 bg-gray-50 dark:bg-servlo-bg border-t border-gray-100 dark:border-servlo-border/30 font-mono text-[11px] text-gray-600 dark:text-gray-400 whitespace-pre-wrap break-all max-h-80 overflow-y-auto leading-relaxed">{entry.detail || entry.message || ''}</div>
         {/if}
       </div>
     {/each}

@@ -4,12 +4,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // splitWorkerUnit parses the body of a worker unit name (i.e. without the
-// leading "lerd-") into (kind, siteName, wtBase). It accepts both shapes
+// leading "servlo-") into (kind, siteName, wtBase). It accepts both shapes
 // the worker writers produce:
 //
 //   - parent: <kind>-<siteName>                          → wtBase = ""
@@ -30,7 +30,7 @@ func splitWorkerUnit(rest string) (kind, siteName, wtBase string, ok bool) {
 	// One pass over sites: parent suffix (longest wins) and internal-
 	// token-with-worktree shape are checked in the same loop. Tracking
 	// `bestParent` lets the longest registered name win without a second
-	// scan, e.g. lerd-vite-alpha-beta resolves to site "alpha-beta" even
+	// scan, e.g. servlo-vite-alpha-beta resolves to site "alpha-beta" even
 	// when "alpha" is also registered.
 	bestParent := ""
 	for _, s := range reg.Sites {

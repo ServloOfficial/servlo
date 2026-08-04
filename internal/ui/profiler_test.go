@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/eventbus"
+	"github.com/realrashid/servlo/internal/eventbus"
 )
 
 func TestBuildProfilerStatusJSON_HasEnabledField(t *testing.T) {

@@ -3,7 +3,7 @@ package siteinfo
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func vitePerWT() config.FrameworkWorker {
@@ -36,7 +36,7 @@ func TestEnrichWorktreeWorkers_skipsParentOnlyWorkers(t *testing.T) {
 func TestEnrichWorktreeWorkers_unitNamePerWorktree(t *testing.T) {
 	origUnit := unitStatusFn
 	unitStatusFn = func(name string) (string, error) {
-		if name == "lerd-vite-rapids-main" {
+		if name == "servlo-vite-rapids-main" {
 			return "active", nil
 		}
 		return "inactive", nil

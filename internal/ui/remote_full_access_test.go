@@ -7,13 +7,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // hostActionPaths covers one endpoint from each branch of isLoopbackOnlyPath:
 // exact match, prefix subtree, and per-site subaction.
 var hostActionPaths = []string{
-	"/api/lerd/stop",
+	"/api/servlo/stop",
 	"/api/logs/terminal",
 	"/api/sites/link",
 	"/api/browse",
@@ -30,7 +30,7 @@ func remoteRequest(method, path string) *http.Request {
 	req.RemoteAddr = "192.168.1.42:54321"
 	req.Host = "dashboard.example.net"
 	req.SetBasicAuth("alice", "s3cret")
-	req.Header.Set("X-Lerd-CSRF", "1")
+	req.Header.Set("X-Servlo-CSRF", "1")
 	return req
 }
 
@@ -86,7 +86,7 @@ func TestHostActionRoutesAlwaysAllowedLocally(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, path, nil)
 			req.RemoteAddr = "127.0.0.1:54321"
 			req.Host = "localhost:7073"
-			req.Header.Set("X-Lerd-CSRF", "1")
+			req.Header.Set("X-Servlo-CSRF", "1")
 			rec := httptest.NewRecorder()
 			withRemoteControlGate(next).ServeHTTP(rec, req)
 
@@ -106,7 +106,7 @@ func TestFullAccessStillRequiresCredentials(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/browse", nil)
 	req.RemoteAddr = "192.168.1.42:54321"
 	req.Host = "dashboard.example.net"
-	req.Header.Set("X-Lerd-CSRF", "1")
+	req.Header.Set("X-Servlo-CSRF", "1")
 	rec := httptest.NewRecorder()
 	withRemoteControlGate(next).ServeHTTP(rec, req)
 
@@ -156,7 +156,7 @@ func TestRemoteSessionCannotGrantItselfFullAccess(t *testing.T) {
 	req.RemoteAddr = "192.168.1.42:54321"
 	req.Host = "dashboard.example.net"
 	req.SetBasicAuth("alice", "s3cret")
-	req.Header.Set("X-Lerd-CSRF", "1")
+	req.Header.Set("X-Servlo-CSRF", "1")
 	rec := httptest.NewRecorder()
 	withRemoteControlGate(http.HandlerFunc(handleRemoteControl)).ServeHTTP(rec, req)
 
@@ -185,7 +185,7 @@ func TestLocalRequestCanToggleFullAccess(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/remote-control", strings.NewReader(tc.body))
 		req.RemoteAddr = "127.0.0.1:54321"
 		req.Host = "localhost:7073"
-		req.Header.Set("X-Lerd-CSRF", "1")
+		req.Header.Set("X-Servlo-CSRF", "1")
 		rec := httptest.NewRecorder()
 		withRemoteControlGate(http.HandlerFunc(handleRemoteControl)).ServeHTTP(rec, req)
 
@@ -207,10 +207,10 @@ func TestIsLoopbackOnlyPath(t *testing.T) {
 		path string
 		want bool
 	}{
-		{"/api/lerd/stop", true},
-		{"/api/lerd/quit", true},
+		{"/api/servlo/stop", true},
+		{"/api/servlo/quit", true},
 		{"/api/logs/terminal", true},
-		{"/api/logs/lerd-nginx", false},
+		{"/api/logs/servlo-nginx", false},
 		{"/api/sites/link", true},
 		{"/api/browse", true},
 		{"/api/sites/myapp.test/terminal", true},
@@ -233,7 +233,7 @@ func TestIsLoopbackOnlyPath(t *testing.T) {
 		{"/api/sites/myapp.test", false},
 		{"/api/sites/myapp.test/secure", false},
 		{"/api/sites/myapp.test/envoy", false},
-		{"/api/lerd/start", false},
+		{"/api/servlo/start", false},
 		{"/api/version", false},
 		{"/", false},
 	}

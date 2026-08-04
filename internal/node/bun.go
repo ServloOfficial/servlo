@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // JSRuntime returns the explicit per-project JS runtime override from
-// .lerd.yaml's js_runtime field, normalized to "bun", "node", or "" (unset /
+// .servlo.yaml's js_runtime field, normalized to "bun", "node", or "" (unset /
 // unrecognized, meaning auto-detect). Node aliases (node/nodejs/npm) all map to
 // "node" so a small typo doesn't silently defeat the override and re-force bun.
 func JSRuntime(dir string) string {
@@ -33,8 +33,8 @@ func JSRuntime(dir string) string {
 }
 
 // UsesBun reports whether the project in dir should run its JS tooling through
-// bun instead of npm. The .lerd.yaml js_runtime override wins ("bun" forces
-// bun, "node"/"npm" forces Node); otherwise lerd auto-detects bun from a
+// bun instead of npm. The .servlo.yaml js_runtime override wins ("bun" forces
+// bun, "node"/"npm" forces Node); otherwise servlo auto-detects bun from a
 // bun.lockb / bun.lock / bunfig.toml file or a packageManager: bun field. (When
 // no Node is available at all, the host-worker path falls back to bun unless
 // js_runtime pins Node; see bunRunnerFor.)
@@ -99,7 +99,7 @@ func fileInDir(dir, name string) bool {
 }
 
 // BunPath resolves the host bun binary: the official installer drops it in
-// ~/.bun/bin, which is not on the controlled PATH lerd gives host workers, so
+// ~/.bun/bin, which is not on the controlled PATH servlo gives host workers, so
 // check there first and fall back to PATH. Returns "" when bun isn't installed.
 func BunPath() string {
 	if home, err := os.UserHomeDir(); err == nil {
@@ -111,7 +111,7 @@ func BunPath() string {
 	if p, err := exec.LookPath("bun"); err == nil {
 		return p
 	}
-	// Homebrew installs bun outside the lerd-watcher daemon's restricted PATH
+	// Homebrew installs bun outside the servlo-watcher daemon's restricted PATH
 	// on macOS; check the standard prefixes before giving up.
 	if runtime.GOOS == "darwin" {
 		for _, dir := range []string{"/opt/homebrew/bin", "/usr/local/bin"} {
@@ -151,7 +151,7 @@ func BunVersion() string {
 	return bunVerVal
 }
 
-// SystemNodeAvailable reports whether a system Node (outside lerd's own fnm
+// SystemNodeAvailable reports whether a system Node (outside servlo's own fnm
 // shims) is resolvable, on PATH or in a known version-manager install dir.
 // Used to decide the bun fallback and to surface the active JS runtime in the
 // UI. The dir probe matters for daemon-side callers whose minimal PATH would

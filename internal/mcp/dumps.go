@@ -12,15 +12,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dumpsops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dumpsops"
 )
 
-// execDumpsRecent calls lerd-ui's /api/dumps endpoint over the local transport
+// execDumpsRecent calls servlo-panel's /api/dumps endpoint over the local transport
 // (unix socket on Linux, TCP loopback on macOS) and returns the JSON response
 // verbatim. We don't reach into the
 // in-process ring directly because the MCP server may run in a different
-// process from lerd-ui (e.g. an editor-launched MCP subprocess).
+// process from servlo-panel (e.g. an editor-launched MCP subprocess).
 func execDumpsRecent(args map[string]any) (any, *rpcError) {
 	q := []string{}
 	if s := strArg(args, "site"); s != "" {
@@ -50,15 +50,15 @@ func execDumpsRecent(args map[string]any) (any, *rpcError) {
 	}
 	body, status, err := uiGET(path)
 	if err != nil {
-		return toolErr("lerd-ui not reachable: " + err.Error()), nil
+		return toolErr("servlo-panel not reachable: " + err.Error()), nil
 	}
 	if status != http.StatusOK {
-		return toolErr(fmt.Sprintf("lerd-ui returned %d: %s", status, body)), nil
+		return toolErr(fmt.Sprintf("servlo-panel returned %d: %s", status, body)), nil
 	}
 	return toolOK(string(body)), nil
 }
 
-// execAnalyzeQueries calls lerd-ui's /api/queries/analyze endpoint, returning
+// execAnalyzeQueries calls servlo-panel's /api/queries/analyze endpoint, returning
 // the N+1 / slow-query report verbatim. Lives next to dumps_recent because it
 // reads the same captured-query ring; the analysis itself is server-side so the
 // fingerprinting matches the dashboard and the N+1 notifications.
@@ -73,15 +73,15 @@ func execAnalyzeQueries(args map[string]any) (any, *rpcError) {
 	path := queryPath("/api/queries/analyze", params)
 	body, status, err := uiGET(path)
 	if err != nil {
-		return toolErr("lerd-ui not reachable: " + err.Error()), nil
+		return toolErr("servlo-panel not reachable: " + err.Error()), nil
 	}
 	if status != http.StatusOK {
-		return toolErr(fmt.Sprintf("lerd-ui returned %d: %s", status, body)), nil
+		return toolErr(fmt.Sprintf("servlo-panel returned %d: %s", status, body)), nil
 	}
 	return toolOK(string(body)), nil
 }
 
-// execRouteTiming calls lerd-ui's /api/queries/route-timing endpoint, returning
+// execRouteTiming calls servlo-panel's /api/queries/route-timing endpoint, returning
 // the per-site request-timing snapshot (median response time and the routes
 // whose p95 runs well above it) verbatim. This is the timing table the doctor's
 // slow_routes finding only summarizes in prose.
@@ -92,15 +92,15 @@ func execRouteTiming(args map[string]any) (any, *rpcError) {
 	})
 	body, status, err := uiGET(path)
 	if err != nil {
-		return toolErr("lerd-ui not reachable: " + err.Error()), nil
+		return toolErr("servlo-panel not reachable: " + err.Error()), nil
 	}
 	if status != http.StatusOK {
-		return toolErr(fmt.Sprintf("lerd-ui returned %d: %s", status, body)), nil
+		return toolErr(fmt.Sprintf("servlo-panel returned %d: %s", status, body)), nil
 	}
 	return toolOK(string(body)), nil
 }
 
-// execOptimizeRoute calls lerd-ui's /api/queries/optimize endpoint, returning the
+// execOptimizeRoute calls servlo-panel's /api/queries/optimize endpoint, returning the
 // joined view: each slow route alongside the N+1 and slow-query findings captured
 // against it, so an agent gets the symptom and its cause in one call rather than
 // pivoting between route_timing and analyze_queries by hand.
@@ -118,10 +118,10 @@ func execOptimizeRoute(args map[string]any) (any, *rpcError) {
 	path := queryPath("/api/queries/optimize", params)
 	body, status, err := uiGET(path)
 	if err != nil {
-		return toolErr("lerd-ui not reachable: " + err.Error()), nil
+		return toolErr("servlo-panel not reachable: " + err.Error()), nil
 	}
 	if status != http.StatusOK {
-		return toolErr(fmt.Sprintf("lerd-ui returned %d: %s", status, body)), nil
+		return toolErr(fmt.Sprintf("servlo-panel returned %d: %s", status, body)), nil
 	}
 	return toolOK(string(body)), nil
 }
@@ -129,11 +129,11 @@ func execOptimizeRoute(args map[string]any) (any, *rpcError) {
 func execDumpsStatus(_ map[string]any) (any, *rpcError) {
 	body, status, err := uiGET("/api/dumps/status")
 	if err != nil {
-		// MCP shouldn't fail loudly when lerd-ui is down — return a sensible
+		// MCP shouldn't fail loudly when servlo-panel is down — return a sensible
 		// JSON snapshot derived from config alone.
 		cfg, cerr := config.LoadGlobal()
 		if cerr != nil {
-			return toolErr("lerd-ui not reachable: " + err.Error()), nil
+			return toolErr("servlo-panel not reachable: " + err.Error()), nil
 		}
 		snap := map[string]any{
 			"enabled":   cfg.IsDumpsEnabled(),
@@ -144,7 +144,7 @@ func execDumpsStatus(_ map[string]any) (any, *rpcError) {
 		return toolOK(string(b)), nil
 	}
 	if status != http.StatusOK {
-		return toolErr(fmt.Sprintf("lerd-ui returned %d: %s", status, body)), nil
+		return toolErr(fmt.Sprintf("servlo-panel returned %d: %s", status, body)), nil
 	}
 	return toolOK(string(body)), nil
 }
@@ -152,10 +152,10 @@ func execDumpsStatus(_ map[string]any) (any, *rpcError) {
 func execDumpsClear(_ map[string]any) (any, *rpcError) {
 	_, status, err := uiPOST("/api/dumps/clear", nil)
 	if err != nil {
-		return toolErr("lerd-ui not reachable: " + err.Error()), nil
+		return toolErr("servlo-panel not reachable: " + err.Error()), nil
 	}
 	if status != http.StatusNoContent && status != http.StatusOK {
-		return toolErr(fmt.Sprintf("lerd-ui returned %d", status)), nil
+		return toolErr(fmt.Sprintf("servlo-panel returned %d", status)), nil
 	}
 	return toolOK(`{"ok":true}`), nil
 }
@@ -193,26 +193,26 @@ func queryPath(base string, params [][2]string) string {
 	return base
 }
 
-// uiGET / uiPOST: tiny HTTP helpers over the OS-appropriate lerd-ui transport
+// uiGET / uiPOST: tiny HTTP helpers over the OS-appropriate servlo-panel transport
 // (unix socket on Linux, TCP loopback on macOS). Local to mcp so callers don't
 // have to import a heavier client. uiRoundTrip is swappable so tests can assert
-// the path/body an exec builds without a live lerd-ui daemon.
+// the path/body an exec builds without a live servlo-panel daemon.
 var uiRoundTrip = uiDo
 
 func uiGET(path string) ([]byte, int, error) {
-	req, _ := http.NewRequest("GET", "http://lerd"+path, nil)
+	req, _ := http.NewRequest("GET", "http://servlo"+path, nil)
 	return uiRoundTrip(req)
 }
 
 func uiPOST(path string, body []byte) ([]byte, int, error) {
-	req, _ := http.NewRequest("POST", "http://lerd"+path, bytes.NewReader(body))
+	req, _ := http.NewRequest("POST", "http://servlo"+path, bytes.NewReader(body))
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	return uiRoundTrip(req)
 }
 
-// uiClientDial reports the transport used to reach the lerd-ui daemon: the unix
+// uiClientDial reports the transport used to reach the servlo-panel daemon: the unix
 // socket on Linux, the TCP loopback on macOS where the socket isn't created. A
 // var so tests can point it at a fake listener regardless of the per-OS default.
 var uiClientDial = func() (network, addr string) {

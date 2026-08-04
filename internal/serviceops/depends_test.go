@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/presetfixtures"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/presetfixtures"
 )
 
 func init() { config.SetExtraPresetsForTest(presetfixtures.FS()) }
@@ -32,7 +32,7 @@ func writeDepQuadlet(t *testing.T, unit string) {
 
 func TestResolveDependency_ExactMatch(t *testing.T) {
 	withServiceHome(t)
-	writeDepQuadlet(t, "lerd-mysql")
+	writeDepQuadlet(t, "servlo-mysql")
 
 	if got := ResolveDependency("mysql"); got != "mysql" {
 		t.Errorf("ResolveDependency(mysql) = %q, want mysql", got)
@@ -80,7 +80,7 @@ func TestResolveDependency_ValkeySatisfiesRedis(t *testing.T) {
 
 func TestResolveDependency_PrefersLiteral(t *testing.T) {
 	withServiceHome(t)
-	writeDepQuadlet(t, "lerd-mysql")
+	writeDepQuadlet(t, "servlo-mysql")
 	if err := config.SaveCustomService(&config.CustomService{
 		Name: "mariadb-11-8", Image: "x", Family: "mariadb", EnvRole: "mysql",
 	}); err != nil {
@@ -149,10 +149,10 @@ func TestMissingPresetDependencies_ValkeyOKForRedisInsight(t *testing.T) {
 
 	missing := MissingPresetDependencies(&config.CustomService{
 		Name: "redisinsight", DependsOn: []string{"redis"},
-		Environment: map[string]string{"RI_REDIS_HOST": "lerd-redis"},
+		Environment: map[string]string{"RI_REDIS_HOST": "servlo-redis"},
 	})
 	if len(missing) != 0 {
-		t.Errorf("valkey should satisfy redisinsight's redis dep when it pins lerd-redis for the host rewrite, got missing=%v", missing)
+		t.Errorf("valkey should satisfy redisinsight's redis dep when it pins servlo-redis for the host rewrite, got missing=%v", missing)
 	}
 }
 
@@ -201,18 +201,18 @@ func TestMissingPresetDependencies_FamilyMemberWithPinnedHost(t *testing.T) {
 	missing := MissingPresetDependencies(&config.CustomService{
 		Name: "mongo-express", DependsOn: []string{"mongo"},
 		Environment: map[string]string{
-			"ME_CONFIG_MONGODB_URL": "mongodb://root:lerd@lerd-mongo:27017/",
+			"ME_CONFIG_MONGODB_URL": "mongodb://root:servlo@servlo-mongo:27017/",
 		},
 	})
 	if len(missing) != 0 {
-		t.Errorf("mongo-7 should satisfy mongo dep via family when the URL pins lerd-mongo for the rewrite, got missing=%v", missing)
+		t.Errorf("mongo-7 should satisfy mongo dep via family when the URL pins servlo-mongo for the rewrite, got missing=%v", missing)
 	}
 }
 
 func TestMissingPresetDependencies_UnbindableDropInStaysStrict(t *testing.T) {
 	withServiceHome(t)
 	// Valkey meets redis via env_role, but a consumer that neither pins
-	// lerd-redis (nothing for the host rewrite to retarget) nor declares
+	// servlo-redis (nothing for the host rewrite to retarget) nor declares
 	// discover_family cannot bind the drop-in and must stay refused, otherwise
 	// install succeeds and the UI times out talking to a missing hostname.
 	if err := config.SaveCustomService(&config.CustomService{
@@ -245,7 +245,7 @@ func TestDependencyDisplayName_UsesPresetNotVersionedName(t *testing.T) {
 
 func TestDependencyDisplayName_PrefersRunningSatisfier(t *testing.T) {
 	withServiceHome(t)
-	writeDepQuadlet(t, "lerd-mysql")
+	writeDepQuadlet(t, "servlo-mysql")
 	if err := config.SaveCustomService(&config.CustomService{
 		Name: "mariadb-11-8", Image: "x", Family: "mariadb", EnvRole: "mysql", Preset: "mariadb",
 	}); err != nil {
@@ -269,7 +269,7 @@ func TestDependencyDisplayName_UnsatisfiedKeepsDeclared(t *testing.T) {
 
 func TestDependencyDisplayName_ExactBuiltin(t *testing.T) {
 	withServiceHome(t)
-	writeDepQuadlet(t, "lerd-mysql")
+	writeDepQuadlet(t, "servlo-mysql")
 	if got := DependencyDisplayName("mysql"); got != "mysql" {
 		t.Errorf("DependencyDisplayName(mysql) = %q, want mysql", got)
 	}
@@ -282,7 +282,7 @@ func TestDependentNeedsCascade_AlternateRemains(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	writeDepQuadlet(t, "lerd-mysql")
+	writeDepQuadlet(t, "servlo-mysql")
 	if err := config.SaveCustomService(&config.CustomService{
 		Name: "phpmyadmin", Image: "x", DependsOn: []string{"mysql"},
 	}); err != nil {
@@ -299,7 +299,7 @@ func TestDependentNeedsCascade_AlternateRemains(t *testing.T) {
 
 func TestDependentNeedsCascade_LastSatisfier(t *testing.T) {
 	withServiceHome(t)
-	writeDepQuadlet(t, "lerd-mysql")
+	writeDepQuadlet(t, "servlo-mysql")
 	if err := config.SaveCustomService(&config.CustomService{
 		Name: "phpmyadmin", Image: "x", DependsOn: []string{"mysql"},
 	}); err != nil {
@@ -318,7 +318,7 @@ func TestDependentNeedsCascade_StoppedAlternateDoesNotCount(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	writeDepQuadlet(t, "lerd-mysql")
+	writeDepQuadlet(t, "servlo-mysql")
 	if err := config.SaveCustomService(&config.CustomService{
 		Name: "phpmyadmin", Image: "x", DependsOn: []string{"mysql"},
 	}); err != nil {

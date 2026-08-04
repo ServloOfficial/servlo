@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestLANShareRefreshIfRunning_noopWhenNotRunning(t *testing.T) {
@@ -131,10 +131,10 @@ func TestRewriteLANShareBody_rewritesViteLoopback(t *testing.T) {
 
 	got := string(rewriteLANShareBody(in, "laravel.test", "192.168.1.42:9100"))
 
-	want := `<script src="http://192.168.1.42:9100/__lerd_vite__/5173/@vite/client"></script>
-<script src="http://192.168.1.42:9100/__lerd_vite__/5173/resources/js/app.js"></script>
-<link rel="stylesheet" href="http://192.168.1.42:9100/__lerd_vite__/5173/resources/css/app.css">
-<script type="module" src="http://192.168.1.42:9100/__lerd_vite__/5173/main.js"></script>`
+	want := `<script src="http://192.168.1.42:9100/__servlo_vite__/5173/@vite/client"></script>
+<script src="http://192.168.1.42:9100/__servlo_vite__/5173/resources/js/app.js"></script>
+<link rel="stylesheet" href="http://192.168.1.42:9100/__servlo_vite__/5173/resources/css/app.css">
+<script type="module" src="http://192.168.1.42:9100/__servlo_vite__/5173/main.js"></script>`
 
 	if got != want {
 		t.Errorf("rewriteLANShareBody vite rewrite:\nGOT:\n%s\nWANT:\n%s", got, want)
@@ -151,9 +151,9 @@ bar: url("http://localhost:5173/y.png");`)
 
 	got := string(rewriteLoopbackViteURLs(in, "192.168.1.42:9100"))
 
-	want := `background: url(http://192.168.1.42:9100/__lerd_vite__/5173/images/bg.png);
-foo: url('http://192.168.1.42:9100/__lerd_vite__/5173/x.png');
-bar: url("http://192.168.1.42:9100/__lerd_vite__/5173/y.png");`
+	want := `background: url(http://192.168.1.42:9100/__servlo_vite__/5173/images/bg.png);
+foo: url('http://192.168.1.42:9100/__servlo_vite__/5173/x.png');
+bar: url("http://192.168.1.42:9100/__servlo_vite__/5173/y.png");`
 
 	if got != want {
 		t.Errorf("rewriteLoopbackViteURLs CSS url():\nGOT:\n%s\nWANT:\n%s", got, want)
@@ -170,7 +170,7 @@ func TestRewriteLoopbackViteURLs_rewritesJSONEscapedSlashes(t *testing.T) {
 
 	got := string(rewriteLoopbackViteURLs(in, "192.168.1.42:9100"))
 
-	want := `<div id="app" data-page='{"props":{"avatar_url":"http:\/\/192.168.1.42:9100\/__lerd_vite__\/9000\/starlane\/avatars\/1\/foo.jpg","other":"http:\/\/192.168.1.42:9100\/__lerd_vite__\/9000\/bucket"}}'></div>`
+	want := `<div id="app" data-page='{"props":{"avatar_url":"http:\/\/192.168.1.42:9100\/__servlo_vite__\/9000\/starlane\/avatars\/1\/foo.jpg","other":"http:\/\/192.168.1.42:9100\/__servlo_vite__\/9000\/bucket"}}'></div>`
 
 	if got != want {
 		t.Errorf("rewriteLoopbackViteURLs JSON-escaped:\nGOT:\n%s\nWANT:\n%s", got, want)
@@ -194,13 +194,13 @@ func TestParseVitePrefixPath(t *testing.T) {
 		wantRest string
 		wantOK   bool
 	}{
-		{"/__lerd_vite__/5173/@vite/client", 5173, "/@vite/client", true},
-		{"/__lerd_vite__/5173/", 5173, "/", true},
-		{"/__lerd_vite__/5173", 5173, "/", true},
-		{"/__lerd_vite__/5173/path?q=1", 5173, "/path?q=1", true},
-		{"/__lerd_vite__/bogus/x", 0, "", false},
-		{"/__lerd_vite__/0/x", 0, "", false},
-		{"/__lerd_vite__/99999/x", 0, "", false},
+		{"/__servlo_vite__/5173/@vite/client", 5173, "/@vite/client", true},
+		{"/__servlo_vite__/5173/", 5173, "/", true},
+		{"/__servlo_vite__/5173", 5173, "/", true},
+		{"/__servlo_vite__/5173/path?q=1", 5173, "/path?q=1", true},
+		{"/__servlo_vite__/bogus/x", 0, "", false},
+		{"/__servlo_vite__/0/x", 0, "", false},
+		{"/__servlo_vite__/99999/x", 0, "", false},
 		{"/some/other/path", 0, "", false},
 		{"/", 0, "", false},
 	}
@@ -235,7 +235,7 @@ func TestLANShareHandler_routesViteRequests(t *testing.T) {
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	resp, err := http.Get(srv.URL + fmt.Sprintf("/__lerd_vite__/%d/@vite/client", vitePort))
+	resp, err := http.Get(srv.URL + fmt.Sprintf("/__servlo_vite__/%d/@vite/client", vitePort))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,11 +258,11 @@ func TestLANShareHandler_routesViteRequests(t *testing.T) {
 
 func TestLANShareHandler_nonVitePrefixPathDoesNotPoisonActivePort(t *testing.T) {
 	// Loopback URLs in the page body get rewritten through the same
-	// /__lerd_vite__/<port>/ prefix regardless of which loopback service
+	// /__servlo_vite__/<port>/ prefix regardless of which loopback service
 	// they target (Vite, RustFS, mailpit, ...). The handler must NOT mark
 	// a port active for transitive-import routing unless the stripped path
 	// looks like Vite-served content — otherwise an avatar image at
-	// /__lerd_vite__/9000/bucket/key.jpg would poison the active port and
+	// /__servlo_vite__/9000/bucket/key.jpg would poison the active port and
 	// the next /node_modules/... request would go to RustFS and 400.
 	vite := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, "vite")
@@ -289,7 +289,7 @@ func TestLANShareHandler_nonVitePrefixPathDoesNotPoisonActivePort(t *testing.T) 
 
 	// 1) Legitimate Vite warmup — path is /@vite/client, matches a Vite
 	//    prefix, so activeVitePort must be set.
-	resp, err := http.Get(srv.URL + fmt.Sprintf("/__lerd_vite__/%d/@vite/client", vitePort))
+	resp, err := http.Get(srv.URL + fmt.Sprintf("/__servlo_vite__/%d/@vite/client", vitePort))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +302,7 @@ func TestLANShareHandler_nonVitePrefixPathDoesNotPoisonActivePort(t *testing.T) 
 	//    Stripped path is /bucket/key.jpg — not Vite-internal. The
 	//    request must still proxy correctly to the named port, but it
 	//    must NOT change activeVitePort.
-	resp, err = http.Get(srv.URL + fmt.Sprintf("/__lerd_vite__/%d/starlane/avatars/1/foo.jpg", rustfsPort))
+	resp, err = http.Get(srv.URL + fmt.Sprintf("/__servlo_vite__/%d/starlane/avatars/1/foo.jpg", rustfsPort))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,7 +333,7 @@ func TestLANShareHandler_nonVitePrefixPathDoesNotPoisonActivePort(t *testing.T) 
 }
 
 func TestLANShareHandler_doesNotTrustReferer(t *testing.T) {
-	// A Referer header pointing into /__lerd_vite__/<port>/ must NOT route
+	// A Referer header pointing into /__servlo_vite__/<port>/ must NOT route
 	// to that port on its own — the share listens on 0.0.0.0 and a LAN
 	// device could forge the header to make the proxy dial arbitrary
 	// loopback services (SSRF). Without a prior genuine prefix request to
@@ -358,7 +358,7 @@ func TestLANShareHandler_doesNotTrustReferer(t *testing.T) {
 	req, _ := http.NewRequest("GET", srv.URL+"/node_modules/anything.js", nil)
 	// Forge a Referer that names the live test Vite — the handler must
 	// ignore it.
-	req.Header.Set("Referer", srv.URL+fmt.Sprintf("/__lerd_vite__/%d/@vite/client", vitePort))
+	req.Header.Set("Referer", srv.URL+fmt.Sprintf("/__servlo_vite__/%d/@vite/client", vitePort))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -396,7 +396,7 @@ func TestLANShareHandler_viteInternalPathWithoutReferer_fallsThroughToMain(t *te
 }
 
 func TestLANShareHandler_viteInternalPathUsesActivePort(t *testing.T) {
-	// After any request has gone through the /__lerd_vite__/<port>/ prefix,
+	// After any request has gone through the /__servlo_vite__/<port>/ prefix,
 	// subsequent Vite-internal paths without a useful Referer should still
 	// route to that same Vite port. Otherwise nested module imports (which
 	// drop the prefix from their URL) would 404 on the main proxy.
@@ -419,7 +419,7 @@ func TestLANShareHandler_viteInternalPathUsesActivePort(t *testing.T) {
 	defer srv.Close()
 
 	// 1) Warm up the handler with a prefix request → sets active port.
-	resp, err := http.Get(srv.URL + fmt.Sprintf("/__lerd_vite__/%d/@vite/client", vitePort))
+	resp, err := http.Get(srv.URL + fmt.Sprintf("/__servlo_vite__/%d/@vite/client", vitePort))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -715,7 +715,7 @@ func TestIsViteHMRSocket_matchesViteSubprotocolOnAnyPath(t *testing.T) {
 
 // ── worktree LAN port ─────────────────────────────────────────────────────────
 
-// lerd lan:share inside a worktree persists a port for that branch, not for
+// servlo lan:share inside a worktree persists a port for that branch, not for
 // the parent site, so the daemon starts the branch's own proxy.
 func TestLANShareEnsureWorktreePort_persistsPerBranch(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())

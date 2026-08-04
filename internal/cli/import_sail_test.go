@@ -571,16 +571,16 @@ func TestSailBuildTempCompose(t *testing.T) {
 
 // ── Sail credential separation ────────────────────────────────────────────────
 
-// TestSailEnvSeparation verifies that the Sail dump env and the lerd import env
+// TestSailEnvSeparation verifies that the Sail dump env and the servlo import env
 // are built independently from the flags and .env respectively.
 func TestSailEnvSeparation(t *testing.T) {
 	t.Run("flag values used for Sail side, not .env credentials", func(t *testing.T) {
-		// Simulate a .env that lerd setup has already overwritten.
-		lerdEnv := &dbEnv{
+		// Simulate a .env that servlo setup has already overwritten.
+		servloEnv := &dbEnv{
 			connection: "mysql",
-			database:   "lerd",
+			database:   "servlo",
 			username:   "root",
-			password:   "lerd",
+			password:   "servlo",
 		}
 
 		// Build the Sail-side env the same way runImportSail does.
@@ -589,13 +589,13 @@ func TestSailEnvSeparation(t *testing.T) {
 		sailDB := "myapp" // provided via --sail-db-name
 
 		sailEnv := &dbEnv{
-			connection: lerdEnv.connection,
+			connection: servloEnv.connection,
 			database:   sailDB,
 			username:   sailUser,
 			password:   sailPass,
 		}
 
-		// Sail side must use Sail credentials, not lerd's.
+		// Sail side must use Sail credentials, not servlo's.
 		if sailEnv.username != "sail" {
 			t.Errorf("sailEnv.username = %q, want %q", sailEnv.username, "sail")
 		}
@@ -606,34 +606,34 @@ func TestSailEnvSeparation(t *testing.T) {
 			t.Errorf("sailEnv.database = %q, want %q", sailEnv.database, "myapp")
 		}
 
-		// Lerd side must retain lerd's credentials.
-		if lerdEnv.username != "root" {
-			t.Errorf("lerdEnv.username = %q, want %q", lerdEnv.username, "root")
+		// Servlo side must retain servlo's credentials.
+		if servloEnv.username != "root" {
+			t.Errorf("servloEnv.username = %q, want %q", servloEnv.username, "root")
 		}
-		if lerdEnv.password != "lerd" {
-			t.Errorf("lerdEnv.password = %q, want %q", lerdEnv.password, "lerd")
+		if servloEnv.password != "servlo" {
+			t.Errorf("servloEnv.password = %q, want %q", servloEnv.password, "servlo")
 		}
-		if lerdEnv.database != "lerd" {
-			t.Errorf("lerdEnv.database = %q, want %q", lerdEnv.database, "lerd")
+		if servloEnv.database != "servlo" {
+			t.Errorf("servloEnv.database = %q, want %q", servloEnv.database, "servlo")
 		}
 	})
 
 	t.Run("sail-db-name falls back to DB_DATABASE when not provided", func(t *testing.T) {
-		lerdEnv := &dbEnv{connection: "mysql", database: "myproject", username: "root", password: "lerd"}
+		servloEnv := &dbEnv{connection: "mysql", database: "myproject", username: "root", password: "servlo"}
 		sailDB := "" // flag not provided
 		if sailDB == "" {
-			sailDB = lerdEnv.database
+			sailDB = servloEnv.database
 		}
 		if sailDB != "myproject" {
 			t.Errorf("sailDB = %q, want %q", sailDB, "myproject")
 		}
 	})
 
-	t.Run("sail-db-name flag overrides DB_DATABASE even when it is not 'lerd'", func(t *testing.T) {
-		lerdEnv := &dbEnv{connection: "mysql", database: "somedb", username: "root", password: "lerd"}
+	t.Run("sail-db-name flag overrides DB_DATABASE even when it is not 'servlo'", func(t *testing.T) {
+		servloEnv := &dbEnv{connection: "mysql", database: "somedb", username: "root", password: "servlo"}
 		sailDB := "original_db" // user explicitly passed --sail-db-name
 		if sailDB == "" {
-			sailDB = lerdEnv.database
+			sailDB = servloEnv.database
 		}
 		if sailDB != "original_db" {
 			t.Errorf("sailDB = %q, want %q", sailDB, "original_db")

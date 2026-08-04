@@ -26,7 +26,7 @@
     default:
       'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5',
     accent:
-      'text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5',
+      'text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5',
     success:
       'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20',
     danger: 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'

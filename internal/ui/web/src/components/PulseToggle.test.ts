@@ -10,10 +10,10 @@ describe('PulseToggle', () => {
 
   it('shows the pulsing dot only when enabled', () => {
     const off = render(Harness, { props: { enabled: false } });
-    expect(off.container.querySelector('.lerd-pulse-ping')).toBeNull();
+    expect(off.container.querySelector('.servlo-pulse-ping')).toBeNull();
 
     const on = render(Harness, { props: { enabled: true } });
-    expect(on.container.querySelector('.lerd-pulse-ping')).not.toBeNull();
+    expect(on.container.querySelector('.servlo-pulse-ping')).not.toBeNull();
   });
 
   it('paints emerald text when enabled', () => {

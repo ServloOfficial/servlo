@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/power"
+	"github.com/realrashid/servlo/internal/power"
 )
 
 func TestPowerWatchState_NoRestartWithoutAChange(t *testing.T) {

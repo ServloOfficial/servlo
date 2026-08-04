@@ -1,6 +1,6 @@
 // Package dumps receives, buffers, and fans out PHP `dump()`/`dd()` events
-// captured by the lerd debug bridge (auto_prepend_file). The wire format is
-// newline-delimited JSON. Production lerd-ui listens on a per-user Unix
+// captured by the servlo debug bridge (auto_prepend_file). The wire format is
+// newline-delimited JSON. Production servlo-panel listens on a per-user Unix
 // socket; tests bind TCP loopback. See docs/features/dumps.md.
 package dumps
 
@@ -11,7 +11,7 @@ import "encoding/json"
 const ProtocolVersion = 1
 
 // Event kinds. KindDump (dump()/dd() output) was the first; the rest are
-// emitted by the lerd_devtools Zend extension and the per-framework adapters
+// emitted by the servlo_devtools Zend extension and the per-framework adapters
 // (Laravel, Symfony). New kinds are added without bumping ProtocolVersion —
 // the buffer and fan-out treat every kind identically, only per-kind
 // consumers (UI lenses, query analysis) interpret Data.
@@ -37,8 +37,8 @@ type Source struct {
 // Context describes where a dump came from. Type is "fpm" (web request) or
 // "cli" (artisan, tinker, queue worker). Empty fields are omitted on the wire.
 // Branch is non-empty only when the event originated inside a git worktree
-// (set by the bridge from LERD_BRANCH, injected by nginx for worktree vhosts
-// and by lerd's CLI helpers when shelling into a worktree path).
+// (set by the bridge from SERVLO_BRANCH, injected by nginx for worktree vhosts
+// and by servlo's CLI helpers when shelling into a worktree path).
 type Context struct {
 	Type    string `json:"type"`
 	Site    string `json:"site,omitempty"`
@@ -47,7 +47,7 @@ type Context struct {
 	Request string `json:"request,omitempty"`
 	PID     int    `json:"pid,omitempty"`
 	// RID is a unique per-request (FPM) / per-invocation (CLI) id stamped by
-	// the lerd_devtools extension so consumers can group events by the exact
+	// the servlo_devtools extension so consumers can group events by the exact
 	// request, not just method+path+pid (which collapses repeat hits to the
 	// same URL on a reused pool worker). dump()/dd() events from the pure-PHP
 	// bridge carry a rid too, but when the extension isn't loaded the bridge's
@@ -87,7 +87,7 @@ type Event struct {
 	Trunc bool            `json:"trunc,omitempty"`
 }
 
-// QueryData is the Data payload for KindQuery events. The lerd_devtools
+// QueryData is the Data payload for KindQuery events. The servlo_devtools
 // extension fills sql/bindings/time_ms from the agnostic PDO/mysqli hook;
 // the Laravel adapter (QueryExecuted) additionally sets Connection and
 // RWType. The originating file:line lives in Event.Src, like dumps.

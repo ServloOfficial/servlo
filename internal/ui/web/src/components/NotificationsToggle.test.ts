@@ -24,7 +24,7 @@ describe('NotificationsToggle', () => {
     notifyPrefs.set({ enabled: true, kinds: { ...allKinds } });
     const { container } = render(NotificationsToggle);
     expect(container.querySelector('button')!.getAttribute('aria-label')).toMatch(/on,/i);
-    expect(container.querySelector('.lerd-pulse-ping')).not.toBeNull();
+    expect(container.querySelector('.servlo-pulse-ping')).not.toBeNull();
   });
 
   it('shows the off state with no pulsing dot', () => {
@@ -32,7 +32,7 @@ describe('NotificationsToggle', () => {
     notifyPrefs.set({ enabled: false, kinds: { ...allKinds } });
     const { container } = render(NotificationsToggle);
     expect(container.querySelector('button')!.getAttribute('aria-label')).toMatch(/off/i);
-    expect(container.querySelector('.lerd-pulse-ping')).toBeNull();
+    expect(container.querySelector('.servlo-pulse-ping')).toBeNull();
   });
 
   it('dims and disables the toggle when the browser blocked notifications', () => {

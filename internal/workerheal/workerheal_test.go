@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // stubEnv stages a sites.yaml with the given names in a temp XDG_DATA_HOME
@@ -21,8 +21,8 @@ func stubEnv(t *testing.T, sites []string, paused map[string]bool, states map[st
 	dir := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", dir)
 
-	lerdDir := filepath.Join(dir, "lerd")
-	if err := os.MkdirAll(lerdDir, 0o755); err != nil {
+	servloDir := filepath.Join(dir, "servlo")
+	if err := os.MkdirAll(servloDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 	body := "sites:\n"
@@ -34,7 +34,7 @@ func stubEnv(t *testing.T, sites []string, paused map[string]bool, states map[st
 			body += "    paused: true\n"
 		}
 	}
-	if err := os.WriteFile(filepath.Join(lerdDir, "sites.yaml"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(servloDir, "sites.yaml"), []byte(body), 0o644); err != nil {
 		t.Fatalf("write sites.yaml: %v", err)
 	}
 
@@ -70,8 +70,8 @@ func TestDetect_FailedWorkerReturned(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-queue-myapp.service": "failed",
-			"lerd-php85-fpm.service":   "active",
+			"servlo-queue-myapp.service": "failed",
+			"servlo-php85-fpm.service":   "active",
 		},
 		nil,
 	)
@@ -80,8 +80,8 @@ func TestDetect_FailedWorkerReturned(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
-	if names := unitNames(got); len(names) != 1 || names[0] != "lerd-queue-myapp" {
-		t.Errorf("got %v, want [lerd-queue-myapp]", names)
+	if names := unitNames(got); len(names) != 1 || names[0] != "servlo-queue-myapp" {
+		t.Errorf("got %v, want [servlo-queue-myapp]", names)
 	}
 	if got[0].Site != "myapp" || got[0].Worker != "queue" {
 		t.Errorf("site/worker split: site=%q worker=%q", got[0].Site, got[0].Worker)
@@ -92,8 +92,8 @@ func TestDetect_SuppressedWhenStopped(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-queue-myapp.service": "failed",
-			"lerd-php85-fpm.service":   "inactive",
+			"servlo-queue-myapp.service": "failed",
+			"servlo-php85-fpm.service":   "inactive",
 		},
 		nil,
 	)
@@ -106,7 +106,7 @@ func TestDetect_SuppressedWhenStopped(t *testing.T) {
 		t.Fatalf("Detect: %v", err)
 	}
 	if len(got) != 0 {
-		t.Errorf("expected no unhealthy workers while lerd is stopped, got %v", unitNames(got))
+		t.Errorf("expected no unhealthy workers while servlo is stopped, got %v", unitNames(got))
 	}
 }
 
@@ -115,8 +115,8 @@ func TestDetect_PausedSiteExcluded(t *testing.T) {
 		[]string{"alpha", "beta"},
 		map[string]bool{"beta": true},
 		map[string]string{
-			"lerd-queue-alpha.service": "failed",
-			"lerd-queue-beta.service":  "failed",
+			"servlo-queue-alpha.service": "failed",
+			"servlo-queue-beta.service":  "failed",
 		},
 		nil,
 	)
@@ -125,7 +125,7 @@ func TestDetect_PausedSiteExcluded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
-	if names := unitNames(got); len(names) != 1 || names[0] != "lerd-queue-alpha" {
+	if names := unitNames(got); len(names) != 1 || names[0] != "servlo-queue-alpha" {
 		t.Errorf("paused site bled in: got %v", names)
 	}
 }
@@ -134,9 +134,9 @@ func TestDetect_NonWorkerPerSiteUnitsSkipped(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-fp-myapp.service":     "failed", // per-site FrankenPHP container, not a worker
-			"lerd-custom-myapp.service": "failed", // per-site custom container, not a worker
-			"lerd-queue-myapp.service":  "failed", // worker
+			"servlo-fp-myapp.service":     "failed", // per-site FrankenPHP container, not a worker
+			"servlo-custom-myapp.service": "failed", // per-site custom container, not a worker
+			"servlo-queue-myapp.service":  "failed", // worker
 		},
 		nil,
 	)
@@ -145,7 +145,7 @@ func TestDetect_NonWorkerPerSiteUnitsSkipped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
-	if names := unitNames(got); len(names) != 1 || names[0] != "lerd-queue-myapp" {
+	if names := unitNames(got); len(names) != 1 || names[0] != "servlo-queue-myapp" {
 		t.Errorf("non-worker per-site units leaked into detection: %v", names)
 	}
 }
@@ -154,9 +154,9 @@ func TestDetect_GlobalUnitsSkipped(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-php85-fpm.service": "failed", // global FPM unit
-			"lerd-nginx.service":     "failed",
-			"lerd-dns.service":       "failed",
+			"servlo-php85-fpm.service": "failed", // global FPM unit
+			"servlo-nginx.service":     "failed",
+			"servlo-dns.service":       "failed",
 		},
 		nil,
 	)
@@ -176,7 +176,7 @@ func TestDetect_HyphenatedWorkerName(t *testing.T) {
 	stubEnv(t,
 		[]string{"tallyboard"}, nil,
 		map[string]string{
-			"lerd-emit-events-tallyboard.service": "failed",
+			"servlo-emit-events-tallyboard.service": "failed",
 		},
 		nil,
 	)
@@ -192,12 +192,12 @@ func TestDetect_HyphenatedWorkerName(t *testing.T) {
 
 func TestDetect_DeduplicatesAliasedCacheEntries(t *testing.T) {
 	// The siteinfo unit-state cache aliases every .service unit under both
-	// "lerd-foo" and "lerd-foo.service". Detect must emit each unit only once.
+	// "servlo-foo" and "servlo-foo.service". Detect must emit each unit only once.
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-queue-myapp":         "failed",
-			"lerd-queue-myapp.service": "failed",
+			"servlo-queue-myapp":         "failed",
+			"servlo-queue-myapp.service": "failed",
 		},
 		nil,
 	)
@@ -215,9 +215,9 @@ func TestDetect_OnlyFailedStateMatches(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-queue-myapp.service":    "active",
-			"lerd-schedule-myapp.service": "inactive",
-			"lerd-reverb-myapp.service":   "failed",
+			"servlo-queue-myapp.service":    "active",
+			"servlo-schedule-myapp.service": "inactive",
+			"servlo-reverb-myapp.service":   "failed",
 		},
 		nil,
 	)
@@ -226,8 +226,8 @@ func TestDetect_OnlyFailedStateMatches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
-	if names := unitNames(got); len(names) != 1 || names[0] != "lerd-reverb-myapp" {
-		t.Errorf("got %v, want [lerd-reverb-myapp]", names)
+	if names := unitNames(got); len(names) != 1 || names[0] != "servlo-reverb-myapp" {
+		t.Errorf("got %v, want [servlo-reverb-myapp]", names)
 	}
 }
 
@@ -235,20 +235,20 @@ func TestDetect_EnabledStoppedWorkerFlagged(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-queue-myapp.service": "inactive",
-			"lerd-php85-fpm.service":   "active",
+			"servlo-queue-myapp.service": "inactive",
+			"servlo-php85-fpm.service":   "active",
 		},
 		nil,
 	)
 	// Enabled yet inactive = drift (e.g. an FPM restart cascaded through BindsTo).
-	unitEnabledFn = func(u string) bool { return u == "lerd-queue-myapp.service" }
+	unitEnabledFn = func(u string) bool { return u == "servlo-queue-myapp.service" }
 
 	got, err := Detect()
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
-	if len(got) != 1 || got[0].Unit != "lerd-queue-myapp" {
-		t.Fatalf("got %+v, want one lerd-queue-myapp", got)
+	if len(got) != 1 || got[0].Unit != "servlo-queue-myapp" {
+		t.Fatalf("got %+v, want one servlo-queue-myapp", got)
 	}
 	if got[0].State != "expected-but-stopped" {
 		t.Errorf("state = %q, want expected-but-stopped", got[0].State)
@@ -258,11 +258,11 @@ func TestDetect_EnabledStoppedWorkerFlagged(t *testing.T) {
 func TestDetect_DisabledStoppedWorkerIgnored(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
-		map[string]string{"lerd-queue-myapp.service": "inactive"},
+		map[string]string{"servlo-queue-myapp.service": "inactive"},
 		nil,
 	)
 	// stubEnv defaults enabled=false: a disabled stopped worker was stopped on
-	// purpose (`lerd worker stop` disables), so it must not be flagged.
+	// purpose (`servlo worker stop` disables), so it must not be flagged.
 	got, err := Detect()
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
@@ -276,8 +276,8 @@ func TestDetect_TimerDrivenServiceNotFlagged(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-schedule-myapp.service": "inactive",
-			"lerd-schedule-myapp.timer":   "active",
+			"servlo-schedule-myapp.service": "inactive",
+			"servlo-schedule-myapp.timer":   "active",
 		},
 		nil,
 	)
@@ -298,8 +298,8 @@ func TestHealAll_EmitsEventsAndReports(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-queue-myapp.service":  "failed",
-			"lerd-reverb-myapp.service": "failed",
+			"servlo-queue-myapp.service":  "failed",
+			"servlo-reverb-myapp.service": "failed",
 		},
 		func(unit string) error {
 			healed = append(healed, unit)
@@ -317,7 +317,7 @@ func TestHealAll_EmitsEventsAndReports(t *testing.T) {
 		t.Errorf("report: %+v", report)
 	}
 	sort.Strings(healed)
-	if len(healed) != 2 || healed[0] != "lerd-queue-myapp" || healed[1] != "lerd-reverb-myapp" {
+	if len(healed) != 2 || healed[0] != "servlo-queue-myapp" || healed[1] != "servlo-reverb-myapp" {
 		t.Errorf("heal calls: %v", healed)
 	}
 	// Each worker should produce at least starting + healed; the loop ends
@@ -343,11 +343,11 @@ func TestHealAll_CapturesPerUnitFailures(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-queue-myapp.service":  "failed",
-			"lerd-reverb-myapp.service": "failed",
+			"servlo-queue-myapp.service":  "failed",
+			"servlo-reverb-myapp.service": "failed",
 		},
 		func(unit string) error {
-			if unit == "lerd-reverb-myapp" {
+			if unit == "servlo-reverb-myapp" {
 				return errors.New("boom")
 			}
 			return nil
@@ -358,10 +358,10 @@ func TestHealAll_CapturesPerUnitFailures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HealAll: %v", err)
 	}
-	if len(report.Healed) != 1 || report.Healed[0].Unit != "lerd-queue-myapp" {
+	if len(report.Healed) != 1 || report.Healed[0].Unit != "servlo-queue-myapp" {
 		t.Errorf("healed: %+v", report.Healed)
 	}
-	if len(report.Failed) != 1 || report.Failed[0].Worker.Unit != "lerd-reverb-myapp" {
+	if len(report.Failed) != 1 || report.Failed[0].Worker.Unit != "servlo-reverb-myapp" {
 		t.Errorf("failed: %+v", report.Failed)
 	}
 	if got := Summary(report); got != "Healed 1 worker(s), 1 failed." {
@@ -381,14 +381,14 @@ func TestEnrich_PopulatesLastError(t *testing.T) {
 	lastErrorFn = func(unit string) string { return "boom on " + unit }
 
 	in := []UnhealthyWorker{
-		{Unit: "lerd-queue-foo", Site: "foo", Worker: "queue", State: "failed"},
-		{Unit: "lerd-schedule-bar", Site: "bar", Worker: "schedule", State: "failed"},
+		{Unit: "servlo-queue-foo", Site: "foo", Worker: "queue", State: "failed"},
+		{Unit: "servlo-schedule-bar", Site: "bar", Worker: "schedule", State: "failed"},
 	}
 	out := Enrich(in)
-	if out[0].LastError != "boom on lerd-queue-foo" {
+	if out[0].LastError != "boom on servlo-queue-foo" {
 		t.Errorf("queue last_error = %q", out[0].LastError)
 	}
-	if out[1].LastError != "boom on lerd-schedule-bar" {
+	if out[1].LastError != "boom on servlo-schedule-bar" {
 		t.Errorf("schedule last_error = %q", out[1].LastError)
 	}
 }
@@ -428,7 +428,7 @@ func TestEnrich_UnreachableGetsDedicatedLineNotJournal(t *testing.T) {
 		return ""
 	}
 
-	out := Enrich([]UnhealthyWorker{{Unit: "lerd-vite-foo", Site: "foo", Worker: "vite", State: "unreachable"}})
+	out := Enrich([]UnhealthyWorker{{Unit: "servlo-vite-foo", Site: "foo", Worker: "vite", State: "unreachable"}})
 	if out[0].LastError == "" || out[0].LastError == "boom" {
 		t.Errorf("unreachable last_error = %q, want the dedicated not-accepting line", out[0].LastError)
 	}
@@ -449,8 +449,8 @@ func TestDetect_UnreachableActiveWorkerFlagged(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-vite-myapp.service":  "active",
-			"lerd-queue-myapp.service": "active",
+			"servlo-vite-myapp.service":  "active",
+			"servlo-queue-myapp.service": "active",
 		},
 		nil,
 	)
@@ -467,8 +467,8 @@ func TestDetect_UnreachableActiveWorkerFlagged(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
-	if len(got) != 1 || got[0].Unit != "lerd-vite-myapp" {
-		t.Fatalf("got %v, want [lerd-vite-myapp]", unitNames(got))
+	if len(got) != 1 || got[0].Unit != "servlo-vite-myapp" {
+		t.Fatalf("got %v, want [servlo-vite-myapp]", unitNames(got))
 	}
 	if got[0].State != "unreachable" {
 		t.Errorf("state = %q, want unreachable", got[0].State)
@@ -514,7 +514,7 @@ func TestResolveWorkerUnit(t *testing.T) {
 func TestDetect_UnreachableWorktreeWorkerFlagged(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
-		map[string]string{"lerd-vite-myapp-featx.service": "active"},
+		map[string]string{"servlo-vite-myapp-featx.service": "active"},
 		nil,
 	)
 	// The checkout has to be real: a worktree unit whose directory is gone is an
@@ -530,7 +530,7 @@ func TestDetect_UnreachableWorktreeWorkerFlagged(t *testing.T) {
 	}
 	unitMetaFn = func() map[string]siteinfo.UnitMeta {
 		return map[string]siteinfo.UnitMeta{
-			"lerd-vite-myapp-featx.service": {WorkingDir: wt},
+			"servlo-vite-myapp-featx.service": {WorkingDir: wt},
 		}
 	}
 	t.Cleanup(func() { workerReachableFn = prevReach; unitMetaFn = prevMeta })
@@ -539,15 +539,15 @@ func TestDetect_UnreachableWorktreeWorkerFlagged(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
-	if len(got) != 1 || got[0].Unit != "lerd-vite-myapp-featx" || got[0].State != "unreachable" {
-		t.Fatalf("got %v, want [lerd-vite-myapp-featx unreachable]", unitNames(got))
+	if len(got) != 1 || got[0].Unit != "servlo-vite-myapp-featx" || got[0].State != "unreachable" {
+		t.Fatalf("got %v, want [servlo-vite-myapp-featx unreachable]", unitNames(got))
 	}
 }
 
 func TestDetect_ReachableActiveWorkerNotFlagged(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
-		map[string]string{"lerd-vite-myapp.service": "active"},
+		map[string]string{"servlo-vite-myapp.service": "active"},
 		nil,
 	)
 	prev := workerReachableFn
@@ -568,7 +568,7 @@ func TestDetect_ReachableActiveWorkerNotFlagged(t *testing.T) {
 func TestHealAll_RestartsUnreachableWorker(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
-		map[string]string{"lerd-vite-myapp.service": "active"},
+		map[string]string{"servlo-vite-myapp.service": "active"},
 		func(string) error { t.Fatal("unreachable worker must be restarted, not started"); return nil },
 	)
 	prevReach, prevRestart := workerReachableFn, restartFn
@@ -581,8 +581,8 @@ func TestHealAll_RestartsUnreachableWorker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HealAll: %v", err)
 	}
-	if restarted != "lerd-vite-myapp" {
-		t.Errorf("restarted %q, want lerd-vite-myapp", restarted)
+	if restarted != "servlo-vite-myapp" {
+		t.Errorf("restarted %q, want servlo-vite-myapp", restarted)
 	}
 	if len(res.Healed) != 1 {
 		t.Errorf("healed %d, want 1", len(res.Healed))
@@ -592,20 +592,20 @@ func TestHealAll_RestartsUnreachableWorker(t *testing.T) {
 // ── orphaned worktree units ──────────────────────────────────────────────────
 
 // A per-worktree unit pins WorkingDirectory to the checkout. When the worktree
-// is removed outside lerd (an agent deleting its own directory, a plain rm),
+// is removed outside servlo (an agent deleting its own directory, a plain rm),
 // the unit survives and systemd retries it forever, failing at CHDIR before the
 // command ever runs. Restarting it can only fail again, so it must not be
 // reported as merely failed, which is what invites a heal that cannot work.
 func TestDetect_MissingWorktreeDirIsOrphanedNotFailed(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
-		map[string]string{"lerd-vite-myapp-featx.service": "failed"},
+		map[string]string{"servlo-vite-myapp-featx.service": "failed"},
 		nil,
 	)
 	prevMeta := unitMetaFn
 	unitMetaFn = func() map[string]siteinfo.UnitMeta {
 		return map[string]siteinfo.UnitMeta{
-			"lerd-vite-myapp-featx.service": {WorkingDir: "/definitely/not/here/featx"},
+			"servlo-vite-myapp-featx.service": {WorkingDir: "/definitely/not/here/featx"},
 		}
 	}
 	t.Cleanup(func() { unitMetaFn = prevMeta })
@@ -627,13 +627,13 @@ func TestDetect_PresentWorktreeDirStaysFailed(t *testing.T) {
 	wt := t.TempDir()
 	stubEnv(t,
 		[]string{"myapp"}, nil,
-		map[string]string{"lerd-vite-myapp-" + filepath.Base(wt) + ".service": "failed"},
+		map[string]string{"servlo-vite-myapp-" + filepath.Base(wt) + ".service": "failed"},
 		nil,
 	)
 	prevMeta := unitMetaFn
 	unitMetaFn = func() map[string]siteinfo.UnitMeta {
 		return map[string]siteinfo.UnitMeta{
-			"lerd-vite-myapp-" + filepath.Base(wt) + ".service": {WorkingDir: wt},
+			"servlo-vite-myapp-" + filepath.Base(wt) + ".service": {WorkingDir: wt},
 		}
 	}
 	t.Cleanup(func() { unitMetaFn = prevMeta })
@@ -654,15 +654,15 @@ func TestHealAll_SkipsOrphanedUnits(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"lerd-vite-myapp-featx.service": "failed",
-			"lerd-queue-myapp.service":      "failed",
+			"servlo-vite-myapp-featx.service": "failed",
+			"servlo-queue-myapp.service":      "failed",
 		},
 		func(unit string) error { healed = append(healed, unit); return nil },
 	)
 	prevMeta := unitMetaFn
 	unitMetaFn = func() map[string]siteinfo.UnitMeta {
 		return map[string]siteinfo.UnitMeta{
-			"lerd-vite-myapp-featx.service": {WorkingDir: "/definitely/not/here/featx"},
+			"servlo-vite-myapp-featx.service": {WorkingDir: "/definitely/not/here/featx"},
 		}
 	}
 	t.Cleanup(func() { unitMetaFn = prevMeta })
@@ -703,13 +703,13 @@ func TestDetect_OrphanCaughtWhileRestartLooping(t *testing.T) {
 		t.Run(state, func(t *testing.T) {
 			stubEnv(t,
 				[]string{"myapp"}, nil,
-				map[string]string{"lerd-vite-myapp-featx.service": state},
+				map[string]string{"servlo-vite-myapp-featx.service": state},
 				nil,
 			)
 			prevMeta := unitMetaFn
 			unitMetaFn = func() map[string]siteinfo.UnitMeta {
 				return map[string]siteinfo.UnitMeta{
-					"lerd-vite-myapp-featx.service": {WorkingDir: "/definitely/not/here/featx"},
+					"servlo-vite-myapp-featx.service": {WorkingDir: "/definitely/not/here/featx"},
 				}
 			}
 			t.Cleanup(func() { unitMetaFn = prevMeta })
@@ -730,7 +730,7 @@ func TestDetect_OrphanCaughtWhileRestartLooping(t *testing.T) {
 func TestDetect_ActivatingNonOrphanIsNotFlagged(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
-		map[string]string{"lerd-queue-myapp.service": "activating"},
+		map[string]string{"servlo-queue-myapp.service": "activating"},
 		nil,
 	)
 	got, err := Detect()

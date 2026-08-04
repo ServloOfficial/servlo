@@ -10,7 +10,7 @@ export const workerModeLoading = writable<boolean>(false);
 
 // workerModeProgress holds the last phase event the server emitted during
 // a streaming setWorkerMode call. The modal renders this to show
-// "Stopping lerd-horizon-parkapp", "Starting …" etc. instead of a blank
+// "Stopping servlo-horizon-parkapp", "Starting …" etc. instead of a blank
 // spinner during the 30-60s migration.
 export interface WorkerModeProgress {
   phase: string;

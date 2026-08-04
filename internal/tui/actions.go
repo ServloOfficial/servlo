@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // ActionResult is emitted when an async action (start/stop/restart) finishes.
@@ -55,21 +55,21 @@ func containerForSite(s *siteinfo.EnrichedSite) string {
 	if s.PHPVersion == "" {
 		return ""
 	}
-	return "lerd-php" + strings.ReplaceAll(s.PHPVersion, ".", "") + "-fpm"
+	return "servlo-php" + strings.ReplaceAll(s.PHPVersion, ".", "") + "-fpm"
 }
 
-// runLerd executes `lerd` as a subprocess with the given args, in the given
+// runServlo executes `servlo` as a subprocess with the given args, in the given
 // working directory. We go through the public CLI rather than poking internal
 // helpers so the TUI goes down the same code paths users would run manually.
 // This avoids drifting when ensureQuadlet / dependency logic moves around.
-func runLerd(dir string, args ...string) tea.Cmd {
+func runServlo(dir string, args ...string) tea.Cmd {
 	return func() tea.Msg {
 		if !subprocessesAllowed {
-			return ActionResult{Summary: "lerd " + strings.Join(args, " "), Err: errNoSubprocess}
+			return ActionResult{Summary: "servlo " + strings.Join(args, " "), Err: errNoSubprocess}
 		}
 		self, err := os.Executable()
 		if err != nil {
-			self = "lerd"
+			self = "servlo"
 		}
 		cmd := exec.Command(self, args...)
 		if dir != "" {
@@ -80,7 +80,7 @@ func runLerd(dir string, args ...string) tea.Cmd {
 		cmd.Stderr = &buf
 		runErr := cmd.Run()
 		return ActionResult{
-			Summary: "lerd " + strings.Join(args, " "),
+			Summary: "servlo " + strings.Join(args, " "),
 			Err:     runErr,
 			Detail:  strings.TrimSpace(buf.String()),
 		}
@@ -93,4 +93,4 @@ func runLerd(dir string, args ...string) tea.Cmd {
 var subprocessesAllowed = true
 
 // errNoSubprocess is what an action reports when self-exec is off.
-var errNoSubprocess = errors.New("lerd subprocess not run under test")
+var errNoSubprocess = errors.New("servlo subprocess not run under test")

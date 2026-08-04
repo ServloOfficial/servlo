@@ -9,12 +9,12 @@ import (
 // unusable from the machine, so the IDE has to be given the published port and
 // loopback instead.
 func TestIDEDataSourceUsesHostFacingCoordinates(t *testing.T) {
-	env := &dbEnv{service: "postgres", connection: "pgsql", database: "shop", username: "postgres", password: "lerd"}
+	env := &dbEnv{service: "postgres", connection: "pgsql", database: "shop", username: "postgres", password: "servlo"}
 	ds, ok := ideDataSourceFor(env)
 	if !ok {
 		t.Fatal("postgres should have a JDBC dialect")
 	}
-	if strings.Contains(ds.URL, "lerd-postgres") {
+	if strings.Contains(ds.URL, "servlo-postgres") {
 		t.Errorf("URL points at the container: %q", ds.URL)
 	}
 	for _, want := range []string{"jdbc:postgresql://127.0.0.1:", "/shop"} {
@@ -27,7 +27,7 @@ func TestIDEDataSourceUsesHostFacingCoordinates(t *testing.T) {
 	if ds.User != "postgres" {
 		t.Errorf("user = %q", ds.User)
 	}
-	if ds.Name != "shop (lerd)" {
+	if ds.Name != "shop (servlo)" {
 		t.Errorf("name = %q", ds.Name)
 	}
 	if ds.Class != "org.postgresql.Driver" {
@@ -38,7 +38,7 @@ func TestIDEDataSourceUsesHostFacingCoordinates(t *testing.T) {
 func TestIDEDataSourceDialectPerFamily(t *testing.T) {
 	cases := map[string]string{"mysql": "com.mysql.cj.jdbc.Driver", "postgres": "org.postgresql.Driver"}
 	for service, class := range cases {
-		ds, ok := ideDataSourceFor(&dbEnv{service: service, database: "shop", username: "root", password: "lerd"})
+		ds, ok := ideDataSourceFor(&dbEnv{service: service, database: "shop", username: "root", password: "servlo"})
 		if !ok {
 			t.Fatalf("%s should have a dialect", service)
 		}
@@ -48,7 +48,7 @@ func TestIDEDataSourceDialectPerFamily(t *testing.T) {
 	}
 }
 
-// An engine lerd has no JDBC dialect for is left alone rather than written as a
+// An engine servlo has no JDBC dialect for is left alone rather than written as a
 // connection the IDE cannot open.
 func TestIDEDataSourceSkipsEnginesWithNoDialect(t *testing.T) {
 	if _, ok := ideDataSourceFor(&dbEnv{service: "mongo", database: "shop"}); ok {

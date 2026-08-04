@@ -5,14 +5,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // A legacy-framework site (a Laravel 6 project served by the borrowed Laravel 10
 // definition, so VersionGuessed is true) must keep its real detected PHP in the
-// active set. activePHPVersions drives which lerd-phpXX-fpm units coreUnits
+// active set. activePHPVersions drives which servlo-phpXX-fpm units coreUnits
 // starts, so borrowing the def's 8.1 floor here would stop the wrong FPM unit
-// and leave the site without a backend after `lerd start`.
+// and leave the site without a backend after `servlo start`.
 func TestActivePHPVersions_GuessedFrameworkNotClamped(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())

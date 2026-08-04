@@ -1,6 +1,6 @@
 # Backend-free UI demo
 
-Builds the real lerd web UI (`../src`) as a standalone bundle that runs with
+Builds the real servlo web UI (`../src`) as a standalone bundle that runs with
 **no daemon**, for embedding in the docs landing page (`docs/index.md` iframes
 `/demo/`).
 

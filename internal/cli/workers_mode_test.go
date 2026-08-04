@@ -3,11 +3,11 @@ package cli
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // Scope: workersModeFromArgs is the pure decision layer of the
-// `lerd workers mode` command. It takes the user's args and the current
+// `servlo workers mode` command. It takes the user's args and the current
 // config value and returns either (newMode, nil) to apply or ("", err)
 // to surface. Keeping the I/O (config load/save, stdout) in the cobra
 // RunE keeps this part trivially testable.

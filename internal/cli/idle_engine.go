@@ -9,15 +9,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
-	nodeDet "github.com/geodro/lerd/internal/node"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/siteinfo"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
+	nodeDet "github.com/realrashid/servlo/internal/node"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
-// unitStatesOKFn snapshots every lerd-* unit's state plus a trust flag; a var so
+// unitStatesOKFn snapshots every servlo-* unit's state plus a trust flag; a var so
 // tests can pin which units exist. A worker absent from the map has had its unit
 // removed entirely, which is idle-suspend's signature (it removes units, not just
 // stops them) — but only when the snapshot is trustworthy. The flag is false when
@@ -69,14 +69,14 @@ func SuspendWorkersForIdle(site *config.Site) []string {
 	return final
 }
 
-// appendLostSuspended adds any of the site's declared workers (.lerd.yaml) whose
+// appendLostSuspended adds any of the site's declared workers (.servlo.yaml) whose
 // systemd unit is gone entirely and that are resumable. A removed unit is
 // idle-suspend's own signature, so such a worker is one whose persisted
 // "suspended" marking was lost (e.g. a reinstall cleared the list) while its unit
 // stayed gone; re-listing it restores the sleeping state instead of leaving it
 // showing as "off". A worker that merely crashed or stopped still has its unit
 // (active/failed/inactive), so it is left to worker-healing; one the user stopped
-// or removed is dropped from .lerd.yaml entirely, so neither is ever re-marked.
+// or removed is dropped from .servlo.yaml entirely, so neither is ever re-marked.
 func appendLostSuspended(site *config.Site, suspended []string) []string {
 	proj, err := config.LoadProjectConfig(site.Path)
 	if err != nil || proj == nil {
@@ -93,7 +93,7 @@ func appendLostSuspended(site *config.Site, suspended []string) []string {
 		if containsString(suspended, w) {
 			continue
 		}
-		if _, unitExists := states["lerd-"+w+"-"+site.Name]; unitExists {
+		if _, unitExists := states["servlo-"+w+"-"+site.Name]; unitExists {
 			continue // unit still present -> not idle-suspend's doing, leave it alone
 		}
 		if idleWorkerResumable(site, w) {
@@ -128,7 +128,7 @@ func idleWorkerResumable(site *config.Site, workerName string) bool {
 
 // ResumeWorkersForIdle restarts workers previously suspended by idle-suspend.
 // Idempotent: starting an already-running worker is harmless, which lets the
-// engine self-heal stale suspended state after a `lerd start` restarted them.
+// engine self-heal stale suspended state after a `servlo start` restarted them.
 func ResumeWorkersForIdle(site *config.Site, workers []string) {
 	phpVersion := site.PHPVersion
 	if detected, err := phpDet.DetectVersion(site.Path); err == nil && detected != "" {
@@ -226,7 +226,7 @@ func waitForHostPort(port int, timeout time.Duration) {
 // SuspendWorktreeWorkersForIdle stops a git worktree's own per-worktree workers
 // (for Laravel that's just vite) by their worktree unit names and returns the
 // names stopped, for the caller to persist. Mirrors SuspendWorkersForIdle but
-// targets lerd-<w>-<site>-<wtBase> units and runs the vite build in the worktree
+// targets servlo-<w>-<site>-<wtBase> units and runs the vite build in the worktree
 // checkout so a sleeping worktree serves built assets. wtPath is the worktree's
 // checkout directory.
 func SuspendWorktreeWorkersForIdle(site *config.Site, wtPath string) []string {
@@ -271,7 +271,7 @@ func ResumeWorktreeWorkersForIdle(site *config.Site, wtPath string, workers []st
 // IdleSuspendStateIsStale reports whether a site's persisted idle-suspended set
 // has drifted from reality: a worker it claims to have suspended is actually
 // running. That happens when the workers were (re)started outside the idle engine
-// by an install or relink with an older lerd that didn't reconcile the list. Left
+// by an install or relink with an older servlo that didn't reconcile the list. Left
 // uncorrected it wedges the engine into believing the site is asleep forever, so
 // its idle workers never get re-suspended. The engine calls this at startup to
 // discard a stale list rather than seed itself from it.
@@ -359,7 +359,7 @@ var runViteBuildAt = func(site *config.Site, dir string) {
 	}
 	cmd := nodeDet.Active().Command(nodeVersion, "npm", []string{"run", "build"})
 	cmd.Dir = dir
-	cmd.Env = shimLeadingEnv(os.Environ()) // wayfinder needs lerd's php shim to lead PATH — issue #381
+	cmd.Env = shimLeadingEnv(os.Environ()) // wayfinder needs servlo's php shim to lead PATH — issue #381
 	if out, err := cmd.CombinedOutput(); err != nil {
 		fmt.Printf("[idle] %s: `npm run build` failed, keeping vite running: %v\n%s\n",
 			site.Name, err, lastBytes(out, 600))
@@ -411,7 +411,7 @@ func removeWorker(ss []string, w string) ([]string, bool) {
 
 // ClearIdleSuspendOnStart drops workerName from the site's (or, for a worktree
 // checkout, that worktree's) persisted idle-suspended set whenever the worker is
-// (re)started outside the idle engine: an install, a relink, or `lerd worker
+// (re)started outside the idle engine: an install, a relink, or `servlo worker
 // start`. A running worker can't be idle-suspended, so a stale entry would make
 // the engine boot believing the site is asleep and never re-suspend it. Cheap
 // no-op (one read, no write) when the worker isn't in the set, which is the

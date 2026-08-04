@@ -6,10 +6,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 )
 
@@ -50,8 +50,8 @@ func newServiceConfigCmd() *cobra.Command {
 		Use:   "config <service>",
 		Short: "Edit a service's runtime tuning override (e.g. my.cnf for mysql/mariadb)",
 		Long: "Open the user-editable tuning override for a service in $EDITOR.\n\n" +
-			"Lerd seeds the file once with a commented template and never overwrites it,\n" +
-			"so edits survive `lerd service reinstall` and `lerd update`. The override is\n" +
+			"Servlo seeds the file once with a commented template and never overwrites it,\n" +
+			"so edits survive `servlo service reinstall` and `servlo update`. The override is\n" +
 			"mounted after the bundled config, so any value set here wins. The service is\n" +
 			"restarted afterward to apply the change.",
 		Args: cobra.ExactArgs(1),
@@ -67,7 +67,7 @@ func newServiceConfigCmd() *cobra.Command {
 			// a service the user has explicitly removed — effectively a silent
 			// reinstall as a side effect of an edit command. Block that here.
 			if !serviceops.ServiceInstalled(name) {
-				return fmt.Errorf("service %q is not installed — run `lerd service preset install %s` first", name, name)
+				return fmt.Errorf("service %q is not installed — run `servlo service preset install %s` first", name, name)
 			}
 			if _, ok := config.ServiceTuningMount(svc); !ok {
 				supported := strings.Join(config.TuningFamilies(), ", ")
@@ -109,10 +109,10 @@ func newServiceConfigCmd() *cobra.Command {
 			if noRestart {
 				feedback.Begin()
 				feedback.Done("saved " + path)
-				feedback.Note("run `lerd service restart " + name + "` to apply")
+				feedback.Note("run `servlo service restart " + name + "` to apply")
 				return nil
 			}
-			unit := "lerd-" + name
+			unit := "servlo-" + name
 			feedback.Begin()
 			step := feedback.Start("restarting " + unit)
 			if err := podman.RestartUnit(unit); err != nil {

@@ -42,12 +42,12 @@
       {@const severity = notificationSeverity(n.kind, n.failed)}
       <div
         role={severity === 'info' ? 'status' : 'alert'}
-        class="rounded-lg border border-l-4 bg-white/90 dark:bg-lerd-card/90 backdrop-blur-md shadow-2xl {severity ===
+        class="rounded-lg border border-l-4 bg-white/90 dark:bg-servlo-card/90 backdrop-blur-md shadow-2xl {severity ===
         'failure'
           ? 'border-red-300 dark:border-red-500/40 border-l-red-500'
           : severity === 'warning'
             ? 'border-amber-300 dark:border-amber-500/40 border-l-amber-500'
-            : 'border-gray-200 dark:border-lerd-border border-l-sky-500'}"
+            : 'border-gray-200 dark:border-servlo-border border-l-sky-500'}"
       >
         <div class="flex items-start gap-2.5 px-3 py-2.5">
           <Icon
@@ -75,7 +75,7 @@
             type="button"
             aria-label={m.common_close()}
             onclick={() => dismissInApp(n.id)}
-            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-lerd-red dark:hover:bg-white/5 transition-colors"
+            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-servlo-red dark:hover:bg-white/5 transition-colors"
           >
             <Icon name="close" class="h-3.5 w-3.5" />
           </button>

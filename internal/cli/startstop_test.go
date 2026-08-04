@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// A host-proxy site whose .lerd.yaml dev command has drifted from the approved
-// one must still be enumerated, because this list also drives lerd stop/quit:
+// A host-proxy site whose .servlo.yaml dev command has drifted from the approved
+// one must still be enumerated, because this list also drives servlo stop/quit:
 // excluding the unit would leave a running dev server unstoppable.
 func TestRegisteredFrameworkWorkerUnits_EnumeratesDriftedHostProxy(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
@@ -42,19 +42,19 @@ func TestRegisteredFrameworkWorkerUnits_EnumeratesDriftedHostProxy(t *testing.T)
 
 func TestFilterSuspendedUnits(t *testing.T) {
 	suspended := map[string]bool{
-		"lerd-queue-site":          true,
-		"lerd-schedule-site":       true,
-		"lerd-vite-site-feature-x": true,
+		"servlo-queue-site":          true,
+		"servlo-schedule-site":       true,
+		"servlo-vite-site-feature-x": true,
 	}
 	units := []string{
-		"lerd-queue-site",          // suspended -> dropped
-		"lerd-schedule-site.timer", // suspended (timer sibling) -> dropped
-		"lerd-reverb-site",         // running -> kept
-		"lerd-vite-site-feature-x", // suspended worktree worker -> dropped
-		"lerd-queue-other",         // different site -> kept
+		"servlo-queue-site",          // suspended -> dropped
+		"servlo-schedule-site.timer", // suspended (timer sibling) -> dropped
+		"servlo-reverb-site",         // running -> kept
+		"servlo-vite-site-feature-x", // suspended worktree worker -> dropped
+		"servlo-queue-other",         // different site -> kept
 	}
 	got := filterSuspendedUnits(units, suspended)
-	want := []string{"lerd-reverb-site", "lerd-queue-other"}
+	want := []string{"servlo-reverb-site", "servlo-queue-other"}
 	if len(got) != len(want) {
 		t.Fatalf("filterSuspendedUnits = %v, want %v", got, want)
 	}
@@ -70,7 +70,7 @@ func TestFilterSuspendedUnits(t *testing.T) {
 }
 
 // A site with idle-suspended workers must not have those workers (or a suspended
-// worktree worker) resurrected by the start path, so lerd start doesn't drift the
+// worktree worker) resurrected by the start path, so servlo start doesn't drift the
 // registry's suspend state apart from what is actually running.
 func TestSuspendedWorkerUnitSet_CoversMainAndWorktree(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
@@ -83,16 +83,16 @@ func TestSuspendedWorkerUnitSet_CoversMainAndWorktree(t *testing.T) {
 		t.Fatal(err)
 	}
 	set := suspendedWorkerUnitSet()
-	for _, want := range []string{"lerd-queue-site", "lerd-schedule-site", "lerd-vite-site-feature-x"} {
+	for _, want := range []string{"servlo-queue-site", "servlo-schedule-site", "servlo-vite-site-feature-x"} {
 		if !set[want] {
 			t.Errorf("suspended set missing %q: %v", want, set)
 		}
 	}
 	// And the start filter actually drops them.
-	start := []string{"lerd-queue-site", "lerd-schedule-site.timer", "lerd-vite-site-feature-x", "lerd-reverb-site"}
+	start := []string{"servlo-queue-site", "servlo-schedule-site.timer", "servlo-vite-site-feature-x", "servlo-reverb-site"}
 	got := dropIdleSuspendedUnits(start)
-	if len(got) != 1 || got[0] != "lerd-reverb-site" {
-		t.Errorf("dropIdleSuspendedUnits kept %v, want only lerd-reverb-site", got)
+	if len(got) != 1 || got[0] != "servlo-reverb-site" {
+		t.Errorf("dropIdleSuspendedUnits kept %v, want only servlo-reverb-site", got)
 	}
 }
 
@@ -102,9 +102,9 @@ func TestQuadletImage_found(t *testing.T) {
 
 	dir := filepath.Join(tmp, "containers", "systemd")
 	os.MkdirAll(dir, 0755)
-	os.WriteFile(filepath.Join(dir, "lerd-nginx.container"), []byte("[Container]\nImage=docker.io/library/nginx:alpine\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "servlo-nginx.container"), []byte("[Container]\nImage=docker.io/library/nginx:alpine\n"), 0644)
 
-	got := quadletImage("lerd-nginx")
+	got := quadletImage("servlo-nginx")
 	if got != "docker.io/library/nginx:alpine" {
 		t.Errorf("quadletImage = %q, want docker.io/library/nginx:alpine", got)
 	}
@@ -114,7 +114,7 @@ func TestQuadletImage_missing(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
-	got := quadletImage("lerd-nonexistent")
+	got := quadletImage("servlo-nonexistent")
 	if got != "" {
 		t.Errorf("quadletImage = %q, want empty for missing unit", got)
 	}
@@ -126,9 +126,9 @@ func TestQuadletImage_noImageLine(t *testing.T) {
 
 	dir := filepath.Join(tmp, "containers", "systemd")
 	os.MkdirAll(dir, 0755)
-	os.WriteFile(filepath.Join(dir, "lerd-test.container"), []byte("[Container]\nContainerName=test\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "servlo-test.container"), []byte("[Container]\nContainerName=test\n"), 0644)
 
-	got := quadletImage("lerd-test")
+	got := quadletImage("servlo-test")
 	if got != "" {
 		t.Errorf("quadletImage = %q, want empty when no Image= line", got)
 	}
@@ -136,8 +136,8 @@ func TestQuadletImage_noImageLine(t *testing.T) {
 
 func TestIsPortConflict(t *testing.T) {
 	const portList = "dnsmasq 60498 sdp 5u IPv4 TCP 127.0.0.1:5300 (LISTEN)"
-	dnsCheck := PortCheck{Port: "5300", Label: "dns", Container: "lerd-dns"}
-	mariadb := PortCheck{Port: "3306", Label: "mariadb", Container: "lerd-mariadb"}
+	dnsCheck := PortCheck{Port: "5300", Label: "dns", Container: "servlo-dns"}
+	mariadb := PortCheck{Port: "3306", Label: "mariadb", Container: "servlo-mariadb"}
 
 	running := func(string) bool { return true }
 	notRunning := func(string) bool { return false }
@@ -152,7 +152,7 @@ func TestIsPortConflict(t *testing.T) {
 		dnsAnswering     func() bool
 		want             bool
 	}{
-		// The regression this fixes: lerd-dns is a launchd dnsmasq (no
+		// The regression this fixes: servlo-dns is a launchd dnsmasq (no
 		// container), already answering, holding 5300 — NOT a conflict.
 		{"dns self-owns port via launchd dnsmasq", dnsCheck, portList, notRunning, dnsUp, false},
 		// dns genuinely down but something foreign holds 5300 — real conflict.
@@ -162,7 +162,7 @@ func TestIsPortConflict(t *testing.T) {
 		// Non-dns service, not running, foreign listener — real conflict.
 		{"foreign process holds a service port", mariadb, "someapp 999 sdp 3u TCP 127.0.0.1:3306 (LISTEN)", notRunning, dnsDown, true},
 		// The macOS regression: gvproxy (podman machine's own forwarder) holds
-		// the published port — a lerd forward into the VM, NOT a conflict.
+		// the published port — a servlo forward into the VM, NOT a conflict.
 		{"gvproxy forward owns a service port", mariadb, "gvproxy 82853 sdp 12u TCP 127.0.0.1:3306 (LISTEN)", notRunning, dnsDown, false},
 		// Port is free — no conflict regardless.
 		{"port free", mariadb, portList, notRunning, dnsDown, false},
@@ -187,9 +187,9 @@ func TestMigrateExecWorkerPlists_linux(t *testing.T) {
 	migrateExecWorkerPlists()
 }
 
-// TestStopUnitSet_KeepsDNSRunning pins that `lerd stop` excludes lerd-dns even
-// when lerd manages DNS, while coreUnits (the start path) still includes it.
-// The resolver keeps pointing .test at lerd-dns until uninstall, so stopping
+// TestStopUnitSet_KeepsDNSRunning pins that `servlo stop` excludes servlo-dns even
+// when servlo manages DNS, while coreUnits (the start path) still includes it.
+// The resolver keeps pointing .test at servlo-dns until uninstall, so stopping
 // it would strand that pointer at a dead :5300.
 func TestStopUnitSet_KeepsDNSRunning(t *testing.T) {
 	withTempXDG(t)
@@ -199,29 +199,29 @@ func TestStopUnitSet_KeepsDNSRunning(t *testing.T) {
 		t.Fatalf("SaveGlobal: %v", err)
 	}
 
-	if !slices.Contains(coreUnits(), "lerd-dns") {
-		t.Fatal("coreUnits must include lerd-dns when DNS is managed (start path)")
+	if !slices.Contains(coreUnits(), "servlo-dns") {
+		t.Fatal("coreUnits must include servlo-dns when DNS is managed (start path)")
 	}
-	if slices.Contains(stopUnitSet(), "lerd-dns") {
-		t.Error("stopUnitSet must exclude lerd-dns so it stays running across `lerd stop`")
+	if slices.Contains(stopUnitSet(), "servlo-dns") {
+		t.Error("stopUnitSet must exclude servlo-dns so it stays running across `servlo stop`")
 	}
 }
 
-// TestQuitProcessUnits_FullTeardown pins that `lerd quit` is a full teardown: it
-// stops lerd-dns (unlike `lerd stop`), and stops lerd-watcher before lerd-dns so
+// TestQuitProcessUnits_FullTeardown pins that `servlo quit` is a full teardown: it
+// stops servlo-dns (unlike `servlo stop`), and stops servlo-watcher before servlo-dns so
 // the watcher can't restart dns after it goes down.
 func TestQuitProcessUnits_FullTeardown(t *testing.T) {
 	units := quitProcessUnits()
-	dns := slices.Index(units, "lerd-dns")
-	watcher := slices.Index(units, "lerd-watcher")
+	dns := slices.Index(units, "servlo-dns")
+	watcher := slices.Index(units, "servlo-watcher")
 	if dns < 0 {
-		t.Fatal("quit must stop lerd-dns for a full teardown")
+		t.Fatal("quit must stop servlo-dns for a full teardown")
 	}
 	if watcher < 0 {
-		t.Fatal("quit must stop lerd-watcher")
+		t.Fatal("quit must stop servlo-watcher")
 	}
 	if watcher > dns {
-		t.Errorf("lerd-watcher (%d) must be stopped before lerd-dns (%d) so the watcher can't restart dns", watcher, dns)
+		t.Errorf("servlo-watcher (%d) must be stopped before servlo-dns (%d) so the watcher can't restart dns", watcher, dns)
 	}
 }
 

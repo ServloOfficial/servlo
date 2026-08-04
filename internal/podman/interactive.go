@@ -4,7 +4,7 @@ import "strings"
 
 // InteractiveShellScript returns the `sh -c '...'` payload that picks an
 // interactive shell inside a container. The PHP-FPM image ships zsh with
-// a lerd-controlled config (starship prompt, persistent history); other
+// a servlo-controlled config (starship prompt, persistent history); other
 // images fall through to bash or sh.
 func InteractiveShellScript() string {
 	return buildShellChain([]string{"zsh", "bash", "sh"})

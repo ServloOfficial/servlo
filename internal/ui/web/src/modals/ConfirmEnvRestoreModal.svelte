@@ -53,7 +53,7 @@
         {m.envEditor_restoreBody({ file: target.file, name: target.backupName })}
       </p>
 
-      <div class="border border-gray-200 dark:border-lerd-border rounded-sm bg-gray-50 dark:bg-black/40 overflow-auto max-h-96">
+      <div class="border border-gray-200 dark:border-servlo-border rounded-sm bg-gray-50 dark:bg-black/40 overflow-auto max-h-96">
         {#if lines.length === 0}
           <p class="text-xs text-gray-400 px-3 py-2">{m.envEditor_restoreNoDiff()}</p>
         {:else}

@@ -10,8 +10,8 @@ func TestIsParkedSite(t *testing.T) {
 	}{
 		{"/home/user/Projects/myapp", []string{"/home/user/Projects"}, true},
 		{"/home/user/Projects/myapp", []string{"/home/user/Other"}, false},
-		{"/home/user/Projects/myapp", []string{"/home/user/Projects", "/home/user/Lerd"}, true},
-		{"/home/user/Lerd/myapp", []string{"/home/user/Projects", "/home/user/Lerd"}, true},
+		{"/home/user/Projects/myapp", []string{"/home/user/Projects", "/home/user/Servlo"}, true},
+		{"/home/user/Servlo/myapp", []string{"/home/user/Projects", "/home/user/Servlo"}, true},
 		{"/home/user/Projects/myapp", []string{}, false},
 		{"/home/user/Projects/sub/deep", []string{"/home/user/Projects"}, false}, // not direct child
 	}

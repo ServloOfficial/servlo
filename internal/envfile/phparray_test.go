@@ -142,9 +142,9 @@ func TestReadPhpArrayMissingOrEmptyFile(t *testing.T) {
 func TestApplyPhpArrayUpdatesRewritesNestedValue(t *testing.T) {
 	p := writeTemp(t, magentoEnvPHP)
 	err := ApplyPhpArrayUpdates(p, map[string]string{
-		"db.connection.default.host":     "lerd-mysql",
+		"db.connection.default.host":     "servlo-mysql",
 		"db.connection.default.dbname":   "magento_test",
-		"db.connection.default.password": "lerd",
+		"db.connection.default.password": "servlo",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -153,7 +153,7 @@ func TestApplyPhpArrayUpdatesRewritesNestedValue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got["db.connection.default.host"] != "lerd-mysql" {
+	if got["db.connection.default.host"] != "servlo-mysql" {
 		t.Errorf("host = %q", got["db.connection.default.host"])
 	}
 	if got["db.connection.default.dbname"] != "magento_test" {
@@ -179,7 +179,7 @@ func TestApplyPhpArrayUpdatesCreatesMissingPath(t *testing.T) {
 	p := writeTemp(t, magentoEnvPHP)
 	err := ApplyPhpArrayUpdates(p, map[string]string{
 		"system.default.catalog.search.engine":                     "opensearch",
-		"system.default.catalog.search.opensearch_server_hostname": "lerd-opensearch",
+		"system.default.catalog.search.opensearch_server_hostname": "servlo-opensearch",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -188,7 +188,7 @@ func TestApplyPhpArrayUpdatesCreatesMissingPath(t *testing.T) {
 	if got["system.default.catalog.search.engine"] != "opensearch" {
 		t.Fatalf("engine = %q\n", got["system.default.catalog.search.engine"])
 	}
-	if got["system.default.catalog.search.opensearch_server_hostname"] != "lerd-opensearch" {
+	if got["system.default.catalog.search.opensearch_server_hostname"] != "servlo-opensearch" {
 		t.Fatalf("hostname = %q", got["system.default.catalog.search.opensearch_server_hostname"])
 	}
 	if got["db.connection.default.host"] != "localhost" {
@@ -196,11 +196,11 @@ func TestApplyPhpArrayUpdatesCreatesMissingPath(t *testing.T) {
 	}
 }
 
-// Writing then reading then writing must converge, or `lerd env` would churn
+// Writing then reading then writing must converge, or `servlo env` would churn
 // the file on every run.
 func TestApplyPhpArrayUpdatesIsIdempotent(t *testing.T) {
 	p := writeTemp(t, magentoEnvPHP)
-	up := map[string]string{"db.connection.default.host": "lerd-mysql"}
+	up := map[string]string{"db.connection.default.host": "servlo-mysql"}
 	if err := ApplyPhpArrayUpdates(p, up); err != nil {
 		t.Fatal(err)
 	}
@@ -236,14 +236,14 @@ func TestApplyPhpArrayUpdatesPreservesScalarTypes(t *testing.T) {
 
 func TestApplyPhpArrayUpdatesCreatesFile(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "app", "etc", "env.php")
-	if err := ApplyPhpArrayUpdates(p, map[string]string{"db.connection.default.host": "lerd-mysql"}); err != nil {
+	if err := ApplyPhpArrayUpdates(p, map[string]string{"db.connection.default.host": "servlo-mysql"}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := ReadPhpArray(p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got["db.connection.default.host"] != "lerd-mysql" {
+	if got["db.connection.default.host"] != "servlo-mysql" {
 		t.Fatalf("got %v", got)
 	}
 	body, _ := os.ReadFile(p)
@@ -286,17 +286,17 @@ func TestPhpArrayHandlesFloats(t *testing.T) {
 }
 
 func TestReaderDispatchesOnFormat(t *testing.T) {
-	arr := writeTemp(t, "<?php\nreturn ['db' => ['host' => 'lerd-mysql']];\n")
-	if got := Reader(arr, "php-array")("db.host"); got != "lerd-mysql" {
+	arr := writeTemp(t, "<?php\nreturn ['db' => ['host' => 'servlo-mysql']];\n")
+	if got := Reader(arr, "php-array")("db.host"); got != "servlo-mysql" {
 		t.Errorf("php-array reader: %q", got)
 	}
-	konst := writeTemp(t, "<?php\ndefine('DB_HOST', 'lerd-mysql');\n")
-	if got := Reader(konst, "php-const")("DB_HOST"); got != "lerd-mysql" {
+	konst := writeTemp(t, "<?php\ndefine('DB_HOST', 'servlo-mysql');\n")
+	if got := Reader(konst, "php-const")("DB_HOST"); got != "servlo-mysql" {
 		t.Errorf("php-const reader: %q", got)
 	}
 	dot := filepath.Join(t.TempDir(), ".env")
-	os.WriteFile(dot, []byte("DB_HOST=lerd-mysql\n"), 0o644)
-	if got := Reader(dot, "dotenv")("DB_HOST"); got != "lerd-mysql" {
+	os.WriteFile(dot, []byte("DB_HOST=servlo-mysql\n"), 0o644)
+	if got := Reader(dot, "dotenv")("DB_HOST"); got != "servlo-mysql" {
 		t.Errorf("dotenv reader: %q", got)
 	}
 	// A missing file must not panic or error out the caller.
@@ -309,7 +309,7 @@ func TestApplyPhpArrayUpdates_NoOpWhenUnchanged(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "env.php")
 
-	if err := ApplyPhpArrayUpdates(path, map[string]string{"db.host": "lerd-mysql"}); err != nil {
+	if err := ApplyPhpArrayUpdates(path, map[string]string{"db.host": "servlo-mysql"}); err != nil {
 		t.Fatalf("first write: %v", err)
 	}
 	before, err := os.Stat(path)
@@ -322,7 +322,7 @@ func TestApplyPhpArrayUpdates_NoOpWhenUnchanged(t *testing.T) {
 	// reprints the whole file, so a rewrite would churn a Magento deployment config
 	// on every worktree sync.
 	time.Sleep(10 * time.Millisecond)
-	if err := ApplyPhpArrayUpdates(path, map[string]string{"db.host": "lerd-mysql"}); err != nil {
+	if err := ApplyPhpArrayUpdates(path, map[string]string{"db.host": "servlo-mysql"}); err != nil {
 		t.Fatalf("second write: %v", err)
 	}
 	after, err := os.Stat(path)
@@ -337,11 +337,11 @@ func TestApplyPhpArrayUpdates_NoOpWhenUnchanged(t *testing.T) {
 	}
 
 	// A real change still lands.
-	if err := ApplyPhpArrayUpdates(path, map[string]string{"db.host": "lerd-mariadb-11-8"}); err != nil {
+	if err := ApplyPhpArrayUpdates(path, map[string]string{"db.host": "servlo-mariadb-11-8"}); err != nil {
 		t.Fatalf("third write: %v", err)
 	}
 	got, _ := ReadPhpArray(path)
-	if got["db.host"] != "lerd-mariadb-11-8" {
-		t.Errorf("db.host = %q, want lerd-mariadb-11-8", got["db.host"])
+	if got["db.host"] != "servlo-mariadb-11-8" {
+		t.Errorf("db.host = %q, want servlo-mariadb-11-8", got["db.host"])
 	}
 }

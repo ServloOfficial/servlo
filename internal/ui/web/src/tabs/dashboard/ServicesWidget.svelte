@@ -46,7 +46,7 @@
       {#each $coreServices as svc (svc.name)}
         <button
           onclick={() => goToTab('services', svc.name)}
-          class="flex items-center gap-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:text-lerd-red transition-colors py-0.5"
+          class="flex items-center gap-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:text-servlo-red transition-colors py-0.5"
         >
           <StatusDot color={svc.status === 'active' ? 'green' : 'gray'} />
           <span class="flex-1 truncate">{serviceLabel(svc.name)}</span>
@@ -63,7 +63,7 @@
       {#if $accessMode.localControl}
         <button
           onclick={openPresetModal}
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-lerd-red hover:bg-lerd-redhov text-white transition-colors"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-servlo-red hover:bg-servlo-redhov text-white transition-colors"
         >
           <Icon name="plus" class="w-3.5 h-3.5" />
           {m.dashboard_services_add()}
@@ -71,7 +71,7 @@
       {/if}
       <button
         onclick={() => goToTab('services')}
-        class="ml-auto text-xs font-medium text-lerd-red hover:text-lerd-redhov"
+        class="ml-auto text-xs font-medium text-servlo-red hover:text-servlo-redhov"
       >{m.dashboard_services_open()}</button>
     </div>
   {/snippet}

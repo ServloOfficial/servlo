@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // Extension is an engine's declared extension, aliased so callers work in one
@@ -99,7 +99,7 @@ func extensionForLine(exts []Extension, line string) *Extension {
 }
 
 // CreateExtension creates one extension in a database, idempotently, so a dump
-// that carries its own CREATE EXTENSION and lerd's own call cannot collide.
+// that carries its own CREATE EXTENSION and servlo's own call cannot collide.
 func CreateExtension(service, database, name string) error {
 	if err := ValidateDatabaseName(database); err != nil {
 		return err
@@ -108,9 +108,9 @@ func CreateExtension(service, database, name string) error {
 		return fmt.Errorf("invalid extension name %q", name)
 	}
 	sql := fmt.Sprintf("CREATE EXTENSION IF NOT EXISTS %q", name)
-	out, err := containerExec("lerd-"+service,
+	out, err := containerExec("servlo-"+service,
 		"psql -U postgres -v ON_ERROR_STOP=1 -d "+podman.ShellQuote(database)+" -c "+podman.ShellQuote(sql),
-		[]string{"PGPASSWORD=lerd"}, nil, introspectTimeout)
+		[]string{"PGPASSWORD=servlo"}, nil, introspectTimeout)
 	if err != nil {
 		return fmt.Errorf("creating extension %s in %s: %w\n%s", name, database, err, strings.TrimSpace(string(out)))
 	}
@@ -122,10 +122,10 @@ func InstalledExtensions(service, database string) ([]string, error) {
 	if err := ValidateDatabaseName(database); err != nil {
 		return nil, err
 	}
-	out, err := containerExec("lerd-"+service,
+	out, err := containerExec("servlo-"+service,
 		"psql -U postgres -At -d "+podman.ShellQuote(database)+" -c "+
 			podman.ShellQuote("SELECT extname FROM pg_extension ORDER BY extname"),
-		[]string{"PGPASSWORD=lerd"}, nil, introspectTimeout)
+		[]string{"PGPASSWORD=servlo"}, nil, introspectTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("listing extensions in %s: %w\n%s", database, err, strings.TrimSpace(string(out)))
 	}

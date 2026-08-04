@@ -9,15 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// writeProjectYAML writes a .lerd.yaml containing a commands: block so tests
+// writeProjectYAML writes a .servlo.yaml containing a commands: block so tests
 // can exercise the merge + run paths without depending on the built-in
 // laravel framework def.
 func writeProjectYAML(t *testing.T, dir, body string) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -308,7 +308,7 @@ func TestCommandsRun_BinDirOnPath(t *testing.T) {
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	shim := filepath.Join(binDir, "lerdshim")
+	shim := filepath.Join(binDir, "servloshim")
 	if err := os.WriteFile(shim, []byte("#!/bin/sh\necho shimok\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -319,7 +319,7 @@ func TestCommandsRun_BinDirOnPath(t *testing.T) {
 commands:
   - name: hi
     label: Hi
-    command: lerdshim
+    command: servloshim
     output: text
 `)
 	req := httptest.NewRequest(http.MethodPost, "/api/sites/acme.test/commands/hi/run?approve=1", nil)

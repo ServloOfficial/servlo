@@ -3,14 +3,14 @@ package mcp
 import (
 	"encoding/json"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/logsource"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/logsource"
 )
 
 func logsTool() mcpTool {
 	return mcpTool{
 		Name:        "logs",
-		Description: "Read logs from any source lerd can reach (app/framework files, PHP-FPM, workers, nginx, dns, services) filtered by string and time. action: sources (list what you can query), fetch (read one source). fetch returns a cursor; call again with since=<cursor> for only the new lines.",
+		Description: "Read logs from any source servlo can reach (app/framework files, PHP-FPM, workers, nginx, dns, services) filtered by string and time. action: sources (list what you can query), fetch (read one source). fetch returns a cursor; call again with since=<cursor> for only the new lines.",
 		InputSchema: mcpSchema{
 			Type: "object",
 			Properties: map[string]mcpProp{

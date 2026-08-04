@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 // pinHostGatewayBindIP pins the host-gateway resolver (and treats the result as a
@@ -203,7 +203,7 @@ func TestHostProxyBindAddr_fallsBackWhenGatewayNotLocal(t *testing.T) {
 }
 
 func TestBuildHostProxyCommand_proxyOnlyMode(t *testing.T) {
-	// No command means proxy-only: lerd supervises nothing.
+	// No command means proxy-only: servlo supervises nothing.
 	if got := buildHostProxyCommand(&config.ProxyConfig{Port: 3000}); got != "" {
 		t.Errorf("buildHostProxyCommand with no command = %q, want empty", got)
 	}

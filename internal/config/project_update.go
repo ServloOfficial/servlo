@@ -8,10 +8,10 @@ import (
 	"strings"
 )
 
-// updateProjectConfig loads .lerd.yaml, applies fn, and saves.
-// No-op if .lerd.yaml does not exist.
+// updateProjectConfig loads .servlo.yaml, applies fn, and saves.
+// No-op if .servlo.yaml does not exist.
 func updateProjectConfig(dir string, fn func(*ProjectConfig)) error {
-	path := filepath.Join(dir, ".lerd.yaml")
+	path := filepath.Join(dir, ".servlo.yaml")
 	if _, err := os.Stat(path); err != nil {
 		return nil
 	}
@@ -23,14 +23,14 @@ func updateProjectConfig(dir string, fn func(*ProjectConfig)) error {
 	return SaveProjectConfig(dir, cfg)
 }
 
-// SetProjectSecured updates the secured field. No-op if .lerd.yaml does not exist.
+// SetProjectSecured updates the secured field. No-op if .servlo.yaml does not exist.
 func SetProjectSecured(dir string, secured bool) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
 		cfg.Secured = secured
 	})
 }
 
-// SetProjectPHPVersion updates php_version. No-op if .lerd.yaml does not exist.
+// SetProjectPHPVersion updates php_version. No-op if .servlo.yaml does not exist.
 func SetProjectPHPVersion(dir string, version string) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
 		cfg.PHPVersion = version
@@ -38,10 +38,10 @@ func SetProjectPHPVersion(dir string, version string) error {
 }
 
 // SetProjectStripe writes the project's Stripe listener settings (webhook path
-// and/or secret env key) to .lerd.yaml, creating the file if needed. An empty
+// and/or secret env key) to .servlo.yaml, creating the file if needed. An empty
 // argument leaves the corresponding field untouched; when both are empty this
 // is a no-op so we never materialise an empty "stripe: {}" block or create a
-// .lerd.yaml the project didn't have.
+// .servlo.yaml the project didn't have.
 func SetProjectStripe(dir, path, secretEnvKey string) error {
 	if path == "" && secretEnvKey == "" {
 		return nil
@@ -66,7 +66,7 @@ func SetProjectStripe(dir, path, secretEnvKey string) error {
 	return SaveProjectConfig(dir, cfg)
 }
 
-// SetProjectWorkers replaces the workers list. No-op if .lerd.yaml does not exist.
+// SetProjectWorkers replaces the workers list. No-op if .servlo.yaml does not exist.
 func SetProjectWorkers(dir string, workers []string) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
 		cfg.Workers = workers
@@ -74,7 +74,7 @@ func SetProjectWorkers(dir string, workers []string) error {
 }
 
 // AddProjectWorker appends name to the workers list if not already present.
-// No-op if .lerd.yaml does not exist. A whitespace-bearing name is rejected so a
+// No-op if .servlo.yaml does not exist. A whitespace-bearing name is rejected so a
 // mangled value like "horizon - schedule - vite - stripe" can never land as a
 // single worker entry; real worker names map to systemd units and have none.
 func AddProjectWorker(dir, name string) error {
@@ -93,9 +93,9 @@ func AddProjectWorker(dir, name string) error {
 }
 
 // SetProjectWorkerReload opts the named worker into or out of auto-reload mode
-// (restart on file changes) for the project, persisting to .lerd.yaml. Enabling
-// creates .lerd.yaml when it does not exist yet, so the preference survives
-// rather than silently no-op'ing. Disabling on a project with no .lerd.yaml is
+// (restart on file changes) for the project, persisting to .servlo.yaml. Enabling
+// creates .servlo.yaml when it does not exist yet, so the preference survives
+// rather than silently no-op'ing. Disabling on a project with no .servlo.yaml is
 // a no-op: the worker is already in standard mode, so no file is created.
 func SetProjectWorkerReload(dir, name string, enabled bool) error {
 	if !enabled {
@@ -121,7 +121,7 @@ func removeWorkerName(names []string, name string) []string {
 	return slices.DeleteFunc(names, func(w string) bool { return w == name })
 }
 
-// SetProjectDomains replaces the domains list. No-op if .lerd.yaml does not exist.
+// SetProjectDomains replaces the domains list. No-op if .servlo.yaml does not exist.
 func SetProjectDomains(dir string, domains []string) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
 		cfg.Domains = domains
@@ -129,10 +129,10 @@ func SetProjectDomains(dir string, domains []string) error {
 }
 
 // SyncProjectDomains merges fullDomains (stripping the TLD suffix) with any
-// existing .lerd.yaml domains, deduplicating case-insensitively. Registered
+// existing .servlo.yaml domains, deduplicating case-insensitively. Registered
 // domains come first; pre-existing entries not in the registered list are
 // appended (conflict-filtered domains preserved for self-healing).
-// No-op if .lerd.yaml does not exist.
+// No-op if .servlo.yaml does not exist.
 func SyncProjectDomains(dir string, fullDomains []string, tld string) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
 		suffix := "." + tld
@@ -157,12 +157,12 @@ func SyncProjectDomains(dir string, fullDomains []string, tld string) error {
 	})
 }
 
-// ReplaceProjectDomain syncs the registry domains into .lerd.yaml (preserving
+// ReplaceProjectDomain syncs the registry domains into .servlo.yaml (preserving
 // conflict-filtered extras via SyncProjectDomains) and then drops oldDomain when
 // it is no longer one of the site's domains. Use this on a rename or removal so
 // the replaced domain isn't left behind to re-register on a future link;
 // SyncProjectDomains alone merges and would re-append it. oldDomain is the full
-// domain (with TLD). No-op if .lerd.yaml does not exist.
+// domain (with TLD). No-op if .servlo.yaml does not exist.
 func ReplaceProjectDomain(dir string, fullDomains []string, oldDomain, tld string) error {
 	if err := SyncProjectDomains(dir, fullDomains, tld); err != nil {
 		return err
@@ -180,7 +180,7 @@ func ReplaceProjectDomain(dir string, fullDomains []string, oldDomain, tld strin
 }
 
 // RemoveProjectDomain removes a single domain (case-insensitive match).
-// No-op if .lerd.yaml does not exist.
+// No-op if .servlo.yaml does not exist.
 func RemoveProjectDomain(dir string, domain string) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
 		var kept []string
@@ -193,7 +193,7 @@ func RemoveProjectDomain(dir string, domain string) error {
 	})
 }
 
-// SetProjectRuntime updates runtime and runtime_worker. No-op if .lerd.yaml
+// SetProjectRuntime updates runtime and runtime_worker. No-op if .servlo.yaml
 // does not exist. Passing an empty runtime clears both fields.
 func SetProjectRuntime(dir, runtime string, worker bool) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
@@ -203,12 +203,12 @@ func SetProjectRuntime(dir, runtime string, worker bool) error {
 }
 
 // SetProjectJSRuntime pins the JavaScript runtime ("bun" or "node") in
-// .lerd.yaml, preserving every other field (notably node_version). Unlike
-// updateProjectConfig it creates .lerd.yaml when missing so the toggle persists
+// .servlo.yaml, preserving every other field (notably node_version). Unlike
+// updateProjectConfig it creates .servlo.yaml when missing so the toggle persists
 // for sites that never had one. Passing "" clears the pin (back to autodetect).
 func SetProjectJSRuntime(dir, runtime string) error {
 	cfg := &ProjectConfig{}
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); err == nil {
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); err == nil {
 		loaded, lerr := LoadProjectConfig(dir)
 		if lerr != nil {
 			return lerr
@@ -219,7 +219,7 @@ func SetProjectJSRuntime(dir, runtime string) error {
 	return SaveProjectConfig(dir, cfg)
 }
 
-// SetProjectFrameworkVersion updates framework_version. No-op if .lerd.yaml
+// SetProjectFrameworkVersion updates framework_version. No-op if .servlo.yaml
 // does not exist or the version hasn't changed.
 func SetProjectFrameworkVersion(dir string, version string) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
@@ -228,7 +228,7 @@ func SetProjectFrameworkVersion(dir string, version string) error {
 }
 
 // SyncProjectFrameworkVersion repins framework_version to the version composer
-// actually reports. Call it from the commands that own .lerd.yaml: resolving a
+// actually reports. Call it from the commands that own .servlo.yaml: resolving a
 // framework must not write to the project, or every vhost render and dashboard
 // poll would rewrite a file the user has committed.
 func SyncProjectFrameworkVersion(name, dir string) error {
@@ -243,7 +243,7 @@ func SyncProjectFrameworkVersion(name, dir string) error {
 	return SetProjectFrameworkVersion(dir, detected)
 }
 
-// AddProjectServices appends the services not already listed to .lerd.yaml,
+// AddProjectServices appends the services not already listed to .servlo.yaml,
 // creating the file when it is missing. Read-modify-write, so it cannot clobber
 // the fields another writer persisted earlier in the same command.
 func AddProjectServices(dir string, svcs []ProjectService) error {
@@ -277,7 +277,7 @@ func AddProjectServices(dir string, svcs []ProjectService) error {
 }
 
 // SetProjectFrameworkDef replaces the embedded framework definition.
-// No-op if .lerd.yaml does not exist.
+// No-op if .servlo.yaml does not exist.
 func SetProjectFrameworkDef(dir string, def *Framework) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
 		cfg.FrameworkDef = def
@@ -285,7 +285,7 @@ func SetProjectFrameworkDef(dir string, def *Framework) error {
 }
 
 // SetProjectCustomWorker adds or replaces a custom worker entry.
-// No-op if .lerd.yaml does not exist.
+// No-op if .servlo.yaml does not exist.
 func SetProjectCustomWorker(dir string, name string, w FrameworkWorker) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
 		if cfg.CustomWorkers == nil {
@@ -296,9 +296,9 @@ func SetProjectCustomWorker(dir string, name string, w FrameworkWorker) error {
 }
 
 // RemoveProjectCustomWorker deletes a custom worker by name.
-// No-op if .lerd.yaml does not exist. Returns an error if the worker is not found.
+// No-op if .servlo.yaml does not exist. Returns an error if the worker is not found.
 func RemoveProjectCustomWorker(dir string, name string) error {
-	path := filepath.Join(dir, ".lerd.yaml")
+	path := filepath.Join(dir, ".servlo.yaml")
 	if _, err := os.Stat(path); err != nil {
 		return nil
 	}
@@ -316,16 +316,16 @@ func RemoveProjectCustomWorker(dir string, name string) error {
 	return SaveProjectConfig(dir, cfg)
 }
 
-// WorkerNotFoundError is returned when a custom worker name is not in .lerd.yaml.
+// WorkerNotFoundError is returned when a custom worker name is not in .servlo.yaml.
 type WorkerNotFoundError struct {
 	Name string
 }
 
 func (e *WorkerNotFoundError) Error() string {
-	return "custom worker " + e.Name + " not found in .lerd.yaml"
+	return "custom worker " + e.Name + " not found in .servlo.yaml"
 }
 
-// SetProjectCommand adds or replaces a command in .lerd.yaml's commands: block,
+// SetProjectCommand adds or replaces a command in .servlo.yaml's commands: block,
 // matched by Name. Creates the file if it doesn't exist (commands can land on
 // fresh projects, unlike custom workers which presume a registered site).
 func SetProjectCommand(dir string, cmd FrameworkCommand) error {
@@ -351,9 +351,9 @@ func SetProjectCommand(dir string, cmd FrameworkCommand) error {
 }
 
 // RemoveProjectCommand deletes a project-level command entry by Name.
-// Returns CommandNotFoundError if .lerd.yaml has no entry with that name.
+// Returns CommandNotFoundError if .servlo.yaml has no entry with that name.
 func RemoveProjectCommand(dir string, name string) error {
-	path := filepath.Join(dir, ".lerd.yaml")
+	path := filepath.Join(dir, ".servlo.yaml")
 	if _, err := os.Stat(path); err != nil {
 		return &CommandNotFoundError{Name: name}
 	}
@@ -373,11 +373,11 @@ func RemoveProjectCommand(dir string, name string) error {
 	return &CommandNotFoundError{Name: name}
 }
 
-// CommandNotFoundError is returned when a project command name is not in .lerd.yaml.
+// CommandNotFoundError is returned when a project command name is not in .servlo.yaml.
 type CommandNotFoundError struct{ Name string }
 
 func (e *CommandNotFoundError) Error() string {
-	return "command " + e.Name + " not found in .lerd.yaml"
+	return "command " + e.Name + " not found in .servlo.yaml"
 }
 
 // CommandValidationError flags structural problems before we touch the yaml.
@@ -386,10 +386,10 @@ type CommandValidationError struct{ Reason string }
 func (e *CommandValidationError) Error() string { return "invalid command: " + e.Reason }
 
 // ReplaceProjectDBService removes any existing DB service entry from the
-// project's .lerd.yaml and adds the given choice. A "DB service" is sqlite or
+// project's .servlo.yaml and adds the given choice. A "DB service" is sqlite or
 // any service in the mysql / mariadb / postgres / mongo families, so alternates
 // like postgres-pgvector or mariadb-10-11 replace the previous DB pick
-// cleanly. Creates .lerd.yaml entries even if the file doesn't exist yet.
+// cleanly. Creates .servlo.yaml entries even if the file doesn't exist yet.
 func ReplaceProjectDBService(dir string, choice string) error {
 	cfg, err := LoadProjectConfig(dir)
 	if err != nil {
@@ -403,7 +403,7 @@ func ReplaceProjectDBService(dir string, choice string) error {
 	}
 	cfg.Services = append(filtered, ProjectService{Name: choice})
 	// Keep an explicit db.service block in sync: resolveDB reads it before the
-	// services list and .env, so a stale value would point later `lerd db`
+	// services list and .env, so a stale value would point later `servlo db`
 	// commands at the old service. Only touch a block the user already had, and
 	// clear it for sqlite (which has no container service to target) so
 	// resolution falls through to the .env sqlite connection.
@@ -419,7 +419,7 @@ func ReplaceProjectDBService(dir string, choice string) error {
 
 // IsDBServiceName reports whether name refers to a database service: sqlite,
 // or any service whose family is mysql, mariadb, postgres, or mongo. Used by
-// the DB-picker logic in `lerd env` and `db_set` to decide what counts as
+// the DB-picker logic in `servlo env` and `db_set` to decide what counts as
 // "the database for this project".
 func IsDBServiceName(name string) bool {
 	if name == "sqlite" {

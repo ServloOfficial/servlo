@@ -9,10 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// lerd_devtools C source, compiled into every FPM image by the Containerfile's
+// servlo_devtools C source, compiled into every FPM image by the Containerfile's
 // builder stage. writeDevtoolsSource stages it into the local build context so
 // the `COPY internal/podman/devtools` resolves the same way it does in CI, and
 // devtoolsSourceHash feeds the Containerfile's sync marker.
@@ -28,7 +28,7 @@ var devtoolsBridgeFS embed.FS
 // socket the debug bridge ships to). {{ DEVTOOLS_KINDS }} is the comma-separated
 // set of event kinds the extension should capture.
 func DevtoolsIni() (string, error) {
-	b, err := devtoolsBridgeFS.ReadFile("devtoolsbridge/96-lerd-devtools.ini")
+	b, err := devtoolsBridgeFS.ReadFile("devtoolsbridge/96-servlo-devtools.ini")
 	if err != nil {
 		return "", fmt.Errorf("devtools ini embed: %w", err)
 	}
@@ -70,7 +70,7 @@ func EnsureDevtoolsAssets() error {
 // SetDevtoolsWorkersFlag flips the sentinel that opts queue/scheduler worker
 // queries into capture. Present = workers captured, absent = skipped. Like the
 // enable flag, it sits under the dumps assets dir (mounted at
-// /usr/local/etc/lerd) so no FPM restart is needed.
+// /usr/local/etc/servlo) so no FPM restart is needed.
 func SetDevtoolsWorkersFlag(enabled bool) error {
 	flag := config.DevtoolsWorkersFlagFile()
 	if enabled {
@@ -119,7 +119,7 @@ func writeDevtoolsSource(ctxDir string) error {
 
 // devtoolsSourceHash is the short sha256 of the extension source (every file
 // under devtools/, in name order). The Containerfile carries this value in its
-// `lerd_devtools-src-sha256:` marker so that any change to the C source drifts
+// `servlo_devtools-src-sha256:` marker so that any change to the C source drifts
 // the Containerfile hash, which both rebuilds the prebuilt base in CI and trips
 // NeedsFPMRebuild for updating users. TestDevtoolsSourceMarkerInSync asserts the
 // marker matches this, so the marker can't silently fall out of date.

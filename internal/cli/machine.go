@@ -20,9 +20,9 @@ func newMachineResetCmd() *cobra.Command {
 		Short: "Recreate the Podman Machine VM (fixes corrupted container storage; data is preserved)",
 		Long: `Recreate the Podman Machine VM.
 
-Use this when lerd start fails with a container-storage error such as
+Use this when servlo start fails with a container-storage error such as
 "getting graph driver info ... overlay: invalid argument" after an unclean
-host shutdown. lerd's databases and site data are stored on the host and are
+host shutdown. servlo's databases and site data are stored on the host and are
 preserved; container images are rebuilt automatically on the next start.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runMachineReset(assumeYes)

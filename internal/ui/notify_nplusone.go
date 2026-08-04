@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/geodro/lerd/internal/dumps"
-	"github.com/geodro/lerd/internal/push"
-	"github.com/geodro/lerd/internal/reqstats"
+	"github.com/realrashid/servlo/internal/dumps"
+	"github.com/realrashid/servlo/internal/push"
+	"github.com/realrashid/servlo/internal/reqstats"
 )
 
 // nPlusOneThreshold is the number of structurally-identical queries within one
@@ -17,7 +17,7 @@ import (
 const nPlusOneThreshold = 3
 
 // maxTrackedRequests bounds the per-request fingerprint state so a long-lived
-// lerd-ui can't accumulate one map per request forever.
+// servlo-panel can't accumulate one map per request forever.
 const maxTrackedRequests = 512
 
 var (
@@ -140,7 +140,7 @@ func notificationForNPlusOne(ev dumps.Event, count int) push.Notification {
 		Kind:  "nplusone",
 		Title: "Possible N+1 query on " + site,
 		Body:  body,
-		Tag:   "lerd-nplusone-" + routeKeyForQuery(ev),
+		Tag:   "servlo-nplusone-" + routeKeyForQuery(ev),
 		URL:   debugRouteForContext(ev.Ctx),
 		Data: map[string]string{
 			"site":    ev.Ctx.Site,

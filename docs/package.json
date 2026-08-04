@@ -1,5 +1,5 @@
 {
-  "name": "lerd",
+  "name": "servlo",
   "version": "1.0.0",
   "type": "module",
   "description": "> Open-source Herd-like local PHP development environment for Linux. > Podman-native, rootless, with a built-in Web UI.",

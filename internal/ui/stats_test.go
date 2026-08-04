@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/stats"
+	"github.com/realrashid/servlo/internal/stats"
 )
 
 // The dashboard poll and the server cache are two constants in two languages

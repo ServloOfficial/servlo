@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 var (
@@ -78,7 +78,7 @@ func notificationForServiceUpdate(service, version string) push.Notification {
 		BodyKey:  "notify_update_body",
 		Body:     "Version " + displayVer + " is available.",
 		Params:   map[string]string{"service": service, "version": displayVer},
-		Tag:      "lerd-update-" + service,
+		Tag:      "servlo-update-" + service,
 		URL:      "#services/" + service,
 		Data:     map[string]string{"service": service, "version": displayVer},
 		Urgency:  "low",

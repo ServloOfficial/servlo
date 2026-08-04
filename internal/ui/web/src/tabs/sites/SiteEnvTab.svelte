@@ -281,7 +281,7 @@
 
 <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
   <div class="sticky top-0 z-10">
-    <div class="flex items-center justify-between bg-gray-50 dark:bg-white/3 px-3 py-1.5 border-b border-gray-200 dark:border-lerd-border">
+    <div class="flex items-center justify-between bg-gray-50 dark:bg-white/3 px-3 py-1.5 border-b border-gray-200 dark:border-servlo-border">
       <div class="flex items-center gap-2 min-w-0">
         {#if files.length > 0}
           <Dropdown
@@ -312,7 +312,7 @@
           type="button"
           onclick={copy}
           disabled={loading || !!error}
-          class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
+          class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
         >
           {copied ? m.common_copied() : m.common_copy()}
         </button>
@@ -321,7 +321,7 @@
             type="button"
             onclick={restoreBackup}
             disabled={loading || !!error || restoring}
-            class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
+            class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
           >
             {m.envEditor_restoreBtn()}
           </button>
@@ -330,7 +330,7 @@
           type="button"
           onclick={discardChanges}
           disabled={!dirty || loading || restoring}
-          class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
+          class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
         >
           {m.envEditor_discard()}
         </button>
@@ -338,7 +338,7 @@
           type="button"
           onclick={save}
           disabled={!dirty || loading}
-          class="text-xs px-3 py-1 rounded-sm bg-lerd-red hover:bg-lerd-redhov text-white disabled:opacity-40 transition-colors"
+          class="text-xs px-3 py-1 rounded-sm bg-servlo-red hover:bg-servlo-redhov text-white disabled:opacity-40 transition-colors"
         >
           {m.common_save()}
         </button>

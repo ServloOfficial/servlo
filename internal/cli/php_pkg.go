@@ -6,10 +6,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -50,7 +50,7 @@ func newPhpPkgAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <package...>",
 		Short: "Add Alpine packages to every PHP-FPM image",
-		Long: "Adds packages to your declared set, which applies to every PHP image lerd builds.\n" +
+		Long: "Adds packages to your declared set, which applies to every PHP image servlo builds.\n" +
 			"The version you are on is rebuilt now; other versions rebuild the next time they are used.",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -194,13 +194,13 @@ func rejectPerVersionFlag(cmd *cobra.Command) error {
 		return nil
 	}
 	return fmt.Errorf("packages now apply to every PHP version, so --php is gone.\n"+
-		"Drop the flag, then run 'lerd php:rebuild %s' if you want that image rebuilt right away", v)
+		"Drop the flag, then run 'servlo php:rebuild %s' if you want that image rebuilt right away", v)
 }
 
 // restartFPMUnit restarts the FPM container for a PHP version after an image
 // rebuild, printing a manual hint if the restart fails.
 func restartFPMUnit(version string) {
-	unit := "lerd-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
+	unit := "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
 	if err := podman.RestartUnit(unit); err != nil {
 		feedback.Warn("restart %s: %v", unit, err)
 		fmt.Printf("Run: systemctl --user restart %s\n", unit)

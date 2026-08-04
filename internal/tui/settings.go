@@ -5,9 +5,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/config"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/config"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 )
 
 // settingsRow describes one focusable line in the settings view.
@@ -45,8 +45,8 @@ func (m *Model) settingsRows() []settingsRow {
 	})
 	rows = append(rows, settingsRow{
 		kind:  settingsAutostart,
-		label: "Autostart lerd on login",
-		on:    lerdSystemd.IsAutostartEnabled(),
+		label: "Autostart servlo on login",
+		on:    servloSystemd.IsAutostartEnabled(),
 	})
 
 	// Worker runtime mode: macOS only. On Linux workers always run via
@@ -93,7 +93,7 @@ func (m *Model) settingsToggle(rows []settingsRow) tea.Cmd {
 			verb = "off"
 		}
 		m.setStatus("toggling LAN expose "+verb+"…", 5*time.Second)
-		return runLerd("", "lan", "expose", verb)
+		return runServlo("", "lan", "expose", verb)
 	case settingsLANServices:
 		verb := "on"
 		if row.on {
@@ -104,31 +104,31 @@ func (m *Model) settingsToggle(rows []settingsRow) tea.Cmd {
 		} else {
 			m.setStatus("enabling managed service LAN access — trusted networks only…", 5*time.Second)
 		}
-		return runLerd("", "lan", "services", verb)
+		return runServlo("", "lan", "services", verb)
 	case settingsAutostart:
 		sub := "enable"
 		if row.on {
 			sub = "disable"
 		}
 		m.setStatus("autostart "+sub+"…", 5*time.Second)
-		return runLerd("", "autostart", sub)
+		return runServlo("", "autostart", sub)
 	case settingsXdebug:
 		verb := "on"
 		if row.on {
 			verb = "off"
 		}
 		m.setStatus("xdebug "+verb+" PHP "+row.phpVersion+"…", 5*time.Second)
-		return runLerd("", "xdebug", verb, row.phpVersion)
+		return runServlo("", "xdebug", verb, row.phpVersion)
 	case settingsWorkerMode:
 		// Toggle between exec (off) and container (on). Mirrors
-		// `lerd workers mode <value>`. Does not stop running workers —
+		// `servlo workers mode <value>`. Does not stop running workers —
 		// caller should restart them for the change to take effect.
 		target := config.WorkerExecModeContainer
 		if row.on {
 			target = config.WorkerExecModeExec
 		}
 		m.setStatus("switching worker mode to "+target+"…", 5*time.Second)
-		return runLerd("", "workers", "mode", target)
+		return runServlo("", "workers", "mode", target)
 	}
 	return nil
 }

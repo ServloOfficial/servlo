@@ -1,23 +1,23 @@
 # Symfony walkthrough
 
-End-to-end: from `lerd install` to a Symfony app running on `https://myapp.test` with Doctrine, MySQL, and a Messenger worker.
+End-to-end: from `servlo install` to a Symfony app running on `https://myapp.test` with Doctrine, MySQL, and a Messenger worker.
 
 ::: info Prerequisites
-You've already run `lerd install` once on this machine. If not, see [Installation](installation.md).
+You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
 :::
 
 ::: tip Drive it from your AI assistant
-Run `lerd mcp:enable-global` once and your AI assistant (Claude Code, Cursor, Junie, Codex, Gemini, Copilot, Antigravity, Windsurf) can call every command below through the grouped MCP tools: `framework` `action: "project_new"`, `site` `action: "link"`, `env` `action: "setup"`, `framework` `action: "setup"`, `db` `action: "create"`, `site` `action: "tls_enable"`, `worker`, etc. See [AI Integration](../features/mcp.md).
+Run `servlo mcp:enable-global` once and your AI assistant (Claude Code, Cursor, Junie, Codex, Gemini, Copilot, Antigravity, Windsurf) can call every command below through the grouped MCP tools: `framework` `action: "project_new"`, `site` `action: "link"`, `env` `action: "setup"`, `framework` `action: "setup"`, `db` `action: "create"`, `site` `action: "tls_enable"`, `worker`, etc. See AI Integration.
 :::
 
 ---
 
 ## 1. Register the Symfony framework definition (one-time)
 
-Lerd's built-in framework is Laravel. Other frameworks are user-defined YAML files dropped into `~/.config/lerd/frameworks/`. Save this as `~/.config/lerd/frameworks/symfony.yaml`:
+Servlo's built-in framework is Laravel. Other frameworks are user-defined YAML files dropped into `~/.config/servlo/frameworks/`. Save this as `~/.config/servlo/frameworks/symfony.yaml`:
 
 ```yaml
-# ~/.config/lerd/frameworks/symfony.yaml
+# ~/.config/servlo/frameworks/symfony.yaml
 name: symfony
 label: Symfony
 detect:
@@ -39,7 +39,7 @@ env:
         - key: DATABASE_URL
           value_prefix: "mariadb://"
       vars:
-        - "DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/{{site}}?serverVersion={{mysql_version}}"
+        - "DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/{{site}}?serverVersion={{mysql_version}}"
     postgres:
       detect:
         - key: DATABASE_URL
@@ -47,18 +47,18 @@ env:
         - key: DATABASE_URL
           value_prefix: "postgres://"
       vars:
-        - "DATABASE_URL=postgresql://postgres:lerd@lerd-postgres:5432/{{site}}?serverVersion={{postgres_version}}"
+        - "DATABASE_URL=postgresql://postgres:servlo@servlo-postgres:5432/{{site}}?serverVersion={{postgres_version}}"
     redis:
       detect:
         - key: REDIS_URL
         - key: REDIS_DSN
       vars:
-        - "REDIS_URL=redis://lerd-redis:6379"
+        - "REDIS_URL=redis://servlo-redis:6379"
     mailpit:
       detect:
         - key: MAILER_DSN
       vars:
-        - "MAILER_DSN=smtp://lerd-mailpit:1025"
+        - "MAILER_DSN=smtp://servlo-mailpit:1025"
 composer: auto
 npm: auto
 workers:
@@ -83,10 +83,10 @@ setup:
     default: true
 ```
 
-Then register it with lerd:
+Then register it with servlo:
 
 ```bash
-lerd framework add symfony --from-file ~/.config/lerd/frameworks/symfony.yaml
+servlo framework add symfony --from-file ~/.config/servlo/frameworks/symfony.yaml
 ```
 
 You only do this once per machine. From now on, every Symfony project is auto-detected via `symfony.lock` or `symfony/framework-bundle`.
@@ -99,19 +99,19 @@ See [Frameworks & Workers](../usage/frameworks.md) for the full schema reference
 
 ::: code-group
 
-```bash [lerd new]
-cd ~/Lerd
-lerd new myapp --framework=symfony
+```bash [servlo new]
+cd ~/Servlo
+servlo new myapp --framework=symfony
 # runs: composer create-project symfony/skeleton ./myapp
 ```
 
 ```bash [composer]
-cd ~/Lerd
+cd ~/Servlo
 composer create-project symfony/skeleton myapp
 ```
 
 ```bash [existing repo]
-cd ~/Lerd
+cd ~/Servlo
 git clone git@github.com:you/myapp.git
 ```
 
@@ -123,17 +123,17 @@ git clone git@github.com:you/myapp.git
 
 ```bash
 cd myapp
-lerd link
+servlo link
 ```
 
-`lerd link` detects Symfony (via `symfony.lock` or the composer package), assigns `http://myapp.test`, and sets the document root to `public/`.
+`servlo link` detects Symfony (via `symfony.lock` or the composer package), assigns `http://myapp.test`, and sets the document root to `public/`.
 
 ---
 
 ## 4. Configure PHP, Node, database, services
 
 ```bash
-lerd init
+servlo init
 ```
 
 ```
@@ -143,7 +143,7 @@ lerd init
 ? Database: mysql
 ? Services: [mailpit]
 ? Workers to auto-start: [messenger]
-Saved .lerd.yaml
+Saved .servlo.yaml
 ```
 
 The wizard discovers `messenger` as an available worker because the framework YAML declares it (and the `check: composer: symfony/messenger` rule matches your project).
@@ -153,37 +153,37 @@ The wizard discovers `messenger` as an available worker because the framework YA
 ## 5. Bootstrap the project
 
 ```bash
-lerd setup
+servlo setup
 ```
 
 ```
 ? Select setup steps to run:
   ◉ composer install
   ◉ npm ci                       # only if package.json exists
-  ◉ lerd env                     # injects DATABASE_URL, MAILER_DSN, DEFAULT_URI
+  ◉ servlo env                     # injects DATABASE_URL, MAILER_DSN, DEFAULT_URI
   ◉ Run migrations               # from framework setup block
   ◉ Clear cache                  # from framework setup block
   ◯ Load fixtures
-  ◉ lerd secure                  # mkcert TLS for myapp.test
+  ◉ servlo secure                  # mkcert TLS for myapp.test
   ◉ messenger:start
-  ◉ lerd open
+  ◉ servlo open
 ```
 
-The "Run migrations", "Clear cache", and "Load fixtures" steps come from the `setup:` block in your `symfony.yaml`. Lerd surfaces them automatically and respects the `check:` rules; fixtures only appears if `doctrine/doctrine-fixtures-bundle` is installed.
+The "Run migrations", "Clear cache", and "Load fixtures" steps come from the `setup:` block in your `symfony.yaml`. Servlo surfaces them automatically and respects the `check:` rules; fixtures only appears if `doctrine/doctrine-fixtures-bundle` is installed.
 
-When it finishes, `https://myapp.test` opens in your browser and `lerd-messenger-myapp` is running as a systemd user service.
+When it finishes, `https://myapp.test` opens in your browser and `servlo-messenger-myapp` is running as a systemd user service.
 
 ---
 
 ## 6. Verify
 
 ```bash
-lerd status
+servlo status
 ```
 
 ```bash
 # Tail messenger logs
-journalctl --user -u lerd-messenger-myapp -f
+journalctl --user -u servlo-messenger-myapp -f
 ```
 
 App logs (anything in `var/log/*.log`) show up in the [Web UI](../features/web-ui.md) **App Logs** tab; add a `logs:` block to `symfony.yaml` to customise paths or parsing.
@@ -194,13 +194,13 @@ App logs (anything in `var/log/*.log`) show up in the [Web UI](../features/web-u
 
 | Command | What it did |
 |---|---|
-| `lerd framework add symfony` | Registered the YAML so Symfony projects are auto-detected |
-| `lerd link` | Assigned `myapp.test`, set document root to `public/` |
-| `lerd init` | Wrote `.lerd.yaml` with PHP, Node, MySQL, Mailpit, messenger |
-| `lerd env` (via setup) | Wrote `DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/myapp?serverVersion=8.0` and `MAILER_DSN=smtp://lerd-mailpit:1025` into `.env.local`, seeded from the committed `.env` |
-| `lerd secure` (via setup) | Issued mkcert cert, set `DEFAULT_URI=https://myapp.test` |
+| `servlo framework add symfony` | Registered the YAML so Symfony projects are auto-detected |
+| `servlo link` | Assigned `myapp.test`, set document root to `public/` |
+| `servlo init` | Wrote `.servlo.yaml` with PHP, Node, MySQL, Mailpit, messenger |
+| `servlo env` (via setup) | Wrote `DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/myapp?serverVersion=8.0` and `MAILER_DSN=smtp://servlo-mailpit:1025` into `.env.local`, seeded from the committed `.env` |
+| `servlo secure` (via setup) | Issued mkcert cert, set `DEFAULT_URI=https://myapp.test` |
 | Doctrine migrations + cache:clear | Ran via the framework's `setup:` block |
-| `lerd worker start messenger` (via setup) | Launched `lerd-messenger-myapp` |
+| `servlo worker start messenger` (via setup) | Launched `servlo-messenger-myapp` |
 
 ---
 
@@ -209,19 +209,19 @@ App logs (anything in `var/log/*.log`) show up in the [Web UI](../features/web-u
 By default your site runs on the shared PHP-FPM stack. To run it on a per-site FrankenPHP container instead (useful for testing under the long-running worker model Symfony Runtime provides):
 
 ```bash
-lerd runtime frankenphp            # classic mode
-lerd runtime frankenphp --worker   # Symfony Runtime, keeps the kernel in memory
-lerd runtime fpm                   # back to shared PHP-FPM
+servlo runtime frankenphp            # classic mode
+servlo runtime frankenphp --worker   # Symfony Runtime, keeps the kernel in memory
+servlo runtime fpm                   # back to shared PHP-FPM
 ```
 
-Worker mode needs `composer require runtime/frankenphp-symfony`. Lerd starts the FrankenPHP container with `--watch` so edits to controllers and config reload within a second or two without restarting the worker manually. See the [FrankenPHP runtime](../features/frankenphp.md) page for limitations.
+Worker mode needs `composer require runtime/frankenphp-symfony`. Servlo starts the FrankenPHP container with `--watch` so edits to controllers and config reload within a second or two without restarting the worker manually. See the [FrankenPHP runtime](../features/frankenphp.md) page for limitations.
 
 ---
 
 ## Next steps
 
 - [Frameworks & Workers](../usage/frameworks.md): add custom workers, customise log paths, define more setup steps
-- [Database](../usage/database.md): `lerd db:import`, `lerd db:shell`, switching to Postgres
+- [Database](../usage/database.md): `servlo db:import`, `servlo db:shell`, switching to Postgres
 - [Services](../usage/services.md): start Meilisearch, RustFS (S3), custom services
-- [HTTPS](../features/https.md): how `lerd secure` works under the hood
-- [AI Integration (MCP)](../features/mcp.md): drive lerd from Claude Code, Cursor, Junie, etc.
+- [HTTPS](../features/https.md): how `servlo secure` works under the hood
+- AI Integration (MCP): drive servlo from Claude Code, Cursor, Junie, etc.

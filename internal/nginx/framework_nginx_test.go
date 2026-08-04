@@ -6,7 +6,7 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func renderVhostForTest(t *testing.T, name string, data VhostData) string {
@@ -37,17 +37,17 @@ func TestIndentBlock(t *testing.T) {
 func TestExpandNginxSnippet(t *testing.T) {
 	got, err := expandNginxSnippet(
 		"root {{root}};\nalias {{public}};\nfastcgi_pass {{fpm}}:9000;",
-		"/home/u/shop", "pub", "lerd-php84-fpm",
+		"/home/u/shop", "pub", "servlo-php84-fpm",
 	)
 	if err != nil {
 		t.Fatalf("expand: %v", err)
 	}
 	for _, want := range []string{
-		`set $lerd_root "/home/u/shop";`,
-		`set $lerd_public "/home/u/shop/pub";`,
-		"root ${lerd_root};",
-		"alias ${lerd_public};",
-		"fastcgi_pass lerd-php84-fpm:9000;",
+		`set $servlo_root "/home/u/shop";`,
+		`set $servlo_public "/home/u/shop/pub";`,
+		"root ${servlo_root};",
+		"alias ${servlo_public};",
+		"fastcgi_pass servlo-php84-fpm:9000;",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
@@ -76,7 +76,7 @@ func TestExpandNginxSnippetDotPublicDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expand: %v", err)
 	}
-	if want := "set $lerd_public \"/home/u/wp\";"; !strings.Contains(got, want) {
+	if want := "set $servlo_public \"/home/u/wp\";"; !strings.Contains(got, want) {
 		t.Fatalf("got %q, want %q in it", got, want)
 	}
 }
@@ -140,7 +140,7 @@ func TestFrameworkNginxBlockWarnsOnDrop(t *testing.T) {
 	}
 }
 
-// A dropped-snippet warning reaches the user once per process, so `lerd link`
+// A dropped-snippet warning reaches the user once per process, so `servlo link`
 // shows the reason while the watcher does not repeat it on every regeneration.
 func TestEmitOnceDedupes(t *testing.T) {
 	var buf bytes.Buffer
@@ -167,7 +167,7 @@ func TestVhostRendersFrameworkNginxBeforeGenericLocations(t *testing.T) {
 		ServerNames:    "shop.test",
 		Path:           "/home/u/shop",
 		PublicDir:      "pub",
-		FPMContainer:   "lerd-php84-fpm",
+		FPMContainer:   "servlo-php84-fpm",
 		RequestTimeout: 60,
 		FrameworkNginx: "    location ~* ^/setup($|/) {\n        root /home/u/shop;\n    }",
 	}

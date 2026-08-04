@@ -3,16 +3,16 @@
 package cli
 
 import (
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
 // healOverlayCorruptionIfNeeded recovers from the overlay-storage error (see
 // isOverlayStorageError) on the service start pass, then asks the caller to
 // retry once. Two things are corrupt after an unclean shutdown: the VM's
-// overlay base mount, and the lerd-* container layers built on it. A machine
+// overlay base mount, and the servlo-* container layers built on it. A machine
 // restart remounts the base; force-removing the stale containers makes the
 // retry's `podman run` allocate fresh container storage, the path a manual
-// `podman run` takes when it succeeds where a remount alone doesn't. lerd's
+// `podman run` takes when it succeeds where a remount alone doesn't. servlo's
 // persistent data is host bind-mounted, so both steps are non-destructive.
 // Returns true when recovery ran and the caller should retry the start pass.
 func healOverlayCorruptionIfNeeded(err error) bool {
@@ -20,12 +20,12 @@ func healOverlayCorruptionIfNeeded(err error) bool {
 		return false
 	}
 	restartPodmanMachineForHeal()
-	forceRemoveLerdContainers(true,
-		"Clearing stale lerd containers so they rebuild on fresh storage…")
+	forceRemoveServloContainers(true,
+		"Clearing stale servlo containers so they rebuild on fresh storage…")
 	return true
 }
 
-// restartPodmanMachineForHeal stops and restarts lerd's Podman Machine so its
+// restartPodmanMachineForHeal stops and restarts servlo's Podman Machine so its
 // container storage is remounted, then refreshes the restart baseline so the
 // next run doesn't mistake this restart for an external one.
 func restartPodmanMachineForHeal() {
@@ -55,6 +55,6 @@ func reportOverlayHealOutcome(err error) bool {
 	feedback.Note("This happens when the host shuts down while the VM is running.")
 	feedback.Note("Your databases and site data are safe; they live on the host, not in the VM.")
 	feedback.Note("Recreate the VM to fix it (images are rebuilt automatically on the next start):")
-	feedback.Note("    lerd machine reset")
+	feedback.Note("    servlo machine reset")
 	return true
 }

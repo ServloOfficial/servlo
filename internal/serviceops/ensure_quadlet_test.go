@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 func TestEnsureCustomServiceQuadlet_reloadsOnlyWhenContentChanges(t *testing.T) {
@@ -115,7 +115,7 @@ func TestEnsureCustomServiceQuadlet_shiftsBusySecondaryPort(t *testing.T) {
 // directory at a missing Volume source, so the quadlet write must not be the
 // first thing that touches that path. WriteFPMQuadlet already guarantees this
 // through ensureFPMHostsFile; the custom-service path needs the same guarantee
-// because `lerd service install` never goes near WriteContainerHosts.
+// because `servlo service install` never goes near WriteContainerHosts.
 func TestEnsureCustomServiceQuadlet_materialisesHostsMountSource(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
@@ -230,7 +230,7 @@ func TestEnsureCustomServiceQuadlet_portShiftNoticeAvoidsStdout(t *testing.T) {
 	podman.DaemonReloadFn = func() error { return nil }
 
 	// The guard leaves the port alone while the service's own unit is up, so pin
-	// the unit down: otherwise a developer running lerd-mongo-express fails here.
+	// the unit down: otherwise a developer running servlo-mongo-express fails here.
 	origStatus := ensureUnitStatus
 	t.Cleanup(func() { ensureUnitStatus = origStatus })
 	ensureUnitStatus = func(string) (string, error) { return "inactive", nil }

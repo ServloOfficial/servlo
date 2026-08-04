@@ -28,12 +28,12 @@
     <button
       type="button"
       onclick={onclose}
-      class="text-xs px-3 py-1.5 rounded-sm border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+      class="text-xs px-3 py-1.5 rounded-sm border border-gray-200 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
     >{m.common_cancel()}</button>
     <button
       type="button"
       onclick={confirm}
-      class="text-xs px-3 py-1.5 rounded-sm bg-lerd-red hover:bg-lerd-redhov text-white transition-colors"
+      class="text-xs px-3 py-1.5 rounded-sm bg-servlo-red hover:bg-servlo-redhov text-white transition-colors"
     >{m.worktreeDb_dropAction()}</button>
   {/snippet}
 </Modal>

@@ -4,11 +4,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // The CLI SAPI never reads a project's .user.ini, so a framework whose commands
-// exhaust PHP's 128M default declares php.cli_ini, and lerd passes it as -d on
+// exhaust PHP's 128M default declares php.cli_ini, and servlo passes it as -d on
 // every PHP process it starts for that project.
 
 // phpIniArgsFor renders the framework's cli_ini as `-d name=value` pairs, sorted

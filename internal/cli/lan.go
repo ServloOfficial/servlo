@@ -5,26 +5,26 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
-// NewLANCmd returns the `lerd lan` parent command. Site exposure and managed
+// NewLANCmd returns the `servlo lan` parent command. Site exposure and managed
 // service exposure are separate persisted settings: sites follow
 // cfg.LAN.Exposed, while databases, caches, and other managed services require
 // both cfg.LAN.Exposed and cfg.LAN.ServicesExposed.
 func NewLANCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lan",
-		Short: "Expose lerd to other devices on the local network",
-		Long: `Control whether lerd sites and managed services are reachable from
+		Short: "Expose servlo to other devices on the local network",
+		Long: `Control whether servlo sites and managed services are reachable from
 other devices on the local network.
 
 By default every container PublishPort and the dashboard bind to loopback.
-Run 'lerd lan:expose' to expose sites, DNS, and the dashboard listener on a
+Run 'servlo lan:expose' to expose sites, DNS, and the dashboard listener on a
 trusted LAN. Managed databases, caches, and other services remain loopback-only
-unless you explicitly run 'lerd lan:services on'.`,
+unless you explicitly run 'servlo lan:services on'.`,
 	}
 	cmd.AddCommand(newLANExposeCmd())
 	cmd.AddCommand(newLANUnexposeCmd())
@@ -35,7 +35,7 @@ unless you explicitly run 'lerd lan:services on'.`,
 	return cmd
 }
 
-// NewLANExposeCmd returns the `lerd lan:expose` colon-style alias.
+// NewLANExposeCmd returns the `servlo lan:expose` colon-style alias.
 func NewLANExposeCmd() *cobra.Command {
 	cmd := newLANExposeCmd()
 	cmd.Use = "lan:expose"
@@ -43,7 +43,7 @@ func NewLANExposeCmd() *cobra.Command {
 	return cmd
 }
 
-// NewLANUnexposeCmd returns the `lerd lan:unexpose` colon-style alias.
+// NewLANUnexposeCmd returns the `servlo lan:unexpose` colon-style alias.
 func NewLANUnexposeCmd() *cobra.Command {
 	cmd := newLANUnexposeCmd()
 	cmd.Use = "lan:unexpose"
@@ -51,7 +51,7 @@ func NewLANUnexposeCmd() *cobra.Command {
 	return cmd
 }
 
-// NewLANStatusCmd returns the `lerd lan:status` colon-style alias.
+// NewLANStatusCmd returns the `servlo lan:status` colon-style alias.
 func NewLANStatusCmd() *cobra.Command {
 	cmd := newLANStatusCmd()
 	cmd.Use = "lan:status"
@@ -59,21 +59,21 @@ func NewLANStatusCmd() *cobra.Command {
 	return cmd
 }
 
-// NewLANShareCmd returns the `lerd lan:share` colon-style alias.
+// NewLANShareCmd returns the `servlo lan:share` colon-style alias.
 func NewLANShareCmd() *cobra.Command {
 	cmd := newLANShareCmd()
 	cmd.Use = "lan:share"
 	return cmd
 }
 
-// NewLANUnshareCmd returns the `lerd lan:unshare` colon-style alias.
+// NewLANUnshareCmd returns the `servlo lan:unshare` colon-style alias.
 func NewLANUnshareCmd() *cobra.Command {
 	cmd := newLANUnshareCmd()
 	cmd.Use = "lan:unshare"
 	return cmd
 }
 
-// NewLANServicesCmd returns the `lerd lan:services` colon-style command.
+// NewLANServicesCmd returns the `servlo lan:services` colon-style command.
 func NewLANServicesCmd() *cobra.Command {
 	cmd := newLANServicesCmd()
 	cmd.Use = "lan:services [on|off|status]"
@@ -83,22 +83,22 @@ func NewLANServicesCmd() *cobra.Command {
 func newLANExposeCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "expose",
-		Short: "Make lerd reachable from other devices on the local network",
-		Long: `Exposes lerd sites on a trusted local network:
+		Short: "Make servlo reachable from other devices on the local network",
+		Long: `Exposes servlo sites on a trusted local network:
 
-  - Rewrites lerd-nginx so ports 80 and 443 bind to the LAN.
+  - Rewrites servlo-nginx so ports 80 and 443 bind to the LAN.
   - Restarts nginx when its bind changes.
   - Rewrites dnsmasq to answer *.test with the host's LAN IP.
   - Starts the userspace DNS forwarder where the platform requires it.
 
 Managed databases, caches, and other services stay loopback-only by default.
-Run 'lerd lan:services on' once to include them. That preference persists and
+Run 'servlo lan:services on' once to include them. That preference persists and
 applies automatically as services start, stop, or change ports.
 
 The dashboard at port 7073 is gated by remote-control middleware. LAN clients
-get 403 unless 'lerd remote-control on' has configured HTTP Basic auth.
+get 403 unless 'servlo remote-control on' has configured HTTP Basic auth.
 
-The state persists in ~/.config/lerd/config.yaml. Re-running this command heals
+The state persists in ~/.config/servlo/config.yaml. Re-running this command heals
 drift between the config and installed runtime units.
 
 Only use LAN exposure on a trusted network. Configure the host firewall for the
@@ -118,7 +118,7 @@ ports and devices that require access.`,
 				cfg, _ = config.LoadGlobal()
 			}
 			feedback.Begin()
-			expose := feedback.Start("exposing lerd on the LAN")
+			expose := feedback.Start("exposing servlo on the LAN")
 			lanIP, err := EnableLANExposure(func(step string) {
 				feedback.Note(step)
 			})
@@ -130,22 +130,22 @@ ports and devices that require access.`,
 			if dnsOn {
 				feedback.Note("sites: http://*.test (resolved via dnsmasq on " + lanIP + ":5300)")
 			} else {
-				feedback.Note("sites: only reachable via per-site `lerd lan:share` (no dnsmasq, *.localhost cannot resolve to a remote host)")
+				feedback.Note("sites: only reachable via per-site `servlo lan:share` (no dnsmasq, *.localhost cannot resolve to a remote host)")
 			}
 			if cfg != nil && cfg.UI.PasswordHash != "" {
 				feedback.Note(fmt.Sprintf("dashboard: http://%s:7073 (HTTP Basic auth required)", lanIP))
 			} else {
-				feedback.Note(fmt.Sprintf("dashboard: http://%s:7073 (LAN clients get 403 — run `lerd remote-control on` to grant LAN access)", lanIP))
+				feedback.Note(fmt.Sprintf("dashboard: http://%s:7073 (LAN clients get 403 — run `servlo remote-control on` to grant LAN access)", lanIP))
 			}
 			if cfg != nil && cfg.LAN.ServicesExposed {
 				feedback.Note("managed services: exposed on their configured host ports")
 			} else {
-				feedback.Note("managed services: loopback-only (run `lerd lan:services on` to expose them)")
+				feedback.Note("managed services: loopback-only (run `servlo lan:services on` to expose them)")
 			}
 			if dnsOn {
-				feedback.Note("allow ports 80, 443, 5300, 7073 through your firewall; `lerd remote-setup` generates a one-time bootstrap code")
+				feedback.Note("allow ports 80, 443, 5300, 7073 through your firewall; `servlo remote-setup` generates a one-time bootstrap code")
 			} else {
-				feedback.Note("allow ports 80, 443, 7073 plus any `lerd lan:share` ports through your firewall")
+				feedback.Note("allow ports 80, 443, 7073 plus any `servlo lan:share` ports through your firewall")
 			}
 			return nil
 		},
@@ -155,10 +155,10 @@ ports and devices that require access.`,
 func newLANUnexposeCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "unexpose",
-		Short: "Restrict lerd to loopback only — safe for untrusted wifi",
+		Short: "Restrict servlo to loopback only — safe for untrusted wifi",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			feedback.Begin()
-			restrict := feedback.Start("restricting lerd to loopback")
+			restrict := feedback.Start("restricting servlo to loopback")
 			if err := DisableLANExposure(func(step string) {
 				feedback.Note(step)
 			}); err != nil {
@@ -186,7 +186,7 @@ absolute URLs in HTML/CSS/JS responses so asset and redirect URLs point to
 the LAN address instead of the .test domain.
 
 The assigned port is stored in sites.yaml and reused across restarts.
-Run 'lerd lan:unshare' to stop sharing and release the port.`,
+Run 'servlo lan:unshare' to stop sharing and release the port.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			// A worktree resolves to its parent plus the branch, so running this
 			// inside one shares that branch's own domain rather than assigning a
@@ -223,7 +223,7 @@ Run 'lerd lan:unshare' to stop sharing and release the port.`,
 			fmt.Println()
 			PrintLANShareQR(shareURL)
 			fmt.Println()
-			feedback.Note("run `lerd lan:unshare` to stop")
+			feedback.Note("run `servlo lan:unshare` to stop")
 			return nil
 		},
 	}
@@ -262,7 +262,7 @@ func newLANUnshareCmd() *cobra.Command {
 	}
 }
 
-// notifyDaemon posts an action to the running lerd-ui daemon API. It is a
+// notifyDaemon posts an action to the running servlo-panel daemon API. It is a
 // best-effort call; callers should handle errors gracefully.
 func notifyDaemon(domain, action string) error {
 	url := fmt.Sprintf("http://127.0.0.1:7073/api/sites/%s/%s", domain, action)
@@ -272,7 +272,7 @@ func notifyDaemon(domain, action string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	// Clear the daemon's cross-origin gate for this trusted local POST.
-	req.Header.Set("X-Lerd-CSRF", "1")
+	req.Header.Set("X-Servlo-CSRF", "1")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -299,7 +299,7 @@ func newLANServicesCmd() *cobra.Command {
 				case cfg.LAN.ServicesExposed && cfg.LAN.Exposed:
 					feedback.Done("managed service LAN access is active")
 				case cfg.LAN.ServicesExposed:
-					feedback.Line("managed service LAN access is enabled but inactive until `lerd lan:expose`")
+					feedback.Line("managed service LAN access is enabled but inactive until `servlo lan:expose`")
 				default:
 					feedback.Line("managed service LAN access is off; services are loopback-only")
 				}
@@ -307,12 +307,12 @@ func newLANServicesCmd() *cobra.Command {
 			}
 
 			enabled := args[0] == "on"
-			// Turning it on while lerd is loopback-only would persist a
+			// Turning it on while servlo is loopback-only would persist a
 			// setting that publishes nothing, so refuse rather than store an
 			// inert preference. Turning it off always works, so a setting
 			// armed before an unexpose can still be cleared.
 			if enabled && !cfg.LAN.Exposed {
-				return fmt.Errorf("LAN exposure is off — run `lerd lan:expose` first. Managed services can only reach the LAN while lerd itself does")
+				return fmt.Errorf("LAN exposure is off — run `servlo lan:expose` first. Managed services can only reach the LAN while servlo itself does")
 			}
 			feedback.Begin()
 			update := feedback.Start("updating managed service LAN access")
@@ -334,7 +334,7 @@ func newLANServicesCmd() *cobra.Command {
 func newLANStatusCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
-		Short: "Show whether lerd is currently exposed to the local network",
+		Short: "Show whether servlo is currently exposed to the local network",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			cfg, err := config.LoadGlobal()
 			if err != nil {

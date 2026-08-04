@@ -5,20 +5,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
 // NewWorkspaceCmd returns the workspace command. Workspaces group sites for
-// display only, in the dashboard and the TUI. They are unrelated to `lerd
+// display only, in the dashboard and the TUI. They are unrelated to `servlo
 // group`, which binds a main site's subdomains and rewrites vhosts and certs.
 func NewWorkspaceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "workspace",
 		Short: "Group sites into workspaces for the dashboard and the TUI",
 		Long: "Workspaces are a personal, display-only way to organise sites. " +
-			"They never change how a site is served; for subdomain grouping see `lerd group`.",
+			"They never change how a site is served; for subdomain grouping see `servlo group`.",
 	}
 	cmd.AddCommand(newWorkspaceAddCmd())
 	cmd.AddCommand(newWorkspaceRenameCmd())

@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // inProcessLocks layers a per-path mutex above flock because flock is

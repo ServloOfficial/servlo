@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func serviceTestServer(t *testing.T) *httptest.Server {
@@ -89,14 +89,14 @@ func TestFetchServicePreset_RejectsInvalid(t *testing.T) {
 	}
 }
 
-// Full production path: the LERD_SERVICES_BASE_URL override flows through
+// Full production path: the SERVLO_SERVICES_BASE_URL override flows through
 // origin into NewServiceClient, which fetches, validates, saves to the cache
 // dir, and the config seam then serves the preset by name.
 func TestNewServiceClient_HonorsEnvOverrideEndToEnd(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	srv := serviceTestServer(t)
 	defer srv.Close()
-	t.Setenv("LERD_SERVICES_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_SERVICES_BASE_URL", srv.URL)
 
 	if _, err := NewServiceClient().FetchServicePreset("demo"); err != nil {
 		t.Fatalf("FetchServicePreset via env override: %v", err)

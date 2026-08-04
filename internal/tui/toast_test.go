@@ -72,7 +72,7 @@ func TestDismissNewestToast_PopsLast(t *testing.T) {
 
 func TestEnqueueToastForResult_MapsToKind(t *testing.T) {
 	m := NewModel("test")
-	m.enqueueToastForResult(ActionResult{Summary: "lerd status"})
+	m.enqueueToastForResult(ActionResult{Summary: "servlo status"})
 	if m.toasts[0].kind != toastSuccess {
 		t.Errorf("success result should produce success toast, got kind=%d", m.toasts[0].kind)
 	}

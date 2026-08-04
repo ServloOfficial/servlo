@@ -198,7 +198,7 @@
 
 <section class="flex flex-col flex-1 min-w-0 min-h-64">
   <div
-    class="flex items-baseline gap-2 px-3 sm:px-5 py-2 border-b border-gray-100 dark:border-lerd-border shrink-0"
+    class="flex items-baseline gap-2 px-3 sm:px-5 py-2 border-b border-gray-100 dark:border-servlo-border shrink-0"
   >
     <span class="text-[11px] uppercase tracking-wide font-semibold text-gray-500 dark:text-gray-400"
       >{title}</span

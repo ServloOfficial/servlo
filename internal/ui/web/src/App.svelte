@@ -65,7 +65,7 @@
   });
 
   // On mobile, show the detail pane once an item is selected (routeRest non-empty).
-  // System tab always has a default selection (lerd) so we only show detail there
+  // System tab always has a default selection (servlo) so we only show detail there
   // if the user explicitly picked something, to avoid jumping past the list.
   const showMobileDetail = $derived(Boolean($routeRest));
   const onApps = $derived($mobileView === 'apps');

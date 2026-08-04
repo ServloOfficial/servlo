@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/serviceops"
 )
 
 // Bundled admin dashboards (rabbitmq, redisinsight) set session/consent cookies
@@ -76,7 +76,7 @@ func dashProxyFor(name string, target *url.URL, bootstrap string) *httputil.Reve
 // newDashProxy builds the reverse proxy that serves one bundled dashboard
 // same-origin under /_svc/<name>/. The request path is forwarded unchanged
 // because the upstream is mounted at the same prefix; the response is rewritten
-// so it can be embedded in the lerd-ui iframe (strip framing headers, scope
+// so it can be embedded in the servlo-panel iframe (strip framing headers, scope
 // cookies and redirects to the mount path).
 func newDashProxy(name string, target *url.URL, bootstrap string) *httputil.ReverseProxy {
 	prefix := strings.TrimSuffix(dashProxyPath(name), "/")
@@ -86,11 +86,11 @@ func newDashProxy(name string, target *url.URL, bootstrap string) *httputil.Reve
 		orig(req)
 		req.Host = target.Host
 		// Preserve the scheme the browser actually used (nginx forwards it, and
-		// lerd.localhost is served over https) so an upstream that builds absolute
+		// servlo.localhost is served over https) so an upstream that builds absolute
 		// URLs from X-Forwarded-Proto doesn't downgrade them to http. Default to
 		// http only when nothing upstream told us otherwise.
 		if proto := req.Header.Get("X-Forwarded-Proto"); proto != "http" && proto != "https" {
-			// nginx (lerd.localhost) sets this from $scheme, overwriting any client
+			// nginx (servlo.localhost) sets this from $scheme, overwriting any client
 			// value; only an unexpected/injected value or a direct-to-socket client
 			// reaches here, so recompute it from the connection rather than forward
 			// whatever the client supplied.
@@ -107,7 +107,7 @@ func newDashProxy(name string, target *url.URL, bootstrap string) *httputil.Reve
 		}
 	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		// These admin UIs (or an upstream proxy) may forbid framing; lerd-ui
+		// These admin UIs (or an upstream proxy) may forbid framing; servlo-panel
 		// embeds them in an iframe, so drop the framing guards. Same intent as
 		// pgadmin's X_FRAME_OPTIONS='' config mount, applied here upstream-agnostic.
 		resp.Header.Del("X-Frame-Options")
@@ -165,7 +165,7 @@ func stripFrameAncestors(csp string) string {
 }
 
 // rewriteSetCookiePaths scopes root-path cookies to the proxy mount so cookies
-// from different proxied dashboards don't collide on the shared lerd-ui origin.
+// from different proxied dashboards don't collide on the shared servlo-panel origin.
 // Cookies the upstream already scoped to a sub-path are left untouched.
 func rewriteSetCookiePaths(h http.Header, mountPath string) {
 	cookies := h["Set-Cookie"]
@@ -192,7 +192,7 @@ func rewriteCookiePath(cookie, mountPath string) string {
 }
 
 // rewriteLocation ensures a redirect issued by the upstream lands back inside
-// the /_svc/<name> mount instead of escaping to the lerd-ui root or the
+// the /_svc/<name> mount instead of escaping to the servlo-panel root or the
 // upstream's own host.
 func rewriteLocation(loc, targetHost, prefix string) string {
 	if u, err := url.Parse(loc); err == nil && u.Host != "" {
@@ -266,7 +266,7 @@ func handleDashProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The global CSRF gate trusts the unix socket unconditionally, but every
-	// /_svc/ request arrives over it (the lerd.localhost vhost proxies to the
+	// /_svc/ request arrives over it (the servlo.localhost vhost proxies to the
 	// socket), so that trust alone would forward a cross-origin request straight
 	// into the third-party admin API (RabbitMQ management, RedisInsight) with the
 	// dashboard's first-party cookies attached. Re-apply the cross-origin check

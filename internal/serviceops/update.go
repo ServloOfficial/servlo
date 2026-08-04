@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/cleanup"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/registry"
+	"github.com/realrashid/servlo/internal/cleanup"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/registry"
 )
 
 // UpdateAvailability is the metadata returned by CheckUpdateAvailable so the
@@ -138,7 +138,7 @@ func alreadyOnDigest(name, configuredImage, candidate string) bool {
 			return true
 		}
 	}
-	if installed := podman.InstalledImage("lerd-" + name); installed != "" && installed != configuredImage {
+	if installed := podman.InstalledImage("servlo-" + name); installed != "" && installed != configuredImage {
 		for _, local := range podman.LocalImageDigest(installed) {
 			if check(local) {
 				return true
@@ -188,7 +188,7 @@ func UpdateServiceStreaming(name, targetImage string, emit func(PhaseEvent)) err
 		return err
 	}
 
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	emit(PhaseEvent{Phase: "restarting_unit", Unit: unit})
 	if err := restartWithRetry(unit); err != nil {
 		return err
@@ -201,7 +201,7 @@ func UpdateServiceStreaming(name, targetImage string, emit func(PhaseEvent)) err
 	return nil
 }
 
-// serviceImageRefs returns the image refs lerd records for a service: its
+// serviceImageRefs returns the image refs servlo records for a service: its
 // current image and the one-back rollback target. For a default preset the
 // current image lives in the installed quadlet (config may leave it empty), so
 // that is preferred; for a custom service both come from its config.
@@ -211,7 +211,7 @@ func serviceImageRefs(name string) (current, previous string) {
 			s := cfg.Services[name]
 			current, previous = s.Image, s.PreviousImage
 		}
-		if img := podman.InstalledImage("lerd-" + name); img != "" {
+		if img := podman.InstalledImage("servlo-" + name); img != "" {
 			current = img
 		}
 		return current, previous
@@ -302,7 +302,7 @@ func resolveServiceForUpdate(name string) (*config.CustomService, registry.Strat
 		}
 		// Prefer the installed image — track_latest can drift the resolved
 		// canonical ahead of what's actually on disk.
-		if installed := podman.InstalledImage("lerd-" + name); installed != "" {
+		if installed := podman.InstalledImage("servlo-" + name); installed != "" {
 			svc.Image = installed
 		}
 		if cfg, lErr := config.LoadGlobal(); lErr == nil {
@@ -463,7 +463,7 @@ func RollbackService(name string, emit func(PhaseEvent)) error {
 	if err := swapImagePin(name, prev, current); err != nil {
 		return err
 	}
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	emit(PhaseEvent{Phase: "restarting_unit", Unit: unit})
 	if err := restartWithRetry(unit); err != nil {
 		return err

@@ -2,7 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import { presets, type Preset } from './presets';
 import type { Service } from './services';
 
-const STORAGE_KEY = 'lerd-dismissed-preset-suggestions';
+const STORAGE_KEY = 'servlo-dismissed-preset-suggestions';
 
 function readDismissed(): string[] {
   try {

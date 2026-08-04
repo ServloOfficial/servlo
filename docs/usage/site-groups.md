@@ -11,7 +11,7 @@ Site groups let related sites share one base domain. One site is the **main** an
 A site group is about **domains**: it rewrites vhosts and reissues certificates so secondaries answer on subdomains of the main. A [workspace](sites.md#workspaces) is about **display only**: it groups sites in the sidebar, the overview and the TUI, and changes nothing about how they are served. A site can be in a group and a workspace at once, and a secondary always shows in its main's workspace.
 :::
 
-A secondary stays a completely independent site: its own project path, PHP version, workers, env and certificate. Grouping only changes the domain it answers on. Under the hood lerd gives the secondary an exact-match nginx vhost (`admin.astrolov.test`), and nginx prefers that exact host over the main's `*.astrolov.test` wildcard, so the subdomain routes to the secondary while everything else still hits the main. This is the same mechanism [git worktree subdomains](../features/git-worktrees.md) already use.
+A secondary stays a completely independent site: its own project path, PHP version, workers, env and certificate. Grouping only changes the domain it answers on. Under the hood servlo gives the secondary an exact-match nginx vhost (`admin.astrolov.test`), and nginx prefers that exact host over the main's `*.astrolov.test` wildcard, so the subdomain routes to the secondary while everything else still hits the main. This is the same mechanism git worktree subdomains already use.
 
 ## Grouping sites in the web UI
 
@@ -33,9 +33,9 @@ When you group an existing site, its old standalone domain is replaced by the su
 
 ## Sharing the main's database
 
-By default a secondary keeps its own database; grouping never touches its `DB_DATABASE`. If the secondary is really part of the same application as the main (a separate admin frontend over the same data, for example), turn on **Share the main's database**. Lerd then points the secondary's `DB_DATABASE` at the main's database and keeps it there, so running the env wizard on the secondary won't reset it back to its own name. Turning sharing back off, or ungrouping the site, restores its own database name.
+By default a secondary keeps its own database; grouping never touches its `DB_DATABASE`. If the secondary is really part of the same application as the main (a separate admin frontend over the same data, for example), turn on **Share the main's database**. Servlo then points the secondary's `DB_DATABASE` at the main's database and keeps it there, so running the env wizard on the secondary won't reset it back to its own name. Turning sharing back off, or ungrouping the site, restores its own database name.
 
-Sharing assumes both sites use the same lerd-managed database service (the usual case for a related main and admin). It changes only the database name, not the connection host or credentials, which are already identical across sites on the same service.
+Sharing assumes both sites use the same servlo-managed database service (the usual case for a related main and admin). It changes only the database name, not the connection host or credentials, which are already identical across sites on the same service.
 
 ## Grouping from the CLI
 
@@ -43,30 +43,30 @@ Run the commands from the secondary site's directory:
 
 ```bash
 cd ~/Projects/admin-astrolov
-lerd group add astrolov admin     # admin-astrolov.test -> admin.astrolov.test
-lerd group add astrolov admin --share-db   # ...and share astrolov's database
-lerd group label backoffice       # change the subdomain to backoffice.astrolov.test
-lerd group db share               # share the main's database
-lerd group db separate            # go back to a separate database
-lerd group remove                 # restore the standalone domain
-lerd group list                   # show all groups and their members
+servlo group add astrolov admin     # admin-astrolov.test -> admin.astrolov.test
+servlo group add astrolov admin --share-db   # ...and share astrolov's database
+servlo group label backoffice       # change the subdomain to backoffice.astrolov.test
+servlo group db share               # share the main's database
+servlo group db separate            # go back to a separate database
+servlo group remove                 # restore the standalone domain
+servlo group list                   # show all groups and their members
 ```
 
-`lerd group add` takes the main site (by name or domain) and the subdomain label.
+`servlo group add` takes the main site (by name or domain) and the subdomain label.
 
-`lerd sites`, the `lerd tui` dashboard, and `lerd group list` all show the grouping: a secondary is listed directly under its main, marked with a `↳` and a `group` label. The TUI detail pane also notes whether a site is a group main (with a secondary count) or a secondary of another site, and whether it shares the main's database.
+`servlo sites`, the `servlo tui` dashboard, and `servlo group list` all show the grouping: a secondary is listed directly under its main, marked with a `↳` and a `group` label. The TUI detail pane also notes whether a site is a group main (with a secondary count) or a secondary of another site, and whether it shares the main's database.
 
 ## How it interacts with other features
 
-**Git worktrees.** A worktree of the main repo whose branch sanitises to the same label as a secondary (a branch named `admin` when `admin.astrolov.test` is a secondary) would collide on the same host. Lerd reserves group subdomains: it refuses to assign a label a current main-repo worktree already uses, and it never generates a worktree vhost for a host a secondary already owns. The worktree checkout still exists, it just isn't served on that reserved subdomain.
+**Git worktrees.** A worktree of the main repo whose branch sanitises to the same label as a secondary (a branch named `admin` when `admin.astrolov.test` is a secondary) would collide on the same host. Servlo reserves group subdomains: it refuses to assign a label a current main-repo worktree already uses, and it never generates a worktree vhost for a host a secondary already owns. The worktree checkout still exists, it just isn't served on that reserved subdomain.
 
-**Multi-tenant subdomains.** If the main uses wildcard tenant subdomains (via `env_overrides` in `.lerd.yaml`), a grouped subdomain is carved out of that wildcard space: `admin.astrolov.test` is served by the secondary instead of being treated as a tenant of the main. The UI shows a warning when you group a secondary under such a main.
+**Multi-tenant subdomains.** If the main uses wildcard tenant subdomains (via `env_overrides` in `.servlo.yaml`), a grouped subdomain is carved out of that wildcard space: `admin.astrolov.test` is served by the secondary instead of being treated as a tenant of the main. The UI shows a warning when you group a secondary under such a main.
 
 **Renaming the base domain.** Changing the main's domain cascades to every secondary automatically: each one's subdomain is recomputed against the new base domain and its vhost, certificate and `.env` are regenerated.
 
 **HTTPS.** A secondary inherits HTTPS from its main. The exact-match preference nginx applies to `admin.astrolov.test` only holds on ports the secondary actually listens on, so a secondary left on plain HTTP under a secured main would have no `443` block and the main's `*.astrolov.test` wildcard would answer its subdomain over HTTPS, serving the main's app instead.
 
-Lerd keeps the two in step from both ends. `lerd secure <main>` secures the group's secondaries along with it, joining a secured main secures the site as it joins, and `lerd install` repairs the combination on an install that has already drifted into it, which is also what `lerd dns:enable` runs. In the other direction `lerd unsecure <secondary>` is refused while its main is secured, since dropping that one site to plain HTTP is what hands its subdomain back to the wildcard; unsecure the main first, or unsecure them together. An unsecured main has no wildcard on `443`, so a secondary may still be secured on its own there, and `lerd unsecure` on a secondary under an unsecured main is allowed.
+Servlo keeps the two in step from both ends. `servlo secure <main>` secures the group's secondaries along with it, joining a secured main secures the site as it joins, and `servlo install` repairs the combination on an install that has already drifted into it, which is also what `servlo dns:enable` runs. In the other direction `servlo unsecure <secondary>` is refused while its main is secured, since dropping that one site to plain HTTP is what hands its subdomain back to the wildcard; unsecure the main first, or unsecure them together. An unsecured main has no wildcard on `443`, so a secondary may still be secured on its own there, and `servlo unsecure` on a secondary under an unsecured main is allowed.
 
 ## Limitations
 

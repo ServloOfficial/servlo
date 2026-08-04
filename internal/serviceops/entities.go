@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // entityActionTimeout caps a mutating entity action. Creates are quick but a
@@ -88,7 +88,7 @@ func actionRuntime(spec *config.EntitySpec, act config.EntityAction) (image stri
 
 // entityCommandArgs builds the podman argv that runs shellCmd for an entity:
 // an exec inside the service container, or, when a client image is named, an
-// ephemeral run of that image on the lerd network, for services whose own
+// ephemeral run of that image on the servlo network, for services whose own
 // image ships no tooling for what they hold. interactive adds -i so a command
 // can read its stdin.
 func entityCommandArgs(service, image string, env []string, shellCmd string, interactive bool) []string {
@@ -100,7 +100,7 @@ func entityCommandArgs(service, image string, env []string, shellCmd string, int
 		for _, kv := range append(introspectEnv(), env...) {
 			args = append(args, "--env", kv)
 		}
-		return append(args, "lerd-"+service, "sh", "-c", shellCmd)
+		return append(args, "servlo-"+service, "sh", "-c", shellCmd)
 	}
 	args := []string{"run", "--rm"}
 	if interactive {
@@ -108,7 +108,7 @@ func entityCommandArgs(service, image string, env []string, shellCmd string, int
 	}
 	// --entrypoint sh: client images (mc, rclone) make their tool the
 	// entrypoint, which would swallow the shell command as its own arguments.
-	args = append(args, "--network", "lerd", "--entrypoint", "sh")
+	args = append(args, "--network", "servlo", "--entrypoint", "sh")
 	for _, kv := range env {
 		args = append(args, "-e", kv)
 	}
@@ -363,7 +363,7 @@ func CloneDatabase(service, src, dst string) error {
 		return err
 	}
 	shellCmd := "( " + exportCmd + " ) | ( " + importCmd + " )"
-	out, err := containerExec("lerd-"+service, shellCmd, introspectEnv(), nil, dumpRestoreTimeout)
+	out, err := containerExec("servlo-"+service, shellCmd, introspectEnv(), nil, dumpRestoreTimeout)
 	if err != nil {
 		return fmt.Errorf("clone %s -> %s: %s", src, dst, strings.TrimSpace(string(out)))
 	}

@@ -3,10 +3,10 @@ package cli
 import "encoding/json"
 
 // The doctor produces a structured report alongside its human-readable output
-// so `lerd doctor --fix` and the MCP diag tool can act on findings without
+// so `servlo doctor --fix` and the MCP diag tool can act on findings without
 // re-parsing text. Each finding may carry a fix classified into one of three
-// tiers: Auto is lerd-owned and needs no privilege, Manual needs sudo so lerd
-// only prints the command, None is external state lerd will not touch.
+// tiers: Auto is servlo-owned and needs no privilege, Manual needs sudo so servlo
+// only prints the command, None is external state servlo will not touch.
 
 // FixTier classifies how a finding can be repaired.
 type FixTier int
@@ -15,9 +15,9 @@ const (
 	// FixNone means the finding has no attached fix (external state or the
 	// hint alone tells the user what to do).
 	FixNone FixTier = iota
-	// FixAuto means lerd can apply the fix itself with no elevated privilege.
+	// FixAuto means servlo can apply the fix itself with no elevated privilege.
 	FixAuto
-	// FixManual means the fix needs sudo, so lerd shows the command (in the
+	// FixManual means the fix needs sudo, so servlo shows the command (in the
 	// finding's Hint) and never runs it.
 	FixManual
 )
@@ -134,7 +134,7 @@ func autoFix(key, arg, label string) *DoctorFix {
 
 var manualFix = &DoctorFix{Tier: FixManual}
 
-// manualFixWith is manualFix carrying the command to run, for repairs lerd
+// manualFixWith is manualFix carrying the command to run, for repairs servlo
 // knows the fix for but will not run itself because it needs sudo.
 func manualFixWith(label string) *DoctorFix {
 	return &DoctorFix{Tier: FixManual, Label: label}

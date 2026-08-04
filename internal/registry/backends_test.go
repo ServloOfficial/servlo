@@ -39,7 +39,7 @@ func (r *rewriteHostTransport) RoundTrip(req *http.Request) (*http.Response, err
 
 func withTempCacheDir(t *testing.T) {
 	t.Helper()
-	t.Setenv("LERD_REGISTRY_CACHE_DIR", t.TempDir())
+	t.Setenv("SERVLO_REGISTRY_CACHE_DIR", t.TempDir())
 }
 
 func TestListTags_DockerHub(t *testing.T) {

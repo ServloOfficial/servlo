@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // A project under a path with a space renders a `root` directive with three
@@ -17,7 +17,7 @@ func TestVhostQuotesDocumentRootWithSpaces(t *testing.T) {
 			ServerNames:    "spatnik.test *.spatnik.test",
 			Path:           "/media/tim/DriveX/My Laravel CMS/Spatnik",
 			PublicDir:      "public",
-			FPMContainer:   "lerd-php85-fpm",
+			FPMContainer:   "servlo-php85-fpm",
 			CertDomain:     "spatnik.test",
 			RequestTimeout: 60,
 		})
@@ -35,7 +35,7 @@ func TestVhostRootIsQuotedNotBackslashEscaped(t *testing.T) {
 		Domain:       "spatnik.test",
 		Path:         "/media/My Laravel CMS/Spatnik",
 		PublicDir:    "public",
-		FPMContainer: "lerd-php85-fpm",
+		FPMContainer: "servlo-php85-fpm",
 	})
 	if strings.Contains(out, `My\ Laravel`) {
 		t.Errorf("root backslash-escaped, which nginx does not resolve:\n%s", out)
@@ -48,16 +48,16 @@ func TestVhostRootIsQuotedNotBackslashEscaped(t *testing.T) {
 func TestExpandNginxSnippetUsesPathVariables(t *testing.T) {
 	got, err := expandNginxSnippet(
 		"root {{root}};\nalias {{public}}/static/;\nfastcgi_pass {{fpm}}:9000;",
-		"/media/tim/My Laravel CMS/shop", "pub", "lerd-php84-fpm",
+		"/media/tim/My Laravel CMS/shop", "pub", "servlo-php84-fpm",
 	)
 	if err != nil {
 		t.Fatalf("expandNginxSnippet: %v", err)
 	}
-	want := "set $lerd_root \"/media/tim/My Laravel CMS/shop\";\n" +
-		"set $lerd_public \"/media/tim/My Laravel CMS/shop/pub\";\n\n" +
-		"root ${lerd_root};\n" +
-		"alias ${lerd_public}/static/;\n" +
-		"fastcgi_pass lerd-php84-fpm:9000;"
+	want := "set $servlo_root \"/media/tim/My Laravel CMS/shop\";\n" +
+		"set $servlo_public \"/media/tim/My Laravel CMS/shop/pub\";\n\n" +
+		"root ${servlo_root};\n" +
+		"alias ${servlo_public}/static/;\n" +
+		"fastcgi_pass servlo-php84-fpm:9000;"
 	if got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
@@ -65,21 +65,21 @@ func TestExpandNginxSnippetUsesPathVariables(t *testing.T) {
 
 // A snippet that names no path gets no variables: nothing would read them.
 func TestExpandNginxSnippetWithoutPathsDeclaresNoVariables(t *testing.T) {
-	got, err := expandNginxSnippet("fastcgi_pass {{fpm}}:9000;", "/home/u/shop", "public", "lerd-php84-fpm")
+	got, err := expandNginxSnippet("fastcgi_pass {{fpm}}:9000;", "/home/u/shop", "public", "servlo-php84-fpm")
 	if err != nil {
 		t.Fatalf("expandNginxSnippet: %v", err)
 	}
-	if strings.Contains(got, "set $lerd_") {
+	if strings.Contains(got, "set $servlo_") {
 		t.Errorf("declared unused path variables:\n%s", got)
 	}
 }
 
-// The paused and idle-waking landing pages are served from lerd's own data dir,
+// The paused and idle-waking landing pages are served from servlo's own data dir,
 // which sits under $HOME and inherits a space from the user's home directory.
 func TestLandingVhostQuotesRoot(t *testing.T) {
 	site := config.Site{Name: "shop", Domains: []string{"shop.test"}}
-	out := landingVhostConf(site, "/home/My User/.local/share/lerd/paused", "shop.test.html")
-	if want := `root "/home/My User/.local/share/lerd/paused";`; !strings.Contains(out, want) {
+	out := landingVhostConf(site, "/home/My User/.local/share/servlo/paused", "shop.test.html")
+	if want := `root "/home/My User/.local/share/servlo/paused";`; !strings.Contains(out, want) {
 		t.Errorf("want %q in:\n%s", want, out)
 	}
 }

@@ -162,7 +162,7 @@
 
   // A host-proxy site's dev server is its only runtime, and restarting it is the
   // routine fix when it wedges, so it gets a first-class header button rather
-  // than an overflow entry. Proxy-only sites have no process lerd can bounce.
+  // than an overflow entry. Proxy-only sites have no process servlo can bounce.
   const showDevServerRestart = $derived(
     Boolean(site.host_has_dev_server) && !site.paused && !activeWorktreeBranch
   );
@@ -247,7 +247,7 @@
   });
 </script>
 
-<div class="border-b border-gray-100 dark:border-lerd-border shrink-0 @container flex flex-col">
+<div class="border-b border-gray-100 dark:border-servlo-border shrink-0 @container flex flex-col">
   {#if showWorktreeTabs}
     <div class="flex items-end bg-gray-50/60 dark:bg-white/[0.02]">
       <div class="flex items-center gap-0.5 px-3 pt-3 overflow-x-auto flex-1 min-w-0">
@@ -255,7 +255,7 @@
         {@const isActive = e.isMain ? activeWorktreeBranch === '' : e.branch === activeWorktreeBranch}
         <div
           class="group flex items-center rounded-t-md border-t border-l border-r transition-colors max-w-56 shrink-0 {isActive
-            ? 'bg-white dark:bg-lerd-bg border-gray-200 dark:border-lerd-border'
+            ? 'bg-white dark:bg-servlo-bg border-gray-200 dark:border-servlo-border'
             : 'bg-transparent border-transparent hover:bg-gray-100/60 dark:hover:bg-white/5'}"
         >
           <button
@@ -268,7 +268,7 @@
           >
             {#if e.isMain}
               <svg
-                class="w-3.5 h-3.5 shrink-0 {isActive ? 'text-lerd-red' : 'text-gray-400 dark:text-gray-500'}"
+                class="w-3.5 h-3.5 shrink-0 {isActive ? 'text-servlo-red' : 'text-gray-400 dark:text-gray-500'}"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
@@ -281,7 +281,7 @@
               </svg>
             {:else}
               <svg
-                class="w-3.5 h-3.5 shrink-0 {isActive ? 'text-lerd-red' : 'text-violet-400'}"
+                class="w-3.5 h-3.5 shrink-0 {isActive ? 'text-servlo-red' : 'text-violet-400'}"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
@@ -316,7 +316,7 @@
         <button
           type="button"
           onclick={() => openWorktreeAddModal(site)}
-          class="ml-1 mb-0.5 w-6 h-6 flex items-center justify-center rounded-md text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors shrink-0"
+          class="ml-1 mb-0.5 w-6 h-6 flex items-center justify-center rounded-md text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors shrink-0"
           use:tooltip={m.worktreeMgr_add()}
           aria-label={m.worktreeMgr_add()}
         >
@@ -332,8 +332,8 @@
   <div class="p-3 flex items-center gap-3">
     <div
       class="group flex-1 min-w-0 flex items-center gap-2 h-8 pl-3 pr-2 rounded-full border bg-gray-50 dark:bg-white/[0.03] transition-colors {site.paused
-        ? 'border-gray-200 dark:border-lerd-border opacity-70'
-        : 'border-gray-200 dark:border-lerd-border hover:bg-white dark:hover:bg-white/[0.06] hover:border-gray-300 dark:hover:border-gray-600 focus-within:bg-white focus-within:border-lerd-red/40'}"
+        ? 'border-gray-200 dark:border-servlo-border opacity-70'
+        : 'border-gray-200 dark:border-servlo-border hover:bg-white dark:hover:bg-white/[0.06] hover:border-gray-300 dark:hover:border-gray-600 focus-within:bg-white focus-within:border-servlo-red/40'}"
     >
       {#if tlsToggleable}
         <button
@@ -514,7 +514,7 @@
           onclick={openTarget}
           aria-label={m.common_open()}
           use:tooltip={m.common_open() + ' — ' + (remoteView && lanOn && lanURL ? lanURL : activeDomain)}
-          class="w-8 h-8 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+          class="w-8 h-8 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -534,7 +534,7 @@
           disabled={restartBusy}
           aria-label={m.sites_restartDevServer()}
           use:tooltip={m.sites_restartDevServer()}
-          class="w-8 h-8 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+          class="w-8 h-8 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
         >
           <Icon name={restartBusy ? 'spinner' : 'refresh'} class="w-4 h-4 {restartBusy ? 'animate-spin' : ''}" />
         </button>
@@ -547,8 +547,8 @@
           aria-label={m.group_manage()}
           use:tooltip={site.group ? 'Manage group' : 'Group with another site'}
           class="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-gray-100 dark:hover:bg-white/5 {site.group
-            ? 'text-lerd-red'
-            : 'text-gray-500 dark:text-gray-400 hover:text-lerd-red'}"
+            ? 'text-servlo-red'
+            : 'text-gray-500 dark:text-gray-400 hover:text-servlo-red'}"
         >
           <Icon name="group" class="w-4 h-4" />
         </button>
@@ -582,7 +582,7 @@
           use:tooltip={xdebugEnabled ? m.sites_badges_xdebugOn({ mode: xdebugMode }) : m.sites_badges_xdebugDisabled()}
           class="hidden @md:flex w-8 h-8 items-center justify-center rounded-md transition-colors disabled:opacity-50 {xdebugEnabled
             ? 'text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-            : 'text-gray-500 dark:text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5'}"
+            : 'text-gray-500 dark:text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5'}"
         >
           {#if xdebugBusy}
             <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -605,7 +605,7 @@
           onclick={() => openTerminal(site.domain, activeWorktreeBranch)}
           aria-label={m.common_terminal()}
           use:tooltip={m.sites_openInTerminal()}
-          class="hidden @md:flex w-8 h-8 items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+          class="hidden @md:flex w-8 h-8 items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -626,7 +626,7 @@
           aria-haspopup="menu"
           aria-expanded={overflowOpen}
           use:tooltip={m.common_moreActions()}
-          class="w-8 h-8 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+          class="w-8 h-8 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
         >
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 6a2 2 0 100-4 2 2 0 000 4zm0 8a2 2 0 100-4 2 2 0 000 4zm0 8a2 2 0 100-4 2 2 0 000 4z" />
@@ -635,7 +635,7 @@
         {#if overflowOpen}
           <div
             role="menu"
-            class="absolute right-0 top-full mt-1 min-w-[12rem] rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-bg shadow-lg z-30 py-1"
+            class="absolute right-0 top-full mt-1 min-w-[12rem] rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-bg shadow-lg z-30 py-1"
           >
             {#if !site.paused && !site.host_proxy && (site.uses_php || site.custom_container)}
               <button
@@ -792,7 +792,7 @@
               </button>
             {/if}
             {#if !site.paused || !activeWorktreeBranch}
-              <div class="my-1 border-t border-gray-100 dark:border-lerd-border"></div>
+              <div class="my-1 border-t border-gray-100 dark:border-servlo-border"></div>
             {/if}
             <button
               type="button"
@@ -839,7 +839,7 @@
         type="button"
         onclick={() => openFolder(activePath)}
         use:tooltip={m.sites_openFolder()}
-        class="font-mono leading-none truncate hover:text-lerd-red transition-colors"
+        class="font-mono leading-none truncate hover:text-servlo-red transition-colors"
       >{activePathLabel}</button>
     {:else}
       <span class="font-mono leading-none truncate" title={activePath}>{activePathLabel}</span>

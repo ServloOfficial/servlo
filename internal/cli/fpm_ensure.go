@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
 	"golang.org/x/term"
 )
 
@@ -45,7 +45,7 @@ func startInstalledFPM(version, container string) (handled bool, err error) {
 }
 
 // ensureFPMRunning makes sure the FPM container for the detected PHP version is
-// up before lerd execs into it, replacing the old "container is not running"
+// up before servlo execs into it, replacing the old "container is not running"
 // dead end. Behaviour when the container is down:
 //
 //   - version installed but stopped → start the unit and wait for it.
@@ -205,9 +205,9 @@ func otherInstalledVersions(exclude string) []string {
 }
 
 // persistPHPVersion pins the chosen version for the project by writing the site
-// root's .php-version file, the dedicated per-project pin lerd reads before
+// root's .php-version file, the dedicated per-project pin servlo reads before
 // composer's constraint. Best-effort: a write failure or a higher-priority
-// .lerd.yaml override only warns, since the switch still applies to this run.
+// .servlo.yaml override only warns, since the switch still applies to this run.
 func persistPHPVersion(cwd, version string) {
 	if wt, _, ok := phpDet.WorktreeRootFor(cwd); ok {
 		persistWorktreePHPVersion(wt, version)
@@ -221,13 +221,13 @@ func persistPHPVersion(cwd, version string) {
 	}
 	feedback.Note(fmt.Sprintf("Pinned PHP %s for this project (%s)", version, path))
 	if got, err := phpDet.DetectVersion(root); err == nil && got != version {
-		feedback.Warn(".lerd.yaml pins PHP %s, which overrides the .php-version file", got)
+		feedback.Warn(".servlo.yaml pins PHP %s, which overrides the .php-version file", got)
 	}
 }
 
 // persistWorktreePHPVersion pins a switch made inside a worktree on the checkout
 // itself, leaving the parent site alone. It writes the same pair a branch-scoped
-// version switch does: the .php-version file for other tooling, and the .lerd.yaml
+// version switch does: the .php-version file for other tooling, and the .servlo.yaml
 // override the worktree's effective version actually comes from.
 func persistWorktreePHPVersion(worktree, version string) {
 	if err := siteops.PinPHPVersionFile(worktree, version); err != nil {
@@ -244,8 +244,8 @@ func persistWorktreePHPVersion(worktree, version string) {
 // we can't prompt (no TTY) or have nothing to switch to.
 func notInstalledErr(version string) error {
 	if installed := otherInstalledVersions(version); len(installed) > 0 {
-		return fmt.Errorf("PHP %s is not installed (installed: %s) — pin one with a .php-version file, or run 'lerd install' to add %s",
+		return fmt.Errorf("PHP %s is not installed (installed: %s) — pin one with a .php-version file, or run 'servlo install' to add %s",
 			version, strings.Join(installed, ", "), version)
 	}
-	return fmt.Errorf("PHP %s is not installed — run 'lerd install' to add it", version)
+	return fmt.Errorf("PHP %s is not installed — run 'servlo install' to add it", version)
 }

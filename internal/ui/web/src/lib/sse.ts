@@ -1,6 +1,6 @@
 // readSSE reads a Response body as Server-Sent Events, invoking onFrame once per
 // complete frame with the event name (empty string when none was given) and the
-// `data:` payload. lerd's streams emit one `data:` line per frame, so the event
+// `data:` payload. servlo's streams emit one `data:` line per frame, so the event
 // name is consumed and reset after each data line. Throws if there is no body.
 export async function readSSE(
   res: Response,

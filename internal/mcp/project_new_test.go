@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/store"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/store"
 )
 
 // projectNewStore stands up a fake store publishing one framework whose create
@@ -45,7 +45,7 @@ func TestExecProjectNew_FetchesUninstalledFramework(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	srv := projectNewStore(t, "codeigniter", "4")
-	t.Setenv("LERD_STORE_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_STORE_BASE_URL", srv.URL)
 
 	resp, rpcErr := execProjectNew(map[string]any{
 		"path":      filepath.Join(tmp, "proj"),
@@ -72,7 +72,7 @@ func TestExecProjectNew_UnknownStaysUnknown(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	srv := projectNewStore(t, "codeigniter", "4")
-	t.Setenv("LERD_STORE_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_STORE_BASE_URL", srv.URL)
 
 	resp, rpcErr := execProjectNew(map[string]any{
 		"path":      filepath.Join(tmp, "proj"),

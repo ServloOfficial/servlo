@@ -20,7 +20,7 @@ func TestPresetFiles_ExternalStorePresetShipsFiles(t *testing.T) {
 }
 
 // A mount naming an unknown generator (e.g. a store preset built for a newer
-// lerd) is skipped, never mounted empty.
+// servlo) is skipped, never mounted empty.
 func TestPresetFiles_UnknownGeneratorSkipped(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	writeStorePreset(t, "gen-svc", "name: gen-svc\nimage: example/gen:1\nfiles:\n  - target: /a\n    content: static\n  - target: /b\n    generator: does-not-exist\n")
@@ -65,10 +65,10 @@ func TestPgadminServersJSON_listsEveryFamilyMember(t *testing.T) {
 		t.Fatalf("pgadminServersJSON: %v", err)
 	}
 	for _, want := range []string{
-		`"Host": "lerd-postgres"`,
-		`"Host": "lerd-postgres-18"`,
-		`"Name": "Lerd Postgres"`,
-		`"Name": "Lerd Postgres 18"`,
+		`"Host": "servlo-postgres"`,
+		`"Host": "servlo-postgres-18"`,
+		`"Name": "Servlo Postgres"`,
+		`"Name": "Servlo Postgres 18"`,
 		`"Port": 5432`,
 		`"PassFile": "/pgpass"`,
 	} {
@@ -96,8 +96,8 @@ func TestPgadminPgpass_oneLinePerFamilyMember(t *testing.T) {
 		t.Fatalf("pgadminPgpass: %v", err)
 	}
 	for _, want := range []string{
-		"lerd-postgres:5432:*:postgres:lerd",
-		"lerd-postgres-17:5432:*:postgres:lerd",
+		"servlo-postgres:5432:*:postgres:servlo",
+		"servlo-postgres-17:5432:*:postgres:servlo",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("pgpass missing %q\n%s", want, out)
@@ -113,7 +113,7 @@ func TestPgadminPreset_consumesPostgresFamily(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadPreset(pgadmin): %v", err)
 	}
-	if got := p.DynamicEnv["LERD_POSTGRES_HOSTS"]; got != "discover_family:postgres" {
+	if got := p.DynamicEnv["SERVLO_POSTGRES_HOSTS"]; got != "discover_family:postgres" {
 		t.Errorf("pgadmin must declare discover_family:postgres dynamic_env, got %q", got)
 	}
 	if p.Environment["PGADMIN_REPLACE_SERVERS_ON_STARTUP"] != "True" {
@@ -127,10 +127,10 @@ func TestRabbitMQPresetMountsPathPrefix(t *testing.T) {
 		t.Fatal("rabbitmq preset has no file mounts")
 	}
 	f := files[0]
-	if f.Target != "/etc/rabbitmq/conf.d/10-lerd-path-prefix.conf" {
-		t.Errorf("rabbitmq conf mounted at %q, want /etc/rabbitmq/conf.d/10-lerd-path-prefix.conf", f.Target)
+	if f.Target != "/etc/rabbitmq/conf.d/10-servlo-path-prefix.conf" {
+		t.Errorf("rabbitmq conf mounted at %q, want /etc/rabbitmq/conf.d/10-servlo-path-prefix.conf", f.Target)
 	}
-	// The management UI must serve under the same prefix the lerd-ui proxy
+	// The management UI must serve under the same prefix the servlo-panel proxy
 	// mounts it at, or the iframe loads a blank shell (absolute asset paths).
 	if !strings.Contains(f.Content, "management.path_prefix = /_svc/rabbitmq") {
 		t.Errorf("rabbitmq conf missing management.path_prefix = /_svc/rabbitmq\n%s", f.Content)
@@ -159,12 +159,12 @@ func TestRabbitMQDashboardBootstrap_seedsBasicAuth(t *testing.T) {
 		Dashboard: "http://localhost:15672",
 		Environment: map[string]string{
 			"RABBITMQ_DEFAULT_USER": "root",
-			"RABBITMQ_DEFAULT_PASS": "lerd",
+			"RABBITMQ_DEFAULT_PASS": "servlo",
 		},
 	}
 	s := PresetDashboardBootstrap(svc)
-	// base64("root:lerd") == "cm9vdDpsZXJk"
-	for _, want := range []string{"<script>", "rabbitmq.credentials", "cm9vdDpsZXJk", "rabbitmq.auth-scheme", "loggedIn"} {
+	// base64("root:servlo") == "cm9vdDpzZXJ2bG8="
+	for _, want := range []string{"<script>", "rabbitmq.credentials", "cm9vdDpzZXJ2bG8=", "rabbitmq.auth-scheme", "loggedIn"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("rabbitmq bootstrap missing %q:\n%s", want, s)
 		}
@@ -188,18 +188,18 @@ func TestMySQLPresetContainsCompatDirectives(t *testing.T) {
 		"restrict-fk-on-non-standard-key=OFF",
 	} {
 		if !strings.Contains(cnf, directive) {
-			t.Errorf("mysql lerd.cnf missing %q", directive)
+			t.Errorf("mysql servlo.cnf missing %q", directive)
 		}
 	}
 	// mysql 9.x removed mysql_native_password, so the policy line must not
 	// pin it as the primary or the server refuses to initialise.
 	if strings.Contains(cnf, "authentication_policy=") {
-		t.Errorf("mysql lerd.cnf must not pin authentication_policy: it breaks mysql 9.x init")
+		t.Errorf("mysql servlo.cnf must not pin authentication_policy: it breaks mysql 9.x init")
 	}
 }
 
 // Removed in MySQL 8.0; kept silent on 5.7/8.x via the loose- prefix but
-// generated a startup warning on every container start. lerd no longer
+// generated a startup warning on every container start. servlo no longer
 // ships 5.6, so they should not be re-added.
 func TestMySQLPresetExcludesRemovedDirectives(t *testing.T) {
 	files := PresetFiles("mysql")
@@ -214,7 +214,7 @@ func TestMySQLPresetExcludesRemovedDirectives(t *testing.T) {
 		"innodb_file_format",
 	} {
 		if strings.Contains(cnf, directive) {
-			t.Errorf("mysql lerd.cnf still contains removed-in-8.0 directive %q", directive)
+			t.Errorf("mysql servlo.cnf still contains removed-in-8.0 directive %q", directive)
 		}
 	}
 }

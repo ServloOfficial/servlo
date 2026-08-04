@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/geodro/lerd/internal/eventbus"
-	"github.com/geodro/lerd/internal/podman"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/eventbus"
+	"github.com/realrashid/servlo/internal/podman"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 )
 
 var (
@@ -93,7 +93,7 @@ func startIdleWatcher(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				idle := lerdSystemd.SessionIsIdleOrLocked()
+				idle := servloSystemd.SessionIsIdleOrLocked()
 				if sessionIdle.Swap(idle) != idle {
 					recomputeInterval()
 				}
@@ -146,7 +146,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 	// Force-refresh the container cache and invalidate all snapshot kinds so
 	// the first frame always reflects current container state, not a cached
-	// value from before lerd start ran. PollNow blocks until the podman ps
+	// value from before servlo start ran. PollNow blocks until the podman ps
 	// completes, so the snapshot below is guaranteed to use fresh data even
 	// when multiple connections arrive simultaneously.
 	podman.Cache.PollNow()

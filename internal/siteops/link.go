@@ -5,12 +5,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
-	nodeDet "github.com/geodro/lerd/internal/node"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
+	nodeDet "github.com/realrashid/servlo/internal/node"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // VersionResult holds the detected and suggested versions for a site.
@@ -127,8 +127,8 @@ func CleanupRelink(path, newName string) bool {
 }
 
 // ResolveSecured decides whether a freshly linked site is secured. Both the
-// re-link path (relinkSecured, from CleanupRelink) and .lerd.yaml's secured flag
-// are honoured only when lerd manages DNS, so a site secured before DNS was
+// re-link path (relinkSecured, from CleanupRelink) and .servlo.yaml's secured flag
+// are honoured only when servlo manages DNS, so a site secured before DNS was
 // switched off, or a project authored with secured: true, degrades to http on a
 // localhost install rather than being registered as a non-functional HTTPS site
 // that the cert layer would refuse with ErrDNSDisabled.
@@ -185,7 +185,7 @@ func PublishLinks(phpVersions []string, names ...string) error {
 
 	// Linking a site doesn't start a systemd unit, so the shared
 	// AfterUnitChange hook wouldn't otherwise fire. Notify the hook
-	// explicitly so the CLI/MCP processes ping lerd-ui (and lerd-ui's
+	// explicitly so the CLI/MCP processes ping servlo-panel (and servlo-panel's
 	// own in-process handler invalidates the snapshot cache) and the
 	// new site appears in every open dashboard tab.
 	if podman.AfterUnitChange != nil {
@@ -206,7 +206,7 @@ func FinishFrankenPHPLink(site config.Site) error {
 
 	_ = podman.WriteContainerHosts()
 
-	// Build the derived image (dunglas base + lerd's standard extension set) so
+	// Build the derived image (dunglas base + servlo's standard extension set) so
 	// the site has redis/gd/pdo/... instead of the bare base. The build pulls the
 	// base itself; a failure leaves the site registered to retry on next start.
 	if err := podman.BuildFrankenPHPImage(site.PHPVersion, false, os.Stdout); err != nil {
@@ -272,7 +272,7 @@ var (
 
 // DemoteFrankenPHPToFPM drops a FrankenPHP site back to the FPM runtime: it
 // stops and tears down the per-site FrankenPHP container, clears the runtime in
-// the registry and the project's .lerd.yaml, regenerates the normal fastcgi
+// the registry and the project's .servlo.yaml, regenerates the normal fastcgi
 // vhost, and recreates any running workers against the shared FPM container. It
 // is the fallback the CLI takes (via runLink) when a site's PHP version is
 // changed below the FrankenPHP minimum, mirrored here so the UI and MCP never
@@ -312,8 +312,8 @@ func DemoteFrankenPHPToFPM(site *config.Site) error {
 
 // FinishCustomFPMLink performs post-registration steps for a PHP site whose
 // runtime is "fpm-custom": build the per-site image from the project's
-// Containerfile (FROM the lerd base, so it keeps php-fpm and the extensions),
-// write a per-site FPM quadlet that reuses every lerd mount, start the
+// Containerfile (FROM the servlo base, so it keeps php-fpm and the extensions),
+// write a per-site FPM quadlet that reuses every servlo mount, start the
 // container, and generate a normal fastcgi vhost pointing at it.
 func FinishCustomFPMLink(site config.Site, containerCfg *config.ContainerConfig) error {
 	_ = podman.WriteContainerHosts()

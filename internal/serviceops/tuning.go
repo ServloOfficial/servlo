@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // Sentinel errors returned by SaveTuningOverride so callers (CLI, HTTP
@@ -24,7 +24,7 @@ var (
 	// ErrTuningServiceNotInstalled means the service has no quadlet on
 	// disk. Surfaces as 404 in HTTP. Lets default-preset names that
 	// resolve through LoadPreset still error cleanly when the user has
-	// explicitly `lerd service remove`d them, so an edit cannot silently
+	// explicitly `servlo service remove`d them, so an edit cannot silently
 	// reinstall via the regen+restart path below.
 	ErrTuningServiceNotInstalled = errors.New("service is not installed")
 	// ErrTuningFamilyUnsupported means the service has no tuningMounts
@@ -70,7 +70,7 @@ var tuningRestartTimeout = 20 * time.Second
 // before a save / restore / reset. The HTTP handler already caps the
 // POST body at 64 KiB; we mirror the same ceiling here so an out-of-
 // band edit that grew the on-disk file to multi-gigabytes can't OOM
-// the lerd-ui process inside readTuningSnapshot. Mirrors the limit
+// the servlo-panel process inside readTuningSnapshot. Mirrors the limit
 // the env / nginx editors use on their own snapshot reads.
 const tuningSnapshotMaxBytes = 64 << 10
 
@@ -347,7 +347,7 @@ func readTuningContent(name string) (string, bool) {
 // tuning override file, regenerating the quadlet so the override
 // Volume= mount is present on installs predating the feature, and
 // restarting the unit so it re-reads the config. Shared by the
-// `lerd service config` CLI command and the
+// `servlo service config` CLI command and the
 // `/api/services/{name}/config` HTTP handler; matches the pattern of
 // xdebugops.Apply.
 //
@@ -377,7 +377,7 @@ func readTuningContent(name string) (string, bool) {
 func SaveTuningOverride(name, content string, backup bool) (TuningSaveResult, error) {
 	res := TuningSaveResult{}
 	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
+		return res, fmt.Errorf("%w: run `servlo service preset install %s` first", ErrTuningServiceNotInstalled, name)
 	}
 	svc, err := config.ResolveServiceForTuning(name)
 	if err != nil {
@@ -439,7 +439,7 @@ func SaveTuningOverride(name, content string, backup bool) (TuningSaveResult, er
 		res.ContentOnDisk, res.Exists = readTuningContent(name)
 		return res, err
 	}
-	if err := podman.RestartUnit("lerd-" + name); err != nil {
+	if err := podman.RestartUnit("servlo-" + name); err != nil {
 		res.RolledBack = tryRollback(name, snap, backupPath)
 		if res.RolledBack {
 			res.BackupName = ""
@@ -462,14 +462,14 @@ func SaveTuningOverride(name, content string, backup bool) (TuningSaveResult, er
 // restartErr formats the failure message for the auto-rollback path.
 // When the rollback succeeded the wording switches to "save reverted"
 // so the user sees a recovery-aware message instead of a bare
-// "restarting lerd-mysql: …" that reads as if the service is still
+// "restarting servlo-mysql: …" that reads as if the service is still
 // broken. Callers always pair this with RolledBack in the response
 // envelope.
 func restartErr(name string, err error, rolledBack bool) error {
 	if rolledBack {
-		return fmt.Errorf("save reverted: lerd-%s would not restart with the new config, previous bytes restored: %w", name, err)
+		return fmt.Errorf("save reverted: servlo-%s would not restart with the new config, previous bytes restored: %w", name, err)
 	}
-	return fmt.Errorf("restarting %s: %w", "lerd-"+name, err)
+	return fmt.Errorf("restarting %s: %w", "servlo-"+name, err)
 }
 
 func readyErr(name string, err error, rolledBack bool) error {
@@ -493,7 +493,7 @@ func tryRollback(name string, snap tuningSnapshot, backupPath string) bool {
 	if backupPath != "" {
 		_ = os.Remove(backupPath)
 	}
-	if err := podman.RestartUnit("lerd-" + name); err != nil {
+	if err := podman.RestartUnit("servlo-" + name); err != nil {
 		return false
 	}
 	if err := podman.WaitReady(name, tuningRestartTimeout); err != nil {
@@ -528,7 +528,7 @@ type TuningResetResult struct {
 func ResetTuningOverride(name string) (TuningResetResult, error) {
 	res := TuningResetResult{}
 	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
+		return res, fmt.Errorf("%w: run `servlo service preset install %s` first", ErrTuningServiceNotInstalled, name)
 	}
 	svc, err := config.ResolveServiceForTuning(name)
 	if err != nil {
@@ -595,7 +595,7 @@ func ResetTuningOverride(name string) (TuningResetResult, error) {
 		res.Exists = true
 		return res, nil
 	}
-	if err := podman.RestartUnit("lerd-" + name); err != nil {
+	if err := podman.RestartUnit("servlo-" + name); err != nil {
 		res.RolledBack = tryRollback(name, snap, "")
 		res.ContentOnDisk, res.Exists = readTuningContent(name)
 		return res, restartErr(name, err, res.RolledBack)
@@ -630,7 +630,7 @@ type TuningRestoreResult struct {
 func RestoreTuningFromBackup(name, backupName string) (TuningRestoreResult, error) {
 	res := TuningRestoreResult{}
 	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
+		return res, fmt.Errorf("%w: run `servlo service preset install %s` first", ErrTuningServiceNotInstalled, name)
 	}
 	svc, err := config.ResolveServiceForTuning(name)
 	if err != nil {
@@ -663,7 +663,7 @@ func RestoreTuningFromBackup(name, backupName string) (TuningRestoreResult, erro
 		res.ContentOnDisk, res.Exists = readTuningContent(name)
 		return res, err
 	}
-	if err := podman.RestartUnit("lerd-" + name); err != nil {
+	if err := podman.RestartUnit("servlo-" + name); err != nil {
 		res.RolledBack = tryRollback(name, snap, "")
 		res.ContentOnDisk, res.Exists = readTuningContent(name)
 		return res, restartErr(name, err, res.RolledBack)
@@ -701,7 +701,7 @@ func ReadTuningBackupContent(name, backupName string) ([]byte, error) {
 // lands either way); custom-YAML services regenerate through
 // EnsureCustomServiceQuadlet directly.
 //
-// Split out from SaveTuningOverride so the CLI's `lerd service config`
+// Split out from SaveTuningOverride so the CLI's `servlo service config`
 // (whose editor writes to the override file out-of-band, and which has
 // a `--no-restart` flag) can share the regen step without forcing a
 // restart. Failures are propagated, NOT logged-and-ignored — skipping

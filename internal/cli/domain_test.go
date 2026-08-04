@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 // ── SyncProjectDomains (config package) ────────────────────────────────────
@@ -15,8 +15,8 @@ import (
 func TestSyncProjectDomains_strips_tld(t *testing.T) {
 	dir := t.TempDir()
 
-	// Create an initial .lerd.yaml
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("php_version: \"8.4\"\n"), 0644)
+	// Create an initial .servlo.yaml
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("php_version: \"8.4\"\n"), 0644)
 
 	_ = config.SyncProjectDomains(dir, []string{"myapp.test", "api.test", "admin.test"}, "test")
 
@@ -41,11 +41,11 @@ func TestSyncProjectDomains_strips_tld(t *testing.T) {
 
 func TestSyncProjectDomains_noop_without_file(t *testing.T) {
 	dir := t.TempDir()
-	// No .lerd.yaml — should be a no-op
+	// No .servlo.yaml — should be a no-op
 	_ = config.SyncProjectDomains(dir, []string{"myapp.test"}, "test")
 
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); !os.IsNotExist(err) {
-		t.Error("should not create .lerd.yaml when it doesn't exist")
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); !os.IsNotExist(err) {
+		t.Error("should not create .servlo.yaml when it doesn't exist")
 	}
 }
 
@@ -66,7 +66,7 @@ func TestRegenerateSiteVhost_creates_vhost(t *testing.T) {
 		t.Fatalf("RegenerateSiteVhost: %v", err)
 	}
 
-	confPath := filepath.Join(tmp, "lerd", "nginx", "conf.d", "myapp.test.conf")
+	confPath := filepath.Join(tmp, "servlo", "nginx", "conf.d", "myapp.test.conf")
 	data, err := os.ReadFile(confPath)
 	if err != nil {
 		t.Fatalf("reading vhost: %v", err)
@@ -81,7 +81,7 @@ func TestRegenerateSiteVhost_removes_old_on_primary_change(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	confD := filepath.Join(tmp, "lerd", "nginx", "conf.d")
+	confD := filepath.Join(tmp, "servlo", "nginx", "conf.d")
 	os.MkdirAll(confD, 0755)
 
 	// Create old vhost
@@ -112,8 +112,8 @@ func TestRegenerateSiteVhost_removes_old_on_primary_change(t *testing.T) {
 
 // isolateUnitDir points the unit directory and the site registry at temp dirs.
 // CollectRunningWorkerNames scans $XDG_CONFIG_HOME/systemd/user for orphaned
-// worker units, so without this it reads whatever lerd units the developer has
-// on their own machine and a stray lerd-<worker>-myapp.service fails the run.
+// worker units, so without this it reads whatever servlo units the developer has
+// on their own machine and a stray servlo-<worker>-myapp.service fails the run.
 func isolateUnitDir(t *testing.T) {
 	t.Helper()
 	tmp := t.TempDir()
@@ -124,18 +124,18 @@ func isolateUnitDir(t *testing.T) {
 func TestSetProjectWorkers_noop_without_file(t *testing.T) {
 	isolateUnitDir(t)
 	dir := t.TempDir()
-	// No .lerd.yaml — should be a no-op
+	// No .servlo.yaml — should be a no-op
 	_ = config.SetProjectWorkers(dir, CollectRunningWorkerNames(&config.Site{Name: "myapp", Path: dir}))
 
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); !os.IsNotExist(err) {
-		t.Error("should not create .lerd.yaml when it doesn't exist")
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); !os.IsNotExist(err) {
+		t.Error("should not create .servlo.yaml when it doesn't exist")
 	}
 }
 
 func TestSetProjectWorkers_writes_empty(t *testing.T) {
 	isolateUnitDir(t)
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("php_version: \"8.4\"\nworkers:\n  - queue\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("php_version: \"8.4\"\nworkers:\n  - queue\n"), 0644)
 
 	site := &config.Site{Name: "myapp", Path: dir}
 	// The project declares no framework and the unit dir is empty, so nothing
@@ -157,7 +157,7 @@ func TestSetProjectWorkers_writes_empty(t *testing.T) {
 
 func TestSetProjectWorkers_skips_paused(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("php_version: \"8.4\"\nworkers:\n  - queue\n  - schedule\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("php_version: \"8.4\"\nworkers:\n  - queue\n  - schedule\n"), 0644)
 
 	site := &config.Site{Name: "myapp", Path: dir, Paused: true}
 	// Paused check happens at call site, not in SetProjectWorkers

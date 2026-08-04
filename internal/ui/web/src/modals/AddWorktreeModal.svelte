@@ -156,7 +156,7 @@
             bind:value={newBranch}
             oninput={onNewBranchInput}
             placeholder={m.worktreeMgr_branchNamePlaceholder()}
-            class="w-full text-sm bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-lerd-red/50"
+            class="w-full text-sm bg-white dark:bg-servlo-bg border border-gray-200 dark:border-servlo-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-servlo-red/50"
           />
           {#if hasAnyBranch}
             <div class="text-xs text-gray-400 pt-1">{m.worktreeMgr_basedOn()}</div>
@@ -194,7 +194,7 @@
         />
         {#if showMigrate}
           <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 pt-0.5">
-            <input type="checkbox" bind:checked={migrate} class="rounded-sm border-gray-300 dark:border-lerd-border" />
+            <input type="checkbox" bind:checked={migrate} class="rounded-sm border-gray-300 dark:border-servlo-border" />
             {m.worktreeMgr_runMigrations()}
           </label>
         {/if}

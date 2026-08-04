@@ -1,23 +1,23 @@
 # WordPress walkthrough
 
-End-to-end: from `lerd install` to a WordPress site running on `https://myblog.test` with MySQL.
+End-to-end: from `servlo install` to a WordPress site running on `https://myblog.test` with MySQL.
 
 ::: info Prerequisites
-You've already run `lerd install` once on this machine. If not, see [Installation](installation.md).
+You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
 :::
 
 ::: tip Drive it from your AI assistant
-Run `lerd mcp:enable-global` once and your AI assistant (Claude Code, Cursor, Junie, Codex, Gemini, Copilot, Antigravity, Windsurf) can call every command below through the grouped MCP tools: `site` `action: "link"`, `env` `action: "setup"`, `framework` `action: "setup"`, `db` `action: "create"`, `site` `action: "tls_enable"`, etc. See [AI Integration](../features/mcp.md).
+Run `servlo mcp:enable-global` once and your AI assistant (Claude Code, Cursor, Junie, Codex, Gemini, Copilot, Antigravity, Windsurf) can call every command below through the grouped MCP tools: `site` `action: "link"`, `env` `action: "setup"`, `framework` `action: "setup"`, `db` `action: "create"`, `site` `action: "tls_enable"`, etc. See AI Integration.
 :::
 
 ---
 
 ## 1. Register the WordPress framework definition (one-time)
 
-Save this as `~/.config/lerd/frameworks/wordpress.yaml`:
+Save this as `~/.config/servlo/frameworks/wordpress.yaml`:
 
 ```yaml
-# ~/.config/lerd/frameworks/wordpress.yaml
+# ~/.config/servlo/frameworks/wordpress.yaml
 name: wordpress
 label: WordPress
 detect:
@@ -34,11 +34,11 @@ npm: false
 Then register it:
 
 ```bash
-lerd framework add wordpress --from-file ~/.config/lerd/frameworks/wordpress.yaml
+servlo framework add wordpress --from-file ~/.config/servlo/frameworks/wordpress.yaml
 ```
 
 ::: info Why no `.env`?
-WordPress stores configuration in `wp-config.php` as PHP constants, not in a `.env` file. The `fallback_file` / `fallback_format` settings tell lerd to read constants like `DB_HOST`, `WP_HOME`, and `WP_SITEURL` directly from `wp-config.php`. This means `lerd env` doesn't auto-inject database credentials the way it does for Laravel or Symfony; you'll wire them up by hand in step 5.
+WordPress stores configuration in `wp-config.php` as PHP constants, not in a `.env` file. The `fallback_file` / `fallback_format` settings tell servlo to read constants like `DB_HOST`, `WP_HOME`, and `WP_SITEURL` directly from `wp-config.php`. This means `servlo env` doesn't auto-inject database credentials the way it does for Laravel or Symfony; you'll wire them up by hand in step 5.
 :::
 
 ---
@@ -48,12 +48,12 @@ WordPress stores configuration in `wp-config.php` as PHP constants, not in a `.e
 ::: code-group
 
 ```bash [wp-cli]
-cd ~/Lerd
+cd ~/Servlo
 wp core download --path=myblog
 ```
 
 ```bash [curl + tar]
-cd ~/Lerd
+cd ~/Servlo
 mkdir myblog && cd myblog
 curl -O https://wordpress.org/latest.tar.gz
 tar -xzf latest.tar.gz --strip-components=1
@@ -67,18 +67,18 @@ rm latest.tar.gz
 ## 3. Register the site
 
 ```bash
-cd ~/Lerd/myblog
-lerd link
+cd ~/Servlo/myblog
+servlo link
 ```
 
-`lerd link` detects WordPress (via `wp-login.php` or `wp-config.php`), assigns `http://myblog.test`, and serves from the project root.
+`servlo link` detects WordPress (via `wp-login.php` or `wp-config.php`), assigns `http://myblog.test`, and serves from the project root.
 
 ---
 
 ## 4. Configure PHP and start MySQL
 
 ```bash
-lerd init
+servlo init
 ```
 
 ```
@@ -86,7 +86,7 @@ lerd init
 ? Node version (leave blank to skip):
 ? Enable HTTPS? Yes
 ? Services: [mysql]
-Saved .lerd.yaml
+Saved .servlo.yaml
 ```
 
 Workers are not shown; the WordPress framework definition declares none.
@@ -96,21 +96,21 @@ Workers are not shown; the WordPress framework definition declares none.
 ## 5. Create the database
 
 ```bash
-lerd db:create myblog
+servlo db:create myblog
 ```
 
-This creates `myblog` and `myblog_testing` inside the lerd-mysql container.
+This creates `myblog` and `myblog_testing` inside the servlo-mysql container.
 
 ::: info Database credentials
 | Setting | Value |
 |---|---|
-| Host | `lerd-mysql` |
+| Host | `servlo-mysql` |
 | Port | `3306` |
 | User | `root` |
-| Password | `lerd` |
+| Password | `servlo` |
 | Database | `myblog` |
 
-These come from the lerd built-in MySQL service. See [Services](../usage/services.md#service-credentials).
+These come from the servlo built-in MySQL service. See [Services](../usage/services.md#service-credentials).
 :::
 
 ---
@@ -128,8 +128,8 @@ Then edit the `DB_*` constants:
 ```php
 define( 'DB_NAME',     'myblog' );
 define( 'DB_USER',     'root' );
-define( 'DB_PASSWORD', 'lerd' );
-define( 'DB_HOST',     'lerd-mysql' );
+define( 'DB_PASSWORD', 'servlo' );
+define( 'DB_HOST',     'servlo-mysql' );
 ```
 
 Generate fresh authentication salts (the installer does this automatically; for the manual path, replace the placeholder block with output from <https://api.wordpress.org/secret-key/1.1/salt/>).
@@ -139,7 +139,7 @@ Generate fresh authentication salts (the installer does this automatically; for 
 ## 7. Enable HTTPS
 
 ```bash
-lerd secure myblog
+servlo secure myblog
 ```
 
 This issues a trusted local cert via mkcert and switches the vhost to HTTPS. WordPress also stores its canonical URL in two places, so update them too:
@@ -157,7 +157,7 @@ define( 'WP_SITEURL', 'https://myblog.test' );
 ## 8. Open it
 
 ```bash
-lerd open
+servlo open
 ```
 
 Walk through the five-minute install (admin user, site title, password). When you're done, `https://myblog.test/wp-admin` is your dashboard.
@@ -167,7 +167,7 @@ Walk through the five-minute install (admin user, site title, password). When yo
 ## 9. Verify
 
 ```bash
-lerd status
+servlo status
 ```
 
 `myblog` should be listed as `active` and `mysql` as `running`. Live nginx and PHP-FPM logs are in the [Web UI](../features/web-ui.md) at `http://127.0.0.1:7073`.
@@ -178,19 +178,19 @@ lerd status
 
 | Command | What it did |
 |---|---|
-| `lerd framework add wordpress` | Registered the YAML so WordPress projects are auto-detected |
-| `lerd link` | Assigned `myblog.test`, set document root to project root |
-| `lerd init` | Wrote `.lerd.yaml` with PHP 8.3 and the MySQL service |
-| `lerd db:create myblog` | Created `myblog` and `myblog_testing` inside lerd-mysql |
-| (manual) `wp-config.php` edits | Pointed WordPress at `lerd-mysql` and the new database |
-| `lerd secure myblog` | Issued mkcert TLS, switched vhost to HTTPS |
+| `servlo framework add wordpress` | Registered the YAML so WordPress projects are auto-detected |
+| `servlo link` | Assigned `myblog.test`, set document root to project root |
+| `servlo init` | Wrote `.servlo.yaml` with PHP 8.3 and the MySQL service |
+| `servlo db:create myblog` | Created `myblog` and `myblog_testing` inside servlo-mysql |
+| (manual) `wp-config.php` edits | Pointed WordPress at `servlo-mysql` and the new database |
+| `servlo secure myblog` | Issued mkcert TLS, switched vhost to HTTPS |
 
 ---
 
 ## Next steps
 
 - [Frameworks & Workers](../usage/frameworks.md): extend `wordpress.yaml` to add log paths or custom workers (e.g. `wp cron event run`)
-- [Database](../usage/database.md): `lerd db:import` to load a production dump, `lerd db:shell` for quick queries
+- [Database](../usage/database.md): `servlo db:import` to load a production dump, `servlo db:shell` for quick queries
 - [Services](../usage/services.md): add a Mailpit service to capture outgoing mail in dev
 - [HTTPS](../features/https.md): wildcard certs for multi-site or git worktrees
-- [AI Integration (MCP)](../features/mcp.md): drive lerd from Claude Code, Cursor, Junie, etc.
+- AI Integration (MCP): drive servlo from Claude Code, Cursor, Junie, etc.

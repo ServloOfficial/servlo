@@ -5,14 +5,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/geodro/lerd/internal/cli"
+	"github.com/realrashid/servlo/internal/cli"
 )
 
 // exit is a seam so the handler can be tested without ending the test binary.
 var exit = os.Exit
 
 // stopTunnelsOnShutdown kills the public tunnels this process started when it
-// is asked to stop. Every ordinary stop arrives as a signal: `lerd stop`,
+// is asked to stop. Every ordinary stop arrives as a signal: `servlo stop`,
 // `launchctl bootout`, a logout, a systemd restart. Without this a tunnel is
 // left serving the site publicly, because it runs in a process group of its own
 // and macOS has no equivalent of the systemd control-group kill.

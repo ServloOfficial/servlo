@@ -3,10 +3,10 @@ package cli
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// lerd open inside a worktree opens the branch's own domain, not the parent's.
+// servlo open inside a worktree opens the branch's own domain, not the parent's.
 func TestWorktreeURL_usesTheBranchDomainAndParentScheme(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	parent, _ := makeWorktreeLayout(t, "rapids", "feature")

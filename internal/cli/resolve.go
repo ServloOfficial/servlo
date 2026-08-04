@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // errNotLinked is the single message every directory-scoped command shows when
 // the current directory has no registered site, replacing several earlier
 // phrasings so the guidance is consistent everywhere.
 func errNotLinked() error {
-	return fmt.Errorf("no site registered for this directory — run 'lerd link' first")
+	return fmt.Errorf("no site registered for this directory — run 'servlo link' first")
 }
 
 // ensureSiteForCwd resolves the site for the current working directory. A
@@ -44,12 +44,12 @@ func ensureSiteAndBranchForCwd() (*config.Site, string, error) {
 		return nil, "", errNotLinked()
 	}
 
-	// Wrap the prompt and link in envInterrupt so, when reached from `lerd env`
+	// Wrap the prompt and link in envInterrupt so, when reached from `servlo env`
 	// under its live spinner, the prompt and wizard print cleanly instead of
 	// being clobbered by the spinner's redraw. Outside runEnvLive it just runs.
 	var linkErr error
 	envInterrupt(func() {
-		fmt.Print("This directory isn't linked to lerd. Link it now? [Y/n] ")
+		fmt.Print("This directory isn't linked to servlo. Link it now? [Y/n] ")
 		var answer string
 		fmt.Scanln(&answer) //nolint:errcheck
 		if !(answer == "" || answer[0] == 'Y' || answer[0] == 'y') {
@@ -57,7 +57,7 @@ func ensureSiteAndBranchForCwd() (*config.Site, string, error) {
 			return
 		}
 		// runLinkOrInit, not runLink, so a fresh non-PHP/empty project gets the
-		// same init wizard `lerd link` now offers instead of a bare PHP link.
+		// same init wizard `servlo link` now offers instead of a bare PHP link.
 		linkErr = runLinkOrInit(nil)
 	})
 	if linkErr != nil {

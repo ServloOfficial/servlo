@@ -12,14 +12,14 @@ func TestFailureMessage(t *testing.T) {
 		want string
 	}{
 		{
-			// What `lerd env` actually prints for a project with no framework:
+			// What `servlo env` actually prints for a project with no framework:
 			// the reason on the ✗ line, then the guidance under it. Taking only
 			// the last line dropped the reason and kept the guidance.
 			name: "a failure marker carries the reason and its guidance",
 			out: " ✗ no framework detected for this site\n" +
-				"Define one with 'lerd framework add' or add a framework YAML to /home/me/.config/lerd/frameworks\n",
-			want: "no framework detected for this site — Define one with 'lerd framework add' " +
-				"or add a framework YAML to /home/me/.config/lerd/frameworks",
+				"Define one with 'servlo framework add' or add a framework YAML to /home/me/.config/servlo/frameworks\n",
+			want: "no framework detected for this site — Define one with 'servlo framework add' " +
+				"or add a framework YAML to /home/me/.config/servlo/frameworks",
 		},
 		{
 			name: "progress output above the failure is left out",

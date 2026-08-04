@@ -1,5 +1,5 @@
 // Package wsl holds the WSL2-specific detection and config-patching logic that
-// `lerd wsl:setup` and the doctor's WSL checks share. The file-patch helpers are
+// `servlo wsl:setup` and the doctor's WSL checks share. The file-patch helpers are
 // pure (content in, content out) so they're unit-testable without touching real
 // /etc/wsl.conf, ~/.config/containers/containers.conf, or %USERPROFILE%\.wslconfig.
 package wsl
@@ -83,7 +83,7 @@ func insertAt(lines []string, i int, line string) string {
 	return strings.Join(out, "\n")
 }
 
-// WSLConfigLines are the [wsl2] settings lerd recommends in %USERPROFILE%\.wslconfig:
+// WSLConfigLines are the [wsl2] settings servlo recommends in %USERPROFILE%\.wslconfig:
 // mirrored networking so Windows browsers can reach *.test / *.localhost, with the
 // related DNS/firewall/proxy toggles. Deliberately omits localhostForwarding and
 // pageReporting, which are a no-op under mirrored mode and an unrecognized key

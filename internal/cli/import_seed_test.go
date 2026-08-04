@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // writeSeedFile writes content to dir/rel, creating parent directories.
@@ -266,7 +266,7 @@ func TestLandoSeedMissing(t *testing.T) {
 	}
 }
 
-// Two Lando services of the same type must collapse to a single lerd service.
+// Two Lando services of the same type must collapse to a single servlo service.
 func TestLandoSeedDeduplicatesServices(t *testing.T) {
 	dir := t.TempDir()
 	writeSeedFile(t, dir, ".lando.yml", `name: dup-app

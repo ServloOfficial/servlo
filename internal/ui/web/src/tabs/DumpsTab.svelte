@@ -103,9 +103,9 @@
 </script>
 
 <div class="flex flex-col h-full overflow-hidden">
-  <div class="flex items-center gap-2 px-3 py-3 border-b border-gray-200 dark:border-lerd-border flex-wrap">
+  <div class="flex items-center gap-2 px-3 py-3 border-b border-gray-200 dark:border-servlo-border flex-wrap">
     <input
-      class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border bg-white dark:bg-lerd-card flex-1 min-w-[140px]"
+      class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-servlo-border bg-white dark:bg-servlo-card flex-1 min-w-[140px]"
       placeholder={m.dumps_searchPlaceholder()}
       bind:value={textInput}
     />
@@ -143,7 +143,7 @@
     <TestEventsToggle />
     <button
       type="button"
-      class="text-xs rounded-sm border border-gray-300 dark:border-lerd-border px-2 py-1 hover:bg-gray-50 dark:hover:bg-white/5"
+      class="text-xs rounded-sm border border-gray-300 dark:border-servlo-border px-2 py-1 hover:bg-gray-50 dark:hover:bg-white/5"
       onclick={onClear}
     >
       {m.common_clear()}
@@ -177,7 +177,7 @@
     {:else}
       {#each win.pages as page (page.group.key)}
         <section class="mb-4">
-          <header class="flex items-center gap-2 mb-1 sticky top-0 bg-gray-50 dark:bg-lerd-bg py-1 -mx-3 px-3 z-1">
+          <header class="flex items-center gap-2 mb-1 sticky top-0 bg-gray-50 dark:bg-servlo-bg py-1 -mx-3 px-3 z-1">
             <LensGroupLabel label={page.group.label} />
             <span class="text-xs text-gray-400 ml-auto">{m.dumps_groupCount({ count: page.total })}</span>
           </header>

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 func swapDaemonReload(t *testing.T) *int {
@@ -27,7 +27,7 @@ func setIsolatedXDG(t *testing.T) {
 	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(tmp, "data"))
-	t.Setenv("LERD_REGISTRY_CACHE_DIR", filepath.Join(tmp, "registry-cache"))
+	t.Setenv("SERVLO_REGISTRY_CACHE_DIR", filepath.Join(tmp, "registry-cache"))
 }
 
 // pinMysqlImage writes a global config that pins mysql so the

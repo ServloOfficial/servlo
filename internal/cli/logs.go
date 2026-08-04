@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -64,26 +64,26 @@ func resolveLogsTarget(args []string) (string, error) {
 
 	// nginx
 	if target == "nginx" {
-		return "lerd-nginx", nil
+		return "servlo-nginx", nil
 	}
 
 	// known service name
 	for _, svc := range knownServices() {
 		if target == svc {
-			return "lerd-" + svc, nil
+			return "servlo-" + svc, nil
 		}
 	}
 
 	// explicit PHP version like "8.4" or "8.5"
 	if strings.Contains(target, ".") {
 		short := strings.ReplaceAll(target, ".", "")
-		return "lerd-php" + short + "-fpm", nil
+		return "servlo-php" + short + "-fpm", nil
 	}
 
 	// registered site name — resolve to its PHP-FPM container
 	if site, err := config.FindSite(target); err == nil {
 		short := strings.ReplaceAll(site.PHPVersion, ".", "")
-		return "lerd-php" + short + "-fpm", nil
+		return "servlo-php" + short + "-fpm", nil
 	}
 
 	return "", fmt.Errorf("unknown log target %q — use nginx, a service name, a PHP version (e.g. 8.5), a site name, or omit for the current project's FPM container", target)
@@ -105,5 +105,5 @@ func phpFPMContainer() (string, error) {
 	}
 
 	short := strings.ReplaceAll(version, ".", "")
-	return "lerd-php" + short + "-fpm", nil
+	return "servlo-php" + short + "-fpm", nil
 }

@@ -16,7 +16,7 @@ var siteWorkerLogKinds = []string{"queue", "horizon", "schedule", "reverb", "str
 // never disagree about which unit a pane is showing.
 func unitForLogPath(path string) (string, bool) {
 	if path == "/api/watcher/logs" {
-		return "lerd-watcher", true
+		return "servlo-watcher", true
 	}
 	if rest, ok := strings.CutPrefix(path, "/api/logs/"); ok {
 		if !allowedContainer.MatchString(rest) {
@@ -30,17 +30,17 @@ func unitForLogPath(path string) (string, bool) {
 			if len(parts) != 2 || parts[1] != "logs" || !allowedQueueUnit.MatchString(parts[0]) {
 				return "", false
 			}
-			return "lerd-" + kind + "-" + parts[0], true
+			return "servlo-" + kind + "-" + parts[0], true
 		}
 	}
-	// /api/worker/{site}/{worker}/logs — unit: lerd-{worker}-{site}
+	// /api/worker/{site}/{worker}/logs — unit: servlo-{worker}-{site}
 	if rest, ok := strings.CutPrefix(path, "/api/worker/"); ok {
 		parts := strings.Split(rest, "/")
 		if len(parts) != 3 || parts[2] != "logs" ||
 			!allowedQueueUnit.MatchString(parts[0]) || !allowedQueueUnit.MatchString(parts[1]) {
 			return "", false
 		}
-		return "lerd-" + parts[1] + "-" + parts[0], true
+		return "servlo-" + parts[1] + "-" + parts[0], true
 	}
 	return "", false
 }

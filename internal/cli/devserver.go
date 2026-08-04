@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/freeport"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/nginx"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/freeport"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/nginx"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // A host dev server normally advertises its own address, so everything it
@@ -40,7 +40,7 @@ func devServerProjectConfig(sitePath string, tool *config.DevServerTool) string 
 
 // pathIsIgnored reports whether the project's own git config already ignores
 // rel. A project that would track the generated file is left alone: nobody
-// should find lerd's plumbing staged in their commit. The index is deliberately
+// should find servlo's plumbing staged in their commit. The index is deliberately
 // consulted, so a path someone has actually committed counts as not ignored
 // even when a rule would otherwise cover it.
 func pathIsIgnored(sitePath, rel string) bool {
@@ -104,7 +104,7 @@ func devServerWrapperBody(sitePath string, tool *config.DevServerTool, addr devS
 		importPath = "./" + importPath
 	}
 	// The wrapper is JavaScript the dev server executes and a project's own
-	// .lerd.yaml supplies its domains, so every value is encoded into a literal
+	// .servlo.yaml supplies its domains, so every value is encoded into a literal
 	// rather than quoted by the template.
 	literals, err := jsLiterals(importPath, devServerPublicURL(tool, addr.Origin), tool.Base, addr.Origin, addr.Hosts, addr.Origins)
 	if err != nil {

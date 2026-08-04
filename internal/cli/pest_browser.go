@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -24,10 +24,10 @@ import (
 // Chromium is a glibc binary and cannot run on Alpine's musl libc.
 const pestBrowserPkg = "chromium"
 
-// pestBrowserCachePath is where the Playwright registry and lerd's chromium
+// pestBrowserCachePath is where the Playwright registry and servlo's chromium
 // shims live: a persistent volume, baked into the image as PLAYWRIGHT_BROWSERS_PATH
-// (see podman.PlaywrightCachePath / buildCustomPackagesBlock) so `lerd test`/
-// `lerd pest` find the browsers regardless of the host HOME they exec with.
+// (see podman.PlaywrightCachePath / buildCustomPackagesBlock) so `servlo test`/
+// `servlo pest` find the browsers regardless of the host HOME they exec with.
 const pestBrowserCachePath = podman.PlaywrightCachePath
 
 // playwrightBinRel is the project-relative path to the locally installed
@@ -39,7 +39,7 @@ const playwrightBinRel = "node_modules/.bin/playwright"
 // wrapper that execs the system musl chromium. Pest hardcodes its launch options
 // and exposes no executablePath hook, so the wrapper is the only lever. It
 // injects --no-sandbox (required for chromium as root in a container, which Pest
-// never passes) and forces HOME=/root: `lerd test`/`lerd pest` exec with the
+// never passes) and forces HOME=/root: `servlo test`/`servlo pest` exec with the
 // host HOME, and musl chromium crashes writing its config into the bind-mounted
 // host home, so the browser needs an isolated, writable home. The find globs the
 // cache (an undocumented Playwright layout, but the only handle Pest leaves us),
@@ -83,7 +83,7 @@ END { flush() }`
 var pestBrowserInstall = fmt.Sprintf(`set -e
 pw=./node_modules/.bin/playwright
 if [ ! -x "$pw" ]; then
-  echo "the 'playwright' npm package is not in node_modules — run: lerd npm install playwright" >&2
+  echo "the 'playwright' npm package is not in node_modules — run: servlo npm install playwright" >&2
   exit 1
 fi
 cache="${PLAYWRIGHT_BROWSERS_PATH:-%s}"
@@ -107,7 +107,7 @@ printf '%%s\n' "$plan" | while IFS="$(printf '\t')" read -r dir url mirror; do
     echo "  $name is already installed"
     continue
   fi
-  zip="/tmp/lerd-playwright-$name.zip"
+  zip="/tmp/servlo-playwright-$name.zip"
   echo "  downloading $name..."
   rm -rf "$dir" "$zip"
   if ! curl -fsSL --retry 3 --speed-limit 1024 --speed-time 60 -o "$zip" "$url"; then
@@ -126,7 +126,7 @@ done
 `, pestBrowserCachePath, pestBrowserPlanAwk)
 
 // pestBrowserCleanup clears what an aborted install leaves inside the container.
-// Ctrl+C kills the host-side lerd process only, so the in-container downloader
+// Ctrl+C kills the host-side servlo process only, so the in-container downloader
 // survives: our own curl and the shell driving it, or, on the fallback path,
 // Playwright's installer holding the __dirlock that makes every retry block with
 // no output at all. Half-downloaded archives are dropped here too, since nothing
@@ -135,8 +135,8 @@ done
 // and the rm glob is bracketed for the same reason rather than for globbing.
 var pestBrowserCleanup = fmt.Sprintf(`pkill -f "oopDownloadBrowserMai[n]" >/dev/null 2>&1
 pkill -f "playwright[ ]install" >/dev/null 2>&1
-pkill -f "lerd-playwrigh[t]" >/dev/null 2>&1
-rm -rf "${PLAYWRIGHT_BROWSERS_PATH:-%s}/__dirlock" /tmp/playwright-download-* /tmp/lerd-playwrigh[t]-*.zip
+pkill -f "servlo-playwrigh[t]" >/dev/null 2>&1
+rm -rf "${PLAYWRIGHT_BROWSERS_PATH:-%s}/__dirlock" /tmp/playwright-download-* /tmp/servlo-playwrigh[t]-*.zip
 exit 0
 `, pestBrowserCachePath)
 
@@ -193,7 +193,7 @@ func playwrightVolumeMounted(container string) bool {
 }
 
 // playwrightEnvBaked reports whether the image carries PLAYWRIGHT_BROWSERS_PATH,
-// which `lerd test`/`lerd pest` rely on to find the browsers in the volume
+// which `servlo test`/`servlo pest` rely on to find the browsers in the volume
 // regardless of the host HOME they exec with.
 func playwrightEnvBaked(container string) bool {
 	out, err := podman.Cmd("exec", container, "printenv", "PLAYWRIGHT_BROWSERS_PATH").Output()
@@ -214,13 +214,13 @@ func installPestBrowser(version string, w io.Writer) error {
 
 	if !config.ComposerHasPackage(cwd, "pestphp/pest-plugin-browser") {
 		fmt.Fprintln(w, "  [note] pestphp/pest-plugin-browser is not in composer.json yet.")
-		fmt.Fprintln(w, "         Add it with: lerd composer require --dev pestphp/pest-plugin-browser")
+		fmt.Fprintln(w, "         Add it with: servlo composer require --dev pestphp/pest-plugin-browser")
 	}
 
 	// Fail fast before mutating config or paying for a rebuild: the registry
 	// download below needs the project's Playwright CLI.
 	if _, statErr := os.Stat(filepath.Join(cwd, playwrightBinRel)); statErr != nil {
-		return fmt.Errorf("the playwright npm package is not installed in this project — run `lerd npm install playwright` first")
+		return fmt.Errorf("the playwright npm package is not installed in this project — run `servlo npm install playwright` first")
 	}
 
 	cfg, err := config.LoadGlobal()
@@ -287,7 +287,7 @@ func installPestBrowser(version string, w io.Writer) error {
 		return fmt.Errorf("shimming Playwright browsers to system chromium: %w", err)
 	}
 
-	fmt.Fprintf(w, "\nPest browser testing is ready for PHP %s. Run your suite with `lerd test` or `lerd pest`.\n", version)
+	fmt.Fprintf(w, "\nPest browser testing is ready for PHP %s. Run your suite with `servlo test` or `servlo pest`.\n", version)
 	return nil
 }
 
@@ -403,14 +403,14 @@ func doctorPestBrowser(version string, w io.Writer) error {
 
 	check(config.ComposerHasPackage(cwd, "pestphp/pest-plugin-browser"),
 		"pestphp/pest-plugin-browser in composer.json",
-		"lerd composer require --dev pestphp/pest-plugin-browser")
+		"servlo composer require --dev pestphp/pest-plugin-browser")
 
 	cfg, err := config.LoadGlobal()
 	if err != nil {
 		return err
 	}
 	check(slices.Contains(cfg.GetPackages(), pestBrowserPkg),
-		"chromium baked into the FPM image", "lerd pest:browser install")
+		"chromium baked into the FPM image", "servlo pest:browser install")
 
 	running, _ := podman.ContainerRunning(container)
 	check(running, "PHP "+version+" FPM container is running", serviceStartHint(container))
@@ -419,16 +419,16 @@ func doctorPestBrowser(version string, w io.Writer) error {
 	}
 
 	chromiumOK := podman.Cmd("exec", container, "chromium", "--version").Run() == nil
-	check(chromiumOK, "chromium present in the container", "lerd pest:browser install")
+	check(chromiumOK, "chromium present in the container", "servlo pest:browser install")
 
 	playwrightOK := podman.Cmd("exec", "-w", cwd, container, "sh", "-c", "test -x ./node_modules/.bin/playwright").Run() == nil
-	check(playwrightOK, "playwright npm package installed", "lerd npm install playwright")
+	check(playwrightOK, "playwright npm package installed", "servlo npm install playwright")
 
 	shimOK := podman.Cmd("exec", container, "sh", "-c",
 		`fs=$(find "${PLAYWRIGHT_BROWSERS_PATH:-`+pestBrowserCachePath+`}" -type f \( -name chrome-headless-shell -o -name chrome \) 2>/dev/null); [ -n "$fs" ] || exit 1; for b in $fs; do head -1 "$b" | grep -q '#!/bin/sh' || exit 1; done`).Run() == nil
-	check(shimOK, "Playwright browser shimmed to musl chromium", "lerd pest:browser install")
+	check(shimOK, "Playwright browser shimmed to musl chromium", "servlo pest:browser install")
 
-	// The checks above can pass while `lerd test` still fails: pest-plugin-browser
+	// The checks above can pass while `servlo test` still fails: pest-plugin-browser
 	// boots the server (run-server --mode launchServer) and that boot can fail for
 	// a reason presence checks miss. Boot it too and surface the real error (#677).
 	if playwrightOK {

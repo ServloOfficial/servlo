@@ -18,17 +18,17 @@ func withStubList(t *testing.T, out string, err error) {
 }
 
 func TestUnitStatusCachedParsesListUnits(t *testing.T) {
-	withStubList(t, `lerd-queue-starlane.service     loaded active   running Lerd Queue Worker
-lerd-schedule-silvia.timer      loaded active   waiting Lerd Schedule Timer
-lerd-reverb-boom.service        loaded failed   failed  Lerd Reverb
+	withStubList(t, `servlo-queue-starlane.service     loaded active   running Servlo Queue Worker
+servlo-schedule-silvia.timer      loaded active   waiting Servlo Schedule Timer
+servlo-reverb-boom.service        loaded failed   failed  Servlo Reverb
 `, nil)
 
 	cases := map[string]string{
-		"lerd-queue-starlane":         "active",
-		"lerd-queue-starlane.service": "active",
-		"lerd-schedule-silvia.timer":  "active",
-		"lerd-reverb-boom":            "failed",
-		"lerd-ghost":                  "unknown",
+		"servlo-queue-starlane":         "active",
+		"servlo-queue-starlane.service": "active",
+		"servlo-schedule-silvia.timer":  "active",
+		"servlo-reverb-boom":            "failed",
+		"servlo-ghost":                  "unknown",
 	}
 	for unit, want := range cases {
 		got, _ := unitStatusCached(unit)
@@ -43,7 +43,7 @@ func TestUnitStatusCachedBatchesCalls(t *testing.T) {
 	prev := unitCacheListFn
 	unitCacheListFn = func() (string, error) {
 		calls++
-		return "lerd-queue-a.service loaded active running x\n", nil
+		return "servlo-queue-a.service loaded active running x\n", nil
 	}
 	InvalidateUnitCache()
 	t.Cleanup(func() {
@@ -52,7 +52,7 @@ func TestUnitStatusCachedBatchesCalls(t *testing.T) {
 	})
 
 	for i := 0; i < 50; i++ {
-		unitStatusCached("lerd-queue-a")
+		unitStatusCached("servlo-queue-a")
 	}
 	if calls != 1 {
 		t.Fatalf("expected 1 systemctl call for 50 lookups, got %d", calls)
@@ -64,7 +64,7 @@ func TestUnitStatusCachedRefreshesAfterInvalidate(t *testing.T) {
 	prev := unitCacheListFn
 	unitCacheListFn = func() (string, error) {
 		calls++
-		return "lerd-queue-a.service loaded active running x\n", nil
+		return "servlo-queue-a.service loaded active running x\n", nil
 	}
 	InvalidateUnitCache()
 	t.Cleanup(func() {
@@ -72,9 +72,9 @@ func TestUnitStatusCachedRefreshesAfterInvalidate(t *testing.T) {
 		InvalidateUnitCache()
 	})
 
-	unitStatusCached("lerd-queue-a")
+	unitStatusCached("servlo-queue-a")
 	InvalidateUnitCache()
-	unitStatusCached("lerd-queue-a")
+	unitStatusCached("servlo-queue-a")
 	if calls != 2 {
 		t.Fatalf("expected 2 calls after invalidate, got %d", calls)
 	}
@@ -85,7 +85,7 @@ func TestUnitStatusCachedRefreshesAfterTTL(t *testing.T) {
 	prev := unitCacheListFn
 	unitCacheListFn = func() (string, error) {
 		calls++
-		return "lerd-queue-a.service loaded active running x\n", nil
+		return "servlo-queue-a.service loaded active running x\n", nil
 	}
 	InvalidateUnitCache()
 	t.Cleanup(func() {
@@ -93,7 +93,7 @@ func TestUnitStatusCachedRefreshesAfterTTL(t *testing.T) {
 		InvalidateUnitCache()
 	})
 
-	unitStatusCached("lerd-queue-a")
+	unitStatusCached("servlo-queue-a")
 
 	// Backdate the cache so the next call triggers a refresh without
 	// sleeping for the full TTL.
@@ -101,7 +101,7 @@ func TestUnitStatusCachedRefreshesAfterTTL(t *testing.T) {
 	globalUnitCache.at = time.Now().Add(-unitCacheTTL - time.Second)
 	globalUnitCache.mu.Unlock()
 
-	unitStatusCached("lerd-queue-a")
+	unitStatusCached("servlo-queue-a")
 	if calls != 2 {
 		t.Fatalf("expected 2 calls after TTL expiry, got %d", calls)
 	}
@@ -114,18 +114,18 @@ func TestUnitStatusCachedNonLoadedReportedInactive(t *testing.T) {
 	// emits "not-found active running". Surfacing "active" sent the
 	// dashboard green for a service with no unit; any LOAD other than
 	// "loaded" must collapse to "inactive".
-	withStubList(t, `lerd-mysql.service       not-found active   running Lerd MySQL
-lerd-redis.service       loaded    active   running Lerd Redis
-lerd-masked.service      masked    active   running Lerd Masked
-lerd-broken.service      bad-setting active running Lerd Broken
+	withStubList(t, `servlo-mysql.service       not-found active   running Servlo MySQL
+servlo-redis.service       loaded    active   running Servlo Redis
+servlo-masked.service      masked    active   running Servlo Masked
+servlo-broken.service      bad-setting active running Servlo Broken
 `, nil)
 
 	cases := map[string]string{
-		"lerd-mysql":         "inactive",
-		"lerd-mysql.service": "inactive",
-		"lerd-redis":         "active",
-		"lerd-masked":        "inactive",
-		"lerd-broken":        "inactive",
+		"servlo-mysql":         "inactive",
+		"servlo-mysql.service": "inactive",
+		"servlo-redis":         "active",
+		"servlo-masked":        "inactive",
+		"servlo-broken":        "inactive",
 	}
 	for unit, want := range cases {
 		got, _ := unitStatusCached(unit)
@@ -137,7 +137,7 @@ lerd-broken.service      bad-setting active running Lerd Broken
 
 func TestUnitStatusCachedSystemctlFailure(t *testing.T) {
 	withStubList(t, "", errFakeSystemctl{})
-	got, _ := unitStatusCached("lerd-anything")
+	got, _ := unitStatusCached("servlo-anything")
 	if got != "unknown" {
 		t.Fatalf("want unknown on systemctl failure, got %q", got)
 	}
@@ -145,12 +145,12 @@ func TestUnitStatusCachedSystemctlFailure(t *testing.T) {
 
 func TestParseUnitMeta(t *testing.T) {
 	activated := time.Date(2026, 7, 10, 9, 0, 5, 0, time.UTC)
-	raw := "Id=lerd-vite-app.service\nActiveEnterTimestamp=@" + strconv.FormatInt(activated.Unix(), 10) + "\nWorkingDirectory=/home/u/app\n\n" +
-		"Id=lerd-queue-app.service\nActiveEnterTimestamp=\nWorkingDirectory=\n"
+	raw := "Id=servlo-vite-app.service\nActiveEnterTimestamp=@" + strconv.FormatInt(activated.Unix(), 10) + "\nWorkingDirectory=/home/u/app\n\n" +
+		"Id=servlo-queue-app.service\nActiveEnterTimestamp=\nWorkingDirectory=\n"
 
 	m := parseUnitMeta(raw)
 
-	v, ok := m["lerd-vite-app"] // .service suffix aliased
+	v, ok := m["servlo-vite-app"] // .service suffix aliased
 	if !ok {
 		t.Fatal("expected the .service-stripped alias to be present")
 	}
@@ -161,23 +161,23 @@ func TestParseUnitMeta(t *testing.T) {
 		t.Errorf("ActiveEnter = %v, want %v", v.ActiveEnter, activated)
 	}
 	// A unit that has never been active reports an empty stamp: ActiveEnter stays zero.
-	if q := m["lerd-queue-app"]; !q.ActiveEnter.IsZero() {
+	if q := m["servlo-queue-app"]; !q.ActiveEnter.IsZero() {
 		t.Errorf("never-active ActiveEnter = %v, want zero", q.ActiveEnter)
 	}
 }
 
 func TestRefreshPopulatesMetaWorkingDir(t *testing.T) {
 	prevList, prevShow := unitCacheListFn, unitShowFn
-	unitCacheListFn = func() (string, error) { return "lerd-vite-app.service loaded active running Vite\n", nil }
+	unitCacheListFn = func() (string, error) { return "servlo-vite-app.service loaded active running Vite\n", nil }
 	unitShowFn = func([]string) (string, error) {
-		return "Id=lerd-vite-app.service\nActiveEnterTimestampMonotonic=0\nWorkingDirectory=/home/u/wt\n", nil
+		return "Id=servlo-vite-app.service\nActiveEnterTimestampMonotonic=0\nWorkingDirectory=/home/u/wt\n", nil
 	}
 	InvalidateUnitCache()
 	t.Cleanup(func() { unitCacheListFn = prevList; unitShowFn = prevShow; InvalidateUnitCache() })
 
-	unitStatusCached("lerd-vite-app") // triggers a refresh that fills states + meta
+	unitStatusCached("servlo-vite-app") // triggers a refresh that fills states + meta
 	globalUnitCache.mu.Lock()
-	wd := globalUnitCache.meta["lerd-vite-app"].WorkingDir
+	wd := globalUnitCache.meta["servlo-vite-app"].WorkingDir
 	globalUnitCache.mu.Unlock()
 	if wd != "/home/u/wt" {
 		t.Errorf("meta WorkingDir = %q, want /home/u/wt", wd)

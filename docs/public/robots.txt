@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://lerd.sh/sitemap.xml
+Sitemap: https://realrashid.github.io/servlo/sitemap.xml

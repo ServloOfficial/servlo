@@ -21,7 +21,7 @@ describe('ImportIssuesModal', () => {
     expect(container.querySelector('ul')?.className).toContain('overflow-y-auto');
   });
 
-  it('lists what lerd held back separately from what the engine rejected', () => {
+  it('lists what servlo held back separately from what the engine rejected', () => {
     const { queryByText, getByText } = render(ImportIssuesModal, {
       props: {
         title: 'Imported',
@@ -30,7 +30,7 @@ describe('ImportIssuesModal', () => {
         onclose: () => {}
       }
     });
-    expect(getByText(/lerd left these out on the way in/)).toBeInTheDocument();
+    expect(getByText(/servlo left these out on the way in/)).toBeInTheDocument();
     expect(getByText('4×')).toBeInTheDocument();
     expect(queryByText(/more distinct errors not shown/)).toBeNull();
   });

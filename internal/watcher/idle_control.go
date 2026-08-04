@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/reqstats"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/reqstats"
 )
 
 // startControlSocket binds the idle-suspend control datagram socket and serves
@@ -31,7 +31,7 @@ func dispatchControl(msg string) {
 		if arg != "" && idleActive.Load() {
 			activityTracker.TouchSite(arg, time.Now())
 			idleEng.OnActivity(arg)
-			// Non-blocking coalesced refresh, so a slow/down lerd-ui can't stall
+			// Non-blocking coalesced refresh, so a slow/down servlo-panel can't stall
 			// the read loop.
 			publishSitesChanged()
 		}
