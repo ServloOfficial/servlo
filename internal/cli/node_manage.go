@@ -363,7 +363,7 @@ func regenerateWorkerUnit(siteName, sitePath, phpVersion, workerName string, wDe
 	// not .service files, so both reads come back empty): announce under the
 	// host-workers header, then do a full platform-correct (re)start.
 	// WorkerStartForSite owns the macOS launchd lifecycle, clears stale
-	// idle-suspend state, and regenerates the proxy vhost; the reload+restart
+	// state, and regenerates the proxy vhost; the reload+restart
 	// afterward bounces a running Linux worker onto the new ExecStart, which
 	// StartUnit alone would not.
 	if hostWorkerHeader != nil {

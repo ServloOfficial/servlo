@@ -25,7 +25,7 @@ func ok2(label string) {
 	fmt.Printf("  %s %s\n", feedback.Green(feedback.GlyphOK), label)
 }
 
-// paused2 reports an idle-suspended worker: stopped on purpose, resumes on the
+// paused2 reports a worker stopped on purpose, resumed on the
 // next request, so it's shown green (healthy) as paused rather than missing.
 func paused2(label string) {
 	fmt.Printf("  %s %s %s\n", feedback.Green(feedback.GlyphOK), label, feedback.Dim("(paused, idle)"))

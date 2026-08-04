@@ -12,7 +12,6 @@ const demoOverrides = {
   name: 'demo-overrides',
   enforce: 'pre' as const,
   resolveId(source: string) {
-    if (source.endsWith('/LANShareLink.svelte')) return r('demo/overrides/LANShareLink.svelte');
     return null;
   },
 };

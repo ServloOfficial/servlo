@@ -6,7 +6,7 @@ import (
 )
 
 // DefaultSourceDirs are the project subdirectories watched for "active coding"
-// activity (keeping a site awake under idle-suspend) when a framework declares
+// activity when a framework declares
 // none of its own. Deliberately framework-agnostic: it covers the common PHP and
 // JS source roots — Laravel's app/resources/routes, Symfony and Vite's src,
 // Node's lib/components/pages — and never lists generated or vendored trees like

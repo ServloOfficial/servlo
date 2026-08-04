@@ -51,7 +51,6 @@ const (
 	kindInfo detailKind = iota
 	kindWorker
 	kindHTTPS
-	kindLANShare
 	kindPHP
 	kindNode
 	kindDomain
@@ -59,7 +58,6 @@ const (
 	kindWorktreeHeader
 	kindWorktreeWorker
 	kindWorktreeDB
-	kindWorktreeLAN
 	kindWorktreePHP
 	kindWorktreeNode
 )
@@ -85,7 +83,6 @@ func detailRows(s *siteinfo.EnrichedSite) []detailRow {
 	if cfg, _ := config.LoadGlobal(); cfg == nil || cfg.DNS.Enabled {
 		rows = append(rows, detailRow{kind: kindHTTPS})
 	}
-	rows = append(rows, detailRow{kind: kindLANShare})
 	if s.HasQueueWorker {
 		rows = append(rows, detailRow{kind: kindWorker, workerName: "queue"})
 	}
@@ -117,7 +114,6 @@ func detailRows(s *siteinfo.EnrichedSite) []detailRow {
 		if dbCapable {
 			rows = append(rows, detailRow{kind: kindWorktreeDB, branch: wt.Branch, branchPath: wt.Path})
 		}
-		rows = append(rows, detailRow{kind: kindWorktreeLAN, branch: wt.Branch, branchPath: wt.Path})
 		if s.ContainerPort == 0 && wt.PHPVersion != "" {
 			rows = append(rows, detailRow{kind: kindWorktreePHP, branch: wt.Branch, branchPath: wt.Path})
 		}
@@ -185,13 +181,6 @@ func (m *Model) detailToggleSelected(s *siteinfo.EnrichedSite, rows []detailRow,
 		}
 		m.setStatus("enabling HTTPS for "+s.Name+"…", 5*time.Second)
 		return runServlo(s.Path, "secure", s.Name)
-	case kindLANShare:
-		if s.LANPort > 0 {
-			m.setStatus("stopping LAN share for "+s.Name+"…", 5*time.Second)
-			return runServlo(s.Path, "lan", "unshare")
-		}
-		m.setStatus("starting LAN share for "+s.Name+"…", 5*time.Second)
-		return runServlo(s.Path, "lan", "share")
 	case kindPHP:
 		m.openPHPPicker(s)
 		return nil
@@ -208,8 +197,6 @@ func (m *Model) detailToggleSelected(s *siteinfo.EnrichedSite, rows []detailRow,
 		return m.toggleWorktreeWorker(s, row)
 	case kindWorktreeDB:
 		return m.toggleWorktreeDB(s, row)
-	case kindWorktreeLAN:
-		return m.toggleWorktreeLAN(s, row)
 	case kindWorktreePHP:
 		m.openWorktreePHPPicker(s, row)
 		return nil
@@ -219,20 +206,6 @@ func (m *Model) detailToggleSelected(s *siteinfo.EnrichedSite, rows []detailRow,
 	}
 	return nil
 }
-
-func (m *Model) toggleWorktreeLAN(s *siteinfo.EnrichedSite, row detailRow) tea.Cmd {
-	wt := findWorktree(s, row.branch)
-	if wt == nil {
-		return nil
-	}
-	if wt.LANPort > 0 {
-		m.setStatus("stopping LAN share on "+row.branch+"…", 5*time.Second)
-		return runServlo(row.branchPath, "lan", "unshare")
-	}
-	m.setStatus("starting LAN share on "+row.branch+"…", 5*time.Second)
-	return runServlo(row.branchPath, "lan", "share")
-}
-
 func (m *Model) toggleWorktreeWorker(s *siteinfo.EnrichedSite, row detailRow) tea.Cmd {
 	wt := findWorktree(s, row.branch)
 	if wt == nil {
@@ -724,8 +697,6 @@ func overviewToggles(site *siteinfo.EnrichedSite, rows []detailRow, sel func(int
 			b.add(renderDetailRow(s, accentStyle.Render("⬢"), "Node", dimStyle.Render(site.NodeVersion)), s)
 		case kindHTTPS:
 			b.add(renderDetailRow(s, onOffGlyph(site.Secured), "HTTPS", onOffText(site.Secured)), s)
-		case kindLANShare:
-			b.add(renderDetailRow(s, onOffGlyph(site.LANPort > 0), "LAN share", lanShareText(site.LANPort)), s)
 		}
 	}
 	b.plain("")
@@ -799,10 +770,6 @@ func overviewWorktrees(site *siteinfo.EnrichedSite, rows []detailRow, sel func(i
 				renderedAny = true
 				b.add(renderDetailRow(s, onOffGlyph(wt.DBIsolated),
 					"    Isolated DB", worktreeDBStateText(wt)), s)
-			case kindWorktreeLAN:
-				renderedAny = true
-				b.add(renderDetailRow(s, onOffGlyph(wt.LANPort > 0),
-					"    LAN share", lanShareText(wt.LANPort)), s)
 			case kindWorktreePHP:
 				renderedAny = true
 				b.add(renderDetailRow(s, accentStyle.Render("λ"),
@@ -953,17 +920,6 @@ func onOffText(on bool) string {
 		return runningStyle.Render("on")
 	}
 	return dimStyle.Render("off")
-}
-
-func lanShareText(port int) string {
-	if port <= 0 {
-		return dimStyle.Render("off")
-	}
-	ip := primaryLANIP()
-	if ip == "" {
-		return runningStyle.Render(fmt.Sprintf("sharing on port %d", port))
-	}
-	return runningStyle.Render(fmt.Sprintf("http://%s:%d", ip, port))
 }
 
 func maxInt(a, b int) int {

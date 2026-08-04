@@ -27,7 +27,6 @@ func TestDetailRows_IncludesDomainsWorkersAndToggles(t *testing.T) {
 	assertKindCount(t, kinds, kindPHP, 1)
 	assertKindCount(t, kinds, kindNode, 1)
 	assertKindCount(t, kinds, kindHTTPS, 1)
-	assertKindCount(t, kinds, kindLANShare, 1)
 }
 
 func TestDetailRows_CustomContainerSkipsPHP(t *testing.T) {
@@ -41,7 +40,6 @@ func TestDetailRows_CustomContainerSkipsPHP(t *testing.T) {
 	assertKindCount(t, kinds, kindPHP, 0)
 	assertKindCount(t, kinds, kindNode, 0) // NodeVersion empty
 	assertKindCount(t, kinds, kindHTTPS, 1)
-	assertKindCount(t, kinds, kindLANShare, 1)
 }
 
 func TestDetailContent_ShowsAppName(t *testing.T) {
@@ -272,7 +270,6 @@ func TestDetailRows_WorktreesEmitLANAndVersionRows(t *testing.T) {
 	}
 	rows := detailRows(s)
 	kinds := rowKinds(rows)
-	assertKindCount(t, kinds, kindWorktreeLAN, 1)
 	assertKindCount(t, kinds, kindWorktreePHP, 1)
 	assertKindCount(t, kinds, kindWorktreeNode, 1)
 }

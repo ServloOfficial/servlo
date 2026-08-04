@@ -112,7 +112,7 @@ ports and devices that require access.`,
 			if dnsOn {
 				feedback.Note("sites: http://*.test (resolved via dnsmasq on " + lanIP + ":5300)")
 			} else {
-				feedback.Note("sites: only reachable via per-site `servlo lan:share` (no dnsmasq, *.localhost cannot resolve to a remote host)")
+				feedback.Note("sites: reachable on the host's LAN address once exposed")
 			}
 			if cfg != nil && cfg.UI.PasswordHash != "" {
 				feedback.Note(fmt.Sprintf("dashboard: http://%s:7073 (HTTP Basic auth required)", lanIP))
@@ -127,7 +127,7 @@ ports and devices that require access.`,
 			if dnsOn {
 				feedback.Note("allow ports 80, 443, 5300, 7073 through your firewall; `servlo remote-setup` generates a one-time bootstrap code")
 			} else {
-				feedback.Note("allow ports 80, 443, 7073 plus any `servlo lan:share` ports through your firewall")
+				feedback.Note("allow ports 80, 443 and 7073 through your firewall")
 			}
 			return nil
 		},

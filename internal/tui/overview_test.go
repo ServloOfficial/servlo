@@ -33,9 +33,9 @@ func TestDetailRows_NavOrderMatchesRenderOrder(t *testing.T) {
 	}
 	want := []detailKind{
 		kindDomain, kindDomain, kindDomainAdd, // Domains
-		kindPHP, kindNode, kindHTTPS, kindLANShare, // Toggles
-		kindWorker,                      // Workers
-		kindWorktreeDB, kindWorktreeLAN, // Worktrees
+		kindPHP, kindNode, kindHTTPS, // Toggles
+		kindWorker,                        // Workers
+		kindWorktreeDB,                    // Worktrees
 		kindWorktreePHP, kindWorktreeNode, //
 	}
 	if len(got) != len(want) {

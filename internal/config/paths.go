@@ -331,7 +331,7 @@ func RequestStatsDB() string {
 }
 
 // AccessSocketPath is the unix datagram socket the servlo-watcher binds to receive
-// the nginx access feed (one "$host" line per request) that drives idle-suspend's
+// the nginx access feed (one "$host" line per request) that drives's
 // per-site last-active tracking. It lives in RunDir, which is bind-mounted into
 // the servlo-nginx container at the same path, so nginx's syslog access_log can
 // reach it without container→host TCP routing.
@@ -358,7 +358,7 @@ func AccessLogTarget() string {
 }
 
 // ControlSocketPath is the unix datagram socket the servlo-watcher binds for
-// idle-suspend control messages: "enable"/"disable" from the CLI and dashboard
+// control messages from the CLI and dashboard
 // toggle, and "activity <site>" from the CLI shims.
 func ControlSocketPath() string {
 	return filepath.Join(RunDir(), "servlo-idle-control.sock")

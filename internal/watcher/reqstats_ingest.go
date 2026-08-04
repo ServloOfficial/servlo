@@ -196,7 +196,7 @@ func listenUDP(addr string) (net.PacketConn, bool) {
 }
 
 // listenDatagram binds a unix datagram socket at path under RunDir, replacing any
-// stale one. ok=false on failure (idle-suspend is best-effort, so callers skip).
+// stale one. ok=false on failure, so callers skip.
 // 0660 matches nginx's writer uid on the access socket and the UI stream socket.
 func listenDatagram(path string) (net.PacketConn, bool) {
 	if err := os.MkdirAll(config.RunDir(), 0755); err != nil {

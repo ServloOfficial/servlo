@@ -49,7 +49,7 @@ type Framework struct {
 	Detect    []FrameworkRule `yaml:"detect,omitempty"`
 	PublicDir string          `yaml:"public_dir"`
 	// SourceDirs overrides which project directories the activity watcher treats
-	// as source for idle-suspend (a save there keeps the site awake). When empty,
+	// as source for the file watcher. When empty,
 	// config.DefaultSourceDirs applies. Paths are relative to the project root.
 	SourceDirs []string                   `yaml:"source_dirs,omitempty"`
 	Env        FrameworkEnvConf           `yaml:"env,omitempty"`

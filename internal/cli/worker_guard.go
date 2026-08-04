@@ -71,7 +71,7 @@ func inContainerReapSnippet(workerCmd, sitePath string) string {
 // inContainerReapSnippet inside the FPM container. Persisted as the worker's
 // .reap sidecar at start and run on stop: stopping the launchd job only kills
 // the host-side `podman exec`, so without this the in-container worker (and its
-// file-watcher child) survive as orphans — the cause of idle-suspended sites
+// file-watcher child) survive as orphans — the cause of sites
 // still burning CPU.
 func buildWorkerReapCommand(podmanBin, container, sitePath, workerCmd string) string {
 	return fmt.Sprintf("%s exec %s sh -c %s",

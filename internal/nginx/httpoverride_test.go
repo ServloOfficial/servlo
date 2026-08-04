@@ -94,7 +94,7 @@ func TestEnsureNginxConfig_keepsRepeatableLogDirectives(t *testing.T) {
 		t.Errorf("servlo's log_format must survive a user log_format, got:\n%s", body)
 	}
 	if !hasActiveDirective(body, "access_log syslog:") {
-		t.Errorf("servlo's access_log feeds idle-suspend and request stats, got:\n%s", body)
+		t.Errorf("servlo's access_log feeds the request stats, got:\n%s", body)
 	}
 }
 

@@ -34,11 +34,8 @@ type worktreeRef struct {
 }
 
 // worktreeIndex is the daemon's view of every site's worktrees, keyed by domain.
-// It refreshes for the daemon's whole life rather than inside an idle-suspend
-// session, because request timing must attribute worktree traffic with
-// idle-suspend off; the engine's own map was only ever built while it ticked, so
-// with the feature disabled every worktree request resolved to no site and was
-// dropped.
+// It refreshes for the daemon's whole life so request timing can attribute
+// worktree traffic whenever it arrives.
 type worktreeIndex struct {
 	mu     sync.RWMutex
 	byHost map[string]worktreeRef
@@ -139,7 +136,6 @@ func (x *worktreeIndex) lookup(host string) (worktreeRef, bool) {
 }
 
 // forSite returns the site's detected worktrees, including any whose subdomain is
-// reserved: idle-suspend still owns their workers even though nothing serves them.
 func (x *worktreeIndex) forSite(site string) []worktreeRef {
 	x.mu.RLock()
 	defer x.mu.RUnlock()

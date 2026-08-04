@@ -13,7 +13,6 @@
   } from '$stores/remoteControl';
   import { openRemoteControlModal, openLANProgressModal, type LANAction } from '$stores/modals';
   import { autostartEnabled, loadAutostart, toggleAutostart } from '$stores/autostart';
-  import { idleEnabled, idleTimeoutMinutes, loadIdle, saveIdle } from '$stores/idle';
   import Toggle from '$components/Toggle.svelte';
   import SettingsCard from '$components/SettingsCard.svelte';
   import LANServicesSetting from './LANServicesSetting.svelte';
@@ -31,34 +30,7 @@
     loadLANStatus();
     loadRemoteControl();
     loadAutostart();
-    loadIdle();
   });
-
-  let idleBusy = $state(false);
-  let idleMinutesInput = $state(30);
-  // Mirror the store into the editable field: fires on load and after a save
-  // (the only times the store changes), never while the user is typing.
-  $effect(() => {
-    idleMinutesInput = $idleTimeoutMinutes;
-  });
-  async function onToggleIdle() {
-    idleBusy = true;
-    try {
-      await saveIdle(!$idleEnabled, $idleTimeoutMinutes);
-    } finally {
-      idleBusy = false;
-    }
-  }
-  async function onSaveIdleTimeout() {
-    const v = Math.max(1, Math.floor(Number(idleMinutesInput) || 0));
-    if (v === $idleTimeoutMinutes) return;
-    idleBusy = true;
-    try {
-      await saveIdle($idleEnabled, v);
-    } finally {
-      idleBusy = false;
-    }
-  }
 
   function startLAN(action: LANAction) {
     openLANProgressModal(action);
@@ -228,44 +200,6 @@
       <p class="text-xs text-gray-500 dark:text-gray-400">{m.system_autostart_description()}</p>
     </SettingsCard>
 
-    <SettingsCard>
-      <div class="flex items-center justify-between gap-3 mb-2">
-        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{m.system_idle_title()}</span>
-        {#if $accessMode.localControl}
-          <Toggle
-            on={$idleEnabled}
-            loading={idleBusy}
-            onclick={onToggleIdle}
-            title={$idleEnabled ? m.system_idle_toggleOff() : m.system_idle_toggleOn()}
-          />
-        {:else}
-          <span class="inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full {$idleEnabled ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'}">
-            <span class="w-1.5 h-1.5 rounded-full {$idleEnabled ? 'bg-emerald-500' : 'bg-gray-400'}"></span>
-            {$idleEnabled ? m.common_enabled() : m.common_disabled()}
-          </span>
-        {/if}
-      </div>
-      <p class="text-xs text-gray-500 dark:text-gray-400">{m.system_idle_description()}</p>
-      <div class="flex items-center justify-between gap-4 mt-3">
-        <p class="text-xs text-gray-500 dark:text-gray-400">{m.system_idle_timeoutLabel()}</p>
-        {#if $accessMode.localControl}
-          <div class="flex items-center gap-2">
-            <input
-              type="number"
-              min="1"
-              bind:value={idleMinutesInput}
-              onblur={onSaveIdleTimeout}
-              onkeydown={(e) => e.key === 'Enter' && onSaveIdleTimeout()}
-              disabled={idleBusy}
-              class="text-sm bg-white dark:bg-servlo-card border border-gray-200 dark:border-servlo-border rounded-lg px-3 py-1.5 w-20 text-gray-700 dark:text-gray-200 focus:outline-hidden focus:border-servlo-red/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-            <span class="text-xs text-gray-500 dark:text-gray-400">{m.system_idle_minutes()}</span>
-          </div>
-        {:else}
-          <span class="text-xs text-gray-500 dark:text-gray-400">{idleMinutesInput} {m.system_idle_minutes()}</span>
-        {/if}
-      </div>
-    </SettingsCard>
     </div>
 
     {#if $status.dns?.enabled !== false}
@@ -414,7 +348,7 @@
         {#if $status.dns?.enabled === false}
           {@html m.system_remote_descriptionNoDns({
             addr: '<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded-sm font-mono">' + ($lan.lanIP ? escapeHtml($lan.lanIP) : '&lt;lan-ip&gt;') + ':7073</code>',
-            cmd: '<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded-sm font-mono">servlo lan:share</code>'
+            cmd: '<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded-sm font-mono">servlo lan:expose</code>'
           })}
         {:else}
           {@html m.system_remote_description({ loop4: '<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded-sm font-mono">127.0.0.1</code>', loop6: '<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded-sm font-mono">::1</code>' })}
@@ -430,7 +364,7 @@
                 <p class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">{m.system_remote_address()}</p>
                 <a href={dashboardURL} target="_blank" rel="noopener" class="text-sm text-teal-600 dark:text-teal-400 font-mono hover:underline break-all">{dashboardURL}</a>
               </div>
-              <img src={dashboardQRSrc} width="112" height="112" alt={m.lanShare_qrAlt()} class="shrink-0 rounded-sm bg-white p-1" />
+              <img src={dashboardQRSrc} width="112" height="112" alt={m.system_remote_qrAlt()} class="shrink-0 rounded-sm bg-white p-1" />
             </div>
           {/if}
           <p class="text-xs text-gray-600 dark:text-gray-400">

@@ -913,14 +913,6 @@ func GeneratePausedVhost(site config.Site) error {
 	return writeLandingVhost(site, "paused.html")
 }
 
-// GenerateWakingVhost swaps an idle-suspended host-proxy site's vhost to the
-// auto-refreshing "waking up" page. A request to a sleeping site then wakes its
-// dev server (the access hit drives idle-resume) and the page reloads onto the
-// live app, instead of nginx returning 502 from proxying to the stopped server.
-func GenerateWakingVhost(site config.Site) error {
-	return writeLandingVhost(site, "waking.html")
-}
-
 // GeneratePausedWorktreeVhost writes a paused nginx vhost for a worktree domain.
 // certDomain is the parent site's domain whose cert files back the wildcard.
 func GeneratePausedWorktreeVhost(domain, certDomain, pausedDir string, secured bool) error {

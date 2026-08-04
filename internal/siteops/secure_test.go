@@ -134,7 +134,7 @@ func TestSetSecured_unsecuringCallsUnsecureSiteAndFlipsFlag(t *testing.T) {
 	}
 }
 
-func TestSetSecured_notifiesDaemonForStripeAndLANShare(t *testing.T) {
+func TestSetSecured_notifiesDaemonForStripe(t *testing.T) {
 	// Every successful toggle must notify the daemon to refresh both
 	// dependent listeners. Missing either has been the source of past bugs
 	// (Stripe webhook stuck on wrong scheme, LAN share proxying to old

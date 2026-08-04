@@ -4663,79 +4663,32 @@ var allowedQueueUnit = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 // SettingsResponse is the response for GET /api/settings.
 type SettingsResponse struct {
-	AutostartOnLogin          bool     `json:"autostart_on_login"`
-	WorkerExecMode            string   `json:"worker_exec_mode"`
-	WorkerModeApplies         bool     `json:"worker_mode_applies"` // true on macOS only
-	IdleSuspendEnabled        bool     `json:"idle_suspend_enabled"`
-	IdleSuspendTimeoutMinutes int      `json:"idle_suspend_timeout_minutes"`
-	DNSEnabled                bool     `json:"dns_enabled"`
-	DNSUpstream               []string `json:"dns_upstream"`          // pinned upstreams, empty = auto-detect
-	DNSUpstreamDetected       []string `json:"dns_upstream_detected"` // what auto-detection currently sees
+	AutostartOnLogin    bool     `json:"autostart_on_login"`
+	WorkerExecMode      string   `json:"worker_exec_mode"`
+	WorkerModeApplies   bool     `json:"worker_mode_applies"` // true on macOS only
+	DNSEnabled          bool     `json:"dns_enabled"`
+	DNSUpstream         []string `json:"dns_upstream"`          // pinned upstreams, empty = auto-detect
+	DNSUpstreamDetected []string `json:"dns_upstream_detected"` // what auto-detection currently sees
 }
 
 func handleSettings(w http.ResponseWriter, _ *http.Request) {
 	cfg, _ := config.LoadGlobal()
 	mode := config.WorkerExecModeExec
-	idleEnabled := false
-	idleMinutes := int(config.DefaultIdleSuspendTimeout / time.Minute)
 	dnsEnabled := true
 	var dnsUpstream []string
 	if cfg != nil {
 		mode = cfg.WorkerExecMode()
-		idleEnabled = cfg.IdleSuspend.Enabled
-		idleMinutes = int(cfg.IdleSuspendTimeout() / time.Minute)
 		dnsEnabled = cfg.DNSManaged()
 		dnsUpstream = cfg.DNS.Upstream
 	}
 	writeJSON(w, SettingsResponse{
-		AutostartOnLogin:          servloSystemd.IsAutostartEnabled(),
-		WorkerExecMode:            mode,
-		WorkerModeApplies:         false,
-		IdleSuspendEnabled:        idleEnabled,
-		IdleSuspendTimeoutMinutes: idleMinutes,
-		DNSEnabled:                dnsEnabled,
-		DNSUpstream:               dnsUpstream,
-		DNSUpstreamDetected:       dns.ReadUpstreamDNS(),
+		AutostartOnLogin:    servloSystemd.IsAutostartEnabled(),
+		WorkerExecMode:      mode,
+		WorkerModeApplies:   false,
+		DNSEnabled:          dnsEnabled,
+		DNSUpstream:         dnsUpstream,
+		DNSUpstreamDetected: dns.ReadUpstreamDNS(),
 	})
-}
-
-// handleSettingsIdleSuspend sets the global idle-suspend policy (a single on/off
-// + timeout, not per site). The timeout arrives as whole minutes from the UI and
-// is stored as a Go duration string.
-func handleSettingsIdleSuspend(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Enabled        bool `json:"enabled"`
-		TimeoutMinutes int  `json:"timeout_minutes"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-	if body.TimeoutMinutes < 1 {
-		writeJSON(w, map[string]any{"ok": false, "error": "timeout must be at least 1 minute"})
-		return
-	}
-	cfg, err := config.LoadGlobal()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	cfg.IdleSuspend.Enabled = body.Enabled
-	cfg.IdleSuspend.Timeout = (time.Duration(body.TimeoutMinutes) * time.Minute).String()
-	if err := config.SaveGlobal(cfg); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	// Persisted flag is the boot source of truth; this signal makes the running
-	// watcher start the session, or resume all workers and tear it down, now.
-	if body.Enabled {
-	} else {
-	}
-	writeJSON(w, map[string]any{"ok": true})
 }
 
 // handleSettingsDNSUpstream pins (or clears) the upstream DNS servers dnsmasq
