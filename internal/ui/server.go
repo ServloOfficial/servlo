@@ -43,7 +43,6 @@ import (
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/phpsets"
 	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/profiler"
 	"github.com/realrashid/servlo/internal/reqstats"
 	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/realrashid/servlo/internal/services"
@@ -201,7 +200,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/sites", withCORS(handleSites))
 	mux.HandleFunc("/api/services", withCORS(handleServices))
 	mux.HandleFunc("/api/ws", handleWS)
-	mux.HandleFunc("/api/lsp/php", handleLSPPhp)
 	mux.HandleFunc("/api/webhooks/mailpit", handleMailpitWebhook)
 	mux.HandleFunc("/api/push/vapid-public-key", withCORS(handlePushVAPIDPublicKey))
 	mux.HandleFunc("/api/push/subscribe", withCORS(handlePushSubscribe))
@@ -259,7 +257,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/dumps", withCORS(handleDumpsList))
 	mux.HandleFunc("/api/queries/analyze", withCORS(handleQueriesAnalyze))
 	mux.HandleFunc("/api/queries/route-timing", withCORS(handleRouteTiming))
-	mux.HandleFunc("/api/queries/optimize", withCORS(handleOptimize))
 	mux.HandleFunc("/api/dumps/stream", withCORS(handleDumpsStream))
 	mux.HandleFunc("/api/dumps/status", withCORS(handleDumpsStatus))
 	mux.HandleFunc("/api/dumps/clear", withCORS(handleDumpsClear))
@@ -270,10 +267,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/devtools/workers", withCORS(publishAfter(handleDevtoolsWorkers, eventbus.KindDevtoolsStatus)))
 	mux.HandleFunc("/api/open-editor", withCORS(handleOpenEditor))
 	mux.HandleFunc("/api/open-folder", withCORS(handleOpenFolder))
-	mux.HandleFunc("/api/profiler/toggle", withCORS(publishAfter(handleProfilerToggle, eventbus.KindProfilerStatus)))
-	mux.HandleFunc("/api/profiler/status", withCORS(handleProfilerStatus))
-	mux.HandleFunc("/api/profiler/clear", withCORS(handleProfilerClear))
-	mux.HandleFunc("/_spx/", handleSpxProxy)
 	mux.HandleFunc("/_svc/", handleDashProxy)
 	mux.HandleFunc("/api/queue/", withCORS(handleUnitLogStream))
 	mux.HandleFunc("/api/horizon/", withCORS(handleUnitLogStream))
@@ -881,11 +874,6 @@ type SiteResponse struct {
 	// the dashboard hides the button rather than opening an empty modal. Not
 	// omitempty: the dashboard keys on the explicit false to hide.
 	DoctorApplicable bool `json:"doctor_applicable"`
-	// CanProfile is false when SPX cannot profile the site's requests (no PHP,
-	// or PHP served by something other than FPM), so the dashboard's timing
-	// panel offers no profile action. Not omitempty: the dashboard keys on the
-	// explicit false.
-	CanProfile bool `json:"can_profile"`
 	// Grouping — Group is the group key (main site's name); GroupSubdomain is the
 	// label a secondary occupies; GroupMainDomain is the group main's base domain.
 	// MultiTenant flags a main whose project declares env_overrides (wildcard
@@ -1128,15 +1116,12 @@ func buildSites() ([]SiteResponse, error) {
 			HostPort:             e.HostPort,
 			HostHasDevServer:     e.HostPort > 0 && e.HostCommand != "",
 			DoctorApplicable:     sitedoctor.AppliesForPath(e.Path, e.FrameworkName),
-			CanProfile: profiler.ProfilableSite(config.Site{
-				Runtime: e.Runtime, ContainerPort: e.ContainerPort, HostPort: e.HostPort,
-			}, e.UsesPHP),
-			Group:           e.Group,
-			GroupSubdomain:  e.GroupSubdomain,
-			GroupMainDomain: groupMainDomain[e.Group],
-			GroupSharedDB:   e.GroupSharedDB,
-			MultiTenant:     e.Group != "" && e.GroupSubdomain == "" && siteHasEnvOverrides(e.Path),
-			Workspace:       resolveSiteWorkspace(e, groupMainName, siteWorkspace),
+			Group:                e.Group,
+			GroupSubdomain:       e.GroupSubdomain,
+			GroupMainDomain:      groupMainDomain[e.Group],
+			GroupSharedDB:        e.GroupSharedDB,
+			MultiTenant:          e.Group != "" && e.GroupSubdomain == "" && siteHasEnvOverrides(e.Path),
+			Workspace:            resolveSiteWorkspace(e, groupMainName, siteWorkspace),
 		})
 	}
 	return sites, nil
@@ -1956,7 +1941,7 @@ func handleServiceTuning(w http.ResponseWriter, r *http.Request, name string) {
 	}
 	var req ServiceTuningWriteRequest
 	// Cap the POST body so a multi-gigabyte payload can't be streamed
-	// straight to disk via os.WriteFile. 64 KiB matches the tinker /
+	// straight to disk via os.WriteFile. 64 KiB matches the
 	// php.ini / nginx endpoints in this file.
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
 		writeJSON(w, ServiceTuningWriteResponse{OK: false, Error: "invalid body: " + err.Error()})
@@ -3412,7 +3397,7 @@ func handleSiteNginx(w http.ResponseWriter, r *http.Request, domain string) {
 	}
 	var req SiteNginxWriteRequest
 	// Cap the POST body so a multi-gigabyte payload can't stream straight to
-	// disk. 64 KiB matches the tinker / php.ini / global nginx endpoints.
+	// disk. 64 KiB matches the php.ini / global nginx endpoints.
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
 		writeJSON(w, SiteNginxWriteResponse{OK: false, Error: "invalid body: " + err.Error()})
 		return
@@ -4318,41 +4303,6 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "tinker":
-		var body struct {
-			Code string `json:"code"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&body); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "invalid body: " + err.Error()})
-			return
-		}
-		if strings.TrimSpace(body.Code) == "" {
-			writeJSON(w, map[string]any{"ok": false, "error": "code is empty"})
-			return
-		}
-		branch := r.URL.Query().Get("branch")
-		tinkerPath := resolveSitePath(site, branch)
-		if tinkerPath == "" {
-			writeJSON(w, map[string]any{"ok": false, "error": "unknown worktree branch"})
-			return
-		}
-		ensureWorktreeEnvIfBranch(site, branch)
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-		res, err := cli.RunTinker(ctx, tinkerPath, site.Name, branch, body.Code)
-		resp := map[string]any{
-			"ok":          err == nil && res.ExitCode == 0,
-			"stdout":      res.Stdout,
-			"stderr":      res.Stderr,
-			"exit_code":   res.ExitCode,
-			"duration_ms": res.DurationMs,
-			"mode":        res.Mode,
-		}
-		if err != nil {
-			resp["error"] = err.Error()
-		}
-		writeJSON(w, resp)
 		return
 	case "worktree:remove":
 		branch := r.URL.Query().Get("branch")

@@ -236,7 +236,6 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		snapshots.UnhealthyWorkers(),
 		buildDumpsStatusJSON(),
 		buildDevtoolsStatusJSON(),
-		buildProfilerStatusJSON(),
 		nil,
 		[]string{"snapshot"},
 	)
@@ -253,7 +252,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			frame := assembleSnapshot(msg.Sites, msg.Services, msg.Status, msg.UnhealthyWorkers, msg.DumpsStatus, msg.DevtoolsStatus, msg.ProfilerStatus, msg.Notification, msg.Kinds)
+			frame := assembleSnapshot(msg.Sites, msg.Services, msg.Status, msg.UnhealthyWorkers, msg.DumpsStatus, msg.DevtoolsStatus, msg.Notification, msg.Kinds)
 			if err := sendText(frame); err != nil {
 				return
 			}
@@ -271,7 +270,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 // payload bytes are non-empty so clients can treat missing keys as
 // "unchanged". The first kind names the frame type when there is exactly
 // one; mixed updates fall back to "snapshot".
-func assembleSnapshot(sites, services, status, unhealthy, dumpsStatus, devtoolsStatus, profilerStatus, notification []byte, kinds []string) []byte {
+func assembleSnapshot(sites, services, status, unhealthy, dumpsStatus, devtoolsStatus, notification []byte, kinds []string) []byte {
 	var buf bytes.Buffer
 	buf.WriteString(`{"type":"`)
 	if len(kinds) == 1 {
@@ -303,10 +302,6 @@ func assembleSnapshot(sites, services, status, unhealthy, dumpsStatus, devtoolsS
 	if len(devtoolsStatus) > 0 {
 		buf.WriteString(`,"devtools_status":`)
 		buf.Write(devtoolsStatus)
-	}
-	if len(profilerStatus) > 0 {
-		buf.WriteString(`,"profiler_status":`)
-		buf.Write(profilerStatus)
 	}
 	if len(notification) > 0 {
 		buf.WriteString(`,"notification":`)

@@ -260,12 +260,6 @@ type GlobalConfig struct {
 		// so there is no separate devtools enable toggle.
 		Workers bool `yaml:"workers,omitempty" mapstructure:"workers"`
 	} `yaml:"devtools,omitempty" mapstructure:"devtools"`
-	Profiler struct {
-		// Enabled toggles the SPX profiler globally. When on, nginx injects
-		// SPX_ENABLED into every PHP-FPM site's requests so each is profiled.
-		// Toggled via `servlo profile on/off` and the dashboard Profiler view.
-		Enabled bool `yaml:"enabled,omitempty" mapstructure:"enabled"`
-	} `yaml:"profiler,omitempty" mapstructure:"profiler"`
 	Notifications struct {
 		// Disabled globally mutes the notifier (WebSocket banners + Web
 		// Push fanout). Inverted form so the zero value keeps existing
@@ -1066,11 +1060,6 @@ func (c *GlobalConfig) IsDevtoolsWorkers() bool {
 // devtoolsops.SetWorkers to touch the runtime sentinel.
 func (c *GlobalConfig) SetDevtoolsWorkers(enabled bool) {
 	c.Devtools.Workers = enabled
-}
-
-// IsProfilerEnabled reports whether the SPX profiler is globally armed.
-func (c *GlobalConfig) IsProfilerEnabled() bool {
-	return c.Profiler.Enabled
 }
 
 // IsDumpsPassthrough reports whether the bridge should also forward each

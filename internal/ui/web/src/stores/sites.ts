@@ -53,9 +53,6 @@ export interface Site {
   // False when no doctor check can apply (a host-proxy Python/Ruby/Go site with
   // no framework and no composer/package manifest), so the button stays hidden.
   doctor_applicable?: boolean;
-  // False when SPX can't profile the site's requests: no PHP, or PHP served by
-  // something other than FPM (FrankenPHP, a custom container, a host proxy).
-  can_profile?: boolean;
   group?: string;
   group_subdomain?: string;
   group_main_domain?: string;
@@ -709,47 +706,6 @@ export const toggleWorker = (s: Site, w: FrameworkWorker, branch: string = '') =
     site(s.domain, 'worker:' + w.name + (w.running ? ':stop' : ':start')) +
       (branch ? `?branch=${encodeURIComponent(branch)}` : '')
   );
-
-export type TinkerResponse = {
-  ok: boolean;
-  stdout: string;
-  stderr: string;
-  exit_code: number;
-  duration_ms: number;
-  mode: 'tinker' | 'php';
-  error?: string;
-};
-
-function tinkerURL(domain: string, action: string, branch: string): string {
-  const base = site(domain, action);
-  return branch ? `${base}?branch=${encodeURIComponent(branch)}` : base;
-}
-
-export async function runTinker(
-  domain: string,
-  code: string,
-  branch: string = ''
-): Promise<TinkerResponse> {
-  try {
-    const res = await apiFetch(tinkerURL(domain, 'tinker', branch), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code })
-    });
-    const data = (await res.json()) as TinkerResponse;
-    return data;
-  } catch (e) {
-    return {
-      ok: false,
-      stdout: '',
-      stderr: '',
-      exit_code: -1,
-      duration_ms: 0,
-      mode: 'php',
-      error: e instanceof Error ? e.message : m.common_requestFailed()
-    };
-  }
-}
 
 export async function setSiteVersion(
   s: Site,

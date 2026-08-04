@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/phpantom"
 )
 
 func downloadBinaries(w io.Writer) error {
@@ -44,15 +42,6 @@ func downloadBinaries(w io.Writer) error {
 	if _, err := os.Stat(mkcertPath); os.IsNotExist(err) {
 		if err := replaceTool(&pins, "mkcert", mkcertPath, w); err != nil {
 			return fmt.Errorf("mkcert download: %w", err)
-		}
-	}
-
-	// phpantom_lsp powers tinker autocomplete in the web UI. Best-effort:
-	// the UI also fetches it lazily on first tinker connect, so a failure
-	// here (offline install, unsupported arch) must not abort setup.
-	if !phpantom.Installed() {
-		if err := phpantom.EnsureBinary(context.Background(), w); err != nil {
-			fmt.Fprintf(w, "      Warning: phpantom_lsp download failed (%v); tinker autocomplete loads on first use instead\n", err)
 		}
 	}
 

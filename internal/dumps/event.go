@@ -35,7 +35,7 @@ type Source struct {
 }
 
 // Context describes where a dump came from. Type is "fpm" (web request) or
-// "cli" (artisan, tinker, queue worker). Empty fields are omitted on the wire.
+// "cli" (artisan, queue worker). Empty fields are omitted on the wire.
 // Branch is non-empty only when the event originated inside a git worktree
 // (set by the bridge from SERVLO_BRANCH, injected by nginx for worktree vhosts
 // and by servlo's CLI helpers when shelling into a worktree path).

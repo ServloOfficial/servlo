@@ -43,9 +43,6 @@ func WriteCustomFPMQuadlet(siteName, version string) error {
 	if err := EnsureDumpAssets(); err != nil {
 		return fmt.Errorf("ensuring dump assets: %w", err)
 	}
-	if err := EnsureProfilerAssets(); err != nil {
-		return fmt.Errorf("ensuring profiler assets: %w", err)
-	}
 	if err := EnsureDevtoolsAssets(); err != nil {
 		return fmt.Errorf("ensuring devtools assets: %w", err)
 	}

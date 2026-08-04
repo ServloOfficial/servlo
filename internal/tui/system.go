@@ -24,7 +24,6 @@ const (
 	sysDumpsEnabled
 	sysDumpsPassthrough
 	sysNotifEnabled
-	sysProfiler
 	sysAutostart
 	sysLANExpose
 	sysLANServices
@@ -86,11 +85,6 @@ func (m *Model) systemRows() []systemRow {
 	header("Notifications")
 	notifOn := cfg != nil && cfg.IsNotificationsEnabled()
 	add(systemRow{kind: sysNotifEnabled, label: "Enabled", on: notifOn})
-
-	// SPX profiler — global toggle that affects every PHP-FPM site.
-	header("Profiler")
-	profOn := cfg != nil && cfg.IsProfilerEnabled()
-	add(systemRow{kind: sysProfiler, label: "SPX profiler", on: profOn})
 
 	// Debug bridge
 	header("Debug bridge")
@@ -231,13 +225,6 @@ func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 		}
 		m.setStatus("notifications "+verb+"…", 5*time.Second)
 		return runServlo("", "notify", verb)
-	case sysProfiler:
-		verb := "on"
-		if row.on {
-			verb = "off"
-		}
-		m.setStatus("profiler "+verb+"…", 5*time.Second)
-		return runServlo("", "profile", verb)
 	case sysAutostart:
 		sub := "enable"
 		if row.on {

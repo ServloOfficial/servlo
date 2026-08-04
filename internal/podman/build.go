@@ -914,9 +914,6 @@ func WriteFPMQuadlet(version string) error {
 	if err := EnsureDumpAssets(); err != nil {
 		return fmt.Errorf("ensuring dump assets: %w", err)
 	}
-	if err := EnsureProfilerAssets(); err != nil {
-		return fmt.Errorf("ensuring profiler assets: %w", err)
-	}
 	if err := EnsureDevtoolsAssets(); err != nil {
 		return fmt.Errorf("ensuring devtools assets: %w", err)
 	}
@@ -971,8 +968,6 @@ func renderFPMQuadletContent(version string) (string, error) {
 	content = strings.ReplaceAll(content, "{{.DumpsDir}}", config.DumpsAssetsDir())
 	content = strings.ReplaceAll(content, "{{.DumpsIniPath}}", config.DumpsIniFile())
 	content = strings.ReplaceAll(content, "{{.DevtoolsIniPath}}", config.DevtoolsIniFile())
-	content = strings.ReplaceAll(content, "{{.SpxIniPath}}", config.SpxIniFile())
-	content = strings.ReplaceAll(content, "{{.SpxDataDir}}", config.SpxDataDir())
 	content = strings.ReplaceAll(content, "{{.HostNameLine}}", hostNameLine())
 	content = applyShellMounts(content, short)
 	content = InjectExtraVolumes(content, ExtraVolumePaths())
@@ -1223,7 +1218,7 @@ func PathVisible(path, phpVersion string) bool {
 // volume-mounted, the quadlets are updated and containers restarted
 // transparently before returning.
 func EnsurePathMounted(path, phpVersion string) {
-	// Reached from `servlo php`, console, tinker, shell, setup and new, so a
+	// Reached from `servlo php`, console, shell, setup and new, so a
 	// command run from / or from a temp dir must not rewrite the quadlets.
 	if !PathAutoMountable(path) {
 		return

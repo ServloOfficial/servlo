@@ -35,11 +35,10 @@ const ICONS: Record<string, string> = {
 
 const UI_ONLY: Record<string, string> = {
   docs: ICONS.docs,
-  profiler: ICONS.flame
 };
 
 // A service names its icon in its preset YAML; the name map is only for the UI
-// dashboards (docs, profiler) that are not services and declare nothing.
+// dashboards (docs) that are not services and declare nothing.
 export function dashboardIconSvg(name: string, icon?: string): string {
   if (icon && ICONS[icon]) return ICONS[icon];
   return UI_ONLY[name] || ICONS.windowIcon;

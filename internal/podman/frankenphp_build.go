@@ -17,7 +17,7 @@ import (
 // derived FrankenPHP image, mirroring the runtime extensions the servlo FPM image
 // ships so an Octane site has the same modules available instead of the bare
 // dunglas base. These are install-php-extensions names; curl/mbstring/xml are
-// already in the base image. Dev-only tooling (xdebug, pcov, spx, servlo_devtools)
+// already in the base image. Dev-only tooling (xdebug, pcov, servlo_devtools)
 // is intentionally excluded — it carries octane-specific behaviour and is
 // tracked separately.
 var frankenPHPRuntimeExtensions = []string{

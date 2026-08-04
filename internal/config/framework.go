@@ -66,10 +66,6 @@ type Framework struct {
 	// Console is the console command to run (without 'php' prefix).
 	// Example: "artisan", "bin/console"
 	Console string `yaml:"console,omitempty"`
-	// Tinker, when set, defines how to run an interactive PHP REPL for
-	// this framework (the in-browser Tinker tab + `servlo tinker` CLI).
-	// Absent → fall back to plain `php` execution.
-	Tinker *FrameworkTinker `yaml:"tinker,omitempty"`
 	// Create is the scaffold command used by "servlo new". The target directory is appended automatically.
 	// Example: "composer create-project --no-install --no-plugins --no-scripts laravel/laravel"
 	Create string `yaml:"create,omitempty"`
@@ -661,12 +657,6 @@ var laravelFramework = &Framework{
 	Composer: "auto",
 	NPM:      "auto",
 	Console:  "artisan",
-	Tinker: &FrameworkTinker{
-		Command:         []string{"artisan", "tinker"},
-		ExecuteFlag:     "--execute",
-		RequiresPackage: "laravel/tinker",
-		RequiresFile:    "artisan",
-	},
 	Workers: map[string]FrameworkWorker{
 		"queue": {
 			Label:          "Queue Worker",
@@ -862,7 +852,7 @@ func GetFramework(name string) (*Framework, bool) {
 	}
 
 	// Merge user overlay (if any) on top of the base.
-	return mergeBuiltinTinker(mergeBuiltinFrankenPHP(mergeUserOverlay(base))), true
+	return mergeBuiltinFrankenPHP(mergeUserOverlay(base)), true
 }
 
 // GetFrameworkOrFetch is like GetFramework but, when the framework is not
@@ -940,21 +930,6 @@ func mergeBuiltinFrankenPHP(fw *Framework) *Framework {
 	}
 	cp := *src.FrankenPHP
 	fw.FrankenPHP = &cp
-	return fw
-}
-
-// mergeBuiltinTinker backfills the Tinker REPL spec from a built-in when the
-// store yaml predates the tinker block. Same shape as mergeBuiltinFrankenPHP.
-func mergeBuiltinTinker(fw *Framework) *Framework {
-	if fw == nil || fw.Tinker != nil {
-		return fw
-	}
-	src := builtinFramework(fw.Name)
-	if src == nil || src.Tinker == nil {
-		return fw
-	}
-	cp := *src.Tinker
-	fw.Tinker = &cp
 	return fw
 }
 
@@ -1092,7 +1067,6 @@ func GetFrameworkForDir(name, projectDir string) (*Framework, bool) {
 		}
 		base = mergeUserOverlay(base)
 		base = mergeBuiltinFrankenPHP(base)
-		base = mergeBuiltinTinker(base)
 		base = mergeBuiltinDoctor(base)
 		return mergeProjectWorkers(base, projectDir), true
 	}
@@ -1628,79 +1602,6 @@ func SaveFramework(fw *Framework) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(FrameworksDir(), fw.Name+".yaml"), data, 0644)
-}
-
-// FrameworkTinker describes how to launch a REPL for a framework. Servlo
-// uses these to drive both the Tinker tab in the Web UI and the
-// (future) `servlo tinker` CLI command. The schema is intentionally minimal
-// so frameworks don't need to ship a full executable spec — just the
-// argv (relative to a `php …` invocation) and how user code is fed in.
-type FrameworkTinker struct {
-	// Command is the argv to run, the first item is typically the entry
-	// script (e.g. "artisan", "bin/console psysh"). Each item is passed
-	// verbatim to `podman exec … php <Command…>`.
-	// Example for Laravel: ["artisan", "tinker"]
-	// Example for Symfony+psysh: ["vendor/bin/psysh"]
-	Command []string `yaml:"command"`
-	// ExecuteFlag, when set, is the flag used to pass user code as a
-	// single argument. Example: "--execute" → `--execute=<code>`.
-	// Mutually exclusive with ExecutePositional.
-	ExecuteFlag string `yaml:"execute_flag,omitempty"`
-	// ExecutePositional, when true, appends user code as a final
-	// positional argv element instead of using a flag. Useful for tools
-	// like `drush php:eval <code>` and `wp eval <code>` that take code
-	// as a bare argument. Mutually exclusive with ExecuteFlag.
-	ExecutePositional bool `yaml:"execute_positional,omitempty"`
-	// When neither ExecuteFlag nor ExecutePositional is set, user code
-	// is piped to the process via stdin.
-	//
-	// RequiresPackage is the composer package that must be installed in
-	// vendor/ for this REPL to work. Example: "laravel/tinker".
-	// When the package isn't found, servlo falls back to plain PHP.
-	RequiresPackage string `yaml:"requires_package,omitempty"`
-	// RequiresFile, similarly, is a relative path that must exist for
-	// this REPL to be usable (e.g. "artisan"). Defaults to no check.
-	RequiresFile string `yaml:"requires_file,omitempty"`
-}
-
-// GetTinkerForDir returns the framework's Tinker spec when:
-//   - the project belongs to a registered framework,
-//   - the framework definition declares a `tinker` block,
-//   - all `requires_*` checks pass against the project directory.
-//
-// Otherwise returns nil so callers fall back to plain `php`.
-func GetTinkerForDir(projectDir string) *FrameworkTinker {
-	frameworkName := ""
-	if site, err := FindSiteByPath(projectDir); err == nil {
-		frameworkName = site.Framework
-	}
-	if frameworkName == "" {
-		// Worktree paths are not registered as sites; auto-detect from the
-		// directory contents so tinker still bootstraps Laravel/etc.
-		if name, ok := DetectFrameworkForDir(projectDir); ok {
-			frameworkName = name
-		}
-	}
-	if frameworkName == "" {
-		return nil
-	}
-	fw, ok := GetFrameworkForDir(frameworkName, projectDir)
-	if !ok || fw.Tinker == nil || len(fw.Tinker.Command) == 0 {
-		return nil
-	}
-	t := fw.Tinker
-	if t.RequiresFile != "" {
-		if _, err := os.Stat(filepath.Join(projectDir, t.RequiresFile)); err != nil {
-			return nil
-		}
-	}
-	if t.RequiresPackage != "" {
-		pkgPath := filepath.Join(projectDir, "vendor", t.RequiresPackage)
-		if _, err := os.Stat(pkgPath); err != nil {
-			return nil
-		}
-	}
-	return t
 }
 
 // GetConsoleCommand returns the console binary (without the "php" prefix) for

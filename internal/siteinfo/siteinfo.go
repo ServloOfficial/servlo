@@ -112,7 +112,7 @@ type EnrichedSite struct {
 	// UsesPHP reports whether the site is actually a PHP project (composer.json
 	// or .php files present) served by the shared FPM image or FrankenPHP.
 	// Static sites and custom containers are false, so the UI can hide the PHP
-	// version dropdown, Tinker, Xdebug, dumps and the FPM logs tab.
+	// version dropdown, Xdebug, dumps and the FPM logs tab.
 	UsesPHP bool
 
 	// Runtime status

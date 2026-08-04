@@ -64,8 +64,7 @@ func GenerateFrankenPHPQuadlet(siteName, projectPath, phpVersion string, entrypo
 	// (servlo_devtools), and Xdebug work for requests Octane serves from this
 	// container too. The baked extensions stay inert until these inis/sentinels
 	// arm them. RunDir carries the unix socket the bridges ship to; it must appear
-	// at its host path, matching the dump_host ini value. SPX is omitted: it can't
-	// profile Octane's resident-worker requests (see the Containerfile).
+	// at its host path, matching the dump_host ini value.
 	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/servlo:ro\n", config.DumpsAssetsDir())
 	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/97-servlo-dump.ini:ro\n", config.DumpsIniFile())
 	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/96-servlo-devtools.ini:ro\n", config.DevtoolsIniFile())

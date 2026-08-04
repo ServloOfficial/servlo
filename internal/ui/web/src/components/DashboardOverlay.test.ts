@@ -2,58 +2,40 @@ import { render, screen } from '@testing-library/svelte';
 import { describe, it, expect, beforeEach } from 'vitest';
 import DashboardOverlay from './DashboardOverlay.svelte';
 import { dashboardOpen } from '../stores/dashboard';
-import { profilerEnabled } from '../stores/profiler';
 
-function openProfiler() {
+function openService() {
   dashboardOpen.set({
-    name: 'profiler',
-    label: 'Profiler',
-    dashboard: '/_spx/?SPX_UI_URI=/'
+    name: 'mailpit',
+    label: 'Mailpit',
+    dashboard: 'http://localhost:8025'
   });
 }
 
 describe('DashboardOverlay', () => {
   beforeEach(() => {
     dashboardOpen.set(null);
-    profilerEnabled.set(false);
   });
 
-  it('disables Back until the embedded iframe has somewhere to go back to', () => {
-    openProfiler();
-    render(DashboardOverlay);
-
-    // Freshly opened: the SPX iframe has no internal history yet, so Back is a
-    // dead end. It must be disabled rather than silently tear down the overlay.
-    expect(screen.getByTitle('Back')).toBeDisabled();
+  it('renders nothing until a dashboard is opened', () => {
+    const { container } = render(DashboardOverlay);
+    expect(container.querySelector('iframe')).toBeNull();
   });
 
-  it('shows the profiler toggle as off: muted, not pressed, no live dot', () => {
-    profilerEnabled.set(false);
-    openProfiler();
+  it('embeds the opened dashboard and labels the frame with it', () => {
+    openService();
     const { container } = render(DashboardOverlay);
 
-    const btn = screen.getByRole('button', { name: /start profiling/i });
-    expect(btn.getAttribute('aria-pressed')).toBe('false');
-    expect(btn.className).not.toMatch(/emerald/);
-    expect(container.querySelector('.animate-pulse')).toBeNull();
+    const frame = container.querySelector('iframe');
+    expect(frame?.getAttribute('src')).toBe('http://localhost:8025');
+    expect(frame?.getAttribute('title')).toBe('Mailpit');
   });
 
-  it('shows the profiler toggle as on: emerald, pressed, live pulsing dot', () => {
-    profilerEnabled.set(true);
-    openProfiler();
-    const { container } = render(DashboardOverlay);
-
-    const btn = screen.getByRole('button', { name: /stop profiling/i });
-    expect(btn.getAttribute('aria-pressed')).toBe('true');
-    expect(btn.className).toMatch(/emerald/);
-    expect(container.querySelector('.animate-pulse')).not.toBeNull();
-  });
-
-  it('collapses the SPX Configuration form by default on the control panel page', () => {
-    openProfiler();
+  it('offers the dashboard in a new tab as an escape from the iframe', () => {
+    openService();
     render(DashboardOverlay);
 
-    // The form starts hidden, so the header offers to show it.
-    expect(screen.getByRole('button', { name: /show configuration/i })).toBeTruthy();
+    const link = screen.getByTitle('Open in new tab');
+    expect(link.getAttribute('href')).toBe('http://localhost:8025');
+    expect(link.getAttribute('rel')).toBe('noopener');
   });
 });

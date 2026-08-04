@@ -11,7 +11,7 @@
 //   }
 //
 // We don't aim for byte-perfect parsing of every Symfony edge case,
-// only "good enough" for typical tinker output. Anything we can't
+// only "good enough" for typical dump output. Anything we can't
 // parse falls back to rendering the original text.
 
 export type ScalarKind = 'string' | 'number' | 'bool' | 'null' | 'other';

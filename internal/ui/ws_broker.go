@@ -59,7 +59,6 @@ type wsMessage struct {
 	UnhealthyWorkers []byte
 	DumpsStatus      []byte
 	DevtoolsStatus   []byte
-	ProfilerStatus   []byte
 	Notification     []byte
 }
 
@@ -155,8 +154,6 @@ func runSnapshotInvalidator() {
 				msg.DumpsStatus = buildDumpsStatusJSON()
 			case eventbus.KindDevtoolsStatus:
 				msg.DevtoolsStatus = buildDevtoolsStatusJSON()
-			case eventbus.KindProfilerStatus:
-				msg.ProfilerStatus = buildProfilerStatusJSON()
 			}
 		}
 		broker.broadcast(msg)

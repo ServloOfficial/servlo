@@ -461,9 +461,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	if err := nginx.EnsureServloVhost(); err != nil {
 		return err
 	}
-	if err := nginx.EnsureProfilerVhost(); err != nil {
-		return err
-	}
 	// The servlo-nginx quadlet bind-mounts RunDir so the servlo.localhost vhost
 	// can reach servlo-panel over a unix socket. Must exist before nginx starts.
 	if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
@@ -711,9 +708,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		// where the user hasn't toggled the bridge yet.
 		if err := podman.EnsureDumpAssets(); err != nil {
 			fmt.Printf("  WARN: writing debug bridge assets: %v\n", err)
-		}
-		if err := podman.EnsureProfilerAssets(); err != nil {
-			fmt.Printf("  WARN: writing profiler assets: %v\n", err)
 		}
 		if err := podman.EnsureDevtoolsAssets(); err != nil {
 			fmt.Printf("  WARN: writing devtools assets: %v\n", err)

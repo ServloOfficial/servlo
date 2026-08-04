@@ -16,7 +16,7 @@ export type MonacoModule = typeof import('monaco-editor/esm/vs/editor/editor.api
 let monacoPromise: Promise<MonacoModule> | null = null;
 
 // We only need the core editor worker. PHP and the config formats get
-// their intelligence from the LSP bridge (tinker) or lightweight Monarch
+// their intelligence from lightweight Monarch
 // grammars, so the ts/json/html/css language workers are dead weight.
 function configureWorkers() {
   self.MonacoEnvironment = {
@@ -29,7 +29,7 @@ function configureWorkers() {
 // Token colours for the config-format Monarch grammars. The `cfg*` token
 // names are deliberately distinct from the standard PHP tokens (comment,
 // string, keyword, …) so these rules style nginx/ini/dotenv without
-// recolouring the tinker PHP editor, which keeps the base theme palette.
+// recolouring the PHP editor, which keeps the base theme palette.
 const CONFIG_RULES_LIGHT = [
   { token: 'cfgComment', foreground: '9ca3af', fontStyle: 'italic' },
   { token: 'cfgString', foreground: '047857' },
@@ -94,7 +94,7 @@ export function loadMonaco(): Promise<MonacoModule> {
   if (!monacoPromise) {
     monacoPromise = (async () => {
       const monaco = await import('monaco-editor/esm/vs/editor/editor.api');
-      // PHP highlighting for tinker; config-format grammars for the
+      // PHP highlighting; config-format grammars for the
       // nginx/ini/dotenv editors.
       await import('monaco-editor/esm/vs/basic-languages/php/php.contribution');
       configureWorkers();

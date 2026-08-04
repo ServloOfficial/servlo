@@ -6,7 +6,7 @@ export interface DashboardRef {
   name: string;
   label?: string;
   dashboard: string;
-  // The service's declared icon key. Absent on the synthetic docs and profiler
+  // The service's declared icon key. Absent on the synthetic docs
   // refs, which are named in the UI-only icon map instead.
   icon?: string;
   // extraPath is appended to dashboard for the iframe src, used to deep-link
@@ -21,16 +21,6 @@ const DOCS_REF: DashboardRef = {
   name: 'docs',
   label: 'Documentation',
   dashboard: 'https://realrashid.github.io/servlo/getting-started/requirements'
-};
-
-// PROFILER_REF is the synthetic entry for the SPX profiler. The UI is proxied
-// same-origin under /_spx/ by servlo-panel so the overlay can drive the iframe
-// (back, reload) directly. /_spx/ reaches the profiler.localhost nginx vhost,
-// which routes to a PHP-FPM container where SPX serves its report UI.
-const PROFILER_REF: DashboardRef = {
-  name: 'profiler',
-  label: 'Profiler',
-  dashboard: '/_spx/?SPX_UI_URI=/'
 };
 
 function fallbackHash(): string {
@@ -133,17 +123,6 @@ export function openDocs() {
   location.hash = 'docs';
 }
 
-export function openProfiler() {
-  const cur = get(dashboardOpen);
-  if (cur && cur.name === 'profiler') {
-    dashboardOpen.set(null);
-    location.hash = fallbackHash();
-    return;
-  }
-  dashboardOpen.set(PROFILER_REF);
-  location.hash = 'profiler';
-}
-
 export function closeDashboard() {
   dashboardOpen.set(null);
   location.hash = fallbackHash();
@@ -157,7 +136,6 @@ export const dashboardServices = derived(services, ($s) =>
 function refFromHash(): DashboardRef | null {
   const h = location.hash.slice(1);
   if (h === 'docs') return DOCS_REF;
-  if (h === 'profiler') return PROFILER_REF;
   if (h.startsWith('service/')) {
     const rest = h.slice('service/'.length);
     // service/mailpit/view/<id> deep-links into a specific captured email.

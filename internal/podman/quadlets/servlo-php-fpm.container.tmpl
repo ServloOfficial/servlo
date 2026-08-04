@@ -27,8 +27,6 @@ Volume={{.SharedIniPath}}:/usr/local/etc/php/conf.d/95-servlo-shared.ini:ro
 Volume={{.DumpsDir}}:/usr/local/etc/servlo:ro
 Volume={{.DumpsIniPath}}:/usr/local/etc/php/conf.d/97-servlo-dump.ini:ro
 Volume={{.DevtoolsIniPath}}:/usr/local/etc/php/conf.d/96-servlo-devtools.ini:ro
-Volume={{.SpxIniPath}}:/usr/local/etc/php/conf.d/zz-servlo-spx.ini:ro
-Volume={{.SpxDataDir}}:/var/spx:rw
 Volume={{.ZshHistoryDir}}:/root/.zsh_state:rw
 # Persistent home for an optional in-container musl bun (servlo php:bun install).
 # bun installs and self-updates here; survives image rebuilds and is shared

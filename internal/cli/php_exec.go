@@ -86,7 +86,7 @@ func fpmContainerForDir(dir, version string) string {
 // debug bridge and the devtools extension tag every event with the registered
 // site name. Without it the bridge falls back to the directory basename and the
 // extension emits no site at all, which strands the notification (#1005). A
-// worktree checkout reports its parent site, like tinker and the worktree vhost.
+// worktree checkout reports its parent site, like the worktree vhost.
 func debugSiteEnvArgs(dir string) []string {
 	if _, parent, ok := phpDet.WorktreeRootFor(dir); ok && parent != nil && parent.Name != "" {
 		return []string{"--env", "SERVLO_SITE=" + parent.Name}
