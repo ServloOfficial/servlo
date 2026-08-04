@@ -3,7 +3,7 @@ package cli
 import "encoding/json"
 
 // The doctor produces a structured report alongside its human-readable output
-// so `servlo doctor --fix` and the MCP diag tool can act on findings without
+// so `servlo doctor --fix` and the diag tool can act on findings without
 // re-parsing text. Each finding may carry a fix classified into one of three
 // tiers: Auto is servlo-owned and needs no privilege, Manual needs sudo so servlo
 // only prints the command, None is external state servlo will not touch.
@@ -22,7 +22,7 @@ const (
 	FixManual
 )
 
-// MarshalJSON renders the tier as a stable string so machine consumers (the MCP
+// MarshalJSON renders the tier as a stable string so machine consumers (the
 // diag tool) can branch on "auto"/"manual"/"none" without a magic integer.
 func (t FixTier) MarshalJSON() ([]byte, error) {
 	switch t {

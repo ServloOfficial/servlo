@@ -86,7 +86,6 @@ After the wizard, a checkbox list appears with all available steps pre-selected 
   ◉ composer install
   ◉ npm ci
   ◉ servlo env
-  ◯ servlo mcp:inject
   ◉ php artisan migrate
   ◯ php artisan db:seed
   ◉ php artisan storage:link
@@ -135,7 +134,6 @@ No hooks or per-project setup needed; it works for every linked site out of the 
 | `composer install` | - [x] on | only if `vendor/` is missing; runs inside the project's PHP-FPM container to match the `composer.json` PHP constraint |
 | install JS deps | - [x] on | only if `node_modules/` is missing and `package.json` exists; runs `npm ci`, `pnpm install --frozen-lockfile`, `yarn install --immutable` or `bun install` to match the [detected package manager](/usage/node) |
 | `servlo env` | - [x] on | always |
-| `servlo mcp:inject` | - [ ] off | opt-in |
 | `php artisan migrate` | - [x] on | always |
 | `php artisan db:seed` | - [ ] off | opt-in |
 | `php artisan storage:link` | - [x] on | only if `storage/app/public` is not yet symlinked |

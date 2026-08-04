@@ -669,7 +669,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 	// These endpoints are reached by non-browser clients (or cross-origin
 	// pages we can't control) that can't carry the header, and each keeps its
 	// own source gate: unpause from the paused-site holding page, the internal
-	// notify bridge POSTed by out-of-process CLI/MCP commands over loopback.
+	// notify bridge POSTed by out-of-process CLI commands over loopback.
 	t.Run("exempt paths bypass the gate", func(t *testing.T) {
 		for _, path := range []string{"/api/sites/myapp.test/unpause", "/api/internal/notify"} {
 			t.Run(path, func(t *testing.T) {

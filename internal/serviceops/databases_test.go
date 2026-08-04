@@ -128,7 +128,7 @@ func TestDeclaredExportDropsBeforeCreating(t *testing.T) {
 // mysqldump leaves routines and events out unless asked, so an export without
 // them hands over a database that looks complete and has lost its stored
 // procedures. A snapshot stores the same declared export, so asserting the
-// export covers both; DumpFlags still feeds the CLI and MCP paths and must not
+// export covers both; DumpFlags still feeds the CLI paths and must not
 // drift from what the preset declares.
 func TestDeclaredExportKeepsRoutinesAndEvents(t *testing.T) {
 	my := bundledDatabasesAction(t, "mysql", "export")

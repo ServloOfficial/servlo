@@ -103,10 +103,6 @@ When a query shape repeats past a threshold (3×) within a single request or wor
 
 Every warning names the run the queries came from: the worker command if the capture came from an opted-in worker, otherwise the CLI invocation (`artisan sync:users --all`, with long argument values elided) or the request route (`GET /orders`). The label locates the run, not the query, whose exact origin and SQL are already on the events in the Debug lens. The same value separates the warnings, so one noisy artisan command does not silence the next one for the rest of the session.
 
-## Debugging over MCP
-
-The same capture is available to an AI assistant through servlo's MCP server, so an agent can debug and fix performance issues end to end. The loop: `dumps_toggle` to arm capture, `dumps_clear` for a clean slate, trigger the page or job, then `analyze_queries` for a per-request N+1 and slow-query report, each finding carries the originating `file:line`, so the agent can open the offending code and add a `with()` eager-load, an index, or a cache, then re-run to confirm the count dropped. `dumps_recent` with a `kind` filter (`query`, `mail`, `view`, …) pulls the raw events for anything the report doesn't cover. The analysis is server-side, so it uses the same fingerprinting as the dashboard badge and the N+1 notification.
-
 ## Open in editor
 
 Every query's caller path in the Queries lens is a link. Expand a row to see the originating application frame (`Class::method — file:line`) and a **Details** button for the full stack trace; click any `file:line` to open it in the host's editor. servlo autodetects a known GUI editor (VS Code, Cursor, PhpStorm, Sublime, Zed, …); override it with an `editor` command in `~/.config/servlo/config.yaml`, e.g. `editor: "phpstorm --line {line} {file}"` ({file} and {line} are substituted). The endpoint requires dashboard-control authority, which authenticated remote sessions receive.

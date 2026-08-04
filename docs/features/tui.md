@@ -6,7 +6,7 @@
 servlo tui
 ```
 
-This is the terminal-native counterpart to the [Web UI](/features/web-ui) and the System Tray. Use it when you prefer to keep everything in a tmux or terminal pane, or when you're on a remote machine over SSH.
+This is the terminal-native counterpart to the [Web UI](/features/web-ui). Use it when you prefer to keep everything in a tmux or terminal pane, or when you're on a remote machine over SSH.
 
 ## Tabs
 

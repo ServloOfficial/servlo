@@ -1,5 +1,3 @@
-//go:build !darwin
-
 package php
 
 // listInstalledFromServiceDir is a no-op on Linux; PHP versions are discovered

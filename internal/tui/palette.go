@@ -65,7 +65,6 @@ var paletteCommands = []string{
 	"lan status",
 	"link",
 	"logs",
-	"mcp",
 	"new",
 	"node:install",
 	"node:remove",

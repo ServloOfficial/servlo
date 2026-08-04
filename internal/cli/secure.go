@@ -66,7 +66,7 @@ func runUnsecure(_ *cobra.Command, args []string) error {
 }
 
 // renewCert force-reissues the site's certificate through siteops.RenewCert (the
-// single source of truth shared with MCP) so a long-lived cert can be reset
+// single source of truth) so a long-lived cert can be reset
 // without toggling HTTPS off and on. Backs `servlo secure --renew`.
 func renewCert(args []string) error {
 	name, err := resolveSiteName(args)
@@ -89,8 +89,8 @@ func renewCert(args []string) error {
 
 // toggleSecureCmd is the CLI entry-point shared by `servlo secure` and
 // `servlo unsecure`. It delegates the core flip to siteops.SetSecured (the
-// single source of truth shared with the UI and MCP code paths) and
-// supplies CLI-specific post-toggle hooks: Stripe listener restart and a
+// single source of truth shared with the UI code paths) and supplies
+// CLI-specific post-toggle hooks: Stripe listener restart and a
 // best-effort lan:refresh notification to the daemon so any running LAN
 // share proxy re-binds to the new backend port.
 func toggleSecureCmd(args []string, secured bool) error {
@@ -132,7 +132,7 @@ func toggleSecureCmd(args []string, secured bool) error {
 // RestartStripeIfActive is exported so the daemon's stripe:refresh HTTP
 // handler can run the same Stripe restart logic as the CLI. SetSecured
 // posts to that endpoint after every toggle, so this is the single
-// implementation across CLI / UI / MCP.
+// implementation across the CLI and the UI.
 func RestartStripeIfActive(site *config.Site) { restartStripeIfActive(site) }
 
 // restartStripeIfActive restarts the Stripe listener for the site if it is currently running,

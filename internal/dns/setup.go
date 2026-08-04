@@ -630,8 +630,8 @@ func setupNMWithResolved() error {
 		rmCmd.Run() //nolint:errcheck
 	}
 
-	// Best effort: a host that cannot build the link (no dummy module, as on the
-	// stock WSL2 kernel) still needs the per-interface route applied below, which
+	// Best effort: a host whose kernel ships no dummy module cannot build the
+	// link, but still needs the per-interface route applied below, which
 	// is what makes .tld resolve at all. Losing offline resolution is a
 	// degradation; losing .tld entirely would be a regression.
 	if err := setupDummyLink(true, tld); err != nil {

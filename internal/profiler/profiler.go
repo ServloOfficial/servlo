@@ -18,7 +18,7 @@ import (
 
 // SpxUIURL is the standalone SPX profiler web UI, served by the
 // profiler.localhost nginx vhost. The dashboard embeds the same UI same-origin
-// under /_spx/; this URL opens it directly (servlo profile open, MCP status).
+// under /_spx/; this URL opens it directly (servlo profile open, status).
 const SpxUIURL = "http://profiler.localhost/?SPX_UI_URI=/"
 
 // nginxReloadFn is the nginx reload hook, swapped out in tests.

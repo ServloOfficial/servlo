@@ -320,7 +320,7 @@ func probeVersion(name, path string) string {
 	return ""
 }
 
-// ToolStatus is one row of the tools report shared by the CLI, UI and MCP.
+// ToolStatus is one row of the tools report shared by the CLI, UI.
 type ToolStatus struct {
 	Name            string `json:"name"`
 	Installed       string `json:"installed,omitempty"`

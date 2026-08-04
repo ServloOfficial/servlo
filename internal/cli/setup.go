@@ -52,14 +52,13 @@ Steps for all frameworks:
   1. composer install        — skipped if vendor/ already exists
   2. npm install/ci          — skipped if node_modules/ already exists (uses ci if lockfile exists)
   3. servlo env                — configure env file with servlo service settings
-  4. servlo mcp:inject         — inject MCP config (off by default)
-  5. npm run <build|production|prod> — build front-end assets (detected from package.json scripts)
-  6. servlo secure             — enable HTTPS via mkcert (off by default)
+  4. npm run <build|production|prod> — build front-end assets (detected from package.json scripts)
+  5. servlo secure             — enable HTTPS via mkcert (off by default)
 
 Additional steps for Laravel projects:
-  7. php artisan storage:link — create storage symlink
-  8. php artisan migrate     — run database migrations
-  9. php artisan db:seed     — seed the database (off by default)
+  6. php artisan storage:link — create storage symlink
+  7. php artisan migrate     — run database migrations
+  8. php artisan db:seed     — seed the database (off by default)
   10. queue:start            — start queue worker
   11. stripe:listen          — start Stripe webhook listener (off by default)
   12. schedule:start         — start task scheduler
@@ -224,13 +223,6 @@ func runSetup(allSteps, skipOpen bool) error {
 			},
 		})
 	}
-	steps = append(steps, setupStep{
-		label:   "servlo mcp:inject",
-		enabled: false,
-		run: func() error {
-			return runMCPInject("")
-		},
-	})
 	if wantJS {
 		steps = append(steps, setupStep{
 			label:   buildLabel,

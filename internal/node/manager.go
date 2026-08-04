@@ -15,7 +15,7 @@ import (
 // select one via Active(), which reads the node.manager config setting.
 //
 // Two flavours of output are exposed because servlo drives the manager from two
-// places: directly from Go (Command, used by the CLI/UI/MCP) and from generated
+// places: directly from Go (Command, used by the CLI/UI/) and from generated
 // shell scripts where the servlo binary may be unreachable — worker units,
 // launchd guard scripts, and PATH shims (ExecPrefix and ShimScript).
 type Manager interface {

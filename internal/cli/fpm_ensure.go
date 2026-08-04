@@ -114,7 +114,7 @@ func ensureFPMStarted(version, container string) error {
 }
 
 // startFPM starts a stopped-but-installed FPM container, with a progress spinner.
-// The start/wait itself is shared with the MCP exec path via phpDet.StartFPM; the
+// The start/wait itself is shared with the exec path via phpDet.StartFPM; the
 // spinner goes to stderr so the transparent `php` shim's stdout stays clean.
 func startFPM(version, container string) error {
 	step := feedback.StartOn(os.Stderr, fmt.Sprintf("Starting PHP %s FPM", version))

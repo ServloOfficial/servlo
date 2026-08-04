@@ -45,6 +45,9 @@ jobs:
       - name: Format
         run: test -z "$(gofmt -l .)"
 
+      - name: Surface scan
+        run: make surface-scan
+
   installer:
     name: Installer Tests
     runs-on: ubuntu-latest

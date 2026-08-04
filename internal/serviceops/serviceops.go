@@ -1,6 +1,6 @@
 // Package serviceops contains the shared business logic for installing,
 // starting, stopping, and removing servlo services. The CLI commands and the
-// MCP tools both call into here so they enforce identical preset gating,
+// the dashboard both call into here so they enforce identical preset gating,
 // dependency cascades, and dynamic_env regeneration.
 package serviceops
 
@@ -78,9 +78,9 @@ func PortAvailable(port int) bool { return freeport.Bindable(port) }
 // service's published port to avoid a host server (service name, new port). The
 // CLI wires this to regenerate host-proxy sites' .env so their loopback DB target
 // follows the moved port; it stays nil in pure serviceops tests (which don't
-// import package cli). The MCP server shares the binary, so the CLI init sets it
+// import package cli). The server shares the binary, so the CLI init sets it
 // there too — that is fine: the env refresh is still the right thing to do, and
-// the MCP server repoints os.Stdout at stderr so its output can't corrupt the
+// the dashboard repoints os.Stdout at stderr so its output can't corrupt the
 // protocol. Fired from the guard so any quadlet-write path (install, start,
 // reinstall, `service port --reset`) refreshes followers, not just the explicit
 // `servlo service port` command.
@@ -373,7 +373,7 @@ func InstallPresetStreaming(name, version string, emit func(PhaseEvent)) (*confi
 	unit := "servlo-" + svc.Name
 	emit(PhaseEvent{Phase: "starting_unit", Unit: unit})
 	// StartService rewrites the quadlet after deps, starts the unit, and
-	// regenerates discover_family consumers — same path as CLI/UI/MCP start.
+	// regenerates discover_family consumers — same path as CLI/UI/start.
 	if err := StartService(svc.Name); err != nil {
 		return svc, err
 	}
@@ -910,7 +910,7 @@ func ensureCustomServiceQuadletDiff(svc *config.CustomService) (bool, error) {
 				return false, fmt.Errorf("shifting servlo-%s off in-use port %d: %w", svc.Name, primary, err)
 			}
 			pp = free // use the just-persisted value directly — no second config read to diverge
-			// Stderr, never stdout: this path runs in-process inside the MCP stdio
+			// Stderr, never stdout: this path runs in-process inside the stdio
 			// server, which reserves stdout for the JSON-RPC stream.
 			fmt.Fprintf(os.Stderr, "Note: 127.0.0.1:%d is in use; publishing servlo-%s on 127.0.0.1:%d instead.\n", primary, svc.Name, free)
 			fmt.Fprintf(os.Stderr, "      (override with: servlo service port %s <port>)\n", svc.Name)

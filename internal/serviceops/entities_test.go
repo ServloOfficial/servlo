@@ -168,7 +168,7 @@ introspect:
 	if got := EntityExportFilename("myengine", "nokind", "photos"); got != "photos.dump" {
 		t.Errorf("fallback filename = %q", got)
 	}
-	// The fallback becomes an output path in the CLI and MCP export paths, so a
+	// The fallback becomes an output path in the CLI export paths, so a
 	// name that never passed validation must not shape it.
 	if got := EntityExportFilename("myengine", "nokind", "../../../etc/passwd"); strings.Contains(got, "/") {
 		t.Errorf("fallback filename carries a path: %q", got)

@@ -19,7 +19,7 @@ servlo doctor --fix --yes       # apply without prompting (heavy fixes still con
 servlo doctor --fix --dry-run   # list what would be repaired, change nothing
 ```
 
-The fixes fall into three groups. servlo applies the safe ones itself, creating a missing data or config directory, enabling linger so services survive logout, installing the network-online drop-in, rebuilding a missing PHP image, and, after you confirm the heavier ones, reinstalling the services or reclaiming podman disk. Anything that needs `sudo` servlo never runs for you; it prints the exact command to copy. That covers installing podman, crun, fuse-overlayfs, the rootless network helpers or adding a subuid range, and also `servlo dns:repair` and `servlo wsl:setup`, which rewrite the resolver and podman configuration through `sudo` and so are yours to run even though servlo knows the command. Findings that are external state, a foreign process already holding port 80, a config file with a syntax error, are left untouched with their hint. The same safe, non-heavy repairs are available to AI assistants through the MCP `diag` tool's `doctor_fix` action, which therefore never elevates on your behalf.
+The fixes fall into three groups. servlo applies the safe ones itself, creating a missing data or config directory, enabling linger so services survive logout, installing the network-online drop-in, rebuilding a missing PHP image, and, after you confirm the heavier ones, reinstalling the services or reclaiming podman disk. Anything that needs `sudo` servlo never runs for you; it prints the exact command to copy. That covers installing podman, crun, fuse-overlayfs, the rootless network helpers or adding a subuid range, and also `servlo dns:repair`, which rewrites the resolver configuration through `sudo` and so is yours to run even though servlo knows the command. Findings that are external state, a foreign process already holding port 80, a config file with a syntax error, are left untouched with their hint.
 
 Reclaimable disk is listed separately as optional, because nothing is wrong when there is disk to reclaim. It runs the same interactive reclaim as `servlo cleanup`, so it takes the deep scope and can remove an unreferenced catalog image whoever pulled it, and the size doctor quotes is that same deep scope. If you run other podman workloads on the machine, run [`servlo cleanup --safe`](usage/cleanup.md) yourself instead. Optional fixes never count towards what a re-check reports as still outstanding.
 
@@ -38,7 +38,7 @@ What gets filtered before it lands on disk:
 - Site `.env` files are excluded outright.
 - Home paths render as `$HOME` and the username as `$USER`.
 - Site names, domains and parked-directory paths are replaced with `site-1`/`site1.<tld>`/`$PARK_1` placeholders. Pass `--show-real-names` to keep the raw values for local debugging.
-- Logs are kept only for servlo's own infra (`servlo-nginx`, `servlo-ui`, `servlo-dns`, `servlo-watcher`, `servlo-tray`, etc.). Preset services (mysql, redis, meilisearch, gotenberg, …), FPM containers and per-site workers still appear in the unit-state and container tables but their logs are dropped, they were producing repetitive request-shaped noise that didn't help triage.
+- Logs are kept only for servlo's own infra (`servlo-nginx`, `servlo-ui`, `servlo-dns`, `servlo-watcher`, etc.). Preset services (mysql, redis, meilisearch, gotenberg, …), FPM containers and per-site workers still appear in the unit-state and container tables but their logs are dropped, they were producing repetitive request-shaped noise that didn't help triage.
 - Custom services and per-site custom / FrankenPHP containers are omitted entirely so the report doesn't expose user app identifiers.
 - Nginx structured error lines have their `request:` / `upstream:` / `referrer:` URI fields redacted, and HTTP access lines are dropped.
 
@@ -112,14 +112,6 @@ The chain in order:
 | `resolver hookup` | The NetworkManager dispatcher script or systemd-resolved drop-in is installed. | Rerun `servlo install`. |
 | `interface routes .test to 5300` | `resolvectl status` shows `127.0.0.1:5300` and `~<tld>` on the active interface. | `sudo systemctl restart NetworkManager`, or set the routing manually with `sudo resolvectl domain <iface> ~test ~.`. |
 | `system DNS lookup` | `host servlo-probe.test` (the system resolver) returns 127.0.0.1, or the host's LAN IP under `lan:expose`. | The drop-in is installed but resolved isn't honouring it. Check whether cloud-init or another tool wrote a higher-priority resolver config. Common on EC2 / cloud images. With a VPN connected this rung is reported as a warning rather than a failure, see the VPN section below. |
-
-You can also call this programmatically over MCP via the `diag` tool's `dns_diagnose` action, useful for AI-driven troubleshooting:
-
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"diag","arguments":{"action":"dns_diagnose"}}}' | servlo mcp
-```
-
-The response includes a `steps` array with a `status` (`ok` / `fail` / `warn` / `skip`) and `hint` per rung, plus a `first_failure` index so an LLM can jump straight to the broken layer.
 :::
 
 ::: details `.test` domains stop resolving when offline (no internet)
@@ -486,22 +478,6 @@ systemctl is-active network-online.target   # "inactive" here means every quadle
 ```
 
 To go back to podman's stock behaviour, delete the drop-in and run `systemctl --user daemon-reload`.
-:::
-
-::: details System tray missing on Fedora Silverblue and other atomic images
-Symptom: no tray icon, and `systemctl --user is-system-running` reports `degraded` because `servlo-tray.service` failed with status 127.
-
-Cause: `servlo-tray` links `libayatana-appindicator3.so.1`, which these images don't ship, and an immutable OS can't just install it into `/usr` on demand.
-
-Servlo checks the helper's libraries at install time and leaves the tray unit stopped and disabled when one is missing, so the failure no longer drags the systemd user session into `degraded`. Everything else (CLI, dashboard, watcher, containers) is unaffected, the tray is the only thing you lose.
-
-To get the tray back, layer the package and reboot, then re-enable the unit:
-
-```bash
-rpm-ostree install libayatana-appindicator-gtk3
-systemctl reboot
-servlo install   # re-enables the tray now that the library resolves
-```
 :::
 
 ::: details Podman Machine overlay-storage error (macOS)

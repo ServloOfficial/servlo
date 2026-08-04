@@ -116,7 +116,7 @@ func TestSetSitePHPVersion_appliesToParentSite(t *testing.T) {
 	}
 }
 
-// The framework's supported range wins over the request. MCP skipped this
+// The framework's supported range wins over the request. skipped this
 // check entirely before the funnel, so a site could pin a version the watcher
 // clamped straight back on its next pass.
 func TestSetSitePHPVersion_clampsToFrameworkRange(t *testing.T) {

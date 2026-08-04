@@ -28,7 +28,7 @@ type Snapshot struct {
 }
 
 // SnapshotTarget identifies the live database a snapshot is taken from or
-// restored into. The cli and mcp layers build it from a resolved DB env.
+// restored into. The cli layer builds it from a resolved DB env.
 type SnapshotTarget struct {
 	Service      string
 	Family       string

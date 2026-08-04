@@ -86,7 +86,7 @@ func handleDumpsList(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleDumpsStatus is the JSON-shaped sibling of `servlo dump status`. It
-// reflects current state to anyone connected (CLI, MCP, web tab) without
+// reflects current state to anyone connected (CLI, web tab) without
 // requiring them to reach into the config file or the receiver themselves.
 func handleDumpsStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

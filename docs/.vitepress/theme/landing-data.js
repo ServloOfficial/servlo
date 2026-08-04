@@ -15,13 +15,6 @@ export const LOGOS = {
   statamic: { ch: 'S', c: '#a78bfa' },
   codeigniter: { ch: 'C', c: '#f97316' },
   tempest:  { ch: 'T', c: '#22d3ee' },
-  claude:   { ch: 'C', c: '#ff8a65' },
-  cursor:   { ch: '⌘', c: '#e5e7eb' },
-  codex:    { ch: '{', c: '#34d399' },
-  gemini:   { ch: 'G', c: '#60a5fa' },
-  copilot:  { ch: '⊙', c: '#cbd5e1' },
-  junie:    { ch: 'J', c: '#a78bfa' },
-  windsurf: { ch: '≈', c: '#38bdf8' },
   mysql:    { ch: 'M', c: '#38bdf8' },
   postgres: { ch: 'P', c: '#60a5fa' },
   redis:    { ch: 'R', c: '#ff5b50' },
@@ -30,7 +23,6 @@ export const LOGOS = {
   mailpit:  { ch: '@', c: '#34d399' },
   mongo:    { ch: 'M', c: '#34d399' },
   stripe:   { ch: '$', c: '#a78bfa' },
-  antigravity: { ch: 'A', c: '#60a5fa' },
 }
 
 export function glyph(name, size) {
@@ -43,12 +35,8 @@ export function glyph(name, size) {
     </svg>`
 }
 
-/* ---- Install commands per OS (canonical install URL) ---- */
-export const INSTALL = {
-  linux: 'curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash',
-  macos: 'curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash',
-  wsl:   'wsl curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash',
-}
+/* ---- Install command (canonical install URL) ---- */
+export const INSTALL = 'curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash'
 
 /* ---- Comparison ---- */
 export const CMP = {
@@ -61,7 +49,6 @@ export const CMP = {
     { f: 'Automatic .test + TLS',    v: ['yes', 'yes', 'yes', 'yes', 'partial', 'no'] },
     { f: 'Zero per-project config',  v: ['yes', 'yes', 'yes', 'no', 'no', 'no'] },
     { f: 'Built-in Web UI',          v: ['yes', 'yes', 'no', 'partial', 'no', 'no'] },
-    { f: 'MCP server for AI agents', v: ['yes', 'yes', 'no', 'no', 'no', 'no'] },
     { f: 'Profiler & debug window',  v: ['yes', 'yes', 'no', 'no', 'no', 'no'] },
   ],
 }
@@ -87,7 +74,7 @@ export const STEPS = [
   },
   {
     n: '02', title: 'Link your project',
-    desc: 'cd into any PHP repo and run servlo link. It routes through the init wizard, installs dependencies, runs migrations, starts your workers and provisions TLS, live at project.test. Then servlo open to launch it, or wire up MCP.',
+    desc: 'cd into any PHP repo and run servlo link. It routes through the init wizard, installs dependencies, runs migrations, starts your workers and provisions TLS, live at project.test. Then servlo open to launch it.',
     file: '~/code/acme',
   },
 ]

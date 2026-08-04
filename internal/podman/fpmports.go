@@ -43,7 +43,7 @@ func setVersionFPMPorts(cfg *config.GlobalConfig, version string, ports []string
 // external listener) to the next free port, then re-rendering and restarting the
 // version's FPM unit when it is running. It returns the resolved list actually
 // persisted, which may differ from specs where a port was shifted. Single entry
-// point shared by the CLI, MCP, and Web UI so all three get identical validation,
+// point shared by the CLI, and Web UI so all three get identical validation,
 // the shift guard, and the restart.
 func SetFPMPorts(version string, specs []string) ([]string, error) {
 	cfg, err := config.LoadGlobal()

@@ -16,7 +16,7 @@ import (
 const worktreeIndexInterval = 30 * time.Second
 
 // worktreeRef is one detected worktree in both the identities servlo gives it.
-// Branch is the sanitized branch, which the HTTP API, MCP and the request store
+// Branch is the sanitized branch, which the HTTP API, the request store
 // key on; Base is the checkout dir's unit slug, which worker units and idle
 // state key on. Keeping both here is what lets one detection pass serve the
 // request-timing resolver and the idle engine without either guessing the other's

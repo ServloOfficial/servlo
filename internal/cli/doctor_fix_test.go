@@ -49,7 +49,7 @@ func TestApplyDoctorFixMkdirEmptyArg(t *testing.T) {
 // TestApplyDoctorFixRejectsPrivilegedKeys pins the auto-tier contract: a fix
 // that shells into a command running sudo must not be dispatchable, so
 // re-adding one to the auto tier fails here rather than silently letting
-// `doctor --fix --yes` and the MCP diag tool elevate unattended.
+// `doctor --fix --yes` and the diag tool elevate unattended.
 func TestApplyDoctorFixRejectsPrivilegedKeys(t *testing.T) {
 	for _, key := range []string{fixDNSRepair} {
 		var buf bytes.Buffer

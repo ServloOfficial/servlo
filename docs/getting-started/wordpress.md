@@ -7,7 +7,6 @@ You've already run `servlo install` once on this machine. If not, see [Installat
 :::
 
 ::: tip Drive it from your AI assistant
-Run `servlo mcp:enable-global` once and your AI assistant (Claude Code, Cursor, Junie, Codex, Gemini, Copilot, Antigravity, Windsurf) can call every command below through the grouped MCP tools: `site` `action: "link"`, `env` `action: "setup"`, `framework` `action: "setup"`, `db` `action: "create"`, `site` `action: "tls_enable"`, etc. See AI Integration.
 :::
 
 ---
@@ -193,4 +192,3 @@ servlo status
 - [Database](../usage/database.md): `servlo db:import` to load a production dump, `servlo db:shell` for quick queries
 - [Services](../usage/services.md): add a Mailpit service to capture outgoing mail in dev
 - [HTTPS](../features/https.md): wildcard certs for multi-site or git worktrees
-- AI Integration (MCP): drive servlo from Claude Code, Cursor, Junie, etc.

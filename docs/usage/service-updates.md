@@ -12,7 +12,7 @@ Default services declare their policy in their preset YAML. The most common comb
 
 ## Update, same-major patches
 
-Click the green **Update → \<tag\>** button in the dashboard, run `servlo service update <name>`, or call MCP `service_control(action: "update", name)`. Servlo queries the registry for the newest tag matching the preset's `update_strategy`, applies the same digest comparison the rolling-tag flow uses (suppresses no-op updates), pulls, persists the chosen image, and restarts the unit. The previous image is recorded so a rollback button appears next to the version label.
+Click the green **Update → \<tag\>** button in the dashboard or run `servlo service update <name>`. Servlo queries the registry for the newest tag matching the preset's `update_strategy`, applies the same digest comparison the rolling-tag flow uses (suppresses no-op updates), pulls, persists the chosen image, and restarts the unit. The previous image is recorded so a rollback button appears next to the version label.
 
 For services on rolling tags (`mailpit:latest`, `rustfs:latest`), Update only fires when the local manifest digest differs from the registry's, re-pulling the same `:latest` digest doesn't surface a phantom badge.
 
@@ -52,11 +52,6 @@ servlo service migrate postgres 18
 ```
 
 `<version>` is a preset version label as shown in `servlo service list` or the install picker. servlo looks it up in the preset and substitutes the right registry image, so you never have to type a compound tag like `18-3.6-alpine` or `pg18`. An argument that matches no preset version is used verbatim as the image tag, which still lets you pin an exact patch release.
-
-```jsonc
-// MCP
-{"tool": "service_control", "args": {"action": "migrate", "name": "mysql", "tag": "9.0"}}
-```
 
 The Migrate flow is **only registered for SQL databases** because their dumps are stable text formats, every newer mysql/postgres/mariadb can replay any older version's `mysqldump` / `pg_dumpall` output. Engines whose dumps are version-specific binaries (Meilisearch, Elasticsearch, MongoDB) are intentionally **not** auto-migrated; servlo surfaces the Migrate button only when it has a tested handler. For those, follow the upstream migration guide manually.
 
@@ -114,20 +109,6 @@ servlo service update <name>                   # safe in-strategy patch
 servlo service update <name> <tag>             # explicit upgrade target
 servlo service migrate <name> <version>        # SQL dump + restore
 servlo service rollback <name>                 # toggle back to previous image
-```
-
-## MCP
-
-The `service` tool covers every service operation through its `action` argument:
-
-```jsonc
-{"tool": "service", "args": {"action": "check_updates"}}                 // scan all active defaults
-{"tool": "service", "args": {"action": "check_updates", "name": "mysql"}}
-
-{"tool": "service", "args": {"action": "update",   "name": "mysql"}}
-{"tool": "service", "args": {"action": "update",   "name": "mysql", "tag": "8.4.9"}}
-{"tool": "service", "args": {"action": "migrate",  "name": "mysql", "tag": "9.0"}}
-{"tool": "service", "args": {"action": "rollback", "name": "mysql"}}
 ```
 
 ## Backups directory

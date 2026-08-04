@@ -1,11 +1,14 @@
-// Package unitlog centralises how servlo locates a unit's logs across platforms:
+// Package unitlog centralises how servlo locates and reads a unit's logs:
 // whether a unit runs as a detached podman container (logs via `podman logs`)
-// versus a launchd-supervised service on macOS (logs in ~/Library/Logs/servlo),
-// and the framework-worker classification both decisions lean on. Shared by the
-// UI log streamer and the logsource reader so the rules live in one place.
+// or as a systemd user unit (logs in the journal), the framework-worker
+// classification that decision leans on, and the text rules the log readers
+// share.
 package unitlog
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 // IsFrameworkWorkerUnit reports whether unit looks like a built-in framework
 // worker (queue, schedule, horizon, reverb).
@@ -17,3 +20,9 @@ func IsFrameworkWorkerUnit(unit string) bool {
 	}
 	return false
 }
+
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// StripANSI removes ANSI colour escapes so log text stays readable wherever it
+// is rendered.
+func StripANSI(s string) string { return ansiRe.ReplaceAllString(s, "") }

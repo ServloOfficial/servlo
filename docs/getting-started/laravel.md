@@ -7,7 +7,6 @@ You've already run `servlo install` once on this machine. If not, see [Installat
 :::
 
 ::: tip Drive it from your AI assistant
-Run `servlo mcp:enable-global` once and your AI assistant (Claude Code, Cursor, Junie, Codex, Gemini, Copilot, Antigravity, Windsurf) can call every command below through the grouped MCP tools: `framework` `action: "project_new"`, `site` `action: "link"`, `env` `action: "setup"`, `framework` `action: "setup"`, `db` `action: "create"`, `site` `action: "tls_enable"`, `worker`, etc. See AI Integration.
 :::
 
 ---
@@ -185,4 +184,3 @@ Worker mode needs `composer require laravel/octane` in the project. FrankenPHP i
 - [Services](../usage/services.md): start Meilisearch, RustFS (S3), Postgres, custom services
 - Browser Testing: run Laravel Dusk with Selenium, no local Chrome needed
 - [HTTPS](../features/https.md): wildcard certs for git worktrees
-- AI Integration (MCP): drive servlo from Claude Code, Cursor, etc.

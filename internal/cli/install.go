@@ -1019,8 +1019,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	refreshStoreFrameworks()
 	refreshStorePresets()
-	refreshGlobalMCPSkills()
-	refreshProjectMCPSkills()
 
 	feedback.Begin()
 	feedback.Done("servlo installation complete")

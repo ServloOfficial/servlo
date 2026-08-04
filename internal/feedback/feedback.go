@@ -132,7 +132,7 @@ func init() { colorOn.Store(detectColor()) }
 // reported collects errors already shown to the user by a Step/Live Fail. The
 // top-level command handler consults it so a failure surfaced through the
 // feedback UI isn't reprinted as a second raw "Error: …" line by cobra. It is
-// capped because long-running processes (servlo-panel, the MCP server) also drive
+// capped because long-running processes (servlo-panel, the dashboard) also drive
 // Fail through shared CLI helpers and would otherwise grow it without bound; a
 // CLI command only ever checks the most recent failure, so an old-entry cap is
 // harmless. The trim copies into a fresh slice so the backing array is freed.
@@ -716,7 +716,7 @@ var interactiveFn = func() bool { return term.IsTerminal(int(os.Stdout.Fd())) }
 // Interactive reports whether stdout is a terminal, independent of colour. Use
 // it to choose a condensed single-line view over full verbose output: a user
 // who only disabled colour (NO_COLOR) still gets the interactive view rather
-// than the pipe/MCP verbose path. Animated() is the wrong gate for that, since
+// than the pipe/verbose path. Animated() is the wrong gate for that, since
 // NO_COLOR forces it false even on a real terminal.
 func Interactive() bool { return interactiveFn() }
 

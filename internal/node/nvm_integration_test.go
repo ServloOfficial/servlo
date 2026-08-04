@@ -35,7 +35,7 @@ func wantNodeVersion(t *testing.T, cmd *exec.Cmd) {
 	}
 }
 
-// TestNvmCommand_RunsNode drives the Command path used by the CLI/UI/MCP: it
+// TestNvmCommand_RunsNode drives the Command path used by the CLI/UI/: it
 // sources the user's nvm.sh, selects the default version, and runs node.
 func TestNvmCommand_RunsNode(t *testing.T) {
 	m := requireNvm(t)

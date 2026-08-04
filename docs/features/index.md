@@ -1,5 +1,5 @@
 ---
-description: What servlo gives you beyond serving sites, the web dashboard, TUI, MCP server, automatic HTTPS, .test DNS, profiler, tinker and more.
+description: What servlo gives you beyond serving sites, from the web dashboard and TUI to automatic HTTPS, logs and queries.
 ---
 
 # Features
@@ -11,8 +11,6 @@ Beyond serving PHP sites, servlo ships a set of tools for working with them. Eve
 - [Web UI](/features/web-ui) is the browser dashboard at `servlo.localhost`, for sites, services, logs, databases and workers.
 - [TUI](/features/tui) is the terminal dashboard, informative with reversible quick actions.
 - [Commands](/features/commands) covers the CLI surface and per-framework custom commands.
-- System tray puts start, stop and site shortcuts in your desktop tray.
-- MCP server exposes servlo to AI assistants so they can inspect and drive your environment.
 
 ## Serving sites
 

@@ -32,7 +32,7 @@ func IsParkedSite(sitePath string, parkedDirs []string) bool {
 // StopSiteWorkers, when set, stops all running workers for a site as part of
 // UnlinkSiteCore. It is wired up by the cli package (which owns worker
 // lifecycle) at init time, mirroring podman.AfterUnitChange. Without it, the
-// MCP and parked-watcher unlink paths — which call UnlinkSiteCore directly —
+// parked-watcher unlink paths — which call UnlinkSiteCore directly —
 // would leave a host-proxy site's always-restart dev-server worker (and any
 // framework workers) running after the site is gone.
 var StopSiteWorkers func(site *config.Site)

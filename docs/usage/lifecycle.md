@@ -1,9 +1,9 @@
 # Start, Stop & Autostart
 
-Day-to-day lifecycle commands for the entire servlo stack: DNS, nginx, PHP-FPM containers, services, workers, the Web UI, the watcher, and the system tray.
+Day-to-day lifecycle commands for the entire servlo stack: DNS, nginx, PHP-FPM containers, services, workers, the Web UI and the watcher.
 
 ::: tip You don't need to run `servlo start` after installing
-`servlo install` already starts everything for you on first run: it boots `servlo-dns`, `servlo-nginx`, the `servlo-watcher`, and the system tray. Services like MySQL or Redis are started on demand the first time something needs them (`servlo service start`, `servlo init`, or `servlo env`). Reach for `servlo start` only after a `servlo stop`, a reboot without autostart enabled, or after you've manually killed containers.
+`servlo install` already starts everything for you on first run: it boots `servlo-dns`, `servlo-nginx` and the `servlo-watcher`. Services like MySQL or Redis are started on demand the first time something needs them (`servlo service start`, `servlo init`, or `servlo env`). Reach for `servlo start` only after a `servlo stop`, a reboot without autostart enabled, or after you've manually killed containers.
 :::
 
 ---
@@ -12,9 +12,9 @@ Day-to-day lifecycle commands for the entire servlo stack: DNS, nginx, PHP-FPM c
 
 | Command | Stops | Starts |
 |---|---|---|
-| `servlo start` | nothing | DNS, nginx, watcher, tray, all PHP-FPM containers in use, services that were running before stop, queue / schedule / reverb / messenger workers, stripe listeners, Web UI |
+| `servlo start` | nothing | DNS, nginx, watcher, all PHP-FPM containers in use, services that were running before stop, queue / schedule / reverb / messenger workers, stripe listeners, Web UI |
 | `servlo stop` | All containers and workers above **except** `servlo-dns`. Leaves the watcher, Web UI, and the DNS forwarder alone. | nothing |
-| `servlo quit` | Everything `servlo stop` does, **plus** the DNS forwarder, Web UI, watcher, and tray. macOS: also stops the Podman Machine VM. | nothing |
+| `servlo quit` | Everything `servlo stop` does, **plus** the DNS forwarder, Web UI and watcher. | nothing |
 
 `servlo stop` is the everyday "give my laptop back its CPU" command. `servlo quit` is a full shutdown: use it before a reinstall, a system reboot without autostart, or when you really want servlo out of the way.
 
@@ -34,7 +34,7 @@ Walks the install in dependency order:
 4. Boots every PHP-FPM container that has at least one site referencing its version. Unused PHP versions stay stopped.
 5. Boots all installed services that are **not** marked as manually paused (see [Manually stopped services](services.md#manually-stopped-services) for the pause-state contract).
 6. Restores per-site workers (`servlo-queue-*`, `servlo-schedule-*`, `servlo-reverb-*`, `servlo-messenger-*`, custom workers) and stripe listeners (`servlo-stripe-*`) from the `workers` list saved in each site's `.servlo.yaml`.
-7. Starts the Web UI (`servlo-ui`) and the system tray.
+7. Starts the Web UI (`servlo-ui`).
 
 A live spinner shows the per-unit progress. If a single SSL vhost references a missing certificate file, servlo switches that site back to HTTP automatically and continues; one broken cert no longer blocks the whole nginx start.
 
@@ -59,7 +59,7 @@ Both paths skip `Ignored: true` sites, those are explicitly parked by the user (
 servlo stop
 ```
 
-Stops everything `servlo start` started **except** the Web UI, watcher, tray, and the `servlo-dns` forwarder; those keep running so the dashboard stays reachable to bring servlo back up.
+Stops everything `servlo start` started **except** the Web UI, watcher and the `servlo-dns` forwarder; those keep running so the dashboard stays reachable to bring servlo back up.
 
 A few important details:
 
@@ -81,38 +81,15 @@ The full off-switch:
 1. Runs everything `servlo stop` does.
 2. Stops `servlo-ui` (Web UI).
 3. Stops `servlo-watcher`.
-4. Kills the system tray process.
-5. Stops the `servlo-dns` forwarder. Unlike `servlo stop`, quit is a full teardown, so it takes DNS down too. The watcher is stopped first (step 3) because it is the only thing that would restart `servlo-dns`.
-6. **macOS only:** stops the Podman Machine VM.
+4. Stops the `servlo-dns` forwarder. Unlike `servlo stop`, quit is a full teardown, so it takes DNS down too. The watcher is stopped first (step 3) because it is the only thing that would restart `servlo-dns`.
 
-After `servlo quit` there are no servlo processes left running. On macOS the Podman Machine VM is also shut down, so `servlo start` will bring it back up on the next run. This is the right command before a reinstall, a system reboot, or before pulling a major update.
-
-The system tray's **Quit Servlo** menu item calls `servlo quit`.
-
----
-
-## `servlo machine reset` (macOS)
-
-```bash
-servlo machine reset        # asks for confirmation first
-servlo machine reset --yes  # skip the prompt
-```
-
-Recreates the Podman Machine VM. Reach for it only when `servlo start` reports a container-storage error such as `getting graph driver info ... overlay: invalid argument`, which happens after the macOS host is shut down ungracefully while the VM is still running and leaves the VM's container storage corrupt. See [Troubleshooting → Podman Machine overlay-storage error](../troubleshooting.md).
-
-The command stops the VM, removes it (`podman machine rm -f`), and re-initialises it. **Your data is preserved:** servlo bind-mounts every database and site directory to the host, not into the VM, so only the VM's container storage and images are discarded. Images are rebuilt automatically on the next `servlo start`.
-
-::: tip servlo start already tries to self-heal
-On macOS, `servlo start` detects this exact error and attempts an automatic recovery first (remount the VM's storage, rebuild the stale containers, retry once). `servlo machine reset` is the manual fallback for when that recovery isn't enough. This command is macOS-only; Linux runs podman natively with no VM.
-:::
-
----
+After `servlo quit` there are no servlo processes left running. This is the right command before a reinstall, a system reboot, or before pulling a major update.
 
 ## Autostart on login
 
 Servlo can boot itself every time you log in. Autostart is a single switch over every servlo-owned systemd user unit on the machine:
 
-- the dashboard (`servlo-ui.service`), project watcher (`servlo-watcher.service`) and system tray (`servlo-tray.service`)
+- the dashboard (`servlo-ui.service`) and project watcher (`servlo-watcher.service`)
 - every container quadlet (`servlo-mysql`, `servlo-nginx`, `servlo-redis`, `servlo-postgres`, `servlo-dns`, `servlo-php*-fpm`, `servlo-mailpit`, `servlo-meilisearch`, `servlo-minio`, `servlo-rustfs`)
 - every per-site worker, queue, schedule, horizon, reverb, and stripe-listen unit
 
@@ -121,11 +98,7 @@ servlo autostart enable      # boot servlo on every login
 servlo autostart disable     # stop booting on login
 ```
 
-`servlo autostart enable` runs `systemctl --user enable` on the full set; `servlo autostart disable` runs the matching `disable`. The dashboard's enabled state is the canonical "is autostart on" indicator surfaced by the UI and tray.
-
-The same toggle also appears in the **System Tray** menu under **Autostart**; see System Tray.
-
-The tray unit (`servlo-tray.service`) is wired to `graphical-session.target` and so requires a desktop environment that reaches that target on login: GNOME, KDE Plasma, and any compositor launched through `uwsm` (Omarchy's Hyprland setup included). Bare Hyprland / Sway / i3 launched without `uwsm` won't autostart the tray; see System Tray, Autostart for the workaround. Every other servlo unit uses `default.target` and is unaffected.
+`servlo autostart enable` runs `systemctl --user enable` on the full set; `servlo autostart disable` runs the matching `disable`. The dashboard's enabled state is the canonical "is autostart on" indicator.
 
 ---
 
@@ -135,7 +108,6 @@ The dashboard at `http://127.0.0.1:7073` has **Start** and **Stop** buttons in t
 
 - **Start** appears only when one or more core services (DNS, nginx, PHP-FPM) are not running. Clicking it calls `servlo start` via the API.
 - **Stop** is always visible while servlo is running. Clicking it calls `servlo stop`.
-- The tray's **Quit Servlo** menu item calls `servlo quit` (full shutdown including the UI).
 
 These map one-to-one to the CLI commands above, no special UI-only behaviour.
 
@@ -194,9 +166,8 @@ Where a digest is given the download is checked against it and rejected on a mis
 | Reboot, autostart enabled | Nothing, happens automatically |
 | Free up CPU / RAM during a heavy build | `servlo stop` |
 | Full shutdown before a reinstall | `servlo quit` |
-| `servlo start` fails with an overlay / graph-driver storage error (macOS) | `servlo machine reset` |
 | Verify everything's healthy | `servlo status` |
-| Update Composer / fnm / mkcert to their pinned versions | `servlo tools:update` |
+| Update Composer and fnm to their pinned versions | `servlo tools:update` |
 | Uninstall a service entirely (data preserved) | `servlo service remove <name>` |
 | Uninstall and wipe data | `servlo service remove <name> --purge` |
 | Reinstall a service in place | `servlo service reinstall <name>` |

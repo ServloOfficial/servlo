@@ -51,7 +51,7 @@ func serviceDetailContentLines(m *Model, svc *ServiceRow, innerW int) []string {
 	add(dimStyle.Render("  state:   ") + stateText)
 	add(dimStyle.Render("  unit:    ") + "servlo-" + svc.Name)
 	// Published host port and any extra mappings, read-only. Editing lives in
-	// the CLI/UI/MCP (a multi-field edit is out of the TUI's quick-action scope).
+	// the CLI/UI/(a multi-field edit is out of the TUI's quick-action scope).
 	if host, def, extras := servicePortsInfo(svc.Name); host > 0 {
 		portLine := strconv.Itoa(host)
 		if def > 0 && host != def {

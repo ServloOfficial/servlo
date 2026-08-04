@@ -216,7 +216,7 @@ func TestEnsureCustomServiceQuadlet_materialisesBrowserHostsForShareHosts(t *tes
 
 // TestEnsureCustomServiceQuadlet_portShiftNoticeAvoidsStdout: when the port guard
 // shifts a service off a busy port it must not write its notice to os.Stdout.
-// EnsureCustomServiceQuadlet is called in-process by the MCP stdio server, which
+// EnsureCustomServiceQuadlet is called in-process by the stdio server, which
 // reserves os.Stdout for the JSON-RPC stream — any stray write there corrupts the
 // protocol frame and breaks the client session.
 func TestEnsureCustomServiceQuadlet_portShiftNoticeAvoidsStdout(t *testing.T) {
@@ -269,6 +269,6 @@ func TestEnsureCustomServiceQuadlet_portShiftNoticeAvoidsStdout(t *testing.T) {
 		t.Fatal("expected the guard to shift the busy port and persist a published port")
 	}
 	if buf.Len() != 0 {
-		t.Errorf("port-shift notice leaked to os.Stdout (would corrupt MCP JSON-RPC): %q", buf.String())
+		t.Errorf("port-shift notice leaked to os.Stdout: %q", buf.String())
 	}
 }

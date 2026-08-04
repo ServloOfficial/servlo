@@ -364,7 +364,7 @@ func NewEnvCmd() *cobra.Command {
   - Sets APP_URL to the registered .test domain`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// --verbose (and any non-interactive output, e.g. the MCP server or a
+			// --verbose (and any non-interactive output, e.g. the dashboard or a
 			// pipe) prints the full per-step detail. An interactive terminal gets
 			// the single live "configuring .env" line instead, even under NO_COLOR
 			// where it degrades to a plain condensed line rather than verbose.
@@ -375,7 +375,7 @@ func NewEnvCmd() *cobra.Command {
 			return runEnvLive(cmd, args)
 		},
 	}
-	cmd.Flags().BoolVar(&verbose, "verbose", false, "Print detailed per-service output (used by the MCP server)")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Print detailed per-service output")
 	return cmd
 }
 
@@ -642,9 +642,9 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	// hasn't yet picked a DB service for this project, offer to swap sqlite for
 	// a servlo-managed mysql/postgres. Skipped for frameworks with explicit env
 	// service rules (e.g. wordpress, symfony) — they don't use DB_CONNECTION.
-	// Non-interactive callers (MCP, scripts) fall through to sqlite by default
+	// Non-interactive callers (scripts) fall through to sqlite by default
 	// so they don't hit a 500 from the missing .sqlite file; the user can
-	// still switch later with `servlo db set mysql` or the db_set MCP tool.
+	// still switch later with `servlo db set mysql` or the db_set tool.
 	if len(fw.Env.Services) == 0 &&
 		!userPickedDBFromYAML(servloYAMLServices) && !externalDBPicked(extServices) &&
 		strings.EqualFold(strings.TrimSpace(envMap["DB_CONNECTION"]), "sqlite") {

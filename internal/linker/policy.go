@@ -1,6 +1,6 @@
 // Package linker owns the decision half of registering a directory as a servlo
 // site. Every caller that links a project — the CLI, the parked-directory
-// watcher, the web UI and the MCP server — resolves the same plan here and
+// watcher, the web UI and the dashboard — resolves the same plan here and
 // differs only in the capabilities it grants through a Policy.
 package linker
 

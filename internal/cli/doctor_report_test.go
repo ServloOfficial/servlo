@@ -20,7 +20,7 @@ func TestDoctorReportJSONShapeAndTiers(t *testing.T) {
 	}
 	s := string(b)
 
-	// Tiers must serialize as stable strings the MCP tool branches on.
+	// Tiers must serialize as stable strings the tool branches on.
 	if !strings.Contains(s, `"tier":"auto"`) || !strings.Contains(s, `"tier":"manual"`) {
 		t.Fatalf("expected string tiers in JSON: %s", s)
 	}
@@ -32,7 +32,7 @@ func TestDoctorReportJSONShapeAndTiers(t *testing.T) {
 		t.Fatalf("expected version in JSON: %s", s)
 	}
 
-	// Round-trips into the shape MCP unmarshals.
+	// Round-trips into the shape unmarshals.
 	var back map[string]any
 	if err := json.Unmarshal(b, &back); err != nil {
 		t.Fatalf("unmarshal: %v", err)

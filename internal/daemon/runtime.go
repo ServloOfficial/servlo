@@ -1,5 +1,5 @@
 // Package daemon holds process-level setup shared by servlo's long-running
-// processes: servlo-panel, the watcher, and the MCP server.
+// processes: servlo-panel, the watcher, and the dashboard.
 package daemon
 
 import (

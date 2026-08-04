@@ -90,17 +90,6 @@ commands:
 
 **Check rules**: reuse `FrameworkRule`. The two common forms are `composer: <package>` (the package must be in `composer.json`) and `file: <path>` (the file must exist relative to the project root).
 
-## Agents (MCP)
-
-When the servlo MCP server is registered, an AI assistant can:
-
-- `commands_list(site)`: see what's available for a site
-- `commands_run(site, name, force?)`: execute one (with `force: true` to bypass `confirm`)
-- `command_add(site, name, command, ...)`: write a new entry into `.servlo.yaml`'s `commands:` block. Same `name` as a framework default replaces it. Use `disabled: true` to suppress a framework default
-- `command_remove(site, name)`: delete a project entry
-
-Agents should prefer `commands_run` over invoking `php artisan` / `drush` / `wp` directly so per-project overrides are honored, and `command_add` over hand-editing yaml so the entry passes the same validation `servlo check` runs.
-
 ## CLI
 
 ```

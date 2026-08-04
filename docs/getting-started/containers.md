@@ -376,4 +376,3 @@ This removes the old image, rebuilds from the current Containerfile, and restart
 - [Database](../usage/database.md): `servlo db:import`, `servlo db:shell`, switching engines
 - [Queue Workers](../usage/queue-workers.md): `schedule:` timers, restart policies, health checks
 - [HTTPS](../features/https.md): wildcard certs, git worktree subdomains
-- AI Integration (MCP): drive `servlo init`, `servlo link`, `servlo rebuild` from Claude Code or Cursor

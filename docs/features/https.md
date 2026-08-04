@@ -67,7 +67,7 @@ servlo secure --renew
 # Reissues the certificate for my-app.test (covering worktree SANs), reloads nginx
 ```
 
-`servlo secure --renew` only applies to already-secured sites; on an HTTP site it tells you to run `servlo secure` first. From an AI assistant the same action is available as the `tls_renew` action on the `site` MCP tool.
+`servlo secure --renew` only applies to already-secured sites; on an HTTP site it tells you to run `servlo secure` first.
 
 ---
 

@@ -85,7 +85,7 @@ type PHPVersionResult struct {
 
 // SetSitePHPVersion switches a site (or one of its worktrees) to a PHP version
 // and runs every step that switch depends on. It is the single source of truth
-// for "what happens when a site changes PHP version"; CLI, UI, and MCP all call
+// for "what happens when a site changes PHP version"; CLI, UI, all call
 // it, so a step added here applies everywhere.
 //
 // Steps:

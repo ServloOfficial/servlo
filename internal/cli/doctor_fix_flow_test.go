@@ -51,7 +51,7 @@ func TestRunDoctorFixDryRunChangesNothing(t *testing.T) {
 }
 
 // TestRunDoctorFixLeavesPrivilegedRepairsToTheUser is the end-to-end shape of
-// the fix: under --yes, which is exactly how the MCP diag tool invokes it, a
+// the fix: under --yes, which is exactly how the diag tool invokes it, a
 // repair needing sudo is listed for the user and never applied.
 func TestRunDoctorFixLeavesPrivilegedRepairsToTheUser(t *testing.T) {
 	orig := reCheckReport

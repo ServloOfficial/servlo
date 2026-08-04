@@ -16,7 +16,7 @@ import (
 )
 
 // Sentinel errors returned by SaveTuningOverride so callers (CLI, HTTP
-// handler, future MCP surface) map them to a consistent error surface
+// handler, future surface) map them to a consistent error surface
 // without each one re-deriving the install/family checks. Wrapped via
 // %w so callers stay free to add context (e.g. the name) before
 // returning.
@@ -403,7 +403,7 @@ func SaveTuningOverride(name, content string, backup bool) (TuningSaveResult, er
 	// template: backing it up would clutter the restore list with a
 	// copy that anyone can re-materialise on demand. The frontend
 	// already hides the checkbox via cfg.exists, but the guard here
-	// covers CLI / MCP / future callers that pass backup=true on a
+	// covers CLI / / future callers that pass backup=true on a
 	// freshly-materialized service.
 	if backup && snap.existed && string(snap.data) != template {
 		bp, bn, err := writeTuningBackup(name, snap, time.Now())

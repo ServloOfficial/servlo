@@ -1,5 +1,5 @@
 // Package phpini centralizes the php.ini editor's scope handling so the CLI, the
-// web UI, and the MCP server share one definition of what a scope is, which file
+// web UI, and the dashboard share one definition of what a scope is, which file
 // it maps to, and which containers a change restarts. A scope is one of:
 //
 //	"shared"        the version-agnostic file applied to every PHP version

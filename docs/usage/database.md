@@ -147,7 +147,7 @@ An all-databases restore drops and recreates every database contained in the sna
 
 ### What an export carries
 
-Every export servlo produces, from the CLI, the web UI download and the MCP tool, carries the same flags a snapshot already used, so handing a colleague a dump and having them import it through servlo gives them what you have.
+Every export servlo produces, from the CLI and the web UI download alike, carries the same flags a snapshot already used, so handing a colleague a dump and having them import it through servlo gives them what you have.
 
 It drops each object before recreating it, so the load replaces what they had rather than colliding with it. `mysqldump` writes `DROP TABLE` on its own; `pg_dump` only does it when asked, so servlo passes `--clean --if-exists`.
 

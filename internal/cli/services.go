@@ -881,12 +881,12 @@ func migrateServiceUnits() {
 
 // ensureServiceQuadlet writes the unit file for a default-preset service and
 // reloads the service manager. Delegates to serviceops so install + runtime +
-// MCP all generate byte-identical quadlets.
+// all generate byte-identical quadlets.
 func ensureServiceQuadlet(name string) error {
 	return serviceops.EnsureDefaultPresetQuadlet(name)
 }
 
-// ensureCustomServiceQuadlet defers to serviceops so the CLI and the MCP
+// ensureCustomServiceQuadlet defers to serviceops so the CLI and the
 // tools generate identical quadlets.
 func ensureCustomServiceQuadlet(svc *config.CustomService) error {
 	return serviceops.EnsureCustomServiceQuadlet(svc)

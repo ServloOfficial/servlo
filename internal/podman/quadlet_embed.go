@@ -181,7 +181,7 @@ func ApplyExtraPorts(content string, extraPorts []string) string {
 // The only way to actually stop a quadlet from auto-starting is to drop the
 // [Install] section from the source .container file before the generator
 // sees it. WriteQuadletDiff calls this centrally so every code path that
-// writes a quadlet (install, services, MCP server, custom-service generator)
+// writes a quadlet (install, services, server, custom-service generator)
 // honours the global autostart setting without each having to remember.
 func StripInstallSection(content string, autostartDisabled bool) string {
 	if !autostartDisabled {

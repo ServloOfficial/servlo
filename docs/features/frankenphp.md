@@ -127,8 +127,7 @@ Worker mode keeps PHP resident, so a source file change is **not** picked up on 
   When on, servlo serves the site with `octane:start --watch` so edits restart the resident workers within a second or two. The toggle is also a refresh button next to the **Octane** segment in the Web UI site controls. Two prerequisites are handled for you:
 
   - Octane's file watcher runs under `node` and resolves `chokidar` from the project. Reload-on stays off until `chokidar` is installed; the CLI and the Web UI both offer a one-click `npm install -D chokidar` (Vite 8 no longer ships it transitively). Node is baked into servlo's derived FrankenPHP image, so the watcher works without an install step at boot.
-  - On macOS (and WSL2 `/mnt` projects) the container can't observe host filesystem events, so servlo appends `--poll` automatically.
-
+  
   If you'd rather not enable reload, the older workarounds still apply: `servlo restart <site>` (~5s), `php artisan octane:reload` inside the project (drops warm workers without restarting the container), or `servlo runtime frankenphp --no-worker` to hot-reload every request like FPM.
 
 ---
