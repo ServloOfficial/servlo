@@ -94,7 +94,7 @@ func TestRenderGroupedServiceRows_WorkersSubGroupBySite(t *testing.T) {
 	// Pre-sorted the way filteredSortedServices delivers them: workers by site
 	// then kind.
 	services := []ServiceRow{
-		{Name: "queue-acme", WorkerKind: "queue", WorkerSite: "acme", State: stateSuspended},
+		{Name: "queue-acme", WorkerKind: "queue", WorkerSite: "acme", State: stateStopped},
 		{Name: "vite-acme", WorkerKind: "vite", WorkerSite: "acme", State: stateRunning},
 		{Name: "queue-blog", WorkerKind: "queue", WorkerSite: "blog", State: stateRunning},
 	}
@@ -106,7 +106,7 @@ func TestRenderGroupedServiceRows_WorkersSubGroupBySite(t *testing.T) {
 	if strings.Count(joined, "acme") != 1 {
 		t.Errorf("site acme should appear once as a sub-header, got:\n%s", joined)
 	}
-	if !strings.Contains(joined, "queue") || !strings.Contains(joined, "suspended") {
+	if !strings.Contains(joined, "queue") || !strings.Contains(joined, "stopped") {
 		t.Errorf("expected bare kind + state in worker rows:\n%s", joined)
 	}
 	if strings.Contains(joined, "queue-acme") {

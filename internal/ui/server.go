@@ -27,7 +27,6 @@ import (
 
 	qrcode "github.com/skip2/go-qrcode"
 
-	"github.com/realrashid/servlo/internal/activityping"
 	"github.com/realrashid/servlo/internal/applog"
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/cfgedit"
@@ -257,7 +256,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/settings", withCORS(handleSettings))
 	mux.HandleFunc("/api/settings/autostart", withCORS(handleSettingsAutostart))
 	mux.HandleFunc("/api/settings/worker-mode", withCORS(handleSettingsWorkerMode))
-	mux.HandleFunc("/api/settings/idle-suspend", withCORS(publishAfter(handleSettingsIdleSuspend, eventbus.KindSites)))
 	mux.HandleFunc("/api/settings/dns-upstream", withCORS(handleSettingsDNSUpstream))
 	mux.HandleFunc("/api/workers/health", withCORS(handleWorkersHealth))
 	mux.HandleFunc("/api/workers/heal", withCORS(handleWorkersHeal))
@@ -721,10 +719,6 @@ type WorktreeResponse struct {
 	DBDatabase          string         `json:"db_database,omitempty"`
 	LANPort             int            `json:"lan_port,omitempty"`
 	FrameworkWorkers    []WorkerStatus `json:"framework_workers,omitempty"`
-	// Idle-suspend state for the worktree, which idles on its own timer.
-	LastActive           int64    `json:"last_active,omitempty"`
-	Idle                 bool     `json:"idle,omitempty"`
-	IdleSuspendedWorkers []string `json:"idle_suspended_workers,omitempty"`
 }
 
 // WorkerStatus represents a single framework worker and its running state.
@@ -793,30 +787,15 @@ type SiteResponse struct {
 	HasFavicon         bool           `json:"has_favicon"`
 	HasEnv             bool           `json:"has_env"`
 	Paused             bool           `json:"paused"`
-	// Pinned excludes the site from idle-suspend (kept always-warm).
+	// Pinned keeps a site at the top of the list.
 	Pinned bool `json:"pinned,omitempty"`
-	// LastActive is the unix-seconds time the site last saw a request, from the
-	// idle-suspend activity feed. Zero (omitted) means no activity recorded yet
-	// this servlo-panel session.
-	LastActive int64 `json:"last_active,omitempty"`
 	// LastRequestAt (unix milliseconds) and RequestCount are the site's traffic
 	// over the request store's retention window, worktrees included, filtered to
 	// the requests the app actually served. The sites list orders by them.
-	LastRequestAt int64 `json:"last_request_at,omitempty"`
-	RequestCount  int   `json:"request_count,omitempty"`
-	// IdleSuspended is true when the idle engine has gracefully stopped this
-	// site's workers (a subset of Idle: only sites that had workers to stop).
-	IdleSuspended bool `json:"idle_suspended,omitempty"`
-	// Idle is true when the site has gone past the idle timeout (and isn't
-	// paused), whether or not it had any workers to suspend. Drives the
-	// dashboard sleep (Zz) indicator, which marks every idle site.
-	Idle bool `json:"idle,omitempty"`
-	// IdleSuspendedWorkers names the workers the engine stopped while idle, so
-	// the dashboard can still show their (dimmed) dots — a sleeping site keeps
-	// its worker dots rather than losing them when the units stop.
-	IdleSuspendedWorkers []string           `json:"idle_suspended_workers,omitempty"`
-	Branch               string             `json:"branch"`
-	Worktrees            []WorktreeResponse `json:"worktrees"`
+	LastRequestAt int64              `json:"last_request_at,omitempty"`
+	RequestCount  int                `json:"request_count,omitempty"`
+	Branch        string             `json:"branch"`
+	Worktrees     []WorktreeResponse `json:"worktrees"`
 	// Services lists the service names this site uses, sourced from the
 	// project's .servlo.yaml. Used by the dashboard to render service badges
 	// on the site detail panel.
@@ -880,37 +859,15 @@ func buildSites() ([]SiteResponse, error) {
 	}
 	_ = siteinfo.PersistVersionChanges(enriched)
 
-	// Resolve the global idle policy once so each site can report whether it is
-	// currently idle (drives the dashboard sleep indicator).
-	idleCfg, _ := config.LoadGlobal()
-	idleOn := idleCfg != nil && idleCfg.IdleSuspend.Enabled
-	idleTimeout := config.DefaultIdleSuspendTimeout
-	if idleCfg != nil {
-		idleTimeout = idleCfg.IdleSuspendTimeout()
-	}
-	idleNow := time.Now()
-	// Last-active times live in the servlo-watcher process and are persisted to a
-	// file we read once per snapshot; suspended state comes from the site config.
-	idleActivity := loadIdleActivity()
 	// Traffic per site key, read once per snapshot, so the sites list can order by
 	// what has actually been used rather than by log-file mtime.
 	siteUsage := loadSiteUsage()
 
 	// Per-site list of workers the engine suspended, so the dashboard can keep
 	// showing their dots dimmed instead of dropping them.
-	suspendedWorkers := map[string][]string{}
-	wtSuspendedWorkers := map[string][]string{}
 	pinnedSites := map[string]bool{}
 	if reg, err := config.LoadSites(); err == nil {
 		for _, s := range reg.Sites {
-			if len(s.IdleSuspendedWorkers) > 0 {
-				suspendedWorkers[s.Name] = s.IdleSuspendedWorkers
-			}
-			for wtBase, workers := range s.WorktreeIdleSuspended {
-				if len(workers) > 0 {
-					wtSuspendedWorkers[wtKey(s.Name, wtBase)] = workers
-				}
-			}
 			if s.Pinned {
 				pinnedSites[s.Name] = true
 			}
@@ -929,7 +886,8 @@ func buildSites() ([]SiteResponse, error) {
 	}
 
 	// Workspace membership is display-only and lives in the global config.
-	siteWorkspace := idleCfg.SiteWorkspaceMap()
+	cfg, _ := config.LoadGlobal()
+	siteWorkspace := cfg.SiteWorkspaceMap()
 
 	sites := make([]SiteResponse, 0, len(enriched))
 	for _, e := range enriched {
@@ -956,7 +914,6 @@ func buildSites() ([]SiteResponse, error) {
 
 		// Pinned and proxy-only sites are exempt from suspension, so they never
 		// report idle either.
-		idleExempt := pinnedSites[e.Name] || e.IsProxyOnly()
 
 		var worktreeResponses []WorktreeResponse
 		for _, wt := range e.Worktrees {
@@ -974,30 +931,23 @@ func buildSites() ([]SiteResponse, error) {
 					Unreachable: fw.Unreachable,
 				})
 			}
-			// Idle state keys a worktree by its checkout dir (what the worker units
-			// are named after), request traffic by its branch (what the store and the
-			// timing API share). Same worktree, two key schemes.
-			wtKeyStr := wtKey(e.Name, config.WorktreeUnitSlug(filepath.Base(wt.Path)))
 			usage = addUsage(usage, siteUsage[reqstats.Key(e.Name, wt.Branch)])
 			worktreeResponses = append(worktreeResponses, WorktreeResponse{
-				Branch:               wt.Branch,
-				Domain:               wt.Domain,
-				Path:                 wt.Path,
-				PHPVersion:           wt.PHPVersion,
-				PHPMin:               e.FrameworkPHPMin,
-				PHPMax:               e.FrameworkPHPMax,
-				NodeVersion:          wt.NodeVersion,
-				PHPVersionOverride:   wt.PHPVersionOverride,
-				NodeVersionOverride:  wt.NodeVersionOverride,
-				FrameworkVersion:     wt.FrameworkVersion,
-				FrameworkLabel:       wt.FrameworkLabel,
-				DBIsolated:           wt.DBIsolated,
-				DBDatabase:           wt.DBDatabase,
-				LANPort:              lanPort,
-				FrameworkWorkers:     wtWorkers,
-				LastActive:           idleActivity[wtKeyStr],
-				Idle:                 idleSiteIsIdle(idleActivity, wtKeyStr, e.Paused, idleExempt, idleOn, idleTimeout, idleNow),
-				IdleSuspendedWorkers: wtSuspendedWorkers[wtKeyStr],
+				Branch:              wt.Branch,
+				Domain:              wt.Domain,
+				Path:                wt.Path,
+				PHPVersion:          wt.PHPVersion,
+				PHPMin:              e.FrameworkPHPMin,
+				PHPMax:              e.FrameworkPHPMax,
+				NodeVersion:         wt.NodeVersion,
+				PHPVersionOverride:  wt.PHPVersionOverride,
+				NodeVersionOverride: wt.NodeVersionOverride,
+				FrameworkVersion:    wt.FrameworkVersion,
+				FrameworkLabel:      wt.FrameworkLabel,
+				DBIsolated:          wt.DBIsolated,
+				DBDatabase:          wt.DBDatabase,
+				LANPort:             lanPort,
+				FrameworkWorkers:    wtWorkers,
 			})
 		}
 		if worktreeResponses == nil {
@@ -1005,74 +955,70 @@ func buildSites() ([]SiteResponse, error) {
 		}
 
 		sites = append(sites, SiteResponse{
-			Name:                 e.Name,
-			AppName:              laravelAppName(e.FrameworkName, e.Path),
-			Domain:               e.PrimaryDomain(),
-			Domains:              e.Domains,
-			ConflictingDomains:   conflicting,
-			Path:                 e.Path,
-			PHPVersion:           e.PHPVersion,
-			PHPMin:               e.FrameworkPHPMin,
-			PHPMax:               e.FrameworkPHPMax,
-			UsesPHP:              e.UsesPHP,
-			NodeVersion:          e.NodeVersion,
-			JSRuntime:            projectJSRuntime(e.Path),
-			TLS:                  e.Secured,
-			Framework:            e.FrameworkName,
-			IsLaravel:            e.FrameworkName == "laravel",
-			FrameworkLabel:       e.FrameworkLabel,
-			FPMRunning:           e.FPMRunning,
-			QueueRunning:         e.QueueRunning,
-			QueueFailing:         e.QueueFailing,
-			StripeRunning:        e.StripeRunning,
-			StripeSecretSet:      e.StripeSecretSet,
-			StripeWebhookPath:    e.StripeWebhookPath,
-			ScheduleRunning:      e.ScheduleRunning,
-			ScheduleFailing:      e.ScheduleFailing,
-			ReverbRunning:        e.ReverbRunning,
-			ReverbFailing:        e.ReverbFailing,
-			HasReverb:            e.HasReverb,
-			HasHorizon:           e.HasHorizon,
-			HorizonRunning:       e.HorizonRunning,
-			HorizonFailing:       e.HorizonFailing,
-			HorizonReload:        e.HasHorizon && config.ProjectReloadsWorker(e.Path, "horizon"),
-			HorizonReloadReady:   e.HasHorizon && cli.ProjectHasChokidar(e.Path),
-			OctaneReload:         e.Runtime == "frankenphp" && e.RuntimeWorker && config.ProjectReloadsWorker(e.Path, "octane"),
-			OctaneReloadReady:    e.Runtime == "frankenphp" && e.RuntimeWorker && cli.SiteHasOctane(e.Path) && cli.ProjectHasChokidar(e.Path),
-			HasQueueWorker:       e.HasQueueWorker,
-			HasScheduleWorker:    e.HasScheduleWorker,
-			FrameworkWorkers:     fwWorkers,
-			HasAppLogs:           e.HasAppLogs,
-			HasFavicon:           e.HasFavicon,
-			HasEnv:               siteHasEnv(e.FrameworkName, e.Path),
-			Paused:               e.Paused,
-			LastActive:           idleActivity[e.Name],
-			LastRequestAt:        unixMilliOrZero(usage.LastAt),
-			RequestCount:         usage.Count,
-			IdleSuspended:        len(suspendedWorkers[e.Name]) > 0,
-			Idle:                 idleSiteIsIdle(idleActivity, e.Name, e.Paused, idleExempt, idleOn, idleTimeout, idleNow),
-			IdleSuspendedWorkers: suspendedWorkers[e.Name],
-			Pinned:               pinnedSites[e.Name],
-			Branch:               e.Branch,
-			Worktrees:            worktreeResponses,
-			Services:             e.Services,
-			DBDatabase:           envfile.ReadKey(filepath.Join(e.Path, ".env"), "DB_DATABASE"),
-			LANPort:              e.LANPort,
-			CustomContainer:      e.ContainerPort > 0,
-			ContainerPort:        e.ContainerPort,
-			ContainerImage:       e.ContainerImage,
-			Runtime:              e.Runtime,
-			RuntimeWorker:        e.RuntimeWorker,
-			HostProxy:            e.HostPort > 0,
-			HostPort:             e.HostPort,
-			HostHasDevServer:     e.HostPort > 0 && e.HostCommand != "",
-			DoctorApplicable:     sitedoctor.AppliesForPath(e.Path, e.FrameworkName),
-			Group:                e.Group,
-			GroupSubdomain:       e.GroupSubdomain,
-			GroupMainDomain:      groupMainDomain[e.Group],
-			GroupSharedDB:        e.GroupSharedDB,
-			MultiTenant:          e.Group != "" && e.GroupSubdomain == "" && siteHasEnvOverrides(e.Path),
-			Workspace:            resolveSiteWorkspace(e, groupMainName, siteWorkspace),
+			Name:               e.Name,
+			AppName:            laravelAppName(e.FrameworkName, e.Path),
+			Domain:             e.PrimaryDomain(),
+			Domains:            e.Domains,
+			ConflictingDomains: conflicting,
+			Path:               e.Path,
+			PHPVersion:         e.PHPVersion,
+			PHPMin:             e.FrameworkPHPMin,
+			PHPMax:             e.FrameworkPHPMax,
+			UsesPHP:            e.UsesPHP,
+			NodeVersion:        e.NodeVersion,
+			JSRuntime:          projectJSRuntime(e.Path),
+			TLS:                e.Secured,
+			Framework:          e.FrameworkName,
+			IsLaravel:          e.FrameworkName == "laravel",
+			FrameworkLabel:     e.FrameworkLabel,
+			FPMRunning:         e.FPMRunning,
+			QueueRunning:       e.QueueRunning,
+			QueueFailing:       e.QueueFailing,
+			StripeRunning:      e.StripeRunning,
+			StripeSecretSet:    e.StripeSecretSet,
+			StripeWebhookPath:  e.StripeWebhookPath,
+			ScheduleRunning:    e.ScheduleRunning,
+			ScheduleFailing:    e.ScheduleFailing,
+			ReverbRunning:      e.ReverbRunning,
+			ReverbFailing:      e.ReverbFailing,
+			HasReverb:          e.HasReverb,
+			HasHorizon:         e.HasHorizon,
+			HorizonRunning:     e.HorizonRunning,
+			HorizonFailing:     e.HorizonFailing,
+			HorizonReload:      e.HasHorizon && config.ProjectReloadsWorker(e.Path, "horizon"),
+			HorizonReloadReady: e.HasHorizon && cli.ProjectHasChokidar(e.Path),
+			OctaneReload:       e.Runtime == "frankenphp" && e.RuntimeWorker && config.ProjectReloadsWorker(e.Path, "octane"),
+			OctaneReloadReady:  e.Runtime == "frankenphp" && e.RuntimeWorker && cli.SiteHasOctane(e.Path) && cli.ProjectHasChokidar(e.Path),
+			HasQueueWorker:     e.HasQueueWorker,
+			HasScheduleWorker:  e.HasScheduleWorker,
+			FrameworkWorkers:   fwWorkers,
+			HasAppLogs:         e.HasAppLogs,
+			HasFavicon:         e.HasFavicon,
+			HasEnv:             siteHasEnv(e.FrameworkName, e.Path),
+			Paused:             e.Paused,
+			LastRequestAt:      unixMilliOrZero(usage.LastAt),
+			RequestCount:       usage.Count,
+			Pinned:             pinnedSites[e.Name],
+			Branch:             e.Branch,
+			Worktrees:          worktreeResponses,
+			Services:           e.Services,
+			DBDatabase:         envfile.ReadKey(filepath.Join(e.Path, ".env"), "DB_DATABASE"),
+			LANPort:            e.LANPort,
+			CustomContainer:    e.ContainerPort > 0,
+			ContainerPort:      e.ContainerPort,
+			ContainerImage:     e.ContainerImage,
+			Runtime:            e.Runtime,
+			RuntimeWorker:      e.RuntimeWorker,
+			HostProxy:          e.HostPort > 0,
+			HostPort:           e.HostPort,
+			HostHasDevServer:   e.HostPort > 0 && e.HostCommand != "",
+			DoctorApplicable:   sitedoctor.AppliesForPath(e.Path, e.FrameworkName),
+			Group:              e.Group,
+			GroupSubdomain:     e.GroupSubdomain,
+			GroupMainDomain:    groupMainDomain[e.Group],
+			GroupSharedDB:      e.GroupSharedDB,
+			MultiTenant:        e.Group != "" && e.GroupSubdomain == "" && siteHasEnvOverrides(e.Path),
+			Workspace:          resolveSiteWorkspace(e, groupMainName, siteWorkspace),
 		})
 	}
 	return sites, nil
@@ -3667,14 +3613,14 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "pin":
-		if err := cli.SetSitePinned(site.Name, true); err != nil {
+		if err := config.SetSitePinned(site.Name, true); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "unpin":
-		if err := cli.SetSitePinned(site.Name, false); err != nil {
+		if err := config.SetSitePinned(site.Name, false); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
@@ -4787,9 +4733,7 @@ func handleSettingsIdleSuspend(w http.ResponseWriter, r *http.Request) {
 	// Persisted flag is the boot source of truth; this signal makes the running
 	// watcher start the session, or resume all workers and tear it down, now.
 	if body.Enabled {
-		activityping.Enable()
 	} else {
-		activityping.Disable()
 	}
 	writeJSON(w, map[string]any{"ok": true})
 }

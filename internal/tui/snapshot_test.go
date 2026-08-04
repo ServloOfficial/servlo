@@ -48,25 +48,6 @@ func TestWorkerRows_SynthesizesFromSites(t *testing.T) {
 	}
 }
 
-func TestWorkerRows_MarksIdleSuspended(t *testing.T) {
-	sites := []siteinfo.EnrichedSite{{
-		Name: "alpha", Path: "/sites/alpha",
-		HasQueueWorker:       true,
-		QueueRunning:         false,
-		IdleSuspendedWorkers: []string{"queue", "vite"},
-		FrameworkWorkers:     []siteinfo.WorkerInfo{{Name: "vite"}},
-	}}
-	want := map[string]ServiceState{
-		"queue-alpha": stateSuspended,
-		"vite-alpha":  stateSuspended,
-	}
-	for _, row := range workerRows(sites) {
-		if got := want[row.Name]; row.State != got {
-			t.Errorf("%s: state %v, want %v (suspended)", row.Name, row.State, got)
-		}
-	}
-}
-
 func TestRenderServiceRow_OmitsSiteCount(t *testing.T) {
 	// The site count moved to the service detail pane, so neither worker nor
 	// plain service rows carry it in the list anymore.

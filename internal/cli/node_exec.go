@@ -233,7 +233,6 @@ func runNode(bin string, args []string, exitOnFail bool) error {
 	if err != nil {
 		return err
 	}
-	recordCwdActivity(cwd) // keep the site awake under idle-suspend while you work in the terminal
 
 	mgr := nodeDet.Active()
 	if !mgr.Available() {

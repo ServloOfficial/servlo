@@ -346,7 +346,7 @@ func (m *Model) dashServicesCard(width, sel int) cardContent {
 }
 
 func (m *Model) dashWorkersCard(width, sel int) cardContent {
-	active, asleep := 0, 0
+	active := 0
 	// Track each worker's index into m.snap.Services so a clicked row can map
 	// back to the matching service-list entry.
 	var workerIdx []int
@@ -358,15 +358,10 @@ func (m *Model) dashWorkersCard(width, sel int) cardContent {
 		switch s.State {
 		case stateRunning:
 			active++
-		case stateSuspended:
-			asleep++
 		}
 	}
 	failing := failingWorkers(m.snap)
 	summary := runningStyle.Render(fmt.Sprintf("%d active", active))
-	if asleep > 0 {
-		summary += " · " + suspendedStyle.Render(fmt.Sprintf("%d asleep", asleep))
-	}
 	if len(failing) > 0 {
 		summary += " · " + failingStyle.Render(fmt.Sprintf("%d failing", len(failing)))
 	}

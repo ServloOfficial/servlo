@@ -270,13 +270,6 @@ func Detect() ([]UnhealthyWorker, error) {
 		}
 		sitePaths[s.Name] = s.Path
 		meta[s.Name] = siteMeta{path: s.Path, framework: s.Framework}
-		if len(s.IdleSuspendedWorkers) > 0 {
-			set := make(map[string]bool, len(s.IdleSuspendedWorkers))
-			for _, w := range s.IdleSuspendedWorkers {
-				set[w] = true
-			}
-			suspended[s.Name] = set
-		}
 	}
 	if len(sitePaths) == 0 {
 		return nil, nil

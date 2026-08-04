@@ -622,7 +622,6 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// worker while the registry still records it suspended, drifting the dashboard
 	// (site shown asleep, workers actually running) and making workerheal skip it.
 	// Mirrors the worktree autostart filter; real activity wakes it via the engine.
-	workerUnits = dropIdleSuspendedUnits(workerUnits)
 
 	feedback.Begin()
 	feedback.Line("starting servlo")
@@ -778,7 +777,6 @@ func startRestoredServices() {
 	// deliberately-asleep worker on an idle site and wedges the engine: the
 	// registry still records it suspended, so the dashboard shows the site asleep
 	// while its workers run and the engine never re-suspends them.
-	workerUnits = dropIdleSuspendedUnits(workerUnits)
 	if len(workerUnits) == 0 {
 		return
 	}
@@ -955,14 +953,6 @@ func restoreSiteInfrastructure() {
 		// decides whether to start immediately (Linux) or just write the unit
 		// file and let phase 2 of runStart launch it (macOS).
 		for _, w := range proj.Workers {
-			// Leave a worker the idle engine suspended fully down: don't recreate,
-			// enable, or start it. Restoring it here re-enables it (so a later boot
-			// resurrects it) and feeds it to the start passes, which is how an idle
-			// site ends up with running workers after `servlo install`. The engine
-			// owns a suspended worker's lifecycle and resumes it on real activity.
-			if containsString(s.IdleSuspendedWorkers, w) {
-				continue
-			}
 			unitName := "servlo-" + w + "-" + s.Name
 			parentEnabled := services.Mgr.IsEnabled(unitName)
 			phpVersion := s.PHPVersion
@@ -1010,13 +1000,6 @@ func restoreSiteInfrastructure() {
 				continue
 			}
 			for _, wt := range worktrees {
-				// Leave a worktree worker the idle engine suspended fully down, the
-				// same as the main-site guard above: restoreWorker re-enables it (so a
-				// later boot's default.target pulls it in, past dropIdleSuspendedUnits)
-				// and the engine, not install, owns resuming it on real activity.
-				if worktreeWorkerIdleSuspended(&s, wt.Path, w) {
-					continue
-				}
 				if services.Mgr.IsEnabled(WorkerUnitName(s.Name, wt.Path, w)) {
 					continue
 				}
@@ -1119,52 +1102,6 @@ func registeredFrameworkWorkerUnits() []string {
 		if s.IsHostProxy() && proj.Proxy != nil && proj.Proxy.Command != "" {
 			out = append(out, hostProxyWorkerUnit(s.Name))
 		}
-	}
-	return out
-}
-
-// suspendedWorkerUnitSet returns the worker unit names (without any .timer
-// suffix) the idle engine currently has suspended across all sites, covering
-// both main-site workers (servlo-{worker}-{site}) and per-worktree workers
-// (servlo-{worker}-{site}-{wtslug}). Naming matches workerNames.
-func suspendedWorkerUnitSet() map[string]bool {
-	reg, err := config.LoadSites()
-	if err != nil || reg == nil {
-		return nil
-	}
-	out := map[string]bool{}
-	for _, s := range reg.Sites {
-		for _, w := range s.IdleSuspendedWorkers {
-			out["servlo-"+w+"-"+s.Name] = true
-		}
-		for wtBase, workers := range s.WorktreeIdleSuspended {
-			for _, w := range workers {
-				out["servlo-"+w+"-"+s.Name+"-"+wtBase] = true
-			}
-		}
-	}
-	return out
-}
-
-// dropIdleSuspendedUnits removes idle-suspended worker units from a start list,
-// matching on the unit name with any .timer suffix stripped so a suspended
-// scheduled worker's timer is dropped too.
-func dropIdleSuspendedUnits(units []string) []string {
-	return filterSuspendedUnits(units, suspendedWorkerUnitSet())
-}
-
-// filterSuspendedUnits is the pure filter behind dropIdleSuspendedUnits: it
-// removes any unit whose .timer-stripped name is in suspended.
-func filterSuspendedUnits(units []string, suspended map[string]bool) []string {
-	if len(suspended) == 0 {
-		return units
-	}
-	out := make([]string, 0, len(units))
-	for _, u := range units {
-		if suspended[strings.TrimSuffix(u, ".timer")] {
-			continue
-		}
-		out = append(out, u)
 	}
 	return out
 }

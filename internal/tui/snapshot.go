@@ -51,7 +51,6 @@ const (
 	stateStopped ServiceState = iota
 	stateRunning
 	statePaused
-	stateSuspended
 )
 
 // StatusRow drives the top header bar.
@@ -104,10 +103,6 @@ func workerRows(sites []siteinfo.EnrichedSite) []ServiceRow {
 			state = stateStopped
 		case running:
 			state = stateRunning
-		case workerSuspended(&site, kind):
-			// A worker the idle engine put to sleep is intentionally down and
-			// wakes on the next request, so it must not read as a plain stop.
-			state = stateSuspended
 		}
 		out = append(out, ServiceRow{
 			Name:       kind + "-" + site.Name,

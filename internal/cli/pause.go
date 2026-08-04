@@ -497,12 +497,11 @@ func stopWorkerByName(site *config.Site, workerName string) {
 }
 
 // resumeWorkerByName restarts a single named worker for the site. It gates on
-// idleWorkerResumable so the set of workers it can bring back is identical to the
-// set idle-suspend is allowed to stop — keeping the two in lockstep means a
-// worker can never be suspended-but-unresumable (stranded). A new resumable
-// worker kind must be taught to idleWorkerResumable or this gate blocks it.
+// workerResumable so a worker can never be paused-but-unresumable (stranded).
+// A new resumable worker kind must be taught to workerResumable or this gate
+// blocks it.
 func resumeWorkerByName(site *config.Site, workerName, phpVersion string) {
-	if !idleWorkerResumable(site, workerName) {
+	if !workerResumable(site, workerName) {
 		return
 	}
 	if workerName == "stripe" {
@@ -809,4 +808,34 @@ func restartWorktreeWorkers(site *config.Site, phpVersion string) {
 // writePausedWorktreeHTML ensures the shared paused landing page exists (same file).
 func writePausedWorktreeHTML(_ gitpkg.Worktree, parent *config.Site) error {
 	return writePausedHTML(parent)
+}
+
+// workerResumable reports whether resumeWorkerByName knows how to bring the
+// named worker back, so pause never stops one it cannot restart.
+func workerResumable(site *config.Site, workerName string) bool {
+	switch workerName {
+	case "stripe":
+		return true
+	case hostProxyWorkerName:
+		// resumeWorkerByName only restarts the host-proxy worker when the project
+		// still declares a proxy command; without this guard a site whose proxy
+		// block was removed would be paused but never resumed.
+		proj, _ := config.LoadProjectConfig(site.Path)
+		return proj != nil && proj.Proxy != nil
+	}
+	fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
+	if !ok || fw.Workers == nil {
+		return false
+	}
+	_, ok = fw.Workers[workerName]
+	return ok
+}
+
+func containsString(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }

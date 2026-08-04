@@ -15,7 +15,6 @@ import (
 	"bytes"
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/activityping"
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/cleanup"
 	"github.com/realrashid/servlo/internal/cli"
@@ -194,7 +193,6 @@ func main() {
 	root.AddCommand(cli.NewShimsCmd())
 	root.AddCommand(cli.NewPathEnableCmd())
 	root.AddCommand(cli.NewPathDisableCmd())
-	root.AddCommand(cli.NewIdleCmd())
 	root.AddCommand(cli.NewNotifyCmd())
 	root.AddCommand(cli.NewPhpExtCmd())
 	root.AddCommand(cli.NewPhpBunCmd())
@@ -514,47 +512,13 @@ func newWatchCmd() *cobra.Command {
 			// the auto_cleanup config; never touches service images (--deep).
 			go watcher.WatchCleanup(time.Hour)
 
+			// Request-timing analytics: the always-on nginx access feed, its rolling
+			// aggregate and the durable store behind each site's Request timing view.
+			watcher.StartRequestStats()
+
 			// Keep the cached framework store index fresh so offline detection and
 			// listing resolve the full catalogue without a network round trip.
 			go store.WatchIndex(6 * time.Hour)
-
-			// Idle-suspend: suspends/resumes workers by activity. The whole session,
-			// including the source-file watcher passed here, only runs while the
-			// feature is enabled; off, the watcher only binds the control socket.
-			watcher.StartIdle(
-				func() { notifyServloUI("idle") },
-				func(stop <-chan struct{}) error {
-					return watcher.WatchSourceFiles(
-						func() []watcher.SourceTarget {
-							reg, err := config.LoadSites()
-							if err != nil {
-								return nil
-							}
-							var targets []watcher.SourceTarget
-							for _, s := range reg.Sites {
-								if s.Ignored || s.Paused {
-									continue
-								}
-								fw, _ := config.GetFrameworkForDir(s.Framework, s.Path)
-								if dirs := config.SourceWatchRoots(fw, s.Path); len(dirs) > 0 {
-									targets = append(targets, watcher.SourceTarget{Key: s.Name, Dirs: dirs})
-								}
-								wts, _ := gitpkg.DetectWorktrees(s.Path, s.PrimaryDomain())
-								for _, wt := range wts {
-									key := s.Name + "/" + config.WorktreeUnitSlug(filepath.Base(wt.Path))
-									if dirs := config.SourceWatchRoots(fw, wt.Path); len(dirs) > 0 {
-										targets = append(targets, watcher.SourceTarget{Key: key, Dirs: dirs})
-									}
-								}
-							}
-							return targets
-						},
-						5*time.Second,
-						activityping.Site,
-						stop,
-					)
-				},
-			)
 
 			// Watch key site config files and signal queue:restart on change.
 			go func() {

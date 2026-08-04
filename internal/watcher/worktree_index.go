@@ -10,6 +10,10 @@ import (
 	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
+// detectWorktrees is the worktree detector the index uses, a var so tests can
+// stub it.
+var detectWorktrees = gitpkg.DetectWorktrees
+
 // worktreeIndexInterval is how often the index re-detects worktrees. Worktrees
 // added or removed through the daemon refresh it immediately (RefreshWorktreeIndex),
 // so this only bounds how long a worktree created behind servlo's back stays unknown.

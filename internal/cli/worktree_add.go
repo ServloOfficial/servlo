@@ -607,12 +607,7 @@ func AutoStartOptedInWorktreeWorkers(site *config.Site, worktreePath, phpVersion
 		return
 	}
 	// Workers the idle engine has suspended for this worktree must stay down. The
-	// boot scan and the watcher's onAdded both land here, so without this filter a
-	// daemon restart resurrects a sleeping worktree's worker (e.g. Vite) while the
-	// engine still believes it is suspended, drifting the two apart forever. The
-	// next request resumes it through the engine instead.
-	wtBase := config.WorktreeUnitSlug(filepath.Base(worktreePath))
-	for _, name := range worktreeWorkersToStart(site, wtBase, OptedInHostWorkers(site, worktreePath)) {
+	for _, name := range OptedInHostWorkers(site, worktreePath) {
 		fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
 		if !ok {
 			return
@@ -625,37 +620,6 @@ func AutoStartOptedInWorktreeWorkers(site *config.Site, worktreePath, phpVersion
 			feedback.Warn("auto-start %s for worktree %s: %v", name, filepath.Base(worktreePath), err)
 		}
 	}
-}
-
-// worktreeWorkerIdleSuspended reports whether the idle engine has suspended the
-// named worker for the worktree at wtPath (keyed by its unit-slug base), so the
-// restore/autostart paths can leave it down rather than re-enabling a unit a
-// later boot's default.target would then resurrect.
-func worktreeWorkerIdleSuspended(site *config.Site, wtPath, worker string) bool {
-	wtBase := config.WorktreeUnitSlug(filepath.Base(wtPath))
-	return containsString(site.WorktreeIdleSuspended[wtBase], worker)
-}
-
-// worktreeWorkersToStart drops any worker the idle engine has suspended for the
-// worktree (keyed by its unit-slug base) from names, so an autostart pass never
-// resurrects a deliberately-sleeping worker. Returns names unchanged when the
-// worktree has no suspended workers.
-func worktreeWorkersToStart(site *config.Site, wtBase string, names []string) []string {
-	suspended := site.WorktreeIdleSuspended[wtBase]
-	if len(suspended) == 0 {
-		return names
-	}
-	skip := make(map[string]bool, len(suspended))
-	for _, w := range suspended {
-		skip[w] = true
-	}
-	out := make([]string, 0, len(names))
-	for _, n := range names {
-		if !skip[n] {
-			out = append(out, n)
-		}
-	}
-	return out
 }
 
 // OptedInHostWorkers returns the names of host-mode workers the user has
