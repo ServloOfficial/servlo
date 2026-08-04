@@ -44,7 +44,7 @@ func defaultNotifyDaemon(domain, action string) error {
 
 // SetSecured toggles the site's TLS state and runs every step the toggle
 // depends on. It is the single source of truth for "what happens when a
-// site is secured/unsecured"; CLI, UI, and MCP all call this with no
+// site is secured/unsecured"; CLI, UI, all call this with no
 // per-caller variation so a new step added here applies everywhere.
 //
 // Steps:
@@ -78,7 +78,7 @@ func SetSecuredCascade(site *config.Site, secured bool) ([]string, error) {
 		}
 	}
 	if secured {
-		// HTTPS needs the servlo-managed DNS/cert layer; gate here so UI and MCP
+		// HTTPS needs the servlo-managed DNS/cert layer; gate here so UI
 		// callers fail the same clean way the CLI does instead of erroring deep
 		// in the cert layer.
 		if gcfg, _ := config.LoadGlobal(); !gcfg.DNSManaged() {
@@ -116,7 +116,7 @@ func SetSecuredCascade(site *config.Site, secured bool) ([]string, error) {
 // what securing the site issues. This is the manual counterpart to the automatic
 // self-heal (certs.EnsureCert reissues only an aging cert on start/watcher pass);
 // callers reach for it to reset the clock without toggling HTTPS off and on. It
-// is the single source of truth shared by the CLI and MCP renew paths.
+// is the single source of truth shared by the CLI renew paths.
 func RenewCert(site *config.Site) error {
 	if !site.Secured {
 		return fmt.Errorf("site %q is not secured, run 'servlo secure' first", site.Name)

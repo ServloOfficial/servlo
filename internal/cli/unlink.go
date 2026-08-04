@@ -14,7 +14,7 @@ import (
 )
 
 // Wire worker teardown into the shared unlink core so every unlink path (CLI,
-// MCP, parked-directory watcher) stops the site's workers — including a
+// , parked-directory watcher) stops the site's workers — including a
 // host-proxy site's always-restart dev server.
 func init() {
 	siteops.StopSiteWorkers = func(site *config.Site) {

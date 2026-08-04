@@ -2,7 +2,7 @@
 // site was last active and (later) suspends a quiet site's suspendable workers,
 // resuming them on the next activity. This file is the activity tracker — the
 // pure, in-memory record of "site X was last active at T" fed by the nginx
-// access feed, file-edit events, and CLI/MCP actions.
+// access feed, file-edit events, and CLI actions.
 package idle
 
 import (

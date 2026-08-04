@@ -24,7 +24,7 @@ LDFLAGS    = -s -w \
              -X $(PKG).Commit=$(COMMIT) \
              -X $(PKG).Date=$(DATE)
 
-.PHONY: build build-server build-server-all build-ui install-ui-deps test-ui install install-installer test clean release release-snapshot
+.PHONY: build build-server build-server-all build-ui install-ui-deps test-ui install install-installer test test-installer test-all surface-scan clean release release-snapshot
 
 # Architectures a Servlo droplet can be. build-server targets one at a time so
 # a release job can fan out; build-server-all is the local "does it still cross
@@ -88,7 +88,12 @@ test:
 test-installer:
 	bats tests/installer/installer.bats
 
-test-all: test test-ui test-installer
+# The standing gate that keeps deleted features deleted. Enforced rules fail;
+# rules whose Phase 0 story has not run yet are reported as pending.
+surface-scan:
+	go test -count=1 ./internal/surfacescan/
+
+test-all: test test-ui test-installer surface-scan
 
 clean:
 	rm -rf $(BUILD_DIR)

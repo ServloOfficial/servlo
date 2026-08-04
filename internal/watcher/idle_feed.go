@@ -329,7 +329,7 @@ func resolveHostToSite(host string) (string, bool) {
 
 // resolveHostToStatsKey maps a request host to its request-store key. It is the
 // idle key's twin, and separate on purpose: a worktree's stats key carries the
-// sanitized branch, the identity the HTTP API, MCP and the worktree registries
+// sanitized branch, the identity the HTTP API, the worktree registries
 // already share, while its idle key carries the checkout dir the worker units are
 // named after. Readers ask by branch, so the writer must record by branch.
 func resolveHostToStatsKey(host string) (string, bool) {

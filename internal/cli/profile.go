@@ -125,7 +125,7 @@ func newProfileRunCmd() *cobra.Command {
 as 'php <command> [args...]' inside the project's container. By default the
 report shows up in the Profiler view alongside HTTP-request reports. With
 --flat it instead prints a text flat profile (top functions by wall time and
-call count) to the terminal, the same report the MCP profiler_report action
+call count) to the terminal, the same report the profiler view
 returns. Useful for artisan commands, queue jobs, and test runs.`,
 		DisableFlagParsing: true,
 		SilenceUsage:       true,

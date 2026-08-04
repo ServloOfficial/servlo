@@ -185,7 +185,7 @@ func PublishLinks(phpVersions []string, names ...string) error {
 
 	// Linking a site doesn't start a systemd unit, so the shared
 	// AfterUnitChange hook wouldn't otherwise fire. Notify the hook
-	// explicitly so the CLI/MCP processes ping servlo-panel (and servlo-panel's
+	// explicitly so the CLI processes ping servlo-panel (and servlo-panel's
 	// own in-process handler invalidates the snapshot cache) and the
 	// new site appears in every open dashboard tab.
 	if podman.AfterUnitChange != nil {
@@ -275,7 +275,7 @@ var (
 // the registry and the project's .servlo.yaml, regenerates the normal fastcgi
 // vhost, and recreates any running workers against the shared FPM container. It
 // is the fallback the CLI takes (via runLink) when a site's PHP version is
-// changed below the FrankenPHP minimum, mirrored here so the UI and MCP never
+// changed below the FrankenPHP minimum, mirrored here so the UI never
 // silently upgrade PHP behind the user's back. The passed site is mutated to FPM.
 func DemoteFrankenPHPToFPM(site *config.Site) error {
 	var workers []string

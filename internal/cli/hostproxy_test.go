@@ -21,8 +21,8 @@ func pinHostGatewayBindIP(t *testing.T, ip string) {
 }
 
 // TestStopSiteWorkersHookRegistered guards the wiring that makes every unlink
-// path (CLI, MCP, parked-watcher) stop a site's workers. Without it the
-// host-proxy dev server leaks on the MCP and watcher paths.
+// path (CLI, parked-watcher) stop a site's workers. Without it the
+// host-proxy dev server leaks on the watcher paths.
 func TestStopSiteWorkersHookRegistered(t *testing.T) {
 	if siteops.StopSiteWorkers == nil {
 		t.Fatal("cli init must register siteops.StopSiteWorkers")

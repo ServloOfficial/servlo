@@ -142,8 +142,7 @@ func renderQueueCommand(w config.FrameworkWorker, queue string, tries, timeout i
 }
 
 // queueStartTuned starts the queue worker with a specific queue/tries/timeout by
-// rendering the framework's TuneCommand. Used by `servlo queue:start` and, via the
-// mcp.QueueStartFn hook, by the MCP queue_start tool.
+// rendering the framework's TuneCommand. Used by `servlo queue:start`.
 func queueStartTuned(siteName, sitePath, phpVersion, queue string, tries, timeout int) error {
 	// The queue name is interpolated into the worker command; whitespace or a
 	// newline could inject extra arguments or a systemd directive.

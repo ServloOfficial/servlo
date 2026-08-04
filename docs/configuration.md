@@ -147,7 +147,6 @@ A portable, self-contained description of a project's local environment. Created
 | `custom_workers` | Custom worker definitions (name to config map). Works for both PHP and custom container sites. See below |
 | `db` | Database targeting for non-PHP projects: `service` (e.g. `mysql`, `postgres`) and `database` name |
 | `stripe` | Optional Stripe webhook listener config: `path` (forward route, defaults to `/stripe/webhook`) and `secret_env_key` (which `.env` key holds the secret, defaults to auto-detection). See Stripe |
-| `mcp_inject` | Set `false` to opt the project out of automatic AI/MCP config refresh. `servlo update`/`install` then never rewrites this project's committed MCP config or skill files. An explicit `servlo mcp:inject` still writes. See MCP |
 
 ### Basic example
 
@@ -317,6 +316,6 @@ Commit `.servlo.yaml` to the repository. On a fresh machine, `servlo link` is su
 
 The Servlo watcher also monitors `.servlo.yaml` for changes. When you switch branches with a different config the PHP and Node versions are re-detected and applied automatically, no manual `servlo link` or `servlo init` needed. See [Automatic version switching](./features/project-setup.md#automatic-version-switching) for details.
 
-`servlo isolate`, the UI PHP version selector, and the MCP `site` tool's `php` action all keep `php_version` in sync when this file exists.
+`servlo isolate` and the UI PHP version selector both keep `php_version` in sync when this file exists.
 
-`servlo secure`, `servlo unsecure`, the UI HTTPS toggle, and the MCP `secure`/`unsecure` tools keep `secured` in sync when this file exists.
+`servlo secure`, `servlo unsecure` and the UI HTTPS toggle keep `secured` in sync when this file exists.

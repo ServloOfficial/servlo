@@ -40,7 +40,7 @@ export async function clearProfilerData(): Promise<number> {
   return data.removed ?? 0;
 }
 
-// Live-update from WS so a toggle from the CLI, MCP, or another browser tab
+// Live-update from WS so a toggle from the CLI or another browser tab
 // is reflected without a manual refresh.
 wsMessage.subscribe((msg) => {
   const fresh = msg?.profiler_status as { enabled: boolean } | undefined;

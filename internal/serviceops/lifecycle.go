@@ -10,7 +10,7 @@ import (
 	"github.com/realrashid/servlo/internal/podman"
 )
 
-// StartService is the shared start path for CLI, UI, TUI (via CLI), and MCP:
+// StartService is the shared start path for CLI, UI, TUI (via CLI),:
 // ensure the quadlet, bring depends_on satisfiers up for customs, start the
 // unit (retrying briefly for quadlet generator lag), mark it manually started,
 // start reverse dependents, and regenerate dynamic_env consumers.
@@ -52,7 +52,7 @@ func StartService(name string) error {
 	return nil
 }
 
-// StopService is the shared stop path for CLI, UI, TUI (via CLI), and MCP:
+// StopService is the shared stop path for CLI, UI, TUI (via CLI),:
 // cascade-stop dependents when no other running satisfier remains, stop name,
 // mark it paused, and regenerate dynamic_env consumers.
 func StopService(name string) error {
@@ -65,7 +65,7 @@ func StopService(name string) error {
 	return nil
 }
 
-// RestartService is the shared restart path for CLI, UI, TUI (via CLI), and MCP:
+// RestartService is the shared restart path for CLI, UI, TUI (via CLI),:
 // refresh the quadlet (so dynamic_env and file mounts land), restart the
 // unit, clear paused, and regenerate dynamic_env consumers.
 func RestartService(name string) error {

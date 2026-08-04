@@ -10,7 +10,7 @@ import (
 )
 
 // VersionForDir resolves the PHP version a directory's commands must run on.
-// This is the single answer the CLI, the MCP server and the version-scoped
+// This is the single answer the CLI, the dashboard and the version-scoped
 // tools all use, so a command can never exec into a different PHP than the
 // container serving the same directory.
 //

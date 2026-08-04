@@ -2,7 +2,7 @@
 // opposed to what the user declared. The declared extension/package set applies
 // to every version, but a version cannot always honour it (mongodb needs 8.1+,
 // the 7.4/8.0 images are Alpine 3.16) and an image built before an entry was
-// declared simply predates it. Every surface (CLI, web UI, TUI, MCP) reports
+// declared simply predates it. Every surface (CLI, web UI, TUI) reports
 // from here so none of them can advertise what an image does not have.
 package phpsets
 

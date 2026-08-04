@@ -767,7 +767,7 @@ func TestServloLinkUnit_tldLandsInertInTheUnit(t *testing.T) {
 }
 
 // servlo0 is the offline enhancement, never a precondition. Hosts exist where the
-// dummy module is absent (the stock WSL2 kernel) or servlo's absolute-path grants
+// dummy module is absent from the kernel, or servlo's absolute-path grants
 // cannot match (NixOS). Making the link fatal took .tld down entirely on those
 // hosts, which is strictly worse than the behaviour it replaced: the baseline
 // hookup resolves .tld whenever a link is up, and must be written regardless.

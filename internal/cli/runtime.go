@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Wire the siteops demote helper to the cli worker lifecycle so the UI, MCP,
+// Wire the siteops demote helper to the cli worker lifecycle so the UI,
 // and install-refresh paths recreate workers when a FrankenPHP site falls back
 // to FPM, the same way switchToFPM does for `servlo runtime fpm`.
 func init() {

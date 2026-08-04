@@ -7,7 +7,6 @@ You've already run `servlo install` once on this machine. If not, see [Installat
 :::
 
 ::: tip Drive it from your AI assistant
-After running `servlo mcp:enable-global`, your AI assistant can call `service_add`, `service_start`, `service_stop`, and `service_remove` directly. See AI Integration.
 :::
 
 ---
@@ -219,4 +218,3 @@ This means installing the preset (or dropping the YAML) once is enough, every pr
 
 - [Services reference](../usage/services.md): full YAML schema, dependency rules, custom command flags, RustFS / Mailpit / Soketi / stripe-mock built-in details
 - [Configuration](../configuration.md): embedding services directly in `.servlo.yaml` so they ship with the repo
-- AI Integration (MCP): manage services from your AI assistant

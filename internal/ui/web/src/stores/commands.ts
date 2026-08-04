@@ -448,7 +448,7 @@ function maybeNotifyDone(cmd: Command, domain: string, exit: number, durationMs:
 
 // Whenever the sites snapshot changes, drop the cached command lists. A new
 // site might have been added, or an existing site's .servlo.yaml may have been
-// rewritten (by MCP command_add, by the user, or by servlo's own writers).
+// rewritten (by the user, or by servlo's own writers).
 // Next palette open or dropdown open will re-fetch.
 wsMessage.subscribe((msg) => {
   if (msg?.sites !== undefined) {

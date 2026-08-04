@@ -167,19 +167,6 @@ When everything is in sync:
 
 The command automatically discovers all `.env*` files in the project directory (`.env`, `.env.testing`, `.env.local`, etc.) and checks each one against `.env.example`. Only keys that differ in at least one file are shown.
 
-When called via the MCP server (AI assistants), `env_check` returns structured JSON instead of the formatted table:
-
-```json
-{
-  "in_sync": false,
-  "keys": [
-    {"key": "STRIPE_KEY", "in_example": true, "files": {".env": false, ".env.testing": false}},
-    {"key": "LEGACY_TOKEN", "in_example": false, "files": {".env": true, ".env.testing": false}}
-  ],
-  "out_of_sync_count": 3
-}
-```
-
 ## Filling in missing keys
 
 `env:check` tells you *what* is missing; `servlo env:check --fix` fills it in. For each `.env` file that lacks keys from `.env.example`, it shows a unified diff of the exact lines it would add, then inserts them on confirmation:

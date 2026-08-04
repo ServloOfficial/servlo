@@ -54,7 +54,7 @@ php artisan migrate
 composer install
 ```
 
-Because the `php` shim runs inside the PHP-FPM container, `php artisan`, `servlo artisan`, and the MCP `exec` tool's `artisan` action are all equivalent; they all execute inside the same container with the same PHP version and extensions. Use whichever form you prefer.
+Because the `php` shim runs inside the PHP-FPM container, `php artisan` and `servlo artisan` are equivalent; both execute inside the same container with the same PHP version and extensions. Use whichever form you prefer.
 
 Prefer typing `servlo php` explicitly and keeping `php` pointed at a host install? Run `servlo path:disable`: it removes servlo's shims dir from your shell PATH and keeps installs and updates from re-adding it, while every `servlo …` command works unchanged (child processes servlo spawns still resolve the shims internally). `servlo path:enable` reverses it. One thing to know either way: the shimmed `php` runs inside the container, so a PHP script that `exec()`s host tools sees the container's PATH, not your shell's — with the shim disabled, a host `php` behaves like any other host process.
 
@@ -75,8 +75,6 @@ servlo rector process
 ```
 
 These run inside the project's PHP-FPM container with the project's working directory mounted, so configuration files (`pest.xml`, `pint.json`, `phpstan.neon`, etc.) are picked up automatically. Real servlo commands always take precedence; if you have a `vendor/bin/composer`, `servlo composer` still resolves to the built-in command.
-
-The MCP integration exposes the same surface through two tools, `vendor_bins` (list available binaries) and `vendor_run` (execute one), so AI assistants can discover and run project tooling without per-project configuration.
 
 ---
 
@@ -100,7 +98,7 @@ servlo isolate 8.5
 
 This writes `.php-version: 8.5` (so CLI `php`, asdf, and other tools see the right version) and, when `.servlo.yaml` already exists in the project, also updates its `php_version` field to keep servlo's priority-1 override in sync. The site is re-linked automatically so nginx picks up the new version immediately.
 
-The UI PHP version selector and the MCP `site` tool's `php` action follow the same rules; they always write both files when applicable.
+The UI PHP version selector follows the same rules; it always writes both files when applicable.
 
 The composer constraint is matched against all installed PHP versions using full semver rules (`^`, `~`, `>=`, `<`, `||`, `*`). The highest installed version that satisfies the constraint wins. If no installed version matches, the literal minimum from the constraint is used (and the FPM will be built on first use).
 
@@ -202,7 +200,7 @@ For ordinary web requests under `--on-demand`, use the [Xdebug Helper](https://x
 
 ## Debug bridge
 
-Calls to `dump()` and `dd()` can be captured into the servlo dashboard, TUI, and MCP tools instead of (or alongside) the response. Enable with:
+Calls to `dump()` and `dd()` can be captured into the servlo dashboard and TUI instead of (or alongside) the response. Enable with:
 
 ```bash
 servlo dump on        # touch the sentinel; next request captures
@@ -362,7 +360,7 @@ The shared file lives at `~/.local/share/servlo/php/shared/95-servlo-shared.ini`
 
 Nothing is merged and nothing is migrated: your existing per-version files keep working and keep winning. A key becomes shared only when you put it in the shared file. An unknown or removed directive on a given version is ignored (a startup notice, not a fatal), so a version-specific setting never breaks the others.
 
-In the web UI, open **System → PHP**, pick a version, and use the **Editing** dropdown at the top of its php.ini tab to switch to the shared file. Over MCP it is reachable through `runtime` with `ini_read` / `ini_write` / `ini_reset` (pass `shared: true`).
+In the web UI, open **System → PHP**, pick a version, and use the **Editing** dropdown at the top of its php.ini tab to switch to the shared file.
 
 ### Locales and internationalisation
 
@@ -423,7 +421,7 @@ servlo shell
 
 The PHP version is resolved the same way as every other servlo command (`.php-version`, `composer.json`, global default). The shell's working directory is set to the project root.
 
-If the container is not running, servlo prints the platform-appropriate command (`launchctl kickstart` on macOS, `systemctl --user start` on Linux) to bring it back up rather than silently failing.
+If the container is not running, servlo prints the `systemctl --user start` command to bring it back up rather than silently failing.
 
 If the site is paused, any services referenced in `.env` (MySQL, Redis, etc.) are started automatically before the shell opens; the site itself stays paused.
 

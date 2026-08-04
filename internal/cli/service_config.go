@@ -99,7 +99,7 @@ func newServiceConfigCmd() *cobra.Command {
 
 			// Quadlet regen and restart go through the shared serviceops
 			// helpers so the CLI, the /api/services/{name}/config handler,
-			// and any future surface (MCP, …) can't drift from each other.
+			// and any future surface can't drift from each other.
 			// A regen failure here is a hard error: skipping it orphans
 			// the just-written override on installs predating the tuning
 			// Volume= mount, so the next restart re-reads the OLD config.

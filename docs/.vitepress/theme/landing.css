@@ -271,8 +271,6 @@
    install command would force the column wider than the viewport. Let them shrink. */
 .servlo-landing .hero-copy,
 .servlo-landing .hero-term-wrap,
-.servlo-landing .mcp-chat,
-.servlo-landing .mcp-tools,
 .servlo-landing .step-vis { min-width: 0; }
 .servlo-landing .win { max-width: 100%; }
 .servlo-landing .cast { min-width: 0; }
@@ -291,20 +289,11 @@
 /* install + actions now live under the hero terminal — span the terminal column */
 .servlo-landing .hero-term-wrap .install { max-width: none; margin-top: 22px; }
 .servlo-landing .hero-term-wrap .hero-actions { margin-top: 16px; }
-.servlo-landing .os-tabs { display: flex; gap: 4px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px 12px 0 0; border-bottom: none; }
-.servlo-landing .os-tab {
-  flex: 1; font: inherit; font-size: 13px; font-weight: 500;
-  color: var(--muted); background: transparent; border: none; cursor: pointer;
-  padding: 8px 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 7px;
-  transition: color .2s, background .2s;
-}
-.servlo-landing .os-tab svg { width: 14px; height: 14px; }
-.servlo-landing .os-tab[aria-selected="true"] { color: var(--ink); background: var(--raised); }
 .servlo-landing .cmd-row {
   display: flex; align-items: center; gap: 10px;
   font-family: var(--mono); font-size: 14px;
   background: #060607; border: 1px solid var(--line);
-  border-radius: 0 0 12px 12px; padding: 16px 16px 16px 18px;
+  border-radius: 12px; padding: 16px 16px 16px 18px;
 }
 .servlo-landing .cmd-row .prompt { color: var(--accent-2); user-select: none; }
 .servlo-landing .cmd-text { flex: 1; color: var(--ink); white-space: nowrap; overflow: hidden; }
@@ -322,7 +311,7 @@
 /* Hero terminal */
 .servlo-landing .term { font-family: var(--mono); font-size: 13.5px; line-height: 1.85; }
 
-/* asciinema players (hero, MCP, quick-start) sit inside the window chrome and
+/* asciinema players (hero, quick-start) sit inside the window chrome and
    size to their cast content — no fixed height, so each window hugs the player. */
 .servlo-landing .cast { background: #0d0d0d; padding: 12px 14px; overflow: hidden; }
 .servlo-landing .cast .ap-player { width: 100%; }
@@ -398,31 +387,6 @@
    =========================================================== */
 .servlo-landing .app-frame { display: block; width: 100%; height: 680px; border: 0; background: #0d0d0d; }
 @media (max-width: 760px) { .servlo-landing .app-frame { height: 560px; } }
-
-/* ===========================================================
-   MCP showcase
-   =========================================================== */
-.servlo-landing .mcp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: stretch; }
-.servlo-landing .mcp-chat { padding: 0; }
-.servlo-landing .chat-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 360px; }
-.servlo-landing .msg { max-width: 86%; padding: 12px 15px; border-radius: 14px; font-size: 14px; line-height: 1.55; }
-.servlo-landing .msg.user { align-self: flex-end; background: var(--raised); border: 1px solid var(--line-2); border-bottom-right-radius: 5px; }
-.servlo-landing .msg.ai { align-self: flex-start; background: var(--bg-2); border: 1px solid var(--line); border-bottom-left-radius: 5px; }
-.servlo-landing .msg.ai .tool { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 12px; color: var(--accent-2); padding: 8px 11px; margin: 8px 0; background: rgba(255,45,32,0.06); border: 1px solid rgba(255,45,32,0.2); border-radius: 9px; }
-.servlo-landing .msg.ai .tool svg { width: 14px; height: 14px; }
-.servlo-landing .msg.ai .tool .spin { animation: ll-spin 1s linear infinite; }
-@keyframes ll-spin { to { transform: rotate(360deg); } }
-.servlo-landing .mcp-tools { display: flex; flex-direction: column; gap: 11px; }
-.servlo-landing .tool-card { display: flex; gap: 14px; padding: 16px 18px; align-items: flex-start; }
-.servlo-landing .tool-card .ic { width: 38px; height: 38px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line-2); display: grid; place-items: center; color: var(--accent-2); flex-shrink: 0; }
-.servlo-landing .tool-card .ic svg { width: 19px; height: 19px; }
-.servlo-landing .tool-card b { font-size: 15px; font-weight: 560; }
-.servlo-landing .tool-card code { font-family: var(--mono); font-size: 12px; color: var(--violet); }
-.servlo-landing .tool-card p { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; }
-.servlo-landing .agent-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
-.servlo-landing .agent-chip { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg-2); }
-.servlo-landing .agent-chip .gl { width: 15px; height: 15px; }
-@media (max-width: 860px) { .servlo-landing .mcp-grid { grid-template-columns: 1fr; } }
 
 /* ===========================================================
    COMPARISON TABLE

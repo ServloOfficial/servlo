@@ -7,7 +7,7 @@
 | `servlo install` | One-time setup: directories, network, binaries, DNS, nginx, watcher |
 | `servlo start` | Start DNS, nginx, PHP-FPM containers, and all installed services; warns about port conflicts and builds or pulls any missing images first |
 | `servlo stop` | Stop nginx, PHP-FPM containers, and all running services; leaves the `servlo-dns` forwarder running as install-level plumbing so `.test` keeps resolving |
-| `servlo quit` | Stop all Servlo processes and containers including the UI, watcher, tray, and the `servlo-dns` forwarder; on macOS also stops the Podman Machine VM |
+| `servlo quit` | Stop all Servlo processes and containers including the UI, watcher and the `servlo-dns` forwarder |
 | `servlo update` | Check for updates and update after confirmation |
 | `servlo update --beta` | Update to the latest pre-release build |
 | `servlo update --rollback` | Revert to the previously installed version |
@@ -18,8 +18,6 @@
 | `servlo autostart disable` | Disable autostart on login |
 | `servlo path:disable` | Take servlo's shims (`php`, `composer`, `node`…) off your shell PATH; `servlo php` etc. keep working, and installs/updates stop re-adding the entry |
 | `servlo path:enable` | Put servlo's shims back on your shell PATH (the default) |
-| `servlo tray` | Launch the system tray applet (detaches from terminal) |
-| `servlo tray icon [default\|high-contrast]` | Choose the running-icon style; high-contrast shows an always-visible green icon for mixed themes like KDE Breeze Twilight; no argument prints the current style |
 | `servlo dns:check` | Walk the DNS chain (container, dnsmasq config, port 5300, dig at 5300, resolver hookup, interface routing, system lookup) and print the layered status with a remediation hint per failure |
 | `servlo status` | Health summary: DNS, nginx, PHP-FPM containers, watcher, services, cert expiry, LAN exposure and dashboard remote access; shows a notice if an update is available |
 | `servlo which` | Show resolved PHP version, Node version, document root, and nginx config for the current site |
@@ -164,7 +162,7 @@ Supported PHP versions: **8.5**, **8.4**, **8.3**, **8.2**, **8.1**, and the fro
 | `servlo php:bun update [version]` | Update the container's bun in place (`bun upgrade`) |
 | `servlo php:bun version [version]` | Show the bun version installed in the PHP-FPM container |
 | `servlo php:bun remove` | Remove the in-container bun and clear its persistent volume |
-| `servlo dump on` | Enable the debug bridge so `dump()` / `dd()` calls ship to the servlo dashboard, TUI, and MCP tools |
+| `servlo dump on` | Enable the debug bridge so `dump()` / `dd()` calls ship to the servlo dashboard and TUI |
 | `servlo dump off` | Disable the debug bridge and restore FPM containers to their default state |
 | `servlo dump status` | Show whether the bridge is enabled and how many events are buffered |
 | `servlo dump tail [--site X] [--branch Y] [--ctx fpm\|cli]` | Stream captured dumps to the terminal until Ctrl-C |
@@ -301,7 +299,7 @@ Requires [Laravel Broadcasting](https://laravel.com/docs/13.x/broadcasting) with
 
 ## Idle-suspend
 
-Activity-driven worker suspension: servlo gracefully stops each site's suspendable workers (queue, scheduler, Horizon, Reverb, Stripe listener, Vite) after a period of no activity and resumes them on the next request, CLI command, MCP call, or source-file save. See the idle-suspend page for the full behaviour.
+Activity-driven worker suspension: servlo gracefully stops each site's suspendable workers (queue, scheduler, Horizon, Reverb, Stripe listener, Vite) after a period of no activity and resumes them on the next request, CLI command, or source-file save. See the idle-suspend page for the full behaviour.
 
 | Command | Description |
 |---|---|
@@ -347,16 +345,6 @@ Activity-driven worker suspension: servlo gracefully stops each site's suspendab
 | `servlo test [args...]` | Shortcut for `servlo artisan test` |
 | `servlo <vendor-bin> [args...]` | Run any composer-installed binary from the project's `vendor/bin` directory (e.g. `servlo pest`, `servlo pint`, `servlo phpstan`). Real servlo commands always win over vendor binaries with the same name. |
 | `servlo shell` | Open an interactive shell inside the project's PHP-FPM container |
-
-## AI integration
-
-| Command | Description |
-|---|---|
-| `servlo mcp:enable-global` | Register servlo MCP at user scope across every supported assistant (Claude Code, Cursor, Junie, Codex, Gemini, Copilot, Antigravity, Windsurf), available in every session regardless of directory |
-| `servlo mcp:disable-global` | Unregister the user-scope servlo MCP server and remove the user-scope skill files (inverse of `mcp:enable-global`) |
-| `servlo mcp:inject` | Inject the servlo MCP config and AI skill files into the current project |
-| `servlo mcp:inject --path <dir>` | Inject into a specific project directory |
-| `servlo mcp:eject` | Remove the servlo MCP config and AI skill files from the current project (inverse of `mcp:inject`); use `--path <dir>` to target another directory |
 
 ## Dashboard
 

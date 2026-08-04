@@ -124,7 +124,7 @@ Config: `~/.config/servlo/`. Data: `~/.local/share/servlo/`. systemd units are p
 
 The web UI is Svelte under `internal/ui/web/`, built to `dist/` and embedded via `//go:embed`. `make build` builds the UI first.
 
-**Two commands this file relies on do not exist yet.** `make build-server`, the CGO-free production target, is built in S0.2, and `make surface-scan` is built as the standing gate during Phase 0. The Makefile currently offers `build`, `build-ui`, `test`, `test-ui`, `test-installer`, `test-all`, `install`, `install-installer`, `release` and `release-snapshot`. Until those two targets land, report them as missing rather than passing.
+`make build-server` (the CGO-free production target, S0.2) and `make surface-scan` (the standing deleted-feature gate, S0.4) both exist now. The surface scan lives in `internal/surfacescan`: one rule per deleted feature, naming the story that owns its deletion. An `Enforced` rule fails the gate; a rule whose story has not run yet is reported as pending, so deleting a feature ends with turning its own rule on. The permission half of the scan is not built yet, because there is no permission registry to audit against until `internal/authz` lands.
 
 ---
 
@@ -156,7 +156,7 @@ go vet ./...                           # vet
 test -z "$(gofmt -l .)"                # format
 make test-ui                           # Vitest, if UI changed
 bats tests/installer/installer.bats    # if install.sh changed
-make surface-scan                      # deleted-feature + permission audit (once it exists)
+make surface-scan                      # deleted-feature gate
 ```
 Then install the local build on a **real Ubuntu 24.04 droplet or VM** and drive the change by hand. Tests do not catch runtime-surface bugs. Never rely on CI alone for anything with a runtime surface.
 

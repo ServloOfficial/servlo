@@ -7,9 +7,9 @@ import (
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/logsource"
 	phpDet "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/unitlog"
 	"github.com/spf13/cobra"
 )
 
@@ -140,7 +140,7 @@ type xdebugProc struct {
 func parseXdebugctlProcs(out string) []xdebugProc {
 	// xdebugctl colours its output unconditionally; strip the escapes so the
 	// PID is the first field and project paths match cleanly.
-	out = logsource.StripANSI(out)
+	out = unitlog.StripANSI(out)
 	var procs []xdebugProc
 	for _, line := range strings.Split(out, "\n") {
 		fields := strings.Fields(line)

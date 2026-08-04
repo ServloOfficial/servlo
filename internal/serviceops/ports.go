@@ -22,7 +22,7 @@ var ErrPortInUse = errors.New("port already in use")
 // would collide at boot — this rejects the clash up front.
 var ErrPortReserved = errors.New("port already claimed by another servlo service")
 
-// PortChange reports the outcome of SetPublishedPort so each surface (CLI, MCP,
+// PortChange reports the outcome of SetPublishedPort so each surface (CLI,
 // Web UI) renders its own message from one shared code path.
 type PortChange struct {
 	Requested int  // the port the caller asked for (0 = reset to default)
@@ -46,7 +46,7 @@ var (
 // SetPublishedPort moves a service's published host port (port > 0) or resets it
 // to the preset default (port == 0), persisting the override and re-rendering and
 // restarting the unit as needed. It is the single entry point shared by the CLI
-// `service port` command, the MCP service:port action, and the Web UI ports
+// `service port` command, the service:port action, and the Web UI ports
 // endpoint, so all three enforce identical validation, the port-ownership guard,
 // and the host-proxy follower refresh. The container-internal port is untouched.
 func SetPublishedPort(name string, port int) (PortChange, error) {
@@ -315,7 +315,7 @@ func persistSecondaryOverride(name string, containerPort, port int) error {
 // SetExtraPorts replaces a bundled preset's extra published ports with ports
 // (each a bare "host", "host:container", or "ip:host:container" mapping),
 // de-duplicating and validating, then re-rendering and restarting the unit when
-// it is running. Shared by the CLI `service expose`, MCP service:expose, and the
+// it is running. Shared by the CLI `service expose`, service:expose, and the
 // Web UI ports endpoint. Any preset servlo ships qualifies (default-stack or
 // optional like gotenberg); genuinely custom services declare their ports in
 // their own YAML, so they're excluded.

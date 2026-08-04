@@ -24,7 +24,7 @@ import (
 	"github.com/realrashid/servlo/internal/podman"
 )
 
-// Check statuses, mirroring the MCP doctor's check shape so the diagnostics
+// Check statuses, mirroring the doctor's check shape so the diagnostics
 // read consistently. "unknown" covers a check servlo couldn't run (e.g. the app
 // is down), which is distinct from a genuine pass or failure.
 const (
@@ -92,7 +92,7 @@ func (d *Response) add(c Check) {
 // (an unknown framework) — only the file/dependency baseline runs then. The
 // cheap checks read files; command and audit checks touch the container.
 // RunForPath resolves the framework definition for a project path and runs the
-// doctor, so the CLI, MCP, and Web UI share one path -> framework -> Run chain
+// doctor, so the CLI, and Web UI share one path -> framework -> Run chain
 // instead of re-deriving it three ways. fwName is the site's recorded framework
 // when known; pass "" to detect it from the path.
 func RunForPath(ctx context.Context, path, fwName string) Response {
@@ -105,7 +105,7 @@ func RunForPath(ctx context.Context, path, fwName string) Response {
 
 // AppliesForPath reports whether the doctor has any check to run for the project
 // at path, resolving the framework the same way RunForPath does so the dashboard,
-// CLI, and MCP share one applicability answer.
+// CLI, share one applicability answer.
 func AppliesForPath(path, fwName string) bool {
 	if fwName == "" {
 		fwName, _ = config.DetectFrameworkForDir(path)

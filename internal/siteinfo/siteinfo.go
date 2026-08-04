@@ -32,7 +32,6 @@ const (
 	EnrichStripe                                 // stripe secret check
 
 	EnrichCLI = EnrichFramework | EnrichGit
-	EnrichMCP = EnrichFramework | EnrichWorkers
 	EnrichUI  = EnrichFramework | EnrichVersions | EnrichWorkers |
 		EnrichFPM | EnrichGit | EnrichServices |
 		EnrichDomainConflicts | EnrichLogs | EnrichFavicon | EnrichStripe

@@ -27,7 +27,7 @@ func NewDumpCmd() *cobra.Command {
 		Use:   "dump",
 		Short: "Capture PHP dump()/dd() calls into the servlo dashboard",
 		Long: `Toggle the servlo debug bridge so that calls to dump() and dd() in your PHP
-code ship to the servlo dashboard, TUI, and MCP tools instead of (only) hitting
+code ship to the servlo dashboard and TUI instead of (only) hitting
 the response. Off by default — enable with ` + "`servlo dump on`" + ` and disable
 with ` + "`servlo dump off`" + `.`,
 	}

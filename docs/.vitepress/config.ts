@@ -61,7 +61,7 @@ export default defineConfig({
             applicationCategory: 'DeveloperApplication',
             operatingSystem: 'Linux, macOS',
             description:
-              'Open-source, Herd-like local PHP development environment for Linux and macOS: automatic .test domains and HTTPS, per-project PHP 7.4–8.5 and Node, rootless Podman, a built-in Web UI, and an MCP server for AI agents. No Docker daemon, no sudo.',
+              'Open-source, Herd-like local PHP development environment for Linux and macOS: automatic .test domains and HTTPS, per-project PHP 7.4–8.5 and Node, rootless Podman and a built-in Web UI. No Docker daemon, no sudo.',
             keywords:
               'local PHP development, Laravel Herd for Linux, Laragon for Linux, Laragon alternative Linux, .test domains, rootless Podman, PHP-FPM, local development environment',
             url: SITE_URL,

@@ -22,7 +22,7 @@ func TestParseNvmListFull_ExtractsInstalledVersions(t *testing.T) {
 }
 
 // nvm ls still prints a system row that can embed a resolved version; that
-// must not appear as an installed nvm version in the dashboard/picker/MCP.
+// must not appear as an installed nvm version in the dashboard/picker/.
 func TestParseNvmListFull_SkipsSystemRow(t *testing.T) {
 	raw := "->     v22.14.0 *\n" +
 		"         system -> v24.18.0\n" +

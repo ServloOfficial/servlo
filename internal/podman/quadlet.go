@@ -324,7 +324,7 @@ func DaemonReload() error {
 // RestartUnit call. servlo-panel wires this at startup to invalidate the
 // systemctl unit cache and publish "sites"/"services" events to the
 // eventbus so every browser tab updates in real time — regardless of
-// whether the mutation came from an HTTP handler, the CLI, the MCP
+// whether the mutation came from an HTTP handler, the CLI, the
 // server, or the file watcher. Nil by default so unit tests and binaries
 // that don't run the UI don't pay the cost.
 var AfterUnitChange func(name string)

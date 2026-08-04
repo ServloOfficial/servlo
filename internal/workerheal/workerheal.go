@@ -33,7 +33,7 @@ type UnhealthyWorker struct {
 	LastError string `json:"last_error,omitempty"`
 }
 
-// Event is one line in the streaming heal report. Dashboard, MCP, and TUI
+// Event is one line in the streaming heal report. Dashboard, and TUI
 // all consume these so progress is visible without polling.
 type Event struct {
 	Phase string `json:"phase"` // "starting" | "healed" | "failed" | "done"
@@ -387,7 +387,7 @@ func Detect() ([]UnhealthyWorker, error) {
 }
 
 // HealUnit clears any failed state and starts the named worker unit. The
-// single "fix this" primitive — every surface (CLI / UI / TUI / MCP) goes
+// single "fix this" primitive — every surface (CLI / UI / TUI / ) goes
 // through here. Crucially, it does NOT touch .servlo.yaml or rewrite the
 // unit file: a failed worker is a transient runtime condition, not a
 // change of user intent. The reset-failed step is implicit: on Linux,
@@ -399,7 +399,7 @@ func HealUnit(unit string) error {
 
 // HealAll detects every unhealthy worker and heals them in order. emit,
 // when non-nil, receives one Event per phase transition so the dashboard's
-// banner and the MCP tool can stream progress instead of blocking on a
+// banner and the tool can stream progress instead of blocking on a
 // final summary.
 func HealAll(emit func(Event)) (Result, error) {
 	if emit == nil {

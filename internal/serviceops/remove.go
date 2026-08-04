@@ -53,7 +53,7 @@ var (
 )
 
 // RemoveService stops, removes, and (optionally) wipes the data of a service.
-// It is the single entry point shared by the CLI, MCP, and UI handlers.
+// It is the single entry point shared by the CLI, and UI handlers.
 //
 // Order:
 //  1. emit stopping_unit, StopUnit (only if active/activating; abort on error)

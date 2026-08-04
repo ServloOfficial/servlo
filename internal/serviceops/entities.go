@@ -257,7 +257,7 @@ func SnapshotExportFilename(service, snapshot string) string {
 
 // EntityExportFilename is the download name for an entity export, from the
 // declared filename, with a neutral fallback. The result becomes an output
-// path in the CLI and MCP export paths, so a name that fails validation never
+// path in the CLI export paths, so a name that fails validation never
 // shapes it.
 func EntityExportFilename(service, kind, name string) string {
 	if err := ValidateDatabaseName(name); err != nil {

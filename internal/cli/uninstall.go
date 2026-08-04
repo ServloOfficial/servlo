@@ -62,7 +62,6 @@ func runUninstall(force bool) error {
 		}
 	}
 
-	removeMCP := force || confirmRemoveMCPIntegration()
 	removeMkcertCA := force || confirmRemoveMkcertCA()
 	purgeImages := force || confirmPurgeServloImages()
 
@@ -145,21 +144,6 @@ func runUninstall(force bool) error {
 		removeSystemTrustAnchor()
 	}
 
-	if removeMCP {
-		feedback.Line("removing MCP integration (global)")
-		if home, err := os.UserHomeDir(); err == nil {
-			_ = RemoveGlobalAISkills(home, true)
-		}
-		feedback.Line("removing MCP integration (registered sites)")
-		if reg, err := config.LoadSites(); err == nil {
-			for _, s := range reg.Sites {
-				if err := RemoveProjectAISkills(s.Path, false); err == nil {
-					feedback.Note("cleaned " + s.Path)
-				}
-			}
-		}
-	}
-
 	step("Removing shell PATH entry")
 	removeShellEntry()
 	ok()
@@ -200,10 +184,6 @@ func runUninstall(force bool) error {
 
 	feedback.Done("servlo uninstalled")
 	return nil
-}
-
-func confirmRemoveMCPIntegration() bool {
-	return feedback.Confirm("Remove MCP integration (global skills + per-site .mcp/.claude/.cursor/.junie files)?", false)
 }
 
 func confirmRemoveMkcertCA() bool {

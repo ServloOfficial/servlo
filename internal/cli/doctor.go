@@ -73,7 +73,7 @@ func RunDoctorTo(w io.Writer, useColor bool) (fails, warns int, err error) {
 }
 
 // RunDoctorReport runs the full diagnostic without printing and returns the
-// structured findings, used by `servlo doctor --fix` and the MCP diag tool.
+// structured findings, used by `servlo doctor --fix` and the diag tool.
 func RunDoctorReport() (DoctorReport, error) {
 	return runDoctorInto(io.Discard, false)
 }

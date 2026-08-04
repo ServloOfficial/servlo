@@ -35,7 +35,7 @@
       return;
     }
     if (!triggerEl) return;
-    // Refresh in the background so external edits (MCP command_add, manual
+    // Refresh in the background so external edits (manual
     // .servlo.yaml edits since mount) show up the moment the menu opens.
     // Fire-and-forget; the menu opens with whatever's cached and updates
     // when the fetch resolves.

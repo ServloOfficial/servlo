@@ -1,10 +1,10 @@
 ---
-description: Install servlo and get a PHP site running on a local .test domain with HTTPS, on Linux, macOS or Windows via WSL2.
+description: Install servlo and get a PHP site running on a local .test domain with HTTPS, on Ubuntu 24.04.
 ---
 
 # Getting Started
 
-Servlo is a local PHP development environment for Linux and macOS, with Windows supported through WSL2. It runs Nginx, PHP-FPM and your services as rootless Podman containers, so there is no Docker daemon, no sudo for day to day work, and nothing installed system wide.
+Servlo is a PHP server panel for Ubuntu 24.04 LTS. It runs Nginx, PHP-FPM and your services as rootless Podman containers, so there is no Docker daemon, no sudo for day to day work, and nothing installed system wide.
 
 If you just want a site running, read [Requirements](/getting-started/requirements) and then [Installation](/getting-started/installation). Together they take a few minutes.
 
@@ -12,8 +12,6 @@ If you just want a site running, read [Requirements](/getting-started/requiremen
 
 - [Requirements](/getting-started/requirements) covers the supported distributions and the handful of packages servlo expects to find.
 - [Installation](/getting-started/installation) is the main path, a single install script that sets up directories, the container network, DNS and certificates.
-- Windows (WSL2, beta) explains the systemd and mirrored networking setup Windows needs, most of which `servlo wsl:setup` does for you.
-- NixOS documents the flake based route for immutable and declarative systems.
 - [Quick Start](/getting-started/quick-start) is the short version once servlo is installed: link a directory, get a `.test` domain with HTTPS.
 
 ## Framework walkthroughs
@@ -32,4 +30,4 @@ Servlo detects your framework from the project itself and configures workers, en
 - Laravel Herd for Linux is aimed at people who used Herd on a Mac and moved to Linux.
 - Laragon for Linux is aimed at people moving over from Windows.
 
-Once you are set up, [Usage](/usage/sites) covers day to day site management and [Features](/features/web-ui) covers the web UI, TUI, MCP server and the rest.
+Once you are set up, [Usage](/usage/sites) covers day to day site management and [Features](/features/web-ui) covers the web UI, TUI and the rest.

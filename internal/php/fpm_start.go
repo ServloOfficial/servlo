@@ -27,7 +27,7 @@ func FPMInstalled(version, container string) bool {
 // when the container is already running and returns ErrFPMNotInstalled (wrapped
 // with the version) when the container doesn't exist yet. It produces no output;
 // callers add any user-facing progress. Shared by the CLI php/artisan/shell
-// commands and the MCP exec handlers so both auto-start the same way.
+// commands and the exec handlers so both auto-start the same way.
 func StartFPM(version, container string) error {
 	if running, _ := podman.ContainerRunning(container); running {
 		return nil

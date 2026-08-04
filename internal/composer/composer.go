@@ -1,5 +1,5 @@
 // Package composer holds settings shared by every code path that runs composer
-// inside a servlo FPM container — the `servlo composer` CLI and the MCP composer
+// inside a servlo FPM container — the `servlo composer` CLI and the composer
 // tools alike — so they stay consistent.
 package composer
 

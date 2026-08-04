@@ -167,7 +167,7 @@ func analyzeQueries(events []dumps.Event, minRepeat int, slowMS float64) QueryAn
 }
 
 // handleQueriesAnalyze serves the N+1 / slow-query report over the captured
-// query ring. Read-only GET; available to the dashboard, CLI, and MCP. Query
+// query ring. Read-only GET; available to the dashboard, CLI,. Query
 // params: site (filter), min_repeat (N+1 threshold), slow_ms (slow cutoff).
 func handleQueriesAnalyze(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

@@ -150,9 +150,6 @@ func runUpdate(currentVersion string, beta bool) error {
 		return err
 	}
 
-	refreshGlobalMCPSkills()
-	refreshProjectMCPSkills()
-
 	// Offer MinIO → RustFS migration if legacy data directory exists and the
 	// minio container is still running (skip if already migrated to RustFS).
 	minioRunning, _ := podman.ContainerRunning("servlo-minio")
@@ -254,140 +251,11 @@ func refreshStorePresets() {
 	}
 }
 
-// refreshGlobalMCPSkills re-writes the user-scope skill, rules, and guidelines
-// files when servlo MCP is registered globally, so the AI's description of
-// available tools stays aligned with the newly installed binary. Also heals
-// the Claude Code MCP registration: an install after an uninstall (or a
-// Claude config migration) can lose the `claude mcp add` entry while the
-// marker files remain; re-run the idempotent add so servlo shows up again.
-func refreshGlobalMCPSkills() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return
-	}
-	if !mcpEnabledGlobally(home) {
-		return
-	}
-	feedback.Header("Refreshing global AI skills")
-	if err := RefreshGlobalAISkills(home, true); err != nil {
-		feedback.Warn("could not refresh global AI skills: %v", err)
-	}
-	if sweepLegacySharedAIMCP(home) {
-		feedback.Note("cleaned ~/" + legacySharedAIMCP + " (no longer written)")
-	}
-	if !IsMCPGloballyRegistered() {
-		feedback.Note("re-registering servlo with Claude Code (was missing)")
-		ensureClaudeMCPRegistered()
-	}
-}
-
-// refreshProjectMCPSkills re-writes per-project AI artefacts for every opted-in
-// project (registered site or park subdir with a servlo marker). Projects whose
-// content already matches stay untouched.
-func refreshProjectMCPSkills() {
-	paths := gatherProjectPaths()
-	if len(paths) == 0 {
-		return
-	}
-
-	opted := make([]string, 0, len(paths))
-	for _, p := range paths {
-		if ProjectHasServloSkills(p) {
-			opted = append(opted, p)
-		}
-	}
-	if len(opted) == 0 {
-		return
-	}
-
-	feedback.Header(fmt.Sprintf("Refreshing project AI skills (%d)", len(opted)))
-	for _, p := range opted {
-		s := feedback.Start(p)
-		if err := RefreshProjectAISkills(p, false); err != nil {
-			s.Fail(err)
-			continue
-		}
-		s.OK("")
-	}
-}
-
-// gatherProjectPaths lists registered sites plus immediate subdirs of parks.
-// The park scan covers projects that were injected but never registered as
-// servlo sites (e.g. non-PHP projects the user added by hand).
-func gatherProjectPaths() []string {
-	seen := make(map[string]struct{})
-	add := func(p string) {
-		if p == "" {
-			return
-		}
-		abs, err := filepath.Abs(p)
-		if err != nil {
-			return
-		}
-		seen[abs] = struct{}{}
-	}
-
-	if reg, err := config.LoadSites(); err == nil {
-		for _, s := range reg.Sites {
-			add(s.Path)
-		}
-	}
-
-	if cfg, err := config.LoadGlobal(); err == nil {
-		for _, park := range cfg.ParkedDirectories {
-			if park == "" {
-				continue
-			}
-			parkAbs, err := filepath.Abs(park)
-			if err != nil {
-				continue
-			}
-			entries, err := os.ReadDir(parkAbs)
-			if err != nil {
-				continue
-			}
-			for _, e := range entries {
-				if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
-					continue
-				}
-				add(filepath.Join(parkAbs, e.Name()))
-			}
-		}
-	}
-
-	out := make([]string, 0, len(seen))
-	for p := range seen {
-		out = append(out, p)
-	}
-	return out
-}
-
 func pluralS(n int) string {
 	if n == 1 {
 		return ""
 	}
 	return "s"
-}
-
-// mcpEnabledGlobally reports whether the user opted into global MCP at some
-// point. Checks (a) Claude Code user-scope registration and (b) the servlo-owned
-// marker files written by mcp:enable-global. The marker check lets us detect
-// users who enabled globally without Claude Code (Cursor-only, Junie-only) and
-// users whose `claude` CLI is temporarily unavailable.
-func mcpEnabledGlobally(home string) bool {
-	if IsMCPGloballyRegistered() {
-		return true
-	}
-	markers := []string{
-		filepath.Join(home, ".claude", "skills", "servlo", "SKILL.md"),
-		filepath.Join(home, ".cursor", "rules", "servlo.mdc"),
-	}
-	for _, p := range markers {
-		if _, err := os.Stat(p); err == nil {
-			return true
-		}
-	}
-	return false
 }
 
 // restartServloUserServices restarts the long-running servlo user units (systemd on

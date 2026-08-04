@@ -105,24 +105,14 @@ onMounted(() => {
     })()
   }
 
-  /* ---------- Hero: OS tabs + install command ---------- */
+  /* ---------- Hero: install command ---------- */
   const installCmd = $('#install-cmd')
-  let currentOS = 'linux'
-  function setOS(os) {
-    currentOS = os
-    $$('.os-tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.os === os)))
-    typeInto(installCmd, D.INSTALL[os], 22)
-  }
-  $$('.os-tab').forEach((t) => {
-    const click = () => setOS(t.dataset.os)
-    t.addEventListener('click', click)
-    cleanups.push(() => t.removeEventListener('click', click))
-  })
+  typeInto(installCmd, D.INSTALL, 22)
 
   const copyBtn = $('#copy-install')
   const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`
   const onCopy = async () => {
-    try { await navigator.clipboard.writeText(D.INSTALL[currentOS]) } catch (e) {}
+    try { await navigator.clipboard.writeText(D.INSTALL) } catch (e) {}
     copyBtn.classList.add('done')
     copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>`
     later(() => { copyBtn.classList.remove('done'); copyBtn.innerHTML = copyIcon }, 1600)
@@ -130,7 +120,7 @@ onMounted(() => {
   copyBtn.addEventListener('click', onCopy)
   cleanups.push(() => copyBtn.removeEventListener('click', onCopy))
 
-  /* ---------- asciinema players (hero, MCP, quick-start) ---------- */
+  /* ---------- asciinema players (hero, quick-start) ---------- */
   let AP = null
   const players = []
   const loadAP = async () => (AP ||= await import('asciinema-player'))
@@ -157,14 +147,6 @@ onMounted(() => {
   heroIO.observe($('#hero-cast'))
   observers.push(heroIO)
 
-
-  /* ---------- MCP terminal (asciinema) ---------- */
-  let mcpStarted = false
-  const mcpIO = new IntersectionObserver((es) => {
-    es.forEach((e) => { if (e.isIntersecting && !mcpStarted) { mcpStarted = true; mountCast('#mcp-cast', '/casts/mcp.cast') } })
-  }, { threshold: 0.3 })
-  mcpIO.observe($('#mcp-cast'))
-  observers.push(mcpIO)
 
   /* ---------- Comparison table ---------- */
   function cmpCell(v) {
@@ -253,7 +235,6 @@ onBeforeUnmount(() => {
         <div class="nav-links">
           <a href="#features">Features</a>
           <a href="#dashboard">Dashboard</a>
-          <a href="#mcp">AI / MCP</a>
           <a href="#compare">Why Servlo</a>
           <a href="#services">Services</a>
           <a href="#start">Get started</a>
@@ -303,20 +284,6 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="install reveal d3" id="install">
-              <div class="os-tabs" role="tablist" aria-label="Operating system">
-                <button class="os-tab" role="tab" aria-selected="true" data-os="linux">
-                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-2 0-3 2-3 4 0 1 .2 2 .2 3-1 1.5-3 4-3 7 0 2 1 3 2 3 .5 1 1.5 2 3.8 2s3.3-1 3.8-2c1 0 2-1 2-3 0-3-2-5.5-3-7 0-1 .2-2 .2-3 0-2-1-4-3-4z"/></svg>
-                  Linux
-                </button>
-                <button class="os-tab" role="tab" aria-selected="false" data-os="macos">
-                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 3c-1 .1-2.2.8-2.9 1.6-.6.7-1.2 1.9-1 3 1.1.1 2.3-.6 3-1.4.6-.8 1.1-1.9.9-3.2zM19 17c-.5 1.2-.8 1.7-1.5 2.7-.9 1.4-2.3 3.1-3.9 3.1-1.5 0-1.9-.9-3.9-.9s-2.4.9-3.9.9c-1.6 0-2.9-1.6-3.8-3C-.4 16.6-.7 11 1.8 8.3 3 7 4.6 6.2 6.3 6.2c1.7 0 2.8 1 4.2 1 1.4 0 2.2-1 4.2-1 1.5 0 3.1.8 4.2 2.2-3.7 2-3.1 7.3.9 8.6z"/></svg>
-                  macOS
-                </button>
-                <button class="os-tab" role="tab" aria-selected="false" data-os="wsl">
-                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 11 4v7.5H3V5.5zM12 3.8 21 2.5v9H12V3.8zM3 12.5h8V20l-8-1.5v-6zM12 12.5h9v9l-9-1.3v-7.7z"/></svg>
-                  WSL2
-                </button>
-              </div>
               <div class="cmd-row">
                 <span class="prompt">$</span>
                 <span class="cmd-text" id="install-cmd"></span>
@@ -363,7 +330,7 @@ onBeforeUnmount(() => {
           <div class="sec-head reveal">
             <span class="eyebrow"><span class="dot"></span>Built for developer experience</span>
             <h2 class="h-section" style="margin-top:18px">Everything the Linux PHP dev<br/>never had, in one binary.</h2>
-            <p class="lead">From <code class="kbd">servlo link</code> to a live HTTPS site in seconds. Then the deep stuff: flame-graph profiling, a dump debugger, a Tinker REPL, and worker self-heal, surfaced across CLI, dashboard, TUI and MCP.</p>
+            <p class="lead">From <code class="kbd">servlo link</code> to a live HTTPS site in seconds. Then the deep stuff: flame-graph profiling, a dump debugger, a Tinker REPL, and worker self-heal, surfaced across CLI, dashboard and TUI.</p>
           </div>
 
           <div class="bento">
@@ -399,7 +366,7 @@ onBeforeUnmount(() => {
             <div class="feat col-3 reveal" data-tilt>
               <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/><path d="m9 9 2 2-2 2M13 15h2"/></svg></div>
               <h3>Debug window for every dump()</h3>
-              <p>Intercepts every <code class="kbd">dump()</code> / <code class="kbd">dd()</code> and streams it to the dashboard, TUI and MCP, scoped per site and per worktree branch. Captures SQL with N+1 detection, mail, events, jobs &amp; outgoing HTTP. Your response stays clean.</p>
+              <p>Intercepts every <code class="kbd">dump()</code> / <code class="kbd">dd()</code> and streams it to the dashboard and TUI, scoped per site and per worktree branch. Captures SQL with N+1 detection, mail, events, jobs &amp; outgoing HTTP. Your response stays clean.</p>
               <span class="feat-tag">// Laravel + Symfony</span>
             </div>
             <div class="feat col-3 reveal d1" data-tilt>
@@ -413,7 +380,7 @@ onBeforeUnmount(() => {
           <div class="feat-more">
             <span class="feat-more-label">Also includes</span>
             <span class="feat-chip">FrankenPHP &amp; Octane</span>
-            <span class="feat-chip">Tabbed mouse-driven TUI &amp; system tray</span>
+            <span class="feat-chip">Tabbed mouse-driven TUI</span>
             <span class="feat-chip">Polyglot sites · Node, Python, Go &amp; Ruby</span>
           </div>
         </div>
@@ -441,41 +408,6 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <!-- ============ MCP / AI ============ -->
-      <section id="mcp">
-        <div class="wrap">
-          <div class="sec-head reveal">
-            <span class="eyebrow"><span class="dot"></span>Model Context Protocol · eleven grouped tools</span>
-            <h2 class="h-section" style="margin-top:18px">Let your AI assistant run<br/>the dev environment.</h2>
-            <p class="lead">Servlo ships a built-in MCP server. Connect Claude Code, Cursor, Codex, Gemini, Copilot, Junie, Antigravity or Windsurf and scaffold projects, switch PHP, run migrations and tail logs, straight from chat.</p>
-          </div>
-
-          <div class="mcp-grid">
-            <div class="win mcp-chat reveal d1">
-              <div class="win-bar"><span class="win-dots"><i></i><i></i><i></i></span><span class="win-title">Claude Code · servlo-mcp</span></div>
-              <div class="cast" id="mcp-cast" role="img" aria-label="Terminal recording: Claude Code driving servlo over MCP to scaffold a site"></div>
-            </div>
-            <div class="mcp-tools reveal d2">
-              <div class="card tool-card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5z"/></svg></div><div><b>site.link</b> · <code>servlo link</code><p>Link the current directory, auto-detect the framework, provision TLS.</p></div></div>
-              <div class="card tool-card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 18 22 12 16 6M8 6 2 12l6 6"/></svg></div><div><b>site.php</b> · <code>servlo isolate 8.4</code><p>Switch the per-site PHP version without an FPM restart.</p></div></div>
-              <div class="card tool-card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/></svg></div><div><b>service.start</b> · <code>redis, mysql…</code><p>Start or stop shared services on demand, rootless.</p></div></div>
-              <div class="card tool-card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 10h8M8 14h5"/></svg></div><div><b>logs.fetch</b> · <code>dump · queries</code><p>Stream PHP-FPM, queue and debug output back into the chat.</p></div></div>
-
-              <div class="agent-strip">
-                <span class="agent-chip"><span class="gl" data-logo="claude"></span> Claude Code</span>
-                <span class="agent-chip"><span class="gl" data-logo="cursor"></span> Cursor</span>
-                <span class="agent-chip"><span class="gl" data-logo="codex"></span> Codex CLI</span>
-                <span class="agent-chip"><span class="gl" data-logo="gemini"></span> Gemini CLI</span>
-                <span class="agent-chip"><span class="gl" data-logo="copilot"></span> Copilot</span>
-                <span class="agent-chip"><span class="gl" data-logo="junie"></span> Junie</span>
-                <span class="agent-chip"><span class="gl" data-logo="antigravity"></span> Antigravity</span>
-                <span class="agent-chip"><span class="gl" data-logo="windsurf"></span> Windsurf</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- ============ COMPARISON ============ -->
       <section id="compare">
         <div class="wrap">
@@ -497,7 +429,7 @@ onBeforeUnmount(() => {
           <div class="sec-head reveal">
             <span class="eyebrow"><span class="dot"></span>Bundled, rootless, on-demand</span>
             <h2 class="h-section" style="margin-top:18px">Every service your app needs.</h2>
-            <p class="lead">Toggle them per workspace from the CLI, dashboard or MCP. Need something else? Drop a <code class="kbd">Containerfile.servlo</code> to run Node, Python, Ruby or Go alongside your PHP sites.</p>
+            <p class="lead">Toggle them per workspace from the CLI or dashboard. Need something else? Drop a <code class="kbd">Containerfile.servlo</code> to run Node, Python, Ruby or Go alongside your PHP sites.</p>
           </div>
           <div class="svc-grid" id="svc-cards"></div>
         </div>
@@ -557,7 +489,6 @@ onBeforeUnmount(() => {
             <h5>Product</h5>
             <a href="#features">Features</a>
             <a href="#dashboard">Web UI</a>
-            <a href="#mcp">MCP server</a>
             <a href="#compare">vs Herd / Laragon / DDEV</a>
           </div>
           <div>

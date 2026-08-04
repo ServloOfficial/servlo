@@ -10,9 +10,9 @@ An override is for what *one site* needs. When every site of a framework needs t
 
 Each worktree is served on its own subdomain (`{branch}.{primary}.test`) with its own generated vhost, so it also has its own override at `custom.d/{branch}.{primary}.test.conf`. When you create a worktree, servlo seeds that file once from the main branch's override, so the worktree starts with the same custom directives the main branch has. After that the two are independent: opening the editor while a worktree tab is selected (the sliders button shows the worktree's domain in the address bar) edits only that worktree's file, and saving reloads nginx for that subdomain alone. Removing a worktree deletes its override and its backups along with the vhost, so deleted branches leave nothing behind. The main branch's override is never touched by any of this.
 
-## From the CLI and MCP
+## From the CLI
 
-The same override is reachable without the web UI, which is handy for scripting or from an agent. `servlo nginx show [site]` prints the current override (`--path` prints just the file path), `servlo nginx edit [site]` opens it in `$EDITOR` and then validates with `nginx -t` and reloads on save, and `servlo nginx reset [site]` deletes it and falls back to the bundled defaults. Add `--branch <name>` to any of them to target a worktree's override instead of the main branch's. The MCP `site_nginx` tool mirrors this with `action: read | write | reset`, an optional `site`, an optional `branch`, and `content` for writes; writes run the same `nginx -t` validation, backup, and reload as the web editor. All three surfaces go through one shared edit service, so validation, backups, and reload behave identically whichever one you use.
+The same override is reachable without the web UI, which is handy for scripting. `servlo nginx show [site]` prints the current override (`--path` prints just the file path), `servlo nginx edit [site]` opens it in `$EDITOR` and then validates with `nginx -t` and reloads on save, and `servlo nginx reset [site]` deletes it and falls back to the bundled defaults. Add `--branch <name>` to any of them to target a worktree's override instead of the main branch's. Both surfaces go through one shared edit service, so validation, backups, and reload behave identically whichever one you use.
 
 ## How it works
 

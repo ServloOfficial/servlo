@@ -1,6 +1,6 @@
 // Package xdebugops contains the shared business logic for toggling Xdebug
 // on a PHP version: mode validation, config persistence, ini write, FPM
-// quadlet update, and unit restart. The CLI, UI, and MCP all call into here
+// quadlet update, and unit restart. The CLI, UI, all call into here
 // so the three surfaces stay in lockstep on state transitions and ordering.
 package xdebugops
 

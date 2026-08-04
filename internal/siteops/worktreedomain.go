@@ -11,7 +11,7 @@ import (
 // WorktreeDomain resolves a site plus an optional branch to the domain whose
 // custom nginx override applies: the site's primary domain when branch is
 // empty, or the worktree's subdomain otherwise. It is the single source of
-// truth for "branch -> {branch}.{primary}", shared by the CLI and MCP so they
+// truth for "branch -> {branch}.{primary}", shared by the CLI so they
 // can't drift from how the daemon derives worktree domains.
 func WorktreeDomain(site *config.Site, branch string) (string, error) {
 	if branch == "" {

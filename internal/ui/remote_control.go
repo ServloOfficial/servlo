@@ -157,7 +157,7 @@ const csrfHeader = "X-Servlo-CSRF"
 // can't control) that can't carry the header, and each already has its own
 // source protection: /api/remote-setup has a token + RFC1918 + lockout gate,
 // the mailpit webhook is restricted to host-NAT'd source IPs, the internal
-// notify bridge (POSTed over loopback by out-of-process CLI/MCP commands) has
+// notify bridge (POSTed over loopback by out-of-process CLI commands) has
 // its own loopback gate and only triggers a dashboard refresh, and the
 // per-site unpause is POSTed from the paused-site holding page on the site's
 // own domain and is non-destructive.

@@ -61,7 +61,7 @@ func notifyServloUI(_ string) {
 func main() {
 	// Cross-process bridge from CLI unit mutations to the running servlo-panel.
 	// ui.Start reassigns this in its own process for a direct in-process
-	// publish; in the CLI/MCP processes we HTTP-POST to the dashboard.
+	// publish; in the CLI processes we HTTP-POST to the dashboard.
 	podman.AfterUnitChange = notifyServloUI
 
 	// A PHP image (re)build orphans the previous image. Flag it here and reclaim
@@ -179,11 +179,6 @@ func main() {
 	root.AddCommand(cli.NewOctaneCmd())
 	root.AddCommand(cli.NewOctaneReloadCmd())
 	root.AddCommand(cli.NewAutostartCmd())
-	root.AddCommand(cli.NewMCPCmd())
-	root.AddCommand(cli.NewMCPInjectCmd())
-	root.AddCommand(cli.NewMCPEjectCmd())
-	root.AddCommand(cli.NewMCPEnableGlobalCmd())
-	root.AddCommand(cli.NewMCPDisableGlobalCmd())
 	root.AddCommand(cli.NewFetchCmd())
 	root.AddCommand(cli.NewDbCmd())
 	root.AddCommand(cli.NewDbImportCmd())

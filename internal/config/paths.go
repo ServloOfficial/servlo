@@ -495,7 +495,7 @@ func AccessLogTarget() string {
 
 // ControlSocketPath is the unix datagram socket the servlo-watcher binds for
 // idle-suspend control messages: "enable"/"disable" from the CLI and dashboard
-// toggle, and "activity <site>" from the CLI shims and MCP.
+// toggle, and "activity <site>" from the CLI shims.
 func ControlSocketPath() string {
 	return filepath.Join(RunDir(), "servlo-idle-control.sock")
 }

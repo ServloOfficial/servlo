@@ -62,7 +62,7 @@ func RunPHPCapture(cwd string, args []string) (int, error) {
 }
 
 // phpVersionForDir resolves the PHP version a directory's commands must run on.
-// The rules live in internal/php so the CLI and the MCP server cannot drift.
+// The rules live in internal/php so the CLI and the dashboard cannot drift.
 func phpVersionForDir(dir string) (string, error) {
 	return phpDet.VersionForDir(dir)
 }

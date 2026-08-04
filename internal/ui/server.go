@@ -102,7 +102,7 @@ type ctxKeyUnixSocket struct{}
 
 // Start starts the HTTP server on listenAddr.
 func Start(currentVersion string) error {
-	// Every unit lifecycle change (from CLI, MCP, HTTP handlers, or the
+	// Every unit lifecycle change (from CLI, HTTP handlers, or the
 	// file watcher) funnels through podman.StartUnit/StopUnit/RestartUnit.
 	// Hook into that choke point so any mutation — regardless of which
 	// surface triggered it — invalidates the systemctl unit cache and
@@ -130,7 +130,7 @@ func Start(currentVersion string) error {
 
 	// Single coalescer for the two event sources that need to refresh the
 	// container cache and broadcast a snapshot: in-process mutations
-	// (AfterUnitChange) and CLI/MCP notifications (/api/internal/notify).
+	// (AfterUnitChange) and CLI notifications (/api/internal/notify).
 	// systemd's DBus subscription is deliberately not one of them: it wakes on
 	// every unit property change on the bus, which costs more at idle than the
 	// polling it would replace. A burst of state
@@ -214,7 +214,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/tunnel-qr/", withCORS(handleTunnelQR))
 	mux.HandleFunc("/api/dashboard-qr", withCORS(handleDashboardQR))
 
-	// Cross-process notifier for CLI/MCP. It requires dashboard-control
+	// Cross-process notifier for CLI. It requires dashboard-control
 	// authority. PollNow runs in a goroutine so the handler returns under the
 	// CLI's 500 ms POST timeout while the next WebSocket broadcast refreshes.
 	mux.HandleFunc("/api/internal/notify", func(w http.ResponseWriter, r *http.Request) {
@@ -2540,7 +2540,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 // handleServicePorts sets a service's published host port and (for built-in
 // services) its extra published ports in one request, routing both through the
 // shared serviceops layer so the Web UI enforces the same validation, guard and
-// host-proxy refresh as the CLI and MCP. A nil/zero published_port resets to the
+// host-proxy refresh as the CLI. A nil/zero published_port resets to the
 // preset default.
 // servicePortsMu serializes port-modal saves so their snapshot/apply/restore
 // sequences can't interleave across concurrent requests.
@@ -2650,7 +2650,7 @@ func handleServiceShims(w http.ResponseWriter, r *http.Request, name string) {
 }
 
 // ensureServiceQuadlet writes the unit file for a default-preset service.
-// Delegates to serviceops so install + runtime + MCP all generate the same
+// Delegates to serviceops so install + runtime + all generate the same
 // quadlet (and re-materialise file mounts like mysql's servlo.cnf).
 func ensureServiceQuadlet(name string) error {
 	return serviceops.EnsureDefaultPresetQuadlet(name)
@@ -3734,7 +3734,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	case "secure", "unsecure":
 		// Funnel through the shared helper so cert + .env + .servlo.yaml +
 		// nginx reload + Stripe restart + LAN share refresh all stay in
-		// sync with the CLI and MCP paths. SetSecured posts to this same
+		// sync with the CLI paths. SetSecured posts to this same
 		// daemon's stripe:refresh / lan:refresh endpoints for the
 		// dependent listeners, so the in-process Stripe and share handlers
 		// run via the existing case handlers below.
@@ -3752,7 +3752,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		}
 		// Funnel through the shared helper so the clamp, the .php-version and
 		// .servlo.yaml pins, the FrankenPHP fallback, the quadlet and the vhost all
-		// stay in sync with the CLI and MCP paths. It reloads nginx itself.
+		// stay in sync with the CLI paths. It reloads nginx itself.
 		res, err := siteops.SetSitePHPVersion(site, version, siteops.PHPVersionOpts{Branch: r.URL.Query().Get("branch")})
 		if err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
@@ -4026,7 +4026,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		return
 	case "stripe:refresh":
 		// Restart the Stripe listener with the current scheme/host so its
-		// --forward-to flag matches reality. Used by callers (MCP) that
+		// --forward-to flag matches reality. Used by callers that
 		// can't run the systemd commands inline.
 		cli.RestartStripeIfActive(site)
 		writeJSON(w, SiteActionResponse{OK: true})
