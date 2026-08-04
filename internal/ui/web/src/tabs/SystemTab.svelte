@@ -14,14 +14,12 @@
   import { accessMode } from '$stores/accessMode';
   import { servloStart, servloStop, servloStarting, servloStopping } from '$stores/servloLifecycle';
   import { workerExecMode, workerModeApplies, loadWorkerMode } from '$stores/workerMode';
-  import { status as dumpsStatusValue, refreshStatus as refreshDumpsStatus } from '$stores/dumps';
   import { notifyPrefs, permissionState, autoSubscribeDisabled } from '$lib/notify';
   import { onMount } from 'svelte';
   import { m } from '../paraglide/messages.js';
 
   onMount(() => {
     loadWorkerMode();
-    void refreshDumpsStatus();
   });
 
   const selected = $derived($routeRest || 'servlo');
@@ -109,13 +107,6 @@
       {m.notify_settings_title()}
     </ListRow>
 
-    {#snippet dumpBridgeDot()}<StatusDot color={$dumpsStatusValue?.enabled ? 'green' : 'gray'} pulse={Boolean($dumpsStatusValue?.enabled)} />{/snippet}
-    {#snippet dumpBridgeTrailing()}
-      {#if $dumpsStatusValue?.enabled && ($dumpsStatusValue?.count ?? 0) > 0}
-        <span class="text-[10px] font-medium tabular-nums shrink-0 {selected === 'dump-bridge' ? 'text-servlo-red/70' : 'text-gray-400 dark:text-gray-600'}">{$dumpsStatusValue.count}</span>
-      {/if}
-    {/snippet}
-    <ListRow active={selected === 'dump-bridge'} onclick={() => select('dump-bridge')} leading={dumpBridgeDot} trailing={dumpBridgeTrailing}>{m.debug_title()}</ListRow>
 
     {#if $workerModeApplies}
       {#snippet workerModeDot()}<StatusDot color={$workerExecMode === 'container' ? 'sky' : 'emerald'} />{/snippet}

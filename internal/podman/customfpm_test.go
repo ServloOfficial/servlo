@@ -80,8 +80,8 @@ func TestGenerateCustomFPMQuadlet_OverridesImageAndName(t *testing.T) {
 		}
 	}
 	// It reuses the shared FPM template, so it inherits the servlo mounts; the
-	// dump bridge mount target is a stable proof of that.
-	if !strings.Contains(content, "/usr/local/etc/servlo") {
+	// shared php.ini mount target is a stable proof of that.
+	if !strings.Contains(content, "/usr/local/etc/php/conf.d/95-servlo-shared.ini") {
 		t.Errorf("custom FPM quadlet did not inherit shared FPM mounts:\n%s", content)
 	}
 }

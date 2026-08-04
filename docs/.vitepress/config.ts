@@ -190,7 +190,6 @@ export default defineConfig({
           items: [
             { text: 'Web UI', link: '/features/web-ui' },
             { text: 'Terminal Dashboard', link: '/features/tui' },
-            { text: 'Query viewer', link: '/features/queries' },
           ],
         },
         {

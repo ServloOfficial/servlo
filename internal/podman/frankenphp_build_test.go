@@ -85,14 +85,12 @@ func fpmDockerExtInstallList(containerfile string) []string {
 
 // fpmContainerfileExtensions is everything the FPM Containerfile makes available:
 // the docker-php-ext-install block plus the docker-php-ext-enable names (opcache
-// and the pecl-built extensions). servlo_devtools is servlo-internal best-effort
-// tooling, not advertised as a project extension, so it is excluded.
+// and the pecl-built extensions).
 func fpmContainerfileExtensions(containerfile string) []string {
 	set := map[string]bool{}
 	for _, e := range fpmDockerExtInstallList(containerfile) {
 		set[e] = true
 	}
-	skip := map[string]bool{"servlo_devtools": true}
 	for _, ln := range strings.Split(containerfile, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(ln), "#") {
 			continue // a comment mentioning docker-php-ext-enable isn't an install
@@ -105,7 +103,7 @@ func fpmContainerfileExtensions(containerfile string) []string {
 		if len(fields) == 0 {
 			continue
 		}
-		if name := strings.Trim(fields[0], "()|&;\\"); name != "" && !skip[name] {
+		if name := strings.Trim(fields[0], "()|&;\\"); name != "" {
 			set[name] = true
 		}
 	}
@@ -145,8 +143,6 @@ func TestRenderFrankenPHPContainerfile(t *testing.T) {
 	}
 	for _, want := range []string{
 		"install-php-extensions", "redis", "gd", "pdo_mysql", "intl", "myext",
-		// dev-tooling baked into the image (the compiled servlo_devtools)
-		"servlo_devtools",
 	} {
 		if !strings.Contains(cf, want) {
 			t.Errorf("rendered Containerfile missing %q", want)

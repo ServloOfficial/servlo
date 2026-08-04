@@ -482,8 +482,6 @@ func (m *Model) renderDetailInline(w, h int, focused bool) string {
 		content = settingsContentLines(m, focused, contentW)
 	case detailSystem:
 		content, cursorLine = systemContentLinesWithCursor(m, focused, contentW)
-	case detailDumps:
-		content, cursorLine = debugContentLines(m, focused, contentW)
 	default:
 		// On the Services tab the detail pane always shows the selected
 		// service, same surface area the web UI's ServiceDetail covers,
@@ -505,9 +503,6 @@ func (m *Model) renderDetailInline(w, h int, focused bool) string {
 			switch tab {
 			case tabSiteEnv:
 				content = siteEnvContentLines(m, site, contentW)
-				cursorLine = -1
-			case tabSiteDebug:
-				content = siteDebugContentLines(m, site, contentW)
 				cursorLine = -1
 			case tabSiteDoctor:
 				content = siteDoctorContentLines(m, site, contentW)

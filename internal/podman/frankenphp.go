@@ -59,15 +59,6 @@ func GenerateFrankenPHPQuadlet(siteName, projectPath, phpVersion string, entrypo
 	b.WriteString("Network=servlo\n")
 	fmt.Fprintf(&b, "Volume=%s:/etc/hosts:ro,z\n", config.ContainerHostsFile())
 	fmt.Fprintf(&b, "Volume=%s:%s:rw\n", projectPath, projectPath)
-	// Debug tooling: bind-mount the same conf.d inis, bridge assets, and runtime
-	// socket dir the FPM container gets, so dump()/dd(), the Debug window
-	// (servlo_devtools) work for requests Octane serves from this
-	// container too. The baked extensions stay inert until these inis/sentinels
-	// arm them. RunDir carries the unix socket the bridges ship to; it must appear
-	// at its host path, matching the dump_host ini value.
-	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/servlo:ro\n", config.DumpsAssetsDir())
-	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/97-servlo-dump.ini:ro\n", config.DumpsIniFile())
-	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/96-servlo-devtools.ini:ro\n", config.DevtoolsIniFile())
 	// Per-site user php.ini override, edited from the site's config modal. Scoped
 	// to this site (not the shared per-version file), since a FrankenPHP site runs
 	// its own container.
@@ -139,8 +130,6 @@ func WriteFrankenPHPQuadlet(siteName, projectPath, phpVersion string, entrypoint
 func WriteFrankenPHPQuadletDiff(siteName, projectPath, phpVersion string, entrypoint []string, env map[string]string) (bool, error) {
 	_ = EnsureSitePHPUserIni(siteName)
 	_ = EnsureSharedIni()
-	_ = EnsureDumpAssets()
-	_ = EnsureDevtoolsAssets()
 	content, err := GenerateFrankenPHPQuadlet(siteName, projectPath, phpVersion, entrypoint, env)
 	if err != nil {
 		return false, err

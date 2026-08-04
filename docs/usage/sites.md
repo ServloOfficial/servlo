@@ -296,8 +296,6 @@ This is a local, single-developer signal meant to catch a route that is dragging
 
 A git worktree is timed as its own thing. Requests to `feature-x.myapp.test` are recorded against that branch, not against the main checkout, so switching the worktree picker re-scopes the whole panel to the branch you're on and its routes open and profile on the worktree's own subdomain. The worktree's traffic still counts toward the parent when the sites list is ordered by use, since the project is the same project. The doctor's `Response Time` check and the `slow_route` push follow the same rule when they run against a worktree.
 
-When debug capture is on, each route also gains an **Inspect queries** button that jumps to the Debug tab's Queries lens filtered to that route, the one place that renders captured queries. The Debug lenses share a single search within a site's Debug view, so the filter carries over as you switch between Queries, Dumps, and the kind lenses, and the search matches the request path as well as the SQL and file. Captured queries only exist for requests hit while capture was on, so a route you haven't exercised with the debugger shows nothing until you reload it. See [Queries](../features/queries.md) for the capture itself.
-
 ---
 
 ## Name collision handling

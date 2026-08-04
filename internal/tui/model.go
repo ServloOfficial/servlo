@@ -13,7 +13,6 @@ import (
 	"charm.land/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 	"github.com/realrashid/servlo/internal/config"
-	servlodumps "github.com/realrashid/servlo/internal/dumps"
 	"github.com/realrashid/servlo/internal/eventbus"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/reqstats"
@@ -43,7 +42,6 @@ type detailMode int
 const (
 	detailSite detailMode = iota
 	detailSettings
-	detailDumps
 	detailSystem
 )
 
@@ -172,26 +170,6 @@ type Model struct {
 	// header so users see it without running servlo status.
 	updateAvailable string
 
-	// Buffer of recent debug events surfaced by the Debug pane (D key).
-	// Holds every kind (dump, query, job, view, mail, cache, event, http)
-	// raw so each lens can render its own fields; capped at dumpsBufferCap.
-	// New events arrive batched via debugBatchMsg from the goroutine started by Run
-	// when the program boots. Independent of the in-memory ring inside
-	// servlo-panel because the TUI runs in its own process and only sees what
-	// the SSE connection delivers.
-	debug             []servlodumps.Event
-	debugLens         int // index into debugLenses; which kind is shown
-	dumpsCursor       int
-	dumpsScroll       int
-	dumpsFilter       string
-	dumpsFilterActive bool
-	dumpsExpanded     map[string]bool
-
-	// Debug context-filter chips: when non-empty, only entries whose
-	// Type matches are shown. Toggled by `1` (fpm) / `2` (cli) in
-	// the Debug view; mutually exclusive — setting one clears the other.
-	dumpsCtxFilter string
-
 	// Command palette state: when paletteActive is true, all keystrokes go
 	// into paletteInput until enter or esc. Press `:` to open from any
 	// pane; commits as `servlo <args>` via runServlo.
@@ -258,20 +236,6 @@ type Model struct {
 	followCursor bool
 }
 
-// DumpEntry is a TUI-side mirror of dumps.Event with the fields rendering
-// needs cached as strings so the View path doesn't allocate per frame.
-type DumpEntry struct {
-	ID      string
-	TS      string
-	Type    string
-	Site    string
-	Request string
-	File    string
-	Line    int
-	Label   string
-	Text    string
-}
-
 // NewModel builds an initial model. The caller is expected to call
 // podman.Cache.Start before running; NewModel itself is pure.
 func NewModel(version string) *Model {
@@ -329,12 +293,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.followCursor = false
 
 	switch msg := msg.(type) {
-	case dumpsClearedMsg:
-		m.debug = nil
-		m.dumpsExpanded = nil
-		m.dumpsCursor = 0
-		m.dumpsScroll = 0
-		return m, nil
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
@@ -390,12 +348,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateAvailable = msg.Latest
 		return m, nil
 
-	case debugBatchMsg:
-		for _, ev := range msg {
-			m.appendDebug(ev)
-		}
-		return m, nil
-
 	case statsMsg:
 		m.stats = msg.snap
 		return m, nil
@@ -448,9 +400,6 @@ func (m *Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.pickerModalActive() {
 		return m.handlePickerKey(msg)
 	}
-	if m.dumpsFilterActive {
-		return m.handleDumpsFilterKey(msg)
-	}
 	if m.logFilterActive {
 		return m.handleLogFilterKey(msg)
 	}
@@ -481,9 +430,6 @@ func (m *Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			if m.detailMode == detailSystem {
 				return m, m.systemToggle(m.systemRows())
-			}
-			if m.detailMode == detailDumps {
-				return m, m.toggleDumpExpand()
 			}
 			// Row toggling only applies to a site's detail; the Dashboard parks
 			// focus on the detail pane with no list selection, so don't mutate
@@ -529,21 +475,6 @@ func (m *Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.helpModalActive = !m.helpModalActive
 		if m.helpModalActive {
 			m.helpScroll = 0
-		}
-		return m, nil
-
-	case "D":
-		if m.activeTab != tabSites {
-			return m, nil
-		}
-		if m.detailMode == detailDumps {
-			m.detailMode = detailSite
-		} else {
-			m.detailMode = detailDumps
-			m.debugLens = 0
-			m.dumpsCursor = 0
-			m.dumpsScroll = 0
-			m.focus = paneDetail
 		}
 		return m, nil
 
@@ -635,18 +566,8 @@ func (m *Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.actionShell()
 
 	case "/":
-		if m.detailMode == detailDumps {
-			m.dumpsFilterActive = true
-			return m, nil
-		}
 		if m.focus == paneSites || m.focus == paneServices {
 			m.filterActive = true
-		}
-		return m, nil
-
-	case "c":
-		if m.detailMode == detailDumps {
-			return m, m.clearDumps()
 		}
 		return m, nil
 
@@ -656,12 +577,6 @@ func (m *Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if len(m.toasts) > 0 {
 			m.dismissNewestToast()
 			return m, nil
-		}
-		return m, nil
-
-	case "T":
-		if m.detailMode == detailDumps {
-			return m, m.toggleDumpsBridge()
 		}
 		return m, nil
 
@@ -687,34 +602,18 @@ func (m *Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "[":
-		// [ / ] cycle whatever the focused surface offers: the Debug lens, the
-		// timing window on Overview, or the log target anywhere logs are showing.
-		if m.inDebugView() {
-			m.cycleDebugLens(-1)
-			m.detailScroll = 0
-			return m, nil
-		}
+		// [ / ] cycle whatever the focused surface offers: the timing window on
+		// Overview, or the log target anywhere logs are showing.
 		if m.timingActive() && !m.showLogs {
 			return m, m.cycleTimingRange(-1)
 		}
 		return m, m.cycleLogTarget(-1)
 
 	case "]":
-		if m.inDebugView() {
-			m.cycleDebugLens(1)
-			m.detailScroll = 0
-			return m, nil
-		}
 		if m.timingActive() && !m.showLogs {
 			return m, m.cycleTimingRange(1)
 		}
 		return m, m.cycleLogTarget(1)
-
-	case "w":
-		if m.inDebugView() {
-			return m, m.toggleDebugWorkers()
-		}
-		return m, nil
 
 	case "{":
 		if m.showLogs || m.logsInDetail() {
@@ -780,21 +679,9 @@ func (m *Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.openInBrowserCmd()
 
 	case "1":
-		if m.detailMode == detailDumps {
-			m.dumpsCtxFilter = toggleString(m.dumpsCtxFilter, "fpm")
-			m.dumpsCursor = 0
-			m.dumpsScroll = 0
-			return m, nil
-		}
 		return m, m.selectSiteTab(1)
 
 	case "2":
-		if m.detailMode == detailDumps {
-			m.dumpsCtxFilter = toggleString(m.dumpsCtxFilter, "cli")
-			m.dumpsCursor = 0
-			m.dumpsScroll = 0
-			return m, nil
-		}
 		return m, m.selectSiteTab(2)
 
 	case "3":
@@ -1011,40 +898,6 @@ func (m *Model) handleLogFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleDumpsFilterKey collects characters for the dumps search input,
-// matches handleFilterKey's shape: typed runes append to dumpsFilter,
-// backspace removes, enter commits and exits, esc clears + exits. The
-// filter is applied live by dumpsContentLines so the visible list narrows
-// as the user types.
-func (m *Model) handleDumpsFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
-		m.dumpsFilter = ""
-		m.dumpsFilterActive = false
-		m.dumpsCursor = 0
-		m.dumpsScroll = 0
-	case "enter":
-		m.dumpsFilterActive = false
-	case "ctrl+c":
-		m.logTail.Stop()
-		return m, tea.Quit
-	case "backspace":
-		if len(m.dumpsFilter) > 0 {
-			r := []rune(m.dumpsFilter)
-			m.dumpsFilter = string(r[:len(r)-1])
-			m.dumpsCursor = 0
-			m.dumpsScroll = 0
-		}
-	default:
-		if msg.Text != "" {
-			m.dumpsFilter += msg.Text
-			m.dumpsCursor = 0
-			m.dumpsScroll = 0
-		}
-	}
-	return m, nil
-}
-
 // handleFilterKey runs while the filter input is active. Typed runes are
 // appended to the filter for the currently focused pane; backspace removes
 // the last rune; enter and esc exit input mode (esc also clears the
@@ -1200,19 +1053,6 @@ func (m *Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		if zone.Get("tab:" + t.label()).InBounds(msg) {
 			m.switchTab(t)
 			return m, m.afterNav()
-		}
-	}
-	// The Debug lens tabs (Dumps / Queries / …) are clickable wherever the
-	// Debug view is showing — the per-site Debug tab or the full window.
-	if m.inDebugView() {
-		for i := range debugLenses {
-			if zone.Get(fmt.Sprintf("debuglens:%d", i)).InBounds(msg) {
-				m.debugLens = i
-				m.dumpsCursor = 0
-				m.dumpsScroll = 0
-				m.detailScroll = 0
-				return m, nil
-			}
 		}
 	}
 	switch m.activeTab {
@@ -1520,9 +1360,6 @@ func (m *Model) moveCursor(delta int) {
 		case detailSystem:
 			nav := navigableSystemRows(m.systemRows())
 			m.systemRow = clamp(m.systemRow+delta, 0, max(0, len(nav)-1))
-		case detailDumps:
-			visible := len(m.debugVisibleEvents(""))
-			m.dumpsCursor = clamp(m.dumpsCursor+delta, 0, max(0, visible-1))
 		default:
 			// The Logs tab is a live tail, so it scrolls its own buffer: up walks
 			// back through history, down returns toward the tail.
@@ -1972,13 +1809,6 @@ func Run(version string) error {
 		p.Send(refreshMsg{})
 	})
 	defer podman.Cache.SetOnChange(nil)
-
-	// Background goroutine streams dumps from servlo-panel into the program. If
-	// the daemon isn't running, runDumpsListener reconnects with backoff;
-	// the TUI keeps working without any dumps until servlo-panel comes back.
-	dumpsCtx, cancelDumps := context.WithCancel(context.Background())
-	defer cancelDumps()
-	go runDumpsListener(dumpsCtx, p)
 
 	// Background goroutine polls container resource stats for the dashboard
 	// pane. The poll TTL matches servlo-panel's server-side cache so users see

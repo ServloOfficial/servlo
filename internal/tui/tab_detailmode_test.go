@@ -6,16 +6,16 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// TestSwitchTab_ResetsDetailMode guards against the Settings/System/Debug pane
-// bleeding across tabs. Opening Settings on Sites leaves detailMode=detailSettings;
+// TestSwitchTab_ResetsDetailMode guards against the Settings/System pane bleeding
+// across tabs. Opening Settings on Sites leaves detailMode=detailSettings;
 // switching to Services must drop back to detailSite so the Services detail column
-// renders the selected service, not the stale global surface. The S/Y/D toggles are
+// renders the selected service, not the stale global surface. The S/Y toggles are
 // gated to the Sites tab, so a stuck pane would otherwise be unrecoverable there.
 func TestSwitchTab_ResetsDetailMode(t *testing.T) {
 	for _, mode := range []struct {
 		key  rune
 		want detailMode
-	}{{'S', detailSettings}, {'Y', detailSystem}, {'D', detailDumps}} {
+	}{{'S', detailSettings}, {'Y', detailSystem}} {
 		m := NewModel("test")
 		m.snap = fakeSnap()
 		m.switchTab(tabSites)

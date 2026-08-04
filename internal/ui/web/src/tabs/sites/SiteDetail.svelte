@@ -5,7 +5,6 @@
   import SiteLogs from './SiteLogs.svelte';
   import SiteEnvTab from './SiteEnvTab.svelte';
   import SiteNginxModal from '../../modals/SiteNginxModal.svelte';
-  import SiteDebugTab from '$tabs/sites/SiteDebugTab.svelte';
   import { resumeSite, loadSites, activeWorktreeDomain, siteHasLogSources, type Site } from '$stores/sites';
   import { routeRest, goToTab } from '$stores/route';
   import { m } from '../../paraglide/messages.js';
@@ -26,20 +25,19 @@
   }
   let { site }: Props = $props();
 
-  type TabId = 'overview' | 'logs' | 'env' | 'dumps';
+  type TabId = 'overview' | 'logs' | 'env';
   const TAB_STORAGE_KEY = 'servlo:siteDetailTab';
 
   function readStoredTab(): TabId {
     if (typeof localStorage === 'undefined') return 'overview';
     const v = localStorage.getItem(TAB_STORAGE_KEY);
-    if (v === 'logs' || v === 'env' || v === 'dumps') return v;
+    if (v === 'logs' || v === 'env') return v;
     return 'overview';
   }
 
   let active = $state<TabId>(readStoredTab());
   let activeWorktreeBranch = $state<string>('');
   let nginxOpen = $state(false);
-  const canDumps = $derived(Boolean(site.uses_php));
   const canEnv = $derived(Boolean(site.has_env));
   // Logs get their own tab in the resource layout rather than living under the
   // overview. Offer it whenever the site exposes any log source, including a
@@ -47,16 +45,15 @@
   const canLogs = $derived(siteHasLogSources(site));
   // A lone Overview tab can't be switched to anything, so don't render the tab
   // row at all when no other tab is available (e.g. static sites).
-  const hasExtraTabs = $derived(canLogs || canEnv || canDumps);
+  const hasExtraTabs = $derived(canLogs || canEnv);
 
-  // The route can deep-link a sub-tab (e.g. dump notifications go to
-  // #sites/<domain>/dumps). When the second segment names a tab, honour it
+  // The route can deep-link a sub-tab. When the second segment names a tab, honour it
   // and overwrite the stored selection.
   $effect(() => {
     const seg = $routeRest.split('/')[1] ?? '';
     if (seg === 'nginx') {
       nginxOpen = true;
-    } else if (seg === 'logs' || seg === 'env' || seg === 'dumps' || seg === 'overview') {
+    } else if (seg === 'logs' || seg === 'env' || seg === 'overview') {
       active = seg;
     }
   });
@@ -64,7 +61,6 @@
   $effect(() => {
     if (active === 'logs' && !canLogs) active = 'overview';
     if (active === 'env' && !canEnv) active = 'overview';
-    if (active === 'dumps' && !canDumps) active = 'overview';
   });
 
   $effect(() => {
@@ -105,9 +101,6 @@
   {#if canEnv}
     <button class={tabBtn('env', active === 'env')} onclick={() => selectTab('env')}>{m.sites_tabs_env()}</button>
   {/if}
-  {#if canDumps}
-    <button class={tabBtn('dumps', active === 'dumps')} onclick={() => selectTab('dumps')}>{m.debug_title()}</button>
-  {/if}
 {/snippet}
 
 <DetailPanel>
@@ -147,8 +140,6 @@
     {#key site.domain + '@' + activeWorktreeBranch}
       <SiteEnvTab {site} branch={activeWorktreeBranch} />
     {/key}
-  {:else if active === 'dumps'}
-    <SiteDebugTab siteName={site.name} framework={site.framework} domain={site.domain} branch={activeWorktreeBranch} />
   {/if}
 </DetailPanel>
 

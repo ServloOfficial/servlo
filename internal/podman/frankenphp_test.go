@@ -51,13 +51,9 @@ func TestGenerateFrankenPHPQuadlet(t *testing.T) {
 		`Environment="FRANKENPHP_CONFIG=worker ./public/index.php"`,
 		"Exec=php artisan octane:start --server=frankenphp",
 		"Restart=always",
-		// Debug tooling parity: the same conf.d inis and bridge dir the FPM
-		// container mounts (dump bridge, devtools).
-		"/usr/local/etc/php/conf.d/97-servlo-dump.ini:ro",
-		"/usr/local/etc/php/conf.d/96-servlo-devtools.ini:ro",
+		// php.ini parity: the same conf.d inis the FPM container mounts.
 		"/usr/local/etc/php/conf.d/98-servlo-user.ini:ro",
 		"/usr/local/etc/php/conf.d/95-servlo-shared.ini:ro",
-		":/usr/local/etc/servlo:ro",
 	}
 	for _, s := range mustContain {
 		if !strings.Contains(content, s) {

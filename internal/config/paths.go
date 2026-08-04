@@ -5,13 +5,6 @@ import (
 	"path/filepath"
 )
 
-// DumpsTCPPort is the loopback port the dump receiver binds on darwin
-// (where a unix socket on the macOS host can't be reached from FPM
-// inside the podman-machine VM). Linux uses a unix socket instead so
-// this is unused there. Picked to avoid Symfony var-dump-server's
-// default :9912 — see internal/dumps.DefaultAddr.
-const DumpsTCPPort = "9913"
-
 func xdgConfigHome() string {
 	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
 		return v
@@ -188,107 +181,6 @@ func SitePHPUserIniBkpDir(siteName string) string {
 // as live config.
 func PHPUserIniBkpDir(version string) string {
 	return filepath.Join(DataDir(), "php", version, "ini.bkp")
-}
-
-// DumpsAssetsDir returns the host directory holding the version-agnostic dump
-// bridge assets (PHP file + ini). Both files are bind-mounted read-only into
-// every FPM container when `servlo dump on` is active. Single shared copy
-// because the bridge is identical across PHP versions.
-func DumpsAssetsDir() string {
-	return filepath.Join(DataDir(), "php", "dumps")
-}
-
-// DumpsBridgeFile is the host path for dump-bridge.php (the auto-prepended
-// PHP file).
-func DumpsBridgeFile() string {
-	return filepath.Join(DumpsAssetsDir(), "dump-bridge.php")
-}
-
-// DumpsIniFile is the host path for the conf.d ini that turns the bridge on.
-func DumpsIniFile() string {
-	return filepath.Join(DumpsAssetsDir(), "97-servlo-dump.ini")
-}
-
-// DevtoolsCollectorFile is the host path for the framework-neutral collector
-// (agnostic mail and other shared-library capture), loaded lazily by the
-// servlo_devtools extension. Lives in the dumps assets dir (mounted at
-// /usr/local/etc/servlo), where the extension expects it.
-func DevtoolsCollectorFile() string {
-	return filepath.Join(DumpsAssetsDir(), "devtools-collector.php")
-}
-
-// LaravelAdapterFile is the host path for the Laravel devtools adapter, loaded
-// by the servlo_devtools extension at Application::boot. It lives in the dumps
-// assets dir because that directory is bind-mounted into FPM at
-// /usr/local/etc/servlo, where the extension expects it.
-func LaravelAdapterFile() string {
-	return filepath.Join(DumpsAssetsDir(), "laravel-adapter.php")
-}
-
-// DumpsSocketPath is the Unix socket servlo-panel binds for dump payloads. Kept
-// in RunDir so it sits alongside the UI socket and so the existing %h:%h
-// volume in every FPM container surfaces it at the same path inside.
-func DumpsSocketPath() string {
-	return filepath.Join(RunDir(), "servlo-dumps.sock")
-}
-
-// DumpsEnabledFlagFile is the sentinel the debug bridge checks on every
-// request. Present file = bridge captures dump()/dd() calls; absent file
-// = bridge is a fast no-op. Toggling is a single touch/rm on this file
-// so the FPM container never restarts.
-func DumpsEnabledFlagFile() string {
-	return filepath.Join(DumpsAssetsDir(), "enabled.flag")
-}
-
-// DumpsListenNetwork reports the net.Listen network servlo-panel should bind
-// for the dump receiver. On macOS we fall back to TCP because unix
-// sockets don't traverse the podman-machine virtio-fs boundary as
-// functional sockets (same constraint that drives EnsureServloVhost's
-// host.containers.internal:7073 fallback). On Linux the unix socket is
-// reachable inside FPM via the %h:%h bind mount.
-func DumpsListenNetwork() string {
-	return "unix"
-}
-
-// DumpsListenAddr is the address paired with DumpsListenNetwork.
-func DumpsListenAddr() string {
-	return DumpsSocketPath()
-}
-
-// DumpsBridgeTarget is the stream_socket_client target the PHP bridge
-// reads from the conf.d ini. On macOS gvproxy forwards
-// host.containers.internal:<port> from inside the podman-machine VM to
-// the servlo-panel process on the host; on Linux the FPM container hits the
-// host unix socket directly via the %h:%h bind mount.
-func DumpsBridgeTarget() string {
-	return "unix://" + DumpsSocketPath()
-}
-
-// DevtoolsAssetsDir holds the devtools collector conf.d ini. Bind-mounted
-// read-only into every FPM container; version-agnostic like the debug bridge.
-func DevtoolsAssetsDir() string {
-	return filepath.Join(DataDir(), "php", "devtools")
-}
-
-// DevtoolsIniFile is the host path for the conf.d ini that configures the
-// servlo_devtools extension (socket target + enabled kinds + sentinel path).
-func DevtoolsIniFile() string {
-	return filepath.Join(DevtoolsAssetsDir(), "96-servlo-devtools.ini")
-}
-
-// DevtoolsWorkersFlagFile is the sentinel that opts worker (queue/scheduler)
-// queries into capture. Absent (default) = workers skipped. Lives beside the
-// devtools enable flag under the /usr/local/etc/servlo mount; toggling it never
-// restarts FPM.
-func DevtoolsWorkersFlagFile() string {
-	return filepath.Join(DumpsAssetsDir(), "devtools-workers.flag")
-}
-
-// DevtoolsBridgeTarget is the socket the extension ships events to — the same
-// receiver servlo-panel binds for dumps, so captured queries land in the shared
-// ring and fan out through the same SSE stream.
-func DevtoolsBridgeTarget() string {
-	return DumpsBridgeTarget()
 }
 
 // CustomServicesDir returns the directory for custom service YAML files.

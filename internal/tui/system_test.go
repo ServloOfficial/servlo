@@ -13,7 +13,7 @@ func TestSystemRows_ContainsCoreSections(t *testing.T) {
 	m := NewModel("test")
 	rows := m.systemRows()
 
-	want := []string{"DNS", "Nginx", "Watcher", "Notifications", "Debug bridge", "PHP versions", "Node", "Servlo"}
+	want := []string{"DNS", "Nginx", "Watcher", "Notifications", "PHP versions", "Node", "Servlo"}
 	have := map[string]bool{}
 	for _, r := range rows {
 		if r.kind == sysHeader {
@@ -55,15 +55,14 @@ func TestNavigableSystemRows_SkipsHeadersAndInfo(t *testing.T) {
 	rows := []systemRow{
 		{kind: sysHeader, label: "X"},
 		{kind: sysInfo, label: "a"},
-		{kind: sysDumpsEnabled, label: "Dumps"},
 		{kind: sysInfo, label: "b"},
 		{kind: sysNotifEnabled, label: "Notif"},
 		{kind: sysHeader, label: "Y"},
 		{kind: sysAutostart, label: "Auto"},
 	}
 	nav := navigableSystemRows(rows)
-	if len(nav) != 3 {
-		t.Fatalf("expected 3 navigable rows, got %d", len(nav))
+	if len(nav) != 2 {
+		t.Fatalf("expected 2 navigable rows, got %d", len(nav))
 	}
 	for _, idx := range nav {
 		kind := rows[idx].kind
@@ -106,25 +105,5 @@ func TestSystemContentLines_CursorLineLandsOnInteractiveRow(t *testing.T) {
 	// renderDetailRow — "▸" is the universal marker for the focused row.
 	if !strings.Contains(lines[cursorLine], "▸") {
 		t.Errorf("cursor line %q lacks the ▸ marker", lines[cursorLine])
-	}
-}
-
-// TestSystemRows_DumpsInfoShowsBufferedCount uses the actual buffered count
-// from the model so users see the same number the Dumps view shows.
-func TestSystemRows_DumpsInfoShowsBufferedCount(t *testing.T) {
-	m := NewModel("test")
-	m.appendDebug(dumpEv(DumpEntry{ID: "a"}))
-	m.appendDebug(dumpEv(DumpEntry{ID: "b"}))
-
-	rows := m.systemRows()
-	var bufferedRow systemRow
-	for _, r := range rows {
-		if r.kind == sysInfo && r.label == "Buffered" {
-			bufferedRow = r
-			break
-		}
-	}
-	if !strings.Contains(bufferedRow.value, "2 events") {
-		t.Errorf("expected 'Buffered: 2 events', got %q", bufferedRow.value)
 	}
 }

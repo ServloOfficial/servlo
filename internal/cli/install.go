@@ -703,15 +703,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		if err := podman.RewriteFPMQuadlets(); err != nil {
 			fmt.Printf("  WARN: refreshing FPM quadlets: %v\n", err)
 		}
-		// Always write the debug bridge assets to disk so the always-mounted
-		// FPM volumes have valid bind-mount sources even on a fresh install
-		// where the user hasn't toggled the bridge yet.
-		if err := podman.EnsureDumpAssets(); err != nil {
-			fmt.Printf("  WARN: writing debug bridge assets: %v\n", err)
-		}
-		if err := podman.EnsureDevtoolsAssets(); err != nil {
-			fmt.Printf("  WARN: writing devtools assets: %v\n", err)
-		}
 	}
 
 	// 7. Pull images before touching DNS so registry lookups use the system

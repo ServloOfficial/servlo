@@ -196,9 +196,9 @@ func (m *Model) renderBody(topH int) string {
 		}
 		detailH := topH - listH
 
-		// Settings / system / dumps take the full height so the content isn't
+		// Settings / system take the full height so the content isn't
 		// cramped between the list and a slim detail pane (Sites tab only).
-		if m.activeTab == tabSites && (m.detailMode == detailSettings || m.detailMode == detailSystem || m.detailMode == detailDumps) {
+		if m.activeTab == tabSites && (m.detailMode == detailSettings || m.detailMode == detailSystem) {
 			return zone.Mark("pane:detail", m.renderDetailInline(m.width, topH, true))
 		}
 		list := zone.Mark(listZone, listPane(m.width, listH))
