@@ -17,7 +17,7 @@ import (
 // derived FrankenPHP image, mirroring the runtime extensions the servlo FPM image
 // ships so an Octane site has the same modules available instead of the bare
 // dunglas base. These are install-php-extensions names; curl/mbstring/xml are
-// already in the base image. Dev-only tooling (pcov, servlo_devtools)
+// already in the base image. Dev-only tooling (pcov)
 // is intentionally excluded — it carries octane-specific behaviour and is
 // tracked separately.
 var frankenPHPRuntimeExtensions = []string{
@@ -61,18 +61,11 @@ func frankenPHPContainerfileHash(customExts, packages []string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	// Fold in the servlo_devtools source hash so a change to that extension drifts
-	// the image hash and rebuilds, the same guarantee the FPM marker line gives.
-	dt, err := devtoolsSourceHash()
-	if err != nil {
-		return "", err
-	}
 	parts := []string{
 		tmpl,
 		strings.Join(frankenPHPRuntimeExtensions, " "),
 		strings.Join(customExts, " "),
 		strings.Join(packages, " "),
-		dt,
 	}
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\n")))
 	return hex.EncodeToString(sum[:]), nil
@@ -155,12 +148,6 @@ func buildFrankenPHPImage(version string, force bool, customExts, packages []str
 	}
 	defer os.RemoveAll(tmp)
 
-	// Stage the servlo_devtools C source into the build context so the
-	// `COPY internal/podman/devtools` in the Containerfile resolves.
-	if err := writeDevtoolsSource(tmp); err != nil {
-		return fmt.Errorf("staging devtools source: %w", err)
-	}
-
 	exts := append(append([]string{}, frankenPHPRuntimeExtensions...), sanitizeExtNames(customExts)...)
 	containerfile, err := renderFrankenPHPContainerfile(version, exts, packages, mkcertCABlock(tmp))
 	if err != nil {
@@ -199,15 +186,10 @@ func renderFrankenPHPContainerfile(version string, exts, packages []string, mkce
 	if err != nil {
 		return "", err
 	}
-	dt, err := devtoolsSourceHash()
-	if err != nil {
-		return "", err
-	}
 	core, optional := splitFrankenPHPExtensions(exts)
 	cf := strings.ReplaceAll(tmpl, "{{.Version}}", version)
 	cf = strings.ReplaceAll(cf, "{{.CoreExtensions}}", strings.Join(core, " "))
 	cf = strings.ReplaceAll(cf, "{{.OptionalExtensions}}", strings.Join(optional, " "))
-	cf = strings.ReplaceAll(cf, "{{.DevtoolsHash}}", dt)
 	cf = strings.ReplaceAll(cf, "{{.CustomPackages}}", buildCustomPackagesBlock(packages))
 	cf = strings.ReplaceAll(cf, "{{.MkcertCA}}", mkcertBlock)
 	return cf, nil

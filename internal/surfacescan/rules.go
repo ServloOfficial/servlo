@@ -64,9 +64,18 @@ func Rules() []Rule {
 			Allow:    specs,
 		},
 		{
-			Feature: "dump()/dd() bridge", Story: "S0.5",
+			Feature: "dump()/dd() bridge", Story: "S0.5", Enforced: true,
 			Patterns: []string{`auto_prepend`, `servlo-dump`, `internal/dumps`, `servlo_devtools`},
-			Allow:    specs,
+			// The guards that keep auto_prepend_file out of a framework's php.ini,
+			// and the test that proves no generated unit mounts the bridge, have to
+			// name the thing they forbid.
+			Allow: append(append([]string{}, specs...),
+				"internal/config/framework.go",
+				"internal/config/framework_phpini_test.go",
+				"internal/cli/php_ini_test.go",
+				"internal/podman/no_dump_bridge_test.go",
+				"docs/usage/framework-definitions.md",
+			),
 		},
 		{
 			Feature: "Xdebug toggles", Story: "S0.5", Enforced: true,

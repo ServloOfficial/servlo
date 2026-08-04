@@ -225,34 +225,6 @@ type GlobalConfig struct {
 		// effective value.
 		ExecMode string `yaml:"exec_mode,omitempty" mapstructure:"exec_mode"`
 	} `yaml:"workers,omitempty" mapstructure:"workers"`
-	Dumps struct {
-		// Enabled is the single switch for the whole debug window: the dump
-		// bridge AND the servlo_devtools collector (queries, mail, views, events,
-		// jobs, http). Both the bridge and the extension read one runtime
-		// sentinel (`enabled.flag`); their PHP/ini assets are always mounted
-		// regardless of this flag, so what Enabled controls is just that
-		// sentinel — touch = capture, missing = fast no-op, no FPM restart.
-		// Toggled via `servlo dump on/off` or the dashboard Debug view.
-		Enabled bool `yaml:"enabled,omitempty" mapstructure:"enabled"`
-		// Passthrough controls whether dump()/dd() ALSO emit to the response
-		// while the bridge is enabled. False (default) means captured-only:
-		// the dashboard is the single destination and the response stays
-		// clean (matching Herd's behaviour). True forwards each call through
-		// Symfony's stock VarDumper handler after capture, useful as a
-		// safety net when servlo-panel isn't running. No effect when Enabled is
-		// false — without the bridge, dump() behaves exactly as Symfony
-		// ships it.
-		Passthrough bool `yaml:"passthrough,omitempty" mapstructure:"passthrough"`
-	} `yaml:"dumps,omitempty" mapstructure:"dumps"`
-	Devtools struct {
-		// Workers includes long-running queue/scheduler worker queries in
-		// capture. Off by default because their constant polling floods the
-		// buffer; toggled from the dashboard "Show worker queries" checkbox.
-		// The collector's enable state is shared with the debug bridge: one
-		// sentinel (enabled.flag) and one config flag (Dumps.Enabled) arm both,
-		// so there is no separate devtools enable toggle.
-		Workers bool `yaml:"workers,omitempty" mapstructure:"workers"`
-	} `yaml:"devtools,omitempty" mapstructure:"devtools"`
 	Notifications struct {
 		// Disabled globally mutes the notifier (WebSocket banners + Web
 		// Push fanout). Inverted form so the zero value keeps existing
@@ -941,44 +913,6 @@ func (c *GlobalConfig) SetExtApkDeps(ext string, deps []string) {
 	cp := make([]string, len(deps))
 	copy(cp, deps)
 	c.PHP.ExtApkDeps[ext] = cp
-}
-
-// IsDumpsEnabled reports whether the servlo debug bridge is on for all PHP
-// versions. The toggle is global because the bridge file is a single,
-// version-agnostic asset bind-mounted into every FPM container.
-func (c *GlobalConfig) IsDumpsEnabled() bool {
-	return c.Dumps.Enabled
-}
-
-// SetDumpsEnabled flips the debug bridge toggle. Persist via SaveGlobal and
-// run dumpsops.Apply to actually rewrite the FPM quadlets.
-func (c *GlobalConfig) SetDumpsEnabled(enabled bool) {
-	c.Dumps.Enabled = enabled
-}
-
-// IsDevtoolsWorkers reports whether queue/scheduler worker queries are captured.
-func (c *GlobalConfig) IsDevtoolsWorkers() bool {
-	return c.Devtools.Workers
-}
-
-// SetDevtoolsWorkers flips worker-query capture. Persist via SaveGlobal and run
-// devtoolsops.SetWorkers to touch the runtime sentinel.
-func (c *GlobalConfig) SetDevtoolsWorkers(enabled bool) {
-	c.Devtools.Workers = enabled
-}
-
-// IsDumpsPassthrough reports whether the bridge should also forward each
-// captured dump to Symfony's stock VarDumper handler (response output).
-// Always false in effect when the bridge itself is disabled.
-func (c *GlobalConfig) IsDumpsPassthrough() bool {
-	return c.Dumps.Passthrough
-}
-
-// SetDumpsPassthrough flips the passthrough flag. Persist via SaveGlobal
-// and follow up with a `servlo-php*-fpm` restart so the new ini value takes
-// effect (PHP reads ini directives at FPM startup, not per request).
-func (c *GlobalConfig) SetDumpsPassthrough(enabled bool) {
-	c.Dumps.Passthrough = enabled
 }
 
 // IsNotificationsEnabled reports whether the global notifier is allowed

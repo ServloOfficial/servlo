@@ -1,7 +1,6 @@
 <script lang="ts">
   import ListPanel from '$components/ListPanel.svelte';
   import ActionButton from '$components/ActionButton.svelte';
-  import DumpBridgeToggle from '$components/DumpBridgeToggle.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Icon from '$components/Icon.svelte';
   import SiteIcon from '$components/SiteIcon.svelte';
@@ -446,7 +445,6 @@
 
 {#snippet actions()}
   {#if $accessMode.localControl}
-    <DumpBridgeToggle />
     <ActionButton title={m.sites_linkNew()} tone="accent" onclick={openLinkModal}>
       <Icon name="plus" class="w-3.5 h-3.5" />
     </ActionButton>

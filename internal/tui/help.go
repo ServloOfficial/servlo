@@ -53,20 +53,7 @@ var helpReference = []helpSection{
 			{"1", "Overview tab (default: workers, toggles, worktrees)"},
 			{"2", "Logs tab (FPM / container, every worker, the framework's app logs)"},
 			{"3", "Env tab (read-only .env display)"},
-			{"4", "Debug tab (this site's lenses: dumps, queries, jobs, mail, …)"},
-			{"5", "Doctor tab (framework-agnostic health checks; press again to re-run)"},
-		},
-	},
-	{
-		title: "Debug view",
-		rows: [][2]string{
-			{"[ / ]", "switch lens (Dumps · Queries · Jobs · Views · Mail · Cache · Events · HTTP)"},
-			{"/", "search the active lens (site, request, worker, file, text, payload)"},
-			{"1 / 2", "toggle the `fpm` / `cli` context-filter chips"},
-			{"enter / space", "expand the selected row (bindings, caller, exception, …)"},
-			{"w", "toggle worker capture (queue / scheduler events)"},
-			{"c", "clear the in-memory buffer and run `servlo dump clear`"},
-			{"T", "toggle the debug bridge globally (servlo dump on/off)"},
+			{"4", "Doctor tab (framework-agnostic health checks; press again to re-run)"},
 		},
 	},
 	{

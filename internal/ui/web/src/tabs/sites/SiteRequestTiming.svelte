@@ -7,8 +7,6 @@
     type RouteStat,
     type TimeRange
   } from '$stores/analytics';
-  import { debugCaptureEnabled } from '$stores/queries';
-  import { debugLens, debugSearch } from '$stores/debugLens';
   import { goToTab } from '$stores/route';
   import { activeWorktreeDomain, type Site } from '$stores/sites';
   import { tooltip } from '$lib/tooltip';
@@ -23,17 +21,6 @@
   // Requests are served by the active worktree's own subdomain, so opening or
   // profiling a route has to target that, not the parent site.
   let targetDomain = $derived(activeWorktreeDomain(site, activeWorktreeBranch));
-
-  // Inspect a route's queries in the Debug tab's Queries lens, the one place that
-  // renders captured queries. Seed the lens filter with the route's path prefix
-  // (up to the first :id/:slug placeholder) so it scopes to that route, then
-  // switch the lens on and navigate to the Debug tab.
-  function inspectRoute(route: string) {
-    const path = route.replace(/^[A-Z]+\s+/, '');
-    debugSearch.set(path.split('/:')[0]);
-    debugLens.set('queries');
-    goToTab('sites', `${site.domain}/dumps`);
-  }
 
   let range = $state<TimeRange>('1h');
   let data = $state<Analytics | null>(null);
@@ -159,22 +146,6 @@
   <span class="text-xs font-semibold tabular-nums text-right {SEV_TEXT[sev(recentP95(r))]}">{fmtMs(recentP95(r))}</span>
 {/snippet}
 
-{#snippet inspectBtn(routeKey: string)}
-  {#if $debugCaptureEnabled}
-    <button
-      type="button"
-      onclick={(e) => { e.stopPropagation(); inspectRoute(routeKey); }}
-      use:tooltip={m.sites_timing_inspectQueries()}
-      aria-label={m.sites_timing_inspectQueries()}
-      class="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-    >
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <ellipse cx="12" cy="5" rx="8" ry="3" />
-        <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
-      </svg>
-    </button>
-  {/if}
-{/snippet}
 
 <section>
   <div class="mb-2.5 flex items-center justify-between gap-3">
@@ -264,7 +235,6 @@
         {#each slowest as r (r.method + r.route)}
           <div class="flex items-center gap-2">
             <div class={slowRowClass}>{@render slowRow(r, false)}</div>
-            {@render inspectBtn(r.route)}
           </div>
         {/each}
       </div>
@@ -289,7 +259,6 @@
                 <th class="text-right font-semibold px-3 py-2">p95</th>
                 <th class="text-left font-semibold px-3 py-2 w-24">{m.sites_timing_latency()}</th>
                 <th class="text-right font-semibold px-3 py-2">{m.sites_timing_requests()}</th>
-                {#if $debugCaptureEnabled}<th class="px-2 py-2 w-8"></th>{/if}
               </tr>
             </thead>
             <tbody>
@@ -309,7 +278,6 @@
                     </span>
                   </td>
                   <td class="px-3 py-2 text-right tabular-nums text-gray-600 dark:text-gray-300">{r.samples.toLocaleString()}</td>
-                  {#if $debugCaptureEnabled}<td class="px-2 py-2 text-right">{@render inspectBtn(r.route)}</td>{/if}
                 </tr>
               {/each}
             </tbody>

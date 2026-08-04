@@ -11,12 +11,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
-	servlodumps "github.com/realrashid/servlo/internal/dumps"
 	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // siteTab identifies which sub-view of Site detail is showing. Tabs let the
-// detail pane mirror the web UI's Overview / Logs / Env / Dumps split without
+// detail pane mirror the web UI's Overview / Logs / Env split without
 // forcing users to scroll past the toggles every time they want to inspect a
 // different facet of the site.
 type siteTab int
@@ -25,7 +24,6 @@ const (
 	tabSiteOverview siteTab = iota
 	tabSiteLogs
 	tabSiteEnv
-	tabSiteDebug
 	tabSiteDoctor
 )
 
@@ -41,8 +39,6 @@ func siteTabLabel(t siteTab) string {
 		return "Logs"
 	case tabSiteEnv:
 		return "Env"
-	case tabSiteDebug:
-		return "Debug"
 	case tabSiteDoctor:
 		return "Doctor"
 	default:
@@ -85,7 +81,7 @@ func renderSiteTabHeader(active siteTab, innerW int, tabs []siteTab) []string {
 // source the strip numbering, the number-key shortcuts, and the render dispatch
 // all derive from, so a tab's position, label, and availability can never drift.
 func availableSiteTabs(s *siteinfo.EnrichedSite) []siteTab {
-	tabs := []siteTab{tabSiteOverview, tabSiteLogs, tabSiteEnv, tabSiteDebug}
+	tabs := []siteTab{tabSiteOverview, tabSiteLogs, tabSiteEnv}
 	if s != nil {
 		tabs = append(tabs, tabSiteDoctor)
 	}
@@ -125,103 +121,6 @@ func siteEnvContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []st
 
 	for _, line := range strings.Split(strings.TrimRight(string(data), "\n"), "\n") {
 		add("  " + line)
-	}
-	return out
-}
-
-// siteDebugContentLines renders the focused site's slice of the Debug window:
-// the active lens (Dumps · Queries · Jobs · Views · Mail · Cache · Events ·
-// HTTP) scoped to this site, read-only. `[` / `]` switch lens; the global ctx
-// chips and search needle set on the D view still apply. Rows are shown with
-// their detail inline (no cursor/expand on a site scroll surface), so the tab
-// is a per-site debug feed, not just dumps.
-func siteDebugContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []string {
-	out := make([]string, 0, 32)
-	out = append(out, renderSiteTabHeader(tabSiteDebug, innerW, availableSiteTabs(site))...)
-	add := func(s string) { out = append(out, padToWidth(clipLine(s, innerW), innerW)) }
-
-	if site == nil {
-		add(dimStyle.Render("  no site selected"))
-		return out
-	}
-
-	kind := m.activeLensKind()
-	add(sectionStyle.Render("Debug for "+site.Name) + "  " + dumpsBridgeStateLabel())
-	add("")
-	add("  " + renderDebugTabs(m, site.Name))
-	add("")
-	hint := "  [ ] switch lens · D for the full window"
-	if m.dumpsCtxFilter != "" {
-		hint += " · ctx:" + m.dumpsCtxFilter
-	}
-	if needle := strings.TrimSpace(m.dumpsFilter); needle != "" {
-		hint += " · /" + needle
-	}
-	add(dimStyle.Render(hint))
-	add("")
-
-	buffered := countKind(m.debug, kind, site.Name)
-
-	if kind == servlodumps.KindDump {
-		vis := m.debugVisibleEvents(site.Name) // newest-first dump events
-		add(dimStyle.Render(fmt.Sprintf("  %d shown / %d buffered", len(vis), buffered)))
-		add("")
-		if len(vis) == 0 {
-			add(dimStyle.Render("  no dumps from this site yet"))
-			add("")
-			add("  " + dimStyle.Render("press ") + accentStyle.Render("D") + dimStyle.Render(" then ") + accentStyle.Render("T") + dimStyle.Render(" to enable the bridge; this site's dumps land here"))
-			return out
-		}
-		for _, ev := range vis {
-			e := toDumpEntry(ev)
-			add(dumpHeaderLine(e))
-			for _, ln := range dumpPreviewLines(e, innerW-4) {
-				add("    " + dimStyle.Render(ln))
-			}
-			add("")
-		}
-		return out
-	}
-
-	groups := m.debugGroups(site.Name)
-	total := 0
-	for _, g := range groups {
-		total += len(g.events)
-	}
-	add(dimStyle.Render(fmt.Sprintf("  %d shown / %d buffered", total, buffered)))
-	add("")
-	if total == 0 {
-		add(dimStyle.Render("  no " + lensNoun(kind) + " from this site yet"))
-		add("")
-		add("  " + dimStyle.Render("press ") + accentStyle.Render("D") + dimStyle.Render(" then ") + accentStyle.Render("T") + dimStyle.Render(" to enable capture; worker events also need ") + accentStyle.Render("w"))
-		return out
-	}
-	for _, g := range groups {
-		meta := fmt.Sprintf("  %s · %d", shortTime(g.ts), len(g.events))
-		if g.worker != "" {
-			meta = "  worker" + meta
-		}
-		head := "  " + accentStyle.Render(g.label) + dimStyle.Render(meta)
-		if g.nPlusOne {
-			head += "  " + failingStyle.Render("N+1")
-		}
-		add(head)
-		var dup map[string]int
-		if kind == servlodumps.KindQuery {
-			dup = map[string]int{}
-			for _, ev := range g.events {
-				if q, ok := ev.Query(); ok {
-					dup[normalizeSQL(q.SQL)]++
-				}
-			}
-		}
-		for _, ev := range g.events {
-			add("  " + debugRowMain(kind, ev, dup))
-			for _, ln := range debugRowDetail(kind, ev) {
-				add("      " + dimStyle.Render(ln))
-			}
-		}
-		add("")
 	}
 	return out
 }

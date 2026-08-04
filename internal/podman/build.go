@@ -495,14 +495,7 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 	}
 
 	// Slow path: full local build from the embedded Containerfile template.
-	// The template compiles servlo_devtools in the builder stage via
-	// `COPY internal/podman/devtools`, so stage that source into the build
-	// context (the prebuilt base already carries it, so the fast path above
-	// doesn't need it).
 	{
-		if err := writeDevtoolsSource(tmp); err != nil {
-			return false, fmt.Errorf("staging devtools source: %w", err)
-		}
 		tmpl, tmplErr := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 		if tmplErr != nil {
 			return false, tmplErr
@@ -818,12 +811,6 @@ func WriteFPMQuadlet(version string) error {
 	if err := EnsureSharedIni(); err != nil {
 		return fmt.Errorf("creating shared ini: %w", err)
 	}
-	if err := EnsureDumpAssets(); err != nil {
-		return fmt.Errorf("ensuring dump assets: %w", err)
-	}
-	if err := EnsureDevtoolsAssets(); err != nil {
-		return fmt.Errorf("ensuring devtools assets: %w", err)
-	}
 
 	if err := ensureFPMHostsFile(); err != nil {
 		return err
@@ -871,9 +858,6 @@ func renderFPMQuadletContent(version string) (string, error) {
 	content = strings.ReplaceAll(content, "{{.VersionShort}}", short)
 	content = strings.ReplaceAll(content, "{{.UserIniPath}}", config.PHPUserIniFile(version))
 	content = strings.ReplaceAll(content, "{{.SharedIniPath}}", config.SharedIniFile())
-	content = strings.ReplaceAll(content, "{{.DumpsDir}}", config.DumpsAssetsDir())
-	content = strings.ReplaceAll(content, "{{.DumpsIniPath}}", config.DumpsIniFile())
-	content = strings.ReplaceAll(content, "{{.DevtoolsIniPath}}", config.DevtoolsIniFile())
 	content = strings.ReplaceAll(content, "{{.HostNameLine}}", hostNameLine())
 	content = applyShellMounts(content, short)
 	content = InjectExtraVolumes(content, ExtraVolumePaths())

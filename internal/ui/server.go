@@ -172,11 +172,6 @@ func Start(currentVersion string) error {
 	// the freshly rebuilt bytes to every connected browser.
 	go runSnapshotInvalidator()
 
-	// Loopback receiver for the PHP debug bridge. Bound unconditionally
-	// because the listener is essentially free and lets the dashboard
-	// pick up dumps the moment `servlo dump on` runs without a UI restart.
-	startDumpsServer()
-
 	// systemd transitions a worker to "failed" without telling servlo-panel (e.g.
 	// after start-limit-hit on a crash loop). The health watcher closes
 	// that gap by polling the cached detector on a slow tick and publishing
@@ -253,17 +248,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/sites/", withCORS(publishAfter(handleSiteAction, eventbus.KindSites, eventbus.KindServices)))
 	mux.HandleFunc("/api/logs/terminal", withCORS(handleLogTerminal))
 	mux.HandleFunc("/api/logs/", withCORS(handleLogs))
-	mux.HandleFunc("/api/dumps", withCORS(handleDumpsList))
-	mux.HandleFunc("/api/queries/analyze", withCORS(handleQueriesAnalyze))
 	mux.HandleFunc("/api/queries/route-timing", withCORS(handleRouteTiming))
-	mux.HandleFunc("/api/dumps/stream", withCORS(handleDumpsStream))
-	mux.HandleFunc("/api/dumps/status", withCORS(handleDumpsStatus))
-	mux.HandleFunc("/api/dumps/clear", withCORS(handleDumpsClear))
-	mux.HandleFunc("/api/dumps/toggle", withCORS(publishAfter(handleDumpsToggle, eventbus.KindDumpsStatus)))
-	mux.HandleFunc("/api/dumps/passthrough", withCORS(publishAfter(handleDumpsPassthrough, eventbus.KindDumpsStatus)))
-	mux.HandleFunc("/api/dumps/notify-changed", withCORS(handleDumpsNotifyChanged))
-	mux.HandleFunc("/api/devtools/status", withCORS(handleDevtoolsStatus))
-	mux.HandleFunc("/api/devtools/workers", withCORS(publishAfter(handleDevtoolsWorkers, eventbus.KindDevtoolsStatus)))
 	mux.HandleFunc("/api/open-editor", withCORS(handleOpenEditor))
 	mux.HandleFunc("/api/open-folder", withCORS(handleOpenFolder))
 	mux.HandleFunc("/_svc/", handleDashProxy)

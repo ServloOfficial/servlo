@@ -194,7 +194,6 @@ func main() {
 	root.AddCommand(cli.NewShimsCmd())
 	root.AddCommand(cli.NewPathEnableCmd())
 	root.AddCommand(cli.NewPathDisableCmd())
-	root.AddCommand(cli.NewDumpCmd())
 	root.AddCommand(cli.NewIdleCmd())
 	root.AddCommand(cli.NewNotifyCmd())
 	root.AddCommand(cli.NewPhpExtCmd())

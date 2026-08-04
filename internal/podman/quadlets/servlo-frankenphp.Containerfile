@@ -1,6 +1,6 @@
 # Servlo FrankenPHP image: the upstream dunglas/frankenphp base plus the same
 # runtime PHP extensions the servlo FPM image ships, so a FrankenPHP (Octane) site
-# has redis/gd/pdo/intl/... plus Xdebug and the servlo_devtools / dump bridge
+# has redis/gd/pdo/intl/... plus the runtime extension set
 # tooling. {{.Version}} is the PHP minor (e.g. 8.4); the extension list, extra
 # packages, and mkcert CA are injected by the builder.
 #
@@ -33,19 +33,6 @@ RUN install-php-extensions {{.CoreExtensions}} \
 # SSH (private composer packages, source installs run inside this container)
 # works without auth failures. All matching the FPM image.
 RUN apk add --no-cache nodejs npm git openssh-client && rm -rf /var/cache/apk/*
-
-# servlo_devtools: servlo's engine-level Debug-window capture (queries, mail, views,
-# events, jobs, http), compiled here for the ZTS base since install-php-extensions
-# can't build it. The marker hashes the extension source so any change rebuilds
-# the image; the || true degrades a compile failure to "Debug window unavailable"
-# rather than bricking the image.
-# servlo_devtools-src-sha256: {{.DevtoolsHash}}
-COPY internal/podman/devtools /tmp/servlo-devtools
-RUN apk add --no-cache --virtual .servlo-devtools-build autoconf make g++ \
-    && { cd /tmp/servlo-devtools && phpize && ./configure --enable-servlo-devtools \
-         && make -j"$(nproc)" && make install && docker-php-ext-enable servlo_devtools; } || true; \
-    apk del .servlo-devtools-build || true; \
-    rm -rf /tmp/servlo-devtools /var/cache/apk/*
 
 # Servlo mkcert CA so the app trusts local .test HTTPS from inside the container.
 {{.MkcertCA}}

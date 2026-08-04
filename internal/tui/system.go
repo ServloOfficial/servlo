@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -21,8 +20,6 @@ type systemKind int
 const (
 	sysHeader systemKind = iota
 	sysInfo
-	sysDumpsEnabled
-	sysDumpsPassthrough
 	sysNotifEnabled
 	sysAutostart
 	sysLANExpose
@@ -84,14 +81,6 @@ func (m *Model) systemRows() []systemRow {
 	header("Notifications")
 	notifOn := cfg != nil && cfg.IsNotificationsEnabled()
 	add(systemRow{kind: sysNotifEnabled, label: "Enabled", on: notifOn})
-
-	// Debug bridge
-	header("Debug bridge")
-	dumpsOn := cfg != nil && cfg.IsDumpsEnabled()
-	add(systemRow{kind: sysDumpsEnabled, label: "Enabled", on: dumpsOn})
-	add(systemRow{kind: sysDumpsPassthrough, label: "Passthrough", on: cfg != nil && cfg.IsDumpsPassthrough()})
-	info("Listen", config.DumpsListenAddr())
-	info("Buffered", fmt.Sprintf("%d events (cap %d)", len(m.debug), dumpsBufferCap))
 
 	// PHP versions
 	header("PHP versions")
@@ -192,20 +181,6 @@ func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 	}
 	row := rows[nav[m.systemRow]]
 	switch row.kind {
-	case sysDumpsEnabled:
-		verb := "on"
-		if row.on {
-			verb = "off"
-		}
-		m.setStatus("debug bridge "+verb+"…", 5*time.Second)
-		return runServlo("", "dump", verb)
-	case sysDumpsPassthrough:
-		// No public CLI verb yet; surface the state but skip toggling.
-		// Leaving as a no-op is preferable to inventing a side-channel
-		// config write because dumps passthrough also requires the FPM
-		// bridge ini to be rewritten, which `dumpsops.Apply` handles.
-		m.setStatus("dumps passthrough: toggle via servlo-panel dashboard", 3*time.Second)
-		return nil
 	case sysNotifEnabled:
 		verb := "on"
 		if row.on {

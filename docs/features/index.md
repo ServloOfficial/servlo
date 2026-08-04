@@ -24,7 +24,6 @@ Beyond serving PHP sites, servlo ships a set of tools for working with them. Eve
 ## Inspecting and debugging
 
 - [Logs](/features/logs) tails application, Nginx and container logs in one place.
-- [Queries](/features/queries) shows database queries per request.
 - Dumps collects `dump()` output from your code.
 - Notifications surfaces failures on your desktop.
 

@@ -37,12 +37,6 @@ func WriteCustomFPMQuadlet(siteName, version string) error {
 	if err := EnsureSharedIni(); err != nil {
 		return fmt.Errorf("creating shared ini: %w", err)
 	}
-	if err := EnsureDumpAssets(); err != nil {
-		return fmt.Errorf("ensuring dump assets: %w", err)
-	}
-	if err := EnsureDevtoolsAssets(); err != nil {
-		return fmt.Errorf("ensuring devtools assets: %w", err)
-	}
 	if err := ensureFPMHostsFile(); err != nil {
 		return err
 	}

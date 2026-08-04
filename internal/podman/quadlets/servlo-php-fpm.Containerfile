@@ -79,20 +79,6 @@ RUN apk update && apk add --no-cache \
     && { (yes '' | pecl install pcov && docker-php-ext-enable pcov) || true; } \
     && rm -rf /tmp/pear /var/cache/apk/*
 
-# servlo_devtools: servlo's engine-level Debug-window capture (queries, mail, views,
-# events, jobs, http). Compiled in the builder so its .so and the
-# docker-php-ext-enable conf.d travel into the runtime stage via the
-# COPY --from=builder below, like every other extension, so users pull it
-# ready-built instead of compiling C on their own machine. The marker line
-# hashes the extension source so any change to it drifts the image hash and
-# rebuilds the base; TestDevtoolsSourceMarkerInSync keeps the marker honest.
-# No-op at runtime on PHP < 8.0 (no zend_observer); the || true degrades a
-# compile failure to "Debug window unavailable" rather than bricking the image.
-# servlo_devtools-src-sha256: 7d093ab0418b
-COPY internal/podman/devtools /tmp/servlo-devtools
-RUN { cd /tmp/servlo-devtools && phpize && ./configure --enable-servlo-devtools && make -j$(nproc) && make install && docker-php-ext-enable servlo_devtools; } || true; \
-    rm -rf /tmp/servlo-devtools /var/cache/apk/*
-
 # Project-defined custom extensions compile here while the toolchain
 # is available. Their .so files travel through the COPY below.
 {{.CustomExtensions}}

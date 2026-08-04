@@ -4,7 +4,6 @@
   import DnsDetail from './system/DnsDetail.svelte';
   import NginxDetail from './system/NginxDetail.svelte';
   import WatcherDetail from './system/WatcherDetail.svelte';
-  import DumpBridgeDetail from './system/DumpBridgeDetail.svelte';
   import NotificationsDetail from './system/NotificationsDetail.svelte';
   import PhpPage from './system/PhpPage.svelte';
   import NodePage from './system/NodePage.svelte';
@@ -24,8 +23,6 @@
   <NginxDetail />
 {:else if selected === 'watcher'}
   <WatcherDetail />
-{:else if selected === 'dump-bridge'}
-  <DumpBridgeDetail />
 {:else if selected === 'notifications'}
   <NotificationsDetail />
 {:else if showPhp}

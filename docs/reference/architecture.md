@@ -50,8 +50,7 @@ On Linux, servlo requires systemd. Every container runs as a Podman Quadlet (sys
 | Services | Podman Quadlet containers |
 | DNS | dnsmasq container + NetworkManager or systemd-resolved integration |
 | TLS | [mkcert](https://github.com/FiloSottile/mkcert), locally trusted CA |
-| Debug bridge | Always-mounted `auto_prepend_file` PHP file in each FPM container; runtime sentinel toggles capture without a container restart. NDJSON to an in-process receiver inside `servlo-ui`, per-user Unix socket on Linux (`~/.local/share/servlo/run/servlo-dumps.sock`, via the `%h:%h` mount); TCP loopback `127.0.0.1:9913` on macOS (FPM reaches it via gvproxy's `host.containers.internal:9913` because unix sockets don't traverse the podman-machine virtio-fs boundary). See features/dumps.md. |
-| Notifications | Single in-process notifier inside `servlo-ui` dispatches every kind (mail, worker failures, finished service ops, service updates, dumps) through both WebSocket (open tabs at `/api/ws`) and Web Push (closed PWA / minimised tabs). Per-install VAPID keys at `~/.local/share/servlo/vapid-{private,public}.key`; subscription store at `push-subscriptions.json` with per-category preferences. See features/notifications.md. |
+| Notifications | Single in-process notifier inside `servlo-ui` dispatches every kind (mail, worker failures, finished service ops, service updates) through both WebSocket (open tabs at `/api/ws`) and Web Push (closed PWA / minimised tabs). Per-install VAPID keys at `~/.local/share/servlo/vapid-{private,public}.key`; subscription store at `push-subscriptions.json` with per-category preferences. See features/notifications.md. |
 
 ## Key design decisions
 
