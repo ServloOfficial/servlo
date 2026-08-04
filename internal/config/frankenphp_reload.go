@@ -3,35 +3,25 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
-	"strings"
 
 	"github.com/realrashid/servlo/internal/power"
-	"github.com/realrashid/servlo/internal/wsl"
 )
 
 // WatcherNeedsPolling reports whether a file-change watcher has to poll because
-// host filesystem events don't reach the process watching them: always on
-// macOS (the runtime runs inside the podman VM) and on WSL2 only for projects
-// under a /mnt (9p) mount, where inotify isn't delivered. This is the canonical
-// home for the predicate; cli.watcherNeedsPolling delegates here so the Horizon
-// and Octane reload paths agree.
-func WatcherNeedsPolling(sitePath string) bool {
-	if runtime.GOOS == "darwin" {
-		return true
-	}
-	return wsl.IsWSL() && strings.HasPrefix(sitePath, "/mnt/")
-}
+// host filesystem events don't reach the process watching them. On the Linux
+// host Servlo supports, the container shares the host filesystem directly and
+// inotify is delivered, so nothing ever polls. Kept as the canonical home for
+// the predicate; cli.watcherNeedsPolling delegates here so the Horizon and
+// Octane reload paths agree.
+func WatcherNeedsPolling(string) bool { return false }
 
 // HostCanPollWatchers reports whether any site on this host could need a
 // polling watcher, which is the host half of WatcherNeedsPolling with the path
-// test dropped. Native Linux never polls whatever the site path, so background
-// work that exists only to maintain the poll cadence can stand down entirely
-// rather than waking to find nothing to do.
-func HostCanPollWatchers() bool {
-	return runtime.GOOS == "darwin" || wsl.IsWSL()
-}
+// test dropped. Linux never polls whatever the site path, so background work
+// that exists only to maintain the poll cadence stands down entirely rather
+// than waking to find nothing to do.
+func HostCanPollWatchers() bool { return false }
 
 // watcherPollIntervalMS is how often a polling reload watcher re-stats each
 // watched file while the machine is plugged in. chokidar's own default is

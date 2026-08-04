@@ -3,7 +3,6 @@ package hostbin
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -62,9 +61,7 @@ func TestPathFallsBackToBareName(t *testing.T) {
 }
 
 func TestExtraDirsCoverHomebrewOnMacOS(t *testing.T) {
-	if runtime.GOOS != "darwin" {
-		t.Skip("macOS only")
-	}
+	t.Skip("macOS only")
 	want := map[string]bool{"/opt/homebrew/bin": false, "/usr/local/bin": false}
 	for _, dir := range ExtraDirs() {
 		if _, ok := want[dir]; ok {

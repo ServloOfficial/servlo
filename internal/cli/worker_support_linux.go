@@ -11,7 +11,7 @@ import "github.com/realrashid/servlo/internal/config"
 //
 // This is a package var (not a function) so tests can substitute it to
 // exercise the unsupported path without a darwin build. The macOS build
-// installs the real darwin variant in worker_support_darwin.go.
+// Linux has no platform variant to install.
 var workerSupportedOnPlatform = func(_ config.FrameworkWorker) (bool, string) {
 	return true, ""
 }

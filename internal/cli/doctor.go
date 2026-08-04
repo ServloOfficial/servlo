@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -22,7 +21,6 @@ import (
 	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	servloUpdate "github.com/realrashid/servlo/internal/update"
 	"github.com/realrashid/servlo/internal/version"
-	"github.com/realrashid/servlo/internal/wsl"
 	"github.com/spf13/cobra"
 )
 
@@ -276,38 +274,6 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		rep.fixLast(autoFix(fixMkdir, dataDir, "create the data directory"))
 	} else {
 		ok("data dir writable")
-	}
-
-	// ── WSL2 ─────────────────────────────────────────────────────────────────
-	// Only on WSL: the failure modes here (podman log driver, slow 9P bind
-	// mounts) don't exist on a native Linux or macOS host. `servlo wsl:setup`
-	// fixes the log driver.
-	if wsl.IsWSL() {
-		section = "WSL2"
-		fmt.Fprintln(w, "\n[WSL2]")
-
-		home, _ := os.UserHomeDir()
-		cc := filepath.Join(home, ".config", "containers", "containers.conf")
-		if b, readErr := os.ReadFile(cc); readErr == nil && wsl.HasEventsLoggerJournald(string(b)) {
-			ok("podman events_logger journald")
-		} else {
-			warn("podman events_logger journald", "log views fail with --follow on WSL, run servlo wsl:setup")
-			rep.fixLast(manualFixWith("run `servlo wsl:setup` (it needs sudo to write the podman config)"))
-		}
-
-		if reg, regErr := config.LoadSites(); regErr == nil {
-			var onMnt []string
-			for _, s := range reg.Sites {
-				if strings.HasPrefix(s.Path, "/mnt/") {
-					onMnt = append(onMnt, s.Name)
-				}
-			}
-			if len(onMnt) > 0 {
-				warn("project paths on the WSL fs", "slow 9P mounts for: "+strings.Join(onMnt, ", ")+", move them under $HOME")
-			} else {
-				ok("project paths on the WSL fs")
-			}
-		}
 	}
 
 	// ── Configuration ────────────────────────────────────────────────────────
@@ -613,7 +579,7 @@ func checkDirWritable(dir string) error {
 	return nil
 }
 
-// PortInUse is implemented per-platform in doctor_linux.go / doctor_darwin.go.
+// PortInUse is implemented in doctor_linux.go.
 //
 // PortInUseIn checks whether the given TCP port appears in pre-fetched output
 // from a port listing command (ss on Linux, lsof on macOS). Used by

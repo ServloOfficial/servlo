@@ -71,7 +71,7 @@ func Read(src Source, opts Opts) (Result, error) {
 	case KindPodman:
 		return readPodman(src, opts)
 	case KindJournal:
-		return readJournal(src, opts) // platform-specific (read_linux.go / read_darwin.go)
+		return readJournal(src, opts) // platform-specific (read_linux.go)
 	}
 	return Result{}, fmt.Errorf("unsupported log source kind %d", src.Kind)
 }

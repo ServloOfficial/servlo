@@ -3,7 +3,6 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 // DumpsTCPPort is the loopback port the dump receiver binds on darwin
@@ -276,17 +275,11 @@ func SpxDataDir() string {
 // host.containers.internal:7073 fallback). On Linux the unix socket is
 // reachable inside FPM via the %h:%h bind mount.
 func DumpsListenNetwork() string {
-	if runtime.GOOS == "darwin" {
-		return "tcp"
-	}
 	return "unix"
 }
 
 // DumpsListenAddr is the address paired with DumpsListenNetwork.
 func DumpsListenAddr() string {
-	if runtime.GOOS == "darwin" {
-		return "127.0.0.1:" + DumpsTCPPort
-	}
 	return DumpsSocketPath()
 }
 
@@ -296,9 +289,6 @@ func DumpsListenAddr() string {
 // the servlo-panel process on the host; on Linux the FPM container hits the
 // host unix socket directly via the %h:%h bind mount.
 func DumpsBridgeTarget() string {
-	if runtime.GOOS == "darwin" {
-		return "tcp://host.containers.internal:" + DumpsTCPPort
-	}
 	return "unix://" + DumpsSocketPath()
 }
 
@@ -446,17 +436,11 @@ func UISocketPath() string {
 // Mirrors the DumpsListenNetwork/Addr split. The port matches servlo-panel's fixed
 // listen port (internal/ui/server.go listenAddr).
 func UIClientNetwork() string {
-	if runtime.GOOS == "darwin" {
-		return "tcp"
-	}
 	return "unix"
 }
 
 // UIClientAddr is the address paired with UIClientNetwork.
 func UIClientAddr() string {
-	if runtime.GOOS == "darwin" {
-		return "127.0.0.1:7073"
-	}
 	return UISocketPath()
 }
 
@@ -506,9 +490,6 @@ func AccessFeedListenAddr() string {
 // bind-mounted unix socket on Linux, or host.containers.internal over gvproxy
 // UDP on macOS where nginx lives in the VM and the host socket isn't reachable.
 func AccessLogTarget() string {
-	if runtime.GOOS == "darwin" {
-		return "host.containers.internal:" + AccessFeedUDPPort
-	}
 	return "unix:" + AccessSocketPath()
 }
 

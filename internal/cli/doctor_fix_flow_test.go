@@ -62,8 +62,8 @@ func TestRunDoctorFixLeavesPrivilegedRepairsToTheUser(t *testing.T) {
 	rep := reportWith(
 		Finding{Name: "resolver hookup", Status: "fail",
 			Fix: manualFixWith("run `servlo dns:repair` (it needs sudo to rewrite the resolver config)")},
-		Finding{Name: "podman events_logger journald", Status: "warn",
-			Fix: manualFixWith("run `servlo wsl:setup` (it needs sudo to write the podman config)")},
+		Finding{Name: "linger enabled", Status: "warn",
+			Fix: manualFixWith("run `loginctl enable-linger $USER` (it needs sudo)")},
 	)
 	if err := runDoctorFix(&buf, rep, true, false); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -73,7 +73,7 @@ func TestRunDoctorFixLeavesPrivilegedRepairsToTheUser(t *testing.T) {
 	if !strings.Contains(out, "These need elevated privileges") {
 		t.Errorf("privileged repairs were not listed for the user: %q", out)
 	}
-	if !strings.Contains(out, "servlo dns:repair") || !strings.Contains(out, "servlo wsl:setup") {
+	if !strings.Contains(out, "servlo dns:repair") || !strings.Contains(out, "loginctl enable-linger") {
 		t.Errorf("guidance should name the exact command: %q", out)
 	}
 	if strings.Contains(out, "Applied 1 fix") || strings.Contains(out, "Applied 2 fix") {

@@ -3,13 +3,11 @@ package node
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/hostbin"
 )
 
 // SystemNodeBinDirs resolves the directories where an unmanaged node and npm
@@ -56,18 +54,11 @@ func SystemNodeBinDirsFor(version string) []string {
 	return pathDirs
 }
 
-// unitPathDirs are the prefixes the generated worker unit puts on PATH itself
-// while a daemon's own PATH omits them: on macOS launchd hands servlo-panel and
-// servlo-watcher /usr/bin:/bin:/usr/sbin:/sbin, so a Homebrew node is invisible to
-// them and a unit written by the dashboard resolved a different Node than the
-// same unit written by the CLI. Walking them with PATH keeps the answer equal on
-// both routes, and equal to what the unit runs. A var so tests can drive it.
-var unitPathDirs = func() []string {
-	if runtime.GOOS != "darwin" {
-		return nil
-	}
-	return hostbin.ExtraDirs()
-}
+// unitPathDirs are extra prefixes the generated worker unit puts on PATH that a
+// daemon's own PATH omits. That gap was a launchd behaviour; systemd user units
+// inherit the same PATH on both routes, so there is nothing extra to add. A var
+// so tests can drive it.
+var unitPathDirs = func() []string { return nil }
 
 // pathNodeBinDirs walks PATH for the first dirs holding node and npm, skipping
 // servlo's own bin dir so a stale managed-node shim never counts as a system

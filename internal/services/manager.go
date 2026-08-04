@@ -92,5 +92,5 @@ type ServiceManager interface {
 
 // Mgr is the package-level ServiceManager instance. It is initialised at
 // program start by the platform-specific init() in systemd_linux.go or
-// stub_darwin.go.
+// the platform stub.
 var Mgr ServiceManager

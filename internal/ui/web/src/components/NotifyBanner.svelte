@@ -2,17 +2,12 @@
   import {
     permissionState,
     dismissed,
-    notifyDelivery,
     enableNotifications,
     dismissNotifyBanner
   } from '$lib/notify';
   import { m } from '../paraglide/messages.js';
 
-  // The banner asks for browser notification permission, which is meaningless
-  // when the daemon is delivering natively, so it only shows on the browser sink.
-  const visible = $derived(
-    $permissionState === 'default' && !$dismissed && $notifyDelivery !== 'native'
-  );
+  const visible = $derived($permissionState === 'default' && !$dismissed);
 
   async function onEnable() {
     await enableNotifications();

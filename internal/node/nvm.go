@@ -6,11 +6,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/hostbin"
 )
 
 // nvmManager drives nvm-sh/nvm. Unlike fnm, nvm is not a binary: it is a bash
@@ -47,19 +45,11 @@ func nvmDir() string {
 
 func (nvmManager) Available() bool { return ScriptPresent() }
 
-// brewNvmScripts lists where a Homebrew nvm keeps nvm.sh: <prefix>/opt/nvm,
-// derived from the same prefixes everything else here resolves tools in. A var
-// so tests can point it at a fixture.
-var brewNvmScripts = func() []string {
-	if runtime.GOOS != "darwin" {
-		return nil
-	}
-	var out []string
-	for _, binDir := range hostbin.ExtraDirs() {
-		out = append(out, filepath.Join(filepath.Dir(binDir), "opt", "nvm", "nvm.sh"))
-	}
-	return out
-}
+// brewNvmScripts listed where a Homebrew nvm kept nvm.sh. Homebrew was a macOS
+// concern, so there is nothing to look for on the Linux host Servlo supports.
+// Kept as a var because the resolver below still calls it and tests point it at
+// a fixture.
+var brewNvmScripts = func() []string { return nil }
 
 // nvmScript resolves the nvm.sh to source. $NVM_DIR/nvm.sh is the script
 // install's layout and wins. Homebrew is the other common one: it keeps the

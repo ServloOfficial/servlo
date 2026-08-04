@@ -51,7 +51,7 @@ func TestApplyDoctorFixMkdirEmptyArg(t *testing.T) {
 // re-adding one to the auto tier fails here rather than silently letting
 // `doctor --fix --yes` and the MCP diag tool elevate unattended.
 func TestApplyDoctorFixRejectsPrivilegedKeys(t *testing.T) {
-	for _, key := range []string{fixDNSRepair, fixWSLSetup} {
+	for _, key := range []string{fixDNSRepair} {
 		var buf bytes.Buffer
 		if err := ApplyDoctorFix(&DoctorFix{Tier: FixAuto, Key: key}, &buf); err == nil {
 			t.Errorf("%q is dispatchable from the auto tier but it runs sudo", key)

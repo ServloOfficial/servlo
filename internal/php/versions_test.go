@@ -61,17 +61,9 @@ func TestQuadletExists_found(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
-	if runtime.GOOS == "darwin" {
-		// On macOS, services.Mgr checks ~/Library/LaunchAgents for plists.
-		t.Setenv("HOME", tmp)
-		dir := filepath.Join(tmp, "Library", "LaunchAgents")
-		os.MkdirAll(dir, 0755)
-		os.WriteFile(filepath.Join(dir, "servlo-php84-fpm.plist"), []byte("<plist/>"), 0644)
-	} else {
-		dir := filepath.Join(tmp, "containers", "systemd")
-		os.MkdirAll(dir, 0755)
-		os.WriteFile(filepath.Join(dir, "servlo-php84-fpm.container"), []byte("[Container]\n"), 0644)
-	}
+	dir := filepath.Join(tmp, "containers", "systemd")
+	os.MkdirAll(dir, 0755)
+	os.WriteFile(filepath.Join(dir, "servlo-php84-fpm.container"), []byte("[Container]\n"), 0644)
 
 	if !quadletExists("8.4") {
 		t.Error("expected quadletExists to return true")

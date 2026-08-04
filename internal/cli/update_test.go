@@ -594,3 +594,11 @@ func TestPrepUserUnitsForRollback_skipsMissingFiles(t *testing.T) {
 
 	prepUserUnitsForRollback("servlo-panel.service")
 }
+
+// Nix is a real install route and a /nix/store binary genuinely must not be
+// self-replaced, so it stays package-managed whatever the prefix looks like.
+func TestNixStaysPackageManaged(t *testing.T) {
+	if !isSystemPackageManaged("/nix/store/abc123-servlo-1.31.0/bin/servlo") {
+		t.Error("a /nix/store binary must stay package-managed")
+	}
+}

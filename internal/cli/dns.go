@@ -255,13 +255,11 @@ var (
 		s, _ := services.Mgr.UnitStatus("servlo-dns-forwarder")
 		return s
 	}
-	// servloDNSBindsLANPort is true on platforms where the main servlo-dns daemon
-	// binds lanIP:5300 itself (macOS host dnsmasq) instead of via the separate
-	// servlo-dns-forwarder (the Linux rootless-pasta workaround). On such
-	// platforms LAN exposure must NOT install the forwarder: it would
-	// double-bind lanIP:5300 and crash servlo-dns. Seam so both models are
-	// testable from any build host.
-	servloDNSBindsLANPort = runtime.GOOS == "darwin"
+	// servloDNSBindsLANPort is true where the main servlo-dns daemon binds
+	// lanIP:5300 itself instead of via the separate servlo-dns-forwarder (the
+	// Linux rootless-pasta workaround). Always false on Linux, so LAN exposure
+	// installs the forwarder. Kept as a seam so both models stay testable.
+	servloDNSBindsLANPort = false
 	// installLANForwarderFn installs and starts the host-side LAN DNS
 	// forwarder. Seam so the macOS skip can be asserted without touching real
 	// units.
@@ -349,8 +347,8 @@ func forwarderHolderFallbackHint(goos string, port int) string {
 // installDNSForwarderUnit writes the user service that runs the
 // `servlo dns-forwarder` daemon, listening on lanIP:5300 and forwarding to
 // 127.0.0.1:5300. Routes through services.Mgr so the unit content is
-// rendered as a systemd .service on Linux and a launchd plist on macOS
-// (see services/launchd_darwin.go::parseServiceUnit). Idempotent.
+// rendered as a systemd .service
+// Idempotent.
 func installDNSForwarderUnit(lanIP string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {

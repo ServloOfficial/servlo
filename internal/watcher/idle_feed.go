@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"os"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -275,9 +274,6 @@ func startAccessFeed() {
 // datagram socket on Linux (bind-mounted into the rootless nginx container), or
 // UDP on macOS where nginx is in the VM and the host socket isn't reachable.
 func accessFeedConn() (net.PacketConn, bool) {
-	if runtime.GOOS == "darwin" {
-		return listenUDP(config.AccessFeedListenAddr())
-	}
 	return listenDatagram(config.AccessSocketPath())
 }
 

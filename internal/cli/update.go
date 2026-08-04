@@ -34,9 +34,6 @@ func NewUpdateCmd(currentVersion string) *cobra.Command {
 		Short: "Update Servlo to the latest release",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if rollback {
-				if runtime.GOOS == "darwin" {
-					return fmt.Errorf("rollback is not supported on macOS — use 'brew switch servlo <version>' instead")
-				}
 				return runRollback()
 			}
 			return runUpdate(currentVersion, beta)
@@ -93,12 +90,6 @@ func runUpdate(currentVersion string, beta bool) error {
 	// A Homebrew-managed binary lives under a Cellar prefix; self-replacing it
 	// would fight `brew`, so defer to it. Curl-installed binaries (the default
 	// on macOS now) live in ~/.local/bin and self-update like Linux does below.
-	if runtime.GOOS == "darwin" {
-		if self, err := selfPath(); err == nil && isHomebrewManaged(self) {
-			fmt.Printf("\nThis is a Homebrew install. To update, run:\n\n  brew upgrade servlo\n\n")
-			return nil
-		}
-	}
 
 	// A deb/rpm install lives under /usr and is owned by the package manager;
 	// self-replacing it would fight apt/dnf, so defer to them.

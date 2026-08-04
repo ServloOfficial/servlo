@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -113,14 +112,6 @@ func BunPath() string {
 	}
 	// Homebrew installs bun outside the servlo-watcher daemon's restricted PATH
 	// on macOS; check the standard prefixes before giving up.
-	if runtime.GOOS == "darwin" {
-		for _, dir := range []string{"/opt/homebrew/bin", "/usr/local/bin"} {
-			p := filepath.Join(dir, "bun")
-			if info, err := os.Stat(p); err == nil && !info.IsDir() {
-				return p
-			}
-		}
-	}
 	return ""
 }
 

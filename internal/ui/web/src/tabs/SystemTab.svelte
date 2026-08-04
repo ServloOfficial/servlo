@@ -15,7 +15,7 @@
   import { servloStart, servloStop, servloStarting, servloStopping } from '$stores/servloLifecycle';
   import { workerExecMode, workerModeApplies, loadWorkerMode } from '$stores/workerMode';
   import { status as dumpsStatusValue, refreshStatus as refreshDumpsStatus } from '$stores/dumps';
-  import { notifyPrefs, permissionState, autoSubscribeDisabled, notifyDelivery } from '$lib/notify';
+  import { notifyPrefs, permissionState, autoSubscribeDisabled } from '$lib/notify';
   import { onMount } from 'svelte';
   import { m } from '../paraglide/messages.js';
 
@@ -25,11 +25,9 @@
   });
 
   const selected = $derived($routeRest || 'servlo');
-  // Native delivery is on whenever the sink is native; browser delivery needs a
-  // granted permission and an active subscription.
+  // Delivery needs a granted permission and an active subscription.
   const notifyEffectiveOn = $derived(
-    $notifyDelivery === 'native' ||
-      ($permissionState === 'granted' && !$autoSubscribeDisabled && $notifyPrefs.enabled)
+    $permissionState === 'granted' && !$autoSubscribeDisabled && $notifyPrefs.enabled
   );
 
   function select(id: string) {

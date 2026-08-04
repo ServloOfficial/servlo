@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -59,9 +58,6 @@ func handleOpenFolder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	opener := "xdg-open"
-	if runtime.GOOS == "darwin" {
-		opener = "open"
-	}
 	bin, err := exec.LookPath(opener)
 	if err != nil {
 		http.Error(w, "no file manager opener found", http.StatusInternalServerError)

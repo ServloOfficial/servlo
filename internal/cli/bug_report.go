@@ -156,11 +156,6 @@ func writeBugReportHeader(w io.Writer, anon *anonymizer) {
 			fmt.Fprintf(w, "Kernel:     %s\n", strings.TrimSpace(string(out)))
 		}
 	}
-	if runtime.GOOS == "darwin" {
-		if out, err := exec.Command("sw_vers", "-productVersion").Output(); err == nil {
-			fmt.Fprintf(w, "macOS:      %s\n", strings.TrimSpace(string(out)))
-		}
-	}
 }
 
 func section(w io.Writer, title string) {

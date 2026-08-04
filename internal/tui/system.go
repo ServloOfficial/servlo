@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"runtime"
 	"strings"
 	"time"
 
@@ -164,15 +163,6 @@ func (m *Model) systemRows() []systemRow {
 	}
 
 	// Worker mode (macOS only — on Linux every worker is exec-mode under systemd)
-	if runtime.GOOS == "darwin" {
-		header("Worker mode")
-		containerMode := cfg != nil && cfg.WorkerExecMode() == config.WorkerExecModeContainer
-		label := "Container mode (one container per worker)"
-		if !containerMode {
-			label = "Exec mode (shared FPM container)"
-		}
-		add(systemRow{kind: sysWorkerMode, label: label, on: containerMode})
-	}
 
 	// Servlo
 	header("Servlo")

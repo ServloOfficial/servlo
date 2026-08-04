@@ -33,46 +33,14 @@ jobs:
       - name: Build
         run: go build -o /dev/null ./cmd/servlo
 
+      - name: Build the server binary for both architectures
+        run: make build-server-all
+
       - name: Test
         run: go test ./...
 
       - name: Vet
         run: go vet ./...
-
-      - name: Format
-        run: test -z "$(gofmt -l .)"
-
-  build-macos:
-    name: Build & Test (macOS)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: internal/ui/web/package-lock.json
-
-      - name: Build UI
-        run: make build-ui
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Build
-        run: CGO_ENABLED=0 go build -o /dev/null ./cmd/servlo
-
-      - name: Test
-        run: CGO_ENABLED=0 go test ./...
-
-      - name: Vet
-        run: CGO_ENABLED=0 go vet ./...
 
       - name: Format
         run: test -z "$(gofmt -l .)"

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
-	"runtime"
 	"strings"
 	"time"
 
@@ -387,7 +386,6 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 			"services_enabled":   servicesEnabled,
 			"services_reachable": exposed && servicesEnabled,
 			"lan_ip":             lanIP,
-			"macos":              runtime.GOOS == "darwin",
 		})
 		return
 
