@@ -55,7 +55,6 @@ import (
 	servloUpdate "github.com/realrashid/servlo/internal/update"
 	"github.com/realrashid/servlo/internal/version"
 	"github.com/realrashid/servlo/internal/workerheal"
-	"github.com/realrashid/servlo/internal/xdebugops"
 )
 
 //go:embed icons/icon.svg
@@ -286,7 +285,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/workers/heal", withCORS(handleWorkersHeal))
 	mux.HandleFunc("/api/stats", withCORS(handleStats))
 	mux.HandleFunc("/api/disk", withCORS(handleDisk))
-	mux.HandleFunc("/api/xdebug/", withCORS(publishAfter(handleXdebugAction, eventbus.KindStatus)))
 	mux.HandleFunc("/api/servlo/start", withCORS(handleServloStart))
 	mux.HandleFunc("/api/servlo/stop", withCORS(handleServloStop))
 	mux.HandleFunc("/api/servlo/quit", withCORS(handleServloQuit))
@@ -632,12 +630,10 @@ type ServiceCheck struct {
 }
 
 type PHPStatus struct {
-	Version       string   `json:"version"`
-	Patch         string   `json:"patch,omitempty"`
-	Running       bool     `json:"running"`
-	XdebugEnabled bool     `json:"xdebug_enabled"`
-	XdebugMode    string   `json:"xdebug_mode,omitempty"`
-	Ports         []string `json:"ports,omitempty"`
+	Version string   `json:"version"`
+	Patch   string   `json:"patch,omitempty"`
+	Running bool     `json:"running"`
+	Ports   []string `json:"ports,omitempty"`
 	// UpdateAvailable is true when the prebuilt base this version's image was
 	// built from has been republished since, so a rebuild picks up whatever
 	// upstream shipped. Read from the digest cache, never from the network.
@@ -667,17 +663,15 @@ func buildStatus() StatusResponse {
 	for _, v := range versions {
 		short := strings.ReplaceAll(v, ".", "")
 		running := podman.Cache.Running("servlo-php" + short + "-fpm")
-		xdebugMode := ""
 		var ports []string
 		if cfg != nil {
-			xdebugMode = cfg.GetXdebugMode(v)
 			ports = cfg.PHP.FPMPorts[v]
 		}
 		baseStale := false
 		if base := podman.BaseImageFreshness(v); base != nil {
 			baseStale = base.Stale
 		}
-		phpStatuses = append(phpStatuses, PHPStatus{Version: v, Patch: podman.FPMPHPVersion(v), Running: running, XdebugEnabled: xdebugMode != "", XdebugMode: xdebugMode, Ports: ports, UpdateAvailable: baseStale})
+		phpStatuses = append(phpStatuses, PHPStatus{Version: v, Patch: podman.FPMPHPVersion(v), Running: running, Ports: ports, UpdateAvailable: baseStale})
 	}
 
 	phpDefault := ""
@@ -5277,49 +5271,6 @@ func appleScriptStr(s string) string {
 		quoted[i] = `"` + p + `"`
 	}
 	return strings.Join(quoted, " & quote & ")
-}
-
-func handleXdebugAction(w http.ResponseWriter, r *http.Request) {
-	// path: /api/xdebug/{version}/on[?mode=MODE] or /api/xdebug/{version}/off
-	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/xdebug/"), "/")
-	if len(parts) != 2 || r.Method != http.MethodPost {
-		http.NotFound(w, r)
-		return
-	}
-	version, action := parts[0], parts[1]
-	if !validVersion.MatchString(version) || (action != "on" && action != "off") {
-		http.NotFound(w, r)
-		return
-	}
-
-	applyMode := ""
-	applyStart := "yes"
-	if action == "on" {
-		applyMode = r.URL.Query().Get("mode")
-		if applyMode == "" {
-			applyMode = "debug"
-		}
-		// The dashboard doesn't expose on-demand (start_with_request=trigger), so
-		// preserve whatever the CLI last set instead of silently resetting a user's
-		// on-demand choice back to connect-on-every-request.
-		if cfg, err := config.LoadGlobal(); err == nil {
-			applyStart = cfg.GetXdebugStart(version)
-		}
-	}
-
-	res, err := xdebugops.ApplyWithStart(version, applyMode, applyStart)
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	if res.RestartErr != nil {
-		fmt.Printf("[WARN] restart %s: %v\n", xdebugops.FPMUnit(version), res.RestartErr)
-	}
-	// Per-site FrankenPHP and custom-FPM containers mount the same per-version
-	// 99-xdebug.ini, so the shared-FPM restart above doesn't reach them; restart
-	// them too or the toggle is a silent no-op on those sites.
-	podman.RestartSiteContainersForVersion(version)
-	writeJSON(w, map[string]any{"ok": true, "xdebug_enabled": res.Enabled, "xdebug_mode": res.Mode})
 }
 
 func handleWatcherStart(w http.ResponseWriter, r *http.Request) {

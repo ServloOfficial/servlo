@@ -35,195 +35,6 @@ func setupConfigHome(t *testing.T) {
 	execCommand = fakeExec("", "", 1)
 }
 
-// writeConfigYAML writes a global config.yaml with the given xdebug-enabled
-// state for a single PHP version, so EnsureXdebugIni picks up the right mode.
-func writeConfigYAML(t *testing.T, version string, xdebugOn bool) {
-	t.Helper()
-	cfgPath := config.GlobalConfigFile()
-	if err := os.MkdirAll(filepath.Dir(cfgPath), 0755); err != nil {
-		t.Fatalf("mkdir config dir: %v", err)
-	}
-	body := "php:\n  default_version: " + version + "\n"
-	if xdebugOn {
-		body += "  xdebug_enabled:\n    \"" + version + "\": true\n"
-	}
-	if err := os.WriteFile(cfgPath, []byte(body), 0644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-}
-
-// ── EnsureXdebugIni ──────────────────────────────────────────────────────────
-
-func TestEnsureXdebugIni_createsWhenMissing(t *testing.T) {
-	// First-install case: nothing on disk yet. EnsureXdebugIni must
-	// produce a regular file before WriteFPMQuadlet hands the path to
-	// podman as a bind-mount source — otherwise podman auto-creates a
-	// directory there and breaks every later WriteXdebugIni.
-	setupConfigHome(t)
-	writeConfigYAML(t, "8.4", false)
-
-	if err := EnsureXdebugIni("8.4"); err != nil {
-		t.Fatalf("EnsureXdebugIni: %v", err)
-	}
-	info, err := os.Stat(config.PHPConfFile("8.4"))
-	if err != nil {
-		t.Fatalf("file not created: %v", err)
-	}
-	if info.IsDir() {
-		t.Errorf("expected regular file, got directory")
-	}
-}
-
-func TestEnsureXdebugIni_noopWhenRegularFileExists(t *testing.T) {
-	// Regression guard: must not clobber a user-modified ini just because
-	// the FPM container was restarted. Anything we'd write would be
-	// "off" by default (since cfg.IsXdebugEnabled isn't toggled),
-	// silently disabling xdebug when the user had it on via direct edit.
-	setupConfigHome(t)
-	writeConfigYAML(t, "8.4", false)
-
-	path := config.PHPConfFile("8.4")
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		t.Fatal(err)
-	}
-	custom := []byte("custom user content\n")
-	if err := os.WriteFile(path, custom, 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := EnsureXdebugIni("8.4"); err != nil {
-		t.Fatalf("EnsureXdebugIni: %v", err)
-	}
-	got, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != string(custom) {
-		t.Errorf("file was rewritten, want preserved\ngot: %s\nwant: %s", got, custom)
-	}
-}
-
-func TestEnsureXdebugIni_healsStaleDirectory(t *testing.T) {
-	// The bug commit 636bb6e fixes: podman bind-mounted a missing source
-	// path and auto-created it as a directory. EnsureXdebugIni must
-	// recognise the directory, remove it, and write the real file.
-	setupConfigHome(t)
-	writeConfigYAML(t, "8.4", true)
-
-	path := config.PHPConfFile("8.4")
-	if err := os.MkdirAll(path, 0755); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := EnsureXdebugIni("8.4"); err != nil {
-		t.Fatalf("EnsureXdebugIni: %v", err)
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("path missing after heal: %v", err)
-	}
-	if info.IsDir() {
-		t.Errorf("path is still a directory, heal failed")
-	}
-	body, _ := os.ReadFile(path)
-	// xdebug.mode=debug confirms it picked up the cfg.IsXdebugEnabled=true.
-	if !strings.Contains(string(body), "xdebug.mode=debug") {
-		t.Errorf("expected xdebug.mode=debug from config, got:\n%s", body)
-	}
-}
-
-// ── WriteXdebugIni ───────────────────────────────────────────────────────────
-
-func TestWriteXdebugIni_healsStaleDirectoryDirectly(t *testing.T) {
-	// Even when called directly (servlo xdebug on/off after a broken
-	// install), WriteXdebugIni must heal a stale directory rather than
-	// fail with "is a directory" — otherwise users who hit the original
-	// bug have no recovery path short of manually rmdir'ing the file.
-	setupConfigHome(t)
-
-	path := config.PHPConfFile("8.4")
-	if err := os.MkdirAll(path, 0755); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := WriteXdebugIni("8.4", "debug", "yes"); err != nil {
-		t.Fatalf("WriteXdebugIni: %v", err)
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("path missing: %v", err)
-	}
-	if info.IsDir() {
-		t.Errorf("path still a directory after WriteXdebugIni")
-	}
-	body, _ := os.ReadFile(path)
-	if !strings.Contains(string(body), "xdebug.mode=debug") {
-		t.Errorf("expected xdebug.mode=debug, got:\n%s", body)
-	}
-}
-
-func TestWriteXdebugIni_writesRequestedMode(t *testing.T) {
-	// Users enabling coverage or a combo mode need the ini to reflect
-	// exactly what they asked for, not the hardcoded "debug" that the
-	// legacy bool signature produced.
-	setupConfigHome(t)
-
-	cases := []struct {
-		in   string
-		want string
-	}{
-		{"coverage", "xdebug.mode=coverage"},
-		{"debug,coverage", "xdebug.mode=debug,coverage"},
-		{"", "xdebug.mode=off"},
-	}
-	for _, c := range cases {
-		if err := WriteXdebugIni("8.4", c.in, "yes"); err != nil {
-			t.Fatalf("WriteXdebugIni(%q): %v", c.in, err)
-		}
-		body, _ := os.ReadFile(config.PHPConfFile("8.4"))
-		if !strings.Contains(string(body), c.want) {
-			t.Errorf("WriteXdebugIni(%q): missing %q in:\n%s", c.in, c.want, body)
-		}
-	}
-}
-
-// ── NormaliseXdebugMode ──────────────────────────────────────────────────────
-
-func TestNormaliseXdebugMode(t *testing.T) {
-	cases := []struct {
-		in      string
-		want    string
-		wantErr bool
-	}{
-		{"", "debug", false},
-		{"debug", "debug", false},
-		{"coverage", "coverage", false},
-		{"  debug , coverage ", "debug,coverage", false},
-		{"debug,debug", "debug", false},
-		{"off", "off", false},
-		{"nonsense", "", true},
-		{"debug,off", "", true},
-	}
-	for _, c := range cases {
-		got, err := NormaliseXdebugMode(c.in)
-		if c.wantErr {
-			if err == nil {
-				t.Errorf("NormaliseXdebugMode(%q): expected error, got %q", c.in, got)
-			}
-			continue
-		}
-		if err != nil {
-			t.Errorf("NormaliseXdebugMode(%q): unexpected error: %v", c.in, err)
-			continue
-		}
-		if got != c.want {
-			t.Errorf("NormaliseXdebugMode(%q) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}
-
-// ── EnsureUserIni (same race surface as EnsureXdebugIni) ─────────────────────
-
 func TestEnsureUserIni_createsWhenMissing(t *testing.T) {
 	setupConfigHome(t)
 	if err := EnsureUserIni("8.4"); err != nil {
@@ -342,7 +153,7 @@ func TestEnsureFPMHostsFile_noopWhenRegularFileExists(t *testing.T) {
 	// link/unlink/start, but the FPM-quadlet pre-create must NOT
 	// rewrite it. Otherwise it would race with the watcher's reprobe
 	// (which writes a verified host IP) and replace it with the
-	// fallback header, breaking Xdebug temporarily.
+	// fallback header.
 	setupConfigHome(t)
 	hostsPath := config.ContainerHostsFile()
 	if err := os.MkdirAll(filepath.Dir(hostsPath), 0755); err != nil {
@@ -365,8 +176,7 @@ func TestEnsureFPMHostsFile_noopWhenRegularFileExists(t *testing.T) {
 func TestEnsureFPMHostsFile_fillsInServicePreCreatedFile(t *testing.T) {
 	// EnsureServiceHostsFile writes a minimal file so a service quadlet's mount
 	// source exists, and it deliberately stays podman-free, so it has no host
-	// gateway line. The FPM path must not mistake that for a finished file:
-	// without the gateway entry Xdebug times out invisibly.
+	// gateway line. The FPM path must not mistake that for a finished file.
 	setupConfigHome(t)
 	hostsPath := config.ContainerHostsFile()
 	if err := EnsureServiceHostsFile(false); err != nil {
@@ -383,10 +193,9 @@ func TestEnsureFPMHostsFile_fillsInServicePreCreatedFile(t *testing.T) {
 }
 
 func TestEnsureFPMHostsFile_healsStaleDirectory(t *testing.T) {
-	// Same race surface as the xdebug ini fix: podman left a directory
-	// at the bind-mount source. ensureFPMHostsFile must remove it
-	// before writing the real file or the next FPM start fails the
-	// same way (and Xdebug continues to time out invisibly).
+	// A podman-auto-created directory sits at the bind-mount source.
+	// ensureFPMHostsFile must remove it before writing the real file or
+	// the next FPM start fails the same way.
 	setupConfigHome(t)
 	hostsPath := config.ContainerHostsFile()
 	if err := os.MkdirAll(hostsPath, 0755); err != nil {
@@ -406,12 +215,12 @@ func TestEnsureFPMHostsFile_healsStaleDirectory(t *testing.T) {
 }
 
 func TestEnsureUserIni_healsStaleDirectory(t *testing.T) {
-	// Same race as the original xdebug bug, on the user-ini bind-mount
+	// Same race, on the user-ini bind-mount
 	// declared in servlo-php-fpm.container.tmpl. EnsureUserIni currently
 	// only checks whether the path exists, not whether it's a regular
 	// file, so a podman-auto-created directory passes the check and the
 	// real ini is never written. This test fails until EnsureUserIni
-	// learns the same heal-stale-directory dance as EnsureXdebugIni.
+	// learns to heal a stale directory.
 	setupConfigHome(t)
 	path := config.PHPUserIniFile("8.4")
 	if err := os.MkdirAll(path, 0755); err != nil {

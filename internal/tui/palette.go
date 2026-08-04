@@ -118,8 +118,6 @@ var paletteCommands = []string{
 	"workers mode",
 	"worktree add",
 	"worktree remove",
-	"xdebug on",
-	"xdebug off",
 }
 
 // openPalette switches to palette-input mode. We don't pin focus to a

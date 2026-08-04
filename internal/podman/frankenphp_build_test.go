@@ -12,7 +12,7 @@ import (
 // docker-php-ext-install list from the FPM Containerfile and asserts each entry
 // is either baked into the FrankenPHP image (frankenPHPRuntimeExtensions) or is
 // a base-image builtin the dunglas image already provides. dev-only tooling
-// (xdebug/pcov) is handled separately and excluded.
+// (pcov) is handled separately and excluded.
 func TestFrankenPHPRuntimeExtensionParity(t *testing.T) {
 	cf, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 	if err != nil {
@@ -145,8 +145,8 @@ func TestRenderFrankenPHPContainerfile(t *testing.T) {
 	}
 	for _, want := range []string{
 		"install-php-extensions", "redis", "gd", "pdo_mysql", "intl", "myext",
-		// dev-tooling baked into the image (xdebug + the compiled servlo_devtools)
-		"xdebug", "servlo_devtools",
+		// dev-tooling baked into the image (the compiled servlo_devtools)
+		"servlo_devtools",
 	} {
 		if !strings.Contains(cf, want) {
 			t.Errorf("rendered Containerfile missing %q", want)
@@ -227,7 +227,7 @@ func TestFrankenPHPContainerfileHashTracksConfig(t *testing.T) {
 }
 
 // TestSplitFrankenPHPExtensions checks the core set installs reliably while the
-// PECL-built runtime extensions, custom extensions, and xdebug are routed to the
+// PECL-built runtime extensions and custom extensions are routed to the
 // tolerant optional set so one failure can't brick the image.
 func TestSplitFrankenPHPExtensions(t *testing.T) {
 	exts := append(append([]string{}, frankenPHPRuntimeExtensions...), "myext")
@@ -246,23 +246,10 @@ func TestSplitFrankenPHPExtensions(t *testing.T) {
 			t.Errorf("%q should be a core extension", reliable)
 		}
 	}
-	for _, flaky := range []string{"redis", "igbinary", "imagick", "mongodb", "myext", "xdebug"} {
+	for _, flaky := range []string{"redis", "igbinary", "imagick", "mongodb", "myext"} {
 		if !in(optional, flaky) || in(core, flaky) {
 			t.Errorf("%q should be an optional (tolerant) extension", flaky)
 		}
-	}
-
-	// xdebug is always baked, but a user who added it as a custom extension must
-	// not get it installed twice.
-	_, optional = splitFrankenPHPExtensions([]string{"xdebug"})
-	xcount := 0
-	for _, e := range optional {
-		if e == "xdebug" {
-			xcount++
-		}
-	}
-	if xcount != 1 {
-		t.Errorf("xdebug should appear exactly once, got %d in %v", xcount, optional)
 	}
 }
 

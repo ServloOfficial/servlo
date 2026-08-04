@@ -61,14 +61,13 @@ func GenerateFrankenPHPQuadlet(siteName, projectPath, phpVersion string, entrypo
 	fmt.Fprintf(&b, "Volume=%s:%s:rw\n", projectPath, projectPath)
 	// Debug tooling: bind-mount the same conf.d inis, bridge assets, and runtime
 	// socket dir the FPM container gets, so dump()/dd(), the Debug window
-	// (servlo_devtools), and Xdebug work for requests Octane serves from this
+	// (servlo_devtools) work for requests Octane serves from this
 	// container too. The baked extensions stay inert until these inis/sentinels
 	// arm them. RunDir carries the unix socket the bridges ship to; it must appear
 	// at its host path, matching the dump_host ini value.
 	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/servlo:ro\n", config.DumpsAssetsDir())
 	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/97-servlo-dump.ini:ro\n", config.DumpsIniFile())
 	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/96-servlo-devtools.ini:ro\n", config.DevtoolsIniFile())
-	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/99-xdebug.ini:ro\n", config.PHPConfFile(phpVersion))
 	// Per-site user php.ini override, edited from the site's config modal. Scoped
 	// to this site (not the shared per-version file), since a FrankenPHP site runs
 	// its own container.
@@ -100,7 +99,7 @@ func GenerateFrankenPHPQuadlet(siteName, projectPath, phpVersion string, entrypo
 
 // RestartSiteContainersForVersion restarts every per-site PHP container on the
 // given PHP version — custom-FPM and FrankenPHP — so a per-version ini change
-// (php.ini, xdebug) reaches them too. Paused/ignored sites are skipped; the
+// (php.ini) reaches them too. Paused/ignored sites are skipped; the
 // shared FPM container is restarted separately by the caller.
 func RestartSiteContainersForVersion(version string) {
 	reg, err := config.LoadSites()
@@ -114,11 +113,11 @@ func RestartSiteContainersForVersion(version string) {
 		switch {
 		case s.IsCustomFPM():
 			if err := RestartUnit(CustomFPMContainerName(s.Name)); err != nil {
-				fmt.Printf("[WARN] restarting %s for xdebug: %v\n", CustomFPMContainerName(s.Name), err)
+				fmt.Printf("[WARN] restarting %s: %v\n", CustomFPMContainerName(s.Name), err)
 			}
 		case s.IsFrankenPHP():
 			if err := RestartUnit(FrankenPHPContainerName(s.Name)); err != nil {
-				fmt.Printf("[WARN] restarting %s for xdebug: %v\n", FrankenPHPContainerName(s.Name), err)
+				fmt.Printf("[WARN] restarting %s: %v\n", FrankenPHPContainerName(s.Name), err)
 			}
 		}
 	}
@@ -140,7 +139,6 @@ func WriteFrankenPHPQuadlet(siteName, projectPath, phpVersion string, entrypoint
 func WriteFrankenPHPQuadletDiff(siteName, projectPath, phpVersion string, entrypoint []string, env map[string]string) (bool, error) {
 	_ = EnsureSitePHPUserIni(siteName)
 	_ = EnsureSharedIni()
-	_ = EnsureXdebugIni(phpVersion)
 	_ = EnsureDumpAssets()
 	_ = EnsureDevtoolsAssets()
 	content, err := GenerateFrankenPHPQuadlet(siteName, projectPath, phpVersion, entrypoint, env)

@@ -9,8 +9,6 @@ export interface PHPStatus {
   // back to the minor `version` until the probe lands.
   patch?: string;
   running: boolean;
-  xdebug_enabled: boolean;
-  xdebug_mode?: string;
   ports?: string[];
   // True when the prebuilt base this image was built from has been republished
   // upstream, so a rebuild would bring in a newer PHP/Alpine.

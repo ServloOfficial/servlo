@@ -156,7 +156,6 @@ func SetSitePHPVersion(site *config.Site, version string, opts PHPVersionOpts) (
 	if err := podman.WriteFPMQuadlet(version); err == nil {
 		_ = podman.DaemonReloadFn()
 	}
-	_ = podman.EnsureXdebugIni(version) // non-fatal if the version isn't built yet
 
 	if err := regenerateSiteVhost(site, version); err != nil {
 		return res, err
@@ -254,7 +253,6 @@ func setWorktreePHPVersion(site *config.Site, branch, version string) error {
 		if err := podman.WriteFPMQuadlet(version); err == nil {
 			_ = podman.DaemonReloadFn()
 		}
-		_ = podman.EnsureXdebugIni(version)
 		if site.Secured {
 			err = nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, version, site.PrimaryDomain(), site.Name, wt.Branch)
 		} else {

@@ -45,9 +45,9 @@ func TestImageReportsAdvertisedExtensions(t *testing.T) {
 // prints display names, so PDO, SimpleXML and above all "Zend OPcache" have to
 // fold onto install names before anything is compared.
 func TestPHPModulesFoldsDisplayNames(t *testing.T) {
-	out := "[PHP Modules]\nCore\nPDO\nSimpleXML\nZend OPcache\nxdebug\n\n[Zend Modules]\nXdebug\nZend OPcache\n"
+	out := "[PHP Modules]\nCore\nPDO\nSimpleXML\nZend OPcache\nredis\n\n[Zend Modules]\nZend OPcache\n"
 	modules := phpModules(out)
-	for _, want := range []string{"pdo", "simplexml", "opcache", "xdebug"} {
+	for _, want := range []string{"pdo", "simplexml", "opcache", "redis"} {
 		if !modules[want] {
 			t.Errorf("phpModules did not fold %q out of %q", want, out)
 		}

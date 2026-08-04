@@ -52,10 +52,9 @@ func TestGenerateFrankenPHPQuadlet(t *testing.T) {
 		"Exec=php artisan octane:start --server=frankenphp",
 		"Restart=always",
 		// Debug tooling parity: the same conf.d inis and bridge dir the FPM
-		// container mounts (dump bridge, devtools, xdebug).
+		// container mounts (dump bridge, devtools).
 		"/usr/local/etc/php/conf.d/97-servlo-dump.ini:ro",
 		"/usr/local/etc/php/conf.d/96-servlo-devtools.ini:ro",
-		"/usr/local/etc/php/conf.d/99-xdebug.ini:ro",
 		"/usr/local/etc/php/conf.d/98-servlo-user.ini:ro",
 		"/usr/local/etc/php/conf.d/95-servlo-shared.ini:ro",
 		":/usr/local/etc/servlo:ro",

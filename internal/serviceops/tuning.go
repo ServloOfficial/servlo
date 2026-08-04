@@ -348,8 +348,7 @@ func readTuningContent(name string) (string, bool) {
 // Volume= mount is present on installs predating the feature, and
 // restarting the unit so it re-reads the config. Shared by the
 // `servlo service config` CLI command and the
-// `/api/services/{name}/config` HTTP handler; matches the pattern of
-// xdebugops.Apply.
+// `/api/services/{name}/config` HTTP handler.
 //
 // When backup is true and a previous version of the file exists, a
 // timestamped copy lands in ServiceTuningBkpDir() BEFORE the new bytes

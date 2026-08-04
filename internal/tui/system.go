@@ -28,7 +28,6 @@ const (
 	sysLANExpose
 	sysLANServices
 	sysWorkerMode
-	sysXdebug
 )
 
 // systemRow is one line in the System detail view. value is shown dimmed on
@@ -120,17 +119,6 @@ func (m *Model) systemRows() []systemRow {
 			state += " · default"
 		}
 		info("PHP "+v, state)
-		on := cfg != nil && cfg.IsXdebugEnabled(v)
-		mode := ""
-		if cfg != nil {
-			mode = cfg.GetXdebugMode(v)
-		}
-		label := "Xdebug · PHP " + v
-		if on && mode != "" {
-			label += " (" + mode + ")"
-		}
-		add(systemRow{kind: sysXdebug, label: label, on: on, arg: v})
-
 		// What this version's image carries of the custom extension/package
 		// set. Omitted entirely when nothing is declared, so the row only
 		// appears for the users it means something to.
@@ -257,13 +245,6 @@ func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 		}
 		m.setStatus("switching worker mode to "+target+"…", 5*time.Second)
 		return runServlo("", "workers", "mode", target)
-	case sysXdebug:
-		verb := "on"
-		if row.on {
-			verb = "off"
-		}
-		m.setStatus("xdebug "+verb+" PHP "+row.arg+"…", 5*time.Second)
-		return runServlo("", "xdebug", verb, row.arg)
 	}
 	return nil
 }

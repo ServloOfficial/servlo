@@ -61,7 +61,7 @@ func TestPHPExtensionLoaded_canonicalisesDisplayNames(t *testing.T) {
 			t.Errorf("phpExtensionLoaded(%q) = false, want true", ext)
 		}
 	}
-	for _, ext := range []string{"imagick", "", "xdebug"} {
+	for _, ext := range []string{"imagick", "", "redis"} {
 		if phpExtensionLoaded(modules, ext) {
 			t.Errorf("phpExtensionLoaded(%q) = true, want false", ext)
 		}

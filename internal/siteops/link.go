@@ -164,7 +164,6 @@ func FinishSiteOnly(site config.Site, phpVersion string) error {
 		}
 	}
 
-	_ = podman.EnsureXdebugIni(phpVersion)
 	_ = podman.WriteFPMQuadlet(phpVersion)
 	return nil
 }

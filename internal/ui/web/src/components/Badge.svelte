@@ -5,8 +5,6 @@
     | 'paused'
     | 'framework'
     | 'frankenphp'
-    | 'xdebug-on'
-    | 'xdebug-off'
     | 'neutral'
     | 'branch';
 </script>
@@ -30,10 +28,6 @@
     framework: 'text-servlo-red bg-red-50 dark:bg-red-900/20',
     frankenphp:
       'text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/30',
-    'xdebug-on':
-      'text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-500/40 hover:bg-purple-100 dark:hover:bg-purple-900/40',
-    'xdebug-off':
-      'text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-servlo-border hover:bg-gray-100 dark:hover:bg-white/10',
     neutral:
       'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-servlo-border',
     branch: 'text-violet-500 dark:text-violet-400'
@@ -45,8 +39,6 @@
     paused: 'bg-amber-500',
     framework: 'bg-servlo-red',
     frankenphp: 'bg-orange-500',
-    'xdebug-on': 'bg-purple-500',
-    'xdebug-off': 'bg-gray-400 dark:bg-gray-600',
     neutral: 'bg-gray-400',
     branch: 'bg-violet-500'
   };
