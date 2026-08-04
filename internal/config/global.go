@@ -108,24 +108,6 @@ type GlobalConfig struct {
 		// $NVM_DIR. Empty means fall back to $NVM_DIR or ~/.nvm.
 		NvmDir string `yaml:"nvm_dir,omitempty" mapstructure:"nvm_dir"`
 	} `yaml:"node" mapstructure:"node"`
-	Share struct {
-		// DefaultTool is the tunnel tool "servlo share" uses when no flag is
-		// given: ngrok | cloudflare | expose | serveo | localhost-run.
-		// Empty = auto-detect. Set via "servlo share:tool".
-		DefaultTool string `yaml:"default_tool,omitempty" mapstructure:"default_tool"`
-		// BaseDomain is a Cloudflare-managed domain a share is served under:
-		// servlo routes "<site>.<base domain>" to a named tunnel instead of
-		// handing out a random trycloudflare.com URL.
-		BaseDomain string `yaml:"base_domain,omitempty" mapstructure:"base_domain"`
-		// BaseDomainAnswered records that the base-domain question has an
-		// answer worth reusing, so the dashboard stops asking. Answered with
-		// an empty BaseDomain means "always use a quick tunnel".
-		BaseDomainAnswered bool `yaml:"base_domain_answered,omitempty" mapstructure:"base_domain_answered"`
-		// NgrokToken authenticates ngrok. A container carries none of the
-		// host's ngrok configuration, so the published image needs this to
-		// run at all. Set via "servlo share:token".
-		NgrokToken string `yaml:"ngrok_token,omitempty" mapstructure:"ngrok_token"`
-	} `yaml:"share,omitempty" mapstructure:"share"`
 	Nginx struct {
 		HTTPPort  int `yaml:"http_port"  mapstructure:"http_port"`
 		HTTPSPort int `yaml:"https_port" mapstructure:"https_port"`
@@ -251,18 +233,6 @@ type GlobalConfig struct {
 		// never runs unconfirmed.
 		SkipConfirmation bool `yaml:"skip_confirmation,omitempty" mapstructure:"skip_confirmation"`
 	} `yaml:"host_commands,omitempty" mapstructure:"host_commands"`
-	IdleSuspend struct {
-		// Enabled turns on activity-driven worker suspension: when a site sees
-		// no activity for Timeout, its suspendable workers (queue, horizon, ...)
-		// are gracefully stopped and resumed on the next request. Off by default
-		// so a quiet dev box reclaims worker memory only once the user opts in.
-		// Idle-suspend is a single global policy, not configured per site.
-		Enabled bool `yaml:"enabled,omitempty" mapstructure:"enabled"`
-		// Timeout is how long a site must be idle before its workers suspend, as
-		// a Go duration string ("30m"). Empty or unparseable falls back to
-		// DefaultIdleSuspendTimeout; read it via IdleSuspendTimeout.
-		Timeout string `yaml:"timeout,omitempty" mapstructure:"timeout"`
-	} `yaml:"idle_suspend,omitempty" mapstructure:"idle_suspend"`
 	// AutoCleanup lets the watcher periodically reclaim orphaned servlo images
 	// (safe tier only, never service images). On by default; set false to turn
 	// off the daily sweep. Read it via AutoCleanupEnabled for nil-safety.
@@ -287,21 +257,6 @@ type GlobalConfig struct {
 // reclaims orphaned images on its own.
 func (c *GlobalConfig) AutoCleanupEnabled() bool {
 	return c == nil || c.AutoCleanup
-}
-
-// DefaultIdleSuspendTimeout is how long a site stays idle before its
-// suspendable workers are stopped, when no explicit timeout is configured.
-const DefaultIdleSuspendTimeout = 30 * time.Minute
-
-// IdleSuspendTimeout returns the effective global idle timeout, falling back to
-// DefaultIdleSuspendTimeout when unset, unparseable, or non-positive.
-func (c *GlobalConfig) IdleSuspendTimeout() time.Duration {
-	if c.IdleSuspend.Timeout != "" {
-		if d, err := time.ParseDuration(c.IdleSuspend.Timeout); err == nil && d > 0 {
-			return d
-		}
-	}
-	return DefaultIdleSuspendTimeout
 }
 
 // DefaultRequestTimeout is nginx's built-in fastcgi/proxy read-timeout default

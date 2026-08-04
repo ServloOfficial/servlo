@@ -91,10 +91,6 @@ func PauseSite(name string) error {
 		_ = podman.DaemonReloadFn()
 	}
 
-	// Release the LAN share port while paused. The site's stored LANPort is
-	// preserved so unpause restores the same address.
-	LANShareStopServer(site.Name)
-
 	if err := writePausedHTML(site); err != nil {
 		return fmt.Errorf("writing paused page: %w", err)
 	}
@@ -318,12 +314,6 @@ func UnpauseSite(name string) error {
 		return fmt.Errorf("updating registry: %w", err)
 	}
 
-	if site.LANPort != 0 {
-		if _, err := LANShareStart(site.Name); err != nil {
-			feedback.Warn("restoring LAN share: %v", err)
-		}
-	}
-
 	// The shared paused.html is left in place for other paused sites.
 
 	feedback.Start("resuming " + name).OK(feedback.Val(site.PrimaryDomain()))
@@ -507,12 +497,11 @@ func stopWorkerByName(site *config.Site, workerName string) {
 }
 
 // resumeWorkerByName restarts a single named worker for the site. It gates on
-// idleWorkerResumable so the set of workers it can bring back is identical to the
-// set idle-suspend is allowed to stop — keeping the two in lockstep means a
-// worker can never be suspended-but-unresumable (stranded). A new resumable
-// worker kind must be taught to idleWorkerResumable or this gate blocks it.
+// workerResumable so a worker can never be paused-but-unresumable (stranded).
+// A new resumable worker kind must be taught to workerResumable or this gate
+// blocks it.
 func resumeWorkerByName(site *config.Site, workerName, phpVersion string) {
-	if !idleWorkerResumable(site, workerName) {
+	if !workerResumable(site, workerName) {
 		return
 	}
 	if workerName == "stripe" {
@@ -664,82 +653,6 @@ func writePausedHTML(_ *config.Site) error {
 	return os.WriteFile(filepath.Join(dir, "paused.html"), []byte(pausedPageHTML), 0644)
 }
 
-// wakingPageHTML is the static landing page served while an idle-suspended
-// host-proxy site's dev server is starting back up. Unlike the paused page it
-// has no Resume button: the request that loaded it already drove idle-resume, so
-// it just auto-refreshes (native meta refresh) until the proxy vhost is restored
-// and the reload lands on the live app.
-const wakingPageHTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="3">
-  <title>Waking up</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body {
-      background: #0f1117;
-      color: #e5e7eb;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-    }
-    .card {
-      background: #1a1d27;
-      border: 1px solid #2d3142;
-      border-radius: 14px;
-      padding: 2.5rem 3rem;
-      max-width: 420px;
-      width: calc(100% - 2rem);
-      text-align: center;
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      margin: 0 auto 1.25rem;
-      border: 3px solid #2d3142;
-      border-top-color: #FF2D20;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    h1 { font-size: 1.2rem; font-weight: 600; margin: 0 0 0.5rem; }
-    .host {
-      font-size: 0.85rem;
-      color: #FF2D20;
-      font-family: ui-monospace, 'Cascadia Code', monospace;
-      margin: 0 0 1rem;
-      word-break: break-all;
-    }
-    p { font-size: 0.85rem; color: #9ca3af; margin: 0; line-height: 1.5; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="spinner"></div>
-    <h1>Waking the dev server</h1>
-    <p class="host" id="host"></p>
-    <p>This site was idle and is starting back up. This page refreshes automatically.</p>
-  </div>
-  <script>document.getElementById('host').textContent = location.hostname;</script>
-</body>
-</html>
-`
-
-// writeWakingHTML ensures the shared idle-waking landing page exists in the same
-// directory as the paused page.
-func writeWakingHTML(_ *config.Site) error {
-	dir := config.PausedDir()
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(dir, "waking.html"), []byte(wakingPageHTML), 0644)
-}
-
 // pauseWorktrees generates paused HTML and nginx vhosts for every worktree of
 // a site that is being paused. The resume button on each worktree page unpauses
 // the parent site (which restores all worktree vhosts as well).
@@ -819,4 +732,34 @@ func restartWorktreeWorkers(site *config.Site, phpVersion string) {
 // writePausedWorktreeHTML ensures the shared paused landing page exists (same file).
 func writePausedWorktreeHTML(_ gitpkg.Worktree, parent *config.Site) error {
 	return writePausedHTML(parent)
+}
+
+// workerResumable reports whether resumeWorkerByName knows how to bring the
+// named worker back, so pause never stops one it cannot restart.
+func workerResumable(site *config.Site, workerName string) bool {
+	switch workerName {
+	case "stripe":
+		return true
+	case hostProxyWorkerName:
+		// resumeWorkerByName only restarts the host-proxy worker when the project
+		// still declares a proxy command; without this guard a site whose proxy
+		// block was removed would be paused but never resumed.
+		proj, _ := config.LoadProjectConfig(site.Path)
+		return proj != nil && proj.Proxy != nil
+	}
+	fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
+	if !ok || fw.Workers == nil {
+		return false
+	}
+	_, ok = fw.Workers[workerName]
+	return ok
+}
+
+func containsString(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }

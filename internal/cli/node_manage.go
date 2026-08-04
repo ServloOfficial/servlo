@@ -300,14 +300,6 @@ func RegenerateHostWorkersForSite(s config.Site) {
 		if !wDef.Host {
 			continue
 		}
-		// Don't resurrect a host worker the idle engine has suspended. Restarting
-		// it here also runs ClearIdleSuspendOnStart, dropping it from the suspended
-		// list, so the engine can no longer see it running and it stays up forever
-		// on an idle site. The worktree path below already filters via
-		// worktreeWorkersToStart; this is the main-site equivalent.
-		if containsString(s.IdleSuspendedWorkers, w) {
-			continue
-		}
 		regenerateWorkerUnit(s.Name, s.Path, phpVersion, w, wDef, "servlo-"+w+"-"+s.Name)
 	}
 	// A site's git worktrees run their own per-worktree host workers (e.g. Vite)
@@ -330,7 +322,7 @@ func regenerateWorktreeHostWorkers(site *config.Site, fw *config.Framework, phpV
 			continue // the main checkout, handled by the caller
 		}
 		wtBase := config.WorktreeUnitSlug(filepath.Base(wt.Path))
-		names := worktreeWorkersToStart(site, wtBase, OptedInHostWorkers(site, wt.Path))
+		names := OptedInHostWorkers(site, wt.Path)
 		for _, name := range names {
 			wDef, ok := fw.Workers[name]
 			if !ok {
@@ -371,7 +363,7 @@ func regenerateWorkerUnit(siteName, sitePath, phpVersion, workerName string, wDe
 	// not .service files, so both reads come back empty): announce under the
 	// host-workers header, then do a full platform-correct (re)start.
 	// WorkerStartForSite owns the macOS launchd lifecycle, clears stale
-	// idle-suspend state, and regenerates the proxy vhost; the reload+restart
+	// state, and regenerates the proxy vhost; the reload+restart
 	// afterward bounces a running Linux worker onto the new ExecStart, which
 	// StartUnit alone would not.
 	if hostWorkerHeader != nil {

@@ -80,7 +80,7 @@ func rootsToWalk(targets []SourceTarget, walked map[string]bool, resync bool) []
 // descended, so the watch set stays small, which also keeps macOS kqueue
 // descriptor use bounded. Targets are re-scanned periodically so new
 // sites/worktrees and newly-created subdirectories are picked up. It runs until
-// stop is closed (idle-suspend disabled), then releases all fsnotify watches.
+// stop is closed, then releases all fsnotify watches.
 func WatchSourceFiles(getTargets func() []SourceTarget, debounce time.Duration, onActivity func(key string), stop <-chan struct{}) error {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {

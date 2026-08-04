@@ -27,7 +27,6 @@ func TestDetailRows_IncludesDomainsWorkersAndToggles(t *testing.T) {
 	assertKindCount(t, kinds, kindPHP, 1)
 	assertKindCount(t, kinds, kindNode, 1)
 	assertKindCount(t, kinds, kindHTTPS, 1)
-	assertKindCount(t, kinds, kindLANShare, 1)
 }
 
 func TestDetailRows_CustomContainerSkipsPHP(t *testing.T) {
@@ -41,50 +40,6 @@ func TestDetailRows_CustomContainerSkipsPHP(t *testing.T) {
 	assertKindCount(t, kinds, kindPHP, 0)
 	assertKindCount(t, kinds, kindNode, 0) // NodeVersion empty
 	assertKindCount(t, kinds, kindHTTPS, 1)
-	assertKindCount(t, kinds, kindLANShare, 1)
-}
-
-func TestWorkerStateText_SuspendedBeatsStopped(t *testing.T) {
-	s := &siteinfo.EnrichedSite{
-		Name:                 "alpha",
-		HasQueueWorker:       true,
-		IdleSuspendedWorkers: []string{"queue", "vite"},
-		FrameworkWorkers:     []siteinfo.WorkerInfo{{Name: "vite"}},
-	}
-	if got := workerStateText(s, "queue"); !strings.Contains(got, "suspended") {
-		t.Errorf("idle-suspended queue should read suspended, got %q", got)
-	}
-	if got := workerStateText(s, "vite"); !strings.Contains(got, "suspended") {
-		t.Errorf("idle-suspended framework worker should read suspended, got %q", got)
-	}
-	if !strings.Contains(workerGlyphFor(s, "queue"), glyphSuspended) {
-		t.Errorf("suspended worker glyph should be %q", glyphSuspended)
-	}
-}
-
-func TestWorkerStateText_RunningBeatsSuspended(t *testing.T) {
-	// A worker the engine resumed is briefly still in the suspend list until
-	// config clears it; a live unit must win so the row never lies.
-	s := &siteinfo.EnrichedSite{
-		Name:                 "alpha",
-		HasQueueWorker:       true,
-		QueueRunning:         true,
-		IdleSuspendedWorkers: []string{"queue"},
-	}
-	if got := workerStateText(s, "queue"); !strings.Contains(got, "running") {
-		t.Errorf("running worker should read running even if still listed suspended, got %q", got)
-	}
-}
-
-func TestWorktreeWorkerStateText_Suspended(t *testing.T) {
-	wt := &siteinfo.WorktreeInfo{
-		Branch:           "feature",
-		FrameworkWorkers: []siteinfo.WorkerInfo{{Name: "vite"}},
-		IdleSuspended:    []string{"vite"},
-	}
-	if got := worktreeWorkerStateText(wt, "vite"); !strings.Contains(got, "suspended") {
-		t.Errorf("idle-suspended worktree worker should read suspended, got %q", got)
-	}
 }
 
 func TestDetailContent_ShowsAppName(t *testing.T) {
@@ -315,7 +270,6 @@ func TestDetailRows_WorktreesEmitLANAndVersionRows(t *testing.T) {
 	}
 	rows := detailRows(s)
 	kinds := rowKinds(rows)
-	assertKindCount(t, kinds, kindWorktreeLAN, 1)
 	assertKindCount(t, kinds, kindWorktreePHP, 1)
 	assertKindCount(t, kinds, kindWorktreeNode, 1)
 }

@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -18,7 +17,7 @@ import (
 // (site rows, detail rows, worktree rows) all route through this so the
 // orderings and colours can't drift apart. stoppedStyle and dimStyle share a
 // colour, so the stopped word looks identical to the old dimStyle rendering.
-func workerVisual(failing, unreachable, running, suspended bool) (style lipgloss.Style, glyph, word string) {
+func workerVisual(failing, unreachable, running bool) (style lipgloss.Style, glyph, word string) {
 	switch {
 	case failing:
 		return failingStyle, glyphFailing, "failing"
@@ -26,8 +25,6 @@ func workerVisual(failing, unreachable, running, suspended bool) (style lipgloss
 		return unreachableStyle, glyphUnreachable, "unreachable"
 	case running:
 		return runningStyle, glyphRunning, "running"
-	case suspended:
-		return suspendedStyle, glyphSuspended, "suspended"
 	default:
 		return stoppedStyle, glyphStopped, "stopped"
 	}
@@ -54,7 +51,6 @@ const (
 	kindInfo detailKind = iota
 	kindWorker
 	kindHTTPS
-	kindLANShare
 	kindPHP
 	kindNode
 	kindDomain
@@ -62,7 +58,6 @@ const (
 	kindWorktreeHeader
 	kindWorktreeWorker
 	kindWorktreeDB
-	kindWorktreeLAN
 	kindWorktreePHP
 	kindWorktreeNode
 )
@@ -88,7 +83,6 @@ func detailRows(s *siteinfo.EnrichedSite) []detailRow {
 	if cfg, _ := config.LoadGlobal(); cfg == nil || cfg.DNS.Enabled {
 		rows = append(rows, detailRow{kind: kindHTTPS})
 	}
-	rows = append(rows, detailRow{kind: kindLANShare})
 	if s.HasQueueWorker {
 		rows = append(rows, detailRow{kind: kindWorker, workerName: "queue"})
 	}
@@ -120,7 +114,6 @@ func detailRows(s *siteinfo.EnrichedSite) []detailRow {
 		if dbCapable {
 			rows = append(rows, detailRow{kind: kindWorktreeDB, branch: wt.Branch, branchPath: wt.Path})
 		}
-		rows = append(rows, detailRow{kind: kindWorktreeLAN, branch: wt.Branch, branchPath: wt.Path})
 		if s.ContainerPort == 0 && wt.PHPVersion != "" {
 			rows = append(rows, detailRow{kind: kindWorktreePHP, branch: wt.Branch, branchPath: wt.Path})
 		}
@@ -188,13 +181,6 @@ func (m *Model) detailToggleSelected(s *siteinfo.EnrichedSite, rows []detailRow,
 		}
 		m.setStatus("enabling HTTPS for "+s.Name+"…", 5*time.Second)
 		return runServlo(s.Path, "secure", s.Name)
-	case kindLANShare:
-		if s.LANPort > 0 {
-			m.setStatus("stopping LAN share for "+s.Name+"…", 5*time.Second)
-			return runServlo(s.Path, "lan", "unshare")
-		}
-		m.setStatus("starting LAN share for "+s.Name+"…", 5*time.Second)
-		return runServlo(s.Path, "lan", "share")
 	case kindPHP:
 		m.openPHPPicker(s)
 		return nil
@@ -211,8 +197,6 @@ func (m *Model) detailToggleSelected(s *siteinfo.EnrichedSite, rows []detailRow,
 		return m.toggleWorktreeWorker(s, row)
 	case kindWorktreeDB:
 		return m.toggleWorktreeDB(s, row)
-	case kindWorktreeLAN:
-		return m.toggleWorktreeLAN(s, row)
 	case kindWorktreePHP:
 		m.openWorktreePHPPicker(s, row)
 		return nil
@@ -222,20 +206,6 @@ func (m *Model) detailToggleSelected(s *siteinfo.EnrichedSite, rows []detailRow,
 	}
 	return nil
 }
-
-func (m *Model) toggleWorktreeLAN(s *siteinfo.EnrichedSite, row detailRow) tea.Cmd {
-	wt := findWorktree(s, row.branch)
-	if wt == nil {
-		return nil
-	}
-	if wt.LANPort > 0 {
-		m.setStatus("stopping LAN share on "+row.branch+"…", 5*time.Second)
-		return runServlo(row.branchPath, "lan", "unshare")
-	}
-	m.setStatus("starting LAN share on "+row.branch+"…", 5*time.Second)
-	return runServlo(row.branchPath, "lan", "share")
-}
-
 func (m *Model) toggleWorktreeWorker(s *siteinfo.EnrichedSite, row detailRow) tea.Cmd {
 	wt := findWorktree(s, row.branch)
 	if wt == nil {
@@ -297,13 +267,6 @@ func worktreeWorkerUnreachable(wt *siteinfo.WorktreeInfo, name string) bool {
 		}
 	}
 	return false
-}
-
-func worktreeWorkerSuspended(wt *siteinfo.WorktreeInfo, name string) bool {
-	if wt == nil {
-		return false
-	}
-	return slices.Contains(wt.IdleSuspended, name)
 }
 
 func worktreeWorkerLabel(wt *siteinfo.WorktreeInfo, name string) string {
@@ -447,14 +410,6 @@ func workerUnreachable(s *siteinfo.EnrichedSite, name string) bool {
 		}
 	}
 	return false
-}
-
-// workerSuspended reports whether the idle engine has gracefully stopped this
-// worker. It covers both well-known and framework workers via the site's
-// recorded suspend list, so a sleeping worker reads "suspended" instead of a
-// misleading "stopped".
-func workerSuspended(s *siteinfo.EnrichedSite, name string) bool {
-	return slices.Contains(s.IdleSuspendedWorkers, name)
 }
 
 func workerLabel(s *siteinfo.EnrichedSite, name string) string {
@@ -742,8 +697,6 @@ func overviewToggles(site *siteinfo.EnrichedSite, rows []detailRow, sel func(int
 			b.add(renderDetailRow(s, accentStyle.Render("⬢"), "Node", dimStyle.Render(site.NodeVersion)), s)
 		case kindHTTPS:
 			b.add(renderDetailRow(s, onOffGlyph(site.Secured), "HTTPS", onOffText(site.Secured)), s)
-		case kindLANShare:
-			b.add(renderDetailRow(s, onOffGlyph(site.LANPort > 0), "LAN share", lanShareText(site.LANPort)), s)
 		}
 	}
 	b.plain("")
@@ -817,10 +770,6 @@ func overviewWorktrees(site *siteinfo.EnrichedSite, rows []detailRow, sel func(i
 				renderedAny = true
 				b.add(renderDetailRow(s, onOffGlyph(wt.DBIsolated),
 					"    Isolated DB", worktreeDBStateText(wt)), s)
-			case kindWorktreeLAN:
-				renderedAny = true
-				b.add(renderDetailRow(s, onOffGlyph(wt.LANPort > 0),
-					"    LAN share", lanShareText(wt.LANPort)), s)
 			case kindWorktreePHP:
 				renderedAny = true
 				b.add(renderDetailRow(s, accentStyle.Render("λ"),
@@ -916,12 +865,12 @@ func domainRole(s *siteinfo.EnrichedSite, domain string) string {
 }
 
 func worktreeWorkerGlyph(wt *siteinfo.WorktreeInfo, name string) string {
-	st, glyph, _ := workerVisual(worktreeWorkerFailing(wt, name), worktreeWorkerUnreachable(wt, name), worktreeWorkerRunning(wt, name), worktreeWorkerSuspended(wt, name))
+	st, glyph, _ := workerVisual(worktreeWorkerFailing(wt, name), worktreeWorkerUnreachable(wt, name), worktreeWorkerRunning(wt, name))
 	return st.Render(glyph)
 }
 
 func worktreeWorkerStateText(wt *siteinfo.WorktreeInfo, name string) string {
-	st, _, word := workerVisual(worktreeWorkerFailing(wt, name), worktreeWorkerUnreachable(wt, name), worktreeWorkerRunning(wt, name), worktreeWorkerSuspended(wt, name))
+	st, _, word := workerVisual(worktreeWorkerFailing(wt, name), worktreeWorkerUnreachable(wt, name), worktreeWorkerRunning(wt, name))
 	return st.Render(word)
 }
 
@@ -950,12 +899,12 @@ func worktreeVersionText(version string, override bool) string {
 }
 
 func workerGlyphFor(s *siteinfo.EnrichedSite, name string) string {
-	st, glyph, _ := workerVisual(workerFailing(s, name), workerUnreachable(s, name), workerRunning(s, name), workerSuspended(s, name))
+	st, glyph, _ := workerVisual(workerFailing(s, name), workerUnreachable(s, name), workerRunning(s, name))
 	return st.Render(glyph)
 }
 
 func workerStateText(s *siteinfo.EnrichedSite, name string) string {
-	st, _, word := workerVisual(workerFailing(s, name), workerUnreachable(s, name), workerRunning(s, name), workerSuspended(s, name))
+	st, _, word := workerVisual(workerFailing(s, name), workerUnreachable(s, name), workerRunning(s, name))
 	return st.Render(word)
 }
 
@@ -971,17 +920,6 @@ func onOffText(on bool) string {
 		return runningStyle.Render("on")
 	}
 	return dimStyle.Render("off")
-}
-
-func lanShareText(port int) string {
-	if port <= 0 {
-		return dimStyle.Render("off")
-	}
-	ip := primaryLANIP()
-	if ip == "" {
-		return runningStyle.Render(fmt.Sprintf("sharing on port %d", port))
-	}
-	return runningStyle.Render(fmt.Sprintf("http://%s:%d", ip, port))
 }
 
 func maxInt(a, b int) int {

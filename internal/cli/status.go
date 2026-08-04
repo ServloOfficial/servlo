@@ -25,21 +25,10 @@ func ok2(label string) {
 	fmt.Printf("  %s %s\n", feedback.Green(feedback.GlyphOK), label)
 }
 
-// paused2 reports an idle-suspended worker: stopped on purpose, resumes on the
+// paused2 reports a worker stopped on purpose, resumed on the
 // next request, so it's shown green (healthy) as paused rather than missing.
 func paused2(label string) {
 	fmt.Printf("  %s %s %s\n", feedback.Green(feedback.GlyphOK), label, feedback.Dim("(paused, idle)"))
-}
-
-// siteWorkerIdleSuspended reports whether the named worker is currently
-// idle-suspended for the site.
-func siteWorkerIdleSuspended(s config.Site, worker string) bool {
-	for _, w := range s.IdleSuspendedWorkers {
-		if w == worker {
-			return true
-		}
-	}
-	return false
 }
 
 func fail2(label, msg, hint string) {
@@ -241,11 +230,6 @@ func runStatus(_ *cobra.Command, _ []string) error {
 				// Check built-in worker types.
 				for _, w := range []string{"queue", "schedule", "reverb", "horizon"} {
 					unit := "servlo-" + w + "-" + s.Name
-					if siteWorkerIdleSuspended(s, w) {
-						paused2(fmt.Sprintf("%s/%s", s.Name, w))
-						hasWorkers = true
-						continue
-					}
 					status, _ := podman.UnitStatus(unit)
 					switch status {
 					case "active":
@@ -272,11 +256,6 @@ func runStatus(_ *cobra.Command, _ []string) error {
 							continue
 						}
 						unit := "servlo-" + wName + "-" + s.Name
-						if siteWorkerIdleSuspended(s, wName) {
-							paused2(fmt.Sprintf("%s/%s", s.Name, wName))
-							hasWorkers = true
-							continue
-						}
 						status, _ := podman.UnitStatus(unit)
 						switch status {
 						case "active":
@@ -293,10 +272,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 					}
 				}
 				// Stripe listener.
-				if siteWorkerIdleSuspended(s, "stripe") {
-					paused2(fmt.Sprintf("%s/stripe", s.Name))
-					hasWorkers = true
-				} else if stripeStatus, _ := podman.UnitStatus("servlo-stripe-" + s.Name); stripeStatus == "active" {
+				if stripeStatus, _ := podman.UnitStatus("servlo-stripe-" + s.Name); stripeStatus == "active" {
 					ok2(fmt.Sprintf("%s/stripe", s.Name))
 					hasWorkers = true
 				} else if stripeStatus == "failed" || stripeStatus == "activating" {

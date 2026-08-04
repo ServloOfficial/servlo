@@ -572,19 +572,19 @@ func fpmGlyph(s siteinfo.EnrichedSite) string {
 
 func workerGlyphs(s siteinfo.EnrichedSite) string {
 	var out []string
-	add := func(has, running, failing, unreachable, suspended bool, label string) {
+	add := func(has, running, failing, unreachable bool, label string) {
 		if !has {
 			return
 		}
-		st, _, _ := workerVisual(failing, unreachable, running, suspended)
+		st, _, _ := workerVisual(failing, unreachable, running)
 		out = append(out, st.Render(label))
 	}
-	add(s.HasQueueWorker, s.QueueRunning, s.QueueFailing, false, workerSuspended(&s, "queue"), "q")
-	add(s.HasScheduleWorker, s.ScheduleRunning, s.ScheduleFailing, false, workerSuspended(&s, "schedule"), "s")
-	add(s.HasReverb, s.ReverbRunning, s.ReverbFailing, false, workerSuspended(&s, "reverb"), "v")
-	add(s.HasHorizon, s.HorizonRunning, s.HorizonFailing, false, workerSuspended(&s, "horizon"), "h")
+	add(s.HasQueueWorker, s.QueueRunning, s.QueueFailing, false, "q")
+	add(s.HasScheduleWorker, s.ScheduleRunning, s.ScheduleFailing, false, "s")
+	add(s.HasReverb, s.ReverbRunning, s.ReverbFailing, false, "v")
+	add(s.HasHorizon, s.HorizonRunning, s.HorizonFailing, false, "h")
 	for _, fw := range s.FrameworkWorkers {
-		add(true, fw.Running, fw.Failing, fw.Unreachable, workerSuspended(&s, fw.Name), "•")
+		add(true, fw.Running, fw.Failing, fw.Unreachable, "•")
 	}
 	return strings.Join(out, " ")
 }
@@ -791,8 +791,6 @@ func serviceStateGlyph(state ServiceState) string {
 		return runningStyle.Render(glyphRunning)
 	case statePaused:
 		return pausedStyle.Render(glyphPaused)
-	case stateSuspended:
-		return suspendedStyle.Render(glyphSuspended)
 	default:
 		return stoppedStyle.Render(glyphStopped)
 	}

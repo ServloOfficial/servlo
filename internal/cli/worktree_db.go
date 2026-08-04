@@ -19,7 +19,6 @@ import (
 // data.
 func DropOrphanedWorktreeDBs(site *config.Site) {
 	live := liveWorktreeBranches(site)
-	DropOrphanedWorktreeLANShares(site, live)
 	dbEntries, _ := config.WorktreeDBsForSite(site.Name)
 	for _, e := range dbEntries {
 		if live[e.Branch] {

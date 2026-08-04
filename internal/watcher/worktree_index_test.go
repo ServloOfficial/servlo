@@ -27,9 +27,9 @@ func seedSiteWithWorktree(t *testing.T, wts []gitpkg.Worktree, detectErr error) 
 	return wtIndex
 }
 
-// A worktree's requests must be attributed with idle-suspend off, which is the
-// default. The stats key is the sanitized branch, the identity the HTTP API and
-// the store share, while the idle key is the checkout dir's unit slug, which the
+// A worktree's requests must be attributed to it. The stats key is the sanitized
+// branch, the identity the HTTP API and the store share, while the unit key is the
+// checkout dir's unit slug, which the
 // worker units use. Resolution used to run through the idle engine's map, built
 // only while it ticked, so with the feature disabled a worktree request resolved
 // to nothing and its record was dropped.
@@ -86,8 +86,7 @@ func TestWorktreeIndex_KeepsLastGoodViewOnDetectError(t *testing.T) {
 
 // A worktree whose subdomain is reserved by a group secondary is served by that
 // secondary's vhost, so its host must resolve to the secondary's site rather than
-// to the worktree. The worktree stays in the per-site view, since idle-suspend
-// still owns its workers.
+// to the worktree. The worktree stays in the per-site view either way.
 func TestWorktreeIndex_ReservedSubdomainResolvesToTheSecondary(t *testing.T) {
 	idx := seedSiteWithWorktree(t, []gitpkg.Worktree{{
 		Branch: "admin",
@@ -109,6 +108,6 @@ func TestWorktreeIndex_ReservedSubdomainResolvesToTheSecondary(t *testing.T) {
 		t.Errorf("stats key = %q (ok=%v), want the secondary site %q", got, ok, "myapp-admin")
 	}
 	if len(idx.forSite("myapp")) != 1 {
-		t.Error("reserved worktree dropped from the per-site view, so idle-suspend would stop tracking it")
+		t.Error("reserved worktree dropped from the per-site view")
 	}
 }

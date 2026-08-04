@@ -170,7 +170,7 @@ Re-run this command to generate a new code if it expires or is consumed.`,
 			}
 
 			if cfg, _ := config.LoadGlobal(); cfg != nil && !cfg.DNS.Enabled {
-				return fmt.Errorf("remote-setup requires servlo-managed DNS, the remote machine has no way to resolve *.localhost to this host; set dns.enabled: true and re-run servlo install, or use `servlo lan:share` per site for individual port-based access")
+				return fmt.Errorf("remote-setup requires servlo-managed DNS")
 			}
 
 			// Always (re)apply LAN exposure. EnableLANExposure is idempotent

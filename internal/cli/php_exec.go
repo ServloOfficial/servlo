@@ -112,7 +112,6 @@ func RunPHPCaptureEnv(cwd string, args []string, extraEnv []string) (int, error)
 // framework supports, since the empty parent directory would otherwise resolve
 // to the machine default and break composer's platform check.
 func RunPHPVersionCaptureEnv(cwd, version string, args []string, extraEnv []string) (int, error) {
-	recordCwdActivity(cwd) // keep the site awake under idle-suspend while you work in the terminal
 	// The CLI SAPI ignores a project's .user.ini, so a framework declaring
 	// php.cli_ini gets it as -d on every PHP process servlo starts for it.
 	args = prependPHPIniArgs(phpIniArgsForDir(cwd), args)

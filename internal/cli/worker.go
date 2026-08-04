@@ -447,9 +447,8 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 	startStep.OK("")
 	feedback.Note("logs: " + workerLogHint(unitName, w.Host))
 
-	// A running worker can't be idle-suspended: clear any stale entry so the idle
+	// Clear any stale entry so the
 	// engine doesn't boot believing this site (or worktree) is still asleep.
-	ClearIdleSuspendOnStart(siteName, sitePath, workerName)
 
 	// Regenerate nginx vhost if the worker has proxy config.
 	if w.Proxy != nil {

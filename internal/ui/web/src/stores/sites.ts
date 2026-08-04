@@ -39,9 +39,7 @@ export interface Site {
   has_env?: boolean;
   paused?: boolean;
   pinned?: boolean;
-  idle_suspended?: boolean;
   idle?: boolean;
-  idle_suspended_workers?: string[];
   services?: string[];
   db_database?: string;
   custom_container?: boolean;
@@ -73,13 +71,8 @@ export interface Site {
     db_isolated?: boolean;
     db_database?: string;
     lan_port?: number;
-    lan_share_url?: string;
-    tunnel_url?: string;
-    tunnel_tool?: string;
-    tunnel_external?: boolean;
     framework_workers?: FrameworkWorker[];
-    idle_suspended_workers?: string[];
-  }>;
+    }>;
   has_queue_worker?: boolean;
   has_schedule_worker?: boolean;
   has_horizon?: boolean;
@@ -102,10 +95,6 @@ export interface Site {
   reverb_running?: boolean;
   reverb_failing?: boolean;
   lan_port?: number;
-  lan_share_url?: string;
-  tunnel_url?: string;
-  tunnel_tool?: string;
-  tunnel_external?: boolean;
   framework_workers?: FrameworkWorker[];
   last_request_at?: number;
   request_count?: number;
@@ -241,18 +230,8 @@ function workerColorByName(name: string): WorkerDotColor {
   return 'indigo';
 }
 
-// idleWorkerColors returns the dot colors to show while a site sleeps: the
-// workers the engine suspended (so they keep their dots, dimmed, instead of
-// disappearing), falling back to whatever is still running during the brief
-// suspend transition.
-export function idleWorkerColors(s: Site): WorkerDotColor[] {
-  const dots = (s.idle_suspended_workers || []).map(workerColorByName);
-  return dots.length > 0 ? dots : runningWorkerColors(s);
-}
-
 // siteHasWorkers reports whether a site has any background worker at all (queue,
-// schedule, horizon, reverb, a stripe listener, or a framework worker). Sites
-// with none never sleep, so the dashboard must not show them the idle moon.
+// schedule, horizon, reverb, a stripe listener, or a framework worker).
 export function siteHasWorkers(s: Site): boolean {
   return Boolean(
     s.has_queue_worker ||
@@ -261,24 +240,14 @@ export function siteHasWorkers(s: Site): boolean {
       s.has_reverb ||
       s.stripe_running ||
       s.stripe_secret_set ||
-      (s.framework_workers && s.framework_workers.length > 0) ||
-      (s.idle_suspended_workers && s.idle_suspended_workers.length > 0)
+      (s.framework_workers && s.framework_workers.length > 0)
   );
 }
 
 export function openSiteInBrowser(s: Site, branch: string = '', urlOverride?: string) {
   const target = activeWorktreeDomain(s, branch);
   const useTLS = Boolean(s.tls);
-  // urlOverride carries the LAN share URL when a remote dashboard viewer opens
-  // the site: the .test domain only resolves on the host, so off-host we open
-  // http://<lan-ip>:<port> instead.
   const url = urlOverride || (useTLS ? 'https://' : 'http://') + target;
-  // Opening the site loads it, which wakes it via the activity feed. Clear the
-  // idle marker optimistically so the sleep indicator drops immediately rather
-  // than lingering until the next poll confirms the activity.
-  sites.update((list) =>
-    list.map((x) => (x.name === s.name ? { ...x, idle: false, idle_suspended: false } : x))
-  );
   window.open(url, '_blank', 'noopener');
 }
 
@@ -608,79 +577,6 @@ export function setWorktreeDBIsolated(
 }
 
 export const toggleTLS = (s: Site) => postAction(site(s.domain, s.tls ? 'unsecure' : 'secure'));
-export const toggleLANShare = (s: Site, branch: string = '') => {
-  const wt = branch ? (s.worktrees || []).find((w) => w.branch === branch) : undefined;
-  const isOn = branch ? Boolean(wt?.lan_port) : Boolean(s.lan_port);
-  const action = isOn ? 'lan:unshare' : 'lan:share';
-  const qs = branch ? `?branch=${encodeURIComponent(branch)}` : '';
-  return postAction(site(s.domain, action) + qs);
-};
-export interface ShareToolStatus {
-  name: string;
-  label: string;
-  binary: string;
-  installed: boolean;
-  // The tool has no binary here and runs from a published image instead.
-  containerised?: boolean;
-  // The image is the only route left, and it needs a token before it can run.
-  needs_token?: boolean;
-  install_url?: string;
-}
-export interface ShareToolsInfo {
-  tools: ShareToolStatus[];
-  auto?: string;
-  default?: string;
-  base_domain?: string;
-  base_domain_answered?: boolean;
-  // Whether an ngrok token is stored. The token itself never leaves the host.
-  ngrok_token_set?: boolean;
-}
-export const loadShareTools = () => apiJson<ShareToolsInfo>('/api/share-tools');
-export const startTunnel = (s: Site, tool: string = '', branch: string = '', domain: string = '') => {
-  const params = new URLSearchParams();
-  if (tool) params.set('tool', tool);
-  if (branch) params.set('branch', branch);
-  if (domain) params.set('domain', domain);
-  const qs = params.toString();
-  return postAction(site(s.domain, 'tunnel:start') + (qs ? `?${qs}` : ''));
-};
-// Records the answer to the base-domain question. remember false forgets it, so
-// the share menu asks again next time.
-export async function saveShareDomain(
-  domain: string,
-  remember: boolean
-): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await apiFetch('/api/share-tools', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ base_domain: domain, remember })
-    });
-    const data = (await res.json()) as { ok?: boolean; error?: string };
-    return { ok: Boolean(data.ok), error: data.error };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
-}
-// Stores the ngrok auth token, or clears it when empty. Only ever sent to the
-// host; the token is never read back out of the API.
-export async function saveShareNgrokToken(
-  token: string
-): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await apiFetch('/api/share-tools', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ngrok_token: token })
-    });
-    const data = (await res.json()) as { ok?: boolean; error?: string };
-    return { ok: Boolean(data.ok), error: data.error };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
-}
-export const stopTunnel = (s: Site, branch: string = '') =>
-  postAction(site(s.domain, 'tunnel:stop') + (branch ? `?branch=${encodeURIComponent(branch)}` : ''));
 export const toggleQueue = (s: Site) =>
   postAction(site(s.domain, s.queue_running ? 'queue:stop' : 'queue:start'));
 export const toggleHorizon = (s: Site) =>

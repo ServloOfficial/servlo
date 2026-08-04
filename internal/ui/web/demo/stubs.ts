@@ -429,7 +429,6 @@ function worktreeAddSSE(qs: URLSearchParams): Response {
           branch,
           domain: wtDomain,
           path: `${site.path}/${slug}`,
-          lan_share_url: 'https://example.com',
         },
       ];
     }

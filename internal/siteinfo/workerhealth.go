@@ -30,7 +30,7 @@ var dialProbe = func(address string) error {
 // connections. probed is false when the worker declares no usable health source
 // (no block, a URL file that isn't there yet, or a file with no host:port), in
 // which case the caller keeps the process-only liveness check. A missing URL
-// file is treated as not-probeable rather than a failure: idle-suspend clears
+// file is treated as not-probeable rather than a failure: a restart clears
 // vite's public/hot while the unit is briefly still up, and the real failure the
 // block catches is a stale file whose advertised port is refused. When probed is
 // true, reachable is the result of a short TCP dial.

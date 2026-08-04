@@ -8,7 +8,7 @@ import (
 
 // TestUnitBelongsToLongerSite guards the group-secondary leak: a unit named for
 // admin-astrolov must not be claimed by astrolov when scanning astrolov's
-// orphans, or idle-suspend (and pause) would stop the secondary's workers.
+// orphans, or pause would stop the secondary's workers.
 func TestUnitBelongsToLongerSite(t *testing.T) {
 	sites := []config.Site{{Name: "astrolov"}, {Name: "admin-astrolov"}}
 

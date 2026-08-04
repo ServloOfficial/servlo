@@ -45,7 +45,7 @@ func TestWorkerServerReachable(t *testing.T) {
 		t.Error("empty url_file should not be probed")
 	}
 
-	// File missing: not a failure (idle-suspend clears it while briefly up).
+	// File missing: not a failure (a restart clears it while briefly up).
 	dialProbe = func(string) error { t.Fatal("should not dial when file is absent"); return nil }
 	if reachable, probed := WorkerServerReachable(dir, h, time.Time{}); probed || reachable {
 		t.Errorf("missing hot file: got reachable=%v probed=%v, want false/false", reachable, probed)

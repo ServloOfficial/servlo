@@ -59,11 +59,6 @@
     for (const s of $sites) {
       const name = s.name;
       if (!name) continue;
-      for (const w of s.idle_suspended_workers || []) addAsleep(w, name, name);
-      for (const wt of s.worktrees || []) {
-        for (const w of wt.idle_suspended_workers || [])
-          addAsleep(w, name + '/' + (wt.branch || ''), name);
-      }
     }
     return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
   });

@@ -1,28 +1,42 @@
 package watcher
 
 import (
-	"context"
 	"net"
 	"os"
-	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/idle"
 	"github.com/realrashid/servlo/internal/push"
 	"github.com/realrashid/servlo/internal/reqstats"
 )
 
-// activityTracker records per-site last-active times fed by the access feed and
-// control socket, read by the engine and persisted to config.IdleActivityFile()
-// for servlo-panel and the CLI to render. Allocated once by StartIdle.
-var activityTracker *idle.Tracker
+// The nginx access feed is a single datagram socket every served request is
+// written to. It drives the request-timing analytics: a rolling in-memory
+// aggregate the panel reads live, and a durable SQLite record behind the
+// per-site Request timing view.
 
-// reqAggregator holds rolling per-site request-timing windows fed by the same
-// access feed. It runs regardless of idle-suspend and is persisted to
-// config.RequestStatsFile() for servlo-panel to read. Allocated once by StartIdle.
+// reqStatsSaveInterval is how often the request-timing snapshot is flushed to
+// disk for servlo-panel. Shorter than the idle tick so the panel feels live.
+const reqStatsSaveInterval = 10 * time.Second
+
+// reqStatsPruneInterval throttles how often rows past reqstats.Retention are
+// pruned, which is what keeps the DB small.
+const reqStatsPruneInterval = time.Hour
+
+// accessFeedRetryInterval paces the rebind attempts when the feed socket can't
+// be bound at boot.
+const accessFeedRetryInterval = 30 * time.Second
+
+// wtKey is the site/worktree composite the timing store keys worktree traffic by.
+func wtKey(site, wtBase string) string { return site + "/" + wtBase }
+
+// slowNotifier fires a one-time push per newly-flagged slow route on each save
+// tick.
+var slowNotifier = newSlowRouteNotifier()
+
+// reqAggregator holds the rolling per-site request-timing windows the access
+// feed fills, persisted to config.RequestStatsFile() for servlo-panel to read.
 var reqAggregator *reqstats.Aggregator
 
 // reqStore is the durable SQLite record of individual requests, written from the
@@ -38,42 +52,13 @@ var (
 	coldGap     time.Duration            // a gap this long or longer marks the next request a cold start
 )
 
-// reqStatsSaveInterval is how often the request-timing snapshot is flushed to
-// disk for servlo-panel. Shorter than the idle tick so the panel feels live.
-const reqStatsSaveInterval = 10 * time.Second
-
-// reqStatsPruneInterval throttles how often rows past reqstats.Retention are
-// pruned, which is what keeps the DB small.
-const reqStatsPruneInterval = time.Hour
-
-// slowNotifier fires a one-time push per newly-flagged slow route on each save
-// tick. Allocated once by StartIdle.
-var slowNotifier = newSlowRouteNotifier()
-
-// Idle-suspend lifecycle. The control socket is always bound (the toggle/wake
-// point); everything else lives in an enabled session started by enableIdle and
-// torn down by disableIdle, so a disabled feature does no work at all.
-var (
-	idleMu       sync.Mutex
-	idleCancel   context.CancelFunc // non-nil exactly while a session runs
-	idleActive   atomic.Bool        // gate for control-socket activity pings
-	idleStartSrc func(stop <-chan struct{}) error
-)
-
-// StartIdle wires the idle subsystem: the control socket is always bound, while
-// the session (access feed, tick, source watcher) only runs when enabled.
-// sourceWatcher runs until its stop channel closes.
-func StartIdle(notify func(), sourceWatcher func(stop <-chan struct{}) error) {
-	if notify != nil {
-		idleNotifyUI = notify
-	}
-	idleStartSrc = sourceWatcher
-	activityTracker = idle.NewTracker(resolveHostToSite)
-	idleEng = newIdleEngine(activityTracker)
+// StartRequestStats wires the request-timing subsystem: the aggregate the panel
+// reads live, the durable store behind the Request timing view, the worktree
+// index domains resolve through, and the always-on access-feed reader.
+func StartRequestStats() {
 	reqAggregator = reqstats.New(resolveHostToStatsKey)
-	// Worktree domains resolve from an index that lives as long as the daemon, not
-	// as long as an idle-suspend session, so request timing attributes worktree
-	// traffic whether or not the feature is on.
+	// Worktree domains resolve from an index that lives as long as the daemon, so
+	// request timing attributes worktree traffic too.
 	wtIndex.refresh()
 	go wtIndex.run()
 	if st, err := reqstats.OpenStore(config.RequestStatsDB()); err == nil {
@@ -85,91 +70,18 @@ func StartIdle(notify func(), sourceWatcher func(stop <-chan struct{}) error) {
 			reqLastSeen = seen
 		}
 	}
-	// A request after the site has been idle at least this long is a cold start;
-	// tie it to the idle-suspend timeout, the point servlo already treats a site as
-	// gone quiet, so a wake's inflated time is kept out of the timing view.
 	coldGap = reqstats.DefaultColdGap
-	if cfg, err := config.LoadGlobal(); err == nil {
-		coldGap = cfg.IdleSuspendTimeout()
-	}
-	go runNotifier()
-	startControlSocket()
-
-	// The access feed is bound once, for the daemon's life, and fans out to both
-	// request stats (always) and idle activity (only while enabled). Idle used to
-	// bind it inside its session, but timing stats must run even with idle off, so
-	// there is a single always-on reader here.
 	startAccessFeed()
 	go runReqStatsSaver()
-
-	// Boot memory is the persisted config flag, not the ephemeral socket. When
-	// off, still resume any workers a prior session left suspended (e.g. toggled
-	// off while the watcher was down) so they're never stranded stopped.
-	if cfg, err := config.LoadGlobal(); err == nil && cfg.IdleSuspend.Enabled {
-		enableIdle()
-	} else {
-		idleEng.startResumeUntilClear()
-	}
 }
 
-// enableIdle starts the idle session: seed activity, bind the nginx access feed,
-// run the engine tick, and start the source-file watcher, all tied to one cancel
-// context. Idempotent and safe to call from boot or a control "enable".
-func enableIdle() {
-	idleMu.Lock()
-	defer idleMu.Unlock()
-	if idleCancel != nil {
-		return // already running
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	idleCancel = cancel
-	idleActive.Store(true)
-
-	seedActiveSites(activityTracker)
-	_ = os.MkdirAll(config.RunDir(), 0755)
-	_ = activityTracker.Save(config.IdleActivityFile())
-
-	idleEng.start(ctx)
-
-	// The access feed is bound once in StartIdle and gated on idleActive, so
-	// enabling just flips the gate: browsing a quiet site now wakes it. The
-	// source-file watcher is the only thing this session still starts.
-	if idleStartSrc != nil {
-		idleEng.spawn("source-watcher", func() { _ = idleStartSrc(ctx.Done()) })
-	}
-}
-
-// disableIdle stops the session (tick, access feed, source watcher), then resumes
-// every suspended worker in the background via resumeUntilClear, which retries so
-// a suspend mid-flight isn't skipped now that no later tick will catch it.
-func disableIdle() {
-	idleMu.Lock()
-	if idleCancel != nil {
-		idleActive.Store(false)
-		idleCancel()
-		idleCancel = nil
-	}
-	idleMu.Unlock()
-	idleEng.startResumeUntilClear()
-}
-
-// handleAccessDatagram fans one nginx access datagram out to both consumers:
-// request-timing stats always, and idle activity only while idle-suspend is
-// enabled (so a disabled feature never wakes or records). A single datagram
-// carries both signals in one pipe-delimited record.
+// handleAccessDatagram parses one nginx access datagram into the timing stats.
 func handleAccessDatagram(b []byte) {
-	if reqAggregator != nil {
-		if rec, ok := reqstats.ParseAccessRecord(b); ok {
-			ingestAccessRecord(rec)
-		}
-	}
-	if !idleActive.Load() {
+	if reqAggregator == nil {
 		return
 	}
-	if host := idle.ParseAccessHost(b); host != "" {
-		if site := activityTracker.TouchHost(host, time.Now()); site != "" {
-			idleEng.OnActivity(site)
-		}
+	if rec, ok := reqstats.ParseAccessRecord(b); ok {
+		ingestAccessRecord(rec)
 	}
 }
 
@@ -245,10 +157,6 @@ func flushReqStore() {
 	}
 }
 
-// accessFeedRetryInterval is how often startAccessFeed retries a failed bind so
-// a transient boot-time failure recovers without a full daemon restart.
-const accessFeedRetryInterval = 30 * time.Second
-
 // startAccessFeed binds the always-on access-feed reader. A bind that fails at
 // boot (a transient FS/permission hiccup on the socket path) is retried in the
 // background so the feed and its consumers recover on their own; until it binds
@@ -288,7 +196,7 @@ func listenUDP(addr string) (net.PacketConn, bool) {
 }
 
 // listenDatagram binds a unix datagram socket at path under RunDir, replacing any
-// stale one. ok=false on failure (idle-suspend is best-effort, so callers skip).
+// stale one. ok=false on failure, so callers skip.
 // 0660 matches nginx's writer uid on the access socket and the UI stream socket.
 func listenDatagram(path string) (net.PacketConn, bool) {
 	if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
@@ -347,33 +255,4 @@ func siteNameForHost(host string) (string, bool) {
 		return "", false
 	}
 	return site.Name, true
-}
-
-// seedActiveSites restores each site's last-active time on startup: from the
-// persisted file when present (so a restart/deploy keeps the countdown going),
-// otherwise seeded to now (a new or never-seen site gets the grace window rather
-// than looking instantly idle).
-func seedActiveSites(t *idle.Tracker) {
-	saved := idle.LoadActivity(config.IdleActivityFile())
-	reg, err := config.LoadSites()
-	if err != nil {
-		return
-	}
-	now := time.Now()
-	for _, s := range reg.Sites {
-		if ts, ok := saved[s.Name]; ok && ts > 0 {
-			t.TouchSite(s.Name, time.Unix(ts, 0))
-		} else {
-			t.TouchSite(s.Name, now)
-		}
-	}
-	// Restore persisted worktree countdowns too (their keys carry a "/"), so a
-	// restart doesn't hand every worktree a fresh grace window. A stale key for a
-	// removed worktree is harmless: the engine only ever acts on worktrees it
-	// re-detects from disk.
-	for key, ts := range saved {
-		if ts > 0 && strings.IndexByte(key, '/') >= 0 {
-			t.TouchSite(key, time.Unix(ts, 0))
-		}
-	}
 }

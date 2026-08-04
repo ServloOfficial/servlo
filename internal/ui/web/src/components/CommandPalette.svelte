@@ -5,7 +5,6 @@
     sites,
     openSiteInBrowser,
     toggleTLS,
-    toggleLANShare,
     toggleQueue,
     toggleHorizon,
     toggleSchedule,
@@ -105,18 +104,6 @@
           hint: d,
           group: 'toggles',
           action: async () => { await toggleTLS(s); await refresh(); }
-        });
-      }
-
-      // LAN share toggle
-      {
-        const on = Boolean(s.lan_port);
-        list.push({
-          id: 'tgl:' + d + ':lan',
-          label: m.palette_toggle({ action: on ? m.common_stop() : m.common_start(), feature: m.palette_featLanShare() }),
-          hint: d,
-          group: 'toggles',
-          action: async () => { await toggleLANShare(s, ''); await refresh(); }
         });
       }
 

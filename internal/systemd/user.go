@@ -159,7 +159,7 @@ func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
 		// Skip units owned by a registered site with a longer name whose suffix
 		// collides: servlo-queue-admin-astrolov is admin-astrolov's queue, not
 		// astrolov's "queue-admin". Without this, a group secondary's workers
-		// leak into the parent (and idle-suspend would stop them).
+		// leak into the parent.
 		if unitBelongsToLongerSite(name, siteName, sites) {
 			continue
 		}

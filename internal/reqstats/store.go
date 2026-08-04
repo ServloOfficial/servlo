@@ -26,7 +26,7 @@ func RecordFrom(r AccessRecord, site string, at time.Time) Record {
 }
 
 // DefaultColdGap is the fallback idle gap after which a request is treated as a
-// cold start, used when the idle-suspend timeout can't be read. The watcher
+// cold start. The watcher
 // prefers that configured timeout.
 const DefaultColdGap = 30 * time.Minute
 

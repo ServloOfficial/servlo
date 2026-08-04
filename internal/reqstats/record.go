@@ -1,6 +1,6 @@
 // Package reqstats turns the nginx access feed into a per-site view of request
 // timing: the typical response time and the routes that run well above their own
-// baseline. It consumes the same syslog datagrams that drive idle-suspend, but a
+// baseline. It consumes the nginx syslog datagrams, but a
 // widened log format, and keeps a small rolling in-memory window per route. It is
 // framework-agnostic: nothing here knows a framework name, only universal nginx
 // timing signals.

@@ -27,7 +27,6 @@ import (
 
 	qrcode "github.com/skip2/go-qrcode"
 
-	"github.com/realrashid/servlo/internal/activityping"
 	"github.com/realrashid/servlo/internal/applog"
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/cfgedit"
@@ -114,17 +113,13 @@ func Start(currentVersion string) error {
 	podman.Cache.Start(context.Background())
 
 	// Restart any LAN share proxies that were active before this process started.
-	go cli.RestoreLANShareProxies()
 
 	// A public tunnel must not outlive the process that owns it. Stop them on
 	// the way out, and kill anything a previous run was killed too hard to
 	// clean up itself.
-	cli.ReapOrphanTunnels()
 	// A tunnel container is invisible to the pid-based reap: conmon is
 	// reparented out of the client's tree, so a killed servlo-panel leaves it
 	// running and there is no pid left to recognise it by.
-	go cli.ReapOrphanNgrokContainers()
-	stopTunnelsOnShutdown()
 
 	// Single coalescer for the two event sources that need to refresh the
 	// container cache and broadcast a snapshot: in-process mutations
@@ -200,10 +195,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/push/unsubscribe", withCORS(handlePushUnsubscribe))
 	mux.HandleFunc("/api/push/devices", withCORS(handlePushDevices))
 	mux.HandleFunc("/api/push/test", withCORS(handlePushTest))
-	mux.HandleFunc("/api/lan-qr/", withCORS(handleLANQR))
-	mux.HandleFunc("/api/share-tools", withCORS(handleShareTools))
 	mux.HandleFunc("/api/tools/", withCORS(publishAfter(handleTools, eventbus.KindStatus)))
-	mux.HandleFunc("/api/tunnel-qr/", withCORS(handleTunnelQR))
 	mux.HandleFunc("/api/dashboard-qr", withCORS(handleDashboardQR))
 
 	// Cross-process notifier for CLI. It requires dashboard-control
@@ -264,7 +256,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/settings", withCORS(handleSettings))
 	mux.HandleFunc("/api/settings/autostart", withCORS(handleSettingsAutostart))
 	mux.HandleFunc("/api/settings/worker-mode", withCORS(handleSettingsWorkerMode))
-	mux.HandleFunc("/api/settings/idle-suspend", withCORS(publishAfter(handleSettingsIdleSuspend, eventbus.KindSites)))
 	mux.HandleFunc("/api/settings/dns-upstream", withCORS(handleSettingsDNSUpstream))
 	mux.HandleFunc("/api/workers/health", withCORS(handleWorkersHealth))
 	mux.HandleFunc("/api/workers/heal", withCORS(handleWorkersHeal))
@@ -727,15 +718,7 @@ type WorktreeResponse struct {
 	DBIsolated          bool           `json:"db_isolated,omitempty"`
 	DBDatabase          string         `json:"db_database,omitempty"`
 	LANPort             int            `json:"lan_port,omitempty"`
-	LANShareURL         string         `json:"lan_share_url,omitempty"`
-	TunnelURL           string         `json:"tunnel_url,omitempty"`
-	TunnelTool          string         `json:"tunnel_tool,omitempty"`
-	TunnelExternal      bool           `json:"tunnel_external,omitempty"`
 	FrameworkWorkers    []WorkerStatus `json:"framework_workers,omitempty"`
-	// Idle-suspend state for the worktree, which idles on its own timer.
-	LastActive           int64    `json:"last_active,omitempty"`
-	Idle                 bool     `json:"idle,omitempty"`
-	IdleSuspendedWorkers []string `json:"idle_suspended_workers,omitempty"`
 }
 
 // WorkerStatus represents a single framework worker and its running state.
@@ -804,30 +787,15 @@ type SiteResponse struct {
 	HasFavicon         bool           `json:"has_favicon"`
 	HasEnv             bool           `json:"has_env"`
 	Paused             bool           `json:"paused"`
-	// Pinned excludes the site from idle-suspend (kept always-warm).
+	// Pinned keeps a site at the top of the list.
 	Pinned bool `json:"pinned,omitempty"`
-	// LastActive is the unix-seconds time the site last saw a request, from the
-	// idle-suspend activity feed. Zero (omitted) means no activity recorded yet
-	// this servlo-panel session.
-	LastActive int64 `json:"last_active,omitempty"`
 	// LastRequestAt (unix milliseconds) and RequestCount are the site's traffic
 	// over the request store's retention window, worktrees included, filtered to
 	// the requests the app actually served. The sites list orders by them.
-	LastRequestAt int64 `json:"last_request_at,omitempty"`
-	RequestCount  int   `json:"request_count,omitempty"`
-	// IdleSuspended is true when the idle engine has gracefully stopped this
-	// site's workers (a subset of Idle: only sites that had workers to stop).
-	IdleSuspended bool `json:"idle_suspended,omitempty"`
-	// Idle is true when the site has gone past the idle timeout (and isn't
-	// paused), whether or not it had any workers to suspend. Drives the
-	// dashboard sleep (Zz) indicator, which marks every idle site.
-	Idle bool `json:"idle,omitempty"`
-	// IdleSuspendedWorkers names the workers the engine stopped while idle, so
-	// the dashboard can still show their (dimmed) dots — a sleeping site keeps
-	// its worker dots rather than losing them when the units stop.
-	IdleSuspendedWorkers []string           `json:"idle_suspended_workers,omitempty"`
-	Branch               string             `json:"branch"`
-	Worktrees            []WorktreeResponse `json:"worktrees"`
+	LastRequestAt int64              `json:"last_request_at,omitempty"`
+	RequestCount  int                `json:"request_count,omitempty"`
+	Branch        string             `json:"branch"`
+	Worktrees     []WorktreeResponse `json:"worktrees"`
 	// Services lists the service names this site uses, sourced from the
 	// project's .servlo.yaml. Used by the dashboard to render service badges
 	// on the site detail panel.
@@ -836,10 +804,6 @@ type SiteResponse struct {
 	// open the admin tool straight to this site's database.
 	DBDatabase       string `json:"db_database,omitempty"`
 	LANPort          int    `json:"lan_port,omitempty"`
-	LANShareURL      string `json:"lan_share_url,omitempty"`
-	TunnelURL        string `json:"tunnel_url,omitempty"`
-	TunnelTool       string `json:"tunnel_tool,omitempty"`
-	TunnelExternal   bool   `json:"tunnel_external,omitempty"`
 	CustomContainer  bool   `json:"custom_container,omitempty"`
 	ContainerPort    int    `json:"container_port,omitempty"`
 	ContainerImage   string `json:"container_image,omitempty"`
@@ -895,37 +859,15 @@ func buildSites() ([]SiteResponse, error) {
 	}
 	_ = siteinfo.PersistVersionChanges(enriched)
 
-	// Resolve the global idle policy once so each site can report whether it is
-	// currently idle (drives the dashboard sleep indicator).
-	idleCfg, _ := config.LoadGlobal()
-	idleOn := idleCfg != nil && idleCfg.IdleSuspend.Enabled
-	idleTimeout := config.DefaultIdleSuspendTimeout
-	if idleCfg != nil {
-		idleTimeout = idleCfg.IdleSuspendTimeout()
-	}
-	idleNow := time.Now()
-	// Last-active times live in the servlo-watcher process and are persisted to a
-	// file we read once per snapshot; suspended state comes from the site config.
-	idleActivity := loadIdleActivity()
 	// Traffic per site key, read once per snapshot, so the sites list can order by
 	// what has actually been used rather than by log-file mtime.
 	siteUsage := loadSiteUsage()
 
 	// Per-site list of workers the engine suspended, so the dashboard can keep
 	// showing their dots dimmed instead of dropping them.
-	suspendedWorkers := map[string][]string{}
-	wtSuspendedWorkers := map[string][]string{}
 	pinnedSites := map[string]bool{}
 	if reg, err := config.LoadSites(); err == nil {
 		for _, s := range reg.Sites {
-			if len(s.IdleSuspendedWorkers) > 0 {
-				suspendedWorkers[s.Name] = s.IdleSuspendedWorkers
-			}
-			for wtBase, workers := range s.WorktreeIdleSuspended {
-				if len(workers) > 0 {
-					wtSuspendedWorkers[wtKey(s.Name, wtBase)] = workers
-				}
-			}
 			if s.Pinned {
 				pinnedSites[s.Name] = true
 			}
@@ -944,7 +886,8 @@ func buildSites() ([]SiteResponse, error) {
 	}
 
 	// Workspace membership is display-only and lives in the global config.
-	siteWorkspace := idleCfg.SiteWorkspaceMap()
+	cfg, _ := config.LoadGlobal()
+	siteWorkspace := cfg.SiteWorkspaceMap()
 
 	sites := make([]SiteResponse, 0, len(enriched))
 	for _, e := range enriched {
@@ -971,15 +914,12 @@ func buildSites() ([]SiteResponse, error) {
 
 		// Pinned and proxy-only sites are exempt from suspension, so they never
 		// report idle either.
-		idleExempt := pinnedSites[e.Name] || e.IsProxyOnly()
 
 		var worktreeResponses []WorktreeResponse
 		for _, wt := range e.Worktrees {
 			lanPort := 0
-			lanURL := ""
 			if entry, ok, err := config.FindWorktreeLAN(e.Name, wt.Branch); err == nil && ok {
 				lanPort = entry.Port
-				lanURL = cli.LANShareURL(entry.Port)
 			}
 			var wtWorkers []WorkerStatus
 			for _, fw := range wt.FrameworkWorkers {
@@ -991,116 +931,94 @@ func buildSites() ([]SiteResponse, error) {
 					Unreachable: fw.Unreachable,
 				})
 			}
-			// Idle state keys a worktree by its checkout dir (what the worker units
-			// are named after), request traffic by its branch (what the store and the
-			// timing API share). Same worktree, two key schemes.
-			wtKeyStr := wtKey(e.Name, config.WorktreeUnitSlug(filepath.Base(wt.Path)))
 			usage = addUsage(usage, siteUsage[reqstats.Key(e.Name, wt.Branch)])
-			wtTunnel, _ := cli.TunnelStatus(e.Name, wt.Branch)
 			worktreeResponses = append(worktreeResponses, WorktreeResponse{
-				Branch:               wt.Branch,
-				Domain:               wt.Domain,
-				Path:                 wt.Path,
-				PHPVersion:           wt.PHPVersion,
-				PHPMin:               e.FrameworkPHPMin,
-				PHPMax:               e.FrameworkPHPMax,
-				NodeVersion:          wt.NodeVersion,
-				PHPVersionOverride:   wt.PHPVersionOverride,
-				NodeVersionOverride:  wt.NodeVersionOverride,
-				FrameworkVersion:     wt.FrameworkVersion,
-				FrameworkLabel:       wt.FrameworkLabel,
-				DBIsolated:           wt.DBIsolated,
-				DBDatabase:           wt.DBDatabase,
-				LANPort:              lanPort,
-				LANShareURL:          lanURL,
-				TunnelURL:            wtTunnel.URL,
-				TunnelTool:           wtTunnel.Tool,
-				TunnelExternal:       wtTunnel.External,
-				FrameworkWorkers:     wtWorkers,
-				LastActive:           idleActivity[wtKeyStr],
-				Idle:                 idleSiteIsIdle(idleActivity, wtKeyStr, e.Paused, idleExempt, idleOn, idleTimeout, idleNow),
-				IdleSuspendedWorkers: wtSuspendedWorkers[wtKeyStr],
+				Branch:              wt.Branch,
+				Domain:              wt.Domain,
+				Path:                wt.Path,
+				PHPVersion:          wt.PHPVersion,
+				PHPMin:              e.FrameworkPHPMin,
+				PHPMax:              e.FrameworkPHPMax,
+				NodeVersion:         wt.NodeVersion,
+				PHPVersionOverride:  wt.PHPVersionOverride,
+				NodeVersionOverride: wt.NodeVersionOverride,
+				FrameworkVersion:    wt.FrameworkVersion,
+				FrameworkLabel:      wt.FrameworkLabel,
+				DBIsolated:          wt.DBIsolated,
+				DBDatabase:          wt.DBDatabase,
+				LANPort:             lanPort,
+				FrameworkWorkers:    wtWorkers,
 			})
 		}
 		if worktreeResponses == nil {
 			worktreeResponses = []WorktreeResponse{}
 		}
 
-		tunnel, _ := cli.TunnelStatus(e.Name, "")
-
 		sites = append(sites, SiteResponse{
-			Name:                 e.Name,
-			AppName:              laravelAppName(e.FrameworkName, e.Path),
-			Domain:               e.PrimaryDomain(),
-			Domains:              e.Domains,
-			ConflictingDomains:   conflicting,
-			Path:                 e.Path,
-			PHPVersion:           e.PHPVersion,
-			PHPMin:               e.FrameworkPHPMin,
-			PHPMax:               e.FrameworkPHPMax,
-			UsesPHP:              e.UsesPHP,
-			NodeVersion:          e.NodeVersion,
-			JSRuntime:            projectJSRuntime(e.Path),
-			TLS:                  e.Secured,
-			Framework:            e.FrameworkName,
-			IsLaravel:            e.FrameworkName == "laravel",
-			FrameworkLabel:       e.FrameworkLabel,
-			FPMRunning:           e.FPMRunning,
-			QueueRunning:         e.QueueRunning,
-			QueueFailing:         e.QueueFailing,
-			StripeRunning:        e.StripeRunning,
-			StripeSecretSet:      e.StripeSecretSet,
-			StripeWebhookPath:    e.StripeWebhookPath,
-			ScheduleRunning:      e.ScheduleRunning,
-			ScheduleFailing:      e.ScheduleFailing,
-			ReverbRunning:        e.ReverbRunning,
-			ReverbFailing:        e.ReverbFailing,
-			HasReverb:            e.HasReverb,
-			HasHorizon:           e.HasHorizon,
-			HorizonRunning:       e.HorizonRunning,
-			HorizonFailing:       e.HorizonFailing,
-			HorizonReload:        e.HasHorizon && config.ProjectReloadsWorker(e.Path, "horizon"),
-			HorizonReloadReady:   e.HasHorizon && cli.ProjectHasChokidar(e.Path),
-			OctaneReload:         e.Runtime == "frankenphp" && e.RuntimeWorker && config.ProjectReloadsWorker(e.Path, "octane"),
-			OctaneReloadReady:    e.Runtime == "frankenphp" && e.RuntimeWorker && cli.SiteHasOctane(e.Path) && cli.ProjectHasChokidar(e.Path),
-			HasQueueWorker:       e.HasQueueWorker,
-			HasScheduleWorker:    e.HasScheduleWorker,
-			FrameworkWorkers:     fwWorkers,
-			HasAppLogs:           e.HasAppLogs,
-			HasFavicon:           e.HasFavicon,
-			HasEnv:               siteHasEnv(e.FrameworkName, e.Path),
-			Paused:               e.Paused,
-			LastActive:           idleActivity[e.Name],
-			LastRequestAt:        unixMilliOrZero(usage.LastAt),
-			RequestCount:         usage.Count,
-			IdleSuspended:        len(suspendedWorkers[e.Name]) > 0,
-			Idle:                 idleSiteIsIdle(idleActivity, e.Name, e.Paused, idleExempt, idleOn, idleTimeout, idleNow),
-			IdleSuspendedWorkers: suspendedWorkers[e.Name],
-			Pinned:               pinnedSites[e.Name],
-			Branch:               e.Branch,
-			Worktrees:            worktreeResponses,
-			Services:             e.Services,
-			DBDatabase:           envfile.ReadKey(filepath.Join(e.Path, ".env"), "DB_DATABASE"),
-			LANPort:              e.LANPort,
-			LANShareURL:          cli.LANShareURL(e.LANPort),
-			TunnelURL:            tunnel.URL,
-			TunnelTool:           tunnel.Tool,
-			TunnelExternal:       tunnel.External,
-			CustomContainer:      e.ContainerPort > 0,
-			ContainerPort:        e.ContainerPort,
-			ContainerImage:       e.ContainerImage,
-			Runtime:              e.Runtime,
-			RuntimeWorker:        e.RuntimeWorker,
-			HostProxy:            e.HostPort > 0,
-			HostPort:             e.HostPort,
-			HostHasDevServer:     e.HostPort > 0 && e.HostCommand != "",
-			DoctorApplicable:     sitedoctor.AppliesForPath(e.Path, e.FrameworkName),
-			Group:                e.Group,
-			GroupSubdomain:       e.GroupSubdomain,
-			GroupMainDomain:      groupMainDomain[e.Group],
-			GroupSharedDB:        e.GroupSharedDB,
-			MultiTenant:          e.Group != "" && e.GroupSubdomain == "" && siteHasEnvOverrides(e.Path),
-			Workspace:            resolveSiteWorkspace(e, groupMainName, siteWorkspace),
+			Name:               e.Name,
+			AppName:            laravelAppName(e.FrameworkName, e.Path),
+			Domain:             e.PrimaryDomain(),
+			Domains:            e.Domains,
+			ConflictingDomains: conflicting,
+			Path:               e.Path,
+			PHPVersion:         e.PHPVersion,
+			PHPMin:             e.FrameworkPHPMin,
+			PHPMax:             e.FrameworkPHPMax,
+			UsesPHP:            e.UsesPHP,
+			NodeVersion:        e.NodeVersion,
+			JSRuntime:          projectJSRuntime(e.Path),
+			TLS:                e.Secured,
+			Framework:          e.FrameworkName,
+			IsLaravel:          e.FrameworkName == "laravel",
+			FrameworkLabel:     e.FrameworkLabel,
+			FPMRunning:         e.FPMRunning,
+			QueueRunning:       e.QueueRunning,
+			QueueFailing:       e.QueueFailing,
+			StripeRunning:      e.StripeRunning,
+			StripeSecretSet:    e.StripeSecretSet,
+			StripeWebhookPath:  e.StripeWebhookPath,
+			ScheduleRunning:    e.ScheduleRunning,
+			ScheduleFailing:    e.ScheduleFailing,
+			ReverbRunning:      e.ReverbRunning,
+			ReverbFailing:      e.ReverbFailing,
+			HasReverb:          e.HasReverb,
+			HasHorizon:         e.HasHorizon,
+			HorizonRunning:     e.HorizonRunning,
+			HorizonFailing:     e.HorizonFailing,
+			HorizonReload:      e.HasHorizon && config.ProjectReloadsWorker(e.Path, "horizon"),
+			HorizonReloadReady: e.HasHorizon && cli.ProjectHasChokidar(e.Path),
+			OctaneReload:       e.Runtime == "frankenphp" && e.RuntimeWorker && config.ProjectReloadsWorker(e.Path, "octane"),
+			OctaneReloadReady:  e.Runtime == "frankenphp" && e.RuntimeWorker && cli.SiteHasOctane(e.Path) && cli.ProjectHasChokidar(e.Path),
+			HasQueueWorker:     e.HasQueueWorker,
+			HasScheduleWorker:  e.HasScheduleWorker,
+			FrameworkWorkers:   fwWorkers,
+			HasAppLogs:         e.HasAppLogs,
+			HasFavicon:         e.HasFavicon,
+			HasEnv:             siteHasEnv(e.FrameworkName, e.Path),
+			Paused:             e.Paused,
+			LastRequestAt:      unixMilliOrZero(usage.LastAt),
+			RequestCount:       usage.Count,
+			Pinned:             pinnedSites[e.Name],
+			Branch:             e.Branch,
+			Worktrees:          worktreeResponses,
+			Services:           e.Services,
+			DBDatabase:         envfile.ReadKey(filepath.Join(e.Path, ".env"), "DB_DATABASE"),
+			LANPort:            e.LANPort,
+			CustomContainer:    e.ContainerPort > 0,
+			ContainerPort:      e.ContainerPort,
+			ContainerImage:     e.ContainerImage,
+			Runtime:            e.Runtime,
+			RuntimeWorker:      e.RuntimeWorker,
+			HostProxy:          e.HostPort > 0,
+			HostPort:           e.HostPort,
+			HostHasDevServer:   e.HostPort > 0 && e.HostCommand != "",
+			DoctorApplicable:   sitedoctor.AppliesForPath(e.Path, e.FrameworkName),
+			Group:              e.Group,
+			GroupSubdomain:     e.GroupSubdomain,
+			GroupMainDomain:    groupMainDomain[e.Group],
+			GroupSharedDB:      e.GroupSharedDB,
+			MultiTenant:        e.Group != "" && e.GroupSubdomain == "" && siteHasEnvOverrides(e.Path),
+			Workspace:          resolveSiteWorkspace(e, groupMainName, siteWorkspace),
 		})
 	}
 	return sites, nil
@@ -3178,102 +3096,6 @@ func handleSiteEnvRestore(w http.ResponseWriter, r *http.Request, site *config.S
 	writeJSON(w, SiteEnvRestoreResponse(res))
 }
 
-// handleLANQR serves a QR code PNG for the LAN share URL of a site or one
-// of its worktrees.
-// Path: /api/lan-qr/{domain}[?branch=<sanitized>]
-func handleLANQR(w http.ResponseWriter, r *http.Request) {
-	domain := strings.TrimPrefix(r.URL.Path, "/api/lan-qr/")
-	site, err := config.FindSiteByDomain(domain)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	port := site.LANPort
-	if branch := r.URL.Query().Get("branch"); branch != "" {
-		entry, found, err := config.FindWorktreeLAN(site.Name, branch)
-		if err != nil || !found {
-			http.NotFound(w, r)
-			return
-		}
-		port = entry.Port
-	}
-	if port == 0 {
-		http.NotFound(w, r)
-		return
-	}
-	shareURL := cli.LANShareURL(port)
-	if shareURL == "" {
-		http.NotFound(w, r)
-		return
-	}
-	png, err := qrcode.Encode(shareURL, qrcode.Medium, 160)
-	if err != nil {
-		http.Error(w, "qr encode: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Cache-Control", "no-cache")
-	http.ServeContent(w, r, "qr.png", time.Time{}, bytes.NewReader(png))
-}
-
-// handleShareTools reports the supported tunnel tools, which are installed,
-// and what the auto pick would use, so the share menu can render its entries.
-// A POST records the answer to the base-domain question.
-func handleShareTools(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		var body struct {
-			BaseDomain string `json:"base_domain"`
-			Remember   bool   `json:"remember"`
-			// NgrokToken is only present when the token form was submitted, so
-			// a base-domain save cannot clear a stored token by omitting it.
-			NgrokToken *string `json:"ngrok_token"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeJSON(w, SiteActionResponse{Error: "invalid request body"})
-			return
-		}
-		if body.NgrokToken != nil {
-			if err := cli.SetShareNgrokToken(*body.NgrokToken); err != nil {
-				writeJSON(w, SiteActionResponse{Error: err.Error()})
-				return
-			}
-			writeJSON(w, SiteActionResponse{OK: true})
-			return
-		}
-		if err := cli.SetShareBaseDomain(body.BaseDomain, body.Remember); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	}
-	writeJSON(w, cli.ShareTools())
-}
-
-// handleTunnelQR serves a QR code PNG of the site's public tunnel URL, the
-// tunnel twin of handleLANQR.
-func handleTunnelQR(w http.ResponseWriter, r *http.Request) {
-	domain := strings.TrimPrefix(r.URL.Path, "/api/tunnel-qr/")
-	site, err := config.FindSiteByDomain(domain)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	tunnel, ok := cli.TunnelStatus(site.Name, r.URL.Query().Get("branch"))
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	png, err := qrcode.Encode(tunnel.URL, qrcode.Medium, 160)
-	if err != nil {
-		http.Error(w, "qr encode: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Cache-Control", "no-cache")
-	http.ServeContent(w, r, "qr.png", time.Time{}, bytes.NewReader(png))
-}
-
 // handleDashboardQR serves a QR code PNG encoding the dashboard's own LAN URL
 // (http://<lan-ip>:7073) so a phone can scan straight into the remote
 // dashboard. Only meaningful while LAN exposure is on; 404 otherwise.
@@ -3791,14 +3613,14 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "pin":
-		if err := cli.SetSitePinned(site.Name, true); err != nil {
+		if err := config.SetSitePinned(site.Name, true); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "unpin":
-		if err := cli.SetSitePinned(site.Name, false); err != nil {
+		if err := config.SetSitePinned(site.Name, false); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
@@ -3963,65 +3785,11 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
-	case "lan:share":
-		if branch := r.URL.Query().Get("branch"); branch != "" {
-			if _, err := cli.LANShareStartWorktree(site.Name, branch); err != nil {
-				writeJSON(w, SiteActionResponse{Error: err.Error()})
-				return
-			}
-			writeJSON(w, SiteActionResponse{OK: true})
-			return
-		}
-		if _, err := cli.LANShareStart(site.Name); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "lan:refresh":
-		// Re-bind the share proxy to the current site config. Called from
-		// CLI commands (secure/unsecure) that change the backend port the
-		// proxy targets so the running listener picks up the change.
-		if err := cli.LANShareRefreshIfRunning(site.Name); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
 	case "stripe:refresh":
 		// Restart the Stripe listener with the current scheme/host so its
 		// --forward-to flag matches reality. Used by callers that
 		// can't run the systemd commands inline.
 		cli.RestartStripeIfActive(site)
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "lan:unshare":
-		if branch := r.URL.Query().Get("branch"); branch != "" {
-			if err := cli.LANShareStopWorktree(site.Name, branch); err != nil {
-				writeJSON(w, SiteActionResponse{Error: err.Error()})
-				return
-			}
-			writeJSON(w, SiteActionResponse{OK: true})
-			return
-		}
-		if err := cli.LANShareStop(site.Name); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "tunnel:start":
-		if _, err := cli.TunnelStart(site.Name, r.URL.Query().Get("branch"), r.URL.Query().Get("tool"), r.URL.Query().Get("domain")); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "tunnel:stop":
-		if err := cli.TunnelStop(site.Name, r.URL.Query().Get("branch")); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "db:isolate":
@@ -4895,81 +4663,32 @@ var allowedQueueUnit = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 // SettingsResponse is the response for GET /api/settings.
 type SettingsResponse struct {
-	AutostartOnLogin          bool     `json:"autostart_on_login"`
-	WorkerExecMode            string   `json:"worker_exec_mode"`
-	WorkerModeApplies         bool     `json:"worker_mode_applies"` // true on macOS only
-	IdleSuspendEnabled        bool     `json:"idle_suspend_enabled"`
-	IdleSuspendTimeoutMinutes int      `json:"idle_suspend_timeout_minutes"`
-	DNSEnabled                bool     `json:"dns_enabled"`
-	DNSUpstream               []string `json:"dns_upstream"`          // pinned upstreams, empty = auto-detect
-	DNSUpstreamDetected       []string `json:"dns_upstream_detected"` // what auto-detection currently sees
+	AutostartOnLogin    bool     `json:"autostart_on_login"`
+	WorkerExecMode      string   `json:"worker_exec_mode"`
+	WorkerModeApplies   bool     `json:"worker_mode_applies"` // true on macOS only
+	DNSEnabled          bool     `json:"dns_enabled"`
+	DNSUpstream         []string `json:"dns_upstream"`          // pinned upstreams, empty = auto-detect
+	DNSUpstreamDetected []string `json:"dns_upstream_detected"` // what auto-detection currently sees
 }
 
 func handleSettings(w http.ResponseWriter, _ *http.Request) {
 	cfg, _ := config.LoadGlobal()
 	mode := config.WorkerExecModeExec
-	idleEnabled := false
-	idleMinutes := int(config.DefaultIdleSuspendTimeout / time.Minute)
 	dnsEnabled := true
 	var dnsUpstream []string
 	if cfg != nil {
 		mode = cfg.WorkerExecMode()
-		idleEnabled = cfg.IdleSuspend.Enabled
-		idleMinutes = int(cfg.IdleSuspendTimeout() / time.Minute)
 		dnsEnabled = cfg.DNSManaged()
 		dnsUpstream = cfg.DNS.Upstream
 	}
 	writeJSON(w, SettingsResponse{
-		AutostartOnLogin:          servloSystemd.IsAutostartEnabled(),
-		WorkerExecMode:            mode,
-		WorkerModeApplies:         false,
-		IdleSuspendEnabled:        idleEnabled,
-		IdleSuspendTimeoutMinutes: idleMinutes,
-		DNSEnabled:                dnsEnabled,
-		DNSUpstream:               dnsUpstream,
-		DNSUpstreamDetected:       dns.ReadUpstreamDNS(),
+		AutostartOnLogin:    servloSystemd.IsAutostartEnabled(),
+		WorkerExecMode:      mode,
+		WorkerModeApplies:   false,
+		DNSEnabled:          dnsEnabled,
+		DNSUpstream:         dnsUpstream,
+		DNSUpstreamDetected: dns.ReadUpstreamDNS(),
 	})
-}
-
-// handleSettingsIdleSuspend sets the global idle-suspend policy (a single on/off
-// + timeout, not per site). The timeout arrives as whole minutes from the UI and
-// is stored as a Go duration string.
-func handleSettingsIdleSuspend(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Enabled        bool `json:"enabled"`
-		TimeoutMinutes int  `json:"timeout_minutes"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-	if body.TimeoutMinutes < 1 {
-		writeJSON(w, map[string]any{"ok": false, "error": "timeout must be at least 1 minute"})
-		return
-	}
-	cfg, err := config.LoadGlobal()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	cfg.IdleSuspend.Enabled = body.Enabled
-	cfg.IdleSuspend.Timeout = (time.Duration(body.TimeoutMinutes) * time.Minute).String()
-	if err := config.SaveGlobal(cfg); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	// Persisted flag is the boot source of truth; this signal makes the running
-	// watcher start the session, or resume all workers and tear it down, now.
-	if body.Enabled {
-		activityping.Enable()
-	} else {
-		activityping.Disable()
-	}
-	writeJSON(w, map[string]any{"ok": true})
 }
 
 // handleSettingsDNSUpstream pins (or clears) the upstream DNS servers dnsmasq

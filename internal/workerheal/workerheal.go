@@ -259,10 +259,6 @@ func Detect() ([]UnhealthyWorker, error) {
 	// path + framework per site, for resolving a health-probed worker's block.
 	type siteMeta struct{ path, framework string }
 	meta := make(map[string]siteMeta, len(reg.Sites))
-	// Workers a site has intentionally idle-suspended must never be reported as
-	// failing or drifted — they are asleep on purpose and resume on the next
-	// request, so flagging or healing them would be noise (and a heal would wake
-	// the site). Index them so detection can skip them.
 	suspended := make(map[string]map[string]bool, len(reg.Sites))
 	for _, s := range reg.Sites {
 		if s.Paused || s.Ignored {
@@ -270,13 +266,6 @@ func Detect() ([]UnhealthyWorker, error) {
 		}
 		sitePaths[s.Name] = s.Path
 		meta[s.Name] = siteMeta{path: s.Path, framework: s.Framework}
-		if len(s.IdleSuspendedWorkers) > 0 {
-			set := make(map[string]bool, len(s.IdleSuspendedWorkers))
-			for _, w := range s.IdleSuspendedWorkers {
-				set[w] = true
-			}
-			suspended[s.Name] = set
-		}
 	}
 	if len(sitePaths) == 0 {
 		return nil, nil
@@ -322,7 +311,7 @@ func Detect() ([]UnhealthyWorker, error) {
 			continue
 		}
 		if suspended[site][worker] {
-			continue // intentionally idle-suspended, not a failure
+			continue // intentionally stopped, not a failure
 		}
 		// A per-worktree unit pins WorkingDirectory to its checkout, so once that
 		// checkout is gone the unit fails at CHDIR before the command ever runs.
