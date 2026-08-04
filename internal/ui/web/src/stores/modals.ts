@@ -21,9 +21,6 @@ export type ModalKind =
   | 'nginxGlobalSave'
   | 'nginxGlobalRestore'
   | 'nginxGlobalReset'
-  | 'phpIniSave'
-  | 'phpIniRestore'
-  | 'phpIniReset'
   | 'phpRemove'
   | 'tuningSave'
   | 'tuningRestore'
@@ -99,30 +96,6 @@ export interface NginxGlobalResetTarget {
   path: string;
 }
 
-export interface PhpIniSaveTarget {
-  version: string;
-  // Human-readable scope for the confirm copy, e.g. "PHP 8.4" or "the shared
-  // file (all versions)". The API still keys on `version`.
-  label: string;
-  content: string;
-  original: string;
-  exists: boolean;
-}
-
-export interface PhpIniRestoreTarget {
-  version: string;
-  label: string;
-  current: string;
-  backupName: string;
-  backup: string;
-}
-
-export interface PhpIniResetTarget {
-  version: string;
-  label: string;
-  path: string;
-}
-
 export interface PhpRebuildTarget {
   version: string;
 }
@@ -188,9 +161,6 @@ export interface ModalState {
   nginxGlobalSave?: NginxGlobalSaveTarget;
   nginxGlobalRestore?: NginxGlobalRestoreTarget;
   nginxGlobalReset?: NginxGlobalResetTarget;
-  phpIniSave?: PhpIniSaveTarget;
-  phpIniRestore?: PhpIniRestoreTarget;
-  phpIniReset?: PhpIniResetTarget;
   phpRebuild?: PhpRebuildTarget;
   phpRemove?: PhpRemoveTarget;
   tuningSave?: TuningSaveTarget;
@@ -296,18 +266,6 @@ export function openNginxGlobalRestoreModal(target: NginxGlobalRestoreTarget, on
 
 export function openNginxGlobalResetModal(target: NginxGlobalResetTarget, onSuccess?: () => void) {
   modal.set({ kind: 'nginxGlobalReset', nginxGlobalReset: target, onSuccess });
-}
-
-export function openPhpIniSaveModal(target: PhpIniSaveTarget, onSuccess?: () => void) {
-  modal.set({ kind: 'phpIniSave', phpIniSave: target, onSuccess });
-}
-
-export function openPhpIniRestoreModal(target: PhpIniRestoreTarget, onSuccess?: () => void) {
-  modal.set({ kind: 'phpIniRestore', phpIniRestore: target, onSuccess });
-}
-
-export function openPhpIniResetModal(target: PhpIniResetTarget, onSuccess?: () => void) {
-  modal.set({ kind: 'phpIniReset', phpIniReset: target, onSuccess });
 }
 
 export function openPhpRemoveModal(target: PhpRemoveTarget) {

@@ -1936,7 +1936,7 @@ func handleServiceTuning(w http.ResponseWriter, r *http.Request, name string) {
 	var req ServiceTuningWriteRequest
 	// Cap the POST body so a multi-gigabyte payload can't be streamed
 	// straight to disk via os.WriteFile. 64 KiB matches the
-	// php.ini / nginx endpoints in this file.
+	// nginx endpoints in this file.
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
 		writeJSON(w, ServiceTuningWriteResponse{OK: false, Error: "invalid body: " + err.Error()})
 		return
@@ -3314,7 +3314,7 @@ func handleDashboardQR(w http.ResponseWriter, r *http.Request) {
 }
 
 // SiteNginxBackup is the backup metadata the frontend's restore dropdown
-// consumes. It aliases cfgedit.Backup so the site, global-nginx, and php.ini
+// consumes. It aliases cfgedit.Backup so the site and global-nginx
 // editors all surface the same shape from the shared edit service.
 type SiteNginxBackup = cfgedit.Backup
 
@@ -3391,7 +3391,7 @@ func handleSiteNginx(w http.ResponseWriter, r *http.Request, domain string) {
 	}
 	var req SiteNginxWriteRequest
 	// Cap the POST body so a multi-gigabyte payload can't stream straight to
-	// disk. 64 KiB matches the php.ini / global nginx endpoints.
+	// disk. 64 KiB matches the global nginx endpoints.
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
 		writeJSON(w, SiteNginxWriteResponse{OK: false, Error: "invalid body: " + err.Error()})
 		return
@@ -4433,45 +4433,12 @@ func handlePHPVersionAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	version, action := parts[0], parts[1]
-	// The php.ini editor (config) also accepts a "site:<name>" scope for a
-	// FrankenPHP site's own per-site ini and a "shared" scope for the
-	// version-agnostic file; every other action is version-only.
-	isIniScope := strings.HasPrefix(version, "site:") || version == "shared"
-	if isIniScope && action != "config" {
-		http.NotFound(w, r)
-		return
-	}
-	if !isIniScope && !validVersion.MatchString(version) {
+	if !validVersion.MatchString(version) {
 		http.NotFound(w, r)
 		return
 	}
 
-	// User php.ini override + backup/restore/reset subroutes. The save flow
-	// snapshots and rolls back on FPM restart failure; mirrors the per-site
-	// nginx editor's mechanic so the frontend can share the modal pattern.
-	if action == "config" {
-		switch {
-		case len(parts) == 2:
-			handlePhpIniConfig(w, r, version)
-			return
-		case len(parts) == 3 && parts[2] == "backups":
-			handlePhpIniBackups(w, r, version)
-			return
-		case len(parts) == 4 && parts[2] == "backups":
-			handlePhpIniBackupContent(w, r, version, parts[3])
-			return
-		case len(parts) == 3 && parts[2] == "reset":
-			handlePhpIniReset(w, r, version)
-			return
-		case len(parts) == 3 && parts[2] == "restore":
-			handlePhpIniRestore(w, r, version)
-			return
-		}
-		http.NotFound(w, r)
-		return
-	}
-
-	// A read, so it sits above the POST-only gate below, as `config` does.
+	// A read, so it sits above the POST-only gate below.
 	if action == "extensions" && len(parts) == 2 {
 		handlePHPExtensions(w, r, version)
 		return

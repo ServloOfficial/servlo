@@ -2,7 +2,6 @@
   import ButtonMenu, { type ButtonMenuAction } from '$components/ButtonMenu.svelte';
   import DetailTabs, { type TabItem } from '$components/DetailTabs.svelte';
   import LogViewer from '$components/LogViewer.svelte';
-  import PhpIniTab from './PhpIniTab.svelte';
   import PhpPortsTab from './PhpPortsTab.svelte';
   import PhpExtensionsTab from './PhpExtensionsTab.svelte';
   import { status, loadStatus } from '$stores/status';
@@ -30,12 +29,11 @@
   let fpmBusy = $state(false);
   let checking = $state(false);
 
-  type TabId = 'logs' | 'sites' | 'config' | 'ports' | 'extensions';
+  type TabId = 'logs' | 'sites' | 'ports' | 'extensions';
   let active = $state<TabId>('logs');
   const tabs = $derived<TabItem<TabId>[]>([
     { id: 'logs', label: m.services_tabs_logs(), hidden: !running },
     { id: 'sites', label: m.system_php_sites() },
-    { id: 'config', label: m.system_php_iniTab() },
     { id: 'ports', label: m.system_php_portsTab() },
     { id: 'extensions', label: m.system_php_extensionsTab() }
   ]);
@@ -206,8 +204,6 @@
       </div>
     {/if}
   </div>
-{:else if active === 'config'}
-  <PhpIniTab {version} />
 {:else if active === 'ports'}
   <PhpPortsTab {version} />
 {:else if active === 'extensions'}
