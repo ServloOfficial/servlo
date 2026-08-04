@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 )
 
 // ExtraDirs lists the install prefixes a daemon's PATH leaves out: both
@@ -18,9 +17,6 @@ import (
 // Linux. Ordered the way a login shell would see them. A var so tests can point
 // it at a fixture instead of depending on what the host has installed.
 var ExtraDirs = func() []string {
-	if runtime.GOOS == "darwin" {
-		return []string{"/opt/homebrew/bin", "/usr/local/bin"}
-	}
 	return []string{"/usr/local/bin", "/snap/bin", "/home/linuxbrew/.linuxbrew/bin"}
 }
 

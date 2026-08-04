@@ -3,7 +3,6 @@ package nginx
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -1183,9 +1182,6 @@ func TestEnsureDefaultVhost_leavesNoTempFilesInConfD(t *testing.T) {
 }
 
 func TestEnsureServloVhost_linuxProxiesUnixSocket(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("Linux uses the unix socket vhost; macOS uses TCP via host.containers.internal")
-	}
 	confD := setupConfD(t)
 	if err := EnsureServloVhost(); err != nil {
 		t.Fatalf("EnsureServloVhost: %v", err)
@@ -1417,9 +1413,7 @@ func TestEnsureForwardedConf_rewrittenOnEachCall(t *testing.T) {
 }
 
 func TestEnsureServloVhost_darwinProxiesHostContainersInternal(t *testing.T) {
-	if runtime.GOOS != "darwin" {
-		t.Skip("macOS uses TCP via host.containers.internal because unix sockets don't traverse the podman-machine virtio-fs boundary as functional sockets")
-	}
+	t.Skip("macOS uses TCP via host.containers.internal because unix sockets don't traverse the podman-machine virtio-fs boundary as functional sockets")
 	confD := setupConfD(t)
 	if err := EnsureServloVhost(); err != nil {
 		t.Fatalf("EnsureServloVhost: %v", err)

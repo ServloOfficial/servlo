@@ -177,16 +177,6 @@ func TestIsPortConflict(t *testing.T) {
 	}
 }
 
-func TestEnsurePodmanMachineRunning_linux(t *testing.T) {
-	// On Linux this is a no-op — should not panic
-	_ = ensurePodmanMachineRunning()
-}
-
-func TestMigrateExecWorkerPlists_linux(t *testing.T) {
-	// On Linux this is a no-op — should not panic
-	migrateExecWorkerPlists()
-}
-
 // TestStopUnitSet_KeepsDNSRunning pins that `servlo stop` excludes servlo-dns even
 // when servlo manages DNS, while coreUnits (the start path) still includes it.
 // The resolver keeps pointing .test at servlo-dns until uninstall, so stopping

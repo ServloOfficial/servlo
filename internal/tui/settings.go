@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"runtime"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -52,18 +51,6 @@ func (m *Model) settingsRows() []settingsRow {
 	// Worker runtime mode: macOS only. On Linux workers always run via
 	// podman exec under systemd so the setting is meaningless there and
 	// is hidden from the UI.
-	if runtime.GOOS == "darwin" {
-		containerMode := cfg != nil && cfg.WorkerExecMode() == config.WorkerExecModeContainer
-		label := "Workers in container mode (one container per worker)"
-		if !containerMode {
-			label = "Workers in exec mode (lower memory, shared FPM container)"
-		}
-		rows = append(rows, settingsRow{
-			kind:  settingsWorkerMode,
-			label: label,
-			on:    containerMode,
-		})
-	}
 
 	if versions, err := phpPkg.ListInstalled(); err == nil {
 		for _, v := range versions {

@@ -405,14 +405,5 @@ func lookJSBin(name string) (string, bool) {
 	if p, err := exec.LookPath(name); err == nil {
 		return p, true
 	}
-	if runtime.GOOS != "darwin" {
-		return "", false
-	}
-	for _, dir := range []string{"/opt/homebrew/bin", "/usr/local/bin"} {
-		candidate := filepath.Join(dir, name)
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			return candidate, true
-		}
-	}
 	return "", false
 }

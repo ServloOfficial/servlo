@@ -37,37 +37,6 @@ builds:
       - -X github.com/realrashid/servlo/internal/version.Commit={{.Commit}}
       - -X github.com/realrashid/servlo/internal/version.Date={{.Date}}
 
-  - id: servlo-darwin-amd64
-    main: ./cmd/servlo
-    binary: servlo
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - darwin
-    goarch:
-      - amd64
-    ldflags:
-      - -s -w
-      - -X github.com/realrashid/servlo/internal/version.Version={{.Version}}
-      - -X github.com/realrashid/servlo/internal/version.Commit={{.Commit}}
-      - -X github.com/realrashid/servlo/internal/version.Date={{.Date}}
-
-  - id: servlo-darwin-arm64
-    main: ./cmd/servlo
-    binary: servlo
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - darwin
-    goarch:
-      - arm64
-    ldflags:
-      - -s -w
-      - -X github.com/realrashid/servlo/internal/version.Version={{.Version}}
-      - -X github.com/realrashid/servlo/internal/version.Commit={{.Commit}}
-      - -X github.com/realrashid/servlo/internal/version.Date={{.Date}}
-
-archives:
   - id: servlo-amd64
     ids: [servlo-amd64]
     name_template: "servlo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
@@ -78,22 +47,6 @@ archives:
 
   - id: servlo-arm64
     ids: [servlo-arm64]
-    name_template: "servlo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format: tar.gz
-    files:
-      - README.md
-      - install.sh
-
-  - id: servlo-darwin-amd64
-    ids: [servlo-darwin-amd64]
-    name_template: "servlo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format: tar.gz
-    files:
-      - README.md
-      - install.sh
-
-  - id: servlo-darwin-arm64
-    ids: [servlo-darwin-arm64]
     name_template: "servlo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format: tar.gz
     files:

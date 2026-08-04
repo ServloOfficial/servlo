@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"net/http/httptest"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -24,16 +23,8 @@ func TestIsContainerUnit_nginx(t *testing.T) {
 }
 
 func TestIsContainerUnit_dns(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		// On macOS, servlo-dns runs natively via Homebrew
-		if isContainerUnit("servlo-dns") {
-			t.Error("expected isContainerUnit to return false for servlo-dns on macOS")
-		}
-	} else {
-		// On Linux, servlo-dns is a container
-		if !isContainerUnit("servlo-dns") {
-			t.Error("expected isContainerUnit to return true for servlo-dns on linux")
-		}
+	if !isContainerUnit("servlo-dns") {
+		t.Error("expected isContainerUnit to return true for servlo-dns")
 	}
 }
 

@@ -302,19 +302,11 @@ function isFailure(evt: NotificationEvent): boolean {
 
 async function fireNotification(evt: NotificationEvent) {
   const prefs = get(notifyPrefs);
-  const native = get(notifyDelivery) === 'native';
   const failed = isFailure(evt);
-  // A failure is always delivered. Otherwise the gate follows the active sink:
-  // under native the daemon's resolved per-kind prefs decide, and the browser
-  // prefs (which have no UI in native mode) must not act as a phantom filter
-  // that keeps the desktop popup but silently empties the bell.
+  // A failure is always delivered; everything else honours the per-device prefs.
   if (!failed) {
-    if (native) {
-      if (get(notifyNativeKinds)[evt.kind] === false) return;
-    } else {
-      if (!prefs.enabled) return;
-      if (prefs.kinds[evt.kind as NotifyKind] === false) return;
-    }
+    if (!prefs.enabled) return;
+    if (prefs.kinds[evt.kind as NotifyKind] === false) return;
   }
   if (evt.tag) {
     const key = evt.kind + ' ' + evt.tag;
@@ -345,10 +337,6 @@ async function fireNotification(evt: NotificationEvent) {
       pushInApp(entry);
     }
     if (windowFocused()) return;
-    // Under the native sink the daemon has already posted this to the desktop.
-    // A second popup from the page duplicates it and takes the click away from
-    // the desktop app, which the daemon's copy opens through servlo://.
-    if (get(notifyDelivery) === 'native') return;
   }
   if (typeof Notification === 'undefined') return;
   if (Notification.permission !== 'granted') return;
@@ -372,52 +360,6 @@ async function fireNotification(evt: NotificationEvent) {
   new Notification(title, opts);
 }
 
-// notifyDelivery mirrors the server's notification sink (browser | native) so
-// browser-only UI (the enable banner, permission prompts) can hide itself when
-// the daemon is delivering notifications natively.
-export const notifyDelivery = writable<'browser' | 'native'>('browser');
-
-// desktopAppInstalled mirrors whether the daemon sees the Servlo desktop app as
-// the servlo:// handler, so the web UI can offer "Open in app".
-export const desktopAppInstalled = writable<boolean>(false);
-
-// notifyNativeKinds mirrors the daemon's resolved per-kind native prefs. Under
-// the native sink the browser prefs are hidden, so the bell and toasts must
-// follow these instead: a kind the daemon posts to the desktop is one the bell
-// should keep, and one it suppresses is one the bell should drop.
-export const notifyNativeKinds = writable<Record<string, boolean>>({});
-
-export async function loadNotifyDelivery() {
-  try {
-    const r = await apiFetch('/api/notifications/target');
-    if (r.ok) {
-      const d = (await r.json()) as {
-        target?: string;
-        app_installed?: boolean;
-        kinds?: Record<string, boolean>;
-      };
-      notifyDelivery.set(d.target === 'native' ? 'native' : 'browser');
-      desktopAppInstalled.set(!!d.app_installed);
-      notifyNativeKinds.set(d.kinds ?? {});
-    }
-  } catch {
-    /* keep browser default */
-  }
-}
-
-// insideDesktopApp is true when the dashboard is running inside the Servlo desktop
-// app (its preload exposes window.servlo), so "Open in app" hides there.
-export function insideDesktopApp(): boolean {
-  return typeof window !== 'undefined' && typeof (window as { servlo?: unknown }).servlo !== 'undefined';
-}
-
-// openInDesktopApp hands off to the desktop app at the current route via its
-// servlo:// scheme.
-export function openInDesktopApp() {
-  if (typeof location === 'undefined') return;
-  const route = location.hash || '/';
-  location.href = 'servlo://open/' + route;
-}
 
 // handleProtocolLaunch routes a PWA opened via its web+servlo:// protocol handler.
 // The manifest maps the scheme to /?servlo=<full web+servlo:// url>; we extract the
@@ -438,7 +380,6 @@ export function initNotify() {
   if (initialized) return;
   initialized = true;
   handleProtocolLaunch();
-  void loadNotifyDelivery();
   wsMessage.subscribe((msg) => {
     if (!msg?.notification) return;
     void fireNotification(msg.notification);

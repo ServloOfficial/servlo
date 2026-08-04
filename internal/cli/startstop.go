@@ -493,16 +493,6 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// worker health watcher should resume reporting real drift once units are back.
 	_ = config.ClearStopped()
 
-	// Pre-ensure LastUp lets healMachineRestartIfNeeded distinguish an
-	// external podman-machine restart (which orphans gvproxy port forwards)
-	// from a stop+start the ensure itself performs. No-op on Linux.
-	preEnsureLastUp := currentMachineLastUp()
-	if err := ensurePodmanMachineRunning(); err != nil {
-		return err
-	}
-	migrateExecWorkerPlists()
-	healMachineRestartIfNeeded(preEnsureLastUp)
-
 	// Podman orders every rootless quadlet after its network-online wait unit.
 	// Where network-online.target never activates (Fedora Silverblue and other
 	// atomic images) that unit only ever times out, so each container start,
@@ -658,30 +648,12 @@ func runStart(_ *cobra.Command, _ []string) error {
 		return jobs
 	}
 
-	serviceErr := RunParallel(makeJobs(serviceUnits))
-	// When the Podman Machine's container storage is left corrupt after an
-	// unclean host shutdown, every container start fails. Remount storage and
-	// rebuild the stale containers (data is host bind-mounted, so this is safe),
-	// then retry the start pass once. A ghost container (libpod DB entry intact
-	// but its storage layer gone) is the other unclean-shutdown failure; purge it
-	// inside the VM and retry the same way. The two signatures are exclusive.
-	if healOverlayCorruptionIfNeeded(serviceErr) || healGhostContainersIfNeeded(serviceErr) {
-		serviceErr = RunParallel(makeJobs(serviceUnits))
-	}
+	RunParallel(makeJobs(serviceUnits)) //nolint:errcheck
 	// Bulk start does not go through servlo service start, so discover_family
 	// consumers (phpMyAdmin, pgAdmin) never got a post-engine regen. Reconcile
 	// may also have written empty host lists before any engine was up. Refresh
 	// once engines are running so PMA_HOSTS / SERVLO_POSTGRES_HOSTS match reality.
 	serviceops.RefreshDiscoverFamilyConsumers()
-	// If the storage is still corrupt the heal couldn't fix it; every worker
-	// (and the DNS step below) would fail the same way and bury the
-	// recovery guidance. reportOverlayHealOutcome prints the guidance and
-	// reports true only on the platform where this error occurs (macOS), so we
-	// stop there; on every other platform it is a no-op that returns false and
-	// the start continues as normal.
-	if reportOverlayHealOutcome(serviceErr) {
-		return nil
-	}
 	if len(workerUnits) > 0 {
 		RunParallel(makeJobs(workerUnits)) //nolint:errcheck
 	}
@@ -1280,11 +1252,6 @@ func runStop(_ *cobra.Command, _ []string) error {
 	// the workers we're about to stop. They stay enabled and come back on start.
 	_ = config.MarkStopped()
 
-	// On macOS: stop all containers in one podman call before the parallel
-	// per-unit jobs run. This avoids serialising N individual podman stop
-	// requests through the Podman Machine socket (which can take 5s × N).
-	batchStopContainers(units)
-
 	jobs := make([]BuildJob, len(units))
 	for i, u := range units {
 		unit := u
@@ -1324,8 +1291,6 @@ func runQuit(_ *cobra.Command, _ []string) error {
 			s.OK("")
 		}
 	}
-
-	stopPodmanMachine()
 
 	return nil
 }

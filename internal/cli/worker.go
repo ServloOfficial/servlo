@@ -224,13 +224,9 @@ func requireFrameworkWorker(cwd, workerName string) error {
 // strings.
 //
 // The polling flag is appended where the watcher can't see host filesystem
-// events. servlo runs workers inside a container; on macOS that container lives
-// in the podman virtual machine while the project is shared in from the host,
-// so inotify events raised on the host never reach the watcher in the VM. Under
-// WSL2 the same gap exists for projects on 9p (/mnt) mounts, where inotify is
-// not delivered across the boundary. On native Linux the container shares the
-// host filesystem directly and inotify works, so polling is left off to avoid
-// the wasted CPU. See watcherNeedsPolling.
+// events. On Linux the container shares the host filesystem directly and
+// inotify works, so polling is left off to avoid the wasted CPU. See
+// watcherNeedsPolling.
 //
 // The reload command's watcher shells out to node and resolves the chokidar npm
 // package from the project's node_modules; when chokidar is missing we keep the

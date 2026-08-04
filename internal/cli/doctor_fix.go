@@ -27,7 +27,6 @@ const (
 // both shell into subcommands that run sudo, which the auto tier promises not
 // to do, so the doctor reports them as manual for the user to run.
 const (
-	fixWSLSetup  = "wsl-setup"
 	fixDNSRepair = "dns-repair"
 )
 

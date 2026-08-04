@@ -21,13 +21,14 @@ var caTrustPaths = []string{
 }
 
 // platformTrustCheck reports whether der is trusted through a non-bundle store.
-// The darwin build wires it to a keychain trust-settings check (mkcert installs
+// A platform build can wire it to a trust-settings check (mkcert installs
 // its root there, not in a PEM bundle, and presence alone isn't trust — see
-// ca_trust_darwin.go); nil on Linux, where caTrustPaths is authoritative.
+// it there as well as the system store); nil on Linux, where caTrustPaths is
+// authoritative.
 var platformTrustCheck func(der []byte) bool
 
 // platformPresenceCheck reports whether der merely exists in a platform
-// certificate store, independent of any trust decision. The darwin build
+// certificate store, independent of any trust decision. A platform build
 // wires this to the same keychain dump platformTrustCheck used before it was
 // upgraded to a real trust-settings check; nil on Linux, where a caTrustPaths
 // hit already is the trust decision; there's no separate presence-only state
@@ -84,13 +85,13 @@ func CATrusted() bool {
 }
 
 // CAPresentButUntrusted reports the drifted state that let a reinstall
-// silently skip re-establishing trust (see ca_trust_darwin.go): mkcert's
+// silently skip re-establishing trust: mkcert's
 // root CA sits in a platform certificate store — so mkcert's own "already
 // installed" self-check may treat it as already handled — but the store no
 // longer trusts it. Always false when CATrusted() already reports true, when
 // the trust state could not be read (an unanswered check is not a finding,
 // and acting on one would prompt for the repair on every run), or on a
-// platform with no platformPresenceCheck wired (only darwin has a
+// platform with no platformPresenceCheck wired (no platform currently has a
 // presence/trust gap to detect; a Linux bundle hit is the trust decision).
 func CAPresentButUntrusted() bool {
 	if platformPresenceCheck == nil || CATrusted() {

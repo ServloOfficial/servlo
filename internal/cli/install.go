@@ -155,14 +155,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		feedback.Note("delete " + podman.IPv6DisabledMarkerPath("servlo") + " and re-run `servlo install` to re-enable")
 	}
 
-	// Sample LastUp before ensure so an internal stop+start isn't mistaken
-	// for an external machine restart by healMachineRestartIfNeeded below.
-	preEnsureLastUp := currentMachineLastUp()
-	if err := ensurePodmanMachineRunning(); err != nil {
-		return err
-	}
-	healMachineRestartIfNeeded(preEnsureLastUp)
-
 	ensurePortsAvailable()
 
 	// Resolved before the root pass below, which needs to know whether to
@@ -1254,7 +1246,7 @@ func ensureUnprivilegedPorts() error {
 	return nil
 }
 
-// downloadBinaries is implemented per-platform in install_linux.go / install_darwin.go.
+// downloadBinaries is implemented in install_linux.go.
 
 // laravelInstallerPresent returns true if laravel/installer is already
 // installed in the user's composer global vendor directory. The composer
@@ -1812,9 +1804,6 @@ func installShellCompletions(home, servloBin string) {
 // macOS Terminal launches bash as a login shell that reads .bash_profile (not
 // .bashrc); Linux interactive bash reads .bashrc.
 func bashRCPath(home string) string {
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(home, ".bash_profile")
-	}
 	return filepath.Join(home, ".bashrc")
 }
 

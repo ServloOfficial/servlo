@@ -24,7 +24,13 @@ LDFLAGS    = -s -w \
              -X $(PKG).Commit=$(COMMIT) \
              -X $(PKG).Date=$(DATE)
 
-.PHONY: build build-ui install-ui-deps test-ui install install-installer test clean release release-snapshot
+.PHONY: build build-server build-server-all build-ui install-ui-deps test-ui install install-installer test clean release release-snapshot
+
+# Architectures a Servlo droplet can be. build-server targets one at a time so
+# a release job can fan out; build-server-all is the local "does it still cross
+# build" check.
+SERVER_ARCHES = amd64 arm64
+SERVER_ARCH  ?= amd64
 
 UI_INSTALL_STAMP = $(UI_DIR)/node_modules/.package-lock.json
 
@@ -42,6 +48,21 @@ test-ui: $(UI_INSTALL_STAMP)
 
 build: build-ui
 	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY) ./cmd/servlo
+
+# build-server is the production target. CGO_ENABLED=0 so the binary is static
+# and runs on any Ubuntu 24.04 droplet regardless of its glibc, GOOS=linux
+# because that is the only platform Servlo supports, and -trimpath so the
+# shipped binary carries no build-host paths.
+build-server: build-ui
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(SERVER_ARCH) go build -trimpath \
+		-ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY)-linux-$(SERVER_ARCH) ./cmd/servlo
+
+build-server-all: build-ui
+	@for arch in $(SERVER_ARCHES); do \
+		echo "building linux/$$arch"; \
+		CGO_ENABLED=0 GOOS=linux GOARCH=$$arch go build -trimpath \
+			-ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY)-linux-$$arch ./cmd/servlo || exit 1; \
+	done
 
 install: build
 	install -Dm755 $(BUILD_DIR)/$(BINARY) $(INSTALL_DIR)/$(BINARY)

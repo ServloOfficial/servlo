@@ -3,7 +3,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/realrashid/servlo/internal/config"
@@ -168,9 +167,6 @@ func TestBuildHostProxyCommand_injectHostTrueExplicitInjects(t *testing.T) {
 // TestHostProxyBindAddr_usesGatewayIPWhenKnown pins finding #691: the dev server
 // binds the routable gateway IP, not all interfaces, so it is not exposed LAN-wide.
 func TestHostProxyBindAddr_usesGatewayIPWhenKnown(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("macOS reaches the host via gvproxy; bind stays all-interfaces")
-	}
 	pinHostGatewayBindIP(t, "10.89.0.1")
 	if got := hostProxyBindAddr(); got != "10.89.0.1" {
 		t.Errorf("hostProxyBindAddr = %q, want gateway IP 10.89.0.1 (not 0.0.0.0)", got)
@@ -190,9 +186,6 @@ func TestHostProxyBindAddr_fallsBackToAllInterfaces(t *testing.T) {
 // resolved gateway that isn't a local interface (slirp4netns 10.0.2.2, the
 // 169.254.1.2 fallback) would make bind() fail, so we fall back to 0.0.0.0.
 func TestHostProxyBindAddr_fallsBackWhenGatewayNotLocal(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("macOS reaches the host via gvproxy; bind stays all-interfaces")
-	}
 	prevIP, prevLocal := hostGatewayBindIP, hostIPIsLocal
 	hostGatewayBindIP = func() string { return "10.0.2.2" }
 	hostIPIsLocal = func(string) bool { return false }

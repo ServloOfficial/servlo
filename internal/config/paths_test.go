@@ -12,15 +12,6 @@ import (
 // the client dials the TCP loopback; Linux stays on the unix socket.
 func TestUIClientTransport_matchesOS(t *testing.T) {
 	net, addr := UIClientNetwork(), UIClientAddr()
-	if runtime.GOOS == "darwin" {
-		if net != "tcp" {
-			t.Errorf("UIClientNetwork() = %q on darwin, want tcp", net)
-		}
-		if addr != "127.0.0.1:7073" {
-			t.Errorf("UIClientAddr() = %q on darwin, want 127.0.0.1:7073", addr)
-		}
-		return
-	}
 	if net != "unix" {
 		t.Errorf("UIClientNetwork() = %q on %s, want unix", net, runtime.GOOS)
 	}
@@ -34,16 +25,6 @@ func TestUIClientTransport_matchesOS(t *testing.T) {
 // stays on the bind-mounted unix socket. The watcher's listen addr must pair.
 func TestAccessLogTarget_matchesOS(t *testing.T) {
 	target := AccessLogTarget()
-	if runtime.GOOS == "darwin" {
-		want := "host.containers.internal:" + AccessFeedUDPPort
-		if target != want {
-			t.Errorf("AccessLogTarget() = %q on darwin, want %q", target, want)
-		}
-		if addr := AccessFeedListenAddr(); addr != "127.0.0.1:"+AccessFeedUDPPort {
-			t.Errorf("AccessFeedListenAddr() = %q on darwin, want 127.0.0.1:%s", addr, AccessFeedUDPPort)
-		}
-		return
-	}
 	if want := "unix:" + AccessSocketPath(); target != want {
 		t.Errorf("AccessLogTarget() = %q on %s, want %q", target, runtime.GOOS, want)
 	}

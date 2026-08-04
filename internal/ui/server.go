@@ -16,7 +16,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -209,8 +208,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/push/unsubscribe", withCORS(handlePushUnsubscribe))
 	mux.HandleFunc("/api/push/devices", withCORS(handlePushDevices))
 	mux.HandleFunc("/api/push/test", withCORS(handlePushTest))
-	mux.HandleFunc("/api/notifications/target", withCORS(handleNotifyTarget))
-	mux.HandleFunc("/api/notifications/kinds", withCORS(handleNotifyKinds))
 	mux.HandleFunc("/api/lan-qr/", withCORS(handleLANQR))
 	mux.HandleFunc("/api/share-tools", withCORS(handleShareTools))
 	mux.HandleFunc("/api/tools/", withCORS(publishAfter(handleTools, eventbus.KindStatus)))
@@ -359,32 +356,30 @@ func Start(currentVersion string) error {
 	// vhost falls back to TCP via host.containers.internal there.
 	// Errors are non-fatal — direct http://localhost:7073 access still
 	// works even if the socket can't be created.
-	if runtime.GOOS != "darwin" {
-		if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
-			fmt.Printf("[WARN] creating %s: %v — servlo.localhost vhost will not work\n", config.RunDir(), err)
+	if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
+		fmt.Printf("[WARN] creating %s: %v — servlo.localhost vhost will not work\n", config.RunDir(), err)
+	} else {
+		sockPath := config.UISocketPath()
+		_ = os.Remove(sockPath)
+		unixLn, err := net.Listen("unix", sockPath)
+		if err != nil {
+			fmt.Printf("[WARN] binding %s: %v — servlo.localhost vhost will not work\n", sockPath, err)
 		} else {
-			sockPath := config.UISocketPath()
-			_ = os.Remove(sockPath)
-			unixLn, err := net.Listen("unix", sockPath)
-			if err != nil {
-				fmt.Printf("[WARN] binding %s: %v — servlo.localhost vhost will not work\n", sockPath, err)
-			} else {
-				if err := os.Chmod(sockPath, 0660); err != nil {
-					fmt.Printf("[WARN] chmod %s: %v\n", sockPath, err)
-				}
-				unixSrv := &http.Server{
-					Handler: handler,
-					ConnContext: func(ctx context.Context, _ net.Conn) context.Context {
-						return context.WithValue(ctx, ctxKeyUnixSocket{}, true)
-					},
-				}
-				go func() {
-					fmt.Printf("Servlo UI listening on unix:%s\n", sockPath)
-					if err := unixSrv.Serve(unixLn); err != nil && err != http.ErrServerClosed {
-						fmt.Printf("[WARN] unix socket server exited: %v\n", err)
-					}
-				}()
+			if err := os.Chmod(sockPath, 0660); err != nil {
+				fmt.Printf("[WARN] chmod %s: %v\n", sockPath, err)
 			}
+			unixSrv := &http.Server{
+				Handler: handler,
+				ConnContext: func(ctx context.Context, _ net.Conn) context.Context {
+					return context.WithValue(ctx, ctxKeyUnixSocket{}, true)
+				},
+			}
+			go func() {
+				fmt.Printf("Servlo UI listening on unix:%s\n", sockPath)
+				if err := unixSrv.Serve(unixLn); err != nil && err != http.ErrServerClosed {
+					fmt.Printf("[WARN] unix socket server exited: %v\n", err)
+				}
+			}()
 		}
 	}
 
@@ -549,16 +544,6 @@ func terminalDirCandidates(dir string) []terminalCmd {
 		terminalCmd{"xterm", []string{"-e", "sh", "-c", `cd "$0" && exec "$SHELL"`, dir}},
 	)
 
-	if runtime.GOOS == "darwin" {
-		// `open -a Terminal dir` opens a new window at dir without echoing any
-		// command — cleaner than `do script "cd ... && exec $SHELL"` which types
-		// the command visibly into the shell. iTerm2 supports the same via open.
-		if _, err := os.Stat("/Applications/iTerm.app"); err == nil {
-			candidates = append(candidates, terminalCmd{"open", []string{"-a", "iTerm", dir}})
-		}
-		candidates = append(candidates, terminalCmd{"open", []string{"-a", "Terminal", dir}})
-	}
-
 	return candidates
 }
 
@@ -577,9 +562,7 @@ func openTerminalAt(dir string) error {
 		}
 		cmd := exec.Command(bin, args...)
 		cmd.Dir = dir
-		if runtime.GOOS != "darwin" {
-			cmd.Env = graphicalEnv()
-		}
+		cmd.Env = graphicalEnv()
 		if err := cmd.Start(); err != nil {
 			return err
 		}
@@ -2722,7 +2705,7 @@ func sitesUsingService(name string) []string {
 	return domains
 }
 
-// serviceRecentLogs is implemented per-platform in logs_linux.go / logs_darwin.go.
+// serviceRecentLogs is implemented in logs_linux.go.
 
 // VersionResponse is the response for GET /api/version.
 type VersionResponse struct {
@@ -5043,7 +5026,7 @@ func handleSettings(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, SettingsResponse{
 		AutostartOnLogin:          servloSystemd.IsAutostartEnabled(),
 		WorkerExecMode:            mode,
-		WorkerModeApplies:         runtime.GOOS == "darwin",
+		WorkerModeApplies:         false,
 		IdleSuspendEnabled:        idleEnabled,
 		IdleSuspendTimeoutMinutes: idleMinutes,
 		DNSEnabled:                dnsEnabled,
@@ -5319,23 +5302,13 @@ func openTerminalCommand(script string) error {
 		termCmd{"xterm", []string{"-e", "sh", "-c", script}},
 	)
 
-	if runtime.GOOS == "darwin" {
-		if _, err := os.Stat("/Applications/iTerm.app"); err == nil {
-			as := "tell application \"iTerm2\"\n\tcreate window with default profile\n\ttell current session of current window\n\t\twrite text " + appleScriptStr(script) + "\n\tend tell\nend tell"
-			candidates = append(candidates, termCmd{"osascript", []string{"-e", as}})
-		}
-		as := "tell application \"Terminal\"\n\tdo script " + appleScriptStr(script) + "\n\tactivate\nend tell"
-		candidates = append(candidates, termCmd{"osascript", []string{"-e", as}})
-	}
 	for _, t := range candidates {
 		bin, err := exec.LookPath(t.bin)
 		if err != nil {
 			continue
 		}
 		cmd := exec.Command(bin, t.args...)
-		if runtime.GOOS != "darwin" {
-			cmd.Env = graphicalEnv()
-		}
+		cmd.Env = graphicalEnv()
 		if err := cmd.Start(); err != nil {
 			return err
 		}

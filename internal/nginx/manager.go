@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -640,9 +639,6 @@ func GenerateCustomSSLVhost(site config.Site) error {
 // macOS resolves host.containers.internal via gvproxy; on Linux we reuse the
 // routable gateway IP the probe cached in the hosts file (pure read, no podman).
 func hostProxyUpstream() string {
-	if runtime.GOOS == "darwin" {
-		return "host.containers.internal"
-	}
 	if ip := podman.ReadHostGatewayFromFile(); ip != "" {
 		return ip
 	}
@@ -1534,63 +1530,7 @@ func EnsureServloVhost() error {
 		return err
 	}
 
-	var content string
-	if runtime.GOOS == "darwin" {
-		token, err := LoadOrGenerateTrustToken()
-		if err != nil {
-			return fmt.Errorf("loading trust token: %w", err)
-		}
-		content = fmt.Sprintf(`server {
-    listen 80;
-    listen [::]:80;
-    server_name servlo.localhost;
-
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Servlo-Trust %s;
-
-    location = / {
-        proxy_pass http://host.containers.internal:7073;
-    }
-
-    location ^~ /icons/ {
-        proxy_pass http://host.containers.internal:7073;
-    }
-
-    location ^~ /assets/ {
-        proxy_pass http://host.containers.internal:7073;
-    }
-
-    location ^~ /_spx/ {
-        proxy_pass http://host.containers.internal:7073;
-    }
-
-    location ^~ /_svc/ {
-        proxy_pass http://host.containers.internal:7073;
-    }
-
-    location = /manifest.webmanifest {
-        proxy_pass http://host.containers.internal:7073;
-    }
-
-    location = /sw.js {
-        proxy_pass http://host.containers.internal:7073;
-    }
-
-    location = /offline.html {
-        proxy_pass http://host.containers.internal:7073;
-    }
-
-    location / {
-        return 444;
-    }
-}
-`, token)
-	} else {
-		content = fmt.Sprintf(`server {
+	content := fmt.Sprintf(`server {
     listen 80;
     listen [::]:80;
     server_name servlo.localhost;
@@ -1638,7 +1578,6 @@ func EnsureServloVhost() error {
     }
 }
 `, config.UISocketPath())
-	}
 	config.GuardRealWrite(filepath.Join(config.NginxConfD(), "servlo.localhost.conf"))
 	return os.WriteFile(filepath.Join(config.NginxConfD(), "servlo.localhost.conf"), []byte(content), 0644)
 }

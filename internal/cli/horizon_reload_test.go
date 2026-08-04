@@ -3,7 +3,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -45,8 +44,8 @@ func siteWithReload(t *testing.T, reloadOn, withChokidar bool) string {
 }
 
 // withPoll appends the polling flag the way resolveWorkerCommand does where the
-// container cannot observe host filesystem events (macOS, or WSL2 under /mnt).
-// On native Linux CI this is a no-op, matching the resolved command.
+// container cannot observe host filesystem events. On Linux this is a no-op,
+// matching the resolved command.
 func withPoll(sitePath, cmd string) string {
 	if watcherNeedsPolling(sitePath) {
 		return cmd + " --poll"
@@ -84,21 +83,6 @@ func TestResolveWorkerCommand(t *testing.T) {
 			t.Errorf("got %q, want %q", got, queue.Command)
 		}
 	})
-}
-
-func TestWatcherNeedsPolling_WSLMntGate(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("macOS always polls regardless of path")
-	}
-	// Force the WSL fast-path so the test exercises the /mnt gate, not the
-	// host's real environment.
-	t.Setenv("WSL_DISTRO_NAME", "Ubuntu")
-	if !watcherNeedsPolling("/mnt/c/code/app") {
-		t.Error("a WSL project under /mnt (9p) should poll")
-	}
-	if watcherNeedsPolling("/home/user/code/app") {
-		t.Error("a WSL project on the native filesystem should not poll")
-	}
 }
 
 func TestApplyHorizonReload_ChokidarGate(t *testing.T) {
