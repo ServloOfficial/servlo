@@ -32,7 +32,7 @@ const (
 
 // systemRow is one line in the System detail view. value is shown dimmed on
 // the right of label; on drives the on/off glyph for toggle rows. arg holds
-// per-row context (currently the PHP version for xdebug rows).
+// per-row context (the PHP version, for per-version rows).
 type systemRow struct {
 	kind  systemKind
 	label string

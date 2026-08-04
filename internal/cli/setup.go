@@ -249,7 +249,7 @@ func runSetup(allSteps, skipOpen bool) error {
 		})
 	}
 
-	// Mirror the host's bun into the PHP-FPM container so `servlo shell` has a
+	// Mirror the host's bun into the PHP-FPM container so a container process has a
 	// working (musl) bun, with no extra command. servlo never installs bun on the
 	// host; this only fires when the user already has it there. Only PHP-FPM
 	// sites have that container — host-proxy and custom-container sites run their

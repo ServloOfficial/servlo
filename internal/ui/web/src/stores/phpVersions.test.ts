@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { phpOptionsForSite } from './phpVersions';
 
 describe('phpOptionsForSite', () => {
@@ -44,17 +44,4 @@ describe('phpOptionsForSite', () => {
     expect(disabled(opts)).toEqual(['8.4', '8.5']);
     expect(disabled(opts)).not.toContain('7.4');
   });
-});
-
-describe('phpVersions store', () => {
-  const realFetch = globalThis.fetch;
-
-  beforeEach(() => {
-    vi.resetModules();
-  });
-
-  afterEach(() => {
-    globalThis.fetch = realFetch;
-  });
-
 });

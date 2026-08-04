@@ -141,17 +141,13 @@ Supported PHP versions: **8.5**, **8.4**, **8.3**, **8.2**, **8.1**, and the fro
 | `servlo php:list` | List all installed PHP-FPM versions |
 | `servlo php:rebuild [--local]` | Force-rebuild all installed PHP-FPM images (pulls pre-built base by default; `--local` builds from source) |
 | `servlo fetch [version...] [--local]` | Pull pre-built PHP FPM base images from ghcr.io for the given (or all supported) versions; `--local` builds from source instead |
-| `servlo xdebug on [version] [--mode MODE] [--on-demand]` | Enable Xdebug for a PHP version. `--mode` defaults to `debug`; accepts `coverage`, `develop`, `profile`, `trace`, `gcstats`, or comma combos like `debug,coverage`. `--on-demand` sets `start_with_request=trigger` so nothing auto-connects |
-| `servlo xdebug off [version]` | Disable Xdebug |
-| `servlo xdebug status` | Show Xdebug enabled/disabled state and active mode for all installed PHP versions |
-| `servlo xdebug pause [site] [--list] [--pid PID]` | (experimental, PHP-FPM sites only) Break the IDE debugger into a running worker/CLI process via Xdebug's control socket (`xdebugctl`). `--list` shows candidate processes, `--pid` targets one |
 | `servlo php:ext add <ext> [--apk-deps PKG[,PKG]]` | Add a custom PHP extension to every PHP image and rebuild the current version. `--apk-deps` accepts additional Alpine packages that the extension needs at build time (e.g. `--apk-deps libwebp-dev,libpng-dev` for `gd` with WebP support); the package list is persisted in `~/.config/servlo/config.yaml` so future rebuilds reapply it |
 | `servlo php:ext remove <ext>` | Remove a custom PHP extension from every PHP image and rebuild |
 | `servlo php:ext list` | List your declared extensions, and what each PHP version's image actually loaded |
 | `servlo php:pkg add <package...>` | Add extra Alpine packages to every FPM image and rebuild the current version; the list is persisted so future rebuilds reapply it |
 | `servlo php:pkg remove <package...>` | Remove extra Alpine packages from every FPM image and rebuild |
 | `servlo php:pkg list` | List your declared Alpine packages, and what each PHP version's image actually installed |
-| `servlo php:ports add <host:container...> [--php VERSION]` | Publish extra host ports on the version's shell (FPM) container so a process in `servlo shell` is reachable at `localhost:PORT`; a bare number publishes straight through, and a busy host port shifts to the next free one |
+| `servlo php:ports add <host:container...> [--php VERSION]` | Publish extra host ports on the version's FPM container so a process in the container is reachable at `localhost:PORT`; a bare number publishes straight through, and a busy host port shifts to the next free one |
 | `servlo php:ports remove <host...> [--php VERSION]` | Unpublish host ports from the version's shell container |
 | `servlo php:ports list [--php VERSION]` | List the extra host ports published for a PHP version |
 | `servlo php:ini [version\|shared]` | Open a PHP version's php.ini in `$EDITOR`, or the shared file (`php:ini shared`) applied to every version |
@@ -167,12 +163,6 @@ Supported PHP versions: **8.5**, **8.4**, **8.3**, **8.2**, **8.1**, and the fro
 | `servlo dump status` | Show whether the bridge is enabled and how many events are buffered |
 | `servlo dump tail [--site X] [--branch Y] [--ctx fpm\|cli]` | Stream captured dumps to the terminal until Ctrl-C |
 | `servlo dump clear` | Clear the in-memory dump ring without disabling the bridge |
-| `servlo profile on` | Turn the SPX profiler on so every PHP-FPM site's requests are profiled into flame graphs |
-| `servlo profile off` | Turn the SPX profiler off |
-| `servlo profile status` | Show whether the profiler is on and the SPX web UI URL |
-| `servlo profile open` | Open the SPX profiler web UI in the browser |
-| `servlo profile run <command> [args...]` | Profile a one-off CLI command (e.g. `servlo profile run artisan queue:work`) |
-| `servlo profile clear` | Delete all captured SPX profile reports |
 | `servlo notify on` | Enable servlo notifications globally (dashboard banners + Web Push fanout) |
 | `servlo notify off` | Globally mute servlo notifications; bypasses per-device prefs |
 | `servlo notify target <browser\|native>` | Choose the delivery sink: browser (WebSocket + Web Push) or native desktop notifications (Linux) |
@@ -344,7 +334,6 @@ Activity-driven worker suspension: servlo gracefully stops each site's suspendab
 | `servlo a [args...]` | Short alias for `servlo console` / `servlo artisan` |
 | `servlo test [args...]` | Shortcut for `servlo artisan test` |
 | `servlo <vendor-bin> [args...]` | Run any composer-installed binary from the project's `vendor/bin` directory (e.g. `servlo pest`, `servlo pint`, `servlo phpstan`). Real servlo commands always win over vendor binaries with the same name. |
-| `servlo shell` | Open an interactive shell inside the project's PHP-FPM container |
 
 ## Dashboard
 

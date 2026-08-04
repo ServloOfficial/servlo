@@ -188,8 +188,8 @@ func TestCustomContainer_NestJS_QuadletGeneration(t *testing.T) {
 	}
 
 	// Must NOT contain PHP-specific things.
-	if strings.Contains(content, "xdebug") || strings.Contains(content, "php-fpm") {
-		t.Error("custom container quadlet should not reference PHP/xdebug")
+	if strings.Contains(content, "php-fpm") {
+		t.Error("custom container quadlet should not reference PHP-FPM")
 	}
 }
 

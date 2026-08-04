@@ -95,7 +95,7 @@ Available when focus is on the Detail pane with the cursor on a domain row.
 
 | Key | Action |
 | --- | --- |
-| `S` | Swap the Detail pane for global Settings (LAN expose, autostart, Xdebug) and focus it, Sites tab |
+| `S` | Swap the Detail pane for global Settings (LAN expose, autostart) and focus it, Sites tab |
 | `Y` | Swap the Detail pane for the System overview (DNS, Nginx, Watcher, Notifications, Debug bridge, PHP per-version, Node, Servlo) and focus it, Sites tab |
 | `D` | Open the Debug window, the same capture the web dashboard shows. `[` / `]` switch lens across `Dumps · Queries · Jobs · Views · Mail · Cache · Events · HTTP`; the Queries lens groups by request with N+1 and slow-query (≥100ms) flags, and the other lenses group by request too. Use `/` to search the active lens (site, request, worker, file, text, payload) · `1`/`2` toggle the FPM / CLI context-filter chips · `enter` expands the selected row (query bindings and caller, job exception, view template, mail recipients, …) · `w` toggles worker capture (queue / scheduler events, off by default) · `c` clears the buffer (and runs `servlo dump clear`) · `T` toggles the bridge globally. The buffer is independent of the servlo-ui ring because the TUI runs in its own process and only sees what the SSE connection delivers |
 | `?` | Open the Keybindings reference as a centered modal overlay; `?` again or `esc` closes it |
@@ -134,7 +134,7 @@ For worker rows (queue-X, schedule-X, custom framework workers) the detail varia
 
 ## Site detail tabs
 
-The site detail pane is split into read-side tabs the user can jump between with the number keys, mirroring the web UI's `Overview / Logs / Env / Debug` strip (Tinker is CLI-only since it needs an interactive REPL).
+The site detail pane is split into read-side tabs the user can jump between with the number keys, mirroring the web UI's `Overview / Logs / Env / Debug` strip.
 
 | Key | Tab | Contents |
 | --- | --- | --- |
@@ -202,7 +202,6 @@ Press `S` (on the Sites tab) to swap the detail pane for global settings. Naviga
 
 - **LAN expose**: flip every container to 0.0.0.0 binds (`servlo lan expose on/off`).
 - **Autostart on login**: `servlo autostart enable/disable`.
-- **Xdebug**: one toggle per installed PHP version; rebuilds the FPM container.
 
 `S` again (or `esc`) returns to Site detail.
 
@@ -215,7 +214,7 @@ Press `Y` (on the Sites tab) to swap the detail pane for the System overview, th
 - **Watcher**: running / stopped.
 - **Notifications**: `Enabled` toggle (runs `servlo notify on/off`).
 - **Debug bridge**: `Enabled` toggle (runs `servlo dump on/off`), passthrough indicator (web-UI managed), listen socket address, and the current TUI buffered count.
-- **PHP versions**: default version plus one row per installed PHP showing FPM running state and an Xdebug toggle that reflects the configured mode (`debug`, `profile`, or `trace`).
+- **PHP versions**: default version plus one row per installed PHP showing FPM running state.
 - **Node**: default version (from the global config) and the installed major versions reported by `fnm list`.
 - **Worker mode**: macOS only; toggles `servlo workers mode exec|container`. Hidden on Linux where workers always run under systemd.
 - **Servlo**: current version, cached update check result, autostart toggle, LAN-expose toggle.

@@ -9,10 +9,6 @@
 | `servlo php:list` | List all installed PHP-FPM versions |
 | `servlo php:rebuild [--local]` | Force-rebuild all installed PHP-FPM images; `--local` builds from source instead of pulling a base |
 | `servlo fetch [version...] [--local]` | Pull pre-built PHP FPM base images from ghcr.io; `--local` builds from source instead |
-| `servlo xdebug on [version] [--mode MODE] [--on-demand]` | Enable Xdebug for a PHP version with the given mode (default `debug`) and restart the FPM container. `--on-demand` sets `start_with_request=trigger` so nothing auto-connects |
-| `servlo xdebug off [version]` | Disable Xdebug and restart the FPM container |
-| `servlo xdebug status` | Show Xdebug enabled/disabled state and active mode for all installed PHP versions |
-| `servlo xdebug pause [site] [--list] [--pid PID]` | Break the IDE debugger into a running worker/CLI process via Xdebug's control socket. `--list` shows candidate processes |
 | `servlo php:ext add <ext> [--apk-deps "pkg ..."]` | Add a custom PHP extension to every PHP image and rebuild the current version; `--apk-deps` lists extra Alpine packages the extension needs to build |
 | `servlo php:ext remove <ext>` | Remove a custom PHP extension from every PHP image and rebuild |
 | `servlo php:ext list` | List your declared extensions, and what each PHP version's image actually loaded |
@@ -23,8 +19,8 @@
 | `servlo php:pkg add <package...>` | Install extra Alpine packages into every FPM image and rebuild the current version |
 | `servlo php:pkg remove <package...>` | Remove extra Alpine packages from every FPM image and rebuild |
 | `servlo php:pkg list` | List your declared packages, and what each PHP version's image actually installed |
-| `servlo php:ports add <host:container...> [--php version]` | Publish a host port on the version's shell container; a bare number publishes the same port straight through, and a busy host port shifts to the next free one |
-| `servlo php:ports remove <host...> [--php version]` | Unpublish a host port from the version's shell container |
+| `servlo php:ports add <host:container...> [--php version]` | Publish a host port on the version's FPM container; a bare number publishes the same port straight through, and a busy host port shifts to the next free one |
+| `servlo php:ports remove <host...> [--php version]` | Unpublish a host port from the version's FPM container |
 | `servlo php:ports list [--php version]` | List the extra host ports published for a PHP version |
 | `servlo pest:browser install [version]` | Set up in-container Pest browser testing (musl chromium + Playwright shim); see browser testing |
 | `servlo pest:browser remove [version]` | Remove chromium from the FPM image and disable Pest browser testing |
@@ -35,7 +31,7 @@ If no version is given, the version is resolved from the current directory (`.ph
 
 Versions are written as `major.minor`, but common spellings are accepted everywhere a version is typed: `php8.4`, `84` and `8.4.7` all normalize to `8.4`. Anything that does not resolve to a supported version is rejected up front, so a typo can never end up as the stored default and break image names.
 
-Inside a linked site, the commands that run PHP in a container (`servlo php`, `servlo composer`, `servlo console`, `servlo php:shell`) use the version the site is registered on, which is the version its FPM container serves. That matters when a framework clamps the version at link time: a Laravel 13 project pinning `.php-version` to 8.1 is linked on 8.5, because Laravel 13 supports 8.3 to 8.5, and composer then runs on 8.5 too rather than resolving 8.1 from the file and quietly using a different PHP than the site itself.
+Inside a linked site, the commands that run PHP in a container (`servlo php`, `servlo composer`, `servlo console`) use the version the site is registered on, which is the version its FPM container serves. That matters when a framework clamps the version at link time: a Laravel 13 project pinning `.php-version` to 8.1 is linked on 8.5, because Laravel 13 supports 8.3 to 8.5, and composer then runs on 8.5 too rather than resolving 8.1 from the file and quietly using a different PHP than the site itself.
 
 A git worktree resolves ahead of the site it belongs to. A worktree inherits its parent site's version until you pin one with `servlo isolate` from inside the checkout, and from then on the whole toolchain follows that pin: the worktree's own vhost, `servlo php`, `servlo composer`, and everything else that runs PHP in a container. This holds wherever the checkout lives, including inside the parent site's own directory, so a worktree on 8.3 under a site on 8.5 runs composer on 8.3 rather than picking up the parent's version.
 
@@ -151,53 +147,6 @@ systemctl --user stop   servlo-php84-fpm
 
 **`servlo status`**: stopped FPM containers for unused versions are reported as a warning, not an error.
 
----
-
-## Xdebug
-
-::: details Xdebug configuration values
-Xdebug is configured with:
-
-- `xdebug.mode=<mode>` (defaults to `debug`, configurable per PHP version)
-- `xdebug.start_with_request=yes` (or `trigger` with `--on-demand`)
-- `xdebug.client_host=host.containers.internal` (reaches your host IDE from the container)
-- `xdebug.client_port=9003`
-
-Set your IDE to listen on port `9003`. In VS Code, the default PHP Debug configuration works without changes. In PhpStorm, set **Settings > PHP > Debug > Debug port** to `9003`.
-
-`host.containers.internal` is resolved via a real reachability probe: when servlo writes the shared hosts file it tries each candidate IP (netavark's `host.containers.internal` entry, the host's primary LAN IP, slirp4netns's `10.0.2.2`) by opening a TCP connection to servlo-ui on port 7073 from inside servlo-nginx, and writes the first one that succeeds. If none succeed, `servlo doctor` reports the failure so you get a real diagnosis instead of Xdebug silently timing out with `Time-out connecting to debugging client`.
-:::
-
-### Picking a mode
-
-Xdebug supports several modes: `debug` (step debugging, the default), `coverage` (code coverage collection), `develop`, `profile`, `trace`, `gcstats`, and `off`. Pick one with `--mode`:
-
-```bash
-servlo xdebug on --mode coverage        # code coverage for phpunit / pest
-servlo xdebug on --mode debug,coverage  # both at once
-servlo xdebug on 8.4 --mode trace       # explicit version
-```
-
-When combined with PCOV this matters in one direction: if your test runner's `phpunit.xml` prefers PCOV it still wins for coverage, but once you enable Xdebug in `coverage` mode your runner can fall back to Xdebug when PCOV isn't available or is disabled (`pcov.enabled = 0` in `servlo php:ini`). Running Xdebug in `coverage` mode carries the usual runtime cost, so only switch while you actually need coverage.
-
-Re-run `servlo xdebug on --mode <new>` at any time to swap modes without going through `off` first.
-
-### On-demand debugging (workers and CLI)
-
-By default `start_with_request=yes`, so with the debugger listening every request and every running worker tries to connect at once. To debug a single process on demand instead, enable on-demand mode and attach with `pause`:
-
-```bash
-servlo xdebug on --on-demand        # start_with_request=trigger — nothing auto-connects
-servlo xdebug pause --list          # list running PHP processes that expose a control socket
-servlo xdebug pause --pid 1234      # break the IDE into that process
-```
-
-`pause` uses Xdebug's [control socket](https://xdebug.org/docs/xdebugctl) (Xdebug >= 3.3, baked into servlo's FPM images) via the `xdebugctl` tool. It is the practical way to debug a **queue/Horizon worker, a scheduled task, or a CLI script**: processes where you can't set a trigger cookie. Run it from a project directory (or pass a site name); servlo resolves the site's container, scopes the candidate list to that site's own processes, and tells the running process to connect to your IDE on port `9003`. The worker must have been started *after* Xdebug was enabled, and your IDE must be listening. Because `xdebugctl` ships only in the shared FPM image, `pause` is PHP-FPM only; FrankenPHP and custom-container sites run their own image without it (the regular `servlo xdebug on` toggle still works on them).
-
-For ordinary web requests under `--on-demand`, use the [Xdebug Helper](https://xdebug.org/docs/step_debug#browser-extensions) browser extension (or append `?XDEBUG_TRIGGER=1`) to trigger a session per page.
-
----
-
 ## Debug bridge
 
 Calls to `dump()` and `dd()` can be captured into the servlo dashboard and TUI instead of (or alongside) the response. Enable with:
@@ -247,7 +196,6 @@ On the publishing side, an upstream refresh rebuilds the hash tag main computes 
 PHP 7.4 and 8.0 are available as a frozen legacy tier for old projects (Laravel 6–8 on 7.4, Laravel 8–9 on 8.0). They build from the same Alpine-based recipe as the current versions, including ICU full locale data, but with a few caveats:
 
 - They are end-of-life upstream and get no security patches. Use them only for local work on legacy apps.
-- Xdebug is pinned to the last release supporting that PHP line (3.1.6 for 7.4, 3.3.2 for 8.0).
 - The `mongodb` extension is unavailable (it requires PHP 8.1+), and so is `random` (a PHP core extension only from 8.2); everything else in the standard bundle is present.
 - The base image is Alpine 3.16, so the bundled Node.js is 16.x.
 
@@ -263,7 +211,7 @@ servlo fetch 7.4 8.0
 
 ## Custom extensions
 
-The default servlo FPM image ships ~30 extensions covering the vast majority of Laravel projects (`bcmath`, `bz2`, `calendar`, `curl`, `dba`, `exif`, `ftp`, `gd`, `gmp`, `igbinary`, `imagick`, `intl`, `ldap`, `mbstring`, `mongodb`, `mysqli`, `opcache`, `pcntl`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `redis`, `soap`, `shmop`, `sockets`, `sqlite3`, `sysvmsg`, `sysvsem`, `sysvshm`, `xdebug`, `xsl`, `zip`, and more).
+The default servlo FPM image ships ~30 extensions covering the vast majority of Laravel projects (`bcmath`, `bz2`, `calendar`, `curl`, `dba`, `exif`, `ftp`, `gd`, `gmp`, `igbinary`, `imagick`, `intl`, `ldap`, `mbstring`, `mongodb`, `mysqli`, `opcache`, `pcntl`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `redis`, `soap`, `shmop`, `sockets`, `sqlite3`, `sysvmsg`, `sysvsem`, `sysvshm`, `xsl`, `zip`, and more).
 
 Two of those names are version-gated, because the image genuinely cannot build them everywhere: `random` is a PHP core extension only from 8.2, and `mongodb` builds only on 8.1 and up. On older versions they are not part of the bundle, and `servlo park` warns when a project requires one rather than staying quiet and letting `composer install` fail its platform check.
 
@@ -392,7 +340,7 @@ container:
   containerfile: Containerfile.servlo
 ```
 
-Then `servlo link`. servlo builds `servlo-custom-myapp:local`, runs a dedicated FPM container `servlo-cfpm-myapp`, and points nginx fastcgi at it. The per-site container reuses every servlo mount, so xdebug, dumps, the debug bridge, the profiler, and `servlo shell` all work exactly as on a normal PHP site, and `servlo php`, `artisan`, `composer`, `tinker`, and queue/horizon workers all run inside it. Toggling xdebug for that PHP version restarts the per-site container too.
+Then `servlo link`. servlo builds `servlo-custom-myapp:local`, runs a dedicated FPM container `servlo-cfpm-myapp`, and points nginx fastcgi at it. The per-site container reuses every servlo mount, so the debug bridge works exactly as on a normal PHP site, and `servlo php`, `artisan`, `composer` and queue/horizon workers all run inside it.
 
 The PHP version is fixed by the `FROM` line, not by `.php-version` or the dashboard, so the version selector is shown read-only for these sites. To change the version, edit the `FROM` and relink.
 
@@ -411,42 +359,9 @@ Each custom-image PHP site runs its own FPM container rather than sharing the pe
 
 ---
 
-## PHP shell
-
-`servlo shell` opens an interactive shell inside the PHP-FPM container for the current project:
-
-```bash
-servlo shell
-```
-
-The PHP version is resolved the same way as every other servlo command (`.php-version`, `composer.json`, global default). The shell's working directory is set to the project root.
-
-If the container is not running, servlo prints the `systemctl --user start` command to bring it back up rather than silently failing.
-
-If the site is paused, any services referenced in `.env` (MySQL, Redis, etc.) are started automatically before the shell opens; the site itself stays paused.
-
-### Shell environment
-
-The servlo PHP-FPM image ships zsh with a self-contained config (starship prompt, persistent history, sensible defaults). When you run `servlo shell` or open a shell from the TUI, servlo execs zsh inside the container; for non-PHP service containers (Redis, MySQL, etc.) the fallback chain is `zsh > bash > sh` depending on what the upstream image provides.
-
-The in-container shell is deliberately isolated from your host shell config. Every developer's `~/.zshrc` or `~/.config/fish` is different, and sourcing distro-specific paths or host-only binaries inside the alpine container cascades into noisy errors (missing oh-my-zsh, missing pacman, missing fastfetch, etc.). Rather than play whack-a-mole, servlo ships a clean, predictable shell environment that's identical across every machine and contributor.
-
-What you get inside the container:
-
-- **starship** as the default prompt, branch, dir, git status, all the usual.
-- **eza**, **bat**, **fzf**, **zoxide** on `$PATH` for nicer file listing, paging, fuzzy-find, and `cd` history.
-- Shell history persisted under `~/.local/share/servlo/shell-state/php-<version>/zsh/history`, so commands survive container rebuilds.
-- `HostName=` set to your host's hostname so the prompt reads `root@your-machine` instead of the auto-generated container id.
-
-If you want extra packages in the image (additional CLI tools, language toolchains, etc.), use `servlo php:ext` for PHP extensions, or fork the Containerfile at `internal/podman/quadlets/servlo-php-fpm.Containerfile`.
-
-For other tools and runtime libraries, `servlo php:pkg add <packages>` installs Alpine packages into the FPM image's runtime stage and rebuilds, for example `servlo php:pkg add htop vim`. The packages are saved in `~/.config/servlo/config.yaml` (under `php.packages`) and re-applied on every rebuild, so they survive `php:rebuild` and base image updates, exactly like custom extensions. Like extensions, one declared set applies to every PHP version. They are layered onto the shared image rather than baked into the published base, so they only affect your local build. A non-existent package name fails the rebuild and the change is reverted.
-
-For [bun](https://bun.sh) specifically, run `servlo php:bun install` to drop a musl bun into the container's persistent `/root/.bun` volume (so `servlo shell` has it without rebuilding the image). See [bun](node#bun) for the full host and container story.
-
 ### Reachable ports
 
-By default a TCP port you open by hand inside `servlo shell` is not reachable at `localhost:PORT` on the host, because the PHP-FPM container has no published host ports of its own. Framework servers like [Reverb](queue-workers) or an in-container Vite worker are reachable, but only because a worker exposes them through the nginx proxy on the site's `.test` domain (`https://your-site.test/app`), not as a raw localhost port; Xdebug likewise connects outbound to your IDE rather than listening on a published port. When you instead want to run a process directly in the container (a Vite dev server, a websocket, an ad-hoc HTTP or debug listener) and hit it straight from a host browser or tool, publish the port on the version's shell container:
+By default a TCP port you open by hand inside the container is not reachable at `localhost:PORT` on the host, because the PHP-FPM container has no published host ports of its own. Framework servers like [Reverb](queue-workers) or an in-container Vite worker are reachable, but only because a worker exposes them through the nginx proxy on the site's domain, not as a raw localhost port. When you instead want to run a process directly in the container (a Vite dev server, a websocket, an ad-hoc HTTP listener) and hit it straight from a host browser or tool, publish the port on the version's FPM container:
 
 ```bash
 servlo php:ports add 5173        # localhost:5173 -> container 5173 (same port through)

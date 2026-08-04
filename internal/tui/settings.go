@@ -13,7 +13,7 @@ type settingsRow struct {
 	kind       settingsKind
 	label      string
 	on         bool
-	phpVersion string // PHP version, for xdebug rows
+	phpVersion string // PHP version, for per-version rows
 }
 
 type settingsKind int

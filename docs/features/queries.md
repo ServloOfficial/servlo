@@ -83,7 +83,7 @@ Cache still comes solely from the Laravel adapter. Symfony spreads cache across 
 
 ## Queue workers (opt-in)
 
-Long-running queue and scheduler workers (`queue:work`, `horizon`, `schedule:work`, `messenger:consume`) poll the database constantly, so capturing them by default would flood the in-memory buffer and bury the web-request queries you're actually debugging. Worker capture is therefore **off by default**: web requests and one-off CLI commands (artisan, tinker, migrations) are always captured, but worker processes are skipped unless you opt in.
+Long-running queue and scheduler workers (`queue:work`, `horizon`, `schedule:work`, `messenger:consume`) poll the database constantly, so capturing them by default would flood the in-memory buffer and bury the web-request queries you're actually debugging. Worker capture is therefore **off by default**: web requests and one-off CLI commands (artisan, migrations) are always captured, but worker processes are skipped unless you opt in.
 
 Turn it on with the **Show worker queries** checkbox in the Debug window toolbar (present on every lens: Queries, Jobs, Views, Mail, Cache, Events, HTTP). Checking it arms worker capture by writing the `devtools-workers.flag` sentinel; from then on each worker invocation is captured and grouped on its own, labelled by the worker command, and a per-command filter dropdown appears so you can narrow to one worker. The Laravel adapter resets the request id on every `JobProcessing`, so each queued job is its own group rather than a worker's jobs lumping together.
 
@@ -95,7 +95,7 @@ A test suite is the other kind of flood: it is CLI, high volume, and a feature s
 
 Unlike worker capture this is a view filter, not a capture switch: the events are still recorded, because a dump or a query you are inspecting from inside a failing test is exactly the case that matters. The **Show test runs** checkbox in each lens toolbar reveals them, and reports how many are currently hidden so nothing disappears without a reason on screen. The tab counters follow the same filter, so a lens never advertises rows it isn't showing.
 
-The signal is PHPUnit's own `PHPUNIT_COMPOSER_INSTALL` bootstrap constant, which Pest inherits, so it is ecosystem-level rather than tied to a framework. Filtering on `ctx.type` would not do: artisan, tinker and queue workers are all CLI too.
+The signal is PHPUnit's own `PHPUNIT_COMPOSER_INSTALL` bootstrap constant, which Pest inherits, so it is ecosystem-level rather than tied to a framework. Filtering on `ctx.type` would not do: artisan and queue workers are all CLI too.
 
 ## N+1 warnings
 

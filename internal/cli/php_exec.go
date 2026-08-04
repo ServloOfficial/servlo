@@ -98,8 +98,7 @@ func debugSiteEnvArgs(dir string) []string {
 }
 
 // RunPHPCaptureEnv is RunPHPCapture with extra KEY=VALUE environment entries
-// injected into the container exec — used by `servlo profile run` to set
-// SPX_ENABLED so a CLI command is profiled.
+// injected into the container exec.
 func RunPHPCaptureEnv(cwd string, args []string, extraEnv []string) (int, error) {
 	version, err := phpVersionForDir(cwd)
 	if err != nil {
@@ -178,12 +177,6 @@ func RunPHPVersionCaptureEnv(cwd, version string, args []string, extraEnv []stri
 		"--env", "PATH="+projectVendorBin+":/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:"+composerBin,
 	)
 	cmdArgs = append(cmdArgs, debugSiteEnvArgs(cwd)...)
-	// Forward SPX_* profiler vars from the host so `SPX_ENABLED=1 php ...` (or
-	// any shim'd tool like composer) reaches SPX inside the container. extraEnv
-	// is applied after, so an explicit caller like `servlo profile run` wins.
-	for _, e := range spxPassthroughEnv(os.Environ()) {
-		cmdArgs = append(cmdArgs, "--env", e)
-	}
 	// Forward AI agent detection vars so agent-detector (e.g. laravel/pao)
 	// still emits JSON when run inside the container.
 	for _, e := range agentenv.Passthrough(os.Environ()) {
@@ -238,29 +231,4 @@ func phpScriptArgIndex(args []string) int {
 		return i
 	}
 	return -1
-}
-
-// spxPassthroughEnv picks the SPX_* profiler vars out of environ. When SPX is
-// enabled but no report type is set, it defaults SPX_REPORT to full so the run
-// lands in the Profiler view instead of a terminal flat profile.
-func spxPassthroughEnv(environ []string) []string {
-	var out []string
-	enabled, hasReport := false, false
-	for _, e := range environ {
-		if !strings.HasPrefix(e, "SPX_") {
-			continue
-		}
-		out = append(out, e)
-		k, v, _ := strings.Cut(e, "=")
-		switch k {
-		case "SPX_ENABLED":
-			enabled = v != "" && v != "0"
-		case "SPX_REPORT":
-			hasReport = true
-		}
-	}
-	if enabled && !hasReport {
-		out = append(out, "SPX_REPORT=full")
-	}
-	return out
 }

@@ -49,17 +49,17 @@ func Rules() []Rule {
 
 		// Pending. Each is deleted by the story named, which turns its rule on.
 		{
-			Feature: "Tinker REPL", Story: "S0.5",
+			Feature: "Tinker REPL", Story: "S0.5", Enforced: true,
 			Patterns: []string{`(?i)\btinker\b`, `phpantom_lsp`},
 			Allow:    specs,
 		},
 		{
-			Feature: "container shell drop-in", Story: "S0.5",
+			Feature: "container shell drop-in", Story: "S0.5", Enforced: true,
 			Patterns: []string{`servlo shell\b`, `\bcmdShell\b`},
 			Allow:    specs,
 		},
 		{
-			Feature: "SPX profiler", Story: "S0.5",
+			Feature: "SPX profiler", Story: "S0.5", Enforced: true,
 			Patterns: []string{`(?i)\bspx\b`, `internal/profiler`},
 			Allow:    specs,
 		},
@@ -69,12 +69,12 @@ func Rules() []Rule {
 			Allow:    specs,
 		},
 		{
-			Feature: "Xdebug toggles", Story: "S0.5",
+			Feature: "Xdebug toggles", Story: "S0.5", Enforced: true,
 			Patterns: []string{`(?i)\bxdebug\b`},
 			Allow:    specs,
 		},
 		{
-			Feature: "browser php.ini editing", Story: "S0.5",
+			Feature: "browser php.ini editing", Story: "S0.5", Enforced: true,
 			Patterns: []string{`ini_write`, `handlePHPIniWrite`},
 			Allow:    specs,
 		},

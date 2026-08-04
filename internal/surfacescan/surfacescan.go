@@ -47,6 +47,8 @@ var skipDirs = map[string]bool{
 	"dist":         true,
 	"build":        true,
 	".svelte-kit":  true,
+	// paraglide is generated from messages/*.json, which is scanned instead.
+	"paraglide": true,
 }
 
 // textExts are the file kinds a deleted feature can hide in. Anything else is

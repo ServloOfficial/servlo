@@ -82,7 +82,7 @@ type GlobalConfig struct {
 		// does not have.
 		Realised map[string]RealisedPHPSet `yaml:"realised,omitempty" mapstructure:"realised"`
 		// FPMPorts maps a PHP version to extra host ports published on that
-		// version's shared FPM container, so a process bound inside `servlo shell`
+		// version's shared FPM container, so a process bound inside the container
 		// (a Vite dev server, a websocket, an ad-hoc listener) is reachable at
 		// localhost:PORT. Environment-wide per version, not per site; the one
 		// shared FPM container per version owns the list, so two sites wanting
@@ -581,7 +581,7 @@ func HostPortsFor(name string) []int {
 
 // FPMPortsFor returns the extra published port mappings recorded for a PHP
 // version's shared FPM container, or nil when none are configured. Read by the
-// FPM quadlet renderer so a `servlo shell` process on one of these ports is
+// FPM quadlet renderer so a container process on one of these ports is
 // reachable from the host, and by the port-shift guard to skip a version's own
 // ports when relocating a colliding one.
 func FPMPortsFor(version string) []string {

@@ -68,7 +68,7 @@ func TestTickHostGateway(t *testing.T) {
 			// Coffee-shop case, the whole reason the watcher exists:
 			// laptop moved networks, old IP no longer routes, probe
 			// finds a new working one, watcher rewrites /etc/hosts and
-			// Xdebug starts working again without user action.
+			// container-to-host calls start working again without user action.
 			name:                  "lan changed, stale entry, probe finds new",
 			lastLAN:               "192.168.1.10",
 			currentLAN:            "10.0.0.50",

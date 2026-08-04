@@ -330,7 +330,7 @@ onBeforeUnmount(() => {
           <div class="sec-head reveal">
             <span class="eyebrow"><span class="dot"></span>Built for developer experience</span>
             <h2 class="h-section" style="margin-top:18px">Everything the Linux PHP dev<br/>never had, in one binary.</h2>
-            <p class="lead">From <code class="kbd">servlo link</code> to a live HTTPS site in seconds. Then the deep stuff: flame-graph profiling, a dump debugger, a Tinker REPL, and worker self-heal, surfaced across CLI, dashboard and TUI.</p>
+            <p class="lead">From <code class="kbd">servlo link</code> to a live HTTPS site in seconds. Then the deep stuff: a dump debugger and worker self-heal, surfaced across CLI, dashboard and TUI.</p>
           </div>
 
           <div class="bento">
@@ -353,27 +353,16 @@ onBeforeUnmount(() => {
               <p>PHP 8.1–8.5 plus a frozen 7.4 / 8.0 legacy tier. Switch with one command, isolated per repo.</p>
             </div>
             <div class="feat col-2 reveal d1" data-tilt>
-              <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 4-6"/></svg></div>
-              <h3>SPX flame-graph profiler</h3>
-              <p>One-click on/off. Every PHP-FPM request becomes a flame graph in a same-origin Profiler view.</p>
-            </div>
-            <div class="feat col-2 reveal d2" data-tilt>
               <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v4M12 18v4M5 5l2.5 2.5M16.5 16.5 19 19M2 12h4M18 12h4M5 19l2.5-2.5M16.5 7.5 19 5"/><circle cx="12" cy="12" r="3"/></svg></div>
               <h3>Worker self-heal</h3>
               <p>Queue, schedule, Horizon and Reverb workers plus the Stripe listener, monitored everywhere and recovered with one click.</p>
             </div>
 
-            <div class="feat col-3 reveal" data-tilt>
+            <div class="feat col-6 reveal" data-tilt>
               <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/><path d="m9 9 2 2-2 2M13 15h2"/></svg></div>
               <h3>Debug window for every dump()</h3>
               <p>Intercepts every <code class="kbd">dump()</code> / <code class="kbd">dd()</code> and streams it to the dashboard and TUI, scoped per site and per worktree branch. Captures SQL with N+1 detection, mail, events, jobs &amp; outgoing HTTP. Your response stays clean.</p>
               <span class="feat-tag">// Laravel + Symfony</span>
-            </div>
-            <div class="feat col-3 reveal d1" data-tilt>
-              <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 9h8M8 13h5"/><path d="M21 12a9 9 0 1 1-3.5-7.1L21 4v5h-5"/></svg></div>
-              <h3>In-browser Tinker REPL</h3>
-              <p>A PHP REPL per site on the Monaco editor, backed by phpantom_lsp, a real language server that resolves your actual models, relationships &amp; vendor classes, with quick-fix imports, per-line results and inlined SQL.</p>
-              <span class="feat-tag">// artisan tinker, in the UI</span>
             </div>
           </div>
 
@@ -392,7 +381,7 @@ onBeforeUnmount(() => {
           <div class="sec-head reveal">
             <span class="eyebrow"><span class="dot"></span>The built-in Web UI · installable as a PWA</span>
             <h2 class="h-section" style="margin-top:18px">A dashboard that actually<br/>manages your stack.</h2>
-            <p class="lead">Switch PHP versions, toggle services, tail live logs, run Tinker, all from the browser. Click around; this is the real thing.</p>
+            <p class="lead">Switch PHP versions, toggle services and tail live logs, all from the browser. Click around; this is the real thing.</p>
           </div>
 
           <div class="win reveal d1">

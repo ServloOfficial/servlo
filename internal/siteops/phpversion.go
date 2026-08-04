@@ -95,7 +95,7 @@ type PHPVersionResult struct {
 //  3. Pin .php-version and .servlo.yaml.
 //  4. Persist site.PHPVersion to the registry.
 //  5. Re-link FrankenPHP, or fall back to FPM below its minimum version.
-//  6. Ensure the FPM quadlet and xdebug ini exist for the new version.
+//  6. Ensure the FPM quadlet exists for the new version.
 //  7. Regenerate the nginx vhost (SSL or plain) and reload.
 //
 // It never builds an image and never prompts: callers own both, because only
