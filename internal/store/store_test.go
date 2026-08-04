@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func testServer(t *testing.T) *httptest.Server {
@@ -87,7 +87,7 @@ func testClient(t *testing.T, srv *httptest.Server) *Client {
 }
 
 // When the primary base returns a non-200, the client must transparently fetch
-// from the fallback base. This is the geodro->lerd-env transition path.
+// from the fallback base.
 func TestFetchIndex_FallsBackWhenPrimaryFails(t *testing.T) {
 	good := testServer(t)
 	defer good.Close()
@@ -121,9 +121,10 @@ func TestFetchIndex_AllBasesFail(t *testing.T) {
 	}
 }
 
-// NewClient wires the framework-store URL from origin: the store content lives on
-// lerd-env and is served directly, with no geodro fallback.
-func TestNewClient_UsesNewOrgDirectly(t *testing.T) {
+// NewClient wires the framework-store URL from origin. The framework store is one
+// of the two upstream dependencies PRD §0 retains, so it must still resolve
+// against lerd-env until S0.8 chooses an exit.
+func TestNewClient_UsesRetainedUpstreamStore(t *testing.T) {
 	c := NewClient()
 	if !strings.Contains(c.BaseURL, "lerd-env") {
 		t.Errorf("primary store URL = %q, want lerd-env", c.BaseURL)

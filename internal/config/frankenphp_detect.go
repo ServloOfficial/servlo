@@ -53,7 +53,7 @@ func DetectFrankenPHPHints(dir string) []FrankenPHPHint {
 	if fromsFrankenPHP(dir) {
 		hints = append(hints, FrankenPHPHint{
 			Signal: "containerfile",
-			Reason: "Containerfile.lerd FROMs dunglas/frankenphp",
+			Reason: "Containerfile.servlo FROMs dunglas/frankenphp",
 		})
 	}
 
@@ -85,10 +85,10 @@ func envValue(dir, key string) string {
 	return ""
 }
 
-// fromsFrankenPHP returns true when the project's Containerfile.lerd starts
+// fromsFrankenPHP returns true when the project's Containerfile.servlo starts
 // from a dunglas/frankenphp image.
 func fromsFrankenPHP(dir string) bool {
-	data, err := os.ReadFile(filepath.Join(dir, "Containerfile.lerd"))
+	data, err := os.ReadFile(filepath.Join(dir, "Containerfile.servlo"))
 	if err != nil {
 		return false
 	}

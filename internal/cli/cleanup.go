@@ -3,26 +3,26 @@ package cli
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/cleanup"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/cleanup"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
-// NewCleanupCmd returns the cleanup command: reclaim podman disk that lerd's
-// own image rebuilds have orphaned, without ever touching a non-lerd resource.
+// NewCleanupCmd returns the cleanup command: reclaim podman disk that servlo's
+// own image rebuilds have orphaned, without ever touching a non-servlo resource.
 func NewCleanupCmd() *cobra.Command {
 	var dryRun, yes, safe, deep bool
 	cmd := &cobra.Command{
 		Use:   "cleanup",
-		Short: "Reclaim podman disk from orphaned lerd images, unused service images, and dangling leftovers",
+		Short: "Reclaim podman disk from orphaned servlo images, unused service images, and dangling leftovers",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runCleanup(dryRun, yes, safe)
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be reclaimed without removing anything")
 	cmd.Flags().BoolVar(&yes, "yes", false, "Remove without confirming")
-	cmd.Flags().BoolVar(&safe, "safe", false, "Only reclaim images provably built by lerd, keep unused service and dangling images")
+	cmd.Flags().BoolVar(&safe, "safe", false, "Only reclaim images provably built by servlo, keep unused service and dangling images")
 	// --deep is now the default; kept as a hidden no-op so existing muscle memory
 	// and scripts don't break.
 	cmd.Flags().BoolVar(&deep, "deep", false, "")
@@ -33,17 +33,17 @@ func NewCleanupCmd() *cobra.Command {
 
 // newCleanupAutoCmd toggles automatic cleanup (the watcher's daily managed-tier
 // sweep and the post-rebuild / post-service-change reaping), so users don't have
-// to hand-edit config.yaml. Matches the on/off/status shape of lerd idle/notify.
+// to hand-edit config.yaml. Matches the on/off/status shape of servlo idle/notify.
 func newCleanupAutoCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auto",
 		Short: "Enable, disable, or show automatic cleanup",
-		Long: `Toggle automatic cleanup: the lerd-watcher's daily managed sweep and
+		Long: `Toggle automatic cleanup: the servlo-watcher's daily managed sweep and
 the immediate reaping after a PHP rebuild or a service update/remove. On by
-default. The managed sweep reclaims lerd's own orphaned builds and old service
+default. The managed sweep reclaims servlo's own orphaned builds and old service
 versions, always keeps the current image and the one-back rollback target, and
-never touches an image lerd didn't pull. The wider dangling-image reap is
-reserved for the interactive lerd cleanup.`,
+never touches an image servlo didn't pull. The wider dangling-image reap is
+reserved for the interactive servlo cleanup.`,
 	}
 	cmd.AddCommand(
 		&cobra.Command{Use: "on", Short: "Enable automatic cleanup", Args: cobra.NoArgs,
@@ -120,7 +120,7 @@ func runCleanup(dryRun, yes, safe bool) error {
 	for _, t := range plan.Targets {
 		rows = append(rows, []string{t.ID, t.Desc, humanSize(t.Bytes)})
 	}
-	feedback.Header("Reclaimable lerd images")
+	feedback.Header("Reclaimable servlo images")
 	feedback.Table([]string{"IMAGE", "KIND", "RECLAIMABLE"}, rows)
 	feedback.Note(fmt.Sprintf("About %s across %d image(s).", humanSize(plan.ReclaimBytes()), len(plan.Targets)))
 
@@ -151,6 +151,6 @@ func heldHint(plan cleanup.Plan) string {
 	if plan.Held.Count == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%s across %d image(s) is held by running containers. Run `lerd restart` to release it, then cleanup again.",
+	return fmt.Sprintf("%s across %d image(s) is held by running containers. Run `servlo restart` to release it, then cleanup again.",
 		humanSize(plan.Held.Bytes), plan.Held.Count)
 }

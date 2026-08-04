@@ -63,10 +63,10 @@ func TestStepWarn(t *testing.T) {
 	defer SetTestWriter(&buf)()
 
 	warnErr := errors.New("unit not loaded")
-	Start("restarting lerd-ui").Warn(warnErr)
+	Start("restarting servlo-panel").Warn(warnErr)
 
 	got := buf.String()
-	if !strings.Contains(got, " → restarting lerd-ui… ⚠ unit not loaded\n") {
+	if !strings.Contains(got, " → restarting servlo-panel… ⚠ unit not loaded\n") {
 		t.Errorf("missing warn line: %q", got)
 	}
 	if strings.Contains(got, "✗") {
@@ -379,8 +379,8 @@ func TestFailPathsAlwaysShowReason(t *testing.T) {
 		return buf.String()
 	}
 	cases := map[string]func(){
-		"Step.Fail(nil)":      func() { Start("starting lerd-dns").Fail(nil) },
-		"Step.Fail(emptyErr)": func() { Start("starting lerd-redis").Fail(errors.New("")) },
+		"Step.Fail(nil)":      func() { Start("starting servlo-dns").Fail(nil) },
+		"Step.Fail(emptyErr)": func() { Start("starting servlo-redis").Fail(errors.New("")) },
 		"Live.Fail(nil)":      func() { StartLive("pulling image").Fail(nil) },
 	}
 	for name, run := range cases {

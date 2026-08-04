@@ -14,7 +14,7 @@ var bundledSince = map[string][2]int{
 	"mongodb": {8, 1},
 }
 
-// BundledExtensions returns the PHP extensions the default lerd FPM image ships
+// BundledExtensions returns the PHP extensions the default servlo FPM image ships
 // for phpVersion. Version-gated names are left out of the versions that do not
 // build them, so no caller advertises an extension the image never loads.
 func BundledExtensions(phpVersion string) []string {

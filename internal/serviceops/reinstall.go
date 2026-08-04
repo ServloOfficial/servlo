@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // reinstallSpec captures every piece of state we need to reproduce after
@@ -158,10 +158,10 @@ func captureReinstallSpec(name string) (reinstallSpec, error) {
 			image:      existing.Image,
 		}, nil
 	}
-	if config.IsDefaultPreset(name) && podman.QuadletInstalled("lerd-"+name) {
+	if config.IsDefaultPreset(name) && podman.QuadletInstalled("servlo-"+name) {
 		return reinstallSpec{
 			presetName: name,
-			image:      podman.InstalledImage("lerd-" + name),
+			image:      podman.InstalledImage("servlo-" + name),
 		}, nil
 	}
 	return reinstallSpec{}, fmt.Errorf("service %q is not installed; nothing to reinstall", name)
@@ -256,7 +256,7 @@ func realReinstallInstall(name string, spec reinstallSpec, emit func(PhaseEvent)
 			}
 		}
 
-		unit := "lerd-" + name
+		unit := "servlo-" + name
 		emit(PhaseEvent{Phase: "starting_unit", Unit: unit})
 		var startErr error
 		for attempt := range 5 {

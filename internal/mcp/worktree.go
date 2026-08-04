@@ -9,19 +9,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // worktreeTool returns the MCP tool descriptor for the worktree dispatcher.
-// Actions shell out to `git worktree …` and `lerd db:isolate` / `lerd
+// Actions shell out to `git worktree …` and `servlo db:isolate` / `servlo
 // db:share` so the cli stays the single source of truth for the lifecycle;
 // directly importing cli here would create an import cycle (cli/mcp.go
 // imports mcp for Serve()).
 func worktreeTool() mcpTool {
 	return mcpTool{
 		Name:        "worktree",
-		Description: "Manage git worktrees. list / add / remove / wait / db_isolate (empty|main|<branch>) / db_share. Watcher auto-installs deps on add; add waits for that and reports provisioned, and wait does the same for a worktree made with plain git. Never judge readiness from tree contents, they read as finished mid-install. add also presents a unified asset-worker / npm-build prompt (replaces_build+per_worktree workers alongside npm scripts; picks start with persist=false). Worktrees on secured sites get *.branch.domain.test wildcard cert SANs and nginx server_name automatically. .lerd.yaml env_overrides ({{domain}}/{{scheme}}/{{site}} placeholders) layers per-worktree env vars on top of the APP_URL rewrite. Workers with per_worktree:true run under lerd-<wname>-<site>-<wt> units. Remove keeps isolated DB unless keep_db=false.",
+		Description: "Manage git worktrees. list / add / remove / wait / db_isolate (empty|main|<branch>) / db_share. Watcher auto-installs deps on add; add waits for that and reports provisioned, and wait does the same for a worktree made with plain git. Never judge readiness from tree contents, they read as finished mid-install. add also presents a unified asset-worker / npm-build prompt (replaces_build+per_worktree workers alongside npm scripts; picks start with persist=false). Worktrees on secured sites get *.branch.domain.test wildcard cert SANs and nginx server_name automatically. .servlo.yaml env_overrides ({{domain}}/{{scheme}}/{{site}} placeholders) layers per-worktree env vars on top of the APP_URL rewrite. Workers with per_worktree:true run under servlo-<wname>-<site>-<wt> units. Remove keeps isolated DB unless keep_db=false.",
 		InputSchema: mcpSchema{
 			Type: "object",
 			Properties: map[string]mcpProp{
@@ -179,7 +179,7 @@ func execWorktreeAdd(args map[string]any) (any, *rpcError) {
 	return toolJSON(resp), nil
 }
 
-// execWorktreeWait blocks until lerd's setup pipeline has settled for a
+// execWorktreeWait blocks until servlo's setup pipeline has settled for a
 // worktree, so an assistant that created one with plain git (or declined the
 // wait on add) can tell "safe to touch" from "still installing" instead of
 // guessing from directory contents.
@@ -228,13 +228,13 @@ func execWorktreeRemove(args map[string]any) (any, *rpcError) {
 	sanitized := gitpkg.SanitizeBranch(branch)
 
 	// If the caller wants the DB dropped, do it FIRST while the worktree
-	// path is still resolvable — `lerd db:share` needs the worktree dir on
+	// path is still resolvable — `servlo db:share` needs the worktree dir on
 	// disk to find the branch in the registry. After git removes the
 	// worktree the path is gone, so a deferred drop wouldn't work.
 	dbDropped := false
 	if !keepDB {
 		if wtPath := worktreePathFor(site, sanitized); wtPath != "" {
-			if _, err := runIn(wtPath, lerdSelf(), "db:share"); err == nil {
+			if _, err := runIn(wtPath, servloSelf(), "db:share"); err == nil {
 				dbDropped = true
 			}
 		}
@@ -275,9 +275,9 @@ func execWorktreeDBIsolate(args map[string]any) (any, *rpcError) {
 		return toolErr("worktree path for branch " + branch + " not on disk"), nil
 	}
 	cliArgs := []string{"db:isolate", "--source", source}
-	out, err := runIn(wtPath, lerdSelf(), cliArgs...)
+	out, err := runIn(wtPath, servloSelf(), cliArgs...)
 	if err != nil {
-		return toolErr("lerd " + strings.Join(cliArgs, " ") + ": " + out), nil
+		return toolErr("servlo " + strings.Join(cliArgs, " ") + ": " + out), nil
 	}
 	resp := map[string]any{"ok": true, "site": site.Name, "branch": branch, "source": source, "output": out}
 	if e, ok, _ := config.FindWorktreeDB(site.Name, branch); ok {
@@ -300,21 +300,21 @@ func execWorktreeDBShare(args map[string]any) (any, *rpcError) {
 	if wtPath == "" {
 		return toolErr("worktree path for branch " + branch + " not on disk"), nil
 	}
-	out, err := runIn(wtPath, lerdSelf(), "db:share")
+	out, err := runIn(wtPath, servloSelf(), "db:share")
 	if err != nil {
-		return toolErr("lerd db:share: " + out), nil
+		return toolErr("servlo db:share: " + out), nil
 	}
 	return toolJSON(map[string]any{"ok": true, "site": site.Name, "branch": branch, "output": out}), nil
 }
 
-// lerdSelf resolves the running lerd binary for a subprocess call. The MCP
+// servloSelf resolves the running servlo binary for a subprocess call. The MCP
 // server is started by an editor or an assistant whose PATH frequently lacks
-// lerd's bin directory, so a bare "lerd" lookup is not dependable.
-func lerdSelf() string {
+// servlo's bin directory, so a bare "servlo" lookup is not dependable.
+func servloSelf() string {
 	if self, err := os.Executable(); err == nil && self != "" {
 		return self
 	}
-	return "lerd"
+	return "servlo"
 }
 
 func runIn(dir, name string, args ...string) (string, error) {
@@ -325,16 +325,16 @@ func runIn(dir, name string, args ...string) (string, error) {
 }
 
 // worktreeWaitFn is the seam the wait goes through, so tests need neither a
-// lerd binary on PATH nor a running watcher.
+// servlo binary on PATH nor a running watcher.
 var worktreeWaitFn = shellWorktreeWait
 
-// shellWorktreeWait defers to `lerd worktree wait`, which is the only check that
+// shellWorktreeWait defers to `servlo worktree wait`, which is the only check that
 // accounts for the install lock and not just the pipeline's outputs. Shelling
 // out keeps cli the single source of truth for the lifecycle; importing it here
 // would be an import cycle. Returns the exit status: 0 settled, 1 timed out,
-// 3 not a worktree lerd manages.
+// 3 not a worktree servlo manages.
 func shellWorktreeWait(worktreePath string, timeout time.Duration) (int, string) {
-	out, err := runIn(worktreePath, lerdSelf(), "worktree", "wait", "--timeout", timeout.String())
+	out, err := runIn(worktreePath, servloSelf(), "worktree", "wait", "--timeout", timeout.String())
 	if err == nil {
 		return 0, out
 	}

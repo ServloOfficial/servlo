@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // stubPreflightSeams installs configurable pre-flight seams plus permissive
@@ -262,12 +262,12 @@ func TestMissingPresetDependencies_BuiltinInstalled_OK(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	// Materialise a lerd-mysql.container so podman.QuadletInstalled returns true.
+	// Materialise a servlo-mysql.container so podman.QuadletInstalled returns true.
 	quadletDir := config.QuadletDir()
 	if err := os.MkdirAll(quadletDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(quadletDir, "lerd-mysql.container"), []byte("[Container]\nImage=docker.io/library/mysql:8\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(quadletDir, "servlo-mysql.container"), []byte("[Container]\nImage=docker.io/library/mysql:8\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -276,7 +276,7 @@ func TestMissingPresetDependencies_BuiltinInstalled_OK(t *testing.T) {
 		DependsOn: []string{"mysql"},
 	}
 	if missing := MissingPresetDependencies(svc); len(missing) != 0 {
-		t.Errorf("with lerd-mysql quadlet present, expected no missing deps, got %v", missing)
+		t.Errorf("with servlo-mysql quadlet present, expected no missing deps, got %v", missing)
 	}
 }
 
@@ -416,7 +416,7 @@ func TestResolvePresetForInstall_partialRemnantsAreHealable(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", filepath.Join(tmp, "data"))
 
 	const name = "gotenberg" // a non-default bundled preset
-	quadlet := filepath.Join(config.QuadletDir(), "lerd-"+name+".container")
+	quadlet := filepath.Join(config.QuadletDir(), "servlo-"+name+".container")
 	mkUnit := func() {
 		if err := os.MkdirAll(config.QuadletDir(), 0o755); err != nil {
 			t.Fatal(err)

@@ -20,10 +20,10 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/hostbin"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/hostbin"
+	"github.com/realrashid/servlo/internal/siteops"
 	"github.com/spf13/cobra"
 )
 
@@ -51,14 +51,14 @@ Supported tools:
   localhost.run  free SSH tunnel, no account needed (--localhost-run)
   serveo.net     free SSH tunnel, no account needed (--serveo)
 
-A default tool can be set with "lerd share:tool"; flags override it per run.
+A default tool can be set with "servlo share:tool"; flags override it per run.
 
 --domain selects Cloudflare Tunnel on its own: a named tunnel is created (or
 reused) and the given hostname is routed to it, so the site is served on your
 own domain instead of a random trycloudflare.com URL. The domain's DNS must be
 managed by Cloudflare.
 
-A base domain set with "lerd share:domain" does the same without the flag: a
+A base domain set with "servlo share:domain" does the same without the flag: a
 Cloudflare share is served on "<site>.<base domain>".`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -72,7 +72,7 @@ Cloudflare share is served on "<site>.<base domain>".`,
 	cmd.Flags().BoolVar(&useServeo, "serveo", false, "Use serveo.net (SSH, no signup)")
 	cmd.Flags().BoolVar(&useLocalhostRun, "localhost-run", false, "Use localhost.run (SSH, no signup)")
 	cmd.Flags().StringVar(&domain, "domain", "", "Serve on your own Cloudflare-managed hostname (implies Cloudflare Tunnel)")
-	cmd.Flags().StringVar(&token, "token", "", "ngrok auth token for this run, overriding the one from \"lerd share:token\"")
+	cmd.Flags().StringVar(&token, "token", "", "ngrok auth token for this run, overriding the one from \"servlo share:token\"")
 	return cmd
 }
 
@@ -360,7 +360,7 @@ func resolveShareSite(args []string) (*config.Site, string, error) {
 	if len(args) == 1 {
 		site, err := config.FindSite(args[0])
 		if err != nil {
-			return nil, "", fmt.Errorf("site %q not found — run 'lerd sites' to list registered sites", args[0])
+			return nil, "", fmt.Errorf("site %q not found — run 'servlo sites' to list registered sites", args[0])
 		}
 		return site, "", nil
 	}
@@ -421,7 +421,7 @@ func pickShareTool(useNgrok, useCloudflare, useExpose, useServeo, useLocalhostRu
 		case "localhost-run":
 			useLocalhostRun = true
 		default:
-			return nil, fmt.Errorf("unknown default share tool %q in config: run \"lerd share:tool\" to fix it", defaultTool)
+			return nil, fmt.Errorf("unknown default share tool %q in config: run \"servlo share:tool\" to fix it", defaultTool)
 		}
 	}
 
@@ -476,12 +476,12 @@ func pickShareTool(useNgrok, useCloudflare, useExpose, useServeo, useLocalhostRu
 }
 
 // defaultToolHint explains that a missing binary was picked by the configured
-// default rather than by a flag, so a bare "lerd share" does not look broken.
+// default rather than by a flag, so a bare "servlo share" does not look broken.
 func defaultToolHint(fromDefault bool) string {
 	if !fromDefault {
 		return ""
 	}
-	return "\nIt is your \"lerd share:tool\" default; run \"lerd share:tool auto\" to go back to auto-detection"
+	return "\nIt is your \"servlo share:tool\" default; run \"servlo share:tool auto\" to go back to auto-detection"
 }
 
 // cloudflaredCertPath returns the origin certificate cloudflared writes after
@@ -520,7 +520,7 @@ func ensureCloudflareTunnel(siteName, domain string, interactive bool) (string, 
 		}
 	}
 
-	name := "lerd-" + siteName
+	name := "servlo-" + siteName
 	out, err := exec.Command(hostbin.Path("cloudflared"), "tunnel", "create", name).CombinedOutput()
 	reused := err != nil && strings.Contains(string(out), "already exists")
 	if err != nil && !reused {

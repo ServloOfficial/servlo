@@ -28,36 +28,36 @@ import (
 
 	qrcode "github.com/skip2/go-qrcode"
 
-	"github.com/geodro/lerd/internal/activityping"
-	"github.com/geodro/lerd/internal/applog"
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/cfgedit"
-	"github.com/geodro/lerd/internal/cli"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/eventbus"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/grouping"
-	"github.com/geodro/lerd/internal/nginx"
-	lerdNode "github.com/geodro/lerd/internal/node"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/phpsets"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/profiler"
-	"github.com/geodro/lerd/internal/reqstats"
-	"github.com/geodro/lerd/internal/serviceops"
-	"github.com/geodro/lerd/internal/services"
-	"github.com/geodro/lerd/internal/shims"
-	"github.com/geodro/lerd/internal/sitedoctor"
-	"github.com/geodro/lerd/internal/siteinfo"
-	"github.com/geodro/lerd/internal/siteops"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
-	"github.com/geodro/lerd/internal/tools"
-	lerdUpdate "github.com/geodro/lerd/internal/update"
-	"github.com/geodro/lerd/internal/version"
-	"github.com/geodro/lerd/internal/workerheal"
-	"github.com/geodro/lerd/internal/xdebugops"
+	"github.com/realrashid/servlo/internal/activityping"
+	"github.com/realrashid/servlo/internal/applog"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/cfgedit"
+	"github.com/realrashid/servlo/internal/cli"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/eventbus"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/grouping"
+	"github.com/realrashid/servlo/internal/nginx"
+	servloNode "github.com/realrashid/servlo/internal/node"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/phpsets"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/profiler"
+	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/realrashid/servlo/internal/services"
+	"github.com/realrashid/servlo/internal/shims"
+	"github.com/realrashid/servlo/internal/sitedoctor"
+	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/siteops"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
+	"github.com/realrashid/servlo/internal/tools"
+	servloUpdate "github.com/realrashid/servlo/internal/update"
+	"github.com/realrashid/servlo/internal/version"
+	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/realrashid/servlo/internal/xdebugops"
 )
 
 //go:embed icons/icon.svg
@@ -84,13 +84,13 @@ var swJS []byte
 //go:embed offline.html
 var offlineHTML []byte
 
-// listenAddr is the TCP address lerd-ui binds to. It listens on 0.0.0.0:7073
+// listenAddr is the TCP address servlo-panel binds to. It listens on 0.0.0.0:7073
 // so browsers can hit it directly and LAN clients (gated by the remote-control
 // middleware) can reach it when lan:expose is on. The gate — not the bind
 // address — is the security boundary.
 //
-// lerd-ui ALSO listens on a unix socket at config.UISocketPath() for the
-// lerd.localhost nginx vhost. Bind-mounting a socket into lerd-nginx is more
+// servlo-panel ALSO listens on a unix socket at config.UISocketPath() for the
+// servlo.localhost nginx vhost. Bind-mounting a socket into servlo-nginx is more
 // reliable than reaching the host over TCP via host.containers.internal,
 // which depends on netavark / pasta / rootless routing wiring up 169.254.1.2
 // (something that differs across podman versions and breaks silently).
@@ -124,7 +124,7 @@ func Start(currentVersion string) error {
 	// clean up itself.
 	cli.ReapOrphanTunnels()
 	// A tunnel container is invisible to the pid-based reap: conmon is
-	// reparented out of the client's tree, so a killed lerd-ui leaves it
+	// reparented out of the client's tree, so a killed servlo-panel leaves it
 	// running and there is no pid left to recognise it by.
 	go cli.ReapOrphanNgrokContainers()
 	stopTunnelsOnShutdown()
@@ -155,7 +155,7 @@ func Start(currentVersion string) error {
 
 	podman.AfterUnitChange = func(string) { publisher.trigger() }
 
-	// External state changes (container crash, systemctl outside lerd-ui,
+	// External state changes (container crash, systemctl outside servlo-panel,
 	// timer firings) are caught by the periodic podman cache poll instead
 	// of a DBus PropertiesChanged subscription. The subscription used to
 	// burn ~50% of one core because go-systemd's dispatch goroutine fetches
@@ -177,18 +177,18 @@ func Start(currentVersion string) error {
 
 	// Loopback receiver for the PHP debug bridge. Bound unconditionally
 	// because the listener is essentially free and lets the dashboard
-	// pick up dumps the moment `lerd dump on` runs without a UI restart.
+	// pick up dumps the moment `servlo dump on` runs without a UI restart.
 	startDumpsServer()
 
-	// systemd transitions a worker to "failed" without telling lerd-ui (e.g.
+	// systemd transitions a worker to "failed" without telling servlo-panel (e.g.
 	// after start-limit-hit on a crash loop). The health watcher closes
 	// that gap by polling the cached detector on a slow tick and publishing
 	// KindSites only when the unhealthy set actually changes.
 	go runWorkerHealthWatcher()
 
-	// WatchDNS lives in the lerd-watcher process; its eventbus publishes
+	// WatchDNS lives in the servlo-watcher process; its eventbus publishes
 	// don't cross over here. This in-process probe surfaces DNS transitions
-	// (notably lerd-dns coming up after a boot where the dashboard opened
+	// (notably servlo-dns coming up after a boot where the dashboard opened
 	// before resolver was ready) to live WebSocket clients.
 	go runDNSStatusWatcher()
 
@@ -297,10 +297,10 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/stats", withCORS(handleStats))
 	mux.HandleFunc("/api/disk", withCORS(handleDisk))
 	mux.HandleFunc("/api/xdebug/", withCORS(publishAfter(handleXdebugAction, eventbus.KindStatus)))
-	mux.HandleFunc("/api/lerd/start", withCORS(handleLerdStart))
-	mux.HandleFunc("/api/lerd/stop", withCORS(handleLerdStop))
-	mux.HandleFunc("/api/lerd/quit", withCORS(handleLerdQuit))
-	mux.HandleFunc("/api/lerd/update-terminal", withCORS(handleLerdUpdateTerminal))
+	mux.HandleFunc("/api/servlo/start", withCORS(handleServloStart))
+	mux.HandleFunc("/api/servlo/stop", withCORS(handleServloStop))
+	mux.HandleFunc("/api/servlo/quit", withCORS(handleServloQuit))
+	mux.HandleFunc("/api/servlo/update-terminal", withCORS(handleServloUpdateTerminal))
 	mux.HandleFunc("/api/remote-control", withCORS(handleRemoteControl))
 	mux.HandleFunc("/api/access-mode", withCORS(handleAccessMode))
 	mux.HandleFunc("/api/lan/status", withCORS(handleLANStatus))
@@ -309,7 +309,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/manifest.webmanifest", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/manifest+json")
 		base := "http://" + r.Host
-		w.Write([]byte(`{"name":"Lerd","short_name":"Lerd","description":"Local Laravel development environment","start_url":"` + base + `/","display":"standalone","background_color":"#0d0d0d","theme_color":"#FF2D20","protocol_handlers":[{"protocol":"web+lerd","url":"` + base + `/?lerd=%s"}],"icons":[{"src":"` + base + `/icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"` + base + `/icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},{"src":"` + base + `/icons/icon-maskable-192.png","sizes":"192x192","type":"image/png","purpose":"maskable"},{"src":"` + base + `/icons/icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"},{"src":"` + base + `/icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}`)) //nolint:errcheck
+		w.Write([]byte(`{"name":"Servlo","short_name":"Servlo","description":"Local Laravel development environment","start_url":"` + base + `/","display":"standalone","background_color":"#0d0d0d","theme_color":"#FF2D20","protocol_handlers":[{"protocol":"web+servlo","url":"` + base + `/?servlo=%s"}],"icons":[{"src":"` + base + `/icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"` + base + `/icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},{"src":"` + base + `/icons/icon-maskable-192.png","sizes":"192x192","type":"image/png","purpose":"maskable"},{"src":"` + base + `/icons/icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"},{"src":"` + base + `/icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}`)) //nolint:errcheck
 	})
 	mux.HandleFunc("/icons/icon.svg", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/svg+xml")
@@ -337,7 +337,7 @@ func Start(currentVersion string) error {
 	})
 	swHash := sha256.Sum256(swJS)
 	swVersion := version.Version + "-" + version.Commit + "-" + hex.EncodeToString(swHash[:6])
-	swBody := bytes.ReplaceAll(swJS, []byte("{{LERD_VERSION}}"), []byte(swVersion))
+	swBody := bytes.ReplaceAll(swJS, []byte("{{SERVLO_VERSION}}"), []byte(swVersion))
 	mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
@@ -353,21 +353,21 @@ func Start(currentVersion string) error {
 
 	handler := withRemoteControlGate(mux)
 
-	// Unix socket listener for the lerd.localhost nginx vhost. Linux only:
-	// on macOS, lerd-nginx runs inside the podman-machine VM and unix
+	// Unix socket listener for the servlo.localhost nginx vhost. Linux only:
+	// on macOS, servlo-nginx runs inside the podman-machine VM and unix
 	// sockets don't traverse virtio-fs as functional sockets, so the
 	// vhost falls back to TCP via host.containers.internal there.
 	// Errors are non-fatal — direct http://localhost:7073 access still
 	// works even if the socket can't be created.
 	if runtime.GOOS != "darwin" {
 		if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
-			fmt.Printf("[WARN] creating %s: %v — lerd.localhost vhost will not work\n", config.RunDir(), err)
+			fmt.Printf("[WARN] creating %s: %v — servlo.localhost vhost will not work\n", config.RunDir(), err)
 		} else {
 			sockPath := config.UISocketPath()
 			_ = os.Remove(sockPath)
 			unixLn, err := net.Listen("unix", sockPath)
 			if err != nil {
-				fmt.Printf("[WARN] binding %s: %v — lerd.localhost vhost will not work\n", sockPath, err)
+				fmt.Printf("[WARN] binding %s: %v — servlo.localhost vhost will not work\n", sockPath, err)
 			} else {
 				if err := os.Chmod(sockPath, 0660); err != nil {
 					fmt.Printf("[WARN] chmod %s: %v\n", sockPath, err)
@@ -379,7 +379,7 @@ func Start(currentVersion string) error {
 					},
 				}
 				go func() {
-					fmt.Printf("Lerd UI listening on unix:%s\n", sockPath)
+					fmt.Printf("Servlo UI listening on unix:%s\n", sockPath)
 					if err := unixSrv.Serve(unixLn); err != nil && err != http.ErrServerClosed {
 						fmt.Printf("[WARN] unix socket server exited: %v\n", err)
 					}
@@ -392,18 +392,18 @@ func Start(currentVersion string) error {
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", listenAddr, err)
 	}
-	fmt.Printf("Lerd UI listening on http://%s\n", listenAddr)
+	fmt.Printf("Servlo UI listening on http://%s\n", listenAddr)
 	// Notify systemd we're ready only after the listener is accepting, so
 	// Type=notify units make systemctl start block until the UI can serve.
-	lerdSystemd.NotifyReady()
+	servloSystemd.NotifyReady()
 	return http.Serve(ln, handler)
 }
 
 var allowedCORSOrigins = map[string]bool{
-	"http://lerd.localhost":  true,
-	"https://lerd.localhost": true,
-	"http://localhost:7073":  true,
-	"http://127.0.0.1:7073":  true,
+	"http://servlo.localhost":  true,
+	"https://servlo.localhost": true,
+	"http://localhost:7073":    true,
+	"http://127.0.0.1:7073":    true,
 }
 
 func withCORS(h http.HandlerFunc) http.HandlerFunc {
@@ -438,7 +438,7 @@ var graphicalSessionKeys = []string{
 
 // graphicalEnv returns os.Environ() enriched with graphical-session vars
 // pulled from the systemd user manager and (as a last resort) probed from
-// $XDG_RUNTIME_DIR. When lerd-ui runs as a lingering user service started at
+// $XDG_RUNTIME_DIR. When servlo-panel runs as a lingering user service started at
 // boot, its own env has no DISPLAY / WAYLAND_DISPLAY, so any GUI child it
 // spawns dies on startup. This helper patches that up at spawn time.
 //
@@ -602,20 +602,20 @@ func mustJSON(v any) string {
 
 // StatusResponse is the response for GET /api/status.
 type StatusResponse struct {
-	DNS               DNSStatus    `json:"dns"`
-	Nginx             ServiceCheck `json:"nginx"`
-	PHPFPMs           []PHPStatus  `json:"php_fpms"`
-	PHPDefault        string       `json:"php_default"`
-	NodeDefault       string       `json:"node_default"`
-	NodeManagedByLerd bool         `json:"node_managed_by_lerd"`
-	// NodeManager is the active Node version manager lerd drives: "fnm" or "nvm".
+	DNS                 DNSStatus    `json:"dns"`
+	Nginx               ServiceCheck `json:"nginx"`
+	PHPFPMs             []PHPStatus  `json:"php_fpms"`
+	PHPDefault          string       `json:"php_default"`
+	NodeDefault         string       `json:"node_default"`
+	NodeManagedByServlo bool         `json:"node_managed_by_servlo"`
+	// NodeManager is the active Node version manager servlo drives: "fnm" or "nvm".
 	NodeManager string `json:"node_manager"`
 	// NvmAvailable is true when a user-installed nvm is present (nvm.sh found),
 	// so the dashboard can disable the nvm switch rather than error on click.
 	NvmAvailable bool `json:"nvm_available"`
 	// BunAvailable is true when a bun binary is installed on the host;
 	// BunVersion carries its version for an at-a-glance reference.
-	// UsingSystemBun is true when lerd isn't managing Node and there's no system
+	// UsingSystemBun is true when servlo isn't managing Node and there's no system
 	// Node, so bun is what actually runs JS host workers (Vite, installs).
 	BunAvailable   bool   `json:"bun_available"`
 	BunVersion     string `json:"bun_version"`
@@ -631,7 +631,7 @@ type StatusResponse struct {
 	// Workspaces are the configured workspace names in display order, empty
 	// ones included, so the sidebar can render a section the user just created.
 	Workspaces []string `json:"workspaces"`
-	// Instance identifies this lerd-ui process. An open dashboard reloads when
+	// Instance identifies this servlo-panel process. An open dashboard reloads when
 	// it changes, so a restarted server never leaves a stale page behind.
 	Instance string `json:"instance"`
 	// Tools reports the managed host binaries (composer, fnm, mkcert) against
@@ -640,7 +640,7 @@ type StatusResponse struct {
 	Tools []tools.ToolStatus `json:"tools"`
 }
 
-// serverInstance identifies this lerd-ui process for the lifetime of the run.
+// serverInstance identifies this servlo-panel process for the lifetime of the run.
 var serverInstance = strconv.FormatInt(time.Now().UnixNano(), 36)
 
 type DNSStatus struct {
@@ -683,14 +683,14 @@ func buildStatus() StatusResponse {
 	}
 
 	dnsStatus := dns.CheckStatus(tld)
-	nginxRunning := podman.Cache.Running("lerd-nginx")
-	watcherRunning := services.Mgr.IsActive("lerd-watcher")
+	nginxRunning := podman.Cache.Running("servlo-nginx")
+	watcherRunning := services.Mgr.IsActive("servlo-watcher")
 
 	versions, _ := phpPkg.ListInstalled()
 	var phpStatuses []PHPStatus
 	for _, v := range versions {
 		short := strings.ReplaceAll(v, ".", "")
-		running := podman.Cache.Running("lerd-php" + short + "-fpm")
+		running := podman.Cache.Running("servlo-php" + short + "-fpm")
 		xdebugMode := ""
 		var ports []string
 		if cfg != nil {
@@ -712,13 +712,13 @@ func buildStatus() StatusResponse {
 		nodeDefault = cfg.Node.DefaultVersion
 		nodeManager = cfg.NodeManager()
 	}
-	nodeManagedByLerd := lerdNode.Managed()
-	bunAvailable := lerdNode.BunPath() != ""
+	nodeManagedByServlo := servloNode.Managed()
+	bunAvailable := servloNode.BunPath() != ""
 	bunVersion := ""
 	if bunAvailable {
-		bunVersion = lerdNode.BunVersion()
+		bunVersion = servloNode.BunVersion()
 	}
-	usingSystemBun := bunAvailable && !nodeManagedByLerd && !lerdNode.SystemNodeAvailable()
+	usingSystemBun := bunAvailable && !nodeManagedByServlo && !servloNode.SystemNodeAvailable()
 	toolStatuses := []tools.ToolStatus{}
 	for _, s := range tools.StatusAll(context.Background()) {
 		if s.Name == "fnm" && nodeManager == "nvm" {
@@ -732,23 +732,23 @@ func buildStatus() StatusResponse {
 		workspaces = []string{}
 	}
 	return StatusResponse{
-		DNS:                DNSStatus{OK: dnsStatus == dns.StatusOK, Status: string(dnsStatus), VPN: dns.VPNActive(), Enabled: dnsEnabled, TLD: tld},
-		Nginx:              ServiceCheck{Running: nginxRunning},
-		PHPFPMs:            phpStatuses,
-		PHPDefault:         phpDefault,
-		NodeDefault:        nodeDefault,
-		NodeManagedByLerd:  nodeManagedByLerd,
-		NodeManager:        nodeManager,
-		NvmAvailable:       lerdNode.ManagerByName("nvm").Available(),
-		BunAvailable:       bunAvailable,
-		BunVersion:         bunVersion,
-		UsingSystemBun:     usingSystemBun,
-		WatcherRunning:     watcherRunning,
-		FrankenPHPVersions: config.FrankenPHPVersions(),
-		Home:               homeDir,
-		Workspaces:         workspaces,
-		Instance:           serverInstance,
-		Tools:              toolStatuses,
+		DNS:                 DNSStatus{OK: dnsStatus == dns.StatusOK, Status: string(dnsStatus), VPN: dns.VPNActive(), Enabled: dnsEnabled, TLD: tld},
+		Nginx:               ServiceCheck{Running: nginxRunning},
+		PHPFPMs:             phpStatuses,
+		PHPDefault:          phpDefault,
+		NodeDefault:         nodeDefault,
+		NodeManagedByServlo: nodeManagedByServlo,
+		NodeManager:         nodeManager,
+		NvmAvailable:        servloNode.ManagerByName("nvm").Available(),
+		BunAvailable:        bunAvailable,
+		BunVersion:          bunVersion,
+		UsingSystemBun:      usingSystemBun,
+		WatcherRunning:      watcherRunning,
+		FrankenPHPVersions:  config.FrankenPHPVersions(),
+		Home:                homeDir,
+		Workspaces:          workspaces,
+		Instance:            serverInstance,
+		Tools:               toolStatuses,
 	}
 }
 
@@ -756,7 +756,7 @@ func buildStatusJSON() ([]byte, error) { return []byte(mustJSON(buildStatus())),
 
 // WorktreeResponse is embedded in SiteResponse for each git worktree.
 // PHP/NodeVersion are the effective values; *Override flags signal whether
-// the worktree's .lerd.yaml set them explicitly or it's inherited.
+// the worktree's .servlo.yaml set them explicitly or it's inherited.
 type WorktreeResponse struct {
 	Branch              string         `json:"branch"`
 	Domain              string         `json:"domain"`
@@ -794,7 +794,7 @@ type WorkerStatus struct {
 	Unreachable bool `json:"unreachable,omitempty"`
 }
 
-// ConflictingDomain describes a domain declared in .lerd.yaml that wasn't
+// ConflictingDomain describes a domain declared in .servlo.yaml that wasn't
 // registered for the site because another site on this machine already owns
 // it. Surfaced to the UI so the domain modal can render a warning icon next
 // to the entry with the owning site name.
@@ -853,7 +853,7 @@ type SiteResponse struct {
 	Pinned bool `json:"pinned,omitempty"`
 	// LastActive is the unix-seconds time the site last saw a request, from the
 	// idle-suspend activity feed. Zero (omitted) means no activity recorded yet
-	// this lerd-ui session.
+	// this servlo-panel session.
 	LastActive int64 `json:"last_active,omitempty"`
 	// LastRequestAt (unix milliseconds) and RequestCount are the site's traffic
 	// over the request store's retention window, worktrees included, filtered to
@@ -874,7 +874,7 @@ type SiteResponse struct {
 	Branch               string             `json:"branch"`
 	Worktrees            []WorktreeResponse `json:"worktrees"`
 	// Services lists the service names this site uses, sourced from the
-	// project's .lerd.yaml. Used by the dashboard to render service badges
+	// project's .servlo.yaml. Used by the dashboard to render service badges
 	// on the site detail panel.
 	Services []string `json:"services,omitempty"`
 	// DBDatabase is the site's DB_DATABASE, so the overview's database card can
@@ -954,7 +954,7 @@ func buildSites() ([]SiteResponse, error) {
 		idleTimeout = idleCfg.IdleSuspendTimeout()
 	}
 	idleNow := time.Now()
-	// Last-active times live in the lerd-watcher process and are persisted to a
+	// Last-active times live in the servlo-watcher process and are persisted to a
 	// file we read once per snapshot; suspended state comes from the site config.
 	idleActivity := loadIdleActivity()
 	// Traffic per site key, read once per snapshot, so the sites list can order by
@@ -1223,7 +1223,7 @@ type ServiceResponse struct {
 	SecondaryPorts []ServicePortMapping `json:"secondary_ports,omitempty"`
 	Custom         bool                 `json:"custom,omitempty"`
 	IsDefault      bool                 `json:"is_default,omitempty"`
-	// PresetOwned is true when lerd ships this service as a bundled preset
+	// PresetOwned is true when servlo ships this service as a bundled preset
 	// (default-stack or optional like gotenberg). The ports modal keys the
 	// extra-ports affordance off this, not is_default, so every service we
 	// provide can publish extra ports while genuinely custom services can't.
@@ -1253,7 +1253,7 @@ type ServiceResponse struct {
 	WorkerName         string   `json:"worker_name,omitempty"`
 	WorkerLabel        string   `json:"worker_label,omitempty"`
 	// Set when this worker entry is for a per-worktree unit
-	// (lerd-<wname>-<site>-<wt>); empty for parent-site workers.
+	// (servlo-<wname>-<site>-<wt>); empty for parent-site workers.
 	WorkerWorktree       string `json:"worker_worktree,omitempty"`
 	WorkerWorktreeDomain string `json:"worker_worktree_domain,omitempty"`
 	UpdateStrategy       string `json:"update_strategy,omitempty"`
@@ -1273,7 +1273,7 @@ type ServiceResponse struct {
 	ClientShims []shims.Info `json:"client_shims,omitempty"`
 }
 
-// PortConflict reports a host port lerd wants to bind that is already taken
+// PortConflict reports a host port servlo wants to bind that is already taken
 // by another process. Surfaced for inactive services so the user sees the
 // blocker before clicking Start.
 type PortConflict struct {
@@ -1374,7 +1374,7 @@ func servicePresentation(name string, custom *config.CustomService) (category, i
 // list rebuild so it is not re-read and an error cannot blank the card); pass
 // nil for a default preset or to have it loaded by name.
 func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, name, ssOutput string, custom *config.CustomService) ServiceResponse {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	status, _ := podman.UnitStatus(unit)
 	if status == "" {
 		status = "inactive"
@@ -1416,7 +1416,7 @@ func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, 
 		}
 	}
 
-	handle := "lerd-" + name
+	handle := "servlo-" + name
 	envMap := map[string]string{}
 	for _, kv := range envKVs {
 		parts := strings.SplitN(kv, "=", 2)
@@ -1471,7 +1471,7 @@ func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, 
 	}
 	// Only advertise Tunable when the service is actually installed.
 	// ResolveServiceForTuning resolves built-in default presets even when
-	// the user has explicitly `lerd service remove`d them, so without the
+	// the user has explicitly `servlo service remove`d them, so without the
 	// ServiceInstalled gate the UI would render a Tuning tab on a removed
 	// service — and clicking through would silently reinstall via the
 	// materialise + quadlet regen + restart path (closed at the handler
@@ -1504,16 +1504,16 @@ func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, 
 	return resp
 }
 
-// listActiveQueueWorkers returns the site names of active lerd-queue-* systemd units.
+// listActiveQueueWorkers returns the site names of active servlo-queue-* systemd units.
 func listActiveQueueWorkers() []string {
-	return listActiveUnitsBySuffix("lerd-queue-*.service", "lerd-queue-")
+	return listActiveUnitsBySuffix("servlo-queue-*.service", "servlo-queue-")
 }
 
-// listActiveScheduleWorkers returns site names of active lerd-schedule-* units.
+// listActiveScheduleWorkers returns site names of active servlo-schedule-* units.
 // Includes timer-driven schedulers whose .service is static between firings.
 func listActiveScheduleWorkers() []string {
-	svc := listActiveUnitsBySuffix("lerd-schedule-*.service", "lerd-schedule-")
-	timer := listActiveUnitsBySuffix("lerd-schedule-*.timer", "lerd-schedule-")
+	svc := listActiveUnitsBySuffix("servlo-schedule-*.service", "servlo-schedule-")
+	timer := listActiveUnitsBySuffix("servlo-schedule-*.timer", "servlo-schedule-")
 	seen := map[string]bool{}
 	out := make([]string, 0, len(svc)+len(timer))
 	for _, n := range append(svc, timer...) {
@@ -1525,14 +1525,14 @@ func listActiveScheduleWorkers() []string {
 	return out
 }
 
-// listActiveReverbServers returns site names of active lerd-reverb-* units.
+// listActiveReverbServers returns site names of active servlo-reverb-* units.
 func listActiveReverbServers() []string {
-	return listActiveUnitsBySuffix("lerd-reverb-*.service", "lerd-reverb-")
+	return listActiveUnitsBySuffix("servlo-reverb-*.service", "servlo-reverb-")
 }
 
-// listActiveHorizonWorkers returns site names of active lerd-horizon-* units.
+// listActiveHorizonWorkers returns site names of active servlo-horizon-* units.
 func listActiveHorizonWorkers() []string {
-	return listActiveUnitsBySuffix("lerd-horizon-*.service", "lerd-horizon-")
+	return listActiveUnitsBySuffix("servlo-horizon-*.service", "servlo-horizon-")
 }
 
 func handleServices(w http.ResponseWriter, _ *http.Request) {
@@ -1651,7 +1651,7 @@ func frameworkWorkerServicesForSite(
 	if fw == nil || fw.Workers == nil {
 		return nil
 	}
-	// Worktree units follow lerd-<wname>-<site>-<wtBase>; parent uses wtBase="".
+	// Worktree units follow servlo-<wname>-<site>-<wtBase>; parent uses wtBase="".
 	targets := []frameworkWorkerTarget{{}}
 	if wts, _ := detectWorktrees(s.Path, s.PrimaryDomain()); len(wts) > 0 {
 		for _, wt := range wts {
@@ -1676,7 +1676,7 @@ func frameworkWorkerServicesForSite(
 			if t.wtBase != "" && !perWT {
 				continue
 			}
-			unitName := "lerd-" + wname + "-" + s.Name
+			unitName := "servlo-" + wname + "-" + s.Name
 			respName := wname + "-" + s.Name
 			if t.wtBase != "" {
 				unitName += "-" + t.wtBase
@@ -2202,7 +2202,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 
 	// Allow GET for logs sub-resource
 	if action == "logs" {
-		writeJSON(w, map[string]string{"logs": serviceRecentLogs("lerd-" + name)})
+		writeJSON(w, map[string]string{"logs": serviceRecentLogs("servlo-" + name)})
 		return
 	}
 
@@ -2228,7 +2228,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Streaming migration: dump current data, swap data dir, start new image,
-	// restore dump. Backups land in ~/.local/share/lerd/backups.
+	// restore dump. Backups land in ~/.local/share/servlo/backups.
 	if action == "migrate" && r.Method == http.MethodPost {
 		targetTag := r.URL.Query().Get("tag")
 		if targetTag == "" {
@@ -2336,7 +2336,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	if !isCustom && strings.HasPrefix(name, "queue-") {
 		siteName := strings.TrimPrefix(name, "queue-")
 		if action == "stop" {
-			opErr := podman.StopUnit("lerd-queue-" + siteName)
+			opErr := podman.StopUnit("servlo-queue-" + siteName)
 			resp := ServiceActionResponse{
 				ServiceResponse: ServiceResponse{Name: name, Status: "inactive", EnvVars: map[string]string{}, QueueSite: siteName},
 				OK:              opErr == nil,
@@ -2506,7 +2506,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	var opErr error
 
 	switch action {
@@ -2599,7 +2599,7 @@ func handleServicePorts(w http.ResponseWriter, r *http.Request, name string) {
 				return err
 			}
 		}
-		// Extra ports apply to any preset lerd ships; genuinely custom services
+		// Extra ports apply to any preset servlo ships; genuinely custom services
 		// declare their ports in their own YAML.
 		if config.PresetExists(name) {
 			if err := serviceops.SetExtraPorts(name, body.ExtraPorts); err != nil {
@@ -2668,7 +2668,7 @@ func handleServiceShims(w http.ResponseWriter, r *http.Request, name string) {
 
 // ensureServiceQuadlet writes the unit file for a default-preset service.
 // Delegates to serviceops so install + runtime + MCP all generate the same
-// quadlet (and re-materialise file mounts like mysql's lerd.cnf).
+// quadlet (and re-materialise file mounts like mysql's servlo.cnf).
 func ensureServiceQuadlet(name string) error {
 	return serviceops.EnsureDefaultPresetQuadlet(name)
 }
@@ -2678,25 +2678,25 @@ func ensureCustomServiceQuadlet(svc *config.CustomService) error {
 	return serviceops.EnsureCustomServiceQuadlet(svc)
 }
 
-// countSitesUsingService counts how many active site .env files reference lerd-{name}.
+// countSitesUsingService counts how many active site .env files reference servlo-{name}.
 func countSitesUsingService(name string) int {
 	return config.CountSitesUsingService(name)
 }
 
 // sitesUsingService returns the domains of active sites that use the named service.
-// Checks both .lerd.yaml services list and .env file references.
+// Checks both .servlo.yaml services list and .env file references.
 func sitesUsingService(name string) []string {
 	reg, err := config.LoadSites()
 	if err != nil {
 		return nil
 	}
-	needle := "lerd-" + name
+	needle := "servlo-" + name
 	var domains []string
 	for _, s := range reg.Sites {
 		if s.Ignored || s.Paused {
 			continue
 		}
-		// Check .lerd.yaml services list first.
+		// Check .servlo.yaml services list first.
 		if proj, pErr := config.LoadProjectConfig(s.Path); pErr == nil {
 			found := false
 			for _, svc := range proj.Services {
@@ -2733,10 +2733,10 @@ type VersionResponse struct {
 }
 
 func handleVersion(w http.ResponseWriter, r *http.Request, currentVersion string) {
-	check := lerdUpdate.CachedUpdateCheck
+	check := servloUpdate.CachedUpdateCheck
 	if r.URL.Query().Get("refresh") != "" {
 		// An explicit user-initiated check bypasses the 24h cache for a live answer.
-		check = lerdUpdate.ForceUpdateCheck
+		check = servloUpdate.ForceUpdateCheck
 	}
 	info, _ := check(currentVersion)
 	writeJSON(w, buildVersionResponse(currentVersion, info))
@@ -2746,10 +2746,10 @@ func handleVersion(w http.ResponseWriter, r *http.Request, currentVersion string
 // dashboard banner template already prepends "v" so the Latest field
 // must be stripped of any leading v from the GitHub tag, otherwise
 // users see "vv1.20.0" in the banner.
-func buildVersionResponse(currentVersion string, info *lerdUpdate.UpdateInfo) VersionResponse {
+func buildVersionResponse(currentVersion string, info *servloUpdate.UpdateInfo) VersionResponse {
 	resp := VersionResponse{Current: currentVersion}
 	if info != nil {
-		resp.Latest = lerdUpdate.StripV(info.LatestVersion)
+		resp.Latest = servloUpdate.StripV(info.LatestVersion)
 		resp.HasUpdate = true
 		resp.Changelog = info.Changelog
 	}
@@ -2765,7 +2765,7 @@ func handlePHPVersions(w http.ResponseWriter, _ *http.Request) {
 }
 
 func handleNodeVersions(w http.ResponseWriter, _ *http.Request) {
-	versions := lerdNode.ListInstalled()
+	versions := servloNode.ListInstalled()
 	if versions == nil {
 		versions = []string{}
 	}
@@ -2904,12 +2904,12 @@ func envCfgFile(dir, envFile string) cfgedit.File {
 // envFileRe matches the names of env files the UI is willing to expose for
 // editing. The user-facing dropdown also runs filenames through this regex.
 // Backup files like ".env.20260528-103045" never match because the suffix
-// must start with a letter, and lerd's own ".env.before_lerd" is explicitly
+// must start with a letter, and servlo's own ".env.before_servlo" is explicitly
 // excluded so it stays out of the editor.
 var envFileRe = regexp.MustCompile(`^\.env(\.[A-Za-z][A-Za-z0-9_-]*)?$`)
 
 var envExcludedFiles = map[string]bool{
-	".env.before_lerd": true,
+	".env.before_servlo": true,
 }
 
 // envFileFromQuery extracts the ?file= parameter and validates it. An empty
@@ -3409,7 +3409,7 @@ type SiteNginxRestoreResponse struct {
 }
 
 // handleSiteNginx reads (GET) or saves (POST) a site's custom.d nginx override.
-// The override is bind-mounted into lerd-nginx and included at the end of the
+// The override is bind-mounted into servlo-nginx and included at the end of the
 // site's server block; saving reloads nginx so the change takes effect. The
 // domain is validated against the registered sites, which also blocks any path
 // traversal via the {domain} segment.
@@ -3554,12 +3554,12 @@ func handleSiteNginxRestore(w http.ResponseWriter, r *http.Request, domain strin
 }
 
 // nginxHttpTemplate seeds the global http-level override editor when no file
-// exists yet. Loaded inside http{}; a lerd default of the same name is
+// exists yet. Loaded inside http{}; a servlo default of the same name is
 // commented out of nginx.conf on save so nginx sees no duplicate.
-const nginxHttpTemplate = `# Lerd global nginx http-level overrides.
+const nginxHttpTemplate = `# Servlo global nginx http-level overrides.
 #
-# Loaded inside the http { } block. Anything you set here replaces lerd's own
-# default for that directive. Lerd never overwrites this file; saving reloads
+# Loaded inside the http { } block. Anything you set here replaces servlo's own
+# default for that directive. Servlo never overwrites this file; saving reloads
 # nginx. Note client_max_body_size already defaults to 0 (unlimited).
 
 # client_max_body_size 100m;
@@ -3615,9 +3615,9 @@ func phpSwitchWarning(res siteops.PHPVersionResult) string {
 	}
 	switch {
 	case res.NotInstalled:
-		parts = append(parts, fmt.Sprintf("PHP %s has no image yet. Run 'lerd php:rebuild %s' to build it.", res.Version, res.Version))
+		parts = append(parts, fmt.Sprintf("PHP %s has no image yet. Run 'servlo php:rebuild %s' to build it.", res.Version, res.Version))
 	case res.Stale:
-		parts = append(parts, fmt.Sprintf("The PHP %s image predates your custom extensions and packages. Run 'lerd php:rebuild %s' to bring it up to date.", res.Version, res.Version))
+		parts = append(parts, fmt.Sprintf("The PHP %s image predates your custom extensions and packages. Run 'servlo php:rebuild %s' to bring it up to date.", res.Version, res.Version))
 	case len(res.Missing) > 0:
 		parts = append(parts, fmt.Sprintf("PHP %s cannot load: %s. They did not build on this version, and a rebuild will not change that.",
 			res.Version, strings.Join(res.Missing, ", ")))
@@ -3749,7 +3749,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	needsReload := false
 	switch action {
 	case "secure", "unsecure":
-		// Funnel through the shared helper so cert + .env + .lerd.yaml +
+		// Funnel through the shared helper so cert + .env + .servlo.yaml +
 		// nginx reload + Stripe restart + LAN share refresh all stay in
 		// sync with the CLI and MCP paths. SetSecured posts to this same
 		// daemon's stripe:refresh / lan:refresh endpoints for the
@@ -3768,7 +3768,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Funnel through the shared helper so the clamp, the .php-version and
-		// .lerd.yaml pins, the FrankenPHP fallback, the quadlet and the vhost all
+		// .servlo.yaml pins, the FrankenPHP fallback, the quadlet and the vhost all
 		// stay in sync with the CLI and MCP paths. It reloads nginx itself.
 		res, err := siteops.SetSitePHPVersion(site, version, siteops.PHPVersionOpts{Branch: r.URL.Query().Get("branch")})
 		if err != nil {
@@ -3784,7 +3784,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// "bun" is a JS-runtime toggle, not a Node version: pin js_runtime in
-		// .lerd.yaml (preserving node_version) and re-sync host workers so the
+		// .servlo.yaml (preserving node_version) and re-sync host workers so the
 		// dev/Vite worker switches to bun. Project-level, so branch is ignored.
 		if version == "bun" {
 			if err := config.SetProjectJSRuntime(site.Path, "bun"); err != nil {
@@ -3877,7 +3877,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			phpVersion = detected
 		}
 		go cli.HorizonStartForSite(site.Name, site.Path, phpVersion) //nolint:errcheck
-		go syncLerdYAMLWorkersDelayed(site)
+		go syncServloYAMLWorkersDelayed(site)
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "horizon:stop":
@@ -3934,7 +3934,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			phpVersion = detected
 		}
 		go cli.QueueStartForSite(site.Name, site.Path, phpVersion) //nolint:errcheck
-		go syncLerdYAMLWorkersDelayed(site)
+		go syncServloYAMLWorkersDelayed(site)
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "queue:stop":
@@ -3953,7 +3953,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			scheme = "https"
 		}
 		go cli.StripeStartForSite(site.Name, site.Path, scheme+"://"+site.PrimaryDomain()) //nolint:errcheck
-		go syncLerdYAMLWorkersDelayed(site)
+		go syncServloYAMLWorkersDelayed(site)
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "stripe:stop":
@@ -3984,7 +3984,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			phpVersion = detected
 		}
 		go cli.ScheduleStartForSite(site.Name, site.Path, phpVersion) //nolint:errcheck
-		go syncLerdYAMLWorkersDelayed(site)
+		go syncServloYAMLWorkersDelayed(site)
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "schedule:stop":
@@ -4003,7 +4003,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			phpVersion = detected
 		}
 		go cli.ReverbStartForSite(site.Name, site.Path, phpVersion) //nolint:errcheck
-		go syncLerdYAMLWorkersDelayed(site)
+		go syncServloYAMLWorkersDelayed(site)
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "reverb:stop":
@@ -4140,7 +4140,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		_ = podman.WriteContainerHosts()
 		_ = nginx.Reload()
 		if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-			fmt.Fprintf(os.Stderr, "lerd-ui: syncing .env to new primary domain: %v\n", err)
+			fmt.Fprintf(os.Stderr, "servlo-panel: syncing .env to new primary domain: %v\n", err)
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
@@ -4190,11 +4190,11 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		_ = podman.WriteContainerHosts()
 		_ = nginx.Reload()
 		if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-			fmt.Fprintf(os.Stderr, "lerd-ui: syncing .env to new primary domain: %v\n", err)
+			fmt.Fprintf(os.Stderr, "servlo-panel: syncing .env to new primary domain: %v\n", err)
 		}
 		if site.IsGroupMain() {
 			if err := grouping.CascadeMainDomainChange(site); err != nil {
-				fmt.Fprintf(os.Stderr, "lerd-ui: cascading group domain change: %v\n", err)
+				fmt.Fprintf(os.Stderr, "servlo-panel: cascading group domain change: %v\n", err)
 			}
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
@@ -4213,12 +4213,12 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		fullDomain := strings.ToLower(domainName) + "." + cfg.DNS.TLD
 
 		// If the domain isn't in the registered list, it might still be in the
-		// project's .lerd.yaml as a conflict-filtered entry. Remove it from
-		// .lerd.yaml only — no registry, vhost, or cert work needed.
+		// project's .servlo.yaml as a conflict-filtered entry. Remove it from
+		// .servlo.yaml only — no registry, vhost, or cert work needed.
 		if !site.HasDomain(fullDomain) {
 			suffix := "." + cfg.DNS.TLD
 			declared := strings.TrimSuffix(fullDomain, suffix)
-			// Check if domain exists in .lerd.yaml before removing.
+			// Check if domain exists in .servlo.yaml before removing.
 			proj, projErr := config.LoadProjectConfig(site.Path)
 			if projErr != nil || proj == nil {
 				writeJSON(w, SiteActionResponse{Error: "site does not have domain " + fullDomain})
@@ -4236,7 +4236,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if err := config.RemoveProjectDomain(site.Path, declared); err != nil {
-				writeJSON(w, SiteActionResponse{Error: "updating .lerd.yaml: " + err.Error()})
+				writeJSON(w, SiteActionResponse{Error: "updating .servlo.yaml: " + err.Error()})
 				return
 			}
 			writeJSON(w, SiteActionResponse{OK: true})
@@ -4270,11 +4270,11 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		_ = podman.WriteContainerHosts()
 		_ = nginx.Reload()
 		if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-			fmt.Fprintf(os.Stderr, "lerd-ui: syncing .env to new primary domain: %v\n", err)
+			fmt.Fprintf(os.Stderr, "servlo-panel: syncing .env to new primary domain: %v\n", err)
 		}
 		if site.IsGroupMain() {
 			if err := grouping.CascadeMainDomainChange(site); err != nil {
-				fmt.Fprintf(os.Stderr, "lerd-ui: cascading group domain change: %v\n", err)
+				fmt.Fprintf(os.Stderr, "servlo-panel: cascading group domain change: %v\n", err)
 			}
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
@@ -4388,7 +4388,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		return
 	default:
 		// worker:{name}:start|stop. ?branch=<wt> targets the worktree unit
-		// lerd-<wname>-<site>-<wtBase> instead of the parent's lerd-<wname>-<site>.
+		// servlo-<wname>-<site>-<wtBase> instead of the parent's servlo-<wname>-<site>.
 		if strings.HasPrefix(action, "worker:") {
 			parts := strings.SplitN(action, ":", 3)
 			if len(parts) == 3 && (parts[2] == "start" || parts[2] == "stop") {
@@ -4454,7 +4454,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 					// sitePath != site.Path — pass parent name + worktree path.
 					go cli.WorkerStartForSite(site.Name, targetPath, phpVersion, workerName, worker, branch == "") //nolint:errcheck
 					if branch == "" {
-						go syncLerdYAMLWorkersDelayed(site)
+						go syncServloYAMLWorkersDelayed(site)
 					}
 				}
 				writeJSON(w, SiteActionResponse{OK: true})
@@ -4563,7 +4563,7 @@ func handlePHPVersionAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Streaming rebuild: same work as `lerd php:rebuild <version>`, so the
+	// Streaming rebuild: same work as `servlo php:rebuild <version>`, so the
 	// update badge has an action behind it.
 	if action == "rebuild" && len(parts) == 2 {
 		handlePHPRebuild(w, r, version)
@@ -4593,7 +4593,7 @@ func handlePHPVersionAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "php_default": version})
 	case "start":
 		short := strings.ReplaceAll(version, ".", "")
-		unit := "lerd-php" + short + "-fpm"
+		unit := "servlo-php" + short + "-fpm"
 		if err := podman.StartUnit(unit); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 			return
@@ -4601,7 +4601,7 @@ func handlePHPVersionAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": true})
 	case "stop":
 		short := strings.ReplaceAll(version, ".", "")
-		unit := "lerd-php" + short + "-fpm"
+		unit := "servlo-php" + short + "-fpm"
 		if err := podman.StopUnit(unit); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 			return
@@ -4660,7 +4660,7 @@ func fullyInstalledPHPVersions() []string {
 // immediately. Used by the remove action and to roll back a failed install.
 func teardownPHPFPM(version string) error {
 	short := strings.ReplaceAll(version, ".", "")
-	unit := "lerd-php" + short + "-fpm"
+	unit := "servlo-php" + short + "-fpm"
 	_ = podman.StopUnit(unit)
 	if err := podman.RemoveQuadlet(unit); err != nil {
 		return err
@@ -4812,8 +4812,8 @@ func handleNodeVersionAction(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if !lerdNode.Managed() {
-		writeJSON(w, map[string]any{"ok": false, "error": "lerd is not managing Node.js"})
+	if !servloNode.Managed() {
+		writeJSON(w, map[string]any{"ok": false, "error": "servlo is not managing Node.js"})
 		return
 	}
 	version, action := parts[0], parts[1]
@@ -4823,7 +4823,7 @@ func handleNodeVersionAction(w http.ResponseWriter, r *http.Request) {
 	}
 	switch action {
 	case "set-default":
-		if err := lerdNode.Active().SetDefault(version); err != nil {
+		if err := servloNode.Active().SetDefault(version); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 			return
 		}
@@ -4841,7 +4841,7 @@ func handleNodeVersionAction(w http.ResponseWriter, r *http.Request) {
 	case "remove":
 		// version is a major; Uninstall removes every installed full version
 		// under it via the active manager.
-		if err := lerdNode.Active().Uninstall(version); err != nil {
+		if err := servloNode.Active().Uninstall(version); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 			return
 		}
@@ -4852,7 +4852,7 @@ func handleNodeVersionAction(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleNodeManage / handleNodeUnmanage opt the host into or out of
-// lerd-managed Node by shelling out to the lerd binary, reusing the CLI's shim
+// servlo-managed Node by shelling out to the servlo binary, reusing the CLI's shim
 // + worker-regeneration logic rather than duplicating it here. Synchronous:
 // these can take a few seconds (Node install, worker restarts), so the UI shows
 // a loading state.
@@ -4861,8 +4861,8 @@ func handleNodeUnmanage(w http.ResponseWriter, r *http.Request) {
 	runNodeMgmtCmd(w, r, "node:unmanage")
 }
 
-// handleNodeSetManager switches the Node version manager lerd drives (fnm/nvm)
-// by shelling out to `lerd node:manager <manager>`, reusing the CLI's shim +
+// handleNodeSetManager switches the Node version manager servlo drives (fnm/nvm)
+// by shelling out to `servlo node:manager <manager>`, reusing the CLI's shim +
 // worker-regeneration logic rather than duplicating it here.
 func handleNodeSetManager(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -4886,7 +4886,7 @@ func runNodeMgmtCmd(w http.ResponseWriter, r *http.Request, sub string, extra ..
 	}
 	self, err := os.Executable()
 	if err != nil || self == "" {
-		self = "lerd"
+		self = "servlo"
 	}
 	if out, err := exec.Command(self, append([]string{sub}, extra...)...).CombinedOutput(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": strings.TrimSpace(string(out))})
@@ -4902,8 +4902,8 @@ func handleInstallNodeVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !lerdNode.Managed() {
-		writeJSON(w, map[string]any{"ok": false, "error": "lerd is not managing Node.js"})
+	if !servloNode.Managed() {
+		writeJSON(w, map[string]any{"ok": false, "error": "servlo is not managing Node.js"})
 		return
 	}
 	var req struct {
@@ -4915,15 +4915,15 @@ func handleInstallNodeVersion(w http.ResponseWriter, r *http.Request) {
 	}
 	version := req.Version
 	major := strings.SplitN(version, ".", 2)[0]
-	if err := lerdNode.Active().Install(major); err != nil {
+	if err := servloNode.Active().Install(major); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// allowedContainer validates that a container name is a known lerd container.
-var allowedContainer = regexp.MustCompile(`^lerd-[a-z0-9-]+$`)
+// allowedContainer validates that a container name is a known servlo container.
+var allowedContainer = regexp.MustCompile(`^servlo-[a-z0-9-]+$`)
 
 func handleLogs(w http.ResponseWriter, r *http.Request) {
 	container := strings.TrimPrefix(r.URL.Path, "/api/logs/")
@@ -5041,7 +5041,7 @@ func handleSettings(w http.ResponseWriter, _ *http.Request) {
 		dnsUpstream = cfg.DNS.Upstream
 	}
 	writeJSON(w, SettingsResponse{
-		AutostartOnLogin:          lerdSystemd.IsAutostartEnabled(),
+		AutostartOnLogin:          servloSystemd.IsAutostartEnabled(),
 		WorkerExecMode:            mode,
 		WorkerModeApplies:         runtime.GOOS == "darwin",
 		IdleSuspendEnabled:        idleEnabled,
@@ -5095,8 +5095,8 @@ func handleSettingsIdleSuspend(w http.ResponseWriter, r *http.Request) {
 
 // handleSettingsDNSUpstream pins (or clears) the upstream DNS servers dnsmasq
 // forwards non-.test queries to. An empty list restores auto-detection. On
-// success it rewrites the dnsmasq config and restarts lerd-dns so the change
-// takes effect without a manual `lerd install`.
+// success it rewrites the dnsmasq config and restarts servlo-dns so the change
+// takes effect without a manual `servlo install`.
 func handleSettingsDNSUpstream(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -5136,8 +5136,8 @@ func handleSettingsDNSUpstream(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, map[string]any{"ok": false, "error": "saved, but rewriting dnsmasq config failed: " + err.Error()})
 			return
 		}
-		if err := podman.RestartUnit("lerd-dns"); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "saved, but restarting lerd-dns failed: " + err.Error()})
+		if err := podman.RestartUnit("servlo-dns"); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": "saved, but restarting servlo-dns failed: " + err.Error()})
 			return
 		}
 	}
@@ -5192,7 +5192,7 @@ func handleWorkersHealth(w http.ResponseWriter, _ *http.Request) {
 
 // handleWorkersHeal streams NDJSON heal events to the dashboard so the
 // banner can show real per-unit progress. Heal is intentionally narrow:
-// reset-failed + start; no .lerd.yaml or unit-file writes.
+// reset-failed + start; no .servlo.yaml or unit-file writes.
 func handleWorkersHeal(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -5226,7 +5226,7 @@ func handleSettingsAutostart(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true, "autostart_on_login": body.Enabled})
 }
 
-func handleLerdStart(w http.ResponseWriter, r *http.Request) {
+func handleServloStart(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -5238,7 +5238,7 @@ func handleLerdStart(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-func handleLerdStop(w http.ResponseWriter, r *http.Request) {
+func handleServloStop(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -5250,7 +5250,7 @@ func handleLerdStop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-func handleLerdQuit(w http.ResponseWriter, r *http.Request) {
+func handleServloQuit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -5263,17 +5263,17 @@ func handleLerdQuit(w http.ResponseWriter, r *http.Request) {
 	go cli.RunQuit() //nolint:errcheck
 }
 
-// handleLerdUpdateTerminal opens the host's terminal emulator running
-// `lerd update`. It requires dashboard-control authority. Uses os.Executable()
+// handleServloUpdateTerminal opens the host's terminal emulator running
+// `servlo update`. It requires dashboard-control authority. Uses os.Executable()
 // because the spawned shell does not load the user's interactive PATH.
-func handleLerdUpdateTerminal(w http.ResponseWriter, r *http.Request) {
+func handleServloUpdateTerminal(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	self, err := os.Executable()
 	if err != nil || self == "" {
-		self = "lerd"
+		self = "servlo"
 	}
 	if err := openTerminalCommand(buildUpdateScript(self)); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
@@ -5404,7 +5404,7 @@ func handleWatcherStart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if err := lerdSystemd.StartService("lerd-watcher"); err != nil {
+	if err := servloSystemd.StartService("servlo-watcher"); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
@@ -5412,7 +5412,7 @@ func handleWatcherStart(w http.ResponseWriter, r *http.Request) {
 }
 
 // setWorktreeDBIsolated forwards to cli.SetWorktreeDBIsolated; the shared
-// implementation in cli is also used by `lerd db:isolate`.
+// implementation in cli is also used by `servlo db:isolate`.
 func setWorktreeDBIsolated(site *config.Site, branch string, isolated bool, source string) error {
 	return cli.SetWorktreeDBIsolated(site, branch, isolated, source)
 }
@@ -5445,7 +5445,7 @@ func laravelAppName(frameworkName, sitePath string) string {
 
 // siteHasEnv reports whether the site root contains a .env file. Cheap,
 // stat-only check used to decide whether to surface the Env tab in the UI.
-// projectJSRuntime returns the .lerd.yaml js_runtime pin ("bun"/"node") for a
+// projectJSRuntime returns the .servlo.yaml js_runtime pin ("bun"/"node") for a
 // site path, or "" when unset. LoadProjectConfig is cached so this is cheap.
 func projectJSRuntime(sitePath string) string {
 	if sitePath == "" {
@@ -5499,7 +5499,7 @@ func siteHasEnv(frameworkName, sitePath string) bool {
 }
 
 // siteHasEnvOverrides reports whether the project declares env_overrides in its
-// .lerd.yaml, which lerd uses for per-tenant/per-worktree subdomain templating.
+// .servlo.yaml, which servlo uses for per-tenant/per-worktree subdomain templating.
 // The UI warns when grouping a secondary under such a main, since the chosen
 // subdomain is carved out of the main's wildcard tenant space.
 func siteHasEnvOverrides(sitePath string) bool {
@@ -5660,7 +5660,7 @@ func handleBrowse(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"current": dir, "dirs": dirs})
 }
 
-// failureMessage extracts why a lerd command failed from its output. A failure
+// failureMessage extracts why a servlo command failed from its output. A failure
 // is printed as a "✗" line followed by any guidance, so everything from that
 // marker on is the message; without one, the last non-empty line is the best
 // available. Trimmed so the modal shows a sentence rather than a wall of output.
@@ -5796,7 +5796,7 @@ func handleSiteLink(w http.ResponseWriter, r *http.Request) {
 		return out.String(), cmd.ProcessState != nil && cmd.ProcessState.ExitCode() != 0
 	}
 
-	// Run lerd link.
+	// Run servlo link.
 	fmt.Fprintf(w, "data: → Linking site...\n\n")
 	flusher.Flush()
 	// --yes: clicking Link in the UI is the explicit consent the host-proxy
@@ -5866,7 +5866,7 @@ func worktreeBuildOptions(site *config.Site) []labeledOption {
 // worktreeDBOptions enumerates the database choices for the "Add worktree"
 // form. Without a branch it returns the generic set (share / isolated empty /
 // clone from main / clone from each isolated worktree). With a branch it
-// mirrors `lerd worktree add`'s prompt: when a preserved isolated DB exists
+// mirrors `servlo worktree add`'s prompt: when a preserved isolated DB exists
 // for that branch it adds "reuse" and "reset" and drops the plain "empty".
 func worktreeDBOptions(site *config.Site, branch string) []labeledOption {
 	var opts []labeledOption
@@ -6023,7 +6023,7 @@ func (s *sseLineWriter) flushTail() {
 }
 
 // handleSiteWorktreeAdd answers POST /api/sites/worktree-add?domain=... by
-// creating a git worktree and running lerd's setup pipeline, streaming
+// creating a git worktree and running servlo's setup pipeline, streaming
 // progress as SSE and finishing with an `event: done` payload.
 func handleSiteWorktreeAdd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -6068,8 +6068,8 @@ func handleSiteWorktreeAdd(w http.ResponseWriter, r *http.Request) {
 	done(map[string]any{"ok": true, "branch": branch, "domain": branch + "." + site.PrimaryDomain(), "warnings": warnings})
 }
 
-// syncLerdYAMLWorkersDelayed waits briefly for the worker unit to start, then syncs.
-func syncLerdYAMLWorkersDelayed(site *config.Site) {
+// syncServloYAMLWorkersDelayed waits briefly for the worker unit to start, then syncs.
+func syncServloYAMLWorkersDelayed(site *config.Site) {
 	time.Sleep(2 * time.Second)
 	if !site.Paused {
 		_ = config.SetProjectWorkers(site.Path, cli.CollectRunningWorkerNames(site))

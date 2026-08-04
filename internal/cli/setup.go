@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
-	nodeDet "github.com/geodro/lerd/internal/node"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/sitetpl"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
+	nodeDet "github.com/realrashid/servlo/internal/node"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/sitetpl"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -43,18 +43,18 @@ func NewSetupCmd() *cobra.Command {
 		Long: `Configures the site and runs a series of standard project setup steps with
 an interactive step-selector so you can toggle which steps to execute.
 
-Before the step selector, lerd setup runs the lerd init wizard so you can
+Before the step selector, servlo setup runs the servlo init wizard so you can
 choose the PHP version, HTTPS, and required services. The answers are saved
-to .lerd.yaml (commit it for portability). On subsequent runs, or when
-.lerd.yaml already exists, the config is applied silently with no prompts.
+to .servlo.yaml (commit it for portability). On subsequent runs, or when
+.servlo.yaml already exists, the config is applied silently with no prompts.
 
 Steps for all frameworks:
   1. composer install        — skipped if vendor/ already exists
   2. npm install/ci          — skipped if node_modules/ already exists (uses ci if lockfile exists)
-  3. lerd env                — configure env file with lerd service settings
-  4. lerd mcp:inject         — inject MCP config (off by default)
+  3. servlo env                — configure env file with servlo service settings
+  4. servlo mcp:inject         — inject MCP config (off by default)
   5. npm run <build|production|prod> — build front-end assets (detected from package.json scripts)
-  6. lerd secure             — enable HTTPS via mkcert (off by default)
+  6. servlo secure             — enable HTTPS via mkcert (off by default)
 
 Additional steps for Laravel projects:
   7. php artisan storage:link — create storage symlink
@@ -66,7 +66,7 @@ Additional steps for Laravel projects:
   13. reverb:start           — start Reverb WebSocket server (if configured)
 
 Use --all to skip all selectors and run everything (useful in CI). In --all
-mode with no .lerd.yaml, site registration falls back to auto-detection.`,
+mode with no .servlo.yaml, site registration falls back to auto-detection.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runSetup(allSteps, skipOpen)
 		},
@@ -83,7 +83,7 @@ mode with no .lerd.yaml, site registration falls back to auto-detection.`,
 // FrankenPHP; it excludes host-proxy and custom-(non-PHP)-container sites, whose
 // runtime lives elsewhere. A nil site is a bare-linked plain PHP site, which
 // qualifies. Driven off the resolved site (which setup folds a worktree back to
-// its parent for) rather than cwd's .lerd.yaml, so a worktree of a proxy site is
+// its parent for) rather than cwd's .servlo.yaml, so a worktree of a proxy site is
 // classified by its parent.
 func siteServedByPHPFPM(site *config.Site) bool {
 	if site == nil {
@@ -119,9 +119,9 @@ func runSetup(allSteps, skipOpen bool) error {
 		return err
 	}
 
-	// Run init wizard (or apply saved .lerd.yaml) before any other step so
+	// Run init wizard (or apply saved .servlo.yaml) before any other step so
 	// PHP version, HTTPS, and services are configured first. When a link already
-	// ran in this process (the "Run lerd setup?" prompt), the configure phase is
+	// ran in this process (the "Run servlo setup?" prompt), the configure phase is
 	// a no-op, so skip the header and go straight to the steps.
 	feedback.Begin()
 	if !linkApplied {
@@ -140,7 +140,7 @@ func runSetup(allSteps, skipOpen bool) error {
 		}
 	}
 
-	// Load saved workers from .lerd.yaml to pre-select them in the step selector.
+	// Load saved workers from .servlo.yaml to pre-select them in the step selector.
 	projCfg, _ := config.LoadProjectConfig(cwd)
 	savedWorkers := make(map[string]bool)
 	if projCfg != nil {
@@ -166,7 +166,7 @@ func runSetup(allSteps, skipOpen bool) error {
 		buildReplaced = len(OptedInBuildReplacers(site, cwd)) > 0
 	}
 
-	// runSetupInit -> applyProjectConfig already ran `lerd env`; do not
+	// runSetupInit -> applyProjectConfig already ran `servlo env`; do not
 	// duplicate it here.
 
 	// Resolve the PHP version backing this site so a bun project can have bun
@@ -201,7 +201,7 @@ func runSetup(allSteps, skipOpen bool) error {
 			},
 		})
 	}
-	// Labels reflect the JS runtime lerd will actually drive (bun for bun
+	// Labels reflect the JS runtime servlo will actually drive (bun for bun
 	// projects when bun is on the host, npm otherwise); the run funcs dispatch
 	// the same way via runJSInstall/runJSScript.
 	jsRuntime := "npm"
@@ -225,7 +225,7 @@ func runSetup(allSteps, skipOpen bool) error {
 		})
 	}
 	steps = append(steps, setupStep{
-		label:   "lerd mcp:inject",
+		label:   "servlo mcp:inject",
 		enabled: false,
 		run: func() error {
 			return runMCPInject("")
@@ -257,12 +257,12 @@ func runSetup(allSteps, skipOpen bool) error {
 		})
 	}
 
-	// Mirror the host's bun into the PHP-FPM container so `lerd shell` has a
-	// working (musl) bun, with no extra command. lerd never installs bun on the
+	// Mirror the host's bun into the PHP-FPM container so `servlo shell` has a
+	// working (musl) bun, with no extra command. servlo never installs bun on the
 	// host; this only fires when the user already has it there. Only PHP-FPM
 	// sites have that container — host-proxy and custom-container sites run their
 	// runtime elsewhere — so the step is omitted entirely for them, not just left
-	// unchecked, since `lerd setup -a` runs every listed step. Idempotent and
+	// unchecked, since `servlo setup -a` runs every listed step. Idempotent and
 	// non-fatal: skips when the container bun is already present.
 	// Mirror bun into the container only when it isn't already there. The volume
 	// is host-backed at BunVolumeDir(), so a plain stat of its bun binary tells us
@@ -337,10 +337,10 @@ func runSetup(allSteps, skipOpen bool) error {
 		}
 	}
 
-	// Only offer the secure step when the site isn't already secured by lerd init.
+	// Only offer the secure step when the site isn't already secured by servlo init.
 	if site == nil || !site.Secured {
 		steps = append(steps, setupStep{
-			label:   "lerd secure",
+			label:   "servlo secure",
 			enabled: false,
 			run: func() error {
 				return runSecure(nil, nil)
@@ -357,7 +357,7 @@ func runSetup(allSteps, skipOpen bool) error {
 				known[wn] = true
 			}
 		}
-		orphans := lerdSystemd.FindOrphanedWorkers(site.Name, known)
+		orphans := servloSystemd.FindOrphanedWorkers(site.Name, known)
 		for _, oName := range orphans {
 			on := oName
 			steps = append(steps, setupStep{
@@ -431,7 +431,7 @@ func runSetup(allSteps, skipOpen bool) error {
 			run: func() error {
 				base := siteURL(cwd)
 				if base == "" {
-					return fmt.Errorf("could not resolve site URL, run 'lerd link' first")
+					return fmt.Errorf("could not resolve site URL, run 'servlo link' first")
 				}
 				return StripeStartForSite(ownerSite.Name, cwd, base)
 			},
@@ -440,7 +440,7 @@ func runSetup(allSteps, skipOpen bool) error {
 
 	if !skipOpen {
 		steps = append(steps, setupStep{
-			label:   "lerd open",
+			label:   "servlo open",
 			enabled: true,
 			run: func() error {
 				return runOpen(nil, nil)

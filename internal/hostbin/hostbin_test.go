@@ -9,11 +9,11 @@ import (
 
 func TestLookFindsBinaryOnPATH(t *testing.T) {
 	dir := t.TempDir()
-	writeExe(t, filepath.Join(dir, "lerdtool"))
+	writeExe(t, filepath.Join(dir, "servlotool"))
 	t.Setenv("PATH", dir)
 
-	got, ok := Look("lerdtool")
-	if !ok || got != filepath.Join(dir, "lerdtool") {
+	got, ok := Look("servlotool")
+	if !ok || got != filepath.Join(dir, "servlotool") {
 		t.Fatalf("Look() = %q, %v; want the PATH copy", got, ok)
 	}
 }
@@ -23,13 +23,13 @@ func TestLookFindsBinaryOnPATH(t *testing.T) {
 // resolve it there, failing a test that is about the fallback.
 func TestLookFallsBackToExtraDirs(t *testing.T) {
 	brew := t.TempDir()
-	writeExe(t, filepath.Join(brew, "lerdtunnel"))
+	writeExe(t, filepath.Join(brew, "servlotunnel"))
 	withExtraDirs(t, brew)
 	t.Setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
 
-	got, ok := Look("lerdtunnel")
-	if !ok || got != filepath.Join(brew, "lerdtunnel") {
-		t.Fatalf("Look() = %q, %v; want %s", got, ok, filepath.Join(brew, "lerdtunnel"))
+	got, ok := Look("servlotunnel")
+	if !ok || got != filepath.Join(brew, "servlotunnel") {
+		t.Fatalf("Look() = %q, %v; want %s", got, ok, filepath.Join(brew, "servlotunnel"))
 	}
 }
 
@@ -49,14 +49,14 @@ func TestLookIgnoresNonExecutable(t *testing.T) {
 
 func TestLookReportsMissing(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
-	if got, ok := Look("lerd-no-such-binary-anywhere"); ok {
+	if got, ok := Look("servlo-no-such-binary-anywhere"); ok {
 		t.Fatalf("Look() = %q, true; want not found", got)
 	}
 }
 
 func TestPathFallsBackToBareName(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
-	if got := Path("lerd-no-such-binary-anywhere"); got != "lerd-no-such-binary-anywhere" {
+	if got := Path("servlo-no-such-binary-anywhere"); got != "servlo-no-such-binary-anywhere" {
 		t.Fatalf("Path() = %q; want the bare name", got)
 	}
 }

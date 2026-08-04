@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 var (
@@ -65,7 +65,7 @@ func notificationForPHPBaseUpdate(version string) push.Notification {
 		BodyKey:  "notify_php_base_update_body",
 		Body:     "A refreshed base image is published. Rebuild to pick it up.",
 		Params:   map[string]string{"service": label, "version": version},
-		Tag:      "lerd-update-php-" + version,
+		Tag:      "servlo-update-php-" + version,
 		URL:      "#system/php-" + version,
 		Data:     map[string]string{"service": label, "version": version},
 		Urgency:  "low",

@@ -4,77 +4,77 @@
 
 | Command | Description |
 |---|---|
-| `lerd use <version>` | Set the global PHP version and build the FPM image if needed |
-| `lerd isolate <version>` | Pin PHP version for cwd: writes `.php-version` and updates `.lerd.yaml` if it exists, then re-links |
-| `lerd php:list` | List all installed PHP-FPM versions |
-| `lerd php:rebuild [--local]` | Force-rebuild all installed PHP-FPM images; `--local` builds from source instead of pulling a base |
-| `lerd fetch [version...] [--local]` | Pull pre-built PHP FPM base images from ghcr.io; `--local` builds from source instead |
-| `lerd xdebug on [version] [--mode MODE] [--on-demand]` | Enable Xdebug for a PHP version with the given mode (default `debug`) and restart the FPM container. `--on-demand` sets `start_with_request=trigger` so nothing auto-connects |
-| `lerd xdebug off [version]` | Disable Xdebug and restart the FPM container |
-| `lerd xdebug status` | Show Xdebug enabled/disabled state and active mode for all installed PHP versions |
-| `lerd xdebug pause [site] [--list] [--pid PID]` | Break the IDE debugger into a running worker/CLI process via Xdebug's control socket. `--list` shows candidate processes |
-| `lerd php:ext add <ext> [--apk-deps "pkg ..."]` | Add a custom PHP extension to every PHP image and rebuild the current version; `--apk-deps` lists extra Alpine packages the extension needs to build |
-| `lerd php:ext remove <ext>` | Remove a custom PHP extension from every PHP image and rebuild |
-| `lerd php:ext list` | List your declared extensions, and what each PHP version's image actually loaded |
-| `lerd php:bun install [version]` | Install a musl bun inside the PHP-FPM container, into a persistent volume |
-| `lerd php:bun remove` | Remove the in-container bun and clear its shared persistent volume |
-| `lerd php:bun update [version]` | Update the container's bun in place (`bun upgrade`) |
-| `lerd php:bun version [version]` | Show the bun version installed in the container |
-| `lerd php:pkg add <package...>` | Install extra Alpine packages into every FPM image and rebuild the current version |
-| `lerd php:pkg remove <package...>` | Remove extra Alpine packages from every FPM image and rebuild |
-| `lerd php:pkg list` | List your declared packages, and what each PHP version's image actually installed |
-| `lerd php:ports add <host:container...> [--php version]` | Publish a host port on the version's shell container; a bare number publishes the same port straight through, and a busy host port shifts to the next free one |
-| `lerd php:ports remove <host...> [--php version]` | Unpublish a host port from the version's shell container |
-| `lerd php:ports list [--php version]` | List the extra host ports published for a PHP version |
-| `lerd pest:browser install [version]` | Set up in-container Pest browser testing (musl chromium + Playwright shim); see [browser testing](browser-testing#pest-browser-testing-playwright) |
-| `lerd pest:browser remove [version]` | Remove chromium from the FPM image and disable Pest browser testing |
-| `lerd pest:browser doctor [version]` | Diagnose the Pest browser testing setup for a PHP version |
-| `lerd php:ini [version]` | Open the user php.ini for a PHP version in `$EDITOR` |
+| `servlo use <version>` | Set the global PHP version and build the FPM image if needed |
+| `servlo isolate <version>` | Pin PHP version for cwd: writes `.php-version` and updates `.servlo.yaml` if it exists, then re-links |
+| `servlo php:list` | List all installed PHP-FPM versions |
+| `servlo php:rebuild [--local]` | Force-rebuild all installed PHP-FPM images; `--local` builds from source instead of pulling a base |
+| `servlo fetch [version...] [--local]` | Pull pre-built PHP FPM base images from ghcr.io; `--local` builds from source instead |
+| `servlo xdebug on [version] [--mode MODE] [--on-demand]` | Enable Xdebug for a PHP version with the given mode (default `debug`) and restart the FPM container. `--on-demand` sets `start_with_request=trigger` so nothing auto-connects |
+| `servlo xdebug off [version]` | Disable Xdebug and restart the FPM container |
+| `servlo xdebug status` | Show Xdebug enabled/disabled state and active mode for all installed PHP versions |
+| `servlo xdebug pause [site] [--list] [--pid PID]` | Break the IDE debugger into a running worker/CLI process via Xdebug's control socket. `--list` shows candidate processes |
+| `servlo php:ext add <ext> [--apk-deps "pkg ..."]` | Add a custom PHP extension to every PHP image and rebuild the current version; `--apk-deps` lists extra Alpine packages the extension needs to build |
+| `servlo php:ext remove <ext>` | Remove a custom PHP extension from every PHP image and rebuild |
+| `servlo php:ext list` | List your declared extensions, and what each PHP version's image actually loaded |
+| `servlo php:bun install [version]` | Install a musl bun inside the PHP-FPM container, into a persistent volume |
+| `servlo php:bun remove` | Remove the in-container bun and clear its shared persistent volume |
+| `servlo php:bun update [version]` | Update the container's bun in place (`bun upgrade`) |
+| `servlo php:bun version [version]` | Show the bun version installed in the container |
+| `servlo php:pkg add <package...>` | Install extra Alpine packages into every FPM image and rebuild the current version |
+| `servlo php:pkg remove <package...>` | Remove extra Alpine packages from every FPM image and rebuild |
+| `servlo php:pkg list` | List your declared packages, and what each PHP version's image actually installed |
+| `servlo php:ports add <host:container...> [--php version]` | Publish a host port on the version's shell container; a bare number publishes the same port straight through, and a busy host port shifts to the next free one |
+| `servlo php:ports remove <host...> [--php version]` | Unpublish a host port from the version's shell container |
+| `servlo php:ports list [--php version]` | List the extra host ports published for a PHP version |
+| `servlo pest:browser install [version]` | Set up in-container Pest browser testing (musl chromium + Playwright shim); see browser testing |
+| `servlo pest:browser remove [version]` | Remove chromium from the FPM image and disable Pest browser testing |
+| `servlo pest:browser doctor [version]` | Diagnose the Pest browser testing setup for a PHP version |
+| `servlo php:ini [version]` | Open the user php.ini for a PHP version in `$EDITOR` |
 
 If no version is given, the version is resolved from the current directory (`.php-version` or `composer.json`, falling back to the global default).
 
 Versions are written as `major.minor`, but common spellings are accepted everywhere a version is typed: `php8.4`, `84` and `8.4.7` all normalize to `8.4`. Anything that does not resolve to a supported version is rejected up front, so a typo can never end up as the stored default and break image names.
 
-Inside a linked site, the commands that run PHP in a container (`lerd php`, `lerd composer`, `lerd console`, `lerd php:shell`) use the version the site is registered on, which is the version its FPM container serves. That matters when a framework clamps the version at link time: a Laravel 13 project pinning `.php-version` to 8.1 is linked on 8.5, because Laravel 13 supports 8.3 to 8.5, and composer then runs on 8.5 too rather than resolving 8.1 from the file and quietly using a different PHP than the site itself.
+Inside a linked site, the commands that run PHP in a container (`servlo php`, `servlo composer`, `servlo console`, `servlo php:shell`) use the version the site is registered on, which is the version its FPM container serves. That matters when a framework clamps the version at link time: a Laravel 13 project pinning `.php-version` to 8.1 is linked on 8.5, because Laravel 13 supports 8.3 to 8.5, and composer then runs on 8.5 too rather than resolving 8.1 from the file and quietly using a different PHP than the site itself.
 
-A git worktree resolves ahead of the site it belongs to. A worktree inherits its parent site's version until you pin one with `lerd isolate` from inside the checkout, and from then on the whole toolchain follows that pin: the worktree's own vhost, `lerd php`, `lerd composer`, and everything else that runs PHP in a container. This holds wherever the checkout lives, including inside the parent site's own directory, so a worktree on 8.3 under a site on 8.5 runs composer on 8.3 rather than picking up the parent's version.
+A git worktree resolves ahead of the site it belongs to. A worktree inherits its parent site's version until you pin one with `servlo isolate` from inside the checkout, and from then on the whole toolchain follows that pin: the worktree's own vhost, `servlo php`, `servlo composer`, and everything else that runs PHP in a container. This holds wherever the checkout lives, including inside the parent site's own directory, so a worktree on 8.3 under a site on 8.5 runs composer on 8.3 rather than picking up the parent's version.
 
-When a command needs a version that is not installed and you decline the install, lerd offers to switch to one you already have and pins the choice. Inside a worktree that pin is written on the checkout itself, so the switch travels with the branch and the parent site keeps the version it was on.
+When a command needs a version that is not installed and you decline the install, servlo offers to switch to one you already have and pins the choice. Inside a worktree that pin is written on the checkout itself, so the switch travels with the branch and the parent site keeps the version it was on.
 
-So that the project agrees with what actually runs, `lerd link` pins the resolved version into `.php-version`, the same file `lerd isolate` and the dashboard's PHP dropdown write. A pin the framework does not support is rewritten to the version lerd runs, and a version outside the framework's range is clamped rather than accepted, so the file, the site registry and the container can never drift apart. Sites with no lerd-managed PHP version (host-proxy, and custom containers whose version comes from their Containerfile) are left untouched.
+So that the project agrees with what actually runs, `servlo link` pins the resolved version into `.php-version`, the same file `servlo isolate` and the dashboard's PHP dropdown write. A pin the framework does not support is rewritten to the version servlo runs, and a version outside the framework's range is clamped rather than accepted, so the file, the site registry and the container can never drift apart. Sites with no servlo-managed PHP version (host-proxy, and custom containers whose version comes from their Containerfile) are left untouched.
 
 ---
 
 ## Usage
 
-`lerd install` places shims for `php` and `composer` in `~/.local/share/lerd/bin/`, which is added to your `PATH`. You use them exactly as you normally would, lerd routes them through the correct PHP-FPM container version automatically:
+`servlo install` places shims for `php` and `composer` in `~/.local/share/servlo/bin/`, which is added to your `PATH`. You use them exactly as you normally would, servlo routes them through the correct PHP-FPM container version automatically:
 
 ```bash
 php artisan migrate
 composer install
 ```
 
-Because the `php` shim runs inside the PHP-FPM container, `php artisan`, `lerd artisan`, and the MCP `exec` tool's `artisan` action are all equivalent; they all execute inside the same container with the same PHP version and extensions. Use whichever form you prefer.
+Because the `php` shim runs inside the PHP-FPM container, `php artisan`, `servlo artisan`, and the MCP `exec` tool's `artisan` action are all equivalent; they all execute inside the same container with the same PHP version and extensions. Use whichever form you prefer.
 
-Prefer typing `lerd php` explicitly and keeping `php` pointed at a host install? Run `lerd path:disable`: it removes lerd's shims dir from your shell PATH and keeps installs and updates from re-adding it, while every `lerd …` command works unchanged (child processes lerd spawns still resolve the shims internally). `lerd path:enable` reverses it. One thing to know either way: the shimmed `php` runs inside the container, so a PHP script that `exec()`s host tools sees the container's PATH, not your shell's — with the shim disabled, a host `php` behaves like any other host process.
+Prefer typing `servlo php` explicitly and keeping `php` pointed at a host install? Run `servlo path:disable`: it removes servlo's shims dir from your shell PATH and keeps installs and updates from re-adding it, while every `servlo …` command works unchanged (child processes servlo spawns still resolve the shims internally). `servlo path:enable` reverses it. One thing to know either way: the shimmed `php` runs inside the container, so a PHP script that `exec()`s host tools sees the container's PATH, not your shell's — with the shim disabled, a host `php` behaves like any other host process.
 
 ### Shortcuts and `vendor/bin` fallback
 
 For common workflows there are a few built-in shortcuts:
 
-- `lerd a [args...]`: short alias for `lerd artisan` (also `lerd console`)
-- `lerd test [args...]`: runs `lerd artisan test`
+- `servlo a [args...]`: short alias for `servlo artisan` (also `servlo console`)
+- `servlo test [args...]`: runs `servlo artisan test`
 
-In addition, any composer-installed binary in the project's `vendor/bin` directory is callable directly as `lerd <name>`. For example, with the usual Laravel dev tooling installed:
+In addition, any composer-installed binary in the project's `vendor/bin` directory is callable directly as `servlo <name>`. For example, with the usual Laravel dev tooling installed:
 
 ```bash
-lerd pest
-lerd pint
-lerd phpstan analyse
-lerd rector process
+servlo pest
+servlo pint
+servlo phpstan analyse
+servlo rector process
 ```
 
-These run inside the project's PHP-FPM container with the project's working directory mounted, so configuration files (`pest.xml`, `pint.json`, `phpstan.neon`, etc.) are picked up automatically. Real lerd commands always take precedence; if you have a `vendor/bin/composer`, `lerd composer` still resolves to the built-in command.
+These run inside the project's PHP-FPM container with the project's working directory mounted, so configuration files (`pest.xml`, `pint.json`, `phpstan.neon`, etc.) are picked up automatically. Real servlo commands always take precedence; if you have a `vendor/bin/composer`, `servlo composer` still resolves to the built-in command.
 
 The MCP integration exposes the same surface through two tools, `vendor_bins` (list available binaries) and `vendor_run` (execute one), so AI assistants can discover and run project tooling without per-project configuration.
 
@@ -82,49 +82,49 @@ The MCP integration exposes the same surface through two tools, `vendor_bins` (l
 
 ## Version resolution
 
-When serving a request, Lerd picks the PHP version for a project in this order:
+When serving a request, Servlo picks the PHP version for a project in this order:
 
-1. `.lerd.yaml` in the project root: `php_version` field (explicit lerd override)
+1. `.servlo.yaml` in the project root: `php_version` field (explicit servlo override)
 2. `.php-version` file in the project root (plain text, e.g. `8.2`)
 3. `composer.json`: `require.php` constraint, resolved to the best installed version (e.g. `^8.4` with PHP 8.4 and 8.5 installed resolves to `8.5`)
-4. Global default in `~/.config/lerd/config.yaml`
+4. Global default in `~/.config/servlo/config.yaml`
 
-When `.php-version` changes on disk, the lerd watcher automatically updates the site registry and regenerates the nginx vhost, no manual reload needed.
+When `.php-version` changes on disk, the servlo watcher automatically updates the site registry and regenerates the nginx vhost, no manual reload needed.
 
 To pin a project permanently:
 
 ```bash
-cd ~/Lerd/my-app
-lerd isolate 8.5
+cd ~/Servlo/my-app
+servlo isolate 8.5
 ```
 
-This writes `.php-version: 8.5` (so CLI `php`, asdf, and other tools see the right version) and, when `.lerd.yaml` already exists in the project, also updates its `php_version` field to keep lerd's priority-1 override in sync. The site is re-linked automatically so nginx picks up the new version immediately.
+This writes `.php-version: 8.5` (so CLI `php`, asdf, and other tools see the right version) and, when `.servlo.yaml` already exists in the project, also updates its `php_version` field to keep servlo's priority-1 override in sync. The site is re-linked automatically so nginx picks up the new version immediately.
 
 The UI PHP version selector and the MCP `site` tool's `php` action follow the same rules; they always write both files when applicable.
 
 The composer constraint is matched against all installed PHP versions using full semver rules (`^`, `~`, `>=`, `<`, `||`, `*`). The highest installed version that satisfies the constraint wins. If no installed version matches, the literal minimum from the constraint is used (and the FPM will be built on first use).
 
 ::: tip Overriding a `composer.json` constraint
-If `composer.json` requires `^8.3` but you need to run the project on a specific version, `lerd isolate 8.5` is the right tool. It writes `.php-version` which takes priority over the composer constraint. Running `lerd use 8.5` alone won't help; that only sets the global fallback, which loses to the composer constraint.
+If `composer.json` requires `^8.3` but you need to run the project on a specific version, `servlo isolate 8.5` is the right tool. It writes `.php-version` which takes priority over the composer constraint. Running `servlo use 8.5` alone won't help; that only sets the global fallback, which loses to the composer constraint.
 :::
 
 To change the global default (applies to all projects that don't have a per-project pin):
 
 ```bash
-lerd use 8.5
+servlo use 8.5
 ```
 
 ## Framework PHP ranges
 
-Each framework version declares the PHP range it supports (for example Laravel 11 supports PHP 8.2 to 8.4). Lerd clamps the resolved PHP version into that range so a site never runs on a version its framework can't boot, and the PHP version picker in the dashboard and the TUI shows out-of-range versions as disabled rather than hiding them, so the constraint is visible.
+Each framework version declares the PHP range it supports (for example Laravel 11 supports PHP 8.2 to 8.4). Servlo clamps the resolved PHP version into that range so a site never runs on a version its framework can't boot, and the PHP version picker in the dashboard and the TUI shows out-of-range versions as disabled rather than hiding them, so the constraint is visible.
 
-The range comes from the framework definition that matches your project. Lerd detects the framework major version from `composer.json` (for Laravel, the `laravel/framework` constraint) and loads that version's definition.
+The range comes from the framework definition that matches your project. Servlo detects the framework major version from `composer.json` (for Laravel, the `laravel/framework` constraint) and loads that version's definition.
 
 ### Legacy projects
 
-When a project's framework version predates every definition lerd ships, lerd serves it with the **lowest** available definition instead of the latest. A Laravel 6 project, for instance, is served by the Laravel 10 definition rather than Laravel 13.
+When a project's framework version predates every definition servlo ships, servlo serves it with the **lowest** available definition instead of the latest. A Laravel 6 project, for instance, is served by the Laravel 10 definition rather than Laravel 13.
 
-In that case the version is a best-effort guess: the definition targets a newer framework than your project, so its PHP range is **not** enforced. PHP clamping is relaxed and every installed version stays selectable, which lets a legacy Laravel 6 app keep running on PHP 7.4 even though the Laravel 10 definition asks for 8.1 and up. Pin the version you want with `lerd isolate 7.4`.
+In that case the version is a best-effort guess: the definition targets a newer framework than your project, so its PHP range is **not** enforced. PHP clamping is relaxed and every installed version stays selectable, which lets a legacy Laravel 6 app keep running on PHP 7.4 even though the Laravel 10 definition asks for 8.1 and up. Pin the version you want with `servlo isolate 7.4`.
 
 Newer-than-shipped versions fall back to the latest definition as before, with its range enforced normally.
 
@@ -132,26 +132,26 @@ Newer-than-shipped versions fall back to the latest definition as before, with i
 
 ## FPM lifecycle
 
-Lerd automatically manages which PHP-FPM containers are running based on which versions are actually needed by your sites.
+Servlo automatically manages which PHP-FPM containers are running based on which versions are actually needed by your sites.
 
-**`lerd start`**: only starts FPM containers for versions referenced by at least one site (active or paused). Unused versions are left stopped.
+**`servlo start`**: only starts FPM containers for versions referenced by at least one site (active or paused). Unused versions are left stopped.
 
-**Auto-stop**: when you unlink a site, lerd checks every installed PHP version. If no remaining active (non-ignored, non-paused) site uses a version, its FPM container is stopped. The version itself stays installed; the container is just not running.
+**Auto-stop**: when you unlink a site, servlo checks every installed PHP version. If no remaining active (non-ignored, non-paused) site uses a version, its FPM container is stopped. The version itself stays installed; the container is just not running.
 
 **Paused sites count**: a site that is paused still counts as using its PHP version, so that version's FPM container is not stopped. When the site is resumed, FPM is guaranteed to be running.
 
-**Auto-start**: FPM is started automatically when you link a site (`lerd link`, `lerd park`, `lerd isolate`) or change the global default (`lerd use`). When unpausing a site, lerd also ensures the required FPM container is running before restoring the nginx vhost.
+**Auto-start**: FPM is started automatically when you link a site (`servlo link`, `servlo park`, `servlo isolate`) or change the global default (`servlo use`). When unpausing a site, servlo also ensures the required FPM container is running before restoring the nginx vhost.
 
-**Build on first use**: when a link lands on a PHP version this machine has never built (an older framework clamps to a version below the ones you have, say), `lerd link` builds that version's image before starting it, so the site serves rather than answering 502. The build streams its progress as a link step. If the build cannot run (an unattended `lerd park` sweep withholds builds) or fails, the site is still registered and lerd names the one command that finishes the job, `lerd php:rebuild <version>`.
+**Build on first use**: when a link lands on a PHP version this machine has never built (an older framework clamps to a version below the ones you have, say), `servlo link` builds that version's image before starting it, so the site serves rather than answering 502. The build streams its progress as a link step. If the build cannot run (an unattended `servlo park` sweep withholds builds) or fails, the site is still registered and servlo names the one command that finishes the job, `servlo php:rebuild <version>`.
 
 **Manual control**: unused PHP versions (no active sites) can be started and stopped manually from the dashboard (System > PHP > Start / Stop). From the CLI:
 
 ```bash
-systemctl --user start  lerd-php84-fpm
-systemctl --user stop   lerd-php84-fpm
+systemctl --user start  servlo-php84-fpm
+systemctl --user stop   servlo-php84-fpm
 ```
 
-**`lerd status`**: stopped FPM containers for unused versions are reported as a warning, not an error.
+**`servlo status`**: stopped FPM containers for unused versions are reported as a warning, not an error.
 
 ---
 
@@ -167,7 +167,7 @@ Xdebug is configured with:
 
 Set your IDE to listen on port `9003`. In VS Code, the default PHP Debug configuration works without changes. In PhpStorm, set **Settings > PHP > Debug > Debug port** to `9003`.
 
-`host.containers.internal` is resolved via a real reachability probe: when lerd writes the shared hosts file it tries each candidate IP (netavark's `host.containers.internal` entry, the host's primary LAN IP, slirp4netns's `10.0.2.2`) by opening a TCP connection to lerd-ui on port 7073 from inside lerd-nginx, and writes the first one that succeeds. If none succeed, `lerd doctor` reports the failure so you get a real diagnosis instead of Xdebug silently timing out with `Time-out connecting to debugging client`.
+`host.containers.internal` is resolved via a real reachability probe: when servlo writes the shared hosts file it tries each candidate IP (netavark's `host.containers.internal` entry, the host's primary LAN IP, slirp4netns's `10.0.2.2`) by opening a TCP connection to servlo-ui on port 7073 from inside servlo-nginx, and writes the first one that succeeds. If none succeed, `servlo doctor` reports the failure so you get a real diagnosis instead of Xdebug silently timing out with `Time-out connecting to debugging client`.
 :::
 
 ### Picking a mode
@@ -175,26 +175,26 @@ Set your IDE to listen on port `9003`. In VS Code, the default PHP Debug configu
 Xdebug supports several modes: `debug` (step debugging, the default), `coverage` (code coverage collection), `develop`, `profile`, `trace`, `gcstats`, and `off`. Pick one with `--mode`:
 
 ```bash
-lerd xdebug on --mode coverage        # code coverage for phpunit / pest
-lerd xdebug on --mode debug,coverage  # both at once
-lerd xdebug on 8.4 --mode trace       # explicit version
+servlo xdebug on --mode coverage        # code coverage for phpunit / pest
+servlo xdebug on --mode debug,coverage  # both at once
+servlo xdebug on 8.4 --mode trace       # explicit version
 ```
 
-When combined with PCOV this matters in one direction: if your test runner's `phpunit.xml` prefers PCOV it still wins for coverage, but once you enable Xdebug in `coverage` mode your runner can fall back to Xdebug when PCOV isn't available or is disabled (`pcov.enabled = 0` in `lerd php:ini`). Running Xdebug in `coverage` mode carries the usual runtime cost, so only switch while you actually need coverage.
+When combined with PCOV this matters in one direction: if your test runner's `phpunit.xml` prefers PCOV it still wins for coverage, but once you enable Xdebug in `coverage` mode your runner can fall back to Xdebug when PCOV isn't available or is disabled (`pcov.enabled = 0` in `servlo php:ini`). Running Xdebug in `coverage` mode carries the usual runtime cost, so only switch while you actually need coverage.
 
-Re-run `lerd xdebug on --mode <new>` at any time to swap modes without going through `off` first.
+Re-run `servlo xdebug on --mode <new>` at any time to swap modes without going through `off` first.
 
 ### On-demand debugging (workers and CLI)
 
 By default `start_with_request=yes`, so with the debugger listening every request and every running worker tries to connect at once. To debug a single process on demand instead, enable on-demand mode and attach with `pause`:
 
 ```bash
-lerd xdebug on --on-demand        # start_with_request=trigger — nothing auto-connects
-lerd xdebug pause --list          # list running PHP processes that expose a control socket
-lerd xdebug pause --pid 1234      # break the IDE into that process
+servlo xdebug on --on-demand        # start_with_request=trigger — nothing auto-connects
+servlo xdebug pause --list          # list running PHP processes that expose a control socket
+servlo xdebug pause --pid 1234      # break the IDE into that process
 ```
 
-`pause` uses Xdebug's [control socket](https://xdebug.org/docs/xdebugctl) (Xdebug >= 3.3, baked into lerd's FPM images) via the `xdebugctl` tool. It is the practical way to debug a **queue/Horizon worker, a scheduled task, or a CLI script**: processes where you can't set a trigger cookie. Run it from a project directory (or pass a site name); lerd resolves the site's container, scopes the candidate list to that site's own processes, and tells the running process to connect to your IDE on port `9003`. The worker must have been started *after* Xdebug was enabled, and your IDE must be listening. Because `xdebugctl` ships only in the shared FPM image, `pause` is PHP-FPM only; FrankenPHP and custom-container sites run their own image without it (the regular `lerd xdebug on` toggle still works on them).
+`pause` uses Xdebug's [control socket](https://xdebug.org/docs/xdebugctl) (Xdebug >= 3.3, baked into servlo's FPM images) via the `xdebugctl` tool. It is the practical way to debug a **queue/Horizon worker, a scheduled task, or a CLI script**: processes where you can't set a trigger cookie. Run it from a project directory (or pass a site name); servlo resolves the site's container, scopes the candidate list to that site's own processes, and tells the running process to connect to your IDE on port `9003`. The worker must have been started *after* Xdebug was enabled, and your IDE must be listening. Because `xdebugctl` ships only in the shared FPM image, `pause` is PHP-FPM only; FrankenPHP and custom-container sites run their own image without it (the regular `servlo xdebug on` toggle still works on them).
 
 For ordinary web requests under `--on-demand`, use the [Xdebug Helper](https://xdebug.org/docs/step_debug#browser-extensions) browser extension (or append `?XDEBUG_TRIGGER=1`) to trigger a session per page.
 
@@ -202,45 +202,45 @@ For ordinary web requests under `--on-demand`, use the [Xdebug Helper](https://x
 
 ## Debug bridge
 
-Calls to `dump()` and `dd()` can be captured into the lerd dashboard, TUI, and MCP tools instead of (or alongside) the response. Enable with:
+Calls to `dump()` and `dd()` can be captured into the servlo dashboard, TUI, and MCP tools instead of (or alongside) the response. Enable with:
 
 ```bash
-lerd dump on        # touch the sentinel; next request captures
-lerd dump tail      # follow the live feed
-lerd dump off       # remove the sentinel; subsequent requests are no-ops
+servlo dump on        # touch the sentinel; next request captures
+servlo dump tail      # follow the live feed
+servlo dump off       # remove the sentinel; subsequent requests are no-ops
 ```
 
-Toggling never restarts FPM or its workers. The bridge auto-prepend file and its conf.d ini are always mounted into every FPM container; the on/off state lives in a runtime sentinel the bridge stats on each request. By default the bridge captures only and the HTTP response stays clean. Set `dumps.passthrough: true` in `config.yaml` to also keep the original `sf-dump` output in the response. See the [Dump viewer feature page](../features/dumps.md) for the wire format, the surfaces (per-site tab, System sidebar, antenna toggle), and tuning knobs.
+Toggling never restarts FPM or its workers. The bridge auto-prepend file and its conf.d ini are always mounted into every FPM container; the on/off state lives in a runtime sentinel the bridge stats on each request. By default the bridge captures only and the HTTP response stays clean. Set `dumps.passthrough: true` in `config.yaml` to also keep the original `sf-dump` output in the response. See the Dump viewer feature page for the wire format, the surfaces (per-site tab, System sidebar, antenna toggle), and tuning knobs.
 
 ---
 
 ## Pre-built images
 
-lerd ships pre-built PHP-FPM base images on ghcr.io for all supported versions (7.4 and 8.0–8.5), covering both `amd64` and `arm64`. When you run `lerd fetch` or `lerd php:rebuild`, lerd pulls the matching base image and layers just your mkcert CA certificate on top, bringing first-time build time from ~5 minutes down to ~30 seconds.
+servlo ships pre-built PHP-FPM base images on ghcr.io for all supported versions (7.4 and 8.0–8.5), covering both `amd64` and `arm64`. When you run `servlo fetch` or `servlo php:rebuild`, servlo pulls the matching base image and layers just your mkcert CA certificate on top, bringing first-time build time from ~5 minutes down to ~30 seconds.
 
-The base image tag is derived from the embedded Containerfile, so lerd always pulls the exact image that matches the version of lerd you have installed. If the pull fails (no internet, image not yet published) lerd falls back to a full local build transparently.
+The base image tag is derived from the embedded Containerfile, so servlo always pulls the exact image that matches the version of servlo you have installed. If the pull fails (no internet, image not yet published) servlo falls back to a full local build transparently.
 
-The images are public, so no ghcr.io login is required. lerd pulls them anonymously even if you are already logged into ghcr.io, to avoid authentication errors from expired or unrelated credentials.
+The images are public, so no ghcr.io login is required. servlo pulls them anonymously even if you are already logged into ghcr.io, to avoid authentication errors from expired or unrelated credentials.
 
-`lerd start` checks all required images before starting containers. If any are missing (e.g. after `podman image rm`), it rebuilds or pulls them automatically using the same parallel spinner UI, so containers always start against a valid image.
+`servlo start` checks all required images before starting containers. If any are missing (e.g. after `podman image rm`), it rebuilds or pulls them automatically using the same parallel spinner UI, so containers always start against a valid image.
 
 To build entirely from source instead:
 
 ```bash
-lerd fetch --local
-lerd fetch --local 8.5
-lerd php:rebuild --local
+servlo fetch --local
+servlo fetch --local 8.5
+servlo php:rebuild --local
 ```
 
 ### When the base image is refreshed
 
-The base image tag is a hash of the recipe, so an upstream `php:X.Y-fpm-alpine` refresh, including a security patch Alpine has already shipped, republishes the same tag with new content. Nothing about your machine changes when that happens, so lerd records the digest of the base each image was built from and compares it against what the registry serves now, a manifest lookup with no pull. When they differ, the version is flagged as having an update available.
+The base image tag is a hash of the recipe, so an upstream `php:X.Y-fpm-alpine` refresh, including a security patch Alpine has already shipped, republishes the same tag with new content. Nothing about your machine changes when that happens, so servlo records the digest of the base each image was built from and compares it against what the registry serves now, a manifest lookup with no pull. When they differ, the version is flagged as having an update available.
 
-You see it in three places. **System → PHP** marks the version card with an up arrow and offers "Rebuild on the new base" as its first action, which streams the rebuild the same way an install does. The same menu has **Check for updates**, which bypasses the cached digest and asks the registry right now. And `lerd doctor` reports the version as a warning with `lerd php:rebuild <version>` as the fix, so `lerd doctor --fix` picks it up too. If push notifications are on, a version that becomes stale while the dashboard is open announces itself like a service update does.
+You see it in three places. **System → PHP** marks the version card with an up arrow and offers "Rebuild on the new base" as its first action, which streams the rebuild the same way an install does. The same menu has **Check for updates**, which bypasses the cached digest and asks the registry right now. And `servlo doctor` reports the version as a warning with `servlo php:rebuild <version>` as the fix, so `servlo doctor --fix` picks it up too. If push notifications are on, a version that becomes stale while the dashboard is open announces itself like a service update does.
 
 The check is cached for six hours and never runs on the dashboard's critical path, so an offline machine stays quiet rather than reporting a false update. A version whose image was built locally (`--local`) has no recorded base and is never flagged: there is no published image behind it to compare against.
 
-On the publishing side, an upstream refresh rebuilds the hash tag main computes plus the ones the last two stable releases resolve to, each from its own git checkout. Staying a release or two behind still gets you the patched base without updating lerd first.
+On the publishing side, an upstream refresh rebuilds the hash tag main computes plus the ones the last two stable releases resolve to, each from its own git checkout. Staying a release or two behind still gets you the patched base without updating servlo first.
 
 ---
 
@@ -256,39 +256,39 @@ PHP 7.4 and 8.0 are available as a frozen legacy tier for old projects (Laravel 
 Use them like any other version:
 
 ```bash
-lerd use 7.4
-lerd isolate 8.0
-lerd fetch 7.4 8.0
+servlo use 7.4
+servlo isolate 8.0
+servlo fetch 7.4 8.0
 ```
 
 ---
 
 ## Custom extensions
 
-The default lerd FPM image ships ~30 extensions covering the vast majority of Laravel projects (`bcmath`, `bz2`, `calendar`, `curl`, `dba`, `exif`, `ftp`, `gd`, `gmp`, `igbinary`, `imagick`, `intl`, `ldap`, `mbstring`, `mongodb`, `mysqli`, `opcache`, `pcntl`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `redis`, `soap`, `shmop`, `sockets`, `sqlite3`, `sysvmsg`, `sysvsem`, `sysvshm`, `xdebug`, `xsl`, `zip`, and more).
+The default servlo FPM image ships ~30 extensions covering the vast majority of Laravel projects (`bcmath`, `bz2`, `calendar`, `curl`, `dba`, `exif`, `ftp`, `gd`, `gmp`, `igbinary`, `imagick`, `intl`, `ldap`, `mbstring`, `mongodb`, `mysqli`, `opcache`, `pcntl`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `redis`, `soap`, `shmop`, `sockets`, `sqlite3`, `sysvmsg`, `sysvsem`, `sysvshm`, `xdebug`, `xsl`, `zip`, and more).
 
-Two of those names are version-gated, because the image genuinely cannot build them everywhere: `random` is a PHP core extension only from 8.2, and `mongodb` builds only on 8.1 and up. On older versions they are not part of the bundle, and `lerd park` warns when a project requires one rather than staying quiet and letting `composer install` fail its platform check.
+Two of those names are version-gated, because the image genuinely cannot build them everywhere: `random` is a PHP core extension only from 8.2, and `mongodb` builds only on 8.1 and up. On older versions they are not part of the bundle, and `servlo park` warns when a project requires one rather than staying quiet and letting `composer install` fail its platform check.
 
 To add an extension that isn't in the bundle:
 
 ```bash
-lerd php:ext add swoole
+servlo php:ext add swoole
 ```
 
-Extensions belong to you, not to a PHP version. One declared set applies to every PHP image lerd builds, so a site that changes version keeps them. The version you are on is rebuilt and verified straight away; other installed versions carry the old set until they are rebuilt, and lerd says which ones those are.
+Extensions belong to you, not to a PHP version. One declared set applies to every PHP image servlo builds, so a site that changes version keeps them. The version you are on is rebuilt and verified straight away; other installed versions carry the old set until they are rebuilt, and servlo says which ones those are.
 
-Those deferred versions are rebuilt by the next command that touches them, which is usually `lerd use`, `lerd link`, `lerd fetch`, `lerd unpause` or `lerd start`. When that happens to a version whose container is already running, lerd restarts the container onto the image it just built, so the running PHP always matches what `lerd php:ext list` and the dashboard report for it.
+Those deferred versions are rebuilt by the next command that touches them, which is usually `servlo use`, `servlo link`, `servlo fetch`, `servlo unpause` or `servlo start`. When that happens to a version whose container is already running, servlo restarts the container onto the image it just built, so the running PHP always matches what `servlo php:ext list` and the dashboard report for it.
 
-Extensions are persisted in `~/.config/lerd/config.yaml` under `php.extensions`, so they survive `lerd php:rebuild`.
+Extensions are persisted in `~/.config/servlo/config.yaml` under `php.extensions`, so they survive `servlo php:rebuild`.
 
-After the rebuild, lerd checks that the extension actually loaded (`php -m`); if the PECL build failed, `lerd php:ext add` exits with an error and removes the extension from the config again, rather than reporting success for an extension that isn't there. A rebuild that fails outright is reverted the same way, so a name that cannot build is not left declared and retried by every command after it.
+After the rebuild, servlo checks that the extension actually loaded (`php -m`); if the PECL build failed, `servlo php:ext add` exits with an error and removes the extension from the config again, rather than reporting success for an extension that isn't there. A rebuild that fails outright is reverted the same way, so a name that cannot build is not left declared and retried by every command after it.
 
 #### What each version actually loaded
 
-A declared set cannot always be honoured. `mongodb` does not build below 8.1, and the legacy 7.4 and 8.0 images are Alpine 3.16, where some packages do not exist. lerd records what each version's image really loaded, verified after its build, and never advertises what an image does not have:
+A declared set cannot always be honoured. `mongodb` does not build below 8.1, and the legacy 7.4 and 8.0 images are Alpine 3.16, where some packages do not exist. servlo records what each version's image really loaded, verified after its build, and never advertises what an image does not have:
 
 ```bash
-lerd php:ext list
+servlo php:ext list
 ```
 
 ```
@@ -298,7 +298,7 @@ Declared, for every PHP version:
 
 Per version:
   PHP 7.4  swoole (cannot load: mongodb)
-  PHP 8.1  image predates this set, run 'lerd php:rebuild 8.1'
+  PHP 8.1  image predates this set, run 'servlo php:rebuild 8.1'
   PHP 8.4  mongodb, swoole
   PHP 8.5  mongodb, swoole
 ```
@@ -307,55 +307,55 @@ The three states are different problems. An image that **predates the set** was 
 
 The dashboard shows the same thing, plus every module the image loads, under **System → PHP → Extensions**. The module list is `php -m` read from the image itself, so it is what your code will actually see; it is fetched when you open the tab and cached against the image, so a rebuild refreshes it and nothing else pays for it. The TUI's System view carries a shorter `Extras · PHP <version>` line per version, from the same recorded data.
 
-Changing a site's PHP version is exactly when it would silently lose an extension, so lerd checks the target image at that moment. An image built before you declared something can be brought up to date with a rebuild:
+Changing a site's PHP version is exactly when it would silently lose an extension, so servlo checks the target image at that moment. An image built before you declared something can be brought up to date with a rebuild:
 
 ```
-$ lerd isolate 8.3
+$ servlo isolate 8.3
  ✓ PHP pinned to 8.3
  ⚠ PHP 8.3's image predates your custom extensions and packages
-       run 'lerd php:rebuild 8.3' to bring it up to date
+       run 'servlo php:rebuild 8.3' to bring it up to date
 ```
 
 An extension that genuinely cannot build on that version is reported differently, because no rebuild will fix it.
 
-One that loaded on **no version at all** is reported differently again. A version boundary shows up on some versions and not others, so an extension missing from every one of them is usually the build failing rather than the versions refusing it, and `lerd php:ext list` says so instead of reading it as a capability gap.
+One that loaded on **no version at all** is reported differently again. A version boundary shows up on some versions and not others, so an extension missing from every one of them is usually the build failing rather than the versions refusing it, and `servlo php:ext list` says so instead of reading it as a capability gap.
 
-Some extensions need extra Alpine packages to compile. lerd already knows the ones for `imap` (`imap-dev krb5-dev openssl-dev c-client`); for anything else, pass them with `--apk-deps`:
+Some extensions need extra Alpine packages to compile. servlo already knows the ones for `imap` (`imap-dev krb5-dev openssl-dev c-client`); for anything else, pass them with `--apk-deps`:
 
 ```bash
-lerd php:ext add ssh2 --apk-deps "libssh2-dev"
-lerd php:ext add imap                                  # deps known to lerd, no flag needed
+servlo php:ext add ssh2 --apk-deps "libssh2-dev"
+servlo php:ext add imap                                  # deps known to servlo, no flag needed
 ```
 
-The packages are saved alongside the extension in `~/.config/lerd/config.yaml` (under `php.ext_apk_deps`), so they reapply on every `lerd php:rebuild`.
+The packages are saved alongside the extension in `~/.config/servlo/config.yaml` (under `php.ext_apk_deps`), so they reapply on every `servlo php:rebuild`.
 
 ```bash
-lerd php:ext list                # show your custom extensions and their apk deps
-lerd php:ext remove swoole       # remove from every version and rebuild
+servlo php:ext list                # show your custom extensions and their apk deps
+servlo php:ext remove swoole       # remove from every version and rebuild
 ```
 
 ### php.ini settings
 
-Each PHP version has a user-editable ini file at `~/.local/share/lerd/php/<version>/98-lerd-user.ini`, mounted read-only into the FPM container. Edit it with:
+Each PHP version has a user-editable ini file at `~/.local/share/servlo/php/<version>/98-servlo-user.ini`, mounted read-only into the FPM container. Edit it with:
 
 ```bash
-lerd php:ini          # detected/default version
-lerd php:ini 8.3      # explicit version
+servlo php:ini          # detected/default version
+servlo php:ini 8.3      # explicit version
 ```
 
 This opens the file in `$EDITOR` (falls back to `nano`/`vim`). Saving restarts the affected FPM containers automatically, so the change applies straight away.
 
-The file is created automatically with commented-out examples when lerd first sets up the PHP version.
+The file is created automatically with commented-out examples when servlo first sets up the PHP version.
 
 #### Shared settings across versions
 
 A setting placed in a per-version file only applies to that version, so a site that changes PHP version silently loses it. For a setting you want everywhere, edit the shared file instead:
 
 ```bash
-lerd php:ini shared   # applies to every PHP version
+servlo php:ini shared   # applies to every PHP version
 ```
 
-The shared file lives at `~/.local/share/lerd/php/shared/95-lerd-shared.ini` and is mounted into every PHP container (FPM, custom-image FPM, and FrankenPHP) below the per-version `98-lerd-user.ini`. Because `conf.d` loads alphabetically and the last file wins, layering happens for free:
+The shared file lives at `~/.local/share/servlo/php/shared/95-servlo-shared.ini` and is mounted into every PHP container (FPM, custom-image FPM, and FrankenPHP) below the per-version `98-servlo-user.ini`. Because `conf.d` loads alphabetically and the last file wins, layering happens for free:
 
 - A key set only in the shared file applies to all versions.
 - A key set in both files takes the per-version value on that version, and the shared value everywhere else.
@@ -377,30 +377,30 @@ If a library you depend on calls `setlocale()` and branches on whether it succee
 
 ## Custom image (Containerfile)
 
-When `php:ext` and per-version ini tweaks are not enough and a single site needs its own bespoke image (an extra system toolchain, a patched binary, arbitrary build steps), you can give that PHP site its own `Containerfile.lerd`. lerd builds a per-site image and serves the site by fastcgi from a dedicated FPM container, instead of the shared `lerd-php<ver>-fpm` one. It is the same `container:` key used for [custom containers](../getting-started/containers.md), with one difference: **no port**. A `container:` block with a port is a reverse-proxied app; a `container:` block with no port on a PHP project is served by fastcgi from your image.
+When `php:ext` and per-version ini tweaks are not enough and a single site needs its own bespoke image (an extra system toolchain, a patched binary, arbitrary build steps), you can give that PHP site its own `Containerfile.servlo`. servlo builds a per-site image and serves the site by fastcgi from a dedicated FPM container, instead of the shared `servlo-php<ver>-fpm` one. It is the same `container:` key used for [custom containers](../getting-started/containers.md), with one difference: **no port**. A `container:` block with a port is a reverse-proxied app; a `container:` block with no port on a PHP project is served by fastcgi from your image.
 
-Your `Containerfile.lerd` must build `FROM` the lerd base image for the site's PHP version, so it keeps php-fpm, the bundled extensions, and the pool config. That `:local` tag is lerd-managed and rebuilt on updates, so the `FROM` stays valid:
+Your `Containerfile.servlo` must build `FROM` the servlo base image for the site's PHP version, so it keeps php-fpm, the bundled extensions, and the pool config. That `:local` tag is servlo-managed and rebuilt on updates, so the `FROM` stays valid:
 
 ```dockerfile
-FROM lerd-php84-fpm:local
+FROM servlo-php84-fpm:local
 RUN apk add --no-cache htop vim
 ```
 
 ```yaml
-# .lerd.yaml
+# .servlo.yaml
 domains:
   - myapp
 container:
-  containerfile: Containerfile.lerd
+  containerfile: Containerfile.servlo
 ```
 
-Then `lerd link`. lerd builds `lerd-custom-myapp:local`, runs a dedicated FPM container `lerd-cfpm-myapp`, and points nginx fastcgi at it. The per-site container reuses every lerd mount, so xdebug, dumps, the debug bridge, the profiler, and `lerd shell` all work exactly as on a normal PHP site, and `lerd php`, `artisan`, `composer`, `tinker`, and queue/horizon workers all run inside it. Toggling xdebug for that PHP version restarts the per-site container too.
+Then `servlo link`. servlo builds `servlo-custom-myapp:local`, runs a dedicated FPM container `servlo-cfpm-myapp`, and points nginx fastcgi at it. The per-site container reuses every servlo mount, so xdebug, dumps, the debug bridge, the profiler, and `servlo shell` all work exactly as on a normal PHP site, and `servlo php`, `artisan`, `composer`, `tinker`, and queue/horizon workers all run inside it. Toggling xdebug for that PHP version restarts the per-site container too.
 
 The PHP version is fixed by the `FROM` line, not by `.php-version` or the dashboard, so the version selector is shown read-only for these sites. To change the version, edit the `FROM` and relink.
 
 ```bash
-lerd rebuild        # rebuild the per-site image after editing Containerfile.lerd
-lerd restart        # restart the container without rebuilding
+servlo rebuild        # rebuild the per-site image after editing Containerfile.servlo
+servlo restart        # restart the container without rebuilding
 ```
 
 ::: info PHP projects only
@@ -415,71 +415,71 @@ Each custom-image PHP site runs its own FPM container rather than sharing the pe
 
 ## PHP shell
 
-`lerd shell` opens an interactive shell inside the PHP-FPM container for the current project:
+`servlo shell` opens an interactive shell inside the PHP-FPM container for the current project:
 
 ```bash
-lerd shell
+servlo shell
 ```
 
-The PHP version is resolved the same way as every other lerd command (`.php-version`, `composer.json`, global default). The shell's working directory is set to the project root.
+The PHP version is resolved the same way as every other servlo command (`.php-version`, `composer.json`, global default). The shell's working directory is set to the project root.
 
-If the container is not running, lerd prints the platform-appropriate command (`launchctl kickstart` on macOS, `systemctl --user start` on Linux) to bring it back up rather than silently failing.
+If the container is not running, servlo prints the platform-appropriate command (`launchctl kickstart` on macOS, `systemctl --user start` on Linux) to bring it back up rather than silently failing.
 
 If the site is paused, any services referenced in `.env` (MySQL, Redis, etc.) are started automatically before the shell opens; the site itself stays paused.
 
 ### Shell environment
 
-The lerd PHP-FPM image ships zsh with a self-contained config (starship prompt, persistent history, sensible defaults). When you run `lerd shell` or open a shell from the TUI, lerd execs zsh inside the container; for non-PHP service containers (Redis, MySQL, etc.) the fallback chain is `zsh > bash > sh` depending on what the upstream image provides.
+The servlo PHP-FPM image ships zsh with a self-contained config (starship prompt, persistent history, sensible defaults). When you run `servlo shell` or open a shell from the TUI, servlo execs zsh inside the container; for non-PHP service containers (Redis, MySQL, etc.) the fallback chain is `zsh > bash > sh` depending on what the upstream image provides.
 
-The in-container shell is deliberately isolated from your host shell config. Every developer's `~/.zshrc` or `~/.config/fish` is different, and sourcing distro-specific paths or host-only binaries inside the alpine container cascades into noisy errors (missing oh-my-zsh, missing pacman, missing fastfetch, etc.). Rather than play whack-a-mole, lerd ships a clean, predictable shell environment that's identical across every machine and contributor.
+The in-container shell is deliberately isolated from your host shell config. Every developer's `~/.zshrc` or `~/.config/fish` is different, and sourcing distro-specific paths or host-only binaries inside the alpine container cascades into noisy errors (missing oh-my-zsh, missing pacman, missing fastfetch, etc.). Rather than play whack-a-mole, servlo ships a clean, predictable shell environment that's identical across every machine and contributor.
 
 What you get inside the container:
 
 - **starship** as the default prompt, branch, dir, git status, all the usual.
 - **eza**, **bat**, **fzf**, **zoxide** on `$PATH` for nicer file listing, paging, fuzzy-find, and `cd` history.
-- Shell history persisted under `~/.local/share/lerd/shell-state/php-<version>/zsh/history`, so commands survive container rebuilds.
+- Shell history persisted under `~/.local/share/servlo/shell-state/php-<version>/zsh/history`, so commands survive container rebuilds.
 - `HostName=` set to your host's hostname so the prompt reads `root@your-machine` instead of the auto-generated container id.
 
-If you want extra packages in the image (additional CLI tools, language toolchains, etc.), use `lerd php:ext` for PHP extensions, or fork the Containerfile at `internal/podman/quadlets/lerd-php-fpm.Containerfile`.
+If you want extra packages in the image (additional CLI tools, language toolchains, etc.), use `servlo php:ext` for PHP extensions, or fork the Containerfile at `internal/podman/quadlets/servlo-php-fpm.Containerfile`.
 
-For other tools and runtime libraries, `lerd php:pkg add <packages>` installs Alpine packages into the FPM image's runtime stage and rebuilds, for example `lerd php:pkg add htop vim`. The packages are saved in `~/.config/lerd/config.yaml` (under `php.packages`) and re-applied on every rebuild, so they survive `php:rebuild` and base image updates, exactly like custom extensions. Like extensions, one declared set applies to every PHP version. They are layered onto the shared image rather than baked into the published base, so they only affect your local build. A non-existent package name fails the rebuild and the change is reverted.
+For other tools and runtime libraries, `servlo php:pkg add <packages>` installs Alpine packages into the FPM image's runtime stage and rebuilds, for example `servlo php:pkg add htop vim`. The packages are saved in `~/.config/servlo/config.yaml` (under `php.packages`) and re-applied on every rebuild, so they survive `php:rebuild` and base image updates, exactly like custom extensions. Like extensions, one declared set applies to every PHP version. They are layered onto the shared image rather than baked into the published base, so they only affect your local build. A non-existent package name fails the rebuild and the change is reverted.
 
-For [bun](https://bun.sh) specifically, run `lerd php:bun install` to drop a musl bun into the container's persistent `/root/.bun` volume (so `lerd shell` has it without rebuilding the image). See [bun](node#bun) for the full host and container story.
+For [bun](https://bun.sh) specifically, run `servlo php:bun install` to drop a musl bun into the container's persistent `/root/.bun` volume (so `servlo shell` has it without rebuilding the image). See [bun](node#bun) for the full host and container story.
 
 ### Reachable ports
 
-By default a TCP port you open by hand inside `lerd shell` is not reachable at `localhost:PORT` on the host, because the PHP-FPM container has no published host ports of its own. Framework servers like [Reverb](queue-workers) or an in-container Vite worker are reachable, but only because a worker exposes them through the nginx proxy on the site's `.test` domain (`https://your-site.test/app`), not as a raw localhost port; Xdebug likewise connects outbound to your IDE rather than listening on a published port. When you instead want to run a process directly in the container (a Vite dev server, a websocket, an ad-hoc HTTP or debug listener) and hit it straight from a host browser or tool, publish the port on the version's shell container:
+By default a TCP port you open by hand inside `servlo shell` is not reachable at `localhost:PORT` on the host, because the PHP-FPM container has no published host ports of its own. Framework servers like [Reverb](queue-workers) or an in-container Vite worker are reachable, but only because a worker exposes them through the nginx proxy on the site's `.test` domain (`https://your-site.test/app`), not as a raw localhost port; Xdebug likewise connects outbound to your IDE rather than listening on a published port. When you instead want to run a process directly in the container (a Vite dev server, a websocket, an ad-hoc HTTP or debug listener) and hit it straight from a host browser or tool, publish the port on the version's shell container:
 
 ```bash
-lerd php:ports add 5173        # localhost:5173 -> container 5173 (same port through)
-lerd php:ports add 8080:80     # localhost:8080 -> container 80
-lerd php:ports list
-lerd php:ports remove 5173
+servlo php:ports add 5173        # localhost:5173 -> container 5173 (same port through)
+servlo php:ports add 8080:80     # localhost:8080 -> container 80
+servlo php:ports list
+servlo php:ports remove 5173
 ```
 
-The same list is available in the dashboard under **System > PHP > (version) > Ports**. If the host port is already taken (by a lerd service, another PHP version's list, or any other listener) lerd shifts it to the next free one and tells you where it landed, so an add never fails on a collision. Ports bind loopback by default and follow `lerd lan:expose` like every other lerd port. Changing the list restarts that version's FPM container, so PHP bounces for every site on that version.
+The same list is available in the dashboard under **System > PHP > (version) > Ports**. If the host port is already taken (by a servlo service, another PHP version's list, or any other listener) servlo shifts it to the next free one and tells you where it landed, so an add never fails on a collision. Ports bind loopback by default and follow `servlo lan:expose` like every other servlo port. Changing the list restarts that version's FPM container, so PHP bounces for every site on that version.
 
-This is a per-version pool, not per site. There is one shared FPM container per PHP version serving every site on it, so a published port maps to whichever single process binds it inside, and two sites wanting the same in-container port on the same version collide. It is a power-user escape hatch: for anything you can reach for a blessed path instead, prefer [host-proxy](host-proxy) (run the dev server on the host) or a worker with a proxy, which both scope cleanly to a single site.
+This is a per-version pool, not per site. There is one shared FPM container per PHP version serving every site on it, so a published port maps to whichever single process binds it inside, and two sites wanting the same in-container port on the same version collide. It is a power-user escape hatch: for anything you can reach for a blessed path instead, prefer host-proxy (run the dev server on the host) or a worker with a proxy, which both scope cleanly to a single site.
 
 ---
 
 ### Composer.json detection
 
-When you run `lerd park` or `lerd link`, Lerd reads `composer.json` and warns if any `ext-*` requirements are not covered by the bundled or installed extension set:
+When you run `servlo park` or `servlo link`, Servlo reads `composer.json` and warns if any `ext-*` requirements are not covered by the bundled or installed extension set:
 
 ```
 [!] my-app requires PHP extensions not in the image: swoole
-    Run: lerd php:ext add swoole
+    Run: servlo php:ext add swoole
 ```
 
-An extension can also be one the site's PHP version cannot have at all, rather than one that is merely absent from the image. `random` is a PHP core extension only from 8.2, and `mongodb` builds only on 8.1 and up, so on an older site no image rebuild can supply them and `lerd php:ext add` would fail after several minutes of building. Lerd says so up front instead of offering an install that cannot work:
+An extension can also be one the site's PHP version cannot have at all, rather than one that is merely absent from the image. `random` is a PHP core extension only from 8.2, and `mongodb` builds only on 8.1 and up, so on an older site no image rebuild can supply them and `servlo php:ext add` would fail after several minutes of building. Servlo says so up front instead of offering an install that cannot work:
 
 ```
 [!] my-app requires ext-random, which is not available on PHP 8.1 (first shipped on 8.2)
-    lerd php:ext add cannot build it. Move the site to PHP 8.2 or newer, or require a polyfill package instead.
+    servlo php:ext add cannot build it. Move the site to PHP 8.2 or newer, or require a polyfill package instead.
 ```
 
-A requirement can also fail even though the extension is in the image, because composer names a few extensions differently from the name they are installed under. Composer builds its `ext-*` names from the module name PHP reports, and OPcache reports itself as `Zend OPcache`, so composer publishes `ext-zend-opcache` and never `ext-opcache`. A `composer.json` asking for `ext-opcache` therefore fails its platform check on `composer install` even though OPcache is loaded, and `lerd php:ext add opcache` will not help because nothing is actually missing. Lerd recognises both spellings and tells you which one composer wants:
+A requirement can also fail even though the extension is in the image, because composer names a few extensions differently from the name they are installed under. Composer builds its `ext-*` names from the module name PHP reports, and OPcache reports itself as `Zend OPcache`, so composer publishes `ext-zend-opcache` and never `ext-opcache`. A `composer.json` asking for `ext-opcache` therefore fails its platform check on `composer install` even though OPcache is loaded, and `servlo php:ext add opcache` will not help because nothing is actually missing. Servlo recognises both spellings and tells you which one composer wants:
 
 ```
 [!] my-app requires ext-opcache, which composer publishes as ext-zend-opcache

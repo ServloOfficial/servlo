@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 func TestIsShell_fish(t *testing.T) {
@@ -67,11 +67,11 @@ func TestPortPreflightConflicts(t *testing.T) {
 		}
 	})
 
-	t.Run("lerd-nginx already running is not a conflict", func(t *testing.T) {
+	t.Run("servlo-nginx already running is not a conflict", func(t *testing.T) {
 		list := "conmon 1234 sdp 6u IPv4 TCP 0.0.0.0:80 (LISTEN)"
 		got := portPreflightConflicts(list, running, dnsUp)
 		if len(got) != 0 {
-			t.Fatalf("expected no conflicts when lerd owns the ports, got %+v", got)
+			t.Fatalf("expected no conflicts when servlo owns the ports, got %+v", got)
 		}
 	})
 
@@ -217,7 +217,7 @@ func TestAddShellShims_LaravelShim(t *testing.T) {
 	t.Setenv("COMPOSER_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", "")
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -247,8 +247,8 @@ func TestAddShellShims_LaravelShim(t *testing.T) {
 
 func TestRefreshUnreferencedCustomQuadlets_globalCustomServiceGetsV6Pair(t *testing.T) {
 	// Simulates a preset like mongo-express installed globally via
-	// `lerd service preset install`: a yaml in CustomServicesDir() with
-	// loopback publish ports, but no site .lerd.yaml references it.
+	// `servlo service preset install`: a yaml in CustomServicesDir() with
+	// loopback publish ports, but no site .servlo.yaml references it.
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "config"))
@@ -269,7 +269,7 @@ func TestRefreshUnreferencedCustomQuadlets_globalCustomServiceGetsV6Pair(t *test
 
 	refreshUnreferencedCustomQuadlets(map[string]bool{}, nil)
 
-	path := filepath.Join(config.QuadletDir(), "lerd-mongo-express.container")
+	path := filepath.Join(config.QuadletDir(), "servlo-mongo-express.container")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("quadlet not written at %s: %v", path, err)
@@ -308,7 +308,7 @@ func TestRefreshUnreferencedCustomQuadlets_skipsSeenServices(t *testing.T) {
 	seen := map[string]bool{"mongo-express": true}
 	refreshUnreferencedCustomQuadlets(seen, nil)
 
-	path := filepath.Join(config.QuadletDir(), "lerd-mongo-express.container")
+	path := filepath.Join(config.QuadletDir(), "servlo-mongo-express.container")
 	if _, err := os.Stat(path); err == nil {
 		t.Errorf("quadlet at %s should not be written when service is already in seenSvc", path)
 	}
@@ -341,24 +341,24 @@ func TestRefreshUnreferencedCustomQuadlets_rewritesCustomContainerSite(t *testin
 
 	refreshUnreferencedCustomQuadlets(map[string]bool{}, reg)
 
-	path := filepath.Join(config.QuadletDir(), "lerd-custom-my-app.container")
+	path := filepath.Join(config.QuadletDir(), "servlo-custom-my-app.container")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("custom-container quadlet not written at %s: %v", path, err)
 	}
 	got := string(data)
-	if !strings.Contains(got, "Network=lerd") {
-		t.Errorf("expected Network=lerd in custom-container quadlet:\n%s", got)
+	if !strings.Contains(got, "Network=servlo") {
+		t.Errorf("expected Network=servlo in custom-container quadlet:\n%s", got)
 	}
-	if !strings.Contains(got, "ContainerName=lerd-custom-my-app") {
-		t.Errorf("expected ContainerName=lerd-custom-my-app:\n%s", got)
+	if !strings.Contains(got, "ContainerName=servlo-custom-my-app") {
+		t.Errorf("expected ContainerName=servlo-custom-my-app:\n%s", got)
 	}
 }
 
 func TestRefreshUnreferencedCustomQuadlets_rewritesFrankenPHPSite(t *testing.T) {
 	// FrankenPHP sites (Runtime=="frankenphp") don't publish ports either, but
 	// the per-site loop that generates vhosts does not rewrite their quadlets.
-	// The refresh pass must emit a fresh lerd-fp-<name>.container on disk so
+	// The refresh pass must emit a fresh servlo-fp-<name>.container on disk so
 	// the v4→v6 network migration (and any other quadlet-schema change) lands
 	// on the FrankenPHP container when install restarts it.
 	tmp := t.TempDir()
@@ -385,16 +385,16 @@ func TestRefreshUnreferencedCustomQuadlets_rewritesFrankenPHPSite(t *testing.T) 
 
 	refreshUnreferencedCustomQuadlets(map[string]bool{}, reg)
 
-	path := filepath.Join(config.QuadletDir(), "lerd-fp-my-app.container")
+	path := filepath.Join(config.QuadletDir(), "servlo-fp-my-app.container")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("frankenphp quadlet not written at %s: %v", path, err)
 	}
 	got := string(data)
 	wantFragments := []string{
-		"ContainerName=lerd-fp-my-app",
-		"Image=localhost/lerd-frankenphp84:local",
-		"Network=lerd",
+		"ContainerName=servlo-fp-my-app",
+		"Image=localhost/servlo-frankenphp84:local",
+		"Network=servlo",
 		"Volume=" + projectDir + ":" + projectDir + ":rw",
 	}
 	for _, s := range wantFragments {
@@ -418,7 +418,7 @@ func TestRefreshUnreferencedCustomQuadlets_skipsPausedAndIgnoredSites(t *testing
 	}
 	refreshUnreferencedCustomQuadlets(map[string]bool{}, reg)
 
-	for _, name := range []string{"lerd-custom-paused-app", "lerd-custom-ignored-app"} {
+	for _, name := range []string{"servlo-custom-paused-app", "servlo-custom-ignored-app"} {
 		path := filepath.Join(config.QuadletDir(), name+".container")
 		if _, err := os.Stat(path); err == nil {
 			t.Errorf("quadlet %s should not be written for paused/ignored site", path)
@@ -434,7 +434,7 @@ func TestAddShellShims_LaravelShimRespectsComposerHome(t *testing.T) {
 	customHome := filepath.Join(tmp, "custom-composer")
 	t.Setenv("COMPOSER_HOME", customHome)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -463,7 +463,7 @@ func TestAddShellShims_NodeShimChecksDefaultAlias(t *testing.T) {
 	t.Setenv("HOME", tmp)
 	t.Setenv("SHELL", "/bin/sh")
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -475,24 +475,24 @@ func TestAddShellShims_NodeShimChecksDefaultAlias(t *testing.T) {
 		t.Fatalf("npm shim not created: %v", err)
 	}
 	shim := string(data)
-	if !strings.Contains(shim, `exec "$LERD" npm "$@"`) {
-		t.Errorf("npm shim should delegate to lerd binary first, got:\n%s", shim)
+	if !strings.Contains(shim, `exec "$SERVLO" npm "$@"`) {
+		t.Errorf("npm shim should delegate to servlo binary first, got:\n%s", shim)
 	}
 	if !strings.Contains(shim, `"$FNM" exec --using=default -- true`) {
 		t.Errorf("npm shim should probe the default alias in the fallback path, got:\n%s", shim)
 	}
-	if !strings.Contains(shim, "No Node.js version available via lerd") {
+	if !strings.Contains(shim, "No Node.js version available via servlo") {
 		t.Errorf("npm shim should print friendly fallback hint, got:\n%s", shim)
 	}
 }
 
-func TestAddShellShims_ComposerShimDelegatesToLerd(t *testing.T) {
+func TestAddShellShims_ComposerShimDelegatesToServlo(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 	t.Setenv("HOME", tmp)
 	t.Setenv("SHELL", "/bin/sh")
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -504,8 +504,8 @@ func TestAddShellShims_ComposerShimDelegatesToLerd(t *testing.T) {
 		t.Fatalf("composer shim not created: %v", err)
 	}
 	shim := string(data)
-	if !strings.Contains(shim, `exec "$LERD" composer "$@"`) {
-		t.Errorf("composer shim should delegate to lerd composer first, got:\n%s", shim)
+	if !strings.Contains(shim, `exec "$SERVLO" composer "$@"`) {
+		t.Errorf("composer shim should delegate to servlo composer first, got:\n%s", shim)
 	}
 	if !strings.Contains(shim, "composer.phar") {
 		t.Errorf("composer shim should keep a composer.phar fallback path, got:\n%s", shim)
@@ -515,7 +515,7 @@ func TestAddShellShims_ComposerShimDelegatesToLerd(t *testing.T) {
 func TestDetectSystemNode_findsNvmDirEvenWhenPathIsEmpty(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", filepath.Join(tmp, "lerd", "bin"))
+	t.Setenv("PATH", filepath.Join(tmp, "servlo", "bin"))
 
 	nvm := filepath.Join(tmp, ".nvm", "versions", "node", "v22.0.0")
 	if err := os.MkdirAll(nvm, 0755); err != nil {
@@ -584,7 +584,7 @@ func TestDetectSystemNode_findsNpmInPath(t *testing.T) {
 	}
 }
 
-// TestAddShellShims_OptOutRemovesNodeShims covers re-running `lerd install`
+// TestAddShellShims_OptOutRemovesNodeShims covers re-running `servlo install`
 // after a previous managed-node install: answering "no" to the prompt must
 // actually unblock system node, which means deleting the fnm-backed shims
 // that would otherwise keep masking it in PATH.
@@ -594,7 +594,7 @@ func TestAddShellShims_OptOutRemovesNodeShims(t *testing.T) {
 	t.Setenv("HOME", tmp)
 	t.Setenv("SHELL", "/bin/sh")
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -645,7 +645,7 @@ func TestAddShellShims_NvmSkipsNodeShims(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -680,7 +680,7 @@ func TestAddShellShims_OptOutWhenNoNodeShims(t *testing.T) {
 	t.Setenv("HOME", tmp)
 	t.Setenv("SHELL", "/bin/sh")
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -831,8 +831,8 @@ func TestParseDNSMode(t *testing.T) {
 // migration's, leaving those services stopped. The merge must keep both sets,
 // de-duplicated.
 func TestMergeMigrationRestarts_keepsHealTornDownContainers(t *testing.T) {
-	healed := []string{"lerd-mysql", "lerd-redis"}
-	recreated := []string{"lerd-redis", "lerd-postgres"}
+	healed := []string{"servlo-mysql", "servlo-redis"}
+	recreated := []string{"servlo-redis", "servlo-postgres"}
 
 	got := mergeMigrationRestarts(healed, recreated)
 
@@ -844,7 +844,7 @@ func TestMergeMigrationRestarts_keepsHealTornDownContainers(t *testing.T) {
 		}
 		return false
 	}
-	for _, c := range []string{"lerd-mysql", "lerd-redis", "lerd-postgres"} {
+	for _, c := range []string{"servlo-mysql", "servlo-redis", "servlo-postgres"} {
 		if !has(c) {
 			t.Errorf("%s missing from merged restart set %v", c, got)
 		}

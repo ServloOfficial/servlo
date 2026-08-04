@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
 // requiredWorktreeDBChoice returns the database choice a framework definition

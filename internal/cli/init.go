@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -24,18 +24,18 @@ func NewInitCmd() *cobra.Command {
 	var fresh bool
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize a project: run the setup wizard and save .lerd.yaml",
+		Short: "Initialize a project: run the setup wizard and save .servlo.yaml",
 		Long: `Run the setup wizard to configure PHP version, HTTPS, and required services,
-then save the answers to .lerd.yaml in the current directory.
+then save the answers to .servlo.yaml in the current directory.
 
-If .lerd.yaml already exists the wizard is skipped and the saved configuration
+If .servlo.yaml already exists the wizard is skipped and the saved configuration
 is applied directly. Use --fresh to re-run the wizard with existing values as
 defaults.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runInit(fresh)
 		},
 	}
-	cmd.Flags().BoolVar(&fresh, "fresh", false, "Re-run the wizard even if .lerd.yaml already exists")
+	cmd.Flags().BoolVar(&fresh, "fresh", false, "Re-run the wizard even if .servlo.yaml already exists")
 	return cmd
 }
 
@@ -45,8 +45,8 @@ func runInit(fresh bool) error {
 		return err
 	}
 
-	lerdYAMLPath := filepath.Join(cwd, ".lerd.yaml")
-	_, statErr := os.Stat(lerdYAMLPath)
+	servloYAMLPath := filepath.Join(cwd, ".servlo.yaml")
+	_, statErr := os.Stat(servloYAMLPath)
 	hasExisting := statErr == nil
 
 	feedback.Begin()
@@ -61,10 +61,10 @@ func runInit(fresh bool) error {
 		if err != nil {
 			return err
 		}
-		write := feedback.Start("writing .lerd.yaml")
+		write := feedback.Start("writing .servlo.yaml")
 		if err := config.SaveProjectConfig(cwd, cfg); err != nil {
 			write.Fail(err)
-			return fmt.Errorf("saving .lerd.yaml: %w", err)
+			return fmt.Errorf("saving .servlo.yaml: %w", err)
 		}
 		write.OK("")
 		// The wizard already had the user choose the dev command, so the link
@@ -78,7 +78,7 @@ func runInit(fresh bool) error {
 	}
 
 	if isInteractive() {
-		if feedback.Confirm("Run lerd setup?", true) {
+		if feedback.Confirm("Run servlo setup?", true) {
 			if err := runSetup(false, false); err != nil {
 				feedback.Warn("setup: %v", err)
 			}
@@ -89,9 +89,9 @@ func runInit(fresh bool) error {
 }
 
 // initShouldRunWizard reports whether runInit runs the configuration wizard
-// rather than applying an existing .lerd.yaml directly. It runs when no config
-// file is present, or when fresh forces it (the `lerd link` route passes fresh
-// for an absent-or-empty config, and `lerd init --fresh` for an explicit redo).
+// rather than applying an existing .servlo.yaml directly. It runs when no config
+// file is present, or when fresh forces it (the `servlo link` route passes fresh
+// for an absent-or-empty config, and `servlo init --fresh` for an explicit redo).
 func initShouldRunWizard(hasExisting, fresh bool) bool {
 	return !hasExisting || fresh
 }
@@ -128,14 +128,14 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 		// the plain-PHP option; an unknown/empty directory keeps it as a fallback
 		// (declining both non-PHP paths sets the project up as a PHP site).
 		const proxyChoice = "Dev server (proxy to a host port)"
-		const customChoice = "Custom container (Containerfile.lerd)"
+		const customChoice = "Custom container (Containerfile.servlo)"
 		const phpChoice = "Plain PHP site"
 
 		rt, knownRuntime := detectProjectRuntime(cwd)
-		title := "No PHP project detected. How should lerd run it?"
+		title := "No PHP project detected. How should servlo run it?"
 		options := []string{proxyChoice, customChoice, phpChoice}
 		if knownRuntime {
-			title = fmt.Sprintf("This looks like a %s project. How should lerd run it?", rt.label)
+			title = fmt.Sprintf("This looks like a %s project. How should servlo run it?", rt.label)
 			options = []string{proxyChoice, customChoice}
 		}
 
@@ -190,7 +190,7 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 
 	// Database is picked as a single choice (sqlite | mysql family member |
 	// postgres family member), while other services are a multi-select. This
-	// mirrors the runtime prompt in `lerd env` and prevents users from
+	// mirrors the runtime prompt in `servlo env` and prevents users from
 	// accidentally selecting both mysql and postgres for the same project.
 	// Multi-version mysql/postgres alternates installed via presets show up as
 	// extra Database options instead of polluting the Services list.
@@ -288,7 +288,7 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 				return validatePHPVersion(s)
 			}),
 	}
-	if lerdManagesNode() {
+	if servloManagesNode() {
 		firstGroupFields = append(firstGroupFields,
 			huh.NewInput().
 				Title("Node version").
@@ -331,7 +331,7 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 		formGroups = append(formGroups, huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("Custom workers").
-				Description("Deselect to remove from .lerd.yaml").
+				Description("Deselect to remove from .servlo.yaml").
 				Options(huh.NewOptions(customWorkerNames...)...).
 				Value(&keepCustomWorkers),
 		))
@@ -428,7 +428,7 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 	selectedServices = append(selectedServices, dbChoice)
 	selectedServices = append(selectedServices, nonDBSelected...)
 
-	// Only embed the framework definition in .lerd.yaml for user-defined
+	// Only embed the framework definition in .servlo.yaml for user-defined
 	// frameworks that aren't available from the store. Built-in (laravel) and
 	// store-installed frameworks can be fetched on any machine.
 	var frameworkDef *config.Framework
@@ -441,7 +441,7 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 		}
 	}
 
-	// Build an index of custom service definitions to embed in .lerd.yaml.
+	// Build an index of custom service definitions to embed in .servlo.yaml.
 	// Priority: existing inline definition in defaults > definition file on disk.
 	// Default-preset services are never embedded — they don't need to be.
 	// sqlite is treated as built-in here even though it's not a quadlet service.
@@ -539,7 +539,7 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 // custom workers, then returns a ProjectConfig with the container section.
 func runCustomContainerWizard(cwd string, defaults *config.ProjectConfig, gcfg *config.GlobalConfig) (*config.ProjectConfig, error) {
 	portStr := "3000"
-	containerfile := "Containerfile.lerd"
+	containerfile := "Containerfile.servlo"
 	secured, httpsAvailable := resolveSecuredDefault(cwd, defaults.Secured, gcfg)
 
 	if defaults.Container != nil {
@@ -618,7 +618,7 @@ func runCustomContainerWizard(cwd string, defaults *config.ProjectConfig, gcfg *
 		if err := huh.NewForm(huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("Custom workers").
-				Description("Deselect to remove from .lerd.yaml").
+				Description("Deselect to remove from .servlo.yaml").
 				Options(huh.NewOptions(customWorkerNames...)...).
 				Value(&keepCustomWorkers),
 		)).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin)).Run(); err != nil {
@@ -643,7 +643,7 @@ func runCustomContainerWizard(cwd string, defaults *config.ProjectConfig, gcfg *
 	containerCfg := &config.ContainerConfig{
 		Port: port,
 	}
-	if containerfile != "Containerfile.lerd" && containerfile != "" {
+	if containerfile != "Containerfile.servlo" && containerfile != "" {
 		containerCfg.Containerfile = containerfile
 	}
 
@@ -722,7 +722,7 @@ func buildProjectServices(selectedServices []string, defaults *config.ProjectCon
 }
 
 // runHostProxyWizard runs the init wizard for a host-proxy project (Node, or
-// any runtime that serves on a host port): lerd supervises the dev command on
+// any runtime that serves on a host port): servlo supervises the dev command on
 // the host and nginx proxies the domain to it. Command, port, and HTTPS are
 // collected on a single screen (like the custom container wizard), followed by
 // services.
@@ -743,7 +743,7 @@ func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config
 			command = defaultDevCommand(cwd)
 		}
 	}
-	commandDesc := "How lerd starts the app (lerd supervises and restarts it). Blank = run it yourself."
+	commandDesc := "How servlo starts the app (servlo supervises and restarts it). Blank = run it yourself."
 	if len(devScripts) > 0 {
 		commandDesc = "Detected scripts: " + strings.Join(devScripts, ", ") + ". Blank = run it yourself."
 	}
@@ -775,7 +775,7 @@ func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config
 			Value(&command),
 		huh.NewInput().
 			Title("Port").
-			Description("The port the dev server listens on (lerd injects PORT and proxies here)").
+			Description("The port the dev server listens on (servlo injects PORT and proxies here)").
 			Value(&portStr).
 			Validate(func(s string) error {
 				if s == "" {
@@ -824,7 +824,7 @@ func runHostProxyWizard(cwd string, defaults *config.ProjectConfig, gcfg *config
 	if manifest.runsVite(command) {
 		fmt.Println("\nNote: Vite blocks proxied requests by their Host header. Add your site")
 		fmt.Println("domain to server.allowedHosts in vite.config (or set allowedHosts: true),")
-		fmt.Println("or requests through the lerd proxy fail with \"host not allowed\".")
+		fmt.Println("or requests through the servlo proxy fail with \"host not allowed\".")
 		fmt.Println("Vite also ignores the HOST env; add --host to the command so it binds")
 		fmt.Println("all interfaces, otherwise the proxy can't reach it.")
 	}
@@ -868,8 +868,8 @@ var dbFamilyLabels = map[string]string{
 	"mongo":    "MongoDB",
 }
 
-// formatDBOptionLabel returns "MySQL (lerd-mysql)" for the canonical family
-// member or "MySQL 5.7 (lerd-mysql-5-7)" for a versioned alternate.
+// formatDBOptionLabel returns "MySQL (servlo-mysql)" for the canonical family
+// member or "MySQL 5.7 (servlo-mysql-5-7)" for a versioned alternate.
 func formatDBOptionLabel(name string) string {
 	family := name
 	version := ""
@@ -887,7 +887,7 @@ func formatDBOptionLabel(name string) string {
 	if version != "" {
 		label += " " + version
 	}
-	return fmt.Sprintf("%s (lerd-%s)", label, name)
+	return fmt.Sprintf("%s (servlo-%s)", label, name)
 }
 
 // buildDatabaseOptions returns the Database select options and a set of every
@@ -979,7 +979,7 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-// projectRuntime describes how lerd runs a non-PHP project of a given language.
+// projectRuntime describes how servlo runs a non-PHP project of a given language.
 // One entry drives all three consumers (detection, the host-proxy default dev
 // command, and the custom-container starter), so adding a language is a single
 // table entry rather than three switch/maps that must stay in sync.
@@ -987,7 +987,7 @@ type projectRuntime struct {
 	label      string   // human name shown in the wizard
 	manifests  []string // files whose presence identifies the runtime
 	devCommand string   // default host-proxy dev command
-	// container is the Containerfile body for this runtime. lerd bind-mounts the
+	// container is the Containerfile body for this runtime. servlo bind-mounts the
 	// project at runtime (same absolute path), so it needs no COPY or WORKDIR; it
 	// only provides the base image and global tools, app deps come from the mount.
 	container string
@@ -1058,12 +1058,12 @@ func defaultDevCommand(cwd string) string {
 	return rt.devCommand
 }
 
-// starterContainerfile returns a commented starter Containerfile.lerd tailored
+// starterContainerfile returns a commented starter Containerfile.servlo tailored
 // to the project's detected runtime. It's a scaffold for the user to edit; an
 // unrecognised runtime gets a generic skeleton. See projectRuntime.container for
 // why there is no COPY/WORKDIR.
 func starterContainerfile(cwd string, port int) string {
-	header := fmt.Sprintf("# Containerfile.lerd — lerd builds this image and runs your app in it.\n"+
+	header := fmt.Sprintf("# Containerfile.servlo — servlo builds this image and runs your app in it.\n"+
 		"# Your project is bind-mounted into the container at runtime (no COPY or WORKDIR\n"+
 		"# needed) so your edits are live. Install global dev tools here; app dependencies\n"+
 		"# come from the mounted project. Your app must listen on port %d.\n\n", port)
@@ -1090,7 +1090,7 @@ func maybeCreateContainerfile(cwd, containerfile string, port int) {
 	if err := huh.NewForm(huh.NewGroup(
 		huh.NewConfirm().
 			Title(fmt.Sprintf("%s doesn't exist yet. Create it and open your editor?", containerfile)).
-			Description("Lerd writes a starter image for your runtime; edit it to fit your app.").
+			Description("Servlo writes a starter image for your runtime; edit it to fit your app.").
 			Value(&create),
 	)).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin)).Run(); err != nil || !create {
 		return
@@ -1111,9 +1111,9 @@ func maybeCreateContainerfile(cwd, containerfile string, port int) {
 }
 
 // resolveSecuredDefault computes a wizard's initial "secured" value and whether
-// the HTTPS prompt should be offered at all. HTTPS is only available when lerd
+// the HTTPS prompt should be offered at all. HTTPS is only available when servlo
 // manages DNS; otherwise secured is forced off and the prompt is hidden so the
-// wizard never offers a choice that `lerd secure` would later refuse. When
+// wizard never offers a choice that `servlo secure` would later refuse. When
 // available, an already-secured linked site seeds the default to on.
 func resolveSecuredDefault(cwd string, defaultsSecured bool, gcfg *config.GlobalConfig) (secured, httpsAvailable bool) {
 	httpsAvailable = gcfg.DNSManaged()
@@ -1126,7 +1126,7 @@ func resolveSecuredDefault(cwd string, defaultsSecured bool, gcfg *config.Global
 	return secured, httpsAvailable
 }
 
-// persistedSecured keeps the user's HTTPS intent in .lerd.yaml even when DNS is
+// persistedSecured keeps the user's HTTPS intent in .servlo.yaml even when DNS is
 // disabled. Without DNS the wizard force-gates `secured` off, but the link path
 // re-gates at runtime via ResolveSecured, so persisting the gated-off value
 // would silently strip a committed `secured: true` for teammates on a
@@ -1220,7 +1220,7 @@ func detectServicesHeuristic(envFilePath, envFormat string) []string {
 		detected = append(detected, "rustfs")
 	}
 
-	if mailHost := readKey("MAIL_HOST"); mailHost == "lerd-mailpit" || readKey("MAIL_PORT") == "1025" {
+	if mailHost := readKey("MAIL_HOST"); mailHost == "servlo-mailpit" || readKey("MAIL_PORT") == "1025" {
 		detected = append(detected, "mailpit")
 	}
 
@@ -1233,19 +1233,19 @@ func makeEnvReader(envFilePath, envFormat string) func(key string) string {
 	return envfile.Reader(envFilePath, envFormat)
 }
 
-// runSetupInit is called by lerd setup as its first step. It runs the init
-// wizard when .lerd.yaml does not exist and we are in interactive mode, or
-// silently applies the saved config when .lerd.yaml is already present.
-// In non-interactive (--all) mode with no .lerd.yaml it falls back to a plain
-// lerd link so setup can still run unattended.
+// runSetupInit is called by servlo setup as its first step. It runs the init
+// wizard when .servlo.yaml does not exist and we are in interactive mode, or
+// silently applies the saved config when .servlo.yaml is already present.
+// In non-interactive (--all) mode with no .servlo.yaml it falls back to a plain
+// servlo link so setup can still run unattended.
 func runSetupInit(cwd string, skipWizard bool) error {
-	lerdYAMLPath := filepath.Join(cwd, ".lerd.yaml")
-	_, statErr := os.Stat(lerdYAMLPath)
+	servloYAMLPath := filepath.Join(cwd, ".servlo.yaml")
+	_, statErr := os.Stat(servloYAMLPath)
 	hasExisting := statErr == nil
 
 	if !hasExisting && skipWizard {
 		// CI path: link with auto-detection, then run env so the caller
-		// (lerd setup) doesn't have to do it itself. No interactive data import.
+		// (servlo setup) doesn't have to do it itself. No interactive data import.
 		linkSkipSetupPrompt = true
 		linkSkipDataImport = true
 		defer func() { linkSkipSetupPrompt = false; linkSkipDataImport = false }()
@@ -1263,10 +1263,10 @@ func runSetupInit(cwd string, skipWizard bool) error {
 		if err != nil {
 			return err
 		}
-		write := feedback.Start("writing .lerd.yaml")
+		write := feedback.Start("writing .servlo.yaml")
 		if err := config.SaveProjectConfig(cwd, cfg); err != nil {
 			write.Fail(err)
-			return fmt.Errorf("saving .lerd.yaml: %w", err)
+			return fmt.Errorf("saving .servlo.yaml: %w", err)
 		}
 		write.OK("")
 	}
@@ -1275,7 +1275,7 @@ func runSetupInit(cwd string, skipWizard bool) error {
 }
 
 func applyProjectConfig(cwd string) error {
-	// Suppress the "Run lerd setup?" prompt and the link summary inside runLink —
+	// Suppress the "Run servlo setup?" prompt and the link summary inside runLink —
 	// we're already in init/setup, the caller handles worker steps, and the
 	// summary is printed here after the .env step so it lands last.
 	linkSkipSetupPrompt = true
@@ -1288,8 +1288,8 @@ func applyProjectConfig(cwd string) error {
 		return err
 	}
 
-	// Skip work that already ran earlier in this process. When a `lerd link`
-	// flows into `lerd setup` via the prompt, the link (and often .env) is
+	// Skip work that already ran earlier in this process. When a `servlo link`
+	// flows into `servlo setup` via the prompt, the link (and often .env) is
 	// already done, so re-running it would just repeat the same output.
 	ranLink := false
 	if !linkApplied {
@@ -1332,7 +1332,7 @@ func applyProjectConfig(cwd string) error {
 	return nil
 }
 
-// applyEnvStep runs `lerd env` quietly under a single condensed feedback step,
+// applyEnvStep runs `servlo env` quietly under a single condensed feedback step,
 // listing the services it configured (from envSummary) rather than its full
 // per-service output.
 func applyEnvStep(cwd string) {

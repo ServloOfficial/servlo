@@ -3,7 +3,7 @@ package systemd
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestUnitBelongsToLongerSite guards the group-secondary leak: a unit named for
@@ -18,10 +18,10 @@ func TestUnitBelongsToLongerSite(t *testing.T) {
 		site     string
 		want     bool
 	}{
-		{"secondary unit not claimed by parent", "lerd-queue-admin-astrolov.service", "astrolov", true},
-		{"parent's own unit is not a longer site", "lerd-queue-astrolov.service", "astrolov", false},
-		{"secondary scanning its own unit", "lerd-queue-admin-astrolov.service", "admin-astrolov", false},
-		{"unrelated unit", "lerd-queue-other.service", "astrolov", false},
+		{"secondary unit not claimed by parent", "servlo-queue-admin-astrolov.service", "astrolov", true},
+		{"parent's own unit is not a longer site", "servlo-queue-astrolov.service", "astrolov", false},
+		{"secondary scanning its own unit", "servlo-queue-admin-astrolov.service", "admin-astrolov", false},
+		{"unrelated unit", "servlo-queue-other.service", "astrolov", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

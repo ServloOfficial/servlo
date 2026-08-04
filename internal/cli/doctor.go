@@ -11,18 +11,18 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/cleanup"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/feedback"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
-	lerdUpdate "github.com/geodro/lerd/internal/update"
-	"github.com/geodro/lerd/internal/version"
-	"github.com/geodro/lerd/internal/wsl"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/cleanup"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
+	servloUpdate "github.com/realrashid/servlo/internal/update"
+	"github.com/realrashid/servlo/internal/version"
+	"github.com/realrashid/servlo/internal/wsl"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +31,7 @@ func NewDoctorCmd() *cobra.Command {
 	var fix, yes, dryRun, asJSON bool
 	cmd := &cobra.Command{
 		Use:   "doctor",
-		Short: "Diagnose your Lerd environment and report issues",
+		Short: "Diagnose your Servlo environment and report issues",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runDoctor(fix, yes, dryRun, asJSON)
 		},
@@ -66,7 +66,7 @@ func runDoctor(fix, yes, dryRun, asJSON bool) error {
 
 // RunDoctorTo runs the full doctor diagnostic, writing human-readable output
 // to w. When useColor is false ANSI escapes are stripped so the output is
-// safe to embed in a plain-text file (used by `lerd bug-report`). Returns
+// safe to embed in a plain-text file (used by `servlo bug-report`). Returns
 // the failure and warning counts for callers that want to summarise.
 func RunDoctorTo(w io.Writer, useColor bool) (fails, warns int, err error) {
 	rep, err := runDoctorInto(w, useColor)
@@ -74,7 +74,7 @@ func RunDoctorTo(w io.Writer, useColor bool) (fails, warns int, err error) {
 }
 
 // RunDoctorReport runs the full diagnostic without printing and returns the
-// structured findings, used by `lerd doctor --fix` and the MCP diag tool.
+// structured findings, used by `servlo doctor --fix` and the MCP diag tool.
 func RunDoctorReport() (DoctorReport, error) {
 	return runDoctorInto(io.Discard, false)
 }
@@ -101,7 +101,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		rep.add(Finding{Section: section, Name: strings.TrimSpace(label), Status: "info", Message: val})
 	}
 
-	fmt.Fprintf(w, "Lerd Doctor  (version %s)\n", version.String())
+	fmt.Fprintf(w, "Servlo Doctor  (version %s)\n", version.String())
 	fmt.Fprintln(w, "══════════════════════════════════════════════")
 
 	// ── Prerequisites ───────────────────────────────────────────────────────
@@ -118,8 +118,8 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		ok("podman")
 	}
 
-	// podman 4.5 is lerd's minimum on every platform: older clients reject the
-	// quadlet units lerd emits and hit build regressions (#636). Probes the
+	// podman 4.5 is servlo's minimum on every platform: older clients reject the
+	// quadlet units servlo emits and hit build regressions (#636). Probes the
 	// binary directly, so it reports even when the daemon/machine is down.
 	if meetsMin, ver, verErr := podman.VersionAtLeast(4, 5); verErr == nil {
 		if meetsMin {
@@ -151,7 +151,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		}
 
 		// mkcert can only trust .test in the browser when certutil (nss-tools) is
-		// present. Without it lerd's mkcert step installs the CA to the system
+		// present. Without it servlo's mkcert step installs the CA to the system
 		// store only, so curl and PHP trust it but Firefox and Chrome warn, and
 		// the mkcert warning is swallowed. Only relevant when DNS/HTTPS is managed.
 		if cfg, cfgErr := config.LoadGlobal(); cfgErr == nil && cfg.DNSManaged() {
@@ -174,8 +174,8 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		// unit. Where network-online.target is never pulled in (Fedora
 		// Silverblue and other atomic images) that unit can only time out, and
 		// every container start, plus the boot, pays the 90s.
-		if lerdSystemd.NetworkWaitStalls() {
-			warn("podman network-online wait", "network-online.target never activates here, so every container start stalls 90s — fix: lerd start")
+		if servloSystemd.NetworkWaitStalls() {
+			warn("podman network-online wait", "network-online.target never activates here, so every container start stalls 90s — fix: servlo start")
 			rep.fixLast(autoFix(fixNetworkWait, "", "install the podman network-online drop-in"))
 		} else {
 			ok("podman network-online wait")
@@ -221,7 +221,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 			ok("fuse-overlayfs")
 		}
 
-		// Rootless network helpers. lerd's containers run on a custom bridge
+		// Rootless network helpers. servlo's containers run on a custom bridge
 		// network, which on rootless podman requires netavark + aardvark-dns
 		// plus a rootless network tool (pasta or slirp4netns). Missing any of
 		// these is the "failed to mount runtime directory for rootless netns"
@@ -234,15 +234,15 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		// them (older podman without the field).
 		if netavark, aardvark, probed := podman.NetworkHelpers(); probed {
 			if netavark == "" {
-				fail("rootless network (netavark)", "podman cannot find netavark — containers on the lerd bridge cannot start",
-					"sudo apt install netavark  (or dnf/pacman); then: lerd install")
+				fail("rootless network (netavark)", "podman cannot find netavark — containers on the servlo bridge cannot start",
+					"sudo apt install netavark  (or dnf/pacman); then: servlo install")
 				rep.fixLast(manualFix)
 			} else {
 				ok("rootless network (netavark)")
 			}
 			if aardvark == "" {
 				fail("rootless network (aardvark-dns)", "podman cannot find aardvark-dns — container DNS will not resolve",
-					"sudo apt install aardvark-dns  (or dnf/pacman); then: lerd install")
+					"sudo apt install aardvark-dns  (or dnf/pacman); then: servlo install")
 				rep.fixLast(manualFix)
 			} else {
 				ok("rootless network (aardvark-dns)")
@@ -252,7 +252,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		if _, p := exec.LookPath("pasta"); p != nil {
 			if _, s := exec.LookPath("slirp4netns"); s != nil {
 				fail("rootless network (pasta/slirp4netns)", "neither pasta nor slirp4netns found — rootless containers have no network",
-					"sudo apt install passt  (provides pasta), or: sudo apt install slirp4netns; then: lerd install")
+					"sudo apt install passt  (provides pasta), or: sudo apt install slirp4netns; then: servlo install")
 				rep.fixLast(manualFix)
 			} else {
 				ok("rootless network (slirp4netns)")
@@ -279,9 +279,9 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	}
 
 	// ── WSL2 ─────────────────────────────────────────────────────────────────
-	// Only on WSL: the failure modes here (podman log driver, no tray host, slow
-	// 9P bind mounts) don't exist on a native Linux or macOS host. `lerd wsl:setup`
-	// fixes the first two in one shot.
+	// Only on WSL: the failure modes here (podman log driver, slow 9P bind
+	// mounts) don't exist on a native Linux or macOS host. `servlo wsl:setup`
+	// fixes the log driver.
 	if wsl.IsWSL() {
 		section = "WSL2"
 		fmt.Fprintln(w, "\n[WSL2]")
@@ -291,16 +291,8 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		if b, readErr := os.ReadFile(cc); readErr == nil && wsl.HasEventsLoggerJournald(string(b)) {
 			ok("podman events_logger journald")
 		} else {
-			warn("podman events_logger journald", "log views fail with --follow on WSL, run lerd wsl:setup")
-			rep.fixLast(manualFixWith("run `lerd wsl:setup` (it needs sudo to write the podman config)"))
-		}
-
-		out, _ := exec.Command("systemctl", "--user", "is-enabled", "lerd-tray.service").Output()
-		if strings.TrimSpace(string(out)) == "masked" {
-			ok("lerd-tray masked (no WSL tray host)")
-		} else {
-			warn("lerd-tray on WSL", "no tray host on WSL2 so the unit fails, run lerd wsl:setup")
-			rep.fixLast(manualFixWith("run `lerd wsl:setup` (it needs sudo to write the podman config)"))
+			warn("podman events_logger journald", "log views fail with --follow on WSL, run servlo wsl:setup")
+			rep.fixLast(manualFixWith("run `servlo wsl:setup` (it needs sudo to write the podman config)"))
 		}
 
 		if reg, regErr := config.LoadSites(); regErr == nil {
@@ -371,7 +363,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	}
 
 	if !dnsManaged {
-		ok(fmt.Sprintf("DNS managed externally (lerd-dns disabled, TLD .%s)", tld))
+		ok(fmt.Sprintf("DNS managed externally (servlo-dns disabled, TLD .%s)", tld))
 	} else if tld == "" {
 		fail("DNS TLD configured", "empty TLD in config", "set dns.tld in "+cfgFile)
 	} else {
@@ -394,7 +386,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 			case dns.StepFail:
 				fail(label, s.Detail, s.Hint)
 				if dnsRepairable {
-					rep.fixLast(manualFixWith("run `lerd dns:repair` (it needs sudo to rewrite the resolver config)"))
+					rep.fixLast(manualFixWith("run `servlo dns:repair` (it needs sudo to rewrite the resolver config)"))
 				}
 			case dns.StepWarn:
 				warn(label, s.Detail)
@@ -405,14 +397,14 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	}
 
 	if dnsManaged {
-		dnsRunning := services.Mgr.IsActive("lerd-dns")
+		dnsRunning := services.Mgr.IsActive("servlo-dns")
 		if !dnsRunning {
-			if cr, _ := podman.ContainerRunning("lerd-dns"); cr {
+			if cr, _ := podman.ContainerRunning("servlo-dns"); cr {
 				dnsRunning = true
 			}
 		}
 		if !dnsRunning && PortInUse("5300") {
-			warn("DNS port 5300", "port in use by another process, lerd-dns may fail to start (find: "+FindListenerCmd("5300")+")")
+			warn("DNS port 5300", "port in use by another process, servlo-dns may fail to start (find: "+FindListenerCmd("5300")+")")
 		}
 	}
 
@@ -420,7 +412,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	section = "Ports"
 	fmt.Fprintln(w, "\n[Ports]")
 
-	nginxRunning, _ := podman.ContainerRunning("lerd-nginx")
+	nginxRunning, _ := podman.ContainerRunning("servlo-nginx")
 	if nginxRunning {
 		ok("port 80  (nginx running)")
 		ok("port 443 (nginx running)")
@@ -448,7 +440,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	{
 		var stoppedUnits []string
 		for _, name := range append([]string{}, knownServices()...) {
-			unit := "lerd-" + name
+			unit := "servlo-" + name
 			if !services.Mgr.ContainerUnitInstalled(unit) {
 				continue
 			}
@@ -459,7 +451,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		}
 		customs, _ := config.ListCustomServices()
 		for _, svc := range customs {
-			unit := "lerd-" + svc.Name
+			unit := "servlo-" + svc.Name
 			if !services.Mgr.ContainerUnitInstalled(unit) {
 				continue
 			}
@@ -493,20 +485,20 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	section = "Containers & Images"
 	fmt.Fprintln(w, "\n[Containers & Images]")
 
-	if !services.Mgr.ContainerUnitInstalled("lerd-nginx") {
-		fail("lerd-nginx service", "not installed", "run: lerd install")
-		rep.fixLast(autoFix(fixInstall, "", "install the lerd services (lerd install)"))
+	if !services.Mgr.ContainerUnitInstalled("servlo-nginx") {
+		fail("servlo-nginx service", "not installed", "run: servlo install")
+		rep.fixLast(autoFix(fixInstall, "", "install the servlo services (servlo install)"))
 	} else {
-		ok("lerd-nginx service installed")
+		ok("servlo-nginx service installed")
 	}
 
 	phpVersions, _ := phpPkg.ListInstalled()
 	if len(phpVersions) == 0 {
-		warn("PHP versions", "none installed — run: lerd use 8.4")
+		warn("PHP versions", "none installed — run: servlo use 8.4")
 	}
 	for _, v := range phpVersions {
 		short := strings.ReplaceAll(v, ".", "")
-		image := "lerd-php" + short + "-fpm:local"
+		image := "servlo-php" + short + "-fpm:local"
 		// The base tag is the recipe hash, so an upstream PHP or Alpine fix
 		// republishes it without moving any local hash. Nothing else on the
 		// machine notices that the image has fallen behind it.
@@ -517,10 +509,10 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		}
 		switch {
 		case !exists:
-			fail(fmt.Sprintf("PHP %s image", v), "missing", "lerd php:rebuild "+v)
+			fail(fmt.Sprintf("PHP %s image", v), "missing", "servlo php:rebuild "+v)
 			rep.fixLast(autoFix(fixPhpRebuild, v, "rebuild the PHP "+v+" image"))
 		case base != nil && base.Stale:
-			warn(fmt.Sprintf("PHP %s image", v), "its base image was refreshed upstream, run: lerd php:rebuild "+v)
+			warn(fmt.Sprintf("PHP %s image", v), "its base image was refreshed upstream, run: servlo php:rebuild "+v)
 			rep.fixLast(autoFix(fixPhpRebuild, v, "rebuild the PHP "+v+" image on the refreshed base"))
 		default:
 			ok(fmt.Sprintf("PHP %s image", v))
@@ -528,24 +520,24 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	}
 
 	if plan, planErr := cleanup.Inspect(cleanupScope(false)); planErr == nil && plan.ReclaimBytes() > 0 {
-		info("Reclaimable disk", fmt.Sprintf("about %s (run: lerd cleanup)", humanSize(plan.ReclaimBytes())))
-		rep.fixLast(autoFix(fixCleanup, "", "reclaim disk space (lerd cleanup)"))
+		info("Reclaimable disk", fmt.Sprintf("about %s (run: servlo cleanup)", humanSize(plan.ReclaimBytes())))
+		rep.fixLast(autoFix(fixCleanup, "", "reclaim disk space (servlo cleanup)"))
 	}
 
 	// ── Container → Host Connectivity ────────────────────────────────────────
 	// The PHP-FPM containers reach the host (Xdebug, host-side services)
-	// via the host.containers.internal /etc/hosts entry. lerd writes that
+	// via the host.containers.internal /etc/hosts entry. servlo writes that
 	// IP based on a real reachability probe — TCP-connect each candidate
-	// from inside lerd-nginx to lerd-ui's :7073. If no candidate works,
+	// from inside servlo-nginx to servlo-panel's :7073. If no candidate works,
 	// Xdebug times out silently with no error in the FPM logs other than
 	// "Time-out connecting to debugging client" (issue #186 redux). This
 	// check surfaces the failure so the user gets a real diagnosis.
 	section = "Container → Host connectivity"
 	fmt.Fprintln(w, "\n[Container → Host connectivity]")
-	if !services.Mgr.IsActive("lerd-nginx") {
-		warn("host reachability probe", "skipped — lerd-nginx not running (start lerd first)")
-	} else if !services.Mgr.IsActive("lerd-ui") {
-		warn("host reachability probe", "skipped — lerd-ui not running (the probe targets its :7073 listener)")
+	if !services.Mgr.IsActive("servlo-nginx") {
+		warn("host reachability probe", "skipped — servlo-nginx not running (start servlo first)")
+	} else if !services.Mgr.IsActive("servlo-panel") {
+		warn("host reachability probe", "skipped — servlo-panel not running (the probe targets its :7073 listener)")
 	} else if ip := podman.DetectHostGatewayIPProbeOnly(); ip != "" {
 		ok(fmt.Sprintf("host reachable from containers (%s)", ip))
 	} else {
@@ -564,7 +556,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 				continue
 			}
 			warn(fmt.Sprintf("site %s", site.Name),
-				fmt.Sprintf("%s; switch with: lerd runtime frankenphp", hints[0].Reason))
+				fmt.Sprintf("%s; switch with: servlo runtime frankenphp", hints[0].Reason))
 		}
 	}
 
@@ -572,7 +564,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	section = "Version Info"
 	fmt.Fprintln(w, "\n[Version Info]")
 
-	info("lerd", version.String())
+	info("servlo", version.String())
 
 	if len(phpVersions) > 0 {
 		info("PHP installed", strings.Join(phpVersions, ", "))
@@ -585,10 +577,10 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		info("Node default", cfg.Node.DefaultVersion)
 	}
 
-	if updateInfo, _ := lerdUpdate.CachedUpdateCheck(version.Version); updateInfo != nil {
-		warn("lerd update available", updateInfo.LatestVersion+" — run: lerd update, lerd whatsnew to see changes")
+	if updateInfo, _ := servloUpdate.CachedUpdateCheck(version.Version); updateInfo != nil {
+		warn("servlo update available", updateInfo.LatestVersion+" — run: servlo update, servlo whatsnew to see changes")
 	} else {
-		ok("lerd up to date")
+		ok("servlo up to date")
 	}
 
 	// ── Summary ──────────────────────────────────────────────────────────────
@@ -612,7 +604,7 @@ func checkDirWritable(dir string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("cannot create: %v", err)
 	}
-	tmp, err := os.CreateTemp(dir, ".lerd-doctor-*")
+	tmp, err := os.CreateTemp(dir, ".servlo-doctor-*")
 	if err != nil {
 		return fmt.Errorf("not writable: %v", err)
 	}

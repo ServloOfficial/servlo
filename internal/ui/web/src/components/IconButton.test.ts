@@ -22,7 +22,7 @@ describe('IconButton', () => {
   it('applies active styling when active', () => {
     render(IconButtonHarness, { props: { title: 'A', active: true } });
     const btn = screen.getByRole('button', { name: 'A' });
-    expect(btn.className).toMatch(/bg-lerd-red\/10/);
+    expect(btn.className).toMatch(/bg-servlo-red\/10/);
   });
 
   it('fires onclick', async () => {

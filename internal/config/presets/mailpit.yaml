@@ -14,7 +14,7 @@ environment:
   MP_WEBHOOK_URL: http://host.containers.internal:7073/api/webhooks/mailpit
 env_vars:
   - MAIL_MAILER=smtp
-  - MAIL_HOST=lerd-mailpit
+  - MAIL_HOST=servlo-mailpit
   - MAIL_PORT=1025
   - MAIL_USERNAME=null
   - MAIL_PASSWORD=null

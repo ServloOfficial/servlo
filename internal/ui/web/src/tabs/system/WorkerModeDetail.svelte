@@ -54,7 +54,7 @@
   }
 
   // Human-readable progress line for the modal. Maps phase + unit + step
-  // into something like "Stopping lerd-horizon-parkapp" / "Starting …".
+  // into something like "Stopping servlo-horizon-parkapp" / "Starting …".
   function progressLabel(p: { phase: string; unit?: string; step?: string; message?: string } | null): string {
     if (!p) return m.system_workerMode_apply_running();
     if (p.message) return p.message;
@@ -84,7 +84,7 @@
 
 {#if $workerModeApplies}
   <div class="flex-1 overflow-y-auto">
-    <div class="flex flex-wrap items-center justify-between gap-y-2 p-3 border-b border-gray-100 dark:border-lerd-border">
+    <div class="flex flex-wrap items-center justify-between gap-y-2 p-3 border-b border-gray-100 dark:border-servlo-border">
       <span class="font-semibold text-gray-900 dark:text-white text-base">{m.system_workerMode_title()}</span>
       <span
         class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full {$workerExecMode === 'container'
@@ -106,7 +106,7 @@
         aria-pressed={draft === 'exec'}
         class="w-full text-left flex items-start gap-3 p-3 rounded-sm border-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed {draft === 'exec'
           ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 ring-1 ring-emerald-500/20'
-          : 'border-gray-200 dark:border-lerd-border hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/3'}"
+          : 'border-gray-200 dark:border-servlo-border hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/3'}"
       >
         <span
           class="mt-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full border-2 shrink-0 {draft === 'exec'
@@ -130,7 +130,7 @@
         aria-pressed={draft === 'container'}
         class="w-full text-left flex items-start gap-3 p-3 rounded-sm border-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed {draft === 'container'
           ? 'border-sky-500 dark:border-sky-400 bg-sky-50 dark:bg-sky-500/10 ring-1 ring-sky-500/20'
-          : 'border-gray-200 dark:border-lerd-border hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/3'}"
+          : 'border-gray-200 dark:border-servlo-border hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/3'}"
       >
         <span
           class="mt-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full border-2 shrink-0 {draft === 'container'
@@ -147,12 +147,12 @@
         </span>
       </button>
 
-      <div class="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-lerd-card/50 rounded-sm px-3 py-2 border border-gray-200 dark:border-lerd-border">
+      <div class="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-servlo-card/50 rounded-sm px-3 py-2 border border-gray-200 dark:border-servlo-border">
         <span class="font-medium text-gray-700 dark:text-gray-300">{m.system_workerMode_note_label()}</span>
         {m.system_workerMode_note_body()}
       </div>
 
-      <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-lerd-border">
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-servlo-border">
         {#if dirty}
           <button
             type="button"
@@ -165,7 +165,7 @@
           type="button"
           onclick={openConfirm}
           disabled={!dirty || $workerModeLoading}
-          class="px-3 py-1.5 rounded-lg text-sm font-medium bg-lerd-red hover:bg-lerd-redhov text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          class="px-3 py-1.5 rounded-lg text-sm font-medium bg-servlo-red hover:bg-servlo-redhov text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >{m.common_save()}</button>
       </div>
     </div>
@@ -182,7 +182,7 @@
       type="button"
       onclick={applyChange}
       disabled={$workerModeLoading}
-      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-lerd-red hover:bg-lerd-redhov text-white disabled:opacity-60 transition-colors"
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-servlo-red hover:bg-servlo-redhov text-white disabled:opacity-60 transition-colors"
     >
       {#if $workerModeLoading}
         <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">

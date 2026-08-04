@@ -7,9 +7,9 @@ import "testing"
 // snapshot. The walk has to be ordered.
 func TestDSNDatabaseForIsStableAcrossRuns(t *testing.T) {
 	vals := map[string]string{
-		"QUEUE_DSN":     "mongodb://root:lerd@lerd-mongo:27017/jobs?authSource=admin",
-		"ANALYTICS_DSN": "mongodb://root:lerd@lerd-mongo:27017/metrics",
-		"CACHE_URL":     "redis://lerd-redis:6379/0",
+		"QUEUE_DSN":     "mongodb://root:servlo@servlo-mongo:27017/jobs?authSource=admin",
+		"ANALYTICS_DSN": "mongodb://root:servlo@servlo-mongo:27017/metrics",
+		"CACHE_URL":     "redis://servlo-redis:6379/0",
 		"APP_NAME":      "shop",
 	}
 	first := dsnDatabaseFor(vals, "mongo")
@@ -29,7 +29,7 @@ func TestDSNDatabaseForIsStableAcrossRuns(t *testing.T) {
 }
 
 func TestDSNDatabaseForIgnoresOtherServices(t *testing.T) {
-	vals := map[string]string{"CACHE_URL": "redis://lerd-redis:6379/0"}
+	vals := map[string]string{"CACHE_URL": "redis://servlo-redis:6379/0"}
 	if got := dsnDatabaseFor(vals, "mongo"); got != "" {
 		t.Errorf("resolved %q from another service's DSN", got)
 	}

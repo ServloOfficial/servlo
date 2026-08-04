@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/origin"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/origin"
 )
 
 // WriteContainerUnitFn writes a container unit file for the given name and content.
@@ -150,7 +150,7 @@ func sortPaths(paths []string) {
 	}
 }
 
-// mkcertPath returns the path to the mkcert binary managed by lerd.
+// mkcertPath returns the path to the mkcert binary managed by servlo.
 func mkcertPath() string {
 	return filepath.Join(config.BinDir(), "mkcert")
 }
@@ -172,15 +172,15 @@ func mkcertCABlock(tmpDir string) string {
 	if err := os.WriteFile(dest, src, 0644); err != nil {
 		return ""
 	}
-	return "# Lerd mkcert CA — trust local .test HTTPS inside the container\n" +
+	return "# Servlo mkcert CA — trust local .test HTTPS inside the container\n" +
 		"COPY mkcert-ca.crt /usr/local/share/ca-certificates/mkcert-ca.crt\n" +
 		"RUN update-ca-certificates\n"
 }
 
 // ContainerfileHash returns the SHA-256 hash of the embedded PHP-FPM Containerfile.
-// This is used to detect when images need to be rebuilt after a lerd update.
+// This is used to detect when images need to be rebuilt after a servlo update.
 func ContainerfileHash() (string, error) {
-	tmpl, err := GetQuadletTemplate("lerd-php-fpm.Containerfile")
+	tmpl, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 	if err != nil {
 		return "", err
 	}
@@ -189,9 +189,9 @@ func ContainerfileHash() (string, error) {
 }
 
 // fpmContainerfileHashLabel is stamped on every PHP-FPM image so
-// NeedsFPMRebuild can detect drift even when the cache file lies (lerd
+// NeedsFPMRebuild can detect drift even when the cache file lies (servlo
 // < v1.22.0 advanced the cache without actually rebuilding).
-const fpmContainerfileHashLabel = "dev.lerd.fpm.containerfile-hash"
+const fpmContainerfileHashLabel = "dev.servlo.fpm.containerfile-hash"
 
 // Seams for NeedsFPMRebuild so tests can fake the podman shell-outs.
 var (
@@ -200,10 +200,10 @@ var (
 )
 
 // FPMImageName returns the local image tag for a PHP version, e.g.
-// "lerd-php83-fpm:local" for "8.3". Centralised so callers and the
+// "servlo-php83-fpm:local" for "8.3". Centralised so callers and the
 // rebuild-detection logic agree on the naming convention.
 func FPMImageName(version string) string {
-	return "lerd-php" + strings.ReplaceAll(version, ".", "") + "-fpm:local"
+	return "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm:local"
 }
 
 // NeedsFPMRebuild returns true when the embedded Containerfile differs
@@ -224,7 +224,7 @@ func NeedsFPMRebuild(activeVersions []string) bool {
 		}
 	}
 	// Cache file says we're up to date; verify against the label on each
-	// active version's image so a poisoned cache from older lerd binaries
+	// active version's image so a poisoned cache from older servlo binaries
 	// still triggers a rebuild, while ignoring orphan legacy images.
 	for _, v := range activeVersions {
 		if imageLabelFn(FPMImageName(v), fpmContainerfileHashLabel) != current {
@@ -303,7 +303,7 @@ func StoreFPMHash() error {
 	return os.WriteFile(config.PHPImageHashFile(), []byte(hash), 0644)
 }
 
-// BuildFPMImage builds the lerd PHP-FPM image for the given version if it doesn't exist.
+// BuildFPMImage builds the servlo PHP-FPM image for the given version if it doesn't exist.
 // When local is false, it attempts to pull a pre-built base image from ghcr.io first.
 func BuildFPMImage(version string, local bool) error {
 	cfg, err := config.LoadGlobal()
@@ -351,9 +351,9 @@ func RebuildFPMImageTo(version string, local bool, w io.Writer) error {
 
 // baseContainerfileHash returns a 12-character SHA-256 prefix of the Containerfile
 // with user-specific sections stripped. This is used as the tag for pre-built base
-// images on ghcr.io, so lerd knows exactly which image matches its embedded template.
+// images on ghcr.io, so servlo knows exactly which image matches its embedded template.
 func baseContainerfileHash() (string, error) {
-	tmpl, err := GetQuadletTemplate("lerd-php-fpm.Containerfile")
+	tmpl, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 	if err != nil {
 		return "", err
 	}
@@ -394,7 +394,7 @@ func tryPullBaseImage(version string, w io.Writer) string {
 	// whether the user is logged into ghcr.io. A logged-in account with
 	// expired or mismatched credentials would otherwise cause a 401 for this
 	// public image and force a slow local build.
-	tmpAuth, err := os.CreateTemp("", "lerd-auth-*.json")
+	tmpAuth, err := os.CreateTemp("", "servlo-auth-*.json")
 	authFile := ""
 	if err == nil {
 		tmpAuth.WriteString("{}")
@@ -469,7 +469,7 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 
 	fmt.Fprintf(w, "\n  Building PHP %s image...\n", version)
 
-	tmp, err := os.MkdirTemp("", "lerd-php-build-*")
+	tmp, err := os.MkdirTemp("", "servlo-php-build-*")
 	if err != nil {
 		return false, err
 	}
@@ -486,7 +486,7 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 		if baseRef := tryPullBaseImage(version, w); baseRef != "" {
 			baseDigest, _ = refreshManifestDigestFn(baseRef)
 			containerfile = "FROM " + baseRef + "\n" +
-				"RUN mkdir -p /etc/my.cnf.d && printf '[client]\\nssl=0\\n' > /etc/my.cnf.d/lerd-no-ssl.cnf\n" +
+				"RUN mkdir -p /etc/my.cnf.d && printf '[client]\\nssl=0\\n' > /etc/my.cnf.d/servlo-no-ssl.cnf\n" +
 				buildCustomExtBlockWithToolchain(customExts, extDeps) +
 				buildCustomPackagesBlock(packages) +
 				mkcertCABlock(tmp)
@@ -495,7 +495,7 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 	}
 
 	// Slow path: full local build from the embedded Containerfile template.
-	// The template compiles lerd_devtools in the builder stage via
+	// The template compiles servlo_devtools in the builder stage via
 	// `COPY internal/podman/devtools`, so stage that source into the build
 	// context (the prebuilt base already carries it, so the fast path above
 	// doesn't need it).
@@ -503,7 +503,7 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 		if err := writeDevtoolsSource(tmp); err != nil {
 			return false, fmt.Errorf("staging devtools source: %w", err)
 		}
-		tmpl, tmplErr := GetQuadletTemplate("lerd-php-fpm.Containerfile")
+		tmpl, tmplErr := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 		if tmplErr != nil {
 			return false, tmplErr
 		}
@@ -548,7 +548,7 @@ build:
 // extApkDeps maps a custom PHP extension to the Alpine packages its build needs.
 // The standard bundle's -dev packages are already in the base image, so this only
 // lists extensions whose build deps aren't there; without them PECL fails (e.g.
-// imap's "U8T_CANONICAL is missing"). Users can add more via `lerd php:ext add
+// imap's "U8T_CANONICAL is missing"). Users can add more via `servlo php:ext add
 // --apk-deps`; the two sets are unioned. The "|| true" in the RUN block keeps a
 // broken build from bricking later rebuilds, so VerifyExtensionLoaded checks the
 // result afterward.
@@ -649,8 +649,8 @@ func customExtBlock(exts []string, userDeps map[string][]string, withToolchain b
 	for _, ext := range exts {
 		prefix, purge := "", ""
 		if withToolchain {
-			prefix = "apk add --no-cache --virtual .lerd-ext-build " + strings.Join(phpizeToolchain, " ") + " && "
-			purge = " \\\n    && { apk del .lerd-ext-build 2>/dev/null || true; }"
+			prefix = "apk add --no-cache --virtual .servlo-ext-build " + strings.Join(phpizeToolchain, " ") + " && "
+			purge = " \\\n    && { apk del .servlo-ext-build 2>/dev/null || true; }"
 		}
 		// The extension's own deps outlive the purge: the compiled .so dlopens
 		// against them at runtime, the way the local path's runtime block does.
@@ -668,7 +668,7 @@ func customExtBlock(exts []string, userDeps map[string][]string, withToolchain b
 }
 
 // buildCustomPackagesBlock emits an apk RUN line installing user-requested
-// extra Alpine packages (lerd php:pkg) into the runtime stage, deduped and in a
+// extra Alpine packages (servlo php:pkg) into the runtime stage, deduped and in a
 // stable order. Names are validated so a bad entry can't break out of the apk
 // command; invalid ones are dropped. Empty when there are no packages.
 //
@@ -693,11 +693,11 @@ func buildCustomPackagesBlock(packages []string) string {
 	if len(valid) == 0 {
 		return ""
 	}
-	block := "# User-requested extra packages (lerd php:pkg)\nRUN for p in " +
+	block := "# User-requested extra packages (servlo php:pkg)\nRUN for p in " +
 		strings.Join(valid, " ") + "; do apk add --no-cache \"$p\" || true; done \\\n" +
 		"    && rm -rf /var/cache/apk/*\n"
-	// When chromium is present (the package lerd pest:browser install adds), pin
-	// Playwright's browser path to the persistent cache volume. `lerd test`/`lerd
+	// When chromium is present (the package servlo pest:browser install adds), pin
+	// Playwright's browser path to the persistent cache volume. `servlo test`/`servlo
 	// pest` exec with the host HOME, so without this Playwright would look under
 	// the host home instead of the volume where the registry and shims live. The
 	// env is inert for anyone not running Playwright, so deriving it from the
@@ -900,7 +900,7 @@ func EnsureXdebugIni(version string) error {
 // systemd daemon if the content changed. It also ensures the xdebug and user ini files exist.
 func WriteFPMQuadlet(version string) error {
 	short := strings.ReplaceAll(version, ".", "")
-	unitName := "lerd-php" + short + "-fpm"
+	unitName := "servlo-php" + short + "-fpm"
 
 	if err := EnsureUserIni(version); err != nil {
 		return fmt.Errorf("creating user ini: %w", err)
@@ -936,7 +936,7 @@ func WriteFPMQuadlet(version string) error {
 
 	// Skip the write and daemon-reload if the quadlet is already up to date.
 	// Unnecessary daemon-reloads cause Podman's quadlet generator to regenerate
-	// all service files, which can briefly disrupt lerd-dns and cause
+	// all service files, which can briefly disrupt servlo-dns and cause
 	// systemd-resolved to mark 127.0.0.1:5300 as failed (breaking .test resolution).
 	// On macOS the unit file is a launchd plist (not a quadlet), so the check is skipped.
 	if !SkipQuadletUpToDateCheck {
@@ -959,7 +959,7 @@ func WriteFPMQuadlet(version string) error {
 // dumps, devtools, the bun volume, and the shell mounts.
 func renderFPMQuadletContent(version string) (string, error) {
 	short := strings.ReplaceAll(version, ".", "")
-	tmplContent, err := GetQuadletTemplate("lerd-php-fpm.container.tmpl")
+	tmplContent, err := GetQuadletTemplate("servlo-php-fpm.container.tmpl")
 	if err != nil {
 		return "", err
 	}
@@ -990,7 +990,7 @@ func RewriteFPMQuadlets() error {
 
 	for _, v := range versions {
 		short := strings.ReplaceAll(v, ".", "")
-		unitName := "lerd-php" + short + "-fpm"
+		unitName := "servlo-php" + short + "-fpm"
 
 		content, renderErr := renderFPMQuadletContent(v)
 		if renderErr != nil {
@@ -1011,11 +1011,11 @@ func RewriteFPMQuadlets() error {
 	}
 
 	// Also rewrite nginx quadlet with the same extra volumes.
-	if nginxContent, err := GetQuadletTemplate("lerd-nginx.container"); err == nil {
+	if nginxContent, err := GetQuadletTemplate("servlo-nginx.container"); err == nil {
 		nginxContent = InjectExtraVolumes(nginxContent, extraPaths)
-		if changed, err := WriteQuadletDiff("lerd-nginx", nginxContent); err == nil {
-			if changed || UnitMissingMounts("lerd-nginx", extraPaths) {
-				changedUnits = append(changedUnits, "lerd-nginx")
+		if changed, err := WriteQuadletDiff("servlo-nginx", nginxContent); err == nil {
+			if changed || UnitMissingMounts("servlo-nginx", extraPaths) {
+				changedUnits = append(changedUnits, "servlo-nginx")
 			}
 		}
 	}
@@ -1036,7 +1036,7 @@ func RewriteFPMQuadlets() error {
 // zshHistoryDir returns the per-PHP-version host directory that backs the
 // container's /root/.zsh_state mount, creating it so the bind mount succeeds
 // on first start. We deliberately do not mount any host shell config —
-// see internal/podman/quadlets/lerd-php-fpm.Containerfile for the rationale.
+// see internal/podman/quadlets/servlo-php-fpm.Containerfile for the rationale.
 func zshHistoryDir(versionShort string) string {
 	dir := filepath.Join(config.DataDir(), "shell-state", "php-"+versionShort, "zsh")
 	_ = os.MkdirAll(dir, 0o755)
@@ -1076,7 +1076,7 @@ func applyShellMounts(content, versionShort string) string {
 }
 
 // BunVolumeDir is the host directory backing the container's /root/.bun mount,
-// where an opt-in in-container musl bun lives (lerd php:bun install). Shared
+// where an opt-in in-container musl bun lives (servlo php:bun install). Shared
 // across PHP versions and created so the bind mount succeeds on first start.
 func BunVolumeDir() string {
 	dir := filepath.Join(config.DataDir(), "bun")
@@ -1085,14 +1085,14 @@ func BunVolumeDir() string {
 }
 
 // PlaywrightCachePath is the in-container path where the Playwright registry and
-// lerd's musl-chromium shims live (the mount target of PlaywrightVolumeDir). It
+// servlo's musl-chromium shims live (the mount target of PlaywrightVolumeDir). It
 // is baked into the image as PLAYWRIGHT_BROWSERS_PATH and is the single source of
 // truth shared with the cli package's pest:browser command.
 const PlaywrightCachePath = "/root/.cache/ms-playwright"
 
 // PlaywrightVolumeDir is the host directory backing the container's
 // /root/.cache/ms-playwright mount, where opt-in Pest browser testing keeps the
-// Playwright registry and lerd's musl-chromium shims (lerd pest:browser
+// Playwright registry and servlo's musl-chromium shims (servlo pest:browser
 // install). Shared across PHP versions and created so the bind mount succeeds.
 func PlaywrightVolumeDir() string {
 	dir := filepath.Join(config.DataDir(), "playwright")
@@ -1110,11 +1110,11 @@ func listInstalledPHPVersions() ([]string, error) {
 	var versions []string
 	for _, e := range entries {
 		name := e.Name()
-		if !strings.HasPrefix(name, "lerd-php") || !strings.HasSuffix(name, "-fpm.container") {
+		if !strings.HasPrefix(name, "servlo-php") || !strings.HasSuffix(name, "-fpm.container") {
 			continue
 		}
-		// Extract version short from lerd-php84-fpm.container → "84"
-		short := strings.TrimPrefix(name, "lerd-php")
+		// Extract version short from servlo-php84-fpm.container → "84"
+		short := strings.TrimPrefix(name, "servlo-php")
 		short = strings.TrimSuffix(short, "-fpm.container")
 		if len(short) < 2 {
 			continue
@@ -1198,7 +1198,7 @@ func PathVisible(path, phpVersion string) bool {
 		return true
 	}
 	short := strings.ReplaceAll(phpVersion, ".", "")
-	content, err := os.ReadFile(filepath.Join(config.QuadletDir(), "lerd-php"+short+"-fpm.container"))
+	content, err := os.ReadFile(filepath.Join(config.QuadletDir(), "servlo-php"+short+"-fpm.container"))
 	if err != nil {
 		return false
 	}
@@ -1223,7 +1223,7 @@ func PathVisible(path, phpVersion string) bool {
 // volume-mounted, the quadlets are updated and containers restarted
 // transparently before returning.
 func EnsurePathMounted(path, phpVersion string) {
-	// Reached from `lerd php`, console, tinker, shell, setup and new, so a
+	// Reached from `servlo php`, console, tinker, shell, setup and new, so a
 	// command run from / or from a temp dir must not rewrite the quadlets.
 	if !PathAutoMountable(path) {
 		return
@@ -1264,10 +1264,10 @@ func EnsurePathMounted(path, phpVersion string) {
 	var quadlets []quadletInfo
 	for _, v := range versions {
 		short := strings.ReplaceAll(v, ".", "")
-		unitName := "lerd-php" + short + "-fpm"
+		unitName := "servlo-php" + short + "-fpm"
 		quadlets = append(quadlets, quadletInfo{unitName, filepath.Join(config.QuadletDir(), unitName+".container")})
 	}
-	quadlets = append(quadlets, quadletInfo{"lerd-nginx", filepath.Join(config.QuadletDir(), "lerd-nginx.container")})
+	quadlets = append(quadlets, quadletInfo{"servlo-nginx", filepath.Join(config.QuadletDir(), "servlo-nginx.container")})
 	// Custom-FPM sites serve from their own container, so an out-of-home path
 	// has to reach that quadlet too, not just the shared per-version ones.
 	if reg, regErr := config.LoadSites(); regErr == nil {
@@ -1335,8 +1335,8 @@ func EnsureUserIni(version string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	content := "; Lerd per-version PHP settings for PHP " + version + "\n" +
-		"; Edit this file, then restart: systemctl --user restart lerd-php" +
+	content := "; Servlo per-version PHP settings for PHP " + version + "\n" +
+		"; Edit this file, then restart: systemctl --user restart servlo-php" +
 		strings.ReplaceAll(version, ".", "") + "-fpm\n" +
 		";\n" +
 		"; memory_limit = 512M\n" +
@@ -1363,7 +1363,7 @@ func EnsureSharedIni() error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	content := "; Lerd shared PHP settings, applied to every PHP version.\n" +
+	content := "; Servlo shared PHP settings, applied to every PHP version.\n" +
 		"; A per-version file (php:ini <version>) overrides any key set here.\n" +
 		"; Edit, then restart FPM. Unknown keys on a given version are ignored,\n" +
 		"; not fatal, so a version-specific setting never breaks the others.\n" +
@@ -1391,7 +1391,7 @@ func EnsureSitePHPUserIni(siteName string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	content := "; Lerd per-site PHP settings for " + siteName + " (FrankenPHP)\n" +
+	content := "; Servlo per-site PHP settings for " + siteName + " (FrankenPHP)\n" +
 		"; Applies only to this site's container. Edit, then restart the site.\n" +
 		";\n" +
 		"; memory_limit = 512M\n" +

@@ -3,8 +3,8 @@ package mcp
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/cfgedit"
-	"github.com/geodro/lerd/internal/phpini"
+	"github.com/realrashid/servlo/internal/cfgedit"
+	"github.com/realrashid/servlo/internal/phpini"
 )
 
 // iniScope resolves the php.ini editor scope from the tool args: the shared file

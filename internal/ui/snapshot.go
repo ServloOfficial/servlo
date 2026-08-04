@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/eventbus"
+	"github.com/realrashid/servlo/internal/eventbus"
 )
 
 // snapshotTTL bounds how long a cached snapshot is reused before the next
@@ -14,10 +14,10 @@ import (
 // read recomputes immediately.
 //
 // Two cadences: the short one when a real UI tab is open (the dashboard
-// expects near-realtime data), the long one when only the tray is polling.
-// The tray shows slow-changing state (nginx running, dns ok, php list); five
-// minutes of staleness there is fine because explicit mutations invalidate
-// via AfterUnitChange and are reflected on the next tray poll regardless.
+// expects near-realtime data), the long one when only an HTTP poller is
+// asking. A poller sees slow-changing state (nginx running, dns ok, php
+// list); five minutes of staleness there is fine because explicit mutations
+// invalidate via AfterUnitChange and are reflected on the next poll regardless.
 const (
 	snapshotTTLActive = 15 * time.Second
 	snapshotTTLIdle   = 5 * time.Minute

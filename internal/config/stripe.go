@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/envfile"
+	"github.com/realrashid/servlo/internal/envfile"
 )
 
 // DefaultStripeWebhookPath is the route a Stripe listener forwards events to
@@ -18,7 +18,7 @@ const DefaultStripeWebhookPath = "/stripe/webhook"
 // secret_env_key, so the listener detects a secret regardless of framework.
 var StripeSecretEnvCandidates = []string{"STRIPE_SECRET", "STRIPE_SECRET_KEY", "STRIPE_API_KEY"}
 
-// StripeConfig is the optional per-project Stripe listener config in .lerd.yaml.
+// StripeConfig is the optional per-project Stripe listener config in .servlo.yaml.
 // Both fields are optional: empty values fall back to auto-detection and the
 // default webhook path, so Laravel projects need no config at all.
 type StripeConfig struct {
@@ -31,7 +31,7 @@ type StripeConfig struct {
 }
 
 // ResolveStripeSecret returns the env key name and value of a project's Stripe
-// secret. An explicit secret_env_key in .lerd.yaml wins; otherwise the common
+// secret. An explicit secret_env_key in .servlo.yaml wins; otherwise the common
 // candidate keys are probed in .env. An empty value means none is set.
 func ResolveStripeSecret(sitePath string) (envKey, value string) {
 	envPath := filepath.Join(sitePath, ".env")
@@ -48,12 +48,12 @@ func ResolveStripeSecret(sitePath string) (envKey, value string) {
 
 // StripeWebhookPath returns the configured webhook route for a project, or
 // DefaultStripeWebhookPath when none is set. The stored value is normalised to
-// a leading slash so a hand-edited ".lerd.yaml" can't yield a slash-less URL
+// a leading slash so a hand-edited ".servlo.yaml" can't yield a slash-less URL
 // like "https://site.teststripe/webhook".
 func StripeWebhookPath(sitePath string) string {
 	if proj, err := LoadProjectConfig(sitePath); err == nil && proj.Stripe != nil && proj.Stripe.Path != "" {
 		// Validate on read, not just on write: a hand-edited or hostile
-		// .lerd.yaml can otherwise carry whitespace/newlines straight into the
+		// .servlo.yaml can otherwise carry whitespace/newlines straight into the
 		// listener unit's ExecStart line, so reject those and fall back to the
 		// default rather than trusting the stored value.
 		if validated, err := ValidateStripeWebhookPath(proj.Stripe.Path); err == nil {

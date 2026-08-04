@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/geodro/lerd/internal/workerheal"
+	"github.com/realrashid/servlo/internal/workerheal"
 )
 
 // A unit whose worktree is gone can never start again, so pruning is the only
@@ -16,10 +16,10 @@ func TestPruneOrphanedWorkerUnits_removesOnlyOrphans(t *testing.T) {
 	swapMgr(t, fake)
 
 	pruned := PruneOrphanedWorkerUnits([]UnhealthyWorker{
-		{Site: "ws", Worker: "vite", Unit: "lerd-vite-ws-feat-x", State: workerheal.StateOrphaned},
-		{Site: "ws", Worker: "queue", Unit: "lerd-queue-ws", State: "failed"},
-		{Site: "ws", Worker: "vite", Unit: "lerd-vite-ws-feat-y", State: workerheal.StateOrphaned},
-		{Site: "ws", Worker: "reverb", Unit: "lerd-reverb-ws", State: "unreachable"},
+		{Site: "ws", Worker: "vite", Unit: "servlo-vite-ws-feat-x", State: workerheal.StateOrphaned},
+		{Site: "ws", Worker: "queue", Unit: "servlo-queue-ws", State: "failed"},
+		{Site: "ws", Worker: "vite", Unit: "servlo-vite-ws-feat-y", State: workerheal.StateOrphaned},
+		{Site: "ws", Worker: "reverb", Unit: "servlo-reverb-ws", State: "unreachable"},
 	})
 
 	if pruned != 2 {
@@ -27,7 +27,7 @@ func TestPruneOrphanedWorkerUnits_removesOnlyOrphans(t *testing.T) {
 	}
 	got := append([]string(nil), fake.removeServiceCalls...)
 	sort.Strings(got)
-	want := []string{"lerd-vite-ws-feat-x", "lerd-vite-ws-feat-y"}
+	want := []string{"servlo-vite-ws-feat-x", "servlo-vite-ws-feat-y"}
 	if !equalStrings(got, want) {
 		t.Errorf("removeServiceCalls = %v, want %v", got, want)
 	}
@@ -53,7 +53,7 @@ func TestPruneOrphanedWorkerUnits_noOrphansTouchesNothing(t *testing.T) {
 	swapMgr(t, fake)
 
 	if pruned := PruneOrphanedWorkerUnits([]UnhealthyWorker{
-		{Site: "ws", Worker: "queue", Unit: "lerd-queue-ws", State: "failed"},
+		{Site: "ws", Worker: "queue", Unit: "servlo-queue-ws", State: "failed"},
 	}); pruned != 0 {
 		t.Errorf("pruned = %d, want 0", pruned)
 	}

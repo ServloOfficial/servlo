@@ -10,7 +10,7 @@ import (
 // setupWorktreeEnv registers a parent site whose framework serves from a
 // non-default public dir and declares an nginx block, then returns the parent
 // and worktree checkout paths. The worktree lives beside the parent, the way
-// `lerd worktree add` creates it.
+// `servlo worktree add` creates it.
 func setupWorktreeEnv(t *testing.T, sitePublicDir string) (parentPath, worktreePath string) {
 	t.Helper()
 	tmp := t.TempDir()
@@ -25,7 +25,7 @@ func setupWorktreeEnv(t *testing.T, sitePublicDir string) (parentPath, worktreeP
 		}
 	}
 
-	store := filepath.Join(tmp, "lerd", "frameworks")
+	store := filepath.Join(tmp, "servlo", "frameworks")
 	if err := os.MkdirAll(store, 0755); err != nil {
 		t.Fatalf("mkdir store: %v", err)
 	}
@@ -55,11 +55,11 @@ nginx:
   php_version: "8.4"
   framework: magento` + publicDir + "\n"
 
-	lerdDir := filepath.Join(tmp, "lerd")
-	if err := os.MkdirAll(lerdDir, 0755); err != nil {
-		t.Fatalf("mkdir lerd: %v", err)
+	servloDir := filepath.Join(tmp, "servlo")
+	if err := os.MkdirAll(servloDir, 0755); err != nil {
+		t.Fatalf("mkdir servlo: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(lerdDir, "sites.yaml"), []byte(sites), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(servloDir, "sites.yaml"), []byte(sites), 0644); err != nil {
 		t.Fatalf("write sites.yaml: %v", err)
 	}
 	return parentPath, worktreePath
@@ -67,7 +67,7 @@ nginx:
 
 func readWorktreeConf(t *testing.T, domain string) string {
 	t.Helper()
-	conf := filepath.Join(os.Getenv("XDG_DATA_HOME"), "lerd", "nginx", "conf.d", domain+".conf")
+	conf := filepath.Join(os.Getenv("XDG_DATA_HOME"), "servlo", "nginx", "conf.d", domain+".conf")
 	b, err := os.ReadFile(conf)
 	if err != nil {
 		t.Fatalf("read %s: %v", conf, err)
@@ -106,13 +106,13 @@ func TestGenerateWorktreeVhostRendersFrameworkNginx(t *testing.T) {
 	if !strings.Contains(out, `location ~* ^/(setup|update)($|/) {`) {
 		t.Fatalf("framework snippet missing from worktree vhost:\n%s", out)
 	}
-	if want := `set $lerd_root "` + wt + `";`; !strings.Contains(out, want) {
+	if want := `set $servlo_root "` + wt + `";`; !strings.Contains(out, want) {
 		t.Errorf("snippet {{root}} should expand to the worktree, want %q in:\n%s", want, out)
 	}
-	if bad := `set $lerd_root "` + parent + `";`; strings.Contains(out, bad) {
+	if bad := `set $servlo_root "` + parent + `";`; strings.Contains(out, bad) {
 		t.Errorf("snippet {{root}} expanded to the parent checkout:\n%s", out)
 	}
-	if !strings.Contains(out, "fastcgi_pass lerd-php84-fpm:9000;") {
+	if !strings.Contains(out, "fastcgi_pass servlo-php84-fpm:9000;") {
 		t.Errorf("snippet {{fpm}} unexpanded in:\n%s", out)
 	}
 }
@@ -138,7 +138,7 @@ func TestGenerateWorktreeSSLVhostUsesFrameworkConfig(t *testing.T) {
 	}
 }
 
-// A site-level public_dir (from .lerd.yaml) outranks the framework's, on the
+// A site-level public_dir (from .servlo.yaml) outranks the framework's, on the
 // worktree exactly as it does on the parent.
 func TestGenerateWorktreeVhostHonoursSitePublicDir(t *testing.T) {
 	_, wt := setupWorktreeEnv(t, "web")

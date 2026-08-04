@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/feedback"
 	"golang.org/x/term"
 )
 
@@ -131,7 +131,7 @@ func runParallelTUI(jobs []BuildJob) error {
 	stdinDupFd, dupErr := syscall.Dup(int(os.Stdin.Fd()))
 	var stdinDup *os.File
 	if dupErr == nil {
-		stdinDup = os.NewFile(uintptr(stdinDupFd), "lerd-runparallel-stdin")
+		stdinDup = os.NewFile(uintptr(stdinDupFd), "servlo-runparallel-stdin")
 		defer stdinDup.Close() //nolint:errcheck
 	}
 	go func() {
@@ -312,7 +312,7 @@ func NewStepRunner() *StepRunner {
 	}()
 
 	if stdinDupFd, err := syscall.Dup(int(os.Stdin.Fd())); err == nil {
-		r.stdinDup = os.NewFile(uintptr(stdinDupFd), "lerd-steprunner-stdin")
+		r.stdinDup = os.NewFile(uintptr(stdinDupFd), "servlo-steprunner-stdin")
 	}
 	go func() {
 		if r.stdinDup == nil {

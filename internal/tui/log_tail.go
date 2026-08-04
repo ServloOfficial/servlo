@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // LogKind picks between `podman logs` (containers), `journalctl --user`
@@ -122,7 +122,7 @@ func (t *logTail) run(ctx context.Context, target LogTarget, ch chan<- string) {
 	case kindJournal:
 		// Worker log tail — platform-specific because workers are systemd
 		// user units on Linux (journalctl) but podman containers on macOS
-		// (podman logs). The ID is the same on both platforms (lerd-<kind>-<site>).
+		// (podman logs). The ID is the same on both platforms (servlo-<kind>-<site>).
 		cmd = workerLogCmd(ctx, target.ID)
 	case kindFile:
 		// -F follows by name, re-opening if the file is rotated, which is

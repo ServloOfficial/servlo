@@ -8,9 +8,9 @@ import (
 )
 
 // TestAutostartUserUnits verifies that AutostartUserUnits returns the
-// lerd-ui / lerd-watcher / lerd-tray baseline plus every per-site
-// lerd-*.service in the systemd/user/ directory, deduplicated and
-// sorted, and that it ignores non-lerd units.
+// servlo-panel / servlo-watcher baseline plus every per-site
+// servlo-*.service in the systemd/user/ directory, deduplicated and
+// sorted, and that it ignores non-servlo units.
 func TestAutostartUserUnits(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
@@ -20,44 +20,42 @@ func TestAutostartUserUnits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Per-site / per-worker units. lerd-ui is duplicated to verify dedup.
+	// Per-site / per-worker units. servlo-panel is duplicated to verify dedup.
 	for _, name := range []string{
-		"lerd-ui.service",
-		"lerd-watcher.service",
-		"lerd-tray.service",
-		"lerd-queue-myapp.service",
-		"lerd-schedule-myapp.service",
-		"lerd-horizon-myapp.service",
-		"lerd-reverb-myapp.service",
-		"lerd-stripe-myapp.service",
+		"servlo-panel.service",
+		"servlo-watcher.service",
+		"servlo-queue-myapp.service",
+		"servlo-schedule-myapp.service",
+		"servlo-horizon-myapp.service",
+		"servlo-reverb-myapp.service",
+		"servlo-stripe-myapp.service",
 	} {
 		if err := os.WriteFile(filepath.Join(systemdDir, name), []byte("[Service]\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// A non-lerd unit that must be ignored.
+	// A non-servlo unit that must be ignored.
 	if err := os.WriteFile(filepath.Join(systemdDir, "other.service"), []byte("[Service]\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	got := AutostartUserUnits()
 	want := []string{
-		"lerd-horizon-myapp.service",
-		"lerd-queue-myapp.service",
-		"lerd-reverb-myapp.service",
-		"lerd-schedule-myapp.service",
-		"lerd-stripe-myapp.service",
-		"lerd-tray.service",
-		"lerd-ui.service",
-		"lerd-watcher.service",
+		"servlo-horizon-myapp.service",
+		"servlo-panel.service",
+		"servlo-queue-myapp.service",
+		"servlo-reverb-myapp.service",
+		"servlo-schedule-myapp.service",
+		"servlo-stripe-myapp.service",
+		"servlo-watcher.service",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("AutostartUserUnits() mismatch\ngot:  %v\nwant: %v", got, want)
 	}
 }
 
-// TestAutostartUserUnitsBaseline verifies that lerd-ui, lerd-watcher
-// and lerd-tray are always included even when no files exist on disk.
+// TestAutostartUserUnitsBaseline verifies that servlo-panel and servlo-watcher
+// are always included even when no files exist on disk.
 // Without this, a fresh install (no per-site units yet) would have
 // nothing to enable when the user toggles autostart back on.
 func TestAutostartUserUnitsBaseline(t *testing.T) {
@@ -65,7 +63,7 @@ func TestAutostartUserUnitsBaseline(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	got := AutostartUserUnits()
-	want := []string{"lerd-tray.service", "lerd-ui.service", "lerd-watcher.service"}
+	want := []string{"servlo-panel.service", "servlo-watcher.service"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("AutostartUserUnits() baseline mismatch\ngot:  %v\nwant: %v", got, want)
 	}

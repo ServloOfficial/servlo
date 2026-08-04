@@ -38,9 +38,9 @@ func TestLoadGlobal_Defaults(t *testing.T) {
 	}
 }
 
-// A default version stored with a "php" prefix by an older `lerd use` produced
-// image names like lerd-phpphp84-fpm-base. Loading must repair it in memory so
-// a wedged install self-heals without the user re-running `lerd use`.
+// A default version stored with a "php" prefix by an older `servlo use` produced
+// image names like servlo-phpphp84-fpm-base. Loading must repair it in memory so
+// a wedged install self-heals without the user re-running `servlo use`.
 func TestLoadGlobal_NormalizesStoredDefaultVersion(t *testing.T) {
 	setConfigDir(t)
 
@@ -334,7 +334,7 @@ func TestXdebug_StartRoundtrip(t *testing.T) {
 	}
 }
 
-// Legacy configs (lerd <= 1.15.1) only wrote xdebug_enabled. GetXdebugMode
+// Legacy configs (servlo <= 1.15.1) only wrote xdebug_enabled. GetXdebugMode
 // must fall back to "debug" for those entries so upgrade keeps working.
 func TestXdebug_LegacyEnabledFallsBackToDebug(t *testing.T) {
 	cfg := &GlobalConfig{}
@@ -405,7 +405,7 @@ func TestExtApkDeps_DeepCopied(t *testing.T) {
 
 // A clone's per-service PublishedPorts map must not alias the original's, or a
 // secondary-port override written into a loaded config would mutate the shared
-// cache (risking a concurrent map read/write in lerd-ui).
+// cache (risking a concurrent map read/write in servlo-panel).
 func TestCloneGlobalConfig_PublishedPortsDeepCopied(t *testing.T) {
 	cfg := &GlobalConfig{
 		Services: map[string]ServiceConfig{
@@ -643,49 +643,6 @@ func TestNotifications_RoundTripsThroughYAML(t *testing.T) {
 	}
 }
 
-// ── Tray icon ─────────────────────────────────────────────────────────────────
-
-func TestTrayIcon_DefaultThemeAdaptive(t *testing.T) {
-	cfg := &GlobalConfig{}
-	if cfg.IsHighContrastTrayIcon() {
-		t.Error("zero-value config should report the theme-adaptive tray icon")
-	}
-}
-
-func TestTrayIcon_Toggle(t *testing.T) {
-	cfg := &GlobalConfig{}
-	cfg.SetHighContrastTrayIcon(true)
-	if !cfg.IsHighContrastTrayIcon() {
-		t.Error("after SetHighContrastTrayIcon(true), IsHighContrastTrayIcon should be true")
-	}
-	cfg.SetHighContrastTrayIcon(false)
-	if cfg.IsHighContrastTrayIcon() {
-		t.Error("after SetHighContrastTrayIcon(false), IsHighContrastTrayIcon should be false")
-	}
-}
-
-func TestTrayIcon_RoundTripsThroughYAML(t *testing.T) {
-	setConfigDir(t)
-	invalidateGlobalCache()
-	t.Cleanup(invalidateGlobalCache)
-
-	cfg, err := LoadGlobal()
-	if err != nil {
-		t.Fatalf("LoadGlobal: %v", err)
-	}
-	cfg.SetHighContrastTrayIcon(true)
-	if err := SaveGlobal(cfg); err != nil {
-		t.Fatalf("SaveGlobal: %v", err)
-	}
-	got, err := LoadGlobal()
-	if err != nil {
-		t.Fatalf("reload: %v", err)
-	}
-	if !got.IsHighContrastTrayIcon() {
-		t.Error("high-contrast tray icon should persist across a YAML round trip")
-	}
-}
-
 func TestDNSManaged(t *testing.T) {
 	var nilCfg *GlobalConfig
 	if !nilCfg.DNSManaged() {
@@ -858,7 +815,7 @@ func TestHostPortsFor_CustomService(t *testing.T) {
 	}
 }
 
-// A recorded published-port override (lerd service port / the port-ownership
+// A recorded published-port override (servlo service port / the port-ownership
 // guard's auto-shift) must win over the custom service's installed default,
 // matching resolveMappingPorts' contract for a preset's ports.
 func TestHostPortsFor_CustomServiceHonoursOverride(t *testing.T) {

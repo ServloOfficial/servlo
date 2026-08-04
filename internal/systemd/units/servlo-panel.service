@@ -1,0 +1,11 @@
+[Unit]
+Description=Servlo UI Dashboard
+After=default.target
+
+[Service]
+Type=notify
+ExecStart=%h/.local/bin/servlo serve-ui
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

@@ -45,7 +45,7 @@ func TestResolveStripeSecret_ConfiguredKeyWins(t *testing.T) {
 	// Both a candidate and a non-candidate key are present; the pinned one wins
 	// even though STRIPE_SECRET would otherwise be picked first.
 	writeFile(t, filepath.Join(dir, ".env"), "STRIPE_SECRET=sk_default\nMY_STRIPE=sk_custom\n")
-	writeFile(t, filepath.Join(dir, ".lerd.yaml"), "stripe:\n  secret_env_key: MY_STRIPE\n")
+	writeFile(t, filepath.Join(dir, ".servlo.yaml"), "stripe:\n  secret_env_key: MY_STRIPE\n")
 	key, val := ResolveStripeSecret(dir)
 	if key != "MY_STRIPE" || val != "sk_custom" {
 		t.Errorf("ResolveStripeSecret = (%q, %q), want (MY_STRIPE, sk_custom)", key, val)
@@ -57,7 +57,7 @@ func TestStripeWebhookPath_DefaultAndConfigured(t *testing.T) {
 	if got := StripeWebhookPath(dir); got != DefaultStripeWebhookPath {
 		t.Errorf("StripeWebhookPath with no config = %q, want %q", got, DefaultStripeWebhookPath)
 	}
-	writeFile(t, filepath.Join(dir, ".lerd.yaml"), "stripe:\n  path: /webhooks/stripe\n")
+	writeFile(t, filepath.Join(dir, ".servlo.yaml"), "stripe:\n  path: /webhooks/stripe\n")
 	if got := StripeWebhookPath(dir); got != "/webhooks/stripe" {
 		t.Errorf("StripeWebhookPath = %q, want /webhooks/stripe", got)
 	}
@@ -65,10 +65,10 @@ func TestStripeWebhookPath_DefaultAndConfigured(t *testing.T) {
 
 func TestStripeWebhookPath_RejectsInjectableStoredPath(t *testing.T) {
 	dir := t.TempDir()
-	// A hostile .lerd.yaml embeds a newline in the stored path to inject a
+	// A hostile .servlo.yaml embeds a newline in the stored path to inject a
 	// systemd directive into the listener unit's ExecStart line. The read must
 	// reject it (fall back to default) and the load must neutralise it.
-	writeFile(t, filepath.Join(dir, ".lerd.yaml"),
+	writeFile(t, filepath.Join(dir, ".servlo.yaml"),
 		"stripe:\n  path: \"/webhook\\nExecStartPre=/bin/sh -c evil\"\n")
 	if got := StripeWebhookPath(dir); got != DefaultStripeWebhookPath {
 		t.Errorf("StripeWebhookPath with injectable stored path = %q, want default %q", got, DefaultStripeWebhookPath)
@@ -135,9 +135,9 @@ func TestSetProjectStripe_BothEmptyIsNoOp(t *testing.T) {
 	if err := SetProjectStripe(dir, "", ""); err != nil {
 		t.Fatalf("SetProjectStripe(empty): %v", err)
 	}
-	// No .lerd.yaml should be created and no empty stripe block persisted.
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); err == nil {
-		t.Errorf("SetProjectStripe with both args empty must not create .lerd.yaml")
+	// No .servlo.yaml should be created and no empty stripe block persisted.
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); err == nil {
+		t.Errorf("SetProjectStripe with both args empty must not create .servlo.yaml")
 	}
 }
 
@@ -156,9 +156,9 @@ func TestSetProjectStripe_NormalizesAndRejectsPath(t *testing.T) {
 
 func TestStripeWebhookPath_NormalizesHandEdited(t *testing.T) {
 	dir := t.TempDir()
-	// A hand-edited .lerd.yaml without a leading slash must still resolve to a
+	// A hand-edited .servlo.yaml without a leading slash must still resolve to a
 	// well-formed route so the forward URL keeps its separator.
-	writeFile(t, filepath.Join(dir, ".lerd.yaml"), "stripe:\n  path: stripe/webhook\n")
+	writeFile(t, filepath.Join(dir, ".servlo.yaml"), "stripe:\n  path: stripe/webhook\n")
 	if got := StripeWebhookPath(dir); got != "/stripe/webhook" {
 		t.Errorf("StripeWebhookPath = %q, want /stripe/webhook", got)
 	}

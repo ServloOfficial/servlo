@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestWorkerLogHint_darwin pins the host-aware behaviour added when
 // host workers became a first-class shape on macOS. The "Logs: …" hint
-// the CLI prints after `lerd worker start` must point at the launchd
+// the CLI prints after `servlo worker start` must point at the launchd
 // log file for host workers in any cfg mode — `podman logs` would
 // fail because host workers never live behind a container.
 func TestWorkerLogHint_darwin(t *testing.T) {
@@ -28,28 +28,28 @@ func TestWorkerLogHint_darwin(t *testing.T) {
 			mode:       config.WorkerExecModeContainer,
 			host:       false,
 			wantPrefix: "podman logs -f ",
-			wantSubstr: "lerd-queue-acme",
+			wantSubstr: "servlo-queue-acme",
 		},
 		{
 			name:       "container mode + host worker -> launchd log file",
 			mode:       config.WorkerExecModeContainer,
 			host:       true,
 			wantPrefix: "tail -f ",
-			wantSubstr: filepath.Join("Library", "Logs", "lerd", "lerd-vite-acme.log"),
+			wantSubstr: filepath.Join("Library", "Logs", "servlo", "servlo-vite-acme.log"),
 		},
 		{
 			name:       "exec mode + container worker -> launchd log file",
 			mode:       config.WorkerExecModeExec,
 			host:       false,
 			wantPrefix: "tail -f ",
-			wantSubstr: filepath.Join("Library", "Logs", "lerd", "lerd-queue-acme.log"),
+			wantSubstr: filepath.Join("Library", "Logs", "servlo", "servlo-queue-acme.log"),
 		},
 		{
 			name:       "exec mode + host worker -> launchd log file",
 			mode:       config.WorkerExecModeExec,
 			host:       true,
 			wantPrefix: "tail -f ",
-			wantSubstr: filepath.Join("Library", "Logs", "lerd", "lerd-vite-acme.log"),
+			wantSubstr: filepath.Join("Library", "Logs", "servlo", "servlo-vite-acme.log"),
 		},
 	}
 
@@ -66,9 +66,9 @@ func TestWorkerLogHint_darwin(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			unit := "lerd-queue-acme"
+			unit := "servlo-queue-acme"
 			if tc.host {
-				unit = "lerd-vite-acme"
+				unit = "servlo-vite-acme"
 			}
 			got := workerLogHint(unit, tc.host)
 			if !strings.HasPrefix(got, tc.wantPrefix) {

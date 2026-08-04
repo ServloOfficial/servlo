@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
 )
 
 // groupSetup stubs the cert/nginx/daemon side effects and forces DNS on, so the
@@ -233,7 +233,7 @@ func TestSetSecured_securingMainCascadesToSecondaries(t *testing.T) {
 	}
 }
 
-// The cascade is reported back so `lerd secure` can name the sites it changed
+// The cascade is reported back so `servlo secure` can name the sites it changed
 // rather than securing them behind the user's back.
 func TestSetSecuredCascade_reportsTheSecondariesItSecured(t *testing.T) {
 	groupSetup(t)

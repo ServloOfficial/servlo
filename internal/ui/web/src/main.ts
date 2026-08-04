@@ -16,7 +16,7 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker
       .register('/sw.js')
       .then((reg) => {
-        console.info('[lerd] SW registered, scope=', reg.scope);
+        console.info('[servlo] SW registered, scope=', reg.scope);
         void reg.update();
         reg.addEventListener('updatefound', () => {
           const nw = reg.installing;
@@ -30,11 +30,11 @@ if ('serviceWorker' in navigator) {
         });
       })
       .catch((err) => {
-        console.warn('[lerd] SW registration failed:', err);
+        console.warn('[servlo] SW registration failed:', err);
       });
   });
 } else {
-  console.warn('[lerd] serviceWorker unavailable (insecure context? private mode?)');
+  console.warn('[servlo] serviceWorker unavailable (insecure context? private mode?)');
 }
 
 const target = document.getElementById('app');

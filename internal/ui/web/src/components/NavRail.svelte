@@ -49,7 +49,7 @@
 </script>
 
 <aside
-  class="hidden md:flex flex-col items-center w-14 shrink-0 bg-white dark:bg-lerd-card border-r border-gray-200 dark:border-lerd-border py-3 z-20"
+  class="hidden md:flex flex-col items-center w-14 shrink-0 bg-white dark:bg-servlo-card border-r border-gray-200 dark:border-servlo-border py-3 z-20"
 >
   <RailLogo />
 
@@ -66,7 +66,7 @@
   </div>
 
   {#if !remote}
-    <div class="flex flex-col items-center gap-1 mt-3 pt-3 border-t border-gray-200 dark:border-lerd-border w-8">
+    <div class="flex flex-col items-center gap-1 mt-3 pt-3 border-t border-gray-200 dark:border-servlo-border w-8">
       <IconButton
         title={m.nav_profiler()}
         active={$dashboardOpen?.name === 'profiler'}
@@ -79,7 +79,7 @@
           {#if $profilerEnabled}
             <span
               title={m.profiler_toggle_on()}
-              class="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-lerd-card"
+              class="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-servlo-card"
             ></span>
           {/if}
         </span>

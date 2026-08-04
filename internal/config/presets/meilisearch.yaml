@@ -14,6 +14,6 @@ data_dir: /meili_data
 dashboard: http://localhost:7700
 env_vars:
   - SCOUT_DRIVER=meilisearch
-  - MEILISEARCH_HOST=http://lerd-meilisearch:7700
+  - MEILISEARCH_HOST=http://servlo-meilisearch:7700
 category: search
 icon: search

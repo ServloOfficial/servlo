@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // reconcileEnv sets up an isolated HOME/XDG tree and a no-op daemon reload so
@@ -38,7 +38,7 @@ func writeQuadlet(t *testing.T, name string, marked bool) {
 	if marked {
 		body = podman.CustomServiceQuadletMarker + "\n" + body
 	}
-	if err := os.WriteFile(filepath.Join(dir, "lerd-"+name+".container"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "servlo-"+name+".container"), []byte(body), 0o644); err != nil {
 		t.Fatalf("write quadlet %s: %v", name, err)
 	}
 }
@@ -145,7 +145,7 @@ func TestRefreshPresetDefinition_PreservesShiftedPortNoChurn(t *testing.T) {
 		"description: db\n" +
 		"ports:\n" +
 		"  - \"{{host_port}}:3306\"\n" +
-		"connection_url: mysql://root:lerd@127.0.0.1:{{host_port}}/lerd\n" +
+		"connection_url: mysql://root:servlo@127.0.0.1:{{host_port}}/servlo\n" +
 		"versions:\n" +
 		"  - tag: \"11.8\"\n" +
 		"    image: docker.io/library/mariadb:11.8\n" +
@@ -162,7 +162,7 @@ func TestRefreshPresetDefinition_PreservesShiftedPortNoChurn(t *testing.T) {
 		Image:         "docker.io/library/mariadb:11.8",
 		Description:   "db",
 		Ports:         []string{"3399:3306"}, // shifted host port
-		ConnectionURL: "mysql://root:lerd@127.0.0.1:3399/lerd",
+		ConnectionURL: "mysql://root:servlo@127.0.0.1:3399/servlo",
 	}
 	fresh, changed := refreshPresetDefinition(installed)
 	if changed {
@@ -179,7 +179,7 @@ func TestRefreshPresetDefinition_PreservesShiftedPortNoChurn(t *testing.T) {
 	if len(fresh.Ports) == 0 || fresh.Ports[0] != "3399:3306" {
 		t.Errorf("shifted host port not preserved through a refresh: %v", fresh.Ports)
 	}
-	if fresh.ConnectionURL != "mysql://root:lerd@127.0.0.1:3399/lerd" {
+	if fresh.ConnectionURL != "mysql://root:servlo@127.0.0.1:3399/servlo" {
 		t.Errorf("shifted connection URL not preserved: %q", fresh.ConnectionURL)
 	}
 }
@@ -192,7 +192,7 @@ func TestReconcileServices_forwardHealsMissingQuadlet(t *testing.T) {
 	if err := config.SaveCustomService(&config.CustomService{Name: "gotenberg", Image: "docker.io/gotenberg/gotenberg:8"}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	if podman.QuadletInstalled("lerd-gotenberg") {
+	if podman.QuadletInstalled("servlo-gotenberg") {
 		t.Fatalf("precondition: quadlet should not exist yet")
 	}
 
@@ -203,7 +203,7 @@ func TestReconcileServices_forwardHealsMissingQuadlet(t *testing.T) {
 	if !slices.Contains(res.QuadletsRegenerated, "gotenberg") {
 		t.Fatalf("expected gotenberg in QuadletsRegenerated, got %+v", res)
 	}
-	if !podman.QuadletInstalled("lerd-gotenberg") {
+	if !podman.QuadletInstalled("servlo-gotenberg") {
 		t.Fatalf("expected quadlet regenerated from the YAML")
 	}
 }
@@ -227,8 +227,8 @@ func TestReconcileServices_removesMarkedOrphans(t *testing.T) {
 		if !slices.Contains(res.OrphansRemoved, want) {
 			t.Fatalf("expected %s in OrphansRemoved, got %+v", want, res)
 		}
-		if !slices.Contains(rec.removedQuadlets, "lerd-"+want) {
-			t.Fatalf("expected RemoveService to drop lerd-%s, recorder: %+v", want, rec.removedQuadlets)
+		if !slices.Contains(rec.removedQuadlets, "servlo-"+want) {
+			t.Fatalf("expected RemoveService to drop servlo-%s, recorder: %+v", want, rec.removedQuadlets)
 		}
 	}
 }
@@ -267,13 +267,13 @@ func TestReconcileServices_sparesDefaultPreset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reconcile: %v", err)
 	}
-	if slices.Contains(res.OrphansRemoved, "mysql") || slices.Contains(rec.removedQuadlets, "lerd-mysql") {
+	if slices.Contains(res.OrphansRemoved, "mysql") || slices.Contains(rec.removedQuadlets, "servlo-mysql") {
 		t.Fatalf("default preset must never be reaped, res=%+v rec=%+v", res, rec.removedQuadlets)
 	}
 }
 
 // TestReconcileServices_sparesUnmarkedQuadlet: a quadlet without the managed
-// marker (e.g. a site container lerd-custom-<site>) must be left untouched.
+// marker (e.g. a site container servlo-custom-<site>) must be left untouched.
 func TestReconcileServices_sparesUnmarkedQuadlet(t *testing.T) {
 	reconcileEnv(t)
 	rec := stubPodmanRemove(t)
@@ -353,7 +353,7 @@ func TestReconcileServices_continuesPastForwardError(t *testing.T) {
 // A shipped preset config-file change (e.g. a higher max_allowed_packet) must
 // reach an already-installed, running service on reconcile: when the config file
 // is newer than the container's boot, the service is restarted, so the fix lands
-// on `lerd update` rather than only on an explicit reinstall.
+// on `servlo update` rather than only on an explicit reinstall.
 func TestReconcileServices_appliesDriftedConfigAndRestarts(t *testing.T) {
 	reconcileEnv(t)
 	if err := config.SaveCustomService(&config.CustomService{Name: "mysql", Image: "docker.io/library/mysql:8.4"}); err != nil {

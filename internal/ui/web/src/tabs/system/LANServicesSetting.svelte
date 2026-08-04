@@ -14,7 +14,7 @@
 
   let { nested = false }: Props = $props();
 
-  // The setting publishes nothing while lerd is loopback-only, so it stays out
+  // The setting publishes nothing while servlo is loopback-only, so it stays out
   // of the way entirely. An already enabled setting keeps showing, so that
   // re-exposing does not silently republish databases nobody remembered.
   const hidden = $derived(!$lan.exposed && !$lan.servicesEnabled);
@@ -70,7 +70,7 @@
 
 {#if !hidden}
   {#if nested}
-    <div class="mt-4 pt-4 border-t border-gray-100 dark:border-lerd-border">
+    <div class="mt-4 pt-4 border-t border-gray-100 dark:border-servlo-border">
       {@render body()}
     </div>
   {:else}

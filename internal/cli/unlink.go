@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func init() {
 		if site.IsHostProxy() {
 			WorkerStopForSite(site.Name, site.Path, hostProxyWorkerName) //nolint:errcheck
 		}
-		// Worktrees run their own per-worktree units (lerd-<worker>-<site>-<slug>)
+		// Worktrees run their own per-worktree units (servlo-<worker>-<site>-<slug>)
 		// that collectRunningWorkers (parent-only) misses. On unlink the site is
 		// going away, so stop every worktree's workers too — a host-proxy
 		// Restart=always dev server would otherwise loop against a removed dir.
@@ -61,7 +61,7 @@ func runUnlink(_ *cobra.Command, _ []string) error {
 	}
 	site, err := config.FindSiteByPath(cwd)
 	if err != nil {
-		return fmt.Errorf("no site registered for %s — link it first with lerd link", cwd)
+		return fmt.Errorf("no site registered for %s — link it first with servlo link", cwd)
 	}
 	feedback.Begin()
 	unlinkErr := UnlinkSite(site.Name)
@@ -106,11 +106,11 @@ func UnlinkSite(name string) error {
 
 	// Offer to remove the framework definition when this was the last site
 	// using it and the definition is removable (store-installed or user-defined,
-	// never a built-in). It is safe to remove: lerd re-fetches it from the store
+	// never a built-in). It is safe to remove: servlo re-fetches it from the store
 	// the moment another site needs it.
 	offerRemoveOrphanedFramework(site.Framework)
 
-	// The site is no longer lerd's, so neither is the connection lerd wrote into
+	// The site is no longer servlo's, so neither is the connection servlo wrote into
 	// its IDE configuration.
 	removeIDEDataSource(site.Path)
 

@@ -44,16 +44,16 @@ func TestParseMemUsage(t *testing.T) {
 	}
 }
 
-func TestParseRows_FiltersToLerdContainers(t *testing.T) {
-	in := `lerd-mysql|0.115|75.53MB / 33.23GB|0.23%
+func TestParseRows_FiltersToServloContainers(t *testing.T) {
+	in := `servlo-mysql|0.115|75.53MB / 33.23GB|0.23%
 some-other-container|0.5|10MB / 33GB|0.03%
-lerd-redis|0.001|5.2MB / 33.23GB|0.02%
+servlo-redis|0.001|5.2MB / 33.23GB|0.02%
 `
 	rows := ParseRows(in)
 	if len(rows) != 2 {
 		t.Fatalf("got %d rows, want 2", len(rows))
 	}
-	if rows[0].Name != "lerd-mysql" || rows[1].Name != "lerd-redis" {
+	if rows[0].Name != "servlo-mysql" || rows[1].Name != "servlo-redis" {
 		t.Errorf("names: %v", []string{rows[0].Name, rows[1].Name})
 	}
 	if rows[0].CPUPercent != 0.115 {
@@ -68,10 +68,10 @@ lerd-redis|0.001|5.2MB / 33.23GB|0.02%
 }
 
 func TestParseRows_SkipsMalformedLines(t *testing.T) {
-	in := `lerd-mysql|0.115|75.53MB / 33.23GB|0.23%
+	in := `servlo-mysql|0.115|75.53MB / 33.23GB|0.23%
 
-lerd-redis|incomplete
-lerd-postgres|0.5|10MB / 33GB|0.03%
+servlo-redis|incomplete
+servlo-postgres|0.5|10MB / 33GB|0.03%
 `
 	rows := ParseRows(in)
 	if len(rows) != 2 {
@@ -103,9 +103,9 @@ func TestRead_SortsByCombinedLoad(t *testing.T) {
 	noHostProcesses(t)
 	restore := SetReader(func() ([]ContainerStat, error) {
 		return []ContainerStat{
-			{Name: "lerd-memhog", CPUPercent: 0.1, MemBytes: 500_000_000, MemLimit: 33_000_000_000, MemPercent: 1.5},
-			{Name: "lerd-cpuhog", CPUPercent: 5.0, MemBytes: 10_000_000, MemLimit: 33_000_000_000, MemPercent: 0.03},
-			{Name: "lerd-small", CPUPercent: 0.1, MemBytes: 20_000_000, MemLimit: 33_000_000_000, MemPercent: 0.06},
+			{Name: "servlo-memhog", CPUPercent: 0.1, MemBytes: 500_000_000, MemLimit: 33_000_000_000, MemPercent: 1.5},
+			{Name: "servlo-cpuhog", CPUPercent: 5.0, MemBytes: 10_000_000, MemLimit: 33_000_000_000, MemPercent: 0.03},
+			{Name: "servlo-small", CPUPercent: 0.1, MemBytes: 20_000_000, MemLimit: 33_000_000_000, MemPercent: 0.06},
 		}, nil
 	})
 	t.Cleanup(restore)
@@ -117,13 +117,13 @@ func TestRead_SortsByCombinedLoad(t *testing.T) {
 	if len(resp.Containers) != 3 {
 		t.Fatalf("got %d containers", len(resp.Containers))
 	}
-	if resp.Containers[0].Name != "lerd-cpuhog" {
+	if resp.Containers[0].Name != "servlo-cpuhog" {
 		t.Errorf("CPU-heavy low-memory container should rank first by combined load; got %q", resp.Containers[0].Name)
 	}
-	if resp.Containers[1].Name != "lerd-memhog" {
+	if resp.Containers[1].Name != "servlo-memhog" {
 		t.Errorf("memory-heavy container should rank second; got %q", resp.Containers[1].Name)
 	}
-	if resp.Containers[2].Name != "lerd-small" {
+	if resp.Containers[2].Name != "servlo-small" {
 		t.Errorf("the small container should rank last; got %q", resp.Containers[2].Name)
 	}
 	if resp.TotalCPUPercent < 5.19 || resp.TotalCPUPercent > 5.21 {
@@ -143,19 +143,19 @@ func TestRead_SortsByCombinedLoad(t *testing.T) {
 func TestSecondCycleStats_PrefersSecondSample(t *testing.T) {
 	lines := []string{
 		// cycle 1: cumulative/lifetime CPU (the misleading first sample)
-		"lerd-php84-fpm|0.80|62MB / 33GB|0.18%",
-		"lerd-mysql|0.09|468MB / 33GB|1.40%",
+		"servlo-php84-fpm|0.80|62MB / 33GB|0.18%",
+		"servlo-mysql|0.09|468MB / 33GB|1.40%",
 		// cycle 2: instantaneous rate
-		"lerd-php84-fpm|0.00|62MB / 33GB|0.18%",
-		"lerd-mysql|0.05|468MB / 33GB|1.40%",
+		"servlo-php84-fpm|0.00|62MB / 33GB|0.18%",
+		"servlo-mysql|0.05|468MB / 33GB|1.40%",
 		// cycle 3 (partial): ignored, second sample already captured
-		"lerd-php84-fpm|0.99|62MB / 33GB|0.18%",
+		"servlo-php84-fpm|0.99|62MB / 33GB|0.18%",
 	}
 	rows := secondCycleStats(lines)
 	if len(rows) != 2 {
 		t.Fatalf("got %d rows, want 2", len(rows))
 	}
-	if rows[0].Name != "lerd-php84-fpm" || rows[1].Name != "lerd-mysql" {
+	if rows[0].Name != "servlo-php84-fpm" || rows[1].Name != "servlo-mysql" {
 		t.Fatalf("order not preserved: %v", []string{rows[0].Name, rows[1].Name})
 	}
 	if rows[0].CPUPercent != 0.00 {
@@ -169,8 +169,8 @@ func TestSecondCycleStats_PrefersSecondSample(t *testing.T) {
 // When the stream is cut short before a second sample arrives, fall back to the
 // first so the container is still reported rather than vanishing.
 func TestSecondCycleStats_FallsBackToFirstWhenStreamCutShort(t *testing.T) {
-	rows := secondCycleStats([]string{"lerd-redis|0.20|17MB / 33GB|0.05%"})
-	if len(rows) != 1 || rows[0].Name != "lerd-redis" {
+	rows := secondCycleStats([]string{"servlo-redis|0.20|17MB / 33GB|0.05%"})
+	if len(rows) != 1 || rows[0].Name != "servlo-redis" {
 		t.Fatalf("rows = %v", rows)
 	}
 	if rows[0].CPUPercent != 0.20 {
@@ -192,23 +192,23 @@ func TestRead_HandlesNoContainers(t *testing.T) {
 	}
 }
 
-// Read merges lerd's host-side processes with the containers into one list and
+// Read merges servlo's host-side processes with the containers into one list and
 // one set of totals, dropping any host unit that is really a container quadlet so
 // it isn't double-counted.
 func TestRead_MergesHostProcesses(t *testing.T) {
 	pinNumCPU(t, 1)
 	t.Cleanup(SetReader(func() ([]ContainerStat, error) {
 		return []ContainerStat{
-			{Name: "lerd-mysql", CPUPercent: 0.1, MemBytes: 400_000_000, MemLimit: 33_000_000_000},
+			{Name: "servlo-mysql", CPUPercent: 0.1, MemBytes: 400_000_000, MemLimit: 33_000_000_000},
 		}, nil
 	}))
 	t.Cleanup(SetHostReader(func() ([]ContainerStat, error) {
 		return []ContainerStat{
-			{Name: "lerd-ui", CPUPercent: 0.2, MemBytes: 66_000_000, MemLimit: 33_000_000_000},
-			{Name: "lerd-vite-app", CPUPercent: 3.0, MemBytes: 180_000_000, MemLimit: 33_000_000_000},
+			{Name: "servlo-panel", CPUPercent: 0.2, MemBytes: 66_000_000, MemLimit: 33_000_000_000},
+			{Name: "servlo-vite-app", CPUPercent: 3.0, MemBytes: 180_000_000, MemLimit: 33_000_000_000},
 			// A container quadlet unit also reported by the host reader: must be
 			// dropped in favour of the podman row, not counted twice.
-			{Name: "lerd-mysql", CPUPercent: 9.9, MemBytes: 400_000_000, MemLimit: 33_000_000_000},
+			{Name: "servlo-mysql", CPUPercent: 9.9, MemBytes: 400_000_000, MemLimit: 33_000_000_000},
 		}, nil
 	}))
 
@@ -220,8 +220,8 @@ func TestRead_MergesHostProcesses(t *testing.T) {
 		t.Fatalf("got %d rows, want 3 (mysql + ui + vite, mysql dup dropped)", len(resp.Containers))
 	}
 	// The host-side Vite dev server (highest combined load) should rank first.
-	if resp.Containers[0].Name != "lerd-vite-app" {
-		t.Errorf("first by combined load = %q, want lerd-vite-app", resp.Containers[0].Name)
+	if resp.Containers[0].Name != "servlo-vite-app" {
+		t.Errorf("first by combined load = %q, want servlo-vite-app", resp.Containers[0].Name)
 	}
 	// Totals span both sources, and the mysql duplicate is counted once.
 	if resp.TotalMemBytes != 646_000_000 {
@@ -241,8 +241,8 @@ func TestRead_TotalCPUNormalizedToHostCores(t *testing.T) {
 	noHostProcesses(t)
 	t.Cleanup(SetReader(func() ([]ContainerStat, error) {
 		return []ContainerStat{
-			{Name: "lerd-a", CPUPercent: 100, MemBytes: 1, MemLimit: 8_000_000_000},
-			{Name: "lerd-b", CPUPercent: 100, MemBytes: 1, MemLimit: 8_000_000_000},
+			{Name: "servlo-a", CPUPercent: 100, MemBytes: 1, MemLimit: 8_000_000_000},
+			{Name: "servlo-b", CPUPercent: 100, MemBytes: 1, MemLimit: 8_000_000_000},
 		}, nil
 	}))
 
@@ -268,7 +268,7 @@ func TestCached_SingleflightUnderConcurrentLoad(t *testing.T) {
 		// Slow enough that the racing goroutines all enter Cached
 		// before this one returns, exercising the inflight path.
 		time.Sleep(50 * time.Millisecond)
-		return []ContainerStat{{Name: "lerd-x", CPUPercent: 1}}, nil
+		return []ContainerStat{{Name: "servlo-x", CPUPercent: 1}}, nil
 	})
 	t.Cleanup(restore)
 

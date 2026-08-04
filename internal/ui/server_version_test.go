@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	lerdUpdate "github.com/geodro/lerd/internal/update"
+	servloUpdate "github.com/realrashid/servlo/internal/update"
 )
 
-// TestBuildVersionResponse_StripsLeadingV pins the fix for "Lerd vv1.19.2
+// TestBuildVersionResponse_StripsLeadingV pins the fix for "Servlo vv1.19.2
 // is available" — the GitHub tag is e.g. "v1.19.2" but the Svelte banner
 // template already prepends "v", so the wire data must be bare.
 func TestBuildVersionResponse_StripsLeadingV(t *testing.T) {
-	resp := buildVersionResponse("1.19.1", &lerdUpdate.UpdateInfo{LatestVersion: "v1.19.2"})
+	resp := buildVersionResponse("1.19.1", &servloUpdate.UpdateInfo{LatestVersion: "v1.19.2"})
 	if resp.Latest != "1.19.2" {
 		t.Errorf("Latest = %q, want %q (no leading v)", resp.Latest, "1.19.2")
 	}
@@ -35,23 +35,23 @@ func TestBuildVersionResponse_NoUpdateLeavesLatestEmpty(t *testing.T) {
 // TestBuildVersionResponse_HandlesPrereleaseTag covers the beta channel
 // where the tag is e.g. "v1.20.0-beta.1" — strip-v still applies.
 func TestBuildVersionResponse_HandlesPrereleaseTag(t *testing.T) {
-	resp := buildVersionResponse("1.20.0-beta.1", &lerdUpdate.UpdateInfo{LatestVersion: "v1.20.0-beta.2"})
+	resp := buildVersionResponse("1.20.0-beta.1", &servloUpdate.UpdateInfo{LatestVersion: "v1.20.0-beta.2"})
 	if resp.Latest != "1.20.0-beta.2" {
 		t.Errorf("prerelease Latest mishandled, got %q", resp.Latest)
 	}
 }
 
-// TestBuildUpdateScript_UsesAbsolutePath pins the fix for "lerd: command
+// TestBuildUpdateScript_UsesAbsolutePath pins the fix for "servlo: command
 // not found" when the dashboard's "Open terminal & update" button spawned
 // a terminal whose non-login shell didn't have ~/.local/bin on PATH.
 // The script must reference the resolved executable, not the bare name.
 func TestBuildUpdateScript_UsesAbsolutePath(t *testing.T) {
-	got := buildUpdateScript("/home/alice/.local/bin/lerd")
-	if !strings.Contains(got, "/home/alice/.local/bin/lerd") {
+	got := buildUpdateScript("/home/alice/.local/bin/servlo")
+	if !strings.Contains(got, "/home/alice/.local/bin/servlo") {
 		t.Errorf("script should reference absolute path, got %q", got)
 	}
-	if strings.HasPrefix(got, "lerd ") {
-		t.Errorf("script should not start with bare 'lerd', got %q", got)
+	if strings.HasPrefix(got, "servlo ") {
+		t.Errorf("script should not start with bare 'servlo', got %q", got)
 	}
 	if !strings.Contains(got, " update;") {
 		t.Errorf("script should run `update` subcommand, got %q", got)
@@ -63,10 +63,10 @@ func TestBuildUpdateScript_UsesAbsolutePath(t *testing.T) {
 
 // TestBuildUpdateScript_QuotesPathWithSpaces protects the shell substitution
 // when the binary lives under a path with spaces (a Mac install in
-// "/Users/J D/.local/bin/lerd", say). shQuote should single-quote it.
+// "/Users/J D/.local/bin/servlo", say). shQuote should single-quote it.
 func TestBuildUpdateScript_QuotesPathWithSpaces(t *testing.T) {
-	got := buildUpdateScript("/Users/J D/.local/bin/lerd")
-	if !strings.Contains(got, `'/Users/J D/.local/bin/lerd'`) {
+	got := buildUpdateScript("/Users/J D/.local/bin/servlo")
+	if !strings.Contains(got, `'/Users/J D/.local/bin/servlo'`) {
 		t.Errorf("path with spaces should be single-quoted, got %q", got)
 	}
 }

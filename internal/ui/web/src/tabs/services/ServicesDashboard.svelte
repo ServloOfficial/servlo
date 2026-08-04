@@ -50,7 +50,7 @@
           <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{m.services_dash_discover()}</h2>
           <button
             onclick={openPresetModal}
-            class="inline-flex items-center gap-1 text-xs font-medium text-lerd-red hover:text-lerd-redhov"
+            class="inline-flex items-center gap-1 text-xs font-medium text-servlo-red hover:text-servlo-redhov"
           >
             <Icon name="plus" class="w-3.5 h-3.5" />
             {m.services_addPreset()}

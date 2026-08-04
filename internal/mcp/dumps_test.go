@@ -23,7 +23,7 @@ func TestDumpActions_RoutableUnderDiag(t *testing.T) {
 }
 
 // TestUiDo_DialsConfiguredTransport confirms the dump round-trip honors the
-// OS-appropriate transport from config (TCP loopback on macOS, where the lerd-ui
+// OS-appropriate transport from config (TCP loopback on macOS, where the servlo-panel
 // unix socket is never created) rather than a hardcoded unix socket.
 func TestUiDo_DialsConfiguredTransport(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -62,7 +62,7 @@ func TestUiDo_DialsConfiguredTransport(t *testing.T) {
 
 // stubRoundTrip swaps the MCP HTTP round-trip for one that records the request
 // path and returns a canned body, so an exec's URL building can be asserted
-// without a live lerd-ui socket.
+// without a live servlo-panel socket.
 func stubRoundTrip(t *testing.T, body string) *string {
 	t.Helper()
 	prev := uiRoundTrip

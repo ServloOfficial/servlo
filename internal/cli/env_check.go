@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
 	"github.com/pmezard/go-difflib/difflib"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
@@ -74,10 +74,10 @@ func findEnvFiles(dir string) []string {
 		if !strings.HasPrefix(name, ".env") || e.IsDir() {
 			continue
 		}
-		// Skip files lerd manages internally: .env.example is the baseline we
-		// compare against, .env.lerd_override is a partial personal overlay, and
-		// .env.before_lerd is a pre-lerd backup — none are full env files.
-		if name == ".env.example" || name == envOverrideFile || name == ".env.before_lerd" {
+		// Skip files servlo manages internally: .env.example is the baseline we
+		// compare against, .env.servlo_override is a partial personal overlay, and
+		// .env.before_servlo is a pre-servlo backup — none are full env files.
+		if name == ".env.example" || name == envOverrideFile || name == ".env.before_servlo" {
 			continue
 		}
 		files = append(files, filepath.Join(dir, name))
@@ -99,7 +99,7 @@ func runEnvCheck(fix bool) error {
 
 	envFiles := findEnvFiles(cwd)
 	if len(envFiles) == 0 {
-		return fmt.Errorf("no .env files found in %s — run lerd env to create one", cwd)
+		return fmt.Errorf("no .env files found in %s — run servlo env to create one", cwd)
 	}
 
 	if fix {

@@ -6,16 +6,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // worktreeIndexInterval is how often the index re-detects worktrees. Worktrees
 // added or removed through the daemon refresh it immediately (RefreshWorktreeIndex),
-// so this only bounds how long a worktree created behind lerd's back stays unknown.
+// so this only bounds how long a worktree created behind servlo's back stays unknown.
 const worktreeIndexInterval = 30 * time.Second
 
-// worktreeRef is one detected worktree in both the identities lerd gives it.
+// worktreeRef is one detected worktree in both the identities servlo gives it.
 // Branch is the sanitized branch, which the HTTP API, MCP and the request store
 // key on; Base is the checkout dir's unit slug, which worker units and idle
 // state key on. Keeping both here is what lets one detection pass serve the

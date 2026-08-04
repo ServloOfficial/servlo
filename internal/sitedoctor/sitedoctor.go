@@ -18,14 +18,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	phpkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	phpkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // Check statuses, mirroring the MCP doctor's check shape so the diagnostics
-// read consistently. "unknown" covers a check lerd couldn't run (e.g. the app
+// read consistently. "unknown" covers a check servlo couldn't run (e.g. the app
 // is down), which is distinct from a genuine pass or failure.
 const (
 	StatusOK      = "ok"
@@ -243,7 +243,7 @@ func checkRequiredServices(fw *config.Framework) (Check, bool) {
 	}
 	var missing, stopped []string
 	for _, name := range fw.Requires {
-		unit := "lerd-" + name
+		unit := "servlo-" + name
 		if !quadletInstalledFn(unit) {
 			missing = append(missing, name)
 			continue
@@ -259,7 +259,7 @@ func checkRequiredServices(fw *config.Framework) (Check, bool) {
 			Status: StatusFail,
 			Detail: fmt.Sprintf("%s cannot run without %s. Install %s with %s.",
 				frameworkLabel(fw), strings.Join(missing, ", "), plural(len(missing), "it", "them"),
-				serviceCommands("lerd service preset", missing)),
+				serviceCommands("servlo service preset", missing)),
 		}, true
 	case len(stopped) > 0:
 		return Check{
@@ -268,7 +268,7 @@ func checkRequiredServices(fw *config.Framework) (Check, bool) {
 			Detail: fmt.Sprintf("%s %s required but not running. Start %s with %s.",
 				strings.Join(stopped, ", "), plural(len(stopped), "is", "are"),
 				plural(len(stopped), "it", "them"),
-				serviceCommands("lerd service start", stopped)),
+				serviceCommands("servlo service start", stopped)),
 		}, true
 	}
 	return Check{Name: "required_services", Status: StatusOK}, true
@@ -1044,7 +1044,7 @@ func plural(n int, one, many string) string {
 	return many
 }
 
-// runCapture runs a shell command in cwd with lerd's bin shims on PATH (so php,
+// runCapture runs a shell command in cwd with servlo's bin shims on PATH (so php,
 // composer, and npm resolve to the container shims under launchd's restricted
 // PATH), mirroring the command runner. Returns combined output and the exit
 // code; a non-ExitError (couldn't even start) comes back as exit -1.

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // horizonWorker mirrors the framework's horizon definition: the standard
@@ -17,7 +17,7 @@ var horizonWorker = config.FrameworkWorker{
 	ReloadCommand: "php artisan horizon:listen",
 }
 
-// siteWithReload returns a temp site dir seeded with a .lerd.yaml. When
+// siteWithReload returns a temp site dir seeded with a .servlo.yaml. When
 // reloadOn is true the horizon worker is opted into auto-reload; when
 // withChokidar is true node_modules/chokidar is created so the watcher
 // prerequisite is satisfied. HOME and the XDG roots are pointed at a temp dir
@@ -34,7 +34,7 @@ func siteWithReload(t *testing.T, reloadOn, withChokidar bool) string {
 		cfg.ReloadWorkers = []string{"horizon"}
 	}
 	if err := config.SaveProjectConfig(site, cfg); err != nil {
-		t.Fatalf("write .lerd.yaml: %v", err)
+		t.Fatalf("write .servlo.yaml: %v", err)
 	}
 	if withChokidar {
 		if err := os.MkdirAll(filepath.Join(site, "node_modules", "chokidar"), 0o755); err != nil {

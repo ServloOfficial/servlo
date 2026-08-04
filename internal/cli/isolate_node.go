@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	nodeDet "github.com/geodro/lerd/internal/node"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	nodeDet "github.com/realrashid/servlo/internal/node"
 	"github.com/spf13/cobra"
 )
 
@@ -34,12 +34,12 @@ func runIsolateNode(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("writing .node-version: %w", err)
 	}
 
-	// Persist node_version to .lerd.yaml so the override travels with the
+	// Persist node_version to .servlo.yaml so the override travels with the
 	// branch (worktree) or with the project (parent site). For worktrees the
 	// file is created if missing; for parents we only touch an existing file.
 	if _, _, ok := FindParentSiteForWorktree(cwd); ok {
 		if err := config.SetWorktreeNodeVersion(cwd, version); err != nil {
-			feedback.Warn("updating .lerd.yaml: %v", err)
+			feedback.Warn("updating .servlo.yaml: %v", err)
 		}
 	} else {
 		_ = updateProjectNodeVersionIfExists(cwd, version)
@@ -55,18 +55,18 @@ func runIsolateNode(_ *cobra.Command, args []string) error {
 			feedback.Warn("installing Node %s: %v", version, err)
 		}
 	} else {
-		feedback.Warn("%s not found — run 'lerd install' to set up Node.js management", mgr.Name())
+		feedback.Warn("%s not found — run 'servlo install' to set up Node.js management", mgr.Name())
 	}
 
 	return nil
 }
 
-// updateProjectNodeVersionIfExists writes node_version to .lerd.yaml only when
+// updateProjectNodeVersionIfExists writes node_version to .servlo.yaml only when
 // the file is already present. Mirrors the no-op-on-missing semantics of
-// SetProjectPHPVersion so plain `lerd isolate:node` runs on parent sites that
-// haven't opted into .lerd.yaml stay quiet.
+// SetProjectPHPVersion so plain `servlo isolate:node` runs on parent sites that
+// haven't opted into .servlo.yaml stay quiet.
 func updateProjectNodeVersionIfExists(dir, version string) error {
-	path := filepath.Join(dir, ".lerd.yaml")
+	path := filepath.Join(dir, ".servlo.yaml")
 	if _, err := os.Stat(path); err != nil {
 		return nil
 	}

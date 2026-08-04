@@ -13,11 +13,11 @@ describe('nginx store', () => {
 
   it('getNginxConfig GETs the global override', async () => {
     globalThis.fetch = vi.fn(
-      async () => new Response(JSON.stringify({ path: '/x/http.d/zz-lerd-user.conf', content: 'gzip on;\n' }), { status: 200 })
+      async () => new Response(JSON.stringify({ path: '/x/http.d/zz-servlo-user.conf', content: 'gzip on;\n' }), { status: 200 })
     ) as unknown as typeof fetch;
     const { getNginxConfig } = await import('./nginx');
     const cfg = await getNginxConfig();
-    expect(cfg.path).toContain('zz-lerd-user.conf');
+    expect(cfg.path).toContain('zz-servlo-user.conf');
     expect(cfg.content).toContain('gzip on;');
   });
 

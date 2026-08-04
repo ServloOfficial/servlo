@@ -47,7 +47,7 @@
   const memBarWidth = $derived(Math.min(100, memPercentOfHost));
 
   function shortName(n: string): string {
-    return n.startsWith('lerd-') ? n.slice(5) : n;
+    return n.startsWith('servlo-') ? n.slice(5) : n;
   }
 </script>
 
@@ -85,7 +85,7 @@
     </div>
 
     {#if $disk.available && $disk.reclaimable_bytes > 0}
-      <div class="pt-2 mt-2 border-t border-gray-100 dark:border-lerd-border">
+      <div class="pt-2 mt-2 border-t border-gray-100 dark:border-servlo-border">
         <div class="flex items-center justify-between gap-2">
           <div>
             <div class="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{m.dashboard_disk_reclaimable()}</div>
@@ -102,7 +102,7 @@
     {/if}
 
     {#if rows.length > 0}
-      <div class="pt-2 border-t border-gray-100 dark:border-lerd-border space-y-1">
+      <div class="pt-2 border-t border-gray-100 dark:border-servlo-border space-y-1">
         <div class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{m.dashboard_resources_top()}</div>
         <div class="space-y-1 max-h-44 xl:max-h-none overflow-y-auto pr-1">
           {#each rows as c (c.name)}

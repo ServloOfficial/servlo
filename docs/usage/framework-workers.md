@@ -6,11 +6,11 @@ Each framework can define **workers**: long-running processes managed as systemd
 
 | Command | Description |
 |---|---|
-| `lerd worker start <name>` | Start a named worker for the current project |
-| `lerd worker stop <name>` | Stop a named worker |
-| `lerd worker list` | List all workers defined for this project's framework |
+| `servlo worker start <name>` | Start a named worker for the current project |
+| `servlo worker stop <name>` | Stop a named worker |
+| `servlo worker list` | List all workers defined for this project's framework |
 
-The shortcut commands `lerd queue:start`, `lerd schedule:start`, `lerd reverb:start`, and `lerd horizon:start` are aliases; they look up the worker from the framework definition and delegate to the generic handler. They work for any framework that defines a worker with that name.
+The shortcut commands `servlo queue:start`, `servlo schedule:start`, `servlo reverb:start`, and `servlo horizon:start` are aliases; they look up the worker from the framework definition and delegate to the generic handler. They work for any framework that defines a worker with that name.
 
 ## Worker features
 
@@ -34,7 +34,7 @@ workers:
       - queue      # stops queue before starting horizon; hides queue toggle in UI
 ```
 
-**WebSocket/HTTP proxy**: Workers that need an nginx proxy block define a `proxy` config. Lerd auto-assigns a collision-free port and regenerates the nginx vhost:
+**WebSocket/HTTP proxy**: Workers that need an nginx proxy block define a `proxy` config. Servlo auto-assigns a collision-free port and regenerates the nginx vhost:
 
 ```yaml
 workers:
@@ -48,11 +48,11 @@ workers:
 
 Port assignment scans all proxy port env keys across all sites to prevent collisions between different workers and frameworks.
 
-The generated nginx location anchors on `path`, so `/app` proxies `/app` and everything under it without also swallowing an unrelated route that merely starts with the same letters (`/appstore`, say). Write `path` as a literal URL path and lerd normalises it, so `/app`, `/app/` and `app` all anchor identically; a `path` of `/` mounts the worker at the site root and proxies everything. Regex-special characters are escaped (a literal `.` in something like `/socket.io`, for instance) before the path reaches nginx's location block, so write it exactly as the URL reads. A `proxy` block with no `path` names nothing to proxy and is ignored.
+The generated nginx location anchors on `path`, so `/app` proxies `/app` and everything under it without also swallowing an unrelated route that merely starts with the same letters (`/appstore`, say). Write `path` as a literal URL path and servlo normalises it, so `/app`, `/app/` and `app` all anchor identically; a `path` of `/` mounts the worker at the site root and proxies everything. Regex-special characters are escaped (a literal `.` in something like `/socket.io`, for instance) before the path reaches nginx's location block, so write it exactly as the URL reads. A `proxy` block with no `path` names nothing to proxy and is ignored.
 
-Anchoring also turns the location into a regex, and nginx runs regex locations in file order ahead of the prefix location it would otherwise have picked, so the proxy takes precedence over lerd's own PHP handling and dotfile deny for anything under `path`. That's the right call for a worker mounted on its own path, but it means a `.php` file or dotfile living under `path` is proxied rather than served by lerd.
+Anchoring also turns the location into a regex, and nginx runs regex locations in file order ahead of the prefix location it would otherwise have picked, so the proxy takes precedence over servlo's own PHP handling and dotfile deny for anything under `path`. That's the right call for a worker mounted on its own path, but it means a `.php` file or dotfile living under `path` is proxied rather than served by servlo.
 
-**Server health probe**: A worker whose process can outlive its server (a Vite dev server that dies under `npm` while the Node process lingers) declares a `health` block, so lerd probes reachability rather than mere process liveness:
+**Server health probe**: A worker whose process can outlive its server (a Vite dev server that dies under `npm` while the Node process lingers) declares a `health` block, so servlo probes reachability rather than mere process liveness:
 
 ```yaml
 workers:
@@ -63,9 +63,9 @@ workers:
       url_file: public/hot   # a file the server writes on boot, holding its URL
 ```
 
-`url_file` names a file the dev server writes when it binds (Vite's `public/hot` holds a URL like `http://[::1]:5173`). While the process is up, lerd reads that file and makes a short TCP dial to its host and port; if nothing is accepting, the worker reports **unreachable** instead of running and [worker-heal](/usage/worker-heal) restarts it. A worker with no `health` block keeps the process-only liveness check.
+`url_file` names a file the dev server writes when it binds (Vite's `public/hot` holds a URL like `http://[::1]:5173`). While the process is up, servlo reads that file and makes a short TCP dial to its host and port; if nothing is accepting, the worker reports **unreachable** instead of running and [worker-heal](/usage/worker-heal) restarts it. A worker with no `health` block keeps the process-only liveness check.
 
-A missing `url_file` is never itself a failure, only a signal lerd cannot use: the worker keeps the process-only check. Plenty of healthy setups never write one, from a Vite config with a custom `hotFile` to `vite build --watch`, and idle-suspend clears `public/hot` while the unit is briefly still up. The failure the probe exists to catch is a *stale* file whose advertised port refuses a connection, which is what a dev server that died behind a live unit leaves behind. A file older than the unit's last activation is a leftover from a previous run and is not dialled.
+A missing `url_file` is never itself a failure, only a signal servlo cannot use: the worker keeps the process-only check. Plenty of healthy setups never write one, from a Vite config with a custom `hotFile` to `vite build --watch`, and idle-suspend clears `public/hot` while the unit is briefly still up. The failure the probe exists to catch is a *stale* file whose advertised port refuses a connection, which is what a dev server that died behind a live unit leaves behind. A file older than the unit's last activation is a leftover from a previous run and is not dialled.
 
 **Host workers**: Workers that need to run on the host instead of inside the PHP-FPM container set `host: true`. The command runs via fnm at the project's pinned Node.js version. This is used for tools like Vite that need direct filesystem access for HMR:
 
@@ -84,40 +84,40 @@ The `command` is wrapped in `/bin/sh -c` so shell features (`&&`, `|`, env-var e
 
 Host workers auto-start in three places:
 
-- when a worktree is created, with per-worktree units (`lerd-vite-<site>-<branch>`, supervised by systemd on Linux and launchd on macOS) so multiple Vite instances can run simultaneously with auto-incremented ports.
-- at daemon boot, so worktree units recover after a host reboot or `lerd stop && lerd start` even when fsnotify hasn't fired.
-- on `lerd worktree remove`, the matching unit is stopped and its file removed; without this the unit would restart-loop against the deleted `WorkingDirectory`.
+- when a worktree is created, with per-worktree units (`servlo-vite-<site>-<branch>`, supervised by systemd on Linux and launchd on macOS) so multiple Vite instances can run simultaneously with auto-incremented ports.
+- at daemon boot, so worktree units recover after a host reboot or `servlo stop && servlo start` even when fsnotify hasn't fired.
+- on `servlo worktree remove`, the matching unit is stopped and its file removed; without this the unit would restart-loop against the deleted `WorkingDirectory`.
 
-Host workers run with lerd's bin dir prepended to `PATH`, so subprocesses spawned by `npm run dev` (for example Inertia's wayfinder Vite plugin shelling out to `php artisan`) reach lerd's `php`, `composer` and `laravel` shims and route into the containerised runtime. Stopping a host worker via the UI or `lerd worker stop` is now sticky: a HEAD-write event (commit, checkout, rebase, branch rename) inside a worktree no longer resurrects it, and on macOS the heal loop respects a missing plist as a user-stop signal instead of recreating it.
+Host workers run with servlo's bin dir prepended to `PATH`, so subprocesses spawned by `npm run dev` (for example Inertia's wayfinder Vite plugin shelling out to `php artisan`) reach servlo's `php`, `composer` and `laravel` shims and route into the containerised runtime. Stopping a host worker via the UI or `servlo worker stop` is now sticky: a HEAD-write event (commit, checkout, rebase, branch rename) inside a worktree no longer resurrects it, and on macOS the heal loop respects a missing plist as a user-stop signal instead of recreating it.
 
-On macOS the unit is a launchd plist (`~/Library/LaunchAgents/lerd-<worker>-<site>[-<branch>].plist`) backed by a guard script under `~/.local/share/lerd/run/workers/` that `cd`s into the site/worktree and `fnm exec`s the command. The watcher self-heals the unit independently of the worker exec mode, host workers always need launchd-level supervision because they aren't behind podman's `--restart=always`. Scheduled workers (`schedule != ""`) still aren't supported on macOS; launchd's `StartCalendarInterval` isn't wired through the unit translator yet.
+On macOS the unit is a launchd plist (`~/Library/LaunchAgents/servlo-<worker>-<site>[-<branch>].plist`) backed by a guard script under `~/.local/share/servlo/run/workers/` that `cd`s into the site/worktree and `fnm exec`s the command. The watcher self-heals the unit independently of the worker exec mode, host workers always need launchd-level supervision because they aren't behind podman's `--restart=always`. Scheduled workers (`schedule != ""`) still aren't supported on macOS; launchd's `StartCalendarInterval` isn't wired through the unit translator yet.
 
-**Dev servers on the site's own domain**: A dev server normally advertises its own address, so a Vite app renders asset URLs pointing at `localhost:5173`. That address means nothing to anyone else, so the page arrives unstyled over a share tunnel, over [LAN sharing](/usage/lan-sharing), or on any host other than the one that started it.
+**Dev servers on the site's own domain**: A dev server normally advertises its own address, so a Vite app renders asset URLs pointing at `localhost:5173`. That address means nothing to anyone else, so the page arrives unstyled over a share tunnel, over LAN sharing, or on any host other than the one that started it.
 
-lerd puts a supported dev server behind the site's own domain instead. Everything the tool serves lives under one prefix (`/@lerd-vite/`), which the site's vhost proxies to it, so the assets and the hot-reload websocket both travel on whatever hostname the visitor actually used. Nothing needs rewriting, because the client derives its host, port and protocol from the URL it was loaded from.
+servlo puts a supported dev server behind the site's own domain instead. Everything the tool serves lives under one prefix (`/@servlo-vite/`), which the site's vhost proxies to it, so the assets and the hot-reload websocket both travel on whatever hostname the visitor actually used. Nothing needs rewriting, because the client derives its host, port and protocol from the URL it was loaded from.
 
-This needs no configuration and no framework definition. A host worker qualifies when the project has the tool installed and the worker command starts it directly, following one level of `npm run` indirection. A command that only reaches the tool through a runner such as `concurrently` is left alone, since the flags lerd appends would land on the wrong process.
+This needs no configuration and no framework definition. A host worker qualifies when the project has the tool installed and the worker command starts it directly, following one level of `npm run` indirection. A command that only reaches the tool through a runner such as `concurrently` is left alone, since the flags servlo appends would land on the wrong process.
 
-Nothing in the project is edited. lerd writes a generated config to `node_modules/.lerd/` that imports the project's own config and merges in the base, origin and allowed hosts for `serve` only, then starts the tool against it. That file is rewritten on every start, since a worktree seeds `node_modules` from its parent and would otherwise inherit the parent's domain. A project with no config file for the tool, or one that tracks the generated path in git rather than ignoring it, keeps its dev server exactly as it was.
+Nothing in the project is edited. servlo writes a generated config to `node_modules/.servlo/` that imports the project's own config and merges in the base, origin and allowed hosts for `serve` only, then starts the tool against it. That file is rewritten on every start, since a worktree seeds `node_modules` from its parent and would otherwise inherit the parent's domain. A project with no config file for the tool, or one that tracks the generated path in git rather than ignoring it, keeps its dev server exactly as it was.
 
 Framework plugins released before Vite grew `server.origin` ignore it and publish whatever address the server bound to, writing it to the file the app reads to find its dev server. That address is a wildcard nothing can route to, and on a secured site the browser blocks the plain-HTTP request as mixed content and drops the padlock, so the page arrives unstyled. The generated config catches that one value as it is written and stores the site's own URL instead, which is what a current plugin writes there anyway. Upgrading the plugin remains worthwhile, but an old one no longer breaks the page.
 
 The port is pinned, because the vhost proxies to it and the tool would otherwise drift to the next free one whenever several sites run. It is kept clear of other sites, of the site's own worktrees, and of whatever else the machine is holding, and a pin something has since taken is re-picked rather than left to fail. Each worktree pins its own port and takes its origin from its own subdomain.
 
-The tool reads those addresses once, when it starts, so lerd writes them back and restarts the dev server whenever they move: `lerd secure` and `lerd unsecure`, `lerd domain add` and `lerd domain remove`, and grouping a site under a main. A dev server that is not running is left down, and a change that leaves the addresses exactly as they were restarts nothing.
+The tool reads those addresses once, when it starts, so servlo writes them back and restarts the dev server whenever they move: `servlo secure` and `servlo unsecure`, `servlo domain add` and `servlo domain remove`, and grouping a site under a main. A dev server that is not running is left down, and a change that leaves the addresses exactly as they were restarts nothing.
 
 A site with more than one domain serves its assets from the primary one, since a dev server can advertise only a single origin. The generated config lists every domain, both as a host the server answers for (along with its subdomains, matching the vhost's wildcard) and as an origin allowed to fetch from it, so a page opened on a second domain loads normally instead of having its assets refused.
 
 Some plugin middleware registers itself ahead of the tool's own base handling and only answers unprefixed, which would 404 on URLs it advertised itself. nginx retries any 404 under the prefix once with the prefix removed, so those routes work without anything having to name them.
 
-When [idle-suspend](/usage/idle-suspend) is enabled it stops every one of a site's workers once the site has been idle, so workers carry no special configuration for it. A worker marked `per_worktree: true` (Vite is the only one by default) is suspended per worktree, on each worktree's own idle timer.
+When idle-suspend is enabled it stops every one of a site's workers once the site has been idle, so workers carry no special configuration for it. A worker marked `per_worktree: true` (Vite is the only one by default) is suspended per worktree, on each worktree's own idle timer.
 
 ## Project-specific custom workers
 
-Add workers to `.lerd.yaml` for project-specific needs that don't belong in the framework definition:
+Add workers to `.servlo.yaml` for project-specific needs that don't belong in the framework definition:
 
 ```yaml
-# .lerd.yaml
+# .servlo.yaml
 framework: symfony
 framework_version: "8"
 workers:
@@ -149,31 +149,31 @@ Custom workers are merged with the framework's workers at runtime. They are comm
 ## Worker logs
 
 ```bash
-journalctl --user -u lerd-messenger-myapp -f
+journalctl --user -u servlo-messenger-myapp -f
 ```
 
 ## Managing custom workers
 
-Use `lerd worker add` to add project-specific or global custom workers without manually editing YAML:
+Use `servlo worker add` to add project-specific or global custom workers without manually editing YAML:
 
 ```bash
-# Add a project-specific worker (saved to .lerd.yaml)
-lerd worker add pulse --command "php artisan pulse:work" --label "Pulse" --check-composer laravel/pulse
+# Add a project-specific worker (saved to .servlo.yaml)
+servlo worker add pulse --command "php artisan pulse:work" --label "Pulse" --check-composer laravel/pulse
 
 # Add a worker that conflicts with another (stops it on start, hides it in UI)
-lerd worker add custom-queue --command "php artisan queue:work --queue=emails" --conflicts-with queue
+servlo worker add custom-queue --command "php artisan queue:work --queue=emails" --conflicts-with queue
 
-# Add a global worker (saved to ~/.config/lerd/frameworks/<name>.yaml)
-lerd worker add pulse --command "php artisan pulse:work" --global
+# Add a global worker (saved to ~/.config/servlo/frameworks/<name>.yaml)
+servlo worker add pulse --command "php artisan pulse:work" --global
 
 # Remove a custom worker (stops it if running)
-lerd worker remove pulse
-lerd worker remove pulse --global
+servlo worker remove pulse
+servlo worker remove pulse --global
 ```
 
-Project workers (`.lerd.yaml`) apply to a single project and are committed to git. Global workers (user overlay) apply to all projects using that framework. Both survive framework store updates.
+Project workers (`.servlo.yaml`) apply to a single project and are committed to git. Global workers (user overlay) apply to all projects using that framework. Both survive framework store updates.
 
-The resulting `.lerd.yaml` looks like:
+The resulting `.servlo.yaml` looks like:
 
 ```yaml
 framework: laravel
@@ -189,24 +189,24 @@ custom_workers:
       - queue
 ```
 
-After adding, start the worker with `lerd worker start pulse`.
+After adding, start the worker with `servlo worker start pulse`.
 
-When running `lerd init --fresh`, existing custom workers are shown in a multi-select step before the workers step. Deselecting a custom worker removes it from `.lerd.yaml` and excludes it from the workers selection. If the removed worker had `conflicts_with`, those workers become available again.
+When running `servlo init --fresh`, existing custom workers are shown in a multi-select step before the workers step. Deselecting a custom worker removes it from `.servlo.yaml` and excludes it from the workers selection. If the removed worker had `conflicts_with`, those workers become available again.
 
 ## Orphaned workers
 
-A worker becomes orphaned when its systemd unit is still running but its definition has been removed from `.lerd.yaml` (e.g. after a `git pull` or manual edit). Orphaned workers are detected and surfaced in several places:
+A worker becomes orphaned when its systemd unit is still running but its definition has been removed from `.servlo.yaml` (e.g. after a `git pull` or manual edit). Orphaned workers are detected and surfaced in several places:
 
-- **`lerd worker list`**: shows orphaned workers with a stop hint
-- **`lerd worker stop <name>`**: can stop orphaned workers even without a definition
-- **`lerd setup`**: offers orphaned workers as pre-selected stop steps before framework worker starts
+- **`servlo worker list`**: shows orphaned workers with a stop hint
+- **`servlo worker stop <name>`**: can stop orphaned workers even without a definition
+- **`servlo setup`**: offers orphaned workers as pre-selected stop steps before framework worker starts
 - **UI**: the stop button works for orphaned workers directly
 
 ## Web UI (worker toggles)
 
 Framework workers appear as toggles in the Sites panel. Workers with a `check` rule only appear when the condition passes. Workers with `conflicts_with` suppress each other (e.g. when Horizon is available, the queue toggle is hidden).
 
-Custom framework workers from `.lerd.yaml` also appear as toggles alongside the framework's standard workers.
+Custom framework workers from `.servlo.yaml` also appear as toggles alongside the framework's standard workers.
 
 ---
 

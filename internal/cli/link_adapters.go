@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/linker"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/linker"
 
 	"charm.land/huh/v2"
 )

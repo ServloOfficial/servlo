@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // TestSetSiteContainerAutostart_stripAndRestore guards the fix for a paused
@@ -93,24 +93,24 @@ func TestSetSiteContainerAutostart_plainFPMNoop(t *testing.T) {
 // property dictionary over DBus one worker at a time.
 func TestTimerIsActive(t *testing.T) {
 	states := map[string]string{
-		"lerd-schedule-acme.timer":  "active",
-		"lerd-schedule-other.timer": "inactive",
-		"lerd-queue-acme.service":   "active",
-		"lerd-queue-acme":           "active",
+		"servlo-schedule-acme.timer":  "active",
+		"servlo-schedule-other.timer": "inactive",
+		"servlo-queue-acme.service":   "active",
+		"servlo-queue-acme":           "active",
 	}
-	if !timerIsActive(states, "lerd-schedule-acme") {
+	if !timerIsActive(states, "servlo-schedule-acme") {
 		t.Error("an active timer was not detected")
 	}
-	if timerIsActive(states, "lerd-schedule-other") {
+	if timerIsActive(states, "servlo-schedule-other") {
 		t.Error("an inactive timer reported active")
 	}
-	if timerIsActive(states, "lerd-queue-acme") {
+	if timerIsActive(states, "servlo-queue-acme") {
 		t.Error("a service with no sibling timer reported active")
 	}
-	if timerIsActive(states, "lerd-missing-site") {
+	if timerIsActive(states, "servlo-missing-site") {
 		t.Error("an absent unit reported active")
 	}
-	if timerIsActive(nil, "lerd-schedule-acme") {
+	if timerIsActive(nil, "servlo-schedule-acme") {
 		t.Error("a failed enumeration must not report a timer active")
 	}
 }

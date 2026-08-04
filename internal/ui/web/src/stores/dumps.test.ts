@@ -103,7 +103,7 @@ describe('dumpGroups', () => {
   });
 
   it('groups one request\'s dumps together even when their rids differ', () => {
-    // Without the lerd_devtools extension the bridge stamps a fresh rid per
+    // Without the servlo_devtools extension the bridge stamps a fresh rid per
     // dump() call; the Dumps tab must still show one card per request, not
     // one per dump.
     dumps.set([

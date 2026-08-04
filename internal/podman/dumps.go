@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 //go:embed dumpbridge
@@ -42,7 +42,7 @@ func DevtoolsCollectorPHP() (string, error) {
 // traverse podman-machine's virtio-fs boundary. {{ DUMP_PASSTHROUGH }} is
 // "1" or "0" depending on Dumps.Passthrough.
 func DumpBridgeIni() (string, error) {
-	b, err := dumpBridgeFS.ReadFile("dumpbridge/97-lerd-dump.ini")
+	b, err := dumpBridgeFS.ReadFile("dumpbridge/97-servlo-dump.ini")
 	if err != nil {
 		return "", fmt.Errorf("debug bridge ini embed: %w", err)
 	}
@@ -109,7 +109,7 @@ func WriteDumpBridgeAssets() error {
 }
 
 // RemoveDumpAssets deletes the host-side bridge file, ini, and enable flag.
-// Used by `lerd uninstall` and tests; not called on `lerd dump off` because
+// Used by `servlo uninstall` and tests; not called on `servlo dump off` because
 // the assets are always-mounted into FPM and removing them would force a
 // container restart on the next FPM start. Safe to call repeatedly.
 func RemoveDumpAssets() error {

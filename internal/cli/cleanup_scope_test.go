@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/cleanup"
+	"github.com/realrashid/servlo/internal/cleanup"
 )
 
 func TestCleanupScopeFollowsSafeFlag(t *testing.T) {

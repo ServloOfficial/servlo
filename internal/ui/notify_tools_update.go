@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 var (
@@ -86,7 +86,7 @@ func notificationForToolUpdate(name, version string) push.Notification {
 		BodyKey:  "notify_tool_update_body",
 		Body:     body,
 		Params:   map[string]string{"service": name, "version": version},
-		Tag:      "lerd-update-tool-" + name,
+		Tag:      "servlo-update-tool-" + name,
 		URL:      "#system/tools",
 		Data:     map[string]string{"service": name, "version": version},
 		Urgency:  "low",

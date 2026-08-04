@@ -55,7 +55,7 @@ func EnsurePreset(name string) (*Preset, error) {
 
 // storePresetStale reports whether name has a cached store preset older than the
 // staleness window. A built-in served only from the embed bundle (no cache file)
-// is never "stale": built-ins refresh through an explicit `lerd service update`,
+// is never "stale": built-ins refresh through an explicit `servlo service update`,
 // not implicitly on every install.
 func storePresetStale(name string) bool {
 	info, err := os.Stat(filepath.Join(StorePresetsDir(), name+".yaml"))

@@ -5,19 +5,19 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/logsource"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/logsource"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
-// `lerd xdebug pause` drives Xdebug's control socket (Xdebug >= 3.3) to break
+// `servlo xdebug pause` drives Xdebug's control socket (Xdebug >= 3.3) to break
 // the IDE debugger into an already-running PHP process — a queue/Horizon worker
 // or a CLI script — without a trigger cookie or per-request connection attempts.
 // It shells out to the upstream `xdebugctl` tool, which is baked into the FPM
-// image (see lerd-php-fpm.Containerfile); FrankenPHP and custom-container sites
+// image (see servlo-php-fpm.Containerfile); FrankenPHP and custom-container sites
 // run their own image without it, so the command is PHP-FPM only.
 const xdebugctlInContainer = "/usr/local/bin/xdebugctl"
 
@@ -31,7 +31,7 @@ func newXdebugPauseCmd() *cobra.Command {
 			"CLI script) connect to your IDE and break in — no trigger cookie, no per-request\n" +
 			"overhead. PHP-FPM sites only: FrankenPHP and custom-container sites run their own image\n" +
 			"without xdebugctl. Requires Xdebug debug mode enabled for the site's PHP version\n" +
-			"(`lerd xdebug on`) and your IDE listening on port 9003.\n\n" +
+			"(`servlo xdebug on`) and your IDE listening on port 9003.\n\n" +
 			"Run with --list to see the candidate processes, then --pid to target one.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -51,11 +51,11 @@ func runXdebugPause(args []string, pid int, list bool) error {
 	// xdebugctl is baked into the shared FPM image (which custom-FPM sites build
 	// FROM); FrankenPHP and custom-container images don't ship it.
 	if site.IsFrankenPHP() || site.IsCustomContainer() {
-		return fmt.Errorf("`lerd xdebug pause` is only available on PHP-FPM sites; %q runs its own container without xdebugctl", site.Name)
+		return fmt.Errorf("`servlo xdebug pause` is only available on PHP-FPM sites; %q runs its own container without xdebugctl", site.Name)
 	}
 	version := pauseSiteVersion(site)
 	if version == "" {
-		return fmt.Errorf("could not determine the PHP version for %q — set it with `lerd isolate <version>` first", site.Name)
+		return fmt.Errorf("could not determine the PHP version for %q — set it with `servlo isolate <version>` first", site.Name)
 	}
 	container := resolveWorkerFPMUnit(site.Name, version)
 	if container == "" {
@@ -66,7 +66,7 @@ func runXdebugPause(args []string, pid int, list bool) error {
 	// (xdebugctl ps simply shows nothing when no process has a control socket).
 	if !list {
 		if cfg, err := config.LoadGlobal(); err == nil && !strings.Contains(cfg.GetXdebugMode(version), "debug") {
-			return fmt.Errorf("Xdebug debug mode is not enabled for PHP %s — run: lerd xdebug on %s", version, version)
+			return fmt.Errorf("Xdebug debug mode is not enabled for PHP %s — run: servlo xdebug on %s", version, version)
 		}
 	}
 
@@ -104,7 +104,7 @@ func runXdebugPause(args []string, pid int, list bool) error {
 	feedback.Begin()
 	feedback.Done(fmt.Sprintf("sent pause to PID %d in %s — your IDE (listening on :9003) should break in", pid, container))
 	if cfg, err := config.LoadGlobal(); err == nil && cfg.GetXdebugStart(version) == "yes" {
-		feedback.Note("`lerd xdebug on --on-demand` stops every other request/worker from also connecting to your IDE")
+		feedback.Note("`servlo xdebug on --on-demand` stops every other request/worker from also connecting to your IDE")
 	}
 	return nil
 }
@@ -186,5 +186,5 @@ func ensureXdebugctl(container string) (string, error) {
 	if podman.Cmd("exec", container, "test", "-x", xdebugctlInContainer).Run() == nil {
 		return xdebugctlInContainer, nil
 	}
-	return "", fmt.Errorf("xdebugctl is not in %s — rebuild the PHP image with `lerd php:rebuild` to bake it in", container)
+	return "", fmt.Errorf("xdebugctl is not in %s — rebuild the PHP image with `servlo php:rebuild` to bake it in", container)
 }

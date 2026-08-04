@@ -58,8 +58,8 @@ describe('padSpxControlPanel', () => {
   it('adds a padding style tag and is idempotent', () => {
     padSpxControlPanel(document);
     padSpxControlPanel(document);
-    expect(document.querySelectorAll('#lerd-spx-pad').length).toBe(1);
-    expect(document.getElementById('lerd-spx-pad')!.textContent).toContain('padding');
+    expect(document.querySelectorAll('#servlo-spx-pad').length).toBe(1);
+    expect(document.getElementById('servlo-spx-pad')!.textContent).toContain('padding');
   });
 });
 

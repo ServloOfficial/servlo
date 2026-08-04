@@ -30,7 +30,7 @@ describe('ProfilerToggle', () => {
     mockStatus(false);
     const { container } = render(ProfilerToggle);
     expect(container.querySelector('button')!.getAttribute('aria-label')).toMatch(/off/i);
-    expect(container.querySelector('.lerd-pulse-ping')).toBeNull();
+    expect(container.querySelector('.servlo-pulse-ping')).toBeNull();
   });
 
   it('reflects the on state with a pulsing dot', () => {
@@ -38,6 +38,6 @@ describe('ProfilerToggle', () => {
     profilerEnabled.set(true);
     const { container } = render(ProfilerToggle);
     expect(container.querySelector('button')!.getAttribute('aria-label')).toMatch(/on,/i);
-    expect(container.querySelector('.lerd-pulse-ping')).not.toBeNull();
+    expect(container.querySelector('.servlo-pulse-ping')).not.toBeNull();
   });
 });

@@ -178,7 +178,7 @@ describe('services store', () => {
         new Response(
           JSON.stringify({
             supported: true,
-            target: '/etc/mysql/conf.d/zz-lerd-user.cnf',
+            target: '/etc/mysql/conf.d/zz-servlo-user.cnf',
             content: '[mysqld]\n',
             exists: true
           }),
@@ -188,7 +188,7 @@ describe('services store', () => {
     const { getServiceConfig } = await import('./services');
     const cfg = await getServiceConfig('mariadb-10-11');
     expect(cfg.supported).toBe(true);
-    expect(cfg.target).toBe('/etc/mysql/conf.d/zz-lerd-user.cnf');
+    expect(cfg.target).toBe('/etc/mysql/conf.d/zz-servlo-user.cnf');
     expect(cfg.content).toContain('[mysqld]');
     expect(cfg.exists).toBe(true);
   });
@@ -222,7 +222,7 @@ describe('services store', () => {
   it('saveServiceConfig surfaces 404 not-installed text as error', async () => {
     globalThis.fetch = vi.fn(
       async () =>
-        new Response('service "mysql" is not installed — run `lerd service preset install mysql` first\n', {
+        new Response('service "mysql" is not installed — run `servlo service preset install mysql` first\n', {
           status: 404,
           statusText: 'Not Found'
         })

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/geodro/lerd/internal/stats"
+	"github.com/realrashid/servlo/internal/stats"
 )
 
 // statsClientPollInterval mirrors POLL_INTERVAL_MS in stores/stats.ts. It has

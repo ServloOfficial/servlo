@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
 )
 
 // Worktree represents a git worktree checkout for a registered site.
@@ -181,7 +181,7 @@ func readCheckoutPath(wtDir string) string {
 //
 // out receives composer/npm install output; pass nil for the default
 // stdout/stderr (which is what the watcher daemon's launchd unit captures
-// to lerd-watcher.log).
+// to servlo-watcher.log).
 func EnsureWorktreeDeps(mainRepoPath, worktreePath, worktreeDomain string, secured bool, out io.Writer) {
 	// Each entry: filesystem dir to seed from main, plus a sibling lockfile
 	// (or files) that gates the copy. When the worktree's lockfile differs
@@ -213,7 +213,7 @@ func EnsureWorktreeDeps(mainRepoPath, worktreePath, worktreeDomain string, secur
 			if info.Mode()&os.ModeSymlink == 0 {
 				continue // real dir already exists, leave it
 			}
-			_ = os.Remove(dst) // legacy symlink from older lerd, replace it
+			_ = os.Remove(dst) // legacy symlink from older servlo, replace it
 		}
 		src := filepath.Join(mainRepoPath, s.dir)
 		if _, err := os.Stat(src); err != nil {
@@ -277,7 +277,7 @@ func lockfilesMatch(mainRepoPath, worktreePath string, lockfiles []string) bool 
 // CodeIgniter's config/.env / app.baseURL, WordPress's wp-config.php / WP_HOME,
 // Magento's app/etc/env.php (php-array, whose base URL lives in the database so
 // it declares no url_key and only the file is carried across for its database
-// credentials). When the main repo's .lerd.yaml defines env_overrides, those
+// credentials). When the main repo's .servlo.yaml defines env_overrides, those
 // dotenv templates are resolved and layered on top — only keys declared in
 // env_overrides are touched, so partial overrides (e.g. SESSION_DOMAIN only)
 // don't suppress the url_key rewrite. Idempotent and cheap; safe to call on

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // VersionForDir resolves the PHP version a directory's commands must run on.
@@ -17,7 +17,7 @@ import (
 // A worktree's own pin wins first: a worktree checked out inside its parent
 // site matches that site by path, so resolving the site first would ignore the
 // pin its vhost was generated from. A registered site's version comes next,
-// because lerd link clamps to the framework's supported range and re-detecting
+// because servlo link clamps to the framework's supported range and re-detecting
 // would undo the clamp. Only then does the project's own configuration apply.
 func VersionForDir(dir string) (string, error) {
 	if wt, parent, ok := WorktreeRootFor(dir); ok {

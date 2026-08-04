@@ -1,24 +1,24 @@
 # Framework definitions
 
-Framework definitions are YAML files that tell Lerd how to detect a PHP framework, where its document root is, which env file it uses, and which workers and log paths it has. This page is the full schema reference.
+Framework definitions are YAML files that tell Servlo how to detect a PHP framework, where its document root is, which env file it uses, and which workers and log paths it has. This page is the full schema reference.
 
 ## Definition sources and priority
 
-Lerd resolves framework definitions from multiple sources. Higher priority wins:
+Servlo resolves framework definitions from multiple sources. Higher priority wins:
 
 | Priority | Source | Location | Purpose |
 |----------|--------|----------|---------|
-| 1 | User overlay | `~/.config/lerd/frameworks/<name>.yaml` | Manual overrides (merged on top) |
-| 2 | Project embedded | `.lerd.yaml` `framework_def` | Portability for user-defined frameworks |
-| 3 | Store-installed | `~/.local/share/lerd/frameworks/<name>@<version>.yaml` | Community definitions (auto-fetched) |
-| 4 | Built-in | Compiled into lerd binary | Laravel fallback only |
+| 1 | User overlay | `~/.config/servlo/frameworks/<name>.yaml` | Manual overrides (merged on top) |
+| 2 | Project embedded | `.servlo.yaml` `framework_def` | Portability for user-defined frameworks |
+| 3 | Store-installed | `~/.local/share/servlo/frameworks/<name>@<version>.yaml` | Community definitions (auto-fetched) |
+| 4 | Built-in | Compiled into servlo binary | Laravel fallback only |
 
-Workers from the user overlay and project `.lerd.yaml` are merged on top of store or built-in definitions. See [Framework workers](framework-workers.md) for the worker lifecycle and how custom workers are added and managed.
+Workers from the user overlay and project `.servlo.yaml` are merged on top of store or built-in definitions. See [Framework workers](framework-workers.md) for the worker lifecycle and how custom workers are added and managed.
 
 ::: warning Untrusted projects
-A `.lerd.yaml` ships inside a project, so its embedded `framework_def` is treated as untrusted, and lerd strips its host-execution surfaces when restoring it into the store: `command`-type doctor checks, `host: true` workers, the whole `commands:` list, the `nginx:` block, `requires:`, and `php.cli_ini` are dropped, because each would otherwise run on your host, rewrite your nginx config, or start containers straight from a cloned repo. Those run only for frameworks that come from the store, a built-in, or your user overlay (`~/.config/lerd/frameworks/`); a definition already installed there is never overwritten by a project's embedded copy. In-container workers, env, symlink, and combo checks are inert and still work from a project definition.
+A `.servlo.yaml` ships inside a project, so its embedded `framework_def` is treated as untrusted, and servlo strips its host-execution surfaces when restoring it into the store: `command`-type doctor checks, `host: true` workers, the whole `commands:` list, the `nginx:` block, `requires:`, and `php.cli_ini` are dropped, because each would otherwise run on your host, rewrite your nginx config, or start containers straight from a cloned repo. Those run only for frameworks that come from the store, a built-in, or your user overlay (`~/.config/servlo/frameworks/`); a definition already installed there is never overwritten by a project's embedded copy. In-container workers, env, symlink, and combo checks are inert and still work from a project definition.
 
-A project's own host extensions still work, just with consent: a `host: true` entry in top-level `custom_workers`, and any top-level `commands:` you run via `lerd run` or the dashboard, prompt once showing the exact command before they run on your host, and the approval is remembered per site. Set `host_commands.skip_confirmation: true` (or `host_commands.disabled: true` to refuse them outright) in the global config to change that.
+A project's own host extensions still work, just with consent: a `host: true` entry in top-level `custom_workers`, and any top-level `commands:` you run via `servlo run` or the dashboard, prompt once showing the exact command before they run on your host, and the approval is remembered per site. Set `host_commands.skip_confirmation: true` (or `host_commands.disabled: true` to refuse them outright) in the global config to change that.
 :::
 
 ## Version resolution
@@ -26,14 +26,14 @@ A project's own host extensions still work, just with consent: a `host: true` en
 When loading a framework definition for a project, the version is resolved in order:
 
 1. `composer.lock`: the actual installed version (source of truth)
-2. `.lerd.yaml` `framework_version`: pinned version (fallback when no `composer.lock`)
+2. `.servlo.yaml` `framework_version`: pinned version (fallback when no `composer.lock`)
 3. Latest available in store
 
-When `composer.lock` shows a different version than `.lerd.yaml`, the pinned version is auto-updated.
+When `composer.lock` shows a different version than `.servlo.yaml`, the pinned version is auto-updated.
 
 ## Environment setup
 
-The `env` section in a framework definition controls how `lerd env` works:
+The `env` section in a framework definition controls how `servlo env` works:
 
 ```yaml
 env:
@@ -61,11 +61,11 @@ env:
           value_prefix: mysql
       vars:
         - DB_CONNECTION=mysql
-        - DB_HOST=lerd-mysql
+        - DB_HOST=servlo-mysql
         - DB_PORT=3306
         - DB_DATABASE={{site}}
         - DB_USERNAME=root
-        - DB_PASSWORD=lerd
+        - DB_PASSWORD=servlo
 ```
 
 ### Env file formats
@@ -76,17 +76,17 @@ env:
 | `php-const` | `define('KEY', 'value')` calls, as in WordPress's `wp-config.php` | `DB_HOST` |
 | `php-array` | a PHP file that `return`s a nested array, as in Magento's `app/etc/env.php` | dotted path, `db.connection.default.host` |
 
-The `php-array` reader flattens the returned array to dotted keys, and the writer sets a dotted path, creating the intermediate arrays when they are missing. Scalar types are preserved, so an int stays an int and a bool stays a bool. The file is reparsed and reprinted rather than patched line by line, which is what Magento's own `DeploymentConfig\Writer` does, so comments in it are not preserved by lerd or by Magento. A rewrite that would not change anything is skipped, so a file already holding every value lerd wants keeps its mtime.
+The `php-array` reader flattens the returned array to dotted keys, and the writer sets a dotted path, creating the intermediate arrays when they are missing. Scalar types are preserved, so an int stays an int and a bool stays a bool. The file is reparsed and reprinted rather than patched line by line, which is what Magento's own `DeploymentConfig\Writer` does, so comments in it are not preserved by servlo or by Magento. A rewrite that would not change anything is skipped, so a file already holding every value servlo wants keeps its mtime.
 
 ### Drop-in services
 
-A service preset publishes its connection under Laravel's key names (`DB_HOST`, `REDIS_HOST`), because that is what most projects read. Your framework may not: Drupal reads `DB_NAME` and `DB_USER`, Symfony and CakePHP read a `DATABASE_URL`, Magento addresses its config by dotted path. Those keys are the ones you declare under `env.services`, and they are what lerd writes.
+A service preset publishes its connection under Laravel's key names (`DB_HOST`, `REDIS_HOST`), because that is what most projects read. Your framework may not: Drupal reads `DB_NAME` and `DB_USER`, Symfony and CakePHP read a `DATABASE_URL`, Magento addresses its config by dotted path. Those keys are the ones you declare under `env.services`, and they are what servlo writes.
 
-So when a project picks a drop-in for a service you map, lerd wires it up through your mapping rather than the preset's keys, swapping in the drop-in's container. A Drupal site on MariaDB gets `DB_HOST=lerd-mariadb-11-8` alongside the `DB_DRIVER` and `DB_NAME` it actually reads, and a Magento site gets `db.connection.default.host: lerd-mariadb-11-8`. A drop-in is protocol-compatible with the service it stands in for, so the container is the only thing that moves; the port, credentials and driver name in your mapping still hold.
+So when a project picks a drop-in for a service you map, servlo wires it up through your mapping rather than the preset's keys, swapping in the drop-in's container. A Drupal site on MariaDB gets `DB_HOST=servlo-mariadb-11-8` alongside the `DB_DRIVER` and `DB_NAME` it actually reads, and a Magento site gets `db.connection.default.host: servlo-mariadb-11-8`. A drop-in is protocol-compatible with the service it stands in for, so the container is the only thing that moves; the port, credentials and driver name in your mapping still hold.
 
-A key the preset sets that your mapping leaves unset is written too, as long as your definition names it somewhere: Laravel's `redis` block sets the host but not the cache, session and queue drivers Valkey switches on, and its `detect` rules name all three, so those still land. Your definition is your whole vocabulary, so a key it never names is a key your app cannot read, and lerd will not write it. That is what keeps the preset's Laravel-shaped `DB_*` keys out of a Symfony `.env`, where `DATABASE_URL` is the only key that means anything.
+A key the preset sets that your mapping leaves unset is written too, as long as your definition names it somewhere: Laravel's `redis` block sets the host but not the cache, session and queue drivers Valkey switches on, and its `detect` rules name all three, so those still land. Your definition is your whole vocabulary, so a key it never names is a key your app cannot read, and servlo will not write it. That is what keeps the preset's Laravel-shaped `DB_*` keys out of a Symfony `.env`, where `DATABASE_URL` is the only key that means anything.
 
-The drop-in is matched to the mapped service by its family, or by the [`env_role`](/usage/custom-services#yaml-schema) the preset declares when the relationship crosses families (MariaDB for MySQL, Valkey for Redis). On a `php-array` framework a picked service you map nothing for is started but left unwired, since a preset's flat keys are meaningless as dotted paths and lerd will not guess where they belong.
+The drop-in is matched to the mapped service by its family, or by the `env_role` the preset declares when the relationship crosses families (MariaDB for MySQL, Valkey for Redis). On a `php-array` framework a picked service you map nothing for is started but left unwired, since a preset's flat keys are meaningless as dotted paths and servlo will not guess where they belong.
 
 Do not pin a database version your framework passes to its ORM. Doctrine picks its platform from `serverVersion` when it is set, and that string cannot be spelled for a drop-in: a MariaDB server given `11.8` is read as MySQL. Left out, Doctrine asks the server and is right for every database and version, which is why Symfony's `DATABASE_URL` carries no `serverVersion`.
 
@@ -101,11 +101,11 @@ public_dir: public                # document root relative to project
 # Version (required for store definitions)
 version: "8"                      # framework major version this definition targets
 
-# PHP version range (optional, used during lerd link/init to clamp PHP version)
+# PHP version range (optional, used during servlo link/init to clamp PHP version)
 php:
   min: "8.2"                      # minimum supported PHP version
   max: "8.5"                      # maximum supported PHP version
-  cli_ini:                        # php.ini directives for PHP processes lerd runs (optional)
+  cli_ini:                        # php.ini directives for PHP processes servlo runs (optional)
     memory_limit: 2G              # bounded: workers get these too
 
 # Detection rules, any match is sufficient
@@ -135,7 +135,7 @@ env:
     command: key:generate
     fallback_prefix: "base64:"
 
-  # Per-service env detection and variable injection for `lerd env`
+  # Per-service env detection and variable injection for `servlo env`
   #
   # Template variables available in vars values:
   #   {{site}}              : project database / handle name (e.g. myapp)
@@ -153,19 +153,19 @@ env:
         - key: DATABASE_URL
           value_prefix: "mysql://"
       vars:
-        - "DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/{{site}}"
+        - "DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/{{site}}"
 
-# Scaffold command for "lerd new"
+# Scaffold command for "servlo new"
 create: composer create-project symfony/skeleton
 
 # Service presets the framework cannot run without (optional). Link installs and
-# starts them and records them in .lerd.yaml, so a teammate cloning the repo gets
+# starts them and records them in .servlo.yaml, so a teammate cloning the repo gets
 # them too. The doctor fails when one is missing and warns when it is stopped.
 requires:
   - opensearch
 
 # Dependency installation. `false` means the framework never uses that package
-# manager, and `lerd setup` does not offer its steps at all. Magento and Drupal
+# manager, and `servlo setup` does not offer its steps at all. Magento and Drupal
 # set npm: false; WordPress sets both to false.
 composer: auto                    # auto | true | false
 npm: auto
@@ -180,7 +180,7 @@ workers:
     command: php bin/console messenger:consume async --time-limit=3600
     reload_command: ""            # alternate command for auto-reload (restart on
                                   # file changes) during development (optional). When a
-                                  # project opts this worker into reload mode, lerd runs
+                                  # project opts this worker into reload mode, servlo runs
                                   # this command instead of `command`, and on macOS
                                   # appends `--poll` since the container cannot observe
                                   # host filesystem events. Laravel's horizon worker sets
@@ -207,10 +207,10 @@ workers:
                                   # container (optional, default: false). Used for
                                   # HMR-sensitive Node tools (Vite, Tailwind watcher).
     per_worktree: false           # run independently per git worktree under
-                                  # lerd-<wname>-<site>-<wt> (optional, default:
+                                  # servlo-<wname>-<site>-<wt> (optional, default:
                                   # false). Required for worktree auto-start.
     replaces_build: false         # while running, provides the asset manifest;
-                                  # `lerd worktree add` skips the build prompt for
+                                  # `servlo worktree add` skips the build prompt for
                                   # opted-in workers (optional, default: false).
 
 # One-off setup commands
@@ -228,9 +228,9 @@ logs:
   - path: "var/log/*.log"             # glob relative to project root
     format: raw                       # monolog | raw (plain text, default)
 
-# Custom commands, shown in the dashboard and runnable with `lerd run` (optional)
+# Custom commands, shown in the dashboard and runnable with `servlo run` (optional)
 commands:
-  - name: cache:clear                 # stable id, unique; the `lerd run` argument
+  - name: cache:clear                 # stable id, unique; the `servlo run` argument
     label: Clear cache                # display name
     command: bin/console cache:clear  # shell, run through `sh -c`
     description: Clear the Symfony cache for the current environment
@@ -275,15 +275,15 @@ An app that keeps deployment state in its database cannot share the parent's. Ma
 
 The <code v-pre>{{site}}</code>, <code v-pre>{{site_testing}}</code>, <code v-pre>{{bucket}}</code>, <code v-pre>{{domain}}</code>, <code v-pre>{{scheme}}</code>, and <code v-pre>{{&lt;service&gt;_version}}</code> placeholders listed above are expanded in three places: the `env.services` vars, every `setup:` command, and every `commands:` entry. They resolve against the registered site the command runs for. A git worktree is not a registered site, so a command run against one resolves <code v-pre>{{site}}</code> but leaves <code v-pre>{{domain}}</code> and <code v-pre>{{scheme}}</code> alone.
 
-This is what lets a framework whose bootstrap needs to know where the site lives declare that step as data. Magento 2.4 removed its web installer, so a fresh store is installed with `bin/magento setup:install --base-url=… --db-name=…`; the definition can now express exactly that. A step that creates schema should carry `default: false` so it is opt-in rather than running on every `lerd setup`.
+This is what lets a framework whose bootstrap needs to know where the site lives declare that step as data. Magento 2.4 removed its web installer, so a fresh store is installed with `bin/magento setup:install --base-url=… --db-name=…`; the definition can now express exactly that. A step that creates schema should carry `default: false` so it is opt-in rather than running on every `servlo setup`.
 
-A placeholder whose value is empty, or one lerd does not recognise, is left in the command verbatim rather than being replaced with an empty string, so a half-resolved context can never quietly produce `--base-url=://`.
+A placeholder whose value is empty, or one servlo does not recognise, is left in the command verbatim rather than being replaced with an empty string, so a half-resolved context can never quietly produce `--base-url=://`.
 
 ## Custom commands
 
-The `commands:` list is the framework's own verbs: the things you would otherwise type into a console by hand. Each entry shows up on the site's dashboard, in the command palette, and as an argument to `lerd run`, and can be named as the `fix:` of a doctor check.
+The `commands:` list is the framework's own verbs: the things you would otherwise type into a console by hand. Each entry shows up on the site's dashboard, in the command palette, and as an argument to `servlo run`, and can be named as the `fix:` of a doctor check.
 
-`name` and `command` are the only required keys. The name is a stable identifier, unique within the definition, and is what `lerd run <name>` and a doctor `fix:` both refer to, so treat it as API and don't rename it casually. The command is a shell string handed to `sh -c`, with the [site placeholders](#site-placeholders) expanded first. It runs in the site's PHP-FPM container, from the project root unless `cwd` moves it; `cwd` is a path relative to that root, and `.` and an empty value both mean the root itself. When a command is run against a git worktree, the root is the worktree's own checkout.
+`name` and `command` are the only required keys. The name is a stable identifier, unique within the definition, and is what `servlo run <name>` and a doctor `fix:` both refer to, so treat it as API and don't rename it casually. The command is a shell string handed to `sh -c`, with the [site placeholders](#site-placeholders) expanded first. It runs in the site's PHP-FPM container, from the project root unless `cwd` moves it; `cwd` is a path relative to that root, and `.` and an empty value both mean the root itself. When a command is run against a git worktree, the root is the worktree's own checkout.
 
 `output` decides where the command's output goes, and the four values are genuinely different surfaces:
 
@@ -294,19 +294,19 @@ The `commands:` list is the framework's own verbs: the things you would otherwis
 | `url` | Streams like `text`, and additionally lifts the first `http://` or `https://` URL out of the output into a copy-and-open panel on the finished modal. This exists for one-time login links, like Drupal's `drush uli`. |
 | `terminal` | Spawns the user's terminal emulator running the command, instead of streaming it anywhere. Nothing is captured, so there is no output pane, no exit code, and no run history. Use it for commands that are interactive or long-lived enough that a modal is the wrong container. It is rejected over MCP, which has no terminal to open. |
 
-`confirm: true` puts the command behind a confirmation showing the exact command line before anything runs, and the dashboard, `lerd run` (unless you pass `--yes`) and MCP (unless the caller forces it) all honour it. This is what lets a genuinely destructive command ship as a command rather than as a setup step: Laravel's `migrate:fresh` drops every table, and Magento ships `setup:install` this way.
+`confirm: true` puts the command behind a confirmation showing the exact command line before anything runs, and the dashboard, `servlo run` (unless you pass `--yes`) and MCP (unless the caller forces it) all honour it. This is what lets a genuinely destructive command ship as a command rather than as a setup step: Laravel's `migrate:fresh` drops every table, and Magento ships `setup:install` this way.
 
-`check` takes the same rule shape as a worker's or a setup step's, so `composer: <package>` or `file: <path>`, and a command whose check fails is dropped from the resolved set rather than merely hidden, which means it also disappears from `lerd run` and from any doctor `fix:` pointing at it. Use it for commands that only make sense when an optional package is installed.
+`check` takes the same rule shape as a worker's or a setup step's, so `composer: <package>` or `file: <path>`, and a command whose check fails is dropped from the resolved set rather than merely hidden, which means it also disappears from `servlo run` and from any doctor `fix:` pointing at it. Use it for commands that only make sense when an optional package is installed.
 
 `icon` is drawn from a fixed vocabulary, and a name outside it renders a generic fallback rather than failing. The set is:
 
 `broom`, `database`, `refresh`, `link`, `check`, `list`, `key`, `edit`, `arrow-down`, `arrow-up`, `play`, `terminal`
 
-`lerd check` validates a definition's commands, and it is the fastest way to catch a typo: an unknown `output` is an error, and an unknown `icon` is a warning.
+`servlo check` validates a definition's commands, and it is the fastest way to catch a typo: an unknown `output` is an error, and an unknown `icon` is a warning.
 
 ## Doctor checks
 
-The `doctor:` section adds framework-specific health checks to the ones every site gets for free (env file present, dependencies installed and locked, audit clean, PHP version in range). They run on `lerd site:doctor` and in the dashboard's doctor panel. Keeping them declarative is what stops the doctor from growing a Go branch per framework.
+The `doctor:` section adds framework-specific health checks to the ones every site gets for free (env file present, dependencies installed and locked, audit clean, PHP version in range). They run on `servlo site:doctor` and in the dashboard's doctor panel. Keeping them declarative is what stops the doctor from growing a Go branch per framework.
 
 Each check carries a `name` (a stable id), a `type` that selects the evaluator, an optional `label` for display, an optional `detail` that overrides the generated message, an optional `severity`, and an optional `fix`.
 
@@ -357,7 +357,7 @@ There are four check types, each with its own fields.
 
 `severity` overrides the status a triggered check reports, and takes `warn` or `fail`. The default differs by type, which is not something you would guess: a `command` check defaults to `fail`, and the other three default to `warn`. So a pending-migrations check is a failure unless you say otherwise, while a missing symlink is a warning. An unrecognised severity is ignored rather than rejected, falling back to the type default.
 
-An unknown `type` is skipped rather than treated as an error, so a definition using a check type a newer lerd added still loads on an older binary; the new check just does not run.
+An unknown `type` is skipped rather than treated as an error, so a definition using a check type a newer servlo added still loads on an older binary; the new check just does not run.
 
 ## PHP ini for the CLI
 
@@ -365,29 +365,29 @@ A project can already raise php.ini settings for its **web** requests by shippin
 
 The **CLI SAPI never reads `.user.ini`**, not even from inside the document root. So a framework whose commands need more than PHP's 128M default has nowhere to say so, and Magento's `setup:upgrade` and `deploy:mode:set` die with an allocation failure deep inside `symfony/cache` that never mentions memory.
 
-`php.cli_ini` fills that gap. Each directive is passed as `-d name=value` to every PHP process lerd starts for that project: the `php` shim (and therefore `lerd artisan`, `lerd run`, a `vendor/bin` binary, and a `command`-type doctor check), and the `setup:` steps and the workers, which exec in the container directly. Directives are sorted, so the argv is stable, and they are prepended, so a `-d` you type yourself lands later and wins.
+`php.cli_ini` fills that gap. Each directive is passed as `-d name=value` to every PHP process servlo starts for that project: the `php` shim (and therefore `servlo artisan`, `servlo run`, a `vendor/bin` binary, and a `command`-type doctor check), and the `setup:` steps and the workers, which exec in the container directly. Directives are sorted, so the argv is stable, and they are prepended, so a `-d` you type yourself lands later and wins.
 
 Workers get the directives too. They exec their command straight from a systemd unit, and Magento cannot even bootstrap at PHP's 128M default, so a cron or consumer worker without them simply crash-loops. That makes the value a definition author's responsibility: give it a bounded `memory_limit` rather than `-1`, because a worker runs until you stop it. A worker whose command is not a `php` invocation, a host-side `npm run dev`, is left alone.
 
 Set only what the CLI needs. Copying a framework's web values across is a trap: CLI `max_execution_time` defaults to `0`, meaning unlimited, so applying a web value of `600` would cap a long install at ten minutes.
 
-`PHP_VALUE`-style directives can set `auto_prepend_file`, which makes every PHP process execute a file from the repo, so `cli_ini` is honoured only from the trusted store and from a user overlay. An embedded `framework_def` in a project's `.lerd.yaml` has it stripped.
+`PHP_VALUE`-style directives can set `auto_prepend_file`, which makes every PHP process execute a file from the repo, so `cli_ini` is honoured only from the trusted store and from a user overlay. An embedded `framework_def` in a project's `.servlo.yaml` has it stripped.
 
 ## Required services
 
 Most frameworks run against whatever services the project happens to reference. A few cannot start at all without one. Magento 2.4 removed the MySQL catalog search engine, so a store without OpenSearch or Elasticsearch fails partway through `setup:install` with a stack trace that never mentions the search engine.
 
-A definition lists those in `requires:`, naming service presets. On `lerd link` each one is resolved from the service store, installed if it is not already, started, and appended to the project's `.lerd.yaml` so the requirement travels with the repo. Re-linking does not duplicate an entry, and a name the service store does not know is reported and skipped rather than written into the project's committed config.
+A definition lists those in `requires:`, naming service presets. On `servlo link` each one is resolved from the service store, installed if it is not already, started, and appended to the project's `.servlo.yaml` so the requirement travels with the repo. Re-linking does not duplicate an entry, and a name the service store does not know is reported and skipped rather than written into the project's committed config.
 
 The site doctor reports the same thing after the fact: a required service that is not installed is a failure, since the app cannot boot, and one that is installed but stopped is a warning, since starting it is a single command.
 
-A required service pulls an image and runs a container, so, like host workers and `nginx.snippet`, `requires:` is honoured only from the trusted store and from a user overlay. An embedded `framework_def` in a project's `.lerd.yaml` has it stripped.
+A required service pulls an image and runs a container, so, like host workers and `nginx.snippet`, `requires:` is honoured only from the trusted store and from a user overlay. An embedded `framework_def` in a project's `.servlo.yaml` has it stripped.
 
 ## Framework nginx config
 
-Most frameworks route every request through a single front controller, which lerd's generic `location /` already handles. A few need paths that the generic rules would otherwise swallow: Magento keeps `setup/` outside the document root and generates `/static/` and `/media/` on demand through `pub/static.php` and `pub/get.php`.
+Most frameworks route every request through a single front controller, which servlo's generic `location /` already handles. A few need paths that the generic rules would otherwise swallow: Magento keeps `setup/` outside the document root and generates `/static/` and `/media/` on demand through `pub/static.php` and `pub/get.php`.
 
-The optional `nginx.snippet` is raw nginx config, spliced into the site's server block **before** lerd's `location /` and `location ~ \.php$`. Placement matters, because nginx picks the first matching regex location in declaration order, so a framework block always gets first refusal on the paths it claims.
+The optional `nginx.snippet` is raw nginx config, spliced into the site's server block **before** servlo's `location /` and `location ~ \.php$`. Placement matters, because nginx picks the first matching regex location in declaration order, so a framework block always gets first refusal on the paths it claims.
 
 Three placeholders are expanded before the config is written:
 
@@ -397,7 +397,7 @@ Three placeholders are expanded before the config is written:
 | `{{public}}` | the document root (project root joined with `public_dir`) |
 | `{{fpm}}` | the site's PHP-FPM container name |
 
-The two path placeholders expand to nginx variables, `${lerd_root}` and `${lerd_public}`, which lerd declares at the top of the server block with the real paths. A project can live under a path with a space in it, and nginx splits a directive on whitespace: a literal path would turn `root` into three arguments and nginx would reject the whole config, taking every other site on the machine down with it. Quoting the value would fix a standalone `root {{root}};` but not a path used mid-token, as in `alias {{public}}/static/;`, since nginx will not glue a quoted token to a bare one. A variable is resolved after tokenizing, so it works in both positions. Write the placeholders exactly where you would write the path and lerd handles the rest.
+The two path placeholders expand to nginx variables, `${servlo_root}` and `${servlo_public}`, which servlo declares at the top of the server block with the real paths. A project can live under a path with a space in it, and nginx splits a directive on whitespace: a literal path would turn `root` into three arguments and nginx would reject the whole config, taking every other site on the machine down with it. Quoting the value would fix a standalone `root {{root}};` but not a path used mid-token, as in `alias {{public}}/static/;`, since nginx will not glue a quoted token to a bare one. A variable is resolved after tokenizing, so it works in both positions. Write the placeholders exactly where you would write the path and servlo handles the rest.
 
 A snippet that passes requests to PHP should assign `{{fpm}}` to a variable first, `set $myfpm "{{fpm}}";` then `fastcgi_pass $myfpm:9000;`, exactly as the generated vhost does. nginx resolves a literal upstream name once when the config loads and caches it for the life of the process, so a container that comes back on a new address is never picked up.
 
@@ -405,25 +405,25 @@ A git worktree of the site gets the same block, expanded against its own checkou
 
 The snippet must have balanced braces, since an unbalanced one would close the enclosing `server` block and start declaring its own. Balance alone is not enough, because a `}` followed by a `server {` still balances, so the values substituted into the placeholders are rejected too if they contain `{`, `}`, `;`, `#`, or a newline. A snippet failing either check is dropped and the site renders without it, rather than risking an nginx config that fails to load for every site.
 
-Snippets are only honoured from the framework store and from user-defined definitions: an embedded `framework_def` in a project's `.lerd.yaml` is untrusted input, so its `nginx` block is stripped, the same way its host workers and command-type doctor checks are.
+Snippets are only honoured from the framework store and from user-defined definitions: an embedded `framework_def` in a project's `.servlo.yaml` is untrusted input, so its `nginx` block is stripped, the same way its host workers and command-type doctor checks are.
 
 This is distinct from the per-site [nginx override](nginx-overrides.md) in `custom.d/`, which you author yourself and which is included at the *end* of the server block. Use the framework snippet for what every site of that framework needs; use the override for what one site needs.
 
 ## Framework detection
 
-Framework detection only runs during `lerd link`, `lerd init`, `lerd env`, `lerd setup`, and `lerd park`. All other commands read the saved framework from the site registry.
+Framework detection only runs during `servlo link`, `servlo init`, `servlo env`, `servlo setup`, and `servlo park`. All other commands read the saved framework from the site registry.
 
 Detection order:
 
 1. **Laravel** (built-in): checks for `artisan` file or `laravel/framework` in `composer.json`
 2. **Local definitions**: iterates user-defined and store-installed YAML files, applying detection rules
-3. **Framework store** (interactive): checks the store index and prompts to install, or fetches silently when `.lerd.yaml` specifies the framework name
+3. **Framework store** (interactive): checks the store index and prompts to install, or fetches silently when `.servlo.yaml` specifies the framework name
 
 The first match wins. Detection rules are OR-based, any single matching rule is enough.
 
 ## Document root detection
 
-If no framework matches and no `--public-dir` is specified, lerd tries these candidate directories in order, accepting the first that contains an `index.php`:
+If no framework matches and no `--public-dir` is specified, servlo tries these candidate directories in order, accepting the first that contains an `index.php`:
 
 `public` → `web` → `webroot` → `pub` → `www` → `htdocs` → `.` (project root)
 
@@ -458,7 +458,7 @@ Features:
 To customise Laravel's log paths (e.g. add a custom channel log):
 
 ```yaml
-# ~/.config/lerd/frameworks/laravel.yaml
+# ~/.config/servlo/frameworks/laravel.yaml
 name: laravel
 logs:
   - path: "storage/logs/*.log"

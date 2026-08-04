@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // offline points the manifest fetch at a dead endpoint so Load exercises the
@@ -20,7 +20,7 @@ import (
 // and bin dir in a temp XDG data home.
 func offline(t *testing.T) {
 	t.Helper()
-	t.Setenv("LERD_TOOLS_URL", "http://127.0.0.1:1/tools.yaml")
+	t.Setenv("SERVLO_TOOLS_URL", "http://127.0.0.1:1/tools.yaml")
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 }
 
@@ -82,7 +82,7 @@ func TestLoad_OverlaysPublishedPins(t *testing.T) {
 		fmt.Fprint(w, "tools:\n  composer:\n    version: \"9.9.9\"\n    url: https://getcomposer.org/download/{version}/composer.phar\n")
 	}))
 	defer srv.Close()
-	t.Setenv("LERD_TOOLS_URL", srv.URL)
+	t.Setenv("SERVLO_TOOLS_URL", srv.URL)
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 	m := Load(context.Background())
@@ -104,7 +104,7 @@ func TestLoad_RejectsInvalidPublishedValues(t *testing.T) {
 		fmt.Fprint(w, "tools:\n  composer:\n    version: \"../../evil\"\n    url: https://getcomposer.org/download/{version}/composer.phar\n  fnm:\n    version: v1.0.0\n    url: http://insecure.example/{version}\n")
 	}))
 	defer srv.Close()
-	t.Setenv("LERD_TOOLS_URL", srv.URL)
+	t.Setenv("SERVLO_TOOLS_URL", srv.URL)
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 	m := Load(context.Background())
@@ -122,7 +122,7 @@ func TestLoad_CachesPublishedManifestOnDisk(t *testing.T) {
 		calls.Add(1)
 		fmt.Fprint(w, "tools:\n  composer:\n    version: \"9.9.9\"\n    url: https://getcomposer.org/download/{version}/composer.phar\n")
 	}))
-	t.Setenv("LERD_TOOLS_URL", srv.URL)
+	t.Setenv("SERVLO_TOOLS_URL", srv.URL)
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 	Load(context.Background())
@@ -147,7 +147,7 @@ func TestRefresh_BypassesTheDiskCache(t *testing.T) {
 		fmt.Fprintf(w, "tools:\n  composer:\n    version: %q\n    url: https://getcomposer.org/download/{version}/composer.phar\n", version)
 	}))
 	defer srv.Close()
-	t.Setenv("LERD_TOOLS_URL", srv.URL)
+	t.Setenv("SERVLO_TOOLS_URL", srv.URL)
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 	Load(context.Background())
@@ -173,7 +173,7 @@ func TestRefresh_OfflineKeepsTheCachedPins(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "tools:\n  composer:\n    version: \"9.9.9\"\n    url: https://getcomposer.org/download/{version}/composer.phar\n")
 	}))
-	t.Setenv("LERD_TOOLS_URL", srv.URL)
+	t.Setenv("SERVLO_TOOLS_URL", srv.URL)
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	Load(context.Background())
 	srv.Close()
@@ -293,7 +293,7 @@ func TestLoad_FetchFailureFallsBackToEmbedded(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer srv.Close()
-	t.Setenv("LERD_TOOLS_URL", srv.URL)
+	t.Setenv("SERVLO_TOOLS_URL", srv.URL)
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 	m := Load(context.Background())
@@ -334,7 +334,7 @@ func TestValidHonoursTheHostOverride(t *testing.T) {
 	if tl.valid() {
 		t.Fatal("the override host must not be trusted before it is set")
 	}
-	t.Setenv("LERD_TOOLS_HOSTS", "mirror.internal.invalid")
+	t.Setenv("SERVLO_TOOLS_HOSTS", "mirror.internal.invalid")
 	if !tl.valid() {
 		t.Error("an explicitly allowed host was still rejected")
 	}
@@ -396,7 +396,7 @@ func pharWith(t *testing.T, body string) string {
 	return path
 }
 
-// composer cannot be probed by running it: it is a phar and lerd has no host
+// composer cannot be probed by running it: it is a phar and servlo has no host
 // PHP. Its version came only from the stamp, which is written only on download,
 // so every install that already had composer.phar when stamping shipped read as
 // unknown forever, and never got offered an update either.

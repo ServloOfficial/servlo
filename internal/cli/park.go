@@ -8,12 +8,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/linker"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/linker"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
 	"github.com/spf13/cobra"
 )
 
@@ -91,11 +91,11 @@ func warnMissingExtensions(dir, name, phpVersion string, cfg *config.GlobalConfi
 
 	if len(missing) > 0 {
 		fmt.Printf("  [!] %s requires PHP extensions not in the image: %s\n", name, strings.Join(missing, ", "))
-		fmt.Printf("      Run: lerd php:ext add %s\n", strings.Join(missing, " "))
+		fmt.Printf("      Run: servlo php:ext add %s\n", strings.Join(missing, " "))
 	}
 	for _, u := range unavailable {
 		fmt.Printf("  [!] %s requires ext-%s, which is not available on PHP %s (first shipped on %s)\n", name, u.Required, phpVersion, u.Since)
-		fmt.Printf("      lerd php:ext add cannot build it. Move the site to PHP %s or newer, or require a polyfill package instead.\n", u.Since)
+		fmt.Printf("      servlo php:ext add cannot build it. Move the site to PHP %s or newer, or require a polyfill package instead.\n", u.Since)
 	}
 	for _, m := range misnamed {
 		fmt.Printf("  [!] %s requires ext-%s, which composer publishes as ext-%s\n", name, m.Required, m.Platform)
@@ -132,7 +132,7 @@ func runPark(_ *cobra.Command, args []string) error {
 		return err
 	}
 	if absDir == "/" {
-		return fmt.Errorf("refusing to park the filesystem root; lerd would bind-mount / into every container and shadow its rootfs")
+		return fmt.Errorf("refusing to park the filesystem root; servlo would bind-mount / into every container and shadow its rootfs")
 	}
 
 	cfg, err := config.LoadGlobal()
@@ -143,7 +143,7 @@ func runPark(_ *cobra.Command, args []string) error {
 	// If the target directory is itself a framework project, refuse to park it.
 	if _, ok := config.DetectFramework(absDir); ok {
 		fmt.Printf("'%s' looks like a framework project, not a directory of projects.\n", absDir)
-		fmt.Printf("Run 'lerd link' from that directory instead.\n")
+		fmt.Printf("Run 'servlo link' from that directory instead.\n")
 		return nil
 	}
 
@@ -287,7 +287,7 @@ type ParkOutcome struct {
 
 // RegisterProject registers a single project directory as a site and publishes
 // it immediately. The watcher uses it for a project that appeared on its own;
-// `lerd park` uses RegisterProjectDeferred so a whole directory publishes once.
+// `servlo park` uses RegisterProjectDeferred so a whole directory publishes once.
 func RegisterProject(projectDir string, cfg *config.GlobalConfig) (bool, error) {
 	out, err := RegisterProjectDeferred(projectDir, cfg, false)
 	return out.Registered, err
@@ -306,7 +306,7 @@ func RegisterProjectDeferred(projectDir string, cfg *config.GlobalConfig, defer_
 	// This prevents Laravel subdirs (app/, vendor/, public/, etc.) from being
 	// registered as sites when a project root is accidentally used as a park dir.
 	if _, ok := config.DetectFramework(filepath.Dir(projectDir)); ok {
-		out.Skipped, out.Reason = true, "inside a framework project; run 'lerd link' in "+filepath.Dir(projectDir)
+		out.Skipped, out.Reason = true, "inside a framework project; run 'servlo link' in "+filepath.Dir(projectDir)
 		return out, nil
 	}
 	if !parkAdmits(projectDir) {
@@ -329,7 +329,7 @@ func RegisterProjectDeferred(projectDir string, cfg *config.GlobalConfig, defer_
 	// run. Neither belongs in an unattended sweep, so it is left for an explicit
 	// link rather than silently downgraded to plain FPM.
 	if plan.Mode != linker.ModeFPM {
-		out.Skipped, out.Reason = true, "declares its own "+string(plan.Mode)+" runtime; run 'lerd link' in it"
+		out.Skipped, out.Reason = true, "declares its own "+string(plan.Mode)+" runtime; run 'servlo link' in it"
 		return out, nil
 	}
 	if linker.IsReservedDomain(plan.Site.PrimaryDomain()) {
@@ -353,7 +353,7 @@ func RegisterProjectDeferred(projectDir string, cfg *config.GlobalConfig, defer_
 }
 
 // parkAdmits reports whether a directory looks enough like a PHP project to
-// register unattended: a framework lerd knows, a real document root, or a
+// register unattended: a framework servlo knows, a real document root, or a
 // composer.json / top-level PHP file.
 func parkAdmits(projectDir string) bool {
 	if _, ok := config.DetectFrameworkForDir(projectDir); ok {
@@ -390,10 +390,10 @@ var (
 // ensureFPMQuadletTo is like ensureFPMQuadlet but writes build output to w.
 func ensureFPMQuadletTo(phpVersion string, w io.Writer) error {
 	versionShort := strings.ReplaceAll(phpVersion, ".", "")
-	unitName := "lerd-php" + versionShort + "-fpm"
+	unitName := "servlo-php" + versionShort + "-fpm"
 
-	// Write the unit file first so the version is registered in lerd status even
-	// if the image build fails — lerd start will rebuild the image on the next run.
+	// Write the unit file first so the version is registered in servlo status even
+	// if the image build fails — servlo start will rebuild the image on the next run.
 	if err := writeFPMQuadlet(phpVersion); err != nil {
 		return err
 	}

@@ -1,4 +1,4 @@
-// Package devtoolsops contains the shared logic for toggling the lerd_devtools
+// Package devtoolsops contains the shared logic for toggling the servlo_devtools
 // collector. Like the debug bridge, it is restart-free: the conf.d ini is
 // always volume-mounted into every FPM container and active state is signalled
 // by a sentinel file the extension stats per request, so toggling is a single
@@ -9,8 +9,8 @@ package devtoolsops
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // WorkersResult reports the post-apply state of the worker-capture toggle.

@@ -61,7 +61,7 @@ func TestMCPInject(t *testing.T) {
 		{
 			name:    "injects neutral marker when host has no agent var",
 			environ: []string{"PATH=/bin", "HOME=/root"},
-			want:    []string{"AI_AGENT=lerd-mcp"},
+			want:    []string{"AI_AGENT=servlo-mcp"},
 		},
 		{
 			name:    "forwards real host agent var instead of the marker",

@@ -5,13 +5,13 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 )
 
-var fpmQuadletRe = regexp.MustCompile(`^lerd-php(\d)(\d+)-fpm\.container$`)
-var fpmContainerRe = regexp.MustCompile(`^lerd-php(\d)(\d+)-fpm$`)
+var fpmQuadletRe = regexp.MustCompile(`^servlo-php(\d)(\d+)-fpm\.container$`)
+var fpmContainerRe = regexp.MustCompile(`^servlo-php(\d)(\d+)-fpm$`)
 
 // ListInstalled returns all PHP versions that have an FPM quadlet file or a
 // running/existing Podman container, e.g. ["8.3", "8.4"]. The two sources are
@@ -21,7 +21,7 @@ func ListInstalled() ([]string, error) {
 	seen := map[string]bool{}
 
 	// Source 1: quadlet files
-	pattern := filepath.Join(config.QuadletDir(), "lerd-php*-fpm.container")
+	pattern := filepath.Join(config.QuadletDir(), "servlo-php*-fpm.container")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func ListInstalled() ([]string, error) {
 
 func quadletExists(version string) bool {
 	short := version[0:1] + version[2:]
-	return services.Mgr.ContainerUnitInstalled("lerd-php" + short + "-fpm")
+	return services.Mgr.ContainerUnitInstalled("servlo-php" + short + "-fpm")
 }
 
 // IsInstalled returns true if the given PHP version has an FPM quadlet.

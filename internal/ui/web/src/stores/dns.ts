@@ -2,7 +2,7 @@ import { m } from '../paraglide/messages.js';
 import { apiJson, apiFetch, decodeJSONResult } from '$lib/api';
 
 export interface DnsUpstreamSettings {
-  // upstream holds the user-pinned upstream DNS servers. Empty means lerd
+  // upstream holds the user-pinned upstream DNS servers. Empty means servlo
   // auto-detects them from the system resolver.
   upstream: string[];
   // detected is what auto-detection currently sees, shown as a hint so the

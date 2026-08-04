@@ -4,8 +4,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // fakeStatus returns a status function that maps unit name to "active" or "inactive".
@@ -42,7 +42,7 @@ func TestFrameworkWorkerServicesForSite_parentOnly(t *testing.T) {
 	}
 	got := frameworkWorkerServicesForSite(
 		site, fw,
-		fakeStatus(map[string]bool{"lerd-vite-rapids": true}),
+		fakeStatus(map[string]bool{"servlo-vite-rapids": true}),
 		fakeWorktrees(nil),
 	)
 	if len(got) != 1 {
@@ -79,7 +79,7 @@ func TestFrameworkWorkerServicesForSite_parentInactiveWorktreeActive(t *testing.
 		Domain: "main.harborlist.test",
 	}}
 	active := map[string]bool{
-		"lerd-vite-rapids-main": true, // worktree only
+		"servlo-vite-rapids-main": true, // worktree only
 	}
 	got := frameworkWorkerServicesForSite(site, fw, fakeStatus(active), fakeWorktrees(wts))
 	if len(got) != 1 {
@@ -117,8 +117,8 @@ func TestFrameworkWorkerServicesForSite_parentAndWorktreeActive(t *testing.T) {
 		Domain: "main.harborlist.test",
 	}}
 	active := map[string]bool{
-		"lerd-vite-rapids":      true,
-		"lerd-vite-rapids-main": true,
+		"servlo-vite-rapids":      true,
+		"servlo-vite-rapids-main": true,
 	}
 	got := frameworkWorkerServicesForSite(site, fw, fakeStatus(active), fakeWorktrees(wts))
 	names := make([]string, len(got))
@@ -133,7 +133,7 @@ func TestFrameworkWorkerServicesForSite_parentAndWorktreeActive(t *testing.T) {
 }
 
 func TestFrameworkWorkerServicesForSite_skipsBuiltinWorkers(t *testing.T) {
-	// queue/schedule/reverb are surfaced through dedicated lerd-queue-*
+	// queue/schedule/reverb are surfaced through dedicated servlo-queue-*
 	// listing helpers; this loop must not double-list them.
 	site := config.Site{
 		Name:    "rapids",
@@ -149,10 +149,10 @@ func TestFrameworkWorkerServicesForSite_skipsBuiltinWorkers(t *testing.T) {
 		},
 	}
 	active := map[string]bool{
-		"lerd-queue-rapids":    true,
-		"lerd-schedule-rapids": true,
-		"lerd-reverb-rapids":   true,
-		"lerd-vite-rapids":     true,
+		"servlo-queue-rapids":    true,
+		"servlo-schedule-rapids": true,
+		"servlo-reverb-rapids":   true,
+		"servlo-vite-rapids":     true,
 	}
 	got := frameworkWorkerServicesForSite(site, fw, fakeStatus(active), fakeWorktrees(nil))
 	if len(got) != 1 || got[0].WorkerName != "vite" {

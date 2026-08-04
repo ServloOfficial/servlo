@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,7 +15,7 @@ import (
 // tune_command on the queue worker: without them QueueRestartForSite no-ops and
 // queue:start drops its tuned flags, since no Go merger backfills the fields.
 func TestLaravelStoreQueueWorker_HasRestartAndTuneCommands(t *testing.T) {
-	dir := filepath.Join("..", "..", "lerd-frameworks", "frameworks", "laravel")
+	dir := filepath.Join("..", "..", "servlo-frameworks", "frameworks", "laravel")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Skipf("laravel store checkout not present: %v", err)
@@ -77,13 +77,13 @@ func TestRenderQueueCommand(t *testing.T) {
 }
 
 func TestBuildHorizonUnit_AlwaysDependsOnRedis(t *testing.T) {
-	unit := buildHorizonUnit("example-horizon", "/home/u/example-horizon", "lerd-php84-fpm")
+	unit := buildHorizonUnit("example-horizon", "/home/u/example-horizon", "servlo-php84-fpm")
 
-	mustContain(t, unit, "Description=Lerd Horizon (example-horizon)")
-	mustContain(t, unit, "After=network.target lerd-php84-fpm.service lerd-redis.service")
-	mustContain(t, unit, "Wants=lerd-php84-fpm.service lerd-redis.service")
-	mustContain(t, unit, "BindsTo=lerd-php84-fpm.service")
-	mustContain(t, unit, "ExecStart="+podman.PodmanBin()+" exec -w '/home/u/example-horizon' lerd-php84-fpm php artisan horizon")
+	mustContain(t, unit, "Description=Servlo Horizon (example-horizon)")
+	mustContain(t, unit, "After=network.target servlo-php84-fpm.service servlo-redis.service")
+	mustContain(t, unit, "Wants=servlo-php84-fpm.service servlo-redis.service")
+	mustContain(t, unit, "BindsTo=servlo-php84-fpm.service")
+	mustContain(t, unit, "ExecStart="+podman.PodmanBin()+" exec -w '/home/u/example-horizon' servlo-php84-fpm php artisan horizon")
 }
 
 func mustContain(t *testing.T, body, needle string) {

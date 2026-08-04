@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // --- listInstalledFromServiceDir ---
@@ -29,12 +29,12 @@ func TestFpmQuadletRe_matchesValidNames(t *testing.T) {
 		want    string
 		matches bool
 	}{
-		{"lerd-php84-fpm.container", "8.4", true},
-		{"lerd-php83-fpm.container", "8.3", true},
-		{"lerd-php74-fpm.container", "7.4", true},
-		{"lerd-nginx.container", "", false},
-		{"lerd-php-fpm.container", "", false},
-		{"lerd-php8-fpm.container", "", false},
+		{"servlo-php84-fpm.container", "8.4", true},
+		{"servlo-php83-fpm.container", "8.3", true},
+		{"servlo-php74-fpm.container", "7.4", true},
+		{"servlo-nginx.container", "", false},
+		{"servlo-php-fpm.container", "", false},
+		{"servlo-php8-fpm.container", "", false},
 	}
 	for _, tt := range tests {
 		sub := fpmQuadletRe.FindStringSubmatch(tt.name)
@@ -66,11 +66,11 @@ func TestQuadletExists_found(t *testing.T) {
 		t.Setenv("HOME", tmp)
 		dir := filepath.Join(tmp, "Library", "LaunchAgents")
 		os.MkdirAll(dir, 0755)
-		os.WriteFile(filepath.Join(dir, "lerd-php84-fpm.plist"), []byte("<plist/>"), 0644)
+		os.WriteFile(filepath.Join(dir, "servlo-php84-fpm.plist"), []byte("<plist/>"), 0644)
 	} else {
 		dir := filepath.Join(tmp, "containers", "systemd")
 		os.MkdirAll(dir, 0755)
-		os.WriteFile(filepath.Join(dir, "lerd-php84-fpm.container"), []byte("[Container]\n"), 0644)
+		os.WriteFile(filepath.Join(dir, "servlo-php84-fpm.container"), []byte("[Container]\n"), 0644)
 	}
 
 	if !quadletExists("8.4") {
@@ -96,8 +96,8 @@ func TestListInstalled_fromQuadlets(t *testing.T) {
 
 	dir := filepath.Join(tmp, "containers", "systemd")
 	os.MkdirAll(dir, 0755)
-	os.WriteFile(filepath.Join(dir, "lerd-php84-fpm.container"), []byte("[Container]\n"), 0644)
-	os.WriteFile(filepath.Join(dir, "lerd-php83-fpm.container"), []byte("[Container]\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "servlo-php84-fpm.container"), []byte("[Container]\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "servlo-php83-fpm.container"), []byte("[Container]\n"), 0644)
 
 	versions, err := ListInstalled()
 	if err != nil {

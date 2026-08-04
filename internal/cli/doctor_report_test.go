@@ -142,7 +142,7 @@ func TestDoctorReportSplitsRequiredFromOptionalAutoFixes(t *testing.T) {
 	rep.add(Finding{Name: "data dir", Status: "fail"})
 	rep.fixLast(autoFix(fixMkdir, "/x", "create the data directory"))
 	rep.add(Finding{Name: "Reclaimable disk", Status: "info"})
-	rep.fixLast(autoFix(fixCleanup, "", "reclaim disk space (lerd cleanup)"))
+	rep.fixLast(autoFix(fixCleanup, "", "reclaim disk space (servlo cleanup)"))
 
 	req := rep.RequiredAutoFixes()
 	if len(req) != 1 || req[0].Name != "data dir" {

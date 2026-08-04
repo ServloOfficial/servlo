@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // Result describes the outcome of Apply so callers can render their own
@@ -36,7 +36,7 @@ func Apply(version, rawMode string) (Result, error) {
 // value (yes | trigger | no). An empty mode disables xdebug; a non-empty mode
 // is validated via podman.NormaliseXdebugMode. With "trigger"/"no", debugging
 // is driven on demand (a trigger cookie, or the control socket via
-// `lerd xdebug pause`) instead of every request and worker connecting. It is
+// `servlo xdebug pause`) instead of every request and worker connecting. It is
 // idempotent: passing the current mode and start returns NoChange=true.
 func ApplyWithStart(version, rawMode, start string) (Result, error) {
 	targetMode := ""
@@ -89,7 +89,7 @@ func ApplyWithStart(version, rawMode, start string) (Result, error) {
 		Mode:    targetMode,
 		Enabled: targetMode != "",
 	}
-	unit := "lerd-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
+	unit := "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
 	if err := podman.RestartUnit(unit); err != nil {
 		res.RestartErr = err
 		return res, nil
@@ -102,5 +102,5 @@ func ApplyWithStart(version, rawMode, start string) (Result, error) {
 // Exposed so callers can print consistent "Run: systemctl --user restart ..."
 // hints when Apply's RestartErr is non-nil.
 func FPMUnit(version string) string {
-	return "lerd-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
+	return "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
 }

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/push"
-	"github.com/geodro/lerd/internal/reqstats"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/push"
+	"github.com/realrashid/servlo/internal/reqstats"
 )
 
 // slowRouteClearAfter is how many consecutive snapshots a warned route must be
@@ -74,7 +74,7 @@ func notificationForSlowRoute(site, domain string, r reqstats.RouteStat) push.No
 		Kind:    "slow_route",
 		Title:   "Slow route on " + site,
 		Body:    body,
-		Tag:     "lerd-slowroute-" + site + "-" + r.Route,
+		Tag:     "servlo-slowroute-" + site + "-" + r.Route,
 		URL:     url,
 		Data:    map[string]string{"site": site, "route": r.Route},
 		Urgency: "normal",

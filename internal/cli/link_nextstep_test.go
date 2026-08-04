@@ -11,11 +11,11 @@ func TestLinkNextStep(t *testing.T) {
 		if !suggest {
 			t.Fatal("expected a next-step suggestion after a standalone link")
 		}
-		if !strings.Contains(hint, "lerd setup") {
-			t.Errorf("expected the hint to point at lerd setup, got %q", hint)
+		if !strings.Contains(hint, "servlo setup") {
+			t.Errorf("expected the hint to point at servlo setup, got %q", hint)
 		}
-		if strings.Contains(hint, "lerd init") {
-			t.Errorf("hint should not mention lerd init, got %q", hint)
+		if strings.Contains(hint, "servlo init") {
+			t.Errorf("hint should not mention servlo init, got %q", hint)
 		}
 	})
 

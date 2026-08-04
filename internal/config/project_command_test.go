@@ -8,7 +8,7 @@ import (
 
 func TestSetProjectCommand_AppendsToEmptyConfig(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	cmd := FrameworkCommand{Name: "deploy", Label: "Deploy", Command: "./bin/deploy", Output: "text"}
@@ -23,7 +23,7 @@ func TestSetProjectCommand_AppendsToEmptyConfig(t *testing.T) {
 
 func TestSetProjectCommand_UpdatesExistingByName(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\ncommands:\n  - name: deploy\n    command: old\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\ncommands:\n  - name: deploy\n    command: old\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	cmd := FrameworkCommand{Name: "deploy", Label: "Deploy v2", Command: "new", Output: "text"}
@@ -41,7 +41,7 @@ func TestSetProjectCommand_UpdatesExistingByName(t *testing.T) {
 
 func TestSetProjectCommand_RequiresName(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	err := SetProjectCommand(dir, FrameworkCommand{Command: "echo hi"})
@@ -55,7 +55,7 @@ func TestSetProjectCommand_RequiresName(t *testing.T) {
 
 func TestSetProjectCommand_CreatesYamlIfMissing(t *testing.T) {
 	dir := t.TempDir()
-	// No .lerd.yaml yet — SetProjectCommand should create it.
+	// No .servlo.yaml yet — SetProjectCommand should create it.
 	cmd := FrameworkCommand{Name: "deploy", Label: "Deploy", Command: "./bin/deploy"}
 	if err := SetProjectCommand(dir, cmd); err != nil {
 		t.Fatalf("set on missing yaml: %v", err)
@@ -68,7 +68,7 @@ func TestSetProjectCommand_CreatesYamlIfMissing(t *testing.T) {
 
 func TestRemoveProjectCommand_DropsExistingEntry(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\ncommands:\n  - name: a\n    command: x\n  - name: b\n    command: y\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\ncommands:\n  - name: a\n    command: x\n  - name: b\n    command: y\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := RemoveProjectCommand(dir, "a"); err != nil {
@@ -82,7 +82,7 @@ func TestRemoveProjectCommand_DropsExistingEntry(t *testing.T) {
 
 func TestRemoveProjectCommand_ReportsMissing(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	err := RemoveProjectCommand(dir, "ghost")

@@ -33,7 +33,7 @@
   {#if tone === 'busy' && percent !== null}
     <div class="h-1 rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
       <div
-        class="h-full rounded-full bg-lerd-red transition-[width] duration-150"
+        class="h-full rounded-full bg-servlo-red transition-[width] duration-150"
         style="width: {Math.round(percent * 100)}%"
       ></div>
     </div>

@@ -6,8 +6,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/geodro/lerd/internal/dumps"
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/dumps"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 type dumpsSubscriber interface {
@@ -89,7 +89,7 @@ func notificationForDump(evt dumps.Event) push.Notification {
 			"kind": kind,
 			"text": body,
 		},
-		Tag:     "lerd-dump-" + site,
+		Tag:     "servlo-dump-" + site,
 		URL:     debugRouteForContext(evt.Ctx),
 		Data:    map[string]string{"site": site, "id": evt.ID},
 		Urgency: "low",

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // setupParentWithWorktree creates a fake parent repo with a single worktree
@@ -50,7 +50,7 @@ func TestUnitBelongsToOtherSiteWorktree_realWorktree(t *testing.T) {
 	parent := setupParentWithWorktree(t, "rapids", "main")
 	sites := []config.Site{{Name: "rapids", Path: parent}}
 	if !UnitBelongsToOtherSiteWorktree("vite-rapids", "main", sites) {
-		t.Error("expected match: lerd-vite-rapids-main belongs to rapids")
+		t.Error("expected match: servlo-vite-rapids-main belongs to rapids")
 	}
 }
 

@@ -501,7 +501,7 @@ func DefaultPresetMeta(name string) (*CustomService, error) {
 }
 
 // DefaultPresetEnvVars returns the resolved env_vars slice for a default
-// preset, or nil for any other name. Used by the env writer (lerd env) and
+// preset, or nil for any other name. Used by the env writer (servlo env) and
 // the web UI to surface the same .env hints regardless of caller.
 func DefaultPresetEnvVars(name string) []string {
 	svc, err := DefaultPresetMeta(name)

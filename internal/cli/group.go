@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/grouping"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/grouping"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +17,7 @@ func NewGroupCmd() *cobra.Command {
 		Use:   "group",
 		Short: "Group the current site under a main site as a subdomain",
 		Long: "Group sites so they share one base domain. Run from a secondary " +
-			"site's directory: `lerd group add <main> <label>` makes the current " +
+			"site's directory: `servlo group add <main> <label>` makes the current " +
 			"site available at <label>.<main-domain>.",
 	}
 	cmd.AddCommand(newGroupAddCmd())

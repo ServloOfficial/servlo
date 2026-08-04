@@ -5,10 +5,10 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/config"
-	nodeDet "github.com/geodro/lerd/internal/node"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/config"
+	nodeDet "github.com/realrashid/servlo/internal/node"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // openPHPPicker loads installed PHP versions and enters picker mode on the
@@ -26,14 +26,14 @@ func (m *Model) openPHPPicker(s *siteinfo.EnrichedSite) {
 	m.pickerCursor = firstEnabledFrom(indexOf(versions, s.PHPVersion), m.pickerDisabled)
 }
 
-// openNodePicker shells out to fnm (same path lerd-ui uses) because node
-// version management is fnm's job; lerd doesn't keep its own registry.
+// openNodePicker shells out to fnm (same path servlo-panel uses) because node
+// version management is fnm's job; servlo doesn't keep its own registry.
 // A no-op when fnm reports nothing.
 func (m *Model) openNodePicker(s *siteinfo.EnrichedSite) {
 	versions := listNodeMajors()
 	bunAvailable := nodeDet.BunPath() != ""
 	if len(versions) == 0 && !bunAvailable {
-		m.setStatus("no Node versions installed (run 'lerd node install 20')", 3*time.Second)
+		m.setStatus("no Node versions installed (run 'servlo node install 20')", 3*time.Second)
 		return
 	}
 	// bun is a JS-runtime toggle rather than a Node version, so it joins the
@@ -83,7 +83,7 @@ func (m *Model) openWorktreeNodePicker(s *siteinfo.EnrichedSite, row detailRow) 
 	}
 	versions := listNodeMajors()
 	if len(versions) == 0 {
-		m.setStatus("no Node versions installed (run 'lerd node install 20')", 3*time.Second)
+		m.setStatus("no Node versions installed (run 'servlo node install 20')", 3*time.Second)
 		return
 	}
 	m.pickerKind = kindWorktreeNode
@@ -135,7 +135,7 @@ func (m *Model) closePicker() {
 	m.pickerWorktreeName = ""
 }
 
-// applyPicker runs `lerd isolate` or `lerd isolate:node` for the selected
+// applyPicker runs `servlo isolate` or `servlo isolate:node` for the selected
 // version, then closes the picker. Refresh will land shortly via the regular
 // ActionResult → loadCmd path.
 func (m *Model) applyPicker() tea.Cmd {
@@ -162,7 +162,7 @@ func (m *Model) applyPicker() tea.Cmd {
 	switch kind {
 	case kindPHP:
 		m.setStatus("switching "+s.Name+" to PHP "+ver+"…", 5*time.Second)
-		return runLerd(s.Path, "isolate", ver)
+		return runServlo(s.Path, "isolate", ver)
 	case kindNode:
 		if ver == "bun" {
 			m.setStatus("switching "+s.Name+" to bun…", 5*time.Second)
@@ -171,19 +171,19 @@ func (m *Model) applyPicker() tea.Cmd {
 		}
 		var cmds []tea.Cmd
 		for _, a := range nodePickerArgs(ver, nodeDet.UsesBun(s.Path)) {
-			cmds = append(cmds, runLerd(s.Path, a...))
+			cmds = append(cmds, runServlo(s.Path, a...))
 		}
 		return tea.Sequence(cmds...)
 	case kindWorktreePHP:
 		path, branch := m.pickerWorktreePath, m.pickerWorktreeName
 		m.pickerWorktreePath, m.pickerWorktreeName = "", ""
 		m.setStatus("switching "+branch+" to PHP "+ver+"…", 5*time.Second)
-		return runLerd(path, "isolate", ver)
+		return runServlo(path, "isolate", ver)
 	case kindWorktreeNode:
 		path, branch := m.pickerWorktreePath, m.pickerWorktreeName
 		m.pickerWorktreePath, m.pickerWorktreeName = "", ""
 		m.setStatus("switching "+branch+" to Node "+ver+"…", 5*time.Second)
-		return runLerd(path, "isolate:node", ver)
+		return runServlo(path, "isolate:node", ver)
 	}
 	return nil
 }
@@ -197,7 +197,7 @@ func listNodeMajors() []string {
 	return versions
 }
 
-// nodePickerArgs maps a Node-picker choice to the lerd command(s) to run.
+// nodePickerArgs maps a Node-picker choice to the servlo command(s) to run.
 // "bun" pins the JS runtime; a real Node version pins the version, first forcing
 // Node when the site currently resolves to bun so the dev/Vite worker actually
 // switches off bun rather than ignoring the chosen version. currentlyBun is the

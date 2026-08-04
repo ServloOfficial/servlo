@@ -5,7 +5,7 @@ description: "Gotenberg API for PDF generation and document conversion"
 ports:
   - "3000:3000"
 env_vars:
-  - GOTENBERG_URL=http://lerd-gotenberg:3000
+  - GOTENBERG_URL=http://servlo-gotenberg:3000
 env_detect:
   composer: spatie/laravel-pdf
 category: mail

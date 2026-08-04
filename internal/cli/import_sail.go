@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -48,16 +48,16 @@ func NewImportCmd() *cobra.Command {
 	return cmd
 }
 
-// NewSailCmd returns a top-level `lerd sail` command. Registering it as a
+// NewSailCmd returns a top-level `servlo sail` command. Registering it as a
 // known cobra command prevents the vendor-bin dispatcher from intercepting
-// `lerd sail import`. The `import` subcommand is handled by lerd; every other
+// `servlo sail import`. The `import` subcommand is handled by servlo; every other
 // argument is passed through to vendor/bin/sail so existing Sail workflows
-// (lerd sail up, lerd sail artisan migrate, …) continue to work.
+// (servlo sail up, servlo sail artisan migrate, …) continue to work.
 func NewSailCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sail",
 		Short: "Sail import shortcut; other args are passed to vendor/bin/sail",
-		// DisableFlagParsing lets flags like `lerd sail up -d` pass through
+		// DisableFlagParsing lets flags like `servlo sail up -d` pass through
 		// to vendor/bin/sail unchanged. The import subcommand is found by
 		// cobra's traversal before flag parsing runs, so its own flags work.
 		DisableFlagParsing: true,
@@ -89,16 +89,16 @@ func newImportSailCmd(use string) *cobra.Command {
 		Use:   use,
 		Short: "Import database (and S3 files) from a Laravel Sail project",
 		Long: `Imports the database and optionally S3/MinIO storage from a Laravel Sail
-Docker Compose project into lerd's running services.
+Docker Compose project into servlo's running services.
 
 Steps:
-  1. Detects Sail port conflicts and remaps them to avoid clashing with lerd
+  1. Detects Sail port conflicts and remaps them to avoid clashing with servlo
   2. Starts Sail with the remapped ports
-  3. Dumps the database from the Sail container and imports it into lerd
-  4. Mirrors MinIO bucket into lerd's RustFS (if S3 is configured)
+  3. Dumps the database from the Sail container and imports it into servlo
+  4. Mirrors MinIO bucket into servlo's RustFS (if S3 is configured)
   5. Stops Sail (unless --no-stop is passed)
 
-If lerd setup has already run, .env will contain lerd credentials. Use the
+If servlo setup has already run, .env will contain servlo credentials. Use the
 --sail-db-* flags to supply the original Sail database credentials instead.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			sailDBNameExplicit = cmd.Flags().Changed("sail-db-name")
@@ -115,8 +115,8 @@ If lerd setup has already run, .env will contain lerd credentials. Use the
 	return cmd
 }
 
-// lerdConflictPorts is the set of host ports that lerd occupies by default.
-var lerdConflictPorts = map[int]bool{
+// servloConflictPorts is the set of host ports that servlo occupies by default.
+var servloConflictPorts = map[int]bool{
 	80:   true,
 	443:  true,
 	3306: true,
@@ -171,32 +171,32 @@ func runImportSail(noStop, skipS3 bool, sailDBUser, sailDBPassword, sailDBName s
 		}
 	}
 
-	// --- Read .env for lerd-side values ---
-	// After `lerd setup`, .env contains lerd's credentials (DB_HOST=lerd-mysql,
-	// DB_PASSWORD=lerd, etc.) which are correct for importing INTO lerd but wrong
-	// for dumping FROM Sail. We keep these as the lerd import target.
-	lerdEnv, err := loadDBEnv(cwd)
+	// --- Read .env for servlo-side values ---
+	// After `servlo setup`, .env contains servlo's credentials (DB_HOST=servlo-mysql,
+	// DB_PASSWORD=servlo, etc.) which are correct for importing INTO servlo but wrong
+	// for dumping FROM Sail. We keep these as the servlo import target.
+	servloEnv, err := loadDBEnv(cwd)
 	if err != nil {
 		return fmt.Errorf("reading .env: %w", err)
 	}
 
 	// --- Build Sail-side credentials for the dump ---
 	// The MySQL container in Sail is configured from .env via MYSQL_USER / MYSQL_PASSWORD /
-	// MYSQL_ROOT_PASSWORD environment variables.  If lerd has already overwritten .env (after
-	// `lerd setup`), the container will have been started with the lerd credentials, so we
+	// MYSQL_ROOT_PASSWORD environment variables.  If servlo has already overwritten .env (after
+	// `servlo setup`), the container will have been started with the servlo credentials, so we
 	// default to whatever DB_USERNAME / DB_PASSWORD are currently in .env.  The --sail-db-*
 	// flags let the user override when the credentials differ from what's in .env.
 	sailEnv := &dbEnv{
-		connection: lerdEnv.connection,
+		connection: servloEnv.connection,
 		database:   sailDBName,
 		username:   sailDBUser,
 		password:   sailDBPassword,
 	}
 	if sailEnv.database == "" {
-		sailEnv.database = lerdEnv.database
-		// Warn when DB_DATABASE looks like lerd already overwrote it.
-		if lerdEnv.database == "lerd" {
-			feedback.Warn("DB_DATABASE is 'lerd' — lerd may have already overwritten your .env")
+		sailEnv.database = servloEnv.database
+		// Warn when DB_DATABASE looks like servlo already overwrote it.
+		if servloEnv.database == "servlo" {
+			feedback.Warn("DB_DATABASE is 'servlo' — servlo may have already overwritten your .env")
 			feedback.Note("if your Sail database had a different name, pass --sail-db-name <name>")
 		}
 	}
@@ -301,22 +301,22 @@ func runImportSail(noStop, skipS3 bool, sailDBUser, sailDBPassword, sailDBName s
 	}
 
 	// Auto-detect the Sail database name when no --sail-db-name is passed, since
-	// lerd setup may have overwritten DB_DATABASE in .env.
+	// servlo setup may have overwritten DB_DATABASE in .env.
 	if !sailDBNameExplicit {
 		if detected, err := sailDetectDatabase(composeArgs, dbService, sailEnv, composeBin); err == nil && detected != "" {
 			sailEnv.database = detected
 		}
 	}
 
-	// Count tables before dump: refuse to wipe lerd's DB with an empty or
+	// Count tables before dump: refuse to wipe servlo's DB with an empty or
 	// missing Sail database, and prompt the user for confirmation.
 	tableCount, err := sailCountTables(composeArgs, dbService, sailEnv, composeBin)
 	if err != nil {
 		return fmt.Errorf("inspecting Sail database %q: %w", sailEnv.database, err)
 	}
 	if tableCount == 0 {
-		feedback.Warn("Sail database %q has no tables — refusing to overwrite lerd DB with empty data", sailEnv.database)
-	} else if !feedback.Confirm(fmt.Sprintf("Found database %q with %d tables. Import into lerd (will overwrite %q)?", sailEnv.database, tableCount, lerdEnv.database), false) {
+		feedback.Warn("Sail database %q has no tables — refusing to overwrite servlo DB with empty data", sailEnv.database)
+	} else if !feedback.Confirm(fmt.Sprintf("Found database %q with %d tables. Import into servlo (will overwrite %q)?", sailEnv.database, tableCount, servloEnv.database), false) {
 		feedback.Line("database import skipped")
 	} else {
 		dump := feedback.Start("dumping database " + sailEnv.database + " from Sail")
@@ -328,16 +328,16 @@ func runImportSail(noStop, skipS3 bool, sailDBUser, sailDBPassword, sailDBName s
 		dump.OK("")
 		defer os.Remove(dumpFile)
 
-		imp := feedback.Start("importing into lerd (" + lerdEnv.connection + " / " + lerdEnv.database + ")")
-		if err := ensureServiceRunning(connToService(lerdEnv.connection)); err != nil {
+		imp := feedback.Start("importing into servlo (" + servloEnv.connection + " / " + servloEnv.database + ")")
+		if err := ensureServiceRunning(connToService(servloEnv.connection)); err != nil {
 			imp.Fail(err)
-			return fmt.Errorf("starting lerd DB service: %w", err)
+			return fmt.Errorf("starting servlo DB service: %w", err)
 		}
-		if err := sailRecreateDB(lerdEnv); err != nil {
+		if err := sailRecreateDB(servloEnv); err != nil {
 			imp.Fail(err)
 			return fmt.Errorf("recreating database: %w", err)
 		}
-		if err := sailImportDump(dumpFile, lerdEnv); err != nil {
+		if err := sailImportDump(dumpFile, servloEnv); err != nil {
 			imp.Fail(err)
 			return fmt.Errorf("importing dump: %w", err)
 		}
@@ -349,11 +349,11 @@ func runImportSail(noStop, skipS3 bool, sailDBUser, sailDBPassword, sailDBName s
 		if minioSvc != "" {
 			// Credentials for Sail's MinIO come from the compose environment block
 			// (MINIO_ROOT_USER / MINIO_ROOT_PASSWORD), NOT from .env's AWS_ACCESS_KEY_ID
-			// / AWS_SECRET_ACCESS_KEY — lerd setup may have overwritten those.
+			// / AWS_SECRET_ACCESS_KEY — servlo setup may have overwritten those.
 			s3.accessKey = minioUser
 			s3.secretKey = minioPass
-			s3step := feedback.Start("importing S3/MinIO files into lerd RustFS")
-			if err := sailImportS3(s3, minioPort, lerdEnv.database); err != nil {
+			s3step := feedback.Start("importing S3/MinIO files into servlo RustFS")
+			if err := sailImportS3(s3, minioPort, servloEnv.database); err != nil {
 				s3step.Fail(err)
 				feedback.Note("re-run with --skip-s3 to skip this step")
 			} else {
@@ -397,13 +397,13 @@ func sailFindComposeFile(dir string) (string, error) {
 	return "", fmt.Errorf("no docker-compose.yml or docker-compose.yaml found in %s", dir)
 }
 
-// sailReadRawEnv parses all key=value pairs from .env (or .env.before_lerd when
-// it exists) into a map.  .env.before_lerd is preferred because it preserves the
-// original Sail credentials before `lerd env` overwrites them.
+// sailReadRawEnv parses all key=value pairs from .env (or .env.before_servlo when
+// it exists) into a map.  .env.before_servlo is preferred because it preserves the
+// original Sail credentials before `servlo env` overwrites them.
 func sailReadRawEnv(dir string) map[string]string {
 	vals := map[string]string{}
-	// Prefer the pre-lerd backup so we pick up the original Sail S3/bucket config.
-	candidates := []string{".env.before_lerd", ".env"}
+	// Prefer the pre-servlo backup so we pick up the original Sail S3/bucket config.
+	candidates := []string{".env.before_servlo", ".env"}
 	var f *os.File
 	for _, name := range candidates {
 		var err error
@@ -524,7 +524,7 @@ func sailBuildTempCompose(composeFilePath, cwd, composeBin string) (*sailCompose
 	if err != nil {
 		return nil, "", nil, nil, fmt.Errorf("serialising compose: %w", err)
 	}
-	tmp, err := os.CreateTemp("", "lerd-sail-compose-*.yml")
+	tmp, err := os.CreateTemp("", "servlo-sail-compose-*.yml")
 	if err != nil {
 		return nil, "", nil, nil, err
 	}
@@ -791,7 +791,7 @@ var sailDataServices = map[string]bool{
 }
 
 // sailBuildPortRemap returns origHostPort → remappedPort for any port that
-// conflicts with a lerd service. Only data services are considered; app/worker
+// conflicts with a servlo service. Only data services are considered; app/worker
 // services have their ports stripped entirely (see sailWritePortOverride).
 func sailBuildPortRemap(cf *sailComposeFile) map[int]int {
 	remap := map[int]int{}
@@ -801,7 +801,7 @@ func sailBuildPortRemap(cf *sailComposeFile) map[int]int {
 		}
 		for _, raw := range svc.Ports {
 			hp := sailHostPort(raw)
-			if hp > 0 && lerdConflictPorts[hp] {
+			if hp > 0 && servloConflictPorts[hp] {
 				if remapped := hp + sailImportPortOffset; remapped <= 65535 {
 					remap[hp] = remapped
 				}
@@ -1006,7 +1006,7 @@ func sailWaitDB(composeArgs []string, service string, env *dbEnv, composeBin str
 
 // sailDumpDB exports the Sail database to a temporary file and returns its path.
 func sailDumpDB(composeArgs []string, service string, env *dbEnv, composeBin string) (string, error) {
-	tmp, err := os.CreateTemp("", "lerd-sail-dump-*.sql")
+	tmp, err := os.CreateTemp("", "servlo-sail-dump-*.sql")
 	if err != nil {
 		return "", err
 	}
@@ -1046,7 +1046,7 @@ func sailDumpDB(composeArgs []string, service string, env *dbEnv, composeBin str
 	return tmpPath, nil
 }
 
-// sailRecreateDB drops and recreates the target database in lerd.
+// sailRecreateDB drops and recreates the target database in servlo.
 func sailRecreateDB(env *dbEnv) error {
 	switch env.connection {
 	case "mysql", "mariadb":
@@ -1054,7 +1054,7 @@ func sailRecreateDB(env *dbEnv) error {
 			env.database, env.database)
 		cmd := podman.Cmd("exec", "-i",
 			"-e", "MYSQL_PWD="+env.password,
-			"lerd-mysql",
+			"servlo-mysql",
 			"mysql", "-u"+env.username, "-e", sql)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("%s", strings.TrimSpace(string(out)))
@@ -1068,7 +1068,7 @@ func sailRecreateDB(env *dbEnv) error {
 		} {
 			cmd := podman.Cmd("exec", "-i",
 				"-e", "PGPASSWORD="+env.password,
-				"lerd-postgres",
+				"servlo-postgres",
 				"psql", "-U", env.username, "postgres", "-c", sql)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				return fmt.Errorf("postgres: %s", strings.TrimSpace(string(out)))
@@ -1080,7 +1080,7 @@ func sailRecreateDB(env *dbEnv) error {
 	}
 }
 
-// sailImportDump pipes a SQL dump file into the lerd database.
+// sailImportDump pipes a SQL dump file into the servlo database.
 func sailImportDump(dumpPath string, env *dbEnv) error {
 	f, err := os.Open(dumpPath)
 	if err != nil {
@@ -1106,7 +1106,7 @@ func sailFindMinio(cf *sailComposeFile, portRemap map[int]int) (name string, por
 			continue
 		}
 		// Read credentials directly from the compose environment — these are
-		// hardcoded in Sail's docker-compose.yml and are NOT affected by lerd
+		// hardcoded in Sail's docker-compose.yml and are NOT affected by servlo
 		// overwriting .env.
 		user = svc.Environment["MINIO_ROOT_USER"]
 		if user == "" {
@@ -1136,7 +1136,7 @@ func sailFindMinio(cf *sailComposeFile, portRemap map[int]int) (name string, por
 	return "", 0, "", ""
 }
 
-// sailImportS3 mirrors a Sail MinIO bucket into lerd's RustFS using mc.
+// sailImportS3 mirrors a Sail MinIO bucket into servlo's RustFS using mc.
 func sailImportS3(s3 *sailS3Env, minioPort int, dbName string) error {
 	const mcImage = "docker.io/minio/mc:latest"
 
@@ -1144,15 +1144,15 @@ func sailImportS3(s3 *sailS3Env, minioPort int, dbName string) error {
 		return fmt.Errorf("starting rustfs: %w", err)
 	}
 
-	lerdBucket := s3BucketName(dbName)
-	if _, err := createS3Bucket(lerdBucket); err != nil {
-		return fmt.Errorf("creating lerd bucket %q: %w", lerdBucket, err)
+	servloBucket := s3BucketName(dbName)
+	if _, err := createS3Bucket(servloBucket); err != nil {
+		return fmt.Errorf("creating servlo bucket %q: %w", servloBucket, err)
 	}
 
 	const hostGW = "host.containers.internal"
 	sailMCEnv := fmt.Sprintf("MC_HOST_sail=http://%s:%s@%s:%d",
 		s3.accessKey, s3.secretKey, hostGW, minioPort)
-	lerdMCEnv := fmt.Sprintf("MC_HOST_lerd=http://lerd:lerdpassword@%s:9000", hostGW)
+	servloMCEnv := fmt.Sprintf("MC_HOST_servlo=http://servlo:servlopassword@%s:9000", hostGW)
 
 	sourceBucket, err := sailResolveSourceBucket(mcImage, sailMCEnv, s3.bucket)
 	if err != nil {
@@ -1162,8 +1162,8 @@ func sailImportS3(s3 *sailS3Env, minioPort int, dbName string) error {
 		fmt.Printf("  Configured bucket %q not found on Sail MinIO; using %q instead.\n", s3.bucket, sourceBucket)
 	}
 
-	// Count objects before mirror: skip (and don't touch lerd) if the source
-	// bucket is empty, and otherwise prompt before overwriting lerd.
+	// Count objects before mirror: skip (and don't touch servlo) if the source
+	// bucket is empty, and otherwise prompt before overwriting servlo.
 	objectCount, err := sailCountBucketObjects(mcImage, sailMCEnv, sourceBucket)
 	if err != nil {
 		return fmt.Errorf("listing bucket %q: %w", sourceBucket, err)
@@ -1173,18 +1173,18 @@ func sailImportS3(s3 *sailS3Env, minioPort int, dbName string) error {
 		return nil
 	}
 	fmt.Printf("  Found %d files in bucket %q. ", objectCount, sourceBucket)
-	if !promptConfirm(fmt.Sprintf("Mirror into lerd bucket %q?", lerdBucket)) {
+	if !promptConfirm(fmt.Sprintf("Mirror into servlo bucket %q?", servloBucket)) {
 		fmt.Println("  S3 import skipped.")
 		return nil
 	}
 
 	mirrorCmd := podman.Cmd("run", "--rm",
 		"-e", sailMCEnv,
-		"-e", lerdMCEnv,
+		"-e", servloMCEnv,
 		mcImage,
 		"mirror", "--overwrite",
 		"sail/"+sourceBucket,
-		"lerd/"+lerdBucket,
+		"servlo/"+servloBucket,
 	)
 	mirrorCmd.Stdout = os.Stdout
 	mirrorCmd.Stderr = os.Stderr

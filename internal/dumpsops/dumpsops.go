@@ -1,4 +1,4 @@
-// Package dumpsops contains the shared business logic for toggling the lerd
+// Package dumpsops contains the shared business logic for toggling the servlo
 // debug bridge. Implementation is restart-free: the bridge PHP file and its
 // conf.d ini are always volume-mounted into every FPM container, and the
 // active/inactive state is signalled by a sentinel file inside the same
@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // Result describes the outcome of Apply so callers can render their own
@@ -48,14 +48,14 @@ func Apply(enabled bool) (Result, error) {
 	}
 
 	// Always make sure the bridge files exist on disk. Even when the user
-	// is turning the bridge OFF, lerd-ui must keep them there because the
+	// is turning the bridge OFF, servlo-panel must keep them there because the
 	// FPM quadlet has them as bind-mount sources — removing them would
 	// make podman auto-create directories at those paths on the next FPM
 	// start.
 	if err := podman.WriteDumpBridgeAssets(); err != nil {
 		return Result{Enabled: enabled}, fmt.Errorf("writing dump assets: %w", err)
 	}
-	// The lerd_devtools extension shares this enable flag, so guarantee its
+	// The servlo_devtools extension shares this enable flag, so guarantee its
 	// conf.d ini is present too — it reads the same sentinel to arm capture.
 	if err := podman.EnsureDevtoolsAssets(); err != nil {
 		return Result{Enabled: enabled}, fmt.Errorf("writing devtools assets: %w", err)
@@ -110,7 +110,7 @@ func SetPassthrough(enabled bool) (PassthroughResult, error) {
 	if err := config.SaveGlobal(cfg); err != nil {
 		return PassthroughResult{Passthrough: !enabled}, fmt.Errorf("saving config: %w", err)
 	}
-	// Rewrite the conf.d ini so the new lerd.dump_passthrough value lands
+	// Rewrite the conf.d ini so the new servlo.dump_passthrough value lands
 	// on disk. The bridge file itself is unchanged; only the ini differs.
 	if err := podman.WriteDumpBridgeAssets(); err != nil {
 		return PassthroughResult{Passthrough: enabled}, fmt.Errorf("rewriting bridge ini: %w", err)
@@ -136,7 +136,7 @@ func installedFPMUnits() []string {
 	var out []string
 	for _, e := range entries {
 		name := filepath.Base(e.Name())
-		if !strings.HasPrefix(name, "lerd-php") || !strings.HasSuffix(name, "-fpm.container") {
+		if !strings.HasPrefix(name, "servlo-php") || !strings.HasSuffix(name, "-fpm.container") {
 			continue
 		}
 		out = append(out, strings.TrimSuffix(name, ".container"))

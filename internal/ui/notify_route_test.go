@@ -3,8 +3,8 @@ package ui
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dumps"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dumps"
 )
 
 func TestDebugRouteForContext_ResolvesNameToDomain(t *testing.T) {
@@ -22,7 +22,7 @@ func TestDebugRouteForContext_ResolvesNameToDomain(t *testing.T) {
 	}
 }
 
-// An event that reaches the notifier without LERD_SITE still carries the
+// An event that reaches the notifier without SERVLO_SITE still carries the
 // request domain, which is enough to land on the right site's Debug tab.
 func TestDebugRouteForContext_ResolvesSiteFromDomain(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())

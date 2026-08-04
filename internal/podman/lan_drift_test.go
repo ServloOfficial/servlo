@@ -22,14 +22,14 @@ func stubRuntimeBinds(t *testing.T, lanBound map[string]bool) {
 func TestRebindReportsRuntimeDriftWhenFileAlreadyCorrect(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	writeLANConfig(t, false, false)
-	writeLANQuadlet(t, "lerd-redis", true, "PublishPort=127.0.0.1:6379:6379\nPublishPort=[::1]:6379:6379")
-	stubRuntimeBinds(t, map[string]bool{"lerd-redis": true})
+	writeLANQuadlet(t, "servlo-redis", true, "PublishPort=127.0.0.1:6379:6379\nPublishPort=[::1]:6379:6379")
+	stubRuntimeBinds(t, map[string]bool{"servlo-redis": true})
 
 	restart, err := RebindInstalledQuadletsForLAN()
 	if err != nil {
 		t.Fatalf("RebindInstalledQuadletsForLAN: %v", err)
 	}
-	if !slices.Contains(restart, "lerd-redis") {
+	if !slices.Contains(restart, "servlo-redis") {
 		t.Fatalf("restart list %v omits the container still bound to the LAN", restart)
 	}
 }
@@ -39,14 +39,14 @@ func TestRebindReportsRuntimeDriftWhenFileAlreadyCorrect(t *testing.T) {
 func TestRebindReportsRuntimeDriftWhenContainerStillLoopback(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	writeLANConfig(t, true, true)
-	writeLANQuadlet(t, "lerd-mysql", true, "PublishPort=[::]:3306:3306")
-	stubRuntimeBinds(t, map[string]bool{"lerd-mysql": false})
+	writeLANQuadlet(t, "servlo-mysql", true, "PublishPort=[::]:3306:3306")
+	stubRuntimeBinds(t, map[string]bool{"servlo-mysql": false})
 
 	restart, err := RebindInstalledQuadletsForLAN()
 	if err != nil {
 		t.Fatalf("RebindInstalledQuadletsForLAN: %v", err)
 	}
-	if !slices.Contains(restart, "lerd-mysql") {
+	if !slices.Contains(restart, "servlo-mysql") {
 		t.Fatalf("restart list %v omits the container still bound to loopback", restart)
 	}
 }
@@ -56,8 +56,8 @@ func TestRebindReportsRuntimeDriftWhenContainerStillLoopback(t *testing.T) {
 func TestRebindStaysQuietWhenRuntimeMatches(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	writeLANConfig(t, false, false)
-	writeLANQuadlet(t, "lerd-redis", true, "PublishPort=127.0.0.1:6379:6379\nPublishPort=[::1]:6379:6379")
-	stubRuntimeBinds(t, map[string]bool{"lerd-redis": false})
+	writeLANQuadlet(t, "servlo-redis", true, "PublishPort=127.0.0.1:6379:6379\nPublishPort=[::1]:6379:6379")
+	stubRuntimeBinds(t, map[string]bool{"servlo-redis": false})
 
 	restart, err := RebindInstalledQuadletsForLAN()
 	if err != nil {
@@ -72,7 +72,7 @@ func TestRebindStaysQuietWhenRuntimeMatches(t *testing.T) {
 func TestRebindIgnoresUnknownRuntimeState(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	writeLANConfig(t, false, false)
-	writeLANQuadlet(t, "lerd-redis", true, "PublishPort=127.0.0.1:6379:6379\nPublishPort=[::1]:6379:6379")
+	writeLANQuadlet(t, "servlo-redis", true, "PublishPort=127.0.0.1:6379:6379\nPublishPort=[::1]:6379:6379")
 	stubRuntimeBinds(t, map[string]bool{})
 
 	restart, err := RebindInstalledQuadletsForLAN()

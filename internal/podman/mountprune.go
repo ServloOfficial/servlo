@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // MountRepair records one stale bind mount dropped from a quadlet.
@@ -20,7 +20,7 @@ type MountRepair struct {
 // it that no longer exists on disk, which aborts the start with "statfs <path>:
 // no such file or directory" and takes every site down with it (#1083). Only
 // self-mounts of an absolute host path are considered, so the quadlet's own
-// config, socket and ini mounts (which lerd creates on demand) are left alone.
+// config, socket and ini mounts (which servlo creates on demand) are left alone.
 // It returns the rewritten content and the paths that were dropped.
 func PruneMissingVolumes(content string) (string, []string) {
 	var removed []string
@@ -60,11 +60,11 @@ func staleSelfMount(line string) (string, bool) {
 	return src, true
 }
 
-// RepairMissingMounts drops stale bind mounts from lerd's own quadlets before
+// RepairMissingMounts drops stale bind mounts from servlo's own quadlets before
 // the units are started, and reports what was removed so the caller can name the
-// project responsible. Only lerd- prefixed units are touched: the quadlet
+// project responsible. Only servlo- prefixed units are touched: the quadlet
 // directory is shared with whatever else the user runs there, and a foreign
-// quadlet's mount is not lerd's to rewrite. Containers already running keep their
+// quadlet's mount is not servlo's to rewrite. Containers already running keep their
 // mounts until their next restart, which is when the quadlet is read again.
 func RepairMissingMounts() []MountRepair {
 	dir := config.QuadletDir()
@@ -75,7 +75,7 @@ func RepairMissingMounts() []MountRepair {
 	var repairs []MountRepair
 	for _, e := range entries {
 		name := e.Name()
-		if e.IsDir() || !strings.HasPrefix(name, "lerd-") || !strings.HasSuffix(name, ".container") {
+		if e.IsDir() || !strings.HasPrefix(name, "servlo-") || !strings.HasSuffix(name, ".container") {
 			continue
 		}
 		path := filepath.Join(dir, name)

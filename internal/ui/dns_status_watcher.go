@@ -5,9 +5,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/eventbus"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/eventbus"
 )
 
 // dnsStatusWatchInterval is how often the watcher re-probes DNS while a UI
@@ -61,18 +61,18 @@ func defaultDNSStatusDeps() dnsStatusDeps {
 }
 
 // linkStatusDebounce caps how long the netlink burst from a single VPN
-// connect or disconnect is allowed to settle before lerd-ui re-probes
+// connect or disconnect is allowed to settle before servlo-panel re-probes
 // DNS. The kernel emits a flurry of RTM_NEWLINK / RTM_NEWADDR over the
 // first few hundred milliseconds; re-probing mid-burst could read an
 // intermediate resolver state.
 const linkStatusDebounce = 750 * time.Millisecond
 
 // runDNSStatusWatcher closes the cross-process gap between WatchDNS (which
-// runs in the lerd-watcher process and only does repair) and the WebSocket
-// broker (which lives here in the lerd-ui process). The eventbus is
+// runs in the servlo-watcher process and only does repair) and the WebSocket
+// broker (which lives here in the servlo-panel process). The eventbus is
 // per-process, so a publish from the watcher never reaches subscribers
 // here, and the dashboard would otherwise stay red after boot until the
-// user manually refreshed even after lerd-dns came online.
+// user manually refreshed even after servlo-dns came online.
 //
 // Probes immediately on startup so a UI tab opened during boot doesn't
 // sit on stale state for up to 30s while DNS comes online. The poll

@@ -12,10 +12,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dumps"
-	"github.com/geodro/lerd/internal/dumpsops"
-	"github.com/geodro/lerd/internal/eventbus"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dumps"
+	"github.com/realrashid/servlo/internal/dumpsops"
+	"github.com/realrashid/servlo/internal/eventbus"
 )
 
 // dumpsServer is the singleton dump receiver started by ui.Start. It's nil
@@ -29,10 +29,10 @@ var dumpsServer atomic.Pointer[dumps.Server]
 // Dumps.Enabled toggle because the toggle controls FPM volume mounts
 // (the *senders*), while listening is essentially free and lets us
 // pick up dumps the moment the user enables the bridge without
-// restarting lerd-ui.
+// restarting servlo-panel.
 //
 // Transport is platform-specific (config.DumpsListenNetwork):
-//   - Linux: unix socket under ~/.local/share/lerd/run/, covered by
+//   - Linux: unix socket under ~/.local/share/servlo/run/, covered by
 //     the %h:%h bind mount every FPM container ships with. Not
 //     reachable from outside the user's home.
 //   - macOS: 127.0.0.1:9913. The host home virtio-fs mount in podman-
@@ -51,11 +51,11 @@ func startDumpsServer() {
 	}
 	srv, err := dumps.ListenOn(context.Background(), network, addr)
 	if err != nil {
-		fmt.Printf("[WARN] dumps receiver: %v — `lerd dump tail` and the dashboard Dumps tab will be empty\n", err)
+		fmt.Printf("[WARN] dumps receiver: %v — `servlo dump tail` and the dashboard Dumps tab will be empty\n", err)
 		return
 	}
 	dumpsServer.Store(srv)
-	fmt.Printf("Lerd dumps receiver listening on %s:%s\n", network, srv.Addr())
+	fmt.Printf("Servlo dumps receiver listening on %s:%s\n", network, srv.Addr())
 	go runDumpsNotifier(srv)
 }
 
@@ -85,7 +85,7 @@ func handleDumpsList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, out)
 }
 
-// handleDumpsStatus is the JSON-shaped sibling of `lerd dump status`. It
+// handleDumpsStatus is the JSON-shaped sibling of `servlo dump status`. It
 // reflects current state to anyone connected (CLI, MCP, web tab) without
 // requiring them to reach into the config file or the receiver themselves.
 func handleDumpsStatus(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +150,7 @@ func handleDumpsStream(w http.ResponseWriter, r *http.Request) {
 	if srv == nil {
 		// No receiver bound; keep the connection alive so the client retries
 		// transparently once startDumpsServer succeeds (e.g. after a stale
-		// Unix socket has been cleared and lerd-ui rebound).
+		// Unix socket has been cleared and servlo-panel rebound).
 		<-r.Context().Done()
 		return
 	}
@@ -268,8 +268,8 @@ func handleDumpsPassthrough(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleDumpsNotifyChanged is a CLI-callable ping. The CLI mutates dump
-// state in its own process, so lerd-ui has no way to know it happened
-// without polling. Calling this after `lerd dump on/off` republishes the
+// state in its own process, so servlo-panel has no way to know it happened
+// without polling. Calling this after `servlo dump on/off` republishes the
 // kind so every open dashboard tab refreshes its indicator over the WS.
 func handleDumpsNotifyChanged(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

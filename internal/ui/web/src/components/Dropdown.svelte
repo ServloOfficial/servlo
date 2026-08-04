@@ -240,7 +240,7 @@
     aria-haspopup="listbox"
     aria-expanded={open}
     aria-controls={menuId}
-    class="{width === 'full' ? 'w-full' : ''} inline-flex items-center justify-between gap-1.5 h-7 px-2.5 rounded-md border bg-white dark:bg-lerd-card hover:border-lerd-red hover:text-lerd-red transition-colors text-xs font-medium text-gray-700 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed {inherited ? 'border-dashed border-violet-300 dark:border-violet-700' : 'border-gray-200 dark:border-lerd-border'}"
+    class="{width === 'full' ? 'w-full' : ''} inline-flex items-center justify-between gap-1.5 h-7 px-2.5 rounded-md border bg-white dark:bg-servlo-card hover:border-servlo-red hover:text-servlo-red transition-colors text-xs font-medium text-gray-700 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed {inherited ? 'border-dashed border-violet-300 dark:border-violet-700' : 'border-gray-200 dark:border-servlo-border'}"
   >
     <span class="truncate text-left">{display}</span>
     <svg class="w-3 h-3 ml-0.5 shrink-0 transition-transform {open ? 'rotate-180' : ''}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -254,7 +254,7 @@
       id={menuId}
       role="listbox"
       style="position: fixed; top: {menuPos.top}px; left: {menuPos.left}px; width: {menuPos.width}px;"
-      class="z-50 rounded-lg border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card shadow-xl ring-1 ring-black/5 py-1 max-h-72 overflow-y-auto"
+      class="z-50 rounded-lg border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card shadow-xl ring-1 ring-black/5 py-1 max-h-72 overflow-y-auto"
     >
       {#each normalized as opt, i (opt.value + ':' + i)}
         {@const selected = opt.value === value}
@@ -267,7 +267,7 @@
           disabled={opt.disabled}
           onclick={() => pick(opt)}
           onmouseenter={() => (highlighted = i)}
-          class="w-full flex items-start gap-2 px-3 py-1.5 text-left text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed {isHighlighted ? 'bg-gray-100 dark:bg-white/10' : 'hover:bg-gray-50 dark:hover:bg-white/5'} {selected ? 'text-lerd-red font-semibold' : 'text-gray-700 dark:text-gray-200'}"
+          class="w-full flex items-start gap-2 px-3 py-1.5 text-left text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed {isHighlighted ? 'bg-gray-100 dark:bg-white/10' : 'hover:bg-gray-50 dark:hover:bg-white/5'} {selected ? 'text-servlo-red font-semibold' : 'text-gray-700 dark:text-gray-200'}"
         >
           <span class="shrink-0 w-3 h-3 mt-0.5">
             {#if selected}

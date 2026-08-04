@@ -55,13 +55,13 @@
       </div>
 
       <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-        <input type="checkbox" bind:checked={force} disabled={busy} class="rounded-sm border-gray-300 dark:border-lerd-border" />
+        <input type="checkbox" bind:checked={force} disabled={busy} class="rounded-sm border-gray-300 dark:border-servlo-border" />
         {m.worktreeMgr_force()}
       </label>
 
       {#if wt.db_isolated}
         <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-          <input type="checkbox" bind:checked={dropDB} disabled={busy} class="rounded-sm border-gray-300 dark:border-lerd-border" />
+          <input type="checkbox" bind:checked={dropDB} disabled={busy} class="rounded-sm border-gray-300 dark:border-servlo-border" />
           {m.worktreeMgr_dropDb({ db: wt.db_database ?? '' })}
         </label>
       {/if}

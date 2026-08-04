@@ -25,7 +25,7 @@
     </p>
 
     {#if images.length > 0}
-      <div class="rounded-lg border border-gray-200 dark:border-lerd-border divide-y divide-gray-100 dark:divide-lerd-border max-h-56 overflow-y-auto">
+      <div class="rounded-lg border border-gray-200 dark:border-servlo-border divide-y divide-gray-100 dark:divide-servlo-border max-h-56 overflow-y-auto">
         {#each images as img (img.id)}
           <div class="flex items-center gap-2 px-3 py-1.5 text-xs">
             <span class="flex-1 truncate text-gray-600 dark:text-gray-300">{img.desc}</span>

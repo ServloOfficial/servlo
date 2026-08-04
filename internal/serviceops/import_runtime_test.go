@@ -64,7 +64,7 @@ func TestImportDatabaseRunsInTheDeclaredClientImage(t *testing.T) {
 	if !strings.Contains(argv, "CLIENT_TOKEN=abc") {
 		t.Errorf("import ignored the declared entity env\nargv: %s", argv)
 	}
-	if strings.Contains(argv, "lerd-myengine") {
+	if strings.Contains(argv, "servlo-myengine") {
 		t.Errorf("import exec'd inside the service container instead of the client image\nargv: %s", argv)
 	}
 }

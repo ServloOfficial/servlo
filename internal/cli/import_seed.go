@@ -7,12 +7,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 	"gopkg.in/yaml.v3"
 )
 
 // importSeed is a ProjectConfig translated from another local-dev tool's
-// project file, used to pre-fill the `lerd init` wizard. label names the
+// project file, used to pre-fill the `servlo init` wizard. label names the
 // source file for the confirmation prompt; notes explain what the translation
 // dropped or changed so the user can review it before the wizard opens.
 type importSeed struct {
@@ -58,7 +58,7 @@ func detectImportSeed(dir string) (importSeed, bool) {
 	return importSeed{}, false
 }
 
-// applyImportSeed offers, when interactive and .lerd.yaml does not exist yet,
+// applyImportSeed offers, when interactive and .servlo.yaml does not exist yet,
 // to seed the init wizard's defaults from a detected herd/ddev/lando project
 // file. It returns existing unchanged when nothing is found or the user
 // declines. Every translated value is still shown in the wizard (or printed as
@@ -105,7 +105,7 @@ func findFirst(dir string, names ...string) (string, bool) {
 	return "", false
 }
 
-// collectDomains normalises hostnames into lerd domains: trimmed, lowercased,
+// collectDomains normalises hostnames into servlo domains: trimmed, lowercased,
 // de-duplicated, with empty and wildcard entries removed and order preserved.
 func collectDomains(in []string) []string {
 	seen := map[string]bool{}
@@ -138,8 +138,8 @@ func splitVersionedName(s string) (name, version string) {
 	return strings.TrimSpace(name), strings.TrimSpace(version)
 }
 
-// dbServiceForType maps another tool's database engine name to the lerd service
-// the init wizard recognises. MariaDB folds into mysql: lerd's mariadb preset
+// dbServiceForType maps another tool's database engine name to the servlo service
+// the init wizard recognises. MariaDB folds into mysql: servlo's mariadb preset
 // is an opt-in alternate the wizard does not offer by default, and the two are
 // wire-compatible for local development.
 func dbServiceForType(engine string) (service, note string, ok bool) {
@@ -147,7 +147,7 @@ func dbServiceForType(engine string) (service, note string, ok bool) {
 	case "mysql":
 		return "mysql", "", true
 	case "mariadb":
-		return "mysql", "database MariaDB mapped to MySQL — run 'lerd service preset mariadb' if you need MariaDB specifically", true
+		return "mysql", "database MariaDB mapped to MySQL — run 'servlo service preset mariadb' if you need MariaDB specifically", true
 	case "postgres", "postgresql", "pgsql":
 		return "postgres", "", true
 	}
@@ -159,7 +159,7 @@ func dbVersionNote(version string) string {
 	if version == "" {
 		return ""
 	}
-	return fmt.Sprintf("database version %s dropped — lerd resolves service versions per machine", version)
+	return fmt.Sprintf("database version %s dropped — servlo resolves service versions per machine", version)
 }
 
 // addService appends a ProjectService for name unless one with that name is
@@ -176,7 +176,7 @@ func addService(cfg *config.ProjectConfig, name string) {
 // ── Laravel Herd: herd.yml ───────────────────────────────────────────────────
 
 // herdConfig mirrors the subset of Laravel Herd's herd.yml that maps onto a
-// lerd project. The per-service `port` is not parsed: lerd allocates service
+// servlo project. The per-service `port` is not parsed: servlo allocates service
 // ports per machine, so a pinned Herd port carries no meaning here.
 type herdConfig struct {
 	Name     string                       `yaml:"name"`
@@ -190,9 +190,9 @@ type herdServiceConfig struct {
 	Version string `yaml:"version"`
 }
 
-// herdServiceToLerd maps Herd service keys to lerd service names. Herd's S3
-// service is MinIO; lerd ships RustFS as its S3-compatible store.
-var herdServiceToLerd = map[string]string{
+// herdServiceToServlo maps Herd service keys to servlo service names. Herd's S3
+// service is MinIO; servlo ships RustFS as its S3-compatible store.
+var herdServiceToServlo = map[string]string{
 	"mysql":       "mysql",
 	"postgres":    "postgres",
 	"postgresql":  "postgres",
@@ -229,14 +229,14 @@ func herdSeed(dir string) (*config.ProjectConfig, []string, bool) {
 	}
 
 	for _, key := range sortedMapKeys(hc.Services) {
-		name, mapped := herdServiceToLerd[strings.ToLower(key)]
+		name, mapped := herdServiceToServlo[strings.ToLower(key)]
 		if !mapped {
-			notes = append(notes, fmt.Sprintf("service %q has no lerd equivalent — skipped", key))
+			notes = append(notes, fmt.Sprintf("service %q has no servlo equivalent — skipped", key))
 			continue
 		}
 		addService(cfg, name)
 		if v := hc.Services[key].Version; v != "" {
-			notes = append(notes, fmt.Sprintf("service %q version %s dropped — lerd resolves service versions per machine", key, v))
+			notes = append(notes, fmt.Sprintf("service %q version %s dropped — servlo resolves service versions per machine", key, v))
 		}
 	}
 	return cfg, notes, true
@@ -245,7 +245,7 @@ func herdSeed(dir string) (*config.ProjectConfig, []string, bool) {
 // ── DDEV: .ddev/config.yaml ──────────────────────────────────────────────────
 
 // ddevConfig mirrors the subset of DDEV's .ddev/config.yaml that maps onto a
-// lerd project. The framework (`type`) is not translated — lerd auto-detects it.
+// servlo project. The framework (`type`) is not translated — servlo auto-detects it.
 type ddevConfig struct {
 	Name                string       `yaml:"name"`
 	PHPVersion          flexStr      `yaml:"php_version"`
@@ -314,7 +314,7 @@ func ddevSeed(dir string) (*config.ProjectConfig, []string, bool) {
 		notes = append(notes, "domains: "+strings.Join(cfg.Domains, ", "))
 	}
 	if len(dc.AdditionalFQDNs) > 0 {
-		notes = append(notes, "additional_fqdns not imported — add custom domains with 'lerd domain add'")
+		notes = append(notes, "additional_fqdns not imported — add custom domains with 'servlo domain add'")
 	}
 
 	if dc.Database.Type != "" {
@@ -327,7 +327,7 @@ func ddevSeed(dir string) (*config.ProjectConfig, []string, bool) {
 				notes = append(notes, n)
 			}
 		} else {
-			notes = append(notes, fmt.Sprintf("database %q has no lerd equivalent — skipped", dc.Database.Type))
+			notes = append(notes, fmt.Sprintf("database %q has no servlo equivalent — skipped", dc.Database.Type))
 		}
 	}
 	return cfg, notes, true
@@ -335,8 +335,8 @@ func ddevSeed(dir string) (*config.ProjectConfig, []string, bool) {
 
 // ── Lando: .lando.yml ────────────────────────────────────────────────────────
 
-// landoConfig mirrors the subset of a Lando .lando.yml that maps onto a lerd
-// project. The recipe is not translated — lerd auto-detects the framework.
+// landoConfig mirrors the subset of a Lando .lando.yml that maps onto a servlo
+// project. The recipe is not translated — servlo auto-detects the framework.
 type landoConfig struct {
 	Name     string                   `yaml:"name"`
 	Config   landoRecipeConfig        `yaml:"config"`
@@ -354,8 +354,8 @@ type landoService struct {
 	Type string `yaml:"type"`
 }
 
-// landoServiceTypeToLerd maps Lando service types to lerd service names.
-var landoServiceTypeToLerd = map[string]string{
+// landoServiceTypeToServlo maps Lando service types to servlo service names.
+var landoServiceTypeToServlo = map[string]string{
 	"redis":         "redis",
 	"memcached":     "memcached",
 	"elasticsearch": "elasticsearch",
@@ -415,12 +415,12 @@ func landoSeed(dir string) (*config.ProjectConfig, []string, bool) {
 				notes = append(notes, n)
 			}
 		} else {
-			notes = append(notes, fmt.Sprintf("database %q has no lerd equivalent — skipped", engine))
+			notes = append(notes, fmt.Sprintf("database %q has no servlo equivalent — skipped", engine))
 		}
 	}
 
 	// Extra services: a node service contributes a Node version, the rest map
-	// to lerd services where an equivalent exists.
+	// to servlo services where an equivalent exists.
 	for _, key := range sortedMapKeys(lc.Services) {
 		engine, version := splitVersionedName(lc.Services[key].Type)
 		if engine == "node" {
@@ -429,7 +429,7 @@ func landoSeed(dir string) (*config.ProjectConfig, []string, bool) {
 			}
 			continue
 		}
-		if name, mapped := landoServiceTypeToLerd[engine]; mapped {
+		if name, mapped := landoServiceTypeToServlo[engine]; mapped {
 			addService(cfg, name)
 		}
 	}

@@ -8,12 +8,12 @@ import (
 
 // TestSystemRows_ContainsCoreSections checks every section header the system
 // page promises (DNS, Nginx, Watcher, Notifications, Debug bridge, PHP, Node,
-// Lerd) is rendered. Worker mode is platform-gated and tested separately.
+// Servlo) is rendered. Worker mode is platform-gated and tested separately.
 func TestSystemRows_ContainsCoreSections(t *testing.T) {
 	m := NewModel("test")
 	rows := m.systemRows()
 
-	want := []string{"DNS", "Nginx", "Watcher", "Notifications", "Debug bridge", "PHP versions", "Node", "Lerd"}
+	want := []string{"DNS", "Nginx", "Watcher", "Notifications", "Debug bridge", "PHP versions", "Node", "Servlo"}
 	have := map[string]bool{}
 	for _, r := range rows {
 		if r.kind == sysHeader {

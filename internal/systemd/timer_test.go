@@ -12,7 +12,7 @@ func TestWriteTimerIfChanged(t *testing.T) {
 
 	const content = "[Unit]\nDescription=Test\n\n[Timer]\nOnCalendar=minutely\n"
 
-	changed, err := WriteTimerIfChanged("lerd-test", content)
+	changed, err := WriteTimerIfChanged("servlo-test", content)
 	if err != nil {
 		t.Fatalf("WriteTimerIfChanged: %v", err)
 	}
@@ -20,7 +20,7 @@ func TestWriteTimerIfChanged(t *testing.T) {
 		t.Errorf("first write reported changed=false, want true")
 	}
 
-	path := filepath.Join(tmp, "systemd", "user", "lerd-test.timer")
+	path := filepath.Join(tmp, "systemd", "user", "servlo-test.timer")
 	got, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read back: %v", err)
@@ -30,7 +30,7 @@ func TestWriteTimerIfChanged(t *testing.T) {
 	}
 
 	// Second write with identical content must report unchanged.
-	changed, err = WriteTimerIfChanged("lerd-test", content)
+	changed, err = WriteTimerIfChanged("servlo-test", content)
 	if err != nil {
 		t.Fatalf("second WriteTimerIfChanged: %v", err)
 	}
@@ -43,20 +43,20 @@ func TestRemoveTimer(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
-	if _, err := WriteTimerIfChanged("lerd-test", "[Timer]\n"); err != nil {
+	if _, err := WriteTimerIfChanged("servlo-test", "[Timer]\n"); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 
-	if err := RemoveTimer("lerd-test"); err != nil {
+	if err := RemoveTimer("servlo-test"); err != nil {
 		t.Fatalf("RemoveTimer: %v", err)
 	}
-	path := filepath.Join(tmp, "systemd", "user", "lerd-test.timer")
+	path := filepath.Join(tmp, "systemd", "user", "servlo-test.timer")
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Errorf("file still present after RemoveTimer: %v", err)
 	}
 
 	// Removing a missing file must not error.
-	if err := RemoveTimer("lerd-nonexistent"); err != nil {
+	if err := RemoveTimer("servlo-nonexistent"); err != nil {
 		t.Errorf("RemoveTimer of missing file: %v", err)
 	}
 }

@@ -65,8 +65,8 @@ var helpReference = []helpSection{
 			{"1 / 2", "toggle the `fpm` / `cli` context-filter chips"},
 			{"enter / space", "expand the selected row (bindings, caller, exception, …)"},
 			{"w", "toggle worker capture (queue / scheduler events)"},
-			{"c", "clear the in-memory buffer and run `lerd dump clear`"},
-			{"T", "toggle the debug bridge globally (lerd dump on/off)"},
+			{"c", "clear the in-memory buffer and run `servlo dump clear`"},
+			{"T", "toggle the debug bridge globally (servlo dump on/off)"},
 		},
 	},
 	{
@@ -101,9 +101,9 @@ var helpReference = []helpSection{
 	{
 		title: "Panes & overlays",
 		rows: [][2]string{
-			{"Dashboard tab", "six-card overview (Sites · Services · Workers · System Health · Resources · Lerd)"},
+			{"Dashboard tab", "six-card overview (Sites · Services · Workers · System Health · Resources · Servlo)"},
 			{"S", "swap the detail pane for global Settings (LAN expose, autostart, Xdebug) — Sites tab"},
-			{"Y", "swap the detail pane for the System overview (DNS, Nginx, Watcher, PHP, Node, Lerd) — Sites tab"},
+			{"Y", "swap the detail pane for the System overview (DNS, Nginx, Watcher, PHP, Node, Servlo) — Sites tab"},
 			{"D", "open the Debug window (dumps, queries with N+1, jobs, mail, …) — Sites tab"},
 			{"?", "swap the detail pane for this help reference"},
 			{"esc", "close picker or return to site detail"},
@@ -112,7 +112,7 @@ var helpReference = []helpSection{
 	{
 		title: "General",
 		rows: [][2]string{
-			{":", "open the command palette — type any `lerd <args>` and press enter"},
+			{":", "open the command palette — type any `servlo <args>` and press enter"},
 			{"R", "force a manual refresh"},
 			{"H", "heal every failed worker (reset-failed + start)"},
 			{"q / ctrl+c", "quit"},

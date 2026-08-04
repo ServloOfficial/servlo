@@ -17,7 +17,7 @@ import (
 // script, runs it under the host php, and returns every JSON line the script
 // shipped over the capture socket. `body` is spliced into the probe; ADAPTER is
 // replaced with the adapter's path. Skipped where php isn't installed or is
-// lerd's own container wrapper, like the collector harness.
+// servlo's own container wrapper, like the collector harness.
 func runLaravelAdapterPHP(t *testing.T, body string) []string {
 	t.Helper()
 	php, err := exec.LookPath("php")
@@ -75,7 +75,7 @@ func runLaravelAdapterPHP(t *testing.T, body string) []string {
 	}
 
 	// The adapter resolves its target through get_cfg_var, not the env var.
-	cmd := exec.Command(php, "-d", "lerd.devtools_host=unix://"+sock, scriptPath)
+	cmd := exec.Command(php, "-d", "servlo.devtools_host=unix://"+sock, scriptPath)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("php run failed: %v\n%s", err, out)
 	}
@@ -101,9 +101,9 @@ func TestLaravelAdapterPHP_StampsCommandForCLI(t *testing.T) {
 	}
 	lines := runLaravelAdapterPHP(t, `<?php
 $_SERVER['argv'] = ['/app/artisan', 'queue:work', '--queue=high', '--execute=for ($i = 0; $i < 4; $i++) { DB::select("select 1"); }'];
-define('LERD_DEVTOOLS_ON', true);
+define('SERVLO_DEVTOOLS_ON', true);
 require ADAPTER;
-\Lerd\LaravelAdapter\emit('query', ['sql' => 'select 1']);
+\Servlo\LaravelAdapter\emit('query', ['sql' => 'select 1']);
 `)
 	if len(lines) != 1 {
 		t.Fatalf("got %d events, want 1: %v", len(lines), lines)

@@ -6,16 +6,16 @@ import (
 )
 
 func TestServiceStartHint_containsUnit(t *testing.T) {
-	hint := serviceStartHint("lerd-nginx")
-	if !strings.Contains(hint, "lerd-nginx") && !strings.Contains(hint, "lerd start") {
-		t.Errorf("serviceStartHint should reference the unit or lerd start, got %q", hint)
+	hint := serviceStartHint("servlo-nginx")
+	if !strings.Contains(hint, "servlo-nginx") && !strings.Contains(hint, "servlo start") {
+		t.Errorf("serviceStartHint should reference the unit or servlo start, got %q", hint)
 	}
 }
 
 func TestServiceStatusHint_containsUnit(t *testing.T) {
-	hint := serviceStatusHint("lerd-nginx")
-	if !strings.Contains(hint, "lerd-nginx") && !strings.Contains(hint, "lerd start") {
-		t.Errorf("serviceStatusHint should reference the unit or lerd start, got %q", hint)
+	hint := serviceStatusHint("servlo-nginx")
+	if !strings.Contains(hint, "servlo-nginx") && !strings.Contains(hint, "servlo start") {
+		t.Errorf("serviceStatusHint should reference the unit or servlo start, got %q", hint)
 	}
 }
 

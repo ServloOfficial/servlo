@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // setupConfigHome points config.* path helpers at a temp tree and neutralises
@@ -35,7 +35,7 @@ func setupConfigHome(t *testing.T) {
 	// WriteFPMQuadlet also calls ensureFPMHostsFile, unstubbed, which falls
 	// back to a real `podman run` of the alpine image once every cheaper
 	// probe for the host gateway IP comes up empty (as they always do here,
-	// with no lerd-nginx running). Pre-creating the hosts file with the
+	// with no servlo-nginx running). Pre-creating the hosts file with the
 	// gateway entry already in place gives ensureFPMHostsFile its "already
 	// done" fast path, so it returns before ever shelling out to podman.
 	hostsPath := config.ContainerHostsFile()
@@ -162,7 +162,7 @@ func TestApply_RejectsInvalidMode(t *testing.T) {
 }
 
 func TestApply_RestartErrIsNonFatal(t *testing.T) {
-	// Use a bogus PHP version so the derived unit name (lerd-php99-fpm)
+	// Use a bogus PHP version so the derived unit name (servlo-php99-fpm)
 	// can't exist on the host; RestartUnit must then fail, and Apply must
 	// still persist config and ini, surfacing RestartErr rather than
 	// aborting. A prior version of this test relied on PATH=empty to
@@ -186,10 +186,10 @@ func TestApply_RestartErrIsNonFatal(t *testing.T) {
 }
 
 func TestFPMUnit(t *testing.T) {
-	if got := FPMUnit("8.4"); got != "lerd-php84-fpm" {
-		t.Errorf("FPMUnit(8.4) = %q, want lerd-php84-fpm", got)
+	if got := FPMUnit("8.4"); got != "servlo-php84-fpm" {
+		t.Errorf("FPMUnit(8.4) = %q, want servlo-php84-fpm", got)
 	}
-	if got := FPMUnit("8.10"); got != "lerd-php810-fpm" {
-		t.Errorf("FPMUnit(8.10) = %q, want lerd-php810-fpm", got)
+	if got := FPMUnit("8.10"); got != "servlo-php810-fpm" {
+		t.Errorf("FPMUnit(8.10) = %q, want servlo-php810-fpm", got)
 	}
 }

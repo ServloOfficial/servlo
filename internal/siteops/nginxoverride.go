@@ -4,9 +4,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/cfgedit"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
+	"github.com/realrashid/servlo/internal/cfgedit"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
 )
 
 // NginxTestFn / NginxReloadFn are indirections so tests can stub the
@@ -19,10 +19,10 @@ var (
 
 // nginxSiteTemplate seeds the editor when no override exists yet. Everything
 // is commented so the file is an inert no-op until the user opts in.
-const nginxSiteTemplate = `# Lerd per-site nginx overrides.
+const nginxSiteTemplate = `# Servlo per-site nginx overrides.
 #
-# Included at the end of this site's server { } block. Lerd never overwrites
-# this file, so edits survive vhost regeneration and ` + "`lerd update`" + `. Add
+# Included at the end of this site's server { } block. Servlo never overwrites
+# this file, so edits survive vhost regeneration and ` + "`servlo update`" + `. Add
 # directives valid inside a server block, then save to reload nginx.
 
 # client_max_body_size 100m;

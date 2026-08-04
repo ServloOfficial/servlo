@@ -27,7 +27,7 @@ type Workspace struct {
 }
 
 // globalWriteMu serializes the read-modify-write cycles below within one
-// process, so two workspace mutations racing inside lerd-ui cannot clobber each
+// process, so two workspace mutations racing inside servlo-panel cannot clobber each
 // other. It is not a cross-process lock: a CLI write landing between this
 // process's read and write still wins, as it does for every other config.yaml
 // writer.

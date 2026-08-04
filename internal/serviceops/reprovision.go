@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
 )
 
 // reprovDB and reprovBucket are the seams ReprovisionLinkedSites uses to talk
@@ -96,7 +96,7 @@ func resolveBucketName(s config.Site) string {
 	// .env may declare AWS_BUCKET=<name> to point at a non-default bucket.
 	// An empty literal (`AWS_BUCKET=`) means the user hasn't customized;
 	// fall through to the site name rather than feeding "" to S3BucketName
-	// (which would normalize it to the placeholder string "lerd" and
+	// (which would normalize it to the placeholder string "servlo" and
 	// collide every site that left AWS_BUCKET= empty onto the same bucket).
 	if v := envfile.ReadKey(filepath.Join(s.Path, ".env"), "AWS_BUCKET"); v != "" {
 		return S3BucketName(v)

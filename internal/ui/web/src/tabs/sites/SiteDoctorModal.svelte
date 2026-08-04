@@ -274,7 +274,7 @@
       </div>
     {:else if loading && !report}
       <!-- Skeleton rows while the first run (incl. migrate:status) is in flight. -->
-      <div class="rounded-xl border border-gray-200/80 dark:border-lerd-border divide-y divide-gray-100 dark:divide-lerd-border overflow-hidden">
+      <div class="rounded-xl border border-gray-200/80 dark:border-servlo-border divide-y divide-gray-100 dark:divide-servlo-border overflow-hidden">
         {#each Array(5) as _, i (i)}
           <div class="flex items-center gap-3 px-3.5 py-2.5 animate-pulse">
             <span class="w-8 h-8 rounded-lg bg-gray-200 dark:bg-white/5 shrink-0"></span>
@@ -295,7 +295,7 @@
       </div>
     {:else if report}
       <!-- Compact stacked list: one bordered container, rows split by dividers. -->
-      <div class="rounded-xl border border-gray-200/80 dark:border-lerd-border divide-y divide-gray-100 dark:divide-lerd-border overflow-hidden">
+      <div class="rounded-xl border border-gray-200/80 dark:border-servlo-border divide-y divide-gray-100 dark:divide-servlo-border overflow-hidden">
         {#each sorted as check (check.name)}
           <div
             class="flex items-center gap-3 px-3.5 py-2.5 transition-colors {check.status === 'fail'
@@ -321,7 +321,7 @@
                 type="button"
                 onclick={() => runFix(check)}
                 disabled={Boolean(fixing)}
-                class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-white shadow-sm disabled:opacity-50 transition-colors {check.status === 'fail' ? 'bg-lerd-red hover:bg-lerd-redhov' : 'bg-amber-500 hover:bg-amber-600'}"
+                class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-white shadow-sm disabled:opacity-50 transition-colors {check.status === 'fail' ? 'bg-servlo-red hover:bg-servlo-redhov' : 'bg-amber-500 hover:bg-amber-600'}"
               >
                 {#if fixing === check.name}
                   <svg class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -341,7 +341,7 @@
               <button
                 type="button"
                 onclick={openEnv}
-                class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:border-lerd-red hover:text-lerd-red transition-colors"
+                class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:border-servlo-red hover:text-servlo-red transition-colors"
               >
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -366,7 +366,7 @@
       type="button"
       onclick={reload}
       disabled={loading || Boolean(fixing)}
-      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
     >
       <svg class="w-3.5 h-3.5 {loading ? 'animate-spin' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestParseDatabaseRows(t *testing.T) {
@@ -57,7 +57,7 @@ func writeCustomService(t *testing.T, name, body string) {
 	t.Helper()
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
-	dir := filepath.Join(tmp, "lerd", "services")
+	dir := filepath.Join(tmp, "servlo", "services")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}

@@ -1,0 +1,18 @@
+[Unit]
+Description=Servlo PostgreSQL
+After=network.target
+
+[Container]
+Image=docker.io/library/postgres:16-alpine
+ContainerName=servlo-postgres
+Network=servlo
+PublishPort=5432:5432
+Volume=%h/.local/share/servlo/data/postgres:/var/lib/postgresql/data
+Environment=POSTGRES_PASSWORD=servlo
+Environment=POSTGRES_DB=servlo
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

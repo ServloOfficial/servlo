@@ -21,9 +21,9 @@ var ostreeBootedFn = func() bool {
 func browserTrustGuidance(atomic bool) string {
 	base := "certutil (nss-tools) not found, so .test certificates are trusted by curl, PHP and openssl but browsers will warn. "
 	if atomic {
-		return base + "For browser trust run rpm-ostree install nss-tools, reboot, then lerd dns:repair. Or run lerd dns:disable to serve plain http on .localhost."
+		return base + "For browser trust run rpm-ostree install nss-tools, reboot, then servlo dns:repair. Or run servlo dns:disable to serve plain http on .localhost."
 	}
-	return base + "For browser trust install nss-tools (dnf install nss-tools, apt install libnss3-tools, or pacman -S nss) then lerd dns:repair. Or run lerd dns:disable to serve plain http on .localhost."
+	return base + "For browser trust install nss-tools (dnf install nss-tools, apt install libnss3-tools, or pacman -S nss) then servlo dns:repair. Or run servlo dns:disable to serve plain http on .localhost."
 }
 
 // browserTrustStoreGuidance returns the message shown when certutil is there to
@@ -32,5 +32,5 @@ func browserTrustGuidance(atomic bool) string {
 // keeps the difference visible between one stale Firefox profile and a machine
 // where the CA never reached a browser at all.
 func browserTrustStoreGuidance(stores []string) string {
-	return fmt.Sprintf("the mkcert root CA is missing from %s, so browsers reading it warn on .test even though curl, PHP and openssl trust it. Run lerd dns:repair to install it there.", strings.Join(stores, ", "))
+	return fmt.Sprintf("the mkcert root CA is missing from %s, so browsers reading it warn on .test even though curl, PHP and openssl trust it. Run servlo dns:repair to install it there.", strings.Join(stores, ", "))
 }

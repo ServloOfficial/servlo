@@ -3,7 +3,7 @@ package mcp
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // The MCP start path must reject an injectable webhook_path the same way the

@@ -8,10 +8,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// PodmanEnv fingerprints the host podman that lerd last installed against.
+// PodmanEnv fingerprints the host podman that servlo last installed against.
 // Stored at install/start so the next run can detect a podman upgrade (which on
 // rootless Linux silently reshuffles storage and networking) and self-heal
 // before the user hits the cryptic "failed to mount runtime directory for
@@ -28,7 +28,7 @@ func podmanEnvPath() string {
 }
 
 // LoadPodmanEnv returns the last recorded fingerprint, or the zero value when
-// none has been written yet (a fresh install, or a pre-fingerprint lerd).
+// none has been written yet (a fresh install, or a pre-fingerprint servlo).
 func LoadPodmanEnv() PodmanEnv {
 	data, err := os.ReadFile(podmanEnvPath())
 	if err != nil {
@@ -139,7 +139,7 @@ func systemMigrate() error {
 }
 
 // HealPodmanUpgrade detects a podman upgrade since the last install and, when
-// found, runs the remediation that unblocked #635: rebuild the lerd bridge in
+// found, runs the remediation that unblocked #635: rebuild the servlo bridge in
 // the new backend's format, migrate rootless storage, and clear the stale
 // rootless-netns. emit, when non-nil, narrates each step.
 //
@@ -170,14 +170,14 @@ func HealPodmanUpgrade(dns []string, emit func(string)) (healed bool, restart []
 
 	if emit != nil {
 		emit(reason)
-		emit("recreating lerd network")
+		emit("recreating servlo network")
 	}
-	// Rebuild the bridge first: RecreateNetwork stops and force-removes the lerd
+	// Rebuild the bridge first: RecreateNetwork stops and force-removes the servlo
 	// containers, so `podman system migrate` below runs with them down (its
 	// documented precondition), and attached tells the caller what to restart.
-	attached, _, rErr := RecreateNetwork("lerd", dns)
+	attached, _, rErr := RecreateNetwork("servlo", dns)
 	if rErr != nil {
-		return false, attached, fmt.Errorf("recreate lerd network: %w", rErr)
+		return false, attached, fmt.Errorf("recreate servlo network: %w", rErr)
 	}
 	if emit != nil {
 		emit("podman system migrate")

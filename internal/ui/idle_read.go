@@ -3,8 +3,8 @@ package ui
 import (
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/idle"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/idle"
 )
 
 // wtKey is the idle/activity key for a worktree: its parent site name and the
@@ -23,7 +23,7 @@ func loadIdleActivity() map[string]int64 {
 
 // idleSiteIsIdle reports whether a site/worktree key has passed the idle timeout:
 // the feature is on, the key isn't paused or exempt from suspension (pinned, or
-// proxy-only so lerd supervises nothing to stop), and its last activity (from the
+// proxy-only so servlo supervises nothing to stop), and its last activity (from the
 // watcher's persisted map) is older than the timeout.
 func idleSiteIsIdle(activity map[string]int64, key string, paused, exempt, enabled bool, timeout time.Duration, now time.Time) bool {
 	if !enabled || paused || exempt {

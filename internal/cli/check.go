@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +30,7 @@ func ckFail(format string, a ...any) { fmt.Printf("  %s %s", ckFailGlyph, fmt.Sp
 func NewCheckCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "check",
-		Short: "Validate .lerd.yaml — PHP version, services, workers, container config, custom_workers, and db",
+		Short: "Validate .servlo.yaml — PHP version, services, workers, container config, custom_workers, and db",
 		RunE:  runCheck,
 	}
 }
@@ -41,14 +41,14 @@ func runCheck(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	path := filepath.Join(cwd, ".lerd.yaml")
+	path := filepath.Join(cwd, ".servlo.yaml")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return fmt.Errorf("no .lerd.yaml found in %s — run lerd init to create one", cwd)
+		return fmt.Errorf("no .servlo.yaml found in %s — run servlo init to create one", cwd)
 	}
 
 	cfg, err := config.LoadProjectConfig(cwd)
 	if err != nil {
-		ckFail(".lerd.yaml has invalid YAML syntax\n")
+		ckFail(".servlo.yaml has invalid YAML syntax\n")
 		fmt.Printf("        %v\n", err)
 		return fmt.Errorf("validation failed")
 	}
@@ -62,7 +62,7 @@ func runCheck(_ *cobra.Command, _ []string) error {
 			ckFail("php_version: %s — %v\n", cfg.PHPVersion, err)
 			errors++
 		} else if !phpPkg.IsInstalled(cfg.PHPVersion) {
-			ckWarn("php_version: %s is not installed — run lerd php:install %s\n", cfg.PHPVersion, cfg.PHPVersion)
+			ckWarn("php_version: %s is not installed — run servlo php:install %s\n", cfg.PHPVersion, cfg.PHPVersion)
 			warnings++
 		} else {
 			ckOK("php_version: %s\n", cfg.PHPVersion)
@@ -132,7 +132,7 @@ func runCheck(_ *cobra.Command, _ []string) error {
 					hasHorizon = true
 				}
 
-				// Stripe and the host-proxy app worker are lerd built-ins, run
+				// Stripe and the host-proxy app worker are servlo built-ins, run
 				// through their own units and never declared by a framework.
 				if config.IsBuiltinWorker(w) {
 					ckOK("worker: %s\n", w)
@@ -194,7 +194,7 @@ func runCheck(_ *cobra.Command, _ []string) error {
 				ckFail("service %q: unknown preset %q\n", svc.Name, svc.Preset)
 				errors++
 			} else if _, err := config.LoadCustomService(svc.Name); err != nil {
-				ckWarn("service %s: preset %q not installed — run: lerd service preset install %s\n", svc.Name, svc.Preset, svc.Preset)
+				ckWarn("service %s: preset %q not installed — run: servlo service preset install %s\n", svc.Name, svc.Preset, svc.Preset)
 				warnings++
 			} else {
 				ckOK("service: %s (preset: %s)\n", svc.Name, svc.Preset)
@@ -210,7 +210,7 @@ func runCheck(_ *cobra.Command, _ []string) error {
 		if serviceops.ServiceInstalled(svc.Name) {
 			ckOK("service: %s (custom)\n", svc.Name)
 		} else {
-			ckFail("service %q: not installed — run `lerd service preset install %s` (if it's a bundled preset) or `lerd service add --name %s ...`\n",
+			ckFail("service %q: not installed — run `servlo service preset install %s` (if it's a bundled preset) or `servlo service add --name %s ...`\n",
 				svc.Name, svc.Name, svc.Name)
 			errors++
 		}
@@ -226,10 +226,10 @@ func runCheck(_ *cobra.Command, _ []string) error {
 		}
 		cfPath := cfg.Container.Containerfile
 		if cfPath == "" {
-			cfPath = "Containerfile.lerd"
+			cfPath = "Containerfile.servlo"
 		}
 		if _, err := os.Stat(filepath.Join(cwd, cfPath)); os.IsNotExist(err) {
-			ckWarn("container.containerfile: %s not found — lerd link will fail\n", cfPath)
+			ckWarn("container.containerfile: %s not found — servlo link will fail\n", cfPath)
 			warnings++
 		} else {
 			ckOK("container.containerfile: %s\n", cfPath)
@@ -317,7 +317,7 @@ func runCheck(_ *cobra.Command, _ []string) error {
 	if warnings > 0 {
 		fmt.Printf("  %d warning(s), no errors\n", warnings)
 	} else {
-		fmt.Printf("  .lerd.yaml is valid\n")
+		fmt.Printf("  .servlo.yaml is valid\n")
 	}
 	return nil
 }

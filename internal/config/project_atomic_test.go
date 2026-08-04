@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// SaveProjectConfig must emit two-space indentation so .lerd.yaml matches the
+// SaveProjectConfig must emit two-space indentation so .servlo.yaml matches the
 // hand-authored store YAML and stops looking self-inconsistent.
 func TestSaveProjectConfig_TwoSpaceIndent(t *testing.T) {
 	dir := t.TempDir()
@@ -19,7 +19,7 @@ func TestSaveProjectConfig_TwoSpaceIndent(t *testing.T) {
 	if err := SaveProjectConfig(dir, cfg); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(dir, ".lerd.yaml"))
+	data, err := os.ReadFile(filepath.Join(dir, ".servlo.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestSaveProjectConfig_SortsWorkersAndServices(t *testing.T) {
 }
 
 // A crash, a restart mid-write, or two concurrent writers must never leave a
-// half-written .lerd.yaml or a stray temp file behind: the atomic write means a
+// half-written .servlo.yaml or a stray temp file behind: the atomic write means a
 // reader always sees a complete, parseable file.
 func TestSaveProjectConfig_AtomicNoTempLeftAndAlwaysValid(t *testing.T) {
 	dir := t.TempDir()

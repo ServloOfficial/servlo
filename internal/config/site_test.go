@@ -81,7 +81,7 @@ func TestAddSite_RejectsUnitInjectionNames(t *testing.T) {
 	}
 }
 
-// A project's .lerd.yaml supplies its own domains, and a domain is written into
+// A project's .servlo.yaml supplies its own domains, and a domain is written into
 // generated files. A quote is never part of a hostname and would close a string
 // literal in whichever file the domain lands in, so the registry refuses it.
 func TestAddSite_RejectsQuotesInDomains(t *testing.T) {
@@ -873,7 +873,7 @@ func TestApproveSiteCommand_RoundTrip(t *testing.T) {
 }
 
 // A site's domains are written into the nginx vhost's server_name, and a
-// project's .lerd.yaml supplies them. The name has been refused for this reason
+// project's .servlo.yaml supplies them. The name has been refused for this reason
 // since the unit generators needed it; the domains reach a generated file the
 // same way.
 func TestAddSiteRefusesADomainCarryingConfigSyntax(t *testing.T) {

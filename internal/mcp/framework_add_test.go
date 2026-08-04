@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/store"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/store"
 )
 
 // storeServerFor stands up a fake store publishing one framework at one version.
@@ -42,7 +42,7 @@ func TestExecFrameworkAdd_InstallsPublishedName(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	srv := storeServerFor(t, "cakephp", "CakePHP", "5")
-	t.Setenv("LERD_STORE_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_STORE_BASE_URL", srv.URL)
 	defaultSitePath = ""
 
 	resp, rpcErr := execFrameworkAdd(map[string]any{"name": "cakephp"})
@@ -71,7 +71,7 @@ func TestExecFrameworkAdd_UnknownNamePointsAtAuthoring(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	srv := storeServerFor(t, "cakephp", "CakePHP", "5")
-	t.Setenv("LERD_STORE_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_STORE_BASE_URL", srv.URL)
 	defaultSitePath = ""
 
 	resp, rpcErr := execFrameworkAdd(map[string]any{"name": "nonesuch"})
@@ -93,7 +93,7 @@ func TestExecFrameworkAdd_AuthoringFieldsStayLocal(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	srv := storeServerFor(t, "cakephp", "CakePHP", "5")
-	t.Setenv("LERD_STORE_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_STORE_BASE_URL", srv.URL)
 	defaultSitePath = ""
 
 	resp, rpcErr := execFrameworkAdd(map[string]any{

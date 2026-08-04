@@ -25,7 +25,7 @@
   const running = $derived(Boolean(fpm?.running));
   const xdebugEnabled = $derived(Boolean(fpm?.xdebug_enabled));
   const xdebugMode = $derived<XdebugMode>((fpm?.xdebug_mode as XdebugMode) || 'debug');
-  const container = $derived('lerd-php' + version.replace('.', '') + '-fpm');
+  const container = $derived('servlo-php' + version.replace('.', '') + '-fpm');
   const sitesUsing = $derived($sites.filter((s) => s.php_version === version));
   const baseUpdate = $derived(Boolean(fpm?.update_available));
 
@@ -252,9 +252,9 @@
       disabled={xdebugBusy}
       aria-pressed={xdebugEnabled}
       title={(xdebugEnabled ? m.common_disable() : m.common_enable()) + ' ' + m.sites_badges_xdebug()}
-      class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-lerd-border transition-colors text-xs font-medium text-gray-700 dark:text-gray-200 disabled:opacity-50 {xdebugEnabled
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-servlo-border transition-colors text-xs font-medium text-gray-700 dark:text-gray-200 disabled:opacity-50 {xdebugEnabled
         ? 'rounded-l-lg border-r-0 bg-emerald-50/60 dark:bg-emerald-900/15 hover:bg-emerald-50 dark:hover:bg-emerald-900/25'
-        : 'rounded-lg bg-white dark:bg-lerd-card hover:bg-gray-50 dark:hover:bg-white/5'}"
+        : 'rounded-lg bg-white dark:bg-servlo-card hover:bg-gray-50 dark:hover:bg-white/5'}"
     >
       {#if xdebugBusy}
         <svg class="w-2.5 h-2.5 animate-spin text-amber-500" fill="none" viewBox="0 0 24 24">
@@ -274,7 +274,7 @@
         aria-haspopup="menu"
         aria-expanded={xdebugMenuOpen}
         title={m.system_php_xdebugModeTitle()}
-        class="inline-flex items-center gap-1 px-3 py-1.5 rounded-r-lg border border-gray-200 dark:border-lerd-border transition-colors text-xs font-medium text-gray-700 dark:text-gray-200 bg-emerald-50/60 dark:bg-emerald-900/15 hover:bg-emerald-50 dark:hover:bg-emerald-900/25 disabled:opacity-50"
+        class="inline-flex items-center gap-1 px-3 py-1.5 rounded-r-lg border border-gray-200 dark:border-servlo-border transition-colors text-xs font-medium text-gray-700 dark:text-gray-200 bg-emerald-50/60 dark:bg-emerald-900/15 hover:bg-emerald-50 dark:hover:bg-emerald-900/25 disabled:opacity-50"
       >
         <span class="font-mono">{xdebugMode}</span>
         <svg class="w-3 h-3 transition-transform {xdebugMenuOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
@@ -284,7 +284,7 @@
       {#if xdebugMenuOpen}
         <div
           role="menu"
-          class="absolute right-0 top-full mt-1 z-50 min-w-40 rounded-xl bg-white dark:bg-lerd-card border border-gray-200 dark:border-lerd-border shadow-xl py-1"
+          class="absolute right-0 top-full mt-1 z-50 min-w-40 rounded-xl bg-white dark:bg-servlo-card border border-gray-200 dark:border-servlo-border shadow-xl py-1"
         >
           {#each XDEBUG_MODES as mode (mode)}
             {@const selected = mode === xdebugMode}
@@ -295,7 +295,7 @@
                 xdebugMenuOpen = false;
                 onSetXdebugMode({ target: { value: mode } } as unknown as Event);
               }}
-              class="w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-gray-50 dark:hover:bg-white/5 transition-colors {selected ? 'text-lerd-red font-semibold' : 'text-gray-700 dark:text-gray-200'}"
+              class="w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-gray-50 dark:hover:bg-white/5 transition-colors {selected ? 'text-servlo-red font-semibold' : 'text-gray-700 dark:text-gray-200'}"
             >
               {mode}
             </button>
@@ -319,7 +319,7 @@
         {#each sitesUsing as s (s.domain)}
           <button
             onclick={() => goToTab('sites', s.domain)}
-            class="inline-flex items-center gap-1.5 text-xs font-medium bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-lerd-border text-gray-700 dark:text-gray-300 rounded-full px-2.5 py-1 transition-colors"
+            class="inline-flex items-center gap-1.5 text-xs font-medium bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-servlo-border text-gray-700 dark:text-gray-300 rounded-full px-2.5 py-1 transition-colors"
           >
             <span class="w-1.5 h-1.5 rounded-full shrink-0 {s.fpm_running ? 'bg-emerald-500' : 'bg-gray-400'}"></span>
             {s.domain}

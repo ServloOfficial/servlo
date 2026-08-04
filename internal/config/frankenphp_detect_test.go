@@ -43,7 +43,7 @@ func TestDetectFrankenPHPHintsSymfonyRuntime(t *testing.T) {
 
 func TestDetectFrankenPHPHintsContainerfile(t *testing.T) {
 	dir := t.TempDir()
-	write(t, dir, "Containerfile.lerd", "FROM dunglas/frankenphp:php8.4-alpine\n")
+	write(t, dir, "Containerfile.servlo", "FROM dunglas/frankenphp:php8.4-alpine\n")
 	hints := DetectFrankenPHPHints(dir)
 	if len(hints) != 1 || hints[0].Signal != "containerfile" {
 		t.Fatalf("containerfile signal missing: %+v", hints)

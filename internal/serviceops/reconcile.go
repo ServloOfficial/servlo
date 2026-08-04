@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 	"gopkg.in/yaml.v3"
 )
 
@@ -52,7 +52,7 @@ func ReconcileServices(emit func(PhaseEvent)) (ReconcileResult, error) {
 		// env mappings…) from the store preset so a store change reaches an
 		// already-installed service, preserving install-time pins. EnsurePreset
 		// inside also backfills the cache for a service installed by an older
-		// lerd. Best-effort: offline or an unresolvable version leaves the
+		// servlo. Best-effort: offline or an unresolvable version leaves the
 		// snapshot untouched.
 		if refreshed, changed := refreshPresetDefinition(svc); changed {
 			if err := config.SaveCustomService(refreshed); err != nil {
@@ -62,7 +62,7 @@ func ReconcileServices(emit func(PhaseEvent)) (ReconcileResult, error) {
 				res.DefinitionsRefreshed = append(res.DefinitionsRefreshed, svc.Name)
 			}
 		}
-		unitInstalled := UnitInstalledFn("lerd-" + svc.Name)
+		unitInstalled := UnitInstalledFn("servlo-" + svc.Name)
 		if unitInstalled {
 			if applied, err := RestartIfConfigDrifted(svc.Name, svc.Preset); err != nil {
 				errs = append(errs, err)
@@ -92,11 +92,11 @@ func ReconcileServices(emit func(PhaseEvent)) (ReconcileResult, error) {
 		if config.IsDefaultPreset(name) || config.CustomServiceExists(name) {
 			continue
 		}
-		if !podman.QuadletInstalled("lerd-" + name) {
+		if !podman.QuadletInstalled("servlo-" + name) {
 			continue
 		}
 		// Don't destroy a workload that's still up; leave it for explicit removal.
-		if orphanContainerRunningFn("lerd-" + name) {
+		if orphanContainerRunningFn("servlo-" + name) {
 			res.RunningOrphansSkipped = append(res.RunningOrphansSkipped, name)
 			continue
 		}
@@ -118,7 +118,7 @@ func ReconcileServices(emit func(PhaseEvent)) (ReconcileResult, error) {
 // is a no-op; the mtime only advances on a real content change, so a steady state
 // never restarts anything.
 func RestartIfConfigDrifted(name, preset string) (bool, error) {
-	started, running := containerStartedAtFn("lerd-" + name)
+	started, running := containerStartedAtFn("servlo-" + name)
 	if !running {
 		return false, nil
 	}
@@ -130,7 +130,7 @@ func RestartIfConfigDrifted(name, preset string) (bool, error) {
 	if !ok || !mtime.After(started) {
 		return false, nil
 	}
-	if err := restartUnitFn("lerd-" + name); err != nil {
+	if err := restartUnitFn("servlo-" + name); err != nil {
 		return false, fmt.Errorf("restarting %s after a config change: %w", name, err)
 	}
 	return true, nil
@@ -168,7 +168,7 @@ func refreshPresetDefinition(svc *config.CustomService) (*config.CustomService, 
 	}
 	// Preserve install-time pins and state; everything else comes from the
 	// store. Image stays put so a passive reconcile never upgrades the running
-	// container, that remains an explicit `lerd service update`/`migrate`.
+	// container, that remains an explicit `servlo service update`/`migrate`.
 	fresh.Image = svc.Image
 	fresh.PreviousImage = svc.PreviousImage
 	fresh.LastOp = svc.LastOp

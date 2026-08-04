@@ -3,9 +3,9 @@ package cli
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -33,15 +33,15 @@ func RebuildSite(name string) error {
 		return fmt.Errorf("site %q not found", name)
 	}
 	if site.IsHostProxy() {
-		return fmt.Errorf("site %q is a host-proxy site with no container to rebuild; use 'lerd restart' to restart its dev server", name)
+		return fmt.Errorf("site %q is a host-proxy site with no container to rebuild; use 'servlo restart' to restart its dev server", name)
 	}
 	if !site.IsCustomContainer() && !site.IsCustomFPM() {
-		return fmt.Errorf("site %q is not a custom container site, use 'lerd php:rebuild' for PHP sites", name)
+		return fmt.Errorf("site %q is not a custom container site, use 'servlo php:rebuild' for PHP sites", name)
 	}
 
 	proj, err := config.LoadProjectConfig(site.Path)
 	if err != nil {
-		return fmt.Errorf("loading .lerd.yaml: %w", err)
+		return fmt.Errorf("loading .servlo.yaml: %w", err)
 	}
 
 	// Remove old image so build starts fresh.

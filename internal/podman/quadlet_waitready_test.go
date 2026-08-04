@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestMySQLReadinessProbeForcesTCP(t *testing.T) {
@@ -44,7 +44,7 @@ func TestRustFSProbeAddrFollowsPublishedPort(t *testing.T) {
 	// rustfs is the one service probed by a host-side TCP dial rather than an
 	// in-container exec, so its probe must target the port rustfs is actually
 	// published on, read from the registry's effective host port. When the
-	// port-ownership guard or `lerd service port` moves rustfs off 9000 (a host
+	// port-ownership guard or `servlo service port` moves rustfs off 9000 (a host
 	// server owns it), a dial to a hardcoded 9000 never connects and WaitReady
 	// burns its full timeout on every php/composer call.
 	if got := rustfsProbeAddr(config.ServiceConfig{Port: 9000}); got != "localhost:9000" {

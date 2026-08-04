@@ -14,13 +14,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 // ComputeSecondaryDomain returns the domain a secondary occupies on the group
@@ -117,7 +117,7 @@ func AssignSecondary(main, secondary *config.Site, label string, shareDB bool) e
 		return fmt.Errorf("grouping %q: %w", secondary.Name, err)
 	}
 	// Commit the inherited HTTPS intent so a dns disable/enable round trip
-	// restores it from .lerd.yaml rather than relying on the repair pass.
+	// restores it from .servlo.yaml rather than relying on the repair pass.
 	if inheritedSecured {
 		_ = config.SetProjectSecured(secondary.Path, true)
 	}
@@ -192,7 +192,7 @@ func applySharedDBEnv(secondary *config.Site, dbName string) {
 		return
 	}
 	if err := envfile.ApplyUpdates(envPath, map[string]string{"DB_DATABASE": dbName}); err != nil {
-		fmt.Fprintf(os.Stderr, "lerd: updating DB_DATABASE for %s: %v\n", secondary.Name, err)
+		fmt.Fprintf(os.Stderr, "servlo: updating DB_DATABASE for %s: %v\n", secondary.Name, err)
 	}
 }
 
@@ -362,7 +362,7 @@ var (
 )
 
 // regenerateSecondary mirrors the proven domain-edit regeneration sequence:
-// sync .lerd.yaml, issue the cert when secured, regenerate the vhost (renaming
+// sync .servlo.yaml, issue the cert when secured, regenerate the vhost (renaming
 // on primary change), rewrite container hosts, reload nginx and sync .env.
 // It is a package var so tests can stub out the heavy filesystem/container side
 // effects and assert on registry state alone.
@@ -381,16 +381,16 @@ var regenerateSecondary = func(secondary *config.Site, oldPrimary string) error 
 	}
 	_ = podman.WriteContainerHosts()
 	if err := nginx.Reload(); err != nil && !errors.Is(err, nginx.ErrNotRunning) {
-		fmt.Fprintf(os.Stderr, "lerd: reloading nginx: %v\n", err)
+		fmt.Fprintf(os.Stderr, "servlo: reloading nginx: %v\n", err)
 	}
 	if err := siteops.SyncEnvIfPrimaryChanged(secondary, oldPrimary); err != nil {
-		fmt.Fprintf(os.Stderr, "lerd: syncing .env to new primary domain: %v\n", err)
+		fmt.Fprintf(os.Stderr, "servlo: syncing .env to new primary domain: %v\n", err)
 	}
 	return nil
 }
 
 // syncSecondaryProjectDomains mirrors the secondary's registry domains into its
-// .lerd.yaml, dropping the old primary: grouping replaces the standalone domain
+// .servlo.yaml, dropping the old primary: grouping replaces the standalone domain
 // rather than adding to it, so the replaced domain must not be left behind to
 // re-register on a future link.
 func syncSecondaryProjectDomains(secondary *config.Site, oldPrimary string) {
@@ -410,11 +410,11 @@ func snapshot(s *config.Site) config.Site {
 func rollbackSecondary(orig config.Site, failedPrimary string) {
 	s := orig
 	if err := config.AddSite(s); err != nil {
-		fmt.Fprintf(os.Stderr, "lerd: rolling back %s in registry: %v\n", orig.Name, err)
+		fmt.Fprintf(os.Stderr, "servlo: rolling back %s in registry: %v\n", orig.Name, err)
 		return
 	}
 	if err := regenerateSecondary(&s, failedPrimary); err != nil {
-		fmt.Fprintf(os.Stderr, "lerd: rolling back %s vhost: %v\n", orig.Name, err)
+		fmt.Fprintf(os.Stderr, "servlo: rolling back %s vhost: %v\n", orig.Name, err)
 	}
 }
 

@@ -27,7 +27,7 @@ func TestFrameworkRequiresAbsentIsNil(t *testing.T) {
 	}
 }
 
-// A .lerd.yaml is untrusted. A required service pulls a container image and
+// A .servlo.yaml is untrusted. A required service pulls a container image and
 // starts it, so an embedded framework_def must not be able to drive that, the
 // same way it cannot drive host workers, commands, or nginx config.
 func TestSanitizeProjectFrameworkDefStripsRequires(t *testing.T) {

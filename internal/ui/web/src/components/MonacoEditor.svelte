@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { theme } from '$stores/theme';
-  import { loadMonaco, lerdThemeName, type MonacoModule } from '$lib/monaco';
+  import { loadMonaco, servloThemeName, type MonacoModule } from '$lib/monaco';
   import type * as Monaco from 'monaco-editor';
 
   interface Props {
@@ -117,7 +117,7 @@
 
       // Self-contained theme decision so it stays correct regardless of
       // subscriber ordering against the theme store's own DOM toggle.
-      unsubTheme = theme.subscribe((t) => monaco.editor.setTheme(lerdThemeName(t)));
+      unsubTheme = theme.subscribe((t) => monaco.editor.setTheme(servloThemeName(t)));
 
       onReady?.({ editor: ed, monaco });
     })();
@@ -169,8 +169,8 @@
       range: new monaco.Range(ln, 1, ln, 1),
       options: {
         isWholeLine: true,
-        className: 'lerd-added-line',
-        linesDecorationsClassName: 'lerd-added-gutter'
+        className: 'servlo-added-line',
+        linesDecorationsClassName: 'servlo-added-gutter'
       }
     }));
     if (!decorations) {

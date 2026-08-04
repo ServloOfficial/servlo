@@ -53,7 +53,7 @@ export interface MonacoTextEdit {
 
 // Flattens an LSP WorkspaceEdit down to the plain text edits that touch our
 // tinker document, mapped into Monaco coordinates. The server's edits are
-// keyed by the synthetic `.lerd-tinker.php` URI (not the Monaco model's URI)
+// keyed by the synthetic `.servlo-tinker.php` URI (not the Monaco model's URI)
 // and live in LSP/synthetic-line space, so we can't hand the WorkspaceEdit to
 // Monaco verbatim: we pull out the edits for our URI and re-base every range.
 // Both the `changes` map and the newer `documentChanges` shape are handled.
@@ -211,7 +211,7 @@ export function attachPhpLsp(opts: {
     let msg: any;
     try { msg = JSON.parse(ev.data); } catch { return; }
 
-    if (msg.type === 'lerd-root') {
+    if (msg.type === 'servlo-root') {
       rootResolve?.(msg.root);
       return;
     }
@@ -440,7 +440,7 @@ export function attachPhpLsp(opts: {
   );
 
   // ---- code actions (quick fixes) ----
-  // The server's workspace edits target the synthetic .lerd-tinker.php URI, so
+  // The server's workspace edits target the synthetic .servlo-tinker.php URI, so
   // Monaco can't apply them itself (the URIs don't match the model). We apply
   // the converted edits ourselves through this command, which the code action
   // references by id.
@@ -590,7 +590,7 @@ export function attachPhpLsp(opts: {
     const root = await rootReady;
     if (disposed) return;
     const rootUri = 'file://' + root.split('/').map(encodeURIComponent).join('/');
-    documentUri = `${rootUri}/.lerd-tinker.php`;
+    documentUri = `${rootUri}/.servlo-tinker.php`;
     let initResult: any;
     try {
       initResult = await request('initialize', {

@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // podmanNetworkWaitUnit is the unit podman's quadlet generator makes every
@@ -15,30 +15,30 @@ import (
 // network-online.target and gives up after 90 seconds.
 const podmanNetworkWaitUnit = "podman-user-wait-network-online.service"
 
-const networkWaitDropInFile = "10-lerd-no-network-wait.conf"
+const networkWaitDropInFile = "10-servlo-no-network-wait.conf"
 
 // networkWaitDropIn turns podman's wait into a no-op. network-online.target is
 // only reached when some unit pulls it in; on atomic images (Fedora Silverblue
 // and friends) nothing does, so the wait can only ever time out, and it drags
-// every lerd container start, and the boot itself, out by the full 90 seconds.
+// every servlo container start, and the boot itself, out by the full 90 seconds.
 // systemd cannot drop an inherited After=, so the wait unit is overridden here
 // rather than removed from the quadlets.
-const networkWaitDropIn = `# Written by lerd.
+const networkWaitDropIn = `# Written by servlo.
 # network-online.target never activates on this host, so podman's wait unit can
-# only time out, stalling every container start and boot by 90s. Lerd publishes
+# only time out, stalling every container start and boot by 90s. Servlo publishes
 # on loopback and needs no routable network, so the wait is skipped.
 [Service]
 ExecStart=
 ExecStart=/bin/true
 `
 
-// NetworkWaitDropInPath returns the path of lerd's override for podman's
+// NetworkWaitDropInPath returns the path of servlo's override for podman's
 // network-online wait unit.
 func NetworkWaitDropInPath() string {
 	return filepath.Join(config.SystemdUserDir(), podmanNetworkWaitUnit+".d", networkWaitDropInFile)
 }
 
-// networkWaitStalls decides, from the wait unit's load state, whether lerd has
+// networkWaitStalls decides, from the wait unit's load state, whether servlo has
 // already overridden it, and the current state of network-online.target,
 // whether container starts on this host are paying the 90s timeout.
 func networkWaitStalls(loadState string, dropInPresent bool, targetState string) bool {

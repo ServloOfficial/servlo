@@ -1,6 +1,6 @@
 # Frameworks
 
-Lerd uses **framework definitions** to describe how a PHP project type behaves: where the document root is, how to detect it automatically, which env file to use, and which background workers it supports.
+Servlo uses **framework definitions** to describe how a PHP project type behaves: where the document root is, how to detect it automatically, which env file to use, and which background workers it supports.
 
 Laravel has a built-in definition. Other frameworks (Symfony, WordPress, Drupal, CakePHP, Statamic, Magento, etc.) can be installed from the [community store](https://github.com/lerd-env/frameworks) or defined manually.
 
@@ -10,27 +10,27 @@ Laravel has a built-in definition. Other frameworks (Symfony, WordPress, Drupal,
 
 | Command | Description |
 |---|---|
-| `lerd new <name-or-path>` | Scaffold a new PHP project using a framework's create command |
-| `lerd framework list` | List all framework definitions with source and workers |
-| `lerd framework list --check` | Compare local definitions against the store |
-| `lerd framework search [query]` | Search the community store for available definitions |
-| `lerd framework update [name[@version]]` | Refresh definitions from the store (definitions otherwise auto-fetch on link) |
-| `lerd framework update --diff` | Preview changes before applying updates |
-| `lerd framework add <name>` | Install a published framework from the store, or author a custom one with flags |
-| `lerd framework remove <name>[@version]` | Remove a framework definition (prompts if multiple versions) |
-| `lerd framework remove <name> --all` | Remove all versions of a framework definition |
-| `lerd framework prune` | Remove installed definitions no site uses |
+| `servlo new <name-or-path>` | Scaffold a new PHP project using a framework's create command |
+| `servlo framework list` | List all framework definitions with source and workers |
+| `servlo framework list --check` | Compare local definitions against the store |
+| `servlo framework search [query]` | Search the community store for available definitions |
+| `servlo framework update [name[@version]]` | Refresh definitions from the store (definitions otherwise auto-fetch on link) |
+| `servlo framework update --diff` | Preview changes before applying updates |
+| `servlo framework add <name>` | Install a published framework from the store, or author a custom one with flags |
+| `servlo framework remove <name>[@version]` | Remove a framework definition (prompts if multiple versions) |
+| `servlo framework remove <name> --all` | Remove all versions of a framework definition |
+| `servlo framework prune` | Remove installed definitions no site uses |
 
 ---
 
 ## Framework store
 
-Lerd has a community-driven framework store backed by [lerd-env/frameworks](https://github.com/lerd-env/frameworks). The store hosts definitions for popular PHP frameworks, versioned by major release.
+Servlo has a community-driven framework store backed by [lerd-env/frameworks](https://github.com/lerd-env/frameworks). The store hosts definitions for popular PHP frameworks, versioned by major release.
 
 ### Available frameworks
 
 ```bash
-lerd framework search
+servlo framework search
 ```
 
 ```
@@ -50,27 +50,27 @@ lerd framework search
 
 Definitions arrive automatically. Linking a project detects its framework and version and fetches the matching definition from the store, and the cached catalogue refreshes on its own in the background, so there is no install step to run. Because the catalogue is cached locally, detection resolves the right framework and version even offline and for frameworks you have not linked before.
 
-To install a published definition on demand, `lerd framework add <name>` fetches it from the store, the natural next step after `lerd framework search`. It resolves the version from the project in the current directory when there is one and otherwise takes the latest, and `lerd framework add symfony@7` pins a version. A name the store does not publish falls back to authoring a definition by hand (see below).
+To install a published definition on demand, `servlo framework add <name>` fetches it from the store, the natural next step after `servlo framework search`. It resolves the version from the project in the current directory when there is one and otherwise takes the latest, and `servlo framework add symfony@7` pins a version. A name the store does not publish falls back to authoring a definition by hand (see below).
 
-To refresh manually, `lerd framework update`. With no arguments it refreshes the cached catalogue and re-fetches every installed definition; with a name it fetches that one, installing it if it isn't cached yet:
+To refresh manually, `servlo framework update`. With no arguments it refreshes the cached catalogue and re-fetches every installed definition; with a name it fetches that one, installing it if it isn't cached yet:
 
 ```bash
-lerd framework update                   # refresh catalogue + all installed definitions
-lerd framework update symfony           # fetch/update symfony (auto-detects version from composer.lock)
-lerd framework update laravel@12        # explicit version
-lerd framework update --diff            # preview changes before applying
+servlo framework update                   # refresh catalogue + all installed definitions
+servlo framework update symfony           # fetch/update symfony (auto-detects version from composer.lock)
+servlo framework update laravel@12        # explicit version
+servlo framework update --diff            # preview changes before applying
 ```
 
-When no version is specified, lerd reads `composer.lock` to detect the installed major version. If the version can't be determined, it falls back to the latest available.
+When no version is specified, servlo reads `composer.lock` to detect the installed major version. If the version can't be determined, it falls back to the latest available.
 
-Store definitions are saved to `~/.local/share/lerd/frameworks/<name>@<version>.yaml`, separate from user-defined frameworks.
+Store definitions are saved to `~/.local/share/servlo/frameworks/<name>@<version>.yaml`, separate from user-defined frameworks.
 
-Point `LERD_STORE_BASE_URL` at an alternate base (comma-separated for several) to fetch framework definitions from a private or local mirror instead of `lerd-env/frameworks`, mirroring `LERD_SERVICES_BASE_URL` for the [service store](service-presets.md).
+Point `SERVLO_STORE_BASE_URL` at an alternate base (comma-separated for several) to fetch framework definitions from a private or local mirror instead of `lerd-env/frameworks`, mirroring `SERVLO_SERVICES_BASE_URL` for the [service store](service-presets.md).
 
 ### Checking for updates
 
 ```bash
-lerd framework list --check
+servlo framework list --check
 ```
 
 ```
@@ -85,24 +85,24 @@ magento         -        user       -          not in store
 ### Updating
 
 ```bash
-lerd framework update symfony         # update a single framework
-lerd framework update symfony@7       # update to a specific version
-lerd framework update                 # update all installed frameworks
-lerd framework update --diff          # show changes before applying
+servlo framework update symfony         # update a single framework
+servlo framework update symfony@7       # update to a specific version
+servlo framework update                 # update all installed frameworks
+servlo framework update --diff          # show changes before applying
 ```
 
 When run without arguments, every cached version of every framework is refreshed individually. A user with `laravel@10/11/12/13` cached gets all four files re-fetched, not just the latest.
 
 ### Auto-detection and auto-fetch
 
-When any command needs a framework definition that isn't installed locally, lerd fetches it from the store automatically. The version is resolved from `composer.lock`, so a Laravel 11 project gets `laravel@11.yaml` and a Laravel 12 project gets `laravel@12.yaml`.
+When any command needs a framework definition that isn't installed locally, servlo fetches it from the store automatically. The version is resolved from `composer.lock`, so a Laravel 11 project gets `laravel@11.yaml` and a Laravel 12 project gets `laravel@12.yaml`.
 
 Locally installed definitions are refreshed from the store every 24 hours to pick up upstream fixes (e.g. new log sources, corrected PHP ranges).
 
-During `lerd link`, `lerd init`, or `lerd setup`, if no framework is detected at all:
+During `servlo link`, `servlo init`, or `servlo setup`, if no framework is detected at all:
 
 - **Interactive mode**: prompts to install from the store
-- **Non-interactive mode**: fetches silently when `.lerd.yaml` specifies a framework name
+- **Non-interactive mode**: fetches silently when `.servlo.yaml` specifies a framework name
 
 ### Contributing to the store
 
@@ -114,40 +114,40 @@ Submit a pull request to [lerd-env/frameworks](https://github.com/lerd-env/frame
 
 ### Laravel installer
 
-Lerd ships with the [Laravel installer](https://laravel.com/docs/installation#creating-a-laravel-application); it's already available in your CLI after `lerd install`:
+Servlo ships with the [Laravel installer](https://laravel.com/docs/installation#creating-a-laravel-application); it's already available in your CLI after `servlo install`:
 
 ```bash
 laravel new myapp
 cd myapp
-lerd link
-lerd setup
+servlo link
+servlo setup
 ```
 
 The installer walks you through starter kit selection, database setup, and other options interactively.
 
-### lerd new
+### servlo new
 
-`lerd new` is a framework-agnostic shortcut that runs the framework's scaffold command:
+`servlo new` is a framework-agnostic shortcut that runs the framework's scaffold command:
 
 
 ```bash
-lerd new myapp                          # create using Laravel (default)
-lerd new myapp --framework=symfony      # create using Symfony's create command
-lerd new /path/to/myapp                 # create at an absolute path
-lerd new myapp -- --no-interaction      # pass extra flags to the scaffold command
+servlo new myapp                          # create using Laravel (default)
+servlo new myapp --framework=symfony      # create using Symfony's create command
+servlo new /path/to/myapp                 # create at an absolute path
+servlo new myapp -- --no-interaction      # pass extra flags to the scaffold command
 ```
 
 `--framework` works before or after the name. A framework the store publishes
 but you have not installed yet is fetched on demand, so you can scaffold a
 project type you have never built before without an install step; only a name the
-store does not know is refused. Flags belong to lerd wherever they
+store does not know is refused. Flags belong to servlo wherever they
 appear on the line, so anything meant for the scaffold command itself goes after
-`--`. An absolute target outside your home directory is fine: lerd creates the
+`--`. An absolute target outside your home directory is fine: servlo creates the
 parent directory and mounts it into the PHP container before scaffolding.
 Temporary system directories (`/tmp`, `/var/tmp`, `/run`) are never mounted, so
 scaffolding into one is refused unless you [park](/usage/sites) its parent first.
 
-Every framework's create command starts with composer, and it is lerd's own
+Every framework's create command starts with composer, and it is servlo's own
 composer that runs it, inside the project's PHP container. You do not need
 composer, or any PHP, installed on the host.
 
@@ -160,15 +160,15 @@ framework actually supports rather than rejecting every candidate.
 After creation:
 ```bash
 cd myapp
-lerd link
-lerd setup
+servlo link
+servlo setup
 ```
 
 ---
 
 ## Laravel definition
 
-Laravel has a built-in definition compiled into the binary as a fallback. When a project is linked, lerd auto-fetches the version-specific definition from the store (e.g. `laravel@11`, `laravel@12`), which includes the correct PHP version range and version-specific behaviour (e.g. Laravel 10 uses `schedule:run` instead of `schedule:work`, and doesn't include Reverb).
+Laravel has a built-in definition compiled into the binary as a fallback. When a project is linked, servlo auto-fetches the version-specific definition from the store (e.g. `laravel@11`, `laravel@12`), which includes the correct PHP version range and version-specific behaviour (e.g. Laravel 10 uses `schedule:run` instead of `schedule:work`, and doesn't include Reverb).
 
 Default workers:
 
@@ -181,7 +181,7 @@ Default workers:
 
 ### Adding workers to Laravel
 
-User-defined workers are merged on top of the built-in. Use `lerd framework add` to create an overlay:
+User-defined workers are merged on top of the built-in. Use `servlo framework add` to create an overlay:
 
 ```yaml
 # horizon.yaml
@@ -194,44 +194,44 @@ workers:
 ```
 
 ```bash
-lerd framework add laravel --from-file horizon.yaml
+servlo framework add laravel --from-file horizon.yaml
 ```
 
 To remove the overlay (built-in workers remain):
 ```bash
-lerd framework remove laravel
+servlo framework remove laravel
 ```
 
 ### Removing framework definitions
 
 ```bash
-lerd framework remove symfony          # prompts if multiple versions installed
-lerd framework remove symfony@7        # remove a specific version
-lerd framework remove symfony --all    # remove all versions
+servlo framework remove symfony          # prompts if multiple versions installed
+servlo framework remove symfony@7        # remove a specific version
+servlo framework remove symfony --all    # remove all versions
 ```
 
-When multiple versions of a framework are installed, `lerd framework remove` prompts you to choose which version to remove.
+When multiple versions of a framework are installed, `servlo framework remove` prompts you to choose which version to remove.
 
-If a linked site still uses the framework, `lerd framework remove` lists those sites and asks you to confirm before deleting it. Pass `--force` to skip that confirmation.
+If a linked site still uses the framework, `servlo framework remove` lists those sites and asks you to confirm before deleting it. Pass `--force` to skip that confirmation.
 
 ### Pruning unused definitions
 
 Installed definitions accumulate over time as you try different frameworks. To clear out the ones no site references:
 
 ```bash
-lerd framework prune          # lists unused definitions, then asks to confirm
-lerd framework prune --force  # removes them without confirming
+servlo framework prune          # lists unused definitions, then asks to confirm
+servlo framework prune --force  # removes them without confirming
 ```
 
-Pruning only touches store-installed and user-defined definitions, never the built-in ones. It is safe to run: lerd re-fetches a definition from the store automatically the moment a site needs one that is no longer present locally, so a pruned framework comes back on its own if you need it again.
+Pruning only touches store-installed and user-defined definitions, never the built-in ones. It is safe to run: servlo re-fetches a definition from the store automatically the moment a site needs one that is no longer present locally, so a pruned framework comes back on its own if you need it again.
 
-When you `lerd unlink` the last site using a framework, lerd offers to remove that framework's definition right then, so you do not have to remember to prune it later. The offer only appears for removable definitions, never the built-in ones.
+When you `servlo unlink` the last site using a framework, servlo offers to remove that framework's definition right then, so you do not have to remember to prune it later. The offer only appears for removable definitions, never the built-in ones.
 
 ---
 
 ## PHP version clamping
 
-When a framework definition includes `php.min` and `php.max`, `lerd link` and `lerd init` automatically clamp the detected PHP version to the supported range. For example, if you link a Laravel 10 project (max PHP 8.3) but your system defaults to PHP 8.5, lerd will select PHP 8.3 instead:
+When a framework definition includes `php.min` and `php.max`, `servlo link` and `servlo init` automatically clamp the detected PHP version to the supported range. For example, if you link a Laravel 10 project (max PHP 8.3) but your system defaults to PHP 8.5, servlo will select PHP 8.3 instead:
 
 ```
 PHP 8.5 is outside Laravel's supported range (8.1-8.3), using PHP 8.3.

@@ -10,11 +10,11 @@ import (
 // injection is a payload that opens its own section and adds a directive
 // systemd will execute. Every value spliced into a generated unit is a line of
 // that unit, so any of them carrying a newline can do this.
-const injection = "\n[Service]\nExecStartPre=/usr/bin/touch /tmp/lerd-unit-injection-proof\nDescription=x"
+const injection = "\n[Service]\nExecStartPre=/usr/bin/touch /tmp/servlo-unit-injection-proof\nDescription=x"
 
 // Only the command used to be checked, and the check ran before the unit was
 // assembled, so every other value a project controls reached the file
-// unexamined. A .lerd.yaml custom_workers entry could put an ExecStartPre into
+// unexamined. A .servlo.yaml custom_workers entry could put an ExecStartPre into
 // a unit through its label, its restart or its schedule.
 func TestWriteWorkerUnitFileRefusesInjectionInAnyField(t *testing.T) {
 	cases := []struct {
@@ -34,8 +34,8 @@ func TestWriteWorkerUnitFileRefusesInjectionInAnyField(t *testing.T) {
 			t.Setenv("XDG_DATA_HOME", tmp)
 
 			_, err := writeWorkerUnitFile(
-				"lerd-probe-mysite", tc.label, tc.siteName, t.TempDir(), "8.4",
-				"sleep 3600", tc.restart, tc.schedule, "lerd-php84-fpm", false,
+				"servlo-probe-mysite", tc.label, tc.siteName, t.TempDir(), "8.4",
+				"sleep 3600", tc.restart, tc.schedule, "servlo-php84-fpm", false,
 			)
 			if err == nil {
 				t.Errorf("%s carrying a newline was accepted", tc.field)
@@ -59,8 +59,8 @@ func TestWriteWorkerUnitFileAcceptsNormalFields(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	changed, err := writeWorkerUnitFile(
-		"lerd-queue-mysite", "Queue Worker", "mysite", t.TempDir(), "8.4",
-		"php artisan queue:work", "always", "", "lerd-php84-fpm", false,
+		"servlo-queue-mysite", "Queue Worker", "mysite", t.TempDir(), "8.4",
+		"php artisan queue:work", "always", "", "servlo-php84-fpm", false,
 	)
 	if err != nil || !changed {
 		t.Fatalf("writeWorkerUnitFile = %v, %v; want a clean write", changed, err)

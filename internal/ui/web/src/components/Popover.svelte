@@ -69,7 +69,7 @@
     ></button>
     <div
       use:portal
-      class="z-80 rounded-xl border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card shadow-2xl"
+      class="z-80 rounded-xl border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card shadow-2xl"
       style="position: fixed; left: {pos.left}px; width: {pos.width}px; {align === 'right'
         ? `top: ${pos.top}px`
         : `bottom: ${Math.max(8, window.innerHeight - pos.top)}px`}"

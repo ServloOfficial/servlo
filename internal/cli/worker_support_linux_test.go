@@ -5,7 +5,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestWorkerSupportedOnPlatform_linuxAlwaysOK pins that Linux supports

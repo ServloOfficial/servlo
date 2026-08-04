@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/geodro/lerd/internal/origin"
+	"github.com/realrashid/servlo/internal/origin"
 )
 
 // ReleaseBaseURLs returns the GitHub releases bases in priority order, read live
@@ -42,7 +42,7 @@ func fetchLatestFrom(base string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "lerd-cli")
+	req.Header.Set("User-Agent", "servlo-cli")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -96,7 +96,7 @@ func fetchPrereleaseFrom(base string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "lerd-cli")
+	req.Header.Set("User-Agent", "servlo-cli")
 	req.Header.Set("Accept", "application/vnd.github+json")
 
 	resp, err := http.DefaultClient.Do(req)

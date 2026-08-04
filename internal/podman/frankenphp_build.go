@@ -10,14 +10,14 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // frankenPHPRuntimeExtensions is the standard PHP extension set baked into the
-// derived FrankenPHP image, mirroring the runtime extensions the lerd FPM image
+// derived FrankenPHP image, mirroring the runtime extensions the servlo FPM image
 // ships so an Octane site has the same modules available instead of the bare
 // dunglas base. These are install-php-extensions names; curl/mbstring/xml are
-// already in the base image. Dev-only tooling (xdebug, pcov, spx, lerd_devtools)
+// already in the base image. Dev-only tooling (xdebug, pcov, spx, servlo_devtools)
 // is intentionally excluded — it carries octane-specific behaviour and is
 // tracked separately.
 var frankenPHPRuntimeExtensions = []string{
@@ -38,17 +38,17 @@ var frankenPHPFlakyExtensions = map[string]bool{
 
 // frankenPHPContainerfileHashLabel stamps the derived image with the hash of the
 // Containerfile + extension list it was built from, so NeedsFrankenPHPRebuild can
-// tell an up-to-date image from one a newer lerd would build differently.
-const frankenPHPContainerfileHashLabel = "dev.lerd.frankenphp.containerfile-hash"
+// tell an up-to-date image from one a newer servlo would build differently.
+const frankenPHPContainerfileHashLabel = "dev.servlo.frankenphp.containerfile-hash"
 
 // validExtName guards extension names interpolated into the build command so a
 // stray config value can't inject extra shell/build arguments.
 var validExtName = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 
 // FrankenPHPImageName returns the local derived image tag for a PHP version,
-// e.g. "localhost/lerd-frankenphp84:local" for "8.4".
+// e.g. "localhost/servlo-frankenphp84:local" for "8.4".
 func FrankenPHPImageName(version string) string {
-	return "localhost/lerd-frankenphp" + strings.ReplaceAll(version, ".", "") + ":local"
+	return "localhost/servlo-frankenphp" + strings.ReplaceAll(version, ".", "") + ":local"
 }
 
 // frankenPHPContainerfileHash hashes the embedded Containerfile template, the
@@ -57,11 +57,11 @@ func FrankenPHPImageName(version string) string {
 // and triggers a rebuild. The custom exts/packages are folded in so that a
 // `php:ext`/`php:pkg` change is detected as drift rather than silently skipped.
 func frankenPHPContainerfileHash(customExts, packages []string) (string, error) {
-	tmpl, err := GetQuadletTemplate("lerd-frankenphp.Containerfile")
+	tmpl, err := GetQuadletTemplate("servlo-frankenphp.Containerfile")
 	if err != nil {
 		return "", err
 	}
-	// Fold in the lerd_devtools source hash so a change to that extension drifts
+	// Fold in the servlo_devtools source hash so a change to that extension drifts
 	// the image hash and rebuilds, the same guarantee the FPM marker line gives.
 	dt, err := devtoolsSourceHash()
 	if err != nil {
@@ -92,7 +92,7 @@ func frankenPHPBuildInputs(cfg *config.GlobalConfig, version string) (exts, pack
 
 // NeedsFrankenPHPRebuild reports whether any active FrankenPHP version's derived
 // image is missing or stamped with a different Containerfile hash than the
-// current binary builds, so a lerd update (or a php:ext/php:pkg change) that
+// current binary builds, so a servlo update (or a php:ext/php:pkg change) that
 // alters the template, extension set or packages rebuilds the image. False when
 // nothing is stale.
 func NeedsFrankenPHPRebuild(activeVersions []string) bool {
@@ -149,13 +149,13 @@ func buildFrankenPHPImage(version string, force bool, customExts, packages []str
 
 	fmt.Fprintf(w, "\n  Building FrankenPHP PHP %s image...\n", version)
 
-	tmp, err := os.MkdirTemp("", "lerd-frankenphp-build-*")
+	tmp, err := os.MkdirTemp("", "servlo-frankenphp-build-*")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmp)
 
-	// Stage the lerd_devtools C source into the build context so the
+	// Stage the servlo_devtools C source into the build context so the
 	// `COPY internal/podman/devtools` in the Containerfile resolves.
 	if err := writeDevtoolsSource(tmp); err != nil {
 		return fmt.Errorf("staging devtools source: %w", err)
@@ -195,7 +195,7 @@ func buildFrankenPHPImage(version string, force bool, customExts, packages []str
 // packages, and the mkcert CA block. Pure, so the build's image definition has
 // unit-test coverage without invoking podman.
 func renderFrankenPHPContainerfile(version string, exts, packages []string, mkcertBlock string) (string, error) {
-	tmpl, err := GetQuadletTemplate("lerd-frankenphp.Containerfile")
+	tmpl, err := GetQuadletTemplate("servlo-frankenphp.Containerfile")
 	if err != nil {
 		return "", err
 	}

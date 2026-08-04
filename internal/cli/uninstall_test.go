@@ -9,7 +9,7 @@ import (
 
 // ── removeMarkedBlock ────────────────────────────────────────────────────────
 
-const testMarker = "# Added by Lerd installer"
+const testMarker = "# Added by Servlo installer"
 
 func TestRemoveMarkedBlock_removesMarkerAndNextLine(t *testing.T) {
 	tmp := t.TempDir()
@@ -17,7 +17,7 @@ func TestRemoveMarkedBlock_removesMarkerAndNextLine(t *testing.T) {
 
 	content := "existing line\n" +
 		testMarker + "\n" +
-		`export PATH="/home/user/.local/share/lerd/bin:$PATH"` + "\n" +
+		`export PATH="/home/user/.local/share/servlo/bin:$PATH"` + "\n" +
 		"another line\n"
 
 	os.WriteFile(rc, []byte(content), 0644)
@@ -27,7 +27,7 @@ func TestRemoveMarkedBlock_removesMarkerAndNextLine(t *testing.T) {
 	if strings.Contains(string(got), testMarker) {
 		t.Error("marker line should have been removed")
 	}
-	if strings.Contains(string(got), "lerd/bin") {
+	if strings.Contains(string(got), "servlo/bin") {
 		t.Error("PATH export line should have been removed")
 	}
 	if !strings.Contains(string(got), "existing line") {
@@ -54,7 +54,7 @@ func TestRemoveMarkedBlock_noMarker_noChange(t *testing.T) {
 
 func TestRemoveMarkedBlock_missingFile_noError(t *testing.T) {
 	// Must not panic or return an error — the function is best-effort.
-	removeMarkedBlock("/tmp/lerd-test-nonexistent-file-xyz", testMarker, 1)
+	removeMarkedBlock("/tmp/servlo-test-nonexistent-file-xyz", testMarker, 1)
 }
 
 func TestRemoveMarkedBlock_markerAtEndOfFile(t *testing.T) {
@@ -92,12 +92,12 @@ func TestRemoveMarkedBlock_onlyMarker(t *testing.T) {
 func TestRemoveShellEntry_bashrc(t *testing.T) {
 	tmp := t.TempDir()
 
-	// Simulate a home directory with a .bashrc containing the Lerd PATH block.
+	// Simulate a home directory with a .bashrc containing the Servlo PATH block.
 	bashrc := filepath.Join(tmp, ".bashrc")
 	os.WriteFile(bashrc, []byte(
 		"# existing config\n"+
-			"# Added by Lerd installer\n"+
-			`export PATH="/home/user/.local/share/lerd/bin:$PATH"`+"\n",
+			"# Added by Servlo installer\n"+
+			`export PATH="/home/user/.local/share/servlo/bin:$PATH"`+"\n",
 	), 0644)
 
 	// Point HOME at the temp dir so removeShellEntry reads our fake rc files.
@@ -108,11 +108,11 @@ func TestRemoveShellEntry_bashrc(t *testing.T) {
 	removeShellEntry()
 
 	got, _ := os.ReadFile(bashrc)
-	if strings.Contains(string(got), "Added by Lerd installer") {
-		t.Error("Lerd marker should have been removed from .bashrc")
+	if strings.Contains(string(got), "Added by Servlo installer") {
+		t.Error("Servlo marker should have been removed from .bashrc")
 	}
-	if strings.Contains(string(got), "lerd/bin") {
-		t.Error("Lerd PATH export should have been removed from .bashrc")
+	if strings.Contains(string(got), "servlo/bin") {
+		t.Error("Servlo PATH export should have been removed from .bashrc")
 	}
 	if !strings.Contains(string(got), "# existing config") {
 		t.Error("pre-existing config should be preserved")
@@ -124,10 +124,10 @@ func TestRemoveShellEntry_fishConfig(t *testing.T) {
 	fishDir := filepath.Join(tmp, ".config", "fish", "conf.d")
 	os.MkdirAll(fishDir, 0755)
 
-	fishConf := filepath.Join(fishDir, "lerd.fish")
+	fishConf := filepath.Join(fishDir, "servlo.fish")
 	os.WriteFile(fishConf, []byte(
-		"# Added by Lerd installer\n"+
-			"fish_add_path /home/user/.local/share/lerd/bin\n",
+		"# Added by Servlo installer\n"+
+			"fish_add_path /home/user/.local/share/servlo/bin\n",
 	), 0644)
 
 	origHome := os.Getenv("HOME")
@@ -137,31 +137,31 @@ func TestRemoveShellEntry_fishConfig(t *testing.T) {
 	removeShellEntry()
 
 	got, _ := os.ReadFile(fishConf)
-	if strings.Contains(string(got), "Added by Lerd installer") {
-		t.Error("Lerd marker should have been removed from fish config")
+	if strings.Contains(string(got), "Added by Servlo installer") {
+		t.Error("Servlo marker should have been removed from fish config")
 	}
 }
 
-// TestRemoveShellEntry_removesAllLerdInstallerMarkers pins the fix for a
-// user-reported regression: `lerd install` (the Go binary) writes two
-// extra marker blocks beyond `install.sh`'s "# Added by Lerd installer"
-// — "# Lerd" (PATH export) and "# Lerd completions" (fpath + autoload).
+// TestRemoveShellEntry_removesAllServloInstallerMarkers pins the fix for a
+// user-reported regression: `servlo install` (the Go binary) writes two
+// extra marker blocks beyond `install.sh`'s "# Added by Servlo installer"
+// — "# Servlo" (PATH export) and "# Servlo completions" (fpath + autoload).
 // Uninstall used to match only the first marker, leaving the other two
-// behind on every install path that went through `lerd install` (which
+// behind on every install path that went through `servlo install` (which
 // is the common case).
-func TestRemoveShellEntry_removesAllLerdInstallerMarkers(t *testing.T) {
+func TestRemoveShellEntry_removesAllServloInstallerMarkers(t *testing.T) {
 	tmp := t.TempDir()
 	zshrc := filepath.Join(tmp, ".zshrc")
 	os.WriteFile(zshrc, []byte(
 		"alias gco='git checkout'\n"+
 			"\n"+
-			"# Added by Lerd installer\n"+
+			"# Added by Servlo installer\n"+
 			`export PATH="/h/u/.local/bin:$PATH"`+"\n"+
 			"\n"+
-			"# Lerd\n"+
-			`export PATH="/h/u/.local/share/lerd/bin:$PATH"`+"\n"+
+			"# Servlo\n"+
+			`export PATH="/h/u/.local/share/servlo/bin:$PATH"`+"\n"+
 			"\n"+
-			"# Lerd completions\n"+
+			"# Servlo completions\n"+
 			"fpath=(/h/u/.local/share/zsh/site-functions $fpath)\n"+
 			"autoload -Uz compinit && compinit\n"+
 			"\n"+
@@ -176,10 +176,10 @@ func TestRemoveShellEntry_removesAllLerdInstallerMarkers(t *testing.T) {
 
 	got, _ := os.ReadFile(zshrc)
 	for _, leftover := range []string{
-		"Added by Lerd installer",
-		"# Lerd\n",
-		"# Lerd completions",
-		"share/lerd/bin",
+		"Added by Servlo installer",
+		"# Servlo\n",
+		"# Servlo completions",
+		"share/servlo/bin",
 		"share/zsh/site-functions",
 		"compinit",
 	} {
@@ -195,15 +195,15 @@ func TestRemoveShellEntry_removesAllLerdInstallerMarkers(t *testing.T) {
 }
 
 // TestRemoveShellEntry_fishFileDeletedWhenEmpty pins that an entirely
-// lerd-owned fish config file is removed (not left as an empty
+// servlo-owned fish config file is removed (not left as an empty
 // conf.d entry that fish keeps sourcing on every shell start).
 func TestRemoveShellEntry_fishFileDeletedWhenEmpty(t *testing.T) {
 	tmp := t.TempDir()
 	fishDir := filepath.Join(tmp, ".config", "fish", "conf.d")
 	os.MkdirAll(fishDir, 0755)
-	fishConf := filepath.Join(fishDir, "lerd.fish")
+	fishConf := filepath.Join(fishDir, "servlo.fish")
 	os.WriteFile(fishConf, []byte(
-		"\n# Added by Lerd installer\nfish_add_path /h/u/.local/bin\n",
+		"\n# Added by Servlo installer\nfish_add_path /h/u/.local/bin\n",
 	), 0644)
 
 	origHome := os.Getenv("HOME")
@@ -214,20 +214,20 @@ func TestRemoveShellEntry_fishFileDeletedWhenEmpty(t *testing.T) {
 
 	if _, err := os.Stat(fishConf); !os.IsNotExist(err) {
 		body, _ := os.ReadFile(fishConf)
-		t.Errorf("expected lerd.fish to be removed; still exists with content:\n%s", body)
+		t.Errorf("expected servlo.fish to be removed; still exists with content:\n%s", body)
 	}
 }
 
 // TestRemoveShellEntry_fishFileKeptWhenNonEmpty pins the inverse: if
-// the user added their own content to lerd.fish beyond our markers, we
+// the user added their own content to servlo.fish beyond our markers, we
 // strip our blocks but leave the file alone.
 func TestRemoveShellEntry_fishFileKeptWhenNonEmpty(t *testing.T) {
 	tmp := t.TempDir()
 	fishDir := filepath.Join(tmp, ".config", "fish", "conf.d")
 	os.MkdirAll(fishDir, 0755)
-	fishConf := filepath.Join(fishDir, "lerd.fish")
+	fishConf := filepath.Join(fishDir, "servlo.fish")
 	os.WriteFile(fishConf, []byte(
-		"# Added by Lerd installer\nfish_add_path /h/u/.local/bin\n\n"+
+		"# Added by Servlo installer\nfish_add_path /h/u/.local/bin\n\n"+
 			"# user-added: alias for personal use\nalias myls 'ls -la'\n",
 	), 0644)
 
@@ -241,8 +241,8 @@ func TestRemoveShellEntry_fishFileKeptWhenNonEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("file should have been kept: %v", err)
 	}
-	if strings.Contains(string(body), "Added by Lerd installer") {
-		t.Errorf("expected lerd marker removed, got:\n%s", body)
+	if strings.Contains(string(body), "Added by Servlo installer") {
+		t.Errorf("expected servlo marker removed, got:\n%s", body)
 	}
 	if !strings.Contains(string(body), "myls") {
 		t.Errorf("user content lost; got:\n%s", body)
@@ -269,39 +269,22 @@ func mkbin(t *testing.T, path string) {
 	}
 }
 
-func TestRemoveInstalledBinaries_removesLerdAndTray(t *testing.T) {
+func TestRemoveInstalledBinaries_removesServlo(t *testing.T) {
 	dir := t.TempDir()
-	self := filepath.Join(dir, "lerd")
-	tray := filepath.Join(dir, "lerd-tray")
-	mkbin(t, self)
-	mkbin(t, tray)
-
-	removeInstalledBinaries(self)
-
-	if _, err := os.Stat(self); !os.IsNotExist(err) {
-		t.Errorf("lerd binary still present")
-	}
-	if _, err := os.Stat(tray); !os.IsNotExist(err) {
-		t.Errorf("lerd-tray still present: uninstall must not leave a tray a desktop entry can launch")
-	}
-}
-
-func TestRemoveInstalledBinaries_missingTrayIsNotAnError(t *testing.T) {
-	dir := t.TempDir()
-	self := filepath.Join(dir, "lerd")
+	self := filepath.Join(dir, "servlo")
 	mkbin(t, self)
 
 	removeInstalledBinaries(self)
 
 	if _, err := os.Stat(self); !os.IsNotExist(err) {
-		t.Errorf("lerd binary still present")
+		t.Errorf("servlo binary still present")
 	}
 }
 
 func TestRemoveInstalledBinaries_leavesUnrelatedNeighbours(t *testing.T) {
 	dir := t.TempDir()
-	self := filepath.Join(dir, "lerd")
-	other := filepath.Join(dir, "lerdfoo")
+	self := filepath.Join(dir, "servlo")
+	other := filepath.Join(dir, "servlofoo")
 	mkbin(t, self)
 	mkbin(t, other)
 

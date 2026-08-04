@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/origin"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/origin"
 	"gopkg.in/yaml.v3"
 )
 
@@ -321,7 +321,7 @@ func fetchOne(client *http.Client, url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "lerd-cli")
+	req.Header.Set("User-Agent", "servlo-cli")
 
 	resp, err := client.Do(req)
 	if err != nil {

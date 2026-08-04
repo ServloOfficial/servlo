@@ -3,13 +3,13 @@ package ui
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/desktopnotify"
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/desktopnotify"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 // notifyAppName is the app_name native notifications are posted under.
-const notifyAppName = "Lerd"
+const notifyAppName = "Servlo"
 
 type sink int
 
@@ -40,7 +40,7 @@ func notifySink(cfg *config.GlobalConfig, nativeSupported func() bool) sink {
 func nativeRequest(n push.Notification) desktopnotify.Request {
 	return desktopnotify.Request{
 		AppName: notifyAppName,
-		// Icon left empty so the emitter uses the bundled lerd logo.
+		// Icon left empty so the emitter uses the bundled servlo logo.
 		Summary: n.Title,
 		Body:    n.Body,
 		Urgency: desktopnotify.UrgencyFromString(n.Urgency),
@@ -49,8 +49,8 @@ func nativeRequest(n push.Notification) desktopnotify.Request {
 }
 
 // dispatchNotification is the single choke point for emitting notifications.
-// Drops everything when the global notifier toggle is off (lerd notify off /
-// tray). The target setting then picks the browser sink (WebSocket + Web Push,
+// Drops everything when the global notifier toggle is off (servlo notify off).
+// The target setting then picks the browser sink (WebSocket + Web Push,
 // per-device prefs applying downstream) or the native desktop sink.
 func dispatchNotification(n push.Notification) {
 	cfg, err := config.LoadGlobal()

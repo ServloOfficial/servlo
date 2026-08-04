@@ -50,7 +50,7 @@ var latencyEdges = []float64{25, 50, 100, 250, 500, 1000}
 const recentRouteWindow = 20
 
 // Store is the durable SQLite record of requests. The watcher (the only process
-// on the nginx access feed) writes to it; lerd-ui opens it read-only to build the
+// on the nginx access feed) writes to it; servlo-panel opens it read-only to build the
 // request-timing analytics view over any window. Pure-Go driver, so the CGO-free
 // build is unaffected.
 type Store struct {
@@ -110,7 +110,7 @@ type Analytics struct {
 }
 
 // OpenStore opens (creating if needed) the SQLite store at path with WAL enabled
-// so the watcher can write while lerd-ui reads across processes.
+// so the watcher can write while servlo-panel reads across processes.
 func OpenStore(path string) (*Store, error) {
 	dsn := path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
 	db, err := sql.Open("sqlite", dsn)

@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // installDNSService installs native dnsmasq on macOS via Homebrew.
@@ -40,26 +40,26 @@ func installDNSService(w io.Writer) error {
 		}
 	}
 
-	// Bootout any existing lerd-dns service so that the new native plist
+	// Bootout any existing servlo-dns service so that the new native plist
 	// is picked up by the next bootstrap. Without this, kickstart would
 	// restart the already-loaded (container-based) definition.
-	label := "com.lerd.lerd-dns"
+	label := "com.servlo.servlo-dns"
 	domain := fmt.Sprintf("gui/%d", os.Getuid())
 	exec.Command("launchctl", "bootout", domain+"/"+label).Run() //nolint:errcheck
 
-	// Stop and remove any running lerd-dns container. Container units use
+	// Stop and remove any running servlo-dns container. Container units use
 	// --restart=always which keeps the container alive independently of launchd;
 	// it must be removed before native dnsmasq can bind to port 5300.
-	podman.Cmd("stop", "lerd-dns").Run()     //nolint:errcheck
-	podman.Cmd("rm", "-f", "lerd-dns").Run() //nolint:errcheck
+	podman.Cmd("stop", "servlo-dns").Run()     //nolint:errcheck
+	podman.Cmd("rm", "-f", "servlo-dns").Run() //nolint:errcheck
 
-	// Write the launchd plist for lerd-dns using the native dnsmasq binary.
+	// Write the launchd plist for servlo-dns using the native dnsmasq binary.
 	// KeepAlive=true keeps dnsmasq running; the service unit mechanism uses
 	// KeepAlive=false because container services use --restart=always.
 	dnsmasqDir := config.DnsmasqDir()
-	logDir := filepath.Join(os.Getenv("HOME"), "Library", "Logs", "lerd")
-	logPath := filepath.Join(logDir, "lerd-dns.log")
-	plistFile := filepath.Join(os.Getenv("HOME"), "Library", "LaunchAgents", "lerd-dns.plist")
+	logDir := filepath.Join(os.Getenv("HOME"), "Library", "Logs", "servlo")
+	logPath := filepath.Join(logDir, "servlo-dns.log")
+	plistFile := filepath.Join(os.Getenv("HOME"), "Library", "LaunchAgents", "servlo-dns.plist")
 
 	args := []string{binary, "--no-daemon", "--conf-dir=" + dnsmasqDir}
 	plist := buildNativePlist(label, args, logPath)
@@ -76,7 +76,7 @@ func installDNSService(w io.Writer) error {
 // needsDNSServiceInstall returns true if the DNS plist hasn't been written yet
 // OR if it still references the old container-based approach (podman run).
 func needsDNSServiceInstall() bool {
-	plistFile := filepath.Join(os.Getenv("HOME"), "Library", "LaunchAgents", "lerd-dns.plist")
+	plistFile := filepath.Join(os.Getenv("HOME"), "Library", "LaunchAgents", "servlo-dns.plist")
 	data, err := os.ReadFile(plistFile)
 	if err != nil {
 		return true // not yet written
@@ -156,28 +156,28 @@ func ensureDNSServiceUpdated(w io.Writer) error {
 	return nil
 }
 
-// removeDNSContainerIfRunning stops and removes the legacy lerd-dns container
+// removeDNSContainerIfRunning stops and removes the legacy servlo-dns container
 // if it's still running (migration from container-based to native DNS).
 func removeDNSContainerIfRunning() {
-	podman.Cmd("stop", "lerd-dns").Run()     //nolint:errcheck
-	podman.Cmd("rm", "-f", "lerd-dns").Run() //nolint:errcheck
+	podman.Cmd("stop", "servlo-dns").Run()     //nolint:errcheck
+	podman.Cmd("rm", "-f", "servlo-dns").Run() //nolint:errcheck
 }
 
 // nativeDNSRestart restarts the native dnsmasq launchd service.
 func nativeDNSRestart() error {
-	return services.Mgr.Restart("lerd-dns")
+	return services.Mgr.Restart("servlo-dns")
 }
 
-// teardownDNS stops the lerd-dns launchd service and removes its plist so a
-// subsequent `lerd install` does not silently restart the unit. Called from
+// teardownDNS stops the servlo-dns launchd service and removes its plist so a
+// subsequent `servlo install` does not silently restart the unit. Called from
 // runInstall when the user flips dns.enabled from true to false; safe to call
 // when nothing is installed.
 func teardownDNS() {
-	_ = services.Mgr.Stop("lerd-dns")
-	_ = services.Mgr.RemoveServiceUnit("lerd-dns")
+	_ = services.Mgr.Stop("servlo-dns")
+	_ = services.Mgr.RemoveServiceUnit("servlo-dns")
 	// Defensive: if a legacy container plist is still around, clear that too.
-	_ = services.Mgr.RemoveContainerUnit("lerd-dns")
-	// Remove the /etc/resolver files lerd wrote so a disabled setup doesn't leave
+	_ = services.Mgr.RemoveContainerUnit("servlo-dns")
+	// Remove the /etc/resolver files servlo wrote so a disabled setup doesn't leave
 	// a resolver pointing at the dnsmasq we just tore down.
 	dns.Teardown()
 }

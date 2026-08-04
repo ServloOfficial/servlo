@@ -36,7 +36,7 @@
     title={m.sites_controls_stripeConfig()}
     aria-label={m.sites_controls_stripeConfig()}
     onclick={() => (modalOpen = true)}
-    class="inline-flex items-center justify-center h-7 w-8 rounded-r-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-gray-400 dark:text-gray-500"
+    class="inline-flex items-center justify-center h-7 w-8 rounded-r-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-gray-400 dark:text-gray-500"
   >
     <svg
       class="w-3.5 h-3.5"

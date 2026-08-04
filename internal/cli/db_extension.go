@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +14,7 @@ import (
 func NewDbExtensionCmd() *cobra.Command { return newDbExtensionCmd("db:extension") }
 
 // newDbExtensionCmd manages the database extensions an engine's image can
-// create. lerd creates one automatically when an imported dump reaches for it,
+// create. servlo creates one automatically when an imported dump reaches for it,
 // so this is for the times you want one before any dump arrives.
 func newDbExtensionCmd(use string) *cobra.Command {
 	var database, service string
@@ -37,8 +37,8 @@ func newDbExtensionCmd(use string) *cobra.Command {
 		RunE:  func(_ *cobra.Command, args []string) error { return runDbExtensionAdd(args[0], service, database) },
 	}
 	for _, c := range []*cobra.Command{cmd, list, add} {
-		c.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .lerd.yaml)")
-		c.Flags().StringVarP(&service, "service", "s", "", "Lerd DB service to target (e.g. postgres)")
+		c.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .servlo.yaml)")
+		c.Flags().StringVarP(&service, "service", "s", "", "Servlo DB service to target (e.g. postgres)")
 	}
 	cmd.AddCommand(list, add)
 	return cmd

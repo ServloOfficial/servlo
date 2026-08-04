@@ -60,7 +60,7 @@
             type="checkbox"
             bind:checked={backup}
             disabled={busy}
-            class="mt-0.5 rounded-sm border-gray-300 dark:border-lerd-border"
+            class="mt-0.5 rounded-sm border-gray-300 dark:border-servlo-border"
           />
           <span>
             {m.nginxEditor_backupLabel()}

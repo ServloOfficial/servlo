@@ -1,0 +1,51 @@
+[Unit]
+Description=Servlo PHP {{.Version}} FPM
+After=network.target
+# Tolerate transient restart cascades (e.g. EnsurePathMounted called rapidly
+# with rotating paths) without permanently killing FPM and the worker units
+# that BindsTo it. systemd's default 5-restarts-in-10s is way too tight; this
+# allows up to 20 restarts in a 5-minute window, which absorbs realistic
+# cascades but still gives up on a genuinely broken FPM (corrupt image,
+# bad ini) instead of looping forever and burning CPU.
+StartLimitIntervalSec=300
+StartLimitBurst=20
+
+[Container]
+Image=servlo-php{{.VersionShort}}-fpm:local
+ContainerName=servlo-php{{.VersionShort}}-fpm
+{{.HostNameLine}}
+Network=servlo
+Volume=%h/.local/share/servlo/hosts:/etc/hosts:ro,z
+Volume=%h:%h:rw
+# Shared ssh-agent socket (servlo auth ssh) so composer's git-over-SSH can reach
+# the user's passphrase-protected keys. Named volume, auto-created by podman;
+# empty until `servlo auth ssh` starts the agent sidecar.
+Volume=servlo-ssh-agent:/ssh-agent
+Volume={{.XdebugIniPath}}:/usr/local/etc/php/conf.d/99-xdebug.ini:ro
+Volume={{.UserIniPath}}:/usr/local/etc/php/conf.d/98-servlo-user.ini:ro
+Volume={{.SharedIniPath}}:/usr/local/etc/php/conf.d/95-servlo-shared.ini:ro
+Volume={{.DumpsDir}}:/usr/local/etc/servlo:ro
+Volume={{.DumpsIniPath}}:/usr/local/etc/php/conf.d/97-servlo-dump.ini:ro
+Volume={{.DevtoolsIniPath}}:/usr/local/etc/php/conf.d/96-servlo-devtools.ini:ro
+Volume={{.SpxIniPath}}:/usr/local/etc/php/conf.d/zz-servlo-spx.ini:ro
+Volume={{.SpxDataDir}}:/var/spx:rw
+Volume={{.ZshHistoryDir}}:/root/.zsh_state:rw
+# Persistent home for an optional in-container musl bun (servlo php:bun install).
+# bun installs and self-updates here; survives image rebuilds and is shared
+# across PHP versions. Empty until the user opts in.
+Volume={{.BunVolumeDir}}:/root/.bun:rw
+# Persistent Playwright browser cache for opt-in Pest browser testing (servlo
+# pest:browser install). Holds the downloaded registry and servlo's musl-chromium
+# shims so they survive image rebuilds. Empty until the user opts in.
+Volume={{.PlaywrightVolumeDir}}:/root/.cache/ms-playwright:rw
+Environment=HOME=/root
+PodmanArgs=--security-opt=label=disable
+Exec=php-fpm -F -R
+
+[Service]
+Restart=always
+# 2-second backoff between restarts so a tight crash loop can't burn CPU.
+RestartSec=2
+
+[Install]
+WantedBy=default.target

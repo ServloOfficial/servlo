@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/daemon"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/mcp"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/daemon"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -19,13 +19,13 @@ import (
 func NewMCPCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "mcp",
-		Short: "Start the lerd MCP server (JSON-RPC 2.0 over stdio)",
+		Short: "Start the servlo MCP server (JSON-RPC 2.0 over stdio)",
 		Long: `Starts a Model Context Protocol server that allows AI assistants
-(Claude Code, Cursor, JetBrains Junie, etc.) to manage lerd sites, run artisan
+(Claude Code, Cursor, JetBrains Junie, etc.) to manage servlo sites, run artisan
 commands, and control services.
 
 This command is normally invoked automatically by the AI assistant via
-the MCP configuration injected by 'lerd mcp:inject'.`,
+the MCP configuration injected by 'servlo mcp:inject'.`,
 		Hidden: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			// Lives as long as the assistant session that spawned it, and a user
@@ -45,14 +45,14 @@ func NewMCPInjectCmd() *cobra.Command {
 	var targetPath string
 	cmd := &cobra.Command{
 		Use:   "mcp:inject",
-		Short: "Inject lerd MCP config and AI skill files into a project",
+		Short: "Inject servlo MCP config and AI skill files into a project",
 		Long: `Writes MCP server config and context files for every supported AI
 assistant into the target project directory:
 
   .mcp.json                        Claude Code MCP config
-  .claude/skills/lerd/SKILL.md     Claude Code skill (lerd tools reference)
+  .claude/skills/servlo/SKILL.md     Claude Code skill (servlo tools reference)
   .cursor/mcp.json                 Cursor MCP config
-  .cursor/rules/lerd.mdc           Cursor rules file
+  .cursor/rules/servlo.mdc           Cursor rules file
   .junie/mcp/mcp.json              JetBrains Junie MCP config
   .junie/guidelines.md             JetBrains Junie guidelines
   .gemini/settings.json            Gemini CLI MCP config
@@ -75,11 +75,11 @@ func NewMCPEjectCmd() *cobra.Command {
 	var targetPath string
 	cmd := &cobra.Command{
 		Use:   "mcp:eject",
-		Short: "Remove lerd MCP config and AI skill files from a project",
-		Long: `Removes every lerd-owned MCP server entry and context file that
+		Short: "Remove servlo MCP config and AI skill files from a project",
+		Long: `Removes every servlo-owned MCP server entry and context file that
 mcp:inject wrote into the target project directory, leaving other MCP servers
 (e.g. laravel-boost) and your own instructions content untouched. Also strips
-the entry an older lerd left in .ai/mcp/mcp.json.
+the entry an older servlo left in .ai/mcp/mcp.json.
 
 Run this from a project root, or use --path to specify a directory.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -104,11 +104,11 @@ func runMCPEject(targetPath string) error {
 	}
 
 	feedback.Begin()
-	feedback.Line("removing lerd MCP config from " + feedback.Val(abs))
+	feedback.Line("removing servlo MCP config from " + feedback.Val(abs))
 	if err := RemoveProjectAISkills(abs, true); err != nil {
 		return err
 	}
-	feedback.Done("done — restart your AI assistant to unload the lerd MCP server")
+	feedback.Done("done — restart your AI assistant to unload the servlo MCP server")
 	return nil
 }
 
@@ -126,28 +126,28 @@ func runMCPInject(targetPath string) error {
 	}
 
 	feedback.Begin()
-	feedback.Line("injecting lerd MCP config into " + feedback.Val(abs))
+	feedback.Line("injecting servlo MCP config into " + feedback.Val(abs))
 	if err := WriteProjectAISkills(abs, true); err != nil {
 		return err
 	}
-	feedback.Done("done — restart your AI assistant to load the lerd MCP server")
+	feedback.Done("done — restart your AI assistant to load the servlo MCP server")
 	return nil
 }
 
 // WriteProjectAISkills writes the per-project AI artefacts for abs by iterating
 // the aiClients registry, creating every client's files. MCP config files and
-// sentinel context docs preserve non-lerd entries; overwrite docs (SKILL.md,
-// lerd.mdc) are replaced only when their content changed. verbose=true prints
+// sentinel context docs preserve non-servlo entries; overwrite docs (SKILL.md,
+// servlo.mdc) are replaced only when their content changed. verbose=true prints
 // each written path. This is the opt-in path (mcp:inject).
 func WriteProjectAISkills(abs string, verbose bool) error {
 	return writeProjectArtefacts(abs, verbose, true)
 }
 
 // RefreshProjectAISkills re-writes only the per-project artefacts a client was
-// already set up with, so `lerd update` keeps existing files current without
+// already set up with, so `servlo update` keeps existing files current without
 // expanding a project's footprint with files for clients it never opted into.
-// A project that set mcp_inject: false in .lerd.yaml is skipped entirely so
-// lerd never touches its committed config on a self-update.
+// A project that set mcp_inject: false in .servlo.yaml is skipped entirely so
+// servlo never touches its committed config on a self-update.
 func RefreshProjectAISkills(abs string, verbose bool) error {
 	if cfg, err := config.LoadProjectConfig(abs); err == nil && cfg.MCPInjectDisabled() {
 		return nil
@@ -165,7 +165,7 @@ func writeProjectArtefacts(abs string, verbose, createMissing bool) error {
 	for _, c := range aiClients {
 		if c.ProjectMCP != "" {
 			full := filepath.Join(abs, c.ProjectMCP)
-			if createMissing || mcpConfigHasLerd(full, c) {
+			if createMissing || mcpConfigHasServlo(full, c) {
 				if err := writeClientMCP(full, c); err != nil {
 					return err
 				}
@@ -192,18 +192,18 @@ func writeProjectArtefacts(abs string, verbose, createMissing bool) error {
 	return nil
 }
 
-// ProjectHasLerdSkills is the opt-in signal for project-scoped refresh: true
-// iff at least one lerd-owned marker file exists. Shared JSON configs are not
+// ProjectHasServloSkills is the opt-in signal for project-scoped refresh: true
+// iff at least one servlo-owned marker file exists. Shared JSON configs are not
 // checked because they may contain unrelated MCP servers.
-func ProjectHasLerdSkills(abs string) bool {
-	if _, err := os.Stat(filepath.Join(abs, ".claude", "skills", "lerd", "SKILL.md")); err == nil {
+func ProjectHasServloSkills(abs string) bool {
+	if _, err := os.Stat(filepath.Join(abs, ".claude", "skills", "servlo", "SKILL.md")); err == nil {
 		return true
 	}
-	if _, err := os.Stat(filepath.Join(abs, ".cursor", "rules", "lerd.mdc")); err == nil {
+	if _, err := os.Stat(filepath.Join(abs, ".cursor", "rules", "servlo.mdc")); err == nil {
 		return true
 	}
 	if data, err := os.ReadFile(filepath.Join(abs, ".junie", "guidelines.md")); err == nil {
-		if strings.Contains(string(data), "<!-- lerd:begin -->") {
+		if strings.Contains(string(data), "<!-- servlo:begin -->") {
 			return true
 		}
 	}
@@ -225,12 +225,12 @@ func writeIfChanged(path string, content []byte) error {
 func NewMCPEnableGlobalCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "mcp:enable-global",
-		Short: "Register lerd MCP globally for all AI assistant sessions",
-		Long: `Registers the lerd MCP server at user scope so it is available
+		Short: "Register servlo MCP globally for all AI assistant sessions",
+		Long: `Registers the servlo MCP server at user scope so it is available
 in every Claude Code session, regardless of the current project directory.
 
 The server uses the directory Claude is opened in as the site context —
-no LERD_SITE_PATH configuration needed.
+no SERVLO_SITE_PATH configuration needed.
 
 This command updates:
   claude mcp add --scope user      Claude Code user-scope MCP registration
@@ -241,8 +241,8 @@ This command updates:
   ~/.codex/config.toml             Codex CLI global MCP config
   ~/.config/Code/User/mcp.json     GitHub Copilot (VS Code) global MCP config
   ~/.gemini/config/mcp_config.json Google Antigravity global MCP config
-  ~/.claude/skills/lerd/SKILL.md   Claude Code user-scope skill
-  ~/.cursor/rules/lerd.mdc         Cursor user-scope rules
+  ~/.claude/skills/servlo/SKILL.md   Claude Code user-scope skill
+  ~/.cursor/rules/servlo.mdc         Cursor user-scope rules
   ~/.junie/guidelines.md           JetBrains Junie user-scope guidelines
   ~/.gemini/GEMINI.md              Gemini CLI user-scope context
   ~/.codex/AGENTS.md               Codex CLI user-scope context`,
@@ -252,11 +252,11 @@ This command updates:
 	}
 }
 
-// RunMCPEnableGlobal registers lerd MCP at user scope for all supported AI tools.
+// RunMCPEnableGlobal registers servlo MCP at user scope for all supported AI tools.
 // It is exported so the install command can call it directly.
 func RunMCPEnableGlobal() error {
 	feedback.Begin()
-	feedback.Line("registering lerd MCP globally")
+	feedback.Line("registering servlo MCP globally")
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -271,7 +271,7 @@ func RunMCPEnableGlobal() error {
 	}
 
 	feedback.Done("done — restart your AI assistant for changes to take effect")
-	feedback.Note("lerd uses the directory you open Claude in as the site context")
+	feedback.Note("servlo uses the directory you open Claude in as the site context")
 	return nil
 }
 
@@ -280,8 +280,8 @@ func RunMCPEnableGlobal() error {
 func NewMCPDisableGlobalCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "mcp:disable-global",
-		Short: "Unregister the user-scope lerd MCP server for all AI assistants",
-		Long: `Removes the user-scope lerd MCP registration and context docs written
+		Short: "Unregister the user-scope servlo MCP server for all AI assistants",
+		Long: `Removes the user-scope servlo MCP registration and context docs written
 by mcp:enable-global: the Claude Code user-scope entry, each client's global MCP
 config, and the user-scope skill/guidelines files. Other MCP servers and your own
 instructions content are left untouched.`,
@@ -291,10 +291,10 @@ instructions content are left untouched.`,
 	}
 }
 
-// RunMCPDisableGlobal tears down the user-scope lerd MCP registration.
+// RunMCPDisableGlobal tears down the user-scope servlo MCP registration.
 func RunMCPDisableGlobal() error {
 	feedback.Begin()
-	feedback.Line("unregistering lerd MCP globally")
+	feedback.Line("unregistering servlo MCP globally")
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -310,7 +310,7 @@ func RunMCPDisableGlobal() error {
 
 // writeGlobalMCPConfigs registers the user-scope MCP server for every client in
 // the registry: file-backed clients via their global config, Claude via the
-// idempotent `claude mcp add` CLI. Global entries omit LERD_SITE_PATH so the
+// idempotent `claude mcp add` CLI. Global entries omit SERVLO_SITE_PATH so the
 // server uses the directory the assistant is opened in.
 func writeGlobalMCPConfigs(home string, verbose bool) error {
 	log := func(msg string) {
@@ -321,11 +321,11 @@ func writeGlobalMCPConfigs(home string, verbose bool) error {
 	for _, c := range aiClients {
 		if c.GlobalViaCLI {
 			// Try remove first for idempotent re-registration, then add.
-			_, _ = claudeMCP("remove", "--scope", "user", "lerd")
-			out, err := claudeMCP("add", "--scope", "user", "lerd", "--", "lerd", "mcp")
+			_, _ = claudeMCP("remove", "--scope", "user", "servlo")
+			out, err := claudeMCP("add", "--scope", "user", "servlo", "--", "servlo", "mcp")
 			if err != nil {
 				feedback.Warn("could not register with Claude Code (%v): %s", err, strings.TrimSpace(string(out)))
-				feedback.Note("run manually: claude mcp add --scope user lerd -- lerd mcp")
+				feedback.Note("run manually: claude mcp add --scope user servlo -- servlo mcp")
 			} else {
 				log("registered in Claude Code (user scope)")
 			}
@@ -346,7 +346,7 @@ func writeGlobalMCPConfigs(home string, verbose bool) error {
 }
 
 // WriteGlobalAISkills writes the user-scope context/instructions docs for every
-// client in the registry (SKILL.md, lerd.mdc, guidelines.md, GEMINI.md,
+// client in the registry (SKILL.md, servlo.mdc, guidelines.md, GEMINI.md,
 // AGENTS.md), creating any that are missing. Called from mcp:enable-global.
 // MCP registration itself is handled separately by writeGlobalMCPConfigs.
 func WriteGlobalAISkills(home string, verbose bool) error {
@@ -354,7 +354,7 @@ func WriteGlobalAISkills(home string, verbose bool) error {
 }
 
 // RefreshGlobalAISkills re-writes only the user-scope context docs that already
-// exist, so `lerd update` keeps them aligned with the installed binary's tool
+// exist, so `servlo update` keeps them aligned with the installed binary's tool
 // set without creating files (~/.codex/AGENTS.md, ~/.gemini/GEMINI.md) for
 // clients the user never enabled.
 func RefreshGlobalAISkills(home string, verbose bool) error {
@@ -396,42 +396,42 @@ var (
 	}
 )
 
-// IsMCPGloballyRegistered reports whether lerd is registered with Claude Code.
-// Uses `claude mcp get lerd` which returns exit 0 when the server is known and
+// IsMCPGloballyRegistered reports whether servlo is registered with Claude Code.
+// Uses `claude mcp get servlo` which returns exit 0 when the server is known and
 // exit 1 otherwise. The older `claude mcp list --scope user` flag form breaks
 // on newer Claude CLI releases.
 func IsMCPGloballyRegistered() bool {
 	if !claudeAvailable() {
 		return false
 	}
-	_, err := claudeMCP("get", "lerd")
+	_, err := claudeMCP("get", "servlo")
 	return err == nil
 }
 
-// ensureClaudeMCPRegistered adds lerd to Claude Code at user scope only when
-// `claude mcp get lerd` reports it missing. Add-only (no remove-then-add) so
+// ensureClaudeMCPRegistered adds servlo to Claude Code at user scope only when
+// `claude mcp get servlo` reports it missing. Add-only (no remove-then-add) so
 // a failing add can't leave the user unregistered. No-op when claude isn't
-// installed or lerd is already registered.
+// installed or servlo is already registered.
 func ensureClaudeMCPRegistered() {
 	if !claudeAvailable() {
 		return
 	}
-	if _, err := claudeMCP("get", "lerd"); err == nil {
+	if _, err := claudeMCP("get", "servlo"); err == nil {
 		return
 	}
-	if _, err := claudeMCP("add", "-s", "user", "lerd", "--", "lerd", "mcp"); err != nil {
-		feedback.Warn("could not register lerd with Claude Code: %v", err)
-		fmt.Println("  Run manually: claude mcp add -s user lerd -- lerd mcp")
+	if _, err := claudeMCP("add", "-s", "user", "servlo", "--", "servlo", "mcp"); err != nil {
+		feedback.Warn("could not register servlo with Claude Code: %v", err)
+		fmt.Println("  Run manually: claude mcp add -s user servlo -- servlo mcp")
 	}
 }
 
-// mergeSentinelSection upserts the lerd section inside a shared markdown doc
+// mergeSentinelSection upserts the servlo section inside a shared markdown doc
 // (Junie guidelines, GEMINI.md, AGENTS.md, copilot-instructions.md). If the
-// file does not exist it is created. If a lerd section already exists (delimited
+// file does not exist it is created. If a servlo section already exists (delimited
 // by the sentinel comments) it is replaced; otherwise the section is appended.
 func mergeSentinelSection(path, section string) error {
-	const begin = "<!-- lerd:begin -->"
-	const end = "<!-- lerd:end -->"
+	const begin = "<!-- servlo:begin -->"
+	const end = "<!-- servlo:end -->"
 
 	existing := ""
 	if data, err := os.ReadFile(path); err == nil {
@@ -443,7 +443,7 @@ func mergeSentinelSection(path, section string) error {
 	block := begin + "\n" + section + "\n" + end
 
 	if strings.Contains(existing, begin) {
-		// Replace the existing lerd block.
+		// Replace the existing servlo block.
 		startIdx := strings.Index(existing, begin)
 		endIdx := strings.Index(existing, end)
 		if endIdx == -1 {
@@ -466,12 +466,12 @@ func mergeSentinelSection(path, section string) error {
 	return os.WriteFile(path, []byte(existing), 0644)
 }
 
-// stripSentinelSection removes the lerd-delimited block from a shared markdown
+// stripSentinelSection removes the servlo-delimited block from a shared markdown
 // doc. Returns (changed, err). When the file is empty after the block is
 // stripped it is removed.
 func stripSentinelSection(path string) (bool, error) {
-	const begin = "<!-- lerd:begin -->"
-	const end = "<!-- lerd:end -->"
+	const begin = "<!-- servlo:begin -->"
+	const end = "<!-- servlo:end -->"
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -512,7 +512,7 @@ func RemoveGlobalAISkills(home string, verbose bool) error {
 
 	for _, c := range aiClients {
 		if c.GlobalViaCLI {
-			if _, err := claudeMCP("remove", "--scope", "user", "lerd"); err == nil {
+			if _, err := claudeMCP("remove", "--scope", "user", "servlo"); err == nil {
 				log("  removed Claude Code user-scope MCP registration")
 			}
 		}
@@ -542,7 +542,7 @@ func RemoveGlobalAISkills(home string, verbose bool) error {
 	return nil
 }
 
-// RemoveProjectAISkills removes every lerd-owned artefact under abs across the
+// RemoveProjectAISkills removes every servlo-owned artefact under abs across the
 // client registry: project MCP config entries and context docs. Opt-out
 // counterpart of WriteProjectAISkills.
 func RemoveProjectAISkills(abs string, verbose bool) error {
@@ -579,24 +579,24 @@ func RemoveProjectAISkills(abs string, verbose bool) error {
 	return nil
 }
 
-// lerdReference is the single canonical lerd tool reference shared by every AI
+// servloReference is the single canonical servlo tool reference shared by every AI
 // assistant. Each client wraps it with its own thin frontmatter (Claude SKILL,
 // Cursor .mdc) or embeds it sentinel-wrapped (Junie, Codex, Gemini, Copilot),
 // so the docs an assistant reads never drift between clients.
 //
-//go:embed aidocs/lerd-reference.md
-var lerdReference string
+//go:embed aidocs/servlo-reference.md
+var servloReference string
 
-const skillDescription = "Manage the lerd local PHP development environment via MCP tools: run framework console commands (artisan, bin/console, etc.), manage services, start/stop queue workers, run composer, manage Node.js versions, and inspect site status. Also the way to diagnose and optimize a slow site: find N+1 and slow queries, read per-site response-time and slow-route timings, profile requests, and run site health checks, from real captured traffic rather than reading code."
+const skillDescription = "Manage the servlo local PHP development environment via MCP tools: run framework console commands (artisan, bin/console, etc.), manage services, start/stop queue workers, run composer, manage Node.js versions, and inspect site status. Also the way to diagnose and optimize a slow site: find N+1 and slow queries, read per-site response-time and slow-route timings, profile requests, and run site health checks, from real captured traffic rather than reading code."
 
-const cursorDescription = "Lerd local PHP development environment — use the lerd MCP tools to manage sites, services, workers, and PHP/Node runtimes, and to diagnose slow sites (N+1 and slow queries, request timing, slow routes, profiling) from real traffic."
+const cursorDescription = "Servlo local PHP development environment — use the servlo MCP tools to manage sites, services, workers, and PHP/Node runtimes, and to diagnose slow sites (N+1 and slow queries, request timing, slow routes, profiling) from real traffic."
 
 // renderClaudeSkill wraps the reference with Claude Code skill frontmatter.
 func renderClaudeSkill() string {
-	return "---\nname: lerd\ndescription: " + skillDescription + "\n---\n" + lerdReference
+	return "---\nname: servlo\ndescription: " + skillDescription + "\n---\n" + servloReference
 }
 
 // renderCursorRules wraps the reference with Cursor .mdc frontmatter.
 func renderCursorRules() string {
-	return "---\ndescription: " + cursorDescription + "\nglobs:\nalwaysApply: true\n---\n" + lerdReference
+	return "---\ndescription: " + cursorDescription + "\nglobs:\nalwaysApply: true\n---\n" + servloReference
 }

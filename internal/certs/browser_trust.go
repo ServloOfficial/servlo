@@ -76,7 +76,7 @@ var nssCertPEM = func(dir, nickname string) []byte {
 
 // caNSSNickname is the nickname mkcert stores the root CA under: its own label
 // followed by the certificate's serial in decimal. Deriving it the way mkcert
-// does is what lets the lookup ask for the CA lerd signs with today rather than
+// does is what lets the lookup ask for the CA servlo signs with today rather than
 // for whatever certificate happens to wear the mkcert name.
 func caNSSNickname(der []byte) string {
 	cert, err := x509.ParseCertificate(der)
@@ -87,7 +87,7 @@ func caNSSNickname(der []byte) string {
 }
 
 // BrowserStoresMissingCA returns the NSS databases that do not hold the root CA
-// lerd signs with. A browser reading one of those warns on every .test site even
+// servlo signs with. A browser reading one of those warns on every .test site even
 // though curl, PHP and openssl are happy, which is the state certutil's mere
 // presence on PATH says nothing about.
 //

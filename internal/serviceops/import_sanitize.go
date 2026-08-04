@@ -9,7 +9,7 @@ import (
 )
 
 // Ownership and privilege statements name roles that only exist where the dump
-// was taken. lerd's engines run one admin role, so the statements cannot apply
+// was taken. servlo's engines run one admin role, so the statements cannot apply
 // and every one of them lands in the import report as an error nobody can act on.
 var pgOwnership = regexp.MustCompile(`(?i)^\s*(ALTER\s+DEFAULT\s+PRIVILEGES\b|GRANT\b|REVOKE\b|ALTER\s+.*\s+OWNER\s+TO\b)`)
 
@@ -42,7 +42,7 @@ type DumpTarget struct {
 }
 
 // ImportNotes is what the filter did on the way in, reported beside the errors
-// so a dump lerd changed never reads as one that arrived untouched.
+// so a dump servlo changed never reads as one that arrived untouched.
 type ImportNotes struct {
 	Skipped []ImportIssue
 	Created []ImportIssue
@@ -157,7 +157,7 @@ func (s *dumpSanitizer) copy(r io.Reader, w io.Writer) error {
 }
 
 // conditionalCreateSchema turns a bare CREATE SCHEMA into its IF NOT EXISTS
-// form. Every database lerd creates already has a public schema, so a dump that
+// form. Every database servlo creates already has a public schema, so a dump that
 // declares one ends on an error that means nothing; the database is the same
 // either way, so nothing is withheld by making it conditional.
 func conditionalCreateSchema(line string) string {

@@ -9,16 +9,16 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/nginx"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/nginx"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 // SpxUIURL is the standalone SPX profiler web UI, served by the
 // profiler.localhost nginx vhost. The dashboard embeds the same UI same-origin
-// under /_spx/; this URL opens it directly (lerd profile open, MCP status).
+// under /_spx/; this URL opens it directly (servlo profile open, MCP status).
 const SpxUIURL = "http://profiler.localhost/?SPX_UI_URI=/"
 
 // nginxReloadFn is the nginx reload hook, swapped out in tests.
@@ -80,7 +80,7 @@ func ClearData() (int, error) {
 // Profilable reports whether a site's requests can be profiled at all: SPX
 // lives in the FPM image, so it takes a PHP site served by FPM. FrankenPHP
 // serves PHP from its own image without the extension, and custom-container
-// and host-proxy sites run no PHP of lerd's. The dashboard gates its
+// and host-proxy sites run no PHP of servlo's. The dashboard gates its
 // profile-this-route action on the same rule the vhost rewrite uses.
 func Profilable(s config.Site) bool {
 	return ProfilableSite(s, phpPkg.SiteUsesPHP(s))

@@ -11,7 +11,7 @@ func serviceStatusHint(unit string) string {
 }
 
 func dnsRestartHint() string {
-	return "run 'lerd install' or: sudo systemctl restart NetworkManager"
+	return "run 'servlo install' or: sudo systemctl restart NetworkManager"
 }
 
 func podmanDaemonHint() string {

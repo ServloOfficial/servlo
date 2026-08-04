@@ -11,7 +11,7 @@
   let { ports, disabled = false, onadd, onremove, empty }: Props = $props();
 
   const inputCls =
-    'w-20 text-sm tabular-nums bg-transparent border border-gray-200 dark:border-lerd-border rounded-md px-2.5 py-2 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-lerd-red/50 transition-colors disabled:opacity-50';
+    'w-20 text-sm tabular-nums bg-transparent border border-gray-200 dark:border-servlo-border rounded-md px-2.5 py-2 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-servlo-red/50 transition-colors disabled:opacity-50';
 
   let newHost = $state<number | null>(null);
   let newContainer = $state<number | null>(null);
@@ -46,7 +46,7 @@
   {#each ports as spec (spec)}
     {@const p = split(spec)}
     <div
-      class="relative group rounded-xl border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card pl-4 pr-10 py-3 min-w-[132px]"
+      class="relative group rounded-xl border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card pl-4 pr-10 py-3 min-w-[132px]"
     >
       <div class="text-lg font-mono font-semibold text-gray-800 dark:text-gray-100 leading-tight">
         {p.host}
@@ -70,7 +70,7 @@
   {/each}
 
   <div
-    class="flex items-center gap-2 rounded-xl border border-dashed border-gray-300 dark:border-lerd-border px-3 py-3"
+    class="flex items-center gap-2 rounded-xl border border-dashed border-gray-300 dark:border-servlo-border px-3 py-3"
   >
     <input
       type="number"
@@ -101,7 +101,7 @@
       disabled={disabled || newHost == null || newContainer == null}
       title={m.common_add()}
       aria-label={m.common_add()}
-      class="p-1.5 rounded-md bg-lerd-red hover:bg-lerd-redhov text-white transition-colors disabled:opacity-40"
+      class="p-1.5 rounded-md bg-servlo-red hover:bg-servlo-redhov text-white transition-colors disabled:opacity-40"
     >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />

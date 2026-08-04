@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestShareToolNames_matchBinaries(t *testing.T) {
@@ -46,7 +46,7 @@ func TestNewShareToolCmd_helpMentionsEveryTool(t *testing.T) {
 			t.Errorf("help does not mention %q:\n%s", name, help)
 		}
 	}
-	for _, want := range []string{"auto", "lerd share:tool cloudflare"} {
+	for _, want := range []string{"auto", "servlo share:tool cloudflare"} {
 		if !strings.Contains(help, want) {
 			t.Errorf("help does not mention %q:\n%s", want, help)
 		}
@@ -106,7 +106,7 @@ func TestRunShareTool_setShowReset(t *testing.T) {
 	if !strings.Contains(out, "ngrok") {
 		t.Errorf("show output %q does not report the current tool", out)
 	}
-	if !strings.Contains(out, "lerd share:tool") {
+	if !strings.Contains(out, "servlo share:tool") {
 		t.Errorf("show output %q does not say how to change it", out)
 	}
 

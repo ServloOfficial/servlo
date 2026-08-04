@@ -5,15 +5,15 @@ package ui
 import (
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // listActiveUnitsBySuffix returns site names for active units with the given prefix.
 // On macOS, workers run as containers; we list units via the service manager and
 // check active status (which covers both containers and launchd-managed services).
 func listActiveUnitsBySuffix(_, prefix string) []string {
-	// Strip trailing dash from prefix to form the glob, e.g. "lerd-queue-" → "lerd-queue-*"
+	// Strip trailing dash from prefix to form the glob, e.g. "servlo-queue-" → "servlo-queue-*"
 	nameGlob := strings.TrimSuffix(prefix, "-") + "-*"
 	units := services.Mgr.ListContainerUnits(nameGlob)
 	var sites []string
@@ -29,10 +29,10 @@ func listActiveUnitsBySuffix(_, prefix string) []string {
 	return sites
 }
 
-// listActiveStripeListeners returns site names of active lerd-stripe-* units
+// listActiveStripeListeners returns site names of active servlo-stripe-* units
 // that correspond to registered sites (excludes presets like stripe-mock).
 func listActiveStripeListeners() []string {
-	all := listActiveUnitsBySuffix("", "lerd-stripe-")
+	all := listActiveUnitsBySuffix("", "servlo-stripe-")
 	reg, err := config.LoadSites()
 	if err != nil {
 		return all

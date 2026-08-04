@@ -119,7 +119,7 @@ func TestLaravelOctaneFrankenPHPAdapter(t *testing.T) {
 	if e := fw.FrankenPHPEntrypoint(false); !strings.Contains(strings.Join(e, " "), "frankenphp php-server") {
 		t.Fatalf("laravel non-worker should use frankenphp php-server: %v", e)
 	}
-	// Worker mode runs Octane. Extensions are baked into lerd's derived image now,
+	// Worker mode runs Octane. Extensions are baked into servlo's derived image now,
 	// so the entrypoint must not install them at container start.
 	worker := strings.Join(fw.FrankenPHPEntrypoint(true), " ")
 	if !strings.Contains(worker, "octane:start") || !strings.Contains(worker, "frankenphp") {

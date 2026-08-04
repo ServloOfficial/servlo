@@ -4,7 +4,7 @@
 // config.SetExtraPresetsForTest) so mechanism and functionality tests keep
 // resolving add-ons — dependencies, families, dashboards, auto-login file
 // mounts — without a network fetch. It is imported only from _test.go files, so
-// nothing here reaches the production binary. It imports no lerd packages, so any
+// nothing here reaches the production binary. It imports no servlo packages, so any
 // package's tests can use it without an import cycle.
 package presetfixtures
 

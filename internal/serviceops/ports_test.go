@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // The guard's shift hook is silenced only while a SetPublishedPort window is
@@ -201,7 +201,7 @@ func TestSetExtraPortsOptionalPreset(t *testing.T) {
 	}
 }
 
-// TestSetPublishedPortRejectsSiblingPort refuses a port another lerd service
+// TestSetPublishedPortRejectsSiblingPort refuses a port another servlo service
 // already claims (postgres's default 5432) even while that sibling is stopped.
 func TestSetPublishedPortRejectsSiblingPort(t *testing.T) {
 	tmp := t.TempDir()
@@ -240,7 +240,7 @@ func TestSetExtraPortsRejectsMainPort(t *testing.T) {
 }
 
 // TestSetExtraPortsRejectsSiblingPort refuses an extra mapping on a host port
-// another lerd service already claims.
+// another servlo service already claims.
 func TestSetExtraPortsRejectsSiblingPort(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
@@ -253,7 +253,7 @@ func TestSetExtraPortsRejectsSiblingPort(t *testing.T) {
 // TestSetPublishedPortDefaultResetsNotCollides pins finding #4: asking for the
 // preset default normalises to a reset (override 0) instead of erroring as
 // "port already in use" — a running service holds its own default port, so the
-// old bind probe rejected `lerd service port mysql 3306` while mysql owned 3306.
+// old bind probe rejected `servlo service port mysql 3306` while mysql owned 3306.
 func TestSetPublishedPortDefaultResetsNotCollides(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)

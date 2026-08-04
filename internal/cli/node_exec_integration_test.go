@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestRunNode_FailingScriptReturnsErrorNotExit is the end-to-end guard for the
-// lerd link/setup regression: a failing `npm run <script>` must return an error
-// (so the setup step loop can report it) rather than os.Exit and kill lerd. It
+// servlo link/setup regression: a failing `npm run <script>` must return an error
+// (so the setup step loop can report it) rather than os.Exit and kill servlo. It
 // drives the real fnm/npm toolchain, so it skips when fnm or a default Node isn't
 // installed. If exitOnFail were still hard-coded true here, this test process
 // would be terminated and the run would fail loudly — which is the point.
@@ -28,7 +28,7 @@ func TestRunNode_FailingScriptReturnsErrorNotExit(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	pkg := `{"name":"lerd-fail-test","private":true,"scripts":{"production":"node -e \"process.exit(7)\""}}`
+	pkg := `{"name":"servlo-fail-test","private":true,"scripts":{"production":"node -e \"process.exit(7)\""}}`
 	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0o644); err != nil {
 		t.Fatal(err)
 	}

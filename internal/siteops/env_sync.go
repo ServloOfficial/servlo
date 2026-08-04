@@ -1,9 +1,9 @@
 package siteops
 
 import (
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // SyncEnvIfPrimaryChanged updates APP_URL and the VITE_REVERB_* keys in the

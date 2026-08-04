@@ -1,6 +1,6 @@
 // Package desktopnotify posts native desktop notifications from the daemon.
 // On Linux it calls org.freedesktop.Notifications on the session bus using the
-// godbus dependency lerd already ships; other platforms are no-ops for now.
+// godbus dependency servlo already ships; other platforms are no-ops for now.
 package desktopnotify
 
 import (
@@ -19,7 +19,7 @@ var (
 	iconFile string
 )
 
-// IconPath materializes the bundled lerd icon to a stable cache path and returns
+// IconPath materializes the bundled servlo icon to a stable cache path and returns
 // its absolute path. Notification daemons that ignore themed names still show
 // the logo this way. Returns "" on failure, letting the daemon draw its default.
 func IconPath() string {
@@ -28,7 +28,7 @@ func IconPath() string {
 		if err != nil {
 			return
 		}
-		dir := filepath.Join(base, "lerd")
+		dir := filepath.Join(base, "servlo")
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return
 		}
@@ -62,27 +62,27 @@ type Request struct {
 	Route   string // dashboard route to open on click; "" makes the popup inert
 }
 
-// appSchemeURL is the lerd:// deep link the desktop app claims, used when it is
+// appSchemeURL is the servlo:// deep link the desktop app claims, used when it is
 // installed so a click focuses its window at the right route.
 func appSchemeURL(route string) string {
-	return "lerd://open/" + strings.TrimPrefix(route, "/")
+	return "servlo://open/" + strings.TrimPrefix(route, "/")
 }
 
-// pwaSchemeURL is the web+lerd:// deep link an installed PWA claims. The Web
+// pwaSchemeURL is the web+servlo:// deep link an installed PWA claims. The Web
 // Manifest spec forbids bare custom schemes, so a PWA registers the web+ prefix
-// where the desktop app uses lerd://.
+// where the desktop app uses servlo://.
 func pwaSchemeURL(route string) string {
-	return "web+lerd://open/" + strings.TrimPrefix(route, "/")
+	return "web+servlo://open/" + strings.TrimPrefix(route, "/")
 }
 
 // browserURL is where a click falls back to when the desktop app is not
-// installed: the friendly nginx vhost the rest of lerd opens (lerd dashboard),
+// installed: the friendly nginx vhost the rest of servlo opens (servlo dashboard),
 // not the raw loopback address.
 func browserURL(route string) string {
-	return "http://lerd.localhost/" + strings.TrimPrefix(route, "/")
+	return "http://servlo.localhost/" + strings.TrimPrefix(route, "/")
 }
 
-// UrgencyFromString maps lerd's notification urgency strings to the DBus hint.
+// UrgencyFromString maps servlo's notification urgency strings to the DBus hint.
 // Unknown or empty values are Normal, matching the Web Push default.
 func UrgencyFromString(s string) Urgency {
 	switch s {

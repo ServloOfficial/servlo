@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dumps"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dumps"
 )
 
 // debugRouteForContext returns the dashboard route a debug notification opens.
@@ -18,7 +18,7 @@ func debugRouteForContext(ctx dumps.Context) string {
 
 // debugSiteDomain resolves an event context to the primary domain the Sites tab
 // is keyed by, preferring the site the bridge tagged and falling back to the
-// request domain, which survives even when LERD_SITE never reached the process.
+// request domain, which survives even when SERVLO_SITE never reached the process.
 func debugSiteDomain(ctx dumps.Context) string {
 	if ctx.Site != "" {
 		return siteDomainForRoute(ctx.Site)

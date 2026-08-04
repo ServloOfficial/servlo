@@ -89,8 +89,8 @@
     aria-label={m.workspaces_pickerLabel()}
     use:tooltip={current ? m.workspaces_pickerLabel() + ': ' + current : m.workspaces_pickerLabel()}
     class="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-gray-100 dark:hover:bg-white/5 {current
-      ? 'text-lerd-red'
-      : 'text-gray-500 dark:text-gray-400 hover:text-lerd-red'}"
+      ? 'text-servlo-red'
+      : 'text-gray-500 dark:text-gray-400 hover:text-servlo-red'}"
   >
     <Icon name="workspace" class="w-4 h-4" />
   </button>
@@ -99,7 +99,7 @@
     <div
       role="menu"
       tabindex="-1"
-      class="absolute right-0 top-full mt-1 z-50 min-w-52 rounded-xl border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card shadow-xl py-1"
+      class="absolute right-0 top-full mt-1 z-50 min-w-52 rounded-xl border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card shadow-xl py-1"
     >
       {#if creating}
         <div class="p-2">
@@ -109,7 +109,7 @@
             bind:value={newName}
             onkeydown={(e) => (e.key === 'Enter' ? submitNew() : null)}
             placeholder={m.workspaces_namePlaceholder()}
-            class="w-full px-2 py-1.5 text-xs rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-bg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-lerd-red"
+            class="w-full px-2 py-1.5 text-xs rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-bg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-servlo-red"
           />
           <div class="flex justify-end gap-1.5 mt-2">
             <button
@@ -120,7 +120,7 @@
             <button
               type="button"
               onclick={submitNew}
-              class="px-2 py-1 text-xs font-medium rounded-md bg-lerd-red hover:bg-lerd-redhov text-white">{m.common_add()}</button
+              class="px-2 py-1 text-xs font-medium rounded-md bg-servlo-red hover:bg-servlo-redhov text-white">{m.common_add()}</button
             >
           </div>
         </div>
@@ -133,7 +133,7 @@
             onclick={() => assign(name)}
             class="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-gray-50 dark:hover:bg-white/5 {current ===
             name
-              ? 'text-lerd-red font-semibold'
+              ? 'text-servlo-red font-semibold'
               : 'text-gray-700 dark:text-gray-200'}"
           >
             <span class="w-3 h-3 shrink-0">
@@ -149,7 +149,7 @@
           onclick={() => assign('')}
           class="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-gray-50 dark:hover:bg-white/5 {current ===
           ''
-            ? 'text-lerd-red font-semibold'
+            ? 'text-servlo-red font-semibold'
             : 'text-gray-700 dark:text-gray-200'}"
         >
           <span class="w-3 h-3 shrink-0">
@@ -157,7 +157,7 @@
           </span>
           <span class="flex-1">{m.workspaces_none()}</span>
         </button>
-        <div class="my-1 border-t border-gray-100 dark:border-lerd-border"></div>
+        <div class="my-1 border-t border-gray-100 dark:border-servlo-border"></div>
         <button
           type="button"
           role="menuitem"

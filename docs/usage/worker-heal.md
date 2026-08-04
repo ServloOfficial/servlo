@@ -2,7 +2,7 @@
 
 Framework workers (queue, schedule, horizon, reverb, custom) run as systemd user units on Linux and as launchd jobs wrapping `podman exec` on macOS. Both supervisors restart a worker that crashes, but both also stop trying after enough rapid failures and mark the unit `failed`. Once a unit is in `failed` state, neither systemd nor launchd will lift it out without an explicit reset.
 
-`lerd worker heal` is the recovery primitive: it reset-clears the failed state and starts the unit again, on every surface (CLI, dashboard, TUI, MCP).
+`servlo worker heal` is the recovery primitive: it reset-clears the failed state and starts the unit again, on every surface (CLI, dashboard, TUI, MCP).
 
 ## When workers go to `failed`
 
@@ -11,20 +11,20 @@ Two common paths:
 1. **Restart-rate-limit cascade.** If something stops the unit's parent FPM container repeatedly (a quadlet rewrite cascade, a podman-machine bridge wedge on macOS, an external process), the worker's `BindsTo=` directive stops it as collateral. systemd then tries to restart it, hits `StartLimitBurst`, and parks the unit in `failed`.
 2. **Application crash loop.** A worker that throws on startup (missing env var, bad migration, dependency removed) exits faster than `RestartSec=`, exhausts the burst budget, and lands in `failed` with the same message.
 
-The second case requires fixing the underlying error before heal will stick. Heal will start the unit, but if it crashes again it'll burn through the rate limit and re-enter `failed`. The dashboard banner will reappear; check the worker logs (`lerd worker logs <name>` or the dashboard logs pane) for the real cause.
+The second case requires fixing the underlying error before heal will stick. Heal will start the unit, but if it crashes again it'll burn through the rate limit and re-enter `failed`. The dashboard banner will reappear; check the worker logs (`servlo worker logs <name>` or the dashboard logs pane) for the real cause.
 
 ## Workers that run but stop serving
 
 A worker can keep its process alive after its server has died: a Vite dev server whose HTTP server crashes under `npm` while the Node process lingers. systemd still reports the unit active, so process liveness alone reads it as running when nothing is listening.
 
-A worker that declares a [`health` block](/usage/framework-workers) is probed for reachability instead. While its process is up, lerd reads the URL file the server writes on boot (Vite's `public/hot`) and dials its host and port; if nothing is accepting, the worker is reported **unreachable** and heal restarts it (a plain start is a no-op on a still-running unit). Workers with no `health` block keep the process-only check.
+A worker that declares a [`health` block](/usage/framework-workers) is probed for reachability instead. While its process is up, servlo reads the URL file the server writes on boot (Vite's `public/hot`) and dials its host and port; if nothing is accepting, the worker is reported **unreachable** and heal restarts it (a plain start is a no-op on a still-running unit). Workers with no `health` block keep the process-only check.
 
-Per-worktree workers are covered by the same pass. A `per_worktree` worker runs under its own `lerd-<worker>-<site>-<branch>` unit, so a Vite dev server that died on a branch checkout is found and healed exactly like the main site's.
+Per-worktree workers are covered by the same pass. A `per_worktree` worker runs under its own `servlo-<worker>-<site>-<branch>` unit, so a Vite dev server that died on a branch checkout is found and healed exactly like the main site's.
 
 The probe is deliberately conservative about what it treats as a failure, because a false positive restarts a server that was working:
 
 - The URL file is read against the unit's activation time. A file older than the unit's current run is a leftover from the previous one, not a live address, so it is not dialled.
-- A missing URL file is not a failure. A Vite config with its own `hotFile`, a worker that only watches and never serves, or a project that cleans `public/` on build all legitimately have no file to read. Absence is a signal lerd cannot use, so the probe stands down rather than restarting a healthy worker forever.
+- A missing URL file is not a failure. A Vite config with its own `hotFile`, a worker that only watches and never serves, or a project that cleans `public/` on build all legitimately have no file to read. Absence is a signal servlo cannot use, so the probe stands down rather than restarting a healthy worker forever.
 - A worker still inside its startup grace window is left alone, so a server that is simply slow to bind is not killed while it comes up.
 
 What the probe does catch is the case it exists for: a URL file written by the current run, pointing at a port that refuses a connection.
@@ -34,20 +34,20 @@ A worker with a `schedule` is not probed at all. It is a oneshot unit driven by 
 ## CLI
 
 ```sh
-lerd worker heal
+servlo worker heal
 ```
 
 Scans every registered, non-paused site and resets-and-starts every worker unit currently in `failed`. Prints one line per unit.
 
 ```sh
-lerd worker heal queue
+servlo worker heal queue
 ```
 
-Heals one worker for the site at the current working directory. Equivalent to `systemctl --user reset-failed lerd-queue-<site> && systemctl --user start lerd-queue-<site>` but runs through the same code path the dashboard and MCP use.
+Heals one worker for the site at the current working directory. Equivalent to `systemctl --user reset-failed servlo-queue-<site> && systemctl --user start servlo-queue-<site>` but runs through the same code path the dashboard and MCP use.
 
 ## Dashboard
 
-When the detector finds any failed worker, an amber banner appears at the top of the Sites tab listing the affected workers. Clicking **Heal** runs the same reset-and-start sequence and streams per-unit progress (`Starting lerd-queue-myapp…`) until done. The banner disappears when the count returns to zero.
+When the detector finds any failed worker, an amber banner appears at the top of the Sites tab listing the affected workers. Clicking **Heal** runs the same reset-and-start sequence and streams per-unit progress (`Starting servlo-queue-myapp…`) until done. The banner disappears when the count returns to zero.
 
 The banner refresh is event-driven: the dashboard reloads health on every `sites` WebSocket push (debounced 500ms), so heal results show up without polling.
 
@@ -66,7 +66,7 @@ Two tools:
 
 Heal is intentionally narrow. It is a runtime recovery, not an enable/disable knob:
 
-- **It does not write `.lerd.yaml`.** A failed worker is a transient runtime condition, not a change of user intent. Adding or removing workers from a site's enabled list still belongs to `lerd worker add` / `lerd worker remove` (or the equivalent dashboard / TUI / MCP actions).
-- **It does not rewrite the unit file.** If the unit drifted (e.g. you renamed the site directory and the `WorkingDirectory=` is stale), heal won't fix it. Run `lerd install` to regenerate the unit file from the framework definition first.
+- **It does not write `.servlo.yaml`.** A failed worker is a transient runtime condition, not a change of user intent. Adding or removing workers from a site's enabled list still belongs to `servlo worker add` / `servlo worker remove` (or the equivalent dashboard / TUI / MCP actions).
+- **It does not rewrite the unit file.** If the unit drifted (e.g. you renamed the site directory and the `WorkingDirectory=` is stale), heal won't fix it. Run `servlo install` to regenerate the unit file from the framework definition first.
 - **It does not touch paused sites.** A worker that's failed because its site is paused stays as it is.
 - **It does not loop.** Heal makes one attempt per unit. If the underlying cause is still present, the unit will go back to `failed` shortly after; the banner is the signal to look at logs, not a button to mash.

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// stubEnsurePath isolates lerd state and replaces every step of the ensure path
+// stubEnsurePath isolates servlo state and replaces every step of the ensure path
 // that shells out to podman, so these exercise the start/restart decision and
 // nothing else. Without the stubs the path really does invoke podman, which
 // builds a container storage tree under the test's temp dir to get there.
@@ -47,8 +47,8 @@ func TestEnsureFPMQuadletTo_restartsOnlyWhenTheImageWasRebuilt(t *testing.T) {
 	if len(restarted) != 0 {
 		t.Errorf("an unchanged image must not bounce a running container, restarted %v", restarted)
 	}
-	if len(started) != 1 || started[0] != "lerd-php83-fpm" {
-		t.Errorf("started = %v, want [lerd-php83-fpm]", started)
+	if len(started) != 1 || started[0] != "servlo-php83-fpm" {
+		t.Errorf("started = %v, want [servlo-php83-fpm]", started)
 	}
 
 	rebuilt = true
@@ -59,8 +59,8 @@ func TestEnsureFPMQuadletTo_restartsOnlyWhenTheImageWasRebuilt(t *testing.T) {
 	if len(started) != 0 {
 		t.Errorf("a rebuilt image must not be left to a no-op start, started %v", started)
 	}
-	if len(restarted) != 1 || restarted[0] != "lerd-php83-fpm" {
-		t.Errorf("restarted = %v, want [lerd-php83-fpm]", restarted)
+	if len(restarted) != 1 || restarted[0] != "servlo-php83-fpm" {
+		t.Errorf("restarted = %v, want [servlo-php83-fpm]", restarted)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestRestartRebuiltFPMUnits_bouncesOnlyRunningRebuiltVersions(t *testing.T) 
 	origRunning, origRestart := fpmContainerRunning, restartUnitFn
 	t.Cleanup(func() { fpmContainerRunning, restartUnitFn = origRunning, origRestart })
 
-	up := map[string]bool{"lerd-php83-fpm": true, "lerd-php85-fpm": true}
+	up := map[string]bool{"servlo-php83-fpm": true, "servlo-php85-fpm": true}
 	fpmContainerRunning = func(name string) (bool, error) { return up[name], nil }
 
 	var restarted []string
@@ -99,8 +99,8 @@ func TestRestartRebuiltFPMUnits_bouncesOnlyRunningRebuiltVersions(t *testing.T) 
 	// 8.4 was rebuilt but is down; 8.2 is down and was not rebuilt either.
 	restartRebuiltFPMUnits([]string{"8.3", "8.4"})
 
-	if !reflect.DeepEqual(restarted, []string{"lerd-php83-fpm"}) {
-		t.Errorf("restarted = %v, want [lerd-php83-fpm]: only a running version this run rebuilt", restarted)
+	if !reflect.DeepEqual(restarted, []string{"servlo-php83-fpm"}) {
+		t.Errorf("restarted = %v, want [servlo-php83-fpm]: only a running version this run rebuilt", restarted)
 	}
 }
 

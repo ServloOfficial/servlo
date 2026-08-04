@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestToolJSON_wrapsValueInContent(t *testing.T) {
@@ -83,7 +83,7 @@ func gitRun(t *testing.T, dir string, args ...string) {
 	}
 }
 
-// initRepoSite builds a real git repo registered as a lerd site, the fixture
+// initRepoSite builds a real git repo registered as a servlo site, the fixture
 // the worktree actions run against.
 func initRepoSite(t *testing.T, name string) string {
 	t.Helper()
@@ -112,7 +112,7 @@ func initRepoSite(t *testing.T, name string) string {
 	return repo
 }
 
-// stubWorktreeWait swaps the wait seam so tests need neither a lerd binary on
+// stubWorktreeWait swaps the wait seam so tests need neither a servlo binary on
 // PATH nor a running watcher, and records the path it was asked about.
 func stubWorktreeWait(t *testing.T, code int) *string {
 	t.Helper()

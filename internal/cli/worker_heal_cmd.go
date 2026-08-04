@@ -6,8 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newWorkerHealCmd returns the `lerd worker heal [name]` command. Heal is a
-// runtime recovery operation: it never writes to .lerd.yaml or rewrites the
+// newWorkerHealCmd returns the `servlo worker heal [name]` command. Heal is a
+// runtime recovery operation: it never writes to .servlo.yaml or rewrites the
 // worker's unit file. With no argument, it scans every registered site and
 // heals any worker whose unit is in the systemd "failed" state. With a
 // worker name, it heals that worker for the site at the current working
@@ -26,11 +26,11 @@ the current site if an argument is given) and runs the equivalent of
 for each one.
 
 Heal is intentionally surgical:
-  - It does NOT rewrite the unit file from .lerd.yaml.
-  - It does NOT change the workers list in .lerd.yaml.
+  - It does NOT rewrite the unit file from .servlo.yaml.
+  - It does NOT change the workers list in .servlo.yaml.
   - It does NOT touch sites the user has paused.
 
-Worker enable/disable belongs to 'lerd worker start/stop/add/remove'.`,
+Worker enable/disable belongs to 'servlo worker start/stop/add/remove'.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 1 {
@@ -66,7 +66,7 @@ func runHealOne(workerName string) error {
 	if err != nil {
 		return err
 	}
-	unit := "lerd-" + workerName + "-" + site.Name
+	unit := "servlo-" + workerName + "-" + site.Name
 	fmt.Printf("  ➜  %s ", unit)
 	if err := HealUnit(unit); err != nil {
 		fmt.Printf("FAIL (%v)\n", err)

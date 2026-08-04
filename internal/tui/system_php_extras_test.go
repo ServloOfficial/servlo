@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // installPHPVersion makes a version look installed to phpPkg.ListInstalled,
@@ -18,7 +18,7 @@ func installPHPVersion(t *testing.T, version string) {
 		t.Fatal(err)
 	}
 	short := strings.ReplaceAll(version, ".", "")
-	unit := filepath.Join(dir, "lerd-php"+short+"-fpm.container")
+	unit := filepath.Join(dir, "servlo-php"+short+"-fpm.container")
 	if err := os.WriteFile(unit, []byte("[Container]\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

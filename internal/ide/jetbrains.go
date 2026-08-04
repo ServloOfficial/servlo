@@ -1,8 +1,8 @@
-// Package ide keeps a project's IDE-side pointers at lerd in sync. An IDE
+// Package ide keeps a project's IDE-side pointers at servlo in sync. An IDE
 // cannot discover a site's database on its own: the site's env file carries the
 // container host and port, which are right inside the network and unusable from
 // the machine, and no format is shared across IDEs for a project to declare one.
-// JetBrains keeps its data sources in a plain XML file, so lerd maintains one
+// JetBrains keeps its data sources in a plain XML file, so servlo maintains one
 // entry there with host-facing coordinates.
 package ide
 
@@ -27,12 +27,12 @@ type DataSource struct {
 	User   string // the IDE authenticates with this, from its own sidecar
 }
 
-// ownedSuffix marks the entries lerd maintains, so one whose database the
+// ownedSuffix marks the entries servlo maintains, so one whose database the
 // project has stopped using can be cleaned up without a record of what was
 // written last time.
-const ownedSuffix = " (lerd)"
+const ownedSuffix = " (servlo)"
 
-// Owns reports whether a data source name is one lerd maintains.
+// Owns reports whether a data source name is one servlo maintains.
 func Owns(name string) bool { return strings.HasSuffix(name, ownedSuffix) }
 
 const (
@@ -60,15 +60,15 @@ const (
 	NotJetBrains Outcome = iota
 	// AlreadyConfigured means a data source already points at the same database.
 	AlreadyConfigured
-	// Written means lerd's entry was added or brought up to date.
+	// Written means servlo's entry was added or brought up to date.
 	Written
 )
 
-// Sync writes lerd's data source into the project's JetBrains configuration. A
-// project with no .idea directory is not open in a JetBrains IDE, and lerd
+// Sync writes servlo's data source into the project's JetBrains configuration. A
+// project with no .idea directory is not open in a JetBrains IDE, and servlo
 // creating one would be litter, so it is left alone.
 // Sync brings the project's JetBrains configuration in line with the given set
-// of connections: lerd's own entries are replaced by exactly these, and every
+// of connections: servlo's own entries are replaced by exactly these, and every
 // other data source in the files is left as it was. The outcome of each source
 // is returned in the order it was given.
 func Sync(projectDir string, sources []DataSource) ([]Outcome, error) {
@@ -86,7 +86,7 @@ func Sync(projectDir string, sources []DataSource) ([]Outcome, error) {
 	}
 	origBody, origLocal := body, local
 
-	// Entries lerd wrote before are dropped up front, so one whose database the
+	// Entries servlo wrote before are dropped up front, so one whose database the
 	// project no longer uses does not linger, and the ones still wanted are
 	// written back below.
 	keep := map[string]bool{}
@@ -99,7 +99,7 @@ func Sync(projectDir string, sources []DataSource) ([]Outcome, error) {
 	outcomes := make([]Outcome, len(sources))
 	for i, ds := range sources {
 		uuid := dataSourceUUID(projectDir, ds.Key)
-		// Once lerd owns an entry it keeps it current. Until then, a connection
+		// Once servlo owns an entry it keeps it current. Until then, a connection
 		// the user already wired to the same database is theirs to keep, and a
 		// second one beside it would be clutter rather than help.
 		if !strings.Contains(body, `uuid="`+uuid+`"`) && hasEquivalent(body, ds.URL) {
@@ -124,7 +124,7 @@ func Sync(projectDir string, sources []DataSource) ([]Outcome, error) {
 	}
 	// Only files this sync actually changed are written. A sync that left the
 	// user's own connection alone has nothing to say, and writing anyway would
-	// create a credentials sidecar in a project lerd just decided not to touch,
+	// create a credentials sidecar in a project servlo just decided not to touch,
 	// and move dataSources.xml's mtime, which the IDE reads as an external edit.
 	if body != origBody {
 		if err := write(dir, dataSourcesFile, body); err != nil {
@@ -145,7 +145,7 @@ func repeat(o Outcome, n int) []Outcome {
 	return out
 }
 
-// dropOwnedExcept removes every entry lerd maintains whose name is not wanted
+// dropOwnedExcept removes every entry servlo maintains whose name is not wanted
 // any more, which is how a site that changed database loses the old connection.
 func dropOwnedExcept(body string, keep map[string]bool) string {
 	for {
@@ -157,7 +157,7 @@ func dropOwnedExcept(body string, keep map[string]bool) string {
 	}
 }
 
-// nextOwnedEntry returns the uuid of the first lerd-owned entry whose name is no
+// nextOwnedEntry returns the uuid of the first servlo-owned entry whose name is no
 // longer wanted.
 func nextOwnedEntry(body string, keep map[string]bool) (string, bool) {
 	for rest := body; ; {
@@ -213,7 +213,7 @@ func insert(body, entry, component string) (string, error) {
 	return body[:i] + "  " + component + "\n" + entry + "  </component>\n" + body[i:], nil
 }
 
-// Remove drops every entry lerd maintains and leaves everything else as it was.
+// Remove drops every entry servlo maintains and leaves everything else as it was.
 func Remove(projectDir string) (bool, error) {
 	dir := filepath.Join(projectDir, ".idea")
 	removed := false
@@ -368,7 +368,7 @@ func unescape(s string) string { return unescaper.Replace(s) }
 // repeated runs update the same entries instead of piling up, a site and its
 // worktree databases each keep their own, and two projects never collide.
 func dataSourceUUID(projectDir, key string) string {
-	sum := sha1.Sum([]byte("lerd:datasource:" + projectDir + "\x00" + key))
+	sum := sha1.Sum([]byte("servlo:datasource:" + projectDir + "\x00" + key))
 	b := sum[:16]
 	b[6] = (b[6] & 0x0f) | 0x50 // version 5, as a name-derived uuid
 	b[8] = (b[8] & 0x3f) | 0x80 // RFC 4122 variant

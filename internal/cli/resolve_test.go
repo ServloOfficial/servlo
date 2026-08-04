@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestErrNotLinkedMentionsLink(t *testing.T) {
 	msg := errNotLinked().Error()
-	if !strings.Contains(msg, "run 'lerd link' first") {
+	if !strings.Contains(msg, "run 'servlo link' first") {
 		t.Errorf("errNotLinked message changed, callers rely on it: %q", msg)
 	}
 }
@@ -23,8 +23,8 @@ func TestEnsureSiteForCwdNonInteractiveErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an unlinked directory in non-interactive mode")
 	}
-	if !strings.Contains(err.Error(), "lerd link") {
-		t.Errorf("error should point the user at lerd link, got: %v", err)
+	if !strings.Contains(err.Error(), "servlo link") {
+		t.Errorf("error should point the user at servlo link, got: %v", err)
 	}
 }
 
@@ -43,7 +43,7 @@ func chdir(t *testing.T, dir string) {
 
 // A worktree is never registered as a site of its own, so an exact path lookup
 // always misses and every directory-scoped command used to dead-end on "run
-// lerd link first", advice that can never work because link refuses a worktree.
+// servlo link first", advice that can never work because link refuses a worktree.
 func TestEnsureSiteAndBranchForCwd_resolvesWorktreeToParent(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	parent, wtPath := makeWorktreeLayout(t, "rapids", "feature")

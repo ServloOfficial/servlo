@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/dns"
+	"github.com/realrashid/servlo/internal/dns"
 )
 
 func resetDNSObs() {
@@ -125,7 +125,7 @@ func TestTickDNSStatus(t *testing.T) {
 // bypassing the two-tick debounce the time-based path uses. Without this
 // the dashboard pill, and now the Recent Activity feed, would lag a VPN
 // connect by up to one full poll interval after the watcher already
-// re-synced container DNS in lerd-watcher.
+// re-synced container DNS in servlo-watcher.
 func TestTickDNSStatusForced(t *testing.T) {
 	cases := []struct {
 		name        string
@@ -207,7 +207,7 @@ func TestTickDNSStatusTLDFromConfig(t *testing.T) {
 
 	var seen string
 	deps := dnsStatusDeps{
-		tld: func() string { return "lerd" },
+		tld: func() string { return "servlo" },
 		check: func(tld string) dns.Status {
 			seen = tld
 			return dns.StatusOK
@@ -216,7 +216,7 @@ func TestTickDNSStatusTLDFromConfig(t *testing.T) {
 		publish: func() {},
 	}
 	tickDNSStatus(deps)
-	if seen != "lerd" {
-		t.Fatalf("check called with tld=%q, want %q", seen, "lerd")
+	if seen != "servlo" {
+		t.Fatalf("check called with tld=%q, want %q", seen, "servlo")
 	}
 }

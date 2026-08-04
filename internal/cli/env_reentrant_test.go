@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
 // runEnvLive must save and restore the previous live line rather than nilling
-// the global, so it is reentrant. `lerd env` in an unlinked dir links first, and
+// the global, so it is reentrant. `servlo env` in an unlinked dir links first, and
 // linking runs its own setup env step (a nested runEnvLive); if the nested call
 // left envLive nil the outer line's Done/Fail would deref nil and crash. Here
 // the outer env run is stood in for by a sentinel live line, and the nested run

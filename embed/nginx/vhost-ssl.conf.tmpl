@@ -18,7 +18,7 @@ server {
     }
 
     location ~ \.php$ {
-        fastcgi_pass lerd-php{{.PHPVersionShort}}-fpm:9000;
+        fastcgi_pass servlo-php{{.PHPVersionShort}}-fpm:9000;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;

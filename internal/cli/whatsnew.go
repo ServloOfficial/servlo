@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/feedback"
-	lerdUpdate "github.com/geodro/lerd/internal/update"
-	"github.com/geodro/lerd/internal/version"
+	"github.com/realrashid/servlo/internal/feedback"
+	servloUpdate "github.com/realrashid/servlo/internal/update"
+	"github.com/realrashid/servlo/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -20,21 +20,21 @@ func NewWhatsnewCmd() *cobra.Command {
 }
 
 func runWhatsnew(_ *cobra.Command, _ []string) error {
-	latest, err := lerdUpdate.FetchLatestVersion()
+	latest, err := servloUpdate.FetchLatestVersion()
 	if err != nil {
 		return fmt.Errorf("could not fetch latest version: %w", err)
 	}
 
-	current := lerdUpdate.StripV(version.Version)
-	latestStripped := lerdUpdate.StripV(latest)
+	current := servloUpdate.StripV(version.Version)
+	latestStripped := servloUpdate.StripV(latest)
 
-	if !lerdUpdate.VersionGreaterThan(latestStripped, current) {
+	if !servloUpdate.VersionGreaterThan(latestStripped, current) {
 		feedback.Begin()
 		feedback.Done("you are on the latest version (" + version.Version + ")")
 		return nil
 	}
 
-	changelog, err := lerdUpdate.FetchChangelog(current, latestStripped)
+	changelog, err := servloUpdate.FetchChangelog(current, latestStripped)
 	if err != nil {
 		return fmt.Errorf("could not fetch changelog: %w", err)
 	}

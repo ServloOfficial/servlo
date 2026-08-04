@@ -3,14 +3,14 @@ package linker
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// reservedDomains are domains lerd itself uses, which cannot be assigned to a
+// reservedDomains are domains servlo itself uses, which cannot be assigned to a
 // user site.
 var reservedDomains = []string{}
 
-// IsReservedDomain reports whether a domain is reserved for lerd's own use.
+// IsReservedDomain reports whether a domain is reserved for servlo's own use.
 func IsReservedDomain(domain string) bool {
 	for _, r := range reservedDomains {
 		if domain == r {
@@ -70,7 +70,7 @@ func FilterConflictingDomains(desired []string, ownPath string, allSites []confi
 // ResolveDomains filters the desired domain list against the live registry and
 // returns the list to register. When every desired domain is conflicted it
 // falls back to a freshly generated `<baseName>.<tld>`, suffixed until it is
-// free in both the name and domain axes. The .lerd.yaml on disk is never
+// free in both the name and domain axes. The .servlo.yaml on disk is never
 // touched; the discrepancy lives only in the registration, and the dropped
 // domains come back in removed so the caller can report them.
 func ResolveDomains(desired []string, baseName, ownPath, tld string) (kept, removed []string) {

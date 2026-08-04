@@ -201,11 +201,11 @@
 
 <!-- The flex column stays in both modes: full screen only swaps the box it
      lives in, so the panes keep filling the height they are given. -->
-<div class="flex flex-col min-h-0 overflow-hidden gap-3 {fullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-lerd-bg p-3' : 'flex-1 pt-4 px-3 sm:px-5 pb-3 sm:pb-5'}">
+<div class="flex flex-col min-h-0 overflow-hidden gap-3 {fullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-servlo-bg p-3' : 'flex-1 pt-4 px-3 sm:px-5 pb-3 sm:pb-5'}">
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span
-        class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm border border-gray-200 dark:border-lerd-border text-gray-500 dark:text-gray-400"
+        class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm border border-gray-200 dark:border-servlo-border text-gray-500 dark:text-gray-400"
         title={result?.mode === 'tinker' ? m.tinker_mode_tinkerTitle() : m.tinker_mode_phpTitle()}
       >
         {result?.mode ?? (site.is_laravel ? 'tinker' : 'php')}
@@ -273,7 +273,7 @@
     data-splitdir={splitDir}
   >
     <div
-      class="group flex-1 min-h-40 md:min-h-0 flex flex-col rounded-lg border border-gray-200 dark:border-lerd-border overflow-hidden bg-gray-50 dark:bg-black/40 relative"
+      class="group flex-1 min-h-40 md:min-h-0 flex flex-col rounded-lg border border-gray-200 dark:border-servlo-border overflow-hidden bg-gray-50 dark:bg-black/40 relative"
     >
       <div class="flex-1 min-h-0 overflow-hidden">
         <MonacoEditor bind:value={code} language="php" onReady={onEditorReady} />
@@ -282,13 +282,13 @@
         <button
           onclick={() => copyText(code)}
           title={m.tinker_copyEditorTitle()}
-          class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded-sm border border-gray-200 dark:border-lerd-border bg-white/90 dark:bg-lerd-card/90 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-opacity"
+          class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded-sm border border-gray-200 dark:border-servlo-border bg-white/90 dark:bg-servlo-card/90 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-opacity"
         >{m.common_copy()}</button>
       {/if}
     </div>
 
     <div
-      class="flex-1 min-h-30 md:min-h-0 flex flex-col overflow-y-auto rounded-lg border border-gray-200 dark:border-lerd-border bg-gray-50 dark:bg-black/40 tinker-output py-2"
+      class="flex-1 min-h-30 md:min-h-0 flex flex-col overflow-y-auto rounded-lg border border-gray-200 dark:border-servlo-border bg-gray-50 dark:bg-black/40 tinker-output py-2"
     >
       {#if !result && running}
         <p class="text-xs text-gray-400">{m.tinker_running()}</p>
@@ -340,7 +340,7 @@
                   block.kind === 'query' ? block.sql : block.text
                 )}
               title={m.tinker_copyOutputTitle()}
-              class="output-copy opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded-sm border border-gray-200 dark:border-lerd-border text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-opacity shrink-0 {block.kind === 'query' ? 'output-copy--abs' : ''}"
+              class="output-copy opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded-sm border border-gray-200 dark:border-servlo-border text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-opacity shrink-0 {block.kind === 'query' ? 'output-copy--abs' : ''}"
             >{m.common_copy()}</button>
           </div>
         {/each}

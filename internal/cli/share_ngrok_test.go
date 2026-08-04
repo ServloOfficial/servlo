@@ -50,10 +50,10 @@ func TestNgrokRunnerNeedsATokenForTheContainer(t *testing.T) {
 	}
 }
 
-// The token is an argument to lerd, never to podman: an -e VAR=VALUE would put
+// The token is an argument to servlo, never to podman: an -e VAR=VALUE would put
 // it in the process arguments, where any local user can read it off ps.
 func TestNgrokContainerKeepsTheTokenOutOfTheArguments(t *testing.T) {
-	cmd := ngrokContainerCmd(5180, "super-secret-token", false, "lerd-ngrok-t")
+	cmd := ngrokContainerCmd(5180, "super-secret-token", false, "servlo-ngrok-t")
 
 	for _, arg := range cmd.Args {
 		if strings.Contains(arg, "super-secret-token") {
@@ -81,7 +81,7 @@ func TestNgrokContainerKeepsTheTokenOutOfTheArguments(t *testing.T) {
 // not the host's. --net=host there points ngrok at the VM, where nothing is
 // listening, and every request comes back ERR_NGROK_8012.
 func TestNgrokContainerReachesTheProxyOverTheHostGatewayOnMacOS(t *testing.T) {
-	joined := strings.Join(ngrokContainerCmdFor(65483, "tok", false, "lerd-ngrok-t", "darwin").Args, " ")
+	joined := strings.Join(ngrokContainerCmdFor(65483, "tok", false, "servlo-ngrok-t", "darwin").Args, " ")
 
 	if strings.Contains(joined, "--net=host") {
 		t.Errorf("the podman machine VM's loopback is not the host's: %s", joined)
@@ -94,7 +94,7 @@ func TestNgrokContainerReachesTheProxyOverTheHostGatewayOnMacOS(t *testing.T) {
 // On Linux the container shares the host's own network namespace, so the proxy
 // really is on loopback and the bare port is what ngrok should be given.
 func TestNgrokContainerUsesHostNetworkingOnLinux(t *testing.T) {
-	joined := strings.Join(ngrokContainerCmdFor(65483, "tok", false, "lerd-ngrok-t", "linux").Args, " ")
+	joined := strings.Join(ngrokContainerCmdFor(65483, "tok", false, "servlo-ngrok-t", "linux").Args, " ")
 
 	if !strings.Contains(joined, "--net=host") {
 		t.Errorf("linux should share the host network namespace: %s", joined)
@@ -107,7 +107,7 @@ func TestNgrokContainerUsesHostNetworkingOnLinux(t *testing.T) {
 // Headless runs are scraped for the public URL, so the tool has to be asked for
 // parseable output on both routes.
 func TestNgrokHeadlessAsksForJSONLogsOnBothRoutes(t *testing.T) {
-	container := strings.Join(ngrokContainerCmd(5180, "tok", true, "lerd-ngrok-t").Args, " ")
+	container := strings.Join(ngrokContainerCmd(5180, "tok", true, "servlo-ngrok-t").Args, " ")
 	if !strings.Contains(container, "--log-format json") {
 		t.Errorf("container headless run is not parseable: %s", container)
 	}
@@ -158,18 +158,18 @@ func writeFakeExe(t *testing.T, path string) {
 
 // A container outlives the podman client that started it: conmon is reparented
 // away and sits in its own cgroup, so neither a SIGKILL of the client nor a
-// control-group stop of lerd-ui reaches it. It has to be addressable by name.
+// control-group stop of servlo-panel reaches it. It has to be addressable by name.
 func TestNgrokContainerIsNamedForCleanupAndTheResourcesView(t *testing.T) {
-	cmd := ngrokContainerCmd(5180, "tok", false, "lerd-ngrok-acme")
+	cmd := ngrokContainerCmd(5180, "tok", false, "servlo-ngrok-acme")
 	joined := strings.Join(cmd.Args, " ")
 
-	if !strings.Contains(joined, "--name lerd-ngrok-acme") {
+	if !strings.Contains(joined, "--name servlo-ngrok-acme") {
 		t.Errorf("container is not addressable by name: %s", joined)
 	}
-	// The resources view lists containers by the lerd- prefix, so the name is
+	// The resources view lists containers by the servlo- prefix, so the name is
 	// what puts a running tunnel in front of the user.
-	if !strings.Contains(joined, "--name lerd-") {
-		t.Errorf("name does not carry the lerd- prefix: %s", joined)
+	if !strings.Contains(joined, "--name servlo-") {
+		t.Errorf("name does not carry the servlo- prefix: %s", joined)
 	}
 	// A name left behind by a crash must not block the next start.
 	if !strings.Contains(joined, "--replace") {
@@ -178,11 +178,11 @@ func TestNgrokContainerIsNamedForCleanupAndTheResourcesView(t *testing.T) {
 }
 
 func TestNgrokContainerNameIsPerSiteAndBranch(t *testing.T) {
-	if got := ngrokContainerName("acme", ""); got != "lerd-ngrok-acme" {
+	if got := ngrokContainerName("acme", ""); got != "servlo-ngrok-acme" {
 		t.Errorf("ngrokContainerName(acme) = %q", got)
 	}
 	// Two tunnels can run at once, so a worktree cannot share the parent's name.
-	if got := ngrokContainerName("acme", "feature/x"); got != "lerd-ngrok-acme-feature-x" {
+	if got := ngrokContainerName("acme", "feature/x"); got != "servlo-ngrok-acme-feature-x" {
 		t.Errorf("ngrokContainerName(acme, feature/x) = %q", got)
 	}
 	// Whatever a branch or site is called, the result has to be a legal

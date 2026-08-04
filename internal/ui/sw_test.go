@@ -22,7 +22,7 @@ func TestServiceWorker_BypassesProfilerPaths(t *testing.T) {
 // /_svc/ proxies live admin dashboards (rabbitmq, redisinsight) same-origin in
 // the iframe overlay. The cache-first SW must bypass them or it caches stale
 // cross-service assets, and its navigate fallback replaces the embedded
-// dashboard with lerd's offline page ("Lerd is not running").
+// dashboard with servlo's offline page ("Servlo is not running").
 func TestServiceWorker_BypassesDashboardProxyPaths(t *testing.T) {
 	if !strings.Contains(string(swJS), "startsWith('/_svc/')") {
 		t.Error("sw.js fetch handler must bypass /_svc/ so proxied dashboards always reach the network")

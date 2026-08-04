@@ -34,7 +34,7 @@ func TestIdleSuspendTimeout_badFallsBack(t *testing.T) {
 }
 
 // TestSiteIdleSuspendedWorkers_roundtrip pins that the engine's persisted
-// suspended-worker list survives a sites.yaml save/load, since lerd-ui relies on
+// suspended-worker list survives a sites.yaml save/load, since servlo-panel relies on
 // it to resume the right workers after a restart.
 func TestSiteIdleSuspendedWorkers_roundtrip(t *testing.T) {
 	dir := t.TempDir()
@@ -82,7 +82,7 @@ func TestSetSiteIdleSuspendedWorkers_preservesOtherFields(t *testing.T) {
 }
 
 // TestSetSitePinned_preservesOtherFields pins that toggling the pin flag through
-// the atomic setter rewrites only Pinned, so `lerd idle pin/unpin` can't lose a
+// the atomic setter rewrites only Pinned, so `servlo idle pin/unpin` can't lose a
 // concurrent idle-engine SetSiteIdleSuspendedWorkers write for the same site.
 func TestSetSitePinned_preservesOtherFields(t *testing.T) {
 	dir := t.TempDir()

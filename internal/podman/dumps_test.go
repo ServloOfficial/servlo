@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // withTempXDG redirects XDG_DATA_HOME / XDG_CONFIG_HOME / HOME for the
@@ -139,7 +139,7 @@ func TestEnsureDumpAssets_AlwaysWritesRegardlessOfConfig(t *testing.T) {
 }
 
 func TestFPMQuadletAlwaysMountsBridge(t *testing.T) {
-	tmpl, err := GetQuadletTemplate("lerd-php-fpm.container.tmpl")
+	tmpl, err := GetQuadletTemplate("servlo-php-fpm.container.tmpl")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestFPMQuadletAlwaysMountsBridge(t *testing.T) {
 }
 
 func TestDumpBridgeIsLegacyPHPCompatible(t *testing.T) {
-	// dump-bridge.php is an auto_prepend_file loaded by every PHP version lerd
+	// dump-bridge.php is an auto_prepend_file loaded by every PHP version servlo
 	// builds, down to the 7.2 legacy tier. It now requires devtools-collector.php
 	// for its shared transport, so that file rides the same constraint: a single
 	// newer-than-7.2 token in either makes the prepend unparseable and takes

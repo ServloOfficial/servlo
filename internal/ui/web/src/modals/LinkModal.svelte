@@ -86,7 +86,7 @@
 </script>
 
 <Modal open title={m.link_title()} onclose={closeModal}>
-  <div class="px-5 py-3 border-b border-gray-100 dark:border-lerd-border">
+  <div class="px-5 py-3 border-b border-gray-100 dark:border-servlo-border">
     <div class="text-xs text-gray-400 mb-1">{m.link_directory()}</div>
     <div class="text-sm font-mono text-gray-700 dark:text-gray-300 truncate">{currentDir || '...'}</div>
   </div>

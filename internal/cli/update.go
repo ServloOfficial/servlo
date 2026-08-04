@@ -11,14 +11,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/download"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/origin"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
-	"github.com/geodro/lerd/internal/store"
-	lerdUpdate "github.com/geodro/lerd/internal/update"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/download"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/origin"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
+	"github.com/realrashid/servlo/internal/store"
+	servloUpdate "github.com/realrashid/servlo/internal/update"
 	"github.com/spf13/cobra"
 )
 
@@ -31,11 +31,11 @@ func NewUpdateCmd(currentVersion string) *cobra.Command {
 	var beta, rollback bool
 	cmd := &cobra.Command{
 		Use:   "update",
-		Short: "Update Lerd to the latest release",
+		Short: "Update Servlo to the latest release",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if rollback {
 				if runtime.GOOS == "darwin" {
-					return fmt.Errorf("rollback is not supported on macOS — use 'brew switch lerd <version>' instead")
+					return fmt.Errorf("rollback is not supported on macOS — use 'brew switch servlo <version>' instead")
 				}
 				return runRollback()
 			}
@@ -55,12 +55,12 @@ func runUpdate(currentVersion string, beta bool) error {
 	var latest string
 	var err error
 	if beta {
-		latest, err = lerdUpdate.FetchLatestPrerelease()
+		latest, err = servloUpdate.FetchLatestPrerelease()
 		if err != nil {
 			return fmt.Errorf("could not fetch latest pre-release: %w", err)
 		}
 	} else {
-		latest, err = lerdUpdate.FetchLatestVersion()
+		latest, err = servloUpdate.FetchLatestVersion()
 		if err != nil {
 			return fmt.Errorf("could not fetch latest version: %w", err)
 		}
@@ -69,10 +69,10 @@ func runUpdate(currentVersion string, beta bool) error {
 	// Strip "v" prefix and any git-describe suffix (e.g. "-dirty", "-5-gabcdef")
 	// so local dev builds compare cleanly against release tags. Preserve semver
 	// pre-release suffixes like "-beta.1".
-	cur := lerdUpdate.StripGitDescribe(lerdUpdate.StripV(currentVersion))
-	lat := lerdUpdate.StripV(latest)
+	cur := servloUpdate.StripGitDescribe(servloUpdate.StripV(currentVersion))
+	lat := servloUpdate.StripV(latest)
 
-	if !lerdUpdate.VersionGreaterThan(lat, cur) {
+	if !servloUpdate.VersionGreaterThan(lat, cur) {
 		feedback.Done("already on latest v" + cur)
 		return nil
 	}
@@ -81,7 +81,7 @@ func runUpdate(currentVersion string, beta bool) error {
 
 	// Show what's new between the current and latest version.
 	feedback.Line("what's new")
-	changelog, _ := lerdUpdate.FetchChangelog(cur, lat)
+	changelog, _ := servloUpdate.FetchChangelog(cur, lat)
 	if changelog != "" {
 		for _, line := range strings.Split(changelog, "\n") {
 			fmt.Println("  " + line)
@@ -95,7 +95,7 @@ func runUpdate(currentVersion string, beta bool) error {
 	// on macOS now) live in ~/.local/bin and self-update like Linux does below.
 	if runtime.GOOS == "darwin" {
 		if self, err := selfPath(); err == nil && isHomebrewManaged(self) {
-			fmt.Printf("\nThis is a Homebrew install. To update, run:\n\n  brew upgrade lerd\n\n")
+			fmt.Printf("\nThis is a Homebrew install. To update, run:\n\n  brew upgrade servlo\n\n")
 			return nil
 		}
 	}
@@ -103,7 +103,7 @@ func runUpdate(currentVersion string, beta bool) error {
 	// A deb/rpm install lives under /usr and is owned by the package manager;
 	// self-replacing it would fight apt/dnf, so defer to them.
 	if self, err := selfPath(); err == nil && isSystemPackageManaged(self) {
-		fmt.Printf("\nThis lerd is managed by your system package manager (%s).\nUpdate it with:\n\n  %s\n\n", self, packageManagerUpdateHint(self))
+		fmt.Printf("\nThis servlo is managed by your system package manager (%s).\nUpdate it with:\n\n  %s\n\n", self, packageManagerUpdateHint(self))
 		return nil
 	}
 
@@ -121,7 +121,7 @@ func runUpdate(currentVersion string, beta bool) error {
 	// Back up current binary for rollback.
 	backupBinary(self, currentVersion)
 
-	dl := feedback.Start("downloading lerd v" + lat)
+	dl := feedback.Start("downloading servlo v" + lat)
 	extracted, cleanup, err := downloadReleaseBinary(latest)
 	if err != nil {
 		dl.Fail(err)
@@ -130,9 +130,9 @@ func runUpdate(currentVersion string, beta bool) error {
 	defer cleanup()
 	dl.OK("")
 
-	// Atomically replace lerd.
+	// Atomically replace servlo.
 	tmp := self + ".tmp"
-	if err := copyFile(filepath.Join(extracted, "lerd"), tmp, 0755); err != nil {
+	if err := copyFile(filepath.Join(extracted, "servlo"), tmp, 0755); err != nil {
 		return fmt.Errorf("writing update: %w", err)
 	}
 	if err := os.Rename(tmp, self); err != nil {
@@ -140,25 +140,15 @@ func runUpdate(currentVersion string, beta bool) error {
 		return fmt.Errorf("replacing binary: %w", err)
 	}
 
-	// Also replace lerd-tray if it was included in this release.
-	trayBin := filepath.Join(extracted, "lerd-tray")
-	if _, err := os.Stat(trayBin); err == nil {
-		selfTray := filepath.Join(filepath.Dir(self), "lerd-tray")
-		tmpTray := selfTray + ".tmp"
-		if err := copyFile(trayBin, tmpTray, 0755); err == nil {
-			os.Rename(tmpTray, selfTray) //nolint:errcheck
-		}
-	}
+	// Update the cache so servlo status / doctor stop showing a stale notice.
+	servloUpdate.WriteUpdateCache(lat)
 
-	// Update the cache so lerd status / doctor stop showing a stale notice.
-	lerdUpdate.WriteUpdateCache(lat)
-
-	feedback.Done("lerd updated to v" + lat)
+	feedback.Done("servlo updated to v" + lat)
 	feedback.Line("applying infrastructure changes")
 	fmt.Println()
 
 	// Re-exec the new binary with `install` to reapply quadlet files,
-	// DNS config, sysctl, etc. lerd install is idempotent. Pass
+	// DNS config, sysctl, etc. servlo install is idempotent. Pass
 	// --from-update so the install pass honours the saved DNS choice
 	// silently instead of re-prompting the user.
 	installCmd := exec.Command(self, "install", "--from-update")
@@ -174,7 +164,7 @@ func runUpdate(currentVersion string, beta bool) error {
 
 	// Offer MinIO → RustFS migration if legacy data directory exists and the
 	// minio container is still running (skip if already migrated to RustFS).
-	minioRunning, _ := podman.ContainerRunning("lerd-minio")
+	minioRunning, _ := podman.ContainerRunning("servlo-minio")
 	if _, err := os.Stat(config.DataSubDir("minio")); err == nil && minioRunning {
 		if feedback.Confirm("MinIO detected — migrate to RustFS?", false) {
 			if err := runMinioMigrate(nil, nil); err != nil {
@@ -183,10 +173,10 @@ func runUpdate(currentVersion string, beta bool) error {
 		}
 	}
 
-	// FPM rebuild + container starts now happen inside `lerd install`
+	// FPM rebuild + container starts now happen inside `servlo install`
 	// (gated on autostart), so we don't repeat them here.
 
-	restartLerdUserServices()
+	restartServloUserServices()
 	return nil
 }
 
@@ -274,11 +264,11 @@ func refreshStorePresets() {
 }
 
 // refreshGlobalMCPSkills re-writes the user-scope skill, rules, and guidelines
-// files when lerd MCP is registered globally, so the AI's description of
+// files when servlo MCP is registered globally, so the AI's description of
 // available tools stays aligned with the newly installed binary. Also heals
 // the Claude Code MCP registration: an install after an uninstall (or a
 // Claude config migration) can lose the `claude mcp add` entry while the
-// marker files remain; re-run the idempotent add so lerd shows up again.
+// marker files remain; re-run the idempotent add so servlo shows up again.
 func refreshGlobalMCPSkills() {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -295,13 +285,13 @@ func refreshGlobalMCPSkills() {
 		feedback.Note("cleaned ~/" + legacySharedAIMCP + " (no longer written)")
 	}
 	if !IsMCPGloballyRegistered() {
-		feedback.Note("re-registering lerd with Claude Code (was missing)")
+		feedback.Note("re-registering servlo with Claude Code (was missing)")
 		ensureClaudeMCPRegistered()
 	}
 }
 
 // refreshProjectMCPSkills re-writes per-project AI artefacts for every opted-in
-// project (registered site or park subdir with a lerd marker). Projects whose
+// project (registered site or park subdir with a servlo marker). Projects whose
 // content already matches stay untouched.
 func refreshProjectMCPSkills() {
 	paths := gatherProjectPaths()
@@ -311,7 +301,7 @@ func refreshProjectMCPSkills() {
 
 	opted := make([]string, 0, len(paths))
 	for _, p := range paths {
-		if ProjectHasLerdSkills(p) {
+		if ProjectHasServloSkills(p) {
 			opted = append(opted, p)
 		}
 	}
@@ -332,7 +322,7 @@ func refreshProjectMCPSkills() {
 
 // gatherProjectPaths lists registered sites plus immediate subdirs of parks.
 // The park scan covers projects that were injected but never registered as
-// lerd sites (e.g. non-PHP projects the user added by hand).
+// servlo sites (e.g. non-PHP projects the user added by hand).
 func gatherProjectPaths() []string {
 	seen := make(map[string]struct{})
 	add := func(p string) {
@@ -389,7 +379,7 @@ func pluralS(n int) string {
 }
 
 // mcpEnabledGlobally reports whether the user opted into global MCP at some
-// point. Checks (a) Claude Code user-scope registration and (b) the lerd-owned
+// point. Checks (a) Claude Code user-scope registration and (b) the servlo-owned
 // marker files written by mcp:enable-global. The marker check lets us detect
 // users who enabled globally without Claude Code (Cursor-only, Junie-only) and
 // users whose `claude` CLI is temporarily unavailable.
@@ -398,8 +388,8 @@ func mcpEnabledGlobally(home string) bool {
 		return true
 	}
 	markers := []string{
-		filepath.Join(home, ".claude", "skills", "lerd", "SKILL.md"),
-		filepath.Join(home, ".cursor", "rules", "lerd.mdc"),
+		filepath.Join(home, ".claude", "skills", "servlo", "SKILL.md"),
+		filepath.Join(home, ".cursor", "rules", "servlo.mdc"),
 	}
 	for _, p := range markers {
 		if _, err := os.Stat(p); err == nil {
@@ -409,14 +399,14 @@ func mcpEnabledGlobally(home string) bool {
 	return false
 }
 
-// restartLerdUserServices restarts the long-running lerd user units (systemd on
+// restartServloUserServices restarts the long-running servlo user units (systemd on
 // Linux, launchd on macOS) so they pick up the freshly replaced binary. Both
 // keep the old executable alive for processes that already have it open, so
 // without an explicit restart the daemons keep running the pre-update code and
 // report the old version. Only currently-active units are restarted, so
 // disabled services are left alone.
-func restartLerdUserServices() {
-	units := []string{"lerd-ui", "lerd-watcher", "lerd-tray"}
+func restartServloUserServices() {
+	units := []string{"servlo-panel", "servlo-watcher"}
 	var active []string
 	for _, u := range units {
 		if services.Mgr.IsActive(u) {
@@ -426,7 +416,7 @@ func restartLerdUserServices() {
 	if len(active) == 0 {
 		return
 	}
-	feedback.Header("Restarting lerd services to pick up the new binary")
+	feedback.Header("Restarting servlo services to pick up the new binary")
 	for _, u := range active {
 		s := feedback.Start(u)
 		if err := services.Mgr.Restart(u); err != nil {
@@ -447,9 +437,9 @@ func downloadReleaseBinary(version string) (string, func(), error) {
 	arch := runtime.GOARCH // "amd64" or "arm64"
 	ver := stripV(version)
 
-	filename := fmt.Sprintf("lerd_%s_%s_%s.tar.gz", ver, runtime.GOOS, arch)
+	filename := fmt.Sprintf("servlo_%s_%s_%s.tar.gz", ver, runtime.GOOS, arch)
 
-	tmp, err := os.MkdirTemp("", "lerd-update-*")
+	tmp, err := os.MkdirTemp("", "servlo-update-*")
 	if err != nil {
 		return "", func() {}, err
 	}
@@ -467,7 +457,7 @@ func downloadReleaseBinary(version string) (string, func(), error) {
 		return "", func() {}, fmt.Errorf("extract failed: %w\n%s", err, out)
 	}
 
-	if _, err := os.Stat(filepath.Join(tmp, "lerd")); err != nil {
+	if _, err := os.Stat(filepath.Join(tmp, "servlo")); err != nil {
 		cleanup()
 		return "", func() {}, fmt.Errorf("binary not found in archive")
 	}
@@ -490,14 +480,14 @@ func downloadArchive(ver, filename, archive string) error {
 }
 
 // isHomebrewManaged reports whether the resolved binary path lives inside a
-// Homebrew Cellar, in which case `lerd update` defers to `brew upgrade` rather
+// Homebrew Cellar, in which case `servlo update` defers to `brew upgrade` rather
 // than self-replacing files brew owns.
 func isHomebrewManaged(path string) bool {
 	return strings.Contains(path, "/Cellar/")
 }
 
 // isSystemPackageManaged reports whether the binary lives under a system prefix
-// owned by a package manager. lerd's own installers use ~/.local/bin, so a
+// owned by a package manager. servlo's own installers use ~/.local/bin, so a
 // binary under /usr came from a deb/rpm/pacman package and one under /nix/store
 // from Nix; those are updated by their manager, not by self-replacing files it
 // owns.
@@ -521,26 +511,26 @@ func isSystemPackageManaged(path string) bool {
 var lookPath = exec.LookPath
 
 // systemPackageManagers maps a package manager binary to the commands that
-// update and remove a packaged lerd, in detection order.
+// update and remove a packaged servlo, in detection order.
 var systemPackageManagers = []struct{ bin, update, remove string }{
-	{"apt", "sudo apt upgrade", "sudo apt remove lerd"},
+	{"apt", "sudo apt upgrade", "sudo apt remove servlo"},
 	// Before dnf: atomic Fedora ships both, and layered packages are managed
 	// by rpm-ostree there, not dnf.
-	{"rpm-ostree", "rpm-ostree upgrade", "rpm-ostree uninstall lerd"},
-	{"dnf", "sudo dnf upgrade lerd", "sudo dnf remove lerd"},
-	{"pacman", "sudo pacman -Syu lerd", "sudo pacman -R lerd"},
-	{"zypper", "sudo zypper update lerd", "sudo zypper remove lerd"},
+	{"rpm-ostree", "rpm-ostree upgrade", "rpm-ostree uninstall servlo"},
+	{"dnf", "sudo dnf upgrade servlo", "sudo dnf remove servlo"},
+	{"pacman", "sudo pacman -Syu servlo", "sudo pacman -R servlo"},
+	{"zypper", "sudo zypper update servlo", "sudo zypper remove servlo"},
 }
 
 // packageManagerUpdateHint names the command that updates a package-managed
-// lerd: Nix is recognised by the binary path, everything else by the first
+// servlo: Nix is recognised by the binary path, everything else by the first
 // known package manager present on the system.
 func packageManagerUpdateHint(self string) string {
 	if strings.HasPrefix(self, "/nix/store/") {
-		return "nix profile upgrade lerd    (or rebuild your NixOS configuration)"
+		return "nix profile upgrade servlo    (or rebuild your NixOS configuration)"
 	}
 	if isHomebrewManaged(self) {
-		return "brew upgrade lerd"
+		return "brew upgrade servlo"
 	}
 	for _, pm := range systemPackageManagers {
 		if _, err := lookPath(pm.bin); err == nil {
@@ -554,10 +544,10 @@ func packageManagerUpdateHint(self string) string {
 // packageManagerUpdateHint.
 func packageManagerRemoveHint(self string) string {
 	if strings.HasPrefix(self, "/nix/store/") {
-		return "nix profile remove lerd    (or your NixOS configuration)"
+		return "nix profile remove servlo    (or your NixOS configuration)"
 	}
 	if isHomebrewManaged(self) {
-		return "brew uninstall lerd"
+		return "brew uninstall servlo"
 	}
 	for _, pm := range systemPackageManagers {
 		if _, err := lookPath(pm.bin); err == nil {
@@ -596,7 +586,7 @@ func copyFile(src, dest string, mode os.FileMode) error {
 	return err
 }
 
-func stripV(v string) string { return lerdUpdate.StripV(v) }
+func stripV(v string) string { return servloUpdate.StripV(v) }
 
 // backupBinary copies the current binary and version to backup locations for rollback.
 func backupBinary(self, currentVersion string) {
@@ -605,15 +595,7 @@ func backupBinary(self, currentVersion string) {
 		return
 	}
 
-	// Back up lerd-tray if it exists next to the main binary.
-	trayPath := filepath.Join(filepath.Dir(self), "lerd-tray")
-	if _, err := os.Stat(trayPath); err == nil {
-		if err := copyFile(trayPath, config.BackupTrayFile(), 0755); err != nil {
-			feedback.Warn("could not back up lerd-tray: %v", err)
-		}
-	}
-
-	os.WriteFile(config.BackupVersionFile(), []byte(lerdUpdate.StripV(currentVersion)), 0644) //nolint:errcheck
+	os.WriteFile(config.BackupVersionFile(), []byte(servloUpdate.StripV(currentVersion)), 0644) //nolint:errcheck
 }
 
 // runRollback restores the previously backed-up binary.
@@ -635,7 +617,7 @@ func runRollback() error {
 
 	feedback.Header(fmt.Sprintf("Rolling back to v%s", prevVersion))
 
-	// Atomically replace lerd.
+	// Atomically replace servlo.
 	tmp := self + ".tmp"
 	if err := copyFile(bakPath, tmp, 0755); err != nil {
 		return fmt.Errorf("restoring backup: %w", err)
@@ -645,30 +627,19 @@ func runRollback() error {
 		return fmt.Errorf("replacing binary: %w", err)
 	}
 
-	// Restore lerd-tray if a backup exists.
-	trayBak := config.BackupTrayFile()
-	if _, err := os.Stat(trayBak); err == nil {
-		selfTray := filepath.Join(filepath.Dir(self), "lerd-tray")
-		tmpTray := selfTray + ".tmp"
-		if err := copyFile(trayBak, tmpTray, 0755); err == nil {
-			os.Rename(tmpTray, selfTray) //nolint:errcheck
-		}
-	}
-
 	// Remove backup files so you can't double-rollback.
 	os.Remove(bakPath)
-	os.Remove(config.BackupTrayFile())
 	os.Remove(config.BackupVersionFile())
 
 	// Update the cache.
-	lerdUpdate.WriteUpdateCache(prevVersion)
+	servloUpdate.WriteUpdateCache(prevVersion)
 
 	// Recreate the network cleanly so the rolled-back binary's
-	// `lerd install` starts from a known-good state. The current
+	// `servlo install` starts from a known-good state. The current
 	// binary's probe logic decides v4-only vs dual-stack; the old
 	// binary's EnsureNetwork will accept whatever schema it finds.
-	feedback.Line("Resetting lerd network for rollback")
-	if attached, _, err := podman.RecreateNetwork("lerd", nil); err == nil {
+	feedback.Line("Resetting servlo network for rollback")
+	if attached, _, err := podman.RecreateNetwork("servlo", nil); err == nil {
 		for _, c := range attached {
 			_ = podman.StartUnit(c)
 		}
@@ -678,7 +649,7 @@ func runRollback() error {
 	// Type=notify on disk pins the cache and the post-write Restart blocks
 	// on sd_notify(READY=1) which the old binary never sends. Strip it so
 	// the cache picks up Type=simple immediately.
-	prepUserUnitsForRollback("lerd-ui.service", "lerd-watcher.service")
+	prepUserUnitsForRollback("servlo-panel.service", "servlo-watcher.service")
 
 	feedback.Note(fmt.Sprintf("Rolled back to v%s, applying infrastructure changes...", prevVersion))
 

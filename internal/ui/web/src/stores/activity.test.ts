@@ -212,26 +212,26 @@ describe('diffDNSEvents', () => {
 
 describe('diffUnhealthyEvents', () => {
   it('returns empty when prev is null', () => {
-    expect(diffUnhealthyEvents(null, [unhealthy('lerd-queue-foo', 'foo.test', 'queue')])).toEqual([]);
+    expect(diffUnhealthyEvents(null, [unhealthy('servlo-queue-foo', 'foo.test', 'queue')])).toEqual([]);
   });
 
   it('emits worker_failed for new units', () => {
     const prev = new Set<string>();
-    const events = diffUnhealthyEvents(prev, [unhealthy('lerd-queue-foo', 'foo.test', 'queue')]);
+    const events = diffUnhealthyEvents(prev, [unhealthy('servlo-queue-foo', 'foo.test', 'queue')]);
     expect(events).toEqual([
       { kind: 'worker_failed', subject: 'foo.test', meta: { worker: 'queue' } }
     ]);
   });
 
   it('emits worker_healed when a unit drops out', () => {
-    const prev = new Set<string>(['lerd-queue-foo']);
+    const prev = new Set<string>(['servlo-queue-foo']);
     const events = diffUnhealthyEvents(prev, []);
-    expect(events).toEqual([{ kind: 'worker_healed', subject: 'lerd-queue-foo' }]);
+    expect(events).toEqual([{ kind: 'worker_healed', subject: 'servlo-queue-foo' }]);
   });
 
   it('emits nothing when set is unchanged', () => {
-    const prev = new Set<string>(['lerd-queue-foo']);
-    const events = diffUnhealthyEvents(prev, [unhealthy('lerd-queue-foo', 'foo.test', 'queue')]);
+    const prev = new Set<string>(['servlo-queue-foo']);
+    const events = diffUnhealthyEvents(prev, [unhealthy('servlo-queue-foo', 'foo.test', 'queue')]);
     expect(events).toEqual([]);
   });
 });

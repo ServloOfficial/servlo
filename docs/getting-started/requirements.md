@@ -11,7 +11,7 @@
 ### Podman 4.5 minimum
 
 ::: warning
-Lerd creates the `lerd` podman network with `podman network create --dns`, a flag added in podman 4.5 (April 2023). Older releases fail install with `Error: unknown flag: --dns`. Distribution defaults that ship podman older than 4.5:
+Servlo creates the `servlo` podman network with `podman network create --dns`, a flag added in podman 4.5 (April 2023). Older releases fail install with `Error: unknown flag: --dns`. Distribution defaults that ship podman older than 4.5:
 
 | Distro                 | Default podman | Workaround                                                                       |
 |------------------------|---------------:|----------------------------------------------------------------------------------|
@@ -32,7 +32,7 @@ This is required for Podman Quadlet containers to start automatically and persis
 :::
 
 ::: tip crun is the recommended OCI runtime
-Most distributions ship `crun` as the default rootless Podman runtime. On Arch-based systems, `runc` is the default and `crun` must be installed separately. While both runtimes work, `crun` is lighter and purpose-built for rootless containers. `lerd doctor` will warn if `crun` is not installed.
+Most distributions ship `crun` as the default rootless Podman runtime. On Arch-based systems, `runc` is the default and `crun` must be installed separately. While both runtimes work, `crun` is lighter and purpose-built for rootless containers. `servlo doctor` will warn if `crun` is not installed.
 
 ```bash
 # Arch / omarchy
@@ -47,28 +47,28 @@ sudo dnf install crun
 :::
 
 - **`unzip`**: used during install to extract fnm
-- **`certutil` / `nss-tools`**: for mkcert to install the CA into Chrome/Firefox. Only needed when lerd manages DNS for `.test` sites with HTTPS. If you pick the `.localhost` mode at install time the installer skips this package, so immutable hosts like Fedora Silverblue don't need to layer it.
+- **`certutil` / `nss-tools`**: for mkcert to install the CA into Chrome/Firefox. Only needed when servlo manages DNS for `.test` sites with HTTPS. If you pick the `.localhost` mode at install time the installer skips this package, so immutable hosts like Fedora Silverblue don't need to layer it.
     - Arch: `nss`
     - Debian/Ubuntu: `libnss3-tools`
     - Fedora: `nss-tools`
 
 ::: tip Go is only needed to build from source
-The released binary is fully static with no runtime dependencies. You do not need Go installed to use Lerd.
+The released binary is fully static with no runtime dependencies. You do not need Go installed to use Servlo.
 :::
 
 ## macOS
 
 - **macOS 13 Ventura or later**: Apple Silicon (arm64) or Intel (amd64)
-- **[Homebrew](https://brew.sh/)**: used to install lerd and its Podman dependency
-- **[Podman](https://podman.io/)**: installed automatically as a Homebrew dependency of `lerd`
-- **Podman Machine**: `lerd install` boots and configures it on first run
+- **[Homebrew](https://brew.sh/)**: used to install servlo and its Podman dependency
+- **[Podman](https://podman.io/)**: installed automatically as a Homebrew dependency of `servlo`
+- **Podman Machine**: `servlo install` boots and configures it on first run
 - **Xcode Command Line Tools**: required by Homebrew (`xcode-select --install` if missing)
 
-DNS, the local CA (mkcert), and nginx are all set up by `lerd install`. No system-level resolver configuration is needed; macOS picks up `.test` lookups from `/etc/resolver/test` which lerd writes for you.
+DNS, the local CA (mkcert), and nginx are all set up by `servlo install`. No system-level resolver configuration is needed; macOS picks up `.test` lookups from `/etc/resolver/test` which servlo writes for you.
 
 ### Podman Machine memory
 
-On first start `lerd` sizes the Podman Machine VM based on your host RAM so 8 GB MacBooks aren't squeezed while larger machines get headroom for heavier workloads.
+On first start `servlo` sizes the Podman Machine VM based on your host RAM so 8 GB MacBooks aren't squeezed while larger machines get headroom for heavier workloads.
 
 | Host RAM | Podman Machine memory |
 |----------|-----------------------|

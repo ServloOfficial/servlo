@@ -76,7 +76,7 @@ describe('sites store', () => {
     expect(init.method).toBe('PUT');
     const sentHeaders = new Headers(init.headers);
     expect(sentHeaders.get('Content-Type')).toBe('application/json');
-    expect(sentHeaders.get('X-Lerd-CSRF')).toBe('1');
+    expect(sentHeaders.get('X-Servlo-CSRF')).toBe('1');
     expect(JSON.parse(init.body as string)).toEqual({ content: 'FOO=bar\n', backup: true });
     vi.unstubAllGlobals();
   });

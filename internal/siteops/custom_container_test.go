@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // setupCustomContainerEnv creates a temp environment with XDG overrides and
@@ -38,11 +38,11 @@ func setupCustomContainerEnv(t *testing.T) (projectDir, confD string) {
 	podman.DaemonReloadFn = func() error { return nil }
 	podman.AfterUnitChange = nil
 
-	// Create the NestJS project directory with Containerfile.lerd and .lerd.yaml.
+	// Create the NestJS project directory with Containerfile.servlo and .servlo.yaml.
 	projectDir = filepath.Join(tmp, "nestjs-app")
 	os.MkdirAll(projectDir, 0755)
 
-	os.WriteFile(filepath.Join(projectDir, "Containerfile.lerd"), []byte(`FROM node:20-alpine
+	os.WriteFile(filepath.Join(projectDir, "Containerfile.servlo"), []byte(`FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -50,7 +50,7 @@ COPY . .
 CMD ["npm", "run", "start:dev"]
 `), 0644)
 
-	os.WriteFile(filepath.Join(projectDir, ".lerd.yaml"), []byte(`domains:
+	os.WriteFile(filepath.Join(projectDir, ".servlo.yaml"), []byte(`domains:
   - nestapp
 container:
   port: 3000
@@ -72,7 +72,7 @@ custom_workers:
 }
 `), 0644)
 
-	confD = filepath.Join(tmp, "lerd", "nginx", "conf.d")
+	confD = filepath.Join(tmp, "servlo", "nginx", "conf.d")
 	return projectDir, confD
 }
 
@@ -146,8 +146,8 @@ func TestCustomContainer_NestJS_ContainerfileDetection(t *testing.T) {
 
 	proj, _ := config.LoadProjectConfig(projectDir)
 	cf := podman.ResolveContainerfile(projectDir, proj.Container)
-	if !strings.HasSuffix(cf, "Containerfile.lerd") {
-		t.Errorf("ResolveContainerfile = %q, expected Containerfile.lerd suffix", cf)
+	if !strings.HasSuffix(cf, "Containerfile.servlo") {
+		t.Errorf("ResolveContainerfile = %q, expected Containerfile.servlo suffix", cf)
 	}
 	if _, err := os.Stat(cf); err != nil {
 		t.Errorf("Containerfile should exist at %s", cf)
@@ -155,10 +155,10 @@ func TestCustomContainer_NestJS_ContainerfileDetection(t *testing.T) {
 }
 
 func TestCustomContainer_NestJS_NamingConventions(t *testing.T) {
-	if got := podman.CustomContainerName("nestjs-app"); got != "lerd-custom-nestjs-app" {
+	if got := podman.CustomContainerName("nestjs-app"); got != "servlo-custom-nestjs-app" {
 		t.Errorf("CustomContainerName = %q", got)
 	}
-	if got := podman.CustomImageName("nestjs-app"); got != "lerd-custom-nestjs-app:local" {
+	if got := podman.CustomImageName("nestjs-app"); got != "servlo-custom-nestjs-app:local" {
 		t.Errorf("CustomImageName = %q", got)
 	}
 }
@@ -174,12 +174,12 @@ func TestCustomContainer_NestJS_QuadletGeneration(t *testing.T) {
 	checks := []struct {
 		label, substr string
 	}{
-		{"image", "Image=lerd-custom-nestjs-app:local"},
-		{"container name", "ContainerName=lerd-custom-nestjs-app"},
-		{"network", "Network=lerd"},
+		{"image", "Image=servlo-custom-nestjs-app:local"},
+		{"container name", "ContainerName=servlo-custom-nestjs-app"},
+		{"network", "Network=servlo"},
 		{"project mount", "Volume=" + projectDir + ":" + projectDir + ":rw"},
 		{"hosts mount", "/etc/hosts:ro,z"},
-		{"description", "Lerd custom container (nestjs-app)"},
+		{"description", "Servlo custom container (nestjs-app)"},
 	}
 	for _, c := range checks {
 		if !strings.Contains(content, c.substr) {
@@ -218,7 +218,7 @@ func TestCustomContainer_NestJS_VhostGeneration_HTTP(t *testing.T) {
 	if !strings.Contains(s, "proxy_pass http://$backend:3000") {
 		t.Error("missing proxy_pass to port 3000")
 	}
-	if !strings.Contains(s, `"lerd-custom-nestjs-app"`) {
+	if !strings.Contains(s, `"servlo-custom-nestjs-app"`) {
 		t.Error("missing custom container name in proxy backend")
 	}
 	if strings.Contains(s, "fastcgi_pass") {

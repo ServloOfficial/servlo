@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/phpini"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/phpini"
 	"github.com/spf13/cobra"
 )
 
@@ -14,9 +14,9 @@ func NewPhpIniCmd() *cobra.Command {
 		Use:   "php:ini [version|shared]",
 		Short: "Edit the user php.ini for a PHP version, or the shared file (php:ini shared)",
 		Long: "Edit a PHP version's php.ini, or the shared file applied to every version.\n\n" +
-			"  lerd php:ini            detected/default version\n" +
-			"  lerd php:ini 8.4        an explicit version\n" +
-			"  lerd php:ini shared     the shared file (all versions; a per-version key still wins)",
+			"  servlo php:ini            detected/default version\n" +
+			"  servlo php:ini 8.4        an explicit version\n" +
+			"  servlo php:ini shared     the shared file (all versions; a per-version key still wins)",
 		Args: cobra.MaximumNArgs(1),
 		RunE: runPhpIni,
 	}

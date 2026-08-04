@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // fakePrompter answers every question the same way and records what it was asked.
@@ -205,7 +205,7 @@ func TestEnsureServableFPMImage_warnsWhenTheBuildFails(t *testing.T) {
 	if len(r.fails) == 0 {
 		t.Error("the failed build was not reported")
 	}
-	if !r.saw(r.warns, "lerd php:rebuild 8.1") {
+	if !r.saw(r.warns, "servlo php:rebuild 8.1") {
 		t.Errorf("the warning must name the rebuild command, warns = %v", r.warns)
 	}
 }
@@ -219,7 +219,7 @@ func TestEnsureServableFPMImage_warnsWhenBuildsAreWithheld(t *testing.T) {
 	ensureServableFPMImage(&Plan{Mode: ModeFPM}, fpmSite(), Policy{ImageBuild: false},
 		Deps{EnsureFPMQuadlet: func(string) error { t.Fatal("must not build when withheld"); return nil }}, r)
 
-	if !r.saw(r.warns, "lerd php:rebuild 8.1") {
+	if !r.saw(r.warns, "servlo php:rebuild 8.1") {
 		t.Errorf("the warning must name the rebuild command, warns = %v", r.warns)
 	}
 	if len(r.steps) != 0 {

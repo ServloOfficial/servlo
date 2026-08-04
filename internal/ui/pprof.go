@@ -5,7 +5,7 @@ import (
 	"net/http/pprof"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // handlePprof serves the Go runtime profiling endpoints under /debug/pprof/,
@@ -17,7 +17,7 @@ import (
 // misbehaving right now, and a restart to enable it would discard exactly the
 // state being chased.
 //
-// The second is loopback. lerd-ui binds 0.0.0.0 so LAN clients can reach it
+// The second is loopback. servlo-panel binds 0.0.0.0 so LAN clients can reach it
 // when lan:expose is on, and these endpoints expose goroutine stacks, the
 // process command line, and heap contents; profile and trace also let a caller
 // pin a core for as long as they ask. Neither belongs off-host, so the same

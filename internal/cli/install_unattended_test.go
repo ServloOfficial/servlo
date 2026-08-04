@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// --unattended pairs with `lerd bootstrap`, which only exists on Linux: it is
+// --unattended pairs with `servlo bootstrap`, which only exists on Linux: it is
 // what applies the root-level steps and the CA trust that the unattended run
 // deliberately skips. Off Linux it would quietly produce an install with no
 // resolver grant and an untrusted CA, so it is refused instead.

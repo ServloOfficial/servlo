@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // devServerSite registers a site whose framework declares a host worker that
@@ -19,7 +19,7 @@ func devServerSite(t *testing.T, secured bool) string {
 	xdg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", xdg)
 	t.Setenv("XDG_DATA_HOME", xdg)
-	if err := os.MkdirAll(filepath.Join(xdg, "lerd", "frameworks"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(xdg, "servlo", "frameworks"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := config.SaveFramework(&config.Framework{
@@ -111,8 +111,8 @@ func TestRefreshDevServersRestartsAfterTheSchemeChanges(t *testing.T) {
 	if !strings.Contains(string(body), `"http://myapp.test"`) {
 		t.Errorf("generated config still does not carry the site's plain origin:\n%s", body)
 	}
-	if fake.restartedUnit != "lerd-vite-myapp" {
-		t.Errorf("restarted unit = %q, want lerd-vite-myapp", fake.restartedUnit)
+	if fake.restartedUnit != "servlo-vite-myapp" {
+		t.Errorf("restarted unit = %q, want servlo-vite-myapp", fake.restartedUnit)
 	}
 }
 
@@ -154,8 +154,8 @@ func TestRefreshDevServersFollowsAnAddedDomain(t *testing.T) {
 	if !strings.Contains(string(body), `"http://alias.test"`) {
 		t.Errorf("generated config does not let a page on the new domain fetch assets:\n%s", body)
 	}
-	if fake.restartedUnit != "lerd-vite-myapp" {
-		t.Errorf("restarted unit = %q, want lerd-vite-myapp", fake.restartedUnit)
+	if fake.restartedUnit != "servlo-vite-myapp" {
+		t.Errorf("restarted unit = %q, want servlo-vite-myapp", fake.restartedUnit)
 	}
 }
 
@@ -195,7 +195,7 @@ func TestRefreshDevServersFollowsAWorktreeSubdomain(t *testing.T) {
 	if !strings.Contains(string(body), `"http://feature.myapp.test"`) {
 		t.Errorf("worktree config does not carry its own subdomain:\n%s", body)
 	}
-	if fake.restartedUnit != "lerd-vite-myapp-"+config.WorktreeUnitSlug(filepath.Base(wt)) {
+	if fake.restartedUnit != "servlo-vite-myapp-"+config.WorktreeUnitSlug(filepath.Base(wt)) {
 		t.Errorf("restarted unit = %q, want the worktree's own unit", fake.restartedUnit)
 	}
 }

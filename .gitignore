@@ -1,12 +1,11 @@
 build/
 dist/
-dist-tray/
 *.tmp
 .venv/
 .idea/
-/lerd
-lerd-frameworks/
-lerd-services/
+/servlo
+servlo-frameworks/
+servlo-services/
 .claude/*
 !.claude/skills/
 site/

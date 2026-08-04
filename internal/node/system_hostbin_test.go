@@ -14,10 +14,10 @@ func withBrewPrefix(t *testing.T, dir string) {
 	t.Cleanup(func() { unitPathDirs = prev })
 }
 
-// A host worker unit written by lerd-ui or lerd-watcher must resolve the same
+// A host worker unit written by servlo-panel or servlo-watcher must resolve the same
 // Node the CLI does. Under launchd's PATH the Homebrew prefix is invisible, and
 // falling through to an old nvm install would run the worker on a different
-// Node than `lerd npm` installed its modules with.
+// Node than `servlo npm` installed its modules with.
 func TestSystemNodeBinDirs_findsHomebrewUnderDaemonPATH(t *testing.T) {
 	tmp := t.TempDir()
 	home := filepath.Join(tmp, "home")

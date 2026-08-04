@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 func TestDetailRows_IncludesDomainsWorkersAndToggles(t *testing.T) {
@@ -154,7 +154,7 @@ func TestLogTargetsForSite_IncludesFPMAndWorkers(t *testing.T) {
 	if len(targets) < 3 {
 		t.Fatalf("expected at least 3 targets (fpm+queue+horizon), got %d", len(targets))
 	}
-	if targets[0].Kind != kindPodman || !strings.Contains(targets[0].ID, "lerd-php83-fpm") {
+	if targets[0].Kind != kindPodman || !strings.Contains(targets[0].ID, "servlo-php83-fpm") {
 		t.Errorf("first target should be fpm container, got %+v", targets[0])
 	}
 	// Every worker target should be a journal tail, not a podman one.
@@ -176,7 +176,7 @@ func TestLogTargetsForSite_FrankenPHP(t *testing.T) {
 	if len(targets) < 1 {
 		t.Fatalf("expected at least 1 target, got %d", len(targets))
 	}
-	if targets[0].Kind != kindPodman || targets[0].ID != "lerd-fp-beta" {
+	if targets[0].Kind != kindPodman || targets[0].ID != "servlo-fp-beta" {
 		t.Errorf("first target should be frankenphp container, got %+v", targets[0])
 	}
 	if !strings.Contains(targets[0].Label, "frankenphp") {
@@ -196,16 +196,16 @@ func TestLogTargetsForSite_CustomContainer(t *testing.T) {
 	if len(targets) != 1 || targets[0].Kind != kindPodman {
 		t.Fatalf("custom container should get exactly one podman target, got %+v", targets)
 	}
-	if !strings.Contains(targets[0].ID, "lerd-custom-nodeapp") {
-		t.Errorf("expected lerd-custom-nodeapp, got %s", targets[0].ID)
+	if !strings.Contains(targets[0].ID, "servlo-custom-nodeapp") {
+		t.Errorf("expected servlo-custom-nodeapp, got %s", targets[0].ID)
 	}
 }
 
 func TestContainerForSite(t *testing.T) {
-	if got := containerForSite(&siteinfo.EnrichedSite{ContainerPort: 3000, Name: "x"}); !strings.Contains(got, "lerd-custom-x") {
+	if got := containerForSite(&siteinfo.EnrichedSite{ContainerPort: 3000, Name: "x"}); !strings.Contains(got, "servlo-custom-x") {
 		t.Errorf("custom container, got %s", got)
 	}
-	if got := containerForSite(&siteinfo.EnrichedSite{PHPVersion: "8.3"}); got != "lerd-php83-fpm" {
+	if got := containerForSite(&siteinfo.EnrichedSite{PHPVersion: "8.3"}); got != "servlo-php83-fpm" {
 		t.Errorf("php site, got %s", got)
 	}
 	if got := containerForSite(&siteinfo.EnrichedSite{}); got != "" {
@@ -264,7 +264,7 @@ func TestDetailRows_WorktreesEmitWorkerAndDBRows(t *testing.T) {
 }
 
 // TestDetailRows_WorktreesSkipDBWhenNoManagedService verifies that a site
-// without a lerd-managed DB service doesn't render the per-worktree
+// without a servlo-managed DB service doesn't render the per-worktree
 // isolation toggle (it would mislead — the CLI command would error).
 func TestDetailRows_WorktreesSkipDBWhenNoManagedService(t *testing.T) {
 	s := &siteinfo.EnrichedSite{

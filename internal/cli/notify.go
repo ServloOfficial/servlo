@@ -3,21 +3,21 @@ package cli
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
-// NewNotifyCmd returns the parent `lerd notify` command. Subcommands flip
+// NewNotifyCmd returns the parent `servlo notify` command. Subcommands flip
 // the global notification toggle (dashboard banners + Web Push fanout) and
 // report current status.
 func NewNotifyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "notify",
-		Short: "Globally enable or disable lerd notifications",
-		Long: `Globally toggle the lerd notifier. When off, neither in-dashboard
+		Short: "Globally enable or disable servlo notifications",
+		Long: `Globally toggle the servlo notifier. When off, neither in-dashboard
 banners nor Web Push are dispatched, regardless of per-device prefs.
-On by default; toggle via ` + "`lerd notify on`" + ` and ` + "`lerd notify off`" + `.`,
+On by default; toggle via ` + "`servlo notify on`" + ` and ` + "`servlo notify off`" + `.`,
 	}
 	cmd.AddCommand(newNotifyOnCmd())
 	cmd.AddCommand(newNotifyOffCmd())

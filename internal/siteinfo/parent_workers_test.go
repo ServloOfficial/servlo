@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestEnrichWorkers_keepsPerWorktreeOnParentWhenCheckPasses pins that
@@ -17,7 +17,7 @@ import (
 func TestEnrichWorkers_keepsPerWorktreeOnParentWhenCheckPasses(t *testing.T) {
 	origUnit := unitStatusFn
 	unitStatusFn = func(name string) (string, error) {
-		if name == "lerd-vite-rapids" {
+		if name == "servlo-vite-rapids" {
 			return "active", nil
 		}
 		return "inactive", nil
@@ -97,7 +97,7 @@ func TestEnrichWorkers_dropsPerWorktreeWhenCheckFails(t *testing.T) {
 func TestEnrichWorkers_keepsNonPerWorktreeOnParent(t *testing.T) {
 	origUnit := unitStatusFn
 	unitStatusFn = func(name string) (string, error) {
-		if name == "lerd-search-indexer-rapids" {
+		if name == "servlo-search-indexer-rapids" {
 			return "active", nil
 		}
 		return "inactive", nil

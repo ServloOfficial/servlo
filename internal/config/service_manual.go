@@ -11,7 +11,7 @@ func manuallyStartedServicesFile() string {
 }
 
 // ServiceIsManuallyStarted returns true if the service was explicitly started by
-// the user (via `lerd service start` or the dashboard), making it exempt from
+// the user (via `servlo service start` or the dashboard), making it exempt from
 // auto-stop when no sites reference it.
 func ServiceIsManuallyStarted(name string) bool {
 	return serviceSetContains(manuallyStartedServicesFile(), name)
@@ -58,13 +58,13 @@ func CountSitesUsingPHP(version string) int {
 }
 
 // SitesUsingService returns the active (non-ignored, non-paused) sites whose
-// .lerd.yaml lists the service or whose .env references lerd-{name}.
+// .servlo.yaml lists the service or whose .env references servlo-{name}.
 func SitesUsingService(name string) []Site {
 	reg, err := LoadSites()
 	if err != nil {
 		return nil
 	}
-	needle := "lerd-" + name
+	needle := "servlo-" + name
 	var out []Site
 	for _, s := range reg.Sites {
 		if s.Ignored || s.Paused {
@@ -93,17 +93,17 @@ func SitesUsingService(name string) []Site {
 }
 
 // CountSitesUsingService returns how many active (non-ignored, non-paused) site
-// .env files reference lerd-{name}, i.e. are configured to use the service.
+// .env files reference servlo-{name}, i.e. are configured to use the service.
 func CountSitesUsingService(name string) int {
 	return len(SitesUsingService(name))
 }
 
 // ServicePublishedPort returns the published host port a service was pinned to
 // (0 = preset/version default). It is non-zero when the user ran
-// `lerd service port`, or when the port-ownership guard auto-shifted lerd's DB
+// `servlo service port`, or when the port-ownership guard auto-shifted servlo's DB
 // off the engine default because a host server owns it. Readers that surface a
 // host-facing endpoint (a host-proxy app's .env, a connection URL) use it so the
-// port reflects where lerd's container actually listens, not the default a
+// port reflects where servlo's container actually listens, not the default a
 // coexisting host server may be sitting on.
 func ServicePublishedPort(name string) int {
 	cfg, err := LoadGlobal()
@@ -143,7 +143,7 @@ func ServicePublishedPorts(name string) map[int]int {
 }
 
 // ServiceExtraPorts returns the extra published port mappings recorded for a
-// service (set via `lerd service expose` or the Web UI ports modal), or nil when
+// service (set via `servlo service expose` or the Web UI ports modal), or nil when
 // none. Applied at the quadlet choke point so every preset-backed service, not
 // just the default-stack ones, honours the same extra-port overrides.
 func ServiceExtraPorts(name string) []string {

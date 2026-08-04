@@ -3,7 +3,7 @@ package cli
 import "testing"
 
 // TestPersistedSecured pins that the wizard persists the user's HTTPS intent to
-// .lerd.yaml rather than the DNS-gated value: dropping a committed secured:true
+// .servlo.yaml rather than the DNS-gated value: dropping a committed secured:true
 // on a localhost box would silently strip HTTPS for teammates on a DNS box.
 func TestPersistedSecured(t *testing.T) {
 	cases := []struct {

@@ -10,11 +10,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/serviceops"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // dbEngineResponse is one database engine with the databases it holds.
@@ -86,7 +86,7 @@ func databaseSiteIndex(service string) map[string]dbOwner {
 		domains[s.Name] = s.PrimaryDomain()
 		vals := envfile.ReadValues(filepath.Join(s.Path, ".env"))
 		db := ""
-		if strings.TrimPrefix(strings.TrimSpace(vals["DB_HOST"]), "lerd-") == service {
+		if strings.TrimPrefix(strings.TrimSpace(vals["DB_HOST"]), "servlo-") == service {
 			db = strings.TrimSpace(vals["DB_DATABASE"])
 		} else {
 			db = dsnDatabaseFor(vals, service)
@@ -117,7 +117,7 @@ func databaseSiteIndex(service string) map[string]dbOwner {
 
 // dsnDatabaseFor picks the database a project's env points at on the given
 // service through a DSN. Engines wired through a single connection string
-// (mongodb://…@lerd-mongo:27017/mydb) carry no DB_HOST. Keys are visited in
+// (mongodb://…@servlo-mongo:27017/mydb) carry no DB_HOST. Keys are visited in
 // sorted order: a project with more than one DSN against the same engine would
 // otherwise be attributed to a different database on every snapshot, since Go
 // randomises map iteration.
@@ -136,13 +136,13 @@ func dsnDatabaseFor(vals map[string]string, service string) string {
 }
 
 // dsnDatabase returns the database a DSN-style env value targets on the given
-// service, or empty when the value is not a URL pointed at lerd-<service>.
+// service, or empty when the value is not a URL pointed at servlo-<service>.
 func dsnDatabase(value, service string) string {
-	if !strings.Contains(value, "lerd-"+service) {
+	if !strings.Contains(value, "servlo-"+service) {
 		return ""
 	}
 	u, err := url.Parse(strings.TrimSpace(value))
-	if err != nil || u.Hostname() != "lerd-"+service {
+	if err != nil || u.Hostname() != "servlo-"+service {
 		return ""
 	}
 	db := strings.TrimPrefix(u.Path, "/")
@@ -153,7 +153,7 @@ func dsnDatabase(value, service string) string {
 }
 
 // isDatabaseEngine reports whether a service belongs on the Databases surface: a
-// family lerd wires as a project database, or any engine whose preset declares
+// family servlo wires as a project database, or any engine whose preset declares
 // databases it can enumerate. The second half is what lets the store publish an
 // engine outside the wired families (an analytics column store, say) and have it
 // appear with the operations it declares.
@@ -289,7 +289,7 @@ func handleDatabaseAction(w http.ResponseWriter, r *http.Request) {
 		handleSnapshotExport(w, r, service)
 		return
 	}
-	if status, _ := podman.UnitStatus("lerd-" + service); status != "active" {
+	if status, _ := podman.UnitStatus("servlo-" + service); status != "active" {
 		writeDBError(w, "start the engine before running database operations")
 		return
 	}
@@ -451,7 +451,7 @@ func handleDatabaseExport(w http.ResponseWriter, r *http.Request, service string
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if status, _ := podman.UnitStatus("lerd-" + service); status != "active" {
+	if status, _ := podman.UnitStatus("servlo-" + service); status != "active" {
 		http.Error(w, "start the engine before exporting", http.StatusConflict)
 		return
 	}

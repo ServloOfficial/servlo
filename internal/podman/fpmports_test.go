@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // stubFPMUnit makes the FPM unit look installed and active, with a no-op quadlet
@@ -207,16 +207,16 @@ func TestRemoveFPMPort_DropsMapping(t *testing.T) {
 
 // The version's FPM ports must reach the shared quadlet as loopback-bound
 // PublishPort lines (LAN off) — mirroring exactly what WriteFPMQuadlet then
-// The shared ini must mount into the FPM container at 95-lerd-shared.ini, which
-// sorts below the per-version 98-lerd-user.ini so the per-version value wins.
+// The shared ini must mount into the FPM container at 95-servlo-shared.ini, which
+// sorts below the per-version 98-servlo-user.ini so the per-version value wins.
 func TestFPMQuadletMountsSharedIniBelowUserIni(t *testing.T) {
 	fpmTestEnv(t)
 	content, err := renderFPMQuadletContent("8.3")
 	if err != nil {
 		t.Fatalf("renderFPMQuadletContent: %v", err)
 	}
-	shared := strings.Index(content, "conf.d/95-lerd-shared.ini:ro")
-	user := strings.Index(content, "conf.d/98-lerd-user.ini:ro")
+	shared := strings.Index(content, "conf.d/95-servlo-shared.ini:ro")
+	user := strings.Index(content, "conf.d/98-servlo-user.ini:ro")
 	if shared < 0 {
 		t.Fatalf("shared ini mount missing:\n%s", content)
 	}

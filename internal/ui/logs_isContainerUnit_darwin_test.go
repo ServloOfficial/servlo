@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestIsContainerUnit_darwin pins the routing decision logs_darwin's
 // SSE stream relies on after the plist-path typo fix + the host
 // worker support that landed in this PR. Previous behaviour matched
-// `lerd.<unit>.plist` (typo) so the plist branch never fired and the
+// `servlo.<unit>.plist` (typo) so the plist branch never fired and the
 // framework-prefix fallback masked the bug for built-in workers —
 // vite host workers (no framework prefix) routed to podman logs and
 // streamed nothing.
@@ -26,35 +26,35 @@ func TestIsContainerUnit_darwin(t *testing.T) {
 	}{
 		{
 			name: "service plist (RunAtLoad) -> not a container",
-			unit: "lerd-vite-acme",
+			unit: "servlo-vite-acme",
 			setup: func(t *testing.T, home string) {
-				writePlist(t, home, "lerd-vite-acme.plist",
+				writePlist(t, home, "servlo-vite-acme.plist",
 					`<plist><dict><key>RunAtLoad</key><true/></dict></plist>`)
 			},
 			want: false,
 		},
 		{
 			name: "container plist (no RunAtLoad) -> container",
-			unit: "lerd-mysql",
+			unit: "servlo-mysql",
 			setup: func(t *testing.T, home string) {
-				writePlist(t, home, "lerd-mysql.plist",
+				writePlist(t, home, "servlo-mysql.plist",
 					`<plist><dict><key>KeepAlive</key><true/></dict></plist>`)
 			},
 			want: true,
 		},
 		{
 			name: "no plist + guard script present -> not a container (host or exec worker)",
-			unit: "lerd-vite-acme",
+			unit: "servlo-vite-acme",
 			setup: func(t *testing.T, home string) {
-				dir := filepath.Join(home, "data", "lerd", "run", "workers")
+				dir := filepath.Join(home, "data", "servlo", "run", "workers")
 				_ = os.MkdirAll(dir, 0755)
-				_ = os.WriteFile(filepath.Join(dir, "lerd-vite-acme.sh"), []byte("#!/bin/sh\n"), 0755)
+				_ = os.WriteFile(filepath.Join(dir, "servlo-vite-acme.sh"), []byte("#!/bin/sh\n"), 0755)
 			},
 			want: false,
 		},
 		{
 			name: "no plist + no guard script + framework prefix + exec mode -> not a container",
-			unit: "lerd-queue-acme",
+			unit: "servlo-queue-acme",
 			setup: func(t *testing.T, home string) {
 				cfg, _ := config.LoadGlobal()
 				cfg.Workers.ExecMode = config.WorkerExecModeExec
@@ -64,7 +64,7 @@ func TestIsContainerUnit_darwin(t *testing.T) {
 		},
 		{
 			name: "no plist + no guard script + framework prefix + container mode -> container",
-			unit: "lerd-queue-acme",
+			unit: "servlo-queue-acme",
 			setup: func(t *testing.T, home string) {
 				cfg, _ := config.LoadGlobal()
 				cfg.Workers.ExecMode = config.WorkerExecModeContainer
@@ -74,13 +74,13 @@ func TestIsContainerUnit_darwin(t *testing.T) {
 		},
 		{
 			name:  "no plist + no guard script + non-framework unit -> container",
-			unit:  "lerd-mysql",
+			unit:  "servlo-mysql",
 			setup: func(t *testing.T, home string) {},
 			want:  true,
 		},
 		{
-			name:  "lerd-dns is hardcoded as native",
-			unit:  "lerd-dns",
+			name:  "servlo-dns is hardcoded as native",
+			unit:  "servlo-dns",
 			setup: func(t *testing.T, home string) {},
 			want:  false,
 		},

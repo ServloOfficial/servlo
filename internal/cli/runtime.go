@@ -3,17 +3,17 @@ package cli
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
 	"github.com/spf13/cobra"
 )
 
 // Wire the siteops demote helper to the cli worker lifecycle so the UI, MCP,
 // and install-refresh paths recreate workers when a FrankenPHP site falls back
-// to FPM, the same way switchToFPM does for `lerd runtime fpm`.
+// to FPM, the same way switchToFPM does for `servlo runtime fpm`.
 func init() {
 	siteops.StopRuntimeWorkers = func(site *config.Site) []string {
 		running := collectRunningWorkers(site)
@@ -27,18 +27,18 @@ func init() {
 	}
 }
 
-// NewRuntimeCmd returns the `lerd runtime` parent command.
+// NewRuntimeCmd returns the `servlo runtime` parent command.
 func NewRuntimeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "runtime [fpm|frankenphp]",
 		Short: "Switch the PHP runtime for the current site (fpm or frankenphp)",
-		Long: `Switch the PHP runtime for the current site. Writes to .lerd.yaml so the
+		Long: `Switch the PHP runtime for the current site. Writes to .servlo.yaml so the
 choice is committed with the project.
 
-  lerd runtime                     # print the current runtime
-  lerd runtime frankenphp          # enable FrankenPHP (non-worker)
-  lerd runtime frankenphp --worker # enable FrankenPHP worker mode
-  lerd runtime fpm                 # back to shared PHP-FPM (clears .lerd.yaml)`,
+  servlo runtime                     # print the current runtime
+  servlo runtime frankenphp          # enable FrankenPHP (non-worker)
+  servlo runtime frankenphp --worker # enable FrankenPHP worker mode
+  servlo runtime fpm                 # back to shared PHP-FPM (clears .servlo.yaml)`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runRuntime,
 	}
@@ -53,7 +53,7 @@ func runRuntime(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if site.IsCustomContainer() {
-		return fmt.Errorf("site uses a custom Containerfile; the runtime is defined by your Containerfile.lerd")
+		return fmt.Errorf("site uses a custom Containerfile; the runtime is defined by your Containerfile.servlo")
 	}
 	if site.IsHostProxy() {
 		return fmt.Errorf("site is a host-proxy site; it runs your dev command on the host, not a PHP runtime")
@@ -82,7 +82,7 @@ func runRuntime(cmd *cobra.Command, args []string) error {
 		// silently run a different PHP than the site reports, with its ini files
 		// still mounted from the old version's path.
 		if !config.IsFrankenPHPVersion(site.PHPVersion) {
-			return fmt.Errorf("FrankenPHP requires PHP %s or newer; this site is on PHP %s — bump it first with 'lerd isolate %s' (or higher)",
+			return fmt.Errorf("FrankenPHP requires PHP %s or newer; this site is on PHP %s — bump it first with 'servlo isolate %s' (or higher)",
 				config.FrankenPHPMinVersion, site.PHPVersion, config.FrankenPHPMinVersion)
 		}
 		fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
@@ -115,7 +115,7 @@ func removeFrankenPHPContainer(siteName string) {
 // reconcileStaleFrankenPHP removes a leftover per-site FrankenPHP quadlet when a
 // (re)linked site is no longer FrankenPHP. That quadlet is WantedBy=default.target
 // with Restart=always, so podman's generator keeps auto-starting an orphan that
-// lerd start/stop never enumerate.
+// servlo start/stop never enumerate.
 func reconcileStaleFrankenPHP(site config.Site) {
 	if site.IsFrankenPHP() || !podman.QuadletInstalled(podman.FrankenPHPContainerName(site.Name)) {
 		return
@@ -136,7 +136,7 @@ func removeCustomFPMContainer(siteName string) {
 // (re)linked site is no longer fpm-custom (e.g. the Containerfile was removed, or
 // a port was added so it became a reverse-proxied custom container). Like the
 // FrankenPHP one, that quadlet is WantedBy=default.target with Restart=always, so
-// podman's generator keeps auto-starting an orphan that lerd start/stop miss.
+// podman's generator keeps auto-starting an orphan that servlo start/stop miss.
 func reconcileStaleCustomFPM(site config.Site) {
 	if site.IsCustomFPM() || !podman.QuadletInstalled(podman.CustomFPMContainerName(site.Name)) {
 		return

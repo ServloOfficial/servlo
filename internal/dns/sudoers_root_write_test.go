@@ -18,11 +18,11 @@ import (
 // every later resolver operation prompted for a password.
 func TestWriteSudoersForUserIgnoresStaleRootMarker(t *testing.T) {
 	dir := t.TempDir()
-	dropIn := filepath.Join(dir, "lerd")
+	dropIn := filepath.Join(dir, "servlo")
 
-	origPath, origMarker := lerdSudoersPath, sudoersMarkerPath
-	t.Cleanup(func() { lerdSudoersPath, sudoersMarkerPath = origPath, origMarker })
-	lerdSudoersPath = dropIn
+	origPath, origMarker := servloSudoersPath, sudoersMarkerPath
+	t.Cleanup(func() { servloSudoersPath, sudoersMarkerPath = origPath, origMarker })
+	servloSudoersPath = dropIn
 	sudoersMarkerPath = func() string { return filepath.Join(dir, "sudoers.sha256") }
 	stubSudoProbe(t, true, true)
 
@@ -46,11 +46,11 @@ func TestWriteSudoersForUserIgnoresStaleRootMarker(t *testing.T) {
 // package upgrade that re-runs the bootstrap does not churn /etc/sudoers.d.
 func TestWriteSudoersForUserSkipsWhenFileMatches(t *testing.T) {
 	dir := t.TempDir()
-	dropIn := filepath.Join(dir, "lerd")
+	dropIn := filepath.Join(dir, "servlo")
 
-	origPath := lerdSudoersPath
-	t.Cleanup(func() { lerdSudoersPath = origPath })
-	lerdSudoersPath = dropIn
+	origPath := servloSudoersPath
+	t.Cleanup(func() { servloSudoersPath = origPath })
+	servloSudoersPath = dropIn
 
 	content := renderLinuxSudoers("george")
 	if err := os.WriteFile(dropIn, []byte(content), 0440); err != nil {
@@ -76,15 +76,15 @@ func TestWriteSudoersForUserSkipsWhenFileMatches(t *testing.T) {
 // A rule that changed between versions must still be rewritten.
 func TestWriteSudoersForUserRewritesChangedRule(t *testing.T) {
 	dir := t.TempDir()
-	dropIn := filepath.Join(dir, "lerd")
+	dropIn := filepath.Join(dir, "servlo")
 
-	origPath := lerdSudoersPath
-	t.Cleanup(func() { lerdSudoersPath = origPath })
-	lerdSudoersPath = dropIn
+	origPath := servloSudoersPath
+	t.Cleanup(func() { servloSudoersPath = origPath })
+	servloSudoersPath = dropIn
 
 	// 0600 rather than the real 0440: the caller is root in production and
 	// writes through the read-only mode, which a test user cannot do.
-	if err := os.WriteFile(dropIn, []byte("an older lerd rule\n"), 0600); err != nil {
+	if err := os.WriteFile(dropIn, []byte("an older servlo rule\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := WriteSudoersForUser("george"); err != nil {
@@ -104,10 +104,10 @@ func TestWriteSudoersForUserRewritesChangedRule(t *testing.T) {
 // rather than after, when it can no longer be read back.
 func TestWriteSudoersForUserRefusesAnInvalidName(t *testing.T) {
 	dir := t.TempDir()
-	dropIn := filepath.Join(dir, "lerd")
-	origPath := lerdSudoersPath
-	t.Cleanup(func() { lerdSudoersPath = origPath })
-	lerdSudoersPath = dropIn
+	dropIn := filepath.Join(dir, "servlo")
+	origPath := servloSudoersPath
+	t.Cleanup(func() { servloSudoersPath = origPath })
+	servloSudoersPath = dropIn
 
 	for _, name := range []string{
 		"weird name",
@@ -131,10 +131,10 @@ func TestWriteSudoersForUserRefusesAnInvalidName(t *testing.T) {
 // content is checked before it is installed.
 func TestWriteSudoersForUserRefusesContentVisudoRejects(t *testing.T) {
 	dir := t.TempDir()
-	dropIn := filepath.Join(dir, "lerd")
-	origPath, origCheck := lerdSudoersPath, visudoCheck
-	t.Cleanup(func() { lerdSudoersPath, visudoCheck = origPath, origCheck })
-	lerdSudoersPath = dropIn
+	dropIn := filepath.Join(dir, "servlo")
+	origPath, origCheck := servloSudoersPath, visudoCheck
+	t.Cleanup(func() { servloSudoersPath, visudoCheck = origPath, origCheck })
+	servloSudoersPath = dropIn
 	visudoCheck = func(string) ([]byte, error) {
 		return []byte("syntax error near line 1"), errors.New("exit status 1")
 	}
@@ -151,10 +151,10 @@ func TestWriteSudoersForUserRefusesContentVisudoRejects(t *testing.T) {
 // already, and refusing here would break the install on a minimal image.
 func TestWriteSudoersForUserWritesWhenVisudoIsAbsent(t *testing.T) {
 	dir := t.TempDir()
-	dropIn := filepath.Join(dir, "lerd")
-	origPath, origCheck, origMarker := lerdSudoersPath, visudoCheck, sudoersMarkerPath
-	t.Cleanup(func() { lerdSudoersPath, visudoCheck, sudoersMarkerPath = origPath, origCheck, origMarker })
-	lerdSudoersPath = dropIn
+	dropIn := filepath.Join(dir, "servlo")
+	origPath, origCheck, origMarker := servloSudoersPath, visudoCheck, sudoersMarkerPath
+	t.Cleanup(func() { servloSudoersPath, visudoCheck, sudoersMarkerPath = origPath, origCheck, origMarker })
+	servloSudoersPath = dropIn
 	sudoersMarkerPath = func() string { return filepath.Join(dir, "sudoers.sha256") }
 	visudoCheck = func(string) ([]byte, error) { return nil, exec.ErrNotFound }
 
@@ -173,6 +173,6 @@ func TestRenderedSudoersParses(t *testing.T) {
 		t.Skip("visudo not available")
 	}
 	if err := checkSudoersSyntax(renderLinuxSudoers("george")); err != nil {
-		t.Errorf("the rule lerd renders does not parse: %v", err)
+		t.Errorf("the rule servlo renders does not parse: %v", err)
 	}
 }

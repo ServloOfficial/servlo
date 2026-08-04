@@ -164,7 +164,7 @@ export async function refreshStatus(): Promise<void> {
   }
 }
 
-// Live-update from WS so any out-of-band toggle (CLI, tray, MCP, another
+// Live-update from WS so any out-of-band toggle (CLI, MCP, another
 // browser tab) is reflected without a manual refresh.
 wsMessage.subscribe((msg) => {
   const fresh = msg?.dumps_status as DumpsStatus | undefined;

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/origin"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/origin"
 )
 
 // changelogURLs returns raw changelog URLs in priority order, read live.
@@ -110,7 +110,7 @@ func writeCache(path string, state updateCheckState) {
 
 // WriteUpdateCache records version as the known latest in the on-disk cache,
 // resetting the 24-hour TTL. Call this after a successful update so that
-// lerd status / doctor stop showing a stale "update available" notice.
+// servlo status / doctor stop showing a stale "update available" notice.
 func WriteUpdateCache(version string) {
 	writeCache(config.UpdateCheckFile(), updateCheckState{
 		LatestVersion: version,
@@ -140,7 +140,7 @@ func fetchChangelogFrom(client *http.Client, url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "lerd-cli")
+	req.Header.Set("User-Agent", "servlo-cli")
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err

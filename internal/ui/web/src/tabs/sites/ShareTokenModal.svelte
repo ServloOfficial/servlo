@@ -45,7 +45,7 @@
         autocomplete="off"
         spellcheck="false"
         data-testid="share-token-input"
-        class="w-full px-2.5 py-1.5 text-sm font-mono rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-bg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-lerd-red"
+        class="w-full px-2.5 py-1.5 text-sm font-mono rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-bg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-servlo-red"
       />
       <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
         {tokenSet ? m.shareToken_stateSet() : m.shareToken_stateUnset()}
@@ -73,7 +73,7 @@
         disabled={busy}
         onclick={() => onsubmit('')}
         data-testid="share-token-clear"
-        class="{btnBase} border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
+        class="{btnBase} border border-gray-200 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
         >{m.shareToken_clear()}</button
       >
     {:else}
@@ -81,7 +81,7 @@
         type="button"
         disabled={busy}
         onclick={onclose}
-        class="{btnBase} border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
+        class="{btnBase} border border-gray-200 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
         >{m.common_cancel()}</button
       >
     {/if}
@@ -89,7 +89,7 @@
       type="button"
       disabled={busy || !clean}
       onclick={() => onsubmit(clean)}
-      class="{btnBase} bg-lerd-red hover:bg-lerd-redhov text-white">{m.common_save()}</button
+      class="{btnBase} bg-servlo-red hover:bg-servlo-redhov text-white">{m.common_save()}</button
     >
   {/snippet}
 </Modal>

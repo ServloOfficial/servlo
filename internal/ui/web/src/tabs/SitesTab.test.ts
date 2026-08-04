@@ -98,7 +98,7 @@ describe('SitesTab workspace sections', () => {
     await fireEvent.click(getByText('Client Work'));
     expect(queryByText('a.test')).toBeNull();
     expect(get(workspaceCollapse)).toContain('Client Work');
-    expect(JSON.parse(localStorage.getItem('lerd:workspaceCollapse') ?? '[]')).toContain('Client Work');
+    expect(JSON.parse(localStorage.getItem('servlo:workspaceCollapse') ?? '[]')).toContain('Client Work');
   });
 
   it('collapsing the paused section hides the paused sites', async () => {

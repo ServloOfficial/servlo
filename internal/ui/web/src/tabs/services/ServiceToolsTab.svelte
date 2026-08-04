@@ -32,7 +32,7 @@
       {#each shims as shim (shim.tool)}
         {@const managedElsewhere = Boolean(shim.owner && shim.owner !== svc.name)}
         <div
-          class="rounded-xl border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card px-4 py-3 min-w-[150px] flex flex-col gap-2"
+          class="rounded-xl border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card px-4 py-3 min-w-[150px] flex flex-col gap-2"
         >
           <div class="min-w-0">
             <code class="block text-sm font-mono font-semibold text-gray-800 dark:text-gray-100 leading-tight truncate">{shim.tool}</code>

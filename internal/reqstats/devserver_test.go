@@ -3,15 +3,15 @@ package reqstats
 import "testing"
 
 func TestIsDevServerRequest(t *testing.T) {
-	// Everything a dev server serves lives under the prefix lerd gives it, which
+	// Everything a dev server serves lives under the prefix servlo gives it, which
 	// is how one nginx location carries the modules and the hot-reload socket.
 	dev := []string{
-		"/@lerd-vite/@vite/client",
-		"/@lerd-vite/@react-refresh",
-		"/@lerd-vite/src/App.vue",
-		"/@lerd-vite/src/main.ts?t=1753875600000",
-		"/@lerd-vite/node_modules/.vite/deps/vue.js",
-		"/@lerd-vite/",
+		"/@servlo-vite/@vite/client",
+		"/@servlo-vite/@react-refresh",
+		"/@servlo-vite/src/App.vue",
+		"/@servlo-vite/src/main.ts?t=1753875600000",
+		"/@servlo-vite/node_modules/.vite/deps/vue.js",
+		"/@servlo-vite/",
 	}
 	for _, u := range dev {
 		if !IsDevServerRequest(u) {
@@ -24,9 +24,9 @@ func TestIsDevServerRequest(t *testing.T) {
 		"/api/health",
 		"/build/assets/app-DQ0VOLSm.js",
 		// The prefix only means a dev server when the path starts with it.
-		"/docs/@lerd-vite/getting-started",
+		"/docs/@servlo-vite/getting-started",
 		// A route that shares the opening of the prefix is still the app's.
-		"/@lerd-viteworks",
+		"/@servlo-viteworks",
 	}
 	for _, u := range app {
 		if IsDevServerRequest(u) {

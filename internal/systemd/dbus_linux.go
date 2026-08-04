@@ -20,7 +20,7 @@ import (
 var errUnitOpTimedOut = errors.New("unit op timed out")
 
 // stopRetryAttempts bounds how many times a "stop" job is re-issued when
-// systemd reports the result "canceled". `lerd stop` deactivates many units
+// systemd reports the result "canceled". `servlo stop` deactivates many units
 // in parallel with mode "replace"; stopping a unit that other units BindsTo
 // (e.g. the PHP-FPM unit, which the per-site worker units bind to) enqueues a
 // dependency-driven stop that a competing explicit StopUnit replaces, so one
@@ -218,8 +218,8 @@ func DBusDisableService(name string) error {
 
 // DBusActiveState returns the ActiveState property ("active", "inactive",
 // "failed", "activating", …) for the named unit, or "" when the unit is
-// unknown. Unit name may be bare (e.g. "lerd-foo") or fully-qualified
-// ("lerd-foo.service", "lerd-foo.timer").
+// unknown. Unit name may be bare (e.g. "servlo-foo") or fully-qualified
+// ("servlo-foo.service", "servlo-foo.timer").
 func DBusActiveState(name string) string {
 	conn, err := userConn()
 	if err != nil {

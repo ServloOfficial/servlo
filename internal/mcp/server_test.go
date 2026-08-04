@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // decodeContent asserts a tool result carries exactly one text content block
@@ -309,8 +309,8 @@ func TestRunComposerInstallIfNeeded_vendorExistsIsNoop(t *testing.T) {
 }
 
 // TestResolveWorkerCwd_noBranchReturnsSitePath pins the parent-site routing:
-// without a branch, lerd worker start/stop runs in site.Path so the CLI's
-// workerNames helper picks the parent unit (lerd-<worker>-<site>).
+// without a branch, servlo worker start/stop runs in site.Path so the CLI's
+// workerNames helper picks the parent unit (servlo-<worker>-<site>).
 func TestResolveWorkerCwd_noBranchReturnsSitePath(t *testing.T) {
 	site := &config.Site{Name: "demo", Path: "/srv/demo"}
 	cwd, errResp := resolveWorkerCwd(site, "")
@@ -339,7 +339,7 @@ func TestResolveWorkerCwd_unknownBranchErrors(t *testing.T) {
 
 // TestExecWorkersMode_RejectsBadAction pins the validation that keeps the
 // tool from silently no-op-ing on a typo'd action. Real exec paths shell
-// out to the lerd CLI, which we don't run from unit tests; the bad-arg
+// out to the servlo CLI, which we don't run from unit tests; the bad-arg
 // branch is what we can pin without an integration setup.
 func TestExecWorkersMode_RejectsBadAction(t *testing.T) {
 	resp, rpcErr := execWorkersMode(map[string]any{"action": "toggle"})
@@ -425,7 +425,7 @@ func installFakeQuadlet(t *testing.T, name string) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir quadlet dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "lerd-"+name+".container"), []byte("[Container]\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "servlo-"+name+".container"), []byte("[Container]\n"), 0o644); err != nil {
 		t.Fatalf("write fake quadlet: %v", err)
 	}
 }
@@ -450,7 +450,7 @@ func TestExecServiceConfig_ReadSurfacesTemplateOnFirstAccess(t *testing.T) {
 		t.Fatalf("read reported error: %s", raw)
 	}
 	// The text payload is itself JSON with target/exists/content fields.
-	if !bytes.Contains(raw, []byte("/etc/mysql/conf.d/zz-lerd-user.cnf")) {
+	if !bytes.Contains(raw, []byte("/etc/mysql/conf.d/zz-servlo-user.cnf")) {
 		t.Errorf("response missing target path: %s", raw)
 	}
 	if !bytes.Contains(raw, []byte("[mysqld]")) {
@@ -459,7 +459,7 @@ func TestExecServiceConfig_ReadSurfacesTemplateOnFirstAccess(t *testing.T) {
 }
 
 // TestExecServiceConfig_NotInstalledHintsAtInstall verifies the install
-// guard surfaces the same lerd CLI hint the HTTP handler does, so an
+// guard surfaces the same servlo CLI hint the HTTP handler does, so an
 // MCP-driven agent can recover without guessing the command.
 func TestExecServiceConfig_NotInstalledHintsAtInstall(t *testing.T) {
 	tmp := t.TempDir()
@@ -472,7 +472,7 @@ func TestExecServiceConfig_NotInstalledHintsAtInstall(t *testing.T) {
 	if !bytes.Contains(raw, []byte("isError")) {
 		t.Fatalf("expected error response: %s", raw)
 	}
-	if !bytes.Contains(raw, []byte("lerd service preset install mysql")) {
+	if !bytes.Contains(raw, []byte("servlo service preset install mysql")) {
 		t.Errorf("expected install hint in error: %s", raw)
 	}
 }
@@ -509,7 +509,7 @@ func TestExecServiceConfig_UnsupportedFamilyListsTunable(t *testing.T) {
 
 // TestExecServiceConfig_ReadHonoursInlineTuningSpec covers the new
 // user-extensible path: a custom service with an inline tuning: block
-// surfaces in MCP's read response without lerd having to recognise its
+// surfaces in MCP's read response without servlo having to recognise its
 // family.
 func TestExecServiceConfig_ReadHonoursInlineTuningSpec(t *testing.T) {
 	tmp := t.TempDir()

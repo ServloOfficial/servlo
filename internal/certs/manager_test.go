@@ -47,7 +47,7 @@ func TestMkcertPath_usesDataDir(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 	got := MkcertPath()
-	want := filepath.Join(tmp, "lerd", "bin", "mkcert")
+	want := filepath.Join(tmp, "servlo", "bin", "mkcert")
 	if got != want {
 		t.Errorf("MkcertPath() = %q, want %q", got, want)
 	}
@@ -68,7 +68,7 @@ func TestCertExists_returnsTrueWhenPresent(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	// Create the expected cert file path
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	os.MkdirAll(certsDir, 0755)
 	os.WriteFile(filepath.Join(certsDir, "myapp.test.crt"), []byte("fake cert"), 0644)
 
@@ -82,7 +82,7 @@ func TestCertExists_onlyCrtRequired(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	os.MkdirAll(certsDir, 0755)
 	// .crt exists, no .key
 	os.WriteFile(filepath.Join(certsDir, "site.test.crt"), []byte("fake cert"), 0644)
@@ -104,7 +104,7 @@ func TestIssueCert_skipsWhenCertExists(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ printf 'KEY' > "$KEY"
 		t.Fatal(err)
 	}
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ printf 'KEY' > "$KEY"
 // and a marker into the key, so a reissue is detectable by inspecting the files.
 func fakeMkcertBin(t *testing.T, tmp string) {
 	t.Helper()
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +214,7 @@ func TestIssueCert_reissuesCertNearExpiry(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	fakeMkcertBin(t, tmp)
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +247,7 @@ func TestIssueCert_reissuesExpiredCert(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	fakeMkcertBin(t, tmp)
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -276,7 +276,7 @@ func TestIssueCert_reusesCertFarFromExpiry(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	fakeMkcertBin(t, tmp)
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +310,7 @@ func TestIssueCert_reissuesUnparseableCert(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 	fakeMkcertBin(t, tmp)
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -348,7 +348,7 @@ func TestIssueCertForce_concurrentCallsDontCollide(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -374,7 +374,7 @@ echo "FAKE-KEY" > "$KEY"
 	if err := os.WriteFile(filepath.Join(binDir, "mkcert"), []byte(fakeMkcert), 0755); err != nil {
 		t.Fatal(err)
 	}
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -434,7 +434,7 @@ func TestIssueCertForce_keyRenameFailureRollsBackCert(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -456,7 +456,7 @@ exit 0
 		t.Fatal(err)
 	}
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -496,7 +496,7 @@ func TestIssueCertForce_failureLeavesExistingCertIntact(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -506,7 +506,7 @@ func TestIssueCertForce_failureLeavesExistingCertIntact(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	certsDir := filepath.Join(tmp, "lerd", "certs", "sites")
+	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}

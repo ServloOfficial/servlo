@@ -15,7 +15,7 @@ func TestIsLocalNetworkHost(t *testing.T) {
 		{"[::1]:7073", true},
 		{"192.168.1.50:7073", true},
 		{"10.0.0.5", true},
-		{"lerd.localhost", true},
+		{"servlo.localhost", true},
 		{"myapp.test", true},
 		{"foo.local:7073", true},
 		{"evil.example", false},

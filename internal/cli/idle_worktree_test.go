@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestWorktreeWorkerIdleSuspended(t *testing.T) {
@@ -142,7 +142,7 @@ func TestWorktreeIdleSuspendStateIsStale(t *testing.T) {
 }
 
 // TestWorktreeWorkerUnitNaming pins that the unit name collectRunningWorktreeWorkers
-// checks (lerd-<w>-<site>-<wtBase>) is exactly what workerNames produces for a
+// checks (servlo-<w>-<site>-<wtBase>) is exactly what workerNames produces for a
 // worktree checkout, so idle-suspend detects, stops, and restarts the same unit.
 func TestWorktreeWorkerUnitNaming(t *testing.T) {
 	dir := t.TempDir()
@@ -155,13 +155,13 @@ func TestWorktreeWorkerUnitNaming(t *testing.T) {
 	// A worktree checkout path differs from the main path, so the unit gets the
 	// worktree-base suffix.
 	unit, _ := workerNames("myapp", "/srv/myapp/.worktrees/feature-x", "vite")
-	if unit != "lerd-vite-myapp-feature-x" {
-		t.Errorf("worktree unit = %q, want lerd-vite-myapp-feature-x", unit)
+	if unit != "servlo-vite-myapp-feature-x" {
+		t.Errorf("worktree unit = %q, want servlo-vite-myapp-feature-x", unit)
 	}
 
 	// The main checkout keeps the plain unit name.
 	mainUnit, _ := workerNames("myapp", "/srv/myapp", "vite")
-	if mainUnit != "lerd-vite-myapp" {
-		t.Errorf("main unit = %q, want lerd-vite-myapp", mainUnit)
+	if mainUnit != "servlo-vite-myapp" {
+		t.Errorf("main unit = %q, want servlo-vite-myapp", mainUnit)
 	}
 }

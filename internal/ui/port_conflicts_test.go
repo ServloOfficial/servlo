@@ -11,7 +11,7 @@ import (
 // services should not be flagged as conflicting just because we couldn't
 // scan the host.
 func TestPortConflictsFor_emptySsOutput(t *testing.T) {
-	if got := portConflictsFor("lerd-postgres", ""); got != nil {
+	if got := portConflictsFor("servlo-postgres", ""); got != nil {
 		t.Errorf("expected nil for empty ssOutput, got %+v", got)
 	}
 }
@@ -25,7 +25,7 @@ func TestPortConflictsFor_unknownUnit(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", filepath.Join(tmp, "data"))
 
 	ss := "LISTEN 0 128 0.0.0.0:5432 0.0.0.0:*\n"
-	if got := portConflictsFor("lerd-not-a-real-service", ss); got != nil {
+	if got := portConflictsFor("servlo-not-a-real-service", ss); got != nil {
 		t.Errorf("expected nil for unknown unit, got %+v", got)
 	}
 }
@@ -40,7 +40,7 @@ func TestPortConflictsFor_customService(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
 	t.Setenv("XDG_DATA_HOME", filepath.Join(tmp, "data"))
 
-	servicesDir := filepath.Join(cfgHome, "lerd", "services")
+	servicesDir := filepath.Join(cfgHome, "servlo", "services")
 	if err := os.MkdirAll(servicesDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestPortConflictsFor_customService(t *testing.T) {
 	}
 
 	ss := "LISTEN 0 128 0.0.0.0:5432 0.0.0.0:*\n"
-	got := portConflictsFor("lerd-myservice", ss)
+	got := portConflictsFor("servlo-myservice", ss)
 	if len(got) != 1 {
 		t.Fatalf("expected 1 conflict, got %d (%+v)", len(got), got)
 	}
@@ -62,7 +62,7 @@ func TestPortConflictsFor_customService(t *testing.T) {
 	}
 
 	// No conflict when the same port is absent from the listing.
-	if extra := portConflictsFor("lerd-myservice", "LISTEN 0 128 0.0.0.0:9999 0.0.0.0:*\n"); extra != nil {
+	if extra := portConflictsFor("servlo-myservice", "LISTEN 0 128 0.0.0.0:9999 0.0.0.0:*\n"); extra != nil {
 		t.Errorf("expected no conflict when port not listening, got %+v", extra)
 	}
 }

@@ -182,7 +182,7 @@ describe('history', () => {
   });
 
   it('survives malformed localStorage payloads', async () => {
-    localStorage.setItem('lerd-commands-history-v1', 'not json');
+    localStorage.setItem('servlo-commands-history-v1', 'not json');
     const { lastRunFor } = await import('./commands');
     expect(lastRunFor('a', 'b')).toBeNull();
   });

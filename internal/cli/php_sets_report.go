@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/phpsets"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/phpsets"
 )
 
 // printPerVersionStatus renders what each built version's image really carries.
@@ -27,7 +27,7 @@ func printPerVersionStatus(cfg *config.GlobalConfig, kind declaredKind) {
 			continue // nothing known, so nothing claimed
 		}
 		if r.NeedsRebuild {
-			lines = append(lines, fmt.Sprintf("  PHP %-4s image predates this set, run 'lerd php:rebuild %s'", r.Version, r.Version))
+			lines = append(lines, fmt.Sprintf("  PHP %-4s image predates this set, run 'servlo php:rebuild %s'", r.Version, r.Version))
 			continue
 		}
 		set := pick(r)
@@ -72,7 +72,7 @@ type declaredKind struct {
 var extensionsOf = declaredKind{
 	pick: func(r phpsets.Report) phpsets.SetState { return r.Extensions },
 	nowhereHint: func(e string) string {
-		return " Re-add it with the Alpine packages its\nbuild needs: lerd php:ext add " + e + " --apk-deps \"<pkg>-dev\""
+		return " Re-add it with the Alpine packages its\nbuild needs: servlo php:ext add " + e + " --apk-deps \"<pkg>-dev\""
 	},
 }
 

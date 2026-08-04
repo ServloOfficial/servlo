@@ -35,7 +35,7 @@ Every PR runs the following checks automatically. All must pass before merging.
 
 | Check | Command |
 |-------|---------|
-| Build | `go build ./cmd/lerd` |
+| Build | `go build ./cmd/servlo` |
 | Tests | `go test ./...` |
 | Vet | `go vet ./...` |
 | Format | `gofmt -l .` |

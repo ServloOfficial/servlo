@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestHostProxyAppLifecycleOp pins the routing that fixes the host-proxy 502:

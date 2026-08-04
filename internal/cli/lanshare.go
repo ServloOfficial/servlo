@@ -18,7 +18,7 @@ import (
 
 	qrcode "github.com/skip2/go-qrcode"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 var (
@@ -236,7 +236,7 @@ func RestoreLANShareProxies() {
 			live = liveWorktreeBranches(&s)
 			liveByPath[s.Path] = live
 		}
-		// Skip orphans: the worktree was removed while lerd-ui was down, so
+		// Skip orphans: the worktree was removed while servlo-panel was down, so
 		// the listener should not come back. The watcher's startup pass will
 		// drop the registry entry shortly.
 		if !live[e.Branch] {
@@ -391,7 +391,7 @@ func LANShareWorktreeRunning(siteName, branch string) bool {
 
 // DropOrphanedWorktreeLANShares removes registry entries and stops proxies
 // for worktrees that no longer exist. Notifies the daemon over HTTP first so
-// the close happens in lerd-ui's process where the listener actually lives;
+// the close happens in servlo-panel's process where the listener actually lives;
 // the watcher process's lanShareServers map is empty so a direct close would
 // leave the listener bound. Falls back to in-process close + registry remove
 // if the daemon is unreachable.
@@ -416,7 +416,7 @@ func DropOrphanedWorktreeLANShares(site *config.Site, liveBranches map[string]bo
 // to a per-site Vite dev server running on loopback. Body rewriting maps
 // leaked loopback URLs like http://[::1]:5173/ to http://<lanHost><vitePrefix>5173/
 // so LAN clients hit them through the share proxy (same-origin, WebSocket-capable).
-const vitePrefix = "/__lerd_vite__/"
+const vitePrefix = "/__servlo_vite__/"
 
 // startLANShareProxy starts an HTTP reverse proxy listening on 0.0.0.0:<port>.
 // It rewrites the Host header to domain so nginx routes to the right vhost,
@@ -582,7 +582,7 @@ func (h *lanShareHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// been observed yet. We deliberately do NOT trust the Referer header —
 	// the share binds to 0.0.0.0 so any LAN device could forge a Referer
 	// pointing at an arbitrary loopback port (SSRF). activeVitePort, set
-	// only by genuine /__lerd_vite__/<port>/ path requests, already covers
+	// only by genuine /__servlo_vite__/<port>/ path requests, already covers
 	// transitive imports past the first hop.
 	if isViteInternalPath(r.URL) {
 		if port := h.getActiveVitePort(); port > 0 {
@@ -637,7 +637,7 @@ func (h *lanShareHandler) getActiveVitePort() int {
 
 // vitePathPrefixes are URL prefixes Vite owns by convention (its own runtime,
 // the node_modules resolver, framework source roots). When a request for one
-// of these arrives without our /__lerd_vite__/<port>/ prefix we route it to
+// of these arrives without our /__servlo_vite__/<port>/ prefix we route it to
 // the active Vite dev server so module resolution keeps working past the
 // first hop (transitive imports drop the prefix from their URL).
 var vitePathPrefixes = []string{
@@ -940,11 +940,11 @@ func rewriteLoopbackViteURLs(body []byte, lanHost string) []byte {
 		if port == lanPort {
 			return match
 		}
-		// Build http:\/\/<lanHost>\/__lerd_vite__\/<port> keeping JSON
+		// Build http:\/\/<lanHost>\/__servlo_vite__\/<port> keeping JSON
 		// slash escaping consistent with the surrounding payload.
 		out := []byte(`http:\/\/`)
 		out = append(out, lanHost...)
-		out = append(out, `\/__lerd_vite__\/`...)
+		out = append(out, `\/__servlo_vite__\/`...)
 		out = append(out, port...)
 		// Re-emit the terminator. \/ stays as-is; quotes/angles/& stay too.
 		out = append(out, term...)

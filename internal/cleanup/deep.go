@@ -4,14 +4,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/imgledger"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/registry"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/imgledger"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/registry"
 )
 
 // serviceRepos and protectedImages are the seams tests override. serviceRepos
-// is the set of normalized image repos lerd's preset catalog manages (mysql,
+// is the set of normalized image repos servlo's preset catalog manages (mysql,
 // redis, ...); protectedImages is every image a service currently uses or holds
 // as a rollback target, which --deep must never remove.
 var (
@@ -27,7 +27,7 @@ var (
 	// candidate, so the per-quadlet image reads are skipped) is assertable.
 	installedServiceImages = realInstalledServiceImages
 
-	// loadPulledImages is the seam onto lerd's pull ledger. The managed tier gates
+	// loadPulledImages is the seam onto servlo's pull ledger. The managed tier gates
 	// the catalog reap on it; the deep tier passes ignoreLedger and reaps any
 	// unreferenced catalog image, a user's own copy included.
 	loadPulledImages = imgledger.Load
@@ -88,14 +88,14 @@ func realReferencedImages(candidates map[string]bool) map[string]bool {
 	return found
 }
 
-// deepTargets reclaims service images lerd pulled but nothing references any
-// more: an image whose every tag is an unprotected catalog ref. Treating lerd's
-// managed service images as lerd's own, this catches an old mysql:5.7 left
+// deepTargets reclaims service images servlo pulled but nothing references any
+// more: an image whose every tag is an unprotected catalog ref. Treating servlo's
+// managed service images as servlo's own, this catches an old mysql:5.7 left
 // behind after upgrading, while the protected set keeps the live image and the
 // one-back rollback target, and an image carrying any non-catalog tag (one the
 // user added themselves) is left entirely alone.
-// ignoreLedger drops the "lerd recorded pulling this" requirement, so the deep
-// tier can recover catalog images pulled outside lerd's explicit pull path
+// ignoreLedger drops the "servlo recorded pulling this" requirement, so the deep
+// tier can recover catalog images pulled outside servlo's explicit pull path
 // (podman auto-pulls a quadlet's Image= on first start, which the ledger never
 // sees). The managed and safe tiers keep the ledger gate.
 func deepTargets(imgs []image, repos, protected, pulled map[string]bool, ignoreLedger bool) []Target {
@@ -118,9 +118,9 @@ func deepTargets(imgs []image, repos, protected, pulled map[string]bool, ignoreL
 
 // removableServiceRefs returns the tags to remove for an unused service image,
 // or nil to keep it. An image is removable only when EVERY one of its tags is an
-// unprotected catalog ref AND lerd's ledger records having pulled it: a protected
+// unprotected catalog ref AND servlo's ledger records having pulled it: a protected
 // tag (current image or rollback target), a non-catalog tag the user added, or an
-// image lerd never pulled all mean "leave this whole image alone", so cleanup
+// image servlo never pulled all mean "leave this whole image alone", so cleanup
 // never untags an image the user owns or that something else still relies on.
 func removableServiceRefs(img image, repos, protected, pulled map[string]bool, ignoreLedger bool) []string {
 	// An image a container still holds can't be removed by podman, so keep it even
@@ -130,17 +130,17 @@ func removableServiceRefs(img image, repos, protected, pulled map[string]bool, i
 		return nil
 	}
 	refs := make([]string, 0, len(img.Names))
-	lerdPulled := false
+	servloPulled := false
 	for _, n := range img.Names {
 		if protected[canonRef(n)] || !repos[canonRepo(n)] {
 			return nil
 		}
 		if pulled[canonRef(n)] {
-			lerdPulled = true
+			servloPulled = true
 		}
 		refs = append(refs, n)
 	}
-	if !ignoreLedger && !lerdPulled {
+	if !ignoreLedger && !servloPulled {
 		return nil
 	}
 	return refs
@@ -226,11 +226,11 @@ func realInstalledServiceImages() []string {
 	var out []string
 	for _, e := range entries {
 		name := e.Name()
-		if !strings.HasPrefix(name, "lerd-") || !strings.HasSuffix(name, ".container") {
+		if !strings.HasPrefix(name, "servlo-") || !strings.HasSuffix(name, ".container") {
 			continue
 		}
 		unit := strings.TrimSuffix(name, ".container")
-		if strings.HasPrefix(unit, "lerd-php") && strings.HasSuffix(unit, "-fpm") {
+		if strings.HasPrefix(unit, "servlo-php") && strings.HasSuffix(unit, "-fpm") {
 			continue
 		}
 		if img := podman.InstalledImage(unit); img != "" {

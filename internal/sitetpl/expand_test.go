@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestExpandCommands(t *testing.T) {
@@ -40,7 +40,7 @@ func TestExpandCommandsEmptySlice(t *testing.T) {
 // database handle, but no domain or scheme. Those placeholders are then left
 // verbatim by Apply rather than collapsing to "://".
 func TestForPathUnregisteredHasNoDomain(t *testing.T) {
-	ctx := ForPath("/tmp/definitely-not-a-registered-lerd-site")
+	ctx := ForPath("/tmp/definitely-not-a-registered-servlo-site")
 	if ctx.Domain != "" || ctx.Scheme != "" {
 		t.Fatalf("unregistered path resolved a domain/scheme: %+v", ctx)
 	}

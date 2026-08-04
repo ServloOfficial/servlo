@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestSplitWorkerUnit_parentUnit is the simple case the original macOS
-// migration code already handled: lerd-vite-mysite parses to (vite, mysite, "").
+// migration code already handled: servlo-vite-mysite parses to (vite, mysite, "").
 func TestSplitWorkerUnit_parentUnit(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
@@ -30,7 +30,7 @@ func TestSplitWorkerUnit_parentUnit(t *testing.T) {
 }
 
 // TestSplitWorkerUnit_worktreeUnit pins the regression fix: a unit named
-// lerd-vite-mysite-feat-x must parse to (vite, mysite, feat-x), not get
+// servlo-vite-mysite-feat-x must parse to (vite, mysite, feat-x), not get
 // mis-anchored on `feat-x` (which would happen if a stray site named
 // "feat-x" existed) or fall back to (vite-mysite, feat-x, ""). Pre-fix the
 // migrate flow ran restartWorkerByUnitName with the wrong site, corrupting
@@ -104,7 +104,7 @@ func TestSplitWorkerUnit_unknownSite(t *testing.T) {
 
 // TestSplitWorkerUnit_longestSuffixWins guards against partial-match
 // false positives: with sites "alpha" and "alpha-beta" registered, the
-// unit lerd-vite-alpha-beta must resolve to site "alpha-beta", not site
+// unit servlo-vite-alpha-beta must resolve to site "alpha-beta", not site
 // "alpha" with kind "vite-alpha".
 func TestSplitWorkerUnit_longestSuffixWins(t *testing.T) {
 	tmp := t.TempDir()

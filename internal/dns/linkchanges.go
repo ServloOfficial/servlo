@@ -5,7 +5,7 @@ import "time"
 // DebounceEvents collapses a burst on in into a single emit on out after
 // wait of silence. The first event after silence starts the timer; every
 // later event during the window resets it. done closes shut the goroutine
-// down on caller exit. Used by both the lerd-watcher and lerd-ui processes
+// down on caller exit. Used by both the servlo-watcher and servlo-panel processes
 // to smooth the kernel's RTM_NEWLINK / RTM_NEWADDR burst that follows a
 // single VPN connect or disconnect into one settled reaction.
 func DebounceEvents(in <-chan struct{}, out chan<- struct{}, wait time.Duration, done <-chan struct{}) {

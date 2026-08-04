@@ -21,14 +21,14 @@ var hostCPUSampleInterval = 900 * time.Millisecond
 // stats read.
 const hostCmdTimeout = 3 * time.Second
 
-// readHostProcesses reports the resource usage of lerd's own host-side processes
-// (the lerd-ui/watcher/tray daemons and any host-side workers such as a Vite or
+// readHostProcesses reports the resource usage of servlo's own host-side processes
+// (the servlo-panel/watcher daemons and any host-side workers such as a Vite or
 // host-proxy dev server run via fnm) using systemd's per-unit cgroup accounting.
 // Memory is reported as the working set (page cache excluded) to match podman's
 // container metric. Container units appear here too — Read drops those by name so
 // the podman measurement wins. Linux only; the macOS stub returns nothing.
 func readHostProcesses() ([]ContainerStat, error) {
-	units := listLerdServices()
+	units := listServloServices()
 	if len(units) == 0 {
 		return nil, nil
 	}
@@ -64,15 +64,15 @@ func readHostProcesses() ([]ContainerStat, error) {
 	return rows, nil
 }
 
-// listLerdServices returns the running lerd-prefixed user services. This
-// includes container quadlet units (lerd-mysql.service, …) which Read dedupes
+// listServloServices returns the running servlo-prefixed user services. This
+// includes container quadlet units (servlo-mysql.service, …) which Read dedupes
 // against the podman rows, leaving only the genuine host-side processes.
-func listLerdServices() []string {
+func listServloServices() []string {
 	ctx, cancel := context.WithTimeout(context.Background(), hostCmdTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "systemctl", "--user", "list-units",
 		"--type=service", "--state=running", "--no-legend", "--plain", "--no-pager",
-		"lerd-*.service").Output()
+		"servlo-*.service").Output()
 	if err != nil {
 		return nil
 	}
@@ -83,7 +83,7 @@ func listLerdServices() []string {
 			continue
 		}
 		name := fields[0]
-		if strings.HasPrefix(name, "lerd-") && strings.HasSuffix(name, ".service") {
+		if strings.HasPrefix(name, "servlo-") && strings.HasSuffix(name, ".service") {
 			units = append(units, name)
 		}
 	}

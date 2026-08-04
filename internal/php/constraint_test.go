@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // installedPHP stages quadlets so ListInstalled reports exactly these versions,
@@ -29,7 +29,7 @@ func installedPHP(t *testing.T, versions ...string) {
 				short += string(c)
 			}
 		}
-		name := filepath.Join(dir, "lerd-php"+short+"-fpm.container")
+		name := filepath.Join(dir, "servlo-php"+short+"-fpm.container")
 		if err := os.WriteFile(name, []byte("[Container]\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}

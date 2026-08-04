@@ -36,12 +36,12 @@ func EnsureMachineResponsive() error {
 		return nil
 	}
 	if !healOnceWithinCooldown() {
-		return fmt.Errorf("podman machine is not responding (try: lerd start)")
+		return fmt.Errorf("podman machine is not responding (try: servlo start)")
 	}
 	if machineResponds() {
 		return nil
 	}
-	return fmt.Errorf("podman machine did not recover after a restart (try: lerd machine reset)")
+	return fmt.Errorf("podman machine did not recover after a restart (try: servlo machine reset)")
 }
 
 // healOnceWithinCooldown runs MachineHeal unless one ran within healCooldown,

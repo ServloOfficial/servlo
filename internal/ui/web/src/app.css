@@ -5,12 +5,12 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-lerd-red: #ff2d20;
-  --color-lerd-redhov: #e02419;
-  --color-lerd-bg: #0d0d0d;
-  --color-lerd-card: #161616;
-  --color-lerd-border: #262626;
-  --color-lerd-muted: #404040;
+  --color-servlo-red: #ff2d20;
+  --color-servlo-redhov: #e02419;
+  --color-servlo-bg: #0d0d0d;
+  --color-servlo-card: #161616;
+  --color-servlo-border: #262626;
+  --color-servlo-muted: #404040;
 
   --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
 }
@@ -70,10 +70,10 @@ button {
 /* SCM-style added-line decorations for the env insert preview (see
    MonacoEditor highlightLines). Monaco renders these class names in its own
    DOM, so they must be global rather than component-scoped. */
-.lerd-added-line {
+.servlo-added-line {
   background: rgba(16, 185, 129, 0.1);
 }
-.lerd-added-gutter {
+.servlo-added-gutter {
   background: #10b981;
   width: 3px !important;
   margin-left: 3px;

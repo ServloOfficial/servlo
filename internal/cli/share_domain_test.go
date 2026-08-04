@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestNormalizeBaseDomain_cleansUpWhatIsTyped(t *testing.T) {
@@ -214,7 +214,7 @@ func TestRunShareDomain_setShowClear(t *testing.T) {
 	if !strings.Contains(out, "example.com") {
 		t.Errorf("show output %q does not report the base domain", out)
 	}
-	if !strings.Contains(out, "lerd share:domain") {
+	if !strings.Contains(out, "servlo share:domain") {
 		t.Errorf("show output %q does not say how to change it", out)
 	}
 

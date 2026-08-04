@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // ── SanitizeBranch ───────────────────────────────────────────────────────────
@@ -348,7 +348,7 @@ func TestEnsureWorktreeDeps_skipsPublicBuild(t *testing.T) {
 	}
 }
 
-// EnsureWorktreeDeps replaces a legacy symlink left by an older lerd
+// EnsureWorktreeDeps replaces a legacy symlink left by an older servlo
 // version with a real copy.
 func TestEnsureWorktreeDeps_migratesLegacySymlink(t *testing.T) {
 	home := t.TempDir()

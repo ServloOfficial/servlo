@@ -8,21 +8,21 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 	"github.com/spf13/cobra"
 )
 
-// newWorktreeRemoveCmd is the `lerd worktree remove` subcommand. Runs
+// newWorktreeRemoveCmd is the `servlo worktree remove` subcommand. Runs
 // `git worktree remove`, then waits briefly for the watcher's cleanup hook
 // to drop the vhost, isolated DB, and LAN share entry. Surfaces a confirm
-// prompt when the worktree has lerd-managed state attached so the user
+// prompt when the worktree has servlo-managed state attached so the user
 // understands what's about to be torn down.
 func newWorktreeRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                "remove [git-worktree-remove args...]",
-		Short:              "Remove a git worktree (any git flags) and its lerd-managed state",
+		Short:              "Remove a git worktree (any git flags) and its servlo-managed state",
 		DisableFlagParsing: true,
 		SilenceUsage:       true,
 		Args:               cobra.MinimumNArgs(1),
@@ -36,11 +36,11 @@ func newWorktreeRemoveCmd() *cobra.Command {
 			}
 			site, err := config.FindSiteByPath(cwd)
 			if err != nil {
-				return fmt.Errorf("not inside a registered lerd site (cwd=%s)", cwd)
+				return fmt.Errorf("not inside a registered servlo site (cwd=%s)", cwd)
 			}
 
 			// Best-effort: identify the branch about to be removed so we can
-			// warn about lerd-managed state. We pick the last positional arg
+			// warn about servlo-managed state. We pick the last positional arg
 			// (git's <worktree> argument) and resolve its current HEAD.
 			branch := guessBranchFromArgs(cwd, args)
 			if branch != "" {
@@ -80,7 +80,7 @@ func newWorktreeRemoveCmd() *cobra.Command {
 				if err := waitForWorktreeCleanup(site.Name, branch, 30*time.Second); err != nil {
 					feedback.Warn("%v", err)
 				} else {
-					feedback.Done("worktree removed and lerd state cleaned up")
+					feedback.Done("worktree removed and servlo state cleaned up")
 				}
 			}
 			return nil
@@ -104,7 +104,7 @@ func promptDeleteIsolatedDB(site *config.Site, branch string) error {
 	form := huh.NewForm(huh.NewGroup(
 		huh.NewSelect[string]().
 			Title(fmt.Sprintf("Delete isolated database %q in service %q?", entry.DBName, entry.Service)).
-			Description("Skipping keeps the database and the registry entry, so a future `lerd worktree add` of this branch reuses the same data.").
+			Description("Skipping keeps the database and the registry entry, so a future `servlo worktree add` of this branch reuses the same data.").
 			Options(
 				huh.NewOption("Keep the database", ""),
 				huh.NewOption(fmt.Sprintf("Drop %q (data is gone)", entry.DBName), "drop"),
@@ -216,7 +216,7 @@ func guessBranchFromArgs(sitePath string, args []string) string {
 		return ""
 	}
 	// `git worktree remove <name>` accepts either the worktree path or just
-	// the directory basename; lerd's watcher keys off basename-derived
+	// the directory basename; servlo's watcher keys off basename-derived
 	// branches, so reading <site>/.git/worktrees/<basename>/HEAD covers
 	// both forms in practice.
 	wtMeta := filepath.Join(sitePath, ".git", "worktrees", filepath.Base(candidate))
@@ -231,7 +231,7 @@ func guessBranchFromArgs(sitePath string, args []string) string {
 	return ""
 }
 
-// confirmRemovalIfManaged shows the user what lerd-managed state is about
+// confirmRemovalIfManaged shows the user what servlo-managed state is about
 // to be torn down (LAN share) so they can cancel before git runs. Isolated
 // databases are NOT mentioned here — the wrapper asks about them explicitly
 // at the end, after git has succeeded. No prompt when nothing's attached.
@@ -250,7 +250,7 @@ func confirmRemovalIfManaged(site *config.Site, branch string) error {
 		huh.NewSelect[string]().
 			Title(prompt).
 			Options(
-				huh.NewOption("Cancel — keep the worktree and its lerd state", ""),
+				huh.NewOption("Cancel — keep the worktree and its servlo state", ""),
 				huh.NewOption("Remove the worktree", "remove"),
 			).
 			Value(&picked),

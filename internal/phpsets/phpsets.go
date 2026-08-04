@@ -13,8 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // Seams so the report can be driven without podman in tests.
@@ -39,7 +39,7 @@ type SetState struct {
 // Report is the state of one PHP version's image.
 type Report struct {
 	Version string `json:"version"`
-	// Built is false when lerd has never built an image for this version, in
+	// Built is false when servlo has never built an image for this version, in
 	// which case nothing is claimed about its contents.
 	Built bool `json:"built"`
 	// NeedsRebuild means the image was built from an older declared set, so it

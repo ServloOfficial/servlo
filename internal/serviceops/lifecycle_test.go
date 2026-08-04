@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 type noopLifecycle struct{}
@@ -133,7 +133,7 @@ func TestStopWithDependents_returnsStopError(t *testing.T) {
 func TestStopWithDependentsTerminatesOnASelfSatisfyingService(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
-	dir := filepath.Join(tmp, "lerd", "services")
+	dir := filepath.Join(tmp, "servlo", "services")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}

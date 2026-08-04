@@ -28,7 +28,7 @@ func TestNotificationForServiceOp_Success(t *testing.T) {
 	if n.Params["duration"] == "" {
 		t.Errorf("Params.duration is empty")
 	}
-	if n.Tag != "lerd-op-update-mysql" {
+	if n.Tag != "servlo-op-update-mysql" {
 		t.Errorf("Tag = %q", n.Tag)
 	}
 	if n.URL != "#services/mysql" {

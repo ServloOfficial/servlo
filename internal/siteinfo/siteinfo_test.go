@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func setDataDir(t *testing.T) {
@@ -281,13 +281,13 @@ func TestEnrich_UsesPHP(t *testing.T) {
 	})
 }
 
-// ── enrichWorkers: custom container workers from .lerd.yaml ────────────────
+// ── enrichWorkers: custom container workers from .servlo.yaml ────────────────
 
-func TestEnrichWorkers_CustomContainerFromLerdYAML(t *testing.T) {
+func TestEnrichWorkers_CustomContainerFromServloYAML(t *testing.T) {
 	t.Run("custom_workers loaded for container site without framework", func(t *testing.T) {
 		origUnit := unitStatusFn
 		unitStatusFn = func(name string) (string, error) {
-			if name == "lerd-queue-mycontainer" {
+			if name == "servlo-queue-mycontainer" {
 				return "active", nil
 			}
 			return "", nil
@@ -295,14 +295,14 @@ func TestEnrichWorkers_CustomContainerFromLerdYAML(t *testing.T) {
 		defer func() { unitStatusFn = origUnit }()
 
 		dir := t.TempDir()
-		lerdYAML := `custom_workers:
+		servloYAML := `custom_workers:
   queue:
     command: "node worker.js"
   emailer:
     command: "node emailer.js"
     label: "Email Sender"
 `
-		os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(lerdYAML), 0644)
+		os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(servloYAML), 0644)
 
 		e := &EnrichedSite{Name: "mycontainer", Path: dir, ContainerPort: 3000}
 		e.enrichWorkers(nil, false)
@@ -326,7 +326,7 @@ func TestEnrichWorkers_CustomContainerFromLerdYAML(t *testing.T) {
 		}
 	})
 
-	t.Run("no custom_workers for container site without .lerd.yaml", func(t *testing.T) {
+	t.Run("no custom_workers for container site without .servlo.yaml", func(t *testing.T) {
 		origUnit := unitStatusFn
 		unitStatusFn = func(string) (string, error) { return "", nil }
 		defer func() { unitStatusFn = origUnit }()
@@ -335,7 +335,7 @@ func TestEnrichWorkers_CustomContainerFromLerdYAML(t *testing.T) {
 		e.enrichWorkers(nil, false)
 
 		if e.HasQueueWorker {
-			t.Error("expected no queue worker without .lerd.yaml")
+			t.Error("expected no queue worker without .servlo.yaml")
 		}
 		if len(e.FrameworkWorkers) != 0 {
 			t.Errorf("expected no framework workers, got %d", len(e.FrameworkWorkers))
@@ -348,11 +348,11 @@ func TestEnrichWorkers_CustomContainerFromLerdYAML(t *testing.T) {
 		defer func() { unitStatusFn = origUnit }()
 
 		dir := t.TempDir()
-		lerdYAML := `custom_workers:
+		servloYAML := `custom_workers:
   queue:
     command: "php artisan queue:work"
 `
-		os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(lerdYAML), 0644)
+		os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(servloYAML), 0644)
 
 		e := &EnrichedSite{Name: "phpapp", Path: dir}
 		e.enrichWorkers(nil, false)
@@ -378,7 +378,7 @@ func TestEnrich_HostProxyDevServerIsNotAWorker(t *testing.T) {
 	defer func() { unitStatusFn = origUnit }()
 
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("proxy:\n  command: npm run start:dev\n  port: 3100\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("proxy:\n  command: npm run start:dev\n  port: 3100\n"), 0644)
 
 	e := Enrich(config.Site{Name: "nestapp", Path: dir, HostPort: 3100, HostCommand: "npm run start:dev"}, EnrichFPM|EnrichWorkers)
 
@@ -579,7 +579,7 @@ func installQuadlets(t *testing.T, names ...string) {
 		t.Fatal(err)
 	}
 	for _, n := range names {
-		path := filepath.Join(dir, "lerd-"+n+".container")
+		path := filepath.Join(dir, "servlo-"+n+".container")
 		if err := os.WriteFile(path, []byte("[Container]\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -590,7 +590,7 @@ func TestEnrichServices(t *testing.T) {
 	t.Run("detects installed services from .env", func(t *testing.T) {
 		installQuadlets(t, "mysql", "redis")
 		dir := t.TempDir()
-		envContent := "DB_HOST=lerd-mysql\nCACHE_STORE=lerd-redis\n"
+		envContent := "DB_HOST=servlo-mysql\nCACHE_STORE=servlo-redis\n"
 		os.WriteFile(filepath.Join(dir, ".env"), []byte(envContent), 0644)
 
 		e := &EnrichedSite{Path: dir}
@@ -614,7 +614,7 @@ func TestEnrichServices(t *testing.T) {
 	t.Run("skips a referenced but uninstalled service", func(t *testing.T) {
 		installQuadlets(t, "redis") // mysql intentionally not installed
 		dir := t.TempDir()
-		os.WriteFile(filepath.Join(dir, ".env"), []byte("DB_HOST=lerd-mysql\nCACHE_STORE=lerd-redis\n"), 0644)
+		os.WriteFile(filepath.Join(dir, ".env"), []byte("DB_HOST=servlo-mysql\nCACHE_STORE=servlo-redis\n"), 0644)
 
 		e := &EnrichedSite{Path: dir}
 		e.enrichServices()
@@ -839,7 +839,7 @@ func TestEnrichStripe(t *testing.T) {
 
 		origUnit := unitStatusFn
 		unitStatusFn = func(name string) (string, error) {
-			if name == "lerd-stripe-myapp" {
+			if name == "servlo-stripe-myapp" {
 				return "active", nil
 			}
 			return "", nil
@@ -883,7 +883,7 @@ func TestEnrichWorkers(t *testing.T) {
 	t.Run("queue worker detected and running", func(t *testing.T) {
 		origUnit := unitStatusFn
 		unitStatusFn = func(name string) (string, error) {
-			if name == "lerd-queue-myapp" {
+			if name == "servlo-queue-myapp" {
 				return "active", nil
 			}
 			return "", nil
@@ -910,7 +910,7 @@ func TestEnrichWorkers(t *testing.T) {
 	t.Run("horizon suppresses queue", func(t *testing.T) {
 		origUnit := unitStatusFn
 		unitStatusFn = func(name string) (string, error) {
-			if name == "lerd-horizon-myapp" {
+			if name == "servlo-horizon-myapp" {
 				return "active", nil
 			}
 			return "", nil
@@ -938,7 +938,7 @@ func TestEnrichWorkers(t *testing.T) {
 	t.Run("failing worker detected", func(t *testing.T) {
 		origUnit := unitStatusFn
 		unitStatusFn = func(name string) (string, error) {
-			if name == "lerd-queue-myapp" {
+			if name == "servlo-queue-myapp" {
 				return "failed", nil
 			}
 			return "", nil
@@ -998,7 +998,7 @@ func TestEnrichWorkers(t *testing.T) {
 	t.Run("conflicts_with suppresses workers", func(t *testing.T) {
 		origUnit := unitStatusFn
 		unitStatusFn = func(name string) (string, error) {
-			if name == "lerd-horizon-myapp" {
+			if name == "servlo-horizon-myapp" {
 				return "active", nil
 			}
 			return "", nil
@@ -1035,7 +1035,7 @@ func TestEnrichFPM(t *testing.T) {
 	t.Run("FPM running", func(t *testing.T) {
 		origContainer := containerRunningFn
 		containerRunningFn = func(name string) (bool, error) {
-			if name == "lerd-php84-fpm" {
+			if name == "servlo-php84-fpm" {
 				return true, nil
 			}
 			return false, nil
@@ -1049,7 +1049,7 @@ func TestEnrichFPM(t *testing.T) {
 		}
 	})
 
-	t.Run("custom container checks lerd-custom container", func(t *testing.T) {
+	t.Run("custom container checks servlo-custom container", func(t *testing.T) {
 		var checkedName string
 		origContainer := containerRunningFn
 		containerRunningFn = func(name string) (bool, error) {
@@ -1060,8 +1060,8 @@ func TestEnrichFPM(t *testing.T) {
 
 		e := &EnrichedSite{Name: "nestapp", ContainerPort: 3000}
 		e.enrichFPM()
-		if checkedName != "lerd-custom-nestapp" {
-			t.Errorf("checked container %q, want lerd-custom-nestapp", checkedName)
+		if checkedName != "servlo-custom-nestapp" {
+			t.Errorf("checked container %q, want servlo-custom-nestapp", checkedName)
 		}
 		if !e.FPMRunning {
 			t.Error("expected FPMRunning = true for running custom container")

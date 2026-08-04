@@ -9,18 +9,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // workerLogCmd returns the command that tails a worker's output on macOS.
 // In exec mode workers run as launchd service units — their stdout/stderr go
-// to ~/Library/Logs/lerd/<unit>.log, so we tail that file. In container mode
+// to ~/Library/Logs/servlo/<unit>.log, so we tail that file. In container mode
 // workers are detached podman containers, so we use `podman logs -f`.
 func workerLogCmd(ctx context.Context, unit string) *exec.Cmd {
 	if isExecModeUnit(unit) {
 		home, _ := os.UserHomeDir()
-		logPath := filepath.Join(home, "Library", "Logs", "lerd", unit+".log")
+		logPath := filepath.Join(home, "Library", "Logs", "servlo", unit+".log")
 		script := `for i in $(seq 1 20); do [ -f "` + logPath + `" ] && break; sleep 0.25; done; exec tail -f -n 200 "` + logPath + `"`
 		return exec.CommandContext(ctx, "/bin/sh", "-c", script)
 	}
@@ -56,7 +56,7 @@ func isExecModeUnit(unit string) bool {
 // worker (queue, schedule, horizon, reverb). Used as a guard so that the
 // config-based exec-mode fallback never misclassifies infrastructure containers.
 func isFrameworkWorkerUnit(unit string) bool {
-	for _, prefix := range []string{"lerd-queue-", "lerd-schedule-", "lerd-horizon-", "lerd-reverb-"} {
+	for _, prefix := range []string{"servlo-queue-", "servlo-schedule-", "servlo-horizon-", "servlo-reverb-"} {
 		if strings.HasPrefix(unit, prefix) {
 			return true
 		}

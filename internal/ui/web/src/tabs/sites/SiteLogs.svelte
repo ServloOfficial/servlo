@@ -86,7 +86,7 @@
     if (active === 'devserver') return `/api/worker/${name}/app/logs`;
     if (active.startsWith('worker:')) {
       const workerName = active.slice(7);
-      // Per-worktree units live under lerd-<worker>-<site>-<wtBase>;
+      // Per-worktree units live under servlo-<worker>-<site>-<wtBase>;
       // the backend handler builds the unit from <site>/<worker> in the
       // path, so concat the worktree dir's basename onto the site slug.
       if (activeWorktree?.path) {

@@ -11,7 +11,7 @@ func TestWorktreePHPVersion_inheritsWhenNoFile(t *testing.T) {
 	}
 }
 
-func TestWorktreePHPVersion_overridesFromLerdYaml(t *testing.T) {
+func TestWorktreePHPVersion_overridesFromServloYaml(t *testing.T) {
 	dir := t.TempDir()
 	if err := SaveProjectConfig(dir, &ProjectConfig{PHPVersion: "8.4"}); err != nil {
 		t.Fatal(err)
@@ -31,7 +31,7 @@ func TestWorktreePHPVersion_emptyOverrideInherits(t *testing.T) {
 	}
 }
 
-func TestWorktreeNodeVersion_overridesFromLerdYaml(t *testing.T) {
+func TestWorktreeNodeVersion_overridesFromServloYaml(t *testing.T) {
 	dir := t.TempDir()
 	if err := SaveProjectConfig(dir, &ProjectConfig{NodeVersion: "24"}); err != nil {
 		t.Fatal(err)
@@ -41,7 +41,7 @@ func TestWorktreeNodeVersion_overridesFromLerdYaml(t *testing.T) {
 	}
 }
 
-func TestSetWorktreePHPVersion_createsLerdYamlWhenMissing(t *testing.T) {
+func TestSetWorktreePHPVersion_createsServloYamlWhenMissing(t *testing.T) {
 	dir := t.TempDir()
 	if err := SetWorktreePHPVersion(dir, "8.4"); err != nil {
 		t.Fatal(err)

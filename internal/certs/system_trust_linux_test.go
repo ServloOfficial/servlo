@@ -32,15 +32,15 @@ func TestTrustCAInSystemStore(t *testing.T) {
 	// The first candidate's directory does not exist, so detection must fall
 	// through to the second.
 	commands := stubTrustStores(t, []systemTrustStore{
-		{filepath.Join(dir, "missing"), "lerd-mkcert-rootCA.pem", []string{"update-ca-trust", "extract"}},
-		{present, "lerd-mkcert-rootCA.crt", []string{"update-ca-certificates"}},
+		{filepath.Join(dir, "missing"), "servlo-mkcert-rootCA.pem", []string{"update-ca-trust", "extract"}},
+		{present, "servlo-mkcert-rootCA.crt", []string{"update-ca-certificates"}},
 	})
 
 	ca := []byte("-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n")
 	if err := TrustCAInSystemStore(ca); err != nil {
 		t.Fatalf("first install: %v", err)
 	}
-	got, err := os.ReadFile(filepath.Join(present, "lerd-mkcert-rootCA.crt"))
+	got, err := os.ReadFile(filepath.Join(present, "servlo-mkcert-rootCA.crt"))
 	if err != nil || string(got) != string(ca) {
 		t.Fatalf("CA not written: got %q err %v", got, err)
 	}
@@ -64,8 +64,8 @@ func TestUntrustCAFromSystemStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	commands := stubTrustStores(t, []systemTrustStore{
-		{filepath.Join(dir, "missing"), "lerd-mkcert-rootCA.pem", []string{"update-ca-trust", "extract"}},
-		{present, "lerd-mkcert-rootCA.crt", []string{"update-ca-certificates"}},
+		{filepath.Join(dir, "missing"), "servlo-mkcert-rootCA.pem", []string{"update-ca-trust", "extract"}},
+		{present, "servlo-mkcert-rootCA.crt", []string{"update-ca-certificates"}},
 	})
 
 	ca := []byte("-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n")
@@ -79,7 +79,7 @@ func TestUntrustCAFromSystemStore(t *testing.T) {
 	if err := UntrustCAFromSystemStore(); err != nil {
 		t.Fatalf("uninstall: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(present, "lerd-mkcert-rootCA.crt")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(present, "servlo-mkcert-rootCA.crt")); !os.IsNotExist(err) {
 		t.Errorf("anchor still on disk after removal (stat err %v)", err)
 	}
 	if SystemTrustAnchorPresent() {

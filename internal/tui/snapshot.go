@@ -4,16 +4,16 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteinfo"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteinfo"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 )
 
 // Snapshot is the full view-model the TUI renders from. Produced by
-// loadSnapshot from the same sources lerd-ui uses, so every pane reflects the
+// loadSnapshot from the same sources servlo-panel uses, so every pane reflects the
 // same point-in-time state.
 type Snapshot struct {
 	Sites    []siteinfo.EnrichedSite
@@ -28,7 +28,7 @@ type Snapshot struct {
 // status and service config so the TUI doesn't need to reach into ui/server.go.
 // For site-owned workers (queue, schedule, horizon, reverb, custom framework
 // workers) WorkerSite / WorkerKind are set so actions can run the right
-// per-site command instead of `lerd service start/stop` which would fail.
+// per-site command instead of `servlo service start/stop` which would fail.
 type ServiceRow struct {
 	Name      string
 	Version   string
@@ -84,7 +84,7 @@ func loadSnapshot() Snapshot {
 
 	snap.Services = loadServices()
 	// Workers live on sites but belong in the services pane too — same
-	// operational surface lerd-ui surfaces as "active" rows for queue,
+	// operational surface servlo-panel surfaces as "active" rows for queue,
 	// schedule, etc. Append them after the shared services so the user
 	// sees the full running-units picture in one list.
 	snap.Services = append(snap.Services, workerRows(snap.Sites)...)
@@ -159,7 +159,7 @@ func loadServices() []ServiceRow {
 }
 
 func buildServiceRow(name string, custom bool) ServiceRow {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	status, _ := podman.UnitStatus(unit)
 	state := stateStopped
 	switch status {
@@ -203,21 +203,21 @@ func loadStatus() StatusRow {
 		DNSOk:        dnsStatus == dns.StatusOK,
 		DNSDegraded:  dnsStatus == dns.StatusDegraded,
 		DNSDisabled:  dnsDisabled,
-		NginxRunning: podman.Cache.Running("lerd-nginx"),
-		Autostart:    lerdSystemd.IsAutostartEnabled(),
+		NginxRunning: podman.Cache.Running("servlo-nginx"),
+		Autostart:    servloSystemd.IsAutostartEnabled(),
 		LANExposed:   cfg != nil && cfg.LAN.Exposed,
 	}
 
 	if versions, err := phpPkg.ListInstalled(); err == nil {
 		for _, v := range versions {
 			short := strings.ReplaceAll(v, ".", "")
-			if podman.Cache.Running("lerd-php" + short + "-fpm") {
+			if podman.Cache.Running("servlo-php" + short + "-fpm") {
 				row.PHPRunning = append(row.PHPRunning, v)
 			}
 		}
 	}
 
-	st, _ := podman.UnitStatus("lerd-watcher")
+	st, _ := podman.UnitStatus("servlo-watcher")
 	row.WatcherRunning = st == "active" || st == "activating"
 
 	return row

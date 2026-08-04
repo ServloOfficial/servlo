@@ -16,24 +16,24 @@ import (
 	neturl "net/url"
 
 	"charm.land/huh/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/serviceops"
-	"github.com/geodro/lerd/internal/sitetpl"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/realrashid/servlo/internal/sitetpl"
 	"github.com/spf13/cobra"
 )
 
-// hostProxyLoopback is the address a host-proxy app uses to reach lerd services.
+// hostProxyLoopback is the address a host-proxy app uses to reach servlo services.
 // Host-proxy apps run on the host, off the podman bridge, so they reach services
 // through the loopback ports those services publish rather than container DNS.
 const hostProxyLoopback = "127.0.0.1"
 
-// rewriteEnvForHostProxy adapts lerd's computed service connection values for a
-// host-proxy app. Bare "lerd-*" hostnames become 127.0.0.1, and *_PORT values
+// rewriteEnvForHostProxy adapts servlo's computed service connection values for a
+// host-proxy app. Bare "servlo-*" hostnames become 127.0.0.1, and *_PORT values
 // map from the container port to the service's published host port (e.g. mariadb
 // 3306 -> 3411). Containerised sites keep the container DNS names untouched.
 func rewriteEnvForHostProxy(updates map[string]string, serviceNames []string) {
@@ -57,8 +57,8 @@ func rewriteEnvForHostProxy(updates map[string]string, serviceNames []string) {
 
 // hostProxyConnKey reports whether an env key names a service connection target
 // (a host, port, URL, DSN, or endpoint). The host-proxy rewrite only touches
-// these so an unrelated value that happens to contain a "lerd-" token (e.g.
-// APP_NAME=lerd-demo) is never mangled into 127.0.0.1.
+// these so an unrelated value that happens to contain a "servlo-" token (e.g.
+// APP_NAME=servlo-demo) is never mangled into 127.0.0.1.
 func hostProxyConnKey(k string) bool {
 	for _, suf := range []string{"_HOST", "_PORT", "_URL", "_DSN", "_ENDPOINT", "_SERVER"} {
 		if strings.HasSuffix(k, suf) {
@@ -68,12 +68,12 @@ func hostProxyConnKey(k string) bool {
 	return false
 }
 
-// lerdContainerHostRe matches a lerd container hostname with an optional
-// trailing :port, both as a bare value (DB_HOST=lerd-redis) and embedded in a
-// connection string (MONGO_DSN=mongodb://root:pw@lerd-mongo:27017/db).
-var lerdContainerHostRe = regexp.MustCompile(`lerd-[a-z0-9-]+(?::\d+)?`)
+// servloContainerHostRe matches a servlo container hostname with an optional
+// trailing :port, both as a bare value (DB_HOST=servlo-redis) and embedded in a
+// connection string (MONGO_DSN=mongodb://root:pw@servlo-mongo:27017/db).
+var servloContainerHostRe = regexp.MustCompile(`servlo-[a-z0-9-]+(?::\d+)?`)
 
-// applyHostProxyEnv is the pure rewrite step: every "lerd-<name>[:port]" token
+// applyHostProxyEnv is the pure rewrite step: every "servlo-<name>[:port]" token
 // (bare or inside a URL) becomes loopback with the service's published host
 // port, and a discrete *_PORT value with no host alongside is remapped too.
 // Split from rewriteEnvForHostProxy so the logic is testable without services.
@@ -82,7 +82,7 @@ func applyHostProxyEnv(updates, containerToHost map[string]string) {
 		if !hostProxyConnKey(k) {
 			continue
 		}
-		nv := lerdContainerHostRe.ReplaceAllStringFunc(v, func(m string) string {
+		nv := servloContainerHostRe.ReplaceAllStringFunc(v, func(m string) string {
 			_, port, found := strings.Cut(m, ":")
 			if !found {
 				return hostProxyLoopback
@@ -121,11 +121,11 @@ func servicePortMappings(name string) []string {
 		return nil
 	}
 	// Apply a published-port override so a host-proxy app's loopback target
-	// follows the moved port (e.g. lerd-mysql 3306 → 3307 when a host MySQL owns
-	// 3306, set manually via `lerd service port` or by the port-ownership guard).
+	// follows the moved port (e.g. servlo-mysql 3306 → 3307 when a host MySQL owns
+	// 3306, set manually via `servlo service port` or by the port-ownership guard).
 	// The override lives in global config, not the preset/quadlet meta the lookups
 	// above read, so without this the host-proxy .env would keep pointing at the
-	// vacated default — and connect to the host server instead of lerd's container.
+	// vacated default — and connect to the host server instead of servlo's container.
 	if pp := config.ServicePublishedPort(name); pp > 0 {
 		ports = podman.SetPrimaryHostPort(ports, pp)
 	}
@@ -180,7 +180,7 @@ func frameworkServiceRole(fw *config.Framework, svc *config.CustomService) (stri
 	return "", false
 }
 
-// builtinEnvRole is the cross-family drop-in relationship lerd knows without being
+// builtinEnvRole is the cross-family drop-in relationship servlo knows without being
 // told, so an install whose service store predates the preset's own env_role still
 // wires an alternate onto the framework's keys rather than writing the wrong ones.
 // A same-family alternate needs no entry here: the family is already tried first.
@@ -271,11 +271,11 @@ func presetVarsBeyond(presetVars, frameworkVars []string, known map[string]bool)
 // frameworkVarsForAlternate returns the framework's vars for the mapped service,
 // re-pointed at the alternate actually picked. A drop-in is protocol-compatible with
 // the service it replaces (same port, same credentials, same driver name), so the
-// container it runs in is the only thing that moves: lerd-mysql becomes
-// lerd-mariadb-11-8, and the rest of the framework's wiring stands.
+// container it runs in is the only thing that moves: servlo-mysql becomes
+// servlo-mariadb-11-8, and the rest of the framework's wiring stands.
 func frameworkVarsForAlternate(fw *config.Framework, role string, svc *config.CustomService) []string {
 	def := fw.Env.Services[role]
-	from, to := "lerd-"+role, "lerd-"+svc.Name
+	from, to := "servlo-"+role, "servlo-"+svc.Name
 	out := make([]string, 0, len(def.Vars))
 	for _, kv := range def.Vars {
 		k, v, _ := strings.Cut(kv, "=")
@@ -290,8 +290,8 @@ func frameworkVarsForAlternate(fw *config.Framework, role string, svc *config.Cu
 // stand alone only where the framework maps nothing. dottedEnv marks a php-array env
 // file, whose keys are dotted paths a preset's flat env_vars cannot address.
 //
-// An externally managed service is wired through the same mapping. The keys lerd
-// writes are the ones .env.lerd_override overrides, so they have to be the keys the
+// An externally managed service is wired through the same mapping. The keys servlo
+// writes are the ones .env.servlo_override overrides, so they have to be the keys the
 // app reads, and a dotted env takes none of them: the override file is dotenv, so it
 // cannot address a dotted path either, and that connection is left to the user.
 func wiredVarsFor(fw *config.Framework, svc *config.CustomService, role string, known map[string]bool, mapped, external, dottedEnv bool) []string {
@@ -311,7 +311,7 @@ func wiredVarsFor(fw *config.Framework, svc *config.CustomService, role string, 
 }
 
 // emptyEnvFile returns the seed contents for a freshly created env file. A PHP
-// format needs a parseable skeleton so the app can require() it before lerd has
+// format needs a parseable skeleton so the app can require() it before servlo has
 // written any keys into it.
 func emptyEnvFile(envFormat string) []byte {
 	switch envFormat {
@@ -326,7 +326,7 @@ func emptyEnvFile(envFormat string) []byte {
 
 // frameworkManagesEnv reports whether the project's framework declares an env
 // section. For a framework with no env section (a static or host-proxy app) the
-// unconditional `lerd env` in link and setup is an expected no-op, not a failure.
+// unconditional `servlo env` in link and setup is an expected no-op, not a failure.
 func frameworkManagesEnv(cwd string) bool {
 	name, ok := config.DetectFrameworkForDir(cwd)
 	if !ok {
@@ -346,7 +346,7 @@ func runEnvIfManaged(cwd string, fn func() error) {
 		return
 	}
 	if err := fn(); err != nil {
-		feedback.Warn("lerd env: %v", err)
+		feedback.Warn("servlo env: %v", err)
 	}
 }
 
@@ -355,10 +355,10 @@ func NewEnvCmd() *cobra.Command {
 	var verbose bool
 	cmd := &cobra.Command{
 		Use:   "env",
-		Short: "Configure .env for this project with lerd service connection settings",
+		Short: "Configure .env for this project with servlo service connection settings",
 		Long: `Sets up .env for the current project:
   - Creates .env from .env.example if it does not exist
-  - Detects which services the project uses and sets lerd connection values
+  - Detects which services the project uses and sets servlo connection values
   - Starts any referenced services that are not already running
   - Generates APP_KEY if missing
   - Sets APP_URL to the registered .test domain`,
@@ -385,7 +385,7 @@ var envLive *feedback.Live
 
 // runEnvLive runs runEnv under a live "configuring .env" line that accumulates
 // each service as it is applied. It saves and restores the previous live line
-// so it is reentrant: `lerd env` in an unlinked dir links first, and that link
+// so it is reentrant: `servlo env` in an unlinked dir links first, and that link
 // runs its own setup env step (another runEnvLive) — nilling the global here
 // instead of restoring it would crash the outer line's Done/Fail on return.
 func runEnvLive(cmd *cobra.Command, args []string) error {
@@ -429,22 +429,22 @@ func envApplyLine(svc string, detectedFromEnv bool) {
 		return
 	}
 	if detectedFromEnv {
-		fmt.Printf("  Detected %-12s — applying lerd connection values\n", svc)
+		fmt.Printf("  Detected %-12s — applying servlo connection values\n", svc)
 	} else {
-		fmt.Printf("  From .lerd.yaml %-4s — applying lerd connection values\n", svc)
+		fmt.Printf("  From .servlo.yaml %-4s — applying servlo connection values\n", svc)
 	}
 }
 
 // userPickedDBFromYAML returns true when the user has named any database
-// service in .lerd.yaml: sqlite, the built-in mysql/postgres, or a custom DB
+// service in .servlo.yaml: sqlite, the built-in mysql/postgres, or a custom DB
 // family alternate (mysql-5-6, mariadb-11, postgres-14, mongo-6, …). This
 // signal is what lets us replace whatever the existing .env says about
 // DB_CONNECTION with the user's actual pick.
-func userPickedDBFromYAML(lerdYAMLServices map[string]bool) bool {
-	if lerdYAMLServices["sqlite"] || lerdYAMLServices["mysql"] || lerdYAMLServices["postgres"] {
+func userPickedDBFromYAML(servloYAMLServices map[string]bool) bool {
+	if servloYAMLServices["sqlite"] || servloYAMLServices["mysql"] || servloYAMLServices["postgres"] {
 		return true
 	}
-	for name := range lerdYAMLServices {
+	for name := range servloYAMLServices {
 		switch config.FamilyOfName(name) {
 		case "mysql", "mariadb", "postgres", "mongo":
 			return true
@@ -458,7 +458,7 @@ func userPickedDBFromYAML(lerdYAMLServices map[string]bool) bool {
 // different DB, so a fresh-Laravel DB_CONNECTION=sqlite never re-imprints
 // itself when the wizard selected mysql. The built-in redis is likewise
 // skipped when the project picked valkey. Otherwise apply when the env file
-// references the service or .lerd.yaml lists it.
+// references the service or .servlo.yaml lists it.
 func shouldApplyService(svc string, detectedFromEnv, pickedFromYAML, userPickedDB, valkeyPicked bool) bool {
 	if userPickedDB && (svc == "mysql" || svc == "postgres") && !pickedFromYAML {
 		return false
@@ -518,16 +518,16 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		fwName, _ = config.DetectFrameworkForDir(cwd)
 	}
 	if fwName == "" {
-		return fmt.Errorf("no framework detected for this site\nDefine one with 'lerd framework add' or add a framework YAML to %s", config.FrameworksDir())
+		return fmt.Errorf("no framework detected for this site\nDefine one with 'servlo framework add' or add a framework YAML to %s", config.FrameworksDir())
 	}
 
 	fw, ok := config.GetFrameworkForDir(fwName, cwd)
 	if !ok {
-		return fmt.Errorf("framework %q is not defined\nDefine it with 'lerd framework add'", fwName)
+		return fmt.Errorf("framework %q is not defined\nDefine it with 'servlo framework add'", fwName)
 	}
 
 	if fw.Env.File == "" && fw.Env.Format == "" && len(fw.Env.Services) == 0 {
-		return fmt.Errorf("'lerd env' is not supported for %s\nConfigure the env section in the framework YAML to enable it", fw.Label)
+		return fmt.Errorf("'servlo env' is not supported for %s\nConfigure the env section in the framework YAML to enable it", fw.Label)
 	}
 
 	envRelPath, envFormat := fw.Env.Resolve(cwd)
@@ -562,18 +562,18 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		}
 	} else {
 		envInfo("Updating existing %s...\n", envRelPath)
-		// Back up the original .env the first time lerd modifies it (so the user
-		// can inspect what changed and restore with `lerd env:restore`), but only
-		// if lerd hasn't already written to it — detected by presence of the word
-		// "lerd" in the file (e.g. DB_HOST=lerd-mysql).
-		backupPath := filepath.Join(cwd, ".env.before_lerd")
-		if !envFileHasLerd(envPath) {
+		// Back up the original .env the first time servlo modifies it (so the user
+		// can inspect what changed and restore with `servlo env:restore`), but only
+		// if servlo hasn't already written to it — detected by presence of the word
+		// "servlo" in the file (e.g. DB_HOST=servlo-mysql).
+		backupPath := filepath.Join(cwd, ".env.before_servlo")
+		if !envFileHasServlo(envPath) {
 			if _, err := os.Stat(backupPath); os.IsNotExist(err) {
 				if err := copyEnvFile(envPath, backupPath); err != nil {
 					feedback.Warn("could not back up %s: %v", envRelPath, err)
 				} else {
-					envInfo("  Backed up original %s → .env.before_lerd\n", envRelPath)
-					addToGitignore(cwd, ".env.before_lerd")
+					envInfo("  Backed up original %s → .env.before_servlo\n", envRelPath)
+					addToGitignore(cwd, ".env.before_servlo")
 				}
 			}
 		}
@@ -610,7 +610,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 
 	// Framework default env vars: seeded only when the key is absent, so a value
 	// the user set directly survives re-runs (link/secure/domain/db:move). The
-	// detected-service values and .env.lerd_override still win and can force one.
+	// detected-service values and .env.servlo_override still win and can force one.
 	for _, kv := range fw.Env.Vars {
 		k, v, _ := strings.Cut(kv, "=")
 		if _, present := envMap[k]; present {
@@ -621,18 +621,18 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		envInfo("  Setting %s=%s\n", k, val)
 	}
 
-	// Load .lerd.yaml service hints so we can apply env vars for services
+	// Load .servlo.yaml service hints so we can apply env vars for services
 	// listed there even when they are not yet referenced in the env file.
-	lerdYAMLServices := map[string]bool{}
+	servloYAMLServices := map[string]bool{}
 	if proj, projErr := config.LoadProjectConfig(cwd); projErr == nil {
 		for _, svc := range proj.Services {
-			lerdYAMLServices[svc.Name] = true
+			servloYAMLServices[svc.Name] = true
 		}
 	}
 
-	// Personal, gitignored per-project overrides (.env.lerd_override). envOverrides
+	// Personal, gitignored per-project overrides (.env.servlo_override). envOverrides
 	// are layered on last so they win over every computed value; extServices names
-	// services lerd writes connection vars for but must not start or provision.
+	// services servlo writes connection vars for but must not start or provision.
 	envOverrides, extServices := readEnvOverride(cwd)
 	if _, statErr := os.Stat(filepath.Join(cwd, envOverrideFile)); statErr == nil {
 		ensureOverrideGitignored(cwd)
@@ -640,13 +640,13 @@ func runEnv(_ *cobra.Command, _ []string) error {
 
 	// Laravel ships .env / .env.example with DB_CONNECTION=sqlite. If the user
 	// hasn't yet picked a DB service for this project, offer to swap sqlite for
-	// a lerd-managed mysql/postgres. Skipped for frameworks with explicit env
+	// a servlo-managed mysql/postgres. Skipped for frameworks with explicit env
 	// service rules (e.g. wordpress, symfony) — they don't use DB_CONNECTION.
 	// Non-interactive callers (MCP, scripts) fall through to sqlite by default
 	// so they don't hit a 500 from the missing .sqlite file; the user can
-	// still switch later with `lerd db set mysql` or the db_set MCP tool.
+	// still switch later with `servlo db set mysql` or the db_set MCP tool.
 	if len(fw.Env.Services) == 0 &&
-		!userPickedDBFromYAML(lerdYAMLServices) && !externalDBPicked(extServices) &&
+		!userPickedDBFromYAML(servloYAMLServices) && !externalDBPicked(extServices) &&
 		strings.EqualFold(strings.TrimSpace(envMap["DB_CONNECTION"]), "sqlite") {
 
 		dbChoice := "sqlite"
@@ -655,7 +655,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			dbForm := huh.NewForm(huh.NewGroup(
 				huh.NewSelect[string]().
 					Title("Database").
-					Description(envRelPath + " uses SQLite. Use a lerd-managed database service instead?").
+					Description(envRelPath + " uses SQLite. Use a servlo-managed database service instead?").
 					Options(options...).
 					Value(&dbChoice),
 			)).WithTheme(huh.ThemeFunc(huh.ThemeCatppuccin))
@@ -665,10 +665,10 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				return fmt.Errorf("database prompt: %w", formErr)
 			}
 		} else {
-			envInfo("  Defaulting to SQLite (non-interactive). Run `lerd db set <service>` or call db_set to switch.\n")
+			envInfo("  Defaulting to SQLite (non-interactive). Run `servlo db set <service>` or call db_set to switch.\n")
 		}
 
-		// Persist the choice to .lerd.yaml so future runs don't re-ask, and
+		// Persist the choice to .servlo.yaml so future runs don't re-ask, and
 		// flip the in-memory map so the service loop below picks it up.
 		proj, _ := config.LoadProjectConfig(cwd)
 		if proj == nil {
@@ -676,24 +676,24 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		}
 		proj.Services = append(proj.Services, config.ProjectService{Name: dbChoice})
 		if err := config.SaveProjectConfig(cwd, proj); err != nil {
-			feedback.Warn("could not save .lerd.yaml: %v", err)
+			feedback.Warn("could not save .servlo.yaml: %v", err)
 		}
-		lerdYAMLServices[dbChoice] = true
+		servloYAMLServices[dbChoice] = true
 	}
 
-	userPickedDB := userPickedDBFromYAML(lerdYAMLServices) || externalDBPicked(extServices)
-	valkeyPicked := lerdYAMLServices["valkey"]
+	userPickedDB := userPickedDBFromYAML(servloYAMLServices) || externalDBPicked(extServices)
+	valkeyPicked := servloYAMLServices["valkey"]
 
 	knownEnvKeys := frameworkKnownKeys(fw)
 
-	// The custom services in play for this project: listed in .lerd.yaml (or
+	// The custom services in play for this project: listed in .servlo.yaml (or
 	// externally managed), or matched by their own env_detect. Resolved before the
 	// framework loop, which has to know which of its roles a drop-in has taken over.
 	customs, _ := config.ListCustomServices()
 	var pickedCustoms []*config.CustomService
 	customFromYAML := make(map[string]bool, len(customs))
 	for _, svc := range customs {
-		fromYAML := lerdYAMLServices[svc.Name] || extServices[svc.Name]
+		fromYAML := servloYAMLServices[svc.Name] || extServices[svc.Name]
 		if !fromYAML && !customServiceDetected(svc, cwd, envMap) {
 			continue
 		}
@@ -705,13 +705,13 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		replaced := replacedFrameworkRoles(fw, pickedCustoms)
 		// Framework defines its own service detection and vars — use those.
 		// A service applies when its env_detect rule matches the existing env
-		// file OR it is listed in .lerd.yaml. The .lerd.yaml hint is what
-		// lets `lerd init` swap a fresh Laravel project from sqlite to mysql:
+		// file OR it is listed in .servlo.yaml. The .servlo.yaml hint is what
+		// lets `servlo init` swap a fresh Laravel project from sqlite to mysql:
 		// the env file still says DB_CONNECTION=sqlite, so detection misses,
 		// but the user picked mysql in the wizard.
 		for svc, def := range fw.Env.Services {
 			detectedFromEnv := frameworkServiceDetected(def, envMap)
-			pickedFromYAML := lerdYAMLServices[svc] || extServices[svc]
+			pickedFromYAML := servloYAMLServices[svc] || extServices[svc]
 
 			// A drop-in has taken this role over. The custom-service loop below wires
 			// the framework's own keys to the container the project actually uses, so
@@ -752,9 +752,9 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			if svc == "rustfs" {
 				// Always sanitise through s3BucketName: rustfs/S3 reject underscores,
 				// uppercase, etc. A historical invalid value in .env (from an older
-				// lerd, a Sail import, or manual edit) gets auto-healed on this run.
+				// servlo, a Sail import, or manual edit) gets auto-healed on this run.
 				bucketName := s3BucketName(envMap["AWS_BUCKET"])
-				if bucketName == "lerd" {
+				if bucketName == "servlo" {
 					bucketName = s3BucketName(dbName)
 				}
 				updates["AWS_BUCKET"] = bucketName
@@ -778,7 +778,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		}
 	} else {
 		// Default Laravel-style detection.
-		// If the user has an explicit DB choice in .lerd.yaml (sqlite, a
+		// If the user has an explicit DB choice in .servlo.yaml (sqlite, a
 		// built-in mysql/postgres, or any custom DB family alternate like
 		// mysql-5-6 / mariadb-11 / mongo-6), it overrides whatever the
 		// existing .env happens to say about DB_CONNECTION — otherwise
@@ -787,7 +787,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		for _, svc := range knownServices() {
 			detector, ok := serviceDetectors[svc]
 			detectedFromEnv := ok && detector(envMap)
-			pickedFromYAML := lerdYAMLServices[svc] || extServices[svc]
+			pickedFromYAML := servloYAMLServices[svc] || extServices[svc]
 
 			if !shouldApplyService(svc, detectedFromEnv, pickedFromYAML, userPickedDB, valkeyPicked) {
 				continue
@@ -833,9 +833,9 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			if svc == "rustfs" {
 				// Always sanitise through s3BucketName: rustfs/S3 reject underscores,
 				// uppercase, etc. A historical invalid value in .env (from an older
-				// lerd, a Sail import, or manual edit) gets auto-healed on this run.
+				// servlo, a Sail import, or manual edit) gets auto-healed on this run.
 				bucketName := s3BucketName(envMap["AWS_BUCKET"])
-				if bucketName == "lerd" {
+				if bucketName == "servlo" {
 					bucketName = s3BucketName(dbName)
 				}
 				updates["AWS_BUCKET"] = bucketName
@@ -845,7 +845,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				}
 				// Always attempt bucket creation — ensureServiceRunning may have
 				// timed out on the host probe while the container network is already
-				// up, or rustfs was already running before lerd env ran.
+				// up, or rustfs was already running before servlo env ran.
 				created, err := createS3Bucket(bucketName)
 				if err != nil {
 					feedback.Warn("could not create bucket %q: %v", bucketName, err)
@@ -864,10 +864,10 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	}
 
 	// 3a-bis. SQLite is not a containerized service but is a valid choice from
-	// the init wizard / runtime DB prompt. When listed in .lerd.yaml, apply the
+	// the init wizard / runtime DB prompt. When listed in .servlo.yaml, apply the
 	// standard Laravel sqlite env vars and ensure the database file exists so
 	// migrations can run immediately. No service to start, no SQL DB to create.
-	if lerdYAMLServices["sqlite"] {
+	if servloYAMLServices["sqlite"] {
 		envApplyLine("sqlite", false)
 		for _, kv := range serviceEnvVars("sqlite") {
 			k, v, _ := strings.Cut(kv, "=")
@@ -885,7 +885,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	}
 
 	// 3b. Custom services. Three triggers:
-	//   - the service is listed in .lerd.yaml (user explicitly picked it)
+	//   - the service is listed in .servlo.yaml (user explicitly picked it)
 	//   - env_detect matches an existing key in the project's .env
 	//   - both
 	// DB family alternates (mysql-5-6, mariadb-11, postgres-14) need
@@ -974,7 +974,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// 3c. Patch DuskTestCase.php for lerd's Selenium container if applicable.
+	// 3c. Patch DuskTestCase.php for servlo's Selenium container if applicable.
 	if _, hasDriver := updates["DUSK_DRIVER_URL"]; hasDriver {
 		patchDuskTestCase(cwd)
 	}
@@ -985,7 +985,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	if config.ComposerHasPackage(cwd, "pestphp/pest-plugin-browser") {
 		if v, derr := phpDet.DetectVersion(cwd); derr == nil && pestBrowserSupportedVersion(v) == nil {
 			if gcfg, cerr := config.LoadGlobal(); cerr == nil && !slices.Contains(gcfg.GetPackages(), pestBrowserPkg) {
-				envInfo("  Detected pest-plugin-browser — run `lerd pest:browser install` to enable in-container browser testing\n")
+				envInfo("  Detected pest-plugin-browser — run `servlo pest:browser install` to enable in-container browser testing\n")
 			}
 		}
 	}
@@ -1000,8 +1000,8 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// 4. Set the URL key. Precedence (matching other lerd settings):
-	//    1. .lerd.yaml `app_url` — committed, shared across machines
+	// 4. Set the URL key. Precedence (matching other servlo settings):
+	//    1. .servlo.yaml `app_url` — committed, shared across machines
 	//    2. sites.yaml `app_url` — per-machine override
 	//    3. <scheme>://<primary-domain> default generator
 	// `url_key: none` opts out: Magento keeps its base URL in the database, not
@@ -1018,14 +1018,14 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	// 4d. Host-proxy apps run on the host, so point service connections at
 	// loopback and the published host ports instead of container DNS names.
 	if site.IsHostProxy() {
-		names := make([]string, 0, len(lerdYAMLServices))
-		for n := range lerdYAMLServices {
+		names := make([]string, 0, len(servloYAMLServices))
+		for n := range servloYAMLServices {
 			names = append(names, n)
 		}
 		rewriteEnvForHostProxy(updates, names)
 	}
 
-	// 4e. Apply personal .env.lerd_override values last so they win over lerd's
+	// 4e. Apply personal .env.servlo_override values last so they win over servlo's
 	// defaults and every computed value (DB_DATABASE, APP_URL, reverb, …).
 	if len(envOverrides) > 0 {
 		envInfo("  Applying %d override(s) from %s\n", len(envOverrides), envOverrideFile)
@@ -1105,7 +1105,7 @@ var worktreeDBConnectionKeys = []string{"DB_CONNECTION", "DB_HOST", "DB_PORT", "
 
 // alignWorktreeEnvDBConnection mirrors the parent's (just-aligned) DB connection
 // coordinates into each existing worktree env file. It is the worktree arm of
-// `lerd env`'s "make the env match the selected services" guarantee. Best
+// `servlo env`'s "make the env match the selected services" guarantee. Best
 // effort: a worktree without an env file yet is skipped (it'll be seeded on its
 // next sync), and ApplyUpdates no-ops when nothing changed.
 //
@@ -1196,7 +1196,7 @@ func createS3Bucket(name string) (bool, error) { return serviceops.EnsureS3Bucke
 // ensureServiceRunning starts the service if it is not already active, then
 // waits until it is ready to accept connections before returning.
 func ensureServiceRunning(name string) error {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	status, _ := podman.UnitStatus(unit)
 	if status != "active" {
 		envInterrupt(func() { fmt.Printf("  Starting %s...\n", name) })
@@ -1204,14 +1204,14 @@ func ensureServiceRunning(name string) error {
 	return serviceops.EnsureServiceRunning(name)
 }
 
-// resolveAppURL returns the URL lerd should write to APP_URL for the project,
-// applying the standard lerd precedence chain:
+// resolveAppURL returns the URL servlo should write to APP_URL for the project,
+// applying the standard servlo precedence chain:
 //
-//  1. .lerd.yaml `app_url` (committed, shared across machines)
+//  1. .servlo.yaml `app_url` (committed, shared across machines)
 //  2. sites.yaml `app_url` (per-machine override)
 //  3. `<scheme>://<primary-domain>` default generator
 //
-// The .lerd.yaml `app_url` is suppressed when its host is one of the project's
+// The .servlo.yaml `app_url` is suppressed when its host is one of the project's
 // declared domains that got filtered out at registration time (i.e. another
 // site already owns it on this machine). External hosts and unrelated values
 // pass through unchanged — only the conflict-filtered case is rejected.
@@ -1233,7 +1233,7 @@ func resolveAppURL(cwd string, site *config.Site) string {
 }
 
 // appURLPointsToFilteredDomain reports whether the given URL's host matches
-// a domain that the project declared in .lerd.yaml but that did NOT survive
+// a domain that the project declared in .servlo.yaml but that did NOT survive
 // the conflict filter at registration time. When true, the caller should
 // fall through to the next precedence level instead of writing a value that
 // points at a domain owned by another site.
@@ -1253,7 +1253,7 @@ func appURLPointsToFilteredDomain(rawURL string, proj *config.ProjectConfig, sit
 	}
 	suffix := "." + cfg.DNS.TLD
 
-	// Was this host in the .lerd.yaml-declared list?
+	// Was this host in the .servlo.yaml-declared list?
 	declared := false
 	for _, d := range proj.Domains {
 		if strings.ToLower(d)+suffix == host {
@@ -1373,7 +1373,7 @@ func applySiteHandle(s string, ctx siteTemplateCtx) string {
 func runSiteInit(svc *config.CustomService, ctx siteTemplateCtx) {
 	container := svc.SiteInit.Container
 	if container == "" {
-		container = "lerd-" + svc.Name
+		container = "servlo-" + svc.Name
 	}
 	script := applySiteHandle(svc.SiteInit.Exec, ctx)
 	cmd := podman.Cmd("exec", container, "sh", "-c", script)
@@ -1388,11 +1388,11 @@ func runSiteInit(svc *config.CustomService, ctx siteTemplateCtx) {
 func NewEnvRestoreCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "env:restore",
-		Short: "Restore .env from the pre-lerd backup (.env.before_lerd)",
-		Long: `Restores the .env file from the backup that 'lerd env' created the first
-time it was run on this project (.env.before_lerd).
+		Short: "Restore .env from the pre-servlo backup (.env.before_servlo)",
+		Long: `Restores the .env file from the backup that 'servlo env' created the first
+time it was run on this project (.env.before_servlo).
 
-Useful when switching back from lerd to Laravel Sail or another environment.`,
+Useful when switching back from servlo to Laravel Sail or another environment.`,
 		RunE: runEnvRestore,
 	}
 }
@@ -1403,17 +1403,17 @@ func runEnvRestore(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	backupPath := filepath.Join(cwd, ".env.before_lerd")
+	backupPath := filepath.Join(cwd, ".env.before_servlo")
 	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
-		return fmt.Errorf(".env.before_lerd not found — run 'lerd env' first to create a backup")
+		return fmt.Errorf(".env.before_servlo not found — run 'servlo env' first to create a backup")
 	}
 
 	envPath := filepath.Join(cwd, ".env")
 	if err := copyEnvFile(backupPath, envPath); err != nil {
 		return fmt.Errorf("restoring .env: %w", err)
 	}
-	fmt.Println("Restored .env from .env.before_lerd")
-	fmt.Println("Run 'lerd env' again to re-apply lerd connection settings.")
+	fmt.Println("Restored .env from .env.before_servlo")
+	fmt.Println("Run 'servlo env' again to re-apply servlo connection settings.")
 	return nil
 }
 
@@ -1438,15 +1438,15 @@ func addToGitignore(dir, entry string) {
 	_ = os.WriteFile(gitignorePath, []byte(content), 0644)
 }
 
-// envFileHasLerd reports whether path already contains lerd-written values.
-// lerd always writes hostnames like "lerd-mysql", "lerd-redis", etc., so a
+// envFileHasServlo reports whether path already contains servlo-written values.
+// servlo always writes hostnames like "servlo-mysql", "servlo-redis", etc., so a
 // simple substring search is sufficient.
-func envFileHasLerd(path string) bool {
+func envFileHasServlo(path string) bool {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false
 	}
-	return strings.Contains(strings.ToLower(string(data)), "lerd")
+	return strings.Contains(strings.ToLower(string(data)), "servlo")
 }
 
 // copyEnvFile copies src to dst with 0644 permissions.
@@ -1548,7 +1548,7 @@ func randNumeric(n int) string {
 	return string(b)
 }
 
-// patchDuskTestCase modifies tests/DuskTestCase.php so it works with lerd's
+// patchDuskTestCase modifies tests/DuskTestCase.php so it works with servlo's
 // Selenium container out of the box:
 //   - Skips starting a local ChromeDriver when DUSK_DRIVER_URL is set
 //   - Adds --ignore-certificate-errors so Chromium accepts mkcert certificates
@@ -1606,6 +1606,6 @@ func patchDuskTestCase(dir string) {
 			feedback.Warn("could not patch DuskTestCase.php: %v", err)
 			return
 		}
-		fmt.Println("  Patched tests/DuskTestCase.php for lerd Selenium")
+		fmt.Println("  Patched tests/DuskTestCase.php for servlo Selenium")
 	}
 }

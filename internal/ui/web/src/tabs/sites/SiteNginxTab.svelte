@@ -46,7 +46,7 @@
   const canSave = $derived(dirty && !loading && !error);
 
   // The domain is the only reactive input that should re-load the editor.
-  // Every site mutation in lerd-ui triggers a sites WebSocket broadcast,
+  // Every site mutation in servlo-panel triggers a sites WebSocket broadcast,
   // so the parent passes a fresh site object reference on every push
   // (even when the domain is unchanged). Reading site.domain inside the
   // effect would re-fire on each push and clobber unsaved edits; pinning

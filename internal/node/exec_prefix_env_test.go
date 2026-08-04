@@ -12,7 +12,7 @@ import (
 // command env tries to run, so the wrapper never reaches the real binary.
 func TestFnmExecPrefixWithEnv_ValueSurvivesWordSplitting(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	const spaced = "/home/john smith/.local/share/lerd/node-global"
+	const spaced = "/home/john smith/.local/share/servlo/node-global"
 	prefix := fnmManager{}.ExecPrefixWithEnv("default", []string{"npm_config_prefix=" + spaced})
 
 	i := strings.Index(prefix, "env ")
@@ -33,8 +33,8 @@ func TestFnmExecPrefixWithEnv_ValueSurvivesWordSplitting(t *testing.T) {
 func TestFnmExecPrefixWithEnv_InjectsAfterActivation(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	m := fnmManager{}
-	prefix := m.ExecPrefixWithEnv("default", []string{"npm_config_prefix=/tmp/lerd-global"})
-	if !strings.Contains(prefix, "env npm_config_prefix="+shellQuote("/tmp/lerd-global")) {
+	prefix := m.ExecPrefixWithEnv("default", []string{"npm_config_prefix=/tmp/servlo-global"})
+	if !strings.Contains(prefix, "env npm_config_prefix="+shellQuote("/tmp/servlo-global")) {
 		t.Errorf("fnm ExecPrefixWithEnv missing env injection:\n%s", prefix)
 	}
 	// env must come after -- so fnm has already activated Node.
@@ -47,7 +47,7 @@ func TestFnmExecPrefixWithEnv_InjectsAfterActivation(t *testing.T) {
 
 func TestNvmExecPrefixWithEnv_InjectsAfterNvmUse(t *testing.T) {
 	m := nvmManager{}
-	prefix := m.ExecPrefixWithEnv("default", []string{"npm_config_prefix=/tmp/lerd-global"})
+	prefix := m.ExecPrefixWithEnv("default", []string{"npm_config_prefix=/tmp/servlo-global"})
 	useIdx := strings.Index(prefix, "nvm use")
 	exportIdx := strings.Index(prefix, "export npm_config_prefix=")
 	execIdx := strings.Index(prefix, `exec "$@"`)
@@ -57,7 +57,7 @@ func TestNvmExecPrefixWithEnv_InjectsAfterNvmUse(t *testing.T) {
 	if !(useIdx < exportIdx && exportIdx < execIdx) {
 		t.Errorf("export must sit after nvm use and before exec:\n%s", prefix)
 	}
-	if !strings.Contains(prefix, "export npm_config_prefix=") || !strings.Contains(prefix, "/tmp/lerd-global") {
+	if !strings.Contains(prefix, "export npm_config_prefix=") || !strings.Contains(prefix, "/tmp/servlo-global") {
 		t.Errorf("expected shell-quoted export of npm_config_prefix:\n%s", prefix)
 	}
 }

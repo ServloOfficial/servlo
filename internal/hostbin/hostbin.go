@@ -1,5 +1,5 @@
 // Package hostbin resolves host binaries that live outside the PATH a daemon
-// inherits. lerd-ui and lerd-watcher are started by launchd (or systemd), which
+// inherits. servlo-panel and servlo-watcher are started by launchd (or systemd), which
 // hands them a minimal PATH — on macOS literally /usr/bin:/bin:/usr/sbin:/sbin —
 // so a tool the user installed with Homebrew is invisible to exec.LookPath even
 // though it works fine in their terminal. Anything a daemon may have to run goes

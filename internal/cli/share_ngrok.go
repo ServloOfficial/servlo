@@ -7,14 +7,14 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/geodro/lerd/internal/hostbin"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/hostbin"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // ngrok is the one tunnel tool with a published image, so a machine that never
 // installed it can still share. The host binary is preferred when it is there,
 // because it carries the user's own ngrok configuration; the container carries
-// none of it and so cannot authenticate without a token lerd holds.
+// none of it and so cannot authenticate without a token servlo holds.
 
 // ngrokImage is the published image the container route runs.
 const ngrokImage = "docker.io/ngrok/ngrok:latest"
@@ -31,7 +31,7 @@ func ngrokRunnerFor(token string) (ngrokRunner, error) {
 		return ngrokRunner{}, nil
 	}
 	if token == "" {
-		return ngrokRunner{}, fmt.Errorf("ngrok not found — install it from https://ngrok.com/download, or set an auth token with \"lerd share:token\" and lerd runs it as a container instead")
+		return ngrokRunner{}, fmt.Errorf("ngrok not found — install it from https://ngrok.com/download, or set an auth token with \"servlo share:token\" and servlo runs it as a container instead")
 	}
 	return ngrokRunner{container: true}, nil
 }
@@ -47,9 +47,9 @@ func (r ngrokRunner) cmd(proxyPort int, token string, headless bool, containerNa
 
 // ngrokContainerName is the container a site's tunnel runs as. Deterministic
 // because it is how the tunnel is stopped and how a survivor is found again,
-// and lerd-prefixed so a running tunnel shows up with lerd's other containers.
+// and servlo-prefixed so a running tunnel shows up with servlo's other containers.
 func ngrokContainerName(siteName, branch string) string {
-	name := "lerd-ngrok-" + siteName
+	name := "servlo-ngrok-" + siteName
 	if branch != "" {
 		name += "-" + branch
 	}
@@ -68,7 +68,7 @@ func ngrokContainerName(siteName, branch string) string {
 // ngrokContainerNames lists the tunnel containers currently running, so a
 // survivor of a crash can be found without a pid to go on.
 func ngrokContainerNames() []string {
-	out, err := podman.Run("ps", "--filter", "name=lerd-ngrok-", "--format", "{{.Names}}")
+	out, err := podman.Run("ps", "--filter", "name=servlo-ngrok-", "--format", "{{.Names}}")
 	if err != nil {
 		return nil
 	}

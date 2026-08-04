@@ -23,14 +23,14 @@ func TestWriteWorkerUnitFileQuotesSitePathWithSpaces(t *testing.T) {
 	}
 
 	for _, tc := range []struct{ name, schedule, unitName string }{
-		{"daemon", "", "lerd-queue-spatnik"},
-		{"scheduled", "minutely", "lerd-schedule-spatnik"},
+		{"daemon", "", "servlo-queue-spatnik"},
+		{"scheduled", "minutely", "servlo-schedule-spatnik"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, err := writeWorkerUnitFile(
 				tc.unitName, "Queue Worker", "spatnik",
 				sitePath, "8.5", "php artisan queue:work",
-				"always", tc.schedule, "lerd-php85-fpm", false,
+				"always", tc.schedule, "servlo-php85-fpm", false,
 			); err != nil {
 				t.Fatalf("writeWorkerUnitFile: %v", err)
 			}

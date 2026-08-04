@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/systemd"
 )
 
 // quadletReloadPending records that a previous DaemonReloadIfNeeded call
@@ -42,7 +42,7 @@ func DaemonReloadIfNeeded(changed bool) error {
 
 // WriteQuadlet writes a Podman quadlet container unit file. Before writing
 // it applies the current LAN bind policy centrally. Nginx follows
-// cfg.LAN.Exposed. Lerd-managed services require both cfg.LAN.Exposed and
+// cfg.LAN.Exposed. Servlo-managed services require both cfg.LAN.Exposed and
 // cfg.LAN.ServicesExposed. Other containers stay loopback-bound.
 func WriteQuadlet(name, content string) error {
 	_, err := WriteQuadletDiff(name, content)
@@ -51,7 +51,7 @@ func WriteQuadlet(name, content string) error {
 
 // WriteQuadletDiff writes a quadlet like WriteQuadlet, but also reports
 // whether the on-disk file actually changed. Callers can use this to
-// daemon-reload + restart only the units that need it (e.g. lerd install
+// daemon-reload + restart only the units that need it (e.g. servlo install
 // rewriting binds from 0.0.0.0 to 127.0.0.1 when migrating to a build
 // where lan:expose defaults to off — without a restart the running
 // container would silently keep its old bind).
@@ -75,7 +75,7 @@ func WriteQuadletDiff(name, content string) (changed bool, err error) {
 	// writer emits identical units. On Apple Silicon PlatformImage swaps
 	// postgis/postgis for the multi-arch imresamu/postgis (runs native, no
 	// Rosetta); mysql:5.7 keeps the --platform=linux/amd64 pin.
-	if svc := strings.TrimPrefix(name, "lerd-"); svc != name {
+	if svc := strings.TrimPrefix(name, "servlo-"); svc != name {
 		if img := CurrentImage(content); img != "" {
 			if rewritten := PlatformImage(img); rewritten != img {
 				content = ApplyImage(content, rewritten)
@@ -119,7 +119,7 @@ func QuadletInstalled(name string) bool {
 // while CustomServiceQuadletMarker identifies default and custom managed
 // services. Site and worker containers do not publish directly to the LAN.
 func BindQuadletForLAN(name, content string, lanExposed, servicesExposed bool) string {
-	exposed := lanExposed && (name == "lerd-nginx" ||
+	exposed := lanExposed && (name == "servlo-nginx" ||
 		(servicesExposed && strings.Contains(content, CustomServiceQuadletMarker)))
 	return BindForLAN(content, exposed)
 }
@@ -166,7 +166,7 @@ func portsPublishToLAN(ports string) bool {
 }
 
 // RebindInstalledQuadletsForLAN reapplies the current LAN policy to every
-// installed lerd container, preserving each unit's image, ports, volumes and
+// installed servlo container, preserving each unit's image, ports, volumes and
 // custom settings. It returns the units that need restarting: those whose file
 // it rewrote, plus those whose running container still publishes on the wrong
 // side of the policy. That second group is what makes the operation heal
@@ -179,7 +179,7 @@ func RebindInstalledQuadletsForLAN() ([]string, error) {
 		lanExposed = cfg.LAN.Exposed
 		servicesExposed = cfg.LAN.ServicesExposed
 	}
-	paths, err := filepath.Glob(filepath.Join(config.QuadletDir(), "lerd-*.container"))
+	paths, err := filepath.Glob(filepath.Join(config.QuadletDir(), "servlo-*.container"))
 	if err != nil {
 		return nil, err
 	}
@@ -238,11 +238,11 @@ func quadletWantsLAN(content string) bool {
 	return false
 }
 
-// ListManagedServiceNames returns the service names (lerd- prefix and .container
+// ListManagedServiceNames returns the service names (servlo- prefix and .container
 // suffix stripped) of every quadlet carrying CustomServiceQuadletMarker. Used by
 // ReconcileServices to find orphans without misclassifying site/worker quadlets.
 func ListManagedServiceNames() []string {
-	entries, err := filepath.Glob(filepath.Join(config.QuadletDir(), "lerd-*.container"))
+	entries, err := filepath.Glob(filepath.Join(config.QuadletDir(), "servlo-*.container"))
 	if err != nil {
 		return nil
 	}
@@ -253,7 +253,7 @@ func ListManagedServiceNames() []string {
 			continue
 		}
 		base := strings.TrimSuffix(filepath.Base(p), ".container")
-		names = append(names, strings.TrimPrefix(base, "lerd-"))
+		names = append(names, strings.TrimPrefix(base, "servlo-"))
 	}
 	return names
 }
@@ -318,10 +318,10 @@ func DaemonReload() error {
 // StartUnit starts a service unit. On Linux it first clears any lingering
 // failed state from a previous run so that units which hit Restart=
 // rate-limit (e.g. workers that raced container readiness in a buggy
-// upgrade) recover automatically on the next `lerd start` instead of
+// upgrade) recover automatically on the next `servlo start` instead of
 // staying stuck in `failed`.
 // AfterUnitChange is fired after every successful StartUnit / StopUnit /
-// RestartUnit call. lerd-ui wires this at startup to invalidate the
+// RestartUnit call. servlo-panel wires this at startup to invalidate the
 // systemctl unit cache and publish "sites"/"services" events to the
 // eventbus so every browser tab updates in real time — regardless of
 // whether the mutation came from an HTTP handler, the CLI, the MCP
@@ -330,10 +330,10 @@ func DaemonReload() error {
 var AfterUnitChange func(name string)
 
 // UnitOpDebug controls whether unit-lifecycle calls log a one-line caller
-// trace. Defaults to off; set LERD_UNIT_OP_DEBUG=1 to enable when chasing
+// trace. Defaults to off; set SERVLO_UNIT_OP_DEBUG=1 to enable when chasing
 // a "who keeps stopping FPM?" cascade. Cheap when off — runtime.Caller is
 // only invoked when the flag is set.
-var UnitOpDebug = os.Getenv("LERD_UNIT_OP_DEBUG") == "1"
+var UnitOpDebug = os.Getenv("SERVLO_UNIT_OP_DEBUG") == "1"
 
 func notifyUnitChange(name string) {
 	InvalidateUnitStatusCache(name)
@@ -347,11 +347,11 @@ func logUnitOp(action, unit string) {
 		return
 	}
 	caller := unitOpCaller()
-	fmt.Fprintf(os.Stderr, "[lerd] unit-op action=%s unit=%s caller=%s\n", action, unit, caller)
+	fmt.Fprintf(os.Stderr, "[servlo] unit-op action=%s unit=%s caller=%s\n", action, unit, caller)
 }
 
 // unitOpCaller returns the closest frame outside the podman package — that's
-// the lerd-internal site that asked for the unit op. Falls back to "?" if
+// the servlo-internal site that asked for the unit op. Falls back to "?" if
 // the stack walk fails.
 func unitOpCaller() string {
 	pc := make([]uintptr, 16)
@@ -359,7 +359,7 @@ func unitOpCaller() string {
 	frames := runtime.CallersFrames(pc[:n])
 	for {
 		frame, more := frames.Next()
-		if !strings.Contains(frame.Function, "geodro/lerd/internal/podman") {
+		if !strings.Contains(frame.Function, "realrashid/servlo/internal/podman") {
 			return fmt.Sprintf("%s (%s:%d)", frame.Function, filepath.Base(frame.File), frame.Line)
 		}
 		if !more {
@@ -447,16 +447,16 @@ func RestartUnit(name string) error {
 	return nil
 }
 
-// mysqlReadyArgs probes lerd-mysql over IPv4 loopback TCP, never the Unix
+// mysqlReadyArgs probes servlo-mysql over IPv4 loopback TCP, never the Unix
 // socket (its path differs across mysql/mariadb images). Container-internal
 // 127.0.0.1 holds on macOS and IPv6-only host networks too.
-var mysqlReadyArgs = []string{"mysqladmin", "ping", "-h127.0.0.1", "-P3306", "-uroot", "-plerd", "--silent"}
+var mysqlReadyArgs = []string{"mysqladmin", "ping", "-h127.0.0.1", "-P3306", "-uroot", "-pservlo", "--silent"}
 
 // mariadbReadyArgs mirrors mysqlReadyArgs but calls mariadb-admin. The
 // mariadb:11 image dropped the legacy mysqladmin symlink, so probing it with
 // mysqladmin can never succeed and WaitReady would time out on every poll.
-// mariadb-admin is present in every mariadb version lerd ships (10.5+).
-var mariadbReadyArgs = []string{"mariadb-admin", "ping", "-h127.0.0.1", "-P3306", "-uroot", "-plerd", "--silent"}
+// mariadb-admin is present in every mariadb version servlo ships (10.5+).
+var mariadbReadyArgs = []string{"mariadb-admin", "ping", "-h127.0.0.1", "-P3306", "-uroot", "-pservlo", "--silent"}
 
 // readyFamily strips known version suffixes ("mariadb-10-11" →
 // "mariadb", "mysql-8.0" → "mysql", "postgres-16" → "postgres") so
@@ -497,7 +497,7 @@ func readyFamily(service string) string {
 // falls back to waiting until the systemd unit is "active".
 func WaitReady(service string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	unit := "lerd-" + service
+	unit := "servlo-" + service
 	family := readyFamily(service)
 
 	var probe func() bool
@@ -555,7 +555,7 @@ func WaitReady(service string, timeout time.Duration) error {
 
 // unitStatusCache memoises DBusActiveState calls for a short window so
 // dashboard snapshot rebuilds don't issue 100+ DBus round-trips per refresh.
-// 2 seconds is short enough that a unit toggle in lerd-ui (which runs the
+// 2 seconds is short enough that a unit toggle in servlo-panel (which runs the
 // AfterUnitChange hook anyway) is reflected promptly, while long enough to
 // absorb burst rebuilds during systemd state-change storms.
 const unitStatusCacheTTL = 2 * time.Second

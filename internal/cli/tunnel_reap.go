@@ -10,20 +10,20 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// A tunnel is a child of lerd-ui, and killing lerd-ui is supposed to take it
+// A tunnel is a child of servlo-panel, and killing servlo-panel is supposed to take it
 // down with it: systemd kills the whole control group, and Pdeathsig covers a
 // non-systemd run. macOS has neither. launchd only kills the job's own process
 // group, and a tunnel is deliberately put in a group of its own so stopping it
-// can take down the tool's children, so a killed lerd-ui leaves the tunnel
+// can take down the tool's children, so a killed servlo-panel leaves the tunnel
 // running with the site still public and no dashboard entry left to stop it.
 //
 // Ordinary shutdowns are handled by the signal handler that calls
 // StopAllTunnels. This file covers the rest: `launchctl kickstart -k` sends
 // SIGKILL, which no handler can catch, so what is running is written down and
-// the next lerd-ui start reaps whatever survived.
+// the next servlo-panel start reaps whatever survived.
 
 type tunnelRecord struct {
 	PID     int    `json:"pid"`
@@ -102,7 +102,7 @@ var tunnelKillFn = func(pid int, sig syscall.Signal) error {
 	return syscall.Kill(pid, sig)
 }
 
-// ReapOrphanTunnels kills tunnels left behind by a previous lerd-ui, then
+// ReapOrphanTunnels kills tunnels left behind by a previous servlo-panel, then
 // clears the record. A pid is only signalled when the process still running
 // under it is the one that was recorded, so a reused pid is left alone.
 func ReapOrphanTunnels() {

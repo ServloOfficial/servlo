@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/activityping"
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/activityping"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // recordToolActivity marks the site a tool call targets as active under
@@ -401,13 +401,13 @@ func dbTool() mcpTool {
 func envTool() mcpTool {
 	return mcpTool{
 		Name:        "env",
-		Description: "Manage .env. action: setup (configure services/DBs/APP_KEY/APP_URL — follow with framework setup), check (vs .env.example), override (personal .env.lerd_override).",
+		Description: "Manage .env. action: setup (configure services/DBs/APP_KEY/APP_URL — follow with framework setup), check (vs .env.example), override (personal .env.servlo_override).",
 		InputSchema: mcpSchema{
 			Type: "object",
 			Properties: map[string]mcpProp{
 				"action": {Type: "string", Enum: []string{"setup", "check", "override"}},
 				"path":   {Type: "string", Description: "Project root. Defaults to cwd."},
-				"set":    {Type: "array", Items: stringItems, Description: "override: KEY=VALUE entries (e.g. LERD_EXTERNAL_SERVICES=postgres). Omit to show."},
+				"set":    {Type: "array", Items: stringItems, Description: "override: KEY=VALUE entries (e.g. SERVLO_EXTERNAL_SERVICES=postgres). Omit to show."},
 			},
 			Required: []string{"action"},
 		},
@@ -486,7 +486,7 @@ func execTool() mcpTool {
 				"site":           {Type: "string", Description: "commands_*/command_*: site name."},
 				"name":           {Type: "string", Description: "commands_run/command_*: command name."},
 				"command":        {Type: "string", Description: "command_add: shell command (sh -c)."},
-				"force":          {Type: "boolean", Description: "commands_run: required for confirm-gated commands and for project-supplied (.lerd.yaml) commands that run on the host; approval is then remembered per site."},
+				"force":          {Type: "boolean", Description: "commands_run: required for confirm-gated commands and for project-supplied (.servlo.yaml) commands that run on the host; approval is then remembered per site."},
 				"label":          {Type: "string", Description: "command_add: dashboard label."},
 				"description":    {Type: "string", Description: "command_add: tooltip."},
 				"output":         {Type: "string", Enum: []string{"silent", "text", "url", "terminal"}, Description: "command_add: output mode."},
@@ -537,7 +537,7 @@ func frameworkTool() mcpTool {
 func diagTool() mcpTool {
 	return mcpTool{
 		Name:        "diag",
-		Description: "Diagnostics & observability. action: status, doctor (lerd environment), doctor_fix, site_doctor (app-level checks for a site: env, dependencies, security audit, framework specifics), which, check, dns_diagnose, bug_report, analyze_queries (N+1/slow queries), route_timing (response-time table + slow routes), optimize_route (slow routes joined with their N+1/slow queries, plus CPU hotspots when profiling was on), dumps_recent, dumps_status, dumps_clear, dumps_toggle, profiler_toggle, profiler_status, profiler_clear, profiler_report (flat CPU profile of a command), xdebug_on, xdebug_off, xdebug_status. (Reading logs moved to the `logs` tool.)",
+		Description: "Diagnostics & observability. action: status, doctor (servlo environment), doctor_fix, site_doctor (app-level checks for a site: env, dependencies, security audit, framework specifics), which, check, dns_diagnose, bug_report, analyze_queries (N+1/slow queries), route_timing (response-time table + slow routes), optimize_route (slow routes joined with their N+1/slow queries, plus CPU hotspots when profiling was on), dumps_recent, dumps_status, dumps_clear, dumps_toggle, profiler_toggle, profiler_status, profiler_clear, profiler_report (flat CPU profile of a command), xdebug_on, xdebug_off, xdebug_status. (Reading logs moved to the `logs` tool.)",
 		InputSchema: mcpSchema{
 			Type: "object",
 			Properties: map[string]mcpProp{

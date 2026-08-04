@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // handleOpenEditor opens a file at a line in the host's editor for dashboard
@@ -51,7 +51,7 @@ func handleOpenEditor(w http.ResponseWriter, r *http.Request) {
 
 	argv := editorCommand(path, req.Line)
 	if len(argv) == 0 {
-		http.Error(w, "no editor found; set `editor` in ~/.config/lerd/config.yaml", http.StatusInternalServerError)
+		http.Error(w, "no editor found; set `editor` in ~/.config/servlo/config.yaml", http.StatusInternalServerError)
 		return
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)

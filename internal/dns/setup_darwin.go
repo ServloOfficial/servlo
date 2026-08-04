@@ -5,12 +5,12 @@ package dns
 import (
 	"bytes"
 	"fmt"
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 	"os"
 	"os/exec"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
 // resolverDir is the macOS per-TLD resolver directory. A var so tests can point
@@ -18,8 +18,8 @@ import (
 var resolverDir = "/etc/resolver"
 
 // resolverContent is what ConfigureResolver writes into /etc/resolver/<tld>: it
-// routes .<tld> queries at the lerd-dns dnsmasq container. Teardown matches on it
-// so it removes exactly the resolver files lerd created.
+// routes .<tld> queries at the servlo-dns dnsmasq container. Teardown matches on it
+// so it removes exactly the resolver files servlo created.
 var resolverContent = []byte("nameserver 127.0.0.1\nport 5300\n")
 
 // readUpstreamDNS reads upstream DNS servers from /etc/resolv.conf.
@@ -39,11 +39,11 @@ func readUpstreamDNS() []string {
 func defaultUpstreamFallback() []string { return nil }
 
 // ConfigureResolver writes /etc/resolver/<tld> so macOS routes .<tld> queries to
-// the lerd-dns dnsmasq container on port 5300. macOS checks /etc/resolver/<tld>
+// the servlo-dns dnsmasq container on port 5300. macOS checks /etc/resolver/<tld>
 // automatically for per-TLD DNS overrides — no daemon restart required.
 func ConfigureResolver() error {
 	// Nothing when the user opted out, mirroring the Linux guard: disable flips the
-	// TLD to localhost and stops lerd-dns, so writing /etc/resolver here would point
+	// TLD to localhost and stops servlo-dns, so writing /etc/resolver here would point
 	// *.localhost at a resolver that is deliberately not running. A config that fails
 	// to load is surfaced, not defaulted: silently falling through to the "test"
 	// default would write /etc/resolver/test and report success on a broken config.
@@ -72,7 +72,7 @@ func ConfigureResolver() error {
 	return sudoWriteFile(resolverFile, content, 0644)
 }
 
-// Teardown removes every /etc/resolver file lerd wrote (matched by content) so
+// Teardown removes every /etc/resolver file servlo wrote (matched by content) so
 // disabling DNS never orphans a resolver pointing at the torn-down dnsmasq.
 // Content-matching beats the config TLD: disable flips cfg.DNS.TLD first, so it
 // no longer names the file to remove, and a custom TLD leaves its own to clean.
@@ -124,7 +124,7 @@ func InstallSudoers() error {
 
 	content := renderDarwinSudoers(user, ConfiguredTLD())
 
-	const sudoersPath = "/etc/sudoers.d/lerd"
+	const sudoersPath = "/etc/sudoers.d/servlo"
 	if sudoersInstalled([]byte(content)) {
 		return nil
 	}
@@ -159,12 +159,12 @@ var (
 func renderDarwinSudoers(user, tld string) string {
 	resolverPath := "/etc/resolver/" + tld
 	return fmt.Sprintf(
-		"# Lerd: passwordless DNS resolver writes for /etc/resolver/%s.\n"+
+		"# Servlo: passwordless DNS resolver writes for /etc/resolver/%s.\n"+
 			"# Rules are fully qualified with no wildcards in command\n"+
 			"# arguments so they pass strict sudo parsers (sudo-rs, C\n"+
 			"# sudo >= 1.9.16). The matching code path pipes content\n"+
 			"# through `sudo tee <dest>` instead of\n"+
-			"# `sudo cp /var/folders/.../lerd-sudo-* <dest>` for the same reason.\n"+
+			"# `sudo cp /var/folders/.../servlo-sudo-* <dest>` for the same reason.\n"+
 			"%s ALL=(root) NOPASSWD: /bin/mkdir -p /etc/resolver\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/tee %s\n"+
 			"%s ALL=(root) NOPASSWD: /bin/chmod 644 %s\n",
@@ -183,5 +183,5 @@ func ReadUpstreamDNS() []string {
 
 // ResolverHint returns a user-facing hint for restarting DNS on macOS.
 func ResolverHint() string {
-	return "run 'lerd install' to reconfigure DNS"
+	return "run 'servlo install' to reconfigure DNS"
 }

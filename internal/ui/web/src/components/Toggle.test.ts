@@ -12,7 +12,7 @@ function thumbCls(container: HTMLElement): string {
 describe('Toggle', () => {
   it('off uses gray background, thumb at left', () => {
     const { container } = render(Toggle, { props: { on: false } });
-    expect(btnCls(container)).toMatch(/bg-gray-300|dark:bg-lerd-muted/);
+    expect(btnCls(container)).toMatch(/bg-gray-300|dark:bg-servlo-muted/);
     expect(thumbCls(container)).toMatch(/translate-x-0\.5/);
   });
 

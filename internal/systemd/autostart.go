@@ -4,12 +4,12 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// AutostartUserUnits returns the lerd-* systemd user units (NOT podman
-// quadlets) that participate in "autostart at login": lerd-ui,
-// lerd-watcher, lerd-tray, and every per-site worker/queue/schedule/
+// AutostartUserUnits returns the servlo-* systemd user units (NOT podman
+// quadlets) that participate in "autostart at login": servlo-panel,
+// servlo-watcher, and every per-site worker/queue/schedule/
 // horizon/reverb/stripe service file currently present in the user's
 // systemd/user/ directory. These can be enabled/disabled with
 // `systemctl --user enable/disable` because they are real on-disk unit
@@ -22,11 +22,10 @@ import (
 // config flag and a quadlet rewrite pass.
 func AutostartUserUnits() []string {
 	seen := map[string]struct{}{
-		"lerd-ui.service":      {},
-		"lerd-watcher.service": {},
-		"lerd-tray.service":    {},
+		"servlo-panel.service":   {},
+		"servlo-watcher.service": {},
 	}
-	if entries, err := filepath.Glob(filepath.Join(config.SystemdUserDir(), "lerd-*.service")); err == nil {
+	if entries, err := filepath.Glob(filepath.Join(config.SystemdUserDir(), "servlo-*.service")); err == nil {
 		for _, f := range entries {
 			name := filepath.Base(f)
 			seen[name] = struct{}{}
@@ -40,7 +39,7 @@ func AutostartUserUnits() []string {
 	return out
 }
 
-// IsAutostartEnabled reports whether lerd is configured to come up at
+// IsAutostartEnabled reports whether servlo is configured to come up at
 // login. This is the inverse of cfg.Autostart.Disabled — the config flag
 // is the canonical source of truth, not the live `systemctl is-enabled`
 // state of any individual unit, because (a) container quadlets always

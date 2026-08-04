@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // launchctl runs a launchctl command with a 15-second timeout so a throttled
-// or unresponsive service can never hang lerd indefinitely.
+// or unresponsive service can never hang servlo indefinitely.
 func launchctl(args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -114,9 +114,9 @@ func containerRunning(name string, snapshot map[string]bool) bool {
 	return podman.Cache.Running(name)
 }
 
-func lerdLogsDir() string {
+func servloLogsDir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "Library", "Logs", "lerd")
+	return filepath.Join(home, "Library", "Logs", "servlo")
 }
 
 func plistPath(name string) string {
@@ -124,7 +124,7 @@ func plistPath(name string) string {
 }
 
 func plistLabel(name string) string {
-	return "com.lerd." + name
+	return "com.servlo." + name
 }
 
 // --- Plist generation ---
@@ -163,7 +163,7 @@ func xmlUnescStr(s string) string {
 
 // keepAlivePolicy mirrors the subset of systemd Restart= values we care
 // about; bare KeepAlive=true respawns on clean exit, which is wrong for
-// Restart=on-failure (was breaking the tray Quit button).
+// Restart=on-failure.
 type keepAlivePolicy int
 
 const (
@@ -215,7 +215,7 @@ func ensurePlistDirs(name string) error {
 	if err := os.MkdirAll(launchAgentsDir(), 0755); err != nil {
 		return err
 	}
-	return os.MkdirAll(lerdLogsDir(), 0755)
+	return os.MkdirAll(servloLogsDir(), 0755)
 }
 
 // --- INI / Quadlet parser ---
@@ -310,7 +310,7 @@ func expandSpecifiers(s string) string {
 
 // precreateBindMountDirs creates the host source directory of each bind-mount
 // volume so podman run doesn't fail with statfs. A named volume (a bare name
-// with no absolute source, e.g. lerd-ssh-agent:/ssh-agent) is skipped: podman
+// with no absolute source, e.g. servlo-ssh-agent:/ssh-agent) is skipped: podman
 // manages it, and MkdirAll on the bare name would drop a stray relative
 // directory into the process working directory.
 func precreateBindMountDirs(vols []string) {
@@ -465,10 +465,10 @@ func containerToPodmanArgs(c map[string][]string) ([]string, error) {
 //
 // Binary resolution rules for args[0]:
 //   - Absolute path that exists → use as-is.
-//   - Absolute path that doesn't exist → substitute the running lerd binary
+//   - Absolute path that doesn't exist → substitute the running servlo binary
 //     (handles Homebrew → ~/.local/bin migration).
 //   - Bare command name (no '/') → resolve via PATH; if not found, substitute
-//     the running lerd binary (should not normally happen).
+//     the running servlo binary (should not normally happen).
 func parseServiceUnit(name, content string) (args []string, keepAlive keepAlivePolicy, err error) {
 	svc := parseSection(content, "Service")
 	execStarts := svc["ExecStart"]
@@ -490,7 +490,7 @@ func parseServiceUnit(name, content string) (args []string, keepAlive keepAliveP
 		}
 	} else {
 		// Bare command (e.g. "podman"): resolve via PATH first, then well-known
-		// Homebrew locations. Never fall back to the lerd binary — if the command
+		// Homebrew locations. Never fall back to the servlo binary — if the command
 		// cannot be found, return an error so the caller can surface a clear message.
 		resolved := ""
 		if p, lookErr := exec.LookPath(args[0]); lookErr == nil {
@@ -511,7 +511,7 @@ func parseServiceUnit(name, content string) (args []string, keepAlive keepAliveP
 	}
 
 	// Map Restart= to a launchd policy. `Restart=on-failure` translates to
-	// KeepAlive: SuccessfulExit=false so a clean exit (e.g. tray Quit) is
+	// KeepAlive: SuccessfulExit=false so a clean exit is
 	// honoured; only crashes or non-zero exits trigger a respawn.
 	restart := ""
 	if restarts := svc["Restart"]; len(restarts) > 0 {
@@ -536,7 +536,7 @@ func (m *darwinServiceManager) WriteServiceUnit(name, content string) error {
 	if err := ensurePlistDirs(name); err != nil {
 		return err
 	}
-	logPath := filepath.Join(lerdLogsDir(), name+".log")
+	logPath := filepath.Join(servloLogsDir(), name+".log")
 	plist := buildPlist(plistLabel(name), args, true, keepAlive, logPath, logPath)
 	return os.WriteFile(plistPath(name), []byte(plist), 0644)
 }
@@ -547,7 +547,7 @@ func (m *darwinServiceManager) WriteServiceUnitIfChanged(name, content string) (
 		return false, err
 	}
 
-	logPath := filepath.Join(lerdLogsDir(), name+".log")
+	logPath := filepath.Join(servloLogsDir(), name+".log")
 	newPlist := buildPlist(plistLabel(name), args, true, keepAlive, logPath, logPath)
 
 	if existing, err := os.ReadFile(plistPath(name)); err == nil && string(existing) == newPlist {
@@ -617,10 +617,10 @@ func (m *darwinServiceManager) WriteContainerUnit(name, content string) error {
 	if err := ensurePlistDirs(name); err != nil {
 		return err
 	}
-	logPath := filepath.Join(lerdLogsDir(), name+".log")
-	// RunAtLoad=false: container units are started by `lerd start` (via lerd-autostart),
+	logPath := filepath.Join(servloLogsDir(), name+".log")
+	// RunAtLoad=false: container units are started by `servlo start` (via servlo-autostart),
 	// which first ensures Podman Machine is running. Firing podman run at login before
-	// the machine is up causes silent failures, so we let lerd-autostart sequence it.
+	// the machine is up causes silent failures, so we let servlo-autostart sequence it.
 	// Stdout is suppressed (/dev/null) because `podman run -d` only prints the container
 	// ID there; real container output is accessible via `podman logs <name>`.
 	plist := buildPlist(plistLabel(name), args, false, keepAliveNever, "/dev/null", logPath)
@@ -642,7 +642,7 @@ func (m *darwinServiceManager) RemoveContainerUnit(name string) error {
 func (m *darwinServiceManager) ListContainerUnits(nameGlob string) []string {
 	// Container units share the same plist directory; no separate extension.
 	// We use the same glob pattern as service units — callers are expected to
-	// pass a glob that uniquely identifies containers (e.g. "lerd-*").
+	// pass a glob that uniquely identifies containers (e.g. "servlo-*").
 	return m.ListServiceUnits(nameGlob)
 }
 
@@ -774,7 +774,7 @@ func runPodmanWithError(args []string) error {
 func (m *darwinServiceManager) Stop(name string) error {
 	// Stop and remove the container only if it is actually running.
 	// Skipping the podman calls when the container is absent avoids flooding the
-	// Podman Machine SSH socket with N parallel no-op requests during lerd stop.
+	// Podman Machine SSH socket with N parallel no-op requests during servlo stop.
 	if running, _ := podman.ContainerRunning(name); running {
 		podman.Cmd("stop", "-t", "5", name).Run() //nolint:errcheck
 		podman.Cmd("rm", "-f", name).Run()        //nolint:errcheck
@@ -956,15 +956,15 @@ func isContainerPlist(out []byte) bool {
 	return strings.Contains(s, "/podman") && strings.Contains(s, "run")
 }
 
-// AllUnitStates enumerates every lerd-* plist in ~/Library/LaunchAgents and
+// AllUnitStates enumerates every servlo-* plist in ~/Library/LaunchAgents and
 // returns a snapshot keyed by unit name → systemd-style state string. Both
-// "lerd-foo" and "lerd-foo.service" forms are populated so cross-platform
+// "servlo-foo" and "servlo-foo.service" forms are populated so cross-platform
 // callers (workerheal, dashboard banner) can use a single suffix-based lookup.
 //
-// This is the launchd analogue of `systemctl --user list-units lerd-*` and
+// This is the launchd analogue of `systemctl --user list-units servlo-*` and
 // is wired onto siteinfo.AllUnitStates from siteinfo/unitcache_darwin.go.
 func (m *darwinServiceManager) AllUnitStates() map[string]string {
-	pattern := filepath.Join(launchAgentsDirFn(), "lerd-*.plist")
+	pattern := filepath.Join(launchAgentsDirFn(), "servlo-*.plist")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		return map[string]string{}
@@ -980,7 +980,7 @@ func (m *darwinServiceManager) AllUnitStates() map[string]string {
 	out := make(map[string]string, len(matches)*2)
 	for _, path := range matches {
 		name := strings.TrimSuffix(filepath.Base(path), ".plist")
-		if !strings.HasPrefix(name, "lerd-") {
+		if !strings.HasPrefix(name, "servlo-") {
 			continue
 		}
 		state, _ := m.unitStatus(name, snapshot)

@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // alignWorktreeEnvDBConnection mirrors the parent's DB connection coordinates
-// into each worktree .env (the worktree arm of `lerd env`), while leaving the
+// into each worktree .env (the worktree arm of `servlo env`), while leaving the
 // worktree-specific DB_DATABASE alone.
 func TestAlignWorktreeEnvDBConnection_realignsHostKeepsDatabase(t *testing.T) {
 	main := t.TempDir()
@@ -30,11 +30,11 @@ func TestAlignWorktreeEnvDBConnection_realignsHostKeepsDatabase(t *testing.T) {
 	}
 
 	// Parent .env already aligned to the current service; worktree .env is stale.
-	mainEnv := "DB_CONNECTION=pgsql\nDB_HOST=lerd-postgres-18\nDB_PORT=5432\nDB_DATABASE=acme\n"
+	mainEnv := "DB_CONNECTION=pgsql\nDB_HOST=servlo-postgres-18\nDB_PORT=5432\nDB_DATABASE=acme\n"
 	if err := os.WriteFile(filepath.Join(main, ".env"), []byte(mainEnv), 0644); err != nil {
 		t.Fatal(err)
 	}
-	wtEnv := "DB_CONNECTION=pgsql\nDB_HOST=lerd-postgres\nDB_PORT=5432\nDB_DATABASE=acme_feat_add_social_logins\n"
+	wtEnv := "DB_CONNECTION=pgsql\nDB_HOST=servlo-postgres\nDB_PORT=5432\nDB_DATABASE=acme_feat_add_social_logins\n"
 	if err := os.WriteFile(filepath.Join(checkout, ".env"), []byte(wtEnv), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -47,10 +47,10 @@ func TestAlignWorktreeEnvDBConnection_realignsHostKeepsDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(got)
-	if !strings.Contains(s, "DB_HOST=lerd-postgres-18") {
+	if !strings.Contains(s, "DB_HOST=servlo-postgres-18") {
 		t.Errorf("worktree DB_HOST not realigned to parent:\n%s", s)
 	}
-	if strings.Contains(s, "DB_HOST=lerd-postgres\n") {
+	if strings.Contains(s, "DB_HOST=servlo-postgres\n") {
 		t.Errorf("stale worktree DB_HOST still present:\n%s", s)
 	}
 	if !strings.Contains(s, "DB_DATABASE=acme_feat_add_social_logins") {
@@ -69,7 +69,7 @@ func TestAlignWorktreeEnvDBConnection_skipsWorktreeWithoutEnv(t *testing.T) {
 	}
 	os.WriteFile(filepath.Join(wtMeta, "HEAD"), []byte("ref: refs/heads/feat\n"), 0644)
 	os.WriteFile(filepath.Join(wtMeta, "gitdir"), []byte(filepath.Join(checkout, ".git")+"\n"), 0644)
-	os.WriteFile(filepath.Join(main, ".env"), []byte("DB_HOST=lerd-postgres-18\n"), 0644)
+	os.WriteFile(filepath.Join(main, ".env"), []byte("DB_HOST=servlo-postgres-18\n"), 0644)
 
 	site := &config.Site{Name: "acme", Path: main, Domains: []string{"acme.test"}}
 	// No worktree .env: must be a no-op, no panic, no file created.

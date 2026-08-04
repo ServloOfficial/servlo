@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +22,7 @@ var SupportedPHPVersions = config.SupportedPHPVersions
 // of being duplicated as literals elsewhere.
 var LegacyPHPVersions = []string{"7.4", "8.0"}
 
-// IsSupportedPHPVersion reports whether v is a version lerd can install.
+// IsSupportedPHPVersion reports whether v is a version servlo can install.
 func IsSupportedPHPVersion(v string) bool {
 	return config.IsSupportedPHPVersion(v)
 }
@@ -115,7 +115,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 // alone: fetch pre-builds images and is not a reason to start anything.
 func restartRebuiltFPMUnits(versions []string) {
 	for _, v := range versions {
-		unit := "lerd-php" + strings.ReplaceAll(v, ".", "") + "-fpm"
+		unit := "servlo-php" + strings.ReplaceAll(v, ".", "") + "-fpm"
 		if running, _ := fpmContainerRunning(unit); !running {
 			continue
 		}

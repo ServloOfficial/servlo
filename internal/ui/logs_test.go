@@ -10,29 +10,29 @@ import (
 )
 
 func TestServiceRecentLogs_unknownUnit(t *testing.T) {
-	result := serviceRecentLogs("lerd-nonexistent-unit-xyz")
+	result := serviceRecentLogs("servlo-nonexistent-unit-xyz")
 	if len(result) > 200 {
 		t.Errorf("expected short/empty result for unknown unit, got %d bytes", len(result))
 	}
 }
 
 func TestIsContainerUnit_nginx(t *testing.T) {
-	// lerd-nginx is a container on both platforms
-	if !isContainerUnit("lerd-nginx") {
-		t.Error("expected isContainerUnit to return true for lerd-nginx")
+	// servlo-nginx is a container on both platforms
+	if !isContainerUnit("servlo-nginx") {
+		t.Error("expected isContainerUnit to return true for servlo-nginx")
 	}
 }
 
 func TestIsContainerUnit_dns(t *testing.T) {
 	if runtime.GOOS == "darwin" {
-		// On macOS, lerd-dns runs natively via Homebrew
-		if isContainerUnit("lerd-dns") {
-			t.Error("expected isContainerUnit to return false for lerd-dns on macOS")
+		// On macOS, servlo-dns runs natively via Homebrew
+		if isContainerUnit("servlo-dns") {
+			t.Error("expected isContainerUnit to return false for servlo-dns on macOS")
 		}
 	} else {
-		// On Linux, lerd-dns is a container
-		if !isContainerUnit("lerd-dns") {
-			t.Error("expected isContainerUnit to return true for lerd-dns on linux")
+		// On Linux, servlo-dns is a container
+		if !isContainerUnit("servlo-dns") {
+			t.Error("expected isContainerUnit to return true for servlo-dns on linux")
 		}
 	}
 }
@@ -50,7 +50,7 @@ func TestStreamUnitLogs_flushesHeadersBeforeStreaming(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		streamUnitLogs(rec, req, "lerd-nonexistent-unit-xyz")
+		streamUnitLogs(rec, req, "servlo-nonexistent-unit-xyz")
 		close(done)
 	}()
 	<-done

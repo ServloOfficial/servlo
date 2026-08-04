@@ -1,0 +1,10 @@
+[Unit]
+Description=Servlo Project Watcher
+After=default.target
+
+[Service]
+ExecStart=%h/.local/bin/servlo watch
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

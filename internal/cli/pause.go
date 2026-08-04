@@ -7,15 +7,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/nginx"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteinfo"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/nginx"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteinfo"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -136,7 +136,7 @@ func siteContainerUnit(site *config.Site) string {
 }
 
 // setSiteContainerAutostart strips (on=false) or restores (on=true) the
-// [Install] section of a site container's quadlet, the same lever `lerd
+// [Install] section of a site container's quadlet, the same lever `servlo
 // autostart` uses globally, so a paused runtime site's container stops
 // autostarting at boot. Restoring is gated on the global autostart flag so
 // unpause never re-arms a container the user disabled globally. Returns whether
@@ -153,7 +153,7 @@ func setSiteContainerAutostart(site *config.Site, on bool) bool {
 		return false
 	}
 	out := podman.StripInstallSection(string(raw), true)
-	if on && lerdSystemd.IsAutostartEnabled() {
+	if on && servloSystemd.IsAutostartEnabled() {
 		out = strings.TrimRight(out, "\n") + "\n\n" + quadletInstallBlock
 	}
 	if out == string(raw) {
@@ -162,9 +162,9 @@ func setSiteContainerAutostart(site *config.Site, on bool) bool {
 	return os.WriteFile(path, []byte(out), 0644) == nil
 }
 
-// hostProxyEnvRefresh regenerates a site's .env by re-running `lerd env`. A
-// package var so tests can stub the re-exec; production points it at runLerdEnv.
-var hostProxyEnvRefresh = runLerdEnv
+// hostProxyEnvRefresh regenerates a site's .env by re-running `servlo env`. A
+// package var so tests can stub the re-exec; production points it at runServloEnv.
+var hostProxyEnvRefresh = runServloEnv
 
 // refreshHostProxyEnvOnResume regenerates a host-proxy site's .env as it unpauses,
 // so a published port that moved while it was paused (and was skipped by the
@@ -266,7 +266,7 @@ func UnpauseSite(name string) error {
 		}
 
 		if site.IsCustomFPM() {
-			// Per-site FPM container; the shared lerd-php<ver>-fpm is not used.
+			// Per-site FPM container; the shared servlo-php<ver>-fpm is not used.
 			_ = podman.StartUnit(podman.CustomFPMContainerName(site.Name))
 		} else if phpVersion != "" {
 			if err := ensureFPMQuadlet(phpVersion); err != nil {
@@ -345,7 +345,7 @@ func ensureServicesForCwd(cwd string) {
 	startServicesForSiteNoticed(cwd, siteName)
 }
 
-// startServicesForSite reads the site's .env file and ensures every lerd service
+// startServicesForSite reads the site's .env file and ensures every servlo service
 // it references is running. Called when resuming a paused site.
 func startServicesForSite(sitePath string) {
 	startServicesForSiteNoticed(sitePath, "")
@@ -373,8 +373,8 @@ func startServicesForSiteNoticed(sitePath, siteName string) {
 		if !envfile.ReferencesContainer(envContent, name) {
 			continue
 		}
-		if siteName != "" && !headerPrinted && !lerdSystemd.IsServiceActive("lerd-"+name) {
-			fmt.Printf("[lerd] site %q is paused — starting required services...\n", siteName)
+		if siteName != "" && !headerPrinted && !servloSystemd.IsServiceActive("servlo-"+name) {
+			fmt.Printf("[servlo] site %q is paused — starting required services...\n", siteName)
 			headerPrinted = true
 		}
 		if err := ensureServiceRunning(name); err != nil {
@@ -384,7 +384,7 @@ func startServicesForSiteNoticed(sitePath, siteName string) {
 }
 
 // CollectRunningWorkerNames returns the names of active workers for the site,
-// including stripe. Used to sync .lerd.yaml.
+// including stripe. Used to sync .servlo.yaml.
 func CollectRunningWorkerNames(site *config.Site) []string {
 	return collectRunningWorkers(site)
 }
@@ -398,7 +398,7 @@ func collectRunningWorkers(site *config.Site) []string {
 	// Enumerate all workers from the framework definition. Use
 	// podman.UnitStatus rather than systemd.IsServiceActiveOrRestarting
 	// because the latter is a no-op stub on darwin, which would make
-	// every `lerd worker start … && SetProjectWorkers(CollectRunningWorkerNames)`
+	// every `servlo worker start … && SetProjectWorkers(CollectRunningWorkerNames)`
 	// chain wipe the workers list it just appended to.
 	if fw, ok := config.GetFrameworkForDir(site.Framework, site.Path); ok && fw.Workers != nil {
 		names := make([]string, 0, len(fw.Workers))
@@ -408,7 +408,7 @@ func collectRunningWorkers(site *config.Site) []string {
 		sort.Strings(names)
 		states := siteinfo.AllUnitStates()
 		for _, wName := range names {
-			unit := "lerd-" + wName + "-" + site.Name
+			unit := "servlo-" + wName + "-" + site.Name
 			// Scheduled workers' .service sits at inactive between timer firings.
 			if unitIsActiveOrActivating(unit) ||
 				timerIsActive(states, unit) {
@@ -418,7 +418,7 @@ func collectRunningWorkers(site *config.Site) []string {
 	}
 
 	// Stripe is not a framework worker — check it separately.
-	if unitIsActiveOrActivating("lerd-stripe-" + site.Name) {
+	if unitIsActiveOrActivating("servlo-stripe-" + site.Name) {
 		active = append(active, "stripe")
 	}
 
@@ -435,14 +435,14 @@ func collectRunningWorkers(site *config.Site) []string {
 	for _, a := range active {
 		known[a] = true
 	}
-	active = append(active, lerdSystemd.FindOrphanedWorkers(site.Name, known)...)
+	active = append(active, servloSystemd.FindOrphanedWorkers(site.Name, known)...)
 
 	return active
 }
 
 // collectRunningWorktreeWorkers returns the active per-worktree workers for the
 // worktree checkout at wtPath, checked by their worktree unit names
-// (lerd-<w>-<site>-<wtBase>). Only workers a framework marks per_worktree:true
+// (servlo-<w>-<site>-<wtBase>). Only workers a framework marks per_worktree:true
 // run per worktree (for Laravel, just vite), so only those are enumerated.
 func collectRunningWorktreeWorkers(site *config.Site, wtPath string) []string {
 	return collectRunningWorktreeWorkersByBase(site, config.WorktreeUnitSlug(filepath.Base(wtPath)))
@@ -467,7 +467,7 @@ func collectRunningWorktreeWorkersByBase(site *config.Site, wtBase string) []str
 	var active []string
 	states := siteinfo.AllUnitStates()
 	for _, wName := range names {
-		unit := "lerd-" + wName + "-" + site.Name + "-" + wtBase
+		unit := "servlo-" + wName + "-" + site.Name + "-" + wtBase
 		if unitIsActiveOrActivating(unit) || timerIsActive(states, unit) {
 			active = append(active, wName)
 		}
@@ -548,7 +548,7 @@ const pausedPageHTML = `<!DOCTYPE html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Site Paused — Lerd</title>
+  <title>Site Paused — Servlo</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -626,7 +626,7 @@ const pausedPageHTML = `<!DOCTYPE html>
     <p>This site has been paused. Resume it to restore the application and restart any workers.</p>
     <div class="actions">
       <button id="btn" class="btn-primary" onclick="resume()">Resume</button>
-      <a href="http://lerd.localhost" class="btn-secondary">Dashboard</a>
+      <a href="http://servlo.localhost" class="btn-secondary">Dashboard</a>
     </div>
   </div>
   <script>
@@ -769,7 +769,7 @@ func pauseWorktrees(site *config.Site) {
 // unpauseHostProxyWorktrees restores the host-proxy vhost and dev server for
 // every worktree of a site that has just been unpaused. SetupHostProxyWorktree
 // mirrors the parent's proxy config (registry fallback), so it works even when
-// the worktree checkout has no .lerd.yaml of its own.
+// the worktree checkout has no .servlo.yaml of its own.
 func unpauseHostProxyWorktrees(site *config.Site) {
 	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
 	if err != nil || len(worktrees) == 0 {

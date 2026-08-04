@@ -2,7 +2,7 @@
 
 package cli
 
-import "github.com/geodro/lerd/internal/config"
+import "github.com/realrashid/servlo/internal/config"
 
 // workerSupportedOnPlatform reports whether the given worker can run on
 // the current host. host:true workers run natively on macOS via the

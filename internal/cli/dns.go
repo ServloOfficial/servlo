@@ -11,21 +11,21 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // LANProgressFunc is invoked by EnableLANExposure / DisableLANExposure
 // after every meaningful step completes. The argument is a short
 // human-readable label suitable for streaming to a frontend ("Rewriting
-// container quadlets", "Restarting lerd-dns", "Done — LAN IP 192.168.x.y").
+// container quadlets", "Restarting servlo-dns", "Done — LAN IP 192.168.x.y").
 // May be nil; the no-progress path is the common case (CLI without
-// streaming, internal idempotent re-application from `lerd remote-setup`).
+// streaming, internal idempotent re-application from `servlo remote-setup`).
 type LANProgressFunc func(step string)
 
-// EnableLANExposure flips lerd sites from the safe loopback default to
+// EnableLANExposure flips servlo sites from the safe loopback default to
 // LAN-exposed mode. Concretely:
 //
 //   - persists cfg.LAN.Exposed=true
@@ -71,8 +71,8 @@ func EnableLANExposure(progress LANProgressFunc) (lanIP string, err error) {
 			return "", fmt.Errorf("rewriting dnsmasq config: %w", err)
 		}
 
-		emit("Restarting lerd-dns")
-		if err := reloadAndRestartUnit("lerd-dns"); err != nil {
+		emit("Restarting servlo-dns")
+		if err := reloadAndRestartUnit("servlo-dns"); err != nil {
 			return "", err
 		}
 
@@ -81,42 +81,42 @@ func EnableLANExposure(progress LANProgressFunc) (lanIP string, err error) {
 		}
 	}
 
-	emit("Done — lerd is reachable on " + lanIP)
+	emit("Done — servlo is reachable on " + lanIP)
 	return lanIP, nil
 }
 
 // ensureLANForwarder installs the host-side LAN DNS forwarder when the platform
 // needs it. The forwarder is the Linux rootless-pasta workaround: there the
-// lerd-dns container cannot bind the host LAN address, so a forwarder bridges
-// lanIP:5300 → 127.0.0.1:5300. On macOS lerd-dns is a host dnsmasq that already
+// servlo-dns container cannot bind the host LAN address, so a forwarder bridges
+// lanIP:5300 → 127.0.0.1:5300. On macOS servlo-dns is a host dnsmasq that already
 // binds all interfaces (including lanIP), so installing a forwarder would
-// double-bind lanIP:5300 and crash lerd-dns; there this is a no-op.
+// double-bind lanIP:5300 and crash servlo-dns; there this is a no-op.
 func ensureLANForwarder(lanIP string, emit func(string)) error {
-	if lerdDNSBindsLANPort {
+	if servloDNSBindsLANPort {
 		if emit != nil {
-			emit("lerd-dns binds the LAN address directly; no forwarder needed")
+			emit("servlo-dns binds the LAN address directly; no forwarder needed")
 		}
 		return nil
 	}
 	return installLANForwarderFn(lanIP, emit)
 }
 
-// installAndStartForwarder runs the preflight, installs the lerd-dns-forwarder
+// installAndStartForwarder runs the preflight, installs the servlo-dns-forwarder
 // unit, and starts it. Default implementation behind installLANForwarderFn.
 func installAndStartForwarder(lanIP string, emit func(string)) error {
 	if err := preflightForwarderPort(lanIP, emit); err != nil {
 		return err
 	}
 	if emit != nil {
-		emit("Installing lerd-dns-forwarder.service")
+		emit("Installing servlo-dns-forwarder.service")
 	}
 	if err := installDNSForwarderUnit(lanIP); err != nil {
 		return fmt.Errorf("installing dns forwarder: %w", err)
 	}
 	if emit != nil {
-		emit("Starting lerd-dns-forwarder")
+		emit("Starting servlo-dns-forwarder")
 	}
-	if err := reloadAndRestartUnit("lerd-dns-forwarder"); err != nil {
+	if err := reloadAndRestartUnit("servlo-dns-forwarder"); err != nil {
 		return fmt.Errorf("starting dns forwarder: %w", err)
 	}
 	return nil
@@ -130,11 +130,11 @@ func installAndStartForwarder(lanIP string, emit func(string)) error {
 // is ignored, so this is a safe no-op when no forwarder is present.
 func ensureLANForwarderRemoved(emit func(string)) error {
 	if emit != nil {
-		emit("Stopping lerd-dns-forwarder")
+		emit("Stopping servlo-dns-forwarder")
 	}
-	_ = services.Mgr.Stop("lerd-dns-forwarder")
-	_ = services.Mgr.Disable("lerd-dns-forwarder")
-	if err := services.Mgr.RemoveServiceUnit("lerd-dns-forwarder"); err != nil && !os.IsNotExist(err) {
+	_ = services.Mgr.Stop("servlo-dns-forwarder")
+	_ = services.Mgr.Disable("servlo-dns-forwarder")
+	if err := services.Mgr.RemoveServiceUnit("servlo-dns-forwarder"); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("removing forwarder unit: %w", err)
 	}
 	_ = services.Mgr.DaemonReload()
@@ -142,7 +142,7 @@ func ensureLANForwarderRemoved(emit func(string)) error {
 	return nil
 }
 
-// DisableLANExposure flips lerd back to the safe loopback default. Inverts
+// DisableLANExposure flips servlo back to the safe loopback default. Inverts
 // EnableLANExposure: rewrites every container PublishPort to bind 127.0.0.1,
 // stops the dns-forwarder, reverts dnsmasq to answer with 127.0.0.1, and
 // revokes any outstanding remote-setup token (a code is only useful while
@@ -185,13 +185,13 @@ func DisableLANExposure(progress LANProgressFunc) error {
 			return fmt.Errorf("rewriting dnsmasq config: %w", err)
 		}
 
-		emit("Restarting lerd-dns")
-		if err := reloadAndRestartUnit("lerd-dns"); err != nil {
+		emit("Restarting servlo-dns")
+		if err := reloadAndRestartUnit("servlo-dns"); err != nil {
 			return err
 		}
 	}
 
-	emit("Done — lerd is loopback only")
+	emit("Done — servlo is loopback only")
 	return nil
 }
 
@@ -211,7 +211,7 @@ func SetManagedServiceLANExposure(enabled bool, progress LANProgressFunc) error 
 }
 
 // regenerateLANContainerQuadlets reapplies the current LAN bind policy to every
-// installed lerd container while preserving each unit's current configuration.
+// installed servlo container while preserving each unit's current configuration.
 // Only affected units that are already running are restarted; inactive runtime
 // services remain inactive.
 //
@@ -252,16 +252,16 @@ func regenerateLANContainerQuadlets(progress LANProgressFunc) error {
 // without binding real ports, spawning lsof, or depending on services.Mgr.
 var (
 	forwarderUnitStatusFn = func() string {
-		s, _ := services.Mgr.UnitStatus("lerd-dns-forwarder")
+		s, _ := services.Mgr.UnitStatus("servlo-dns-forwarder")
 		return s
 	}
-	// lerdDNSBindsLANPort is true on platforms where the main lerd-dns daemon
+	// servloDNSBindsLANPort is true on platforms where the main servlo-dns daemon
 	// binds lanIP:5300 itself (macOS host dnsmasq) instead of via the separate
-	// lerd-dns-forwarder (the Linux rootless-pasta workaround). On such
+	// servlo-dns-forwarder (the Linux rootless-pasta workaround). On such
 	// platforms LAN exposure must NOT install the forwarder: it would
-	// double-bind lanIP:5300 and crash lerd-dns. Seam so both models are
+	// double-bind lanIP:5300 and crash servlo-dns. Seam so both models are
 	// testable from any build host.
-	lerdDNSBindsLANPort = runtime.GOOS == "darwin"
+	servloDNSBindsLANPort = runtime.GOOS == "darwin"
 	// installLANForwarderFn installs and starts the host-side LAN DNS
 	// forwarder. Seam so the macOS skip can be asserted without touching real
 	// units.
@@ -270,7 +270,7 @@ var (
 	forwarderPortHolderFn = forwarderPortHolderLsof
 )
 
-// forwarderPort is the host port lerd-dns-forwarder listens on.
+// forwarderPort is the host port servlo-dns-forwarder listens on.
 const forwarderPort = 5300
 
 // preflightForwarderPort refuses to install the LAN DNS forwarder when
@@ -284,7 +284,7 @@ const forwarderPort = 5300
 func preflightForwarderPort(lanIP string, emit func(string)) error {
 	if s := forwarderUnitStatusFn(); s == "active" || s == "activating" || s == "deactivating" {
 		if emit != nil {
-			emit("Pre-flight: lerd-dns-forwarder is " + s + "; skipping port check")
+			emit("Pre-flight: servlo-dns-forwarder is " + s + "; skipping port check")
 		}
 		return nil
 	}
@@ -295,7 +295,7 @@ func preflightForwarderPort(lanIP string, emit func(string)) error {
 		return nil
 	}
 	holder := forwarderPortHolderFn(lanIP, forwarderPort)
-	return fmt.Errorf("%s:%d is already in use; lerd cannot install the LAN DNS forwarder.\n%s\nStop the conflicting service (or rebind it off port %d) and re-run `lerd lan expose`", lanIP, forwarderPort, holder, forwarderPort)
+	return fmt.Errorf("%s:%d is already in use; servlo cannot install the LAN DNS forwarder.\n%s\nStop the conflicting service (or rebind it off port %d) and re-run `servlo lan expose`", lanIP, forwarderPort, holder, forwarderPort)
 }
 
 // forwarderPortFree returns true when both UDP and TCP on host:port are
@@ -347,7 +347,7 @@ func forwarderHolderFallbackHint(goos string, port int) string {
 }
 
 // installDNSForwarderUnit writes the user service that runs the
-// `lerd dns-forwarder` daemon, listening on lanIP:5300 and forwarding to
+// `servlo dns-forwarder` daemon, listening on lanIP:5300 and forwarding to
 // 127.0.0.1:5300. Routes through services.Mgr so the unit content is
 // rendered as a systemd .service on Linux and a launchd plist on macOS
 // (see services/launchd_darwin.go::parseServiceUnit). Idempotent.
@@ -356,11 +356,11 @@ func installDNSForwarderUnit(lanIP string) error {
 	if err != nil {
 		return err
 	}
-	binPath := filepath.Join(home, ".local", "bin", "lerd")
+	binPath := filepath.Join(home, ".local", "bin", "servlo")
 	content := fmt.Sprintf(`[Unit]
-Description=Lerd DNS LAN Forwarder (rootless pasta workaround)
-After=lerd-dns.service
-Requires=lerd-dns.service
+Description=Servlo DNS LAN Forwarder (rootless pasta workaround)
+After=servlo-dns.service
+Requires=servlo-dns.service
 
 [Service]
 ExecStart=%s dns-forwarder --listen %s:5300 --forward 127.0.0.1:5300
@@ -370,10 +370,10 @@ RestartSec=2
 [Install]
 WantedBy=default.target
 `, binPath, lanIP)
-	if err := services.Mgr.WriteServiceUnit("lerd-dns-forwarder", content); err != nil {
+	if err := services.Mgr.WriteServiceUnit("servlo-dns-forwarder", content); err != nil {
 		return err
 	}
-	_ = services.Mgr.Enable("lerd-dns-forwarder")
+	_ = services.Mgr.Enable("servlo-dns-forwarder")
 	return nil
 }
 

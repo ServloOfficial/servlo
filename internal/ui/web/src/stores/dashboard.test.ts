@@ -59,7 +59,7 @@ describe('dashboard store', () => {
     openDocs();
     const cur = get(dashboardOpen);
     expect(cur?.name).toBe('docs');
-    expect(cur?.dashboard).toBe('https://lerd.sh/getting-started/requirements');
+    expect(cur?.dashboard).toBe('https://realrashid.github.io/servlo/getting-started/requirements');
     expect(location.hash).toBe('#docs');
   });
 

@@ -50,7 +50,7 @@ func TestBundledExtensionsUseInstallNames(t *testing.T) {
 // (BundledExtensions claiming a name nothing installs); that unverifiable core
 // group is guarded by the php -m check in base-images.yml (#856).
 func TestBundledExtensionsCoverContainerfile(t *testing.T) {
-	cf, err := GetQuadletTemplate("lerd-php-fpm.Containerfile")
+	cf, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 	if err != nil {
 		t.Fatalf("reading FPM Containerfile: %v", err)
 	}

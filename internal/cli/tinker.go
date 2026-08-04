@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/agentenv"
-	"github.com/geodro/lerd/internal/config"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/agentenv"
+	"github.com/realrashid/servlo/internal/config"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // psyshEvalLocRe matches the trailing ` // vendor/psy/psysh/.../eval()'d code:N`
@@ -66,7 +66,7 @@ type TinkerResult struct {
 // label returned in the response is the framework name (e.g. "laravel")
 // or "php" for the fallback.
 //
-// siteName + branch are forwarded to the container as LERD_SITE / LERD_BRANCH
+// siteName + branch are forwarded to the container as SERVLO_SITE / SERVLO_BRANCH
 // env vars so the debug bridge tags `dump()` / `dd()` events with the same
 // identifiers FPM requests use (otherwise tinker dumps land under the
 // worktree's directory basename rather than the parent site).
@@ -122,10 +122,10 @@ func RunTinker(ctx context.Context, sitePath, siteName, branch, code string) (Ti
 		envArgs = append(envArgs, "--env", e)
 	}
 	if siteName != "" {
-		envArgs = append(envArgs, "--env", "LERD_SITE="+siteName)
+		envArgs = append(envArgs, "--env", "SERVLO_SITE="+siteName)
 	}
 	if branch != "" {
-		envArgs = append(envArgs, "--env", "LERD_BRANCH="+branch)
+		envArgs = append(envArgs, "--env", "SERVLO_BRANCH="+branch)
 	}
 
 	var argv []string
@@ -195,7 +195,7 @@ func RunTinker(ctx context.Context, sitePath, siteName, branch, code string) (Ti
 // ANSI-colored, PSYSH_TRUST_PROJECT so PsySH skips its non-interactive
 // "Restricted Mode" warning (the user is running their own project code in
 // their own container; restricting it adds noise without security gain),
-// and LERD_DUMP_PASSTHROUGH=1 so when the debug bridge is on the auto-
+// and SERVLO_DUMP_PASSTHROUGH=1 so when the debug bridge is on the auto-
 // wrapped `dump(expr)` still prints to stdout. Without it the bridge
 // silently swallows the value and the REPL shows nothing for bare
 // expressions like `User::count()`.
@@ -209,7 +209,7 @@ func tinkerEnvArgs(sitePath, home, composerHome string) []string {
 		"--env", "NO_COLOR=1",
 		"--env", "TERM=dumb",
 		"--env", "PSYSH_TRUST_PROJECT=1",
-		"--env", "LERD_DUMP_PASSTHROUGH=1",
+		"--env", "SERVLO_DUMP_PASSTHROUGH=1",
 	}
 }
 
@@ -250,9 +250,9 @@ const TinkerQueryMarker = "\x02"
 // (`\x1e<line>\x1f\x02<sql>`) with bindings inlined for display, then re-opens
 // a result block so the statement's own dump output lands in a fresh block
 // after its queries. Guarded by class_exists so non-Laravel REPLs are a no-op.
-// `$GLOBALS['__lerd_line']`, set before each statement, tells the listener
+// `$GLOBALS['__servlo_line']`, set before each statement, tells the listener
 // which editor line triggered the query.
-const queryListenerPrelude = `if(class_exists('Illuminate\\Support\\Facades\\DB')){\Illuminate\Support\Facades\DB::listen(function($q){$s=$q->sql;$o=0;foreach((array)$q->bindings as $b){if(is_null($b)){$v='null';}elseif(is_bool($b)){$v=$b?'1':'0';}elseif(is_int($b)||is_float($b)){$v=(string)$b;}elseif($b instanceof \DateTimeInterface){$v="'".$b->format('Y-m-d H:i:s')."'";}elseif(is_object($b)){$v="'".(method_exists($b,'__toString')?(string)$b:get_class($b))."'";}else{$v="'".str_replace("'","''",(string)$b)."'";}$p=strpos($s,'?',$o);if($p!==false){$s=substr($s,0,$p).$v.substr($s,$p+1);$o=$p+strlen($v);}}$l=$GLOBALS['__lerd_line']??0;echo "\x1e".$l."\x1f\x02".$s."\x1e".$l."\x1f";});}`
+const queryListenerPrelude = `if(class_exists('Illuminate\\Support\\Facades\\DB')){\Illuminate\Support\Facades\DB::listen(function($q){$s=$q->sql;$o=0;foreach((array)$q->bindings as $b){if(is_null($b)){$v='null';}elseif(is_bool($b)){$v=$b?'1':'0';}elseif(is_int($b)||is_float($b)){$v=(string)$b;}elseif($b instanceof \DateTimeInterface){$v="'".$b->format('Y-m-d H:i:s')."'";}elseif(is_object($b)){$v="'".(method_exists($b,'__toString')?(string)$b:get_class($b))."'";}else{$v="'".str_replace("'","''",(string)$b)."'";}$p=strpos($s,'?',$o);if($p!==false){$s=substr($s,0,$p).$v.substr($s,$p+1);$o=$p+strlen($v);}}$l=$GLOBALS['__servlo_line']??0;echo "\x1e".$l."\x1f\x02".$s."\x1e".$l."\x1f";});}`
 
 // transformForMultiStatement keeps the legacy callsite working with the
 // default Laravel `dump()` helper. Tinker mode uses this directly.
@@ -298,7 +298,7 @@ func transformWithSeparator(code, dumpFn string, captureQueries bool) string {
 		if captureQueries {
 			// Tell the query listener which line is running, so any query it
 			// catches is tagged with this statement's source line.
-			fmt.Fprintf(&sb, `$GLOBALS['__lerd_line']=%d;`, p.line)
+			fmt.Fprintf(&sb, `$GLOBALS['__servlo_line']=%d;`, p.line)
 		}
 		fmt.Fprintf(&sb, `echo "\x1e%d\x1f";`, p.line)
 		out := autoDumpLastExpressionWith(body, dumpFn)
@@ -545,7 +545,7 @@ func writeTinkerScript(sitePath, code, mode string) (string, error) {
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
-	name := ".lerd-tinker-" + hex.EncodeToString(buf) + ".php"
+	name := ".servlo-tinker-" + hex.EncodeToString(buf) + ".php"
 	full := filepath.Join(sitePath, name)
 
 	body := strings.TrimLeft(code, " \t\r\n")

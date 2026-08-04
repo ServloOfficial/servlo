@@ -42,7 +42,7 @@ func TestUsesBunJSRuntimeOverride(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "bun.lockb"), []byte("x"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("js_runtime: node\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("js_runtime: node\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if UsesBun(dir) {
@@ -51,7 +51,7 @@ func TestUsesBunJSRuntimeOverride(t *testing.T) {
 
 	// js_runtime: bun forces bun with no lockfile present.
 	dir2 := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir2, ".lerd.yaml"), []byte("js_runtime: bun\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir2, ".servlo.yaml"), []byte("js_runtime: bun\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if !UsesBun(dir2) {
@@ -64,7 +64,7 @@ func TestUsesBunJSRuntimeOverride(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(d, "bun.lockb"), []byte("x"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(d, ".lerd.yaml"), []byte("js_runtime: "+val+"\n"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(d, ".servlo.yaml"), []byte("js_runtime: "+val+"\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 		if UsesBun(d) {

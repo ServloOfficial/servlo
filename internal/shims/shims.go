@@ -1,4 +1,4 @@
-// Package shims is the single owner of the client-tool host shims that lerd
+// Package shims is the single owner of the client-tool host shims that servlo
 // services expose (mysqldump, pg_dump, psql…): the tri-state install decisions,
 // host-conflict detection, script generation, and the reconcile that brings the
 // shim dir in line with the installed services.
@@ -18,14 +18,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/services"
 	"gopkg.in/yaml.v3"
 )
 
 // marker tags every generated shim so the reconcile only ever touches its own
 // files, never a user binary or another shim category.
-const marker = "lerd-managed service client shim"
+const marker = "servlo-managed service client shim"
 
 // shimNamePattern allowlists a store-declared client-tool name: it becomes a
 // filename and a token in the generated script, so a path separator or shell
@@ -95,10 +95,10 @@ type Info struct {
 type Prompter func(tool string) (enable, decided bool)
 
 // script renders the host shim: a trivial pass-through into
-// `lerd client-exec <tool>`, so args, stdin, stdout and exit code all behave
+// `servlo client-exec <tool>`, so args, stdin, stdout and exit code all behave
 // exactly like the native binary an IDE would call.
-func script(lerdBin, tool string) string {
-	return "#!/bin/sh\n# " + marker + "\nexec " + lerdBin + " client-exec " + tool + " \"$@\"\n"
+func script(servloBin, tool string) string {
+	return "#!/bin/sh\n# " + marker + "\nexec " + servloBin + " client-exec " + tool + " \"$@\"\n"
 }
 
 // Targets maps every client tool exposed by an installed service to the
@@ -139,13 +139,13 @@ func Targets() map[string]Target {
 func installedServiceNames() []string {
 	var names []string
 	for _, n := range config.DefaultPresetNames() {
-		if services.Mgr != nil && services.Mgr.ContainerUnitInstalled("lerd-"+n) {
+		if services.Mgr != nil && services.Mgr.ContainerUnitInstalled("servlo-"+n) {
 			names = append(names, n)
 		}
 	}
 	customs, _ := config.ListCustomServices()
 	for _, c := range customs {
-		if services.Mgr != nil && services.Mgr.ContainerUnitInstalled("lerd-"+c.Name) {
+		if services.Mgr != nil && services.Mgr.ContainerUnitInstalled("servlo-"+c.Name) {
 			names = append(names, c.Name)
 		}
 	}
@@ -257,7 +257,7 @@ func serviceTarget(service, tool string) (Target, bool) {
 }
 
 // List returns every exposed client tool with its state, sorted by tool name,
-// for the `lerd shims` listing.
+// for the `servlo shims` listing.
 func List() []Info {
 	targets := Targets()
 	tools := make([]string, 0, len(targets))
@@ -280,7 +280,7 @@ func List() []Info {
 }
 
 // Set is the single entry point for an explicit shim decision, shared by the
-// CLI (`lerd shims add/remove`) and the web UI toggle. It validates that an
+// CLI (`servlo shims add/remove`) and the web UI toggle. It validates that an
 // installed service actually exposes the tool, records the decision, and
 // reconciles so the change takes effect at once. It never prompts.
 func Set(tool string, enabled bool) error {
@@ -299,7 +299,7 @@ func Set(tool string, enabled bool) error {
 // reconcile) to leave conflicts undecided. Shims for tools no longer exposed by
 // any installed service are pruned.
 func Reconcile(prompt Prompter) error {
-	lerdBin, err := os.Executable()
+	servloBin, err := os.Executable()
 	if err != nil {
 		return err
 	}
@@ -314,7 +314,7 @@ func Reconcile(prompt Prompter) error {
 		shimPath := filepath.Join(binDir, tool)
 		if enabled {
 			if canWriteShim(shimPath) {
-				_ = os.WriteFile(shimPath, []byte(script(lerdBin, tool)), 0755)
+				_ = os.WriteFile(shimPath, []byte(script(servloBin, tool)), 0755)
 			}
 		} else {
 			removeIfShim(shimPath)
@@ -347,7 +347,7 @@ func decide(tool string, prompt Prompter) (enabled, decided bool) {
 }
 
 // hostHasTool reports whether the user already has the named tool on their PATH,
-// excluding lerd's own shim dir so a previously-installed lerd shim is never
+// excluding servlo's own shim dir so a previously-installed servlo shim is never
 // mistaken for a real host binary.
 func hostHasTool(tool string) bool {
 	binDir := config.BinDir()
@@ -364,7 +364,7 @@ func hostHasTool(tool string) bool {
 }
 
 // canWriteShim reports whether the reconcile may write path: only when it is
-// absent or already one of lerd's client shims. An existing non-shim file (the
+// absent or already one of servlo's client shims. An existing non-shim file (the
 // installer's php/composer, or a user binary sharing a tool name) is left intact,
 // mirroring removeIfShim so the write and remove sides guard the same set.
 func canWriteShim(path string) bool {
@@ -374,7 +374,7 @@ func canWriteShim(path string) bool {
 	return isShimFile(path)
 }
 
-// removeIfShim deletes path only when it is one of lerd's client shims, so the
+// removeIfShim deletes path only when it is one of servlo's client shims, so the
 // reconcile never removes a user's own binary of the same name.
 func removeIfShim(path string) {
 	if isShimFile(path) {
@@ -407,7 +407,7 @@ func pruneOrphans(targets map[string]Target) {
 	}
 }
 
-// isShimFile reports whether path is a lerd-managed client shim, matched by the
+// isShimFile reports whether path is a servlo-managed client shim, matched by the
 // marker comment its generator writes.
 func isShimFile(path string) bool {
 	data, err := os.ReadFile(path)

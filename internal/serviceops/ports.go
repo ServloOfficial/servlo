@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // ErrPortInUse is returned by SetPublishedPort when the requested host port is
@@ -17,10 +17,10 @@ import (
 var ErrPortInUse = errors.New("port already in use")
 
 // ErrPortReserved is returned when a requested host port is already claimed by
-// another lerd service (its default, published, or extra ports). A plain
+// another servlo service (its default, published, or extra ports). A plain
 // bindability test misses this while that sibling is stopped, so the two units
 // would collide at boot — this rejects the clash up front.
-var ErrPortReserved = errors.New("port already claimed by another lerd service")
+var ErrPortReserved = errors.New("port already claimed by another servlo service")
 
 // PortChange reports the outcome of SetPublishedPort so each surface (CLI, MCP,
 // Web UI) renders its own message from one shared code path.
@@ -71,7 +71,7 @@ func SetPublishedPort(name string, port int) (PortChange, error) {
 	// Requesting the preset default is the same as resetting to it: normalise to 0
 	// so we don't store a redundant override and, crucially, skip the bind probe
 	// below — a running service holds its own default port, so probing it would
-	// otherwise reject `lerd service port mysql 3306` while mysql legitimately owns
+	// otherwise reject `servlo service port mysql 3306` while mysql legitimately owns
 	// 3306 (the Web UI already converts the default to null client-side).
 	if port > 0 && port == svcCfg.Port {
 		port = 0
@@ -90,7 +90,7 @@ func SetPublishedPort(name string, port int) (PortChange, error) {
 			}
 		}
 	}
-	// Reject a port another lerd service already claims (even a stopped one), so
+	// Reject a port another servlo service already claims (even a stopped one), so
 	// the two units can't collide at boot.
 	if port > 0 && portReservedByOther(name, port) {
 		return res, fmt.Errorf("%w: %d", ErrPortReserved, port)
@@ -149,7 +149,7 @@ func SetPublishedPort(name string, port int) (PortChange, error) {
 // back up on it, so a failed move never leaves the service down. Shared by the
 // primary and secondary port paths so both recover identically.
 func applyServicePortRestart(name string, res *PortChange, prevActual int, rereadActual func() int, persistPrev func() error) error {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	status, _ := portsUnitStatus(unit)
 	res.WasActive = status == "active" || status == "activating"
 	if res.WasActive {
@@ -173,7 +173,7 @@ func applyServicePortRestart(name string, res *PortChange, prevActual int, rerea
 			_ = portsWaitReady(name, 30*time.Second)
 			return fmt.Errorf("could not start %s on the new port, restored the previous port %d: %w", unit, prevActual, startErr)
 		}
-		return fmt.Errorf("could not start %s and could not restore the previous port, run `lerd start`: %w", unit, startErr)
+		return fmt.Errorf("could not start %s and could not restore the previous port, run `servlo start`: %w", unit, startErr)
 	}
 	_ = portsWaitReady(name, 30*time.Second)
 	return nil
@@ -316,7 +316,7 @@ func persistSecondaryOverride(name string, containerPort, port int) error {
 // (each a bare "host", "host:container", or "ip:host:container" mapping),
 // de-duplicating and validating, then re-rendering and restarting the unit when
 // it is running. Shared by the CLI `service expose`, MCP service:expose, and the
-// Web UI ports endpoint. Any preset lerd ships qualifies (default-stack or
+// Web UI ports endpoint. Any preset servlo ships qualifies (default-stack or
 // optional like gotenberg); genuinely custom services declare their ports in
 // their own YAML, so they're excluded.
 func SetExtraPorts(name string, ports []string) error {
@@ -380,8 +380,8 @@ func updateExtraPorts(name string, mutate func(current []string) []string) error
 	}
 	// Treat "activating" as running too (a slow-booting unit), matching
 	// applyServicePortRestart, so a port exposed mid-boot still takes effect.
-	if status, _ := podman.UnitStatus("lerd-" + name); status == "active" || status == "activating" {
-		_ = podman.RestartUnit("lerd-" + name)
+	if status, _ := podman.UnitStatus("servlo-" + name); status == "active" || status == "activating" {
+		_ = podman.RestartUnit("servlo-" + name)
 	}
 	return nil
 }
@@ -440,7 +440,7 @@ func rerenderServiceQuadlet(name string) error {
 	return EnsureCustomServiceQuadlet(svc)
 }
 
-// portReservedByOther reports whether host port p is already claimed by a lerd
+// portReservedByOther reports whether host port p is already claimed by a servlo
 // service other than self: its effective primary, its extra ports, and — unlike a
 // bare HostPorts() read — a multi-port service's un-overridden SECONDARY default
 // ports too, so a stopped mailpit still reserves its 8025 web UI.
@@ -561,7 +561,7 @@ func RestorePublishedPorts(name string, snap PublishedPortSnapshot) error {
 	// .env to follow it) would roll the port back but leave host-proxy sites
 	// pointing at the port the service no longer publishes.
 	defer suppressPublishedPortShift()()
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	wasActive := unitActive(name)
 	if wasActive {
 		_ = portsStopUnit(unit)

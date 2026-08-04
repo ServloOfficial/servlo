@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 )
 
@@ -86,8 +86,8 @@ func familyLabel(f string) string {
 }
 
 // siteDBService returns the concrete DB service a site currently uses (e.g.
-// "postgres-18"), reading the explicit choice from .lerd.yaml first and falling
-// back to the container hostname in .env. Returns "" for sqlite or when no lerd
+// "postgres-18"), reading the explicit choice from .servlo.yaml first and falling
+// back to the container hostname in .env. Returns "" for sqlite or when no servlo
 // DB service can be determined.
 func siteDBService(sitePath string) string {
 	if pc, err := config.LoadProjectConfig(sitePath); err == nil {
@@ -101,8 +101,8 @@ func siteDBService(sitePath string) string {
 		}
 	}
 	host := strings.TrimSpace(envfile.ReadKey(filepath.Join(sitePath, ".env"), "DB_HOST"))
-	if strings.HasPrefix(host, "lerd-") {
-		return strings.TrimPrefix(host, "lerd-")
+	if strings.HasPrefix(host, "servlo-") {
+		return strings.TrimPrefix(host, "servlo-")
 	}
 	return ""
 }
@@ -170,7 +170,7 @@ func runDbMove(from, to string, siteNames []string, all, force bool) error {
 		return err
 	}
 	if !serviceops.ServiceInstalled(to) {
-		return fmt.Errorf("target service %q is not installed — add it from the Services tab or with `lerd service preset %s`", to, config.FamilyOfName(to))
+		return fmt.Errorf("target service %q is not installed — add it from the Services tab or with `servlo service preset %s`", to, config.FamilyOfName(to))
 	}
 
 	targets, err := resolveMoveSites(reg, from, siteNames, all)
@@ -228,7 +228,7 @@ func runDbMoveOne(sitePath, siteName, from, to string) error {
 		return fmt.Errorf("could not start %s: %w", from, err)
 	}
 
-	tmp, err := os.CreateTemp("", "lerd-dbmove-*.sql")
+	tmp, err := os.CreateTemp("", "servlo-dbmove-*.sql")
 	if err != nil {
 		return fmt.Errorf("creating temp dump: %w", err)
 	}
@@ -254,16 +254,16 @@ func runDbMoveOne(sitePath, siteName, from, to string) error {
 
 	// Repoint the site at the target service. This mirrors db_set: it rewrites
 	// the DB_ keys in .env (host-proxy aware), starts the target, and creates
-	// the database, so the dump has somewhere to land. Snapshot .lerd.yaml's
+	// the database, so the dump has somewhere to land. Snapshot .servlo.yaml's
 	// source and the .env bytes first so a failed repoint can be fully undone.
 	feedback.Note("repointing " + siteName + " at " + to)
 	envPath := filepath.Join(sitePath, ".env")
 	prevEnv, _ := os.ReadFile(envPath)
 	if err := config.ReplaceProjectDBService(sitePath, to); err != nil {
-		return fmt.Errorf("saving .lerd.yaml: %w", err)
+		return fmt.Errorf("saving .servlo.yaml: %w", err)
 	}
 	// Once the site is repointed at the target, any later failure has to undo
-	// .lerd.yaml and .env so the live site keeps pointing at the source (whose
+	// .servlo.yaml and .env so the live site keeps pointing at the source (whose
 	// data is still intact) rather than an empty or half-restored target DB.
 	rollback := func(cause error) error {
 		rbErr := config.ReplaceProjectDBService(sitePath, from)
@@ -277,7 +277,7 @@ func runDbMoveOne(sitePath, siteName, from, to string) error {
 		}
 		return cause
 	}
-	if err := runLerdEnv(sitePath); err != nil {
+	if err := runServloEnv(sitePath); err != nil {
 		return rollback(fmt.Errorf("applying env for target: %w", err))
 	}
 
@@ -316,12 +316,12 @@ func runDbMoveOne(sitePath, siteName, from, to string) error {
 	return nil
 }
 
-// runLerdEnv re-execs `lerd env` in the project directory so the existing env
+// runServloEnv re-execs `servlo env` in the project directory so the existing env
 // setup (service start, .env rewrite, database provisioning) runs unchanged.
-func runLerdEnv(dir string) error {
+func runServloEnv(dir string) error {
 	self, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("resolving lerd executable: %w", err)
+		return fmt.Errorf("resolving servlo executable: %w", err)
 	}
 	cmd := exec.Command(self, "env")
 	cmd.Dir = dir
@@ -364,13 +364,13 @@ func dbMoveWizard(reg *config.SiteRegistry, from, to string) (string, string, []
 	if to == "" {
 		var targets []string
 		for _, host := range config.ServicesInFamily(family) {
-			name := strings.TrimPrefix(host, "lerd-")
+			name := strings.TrimPrefix(host, "servlo-")
 			if name != from && serviceops.ServiceInstalled(name) {
 				targets = append(targets, name)
 			}
 		}
 		if len(targets) == 0 {
-			return "", "", nil, fmt.Errorf("no other installed %s service to move to — install an alternate first (Services tab or `lerd service preset %s`)", family, family)
+			return "", "", nil, fmt.Errorf("no other installed %s service to move to — install an alternate first (Services tab or `servlo service preset %s`)", family, family)
 		}
 		if err := huh.NewForm(huh.NewGroup(
 			huh.NewSelect[string]().

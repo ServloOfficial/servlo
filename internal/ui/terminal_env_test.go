@@ -7,7 +7,7 @@ import (
 )
 
 func TestGraphicalEnvPreservesBaseEnvAndPatchesDisplay(t *testing.T) {
-	t.Setenv("LERD_TEST_SENTINEL", "abc123")
+	t.Setenv("SERVLO_TEST_SENTINEL", "abc123")
 	t.Setenv("WAYLAND_DISPLAY", "")
 	t.Setenv("DISPLAY", "")
 
@@ -23,7 +23,7 @@ func TestGraphicalEnvPreservesBaseEnvAndPatchesDisplay(t *testing.T) {
 	var waylandVal string
 	for _, kv := range env {
 		switch {
-		case kv == "LERD_TEST_SENTINEL=abc123":
+		case kv == "SERVLO_TEST_SENTINEL=abc123":
 			sawSentinel = true
 		case strings.HasPrefix(kv, "WAYLAND_DISPLAY="):
 			sawWayland = true

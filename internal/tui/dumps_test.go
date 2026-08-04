@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/dumps"
+	"github.com/realrashid/servlo/internal/dumps"
 )
 
 // TestStreamDumpsOnce_DialsConfiguredTransport confirms the TUI dumps stream
 // dials the OS-appropriate transport from config (TCP loopback on macOS, where
-// the lerd-ui unix socket is never created) rather than a hardcoded unix socket:
+// the servlo-panel unix socket is never created) rather than a hardcoded unix socket:
 // reaching the TCP server and reading its HTTP status is only possible if the
 // dial is not hardwired to unix.
 func TestStreamDumpsOnce_DialsConfiguredTransport(t *testing.T) {
@@ -105,7 +105,7 @@ func TestDebugContentLines_EmptyShowsHint(t *testing.T) {
 	if !strings.Contains(joined, "no dumps yet") {
 		t.Errorf("empty state hint missing:\n%s", joined)
 	}
-	if !strings.Contains(joined, "lerd dump on") {
+	if !strings.Contains(joined, "servlo dump on") {
 		t.Errorf("empty state should mention how to enable:\n%s", joined)
 	}
 }
@@ -299,7 +299,7 @@ func TestClearDumps_EmptyBufferSkipsPrompt(t *testing.T) {
 	m := NewModel("test")
 	cmd := m.clearDumps()
 	if cmd == nil {
-		t.Error("clearDumps on an empty buffer should run lerd dump clear directly")
+		t.Error("clearDumps on an empty buffer should run servlo dump clear directly")
 	}
 	if m.confirmActive {
 		t.Error("empty buffer should not trigger a confirm modal")

@@ -266,7 +266,7 @@ func (m Model) viewList() string {
 
 	// Header (3 lines)
 	b.WriteString("\n")
-	b.WriteString("  " + titleStyle.Render("Lerd Documentation") + "\n")
+	b.WriteString("  " + titleStyle.Render("Servlo Documentation") + "\n")
 	b.WriteString(m.divider() + "\n")
 
 	// Filter line (1 line)

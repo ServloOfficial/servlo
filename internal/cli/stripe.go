@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 	"github.com/spf13/cobra"
 )
 
@@ -87,7 +87,7 @@ func newStripeListenCmd() *cobra.Command {
 				return err
 			}
 
-			// --path and --secret-env-key persist to .lerd.yaml so the UI
+			// --path and --secret-env-key persist to .servlo.yaml so the UI
 			// toggle and install restore reuse them. Persist before resolving
 			// so a same-invocation override takes effect immediately. Only pass
 			// the path when --path was actually given, otherwise its default
@@ -139,8 +139,8 @@ func newStripeListenCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&apiKey, "api-key", "", "Stripe API key (defaults to the secret in .env)")
-	cmd.Flags().StringVar(&webhookPath, "path", config.DefaultStripeWebhookPath, "Webhook route path on your app (persisted to .lerd.yaml)")
-	cmd.Flags().StringVar(&secretEnvKey, "secret-env-key", "", "Which .env key holds the Stripe secret (persisted to .lerd.yaml)")
+	cmd.Flags().StringVar(&webhookPath, "path", config.DefaultStripeWebhookPath, "Webhook route path on your app (persisted to .servlo.yaml)")
+	cmd.Flags().StringVar(&secretEnvKey, "secret-env-key", "", "Which .env key holds the Stripe secret (persisted to .servlo.yaml)")
 	return cmd
 }
 
@@ -169,15 +169,15 @@ func newStripeListenStopCmd() *cobra.Command {
 	}
 }
 
-// writeStripeUnit writes (and enables on first write) the lerd-stripe-<site>
+// writeStripeUnit writes (and enables on first write) the servlo-stripe-<site>
 // service unit without starting it. Shared by the CLI path (starts right
 // after) and the install restore path (defers start to the worker phase).
 func writeStripeUnit(siteName, apiKey, forwardTo string) error {
-	unitName := "lerd-stripe-" + siteName
+	unitName := "servlo-stripe-" + siteName
 	containerName := unitName
 
 	unit := fmt.Sprintf(`[Unit]
-Description=Lerd Stripe Listener (%s)
+Description=Servlo Stripe Listener (%s)
 After=network.target
 
 [Service]
@@ -209,7 +209,7 @@ func stripeStartExplicit(siteName, apiKey, forwardTo string) error {
 	if err := writeStripeUnit(siteName, apiKey, forwardTo); err != nil {
 		return err
 	}
-	unitName := "lerd-stripe-" + siteName
+	unitName := "servlo-stripe-" + siteName
 	// podman.StartUnit (not services.Mgr.Start) so AfterUnitChange fires
 	// and the dashboard reflects the new state without a manual refresh.
 	if err := podman.StartUnit(unitName); err != nil {
@@ -233,7 +233,7 @@ func stripeKeyForSite(sitePath string) (string, error) {
 }
 
 // StripeStartForSite starts a Stripe listener for the given site, reading the
-// key and webhook path from the project's .env and .lerd.yaml.
+// key and webhook path from the project's .env and .servlo.yaml.
 func StripeStartForSite(siteName, sitePath, siteBaseURL string) error {
 	apiKey, err := stripeKeyForSite(sitePath)
 	if err != nil {
@@ -260,7 +260,7 @@ func StripeRestoreUnit(siteName, sitePath, siteBaseURL string) error {
 
 // StripeStopForSite stops and removes the Stripe listener for the named site.
 func StripeStopForSite(siteName string) error {
-	unitName := "lerd-stripe-" + siteName
+	unitName := "servlo-stripe-" + siteName
 
 	_ = services.Mgr.Disable(unitName)
 	podman.StopUnit(unitName) //nolint:errcheck
@@ -283,7 +283,7 @@ func StripeSecretSet(sitePath string) bool {
 	return config.StripeSecretSet(sitePath)
 }
 
-// stripeSiteName extracts the site name from a lerd-stripe-* unit name.
+// stripeSiteName extracts the site name from a servlo-stripe-* unit name.
 func stripeSiteName(unit string) string {
-	return strings.TrimPrefix(unit, "lerd-stripe-")
+	return strings.TrimPrefix(unit, "servlo-stripe-")
 }

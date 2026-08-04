@@ -7,21 +7,21 @@ import (
 
 func TestUnitStatus_CacheReturnsCachedValueWithinTTL(t *testing.T) {
 	t.Cleanup(func() {
-		InvalidateUnitStatusCache("lerd-test")
+		InvalidateUnitStatusCache("servlo-test")
 		UnitLifecycle = nil
 	})
 
 	UnitLifecycle = nil
-	InvalidateUnitStatusCache("lerd-test")
+	InvalidateUnitStatusCache("servlo-test")
 
 	// Seed the cache with a known value, then assert UnitStatus reads it
 	// without falling through to the DBus path.
 	unitStatusCacheMu.Lock()
-	unitStatusCache["lerd-test"] = unitStatusEntry{state: "active", at: time.Now()}
+	unitStatusCache["servlo-test"] = unitStatusEntry{state: "active", at: time.Now()}
 	unitStatusCacheMu.Unlock()
 
 	for i := 0; i < 5; i++ {
-		got, err := UnitStatus("lerd-test")
+		got, err := UnitStatus("servlo-test")
 		if err != nil {
 			t.Fatalf("UnitStatus: %v", err)
 		}
@@ -32,21 +32,21 @@ func TestUnitStatus_CacheReturnsCachedValueWithinTTL(t *testing.T) {
 }
 
 func TestUnitStatus_StaleEntryIsReplaced(t *testing.T) {
-	t.Cleanup(func() { InvalidateUnitStatusCache("lerd-expire") })
+	t.Cleanup(func() { InvalidateUnitStatusCache("servlo-expire") })
 
 	UnitLifecycle = nil
-	InvalidateUnitStatusCache("lerd-expire")
+	InvalidateUnitStatusCache("servlo-expire")
 
 	unitStatusCacheMu.Lock()
-	unitStatusCache["lerd-expire"] = unitStatusEntry{
+	unitStatusCache["servlo-expire"] = unitStatusEntry{
 		state: "active", at: time.Now().Add(-2 * unitStatusCacheTTL),
 	}
 	unitStatusCacheMu.Unlock()
 
-	_, _ = UnitStatus("lerd-expire")
+	_, _ = UnitStatus("servlo-expire")
 
 	unitStatusCacheMu.Lock()
-	entry := unitStatusCache["lerd-expire"]
+	entry := unitStatusCache["servlo-expire"]
 	unitStatusCacheMu.Unlock()
 	if time.Since(entry.at) > unitStatusCacheTTL {
 		t.Error("expected stale entry to be replaced after TTL expiry")
@@ -55,16 +55,16 @@ func TestUnitStatus_StaleEntryIsReplaced(t *testing.T) {
 
 func TestInvalidateUnitStatusCache_DropsEntry(t *testing.T) {
 	UnitLifecycle = nil
-	t.Cleanup(func() { InvalidateUnitStatusCache("lerd-invalidate") })
+	t.Cleanup(func() { InvalidateUnitStatusCache("servlo-invalidate") })
 
 	unitStatusCacheMu.Lock()
-	unitStatusCache["lerd-invalidate"] = unitStatusEntry{state: "active", at: time.Now()}
+	unitStatusCache["servlo-invalidate"] = unitStatusEntry{state: "active", at: time.Now()}
 	unitStatusCacheMu.Unlock()
 
-	InvalidateUnitStatusCache("lerd-invalidate")
+	InvalidateUnitStatusCache("servlo-invalidate")
 
 	unitStatusCacheMu.Lock()
-	_, exists := unitStatusCache["lerd-invalidate"]
+	_, exists := unitStatusCache["servlo-invalidate"]
 	unitStatusCacheMu.Unlock()
 	if exists {
 		t.Error("expected entry to be removed after InvalidateUnitStatusCache")

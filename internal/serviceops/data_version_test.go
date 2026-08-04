@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // presetTempHome sets up an isolated HOME with a stubbed daemon-reload so a
@@ -64,7 +64,7 @@ func TestEnsureDefaultPresetQuadlet_pinsVersionFromSurvivingDataDir(t *testing.T
 		t.Fatalf("EnsureDefaultPresetQuadlet: %v", err)
 	}
 
-	if got := readQuadletImage(t, "lerd-postgres"); !strings.Contains(got, ":18-") {
+	if got := readQuadletImage(t, "servlo-postgres"); !strings.Contains(got, ":18-") {
 		t.Errorf("quadlet must run an 18 image over an 18 data dir, got %q", got)
 	}
 	cfg, err := config.LoadGlobal()
@@ -87,7 +87,7 @@ func TestEnsureDefaultPresetQuadlet_dataDirBeatsStaleQuadletImage(t *testing.T) 
 		t.Fatalf("mkdir quadlet dir: %v", err)
 	}
 	stale := "[Container]\nImage=docker.io/postgis/postgis:16-3.5-alpine\n"
-	if err := os.WriteFile(filepath.Join(config.QuadletDir(), "lerd-postgres.container"), []byte(stale), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(config.QuadletDir(), "servlo-postgres.container"), []byte(stale), 0o644); err != nil {
 		t.Fatalf("seed stale quadlet: %v", err)
 	}
 
@@ -95,7 +95,7 @@ func TestEnsureDefaultPresetQuadlet_dataDirBeatsStaleQuadletImage(t *testing.T) 
 		t.Fatalf("EnsureDefaultPresetQuadlet: %v", err)
 	}
 
-	if got := readQuadletImage(t, "lerd-postgres"); !strings.Contains(got, ":18-") {
+	if got := readQuadletImage(t, "servlo-postgres"); !strings.Contains(got, ":18-") {
 		t.Errorf("stale 16 quadlet must not survive an 18 data dir, got %q", got)
 	}
 }
@@ -110,7 +110,7 @@ func TestEnsureDefaultPresetQuadletPinned_dataDirBeatsReinstallPin(t *testing.T)
 		t.Fatalf("EnsureDefaultPresetQuadletPinned: %v", err)
 	}
 
-	if got := readQuadletImage(t, "lerd-postgres"); !strings.Contains(got, ":18-") {
+	if got := readQuadletImage(t, "servlo-postgres"); !strings.Contains(got, ":18-") {
 		t.Errorf("reinstall pin must yield to an 18 data dir, got %q", got)
 	}
 }
@@ -140,7 +140,7 @@ func TestEnsureDefaultPresetQuadlet_explicitImagePinWinsOverDataDir(t *testing.T
 	// Assert the tag, not the whole ref: on darwin the platform override swaps
 	// postgis/postgis for imresamu/postgis and templates the same tag through,
 	// so the repo legitimately differs per host while the pinned version cannot.
-	if got := readQuadletImage(t, "lerd-postgres"); !strings.HasSuffix(got, ":16-3.5-alpine") {
+	if got := readQuadletImage(t, "servlo-postgres"); !strings.HasSuffix(got, ":16-3.5-alpine") {
 		t.Errorf("explicit image pin must be honored, got %q", got)
 	}
 }

@@ -40,7 +40,7 @@
   }
 </script>
 
-<div class="rounded-sm border border-gray-200 dark:border-lerd-border p-3 mb-2 bg-white dark:bg-lerd-card text-sm" class:lerd-dump-flash={flashing}>
+<div class="rounded-sm border border-gray-200 dark:border-servlo-border p-3 mb-2 bg-white dark:bg-servlo-card text-sm" class:servlo-dump-flash={flashing}>
   <div class="flex items-baseline gap-2 mb-2 flex-wrap">
     <span class="font-mono text-xs text-gray-500">{timeOnly(event.ts)}</span>
     {#if event.label}
@@ -67,10 +67,10 @@
 </div>
 
 <style>
-  .lerd-dump-flash {
-    animation: lerd-dump-flash 2.5s ease-out 1;
+  .servlo-dump-flash {
+    animation: servlo-dump-flash 2.5s ease-out 1;
   }
-  @keyframes lerd-dump-flash {
+  @keyframes servlo-dump-flash {
     0%   { box-shadow: 0 0 0 2px rgb(59 130 246 / 0.7); }
     20%  { box-shadow: 0 0 0 2px rgb(59 130 246 / 0.55); }
     100% { box-shadow: 0 0 0 0   rgb(59 130 246 / 0);    }

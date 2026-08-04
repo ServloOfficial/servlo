@@ -61,7 +61,7 @@
       type="button"
       onclick={onclose}
       disabled={busy}
-      class="text-xs px-3 py-1.5 rounded-sm border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+      class="text-xs px-3 py-1.5 rounded-sm border border-gray-200 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
     >{m.common_cancel()}</button>
     <button
       type="button"

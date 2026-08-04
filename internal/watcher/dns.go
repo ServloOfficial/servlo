@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/eventbus"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/eventbus"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/systemd"
 )
 
 // idleSkipEveryN controls how aggressively to back off polling when the
@@ -35,13 +35,13 @@ type dnsWatchDeps struct {
 	dnsEnvFingerprint   func() string
 	resyncContainerDNS  func() error
 	repairExposeMapping func() (changed bool, err error)
-	// nginxHealthy reports whether lerd-nginx is up and accepting on 443;
-	// repairNginx re-establishes it. A host resume can stop lerd-nginx or break
+	// nginxHealthy reports whether servlo-nginx is up and accepting on 443;
+	// repairNginx re-establishes it. A host resume can stop servlo-nginx or break
 	// its rootless port-forward, so .test sites return "Secure Connection Failed"
-	// until a manual lerd restart. Both nil off the Linux rootless-podman path.
+	// until a manual servlo restart. Both nil off the Linux rootless-podman path.
 	nginxHealthy func() bool
 	repairNginx  func() error
-	// dnsDaemonAnswering reports whether lerd's dnsmasq answers on its own port;
+	// dnsDaemonAnswering reports whether servlo's dnsmasq answers on its own port;
 	// repairDNS restarts the unit it runs under. Nil off the Linux rootless-podman
 	// path.
 	dnsDaemonAnswering func() bool
@@ -50,7 +50,7 @@ type dnsWatchDeps struct {
 	// stalled, healing the MCP/exec path on wake before the next call. macOS only
 	// (nil elsewhere: Linux has no machine VM).
 	healMachine func()
-	// isStopped reports an intentional `lerd stop`, after which the watcher must
+	// isStopped reports an intentional `servlo stop`, after which the watcher must
 	// not restart anything the user stopped on purpose. now is the clock (a seam
 	// for tests) used to detect a resume from the wall-clock gap between ticks.
 	// All nil off Linux / in tests that don't exercise them.
@@ -124,18 +124,18 @@ func defaultDNSEnvFingerprint() string {
 	return strings.Join(up, ",") + "|" + vpn
 }
 
-// defaultResyncContainerDNS re-points the lerd network's aardvark-dns at
+// defaultResyncContainerDNS re-points the servlo network's aardvark-dns at
 // the current host resolvers and reloads the network so containers pick
-// them up. This is the automatic equivalent of a manual `lerd restart`
+// them up. This is the automatic equivalent of a manual `servlo restart`
 // after a VPN connects.
 func defaultResyncContainerDNS() error {
-	if err := podman.EnsureNetworkDNS("lerd", dns.ReadContainerDNS()); err != nil {
+	if err := podman.EnsureNetworkDNS("servlo", dns.ReadContainerDNS()); err != nil {
 		return err
 	}
 	return podman.ReloadNetworks()
 }
 
-// defaultNginxHealthy reports whether lerd-nginx is serving on its configured
+// defaultNginxHealthy reports whether servlo-nginx is serving on its configured
 // HTTPS port by a single loopback dial. A failed connect is the signal — a resume
 // drops the listener entirely (stopped container or dead forward). It does not
 // also inspect the container, since ContainerRunning swallows a transient `podman
@@ -188,23 +188,23 @@ func hasIPv6Loopback() bool {
 
 // defaultRepairNginx restarts nginx so it rebinds its host ports on the live
 // network. It deliberately stays this minimal: the network itself is the watcher's
-// DNS re-sync path's job or, for a dual-stack migration, `lerd start`'s (recreating
+// DNS re-sync path's job or, for a dual-stack migration, `servlo start`'s (recreating
 // the network tears down every container, far too destructive for a background
 // timer), and it does NOT touch the vhost registry, since downgrading a Secured
 // site to HTTP over a cert mount that hasn't returned yet would silently drop its
 // HTTPS. If nginx can't rebind (e.g. that pending migration), the restart is a
-// no-op the next probe still sees as down, surfacing it for `lerd start`.
+// no-op the next probe still sees as down, surfacing it for `servlo start`.
 func defaultRepairNginx() error {
-	return podman.RestartUnit("lerd-nginx")
+	return podman.RestartUnit("servlo-nginx")
 }
 
-// defaultRepairDNS brings lerd-dns back. The reset-failed first is the point:
+// defaultRepairDNS brings servlo-dns back. The reset-failed first is the point:
 // systemd's start rate limit parks the unit in "failed" after a burst of restarts
 // (a resume firing several NetworkManager dispatcher events), and a plain restart
 // of a rate-limited unit is refused.
 func defaultRepairDNS() error {
-	podman.ResetFailedUnit("lerd-dns")
-	return podman.RestartUnit("lerd-dns")
+	podman.ResetFailedUnit("servlo-dns")
+	return podman.RestartUnit("servlo-dns")
 }
 
 // publishOnTransition sets *cur to next and fires pub when the value changed (or
@@ -221,13 +221,13 @@ func publishOnTransition(cur **bool, next bool, pub func()) {
 // healNginxOnResume restarts nginx if it isn't serving, but only on the tick that
 // just detected a resume. A resume is a discrete, unambiguous trigger, so there is
 // no polling, debounce, or seen-healthy guard, and no way to race a concurrent
-// `lerd start` (a start doesn't suspend the machine). systemd's Restart=always
+// `servlo start` (a start doesn't suspend the machine). systemd's Restart=always
 // already covers an nginx crash; this covers the resume case it can't see, where
 // the container stays "running" but its rootless 443 forward is dead. It honors an
-// intentional `lerd stop` and is a no-op when nginxHealthy is unset (non-Linux).
+// intentional `servlo stop` and is a no-op when nginxHealthy is unset (non-Linux).
 //
 // If the watcher isn't running at the moment of resume (e.g. it restarted during
-// the outage), that resume is missed and the user falls back to `lerd start`; a
+// the outage), that resume is missed and the user falls back to `servlo start`; a
 // rare edge, far better than a continuous poll that fights every bring-up.
 // defaultHealMachine un-stalls the podman machine VM after a host resume, so the
 // MCP/exec path recovers proactively before the next agent call. It reuses the
@@ -272,14 +272,14 @@ func healNginxOnResume(d dnsWatchDeps) {
 }
 
 // defaultRepairExposeMapping re-renders the host dnsmasq .tld answer to the
-// current primary LAN IP and reloads lerd-dns when lan:expose is on and the
-// published mapping has drifted. lerd only regenerates that mapping on
-// `lerd start`, so a sleep/wake DHCP renew or a network switch leaves dnsmasq
+// current primary LAN IP and reloads servlo-dns when lan:expose is on and the
+// published mapping has drifted. servlo only regenerates that mapping on
+// `servlo start`, so a sleep/wake DHCP renew or a network switch leaves dnsmasq
 // answering the old IP; CheckStatus compares that answer against the live
-// primaryLANIP and reports the dashboard pill down even though lerd-dns is
+// primaryLANIP and reports the dashboard pill down even though servlo-dns is
 // serving fine, and in lan:expose mode the published address eventually stops
 // routing once the old lease is gone. The config dir (DnsmasqDir) is
-// user-owned and mounted read-only into the lerd-dns container, so the
+// user-owned and mounted read-only into the servlo-dns container, so the
 // rewrite needs no privilege escalation and a unit reload picks it up on both
 // macOS (launchd) and Linux (systemd).
 //
@@ -298,13 +298,13 @@ func defaultRepairExposeMapping(tld string) (bool, error) {
 		return false, nil
 	}
 	// Gate the restart on the rendered config actually changing, not on the live
-	// dnsmasq answer: a freshly restarted lerd-dns lags a tick or two before it
+	// dnsmasq answer: a freshly restarted servlo-dns lags a tick or two before it
 	// serves the new IP, and keying off the answer would re-render and restart it
 	// again every failed tick until it settled. Comparing the on-disk config also
 	// covers the AAAA record (DnsmasqAnswer is IPv4-only, so an answer check would
 	// never heal an IPv6 drift), and makes the repair idempotent so it restarts
 	// exactly once per real drift.
-	confPath := filepath.Join(config.DnsmasqDir(), "lerd.conf")
+	confPath := filepath.Join(config.DnsmasqDir(), "servlo.conf")
 	before, _ := os.ReadFile(confPath)
 	if err := dns.WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
 		return false, err
@@ -313,13 +313,13 @@ func defaultRepairExposeMapping(tld string) (bool, error) {
 	if !exposeConfigChanged(before, after) {
 		return false, nil
 	}
-	return true, podman.RestartUnit("lerd-dns")
+	return true, podman.RestartUnit("servlo-dns")
 }
 
 // exposeConfigChanged reports whether the rendered dnsmasq config changed in a
-// way that warrants restarting lerd-dns. A change confined to the AAAA (IPv6)
+// way that warrants restarting servlo-dns. A change confined to the AAAA (IPv6)
 // address lines is ignored: a global v6 coming and going, or a privacy address
-// rotating, would otherwise restart lerd-dns on every tick, while v4 is what
+// rotating, would otherwise restart servlo-dns on every tick, while v4 is what
 // LAN clients overwhelmingly rely on. The new config is still written to disk,
 // so a later v4 drift or a fresh setup picks up the current AAAA.
 func exposeConfigChanged(before, after []byte) bool {
@@ -348,8 +348,8 @@ func stripAAAALines(conf []byte) []byte {
 const linkChangeDebounce = 750 * time.Millisecond
 
 // WatchDNS polls DNS health for the given TLD every interval. When resolution
-// is broken it waits for lerd-dns to be ready and re-applies the resolver
-// configuration, replicating the DNS repair done by lerd start. When the
+// is broken it waits for servlo-dns to be ready and re-applies the resolver
+// configuration, replicating the DNS repair done by servlo start. When the
 // user session is idle or locked it backs off to one probe every 10 ticks
 // so laptops don't pay the per-30s DNS lookup battery cost while away.
 //
@@ -393,7 +393,7 @@ func WatchDNS(interval time.Duration, tld string) {
 		deps.resyncContainerDNS = defaultResyncContainerDNS
 		// Restart nginx after a host resume leaves rootless networking in a bad
 		// state so .test sites return "Secure Connection Failed" until a manual
-		// lerd restart (issue #665). DNS resolution is already repaired below.
+		// servlo restart (issue #665). DNS resolution is already repaired below.
 		deps.nginxHealthy = defaultNginxHealthy
 		deps.repairNginx = defaultRepairNginx
 		deps.dnsDaemonAnswering = func() bool { return dns.DaemonAnswering(tld) }
@@ -403,7 +403,7 @@ func WatchDNS(interval time.Duration, tld string) {
 
 	// A host suspend can stall the shared podman machine VM (issue #715); the
 	// resume tick restarts it so the MCP/exec path is healed before the next
-	// agent call. isStopped keeps a deliberate `lerd stop` from resurrecting it.
+	// agent call. isStopped keeps a deliberate `servlo stop` from resurrecting it.
 	if runtime.GOOS == "darwin" {
 		deps.healMachine = defaultHealMachine
 		deps.isStopped = config.IsStopped
@@ -537,10 +537,10 @@ func tickDNS(d dnsWatchDeps, s *dnsWatchState, tld string, linkTriggered bool) {
 	}
 
 	// Re-sync container DNS when the host resolver environment changes
-	// (VPN connect/disconnect, network switch). The lerd network's
+	// (VPN connect/disconnect, network switch). The servlo network's
 	// aardvark-dns is otherwise left on the pre-change forwarders and a
 	// stale cache, so containers can't resolve newly-routable hostnames
-	// until a manual `lerd restart`. The first tick only records the
+	// until a manual `servlo restart`. The first tick only records the
 	// baseline so a fresh watcher start never triggers a re-sync.
 	if d.dnsEnvFingerprint != nil {
 		fp := d.dnsEnvFingerprint()
@@ -572,8 +572,8 @@ func tickDNS(d dnsWatchDeps, s *dnsWatchState, tld string, linkTriggered bool) {
 
 	// A stale lan:expose mapping (the dnsmasq .tld answer drifting from the
 	// host's current primary LAN IP after a sleep/wake or DHCP renew) makes
-	// CheckStatus report down even though lerd-dns is healthy. Re-render the
-	// mapping and reload lerd-dns first: the config dir is user-owned, so this
+	// CheckStatus report down even though servlo-dns is healthy. Re-render the
+	// mapping and reload servlo-dns first: the config dir is user-owned, so this
 	// needs no privilege escalation and heals even on a host where the
 	// sudo-gated resolver repair below is unavailable. A no-op (expose off or
 	// the mapping already current) returns false and falls through.
@@ -593,24 +593,24 @@ func tickDNS(d dnsWatchDeps, s *dnsWatchState, tld string, linkTriggered bool) {
 	}
 
 	// Everything below only rewrites the host resolver, which cannot recover a
-	// lerd-dns that is gone: the tick would just log "not ready" every interval
+	// servlo-dns that is gone: the tick would just log "not ready" every interval
 	// while .test stays dark. Probe the daemon on its own port and restart the unit
 	// when it doesn't answer, before the privilege gate, since this heal needs none.
 	if d.dnsDaemonAnswering != nil && !d.dnsDaemonAnswering() {
-		d.log("warn", "lerd-dns not answering, restarting")
+		d.log("warn", "servlo-dns not answering, restarting")
 		if d.repairDNS != nil {
 			if err := d.repairDNS(); err != nil {
-				d.log("error", "lerd-dns restart failed", "err", err)
+				d.log("error", "servlo-dns restart failed", "err", err)
 			}
 		}
 	}
 
 	// Skip repair when the platform can't write the resolver config from
-	// this process (macOS without /etc/sudoers.d/lerd in place). Logging
+	// this process (macOS without /etc/sudoers.d/servlo in place). Logging
 	// this every tick would spam — emit once and remember the gate.
 	if d.repairPossible != nil && !d.repairPossible() {
 		if !s.repairUnavailable {
-			d.log("warn", "DNS resolution broken; automatic repair unavailable on this host (run lerd install to grant the watcher resolver write access)", "tld", tld)
+			d.log("warn", "DNS resolution broken; automatic repair unavailable on this host (run servlo install to grant the watcher resolver write access)", "tld", tld)
 			s.repairUnavailable = true
 		}
 		return
@@ -620,7 +620,7 @@ func tickDNS(d dnsWatchDeps, s *dnsWatchState, tld string, linkTriggered bool) {
 	d.log("warn", "DNS resolution broken, repairing", "tld", tld)
 
 	if err := d.waitReady(10 * time.Second); err != nil {
-		d.log("error", "lerd-dns not ready", "err", err)
+		d.log("error", "servlo-dns not ready", "err", err)
 		return
 	}
 

@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// staleResolverFiles must return exactly the resolver files lerd wrote (matched
+// staleResolverFiles must return exactly the resolver files servlo wrote (matched
 // by content, across TLDs) and leave a user's or another tool's resolver files
 // and subdirectories alone.
 func TestStaleResolverFiles(t *testing.T) {
@@ -21,9 +21,9 @@ func TestStaleResolverFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write("test", resolverContent)                           // canonical lerd TLD
-	write("app", resolverContent)                            // preserved custom lerd TLD
-	write("test-trailing", append(resolverContent, '\n'))    // lerd content + stray newline
+	write("test", resolverContent)                           // canonical servlo TLD
+	write("app", resolverContent)                            // preserved custom servlo TLD
+	write("test-trailing", append(resolverContent, '\n'))    // servlo content + stray newline
 	write("corp", []byte("nameserver 10.0.0.53\nport 53\n")) // foreign, must survive
 	if err := os.Mkdir(filepath.Join(dir, "sub"), 0755); err != nil {
 		t.Fatal(err)
@@ -70,7 +70,7 @@ func codeOnly(src string) string {
 }
 
 // ruleLines drops the sudoers header comment (which legitimately contains an
-// ellipsis like /var/folders/.../lerd-sudo-*) so a traversal scan sees only the
+// ellipsis like /var/folders/.../servlo-sudo-*) so a traversal scan sees only the
 // actual NOPASSWD rules.
 func ruleLines(grant string) string {
 	var b strings.Builder

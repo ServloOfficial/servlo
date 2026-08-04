@@ -8,7 +8,7 @@ import (
 
 func TestWritePortDropIn(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "99-lerd-ports.conf")
+	path := filepath.Join(dir, "99-servlo-ports.conf")
 
 	var gotName string
 	var gotArgs []string

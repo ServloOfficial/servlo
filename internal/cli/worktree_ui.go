@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // warningCapturingWriter forwards every write to the underlying writer while
@@ -43,7 +43,7 @@ func (c *warningCapturingWriter) Write(p []byte) (int, error) {
 }
 
 // WorktreeAddRequest carries the choices the dashboard (or any non-interactive
-// caller) makes for `lerd worktree add`, mirroring what the CLI's huh prompts
+// caller) makes for `servlo worktree add`, mirroring what the CLI's huh prompts
 // gather. Exactly one of NewBranch / ExistingBranch must be set.
 type WorktreeAddRequest struct {
 	NewBranch      string // create this branch with `git worktree add -b`
@@ -137,7 +137,7 @@ func WorktreeCheckoutPath(sitePath, branch string) string {
 // resolveBuildChoice maps a UI build request ("auto"|"skip"|"worker:<n>"|
 // "script:<n>") to a concrete (kind, value): kind is "worker", "script" or
 // "skip". eligible = workers able to replace the build at the target path;
-// optedIn = the subset declared in the parent's .lerd.yaml; scripts =
+// optedIn = the subset declared in the parent's .servlo.yaml; scripts =
 // package.json build scripts. An unavailable worker/script falls back to the
 // same default the CLI's "auto" path uses.
 func resolveBuildChoice(requested string, eligible, optedIn, scripts []string) (kind, value string) {
@@ -311,7 +311,7 @@ func applyWorktreeBuildRequest(site *config.Site, worktreePath, requested string
 func logAutoBuildResolution(log io.Writer, kind, value string) {
 	switch kind {
 	case "worker":
-		logf(log, "Automatic: starting asset worker %q (opted-in via parent .lerd.yaml, replaces_build:true). No `npm run build` will run, the worker serves assets itself.", value)
+		logf(log, "Automatic: starting asset worker %q (opted-in via parent .servlo.yaml, replaces_build:true). No `npm run build` will run, the worker serves assets itself.", value)
 	case "script":
 		logf(log, "Automatic: running `npm run %s` (no asset worker opted in to replace the build).", value)
 	case "skip":

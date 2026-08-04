@@ -13,7 +13,7 @@ func storeSandbox(t *testing.T) string {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	data := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", data)
-	store := filepath.Join(data, "lerd", "frameworks")
+	store := filepath.Join(data, "servlo", "frameworks")
 	if err := os.MkdirAll(store, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func projectWithEmbeddedDef(t *testing.T, label string) string {
 	t.Helper()
 	dir := t.TempDir()
 	yaml := "framework: acme\nframework_def:\n  name: acme\n  label: " + label + "\n  public_dir: public\n"
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(yaml), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(yaml), 0644); err != nil {
 		t.Fatal(err)
 	}
 	return dir

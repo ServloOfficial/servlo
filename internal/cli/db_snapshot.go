@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 )
 
@@ -39,8 +39,8 @@ func newDbSnapshotCmd(use string) *cobra.Command {
 			return runDbSnapshot(name, service, database, allDatabases)
 		},
 	}
-	cmd.Flags().StringVarP(&service, "service", "s", "", "Lerd DB service to target (e.g. mysql, postgres)")
-	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .lerd.yaml)")
+	cmd.Flags().StringVarP(&service, "service", "s", "", "Servlo DB service to target (e.g. mysql, postgres)")
+	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .servlo.yaml)")
 	cmd.Flags().BoolVarP(&allDatabases, "all-databases", "A", false, "Snapshot every database in the service")
 	return cmd
 }
@@ -56,8 +56,8 @@ func newDbSnapshotsCmd(use string) *cobra.Command {
 			return runDbSnapshots(service, database, all)
 		},
 	}
-	cmd.Flags().StringVarP(&service, "service", "s", "", "Lerd DB service to target (e.g. mysql, postgres)")
-	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .lerd.yaml)")
+	cmd.Flags().StringVarP(&service, "service", "s", "", "Servlo DB service to target (e.g. mysql, postgres)")
+	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .servlo.yaml)")
 	cmd.Flags().BoolVar(&all, "all", false, "List snapshots across every database on the service")
 	return cmd
 }
@@ -73,8 +73,8 @@ func newDbRestoreCmd(use string) *cobra.Command {
 			return runDbRestore(args[0], service, database, allDatabases, force)
 		},
 	}
-	cmd.Flags().StringVarP(&service, "service", "s", "", "Lerd DB service to target (e.g. mysql, postgres)")
-	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .lerd.yaml)")
+	cmd.Flags().StringVarP(&service, "service", "s", "", "Servlo DB service to target (e.g. mysql, postgres)")
+	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .servlo.yaml)")
 	cmd.Flags().BoolVarP(&allDatabases, "all-databases", "A", false, "Restore an all-databases snapshot")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Skip the confirmation prompt")
 	return cmd
@@ -91,8 +91,8 @@ func newDbSnapshotRmCmd(use string) *cobra.Command {
 			return runDbSnapshotRm(args[0], service, database, allDatabases)
 		},
 	}
-	cmd.Flags().StringVarP(&service, "service", "s", "", "Lerd DB service to target (e.g. mysql, postgres)")
-	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .lerd.yaml)")
+	cmd.Flags().StringVarP(&service, "service", "s", "", "Servlo DB service to target (e.g. mysql, postgres)")
+	cmd.Flags().StringVarP(&database, "database", "d", "", "Database name (default: from .env or .servlo.yaml)")
 	cmd.Flags().BoolVarP(&allDatabases, "all-databases", "A", false, "Target an all-databases snapshot")
 	return cmd
 }

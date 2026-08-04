@@ -14,7 +14,7 @@
 
 <Modal open title={done ? (error ? m.common_failed() : m.common_done()) : title} onclose={closeModal}>
   <div class="px-5 py-4">
-    <ul class="text-[11px] font-mono text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-white/3 border border-gray-100 dark:border-lerd-border rounded-lg p-3 space-y-1 max-h-72 overflow-y-auto min-h-16">
+    <ul class="text-[11px] font-mono text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-white/3 border border-gray-100 dark:border-servlo-border rounded-lg p-3 space-y-1 max-h-72 overflow-y-auto min-h-16">
       {#each $lan.progressSteps as line, i (i)}
         <li class="flex items-start gap-1.5">
           {#if i < $lan.progressSteps.length - 1 || done}

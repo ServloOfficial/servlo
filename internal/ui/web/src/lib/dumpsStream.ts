@@ -16,7 +16,7 @@ export interface DumpContext {
   domain?: string;
   request?: string;
   pid?: number;
-  // rid is a unique per-request id from the lerd_devtools extension. When
+  // rid is a unique per-request id from the servlo_devtools extension. When
   // present it's the precise grouping boundary; dump-bridge events lack it.
   rid?: string;
   // worker names the queue/scheduler command an event came from (e.g.
@@ -46,7 +46,7 @@ export interface DumpEvent {
 }
 
 // QueryData is the `data` payload on kind === 'query' events. Mirrors
-// internal/dumps.QueryData; the lerd_devtools extension fills sql/bindings/
+// internal/dumps.QueryData; the servlo_devtools extension fills sql/bindings/
 // time_ms, the Laravel adapter additionally sets connection/rw_type.
 export interface QueryFrame {
   file: string;

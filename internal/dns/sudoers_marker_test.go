@@ -73,8 +73,8 @@ func TestForgetSudoersMarker_ForcesRewrite(t *testing.T) {
 	}
 }
 
-// A future lerd version that changes the sudoers rule must still reinstall it
-// on `lerd update` (which re-runs `lerd install`), then go quiet again. This
+// A future servlo version that changes the sudoers rule must still reinstall it
+// on `servlo update` (which re-runs `servlo install`), then go quiet again. This
 // guards the marker against silently skipping a genuine rule change.
 func TestSudoersMarker_upgradeReinstallsOnce(t *testing.T) {
 	orig := sudoersMarkerPath

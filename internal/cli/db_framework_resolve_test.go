@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // resolveDBFromFramework must read the framework's env file through the
@@ -27,7 +27,7 @@ func TestResolveDBFromFramework_ReadsStoreEnvFile(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: symfony\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: symfony\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// The committed .env carries no DATABASE_URL; the real value lives in the
@@ -35,7 +35,7 @@ func TestResolveDBFromFramework_ReadsStoreEnvFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("APP_ENV=dev\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".env.local"), []byte("DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/shop\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".env.local"), []byte("DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/shop\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

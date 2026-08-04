@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestDeclaredFalse(t *testing.T) {
@@ -49,7 +49,7 @@ func TestFrameworkForSetupNeverNil(t *testing.T) {
 }
 
 // A framework with no env section (Magento keeps config in app/etc/env.php) must
-// not be handed to `lerd env`, which would fail and print the error twice.
+// not be handed to `servlo env`, which would fail and print the error twice.
 func TestHasEnvConfig(t *testing.T) {
 	var nilFW *config.Framework
 	if nilFW.HasEnvConfig() {
@@ -81,7 +81,7 @@ func TestHasEnvConfig(t *testing.T) {
 func TestFrameworkMapsService(t *testing.T) {
 	fw := &config.Framework{Env: config.FrameworkEnvConf{
 		Services: map[string]config.FrameworkServiceDef{
-			"mysql":      {Vars: []string{"db.connection.default.host=lerd-mysql"}},
+			"mysql":      {Vars: []string{"db.connection.default.host=servlo-mysql"}},
 			"opensearch": {Vars: []string{"system.default.catalog.search.engine=opensearch"}},
 		},
 	}}

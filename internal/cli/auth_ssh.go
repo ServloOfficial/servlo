@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -31,7 +31,7 @@ func newAuthSSHCmd() *cobra.Command {
 		Use:   "ssh [key...]",
 		Short: "Load SSH keys into a shared agent so composer can use git over SSH",
 		Long: "Start a shared ssh-agent container and load your SSH keys into it, so " +
-			"`lerd composer` can authenticate to private git repositories with " +
+			"`servlo composer` can authenticate to private git repositories with " +
 			"passphrase-protected keys. With no arguments it loads ~/.ssh/id_* ; pass " +
 			"key paths (under ~/.ssh) to load specific keys. Keys live only in the " +
 			"agent's memory and are cleared when it stops or the machine restarts.",
@@ -59,7 +59,7 @@ func authSSHAdd(keys []string) error {
 		return err
 	}
 	if len(resolved) == 0 {
-		return fmt.Errorf("no SSH keys found in ~/.ssh (looked for id_*); pass a key path explicitly, e.g. lerd auth ssh ~/.ssh/mykey")
+		return fmt.Errorf("no SSH keys found in ~/.ssh (looked for id_*); pass a key path explicitly, e.g. servlo auth ssh ~/.ssh/mykey")
 	}
 	if err := ensureSSHAgent(); err != nil {
 		return err
@@ -80,14 +80,14 @@ func authSSHAdd(keys []string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("ssh-add: %w", err)
 	}
-	fmt.Println("Keys loaded. `lerd composer` can now use git over SSH for private packages.")
+	fmt.Println("Keys loaded. `servlo composer` can now use git over SSH for private packages.")
 	return nil
 }
 
 // authSSHList prints the keys currently held by the agent.
 func authSSHList() error {
 	if !podman.ContainerRunningQuiet(podman.SSHAgentContainer) {
-		return fmt.Errorf("ssh-agent is not running; run `lerd auth ssh` first")
+		return fmt.Errorf("ssh-agent is not running; run `servlo auth ssh` first")
 	}
 	cmd := podman.Cmd("exec", "--env", "SSH_AUTH_SOCK="+podman.SSHAgentSocket,
 		podman.SSHAgentContainer, "ssh-add", "-l")
@@ -124,7 +124,7 @@ func ensureSSHAgent() error {
 		return err
 	}
 	version := cfg.PHP.DefaultVersion
-	image := fmt.Sprintf("lerd-php%s-fpm:local", strings.ReplaceAll(version, ".", ""))
+	image := fmt.Sprintf("servlo-php%s-fpm:local", strings.ReplaceAll(version, ".", ""))
 
 	changed, err := podman.WriteQuadletDiff(podman.SSHAgentUnit, podman.GenerateSSHAgentQuadlet(image))
 	if err != nil {
@@ -134,7 +134,7 @@ func ensureSSHAgent() error {
 		return err
 	}
 	if err := podman.StartUnit(podman.SSHAgentUnit); err != nil {
-		return fmt.Errorf("starting ssh-agent (is the PHP %s image built? try `lerd php rebuild`): %w", version, err)
+		return fmt.Errorf("starting ssh-agent (is the PHP %s image built? try `servlo php rebuild`): %w", version, err)
 	}
 
 	// Give the sidecar a moment to come up and create the socket before ssh-add.

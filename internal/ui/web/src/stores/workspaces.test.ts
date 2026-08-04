@@ -105,7 +105,7 @@ describe('workspaceCollapse', () => {
 
   it('persists to localStorage', () => {
     toggleWorkspaceCollapse('A');
-    expect(JSON.parse(localStorage.getItem('lerd:workspaceCollapse') ?? '[]')).toEqual(['A']);
+    expect(JSON.parse(localStorage.getItem('servlo:workspaceCollapse') ?? '[]')).toEqual(['A']);
   });
 
   it('keeps the ungrouped section independent of a workspace named the same', () => {

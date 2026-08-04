@@ -1,4 +1,4 @@
-// Package atomicfile writes small state files the way lerd's daemons need:
+// Package atomicfile writes small state files the way servlo's daemons need:
 // atomically, and only when the content actually changed.
 package atomicfile
 

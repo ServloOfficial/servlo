@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/profiler"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/profiler"
 	"github.com/spf13/cobra"
 )
 
-// NewProfileCmd returns the parent `lerd profile` command. Subcommands turn the
+// NewProfileCmd returns the parent `servlo profile` command. Subcommands turn the
 // global SPX profiler on and off, show its state, and open its web UI.
 func NewProfileCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -120,7 +120,7 @@ func runProfileStatus(_ *cobra.Command, _ []string) error {
 func newProfileRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run [--flat] <command> [args...]",
-		Short: "Profile a one-off CLI command (e.g. lerd profile run artisan queue:work)",
+		Short: "Profile a one-off CLI command (e.g. servlo profile run artisan queue:work)",
 		Long: `Run a PHP CLI command with SPX profiling enabled. The command is executed
 as 'php <command> [args...]' inside the project's container. By default the
 report shows up in the Profiler view alongside HTTP-request reports. With
@@ -142,7 +142,7 @@ func runProfileRun(_ *cobra.Command, args []string) error {
 		flat, args = true, args[1:]
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("usage: lerd profile run [--flat] <command> [args...]")
+		return fmt.Errorf("usage: servlo profile run [--flat] <command> [args...]")
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -151,9 +151,9 @@ func runProfileRun(_ *cobra.Command, args []string) error {
 	report := "full"
 	if flat {
 		report = "fp"
-		fmt.Fprintln(os.Stderr, "[lerd] profiling this run with SPX, printing a flat profile below")
+		fmt.Fprintln(os.Stderr, "[servlo] profiling this run with SPX, printing a flat profile below")
 	} else {
-		fmt.Fprintln(os.Stderr, "[lerd] profiling this run with SPX, the report will appear in the Profiler view")
+		fmt.Fprintln(os.Stderr, "[servlo] profiling this run with SPX, the report will appear in the Profiler view")
 	}
 	code, err := RunPHPCaptureEnv(cwd, args, []string{"SPX_ENABLED=1", "SPX_REPORT=" + report})
 	if err != nil {

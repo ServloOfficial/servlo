@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lerd — offline</title>
+  <title>Servlo — offline</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <style>
@@ -94,18 +94,16 @@
 </head>
 <body>
   <div class="card">
-    <img class="logo" src="/icons/icon.svg" alt="Lerd">
-    <p class="title"><span class="dot" id="dot"></span> Lerd is not running</p>
-    <p class="subtitle">This page is being served by the installed app's offline cache. Your containers and site files are untouched; only the lerd stack is stopped or restarting.</p>
+    <img class="logo" src="/icons/icon.svg" alt="Servlo">
+    <p class="title"><span class="dot" id="dot"></span> Servlo is not running</p>
+    <p class="subtitle">This page is being served by the installed app's offline cache. Your containers and site files are untouched; only the servlo stack is stopped or restarting.</p>
 
     <h2>Start it</h2>
     <div class="cmd-row">
-      <pre id="cmd">lerd start</pre>
+      <pre id="cmd">servlo start</pre>
       <button class="copy-btn" id="copy" type="button">Copy</button>
     </div>
 
-    <h2>Or use the tray</h2>
-    <p class="subtitle" style="margin-top: 0">Click the lerd tray icon and choose <strong>Start Lerd</strong>. On macOS, look in the menu bar.</p>
 
     <div class="row">
       <button id="retry">Retry now</button>

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/geodro/lerd/internal/atomicfile"
+	"github.com/realrashid/servlo/internal/atomicfile"
 )
 
 // Save writes the current snapshot of every site to path as JSON, via a temp
 // file and rename so a reader never sees a half-written file. The watcher calls
-// this on its tick; lerd-ui reads it with Load.
+// this on its tick; servlo-panel reads it with Load.
 func (a *Aggregator) Save(path string) error {
 	return SaveSnapshot(a.Snapshot(), path)
 }

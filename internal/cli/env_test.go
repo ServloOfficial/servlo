@@ -6,23 +6,23 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// writeProject writes a minimal .lerd.yaml at dir with the given AppURL.
+// writeProject writes a minimal .servlo.yaml at dir with the given AppURL.
 func writeProject(t *testing.T, dir, appURL string) {
 	t.Helper()
 	body := ""
 	if appURL != "" {
 		body = "app_url: " + appURL + "\n"
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestResolveAppURL(t *testing.T) {
-	t.Run(".lerd.yaml beats sites.yaml beats default", func(t *testing.T) {
+	t.Run(".servlo.yaml beats sites.yaml beats default", func(t *testing.T) {
 		dir := t.TempDir()
 		writeProject(t, dir, "https://from-project.test")
 		site := &config.Site{AppURL: "https://from-sites.test"}
@@ -32,9 +32,9 @@ func TestResolveAppURL(t *testing.T) {
 		}
 	})
 
-	t.Run("sites.yaml used when .lerd.yaml has no app_url", func(t *testing.T) {
+	t.Run("sites.yaml used when .servlo.yaml has no app_url", func(t *testing.T) {
 		dir := t.TempDir()
-		writeProject(t, dir, "") // .lerd.yaml exists but no app_url
+		writeProject(t, dir, "") // .servlo.yaml exists but no app_url
 		site := &config.Site{AppURL: "https://from-sites.test"}
 		got := resolveAppURL(dir, site)
 		if got != "https://from-sites.test" {
@@ -42,8 +42,8 @@ func TestResolveAppURL(t *testing.T) {
 		}
 	})
 
-	t.Run("sites.yaml used when no .lerd.yaml exists", func(t *testing.T) {
-		dir := t.TempDir() // no .lerd.yaml
+	t.Run("sites.yaml used when no .servlo.yaml exists", func(t *testing.T) {
+		dir := t.TempDir() // no .servlo.yaml
 		site := &config.Site{AppURL: "https://from-sites.test"}
 		got := resolveAppURL(dir, site)
 		if got != "https://from-sites.test" {
@@ -52,7 +52,7 @@ func TestResolveAppURL(t *testing.T) {
 	})
 
 	t.Run("falls through to default generator when neither override is set", func(t *testing.T) {
-		dir := t.TempDir() // no .lerd.yaml
+		dir := t.TempDir() // no .servlo.yaml
 		site := &config.Site{}
 		// siteURL() reads the global registry; for an unregistered tempdir
 		// it returns "", which is exactly the "leave APP_URL alone" signal.
@@ -89,8 +89,8 @@ func TestS3BucketName(t *testing.T) {
 		{"my-app", "my-app"},
 		{"MyApp 2", "myapp-2"},
 		{"my.bucket.v2", "my.bucket.v2"},
-		{"  ___  ", "lerd"},
-		{"", "lerd"},
+		{"  ___  ", "servlo"},
+		{"", "servlo"},
 		{"--app--", "app"},
 	}
 	for _, tc := range cases {
@@ -141,14 +141,14 @@ func TestUserPickedDBFromYAML(t *testing.T) {
 func TestUserPickedDBFromYAML_CustomFamilyMember(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
-	if err := os.MkdirAll(filepath.Join(tmp, "lerd", "services"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmp, "servlo", "services"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 	yaml := `name: postgres-pgvector
 family: postgres
 image: docker.io/pgvector/pgvector:pg18
 `
-	if err := os.WriteFile(filepath.Join(tmp, "lerd", "services", "postgres-pgvector.yaml"), []byte(yaml), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, "servlo", "services", "postgres-pgvector.yaml"), []byte(yaml), 0o644); err != nil {
 		t.Fatalf("write fake service: %v", err)
 	}
 	if !userPickedDBFromYAML(map[string]bool{"postgres-pgvector": true}) {
@@ -159,14 +159,14 @@ image: docker.io/pgvector/pgvector:pg18
 func TestBuildDatabaseOptions_IncludesInstalledFamilyAlternates(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
-	if err := os.MkdirAll(filepath.Join(tmp, "lerd", "services"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmp, "servlo", "services"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 	yaml := `name: postgres-pgvector
 family: postgres
 image: docker.io/pgvector/pgvector:pg18
 `
-	if err := os.WriteFile(filepath.Join(tmp, "lerd", "services", "postgres-pgvector.yaml"), []byte(yaml), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, "servlo", "services", "postgres-pgvector.yaml"), []byte(yaml), 0o644); err != nil {
 		t.Fatalf("write fake service: %v", err)
 	}
 	options, nameSet := buildDatabaseOptions()
@@ -198,9 +198,9 @@ func TestShouldApplyService(t *testing.T) {
 		valkeyPicked bool
 		want         bool
 	}{
-		// Regression: fresh Laravel project, user picks mysql in `lerd init`.
+		// Regression: fresh Laravel project, user picks mysql in `servlo init`.
 		// Existing .env still says DB_CONNECTION=sqlite, so detection misses.
-		// The .lerd.yaml pick must still cause mysql vars to be applied.
+		// The .servlo.yaml pick must still cause mysql vars to be applied.
 		{"mysql picked, not detected", "mysql", false, true, true, false, true},
 
 		// Detection-driven application keeps working when the user did not
@@ -255,7 +255,7 @@ func TestConsoleExecArgs(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := consoleExecArgs("/proj", "8.4", tc.console, "key:generate")
-			want := []string{"exec", "-i", "-w", "/proj", "lerd-php84-fpm", "php", tc.want, "key:generate"}
+			want := []string{"exec", "-i", "-w", "/proj", "servlo-php84-fpm", "php", tc.want, "key:generate"}
 			if strings.Join(got, " ") != strings.Join(want, " ") {
 				t.Errorf("consoleExecArgs(console=%q) = %v, want %v", tc.console, got, want)
 			}
@@ -289,10 +289,10 @@ func TestSplitHostContainerPort(t *testing.T) {
 func TestApplyHostProxyEnv_rewritesHostAndPort(t *testing.T) {
 	// mariadb: container 3306 publishes on host 3411.
 	updates := map[string]string{
-		"DB_HOST":     "lerd-mariadb-11",
+		"DB_HOST":     "servlo-mariadb-11",
 		"DB_PORT":     "3306",
 		"DB_DATABASE": "flowmeter",
-		"REDIS_HOST":  "lerd-redis",
+		"REDIS_HOST":  "servlo-redis",
 		"REDIS_PORT":  "6379",
 		"APP_URL":     "https://flowmeter.test",
 		"APP_NAME":    "ecom",
@@ -328,13 +328,13 @@ func TestApplyHostProxyEnv_rewritesEmbeddedUrlHosts(t *testing.T) {
 	// hostname inside the value; the host must be rewritten to loopback and the
 	// embedded port remapped, while credentials and path survive.
 	updates := map[string]string{
-		"MONGO_DSN":         "mongodb://root:lerd@lerd-mongo:27017/site?authSource=admin",
-		"ELASTICSEARCH_URL": "http://lerd-elasticsearch:9200",
+		"MONGO_DSN":         "mongodb://root:servlo@servlo-mongo:27017/site?authSource=admin",
+		"ELASTICSEARCH_URL": "http://servlo-elasticsearch:9200",
 		"DB_PORT":           "3306",
 	}
 	applyHostProxyEnv(updates, map[string]string{"27017": "27017", "9200": "9200", "3306": "3411"})
 
-	if got := updates["MONGO_DSN"]; got != "mongodb://root:lerd@127.0.0.1:27017/site?authSource=admin" {
+	if got := updates["MONGO_DSN"]; got != "mongodb://root:servlo@127.0.0.1:27017/site?authSource=admin" {
 		t.Errorf("MONGO_DSN = %q", got)
 	}
 	if got := updates["ELASTICSEARCH_URL"]; got != "http://127.0.0.1:9200" {
@@ -347,20 +347,20 @@ func TestApplyHostProxyEnv_rewritesEmbeddedUrlHosts(t *testing.T) {
 }
 
 func TestApplyHostProxyEnv_leavesNonConnectionKeysAlone(t *testing.T) {
-	// A value carrying a "lerd-" token in a key that is NOT a connection target
+	// A value carrying a "servlo-" token in a key that is NOT a connection target
 	// must survive untouched — only host/port/url/dsn/endpoint keys get rewritten.
 	updates := map[string]string{
-		"APP_NAME":     "lerd-demo",                    // not a conn key: keep
-		"CACHE_PREFIX": "lerd-cache",                   // not a conn key: keep
-		"DB_HOST":      "lerd-mariadb",                 // conn key: rewrite to loopback
-		"MONGO_DSN":    "mongodb://lerd-mongo:27017/x", // conn key: rewrite host
+		"APP_NAME":     "servlo-demo",                    // not a conn key: keep
+		"CACHE_PREFIX": "servlo-cache",                   // not a conn key: keep
+		"DB_HOST":      "servlo-mariadb",                 // conn key: rewrite to loopback
+		"MONGO_DSN":    "mongodb://servlo-mongo:27017/x", // conn key: rewrite host
 	}
 	applyHostProxyEnv(updates, map[string]string{"27017": "27017"})
 
-	if updates["APP_NAME"] != "lerd-demo" {
+	if updates["APP_NAME"] != "servlo-demo" {
 		t.Errorf("APP_NAME mangled: %q", updates["APP_NAME"])
 	}
-	if updates["CACHE_PREFIX"] != "lerd-cache" {
+	if updates["CACHE_PREFIX"] != "servlo-cache" {
 		t.Errorf("CACHE_PREFIX mangled: %q", updates["CACHE_PREFIX"])
 	}
 	if updates["DB_HOST"] != "127.0.0.1" {
@@ -378,9 +378,9 @@ func TestRewriteEnvForHostProxy_usesPresetPorts(t *testing.T) {
 	// redis shifted to 6380 when the host owns 6379) cannot leak into the lookup.
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	updates := map[string]string{
-		"DB_HOST":    "lerd-postgres",
+		"DB_HOST":    "servlo-postgres",
 		"DB_PORT":    "5432",
-		"REDIS_HOST": "lerd-redis",
+		"REDIS_HOST": "servlo-redis",
 		"REDIS_PORT": "6379",
 	}
 	rewriteEnvForHostProxy(updates, []string{"postgres", "redis"})
@@ -402,18 +402,18 @@ func magentoLikeFramework() *config.Framework {
 			Format: "php-array",
 			Services: map[string]config.FrameworkServiceDef{
 				"mysql": {Vars: []string{
-					"db.connection.default.host=lerd-mysql",
+					"db.connection.default.host=servlo-mysql",
 					"db.connection.default.dbname={{site}}",
 					"db.connection.default.username=root",
-					"db.connection.default.password=lerd",
+					"db.connection.default.password=servlo",
 				}},
 				"redis": {Vars: []string{
 					`cache.frontend.default.backend=Magento\Framework\Cache\Backend\Redis`,
-					"cache.frontend.default.backend_options.server=lerd-redis",
+					"cache.frontend.default.backend_options.server=servlo-redis",
 					"cache.frontend.default.backend_options.port=6379",
 				}},
 				"opensearch": {Vars: []string{
-					"system.default.catalog.search.opensearch_server_hostname=lerd-opensearch",
+					"system.default.catalog.search.opensearch_server_hostname=servlo-opensearch",
 				}},
 			},
 		},
@@ -453,7 +453,7 @@ func symfonyLikeFramework() *config.Framework {
 			File:   ".env.local",
 			Format: "dotenv",
 			Services: map[string]config.FrameworkServiceDef{
-				"mysql": {Vars: []string{"DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/{{site}}"}},
+				"mysql": {Vars: []string{"DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/{{site}}"}},
 			},
 		},
 	}
@@ -486,10 +486,10 @@ func TestFrameworkVarsForAlternate_SwapsTheContainerOnly(t *testing.T) {
 	mariadb := &config.CustomService{Name: "mariadb-11-8", EnvRole: "mysql"}
 	got := frameworkVarsForAlternate(magentoLikeFramework(), "mysql", mariadb)
 	want := []string{
-		"db.connection.default.host=lerd-mariadb-11-8",
+		"db.connection.default.host=servlo-mariadb-11-8",
 		"db.connection.default.dbname={{site}}",
 		"db.connection.default.username=root",
-		"db.connection.default.password=lerd",
+		"db.connection.default.password=servlo",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("got:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -508,7 +508,7 @@ func TestFrameworkVarsForAlternate_LeavesUnrelatedValuesAlone(t *testing.T) {
 	valkey := &config.CustomService{Name: "valkey", Family: "valkey", EnvRole: "redis"}
 	got := frameworkVarsForAlternate(magentoLikeFramework(), "redis", valkey)
 	joined := strings.Join(got, "\n")
-	if !strings.Contains(joined, "backend_options.server=lerd-valkey") {
+	if !strings.Contains(joined, "backend_options.server=servlo-valkey") {
 		t.Errorf("the redis container was not swapped: %s", joined)
 	}
 	if !strings.Contains(joined, `backend=Magento\Framework\Cache\Backend\Redis`) {
@@ -524,9 +524,9 @@ func TestFrameworkVarsForAlternate_LeavesUnrelatedValuesAlone(t *testing.T) {
 // through that block must not drop them. Laravel knows all three: they are the keys
 // its own redis detect rules watch.
 func TestPresetVarsBeyond(t *testing.T) {
-	frameworkVars := []string{"REDIS_HOST=lerd-valkey", "REDIS_PORT=6379", "REDIS_PASSWORD="}
+	frameworkVars := []string{"REDIS_HOST=servlo-valkey", "REDIS_PORT=6379", "REDIS_PASSWORD="}
 	presetVars := []string{
-		"REDIS_HOST=lerd-valkey", "REDIS_PORT=6379", "REDIS_PASSWORD=null",
+		"REDIS_HOST=servlo-valkey", "REDIS_PORT=6379", "REDIS_PASSWORD=null",
 		"CACHE_STORE=redis", "SESSION_DRIVER=redis", "QUEUE_CONNECTION=redis",
 	}
 	known := map[string]bool{
@@ -553,8 +553,8 @@ func TestPresetVarsBeyond(t *testing.T) {
 func TestPresetVarsBeyond_DropsKeysTheFrameworkNeverNames(t *testing.T) {
 	known := frameworkKnownKeys(symfonyLikeFramework()) // DATABASE_URL only
 	got := presetVarsBeyond(
-		[]string{"DB_CONNECTION=mysql", "DB_HOST=lerd-mariadb-11-8", "DB_DATABASE=lerd"},
-		[]string{"DATABASE_URL=mysql://root:lerd@lerd-mariadb-11-8:3306/{{site}}"},
+		[]string{"DB_CONNECTION=mysql", "DB_HOST=servlo-mariadb-11-8", "DB_DATABASE=servlo"},
+		[]string{"DATABASE_URL=mysql://root:servlo@servlo-mariadb-11-8:3306/{{site}}"},
 		known,
 	)
 	if len(got) != 0 {
@@ -569,7 +569,7 @@ func TestFrameworkKnownKeys_CoversVarsAndDetectRules(t *testing.T) {
 		Services: map[string]config.FrameworkServiceDef{
 			"redis": {
 				Detect: []config.FrameworkServiceDetect{{Key: "CACHE_STORE", ValuePrefix: "redis"}},
-				Vars:   []string{"REDIS_HOST=lerd-redis"},
+				Vars:   []string{"REDIS_HOST=servlo-redis"},
 			},
 		},
 	}}
@@ -593,14 +593,14 @@ func TestFrameworkVarsForAlternate_NonLaravelDotenvFramework(t *testing.T) {
 		Env: config.FrameworkEnvConf{File: ".env", Format: "dotenv",
 			Services: map[string]config.FrameworkServiceDef{
 				"mysql": {Vars: []string{
-					"DB_DRIVER=mysql", "DB_HOST=lerd-mysql", "DB_PORT=3306",
-					"DB_NAME={{site}}", "DB_USER=root", "DB_PASSWORD=lerd",
+					"DB_DRIVER=mysql", "DB_HOST=servlo-mysql", "DB_PORT=3306",
+					"DB_NAME={{site}}", "DB_USER=root", "DB_PASSWORD=servlo",
 				}},
 			}},
 	}
 	got := frameworkVarsForAlternate(drupal, "mysql", &config.CustomService{Name: "mariadb-11-8", EnvRole: "mysql"})
 	joined := strings.Join(got, "\n")
-	if !strings.Contains(joined, "DB_HOST=lerd-mariadb-11-8") {
+	if !strings.Contains(joined, "DB_HOST=servlo-mariadb-11-8") {
 		t.Errorf("the container was not swapped: %s", joined)
 	}
 	for _, key := range []string{"DB_DRIVER=", "DB_NAME=", "DB_USER="} {
@@ -619,12 +619,12 @@ func TestWiredVarsFor_DropInGetsOnlyWhatTheFrameworkReads(t *testing.T) {
 	mariadb := &config.CustomService{
 		Name: "mariadb-11-8", EnvRole: "mysql",
 		EnvVars: []string{
-			"DB_CONNECTION=mysql", "DB_HOST=lerd-mariadb-11-8", "DB_PORT=3306",
-			"DB_DATABASE=lerd", "DB_USERNAME=root", "DB_PASSWORD=lerd",
+			"DB_CONNECTION=mysql", "DB_HOST=servlo-mariadb-11-8", "DB_PORT=3306",
+			"DB_DATABASE=servlo", "DB_USERNAME=root", "DB_PASSWORD=servlo",
 		},
 	}
 	got := wiredVarsFor(fw, mariadb, "mysql", frameworkKnownKeys(fw), true, false, false)
-	want := []string{"DATABASE_URL=mysql://root:lerd@lerd-mariadb-11-8:3306/{{site}}"}
+	want := []string{"DATABASE_URL=mysql://root:servlo@servlo-mariadb-11-8:3306/{{site}}"}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("got %v, want %v", got, want)
 	}
@@ -637,15 +637,15 @@ func TestWiredVarsFor_LaravelDropInKeepsItsMapping(t *testing.T) {
 		Format: "dotenv",
 		Services: map[string]config.FrameworkServiceDef{
 			"mysql": {Vars: []string{
-				"DB_CONNECTION=mysql", "DB_HOST=lerd-mysql", "DB_PORT=3306",
-				"DB_DATABASE={{site}}", "DB_USERNAME=root", "DB_PASSWORD=lerd",
+				"DB_CONNECTION=mysql", "DB_HOST=servlo-mysql", "DB_PORT=3306",
+				"DB_DATABASE={{site}}", "DB_USERNAME=root", "DB_PASSWORD=servlo",
 			}},
 		},
 	}}
 	mariadb := &config.CustomService{Name: "mariadb-11-8", EnvRole: "mysql"}
 	got := wiredVarsFor(fw, mariadb, "mysql", frameworkKnownKeys(fw), true, false, false)
 	joined := strings.Join(got, "\n")
-	if !strings.Contains(joined, "DB_HOST=lerd-mariadb-11-8") {
+	if !strings.Contains(joined, "DB_HOST=servlo-mariadb-11-8") {
 		t.Errorf("the container was not swapped: %s", joined)
 	}
 	for _, k := range []string{"DB_CONNECTION=", "DB_DATABASE=", "DB_USERNAME=", "DB_PASSWORD="} {
@@ -667,19 +667,19 @@ func TestWiredVarsFor_ValkeyKeepsTheDriversLaravelKnows(t *testing.T) {
 					{Key: "SESSION_DRIVER", ValuePrefix: "redis"},
 					{Key: "QUEUE_CONNECTION", ValuePrefix: "redis"},
 				},
-				Vars: []string{"REDIS_HOST=lerd-redis", "REDIS_PORT=6379", "REDIS_PASSWORD="},
+				Vars: []string{"REDIS_HOST=servlo-redis", "REDIS_PORT=6379", "REDIS_PASSWORD="},
 			},
 		},
 	}}
 	valkey := &config.CustomService{
 		Name: "valkey", Family: "valkey", EnvRole: "redis",
 		EnvVars: []string{
-			"REDIS_HOST=lerd-valkey", "REDIS_PORT=6379", "REDIS_PASSWORD=null",
+			"REDIS_HOST=servlo-valkey", "REDIS_PORT=6379", "REDIS_PASSWORD=null",
 			"CACHE_STORE=redis", "SESSION_DRIVER=redis", "QUEUE_CONNECTION=redis",
 		},
 	}
 	joined := strings.Join(wiredVarsFor(fw, valkey, "redis", frameworkKnownKeys(fw), true, false, false), "\n")
-	if !strings.Contains(joined, "REDIS_HOST=lerd-valkey") {
+	if !strings.Contains(joined, "REDIS_HOST=servlo-valkey") {
 		t.Errorf("the container was not swapped: %s", joined)
 	}
 	for _, k := range []string{"CACHE_STORE=redis", "SESSION_DRIVER=redis", "QUEUE_CONNECTION=redis"} {
@@ -697,19 +697,19 @@ func TestWiredVarsFor_ValkeyDropsTheDriversSymfonyCannotRead(t *testing.T) {
 		Services: map[string]config.FrameworkServiceDef{
 			"redis": {
 				Detect: []config.FrameworkServiceDetect{{Key: "REDIS_URL"}},
-				Vars:   []string{"REDIS_URL=redis://lerd-redis:6379"},
+				Vars:   []string{"REDIS_URL=redis://servlo-redis:6379"},
 			},
 		},
 	}}
 	valkey := &config.CustomService{
 		Name: "valkey", Family: "valkey", EnvRole: "redis",
 		EnvVars: []string{
-			"REDIS_HOST=lerd-valkey", "REDIS_PORT=6379", "REDIS_PASSWORD=null",
+			"REDIS_HOST=servlo-valkey", "REDIS_PORT=6379", "REDIS_PASSWORD=null",
 			"CACHE_STORE=redis", "SESSION_DRIVER=redis", "QUEUE_CONNECTION=redis",
 		},
 	}
 	got := wiredVarsFor(fw, valkey, "redis", frameworkKnownKeys(fw), true, false, false)
-	want := []string{"REDIS_URL=redis://lerd-valkey:6379"}
+	want := []string{"REDIS_URL=redis://servlo-valkey:6379"}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("got %v, want %v", got, want)
 	}
@@ -720,14 +720,14 @@ func TestWiredVarsFor_PhpArrayNeverTakesPresetKeys(t *testing.T) {
 	fw := magentoLikeFramework()
 	typesense := &config.CustomService{
 		Name: "typesense", Family: "typesense",
-		EnvVars: []string{"TYPESENSE_HOST=lerd-typesense"},
+		EnvVars: []string{"TYPESENSE_HOST=servlo-typesense"},
 	}
 	if got := wiredVarsFor(fw, typesense, "", frameworkKnownKeys(fw), false, false, true); len(got) != 0 {
 		t.Errorf("an unmapped service on a dotted env writes nothing, got %v", got)
 	}
 	mariadb := &config.CustomService{
 		Name: "mariadb-11-8", EnvRole: "mysql",
-		EnvVars: []string{"DB_HOST=lerd-mariadb-11-8", "DB_DATABASE=lerd"},
+		EnvVars: []string{"DB_HOST=servlo-mariadb-11-8", "DB_DATABASE=servlo"},
 	}
 	for _, kv := range wiredVarsFor(fw, mariadb, "mysql", frameworkKnownKeys(fw), true, false, true) {
 		if strings.HasPrefix(kv, "DB_") {
@@ -766,27 +766,27 @@ func externalMariadb() *config.CustomService {
 	return &config.CustomService{
 		Name: "mariadb-11-8", Family: "mariadb",
 		EnvVars: []string{
-			"DB_CONNECTION=mysql", "DB_HOST=lerd-mariadb-11-8", "DB_PORT=3306",
-			"DB_DATABASE=lerd", "DB_USERNAME=root", "DB_PASSWORD=lerd",
+			"DB_CONNECTION=mysql", "DB_HOST=servlo-mariadb-11-8", "DB_PORT=3306",
+			"DB_DATABASE=servlo", "DB_USERNAME=root", "DB_PASSWORD=servlo",
 		},
 	}
 }
 
-// Externally managed means lerd does not start or provision the service. It does not
-// mean the app reads different keys: what lerd writes is what .env.lerd_override then
+// Externally managed means servlo does not start or provision the service. It does not
+// mean the app reads different keys: what servlo writes is what .env.servlo_override then
 // overrides, so it still has to be the framework's own mapping. Symfony reads a
 // DATABASE_URL, and writing six DB_* keys it cannot read instead leaves the site with
 // no database wiring at all and an override file pointed at nothing.
 func TestWiredVarsFor_ExternalDropInIsWiredThroughTheFramework(t *testing.T) {
 	fw := symfonyLikeFramework()
 	got := wiredVarsFor(fw, externalMariadb(), "mysql", frameworkKnownKeys(fw), true, true, false)
-	want := []string{"DATABASE_URL=mysql://root:lerd@lerd-mariadb-11-8:3306/{{site}}"}
+	want := []string{"DATABASE_URL=mysql://root:servlo@servlo-mariadb-11-8:3306/{{site}}"}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
 
-// The preset names the database `lerd`, the framework names it {{site}}. Wiring an
+// The preset names the database `servlo`, the framework names it {{site}}. Wiring an
 // external drop-in through the preset dropped the project's own database on the floor,
 // since the DB_DATABASE pin is skipped precisely when the mapping was used.
 func TestWiredVarsFor_ExternalDropInKeepsTheProjectDatabase(t *testing.T) {
@@ -794,8 +794,8 @@ func TestWiredVarsFor_ExternalDropInKeepsTheProjectDatabase(t *testing.T) {
 		Format: "dotenv",
 		Services: map[string]config.FrameworkServiceDef{
 			"mysql": {Vars: []string{
-				"DB_CONNECTION=mysql", "DB_HOST=lerd-mysql", "DB_PORT=3306",
-				"DB_DATABASE={{site}}", "DB_USERNAME=root", "DB_PASSWORD=lerd",
+				"DB_CONNECTION=mysql", "DB_HOST=servlo-mysql", "DB_PORT=3306",
+				"DB_DATABASE={{site}}", "DB_USERNAME=root", "DB_PASSWORD=servlo",
 			}},
 		},
 	}}
@@ -803,13 +803,13 @@ func TestWiredVarsFor_ExternalDropInKeepsTheProjectDatabase(t *testing.T) {
 	if !strings.Contains(joined, "DB_DATABASE={{site}}") {
 		t.Errorf("the project's database was replaced by the preset's literal: %s", joined)
 	}
-	if !strings.Contains(joined, "DB_HOST=lerd-mariadb-11-8") {
+	if !strings.Contains(joined, "DB_HOST=servlo-mariadb-11-8") {
 		t.Errorf("the container was not swapped: %s", joined)
 	}
 }
 
 // A php-array env takes nothing for an external service: the override file is dotenv,
-// so it cannot address a dotted path, and there is no key lerd can write that the user
+// so it cannot address a dotted path, and there is no key servlo can write that the user
 // could then point at their own instance.
 func TestWiredVarsFor_ExternalOnDottedEnvWritesNothing(t *testing.T) {
 	fw := magentoLikeFramework()
@@ -819,15 +819,15 @@ func TestWiredVarsFor_ExternalOnDottedEnvWritesNothing(t *testing.T) {
 }
 
 // An external service the framework maps nothing for still falls back to the preset's
-// own keys, which is all lerd knows about it.
+// own keys, which is all servlo knows about it.
 func TestWiredVarsFor_ExternalUnmappedKeepsThePresetKeys(t *testing.T) {
 	fw := symfonyLikeFramework()
 	typesense := &config.CustomService{
 		Name: "typesense", Family: "typesense",
-		EnvVars: []string{"TYPESENSE_HOST=lerd-typesense"},
+		EnvVars: []string{"TYPESENSE_HOST=servlo-typesense"},
 	}
 	got := wiredVarsFor(fw, typesense, "", frameworkKnownKeys(fw), false, true, false)
-	if strings.Join(got, "\n") != "TYPESENSE_HOST=lerd-typesense" {
+	if strings.Join(got, "\n") != "TYPESENSE_HOST=servlo-typesense" {
 		t.Errorf("got %v, want the preset's own keys", got)
 	}
 }

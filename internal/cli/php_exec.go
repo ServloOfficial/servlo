@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/agentenv"
-	"github.com/geodro/lerd/internal/config"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/agentenv"
+	"github.com/realrashid/servlo/internal/config"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -21,7 +21,7 @@ import (
 func NewPhpCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "php [args...]",
-		Short:              "Run PHP in the project's container (e.g. lerd php artisan migrate)",
+		Short:              "Run PHP in the project's container (e.g. servlo php artisan migrate)",
 		DisableFlagParsing: true,
 		SilenceUsage:       true,
 		RunE:               runPhp,
@@ -37,7 +37,7 @@ func runPhp(_ *cobra.Command, args []string) error {
 }
 
 // RunPHP execs `php <args...>` inside the project's PHP-FPM container, with
-// stdio wired to the current terminal. Used by `lerd php`, the vendor/bin
+// stdio wired to the current terminal. Used by `servlo php`, the vendor/bin
 // fallback, and other passthrough commands that need a PHP runtime. The
 // child's exit code is propagated via os.Exit; callers that need to do work
 // after the child exits (e.g. sync wrappers after a failed composer remove)
@@ -69,7 +69,7 @@ func phpVersionForDir(dir string) (string, error) {
 
 // fpmContainerForDir resolves the FPM container an exec in dir should target:
 // the per-site container for custom-FPM sites, otherwise the shared
-// lerd-php<version>-fpm container. It resolves the site the same way version
+// servlo-php<version>-fpm container. It resolves the site the same way version
 // detection does, so a worktree beside its project reaches the parent's custom
 // image rather than falling through to the shared container its vhost never uses.
 func fpmContainerForDir(dir, version string) string {
@@ -79,26 +79,26 @@ func fpmContainerForDir(dir, version string) string {
 	if site, _ := config.FindSiteByPath(phpDet.SiteRootFor(dir)); site != nil {
 		return podman.FPMContainerName(*site, version)
 	}
-	return "lerd-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
+	return "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
 }
 
-// debugSiteEnvArgs returns the LERD_SITE exec flag for a CLI run in dir, so the
+// debugSiteEnvArgs returns the SERVLO_SITE exec flag for a CLI run in dir, so the
 // debug bridge and the devtools extension tag every event with the registered
 // site name. Without it the bridge falls back to the directory basename and the
 // extension emits no site at all, which strands the notification (#1005). A
 // worktree checkout reports its parent site, like tinker and the worktree vhost.
 func debugSiteEnvArgs(dir string) []string {
 	if _, parent, ok := phpDet.WorktreeRootFor(dir); ok && parent != nil && parent.Name != "" {
-		return []string{"--env", "LERD_SITE=" + parent.Name}
+		return []string{"--env", "SERVLO_SITE=" + parent.Name}
 	}
 	if site, _ := config.FindSiteByPath(phpDet.SiteRootFor(dir)); site != nil && site.Name != "" {
-		return []string{"--env", "LERD_SITE=" + site.Name}
+		return []string{"--env", "SERVLO_SITE=" + site.Name}
 	}
 	return nil
 }
 
 // RunPHPCaptureEnv is RunPHPCapture with extra KEY=VALUE environment entries
-// injected into the container exec — used by `lerd profile run` to set
+// injected into the container exec — used by `servlo profile run` to set
 // SPX_ENABLED so a CLI command is profiled.
 func RunPHPCaptureEnv(cwd string, args []string, extraEnv []string) (int, error) {
 	version, err := phpVersionForDir(cwd)
@@ -109,13 +109,13 @@ func RunPHPCaptureEnv(cwd string, args []string, extraEnv []string) (int, error)
 }
 
 // RunPHPVersionCaptureEnv runs php in a specific version's container rather than
-// the one cwd resolves to. `lerd new` uses it to scaffold under a version the
+// the one cwd resolves to. `servlo new` uses it to scaffold under a version the
 // framework supports, since the empty parent directory would otherwise resolve
 // to the machine default and break composer's platform check.
 func RunPHPVersionCaptureEnv(cwd, version string, args []string, extraEnv []string) (int, error) {
 	recordCwdActivity(cwd) // keep the site awake under idle-suspend while you work in the terminal
 	// The CLI SAPI ignores a project's .user.ini, so a framework declaring
-	// php.cli_ini gets it as -d on every PHP process lerd starts for it.
+	// php.cli_ini gets it as -d on every PHP process servlo starts for it.
 	args = prependPHPIniArgs(phpIniArgsForDir(cwd), args)
 
 	container := fpmContainerForDir(cwd, version)
@@ -142,7 +142,7 @@ func RunPHPVersionCaptureEnv(cwd, version string, args []string, extraEnv []stri
 	// listed under mounts:) makes `podman exec -w <cwd>` fail with an opaque crun
 	// chdir error. Refuse with a clear message instead (issue #949).
 	if !podman.PathVisible(cwd, version) && !podman.PathAutoMountable(cwd) {
-		return 0, fmt.Errorf("cannot run php from %s: lerd does not mount temporary system directories (/tmp, /var/tmp, /run) into the PHP container. Run from a path under your home directory or a parked directory, or add the path to mounts: in %s", cwd, config.GlobalConfigFile())
+		return 0, fmt.Errorf("cannot run php from %s: servlo does not mount temporary system directories (/tmp, /var/tmp, /run) into the PHP container. Run from a path under your home directory or a parked directory, or add the path to mounts: in %s", cwd, config.GlobalConfigFile())
 	}
 
 	podman.EnsurePathMounted(cwd, version)
@@ -180,7 +180,7 @@ func RunPHPVersionCaptureEnv(cwd, version string, args []string, extraEnv []stri
 	cmdArgs = append(cmdArgs, debugSiteEnvArgs(cwd)...)
 	// Forward SPX_* profiler vars from the host so `SPX_ENABLED=1 php ...` (or
 	// any shim'd tool like composer) reaches SPX inside the container. extraEnv
-	// is applied after, so an explicit caller like `lerd profile run` wins.
+	// is applied after, so an explicit caller like `servlo profile run` wins.
 	for _, e := range spxPassthroughEnv(os.Environ()) {
 		cmdArgs = append(cmdArgs, "--env", e)
 	}

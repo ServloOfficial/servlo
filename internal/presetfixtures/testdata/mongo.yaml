@@ -5,15 +5,15 @@ ports:
   - "27017:27017"
 environment:
   MONGO_INITDB_ROOT_USERNAME: root
-  MONGO_INITDB_ROOT_PASSWORD: lerd
+  MONGO_INITDB_ROOT_PASSWORD: servlo
 data_dir: /data/db
-connection_url: mongodb://root:lerd@127.0.0.1:27017/?authSource=admin
+connection_url: mongodb://root:servlo@127.0.0.1:27017/?authSource=admin
 env_vars:
-  - MONGO_DSN=mongodb://root:lerd@lerd-mongo:27017/{{site}}?authSource=admin
+  - MONGO_DSN=mongodb://root:servlo@servlo-mongo:27017/{{site}}?authSource=admin
 env_detect:
   key: MONGO_DSN
   value_prefix: mongodb://
 site_init:
-  exec: mongosh --quiet -u root -p lerd --authenticationDatabase admin --eval "try { db.getSiblingDB('{{site}}').createCollection('_lerd_init') } catch (e) {}"
+  exec: mongosh --quiet -u root -p servlo --authenticationDatabase admin --eval "try { db.getSiblingDB('{{site}}').createCollection('_servlo_init') } catch (e) {}"
 category: databases
 icon: leaf

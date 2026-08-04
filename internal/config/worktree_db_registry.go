@@ -8,8 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// WorktreeDBEntry tracks one isolated worktree database so lerd can drop it
-// later — even after `git worktree remove` deletes the worktree's .lerd.yaml.
+// WorktreeDBEntry tracks one isolated worktree database so servlo can drop it
+// later — even after `git worktree remove` deletes the worktree's .servlo.yaml.
 type WorktreeDBEntry struct {
 	Site    string `yaml:"site"`
 	Branch  string `yaml:"branch"`

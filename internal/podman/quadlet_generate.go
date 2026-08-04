@@ -5,13 +5,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// CustomServiceQuadletMarker tags quadlets generated for lerd-managed services
+// CustomServiceQuadletMarker tags quadlets generated for servlo-managed services
 // (custom + default presets) so ReconcileServices finds orphans by content, not
 // by name, sparing site/worker quadlets that lack it (issue #678).
-const CustomServiceQuadletMarker = "# lerd-managed-service"
+const CustomServiceQuadletMarker = "# servlo-managed-service"
 
 // GenerateCustomQuadlet builds a quadlet .container file for a custom service.
 func GenerateCustomQuadlet(svc *config.CustomService) string {
@@ -21,15 +21,15 @@ func GenerateCustomQuadlet(svc *config.CustomService) string {
 	b.WriteString("[Unit]\n")
 	desc := svc.Description
 	if desc == "" {
-		desc = "Lerd " + svc.Name
+		desc = "Servlo " + svc.Name
 	}
 	fmt.Fprintf(&b, "Description=%s\n", desc)
 	b.WriteString("After=network.target\n")
 
 	b.WriteString("\n[Container]\n")
 	fmt.Fprintf(&b, "Image=%s\n", svc.Image)
-	fmt.Fprintf(&b, "ContainerName=lerd-%s\n", svc.Name)
-	b.WriteString("Network=lerd\n")
+	fmt.Fprintf(&b, "ContainerName=servlo-%s\n", svc.Name)
+	b.WriteString("Network=servlo\n")
 	// Bound podman's graceful-stop window so images with slow shutdown
 	// sequences (selenium/supervisord, chromium) don't block systemctl stop
 	// for the full 90 s default. Mirrors the --stop-timeout=5 used on macOS.
@@ -51,7 +51,7 @@ func GenerateCustomQuadlet(svc *config.CustomService) string {
 	}
 
 	// Without an explicit mount podman derives /etc/hosts from the host's own,
-	// so a hand-added "127.0.0.1 lerd-<svc>" line there shadows container DNS.
+	// so a hand-added "127.0.0.1 servlo-<svc>" line there shadows container DNS.
 	// ShareHosts services get the browser variant for .test resolution instead.
 	if svc.ShareHosts {
 		fmt.Fprintf(&b, "Volume=%s:/etc/hosts:ro,z\n", config.BrowserHostsFile())
@@ -93,7 +93,7 @@ func GenerateCustomQuadlet(svc *config.CustomService) string {
 		fmt.Fprintf(&b, "Volume=%s:%s:ro,z\n", config.ServiceTuningFile(svc.Name), target)
 	}
 
-	// Lerd-managed tuning helper (e.g. postgres config_file wrapper). Mounted
+	// Servlo-managed tuning helper (e.g. postgres config_file wrapper). Mounted
 	// read-only; materialised by MaterializeServiceTuning before generation so
 	// the host path is guaranteed present.
 	if auxTarget, _, ok := config.ServiceTuningAux(svc); ok {
@@ -105,7 +105,7 @@ func GenerateCustomQuadlet(svc *config.CustomService) string {
 		env[k] = v
 	}
 	// Preset-sourced proxy env (e.g. redisinsight RI_PROXY_PATH) so the upstream
-	// serves under the lerd-ui proxy mount. Overlaid here rather than stored in
+	// serves under the servlo-panel proxy mount. Overlaid here rather than stored in
 	// the service YAML, so existing installs pick it up on the next start.
 	if k, v, ok := config.PresetProxyEnv(svc); ok {
 		env[k] = v

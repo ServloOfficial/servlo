@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestBasePullArgs(t *testing.T) {
-	ref := "ghcr.io/geodro/lerd-php85-fpm-base:abc123def456"
+	ref := "ghcr.io/lerd-env/lerd-php85-fpm-base:abc123def456"
 
 	args := basePullArgs(ref, "/tmp/auth.json")
 	if args[0] != "pull" {
@@ -96,8 +96,8 @@ func TestBuildCustomPackagesBlock(t *testing.T) {
 	}
 }
 
-// Opting chromium in (lerd pest:browser install) must pin Playwright's browser
-// path to the cache volume, since `lerd test` execs with the host HOME.
+// Opting chromium in (servlo pest:browser install) must pin Playwright's browser
+// path to the cache volume, since `servlo test` execs with the host HOME.
 func TestBuildCustomPackagesBlock_ChromiumBakesPlaywrightEnv(t *testing.T) {
 	block := buildCustomPackagesBlock([]string{"chromium"})
 	if !strings.Contains(block, "ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright") {
@@ -108,7 +108,7 @@ func TestBuildCustomPackagesBlock_ChromiumBakesPlaywrightEnv(t *testing.T) {
 func TestBaseContainerfileHash_StripsCustomPackages(t *testing.T) {
 	// The {{.CustomPackages}} marker must be stripped when hashing the canonical
 	// base, or per-user packages would drift the published base image tag.
-	tmpl, err := GetQuadletTemplate("lerd-php-fpm.Containerfile")
+	tmpl, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,10 +168,10 @@ func TestBuildCustomExtBlockWithToolchain(t *testing.T) {
 			t.Errorf("fast-path block must install %q for phpize:\n%s", pkg, block)
 		}
 	}
-	if !strings.Contains(block, "--virtual .lerd-ext-build") {
+	if !strings.Contains(block, "--virtual .servlo-ext-build") {
 		t.Errorf("toolchain must install as a virtual package so it can be purged:\n%s", block)
 	}
-	if !strings.Contains(block, "apk del .lerd-ext-build") {
+	if !strings.Contains(block, "apk del .servlo-ext-build") {
 		t.Errorf("toolchain must be purged in the same layer so the runtime image does not grow:\n%s", block)
 	}
 	// The extension's own deps still install, and outlive the purge: the
@@ -191,7 +191,7 @@ func TestBuildCustomExtBlockWithToolchain(t *testing.T) {
 // install or purge it: purging there would take the stage's own compilers out.
 func TestBuildCustomExtBlock_NoToolchainOnLocalPath(t *testing.T) {
 	block := buildCustomExtBlock([]string{"yaml"}, nil)
-	if strings.Contains(block, ".lerd-ext-build") {
+	if strings.Contains(block, ".servlo-ext-build") {
 		t.Errorf("builder-stage block must not manage the toolchain:\n%s", block)
 	}
 }
@@ -297,7 +297,7 @@ func TestParseApkDeps(t *testing.T) {
 // git is needed at runtime by composer for VCS-typed repositories and
 // any plugin that shells out to it. Re-dropped accidentally by #364.
 func TestPhpFpmContainerfile_RuntimeIncludesGit(t *testing.T) {
-	tmpl, err := GetQuadletTemplate("lerd-php-fpm.Containerfile")
+	tmpl, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
 	if err != nil {
 		t.Fatalf("read containerfile: %v", err)
 	}
@@ -367,7 +367,7 @@ func TestNeedsFPMRebuild_CacheMatches_LabelMatches_NoRebuild(t *testing.T) {
 }
 
 func TestNeedsFPMRebuild_CacheMatches_LabelMismatch_TriggersRebuild(t *testing.T) {
-	// Poisoned-state recovery: an older lerd binary advanced the cache file
+	// Poisoned-state recovery: an older servlo binary advanced the cache file
 	// without rebuilding, so the cache says "up to date" but the active
 	// image carries the old hash as its label.
 	tmp := t.TempDir()
@@ -388,7 +388,7 @@ func TestNeedsFPMRebuild_CacheMatches_LabelMismatch_TriggersRebuild(t *testing.T
 }
 
 func TestNeedsFPMRebuild_CacheMatches_LegacyImageWithoutLabel_TriggersRebuild(t *testing.T) {
-	// Images built by an even older lerd that predates the label entirely
+	// Images built by an even older servlo that predates the label entirely
 	// must also recover automatically.
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
@@ -403,7 +403,7 @@ func TestNeedsFPMRebuild_CacheMatches_LegacyImageWithoutLabel_TriggersRebuild(t 
 	t.Cleanup(func() { imageLabelFn = prevLabel })
 
 	if !NeedsFPMRebuild([]string{"8.4"}) {
-		t.Error("expected rebuild when the image carries no fpm-containerfile-hash label (pre-label lerd build)")
+		t.Error("expected rebuild when the image carries no fpm-containerfile-hash label (pre-label servlo build)")
 	}
 }
 
@@ -423,8 +423,8 @@ func TestNeedsFPMRebuild_CacheMismatch_TriggersRebuild(t *testing.T) {
 
 func TestNeedsFPMRebuild_OrphanLegacyImagesDoNotForceRebuild(t *testing.T) {
 	// Pre-v1.22.0 images for PHP versions the user has since removed
-	// (lerd-php72-fpm:local, etc.) carry no hash label. The first label
-	// scan iterated every lerd-php*-fpm:local image on disk and would
+	// (servlo-php72-fpm:local, etc.) carry no hash label. The first label
+	// scan iterated every servlo-php*-fpm:local image on disk and would
 	// return true forever on those orphans, even when every active
 	// version had a correct label.
 	tmp := t.TempDir()
@@ -438,7 +438,7 @@ func TestNeedsFPMRebuild_OrphanLegacyImagesDoNotForceRebuild(t *testing.T) {
 	prevLabel := imageLabelFn
 	imageLabelFn = func(image, key string) string {
 		switch image {
-		case "lerd-php83-fpm:local", "lerd-php84-fpm:local", "lerd-php85-fpm:local":
+		case "servlo-php83-fpm:local", "servlo-php84-fpm:local", "servlo-php85-fpm:local":
 			return current
 		default:
 			return "" // orphan, no label
@@ -462,7 +462,7 @@ func TestNeedsFPMRebuild_ActiveVersionLabelMismatchTriggersRebuild(t *testing.T)
 
 	prevLabel := imageLabelFn
 	imageLabelFn = func(image, key string) string {
-		if image == "lerd-php84-fpm:local" {
+		if image == "servlo-php84-fpm:local" {
 			return "stale-label-from-poisoned-cache"
 		}
 		return current
@@ -504,9 +504,9 @@ func TestNeedsFPMRebuild_NoCacheNoActiveVersions_NoRebuild(t *testing.T) {
 
 func TestFPMImageName(t *testing.T) {
 	cases := map[string]string{
-		"8.3": "lerd-php83-fpm:local",
-		"8.4": "lerd-php84-fpm:local",
-		"7.2": "lerd-php72-fpm:local",
+		"8.3": "servlo-php83-fpm:local",
+		"8.4": "servlo-php84-fpm:local",
+		"7.2": "servlo-php72-fpm:local",
 	}
 	for version, want := range cases {
 		if got := FPMImageName(version); got != want {
@@ -516,7 +516,7 @@ func TestFPMImageName(t *testing.T) {
 }
 
 func TestFPMBuildArgs_ContainsHashLabel(t *testing.T) {
-	args := fpmBuildArgs("lerd-php84-fpm:local", "abc123", "cust1", "sha256:base", false)
+	args := fpmBuildArgs("servlo-php84-fpm:local", "abc123", "cust1", "sha256:base", false)
 	if !sliceContainsPair(args, "--label", fpmContainerfileHashLabel+"=abc123") {
 		t.Errorf("build args missing the containerfile-hash label\nargs: %v", args)
 	}
@@ -526,7 +526,7 @@ func TestFPMBuildArgs_ContainsHashLabel(t *testing.T) {
 }
 
 func TestFPMBuildArgs_ForceAddsNoCache(t *testing.T) {
-	args := fpmBuildArgs("lerd-php84-fpm:local", "abc123", "cust1", "sha256:base", true)
+	args := fpmBuildArgs("servlo-php84-fpm:local", "abc123", "cust1", "sha256:base", true)
 	if !sliceContains(args, "--no-cache") {
 		t.Errorf("force=true should add --no-cache, got: %v", args)
 	}
@@ -541,7 +541,7 @@ func TestFPMBuildArgs_ForceAddsNoCache(t *testing.T) {
 // can tell a later build that this image predates a newly declared extension.
 func TestFPMBuildArgs_ContainsCustomSetLabel(t *testing.T) {
 	for _, force := range []bool{false, true} {
-		args := fpmBuildArgs("lerd-php84-fpm:local", "abc123", "cust1", "sha256:base", force)
+		args := fpmBuildArgs("servlo-php84-fpm:local", "abc123", "cust1", "sha256:base", force)
 		if !sliceContainsPair(args, "--label", fpmCustomSetHashLabel+"=cust1") {
 			t.Errorf("force=%v: build args missing the custom-set label\nargs: %v", force, args)
 		}
@@ -549,8 +549,8 @@ func TestFPMBuildArgs_ContainsCustomSetLabel(t *testing.T) {
 }
 
 func TestFPMBuildArgs_TagsImageName(t *testing.T) {
-	args := fpmBuildArgs("lerd-php85-fpm:local", "h", "", "", false)
-	if !sliceContainsPair(args, "-t", "lerd-php85-fpm:local") {
+	args := fpmBuildArgs("servlo-php85-fpm:local", "h", "", "", false)
+	if !sliceContainsPair(args, "-t", "servlo-php85-fpm:local") {
 		t.Errorf("missing -t <image> pair\nargs: %v", args)
 	}
 }

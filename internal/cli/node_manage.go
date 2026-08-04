@@ -9,39 +9,39 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	nodeDet "github.com/geodro/lerd/internal/node"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	nodeDet "github.com/realrashid/servlo/internal/node"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 	"github.com/spf13/cobra"
 )
 
 // NewNodeManageCmd returns the node:manage command, which opts the host into
-// lerd-managed Node.js (version-manager shims) after the fact, for users who
-// declined at `lerd install` time.
+// servlo-managed Node.js (version-manager shims) after the fact, for users who
+// declined at `servlo install` time.
 func NewNodeManageCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "node:manage",
-		Short: "Let lerd manage Node.js (install shims and a default version)",
+		Short: "Let servlo manage Node.js (install shims and a default version)",
 		Args:  cobra.NoArgs,
 		RunE:  runNodeManage,
 	}
 }
 
 func runNodeManage(_ *cobra.Command, _ []string) error {
-	if lerdManagesNode() {
+	if servloManagesNode() {
 		feedback.Begin()
-		feedback.Line("lerd is already managing Node.js")
+		feedback.Line("servlo is already managing Node.js")
 		return nil
 	}
 	mgr := nodeDet.Active()
 	if !mgr.Available() {
-		return fmt.Errorf("%s not found — run 'lerd install' first", mgr.Name())
+		return fmt.Errorf("%s not found — run 'servlo install' first", mgr.Name())
 	}
 	feedback.Begin()
-	step := feedback.Start("enabling lerd-managed Node")
+	step := feedback.Start("enabling servlo-managed Node")
 	if err := addShellShims(true); err != nil {
 		step.Fail(err)
 		return fmt.Errorf("writing shims: %w", err)
@@ -52,19 +52,19 @@ func runNodeManage(_ *cobra.Command, _ []string) error {
 	// Host workers (Vite etc.) were generated to run directly or via bun while
 	// Node was unmanaged; rewrite them so they route through the manager again.
 	regenerateHostWorkers()
-	feedback.Done("lerd is now managing Node.js")
-	feedback.Note("pin a version per project with `lerd isolate:node <v>`")
+	feedback.Done("servlo is now managing Node.js")
+	feedback.Note("pin a version per project with `servlo isolate:node <v>`")
 	return nil
 }
 
 // NewNodeManagerCmd returns the node:manager command, which reports or switches
-// the Node version manager lerd drives ("fnm" or "nvm"). Switching persists the
-// choice and, when lerd is managing Node, rewrites the shims, ensures a default
+// the Node version manager servlo drives ("fnm" or "nvm"). Switching persists the
+// choice and, when servlo is managing Node, rewrites the shims, ensures a default
 // version, and re-syncs host workers so the new manager takes effect at once.
 func NewNodeManagerCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:       "node:manager [fnm|nvm]",
-		Short:     "Show or switch the Node version manager lerd drives",
+		Short:     "Show or switch the Node version manager servlo drives",
 		Args:      cobra.MaximumNArgs(1),
 		ValidArgs: []string{"fnm", "nvm"},
 		RunE:      runNodeSetManager,
@@ -126,9 +126,9 @@ func runNodeSetManager(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
-	// Only rewrite shims/workers when lerd is actually managing Node; otherwise
+	// Only rewrite shims/workers when servlo is actually managing Node; otherwise
 	// the choice is just persisted and applies whenever management is enabled.
-	if lerdManagesNode() {
+	if servloManagesNode() {
 		step := feedback.Start("updating Node PATH shims for " + target)
 		if err := addShellShims(true); err != nil {
 			step.Fail(err)
@@ -142,21 +142,21 @@ func runNodeSetManager(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-// NewNodeUnmanageCmd returns the node:unmanage command, which removes lerd's
-// node shims and, when lerd owns the version manager (fnm), the Node binaries it
+// NewNodeUnmanageCmd returns the node:unmanage command, which removes servlo's
+// node shims and, when servlo owns the version manager (fnm), the Node binaries it
 // installed — leaving a clean system so the user can rely on bun or their own
 // system Node.
 func NewNodeUnmanageCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "node:unmanage",
-		Short: "Stop managing Node.js: remove lerd's node shims and fnm-installed versions",
+		Short: "Stop managing Node.js: remove servlo's node shims and fnm-installed versions",
 		Args:  cobra.NoArgs,
 		RunE:  runNodeUnmanage,
 	}
 }
 
 // persistNodeManaged records the Node-management choice in config.yaml so it
-// survives `lerd update`, which otherwise recomputes the intent and would
+// survives `servlo update`, which otherwise recomputes the intent and would
 // re-add the shims a node:unmanage removed. Best-effort: a save failure is
 // warned, not fatal, since the shims themselves already reflect the choice.
 func persistNodeManaged(managed bool) {
@@ -177,9 +177,9 @@ var fnmVersionRe = regexp.MustCompile(`v\d+\.\d+\.\d+`)
 
 func runNodeUnmanage(_ *cobra.Command, _ []string) error {
 	// Uninstall every fnm-managed Node version so no stale binaries linger, but
-	// only when lerd owns the manager. fnm is bundled by lerd, so its versions
-	// are lerd's to remove; a user-installed nvm and its versions belong to the
-	// user and must be left untouched — we only drop lerd's shims for those.
+	// only when servlo owns the manager. fnm is bundled by servlo, so its versions
+	// are servlo's to remove; a user-installed nvm and its versions belong to the
+	// user and must be left untouched — we only drop servlo's shims for those.
 	if nodeDet.Active().Name() == "fnm" {
 		fnmPath := filepath.Join(config.BinDir(), "fnm")
 		if _, err := os.Stat(fnmPath); err == nil {
@@ -215,23 +215,23 @@ func runNodeUnmanage(_ *cobra.Command, _ []string) error {
 	regenerateHostWorkers()
 	regen.OK("")
 
-	// Globals npm captured into lerd's prefix are unreachable now that the
+	// Globals npm captured into servlo's prefix are unreachable now that the
 	// managed Node behind their wrappers is gone. Drop the stale wrappers (a
 	// broken wrapper would shadow a real reinstall on PATH) and tell the user
 	// what to reinstall — the packages themselves stay on disk.
 	if stranded := nodeGlobalPackages(config.NodeGlobalDir()); len(stranded) > 0 {
 		removeNodeGlobalWrappers(config.BinDir())
-		feedback.Note("global npm packages installed through lerd stay at " + config.NodeGlobalDir())
+		feedback.Note("global npm packages installed through servlo stay at " + config.NodeGlobalDir())
 		feedback.Note("reinstall them with your own npm: npm install -g " + strings.Join(stranded, " "))
 	}
 
-	feedback.Done("lerd is no longer managing Node.js")
+	feedback.Done("servlo is no longer managing Node.js")
 	if nodeDet.BunPath() != "" {
 		feedback.Note("bun is installed, so JS host workers (e.g. Vite) now run through bun")
 	} else {
 		feedback.Note("JS host workers (e.g. Vite) now use your system Node; install bun or a system Node if you have neither")
 	}
-	feedback.Note("re-enable lerd-managed Node with `lerd node:manage`")
+	feedback.Note("re-enable servlo-managed Node with `servlo node:manage`")
 	return nil
 }
 
@@ -308,7 +308,7 @@ func RegenerateHostWorkersForSite(s config.Site) {
 		if containsString(s.IdleSuspendedWorkers, w) {
 			continue
 		}
-		regenerateWorkerUnit(s.Name, s.Path, phpVersion, w, wDef, "lerd-"+w+"-"+s.Name)
+		regenerateWorkerUnit(s.Name, s.Path, phpVersion, w, wDef, "servlo-"+w+"-"+s.Name)
 	}
 	// A site's git worktrees run their own per-worktree host workers (e.g. Vite)
 	// under suffixed units; regenerate those too so a runtime toggle reaches a
@@ -336,14 +336,14 @@ func regenerateWorktreeHostWorkers(site *config.Site, fw *config.Framework, phpV
 			if !ok {
 				continue
 			}
-			regenerateWorkerUnit(site.Name, wt.Path, phpVersion, name, wDef, "lerd-"+name+"-"+site.Name+"-"+wtBase)
+			regenerateWorkerUnit(site.Name, wt.Path, phpVersion, name, wDef, "servlo-"+name+"-"+site.Name+"-"+wtBase)
 		}
 	}
 }
 
 // regenerateWorkerUnit rewrites one enabled host worker unit and restarts it
 // only when its content actually changed, so a re-sync doesn't disrupt workers
-// already on the right runtime. persist=false keeps .lerd.yaml untouched (Vite
+// already on the right runtime. persist=false keeps .servlo.yaml untouched (Vite
 // is a build-replacer that's intentionally not persisted). Best-effort.
 func regenerateWorkerUnit(siteName, sitePath, phpVersion, workerName string, wDef config.FrameworkWorker, unitName string) {
 	if !services.Mgr.IsEnabled(unitName) {

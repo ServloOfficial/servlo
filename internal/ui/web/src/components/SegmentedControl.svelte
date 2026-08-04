@@ -22,7 +22,7 @@
 <div
   role="group"
   aria-label={label}
-  class="inline-flex shrink-0 gap-0.5 p-0.5 rounded-lg border border-gray-200 dark:border-lerd-border bg-gray-100 dark:bg-white/5"
+  class="inline-flex shrink-0 gap-0.5 p-0.5 rounded-lg border border-gray-200 dark:border-servlo-border bg-gray-100 dark:bg-white/5"
 >
   {#each options as opt (opt.value)}
     <button
@@ -32,7 +32,7 @@
       use:tooltip={opt.title ?? ''}
       onclick={() => !opt.disabled && opt.value !== value && onchange(opt.value)}
       class="px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-500 dark:disabled:hover:text-gray-400 {opt.value === value
-        ? 'bg-white dark:bg-lerd-card text-gray-800 dark:text-gray-100 shadow-xs'
+        ? 'bg-white dark:bg-servlo-card text-gray-800 dark:text-gray-100 shadow-xs'
         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}"
     >{opt.label}</button>
   {/each}

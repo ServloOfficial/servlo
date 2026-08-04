@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // migratorFn drives a one-shot version migration for a single service family.
@@ -80,7 +80,7 @@ func migrateProbe(family string) string {
 // site uses is auto-stopped, and the dump execs into its container, so migrating
 // one in that state failed on "no such container" before anything had run.
 func startEngineForMigrate(name, family string, emit func(PhaseEvent)) error {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	if status, _ := podman.UnitStatus(unit); status == "active" {
 		return nil
 	}
@@ -269,7 +269,7 @@ func switchToTargetImage(name, targetImage string, emit func(PhaseEvent)) error 
 	if err := persistImageChoice(name, targetImage, "migrate"); err != nil {
 		return err
 	}
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	emit(PhaseEvent{Phase: "restarting_unit", Unit: unit})
 	return restartWithRetry(unit)
 }
@@ -395,13 +395,13 @@ func mysqlMigrateRestoreCommand() string {
 }
 
 func migrateMysql(name, targetImage string, emit func(PhaseEvent)) error {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	snapshot, err := captureServiceConfig(name)
 	if err != nil {
 		return fmt.Errorf("reading service config: %w", err)
 	}
 	dump := filepath.Join(config.BackupsDir(), name+"-"+timestamped()+".sql")
-	rootEnv := []string{"MYSQL_PWD=lerd"}
+	rootEnv := []string{"MYSQL_PWD=servlo"}
 
 	emit(PhaseEvent{Phase: "dumping_data", Message: "mysqldump → " + dump})
 	if err := dumpToHost(unit, mysqlMigrateDumpCommand(), rootEnv, dump, dumpRestoreTimeout); err != nil {
@@ -458,13 +458,13 @@ func pgMigrateProbeCommand() string {
 }
 
 func migratePostgres(name, targetImage string, emit func(PhaseEvent)) error {
-	unit := "lerd-" + name
+	unit := "servlo-" + name
 	snapshot, err := captureServiceConfig(name)
 	if err != nil {
 		return fmt.Errorf("reading service config: %w", err)
 	}
 	dump := filepath.Join(config.BackupsDir(), name+"-"+timestamped()+".sql")
-	pgEnv := []string{"PGPASSWORD=lerd"}
+	pgEnv := []string{"PGPASSWORD=servlo"}
 
 	emit(PhaseEvent{Phase: "dumping_data", Message: "pg_dumpall → " + dump})
 	dumpCmd := "pg_dumpall -h 127.0.0.1 -U postgres --clean --if-exists"

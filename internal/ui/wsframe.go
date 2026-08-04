@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// Hand-rolled RFC6455 WebSocket helpers. Scope: lerd-ui only ever sends JSON
+// Hand-rolled RFC6455 WebSocket helpers. Scope: servlo-panel only ever sends JSON
 // text frames to browser clients, so this supports the subset we need —
 // server-side handshake, unmasked text frames out, masked frames in, close
 // and ping/pong control frames. No binary, no fragmentation, no compression.
@@ -50,7 +50,7 @@ type wsConn struct {
 // wsOriginAllowed defends against cross-site WebSocket hijacking: browsers
 // don't apply CORS to the WS handshake, so without this an arbitrary page
 // could open a socket to the dashboard. A missing Origin means a non-browser
-// client (lerd's own tools, curl), which isn't a hijack vector. Otherwise the
+// client (servlo's own tools, curl), which isn't a hijack vector. Otherwise the
 // Origin must be in the CORS allowlist, or be same-origin with the request Host
 // AND target a local-network host, which keeps custom-domain and LAN access
 // working while closing the DNS-rebinding hole (see isLocalNetworkHost).
@@ -85,7 +85,7 @@ func wsOriginAllowed(r *http.Request) bool {
 // pointed a browser at directly: loopback, a LAN address, or an explicit
 // public bind that is already gated by remote-control auth), while a hostname
 // is accepted only under localhost or one of the reserved local TLDs. .test and
-// .localhost are lerd's own managed TLDs (resolved to loopback by lerd-dns,
+// .localhost are servlo's own managed TLDs (resolved to loopback by servlo-dns,
 // never publicly resolvable per RFC 6761) and .local is mDNS, so none can be
 // pointed at an attacker's server. An attacker's public domain is rejected.
 func isLocalNetworkHost(hostport string) bool {

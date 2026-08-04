@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // effectiveHostPort takes the caller's already-loaded services map (so a whole

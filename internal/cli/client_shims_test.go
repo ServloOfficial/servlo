@@ -9,7 +9,7 @@ import (
 // every shape counts: the -h/--host flag forms, a connection URI, and a libpq
 // conninfo string. A shape it fails to see reads as no host at all, and the
 // caller then treats a connection that was never ours as a local one, prepending
-// -h lerd-<service> and handing it lerd's own credentials.
+// -h servlo-<service> and handing it servlo's own credentials.
 func TestResolveLoopbackTargetHostDetection(t *testing.T) {
 	prevFn := loopbackServiceOwningPortFn
 	t.Cleanup(func() { loopbackServiceOwningPortFn = prevFn })
@@ -35,7 +35,7 @@ func TestResolveLoopbackTargetHostDetection(t *testing.T) {
 		{[]string{"dbname=prod host=ext.example.com"}, true},
 		{[]string{"mydb"}, false},
 		// A host= or a URL inside a -c/-e SQL body must NOT be read as a host, or
-		// a legitimate query fails to connect to the lerd service.
+		// a legitimate query fails to connect to the servlo service.
 		{[]string{"-c", "SELECT * FROM logs WHERE host='node1'"}, false},
 		{[]string{"-e", "UPDATE s SET url='http://x' WHERE id=1"}, false},
 		{[]string{"--command", "SELECT 'host=' || h FROM t"}, false},
@@ -94,11 +94,11 @@ func TestIsSQLTool(t *testing.T) {
 
 func TestLocalCredsEnv(t *testing.T) {
 	pg := localCredsEnv("pg_dump")
-	if len(pg) != 2 || pg[0] != "PGUSER=postgres" || pg[1] != "PGPASSWORD=lerd" {
+	if len(pg) != 2 || pg[0] != "PGUSER=postgres" || pg[1] != "PGPASSWORD=servlo" {
 		t.Errorf("postgres creds = %v", pg)
 	}
 	my := localCredsEnv("mysqldump")
-	if len(my) != 1 || my[0] != "MYSQL_PWD=lerd" {
+	if len(my) != 1 || my[0] != "MYSQL_PWD=servlo" {
 		t.Errorf("mysql creds = %v", my)
 	}
 }
@@ -142,7 +142,7 @@ func TestHostEnvSet(t *testing.T) {
 }
 
 // A stray PGHOST/MYSQL_HOST left set in the shell must never re-flag a call
-// resolveLoopbackTarget already matched to a local lerd service (prefer !=
+// resolveLoopbackTarget already matched to a local servlo service (prefer !=
 // "") as external: the -h flag that produced that match is what a real
 // client honours over the environment variable, not the other way round.
 func TestEffectiveHostGiven(t *testing.T) {
@@ -282,13 +282,13 @@ func TestDefaultToolPort(t *testing.T) {
 }
 
 // resolveLoopbackTarget is the fix for the bug where `psql -h 127.0.0.1 -p
-// 5433 ...` — the normal way to reach a port lerd itself published — always
+// 5433 ...` — the normal way to reach a port servlo itself published — always
 // failed with connection refused: runClientExec execs the client tool inside
 // a throwaway container on its own network, where 127.0.0.1 is the
 // container's own loopback, not the host's. It must recognise a loopback
-// host whose port matches an installed lerd service and route it like a
+// host whose port matches an installed servlo service and route it like a
 // hostless call, while leaving a genuinely external host (or a loopback host
-// matching no lerd service) untouched.
+// matching no servlo service) untouched.
 func TestResolveLoopbackTarget(t *testing.T) {
 	prevFn := loopbackServiceOwningPortFn
 	t.Cleanup(func() { loopbackServiceOwningPortFn = prevFn })
@@ -333,8 +333,8 @@ func TestResolveLoopbackTarget(t *testing.T) {
 			return "", false
 		}
 		args, hostGiven, prefer := resolveLoopbackTarget("psql",
-			[]string{"-h", "127.0.0.1", "-p", "5433", "-U", "postgres", "-d", "lerd"})
-		want := []string{"-U", "postgres", "-d", "lerd"}
+			[]string{"-h", "127.0.0.1", "-p", "5433", "-U", "postgres", "-d", "servlo"})
+		want := []string{"-U", "postgres", "-d", "servlo"}
 		if hostGiven || prefer != "postgres-timescaledb" || !reflect.DeepEqual(args, want) {
 			t.Errorf("got (%v, %v, %q), want (%v, false, postgres-timescaledb)", args, hostGiven, prefer, want)
 		}
@@ -356,8 +356,8 @@ func TestResolveLoopbackTarget(t *testing.T) {
 
 	// A URI carries its host and port inside one token, so rewriting it would mean
 	// parsing and rebuilding it. It stays external even when it spells a loopback
-	// host: passing it through unchanged is what 1.31.0 did, and it keeps lerd's
-	// credentials away from a connection lerd does not own.
+	// host: passing it through unchanged is what 1.31.0 did, and it keeps servlo's
+	// credentials away from a connection servlo does not own.
 	t.Run("a connection URI naming a loopback host is left alone", func(t *testing.T) {
 		loopbackServiceOwningPortFn = func(tool, port string) (string, bool) {
 			t.Fatalf("must not be called for a connection URI")

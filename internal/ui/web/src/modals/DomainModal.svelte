@@ -131,12 +131,12 @@
             <span class="text-sm font-mono text-gray-700 dark:text-gray-300 truncate">{dom}</span>
             <span class="text-sm text-gray-400 dark:text-gray-500 shrink-0">.{tld}</span>
             {#if i === 0}
-              <span class="text-[10px] font-medium text-lerd-red bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded-sm shrink-0">{m.domains_primary()}</span>
+              <span class="text-[10px] font-medium text-servlo-red bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded-sm shrink-0">{m.domains_primary()}</span>
             {/if}
           </div>
           <button
             onclick={() => startEdit(i)}
-            class="text-gray-400 hover:text-lerd-red transition-colors"
+            class="text-gray-400 hover:text-servlo-red transition-colors"
             title={m.common_edit()}
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,7 +162,7 @@
               if (e.key === 'Enter') saveEdit(i);
               if (e.key === 'Escape') cancelEdit();
             }}
-            class="flex-1 text-sm font-mono bg-transparent border border-lerd-red/50 rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-lerd-red"
+            class="flex-1 text-sm font-mono bg-transparent border border-servlo-red/50 rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-servlo-red"
             disabled={loading}
           />
           <span class="text-sm text-gray-400 shrink-0">.{tld}</span>
@@ -177,7 +177,7 @@
     {/each}
   </div>
 
-  <div class="px-5 py-3 border-t border-gray-100 dark:border-lerd-border">
+  <div class="px-5 py-3 border-t border-gray-100 dark:border-servlo-border">
     <div class="flex items-center gap-2">
       <input
         type="text"
@@ -185,7 +185,7 @@
         placeholder={m.domains_add()}
         onkeydown={(e) => e.key === 'Enter' && add()}
         disabled={loading}
-        class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-lerd-red/50"
+        class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-servlo-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-servlo-red/50"
       />
       <span class="text-sm text-gray-400 shrink-0">.{tld}</span>
       <DetailButton tone="primary" onclick={add} disabled={loading || !newDomain.trim()}>{m.common_add()}</DetailButton>
@@ -193,12 +193,12 @@
   </div>
 
   {#if flash}
-    <div class="px-5 py-2 border-t border-gray-100 dark:border-lerd-border">
+    <div class="px-5 py-2 border-t border-gray-100 dark:border-servlo-border">
       <p class="text-xs text-emerald-700 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-2 py-1.5 text-center">{flash}</p>
     </div>
   {/if}
   {#if error}
-    <div class="px-5 py-2 border-t border-gray-100 dark:border-lerd-border">
+    <div class="px-5 py-2 border-t border-gray-100 dark:border-servlo-border">
       <p class="text-xs text-red-500">{error}</p>
     </div>
   {/if}

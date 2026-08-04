@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/geodro/lerd/internal/feedback"
-	nodeDet "github.com/geodro/lerd/internal/node"
+	"github.com/realrashid/servlo/internal/feedback"
+	nodeDet "github.com/realrashid/servlo/internal/node"
 	"github.com/spf13/cobra"
 )
 

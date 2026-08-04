@@ -34,11 +34,11 @@
 </script>
 
 <Modal open title={m.services_preset_title()} onclose={closeModal}>
-  <div class="px-5 py-3 border-b border-gray-100 dark:border-lerd-border">
+  <div class="px-5 py-3 border-b border-gray-100 dark:border-servlo-border">
     <p class="text-xs text-gray-500 dark:text-gray-400">{m.services_preset_subtitle()}</p>
   </div>
   {#if $presetsLoaded && $installablePresets.length > 0}
-    <div class="px-5 py-2 border-b border-gray-100 dark:border-lerd-border">
+    <div class="px-5 py-2 border-b border-gray-100 dark:border-servlo-border">
       <input
         bind:value={query}
         type="text"
@@ -58,7 +58,7 @@
       <div class="py-4 text-center text-xs text-gray-400">{m.services_preset_noMatches()}</div>
     {:else}
       {#each filtered as p (p.name)}
-        <div class="border border-gray-100 dark:border-lerd-border rounded-lg p-3 mb-2 last:mb-0">
+        <div class="border border-gray-100 dark:border-servlo-border rounded-lg p-3 mb-2 last:mb-0">
           <div class="flex items-center gap-3">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">

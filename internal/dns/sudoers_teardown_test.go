@@ -45,19 +45,19 @@ func TestRemoveSudoersGrant_DoesNotDependOnReadingTheRootOnlyPath(t *testing.T) 
 	removed := captureRemoval(t)
 
 	if !removeSudoersGrant() {
-		t.Fatal("removal must be attempted whenever lerd recorded installing a drop-in")
+		t.Fatal("removal must be attempted whenever servlo recorded installing a drop-in")
 	}
-	if len(*removed) != 1 || (*removed)[0] != lerdSudoersPath {
-		t.Fatalf("expected one removal of %s, got %v", lerdSudoersPath, *removed)
+	if len(*removed) != 1 || (*removed)[0] != servloSudoersPath {
+		t.Fatalf("expected one removal of %s, got %v", servloSudoersPath, *removed)
 	}
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Error("the marker must be forgotten alongside the grant, or a later install skips rewriting it")
 	}
 }
 
-// Without the marker lerd never installed a drop-in, and the grant that would
+// Without the marker servlo never installed a drop-in, and the grant that would
 // make the removal passwordless is absent, so a blind sudo would prompt.
-func TestRemoveSudoersGrant_SkippedWhenLerdNeverInstalledOne(t *testing.T) {
+func TestRemoveSudoersGrant_SkippedWhenServloNeverInstalledOne(t *testing.T) {
 	withMarker(t, false)
 	removed := captureRemoval(t)
 
@@ -74,7 +74,7 @@ func TestRemoveSudoersGrant_SkippedWhenLerdNeverInstalledOne(t *testing.T) {
 // cannot answer, so the grant survives even once the removal is reached.
 func TestLinuxSudoers_GrantsItsOwnRemoval(t *testing.T) {
 	content := renderLinuxSudoers("tester")
-	want := "tester ALL=(root) NOPASSWD: /usr/bin/rm -f " + lerdSudoersPath
+	want := "tester ALL=(root) NOPASSWD: /usr/bin/rm -f " + servloSudoersPath
 	if !strings.Contains(content, want) {
 		t.Fatalf("drop-in must grant its own removal.\nwant a line: %s\ngot:\n%s", want, content)
 	}

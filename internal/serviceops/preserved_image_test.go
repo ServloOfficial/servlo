@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // TestEnsureDefaultPresetQuadletPinned_preservesImage covers the regression
-// the v1.19.0-beta.6 fix targets — a `lerd update` install rewrite must not
+// the v1.19.0-beta.6 fix targets — a `servlo update` install rewrite must not
 // silently jump default-preset users from their installed minor to whatever
 // preset.Image declares. Reinstall now preserves the on-disk image even
 // after RemoveService deletes the quadlet by passing the captured image to
@@ -31,7 +31,7 @@ func TestEnsureDefaultPresetQuadletPinned_preservesImage(t *testing.T) {
 		t.Fatalf("EnsureDefaultPresetQuadletPinned: %v", err)
 	}
 
-	quadletPath := filepath.Join(config.QuadletDir(), "lerd-meilisearch.container")
+	quadletPath := filepath.Join(config.QuadletDir(), "servlo-meilisearch.container")
 	data, err := os.ReadFile(quadletPath)
 	if err != nil {
 		t.Fatalf("read quadlet: %v", err)
@@ -57,7 +57,7 @@ func TestEnsureDefaultPresetQuadletPinned_emptyPinFallsThroughToPreset(t *testin
 	if err := EnsureDefaultPresetQuadletPinned("meilisearch", ""); err != nil {
 		t.Fatalf("EnsureDefaultPresetQuadletPinned with empty pin: %v", err)
 	}
-	quadletPath := filepath.Join(config.QuadletDir(), "lerd-meilisearch.container")
+	quadletPath := filepath.Join(config.QuadletDir(), "servlo-meilisearch.container")
 	data, err := os.ReadFile(quadletPath)
 	if err != nil {
 		t.Fatalf("read quadlet: %v", err)
@@ -179,15 +179,15 @@ func TestEnsureDefaultPresetQuadlet_honorsCanonicalPinAcrossFlip(t *testing.T) {
 	if err := EnsureDefaultPresetQuadlet("postgres"); err != nil {
 		t.Fatalf("EnsureDefaultPresetQuadlet: %v", err)
 	}
-	quadlet, err := os.ReadFile(filepath.Join(config.QuadletDir(), "lerd-postgres.container"))
+	quadlet, err := os.ReadFile(filepath.Join(config.QuadletDir(), "servlo-postgres.container"))
 	if err != nil {
 		t.Fatalf("read quadlet: %v", err)
 	}
 	if !strings.Contains(string(quadlet), ":17-") {
 		t.Errorf("pinned postgres must resolve to a :17- image, got:\n%s", string(quadlet))
 	}
-	if !strings.Contains(string(quadlet), "ContainerName=lerd-postgres\n") {
-		t.Errorf("pinned postgres must keep bare ContainerName=lerd-postgres, got:\n%s", string(quadlet))
+	if !strings.Contains(string(quadlet), "ContainerName=servlo-postgres\n") {
+		t.Errorf("pinned postgres must keep bare ContainerName=servlo-postgres, got:\n%s", string(quadlet))
 	}
 	// Pin must not be overwritten by reconcile.
 	cfg2, _ := config.LoadGlobal()
@@ -240,8 +240,8 @@ func TestCaptureReinstallSpec_capturesImageForDefaultPreset(t *testing.T) {
 	if err := os.MkdirAll(config.QuadletDir(), 0o755); err != nil {
 		t.Fatalf("mkdir QuadletDir: %v", err)
 	}
-	planted := "[Container]\nImage=docker.io/getmeili/meilisearch:v1.7.0\nContainerName=lerd-meilisearch\n"
-	if err := os.WriteFile(filepath.Join(config.QuadletDir(), "lerd-meilisearch.container"), []byte(planted), 0o644); err != nil {
+	planted := "[Container]\nImage=docker.io/getmeili/meilisearch:v1.7.0\nContainerName=servlo-meilisearch\n"
+	if err := os.WriteFile(filepath.Join(config.QuadletDir(), "servlo-meilisearch.container"), []byte(planted), 0o644); err != nil {
 		t.Fatalf("write planted quadlet: %v", err)
 	}
 

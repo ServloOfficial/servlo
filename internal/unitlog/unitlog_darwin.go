@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// LogPath is where a launchd-supervised lerd unit writes its log on macOS.
+// LogPath is where a launchd-supervised servlo unit writes its log on macOS.
 func LogPath(unit string) string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "Library", "Logs", "lerd", unit+".log")
+	return filepath.Join(home, "Library", "Logs", "servlo", unit+".log")
 }
 
 // IsContainerUnit returns true for units that run as detached podman containers
@@ -27,7 +27,7 @@ func LogPath(unit string) string {
 // when neither artifact is on disk.
 func IsContainerUnit(unit string) bool {
 	switch unit {
-	case "lerd-dns", "lerd-watcher", "lerd-ui":
+	case "servlo-dns", "servlo-watcher", "servlo-panel":
 		return false
 	}
 	home, _ := os.UserHomeDir()

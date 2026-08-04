@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/reqstats"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/reqstats"
 )
 
 // getAnalyticsStore is the read handle onto the durable request store the

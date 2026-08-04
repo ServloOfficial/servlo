@@ -27,8 +27,8 @@
   onclick={onselect}
   title={'PHP ' + display + ' — ' + (running ? m.common_running() : m.common_stopped()) + (isDefault ? ' · ' + m.common_default() : '') + (updateAvailable ? ' · ' + m.system_php_baseUpdateHint() : '')}
   class="shrink-0 w-[9.5rem] snap-start text-left flex flex-col gap-2.5 rounded-2xl border p-3 transition-colors {selected
-    ? 'border-lerd-red bg-white dark:bg-lerd-card ring-1 ring-lerd-red'
-    : 'border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card hover:border-gray-300 dark:hover:border-gray-600'}"
+    ? 'border-servlo-red bg-white dark:bg-servlo-card ring-1 ring-servlo-red'
+    : 'border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card hover:border-gray-300 dark:hover:border-gray-600'}"
 >
   <div class="flex items-center justify-between gap-2">
     <span
@@ -45,7 +45,7 @@
     </span>
     {#if isDefault}
       <svg
-        class="w-3.5 h-3.5 shrink-0 text-lerd-red"
+        class="w-3.5 h-3.5 shrink-0 text-servlo-red"
         fill="currentColor"
         viewBox="0 0 20 20"
         aria-label={m.common_default()}

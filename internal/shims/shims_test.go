@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // fakeMgr reports every name in installed as having an installed container
@@ -23,7 +23,7 @@ type fakeMgr struct {
 func (m *fakeMgr) ContainerUnitInstalled(name string) bool { return m.installed[name] }
 
 func TestScript(t *testing.T) {
-	got := script("/home/u/.local/bin/lerd", "mysqldump")
+	got := script("/home/u/.local/bin/servlo", "mysqldump")
 	for _, want := range []string{"#!/bin/sh", marker, "client-exec mysqldump", "\"$@\""} {
 		if !strings.Contains(got, want) {
 			t.Errorf("script missing %q:\n%s", want, got)
@@ -34,7 +34,7 @@ func TestScript(t *testing.T) {
 // A client-tool name comes from semi-trusted store YAML and is used as both a
 // shim filename and a token in the generated script, so a name with a path
 // separator, "..", or a shell/whitespace character must be rejected. Without the
-// guard a name like "../../bin/lerd" writes outside BinDir and a name with a
+// guard a name like "../../bin/servlo" writes outside BinDir and a name with a
 // newline or ";" injects a line into the shim script.
 func TestValidShimName(t *testing.T) {
 	for _, ok := range []string{"mysqldump", "pg_dump", "mariadb-dump", "redis-cli", "psql", "mongosh"} {
@@ -43,7 +43,7 @@ func TestValidShimName(t *testing.T) {
 		}
 	}
 	for _, bad := range []string{
-		"", ".", "..", "../evil", "../../bin/lerd", "a/b", "a\\b",
+		"", ".", "..", "../evil", "../../bin/servlo", "a/b", "a\\b",
 		"foo;rm -rf /", "foo bar", "foo\nbar", "foo$(id)", "-rf", ".hidden", "a|b", "a`b`",
 	} {
 		if validShimName(bad) {
@@ -52,7 +52,7 @@ func TestValidShimName(t *testing.T) {
 	}
 	// A rejected name with a path separator never resolves inside BinDir, and one
 	// with a newline never survives as a single-line shim: the two concrete risks.
-	if p := filepath.Join("/bindir", "../../bin/lerd"); filepath.Dir(p) == "/bindir" {
+	if p := filepath.Join("/bindir", "../../bin/servlo"); filepath.Dir(p) == "/bindir" {
 		t.Errorf("path-separator name should escape BinDir under join, got %q", p)
 	}
 }
@@ -60,7 +60,7 @@ func TestValidShimName(t *testing.T) {
 func TestIsShimFile(t *testing.T) {
 	dir := t.TempDir()
 	shim := filepath.Join(dir, "mysqldump")
-	_ = os.WriteFile(shim, []byte(script("lerd", "mysqldump")), 0755)
+	_ = os.WriteFile(shim, []byte(script("servlo", "mysqldump")), 0755)
 	other := filepath.Join(dir, "realtool")
 	_ = os.WriteFile(other, []byte("#!/bin/sh\necho hi\n"), 0755)
 	if !isShimFile(shim) {
@@ -75,7 +75,7 @@ func TestRemoveIfShim(t *testing.T) {
 	dir := t.TempDir()
 	shim := filepath.Join(dir, "psql")
 	user := filepath.Join(dir, "psql-user")
-	_ = os.WriteFile(shim, []byte(script("lerd", "psql")), 0755)
+	_ = os.WriteFile(shim, []byte(script("servlo", "psql")), 0755)
 	_ = os.WriteFile(user, []byte("#!/bin/sh\n"), 0755)
 
 	removeIfShim(shim)
@@ -106,7 +106,7 @@ func TestReservedShimNames(t *testing.T) {
 }
 
 // canWriteShim guards the reconcile's write side the way removeIfShim guards its
-// remove side: an absent path or an existing lerd client shim is writable, but a
+// remove side: an absent path or an existing servlo client shim is writable, but a
 // non-shim file (an installer shim, or a user binary of the same name) is not, so
 // the reconcile can never clobber it.
 func TestCanWriteShim(t *testing.T) {
@@ -117,13 +117,13 @@ func TestCanWriteShim(t *testing.T) {
 	}
 
 	ours := filepath.Join(dir, "psql")
-	_ = os.WriteFile(ours, []byte(script("lerd", "psql")), 0755)
+	_ = os.WriteFile(ours, []byte(script("servlo", "psql")), 0755)
 	if !canWriteShim(ours) {
 		t.Error("our own client shim must be overwritable")
 	}
 
 	installer := filepath.Join(dir, "php")
-	_ = os.WriteFile(installer, []byte("#!/bin/sh\nexec lerd php \"$@\"\n"), 0755)
+	_ = os.WriteFile(installer, []byte("#!/bin/sh\nexec servlo php \"$@\"\n"), 0755)
 	if canWriteShim(installer) {
 		t.Error("an installer shim (no marker) must never be overwritten")
 	}
@@ -136,8 +136,8 @@ func TestPruneOrphans(t *testing.T) {
 	live := filepath.Join(binDir, "mysqldump")
 	orphan := filepath.Join(binDir, "pg_dump")
 	user := filepath.Join(binDir, "sqlite3")
-	_ = os.WriteFile(live, []byte(script("lerd", "mysqldump")), 0755)
-	_ = os.WriteFile(orphan, []byte(script("lerd", "pg_dump")), 0755)
+	_ = os.WriteFile(live, []byte(script("servlo", "mysqldump")), 0755)
+	_ = os.WriteFile(orphan, []byte(script("servlo", "pg_dump")), 0755)
 	_ = os.WriteFile(user, []byte("#!/bin/sh\n"), 0755)
 	_ = setDecision("pg_dump", true)
 
@@ -150,7 +150,7 @@ func TestPruneOrphans(t *testing.T) {
 		t.Error("orphan shim must be pruned")
 	}
 	if _, err := os.Stat(user); err != nil {
-		t.Error("non-lerd binary must never be pruned")
+		t.Error("non-servlo binary must never be pruned")
 	}
 	if _, decided := decision("pg_dump"); decided {
 		t.Error("pruned tool's decision must be forgotten")
@@ -170,7 +170,7 @@ func TestHostHasTool(t *testing.T) {
 		t.Error("host tool on PATH should be detected")
 	}
 	if hostHasTool("pg_dump") {
-		t.Error("a tool only in lerd's bin dir must not count as host-installed")
+		t.Error("a tool only in servlo's bin dir must not count as host-installed")
 	}
 	if hostHasTool("nonexistent-tool") {
 		t.Error("absent tool must not be detected")
@@ -245,9 +245,9 @@ func TestToolCandidates_ReturnsEveryInstalledMatch(t *testing.T) {
 
 	prev := services.Mgr
 	services.Mgr = &fakeMgr{installed: map[string]bool{
-		"lerd-postgres-18":          true,
-		"lerd-postgres-timescaledb": true,
-		"lerd-valkey":               true,
+		"servlo-postgres-18":          true,
+		"servlo-postgres-timescaledb": true,
+		"servlo-valkey":               true,
 	}}
 	t.Cleanup(func() { services.Mgr = prev })
 

@@ -7,7 +7,7 @@ import (
 
 // A test that drives the unit lifecycle without installing a stub used to fall
 // through to the real user bus and start, stop and enable units on the machine
-// running the suite. That is how a crash-looping lerd-queue unit ended up on a
+// running the suite. That is how a crash-looping servlo-queue unit ended up on a
 // developer's machine. It must refuse instead.
 func TestUnitLifecycle_refusesRealSystemdUnderTest(t *testing.T) {
 	prev := UnitLifecycle
@@ -23,7 +23,7 @@ func TestUnitLifecycle_refusesRealSystemdUnderTest(t *testing.T) {
 		{"restart", RestartUnit},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := tc.call("lerd-queue-myapp"); !errors.Is(err, errNoRealSystemd) {
+			if err := tc.call("servlo-queue-myapp"); !errors.Is(err, errNoRealSystemd) {
 				t.Errorf("%s reached the real systemd from a test (err = %v)", tc.name, err)
 			}
 		})
@@ -38,10 +38,10 @@ func TestUnitLifecycle_stubStillDrivesTheLifecycle(t *testing.T) {
 	UnitLifecycle = stub
 	t.Cleanup(func() { UnitLifecycle = prev })
 
-	if err := StartUnit("lerd-queue-myapp"); err != nil {
+	if err := StartUnit("servlo-queue-myapp"); err != nil {
 		t.Fatalf("start with a stub: %v", err)
 	}
-	if stub.started != "lerd-queue-myapp" {
+	if stub.started != "servlo-queue-myapp" {
 		t.Errorf("stub should have seen the start, got %q", stub.started)
 	}
 }

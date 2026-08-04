@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/cli"
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/idle"
+	"github.com/realrashid/servlo/internal/cli"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/idle"
 )
 
 // wtKey is the idle key for a git worktree: its parent site name and the
@@ -28,9 +28,9 @@ func splitWtKey(key string) (site, wtBase string, isWt bool) {
 	return key, "", false
 }
 
-// idleNotifyUI crosses the process boundary to refresh lerd-ui's sites snapshot
+// idleNotifyUI crosses the process boundary to refresh servlo-panel's sites snapshot
 // after a suspend/resume (the watcher's in-process eventbus never reaches the
-// UI). Wired by the watch command; a no-op in tests and when lerd-ui is down.
+// UI). Wired by the watch command; a no-op in tests and when servlo-panel is down.
 var idleNotifyUI = func() {}
 
 // notifyDirty wakes the coalescing notifier. Buffered to 1 so a burst of
@@ -39,7 +39,7 @@ var idleNotifyUI = func() {}
 var notifyDirty = make(chan struct{}, 1)
 
 // notifyDebounce is the quiet period after a refresh POST, bounding the UI poke
-// rate so an activity-ping burst can't flood lerd-ui.
+// rate so an activity-ping burst can't flood servlo-panel.
 const notifyDebounce = 250 * time.Millisecond
 
 // publishSitesChanged requests a debounced dashboard refresh. Non-blocking: a
@@ -130,7 +130,7 @@ func newIdleEngine(t *idle.Tracker) *idleEngine {
 		suspended: map[string]bool{},
 		inFlight:  map[string]bool{},
 	}
-	// Seed from persisted state so a lerd-ui restart remembers which sites and
+	// Seed from persisted state so a servlo-panel restart remembers which sites and
 	// worktrees are suspended and resumes them on the next request rather than
 	// leaving their workers stopped with no memory.
 	if reg, err := config.LoadSites(); err == nil {
@@ -193,7 +193,7 @@ func (e *idleEngine) run(ctx context.Context) {
 }
 
 // neverIdles reports whether a site is exempt from suspension: the user pinned
-// it, or it is proxy-only, meaning lerd supervises no process for it (nginx just
+// it, or it is proxy-only, meaning servlo supervises no process for it (nginx just
 // forwards to a dev server the user started) and suspending it would swap the
 // vhost to the waking page while the app is still serving.
 func neverIdles(s *config.Site) bool {
@@ -587,7 +587,7 @@ func (e *idleEngine) resume(siteName string) {
 }
 
 // suspendWorktree stops a worktree's own workers in the background, mirroring
-// suspend() but targeting the worktree's units (lerd-<w>-<site>-<wtBase>) and
+// suspend() but targeting the worktree's units (servlo-<w>-<site>-<wtBase>) and
 // persisting under the worktree's slot.
 func (e *idleEngine) suspendWorktree(siteName, wtBase, wtPath string) {
 	key := wtKey(siteName, wtBase)
@@ -659,7 +659,7 @@ func (e *idleEngine) clearInFlight(siteName string) {
 	e.mu.Unlock()
 }
 
-// recoverEngine keeps an engine panic from taking down lerd-ui. The feature is
+// recoverEngine keeps an engine panic from taking down servlo-panel. The feature is
 // best-effort; a bad tick logs and the next one tries again.
 func recoverEngine(what string) {
 	if r := recover(); r != nil {

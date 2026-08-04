@@ -89,7 +89,7 @@
             </span>
           {/if}
           {#if svc.site_count > 0}
-            <span class="text-[10px] font-medium tabular-nums shrink-0 {selected === svc.name ? 'text-lerd-red/70' : 'text-gray-400 dark:text-gray-600'}">{svc.site_count}</span>
+            <span class="text-[10px] font-medium tabular-nums shrink-0 {selected === svc.name ? 'text-servlo-red/70' : 'text-gray-400 dark:text-gray-600'}">{svc.site_count}</span>
           {/if}
         {/snippet}
         <ListRow active={selected === svc.name} onclick={() => select(svc.name)} {leading} {trailing}>

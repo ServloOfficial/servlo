@@ -77,7 +77,7 @@ func TestDetectVersionRejectsAnUnsafeProjectPin(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			body := "node_version: " + strconv_Quote(tc.version) + "\n"
-			if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(body), 0o644); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(body), 0o644); err != nil {
 				t.Fatal(err)
 			}
 			v, err := DetectVersion(dir)
@@ -96,7 +96,7 @@ func TestDetectVersionRejectsAnUnsafeProjectPin(t *testing.T) {
 func TestDetectVersionKeepsALegitimateProjectPin(t *testing.T) {
 	for _, want := range []string{"22", "20.11.0", "v18.20.4", "lts/iron", "default"} {
 		dir := t.TempDir()
-		if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("node_version: "+strconv_Quote(want)+"\n"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("node_version: "+strconv_Quote(want)+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		got, err := DetectVersion(dir)

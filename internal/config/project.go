@@ -13,7 +13,7 @@ import (
 )
 
 // ProjectDB holds optional database targeting info for the project.
-// Setting these in .lerd.yaml lets db commands work without a .env file,
+// Setting these in .servlo.yaml lets db commands work without a .env file,
 // which is useful for non-PHP projects (NestJS, Go, etc.).
 type ProjectDB struct {
 	Service  string `yaml:"service,omitempty"`
@@ -21,19 +21,19 @@ type ProjectDB struct {
 }
 
 // ContainerConfig holds per-project custom container settings. When present
-// in .lerd.yaml the site gets its own dedicated container built from the
+// in .servlo.yaml the site gets its own dedicated container built from the
 // user's Containerfile, and nginx reverse-proxies to it instead of using
 // the shared PHP-FPM image.
 type ContainerConfig struct {
 	Port          int    `yaml:"port"`                    // port the app listens on inside the container (required)
-	Containerfile string `yaml:"containerfile,omitempty"` // path to Containerfile, default "Containerfile.lerd"
+	Containerfile string `yaml:"containerfile,omitempty"` // path to Containerfile, default "Containerfile.servlo"
 	BuildContext  string `yaml:"build_context,omitempty"` // build context directory, default "."
 	Target        string `yaml:"target,omitempty"`        // multi-stage build target passed as --target to podman build
 	SSL           bool   `yaml:"ssl,omitempty"`           // proxy to the container via HTTPS (app serves TLS on its port)
 }
 
 // ProxyConfig holds per-project host-proxy settings. When present in
-// .lerd.yaml the site runs no container: lerd supervises the dev command on
+// .servlo.yaml the site runs no container: servlo supervises the dev command on
 // the host and nginx reverse-proxies the domain to it on the given port.
 type ProxyConfig struct {
 	Command    string `yaml:"command,omitempty"`      // dev command, e.g. "npm run start:dev"; empty = proxy-only
@@ -44,7 +44,7 @@ type ProxyConfig struct {
 	InjectHost *bool  `yaml:"inject_host,omitempty"`  // inject the bind-address env (HOST) so the server listens where the proxy container reaches it; nil/unset = true, set false to opt out
 }
 
-// ProjectConfig holds per-project configuration stored in .lerd.yaml.
+// ProjectConfig holds per-project configuration stored in .servlo.yaml.
 type ProjectConfig struct {
 	Domains     []string `yaml:"domains,omitempty"`
 	PHPVersion  string   `yaml:"php_version,omitempty"`
@@ -78,8 +78,8 @@ type ProjectConfig struct {
 	// suppress instead). Entries with a new Name are appended. See
 	// ResolveCommands for the merge logic.
 	Commands []FrameworkCommand `yaml:"commands,omitempty"`
-	// AppURL, when set, is the value lerd writes to the project's APP_URL (or
-	// the framework-configured URL key) on every `lerd env` run. Committed to
+	// AppURL, when set, is the value servlo writes to the project's APP_URL (or
+	// the framework-configured URL key) on every `servlo env` run. Committed to
 	// the repo so the choice is shared across machines. Takes precedence over
 	// the per-machine override in sites.yaml.
 	AppURL    string           `yaml:"app_url,omitempty"`
@@ -89,14 +89,14 @@ type ProjectConfig struct {
 	// exclusive with Container; Validate rejects setting both.
 	Proxy *ProxyConfig `yaml:"proxy,omitempty"`
 	// Runtime selects how the site's PHP is served. "fpm" (default) uses the
-	// shared lerd-php{version}-fpm container; "frankenphp" spins up a
+	// shared servlo-php{version}-fpm container; "frankenphp" spins up a
 	// per-site dunglas/frankenphp container that keeps PHP resident.
 	Runtime string `yaml:"runtime,omitempty"`
 	// RuntimeWorker, when true and Runtime is "frankenphp", starts the
 	// FrankenPHP container in worker mode. Framework-specific entrypoints
 	// decide whether this flag is honoured.
 	RuntimeWorker bool `yaml:"runtime_worker,omitempty"`
-	// DBIsolated, when true on a worktree's .lerd.yaml, opts the worktree
+	// DBIsolated, when true on a worktree's .servlo.yaml, opts the worktree
 	// into its own database (named <parent_db>_<sanitized_branch>) so
 	// migrations don't bleed into the parent. Off by default.
 	DBIsolated bool `yaml:"db_isolated,omitempty"`
@@ -115,21 +115,21 @@ type ProjectConfig struct {
 	// projects on the Laravel defaults, which are auto-detected.
 	Stripe *StripeConfig `yaml:"stripe,omitempty"`
 	// MCPInject opts the project out of automatic AI/MCP config refresh. When set
-	// to false, `lerd update`/`install` leaves the project's committed MCP config
+	// to false, `servlo update`/`install` leaves the project's committed MCP config
 	// and skill files untouched so they change only when the user asks. Nil/unset
-	// keeps the default (refresh in place). An explicit `lerd mcp:inject` still
+	// keeps the default (refresh in place). An explicit `servlo mcp:inject` still
 	// writes, since that is the user asking.
 	MCPInject *bool `yaml:"mcp_inject,omitempty"`
 }
 
 // MCPInjectDisabled reports whether the project opted out of automatic MCP
-// config injection via `mcp_inject: false` in .lerd.yaml.
+// config injection via `mcp_inject: false` in .servlo.yaml.
 func (c *ProjectConfig) MCPInjectDisabled() bool {
 	return c.MCPInject != nil && !*c.MCPInject
 }
 
 // IsEmpty returns true when the config has no meaningful content, which
-// typically means .lerd.yaml did not exist.
+// typically means .servlo.yaml did not exist.
 func (c *ProjectConfig) IsEmpty() bool {
 	return len(c.Domains) == 0 && c.PHPVersion == "" && c.NodeVersion == "" &&
 		c.JSRuntime == "" &&
@@ -146,7 +146,7 @@ func (c *ProjectConfig) IsEmpty() bool {
 // custom container or a host proxy, never both.
 func (c *ProjectConfig) Validate() error {
 	if c.Container != nil && c.Proxy != nil {
-		return fmt.Errorf(".lerd.yaml sets both container: and proxy:; a site can only be one")
+		return fmt.Errorf(".servlo.yaml sets both container: and proxy:; a site can only be one")
 	}
 	return nil
 }
@@ -163,7 +163,7 @@ func (c *ProjectConfig) ReloadsWorker(name string) bool {
 }
 
 // ProjectReloadsWorker reports whether the project at dir opts the named worker
-// into auto-reload mode. Returns false when .lerd.yaml is absent or unreadable.
+// into auto-reload mode. Returns false when .servlo.yaml is absent or unreadable.
 func ProjectReloadsWorker(dir, name string) bool {
 	cfg, err := LoadProjectConfig(dir)
 	if err != nil || cfg == nil {
@@ -193,9 +193,9 @@ func (p *ProjectConfig) ServiceNames() []string {
 //     ...
 //
 // Preset references are the preferred form for services installed via
-// `lerd service preset` because each machine resolves the embedded preset
+// `servlo service preset` because each machine resolves the embedded preset
 // locally — picking up bug fixes, default tweaks, and per-machine port
-// allocations without churn in .lerd.yaml.
+// allocations without churn in .servlo.yaml.
 type ProjectService struct {
 	Name          string
 	Preset        string         // empty unless this is a preset reference
@@ -305,9 +305,9 @@ func (s ProjectService) Resolve() (*CustomService, error) {
 	return nil, nil
 }
 
-// projectConfigCache memoises parsed .lerd.yaml entries keyed by file path,
+// projectConfigCache memoises parsed .servlo.yaml entries keyed by file path,
 // invalidated by mtime+size. Used by the daemon's per-site enrichment so each
-// snapshot rebuild doesn't re-read every project's .lerd.yaml. Negative
+// snapshot rebuild doesn't re-read every project's .servlo.yaml. Negative
 // entries cache the absence so missing files don't cost a fresh stat+open
 // each time.
 type projectConfigCacheEntry struct {
@@ -322,16 +322,16 @@ var (
 )
 
 func invalidateProjectConfigCache(dir string) {
-	path := filepath.Join(dir, ".lerd.yaml")
+	path := filepath.Join(dir, ".servlo.yaml")
 	projectConfigCacheMu.Lock()
 	delete(projectConfigCache, path)
 	projectConfigCacheMu.Unlock()
 }
 
-// LoadProjectConfig reads .lerd.yaml from dir, returning an empty config if
+// LoadProjectConfig reads .servlo.yaml from dir, returning an empty config if
 // the file does not exist.
 func LoadProjectConfig(dir string) (*ProjectConfig, error) {
-	path := filepath.Join(dir, ".lerd.yaml")
+	path := filepath.Join(dir, ".servlo.yaml")
 	info, statErr := os.Stat(path)
 
 	projectConfigCacheMu.Lock()
@@ -453,7 +453,7 @@ func cloneProjectConfig(in *ProjectConfig) *ProjectConfig {
 	return &out
 }
 
-// SaveProjectConfig writes cfg to .lerd.yaml in dir. The write goes through a
+// SaveProjectConfig writes cfg to .servlo.yaml in dir. The write goes through a
 // temp file and a rename so a crash, a restart mid-write, or a second concurrent
 // writer can never leave the file half-written; the output is two-space indented
 // to match the store YAML and its lists are sorted for stable git diffs.
@@ -468,7 +468,7 @@ func SaveProjectConfig(dir string, cfg *ProjectConfig) error {
 	if err := enc.Close(); err != nil {
 		return err
 	}
-	if err := writeFileAtomic(filepath.Join(dir, ".lerd.yaml"), buf.Bytes(), 0644); err != nil {
+	if err := writeFileAtomic(filepath.Join(dir, ".servlo.yaml"), buf.Bytes(), 0644); err != nil {
 		return err
 	}
 	invalidateProjectConfigCache(dir)
@@ -476,7 +476,7 @@ func SaveProjectConfig(dir string, cfg *ProjectConfig) error {
 }
 
 // normalizeProjectConfig sorts the churn-prone lists into a canonical order so a
-// worker waking or sleeping rewrites .lerd.yaml with a minimal diff instead of a
+// worker waking or sleeping rewrites .servlo.yaml with a minimal diff instead of a
 // reshuffled block. Order is behaviourally irrelevant here: workers are
 // independent units and each service preset owns a distinct env namespace.
 func normalizeProjectConfig(cfg *ProjectConfig) {

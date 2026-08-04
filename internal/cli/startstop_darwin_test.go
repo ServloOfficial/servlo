@@ -12,7 +12,7 @@ import (
 
 func TestMachineInitArgs(t *testing.T) {
 	// Every required mount must be passed explicitly, or Podman's stringArray
-	// --volume drops the defaults (the lerd <= 1.24.0 bug).
+	// --volume drops the defaults (the servlo <= 1.24.0 bug).
 	args := machineInitArgs("", 4096, "")
 	joined := strings.Join(args, " ")
 	for _, m := range requiredMachineMounts {
@@ -74,7 +74,7 @@ func TestMachineMissingHomeMount(t *testing.T) {
 		sources []string
 		want    bool
 	}{
-		// The lerd <= 1.24.0 broken machine: only /Volumes, no home mount.
+		// The servlo <= 1.24.0 broken machine: only /Volumes, no home mount.
 		{"broken-volumes-only", []string{"/Volumes"}, true},
 		{"healthy-defaults", []string{"/Users", "/private", "/var/folders"}, false},
 		{"healthy-all", []string{"/Users", "/private", "/var/folders", "/Volumes"}, false},

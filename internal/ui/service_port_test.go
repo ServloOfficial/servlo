@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestBuildServiceResponse_publishedPortAndURL proves the service env surface
 // reflects a moved published port: ServiceResponse.Port and the connection URL
-// must show where lerd actually listens (the override), not the preset default a
+// must show where servlo actually listens (the override), not the preset default a
 // coexisting host server may own. The status pill renders Port, and the Env tab
-// renders ConnectionURL, so both follow a `lerd service port` / guard shift.
+// renders ConnectionURL, so both follow a `servlo service port` / guard shift.
 func TestBuildServiceResponse_publishedPortAndURL(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
@@ -26,7 +26,7 @@ func TestBuildServiceResponse_publishedPortAndURL(t *testing.T) {
 		t.Errorf("mysql ConnectionURL with no override = %q, want host port 3306", base.ConnectionURL)
 	}
 
-	// Move lerd-mysql to 3307 (host server keeps 3306).
+	// Move servlo-mysql to 3307 (host server keeps 3306).
 	cfg, err := config.LoadGlobal()
 	if err != nil {
 		t.Fatalf("LoadGlobal: %v", err)
@@ -50,7 +50,7 @@ func TestBuildServiceResponse_publishedPortAndURL(t *testing.T) {
 
 // TestBuildServiceResponse_dashboardFollowsPublishedPort proves the dashboard URL
 // tracks a moved published port. The left-rail launcher and the iframe overlay
-// both open ServiceResponse.Dashboard verbatim, so a `lerd service port` move must
+// both open ServiceResponse.Dashboard verbatim, so a `servlo service port` move must
 // re-point it the same way ConnectionURL is, or the dashboard opens the old port.
 func TestBuildServiceResponse_dashboardFollowsPublishedPort(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())

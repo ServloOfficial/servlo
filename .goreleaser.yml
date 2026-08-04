@@ -1,169 +1,104 @@
 version: 2
 
-project_name: lerd
+project_name: servlo
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: lerd-amd64
-    main: ./cmd/lerd
-    binary: lerd
+  - id: servlo-amd64
+    main: ./cmd/servlo
+    binary: servlo
     env:
       - CGO_ENABLED=0
-    flags:
-      - -tags=nogui
     goos:
       - linux
     goarch:
       - amd64
     ldflags:
       - -s -w
-      - -X github.com/geodro/lerd/internal/version.Version={{.Version}}
-      - -X github.com/geodro/lerd/internal/version.Commit={{.Commit}}
-      - -X github.com/geodro/lerd/internal/version.Date={{.Date}}
+      - -X github.com/realrashid/servlo/internal/version.Version={{.Version}}
+      - -X github.com/realrashid/servlo/internal/version.Commit={{.Commit}}
+      - -X github.com/realrashid/servlo/internal/version.Date={{.Date}}
 
-  - id: lerd-arm64
-    main: ./cmd/lerd
-    binary: lerd
+  - id: servlo-arm64
+    main: ./cmd/servlo
+    binary: servlo
     env:
       - CGO_ENABLED=0
-    flags:
-      - -tags=nogui
     goos:
       - linux
     goarch:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/geodro/lerd/internal/version.Version={{.Version}}
-      - -X github.com/geodro/lerd/internal/version.Commit={{.Commit}}
-      - -X github.com/geodro/lerd/internal/version.Date={{.Date}}
+      - -X github.com/realrashid/servlo/internal/version.Version={{.Version}}
+      - -X github.com/realrashid/servlo/internal/version.Commit={{.Commit}}
+      - -X github.com/realrashid/servlo/internal/version.Date={{.Date}}
 
-  - id: lerd-darwin-amd64
-    main: ./cmd/lerd
-    binary: lerd
+  - id: servlo-darwin-amd64
+    main: ./cmd/servlo
+    binary: servlo
     env:
       - CGO_ENABLED=0
-    flags:
-      - -tags=nogui
     goos:
       - darwin
     goarch:
       - amd64
     ldflags:
       - -s -w
-      - -X github.com/geodro/lerd/internal/version.Version={{.Version}}
-      - -X github.com/geodro/lerd/internal/version.Commit={{.Commit}}
-      - -X github.com/geodro/lerd/internal/version.Date={{.Date}}
+      - -X github.com/realrashid/servlo/internal/version.Version={{.Version}}
+      - -X github.com/realrashid/servlo/internal/version.Commit={{.Commit}}
+      - -X github.com/realrashid/servlo/internal/version.Date={{.Date}}
 
-  - id: lerd-darwin-arm64
-    main: ./cmd/lerd
-    binary: lerd
+  - id: servlo-darwin-arm64
+    main: ./cmd/servlo
+    binary: servlo
     env:
       - CGO_ENABLED=0
-    flags:
-      - -tags=nogui
     goos:
       - darwin
     goarch:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/geodro/lerd/internal/version.Version={{.Version}}
-      - -X github.com/geodro/lerd/internal/version.Commit={{.Commit}}
-      - -X github.com/geodro/lerd/internal/version.Date={{.Date}}
-
-  # lerd-tray is a separate CGO binary that links libayatana-appindicator.
-  # lerd (nogui) execs it at runtime; if the library is missing the tray
-  # is silently skipped and everything else continues to work.
-  - id: lerd-tray-amd64
-    main: ./cmd/lerd-tray
-    binary: lerd-tray
-    env:
-      - CGO_ENABLED=1
-    goos:
-      - linux
-    goarch:
-      - amd64
-    ldflags:
-      - -s -w
-      - -X github.com/geodro/lerd/internal/version.Version={{.Version}}
-      - -X github.com/geodro/lerd/internal/version.Commit={{.Commit}}
-      - -X github.com/geodro/lerd/internal/version.Date={{.Date}}
+      - -X github.com/realrashid/servlo/internal/version.Version={{.Version}}
+      - -X github.com/realrashid/servlo/internal/version.Commit={{.Commit}}
+      - -X github.com/realrashid/servlo/internal/version.Date={{.Date}}
 
 archives:
-  - id: lerd-amd64
-    ids: [lerd-amd64, lerd-tray-amd64]
-    name_template: "lerd_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: servlo-amd64
+    ids: [servlo-amd64]
+    name_template: "servlo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format: tar.gz
     files:
       - README.md
       - install.sh
 
-  - id: lerd-arm64
-    ids: [lerd-arm64]
-    name_template: "lerd_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: servlo-arm64
+    ids: [servlo-arm64]
+    name_template: "servlo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format: tar.gz
     files:
       - README.md
       - install.sh
 
-  - id: lerd-darwin-amd64
-    ids: [lerd-darwin-amd64]
-    name_template: "lerd_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: servlo-darwin-amd64
+    ids: [servlo-darwin-amd64]
+    name_template: "servlo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format: tar.gz
     files:
       - README.md
       - install.sh
 
-  - id: lerd-darwin-arm64
-    ids: [lerd-darwin-arm64]
-    name_template: "lerd_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: servlo-darwin-arm64
+    ids: [servlo-darwin-arm64]
+    name_template: "servlo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format: tar.gz
     files:
       - README.md
       - install.sh
-      - src: dist-tray/lerd-tray-darwin-arm64/lerd-tray
-        dst: lerd-tray
-        info:
-          mode: 0755
-
-brews:
-  - name: lerd
-    ids:
-      - lerd-amd64
-      - lerd-arm64
-      - lerd-darwin-amd64
-      - lerd-darwin-arm64
-    repository:
-      owner: lerd-env
-      name: homebrew-lerd
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: "https://lerd.sh"
-    description: "Local Laravel development environment for Linux and macOS"
-    license: "MIT"
-    skip_upload: auto
-    # On macOS podman comes from brew; on Linux the distro's podman is the
-    # one lerd integrates with, so no brew dependency there.
-    dependencies:
-      - name: podman
-        os: mac
-    install: |
-      bin.install "lerd"
-      bin.install "lerd-tray" if File.exist?("lerd-tray")
-    caveats: |
-      To finish setting up Lerd, run:
-        lerd install
-
-      To uninstall cleanly, run in order:
-        lerd uninstall
-        brew uninstall lerd
-
-      If you already removed the binary before running `lerd uninstall`, run:
-        ~/.local/bin/lerd-cleanup
-        brew uninstall lerd
 
 checksum:
   name_template: "checksums.txt"
@@ -190,45 +125,28 @@ changelog:
 
 release:
   github:
-    owner: lerd-env
-    name: lerd
+    owner: realrashid
+    name: servlo
   name_template: "v{{ .Version }}"
   draft: false
   prerelease: auto
   replace_existing_artifacts: true
   header: |
-    ## Lerd {{ .Version }}
+    ## Servlo {{ .Version }}
 
-    Lerd — Podman-powered local PHP dev environment for Linux & macOS.
+    Servlo — production PHP server panel for Ubuntu 24.04 LTS.
 
-    ### Install on Linux
+    ### Install
 
     ```bash
-    curl -fsSL https://lerd.sh/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash
     ```
 
     Or if already installed:
 
     ```bash
-    lerd update
+    servlo update
     ```
 
-    Also available through apt (PPA), dnf (COPR) and Homebrew, see the
-    [installation docs](https://lerd.sh/getting-started/installation).
-
-    ### Install on macOS
-
-    ```bash
-    brew tap lerd-env/lerd
-    brew install lerd
-    lerd install
-    ```
-
-    Or if already installed:
-
-    ```bash
-    brew upgrade lerd
-    lerd install
-    ```
   footer: |
-    **Full Changelog**: https://github.com/lerd-env/lerd/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/realrashid/servlo/compare/{{ .PreviousTag }}...{{ .Tag }}

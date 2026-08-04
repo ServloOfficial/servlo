@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	nodeDet "github.com/geodro/lerd/internal/node"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	nodeDet "github.com/realrashid/servlo/internal/node"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // defaultMacOSNodeVersion is the version `fnm exec --using=…` falls
@@ -45,7 +45,7 @@ const defaultMacOSNodeVersion = "22"
 func writeWorkerUnitFile(unitName, label, siteName, sitePath, phpVersion, command, restart, schedule, fpmUnit string, host bool) (bool, error) {
 	// Generation-boundary guard so every caller is covered (incl. the boot
 	// restore path): every value below is a line of the unit, and a cloned
-	// repo's .lerd.yaml can set the worker ones.
+	// repo's .servlo.yaml can set the worker ones.
 	if err := validateWorkerUnitFields(unitName, map[string]string{
 		"command":     command,
 		"label":       label,
@@ -106,8 +106,8 @@ func writeWorkerHostUnit(unitName, sitePath, command, restart string) (bool, err
 		extraBinDirs = filepath.Dir(bun)
 	} else if isNodeProject(sitePath) {
 		nodeVersion := resolveNodeVersionForHostWorker(sitePath)
-		if lerdManagesNode() {
-			// Pin via the manager only when lerd manages Node (after
+		if servloManagesNode() {
+			// Pin via the manager only when servlo manages Node (after
 			// node:unmanage there is no managed Node to exec into).
 			execPrefix = nodeDet.Active().ExecPrefix(nodeVersion)
 		} else if dirs := nodeDet.SystemNodeBinDirsFor(nodeVersion); len(dirs) > 0 {
@@ -225,7 +225,7 @@ func writeWorkerContainerUnit(unitName, siteName, sitePath, phpVersion, command,
 }
 
 // workerLogHint returns the hint for viewing worker logs on macOS.
-// Host-mode and exec-mode workers always log to ~/Library/Logs/lerd —
+// Host-mode and exec-mode workers always log to ~/Library/Logs/servlo —
 // launchd writes the unit's stdout/stderr there via the plist's
 // StandardOutPath / StandardErrorPath. Container-mode (FPM-bound)
 // workers log to their own podman container. host=true overrides the
@@ -237,7 +237,7 @@ func workerLogHint(unitName string, host bool) string {
 		}
 	}
 	home, _ := os.UserHomeDir()
-	return "tail -f " + filepath.Join(home, "Library", "Logs", "lerd", unitName+".log")
+	return "tail -f " + filepath.Join(home, "Library", "Logs", "servlo", unitName+".log")
 }
 
 // removeWorkerExecArtifacts deletes the on-disk files writeWorkerExecUnit
@@ -247,7 +247,7 @@ func workerLogHint(unitName string, host bool) string {
 //
 // Called on every worker stop so the artifacts don't outlive the unit
 // (an orphan script with no plist isn't actively harmful but accumulates
-// noise in ~/.local/share/lerd/run/workers and can confuse later
+// noise in ~/.local/share/servlo/run/workers and can confuse later
 // migration / discovery code).
 func removeWorkerExecArtifacts(unitName string) {
 	workersDir := filepath.Join(config.RunDir(), "workers")
@@ -275,13 +275,13 @@ func reapInContainerWorker(reapPath string) {
 	_ = exec.CommandContext(ctx, "sh", "-c", string(cmd)).Run()
 }
 
-// restoreWorker is called from restoreSiteInfrastructure during `lerd start`.
+// restoreWorker is called from restoreSiteInfrastructure during `servlo start`.
 // On macOS we only write the unit file; the actual start is deferred to
 // phase 2 of runStart so we don't saturate the Podman Machine SSH connection
 // before containers are ready.
 func restoreWorker(siteName, sitePath, phpVersion, workerName string, w config.FrameworkWorker) {
 	// Resolve the same way WorkerStartForSite does so a project opted into
-	// auto-reload keeps its reload command across lerd start and reboots.
+	// auto-reload keeps its reload command across servlo start and reboots.
 	command := resolveWorkerCommand(sitePath, workerName, w)
 	// A project-supplied host worker only restores on boot if the user already
 	// approved the resolved command it will actually run; otherwise skip silently

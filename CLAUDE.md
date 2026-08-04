@@ -112,17 +112,19 @@ internal/
   authz/             sessions, CSRF, TOTP, roles, permission registry, audit log
   ui/web/            Svelte panel (built + //go:embed'd into the binary)
 pkg/distro/          Ubuntu detection + refusal for everything else
-docs/                VitePress docs site (docs/.vitepress/); root mkdocs.yml is stale, deleted in S0.1
+docs/                VitePress docs site (docs/.vitepress/)
 tests/installer/     bats tests for install.sh
 ```
 
-**The tree above is the target, after S0.1. It is not what you will find today.** The repository is still the lerd checkout: the entrypoints are `cmd/lerd` and `cmd/lerd-tray`, the module path is `github.com/geodro/lerd`, and roughly 1300 files under `internal/` contain the string "lerd". Read the tree above as where things are going, and the paths you actually see as where they are.
+S0.1 landed the rename, so the tree above is what you will actually find. The module path is `github.com/realrashid/servlo` and the entrypoint is `cmd/servlo`; `cmd/lerd-tray` is gone.
+
+The only strings left containing "lerd" are the two upstream dependencies PRD §0 retains on purpose, and they must stay: the GHCR PHP base images (`ghcr.io/lerd-env/lerd-php*`) and the runtime framework and service store fetches (`lerd-env/frameworks`, `lerd-env/services`, until S0.8 chooses an exit). Alongside those sit the fork statement in `README.md`, the upstream copyright in `LICENSE`, and two upstream issue citations in code comments. Treat that set as an allowlist: anything else spelling "lerd" is a regression.
 
 Config: `~/.config/servlo/`. Data: `~/.local/share/servlo/`. systemd units are prefixed `servlo-`. Never install to `/usr/local/bin`; the binary goes to `~/.local/bin/servlo`.
 
 The web UI is Svelte under `internal/ui/web/`, built to `dist/` and embedded via `//go:embed`. `make build` builds the UI first.
 
-**Two commands this file relies on do not exist yet.** `make build-server`, the CGO-free production target, is built in S0.2, and `make surface-scan` is built as the standing gate during Phase 0. The Makefile currently offers `build`, `build-ui`, `build-tray`, `test`, `test-ui`, `test-installer`, `test-all`, `install`, `release` and `release-snapshot`. Until those two targets land, report them as missing rather than passing.
+**Two commands this file relies on do not exist yet.** `make build-server`, the CGO-free production target, is built in S0.2, and `make surface-scan` is built as the standing gate during Phase 0. The Makefile currently offers `build`, `build-ui`, `test`, `test-ui`, `test-installer`, `test-all`, `install`, `install-installer`, `release` and `release-snapshot`. Until those two targets land, report them as missing rather than passing.
 
 ---
 

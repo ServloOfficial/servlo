@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // recordingLifecycle records which units were stopped so the demote test can
@@ -26,7 +26,7 @@ func (r *recordingLifecycle) UnitStatus(string) (string, error) { return "inacti
 func (r *recordingLifecycle) AllUnitStates() map[string]string  { return map[string]string{} }
 
 // fakePodmanOnPath drops a no-op `podman` binary early on PATH so calls that
-// shell out (nginx.Reload runs `podman exec lerd-nginx ...`) succeed.
+// shell out (nginx.Reload runs `podman exec servlo-nginx ...`) succeed.
 func fakePodmanOnPath(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()

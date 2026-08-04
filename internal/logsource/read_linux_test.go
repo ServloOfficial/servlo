@@ -19,7 +19,7 @@ func nFlag(args []string) string {
 }
 
 func TestJournalArgs_ResumeCapsAtMaxLinesNotTheSmallTail(t *testing.T) {
-	src := Source{Name: "ui", Kind: KindJournal, Locator: "lerd-ui"}
+	src := Source{Name: "ui", Kind: KindJournal, Locator: "servlo-panel"}
 	cursor := "s=abc;i=1f;b=2;m=3;t=4;x=5"
 
 	resume, _ := journalArgs(src, Opts{Since: cursor, Lines: 50})

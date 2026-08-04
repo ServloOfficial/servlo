@@ -60,7 +60,7 @@ func TestValidateNginxSnippet(t *testing.T) {
 	}
 }
 
-// A .lerd.yaml is untrusted input. It must not be able to inject nginx config
+// A .servlo.yaml is untrusted input. It must not be able to inject nginx config
 // into the site's server block via an embedded framework_def, the same way it
 // cannot inject host-executing commands or doctor checks.
 func TestSanitizeProjectFrameworkDefStripsNginx(t *testing.T) {

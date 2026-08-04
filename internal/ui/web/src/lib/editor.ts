@@ -1,6 +1,6 @@
 import { apiFetch } from './api';
 
-// openInEditor asks lerd-ui to open a file at a line in the host's editor.
+// openInEditor asks servlo-panel to open a file at a line in the host's editor.
 // The backend requires dashboard-control authority and confines paths to the
 // user's home directory.
 export async function openInEditor(path: string, line: number): Promise<void> {

@@ -340,13 +340,13 @@
     role="presentation"
   >
     <div
-      class="w-full max-w-xl max-h-[70vh] flex flex-col bg-white dark:bg-lerd-card border border-gray-200 dark:border-lerd-border rounded-xl shadow-2xl overflow-hidden"
+      class="w-full max-w-xl max-h-[70vh] flex flex-col bg-white dark:bg-servlo-card border border-gray-200 dark:border-servlo-border rounded-xl shadow-2xl overflow-hidden"
       role="dialog"
       aria-modal="true"
       aria-label={m.palette_ariaLabel()}
       tabindex="-1"
     >
-      <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-lerd-border">
+      <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-servlo-border">
         <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
         </svg>
@@ -359,7 +359,7 @@
           autocomplete="off"
           spellcheck="false"
         />
-        <kbd class="hidden sm:inline-flex items-center text-[10px] font-mono text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-lerd-border rounded-sm px-1.5 py-0.5">esc</kbd>
+        <kbd class="hidden sm:inline-flex items-center text-[10px] font-mono text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-servlo-border rounded-sm px-1.5 py-0.5">esc</kbd>
       </div>
 
       <ul bind:this={listEl} class="flex-1 overflow-y-auto py-1">
@@ -378,7 +378,7 @@
                 onclick={() => execute(e)}
                 onmousemove={() => (selected = idx)}
                 class="w-full px-4 py-2 flex items-center gap-3 text-left text-sm transition-colors {isActive
-                  ? 'bg-lerd-red/10 text-lerd-red'
+                  ? 'bg-servlo-red/10 text-servlo-red'
                   : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/4'}"
               >
                 <span class="flex-1 truncate">{e.label}</span>
@@ -391,7 +391,7 @@
         {/if}
       </ul>
 
-      <div class="px-4 py-2 border-t border-gray-100 dark:border-lerd-border bg-gray-50/60 dark:bg-white/2 flex items-center gap-3 text-[10px] text-gray-400 dark:text-gray-500">
+      <div class="px-4 py-2 border-t border-gray-100 dark:border-servlo-border bg-gray-50/60 dark:bg-white/2 flex items-center gap-3 text-[10px] text-gray-400 dark:text-gray-500">
         <span class="inline-flex items-center gap-1"><kbd class="font-mono">↑↓</kbd> {m.palette_hint_navigate()}</span>
         <span class="inline-flex items-center gap-1"><kbd class="font-mono">↵</kbd> {m.palette_hint_select()}</span>
         <span class="ml-auto inline-flex items-center gap-1"><kbd class="font-mono">⌘K</kbd> {m.palette_hint_toggle()}</span>

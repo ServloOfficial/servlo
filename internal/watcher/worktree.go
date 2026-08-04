@@ -185,7 +185,7 @@ func WatchWorktrees(
 // checkout path from it, then polls until the checkout directory exists AND
 // HEAD has been written with a real ref/SHA before calling onAdded. The HEAD
 // poll closes a race where fsnotify fires Create on the entry dir before git
-// has finalised HEAD: lerd would otherwise read an empty HEAD, treat the
+// has finalised HEAD: servlo would otherwise read an empty HEAD, treat the
 // worktree as detached, and write a `detached.<site>.conf` vhost that
 // shadows the eventual `<branch>.<site>.conf`.
 //

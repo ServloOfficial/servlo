@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/grouping"
-	"github.com/geodro/lerd/internal/linker"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/grouping"
+	"github.com/realrashid/servlo/internal/linker"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteops"
 	"github.com/spf13/cobra"
 )
 
@@ -73,7 +73,7 @@ func runDomainAdd(_ *cobra.Command, args []string) error {
 	fullDomain := domainName + "." + cfg.DNS.TLD
 
 	if linker.IsReservedDomain(fullDomain) {
-		return fmt.Errorf("domain %q is reserved for internal Lerd use", fullDomain)
+		return fmt.Errorf("domain %q is reserved for internal Servlo use", fullDomain)
 	}
 
 	// Check if already present on this site.
@@ -95,7 +95,7 @@ func runDomainAdd(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("updating site registry: %w", err)
 	}
 
-	// Sync to .lerd.yaml.
+	// Sync to .servlo.yaml.
 	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
 
 	// Regenerate vhost (file stays named after primary domain).
@@ -171,7 +171,7 @@ func runDomainRemove(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("updating site registry: %w", err)
 	}
 
-	// Sync to .lerd.yaml, dropping the removed domain so it doesn't re-register.
+	// Sync to .servlo.yaml, dropping the removed domain so it doesn't re-register.
 	_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
 
 	// If the primary domain changed (we removed the old primary), rename the vhost file.

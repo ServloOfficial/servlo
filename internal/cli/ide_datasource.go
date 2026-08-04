@@ -3,9 +3,9 @@ package cli
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/ide"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/ide"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // jdbcDialect maps a database family onto what a JetBrains IDE calls its
@@ -27,7 +27,7 @@ var jdbcDialect = map[string]struct{ driver, class, scheme string }{
 type ideSyncResult struct {
 	outcome  ide.Outcome
 	database string
-	reason   string // set when there was nothing lerd could point at
+	reason   string // set when there was nothing servlo could point at
 }
 
 func (r ideSyncResult) wrote() bool { return r.outcome == ide.Written && r.reason == "" }
@@ -42,7 +42,7 @@ func syncIDEDataSource(siteRoot string) ideSyncResult {
 	}
 	ds, ok := ideDataSourceFor(env)
 	if !ok {
-		return ideSyncResult{reason: "lerd has no IDE driver for " + env.connection + " databases"}
+		return ideSyncResult{reason: "servlo has no IDE driver for " + env.connection + " databases"}
 	}
 	outcomes, err := ide.Sync(siteRoot, []ide.DataSource{ds})
 	if err != nil {
@@ -51,13 +51,13 @@ func syncIDEDataSource(siteRoot string) ideSyncResult {
 	return ideSyncResult{outcome: outcomes[0], database: env.database}
 }
 
-// removeIDEDataSource drops lerd's entry when a site stops being lerd's.
+// removeIDEDataSource drops servlo's entry when a site stops being servlo's.
 func removeIDEDataSource(siteRoot string) {
 	_, _ = ide.Remove(siteRoot)
 }
 
 // ideDataSourceFor builds the connection as an IDE stores it. The URL carries no
-// password: JetBrains keeps secrets in its own credential store, which lerd
+// password: JetBrains keeps secrets in its own credential store, which servlo
 // cannot write, so the first connect asks for the fixed local one the site's env
 // file already spells out.
 func ideDataSourceFor(env *dbEnv) (ide.DataSource, bool) {
@@ -72,7 +72,7 @@ func ideDataSourceFor(env *dbEnv) (ide.DataSource, bool) {
 	}
 	return ide.DataSource{
 		Key:    env.database,
-		Name:   env.database + " (lerd)",
+		Name:   env.database + " (servlo)",
 		Driver: dialect.driver,
 		Class:  dialect.class,
 		URL:    fmt.Sprintf("jdbc:%s://127.0.0.1:%d/%s", dialect.scheme, port, env.database),

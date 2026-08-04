@@ -28,7 +28,7 @@ func removeStaleUnixSocket(path string) error {
 
 // chmodUnixSocket loosens the socket's mode so the FPM containers (running
 // as their own user inside podman) can connect through the %h:%h bind
-// mount. 0660 matches lerd-ui's main socket.
+// mount. 0660 matches servlo-panel's main socket.
 func chmodUnixSocket(path string) error {
 	return os.Chmod(path, 0660)
 }
@@ -39,7 +39,7 @@ func chmodUnixSocket(path string) error {
 // other purpose don't see surprise interceptions.
 const DefaultAddr = "127.0.0.1:9913"
 
-// DefaultNetwork is the listen network used by lerd-ui. Unix sockets are
+// DefaultNetwork is the listen network used by servlo-panel. Unix sockets are
 // the default because the FPM containers can already reach the host home
 // directory via the %h:%h bind mount — using a TCP loopback listener
 // would mean opening the receiver to the entire host network ring just so
@@ -71,7 +71,7 @@ type Server struct {
 // Listen binds a TCP listener on addr and starts the accept loop. If addr
 // is empty, DefaultAddr is used. The returned Server keeps running until
 // Close is called or ctx is cancelled. Kept for tests and existing callers
-// that already pass a TCP address; production lerd-ui uses ListenOn with
+// that already pass a TCP address; production servlo-panel uses ListenOn with
 // "unix" so the receiver isn't reachable from the host network ring.
 func Listen(ctx context.Context, addr string) (*Server, error) {
 	if addr == "" {
@@ -82,7 +82,7 @@ func Listen(ctx context.Context, addr string) (*Server, error) {
 
 // ListenOn binds on the given network and address. network is either "tcp"
 // or "unix"; for "unix", any pre-existing socket at addr is removed first
-// so a previous lerd-ui crash doesn't pin the path forever.
+// so a previous servlo-panel crash doesn't pin the path forever.
 func ListenOn(ctx context.Context, network, addr string) (*Server, error) {
 	if network == "" {
 		network = DefaultNetwork

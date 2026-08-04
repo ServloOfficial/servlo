@@ -8,14 +8,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
-	lerdSystemd "github.com/geodro/lerd/internal/systemd"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
+	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +51,7 @@ func newWorkerStartCmd() *cobra.Command {
 			}
 			worker, ok := fw.Workers[workerName]
 			if !ok {
-				return fmt.Errorf("framework %q has no worker named %q\nRun 'lerd worker list' to see available workers", fw.Label, workerName)
+				return fmt.Errorf("framework %q has no worker named %q\nRun 'servlo worker list' to see available workers", fw.Label, workerName)
 			}
 			if worker.Check != nil && !config.MatchesRule(cwd, *worker.Check) {
 				return fmt.Errorf("worker %q requires a dependency that is not installed\nCheck the framework definition for required packages", workerName)
@@ -85,9 +85,9 @@ func newWorkerStopCmd() *cobra.Command {
 			// Allow stopping orphaned workers that have a running unit
 			// but are no longer in the framework definition.
 			if _, ok := fw.Workers[workerName]; !ok {
-				unitName := "lerd-" + workerName + "-" + site.Name
+				unitName := "servlo-" + workerName + "-" + site.Name
 				if !isServiceActiveOrRestarting(unitName) {
-					return fmt.Errorf("framework %q has no worker named %q\nRun 'lerd worker list' to see available workers", fw.Label, workerName)
+					return fmt.Errorf("framework %q has no worker named %q\nRun 'servlo worker list' to see available workers", fw.Label, workerName)
 				}
 			}
 			if err := WorkerStopForSite(site.Name, cwd, workerName); err != nil {
@@ -144,7 +144,7 @@ func newWorkerListCmd() *cobra.Command {
 			if len(orphans) > 0 {
 				fmt.Println("\nOrphaned workers (running but not defined):")
 				for _, name := range orphans {
-					fmt.Printf("  %-15s (stop with: lerd worker stop %s)\n", name, name)
+					fmt.Printf("  %-15s (stop with: servlo worker stop %s)\n", name, name)
 				}
 			}
 			return nil
@@ -155,7 +155,7 @@ func newWorkerListCmd() *cobra.Command {
 // resolveSiteAndFramework finds the registered site and its framework for cwd.
 // Falls back to framework detection if the site has no Framework set.
 // For custom container sites without a framework, a synthetic framework is
-// returned that contains only the custom_workers from .lerd.yaml.
+// returned that contains only the custom_workers from .servlo.yaml.
 func resolveSiteAndFramework(cwd string) (*config.Site, *config.Framework, string, error) {
 	site, err := config.FindSiteByPath(cwd)
 	if err != nil {
@@ -170,7 +170,7 @@ func resolveSiteAndFramework(cwd string) (*config.Site, *config.Framework, strin
 	}
 
 	// Custom container sites may not have a framework. Build a synthetic
-	// framework from .lerd.yaml custom_workers so the worker commands work.
+	// framework from .servlo.yaml custom_workers so the worker commands work.
 	if site.IsCustomContainer() && site.Framework == "" {
 		fw := &config.Framework{Name: "custom", Label: "custom container"}
 		if proj, _ := config.LoadProjectConfig(cwd); proj != nil && len(proj.CustomWorkers) > 0 {
@@ -181,12 +181,12 @@ func resolveSiteAndFramework(cwd string) (*config.Site, *config.Framework, strin
 
 	fwName := site.Framework
 	if fwName == "" {
-		return nil, nil, "", fmt.Errorf("site %q has no framework assigned — run 'lerd link' first", site.Name)
+		return nil, nil, "", fmt.Errorf("site %q has no framework assigned — run 'servlo link' first", site.Name)
 	}
 
 	fw, ok := config.GetFrameworkForDir(fwName, cwd)
 	if !ok {
-		return nil, nil, "", fmt.Errorf("site %q has no framework assigned — run 'lerd link' or 'lerd framework add'", site.Name)
+		return nil, nil, "", fmt.Errorf("site %q has no framework assigned — run 'servlo link' or 'servlo framework add'", site.Name)
 	}
 
 	phpVersion := site.PHPVersion
@@ -211,7 +211,7 @@ func requireFrameworkWorker(cwd, workerName string) error {
 		return fmt.Errorf("framework %q has no workers defined", fw.Label)
 	}
 	if _, ok := fw.Workers[workerName]; !ok {
-		return fmt.Errorf("framework %q has no worker named %q\nRun 'lerd worker list' to see available workers", fw.Label, workerName)
+		return fmt.Errorf("framework %q has no worker named %q\nRun 'servlo worker list' to see available workers", fw.Label, workerName)
 	}
 	return nil
 }
@@ -224,7 +224,7 @@ func requireFrameworkWorker(cwd, workerName string) error {
 // strings.
 //
 // The polling flag is appended where the watcher can't see host filesystem
-// events. lerd runs workers inside a container; on macOS that container lives
+// events. servlo runs workers inside a container; on macOS that container lives
 // in the podman virtual machine while the project is shared in from the host,
 // so inotify events raised on the host never reach the watcher in the VM. Under
 // WSL2 the same gap exists for projects on 9p (/mnt) mounts, where inotify is
@@ -318,10 +318,10 @@ func InstallChokidar(sitePath string) error {
 }
 
 // WorkerStartForSite writes a systemd unit for the given framework worker and starts it.
-// The unit name is lerd-{workerName}-{siteName}.
+// The unit name is servlo-{workerName}-{siteName}.
 // If the worker has a Proxy config, the proxy port is auto-assigned and the
 // nginx vhost is regenerated to include the WebSocket/HTTP proxy block.
-// When persist is false the worker is not added to .lerd.yaml, used by the
+// When persist is false the worker is not added to .servlo.yaml, used by the
 // auto-start path so worktree vite workers don't appear as user-opted entries.
 func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w config.FrameworkWorker, persist bool) error {
 	if err := workerStartPreflight(sitePath, workerName, w); err != nil {
@@ -340,7 +340,7 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 
 	command := resolveWorkerCommand(sitePath, workerName, w)
 
-	// A host worker from an untrusted project .lerd.yaml (custom_workers) runs its
+	// A host worker from an untrusted project .servlo.yaml (custom_workers) runs its
 	// command on the host, so require consent before starting it. Consent is keyed
 	// on the resolved command actually executed (the reload variant when the
 	// project opts in), not w.Command, so a reload_command can't run unshown behind
@@ -460,7 +460,7 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 		regenNginxVhost(siteName, sitePath)
 	}
 
-	// Persist this worker to .lerd.yaml so lerd install can restore it.
+	// Persist this worker to .servlo.yaml so servlo install can restore it.
 	// Additive: other workers already in the list are not removed. Skipped
 	// when persist is false (auto-start path) so worktree workers don't
 	// appear as user-opted entries.
@@ -546,11 +546,11 @@ func newWorkerAddCmd() *cobra.Command {
 					}
 				}
 				if err := config.SetProjectCustomWorker(cwd, name, w); err != nil {
-					return fmt.Errorf("saving .lerd.yaml: %w", err)
+					return fmt.Errorf("saving .servlo.yaml: %w", err)
 				}
-				fmt.Printf("Custom worker %q %s in .lerd.yaml\n", name, action)
+				fmt.Printf("Custom worker %q %s in .servlo.yaml\n", name, action)
 			}
-			fmt.Printf("Start it with: lerd worker start %s\n", name)
+			fmt.Printf("Start it with: servlo worker start %s\n", name)
 			return nil
 		},
 	}
@@ -564,7 +564,7 @@ func newWorkerAddCmd() *cobra.Command {
 	cmd.Flags().StringVar(&proxyPath, "proxy-path", "", "URL path to proxy (e.g. /app)")
 	cmd.Flags().StringVar(&proxyPortKey, "proxy-port-env-key", "", "Env key holding the worker port")
 	cmd.Flags().IntVar(&proxyDefPort, "proxy-default-port", 0, "Default port if env key is missing")
-	cmd.Flags().BoolVar(&global, "global", false, "Save to global framework overlay instead of .lerd.yaml")
+	cmd.Flags().BoolVar(&global, "global", false, "Save to global framework overlay instead of .servlo.yaml")
 	_ = cmd.MarkFlagRequired("command")
 
 	return cmd
@@ -575,7 +575,7 @@ func newWorkerRemoveCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "remove <name>",
-		Short: "Remove a custom worker from .lerd.yaml or global framework overlay",
+		Short: "Remove a custom worker from .servlo.yaml or global framework overlay",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			name := args[0]
@@ -591,8 +591,8 @@ func newWorkerRemoveCmd() *cobra.Command {
 
 			// Stop the worker if running — on the parent and on every
 			// worktree. Without the worktree pass, per-worktree units
-			// (lerd-<name>-<site>-<wt>) keep running against a
-			// definition that's about to be deleted from .lerd.yaml.
+			// (servlo-<name>-<site>-<wt>) keep running against a
+			// definition that's about to be deleted from .servlo.yaml.
 			paths := []string{site.Path}
 			if worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain()); err == nil {
 				for _, wt := range worktrees {
@@ -630,13 +630,13 @@ func newWorkerRemoveCmd() *cobra.Command {
 				if err := config.RemoveProjectCustomWorker(cwd, name); err != nil {
 					return err
 				}
-				fmt.Printf("Custom worker %q removed from .lerd.yaml\n", name)
+				fmt.Printf("Custom worker %q removed from .servlo.yaml\n", name)
 			}
 			return nil
 		},
 	}
 
-	cmd.Flags().BoolVar(&global, "global", false, "Remove from global framework overlay instead of .lerd.yaml")
+	cmd.Flags().BoolVar(&global, "global", false, "Remove from global framework overlay instead of .servlo.yaml")
 	return cmd
 }
 
@@ -657,7 +657,7 @@ func siteFrameworkName(siteName string) string {
 // and CLI output can tell them apart. Single config.FindSite call serves
 // both shapes — formerly two helpers each looked up independently.
 func workerNames(siteName, sitePath, workerName string) (unit, display string) {
-	unit = "lerd-" + workerName + "-" + siteName
+	unit = "servlo-" + workerName + "-" + siteName
 	display = siteName
 	if siteName == "" || workerName == "" || sitePath == "" {
 		return unit, display
@@ -683,7 +683,7 @@ func WorkerUnitName(siteName, sitePath, workerName string) string {
 //
 //   - custom container site → its own dedicated container
 //   - FrankenPHP site       → its dunglas/frankenphp container
-//   - everything else       → shared lerd-php<v>-fpm
+//   - everything else       → shared servlo-php<v>-fpm
 //
 // Centralised here because restoreWorker (linux + darwin) and the macOS
 // writeWorker* helpers used to repeat the resolution and missed the
@@ -705,7 +705,7 @@ func resolveWorkerFPMUnit(siteName, phpVersion string) string {
 			return podman.CustomFPMContainerName(siteName)
 		}
 	}
-	return "lerd-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
+	return "servlo-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
 }
 
 // WorkerStopForSite stops and removes the named worker unit for the given site.
@@ -742,7 +742,7 @@ func stopWorkerUnit(unitName, label, _ string) error {
 		return fmt.Errorf("removing unit file: %w", err)
 	}
 	// Drop the macOS exec-mode guard script + pid file (no-op on Linux).
-	// Without this they linger in ~/.local/share/lerd/run/workers after
+	// Without this they linger in ~/.local/share/servlo/run/workers after
 	// a normal stop and confuse later mode-migration discovery.
 	removeWorkerExecArtifacts(unitName)
 	finalizeStopStep(step, podman.DaemonReloadFn())
@@ -760,7 +760,7 @@ func finalizeStopStep(step *feedback.Step, reloadErr error) {
 }
 
 // StopAllWorkersForWorktree stops every per-worktree worker unit attached
-// to the given (site, worktree) pair. Called from `lerd worktree remove`
+// to the given (site, worktree) pair. Called from `servlo worktree remove`
 // and from the watcher's onRemoved hook so units don't restart-loop
 // against a deleted WorkingDirectory after the user tears down a worktree.
 // Returns the first underlying error so the caller can log it; siblings
@@ -772,7 +772,7 @@ func StopAllWorkersForWorktree(siteName, wtBase string) error {
 	// Unit names sanitize dots, so match against the same slug used at creation.
 	wtBase = config.WorktreeUnitSlug(wtBase)
 	suffix := "-" + siteName + "-" + wtBase
-	pattern := "lerd-*" + suffix
+	pattern := "servlo-*" + suffix
 	units := services.Mgr.ListServiceUnits(pattern)
 	displaySite := siteName + "/" + wtBase
 	var firstErr error
@@ -783,7 +783,7 @@ func StopAllWorkersForWorktree(siteName, wtBase string) error {
 		if !strings.HasSuffix(unit, suffix) {
 			continue
 		}
-		workerName := strings.TrimSuffix(strings.TrimPrefix(unit, "lerd-"), suffix)
+		workerName := strings.TrimSuffix(strings.TrimPrefix(unit, "servlo-"), suffix)
 		if workerName == "" {
 			continue
 		}
@@ -794,11 +794,11 @@ func StopAllWorkersForWorktree(siteName, wtBase string) error {
 	return firstErr
 }
 
-// workerNameForSiteUnit parses a worker unit name shaped lerd-<worker>-<site> or
-// lerd-<worker>-<site>-<slug> and returns <worker>. ok is false when the unit
+// workerNameForSiteUnit parses a worker unit name shaped servlo-<worker>-<site> or
+// servlo-<worker>-<site>-<slug> and returns <worker>. ok is false when the unit
 // is not a worker unit for siteName.
 func workerNameForSiteUnit(unit, siteName string) (string, bool) {
-	rem, ok := strings.CutPrefix(unit, "lerd-")
+	rem, ok := strings.CutPrefix(unit, "servlo-")
 	if !ok {
 		return "", false
 	}
@@ -819,7 +819,7 @@ func workerNameForSiteUnit(unit, siteName string) (string, bool) {
 
 // siteOwnsWorkerUnit reports whether unit unambiguously belongs to siteName: the
 // name must parse as siteName's worker unit AND no other registered site parse
-// it too. Worker-unit names are ambiguous (lerd-horizon-web-feat is both web's
+// it too. Worker-unit names are ambiguous (servlo-horizon-web-feat is both web's
 // "feat" worktree horizon unit and a "feat" site's "horizon-web" worker), so
 // when another registered site also matches we decline rather than risk tearing
 // down the wrong site's unit; the cost is at most leaving one unit behind.
@@ -854,7 +854,7 @@ func stopAllSiteWorkerUnits(site *config.Site) {
 		}
 	}
 	seen := map[string]bool{}
-	for _, glob := range []string{"lerd-*-" + site.Name, "lerd-*-" + site.Name + "-*"} {
+	for _, glob := range []string{"servlo-*-" + site.Name, "servlo-*-" + site.Name + "-*"} {
 		for _, unit := range services.Mgr.ListServiceUnits(glob) {
 			if seen[unit] {
 				continue
@@ -894,7 +894,7 @@ func approveHostCommand(siteName, command, what string) error {
 	if !isInteractive() {
 		return fmt.Errorf("%s: not approved; run it once interactively to confirm, or set host_commands.skip_confirmation: true", what)
 	}
-	fmt.Printf("\nlerd will run this on your host, outside any container:\n\n  %s\n", command)
+	fmt.Printf("\nservlo will run this on your host, outside any container:\n\n  %s\n", command)
 	if !promptConfirm(fmt.Sprintf("Run it for %s?", siteName)) {
 		return fmt.Errorf("%s declined for %s", what, siteName)
 	}
@@ -904,13 +904,13 @@ func approveHostCommand(siteName, command, what string) error {
 // findOrphanedWorkers returns worker names that are running but not in the known set.
 func findOrphanedWorkers(siteName string, known map[string]bool) []string {
 	suffix := "-" + siteName
-	prefix := "lerd-"
-	units := services.Mgr.ListServiceUnits("lerd-*-" + siteName)
+	prefix := "servlo-"
+	units := services.Mgr.ListServiceUnits("servlo-*-" + siteName)
 	var sites []config.Site
 	if reg, err := config.LoadSites(); err == nil {
 		sites = reg.Sites
 	}
-	// A host-proxy site's dev server (lerd-app-<site>) is the main process, not
+	// A host-proxy site's dev server (servlo-app-<site>) is the main process, not
 	// an orphan; handled here so callers don't each special-case it.
 	hostProxySite := false
 	for _, s := range sites {
@@ -934,7 +934,7 @@ func findOrphanedWorkers(siteName string, known map[string]bool) []string {
 			"nginx", "dns", "dns-forwarder", "watcher", "ui", "stripe":
 			continue
 		}
-		if lerdSystemd.UnitBelongsToOtherSiteWorktree(workerName, siteName, sites) {
+		if servloSystemd.UnitBelongsToOtherSiteWorktree(workerName, siteName, sites) {
 			continue
 		}
 		if isServiceActiveOrRestarting(unit) {

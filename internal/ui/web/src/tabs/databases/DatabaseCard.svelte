@@ -210,7 +210,7 @@
         use:tooltip={m.databases_openIn({ name: serviceLabel(admin.name) })}
         aria-label={m.databases_openIn({ name: serviceLabel(admin.name) })}
         onclick={() => openDatabaseAdmin(engine.service, active.name)}
-        class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+        class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
       >
         <Icon name="external" class="w-3.5 h-3.5" />
       </button>
@@ -220,7 +220,7 @@
       use:tooltip={copied ? m.databases_copied() : m.databases_copyDsn()}
       aria-label={m.databases_copyDsn()}
       onclick={copyDsn}
-      class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+      class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
     >
       <Icon name={copied ? 'check' : 'clipboard'} class="w-3.5 h-3.5" />
     </button>
@@ -230,7 +230,7 @@
         href={exportUrl(engine.service, active.name)}
         use:tooltip={m.databases_export()}
         aria-label={m.databases_export()}
-        class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+        class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
       >
         <Icon name="download" class="w-3.5 h-3.5" />
       </a>
@@ -243,7 +243,7 @@
         aria-label={m.databases_import()}
         onclick={() => fileInput?.click()}
         disabled={importBusy}
-        class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+        class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
       >
         <Icon name={importBusy ? 'spinner' : 'upload'} class="w-3.5 h-3.5 {importBusy ? 'animate-spin' : ''}" />
       </button>
@@ -256,12 +256,12 @@
         use:tooltip={m.databases_snapshots()}
         aria-label={m.databases_snapshots()}
         onclick={() => (showSnapshots = true)}
-        class="relative flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+        class="relative flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
       >
         <Icon name="camera" class="w-3.5 h-3.5" />
         {#if snapshotCount > 0}
           <span
-            class="absolute -top-0.5 -right-0.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-lerd-red text-white text-[9px] font-semibold flex items-center justify-center"
+            class="absolute -top-0.5 -right-0.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-servlo-red text-white text-[9px] font-semibold flex items-center justify-center"
           >{snapshotCount}</span>
         {/if}
       </button>
@@ -321,7 +321,7 @@
         {m.databases_importBody({ name: active.name })}
       </p>
       <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-        <input type="checkbox" bind:checked={importFresh} class="mt-0.5 accent-lerd-red" />
+        <input type="checkbox" bind:checked={importFresh} class="mt-0.5 accent-servlo-red" />
         <span>
           {m.databases_importFresh()}
           <span class="block text-xs text-gray-500 dark:text-gray-400">

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // registerTestSite gives the MCP exec functions a real site to look up via
@@ -17,7 +17,7 @@ func registerTestSite(t *testing.T, name string) string {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := config.AddSite(config.Site{Name: name, Path: dir, Domains: []string{name + ".test"}}); err != nil {

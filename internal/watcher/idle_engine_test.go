@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/idle"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/idle"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // stubUnitStatus reports the named units as running and everything else stopped,
@@ -73,7 +73,7 @@ func TestTick_pinnedSiteStillTicksWorktrees(t *testing.T) {
 }
 
 // A proxy-only site (nginx forwards to a dev server the user runs themselves)
-// has no lerd-supervised process, so idle-suspend must leave it alone rather than
+// has no servlo-supervised process, so idle-suspend must leave it alone rather than
 // swap its vhost to the waking page and make a live site look asleep.
 func TestTick_proxyOnlySiteIsNeverSuspended(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
@@ -219,7 +219,7 @@ func TestTick_reconcilesStaleSuspendedListAgainstReality(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	proj, err := config.LoadProjectConfig(dir)
@@ -243,7 +243,7 @@ func TestTick_reconcilesStaleSuspendedListAgainstReality(t *testing.T) {
 	t.Cleanup(func() { detectWorktrees = prev })
 
 	// queue unit is actually running, contradicting the suspended claim.
-	podman.UnitLifecycle = stubUnitStatus{active: map[string]bool{"lerd-queue-myapp": true}}
+	podman.UnitLifecycle = stubUnitStatus{active: map[string]bool{"servlo-queue-myapp": true}}
 	t.Cleanup(func() { podman.UnitLifecycle = nil })
 
 	e := newIdleEngine(idle.NewTracker(nil))

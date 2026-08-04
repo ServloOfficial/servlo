@@ -1,4 +1,4 @@
-// Package activityping is the host-side client for the lerd-watcher's idle
+// Package activityping is the host-side client for the servlo-watcher's idle
 // control socket: it keeps a worked-on site awake under idle-suspend and asks
 // the watcher to resume all suspended workers when the feature is switched off.
 package activityping
@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // Site records activity for the named site so a terminal php/composer/npm run

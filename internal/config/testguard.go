@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// realStateDirs are the lerd dirs of whoever is running the process, resolved once
+// realStateDirs are the servlo dirs of whoever is running the process, resolved once
 // at start. XDG_DATA_HOME and XDG_CONFIG_HOME decide them and a test moves those,
 // so resolving later can't tell a test's temp dir from the developer's own. The
 // unit dirs are here too: the bug that started this wrote a real systemd unit.
@@ -15,7 +15,7 @@ var realStateDirs = []string{DataDir(), ConfigDir(), SystemdUserDir(), QuadletDi
 
 // underTest reports whether this process is a test binary, read from the command
 // line rather than testing.Testing() so the std testing package stays out of the
-// shipped lerd binary.
+// shipped servlo binary.
 var underTest = func() bool {
 	if strings.HasSuffix(os.Args[0], ".test") || strings.Contains(os.Args[0], "/_test/") {
 		return true
@@ -51,7 +51,7 @@ func guardRealWrite(path string) {
 		}
 		real = resolveLinks(real)
 		if abs == real || strings.HasPrefix(abs, real+string(os.PathSeparator)) {
-			panic(fmt.Sprintf("test wrote to or removed the real lerd state at %s: isolate it with "+
+			panic(fmt.Sprintf("test wrote to or removed the real servlo state at %s: isolate it with "+
 				`t.Setenv("XDG_DATA_HOME", t.TempDir())`+" and "+`t.Setenv("XDG_CONFIG_HOME", t.TempDir())`, abs))
 		}
 	}

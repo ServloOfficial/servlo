@@ -18,7 +18,7 @@
   {#if label.site || label.branch}<span
       >[{#if label.site && domain}<a
           href="#sites/{domain}/dumps"
-          class="underline decoration-dotted underline-offset-2 hover:text-lerd-red">{label.site}</a
+          class="underline decoration-dotted underline-offset-2 hover:text-servlo-red">{label.site}</a
         >{:else if label.site}{label.site}{:else}{label.branch}{/if}{suffix}]
     </span>{/if}{label.text}
 </span>

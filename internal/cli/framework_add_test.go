@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/store"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/store"
 )
 
 // storeServer stands up a fake store publishing a single framework at one
@@ -120,7 +120,7 @@ func TestFrameworkAddCmd_BareNameInstallsFromStore(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	srv := storeServer(t, "drupal", "Drupal", "11")
-	t.Setenv("LERD_STORE_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_STORE_BASE_URL", srv.URL)
 
 	cmd := newFrameworkAddCmd()
 	cmd.SetArgs([]string{"drupal"})
@@ -140,7 +140,7 @@ func TestFrameworkAddCmd_AuthoringFlagsStayLocal(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	srv := storeServer(t, "drupal", "Drupal", "11")
-	t.Setenv("LERD_STORE_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_STORE_BASE_URL", srv.URL)
 
 	cmd := newFrameworkAddCmd()
 	cmd.SetArgs([]string{"myfw", "--public-dir", "web", "--detect-file", "myfw.php"})

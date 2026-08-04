@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	lerdNode "github.com/geodro/lerd/internal/node"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	servloNode "github.com/realrashid/servlo/internal/node"
+	"github.com/realrashid/servlo/internal/serviceops"
 )
 
 // dbEnvForArgs resolves the project's database the same way the other db
@@ -31,7 +31,7 @@ func dbEnvForArgs(args map[string]any) (*mcpDBEnv, any) {
 }
 
 // execDBExtensionList reports the extensions an engine's image can create and
-// which of them the database already has. lerd creates one on its own when an
+// which of them the database already has. servlo creates one on its own when an
 // import reaches for a type it provides, so this is for seeing the set and for
 // adding one before any dump arrives.
 func execDBExtensionList(args map[string]any) (any, *rpcError) {
@@ -146,7 +146,7 @@ func entityActionNames(spec *config.EntitySpec) []string {
 	return out
 }
 
-// execNodeManager reports the Node version manager lerd drives, or switches it.
+// execNodeManager reports the Node version manager servlo drives, or switches it.
 // The switch runs through the CLI because it also rewrites the PATH shims and
 // regenerates host worker units, which live there.
 func execNodeManager(args map[string]any) (any, *rpcError) {
@@ -159,8 +159,8 @@ func execNodeManager(args map[string]any) (any, *rpcError) {
 	if target == "" {
 		return toolJSON(map[string]any{
 			"manager":       current,
-			"nvm_available": lerdNode.ManagerByName("nvm").Available(),
-			"managed":       lerdNode.Managed(),
+			"nvm_available": servloNode.ManagerByName("nvm").Available(),
+			"managed":       servloNode.Managed(),
 		}), nil
 	}
 	if target != "fnm" && target != "nvm" {
@@ -170,7 +170,7 @@ func execNodeManager(args map[string]any) (any, *rpcError) {
 		return toolOK("already using " + target), nil
 	}
 	cwd, _ := os.Getwd()
-	out, err := runIn(cwd, lerdSelf(), "node:manager", target)
+	out, err := runIn(cwd, servloSelf(), "node:manager", target)
 	if err != nil {
 		if out == "" {
 			out = err.Error()

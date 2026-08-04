@@ -60,7 +60,7 @@
         placeholder="example.com"
         autocomplete="off"
         spellcheck="false"
-        class="w-full px-2.5 py-1.5 text-sm font-mono rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-bg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-lerd-red"
+        class="w-full px-2.5 py-1.5 text-sm font-mono rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-bg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-servlo-red"
       />
       <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
         {#if preview}
@@ -73,7 +73,7 @@
     </div>
 
     <div class="flex items-start gap-2 text-xs">
-      <input id="share-remember" type="checkbox" bind:checked={remember} class="mt-0.5 accent-lerd-red" />
+      <input id="share-remember" type="checkbox" bind:checked={remember} class="mt-0.5 accent-servlo-red" />
       <span>
         <label for="share-remember" class="text-gray-600 dark:text-gray-300 cursor-pointer"
           >{m.shareDomain_remember()}</label
@@ -93,28 +93,28 @@
         type="button"
         disabled={busy}
         onclick={() => onsubmit('', remember)}
-        class="{btnBase} border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
+        class="{btnBase} border border-gray-200 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
         >{m.shareDomain_skip()}</button
       >
       <button
         type="button"
         disabled={busy || !clean}
         onclick={() => onsubmit(clean, remember)}
-        class="{btnBase} bg-lerd-red hover:bg-lerd-redhov text-white">{m.shareDomain_use()}</button
+        class="{btnBase} bg-servlo-red hover:bg-servlo-redhov text-white">{m.shareDomain_use()}</button
       >
     {:else}
       <button
         type="button"
         disabled={busy}
         onclick={onclose}
-        class="{btnBase} border border-gray-200 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
+        class="{btnBase} border border-gray-200 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
         >{m.common_cancel()}</button
       >
       <button
         type="button"
         disabled={busy}
         onclick={() => onsubmit(clean, remember)}
-        class="{btnBase} bg-lerd-red hover:bg-lerd-redhov text-white">{m.common_save()}</button
+        class="{btnBase} bg-servlo-red hover:bg-servlo-redhov text-white">{m.common_save()}</button
       >
     {/if}
   {/snippet}

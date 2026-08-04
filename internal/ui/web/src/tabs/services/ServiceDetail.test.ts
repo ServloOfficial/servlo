@@ -58,7 +58,7 @@ describe('ServiceDetail entities tab', () => {
   it('opens on the entity tab, named after the declared kind', () => {
     const { getByRole } = render(ServiceDetail, { props: { svc: entityService() } });
     const tab = getByRole('button', { name: 'Buckets' });
-    expect(tab.className).toContain('border-lerd-red');
+    expect(tab.className).toContain('border-servlo-red');
   });
 
   it('hides the entity tab without dashboard-control authority', () => {

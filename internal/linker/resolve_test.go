@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// testConfig is the global config the resolve tests link against: lerd manages
+// testConfig is the global config the resolve tests link against: servlo manages
 // DNS on the .test TLD, so secured decisions are reachable.
 func testConfig() *config.GlobalConfig {
 	cfg := &config.GlobalConfig{}
@@ -19,28 +19,28 @@ func testConfig() *config.GlobalConfig {
 	return cfg
 }
 
-// projectDir creates a project directory named name, with the given .lerd.yaml
+// projectDir creates a project directory named name, with the given .servlo.yaml
 // body when one is wanted, and sandboxes the site registry and global config
 // around it. The global config is written to disk because PHP detection falls
 // back to reading it directly rather than to the config Resolve is handed.
-func projectDir(t *testing.T, name, lerdYAML string) string {
+func projectDir(t *testing.T, name, servloYAML string) string {
 	t.Helper()
 	setupSitesYAML(t, "sites: []\n")
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
-	if err := os.MkdirAll(filepath.Join(cfgHome, "lerd"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(cfgHome, "servlo"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	global := "php:\n  default_version: \"8.3\"\nnode:\n  default_version: \"22\"\ndns:\n  enabled: true\n  tld: test\n"
-	if err := os.WriteFile(filepath.Join(cfgHome, "lerd", "config.yaml"), []byte(global), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(cfgHome, "servlo", "config.yaml"), []byte(global), 0644); err != nil {
 		t.Fatal(err)
 	}
 	dir := filepath.Join(t.TempDir(), name)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if lerdYAML != "" {
-		if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(lerdYAML), 0644); err != nil {
+	if servloYAML != "" {
+		if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(servloYAML), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -108,7 +108,7 @@ func TestResolve_hostProxyCarriesTheCommandForConsent(t *testing.T) {
 }
 
 func TestResolve_containerWithoutPortIsCustomFPM(t *testing.T) {
-	dir := projectDir(t, "legacy", "container:\n  containerfile: Containerfile.lerd\n")
+	dir := projectDir(t, "legacy", "container:\n  containerfile: Containerfile.servlo\n")
 
 	plan, err := Resolve(dir, testConfig(), CLIPolicy("", false, nil))
 	if err != nil {

@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestPHPVersionForDir_PrefersTheRegisteredSite pins the rule that the CLI runs on
-// the same PHP as the site's FPM container. lerd link clamps to the framework's
+// the same PHP as the site's FPM container. servlo link clamps to the framework's
 // supported range, so a .php-version outside it would otherwise send composer,
 // console and php:shell into a different container than the one serving the site.
 func TestPHPVersionForDir_PrefersTheRegisteredSite(t *testing.T) {
@@ -179,7 +179,7 @@ func TestFPMContainerForDir_SiblingWorktreeOfCustomFPMSite(t *testing.T) {
 	}
 
 	got := fpmContainerForDir(wt, "8.4")
-	if want := "lerd-cfpm-app"; got != want {
+	if want := "servlo-cfpm-app"; got != want {
 		t.Errorf("fpmContainerForDir = %q, want %q (the site's own image, which its vhost uses)", got, want)
 	}
 }
@@ -200,7 +200,7 @@ func TestFPMContainerForDir_SiblingWorktreeOfSharedFPMSite(t *testing.T) {
 	}
 
 	got := fpmContainerForDir(wt, "8.4")
-	if want := "lerd-php84-fpm"; got != want {
+	if want := "servlo-php84-fpm"; got != want {
 		t.Errorf("fpmContainerForDir = %q, want %q", got, want)
 	}
 }

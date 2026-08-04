@@ -7,15 +7,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func seedSiteForLogs(t *testing.T) {
 	t.Helper()
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	sitePath := t.TempDir()
-	if err := os.WriteFile(filepath.Join(sitePath, ".lerd.yaml"), []byte("workers:\n  - queue\n"), 0644); err != nil {
-		t.Fatalf("write .lerd.yaml: %v", err)
+	if err := os.WriteFile(filepath.Join(sitePath, ".servlo.yaml"), []byte("workers:\n  - queue\n"), 0644); err != nil {
+		t.Fatalf("write .servlo.yaml: %v", err)
 	}
 	if err := config.AddSite(config.Site{Name: "logsite", Domains: []string{"logsite.test"}, Path: sitePath, PHPVersion: "8.4"}); err != nil {
 		t.Fatalf("AddSite: %v", err)

@@ -12,8 +12,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
 const nmDnsConf = `[main]
@@ -27,53 +27,53 @@ func nmDnsmasqConfFor(tld string) string {
 
 // resolvedDropinFor is the baseline hookup on hosts with systemd-resolved and no
 // NetworkManager. It resolves .tld whenever a link is up, which is everything
-// lerd promised before lerd0 existed, so it is written first and only removed
-// once lerd0 demonstrably supersedes it.
+// servlo promised before servlo0 existed, so it is written first and only removed
+// once servlo0 demonstrably supersedes it.
 func resolvedDropinFor(tld string) string {
 	return "[Resolve]\nDNS=127.0.0.1:5300\nDomains=~" + tld + "\n"
 }
 
-// lerd0 is an always-up dummy interface that keeps .test resolving when every
+// servlo0 is an always-up dummy interface that keeps .test resolving when every
 // real link is down. systemd-resolved refuses to resolve anything (returns
 // "Network is down" to NSS and resolvectl alike) once no link is routable, and
 // it will not consult a global-scope loopback server in that state. A dummy link
 // is always up, so carrying the ~test route on it keeps resolved willing to
-// forward .test to lerd-dns on 127.0.0.1:5300 with no network connection at all.
+// forward .test to servlo-dns on 127.0.0.1:5300 with no network connection at all.
 //
-// lerd owns the link through a system unit and tells NetworkManager to leave it
+// servlo owns the link through a system unit and tells NetworkManager to leave it
 // alone. An NM-managed connection would show up as a togglable network in the
 // desktop's network menu, where switching it off silently breaks offline .test
 // with no symptom until the user next loses the network. Unmanaged also means NM
 // never re-pushes DNS over the link, so the resolvectl route it carries stays put.
-const lerdNMUnmanaged = "/etc/NetworkManager/conf.d/lerd-dns-link.conf"
+const servloNMUnmanaged = "/etc/NetworkManager/conf.d/servlo-dns-link.conf"
 
-// lerdSudoersPath is the passwordless DNS grant lerd installs. Teardown removes
+// servloSudoersPath is the passwordless DNS grant servlo installs. Teardown removes
 // it, so both sides share this. A var, not a const, so tests can redirect the
 // write off the real /etc.
-var lerdSudoersPath = "/etc/sudoers.d/lerd"
+var servloSudoersPath = "/etc/sudoers.d/servlo"
 
-// Pre-1.30 builds shipped lerd0 as an NM keyfile connection. Kept so setup can
+// Pre-1.30 builds shipped servlo0 as an NM keyfile connection. Kept so setup can
 // migrate those hosts off it and Teardown can clean it up.
 const (
-	lerdDummyConn    = "lerd-dns"
-	lerdDummyKeyfile = "/etc/NetworkManager/system-connections/lerd-dns.nmconnection"
+	servloDummyConn    = "servlo-dns"
+	servloDummyKeyfile = "/etc/NetworkManager/system-connections/servlo-dns.nmconnection"
 )
 
-// lerdNMUnmanagedContent keeps NetworkManager's hands off lerd0: no entry in the
+// servloNMUnmanagedContent keeps NetworkManager's hands off servlo0: no entry in the
 // desktop network menu, and no DNS re-push over the link.
-const lerdNMUnmanagedContent = `[keyfile]
-unmanaged-devices=interface-name:lerd0
+const servloNMUnmanagedContent = `[keyfile]
+unmanaged-devices=interface-name:servlo0
 `
 
-// lerdFallbackDropin turns off systemd-resolved's fallback DNS servers, and is
-// the price of lerd0.
+// servloFallbackDropin turns off systemd-resolved's fallback DNS servers, and is
+// the price of servlo0.
 //
 // Offline, resolved normally answers everything with "Network is down" instantly.
-// lerd0 is what stops it doing that, which is the whole point for .test, but the
+// servlo0 is what stops it doing that, which is the whole point for .test, but the
 // same switch also makes resolved willing to chase names it cannot reach: it then
 // works through its fallback servers (quad9, Cloudflare, Google) one by one, none
 // of which answer with no network, so every offline lookup of a non-.test name
-// hangs for 20s or more instead of failing at once. That is not something lerd0
+// hangs for 20s or more instead of failing at once. That is not something servlo0
 // can dodge; the willingness to serve .test and the willingness to try the
 // internet are one and the same flag inside resolved.
 //
@@ -83,27 +83,27 @@ unmanaged-devices=interface-name:lerd0
 // (Arch and its derivatives), and there it aligns them with what the other
 // distros already do. The cost is that a broken upstream DNS now fails instead of
 // silently routing your queries to a public resolver.
-const lerdFallbackDropin = "/etc/systemd/resolved.conf.d/lerd-fallback.conf"
+const servloFallbackDropin = "/etc/systemd/resolved.conf.d/servlo-fallback.conf"
 
-const lerdFallbackDropinContent = `[Resolve]
+const servloFallbackDropinContent = `[Resolve]
 FallbackDNS=
 `
 
-// lerdDummyAddr is lerd0's address. systemd-resolved only gives a link a DNS
+// servloDummyAddr is servlo0's address. systemd-resolved only gives a link a DNS
 // scope once it carries a routable address: with a link-local address alone the
 // link reports "Current Scopes: none" and .test does not resolve offline, which
 // is the whole point of the link. It is taken from RFC 5737 TEST-NET-1, reserved
 // for documentation and required never to appear on a real network, so the /32
 // local route it installs cannot shadow a host the user actually needs to reach.
-const lerdDummyAddr = "192.0.2.1/32"
+const servloDummyAddr = "192.0.2.1/32"
 
-// lerdLinkUnitContentFor renders the unit that creates lerd0 and puts the .tld
+// servloLinkUnitContentFor renders the unit that creates servlo0 and puts the .tld
 // route on it. Ordering after systemd-resolved means the resolvectl calls land on
 // a resolved that is ready to keep them. Commands run through /bin/sh so PATH
 // resolves ip and resolvectl wherever the distro puts them.
-func lerdLinkUnitContentFor(tld string) string {
+func servloLinkUnitContentFor(tld string) string {
 	return fmt.Sprintf(`[Unit]
-Description=lerd .%[1]s DNS link
+Description=servlo .%[1]s DNS link
 After=systemd-resolved.service
 Wants=systemd-resolved.service
 
@@ -115,19 +115,19 @@ ExecStop=/bin/sh -c 'ip link del %[2]s 2>/dev/null || true'
 
 [Install]
 WantedBy=multi-user.target
-`, tld, lerdDummyIface, lerdDummyAddr)
+`, tld, servloDummyIface, servloDummyAddr)
 }
 
-// nmDispatcherScript is installed at /etc/NetworkManager/dispatcher.d/99-lerd-dns.
+// nmDispatcherScript is installed at /etc/NetworkManager/dispatcher.d/99-servlo-dns.
 // On systems with NetworkManager + systemd-resolved, NM manages resolved via DBus and
 // overrides global resolved.conf drop-ins. Per-interface DNS set via resolvectl is
-// respected. We set two routing domains: ~test routes .test queries to lerd's dnsmasq,
+// respected. We set two routing domains: ~test routes .test queries to servlo's dnsmasq,
 // and ~. keeps the interface as the default route so all other DNS (internet) still works.
-// The DHCP-assigned DNS servers are preserved alongside lerd's so internet continues
-// to work even when lerd-dns is not yet running.
+// The DHCP-assigned DNS servers are preserved alongside servlo's so internet continues
+// to work even when servlo-dns is not yet running.
 // When the network changes (LAN↔WiFi, switching networks), the script also rewrites
-// the lerd dnsmasq config and restarts lerd-dns so the new upstream DNS is picked up
-// immediately without requiring a manual lerd restart.
+// the servlo dnsmasq config and restarts servlo-dns so the new upstream DNS is picked up
+// immediately without requiring a manual servlo restart.
 func nmDispatcherScriptFor(tld string) string {
 	return strings.ReplaceAll(nmDispatcherTemplate, "@TLD@", tld)
 }
@@ -135,34 +135,34 @@ func nmDispatcherScriptFor(tld string) string {
 // nmDispatcherTemplate carries @TLD@ placeholders rather than %s verbs: the script
 // is full of shell printf formats that fmt would try to consume.
 const nmDispatcherTemplate = `#!/bin/sh
-# Lerd DNS: route .@TLD@ queries through local dnsmasq on port 5300
+# Servlo DNS: route .@TLD@ queries through local dnsmasq on port 5300
 IFACE="$1"
 ACTION="$2"
-LERD_DNS=""
+SERVLO_DNS=""
 
-# lerd0 is unmanaged, so NM never dispatches for it and never re-pushes DNS over
-# it. Its route is set by lerd-dns-link.service and stays put; nothing to do here.
-if [ "$IFACE" = "lerd0" ]; then
+# servlo0 is unmanaged, so NM never dispatches for it and never re-pushes DNS over
+# it. Its route is set by servlo-dns-link.service and stays put; nothing to do here.
+if [ "$IFACE" = "servlo0" ]; then
     exit 0
 fi
 
 if [ "$ACTION" = "up" ] || [ "$ACTION" = "dhcp4-change" ] || [ "$ACTION" = "dhcp6-change" ]; then
-    LERD_DNS=$(nmcli -g IP4.DNS device show "$IFACE" 2>/dev/null | tr '|' '\n' | grep -v '^$' | tr '\n' ' ')
-    resolvectl dns "$IFACE" 127.0.0.1:5300 $LERD_DNS 2>/dev/null || true
+    SERVLO_DNS=$(nmcli -g IP4.DNS device show "$IFACE" 2>/dev/null | tr '|' '\n' | grep -v '^$' | tr '\n' ' ')
+    resolvectl dns "$IFACE" 127.0.0.1:5300 $SERVLO_DNS 2>/dev/null || true
     resolvectl domain "$IFACE" ~@TLD@ ~. 2>/dev/null || true
 elif [ "$ACTION" = "down" ]; then
-    # Interface went down: switch lerd-dns to the remaining default interface's DNS
+    # Interface went down: switch servlo-dns to the remaining default interface's DNS
     # so upstream resolution keeps working (e.g. closing wired while on WiFi).
     DEFAULT_IFACE=$(ip route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1);exit}}')
     [ -n "$DEFAULT_IFACE" ] && [ "$DEFAULT_IFACE" != "$IFACE" ] || exit 0
-    LERD_DNS=$(nmcli -g IP4.DNS device show "$DEFAULT_IFACE" 2>/dev/null | tr '|' '\n' | grep -v '^$' | tr '\n' ' ')
+    SERVLO_DNS=$(nmcli -g IP4.DNS device show "$DEFAULT_IFACE" 2>/dev/null | tr '|' '\n' | grep -v '^$' | tr '\n' ' ')
 else
     exit 0
 fi
 
-# Sync lerd-dns config and restart for any user running it. The dispatcher runs
+# Sync servlo-dns config and restart for any user running it. The dispatcher runs
 # as root, so the config rewrite is piped through runuser ($as_user) and written
-# by the owning user, never by root: a user who symlinks their lerd.conf at a
+# by the owning user, never by root: a user who symlinks their servlo.conf at a
 # root-owned path then can only write where they already could, closing the
 # arbitrary-file-write escalation. systemctl --user likewise runs via runuser.
 for uid_dir in /run/user/[0-9]*/; do
@@ -174,9 +174,9 @@ for uid_dir in /run/user/[0-9]*/; do
     home=$(getent passwd "$uid" | cut -d: -f6)
     [ -n "$user" ] && [ -n "$home" ] || continue
     as_user="runuser -u $user -- env XDG_RUNTIME_DIR=$uid_dir DBUS_SESSION_BUS_ADDRESS=unix:path=$bus"
-    $as_user systemctl --user is-active lerd-dns >/dev/null 2>&1 || continue
-    config_file="$home/.local/share/lerd/dnsmasq/lerd.conf"
-    config_yaml="$home/.config/lerd/config.yaml"
+    $as_user systemctl --user is-active servlo-dns >/dev/null 2>&1 || continue
+    config_file="$home/.local/share/servlo/dnsmasq/servlo.conf"
+    config_yaml="$home/.config/servlo/config.yaml"
     [ -f "$config_file" ] || continue
     tld=$(grep 'tld:' "$config_yaml" 2>/dev/null | sed 's/.*tld:[[:space:]]*//' | sed 's/[^a-zA-Z0-9._-]//g' | head -1)
     tld=${tld:-test}
@@ -188,10 +188,10 @@ for uid_dir in /run/user/[0-9]*/; do
         inup && /^[[:space:]]*-/ { sub(/^[[:space:]]*-[[:space:]]*/, ""); sub(/[[:space:]]+#.*/, ""); gsub(/["'\'']/, ""); if ($0 != "") print; next }
         inup && /^[[:space:]]*[^[:space:]-]/ { inup = 0 }
     ' "$config_yaml" 2>/dev/null | tr '\n' ' ')
-    dns_servers="$LERD_DNS"
+    dns_servers="$SERVLO_DNS"
     [ -n "$upstream" ] && dns_servers="$upstream"
     [ -n "$dns_servers" ] || continue
-    # Carry lerd's existing address records over untouched. They are lerd policy,
+    # Carry servlo's existing address records over untouched. They are servlo policy,
     # loopback normally and the host's LAN IP under lan:expose, and only the Go
     # side knows which applies; regenerating them here clobbered lan:expose back to
     # loopback and dropped the AAAA record, which cost ~20s on every offline .test
@@ -200,7 +200,7 @@ for uid_dir in /run/user/[0-9]*/; do
     addr_records=$(grep '^address=/' "$config_file" 2>/dev/null)
     [ -n "$addr_records" ] || addr_records=$(printf 'address=/.%s/127.0.0.1\naddress=/.%s/::1' "$tld" "$tld")
     {
-        printf '# Lerd DNS configuration\nport=5300\nno-resolv\n'
+        printf '# Servlo DNS configuration\nport=5300\nno-resolv\n'
         for dns_ip in $dns_servers; do
             # Defensive filter: emit only tokens shaped like an IP with an
             # optional #port. The Go side validates dns.upstream, but the awk
@@ -212,7 +212,7 @@ for uid_dir in /run/user/[0-9]*/; do
         done
         printf '%s\n' "$addr_records"
     } | $as_user tee "$config_file" >/dev/null
-    $as_user systemctl --user restart lerd-dns 2>/dev/null || true
+    $as_user systemctl --user restart servlo-dns 2>/dev/null || true
 done
 `
 
@@ -247,9 +247,9 @@ func ResolverHint() string {
 	return "restart your DNS resolver"
 }
 
-// lerdDNSInterfaces returns all network interfaces that currently have
-// 127.0.0.1:5300 configured as a DNS server (set by the lerd dispatcher).
-func lerdDNSInterfaces() []string {
+// servloDNSInterfaces returns all network interfaces that currently have
+// 127.0.0.1:5300 configured as a DNS server (set by the servlo dispatcher).
+func servloDNSInterfaces() []string {
 	out, err := exec.Command("resolvectl", "status").Output()
 	if err != nil {
 		// Fallback to just the default interface.
@@ -258,12 +258,12 @@ func lerdDNSInterfaces() []string {
 		}
 		return nil
 	}
-	return parseLerdDNSInterfaces(string(out))
+	return parseServloDNSInterfaces(string(out))
 }
 
-// parseLerdDNSInterfaces extracts interface names from resolvectl status output
+// parseServloDNSInterfaces extracts interface names from resolvectl status output
 // that have 127.0.0.1:5300 configured as a DNS server.
-func parseLerdDNSInterfaces(output string) []string {
+func parseServloDNSInterfaces(output string) []string {
 	var ifaces []string
 	var currentIface string
 	for _, line := range strings.Split(output, "\n") {
@@ -324,7 +324,7 @@ func defaultUpstreamFallback() []string {
 	return []string{pastaDefaultForwarder}
 }
 
-// ReadContainerDNS returns DNS servers for aardvark-dns on the lerd network,
+// ReadContainerDNS returns DNS servers for aardvark-dns on the servlo network,
 // preferring pasta's info.json (typically 169.254.1.1) and falling back to
 // host upstreams then pastaDefaultForwarder so the list is never empty.
 func ReadContainerDNS() []string {
@@ -352,7 +352,7 @@ func ReadContainerDNS() []string {
 }
 
 // upstreamOrPasta returns host upstreams when readable, else pasta's default
-// forwarder, so the lerd network never ends up with an empty DNS list.
+// forwarder, so the servlo network never ends up with an empty DNS list.
 func upstreamOrPasta() []string {
 	if servers := readUpstreamDNS(); len(servers) > 0 {
 		return servers
@@ -418,18 +418,18 @@ func parseNmcliLines(output string) []string {
 // that the dnsmasq container can be started between the two steps.
 func Setup() error {
 	if err := WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
-		return fmt.Errorf("writing lerd dnsmasq config: %w", err)
+		return fmt.Errorf("writing servlo dnsmasq config: %w", err)
 	}
 	return ConfigureResolver()
 }
 
 // ConfigureResolver configures the system DNS resolver to forward .test to the
-// lerd-dns dnsmasq container on port 5300. Call this after lerd-dns is running so
+// servlo-dns dnsmasq container on port 5300. Call this after servlo-dns is running so
 // that any immediate resolvectl changes don't break DNS before dnsmasq is up.
 func ConfigureResolver() error {
 	// Nothing at all when the user opted out. dns:disable flips the TLD to
 	// localhost, so carrying on here would prompt for a password and point a
-	// ~localhost route at a lerd-dns that is deliberately not running.
+	// ~localhost route at a servlo-dns that is deliberately not running.
 	if cfg, err := config.LoadGlobal(); err == nil && cfg != nil && !cfg.DNS.Enabled {
 		return nil
 	}
@@ -442,7 +442,7 @@ func ConfigureResolver() error {
 	return setupNetworkManager()
 }
 
-// dummyLinkHealthy reports whether lerd0 exists and still carries the .test route.
+// dummyLinkHealthy reports whether servlo0 exists and still carries the .test route.
 // resolved keeps per-link config across its own restarts (it stashes it under
 // /run/systemd/resolve/netif) but not across a reboot, and nothing stops a user
 // deleting the link by hand, so this is checked on every start rather than assumed.
@@ -455,7 +455,7 @@ var dummyLinkHealthy = func(tld string) bool {
 // Separate from dummyLinkHealthy: the link being up right now says nothing about
 // whether it will come back after a reboot. No sudo needed to ask.
 var dummyLinkUnitEnabled = func() bool {
-	return exec.Command("systemctl", "is-enabled", "--quiet", lerdLinkUnitName).Run() == nil
+	return exec.Command("systemctl", "is-enabled", "--quiet", servloLinkUnitName).Run() == nil
 }
 
 // dummyLinkGrantsLive reports whether the drop-in grants what setupDummyLink
@@ -463,7 +463,7 @@ var dummyLinkUnitEnabled = func() bool {
 //
 // It runs a granted command rather than asking `sudo -l` whether the user may run
 // one. `sudo -n -l <cmd>` answers "may george run this at all", which is yes for
-// any user in the sudo/wheel group even with no lerd grants whatsoever, so it can
+// any user in the sudo/wheel group even with no servlo grants whatsoever, so it can
 // never fail on a normal desktop. Running `mkdir -p` on a directory that already
 // exists is granted, idempotent, and answers the question that matters: does this
 // go through without a password.
@@ -476,10 +476,10 @@ var dummyLinkGrantsLive = func() bool {
 // link, and writing it would create an /etc/NetworkManager tree on a host that
 // has no NetworkManager installed.
 func dummyLinkNMRuleNeeded(withNM bool) bool {
-	return withNM && !isFileContent(lerdNMUnmanaged, []byte(lerdNMUnmanagedContent))
+	return withNM && !isFileContent(servloNMUnmanaged, []byte(servloNMUnmanagedContent))
 }
 
-// setupDummyLink provisions lerd0: a dummy link carrying the ~test route so
+// setupDummyLink provisions servlo0: a dummy link carrying the ~test route so
 // .test still resolves when every real interface is down. Both resolved paths
 // need it: resolved refuses a loopback DNS server once no link is routable
 // whether that server is per-link or global, so the NetworkManager-less case
@@ -491,78 +491,78 @@ func dummyLinkNMRuleNeeded(withNM bool) bool {
 func setupDummyLink(withNM bool, tld string) error {
 	if !dummyLinkGrantsLive() {
 		// Same reasoning as the ensureDummyLinkRunning failure below: a host that
-		// once set lerd0 up still carries the fallback drop-in, and lerd0 down with
+		// once set servlo0 up still carries the fallback drop-in, and servlo0 down with
 		// fallbacks off is the exact state the guard exists to prevent. An upgrade
-		// that adds a grant lands here until `lerd install` runs, so hand the
+		// that adds a grant lands here until `servlo install` runs, so hand the
 		// fallbacks back rather than leaving offline lookups hanging every run.
 		restoreResolvedFallbacks()
-		return fmt.Errorf("sudoers drop-in is out of date, run `lerd install` to refresh it")
+		return fmt.Errorf("sudoers drop-in is out of date, run `servlo install` to refresh it")
 	}
-	// Migrate hosts that got lerd0 as an NM keyfile connection from a pre-release
+	// Migrate hosts that got servlo0 as an NM keyfile connection from a pre-release
 	// build. Deleting the connection drops the link; the unit below recreates it.
-	if _, err := os.Stat(lerdDummyKeyfile); err == nil {
-		exec.Command("sudo", "nmcli", "connection", "delete", lerdDummyConn).Run() //nolint:errcheck
-		exec.Command("sudo", "rm", "-f", lerdDummyKeyfile).Run()                   //nolint:errcheck
+	if _, err := os.Stat(servloDummyKeyfile); err == nil {
+		exec.Command("sudo", "nmcli", "connection", "delete", servloDummyConn).Run() //nolint:errcheck
+		exec.Command("sudo", "rm", "-f", servloDummyKeyfile).Run()                   //nolint:errcheck
 	}
 
-	unitContent := lerdLinkUnitContentFor(tld)
-	unitChanged := !isFileContent(lerdLinkUnit, []byte(unitContent))
+	unitContent := servloLinkUnitContentFor(tld)
+	unitChanged := !isFileContent(servloLinkUnit, []byte(unitContent))
 	nmChanged := dummyLinkNMRuleNeeded(withNM)
-	fallbackChanged := !isFileContent(lerdFallbackDropin, []byte(lerdFallbackDropinContent))
+	fallbackChanged := !isFileContent(servloFallbackDropin, []byte(servloFallbackDropinContent))
 	if unitChanged || nmChanged || fallbackChanged {
 		feedback.Sudo("Configuring an always-up link so ." + tld + " resolves offline")
 	}
 	if nmChanged {
-		if err := sudoWriteFile(lerdNMUnmanaged, []byte(lerdNMUnmanagedContent), 0644); err != nil {
+		if err := sudoWriteFile(servloNMUnmanaged, []byte(servloNMUnmanagedContent), 0644); err != nil {
 			return fmt.Errorf("writing NetworkManager unmanaged rule: %w", err)
 		}
 		exec.Command("sudo", "systemctl", "reload", "NetworkManager").Run() //nolint:errcheck
 	}
 	if unitChanged {
-		if err := sudoWriteFile(lerdLinkUnit, []byte(unitContent), 0644); err != nil {
-			return fmt.Errorf("writing lerd-dns-link unit: %w", err)
+		if err := sudoWriteFile(servloLinkUnit, []byte(unitContent), 0644); err != nil {
+			return fmt.Errorf("writing servlo-dns-link unit: %w", err)
 		}
 		exec.Command("sudo", "systemctl", "daemon-reload").Run() //nolint:errcheck
 	}
 
 	// Outside the changed-check above: on every start after the first the files are
 	// identical, and that is exactly when the link may be missing (fresh boot, or
-	// someone removed it). Gating on a config change would leave lerd0 down with no
+	// someone removed it). Gating on a config change would leave servlo0 down with no
 	// way back short of a reboot.
 	if err := ensureDummyLinkRunning(tld); err != nil {
 		// A host that had the link and lost it (dummy module gone after a kernel
 		// update, unit removed by hand) still carries the drop-in from the run that
-		// worked. Fallbacks off with no lerd0 is the state the guard below exists to
+		// worked. Fallbacks off with no servlo0 is the state the guard below exists to
 		// prevent, so hand them back on the way out rather than only on the first run.
 		restoreResolvedFallbacks()
 		return err
 	}
 
-	// Only now, with lerd0 confirmed carrying the route, turn off resolved's
-	// fallbacks. Disabling them is the price of lerd0 (offline it would otherwise
+	// Only now, with servlo0 confirmed carrying the route, turn off resolved's
+	// fallbacks. Disabling them is the price of servlo0 (offline it would otherwise
 	// chase unreachable public resolvers), so a host that could not build the link
-	// must not pay it: leaving FallbackDNS empty with no lerd0 is strictly worse
+	// must not pay it: leaving FallbackDNS empty with no servlo0 is strictly worse
 	// than origin/main, which never touched it.
 	if fallbackChanged {
-		if err := sudoWriteFile(lerdFallbackDropin, []byte(lerdFallbackDropinContent), 0644); err != nil {
+		if err := sudoWriteFile(servloFallbackDropin, []byte(servloFallbackDropinContent), 0644); err != nil {
 			return fmt.Errorf("writing resolved fallback drop-in: %w", err)
 		}
 		exec.Command("sudo", "systemctl", "restart", "systemd-resolved").Run() //nolint:errcheck
-		// That restart flushed lerd0's per-link route; put it back.
+		// That restart flushed servlo0's per-link route; put it back.
 		return ensureDummyLinkRunning(tld)
 	}
 	return nil
 }
 
 // restoreResolvedFallbacks gives the system its fallback DNS servers back. They
-// are only ever turned off to pay for lerd0, so whenever the link is gone the
+// are only ever turned off to pay for servlo0, so whenever the link is gone the
 // drop-in has to go with it. Stat-guarded: unguarded it would prompt for a
 // password on every host that never had the drop-in written.
 func restoreResolvedFallbacks() {
-	if _, err := os.Stat(lerdFallbackDropin); err != nil {
+	if _, err := os.Stat(servloFallbackDropin); err != nil {
 		return
 	}
-	rmCmd := exec.Command("sudo", "rm", "-f", lerdFallbackDropin)
+	rmCmd := exec.Command("sudo", "rm", "-f", servloFallbackDropin)
 	rmCmd.Stdin = os.Stdin
 	rmCmd.Stdout = os.Stdout
 	rmCmd.Stderr = os.Stderr
@@ -571,31 +571,31 @@ func restoreResolvedFallbacks() {
 }
 
 // ensureDummyLinkRunning enables the link unit for the next boot and starts it if
-// lerd0 isn't currently carrying the route. It reports whether lerd0 ended up
+// servlo0 isn't currently carrying the route. It reports whether servlo0 ended up
 // actually carrying it: callers rely on the link before removing the older
 // hookups it replaces, so a silent failure here would strand a host with neither.
 //
 // Enablement is checked separately from health rather than folded into one
-// `enable --now`: enabled is what brings lerd0 back after a reboot, so a link
+// `enable --now`: enabled is what brings servlo0 back after a reboot, so a link
 // that merely happens to be up right now must not stop us enabling the unit, or
 // it survives until the next boot and then silently disappears.
 func ensureDummyLinkRunning(tld string) error {
 	if !dummyLinkUnitEnabled() {
-		exec.Command("sudo", "systemctl", "enable", "--now", lerdLinkUnitName).Run() //nolint:errcheck
+		exec.Command("sudo", "systemctl", "enable", "--now", servloLinkUnitName).Run() //nolint:errcheck
 	}
 	if !dummyLinkHealthy(tld) {
-		exec.Command("sudo", "systemctl", "restart", lerdLinkUnitName).Run() //nolint:errcheck
+		exec.Command("sudo", "systemctl", "restart", servloLinkUnitName).Run() //nolint:errcheck
 	}
 	if !dummyLinkHealthy(tld) {
 		return fmt.Errorf("%s is not carrying the ~%s route (check: systemctl status %s)",
-			lerdDummyIface, tld, lerdLinkUnitName)
+			servloDummyIface, tld, servloLinkUnitName)
 	}
 	// Checked, not assumed: a link that is up right now but whose unit never
 	// enabled is gone at the next boot, which is the one property this function
 	// exists to guarantee and the one a health check cannot see.
 	if !dummyLinkUnitEnabled() {
 		return fmt.Errorf("%s is not enabled, so %s will not come back after a reboot (check: systemctl status %s)",
-			lerdLinkUnitName, lerdDummyIface, lerdLinkUnitName)
+			servloLinkUnitName, servloDummyIface, servloLinkUnitName)
 	}
 	return nil
 }
@@ -604,10 +604,10 @@ func ensureDummyLinkRunning(tld string) error {
 // NM overrides per-interface DNS, so an NM dispatcher script applies the interface
 // route via resolvectl on each "up" event and immediately to the current default
 // interface. That per-link route dies with the interface, so an always-up unmanaged
-// dummy link (lerd0) carries the ~tld route to keep .tld resolving offline.
+// dummy link (servlo0) carries the ~tld route to keep .tld resolving offline.
 func setupNMWithResolved() error {
 	tld := ConfiguredTLD()
-	dispatcherScript := "/etc/NetworkManager/dispatcher.d/99-lerd-dns"
+	dispatcherScript := "/etc/NetworkManager/dispatcher.d/99-servlo-dns"
 
 	script := nmDispatcherScriptFor(tld)
 	if !isFileContent(dispatcherScript, []byte(script)) {
@@ -620,8 +620,8 @@ func setupNMWithResolved() error {
 
 	// Remove a stale resolved drop-in from an install that predates the dispatcher.
 	// It doesn't work under NM, which overrides global DNS, and leaving it behind
-	// makes `lerd dns:diagnose` report the wrong resolver hookup.
-	dropin := "/etc/systemd/resolved.conf.d/lerd.conf"
+	// makes `servlo dns:diagnose` report the wrong resolver hookup.
+	dropin := "/etc/systemd/resolved.conf.d/servlo.conf"
 	if _, err := os.Stat(dropin); err == nil {
 		rmCmd := exec.Command("sudo", "rm", "-f", dropin)
 		rmCmd.Stdin = os.Stdin
@@ -639,15 +639,15 @@ func setupNMWithResolved() error {
 	}
 
 	// Apply immediately to the current default interface.
-	// Include DHCP-assigned upstream DNS servers alongside lerd's so internet
-	// continues to work even when lerd-dns is not running.
+	// Include DHCP-assigned upstream DNS servers alongside servlo's so internet
+	// continues to work even when servlo-dns is not running.
 	iface := defaultInterface()
 	if iface == "" {
 		return nil
 	}
 
 	// Revert the interface to clear any stale DNS server failure state from boot.
-	// At boot, the NM dispatcher sets 127.0.0.1:5300 before lerd-dns starts; resolved
+	// At boot, the NM dispatcher sets 127.0.0.1:5300 before servlo-dns starts; resolved
 	// marks it failed and promotes the fallback to "current". Calling resolvectl with
 	// the same list later does not reset the current server. Reverting first forces a
 	// clean slate so our subsequent dns call starts with 127.0.0.1:5300 as current.
@@ -678,43 +678,43 @@ func setupNMWithResolved() error {
 	// Keep dnsmasq config in sync with the upstream DNS servers now active on
 	// the interface. resolvectl has just updated systemd-resolved, so
 	// readUpstreamDNS() will return the current (post-change) upstreams.
-	// Restart lerd-dns only when the config actually changes to avoid
+	// Restart servlo-dns only when the config actually changes to avoid
 	// unnecessary downtime on normal starts where nothing has changed.
-	existing, _ := os.ReadFile(filepath.Join(config.DnsmasqDir(), "lerd.conf"))
+	existing, _ := os.ReadFile(filepath.Join(config.DnsmasqDir(), "servlo.conf"))
 	if err := WriteDnsmasqConfig(config.DnsmasqDir()); err == nil {
-		updated, _ := os.ReadFile(filepath.Join(config.DnsmasqDir(), "lerd.conf"))
+		updated, _ := os.ReadFile(filepath.Join(config.DnsmasqDir(), "servlo.conf"))
 		if string(existing) != string(updated) {
-			exec.Command("systemctl", "--user", "restart", "lerd-dns").Run() //nolint:errcheck
+			exec.Command("systemctl", "--user", "restart", "servlo-dns").Run() //nolint:errcheck
 		}
 	}
 
 	return nil
 }
 
-// setupSystemdResolved points .test at lerd-dns when systemd-resolved runs
+// setupSystemdResolved points .test at servlo-dns when systemd-resolved runs
 // without NetworkManager (Arch, omarchy).
 //
-// lerd0 is the whole mechanism here. lerd used to declare the resolver globally
-// instead, in /etc/systemd/resolved.conf.d/lerd.conf, but that drop-in was both
+// servlo0 is the whole mechanism here. servlo used to declare the resolver globally
+// instead, in /etc/systemd/resolved.conf.d/servlo.conf, but that drop-in was both
 // insufficient and harmful. Insufficient because resolved refuses a global
 // loopback server once no link is routable, exactly as it refuses a per-link one,
 // so .test died offline anyway. Harmful because a global DNS server is a
-// catch-all: every ordinary name went to lerd-dns too, and offline dnsmasq
+// catch-all: every ordinary name went to servlo-dns too, and offline dnsmasq
 // forwarded it to an upstream that wasn't there, so each lookup hung ~20s instead
-// of failing at once. lerd0 carries the same route scoped to ~test only, which
+// of failing at once. servlo0 carries the same route scoped to ~test only, which
 // fixes both, so the drop-in is removed rather than written.
 func setupSystemdResolved() error {
 	tld := ConfiguredTLD()
-	dropin := "/etc/systemd/resolved.conf.d/lerd.conf"
+	dropin := "/etc/systemd/resolved.conf.d/servlo.conf"
 
 	linkUp := dummyLinkHealthy(tld)
 
-	// Bring up lerd0 (best effort on both branches): a host that cannot build the
+	// Bring up servlo0 (best effort on both branches): a host that cannot build the
 	// link keeps the baseline below and loses only offline resolution. On the
 	// steady-state path the files already match, so this writes nothing.
 	if !linkUp {
 		// Write the baseline first so .tld resolves whenever a link is up, which is
-		// what lerd promised before lerd0 existed. A fresh host has nothing else to
+		// what servlo promised before servlo0 existed. A fresh host has nothing else to
 		// fall back to, and a host that can never build the link keeps this.
 		if err := writeResolvedDropin(dropin, tld); err != nil {
 			return err
@@ -727,9 +727,9 @@ func setupSystemdResolved() error {
 		return nil
 	}
 
-	// lerd0 carries the route, which makes the global drop-in not merely redundant
+	// servlo0 carries the route, which makes the global drop-in not merely redundant
 	// but harmful: resolved will still send ordinary names to it, so offline every
-	// non-.tld lookup goes to lerd-dns and out to an upstream that is not there,
+	// non-.tld lookup goes to servlo-dns and out to an upstream that is not there,
 	// hanging ~20s. Remove it whenever it is present, not only on the transition, so
 	// a removal that failed once on an earlier run is retried rather than stranded.
 	return removeSupersededResolvedDropin(dropin, tld)
@@ -756,11 +756,11 @@ func writeResolvedDropin(dropin, tld string) error {
 	return nil
 }
 
-// removeSupersededResolvedDropin removes the global drop-in once lerd0 carries the
+// removeSupersededResolvedDropin removes the global drop-in once servlo0 carries the
 // route, then puts the route back (the resolved restart flushes per-link config).
 // A no-op when the drop-in is already gone, so it is safe to call on every start.
 // If the reapply fails it restores the baseline rather than leaving the host with
-// no hookup at all, so a plain `lerd start` with no watcher is never left bare.
+// no hookup at all, so a plain `servlo start` with no watcher is never left bare.
 func removeSupersededResolvedDropin(dropin, tld string) error {
 	if _, err := os.Stat(dropin); err != nil {
 		return nil
@@ -783,8 +783,8 @@ func removeSupersededResolvedDropin(dropin, tld string) error {
 
 // setupNetworkManager configures NetworkManager's embedded dnsmasq.
 func setupNetworkManager() error {
-	nmConfFile := "/etc/NetworkManager/conf.d/lerd.conf"
-	nmDnsmasqFile := "/etc/NetworkManager/dnsmasq.d/lerd.conf"
+	nmConfFile := "/etc/NetworkManager/conf.d/servlo.conf"
+	nmDnsmasqFile := "/etc/NetworkManager/dnsmasq.d/servlo.conf"
 
 	dnsmasqConf := nmDnsmasqConfFor(ConfiguredTLD())
 	if isFileContent(nmConfFile, []byte(nmDnsConf)) && isFileContent(nmDnsmasqFile, []byte(dnsmasqConf)) {
@@ -811,10 +811,10 @@ func setupNetworkManager() error {
 	return nil
 }
 
-// Teardown removes all lerd DNS configuration from the system and restores normal resolution.
+// Teardown removes all servlo DNS configuration from the system and restores normal resolution.
 func Teardown() {
 	// NM dispatcher script
-	dispatcherScript := "/etc/NetworkManager/dispatcher.d/99-lerd-dns"
+	dispatcherScript := "/etc/NetworkManager/dispatcher.d/99-servlo-dns"
 	if _, err := os.Stat(dispatcherScript); err == nil {
 		rmCmd := exec.Command("sudo", "rm", "-f", dispatcherScript)
 		rmCmd.Stdin = os.Stdin
@@ -823,9 +823,9 @@ func Teardown() {
 		rmCmd.Run() //nolint:errcheck
 	}
 
-	// The global resolved drop-in. lerd stopped writing it once lerd0 took over the
+	// The global resolved drop-in. servlo stopped writing it once servlo0 took over the
 	// .test route, so this only finds it on installs that predate the link.
-	dropin := "/etc/systemd/resolved.conf.d/lerd.conf"
+	dropin := "/etc/systemd/resolved.conf.d/servlo.conf"
 	if _, err := os.Stat(dropin); err == nil {
 		rmCmd := exec.Command("sudo", "rm", "-f", dropin)
 		rmCmd.Stdin = os.Stdin
@@ -835,10 +835,10 @@ func Teardown() {
 	}
 
 	// The always-up dummy link. Disabling the unit runs its ExecStop, which deletes
-	// lerd0; the explicit link delete covers a host where the unit file is already
+	// servlo0; the explicit link delete covers a host where the unit file is already
 	// gone but the link is still up.
-	if _, err := os.Stat(lerdLinkUnit); err == nil {
-		disableCmd := exec.Command("sudo", "systemctl", "disable", "--now", lerdLinkUnitName)
+	if _, err := os.Stat(servloLinkUnit); err == nil {
+		disableCmd := exec.Command("sudo", "systemctl", "disable", "--now", servloLinkUnitName)
 		disableCmd.Stdin = os.Stdin
 		disableCmd.Stdout = os.Stdout
 		disableCmd.Stderr = os.Stderr
@@ -846,18 +846,18 @@ func Teardown() {
 	}
 	// Guarded: unguarded this prompts for a password to delete an interface that
 	// was never there, on every host that used a different resolver path.
-	if exec.Command("ip", "link", "show", lerdDummyIface).Run() == nil {
-		exec.Command("sudo", "ip", "link", "del", lerdDummyIface).Run() //nolint:errcheck
+	if exec.Command("ip", "link", "show", servloDummyIface).Run() == nil {
+		exec.Command("sudo", "ip", "link", "del", servloDummyIface).Run() //nolint:errcheck
 	}
 
 	// The NM keyfile connection from a pre-release build, if this host ever ran one.
-	if _, err := os.Stat(lerdDummyKeyfile); err == nil {
-		delCmd := exec.Command("sudo", "nmcli", "connection", "delete", lerdDummyConn)
+	if _, err := os.Stat(servloDummyKeyfile); err == nil {
+		delCmd := exec.Command("sudo", "nmcli", "connection", "delete", servloDummyConn)
 		delCmd.Stdin = os.Stdin
 		delCmd.Stdout = os.Stdout
 		delCmd.Stderr = os.Stderr
 		delCmd.Run() //nolint:errcheck
-		rmCmd := exec.Command("sudo", "rm", "-f", lerdDummyKeyfile)
+		rmCmd := exec.Command("sudo", "rm", "-f", servloDummyKeyfile)
 		rmCmd.Stdin = os.Stdin
 		rmCmd.Stdout = os.Stdout
 		rmCmd.Stderr = os.Stderr
@@ -865,16 +865,16 @@ func Teardown() {
 	}
 
 	// Give the system its fallback DNS servers back: they were only turned off to
-	// stop lerd0 making offline lookups hang, and with lerd0 gone that reason goes
+	// stop servlo0 making offline lookups hang, and with servlo0 gone that reason goes
 	// with it.
 	restoreResolvedFallbacks()
 
 	// NetworkManager conf and dnsmasq conf
 	for _, f := range []string{
-		"/etc/NetworkManager/conf.d/lerd.conf",
-		"/etc/NetworkManager/dnsmasq.d/lerd.conf",
-		lerdNMUnmanaged,
-		lerdLinkUnit,
+		"/etc/NetworkManager/conf.d/servlo.conf",
+		"/etc/NetworkManager/dnsmasq.d/servlo.conf",
+		servloNMUnmanaged,
+		servloLinkUnit,
 	} {
 		if _, err := os.Stat(f); err == nil {
 			rmCmd := exec.Command("sudo", "rm", "-f", f)
@@ -886,11 +886,11 @@ func Teardown() {
 	}
 	exec.Command("sudo", "systemctl", "daemon-reload").Run() //nolint:errcheck
 
-	// Revert ALL interfaces that have lerd DNS (127.0.0.1:5300) configured.
+	// Revert ALL interfaces that have servlo DNS (127.0.0.1:5300) configured.
 	// The dispatcher script applies DNS to every interface on "up", not just
 	// the default one, so reverting only the default leaves virtual bridges
 	// (virbr0, vnet*) pointing at the dead dnsmasq port.
-	for _, iface := range lerdDNSInterfaces() {
+	for _, iface := range servloDNSInterfaces() {
 		revertCmd := exec.Command("sudo", "resolvectl", "revert", iface)
 		revertCmd.Stdin = os.Stdin
 		revertCmd.Stdout = os.Stdout
@@ -948,13 +948,13 @@ func defaultRunSudoersRemoval(path string) {
 // /etc/sudoers.d is 0750 root-only on Fedora and Arch, so the stat fails with
 // EACCES there and the removal never ran. The marker is the same record
 // InstallSudoers already keeps for exactly this reason, and its absence means
-// lerd never installed a drop-in, so there is nothing to remove and no grant
+// servlo never installed a drop-in, so there is nothing to remove and no grant
 // that would make the sudo passwordless.
 func removeSudoersGrant() bool {
 	if _, err := os.Stat(sudoersMarkerPath()); err != nil {
 		return false
 	}
-	runSudoersRemoval(lerdSudoersPath)
+	runSudoersRemoval(servloSudoersPath)
 	ForgetSudoersMarker()
 	return true
 }
@@ -964,7 +964,7 @@ func removeSudoersGrant() bool {
 // runs non-interactively and cannot prompt for a sudo password.
 // WriteSudoersForUser writes the DNS sudoers drop-in directly, without the
 // interactive `sudo tee` that InstallSudoers uses. The caller must already be
-// root. `lerd bootstrap --system` calls this so a package maintainer script can
+// root. `servlo bootstrap --system` calls this so a package maintainer script can
 // grant the passwordless DNS rules up front, letting a later unattended install
 // configure the resolver without a prompt. Idempotent.
 func WriteSudoersForUser(user string) error {
@@ -980,10 +980,10 @@ func WriteSudoersForUser(user string) error {
 	// target user. A stale one there claimed the grant was in place and skipped
 	// the write, leaving an install with no drop-in at all. Root can read
 	// /etc/sudoers.d, so the file itself is the authority here.
-	if existing, err := os.ReadFile(lerdSudoersPath); err == nil && string(existing) == content {
+	if existing, err := os.ReadFile(servloSudoersPath); err == nil && string(existing) == content {
 		return nil
 	}
-	if err := os.WriteFile(lerdSudoersPath, []byte(content), 0440); err != nil {
+	if err := os.WriteFile(servloSudoersPath, []byte(content), 0440); err != nil {
 		return fmt.Errorf("writing sudoers drop-in: %w", err)
 	}
 	return nil
@@ -1017,7 +1017,7 @@ var visudoCheck = func(path string) ([]byte, error) {
 // is checked before it lands rather than after. A host with no visudo is not a
 // reason to skip the write; the rule shape is already constrained above.
 func checkSudoersSyntax(content string) error {
-	f, err := os.CreateTemp("", "lerd-sudoers-*")
+	f, err := os.CreateTemp("", "servlo-sudoers-*")
 	if err != nil {
 		return nil
 	}
@@ -1051,7 +1051,7 @@ func RecordSudoersForUser(user string) {
 	recordSudoersInstalled([]byte(renderLinuxSudoers(user)))
 }
 
-// SudoersCurrent reports whether the drop-in lerd would write for this user is
+// SudoersCurrent reports whether the drop-in servlo would write for this user is
 // already recorded as installed, so an install can skip the root pass entirely
 // when there is nothing left for it to do.
 func SudoersCurrent() bool {
@@ -1081,7 +1081,7 @@ func InstallSudoers() error {
 	}
 
 	feedback.Sudo("Installing DNS sudoers rule")
-	if err := sudoWriteFile(lerdSudoersPath, []byte(content), 0440); err != nil {
+	if err := sudoWriteFile(servloSudoersPath, []byte(content), 0440); err != nil {
 		return fmt.Errorf("writing sudoers drop-in: %w", err)
 	}
 	recordSudoersInstalled([]byte(content))
@@ -1100,64 +1100,64 @@ var (
 // Every rule uses a fully qualified command argument so modern strict
 // parsers (sudo-rs on Ubuntu 26.04+, C sudo >= 1.9.16 on Fedora 41+ /
 // Arch / CachyOS / openSUSE Tumbleweed / NixOS unstable) accept the file.
-// The resolvectl line drops the per-verb "*" suffixes that older lerd
+// The resolvectl line drops the per-verb "*" suffixes that older servlo
 // builds shipped — sudoers cannot match a verb plus open-ended args
 // without a wildcard, and "any resolvectl invocation" is the same
 // effective grant since the watcher already calls every verb.
 func renderLinuxSudoers(user string) string {
 	return fmt.Sprintf(
-		"# Lerd: passwordless DNS resolver / NM dispatcher operations.\n"+
+		"# Servlo: passwordless DNS resolver / NM dispatcher operations.\n"+
 			"# Rules are fully qualified with no wildcards in command\n"+
 			"# arguments so they pass strict sudo parsers (sudo-rs on Ubuntu\n"+
 			"# 26.04+; C sudo >= 1.9.16 on Fedora 41+, Arch, openSUSE\n"+
 			"# Tumbleweed, NixOS unstable). The matching code path pipes\n"+
 			"# content through `sudo tee <dest>` instead of\n"+
-			"# `sudo cp /tmp/lerd-sudo-* <dest>` for the same reason.\n"+
+			"# `sudo cp /tmp/servlo-sudo-* <dest>` for the same reason.\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/resolvectl\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/mkdir -p /etc/NetworkManager/dispatcher.d\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/NetworkManager/dispatcher.d/99-lerd-dns\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 755 /etc/NetworkManager/dispatcher.d/99-lerd-dns\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/NetworkManager/conf.d/lerd.conf\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/NetworkManager/conf.d/lerd.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/NetworkManager/dispatcher.d/99-servlo-dns\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 755 /etc/NetworkManager/dispatcher.d/99-servlo-dns\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/NetworkManager/conf.d/servlo.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/NetworkManager/conf.d/servlo.conf\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/mkdir -p /etc/NetworkManager/dnsmasq.d\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/NetworkManager/dnsmasq.d/lerd.conf\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/NetworkManager/dnsmasq.d/lerd.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/NetworkManager/dnsmasq.d/servlo.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/NetworkManager/dnsmasq.d/servlo.conf\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/systemctl restart NetworkManager\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/mkdir -p /etc/systemd/resolved.conf.d\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/systemd/resolved.conf.d/lerd.conf\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/systemd/resolved.conf.d/lerd.conf\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/systemd/resolved.conf.d/lerd.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/systemd/resolved.conf.d/servlo.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/systemd/resolved.conf.d/servlo.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/systemd/resolved.conf.d/servlo.conf\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/systemctl restart systemd-resolved\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/systemd/resolved.conf.d/lerd-fallback.conf\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/systemd/resolved.conf.d/lerd-fallback.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/systemd/resolved.conf.d/servlo-fallback.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/systemd/resolved.conf.d/servlo-fallback.conf\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/mkdir -p /etc/systemd/system\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/systemd/system/lerd-dns-link.service\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/systemd/system/lerd-dns-link.service\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/systemd/system/servlo-dns-link.service\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/systemd/system/servlo-dns-link.service\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/mkdir -p /etc/NetworkManager/conf.d\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/NetworkManager/conf.d/lerd-dns-link.conf\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/NetworkManager/conf.d/lerd-dns-link.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/tee /etc/NetworkManager/conf.d/servlo-dns-link.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/chmod 644 /etc/NetworkManager/conf.d/servlo-dns-link.conf\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/systemctl daemon-reload\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/systemctl enable --now lerd-dns-link.service\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/systemctl restart lerd-dns-link.service\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/systemctl enable --now servlo-dns-link.service\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/systemctl restart servlo-dns-link.service\n"+
 			"%s ALL=(root) NOPASSWD: /usr/bin/systemctl reload NetworkManager\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/nmcli connection delete lerd-dns\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/NetworkManager/system-connections/lerd-dns.nmconnection\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/systemctl disable --now lerd-dns-link.service\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/nmcli connection delete servlo-dns\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/NetworkManager/system-connections/servlo-dns.nmconnection\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/systemctl disable --now servlo-dns-link.service\n"+
 			// Every location ip ships in. sudo compares the literal resolved path and
 			// does not follow symlinks, so on Ubuntu, where it resolves /usr/sbin/ip,
 			// the /usr/bin rule never matched and the delete prompted for a password.
-			"%s ALL=(root) NOPASSWD: /usr/bin/ip link del lerd0\n"+
-			"%s ALL=(root) NOPASSWD: /usr/sbin/ip link del lerd0\n"+
-			"%s ALL=(root) NOPASSWD: /sbin/ip link del lerd0\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/systemd/resolved.conf.d/lerd-fallback.conf\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/systemd/system/lerd-dns-link.service\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/NetworkManager/conf.d/lerd-dns-link.conf\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/NetworkManager/conf.d/lerd.conf\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/NetworkManager/dnsmasq.d/lerd.conf\n"+
-			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/NetworkManager/dispatcher.d/99-lerd-dns\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/ip link del servlo0\n"+
+			"%s ALL=(root) NOPASSWD: /usr/sbin/ip link del servlo0\n"+
+			"%s ALL=(root) NOPASSWD: /sbin/ip link del servlo0\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/systemd/resolved.conf.d/servlo-fallback.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/systemd/system/servlo-dns-link.service\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/NetworkManager/conf.d/servlo-dns-link.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/NetworkManager/conf.d/servlo.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/NetworkManager/dnsmasq.d/servlo.conf\n"+
+			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/NetworkManager/dispatcher.d/99-servlo-dns\n"+
 			// The drop-in permits its own removal, so teardown can revoke the
 			// grant without a password prompt an unattended uninstall cannot answer.
-			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f "+lerdSudoersPath+"\n",
+			"%s ALL=(root) NOPASSWD: /usr/bin/rm -f "+servloSudoersPath+"\n",
 		user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user, user,
 	)
 }

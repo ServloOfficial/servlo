@@ -28,7 +28,7 @@
     return databaseAdminFor(name);
   });
 
-  // A service listed in .lerd.yaml but absent from the installed set was never
+  // A service listed in .servlo.yaml but absent from the installed set was never
   // installed. Offer to install it rather than routing to a Services tab entry
   // that isn't there.
   function open() {
@@ -66,7 +66,7 @@
       use:tooltip={m.databases_openIn({ name: serviceLabel(dbAdmin.name) })}
       aria-label={m.databases_openIn({ name: serviceLabel(dbAdmin.name) })}
       onclick={() => openDatabaseAdmin(name, database)}
-      class="shrink-0 flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+      class="shrink-0 flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
     >
       <Icon name="database" class="w-3.5 h-3.5" />
     </button>

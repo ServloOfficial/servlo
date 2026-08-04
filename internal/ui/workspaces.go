@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // resolveSiteWorkspace reports the workspace a site renders under. A group

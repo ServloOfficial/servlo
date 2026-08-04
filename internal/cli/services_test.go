@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestServiceReinstallCmd_HasResetDataFlag(t *testing.T) {
@@ -64,7 +64,7 @@ func TestMigrateServiceUnits_SkipsUninstalledDefaultPresets(t *testing.T) {
 	migrateServiceUnits()
 
 	for _, svc := range knownServices() {
-		path := filepath.Join(quadletDir, "lerd-"+svc+".container")
+		path := filepath.Join(quadletDir, "servlo-"+svc+".container")
 		if _, err := os.Stat(path); err == nil {
 			t.Errorf("quadlet for uninstalled default preset %q was recreated at %s", svc, path)
 		}

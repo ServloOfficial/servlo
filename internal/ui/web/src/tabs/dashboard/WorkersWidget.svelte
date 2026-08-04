@@ -76,7 +76,7 @@
   const failingCount = $derived($unhealthyWorkers.length);
 
   function isItemFailing(item: Service): boolean {
-    return $unhealthyWorkers.some((u) => u.unit === item.name || u.unit === 'lerd-' + item.name);
+    return $unhealthyWorkers.some((u) => u.unit === item.name || u.unit === 'servlo-' + item.name);
   }
 
   function jumpToSite(item: Service) {
@@ -103,7 +103,7 @@
   async function onHeal() {
     const r = await healAll();
     await loadWorkerHealth();
-    if (!r.ok && r.error) console.error('[lerd] heal failed:', r.error);
+    if (!r.ok && r.error) console.error('[servlo] heal failed:', r.error);
   }
 </script>
 
@@ -140,7 +140,7 @@
           </div>
         {/each}
       </div>
-      <div class="border-t border-gray-100 dark:border-lerd-border"></div>
+      <div class="border-t border-gray-100 dark:border-servlo-border"></div>
     {/if}
     <div class="space-y-2">
       {#each groups as g (g.key)}
@@ -165,7 +165,7 @@
                   size="xs"
                   pulse={failing}
                 />
-                <span class="flex-1 truncate text-gray-600 dark:text-gray-300 group-hover:text-lerd-red transition-colors">{workerSiteName(item)}</span>
+                <span class="flex-1 truncate text-gray-600 dark:text-gray-300 group-hover:text-servlo-red transition-colors">{workerSiteName(item)}</span>
               </button>
             {/each}
             {#each g.asleep as item (item.id)}
@@ -177,7 +177,7 @@
                 <svg class="w-3 h-3 shrink-0 text-sky-500 dark:text-sky-400" viewBox="0 0 24 24" fill="currentColor" aria-label={m.sites_idle()}>
                   <path d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998z" />
                 </svg>
-                <span class="flex-1 truncate text-sky-600 dark:text-sky-400 group-hover:text-lerd-red transition-colors">{item.label}</span>
+                <span class="flex-1 truncate text-sky-600 dark:text-sky-400 group-hover:text-servlo-red transition-colors">{item.label}</span>
               </button>
             {/each}
           </div>

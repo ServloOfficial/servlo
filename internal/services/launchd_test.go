@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // TestHasNonZeroExitCode covers the failure-detection helper for both
@@ -47,7 +47,7 @@ func TestIsContainerPlist(t *testing.T) {
 		-d
 		--restart=always
 		--name
-		lerd-mysql
+		servlo-mysql
 	}`)
 	if !isContainerPlist(containerOut) {
 		t.Error("expected container plist to be classified as container")
@@ -56,14 +56,14 @@ func TestIsContainerPlist(t *testing.T) {
 	runtimeOut := []byte(`	program = /bin/sh
 	arguments = {
 		/bin/sh
-		/Users/x/.local/share/lerd/run/workers/lerd-queue-app.sh
+		/Users/x/.local/share/servlo/run/workers/servlo-queue-app.sh
 	}`)
 	if isContainerPlist(runtimeOut) {
 		t.Error("runtime worker plist must NOT be classified as container")
 	}
 
-	binaryOut := []byte(`	program = /Users/x/.local/bin/lerd-tray
-	arguments = { /Users/x/.local/bin/lerd-tray }`)
+	binaryOut := []byte(`	program = /Users/x/.local/bin/servlo
+	arguments = { /Users/x/.local/bin/servlo serve-ui }`)
 	if isContainerPlist(binaryOut) {
 		t.Error("native-binary plist must NOT be classified as container")
 	}
@@ -93,10 +93,10 @@ func TestXmlEscStr(t *testing.T) {
 }
 
 func TestBuildPlist(t *testing.T) {
-	plist := buildPlist("com.lerd.test", []string{"/bin/sh", "--flag"}, true, keepAliveAlways, "/tmp/out.log", "/tmp/err.log")
+	plist := buildPlist("com.servlo.test", []string{"/bin/sh", "--flag"}, true, keepAliveAlways, "/tmp/out.log", "/tmp/err.log")
 
 	checks := []string{
-		`<string>com.lerd.test</string>`,
+		`<string>com.servlo.test</string>`,
 		`<string>/bin/sh</string>`,
 		`<string>--flag</string>`,
 		`<key>RunAtLoad</key>`,
@@ -117,7 +117,7 @@ func TestBuildPlist(t *testing.T) {
 }
 
 func TestBuildPlistNoOptionalFields(t *testing.T) {
-	plist := buildPlist("com.lerd.minimal", []string{"/bin/true"}, false, keepAliveNever, "", "")
+	plist := buildPlist("com.servlo.minimal", []string{"/bin/true"}, false, keepAliveNever, "", "")
 
 	if strings.Contains(plist, "RunAtLoad") {
 		t.Error("expected no RunAtLoad key")
@@ -131,7 +131,7 @@ func TestBuildPlistNoOptionalFields(t *testing.T) {
 }
 
 func TestBuildPlistOnFailureEmitsSuccessfulExitDict(t *testing.T) {
-	plist := buildPlist("com.lerd.onfail", []string{"/bin/true"}, false, keepAliveOnFailure, "", "")
+	plist := buildPlist("com.servlo.onfail", []string{"/bin/true"}, false, keepAliveOnFailure, "", "")
 
 	if !strings.Contains(plist, "<key>KeepAlive</key>") {
 		t.Fatal("expected KeepAlive key")
@@ -145,7 +145,7 @@ func TestBuildPlistOnFailureEmitsSuccessfulExitDict(t *testing.T) {
 }
 
 func TestBuildPlistXMLEscaping(t *testing.T) {
-	plist := buildPlist("com.lerd.esc", []string{"/bin/echo", "a<b>&c"}, false, keepAliveNever, "", "")
+	plist := buildPlist("com.servlo.esc", []string{"/bin/echo", "a<b>&c"}, false, keepAliveNever, "", "")
 	if !strings.Contains(plist, "a&lt;b&gt;&amp;c") {
 		t.Error("arguments should be XML-escaped in plist")
 	}
@@ -216,7 +216,7 @@ func TestSplitSystemdExec(t *testing.T) {
 func TestContainerToPodmanArgsQuotedExec(t *testing.T) {
 	content := `[Container]
 Image=docker.io/dunglas/frankenphp:php8.5
-ContainerName=lerd-fp-demo
+ContainerName=servlo-fp-demo
 Exec=sh -c "install-php-extensions pcntl >/dev/null && exec php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto --watch"
 `
 	args, err := containerToPodmanArgs(parseSection(content, "Container"))
@@ -244,7 +244,7 @@ Exec=sh -c "install-php-extensions pcntl >/dev/null && exec php artisan octane:s
 // The ssh-agent quadlet clears its stale socket via `sh -c` before exec'ing the
 // agent; that script must reach podman as one argv element on macOS too.
 func TestSSHAgentQuadletExecSurvivesTranslation(t *testing.T) {
-	args, err := containerToPodmanArgs(parseSection(podman.GenerateSSHAgentQuadlet("lerd-php85-fpm:local"), "Container"))
+	args, err := containerToPodmanArgs(parseSection(podman.GenerateSSHAgentQuadlet("servlo-php85-fpm:local"), "Container"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestPlistArgsRoundTripsXMLSpecials(t *testing.T) {
 	want := []string{"podman", "run", "sh", "-c", script}
 	dir := t.TempDir()
 	p := filepath.Join(dir, "unit.plist")
-	if err := os.WriteFile(p, []byte(buildPlist("com.lerd.unit", want, false, keepAliveAlways, "", "")), 0644); err != nil {
+	if err := os.WriteFile(p, []byte(buildPlist("com.servlo.unit", want, false, keepAliveAlways, "", "")), 0644); err != nil {
 		t.Fatal(err)
 	}
 	got, err := plistArgs(p)
@@ -330,10 +330,10 @@ func TestStripSELinuxVolOpts(t *testing.T) {
 
 func TestContainerToPodmanArgs(t *testing.T) {
 	c := map[string][]string{
-		"ContainerName": {"lerd-nginx"},
+		"ContainerName": {"servlo-nginx"},
 		"Image":         {"docker.io/library/nginx:latest"},
 		"PublishPort":   {"127.0.0.1:80:80"},
-		"Network":       {"lerd"},
+		"Network":       {"servlo"},
 		"Volume":        {"/home/user/sites:/home/user/sites:ro"},
 		"Environment":   {"FOO=bar"},
 	}
@@ -345,8 +345,8 @@ func TestContainerToPodmanArgs(t *testing.T) {
 	argStr := strings.Join(args, " ")
 	for _, want := range []string{
 		"run", "-d", "--restart=always",
-		"--name", "lerd-nginx", "--replace",
-		"--network", "lerd",
+		"--name", "servlo-nginx", "--replace",
+		"--network", "servlo",
 		"-p", "80:80",
 		"-e", "FOO=bar",
 		"docker.io/library/nginx:latest",
@@ -358,11 +358,11 @@ func TestContainerToPodmanArgs(t *testing.T) {
 }
 
 // Quadlet's HostName= maps to --hostname on Linux via podman-systemd; the
-// macOS path was dropping it, so `lerd shell` showed root@<container-id>.
+// macOS path was dropping it, so `servlo shell` showed root@<container-id>.
 func TestContainerToPodmanArgs_HostName(t *testing.T) {
 	c := map[string][]string{
-		"ContainerName": {"lerd-php84-fpm"},
-		"Image":         {"localhost/lerd-php-fpm:8.4"},
+		"ContainerName": {"servlo-php84-fpm"},
+		"Image":         {"localhost/servlo-php-fpm:8.4"},
 		"HostName":      {"laptop"},
 	}
 	args, err := containerToPodmanArgs(c)
@@ -386,8 +386,8 @@ func TestContainerToPodmanArgsNoImage(t *testing.T) {
 }
 
 func TestPlistLabel(t *testing.T) {
-	if got := plistLabel("lerd-nginx"); got != "com.lerd.lerd-nginx" {
-		t.Errorf("plistLabel = %q, want com.lerd.lerd-nginx", got)
+	if got := plistLabel("servlo-nginx"); got != "com.servlo.servlo-nginx" {
+		t.Errorf("plistLabel = %q, want com.servlo.servlo-nginx", got)
 	}
 }
 
@@ -404,7 +404,7 @@ func TestParseServiceUnitRestartPolicy(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, got, err := parseServiceUnit("lerd-test", tc.body)
+			_, got, err := parseServiceUnit("servlo-test", tc.body)
 			if err != nil {
 				t.Fatalf("parseServiceUnit: %v", err)
 			}
@@ -423,21 +423,21 @@ func TestWriteAndRemoveServiceUnit(t *testing.T) {
 
 	// Ensure LaunchAgents + Logs dirs exist
 	os.MkdirAll(filepath.Join(tmp, "Library", "LaunchAgents"), 0755)
-	os.MkdirAll(filepath.Join(tmp, "Library", "Logs", "lerd"), 0755)
+	os.MkdirAll(filepath.Join(tmp, "Library", "Logs", "servlo"), 0755)
 
 	mgr := &darwinServiceManager{}
 	content := "[Service]\nExecStart=/bin/sh --flag\n"
 
-	if err := mgr.WriteServiceUnit("lerd-watcher", content); err != nil {
+	if err := mgr.WriteServiceUnit("servlo-watcher", content); err != nil {
 		t.Fatalf("WriteServiceUnit: %v", err)
 	}
 
-	path := filepath.Join(tmp, "Library", "LaunchAgents", "lerd-watcher.plist")
+	path := filepath.Join(tmp, "Library", "LaunchAgents", "servlo-watcher.plist")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("plist not written: %v", err)
 	}
-	if !strings.Contains(string(data), "com.lerd.lerd-watcher") {
+	if !strings.Contains(string(data), "com.servlo.servlo-watcher") {
 		t.Error("plist missing expected label")
 	}
 	if !strings.Contains(string(data), "/bin/sh") {
@@ -445,13 +445,13 @@ func TestWriteAndRemoveServiceUnit(t *testing.T) {
 	}
 
 	// ListServiceUnits should find it
-	units := mgr.ListServiceUnits("lerd-*")
-	if len(units) != 1 || units[0] != "lerd-watcher" {
-		t.Errorf("ListServiceUnits = %v, want [lerd-watcher]", units)
+	units := mgr.ListServiceUnits("servlo-*")
+	if len(units) != 1 || units[0] != "servlo-watcher" {
+		t.Errorf("ListServiceUnits = %v, want [servlo-watcher]", units)
 	}
 
 	// Remove
-	if err := mgr.RemoveServiceUnit("lerd-watcher"); err != nil {
+	if err := mgr.RemoveServiceUnit("servlo-watcher"); err != nil {
 		t.Fatalf("RemoveServiceUnit: %v", err)
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
@@ -463,14 +463,14 @@ func TestWriteServiceUnitIfChangedNoChange(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
 	os.MkdirAll(filepath.Join(tmp, "Library", "LaunchAgents"), 0755)
-	os.MkdirAll(filepath.Join(tmp, "Library", "Logs", "lerd"), 0755)
+	os.MkdirAll(filepath.Join(tmp, "Library", "Logs", "servlo"), 0755)
 
 	mgr := &darwinServiceManager{}
 	content := "[Service]\nExecStart=/bin/sh\n"
 
-	mgr.WriteServiceUnit("lerd-test", content)
+	mgr.WriteServiceUnit("servlo-test", content)
 
-	changed, err := mgr.WriteServiceUnitIfChanged("lerd-test", content)
+	changed, err := mgr.WriteServiceUnitIfChanged("servlo-test", content)
 	if err != nil {
 		t.Fatalf("WriteServiceUnitIfChanged: %v", err)
 	}
@@ -483,16 +483,16 @@ func TestWriteContainerUnit(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
 	os.MkdirAll(filepath.Join(tmp, "Library", "LaunchAgents"), 0755)
-	os.MkdirAll(filepath.Join(tmp, "Library", "Logs", "lerd"), 0755)
+	os.MkdirAll(filepath.Join(tmp, "Library", "Logs", "servlo"), 0755)
 
 	mgr := &darwinServiceManager{}
-	content := "[Container]\nContainerName=lerd-nginx\nImage=nginx:latest\nPublishPort=80:80\n"
+	content := "[Container]\nContainerName=servlo-nginx\nImage=nginx:latest\nPublishPort=80:80\n"
 
-	if err := mgr.WriteContainerUnit("lerd-nginx", content); err != nil {
+	if err := mgr.WriteContainerUnit("servlo-nginx", content); err != nil {
 		t.Fatalf("WriteContainerUnit: %v", err)
 	}
 
-	path := filepath.Join(tmp, "Library", "LaunchAgents", "lerd-nginx.plist")
+	path := filepath.Join(tmp, "Library", "LaunchAgents", "servlo-nginx.plist")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("plist not written: %v", err)
@@ -505,10 +505,10 @@ func TestWriteContainerUnit(t *testing.T) {
 		t.Error("container plist should contain image name")
 	}
 
-	if !mgr.ContainerUnitInstalled("lerd-nginx") {
+	if !mgr.ContainerUnitInstalled("servlo-nginx") {
 		t.Error("ContainerUnitInstalled should return true")
 	}
-	if mgr.ContainerUnitInstalled("lerd-nonexistent") {
+	if mgr.ContainerUnitInstalled("servlo-nonexistent") {
 		t.Error("ContainerUnitInstalled should return false for missing unit")
 	}
 }
@@ -520,16 +520,16 @@ func TestIsEnabledBasedOnPlistExistence(t *testing.T) {
 
 	mgr := &darwinServiceManager{}
 
-	if mgr.IsEnabled("lerd-test") {
+	if mgr.IsEnabled("servlo-test") {
 		t.Error("should not be enabled before plist exists")
 	}
 
 	os.WriteFile(
-		filepath.Join(tmp, "Library", "LaunchAgents", "lerd-test.plist"),
+		filepath.Join(tmp, "Library", "LaunchAgents", "servlo-test.plist"),
 		[]byte("placeholder"), 0644,
 	)
 
-	if !mgr.IsEnabled("lerd-test") {
+	if !mgr.IsEnabled("servlo-test") {
 		t.Error("should be enabled when plist exists")
 	}
 }
@@ -552,9 +552,9 @@ func TestUnquoteSystemdValue(t *testing.T) {
 
 func TestContainerToPodmanArgsQuotedEnv(t *testing.T) {
 	c := map[string][]string{
-		"ContainerName": {"lerd-elasticsearch"},
+		"ContainerName": {"servlo-elasticsearch"},
 		"Image":         {"docker.elastic.co/elasticsearch/elasticsearch:8.13.4"},
-		"Network":       {"lerd"},
+		"Network":       {"servlo"},
 		"Environment": {
 			`"ES_JAVA_OPTS=-Xms512m -Xmx512m"`,
 			`"http.cors.allow-origin=\"*\""`,
@@ -628,7 +628,7 @@ func TestStripIPv6PublishPorts(t *testing.T) {
 		"PublishPort=[::]:443:443": "PublishPort=0.0.0.0:443:443",
 		// Plain IPv4 lines and non-PublishPort lines pass through untouched.
 		"PublishPort=80:80": "PublishPort=80:80",
-		"Network=lerd":      "Network=lerd",
+		"Network=servlo":    "Network=servlo",
 		"[Container]":       "[Container]",
 	}
 	for in, want := range cases {
@@ -641,13 +641,13 @@ func TestStripIPv6PublishPorts(t *testing.T) {
 // TestLANExposedPublishPortsSurvive guards the full macOS transform chain for a
 // LAN-exposed container (lan.exposed: true). The regression: BindForLAN +
 // PairIPv6Binds collapse "PublishPort=80:80" into the "[::]:" bind-all form, and
-// stripIPv6PublishPorts used to drop every bracketed line — leaving lerd-nginx
+// stripIPv6PublishPorts used to drop every bracketed line — leaving servlo-nginx
 // with no -p flags, so nothing reached the host. The published ports must survive
 // as -p entries in the final podman run args.
 func TestLANExposedPublishPortsSurvive(t *testing.T) {
 	content := "[Container]\n" +
 		"Image=docker.io/library/nginx:alpine\n" +
-		"Network=lerd\n" +
+		"Network=servlo\n" +
 		"PublishPort=80:80\n" +
 		"PublishPort=443:443\n"
 
@@ -671,7 +671,7 @@ func TestLANExposedPublishPortsSurvive(t *testing.T) {
 
 // TestPrecreateBindMountDirs_SkipsNamedVolume confirms a bind mount's absolute
 // source is pre-created while a named volume (bare name, e.g. the new
-// lerd-ssh-agent:/ssh-agent) is left to podman, so MkdirAll never drops a stray
+// servlo-ssh-agent:/ssh-agent) is left to podman, so MkdirAll never drops a stray
 // relative directory into the process working directory.
 func TestPrecreateBindMountDirs_SkipsNamedVolume(t *testing.T) {
 	dir := t.TempDir()
@@ -686,12 +686,12 @@ func TestPrecreateBindMountDirs_SkipsNamedVolume(t *testing.T) {
 
 	bind := filepath.Join(dir, "mnt", "data")
 	precreateBindMountDirs([]string{
-		"lerd-ssh-agent:/ssh-agent", // named volume: podman-managed, must be skipped
-		bind + ":" + bind + ":rw",   // bind mount: absolute source, must be created
+		"servlo-ssh-agent:/ssh-agent", // named volume: podman-managed, must be skipped
+		bind + ":" + bind + ":rw",     // bind mount: absolute source, must be created
 	})
 
-	if _, err := os.Stat(filepath.Join(dir, "lerd-ssh-agent")); !os.IsNotExist(err) {
-		t.Errorf("named volume created a stray relative dir lerd-ssh-agent (err=%v)", err)
+	if _, err := os.Stat(filepath.Join(dir, "servlo-ssh-agent")); !os.IsNotExist(err) {
+		t.Errorf("named volume created a stray relative dir servlo-ssh-agent (err=%v)", err)
 	}
 	if _, err := os.Stat(bind); err != nil {
 		t.Errorf("bind-mount source not pre-created: %v", err)

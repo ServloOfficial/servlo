@@ -130,7 +130,7 @@ func TestGetFrameworkCustom_WithLogs(t *testing.T) {
 	}
 }
 
-// The built-in Symfony def must follow Symfony's env convention: lerd writes its
+// The built-in Symfony def must follow Symfony's env convention: servlo writes its
 // connection values into .env.local (the gitignored local override), seeded from
 // the committed .env. Keeping the built-in aligned with the store def stops the
 // two from contradicting each other on the offline fallback path.
@@ -179,7 +179,7 @@ func TestGetFrameworkCustom_WithoutLogs(t *testing.T) {
 // ── GetFrameworkOrFetch ──────────────────────────────────────────────────────
 
 // A framework the store publishes but the machine hasn't installed must be
-// fetched on demand, so `lerd new --framework=X` can scaffold a project type
+// fetched on demand, so `servlo new --framework=X` can scaffold a project type
 // you've never built before.
 func TestGetFrameworkOrFetch_FetchesUninstalled(t *testing.T) {
 	setConfigDir(t)
@@ -397,7 +397,7 @@ func TestFrameworkLogSource_YAMLRoundTrip(t *testing.T) {
 	}
 }
 
-// ValidatePublicDir guards the nginx document root from a hostile .lerd.yaml
+// ValidatePublicDir guards the nginx document root from a hostile .servlo.yaml
 // whose public_dir points outside the project, e.g. ../../etc.
 func TestValidatePublicDir(t *testing.T) {
 	good := []string{"", ".", "public", "web", "public_html", "src/public"}

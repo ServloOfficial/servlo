@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func names(proj *config.ProjectConfig) []string {
@@ -19,7 +19,7 @@ func names(proj *config.ProjectConfig) []string {
 func TestEnsureRequiredServicesAddsMissingPreset(t *testing.T) {
 	dir := t.TempDir()
 	// runLink hands over the config it loaded from disk, so seed both.
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"),
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"),
 		[]byte("services:\n    - mysql\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -49,12 +49,12 @@ func TestEnsureRequiredServicesAddsMissingPreset(t *testing.T) {
 	}
 }
 
-// The domains lerd wrote moments earlier in the same command must survive the
+// The domains servlo wrote moments earlier in the same command must survive the
 // required-service append: it used to save the snapshot it was handed, rolling
 // the file back to the state it had before the link started.
 func TestEnsureRequiredServicesKeepsDomainsWrittenEarlier(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"),
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"),
 		[]byte("domains:\n    - old\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -125,9 +125,9 @@ func TestEnsureRequiredServicesNoRequiresIsNoop(t *testing.T) {
 	if got := ensureRequiredServices(dir, proj, nil, func(string) bool { return true }); got != proj {
 		t.Fatal("nil framework should return the project untouched")
 	}
-	// Nothing to save, so no .lerd.yaml should appear on disk.
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); err == nil {
-		t.Error("wrote .lerd.yaml with nothing to add")
+	// Nothing to save, so no .servlo.yaml should appear on disk.
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); err == nil {
+		t.Error("wrote .servlo.yaml with nothing to add")
 	}
 }
 

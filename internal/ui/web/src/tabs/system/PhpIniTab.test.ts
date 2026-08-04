@@ -18,7 +18,7 @@ vi.mock('$lib/monaco', () => ({
         defineTheme: () => {}
       }
     }),
-  lerdThemeName: () => 'lerd-dark'
+  servloThemeName: () => 'servlo-dark'
 }));
 
 const { getPhpIni, loadPhpIniBackups, loadPhpIniBackupContent } = vi.hoisted(() => ({
@@ -45,7 +45,7 @@ describe('PhpIniTab', () => {
     getPhpIni.mockImplementation((scope: string) =>
       Promise.resolve({
         content: scope === 'shared' ? 'memory_limit = 256M' : 'memory_limit = 512M',
-        path: scope === 'shared' ? '/etc/php/conf.d/lerd.ini' : `/etc/php/${scope}/php.ini`,
+        path: scope === 'shared' ? '/etc/php/conf.d/servlo.ini' : `/etc/php/${scope}/php.ini`,
         exists: true
       })
     );
@@ -61,7 +61,7 @@ describe('PhpIniTab', () => {
     expect(getByText('PHP 8.4')).toBeTruthy();
     expect(getByText('Shared (all versions)')).toBeTruthy();
     expect(getByText('/etc/php/8.4/php.ini')).toBeTruthy();
-    expect(getByText('/etc/php/conf.d/lerd.ini')).toBeTruthy();
+    expect(getByText('/etc/php/conf.d/servlo.ini')).toBeTruthy();
   });
 
   it('keeps each pane’s actions on its own scope', async () => {

@@ -10,19 +10,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // Fallback for podman rootless + pasta/netavark/slirp4netns when no other
 // candidate works. Written so the file is well-formed even if every probe
-// fails — Xdebug still won't connect, but `lerd doctor` will surface why.
+// fails — Xdebug still won't connect, but `servlo doctor` will surface why.
 const fallbackHostGatewayIP = "169.254.1.2"
 
-// hostProbePort is a port that lerd-ui binds on the host (TCP 0.0.0.0:7073).
+// hostProbePort is a port that servlo-panel binds on the host (TCP 0.0.0.0:7073).
 // The reachability probe checks whether candidate host IPs are routable from
-// inside lerd-nginx by opening a TCP connection here. Any host service the
-// containers can reach would do; lerd-ui is convenient because it's the only
-// host-side TCP listener lerd guarantees.
+// inside servlo-nginx by opening a TCP connection here. Any host service the
+// containers can reach would do; servlo-panel is convenient because it's the only
+// host-side TCP listener servlo guarantees.
 const hostProbePort = "7073"
 
 // nginxInspectTimeout caps the per-tick `podman inspect`, mirroring the cap
@@ -31,8 +31,8 @@ var nginxInspectTimeout = 5 * time.Second
 
 // WriteContainerHosts writes the shared /etc/hosts bind-mounted into every
 // PHP-FPM container. host.containers.internal uses an IP that has been
-// verified reachable from inside lerd-nginx; .test domains point at
-// lerd-nginx directly on the lerd bridge network.
+// verified reachable from inside servlo-nginx; .test domains point at
+// servlo-nginx directly on the servlo bridge network.
 func WriteContainerHosts() error {
 	hostIP := DetectHostGatewayIP()
 	return WriteContainerHostsWith(hostIP, nginxContainerIP())
@@ -58,7 +58,7 @@ func WriteContainerHostsWith(hostIP, nginxIP string) error {
 	}
 
 	// Write the browser-testing variant: same domains but resolved to
-	// lerd-nginx's IP on the Podman network so Chromium inside Selenium
+	// servlo-nginx's IP on the Podman network so Chromium inside Selenium
 	// (or similar containers) can reach sites via HTTP/HTTPS.
 	return writeBrowserHosts(reg, nginxIP)
 }
@@ -102,11 +102,11 @@ func writeBrowserHosts(reg *config.SiteRegistry, nginxIP string) error {
 	return os.WriteFile(browserPath, []byte(sb.String()), 0644)
 }
 
-// DetectHostGatewayIP returns an IP that is reachable from inside lerd-nginx
+// DetectHostGatewayIP returns an IP that is reachable from inside servlo-nginx
 // and resolves to the host. Tries each candidate by opening a TCP connection
-// to lerd-ui on port 7073 — only an IP that actually routes back to the host
+// to servlo-panel on port 7073 — only an IP that actually routes back to the host
 // will succeed. The first working candidate wins. If none work, returns the
-// legacy fallback so /etc/hosts is still well-formed; `lerd doctor` reports
+// legacy fallback so /etc/hosts is still well-formed; `servlo doctor` reports
 // the failure so the user gets a real diagnosis instead of silent timeouts.
 //
 // This replaces the previous "trust netavark" approach (PR #189), which
@@ -118,11 +118,11 @@ func DetectHostGatewayIP() string {
 	if ip := probeReachableHostIP(); ip != "" {
 		return ip
 	}
-	// Probe failed (lerd-ui not yet up, lerd-nginx not yet up, or no
+	// Probe failed (servlo-panel not yet up, servlo-nginx not yet up, or no
 	// candidate is routable). Fall back to whatever getent returns so the
 	// file is well-formed. The next WriteContainerHosts call (after services
 	// finish starting) gets a fresh probe and updates /etc/hosts in place.
-	if ip := parseHostGatewayFromExec("lerd-nginx"); ip != "" {
+	if ip := parseHostGatewayFromExec("servlo-nginx"); ip != "" {
 		return ip
 	}
 	if ip := parseHostGatewayFromProbe(); ip != "" {
@@ -133,21 +133,21 @@ func DetectHostGatewayIP() string {
 
 // DetectHostGatewayIPProbeOnly is like DetectHostGatewayIP but returns ""
 // when no candidate is actually reachable, instead of falling back to
-// getent / the legacy constant. Used by `lerd doctor` to surface probe
+// getent / the legacy constant. Used by `servlo doctor` to surface probe
 // failures as a real diagnosis rather than the silent timeout Xdebug
 // users otherwise see.
 func DetectHostGatewayIPProbeOnly() string {
 	return probeReachableHostIP()
 }
 
-// probeReachableHostIP returns the first candidate IP that lerd-nginx can
+// probeReachableHostIP returns the first candidate IP that servlo-nginx can
 // open a TCP connection to on hostProbePort, or "" if no candidate works
-// (or the probe can't run because lerd-nginx isn't up).
+// (or the probe can't run because servlo-nginx isn't up).
 func probeReachableHostIP() string {
-	if !ContainerRunningQuiet("lerd-nginx") {
+	if !ContainerRunningQuiet("servlo-nginx") {
 		return ""
 	}
-	for _, ip := range hostCandidates(parseHostGatewayFromExec("lerd-nginx"), primaryLANIP()) {
+	for _, ip := range hostCandidates(parseHostGatewayFromExec("servlo-nginx"), primaryLANIP()) {
 		if probeHostFromNginx(ip, hostProbePort) {
 			return ip
 		}
@@ -178,12 +178,12 @@ func hostCandidates(getentIP, lanIP string) []string {
 	return candidates
 }
 
-// HostReachable returns true when the given IP is reachable from lerd-nginx
+// HostReachable returns true when the given IP is reachable from servlo-nginx
 // on the host probe port. Exported for the background watcher so it can
 // cheaply verify whether the current /etc/hosts entry is still valid before
-// running a full reprobe. Returns false when lerd-nginx isn't running.
+// running a full reprobe. Returns false when servlo-nginx isn't running.
 func HostReachable(ip string) bool {
-	if !ContainerRunningQuiet("lerd-nginx") {
+	if !ContainerRunningQuiet("servlo-nginx") {
 		return false
 	}
 	return probeHostFromNginx(ip, hostProbePort)
@@ -214,7 +214,7 @@ func ReadHostGatewayFromFile() string {
 
 // ReadNginxIPFromFile returns the IP that the shared hosts file currently maps
 // site domains to, or "" when the file is missing or no site is linked. Used by
-// the watcher to spot a stale lerd-nginx address without rewriting every tick.
+// the watcher to spot a stale servlo-nginx address without rewriting every tick.
 func ReadNginxIPFromFile() string {
 	return readNginxIPFrom(config.ContainerHostsFile())
 }
@@ -264,7 +264,7 @@ func eachHostsEntry(data []byte, fn func(ip string, names []string) bool) {
 	}
 }
 
-// isInfraHostname reports whether a hostname is one of the fixed entries lerd
+// isInfraHostname reports whether a hostname is one of the fixed entries servlo
 // writes ahead of the site domains.
 func isInfraHostname(name string) bool {
 	switch name {
@@ -274,13 +274,13 @@ func isInfraHostname(name string) bool {
 	return false
 }
 
-// probeHostFromNginx returns true if lerd-nginx can open a TCP connection to
+// probeHostFromNginx returns true if servlo-nginx can open a TCP connection to
 // ip:port within 2 seconds. Uses busybox nc (-z = scan only, -w = timeout).
 func probeHostFromNginx(ip, port string) bool {
-	cmd := execCommand(PodmanBin(), "exec", "lerd-nginx", "nc", "-z", "-w", "2", ip, port)
+	cmd := execCommand(PodmanBin(), "exec", "servlo-nginx", "nc", "-z", "-w", "2", ip, port)
 	cmd.Stdout = nil
 	cmd.Stderr = nil
-	// Cap total wall time so a hung exec doesn't block lerd start.
+	// Cap total wall time so a hung exec doesn't block servlo start.
 	done := make(chan error, 1)
 	if err := cmd.Start(); err != nil {
 		return false
@@ -312,7 +312,7 @@ func parseHostGatewayFromExec(container string) string {
 }
 
 func parseHostGatewayFromProbe() string {
-	out, err := execCommand(PodmanBin(), "run", "--rm", "--network", "lerd",
+	out, err := execCommand(PodmanBin(), "run", "--rm", "--network", "servlo",
 		"docker.io/library/alpine", "getent", "hosts", "host.containers.internal").Output()
 	if err != nil {
 		return ""
@@ -330,7 +330,7 @@ func firstField(s string) string {
 	return ""
 }
 
-// nginxContainerIP returns the IP address of lerd-nginx on the lerd Podman
+// nginxContainerIP returns the IP address of servlo-nginx on the servlo Podman
 // network. Falls back to 127.0.0.1 if the container isn't running, so the
 // hosts file is still well-formed.
 func nginxContainerIP() string {
@@ -341,10 +341,10 @@ func nginxContainerIP() string {
 }
 
 // LookupNginxContainerIP is like nginxContainerIP but returns "" when
-// lerd-nginx is absent or stopped, so the watcher can tell "no IP yet" apart
+// servlo-nginx is absent or stopped, so the watcher can tell "no IP yet" apart
 // from a real address and skip the rewrite instead of writing loopback.
 func LookupNginxContainerIP() string {
-	cmd := execCommand(PodmanBin(), "inspect", "lerd-nginx",
+	cmd := execCommand(PodmanBin(), "inspect", "servlo-nginx",
 		"--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}")
 	out, err := outputWithTimeout(cmd, nginxInspectTimeout)
 	if err != nil {

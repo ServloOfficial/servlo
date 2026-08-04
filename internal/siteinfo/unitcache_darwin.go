@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // darwinUnitStatesCache mirrors the 3s TTL the linux path enforces around

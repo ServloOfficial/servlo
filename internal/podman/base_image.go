@@ -5,15 +5,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/origin"
-	"github.com/geodro/lerd/internal/registry"
+	"github.com/realrashid/servlo/internal/origin"
+	"github.com/realrashid/servlo/internal/registry"
 )
 
 // fpmBaseDigestLabel records the registry digest of the prebuilt base an FPM
 // image was built from. The base tag is the recipe hash, so an upstream PHP
 // refresh republishes the same tag with new content and no local hash moves:
 // this label is the only thing on the machine that can notice.
-const fpmBaseDigestLabel = "dev.lerd.fpm.base-digest"
+const fpmBaseDigestLabel = "dev.servlo.fpm.base-digest"
 
 // Seams for the freshness check so tests can fake the registry.
 var (

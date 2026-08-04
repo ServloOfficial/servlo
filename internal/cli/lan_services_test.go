@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestLANServicesCommandPersistsExplicitOptIn(t *testing.T) {
@@ -61,7 +61,7 @@ func TestLANServicesCommandRejectsUnknownState(t *testing.T) {
 	}
 }
 
-// Opting in while lerd is loopback only would store a preference that
+// Opting in while servlo is loopback only would store a preference that
 // publishes nothing, so the command refuses rather than pretending.
 func TestLANServicesRefusesToEnableWhileLoopbackOnly(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())

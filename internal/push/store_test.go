@@ -85,7 +85,7 @@ func TestStore_PersistedFileMode(t *testing.T) {
 	if err := Add(sub); err != nil {
 		t.Fatalf("Add: %v", err)
 	}
-	info, err := os.Stat(dir + "/lerd/" + subsFile)
+	info, err := os.Stat(dir + "/servlo/" + subsFile)
 	if err != nil {
 		t.Fatalf("stat: %v", err)
 	}

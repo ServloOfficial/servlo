@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // The install picker merges the local presets (embedded defaults) with the
@@ -20,7 +20,7 @@ func TestListInstallablePresets_MergesStoreIndex(t *testing.T) {
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	t.Setenv("LERD_SERVICES_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_SERVICES_BASE_URL", srv.URL)
 
 	metas, err := ListInstallablePresets()
 	if err != nil {
@@ -57,7 +57,7 @@ func TestListInstallablePresets_IndexFallbackCarriesDiscoveryMetadata(t *testing
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	t.Setenv("LERD_SERVICES_BASE_URL", srv.URL)
+	t.Setenv("SERVLO_SERVICES_BASE_URL", srv.URL)
 
 	metas, err := ListInstallablePresets()
 	if err != nil {
@@ -85,7 +85,7 @@ func TestListInstallablePresets_IndexFallbackCarriesDiscoveryMetadata(t *testing
 func TestListInstallablePresets_OfflineReturnsLocal(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	t.Setenv("LERD_SERVICES_BASE_URL", "http://127.0.0.1:1")
+	t.Setenv("SERVLO_SERVICES_BASE_URL", "http://127.0.0.1:1")
 
 	metas, err := ListInstallablePresets()
 	if err != nil {

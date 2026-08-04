@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/store"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/store"
 )
 
 // TestUpdateAllFrameworks_refreshesEveryCachedVersion pins the bug fixed by

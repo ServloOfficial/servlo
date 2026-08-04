@@ -11,7 +11,7 @@ import (
 
 // LoadOrGenerateProfilerKey returns the SPX HTTP key, generating and
 // persisting a fresh random one on first use. The key gates the SPX profiler
-// UI and per-request profiling. Lerd injects it into the FPM HTTP_COOKIE via
+// UI and per-request profiling. Servlo injects it into the FPM HTTP_COOKIE via
 // nginx so it never has to live in a browser cookie (which would be a blocked
 // third-party cookie inside the dashboard iframe).
 func LoadOrGenerateProfilerKey() (string, error) {

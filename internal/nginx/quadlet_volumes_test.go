@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // RewriteNginxQuadlet must preserve the Volume= lines for paths outside $HOME.
@@ -23,7 +23,7 @@ func TestRewriteNginxQuadlet_keepsExtraVolumes(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(sandbox, "config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(sandbox, "data"))
 
-	cfgDir := filepath.Join(sandbox, "config", "lerd")
+	cfgDir := filepath.Join(sandbox, "config", "servlo")
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -48,15 +48,15 @@ func TestRewriteNginxQuadlet_keepsExtraVolumes(t *testing.T) {
 	}
 
 	// Seed the quadlet the way RewriteFPMQuadlets does: template + extra mounts.
-	tmpl, err := podman.GetQuadletTemplate("lerd-nginx.container")
+	tmpl, err := podman.GetQuadletTemplate("servlo-nginx.container")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := podman.WriteQuadletDiff("lerd-nginx", podman.InjectExtraVolumes(tmpl, paths)); err != nil {
+	if _, err := podman.WriteQuadletDiff("servlo-nginx", podman.InjectExtraVolumes(tmpl, paths)); err != nil {
 		t.Fatal(err)
 	}
 
-	quadlet := filepath.Join(sandbox, "config", "containers", "systemd", "lerd-nginx.container")
+	quadlet := filepath.Join(sandbox, "config", "containers", "systemd", "servlo-nginx.container")
 	want := "Volume=" + outside + ":" + outside + ":rw"
 	before, err := os.ReadFile(quadlet)
 	if err != nil {

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/serviceops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/serviceops"
 )
 
 // presetSuggestions mirrors internal/ui/web/src/stores/presetSuggestions.ts:
@@ -49,7 +49,7 @@ func serviceDetailContentLines(m *Model, svc *ServiceRow, innerW int) []string {
 		add(dimStyle.Render("  version: ") + svc.Version)
 	}
 	add(dimStyle.Render("  state:   ") + stateText)
-	add(dimStyle.Render("  unit:    ") + "lerd-" + svc.Name)
+	add(dimStyle.Render("  unit:    ") + "servlo-" + svc.Name)
 	// Published host port and any extra mappings, read-only. Editing lives in
 	// the CLI/UI/MCP (a multi-field edit is out of the TUI's quick-action scope).
 	if host, def, extras := servicePortsInfo(svc.Name); host > 0 {
@@ -140,7 +140,7 @@ func workerDetailContentLines(svc *ServiceRow, innerW int) []string {
 	add(dimStyle.Render("  kind:    ") + svc.WorkerKind)
 	add(dimStyle.Render("  site:    ") + svc.WorkerSite)
 	add(dimStyle.Render("  state:   ") + serviceStateText(svc.State))
-	add(dimStyle.Render("  unit:    ") + "lerd-" + svc.WorkerKind + "-" + svc.WorkerSite)
+	add(dimStyle.Render("  unit:    ") + "servlo-" + svc.WorkerKind + "-" + svc.WorkerSite)
 	if svc.WorkerPath != "" {
 		add(dimStyle.Render("  path:    ") + svc.WorkerPath)
 	}
@@ -195,7 +195,7 @@ func presetSuggestionFor(svc *ServiceRow) string {
 	if serviceops.ServiceInstalled(target) {
 		return ""
 	}
-	return "install " + target + " for a browser dashboard (run `lerd preset install " + target + "`)"
+	return "install " + target + " for a browser dashboard (run `servlo preset install " + target + "`)"
 }
 
 // servicePortsInfo returns the host (published) port a built-in service is

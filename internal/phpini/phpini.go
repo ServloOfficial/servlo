@@ -15,10 +15,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/geodro/lerd/internal/cfgedit"
-	"github.com/geodro/lerd/internal/config"
-	phpPkg "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/cfgedit"
+	"github.com/realrashid/servlo/internal/config"
+	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // SharedScope is the editor scope for the version-agnostic shared php.ini.
@@ -27,7 +27,7 @@ const SharedScope = "shared"
 // UserTemplate seeds the editor when a per-version or per-site file does not
 // exist yet. Matches the stub the podman EnsureUserIni writes so the editor
 // shows the same guidance.
-const UserTemplate = `; Lerd per-version PHP settings.
+const UserTemplate = `; Servlo per-version PHP settings.
 ;
 ; Edit this file, then click Save to write it and restart FPM.
 ; Any key set here overrides the shared file (php:ini shared).
@@ -40,7 +40,7 @@ const UserTemplate = `; Lerd per-version PHP settings.
 
 // SharedTemplate seeds the editor for the shared file. Applies to every version,
 // with a per-version file winning on any conflicting key.
-const SharedTemplate = `; Lerd shared PHP settings, applied to every PHP version.
+const SharedTemplate = `; Servlo shared PHP settings, applied to every PHP version.
 ;
 ; A per-version file (php:ini <version>) overrides any key set here. Unknown
 ; keys on a given version are ignored, not fatal, so a version-specific setting
@@ -195,7 +195,7 @@ func restartFrankenPHPSite(name string) error {
 // would restart the developer's own FPM containers.
 var restartFPMUnit = func(version string) error {
 	short := strings.ReplaceAll(version, ".", "")
-	return podman.RestartUnit("lerd-php" + short + "-fpm")
+	return podman.RestartUnit("servlo-php" + short + "-fpm")
 }
 
 // A var so tests can pin the version list. The real one reads the host's

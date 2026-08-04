@@ -136,10 +136,10 @@ func TestSatisfiesConstraint(t *testing.T) {
 
 // ── DetectVersion ─────────────────────────────────────────────────────────────
 
-func TestDetectVersion_DotLerdYaml(t *testing.T) {
+func TestDetectVersion_DotServloYaml(t *testing.T) {
 	dir := t.TempDir()
-	// All lower-priority files present too — .lerd.yaml must win
-	writeFile(t, dir, ".lerd.yaml", "php_version: \"8.1\"\n")
+	// All lower-priority files present too — .servlo.yaml must win
+	writeFile(t, dir, ".servlo.yaml", "php_version: \"8.1\"\n")
 	writeFile(t, dir, ".php-version", "8.2")
 	writeFile(t, dir, "composer.json", `{"require":{"php":"^8.3"}}`)
 
@@ -152,7 +152,7 @@ func TestDetectVersion_DotLerdYaml(t *testing.T) {
 		t.Fatalf("DetectVersion: %v", err)
 	}
 	if got != "8.1" {
-		t.Errorf("expected 8.1 from .lerd.yaml, got %q", got)
+		t.Errorf("expected 8.1 from .servlo.yaml, got %q", got)
 	}
 }
 
@@ -206,9 +206,9 @@ func TestDetectVersion_GlobalFallback(t *testing.T) {
 
 	// Write a global config with a known PHP version
 	cfgContent := "php:\n  default_version: \"8.4\"\n"
-	lerdCfgDir := filepath.Join(cfgDir, "lerd")
-	os.MkdirAll(lerdCfgDir, 0755)
-	os.WriteFile(filepath.Join(lerdCfgDir, "config.yaml"), []byte(cfgContent), 0644)
+	servloCfgDir := filepath.Join(cfgDir, "servlo")
+	os.MkdirAll(servloCfgDir, 0755)
+	os.WriteFile(filepath.Join(servloCfgDir, "config.yaml"), []byte(cfgContent), 0644)
 
 	got, err := DetectVersion(dir)
 	if err != nil {

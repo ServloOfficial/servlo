@@ -13,16 +13,16 @@ userns: keep-id:uid=10001,gid=10001
 chown_data: true
 dashboard: http://localhost:9001/rustfs/console/
 environment:
-  RUSTFS_ACCESS_KEY: lerd
-  RUSTFS_SECRET_KEY: lerdpassword
+  RUSTFS_ACCESS_KEY: servlo
+  RUSTFS_SECRET_KEY: servlopassword
 env_vars:
   - FILESYSTEM_DISK=s3
-  - AWS_ACCESS_KEY_ID=lerd
-  - AWS_SECRET_ACCESS_KEY=lerdpassword
+  - AWS_ACCESS_KEY_ID=servlo
+  - AWS_SECRET_ACCESS_KEY=servlopassword
   - AWS_DEFAULT_REGION=us-east-1
-  - AWS_BUCKET=lerd
+  - AWS_BUCKET=servlo
   - AWS_URL=http://localhost:9000
-  - AWS_ENDPOINT=http://lerd-rustfs:9000
+  - AWS_ENDPOINT=http://servlo-rustfs:9000
   - AWS_USE_PATH_STYLE_ENDPOINT=true
 category: storage
 icon: storage
@@ -32,10 +32,10 @@ introspect:
       label: Buckets
       image: docker.io/minio/mc:latest
       env:
-        - MC_HOST_lerd=http://lerd:lerdpassword@lerd-rustfs:9000
+        - MC_HOST_servlo=http://servlo:servlopassword@servlo-rustfs:9000
       owner_env: AWS_BUCKET
       list: >
-        mc du --depth 2 --json lerd/ | while IFS= read -r l; do
+        mc du --depth 2 --json servlo/ | while IFS= read -r l; do
         p=${l#*\"prefix\":\"}; p=${p%%\"*};
         s=${l#*\"size\":}; s=${s%%,*};
         o=${l#*\"objects\":}; o=${o%%,*};
@@ -48,9 +48,9 @@ introspect:
           label: Size
           format: bytes
       actions:
-        create: mc mb lerd/{{name}} && mc anonymous set public lerd/{{name}}
+        create: mc mb servlo/{{name}} && mc anonymous set public servlo/{{name}}
         delete:
-          exec: mc rb --force lerd/{{name}}
+          exec: mc rb --force servlo/{{name}}
           destructive: true
         # The archive actions run on rclone rather than mc: streaming a bucket
         # as one file needs tar, which the mc image does not carry.
@@ -62,9 +62,9 @@ introspect:
           image: docker.io/rclone/rclone:latest
           env:
             - RCLONE_S3_PROVIDER=Minio
-            - RCLONE_S3_ENDPOINT=http://lerd-rustfs:9000
-            - RCLONE_S3_ACCESS_KEY_ID=lerd
-            - RCLONE_S3_SECRET_ACCESS_KEY=lerdpassword
+            - RCLONE_S3_ENDPOINT=http://servlo-rustfs:9000
+            - RCLONE_S3_ACCESS_KEY_ID=servlo
+            - RCLONE_S3_SECRET_ACCESS_KEY=servlopassword
         import:
           exec: >
             mkdir -p /tmp/b && tar -xf - -C /tmp/b &&
@@ -72,6 +72,6 @@ introspect:
           image: docker.io/rclone/rclone:latest
           env:
             - RCLONE_S3_PROVIDER=Minio
-            - RCLONE_S3_ENDPOINT=http://lerd-rustfs:9000
-            - RCLONE_S3_ACCESS_KEY_ID=lerd
-            - RCLONE_S3_SECRET_ACCESS_KEY=lerdpassword
+            - RCLONE_S3_ENDPOINT=http://servlo-rustfs:9000
+            - RCLONE_S3_ACCESS_KEY_ID=servlo
+            - RCLONE_S3_SECRET_ACCESS_KEY=servlopassword

@@ -54,7 +54,7 @@ export async function unmanageNode(): Promise<boolean> {
   }
 }
 
-// setNodeManager switches the Node version manager lerd drives (fnm/nvm). Unlike
+// setNodeManager switches the Node version manager servlo drives (fnm/nvm). Unlike
 // manage/unmanage it parses the JSON body, because switching can legitimately
 // fail (e.g. nvm not installed) and the handler reports that as { ok:false,
 // error } with a 200 status, so the caller can surface the reason.

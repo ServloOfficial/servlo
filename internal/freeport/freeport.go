@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-// Bindable reports whether a TCP port can be bound across the addresses lerd's
+// Bindable reports whether a TCP port can be bound across the addresses servlo's
 // published quadlets and host-proxy dev servers publish on. A bind test is
 // stricter and more accurate than a dial test for "can we publish here": it
 // catches a port reserved on any stack, not just one with a live listener.
@@ -22,7 +22,7 @@ import (
 // "0.0.0.0", an IPv4 all-interfaces socket) catches a v4-wildcard server (e.g. a
 // MySQL on bind-address 0.0.0.0) that a specific-address bind slips past under
 // SO_REUSEADDR on BSD/macOS, which would otherwise read as free.
-// On macOS a running lerd container's gvproxy holds the dual-stack wildcard, so
+// On macOS a running servlo container's gvproxy holds the dual-stack wildcard, so
 // the wildcard probe reports its port in use; gvproxy releases it synchronously
 // when the container stops, so a reinstall still rebinds without a spurious
 // shift. A host with no IPv6 loopback at all is tolerated — the v6 check is

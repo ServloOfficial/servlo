@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// The engine declares what it can offer, so lerd never carries a list of
+// The engine declares what it can offer, so servlo never carries a list of
 // extension names in Go. The bundled postgres preset runs the PostGIS image and
 // says so.
 func TestDeclaredExtensionsComeFromThePreset(t *testing.T) {
@@ -72,7 +72,7 @@ func TestExtensionForLine(t *testing.T) {
 }
 
 // An extension with no distinctive type cannot be matched against a dump, so it
-// says so instead, and lerd creates it wherever it creates a database.
+// says so instead, and servlo creates it wherever it creates a database.
 func TestAlwaysExtensionsAreTheOnesCreatedUpFront(t *testing.T) {
 	exts := []Extension{
 		{Name: "postgis", Types: []string{"geometry"}},

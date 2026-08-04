@@ -3,7 +3,7 @@ package reqstats
 import "sync"
 
 // The durable store is opened once per process and shared by every reader. The
-// watcher writes it; lerd-ui and the TUI read it over the same WAL file, so a
+// watcher writes it; servlo-panel and the TUI read it over the same WAL file, so a
 // reader never blocks the writer.
 var (
 	sharedMu   sync.Mutex

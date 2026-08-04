@@ -50,7 +50,7 @@ export const assignSiteWorkspace = (sites: string[], workspace: string, create =
 export const saveWorkspaceLayout = (workspaces: WorkspaceLayoutEntry[], siteOrder?: string[]) =>
   send('/api/workspaces/layout', 'PUT', { workspaces, site_order: siteOrder ?? [] });
 
-const KEY = 'lerd:workspaceCollapse';
+const KEY = 'servlo:workspaceCollapse';
 
 function initial(): string[] {
   if (typeof localStorage === 'undefined') return [];

@@ -124,7 +124,7 @@ func TestPreflightForwarderPort_PortInUseSurfacesHolder(t *testing.T) {
 		t.Fatal("expected preflight to fail when port is in use")
 	}
 	msg := err.Error()
-	for _, want := range []string{"192.168.1.10:5300", "already in use", "dnsmasq", "lerd lan expose"} {
+	for _, want := range []string{"192.168.1.10:5300", "already in use", "dnsmasq", "servlo lan expose"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error message missing %q\nfull message: %s", want, msg)
 		}
@@ -132,19 +132,19 @@ func TestPreflightForwarderPort_PortInUseSurfacesHolder(t *testing.T) {
 }
 
 func TestEnsureLANForwarder_DarwinSkipsForwarderInstall(t *testing.T) {
-	// macOS model: lerd-dns binds the LAN address directly, so installing the
-	// forwarder would double-bind lanIP:5300 and crash lerd-dns. It must be
+	// macOS model: servlo-dns binds the LAN address directly, so installing the
+	// forwarder would double-bind lanIP:5300 and crash servlo-dns. It must be
 	// skipped entirely.
-	prevBinds := lerdDNSBindsLANPort
+	prevBinds := servloDNSBindsLANPort
 	prevInstall := installLANForwarderFn
 	t.Cleanup(func() {
-		lerdDNSBindsLANPort = prevBinds
+		servloDNSBindsLANPort = prevBinds
 		installLANForwarderFn = prevInstall
 	})
 
-	lerdDNSBindsLANPort = true
+	servloDNSBindsLANPort = true
 	installLANForwarderFn = func(string, func(string)) error {
-		t.Error("forwarder must not be installed when lerd-dns binds the LAN port directly")
+		t.Error("forwarder must not be installed when servlo-dns binds the LAN port directly")
 		return nil
 	}
 
@@ -158,16 +158,16 @@ func TestEnsureLANForwarder_DarwinSkipsForwarderInstall(t *testing.T) {
 }
 
 func TestEnsureLANForwarder_NonDarwinInstallsForwarder(t *testing.T) {
-	// Linux model: lerd-dns can't bind the host LAN port, so the forwarder is
+	// Linux model: servlo-dns can't bind the host LAN port, so the forwarder is
 	// required and must be installed.
-	prevBinds := lerdDNSBindsLANPort
+	prevBinds := servloDNSBindsLANPort
 	prevInstall := installLANForwarderFn
 	t.Cleanup(func() {
-		lerdDNSBindsLANPort = prevBinds
+		servloDNSBindsLANPort = prevBinds
 		installLANForwarderFn = prevInstall
 	})
 
-	lerdDNSBindsLANPort = false
+	servloDNSBindsLANPort = false
 	called := false
 	installLANForwarderFn = func(lanIP string, _ func(string)) error {
 		called = true
@@ -197,15 +197,15 @@ func TestEnsureLANForwarderRemoved_TearsDownUnit(t *testing.T) {
 	}
 
 	want := []string{
-		"stop:lerd-dns-forwarder",
-		"disable:lerd-dns-forwarder",
-		"remove:lerd-dns-forwarder",
+		"stop:servlo-dns-forwarder",
+		"disable:servlo-dns-forwarder",
+		"remove:servlo-dns-forwarder",
 		"reload",
 	}
 	if !equalStrings(rec.calls, want) {
 		t.Errorf("teardown calls: got %v want %v", rec.calls, want)
 	}
-	if len(events) == 0 || !strings.Contains(events[0], "lerd-dns-forwarder") {
+	if len(events) == 0 || !strings.Contains(events[0], "servlo-dns-forwarder") {
 		t.Errorf("expected a progress line naming the forwarder, got %v", events)
 	}
 }

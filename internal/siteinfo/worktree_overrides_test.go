@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // makeWorktreeFixture creates a fake git main-repo on disk with one worktree
 // branch pointing at a separate checkout dir. Returns the main-repo path and
-// the worktree checkout path so tests can drop a .lerd.yaml into either.
+// the worktree checkout path so tests can drop a .servlo.yaml into either.
 func makeWorktreeFixture(t *testing.T, branch string) (string, string) {
 	t.Helper()
 	main := t.TempDir()
@@ -34,7 +34,7 @@ func makeWorktreeFixture(t *testing.T, branch string) (string, string) {
 	return main, checkout
 }
 
-// Worktrees with no .lerd.yaml inherit the parent site's PHP/Node versions and
+// Worktrees with no .servlo.yaml inherit the parent site's PHP/Node versions and
 // have no override flags set.
 func TestEnrichGit_worktreeInheritsParentVersions(t *testing.T) {
 	main, _ := makeWorktreeFixture(t, "feat-a")
@@ -53,20 +53,20 @@ func TestEnrichGit_worktreeInheritsParentVersions(t *testing.T) {
 		t.Errorf("NodeVersion = %q, want %q (inherited)", w.NodeVersion, "22")
 	}
 	if w.PHPVersionOverride {
-		t.Errorf("PHPVersionOverride = true, want false when no .lerd.yaml override")
+		t.Errorf("PHPVersionOverride = true, want false when no .servlo.yaml override")
 	}
 	if w.NodeVersionOverride {
-		t.Errorf("NodeVersionOverride = true, want false when no .lerd.yaml override")
+		t.Errorf("NodeVersionOverride = true, want false when no .servlo.yaml override")
 	}
 }
 
-// A worktree's own .lerd.yaml takes precedence and the override flag is set.
-func TestEnrichGit_worktreeOverridesFromLerdYaml(t *testing.T) {
+// A worktree's own .servlo.yaml takes precedence and the override flag is set.
+func TestEnrichGit_worktreeOverridesFromServloYaml(t *testing.T) {
 	main, checkout := makeWorktreeFixture(t, "feat-a")
 
 	cfg := &config.ProjectConfig{PHPVersion: "8.4", NodeVersion: "24"}
 	if err := config.SaveProjectConfig(checkout, cfg); err != nil {
-		t.Fatalf("save .lerd.yaml: %v", err)
+		t.Fatalf("save .servlo.yaml: %v", err)
 	}
 
 	e := &EnrichedSite{Path: main, Domains: []string{"acme.test"}, PHPVersion: "8.3", NodeVersion: "22"}
@@ -77,7 +77,7 @@ func TestEnrichGit_worktreeOverridesFromLerdYaml(t *testing.T) {
 	}
 	w := e.Worktrees[0]
 	if w.PHPVersion != "8.4" {
-		t.Errorf("PHPVersion = %q, want %q (from worktree's .lerd.yaml)", w.PHPVersion, "8.4")
+		t.Errorf("PHPVersion = %q, want %q (from worktree's .servlo.yaml)", w.PHPVersion, "8.4")
 	}
 	if !w.PHPVersionOverride {
 		t.Errorf("PHPVersionOverride = false, want true when worktree has its own value")
@@ -119,7 +119,7 @@ func TestEnrichGit_worktreeFrameworkVersion(t *testing.T) {
 	}
 	w := e.Worktrees[0]
 	// FrameworkVersion comes from a versioned framework yaml in the store
-	// (e.g. ~/.local/share/lerd/frameworks/laravel@13.yaml). CI runs with
+	// (e.g. ~/.local/share/servlo/frameworks/laravel@13.yaml). CI runs with
 	// an empty store, so we only assert that the per-worktree detection
 	// populates the label — exercising the GetFrameworkForDir(wt.Path)
 	// codepath and falling back to the builtin Laravel definition.
@@ -128,7 +128,7 @@ func TestEnrichGit_worktreeFrameworkVersion(t *testing.T) {
 	}
 }
 
-// A worktree .lerd.yaml that only overrides PHP leaves Node inherited.
+// A worktree .servlo.yaml that only overrides PHP leaves Node inherited.
 func TestEnrichGit_worktreePartialOverride(t *testing.T) {
 	main, checkout := makeWorktreeFixture(t, "feat-a")
 
@@ -145,7 +145,7 @@ func TestEnrichGit_worktreePartialOverride(t *testing.T) {
 		t.Errorf("PHPVersion = %q override=%v, want 8.4 override=true", w.PHPVersion, w.PHPVersionOverride)
 	}
 	if w.NodeVersionOverride {
-		t.Errorf("NodeVersionOverride = true, want false when not set in .lerd.yaml")
+		t.Errorf("NodeVersionOverride = true, want false when not set in .servlo.yaml")
 	}
 	if w.NodeVersion != "22" {
 		t.Errorf("NodeVersion = %q, want %q (inherited)", w.NodeVersion, "22")

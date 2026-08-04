@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestInstallPresetByName_Unknown(t *testing.T) {
@@ -15,7 +15,7 @@ func TestInstallPresetByName_Unknown(t *testing.T) {
 	// surfaces the "unknown preset" error.
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	t.Setenv("LERD_SERVICES_BASE_URL", "http://127.0.0.1:1")
+	t.Setenv("SERVLO_SERVICES_BASE_URL", "http://127.0.0.1:1")
 	_, err := InstallPresetByName("does-not-exist", "")
 	if err == nil {
 		t.Fatalf("expected error for unknown preset, got nil")
@@ -32,13 +32,13 @@ func TestMissingPresetDependencies_BuiltinDepIsSatisfied(t *testing.T) {
 
 	// MissingPresetDependencies now treats built-ins as installed only
 	// when their quadlet is on disk (see the reinstall transactionality
-	// PR). Materialise a lerd-mysql.container so the dep counts as
-	// satisfied — matches the post-`lerd install` state on a real host.
+	// PR). Materialise a servlo-mysql.container so the dep counts as
+	// satisfied — matches the post-`servlo install` state on a real host.
 	qdir := config.QuadletDir()
 	if err := os.MkdirAll(qdir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(qdir, "lerd-mysql.container"), []byte("[Container]\nImage=docker.io/library/mysql:8\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(qdir, "servlo-mysql.container"), []byte("[Container]\nImage=docker.io/library/mysql:8\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -109,7 +109,7 @@ func TestMissingPresetDependencies_VersionedMemberSatisfiesFamily(t *testing.T) 
 	}); err != nil {
 		t.Fatal(err)
 	}
-	writeInstalledQuadlet(t, "lerd-postgres-17")
+	writeInstalledQuadlet(t, "servlo-postgres-17")
 
 	svc := resolvePresetForTest(t, "pgadmin")
 	if missing := MissingPresetDependencies(svc); len(missing) != 0 {
@@ -129,7 +129,7 @@ func TestMissingPresetDependencies_EnvRoleDropInSatisfiesDep(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	writeInstalledQuadlet(t, "lerd-mariadb-11")
+	writeInstalledQuadlet(t, "servlo-mariadb-11")
 
 	svc := resolvePresetForTest(t, "phpmyadmin")
 	if missing := MissingPresetDependencies(svc); len(missing) != 0 {
@@ -142,7 +142,7 @@ func TestMissingPresetDependencies_NoFamilyMemberStillMissing(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	// No postgres-family member installed: the always-listed bare lerd-postgres
+	// No postgres-family member installed: the always-listed bare servlo-postgres
 	// must not count as installed, so the dependency is still reported missing.
 	svc := resolvePresetForTest(t, "pgadmin")
 	missing := MissingPresetDependencies(svc)
@@ -161,7 +161,7 @@ func TestMissingPresetDependencies_ValkeySatisfiesRedisInsight(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	writeInstalledQuadlet(t, "lerd-valkey")
+	writeInstalledQuadlet(t, "servlo-valkey")
 
 	svc := resolvePresetForTest(t, "redisinsight")
 	if missing := MissingPresetDependencies(svc); len(missing) != 0 {

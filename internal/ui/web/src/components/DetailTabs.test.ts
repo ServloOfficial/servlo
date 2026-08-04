@@ -63,8 +63,8 @@ describe('DetailTabs', () => {
     render(Harness, {
       props: { active: 'b', tabs: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], onchange: () => {} }
     });
-    expect(screen.getByText('B').className).toMatch(/border-lerd-red|text-lerd-red/);
-    expect(screen.getByText('A').className).not.toMatch(/border-lerd-red/);
+    expect(screen.getByText('B').className).toMatch(/border-servlo-red|text-servlo-red/);
+    expect(screen.getByText('A').className).not.toMatch(/border-servlo-red/);
   });
 
   it('emits onchange with the clicked id', () => {

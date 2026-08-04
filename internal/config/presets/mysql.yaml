@@ -24,21 +24,21 @@ ports:
   - "{{host_port}}:3306"
 data_dir: /var/lib/mysql
 environment:
-  MYSQL_ROOT_PASSWORD: lerd
-  MYSQL_DATABASE: lerd
+  MYSQL_ROOT_PASSWORD: servlo
+  MYSQL_DATABASE: servlo
 env_vars:
   - DB_CONNECTION=mysql
-  - DB_HOST=lerd-{{name}}
+  - DB_HOST=servlo-{{name}}
   - DB_PORT=3306
-  - DB_DATABASE=lerd
+  - DB_DATABASE=servlo
   - DB_USERNAME=root
-  - DB_PASSWORD=lerd
-connection_url: mysql://root:lerd@127.0.0.1:{{host_port}}/lerd
+  - DB_PASSWORD=servlo
+connection_url: mysql://root:servlo@127.0.0.1:{{host_port}}/servlo
 client_shims:
   - mysql
   - mysqldump
 files:
-  - target: /etc/mysql/conf.d/lerd.cnf
+  - target: /etc/mysql/conf.d/servlo.cnf
     content: |
       [mysqld]
       character-set-server=utf8mb4

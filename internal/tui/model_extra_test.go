@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 func TestNextFocus_SitesTabCyclesSitesAndDetail(t *testing.T) {
@@ -155,7 +155,7 @@ func TestViewRendersUnderHelpModal(t *testing.T) {
 	}
 }
 
-func TestDomainInput_CommitRunsLerdAdd(t *testing.T) {
+func TestDomainInput_CommitRunsServloAdd(t *testing.T) {
 	m := NewModel("test")
 	m.snap = Snapshot{
 		Sites: []siteinfo.EnrichedSite{{Name: "alpha", Path: "/x", Domains: []string{"alpha.test"}}},

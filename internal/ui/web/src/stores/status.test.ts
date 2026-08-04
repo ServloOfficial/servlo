@@ -21,7 +21,7 @@ describe('status store', () => {
           php_fpms: [{ version: '8.5', running: true, xdebug_enabled: false }],
           php_default: '8.5',
           node_default: '22',
-          node_managed_by_lerd: true,
+          node_managed_by_servlo: true,
           watcher_running: true
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -35,13 +35,13 @@ describe('status store', () => {
     expect(get(status).php_default).toBe('8.5');
   });
 
-  it('lerdStatusColor is gray before load', async () => {
-    const { lerdStatusColor } = await import('./status');
-    expect(get(lerdStatusColor)).toBe('gray');
+  it('servloStatusColor is gray before load', async () => {
+    const { servloStatusColor } = await import('./status');
+    expect(get(servloStatusColor)).toBe('gray');
   });
 
-  it('lerdStatusColor is red when core is broken', async () => {
-    const { status, statusLoaded, lerdStatusColor } = await import('./status');
+  it('servloStatusColor is red when core is broken', async () => {
+    const { status, statusLoaded, servloStatusColor } = await import('./status');
     statusLoaded.set(true);
     status.update((s) => ({
       ...s,
@@ -49,11 +49,11 @@ describe('status store', () => {
       nginx: { running: true },
       watcher_running: true
     }));
-    expect(get(lerdStatusColor)).toBe('red');
+    expect(get(servloStatusColor)).toBe('red');
   });
 
-  it('lerdStatusColor is yellow when healthy with update', async () => {
-    const { status, statusLoaded, lerdStatusColor } = await import('./status');
+  it('servloStatusColor is yellow when healthy with update', async () => {
+    const { status, statusLoaded, servloStatusColor } = await import('./status');
     const { version } = await import('./version');
     statusLoaded.set(true);
     status.update((s) => ({
@@ -63,11 +63,11 @@ describe('status store', () => {
       watcher_running: true
     }));
     version.update((v) => ({ ...v, hasUpdate: true }));
-    expect(get(lerdStatusColor)).toBe('yellow');
+    expect(get(servloStatusColor)).toBe('yellow');
   });
 
-  it('lerdStatusColor is green when healthy', async () => {
-    const { status, statusLoaded, lerdStatusColor } = await import('./status');
+  it('servloStatusColor is green when healthy', async () => {
+    const { status, statusLoaded, servloStatusColor } = await import('./status');
     const { version } = await import('./version');
     statusLoaded.set(true);
     status.update((s) => ({
@@ -77,11 +77,11 @@ describe('status store', () => {
       watcher_running: true
     }));
     version.update((v) => ({ ...v, hasUpdate: false }));
-    expect(get(lerdStatusColor)).toBe('green');
+    expect(get(servloStatusColor)).toBe('green');
   });
 
-  it('lerdStatusColor is yellow when DNS is degraded, not red', async () => {
-    const { status, statusLoaded, lerdStatusColor } = await import('./status');
+  it('servloStatusColor is yellow when DNS is degraded, not red', async () => {
+    const { status, statusLoaded, servloStatusColor } = await import('./status');
     const { version } = await import('./version');
     statusLoaded.set(true);
     status.update((s) => ({
@@ -91,11 +91,11 @@ describe('status store', () => {
       watcher_running: true
     }));
     version.update((v) => ({ ...v, hasUpdate: false }));
-    expect(get(lerdStatusColor)).toBe('yellow');
+    expect(get(servloStatusColor)).toBe('yellow');
   });
 
-  it('lerdStatusColor is red when DNS is down', async () => {
-    const { status, statusLoaded, lerdStatusColor } = await import('./status');
+  it('servloStatusColor is red when DNS is down', async () => {
+    const { status, statusLoaded, servloStatusColor } = await import('./status');
     statusLoaded.set(true);
     status.update((s) => ({
       ...s,
@@ -103,12 +103,12 @@ describe('status store', () => {
       nginx: { running: true },
       watcher_running: true
     }));
-    expect(get(lerdStatusColor)).toBe('red');
+    expect(get(servloStatusColor)).toBe('red');
   });
 
   it('dnsState reads the status field and falls back to ok for old payloads', async () => {
     const { dnsState } = await import('./status');
-    const base = { nginx: { running: true }, php_fpms: [], php_default: '', node_default: '', node_managed_by_lerd: true, node_manager: 'fnm' as const, nvm_available: false, bun_available: false, bun_version: '', using_system_bun: false, watcher_running: true, frankenphp_php_versions: [], home: '' };
+    const base = { nginx: { running: true }, php_fpms: [], php_default: '', node_default: '', node_managed_by_servlo: true, node_manager: 'fnm' as const, nvm_available: false, bun_available: false, bun_version: '', using_system_bun: false, watcher_running: true, frankenphp_php_versions: [], home: '' };
     expect(dnsState({ ...base, dns: { ok: false, status: 'degraded', enabled: true, tld: 'test' } })).toBe('degraded');
     expect(dnsState({ ...base, dns: { ok: false, status: 'down', enabled: true, tld: 'test' } })).toBe('down');
     expect(dnsState({ ...base, dns: { ok: true, enabled: true, tld: 'test' } })).toBe('ok');

@@ -9,14 +9,14 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/hostbin"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/hostbin"
 )
 
 // nvmManager drives nvm-sh/nvm. Unlike fnm, nvm is not a binary: it is a bash
 // function sourced from $NVM_DIR/nvm.sh (default ~/.nvm). Every invocation
 // therefore runs through `bash -c` after sourcing the script, and generated
-// shell fragments use bash rather than /bin/sh. lerd never installs nvm; it only
+// shell fragments use bash rather than /bin/sh. servlo never installs nvm; it only
 // drives one the user installed themselves.
 type nvmManager struct{}
 
@@ -112,7 +112,7 @@ func sourceScript() string {
 // shellCmd builds a bash command that sources nvm and runs `nvm <args...>`,
 // passing args positionally so no quoting of the version is needed.
 func (nvmManager) shellCmd(args ...string) *exec.Cmd {
-	full := append([]string{"-c", sourceScript() + `nvm "$@"`, "lerd-nvm"}, args...)
+	full := append([]string{"-c", sourceScript() + `nvm "$@"`, "servlo-nvm"}, args...)
 	return exec.Command("bash", full...)
 }
 
@@ -148,7 +148,7 @@ func (m nvmManager) Uninstall(version string) error {
 	})
 }
 
-// The nvm install belongs to the user, so lerd's default lives in its own
+// The nvm install belongs to the user, so servlo's default lives in its own
 // config and never rewrites the user's `default` alias. The alias is still
 // honoured read-only as a fallback when no config default is set.
 func (m nvmManager) SetDefault(version string) error {
@@ -188,9 +188,9 @@ func nvmActivate(version string) string {
 	// unquoted copy inside a single-quoted string, where one quote character in
 	// the value is enough to end the string and start a command.
 	return sourceScript() + fmt.Sprintf(
-		`__lerd_nv=%s; `+
-			`nvm use "$__lerd_nv" >/dev/null 2>&1 || { echo "lerd: no nvm Node available for $__lerd_nv (run: lerd node:install)" >&2; exit 1; }; `+
-			`if [ -z "$NVM_BIN" ]; then echo "lerd: no nvm Node available for $__lerd_nv (run: lerd node:install)" >&2; exit 1; fi; `+
+		`__servlo_nv=%s; `+
+			`nvm use "$__servlo_nv" >/dev/null 2>&1 || { echo "servlo: no nvm Node available for $__servlo_nv (run: servlo node:install)" >&2; exit 1; }; `+
+			`if [ -z "$NVM_BIN" ]; then echo "servlo: no nvm Node available for $__servlo_nv (run: servlo node:install)" >&2; exit 1; fi; `+
 			`PATH="$NVM_BIN:$PATH"; export PATH; `,
 		shellQuote(execVersion(version)))
 }
@@ -214,7 +214,7 @@ func nvmExports(env []string) string {
 }
 
 func (nvmManager) Command(version, bin string, args []string) *exec.Cmd {
-	full := append([]string{"-c", nvmActivate(version) + `exec "$@"`, "lerd-nvm", bin}, args...)
+	full := append([]string{"-c", nvmActivate(version) + `exec "$@"`, "servlo-nvm", bin}, args...)
 	return exec.Command("bash", full...)
 }
 
@@ -226,7 +226,7 @@ func (nvmManager) ApplyEnv(cmd *exec.Cmd, env []string) {
 	if exports == "" {
 		return
 	}
-	// Args: bash -c '<activate>exec "$@"' lerd-nvm bin ...
+	// Args: bash -c '<activate>exec "$@"' servlo-nvm bin ...
 	for i := 0; i+1 < len(cmd.Args); i++ {
 		if cmd.Args[i] != "-c" {
 			continue
@@ -243,18 +243,18 @@ func (nvmManager) ApplyEnv(cmd *exec.Cmd, env []string) {
 func (nvmManager) ExecPrefix(version string) string {
 	// A bash -c wrapper that sources nvm, activates the version (aborting if
 	// nvm use fails so it can't fork-bomb), then exec's the command supplied as
-	// positional args ("$@"). "lerd-nvm" is $0.
-	return fmt.Sprintf("bash -c %s lerd-nvm", shellQuote(nvmActivate(version)+`exec "$@"`))
+	// positional args ("$@"). "servlo-nvm" is $0.
+	return fmt.Sprintf("bash -c %s servlo-nvm", shellQuote(nvmActivate(version)+`exec "$@"`))
 }
 
 func (nvmManager) ExecPrefixWithEnv(version string, env []string) string {
 	exports := nvmExports(env)
-	return fmt.Sprintf("bash -c %s lerd-nvm", shellQuote(nvmActivate(version)+exports+`exec "$@"`))
+	return fmt.Sprintf("bash -c %s servlo-nvm", shellQuote(nvmActivate(version)+exports+`exec "$@"`))
 }
 
 // ShimScript satisfies Manager but is unused for nvm (WritesPathShims is false).
 func (nvmManager) ShimScript(_, bin string) string {
-	return fmt.Sprintf("#!/usr/bin/env bash\nprintf 'lerd: nvm does not install PATH shims; use: lerd %%s\\n' %s >&2\nexit 1\n", shellQuote(bin))
+	return fmt.Sprintf("#!/usr/bin/env bash\nprintf 'servlo: nvm does not install PATH shims; use: servlo %%s\\n' %s >&2\nexit 1\n", shellQuote(bin))
 }
 
 // nvmVersionRe matches a "vMAJOR.MINOR.PATCH" token on an installed-version line

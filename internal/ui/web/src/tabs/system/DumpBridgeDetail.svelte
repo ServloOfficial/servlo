@@ -109,7 +109,7 @@
         <label class="inline-flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
-            class="rounded-sm border-gray-300 dark:border-lerd-border bg-white dark:bg-lerd-card text-lerd-red focus:ring-lerd-red"
+            class="rounded-sm border-gray-300 dark:border-servlo-border bg-white dark:bg-servlo-card text-servlo-red focus:ring-servlo-red"
             checked={Boolean($dumpsStatusValue?.passthrough)}
             disabled={switchingPassthrough}
             onchange={flipPassthrough}

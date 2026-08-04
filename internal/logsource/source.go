@@ -1,4 +1,4 @@
-// Package logsource gives a single, filtered view over every log lerd can
+// Package logsource gives a single, filtered view over every log servlo can
 // reach: framework application log files, PHP-FPM/nginx/dns/service container
 // stdout, and worker/watcher/ui units (systemd journal on Linux, launchd log
 // files on macOS). It wraps the existing readers (internal/applog, podman
@@ -12,10 +12,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/applog"
-	"github.com/geodro/lerd/internal/config"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/applog"
+	"github.com/realrashid/servlo/internal/config"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 var phpVerRe = regexp.MustCompile(`^\d+\.\d+$`)
@@ -192,7 +192,7 @@ func siteSources(site *config.Site) []Source {
 
 // FPMContainer resolves the container that serves a site: its own custom /
 // FrankenPHP / custom-FPM container when applicable, otherwise the shared
-// lerd-php<version>-fpm. Returns "" for host-proxy sites, which run no
+// servlo-php<version>-fpm. Returns "" for host-proxy sites, which run no
 // container. Mirrors cli.resolveWorkerFPMUnit so logs target the same place
 // workers exec into.
 func FPMContainer(site *config.Site) string {
@@ -210,7 +210,7 @@ func FPMContainer(site *config.Site) string {
 	if detected, err := phpDet.DetectVersion(site.Path); err == nil && detected != "" {
 		v = detected
 	}
-	return "lerd-php" + strings.ReplaceAll(v, ".", "") + "-fpm"
+	return "servlo-php" + strings.ReplaceAll(v, ".", "") + "-fpm"
 }
 
 func fpmSource(site *config.Site, container string) Source {
@@ -221,7 +221,7 @@ func workerSource(siteName, worker string) Source {
 	return Source{
 		Name:    "worker:" + worker,
 		Kind:    KindJournal,
-		Locator: "lerd-" + worker + "-" + siteName,
+		Locator: "servlo-" + worker + "-" + siteName,
 		Scope:   ScopeSite,
 		Label:   worker + " worker (" + siteName + ")",
 	}
@@ -230,22 +230,22 @@ func workerSource(siteName, worker string) Source {
 // staticGlobals are the fixed infrastructure sources present on every machine.
 func staticGlobals() []Source {
 	return []Source{
-		{Name: "nginx", Kind: KindPodman, Locator: "lerd-nginx", Scope: ScopeGlobal, Label: "nginx"},
-		{Name: "dns", Kind: KindPodman, Locator: "lerd-dns", Scope: ScopeGlobal, Label: "dnsmasq"},
-		{Name: "watcher", Kind: KindJournal, Locator: "lerd-watcher", Scope: ScopeGlobal, Label: "file watcher"},
-		{Name: "ui", Kind: KindJournal, Locator: "lerd-ui", Scope: ScopeGlobal, Label: "lerd UI server"},
+		{Name: "nginx", Kind: KindPodman, Locator: "servlo-nginx", Scope: ScopeGlobal, Label: "nginx"},
+		{Name: "dns", Kind: KindPodman, Locator: "servlo-dns", Scope: ScopeGlobal, Label: "dnsmasq"},
+		{Name: "watcher", Kind: KindJournal, Locator: "servlo-watcher", Scope: ScopeGlobal, Label: "file watcher"},
+		{Name: "ui", Kind: KindJournal, Locator: "servlo-panel", Scope: ScopeGlobal, Label: "servlo UI server"},
 	}
 }
 
 func serviceSource(name string) Source {
-	return Source{Name: name, Kind: KindPodman, Locator: "lerd-" + name, Scope: ScopeGlobal, Label: name + " service"}
+	return Source{Name: name, Kind: KindPodman, Locator: "servlo-" + name, Scope: ScopeGlobal, Label: name + " service"}
 }
 
 func phpSource(version string) Source {
 	return Source{
 		Name:    "php" + version,
 		Kind:    KindPodman,
-		Locator: "lerd-php" + strings.ReplaceAll(version, ".", "") + "-fpm",
+		Locator: "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm",
 		Scope:   ScopeGlobal,
 		Label:   "PHP-FPM " + version,
 	}

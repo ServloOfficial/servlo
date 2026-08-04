@@ -350,7 +350,7 @@
 </script>
 
 <div
-  class="flex flex-wrap items-center justify-between gap-y-2 px-3 py-2.5 border-b border-gray-100 dark:border-lerd-border shrink-0"
+  class="flex flex-wrap items-center justify-between gap-y-2 px-3 py-2.5 border-b border-gray-100 dark:border-servlo-border shrink-0"
 >
   <div class="flex items-center gap-3">
     <div>
@@ -510,7 +510,7 @@
       >{checkMessage.text}</span>
     {:else if svc.update_available && svc.latest_version}
       <span class="text-[11px] text-emerald-600 dark:text-emerald-400 truncate max-w-[32ch]">
-        {m.system_lerd_available({ version: svc.latest_version })}
+        {m.system_servlo_available({ version: svc.latest_version })}
       </span>
     {/if}
   </div>

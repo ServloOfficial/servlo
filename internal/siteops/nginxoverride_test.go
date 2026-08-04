@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // stubReloadTest swaps NginxReloadFn/NginxTestFn for the duration of a test;
-// the real ones shell into the lerd-nginx container, unavailable in CI.
+// the real ones shell into the servlo-nginx container, unavailable in CI.
 func stubReloadTest(t *testing.T, testOut string, testErr error) (reloads *int) {
 	t.Helper()
 	calls := 0
@@ -43,7 +43,7 @@ func TestReadCustomNginx_seedsTemplateWhenMissing(t *testing.T) {
 	if got.Exists {
 		t.Fatal("expected Exists=false for missing override")
 	}
-	if !strings.Contains(got.Body, "Lerd per-site nginx overrides") {
+	if !strings.Contains(got.Body, "Servlo per-site nginx overrides") {
 		t.Fatalf("expected seeded template, got %q", got.Body)
 	}
 }

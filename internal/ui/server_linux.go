@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func listActiveUnitsBySuffix(pattern, prefix string) []string {
@@ -32,14 +32,14 @@ func listActiveUnitsBySuffix(pattern, prefix string) []string {
 	return sites
 }
 
-// listActiveStripeListeners returns the site names of active lerd-stripe-* units
-// that were started by `lerd stripe:listen` (i.e. have a .service file in the
+// listActiveStripeListeners returns the site names of active servlo-stripe-* units
+// that were started by `servlo stripe:listen` (i.e. have a .service file in the
 // systemd user dir, as opposed to quadlet-based services like stripe-mock).
 func listActiveStripeListeners() []string {
-	all := listActiveUnitsBySuffix("lerd-stripe-*.service", "lerd-stripe-")
+	all := listActiveUnitsBySuffix("servlo-stripe-*.service", "servlo-stripe-")
 	var result []string
 	for _, name := range all {
-		unitFile := filepath.Join(config.SystemdUserDir(), "lerd-stripe-"+name+".service")
+		unitFile := filepath.Join(config.SystemdUserDir(), "servlo-stripe-"+name+".service")
 		if _, err := os.Stat(unitFile); err == nil {
 			result = append(result, name)
 		}

@@ -8,9 +8,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/siteinfo"
 	zone "github.com/lrstanley/bubblezone/v2"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // narrowWidth is the terminal width below which the TUI switches from the
@@ -157,7 +157,7 @@ func (m *Model) renderTabs(width int) string {
 
 	// The version sits on the far right of the same row; an update banner
 	// follows it in accent when a newer release is available.
-	right := titleStyle.Render("lerd " + m.version)
+	right := titleStyle.Render("servlo " + m.version)
 	if m.updateAvailable != "" {
 		right += "  " + accentStyle.Render("update "+m.updateAvailable)
 	}
@@ -455,7 +455,7 @@ func (m *Model) renderSites(w, h int) string {
 		rowData = []string{
 			padToWidth(dimStyle.Render("no linked sites yet"), contentW),
 			padToWidth("", contentW),
-			padToWidth(dimStyle.Render("  cd into a project then run ")+accentStyle.Render("lerd link"), contentW),
+			padToWidth(dimStyle.Render("  cd into a project then run ")+accentStyle.Render("servlo link"), contentW),
 			padToWidth(dimStyle.Render("  or open the palette with ")+accentStyle.Render(":")+dimStyle.Render(" and type ")+accentStyle.Render("link"), contentW),
 		}
 	case len(sites) == 0:
@@ -624,7 +624,7 @@ func (m *Model) renderServices(w, h int) string {
 		rowData = []string{
 			padToWidth(dimStyle.Render("no services configured"), contentW),
 			padToWidth("", contentW),
-			padToWidth(dimStyle.Render("  link a site or install a preset (e.g. ")+accentStyle.Render("lerd preset install mysql")+dimStyle.Render(")"), contentW),
+			padToWidth(dimStyle.Render("  link a site or install a preset (e.g. ")+accentStyle.Render("servlo preset install mysql")+dimStyle.Render(")"), contentW),
 		}
 	case len(services) == 0:
 		rowData = []string{

@@ -31,7 +31,7 @@ func TestPinPHPVersionFile_WritesTheResolvedVersion(t *testing.T) {
 }
 
 // TestPinPHPVersionFile_CreatesTheFile pins that a project with no pin gets one,
-// so the version lerd resolved is visible to the repo and to other tooling.
+// so the version servlo resolved is visible to the repo and to other tooling.
 func TestPinPHPVersionFile_CreatesTheFile(t *testing.T) {
 	dir := t.TempDir()
 
@@ -76,7 +76,7 @@ func TestPinPHPVersionFile_LeavesAMatchingFileAlone(t *testing.T) {
 }
 
 // TestPinPHPVersionFile_SkipsSitesWithoutAPHPVersion guards host-proxy and custom
-// container sites, which have no lerd-managed PHP version to pin.
+// container sites, which have no servlo-managed PHP version to pin.
 func TestPinPHPVersionFile_SkipsSitesWithoutAPHPVersion(t *testing.T) {
 	dir := t.TempDir()
 

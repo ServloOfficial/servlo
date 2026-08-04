@@ -6,24 +6,24 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestCustomContainerName(t *testing.T) {
-	if got := CustomContainerName("nestapp"); got != "lerd-custom-nestapp" {
-		t.Errorf("CustomContainerName = %q, want lerd-custom-nestapp", got)
+	if got := CustomContainerName("nestapp"); got != "servlo-custom-nestapp" {
+		t.Errorf("CustomContainerName = %q, want servlo-custom-nestapp", got)
 	}
 }
 
 func TestCustomImageName(t *testing.T) {
-	if got := CustomImageName("nestapp"); got != "lerd-custom-nestapp:local" {
-		t.Errorf("CustomImageName = %q, want lerd-custom-nestapp:local", got)
+	if got := CustomImageName("nestapp"); got != "servlo-custom-nestapp:local" {
+		t.Errorf("CustomImageName = %q, want servlo-custom-nestapp:local", got)
 	}
 }
 
 func TestResolveContainerfile_Default(t *testing.T) {
 	got := ResolveContainerfile("/srv/myapp", nil)
-	want := "/srv/myapp/Containerfile.lerd"
+	want := "/srv/myapp/Containerfile.servlo"
 	if got != want {
 		t.Errorf("ResolveContainerfile(nil) = %q, want %q", got, want)
 	}
@@ -32,7 +32,7 @@ func TestResolveContainerfile_Default(t *testing.T) {
 func TestResolveContainerfile_EmptyConfig(t *testing.T) {
 	cfg := &config.ContainerConfig{Port: 3000}
 	got := ResolveContainerfile("/srv/myapp", cfg)
-	want := "/srv/myapp/Containerfile.lerd"
+	want := "/srv/myapp/Containerfile.servlo"
 	if got != want {
 		t.Errorf("ResolveContainerfile(empty) = %q, want %q", got, want)
 	}
@@ -73,7 +73,7 @@ func TestResolveBuildContext_Subdir(t *testing.T) {
 
 func TestHasContainerfile_Present(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "Containerfile.lerd"), []byte("FROM alpine\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "Containerfile.servlo"), []byte("FROM alpine\n"), 0644)
 	if !HasContainerfile(dir) {
 		t.Error("expected HasContainerfile = true")
 	}
@@ -81,7 +81,7 @@ func TestHasContainerfile_Present(t *testing.T) {
 
 func TestContainerBaseImage(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "Containerfile.lerd"), []byte("FROM node:20-alpine\nWORKDIR /app\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "Containerfile.servlo"), []byte("FROM node:20-alpine\nWORKDIR /app\n"), 0644)
 	got := ContainerBaseImage(dir, nil)
 	if got != "node:20-alpine" {
 		t.Errorf("ContainerBaseImage = %q, want node:20-alpine", got)
@@ -90,7 +90,7 @@ func TestContainerBaseImage(t *testing.T) {
 
 func TestContainerBaseImage_StripsDockerIO(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "Containerfile.lerd"), []byte("FROM docker.io/library/python:3.12-slim\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "Containerfile.servlo"), []byte("FROM docker.io/library/python:3.12-slim\n"), 0644)
 	got := ContainerBaseImage(dir, nil)
 	if got != "python:3.12-slim" {
 		t.Errorf("ContainerBaseImage = %q, want python:3.12-slim", got)
@@ -117,7 +117,7 @@ func TestContainerBaseImage_CustomPath(t *testing.T) {
 
 func TestHashContainerfile(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "Containerfile.lerd"), []byte("FROM node:20-alpine\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "Containerfile.servlo"), []byte("FROM node:20-alpine\n"), 0644)
 	h1 := hashContainerfile(dir, nil)
 	if h1 == "" {
 		t.Fatal("expected non-empty hash")
@@ -130,7 +130,7 @@ func TestHashContainerfile(t *testing.T) {
 	}
 
 	// Change content, different hash.
-	os.WriteFile(filepath.Join(dir, "Containerfile.lerd"), []byte("FROM python:3.12\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "Containerfile.servlo"), []byte("FROM python:3.12\n"), 0644)
 	h3 := hashContainerfile(dir, nil)
 	if h3 == h1 {
 		t.Error("different content should produce different hash")
@@ -151,7 +151,7 @@ func TestHashContainerfile_Missing(t *testing.T) {
 // dev image (issue #379).
 func TestHashContainerfile_TargetChangeInvalidatesHash(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "Containerfile.lerd"), []byte(
+	os.WriteFile(filepath.Join(dir, "Containerfile.servlo"), []byte(
 		"FROM alpine AS production\nFROM alpine AS development\n",
 	), 0644)
 	hDev := hashContainerfile(dir, &config.ContainerConfig{Port: 8080, Target: "development"})
@@ -173,7 +173,7 @@ func TestStoreAndReadContainerfileHash(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", tmp)
 
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "Containerfile.lerd"), []byte("FROM node:20\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "Containerfile.servlo"), []byte("FROM node:20\n"), 0644)
 
 	StoreContainerfileHash("mysite", dir, nil)
 	stored := readContainerfileHash("mysite")
@@ -196,16 +196,16 @@ func TestHasContainerfile_Absent(t *testing.T) {
 }
 
 // Sn0wCrack's multi-stage Containerfile use case (issue #379): the target:
-// field in .lerd.yaml's container block must translate to --target on the
+// field in .servlo.yaml's container block must translate to --target on the
 // podman build invocation so the right stage gets built.
 func TestBuildCustomImageArgs_TargetEmittedWhenSet(t *testing.T) {
 	args := buildCustomImageArgs(
-		"lerd-custom-acme:local",
-		"/srv/acme/Containerfile.lerd",
+		"servlo-custom-acme:local",
+		"/srv/acme/Containerfile.servlo",
 		"/srv/acme",
 		&config.ContainerConfig{Port: 3000, Target: "development"},
 	)
-	want := []string{"build", "-t", "lerd-custom-acme:local", "-f", "/srv/acme/Containerfile.lerd", "--target", "development", "/srv/acme"}
+	want := []string{"build", "-t", "servlo-custom-acme:local", "-f", "/srv/acme/Containerfile.servlo", "--target", "development", "/srv/acme"}
 	if !reflect.DeepEqual(args, want) {
 		t.Errorf("args = %v\nwant %v", args, want)
 	}
@@ -213,8 +213,8 @@ func TestBuildCustomImageArgs_TargetEmittedWhenSet(t *testing.T) {
 
 func TestBuildCustomImageArgs_TargetOmittedWhenEmpty(t *testing.T) {
 	args := buildCustomImageArgs(
-		"lerd-custom-acme:local",
-		"/srv/acme/Containerfile.lerd",
+		"servlo-custom-acme:local",
+		"/srv/acme/Containerfile.servlo",
 		"/srv/acme",
 		&config.ContainerConfig{Port: 3000},
 	)

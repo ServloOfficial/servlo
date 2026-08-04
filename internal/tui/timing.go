@@ -7,9 +7,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/reqstats"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // timingRanges is the window ladder `[` and `]` cycle, matching the web UI's

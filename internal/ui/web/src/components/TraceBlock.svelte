@@ -23,7 +23,7 @@
     {#if primary.func}<span class="font-semibold">{primary.func}</span> · {/if}
     <button
       type="button"
-      class="font-mono text-lerd-red hover:underline break-all"
+      class="font-mono text-servlo-red hover:underline break-all"
       onclick={() => openInEditor(primary.file, primary.line)}
       title={m.queries_openInEditor()}
     >{primary.file}:{primary.line}</button>
@@ -44,7 +44,7 @@
             <span class={app ? 'font-semibold' : ''}>{frame.func}</span> ·
             <button
               type="button"
-              class="hover:underline break-all {app ? 'text-lerd-red' : ''}"
+              class="hover:underline break-all {app ? 'text-servlo-red' : ''}"
               onclick={() => openInEditor(frame.file, frame.line)}
               title={m.queries_openInEditor()}
             >{frame.file}:{frame.line}</button>

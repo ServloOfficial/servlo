@@ -136,10 +136,10 @@
 </script>
 
 <div class="flex-1 overflow-y-auto">
-  <div class="flex flex-wrap items-center justify-between gap-y-2 p-3 border-b border-gray-100 dark:border-lerd-border">
+  <div class="flex flex-wrap items-center justify-between gap-y-2 p-3 border-b border-gray-100 dark:border-servlo-border">
     <div class="flex items-center gap-3">
       <span class="font-semibold text-gray-900 dark:text-white text-base">{$status.using_system_bun ? m.dashboard_health_jsRuntime() : m.system_nodeJs()}</span>
-      {#if !$status.node_managed_by_lerd}
+      {#if !$status.node_managed_by_servlo}
         <span class="text-[10px] font-medium text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 rounded-sm px-1.5 py-0.5">{m.system_system()}</span>
       {/if}
       {#if $status.bun_available}
@@ -164,7 +164,7 @@
           onchange={onSwitchManager}
         />
       {/if}
-      {#if $status.node_managed_by_lerd}
+      {#if $status.node_managed_by_servlo}
         <DetailButton
           tone="warn"
           onclick={() => onToggleManage(false)}
@@ -189,7 +189,7 @@
       <div class="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg px-3 py-2.5">
         <span class="font-medium">🥟 {m.system_node_usingBun()} {$status.bun_version}.</span> {m.system_node_usingBunHint()}
       </div>
-    {:else if !$status.node_managed_by_lerd}
+    {:else if !$status.node_managed_by_servlo}
       <div class="text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg px-3 py-2.5">
         <span class="font-medium">{m.system_node_managedBySystem()}</span> {m.system_node_managedBySystemHint()}
       </div>
@@ -215,8 +215,8 @@
           {@const siteCount = $sitesByNode.get(v) ?? 0}
           {@const isDefault = v === nodeDefault}
           {@const isSelected = v === selectedDefault}
-          {@const canRemove = siteCount === 0 && $status.node_managed_by_lerd && !isDefault}
-          <div class="border {isSelected && !isDefault ? 'border-lerd-red/60 dark:border-lerd-red/60' : 'border-gray-200 dark:border-lerd-border'} rounded-lg p-3 bg-white dark:bg-lerd-card transition-colors">
+          {@const canRemove = siteCount === 0 && $status.node_managed_by_servlo && !isDefault}
+          <div class="border {isSelected && !isDefault ? 'border-servlo-red/60 dark:border-servlo-red/60' : 'border-gray-200 dark:border-servlo-border'} rounded-lg p-3 bg-white dark:bg-servlo-card transition-colors">
             <div class="flex items-center gap-3 flex-wrap">
               <button
                 type="button"
@@ -229,17 +229,17 @@
                 <span
                   class="relative w-4 h-4 rounded-full border-2 shrink-0 transition-colors
                     {isSelected
-                      ? 'border-lerd-red'
+                      ? 'border-servlo-red'
                       : 'border-gray-400 dark:border-gray-500 hover:border-gray-500 dark:hover:border-gray-400'}"
                 >
                   {#if isSelected}
-                    <span class="absolute inset-[2px] rounded-full bg-lerd-red"></span>
+                    <span class="absolute inset-[2px] rounded-full bg-servlo-red"></span>
                   {/if}
                 </span>
                 <span class="text-sm font-semibold text-gray-900 dark:text-white">Node {v}</span>
               </button>
               {#if isDefault}
-                <span class="text-[10px] font-medium text-lerd-red bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded-sm">{m.common_default()}</span>
+                <span class="text-[10px] font-medium text-servlo-red bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded-sm">{m.common_default()}</span>
               {/if}
               <span class="text-xs text-gray-400 dark:text-gray-500">
                 {siteCount} {siteCount === 1 ? m.common_site() : m.common_sites()}
@@ -250,7 +250,7 @@
                   onclick={() => onRemove(v)}
                   disabled={!canRemove || removeBusy === v}
                   loading={removeBusy === v}
-                  title={!$status.node_managed_by_lerd
+                  title={!$status.node_managed_by_servlo
                     ? m.system_node_cannotRemoveSystem()
                     : isDefault
                       ? m.system_node_cannotRemoveDefault()
@@ -273,7 +273,7 @@
                       e.preventDefault();
                       openSiteInBrowser(s);
                     }}
-                    class="inline-flex items-center gap-1.5 text-xs font-medium bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-lerd-border text-gray-700 dark:text-gray-300 rounded-full px-2.5 py-1 transition-colors"
+                    class="inline-flex items-center gap-1.5 text-xs font-medium bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-servlo-border text-gray-700 dark:text-gray-300 rounded-full px-2.5 py-1 transition-colors"
                   >
                     <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-gray-400"></span>
                     {s.domain}
@@ -289,7 +289,7 @@
       </div>
     {/if}
 
-    <div class="border border-dashed border-gray-200 dark:border-lerd-border rounded-lg p-3 bg-gray-50/50 dark:bg-white/2">
+    <div class="border border-dashed border-gray-200 dark:border-servlo-border rounded-lg p-3 bg-gray-50/50 dark:bg-white/2">
       <p class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">{m.system_node_installNewTitle()}</p>
       <p class="text-xs text-gray-400 mb-2">
         {@html m.system_node_installNewHint({ major: '<code class="font-mono bg-gray-100 dark:bg-white/5 px-1 rounded-sm">22</code>', specific: '<code class="font-mono bg-gray-100 dark:bg-white/5 px-1 rounded-sm">22.12.0</code>' })}
@@ -300,14 +300,14 @@
           bind:value={newVersion}
           onkeydown={(e) => e.key === 'Enter' && onInstall()}
           placeholder={m.system_node_installPlaceholder()}
-          disabled={installBusy || !$status.node_managed_by_lerd}
-          title={!$status.node_managed_by_lerd ? m.system_node_managedBySystem() : ''}
-          class="text-sm bg-white dark:bg-lerd-card border border-gray-200 dark:border-lerd-border rounded-lg px-3 py-1.5 w-28 text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-lerd-red/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={installBusy || !$status.node_managed_by_servlo}
+          title={!$status.node_managed_by_servlo ? m.system_node_managedBySystem() : ''}
+          class="text-sm bg-white dark:bg-servlo-card border border-gray-200 dark:border-servlo-border rounded-lg px-3 py-1.5 w-28 text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-servlo-red/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <DetailButton
           tone="primary"
           onclick={onInstall}
-          disabled={installBusy || !newVersion.trim() || !$status.node_managed_by_lerd}
+          disabled={installBusy || !newVersion.trim() || !$status.node_managed_by_servlo}
           loading={installBusy}
         >{m.common_install()}</DetailButton>
         {#if installDone}<span class="text-xs text-emerald-600 dark:text-emerald-500">{m.system_node_installed()}</span>{/if}

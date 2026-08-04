@@ -2,7 +2,7 @@ package config
 
 import "testing"
 
-// IsBuiltinWorker must recognise the lerd-managed workers that live outside any
+// IsBuiltinWorker must recognise the servlo-managed workers that live outside any
 // framework's worker definitions, so a validator does not flag them as undefined.
 func TestIsBuiltinWorker(t *testing.T) {
 	for _, name := range []string{StripeWorkerName, HostProxyWorkerName} {

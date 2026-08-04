@@ -1,0 +1,15 @@
+[Unit]
+Description=Servlo PHP {{.Version}} FPM
+After=network.target
+
+[Container]
+Image=docker.io/library/php:{{.Version}}-fpm-alpine
+ContainerName=servlo-php{{.VersionShort}}-fpm
+Network=servlo
+Volume={{.ProjectsDir}}:{{.ProjectsDir}}:ro
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

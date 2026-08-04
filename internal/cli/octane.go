@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	phpDet "github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/siteops"
 	"github.com/spf13/cobra"
 )
 
@@ -111,7 +111,7 @@ func ApplyOctaneReload(siteName, sitePath, phpVersion string, enabled bool) erro
 	}
 	if !site.IsFrankenPHP() || !site.RuntimeWorker {
 		// Preference saved; it takes effect once the site serves via FrankenPHP
-		// worker mode (lerd runtime frankenphp --worker).
+		// worker mode (servlo runtime frankenphp --worker).
 		return nil
 	}
 	if err := siteops.FinishFrankenPHPLink(*site); err != nil {

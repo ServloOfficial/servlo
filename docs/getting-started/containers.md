@@ -3,7 +3,7 @@
 End-to-end: from an empty Node, Python, or Go project to an HTTPS site running at `https://myapp.test` with services, workers, and automatic rebuilds on Containerfile changes.
 
 ::: info Prerequisites
-You've already run `lerd install` once on this machine. If not, see [Installation](installation.md).
+You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
 :::
 
 ::: info When to use this
@@ -12,9 +12,9 @@ Use a custom container when your project isn't PHP, or when a PHP project needs 
 
 ---
 
-## 1. Add a `Containerfile.lerd`
+## 1. Add a `Containerfile.servlo`
 
-Drop a `Containerfile.lerd` at the project root. Lerd bind-mounts the project directory into the container at the same absolute path at runtime, so you don't need `WORKDIR` or `COPY`. Only install tooling (global CLIs, system packages, language runtimes).
+Drop a `Containerfile.servlo` at the project root. Servlo bind-mounts the project directory into the container at the same absolute path at runtime, so you don't need `WORKDIR` or `COPY`. Only install tooling (global CLIs, system packages, language runtimes).
 
 ::: code-group
 
@@ -49,29 +49,29 @@ CMD ["bin/rails", "server", "-b", "0.0.0.0"]
 :::
 
 ::: tip Why bind mount, not COPY?
-Lerd is a dev environment: source lives on your host, edits are live. Baking source into the image would force a rebuild on every save. Your production Dockerfile still uses `COPY` and multi-stage builds, just name it something other than `Containerfile.lerd`.
+Servlo is a dev environment: source lives on your host, edits are live. Baking source into the image would force a rebuild on every save. Your production Dockerfile still uses `COPY` and multi-stage builds, just name it something other than `Containerfile.servlo`.
 :::
 
 ---
 
-## 2. Run `lerd init`
+## 2. Run `servlo init`
 
 ```bash
 cd ~/projects/myapp
-lerd init
+servlo init
 ```
 
-When no PHP project is detected and a `Containerfile.lerd` exists, the wizard switches to custom container mode:
+When no PHP project is detected and a `Containerfile.servlo` exists, the wizard switches to custom container mode:
 
 ```
 ? Container port: 3000
-? Containerfile: Containerfile.lerd
+? Containerfile: Containerfile.servlo
 ? Enable HTTPS? Yes
 ? Services: [mysql, redis]
-Saved .lerd.yaml
+Saved .servlo.yaml
 ```
 
-The wizard writes `.lerd.yaml`:
+The wizard writes `.servlo.yaml`:
 
 ```yaml
 domains:
@@ -87,7 +87,7 @@ services:
 ::: info Port matters
 `container.port` is the port your app listens on *inside* the container. Nginx will `proxy_pass` to that port on the container's internal network address. You don't publish it on the host.
 
-For a **PHP** project, omit the port instead: lerd then builds your `Containerfile.lerd` into a per-site PHP-FPM image and serves it by fastcgi rather than reverse-proxying. See [Custom image (Containerfile)](../usage/php.md#custom-image-containerfile).
+For a **PHP** project, omit the port instead: servlo then builds your `Containerfile.servlo` into a per-site PHP-FPM image and serves it by fastcgi rather than reverse-proxying. See [Custom image (Containerfile)](../usage/php.md#custom-image-containerfile).
 :::
 
 ---
@@ -95,63 +95,63 @@ For a **PHP** project, omit the port instead: lerd then builds your `Containerfi
 ## 3. Link the site
 
 ```bash
-lerd link
+servlo link
 ```
 
-`lerd link`:
+`servlo link`:
 
-1. Builds the image, tagged `lerd-custom-myapp:local` (Containerfile hash is cached, so unchanged files skip rebuild)
+1. Builds the image, tagged `servlo-custom-myapp:local` (Containerfile hash is cached, so unchanged files skip rebuild)
 2. Writes a systemd quadlet so the container starts on boot
-3. Joins the container to the shared `lerd` network
+3. Joins the container to the shared `servlo` network
 4. Generates an nginx vhost that reverse-proxies `myapp.test` to the container
 5. Reloads nginx
 
 ::: warning Order matters
-`lerd link` must run **after** both `Containerfile.lerd` and `.lerd.yaml` exist. If you ran `lerd link` before writing `.lerd.yaml`, Lerd registered the project as a PHP site. Run `lerd unlink`, then `lerd init`, then `lerd link` again.
+`servlo link` must run **after** both `Containerfile.servlo` and `.servlo.yaml` exist. If you ran `servlo link` before writing `.servlo.yaml`, Servlo registered the project as a PHP site. Run `servlo unlink`, then `servlo init`, then `servlo link` again.
 :::
 
 ---
 
 ## 4. Reach your services
 
-Services on the `lerd` network are reachable by hostname. Wire them into your app's env file:
+Services on the `servlo` network are reachable by hostname. Wire them into your app's env file:
 
 ::: code-group
 
 ```bash [Node (.env)]
-DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/myapp
-REDIS_URL=redis://lerd-redis:6379
-MAIL_HOST=lerd-mailpit
+DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/myapp
+REDIS_URL=redis://servlo-redis:6379
+MAIL_HOST=servlo-mailpit
 MAIL_PORT=1025
 ```
 
 ```bash [Python (.env)]
-DATABASE_URL=postgresql://postgres:lerd@lerd-postgres:5432/myapp
-REDIS_URL=redis://lerd-redis:6379/0
+DATABASE_URL=postgresql://postgres:servlo@servlo-postgres:5432/myapp
+REDIS_URL=redis://servlo-redis:6379/0
 ```
 
 ```bash [Go (.env)]
-DATABASE_DSN=postgres://postgres:lerd@lerd-postgres:5432/myapp?sslmode=disable
-REDIS_ADDR=lerd-redis:6379
+DATABASE_DSN=postgres://postgres:servlo@servlo-postgres:5432/myapp?sslmode=disable
+REDIS_ADDR=servlo-redis:6379
 ```
 
 :::
 
 | Service | Host | Default port | Default password |
 |---|---|---|---|
-| MySQL | `lerd-mysql` | `3306` | `lerd` (user `root`) |
-| PostgreSQL | `lerd-postgres` | `5432` | `lerd` (user `postgres`) |
-| Redis | `lerd-redis` | `6379` | (none) |
-| Meilisearch | `lerd-meilisearch` | `7700` | (none) |
-| RustFS (S3) | `lerd-rustfs` | `9000` | `lerd` / `lerdpassword` |
-| Mailpit (SMTP) | `lerd-mailpit` | `1025` | (none) |
+| MySQL | `servlo-mysql` | `3306` | `servlo` (user `root`) |
+| PostgreSQL | `servlo-postgres` | `5432` | `servlo` (user `postgres`) |
+| Redis | `servlo-redis` | `6379` | (none) |
+| Meilisearch | `servlo-meilisearch` | `7700` | (none) |
+| RustFS (S3) | `servlo-rustfs` | `9000` | `servlo` / `servlopassword` |
+| Mailpit (SMTP) | `servlo-mailpit` | `1025` | (none) |
 
 See [Services](../usage/services.md) for the full credential matrix, including host-tool ports (127.0.0.1) versus container-network hostnames.
 
 Create the database:
 
 ```bash
-lerd db:create myapp
+servlo db:create myapp
 ```
 
 See [Database](../usage/database.md) for imports, shells, and switching engines.
@@ -160,7 +160,7 @@ See [Database](../usage/database.md) for imports, shells, and switching engines.
 
 ## 5. Add workers
 
-Long-running processes (dev server, queue consumer, scheduler) live under `custom_workers` in `.lerd.yaml`. Each worker runs via `podman exec` inside the same container as your app.
+Long-running processes (dev server, queue consumer, scheduler) live under `custom_workers` in `.servlo.yaml`. Each worker runs via `podman exec` inside the same container as your app.
 
 ```yaml
 container:
@@ -183,10 +183,10 @@ custom_workers:
 Start and stop them like any other worker:
 
 ```bash
-lerd worker list
-lerd worker start dev
-lerd worker start queue
-lerd worker stop queue
+servlo worker list
+servlo worker start dev
+servlo worker start queue
+servlo worker stop queue
 ```
 
 Workers appear in the [Web UI](../features/web-ui.md) with live logs. For `schedule:` timers see [Queue Workers](../usage/queue-workers.md).
@@ -216,10 +216,10 @@ Poll interval around 1 second is usually fine for development.
 ## 7. HTTPS
 
 ```bash
-lerd secure
+servlo secure
 ```
 
-`lerd secure` issues an mkcert certificate for `myapp.test`, flips the nginx vhost to TLS, and regenerates the proxy config. Your app keeps receiving plain HTTP from nginx, which handles TLS termination.
+`servlo secure` issues an mkcert certificate for `myapp.test`, flips the nginx vhost to TLS, and regenerates the proxy config. Your app keeps receiving plain HTTP from nginx, which handles TLS termination.
 
 If your app serves its own HTTPS (FrankenPHP with built-in TLS, a Go service with Let's Encrypt test certs), add `ssl: true` so nginx proxies via HTTPS with verification disabled:
 
@@ -236,7 +236,7 @@ See [HTTPS / TLS](../features/https.md) for wildcard certs and git worktree supp
 ## 8. Verify
 
 ```bash
-lerd status
+servlo status
 ```
 
 You should see `myapp` as `active`, the container as `running`, services healthy, and any started workers listed. Live logs for the container and workers live in the [Web UI](../features/web-ui.md) at `http://127.0.0.1:7073`.
@@ -244,7 +244,7 @@ You should see `myapp` as `active`, the container as `running`, services healthy
 Open the site:
 
 ```bash
-lerd open
+servlo open
 ```
 
 ---
@@ -347,33 +347,33 @@ custom_workers:
 
 | Command | What it did |
 |---|---|
-| `lerd init` | Detected `Containerfile.lerd`, ran the container wizard, wrote `.lerd.yaml` with `container:`, services, and workers |
-| `lerd link` | Built `lerd-custom-myapp:local`, wrote the quadlet, started the container on the `lerd` network, generated an nginx proxy vhost, reloaded nginx |
-| `lerd db:create myapp` | Created the `myapp` database in the selected engine |
-| `lerd secure` | Issued a mkcert cert, flipped the vhost to HTTPS |
-| `lerd worker start dev` | Started `lerd-dev-myapp.service` which `podman exec`s into the container |
+| `servlo init` | Detected `Containerfile.servlo`, ran the container wizard, wrote `.servlo.yaml` with `container:`, services, and workers |
+| `servlo link` | Built `servlo-custom-myapp:local`, wrote the quadlet, started the container on the `servlo` network, generated an nginx proxy vhost, reloaded nginx |
+| `servlo db:create myapp` | Created the `myapp` database in the selected engine |
+| `servlo secure` | Issued a mkcert cert, flipped the vhost to HTTPS |
+| `servlo worker start dev` | Started `servlo-dev-myapp.service` which `podman exec`s into the container |
 
 ---
 
 ## Rebuilding after Containerfile changes
 
-`lerd link` reuses the cached image (Containerfile MD5 hash). When you change `Containerfile.lerd`, rebuild explicitly:
+`servlo link` reuses the cached image (Containerfile MD5 hash). When you change `Containerfile.servlo`, rebuild explicitly:
 
 ```bash
-lerd rebuild
+servlo rebuild
 ```
 
 This removes the old image, rebuilds from the current Containerfile, and restarts the container. No downtime for nginx or services.
 
-`lerd restart` restarts the container *without* rebuilding, useful after changing a mounted config file that the app reads on startup.
+`servlo restart` restarts the container *without* rebuilding, useful after changing a mounted config file that the app reads on startup.
 
 ---
 
 ## Next steps
 
-- [Custom Containers reference](../usage/custom-containers.md): every `container:` field, worker option, and proxy quirk
+- Custom Containers reference: every `container:` field, worker option, and proxy quirk
 - [Services walkthrough](services.md): add MongoDB, Elasticsearch, RabbitMQ, phpMyAdmin
-- [Database](../usage/database.md): `lerd db:import`, `lerd db:shell`, switching engines
+- [Database](../usage/database.md): `servlo db:import`, `servlo db:shell`, switching engines
 - [Queue Workers](../usage/queue-workers.md): `schedule:` timers, restart policies, health checks
 - [HTTPS](../features/https.md): wildcard certs, git worktree subdomains
-- [AI Integration (MCP)](../features/mcp.md): drive `lerd init`, `lerd link`, `lerd rebuild` from Claude Code or Cursor
+- AI Integration (MCP): drive `servlo init`, `servlo link`, `servlo rebuild` from Claude Code or Cursor

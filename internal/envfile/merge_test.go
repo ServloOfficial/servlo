@@ -17,15 +17,15 @@ func TestMergeMissing(t *testing.T) {
 		{
 			name:       "insert keeps key inside its group",
 			example:    "DB_HOST=localhost\nDB_PORT=5432\nDB_DATABASE=app\n",
-			env:        "DB_HOST=lerd-postgres\nDB_DATABASE=app\n",
-			wantMerged: "DB_HOST=lerd-postgres\nDB_PORT=5432\nDB_DATABASE=app\n",
+			env:        "DB_HOST=servlo-postgres\nDB_DATABASE=app\n",
+			wantMerged: "DB_HOST=servlo-postgres\nDB_PORT=5432\nDB_DATABASE=app\n",
 			wantAdded:  []string{"DB_PORT"},
 		},
 		{
 			name:       "missing before any shared key lands at top",
-			example:    "APP_NAME=Lerd\nAPP_ENV=local\nDB_HOST=localhost\n",
-			env:        "DB_HOST=lerd-postgres\n",
-			wantMerged: "APP_NAME=Lerd\nAPP_ENV=local\nDB_HOST=lerd-postgres\n",
+			example:    "APP_NAME=Servlo\nAPP_ENV=local\nDB_HOST=localhost\n",
+			env:        "DB_HOST=servlo-postgres\n",
+			wantMerged: "APP_NAME=Servlo\nAPP_ENV=local\nDB_HOST=servlo-postgres\n",
 			wantAdded:  []string{"APP_NAME", "APP_ENV"},
 		},
 		{
@@ -45,8 +45,8 @@ func TestMergeMissing(t *testing.T) {
 		{
 			name:       "attached comment is carried but section header is not",
 			example:    "# Database\nDB_HOST=localhost\n# outbound mail token\nMAIL_TOKEN=secret\n",
-			env:        "DB_HOST=lerd-postgres\n",
-			wantMerged: "DB_HOST=lerd-postgres\n# outbound mail token\nMAIL_TOKEN=secret\n",
+			env:        "DB_HOST=servlo-postgres\n",
+			wantMerged: "DB_HOST=servlo-postgres\n# outbound mail token\nMAIL_TOKEN=secret\n",
 			wantAdded:  []string{"MAIL_TOKEN"},
 		},
 		{
@@ -111,7 +111,7 @@ func TestMergeMissing(t *testing.T) {
 // inserted lines in the merged output, including a carried comment.
 func TestMergeMissing_addedLines(t *testing.T) {
 	example := "DB_HOST=localhost\n# port note\nDB_PORT=5432\nDB_DATABASE=app\n"
-	env := "DB_HOST=lerd-postgres\nDB_DATABASE=app\n"
+	env := "DB_HOST=servlo-postgres\nDB_DATABASE=app\n"
 	got := MergeMissing(example, env, nil)
 
 	// Merged: DB_HOST(1), # port note(2), DB_PORT(3), DB_DATABASE(4).
@@ -119,7 +119,7 @@ func TestMergeMissing_addedLines(t *testing.T) {
 	if !reflect.DeepEqual(got.AddedLines, want) {
 		t.Fatalf("AddedLines = %v, want %v (merged=%q)", got.AddedLines, want, got.Merged)
 	}
-	lines := []string{"DB_HOST=lerd-postgres", "# port note", "DB_PORT=5432", "DB_DATABASE=app"}
+	lines := []string{"DB_HOST=servlo-postgres", "# port note", "DB_PORT=5432", "DB_DATABASE=app"}
 	for _, ln := range got.AddedLines {
 		if ln < 1 || ln > len(lines) {
 			t.Fatalf("line %d out of range", ln)

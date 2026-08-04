@@ -10,13 +10,13 @@ import (
 	"testing"
 )
 
-func TestLerdULAv6Subnet_isValidIPv6CIDR(t *testing.T) {
-	ip, ipnet, err := net.ParseCIDR(LerdULAv6Subnet)
+func TestServloULAv6Subnet_isValidIPv6CIDR(t *testing.T) {
+	ip, ipnet, err := net.ParseCIDR(ServloULAv6Subnet)
 	if err != nil {
-		t.Fatalf("LerdULAv6Subnet not parseable: %v", err)
+		t.Fatalf("ServloULAv6Subnet not parseable: %v", err)
 	}
 	if ip.To4() != nil {
-		t.Errorf("LerdULAv6Subnet must be v6, got v4 %v", ip)
+		t.Errorf("ServloULAv6Subnet must be v6, got v4 %v", ip)
 	}
 	if ones, bits := ipnet.Mask.Size(); ones != 64 || bits != 128 {
 		t.Errorf("expected /64 mask, got /%d (bits=%d)", ones, bits)
@@ -42,36 +42,36 @@ func TestNetworkCreateArgs(t *testing.T) {
 			name:      "v4 no dns",
 			dualStack: false,
 			dns:       nil,
-			want:      []string{"network", "create", "--driver", "bridge", "--opt", "mtu=1500", "lerd"},
+			want:      []string{"network", "create", "--driver", "bridge", "--opt", "mtu=1500", "servlo"},
 		},
 		{
 			name:      "dual-stack no dns",
 			dualStack: true,
 			dns:       nil,
-			want:      []string{"network", "create", "--driver", "bridge", "--ipv6", "--subnet", LerdULAv6Subnet, "--opt", "mtu=1500", "lerd"},
+			want:      []string{"network", "create", "--driver", "bridge", "--ipv6", "--subnet", ServloULAv6Subnet, "--opt", "mtu=1500", "servlo"},
 		},
 		{
 			name:      "v4 with two dns servers",
 			dualStack: false,
 			dns:       []string{"192.168.122.1", "8.8.8.8"},
-			want:      []string{"network", "create", "--driver", "bridge", "--dns", "192.168.122.1", "--dns", "8.8.8.8", "--opt", "mtu=1500", "lerd"},
+			want:      []string{"network", "create", "--driver", "bridge", "--dns", "192.168.122.1", "--dns", "8.8.8.8", "--opt", "mtu=1500", "servlo"},
 		},
 		{
 			name:      "dual-stack with dns",
 			dualStack: true,
 			dns:       []string{"169.254.1.1"},
-			want:      []string{"network", "create", "--driver", "bridge", "--ipv6", "--subnet", LerdULAv6Subnet, "--dns", "169.254.1.1", "--opt", "mtu=1500", "lerd"},
+			want:      []string{"network", "create", "--driver", "bridge", "--ipv6", "--subnet", ServloULAv6Subnet, "--dns", "169.254.1.1", "--opt", "mtu=1500", "servlo"},
 		},
 		{
 			name:      "blank dns entries skipped",
 			dualStack: false,
 			dns:       []string{"", "  ", "1.1.1.1", ""},
-			want:      []string{"network", "create", "--driver", "bridge", "--dns", "1.1.1.1", "--opt", "mtu=1500", "lerd"},
+			want:      []string{"network", "create", "--driver", "bridge", "--dns", "1.1.1.1", "--opt", "mtu=1500", "servlo"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := networkCreateArgs("lerd", tt.dualStack, tt.dns)
+			got := networkCreateArgs("servlo", tt.dualStack, tt.dns)
 			if strings.Join(got, " ") != strings.Join(tt.want, " ") {
 				t.Errorf("networkCreateArgs:\n got  %v\n want %v", got, tt.want)
 			}
@@ -80,12 +80,12 @@ func TestNetworkCreateArgs(t *testing.T) {
 }
 
 func TestFriendlyNetworkCreateError(t *testing.T) {
-	raw := errors.New("podman network create --driver bridge --dns 1.1.1.1 lerd: exit status 125\nError: unknown flag: --dns\nUsage: ...")
+	raw := errors.New("podman network create --driver bridge --dns 1.1.1.1 servlo: exit status 125\nError: unknown flag: --dns\nUsage: ...")
 	// An unrelated unknown flag whose argv echo still contains --dns must not
 	// be rewritten as "podman too old", since Run() always prepends the full
 	// command line to its error string.
-	otherFlag := errors.New("podman network create --driver bridge --dns 1.1.1.1 lerd: exit status 125\nError: unknown flag: --driver\nUsage: ...")
-	dnsSearchFlag := errors.New("podman network create --dns-search example.com lerd: exit status 125\nError: unknown flag: --dns-search\nUsage: ...")
+	otherFlag := errors.New("podman network create --driver bridge --dns 1.1.1.1 servlo: exit status 125\nError: unknown flag: --driver\nUsage: ...")
+	dnsSearchFlag := errors.New("podman network create --dns-search example.com servlo: exit status 125\nError: unknown flag: --dns-search\nUsage: ...")
 	tests := []struct {
 		name        string
 		in          error
@@ -161,8 +161,8 @@ func TestAardvarkConfigPath_usesXDGRuntimeDir(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_RUNTIME_DIR", tmp)
 
-	got := aardvarkConfigPath("lerd")
-	want := filepath.Join(tmp, "containers/networks/aardvark-dns", "lerd")
+	got := aardvarkConfigPath("servlo")
+	want := filepath.Join(tmp, "containers/networks/aardvark-dns", "servlo")
 	if got != want {
 		t.Errorf("aardvarkConfigPath: got %s, want %s", got, want)
 	}
@@ -280,17 +280,17 @@ func TestIPv6ProbeFailedMarker(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	if ipv6ProbeFailed("lerd") {
+	if ipv6ProbeFailed("servlo") {
 		t.Fatal("should not be marked before any probe")
 	}
 
-	markIPv6ProbeFailed("lerd")
-	if !ipv6ProbeFailed("lerd") {
+	markIPv6ProbeFailed("servlo")
+	if !ipv6ProbeFailed("servlo") {
 		t.Fatal("should be marked after markIPv6ProbeFailed")
 	}
 
-	clearIPv6ProbeFailed("lerd")
-	if ipv6ProbeFailed("lerd") {
+	clearIPv6ProbeFailed("servlo")
+	if ipv6ProbeFailed("servlo") {
 		t.Fatal("should be cleared after clearIPv6ProbeFailed")
 	}
 }
@@ -299,13 +299,13 @@ func TestMarkIPv6Disabled_sharesProbeFailedMarker(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	MarkIPv6Disabled("lerd")
-	if !ipv6ProbeFailed("lerd") {
+	MarkIPv6Disabled("servlo")
+	if !ipv6ProbeFailed("servlo") {
 		t.Fatal("MarkIPv6Disabled must set the same marker that EnsureNetwork checks")
 	}
 
-	want := ipv6ProbeFailedPath("lerd")
-	if got := IPv6DisabledMarkerPath("lerd"); got != want {
+	want := ipv6ProbeFailedPath("servlo")
+	if got := IPv6DisabledMarkerPath("servlo"); got != want {
 		t.Errorf("IPv6DisabledMarkerPath = %q, want %q", got, want)
 	}
 }

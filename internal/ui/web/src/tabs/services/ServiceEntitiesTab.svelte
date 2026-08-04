@@ -83,7 +83,7 @@
                 bind:value={newName[kind.kind]}
                 placeholder={m.entities_newPlaceholder()}
                 onkeydown={(e) => e.key === 'Enter' && create(kind)}
-                class="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-lerd-red/30"
+                class="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-servlo-red/30"
               />
               <DetailButton
                 tone="primary"

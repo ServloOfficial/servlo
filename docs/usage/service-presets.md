@@ -1,27 +1,27 @@
 # Service presets
 
-Service presets are the YAML-driven definitions for every service lerd manages. There are two kinds:
+Service presets are the YAML-driven definitions for every service servlo manages. There are two kinds:
 
-- **Default presets** (`default: true`), the always-recognised services that ship with lerd: `mysql`, `redis`, `postgres`, `meilisearch`, `rustfs`, `mailpit`. They get auto-listed in `lerd service` everywhere; their lifecycle is identical to add-on presets but they don't need an explicit install step.
+- **Default presets** (`default: true`), the always-recognised services that ship with servlo: `mysql`, `redis`, `postgres`, `meilisearch`, `rustfs`, `mailpit`. They get auto-listed in `servlo service` everywhere; their lifecycle is identical to add-on presets but they don't need an explicit install step.
 - **Add-on presets**: opt-in installers for phpMyAdmin, pgAdmin, MongoDB, alternate MySQL / MariaDB versions, Selenium, Stripe Mock, Memcached, Valkey, RabbitMQ, Soketi, Beanstalkd, Elasticsearch, OpenSearch, Typesense, Typesense Dashboard, Elasticvue, RedisInsight.
 
 Both kinds use the same YAML schema in `internal/config/presets/*.yaml` and the same code path. Adding or replacing a default service is a YAML edit, not a code change. See [Service updates](service-updates.md) for the configuration knobs (`update_strategy`, `track_latest`, `allow_major_upgrade`).
 
 ## The external service store
 
-Beyond the presets bundled in the binary, lerd can fetch presets from an external store repo, so new services can be published without shipping a new lerd release. This mirrors the [framework store](framework-definitions.md): the presets live in the `lerd-env/services` repo as a flat `index.json` plus one `<name>.yaml` per preset.
+Beyond the presets bundled in the binary, servlo can fetch presets from an external store repo, so new services can be published without shipping a new servlo release. This mirrors the [framework store](framework-definitions.md): the presets live in the `lerd-env/services` repo as a flat `index.json` plus one `<name>.yaml` per preset.
 
 ```bash
-lerd service search                # list everything the store offers
-lerd service search search-engine  # filter by name, description, or family
-lerd service preset <name>         # install a store preset (fetched on demand)
+servlo service search                # list everything the store offers
+servlo service search search-engine  # filter by name, description, or family
+servlo service preset <name>         # install a store preset (fetched on demand)
 ```
 
-`lerd service search` shows whether each hit is already `installed`, available `local`ly (bundled or cached), or only in the `store`. Installing a store-only preset fetches its YAML, validates it, and caches it under `~/.local/share/lerd/service-presets/`, after which it behaves exactly like a bundled preset. A cached preset older than 24 hours is refreshed opportunistically on the next install. A store preset of the same name as a bundled one supersedes the built-in only when it validates.
+`servlo service search` shows whether each hit is already `installed`, available `local`ly (bundled or cached), or only in the `store`. Installing a store-only preset fetches its YAML, validates it, and caches it under `~/.local/share/servlo/service-presets/`, after which it behaves exactly like a bundled preset. A cached preset older than 24 hours is refreshed opportunistically on the next install. A store preset of the same name as a bundled one supersedes the built-in only when it validates.
 
-The binary embeds the default presets as a permanent offline fallback, and `lerd install` and `lerd update` re-fetch the store preset backing every installed service into that same cache, so an add-on service (pgAdmin, phpMyAdmin, and the rest that live only in the store) keeps resolving by name, config-mount files included, even when the store is later unreachable. If the store can't be reached during install the previously cached copy is left in place, so an offline install never breaks a service that already resolved.
+The binary embeds the default presets as a permanent offline fallback, and `servlo install` and `servlo update` re-fetch the store preset backing every installed service into that same cache, so an add-on service (pgAdmin, phpMyAdmin, and the rest that live only in the store) keeps resolving by name, config-mount files included, even when the store is later unreachable. If the store can't be reached during install the previously cached copy is left in place, so an offline install never breaks a service that already resolved.
 
-Point `LERD_SERVICES_BASE_URL` at an alternate base (comma-separated for several) to use a private or local store instead of `lerd-env/services`.
+Point `SERVLO_SERVICES_BASE_URL` at an alternate base (comma-separated for several) to use a private or local store instead of `lerd-env/services`.
 
 ### Config-file mounts
 
@@ -39,7 +39,7 @@ files:
     generator: pgadmin_pgpass   # dynamic content from a built-in generator
 ```
 
-Static files are declared inline with `content`. A file whose body must be computed at install time (for example pgAdmin's `servers.json`, built from the discovered Postgres family) names a built-in `generator` instead. Presets can reference the existing generators but can't ship new ones, that needs a lerd release, so most auto-login patterns (a static file reading `dynamic_env` values, as phpMyAdmin does) need no generator at all. Files are re-sourced from the preset on every service start, so updating lerd or the store definition rolls out new contents without a reinstall. Only presets may declare files; a `files:` block in a hand-written custom service is stripped on load.
+Static files are declared inline with `content`. A file whose body must be computed at install time (for example pgAdmin's `servers.json`, built from the discovered Postgres family) names a built-in `generator` instead. Presets can reference the existing generators but can't ship new ones, that needs a servlo release, so most auto-login patterns (a static file reading `dynamic_env` values, as phpMyAdmin does) need no generator at all. Files are re-sourced from the preset on every service start, so updating servlo or the store definition rolls out new contents without a reinstall. Only presets may declare files; a `files:` block in a hand-written custom service is stripped on load.
 
 ## Default service presets
 
@@ -61,7 +61,7 @@ Static files are declared inline with `content`. A file whose body must be compu
 | `mysql` alternates | `5.7` / `9.7` LTS (canonical 8.4 lives in the default preset) | - | family port `3306` (guard shifts later siblings) |
 | `postgres` alternates | `17` / `18` (canonical 16 lives in the default preset) | - | family port `5432` (guard shifts later siblings) |
 | `postgres-pgvector` | `pgvector/pgvector:pg18` (canonical) / `pg17` / `pg16`, pgvector instead of PostGIS | - | family port `5432` (guard shifts later siblings) |
-| `postgres-timescaledb` | `timescale/timescaledb:latest-pg17` (canonical) / `pg16`, TimescaleDB time-series extension, enabled automatically by `lerd env` / `lerd link` via `site_init` | - | family port `5432` (guard shifts later siblings) |
+| `postgres-timescaledb` | `timescale/timescaledb:latest-pg17` (canonical) / `pg16`, TimescaleDB time-series extension, enabled automatically by `servlo env` / `servlo link` via `site_init` | - | family port `5432` (guard shifts later siblings) |
 | `mariadb` | `12` / `12.3` LTS / `11.8` LTS (default) / `11.4` LTS / `10.11` LTS / `11` (legacy) | - | family port `3306` (guard shifts later siblings) |
 | `mongo` | `docker.io/library/mongo:7` | - | `127.0.0.1:27017` |
 | `mongo-express` | `docker.io/library/mongo-express:latest` | `mongo` (preset) | `http://localhost:8082` |
@@ -81,20 +81,20 @@ Static files are declared inline with `content`. A file whose body must be compu
 
 ```bash
 # List the bundled presets and their install state
-lerd service preset
+servlo service preset
 
 # Install a single-version preset
-lerd service preset phpmyadmin
+servlo service preset phpmyadmin
 
 # Install a specific version of a multi-version preset
-lerd service preset mysql --version 5.7
-lerd service preset mariadb --version 10.11
+servlo service preset mysql --version 5.7
+servlo service preset mariadb --version 10.11
 
 # Start it (dependencies are auto-started recursively)
-lerd service start phpmyadmin
+servlo service start phpmyadmin
 
 # Remove it later if you no longer need it
-lerd service remove phpmyadmin
+servlo service remove phpmyadmin
 ```
 
 The web UI exposes the same flow: open the **Services** tab, click the **+**
@@ -127,20 +127,20 @@ later same-family sibling is shifted once to the next free port (see below).
 
 | Picked | Service name | Container | Host port | Data dir |
 |---|---|---|---|---|
-| `mysql 8.4` (canonical) | `mysql` | `lerd-mysql` | `127.0.0.1:3306` | `~/.local/share/lerd/data/mysql/` |
-| `mysql 9.7` LTS | `mysql-9-7` | `lerd-mysql-9-7` | `127.0.0.1:3306` | `~/.local/share/lerd/data/mysql-9-7/` |
-| `mysql 5.7` | `mysql-5-7` | `lerd-mysql-5-7` | `127.0.0.1:3306` | `~/.local/share/lerd/data/mysql-5-7/` |
-| `postgres 16` (canonical) | `postgres` | `lerd-postgres` | `127.0.0.1:5432` | `~/.local/share/lerd/data/postgres/` |
-| `postgres 17` | `postgres-17` | `lerd-postgres-17` | `127.0.0.1:5432` | `~/.local/share/lerd/data/postgres-17/` |
-| `postgres 18` | `postgres-18` | `lerd-postgres-18` | `127.0.0.1:5432` | `~/.local/share/lerd/data/postgres-18/` |
-| `mariadb 12` | `mariadb-12` | `lerd-mariadb-12` | `127.0.0.1:3306` | `~/.local/share/lerd/data/mariadb-12/` |
-| `mariadb 12.3` LTS | `mariadb-12-3` | `lerd-mariadb-12-3` | `127.0.0.1:3306` | `~/.local/share/lerd/data/mariadb-12-3/` |
-| `mariadb 11.8` LTS (default) | `mariadb-11-8` | `lerd-mariadb-11-8` | `127.0.0.1:3306` | `~/.local/share/lerd/data/mariadb-11-8/` |
-| `mariadb 11.4` LTS | `mariadb-11-4` | `lerd-mariadb-11-4` | `127.0.0.1:3306` | `~/.local/share/lerd/data/mariadb-11-4/` |
-| `mariadb 11` (legacy) | `mariadb-11` | `lerd-mariadb-11` | `127.0.0.1:3306` | `~/.local/share/lerd/data/mariadb-11/` |
-| `mariadb 10.11` LTS | `mariadb-10-11` | `lerd-mariadb-10-11` | `127.0.0.1:3306` | `~/.local/share/lerd/data/mariadb-10-11/` |
+| `mysql 8.4` (canonical) | `mysql` | `servlo-mysql` | `127.0.0.1:3306` | `~/.local/share/servlo/data/mysql/` |
+| `mysql 9.7` LTS | `mysql-9-7` | `servlo-mysql-9-7` | `127.0.0.1:3306` | `~/.local/share/servlo/data/mysql-9-7/` |
+| `mysql 5.7` | `mysql-5-7` | `servlo-mysql-5-7` | `127.0.0.1:3306` | `~/.local/share/servlo/data/mysql-5-7/` |
+| `postgres 16` (canonical) | `postgres` | `servlo-postgres` | `127.0.0.1:5432` | `~/.local/share/servlo/data/postgres/` |
+| `postgres 17` | `postgres-17` | `servlo-postgres-17` | `127.0.0.1:5432` | `~/.local/share/servlo/data/postgres-17/` |
+| `postgres 18` | `postgres-18` | `servlo-postgres-18` | `127.0.0.1:5432` | `~/.local/share/servlo/data/postgres-18/` |
+| `mariadb 12` | `mariadb-12` | `servlo-mariadb-12` | `127.0.0.1:3306` | `~/.local/share/servlo/data/mariadb-12/` |
+| `mariadb 12.3` LTS | `mariadb-12-3` | `servlo-mariadb-12-3` | `127.0.0.1:3306` | `~/.local/share/servlo/data/mariadb-12-3/` |
+| `mariadb 11.8` LTS (default) | `mariadb-11-8` | `servlo-mariadb-11-8` | `127.0.0.1:3306` | `~/.local/share/servlo/data/mariadb-11-8/` |
+| `mariadb 11.4` LTS | `mariadb-11-4` | `servlo-mariadb-11-4` | `127.0.0.1:3306` | `~/.local/share/servlo/data/mariadb-11-4/` |
+| `mariadb 11` (legacy) | `mariadb-11` | `servlo-mariadb-11` | `127.0.0.1:3306` | `~/.local/share/servlo/data/mariadb-11/` |
+| `mariadb 10.11` LTS | `mariadb-10-11` | `servlo-mariadb-10-11` | `127.0.0.1:3306` | `~/.local/share/servlo/data/mariadb-10-11/` |
 
-Alternates inherit the preset's `update_strategy` but with one caveat: they're internally promoted to `patch` strategy so an alternate explicitly installed at v8.0 doesn't get auto-suggested an 8.4.x upgrade (which would cross the LTS line). Cross-line moves stay in the user's hands via the alternates picker or `lerd service migrate`.
+Alternates inherit the preset's `update_strategy` but with one caveat: they're internally promoted to `patch` strategy so an alternate explicitly installed at v8.0 doesn't get auto-suggested an 8.4.x upgrade (which would cross the LTS line). Cross-line moves stay in the user's hands via the alternates picker or `servlo service migrate`.
 
 Each version has its own data directory so they can run side by side. Every
 member of a family defaults to the family's canonical host port (`3306` for
@@ -148,19 +148,19 @@ mysql/mariadb, `5432` for postgres). The first service to claim the port keeps
 it; when you install a second same-family service, the port-ownership guard
 shifts it once to the next free port and records that choice, so it stays put
 afterwards. A single database of any family therefore lands on the familiar
-canonical port. `lerd service port <service> <port>` overrides the assignment,
-and `lerd service expose <service> <other:3306>` adds an extra mapping.
+canonical port. `servlo service port <service> <port>` overrides the assignment,
+and `servlo service expose <service> <other:3306>` adds an extra mapping.
 
 ### Canonical version pinning
 
-Each default-preset install records which version's tag was canonical at install time in `~/.config/lerd/config.yaml` under `services.<name>.canonical_version`. That pin survives future canonical flips in the bundled YAML: when a later lerd release promotes (say) `postgres 18` to canonical, existing installs whose pin says `16` continue to resolve against 16 and keep their bare service name. New installs land on whatever the YAML currently calls canonical and get pinned to that.
+Each default-preset install records which version's tag was canonical at install time in `~/.config/servlo/config.yaml` under `services.<name>.canonical_version`. That pin survives future canonical flips in the bundled YAML: when a later servlo release promotes (say) `postgres 18` to canonical, existing installs whose pin says `16` continue to resolve against 16 and keep their bare service name. New installs land on whatever the YAML currently calls canonical and get pinned to that.
 
-`lerd service migrate <service> <tag>` is the explicit cross-major path. Beyond the dump/restore, it rewrites `canonical_version` to the new tag so the next reconcile honors the move instead of reverting to the original pin.
+`servlo service migrate <service> <tag>` is the explicit cross-major path. Beyond the dump/restore, it rewrites `canonical_version` to the new tag so the next reconcile honors the move instead of reverting to the original pin.
 
 ### The data dir has the last word
 
 A data dir outlives the config entry and the quadlet that described it, so a pin
-alone is not enough. Reinstall lerd after losing `config.yaml`, restore a
+alone is not enough. Reinstall servlo after losing `config.yaml`, restore a
 machine from a partial backup, or re-add a service whose data was kept, and the
 pin can end up naming an older server than the files on disk, which then
 refuses to start at all.
@@ -181,7 +181,7 @@ them: since 8.4 the version lives in the data dictionary rather than a text
 file. An explicit `image:` in `config.yaml` is a deliberate choice and still
 takes precedence, so nothing is rewritten behind your back.
 
-The mysql preset bundles a `my.cnf` (`/etc/mysql/conf.d/lerd.cnf`) that
+The mysql preset bundles a `my.cnf` (`/etc/mysql/conf.d/servlo.cnf`) that
 enables `innodb_large_prefix`, `Barracuda`, `innodb_default_row_format=DYNAMIC`
 (via `loose-` so MySQL 5.6 ignores it), and `innodb_strict_mode=OFF`. Combined
 this lets stock Laravel migrations run on every supported version without
@@ -190,7 +190,7 @@ needing `Schema::defaultStringLength(191)` in `AppServiceProvider`.
 ## Discovery metadata
 
 A preset declares how it appears in the web UI, so adding one to the store
-never requires a change to lerd itself:
+never requires a change to servlo itself:
 
 ```yaml
 category: admin       # discovery section: databases, cache, messaging, search,
@@ -206,13 +206,13 @@ satisfied by the named service or any installed drop-in whose `family` or
 phpMyAdmin declares `admin_for: [mysql, mariadb]` and depends on `mysql`;
 RedisInsight declares `admin_for: [redis, valkey]` and depends on `redis`.
 
-lerd matches `admin_for` against the **preset a service was installed from**, so
+servlo matches `admin_for` against the **preset a service was installed from**, so
 a versioned member like `mariadb-11-8` still resolves to `mariadb`. A service the
 list names gets its admin UI suggested on its service page, and its dashboard
 button opens that UI once it is installed.
 
 An unrecognised `category` falls back to `other` and an unrecognised `icon` to a
-generic glyph, so a preset written for a newer lerd degrades rather than breaks.
+generic glyph, so a preset written for a newer servlo degrades rather than breaks.
 
 ## Service families and admin UI auto-discovery
 
@@ -230,26 +230,26 @@ dynamic_env:
 
 `PMA_HOSTS` is recomputed at every quadlet generation as a comma-joined list
 of every **running** mysql / mariadb family member's container hostname (e.g.
-`lerd-mysql,lerd-mysql-5-7`). A stopped member is omitted so the login page
+`servlo-mysql,servlo-mysql-5-7`). A stopped member is omitted so the login page
 does not offer an offline server. Auto-login still works with the preset's
 static `PMA_USER` / `PMA_PASSWORD`.
 
 Admin UIs that talk to a single host (RedisInsight, mongo-express) just pin the
-canonical dependency host in plain `environment`, and lerd rewrites it to the
+canonical dependency host in plain `environment`, and servlo rewrites it to the
 service that actually satisfied `depends_on` at quadlet generation, including an
 `env_role` drop-in like Valkey for Redis:
 
 ```yaml
 environment:
-  RI_REDIS_HOST: lerd-redis
-  ME_CONFIG_MONGODB_URL: mongodb://root:lerd@lerd-mongo:27017/?authSource=admin
+  RI_REDIS_HOST: servlo-redis
+  ME_CONFIG_MONGODB_URL: mongodb://root:servlo@servlo-mongo:27017/?authSource=admin
 depends_on:
   - redis
 ```
 
-Any `environment` value containing `lerd-<dep>` for a `depends_on` entry is
-retargeted to `lerd-<satisfier>` (a full URL is rewritten in place). Because the
-YAML carries no special directive, an older lerd binary that predates this still
+Any `environment` value containing `servlo-<dep>` for a `depends_on` entry is
+retargeted to `servlo-<satisfier>` (a full URL is rewritten in place). Because the
+YAML carries no special directive, an older servlo binary that predates this still
 parses the preset and connects to the canonical host.
 
 A UI that reads **numbered** env var sets rather than one comma-joined list
@@ -258,17 +258,17 @@ running member with the declared key suffixed `_1` … `_N`:
 
 ```yaml
 environment:
-  RI_REDIS_HOST: lerd-redis
+  RI_REDIS_HOST: servlo-redis
   RI_REDIS_PORT: "6379"
-  RI_REDIS_ALIAS: lerd-redis
+  RI_REDIS_ALIAS: servlo-redis
 expand_env:
   RI_REDIS_HOST: redis,valkey={host}
   RI_REDIS_PORT: redis,valkey=6379
   RI_REDIS_ALIAS: redis,valkey={name}
 ```
 
-With Redis and Valkey both up that renders `RI_REDIS_HOST_1=lerd-redis`,
-`RI_REDIS_ALIAS_1=redis`, `RI_REDIS_HOST_2=lerd-valkey`, `RI_REDIS_ALIAS_2=valkey`
+With Redis and Valkey both up that renders `RI_REDIS_HOST_1=servlo-redis`,
+`RI_REDIS_ALIAS_1=redis`, `RI_REDIS_HOST_2=servlo-valkey`, `RI_REDIS_ALIAS_2=valkey`
 and a `6379` port for each, so RedisInsight opens with every installed member
 already wired. `{host}` expands to the container hostname and `{name}` to the
 service name; a template with neither, like the port above, is simply repeated.
@@ -285,19 +285,19 @@ the two never coexist in a rendered quadlet. For the same reason, a
 and skipped rather than treated as fatal, matching how a file mount naming an
 unknown `generator` is skipped.
 
-Lerd automatically regenerates phpMyAdmin's quadlet (and any other consumer
+Servlo automatically regenerates phpMyAdmin's quadlet (and any other consumer
 of a family directive, an `expand_env` set, or a pinned dependency host)
 whenever a family member is **installed**,
 **removed**, **started**, or **stopped**, and again at the end of a bulk
-`lerd start` / install so engines and admin UIs that come up together still get
+`servlo start` / install so engines and admin UIs that come up together still get
 a correct host list. Active consumers are stop-removed-restarted only when the
 rendered unit changed, so a steady host list does not bounce phpMyAdmin on
 every start.
 
-## `.lerd.yaml` preset references
+## `.servlo.yaml` preset references
 
-When a service installed via a preset is saved into a project's `.lerd.yaml`
-by `lerd init`, lerd stores a **preset reference** instead of inlining the
+When a service installed via a preset is saved into a project's `.servlo.yaml`
+by `servlo init`, servlo stores a **preset reference** instead of inlining the
 full service definition:
 
 ```yaml
@@ -309,22 +309,22 @@ services:
   - meilisearch
 ```
 
-This keeps `.lerd.yaml` small and lets each machine resolve the embedded
-preset locally, picking up any preset improvements in newer lerd versions
+This keeps `.servlo.yaml` small and lets each machine resolve the embedded
+preset locally, picking up any preset improvements in newer servlo versions
 without churn in the project file. When a teammate clones the project and
-runs `lerd link` / `lerd setup`, lerd checks whether the referenced preset
-is installed locally and calls `lerd service preset <name> --version <ver>`
+runs `servlo link` / `servlo setup`, servlo checks whether the referenced preset
+is installed locally and calls `servlo service preset <name> --version <ver>`
 under the hood if it isn't.
 
 Hand-rolled custom services that don't come from a preset still inline their
-full definition into `.lerd.yaml` for portability; see [Custom services](custom-services.md).
+full definition into `.servlo.yaml` for portability; see Custom services.
 
 ## Dependency rules
 
 A preset's `depends_on` is enforced two ways:
 
-1. **At install time**: installing a preset is rejected until each dependency is satisfied. A `depends_on` entry is met by that service, or by any installed service whose `family` or `env_role` names it, so phpMyAdmin's `mysql` dependency is met by MariaDB (`env_role: mysql`), RedisInsight's `redis` dependency by Valkey, and pgAdmin's `postgres` dependency by `postgres-pgvector`. When several satisfiers exist, lerd prefers the literal name, then a same-family member, then an env_role drop-in. A drop-in only counts when the consumer can bind it: it must declare `discover_family` covering that dependency (or the satisfier's family), or pin the canonical `lerd-<dep>` host in `environment` for lerd to retarget, otherwise a hardcoded host would install green and then fail to connect. When nothing satisfies a dependency the error lists known alternatives from local presets, the consumer's `admin_for`, and the store index (`family` / `env_role`), so MariaDB and Valkey show up on a clean box before those presets have been cached. The Web UI's preset picker disables the **Add** button with the same gating.
-2. **At start/stop time**: `lerd service start`, the Web UI Start/Stop buttons, the TUI service actions, and MCP `service` start/stop/restart all share one `serviceops` path. Start brings a satisfier for each `depends_on` entry up first (literal name when installed, otherwise a family or env_role drop-in), then regenerates `discover_family` and pinned-dependency-host consumers. Stop cascade-stops dependents only when nothing else still **running** satisfies their dependency; otherwise the dependent stays up and those consumers are regenerated. Starting an engine waits until it is ready before that regen, so the consumer is not rewritten with an empty host list. Bulk `lerd start` / install refresh every `discover_family` and pinned-dependency-host consumer once engines are up. Auto-stopping unused services (pause / unlink) uses the soft stop path only and does not set the paused flag, so a later `lerd start` still brings redis and mailpit back.
+1. **At install time**: installing a preset is rejected until each dependency is satisfied. A `depends_on` entry is met by that service, or by any installed service whose `family` or `env_role` names it, so phpMyAdmin's `mysql` dependency is met by MariaDB (`env_role: mysql`), RedisInsight's `redis` dependency by Valkey, and pgAdmin's `postgres` dependency by `postgres-pgvector`. When several satisfiers exist, servlo prefers the literal name, then a same-family member, then an env_role drop-in. A drop-in only counts when the consumer can bind it: it must declare `discover_family` covering that dependency (or the satisfier's family), or pin the canonical `servlo-<dep>` host in `environment` for servlo to retarget, otherwise a hardcoded host would install green and then fail to connect. When nothing satisfies a dependency the error lists known alternatives from local presets, the consumer's `admin_for`, and the store index (`family` / `env_role`), so MariaDB and Valkey show up on a clean box before those presets have been cached. The Web UI's preset picker disables the **Add** button with the same gating.
+2. **At start/stop time**: `servlo service start`, the Web UI Start/Stop buttons, the TUI service actions, and MCP `service` start/stop/restart all share one `serviceops` path. Start brings a satisfier for each `depends_on` entry up first (literal name when installed, otherwise a family or env_role drop-in), then regenerates `discover_family` and pinned-dependency-host consumers. Stop cascade-stops dependents only when nothing else still **running** satisfies their dependency; otherwise the dependent stays up and those consumers are regenerated. Starting an engine waits until it is ready before that regen, so the consumer is not rewritten with an empty host list. Bulk `servlo start` / install refresh every `discover_family` and pinned-dependency-host consumer once engines are up. Auto-stopping unused services (pause / unlink) uses the soft stop path only and does not set the paused flag, so a later `servlo start` still brings redis and mailpit back.
 
 `discover_family` is separate: it expands admin UI host lists at quadlet generation time to every **running** member of the named families, so a stopped database does not appear as a selectable server. CLI / UI / API dependency labels prefer a **running** satisfier when one exists, so phpMyAdmin shows as depending on MariaDB while mysql is installed but stopped.
 
@@ -332,22 +332,22 @@ A preset's `depends_on` is enforced two ways:
 
 | Preset | Sign-in |
 |---|---|
-| `phpmyadmin` | auto-authenticated against `lerd-mysql` as `root` / `lerd` |
-| `pgadmin` | `admin@pgadmin.org` / `lerd` (server mode disabled, no master password), pre-loaded with the `Lerd Postgres` connection via a bundled `servers.json` + `pgpass` |
-| `mongo` | root user `root` / `lerd` |
+| `phpmyadmin` | auto-authenticated against `servlo-mysql` as `root` / `servlo` |
+| `pgadmin` | `admin@pgadmin.org` / `servlo` (server mode disabled, no master password), pre-loaded with the `Servlo Postgres` connection via a bundled `servers.json` + `pgpass` |
+| `mongo` | root user `root` / `servlo` |
 | `mongo-express` | basic auth disabled, open `http://localhost:8082` directly |
 | `stripe-mock` | no auth (Stripe test mock) |
 | `memcached` | no auth (Memcached has no native authentication) |
 | `valkey` | no auth (no password set for local dev, same as `redis`) |
-| `rabbitmq` | management UI: `root` / `lerd` (also the default AMQP user) |
-| `soketi` | Pusher app id / key / secret all `lerd`, default cluster `mt1` |
+| `rabbitmq` | management UI: `root` / `servlo` (also the default AMQP user) |
+| `soketi` | Pusher app id / key / secret all `servlo`, default cluster `mt1` |
 | `beanstalkd` | no auth (Beanstalkd has no native authentication) |
 | `elasticsearch` | no auth (`xpack.security.enabled=false` for local dev) |
 | `opensearch` | no auth (security plugin disabled for local dev) |
-| `typesense` | API key `lerd`, sent as the `X-TYPESENSE-API-KEY` header |
-| `typesense-dashboard` | no sign-in, opens pre-connected to the lerd Typesense node at `localhost:8108` |
-| `elasticvue` | no auth, opens straight to the pre-configured `Lerd Elasticsearch` cluster at `http://localhost:9200` |
-| `redisinsight` | no sign-in, opens pre-wired to the lerd Redis connection at `lerd-redis:6379` |
+| `typesense` | API key `servlo`, sent as the `X-TYPESENSE-API-KEY` header |
+| `typesense-dashboard` | no sign-in, opens pre-connected to the servlo Typesense node at `localhost:8108` |
+| `elasticvue` | no auth, opens straight to the pre-configured `Servlo Elasticsearch` cluster at `http://localhost:9200` |
+| `redisinsight` | no sign-in, opens pre-wired to the servlo Redis connection at `servlo-redis:6379` |
 
 ## Database service quality-of-life
 
@@ -362,18 +362,18 @@ element pointing at `mysql://`, `postgresql://`, or `mongodb://` so your
 registered DB client (DBeaver, TablePlus, DataGrip, Compass, etc.) handles it
 natively. Right-click "Copy link" works.
 
-`mongo` declares its own `connection_url:` (see [YAML schema](custom-services.md#yaml-schema)
+`mongo` declares its own `connection_url:` (see YAML schema
 in the custom services reference) so it gets the same treatment as the built-in databases.
 
 ### Declaring entities and actions
 
 A preset can declare what the service holds and what can be done to it through an
 `introspect.entities` block. The declared kind `databases` powers the web UI's
-[Databases tab](database.md#databases-tab-web-ui), the `lerd db` commands and
+[Databases tab](database.md#databases-tab-web-ui), the `servlo db` commands and
 database snapshots; any other kind (buckets, keyspaces, indexes, queues) gets a
 generic overview tab on the service's detail page. Everything engine-specific
 lives in the declared commands, so a new engine, or a new capability on an
-existing one, ships as a store publish with no lerd release:
+existing one, ships as a store publish with no servlo release:
 
 ```yaml
 introspect:
@@ -410,10 +410,10 @@ introspect:
           $(command -v mysql || command -v mariadb) --max-allowed-packet=1G -uroot {{name}}
 ```
 
-Every command runs via `sh -c` inside the `lerd-<service>` container. The `list`
+Every command runs via `sh -c` inside the `servlo-<service>` container. The `list`
 command prints one entity per line: the name, then one tab-separated field per
-declared column, in order; lerd parses the output and never branches on the
-engine name. The fixed `lerd` admin password is passed through the exec
+declared column, in order; servlo parses the output and never branches on the
+engine name. The fixed `servlo` admin password is passed through the exec
 environment (`MYSQL_PWD` / `PGPASSWORD`), so commands need no inline credentials
 for MySQL and PostgreSQL; other engines embed theirs the way their client expects.
 
@@ -424,18 +424,18 @@ word and inside a quoted SQL identifier. A bare string is shorthand for an actio
 with just an `exec`. `destructive: true` makes the UI confirm before running the
 action. An `export` action writes its dump to stdout (`filename` names the
 download); an `import` action reads one from stdin, always in the plain form:
-lerd unwraps a gzipped upload before it reaches the command, so an export may
+servlo unwraps a gzipped upload before it reaches the command, so an export may
 compress for transport without the import having to care. Declaring both is also what
 enables snapshots for the engine: a snapshot stores the declared export gzipped
 and restores through the declared import, and the `export_all` / `import_all`
 variants (no `{{name}}`) cover the service-wide snapshots the engine migration
-flow uses. `format: sql` on the entity tells lerd the dump is SQL text, which
+flow uses. `format: sql` on the entity tells servlo the dump is SQL text, which
 turns on the import sanitizer and the per-statement error tally; leave it off for
 engines with their own archive format and the bytes stream through untouched.
 
 A service whose own image ships no client tooling can name an `image:` on the
-entity, and lerd runs every command in an ephemeral container of that image on
-the lerd network instead of exec-ing the service container, with the entity's
+entity, and servlo runs every command in an ephemeral container of that image on
+the servlo network instead of exec-ing the service container, with the entity's
 `env:` pairs carrying the client's connection settings. RustFS is the model
 case: it holds S3 buckets but no S3 client, so its buckets entity runs through
 `minio/mc`. A single action can override the image and env for itself, because
@@ -449,10 +449,10 @@ bucket of the same name.
 
 The single-command `introspect.list_databases` form from before entities existed
 is still honoured as a list-only databases declaration, so presets published for
-older lerd versions keep listing.
+older servlo versions keep listing.
 
 ## Removing and reinstalling presets
 
-Default presets can be removed: `lerd service remove postgres` (or any other) stops the unit, deletes the quadlet, and frees the slot. The preset itself stays available in `lerd service preset list` as not-installed, so a future `lerd service preset postgres` brings it back. Pass `--purge` to also rename the data dir aside.
+Default presets can be removed: `servlo service remove postgres` (or any other) stops the unit, deletes the quadlet, and frees the slot. The preset itself stays available in `servlo service preset list` as not-installed, so a future `servlo service preset postgres` brings it back. Pass `--purge` to also rename the data dir aside.
 
-`lerd service reinstall <name>` stops, removes, and reinstalls at the current version. `--reset-data` wipes the data and recreates per-site state on the fresh container (databases for mysql/mariadb/postgres, buckets for rustfs). See [custom services](custom-services.md#reinstalling-a-service) for the resolution rules.
+`servlo service reinstall <name>` stops, removes, and reinstalls at the current version. `--reset-data` wipes the data and recreates per-site state on the fresh container (databases for mysql/mariadb/postgres, buckets for rustfs). See custom services for the resolution rules.

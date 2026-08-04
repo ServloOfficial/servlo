@@ -11,11 +11,11 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/unitlog"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/unitlog"
 )
 
-func lerdLogPath(unit string) string { return unitlog.LogPath(unit) }
+func servloLogPath(unit string) string { return unitlog.LogPath(unit) }
 
 // isContainerUnit returns true for units whose logs come from `podman logs`
 // rather than the launchd log file.
@@ -29,7 +29,7 @@ func serviceRecentLogs(unit string) string {
 		}
 		return strings.TrimSpace(string(out))
 	}
-	path := lerdLogPath(unit)
+	path := servloLogPath(unit)
 	cmd := exec.Command("tail", "-n", "20", path)
 	out, _ := cmd.CombinedOutput()
 	return strings.TrimSpace(string(out))
@@ -39,7 +39,7 @@ func serviceRecentLogs(unit string) string {
 // service units (dns, watcher, ui). Container units are streamed directly
 // via `podman logs` in handleLogs and do not use this path.
 func logStreamCmd(ctx context.Context, unit string) *exec.Cmd {
-	path := lerdLogPath(unit)
+	path := servloLogPath(unit)
 	script := `for i in $(seq 1 10); do [ -f "` + path + `" ] && break; sleep 0.5; done; exec tail -f -n 100 "` + path + `"`
 	return exec.CommandContext(ctx, "/bin/sh", "-c", script)
 }
@@ -51,7 +51,7 @@ func logFollowScript(unit string) string {
 	if isContainerUnit(unit) {
 		return podman.PodmanBin() + " logs -f --tail 100 " + unit
 	}
-	return `tail -f -n 100 "` + lerdLogPath(unit) + `"`
+	return `tail -f -n 100 "` + servloLogPath(unit) + `"`
 }
 
 // streamUnitLogs streams logs for a unit as SSE.

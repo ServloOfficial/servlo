@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
 )
 
 // setup points the registry at a temp dir and stubs the heavy regeneration so
@@ -414,12 +414,12 @@ func TestUnassignSecondary_sharedDB_restoresOwnDB(t *testing.T) {
 	}
 }
 
-// ── .lerd.yaml domain sync ───────────────────────────────────────────────────
+// ── .servlo.yaml domain sync ───────────────────────────────────────────────────
 
 func TestSyncSecondaryProjectDomains_replacesOldStandalone(t *testing.T) {
 	setup(t)
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"),
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"),
 		[]byte("php_version: \"8.4\"\ndomains:\n  - admin-starlane\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -432,7 +432,7 @@ func TestSyncSecondaryProjectDomains_replacesOldStandalone(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(cfg.Domains) != 1 || cfg.Domains[0] != "admin.starlane" {
-		t.Errorf(".lerd.yaml domains = %v, want [admin.starlane] (old standalone dropped)", cfg.Domains)
+		t.Errorf(".servlo.yaml domains = %v, want [admin.starlane] (old standalone dropped)", cfg.Domains)
 	}
 }
 

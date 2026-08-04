@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// The guard is what stands between a forgetful test and the developer's own lerd
+// The guard is what stands between a forgetful test and the developer's own servlo
 // state, so pin both halves: it fires on a write into the real dirs, and stays out
 // of the way of an isolated one.
 func TestGuardRealWrite(t *testing.T) {
@@ -20,7 +20,7 @@ func TestGuardRealWrite(t *testing.T) {
 			if r == nil {
 				t.Fatal("writing the real sites.yaml from a test must panic, not silently land")
 			}
-			if msg, _ := r.(string); !strings.Contains(msg, "real lerd state") {
+			if msg, _ := r.(string); !strings.Contains(msg, "real servlo state") {
 				t.Errorf("panic should name the problem, got %v", r)
 			}
 		}()
@@ -33,7 +33,7 @@ func TestGuardRealWrite(t *testing.T) {
 				t.Fatalf("an isolated temp dir must not trip the guard, got %v", r)
 			}
 		}()
-		guardRealWrite(filepath.Join(t.TempDir(), "lerd", "sites.yaml"))
+		guardRealWrite(filepath.Join(t.TempDir(), "servlo", "sites.yaml"))
 	})
 }
 

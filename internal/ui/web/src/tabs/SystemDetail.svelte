@@ -8,11 +8,11 @@
   import NotificationsDetail from './system/NotificationsDetail.svelte';
   import PhpPage from './system/PhpPage.svelte';
   import NodePage from './system/NodePage.svelte';
-  import LerdDetail from './system/LerdDetail.svelte';
+  import ServloDetail from './system/ServloDetail.svelte';
   import ToolsDetail from './system/ToolsDetail.svelte';
   import WorkerModeDetail from './system/WorkerModeDetail.svelte';
 
-  const selected = $derived($routeRest || 'lerd');
+  const selected = $derived($routeRest || 'servlo');
   const phpVersion = $derived(selected.startsWith('php-') ? selected.slice(4) : '');
   const showPhp = $derived(selected === 'php' || selected.startsWith('php-'));
   const dnsHidden = $derived($status.dns?.enabled === false);
@@ -37,5 +37,5 @@
 {:else if selected === 'tools'}
   <ToolsDetail />
 {:else}
-  <LerdDetail />
+  <ServloDetail />
 {/if}

@@ -6,28 +6,28 @@ import (
 	"io"
 	"strings"
 
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 // writeDNSUnit writes the container quadlet for the dnsmasq DNS service on Linux.
 func writeDNSUnit(_ io.Writer) error {
-	content, err := podman.GetQuadletTemplate("lerd-dns.container")
+	content, err := podman.GetQuadletTemplate("servlo-dns.container")
 	if err != nil {
 		return err
 	}
-	return services.Mgr.WriteContainerUnit("lerd-dns", content)
+	return services.Mgr.WriteContainerUnit("servlo-dns", content)
 }
 
-// ensureDNSImageForStart ensures the lerd-dnsmasq container image exists on Linux.
+// ensureDNSImageForStart ensures the servlo-dnsmasq container image exists on Linux.
 func ensureDNSImageForStart() {
 	// Build the dnsmasq image if it doesn't exist. Ignore errors — the image
 	// will be pulled/built during RunParallel if missing.
 	containerfile := "FROM docker.io/library/alpine:latest\nRUN apk add --no-cache dnsmasq\n"
-	if !podman.ImageExists("lerd-dnsmasq:local") {
-		cmd := podman.Cmd("build", "-t", "lerd-dnsmasq:local", "-")
+	if !podman.ImageExists("servlo-dnsmasq:local") {
+		cmd := podman.Cmd("build", "-t", "servlo-dnsmasq:local", "-")
 		cmd.Stdin = strings.NewReader(containerfile)
 		cmd.Run() //nolint:errcheck
 	}
@@ -49,7 +49,7 @@ func pullDNSImages() []BuildJob {
 			Label: "Building dnsmasq image",
 			Run: func(w io.Writer) error {
 				containerfile := "FROM docker.io/library/alpine:latest\nRUN apk add --no-cache dnsmasq\n"
-				cmd := podman.Cmd("build", "-t", "lerd-dnsmasq:local", "-")
+				cmd := podman.Cmd("build", "-t", "servlo-dnsmasq:local", "-")
 				cmd.Stdin = strings.NewReader(containerfile)
 				cmd.Stdout = w
 				cmd.Stderr = w
@@ -74,19 +74,19 @@ func nativeDNSRestart() error { return nil }
 // needsDNSServiceInstall always returns false on Linux (container quadlet handles it).
 func needsDNSServiceInstall() bool { return false }
 
-// teardownDNS stops the lerd-dns container, removes its quadlet, and reloads
-// the user manager so a subsequent `lerd install` does not silently restart
+// teardownDNS stops the servlo-dns container, removes its quadlet, and reloads
+// the user manager so a subsequent `servlo install` does not silently restart
 // the unit. Called from runInstall when the user flips dns.enabled from true
 // to false; safe to call when nothing is installed.
 func teardownDNS() {
-	_ = services.Mgr.Stop("lerd-dns")
-	_ = services.Mgr.RemoveContainerUnit("lerd-dns")
+	_ = services.Mgr.Stop("servlo-dns")
+	_ = services.Mgr.RemoveContainerUnit("servlo-dns")
 	_ = services.Mgr.DaemonReload()
 
-	// Only when lerd actually wrote resolver config. install.go calls this on
+	// Only when servlo actually wrote resolver config. install.go calls this on
 	// every run where DNS is off, not just on a true->false flip, so an
 	// unconditional teardown would revert interfaces and restart NetworkManager on
-	// every `lerd install` for someone who never let lerd near their resolver.
+	// every `servlo install` for someone who never let servlo near their resolver.
 	if !dnsResolverConfigured() {
 		return
 	}

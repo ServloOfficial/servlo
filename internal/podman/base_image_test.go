@@ -133,7 +133,7 @@ func TestBaseImageFreshness_FreshWhenDigestMatches(t *testing.T) {
 	}
 }
 
-// An image built locally (or by a lerd old enough to predate the label) carries
+// An image built locally (or by a servlo old enough to predate the label) carries
 // no recorded base, and there is nothing to compare it against. Reporting it as
 // stale would offer a rebuild that changes nothing.
 func TestBaseImageFreshness_UnlabelledImageHasNoSignal(t *testing.T) {
@@ -199,13 +199,13 @@ func TestRefreshBaseImageFreshness_UnreachableRegistryIsQuiet(t *testing.T) {
 }
 
 func TestFPMBuildArgs_StampsBaseDigest(t *testing.T) {
-	args := fpmBuildArgs("lerd-php84-fpm:local", "abc123", "cust1", "sha256:base", false)
+	args := fpmBuildArgs("servlo-php84-fpm:local", "abc123", "cust1", "sha256:base", false)
 	if !sliceContainsPair(args, "--label", fpmBaseDigestLabel+"=sha256:base") {
 		t.Errorf("build args missing the base-digest label\nargs: %v", args)
 	}
 	// A local build has no base digest, and the label must be emitted empty so a
 	// rebuild clears the digest an earlier prebuilt-base build stamped.
-	local := fpmBuildArgs("lerd-php84-fpm:local", "abc123", "cust1", "", true)
+	local := fpmBuildArgs("servlo-php84-fpm:local", "abc123", "cust1", "", true)
 	if !sliceContainsPair(local, "--label", fpmBaseDigestLabel+"=") {
 		t.Errorf("local build must clear the base-digest label\nargs: %v", local)
 	}

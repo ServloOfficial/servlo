@@ -12,19 +12,22 @@ import (
 	"time"
 )
 
-// LerdULAv6Subnet is the deterministic IPv6 ULA prefix for the lerd network.
-// The `1e7d` body is "lerd" in leetspeak, picked to avoid colliding with
-// common defaults (fd00::, fd00:beef::, etc.).
-const LerdULAv6Subnet = "fd00:1e7d::/64"
+// ServloULAv6Subnet is the deterministic IPv6 ULA prefix for the servlo network.
+// The `1e7d` body is inherited from upstream, where it spelled the old product
+// name in leetspeak. It is kept as-is: the prefix only has to be stable and
+// unlikely to collide with common defaults (fd00::, fd00:beef::, etc.), and
+// changing it would force an existing network through a migration to buy
+// nothing.
+const ServloULAv6Subnet = "fd00:1e7d::/64"
 
-// LerdNetworkMTU pins the lerd bridge to the universal safe MTU. Fedora's
+// ServloNetworkMTU pins the servlo bridge to the universal safe MTU. Fedora's
 // rootless podman defaults eth0 to 65520 in the netns, which triggers
 // EMSGSIZE on UDP DNS writes and stalls every lookup ~5 seconds.
-const LerdNetworkMTU = "1500"
+const ServloNetworkMTU = "1500"
 
-// ErrNetworkNeedsMigration signals the lerd network's dual-stack schema
+// ErrNetworkNeedsMigration signals the servlo network's dual-stack schema
 // doesn't match host IPv6 support. Callers should run RecreateNetwork.
-var ErrNetworkNeedsMigration = errors.New("lerd network needs recreate to match host IPv6 support")
+var ErrNetworkNeedsMigration = errors.New("servlo network needs recreate to match host IPv6 support")
 
 // Swappable /proc paths so tests can stage a synthetic host profile.
 var (
@@ -119,7 +122,7 @@ func EnsureNetwork(name string, dns []string) error {
 	}
 
 	// The probe-failed marker doubles as the user opt-out: install --no-ipv6
-	// (or LERD_DISABLE_IPV6=1) writes it before calling EnsureNetwork, so
+	// (or SERVLO_DISABLE_IPV6=1) writes it before calling EnsureNetwork, so
 	// dual-stack is suppressed on every code path below without a second flag.
 	hostV6 := HostHasUsableIPv6() && !ipv6ProbeFailed(name)
 	for _, line := range strings.Split(out, "\n") {
@@ -150,10 +153,10 @@ func EnsureNetwork(name string, dns []string) error {
 // IPv6 probe so we don't retry the dual-stack migration on every install.
 func ipv6ProbeFailedPath(networkName string) string {
 	if dir := os.Getenv("XDG_DATA_HOME"); dir != "" {
-		return filepath.Join(dir, "lerd", "ipv6-probe-failed-"+networkName)
+		return filepath.Join(dir, "servlo", "ipv6-probe-failed-"+networkName)
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local/share/lerd", "ipv6-probe-failed-"+networkName)
+	return filepath.Join(home, ".local/share/servlo", "ipv6-probe-failed-"+networkName)
 }
 
 // ipv6ProbeFailed reports whether a previous IPv6 probe failed for the
@@ -177,7 +180,7 @@ func clearIPv6ProbeFailed(name string) {
 }
 
 // MarkIPv6Disabled persists the user's opt-out (--no-ipv6 /
-// LERD_DISABLE_IPV6=1) using the same marker file as a probe failure.
+// SERVLO_DISABLE_IPV6=1) using the same marker file as a probe failure.
 // EnsureNetwork honors it on every code path so dual-stack stays off
 // across installs until the user removes the marker.
 func MarkIPv6Disabled(name string) {
@@ -207,7 +210,7 @@ func createNetworkWithProbe(name string, dualStack bool, dns []string) (bool, er
 			if timedOut {
 				fmt.Fprintf(os.Stderr,
 					"    [WARN] IPv6 probe timed out after %s; falling back to v4-only.\n"+
-						"    To retry dual-stack later, delete %s and re-run `lerd install`.\n",
+						"    To retry dual-stack later, delete %s and re-run `servlo install`.\n",
 					probeNetworkIPv6Timeout, IPv6DisabledMarkerPath(name))
 			}
 			// Systemd may have auto-restarted containers on this network
@@ -237,14 +240,14 @@ func createNetworkWithProbe(name string, dualStack bool, dns []string) (bool, er
 func networkCreateArgs(name string, dualStack bool, dns []string) []string {
 	args := []string{"network", "create", "--driver", "bridge"}
 	if dualStack {
-		args = append(args, "--ipv6", "--subnet", LerdULAv6Subnet)
+		args = append(args, "--ipv6", "--subnet", ServloULAv6Subnet)
 	}
 	for _, d := range dns {
 		if d = strings.TrimSpace(d); d != "" {
 			args = append(args, "--dns", d)
 		}
 	}
-	args = append(args, "--opt", "mtu="+LerdNetworkMTU, name)
+	args = append(args, "--opt", "mtu="+ServloNetworkMTU, name)
 	return args
 }
 
@@ -384,7 +387,7 @@ func RecreateNetwork(name string, dns []string) ([]string, bool, error) {
 // `podman network reload`. aardvark-dns is killed first so the reload
 // respawns it with an empty cache: after a VPN connects, a hostname that
 // resolved to NXDOMAIN before the tunnel came up would otherwise stay
-// stuck on the cached negative answer. This is how lerd recovers
+// stuck on the cached negative answer. This is how servlo recovers
 // container DNS when the host's resolvers change without restarting the
 // containers themselves.
 func ReloadNetworks() error {
@@ -455,6 +458,6 @@ func friendlyNetworkCreateError(err error) error {
 	const prose = "podman is too old: `podman network create` does not support --dns " +
 		"(added in podman 4.5). Upgrade podman to 4.5 or newer; several distro " +
 		"releases (Ubuntu 22.04, Zorin 17, Debian 11/12) still ship older builds, see " +
-		"https://lerd.sh/getting-started/requirements for options"
+		"https://realrashid.github.io/servlo/getting-started/requirements for options"
 	return fmt.Errorf("%s: %w", prose, err)
 }

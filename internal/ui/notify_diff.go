@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/push"
-	"github.com/geodro/lerd/internal/workerheal"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/push"
+	"github.com/realrashid/servlo/internal/workerheal"
 )
 
 // siteDomainForRoute resolves a registered site name to its primary domain
@@ -59,9 +59,9 @@ func notificationForWorkerFailure(w workerheal.UnhealthyWorker) push.Notificatio
 		TitleKey: "notify_worker_failed_title",
 		Title:    "Worker needs healing on " + site,
 		BodyKey:  "notify_worker_failed_body",
-		Body:     worker + " is " + state + ". Open lerd to heal.",
+		Body:     worker + " is " + state + ". Open servlo to heal.",
 		Params:   map[string]string{"site": site, "worker": worker, "state": state},
-		Tag:      "lerd-worker-" + w.Unit,
+		Tag:      "servlo-worker-" + w.Unit,
 		URL:      "#sites/" + siteDomainForRoute(site),
 		Data:     map[string]string{"unit": w.Unit, "site": site},
 		Urgency:  "high",
@@ -105,13 +105,13 @@ func notificationForWorkerFailures(ws []workerheal.UnhealthyWorker) push.Notific
 		TitleKey: "notify_worker_failed_group_title",
 		Title:    count + " workers need healing",
 		BodyKey:  "notify_worker_failed_group_body",
-		Body:     workers + ". Open lerd to heal.",
+		Body:     workers + ". Open servlo to heal.",
 		Params: map[string]string{
 			"count":   count,
 			"workers": workers,
 			"sites":   strings.Join(sites, ", "),
 		},
-		Tag:     "lerd-workers-group",
+		Tag:     "servlo-workers-group",
 		URL:     "#sites",
 		Data:    map[string]string{"count": count},
 		Urgency: "high",

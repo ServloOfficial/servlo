@@ -30,7 +30,7 @@ var keychainCertsPEM = func() []byte {
 // write this export to a real file, not a pipe, so this shells through a
 // temp file. Returns nil on any failure. Overridable in tests.
 var adminTrustSettingsPlist = func() []byte {
-	f, err := os.CreateTemp("", "lerd-trust-*.plist")
+	f, err := os.CreateTemp("", "servlo-trust-*.plist")
 	if err != nil {
 		return nil
 	}

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/sitedoctor"
+	"github.com/realrashid/servlo/internal/sitedoctor"
 )
 
 func TestResolveSiteDoctorTarget_DefaultsToCwd(t *testing.T) {

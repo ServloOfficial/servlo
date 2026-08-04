@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // stubUnitStatus reports the units in active as running and everything else as
@@ -38,7 +38,7 @@ func TestIdleWorkerResumable(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	proj, err := config.LoadProjectConfig(dir)
@@ -78,7 +78,7 @@ func TestIdleWorkerResumable(t *testing.T) {
 }
 
 // ClearIdleSuspendOnStart must drop the started worker from the site's persisted
-// idle-suspended set so a later lerd-ui boot doesn't believe a now-running worker
+// idle-suspended set so a later servlo-panel boot doesn't believe a now-running worker
 // is still asleep and refuse to re-suspend it. This is the fix for workers staying
 // up on an idle site after an install/relink started them.
 func TestClearIdleSuspendOnStart_mainSite(t *testing.T) {
@@ -195,7 +195,7 @@ func TestIdleSuspendStateIsStale(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	proj, err := config.LoadProjectConfig(dir)
@@ -211,7 +211,7 @@ func TestIdleSuspendStateIsStale(t *testing.T) {
 	t.Cleanup(func() { podman.UnitLifecycle = nil })
 
 	// queue running while marked suspended -> stale.
-	podman.UnitLifecycle = stubUnitStatus{active: map[string]bool{"lerd-queue-site": true}}
+	podman.UnitLifecycle = stubUnitStatus{active: map[string]bool{"servlo-queue-site": true}}
 	if !IdleSuspendStateIsStale(site) {
 		t.Error("expected stale: queue is running while marked suspended")
 	}
@@ -233,7 +233,7 @@ func TestIdleSuspendStateIsStale(t *testing.T) {
 // entirely (idle-suspend's signature, so their marking was lost while asleep),
 // while never touching a worker whose unit still exists (running, crashed, or
 // merely stopped — left to worker-healing), a duplicate, an orphan with no
-// framework definition, or a worker the user removed from .lerd.yaml.
+// framework definition, or a worker the user removed from .servlo.yaml.
 func TestAppendLostSuspended(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
@@ -242,7 +242,7 @@ func TestAppendLostSuspended(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	proj, err := config.LoadProjectConfig(dir)
@@ -272,7 +272,7 @@ func TestAppendLostSuspended(t *testing.T) {
 	}
 	// A worker whose unit still exists (e.g. crashed/failed) is not re-marked, so
 	// worker-healing still sees it instead of it being masked as sleeping.
-	present = map[string]string{"lerd-queue-site": "failed"}
+	present = map[string]string{"servlo-queue-site": "failed"}
 	if got := appendLostSuspended(site, nil); !slices.Equal(got, []string{"horizon", "stripe"}) {
 		t.Errorf("queue unit present: got %v, want [horizon stripe]", got)
 	}
@@ -282,7 +282,7 @@ func TestAppendLostSuspended(t *testing.T) {
 		t.Errorf("horizon pre-listed: got %v, want [horizon queue stripe]", got)
 	}
 
-	// A worker the user removed is gone from .lerd.yaml, so it is never re-marked
+	// A worker the user removed is gone from .servlo.yaml, so it is never re-marked
 	// even though its unit is absent like a sleepy one.
 	proj.Workers = []string{"queue"}
 	if err := config.SaveProjectConfig(dir, proj); err != nil {
@@ -305,7 +305,7 @@ func TestAppendLostSuspended_ignoresUntrustedSnapshot(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	proj, err := config.LoadProjectConfig(dir)
@@ -340,7 +340,7 @@ func TestSuspendWorkersForIdle_remarksAbsent(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	proj, err := config.LoadProjectConfig(dir)
@@ -361,7 +361,7 @@ func TestSuspendWorkersForIdle_remarksAbsent(t *testing.T) {
 
 	site := &config.Site{Name: "site", Framework: "laravel", Path: dir}
 	if got := SuspendWorkersForIdle(site); len(got) != 1 || got[0] != "queue" {
-		t.Errorf("SuspendWorkersForIdle = %v, want [queue] (re-marked from .lerd.yaml)", got)
+		t.Errorf("SuspendWorkersForIdle = %v, want [queue] (re-marked from .servlo.yaml)", got)
 	}
 }
 

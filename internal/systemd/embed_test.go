@@ -6,42 +6,34 @@ import (
 )
 
 func TestGetUnitResolvesBinaryPath(t *testing.T) {
-	orig := lerdBinaryPath
-	t.Cleanup(func() { lerdBinaryPath = orig })
-	lerdBinaryPath = func() string { return "/usr/bin/lerd" }
+	orig := servloBinaryPath
+	t.Cleanup(func() { servloBinaryPath = orig })
+	servloBinaryPath = func() string { return "/usr/bin/servlo" }
 
-	ui, err := GetUnit("lerd-ui")
+	ui, err := GetUnit("servlo-panel")
 	if err != nil {
 		t.Fatalf("GetUnit: %v", err)
 	}
-	if !strings.Contains(ui, "ExecStart=/usr/bin/lerd serve-ui") {
-		t.Errorf("lerd-ui ExecStart not resolved:\n%s", ui)
+	if !strings.Contains(ui, "ExecStart=/usr/bin/servlo serve-ui") {
+		t.Errorf("servlo-panel ExecStart not resolved:\n%s", ui)
 	}
-	if strings.Contains(ui, "%h/.local/bin/lerd") {
-		t.Errorf("lerd-ui still has the template path:\n%s", ui)
-	}
-
-	tray, err := GetUnit("lerd-tray")
-	if err != nil {
-		t.Fatalf("GetUnit tray: %v", err)
-	}
-	if !strings.Contains(tray, "ExecStart=/usr/bin/lerd-tray") {
-		t.Errorf("lerd-tray ExecStart not resolved:\n%s", tray)
+	if strings.Contains(ui, "%h/.local/bin/servlo") {
+		t.Errorf("servlo-panel still has the template path:\n%s", ui)
 	}
 }
 
 // When the binary path can't be resolved, the template default is left intact
 // rather than producing a broken ExecStart.
 func TestGetUnitKeepsTemplateWhenUnresolved(t *testing.T) {
-	orig := lerdBinaryPath
-	t.Cleanup(func() { lerdBinaryPath = orig })
-	lerdBinaryPath = func() string { return "" }
+	orig := servloBinaryPath
+	t.Cleanup(func() { servloBinaryPath = orig })
+	servloBinaryPath = func() string { return "" }
 
-	ui, err := GetUnit("lerd-ui")
+	ui, err := GetUnit("servlo-panel")
 	if err != nil {
 		t.Fatalf("GetUnit: %v", err)
 	}
-	if !strings.Contains(ui, "%h/.local/bin/lerd serve-ui") {
+	if !strings.Contains(ui, "%h/.local/bin/servlo serve-ui") {
 		t.Errorf("expected template default, got:\n%s", ui)
 	}
 }

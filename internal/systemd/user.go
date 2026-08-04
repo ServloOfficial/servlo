@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // WriteService writes a systemd user service unit file.
@@ -109,18 +109,18 @@ func unitBelongsToLongerSite(unitFile, siteName string, sites []config.Site) boo
 
 func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
 	suffix := "-" + siteName + ".service"
-	prefix := "lerd-"
+	prefix := "servlo-"
 	entries, err := os.ReadDir(config.SystemdUserDir())
 	if err != nil {
 		return nil
 	}
-	// Pre-loaded so worktree units (lerd-<wname>-<parent>-<wt>.service) can
+	// Pre-loaded so worktree units (servlo-<wname>-<parent>-<wt>.service) can
 	// be filtered out instead of mis-attributed as orphans of <wt>.
 	var sites []config.Site
 	if reg, err := config.LoadSites(); err == nil {
 		sites = reg.Sites
 	}
-	// A host-proxy site's dev server (lerd-app-<site>) is the site's main
+	// A host-proxy site's dev server (servlo-app-<site>) is the site's main
 	// process, never an orphan; recognised here so no caller has to special-case
 	// it around every FindOrphanedWorkers call.
 	hostProxySite := false
@@ -157,7 +157,7 @@ func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
 			continue
 		}
 		// Skip units owned by a registered site with a longer name whose suffix
-		// collides: lerd-queue-admin-astrolov is admin-astrolov's queue, not
+		// collides: servlo-queue-admin-astrolov is admin-astrolov's queue, not
 		// astrolov's "queue-admin". Without this, a group secondary's workers
 		// leak into the parent (and idle-suspend would stop them).
 		if unitBelongsToLongerSite(name, siteName, sites) {
@@ -174,7 +174,7 @@ func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
 
 // UnitBelongsToOtherSiteWorktree reports whether the parsed candidate
 // (workerName=<wname>-<parent>, thisSite=<wt>) is actually the worktree unit
-// lerd-<wname>-<parent>-<wt>.service of another registered site.
+// servlo-<wname>-<parent>-<wt>.service of another registered site.
 func UnitBelongsToOtherSiteWorktree(workerName, thisSite string, sites []config.Site) bool {
 	if !strings.Contains(workerName, "-") {
 		return false

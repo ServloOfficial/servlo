@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestSecureCmd_RefusesWhenDNSDisabled(t *testing.T) {

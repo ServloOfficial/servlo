@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestGenerateCustomQuadlet_StampsManagedMarker(t *testing.T) {
@@ -29,9 +29,9 @@ func TestListManagedServiceNames(t *testing.T) {
 	}
 	// Two marked service quadlets, plus an unmarked site container and a
 	// non-.container file that must be ignored.
-	write("lerd-gotenberg", CustomServiceQuadletMarker+"\n[Container]\nImage=x\n")
-	write("lerd-acme-widget", CustomServiceQuadletMarker+"\n[Container]\nImage=y\n")
-	write("lerd-custom-gonitro", "[Container]\nImage=z\n") // site container, no marker
+	write("servlo-gotenberg", CustomServiceQuadletMarker+"\n[Container]\nImage=x\n")
+	write("servlo-acme-widget", CustomServiceQuadletMarker+"\n[Container]\nImage=y\n")
+	write("servlo-custom-gonitro", "[Container]\nImage=z\n") // site container, no marker
 	if err := os.WriteFile(filepath.Join(dir, "notes.txt"), []byte(CustomServiceQuadletMarker), 0o644); err != nil {
 		t.Fatalf("write notes: %v", err)
 	}

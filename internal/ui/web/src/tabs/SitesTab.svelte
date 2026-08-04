@@ -456,7 +456,7 @@
 {/snippet}
 
 {#snippet parkHint()}
-  {@html m.sites_emptyHint({ cmd: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm">lerd park</code>' })}
+  {@html m.sites_emptyHint({ cmd: '<code class="bg-gray-100 dark:bg-white/5 px-1 rounded-sm">servlo park</code>' })}
 {/snippet}
 
 {#snippet overlayControls()}
@@ -468,7 +468,7 @@
   >
     {#if addingWorkspace}
       <div
-        class="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card shadow-xl p-2 pointer-events-auto"
+        class="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card shadow-xl p-2 pointer-events-auto"
       >
         <!-- svelte-ignore a11y_autofocus -->
         <input
@@ -476,7 +476,7 @@
           bind:value={newWorkspaceName}
           onkeydown={(e) => e.key === 'Enter' && submitNewWorkspace()}
           placeholder={m.workspaces_namePlaceholder()}
-          class="w-full px-2 py-1.5 text-xs rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-bg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-lerd-red"
+          class="w-full px-2 py-1.5 text-xs rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-bg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-servlo-red"
         />
         <div class="flex justify-end gap-1.5 mt-2">
           <button
@@ -487,7 +487,7 @@
           <button
             type="button"
             onclick={submitNewWorkspace}
-            class="px-2 py-1 text-xs font-medium rounded-md bg-lerd-red hover:bg-lerd-redhov text-white">{m.common_add()}</button
+            class="px-2 py-1 text-xs font-medium rounded-md bg-servlo-red hover:bg-servlo-redhov text-white">{m.common_add()}</button
           >
         </div>
       </div>
@@ -496,7 +496,7 @@
     {#if sortMenuOpen}
       <div
         role="menu"
-        class="absolute bottom-full right-0 mb-2 min-w-44 max-w-full rounded-lg border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card shadow-xl py-1 pointer-events-auto"
+        class="absolute bottom-full right-0 mb-2 min-w-44 max-w-full rounded-lg border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card shadow-xl py-1 pointer-events-auto"
       >
         {#each sortOptions as opt (opt.value)}
           <button
@@ -506,7 +506,7 @@
             onclick={() => pickSort(opt.value)}
             class="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-gray-50 dark:hover:bg-white/5 {$sitesSort ===
             opt.value
-              ? 'text-lerd-red font-semibold'
+              ? 'text-servlo-red font-semibold'
               : 'text-gray-700 dark:text-gray-200'}"
           >
             <span class="w-3 h-3 shrink-0">
@@ -525,7 +525,7 @@
         title={m.workspaces_add()}
         aria-label={m.workspaces_add()}
         aria-expanded={addingWorkspace}
-        class="pointer-events-auto flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/15 backdrop-blur-sm text-gray-800 dark:text-gray-200 hover:border-lerd-red hover:text-lerd-red transition-colors"
+        class="pointer-events-auto flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/15 backdrop-blur-sm text-gray-800 dark:text-gray-200 hover:border-servlo-red hover:text-servlo-red transition-colors"
       >
         <Icon name="plus" class="w-3.5 h-3.5" />
       </button>
@@ -538,7 +538,7 @@
       aria-haspopup="menu"
       aria-expanded={sortMenuOpen}
       aria-label={m.sites_sort_label()}
-      class="pointer-events-auto flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/15 backdrop-blur-sm text-gray-800 dark:text-gray-200 hover:border-lerd-red hover:text-lerd-red transition-colors"
+      class="pointer-events-auto flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/15 backdrop-blur-sm text-gray-800 dark:text-gray-200 hover:border-servlo-red hover:text-servlo-red transition-colors"
     >
       <Icon name="sort" class="w-3.5 h-3.5" />
     </button>
@@ -548,9 +548,9 @@
 {#snippet siteRow(s: Site, grouped = false)}
   <button
     onclick={() => select(s)}
-    class="group relative w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors border-b border-gray-50 dark:border-lerd-border/50 {selected ===
+    class="group relative w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors border-b border-gray-50 dark:border-servlo-border/50 {selected ===
     s.domain
-      ? 'bg-lerd-red/10 text-lerd-red'
+      ? 'bg-servlo-red/10 text-servlo-red'
       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/3'}"
   >
     {#if canReorder && !grouped}
@@ -561,7 +561,7 @@
         use:dragHandle
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => e.stopPropagation()}
-        class="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-6 h-6 rounded-md border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-lerd-card text-gray-800 dark:text-gray-200 hover:text-lerd-red hover:border-lerd-red cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+        class="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-6 h-6 rounded-md border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-servlo-card text-gray-800 dark:text-gray-200 hover:text-servlo-red hover:border-servlo-red cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
       >
         <Icon name="grip" class="w-4 h-4" />
       </span>
@@ -591,7 +591,7 @@
   <section
     class="{hasWorkspaces && (zones[key]?.length ?? 0) === 0 ? 'min-h-[1.75rem]' : ''} {key === UNGROUPED &&
     hasWorkspaces
-      ? 'border-t border-gray-100 dark:border-lerd-border'
+      ? 'border-t border-gray-100 dark:border-servlo-border'
       : ''}"
     use:stopDragBubbling
     use:dndzone={{ items: zones[key] ?? [], type: dndType, flipDurationMs: FLIP_MS, dragDisabled, dropTargetStyle: {} }}
@@ -619,7 +619,7 @@
       aria-expanded={menuKey === key}
       aria-label={m.workspaces_sectionMenu()}
       title={m.workspaces_sectionMenu()}
-      class="flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-lerd-red transition-colors"
+      class="flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-servlo-red transition-colors"
     >
       <Icon name="more" class="w-3.5 h-3.5" />
     </button>
@@ -628,7 +628,7 @@
         role="menu"
         tabindex="-1"
         onmousedown={(e) => e.stopPropagation()}
-        class="absolute right-0 top-full mt-1 z-30 min-w-40 rounded-lg border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card shadow-xl py-1"
+        class="absolute right-0 top-full mt-1 z-30 min-w-40 rounded-lg border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card shadow-xl py-1"
       >
         <button
           type="button"
@@ -652,14 +652,14 @@
 {#snippet workspaceSection(key: string)}
   {#snippet menu()}{@render workspaceMenu(key)}{/snippet}
   {#if renamingKey === key}
-    <div class="px-2 py-1.5 border-t border-gray-100 dark:border-lerd-border">
+    <div class="px-2 py-1.5 border-t border-gray-100 dark:border-servlo-border">
       <!-- svelte-ignore a11y_autofocus -->
       <input
         autofocus
         bind:value={renameValue}
         onblur={submitRename}
         onkeydown={(e) => (e.key === 'Enter' ? submitRename() : e.key === 'Escape' ? (renamingKey = null) : null)}
-        class="w-full px-2 py-1 text-xs rounded-md border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-bg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-lerd-red"
+        class="w-full px-2 py-1 text-xs rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-bg text-gray-800 dark:text-gray-200 focus:outline-none focus:border-servlo-red"
       />
     </div>
   {:else}
@@ -720,8 +720,8 @@
         {#each paused as s (s.domain)}
           <button
             onclick={() => select(s)}
-            class="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors border-t border-gray-50 dark:border-lerd-border/50 {selected === s.domain
-              ? 'bg-lerd-red/10 text-lerd-red'
+            class="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors border-t border-gray-50 dark:border-servlo-border/50 {selected === s.domain
+              ? 'bg-servlo-red/10 text-servlo-red'
               : 'text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/3'}"
           >
             <svg class="w-3 h-3 shrink-0 opacity-60" fill="currentColor" viewBox="0 0 24 24">

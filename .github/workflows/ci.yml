@@ -27,22 +27,17 @@ jobs:
       - name: Build UI
         run: make build-ui
 
-      - name: Install tray build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --fix-missing libayatana-appindicator3-dev
-
       - name: Download dependencies
         run: go mod download
 
       - name: Build
-        run: CGO_ENABLED=1 go build -o /dev/null ./cmd/lerd
+        run: go build -o /dev/null ./cmd/servlo
 
       - name: Test
-        run: CGO_ENABLED=1 go test ./...
+        run: go test ./...
 
       - name: Vet
-        run: CGO_ENABLED=1 go vet ./...
+        run: go vet ./...
 
       - name: Format
         run: test -z "$(gofmt -l .)"
@@ -70,14 +65,14 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Build (nogui)
-        run: CGO_ENABLED=0 go build -tags nogui -o /dev/null ./cmd/lerd
+      - name: Build
+        run: CGO_ENABLED=0 go build -o /dev/null ./cmd/servlo
 
       - name: Test
-        run: CGO_ENABLED=0 go test -tags nogui ./...
+        run: CGO_ENABLED=0 go test ./...
 
       - name: Vet
-        run: CGO_ENABLED=0 go vet -tags nogui ./...
+        run: CGO_ENABLED=0 go vet ./...
 
       - name: Format
         run: test -z "$(gofmt -l .)"

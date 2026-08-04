@@ -369,7 +369,7 @@ export function clearCommandsCache() {
 // doesn't lose what just happened. The user can re-open the same command
 // from the dashboard or palette and see the last output in a "Previous
 // run" banner. Bounded to 32 entries to cap localStorage growth.
-const HISTORY_KEY = 'lerd-commands-history-v1';
+const HISTORY_KEY = 'servlo-commands-history-v1';
 const HISTORY_MAX = 32;
 
 interface HistoryEntry {
@@ -434,7 +434,7 @@ function maybeNotifyDone(cmd: Command, domain: string, exit: number, durationMs:
     const body = domain + ' · ' + durationMs + 'ms';
     if ('serviceWorker' in navigator) {
       void navigator.serviceWorker.ready
-        .then((reg) => reg.showNotification(title, { body, tag: 'lerd-cmd-' + domain + '-' + cmd.name, icon: '/icons/icon-192.png' }))
+        .then((reg) => reg.showNotification(title, { body, tag: 'servlo-cmd-' + domain + '-' + cmd.name, icon: '/icons/icon-192.png' }))
         .catch(() => {
           new Notification(title, { body });
         });
@@ -447,8 +447,8 @@ function maybeNotifyDone(cmd: Command, domain: string, exit: number, durationMs:
 }
 
 // Whenever the sites snapshot changes, drop the cached command lists. A new
-// site might have been added, or an existing site's .lerd.yaml may have been
-// rewritten (by MCP command_add, by the user, or by lerd's own writers).
+// site might have been added, or an existing site's .servlo.yaml may have been
+// rewritten (by MCP command_add, by the user, or by servlo's own writers).
 // Next palette open or dropdown open will re-fetch.
 wsMessage.subscribe((msg) => {
   if (msg?.sites !== undefined) {

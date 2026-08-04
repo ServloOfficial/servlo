@@ -4,14 +4,14 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/geodro/lerd/internal/eventbus"
+	"github.com/realrashid/servlo/internal/eventbus"
 )
 
 // publishAfter wraps a mutating HTTP handler so that every successful
 // invocation publishes the listed event kinds. The bus debounces bursty
 // calls into a single websocket broadcast, so passing multiple kinds is
 // cheap. Publish is called after the handler returns regardless of whether
-// the response status was 2xx — lerd-ui actions either succeed and change
+// the response status was 2xx — servlo-panel actions either succeed and change
 // state or fail and write an error body; in both cases the cached snapshot
 // needs to be re-read, so the broadcast is harmless on failure.
 //
@@ -120,7 +120,7 @@ func (b *wsBroker) broadcast(msg wsMessage) {
 // runSnapshotInvalidator subscribes to the eventbus, invalidates the matching
 // snapshot kinds, and ships the rebuilt bytes to the websocket broker. When
 // no UI tab is open (visibleClients == 0) the rebuild is skipped — the next
-// HTTP poll from the tray will rebuild lazily, which avoids burning CPU on
+// HTTP poll will rebuild lazily, which avoids burning CPU on
 // snapshot work nobody is going to receive over the websocket.
 func runSnapshotInvalidator() {
 	sub := eventbus.Default.Subscribe()

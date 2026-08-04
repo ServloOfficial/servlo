@@ -5,15 +5,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 
 // NewPhpPortsCmd returns the php:ports parent command, which manages extra host
 // ports published on a PHP version's shared FPM container so a process bound
-// inside `lerd shell` is reachable at localhost:PORT. The list is per version
+// inside `servlo shell` is reachable at localhost:PORT. The list is per version
 // and independent; a host port already claimed is shifted to the next free one.
 func NewPhpPortsCmd() *cobra.Command {
 	cmd := &cobra.Command{

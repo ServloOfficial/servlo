@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// A worktree checkout isn't a registered site of its own, so `lerd artisan`
+// A worktree checkout isn't a registered site of its own, so `servlo artisan`
 // (via GetConsoleCommand) must inherit the parent site's framework instead of
 // failing with "no framework assigned".
 func TestGetConsoleCommand_worktreeInheritsParent(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // A removed built-in default preset (redis) must reinstall by recreating its
@@ -34,7 +34,7 @@ func TestInstallBuiltinPreset_recreatesDefaultQuadlet(t *testing.T) {
 		t.Fatalf("registerPreset: %v", err)
 	}
 
-	quadlet := filepath.Join(config.QuadletDir(), "lerd-redis.container")
+	quadlet := filepath.Join(config.QuadletDir(), "servlo-redis.container")
 	if _, err := os.Stat(quadlet); err != nil {
 		t.Errorf("expected the default quadlet to be recreated: %v", err)
 	}

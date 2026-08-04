@@ -8,11 +8,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewTestCmd returns the `lerd test` command — shortcut for `lerd artisan test`.
+// NewTestCmd returns the `servlo test` command — shortcut for `servlo artisan test`.
 func NewTestCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "test [args...]",
-		Short:              "Run framework tests (shortcut for `lerd artisan test`)",
+		Short:              "Run framework tests (shortcut for `servlo artisan test`)",
 		DisableFlagParsing: true,
 		SilenceUsage:       true,
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -21,7 +21,7 @@ func NewTestCmd() *cobra.Command {
 	}
 }
 
-// NewVendorBinCmd returns the hidden `lerd vendor-bin <name> [args...]` command
+// NewVendorBinCmd returns the hidden `servlo vendor-bin <name> [args...]` command
 // used by the top-level fallback in main.go to dispatch composer-installed
 // binaries discovered in the project's vendor/bin directory.
 func NewVendorBinCmd() *cobra.Command {

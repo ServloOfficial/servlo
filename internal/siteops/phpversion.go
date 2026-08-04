@@ -7,11 +7,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/php"
-	"github.com/geodro/lerd/internal/podman"
+	"github.com/realrashid/servlo/internal/config"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/php"
+	"github.com/realrashid/servlo/internal/podman"
 )
 
 // Indirection points so tests can drive the funnel's decisions without the
@@ -79,7 +79,7 @@ type PHPVersionResult struct {
 	// Stale reports that the image was built from an older declared set, so it
 	// predates entries the user has since added. A rebuild does fix this.
 	Stale bool
-	// NotInstalled reports that lerd has never built this version at all.
+	// NotInstalled reports that servlo has never built this version at all.
 	NotInstalled bool
 }
 
@@ -92,7 +92,7 @@ type PHPVersionResult struct {
 //  1. Refuse runtimes that have no PHP version of their own.
 //  2. Clamp to the framework's supported range, so the pin never advertises a
 //     version the watcher clamps back on its next pass.
-//  3. Pin .php-version and .lerd.yaml.
+//  3. Pin .php-version and .servlo.yaml.
 //  4. Persist site.PHPVersion to the registry.
 //  5. Re-link FrankenPHP, or fall back to FPM below its minimum version.
 //  6. Ensure the FPM quadlet and xdebug ini exist for the new version.
@@ -247,7 +247,7 @@ func setWorktreePHPVersion(site *config.Site, branch, version string) error {
 			return fmt.Errorf("writing .php-version: %w", err)
 		}
 		if err := config.SetWorktreePHPVersion(wt.Path, version); err != nil {
-			return fmt.Errorf("updating .lerd.yaml: %w", err)
+			return fmt.Errorf("updating .servlo.yaml: %w", err)
 		}
 		// Same runtime setup the site path does: the vhost below points at the
 		// version's FPM container, which need not exist on this machine yet.
@@ -276,7 +276,7 @@ func setWorktreePHPVersion(site *config.Site, branch, version string) error {
 	return fmt.Errorf("worktree %q not found", branch)
 }
 
-// PinPHPVersionFile writes the version lerd resolved into the project's
+// PinPHPVersionFile writes the version servlo resolved into the project's
 // .php-version, so the file, the site registry and the FPM container never
 // disagree. A file that already matches is left alone: rewriting it would wake
 // the watcher and trigger a pointless queue:restart on every link.

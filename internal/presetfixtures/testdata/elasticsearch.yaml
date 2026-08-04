@@ -19,9 +19,9 @@ data_dir: /usr/share/elasticsearch/data
 userns: keep-id:uid=1000,gid=0
 chown_data: true
 env_vars:
-  - ELASTICSEARCH_HOST=lerd-elasticsearch
+  - ELASTICSEARCH_HOST=servlo-elasticsearch
   - ELASTICSEARCH_PORT=9200
-  - ELASTICSEARCH_URL=http://lerd-elasticsearch:9200
+  - ELASTICSEARCH_URL=http://servlo-elasticsearch:9200
 env_detect:
   composer: elasticsearch/elasticsearch
 connection_url: http://127.0.0.1:9200

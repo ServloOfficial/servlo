@@ -16,7 +16,7 @@ const fromLspRange = (r: any) => ({
   endColumn: r.end.character + 1
 });
 
-const URI = 'file:///home/me/proj/.lerd-tinker.php';
+const URI = 'file:///home/me/proj/.servlo-tinker.php';
 const importEdit = {
   range: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
   newText: 'use App\\Models\\Bid;\n'
@@ -48,8 +48,8 @@ describe('lspWorkspaceEditToMonaco', () => {
   });
 
   it('matches URIs regardless of percent-encoding', () => {
-    const encoded = 'file:///home/me/my%20proj/.lerd-tinker.php';
-    const decoded = 'file:///home/me/my proj/.lerd-tinker.php';
+    const encoded = 'file:///home/me/my%20proj/.servlo-tinker.php';
+    const decoded = 'file:///home/me/my proj/.servlo-tinker.php';
     const edit = { changes: { [encoded]: [importEdit] } };
     expect(lspWorkspaceEditToMonaco(edit, decoded, fromLspRange)).toHaveLength(1);
   });

@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/siteinfo"
+	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 func sitesFixture() []siteinfo.EnrichedSite {

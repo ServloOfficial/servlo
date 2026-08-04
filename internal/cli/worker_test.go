@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // resolveSiteAndFramework must fall back to the parent site when cwd is a
-// git worktree checkout under a registered repo, so `lerd worker start`
+// git worktree checkout under a registered repo, so `servlo worker start`
 // commands invoked from inside a worktree don't error with "not a registered
 // site". This pins the new ParentSiteForWorktreeDir branch.
 func TestResolveSiteAndFramework_worktreeFallback(t *testing.T) {
@@ -57,7 +57,7 @@ func TestResolveSiteAndFramework_worktreeFallback(t *testing.T) {
 
 func TestWorkerAdd_Project(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644)
 
 	proj, _ := config.LoadProjectConfig(dir)
 	if proj.CustomWorkers == nil {
@@ -89,7 +89,7 @@ func TestWorkerAdd_Project(t *testing.T) {
 
 func TestWorkerAdd_UpdateExisting(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644)
 
 	proj, _ := config.LoadProjectConfig(dir)
 	proj.CustomWorkers = map[string]config.FrameworkWorker{
@@ -117,7 +117,7 @@ func TestWorkerAdd_UpdateExisting(t *testing.T) {
 
 func TestWorkerAdd_WithCheck(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644)
 
 	proj, _ := config.LoadProjectConfig(dir)
 	proj.CustomWorkers = map[string]config.FrameworkWorker{
@@ -140,7 +140,7 @@ func TestWorkerAdd_WithCheck(t *testing.T) {
 
 func TestWorkerAdd_WithProxy(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644)
 
 	proj, _ := config.LoadProjectConfig(dir)
 	proj.CustomWorkers = map[string]config.FrameworkWorker{
@@ -173,7 +173,7 @@ func TestWorkerAdd_WithProxy(t *testing.T) {
 
 func TestWorkerRemove_Project(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644)
 
 	proj, _ := config.LoadProjectConfig(dir)
 	proj.CustomWorkers = map[string]config.FrameworkWorker{
@@ -198,7 +198,7 @@ func TestWorkerRemove_Project(t *testing.T) {
 
 func TestWorkerRemove_NilsEmptyMap(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644)
 
 	proj, _ := config.LoadProjectConfig(dir)
 	proj.CustomWorkers = map[string]config.FrameworkWorker{
@@ -213,7 +213,7 @@ func TestWorkerRemove_NilsEmptyMap(t *testing.T) {
 	config.SaveProjectConfig(dir, proj)
 
 	// Verify custom_workers is absent from YAML.
-	data, _ := os.ReadFile(filepath.Join(dir, ".lerd.yaml"))
+	data, _ := os.ReadFile(filepath.Join(dir, ".servlo.yaml"))
 	if strings.Contains(string(data), "custom_workers") {
 		t.Error("custom_workers should be omitted from YAML when nil")
 	}
@@ -221,7 +221,7 @@ func TestWorkerRemove_NilsEmptyMap(t *testing.T) {
 
 func TestWorkerRemove_NotFound(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte("framework: laravel\n"), 0644)
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("framework: laravel\n"), 0644)
 
 	proj, _ := config.LoadProjectConfig(dir)
 	if _, exists := proj.CustomWorkers["nonexistent"]; exists {
@@ -235,7 +235,7 @@ func TestWorkerAdd_Global(t *testing.T) {
 	origDir := config.FrameworksDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	fwDir := filepath.Join(dir, "lerd", "frameworks")
+	fwDir := filepath.Join(dir, "servlo", "frameworks")
 	os.MkdirAll(fwDir, 0755)
 
 	fw := &config.Framework{
@@ -268,7 +268,7 @@ func TestWorkerRemove_Global(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	fwDir := filepath.Join(dir, "lerd", "frameworks")
+	fwDir := filepath.Join(dir, "servlo", "frameworks")
 	os.MkdirAll(fwDir, 0755)
 
 	fw := &config.Framework{
@@ -310,7 +310,7 @@ func TestHostWorkerNotReadyMsg(t *testing.T) {
 	hostWorker := config.FrameworkWorker{Host: true, Check: &config.FrameworkRule{File: "node_modules/vite"}}
 
 	msg := hostWorkerNotReadyMsg("vite", nodeDir, hostWorker)
-	for _, want := range []string{"JS dependencies are not installed", "lerd setup", "lerd worker start vite"} {
+	for _, want := range []string{"JS dependencies are not installed", "servlo setup", "servlo worker start vite"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("host node-worker message missing %q: %s", want, msg)
 		}
@@ -335,7 +335,7 @@ func TestHostWorkerNotReadyMsg(t *testing.T) {
 // its error before touching systemd/podman, so a node project (package.json, no
 // node_modules) with a vite host worker must be refused with the actionable
 // JS-deps message and cause no side effects. This mirrors what a real
-// `lerd worker start vite` surfaces on a freshly linked project.
+// `servlo worker start vite` surfaces on a freshly linked project.
 func TestWorkerStartForSiteRefusesViteWithoutDeps(t *testing.T) {
 	siteDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(siteDir, "package.json"), []byte(`{"scripts":{"dev":"vite"}}`), 0644); err != nil {
@@ -354,7 +354,7 @@ func TestWorkerStartForSiteRefusesViteWithoutDeps(t *testing.T) {
 		t.Fatal("expected WorkerStartForSite to refuse vite without node_modules, got nil")
 	}
 	t.Logf("surfaced message: %s", err)
-	for _, want := range []string{"JS dependencies are not installed", "lerd setup", "lerd worker start vite"} {
+	for _, want := range []string{"JS dependencies are not installed", "servlo setup", "servlo worker start vite"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("preflight error missing %q: %s", want, err)
 		}

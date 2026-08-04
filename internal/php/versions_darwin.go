@@ -8,14 +8,14 @@ import (
 	"regexp"
 )
 
-var fpmPlistRe = regexp.MustCompile(`^lerd-php(\d)(\d+)-fpm\.plist$`)
+var fpmPlistRe = regexp.MustCompile(`^servlo-php(\d)(\d+)-fpm\.plist$`)
 
 // listInstalledFromServiceDir returns PHP versions found as launchd plists in
 // ~/Library/LaunchAgents. On macOS, plists replace systemd quadlet files, so
 // the QuadletDir glob in ListInstalled always returns nothing.
 func listInstalledFromServiceDir() []string {
 	home, _ := os.UserHomeDir()
-	pattern := filepath.Join(home, "Library", "LaunchAgents", "lerd-php*-fpm.plist")
+	pattern := filepath.Join(home, "Library", "LaunchAgents", "servlo-php*-fpm.plist")
 	matches, _ := filepath.Glob(pattern)
 	var versions []string
 	for _, m := range matches {

@@ -10,20 +10,20 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/idle"
-	"github.com/geodro/lerd/internal/push"
-	"github.com/geodro/lerd/internal/reqstats"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/idle"
+	"github.com/realrashid/servlo/internal/push"
+	"github.com/realrashid/servlo/internal/reqstats"
 )
 
 // activityTracker records per-site last-active times fed by the access feed and
 // control socket, read by the engine and persisted to config.IdleActivityFile()
-// for lerd-ui and the CLI to render. Allocated once by StartIdle.
+// for servlo-panel and the CLI to render. Allocated once by StartIdle.
 var activityTracker *idle.Tracker
 
 // reqAggregator holds rolling per-site request-timing windows fed by the same
 // access feed. It runs regardless of idle-suspend and is persisted to
-// config.RequestStatsFile() for lerd-ui to read. Allocated once by StartIdle.
+// config.RequestStatsFile() for servlo-panel to read. Allocated once by StartIdle.
 var reqAggregator *reqstats.Aggregator
 
 // reqStore is the durable SQLite record of individual requests, written from the
@@ -40,7 +40,7 @@ var (
 )
 
 // reqStatsSaveInterval is how often the request-timing snapshot is flushed to
-// disk for lerd-ui. Shorter than the idle tick so the panel feels live.
+// disk for servlo-panel. Shorter than the idle tick so the panel feels live.
 const reqStatsSaveInterval = 10 * time.Second
 
 // reqStatsPruneInterval throttles how often rows past reqstats.Retention are
@@ -87,7 +87,7 @@ func StartIdle(notify func(), sourceWatcher func(stop <-chan struct{}) error) {
 		}
 	}
 	// A request after the site has been idle at least this long is a cold start;
-	// tie it to the idle-suspend timeout, the point lerd already treats a site as
+	// tie it to the idle-suspend timeout, the point servlo already treats a site as
 	// gone quiet, so a wake's inflated time is kept out of the timing view.
 	coldGap = reqstats.DefaultColdGap
 	if cfg, err := config.LoadGlobal(); err == nil {
@@ -206,7 +206,7 @@ func ingestAccessRecord(rec reqstats.AccessRecord) {
 }
 
 // runReqStatsSaver flushes the request-timing snapshot to disk on a fixed tick
-// for lerd-ui to read, and fires a one-time push for any route newly flagged as
+// for servlo-panel to read, and fires a one-time push for any route newly flagged as
 // slow. Runs for the daemon's life, independent of idle. push.Send is a no-op
 // when no subscription has opted into the slow_route kind.
 func runReqStatsSaver() {

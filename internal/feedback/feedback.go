@@ -1,5 +1,5 @@
-// Package feedback renders lerd's CLI progress output (animated steps, a live
-// line, summaries, prompts, warnings) and owns the shared lerd colour palette.
+// Package feedback renders servlo's CLI progress output (animated steps, a live
+// line, summaries, prompts, warnings) and owns the shared servlo colour palette.
 // It degrades to plain text when stdout is piped, redirected, or NO_COLOR is set.
 package feedback
 
@@ -44,7 +44,7 @@ func SetDarkBackground(dark bool) {
 	dimStyle = lipgloss.NewStyle().Foreground(ColDim)
 }
 
-// Canonical lerd palette. The TUI theme aliases these so CLI feedback and the
+// Canonical servlo palette. The TUI theme aliases these so CLI feedback and the
 // dashboard share one set of colours. The signal colours are ANSI 16-colour
 // codes rather than fixed hex, so the CLI and TUI follow the user's terminal
 // theme (like `php artisan about`) instead of hardcoding a look. This also keeps
@@ -132,7 +132,7 @@ func init() { colorOn.Store(detectColor()) }
 // reported collects errors already shown to the user by a Step/Live Fail. The
 // top-level command handler consults it so a failure surfaced through the
 // feedback UI isn't reprinted as a second raw "Error: …" line by cobra. It is
-// capped because long-running processes (lerd-ui, the MCP server) also drive
+// capped because long-running processes (servlo-panel, the MCP server) also drive
 // Fail through shared CLI helpers and would otherwise grow it without bound; a
 // CLI command only ever checks the most recent failure, so an old-entry cap is
 // harmless. The trim copies into a fresh slice so the backing array is freed.
@@ -474,8 +474,8 @@ func WarnOn(w io.Writer, format string, a ...any) {
 	fmt.Fprintf(w, "%s%s %s\n", pad, paintIf(on, warnStyle, "⚠"), paintIf(on, warnStyle, msg))
 }
 
-// Table prints headers + rows as a single aligned table in the lerd palette so
-// every `lerd … list`/`search` view shares one look instead of hand-rolled
+// Table prints headers + rows as a single aligned table in the servlo palette so
+// every `servlo … list`/`search` view shares one look instead of hand-rolled
 // printf columns. See RenderTable for the styling and plain-mode fallback.
 func Table(headers []string, rows [][]string) {
 	mu.Lock()

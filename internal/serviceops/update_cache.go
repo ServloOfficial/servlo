@@ -6,7 +6,7 @@ import (
 )
 
 // updateAvailabilityTTL bounds how long a CheckUpdateAvailable result is
-// reused. Snapshot rebuilds in lerd-ui can fire many times per second during
+// reused. Snapshot rebuilds in servlo-panel can fire many times per second during
 // systemd burst transitions; without a cache, each rebuild forks one
 // `podman image inspect` per service. 30 seconds balances freshness against
 // fork pressure. Mutating ops (update, rollback, migrate) call

@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // isolateEditorEnv pins HOME and the XDG dirs to throwaway temp dirs so the

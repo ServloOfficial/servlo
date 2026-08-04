@@ -3,7 +3,7 @@ package siteops
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestResolveSecured(t *testing.T) {
@@ -25,7 +25,7 @@ func TestResolveSecured(t *testing.T) {
 		{"secured project, DNS managed", false, securedProj, dnsOn, true},
 		{"secured project, DNS disabled stays http", false, securedProj, dnsOff, false},
 		{"plain project, DNS managed", false, plainProj, dnsOn, false},
-		{"no .lerd.yaml", false, nil, dnsOn, false},
+		{"no .servlo.yaml", false, nil, dnsOn, false},
 		{"re-link preserves prior secured when DNS managed", true, plainProj, dnsOn, true},
 		{"re-link degrades to http when DNS disabled", true, plainProj, dnsOff, false},
 	}

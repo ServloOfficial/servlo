@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/nginx"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/nginx"
 )
 
-// setupHostProxyEnv creates a temp NestJS-style project whose .lerd.yaml
+// setupHostProxyEnv creates a temp NestJS-style project whose .servlo.yaml
 // declares a proxy: block, with XDG overrides so config/nginx writes stay in
 // the temp dir.
 func setupHostProxyEnv(t *testing.T) (projectDir, confD string) {
@@ -22,7 +22,7 @@ func setupHostProxyEnv(t *testing.T) (projectDir, confD string) {
 	projectDir = filepath.Join(tmp, "nestjs-app")
 	os.MkdirAll(projectDir, 0755)
 
-	os.WriteFile(filepath.Join(projectDir, ".lerd.yaml"), []byte(`domains:
+	os.WriteFile(filepath.Join(projectDir, ".servlo.yaml"), []byte(`domains:
   - nestapp
 proxy:
   command: npm run start:dev
@@ -38,7 +38,7 @@ services:
 }
 `), 0644)
 
-	confD = filepath.Join(tmp, "lerd", "nginx", "conf.d")
+	confD = filepath.Join(tmp, "servlo", "nginx", "conf.d")
 	return projectDir, confD
 }
 

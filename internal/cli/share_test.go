@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 	"strings"
 	"testing"
 )
@@ -352,7 +352,7 @@ func TestPickShareTool_defaultTool_missingBinary_namesTheDefault(t *testing.T) {
 		if !strings.Contains(err.Error(), c.wantBinary+" not found") {
 			t.Errorf("default %q: error = %v, want %q not found", c.defaultTool, err, c.wantBinary)
 		}
-		if !strings.Contains(err.Error(), "lerd share:tool") {
+		if !strings.Contains(err.Error(), "servlo share:tool") {
 			t.Errorf("default %q: error should point at share:tool, got %v", c.defaultTool, err)
 		}
 	}
@@ -454,11 +454,11 @@ func TestEnsureCloudflareTunnel_happyPath_logsInWhenNoCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if name != "lerd-mysite" {
-		t.Errorf("name = %q, want lerd-mysite", name)
+	if name != "servlo-mysite" {
+		t.Errorf("name = %q, want servlo-mysite", name)
 	}
 	calls := readCalls(t, logFile)
-	for _, want := range []string{"tunnel login", "tunnel create lerd-mysite", "tunnel route dns lerd-mysite dev.example.com"} {
+	for _, want := range []string{"tunnel login", "tunnel create servlo-mysite", "tunnel route dns servlo-mysite dev.example.com"} {
 		if !strings.Contains(calls, want) {
 			t.Errorf("calls %q missing %q", calls, want)
 		}
@@ -491,8 +491,8 @@ func TestEnsureCloudflareTunnel_toleratesExistingTunnelAndRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if name != "lerd-mysite" {
-		t.Errorf("name = %q, want lerd-mysite", name)
+	if name != "servlo-mysite" {
+		t.Errorf("name = %q, want servlo-mysite", name)
 	}
 	if !strings.Contains(out, "already exists") {
 		t.Errorf("expected a note about the existing record, got %q", out)

@@ -9,7 +9,7 @@ import (
 func TestSetProjectRuntimeRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	yaml := "domains:\n  - myapp\n"
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(yaml), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(yaml), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := SetProjectRuntime(dir, "frankenphp", true); err != nil {
@@ -41,7 +41,7 @@ func TestSetProjectRuntimeRoundTrip(t *testing.T) {
 func TestSetProjectJSRuntime_preservesNodeVersion(t *testing.T) {
 	dir := t.TempDir()
 	yaml := "domains:\n  - myapp\nnode_version: \"22\"\n"
-	if err := os.WriteFile(filepath.Join(dir, ".lerd.yaml"), []byte(yaml), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte(yaml), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := SetProjectJSRuntime(dir, "bun"); err != nil {
@@ -65,8 +65,8 @@ func TestSetProjectJSRuntime_createsWhenMissing(t *testing.T) {
 	if err := SetProjectJSRuntime(dir, "bun"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); err != nil {
-		t.Fatalf(".lerd.yaml should have been created: %v", err)
+	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); err != nil {
+		t.Fatalf(".servlo.yaml should have been created: %v", err)
 	}
 	cfg, err := LoadProjectConfig(dir)
 	if err != nil {

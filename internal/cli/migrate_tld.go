@@ -6,13 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/envfile"
-	"github.com/geodro/lerd/internal/feedback"
-	gitpkg "github.com/geodro/lerd/internal/git"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/siteops"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/realrashid/servlo/internal/feedback"
+	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 // sitesWithTLD returns the names of registered sites that have at least one
@@ -38,7 +38,7 @@ func sitesWithTLD(oldTLD string) []string {
 	return names
 }
 
-// projectWantsHTTPS reports whether the site's committed .lerd.yaml records
+// projectWantsHTTPS reports whether the site's committed .servlo.yaml records
 // HTTPS intent. It is the record the DNS re-enable migration restores from; a
 // missing or unreadable file means no intent, so the site stays plain HTTP.
 func projectWantsHTTPS(dir string) bool {
@@ -55,7 +55,7 @@ func projectWantsHTTPS(dir string) bool {
 // envfile.SyncPrimaryDomain. When forceUnsecure is true (DNS being disabled,
 // so HTTPS is unavailable) the site's registry Secured flag is flipped off so
 // the regen pass writes plain HTTP vhosts, but the project's committed HTTPS
-// intent in .lerd.yaml is left intact. When forceUnsecure is false (DNS being
+// intent in .servlo.yaml is left intact. When forceUnsecure is false (DNS being
 // enabled) each site's Secured flag is restored from that intent, so a
 // disable/enable round trip returns previously secured sites to https.
 //
@@ -97,8 +97,8 @@ func migrateSiteTLD(oldTLD, newTLD string, forceUnsecure bool) []string {
 
 		s.Domains = newDomains
 		// Registry flag off while DNS is down; on re-enable restore HTTPS from
-		// the committed .lerd.yaml intent, or the registry-recorded pre-disable
-		// state for a site with no .lerd.yaml, so the round trip is lossless.
+		// the committed .servlo.yaml intent, or the registry-recorded pre-disable
+		// state for a site with no .servlo.yaml, so the round trip is lossless.
 		if forceUnsecure {
 			s.SecuredBeforeDNSOff = s.Secured
 			s.Secured = false
@@ -121,7 +121,7 @@ func migrateSiteTLD(oldTLD, newTLD string, forceUnsecure bool) []string {
 			}
 		}
 		// Only mirror a proxy config for sites the registry records as
-		// host-proxy; a PHP site with a stray proxy block in .lerd.yaml must
+		// host-proxy; a PHP site with a stray proxy block in .servlo.yaml must
 		// still get PHP worktree vhosts, not reverse-proxy ones.
 		var wtProxy *config.ProxyConfig
 		if s.IsHostProxy() {
@@ -163,7 +163,7 @@ func migrateSiteTLD(oldTLD, newTLD string, forceUnsecure bool) []string {
 
 // adjustSitesSecuredForDNS tracks DNS availability for sites on a preserved
 // (custom) TLD without renaming: disabling drops to http (certs and worktree
-// vhosts follow), enabling restores HTTPS from .lerd.yaml or the recorded state.
+// vhosts follow), enabling restores HTTPS from .servlo.yaml or the recorded state.
 func adjustSitesSecuredForDNS(tld string, enabling bool) {
 	reg, err := config.LoadSites()
 	if err != nil || reg == nil {
@@ -244,7 +244,7 @@ func migrateWorktreeVhosts(worktrees []gitpkg.Worktree, newPrimary, phpVersion, 
 		newWTDomain := wt.Branch + "." + newPrimary
 		// Host-proxy worktrees keep their dev server (the unit is keyed by site
 		// and branch, not domain); only the proxy vhost domain changes. Mirror
-		// the parent's proxy config rather than the worktree's .lerd.yaml, which
+		// the parent's proxy config rather than the worktree's .servlo.yaml, which
 		// the worktree checkout often doesn't have.
 		if proxy != nil {
 			port := WorktreeHostPort(proxy.Port, wt.Path, hostProxyPortEnvKey(proxy))

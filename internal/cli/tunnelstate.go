@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// A tunnel started by "lerd share" runs in the user's own terminal, where the
+// A tunnel started by "servlo share" runs in the user's own terminal, where the
 // dashboard's in-process registry cannot see it. Each CLI share drops a small
 // file under the run dir for as long as it is up, and the dashboard folds those
 // in so a share looks the same wherever it was started from.
@@ -144,7 +144,7 @@ func cliTunnelStatus(key string) (TunnelInfo, bool) {
 	return TunnelInfo{Tool: st.Tool, URL: st.URL, External: true}, true
 }
 
-// stopCLITunnel terminates the "lerd share" process behind a CLI tunnel. The
+// stopCLITunnel terminates the "servlo share" process behind a CLI tunnel. The
 // entry goes now rather than when that share gets around to clearing it, so the
 // dashboard never keeps showing a tunnel it just stopped.
 func stopCLITunnel(key string) bool {

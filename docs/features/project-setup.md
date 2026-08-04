@@ -4,20 +4,20 @@ Two commands cover project bootstrap:
 
 | Command | What it does |
 |---|---|
-| `lerd init` | Runs the interactive wizard, writes `.lerd.yaml`, applies it (link, HTTPS, database, services) |
-| `lerd setup` | Runs `lerd init` first, then a checkbox list of install/migrate/build steps |
+| `servlo init` | Runs the interactive wizard, writes `.servlo.yaml`, applies it (link, HTTPS, database, services) |
+| `servlo setup` | Runs `servlo init` first, then a checkbox list of install/migrate/build steps |
 
-Use `lerd init` when you only want to configure the site (PHP version, services, HTTPS). Use `lerd setup` when you also want to install dependencies, run migrations, and start workers in one go.
+Use `servlo init` when you only want to configure the site (PHP version, services, HTTPS). Use `servlo setup` when you also want to install dependencies, run migrations, and start workers in one go.
 
 ---
 
-## `lerd init`
+## `servlo init`
 
-`lerd init` is the entry point for `.lerd.yaml`. Run it from the project root:
+`servlo init` is the entry point for `.servlo.yaml`. Run it from the project root:
 
 ```bash
 cd ~/Projects/my-app
-lerd init
+servlo init
 ```
 
 ```
@@ -28,19 +28,19 @@ lerd init
 ? Database: mysql
 ? Services: [mysql, redis]
 ? Workers to auto-start: [queue, schedule]
-Saved .lerd.yaml
+Saved .servlo.yaml
 Linked: my-app -> my-app.test (PHP 8.5, Node 22, Framework: laravel)
 ```
 
-The answers are saved to `.lerd.yaml` in the project root and applied immediately: the site is linked, HTTPS is enabled if requested, the database is created, and the chosen services are started.
+The answers are saved to `.servlo.yaml` in the project root and applied immediately: the site is linked, HTTPS is enabled if requested, the database is created, and the chosen services are started.
 
-The services list includes both built-in services and any custom services already registered with `lerd service add`. The workers step pre-selects workers based on the framework and detected packages; Horizon is shown automatically when `laravel/horizon` is in `composer.json`, replacing the generic queue option.
+The services list includes both built-in services and any custom services already registered with `servlo service add`. The workers step pre-selects workers based on the framework and detected packages; Horizon is shown automatically when `laravel/horizon` is in `composer.json`, replacing the generic queue option.
 
-**Commit `.lerd.yaml` to your repo.** On any future machine, running `lerd link` (or `lerd init` again) reads the saved file and restores the full configuration non-interactively, no prompts.
+**Commit `.servlo.yaml` to your repo.** On any future machine, running `servlo link` (or `servlo init` again) reads the saved file and restores the full configuration non-interactively, no prompts.
 
 | Flag | Description |
 |---|---|
-| `--fresh` | Re-run the wizard with existing `.lerd.yaml` values as defaults instead of applying them silently |
+| `--fresh` | Re-run the wizard with existing `.servlo.yaml` values as defaults instead of applying them silently |
 
 Use `--fresh` when you want to change the database engine, swap PHP versions, add or remove services, or otherwise re-answer the wizard.
 
@@ -48,7 +48,7 @@ Use `--fresh` when you want to change the database engine, swap PHP versions, ad
 
 ## Migrating from Herd, DDEV or Lando
 
-When you run `lerd init` in a project that still carries a `herd.yml`, `.ddev/config.yaml`, or `.lando.yml`, lerd detects it and offers to pre-fill the wizard from that file:
+When you run `servlo init` in a project that still carries a `herd.yml`, `.ddev/config.yaml`, or `.lando.yml`, servlo detects it and offers to pre-fill the wizard from that file:
 
 ```
 Detected herd.yml. Use it for wizard defaults? [Y/n]
@@ -64,61 +64,61 @@ The translation is intentionally partial, and anything it drops or changes is pr
 | `secured` (Herd) | HTTPS | direct |
 | docroot / webroot | `public_dir` | direct |
 | project name + aliases / hostnames / proxy | `domains` | wildcards and full FQDNs are skipped |
-| database engine | a database service | pinned versions and ports are dropped; lerd resolves them per machine |
+| database engine | a database service | pinned versions and ports are dropped; servlo resolves them per machine |
 
-MariaDB folds into MySQL because lerd's `mariadb` preset is an opt-in alternate; run `lerd service preset mariadb` first if you need MariaDB specifically. The framework is never translated from the source file because lerd auto-detects it. The seed only ever runs when no `.lerd.yaml` exists yet, so it never overwrites an existing lerd configuration.
+MariaDB folds into MySQL because servlo's `mariadb` preset is an opt-in alternate; run `servlo service preset mariadb` first if you need MariaDB specifically. The framework is never translated from the source file because servlo auto-detects it. The seed only ever runs when no `.servlo.yaml` exists yet, so it never overwrites an existing servlo configuration.
 
 ---
 
-## `lerd setup`
+## `servlo setup`
 
-`lerd setup` is the one-shot bootstrap command for a fresh PHP project. It runs `lerd init` first (so the wizard described above appears), then shows a checkbox list of install/migrate/build steps:
+`servlo setup` is the one-shot bootstrap command for a fresh PHP project. It runs `servlo init` first (so the wizard described above appears), then shows a checkbox list of install/migrate/build steps:
 
 ```bash
 cd ~/Projects/my-app
-lerd setup
+servlo setup
 ```
 
-After the wizard, a checkbox list appears with all available steps pre-selected based on the current project state. Worker steps are pre-selected based on the `.lerd.yaml` workers list. The JavaScript steps are labelled with the [package manager the project pins](/usage/node), so a pnpm project shows `pnpm install --frozen-lockfile` and `pnpm run build` where the npm project below shows `npm ci` and `npm run build`:
+After the wizard, a checkbox list appears with all available steps pre-selected based on the current project state. Worker steps are pre-selected based on the `.servlo.yaml` workers list. The JavaScript steps are labelled with the [package manager the project pins](/usage/node), so a pnpm project shows `pnpm install --frozen-lockfile` and `pnpm run build` where the npm project below shows `npm ci` and `npm run build`:
 
 ```
 ? Select setup steps to run:
   ◉ composer install
   ◉ npm ci
-  ◉ lerd env
-  ◯ lerd mcp:inject
+  ◉ servlo env
+  ◯ servlo mcp:inject
   ◉ php artisan migrate
   ◯ php artisan db:seed
   ◉ php artisan storage:link
   ◉ npm run build
-  ◯ lerd secure
+  ◯ servlo secure
   ◉ queue:start
-  ◉ lerd open
+  ◉ servlo open
 ```
 
-The `lerd secure` step is omitted entirely when HTTPS was already enabled in the init wizard, because there is nothing left to do.
+The `servlo secure` step is omitted entirely when HTTPS was already enabled in the init wizard, because there is nothing left to do.
 
-On a machine where `.lerd.yaml` already exists the wizard is skipped and the saved configuration is applied silently before the step selector appears.
+On a machine where `.servlo.yaml` already exists the wizard is skipped and the saved configuration is applied silently before the step selector appears.
 
-`lerd link` also applies `.lerd.yaml` when the file is present, so cloning a repo and running `lerd link` is enough to restore the full environment without running `lerd setup` or `lerd init` first. When workers are configured in `.lerd.yaml` but not yet running, `lerd link` prompts to run `lerd setup` so you can install dependencies, run migrations, and start workers in the right order.
+`servlo link` also applies `.servlo.yaml` when the file is present, so cloning a repo and running `servlo link` is enough to restore the full environment without running `servlo setup` or `servlo init` first. When workers are configured in `.servlo.yaml` but not yet running, `servlo link` prompts to run `servlo setup` so you can install dependencies, run migrations, and start workers in the right order.
 
 ## Running a command in an unlinked project
 
-Commands that operate on the current site (`lerd open`, `lerd runtime`, `lerd worker`, `lerd stripe`, `lerd env`, `lerd domain`, `lerd share`, `lerd xdebug`, and the worker-backed `lerd reverb`, `lerd schedule`, `lerd queue`) need the directory to be linked. When you run one in a project that has not been linked yet, lerd offers to link it for you instead of stopping with an error:
+Commands that operate on the current site (`servlo open`, `servlo runtime`, `servlo worker`, `servlo stripe`, `servlo env`, `servlo domain`, `servlo share`, `servlo xdebug`, and the worker-backed `servlo reverb`, `servlo schedule`, `servlo queue`) need the directory to be linked. When you run one in a project that has not been linked yet, servlo offers to link it for you instead of stopping with an error:
 
 ```
-This directory isn't linked to lerd. Link it now? [Y/n]
+This directory isn't linked to servlo. Link it now? [Y/n]
 ```
 
-Accepting runs `lerd link` (which cascades into `lerd init` when there is no `.lerd.yaml`), then the original command continues, so a single command is enough rather than a link, init, retry sequence. In a non-interactive context (a script or CI) the command returns a single clear error and does nothing else.
+Accepting runs `servlo link` (which cascades into `servlo init` when there is no `.servlo.yaml`), then the original command continues, so a single command is enough rather than a link, init, retry sequence. In a non-interactive context (a script or CI) the command returns a single clear error and does nothing else.
 
-See [Configuration](../configuration.md#per-project-config-lerdyaml) for the full field reference including inline service definitions and custom frameworks.
+See [Configuration](../configuration.md#per-project-config-servloyaml) for the full field reference including inline service definitions and custom frameworks.
 
 ---
 
 ## Automatic version switching
 
-When the Lerd watcher is running it monitors `.lerd.yaml`, `.php-version`, `.node-version`, and `.nvmrc` in every linked site directory. If any of these files change, for example after a `git checkout` to a branch with a different `.lerd.yaml`, Lerd automatically:
+When the Servlo watcher is running it monitors `.servlo.yaml`, `.php-version`, `.node-version`, and `.nvmrc` in every linked site directory. If any of these files change, for example after a `git checkout` to a branch with a different `.servlo.yaml`, Servlo automatically:
 
 1. Re-detects the PHP and Node versions for the site.
 2. Updates the site registry.
@@ -134,15 +134,15 @@ No hooks or per-project setup needed; it works for every linked site out of the 
 |---|---|---|
 | `composer install` | - [x] on | only if `vendor/` is missing; runs inside the project's PHP-FPM container to match the `composer.json` PHP constraint |
 | install JS deps | - [x] on | only if `node_modules/` is missing and `package.json` exists; runs `npm ci`, `pnpm install --frozen-lockfile`, `yarn install --immutable` or `bun install` to match the [detected package manager](/usage/node) |
-| `lerd env` | - [x] on | always |
-| `lerd mcp:inject` | - [ ] off | opt-in |
+| `servlo env` | - [x] on | always |
+| `servlo mcp:inject` | - [ ] off | opt-in |
 | `php artisan migrate` | - [x] on | always |
 | `php artisan db:seed` | - [ ] off | opt-in |
 | `php artisan storage:link` | - [x] on | only if `storage/app/public` is not yet symlinked |
 | build assets | - [x] on | only if `package.json` exists; runs the build script through the [detected package manager](/usage/node) |
-| `lerd secure` | - [ ] off | opt-in |
+| `servlo secure` | - [ ] off | opt-in |
 | `queue:start` | - [x] on | only if `QUEUE_CONNECTION=redis` is set in `.env` or `.env.example` |
-| `lerd open` | - [x] on | always |
+| `servlo open` | - [x] on | always |
 
 The asset build step detects the right command from `package.json`; it looks for `build`, `production`, or `prod` scripts in priority order.
 

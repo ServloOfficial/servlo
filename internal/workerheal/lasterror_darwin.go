@@ -10,9 +10,9 @@ import (
 	"strings"
 )
 
-// readLastErrorPlatform tails the launchd log file for a unit. The lerd
+// readLastErrorPlatform tails the launchd log file for a unit. The servlo
 // service-manager redirects stdout+stderr from each plist to
-// ~/Library/Logs/lerd/<unit>.log (see services/launchd_darwin.go), so this
+// ~/Library/Logs/servlo/<unit>.log (see services/launchd_darwin.go), so this
 // is the macOS analogue of `journalctl -u <unit> -n 1`. Returns "" when the
 // file doesn't exist or contains no usable lines.
 func readLastErrorPlatform(unit string) string {
@@ -20,7 +20,7 @@ func readLastErrorPlatform(unit string) string {
 	if err != nil {
 		return ""
 	}
-	path := filepath.Join(home, "Library", "Logs", "lerd", unit+".log")
+	path := filepath.Join(home, "Library", "Logs", "servlo", unit+".log")
 	return lastNonBlankLine(path)
 }
 

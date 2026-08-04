@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/phpantom"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/phpantom"
 )
 
 // handleLSPPhp bridges a browser WebSocket to a phpantom_lsp process so Monaco
@@ -88,11 +88,11 @@ func handleLSPPhp(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// stdout (Content-Length framed) -> ws text frames. Started before the
-	// lerd-root frame so the deferred join always has a live goroutine to close
-	// pumpDone, even when the lerd-root send below returns early. phpantom emits
+	// servlo-root frame so the deferred join always has a live goroutine to close
+	// pumpDone, even when the servlo-root send below returns early. phpantom emits
 	// nothing until it receives initialize, which the browser sends only after
-	// lerd-root, so the pump just blocks on its first read until then and can't
-	// race a frame ahead of lerd-root.
+	// servlo-root, so the pump just blocks on its first read until then and can't
+	// race a frame ahead of servlo-root.
 	go func() {
 		defer close(pumpDone)
 		br := bufio.NewReader(stdout)
@@ -111,7 +111,7 @@ func handleLSPPhp(w http.ResponseWriter, r *http.Request) {
 
 	// Probe a silent socket so a dead browser tab releases the process.
 	// Browsers auto-reply to pings; the pong refreshes the read deadline.
-	// Started before the lerd-root frame so the deferred join always has a live
+	// Started before the servlo-root frame so the deferred join always has a live
 	// goroutine to close pingDone, even when the send below returns early, and so
 	// the ping can never write to the socket after the deferred ws.Close.
 	go func() {
@@ -137,7 +137,7 @@ func handleLSPPhp(w http.ResponseWriter, r *http.Request) {
 	// Hand the browser the resolved workspace root before any LSP traffic: it
 	// needs the absolute host path to build the document URI and rootUri. This
 	// is the only non-LSP frame on the wire, and always arrives first.
-	if err := sendText([]byte(`{"type":"lerd-root","root":` + strconv.Quote(root) + `}`)); err != nil {
+	if err := sendText([]byte(`{"type":"servlo-root","root":` + strconv.Quote(root) + `}`)); err != nil {
 		return
 	}
 

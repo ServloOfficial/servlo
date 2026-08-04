@@ -6,20 +6,20 @@ import (
 )
 
 // Shared ssh-agent sidecar. It holds the user's unlocked SSH keys in memory and
-// exposes its socket on the lerd-ssh-agent named volume, which is also mounted
-// into the FPM containers (see lerd-php-fpm.container.tmpl) so composer's
+// exposes its socket on the servlo-ssh-agent named volume, which is also mounted
+// into the FPM containers (see servlo-php-fpm.container.tmpl) so composer's
 // git-over-SSH can reach the agent for private packages with passphrase keys.
 // Keys without a passphrase already work through the bind-mounted ~/.ssh, so the
 // agent is only needed for passphrase-protected keys.
 const (
 	// SSHAgentContainer is the podman container name of the sidecar.
-	SSHAgentContainer = "lerd-ssh-agent"
+	SSHAgentContainer = "servlo-ssh-agent"
 	// SSHAgentUnit is the quadlet/systemd unit name (matches the container).
-	SSHAgentUnit = "lerd-ssh-agent"
+	SSHAgentUnit = "servlo-ssh-agent"
 	// SSHAgentVolume is the named volume that carries the agent socket. Podman
 	// auto-creates it on first container start; it lives inside the podman
 	// machine on macOS, so the socket never crosses the host-VM boundary.
-	SSHAgentVolume = "lerd-ssh-agent"
+	SSHAgentVolume = "servlo-ssh-agent"
 	// SSHAgentMountDir is where the named volume is mounted in every container.
 	SSHAgentMountDir = "/ssh-agent"
 	// SSHAgentSocket is the agent socket path, shared via the named volume.
@@ -34,13 +34,13 @@ const (
 func GenerateSSHAgentQuadlet(image string) string {
 	var b strings.Builder
 	fmt.Fprintln(&b, "[Unit]")
-	fmt.Fprintln(&b, "Description=Lerd shared ssh-agent")
+	fmt.Fprintln(&b, "Description=Servlo shared ssh-agent")
 	fmt.Fprintln(&b, "After=network.target")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "[Container]")
 	fmt.Fprintf(&b, "Image=%s\n", image)
 	fmt.Fprintf(&b, "ContainerName=%s\n", SSHAgentContainer)
-	fmt.Fprintln(&b, "Network=lerd")
+	fmt.Fprintln(&b, "Network=servlo")
 	fmt.Fprintf(&b, "Volume=%s:%s\n", SSHAgentVolume, SSHAgentMountDir)
 	fmt.Fprintln(&b, "Volume=%h/.ssh:%h/.ssh:ro")
 	fmt.Fprintf(&b, "Environment=SSH_AUTH_SOCK=%s\n", SSHAgentSocket)

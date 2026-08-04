@@ -7,12 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/geodro/lerd/internal/activityping"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/feedback"
+	"github.com/realrashid/servlo/internal/activityping"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/feedback"
 )
 
-// NewIdleCmd returns the parent `lerd idle` command: a global on/off toggle, a
+// NewIdleCmd returns the parent `servlo idle` command: a global on/off toggle, a
 // global timeout, and a status readout. Idle-suspend is a single global policy,
 // not configured per site.
 func NewIdleCmd() *cobra.Command {
@@ -138,7 +138,7 @@ func newIdleStatusCmd() *cobra.Command {
 }
 
 // idleSiteState is the slice of the /api/sites payload idle status needs: the
-// last-active time lives only in the lerd-ui process, so we ask it over the
+// last-active time lives only in the servlo-panel process, so we ask it over the
 // unix socket rather than trying to reconstruct it in the CLI. Worktrees idle on
 // their own timers, so each carries its own last-active and suspended set.
 type idleSiteState struct {
@@ -208,12 +208,12 @@ func idleSiteStatus(s config.Site, lastActive map[string]int64, uiErr error, tim
 	if s.Pinned {
 		return "pinned"
 	}
-	// Nothing lerd supervises, so the engine never sleeps it.
+	// Nothing servlo supervises, so the engine never sleeps it.
 	if s.IsProxyOnly() {
 		return "proxy only"
 	}
 	if uiErr != nil {
-		return "(lerd-ui not running)"
+		return "(servlo-panel not running)"
 	}
 	return idleTimingStatus(lastActive[s.Name], s.IdleSuspendedWorkers, timeout, now)
 }
@@ -232,7 +232,7 @@ func idleWorktreeStatus(s config.Site, wt idleWtState, uiErr error, timeout time
 		return "proxy only"
 	}
 	if uiErr != nil {
-		return "(lerd-ui not running)"
+		return "(servlo-panel not running)"
 	}
 	return idleTimingStatus(wt.LastActive, wt.IdleSuspendedWorkers, timeout, now)
 }
@@ -258,16 +258,16 @@ func idleTimingStatus(lastActiveUnix int64, suspended []string, timeout time.Dur
 	return "active " + compactDuration(elapsed) + " ago"
 }
 
-// fetchIdleSites asks lerd-ui for the per-site (and per-worktree) idle state,
-// since last-active times live only in the lerd-ui process. A non-nil error means
-// lerd-ui is unreachable, which the caller renders rather than failing.
+// fetchIdleSites asks servlo-panel for the per-site (and per-worktree) idle state,
+// since last-active times live only in the servlo-panel process. A non-nil error means
+// servlo-panel is unreachable, which the caller renders rather than failing.
 func fetchIdleSites() ([]idleSiteState, error) {
 	body, code, err := getUnix("/api/sites")
 	if err != nil {
 		return nil, err
 	}
 	if code != 200 {
-		return nil, fmt.Errorf("lerd-ui returned %d", code)
+		return nil, fmt.Errorf("servlo-panel returned %d", code)
 	}
 	var sites []idleSiteState
 	if err := json.Unmarshal(body, &sites); err != nil {

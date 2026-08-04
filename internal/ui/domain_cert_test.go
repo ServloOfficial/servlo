@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // installFakeMkcert writes a stub mkcert binary into the test's bin dir.
@@ -18,7 +18,7 @@ import (
 // package tests so it stays familiar.
 func installFakeMkcert(t *testing.T, dataHome string) {
 	t.Helper()
-	binDir := filepath.Join(dataHome, "lerd", "bin")
+	binDir := filepath.Join(dataHome, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -114,10 +114,10 @@ func setupSecuredSite(t *testing.T, primary string, extras ...string) (sitePath 
 	return sitePath
 }
 
-// readSiteCert returns the raw bytes of <XDG_DATA_HOME>/lerd/certs/sites/<primary>.crt.
+// readSiteCert returns the raw bytes of <XDG_DATA_HOME>/servlo/certs/sites/<primary>.crt.
 func readSiteCert(t *testing.T, primary string) string {
 	t.Helper()
-	path := filepath.Join(os.Getenv("XDG_DATA_HOME"), "lerd", "certs", "sites", primary+".crt")
+	path := filepath.Join(os.Getenv("XDG_DATA_HOME"), "servlo", "certs", "sites", primary+".crt")
 	body, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("reading cert %q: %v", path, err)

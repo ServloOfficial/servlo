@@ -4,11 +4,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // TestResolveWorkerFPMUnit_defaultSharedFPM pins the default case: a plain
-// PHP-FPM site resolves to the shared lerd-php<v>-fpm container regardless
+// PHP-FPM site resolves to the shared servlo-php<v>-fpm container regardless
 // of platform.
 func TestResolveWorkerFPMUnit_defaultSharedFPM(t *testing.T) {
 	tmp := t.TempDir()
@@ -20,8 +20,8 @@ func TestResolveWorkerFPMUnit_defaultSharedFPM(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if got := resolveWorkerFPMUnit("alpha", "8.4"); got != "lerd-php84-fpm" {
-		t.Errorf("got %q, want lerd-php84-fpm", got)
+	if got := resolveWorkerFPMUnit("alpha", "8.4"); got != "servlo-php84-fpm" {
+		t.Errorf("got %q, want servlo-php84-fpm", got)
 	}
 }
 
@@ -39,7 +39,7 @@ func TestResolveWorkerFPMUnit_customContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := resolveWorkerFPMUnit("beta", "8.4")
-	if got == "lerd-php84-fpm" {
+	if got == "servlo-php84-fpm" {
 		t.Errorf("expected custom container name, got shared FPM %q", got)
 	}
 	// Just sanity-check the prefix; podman.CustomContainerName owns the format.
@@ -65,7 +65,7 @@ func TestResolveWorkerFPMUnit_frankenPHP(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := resolveWorkerFPMUnit("gamma", "8.4")
-	if got == "lerd-php84-fpm" {
+	if got == "servlo-php84-fpm" {
 		t.Errorf("expected FrankenPHP container, got shared FPM %q", got)
 	}
 	if got == "" {
@@ -80,8 +80,8 @@ func TestResolveWorkerFPMUnit_unknownSite(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
-	if got := resolveWorkerFPMUnit("noexist", "8.3"); got != "lerd-php83-fpm" {
-		t.Errorf("got %q, want lerd-php83-fpm", got)
+	if got := resolveWorkerFPMUnit("noexist", "8.3"); got != "servlo-php83-fpm" {
+		t.Errorf("got %q, want servlo-php83-fpm", got)
 	}
 }
 
@@ -92,8 +92,8 @@ func TestResolveWorkerFPMUnit_unknownSite(t *testing.T) {
 func TestWorkerNames_parentPath(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
 	unit, display := workerNames("ws", "/p/ws", "vite")
-	if unit != "lerd-vite-ws" {
-		t.Errorf("unit = %q, want lerd-vite-ws", unit)
+	if unit != "servlo-vite-ws" {
+		t.Errorf("unit = %q, want servlo-vite-ws", unit)
 	}
 	if display != "ws" {
 		t.Errorf("display = %q, want ws", display)
@@ -103,8 +103,8 @@ func TestWorkerNames_parentPath(t *testing.T) {
 func TestWorkerNames_worktreePath(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
 	unit, display := workerNames("ws", "/p/ws/feat-x", "vite")
-	if unit != "lerd-vite-ws-feat-x" {
-		t.Errorf("unit = %q, want lerd-vite-ws-feat-x", unit)
+	if unit != "servlo-vite-ws-feat-x" {
+		t.Errorf("unit = %q, want servlo-vite-ws-feat-x", unit)
 	}
 	if display != "ws/feat-x" {
 		t.Errorf("display = %q, want ws/feat-x", display)
@@ -114,7 +114,7 @@ func TestWorkerNames_worktreePath(t *testing.T) {
 func TestWorkerNames_emptyPath(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
 	unit, display := workerNames("ws", "", "vite")
-	if unit != "lerd-vite-ws" || display != "ws" {
-		t.Errorf("got (%q,%q), want (lerd-vite-ws, ws)", unit, display)
+	if unit != "servlo-vite-ws" || display != "ws" {
+		t.Errorf("got (%q,%q), want (servlo-vite-ws, ws)", unit, display)
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/geodro/lerd/internal/imgledger"
+	"github.com/realrashid/servlo/internal/imgledger"
 )
 
 // withImages swaps the image-scan and layer-inspect seams for fixtures and
@@ -31,19 +31,19 @@ func withImages(t *testing.T, imgs []image, layers map[string][]string) {
 	})
 }
 
-func TestInspect_ReclaimsOnlyOrphanedLerdImages(t *testing.T) {
+func TestInspect_ReclaimsOnlyOrphanedServloImages(t *testing.T) {
 	withImages(t, []image{
-		// orphaned lerd FPM base (tag moved away on rebuild) → reclaim
-		{ID: "sha256:aaa", Names: nil, Size: 100, Labels: map[string]string{"dev.lerd.fpm.containerfile-hash": "h1"}},
-		// live lerd image (still tagged) → keep
-		{ID: "sha256:bbb", Names: []string{"lerd-php84-fpm:local"}, Size: 200, Labels: map[string]string{"dev.lerd.fpm.containerfile-hash": "h2"}},
-		// dangling but not lerd → keep (only touch lerd)
+		// orphaned servlo FPM base (tag moved away on rebuild) → reclaim
+		{ID: "sha256:aaa", Names: nil, Size: 100, Labels: map[string]string{"dev.servlo.fpm.containerfile-hash": "h1"}},
+		// live servlo image (still tagged) → keep
+		{ID: "sha256:bbb", Names: []string{"servlo-php84-fpm:local"}, Size: 200, Labels: map[string]string{"dev.servlo.fpm.containerfile-hash": "h2"}},
+		// dangling but not servlo → keep (only touch servlo)
 		{ID: "sha256:ccc", Names: nil, Size: 400, Labels: nil},
-		// tagged non-lerd image → keep
+		// tagged non-servlo image → keep
 		{ID: "sha256:ddd", Names: []string{"mysql:8.4"}, Size: 800, Labels: nil},
-		// orphaned lerd FrankenPHP image; 600 of its 1600 bytes are shared layers,
+		// orphaned servlo FrankenPHP image; 600 of its 1600 bytes are shared layers,
 		// so only the 1000 unique bytes are actually reclaimable → reclaim
-		{ID: "sha256:eee", Names: []string{"<none>:<none>"}, Size: 1600, SharedSize: 600, Labels: map[string]string{"dev.lerd.frankenphp.containerfile-hash": "h3"}},
+		{ID: "sha256:eee", Names: []string{"<none>:<none>"}, Size: 1600, SharedSize: 600, Labels: map[string]string{"dev.servlo.frankenphp.containerfile-hash": "h3"}},
 	}, nil)
 
 	p, err := Inspect(ScopeSafe)
@@ -56,7 +56,7 @@ func TestInspect_ReclaimsOnlyOrphanedLerdImages(t *testing.T) {
 		got[tg.ID] = true
 	}
 	if len(got) != 2 || !got["aaa"] || !got["eee"] {
-		t.Fatalf("want exactly orphaned lerd images {aaa,eee}, got %+v", p.Targets)
+		t.Fatalf("want exactly orphaned servlo images {aaa,eee}, got %+v", p.Targets)
 	}
 	// aaa contributes its full 100 (no shared layers); eee contributes 1000
 	// (1600 size minus 600 shared) — shared layers are not counted as reclaimed.
@@ -65,12 +65,12 @@ func TestInspect_ReclaimsOnlyOrphanedLerdImages(t *testing.T) {
 	}
 }
 
-// The "only touch lerd" contract: with nothing lerd-built present, the plan is
+// The "only touch servlo" contract: with nothing servlo-built present, the plan is
 // empty even when the host is full of other reclaimable podman images.
-func TestInspect_NeverTargetsNonLerd(t *testing.T) {
+func TestInspect_NeverTargetsNonServlo(t *testing.T) {
 	withImages(t, []image{
-		{ID: "sha256:111", Names: nil, Size: 999, Labels: nil},                                                        // dangling non-lerd
-		{ID: "sha256:222", Names: []string{"redis:7"}, Size: 999, Labels: nil},                                        // tagged non-lerd
+		{ID: "sha256:111", Names: nil, Size: 999, Labels: nil},                                                        // dangling non-servlo
+		{ID: "sha256:222", Names: []string{"redis:7"}, Size: 999, Labels: nil},                                        // tagged non-servlo
 		{ID: "sha256:333", Names: []string{"<none>:<none>"}, Size: 999, Labels: map[string]string{"maintainer": "x"}}, // dangling, foreign label
 	}, nil)
 
@@ -79,19 +79,19 @@ func TestInspect_NeverTargetsNonLerd(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(p.Targets) != 0 {
-		t.Fatalf("non-lerd images must never be targeted, got %+v", p.Targets)
+		t.Fatalf("non-servlo images must never be targeted, got %+v", p.Targets)
 	}
 }
 
-// The deep tier reaps every dangling image, lerd's own labelled orphans and
+// The deep tier reaps every dangling image, servlo's own labelled orphans and
 // unlabelled upstream leftovers alike, since a dangling image is unreferenced by
-// definition. The safe tier still keeps non-lerd dangling images (proven by
-// TestInspect_NeverTargetsNonLerd), so the aggressive reap is opt-out via --safe.
+// definition. The safe tier still keeps non-servlo dangling images (proven by
+// TestInspect_NeverTargetsNonServlo), so the aggressive reap is opt-out via --safe.
 func TestInspect_DeepReapsAllDanglingImages(t *testing.T) {
 	withImages(t, []image{
-		{ID: "sha256:lerd", Names: nil, Size: 100, Labels: map[string]string{"dev.lerd.fpm.containerfile-hash": "h"}}, // lerd orphan
+		{ID: "sha256:servlo", Names: nil, Size: 100, Labels: map[string]string{"dev.servlo.fpm.containerfile-hash": "h"}}, // servlo orphan
 		{ID: "sha256:mysql", Names: nil, Size: 800}, // old upstream image that lost its tag
-		{ID: "sha256:live", Names: []string{"lerd-php84-fpm:local"}, Size: 200, Labels: map[string]string{"dev.lerd.fpm.containerfile-hash": "h2"}},
+		{ID: "sha256:live", Names: []string{"servlo-php84-fpm:local"}, Size: 200, Labels: map[string]string{"dev.servlo.fpm.containerfile-hash": "h2"}},
 		{ID: "sha256:tag", Names: []string{"mysql:8.4"}, Size: 900}, // tagged, not dangling → keep
 	}, nil)
 	serviceRepos = func() (map[string]bool, error) { return map[string]bool{}, nil }
@@ -109,15 +109,15 @@ func TestInspect_DeepReapsAllDanglingImages(t *testing.T) {
 	for _, tg := range p.Targets {
 		got[tg.ID] = true
 	}
-	if !got["lerd"] || !got["mysql"] {
-		t.Fatalf("deep tier should reap both the lerd orphan and the untagged upstream image, got %+v", p.Targets)
+	if !got["servlo"] || !got["mysql"] {
+		t.Fatalf("deep tier should reap both the servlo orphan and the untagged upstream image, got %+v", p.Targets)
 	}
 	if got["live"] || got["tag"] {
 		t.Errorf("a tagged image must never be reaped, got %+v", p.Targets)
 	}
 }
 
-// The managed tier (the watcher's scope) reclaims a lerd catalog upgrade leftover
+// The managed tier (the watcher's scope) reclaims a servlo catalog upgrade leftover
 // but must never touch a foreign dangling image, which only the interactive deep
 // tier reaps. Guards against the daily sweep pruning another workload's layers.
 func TestInspect_ManagedReapsCatalogNotForeignDangling(t *testing.T) {
@@ -168,14 +168,14 @@ func TestInspect_ManagedReapsCatalogNotForeignDangling(t *testing.T) {
 	}
 }
 
-// A tagged catalog image lerd never pulled (the user pulled it themselves for an
+// A tagged catalog image servlo never pulled (the user pulled it themselves for an
 // unrelated project) must be left alone even though its repo is in the catalog and
-// nothing lerd runs references it. The ledger is what separates lerd's own
+// nothing servlo runs references it. The ledger is what separates servlo's own
 // leftovers from the user's own images sharing a catalog repo.
-func TestInspect_ManagedSparesCatalogImageLerdNeverPulled(t *testing.T) {
+func TestInspect_ManagedSparesCatalogImageServloNeverPulled(t *testing.T) {
 	withImages(t, []image{
 		{ID: "r6", Names: []string{"docker.io/library/redis:6"}, Size: 300}, // user's own pull
-		{ID: "r7", Names: []string{"docker.io/library/redis:7"}, Size: 300}, // lerd's leftover
+		{ID: "r7", Names: []string{"docker.io/library/redis:7"}, Size: 300}, // servlo's leftover
 	}, nil)
 	serviceRepos = func() (map[string]bool, error) {
 		return map[string]bool{"docker.io/library/redis": true}, nil
@@ -198,10 +198,10 @@ func TestInspect_ManagedSparesCatalogImageLerdNeverPulled(t *testing.T) {
 		got[tg.ID] = true
 	}
 	if got["docker.io/library/redis:6"] {
-		t.Errorf("must not reap the user's own redis:6 that lerd never pulled, got %+v", managed.Targets)
+		t.Errorf("must not reap the user's own redis:6 that servlo never pulled, got %+v", managed.Targets)
 	}
 	if !got["docker.io/library/redis:7"] {
-		t.Errorf("should reap lerd's own recorded redis:7 leftover, got %+v", managed.Targets)
+		t.Errorf("should reap servlo's own recorded redis:7 leftover, got %+v", managed.Targets)
 	}
 }
 
@@ -247,13 +247,13 @@ func TestInspect_ReclaimsOrphanBasesKeepsInUse(t *testing.T) {
 	withImages(t,
 		[]image{
 			// live derived image, built on the current php84 base
-			{ID: "local84", Names: []string{"localhost/lerd-php84-fpm:local"}, Size: 700, Labels: map[string]string{"dev.lerd.fpm.containerfile-hash": "h"}},
+			{ID: "local84", Names: []string{"localhost/servlo-php84-fpm:local"}, Size: 700, Labels: map[string]string{"dev.servlo.fpm.containerfile-hash": "h"}},
 			// current php84 base: its top layer is in the live image → keep
-			{ID: "baseCur", Names: []string{"ghcr.io/geodro/lerd-php84-fpm-base:cur"}, Size: 500},
+			{ID: "baseCur", Names: []string{"ghcr.io/lerd-env/lerd-php84-fpm-base:cur"}, Size: 500},
 			// old-hash php84 base: top layer used by nothing live → reclaim
-			{ID: "baseOld", Names: []string{"ghcr.io/geodro/lerd-php84-fpm-base:old"}, Size: 500},
+			{ID: "baseOld", Names: []string{"ghcr.io/lerd-env/lerd-php84-fpm-base:old"}, Size: 500},
 			// base for php82, a version no longer installed → reclaim
-			{ID: "base82", Names: []string{"ghcr.io/geodro/lerd-php82-fpm-base:cur"}, Size: 500},
+			{ID: "base82", Names: []string{"ghcr.io/lerd-env/lerd-php82-fpm-base:cur"}, Size: 500},
 		},
 		map[string][]string{
 			"local84": {"L1", "L2", "L3", "Lcustom"}, // built on current base + custom layer
@@ -273,8 +273,8 @@ func TestInspect_ReclaimsOrphanBasesKeepsInUse(t *testing.T) {
 		got[tg.ID] = true
 	}
 	want := map[string]bool{
-		"ghcr.io/geodro/lerd-php84-fpm-base:old": true,
-		"ghcr.io/geodro/lerd-php82-fpm-base:cur": true,
+		"ghcr.io/lerd-env/lerd-php84-fpm-base:old": true,
+		"ghcr.io/lerd-env/lerd-php82-fpm-base:cur": true,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("want the two orphan bases reaped, got %+v", p.Targets)

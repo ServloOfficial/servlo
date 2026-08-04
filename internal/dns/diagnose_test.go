@@ -26,11 +26,11 @@ func fakeProbes() probeFns {
 }
 
 // nmProbes is fakeProbes on the NetworkManager + systemd-resolved path, the only
-// one that provisions lerd0 and so the only one the offline-route rung runs on.
+// one that provisions servlo0 and so the only one the offline-route rung runs on.
 func nmProbes() probeFns {
 	p := fakeProbes()
 	p.resolverHookup = func() (string, bool, string) {
-		return nmDispatcherKind, true, "/etc/NetworkManager/dispatcher.d/99-lerd-dns"
+		return nmDispatcherKind, true, "/etc/NetworkManager/dispatcher.d/99-servlo-dns"
 	}
 	return p
 }
@@ -71,14 +71,14 @@ func TestDiagnose_containerDownAndPortClosedStopsChain(t *testing.T) {
 	if d.FirstFailure != 0 {
 		t.Errorf("FirstFailure = %d, want 0", d.FirstFailure)
 	}
-	if !strings.Contains(d.Steps[0].Hint, "lerd start") {
-		t.Errorf("hint %q should mention `lerd start`", d.Steps[0].Hint)
+	if !strings.Contains(d.Steps[0].Hint, "servlo start") {
+		t.Errorf("hint %q should mention `servlo start`", d.Steps[0].Hint)
 	}
 }
 
 func TestDiagnose_legacyHostResolverDetectedAsWarn(t *testing.T) {
 	// Field-report scenario: user has Homebrew/launchd dnsmasq holding
-	// :5300, lerd-dns container is absent. The chain should surface this
+	// :5300, servlo-dns container is absent. The chain should surface this
 	// as a WARN (not a hard fail) with a hint explaining the situation.
 	p := fakeProbes()
 	p.containerRunning = func() bool { return false }
@@ -92,9 +92,9 @@ func TestDiagnose_legacyHostResolverDetectedAsWarn(t *testing.T) {
 		t.Errorf("step status = %s, want warn", step.Status)
 	}
 	if d.FirstFailure != -1 {
-		t.Errorf("FirstFailure = %d, want -1 (no failure, lerd just isn't managing DNS)", d.FirstFailure)
+		t.Errorf("FirstFailure = %d, want -1 (no failure, servlo just isn't managing DNS)", d.FirstFailure)
 	}
-	for _, want := range []string{"host-side resolver", "not managing DNS", "lerd start"} {
+	for _, want := range []string{"host-side resolver", "not managing DNS", "servlo start"} {
 		if !strings.Contains(step.Detail+step.Hint, want) {
 			t.Errorf("step detail+hint should mention %q\ndetail: %s\nhint: %s", want, step.Detail, step.Hint)
 		}
@@ -126,8 +126,8 @@ func TestDiagnose_portSquattedByNonDNSReportsFail(t *testing.T) {
 
 func TestDiagnose_legacyResolverPointingAtNon127ReportsWarn(t *testing.T) {
 	// User runs a host dnsmasq mapping .test to a LAN IP (e.g. for
-	// cross-device testing). Still a working resolver, still not lerd's,
-	// but the IP differs from lerd's default. Surface as WARN with the
+	// cross-device testing). Still a working resolver, still not servlo's,
+	// but the IP differs from servlo's default. Surface as WARN with the
 	// actual answer included so the user can confirm intent.
 	p := fakeProbes()
 	p.containerRunning = func() bool { return false }
@@ -140,13 +140,13 @@ func TestDiagnose_legacyResolverPointingAtNon127ReportsWarn(t *testing.T) {
 		t.Errorf("step status = %s, want warn", d.Steps[0].Status)
 	}
 	if d.FirstFailure != -1 {
-		t.Errorf("FirstFailure = %d, want -1 (not a failure, lerd just isn't the resolver)", d.FirstFailure)
+		t.Errorf("FirstFailure = %d, want -1 (not a failure, servlo just isn't the resolver)", d.FirstFailure)
 	}
 	if !strings.Contains(d.Steps[0].Detail, "192.168.1.20") {
 		t.Errorf("Detail should mention the actual IP the host resolver returned, got %q", d.Steps[0].Detail)
 	}
-	if !strings.Contains(d.Steps[0].Detail, "lerd's default is 127.0.0.1") {
-		t.Errorf("Detail should call out the difference from lerd's default, got %q", d.Steps[0].Detail)
+	if !strings.Contains(d.Steps[0].Detail, "servlo's default is 127.0.0.1") {
+		t.Errorf("Detail should call out the difference from servlo's default, got %q", d.Steps[0].Detail)
 	}
 }
 
@@ -199,8 +199,8 @@ func TestDiagnose_digHintUsesDnsRepairNotSystemctl(t *testing.T) {
 	p := fakeProbes()
 	p.dnsmasqAnswer = func(string) (string, error) { return "1.2.3.4", nil }
 	hint := diagnose("test", p).Steps[3].Hint
-	if !strings.Contains(hint, "lerd dns:repair") {
-		t.Errorf("hint %q should suggest `lerd dns:repair`", hint)
+	if !strings.Contains(hint, "servlo dns:repair") {
+		t.Errorf("hint %q should suggest `servlo dns:repair`", hint)
 	}
 	if strings.Contains(hint, "systemctl") {
 		t.Errorf("hint %q must not suggest systemctl (Linux-only)", hint)
@@ -214,8 +214,8 @@ func TestDiagnose_resolverHookupMissingHintsInstall(t *testing.T) {
 	if d.FirstFailure != 4 {
 		t.Errorf("FirstFailure = %d, want 4 (resolver hookup rung)", d.FirstFailure)
 	}
-	if !strings.Contains(d.Steps[4].Hint, "lerd install") {
-		t.Errorf("hint %q should suggest lerd install", d.Steps[4].Hint)
+	if !strings.Contains(d.Steps[4].Hint, "servlo install") {
+		t.Errorf("hint %q should suggest servlo install", d.Steps[4].Hint)
 	}
 }
 
@@ -241,7 +241,7 @@ func TestDiagnose_systemLookupNotFinalizedAsSkip(t *testing.T) {
 }
 
 // TestDiagnose_systemLookupUnderVPNIsWarn pins the VPN-aware Rung 7: when a
-// tunnel is up, the system-resolver path failing is expected and lerd
+// tunnel is up, the system-resolver path failing is expected and servlo
 // recovers on its own, so it must downgrade to a warning rather than a
 // failure that would mark the whole chain broken.
 func TestDiagnose_systemLookupUnderVPNIsWarn(t *testing.T) {
@@ -343,14 +343,14 @@ func TestParseInterfaceRouting_no5300(t *testing.T) {
 	}
 }
 
-// --- offline .test route (lerd0) ---
+// --- offline .test route (servlo0) ---
 
-// A missing lerd0 is a warning, not a failure: .test still resolves while a real
+// A missing servlo0 is a warning, not a failure: .test still resolves while a real
 // link is up, and only breaks once the user goes offline. The chain must keep
 // walking so the end-to-end rung still reports.
 func TestDiagnose_dummyLinkMissingWarnsAndContinues(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lerd0 is provisioned on Linux only")
+		t.Skip("servlo0 is provisioned on Linux only")
 	}
 	p := nmProbes()
 	p.dummyLinkRouting = func(string) (bool, bool) { return false, false }
@@ -363,7 +363,7 @@ func TestDiagnose_dummyLinkMissingWarnsAndContinues(t *testing.T) {
 	if step.Status != StepWarn {
 		t.Errorf("status = %s, want warn (online resolution is unaffected)", step.Status)
 	}
-	if !strings.Contains(step.Detail, "lerd0") {
+	if !strings.Contains(step.Detail, "servlo0") {
 		t.Errorf("detail %q should name the link", step.Detail)
 	}
 	if d.FirstFailure != -1 {
@@ -374,11 +374,11 @@ func TestDiagnose_dummyLinkMissingWarnsAndContinues(t *testing.T) {
 	}
 }
 
-// lerd0 present but with no ~test route is its own failure mode: the link is up
+// servlo0 present but with no ~test route is its own failure mode: the link is up
 // so it looks fine, but resolved has nothing to forward .test over when offline.
 func TestDiagnose_dummyLinkPresentButUnroutedWarns(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lerd0 is provisioned on Linux only")
+		t.Skip("servlo0 is provisioned on Linux only")
 	}
 	p := nmProbes()
 	p.dummyLinkRouting = func(string) (bool, bool) { return true, false }
@@ -391,12 +391,12 @@ func TestDiagnose_dummyLinkPresentButUnroutedWarns(t *testing.T) {
 	if step.Status != StepWarn {
 		t.Errorf("status = %s, want warn", step.Status)
 	}
-	if !strings.Contains(step.Hint, lerdLinkUnitName) {
+	if !strings.Contains(step.Hint, servloLinkUnitName) {
 		t.Errorf("hint %q should point at the unit that owns the route", step.Hint)
 	}
 }
 
-// Only the NM + systemd-resolved path provisions lerd0. On a pure resolved
+// Only the NM + systemd-resolved path provisions servlo0. On a pure resolved
 // drop-in or macOS host the link never exists and reporting on it would be noise.
 func TestDiagnose_dummyLinkRungSkippedOffNMPath(t *testing.T) {
 	p := fakeProbes() // resolverHookup returns "drop-in", not the NM dispatcher
@@ -405,7 +405,7 @@ func TestDiagnose_dummyLinkRungSkippedOffNMPath(t *testing.T) {
 	d := diagnose("test", p)
 
 	if called {
-		t.Error("lerd0 must not be probed on a non-NetworkManager resolver path")
+		t.Error("servlo0 must not be probed on a non-NetworkManager resolver path")
 	}
 	if findStep(d, "offline .test route") != nil {
 		t.Error("no offline .test route step should appear off the NM path")
@@ -414,7 +414,7 @@ func TestDiagnose_dummyLinkRungSkippedOffNMPath(t *testing.T) {
 
 // resolvectl exits 0 even for a link it doesn't know, printing "No such device"
 // to stderr and nothing to stdout. Presence must therefore be read off stdout:
-// an exit-code check reports a deleted lerd0 as present-but-unrouted, which sends
+// an exit-code check reports a deleted servlo0 as present-but-unrouted, which sends
 // the user chasing a routing problem on an interface that isn't there.
 func TestDefaultDummyLinkRouting_parsesPresenceFromStdout(t *testing.T) {
 	cases := []struct {
@@ -428,7 +428,7 @@ func TestDefaultDummyLinkRouting_parsesPresenceFromStdout(t *testing.T) {
 		},
 		{
 			name: "present and routed",
-			stdout: "Link 6 (lerd0)\n" +
+			stdout: "Link 6 (servlo0)\n" +
 				"    Current Scopes: DNS\n" +
 				"Current DNS Server: 127.0.0.1:5300\n" +
 				"       DNS Servers: 127.0.0.1:5300\n" +
@@ -437,13 +437,13 @@ func TestDefaultDummyLinkRouting_parsesPresenceFromStdout(t *testing.T) {
 		},
 		{
 			name: "present but carrying no route",
-			stdout: "Link 6 (lerd0)\n" +
+			stdout: "Link 6 (servlo0)\n" +
 				"    Current Scopes: none\n",
 			present: true,
 		},
 		{
 			name: "present with a server but no ~test domain",
-			stdout: "Link 6 (lerd0)\n" +
+			stdout: "Link 6 (servlo0)\n" +
 				"       DNS Servers: 127.0.0.1:5300\n",
 			present: true,
 		},
@@ -459,7 +459,7 @@ func TestDefaultDummyLinkRouting_parsesPresenceFromStdout(t *testing.T) {
 	}
 }
 
-// Both systemd-resolved paths depend on lerd0 for offline .test: resolved
+// Both systemd-resolved paths depend on servlo0 for offline .test: resolved
 // refuses a loopback DNS server once no link is routable whether that server is
 // per-link (NetworkManager dispatcher) or global (the drop-in used on Arch and
 // omarchy, which run resolved without NetworkManager). NetworkManager's own
@@ -480,14 +480,14 @@ func TestUsesDummyLink_bothResolvedPaths(t *testing.T) {
 }
 
 // The offline-route rung must report on the no-NetworkManager resolved path too;
-// there lerd0 is the entire hookup, so a missing link is the whole failure.
+// there servlo0 is the entire hookup, so a missing link is the whole failure.
 func TestDiagnose_dummyLinkRungRunsOnResolvedLinkPath(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("lerd0 is provisioned on Linux only")
+		t.Skip("servlo0 is provisioned on Linux only")
 	}
 	p := fakeProbes()
 	p.resolverHookup = func() (string, bool, string) {
-		return resolvedLinkKind, true, "/etc/systemd/system/lerd-dns-link.service"
+		return resolvedLinkKind, true, "/etc/systemd/system/servlo-dns-link.service"
 	}
 	p.dummyLinkRouting = func(string) (bool, bool) { return false, false }
 	d := diagnose("test", p)
@@ -505,7 +505,7 @@ func TestDiagnose_dummyLinkRungRunsOnResolvedLinkPath(t *testing.T) {
 // treats a link carrying "~testbed" as carrying the "test" route, so a broken
 // link reports healthy and the diagnostic goes green while offline .test fails.
 func TestParseDummyLinkRouting_matchesTheDomainAsAWholeToken(t *testing.T) {
-	withServer := "Link 6 (lerd0)\n    Current Scopes: DNS\n       DNS Servers: 127.0.0.1:5300\n"
+	withServer := "Link 6 (servlo0)\n    Current Scopes: DNS\n       DNS Servers: 127.0.0.1:5300\n"
 	if _, routed := parseDummyLinkRouting(withServer+"        DNS Domain: ~testbed\n", "test"); routed {
 		t.Error("~testbed must not satisfy the ~test route")
 	}

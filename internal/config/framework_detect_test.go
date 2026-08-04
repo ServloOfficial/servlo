@@ -11,14 +11,14 @@ import (
 
 // ── DetectFrameworkForDir ───────────────────────────────────────────────────
 
-func TestDetectFrameworkForDir_FromLerdYAML(t *testing.T) {
+func TestDetectFrameworkForDir_FromServloYAML(t *testing.T) {
 	setConfigDir(t)
 	dir := t.TempDir()
 
-	// Create a .lerd.yaml with framework: laravel
+	// Create a .servlo.yaml with framework: laravel
 	proj := &ProjectConfig{Framework: "laravel"}
 	data, _ := yaml.Marshal(proj)
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), data, 0644) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), data, 0644) //nolint:errcheck
 
 	// Create artisan file so Laravel detection works
 	os.WriteFile(filepath.Join(dir, "artisan"), []byte("#!/usr/bin/env php"), 0644) //nolint:errcheck
@@ -36,7 +36,7 @@ func TestDetectFrameworkForDir_FromFileDetection(t *testing.T) {
 	setConfigDir(t)
 	dir := t.TempDir()
 
-	// No .lerd.yaml, but artisan file exists — should detect Laravel
+	// No .servlo.yaml, but artisan file exists — should detect Laravel
 	os.WriteFile(filepath.Join(dir, "artisan"), []byte("#!/usr/bin/env php"), 0644) //nolint:errcheck
 
 	name, ok := DetectFrameworkForDir(dir)
@@ -59,7 +59,7 @@ func TestDetectFrameworkForDir_NoMatch(t *testing.T) {
 	}
 }
 
-func TestDetectFrameworkForDir_LerdYAMLTakesPriority(t *testing.T) {
+func TestDetectFrameworkForDir_ServloYAMLTakesPriority(t *testing.T) {
 	setConfigDir(t)
 	dir := t.TempDir()
 
@@ -74,10 +74,10 @@ func TestDetectFrameworkForDir_LerdYAMLTakesPriority(t *testing.T) {
 	fwData, _ := yaml.Marshal(fw)
 	os.WriteFile(filepath.Join(storeDir, "statamic@5.yaml"), fwData, 0644) //nolint:errcheck
 
-	// .lerd.yaml says statamic, but dir also has artisan (which matches Laravel)
+	// .servlo.yaml says statamic, but dir also has artisan (which matches Laravel)
 	proj := &ProjectConfig{Framework: "statamic"}
 	data, _ := yaml.Marshal(proj)
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), data, 0644)                      //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), data, 0644)                    //nolint:errcheck
 	os.WriteFile(filepath.Join(dir, "artisan"), []byte("#!/usr/bin/env php"), 0644) //nolint:errcheck
 
 	name, ok := DetectFrameworkForDir(dir)
@@ -85,7 +85,7 @@ func TestDetectFrameworkForDir_LerdYAMLTakesPriority(t *testing.T) {
 		t.Fatal("expected framework to be detected")
 	}
 	if name != "statamic" {
-		t.Errorf("expected statamic from .lerd.yaml, got %q", name)
+		t.Errorf("expected statamic from .servlo.yaml, got %q", name)
 	}
 }
 
@@ -156,7 +156,7 @@ func TestDetectFrameworkForDir_EmbeddedDefRestored(t *testing.T) {
 	setConfigDir(t)
 	dir := t.TempDir()
 
-	// .lerd.yaml with framework + embedded def, but no local definition exists
+	// .servlo.yaml with framework + embedded def, but no local definition exists
 	proj := &ProjectConfig{
 		Framework: "custom-fw",
 		FrameworkDef: &Framework{
@@ -167,7 +167,7 @@ func TestDetectFrameworkForDir_EmbeddedDefRestored(t *testing.T) {
 		},
 	}
 	data, _ := yaml.Marshal(proj)
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), data, 0644) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), data, 0644) //nolint:errcheck
 
 	name, ok := DetectFrameworkForDir(dir)
 	if !ok {
@@ -184,14 +184,14 @@ func TestDetectFrameworkForDir_EmbeddedDefRestored(t *testing.T) {
 	}
 }
 
-func TestDetectFrameworkForDir_LerdYAML_UnknownFramework(t *testing.T) {
+func TestDetectFrameworkForDir_ServloYAML_UnknownFramework(t *testing.T) {
 	setConfigDir(t)
 	dir := t.TempDir()
 
-	// .lerd.yaml references a framework that doesn't exist anywhere
+	// .servlo.yaml references a framework that doesn't exist anywhere
 	proj := &ProjectConfig{Framework: "nonexistent"}
 	data, _ := yaml.Marshal(proj)
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), data, 0644) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), data, 0644) //nolint:errcheck
 
 	_, ok := DetectFrameworkForDir(dir)
 	if ok {
@@ -218,7 +218,7 @@ func TestDetectFrameworkForDir_StripsUntrustedCommandCheck(t *testing.T) {
 		},
 	}
 	data, _ := yaml.Marshal(proj)
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), data, 0644) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), data, 0644) //nolint:errcheck
 
 	if _, ok := DetectFrameworkForDir(dir); !ok {
 		t.Fatal("expected framework to be detected from embedded def")
@@ -254,7 +254,7 @@ func TestDetectFrameworkForDir_ReimportsEditedEmbeddedDef(t *testing.T) {
 		FrameworkDef: &Framework{Name: "acme", PublicDir: "web", Detect: []FrameworkRule{{File: "acme.lock"}}},
 	}
 	data, _ := yaml.Marshal(proj)
-	os.WriteFile(filepath.Join(dir, ".lerd.yaml"), data, 0644) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), data, 0644) //nolint:errcheck
 
 	if _, ok := DetectFrameworkForDir(dir); !ok {
 		t.Fatal("expected framework to be detected")

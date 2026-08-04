@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 //go:embed spxbridge
@@ -14,12 +14,12 @@ var spxBridgeFS embed.FS
 
 // SpxIni returns the SPX conf.d ini with the per-install http key
 // substituted. The ini is bind-mounted read-only into every FPM container
-// at /usr/local/etc/php/conf.d/zz-lerd-spx.ini. SPX is always loaded and
+// at /usr/local/etc/php/conf.d/zz-servlo-spx.ini. SPX is always loaded and
 // its HTTP UI always enabled; per-request profiling only happens when the
-// SPX_ENABLED cookie is present, which lerd injects via nginx for armed
+// SPX_ENABLED cookie is present, which servlo injects via nginx for armed
 // sites.
 func SpxIni() (string, error) {
-	b, err := spxBridgeFS.ReadFile("spxbridge/zz-lerd-spx.ini")
+	b, err := spxBridgeFS.ReadFile("spxbridge/zz-servlo-spx.ini")
 	if err != nil {
 		return "", fmt.Errorf("spx ini embed: %w", err)
 	}

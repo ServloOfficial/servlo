@@ -10,12 +10,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/geodro/lerd/internal/stats"
 	zone "github.com/lrstanley/bubblezone/v2"
+	"github.com/realrashid/servlo/internal/stats"
 )
 
 // statsPollInterval is how often the background poller asks for stats. It has
-// to stay below stats.CacheTTL: the cache is shared with lerd-ui, so a tick at
+// to stay below stats.CacheTTL: the cache is shared with servlo-panel, so a tick at
 // or above the TTL would miss every time and keep the ~2s stream running.
 const statsPollInterval = 3 * time.Second
 
@@ -26,7 +26,7 @@ type statsMsg struct{ snap stats.Snapshot }
 
 // runStatsPoller fetches a snapshot via stats.Cached on every tick and
 // forwards it to the program. Going through Cached (rather than Read
-// directly) means the TUI shares lerd-ui's cached snapshot when both are
+// directly) means the TUI shares servlo-panel's cached snapshot when both are
 // running, so the two surfaces together pay for one refresh per TTL.
 // Cancelled by ctx so the loop exits cleanly on quit.
 func runStatsPoller(ctx context.Context, p *tea.Program) {
@@ -86,8 +86,8 @@ func dashSelGutter(rowIdx, sel int) string {
 }
 
 // renderDashboardGrid draws the Dashboard tab as a responsive grid of six
-// cards mirroring the lerd web UI: Sites, Services, Workers, System Health,
-// Resources and Lerd. Three columns when wide, two at medium width, one when
+// cards mirroring the servlo web UI: Sites, Services, Workers, System Health,
+// Resources and Servlo. Three columns when wide, two at medium width, one when
 // narrow. Each card shows its whole list and scrolls within its own box; the
 // focused card (j/k or mouse wheel) gets an accent border.
 func (m *Model) renderDashboardGrid(w, h int) string {
@@ -110,7 +110,7 @@ func (m *Model) renderDashboardGrid(w, h int) string {
 		innerW = 16
 	}
 
-	titles := []string{"Sites", "Services", "Workers", "System Health", "Resources", "Lerd"}
+	titles := []string{"Sites", "Services", "Workers", "System Health", "Resources", "Servlo"}
 	cw := innerW - 2 // content width inside the 1-col gap + scrollbar column
 
 	// The focused navigable card gets its selected-row index so it can draw the
@@ -125,7 +125,7 @@ func (m *Model) renderDashboardGrid(w, h int) string {
 		m.dashWorkersCard(cw, sels[2]),
 		m.dashSystemHealthCard(cw),
 		m.dashResourcesCard(cw),
-		m.dashLerdCard(cw),
+		m.dashServloCard(cw),
 	}
 	// Cache each card's ordered clickable zone ids so the row cursor and enter
 	// resolve against exactly what was just rendered.
@@ -444,7 +444,7 @@ func (m *Model) dashResourcesCard(width int) cardContent {
 	return cardContent{lines, nil}
 }
 
-func (m *Model) dashLerdCard(width int) cardContent {
+func (m *Model) dashServloCard(width int) cardContent {
 	row := func(label, value string) string {
 		return dashRowRight(dimStyle.Render(label), value, width)
 	}

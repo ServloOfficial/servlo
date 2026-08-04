@@ -87,7 +87,7 @@ describe('notify dispatcher', () => {
       kind: 'mail',
       title: 'New email: Welcome',
       body: 'From: alice@x.com',
-      tag: 'lerd-mail-abc',
+      tag: 'servlo-mail-abc',
       url: '#service/mailpit/view/abc',
       data: { id: 'abc' }
     };
@@ -98,7 +98,7 @@ describe('notify dispatcher', () => {
     expect(swShows).toHaveLength(1);
     expect(swShows[0].title).toBe('New email: Welcome');
     expect(swShows[0].opts?.body).toBe('From: alice@x.com');
-    expect(swShows[0].opts?.tag).toBe('lerd-mail-abc');
+    expect(swShows[0].opts?.tag).toBe('servlo-mail-abc');
     expect((swShows[0].opts?.data as { kind?: string })?.kind).toBe('mail');
   });
 
@@ -241,7 +241,7 @@ describe('notify dispatcher', () => {
     // nplusone defaults on, so the first warning fires.
     wsMessage.set({
       type: 'notification',
-      notification: { kind: 'nplusone', title: 'N+1 on acme', tag: 'lerd-nplusone-a' }
+      notification: { kind: 'nplusone', title: 'N+1 on acme', tag: 'servlo-nplusone-a' }
     });
     await Promise.resolve();
     await Promise.resolve();
@@ -251,7 +251,7 @@ describe('notify dispatcher', () => {
     setNotifyPref('nplusone', false);
     wsMessage.set({
       type: 'notification',
-      notification: { kind: 'nplusone', title: 'N+1 on beta', tag: 'lerd-nplusone-b' }
+      notification: { kind: 'nplusone', title: 'N+1 on beta', tag: 'servlo-nplusone-b' }
     });
     await Promise.resolve();
     await Promise.resolve();
@@ -263,7 +263,7 @@ describe('notify dispatcher', () => {
     const { wsMessage } = await import('./ws');
 
     initNotify();
-    const evt: Notification = { kind: 'mail', title: 'x', tag: 'lerd-mail-dup' };
+    const evt: Notification = { kind: 'mail', title: 'x', tag: 'servlo-mail-dup' };
     wsMessage.set({ type: 'notification', notification: evt });
     wsMessage.set({ type: 'notification', notification: { ...evt } });
     await Promise.resolve();
@@ -280,7 +280,7 @@ describe('notify dispatcher', () => {
       const { wsMessage } = await import('./ws');
 
       initNotify();
-      const evt: Notification = { kind: 'mail', title: 'first', tag: 'lerd-test' };
+      const evt: Notification = { kind: 'mail', title: 'first', tag: 'servlo-test' };
       wsMessage.set({ type: 'notification', notification: evt });
       await Promise.resolve();
       await Promise.resolve();
@@ -328,7 +328,7 @@ describe('notify dispatcher', () => {
     expect(cur.kinds.dump).toBe(true);
     expect(cur.enabled).toBe(false);
 
-    const stored = localStorage.getItem('lerd:notify:prefs');
+    const stored = localStorage.getItem('servlo:notify:prefs');
     expect(stored).toBeTruthy();
     const parsed = JSON.parse(stored!);
     expect(parsed.kinds.dump).toBe(true);
@@ -404,7 +404,7 @@ describe('forgetCurrentBrowser', () => {
 
     expect(result).toBe(true);
     expect(fakeSub?.unsubscribe).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem('lerd:notify:auto-subscribe')).toBe('0');
+    expect(localStorage.getItem('servlo:notify:auto-subscribe')).toBe('0');
     expect(get(autoSubscribeDisabled)).toBe(true);
   });
 
@@ -416,7 +416,7 @@ describe('forgetCurrentBrowser', () => {
 
     expect(result).toBe(false);
     expect(fakeSub?.unsubscribe).not.toHaveBeenCalled();
-    expect(localStorage.getItem('lerd:notify:auto-subscribe')).toBeNull();
+    expect(localStorage.getItem('servlo:notify:auto-subscribe')).toBeNull();
     expect(get(autoSubscribeDisabled)).toBe(false);
   });
 
@@ -432,7 +432,7 @@ describe('forgetCurrentBrowser', () => {
 
   it('initNotify skips ensurePushSubscription when the flag is set', async () => {
     installPushMock('https://push.example/mine');
-    localStorage.setItem('lerd:notify:auto-subscribe', '0');
+    localStorage.setItem('servlo:notify:auto-subscribe', '0');
 
     const reg = await navigator.serviceWorker!.ready;
     const getSub = (reg as unknown as { pushManager: { getSubscription: ReturnType<typeof vi.fn> } })
@@ -448,7 +448,7 @@ describe('forgetCurrentBrowser', () => {
 
   it('enableNotifications clears the flag and triggers a re-subscribe', async () => {
     installPushMock(null);
-    localStorage.setItem('lerd:notify:auto-subscribe', '0');
+    localStorage.setItem('servlo:notify:auto-subscribe', '0');
 
     const { enableNotifications, autoSubscribeDisabled } = await import('./notify');
     // apiFetch will try to hit /api/push/vapid-public-key — stub fetch so
@@ -461,7 +461,7 @@ describe('forgetCurrentBrowser', () => {
     await Promise.resolve();
 
     expect(res).toBe('granted');
-    expect(localStorage.getItem('lerd:notify:auto-subscribe')).toBeNull();
+    expect(localStorage.getItem('servlo:notify:auto-subscribe')).toBeNull();
     expect(get(autoSubscribeDisabled)).toBe(false);
 
     fetchSpy.mockRestore();
@@ -676,7 +676,7 @@ describe('test notification', () => {
     initNotify();
     wsMessage.set({
       type: 'notification',
-      notification: { kind: 'test', title: 'lerd notifications test' }
+      notification: { kind: 'test', title: 'servlo notifications test' }
     });
     await Promise.resolve();
     await Promise.resolve();
@@ -742,7 +742,7 @@ describe('stored notification history', () => {
 
   it('renumbers a stored list that repeats an id', async () => {
     localStorage.setItem(
-      'lerd:notify:history',
+      'servlo:notify:history',
       JSON.stringify([
         { id: 1, kind: 'op_failed', title: 'Migrate failed', body: '', url: '', failed: true, at: 1, read: false },
         { id: 1, kind: 'op_done', title: 'Update finished', body: '', url: '', failed: false, at: 2, read: true }
@@ -756,7 +756,7 @@ describe('stored notification history', () => {
   });
 
   it('drops junk rather than rendering it', async () => {
-    localStorage.setItem('lerd:notify:history', JSON.stringify([null, 7, { id: 3 }]));
+    localStorage.setItem('servlo:notify:history', JSON.stringify([null, 7, { id: 3 }]));
     const { notificationHistory } = await import('./notify');
     expect(get(notificationHistory)).toHaveLength(0);
   });
@@ -766,7 +766,7 @@ describe('stored notification history', () => {
   // build that wrote it, so the stale route is rewritten on load (#1005).
   it('retargets a stored debug notification away from the bridge view', async () => {
     localStorage.setItem(
-      'lerd:notify:history',
+      'servlo:notify:history',
       JSON.stringify([
         { id: 1, kind: 'nplusone', title: 'Possible N+1 query on acme', body: '', url: '#system/dump-bridge', failed: false, at: 1, read: false },
         { id: 2, kind: 'op_done', title: 'Update finished', body: '', url: '#services/mysql', failed: false, at: 2, read: true }

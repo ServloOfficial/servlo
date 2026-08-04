@@ -1,5 +1,5 @@
-// Package daemon holds process-level setup shared by lerd's long-running
-// processes: lerd-ui, the watcher, the tray, and the MCP server.
+// Package daemon holds process-level setup shared by servlo's long-running
+// processes: servlo-panel, the watcher, and the MCP server.
 package daemon
 
 import (
@@ -26,7 +26,7 @@ func targetProcs(numCPU int) int {
 
 // TuneRuntime caps GOMAXPROCS and reports the value in effect.
 //
-// lerd's daemons are event handlers, not parallel compute: they sit on sockets,
+// servlo's daemons are event handlers, not parallel compute: they sit on sockets,
 // timers and subprocesses. Left at the default, Go sizes the scheduler to every
 // core, so on a many-core machine each daemon carries dozens of threads and a
 // single wakeup fans out into futex traffic across them. Capping keeps that

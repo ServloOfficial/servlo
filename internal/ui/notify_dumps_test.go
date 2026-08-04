@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dumps"
-	"github.com/geodro/lerd/internal/push"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dumps"
+	"github.com/realrashid/servlo/internal/push"
 )
 
 // fakeSubscriber feeds a fixed set of events to runDumpsNotifier then closes.
@@ -158,7 +158,7 @@ func TestDumpDebouncer_DifferentSitesIndependent(t *testing.T) {
 }
 
 // The dump-bridge tags Ctx.Site with the registered site name (the value
-// of LERD_SITE), but the dashboard router keys the Sites tab by primary
+// of SERVLO_SITE), but the dashboard router keys the Sites tab by primary
 // domain. notificationForDump must resolve name → primary domain so the
 // click handler lands on the right site detail.
 func TestNotificationForDump_URLResolvesNameToDomain(t *testing.T) {

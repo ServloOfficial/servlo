@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // A host-proxy site has no FPM container, so workers must not get a bogus
-// lerd-php-fpm dependency: resolveWorkerFPMUnit returns "" so the host worker
+// servlo-php-fpm dependency: resolveWorkerFPMUnit returns "" so the host worker
 // writer skips the FPM ordering block entirely.
 func TestResolveWorkerFPMUnit_hostProxyReturnsEmpty(t *testing.T) {
 	tmp := t.TempDir()
@@ -29,12 +29,12 @@ func TestResolveWorkerFPMUnit_hostProxyReturnsEmpty(t *testing.T) {
 	if got := resolveWorkerFPMUnit("proxysite", ""); got != "" {
 		t.Errorf("host-proxy site FPM unit = %q, want empty", got)
 	}
-	if got := resolveWorkerFPMUnit("phpsite", "8.4"); got != "lerd-php84-fpm" {
-		t.Errorf("php site FPM unit = %q, want lerd-php84-fpm", got)
+	if got := resolveWorkerFPMUnit("phpsite", "8.4"); got != "servlo-php84-fpm" {
+		t.Errorf("php site FPM unit = %q, want servlo-php84-fpm", got)
 	}
 }
 
-// reservedHostPorts must include the ports lerd services publish even when the
+// reservedHostPorts must include the ports servlo services publish even when the
 // container is stopped, so a host-proxy dev server is never assigned a port a
 // service (e.g. gotenberg on 3000) will reclaim when it starts.
 func TestReservedHostPorts_includesServicePorts(t *testing.T) {
@@ -48,7 +48,7 @@ func TestReservedHostPorts_includesServicePorts(t *testing.T) {
 	}
 }
 
-// A service moved off its default port (guard auto-shift or `lerd service port`)
+// A service moved off its default port (guard auto-shift or `servlo service port`)
 // publishes on PublishedPort, not Port; reservedHostPorts must reserve that too so
 // a dev server isn't handed the shifted port and then collide when the service starts.
 func TestReservedHostPorts_includesPublishedPortOverride(t *testing.T) {

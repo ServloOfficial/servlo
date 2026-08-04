@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/hostbin"
+	"github.com/realrashid/servlo/internal/hostbin"
 )
 
-// lerd-ui runs under launchd with PATH=/usr/bin:/bin:/usr/sbin:/sbin, so a
+// servlo-panel runs under launchd with PATH=/usr/bin:/bin:/usr/sbin:/sbin, so a
 // cloudflared installed by Homebrew is not on PATH for the dashboard even
-// though `lerd share` finds it in a terminal.
+// though `servlo share` finds it in a terminal.
 func withBrewOnlyTunnelTools(t *testing.T, names ...string) string {
 	t.Helper()
 	brew := t.TempDir()

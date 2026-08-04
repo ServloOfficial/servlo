@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestShimLeadingEnv_PrependsBinDirToPath(t *testing.T) {
@@ -26,7 +26,7 @@ func TestShimLeadingEnv_PrependsBinDirToPath(t *testing.T) {
 		t.Errorf("PATH = %q, want %q", path, want)
 	}
 	if !strings.HasPrefix(path, binDir+sep) {
-		t.Errorf("lerd bin dir must lead PATH so the php shim wins; got %q", path)
+		t.Errorf("servlo bin dir must lead PATH so the php shim wins; got %q", path)
 	}
 	// non-PATH vars pass through untouched
 	if !envHas(out, "FOO=bar") || !envHas(out, "BAZ=qux") {
@@ -175,7 +175,7 @@ func TestSyncNodeGlobalBins_PreservesForeignFiles(t *testing.T) {
 	if err := os.MkdirAll(targetBin, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// user-installed binary without lerd's marker
+	// user-installed binary without servlo's marker
 	user := filepath.Join(targetBin, "pm2")
 	if err := os.WriteFile(user, []byte("#!/bin/sh\necho hi from user\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -199,9 +199,9 @@ func TestSyncNodeGlobalBins_PreservesForeignFiles(t *testing.T) {
 }
 
 func TestSyncNodeGlobalBins_IgnoresBinariesContainingMarker(t *testing.T) {
-	// Regression: the marker is a Go string constant, so the lerd binary
+	// Regression: the marker is a Go string constant, so the servlo binary
 	// itself contains the marker bytes. If sync ever scans binaries the
-	// same way as shell wrappers, it will delete lerd from ~/.local/bin/.
+	// same way as shell wrappers, it will delete servlo from ~/.local/bin/.
 	root := t.TempDir()
 	sourceBin := filepath.Join(root, "node-global", "bin")
 	targetBin := filepath.Join(root, "local-bin")
@@ -212,8 +212,8 @@ func TestSyncNodeGlobalBins_IgnoresBinariesContainingMarker(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Fake binary: ELF-ish magic followed by the marker substring as data.
-	fakeBinary := append([]byte{0x7f, 'E', 'L', 'F', 0, 0, 0, 0}, []byte("lerd-managed npm global shim")...)
-	binPath := filepath.Join(targetBin, "lerd")
+	fakeBinary := append([]byte{0x7f, 'E', 'L', 'F', 0, 0, 0, 0}, []byte("servlo-managed npm global shim")...)
+	binPath := filepath.Join(targetBin, "servlo")
 	if err := os.WriteFile(binPath, fakeBinary, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -248,11 +248,11 @@ func TestSyncNodeGlobalBins_MissingSourceIsNoOp(t *testing.T) {
 	}
 }
 
-// TestRunBun_FailureReturnsErrorWhenNotExiting guards the lerd link/setup
+// TestRunBun_FailureReturnsErrorWhenNotExiting guards the servlo link/setup
 // regression where a failed `npm run production` / `bun run build` killed the
 // whole process via os.Exit, bypassing the step loop's failure feedback. With
 // exitOnFail false the non-zero child exit must come back as an error so the
-// caller can report it, not terminate lerd.
+// caller can report it, not terminate servlo.
 func TestRunBun_FailureReturnsErrorWhenNotExiting(t *testing.T) {
 	// /bin/sh stands in for the bun binary; the script exits non-zero.
 	err := runBun(t.TempDir(), "/bin/sh", []string{"-c", "exit 3"}, false)

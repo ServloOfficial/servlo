@@ -52,7 +52,7 @@
             <Icon name={icons[mode]} class="w-3.5 h-3.5 shrink-0" />
             <span class="flex-1">{labels[mode]}</span>
             {#if $theme === mode}
-              <Icon name="check" class="w-3.5 h-3.5 shrink-0 text-lerd-red" />
+              <Icon name="check" class="w-3.5 h-3.5 shrink-0 text-servlo-red" />
             {/if}
           </button>
         </li>

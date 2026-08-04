@@ -28,9 +28,9 @@ func TestPublishedImagesReportBundledExtensions(t *testing.T) {
 // `php -m` from the image it just built and points these vars at it, so a dropped
 // extension fails the build instead of reaching users. Skipped everywhere else.
 func TestImageReportsAdvertisedExtensions(t *testing.T) {
-	path, version := os.Getenv("LERD_PHP_MODULES"), os.Getenv("LERD_PHP_VERSION")
+	path, version := os.Getenv("SERVLO_PHP_MODULES"), os.Getenv("SERVLO_PHP_VERSION")
 	if path == "" || version == "" {
-		t.Skip("set LERD_PHP_MODULES and LERD_PHP_VERSION to check a built image")
+		t.Skip("set SERVLO_PHP_MODULES and SERVLO_PHP_VERSION to check a built image")
 	}
 	out, err := os.ReadFile(path)
 	if err != nil {

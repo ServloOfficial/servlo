@@ -82,7 +82,7 @@ func TestTickHostGateway(t *testing.T) {
 			wantLastLANAfterTick: "10.0.0.50",
 		},
 		{
-			// LAN changed but the laptop is offline or lerd-nginx is
+			// LAN changed but the laptop is offline or servlo-nginx is
 			// down between ticks: probe returns "". Must NOT overwrite
 			// with the legacy fallback — that would make things worse.
 			// Try again next tick.
@@ -233,8 +233,8 @@ func TestTickHostGateway_onUpdateFiresOnlyOnRewrite(t *testing.T) {
 	})
 }
 
-// Podman hands lerd-nginx a fresh bridge IP on every recreation. A reboot
-// starts the quadlet units without `lerd start`, so nothing rewrote the hosts
+// Podman hands servlo-nginx a fresh bridge IP on every recreation. A reboot
+// starts the quadlet units without `servlo start`, so nothing rewrote the hosts
 // files and containers resolved .test domains to a dead address (issue #817).
 func TestTickHostGateway_NginxIP(t *testing.T) {
 	cases := []struct {
@@ -269,7 +269,7 @@ func TestTickHostGateway_NginxIP(t *testing.T) {
 		{
 			// nginx is down or being recreated between ticks. Writing now
 			// would bake in the 127.0.0.1 fallback and break every container
-			// until the next `lerd start`. Wait for the next tick instead.
+			// until the next `servlo start`. Wait for the next tick instead.
 			name:      "nginx not running",
 			onDisk:    "10.89.7.11",
 			fresh:     "",

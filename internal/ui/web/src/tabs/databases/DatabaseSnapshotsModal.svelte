@@ -149,7 +149,7 @@
       <input
         bind:value={name}
         placeholder={m.databases_snapshotNamePlaceholder()}
-        class="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-lerd-red/30"
+        class="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-servlo-red/30"
       />
       <DetailButton tone="primary" onclick={take} loading={busy === 'take'} disabled={Boolean(busy)}>
         {m.databases_takeSnapshot()}
@@ -171,7 +171,7 @@
     {#if snapshots.length === 0}
       <p class="text-sm text-gray-400 dark:text-gray-500">{m.databases_noSnapshots()}</p>
     {:else}
-      <ul class="divide-y divide-gray-100 dark:divide-lerd-border/60 rounded-lg border border-gray-100 dark:border-lerd-border">
+      <ul class="divide-y divide-gray-100 dark:divide-servlo-border/60 rounded-lg border border-gray-100 dark:border-servlo-border">
         {#each snapshots as snap (snap.name)}
           {@const pending = confirmName === snap.name ? confirmAction : ''}
           <li class="flex items-center gap-2 px-3 py-2">
@@ -185,7 +185,7 @@
               href={snapshotExportUrl(engine.service, entry.name, snap.name)}
               use:tooltip={m.databases_export()}
               aria-label={m.databases_export()}
-              class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+              class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
               <Icon name="download" class="w-3.5 h-3.5" />
             </a>

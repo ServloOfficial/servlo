@@ -1,0 +1,20 @@
+[Unit]
+Description=Servlo MinIO
+After=network.target
+
+[Container]
+Image=docker.io/minio/minio:latest
+ContainerName=servlo-minio
+Network=servlo
+PublishPort=9000:9000
+PublishPort=9001:9001
+Volume=%h/.local/share/servlo/data/minio:/data:z
+Environment=MINIO_ROOT_USER=servlo
+Environment=MINIO_ROOT_PASSWORD=servlopassword
+Exec=server /data --console-address :9001
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

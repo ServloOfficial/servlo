@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
 func TestDashProxyPathAndName(t *testing.T) {
@@ -153,7 +153,7 @@ func TestInjectDashboardBootstrap(t *testing.T) {
 func TestDashProxyDirector_ForwardsPathAndSetsHost(t *testing.T) {
 	target, _ := url.Parse("http://localhost:15672")
 	p := newDashProxy("rabbitmq", target, "")
-	req := httptest.NewRequest("GET", "http://lerd.localhost/_svc/rabbitmq/api/whoami", nil)
+	req := httptest.NewRequest("GET", "http://servlo.localhost/_svc/rabbitmq/api/whoami", nil)
 	p.Director(req)
 	if req.URL.Path != "/_svc/rabbitmq/api/whoami" {
 		t.Errorf("URL.Path = %q, want the prefix forwarded unchanged (upstream is mounted there)", req.URL.Path)
@@ -164,7 +164,7 @@ func TestDashProxyDirector_ForwardsPathAndSetsHost(t *testing.T) {
 }
 
 func TestHandleDashProxy_RejectsNonLoopback(t *testing.T) {
-	req := httptest.NewRequest("GET", "http://lerd.localhost/_svc/rabbitmq/", nil)
+	req := httptest.NewRequest("GET", "http://servlo.localhost/_svc/rabbitmq/", nil)
 	req.RemoteAddr = "203.0.113.7:9999"
 	rec := httptest.NewRecorder()
 	handleDashProxy(rec, req)
@@ -174,11 +174,11 @@ func TestHandleDashProxy_RejectsNonLoopback(t *testing.T) {
 }
 
 func TestHandleDashProxy_RejectsCrossOrigin(t *testing.T) {
-	// A loopback request (over the lerd.localhost unix socket) that a malicious
+	// A loopback request (over the servlo.localhost unix socket) that a malicious
 	// .test page initiated cross-site must be refused before it reaches the admin
 	// upstream, even though the global CSRF gate trusts the socket.
 	for _, site := range []string{"cross-site", "same-site"} {
-		req := httptest.NewRequest("POST", "http://lerd.localhost/_svc/rabbitmq/api/queues", nil)
+		req := httptest.NewRequest("POST", "http://servlo.localhost/_svc/rabbitmq/api/queues", nil)
 		req.RemoteAddr = "127.0.0.1:5050"
 		req.Header.Set("Sec-Fetch-Site", site)
 		rec := httptest.NewRecorder()
@@ -211,7 +211,7 @@ func TestIsLoopbackTarget(t *testing.T) {
 func TestDashProxyDirector_RecomputesInjectedForwardedProto(t *testing.T) {
 	target, _ := url.Parse("http://localhost:15672")
 	p := newDashProxy("rabbitmq", target, "")
-	req := httptest.NewRequest("GET", "http://lerd.localhost/_svc/rabbitmq/", nil)
+	req := httptest.NewRequest("GET", "http://servlo.localhost/_svc/rabbitmq/", nil)
 	req.Header.Set("X-Forwarded-Proto", "https\nX-Injected: 1")
 	p.Director(req)
 	if got := req.Header.Get("X-Forwarded-Proto"); got != "http" {
@@ -219,7 +219,7 @@ func TestDashProxyDirector_RecomputesInjectedForwardedProto(t *testing.T) {
 	}
 
 	// A legitimate nginx-set https value is preserved.
-	req2 := httptest.NewRequest("GET", "http://lerd.localhost/_svc/rabbitmq/", nil)
+	req2 := httptest.NewRequest("GET", "http://servlo.localhost/_svc/rabbitmq/", nil)
 	req2.Header.Set("X-Forwarded-Proto", "https")
 	p.Director(req2)
 	if got := req2.Header.Get("X-Forwarded-Proto"); got != "https" {
@@ -243,7 +243,7 @@ func TestResolveDashboardURL_FollowsPublishedPortMove(t *testing.T) {
 }
 
 func TestHandleDashProxy_UnknownService404(t *testing.T) {
-	req := httptest.NewRequest("GET", "http://lerd.localhost/_svc/not-installed-xyz/", nil)
+	req := httptest.NewRequest("GET", "http://servlo.localhost/_svc/not-installed-xyz/", nil)
 	req.RemoteAddr = "127.0.0.1:5050"
 	rec := httptest.NewRecorder()
 	handleDashProxy(rec, req)

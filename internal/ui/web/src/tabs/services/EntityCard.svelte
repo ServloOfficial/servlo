@@ -137,7 +137,7 @@
         href={entityExportUrl(service, kind.kind, row.name)}
         use:tooltip={m.databases_export()}
         aria-label={m.databases_export()}
-        class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+        class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
       >
         <Icon name="download" class="w-3.5 h-3.5" />
       </a>
@@ -150,7 +150,7 @@
         aria-label={m.databases_import()}
         onclick={() => fileInput?.click()}
         disabled={importBusy}
-        class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+        class="flex items-center justify-center w-7 h-7 rounded-md text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
       >
         <Icon name={importBusy ? 'spinner' : 'upload'} class="w-3.5 h-3.5 {importBusy ? 'animate-spin' : ''}" />
       </button>
@@ -166,7 +166,7 @@
         disabled={busy}
         class="flex items-center justify-center w-7 h-7 rounded-md transition-colors {action.destructive
           ? 'ml-auto text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10'
-          : 'text-gray-400 dark:text-gray-500 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5'}"
+          : 'text-gray-400 dark:text-gray-500 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5'}"
       >
         <Icon name={action.destructive ? 'trash' : 'play'} class="w-3.5 h-3.5" />
       </button>

@@ -1,19 +1,19 @@
 # Query viewer
 
-The dump viewer catches `dump()` / `dd()`, but most of what slows a request down never passes through either: the database queries. lerd's query viewer records every SQL statement a request (or an artisan command) runs, with its bindings, duration, and the exact line that fired it, and streams them to the same **Debug** view as dumps, grouped per request with N+1 detection and slow-query flags.
+The dump viewer catches `dump()` / `dd()`, but most of what slows a request down never passes through either: the database queries. servlo's query viewer records every SQL statement a request (or an artisan command) runs, with its bindings, duration, and the exact line that fired it, and streams them to the same **Debug** view as dumps, grouped per request with N+1 detection and slow-query flags.
 
 The feature is **off by default**. Enable it from **System → Debug → Queries** with the Enable button. It shares the dump receiver, so there is nothing else to wire up.
 
 ## How it works
 
-Unlike the debug bridge, which works by redefining `dump()` from an `auto_prepend_file`, queries live inside the database layer where a prepend can't reach. lerd ships a small first-party Zend extension, **`lerd_devtools`**, compiled into every PHP-FPM image. It uses PHP's `zend_observer` API (PHP 8.0+) to observe `PDOStatement::execute`, `PDO::query`, and `PDO::exec`, capturing the SQL, the bound parameters, the wall-clock duration, and the calling `file:line` from the backtrace. Because it hooks at the engine level it works for any PDO app, framework or not. On PHP 7.x the extension still loads but captures nothing (no `zend_observer`); query capture needs 8.0+.
+Unlike the debug bridge, which works by redefining `dump()` from an `auto_prepend_file`, queries live inside the database layer where a prepend can't reach. servlo ships a small first-party Zend extension, **`servlo_devtools`**, compiled into every PHP-FPM image. It uses PHP's `zend_observer` API (PHP 8.0+) to observe `PDOStatement::execute`, `PDO::query`, and `PDO::exec`, capturing the SQL, the bound parameters, the wall-clock duration, and the calling `file:line` from the backtrace. Because it hooks at the engine level it works for any PDO app, framework or not. On PHP 7.x the extension still loads but captures nothing (no `zend_observer`); query capture needs 8.0+.
 
 Capture is gated by the **same** runtime sentinel as the debug bridge, so the whole Debug window is one switch and toggling never restarts FPM:
 
-- The extension and its config ini (`/usr/local/etc/php/conf.d/96-lerd-devtools.ini`) are always present in the image / mounted.
-- `/usr/local/etc/lerd/enabled.flag` is the shared runtime sentinel. Both the debug bridge and the extension stat it once per request; present = capture, absent = no-op. There is no separate devtools enable flag, `lerd dump on/off` (or the dashboard Debug toggle) arms both at once. The worker-capture sub-toggle has its own `devtools-workers.flag`.
+- The extension and its config ini (`/usr/local/etc/php/conf.d/96-servlo-devtools.ini`) are always present in the image / mounted.
+- `/usr/local/etc/servlo/enabled.flag` is the shared runtime sentinel. Both the debug bridge and the extension stat it once per request; present = capture, absent = no-op. There is no separate devtools enable flag, `servlo dump on/off` (or the dashboard Debug toggle) arms both at once. The worker-capture sub-toggle has its own `devtools-workers.flag`.
 
-Events ship over the **same** Unix socket (Linux) or TCP loopback (macOS) the debug bridge uses, so `lerd-ui` buffers them in the same 500-event ring and fans them out through the same SSE stream. The web client filters by `kind` to render the Queries lens.
+Events ship over the **same** Unix socket (Linux) or TCP loopback (macOS) the debug bridge uses, so `servlo-ui` buffers them in the same 500-event ring and fans them out through the same SSE stream. The web client filters by `kind` to render the Queries lens.
 
 ## What you get
 
@@ -99,21 +99,21 @@ The signal is PHPUnit's own `PHPUNIT_COMPOSER_INSTALL` bootstrap constant, which
 
 ## N+1 warnings
 
-When a query shape repeats past a threshold (3×) within a single request or worker invocation, lerd fires one OS notification, **once per route/script per session**: so it warns you without nagging on every subsequent hit of the same endpoint. The dashboard also flags the request group with an **N+1** badge and tints the duplicate rows. Notifications respect the global `lerd notify` toggle.
+When a query shape repeats past a threshold (3×) within a single request or worker invocation, servlo fires one OS notification, **once per route/script per session**: so it warns you without nagging on every subsequent hit of the same endpoint. The dashboard also flags the request group with an **N+1** badge and tints the duplicate rows. Notifications respect the global `servlo notify` toggle.
 
 Every warning names the run the queries came from: the worker command if the capture came from an opted-in worker, otherwise the CLI invocation (`artisan sync:users --all`, with long argument values elided) or the request route (`GET /orders`). The label locates the run, not the query, whose exact origin and SQL are already on the events in the Debug lens. The same value separates the warnings, so one noisy artisan command does not silence the next one for the rest of the session.
 
 ## Debugging over MCP
 
-The same capture is available to an AI assistant through lerd's MCP server, so an agent can debug and fix performance issues end to end. The loop: `dumps_toggle` to arm capture, `dumps_clear` for a clean slate, trigger the page or job, then `analyze_queries` for a per-request N+1 and slow-query report, each finding carries the originating `file:line`, so the agent can open the offending code and add a `with()` eager-load, an index, or a cache, then re-run to confirm the count dropped. `dumps_recent` with a `kind` filter (`query`, `mail`, `view`, …) pulls the raw events for anything the report doesn't cover. The analysis is server-side, so it uses the same fingerprinting as the dashboard badge and the N+1 notification.
+The same capture is available to an AI assistant through servlo's MCP server, so an agent can debug and fix performance issues end to end. The loop: `dumps_toggle` to arm capture, `dumps_clear` for a clean slate, trigger the page or job, then `analyze_queries` for a per-request N+1 and slow-query report, each finding carries the originating `file:line`, so the agent can open the offending code and add a `with()` eager-load, an index, or a cache, then re-run to confirm the count dropped. `dumps_recent` with a `kind` filter (`query`, `mail`, `view`, …) pulls the raw events for anything the report doesn't cover. The analysis is server-side, so it uses the same fingerprinting as the dashboard badge and the N+1 notification.
 
 ## Open in editor
 
-Every query's caller path in the Queries lens is a link. Expand a row to see the originating application frame (`Class::method — file:line`) and a **Details** button for the full stack trace; click any `file:line` to open it in the host's editor. lerd autodetects a known GUI editor (VS Code, Cursor, PhpStorm, Sublime, Zed, …); override it with an `editor` command in `~/.config/lerd/config.yaml`, e.g. `editor: "phpstorm --line {line} {file}"` ({file} and {line} are substituted). The endpoint requires dashboard-control authority, which authenticated remote sessions receive.
+Every query's caller path in the Queries lens is a link. Expand a row to see the originating application frame (`Class::method — file:line`) and a **Details** button for the full stack trace; click any `file:line` to open it in the host's editor. servlo autodetects a known GUI editor (VS Code, Cursor, PhpStorm, Sublime, Zed, …); override it with an `editor` command in `~/.config/servlo/config.yaml`, e.g. `editor: "phpstorm --line {line} {file}"` ({file} and {line} are substituted). The endpoint requires dashboard-control authority, which authenticated remote sessions receive.
 
 ## Caveats
 
 - **PDO-backed databases.** Queries run on a PDO driver (including Doctrine over PDO) are captured; raw `mysqli` (WordPress) lands in follow-up work.
 - **Bindings cover both styles.** Both `PDOStatement::execute([...])` arrays and individually bound `bindValue()` / `bindParam()` values are captured. Very large bound values (e.g. a serialized Messenger envelope) are shown verbatim.
 - **Capture has overhead.** Like the debug bridge, leave it off when you're not actively debugging; it's a development tool, not something to run under load.
-- **No persistence.** The buffer is in-memory and resets when `lerd-ui` restarts.
+- **No persistence.** The buffer is in-memory and resets when `servlo-ui` restarts.

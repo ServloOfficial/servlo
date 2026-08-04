@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/devtoolsops"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/devtoolsops"
 )
 
-// handleDevtoolsStatus reports whether the lerd_devtools collector is armed.
+// handleDevtoolsStatus reports whether the servlo_devtools collector is armed.
 // Capture events themselves flow over the shared dumps receiver, so the
 // listening/count/buffer numbers live on /api/dumps/status; this endpoint is
 // only the enable toggle's state.

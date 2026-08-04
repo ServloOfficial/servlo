@@ -87,7 +87,7 @@ type Result = {
   // the whole of what went wrong.
   omitted?: number;
   // What the daemon held back on the way in, so a load that came out clean
-  // because lerd filtered it says so rather than looking untouched.
+  // because servlo filtered it says so rather than looking untouched.
   skipped?: ImportIssue[];
   // Extensions the load needed and the daemon created, so a database that
   // gained one is never changed without a word.
@@ -166,7 +166,7 @@ export function importDatabase(
     };
     const xhr = new XMLHttpRequest();
     xhr.open('POST', apiUrl(`/api/databases/${encodeURIComponent(service)}/import`));
-    xhr.setRequestHeader('X-Lerd-CSRF', '1');
+    xhr.setRequestHeader('X-Servlo-CSRF', '1');
     xhr.upload.onprogress = (e) => {
       if (!onProgress || !e.lengthComputable || !e.total) return;
       onProgress({ percent: e.loaded / e.total, uploaded: e.loaded >= e.total });

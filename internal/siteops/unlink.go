@@ -4,12 +4,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/activityping"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/idle"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/podman"
-	"github.com/geodro/lerd/internal/reqstats"
+	"github.com/realrashid/servlo/internal/activityping"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/idle"
+	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/reqstats"
 )
 
 // IsParkedSite checks whether a site's path is inside one of the parked directories.
@@ -55,7 +55,7 @@ func UnlinkSiteCore(site *config.Site, parkedDirs []string) error {
 	}
 
 	// Clean up the per-project custom container if this site uses one.
-	// The image is kept so relinking is fast; use `lerd rebuild` to
+	// The image is kept so relinking is fast; use `servlo rebuild` to
 	// force a fresh build.
 	if site.IsCustomContainer() {
 		_ = podman.StopUnit(podman.CustomContainerName(site.Name))

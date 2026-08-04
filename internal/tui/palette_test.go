@@ -147,10 +147,10 @@ func TestRenderPaletteModal_ShowsPromptAndInput(t *testing.T) {
 	if got == "" {
 		t.Fatal("expected non-empty palette modal when active")
 	}
-	if !strings.Contains(got, "lerd") || !strings.Contains(got, "status") {
-		t.Errorf("expected lerd prompt + input, got %q", got)
+	if !strings.Contains(got, "servlo") || !strings.Contains(got, "status") {
+		t.Errorf("expected servlo prompt + input, got %q", got)
 	}
-	if !strings.Contains(got, "Run lerd command") {
+	if !strings.Contains(got, "Run servlo command") {
 		t.Errorf("expected modal title, got %q", got)
 	}
 }

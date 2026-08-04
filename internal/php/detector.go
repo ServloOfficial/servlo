@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -55,7 +55,7 @@ func IsPHPProject(dir string) bool {
 	return false
 }
 
-// SiteUsesPHP reports whether the site is a PHP project served by lerd's PHP
+// SiteUsesPHP reports whether the site is a PHP project served by servlo's PHP
 // runtime (the shared FPM image or FrankenPHP), as opposed to a static site or
 // a custom container. It mirrors the registration decision in
 // cli.RegisterProject: a framework, a composer.json / top-level .php file, or a
@@ -78,19 +78,19 @@ func SiteUsesPHP(s config.Site) bool {
 
 // DetectVersion detects the PHP version for the given directory.
 // It checks, in order:
-//  1. .lerd.yaml php_version field (explicit lerd override)
+//  1. .servlo.yaml php_version field (explicit servlo override)
 //  2. .php-version file (explicit per-project pin)
 //  3. composer.json require.php semver (project requirement)
 //  4. global config default
 func DetectVersion(dir string) (string, error) {
-	// 1. .lerd.yaml — explicit lerd override takes top priority
-	lerdYaml := filepath.Join(dir, ".lerd.yaml")
-	if data, err := os.ReadFile(lerdYaml); err == nil {
-		var lerdCfg struct {
+	// 1. .servlo.yaml — explicit servlo override takes top priority
+	servloYaml := filepath.Join(dir, ".servlo.yaml")
+	if data, err := os.ReadFile(servloYaml); err == nil {
+		var servloCfg struct {
 			PHPVersion string `yaml:"php_version"`
 		}
-		if yaml.Unmarshal(data, &lerdCfg) == nil && lerdCfg.PHPVersion != "" {
-			return lerdCfg.PHPVersion, nil
+		if yaml.Unmarshal(data, &servloCfg) == nil && servloCfg.PHPVersion != "" {
+			return servloCfg.PHPVersion, nil
 		}
 	}
 
@@ -374,7 +374,7 @@ func parseMajorMinor(s string) (int, int) {
 
 // ComposerPHPConstraint returns the project's declared PHP requirement from
 // composer.json, or empty when there is none to read. It is what a project
-// actually says it supports, which is the right authority whenever lerd has no
+// actually says it supports, which is the right authority whenever servlo has no
 // exact framework definition to go on.
 func ComposerPHPConstraint(dir string) string {
 	data, err := os.ReadFile(filepath.Join(dir, "composer.json"))

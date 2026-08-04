@@ -24,7 +24,7 @@ func TestNodeManageDecision(t *testing.T) {
 		{"saved opt-in honoured on update", true, false, boolPtr(true), false, false, false, true, false, true},
 		{"saved opt-out honoured with nvm", false, false, boolPtr(false), true, true, true, false, false, false},
 
-		// No saved choice yet but lerd is already managing (shim present): adopt
+		// No saved choice yet but servlo is already managing (shim present): adopt
 		// that as the remembered choice without asking, so an existing user is
 		// never re-prompted on a rerun.
 		{"install adopts existing managed silently", false, false, nil, true, false, true, true, false, true},
@@ -44,7 +44,7 @@ func TestNodeManageDecision(t *testing.T) {
 		{"first install no node at all defaults on", false, false, nil, false, false, false, true, false, true},
 
 		// A package install has nobody to ask, but must still leave a working
-		// Node behind. An existing nvm drives it, otherwise lerd owns it through
+		// Node behind. An existing nvm drives it, otherwise servlo owns it through
 		// fnm and installs a version. Reaching the update branch instead left a
 		// machine with no Node at all and an fnm nothing was installed into.
 		{"unattended without nvm manages node", true, true, nil, false, false, false, true, false, true},
@@ -108,30 +108,30 @@ func TestNodeStateFlipped(t *testing.T) {
 
 func TestNodeManagerChoice(t *testing.T) {
 	cases := []struct {
-		name         string
-		saved        string
-		wantLerdNode bool
-		nvm          bool
-		want         string
+		name           string
+		saved          string
+		wantServloNode bool
+		nvm            bool
+		want           string
 	}{
 		// A saved manager is never revisited, whatever the answers are.
 		{"saved nvm survives a managed answer", "nvm", true, true, "nvm"},
 		{"saved fnm survives a decline", "fnm", false, true, "fnm"},
 
-		// lerd-managed Node drives the bundled fnm, even when nvm is around:
-		// managing means lerd owns the versions, in its own tool.
+		// servlo-managed Node drives the bundled fnm, even when nvm is around:
+		// managing means servlo owns the versions, in its own tool.
 		{"managed picks fnm", "", true, false, "fnm"},
 		{"managed picks fnm despite nvm", "", true, true, "fnm"},
 
-		// Declining hands Node back to the user, so lerd follows their nvm
+		// Declining hands Node back to the user, so servlo follows their nvm
 		// rather than an fnm it will never install a version into.
 		{"decline with nvm picks nvm", "", false, true, "nvm"},
 		{"decline without nvm keeps fnm", "", false, false, "fnm"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := nodeManagerChoice(tc.saved, tc.wantLerdNode, tc.nvm); got != tc.want {
-				t.Errorf("nodeManagerChoice(%q, %v, %v) = %q, want %q", tc.saved, tc.wantLerdNode, tc.nvm, got, tc.want)
+			if got := nodeManagerChoice(tc.saved, tc.wantServloNode, tc.nvm); got != tc.want {
+				t.Errorf("nodeManagerChoice(%q, %v, %v) = %q, want %q", tc.saved, tc.wantServloNode, tc.nvm, got, tc.want)
 			}
 		})
 	}

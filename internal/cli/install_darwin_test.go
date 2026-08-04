@@ -41,7 +41,7 @@ func TestPodmanHelperInstalled(t *testing.T) {
 func TestEnsureFnmBinary_AlreadyPresent(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
-	binDir := filepath.Join(tmp, "lerd", "bin")
+	binDir := filepath.Join(tmp, "servlo", "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatal(err)
 	}

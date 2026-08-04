@@ -40,7 +40,7 @@
     const r = await healAll();
     await loadWorkerHealth();
     if (!r.ok && r.error) {
-      console.error('[lerd] heal failed:', r.error);
+      console.error('[servlo] heal failed:', r.error);
     }
   }
 
@@ -50,7 +50,7 @@
 </script>
 
 {#if visible}
-  <div class="fixed bottom-3 left-1/2 -translate-x-1/2 z-60 w-[min(92vw,640px)] rounded-lg border-l-4 border border-amber-400 dark:border-amber-500/50 border-l-amber-500 bg-white/85 dark:bg-lerd-card/80 backdrop-blur-md shadow-2xl overflow-hidden">
+  <div class="fixed bottom-3 left-1/2 -translate-x-1/2 z-60 w-[min(92vw,640px)] rounded-lg border-l-4 border border-amber-400 dark:border-amber-500/50 border-l-amber-500 bg-white/85 dark:bg-servlo-card/80 backdrop-blur-md shadow-2xl overflow-hidden">
     {#if $healLoading}
       <div class="h-1 bg-amber-200/40 dark:bg-amber-500/20">
         <div

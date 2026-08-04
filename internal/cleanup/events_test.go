@@ -3,10 +3,10 @@ package cleanup
 import (
 	"testing"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// SweepRefs reaps exactly the refs lerd hands it, skipping any the protected set
+// SweepRefs reaps exactly the refs servlo hands it, skipping any the protected set
 // still holds, and never scans the whole repo (so a user's same-repo image that
 // wasn't passed is untouched).
 func TestSweepRefs_ReapsGivenRefsSkipsProtected(t *testing.T) {

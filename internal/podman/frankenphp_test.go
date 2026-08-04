@@ -7,22 +7,22 @@ import (
 
 func TestFrankenPHPContainerName(t *testing.T) {
 	got := FrankenPHPContainerName("myapp")
-	if got != "lerd-fp-myapp" {
-		t.Fatalf("FrankenPHPContainerName: want lerd-fp-myapp, got %s", got)
+	if got != "servlo-fp-myapp" {
+		t.Fatalf("FrankenPHPContainerName: want servlo-fp-myapp, got %s", got)
 	}
 }
 
 func TestFrankenPHPImage(t *testing.T) {
-	// FrankenPHPImage is now the lerd-derived image; the upstream tag it builds
+	// FrankenPHPImage is now the servlo-derived image; the upstream tag it builds
 	// FROM is FrankenPHPBaseImage.
 	tests := []struct {
 		version, wantDerived, wantBase string
 	}{
-		{"8.2", "localhost/lerd-frankenphp82:local", "docker.io/dunglas/frankenphp:php8.2-alpine"},
-		{"8.4", "localhost/lerd-frankenphp84:local", "docker.io/dunglas/frankenphp:php8.4-alpine"},
-		{"8.5", "localhost/lerd-frankenphp85:local", "docker.io/dunglas/frankenphp:php8.5-alpine"},
-		{"8.1", "localhost/lerd-frankenphp85:local", "docker.io/dunglas/frankenphp:php8.5-alpine"}, // no frankenphp tag → latest
-		{"", "localhost/lerd-frankenphp85:local", "docker.io/dunglas/frankenphp:php8.5-alpine"},
+		{"8.2", "localhost/servlo-frankenphp82:local", "docker.io/dunglas/frankenphp:php8.2-alpine"},
+		{"8.4", "localhost/servlo-frankenphp84:local", "docker.io/dunglas/frankenphp:php8.4-alpine"},
+		{"8.5", "localhost/servlo-frankenphp85:local", "docker.io/dunglas/frankenphp:php8.5-alpine"},
+		{"8.1", "localhost/servlo-frankenphp85:local", "docker.io/dunglas/frankenphp:php8.5-alpine"}, // no frankenphp tag → latest
+		{"", "localhost/servlo-frankenphp85:local", "docker.io/dunglas/frankenphp:php8.5-alpine"},
 	}
 	for _, tt := range tests {
 		if got := FrankenPHPImage(tt.version); got != tt.wantDerived {
@@ -43,9 +43,9 @@ func TestGenerateFrankenPHPQuadlet(t *testing.T) {
 	}
 
 	mustContain := []string{
-		"ContainerName=lerd-fp-myapp",
-		"Image=localhost/lerd-frankenphp84:local",
-		"Network=lerd",
+		"ContainerName=servlo-fp-myapp",
+		"Image=localhost/servlo-frankenphp84:local",
+		"Network=servlo",
 		"Volume=/home/user/myapp:/home/user/myapp:rw",
 		"--workdir=/home/user/myapp",
 		`Environment="FRANKENPHP_CONFIG=worker ./public/index.php"`,
@@ -53,12 +53,12 @@ func TestGenerateFrankenPHPQuadlet(t *testing.T) {
 		"Restart=always",
 		// Debug tooling parity: the same conf.d inis and bridge dir the FPM
 		// container mounts (dump bridge, devtools, xdebug). SPX is excluded.
-		"/usr/local/etc/php/conf.d/97-lerd-dump.ini:ro",
-		"/usr/local/etc/php/conf.d/96-lerd-devtools.ini:ro",
+		"/usr/local/etc/php/conf.d/97-servlo-dump.ini:ro",
+		"/usr/local/etc/php/conf.d/96-servlo-devtools.ini:ro",
 		"/usr/local/etc/php/conf.d/99-xdebug.ini:ro",
-		"/usr/local/etc/php/conf.d/98-lerd-user.ini:ro",
-		"/usr/local/etc/php/conf.d/95-lerd-shared.ini:ro",
-		":/usr/local/etc/lerd:ro",
+		"/usr/local/etc/php/conf.d/98-servlo-user.ini:ro",
+		"/usr/local/etc/php/conf.d/95-servlo-shared.ini:ro",
+		":/usr/local/etc/servlo:ro",
 	}
 	for _, s := range mustContain {
 		if !strings.Contains(content, s) {

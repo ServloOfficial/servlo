@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/geodro/lerd/internal/services"
+	"github.com/realrashid/servlo/internal/services"
 )
 
 type fakeServiceMgr struct {
@@ -52,11 +52,11 @@ func TestWriteUserServiceWithReload_reloadsWhenChanged(t *testing.T) {
 	fake := &fakeServiceMgr{writeChanged: true}
 	swapMgr(t, fake)
 
-	if err := writeUserServiceWithReload("lerd-ui", "x"); err != nil {
+	if err := writeUserServiceWithReload("servlo-panel", "x"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := []string{"write:lerd-ui", "reload"}
+	want := []string{"write:servlo-panel", "reload"}
 	if !equalStrings(fake.calls, want) {
 		t.Fatalf("call order: got %v want %v", fake.calls, want)
 	}
@@ -66,11 +66,11 @@ func TestWriteUserServiceWithReload_skipsReloadWhenUnchanged(t *testing.T) {
 	fake := &fakeServiceMgr{writeChanged: false}
 	swapMgr(t, fake)
 
-	if err := writeUserServiceWithReload("lerd-ui", "x"); err != nil {
+	if err := writeUserServiceWithReload("servlo-panel", "x"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := []string{"write:lerd-ui"}
+	want := []string{"write:servlo-panel"}
 	if !equalStrings(fake.calls, want) {
 		t.Fatalf("call order: got %v want %v", fake.calls, want)
 	}
@@ -81,10 +81,10 @@ func TestWriteUserServiceWithReload_returnsWriteError(t *testing.T) {
 	fake := &fakeServiceMgr{writeErr: wantErr}
 	swapMgr(t, fake)
 
-	if err := writeUserServiceWithReload("lerd-ui", "x"); !errors.Is(err, wantErr) {
+	if err := writeUserServiceWithReload("servlo-panel", "x"); !errors.Is(err, wantErr) {
 		t.Fatalf("expected %v, got %v", wantErr, err)
 	}
-	if len(fake.calls) != 1 || fake.calls[0] != "write:lerd-ui" {
+	if len(fake.calls) != 1 || fake.calls[0] != "write:servlo-panel" {
 		t.Fatalf("expected only the write call, got %v", fake.calls)
 	}
 }
@@ -93,10 +93,10 @@ func TestWriteUserServiceWithReload_swallowsReloadError(t *testing.T) {
 	fake := &fakeServiceMgr{writeChanged: true, reloadErr: errors.New("dbus down")}
 	swapMgr(t, fake)
 
-	if err := writeUserServiceWithReload("lerd-ui", "x"); err != nil {
+	if err := writeUserServiceWithReload("servlo-panel", "x"); err != nil {
 		t.Fatalf("reload errors should not propagate, got %v", err)
 	}
-	want := []string{"write:lerd-ui", "reload"}
+	want := []string{"write:servlo-panel", "reload"}
 	if !equalStrings(fake.calls, want) {
 		t.Fatalf("call order: got %v want %v", fake.calls, want)
 	}

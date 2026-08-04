@@ -8,20 +8,20 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/wsl"
+	"github.com/realrashid/servlo/internal/wsl"
 	"github.com/spf13/cobra"
 )
 
-// NewWSLSetupCmd returns `lerd wsl:setup`, which applies the WSL2-specific
+// NewWSLSetupCmd returns `servlo wsl:setup`, which applies the WSL2-specific
 // tweaks the install guide documents: enabling systemd, the journald events
 // logger podman needs for `logs --follow`, mirrored networking in the Windows
-// .wslconfig, trusting the mkcert root CA from Windows browsers, and masking the
-// tray (WSL has no tray host). Everything is idempotent; the only step it can't
-// do for you is `wsl --shutdown`, which has to run from Windows.
+// .wslconfig, and trusting the mkcert root CA from Windows browsers. Everything
+// is idempotent; the only step it can't do for you is `wsl --shutdown`, which
+// has to run from Windows.
 func NewWSLSetupCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:          "wsl:setup",
-		Short:        "Apply the WSL2 tweaks lerd needs (systemd, podman journald, mirrored networking, Windows CA trust)",
+		Short:        "Apply the WSL2 tweaks servlo needs (systemd, podman journald, mirrored networking, Windows CA trust)",
 		SilenceUsage: true,
 		RunE:         runWSLSetup,
 	}
@@ -34,7 +34,7 @@ func runWSLSetup(cmd *cobra.Command, _ []string) error {
 	}
 
 	needShutdown := false
-	fmt.Fprintln(w, "Configuring lerd for WSL2...")
+	fmt.Fprintln(w, "Configuring servlo for WSL2...")
 
 	// 1. systemd — /etc/wsl.conf [boot] systemd=true (root-owned, written via sudo).
 	if changed, err := patchRootFile(w, "/etc/wsl.conf", func(c string) (string, bool) {
@@ -50,7 +50,7 @@ func runWSLSetup(cmd *cobra.Command, _ []string) error {
 
 	// 2. podman events logger — ~/.config/containers/containers.conf. Without
 	//    journald here, every `podman logs --follow` (dashboard log panes,
-	//    `lerd logs`) errors out on a systemd host.
+	//    `servlo logs`) errors out on a systemd host.
 	home, _ := os.UserHomeDir()
 	ccPath := filepath.Join(home, ".config", "containers", "containers.conf")
 	if changed, err := patchUserFile(ccPath, func(c string) (string, bool) {
@@ -78,16 +78,9 @@ func runWSLSetup(cmd *cobra.Command, _ []string) error {
 	case caTrusted:
 		fmt.Fprintln(w, "  ✓ imported mkcert root CA into the Windows trust store")
 	case caSkippedNoMkcert:
-		fmt.Fprintln(w, "  - skipped Windows CA trust (run `lerd secure` first, then re-run)")
+		fmt.Fprintln(w, "  - skipped Windows CA trust (run `servlo secure` first, then re-run)")
 	case caSkippedNoInterop:
 		fmt.Fprintln(w, "  ! couldn't reach certutil.exe; import the CA manually (see the WSL2 guide)")
-	}
-
-	// 5. tray — no StatusNotifier host on WSL, so mask it to silence the failing unit.
-	if maskTrayUnit() {
-		fmt.Fprintln(w, "  ✓ masked lerd-tray (no tray host on WSL2)")
-	} else {
-		fmt.Fprintln(w, "  - lerd-tray already masked or absent")
 	}
 
 	fmt.Fprintln(w)
@@ -204,7 +197,7 @@ func trustCAOnWindows() caResult {
 	if err != nil {
 		return caSkippedNoInterop
 	}
-	dst := filepath.Join(profile, "lerd-rootCA.crt")
+	dst := filepath.Join(profile, "servlo-rootCA.crt")
 	if err := copyFileContents(pem, dst); err != nil {
 		return caSkippedNoInterop
 	}
@@ -224,14 +217,4 @@ func copyFileContents(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, b, 0o644)
-}
-
-// maskTrayUnit masks lerd-tray.service, returning true only when it actually
-// changed state (so the caller can distinguish "masked it" from "already off").
-func maskTrayUnit() bool {
-	out, _ := exec.Command("systemctl", "--user", "is-enabled", "lerd-tray.service").Output()
-	if strings.TrimSpace(string(out)) == "masked" {
-		return false
-	}
-	return exec.Command("systemctl", "--user", "mask", "lerd-tray.service").Run() == nil
 }

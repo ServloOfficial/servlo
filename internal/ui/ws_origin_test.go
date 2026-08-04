@@ -14,7 +14,7 @@ func TestWSOriginAllowed(t *testing.T) {
 	}{
 		{"no origin (non-browser client)", "localhost:7073", "", true},
 		{"allowlisted localhost", "localhost:7073", "http://localhost:7073", true},
-		{"allowlisted lerd.localhost", "lerd.localhost", "http://lerd.localhost", true},
+		{"allowlisted servlo.localhost", "servlo.localhost", "http://servlo.localhost", true},
 		{"same-origin custom domain", "myapp.test", "http://myapp.test", true},
 		{"same-origin LAN ip", "192.168.1.10:7073", "http://192.168.1.10:7073", true},
 		{"same-origin with host casing divergence", "MyApp.test", "http://myapp.test", true},

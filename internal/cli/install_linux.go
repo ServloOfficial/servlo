@@ -10,11 +10,11 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/geodro/lerd/internal/certs"
-	"github.com/geodro/lerd/internal/config"
-	"github.com/geodro/lerd/internal/dns"
-	"github.com/geodro/lerd/internal/feedback"
-	"github.com/geodro/lerd/internal/phpantom"
+	"github.com/realrashid/servlo/internal/certs"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dns"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/phpantom"
 )
 
 func downloadBinaries(w io.Writer) error {
@@ -29,9 +29,9 @@ func downloadBinaries(w io.Writer) error {
 		}
 	}
 
-	// fnm — skipped when the user drives Node via their own nvm, since lerd never
+	// fnm — skipped when the user drives Node via their own nvm, since servlo never
 	// provisions nvm and fnm would sit unused.
-	// Switching back with `lerd node:manager fnm` calls ensureFnmBinary on demand.
+	// Switching back with `servlo node:manager fnm` calls ensureFnmBinary on demand.
 	cfg, _ := config.LoadGlobal()
 	if cfg == nil || cfg.NodeManager() != "nvm" {
 		if err := ensureFnmBinary(w); err != nil {
@@ -98,7 +98,7 @@ func systemSetupNeeded(wantDNS bool) bool {
 }
 
 // runSystemSetup applies the machine-global half of the install through a
-// single `sudo lerd bootstrap --system`, the same entry point a package
+// single `sudo servlo bootstrap --system`, the same entry point a package
 // maintainer script calls, so both install routes share one implementation of
 // the sysctl, linger and sudoers steps and ask for a password once. A host
 // where the re-exec cannot run falls back to the individual steps.
@@ -143,7 +143,7 @@ func ensureResolverSudoers() {}
 
 // ensureMkcertCA generates the root CA and gets it trusted. Generation and the
 // browser NSS store are per-user and need no root; the system trust store is
-// done by re-executing `lerd bootstrap --trust-ca`, so the CA reaches the same
+// done by re-executing `servlo bootstrap --trust-ca`, so the CA reaches the same
 // place by the same code on both install routes. An unattended run stops after
 // generation because its maintainer script runs the trust pass itself.
 func ensureMkcertCA(unattended bool) {

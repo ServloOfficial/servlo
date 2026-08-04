@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/geodro/lerd/internal/atomicfile"
+	"github.com/realrashid/servlo/internal/atomicfile"
 )
 
 // SiteResolver maps a request host (e.g. "admin.myapp.test") to the owning
@@ -93,7 +93,7 @@ func (t *Tracker) Snapshot() map[string]time.Time {
 	return out
 }
 
-// Seed marks the given sites active as of t, used on lerd-ui startup so a
+// Seed marks the given sites active as of t, used on servlo-panel startup so a
 // restart's empty map doesn't make every site look instantly idle and get
 // suspended inside its grace window. Seeding never overwrites a newer record.
 func (t *Tracker) Seed(sites []string, at time.Time) {

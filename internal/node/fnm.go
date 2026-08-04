@@ -7,16 +7,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/geodro/lerd/internal/config"
+	"github.com/realrashid/servlo/internal/config"
 )
 
-// fnmManager drives Schniz/fnm, the single static binary lerd downloads to its
+// fnmManager drives Schniz/fnm, the single static binary servlo downloads to its
 // bin dir at install time and invokes as `fnm exec --using=<v> -- <cmd>`.
 type fnmManager struct{}
 
 func (fnmManager) Name() string { return "fnm" }
 
-// bin is the fnm binary lerd ships in its own bin dir.
+// bin is the fnm binary servlo ships in its own bin dir.
 func (fnmManager) bin() string { return filepath.Join(config.BinDir(), "fnm") }
 
 func (m fnmManager) Available() bool {
@@ -105,11 +105,11 @@ func (m fnmManager) ExecPrefixWithEnv(version string, env []string) string {
 	return prefix + " env " + strings.Join(assignments, " ")
 }
 
-func (m fnmManager) ShimScript(lerdBin, bin string) string {
+func (m fnmManager) ShimScript(servloBin, bin string) string {
 	return fmt.Sprintf(`#!/bin/sh
-LERD="%s"
-if [ -x "$LERD" ]; then
-  exec "$LERD" %s "$@"
+SERVLO="%s"
+if [ -x "$SERVLO" ]; then
+  exec "$SERVLO" %s "$@"
 fi
 FNM="%s"
 VERSION=""
@@ -121,12 +121,12 @@ if [ -n "$VERSION" ]; then
   exec "$FNM" exec --using="$VERSION" -- %s "$@"
 else
   if ! "$FNM" exec --using=default -- true >/dev/null 2>&1; then
-    printf 'No Node.js version available via lerd. Run: lerd node:install 22\n' >&2
+    printf 'No Node.js version available via servlo. Run: servlo node:install 22\n' >&2
     exit 1
   fi
   exec "$FNM" exec --using=default -- %s "$@"
 fi
-`, lerdBin, bin, m.bin(), bin, bin)
+`, servloBin, bin, m.bin(), bin, bin)
 }
 
 // parseFnmListFull extracts the full version strings (leading "v" stripped) from
