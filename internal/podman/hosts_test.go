@@ -121,7 +121,7 @@ func TestRenderContainerHosts_SitesPointAtNginx(t *testing.T) {
 }
 
 func TestRenderContainerHosts_DistinctIPs(t *testing.T) {
-	// Regression: host-gateway (Xdebug) and nginx IP (.test) must stay separate.
+	// Regression: the host gateway and the nginx IP (.test) must stay separate.
 	reg := &config.SiteRegistry{Sites: []config.Site{
 		{Name: "x", Domains: []string{"x.test"}},
 	}}
@@ -152,7 +152,7 @@ func TestHostCandidates(t *testing.T) {
 		{
 			// Happy path: all three candidates present and distinct. Probe
 			// order is preserved so host.containers.internal gets the first
-			// shot — the address Xdebug docs already point users at, and the
+			// shot — the conventional host-gateway address, and the
 			// canonical choice on macOS/gvproxy.
 			name:     "all distinct",
 			getentIP: "169.254.1.2",
@@ -180,7 +180,7 @@ func TestHostCandidates(t *testing.T) {
 		},
 		{
 			// No LAN connection (offline laptop). Still try the addresses we
-			// know about so an Xdebug-over-loopback setup keeps a chance.
+			// know about so a host-over-loopback setup keeps a chance.
 			name:     "lan IP missing",
 			getentIP: "169.254.1.2",
 			lanIP:    "",

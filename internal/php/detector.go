@@ -38,7 +38,7 @@ func DetectExtensions(dir string) []string {
 // IsPHPProject reports whether dir looks like a PHP project: it has a
 // composer.json or any top-level .php file. Static sites (a public dir with
 // no PHP) and non-PHP projects return false, so callers can hide PHP-only
-// surfaces like the version dropdown, Tinker, Xdebug, dumps and FPM logs.
+// surfaces like the version dropdown, dumps and FPM logs.
 func IsPHPProject(dir string) bool {
 	if _, err := os.Stat(filepath.Join(dir, "composer.json")); err == nil {
 		return true

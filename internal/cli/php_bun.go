@@ -18,7 +18,7 @@ import (
 // NewPhpBunCmd returns the php:bun parent command, which manages an optional
 // in-container bun runtime. servlo never pins or version-manages bun: install
 // pulls the latest musl build into a persistent volume via the bundled npm,
-// and `bun upgrade` (run inside `servlo shell`) self-updates from there.
+// and `bun upgrade`, run inside the container, self-updates from there.
 func NewPhpBunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "php:bun",
@@ -68,7 +68,7 @@ func newPhpBunInstallCmd() *cobra.Command {
 		Use:   "install [php-version]",
 		Short: "Install (or update) bun inside the PHP-FPM container",
 		Long: "Installs a musl bun into the container's persistent /root/.bun volume using the bundled npm, so it survives image rebuilds and is shared across every PHP version. " +
-			"Run `bun upgrade` inside `servlo shell` to update it later; servlo does not pin a version.",
+			"Run `bun upgrade` in the container to update it later; servlo does not pin a version.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			version, err := phpExtVersion(args)
@@ -241,7 +241,7 @@ func installContainerBun(version, pin string, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("bun did not run in the container after install: %w\n%s", err, out)
 	}
-	fmt.Fprintf(w, "bun %s installed in PHP %s container. Use it from `servlo shell`; update it with `bun upgrade`.\n", strings.TrimSpace(string(out)), version)
+	fmt.Fprintf(w, "bun %s installed in PHP %s container; update it with `bun upgrade`.\n", strings.TrimSpace(string(out)), version)
 	return nil
 }
 

@@ -13,7 +13,7 @@ import (
 
 // NewPhpPortsCmd returns the php:ports parent command, which manages extra host
 // ports published on a PHP version's shared FPM container so a process bound
-// inside `servlo shell` is reachable at localhost:PORT. The list is per version
+// inside the container is reachable at localhost:PORT. The list is per version
 // and independent; a host port already claimed is shifted to the next free one.
 func NewPhpPortsCmd() *cobra.Command {
 	cmd := &cobra.Command{

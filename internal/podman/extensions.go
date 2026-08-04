@@ -30,7 +30,7 @@ func BundledExtensions(phpVersion string) []string {
 		"pdo_mysql", "pdo_pgsql", "pdo_sqlite", "soap", "shmop",
 		"sockets", "sqlite3", "sysvmsg", "sysvsem", "sysvshm", "xsl", "zip",
 		// PECL
-		"redis", "imagick", "igbinary", "mongodb", "pcov", "xdebug",
+		"redis", "imagick", "igbinary", "mongodb", "pcov",
 	}
 
 	bundled := make([]string, 0, len(all))

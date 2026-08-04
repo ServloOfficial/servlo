@@ -188,7 +188,7 @@ So if you install bun after a site is already running, the UI reflects it immedi
 
 ### bun inside the PHP-FPM container
 
-The host bun can't run inside the container (it's built for your host's libc, the container is Alpine/musl), so `servlo shell` gets its own bun:
+The host bun can't run inside the container (it's built for your host's libc, the container is Alpine/musl), so the container gets its own bun:
 
 ```bash
 servlo php:bun install        # installs a musl bun into the container, via the bundled npm
@@ -196,4 +196,4 @@ servlo php:bun version        # shows what's installed
 servlo php:bun remove         # deletes it and clears the volume
 ```
 
-bun is installed into a persistent volume (`~/.local/share/servlo/bun` mounted at `/root/.bun`), shared across every PHP version and **kept across image rebuilds and pulls** (it lives in the volume, not the image, so a new base image never reinstalls it). `servlo shell` puts it on `PATH`. Update it in place with `servlo php:bun update` (or `bun upgrade` from inside `servlo shell`). When bun is installed on the host, `servlo link` / `servlo setup` also installs it into the container automatically. `servlo php:bun remove` clears the volume so the next install starts clean; because the volume is shared it removes bun for every PHP version at once, and the container need not be running.
+bun is installed into a persistent volume (`~/.local/share/servlo/bun` mounted at `/root/.bun`), shared across every PHP version and **kept across image rebuilds and pulls** (it lives in the volume, not the image, so a new base image never reinstalls it). The container puts it on `PATH`. Update it in place with `servlo php:bun update`. When bun is installed on the host, `servlo link` / `servlo setup` also installs it into the container automatically. `servlo php:bun remove` clears the volume so the next install starts clean; because the volume is shared it removes bun for every PHP version at once, and the container need not be running.

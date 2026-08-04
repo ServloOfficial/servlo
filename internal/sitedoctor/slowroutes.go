@@ -48,7 +48,7 @@ func checkSlowRoutes(path string) (Check, bool) {
 	if len(stats.Slow) > slowRoutesInDetail {
 		detail += fmt.Sprintf(" (+%d more)", len(stats.Slow)-slowRoutesInDetail)
 	}
-	detail += " Profile them from the Request timing panel in the site's Overview."
+	detail += " See the Request timing panel in the site's Overview."
 
 	return Check{
 		Name:   "slow_routes",

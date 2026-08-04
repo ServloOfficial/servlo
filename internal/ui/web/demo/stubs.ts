@@ -14,7 +14,6 @@ import nodeVersions from './fixtures/node-versions.json';
 import phpInstallable from './fixtures/php-installable.json';
 import lanStatus from './fixtures/lan_status.json';
 import dumpsStatus from './fixtures/dumps_status.json';
-import profilerStatus from './fixtures/profiler_status.json';
 import stats from './fixtures/stats.json';
 import workersHealth from './fixtures/workers_health.json';
 import databasesFixture from './fixtures/databases.json';
@@ -46,7 +45,6 @@ const ROUTES: Record<string, unknown> = {
   '/api/lan/status': lanStatus,
   '/api/dumps/status': dumpsStatus,
   '/api/devtools/status': { enabled: true },
-  '/api/profiler/status': profilerStatus,
   '/api/stats': stats,
   '/api/workers/health': workersHealth,
 };
@@ -132,25 +130,7 @@ opcache.enable = 1
 opcache.jit = tracing
 opcache.jit_buffer_size = 64M
 
-[xdebug]
-xdebug.mode = off
-xdebug.start_with_request = trigger
-xdebug.client_port = 9003
 `;
-
-// Tinker output is framed: \x1e splits blocks, "<line>\x1f" tags the source line.
-const TINKER_RESPONSE = {
-  ok: true,
-  mode: 'tinker',
-  stdout: '\x1e2\x1f=> "1247.00"\x1e3\x1f=> 1428\x1e4\x1f=> Illuminate\\Support\\Collection {#42 [2, 4, 6]}',
-  stderr: '',
-  exit_code: 0,
-};
-
-const TINKER_DRAFT = `// Demo REPL — edit and hit Run
-$total = Order::where('status', 'paid')->sum('total');
-User::count();
-collect([1, 2, 3])->map(fn ($n) => $n * 2);`;
 
 // Per-site request-timing analytics (the site Overview's Request timing view,
 // served at /api/sites/<domain>/analytics). The real view reads a durable SQLite
@@ -423,16 +403,6 @@ function commandRunSSE(domain: string, name: string): Response {
   return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } });
 }
 
-// Pre-seed the Tinker editor for each site so the tab isn't empty.
-try {
-  for (const s of sites) {
-    const key = `tinker:${s.domain}:draft`;
-    if (!localStorage.getItem(key)) localStorage.setItem(key, TINKER_DRAFT);
-  }
-} catch {
-  /* ignore */
-}
-
 function jsonResponse(data: unknown): Response {
   return new Response(JSON.stringify(data), {
     status: 200,
@@ -608,9 +578,6 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
     if (/\/env\/backups$/.test(path)) return jsonResponse([]);
     if (/\/env$/.test(path)) return textResponse(ENV_TEXT);
   }
-
-  // Tinker REPL (POST)
-  if (/\/tinker$/.test(path)) return jsonResponse(TINKER_RESPONSE);
 
   // Nginx — global /api/nginx and per-site /api/sites/<domain>/nginx (+ /backups)
   if (path.includes('/nginx')) {

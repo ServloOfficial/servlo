@@ -18,7 +18,7 @@ describe('status store', () => {
         JSON.stringify({
           dns: { ok: true, enabled: true, tld: 'test' },
           nginx: { running: true },
-          php_fpms: [{ version: '8.5', running: true, xdebug_enabled: false }],
+          php_fpms: [{ version: '8.5', running: true }],
           php_default: '8.5',
           node_default: '22',
           node_managed_by_servlo: true,

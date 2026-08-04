@@ -43,7 +43,6 @@ import (
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/phpsets"
 	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/profiler"
 	"github.com/realrashid/servlo/internal/reqstats"
 	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/realrashid/servlo/internal/services"
@@ -56,7 +55,6 @@ import (
 	servloUpdate "github.com/realrashid/servlo/internal/update"
 	"github.com/realrashid/servlo/internal/version"
 	"github.com/realrashid/servlo/internal/workerheal"
-	"github.com/realrashid/servlo/internal/xdebugops"
 )
 
 //go:embed icons/icon.svg
@@ -201,7 +199,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/sites", withCORS(handleSites))
 	mux.HandleFunc("/api/services", withCORS(handleServices))
 	mux.HandleFunc("/api/ws", handleWS)
-	mux.HandleFunc("/api/lsp/php", handleLSPPhp)
 	mux.HandleFunc("/api/webhooks/mailpit", handleMailpitWebhook)
 	mux.HandleFunc("/api/push/vapid-public-key", withCORS(handlePushVAPIDPublicKey))
 	mux.HandleFunc("/api/push/subscribe", withCORS(handlePushSubscribe))
@@ -259,7 +256,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/dumps", withCORS(handleDumpsList))
 	mux.HandleFunc("/api/queries/analyze", withCORS(handleQueriesAnalyze))
 	mux.HandleFunc("/api/queries/route-timing", withCORS(handleRouteTiming))
-	mux.HandleFunc("/api/queries/optimize", withCORS(handleOptimize))
 	mux.HandleFunc("/api/dumps/stream", withCORS(handleDumpsStream))
 	mux.HandleFunc("/api/dumps/status", withCORS(handleDumpsStatus))
 	mux.HandleFunc("/api/dumps/clear", withCORS(handleDumpsClear))
@@ -270,10 +266,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/devtools/workers", withCORS(publishAfter(handleDevtoolsWorkers, eventbus.KindDevtoolsStatus)))
 	mux.HandleFunc("/api/open-editor", withCORS(handleOpenEditor))
 	mux.HandleFunc("/api/open-folder", withCORS(handleOpenFolder))
-	mux.HandleFunc("/api/profiler/toggle", withCORS(publishAfter(handleProfilerToggle, eventbus.KindProfilerStatus)))
-	mux.HandleFunc("/api/profiler/status", withCORS(handleProfilerStatus))
-	mux.HandleFunc("/api/profiler/clear", withCORS(handleProfilerClear))
-	mux.HandleFunc("/_spx/", handleSpxProxy)
 	mux.HandleFunc("/_svc/", handleDashProxy)
 	mux.HandleFunc("/api/queue/", withCORS(handleUnitLogStream))
 	mux.HandleFunc("/api/horizon/", withCORS(handleUnitLogStream))
@@ -293,7 +285,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/workers/heal", withCORS(handleWorkersHeal))
 	mux.HandleFunc("/api/stats", withCORS(handleStats))
 	mux.HandleFunc("/api/disk", withCORS(handleDisk))
-	mux.HandleFunc("/api/xdebug/", withCORS(publishAfter(handleXdebugAction, eventbus.KindStatus)))
 	mux.HandleFunc("/api/servlo/start", withCORS(handleServloStart))
 	mux.HandleFunc("/api/servlo/stop", withCORS(handleServloStop))
 	mux.HandleFunc("/api/servlo/quit", withCORS(handleServloQuit))
@@ -639,12 +630,10 @@ type ServiceCheck struct {
 }
 
 type PHPStatus struct {
-	Version       string   `json:"version"`
-	Patch         string   `json:"patch,omitempty"`
-	Running       bool     `json:"running"`
-	XdebugEnabled bool     `json:"xdebug_enabled"`
-	XdebugMode    string   `json:"xdebug_mode,omitempty"`
-	Ports         []string `json:"ports,omitempty"`
+	Version string   `json:"version"`
+	Patch   string   `json:"patch,omitempty"`
+	Running bool     `json:"running"`
+	Ports   []string `json:"ports,omitempty"`
 	// UpdateAvailable is true when the prebuilt base this version's image was
 	// built from has been republished since, so a rebuild picks up whatever
 	// upstream shipped. Read from the digest cache, never from the network.
@@ -674,17 +663,15 @@ func buildStatus() StatusResponse {
 	for _, v := range versions {
 		short := strings.ReplaceAll(v, ".", "")
 		running := podman.Cache.Running("servlo-php" + short + "-fpm")
-		xdebugMode := ""
 		var ports []string
 		if cfg != nil {
-			xdebugMode = cfg.GetXdebugMode(v)
 			ports = cfg.PHP.FPMPorts[v]
 		}
 		baseStale := false
 		if base := podman.BaseImageFreshness(v); base != nil {
 			baseStale = base.Stale
 		}
-		phpStatuses = append(phpStatuses, PHPStatus{Version: v, Patch: podman.FPMPHPVersion(v), Running: running, XdebugEnabled: xdebugMode != "", XdebugMode: xdebugMode, Ports: ports, UpdateAvailable: baseStale})
+		phpStatuses = append(phpStatuses, PHPStatus{Version: v, Patch: podman.FPMPHPVersion(v), Running: running, Ports: ports, UpdateAvailable: baseStale})
 	}
 
 	phpDefault := ""
@@ -881,11 +868,6 @@ type SiteResponse struct {
 	// the dashboard hides the button rather than opening an empty modal. Not
 	// omitempty: the dashboard keys on the explicit false to hide.
 	DoctorApplicable bool `json:"doctor_applicable"`
-	// CanProfile is false when SPX cannot profile the site's requests (no PHP,
-	// or PHP served by something other than FPM), so the dashboard's timing
-	// panel offers no profile action. Not omitempty: the dashboard keys on the
-	// explicit false.
-	CanProfile bool `json:"can_profile"`
 	// Grouping — Group is the group key (main site's name); GroupSubdomain is the
 	// label a secondary occupies; GroupMainDomain is the group main's base domain.
 	// MultiTenant flags a main whose project declares env_overrides (wildcard
@@ -1128,15 +1110,12 @@ func buildSites() ([]SiteResponse, error) {
 			HostPort:             e.HostPort,
 			HostHasDevServer:     e.HostPort > 0 && e.HostCommand != "",
 			DoctorApplicable:     sitedoctor.AppliesForPath(e.Path, e.FrameworkName),
-			CanProfile: profiler.ProfilableSite(config.Site{
-				Runtime: e.Runtime, ContainerPort: e.ContainerPort, HostPort: e.HostPort,
-			}, e.UsesPHP),
-			Group:           e.Group,
-			GroupSubdomain:  e.GroupSubdomain,
-			GroupMainDomain: groupMainDomain[e.Group],
-			GroupSharedDB:   e.GroupSharedDB,
-			MultiTenant:     e.Group != "" && e.GroupSubdomain == "" && siteHasEnvOverrides(e.Path),
-			Workspace:       resolveSiteWorkspace(e, groupMainName, siteWorkspace),
+			Group:                e.Group,
+			GroupSubdomain:       e.GroupSubdomain,
+			GroupMainDomain:      groupMainDomain[e.Group],
+			GroupSharedDB:        e.GroupSharedDB,
+			MultiTenant:          e.Group != "" && e.GroupSubdomain == "" && siteHasEnvOverrides(e.Path),
+			Workspace:            resolveSiteWorkspace(e, groupMainName, siteWorkspace),
 		})
 	}
 	return sites, nil
@@ -1956,8 +1935,8 @@ func handleServiceTuning(w http.ResponseWriter, r *http.Request, name string) {
 	}
 	var req ServiceTuningWriteRequest
 	// Cap the POST body so a multi-gigabyte payload can't be streamed
-	// straight to disk via os.WriteFile. 64 KiB matches the tinker /
-	// php.ini / nginx endpoints in this file.
+	// straight to disk via os.WriteFile. 64 KiB matches the
+	// nginx endpoints in this file.
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
 		writeJSON(w, ServiceTuningWriteResponse{OK: false, Error: "invalid body: " + err.Error()})
 		return
@@ -3335,7 +3314,7 @@ func handleDashboardQR(w http.ResponseWriter, r *http.Request) {
 }
 
 // SiteNginxBackup is the backup metadata the frontend's restore dropdown
-// consumes. It aliases cfgedit.Backup so the site, global-nginx, and php.ini
+// consumes. It aliases cfgedit.Backup so the site and global-nginx
 // editors all surface the same shape from the shared edit service.
 type SiteNginxBackup = cfgedit.Backup
 
@@ -3412,7 +3391,7 @@ func handleSiteNginx(w http.ResponseWriter, r *http.Request, domain string) {
 	}
 	var req SiteNginxWriteRequest
 	// Cap the POST body so a multi-gigabyte payload can't stream straight to
-	// disk. 64 KiB matches the tinker / php.ini / global nginx endpoints.
+	// disk. 64 KiB matches the global nginx endpoints.
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
 		writeJSON(w, SiteNginxWriteResponse{OK: false, Error: "invalid body: " + err.Error()})
 		return
@@ -4319,41 +4298,6 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
-	case "tinker":
-		var body struct {
-			Code string `json:"code"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&body); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "invalid body: " + err.Error()})
-			return
-		}
-		if strings.TrimSpace(body.Code) == "" {
-			writeJSON(w, map[string]any{"ok": false, "error": "code is empty"})
-			return
-		}
-		branch := r.URL.Query().Get("branch")
-		tinkerPath := resolveSitePath(site, branch)
-		if tinkerPath == "" {
-			writeJSON(w, map[string]any{"ok": false, "error": "unknown worktree branch"})
-			return
-		}
-		ensureWorktreeEnvIfBranch(site, branch)
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-		res, err := cli.RunTinker(ctx, tinkerPath, site.Name, branch, body.Code)
-		resp := map[string]any{
-			"ok":          err == nil && res.ExitCode == 0,
-			"stdout":      res.Stdout,
-			"stderr":      res.Stderr,
-			"exit_code":   res.ExitCode,
-			"duration_ms": res.DurationMs,
-			"mode":        res.Mode,
-		}
-		if err != nil {
-			resp["error"] = err.Error()
-		}
-		writeJSON(w, resp)
-		return
 	case "worktree:remove":
 		branch := r.URL.Query().Get("branch")
 		if branch == "" {
@@ -4489,45 +4433,12 @@ func handlePHPVersionAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	version, action := parts[0], parts[1]
-	// The php.ini editor (config) also accepts a "site:<name>" scope for a
-	// FrankenPHP site's own per-site ini and a "shared" scope for the
-	// version-agnostic file; every other action is version-only.
-	isIniScope := strings.HasPrefix(version, "site:") || version == "shared"
-	if isIniScope && action != "config" {
-		http.NotFound(w, r)
-		return
-	}
-	if !isIniScope && !validVersion.MatchString(version) {
+	if !validVersion.MatchString(version) {
 		http.NotFound(w, r)
 		return
 	}
 
-	// User php.ini override + backup/restore/reset subroutes. The save flow
-	// snapshots and rolls back on FPM restart failure; mirrors the per-site
-	// nginx editor's mechanic so the frontend can share the modal pattern.
-	if action == "config" {
-		switch {
-		case len(parts) == 2:
-			handlePhpIniConfig(w, r, version)
-			return
-		case len(parts) == 3 && parts[2] == "backups":
-			handlePhpIniBackups(w, r, version)
-			return
-		case len(parts) == 4 && parts[2] == "backups":
-			handlePhpIniBackupContent(w, r, version, parts[3])
-			return
-		case len(parts) == 3 && parts[2] == "reset":
-			handlePhpIniReset(w, r, version)
-			return
-		case len(parts) == 3 && parts[2] == "restore":
-			handlePhpIniRestore(w, r, version)
-			return
-		}
-		http.NotFound(w, r)
-		return
-	}
-
-	// A read, so it sits above the POST-only gate below, as `config` does.
+	// A read, so it sits above the POST-only gate below.
 	if action == "extensions" && len(parts) == 2 {
 		handlePHPExtensions(w, r, version)
 		return
@@ -5327,49 +5238,6 @@ func appleScriptStr(s string) string {
 		quoted[i] = `"` + p + `"`
 	}
 	return strings.Join(quoted, " & quote & ")
-}
-
-func handleXdebugAction(w http.ResponseWriter, r *http.Request) {
-	// path: /api/xdebug/{version}/on[?mode=MODE] or /api/xdebug/{version}/off
-	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/xdebug/"), "/")
-	if len(parts) != 2 || r.Method != http.MethodPost {
-		http.NotFound(w, r)
-		return
-	}
-	version, action := parts[0], parts[1]
-	if !validVersion.MatchString(version) || (action != "on" && action != "off") {
-		http.NotFound(w, r)
-		return
-	}
-
-	applyMode := ""
-	applyStart := "yes"
-	if action == "on" {
-		applyMode = r.URL.Query().Get("mode")
-		if applyMode == "" {
-			applyMode = "debug"
-		}
-		// The dashboard doesn't expose on-demand (start_with_request=trigger), so
-		// preserve whatever the CLI last set instead of silently resetting a user's
-		// on-demand choice back to connect-on-every-request.
-		if cfg, err := config.LoadGlobal(); err == nil {
-			applyStart = cfg.GetXdebugStart(version)
-		}
-	}
-
-	res, err := xdebugops.ApplyWithStart(version, applyMode, applyStart)
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	if res.RestartErr != nil {
-		fmt.Printf("[WARN] restart %s: %v\n", xdebugops.FPMUnit(version), res.RestartErr)
-	}
-	// Per-site FrankenPHP and custom-FPM containers mount the same per-version
-	// 99-xdebug.ini, so the shared-FPM restart above doesn't reach them; restart
-	// them too or the toggle is a silent no-op on those sites.
-	podman.RestartSiteContainersForVersion(version)
-	writeJSON(w, map[string]any{"ok": true, "xdebug_enabled": res.Enabled, "xdebug_mode": res.Mode})
 }
 
 func handleWatcherStart(w http.ResponseWriter, r *http.Request) {

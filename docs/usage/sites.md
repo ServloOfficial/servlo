@@ -151,7 +151,7 @@ See Custom Containers for the full configuration reference.
 
 ### Static sites
 
-A project that is just a `public_dir` of HTML/CSS/JS with no `composer.json` and no `.php` files is served directly by nginx as a static site. servlo recognises these as non-PHP, so the site detail panel hides every PHP-only surface: the PHP version dropdown, the Xdebug toggle button, the Tinker and Dumps tabs, and the PHP-FPM logs tab. A site counts as PHP only when it has a `composer.json` or a top-level `.php` file, or runs under a custom container or FrankenPHP.
+A project that is just a `public_dir` of HTML/CSS/JS with no `composer.json` and no `.php` files is served directly by nginx as a static site. servlo recognises these as non-PHP, so the site detail panel hides every PHP-only surface: the PHP version dropdown, the Dumps tab, and the PHP-FPM logs tab. A site counts as PHP only when it has a `composer.json` or a top-level `.php` file, or runs under a custom container or FrankenPHP.
 
 ---
 
@@ -292,7 +292,7 @@ Routes are grouped after collapsing id-like path segments, so `/users/123` and `
 
 The same flagged routes also surface as a `Response Time` warning in the site doctor (`servlo site:doctor` and the dashboard doctor card), so the nudge reaches you even when you're on another tab. The doctor reads the watcher's snapshot rather than re-measuring, so it stays quiet on a healthy or idle site. If you've enabled notifications, a route crossing the threshold also fires a `slow_route` push. It's edge-triggered: one push when the route goes slow, then it rearms once the route drops back within the typical band, so you're told again if it regresses later (see Notifications).
 
-This is a local, single-developer signal meant to catch a route that is dragging, not a production analytics system. Each flagged route carries a **Profile** button that does the whole handoff in one click: it arms the SPX profiler, waits for it to actually be armed, then opens the route in a new tab so that request is captured and switches you to the Profiler where the fresh capture lands on top. Profiling is global and stays off until you ask for it, so the button turns it on for every request until you turn it back off. A non-navigable route (a POST, say) can't be opened for you, so there the button just arms profiling and opens the Profiler for you to reproduce it (see Profiler).
+This is a local, single-developer signal meant to catch a route that is dragging, not a production analytics system. Each flagged route is listed with its own timings so you can see which one is dragging. Profiling is global and stays off until you ask for it, so the button turns it on for every request until you turn it back off. A non-navigable route (a POST, say) can't be opened for you, so there the button just arms profiling and opens the Profiler for you to reproduce it (see Profiler).
 
 A git worktree is timed as its own thing. Requests to `feature-x.myapp.test` are recorded against that branch, not against the main checkout, so switching the worktree picker re-scopes the whole panel to the branch you're on and its routes open and profile on the worktree's own subdomain. The worktree's traffic still counts toward the parent when the sites list is ordered by use, since the project is the same project. The doctor's `Response Time` check and the `slow_route` push follow the same rule when they run against a worktree.
 
@@ -395,7 +395,6 @@ Commands that benefit from this auto-start:
 | `php artisan <args>` / `servlo artisan <args>` | Any artisan command |
 | `php <args>` / `servlo php <args>` | Any PHP script |
 | `composer <args>` | Composer via the servlo shim |
-| `servlo shell` | Opens an interactive shell in the PHP-FPM container |
 | `servlo db:import` | Imports a SQL dump |
 | `servlo db:export` | Exports a database |
 | `servlo db:shell` | Opens an interactive DB shell |

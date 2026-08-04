@@ -14,7 +14,7 @@ func TestValidExtName(t *testing.T) {
 	valid := []string{
 		"imagick",
 		"redis",
-		"xdebug",
+		"pcov",
 		"gd",
 		"pdo_mysql",
 		"soap",

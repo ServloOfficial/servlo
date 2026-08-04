@@ -102,7 +102,7 @@ var helpReference = []helpSection{
 		title: "Panes & overlays",
 		rows: [][2]string{
 			{"Dashboard tab", "six-card overview (Sites · Services · Workers · System Health · Resources · Servlo)"},
-			{"S", "swap the detail pane for global Settings (LAN expose, autostart, Xdebug) — Sites tab"},
+			{"S", "swap the detail pane for global Settings (LAN expose, autostart) — Sites tab"},
 			{"Y", "swap the detail pane for the System overview (DNS, Nginx, Watcher, PHP, Node, Servlo) — Sites tab"},
 			{"D", "open the Debug window (dumps, queries with N+1, jobs, mail, …) — Sites tab"},
 			{"?", "swap the detail pane for this help reference"},

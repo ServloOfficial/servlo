@@ -19,9 +19,6 @@
   import ConfirmNginxGlobalSaveModal from './ConfirmNginxGlobalSaveModal.svelte';
   import ConfirmNginxGlobalRestoreModal from './ConfirmNginxGlobalRestoreModal.svelte';
   import ConfirmNginxGlobalResetModal from './ConfirmNginxGlobalResetModal.svelte';
-  import ConfirmPhpIniSaveModal from './ConfirmPhpIniSaveModal.svelte';
-  import ConfirmPhpIniRestoreModal from './ConfirmPhpIniRestoreModal.svelte';
-  import ConfirmPhpIniResetModal from './ConfirmPhpIniResetModal.svelte';
   import ConfirmPhpRemoveModal from './ConfirmPhpRemoveModal.svelte';
   import ConfirmWorkspaceDeleteModal from './ConfirmWorkspaceDeleteModal.svelte';
   import ConfirmTuningSaveModal from './ConfirmTuningSaveModal.svelte';
@@ -70,12 +67,6 @@
   <ConfirmNginxGlobalRestoreModal />
 {:else if $modal.kind === 'nginxGlobalReset' && $modal.nginxGlobalReset}
   <ConfirmNginxGlobalResetModal />
-{:else if $modal.kind === 'phpIniSave' && $modal.phpIniSave}
-  <ConfirmPhpIniSaveModal />
-{:else if $modal.kind === 'phpIniRestore' && $modal.phpIniRestore}
-  <ConfirmPhpIniRestoreModal />
-{:else if $modal.kind === 'phpIniReset' && $modal.phpIniReset}
-  <ConfirmPhpIniResetModal />
 {:else if $modal.kind === 'phpRemove' && $modal.phpRemove}
   <ConfirmPhpRemoveModal />
 {:else if $modal.kind === 'tuningSave' && $modal.tuningSave}

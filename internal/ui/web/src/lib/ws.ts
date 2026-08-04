@@ -26,7 +26,6 @@ export interface WsMessage {
   unhealthy_workers?: unknown;
   dumps_status?: unknown;
   devtools_status?: unknown;
-  profiler_status?: unknown;
   notification?: NotificationEvent;
 }
 

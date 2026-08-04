@@ -25,8 +25,6 @@ Beyond serving PHP sites, servlo ships a set of tools for working with them. Eve
 
 - [Logs](/features/logs) tails application, Nginx and container logs in one place.
 - [Queries](/features/queries) shows database queries per request.
-- Profiler captures request timings and hands off to SPX.
-- Tinker is an in-browser REPL against your application.
 - Dumps collects `dump()` output from your code.
 - Notifications surfaces failures on your desktop.
 

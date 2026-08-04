@@ -24,17 +24,15 @@ const (
 	sysDumpsEnabled
 	sysDumpsPassthrough
 	sysNotifEnabled
-	sysProfiler
 	sysAutostart
 	sysLANExpose
 	sysLANServices
 	sysWorkerMode
-	sysXdebug
 )
 
 // systemRow is one line in the System detail view. value is shown dimmed on
 // the right of label; on drives the on/off glyph for toggle rows. arg holds
-// per-row context (currently the PHP version for xdebug rows).
+// per-row context (the PHP version, for per-version rows).
 type systemRow struct {
 	kind  systemKind
 	label string
@@ -87,11 +85,6 @@ func (m *Model) systemRows() []systemRow {
 	notifOn := cfg != nil && cfg.IsNotificationsEnabled()
 	add(systemRow{kind: sysNotifEnabled, label: "Enabled", on: notifOn})
 
-	// SPX profiler — global toggle that affects every PHP-FPM site.
-	header("Profiler")
-	profOn := cfg != nil && cfg.IsProfilerEnabled()
-	add(systemRow{kind: sysProfiler, label: "SPX profiler", on: profOn})
-
 	// Debug bridge
 	header("Debug bridge")
 	dumpsOn := cfg != nil && cfg.IsDumpsEnabled()
@@ -126,17 +119,6 @@ func (m *Model) systemRows() []systemRow {
 			state += " · default"
 		}
 		info("PHP "+v, state)
-		on := cfg != nil && cfg.IsXdebugEnabled(v)
-		mode := ""
-		if cfg != nil {
-			mode = cfg.GetXdebugMode(v)
-		}
-		label := "Xdebug · PHP " + v
-		if on && mode != "" {
-			label += " (" + mode + ")"
-		}
-		add(systemRow{kind: sysXdebug, label: label, on: on, arg: v})
-
 		// What this version's image carries of the custom extension/package
 		// set. Omitted entirely when nothing is declared, so the row only
 		// appears for the users it means something to.
@@ -231,13 +213,6 @@ func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 		}
 		m.setStatus("notifications "+verb+"…", 5*time.Second)
 		return runServlo("", "notify", verb)
-	case sysProfiler:
-		verb := "on"
-		if row.on {
-			verb = "off"
-		}
-		m.setStatus("profiler "+verb+"…", 5*time.Second)
-		return runServlo("", "profile", verb)
 	case sysAutostart:
 		sub := "enable"
 		if row.on {
@@ -270,13 +245,6 @@ func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 		}
 		m.setStatus("switching worker mode to "+target+"…", 5*time.Second)
 		return runServlo("", "workers", "mode", target)
-	case sysXdebug:
-		verb := "on"
-		if row.on {
-			verb = "off"
-		}
-		m.setStatus("xdebug "+verb+" PHP "+row.arg+"…", 5*time.Second)
-		return runServlo("", "xdebug", verb, row.arg)
 	}
 	return nil
 }

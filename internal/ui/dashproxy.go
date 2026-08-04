@@ -19,7 +19,7 @@ import (
 // the browser refuses to carry into a cross-origin iframe, and their upstreams
 // expose no SameSite knob the way pgadmin/phpmyadmin do. We serve them
 // same-origin under /_svc/<name>/ so their cookies are first-party again, the
-// same trick the SPX profiler uses under /_spx/ (see profiler.go). The upstream
+// The upstream
 // apps are configured to mount their UI at the same /_svc/<name> prefix
 // (rabbitmq management.path_prefix, redisinsight RI_PROXY_PATH), so the proxy
 // forwards the path unchanged rather than stripping it.

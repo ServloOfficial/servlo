@@ -62,14 +62,7 @@ type GlobalConfig struct {
 	// false to leave every IDE file alone.
 	IDEDataSource *bool `yaml:"ide_data_source,omitempty" mapstructure:"ide_data_source"`
 	PHP           struct {
-		DefaultVersion string            `yaml:"default_version" mapstructure:"default_version"`
-		XdebugEnabled  map[string]bool   `yaml:"xdebug_enabled"  mapstructure:"xdebug_enabled"`
-		XdebugMode     map[string]string `yaml:"xdebug_mode,omitempty" mapstructure:"xdebug_mode"`
-		// XdebugStart maps a PHP version to its xdebug.start_with_request value
-		// (yes | trigger | no). Absent means the default "yes" (connect on every
-		// request). "trigger"/"no" support on-demand debugging via the control
-		// socket without flooding the IDE from every request and worker.
-		XdebugStart map[string]string `yaml:"xdebug_start,omitempty" mapstructure:"xdebug_start"`
+		DefaultVersion string `yaml:"default_version" mapstructure:"default_version"`
 		// Extensions is the custom extension set (servlo php:ext), applied to every
 		// PHP image servlo builds. Extensions belong to the user, not to a version:
 		// keying them per version made a site lose them on a version switch.
@@ -89,7 +82,7 @@ type GlobalConfig struct {
 		// does not have.
 		Realised map[string]RealisedPHPSet `yaml:"realised,omitempty" mapstructure:"realised"`
 		// FPMPorts maps a PHP version to extra host ports published on that
-		// version's shared FPM container, so a process bound inside `servlo shell`
+		// version's shared FPM container, so a process bound inside the container
 		// (a Vite dev server, a websocket, an ad-hoc listener) is reachable at
 		// localhost:PORT. Environment-wide per version, not per site; the one
 		// shared FPM container per version owns the list, so two sites wanting
@@ -260,12 +253,6 @@ type GlobalConfig struct {
 		// so there is no separate devtools enable toggle.
 		Workers bool `yaml:"workers,omitempty" mapstructure:"workers"`
 	} `yaml:"devtools,omitempty" mapstructure:"devtools"`
-	Profiler struct {
-		// Enabled toggles the SPX profiler globally. When on, nginx injects
-		// SPX_ENABLED into every PHP-FPM site's requests so each is profiled.
-		// Toggled via `servlo profile on/off` and the dashboard Profiler view.
-		Enabled bool `yaml:"enabled,omitempty" mapstructure:"enabled"`
-	} `yaml:"profiler,omitempty" mapstructure:"profiler"`
 	Notifications struct {
 		// Disabled globally mutes the notifier (WebSocket banners + Web
 		// Push fanout). Inverted form so the zero value keeps existing
@@ -594,7 +581,7 @@ func HostPortsFor(name string) []int {
 
 // FPMPortsFor returns the extra published port mappings recorded for a PHP
 // version's shared FPM container, or nil when none are configured. Read by the
-// FPM quadlet renderer so a `servlo shell` process on one of these ports is
+// FPM quadlet renderer so a container process on one of these ports is
 // reachable from the host, and by the port-shift guard to skip a version's own
 // ports when relocating a colliding one.
 func FPMPortsFor(version string) []string {
@@ -723,24 +710,6 @@ func normalizeDefaultPHPVersion(cfg *GlobalConfig) {
 // callers cannot mutate the cached value.
 func cloneGlobalConfig(in *GlobalConfig) *GlobalConfig {
 	out := *in
-	if in.PHP.XdebugEnabled != nil {
-		out.PHP.XdebugEnabled = make(map[string]bool, len(in.PHP.XdebugEnabled))
-		for k, v := range in.PHP.XdebugEnabled {
-			out.PHP.XdebugEnabled[k] = v
-		}
-	}
-	if in.PHP.XdebugMode != nil {
-		out.PHP.XdebugMode = make(map[string]string, len(in.PHP.XdebugMode))
-		for k, v := range in.PHP.XdebugMode {
-			out.PHP.XdebugMode[k] = v
-		}
-	}
-	if in.PHP.XdebugStart != nil {
-		out.PHP.XdebugStart = make(map[string]string, len(in.PHP.XdebugStart))
-		for k, v := range in.PHP.XdebugStart {
-			out.PHP.XdebugStart[k] = v
-		}
-	}
 	out.PHP.Extensions = slices.Clone(in.PHP.Extensions)
 	out.PHP.Packages = slices.Clone(in.PHP.Packages)
 	if in.PHP.Realised != nil {
@@ -872,76 +841,6 @@ func migrateStaleServiceImages(cfg *GlobalConfig) {
 	}
 }
 
-// IsXdebugEnabled returns true if Xdebug is enabled for the given PHP version.
-func (c *GlobalConfig) IsXdebugEnabled(version string) bool {
-	return c.GetXdebugMode(version) != ""
-}
-
-// GetXdebugMode returns the configured Xdebug mode for version, or "" when
-// disabled. Entries in the legacy xdebug_enabled map (no explicit mode) are
-// treated as mode "debug" so configs written by older servlo builds keep the
-// same behaviour they had before per-mode support existed.
-func (c *GlobalConfig) GetXdebugMode(version string) string {
-	if m, ok := c.PHP.XdebugMode[version]; ok && m != "" {
-		return m
-	}
-	if c.PHP.XdebugEnabled[version] {
-		return "debug"
-	}
-	return ""
-}
-
-// SetXdebug enables (mode "debug") or disables Xdebug for version. Use
-// SetXdebugMode directly when a non-default mode is wanted.
-func (c *GlobalConfig) SetXdebug(version string, enabled bool) {
-	if !enabled {
-		c.SetXdebugMode(version, "")
-		return
-	}
-	c.SetXdebugMode(version, "debug")
-}
-
-// SetXdebugMode sets the Xdebug mode for version. Empty mode disables Xdebug.
-// Both the modern xdebug_mode map and the legacy xdebug_enabled map are kept
-// in sync so downgrades don't silently flip state.
-func (c *GlobalConfig) SetXdebugMode(version, mode string) {
-	if c.PHP.XdebugEnabled == nil {
-		c.PHP.XdebugEnabled = map[string]bool{}
-	}
-	if c.PHP.XdebugMode == nil {
-		c.PHP.XdebugMode = map[string]string{}
-	}
-	if mode == "" {
-		delete(c.PHP.XdebugEnabled, version)
-		delete(c.PHP.XdebugMode, version)
-		return
-	}
-	c.PHP.XdebugEnabled[version] = true
-	c.PHP.XdebugMode[version] = mode
-}
-
-// GetXdebugStart returns the xdebug.start_with_request value for version,
-// defaulting to "yes" (connect on every request) when unset.
-func (c *GlobalConfig) GetXdebugStart(version string) string {
-	if v, ok := c.PHP.XdebugStart[version]; ok && v != "" {
-		return v
-	}
-	return "yes"
-}
-
-// SetXdebugStart records the xdebug.start_with_request value for version. An
-// empty value (or "yes", the default) clears the entry so the config stays lean.
-func (c *GlobalConfig) SetXdebugStart(version, value string) {
-	if value == "" || value == "yes" {
-		delete(c.PHP.XdebugStart, version)
-		return
-	}
-	if c.PHP.XdebugStart == nil {
-		c.PHP.XdebugStart = map[string]string{}
-	}
-	c.PHP.XdebugStart[version] = value
-}
-
 // GetExtensions returns the declared custom extension set, applied to every PHP image.
 func (c *GlobalConfig) GetExtensions() []string {
 	return c.PHP.Extensions
@@ -1066,11 +965,6 @@ func (c *GlobalConfig) IsDevtoolsWorkers() bool {
 // devtoolsops.SetWorkers to touch the runtime sentinel.
 func (c *GlobalConfig) SetDevtoolsWorkers(enabled bool) {
 	c.Devtools.Workers = enabled
-}
-
-// IsProfilerEnabled reports whether the SPX profiler is globally armed.
-func (c *GlobalConfig) IsProfilerEnabled() bool {
-	return c.Profiler.Enabled
 }
 
 // IsDumpsPassthrough reports whether the bridge should also forward each

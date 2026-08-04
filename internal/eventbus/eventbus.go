@@ -19,7 +19,6 @@ const (
 	KindStatus         = "status"
 	KindDumpsStatus    = "dumps_status"
 	KindDevtoolsStatus = "devtools_status"
-	KindProfilerStatus = "profiler_status"
 )
 
 // Event is broadcast to every Subscriber when a publish fires.

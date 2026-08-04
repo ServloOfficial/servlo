@@ -452,7 +452,7 @@ func dumpNetwork(w io.Writer) {
 	} else if ip := podman.DetectHostGatewayIPProbeOnly(); ip != "" {
 		fmt.Fprintf(w, "reachable via %s\n", ip)
 	} else {
-		fmt.Fprintln(w, "no candidate routed back to host (Xdebug + container→host calls will fail)")
+		fmt.Fprintln(w, "no candidate routed back to host (container→host calls will fail)")
 	}
 }
 

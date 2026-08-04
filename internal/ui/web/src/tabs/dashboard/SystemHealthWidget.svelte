@@ -3,10 +3,8 @@
   import StatusPill from '$components/StatusPill.svelte';
   import StatusDot from '$components/StatusDot.svelte';
   import DumpBridgeToggle from '$components/DumpBridgeToggle.svelte';
-  import ProfilerToggle from '$components/ProfilerToggle.svelte';
   import NotificationsToggle from '$components/NotificationsToggle.svelte';
   import { accessMode } from '$stores/accessMode';
-  import { profilerEnabled } from '$stores/profiler';
   import { notifyPrefs } from '$lib/notify';
   import { status, servloStatusColor, dnsState } from '$stores/status';
   import { sitesByPhp, sitesByNode } from '$stores/sites';
@@ -77,17 +75,6 @@
         </span>
       {/if}
     </span>
-  </div>
-
-  <div class="flex items-center justify-between text-sm">
-    <span class="text-gray-600 dark:text-gray-300">{m.dashboard_health_profiler()}</span>
-    {#if $accessMode.localControl}
-      <ProfilerToggle />
-    {:else}
-      <span class="inline-flex w-6 h-6 items-center justify-center shrink-0">
-        <StatusDot color={$profilerEnabled ? 'green' : 'gray'} />
-      </span>
-    {/if}
   </div>
 
   <div class="flex items-center justify-between text-sm">

@@ -164,7 +164,6 @@ func FinishSiteOnly(site config.Site, phpVersion string) error {
 		}
 	}
 
-	_ = podman.EnsureXdebugIni(phpVersion)
 	_ = podman.WriteFPMQuadlet(phpVersion)
 	return nil
 }
@@ -214,7 +213,7 @@ func FinishFrankenPHPLink(site config.Site) error {
 	}
 
 	// WriteFrankenPHPQuadletDiff ensures the debug-tooling bind-mount sources
-	// (user ini, xdebug, dump, devtools) exist before referencing them.
+	// (user ini, dump, devtools) exist before referencing them.
 	unitName := podman.FrankenPHPContainerName(site.Name)
 	changed, err := podman.WriteFrankenPHPQuadletDiff(site.Name, site.Path, site.PHPVersion, entrypoint, env)
 	if err != nil {

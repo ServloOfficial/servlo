@@ -736,83 +736,9 @@ func VerifyExtensionLoaded(version, ext string) error {
 	return nil
 }
 
-// validXdebugModes lists the xdebug.mode tokens accepted by NormaliseXdebugMode.
-// Comma-separated combinations of these are allowed (e.g. "debug,coverage");
-// "off" is only valid on its own.
-var validXdebugModes = map[string]bool{
-	"off":      true,
-	"develop":  true,
-	"coverage": true,
-	"debug":    true,
-	"gcstats":  true,
-	"profile":  true,
-	"trace":    true,
-}
-
-// NormaliseXdebugMode validates and canonicalises a user-supplied xdebug.mode
-// value. Whitespace is trimmed, duplicates are dropped, and the result is a
-// comma-separated string ready to be written into the ini file. An empty input
-// returns "debug" so callers can use it as the default when enabling xdebug
-// without an explicit mode.
-func NormaliseXdebugMode(raw string) (string, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return "debug", nil
-	}
-	parts := strings.Split(raw, ",")
-	seen := map[string]bool{}
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		if !validXdebugModes[p] {
-			return "", fmt.Errorf("invalid xdebug mode %q (accepted: debug, coverage, develop, profile, trace, gcstats, off)", p)
-		}
-		if seen[p] {
-			continue
-		}
-		seen[p] = true
-		out = append(out, p)
-	}
-	if len(out) == 0 {
-		return "debug", nil
-	}
-	if len(out) > 1 && seen["off"] {
-		return "", fmt.Errorf("xdebug mode %q cannot combine 'off' with other modes", raw)
-	}
-	return strings.Join(out, ","), nil
-}
-
-// WriteXdebugIni writes the per-version xdebug ini to the host config dir.
-// The file is volume-mounted into the FPM container at /usr/local/etc/php/conf.d/99-xdebug.ini.
-// An empty mode writes xdebug.mode=off (extension loaded but inactive); any other value
-// is emitted as-is, so callers can pass "debug", "coverage", "debug,coverage", etc.
-// start is the xdebug.start_with_request value (yes | trigger | no); empty defaults to "yes".
-func WriteXdebugIni(version, mode, start string) error {
-	path := config.PHPConfFile(version)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
-	}
-	if info, err := os.Stat(path); err == nil && info.IsDir() {
-		if err := os.Remove(path); err != nil {
-			return fmt.Errorf("removing stale xdebug ini directory: %w", err)
-		}
-	}
-	if mode == "" {
-		mode = "off"
-	}
-	if start == "" {
-		start = "yes"
-	}
-	content := fmt.Sprintf("[xdebug]\nxdebug.mode=%s\nxdebug.start_with_request=%s\nxdebug.client_host=host.containers.internal\nxdebug.client_port=9003\n", mode, start)
-	return os.WriteFile(path, []byte(content), 0644)
-}
-
 // healStaleHostsDir removes a directory podman auto-created at a hosts
-// bind-mount source on a previous broken start, the same race as the xdebug
-// ini, and reports whether the path now needs a file written.
+// bind-mount source on a previous broken start, and reports whether the path
+// now needs a file written.
 func healStaleHostsDir(path string) (bool, error) {
 	info, err := os.Stat(path)
 	if err == nil && info.IsDir() {
@@ -825,7 +751,7 @@ func healStaleHostsDir(path string) (bool, error) {
 }
 
 // ensureFPMHostsFile guarantees the bind-mount source for the FPM container's
-// /etc/hosts is a regular file carrying the host gateway entry Xdebug needs.
+// /etc/hosts is a regular file carrying the host gateway entry containers need.
 // A file left by the lighter service pre-create has no gateway line yet, so it
 // is not treated as done. Falls back to a static header when the real render
 // fails (e.g. LoadSites errors) so the mount still succeeds.
@@ -880,24 +806,8 @@ func hasHostGatewayEntry(path string) bool {
 	return err == nil && strings.Contains(string(body), "host.containers.internal")
 }
 
-// EnsureXdebugIni creates the xdebug ini file for the given PHP version if it doesn't
-// already exist as a regular file. This prevents Podman from auto-creating a directory
-// at the bind-mount source path when the container starts before the file is written.
-func EnsureXdebugIni(version string) error {
-	path := config.PHPConfFile(version)
-	info, err := os.Stat(path)
-	if err == nil && !info.IsDir() {
-		return nil // already a regular file
-	}
-	cfg, cfgErr := config.LoadGlobal()
-	if cfgErr != nil {
-		return cfgErr
-	}
-	return WriteXdebugIni(version, cfg.GetXdebugMode(version), cfg.GetXdebugStart(version))
-}
-
 // WriteFPMQuadlet writes the systemd quadlet for a PHP-FPM version and reloads the
-// systemd daemon if the content changed. It also ensures the xdebug and user ini files exist.
+// systemd daemon if the content changed. It also ensures the user ini file exists.
 func WriteFPMQuadlet(version string) error {
 	short := strings.ReplaceAll(version, ".", "")
 	unitName := "servlo-php" + short + "-fpm"
@@ -908,14 +818,8 @@ func WriteFPMQuadlet(version string) error {
 	if err := EnsureSharedIni(); err != nil {
 		return fmt.Errorf("creating shared ini: %w", err)
 	}
-	if err := EnsureXdebugIni(version); err != nil {
-		return fmt.Errorf("creating xdebug ini: %w", err)
-	}
 	if err := EnsureDumpAssets(); err != nil {
 		return fmt.Errorf("ensuring dump assets: %w", err)
-	}
-	if err := EnsureProfilerAssets(); err != nil {
-		return fmt.Errorf("ensuring profiler assets: %w", err)
 	}
 	if err := EnsureDevtoolsAssets(); err != nil {
 		return fmt.Errorf("ensuring devtools assets: %w", err)
@@ -955,7 +859,7 @@ func WriteFPMQuadlet(version string) error {
 // renderFPMQuadletContent renders the PHP-FPM container template for a version
 // with every substitution and mount applied. Shared by the per-version shared
 // image quadlet and the per-site custom-image quadlet (see customfpm.go), which
-// reuses it and overrides only Image/ContainerName so it inherits xdebug,
+// reuses it and overrides only Image/ContainerName so it inherits the
 // dumps, devtools, the bun volume, and the shell mounts.
 func renderFPMQuadletContent(version string) (string, error) {
 	short := strings.ReplaceAll(version, ".", "")
@@ -965,14 +869,11 @@ func renderFPMQuadletContent(version string) (string, error) {
 	}
 	content := strings.ReplaceAll(tmplContent, "{{.Version}}", version)
 	content = strings.ReplaceAll(content, "{{.VersionShort}}", short)
-	content = strings.ReplaceAll(content, "{{.XdebugIniPath}}", config.PHPConfFile(version))
 	content = strings.ReplaceAll(content, "{{.UserIniPath}}", config.PHPUserIniFile(version))
 	content = strings.ReplaceAll(content, "{{.SharedIniPath}}", config.SharedIniFile())
 	content = strings.ReplaceAll(content, "{{.DumpsDir}}", config.DumpsAssetsDir())
 	content = strings.ReplaceAll(content, "{{.DumpsIniPath}}", config.DumpsIniFile())
 	content = strings.ReplaceAll(content, "{{.DevtoolsIniPath}}", config.DevtoolsIniFile())
-	content = strings.ReplaceAll(content, "{{.SpxIniPath}}", config.SpxIniFile())
-	content = strings.ReplaceAll(content, "{{.SpxDataDir}}", config.SpxDataDir())
 	content = strings.ReplaceAll(content, "{{.HostNameLine}}", hostNameLine())
 	content = applyShellMounts(content, short)
 	content = InjectExtraVolumes(content, ExtraVolumePaths())
@@ -1223,7 +1124,7 @@ func PathVisible(path, phpVersion string) bool {
 // volume-mounted, the quadlets are updated and containers restarted
 // transparently before returning.
 func EnsurePathMounted(path, phpVersion string) {
-	// Reached from `servlo php`, console, tinker, shell, setup and new, so a
+	// Reached from `servlo php`, console, shell, setup and new, so a
 	// command run from / or from a temp dir must not rewrite the quadlets.
 	if !PathAutoMountable(path) {
 		return
@@ -1317,7 +1218,7 @@ func EnsurePathMounted(path, phpVersion string) {
 }
 
 // EnsureUserIni creates the per-version user php.ini with defaults if it doesn't exist.
-// Same bind-mount race as EnsureXdebugIni: when this path is missing at FPM
+// The same bind-mount race: when this path is missing at FPM
 // container start time, podman auto-creates it as a directory and the next
 // EnsureUserIni call (which only Stat'd, didn't IsDir-check) silently no-ops
 // while the user's php.ini is never written. Heal stale directories before

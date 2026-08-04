@@ -671,24 +671,6 @@ func TestPHPFPMContainerfileBundlesFullICUData(t *testing.T) {
 	}
 }
 
-func TestPHPFPMContainerfilePinsLegacyXdebug(t *testing.T) {
-	// xdebug 3.2+ requires PHP 8.0+ and 3.4+ requires PHP 8.1+, so the frozen
-	// legacy 7.2 / 7.4 / 8.0 images must select an older xdebug at build time.
-	content, err := GetQuadletTemplate("servlo-php-fpm.Containerfile")
-	if err != nil {
-		t.Fatalf("GetQuadletTemplate: %v", err)
-	}
-	for _, want := range []string{
-		`7.2) XDEBUG_PKG="xdebug-3.1.6"`,
-		`7.4) XDEBUG_PKG="xdebug-3.1.6"`,
-		`8.0) XDEBUG_PKG="xdebug-3.3.2"`,
-	} {
-		if !strings.Contains(content, want) {
-			t.Errorf("servlo-php-fpm.Containerfile must pin legacy xdebug (%q):\n%s", want, content)
-		}
-	}
-}
-
 func TestPHPFPMContainerfileBuildsLegacyPHP(t *testing.T) {
 	// PHP 7.2's Alpine 3.12 base predates gd's 7.4 configure flags and modern
 	// phpredis, so the Containerfile branches on PHP_VERSION_ID; without the

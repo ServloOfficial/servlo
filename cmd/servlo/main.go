@@ -134,7 +134,6 @@ func main() {
 	root.AddCommand(cli.NewPhpListCmd())
 	root.AddCommand(cli.NewPhpRebuildCmd())
 	root.AddCommand(cli.NewPhpCmd())
-	root.AddCommand(cli.NewPhpShellCmd())
 	root.AddCommand(cli.NewConsoleCmd())
 	root.AddCommand(cli.NewTestCmd())
 	root.AddCommand(cli.NewVendorBinCmd())
@@ -195,10 +194,8 @@ func main() {
 	root.AddCommand(cli.NewShimsCmd())
 	root.AddCommand(cli.NewPathEnableCmd())
 	root.AddCommand(cli.NewPathDisableCmd())
-	root.AddCommand(cli.NewXdebugCmd())
 	root.AddCommand(cli.NewDumpCmd())
 	root.AddCommand(cli.NewIdleCmd())
-	root.AddCommand(cli.NewProfileCmd())
 	root.AddCommand(cli.NewNotifyCmd())
 	root.AddCommand(cli.NewPhpExtCmd())
 	root.AddCommand(cli.NewPhpBunCmd())
@@ -499,7 +496,7 @@ func newWatchCmd() *cobra.Command {
 			// Watch host gateway reachability. A laptop that changes networks
 			// (home wifi → coffee shop → mobile hotspot) ends up with a stale
 			// LAN IP for host.containers.internal in the shared /etc/hosts,
-			// and Xdebug silently times out until the next servlo start. The
+			// and host-gateway lookups silently fail until the next servlo start. The
 			// watcher verifies the current entry every tick and reprobes
 			// only when it stops responding. On a change, host-proxy vhosts
 			// (which bake the gateway IP into proxy_pass on Linux) are

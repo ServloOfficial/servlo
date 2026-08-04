@@ -136,7 +136,7 @@ Worker mode keeps PHP resident, so a source file change is **not** picked up on 
 
 servlo builds a derived image, `localhost/servlo-frankenphp<version>:local`, FROM the dunglas base with the same runtime extension set the FPM image ships (redis, gd, pdo_mysql/pgsql, intl, imagick, igbinary, mongodb, gmp, bcmath, soap, ldap, zip, ...), plus any extensions and packages you add globally. They are compiled for the ZTS runtime and baked once, so `pcntl` and `nodejs` are present from first boot rather than installed at container start. The image rebuilds automatically when servlo's definition changes or via `servlo php:rebuild`.
 
-The per-request debug tooling works for requests Octane serves too: servlo bind-mounts the same dump bridge, `servlo_devtools` (the Debug window's query/job/view/mail/event/http capture), and Xdebug config into the FrankenPHP container. `servlo dump on`, the Debug window, and the Xdebug toggle all apply to a FrankenPHP site. `dump()`/`dd()` and captured queries from a live Octane request land in the dashboard exactly as they do under FPM. The one exception is `servlo xdebug pause`, which breaks into a running worker through `xdebugctl`, a tool only the shared FPM image ships, so it stays PHP-FPM only; the Xdebug on/off/mode toggle still works on FrankenPHP.
+The per-request debug tooling works for requests Octane serves too: servlo bind-mounts the same dump bridge and `servlo_devtools` (the Debug window's query/job/view/mail/event/http capture) into the FrankenPHP container. `servlo dump on` and the Debug window both apply to a FrankenPHP site, and `dump()`/`dd()` and captured queries from a live Octane request land in the dashboard exactly as they do under FPM.
 
 CLI tooling (`servlo test`, `servlo pest`, `servlo php:bun`, `servlo pest:browser`, `php`, `composer`) execs into the shared FPM container for the site's PHP version, so bun and Pest browser testing work for FrankenPHP sites with no extra setup.
 
@@ -146,9 +146,8 @@ CLI tooling (`servlo test`, `servlo pest`, `servlo php:bun`, `servlo pest:browse
 
 Everything the FPM runtime offers works on FrankenPHP **except one thing**:
 
-- **SPX profiler** (`servlo profile`). SPX profiles per request and does not hook Octane's resident-worker loop (its `/_spx` UI 404s under Octane, and servlo's profiler injection is fastcgi-only), so it stays FPM-only. The global profiler toggle still profiles your FPM sites; to profile a FrankenPHP site with SPX, switch it back to FPM (`servlo runtime fpm`, run from the project).
 
-Everything else, the full runtime extension set, Xdebug, the dump()/dd() bridge, the Debug window (`servlo_devtools`), per-site php.ini, bun, and Pest browser testing, is supported.
+Everything else, the full runtime extension set, the dump()/dd() bridge, the Debug window (`servlo_devtools`), per-site php.ini, bun, and Pest browser testing, is supported.
 
 ## Other notes
 

@@ -382,7 +382,6 @@ func ensureFPMQuadlet(phpVersion string) error {
 var (
 	writeFPMQuadlet = podman.WriteFPMQuadlet
 	buildFPMImageTo = podman.BuildFPMImageTo
-	ensureXdebugIni = podman.EnsureXdebugIni
 	startUnitFn     = podman.StartUnit
 	restartUnitFn   = podman.RestartUnit
 )
@@ -402,8 +401,6 @@ func ensureFPMQuadletTo(phpVersion string, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("building FPM image for PHP %s: %w", phpVersion, err)
 	}
-
-	_ = ensureXdebugIni(phpVersion)
 
 	// A start is a no-op on an already-active unit, so a version whose image was
 	// just rebuilt here (the deferred half of a php:ext / php:pkg change) would

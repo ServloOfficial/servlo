@@ -26,7 +26,7 @@ describe('apiFetch CSRF header', () => {
 
   it('adds X-Servlo-CSRF to state-changing requests', async () => {
     const fetchMock = stubFetch();
-    await apiFetch('/api/sites/x/tinker', { method: 'POST' });
+    await apiFetch('/api/sites/x/restart', { method: 'POST' });
     const sent = new Headers(fetchMock.mock.calls[0][1]?.headers);
     expect(sent.get('X-Servlo-CSRF')).toBe('1');
   });

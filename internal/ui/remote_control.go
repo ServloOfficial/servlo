@@ -232,7 +232,7 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 		// came from servlo's own dashboard rather than a malicious page open in
 		// the developer's browser. This is the one check that also applies to
 		// loopback, because the RCE vector is exactly a local browser POSTing
-		// to 127.0.0.1:7073/api/sites/<d>/tinker. Exempt endpoints are reached
+		// to 127.0.0.1:7073/api/sites/<d>/<action>. Exempt endpoints are reached
 		// by non-browser clients that have their own source protection.
 		if unsafeMethod(r.Method) && !csrfExemptPath(r.URL.Path) && !passesCSRF(r) {
 			w.Header().Set("Cache-Control", "no-store")

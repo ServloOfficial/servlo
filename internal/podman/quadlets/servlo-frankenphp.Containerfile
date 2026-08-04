@@ -4,10 +4,8 @@
 # tooling. {{.Version}} is the PHP minor (e.g. 8.4); the extension list, extra
 # packages, and mkcert CA are injected by the builder.
 #
-# SPX and pcov are intentionally excluded: SPX is a per-request profiler that
-# doesn't hook Octane's resident-worker request loop (its /_spx UI 404s under
-# Octane and servlo's profiler injection is fastcgi-only), and pcov coverage runs
-# only via CLI, which execs into the shared FPM container. Both stay FPM-only.
+# pcov is intentionally excluded: its coverage runs only via CLI, which execs
+# into the shared FPM container, so it stays FPM-only.
 FROM docker.io/dunglas/frankenphp:php{{.Version}}-alpine
 
 # User-requested extra Alpine packages (servlo php:pkg) plus any apk build deps a

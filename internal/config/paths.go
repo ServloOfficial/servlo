@@ -149,11 +149,6 @@ func PHPImageHashFile() string {
 	return filepath.Join(DataDir(), "php-image-hash")
 }
 
-// PHPConfFile returns the host path for the per-version xdebug ini file.
-func PHPConfFile(version string) string {
-	return filepath.Join(DataDir(), "php", version, "99-xdebug.ini")
-}
-
 // PHPUserIniFile returns the host path for the per-version user php.ini file.
 func PHPUserIniFile(version string) string {
 	return filepath.Join(DataDir(), "php", version, "98-user.ini")
@@ -243,29 +238,6 @@ func DumpsSocketPath() string {
 // so the FPM container never restarts.
 func DumpsEnabledFlagFile() string {
 	return filepath.Join(DumpsAssetsDir(), "enabled.flag")
-}
-
-// SpxAssetsDir returns the host directory holding the SPX profiler conf.d ini
-// and the generated http key. The ini is bind-mounted read-only into every
-// FPM container.
-func SpxAssetsDir() string {
-	return filepath.Join(DataDir(), "php", "spx")
-}
-
-// SpxIniFile is the host path for the SPX conf.d ini.
-func SpxIniFile() string {
-	return filepath.Join(SpxAssetsDir(), "zz-servlo-spx.ini")
-}
-
-// SpxKeyFile holds the generated SPX http key.
-func SpxKeyFile() string {
-	return filepath.Join(SpxAssetsDir(), "key")
-}
-
-// SpxDataDir is the host directory SPX writes profile reports into. Mounted
-// read-write into every FPM container at /var/spx.
-func SpxDataDir() string {
-	return filepath.Join(DataDir(), "spx")
 }
 
 // DumpsListenNetwork reports the net.Listen network servlo-panel should bind

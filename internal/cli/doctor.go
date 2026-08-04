@@ -504,11 +504,11 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	}
 
 	// ── Container → Host Connectivity ────────────────────────────────────────
-	// The PHP-FPM containers reach the host (Xdebug, host-side services)
+	// The PHP-FPM containers reach the host (host-side services)
 	// via the host.containers.internal /etc/hosts entry. servlo writes that
 	// IP based on a real reachability probe — TCP-connect each candidate
 	// from inside servlo-nginx to servlo-panel's :7073. If no candidate works,
-	// Xdebug times out silently with no error in the FPM logs other than
+	// A host call times out silently with no error in the FPM logs other than
 	// "Time-out connecting to debugging client" (issue #186 redux). This
 	// check surfaces the failure so the user gets a real diagnosis.
 	section = "Container → Host connectivity"
@@ -521,7 +521,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		ok(fmt.Sprintf("host reachable from containers (%s)", ip))
 	} else {
 		fail("host reachable from containers",
-			"no candidate routed back to the host (Xdebug, inter-container → host calls will time out)",
+			"no candidate routed back to the host (inter-container → host calls will time out)",
 			"check rootless podman / netavark / pasta routing; run: podman unshare --rootless-netns ip addr (expected: 169.254.1.2 on podman bridge or DNAT for it)")
 	}
 

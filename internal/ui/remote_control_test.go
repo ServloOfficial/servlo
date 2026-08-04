@@ -559,12 +559,12 @@ func TestFromHost_acceptsZonedIPv6Source(t *testing.T) {
 // loopback source IP is no longer a free pass for unsafe methods: the request
 // must also prove it came from servlo's own dashboard.
 func TestRemoteControlGate_csrf(t *testing.T) {
-	const tinker = "/api/sites/myapp.test/tinker"
+	const siteAction = "/api/sites/myapp.test/restart"
 
 	t.Run("cross-site POST blocked", func(t *testing.T) {
 		next := &nextHandler{}
 		gate := withRemoteControlGate(next)
-		req := httptest.NewRequest(http.MethodPost, tinker, nil)
+		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "127.0.0.1:54321"
 		req.Host = "localhost:7073"
 		req.Header.Set("Sec-Fetch-Site", "cross-site")
@@ -582,7 +582,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 	t.Run("same-origin POST allowed", func(t *testing.T) {
 		next := &nextHandler{}
 		gate := withRemoteControlGate(next)
-		req := httptest.NewRequest(http.MethodPost, tinker, nil)
+		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "127.0.0.1:54321"
 		req.Host = "localhost:7073"
 		req.Header.Set("Sec-Fetch-Site", "same-origin")
@@ -599,7 +599,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 	t.Run("split-origin dashboard allowed via Origin allowlist", func(t *testing.T) {
 		next := &nextHandler{}
 		gate := withRemoteControlGate(next)
-		req := httptest.NewRequest(http.MethodPost, tinker, nil)
+		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "127.0.0.1:54321"
 		req.Host = "localhost:7073"
 		req.Header.Set("Sec-Fetch-Site", "cross-site")
@@ -614,7 +614,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 	t.Run("no Sec-Fetch requires CSRF header", func(t *testing.T) {
 		next := &nextHandler{}
 		gate := withRemoteControlGate(next)
-		req := httptest.NewRequest(http.MethodPost, tinker, nil)
+		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "127.0.0.1:54321" // no Sec-Fetch, no X-Servlo-CSRF
 		req.Host = "localhost:7073"
 		rec := httptest.NewRecorder()
@@ -625,7 +625,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 
 		next2 := &nextHandler{}
 		gate2 := withRemoteControlGate(next2)
-		req2 := httptest.NewRequest(http.MethodPost, tinker, nil)
+		req2 := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req2.RemoteAddr = "127.0.0.1:54321"
 		req2.Host = "localhost:7073"
 		req2.Header.Set("X-Servlo-CSRF", "1")
@@ -656,7 +656,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 	t.Run("unix socket exempt", func(t *testing.T) {
 		next := &nextHandler{}
 		gate := withRemoteControlGate(next)
-		req := httptest.NewRequest(http.MethodPost, tinker, nil)
+		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "@" // no Sec-Fetch, no header — trusted via the socket
 		req = req.WithContext(context.WithValue(req.Context(), ctxKeyUnixSocket{}, true))
 		rec := httptest.NewRecorder()
@@ -691,7 +691,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 		setupConfigDir(t, "alice", "s3cret")
 		next := &nextHandler{}
 		gate := withRemoteControlGate(next)
-		req := httptest.NewRequest(http.MethodPost, tinker, nil)
+		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "192.168.1.42:54321"
 		req.SetBasicAuth("alice", "s3cret")
 		req.Header.Set("Sec-Fetch-Site", "cross-site")

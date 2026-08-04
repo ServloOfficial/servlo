@@ -88,19 +88,6 @@ func TestPathFunctions_ContainExpectedSuffixes(t *testing.T) {
 	}
 }
 
-func TestPHPConfFile_ContainsVersionAndXdebug(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", tmp)
-
-	got := PHPConfFile("8.3")
-	if !strings.Contains(got, "8.3") {
-		t.Errorf("PHPConfFile(8.3) = %q, expected to contain version", got)
-	}
-	if !strings.HasSuffix(got, "99-xdebug.ini") {
-		t.Errorf("PHPConfFile(8.3) = %q, expected suffix 99-xdebug.ini", got)
-	}
-}
-
 func TestPHPUserIniFile_ContainsVersion(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)

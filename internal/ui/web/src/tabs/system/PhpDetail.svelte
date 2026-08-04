@@ -2,13 +2,11 @@
   import ButtonMenu, { type ButtonMenuAction } from '$components/ButtonMenu.svelte';
   import DetailTabs, { type TabItem } from '$components/DetailTabs.svelte';
   import LogViewer from '$components/LogViewer.svelte';
-  import PhpIniTab from './PhpIniTab.svelte';
   import PhpPortsTab from './PhpPortsTab.svelte';
   import PhpExtensionsTab from './PhpExtensionsTab.svelte';
   import { status, loadStatus } from '$stores/status';
   import { setDefaultPhp, startPhp, stopPhp, checkPhpUpdates } from '$stores/phpVersions';
   import { sites, sitesByPhp } from '$stores/sites';
-  import { xdebugOn, xdebugOff, XDEBUG_MODES, type XdebugMode } from '$stores/xdebug';
   import { goToTab } from '$stores/route';
   import { openPhpRemoveModal, openPhpRebuildModal } from '$stores/modals';
   import { notifyLocalInfo } from '$lib/notify';
@@ -23,56 +21,19 @@
   const siteCount = $derived($sitesByPhp.get(version) ?? 0);
   const fpm = $derived($status.php_fpms.find((f) => f.version === version));
   const running = $derived(Boolean(fpm?.running));
-  const xdebugEnabled = $derived(Boolean(fpm?.xdebug_enabled));
-  const xdebugMode = $derived<XdebugMode>((fpm?.xdebug_mode as XdebugMode) || 'debug');
   const container = $derived('servlo-php' + version.replace('.', '') + '-fpm');
   const sitesUsing = $derived($sites.filter((s) => s.php_version === version));
   const baseUpdate = $derived(Boolean(fpm?.update_available));
 
   let defaultBusy = $state(false);
   let fpmBusy = $state(false);
-  let xdebugBusy = $state(false);
-  let xdebugMenuOpen = $state(false);
-  let xdebugRootEl: HTMLDivElement | undefined = $state();
   let checking = $state(false);
 
-  // The parent (PhpPage) no longer wraps us in {#key version}; reset
-  // per-version transient state when the version prop changes so a stale
-  // open xdebug menu doesn't leak across tabs.
-  $effect(() => {
-    version;
-    xdebugMenuOpen = false;
-  });
-
-  function closeXdebugMenu() {
-    xdebugMenuOpen = false;
-  }
-
-  function onXdebugDocClick(e: MouseEvent) {
-    if (!xdebugRootEl) return;
-    if (!xdebugRootEl.contains(e.target as Node)) closeXdebugMenu();
-  }
-
-  function onXdebugDocKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') closeXdebugMenu();
-  }
-
-  $effect(() => {
-    if (!xdebugMenuOpen) return;
-    document.addEventListener('mousedown', onXdebugDocClick);
-    document.addEventListener('keydown', onXdebugDocKey);
-    return () => {
-      document.removeEventListener('mousedown', onXdebugDocClick);
-      document.removeEventListener('keydown', onXdebugDocKey);
-    };
-  });
-
-  type TabId = 'logs' | 'sites' | 'config' | 'ports' | 'extensions';
+  type TabId = 'logs' | 'sites' | 'ports' | 'extensions';
   let active = $state<TabId>('logs');
   const tabs = $derived<TabItem<TabId>[]>([
     { id: 'logs', label: m.services_tabs_logs(), hidden: !running },
     { id: 'sites', label: m.system_php_sites() },
-    { id: 'config', label: m.system_php_iniTab() },
     { id: 'ports', label: m.system_php_portsTab() },
     { id: 'extensions', label: m.system_php_extensionsTab() }
   ]);
@@ -98,32 +59,6 @@
       await loadStatus();
     } finally {
       fpmBusy = false;
-    }
-  }
-
-  async function onToggleXdebug() {
-    xdebugBusy = true;
-    try {
-      if (xdebugEnabled) {
-        await xdebugOff(version);
-      } else {
-        await xdebugOn(version, xdebugMode);
-      }
-      await loadStatus();
-    } finally {
-      xdebugBusy = false;
-    }
-  }
-
-  async function onSetXdebugMode(e: Event) {
-    const mode = (e.target as HTMLSelectElement).value as XdebugMode;
-    if (mode === xdebugMode) return;
-    xdebugBusy = true;
-    try {
-      await xdebugOn(version, mode);
-      await loadStatus();
-    } finally {
-      xdebugBusy = false;
     }
   }
 
@@ -245,65 +180,6 @@
 {/snippet}
 
 {#snippet detailActions()}
-  <div bind:this={xdebugRootEl} class="relative inline-flex">
-    <button
-      type="button"
-      onclick={onToggleXdebug}
-      disabled={xdebugBusy}
-      aria-pressed={xdebugEnabled}
-      title={(xdebugEnabled ? m.common_disable() : m.common_enable()) + ' ' + m.sites_badges_xdebug()}
-      class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-servlo-border transition-colors text-xs font-medium text-gray-700 dark:text-gray-200 disabled:opacity-50 {xdebugEnabled
-        ? 'rounded-l-lg border-r-0 bg-emerald-50/60 dark:bg-emerald-900/15 hover:bg-emerald-50 dark:hover:bg-emerald-900/25'
-        : 'rounded-lg bg-white dark:bg-servlo-card hover:bg-gray-50 dark:hover:bg-white/5'}"
-    >
-      {#if xdebugBusy}
-        <svg class="w-2.5 h-2.5 animate-spin text-amber-500" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-          <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-        </svg>
-      {:else}
-        <span class="shrink-0 w-2 h-2 rounded-full {xdebugEnabled ? 'bg-emerald-500' : 'border border-gray-300 dark:border-gray-600 bg-transparent'}"></span>
-      {/if}
-      <span>{m.system_php_xdebug()}</span>
-    </button>
-    {#if xdebugEnabled}
-      <button
-        type="button"
-        onclick={() => (xdebugMenuOpen = !xdebugMenuOpen)}
-        disabled={xdebugBusy}
-        aria-haspopup="menu"
-        aria-expanded={xdebugMenuOpen}
-        title={m.system_php_xdebugModeTitle()}
-        class="inline-flex items-center gap-1 px-3 py-1.5 rounded-r-lg border border-gray-200 dark:border-servlo-border transition-colors text-xs font-medium text-gray-700 dark:text-gray-200 bg-emerald-50/60 dark:bg-emerald-900/15 hover:bg-emerald-50 dark:hover:bg-emerald-900/25 disabled:opacity-50"
-      >
-        <span class="font-mono">{xdebugMode}</span>
-        <svg class="w-3 h-3 transition-transform {xdebugMenuOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-      {#if xdebugMenuOpen}
-        <div
-          role="menu"
-          class="absolute right-0 top-full mt-1 z-50 min-w-40 rounded-xl bg-white dark:bg-servlo-card border border-gray-200 dark:border-servlo-border shadow-xl py-1"
-        >
-          {#each XDEBUG_MODES as mode (mode)}
-            {@const selected = mode === xdebugMode}
-            <button
-              type="button"
-              role="menuitem"
-              onclick={() => {
-                xdebugMenuOpen = false;
-                onSetXdebugMode({ target: { value: mode } } as unknown as Event);
-              }}
-              class="w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-gray-50 dark:hover:bg-white/5 transition-colors {selected ? 'text-servlo-red font-semibold' : 'text-gray-700 dark:text-gray-200'}"
-            >
-              {mode}
-            </button>
-          {/each}
-        </div>
-      {/if}
-    {/if}
-  </div>
   <ButtonMenu actions={versionActions} busy={versionBusy} />
 {/snippet}
 
@@ -328,8 +204,6 @@
       </div>
     {/if}
   </div>
-{:else if active === 'config'}
-  <PhpIniTab {version} />
 {:else if active === 'ports'}
   <PhpPortsTab {version} />
 {:else if active === 'extensions'}

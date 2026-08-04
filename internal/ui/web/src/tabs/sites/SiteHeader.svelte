@@ -31,7 +31,6 @@
   import { accessMode } from '$stores/accessMode';
   import { idleEnabled } from '$stores/idle';
   import { status, loadStatus } from '$stores/status';
-  import { xdebugOn, xdebugOff, type XdebugMode } from '$stores/xdebug';
   import { apiBase } from '$lib/api';
   import { homeShorten } from '$lib/path';
   import DomainMorePill from './DomainMorePill.svelte';
@@ -62,7 +61,6 @@
   let tlsBusy = $state(false);
   let lanBusy = $state(false);
   let pinBusy = $state(false);
-  let xdebugBusy = $state(false);
 
   async function togglePin() {
     pinBusy = true;
@@ -75,29 +73,6 @@
   let overflowOpen = $state(false);
   let overflowEl: HTMLDivElement | null = $state(null);
 
-  // Xdebug toggles the per-version xdebug ini, which both the shared FPM image
-  // and a FrankenPHP site's own container mount, so the toggle applies to
-  // FrankenPHP sites too. Custom (non-PHP) containers have no xdebug.
-  const showXdebug = $derived(
-    Boolean(site.uses_php) && !site.custom_container
-  );
-  const xdebugFpm = $derived(
-    site.php_version ? $status.php_fpms.find((f) => f.version === site.php_version) : undefined
-  );
-  const xdebugEnabled = $derived(Boolean(xdebugFpm?.xdebug_enabled));
-  const xdebugMode = $derived((xdebugFpm?.xdebug_mode || 'debug') as XdebugMode);
-
-  async function toggleXdebug() {
-    if (!site.php_version || xdebugBusy) return;
-    xdebugBusy = true;
-    try {
-      if (xdebugEnabled) await xdebugOff(site.php_version);
-      else await xdebugOn(site.php_version, xdebugMode);
-      await loadStatus();
-    } finally {
-      xdebugBusy = false;
-    }
-  }
 
   const activeDomain = $derived(activeWorktreeDomain(site, activeWorktreeBranch));
   const activeWorktree = $derived.by(() => {
@@ -572,33 +547,6 @@
         />
       {/if}
 
-      {#if showXdebug && !site.paused}
-        <button
-          type="button"
-          onclick={toggleXdebug}
-          disabled={xdebugBusy}
-          aria-label={m.sites_badges_xdebug()}
-          aria-pressed={xdebugEnabled}
-          use:tooltip={xdebugEnabled ? m.sites_badges_xdebugOn({ mode: xdebugMode }) : m.sites_badges_xdebugDisabled()}
-          class="hidden @md:flex w-8 h-8 items-center justify-center rounded-md transition-colors disabled:opacity-50 {xdebugEnabled
-            ? 'text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-            : 'text-gray-500 dark:text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5'}"
-        >
-          {#if xdebugBusy}
-            <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
-          {:else}
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <path d="m8 2 1.88 1.88M14.12 3.88 16 2M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
-              <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6zM12 20v-9" />
-              <path d="M6.53 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M20.97 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4" />
-            </svg>
-          {/if}
-        </button>
-      {/if}
-
       {#if $accessMode.localControl}
         <button
           type="button"
@@ -770,25 +718,6 @@
               >
                 <Icon name="globe" class="w-3.5 h-3.5 shrink-0" />
                 {tunnelBusy ? '...' : tunnelURL ? m.share_stopTunnel() : m.share_viaTunnel()}
-              </button>
-            {/if}
-            {#if showXdebug && !site.paused}
-              <button
-                type="button"
-                role="menuitem"
-                onclick={() => {
-                  overflowOpen = false;
-                  toggleXdebug();
-                }}
-                disabled={xdebugBusy}
-                class="@md:hidden w-full px-3 py-1.5 text-xs text-left flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 {xdebugEnabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-200'}"
-              >
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                  <path d="m8 2 1.88 1.88M14.12 3.88 16 2M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
-                  <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6zM12 20v-9" />
-                  <path d="M6.53 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M20.97 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4" />
-                </svg>
-                {xdebugEnabled ? m.sites_badges_xdebugOn({ mode: xdebugMode }) : m.sites_badges_xdebugDisabled()}
               </button>
             {/if}
             {#if !site.paused || !activeWorktreeBranch}

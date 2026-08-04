@@ -241,7 +241,7 @@ func TestToggleDumpExpand_FlipsMap(t *testing.T) {
 func TestFilteredDumpsWithCtx_AppliesContextFilter(t *testing.T) {
 	in := []DumpEntry{
 		{ID: "1", Type: "fpm", Text: "request"},
-		{ID: "2", Type: "cli", Text: "tinker"},
+		{ID: "2", Type: "cli", Text: "artisan"},
 		{ID: "3", Type: "fpm", Text: "another"},
 	}
 	if got := filteredDumpsWithCtx(in, "", "fpm"); len(got) != 2 {
@@ -250,7 +250,7 @@ func TestFilteredDumpsWithCtx_AppliesContextFilter(t *testing.T) {
 	if got := filteredDumpsWithCtx(in, "", "cli"); len(got) != 1 {
 		t.Errorf("expected 1 cli entry, got %d", len(got))
 	}
-	if got := filteredDumpsWithCtx(in, "tinker", "cli"); len(got) != 1 || got[0].ID != "2" {
+	if got := filteredDumpsWithCtx(in, "artisan", "cli"); len(got) != 1 || got[0].ID != "2" {
 		t.Errorf("ctx + needle should AND together: %+v", got)
 	}
 	if got := filteredDumpsWithCtx(in, "", ""); len(got) != 3 {

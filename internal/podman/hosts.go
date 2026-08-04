@@ -15,7 +15,7 @@ import (
 
 // Fallback for podman rootless + pasta/netavark/slirp4netns when no other
 // candidate works. Written so the file is well-formed even if every probe
-// fails — Xdebug still won't connect, but `servlo doctor` will surface why.
+// fails — the container still won't reach the host, but `servlo doctor` will surface why.
 const fallbackHostGatewayIP = "169.254.1.2"
 
 // hostProbePort is a port that servlo-panel binds on the host (TCP 0.0.0.0:7073).
@@ -65,7 +65,7 @@ func WriteContainerHostsWith(hostIP, nginxIP string) error {
 
 // renderContainerHosts builds the /etc/hosts contents for PHP-FPM containers.
 // .test domains go to nginxIP (direct bridge), host.containers.internal to
-// hostIP (host gateway for Xdebug and other host-side services).
+// hostIP (host gateway for host-side services).
 func renderContainerHosts(reg *config.SiteRegistry, hostIP, nginxIP string) string {
 	var sb strings.Builder
 	sb.WriteString("127.0.0.1 localhost\n")
@@ -113,7 +113,7 @@ func writeBrowserHosts(reg *config.SiteRegistry, nginxIP string) error {
 // trusted whatever `getent hosts host.containers.internal` returned without
 // checking that the IP actually routed. On rootless Linux setups where
 // netavark resolves to 169.254.1.2 but never wires up the bridge alias or
-// DNAT for it, that IP is a dead end and Xdebug times out.
+// DNAT for it, that IP is a dead end and the container's host calls time out.
 func DetectHostGatewayIP() string {
 	if ip := probeReachableHostIP(); ip != "" {
 		return ip
@@ -134,7 +134,7 @@ func DetectHostGatewayIP() string {
 // DetectHostGatewayIPProbeOnly is like DetectHostGatewayIP but returns ""
 // when no candidate is actually reachable, instead of falling back to
 // getent / the legacy constant. Used by `servlo doctor` to surface probe
-// failures as a real diagnosis rather than the silent timeout Xdebug
+// failures as a real diagnosis rather than the silent timeout a container
 // users otherwise see.
 func DetectHostGatewayIPProbeOnly() string {
 	return probeReachableHostIP()
@@ -159,9 +159,9 @@ func probeReachableHostIP() string {
 // the host gateway. Order: getent's host.containers.internal (works on
 // macOS/gvproxy and well-configured Linux), the host's primary LAN IP
 // (works whenever the host has any LAN address), and slirp4netns's default
-// 10.0.2.2. host.containers.internal goes first because when it works
-// it's the address Xdebug docs tell users to configure, and on macOS
-// gvproxy makes it the canonical choice. Empty strings are skipped.
+// 10.0.2.2. host.containers.internal goes first because it is the
+// conventional name for the gateway wherever it resolves. Empty strings
+// are skipped.
 func hostCandidates(getentIP, lanIP string) []string {
 	candidates := make([]string, 0, 3)
 	seen := map[string]bool{}

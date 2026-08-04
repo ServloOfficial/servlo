@@ -551,9 +551,6 @@ func runStart(_ *cobra.Command, _ []string) error {
 	if err := nginx.EnsureServloVhost(); err != nil {
 		fmt.Printf("  WARN: servlo vhost: %v\n", err)
 	}
-	if err := nginx.EnsureProfilerVhost(); err != nil {
-		fmt.Printf("  WARN: profiler vhost: %v\n", err)
-	}
 	// The servlo-nginx quadlet bind-mounts RunDir so the servlo.localhost vhost
 	// can reach servlo-panel over a unix socket. The directory must exist before
 	// the container starts or podman will create it root-owned.

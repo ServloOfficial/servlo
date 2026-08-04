@@ -37,7 +37,7 @@ function setStatus(fpm: Record<string, unknown> = {}) {
   statusStore.set({
     php_default: '8.4',
     php_fpms: [
-      { version: '8.4', patch: '8.4.12', running: false, xdebug_enabled: false, ...fpm }
+      { version: '8.4', patch: '8.4.12', running: false, ...fpm }
     ]
   });
 }
@@ -58,14 +58,8 @@ describe('PhpDetail', () => {
     expect(screen.queryByText('Stopped')).not.toBeInTheDocument();
   });
 
-  it('keeps the Xdebug control in the tab strip', () => {
-    const { container } = render(PhpDetail, { props: { version: '8.4' } });
-    const xdebug = screen.getByText('Xdebug');
-    expect(container.querySelector('.border-b')?.contains(xdebug)).toBe(true);
-  });
-
   // A rebuild with nothing to pick up is a slow no-op, so it waits in the menu
-  // rather than sitting in the button next to Xdebug inviting a click.
+  // rather than sitting in the actions row inviting a click.
   it('keeps rebuild in the menu until the base has moved', async () => {
     const { container } = render(PhpDetail, { props: { version: '8.4' } });
     expect(screen.getByText('Check for updates')).toBeInTheDocument();

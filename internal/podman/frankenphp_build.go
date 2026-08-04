@@ -17,7 +17,7 @@ import (
 // derived FrankenPHP image, mirroring the runtime extensions the servlo FPM image
 // ships so an Octane site has the same modules available instead of the bare
 // dunglas base. These are install-php-extensions names; curl/mbstring/xml are
-// already in the base image. Dev-only tooling (xdebug, pcov, spx, servlo_devtools)
+// already in the base image. Dev-only tooling (pcov, servlo_devtools)
 // is intentionally excluded — it carries octane-specific behaviour and is
 // tracked separately.
 var frankenPHPRuntimeExtensions = []string{
@@ -216,29 +216,20 @@ func renderFrankenPHPContainerfile(version string, exts, packages []string, mkce
 // splitFrankenPHPExtensions partitions the full extension list into a core set
 // installed in one hard step (a failure there is a real toolchain problem) and an
 // optional set installed one-at-a-time and tolerantly: the PECL-built runtime
-// extensions, any user custom extension, and xdebug, none of which should brick
-// the image when a single one can't build on a given base.
+// extensions and any user custom extension, neither of which should brick the
+// image when a single one can't build on a given base.
 func splitFrankenPHPExtensions(exts []string) (core, optional []string) {
 	runtime := make(map[string]bool, len(frankenPHPRuntimeExtensions))
 	for _, e := range frankenPHPRuntimeExtensions {
 		runtime[e] = true
 	}
-	hasXdebug := false
 	for _, e := range exts {
 		switch {
 		case runtime[e] && !frankenPHPFlakyExtensions[e]:
 			core = append(core, e)
 		default: // flaky runtime PECL extension or a user custom extension
 			optional = append(optional, e)
-			if e == "xdebug" {
-				hasXdebug = true
-			}
 		}
-	}
-	// xdebug is always baked, but skip the duplicate when the user already added
-	// it as a custom extension (otherwise the install loop runs it twice).
-	if !hasXdebug {
-		optional = append(optional, "xdebug")
 	}
 	return core, optional
 }

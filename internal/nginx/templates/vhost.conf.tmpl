@@ -65,7 +65,6 @@ server {
         fastcgi_param HTTP_X_FORWARDED_PORT $real_forwarded_port;
         fastcgi_param HTTP_X_REAL_IP $remote_addr;
         fastcgi_param HTTP_X_FORWARDED_FOR $remote_addr;
-        fastcgi_param HTTP_COOKIE "$http_cookie; SPX_KEY=$spx_key{{if .Profiling}}; SPX_ENABLED=1{{end}}";
 {{if .ServloSite}}        fastcgi_param SERVLO_SITE {{.ServloSite}};
 {{end}}{{if .ServloBranch}}        fastcgi_param SERVLO_BRANCH {{.ServloBranch}};
 {{end}}    }

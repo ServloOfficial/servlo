@@ -7,8 +7,6 @@
     type RouteStat,
     type TimeRange
   } from '$stores/analytics';
-  import { profilerEnabled, setProfiler } from '$stores/profiler';
-  import { openProfiler } from '$stores/dashboard';
   import { debugCaptureEnabled } from '$stores/queries';
   import { debugLens, debugSearch } from '$stores/debugLens';
   import { goToTab } from '$stores/route';
@@ -135,32 +133,9 @@
     return new Date(atMillis).toLocaleTimeString([], { hour12: false });
   }
 
-  // SPX ships in the FPM image, so only a PHP site served by FPM has anything to
-  // profile. Elsewhere the slow routes still read, they just don't arm anything.
-  const canProfile = $derived(Boolean(site.can_profile));
   const slowRowClass =
     'flex-1 min-w-0 grid grid-cols-[minmax(7rem,14rem)_1fr_auto] items-center gap-3';
 
-  let arming = $state(false);
-  function routeUrl(r: RouteStat): string {
-    if (r.method !== 'GET' || !r.example) return '';
-    return `${site.tls ? 'https' : 'http'}://${targetDomain}${r.example}`;
-  }
-  async function profileRoute(r: RouteStat) {
-    if (arming) return;
-    const url = routeUrl(r);
-    const t = url ? window.open('', '_blank') : null;
-    arming = true;
-    try {
-      if (!$profilerEnabled) await setProfiler(true);
-      if (t && url) t.location.href = url;
-      openProfiler();
-    } catch {
-      t?.close();
-    } finally {
-      arming = false;
-    }
-  }
 </script>
 
 {#snippet kpi(label: string, value: string, unit: string, meta: string, tone: string)}
@@ -288,14 +263,7 @@
       <div class="flex flex-col gap-2">
         {#each slowest as r (r.method + r.route)}
           <div class="flex items-center gap-2">
-            {#if canProfile}
-              <button type="button" onclick={() => profileRoute(r)} disabled={arming} use:tooltip={m.sites_reqstats_profile()}
-                class="{slowRowClass} text-left group disabled:opacity-60">
-                {@render slowRow(r, true)}
-              </button>
-            {:else}
-              <div class={slowRowClass}>{@render slowRow(r, false)}</div>
-            {/if}
+            <div class={slowRowClass}>{@render slowRow(r, false)}</div>
             {@render inspectBtn(r.route)}
           </div>
         {/each}

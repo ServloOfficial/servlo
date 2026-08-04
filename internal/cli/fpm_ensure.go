@@ -92,7 +92,7 @@ func ensureFPMRunning(cwd, version, container string) (string, string, error) {
 }
 
 // ensureFPMStarted is the no-switch variant of ensureFPMRunning for callers that
-// operate on an explicit, already-chosen PHP version (tinker eval, pest-browser
+// operate on an explicit, already-chosen PHP version (pest-browser
 // and php:bun installs) and have done version-specific work around this check.
 // It auto-starts a stopped-but-installed container, offers to install a missing
 // version (same version only — never switches), and otherwise errors.

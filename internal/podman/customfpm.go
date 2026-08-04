@@ -27,7 +27,7 @@ func FPMContainerName(site config.Site, version string) string {
 // WriteCustomFPMQuadlet writes a per-site PHP-FPM quadlet running the site's
 // custom-built image (CustomImageName) under a per-site container name. It
 // reuses the shared FPM template so the container inherits every servlo mount
-// (xdebug, dumps, devtools, the bun volume, the shell), overriding only the
+// (dumps, devtools, the bun volume), overriding only the
 // Image and ContainerName. Ensures the shared per-version ini/assets exist
 // first, like WriteFPMQuadlet.
 func WriteCustomFPMQuadlet(siteName, version string) error {
@@ -37,14 +37,8 @@ func WriteCustomFPMQuadlet(siteName, version string) error {
 	if err := EnsureSharedIni(); err != nil {
 		return fmt.Errorf("creating shared ini: %w", err)
 	}
-	if err := EnsureXdebugIni(version); err != nil {
-		return fmt.Errorf("creating xdebug ini: %w", err)
-	}
 	if err := EnsureDumpAssets(); err != nil {
 		return fmt.Errorf("ensuring dump assets: %w", err)
-	}
-	if err := EnsureProfilerAssets(); err != nil {
-		return fmt.Errorf("ensuring profiler assets: %w", err)
 	}
 	if err := EnsureDevtoolsAssets(); err != nil {
 		return fmt.Errorf("ensuring devtools assets: %w", err)

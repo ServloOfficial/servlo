@@ -18,13 +18,12 @@ func stubEnsurePath(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
 
 	origWrite, origBuild := writeFPMQuadlet, buildFPMImageTo
-	origXdebug, origStart, origRestart := ensureXdebugIni, startUnitFn, restartUnitFn
+	origStart, origRestart := startUnitFn, restartUnitFn
 	t.Cleanup(func() {
 		writeFPMQuadlet, buildFPMImageTo = origWrite, origBuild
-		ensureXdebugIni, startUnitFn, restartUnitFn = origXdebug, origStart, origRestart
+		startUnitFn, restartUnitFn = origStart, origRestart
 	})
 	writeFPMQuadlet = func(string) error { return nil }
-	ensureXdebugIni = func(string) error { return nil }
 }
 
 // A version whose image ensureFPMQuadletTo just rebuilt must have its container

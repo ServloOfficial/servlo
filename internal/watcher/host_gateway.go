@@ -79,7 +79,7 @@ const hostGatewayInspectEvery = 10
 var hostGatewayDepsForWatch = hostGatewayDepsFromPodman
 
 // WatchHostGateway keeps both addresses in the shared hosts files fresh:
-// servlo-nginx's bridge IP, and the host.containers.internal gateway that Xdebug
+// servlo-nginx's bridge IP, and the host.containers.internal gateway that container
 // needs. Runs until stop is closed; pass nil to run forever.
 func WatchHostGateway(interval time.Duration, stop <-chan struct{}) {
 	deps := hostGatewayDepsForWatch()

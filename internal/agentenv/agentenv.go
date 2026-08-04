@@ -7,7 +7,7 @@ import "strings"
 
 // Vars are the environment variables laravel/agent-detector inspects to
 // decide an AI agent is driving the process. Kept in sync with that library's
-// AGENT_ENV_VARS set so detection survives `servlo php`, tinker, exec.
+// AGENT_ENV_VARS set so detection survives `servlo php` and exec.
 var Vars = []string{
 	"AI_AGENT",
 	"CLAUDECODE", "CLAUDE_CODE", "CLAUDE_CODE_IS_COWORK",

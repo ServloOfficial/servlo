@@ -5,7 +5,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/realrashid/servlo/internal/config"
-	phpPkg "github.com/realrashid/servlo/internal/php"
 	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 )
 
@@ -14,7 +13,7 @@ type settingsRow struct {
 	kind       settingsKind
 	label      string
 	on         bool
-	phpVersion string // PHP version, for xdebug rows
+	phpVersion string // PHP version, for per-version rows
 }
 
 type settingsKind int
@@ -23,7 +22,6 @@ const (
 	settingsLANExpose settingsKind = iota
 	settingsLANServices
 	settingsAutostart
-	settingsXdebug
 	settingsWorkerMode
 )
 
@@ -52,16 +50,6 @@ func (m *Model) settingsRows() []settingsRow {
 	// podman exec under systemd so the setting is meaningless there and
 	// is hidden from the UI.
 
-	if versions, err := phpPkg.ListInstalled(); err == nil {
-		for _, v := range versions {
-			rows = append(rows, settingsRow{
-				kind:       settingsXdebug,
-				label:      "Xdebug · PHP " + v,
-				on:         cfg != nil && cfg.IsXdebugEnabled(v),
-				phpVersion: v,
-			})
-		}
-	}
 	return rows
 }
 
@@ -99,13 +87,6 @@ func (m *Model) settingsToggle(rows []settingsRow) tea.Cmd {
 		}
 		m.setStatus("autostart "+sub+"…", 5*time.Second)
 		return runServlo("", "autostart", sub)
-	case settingsXdebug:
-		verb := "on"
-		if row.on {
-			verb = "off"
-		}
-		m.setStatus("xdebug "+verb+" PHP "+row.phpVersion+"…", 5*time.Second)
-		return runServlo("", "xdebug", verb, row.phpVersion)
 	case settingsWorkerMode:
 		// Toggle between exec (off) and container (on). Mirrors
 		// `servlo workers mode <value>`. Does not stop running workers —
