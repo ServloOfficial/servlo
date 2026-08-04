@@ -114,17 +114,13 @@ func Start(currentVersion string) error {
 	podman.Cache.Start(context.Background())
 
 	// Restart any LAN share proxies that were active before this process started.
-	go cli.RestoreLANShareProxies()
 
 	// A public tunnel must not outlive the process that owns it. Stop them on
 	// the way out, and kill anything a previous run was killed too hard to
 	// clean up itself.
-	cli.ReapOrphanTunnels()
 	// A tunnel container is invisible to the pid-based reap: conmon is
 	// reparented out of the client's tree, so a killed servlo-panel leaves it
 	// running and there is no pid left to recognise it by.
-	go cli.ReapOrphanNgrokContainers()
-	stopTunnelsOnShutdown()
 
 	// Single coalescer for the two event sources that need to refresh the
 	// container cache and broadcast a snapshot: in-process mutations
@@ -200,10 +196,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/push/unsubscribe", withCORS(handlePushUnsubscribe))
 	mux.HandleFunc("/api/push/devices", withCORS(handlePushDevices))
 	mux.HandleFunc("/api/push/test", withCORS(handlePushTest))
-	mux.HandleFunc("/api/lan-qr/", withCORS(handleLANQR))
-	mux.HandleFunc("/api/share-tools", withCORS(handleShareTools))
 	mux.HandleFunc("/api/tools/", withCORS(publishAfter(handleTools, eventbus.KindStatus)))
-	mux.HandleFunc("/api/tunnel-qr/", withCORS(handleTunnelQR))
 	mux.HandleFunc("/api/dashboard-qr", withCORS(handleDashboardQR))
 
 	// Cross-process notifier for CLI. It requires dashboard-control
@@ -727,10 +720,6 @@ type WorktreeResponse struct {
 	DBIsolated          bool           `json:"db_isolated,omitempty"`
 	DBDatabase          string         `json:"db_database,omitempty"`
 	LANPort             int            `json:"lan_port,omitempty"`
-	LANShareURL         string         `json:"lan_share_url,omitempty"`
-	TunnelURL           string         `json:"tunnel_url,omitempty"`
-	TunnelTool          string         `json:"tunnel_tool,omitempty"`
-	TunnelExternal      bool           `json:"tunnel_external,omitempty"`
 	FrameworkWorkers    []WorkerStatus `json:"framework_workers,omitempty"`
 	// Idle-suspend state for the worktree, which idles on its own timer.
 	LastActive           int64    `json:"last_active,omitempty"`
@@ -836,10 +825,6 @@ type SiteResponse struct {
 	// open the admin tool straight to this site's database.
 	DBDatabase       string `json:"db_database,omitempty"`
 	LANPort          int    `json:"lan_port,omitempty"`
-	LANShareURL      string `json:"lan_share_url,omitempty"`
-	TunnelURL        string `json:"tunnel_url,omitempty"`
-	TunnelTool       string `json:"tunnel_tool,omitempty"`
-	TunnelExternal   bool   `json:"tunnel_external,omitempty"`
 	CustomContainer  bool   `json:"custom_container,omitempty"`
 	ContainerPort    int    `json:"container_port,omitempty"`
 	ContainerImage   string `json:"container_image,omitempty"`
@@ -976,10 +961,8 @@ func buildSites() ([]SiteResponse, error) {
 		var worktreeResponses []WorktreeResponse
 		for _, wt := range e.Worktrees {
 			lanPort := 0
-			lanURL := ""
 			if entry, ok, err := config.FindWorktreeLAN(e.Name, wt.Branch); err == nil && ok {
 				lanPort = entry.Port
-				lanURL = cli.LANShareURL(entry.Port)
 			}
 			var wtWorkers []WorkerStatus
 			for _, fw := range wt.FrameworkWorkers {
@@ -996,7 +979,6 @@ func buildSites() ([]SiteResponse, error) {
 			// timing API share). Same worktree, two key schemes.
 			wtKeyStr := wtKey(e.Name, config.WorktreeUnitSlug(filepath.Base(wt.Path)))
 			usage = addUsage(usage, siteUsage[reqstats.Key(e.Name, wt.Branch)])
-			wtTunnel, _ := cli.TunnelStatus(e.Name, wt.Branch)
 			worktreeResponses = append(worktreeResponses, WorktreeResponse{
 				Branch:               wt.Branch,
 				Domain:               wt.Domain,
@@ -1012,10 +994,6 @@ func buildSites() ([]SiteResponse, error) {
 				DBIsolated:           wt.DBIsolated,
 				DBDatabase:           wt.DBDatabase,
 				LANPort:              lanPort,
-				LANShareURL:          lanURL,
-				TunnelURL:            wtTunnel.URL,
-				TunnelTool:           wtTunnel.Tool,
-				TunnelExternal:       wtTunnel.External,
 				FrameworkWorkers:     wtWorkers,
 				LastActive:           idleActivity[wtKeyStr],
 				Idle:                 idleSiteIsIdle(idleActivity, wtKeyStr, e.Paused, idleExempt, idleOn, idleTimeout, idleNow),
@@ -1025,8 +1003,6 @@ func buildSites() ([]SiteResponse, error) {
 		if worktreeResponses == nil {
 			worktreeResponses = []WorktreeResponse{}
 		}
-
-		tunnel, _ := cli.TunnelStatus(e.Name, "")
 
 		sites = append(sites, SiteResponse{
 			Name:                 e.Name,
@@ -1082,10 +1058,6 @@ func buildSites() ([]SiteResponse, error) {
 			Services:             e.Services,
 			DBDatabase:           envfile.ReadKey(filepath.Join(e.Path, ".env"), "DB_DATABASE"),
 			LANPort:              e.LANPort,
-			LANShareURL:          cli.LANShareURL(e.LANPort),
-			TunnelURL:            tunnel.URL,
-			TunnelTool:           tunnel.Tool,
-			TunnelExternal:       tunnel.External,
 			CustomContainer:      e.ContainerPort > 0,
 			ContainerPort:        e.ContainerPort,
 			ContainerImage:       e.ContainerImage,
@@ -3178,102 +3150,6 @@ func handleSiteEnvRestore(w http.ResponseWriter, r *http.Request, site *config.S
 	writeJSON(w, SiteEnvRestoreResponse(res))
 }
 
-// handleLANQR serves a QR code PNG for the LAN share URL of a site or one
-// of its worktrees.
-// Path: /api/lan-qr/{domain}[?branch=<sanitized>]
-func handleLANQR(w http.ResponseWriter, r *http.Request) {
-	domain := strings.TrimPrefix(r.URL.Path, "/api/lan-qr/")
-	site, err := config.FindSiteByDomain(domain)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	port := site.LANPort
-	if branch := r.URL.Query().Get("branch"); branch != "" {
-		entry, found, err := config.FindWorktreeLAN(site.Name, branch)
-		if err != nil || !found {
-			http.NotFound(w, r)
-			return
-		}
-		port = entry.Port
-	}
-	if port == 0 {
-		http.NotFound(w, r)
-		return
-	}
-	shareURL := cli.LANShareURL(port)
-	if shareURL == "" {
-		http.NotFound(w, r)
-		return
-	}
-	png, err := qrcode.Encode(shareURL, qrcode.Medium, 160)
-	if err != nil {
-		http.Error(w, "qr encode: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Cache-Control", "no-cache")
-	http.ServeContent(w, r, "qr.png", time.Time{}, bytes.NewReader(png))
-}
-
-// handleShareTools reports the supported tunnel tools, which are installed,
-// and what the auto pick would use, so the share menu can render its entries.
-// A POST records the answer to the base-domain question.
-func handleShareTools(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		var body struct {
-			BaseDomain string `json:"base_domain"`
-			Remember   bool   `json:"remember"`
-			// NgrokToken is only present when the token form was submitted, so
-			// a base-domain save cannot clear a stored token by omitting it.
-			NgrokToken *string `json:"ngrok_token"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeJSON(w, SiteActionResponse{Error: "invalid request body"})
-			return
-		}
-		if body.NgrokToken != nil {
-			if err := cli.SetShareNgrokToken(*body.NgrokToken); err != nil {
-				writeJSON(w, SiteActionResponse{Error: err.Error()})
-				return
-			}
-			writeJSON(w, SiteActionResponse{OK: true})
-			return
-		}
-		if err := cli.SetShareBaseDomain(body.BaseDomain, body.Remember); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	}
-	writeJSON(w, cli.ShareTools())
-}
-
-// handleTunnelQR serves a QR code PNG of the site's public tunnel URL, the
-// tunnel twin of handleLANQR.
-func handleTunnelQR(w http.ResponseWriter, r *http.Request) {
-	domain := strings.TrimPrefix(r.URL.Path, "/api/tunnel-qr/")
-	site, err := config.FindSiteByDomain(domain)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	tunnel, ok := cli.TunnelStatus(site.Name, r.URL.Query().Get("branch"))
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	png, err := qrcode.Encode(tunnel.URL, qrcode.Medium, 160)
-	if err != nil {
-		http.Error(w, "qr encode: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Cache-Control", "no-cache")
-	http.ServeContent(w, r, "qr.png", time.Time{}, bytes.NewReader(png))
-}
-
 // handleDashboardQR serves a QR code PNG encoding the dashboard's own LAN URL
 // (http://<lan-ip>:7073) so a phone can scan straight into the remote
 // dashboard. Only meaningful while LAN exposure is on; 404 otherwise.
@@ -3963,65 +3839,11 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
-	case "lan:share":
-		if branch := r.URL.Query().Get("branch"); branch != "" {
-			if _, err := cli.LANShareStartWorktree(site.Name, branch); err != nil {
-				writeJSON(w, SiteActionResponse{Error: err.Error()})
-				return
-			}
-			writeJSON(w, SiteActionResponse{OK: true})
-			return
-		}
-		if _, err := cli.LANShareStart(site.Name); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "lan:refresh":
-		// Re-bind the share proxy to the current site config. Called from
-		// CLI commands (secure/unsecure) that change the backend port the
-		// proxy targets so the running listener picks up the change.
-		if err := cli.LANShareRefreshIfRunning(site.Name); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
 	case "stripe:refresh":
 		// Restart the Stripe listener with the current scheme/host so its
 		// --forward-to flag matches reality. Used by callers that
 		// can't run the systemd commands inline.
 		cli.RestartStripeIfActive(site)
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "lan:unshare":
-		if branch := r.URL.Query().Get("branch"); branch != "" {
-			if err := cli.LANShareStopWorktree(site.Name, branch); err != nil {
-				writeJSON(w, SiteActionResponse{Error: err.Error()})
-				return
-			}
-			writeJSON(w, SiteActionResponse{OK: true})
-			return
-		}
-		if err := cli.LANShareStop(site.Name); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "tunnel:start":
-		if _, err := cli.TunnelStart(site.Name, r.URL.Query().Get("branch"), r.URL.Query().Get("tool"), r.URL.Query().Get("domain")); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "tunnel:stop":
-		if err := cli.TunnelStop(site.Name, r.URL.Query().Get("branch")); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "db:isolate":

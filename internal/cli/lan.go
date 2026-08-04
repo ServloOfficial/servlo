@@ -2,8 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
@@ -30,8 +28,6 @@ unless you explicitly run 'servlo lan:services on'.`,
 	cmd.AddCommand(newLANUnexposeCmd())
 	cmd.AddCommand(newLANStatusCmd())
 	cmd.AddCommand(newLANServicesCmd())
-	cmd.AddCommand(newLANShareCmd())
-	cmd.AddCommand(newLANUnshareCmd())
 	return cmd
 }
 
@@ -56,20 +52,6 @@ func NewLANStatusCmd() *cobra.Command {
 	cmd := newLANStatusCmd()
 	cmd.Use = "lan:status"
 	cmd.Hidden = true
-	return cmd
-}
-
-// NewLANShareCmd returns the `servlo lan:share` colon-style alias.
-func NewLANShareCmd() *cobra.Command {
-	cmd := newLANShareCmd()
-	cmd.Use = "lan:share"
-	return cmd
-}
-
-// NewLANUnshareCmd returns the `servlo lan:unshare` colon-style alias.
-func NewLANUnshareCmd() *cobra.Command {
-	cmd := newLANUnshareCmd()
-	cmd.Use = "lan:unshare"
 	return cmd
 }
 
@@ -172,115 +154,6 @@ func newLANUnexposeCmd() *cobra.Command {
 		},
 	}
 }
-
-func newLANShareCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "share",
-		Short: "Share the current site on a stable LAN port (no DNS setup required on clients)",
-		Long: `Assigns a stable port to the current site and starts a host-level reverse
-proxy on 0.0.0.0:<port>. Any device on the same network can reach the site
-at http://<your-LAN-IP>:<port> without configuring DNS or a resolver.
-
-The proxy rewrites the Host header so nginx routes correctly, and rewrites
-absolute URLs in HTML/CSS/JS responses so asset and redirect URLs point to
-the LAN address instead of the .test domain.
-
-The assigned port is stored in sites.yaml and reused across restarts.
-Run 'servlo lan:unshare' to stop sharing and release the port.`,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			// A worktree resolves to its parent plus the branch, so running this
-			// inside one shares that branch's own domain rather than assigning a
-			// port to a site name derived from the checkout directory.
-			site, branch, err := ensureSiteAndBranchForCwd()
-			if err != nil {
-				return err
-			}
-			siteName := site.Name
-			label := siteName
-			// Persist the port assignment (daemon will start the proxy).
-			port := 0
-			action := "lan:share"
-			if branch != "" {
-				port, err = LANShareEnsureWorktreePort(siteName, branch)
-				action += "?branch=" + url.QueryEscape(branch)
-				label = branch + "." + site.PrimaryDomain()
-			} else {
-				port, err = LANShareEnsurePort(siteName)
-			}
-			if err != nil {
-				return err
-			}
-			// Tell the running daemon to start the proxy now.
-			notifyDaemon(site.PrimaryDomain(), action) //nolint:errcheck
-			ip, _ := detectPrimaryLANIP()
-			if ip == "" {
-				ip = "<your-LAN-IP>"
-			}
-			shareURL := fmt.Sprintf("http://%s:%d", ip, port)
-			feedback.Begin()
-			feedback.Done("sharing " + label + " at " + feedback.Val(shareURL))
-			feedback.Note("other devices on the network can use that URL directly — no DNS setup needed")
-			fmt.Println()
-			PrintLANShareQR(shareURL)
-			fmt.Println()
-			feedback.Note("run `servlo lan:unshare` to stop")
-			return nil
-		},
-	}
-}
-
-func newLANUnshareCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "unshare",
-		Short: "Stop LAN sharing for the current site",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			site, branch, err := ensureSiteAndBranchForCwd()
-			if err != nil {
-				return err
-			}
-			label := site.Name
-			action := "lan:unshare"
-			if branch != "" {
-				action += "?branch=" + url.QueryEscape(branch)
-				label = branch + "." + site.PrimaryDomain()
-			}
-			// Tell the running daemon to stop the proxy and clear the port.
-			// If the daemon is not reachable, clear the port directly so the
-			// proxy is not restored on next daemon start.
-			if nErr := notifyDaemon(site.PrimaryDomain(), action); nErr != nil {
-				if branch != "" {
-					_, _, _ = config.RemoveWorktreeLAN(site.Name, branch)
-				} else {
-					site.LANPort = 0
-					_ = config.AddSite(*site)
-				}
-			}
-			feedback.Begin()
-			feedback.Done("LAN sharing stopped for " + label)
-			return nil
-		},
-	}
-}
-
-// notifyDaemon posts an action to the running servlo-panel daemon API. It is a
-// best-effort call; callers should handle errors gracefully.
-func notifyDaemon(domain, action string) error {
-	url := fmt.Sprintf("http://127.0.0.1:7073/api/sites/%s/%s", domain, action)
-	req, err := http.NewRequest(http.MethodPost, url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	// Clear the daemon's cross-origin gate for this trusted local POST.
-	req.Header.Set("X-Servlo-CSRF", "1")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	resp.Body.Close()
-	return nil
-}
-
 func newLANServicesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:       "services [on|off|status]",

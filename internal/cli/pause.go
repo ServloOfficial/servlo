@@ -91,10 +91,6 @@ func PauseSite(name string) error {
 		_ = podman.DaemonReloadFn()
 	}
 
-	// Release the LAN share port while paused. The site's stored LANPort is
-	// preserved so unpause restores the same address.
-	LANShareStopServer(site.Name)
-
 	if err := writePausedHTML(site); err != nil {
 		return fmt.Errorf("writing paused page: %w", err)
 	}
@@ -316,12 +312,6 @@ func UnpauseSite(name string) error {
 	site.PausedWorkers = nil
 	if err := config.AddSite(*site); err != nil {
 		return fmt.Errorf("updating registry: %w", err)
-	}
-
-	if site.LANPort != 0 {
-		if _, err := LANShareStart(site.Name); err != nil {
-			feedback.Warn("restoring LAN share: %v", err)
-		}
 	}
 
 	// The shared paused.html is left in place for other paused sites.

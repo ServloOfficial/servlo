@@ -205,10 +205,6 @@ func main() {
 	for _, cmd := range cli.NewStripeCmds() {
 		root.AddCommand(cmd)
 	}
-	root.AddCommand(cli.NewShareCmd())
-	root.AddCommand(cli.NewShareToolCmd())
-	root.AddCommand(cli.NewShareDomainCmd())
-	root.AddCommand(cli.NewShareTokenCmd())
 	root.AddCommand(cli.NewDomainCmd())
 	root.AddCommand(cli.NewGroupCmd())
 	root.AddCommand(cli.NewWorkspaceCmd())
@@ -231,8 +227,6 @@ func main() {
 	root.AddCommand(cli.NewLANExposeCmd())
 	root.AddCommand(cli.NewLANUnexposeCmd())
 	root.AddCommand(cli.NewLANStatusCmd())
-	root.AddCommand(cli.NewLANShareCmd())
-	root.AddCommand(cli.NewLANUnshareCmd())
 	root.AddCommand(cli.NewLANServicesCmd())
 	root.AddCommand(cli.NewRemoteSetupCmd())
 	root.AddCommand(cli.NewRemoteControlCmd())
@@ -481,7 +475,6 @@ func newWatchCmd() *cobra.Command {
 								fmt.Printf("[WARN] nginx reload: %v\n", err)
 							}
 						}
-						cli.DropOrphanedWorktreeLANShares(site, liveBranchesForSite(site))
 					},
 				)
 				if err != nil {
