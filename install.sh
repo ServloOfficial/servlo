@@ -42,9 +42,8 @@ star_note() {
 # ── Platform detection ───────────────────────────────────────────────────────
 detect_os() {
   case "$(uname -s)" in
-    Linux)  echo "linux" ;;
-    Darwin) echo "darwin" ;;
-    *) die "Unsupported OS: $(uname -s). Servlo supports Linux and macOS." ;;
+    Linux) echo "linux" ;;
+    *) die "Unsupported OS: $(uname -s). Servlo runs on Ubuntu 24.04 LTS." ;;
   esac
 }
 
@@ -67,41 +66,72 @@ detect_distro() {
   fi
 }
 
-# detect_distro_like returns the ID_LIKE field from /etc/os-release, the space
-# separated list of parent distros a derivative declares (e.g. bazzite -> fedora).
-detect_distro_like() {
+# ubuntu_release returns the VERSION_ID from /etc/os-release ("24.04"), empty
+# when it cannot be read.
+ubuntu_release() {
   if [ -f /etc/os-release ]; then
     # shellcheck disable=SC1091
     . /etc/os-release
-    echo "${ID_LIKE:-}"
+    echo "${VERSION_ID:-}"
   fi
 }
 
-# is_atomic reports whether this host booted from an ostree image (Fedora
-# Silverblue, Bazzite, Kinoite, CoreOS). On these, packages are layered with
-# rpm-ostree and a reboot, not installed into the running system.
-is_atomic() {
-  [ -f /run/ostree-booted ]
+# ubuntu_pretty_name returns PRETTY_NAME so a refusal can name what it found
+# rather than just what it wanted.
+ubuntu_pretty_name() {
+  if [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    echo "${PRETTY_NAME:-$(detect_distro)}"
+  else
+    detect_distro
+  fi
 }
 
-distro_family() {
+# require_ubuntu refuses anything that is not Ubuntu. Derivatives are refused
+# too, deliberately: they are not what Servlo is tested on, and a half-install
+# on an untested base is worse than a clear refusal.
+require_ubuntu() {
   local distro; distro="$(detect_distro)"
-  case "$distro" in
-    arch|manjaro|endeavouros|garuda) echo "arch"; return ;;
-    debian|ubuntu|pop|linuxmint|elementary|zorin) echo "debian"; return ;;
-    fedora|rhel|centos|rocky|alma) echo "fedora"; return ;;
-    opensuse*|sles) echo "suse"; return ;;
+  if [ "$distro" != "ubuntu" ]; then
+    die "Servlo requires Ubuntu 24.04 LTS.\nThis system is: $(ubuntu_pretty_name)"
+  fi
+}
+
+# PODMAN_MIN is the oldest podman that understands the quadlet units Servlo
+# writes. Ubuntu 22.04 ships 3.4.4, which is why the refusal below points at the
+# release upgrade rather than at a podman package that release does not carry.
+PODMAN_MIN_MAJOR=4
+PODMAN_MIN_MINOR=5
+
+# podman_version echoes the installed podman's version ("4.9.3"), empty when
+# podman is not on PATH.
+podman_version() {
+  command -v podman >/dev/null 2>&1 || return 0
+  podman --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1
+}
+
+# require_podman_min refuses a podman older than the quadlet minimum, naming the
+# way forward. On a pre-24.04 Ubuntu that way is the release upgrade.
+require_podman_min() {
+  local ver; ver="$(podman_version)"
+  if [ -z "$ver" ]; then
+    die "podman is not installed.\nServlo needs podman ${PODMAN_MIN_MAJOR}.${PODMAN_MIN_MINOR} or newer: sudo apt install podman"
+  fi
+  local major minor
+  major="${ver%%.*}"
+  minor="${ver#*.}"; minor="${minor%%.*}"
+  if [ "$major" -gt "$PODMAN_MIN_MAJOR" ] 2>/dev/null; then return 0; fi
+  if [ "$major" -eq "$PODMAN_MIN_MAJOR" ] && [ "$minor" -ge "$PODMAN_MIN_MINOR" ] 2>/dev/null; then return 0; fi
+
+  local release; release="$(ubuntu_release)"
+  local msg="podman ${ver} is older than the ${PODMAN_MIN_MAJOR}.${PODMAN_MIN_MINOR} minimum Servlo needs for quadlet units."
+  case "$release" in
+    24.*|25.*|26.*)
+      die "${msg}\nUpgrade podman: sudo apt update && sudo apt install --only-upgrade podman" ;;
+    *)
+      die "${msg}\nUbuntu ${release:-<unknown>} cannot provide it. Upgrade to 24.04 LTS first:\n  sudo do-release-upgrade" ;;
   esac
-  # A derivative not listed above (bazzite, nobara, cachyos, ...) still declares
-  # its parents in ID_LIKE, so fall back to that before giving up as unknown.
-  local like; like=" $(detect_distro_like) "
-  case "$like" in
-    *" arch "*)                           echo "arch"; return ;;
-    *" debian "*|*" ubuntu "*)            echo "debian"; return ;;
-    *" fedora "*|*" rhel "*|*" centos "*) echo "fedora"; return ;;
-    *" suse "*|*" opensuse "*)            echo "suse"; return ;;
-  esac
-  echo "unknown"
 }
 
 # ── Prerequisite checks ──────────────────────────────────────────────────────
@@ -170,26 +200,8 @@ check_certutil() {
     success "certutil found (needed for mkcert CA trust in browsers)"
     return
   fi
-  local family; family="$(distro_family)"
-  local pkg
-  case "$family" in
-    arch)   pkg="nss" ;;
-    debian) pkg="libnss3-tools" ;;
-    fedora) pkg="nss-tools" ;;
-    suse)   pkg="mozilla-nss-tools" ;;
-    *)      pkg="nss-tools" ;;
-  esac
-  if is_atomic; then
-    # nss-tools can't be layered inline (rpm-ostree needs a reboot), so don't
-    # queue it for the package installer, which would die or fail on ostree.
-    # Guide instead, and leave localhost as the no-package alternative.
-    warn "certutil not found — mkcert can't trust HTTPS certs in Chrome/Firefox on this atomic image"
-    info "For browser trust: rpm-ostree install $pkg, reboot, then run 'servlo dns:repair'"
-    info "Or re-run and choose localhost DNS to serve plain http with no certificates"
-    return
-  fi
   warn "certutil not found — mkcert won't be able to trust HTTPS certs in Chrome/Firefox"
-  MISSING_PKGS+=("$pkg")
+  MISSING_PKGS+=("libnss3-tools")
 }
 
 check_podman_rootless() {
@@ -204,38 +216,21 @@ check_podman_rootless() {
 }
 
 check_prerequisites() {
-  if [ "$(detect_os)" = "darwin" ]; then
-    check_prerequisites_macos
-  else
-    check_prerequisites_linux
-  fi
-}
-
-# macOS needs only the podman CLI on PATH; `servlo install` brings the Podman
-# machine up itself, and mkcert/DNS/launchd are all handled inside the binary.
-# Missing packages are installed via Homebrew (no sudo, unlike the Linux path).
-check_prerequisites_macos() {
-  header "Checking prerequisites"
-
-  check_cmd podman podman "container runtime"
-
-  if [ ${#MISSING_PKGS[@]} -eq 0 ]; then
-    success "All prerequisites met"
-    return
-  fi
-
-  echo ""
-  warn "Missing: ${MISSING_PKGS[*]}"
-  if ask "Install missing packages now (via Homebrew)?"; then
-    install_packages "${MISSING_PKGS[@]}"
-  fi
+  check_prerequisites_linux
 }
 
 check_prerequisites_linux() {
   header "Checking prerequisites"
 
+  # The platform gate runs first: refusing here costs the user nothing, while
+  # refusing after packages and downloads is the half-install this prevents.
+  require_ubuntu
+  success "Ubuntu $(ubuntu_release) detected"
+
   check_cmd podman podman "container runtime"
   check_cmd unzip unzip "needed to extract fnm"
+  require_podman_min
+  success "podman $(podman_version) meets the ${PODMAN_MIN_MAJOR}.${PODMAN_MIN_MINOR} minimum"
   check_dns_resolver
   check_systemd_user
   check_podman_rootless
@@ -278,41 +273,8 @@ install_packages() {
 
   header "Installing: ${pkgs[*]}"
 
-  if [ "$(detect_os)" = "darwin" ]; then
-    if ! command -v brew &>/dev/null; then
-      die "Homebrew not found. Install it from https://brew.sh then re-run, or install manually: ${pkgs[*]}"
-    fi
-    brew install "${pkgs[@]}"
-    success "Packages installed"
-    return
-  fi
-
-  local family; family="$(distro_family)"
-
-  if is_atomic; then
-    warn "atomic image detected — packages are layered with rpm-ostree, not installed into the running system"
-    info "Run:  rpm-ostree install ${pkgs[*]}  then reboot and re-run the installer"
-    return
-  fi
-
-  case "$family" in
-    arch)
-      sudo pacman -S --needed --noconfirm "${pkgs[@]}"
-      ;;
-    debian)
-      sudo apt-get update -q
-      sudo apt-get install -y "${pkgs[@]}"
-      ;;
-    fedora)
-      sudo dnf install -y "${pkgs[@]}"
-      ;;
-    suse)
-      sudo zypper install -y "${pkgs[@]}"
-      ;;
-    *)
-      die "Don't know how to install packages on this distro. Install manually: ${pkgs[*]}"
-      ;;
-  esac
+  sudo apt-get update -q
+  sudo apt-get install -y "${pkgs[@]}"
 
   success "Packages installed"
 
@@ -446,15 +408,7 @@ detect_shell_rc() {
   case "$shell" in
     fish) echo "$HOME/.config/fish/conf.d/servlo.fish" ;;
     zsh)  echo "$HOME/.zshrc" ;;
-    *)
-      # macOS Terminal launches bash as a login shell, which reads
-      # .bash_profile, not .bashrc; Linux interactive bash reads .bashrc.
-      if [ "$(detect_os)" = "darwin" ]; then
-        echo "$HOME/.bash_profile"
-      else
-        echo "$HOME/.bashrc"
-      fi
-      ;;
+    *) echo "$HOME/.bashrc" ;;
   esac
 }
 
@@ -589,89 +543,6 @@ cmd_update() {
 }
 
 # ── Uninstall ────────────────────────────────────────────────────────────────
-cmd_uninstall() {
-  if [ "$(detect_os)" = "darwin" ]; then
-    cmd_uninstall_macos
-  else
-    cmd_uninstall_linux
-  fi
-}
-
-# macOS teardown: boot out and remove the user LaunchAgents, stop any detached
-# servlo-* podman containers, then drop the binary. The DNS resolver file in
-# /etc/resolver and the Podman machine are left to `servlo uninstall` (run before
-# the binary is removed) since removing the resolver needs sudo.
-cmd_uninstall_macos() {
-  header "Uninstalling Servlo"
-
-  # Only `servlo uninstall` drops the DNS resolver (/etc/resolver/test, sudo) and
-  # the Podman machine, and it's gone once we delete the binary below. Surface
-  # the two-step order while the binary is here so the resolver isn't orphaned.
-  if command -v servlo &>/dev/null; then
-    warn "This script does not remove the DNS resolver (/etc/resolver/test) or the Podman machine."
-    info "Those are torn down by 'servlo uninstall' (needs sudo), which is unavailable once the binary is gone."
-    if [ -r /dev/tty ] && ! ask "Continue and remove the servlo binary now?"; then
-      info "Aborted. Run 'servlo uninstall' first, then re-run this uninstaller."
-      exit 0
-    fi
-  fi
-
-  local domain="gui/$(id -u)"
-  local agents_dir="$HOME/Library/LaunchAgents"
-
-  # servlo's launch agents are named servlo-*.plist on disk and their launchctl
-  # label is com.servlo.<filename-without-.plist> (see plistLabel in
-  # launchd_darwin.go), so derive it from the name rather than `defaults read`,
-  # which mis-resolves a .plist-suffixed path and would skip the bootout.
-  if [ -d "$agents_dir" ]; then
-    for f in "$agents_dir"/servlo-*.plist; do
-      [ -f "$f" ] || continue
-      local label; label="com.servlo.$(basename "$f" .plist)"
-      launchctl bootout "$domain/$label" 2>/dev/null || true
-      rm -f "$f"
-    done
-    info "Removed launchd agents from $agents_dir"
-  fi
-
-  # Detached `podman run -d` containers outlive their plists, so remove them
-  # too. Capture with `|| true` first: under `set -o pipefail` a no-match grep
-  # would otherwise abort the whole uninstall before the binary is removed.
-  if command -v podman &>/dev/null; then
-    local containers
-    containers="$(podman ps -a --format '{{.Names}}' 2>/dev/null | grep '^servlo-' || true)"
-    for c in $containers; do
-      podman rm -f "$c" 2>/dev/null || true
-    done
-  fi
-
-  rm -rf "$HOME/Library/Logs/servlo"
-
-  # Remove the binary
-  if [ -f "${INSTALL_DIR}/${BINARY}" ]; then
-    rm -f "${INSTALL_DIR}/${BINARY}"
-    success "Removed ${INSTALL_DIR}/${BINARY}"
-  fi
-
-  remove_from_path
-
-  if ask "Remove all Servlo data and config? (~/.config/servlo, ~/.local/share/servlo)"; then
-    rm -rf "$SERVLO_CONFIG_DIR"
-    rm -rf "$SERVLO_DATA_DIR"
-    success "Removed config and data directories"
-  else
-    info "Config kept at $SERVLO_CONFIG_DIR"
-    info "Data kept at $SERVLO_DATA_DIR"
-  fi
-
-  if [ -f /etc/resolver/test ]; then
-    warn "DNS resolver /etc/resolver/test is still present (not removed here)."
-    info "Remove it with: sudo rm -f /etc/resolver/test"
-    info "Remove the Podman machine with: podman machine rm <name>  (see 'podman machine ls')"
-  fi
-
-  success "Servlo uninstalled"
-}
-
 # The root-owned files servlo's managed DNS writes. None of them live under $HOME
 # and only the binary can take them back out, so the uninstaller uses this list
 # both to detect the setup and to tell the user how to clear it by hand.
@@ -726,7 +597,7 @@ uninstall_linux_dns() {
   servlo_dns_cleanup_hint
 }
 
-cmd_uninstall_linux() {
+cmd_uninstall() {
   header "Uninstalling Servlo"
 
   uninstall_linux_dns

@@ -50,98 +50,101 @@ teardown() {
   [[ "$output" == *"Unsupported architecture"* ]]
 }
 
-# ── distro_family ─────────────────────────────────────────────────────────────
+# ── Ubuntu-only platform gate ─────────────────────────────────────────────────
 
-@test "distro_family detects arch" {
-  function detect_distro() { echo "arch"; }
-  export -f detect_distro
-
-  run distro_family
-  [ "$output" = "arch" ]
-}
-
-@test "distro_family detects manjaro as arch family" {
-  function detect_distro() { echo "manjaro"; }
-  export -f detect_distro
-
-  run distro_family
-  [ "$output" = "arch" ]
-}
-
-@test "distro_family detects ubuntu as debian family" {
+@test "require_ubuntu accepts Ubuntu" {
   function detect_distro() { echo "ubuntu"; }
   export -f detect_distro
 
-  run distro_family
-  [ "$output" = "debian" ]
+  run require_ubuntu
+  [ "$status" -eq 0 ]
 }
 
-@test "distro_family detects fedora" {
+@test "require_ubuntu refuses a non-Ubuntu distro and names it" {
   function detect_distro() { echo "fedora"; }
   export -f detect_distro
+  function ubuntu_pretty_name() { echo "Fedora Linux 41"; }
+  export -f ubuntu_pretty_name
 
-  run distro_family
-  [ "$output" = "fedora" ]
+  run require_ubuntu
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Ubuntu 24.04"* ]]
+  [[ "$output" == *"Fedora Linux 41"* ]]
 }
 
-@test "distro_family returns unknown for unrecognised distro" {
-  function detect_distro() { echo "slackware"; }
+@test "require_ubuntu refuses a Debian derivative rather than treating it as Ubuntu" {
+  function detect_distro() { echo "linuxmint"; }
   export -f detect_distro
-  function detect_distro_like() { echo ""; }
-  export -f detect_distro_like
 
-  run distro_family
-  [ "$output" = "unknown" ]
+  run require_ubuntu
+  [ "$status" -ne 0 ]
 }
 
-@test "distro_family falls back to ID_LIKE for derivatives (bazzite -> fedora)" {
-  function detect_distro() { echo "bazzite"; }
-  export -f detect_distro
-  function detect_distro_like() { echo "fedora"; }
-  export -f detect_distro_like
+@test "podman_version parses the version out of podman --version" {
+  function podman() { echo "podman version 4.9.3"; }
+  export -f podman
 
-  run distro_family
-  [ "$output" = "fedora" ]
+  run podman_version
+  [ "$output" = "4.9.3" ]
 }
 
-@test "distro_family reads a multi-value ID_LIKE" {
-  function detect_distro() { echo "somespin"; }
-  export -f detect_distro
-  function detect_distro_like() { echo "rhel fedora"; }
-  export -f detect_distro_like
-
-  run distro_family
-  [ "$output" = "fedora" ]
-}
-
-# ── check_certutil ────────────────────────────────────────────────────────────
-
-@test "check_certutil guides without queuing nss-tools on atomic images" {
-  function command() { if [ "$1" = "-v" ] && [ "$2" = "certutil" ]; then return 1; fi; builtin command "$@"; }
+@test "podman_version is empty when podman is absent" {
+  function command() { if [ "$1" = "-v" ] && [ "$2" = "podman" ]; then return 1; fi; builtin command "$@"; }
   export -f command
-  function distro_family() { echo "fedora"; }
-  export -f distro_family
-  function is_atomic() { return 0; }
-  export -f is_atomic
 
-  MISSING_PKGS=()
-  check_certutil >"$BATS_TMPDIR/cc-$$.out" 2>&1
-  [ "${#MISSING_PKGS[@]}" -eq 0 ]
-  grep -q "rpm-ostree install nss-tools" "$BATS_TMPDIR/cc-$$.out"
+  run podman_version
+  [ "$output" = "" ]
 }
 
-@test "check_certutil queues nss-tools on ordinary distros" {
-  function command() { if [ "$1" = "-v" ] && [ "$2" = "certutil" ]; then return 1; fi; builtin command "$@"; }
-  export -f command
-  function distro_family() { echo "fedora"; }
-  export -f distro_family
-  function is_atomic() { return 1; }
-  export -f is_atomic
+@test "require_podman_min accepts 4.5 exactly" {
+  function podman_version() { echo "4.5.0"; }
+  export -f podman_version
 
-  MISSING_PKGS=()
-  check_certutil >/dev/null 2>&1
-  [ "${#MISSING_PKGS[@]}" -eq 1 ]
-  [ "${MISSING_PKGS[0]}" = "nss-tools" ]
+  run require_podman_min
+  [ "$status" -eq 0 ]
+}
+
+@test "require_podman_min accepts a newer podman" {
+  function podman_version() { echo "5.2.1"; }
+  export -f podman_version
+
+  run require_podman_min
+  [ "$status" -eq 0 ]
+}
+
+@test "require_podman_min refuses podman below the 4.5 minimum" {
+  function podman_version() { echo "3.4.4"; }
+  export -f podman_version
+  function ubuntu_release() { echo "24.04"; }
+  export -f ubuntu_release
+
+  run require_podman_min
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"4.5"* ]]
+  [[ "$output" == *"3.4.4"* ]]
+}
+
+# 22.04 ships podman 3.4.4. Refusing without naming the way out is the
+# half-install this gate exists to prevent.
+@test "require_podman_min printing the upgrade path on 22.04" {
+  function podman_version() { echo "3.4.4"; }
+  export -f podman_version
+  function ubuntu_release() { echo "22.04"; }
+  export -f ubuntu_release
+
+  run require_podman_min
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"24.04"* ]]
+  [[ "$output" == *"do-release-upgrade"* ]]
+}
+
+@test "require_podman_min refuses when podman is not installed at all" {
+  function podman_version() { echo ""; }
+  export -f podman_version
+
+  run require_podman_min
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"podman"* ]]
 }
 
 # ── _download_tool ────────────────────────────────────────────────────────────
@@ -187,17 +190,8 @@ teardown() {
 
 # ── add_to_path / remove_from_path ────────────────────────────────────────────
 
-# install.sh writes .bash_profile for bash on Darwin and .bashrc on Linux.
-# These cases assert the Linux bash path; pin detect_os so they stay valid when
-# the suite is run on a Mac.
-_force_linux_os() {
-  function detect_os() { echo "linux"; }
-  export -f detect_os
-}
-
 @test "add_to_path appends PATH entry to .bashrc" {
   export SHELL="/bin/bash"
-  _force_linux_os
   INSTALL_DIR="$HOME/.local/bin"
   touch "$HOME/.bashrc"
 
@@ -209,7 +203,6 @@ _force_linux_os() {
 
 @test "add_to_path is idempotent — does not duplicate entry" {
   export SHELL="/bin/bash"
-  _force_linux_os
   INSTALL_DIR="$HOME/.local/bin"
   touch "$HOME/.bashrc"
 
@@ -232,7 +225,6 @@ _force_linux_os() {
 
 @test "remove_from_path removes the Servlo block from .bashrc" {
   export SHELL="/bin/bash"
-  _force_linux_os
   INSTALL_DIR="$HOME/.local/bin"
   printf '\n# Added by Servlo installer\nexport PATH="%s:$PATH"\n' "$INSTALL_DIR" > "$HOME/.bashrc"
 
@@ -244,7 +236,6 @@ _force_linux_os() {
 
 @test "remove_from_path is a no-op when marker is absent" {
   export SHELL="/bin/bash"
-  _force_linux_os
   echo "unrelated content" > "$HOME/.bashrc"
 
   remove_from_path
@@ -387,6 +378,7 @@ _force_linux_os() {
   function systemctl() { return 0; }
   function podman() {
     if [[ "$1" == "info" ]]; then echo "true"; fi
+    if [[ "$1" == "--version" ]]; then echo "podman version 4.9.3"; fi
   }
   export -f command systemctl podman
 
@@ -397,8 +389,6 @@ _force_linux_os() {
 # ── DNS mode gating of the HTTPS-only prerequisites ───────────────────────────
 
 @test "check_prerequisites skips certutil in localhost DNS mode" {
-  # certutil gating is Linux-only; macOS prerequisites never call it.
-  _force_linux_os
   function command() {
     case "$2" in
       podman|unzip) return 0 ;;
@@ -407,7 +397,10 @@ _force_linux_os() {
     esac
   }
   function systemctl() { return 0; }
-  function podman() { if [[ "$1" == "info" ]]; then echo "true"; fi; }
+  function podman() {
+    if [[ "$1" == "info" ]]; then echo "true"; fi
+    if [[ "$1" == "--version" ]]; then echo "podman version 4.9.3"; fi
+  }
   export -f command systemctl podman
 
   MISSING_PKGS=()
@@ -418,8 +411,6 @@ _force_linux_os() {
 }
 
 @test "check_prerequisites flags certutil in managed DNS mode" {
-  # certutil gating is Linux-only; macOS prerequisites never call it.
-  _force_linux_os
   function command() {
     case "$2" in
       podman|unzip) return 0 ;;
@@ -428,7 +419,10 @@ _force_linux_os() {
     esac
   }
   function systemctl() { return 0; }
-  function podman() { if [[ "$1" == "info" ]]; then echo "true"; fi; }
+  function podman() {
+    if [[ "$1" == "info" ]]; then echo "true"; fi
+    if [[ "$1" == "--version" ]]; then echo "podman version 4.9.3"; fi
+  }
   export -f command systemctl podman
 
   MISSING_PKGS=()
@@ -516,8 +510,8 @@ _stub_dns_files() {
   [ ! -f "$d/calls" ]
 }
 
-@test "cmd_uninstall_linux tears the DNS down before removing the binary" {
-  local body; body="$(declare -f cmd_uninstall_linux)"
+@test "cmd_uninstall tears the DNS down before removing the binary" {
+  local body; body="$(declare -f cmd_uninstall)"
   local dns_at; dns_at="$(echo "$body" | grep -n 'uninstall_linux_dns' | head -1 | cut -d: -f1)"
   local bin_at; bin_at="$(echo "$body" | grep -n 'INSTALL_DIR' | head -1 | cut -d: -f1)"
   [ -n "$dns_at" ]

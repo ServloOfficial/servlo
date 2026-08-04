@@ -21,6 +21,7 @@ import (
 	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	servloUpdate "github.com/realrashid/servlo/internal/update"
 	"github.com/realrashid/servlo/internal/version"
+	"github.com/realrashid/servlo/pkg/distro"
 	"github.com/spf13/cobra"
 )
 
@@ -106,6 +107,18 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	section = "Prerequisites"
 	fmt.Fprintln(w, "\n[Prerequisites]")
 
+	// The platform gate is first because everything below it assumes Ubuntu:
+	// the package hints, the trust store path and the systemd layout are all
+	// written for it, so a wrong platform makes every later finding misleading.
+	if d, dErr := distro.Detect(); dErr != nil {
+		warn("platform", "could not read /etc/os-release: "+dErr.Error())
+	} else if supErr := d.Supported(); supErr != nil {
+		fail("platform", supErr.Error(), "Servlo runs on Ubuntu 24.04 LTS")
+		rep.fixLast(manualFix)
+	} else {
+		ok("platform (" + d.PrettyName + ")")
+	}
+
 	if _, lookErr := exec.LookPath("podman"); lookErr != nil {
 		fail("podman binary", "not found in PATH", "install podman: https://podman.io/docs/installation")
 		rep.fixLast(manualFix)
@@ -131,7 +144,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 
 	if runtime.GOOS == "linux" {
 		if _, lookErr := exec.LookPath("crun"); lookErr != nil {
-			warn("OCI runtime", "crun not found — recommended for rootless podman (install: sudo pacman -S crun / sudo apt install crun / sudo dnf install crun)")
+			warn("OCI runtime", "crun not found — recommended for rootless podman (install: sudo apt install crun)")
 			rep.fixLast(manualFix)
 		} else {
 			ok("OCI runtime (crun)")
@@ -213,7 +226,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		}
 
 		if _, lookErr := exec.LookPath("fuse-overlayfs"); lookErr != nil {
-			warn("fuse-overlayfs", "not found — recommended for rootless overlay storage (install: sudo apt install fuse-overlayfs / sudo dnf install fuse-overlayfs / sudo pacman -S fuse-overlayfs)")
+			warn("fuse-overlayfs", "not found — recommended for rootless overlay storage (install: sudo apt install fuse-overlayfs)")
 			rep.fixLast(manualFix)
 		} else {
 			ok("fuse-overlayfs")
@@ -233,14 +246,14 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		if netavark, aardvark, probed := podman.NetworkHelpers(); probed {
 			if netavark == "" {
 				fail("rootless network (netavark)", "podman cannot find netavark — containers on the servlo bridge cannot start",
-					"sudo apt install netavark  (or dnf/pacman); then: servlo install")
+					"sudo apt install netavark; then: servlo install")
 				rep.fixLast(manualFix)
 			} else {
 				ok("rootless network (netavark)")
 			}
 			if aardvark == "" {
 				fail("rootless network (aardvark-dns)", "podman cannot find aardvark-dns — container DNS will not resolve",
-					"sudo apt install aardvark-dns  (or dnf/pacman); then: servlo install")
+					"sudo apt install aardvark-dns; then: servlo install")
 				rep.fixLast(manualFix)
 			} else {
 				ok("rootless network (aardvark-dns)")
