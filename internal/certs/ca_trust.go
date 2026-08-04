@@ -9,15 +9,13 @@ import (
 	"strings"
 )
 
-// caTrustPaths lists the aggregated system trust bundles searched for the
-// mkcert root CA. These are the files mkcert's `-install` ultimately writes
-// into (via update-ca-certificates / update-ca-trust / trust extract), so a
-// hit here means the CA is already system-trusted and reinstalling would be a
-// no-op that never prompts for sudo. Overridable in tests.
+// caTrustPaths is the aggregated system trust bundle searched for the mkcert
+// root CA. This is the file mkcert's `-install` ultimately writes into via
+// update-ca-certificates, so a hit here means the CA is already system-trusted
+// and reinstalling would be a no-op that never prompts for sudo. A slice
+// because the lookup takes the first that exists, and overridable in tests.
 var caTrustPaths = []string{
-	"/etc/ssl/certs/ca-certificates.crt", // Debian, Ubuntu, Arch, CachyOS
-	"/etc/pki/tls/certs/ca-bundle.crt",   // Fedora, RHEL
-	"/etc/ssl/cert.pem",                  // openSUSE and others
+	"/etc/ssl/certs/ca-certificates.crt",
 }
 
 // platformTrustCheck reports whether der is trusted through a non-bundle store.

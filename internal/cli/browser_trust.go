@@ -23,7 +23,7 @@ func browserTrustGuidance(atomic bool) string {
 	if atomic {
 		return base + "For browser trust run rpm-ostree install nss-tools, reboot, then servlo dns:repair. Or run servlo dns:disable to serve plain http on .localhost."
 	}
-	return base + "For browser trust install nss-tools (dnf install nss-tools, apt install libnss3-tools, or pacman -S nss) then servlo dns:repair. Or run servlo dns:disable to serve plain http on .localhost."
+	return base + "For browser trust run sudo apt install libnss3-tools then servlo dns:repair. Or run servlo dns:disable to serve plain http on .localhost."
 }
 
 // browserTrustStoreGuidance returns the message shown when certutil is there to

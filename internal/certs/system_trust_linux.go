@@ -22,14 +22,13 @@ type systemTrustStore struct {
 	command  []string
 }
 
-// systemTrustStores lists the anchor layouts mkcert recognises, in the same
-// order; the first whose directory exists wins. A var so tests can substitute
+// systemTrustStores is the anchor layout Servlo installs into. Ubuntu is the
+// only supported platform, so this is a one-entry list rather than a probe
+// across four distro layouts. Kept as a slice because the lookup below still
+// takes the first directory that exists, and a var so tests can substitute
 // temp paths.
 var systemTrustStores = []systemTrustStore{
-	{"/etc/pki/ca-trust/source/anchors", "servlo-mkcert-rootCA.pem", []string{"update-ca-trust", "extract"}},       // Fedora/RHEL
-	{"/usr/local/share/ca-certificates", "servlo-mkcert-rootCA.crt", []string{"update-ca-certificates"}},           // Debian/Ubuntu
-	{"/etc/ca-certificates/trust-source/anchors", "servlo-mkcert-rootCA.crt", []string{"trust", "extract-compat"}}, // Arch
-	{"/usr/share/pki/trust/anchors", "servlo-mkcert-rootCA.crt", []string{"update-ca-certificates"}},               // openSUSE
+	{"/usr/local/share/ca-certificates", "servlo-mkcert-rootCA.crt", []string{"update-ca-certificates"}},
 }
 
 // updateSystemTrust refreshes the aggregated trust bundle. A var so tests can

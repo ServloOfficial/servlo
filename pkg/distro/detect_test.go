@@ -3,6 +3,7 @@ package distro
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -15,172 +16,100 @@ func writeOsRelease(t *testing.T, content string) string {
 	return f
 }
 
-// ── detectFromPath ────────────────────────────────────────────────────────────
-
-func TestDetect_Debian(t *testing.T) {
+func TestDetect_Ubuntu2404(t *testing.T) {
 	f := writeOsRelease(t, `ID=ubuntu
 ID_LIKE=debian
-PRETTY_NAME="Ubuntu 24.04 LTS"
+VERSION_ID="24.04"
+PRETTY_NAME="Ubuntu 24.04.1 LTS"
 `)
 	d, err := detectFromPath(f)
 	if err != nil {
 		t.Fatalf("detectFromPath: %v", err)
 	}
-	if !d.IsDebian() {
-		t.Errorf("expected IsDebian() for ubuntu, got ID=%q IDLike=%q", d.ID, d.IDLike)
+	if !d.IsUbuntu() {
+		t.Errorf("expected IsUbuntu() for ID=ubuntu, got %q", d.ID)
 	}
-	if d.IsArch() {
-		t.Error("ubuntu should not be Arch")
+	if d.VersionID != "24.04" {
+		t.Errorf("VersionID = %q, want 24.04", d.VersionID)
 	}
-	if d.IsFedora() {
-		t.Error("ubuntu should not be Fedora")
-	}
-}
-
-func TestDetect_DebianByIDLike(t *testing.T) {
-	f := writeOsRelease(t, `ID=linuxmint
-ID_LIKE=ubuntu debian
-PRETTY_NAME="Linux Mint 22"
-`)
-	d, err := detectFromPath(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !d.IsDebian() {
-		t.Errorf("Linux Mint should be Debian-like, got ID=%q IDLike=%q", d.ID, d.IDLike)
+	if err := d.Supported(); err != nil {
+		t.Errorf("Ubuntu 24.04 must be supported, got: %v", err)
 	}
 }
 
-func TestDetect_Fedora(t *testing.T) {
-	f := writeOsRelease(t, `ID=fedora
-PRETTY_NAME="Fedora Linux 40"
-`)
-	d, err := detectFromPath(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !d.IsFedora() {
-		t.Errorf("expected IsFedora() for ID=fedora")
-	}
-	if d.IsDebian() || d.IsArch() {
-		t.Error("fedora should not be Debian or Arch")
-	}
-}
-
-func TestDetect_FedoraByIDLike(t *testing.T) {
-	f := writeOsRelease(t, `ID=centos
-ID_LIKE="rhel fedora"
-PRETTY_NAME="CentOS Stream 9"
-`)
-	d, err := detectFromPath(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !d.IsFedora() {
-		t.Errorf("CentOS should be Fedora-like")
-	}
-}
-
-func TestDetect_Arch(t *testing.T) {
-	f := writeOsRelease(t, `ID=arch
-PRETTY_NAME="Arch Linux"
-`)
-	d, err := detectFromPath(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !d.IsArch() {
-		t.Errorf("expected IsArch() for ID=arch")
-	}
-	if d.IsDebian() || d.IsFedora() {
-		t.Error("arch should not be Debian or Fedora")
-	}
-}
-
-func TestDetect_ArchByIDLike(t *testing.T) {
-	f := writeOsRelease(t, `ID=endeavouros
-ID_LIKE=arch
-PRETTY_NAME="EndeavourOS"
-`)
-	d, err := detectFromPath(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !d.IsArch() {
-		t.Errorf("EndeavourOS should be Arch-like")
-	}
-}
-
-func TestDetect_Unknown(t *testing.T) {
-	f := writeOsRelease(t, `ID=slackware
-PRETTY_NAME="Slackware 15.0"
-`)
-	d, err := detectFromPath(f)
-	if err != nil {
-		t.Fatalf("detectFromPath: %v", err)
-	}
-	if d == nil {
-		t.Fatal("expected non-nil Distro for unknown distro")
-	}
-	if d.IsArch() || d.IsDebian() || d.IsFedora() {
-		t.Error("slackware should not match any known family")
-	}
-	if d.PrettyName != "Slackware 15.0" {
-		t.Errorf("PrettyName = %q, want %q", d.PrettyName, "Slackware 15.0")
-	}
-}
-
-func TestDetect_QuotedValues(t *testing.T) {
-	f := writeOsRelease(t, `ID="ubuntu"
-PRETTY_NAME="Ubuntu 22.04 LTS"
-`)
-	d, err := detectFromPath(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d.ID != "ubuntu" {
-		t.Errorf("expected quotes stripped, ID = %q", d.ID)
-	}
-}
-
-func TestDetect_CommentsSkipped(t *testing.T) {
-	f := writeOsRelease(t, `# This is a comment
-ID=arch
-# Another comment
-PRETTY_NAME="Arch Linux"
-`)
-	d, err := detectFromPath(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d.ID != "arch" {
-		t.Errorf("ID = %q, expected arch (comments should be skipped)", d.ID)
-	}
-}
-
-func TestDetect_MissingFile(t *testing.T) {
-	_, err := detectFromPath("/nonexistent/os-release")
-	if err == nil {
-		t.Error("expected error for missing os-release file")
-	}
-}
-
-// ── IsDebian edge cases ───────────────────────────────────────────────────────
-
-func TestIsDebian_ByID(t *testing.T) {
-	cases := []struct {
-		id   string
-		want bool
-	}{
-		{"debian", true},
-		{"ubuntu", true},
-		{"linuxmint", false},
-		{"arch", false},
-	}
-	for _, c := range cases {
-		d := &Distro{ID: c.id}
-		if got := d.IsDebian(); got != c.want {
-			t.Errorf("IsDebian() for ID=%q = %v, want %v", c.id, got, c.want)
+// A Debian derivative declaring ID_LIKE=debian is not Ubuntu. Accepting one
+// would put Servlo on an untested base, which is the half-install this gate
+// exists to prevent.
+func TestDetect_DebianDerivativeIsNotUbuntu(t *testing.T) {
+	for _, id := range []string{"debian", "linuxmint", "pop", "elementary"} {
+		f := writeOsRelease(t, "ID="+id+"\nID_LIKE=\"ubuntu debian\"\nPRETTY_NAME=\"Some Debian thing\"\n")
+		d, err := detectFromPath(f)
+		if err != nil {
+			t.Fatalf("detectFromPath(%s): %v", id, err)
 		}
+		if d.IsUbuntu() {
+			t.Errorf("%s must not report as Ubuntu", id)
+		}
+		if err := d.Supported(); err == nil {
+			t.Errorf("%s must not be supported", id)
+		}
+	}
+}
+
+// The refusal has to name what it found, or the operator has to go and look.
+func TestSupported_RefusalNamesTheDistro(t *testing.T) {
+	f := writeOsRelease(t, `ID=fedora
+PRETTY_NAME="Fedora Linux 41 (Server Edition)"
+`)
+	d, err := detectFromPath(f)
+	if err != nil {
+		t.Fatalf("detectFromPath: %v", err)
+	}
+	err = d.Supported()
+	if err == nil {
+		t.Fatal("Fedora must not be supported")
+	}
+	if got := err.Error(); !strings.Contains(got, "Fedora Linux 41") || !strings.Contains(got, "24.04") {
+		t.Errorf("refusal should name what was found and what is required, got: %s", got)
+	}
+}
+
+// 22.04 is refused because it ships podman 3.4.4, below the quadlet minimum.
+// The message has to carry the way out, not just the verdict.
+func TestSupported_OlderUbuntuNamesTheUpgradePath(t *testing.T) {
+	f := writeOsRelease(t, `ID=ubuntu
+VERSION_ID="22.04"
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+`)
+	d, err := detectFromPath(f)
+	if err != nil {
+		t.Fatalf("detectFromPath: %v", err)
+	}
+	err = d.Supported()
+	if err == nil {
+		t.Fatal("Ubuntu 22.04 must not be supported")
+	}
+	if got := err.Error(); !strings.Contains(got, "do-release-upgrade") {
+		t.Errorf("refusal should name the upgrade path, got: %s", got)
+	}
+}
+
+// The minimum is a floor, not an exact match, so a newer Ubuntu is accepted.
+func TestSupported_NewerUbuntuIsAccepted(t *testing.T) {
+	for _, v := range []string{"24.10", "25.04", "26.04"} {
+		f := writeOsRelease(t, "ID=ubuntu\nVERSION_ID=\""+v+"\"\nPRETTY_NAME=\"Ubuntu "+v+"\"\n")
+		d, err := detectFromPath(f)
+		if err != nil {
+			t.Fatalf("detectFromPath(%s): %v", v, err)
+		}
+		if err := d.Supported(); err != nil {
+			t.Errorf("Ubuntu %s should be accepted, got: %v", v, err)
+		}
+	}
+}
+
+func TestDetect_MissingFileIsAnError(t *testing.T) {
+	if _, err := detectFromPath(filepath.Join(t.TempDir(), "nope")); err == nil {
+		t.Error("a missing os-release must be an error, not a silent pass")
 	}
 }
