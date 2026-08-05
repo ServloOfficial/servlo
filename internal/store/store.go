@@ -13,6 +13,7 @@ import (
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/origin"
+	"github.com/realrashid/servlo/stores"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,12 +26,14 @@ const (
 // sleepFn is the backoff sleep, a seam so tests don't wait in real time.
 var sleepFn = time.Sleep
 
-// Client fetches framework definitions from the remote store. BaseURL is tried
-// first; Fallbacks are tried in order if it fails, so a binary can reach the new
-// store location after an org move and fall back to the old one before it.
+// Client fetches definitions from a store. BaseURL is tried first; Fallbacks
+// are tried in order if it fails, so a binary can reach the new store location
+// after an org move and fall back to the old one before it. Embedded names the
+// store compiled into this binary, which answers when no base does.
 type Client struct {
 	BaseURL   string
 	Fallbacks []string
+	Embedded  stores.Kind
 }
 
 // Index is the top-level store index listing all available frameworks.
@@ -72,6 +75,7 @@ func NewClient() *Client {
 	return &Client{
 		BaseURL:   urls[0],
 		Fallbacks: urls[1:],
+		Embedded:  stores.Frameworks,
 	}
 }
 
@@ -271,6 +275,14 @@ func (c *Client) fetch(path string) ([]byte, error) {
 			return body, nil
 		}
 		errs = append(errs, err.Error())
+	}
+	// No base answered: an offline droplet, an outage, or a repository still
+	// private. Serve what this binary shipped with rather than failing, so a
+	// definition the build already carries is never unreachable.
+	if c.Embedded != "" {
+		if body, ok := stores.Read(c.Embedded, path); ok {
+			return body, nil
+		}
 	}
 	return nil, fmt.Errorf("fetching %s: %s", path, strings.Join(errs, "; "))
 }

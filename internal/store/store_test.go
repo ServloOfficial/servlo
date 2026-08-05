@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/stores"
 )
 
 func testServer(t *testing.T) *httptest.Server {
@@ -105,9 +106,11 @@ func TestFetchIndex_FallsBackWhenPrimaryFails(t *testing.T) {
 	}
 }
 
-// When every base fails (e.g. an internet outage), the client returns an error
-// rather than silently changing anything.
-func TestFetchIndex_AllBasesFail(t *testing.T) {
+// A droplet with no route to the store is the ordinary case, not the exception:
+// the repository is private, so raw.githubusercontent.com answers 404 until it
+// is public. Every base failing therefore falls through to the copy embedded in
+// this binary rather than failing the call.
+func TestFetchIndex_FallsBackToTheEmbeddedStore(t *testing.T) {
 	good := testServer(t)
 	dead := good.URL
 	good.Close() // now refuses connections
@@ -115,30 +118,71 @@ func TestFetchIndex_AllBasesFail(t *testing.T) {
 	c := &Client{
 		BaseURL:   dead,
 		Fallbacks: []string{dead + "/also-dead"},
+		Embedded:  stores.Frameworks,
 	}
+	idx, err := c.FetchIndex()
+	if err != nil {
+		t.Fatalf("FetchIndex should fall back to the embedded store: %v", err)
+	}
+	if len(idx.Frameworks) == 0 {
+		t.Fatal("the embedded framework index is empty")
+	}
+}
+
+// A client with no embedded store behind it (a mirror configured by hand, say)
+// still reports the failure rather than pretending to have answered.
+func TestFetchIndex_AllBasesFailWithNoEmbeddedStore(t *testing.T) {
+	good := testServer(t)
+	dead := good.URL
+	good.Close()
+
+	c := &Client{BaseURL: dead, Fallbacks: []string{dead + "/also-dead"}}
 	if _, err := c.FetchIndex(); err == nil {
 		t.Fatal("expected an error when all bases are unreachable")
 	}
 }
 
-// NewClient wires the framework-store URL from origin. The framework store is one
-// of the two upstream dependencies PRD §0 retains, so it must still resolve
-// against lerd-env until S0.8 chooses an exit.
-func TestNewClient_UsesRetainedUpstreamStore(t *testing.T) {
-	c := NewClient()
-	if !strings.Contains(c.BaseURL, "lerd-env") {
-		t.Errorf("primary store URL = %q, want lerd-env", c.BaseURL)
+// A definition this binary shipped is served from the embedded store when the
+// network cannot answer, so a fresh install has every framework it was built
+// with whether or not it can reach GitHub.
+func TestFetchFramework_FallsBackToTheEmbeddedStore(t *testing.T) {
+	good := testServer(t)
+	dead := good.URL
+	good.Close()
+
+	c := &Client{BaseURL: dead, Embedded: stores.Frameworks}
+	fw, err := c.FetchFramework("laravel", "13")
+	if err != nil {
+		t.Fatalf("FetchFramework from the embedded store: %v", err)
 	}
-	if strings.Contains(c.BaseURL, "geodro") {
-		t.Errorf("store URL must not rely on geodro, got %q", c.BaseURL)
+	if fw.Name != "laravel" {
+		t.Errorf("framework name = %q, want laravel", fw.Name)
 	}
 }
 
-// NewServiceClient points at the dedicated lerd-env/services store.
-func TestNewServiceClient_UsesServicesRepo(t *testing.T) {
+// NewClient points the framework store at this repository. The definitions are
+// authored here now, so the fetch and the embedded copy resolve the same paths.
+func TestNewClient_UsesTheInRepoStore(t *testing.T) {
+	c := NewClient()
+	if !strings.Contains(c.BaseURL, "realrashid/servlo") {
+		t.Errorf("primary store URL = %q, want realrashid/servlo", c.BaseURL)
+	}
+	if !strings.HasSuffix(c.BaseURL, "/stores/frameworks") {
+		t.Errorf("store URL = %q, want it to end at the frameworks store", c.BaseURL)
+	}
+	if c.Embedded != stores.Frameworks {
+		t.Errorf("client must carry the embedded framework store, got %q", c.Embedded)
+	}
+}
+
+// NewServiceClient points at the same repository's services store.
+func TestNewServiceClient_UsesTheInRepoStore(t *testing.T) {
 	c := NewServiceClient()
-	if !strings.Contains(c.BaseURL, "lerd-env/services") {
-		t.Errorf("primary service-store URL = %q, want lerd-env/services", c.BaseURL)
+	if !strings.HasSuffix(c.BaseURL, "/stores/services") {
+		t.Errorf("primary service-store URL = %q, want the in-repo services store", c.BaseURL)
+	}
+	if c.Embedded != stores.Services {
+		t.Errorf("service client must carry the embedded service store, got %q", c.Embedded)
 	}
 }
 

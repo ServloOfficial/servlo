@@ -118,7 +118,9 @@ tests/installer/     bats tests for install.sh
 
 S0.1 landed the rename, so the tree above is what you will actually find. The module path is `github.com/realrashid/servlo` and the entrypoint is `cmd/servlo`; `cmd/lerd-tray` is gone.
 
-The only strings left containing "lerd" are the two upstream dependencies PRD §0 retains on purpose, and they must stay: the GHCR PHP base images (`ghcr.io/lerd-env/lerd-php*`) and the runtime framework and service store fetches (`lerd-env/frameworks`, `lerd-env/services`, until S0.8 chooses an exit). Alongside those sit the fork statement in `README.md`, the upstream copyright in `LICENSE`, and two upstream issue citations in code comments. Treat that set as an allowlist: anything else spelling "lerd" is a regression.
+The only strings left containing "lerd" are the one upstream dependency PRD §0 retains on purpose, and it must stay: the GHCR PHP base images (`ghcr.io/lerd-env/lerd-php*`). Alongside it sit the fork statement in `README.md`, the upstream copyright in `LICENSE`, and two upstream issue citations in code comments. Treat that set as an allowlist: anything else spelling "lerd" is a regression.
+
+S0.8 brought the stores in-repo: `stores/frameworks/`, `stores/services/` and `stores/apps/` are the definitions themselves, and `stores/stores.go` embeds them into the binary. The layout mirrors what the client fetches, so `internal/origin` needs only the base URL. The embedded copy is the floor an install bootstraps from; the fetch is how a definition published since that build reaches an existing install. The surface scan walks `stores/` like any other directory, so a deleted feature cannot come back as store data either.
 
 Config: `~/.config/servlo/`. Data: `~/.local/share/servlo/`. systemd units are prefixed `servlo-`. Never install to `/usr/local/bin`; the binary goes to `~/.local/bin/servlo`.
 

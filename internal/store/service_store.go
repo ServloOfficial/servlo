@@ -7,6 +7,7 @@ import (
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/origin"
+	"github.com/realrashid/servlo/stores"
 )
 
 // The service-preset store mirrors the framework store but targets the dedicated
@@ -53,7 +54,7 @@ func autoFetchPreset(name string) error {
 // NewServiceClient returns a store client pointed at the service-preset store.
 func NewServiceClient() *Client {
 	urls := origin.ServiceStoreBaseURLs()
-	return &Client{BaseURL: urls[0], Fallbacks: urls[1:]}
+	return &Client{BaseURL: urls[0], Fallbacks: urls[1:], Embedded: stores.Services}
 }
 
 // FetchServiceIndex downloads and parses the service-preset store index.

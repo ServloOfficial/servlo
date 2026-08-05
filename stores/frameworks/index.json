@@ -1,0 +1,94 @@
+{
+  "frameworks": [
+    {
+      "name": "laravel",
+      "label": "Laravel",
+      "versions": ["13", "12", "11", "10"],
+      "latest": "13",
+      "detect": [
+        {"file": "artisan"},
+        {"composer": "laravel/framework"}
+      ]
+    },
+    {
+      "name": "symfony",
+      "label": "Symfony",
+      "versions": ["8", "7"],
+      "latest": "8",
+      "detect": [
+        {"file": "symfony.lock"},
+        {"composer": "symfony/framework-bundle", "composer_sections": ["flex-require"], "version_key": "extra.symfony.require"}
+      ]
+    },
+    {
+      "name": "wordpress",
+      "label": "WordPress",
+      "versions": ["6", "5"],
+      "latest": "6",
+      "detect": [
+        {"file": "wp-login.php", "version_file": "wp-includes/version.php", "version_pattern": "\\$wp_version\\s*=\\s*'([^']+)'"},
+        {"file": "wp-config.php"}
+      ]
+    },
+    {
+      "name": "drupal",
+      "label": "Drupal",
+      "versions": ["11", "10"],
+      "latest": "11",
+      "detect": [
+        {"composer": "drupal/core-recommended"},
+        {"composer": "drupal/core"}
+      ]
+    },
+    {
+      "name": "cakephp",
+      "label": "CakePHP",
+      "versions": ["5", "4"],
+      "latest": "5",
+      "detect": [
+        {"file": "bin/cake"},
+        {"composer": "cakephp/cakephp"}
+      ]
+    },
+    {
+      "name": "codeigniter",
+      "label": "CodeIgniter",
+      "versions": ["4"],
+      "latest": "4",
+      "detect": [
+        {"file": "spark"},
+        {"composer": "codeigniter4/framework"}
+      ]
+    },
+    {
+      "name": "statamic",
+      "label": "Statamic",
+      "versions": ["6", "5"],
+      "latest": "6",
+      "detect": [
+        {"composer": "statamic/cms"}
+      ]
+    },
+    {
+      "name": "magento",
+      "label": "Magento",
+      "versions": ["2"],
+      "latest": "2",
+      "detect": [
+        {"file": "bin/magento"},
+        {"composer": "magento/product-community-edition"},
+        {"composer": "magento/product-enterprise-edition"}
+      ]
+    },
+    {
+      "name": "tempest",
+      "label": "Tempest",
+      "versions": ["3"],
+      "latest": "3",
+      "detect": [
+        {"composer": "tempest/framework"},
+        {"file": "tempest"}
+      ]
+    }
+  ]
+}

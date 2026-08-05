@@ -6,21 +6,22 @@ import (
 )
 
 // The fork boundary, asserted endpoint by endpoint. Servlo's own artefacts
-// resolve against Servlo's repository; only the two dependencies PRD §0 retains
-// on purpose may still point upstream. Nothing anywhere references geodro, and
-// no endpoint returns an empty list that would panic store.NewClient's urls[0].
+// resolve against Servlo's repository; only the one dependency PRD §0 retains on
+// purpose may still point upstream. Nothing anywhere references geodro, and no
+// endpoint returns an empty list that would panic store.NewClient's urls[0].
 func TestEndpointsRespectTheForkBoundary(t *testing.T) {
 	servlo := map[string][]string{
-		"releases":  ReleaseBaseURLs(),
-		"downloads": ReleaseDownloadBases(),
-		"api":       ReleaseAPIBaseURLs(),
-		"changelog": ChangelogURLs(),
-		"tools":     ToolsManifestURLs(),
-	}
-	upstream := map[string][]string{
+		"releases":        ReleaseBaseURLs(),
+		"downloads":       ReleaseDownloadBases(),
+		"api":             ReleaseAPIBaseURLs(),
+		"changelog":       ChangelogURLs(),
+		"tools":           ToolsManifestURLs(),
 		"framework-store": StoreBaseURLs(),
 		"service-store":   ServiceStoreBaseURLs(),
-		"baseimage":       BaseImageRefs("85", "h"),
+		"app-store":       AppStoreBaseURLs(),
+	}
+	upstream := map[string][]string{
+		"baseimage": BaseImageRefs("85", "h"),
 	}
 
 	for name, got := range servlo {
@@ -93,7 +94,7 @@ func TestServiceStoreEnvOverride(t *testing.T) {
 func TestEnvOverrideIgnoredWhenEmpty(t *testing.T) {
 	t.Setenv("SERVLO_STORE_BASE_URL", " , , ")
 	got := StoreBaseURLs()
-	if len(got) == 0 || !strings.Contains(got[0], "lerd-env") {
-		t.Fatalf("empty override must fall back to the lerd-env default, got %v", got)
+	if len(got) == 0 || !strings.Contains(got[0], "realrashid/servlo") {
+		t.Fatalf("empty override must fall back to the in-repo store, got %v", got)
 	}
 }

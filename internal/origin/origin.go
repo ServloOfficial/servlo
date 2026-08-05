@@ -15,12 +15,12 @@ import (
 )
 
 // Servlo's own artefacts. The repository is private today, so these endpoints
-// 404 and every caller falls back: the tools manifest to its embedded copy, the
-// changelog to printing the release URL. That is acceptable because Servlo has
-// published no releases yet, and it is still the right target — resolving
-// Servlo's updates against Lerd's release feed would hand a different project's
-// binaries to a Servlo install.
-const mainRepo = "realrashid/servlo" // releases, installer, tools manifest, changelog
+// 404 and every caller falls back: the stores to the copy embedded in the
+// binary, the tools manifest to its embedded copy, the changelog to printing the
+// release URL. That is acceptable because Servlo has published no releases yet,
+// and it is still the right target — resolving Servlo's updates against Lerd's
+// release feed would hand a different project's binaries to a Servlo install.
+const mainRepo = "realrashid/servlo" // releases, installer, stores, tools manifest, changelog
 
 // Retained upstream dependencies (PRD §0), not oversights.
 const (
@@ -28,33 +28,42 @@ const (
 	// They are public and MIT, Servlo consumes them unchanged through Phases 0
 	// and 1, and they are mirrored into an owned namespace before v1 ships.
 	imageOwner = "lerd-env"
-
-	// The framework and service stores are authored in this repository under
-	// stores/, but a private repository cannot serve raw.githubusercontent.com
-	// fetches to an installed binary without a token, so the runtime fetch stays
-	// on the public upstream stores. S0.8 owns choosing the exit (a separate
-	// public mirror, or this repository becoming public) and must make this
-	// fallback visible in config rather than silent.
-	frameworksRepo = "lerd-env/frameworks"
-	servicesRepo   = "lerd-env/services"
 )
 
-// StoreBaseURLs returns the framework-store base. The definitions live under a
-// frameworks/ subdir (index.json + <name>.yaml), not at the repo root.
+// storeBase is where a store's definitions are fetched from: this repository,
+// under stores/. A private repository answers 404 there, which is why every
+// binary also embeds the stores (see package stores) and the client falls
+// through to that copy. The fetch is how a definition published since a build
+// reaches an existing install; it is not how an install bootstraps.
+func storeBase(kind string) string {
+	return "https://raw.githubusercontent.com/" + mainRepo + "/main/stores/" + kind
+}
+
+// StoreBaseURLs returns the framework-store base: index.json plus
+// <name>/<version>.yaml beneath it.
 func StoreBaseURLs() []string {
 	if list := splitList(os.Getenv("SERVLO_STORE_BASE_URL")); len(list) > 0 {
 		return list
 	}
-	return []string{"https://raw.githubusercontent.com/" + frameworksRepo + "/main/frameworks"}
+	return []string{storeBase("frameworks")}
 }
 
-// ServiceStoreBaseURLs returns the service-preset-store base, nested under a
-// services/ subdir.
+// ServiceStoreBaseURLs returns the service-preset-store base: index.json plus
+// <name>.yaml beneath it.
 func ServiceStoreBaseURLs() []string {
 	if list := splitList(os.Getenv("SERVLO_SERVICES_BASE_URL")); len(list) > 0 {
 		return list
 	}
-	return []string{"https://raw.githubusercontent.com/" + servicesRepo + "/main/services"}
+	return []string{storeBase("services")}
+}
+
+// AppStoreBaseURLs returns the one-click-app-store base: index.json plus
+// <name>.yaml beneath it.
+func AppStoreBaseURLs() []string {
+	if list := splitList(os.Getenv("SERVLO_APPS_BASE_URL")); len(list) > 0 {
+		return list
+	}
+	return []string{storeBase("apps")}
 }
 
 // ReleaseBaseURLs lists GitHub releases bases.

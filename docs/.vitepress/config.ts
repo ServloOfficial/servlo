@@ -265,6 +265,7 @@ export default defineConfig({
           text: 'Contributing',
           items: [
             { text: 'Building from Source', link: '/contributing/building' },
+            { text: 'The Stores', link: '/contributing/stores' },
             { text: 'Pull Requests', link: '/contributing/pull-requests' },
           ],
         },

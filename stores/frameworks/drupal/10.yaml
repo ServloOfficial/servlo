@@ -1,0 +1,152 @@
+name: drupal
+version: "10"
+label: Drupal
+public_dir: web
+favicon: core/misc/favicon.ico
+create: composer create-project drupal/recommended-project
+php:
+  min: "8.1"
+  max: "8.4"
+
+detect:
+  - composer: drupal/core-recommended
+  - composer: drupal/core
+
+env:
+  file: .env
+  format: dotenv
+  fallback_file: web/sites/default/settings.php
+  fallback_format: php-const
+  services:
+    mysql:
+      detect:
+        - key: DB_DRIVER
+          value_prefix: mysql
+        - key: database
+          value_prefix: mysql
+      vars:
+        - DB_DRIVER=mysql
+        - DB_HOST=lerd-mysql
+        - DB_PORT=3306
+        - DB_NAME={{site}}
+        - DB_USER=root
+        - DB_PASSWORD=lerd
+    postgres:
+      detect:
+        - key: DB_DRIVER
+          value_prefix: pgsql
+        - key: database
+          value_prefix: pgsql
+      vars:
+        - DB_DRIVER=pgsql
+        - DB_HOST=lerd-postgres
+        - DB_PORT=5432
+        - DB_NAME={{site}}
+        - DB_USER=postgres
+        - DB_PASSWORD=lerd
+    redis:
+      detect:
+        - key: REDIS_HOST
+      vars:
+        - REDIS_HOST=lerd-redis
+        - REDIS_PORT=6379
+    mailpit:
+      detect:
+        - key: SMTP_HOST
+      vars:
+        - SMTP_HOST=lerd-mailpit
+        - SMTP_PORT=1025
+
+composer: auto
+npm: false
+console: vendor/drush/drush/drush.php
+
+workers:
+  cron:
+    label: Cron
+    command: php vendor/drush/drush/drush.php cron
+    restart: always
+    check:
+      composer: drush/drush
+
+setup:
+  - label: Run database updates
+    command: php vendor/drush/drush/drush.php updatedb --yes
+    default: true
+    check:
+      composer: drush/drush
+  - label: Rebuild cache
+    command: php vendor/drush/drush/drush.php cache:rebuild
+    default: true
+    check:
+      composer: drush/drush
+  - label: Import config
+    command: php vendor/drush/drush/drush.php config:import --yes
+    check:
+      composer: drush/drush
+
+commands:
+  # site:install drops and recreates the schema, and `lerd setup --all` runs
+  # every setup step regardless of `default`, so this is a confirm-gated
+  # command rather than a setup step.
+  - name: site:install
+    label: Install site
+    # The connection is read out of the .env lerd wrote rather than templated
+    # in: {{…}} placeholders are only expanded from lerd v1.29, and an older
+    # install would take them literally and install a whole site into a
+    # database named "{{site}}". Sourcing .env also picks up whichever engine
+    # the project uses, since DB_DRIVER already holds drush's scheme name.
+    command: >
+      set -a; . ./.env; set +a;
+      php vendor/drush/drush/drush.php site:install --yes
+      --db-url="$DB_DRIVER://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
+      --account-name=admin --account-pass=lerdadmin1
+    description: Install a fresh site against the database lerd provisioned, admin user admin/lerdadmin1
+    output: text
+    confirm: true
+    icon: play
+    check:
+      composer: drush/drush
+  - name: cr
+    label: Rebuild cache
+    command: php vendor/drush/drush/drush.php cr
+    description: Rebuild all Drupal caches
+    output: silent
+    icon: broom
+    check:
+      composer: drush/drush
+  - name: uli
+    label: Login as admin
+    command: >
+      set -a; . ./.env; set +a;
+      php vendor/drush/drush/drush.php uli --uri="$APP_URL"
+    description: Generate a one-time admin login URL
+    output: url
+    icon: key
+    check:
+      composer: drush/drush
+  - name: updb
+    label: Run database updates
+    command: php vendor/drush/drush/drush.php updb -y
+    description: Apply pending hook_update_N updates
+    output: silent
+    icon: database
+    check:
+      composer: drush/drush
+  - name: cex
+    label: Export config
+    command: php vendor/drush/drush/drush.php cex -y
+    description: Export configuration to the sync directory
+    output: text
+    icon: arrow-up
+    check:
+      composer: drush/drush
+  - name: cim
+    label: Import config
+    command: php vendor/drush/drush/drush.php cim -y
+    description: Import configuration from the sync directory
+    output: text
+    confirm: true
+    icon: arrow-down
+    check:
+      composer: drush/drush
