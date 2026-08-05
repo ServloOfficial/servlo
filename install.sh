@@ -182,32 +182,6 @@ linger_enabled() {
 # ── Prerequisite checks ──────────────────────────────────────────────────────
 MISSING_PKGS=()
 
-# DNS mode chosen by the user before prerequisites are checked. "managed" runs
-# servlo's dnsmasq + mkcert so sites resolve at https://<name>.test with trusted
-# certs; "localhost" skips all of that and serves http://<name>.localhost over
-# plain HTTP. The choice is passed straight to `servlo install --dns` so the
-# prompt isn't shown twice, and it lets us skip the HTTPS-only packages
-# (certutil / nss-tools) when the user only wants .localhost.
-DNS_MODE="managed"
-
-ask_dns_mode() {
-  local _ans=""
-  header "DNS mode"
-  echo "  servlo can manage local DNS so sites resolve at https://<name>.test with"
-  echo "  trusted certificates, or stay out of the way and serve them at"
-  echo "  http://<name>.localhost over plain HTTP. The .localhost mode needs no"
-  echo "  dnsmasq, no mkcert, and no extra packages."
-  echo ""
-  echo -en "  ${BOLD}?${RESET}  Let servlo manage DNS for .test sites with HTTPS? [Y/n] "
-  read -r _ans </dev/tty 2>/dev/null || true
-  if [[ "$_ans" =~ ^[Nn]$ ]]; then
-    DNS_MODE="localhost"
-    info "Using *.localhost over HTTP, no certificates or extra packages required"
-  else
-    DNS_MODE="managed"
-  fi
-}
-
 check_cmd() {
   local cmd="$1" pkg="${2:-$1}" desc="${3:-}"
   if command -v "$cmd" &>/dev/null; then
@@ -255,7 +229,7 @@ check_certutil() {
     success "certutil found (needed for mkcert CA trust in browsers)"
     return
   fi
-  warn "certutil not found — mkcert won't be able to trust HTTPS certs in Chrome/Firefox"
+  warn "certutil not found — mkcert cannot trust HTTPS certs in Chrome or Firefox"
   MISSING_PKGS+=("libnss3-tools")
 }
 
@@ -296,9 +270,7 @@ check_prerequisites_linux() {
   require_linger
   success "systemd linger enabled for $(invoking_user)"
   check_podman_rootless
-  if [ "$DNS_MODE" = "managed" ]; then
-    check_certutil
-  fi
+  check_certutil
 
   if [ ${#MISSING_PKGS[@]} -eq 0 ]; then
     success "All prerequisites met"
@@ -514,7 +486,6 @@ cmd_install() {
     [ -f "$local_binary" ] || die "File not found: $local_binary"
   fi
 
-  ask_dns_mode
   check_prerequisites
 
   if ! command -v podman &>/dev/null; then
@@ -560,9 +531,9 @@ cmd_install() {
   # and servlo's prompts would silently hit EOF. Hand it /dev/tty when one is
   # available so [Y/n] questions reach the user.
   if [ -r /dev/tty ]; then
-    "${INSTALL_DIR}/${BINARY}" install --dns "$DNS_MODE" </dev/tty
+    "${INSTALL_DIR}/${BINARY}" install </dev/tty
   else
-    "${INSTALL_DIR}/${BINARY}" install --dns "$DNS_MODE"
+    "${INSTALL_DIR}/${BINARY}" install
   fi
 
   star_note
@@ -594,9 +565,10 @@ cmd_update() {
 }
 
 # ── Uninstall ────────────────────────────────────────────────────────────────
-# The root-owned files servlo's managed DNS writes. None of them live under $HOME
-# and only the binary can take them back out, so the uninstaller uses this list
-# both to detect the setup and to tell the user how to clear it by hand.
+# The root-owned files an older servlo's managed DNS wrote. Servlo no longer
+# writes any of them, but a machine installed before that removal still carries
+# them, including a passwordless sudoers grant nothing uses any more, so the
+# uninstaller still detects the set and offers to clear it.
 SERVLO_DNS_FILES=(
   /etc/sudoers.d/servlo
   /etc/systemd/system/servlo-dns-link.service

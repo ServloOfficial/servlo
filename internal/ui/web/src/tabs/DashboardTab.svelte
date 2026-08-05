@@ -24,7 +24,6 @@
   const everythingHealthy = $derived(
     $unhealthyWorkers.length === 0 &&
       $statusLoaded &&
-      $status.dns.ok &&
       $status.nginx.running &&
       $status.watcher_running &&
       !$version.hasUpdate &&

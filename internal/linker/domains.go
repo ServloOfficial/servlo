@@ -68,39 +68,17 @@ func FilterConflictingDomains(desired []string, ownPath string, allSites []confi
 }
 
 // ResolveDomains filters the desired domain list against the live registry and
-// returns the list to register. When every desired domain is conflicted it
-// falls back to a freshly generated `<baseName>.<tld>`, suffixed until it is
-// free in both the name and domain axes. The .servlo.yaml on disk is never
-// touched; the discrepancy lives only in the registration, and the dropped
-// domains come back in removed so the caller can report them.
-func ResolveDomains(desired []string, baseName, ownPath, tld string) (kept, removed []string) {
+// returns the list to register. There is no fallback: a conflicted domain used
+// to be replaced by a freshly generated `<name>.<tld>`, which only worked while
+// servlo owned a TLD it could invent inside. A caller that gets nothing back
+// must report the conflict, because the operator's domain is the only one that
+// resolves here. The .servlo.yaml on disk is never touched; the dropped domains
+// come back in removed so the caller can name them.
+func ResolveDomains(desired []string, ownPath string) (kept, removed []string) {
 	reg, err := config.LoadSites()
 	var sites []config.Site
 	if err == nil {
 		sites = reg.Sites
 	}
-
-	kept, removed = FilterConflictingDomains(desired, ownPath, sites)
-	if len(kept) > 0 {
-		return kept, removed
-	}
-
-	for i := 0; ; i++ {
-		candidate := baseName
-		if i > 0 {
-			candidate = fmt.Sprintf("%s-%d", baseName, i+1)
-		}
-		domain := candidate + "." + tld
-		if IsReservedDomain(domain) {
-			continue
-		}
-		if existing, _ := config.FindSite(candidate); existing != nil && existing.Path != ownPath {
-			continue
-		}
-		owners, _ := FilterConflictingDomains([]string{domain}, ownPath, sites)
-		if len(owners) == 0 {
-			continue
-		}
-		return []string{domain}, removed
-	}
+	return FilterConflictingDomains(desired, ownPath, sites)
 }

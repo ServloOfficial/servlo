@@ -64,9 +64,10 @@ func linkDeps() linker.Deps {
 }
 
 // linkPolicy is the capability set a user-invoked link runs under: everything
-// is permitted, and the prompter is present only when a terminal is.
-func linkPolicy(name string) linker.Policy {
-	p := linker.CLIPolicy(name, linkAssumeYes, linkPrompter())
+// is permitted, and the prompter is present only when a terminal is. The
+// argument is the domain the operator asked for, empty when they gave none.
+func linkPolicy(domain string) linker.Policy {
+	p := linker.CLIPolicy("", domain, linkAssumeYes, linkPrompter())
 	// The wizard pre-approves the command the user just chose, so the link it
 	// triggers treats that as consent already given.
 	p.AssumeYes = hostProxyApproved(p.AssumeYes)

@@ -11,7 +11,6 @@ import (
 
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/feedback"
 )
 
@@ -57,8 +56,6 @@ func ensurePortForwarding() error { return applyPortStrategy() }
 // escalation without a real kernel, login manager, or sudo.
 var (
 	lingerNeeded      = defaultLingerNeeded
-	dnsSudoersReady   = dns.SudoersCurrent
-	recordDNSSudoers  = dns.RecordSudoersForUser
 	sudoSelfRunner    = defaultSudoSelfRunner
 	legacySystemSetup = defaultLegacySystemSetup
 )
@@ -79,53 +76,35 @@ func defaultSudoSelfRunner(args ...string) error {
 // systemSetupNeeded reports whether any root-level step still has to run. An
 // install where they all already apply must not ask for a password to do
 // nothing, which is the common case on every reinstall and update.
-func systemSetupNeeded(wantDNS bool) bool {
-	if lingerNeeded() {
-		return true
-	}
-	return wantDNS && !dnsSudoersReady()
+func systemSetupNeeded() bool {
+	return lingerNeeded()
 }
 
 // runSystemSetup applies the machine-global half of the install through a
 // single `sudo servlo bootstrap --system`, the same entry point a package
 // maintainer script calls, so both install routes share one implementation of
-// the sysctl, linger and sudoers steps and ask for a password once. A host
+// the sysctl and linger steps and ask for a password once. A host
 // where the re-exec cannot run falls back to the individual steps.
-func runSystemSetup(wantDNS bool) error {
-	if !systemSetupNeeded(wantDNS) {
+func runSystemSetup() error {
+	if !systemSetupNeeded() {
 		return nil
-	}
-	args := []string{"bootstrap", "--system"}
-	if !wantDNS {
-		args = append(args, "--skip-sudoers")
 	}
 	feedback.Sudo("Applying system setup")
-	err := sudoSelfRunner(args...)
-	if err == nil {
-		if wantDNS {
-			recordDNSSudoers(currentUserName())
-		}
-		return nil
-	}
-	feedback.Warn("system setup through sudo failed (%v), applying the steps individually", err)
-	return legacySystemSetup(wantDNS)
-}
-
-// defaultLegacySystemSetup is the pre-bootstrap path, kept as the fallback for
-// hosts without a usable sudo. Each step prompts on its own.
-func defaultLegacySystemSetup(wantDNS bool) error {
-	if err := ensureSystemdLinger(); err != nil {
-		feedback.Warn("%v", err)
-	}
-	if wantDNS {
-		dns.InstallSudoers() //nolint:errcheck
+	if err := sudoSelfRunner("bootstrap", "--system"); err != nil {
+		feedback.Warn("system setup through sudo failed (%v), applying the steps individually", err)
+		return legacySystemSetup()
 	}
 	return nil
 }
 
-// ensureResolverSudoers is a no-op on Linux: the grant carries no TLD, so the
-// root pass installs it up front along with the other machine-global steps.
-func ensureResolverSudoers() {}
+// defaultLegacySystemSetup is the pre-bootstrap path, kept as the fallback for
+// hosts without a usable sudo. Each step prompts on its own.
+func defaultLegacySystemSetup() error {
+	if err := ensureSystemdLinger(); err != nil {
+		feedback.Warn("%v", err)
+	}
+	return nil
+}
 
 // ensureMkcertCA generates the root CA and gets it trusted. Generation and the
 // browser NSS store are per-user and need no root; the system trust store is

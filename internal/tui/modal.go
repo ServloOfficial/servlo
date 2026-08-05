@@ -72,7 +72,7 @@ func (m *Model) renderActiveModal(w, h int) string {
 // renderConfirmModal draws the y / n confirmation prompt. confirmTitle is
 // the heading (e.g. "Remove domain") and confirmBody describes the
 // specific subject (e.g. "Remove foo.test? This unlinks the alias from
-// nginx and dnsmasq.").
+// nginx.").
 func (m *Model) renderConfirmModal(w, h int) string {
 	footer := renderKeyChips("y", "confirm", "n", "cancel", "esc", "cancel")
 	return renderModal(w, h, m.confirmTitle, m.confirmBody, footer)

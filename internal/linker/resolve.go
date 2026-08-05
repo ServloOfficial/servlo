@@ -1,6 +1,7 @@
 package linker
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -33,11 +34,17 @@ func Resolve(dir string, cfg *config.GlobalConfig, p Policy) (*Plan, error) {
 	if p.Name != "" {
 		rawName = p.Name
 	}
-	baseName, _ := siteops.SiteNameAndDomain(rawName, cfg.DNS.TLD)
-	name := FreeSiteName(baseName, dir)
+	name := FreeSiteName(siteops.SiteName(rawName), dir)
 
-	kept, removed := ResolveDomains(desiredDomains(proj, p.Name, name, cfg.DNS.TLD), baseName, dir, cfg.DNS.TLD)
+	desired, err := desiredDomains(proj, p.Domain, dir)
+	if err != nil {
+		return nil, err
+	}
+	kept, removed := ResolveDomains(desired, dir)
 	plan.DroppedDomains = removed
+	if len(kept) == 0 {
+		return nil, fmt.Errorf("every domain for this site is already registered elsewhere: %s", strings.Join(removed, ", "))
+	}
 
 	secured := false
 	if p.Certs {
@@ -153,27 +160,48 @@ func Resolve(dir string, cfg *config.GlobalConfig, p Policy) (*Plan, error) {
 // desiredDomains builds the domain list to attempt, before conflict filtering.
 // A .servlo.yaml domains list wins over the generated one, and an explicitly
 // requested name is forced to the front so it becomes the primary domain.
-func desiredDomains(proj *config.ProjectConfig, requested, name, tld string) []string {
+// desiredDomains is the site's domains in priority order: the one the caller
+// asked for first, then whatever the project's .servlo.yaml declares. Nothing is
+// derived. A directory already named for its domain is accepted as the answer,
+// since that is the ordinary layout on a server, but a bare name is refused:
+// servlo has no TLD to complete it with.
+func desiredDomains(proj *config.ProjectConfig, requested, dir string) ([]string, error) {
 	var domains []string
-	if proj != nil && len(proj.Domains) > 0 {
-		for _, d := range proj.Domains {
-			domains = append(domains, strings.ToLower(d)+"."+tld)
+	add := func(raw string) error {
+		d, err := siteops.NormalizeDomain(raw)
+		if err != nil {
+			return err
 		}
-	} else {
-		domains = []string{name + "." + tld}
-	}
-	if requested == "" {
-		return domains
+		for _, have := range domains {
+			if have == d {
+				return nil
+			}
+		}
+		domains = append(domains, d)
+		return nil
 	}
 
-	explicit := strings.ToLower(requested) + "." + tld
-	filtered := make([]string, 0, len(domains))
-	for _, d := range domains {
-		if d != explicit {
-			filtered = append(filtered, d)
+	if requested != "" {
+		if err := add(requested); err != nil {
+			return nil, err
 		}
 	}
-	return append([]string{explicit}, filtered...)
+	if proj != nil {
+		for _, d := range proj.Domains {
+			if err := add(d); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if len(domains) == 0 {
+		if d := siteops.DomainFromDirName(filepath.Base(dir)); d != "" {
+			domains = append(domains, d)
+		}
+	}
+	if len(domains) == 0 {
+		return nil, fmt.Errorf("no domain for this site: pass --domain example.com, or set domains: in .servlo.yaml")
+	}
+	return domains, nil
 }
 
 // relinkSecured reports whether any registration already at this path is

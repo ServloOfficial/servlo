@@ -20,15 +20,8 @@ export type ActivityKind =
   | 'worker_failed'
   | 'worker_healed'
   | 'worker_slept'
-  | 'worker_woke'
-  | 'dns_degraded'
-  | 'dns_down'
-  | 'dns_recovered';
+  | 'worker_woke';
 
-export interface DNSSnapshot {
-  status: 'ok' | 'degraded' | 'down';
-  vpn: boolean;
-}
 
 export interface ActivityEvent {
   id: string;
@@ -129,25 +122,6 @@ export function diffServicesEvents(
   return out;
 }
 
-// diffDNSEvents emits one event per status transition (ok → degraded,
-// degraded → down, anything → ok, etc.). The vpn flag alone changing
-// under a steady degraded state does not emit, that's the same outcome
-// from the user's perspective. The vpn=true case is forwarded as meta
-// so the label can mention "VPN active".
-export function diffDNSEvents(prev: DNSSnapshot | null, current: DNSSnapshot): RawEvent[] {
-  if (!prev) return [];
-  if (prev.status === current.status) return [];
-  switch (current.status) {
-    case 'ok':
-      return [{ kind: 'dns_recovered', subject: 'DNS' }];
-    case 'down':
-      return [{ kind: 'dns_down', subject: 'DNS' }];
-    case 'degraded':
-      return current.vpn
-        ? [{ kind: 'dns_degraded', subject: 'DNS', meta: { vpn: '1' } }]
-        : [{ kind: 'dns_degraded', subject: 'DNS' }];
-  }
-}
 
 export function diffUnhealthyEvents(
   prev: Set<string> | null,
@@ -180,7 +154,6 @@ function pushAll(raw: RawEvent[]) {
 let prevSitesMap: Map<string, Site> | null = null;
 let prevServicesMap: Map<string, Service> | null = null;
 let prevUnhealthySet: Set<string> | null = null;
-let prevDNS: DNSSnapshot | null = null;
 
 wsMessage.subscribe((msg) => {
   if (!msg) return;
@@ -199,14 +172,6 @@ wsMessage.subscribe((msg) => {
     pushAll(diffUnhealthyEvents(prevUnhealthySet, list));
     prevUnhealthySet = new Set(list.map((u) => u.unit));
   }
-  if (msg.status && typeof msg.status === 'object') {
-    const dns = (msg.status as { dns?: Partial<DNSSnapshot> }).dns;
-    if (dns && typeof dns.status === 'string') {
-      const snap: DNSSnapshot = { status: dns.status, vpn: Boolean(dns.vpn) };
-      pushAll(diffDNSEvents(prevDNS, snap));
-      prevDNS = snap;
-    }
-  }
 });
 
 // Test-only helper: reset the in-memory state so each test starts clean.
@@ -214,7 +179,6 @@ export function _resetActivityForTest() {
   prevSitesMap = null;
   prevServicesMap = null;
   prevUnhealthySet = null;
-  prevDNS = null;
   activity.set([]);
   counter = 0;
 }

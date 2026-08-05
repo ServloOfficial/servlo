@@ -123,17 +123,13 @@ type GlobalConfig struct {
 		// back to nginx's own 60s default; read it via RequestTimeoutSeconds.
 		RequestTimeout int `yaml:"request_timeout,omitempty" mapstructure:"request_timeout"`
 	} `yaml:"nginx" mapstructure:"nginx"`
+	// DNS is legacy. The .test stack it configured was removed in S2.1; these
+	// fields are retained only so a config file written before that still
+	// parses. Nothing reads them, and S2.2 removes TLD along with the last
+	// place a domain is derived rather than given.
 	DNS struct {
-		// Enabled=false skips servlo-dns, mkcert CA, sudoers, and resolver
-		// config; sites use *.localhost (RFC 6761). HTTPS is unavailable
-		// in that mode. Default true preserves historical behaviour.
-		Enabled bool   `yaml:"enabled" mapstructure:"enabled"`
-		TLD     string `yaml:"tld"     mapstructure:"tld"`
-		// Upstream pins the upstream DNS servers dnsmasq forwards
-		// non-.test queries to. When empty, servlo auto-detects them from
-		// the system resolver. Set this when auto-detection picks the
-		// wrong servers (e.g. systemd-resolved fallbacks instead of your
-		// LAN resolver). Accepts plain IPs; #port is allowed.
+		Enabled  bool     `yaml:"enabled" mapstructure:"enabled"`
+		TLD      string   `yaml:"tld"     mapstructure:"tld"`
 		Upstream []string `yaml:"upstream,omitempty" mapstructure:"upstream"`
 	} `yaml:"dns" mapstructure:"dns"`
 	LAN struct {

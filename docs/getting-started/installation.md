@@ -39,9 +39,9 @@ The installer will:
 - Automatically run `servlo install` to complete environment setup
 
 ::: info Setup asks for sudo once, up front
-Everything `servlo install` needs root for happens in one step at the very start, before any downloading or container work: the unprivileged-port sysctl so nginx can bind 80 and 443, systemd linger so your containers survive logout, and a passwordless sudoers rule for the DNS resolver operations. It runs as `sudo servlo bootstrap --system`, the same command the apt package runs as root, so both routes apply identical settings. The mkcert CA is trusted in the system store the same way once it has been generated.
+Everything `servlo install` needs root for happens in one step at the very start, before any downloading or container work: the unprivileged-port sysctl so nginx can bind 80 and 443, and systemd linger so your containers survive logout. It runs as `sudo servlo bootstrap --system`, the same command the apt package runs as root, so both routes apply identical settings. The mkcert CA is trusted in the system store the same way once it has been generated.
 
-Reinstalling for an update or a test reuses what is already in place and does not ask again, and if a step cannot run through `sudo` it falls back to prompting for each one separately. Uninstalling takes the sudoers rule and the CA back out, so both last exactly as long as servlo does.
+Reinstalling for an update or a test reuses what is already in place and does not ask again, and if a step cannot run through `sudo` it falls back to prompting for each one separately. Uninstalling takes the CA back out, so it lasts exactly as long as servlo does.
 :::
 
 After install, reload your shell or open a new terminal so `PATH` takes effect.
@@ -112,7 +112,7 @@ Four opt-in prompts before finishing:
 
 1. **Remove all config and data**: deletes `~/.config/servlo` and `~/.local/share/servlo` (takes your `sites.yaml`, bundled binaries, TLS certs, and all service data with it). Global npm packages that the `npm` shim installed into servlo's managed prefix are not silently lost: when a system npm exists you're offered a reinstall into your own prefix first, and otherwise the exact `npm install -g …` line to run afterwards is printed.
 3. **Uninstall mkcert CA**: runs `mkcert -uninstall` so browsers and OS trust stores stop trusting the servlo CA that `install` originally added.
-4. **Purge servlo-built container images**: removes `servlo-php*-fpm:local`, `servlo-custom-*:local`, and `servlo-dnsmasq:local`. Upstream pulled images (mysql/redis/postgres/etc.) are deliberately left alone; they're expensive to re-pull and your database/app data lives in host bind mounts, not inside the images, so nothing is lost by keeping them.
+4. **Purge servlo-built container images**: removes `servlo-php*-fpm:local` and `servlo-custom-*:local`. Upstream pulled images (mysql/redis/postgres/etc.) are deliberately left alone; they're expensive to re-pull and your database/app data lives in host bind mounts, not inside the images, so nothing is lost by keeping them.
 
 To answer yes to every prompt without interaction:
 
@@ -120,7 +120,7 @@ To answer yes to every prompt without interaction:
 servlo uninstall --force
 ```
 
-The installer's own `--uninstall` stops the user units and removes the binary, but the DNS setup lives outside your home directory and only servlo can take it back out: the `servlo0` link unit, the NetworkManager rules and dispatcher, the drop-in that empties `FallbackDNS`, and the passwordless sudoers rule the DNS operations run under. So when it finds that configuration it offers to run `servlo dns:disable` first, and prints the root commands to clear it by hand if you decline or the binary has already gone.
+The installer's own `--uninstall` stops the user units and removes the binary. An install that predates the removal of servlo's DNS stack still has root-owned resolver files outside your home directory, so the uninstaller detects that set and offers to clear it, printing the root commands if you decline.
 
 ---
 

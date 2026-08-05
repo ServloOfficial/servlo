@@ -87,6 +87,11 @@ type Site struct {
 	// main's database instead of its own: DB_DATABASE in its .env is kept in
 	// sync with the main's database name.
 	GroupSharedDB bool `yaml:"group_shared_db,omitempty"`
+	// StandaloneDomain is the domain a secondary served before it joined a
+	// group, kept so leaving one restores exactly that. It used to be
+	// re-derived from the directory name, which only worked while servlo had a
+	// TLD to append; a real domain cannot be guessed back.
+	StandaloneDomain string `yaml:"standalone_domain,omitempty"`
 }
 
 // IsGroupMain returns true when the site owns a group's base domain: it has a
@@ -206,6 +211,7 @@ type siteYAML struct {
 	Group               string   `yaml:"group,omitempty"`
 	GroupSubdomain      string   `yaml:"group_subdomain,omitempty"`
 	GroupSharedDB       bool     `yaml:"group_shared_db,omitempty"`
+	StandaloneDomain    string   `yaml:"standalone_domain,omitempty"`
 }
 
 func (s Site) toYAML() siteYAML {
@@ -237,6 +243,7 @@ func (s Site) toYAML() siteYAML {
 		Group:               s.Group,
 		GroupSubdomain:      s.GroupSubdomain,
 		GroupSharedDB:       s.GroupSharedDB,
+		StandaloneDomain:    s.StandaloneDomain,
 	}
 }
 
@@ -273,6 +280,7 @@ func (sy siteYAML) toSite() Site {
 		Group:               sy.Group,
 		GroupSubdomain:      sy.GroupSubdomain,
 		GroupSharedDB:       sy.GroupSharedDB,
+		StandaloneDomain:    sy.StandaloneDomain,
 	}
 }
 

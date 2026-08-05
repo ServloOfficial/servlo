@@ -176,14 +176,14 @@ func TestSetProjectDomains(t *testing.T) {
 // ── SyncProjectDomains ──────────────────────────────────────────────────────
 
 func TestSyncProjectDomains_MergesAndDeduplicates(t *testing.T) {
-	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"myapp", "conflict-domain"}})
-	err := SyncProjectDomains(dir, []string{"myapp.test", "api.test"}, "test")
+	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"myapp.example.com", "conflict.example.com"}})
+	err := SyncProjectDomains(dir, []string{"myapp.example.com", "api.example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	cfg := loadConfig(t, dir)
-	// myapp and api from fullDomains, conflict-domain preserved from existing
-	want := []string{"myapp", "api", "conflict-domain"}
+	// The registered pair leads, the conflict-filtered extra is preserved.
+	want := []string{"myapp.example.com", "api.example.com", "conflict.example.com"}
 	if len(cfg.Domains) != len(want) {
 		t.Fatalf("Domains = %v, want %v", cfg.Domains, want)
 	}
@@ -195,27 +195,27 @@ func TestSyncProjectDomains_MergesAndDeduplicates(t *testing.T) {
 }
 
 func TestSyncProjectDomains_CaseInsensitiveDedup(t *testing.T) {
-	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"MyApp"}})
-	err := SyncProjectDomains(dir, []string{"myapp.test"}, "test")
+	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"MyApp.example.com"}})
+	err := SyncProjectDomains(dir, []string{"myapp.example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	cfg := loadConfig(t, dir)
-	// "myapp" from fullDomains wins, "MyApp" is deduplicated
-	if len(cfg.Domains) != 1 || cfg.Domains[0] != "myapp" {
-		t.Errorf("Domains = %v, want [myapp]", cfg.Domains)
+	// The registered spelling wins, the differently-cased duplicate goes.
+	if len(cfg.Domains) != 1 || cfg.Domains[0] != "myapp.example.com" {
+		t.Errorf("Domains = %v, want [myapp.example.com]", cfg.Domains)
 	}
 }
 
 func TestReplaceProjectDomain_dropsRenamedDomain(t *testing.T) {
 	// admin-starlane grouped into admin.starlane: the old standalone domain
 	// must not survive in .servlo.yaml, while a genuine conflict-filtered extra is.
-	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"admin-starlane", "conflict-domain"}})
-	if err := ReplaceProjectDomain(dir, []string{"admin.starlane.test"}, "admin-starlane.test", "test"); err != nil {
+	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"admin-starlane.example.com", "conflict.example.com"}})
+	if err := ReplaceProjectDomain(dir, []string{"admin.starlane.example.com"}, "admin-starlane.example.com"); err != nil {
 		t.Fatal(err)
 	}
 	cfg := loadConfig(t, dir)
-	want := []string{"admin.starlane", "conflict-domain"}
+	want := []string{"admin.starlane.example.com", "conflict.example.com"}
 	if len(cfg.Domains) != len(want) {
 		t.Fatalf("Domains = %v, want %v", cfg.Domains, want)
 	}
@@ -228,19 +228,19 @@ func TestReplaceProjectDomain_dropsRenamedDomain(t *testing.T) {
 
 func TestReplaceProjectDomain_keepsStillCurrentDomain(t *testing.T) {
 	// When oldDomain is still in the new set (no real rename), it is kept.
-	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"myapp"}})
-	if err := ReplaceProjectDomain(dir, []string{"myapp.test", "api.test"}, "myapp.test", "test"); err != nil {
+	dir := setupProjectConfig(t, &ProjectConfig{Domains: []string{"myapp.example.com"}})
+	if err := ReplaceProjectDomain(dir, []string{"myapp.example.com", "api.example.com"}, "myapp.example.com"); err != nil {
 		t.Fatal(err)
 	}
 	cfg := loadConfig(t, dir)
-	if len(cfg.Domains) != 2 || cfg.Domains[0] != "myapp" || cfg.Domains[1] != "api" {
-		t.Errorf("Domains = %v, want [myapp api]", cfg.Domains)
+	if len(cfg.Domains) != 2 || cfg.Domains[0] != "myapp.example.com" || cfg.Domains[1] != "api.example.com" {
+		t.Errorf("Domains = %v, want [myapp.example.com api.example.com]", cfg.Domains)
 	}
 }
 
 func TestSyncProjectDomains_NoOpWhenMissing(t *testing.T) {
 	dir := t.TempDir()
-	if err := SyncProjectDomains(dir, []string{"myapp.test"}, "test"); err != nil {
+	if err := SyncProjectDomains(dir, []string{"myapp.example.com"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); !os.IsNotExist(err) {
@@ -678,14 +678,14 @@ func TestSyncProjectFrameworkVersion(t *testing.T) {
 func TestAddProjectServicesDoesNotClobberEarlierWrites(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"),
-		[]byte("domains:\n    - old\n"), 0o644); err != nil {
+		[]byte("domains:\n    - old.example.com\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// A snapshot taken before the domain sync, as runLink holds.
 	if _, err := LoadProjectConfig(dir); err != nil {
 		t.Fatal(err)
 	}
-	if err := SyncProjectDomains(dir, []string{"old.test", "new.test"}, "test"); err != nil {
+	if err := SyncProjectDomains(dir, []string{"old.example.com", "new.example.com"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := AddProjectServices(dir, []ProjectService{{Name: "opensearch"}}); err != nil {

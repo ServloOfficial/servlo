@@ -19,7 +19,7 @@ servlo doctor --fix --yes       # apply without prompting (heavy fixes still con
 servlo doctor --fix --dry-run   # list what would be repaired, change nothing
 ```
 
-The fixes fall into three groups. servlo applies the safe ones itself, creating a missing data or config directory, enabling linger so services survive logout, installing the network-online drop-in, rebuilding a missing PHP image, and, after you confirm the heavier ones, reinstalling the services or reclaiming podman disk. Anything that needs `sudo` servlo never runs for you; it prints the exact command to copy. That covers installing podman, crun, fuse-overlayfs, the rootless network helpers or adding a subuid range, and also `servlo dns:repair`, which rewrites the resolver configuration through `sudo` and so is yours to run even though servlo knows the command. Findings that are external state, a foreign process already holding port 80, a config file with a syntax error, are left untouched with their hint.
+The fixes fall into three groups. servlo applies the safe ones itself, creating a missing data or config directory, enabling linger so services survive logout, installing the network-online drop-in, rebuilding a missing PHP image, and, after you confirm the heavier ones, reinstalling the services or reclaiming podman disk. Anything that needs `sudo` servlo never runs for you; it prints the exact command to copy. That covers installing podman, crun, fuse-overlayfs, the rootless network helpers, adding a subuid range, and the port-strategy commands, which need `sudo` and so are yours to run even though servlo knows them. Findings that are external state, a foreign process already holding port 80, a config file with a syntax error, are left untouched with their hint.
 
 Reclaimable disk is listed separately as optional, because nothing is wrong when there is disk to reclaim. It runs the same interactive reclaim as `servlo cleanup`, so it takes the deep scope and can remove an unreferenced catalog image whoever pulled it, and the size doctor quotes is that same deep scope. If you run other podman workloads on the machine, run [`servlo cleanup --safe`](usage/cleanup.md) yourself instead. Optional fixes never count towards what a re-check reports as still outstanding.
 
@@ -84,80 +84,10 @@ Remove the marker when you are done. While it exists, anyone who can reach the m
 
 ---
 
-::: details `.test` domains not resolving
-First, confirm DNS is actually meant to be managed by servlo. If `servlo dns:check` reports `DNS managed externally`, you opted out of dnsmasq during install and your sites should be on `*.localhost` rather than `*.test`. See DNS for switching modes.
-
-Otherwise, the fastest way to find the broken rung is `servlo doctor`. The DNS section walks the chain top to bottom and surfaces exactly where it breaks, with a hint per failure:
-
-```
-[DNS]
-  DNS TLD (.test)                     OK
-    servlo-dns container                running
-    dnsmasq config                    address=/.test/127.0.0.1, port=5300
-    port 5300 listening               127.0.0.1:5300
-    dig @127.0.0.1 -p 5300            127.0.0.1
-    resolver hookup                   NetworkManager dispatcher: /etc/NetworkManager/dispatcher.d/99-servlo-dns
-    interface routes .test to 5300    enp14s0
-    system DNS lookup                 127.0.0.1
-```
-
-The chain in order:
-
-| Rung | What it checks | If it fails |
-|---|---|---|
-| `servlo-dns container` | The dnsmasq container is running. | `servlo start` (or `podman logs servlo-dns` to see why it crashed). |
-| `dnsmasq config` | `~/.local/share/servlo/dnsmasq/servlo.conf` exists with `port=5300` and `address=/.<tld>/`. | `servlo start` regenerates the config from your registered TLD. |
-| `port 5300 listening` | TCP/UDP 5300 is reachable on 127.0.0.1. | Another process owns the port. Find it with `ss -tlnp sport = :5300` on Linux, or `lsof -nP -iTCP:5300 -sTCP:LISTEN` on macOS. |
-| `dig @127.0.0.1 -p 5300` | A direct query at port 5300 returns 127.0.0.1 for `servlo-probe.<tld>`, or the host's LAN IP when `lan:expose` is on. | dnsmasq is up but its config drifted. `servlo dns:repair`. |
-| `resolver hookup` | The NetworkManager dispatcher script or systemd-resolved drop-in is installed. | Rerun `servlo install`. |
-| `interface routes .test to 5300` | `resolvectl status` shows `127.0.0.1:5300` and `~<tld>` on the active interface. | `sudo systemctl restart NetworkManager`, or set the routing manually with `sudo resolvectl domain <iface> ~test ~.`. |
-| `system DNS lookup` | `host servlo-probe.test` (the system resolver) returns 127.0.0.1, or the host's LAN IP under `lan:expose`. | The drop-in is installed but resolved isn't honouring it. Check whether cloud-init or another tool wrote a higher-priority resolver config. Common on EC2 / cloud images. With a VPN connected this rung is reported as a warning rather than a failure, see the VPN section below. |
-:::
-
-::: details `.test` domains stop resolving when offline (no internet)
-On systemd-resolved systems, `.test` used to reach servlo-dns only through a route that depended on your real network being up: per interface (`resolvectl domain <iface> ~test`) when NetworkManager manages resolved, or a global drop-in otherwise. Either way, systemd-resolved refuses to resolve anything at all, over both `resolvectl` and the glibc/NSS path a browser uses, once no real link is routable, so a fresh `.test` lookup failed even though servlo-dns kept answering on `127.0.0.1:5300`. A common symptom was a page that still worked while the browser stayed open (cached DNS) but failed the moment you closed and reopened it.
-
-Servlo now keeps an always-up dummy interface, `servlo0`, that carries the `~test` route. Because that link never goes down, systemd-resolved keeps forwarding `.test` to servlo-dns with no network connection at all. It is created by a small system service, `servlo-dns-link.service`, which starts on every boot, so the fix survives reboots and applies automatically on your next `servlo start`, nothing to run by hand. This applies to both systemd-resolved setups: with NetworkManager (Ubuntu, Fedora, CachyOS) and without it (Arch, omarchy).
-
-If you also saw a stall of up to twenty seconds on `.test` while offline, that was an AAAA (IPv6) lookup. servlo's dnsmasq config answers both `address=/.test/127.0.0.1` and `address=/.test/::1`, but the NetworkManager dispatcher used to regenerate that file from a v4-only template whenever an interface came up, dropping the AAAA record. dnsmasq then forwarded `.test` AAAA queries to your upstream, which times out once that upstream is unreachable. The dispatcher now leaves the address records alone, so AAAA is answered locally and returns instantly.
-:::
-
-::: details What is the `servlo0` network interface?
-`servlo0` is a dummy (virtual) network interface servlo creates on Linux so that `.test` domains keep resolving when you have no network at all. It carries no traffic and connects to nothing; it exists purely to give systemd-resolved a link that is always up to hang the `.test` route on. See the offline entry above for why that is necessary.
-
-It is deliberately marked unmanaged in NetworkManager (`/etc/NetworkManager/conf.d/servlo-dns-link.conf`), so it does not appear as a connection in your desktop's network menu and cannot be switched off by accident. Its only address is `192.0.2.1/32`, from the range RFC 5737 reserves for documentation and which never appears on a real network, so it cannot conflict with anything you connect to.
-
-Alongside it, servlo turns off systemd-resolved's fallback DNS servers (`/etc/systemd/resolved.conf.d/servlo-fallback.conf`). This is the price of `servlo0`: it stops resolved refusing every lookup when you are offline, which is the point for `.test`, but the same switch makes resolved willing to try names it cannot reach, so it works through its fallback servers (Quad9, Cloudflare, Google) one at a time and every offline lookup of an ordinary domain hangs for 20 seconds or more instead of failing at once. Debian, Ubuntu and Fedora already ship these fallbacks off, so nothing changes there; on Arch and its derivatives this aligns them with the others. The trade is that if your own DNS server breaks, lookups now fail instead of quietly going to a public resolver. `servlo uninstall` puts the fallbacks back.
-
-If it ever goes missing, `servlo doctor` reports it under the `offline .test route` check and the next `servlo start` recreates it. To recreate it by hand:
-
-```bash
-sudo systemctl restart servlo-dns-link.service
-```
-
-`servlo uninstall` removes the interface, its service, and the NetworkManager rule. To remove it without uninstalling servlo, use `servlo dns:disable`, which turns off servlo's DNS management entirely.
-:::
-
-::: details DNS shows "Degraded" while connected to a VPN
-VPN clients such as Cisco AnyConnect, ProtonVPN, Mullvad, and WireGuard take over the system resolver when they connect, rewriting systemd-resolved so `.test` no longer routes to servlo-dns through the normal path. servlo-dns itself keeps running and answering, so the dashboard shows a yellow **Degraded** pill rather than a red **Failed** one, and `servlo doctor` reports the `system DNS lookup` rung as a warning instead of a failure. Sites still resolve, because servlo-dns answers directly on `127.0.0.1:5300`.
-
-The watcher subscribes to kernel rtnetlink link and address events on Linux, so it reacts to a VPN connect or disconnect within a second of the interface coming up or going down (a poll every 30 seconds covers the rare case of a missed kernel event). When the host resolver environment changes, it re-points the servlo network's aardvark-dns at the current host resolvers and reloads the network so containers pick them up with a fresh cache. This is what previously required a manual `servlo restart` after connecting the VPN before PHP could reach VPN-internal API endpoints. The re-sync briefly (about a second) interrupts DNS for servlo containers while aardvark-dns restarts.
-
-If you want the system resolver path itself restored while the VPN is up, so the pill goes back to green, move `resolve` after `dns` in the `hosts:` line of `/etc/nsswitch.conf`:
-
-```text
-hosts: mymachines mdns_minimal [NOTFOUND=return] files myhostname dns resolve
-```
-
-This makes glibc consult the plain `dns` module before systemd-resolved's `nss-resolve`, which the VPN client no longer shadows.
-:::
-
 ::: details "Secure Connection Failed" after the host wakes from suspend or hibernate
-After a long suspend or hibernate, rootless podman networking can come back in a bad state: the servlo-nginx container loses its host port forward (or stops), so nothing listens on 443 and the browser shows a generic "Secure Connection Failed" for your `.test` sites, or the servlo-dns container stops and names no longer resolve.
+After a long suspend or hibernate, rootless podman networking can come back in a bad state: the servlo-nginx container loses its host port forward (or stops), so nothing listens on 443 and the browser shows a generic "Secure Connection Failed" for your sites.
 
-On Linux the watcher now restarts nginx automatically. It notices the host has resumed from a real wall-clock gap in its tick loop (the timer is frozen while the machine is suspended), and on that one tick it checks whether servlo-nginx is accepting on its HTTPS port and restarts it if the listener died. Keying off the resume event rather than a continuous poll means it acts exactly once and can never fight a `servlo start` you ran yourself, since a start does not suspend the machine. DNS resolution is repaired by the same watcher's existing path, so `.test` names come back on their own too.
-
-A stopped servlo-dns is healed too. Whenever the watcher finds `.test` broken it now asks servlo's dnsmasq directly on port 5300 whether it is alive, and restarts the container when it is not, instead of only rewriting the host resolver config, which can never bring back a container that is gone. Waking is not the only way to lose it: the NetworkManager dispatcher restarts servlo-dns on every interface change, and a wake that brings wifi, ethernet and a VPN back at once used to fire enough restarts in a few seconds to exhaust systemd's start rate limit, which parks the unit in `failed` permanently. That limit is now lifted for servlo-dns, and the watcher clears any leftover failed state before it restarts.
+On Linux the watcher now restarts nginx automatically. It notices the host has resumed from a real wall-clock gap in its tick loop (the timer is frozen while the machine is suspended), and on that one tick it checks whether servlo-nginx is accepting on its HTTPS port and restarts it if the listener died. Keying off the resume event rather than a continuous poll means it acts exactly once and can never fight a `servlo start` you ran yourself, since a start does not suspend the machine.
 
 One case it still leaves for `servlo start` rather than acting from a background timer: a host whose IPv6 support changed across the wake, since the servlo network must be recreated and that rebuilds every container. The same applies in the rare case the watcher itself was not running at the moment of resume.
 :::
@@ -302,7 +232,7 @@ servlo handles this automatically since v1.3.4 by always pulling anonymously. If
 Repaired items are printed as warnings during startup:
 
 ```
-  WARN: missing TLS certificate for myapp.test, switched to HTTP
+  WARN: missing TLS certificate for myapp.example.com, switched to HTTP
 ```
 
 To re-enable HTTPS after the automatic repair, run `servlo secure <name>`.
@@ -394,21 +324,6 @@ Servlo 1.18+ filters these addresses automatically before handing them to podman
 When filtering empties the entire DNS list, servlo falls back to pasta's standard forwarder (`169.254.1.1`), which bridges into the host's resolver and preserves `.test` routing.
 :::
 
-::: details Containers can resolve `.test` over IPv4 but not over IPv6
-Servlo 1.18+ creates the servlo podman network as dual-stack (v4 + v6) and writes both A and AAAA records for `.test` domains. If you upgraded from an older version, the existing v4-only `servlo` network is migrated automatically the next time you run `servlo install`: attached containers stop, the network is recreated with the `fd00:1e7d::/64` ULA prefix, the previous DNS server list is restored, and the containers restart. Quick check:
-
-```bash
-podman network inspect servlo --format '{{.Subnets}}'
-# expect both an IPv4 subnet and one starting with fd00:1e7d::
-```
-
-If the v6 subnet is missing, run `servlo install` once to migrate. To verify resolution from inside a container:
-
-```bash
-podman run --rm --network servlo alpine sh -c 'nslookup laravel.test; nslookup -type=AAAA laravel.test'
-```
-:::
-
 ::: details Services fail to start with "aardvark-dns failed to bind [fd00:1e7d::1]:53"
 
 Symptom: after `servlo install`, a subset of service containers (commonly `servlo-nginx`, `servlo-postgres`, `servlo-meilisearch`) fail to start. Journal shows:
@@ -444,7 +359,7 @@ Either path writes `~/.local/share/servlo/ipv6-probe-failed-servlo`, which `Ensu
 ::: details Every DNS lookup inside a servlo container stalls ~5 seconds
 Symptom: pages that hit the database or any container-to-container hostname feel slow, and `time dig <anything> @<container>` takes roughly five seconds before returning an answer. The network looks fine in `podman network inspect servlo` (both IPv4 and IPv6 subnets present), but aardvark-dns's on-disk config has the v6 gateway absent from its listen-ips line.
 
-Cause: `podman network rm` doesn't clean up `$XDG_RUNTIME_DIR/containers/networks/aardvark-dns/<name>` between rm and recreate, so a network that was originally v4-only can leave aardvark with a v4-only listen header even after the network is recreated dual-stack. The container's `/etc/resolv.conf` still lists the v6 gateway as the primary nameserver, queries to it time out (~5s), then glibc falls back to the v4 gateway.
+Cause: `podman network rm` doesn't clean up `$XDG_RUNTIME_DIR/containers/networks/aardvark-dns/<name>` between rm and recreate, so a network that was originally v4-only can leave aardvark with a v4-only listen header even after the network is recreated dual-stack. The container's generated resolver file still lists the v6 gateway as the primary nameserver, queries to it time out (~5s), then glibc falls back to the v4 gateway.
 
 Servlo 1.18+ detects this drift on `servlo install` (aardvark listen line is v4-only despite the network being dual-stack) and self-heals by recreating the network with the stale aardvark state wiped. If you're on an earlier 1.18 build or the heal didn't fire, force it:
 

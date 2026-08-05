@@ -1,6 +1,6 @@
 # Laravel walkthrough
 
-End-to-end: from `servlo install` to a Laravel app running on `https://myapp.test` with a database, queue worker, and scheduler.
+End-to-end: from `servlo install` to a Laravel app running on `https://myapp.example.com` with a database, queue worker, and scheduler.
 
 ::: info Prerequisites
 You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
@@ -46,7 +46,7 @@ cd myapp
 servlo link
 ```
 
-`servlo link` registers `myapp` and assigns it `http://myapp.test` automatically. No `/etc/hosts` edits, DNS is handled by the servlo dnsmasq container.
+`servlo link myapp.example.com` registers the directory and serves it on that name. The domain is required: servlo has no TLD of its own to append, so a bare name is refused. If the directory is itself named `myapp.example.com`, that is used and the argument can be left off. Pointing the name at this server is yours to do.
 
 ::: info Already parked?
 If `~/Servlo` was registered with `servlo park ~/Servlo` earlier, every subdirectory under it is auto-linked. You can skip `servlo link` entirely.
@@ -116,13 +116,13 @@ servlo setup
   ◯ php artisan db:seed
   ◉ php artisan storage:link
   ◉ npm run build
-  ◉ servlo secure                  # issues mkcert TLS for myapp.test
+  ◉ servlo secure                  # issues mkcert TLS for myapp.example.com
   ◉ queue:start
   ◉ schedule:start
   ◉ servlo open
 ```
 
-Press enter and watch them run. When it's done, the browser opens at `https://myapp.test` and the queue + scheduler are running as systemd user services.
+Press enter and watch them run. When it's done, the browser opens at `https://myapp.example.com` and the queue + scheduler are running as systemd user services.
 
 ::: info One-shot
 `servlo setup --all` skips the prompt and runs every selected step. Useful in scripts or after a fresh clone on CI.
@@ -144,11 +144,11 @@ You should see `myapp` listed as `active`, the configured services running, and 
 
 | Command | What it did |
 |---|---|
-| `servlo link` | Registered `myapp.test` with nginx + dnsmasq |
+| `servlo link` | Registered `myapp.example.com` with nginx |
 | `servlo init` | Wrote `.servlo.yaml` with PHP 8.5, Node 22, MySQL, Redis, Mailpit, queue, schedule |
 | `servlo env` (via setup) | Injected `DB_HOST=servlo-mysql`, `REDIS_HOST=servlo-redis`, `MAIL_HOST=servlo-mailpit` into `.env` |
 | `servlo db:create` (via env) | Created `myapp` and `myapp_testing` databases |
-| `servlo secure` (via setup) | Issued an mkcert cert, switched the vhost to HTTPS, set `APP_URL=https://myapp.test` |
+| `servlo secure` (via setup) | Issued an mkcert cert, switched the vhost to HTTPS, set `APP_URL=https://myapp.example.com` |
 | `servlo worker start queue/schedule` (via setup) | Launched `servlo-queue-myapp` and `servlo-schedule-myapp` systemd units |
 
 ---

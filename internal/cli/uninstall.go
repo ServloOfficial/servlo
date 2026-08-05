@@ -9,7 +9,6 @@ import (
 
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/services"
@@ -64,11 +63,6 @@ func runUninstall(force bool) error {
 
 	removeMkcertCA := force || confirmRemoveMkcertCA()
 	purgeImages := force || confirmPurgeServloImages()
-
-	// DNS teardown runs outside the step runner because it may prompt for sudo;
-	// the lock glyph warns that the password prompt below is expected.
-	feedback.Sudo("Removing DNS configuration")
-	dns.Teardown()
 
 	step("Stopping containers and services")
 	{
@@ -190,7 +184,7 @@ func confirmRemoveMkcertCA() bool {
 }
 
 func confirmPurgeServloImages() bool {
-	return feedback.Confirm("Purge servlo-built container images (servlo-php*-fpm, servlo-custom-*, servlo-dnsmasq)? Databases and app files are unaffected.", false)
+	return feedback.Confirm("Purge servlo-built container images (servlo-php*-fpm, servlo-custom-*)? Databases and app files are unaffected.", false)
 }
 
 // removeServloImages removes locally-built servlo images. Upstream pulls
@@ -224,8 +218,6 @@ func isServloBuiltImage(ref string) bool {
 	case strings.HasPrefix(ref, "servlo-php") && strings.HasSuffix(ref, "-fpm:local"):
 		return true
 	case strings.HasPrefix(ref, "servlo-custom-") && strings.HasSuffix(ref, ":local"):
-		return true
-	case ref == "servlo-dnsmasq:local":
 		return true
 	}
 	return false

@@ -13,8 +13,6 @@
   }
   let { site }: Props = $props();
 
-  const tld = $derived($status.dns.tld || 'test');
-  const suffix = $derived('.' + tld);
 
   // Reactively track the latest site record. Match by name first so we survive
   // primary-domain renames; fall back to the initial domain.
@@ -24,11 +22,8 @@
       site
   );
 
-  const domains = $derived(
-    (current.domains || [current.domain]).map((d) =>
-      d.endsWith(suffix) ? d.slice(0, -suffix.length) : d
-    )
-  );
+  // Domains are whole names now: servlo has no suffix to strip or re-add.
+  const domains = $derived(current.domains || [current.domain]);
   const conflicting = $derived(current.conflicting_domains || []);
 
   let newDomain = $state('');
@@ -93,8 +88,7 @@
     await runAction(() => removeDomain(current, name), m.domains_flash_removed());
   }
   async function removeConflict(fullDomain: string) {
-    const nameOnly = fullDomain.endsWith(suffix) ? fullDomain.slice(0, -suffix.length) : fullDomain;
-    await runAction(() => removeDomain(current, nameOnly), m.domains_flash_removedYaml());
+    await runAction(() => removeDomain(current, fullDomain), m.domains_flash_removedYaml());
   }
 </script>
 
@@ -129,7 +123,6 @@
         {#if editIndex !== i}
           <div class="flex-1 min-w-0 flex items-center gap-1.5">
             <span class="text-sm font-mono text-gray-700 dark:text-gray-300 truncate">{dom}</span>
-            <span class="text-sm text-gray-400 dark:text-gray-500 shrink-0">.{tld}</span>
             {#if i === 0}
               <span class="text-[10px] font-medium text-servlo-red bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded-sm shrink-0">{m.domains_primary()}</span>
             {/if}
@@ -165,7 +158,6 @@
             class="flex-1 text-sm font-mono bg-transparent border border-servlo-red/50 rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-servlo-red"
             disabled={loading}
           />
-          <span class="text-sm text-gray-400 shrink-0">.{tld}</span>
           <button onclick={() => saveEdit(i)} disabled={loading} class="text-emerald-500 hover:text-emerald-600 disabled:opacity-50" title={m.common_save()}>
             <Icon name="check" class="w-4 h-4" />
           </button>
@@ -187,7 +179,6 @@
         disabled={loading}
         class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-servlo-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-servlo-red/50"
       />
-      <span class="text-sm text-gray-400 shrink-0">.{tld}</span>
       <DetailButton tone="primary" onclick={add} disabled={loading || !newDomain.trim()}>{m.common_add()}</DetailButton>
     </div>
   </div>

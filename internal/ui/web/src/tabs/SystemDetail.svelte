@@ -1,7 +1,5 @@
 <script lang="ts">
   import { routeRest } from '$stores/route';
-  import { status } from '$stores/status';
-  import DnsDetail from './system/DnsDetail.svelte';
   import NginxDetail from './system/NginxDetail.svelte';
   import WatcherDetail from './system/WatcherDetail.svelte';
   import NotificationsDetail from './system/NotificationsDetail.svelte';
@@ -14,12 +12,9 @@
   const selected = $derived($routeRest || 'servlo');
   const phpVersion = $derived(selected.startsWith('php-') ? selected.slice(4) : '');
   const showPhp = $derived(selected === 'php' || selected.startsWith('php-'));
-  const dnsHidden = $derived($status.dns?.enabled === false);
 </script>
 
-{#if selected === 'dns' && !dnsHidden}
-  <DnsDetail />
-{:else if selected === 'nginx'}
+{#if selected === 'nginx'}
   <NginxDetail />
 {:else if selected === 'watcher'}
   <WatcherDetail />

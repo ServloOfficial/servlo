@@ -8,6 +8,38 @@ var specs = []string{
 	".claude/", "internal/surfacescan/",
 }
 
+// panelVhostFiles carry servlo.localhost, the panel's own hostname. That is not
+// the deleted .localhost site mode: RFC 6761 makes .localhost resolve to
+// loopback with no DNS at all, which is exactly why the dashboard uses it and
+// why deleting the DNS stack does not touch it. Where the panel lives on a real
+// server is Phase 2's question.
+var panelVhostFiles = []string{
+	"internal/cli/dashboard.go",
+	"internal/cli/install.go",
+	"internal/cli/pause.go",
+	"internal/cli/startstop.go",
+	"internal/config/paths.go",
+	"internal/nginx/manager.go",
+	"internal/nginx/manager_test.go",
+	"internal/nginx/trust_token.go",
+	"internal/ui/dashproxy.go",
+	"internal/ui/dashproxy_test.go",
+	"internal/ui/local_control_test.go",
+	"internal/ui/remote_control_test.go",
+	"internal/ui/site_env_test.go",
+	"internal/ui/ws_origin_test.go",
+	"internal/ui/web/src/lib/api.ts",
+	"internal/ui/server.go",
+	"internal/ui/remote_control.go",
+	"internal/ui/wsframe.go",
+	"internal/ui/wsframe_test.go",
+	"docs/features/index.md",
+	"docs/public/share.html",
+	"docs/features/web-ui.md",
+	"docs/reference/directory-layout.md",
+	"docs/.vitepress/theme/components/LandingPage.vue",
+}
+
 // Rules is the deleted-feature surface. Enforced rules fail the gate; the rest
 // name a feature whose story has not run yet and are reported as pending.
 func Rules() []Rule {
@@ -110,9 +142,26 @@ func Rules() []Rule {
 		// certificates, so they come out as those stories land rather than
 		// leaving the tree unable to serve anything in between.
 		{
-			Feature: ".test domains and host resolver mutation", Story: "S2.1",
-			Patterns: []string{`\bdnsmasq\b`, `\.localhost\b`, `dns:repair`, `\bsudoers\b`},
-			Allow:    specs,
+			Feature: ".test domains and host resolver mutation", Story: "S2.1", Enforced: true,
+			// The resolver paths are the story's own acceptance criterion: a test
+			// asserting no host resolver file is ever written. Naming the paths
+			// catches a rewrite that reaches for them under any other name.
+			Patterns: []string{
+				`\bdnsmasq\b`, `\.localhost\b`, `dns:repair`, `\bsudoers\b`,
+				`/etc/resolv\.conf`, `NetworkManager/conf\.d`, `resolved\.conf\.d`, `/etc/resolver`,
+				`\bresolvectl\b`, `\bsystemd-resolved\b`,
+			},
+			// The panel's own vhost is servlo.localhost, which is not the deleted
+			// .localhost site mode: RFC 6761 makes it resolve to loopback with no
+			// DNS at all, which is why the dashboard uses it. Where the panel
+			// lives on a real server is Phase 2's question, not this story's.
+			// install.sh and its tests keep the teardown for the root-owned files
+			// an older servlo wrote, including a passwordless sudoers grant. They
+			// name those paths to remove them, never to create them, and dropping
+			// the teardown would strand that grant on every upgraded machine.
+			Allow: append(append(append([]string{}, specs...), panelVhostFiles...),
+				"install.sh", "tests/installer/installer.bats",
+			),
 		},
 		{
 			Feature: "mkcert", Story: "S3.1",

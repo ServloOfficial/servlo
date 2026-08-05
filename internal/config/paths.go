@@ -112,11 +112,6 @@ func SnapshotsDir() string {
 	return filepath.Join(DataDir(), "snapshots")
 }
 
-// DnsmasqDir returns the dnsmasq config directory.
-func DnsmasqDir() string {
-	return filepath.Join(DataDir(), "dnsmasq")
-}
-
 // SitesFile returns the path to sites.yaml.
 func SitesFile() string {
 	return filepath.Join(DataDir(), "sites.yaml")

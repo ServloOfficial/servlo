@@ -20,32 +20,6 @@ var gTLDs = []string{
 // example.co.uk lose only .uk, matching the historical single-pass behaviour.
 var ccTLDPattern = regexp.MustCompile(`\.[a-z]{2}$`)
 
-// SiteNameAndDomain derives a clean site name and domain from a directory name.
-// It strips one trailing TLD (either a gTLD from the curated list or any
-// 2-letter ccTLD), then replaces remaining dots with dashes so the result is
-// a valid DNS label. Examples:
-//
-//	"myapp"              -> "myapp",          "myapp.test"
-//	"myapp.com"          -> "myapp",          "myapp.test"
-//	"astrolov.ro"        -> "astrolov",       "astrolov.test"
-//	"admin.astrolov.com" -> "admin-astrolov", "admin-astrolov.test"
-func SiteNameAndDomain(dirName, tld string) (string, string) {
-	name := strings.ToLower(dirName)
-	if stripped, ok := stripGTLD(name); ok {
-		name = stripped
-	} else if m := ccTLDPattern.FindStringIndex(name); m != nil {
-		name = name[:m[0]]
-	}
-	name = strings.ReplaceAll(name, ".", "-")
-	// Strip characters that would be unsafe in a systemd unit name/body derived
-	// from this handle (newline/NUL inject a directive, slash escapes the path).
-	name = unsafeNameChars.ReplaceAllString(name, "")
-	if name == "" {
-		name = "site"
-	}
-	return name, name + "." + tld
-}
-
 // unsafeNameChars matches characters that must never reach a site handle used
 // in systemd unit names and bodies.
 var unsafeNameChars = regexp.MustCompile(`[\n\r\x00/]`)

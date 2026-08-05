@@ -91,19 +91,39 @@ func TestFilterConflictingDomains(t *testing.T) {
 	}
 }
 
-func TestResolveDomains_allConflictedFallsBackToGeneratedName(t *testing.T) {
+// A conflicted domain used to be replaced with a generated one. It cannot be:
+// the operator's domain is the only name that resolves to this server, so a
+// clash is reported rather than worked around.
+func TestResolveDomains_allConflictedKeepsNothing(t *testing.T) {
 	setupSitesYAML(t, `sites:
   - name: shop
     domains:
-      - shop.test
+      - shop.example.com
     path: /projects/shop
 `)
-	kept, removed := ResolveDomains([]string{"shop.test"}, "shop", "/projects/newshop", "test")
-	if !sliceEq(kept, []string{"shop-2.test"}) {
-		t.Errorf("kept = %v, want [shop-2.test]", kept)
+	kept, removed := ResolveDomains([]string{"shop.example.com"}, "/projects/newshop")
+	if len(kept) != 0 {
+		t.Errorf("kept = %v, want nothing", kept)
 	}
-	if !sliceEq(removed, []string{"shop.test"}) {
-		t.Errorf("removed = %v, want [shop.test]", removed)
+	if !sliceEq(removed, []string{"shop.example.com"}) {
+		t.Errorf("removed = %v, want [shop.example.com]", removed)
+	}
+}
+
+// The same path re-linking its own domain is not a conflict.
+func TestResolveDomains_ownPathKeepsItsDomain(t *testing.T) {
+	setupSitesYAML(t, `sites:
+  - name: shop
+    domains:
+      - shop.example.com
+    path: /projects/shop
+`)
+	kept, removed := ResolveDomains([]string{"shop.example.com"}, "/projects/shop")
+	if !sliceEq(kept, []string{"shop.example.com"}) {
+		t.Errorf("kept = %v, want [shop.example.com]", kept)
+	}
+	if len(removed) != 0 {
+		t.Errorf("removed = %v, want nothing", removed)
 	}
 }
 
@@ -174,38 +194,65 @@ func TestDesiredDomains(t *testing.T) {
 		name      string
 		proj      *config.ProjectConfig
 		requested string
-		siteName  string
+		dir       string
 		want      []string
+		wantErr   bool
 	}{
 		{
-			name:     "no project config generates from the site name",
-			siteName: "myapp",
-			want:     []string{"myapp.test"},
+			name: "a directory named for its domain is the default",
+			dir:  "/projects/example.com",
+			want: []string{"example.com"},
 		},
 		{
-			name:     "project domains win over the generated name",
-			proj:     &config.ProjectConfig{Domains: []string{"Shop", "admin"}},
-			siteName: "myapp",
-			want:     []string{"shop.test", "admin.test"},
+			name:    "a directory that is not a domain has no default",
+			dir:     "/projects/myapp",
+			wantErr: true,
 		},
 		{
-			name:      "an explicit name becomes the primary domain",
-			proj:      &config.ProjectConfig{Domains: []string{"shop", "admin"}},
-			requested: "admin",
-			siteName:  "admin",
-			want:      []string{"admin.test", "shop.test"},
+			name: "project domains are used verbatim, with no suffix appended",
+			proj: &config.ProjectConfig{Domains: []string{"Shop.example.com", "admin.example.com"}},
+			dir:  "/projects/myapp",
+			want: []string{"shop.example.com", "admin.example.com"},
 		},
 		{
-			name:      "an explicit name is not duplicated",
-			proj:      &config.ProjectConfig{Domains: []string{"shop"}},
-			requested: "shop",
-			siteName:  "shop",
-			want:      []string{"shop.test"},
+			name:      "the requested domain leads",
+			proj:      &config.ProjectConfig{Domains: []string{"shop.example.com", "admin.example.com"}},
+			requested: "admin.example.com",
+			dir:       "/projects/myapp",
+			want:      []string{"admin.example.com", "shop.example.com"},
+		},
+		{
+			name:      "the requested domain is not duplicated",
+			proj:      &config.ProjectConfig{Domains: []string{"shop.example.com"}},
+			requested: "shop.example.com",
+			dir:       "/projects/myapp",
+			want:      []string{"shop.example.com"},
+		},
+		{
+			name:      "a bare label is refused rather than completed",
+			requested: "myapp",
+			dir:       "/projects/myapp",
+			wantErr:   true,
+		},
+		{
+			name:    "a project declaring a bare label is refused too",
+			proj:    &config.ProjectConfig{Domains: []string{"shop"}},
+			dir:     "/projects/myapp",
+			wantErr: true,
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := desiredDomains(c.proj, c.requested, c.siteName, "test")
+			got, err := desiredDomains(c.proj, c.requested, c.dir)
+			if c.wantErr {
+				if err == nil {
+					t.Fatalf("got %v, want an error", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("desiredDomains: %v", err)
+			}
 			if !sliceEq(got, c.want) {
 				t.Errorf("got %v, want %v", got, c.want)
 			}

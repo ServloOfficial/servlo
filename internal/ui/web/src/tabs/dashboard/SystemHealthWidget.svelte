@@ -5,7 +5,7 @@
   import NotificationsToggle from '$components/NotificationsToggle.svelte';
   import { accessMode } from '$stores/accessMode';
   import { notifyPrefs } from '$lib/notify';
-  import { status, servloStatusColor, dnsState } from '$stores/status';
+  import { status, servloStatusColor } from '$stores/status';
   import { sitesByPhp, sitesByNode } from '$stores/sites';
   import { goToTab } from '$stores/route';
   import { m } from '../../paraglide/messages.js';
@@ -32,16 +32,6 @@
   {#snippet badge()}
     <StatusPill tone={headerTone.tone} label={headerTone.label} />
   {/snippet}
-
-  {#if $status.dns?.enabled !== false}
-    {@const dns = dnsState($status)}
-    <div class="flex items-center justify-between text-sm">
-      <span class="text-gray-600 dark:text-gray-300">{m.dashboard_health_dns({ tld: $status.dns.tld })}</span>
-      <span class="inline-flex w-6 h-6 items-center justify-center shrink-0">
-        <StatusDot color={dns === 'ok' ? 'green' : dns === 'degraded' ? 'yellow' : 'red'} />
-      </span>
-    </div>
-  {/if}
 
   <div class="flex items-center justify-between text-sm">
     <span class="text-gray-600 dark:text-gray-300">{m.dashboard_health_nginx()}</span>

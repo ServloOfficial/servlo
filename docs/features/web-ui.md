@@ -6,7 +6,7 @@ Servlo includes a browser dashboard available at **`http://servlo.localhost`**, 
 servlo dashboard   # open in your default browser
 ```
 
-The `.localhost` TLD resolves to `127.0.0.1` natively on all modern systems, no DNS configuration needed. The dashboard is also reachable directly at `http://127.0.0.1:7073` if nginx is not running.
+The `.localhost` TLD resolves to `127.0.0.1` natively on all modern systems (RFC 6761), so the dashboard needs no DNS configuration. The dashboard is also reachable directly at `http://127.0.0.1:7073` if nginx is not running.
 
 ## Real-time updates
 

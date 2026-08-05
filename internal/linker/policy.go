@@ -20,9 +20,13 @@ type Prompter interface {
 // most restrictive one: it registers a site and serves it, and does nothing
 // else. Each field widens that.
 type Policy struct {
-	// Name overrides the site name and primary domain. Empty derives both from
-	// the directory name.
+	// Name overrides the site handle. Empty derives it from the directory name.
+	// The handle is internal (unit and container names); it is not a domain.
 	Name string
+	// Domain is the fully qualified name this site is served on. It is never
+	// derived: servlo has no TLD of its own to append, so a link with no domain
+	// here and none in the project config is refused rather than invented.
+	Domain string
 	// AssumeYes records consent given outside a prompt, such as `servlo link
 	// --yes` or the click that started a link from the web UI.
 	AssumeYes bool
@@ -56,9 +60,10 @@ type Policy struct {
 
 // CLIPolicy is the policy for a user-invoked `servlo link`: everything is
 // permitted, and prompt decides whether questions can be asked.
-func CLIPolicy(name string, assumeYes bool, prompt Prompter) Policy {
+func CLIPolicy(name, domain string, assumeYes bool, prompt Prompter) Policy {
 	return Policy{
 		Name:          name,
+		Domain:        domain,
 		AssumeYes:     assumeYes,
 		Prompt:        prompt,
 		ProjectWrites: true,

@@ -12,13 +12,13 @@ import (
 
 // ── SyncProjectDomains (config package) ────────────────────────────────────
 
-func TestSyncProjectDomains_strips_tld(t *testing.T) {
+func TestSyncProjectDomains_storesWholeDomains(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create an initial .servlo.yaml
 	os.WriteFile(filepath.Join(dir, ".servlo.yaml"), []byte("php_version: \"8.4\"\n"), 0644)
 
-	_ = config.SyncProjectDomains(dir, []string{"myapp.test", "api.test", "admin.test"}, "test")
+	_ = config.SyncProjectDomains(dir, []string{"myapp.example.com", "api.example.com", "admin.example.com"})
 
 	proj, err := config.LoadProjectConfig(dir)
 	if err != nil {
@@ -27,7 +27,7 @@ func TestSyncProjectDomains_strips_tld(t *testing.T) {
 	if len(proj.Domains) != 3 {
 		t.Fatalf("expected 3 domains, got %d", len(proj.Domains))
 	}
-	want := []string{"myapp", "api", "admin"}
+	want := []string{"myapp.example.com", "api.example.com", "admin.example.com"}
 	for i, w := range want {
 		if proj.Domains[i] != w {
 			t.Errorf("Domains[%d] = %q, want %q", i, proj.Domains[i], w)
@@ -42,7 +42,7 @@ func TestSyncProjectDomains_strips_tld(t *testing.T) {
 func TestSyncProjectDomains_noop_without_file(t *testing.T) {
 	dir := t.TempDir()
 	// No .servlo.yaml — should be a no-op
-	_ = config.SyncProjectDomains(dir, []string{"myapp.test"}, "test")
+	_ = config.SyncProjectDomains(dir, []string{"myapp.example.com"})
 
 	if _, err := os.Stat(filepath.Join(dir, ".servlo.yaml")); !os.IsNotExist(err) {
 		t.Error("should not create .servlo.yaml when it doesn't exist")

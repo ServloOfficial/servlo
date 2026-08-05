@@ -13,7 +13,6 @@ import (
 
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/nginx"
 	nodeDet "github.com/realrashid/servlo/internal/node"
@@ -86,12 +85,12 @@ func fileChangedBy(path string, mutate func() error) (bool, error) {
 // portPreflightConflicts returns the core host ports servlo needs to bind first
 // (nginx HTTP/HTTPS and DNS) that are already held by a foreign process.
 // portList is the host listener dump from PortListOutput; the seams mirror
-// checkPortConflicts so servlo's own running container, an already-answering
-// dnsmasq, and the macOS gvproxy forward are not reported as conflicts.
-func portPreflightConflicts(portList string, containerRunning func(string) bool, dnsAnswering func() bool) []PortCheck {
+// checkPortConflicts so servlo's own running container and the podman machine's
+// gvproxy forward are not reported as conflicts.
+func portPreflightConflicts(portList string, containerRunning func(string) bool) []PortCheck {
 	var conflicts []PortCheck
-	for _, c := range CollectPortChecks([]string{"servlo-nginx", "servlo-dns"}) {
-		if isPortConflict(c, portList, containerRunning, dnsAnswering) {
+	for _, c := range CollectPortChecks([]string{"servlo-nginx"}) {
+		if isPortConflict(c, portList, containerRunning) {
 			conflicts = append(conflicts, c)
 		}
 	}
@@ -110,7 +109,7 @@ func ensurePortsAvailable() {
 		ok()
 		return
 	}
-	conflicts := portPreflightConflicts(portList, podmanContainerRunning, servloDNSAnswering)
+	conflicts := portPreflightConflicts(portList, podmanContainerRunning)
 	if len(conflicts) == 0 {
 		ok()
 		return
@@ -132,13 +131,10 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 	fromUpdate, _ := cmd.Flags().GetBool("from-update")
 	unattended, _ := cmd.Flags().GetBool("unattended")
-	dnsFlag, _ := cmd.Flags().GetString("dns")
 	// Captured before any step writes config: a missing file means this is a
 	// first install, the only time the DNS question is asked. Every later run
 	// honours the saved choice, which is flipped afterward with dns:enable /
 	// dns:disable rather than by re-prompting.
-	_, cfgStatErr := os.Stat(config.GlobalConfigFile())
-	configExisted := cfgStatErr == nil
 	// Unattended runs are driven by a package maintainer script: reuse the
 	// non-interactive update path for prompts. The sudo-gated system steps are
 	// skipped here because `servlo bootstrap --system` performs them as root
@@ -162,13 +158,12 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// install the resolver sudoers grant. The side effects of a changed answer
 	// (TLD rename, persistence) stay further down, once the directories and
 	// network this run depends on exist.
-	wantDNS, haveDNSConfig, prevEnabled, prevTLD := resolveDNSChoice(fromUpdate, configExisted, dnsFlag)
 
 	// Skipped under --unattended: this escalates to root, which a package
 	// maintainer script cannot answer for. `servlo bootstrap --system` already
 	// applied the same steps beforehand.
 	if !unattended {
-		if err := runSystemSetup(wantDNS); err != nil {
+		if err := runSystemSetup(); err != nil {
 			return err
 		}
 	}
@@ -182,7 +177,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		config.ConfigDir(), config.DataDir(), config.BinDir(),
 		config.NginxDir(), config.NginxConfD(), config.NginxCustomD(), config.CertsDir(),
 		filepath.Join(config.CertsDir(), "sites"),
-		config.DnsmasqDir(), config.QuadletDir(), config.SystemdUserDir(),
+		config.QuadletDir(), config.SystemdUserDir(),
 		config.DataSubDir("mysql"), config.DataSubDir("redis"),
 		config.DataSubDir("postgres"), config.DataSubDir("meilisearch"),
 		config.DataSubDir("rustfs"), config.DataSubDir("mailpit"),
@@ -198,7 +193,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// Containers removed by recreate are restarted AFTER the quadlet refresh
 	// phase below so they come up on the freshly written quadlets.
 	var migrated []string
-	desiredDNS := dns.ReadContainerDNS()
+	desiredDNS := podman.ContainerDNS()
 
 	// 2a. Self-heal a podman upgrade. A major-version or backend change since
 	// the last install reshuffles rootless storage and networking, which
@@ -347,108 +342,16 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		wantLaravelInstaller = confirmInstallPrompt("Install Laravel installer (laravel new)?")
 	}
 
-	// Apply what the DNS answer resolved above implies for existing sites and
-	// for the saved config.
-	if haveDNSConfig {
-		// Only flip TLD on a real toggle and only when the current TLD is the
-		// canonical default for the previous state; preserves any custom TLD
-		// the user has set in config.yaml.
-		newTLD := prevTLD
-		switch {
-		case prevEnabled && !wantDNS && newTLD == "test":
-			newTLD = "localhost"
-		case !prevEnabled && wantDNS && newTLD == "localhost":
-			newTLD = "test"
-		}
+	// 4. mkcert CA. Unconditional now that there is no DNS mode to gate it on;
+	// S3.1 replaces it with the ACME issuer.
+	ensureMkcertCA(unattended)
 
-		if newTLD != prevTLD {
-			if affected := sitesWithTLD(prevTLD); len(affected) > 0 {
-				feedback.Line(fmt.Sprintf("TLD change: %d site(s) currently on .%s -> .%s", len(affected), prevTLD, newTLD))
-				feedback.Note(strings.Join(affected, ", "))
-				migrate := fromUpdate || confirmInstallPromptDefault(
-					fmt.Sprintf("Rewrite domains, .env APP_URL, and vhosts to .%s?", newTLD),
-					true,
-				)
-				if migrate {
-					migrateSiteTLD(prevTLD, newTLD, !wantDNS)
-				} else {
-					feedback.Note("skipped, sites still reference ." + prevTLD)
-				}
-			}
-		} else if prevEnabled != wantDNS {
-			// A DNS toggle with no canonical rename (a custom TLD): HTTPS still
-			// tracks DNS, so drop/restore it in place like the dns: commands.
-			// Idempotent, so a re-exec from those commands is a no-op.
-			adjustSitesSecuredForDNS(prevTLD, wantDNS)
-		}
-
-		// Persist on any real change, and always on a first install so the
-		// remembered choice exists on disk for the next run to honour, even when
-		// the user just accepted the enabled default. Re-read rather than reusing
-		// the copy the decision was made from: the Node-management steps above
-		// save their own, and writing back a pre-Node snapshot would drop it.
-		if !configExisted || prevEnabled != wantDNS || newTLD != prevTLD {
-			cur, err := config.LoadGlobal()
-			if err != nil || cur == nil {
-				fmt.Printf("    WARN: persist DNS choice: %v\n", err)
-			} else {
-				cur.DNS.Enabled = wantDNS
-				cur.DNS.TLD = newTLD
-				if err := config.SaveGlobal(cur); err != nil {
-					fmt.Printf("    WARN: persist DNS choice: %v\n", err)
-				}
-			}
-		}
-	}
-
-	// Reconcile DNS service state to the saved choice on every install.
-	// Idempotent: teardownDNS Stops/Removes via underlying calls that
-	// no-op against missing units, so this is cheap on a system that
-	// already matches the desired state (e.g. fresh install with no
-	// servlo-dns yet, or rerun where the unit is already gone).
-	if !wantDNS {
-		feedback.Line("tearing down servlo-dns service")
-		teardownDNS()
-	}
-
-	// Tracks whether the dnsmasq config or the servlo-dns quadlet actually
-	// changed this run. A no-op reinstall (the common case after a version
-	// bump) then leaves the running container alone instead of bouncing it,
-	// which used to drop .test resolution for a few seconds.
-	dnsChanged := false
-
-	if wantDNS {
-		// 4. mkcert CA.
-		ensureMkcertCA(unattended)
-
-		// mkcert only adds the CA to the browser NSS stores when certutil is
-		// present, and it exits 0 with a warning otherwise (which the discard
-		// path above hides). Surface it ourselves so the user knows .test HTTPS
-		// works for tooling but not the browser, and how to fix or side-step it.
-		if !certs.BrowserTrustAvailable() {
-			feedback.Note(browserTrustGuidance(ostreeBootedFn()))
-		}
-
-		// 5. DNS config
-		step("Writing DNS configuration")
-		dnsConfPath := filepath.Join(config.DnsmasqDir(), "servlo.conf")
-		confChanged, err := fileChangedBy(dnsConfPath, func() error {
-			return dns.WriteDnsmasqConfig(config.DnsmasqDir())
-		})
-		if err != nil {
-			return err
-		}
-		dnsChanged = dnsChanged || confChanged
-		ok()
-
-		// Platform-dependent: on Linux the root pass already installed the grant
-		// and this is a no-op, while macOS writes it here because its rule names
-		// the TLD, which is only settled once the choice above was persisted.
-		if !unattended {
-			ensureResolverSudoers()
-		}
-	} else {
-		feedback.Line("DNS disabled, skipping mkcert CA, dnsmasq and sudoers")
+	// mkcert only adds the CA to the browser NSS stores when certutil is
+	// present, and it exits 0 with a warning otherwise (which the discard path
+	// above hides). Surface it ourselves so the user knows HTTPS works for
+	// tooling but not the browser, and how to fix or side-step it.
+	if !certs.BrowserTrustAvailable() {
+		feedback.Note(browserTrustGuidance(ostreeBootedFn()))
 	}
 
 	// 6. Nginx
@@ -608,19 +511,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 	ok()
 
-	if wantDNS {
-		step("Writing DNS service unit")
-		dnsUnitPath := filepath.Join(config.QuadletDir(), "servlo-dns.container")
-		unitChanged, err := fileChangedBy(dnsUnitPath, func() error {
-			return writeDNSUnit(os.Stdout)
-		})
-		if err != nil {
-			return err
-		}
-		dnsChanged = dnsChanged || unitChanged
-		ok()
-	}
-
 	step("Refreshing service quadlets")
 	for _, svc := range config.DefaultPresetNames() {
 		if !podman.QuadletInstalled("servlo-" + svc) {
@@ -702,10 +592,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// 7. Pull images before touching DNS so registry lookups use the system
-	// resolver. On macOS ConfigureResolver() redirects .test queries through
-	// servlo-dns; doing pulls first ensures the system DNS is intact for all
-	// registry traffic (docker.io, ghcr.io, etc.).
+	// 7. Pull images before the containers that need them.
 	pullJobs := []BuildJob{
 		{
 			Label: "Pulling nginx:alpine",
@@ -717,9 +604,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 			},
 		},
 	}
-	if wantDNS {
-		pullJobs = append(pullJobs, pullDNSImages()...)
-	}
 	for _, job := range pullJobs {
 		step(job.Label)
 		if err := job.Run(io.Discard); err != nil {
@@ -729,33 +613,9 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		ok()
 	}
 
-	// Pull/build all service and FPM images before touching DNS. On macOS,
-	// ConfigureResolver() redirects .test DNS through servlo-dns; any registry
-	// pull after that point uses the overridden resolver which may not yet
-	// forward non-.test queries correctly on a fresh install.
+	// Pull and build every service and FPM image before starting anything.
 	if servloSystemd.IsAutostartEnabled() {
 		ensureImages()
-	}
-
-	// On macOS, DNS runs natively (no container image needed) and DaemonReload
-	// is a no-op, so we can start servlo-dns and configure the resolver here.
-	if wantDNS && !isDNSContainerUnit() {
-		step("Starting servlo-dns")
-		if err := services.Mgr.Restart("servlo-dns"); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
-		}
-		ok()
-
-		step("Waiting for servlo-dns to be ready")
-		if err := dns.WaitReady(15 * time.Second); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
-		}
-		ok()
-
-		feedback.Line("configuring DNS resolver")
-		if err := dns.ConfigureResolver(); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
-		}
 	}
 
 	// 8. Systemd / services
@@ -779,10 +639,10 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Migration safety net: restart any container whose quadlet content
-	// actually changed during this install run, EXCEPT servlo-nginx /
-	// servlo-dns (handled separately) and anything we just started above.
+	// actually changed during this install run, except servlo-nginx (handled
+	// separately) and anything we just started above.
 	for _, name := range changedQuadlets {
-		if name == "servlo-nginx" || name == "servlo-dns" || migratedSet[name] {
+		if name == "servlo-nginx" || migratedSet[name] {
 			continue
 		}
 		if running, _ := podman.ContainerRunning(name); !running {
@@ -793,38 +653,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 			feedback.Warn("%v", err)
 		} else {
 			ok()
-		}
-	}
-
-	// On Linux, DNS is a container — start it after images are pulled.
-	// On macOS it was already started before RunParallel above.
-	if wantDNS && isDNSContainerUnit() {
-		// Only bounce the running container when its config or quadlet
-		// actually changed. Otherwise Start is a no-op against the live
-		// unit, so a routine reinstall doesn't drop .test resolution.
-		dnsRunning, _ := podman.ContainerRunning("servlo-dns")
-		if dnsChanged || !dnsRunning {
-			step("Starting servlo-dns")
-			if err := services.Mgr.Restart("servlo-dns"); err != nil {
-				fmt.Printf("    WARN: %v\n", err)
-			}
-		} else {
-			step("Checking servlo-dns")
-			if err := services.Mgr.Start("servlo-dns"); err != nil {
-				fmt.Printf("    WARN: %v\n", err)
-			}
-		}
-		ok()
-
-		step("Waiting for servlo-dns to be ready")
-		if err := dns.WaitReady(15 * time.Second); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
-		}
-		ok()
-
-		feedback.Line("configuring DNS resolver")
-		if err := dns.ConfigureResolver(); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
 		}
 	}
 

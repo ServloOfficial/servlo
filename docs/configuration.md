@@ -44,18 +44,10 @@ nginx:
                         # proxy and custom-container sites. A project's
                         # .servlo.yaml request_timeout overrides it per site.
 dns:
-  enabled: true          # whether servlo manages DNS (dnsmasq, .test, HTTPS). Asked
-                         # once at first install, then flipped with servlo dns:enable
-                         # / dns:disable, never re-prompted. dns:repair re-runs the
-                         # setup to fix a broken but enabled resolver.
+  # Legacy. Servlo removed its DNS stack in S2.1 and reads none of these; they
+  # are listed only so an older config file is recognisable. Delete the block.
+  enabled: true
   tld: "test"
-  upstream:              # optional. Pins the upstream DNS servers dnsmasq
-    - 192.168.100.129    # forwards non-.test queries to. Leave unset to
-                         # auto-detect from the system resolver. Set this when
-                         # auto-detection picks the wrong servers (e.g.
-                         # systemd-resolved fallbacks like 9.9.9.9 instead of
-                         # your LAN resolver). Plain IPs; an optional #port is
-                         # allowed (e.g. 192.168.100.129#5353).
 host_proxy:
   disabled: false         # set true to refuse setting up or starting any
                           # host-proxy dev server (servlo never supervises a
@@ -120,7 +112,7 @@ A portable, self-contained description of a project's local environment. Created
 | `public_dir` | Override for the framework's default document-root subdirectory, e.g. `public_html` for a Laravel skeleton that doesn't use the conventional `public/` folder. Empty means use the framework default |
 | `request_timeout` | nginx request timeout in seconds for this site. Maps to `fastcgi_read_timeout`/`fastcgi_send_timeout` for PHP-FPM sites and `proxy_read_timeout`/`proxy_send_timeout` for proxy and custom-container sites. Overrides the global `nginx.request_timeout`. Omit (or `0`) to inherit the global default of 60s. Raise it for apps with deliberately long-running requests |
 | `secured` | When `true`, HTTPS is enabled on apply |
-| `domains` | Site hostnames without the TLD (e.g. `[myapp, api]`). The first entry is the primary; additional entries become aliases. Conflict-filtered domains stay in this list on disk but are not registered. A hostname may not contain whitespace, a slash, or nginx punctuation (`{`, `}`, `;`, `#`), since it is written into the generated vhost's `server_name` |
+| `domains` | The site's fully qualified hostnames (e.g. `[example.com, api.example.com]`). Written whole: servlo appends nothing. The first entry is the primary; additional entries become aliases. Conflict-filtered domains stay in this list on disk but are not registered. A hostname may not contain whitespace, a slash, or nginx punctuation (`{`, `}`, `;`, `#`), since it is written into the generated vhost's `server_name` |
 | `app_url` | Override for `APP_URL` (or the framework's URL key) written to `.env`. Highest priority, it beats the per-machine `sites.yaml` override and the default `<scheme>://<primary-domain>` generator. Use for custom path prefixes, ports, or unrelated hostnames you want shared across machines |
 | `env_overrides` | Map of env var names to templated or static values applied to `.env` on `servlo setup`. Values may use <code v-pre>{{domain}}</code>, <code v-pre>{{scheme}}</code>, and <code v-pre>{{site}}</code> placeholders, or be plain strings. When `APP_URL` is in `env_overrides` it takes precedence over the default rewrite; declared keys override defaults, undeclared defaults still apply. See Env overrides |
 | `services` | Services to start on apply. Accepts built-in names, preset references, and the names of services already installed on this machine. A full inline definition is read but never run, see Inline service definitions are not run |

@@ -84,7 +84,7 @@ func TestSecureSite_RefusesWhenDNSDisabled(t *testing.T) {
 		t.Fatalf("SaveGlobal: %v", err)
 	}
 
-	site := config.Site{Name: "myapp", Domains: []string{"myapp.localhost"}}
+	site := config.Site{Name: "myapp", Domains: []string{"myapp.example"}}
 	err := SecureSite(site)
 	if !errors.Is(err, ErrDNSDisabled) {
 		t.Fatalf("SecureSite err = %v, want ErrDNSDisabled", err)

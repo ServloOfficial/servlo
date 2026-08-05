@@ -167,16 +167,5 @@ func diffSnapshots(prev, cur Snapshot, now time.Time) []activityEvent {
 		}
 	}
 
-	if prev.Status.DNSOk != cur.Status.DNSOk || prev.Status.DNSDegraded != cur.Status.DNSDegraded {
-		switch {
-		case cur.Status.DNSOk:
-			add("DNS recovered", toneGood)
-		case cur.Status.DNSDegraded:
-			add("DNS degraded", toneWarn)
-		default:
-			add("DNS down", toneBad)
-		}
-	}
-
 	return out
 }

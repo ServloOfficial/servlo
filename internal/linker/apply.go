@@ -90,8 +90,7 @@ func Apply(plan *Plan, p Policy, d Deps, r Reporter) (*Result, error) {
 		d.ReconcileRuntimeQuadlets(site)
 	}
 	if p.ProjectWrites {
-		cfg, _ := config.LoadGlobal()
-		_ = config.SyncProjectDomains(plan.Dir, site.Domains, cfg.DNS.TLD)
+		_ = config.SyncProjectDomains(plan.Dir, site.Domains)
 		// A custom-FPM site takes its version from the Containerfile and a
 		// proxied site has none, so neither has a version the file should pin.
 		if !site.IsCustomContainer() && !site.IsHostProxy() {

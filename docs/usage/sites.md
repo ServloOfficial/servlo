@@ -178,36 +178,38 @@ For example: `admin.example.com` becomes `admin-example.test`
 A site can respond to multiple domains. The argument to `servlo link` is the domain name without the `.test` TLD; it is appended automatically from the global config.
 
 ```bash
-servlo link myapp                # links as myapp.test
+servlo link myapp                # links as myapp.example.com
 ```
 
 After linking, you can add more domains:
 
 ```bash
-servlo domain add api            # adds api.test
-servlo domain add admin          # adds admin.test
+servlo domain add api.example.com
+servlo domain add admin.example.com
 servlo domain list
-#   myapp.test (primary)
-#   api.test
-#   admin.test
-servlo domain remove api         # removes api.test
+#   myapp.example.com (primary)
+#   api.example.com
+#   admin.example.com
+servlo domain remove api.example.com
 ```
 
-Domains are stored in `.servlo.yaml` as an array (without the TLD) so the file stays portable across machines with different TLD configurations:
+Every domain is a fully qualified name. Servlo appends nothing, so a bare label like `api` is refused rather than completed: the only name that reaches this server is the one DNS points here, and inventing a suffix would produce a site nobody can visit.
+
+Domains are stored whole in `.servlo.yaml`:
 
 ```yaml
 domains:
-  - myapp
-  - admin
+  - myapp.example.com
+  - admin.example.com
 ```
 
 You can also manage domains from the web UI: click the pencil icon next to the domain in the site header to open the domain management modal. Changing the primary domain there also rewrites `APP_URL` in the project's `.env` to match the new primary, unless you have pinned a custom `app_url` (see [Custom `APP_URL`](#custom-app-url) below).
 
 When a site is secured with HTTPS, the certificate is automatically reissued to cover all domains.
 
-Subdomains (e.g. `anything.myapp.test`) are automatically routed to the same site.
+Subdomains (e.g. `anything.myapp.example.com`) are automatically routed to the same site.
 
-To route a subdomain to a **different** site instead (for example a separate admin app at `admin.myapp.test`), group the two sites rather than adding an alias. See [Site Groups](site-groups.md).
+To route a subdomain to a **different** site instead (for example a separate admin app at `admin.myapp.example.com`), group the two sites rather than adding an alias. See [Site Groups](site-groups.md).
 
 ---
 
@@ -244,7 +246,7 @@ By default `servlo env` writes `APP_URL=<scheme>://<primary-domain>` to the proj
 # .servlo.yaml
 domains:
   - myapp
-app_url: http://myapp.test/api
+app_url: http://myapp.example.com/api
 ```
 
 `servlo env` reads the chain on every invocation, so editing the file and re-running `servlo setup` (or `servlo env` directly) is enough to apply the change. If the `.servlo.yaml` `app_url` happens to point at a domain that got filtered by the conflict check, servlo silently falls through to the next precedence level so you don't end up writing a `DB_HOST` of `servlo-mysql` next to an `APP_URL` that points at someone else's site.

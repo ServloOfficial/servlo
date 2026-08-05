@@ -1,6 +1,6 @@
 # Symfony walkthrough
 
-End-to-end: from `servlo install` to a Symfony app running on `https://myapp.test` with Doctrine, MySQL, and a Messenger worker.
+End-to-end: from `servlo install` to a Symfony app running on `https://myapp.example.com` with Doctrine, MySQL, and a Messenger worker.
 
 ::: info Prerequisites
 You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
@@ -125,7 +125,7 @@ cd myapp
 servlo link
 ```
 
-`servlo link` detects Symfony (via `symfony.lock` or the composer package), assigns `http://myapp.test`, and sets the document root to `public/`.
+`servlo link` detects Symfony (via `symfony.lock` or the composer package), assigns `http://myapp.example.com`, and sets the document root to `public/`.
 
 ---
 
@@ -163,14 +163,14 @@ servlo setup
   ◉ Run migrations               # from framework setup block
   ◉ Clear cache                  # from framework setup block
   ◯ Load fixtures
-  ◉ servlo secure                  # mkcert TLS for myapp.test
+  ◉ servlo secure                  # mkcert TLS for myapp.example.com
   ◉ messenger:start
   ◉ servlo open
 ```
 
 The "Run migrations", "Clear cache", and "Load fixtures" steps come from the `setup:` block in your `symfony.yaml`. Servlo surfaces them automatically and respects the `check:` rules; fixtures only appears if `doctrine/doctrine-fixtures-bundle` is installed.
 
-When it finishes, `https://myapp.test` opens in your browser and `servlo-messenger-myapp` is running as a systemd user service.
+When it finishes, `https://myapp.example.com` opens in your browser and `servlo-messenger-myapp` is running as a systemd user service.
 
 ---
 
@@ -194,10 +194,10 @@ App logs (anything in `var/log/*.log`) show up in the [Web UI](../features/web-u
 | Command | What it did |
 |---|---|
 | `servlo framework add symfony` | Registered the YAML so Symfony projects are auto-detected |
-| `servlo link` | Assigned `myapp.test`, set document root to `public/` |
+| `servlo link` | Assigned `myapp.example.com`, set document root to `public/` |
 | `servlo init` | Wrote `.servlo.yaml` with PHP, Node, MySQL, Mailpit, messenger |
 | `servlo env` (via setup) | Wrote `DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/myapp?serverVersion=8.0` and `MAILER_DSN=smtp://servlo-mailpit:1025` into `.env.local`, seeded from the committed `.env` |
-| `servlo secure` (via setup) | Issued mkcert cert, set `DEFAULT_URI=https://myapp.test` |
+| `servlo secure` (via setup) | Issued mkcert cert, set `DEFAULT_URI=https://myapp.example.com` |
 | Doctrine migrations + cache:clear | Ran via the framework's `setup:` block |
 | `servlo worker start messenger` (via setup) | Launched `servlo-messenger-myapp` |
 

@@ -175,7 +175,7 @@ func csrfExemptPath(path string) bool {
 // Browsers attach Sec-Fetch-Site automatically and scripts cannot forge it:
 // same-origin / same-site / none are first-party and pass; cross-site only
 // passes when the Origin is one of servlo's own dashboard origins, because the
-// servlo.localhost-to-localhost:7073 apiBase rewrite is itself labelled
+// panel-vhost-to-localhost:7073 apiBase rewrite is itself labelled
 // cross-site. A real attacker's Origin is never in the allowlist.
 //
 // Older browsers and non-browser callers omit Sec-Fetch; for those we require
@@ -567,7 +567,7 @@ func handleRemoteControl(w http.ResponseWriter, r *http.Request) {
 			// In disabled-DNS mode the dashboard chains "set credentials"
 			// with "flip lan:expose" into a single user action because the
 			// dashboard is effectively the only thing LAN exposure unlocks
-			// (sites can't resolve over .localhost on remote devices). So we
+			// (a remote device has no way to resolve a loopback-only name). So we
 			// only require lan:expose to be on first when DNS is enabled.
 			if !cfg.LAN.Exposed && cfg.DNS.Enabled {
 				http.Error(w, "LAN exposure is off — run `servlo lan:expose` first. Dashboard credentials are only meaningful while the dashboard is reachable from other devices.", http.StatusBadRequest)
@@ -634,43 +634,6 @@ func handleRemoteControl(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-}
-
-// handleRemoteSetupGenerate serves /api/remote-setup/generate. POST creates a
-// fresh one-time setup token for a remote machine. It requires dashboard-control
-// authority. The corresponding /api/remote-setup endpoint consumed by that
-// machine has its own RFC 1918 source and one-time-token gates.
-func handleRemoteSetupGenerate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	if !hasHostActionAuthority(r) {
-		http.Error(w, "Forbidden — dashboard authentication is required to generate setup codes.", http.StatusForbidden)
-		return
-	}
-	if cfg, _ := config.LoadGlobal(); cfg != nil && !cfg.DNS.Enabled {
-		http.Error(w, "remote-setup requires servlo-managed DNS, the remote machine has no way to resolve *.localhost; set dns.enabled: true and re-run servlo install.", http.StatusBadRequest)
-		return
-	}
-
-	code, err := servlocli.GenerateRemoteSetupToken(15 * time.Minute)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	lanIP := uiPrimaryLANIP()
-	target := lanIP
-	if target == "" {
-		target = "<server-ip>"
-	}
-	curl := "curl -sSL 'http://" + target + ":7073/api/remote-setup?code=" + code + "' | bash"
-	writeJSON(w, map[string]any{
-		"code":       code,
-		"lan_ip":     lanIP,
-		"curl":       curl,
-		"expires_in": "15m",
-	})
 }
 
 // proxyHeaders are the headers a reverse proxy adds when it forwards a request

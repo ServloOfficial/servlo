@@ -9,10 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/nginx"
 	phpPkg "github.com/realrashid/servlo/internal/php"
@@ -71,19 +69,6 @@ func ensureImages() {
 
 		img := image
 		switch {
-		case img == "servlo-dnsmasq:local":
-			jobs = append(jobs, BuildJob{
-				Label: "Building dnsmasq",
-				Run: func(w io.Writer) error {
-					containerfile := "FROM docker.io/library/alpine:latest\nRUN apk add --no-cache dnsmasq\n"
-					cmd := podman.Cmd("build", "-t", "servlo-dnsmasq:local", "-")
-					cmd.Stdin = strings.NewReader(containerfile)
-					cmd.Stdout = w
-					cmd.Stderr = w
-					return cmd.Run()
-				},
-			})
-
 		case strings.HasPrefix(img, "servlo-php") && strings.HasSuffix(img, "-fpm:local"):
 			// Extract version from image name, e.g. servlo-php84-fpm:local → 8.4
 			short := strings.TrimSuffix(strings.TrimPrefix(img, "servlo-php"), "-fpm:local")
@@ -153,7 +138,7 @@ func ensureImages() {
 func NewStartCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
-		Short: "Start Servlo (DNS, nginx, PHP-FPM, and installed services)",
+		Short: "Start Servlo (nginx, PHP-FPM, and installed services)",
 		RunE:  runStart,
 	}
 }
@@ -162,7 +147,7 @@ func NewStartCmd() *cobra.Command {
 func NewStopCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "stop",
-		Short: "Stop Servlo containers (DNS, nginx, PHP-FPM, and running services)",
+		Short: "Stop Servlo containers (nginx, PHP-FPM, and running services)",
 		RunE:  runStop,
 	}
 }
@@ -211,9 +196,6 @@ func ensureDefaultPHPInstalled() {
 func coreUnits() []string {
 	cfg, _ := config.LoadGlobal()
 	units := []string{"servlo-nginx"}
-	if cfg == nil || cfg.DNS.Enabled {
-		units = append([]string{"servlo-dns"}, units...)
-	}
 	active := activePHPVersions()
 	if cfg != nil && cfg.PHP.DefaultVersion != "" {
 		active[cfg.PHP.DefaultVersion] = true
@@ -350,11 +332,6 @@ func CollectPortChecks(units []string) []PortCheck {
 		)
 	}
 
-	// DNS port.
-	if unitSet["servlo-dns"] {
-		checks = append(checks, PortCheck{"5300", "dns", "servlo-dns"})
-	}
-
 	// Built-in services.
 	cfg, _ := config.LoadGlobal()
 	for _, svc := range knownServices() {
@@ -412,7 +389,7 @@ func checkPortConflicts(units []string) {
 
 	var conflicts []string
 	for _, c := range checks {
-		if isPortConflict(c, ss, podmanContainerRunning, servloDNSAnswering) {
+		if isPortConflict(c, ss, podmanContainerRunning) {
 			conflicts = append(conflicts,
 				fmt.Sprintf("  WARN: port %s (%s) already in use, may fail to start (check: %s)", c.Port, c.Label, FindListenerCmd(c.Port)))
 		}
@@ -427,25 +404,11 @@ func checkPortConflicts(units []string) {
 }
 
 // isPortConflict reports whether a port check is a genuine clash with a foreign
-// process. A servlo service that already owns its port is never a conflict, in
-// three ways: a running container owns it directly; servlo-dns owns it when its
-// own dnsmasq is already answering; and on macOS the podman machine's gvproxy
-// owns any published port by forwarding it into the VM.
-//
-// The dnsmasq case matters because servlo-dns can run as a host-managed
-// dnsmasq process, not a podman container, so containerRunning is always false
-// for it; without the dnsAnswering guard the still-listening dnsmasq from the
-// previous session looks like a foreign conflict and mis-fires the "port 5300
-// already in use" warning on every `servlo start`. The gvproxy case matters
-// because servlo's service containers never bind host ports directly on macOS
-// (no -p in their plists); host reachability comes from gvproxy forwarding into
-// the VM, so a gvproxy-held service port is servlo's own forward from a prior
-// session, not a foreign process. The func seams keep this pure and unit-testable.
-func isPortConflict(c PortCheck, portList string, containerRunning func(string) bool, dnsAnswering func() bool) bool {
+// process. A servlo service that already owns its port is never a conflict: a
+// running container owns it directly, and the podman machine's gvproxy owns any
+// published port by forwarding it. The func seam keeps this pure and testable.
+func isPortConflict(c PortCheck, portList string, containerRunning func(string) bool) bool {
 	if containerRunning(c.Container) {
-		return false
-	}
-	if c.Container == "servlo-dns" && dnsAnswering() {
 		return false
 	}
 	if !PortInUseIn(c.Port, portList) {
@@ -475,18 +438,6 @@ func podmanContainerRunning(name string) bool {
 	return running
 }
 
-// servloDNSAnswering reports whether servlo's own dnsmasq is currently answering for
-// the configured TLD, which means a listener on the DNS port is servlo-dns itself
-// rather than a foreign process.
-func servloDNSAnswering() bool {
-	cfg, _ := config.LoadGlobal()
-	tld := "test"
-	if cfg != nil && cfg.DNS.TLD != "" {
-		tld = cfg.DNS.TLD
-	}
-	return dns.CheckStatus(tld) != dns.StatusDown
-}
-
 func runStart(_ *cobra.Command, _ []string) error {
 	// Clear the intentional-stop marker up front: we're bringing servlo up, so the
 	// worker health watcher should resume reporting real drift once units are back.
@@ -509,7 +460,7 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// drift is detected. The heal force-removes the servlo containers; the start
 	// sequence below brings them back up, so the returned list is not needed
 	// here.
-	containerDNS := dns.ReadContainerDNS()
+	containerDNS := podman.ContainerDNS()
 	_ = healPodmanUpgrade(containerDNS)
 
 	// Ensure the servlo bridge network exists. On macOS the network is stored
@@ -555,13 +506,6 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// the container starts or podman will create it root-owned.
 	if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
 		fmt.Printf("  WARN: run dir: %v\n", err)
-	}
-
-	// Refresh dnsmasq upstream config from the current system DNS before servlo-dns starts.
-	// This ensures the config reflects any DNS changes (new servers added, DHCP change)
-	// that occurred since the last run without requiring a full reinstall.
-	if err := dns.WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
-		fmt.Printf("  WARN: dns config: %v\n", err)
 	}
 
 	// Write the shared hosts file mounted into PHP containers at /etc/hosts.
@@ -665,38 +609,8 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// network. This address chains through systemd-resolved, which resolves both .test
 	// domains (via servlo-dns) and internet domains. Using 169.254.1.1 instead of the
 	// host's real upstream avoids NXDOMAIN for .test while retaining internet access.
-	if err := podman.EnsureNetworkDNS("servlo", dns.ReadContainerDNS()); err != nil {
+	if err := podman.EnsureNetworkDNS("servlo", podman.ContainerDNS()); err != nil {
 		fmt.Printf("  WARN: network DNS: %v\n", err)
-	}
-
-	// Wait for servlo-dns to be ready before configuring the resolver.
-	// systemctl start returns when the unit is active, but dnsmasq inside the
-	// container may not be listening yet. If we set resolvectl to use port 5300
-	// before it's up, systemd-resolved marks it failed and falls back to the
-	// upstream DNS server, breaking .test resolution until manually fixed.
-	if err := dns.WaitReady(10 * time.Second); err != nil {
-		fmt.Printf("  WARN: %v\n", err)
-	}
-
-	// Refresh the sudoers drop-in before reapplying DNS config, but only where a
-	// password prompt can be answered. A release that adds a privileged step ships
-	// new grants, and writing /etc/sudoers.d/servlo needs a real authentication:
-	// granting `tee` on sudoers.d would itself be an escalation, so it can never be
-	// passwordless. Headless (servlo-panel driving a start), sudo has no tty and the
-	// write just fails, so we skip it and let ConfigureResolver report what is
-	// missing rather than burying a prompt no one can see. Content-hashed, so on an
-	// unchanged drop-in this is a no-op either way.
-	if dnsEnabled() && canPromptForPassword() {
-		if err := dns.InstallSudoers(); err != nil {
-			fmt.Printf("  WARN: refreshing DNS sudoers rule: %v\n", err)
-		}
-	}
-
-	// Re-apply DNS routing so .test resolves via servlo-dns on every start.
-	// resolvectl settings are ephemeral and reset on reboot; the NM dispatcher
-	// script fires on interface "up" but that event precedes servlo-dns starting.
-	if err := dns.ConfigureResolver(); err != nil {
-		fmt.Printf("  WARN: DNS resolver config: %v\n", err)
 	}
 
 	autoStopUnusedFPMs()
@@ -1224,11 +1138,4 @@ func canPromptForPassword() bool {
 	}
 	tty.Close()
 	return true
-}
-
-// dnsEnabled reports whether the user has servlo manage DNS. When off, start must
-// not install DNS sudoers grants or touch any resolver state.
-func dnsEnabled() bool {
-	cfg, err := config.LoadGlobal()
-	return err == nil && cfg != nil && cfg.DNS.Enabled
 }

@@ -69,7 +69,7 @@ func queueSiteName(cwd string) (string, error) {
 		}
 	}
 	// Fall back to directory name.
-	name, _ := siteops.SiteNameAndDomain(filepath.Base(cwd), "test")
+	name := siteops.SiteName(filepath.Base(cwd))
 	return name, nil
 }
 

@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/realrashid/servlo/internal/config"
@@ -79,65 +78,36 @@ func TestQuadletImage_noImageLine(t *testing.T) {
 }
 
 func TestIsPortConflict(t *testing.T) {
-	const portList = "dnsmasq 60498 sdp 5u IPv4 TCP 127.0.0.1:5300 (LISTEN)"
-	dnsCheck := PortCheck{Port: "5300", Label: "dns", Container: "servlo-dns"}
+	const portList = "someapp 60498 sdp 5u IPv4 TCP 127.0.0.1:5300 (LISTEN)"
 	mariadb := PortCheck{Port: "3306", Label: "mariadb", Container: "servlo-mariadb"}
 
 	running := func(string) bool { return true }
 	notRunning := func(string) bool { return false }
-	dnsUp := func() bool { return true }
-	dnsDown := func() bool { return false }
 
 	tests := []struct {
 		name             string
 		check            PortCheck
 		ports            string
 		containerRunning func(string) bool
-		dnsAnswering     func() bool
 		want             bool
 	}{
-		// The regression this fixes: servlo-dns is a host dnsmasq (no
-		// container), already answering, holding 5300 — NOT a conflict.
-		{"dns self-owns port via host dnsmasq", dnsCheck, portList, notRunning, dnsUp, false},
-		// dns genuinely down but something foreign holds 5300 — real conflict.
-		{"dns down with foreign listener on 5300", dnsCheck, portList, notRunning, dnsDown, true},
 		// A running container owns its port directly — never a conflict.
-		{"running container owns its port", mariadb, "mysqld 1 sdp 3u TCP 127.0.0.1:3306 (LISTEN)", running, dnsDown, false},
+		{"running container owns its port", mariadb, "mysqld 1 sdp 3u TCP 127.0.0.1:3306 (LISTEN)", running, false},
 		// Non-dns service, not running, foreign listener — real conflict.
-		{"foreign process holds a service port", mariadb, "someapp 999 sdp 3u TCP 127.0.0.1:3306 (LISTEN)", notRunning, dnsDown, true},
+		{"foreign process holds a service port", mariadb, "someapp 999 sdp 3u TCP 127.0.0.1:3306 (LISTEN)", notRunning, true},
 		// The macOS regression: gvproxy (podman machine's own forwarder) holds
 		// the published port — a servlo forward into the VM, NOT a conflict.
-		{"gvproxy forward owns a service port", mariadb, "gvproxy 82853 sdp 12u TCP 127.0.0.1:3306 (LISTEN)", notRunning, dnsDown, false},
+		{"gvproxy forward owns a service port", mariadb, "gvproxy 82853 sdp 12u TCP 127.0.0.1:3306 (LISTEN)", notRunning, false},
 		// Port is free — no conflict regardless.
-		{"port free", mariadb, portList, notRunning, dnsDown, false},
+		{"port free", mariadb, portList, notRunning, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isPortConflict(tt.check, tt.ports, tt.containerRunning, tt.dnsAnswering)
+			got := isPortConflict(tt.check, tt.ports, tt.containerRunning)
 			if got != tt.want {
 				t.Errorf("isPortConflict() = %v, want %v", got, tt.want)
 			}
 		})
-	}
-}
-
-// TestStopUnitSet_KeepsDNSRunning pins that `servlo stop` excludes servlo-dns even
-// when servlo manages DNS, while coreUnits (the start path) still includes it.
-// The resolver keeps pointing .test at servlo-dns until uninstall, so stopping
-// it would strand that pointer at a dead :5300.
-func TestStopUnitSet_KeepsDNSRunning(t *testing.T) {
-	withTempXDG(t)
-	cfg := &config.GlobalConfig{}
-	cfg.DNS.Enabled = true
-	if err := config.SaveGlobal(cfg); err != nil {
-		t.Fatalf("SaveGlobal: %v", err)
-	}
-
-	if !slices.Contains(coreUnits(), "servlo-dns") {
-		t.Fatal("coreUnits must include servlo-dns when DNS is managed (start path)")
-	}
-	if slices.Contains(stopUnitSet(), "servlo-dns") {
-		t.Error("stopUnitSet must exclude servlo-dns so it stays running across `servlo stop`")
 	}
 }
 
@@ -156,18 +126,5 @@ func TestQuitProcessUnits_FullTeardown(t *testing.T) {
 	}
 	if watcher > dns {
 		t.Errorf("servlo-watcher (%d) must be stopped before servlo-dns (%d) so the watcher can't restart dns", watcher, dns)
-	}
-}
-
-// A user who disabled DNS must not get the DNS sudoers drop-in written (or a sudo
-// prompt) on start: ConfigureResolver already returns early when disabled, and the
-// sibling InstallSudoers must respect the same opt-out.
-func TestRunStart_skipsSudoersRefreshWhenDNSDisabled(t *testing.T) {
-	src, err := os.ReadFile("startstop.go")
-	if err != nil {
-		t.Fatalf("reading startstop.go: %v", err)
-	}
-	if !strings.Contains(string(src), "if dnsEnabled() && canPromptForPassword() {") {
-		t.Error("the sudoers refresh must be gated on dnsEnabled(), or a disabled-DNS host still installs DNS grants on start")
 	}
 }

@@ -35,8 +35,7 @@ Rootless podman needs the unified hierarchy to apply resource limits at all. On 
 
 ## Also needed
 
-- **DNS resolver**: [NetworkManager](https://networkmanager.dev/) or [systemd-resolved](https://www.freedesktop.org/software/systemd/man/systemd-resolved.service.html)
-- **`libnss3-tools`** (for `certutil`): only when servlo manages DNS for `.test` sites with HTTPS. The `.localhost` mode skips it.
+- **`libnss3-tools`** (for `certutil`): only needed for browser trust of locally issued certificates.
 
 ::: tip Go is only needed to build from source
 The released binary is fully static with no runtime dependencies. You do not need Go installed to use Servlo.

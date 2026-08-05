@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -38,8 +37,8 @@ func TestIsShell_empty(t *testing.T) {
 }
 
 func TestPortPreflightConflicts(t *testing.T) {
-	// Isolate config so nginx ports fall back to the 80/443 defaults and the
-	// DNS check is the fixed 5300, making CollectPortChecks deterministic.
+	// Isolate config so nginx ports fall back to the 80/443 defaults, making
+	// CollectPortChecks deterministic.
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "config"))
@@ -47,8 +46,6 @@ func TestPortPreflightConflicts(t *testing.T) {
 
 	notRunning := func(string) bool { return false }
 	running := func(string) bool { return true }
-	dnsDown := func() bool { return false }
-	dnsUp := func() bool { return true }
 
 	hasPort := func(cs []PortCheck, port string) bool {
 		for _, c := range cs {
@@ -61,7 +58,7 @@ func TestPortPreflightConflicts(t *testing.T) {
 
 	t.Run("foreign listener on 80 is a conflict", func(t *testing.T) {
 		list := "herd-nginx 1234 herd 6u IPv4 TCP 0.0.0.0:80 (LISTEN)"
-		got := portPreflightConflicts(list, notRunning, dnsDown)
+		got := portPreflightConflicts(list, notRunning)
 		if !hasPort(got, "80") {
 			t.Fatalf("expected port 80 conflict, got %+v", got)
 		}
@@ -69,22 +66,14 @@ func TestPortPreflightConflicts(t *testing.T) {
 
 	t.Run("servlo-nginx already running is not a conflict", func(t *testing.T) {
 		list := "conmon 1234 sdp 6u IPv4 TCP 0.0.0.0:80 (LISTEN)"
-		got := portPreflightConflicts(list, running, dnsUp)
+		got := portPreflightConflicts(list, running)
 		if len(got) != 0 {
 			t.Fatalf("expected no conflicts when servlo owns the ports, got %+v", got)
 		}
 	})
 
-	t.Run("answering dnsmasq holding 5300 is not a conflict", func(t *testing.T) {
-		list := "dnsmasq 60498 sdp 5u IPv4 TCP 127.0.0.1:5300 (LISTEN)"
-		got := portPreflightConflicts(list, notRunning, dnsUp)
-		if hasPort(got, "5300") {
-			t.Fatalf("expected 5300 suppressed when dns is answering, got %+v", got)
-		}
-	})
-
 	t.Run("all ports free yields no conflicts", func(t *testing.T) {
-		got := portPreflightConflicts("", notRunning, dnsDown)
+		got := portPreflightConflicts("", notRunning)
 		if len(got) != 0 {
 			t.Fatalf("expected no conflicts on an empty listener list, got %+v", got)
 		}
@@ -98,40 +87,6 @@ func TestEnsurePortForwarding(t *testing.T) {
 
 	if err := ensurePortForwarding(); err != nil {
 		t.Errorf("ensurePortForwarding error: %v", err)
-	}
-}
-
-func TestNeedsDNSServiceInstall(t *testing.T) {
-	if runtime.GOOS == "linux" {
-		if needsDNSServiceInstall() {
-			t.Error("needsDNSServiceInstall should return false on linux")
-		}
-	}
-	// On macOS the result depends on whether plists exist — skip assertion
-}
-
-func TestIsDNSContainerUnit(t *testing.T) {
-	if runtime.GOOS == "linux" {
-		if !isDNSContainerUnit() {
-			t.Error("isDNSContainerUnit should return true on linux")
-		}
-	} else {
-		if isDNSContainerUnit() {
-			t.Error("isDNSContainerUnit should return false on macOS")
-		}
-	}
-}
-
-func TestPullDNSImages(t *testing.T) {
-	jobs := pullDNSImages()
-	if runtime.GOOS == "linux" {
-		if len(jobs) == 0 {
-			t.Error("pullDNSImages should return build jobs on linux")
-		}
-	} else {
-		if len(jobs) != 0 {
-			t.Error("pullDNSImages should return nil on macOS")
-		}
 	}
 }
 

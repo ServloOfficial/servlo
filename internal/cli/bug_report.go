@@ -438,14 +438,6 @@ func dumpNetwork(w io.Writer) {
 	}
 	fmt.Fprintln(w)
 
-	fmt.Fprintln(w, "── /etc/resolv.conf")
-	if data, err := os.ReadFile("/etc/resolv.conf"); err == nil {
-		fmt.Fprintln(w, redactResolvConf(strings.TrimRight(string(data), "\n")))
-	} else {
-		fmt.Fprintf(w, "(unreadable: %v)\n", err)
-	}
-	fmt.Fprintln(w)
-
 	fmt.Fprintln(w, "── host gateway probe (host.containers.internal)")
 	if !services.Mgr.IsActive("servlo-nginx") || !services.Mgr.IsActive("servlo-panel") {
 		fmt.Fprintln(w, "skipped: servlo-nginx and/or servlo-panel not running")
@@ -582,7 +574,7 @@ func (a *anonymizer) Apply(s string) string {
 
 // newAnonymizer assembles the replacement map from the current sites.yaml
 // and config.yaml. Pairs are sorted longest-first so substring matches do
-// not corrupt longer ones (e.g. `laravel.localhost` is replaced before the
+// not corrupt longer ones (e.g. `laravel.example` is replaced before the
 // bare `laravel`; and a site path containing another site's name is
 // replaced as a whole before the inner name has a chance to match).
 func newAnonymizer() *anonymizer {
@@ -861,28 +853,6 @@ func redactNonLoopbackAddrs(line string) string {
 		return "<redacted-ip>"
 	})
 	return out
-}
-
-// redactResolvConf scrubs nameserver / search / domain values from
-// /etc/resolv.conf. Corporate or VPN setups put internal IPs here that
-// identify the user's employer. We keep the directive name and a redacted
-// placeholder so the structure is still legible.
-func redactResolvConf(s string) string {
-	var out []string
-	for _, line := range strings.Split(s, "\n") {
-		trimmed := strings.TrimLeft(line, " \t")
-		switch {
-		case strings.HasPrefix(trimmed, "nameserver"):
-			out = append(out, "nameserver <redacted>")
-		case strings.HasPrefix(trimmed, "search"):
-			out = append(out, "search <redacted>")
-		case strings.HasPrefix(trimmed, "domain"):
-			out = append(out, "domain <redacted>")
-		default:
-			out = append(out, line)
-		}
-	}
-	return strings.Join(out, "\n")
 }
 
 // readOSRelease reads /etc/os-release and returns the PRETTY_NAME value.

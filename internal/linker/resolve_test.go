@@ -48,9 +48,9 @@ func projectDir(t *testing.T, name, servloYAML string) string {
 }
 
 func TestResolve_plainProjectServesOverFPM(t *testing.T) {
-	dir := projectDir(t, "myapp", "")
+	dir := projectDir(t, "example.com", "")
 
-	plan, err := Resolve(dir, testConfig(), CLIPolicy("", false, nil))
+	plan, err := Resolve(dir, testConfig(), CLIPolicy("", "", false, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,11 +60,13 @@ func TestResolve_plainProjectServesOverFPM(t *testing.T) {
 	if plan.Mode != ModeFPM {
 		t.Errorf("mode = %q, want %q", plan.Mode, ModeFPM)
 	}
-	if plan.Site.Name != "myapp" {
-		t.Errorf("name = %q, want myapp", plan.Site.Name)
+	// The handle stays derived from the directory, with the TLD stripped: it
+	// names units and containers, and is not the domain.
+	if plan.Site.Name != "example" {
+		t.Errorf("name = %q, want example", plan.Site.Name)
 	}
-	if !sliceEq(plan.Site.Domains, []string{"myapp.test"}) {
-		t.Errorf("domains = %v, want [myapp.test]", plan.Site.Domains)
+	if !sliceEq(plan.Site.Domains, []string{"example.com"}) {
+		t.Errorf("domains = %v, want [example.com]", plan.Site.Domains)
 	}
 	if plan.Site.PHPVersion != "8.3" {
 		t.Errorf("php = %q, want 8.3", plan.Site.PHPVersion)
@@ -72,9 +74,9 @@ func TestResolve_plainProjectServesOverFPM(t *testing.T) {
 }
 
 func TestResolve_customContainerSkipsPHPDetection(t *testing.T) {
-	dir := projectDir(t, "api", "container:\n  port: 3000\n  ssl: true\n")
+	dir := projectDir(t, "api.example.com", "container:\n  port: 3000\n  ssl: true\n")
 
-	plan, err := Resolve(dir, testConfig(), CLIPolicy("", false, nil))
+	plan, err := Resolve(dir, testConfig(), CLIPolicy("", "", false, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,9 +92,9 @@ func TestResolve_customContainerSkipsPHPDetection(t *testing.T) {
 }
 
 func TestResolve_hostProxyCarriesTheCommandForConsent(t *testing.T) {
-	dir := projectDir(t, "web", "proxy:\n  port: 5173\n  command: npm run dev\n")
+	dir := projectDir(t, "web.example.com", "proxy:\n  port: 5173\n  command: npm run dev\n")
 
-	plan, err := Resolve(dir, testConfig(), CLIPolicy("", false, nil))
+	plan, err := Resolve(dir, testConfig(), CLIPolicy("", "", false, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,9 +110,9 @@ func TestResolve_hostProxyCarriesTheCommandForConsent(t *testing.T) {
 }
 
 func TestResolve_containerWithoutPortIsCustomFPM(t *testing.T) {
-	dir := projectDir(t, "legacy", "container:\n  containerfile: Containerfile.servlo\n")
+	dir := projectDir(t, "legacy.example.com", "container:\n  containerfile: Containerfile.servlo\n")
 
-	plan, err := Resolve(dir, testConfig(), CLIPolicy("", false, nil))
+	plan, err := Resolve(dir, testConfig(), CLIPolicy("", "", false, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,9 +125,9 @@ func TestResolve_containerWithoutPortIsCustomFPM(t *testing.T) {
 }
 
 func TestResolve_frankenPHPIsHonouredWhenAnImageExists(t *testing.T) {
-	dir := projectDir(t, "fast", "runtime: frankenphp\nruntime_worker: true\nphp_version: \"8.4\"\n")
+	dir := projectDir(t, "fast.example.com", "runtime: frankenphp\nruntime_worker: true\nphp_version: \"8.4\"\n")
 
-	plan, err := Resolve(dir, testConfig(), CLIPolicy("", false, nil))
+	plan, err := Resolve(dir, testConfig(), CLIPolicy("", "", false, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,9 +143,9 @@ func TestResolve_frankenPHPIsHonouredWhenAnImageExists(t *testing.T) {
 }
 
 func TestResolve_frankenPHPFallsBackToFPMBelowTheImageFloor(t *testing.T) {
-	dir := projectDir(t, "old", "runtime: frankenphp\nphp_version: \"8.1\"\n")
+	dir := projectDir(t, "old.example.com", "runtime: frankenphp\nphp_version: \"8.1\"\n")
 
-	plan, err := Resolve(dir, testConfig(), CLIPolicy("", false, nil))
+	plan, err := Resolve(dir, testConfig(), CLIPolicy("", "", false, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,8 +164,8 @@ func TestResolve_securedNeedsTheCertsCapability(t *testing.T) {
 	yaml := "secured: true\n"
 
 	t.Run("granted", func(t *testing.T) {
-		dir := projectDir(t, "shop", yaml)
-		plan, err := Resolve(dir, testConfig(), CLIPolicy("", false, nil))
+		dir := projectDir(t, "shop.example.com", yaml)
+		plan, err := Resolve(dir, testConfig(), CLIPolicy("", "", false, nil))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -173,7 +175,7 @@ func TestResolve_securedNeedsTheCertsCapability(t *testing.T) {
 	})
 
 	t.Run("withheld", func(t *testing.T) {
-		dir := projectDir(t, "shop", yaml)
+		dir := projectDir(t, "shop.example.com", yaml)
 		plan, err := Resolve(dir, testConfig(), WatcherPolicy())
 		if err != nil {
 			t.Fatal(err)
@@ -185,7 +187,7 @@ func TestResolve_securedNeedsTheCertsCapability(t *testing.T) {
 }
 
 func TestResolve_watcherSkipsAnAlreadyRegisteredPath(t *testing.T) {
-	dir := projectDir(t, "myapp", "")
+	dir := projectDir(t, "example.com", "")
 	setupSitesYAML(t, "sites:\n  - name: myapp\n    domains:\n      - myapp.test\n    path: "+dir+"\n")
 
 	plan, err := Resolve(dir, testConfig(), WatcherPolicy())
@@ -201,54 +203,54 @@ func TestResolve_watcherSkipsAnAlreadyRegisteredPath(t *testing.T) {
 }
 
 func TestResolve_relinkKeepsTheSamePathRegistered(t *testing.T) {
-	dir := projectDir(t, "myapp", "")
+	dir := projectDir(t, "example.com", "")
 	setupSitesYAML(t, "sites:\n  - name: myapp\n    domains:\n      - myapp.test\n    path: "+dir+"\n")
 
-	plan, err := Resolve(dir, testConfig(), CLIPolicy("", false, nil))
+	plan, err := Resolve(dir, testConfig(), CLIPolicy("", "", false, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !plan.Registered() {
 		t.Fatalf("skipped unexpectedly: %s", plan.SkipDetail)
 	}
-	if plan.Site.Name != "myapp" {
-		t.Errorf("name = %q, want myapp — a re-link keeps its name", plan.Site.Name)
+	if plan.Site.Name != "example" {
+		t.Errorf("name = %q, want example — a re-link keeps its name", plan.Site.Name)
 	}
 }
 
-func TestResolve_explicitNameBecomesThePrimaryDomain(t *testing.T) {
-	dir := projectDir(t, "myapp", "domains:\n  - alias\n")
+func TestResolve_explicitDomainBecomesThePrimary(t *testing.T) {
+	dir := projectDir(t, "example.com", "domains:\n  - alias.example.com\n")
 
-	plan, err := Resolve(dir, testConfig(), CLIPolicy("chosen", false, nil))
+	plan, err := Resolve(dir, testConfig(), CLIPolicy("", "chosen.example.com", false, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !sliceEq(plan.Site.Domains, []string{"chosen.test", "alias.test"}) {
-		t.Errorf("domains = %v, want [chosen.test alias.test]", plan.Site.Domains)
+	if !sliceEq(plan.Site.Domains, []string{"chosen.example.com", "alias.example.com"}) {
+		t.Errorf("domains = %v, want [chosen.example.com alias.example.com]", plan.Site.Domains)
 	}
-	if plan.Site.PrimaryDomain() != "chosen.test" {
-		t.Errorf("primary = %q, want chosen.test", plan.Site.PrimaryDomain())
+	if plan.Site.PrimaryDomain() != "chosen.example.com" {
+		t.Errorf("primary = %q, want chosen.example.com", plan.Site.PrimaryDomain())
 	}
 }
 
 func TestResolve_reportsDomainsAnotherSiteOwns(t *testing.T) {
-	dir := projectDir(t, "myapp", "domains:\n  - taken\n  - free\n")
-	setupSitesYAML(t, "sites:\n  - name: other\n    domains:\n      - taken.test\n    path: /projects/other\n")
+	dir := projectDir(t, "example.com", "domains:\n  - taken.example.com\n  - free.example.com\n")
+	setupSitesYAML(t, "sites:\n  - name: other\n    domains:\n      - taken.example.com\n    path: /projects/other\n")
 
-	plan, err := Resolve(dir, testConfig(), CLIPolicy("", false, nil))
+	plan, err := Resolve(dir, testConfig(), CLIPolicy("", "", false, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !sliceEq(plan.Site.Domains, []string{"free.test"}) {
-		t.Errorf("domains = %v, want [free.test]", plan.Site.Domains)
+	if !sliceEq(plan.Site.Domains, []string{"free.example.com"}) {
+		t.Errorf("domains = %v, want [free.example.com]", plan.Site.Domains)
 	}
-	if !sliceEq(plan.DroppedDomains, []string{"taken.test"}) {
-		t.Errorf("dropped = %v, want [taken.test]", plan.DroppedDomains)
+	if !sliceEq(plan.DroppedDomains, []string{"taken.example.com"}) {
+		t.Errorf("dropped = %v, want [taken.example.com]", plan.DroppedDomains)
 	}
 }
 
 func TestResolve_publicDirFromTheProjectWinsOverDetection(t *testing.T) {
-	dir := projectDir(t, "myapp", "public_dir: public_html\n")
+	dir := projectDir(t, "example.com", "public_dir: public_html\n")
 
 	plan, err := Resolve(dir, testConfig(), WatcherPolicy())
 	if err != nil {

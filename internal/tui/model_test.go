@@ -21,7 +21,7 @@ func fakeSnap() Snapshot {
 			{Name: "mailpit", State: statePaused, SiteCount: 0},
 		},
 		Status: StatusRow{
-			TLD: "test", NginxRunning: true, DNSOk: true,
+			TLD: "test", NginxRunning: true,
 			PHPRunning: []string{"8.3"},
 		},
 	}

@@ -10,21 +10,15 @@ import (
 	"path/filepath"
 
 	"github.com/realrashid/servlo/internal/certs"
-	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/feedback"
 )
 
-// writeDNSSudoers is the seam tests override to keep the sudoers write off the
-// real /etc/sudoers.d.
-var writeDNSSudoers = dns.WriteSudoersForUser
-
-// runBootstrapSystem performs the root prerequisites the per-user install
-// relies on: the unprivileged-port sysctl, systemd linger, and the DNS sudoers
-// rule that lets the install configure the resolver without prompting. Both
-// install routes come through here, a package maintainer script directly and an
-// interactive install by re-executing itself under sudo. skipSudoers leaves out
-// the resolver grant for an install that manages no DNS and would never use it.
-func runBootstrapSystem(target string, skipSudoers bool) error {
+// runBootstrapSystem performs the root prerequisites the per-user install relies
+// on: the unprivileged-port sysctl and systemd linger. It runs as root already,
+// called by a package maintainer script or by an interactive install
+// re-executing itself under sudo, so unlike the install's own port step it
+// applies rather than prints.
+func runBootstrapSystem(target string) error {
 	feedback.Header("Bootstrapping system for servlo")
 
 	if err := writePortDropIn(unprivPortDropIn, bootstrapRunner); err != nil {
@@ -40,14 +34,6 @@ func runBootstrapSystem(target string, skipSudoers bool) error {
 		feedback.Warn("enabling linger for %s: %v", target, err)
 	} else {
 		feedback.Done("systemd linger enabled for " + target)
-	}
-	if skipSudoers {
-		return nil
-	}
-	if err := writeDNSSudoers(target); err != nil {
-		feedback.Warn("installing DNS sudoers rule: %v", err)
-	} else {
-		feedback.Done("DNS sudoers rule installed for " + target)
 	}
 	return nil
 }

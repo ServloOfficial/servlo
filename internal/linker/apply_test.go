@@ -299,7 +299,7 @@ func TestProvisionLabels(t *testing.T) {
 }
 
 func TestPolicies_capabilities(t *testing.T) {
-	cli := CLIPolicy("", false, &fakePrompter{})
+	cli := CLIPolicy("", "", false, &fakePrompter{})
 	if !cli.ProjectWrites || !cli.Services || !cli.Certs || !cli.RepoCommands || !cli.ImageBuild {
 		t.Errorf("the CLI policy must grant everything: %+v", cli)
 	}

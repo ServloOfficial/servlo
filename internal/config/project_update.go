@@ -128,21 +128,20 @@ func SetProjectDomains(dir string, domains []string) error {
 	})
 }
 
-// SyncProjectDomains merges fullDomains (stripping the TLD suffix) with any
-// existing .servlo.yaml domains, deduplicating case-insensitively. Registered
-// domains come first; pre-existing entries not in the registered list are
-// appended (conflict-filtered domains preserved for self-healing).
+// SyncProjectDomains merges the registered domains with any already in
+// .servlo.yaml, deduplicating case-insensitively. Registered domains come first;
+// pre-existing entries not in the registered list are appended (conflict-
+// filtered domains preserved for self-healing). Domains are stored whole: there
+// is no suffix to strip now that a site is registered on a real name.
 // No-op if .servlo.yaml does not exist.
-func SyncProjectDomains(dir string, fullDomains []string, tld string) error {
+func SyncProjectDomains(dir string, domains []string) error {
 	return updateProjectConfig(dir, func(cfg *ProjectConfig) {
-		suffix := "." + tld
 		seen := make(map[string]bool)
 		var names []string
-		for _, d := range fullDomains {
-			name := strings.TrimSuffix(d, suffix)
-			low := strings.ToLower(name)
+		for _, d := range domains {
+			low := strings.ToLower(d)
 			if !seen[low] {
-				names = append(names, name)
+				names = append(names, d)
 				seen[low] = true
 			}
 		}
@@ -161,22 +160,21 @@ func SyncProjectDomains(dir string, fullDomains []string, tld string) error {
 // conflict-filtered extras via SyncProjectDomains) and then drops oldDomain when
 // it is no longer one of the site's domains. Use this on a rename or removal so
 // the replaced domain isn't left behind to re-register on a future link;
-// SyncProjectDomains alone merges and would re-append it. oldDomain is the full
-// domain (with TLD). No-op if .servlo.yaml does not exist.
-func ReplaceProjectDomain(dir string, fullDomains []string, oldDomain, tld string) error {
-	if err := SyncProjectDomains(dir, fullDomains, tld); err != nil {
+// SyncProjectDomains alone merges and would re-append it. No-op if .servlo.yaml
+// does not exist.
+func ReplaceProjectDomain(dir string, domains []string, oldDomain string) error {
+	if err := SyncProjectDomains(dir, domains); err != nil {
 		return err
 	}
 	if oldDomain == "" {
 		return nil
 	}
-	stripped := strings.TrimSuffix(oldDomain, "."+tld)
-	for _, d := range fullDomains {
-		if strings.EqualFold(strings.TrimSuffix(d, "."+tld), stripped) {
+	for _, d := range domains {
+		if strings.EqualFold(d, oldDomain) {
 			return nil // still a current domain, keep it
 		}
 	}
-	return RemoveProjectDomain(dir, stripped)
+	return RemoveProjectDomain(dir, oldDomain)
 }
 
 // RemoveProjectDomain removes a single domain (case-insensitive match).

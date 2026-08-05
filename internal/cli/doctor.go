@@ -13,7 +13,6 @@ import (
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/cleanup"
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/feedback"
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
@@ -329,62 +328,6 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 			} else {
 				ok(fmt.Sprintf("parked dir: %s", truncate(dir, 26)))
 			}
-		}
-	}
-
-	// ── DNS ──────────────────────────────────────────────────────────────────
-	section = "DNS"
-	fmt.Fprintln(w, "\n[DNS]")
-
-	dnsManaged := cfg == nil || cfg.DNS.Enabled
-	tld := "test"
-	if cfg != nil && cfg.DNS.TLD != "" {
-		tld = cfg.DNS.TLD
-	}
-
-	if !dnsManaged {
-		ok(fmt.Sprintf("DNS managed externally (servlo-dns disabled, TLD .%s)", tld))
-	} else if tld == "" {
-		fail("DNS TLD configured", "empty TLD in config", "set dns.tld in "+cfgFile)
-	} else {
-		ok(fmt.Sprintf("DNS TLD (.%s)", tld))
-		// Layered diagnostic: walk the chain (container, config, port,
-		// dig at 5300, resolver hookup, interface routing, system
-		// lookup) so a one-line failure points at exactly which rung
-		// broke instead of the historical "not resolving to 127.0.0.1".
-		diag := dns.Diagnose(tld)
-		dnsRepairable := dns.RepairPossible()
-		for _, s := range diag.Steps {
-			label := "  " + s.Name
-			switch s.Status {
-			case dns.StepOK:
-				if s.Detail != "" {
-					info(label, s.Detail)
-				} else {
-					ok(label)
-				}
-			case dns.StepFail:
-				fail(label, s.Detail, s.Hint)
-				if dnsRepairable {
-					rep.fixLast(manualFixWith("run `servlo dns:repair` (it needs sudo to rewrite the resolver config)"))
-				}
-			case dns.StepWarn:
-				warn(label, s.Detail)
-			case dns.StepSkip:
-				info(label, "skipped — "+s.Detail)
-			}
-		}
-	}
-
-	if dnsManaged {
-		dnsRunning := services.Mgr.IsActive("servlo-dns")
-		if !dnsRunning {
-			if cr, _ := podman.ContainerRunning("servlo-dns"); cr {
-				dnsRunning = true
-			}
-		}
-		if !dnsRunning && PortInUse("5300") {
-			warn("DNS port 5300", "port in use by another process, servlo-dns may fail to start (find: "+FindListenerCmd("5300")+")")
 		}
 	}
 

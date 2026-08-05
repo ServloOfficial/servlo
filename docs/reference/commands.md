@@ -18,7 +18,6 @@
 | `servlo autostart disable` | Disable autostart on login |
 | `servlo path:disable` | Take servlo's shims (`php`, `composer`, `node`…) off your shell PATH; `servlo php` etc. keep working, and installs/updates stop re-adding the entry |
 | `servlo path:enable` | Put servlo's shims back on your shell PATH (the default) |
-| `servlo dns:check` | Walk the DNS chain (container, dnsmasq config, port 5300, dig at 5300, resolver hookup, interface routing, system lookup) and print the layered status with a remediation hint per failure |
 | `servlo status` | Health summary: DNS, nginx, PHP-FPM containers, watcher, services, cert expiry, LAN exposure and dashboard remote access; shows a notice if an update is available |
 | `servlo which` | Show resolved PHP version, Node version, document root, and nginx config for the current site |
 | `servlo about` | Show version, build info, and project URL |
@@ -63,8 +62,7 @@ Setup steps include common tasks (composer install, npm install, servlo env) plu
 |---|---|
 | `servlo park [dir]` | Register every PHP project inside `dir` as a site, and keep doing so as new ones appear (defaults to cwd) |
 | `servlo unpark [dir]` | Remove a parked directory and unlink all its sites |
-| `servlo link [name]` | Register the current directory as a site. On a fresh project with no `.servlo.yaml`, an interactive terminal routes through the `servlo init` wizard first (PHP version, HTTPS, services) before linking; prompts to import data when `laravel/sail` is detected in `composer.json`. **Non-PHP projects** (Node.js, Python, Go, etc.) must have `Containerfile.servlo` and `.servlo.yaml` with `container: {port: N}` already written before calling this, see Custom Containers |
-| `servlo link [name] --domain foo.test` | Register with a custom domain |
+| `servlo link [domain]` | Register the current directory as a site on a fully qualified domain. The argument is required unless the directory is itself named for the domain or `.servlo.yaml` declares one: servlo has no TLD to complete a bare name with. On a fresh project with no `.servlo.yaml`, an interactive terminal routes through the `servlo init` wizard first (PHP version, HTTPS, services) before linking; prompts to import data when `laravel/sail` is detected in `composer.json`. **Non-PHP projects** (Node.js, Python, Go, etc.) must have `Containerfile.servlo` and `.servlo.yaml` with `container: {port: N}` already written before calling this, see Custom Containers |
 | `servlo unlink [name]` | Stop serving the site |
 | `servlo sites` | Table view of all registered sites |
 | `servlo open [name]` | Open the site in the default browser |

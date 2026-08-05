@@ -24,7 +24,6 @@
 │   ├── postgres/
 │   ├── meilisearch/
 │   └── rustfs/
-├── dnsmasq/
 │   └── servlo.conf
 ├── vapid-private.key                # Web Push signing key (mode 0600, see features/notifications.md)
 ├── vapid-public.key                 # Web Push public key, served to browsers

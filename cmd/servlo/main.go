@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -17,7 +16,6 @@ import (
 	"github.com/realrashid/servlo/internal/cli"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/daemon"
-	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/eventbus"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/nginx"
@@ -209,17 +207,11 @@ func main() {
 	root.AddCommand(cli.NewSailCmd())
 	root.AddCommand(cli.NewPauseCmd())
 	root.AddCommand(cli.NewUnpauseCmd())
-	root.AddCommand(newDNSCheckCmd())
-	root.AddCommand(cli.NewDNSEnableCmd())
-	root.AddCommand(cli.NewDNSDisableCmd())
-	root.AddCommand(cli.NewDNSRepairCmd())
-	root.AddCommand(cli.NewDNSForwarderCmd())
 	root.AddCommand(cli.NewLANCmd())
 	root.AddCommand(cli.NewLANExposeCmd())
 	root.AddCommand(cli.NewLANUnexposeCmd())
 	root.AddCommand(cli.NewLANStatusCmd())
 	root.AddCommand(cli.NewLANServicesCmd())
-	root.AddCommand(cli.NewRemoteSetupCmd())
 	root.AddCommand(cli.NewRemoteControlCmd())
 	root.AddCommand(cli.NewRemoteControlOnCmd())
 	root.AddCommand(cli.NewRemoteControlOffCmd())
@@ -296,65 +288,6 @@ func newServeUICmd() *cobra.Command {
 	}
 }
 
-// newDNSCheckCmd returns the dns:check command.
-func newDNSCheckCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "dns:check",
-		Short: "Check that .test DNS resolution is working (with layered breakdown on failure)",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			cfg, err := config.LoadGlobal()
-			if err != nil {
-				return err
-			}
-
-			if !cfg.DNS.Enabled {
-				fmt.Printf("DNS managed externally: servlo-dns is disabled, sites use *.%s.\n", cfg.DNS.TLD)
-				return nil
-			}
-
-			diag := dns.Diagnose(cfg.DNS.TLD)
-			printDNSDiagnostic(os.Stdout, diag)
-			if diag.FirstFailure >= 0 {
-				os.Exit(1)
-			}
-			return nil
-		},
-	}
-}
-
-// printDNSDiagnostic writes the human-facing dns:check report for one
-// Diagnostic to w. Extracted from newDNSCheckCmd so the renderer (top
-// line, marker prefixes, hint-printing on Fail+Warn) can be exercised
-// in tests without spawning the CLI process.
-func printDNSDiagnostic(w io.Writer, diag dns.Diagnostic) {
-	if diag.FirstFailure < 0 {
-		fmt.Fprintf(w, "DNS is working: *.%s resolves to 127.0.0.1\n\n", diag.TLD)
-	} else {
-		fmt.Fprintf(w, "DNS is NOT working for .%s\n\n", diag.TLD)
-	}
-	for _, s := range diag.Steps {
-		marker := "  "
-		switch s.Status {
-		case dns.StepOK:
-			marker = "✓ "
-		case dns.StepFail:
-			marker = "✗ "
-		case dns.StepWarn:
-			marker = "! "
-		case dns.StepSkip:
-			marker = "  "
-		}
-		if s.Detail != "" {
-			fmt.Fprintf(w, "%s%-34s %s\n", marker, s.Name, s.Detail)
-		} else {
-			fmt.Fprintf(w, "%s%s\n", marker, s.Name)
-		}
-		if (s.Status == dns.StepFail || s.Status == dns.StepWarn) && s.Hint != "" {
-			fmt.Fprintf(w, "    hint: %s\n", s.Hint)
-		}
-	}
-}
-
 // newWatchCmd returns the watch command (used by the watcher systemd service).
 func newWatchCmd() *cobra.Command {
 	return &cobra.Command{
@@ -405,9 +338,6 @@ func newWatchCmd() *cobra.Command {
 					}
 				}
 			}()
-
-			// Watch DNS health and re-apply resolver config if .test breaks.
-			go watcher.WatchDNS(30*time.Second, cfg.DNS.TLD)
 
 			// Watch host gateway reachability. A laptop that changes networks
 			// (home wifi → coffee shop → mobile hotspot) ends up with a stale

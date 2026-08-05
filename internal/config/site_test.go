@@ -898,7 +898,7 @@ func TestAddSiteAcceptsOrdinaryDomains(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	err := AddSite(Site{
 		Name:    "shop",
-		Domains: []string{"shop.test", "www-shop.test", "shop.localhost"},
+		Domains: []string{"shop.test", "www-shop.test", "shop.example"},
 		Path:    t.TempDir(),
 	})
 	if err != nil {

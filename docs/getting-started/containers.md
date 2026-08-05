@@ -1,6 +1,6 @@
 # Containers walkthrough
 
-End-to-end: from an empty Node, Python, or Go project to an HTTPS site running at `https://myapp.test` with services, workers, and automatic rebuilds on Containerfile changes.
+End-to-end: from an empty Node, Python, or Go project to an HTTPS site running at `https://myapp.example.com` with services, workers, and automatic rebuilds on Containerfile changes.
 
 ::: info Prerequisites
 You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
@@ -103,7 +103,7 @@ servlo link
 1. Builds the image, tagged `servlo-custom-myapp:local` (Containerfile hash is cached, so unchanged files skip rebuild)
 2. Writes a systemd quadlet so the container starts on boot
 3. Joins the container to the shared `servlo` network
-4. Generates an nginx vhost that reverse-proxies `myapp.test` to the container
+4. Generates an nginx vhost that reverse-proxies `myapp.example.com` to the container
 5. Reloads nginx
 
 ::: warning Order matters
@@ -219,7 +219,7 @@ Poll interval around 1 second is usually fine for development.
 servlo secure
 ```
 
-`servlo secure` issues an mkcert certificate for `myapp.test`, flips the nginx vhost to TLS, and regenerates the proxy config. Your app keeps receiving plain HTTP from nginx, which handles TLS termination.
+`servlo secure` issues an mkcert certificate for `myapp.example.com`, flips the nginx vhost to TLS, and regenerates the proxy config. Your app keeps receiving plain HTTP from nginx, which handles TLS termination.
 
 If your app serves its own HTTPS (FrankenPHP with built-in TLS, a Go service with Let's Encrypt test certs), add `ssl: true` so nginx proxies via HTTPS with verification disabled:
 

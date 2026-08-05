@@ -343,7 +343,7 @@ onBeforeUnmount(() => {
             <div class="feat col-3 reveal d1" data-tilt>
               <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M7 14h2"/></svg></div>
               <h3>Automatic .test domains + TLS</h3>
-              <p>One command provisions a trusted certificate via mkcert. Or opt out and use <code class="kbd">*.localhost</code>, no dnsmasq, no resolver tweaks, no sudo for the DNS bits.</p>
+              <p>One command provisions a trusted certificate.</p>
               <span class="feat-tag">// project.test → https</span>
             </div>
 

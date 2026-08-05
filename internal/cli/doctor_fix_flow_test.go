@@ -61,7 +61,7 @@ func TestRunDoctorFixLeavesPrivilegedRepairsToTheUser(t *testing.T) {
 	var buf bytes.Buffer
 	rep := reportWith(
 		Finding{Name: "resolver hookup", Status: "fail",
-			Fix: manualFixWith("run `servlo dns:repair` (it needs sudo to rewrite the resolver config)")},
+			Fix: manualFixWith("run `sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80`")},
 		Finding{Name: "linger enabled", Status: "warn",
 			Fix: manualFixWith("run `loginctl enable-linger $USER` (it needs sudo)")},
 	)
@@ -73,7 +73,7 @@ func TestRunDoctorFixLeavesPrivilegedRepairsToTheUser(t *testing.T) {
 	if !strings.Contains(out, "These need elevated privileges") {
 		t.Errorf("privileged repairs were not listed for the user: %q", out)
 	}
-	if !strings.Contains(out, "servlo dns:repair") || !strings.Contains(out, "loginctl enable-linger") {
+	if !strings.Contains(out, "ip_unprivileged_port_start") || !strings.Contains(out, "loginctl enable-linger") {
 		t.Errorf("guidance should name the exact command: %q", out)
 	}
 	if strings.Contains(out, "Applied 1 fix") || strings.Contains(out, "Applied 2 fix") {

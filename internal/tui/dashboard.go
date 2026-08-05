@@ -409,7 +409,6 @@ func (m *Model) dashSystemHealthCard(width int) cardContent {
 		return dashRowRight(dimStyle.Render(label), value, width)
 	}
 	lines := []string{
-		row("DNS", dnsHealthText(m.snap.Status)),
 		row("Nginx", runningOrStoppedColoured(m.snap.Status.NginxRunning)),
 		row("Watcher", runningOrStoppedColoured(m.snap.Status.WatcherRunning)),
 	}
@@ -461,21 +460,6 @@ func (m *Model) dashServloCard(width int) cardContent {
 		}
 	}
 	return cardContent{lines, nil}
-}
-
-// dnsHealthText renders the DNS pill the same way the header does so the
-// dashboard mirrors what users already learnt at-a-glance from the top bar.
-func dnsHealthText(s StatusRow) string {
-	switch {
-	case s.DNSDisabled:
-		return dimStyle.Render("disabled (system resolver only)")
-	case s.DNSOk:
-		return runningStyle.Render("ok")
-	case s.DNSDegraded:
-		return accentStyle.Render("degraded (system resolver bypassed)")
-	default:
-		return failingStyle.Render("down")
-	}
 }
 
 func runningOrStoppedColoured(running bool) string {

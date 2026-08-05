@@ -388,18 +388,18 @@ func TestSyncSecondaryProjectDomains_replacesOldStandalone(t *testing.T) {
 	setup(t)
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"),
-		[]byte("php_version: \"8.4\"\ndomains:\n  - admin-starlane\n"), 0o644); err != nil {
+		[]byte("php_version: \"8.4\"\ndomains:\n  - admin-starlane.example.com\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	sec := &config.Site{Name: "admin-starlane", Domains: []string{"admin.starlane.test"}, Path: dir}
+	sec := &config.Site{Name: "admin-starlane", Domains: []string{"admin.starlane.example.com"}, Path: dir}
 
-	syncSecondaryProjectDomains(sec, "admin-starlane.test")
+	syncSecondaryProjectDomains(sec, "admin-starlane.example.com")
 
 	cfg, err := config.LoadProjectConfig(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cfg.Domains) != 1 || cfg.Domains[0] != "admin.starlane" {
-		t.Errorf(".servlo.yaml domains = %v, want [admin.starlane] (old standalone dropped)", cfg.Domains)
+	if len(cfg.Domains) != 1 || cfg.Domains[0] != "admin.starlane.example.com" {
+		t.Errorf(".servlo.yaml domains = %v, want [admin.starlane.example.com] (old standalone dropped)", cfg.Domains)
 	}
 }

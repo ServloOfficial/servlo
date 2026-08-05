@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dns"
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/siteinfo"
@@ -55,9 +54,6 @@ const (
 
 // StatusRow drives the top header bar.
 type StatusRow struct {
-	DNSOk          bool
-	DNSDegraded    bool
-	DNSDisabled    bool
 	TLD            string
 	NginxRunning   bool
 	WatcherRunning bool
@@ -187,17 +183,11 @@ func buildServiceRow(name string, custom bool) ServiceRow {
 func loadStatus() StatusRow {
 	cfg, _ := config.LoadGlobal()
 	tld := "test"
-	dnsDisabled := false
-	if cfg != nil {
+	if cfg != nil && cfg.DNS.TLD != "" {
 		tld = cfg.DNS.TLD
-		dnsDisabled = !cfg.DNS.Enabled
 	}
-	dnsStatus := dns.CheckStatus(tld)
 	row := StatusRow{
 		TLD:          tld,
-		DNSOk:        dnsStatus == dns.StatusOK,
-		DNSDegraded:  dnsStatus == dns.StatusDegraded,
-		DNSDisabled:  dnsDisabled,
 		NginxRunning: podman.Cache.Running("servlo-nginx"),
 		Autostart:    servloSystemd.IsAutostartEnabled(),
 		LANExposed:   cfg != nil && cfg.LAN.Exposed,

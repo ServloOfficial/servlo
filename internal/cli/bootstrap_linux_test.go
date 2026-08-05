@@ -7,13 +7,13 @@ import (
 	"testing"
 )
 
-// stubBootstrapSystem redirects the three root actions runBootstrapSystem
-// performs so the test never touches /etc or the real login manager.
-func stubBootstrapSystem(t *testing.T) (*[][]string, *[]string) {
+// stubBootstrapSystem redirects the root actions runBootstrapSystem performs so
+// the test never touches /etc or the real login manager.
+func stubBootstrapSystem(t *testing.T) *[][]string {
 	t.Helper()
-	origPath, origRunner, origSudoers := unprivPortDropIn, bootstrapRunner, writeDNSSudoers
+	origPath, origRunner := unprivPortDropIn, bootstrapRunner
 	t.Cleanup(func() {
-		unprivPortDropIn, bootstrapRunner, writeDNSSudoers = origPath, origRunner, origSudoers
+		unprivPortDropIn, bootstrapRunner = origPath, origRunner
 	})
 	unprivPortDropIn = filepath.Join(t.TempDir(), "99-servlo-ports.conf")
 
@@ -22,56 +22,32 @@ func stubBootstrapSystem(t *testing.T) (*[][]string, *[]string) {
 		runs = append(runs, append([]string{name}, args...))
 		return nil
 	}
-	var sudoersUsers []string
-	writeDNSSudoers = func(user string) error {
-		sudoersUsers = append(sudoersUsers, user)
-		return nil
-	}
-	return &runs, &sudoersUsers
+	return &runs
 }
 
-func TestRunBootstrapSystemWritesSudoers(t *testing.T) {
-	runs, users := stubBootstrapSystem(t)
+// This runs as root already, called from a package maintainer script or from an
+// install re-executing itself under sudo, so unlike the install's own port step
+// it applies the sysctl rather than printing it.
+func TestRunBootstrapSystemAppliesPortsAndLinger(t *testing.T) {
+	runs := stubBootstrapSystem(t)
 
-	if err := runBootstrapSystem("george", false); err != nil {
+	if err := runBootstrapSystem("george"); err != nil {
 		t.Fatalf("runBootstrapSystem: %v", err)
 	}
 	if len(*runs) != 2 || (*runs)[0][0] != "sysctl" || (*runs)[1][0] != "loginctl" {
 		t.Errorf("commands = %v, want sysctl then loginctl", *runs)
 	}
-	if len(*users) != 1 || (*users)[0] != "george" {
-		t.Errorf("sudoers written for %v, want [george]", *users)
-	}
-}
-
-// A localhost-mode install manages no DNS, so it must not be left holding a
-// standing passwordless resolver grant it never uses.
-func TestRunBootstrapSystemSkipsSudoers(t *testing.T) {
-	runs, users := stubBootstrapSystem(t)
-
-	if err := runBootstrapSystem("george", true); err != nil {
-		t.Fatalf("runBootstrapSystem: %v", err)
-	}
-	if len(*users) != 0 {
-		t.Errorf("sudoers grant written despite --skip-sudoers: %v", *users)
-	}
-	if len(*runs) != 2 {
-		t.Errorf("commands = %v, want ports and linger still applied", *runs)
-	}
 }
 
 func TestRunBootstrapSystemNoTargetUser(t *testing.T) {
-	runs, users := stubBootstrapSystem(t)
+	runs := stubBootstrapSystem(t)
 
-	if err := runBootstrapSystem("", false); err != nil {
+	if err := runBootstrapSystem(""); err != nil {
 		t.Fatalf("runBootstrapSystem: %v", err)
 	}
-	// Ports are machine-global and still apply; linger and sudoers are per-user
-	// and have nobody to apply to.
+	// Ports are machine-global and still apply; linger is per-user and has
+	// nobody to apply to.
 	if len(*runs) != 1 || (*runs)[0][0] != "sysctl" {
 		t.Errorf("commands = %v, want sysctl only", *runs)
-	}
-	if len(*users) != 0 {
-		t.Errorf("sudoers written with no target user: %v", *users)
 	}
 }

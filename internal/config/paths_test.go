@@ -70,7 +70,6 @@ func TestPathFunctions_ContainExpectedSuffixes(t *testing.T) {
 		{"NginxDir", NginxDir(), "servlo/nginx"},
 		{"NginxConfD", NginxConfD(), filepath.Join("nginx", "conf.d")},
 		{"CertsDir", CertsDir(), "servlo/certs"},
-		{"DnsmasqDir", DnsmasqDir(), "servlo/dnsmasq"},
 		{"SitesFile", SitesFile(), "sites.yaml"},
 		{"GlobalConfigFile", GlobalConfigFile(), "config.yaml"},
 		{"QuadletDir", QuadletDir(), filepath.Join("containers", "systemd")},

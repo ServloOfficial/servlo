@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
@@ -64,13 +63,10 @@ func runDomainAdd(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	cfg, err := config.LoadGlobal()
+	fullDomain, err := siteops.NormalizeDomain(args[0])
 	if err != nil {
 		return err
 	}
-
-	domainName := strings.ToLower(args[0])
-	fullDomain := domainName + "." + cfg.DNS.TLD
 
 	if linker.IsReservedDomain(fullDomain) {
 		return fmt.Errorf("domain %q is reserved for internal Servlo use", fullDomain)
@@ -96,7 +92,7 @@ func runDomainAdd(_ *cobra.Command, args []string) error {
 	}
 
 	// Sync to .servlo.yaml.
-	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
+	_ = config.SyncProjectDomains(site.Path, site.Domains)
 
 	// Regenerate vhost (file stays named after primary domain).
 	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
@@ -138,13 +134,10 @@ func runDomainRemove(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	cfg, err := config.LoadGlobal()
+	fullDomain, err := siteops.NormalizeDomain(args[0])
 	if err != nil {
 		return err
 	}
-
-	domainName := strings.ToLower(args[0])
-	fullDomain := domainName + "." + cfg.DNS.TLD
 
 	if !site.HasDomain(fullDomain) {
 		return fmt.Errorf("site %q does not have domain %q", site.Name, fullDomain)
@@ -170,7 +163,7 @@ func runDomainRemove(_ *cobra.Command, args []string) error {
 	}
 
 	// Sync to .servlo.yaml, dropping the removed domain so it doesn't re-register.
-	_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
+	_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain)
 
 	// If the primary domain changed (we removed the old primary), rename the vhost file.
 	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {

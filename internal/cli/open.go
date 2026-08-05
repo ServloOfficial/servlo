@@ -39,7 +39,7 @@ func runOpen(_ *cobra.Command, args []string) error {
 		url = siteURL(cwd)
 		if url == "" {
 			// Fall back: maybe cwd is named like a site.
-			name, _ := siteops.SiteNameAndDomain(filepath.Base(cwd), "test")
+			name := siteops.SiteName(filepath.Base(cwd))
 			if site, err := config.FindSite(name); err == nil {
 				url = siteURL(site.Path)
 			}

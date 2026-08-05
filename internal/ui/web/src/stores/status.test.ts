@@ -16,7 +16,6 @@ describe('status store', () => {
     globalThis.fetch = vi.fn(async () =>
       new Response(
         JSON.stringify({
-          dns: { ok: true, enabled: true, tld: 'test' },
           nginx: { running: true },
           php_fpms: [{ version: '8.5', running: true }],
           php_default: '8.5',
@@ -31,7 +30,6 @@ describe('status store', () => {
     const { status, loadStatus, statusLoaded } = await import('./status');
     await loadStatus();
     expect(get(statusLoaded)).toBe(true);
-    expect(get(status).dns.ok).toBe(true);
     expect(get(status).php_default).toBe('8.5');
   });
 
@@ -45,8 +43,7 @@ describe('status store', () => {
     statusLoaded.set(true);
     status.update((s) => ({
       ...s,
-      dns: { ok: false, enabled: true, tld: 'test' },
-      nginx: { running: true },
+      nginx: { running: false },
       watcher_running: true
     }));
     expect(get(servloStatusColor)).toBe('red');
@@ -58,7 +55,6 @@ describe('status store', () => {
     statusLoaded.set(true);
     status.update((s) => ({
       ...s,
-      dns: { ok: true, enabled: true, tld: 'test' },
       nginx: { running: true },
       watcher_running: true
     }));
@@ -72,7 +68,6 @@ describe('status store', () => {
     statusLoaded.set(true);
     status.update((s) => ({
       ...s,
-      dns: { ok: true, enabled: true, tld: 'test' },
       nginx: { running: true },
       watcher_running: true
     }));
@@ -80,41 +75,8 @@ describe('status store', () => {
     expect(get(servloStatusColor)).toBe('green');
   });
 
-  it('servloStatusColor is yellow when DNS is degraded, not red', async () => {
-    const { status, statusLoaded, servloStatusColor } = await import('./status');
-    const { version } = await import('./version');
-    statusLoaded.set(true);
-    status.update((s) => ({
-      ...s,
-      dns: { ok: false, status: 'degraded', vpn: true, enabled: true, tld: 'test' },
-      nginx: { running: true },
-      watcher_running: true
-    }));
-    version.update((v) => ({ ...v, hasUpdate: false }));
-    expect(get(servloStatusColor)).toBe('yellow');
-  });
 
-  it('servloStatusColor is red when DNS is down', async () => {
-    const { status, statusLoaded, servloStatusColor } = await import('./status');
-    statusLoaded.set(true);
-    status.update((s) => ({
-      ...s,
-      dns: { ok: false, status: 'down', vpn: false, enabled: true, tld: 'test' },
-      nginx: { running: true },
-      watcher_running: true
-    }));
-    expect(get(servloStatusColor)).toBe('red');
-  });
 
-  it('dnsState reads the status field and falls back to ok for old payloads', async () => {
-    const { dnsState } = await import('./status');
-    const base = { nginx: { running: true }, php_fpms: [], php_default: '', node_default: '', node_managed_by_servlo: true, node_manager: 'fnm' as const, nvm_available: false, bun_available: false, bun_version: '', using_system_bun: false, watcher_running: true, frankenphp_php_versions: [], home: '' };
-    expect(dnsState({ ...base, dns: { ok: false, status: 'degraded', enabled: true, tld: 'test' } })).toBe('degraded');
-    expect(dnsState({ ...base, dns: { ok: false, status: 'down', enabled: true, tld: 'test' } })).toBe('down');
-    expect(dnsState({ ...base, dns: { ok: true, enabled: true, tld: 'test' } })).toBe('ok');
-    expect(dnsState({ ...base, dns: { ok: false, enabled: true, tld: 'test' } })).toBe('down');
-    expect(dnsState({ ...base, dns: { ok: false, enabled: false, tld: 'test' } })).toBe('ok');
-  });
 });
 
 describe('server restart reload', () => {

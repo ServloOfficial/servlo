@@ -55,7 +55,7 @@ func TestEnsureRequiredServicesAddsMissingPreset(t *testing.T) {
 func TestEnsureRequiredServicesKeepsDomainsWrittenEarlier(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, ".servlo.yaml"),
-		[]byte("domains:\n    - old\n"), 0o644); err != nil {
+		[]byte("domains:\n    - old.example.com\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	proj, err := config.LoadProjectConfig(dir)
@@ -63,7 +63,7 @@ func TestEnsureRequiredServicesKeepsDomainsWrittenEarlier(t *testing.T) {
 		t.Fatal(err)
 	}
 	// What runLink does between loading proj and folding in required services.
-	if err := config.SyncProjectDomains(dir, []string{"old.test", "new.test"}, "test"); err != nil {
+	if err := config.SyncProjectDomains(dir, []string{"old.example.com", "new.example.com"}); err != nil {
 		t.Fatal(err)
 	}
 

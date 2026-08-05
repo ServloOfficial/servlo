@@ -84,10 +84,12 @@ func wsOriginAllowed(r *http.Request) bool {
 // rebound), so the rule is: any IP literal is fine (it's a host the user
 // pointed a browser at directly: loopback, a LAN address, or an explicit
 // public bind that is already gated by remote-control auth), while a hostname
-// is accepted only under localhost or one of the reserved local TLDs. .test and
-// .localhost are servlo's own managed TLDs (resolved to loopback by servlo-dns,
-// never publicly resolvable per RFC 6761) and .local is mDNS, so none can be
-// pointed at an attacker's server. An attacker's public domain is rejected.
+// is accepted only under localhost or one of the reserved local TLDs. .localhost
+// resolves to loopback, .test is reserved and never publicly resolvable (both
+// RFC 6761), and .local is mDNS, so none can be pointed at an attacker's server.
+// An attacker's public domain is rejected. .test stays here even though servlo
+// no longer resolves it: a site can still be served on such a name, and dropping
+// it would reject that site's own same-origin WebSocket.
 func isLocalNetworkHost(hostport string) bool {
 	host := hostport
 	if h, _, err := net.SplitHostPort(hostport); err == nil {

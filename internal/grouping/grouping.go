@@ -92,6 +92,9 @@ func AssignSecondary(main, secondary *config.Site, label string, shareDB bool) e
 	secondary.Group = main.Group
 	secondary.GroupSubdomain = label
 	secondary.GroupSharedDB = shareDB
+	if secondary.StandaloneDomain == "" {
+		secondary.StandaloneDomain = oldPrimary
+	}
 	secondary.Domains = []string{newDomain}
 	// A secured main serves "<main> *.<main>", so an HTTP-only secondary would
 	// have no 443 block and the wildcard would answer its subdomain instead.
@@ -205,7 +208,17 @@ func UnassignSecondary(secondary *config.Site) error {
 	if err != nil {
 		return err
 	}
-	_, standalone := siteops.SiteNameAndDomain(filepath.Base(secondary.Path), config.EffectiveTLD())
+	// Leaving a group restores the domain the site had before it joined, which
+	// is recorded on the way in. A real domain cannot be re-derived, so a site
+	// grouped before that record existed falls back to the directory name when
+	// that is itself a domain, and otherwise has to be told.
+	standalone := secondary.StandaloneDomain
+	if standalone == "" {
+		standalone = siteops.DomainFromDirName(filepath.Base(secondary.Path))
+	}
+	if standalone == "" {
+		return fmt.Errorf("cannot restore a standalone domain for %q: it joined the group before servlo recorded one, so name it with 'servlo domain %s <domain>' first", secondary.Name, secondary.Name)
+	}
 	if owner := domainOwner(reg, standalone); owner != nil && owner.Name != secondary.Name {
 		return fmt.Errorf("cannot restore standalone domain: %s is already used by site %q", standalone, owner.Name)
 	}
@@ -215,6 +228,7 @@ func UnassignSecondary(secondary *config.Site) error {
 	secondary.GroupSubdomain = ""
 	secondary.GroupSharedDB = false
 	secondary.Domains = []string{standalone}
+	secondary.StandaloneDomain = ""
 	if err := config.AddSite(*secondary); err != nil {
 		return fmt.Errorf("updating site registry: %w", err)
 	}
@@ -366,7 +380,7 @@ var regenerateSecondary = func(secondary *config.Site, oldPrimary string) error 
 // rather than adding to it, so the replaced domain must not be left behind to
 // re-register on a future link.
 func syncSecondaryProjectDomains(secondary *config.Site, oldPrimary string) {
-	_ = config.ReplaceProjectDomain(secondary.Path, secondary.Domains, oldPrimary, config.EffectiveTLD())
+	_ = config.ReplaceProjectDomain(secondary.Path, secondary.Domains, oldPrimary)
 }
 
 // snapshot deep-copies a site so it can be restored verbatim on rollback.

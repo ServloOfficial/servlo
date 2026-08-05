@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/feedback"
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
@@ -55,24 +54,6 @@ func runStatus(_ *cobra.Command, _ []string) error {
 
 	fmt.Println("Servlo Status")
 	fmt.Println("═══════════════════════════════════════")
-
-	// DNS check
-	fmt.Println("\n[DNS]")
-	if !cfg.DNS.Enabled {
-		ok2(fmt.Sprintf("DNS managed externally (.%s)", cfg.DNS.TLD))
-	} else {
-		switch dns.CheckStatus(cfg.DNS.TLD) {
-		case dns.StatusOK:
-			ok2(fmt.Sprintf(".%s resolution", cfg.DNS.TLD))
-		case dns.StatusDegraded:
-			warn2(fmt.Sprintf(".%s resolution", cfg.DNS.TLD),
-				"servlo-dns healthy, system resolver bypassed (VPN?)")
-		default:
-			fail2(fmt.Sprintf(".%s resolution", cfg.DNS.TLD),
-				"not resolving",
-				dnsRestartHint())
-		}
-	}
 
 	// Nginx
 	fmt.Println("\n[Nginx]")

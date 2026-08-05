@@ -70,7 +70,6 @@ func newLANExposeCmd() *cobra.Command {
 
   - Rewrites servlo-nginx so ports 80 and 443 bind to the LAN.
   - Restarts nginx when its bind changes.
-  - Rewrites dnsmasq to answer *.test with the host's LAN IP.
   - Starts the userspace DNS forwarder where the platform requires it.
 
 Managed databases, caches, and other services stay loopback-only by default.
@@ -110,7 +109,7 @@ ports and devices that require access.`,
 			}
 			expose.OK(feedback.Val(lanIP))
 			if dnsOn {
-				feedback.Note("sites: http://*.test (resolved via dnsmasq on " + lanIP + ":5300)")
+				feedback.Note("sites are reachable on " + lanIP)
 			} else {
 				feedback.Note("sites: reachable on the host's LAN address once exposed")
 			}

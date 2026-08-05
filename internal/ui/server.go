@@ -32,7 +32,6 @@ import (
 	"github.com/realrashid/servlo/internal/cfgedit"
 	"github.com/realrashid/servlo/internal/cli"
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/envfile"
 	"github.com/realrashid/servlo/internal/eventbus"
 	"github.com/realrashid/servlo/internal/grouping"
@@ -175,7 +174,6 @@ func Start(currentVersion string) error {
 	// don't cross over here. This in-process probe surfaces DNS transitions
 	// (notably servlo-dns coming up after a boot where the dashboard opened
 	// before resolver was ready) to live WebSocket clients.
-	go runDNSStatusWatcher()
 
 	mux := http.NewServeMux()
 
@@ -252,7 +250,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/settings", withCORS(handleSettings))
 	mux.HandleFunc("/api/settings/autostart", withCORS(handleSettingsAutostart))
 	mux.HandleFunc("/api/settings/worker-mode", withCORS(handleSettingsWorkerMode))
-	mux.HandleFunc("/api/settings/dns-upstream", withCORS(handleSettingsDNSUpstream))
 	mux.HandleFunc("/api/workers/health", withCORS(handleWorkersHealth))
 	mux.HandleFunc("/api/workers/heal", withCORS(handleWorkersHeal))
 	mux.HandleFunc("/api/stats", withCORS(handleStats))
@@ -264,8 +261,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/remote-control", withCORS(handleRemoteControl))
 	mux.HandleFunc("/api/access-mode", withCORS(handleAccessMode))
 	mux.HandleFunc("/api/lan/status", withCORS(handleLANStatus))
-	mux.HandleFunc("/api/remote-setup/generate", withCORS(handleRemoteSetupGenerate))
-	mux.HandleFunc("/api/remote-setup", handleRemoteSetup) // intentional: no CORS, no withCORS, served as plain script
 	mux.HandleFunc("/manifest.webmanifest", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/manifest+json")
 		base := "http://" + r.Host
@@ -548,7 +543,6 @@ func mustJSON(v any) string {
 
 // StatusResponse is the response for GET /api/status.
 type StatusResponse struct {
-	DNS                 DNSStatus    `json:"dns"`
 	Nginx               ServiceCheck `json:"nginx"`
 	PHPFPMs             []PHPStatus  `json:"php_fpms"`
 	PHPDefault          string       `json:"php_default"`
@@ -589,14 +583,6 @@ type StatusResponse struct {
 // serverInstance identifies this servlo-panel process for the lifetime of the run.
 var serverInstance = strconv.FormatInt(time.Now().UnixNano(), 36)
 
-type DNSStatus struct {
-	OK      bool   `json:"ok"`
-	Status  string `json:"status"` // ok | degraded | down
-	VPN     bool   `json:"vpn"`    // a VPN tunnel is up; degraded is then expected
-	Enabled bool   `json:"enabled"`
-	TLD     string `json:"tld"`
-}
-
 type ServiceCheck struct {
 	Running bool `json:"running"`
 }
@@ -619,14 +605,6 @@ func handleStatus(w http.ResponseWriter, _ *http.Request) {
 
 func buildStatus() StatusResponse {
 	cfg, _ := config.LoadGlobal()
-	tld := "test"
-	dnsEnabled := true
-	if cfg != nil {
-		tld = cfg.DNS.TLD
-		dnsEnabled = cfg.DNS.Enabled
-	}
-
-	dnsStatus := dns.CheckStatus(tld)
 	nginxRunning := podman.Cache.Running("servlo-nginx")
 	watcherRunning := services.Mgr.IsActive("servlo-watcher")
 
@@ -674,7 +652,6 @@ func buildStatus() StatusResponse {
 		workspaces = []string{}
 	}
 	return StatusResponse{
-		DNS:                 DNSStatus{OK: dnsStatus == dns.StatusOK, Status: string(dnsStatus), VPN: dns.VPNActive(), Enabled: dnsEnabled, TLD: tld},
 		Nginx:               ServiceCheck{Running: nginxRunning},
 		PHPFPMs:             phpStatuses,
 		PHPDefault:          phpDefault,
@@ -3633,12 +3610,11 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, SiteActionResponse{Error: "name parameter required"})
 			return
 		}
-		cfg, cfgErr := config.LoadGlobal()
-		if cfgErr != nil {
-			writeJSON(w, SiteActionResponse{Error: "loading config: " + cfgErr.Error()})
+		fullDomain, dErr := siteops.NormalizeDomain(domainName)
+		if dErr != nil {
+			writeJSON(w, SiteActionResponse{Error: dErr.Error()})
 			return
 		}
-		fullDomain := strings.ToLower(domainName) + "." + cfg.DNS.TLD
 		if site.HasDomain(fullDomain) {
 			writeJSON(w, SiteActionResponse{Error: "site already has domain " + fullDomain})
 			return
@@ -3653,7 +3629,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, SiteActionResponse{Error: "updating registry: " + err.Error()})
 			return
 		}
-		_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
+		_ = config.SyncProjectDomains(site.Path, site.Domains)
 		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
@@ -3675,13 +3651,16 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, SiteActionResponse{Error: "old and new parameters required"})
 			return
 		}
-		cfg, cfgErr := config.LoadGlobal()
-		if cfgErr != nil {
-			writeJSON(w, SiteActionResponse{Error: "loading config: " + cfgErr.Error()})
+		oldDomain, oErr := siteops.NormalizeDomain(oldName)
+		if oErr != nil {
+			writeJSON(w, SiteActionResponse{Error: oErr.Error()})
 			return
 		}
-		oldDomain := strings.ToLower(oldName) + "." + cfg.DNS.TLD
-		newDomain := strings.ToLower(newName) + "." + cfg.DNS.TLD
+		newDomain, nErr := siteops.NormalizeDomain(newName)
+		if nErr != nil {
+			writeJSON(w, SiteActionResponse{Error: nErr.Error()})
+			return
+		}
 		if !site.HasDomain(oldDomain) {
 			writeJSON(w, SiteActionResponse{Error: "site does not have domain " + oldDomain})
 			return
@@ -3703,7 +3682,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, SiteActionResponse{Error: "updating registry: " + err.Error()})
 			return
 		}
-		_ = config.ReplaceProjectDomain(site.Path, site.Domains, oldDomain, cfg.DNS.TLD)
+		_ = config.ReplaceProjectDomain(site.Path, site.Domains, oldDomain)
 		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
@@ -3729,19 +3708,17 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, SiteActionResponse{Error: "name parameter required"})
 			return
 		}
-		cfg, cfgErr := config.LoadGlobal()
-		if cfgErr != nil {
-			writeJSON(w, SiteActionResponse{Error: "loading config: " + cfgErr.Error()})
+		fullDomain, dErr := siteops.NormalizeDomain(domainName)
+		if dErr != nil {
+			writeJSON(w, SiteActionResponse{Error: dErr.Error()})
 			return
 		}
-		fullDomain := strings.ToLower(domainName) + "." + cfg.DNS.TLD
 
 		// If the domain isn't in the registered list, it might still be in the
 		// project's .servlo.yaml as a conflict-filtered entry. Remove it from
 		// .servlo.yaml only — no registry, vhost, or cert work needed.
 		if !site.HasDomain(fullDomain) {
-			suffix := "." + cfg.DNS.TLD
-			declared := strings.TrimSuffix(fullDomain, suffix)
+			declared := fullDomain
 			// Check if domain exists in .servlo.yaml before removing.
 			proj, projErr := config.LoadProjectConfig(site.Path)
 			if projErr != nil || proj == nil {
@@ -3783,7 +3760,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, SiteActionResponse{Error: "updating registry: " + err.Error()})
 			return
 		}
-		_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
+		_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain)
 		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
@@ -4369,7 +4346,7 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no") // tell nginx not to buffer
 
 	// Flush headers immediately so the EventSource client fires `onopen` even
-	// when the container is idle (e.g. dnsmasq with no log-queries). Without
+	// when the container is idle and writing nothing. Without
 	// this, scanner.Scan below blocks before any bytes hit the wire and the
 	// browser's "live" indicator never turns on.
 	_, _ = io.WriteString(w, ": connected\n\n")
@@ -4441,83 +4418,22 @@ var allowedQueueUnit = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 // SettingsResponse is the response for GET /api/settings.
 type SettingsResponse struct {
-	AutostartOnLogin    bool     `json:"autostart_on_login"`
-	WorkerExecMode      string   `json:"worker_exec_mode"`
-	WorkerModeApplies   bool     `json:"worker_mode_applies"` // true on macOS only
-	DNSEnabled          bool     `json:"dns_enabled"`
-	DNSUpstream         []string `json:"dns_upstream"`          // pinned upstreams, empty = auto-detect
-	DNSUpstreamDetected []string `json:"dns_upstream_detected"` // what auto-detection currently sees
+	AutostartOnLogin  bool   `json:"autostart_on_login"`
+	WorkerExecMode    string `json:"worker_exec_mode"`
+	WorkerModeApplies bool   `json:"worker_mode_applies"` // true on macOS only
 }
 
 func handleSettings(w http.ResponseWriter, _ *http.Request) {
 	cfg, _ := config.LoadGlobal()
 	mode := config.WorkerExecModeExec
-	dnsEnabled := true
-	var dnsUpstream []string
 	if cfg != nil {
 		mode = cfg.WorkerExecMode()
-		dnsEnabled = cfg.DNSManaged()
-		dnsUpstream = cfg.DNS.Upstream
 	}
 	writeJSON(w, SettingsResponse{
-		AutostartOnLogin:    servloSystemd.IsAutostartEnabled(),
-		WorkerExecMode:      mode,
-		WorkerModeApplies:   false,
-		DNSEnabled:          dnsEnabled,
-		DNSUpstream:         dnsUpstream,
-		DNSUpstreamDetected: dns.ReadUpstreamDNS(),
+		AutostartOnLogin:  servloSystemd.IsAutostartEnabled(),
+		WorkerExecMode:    mode,
+		WorkerModeApplies: false,
 	})
-}
-
-// handleSettingsDNSUpstream pins (or clears) the upstream DNS servers dnsmasq
-// forwards non-.test queries to. An empty list restores auto-detection. On
-// success it rewrites the dnsmasq config and restarts servlo-dns so the change
-// takes effect without a manual `servlo install`.
-func handleSettingsDNSUpstream(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Upstream []string `json:"upstream"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-	cleaned := make([]string, 0, len(body.Upstream))
-	for _, entry := range body.Upstream {
-		if strings.TrimSpace(entry) == "" {
-			continue
-		}
-		norm, ok := dns.NormalizeUpstreamEntry(entry)
-		if !ok {
-			writeJSON(w, map[string]any{"ok": false, "error": "invalid upstream: " + entry})
-			return
-		}
-		cleaned = append(cleaned, norm)
-	}
-	cfg, err := config.LoadGlobal()
-	if err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	cfg.DNS.Upstream = cleaned
-	if err := config.SaveGlobal(cfg); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	if cfg.DNSManaged() {
-		if err := dns.WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "saved, but rewriting dnsmasq config failed: " + err.Error()})
-			return
-		}
-		if err := podman.RestartUnit("servlo-dns"); err != nil {
-			writeJSON(w, map[string]any{"ok": false, "error": "saved, but restarting servlo-dns failed: " + err.Error()})
-			return
-		}
-	}
-	writeJSON(w, map[string]any{"ok": true, "upstream": cleaned})
 }
 
 func handleSettingsWorkerMode(w http.ResponseWriter, r *http.Request) {

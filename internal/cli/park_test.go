@@ -12,29 +12,23 @@ import (
 
 // ── siteNameAndDomain ────────────────────────────────────────────────────────
 
-func TestSiteNameAndDomain(t *testing.T) {
+func TestSiteName_TableOfDirectoryShapes(t *testing.T) {
 	cases := []struct {
-		dirName    string
-		tld        string
-		wantName   string
-		wantDomain string
+		dirName  string
+		wantName string
 	}{
-		{"myapp", "test", "myapp", "myapp.test"},
-		{"MyApp", "test", "myapp", "myapp.test"},
-		{"admin.starlane.com", "test", "admin-starlane", "admin-starlane.test"},
-		{"my.project.io", "test", "my-project", "my-project.test"},
-		{"shop.co", "test", "shop", "shop.test"},
-		{"api.dev", "test", "api", "api.test"},
-		{"plain", "local", "plain", "plain.local"},
-		{"has.dots.net", "test", "has-dots", "has-dots.test"},
+		{"myapp", "myapp"},
+		{"MyApp", "myapp"},
+		{"admin.starlane.com", "admin-starlane"},
+		{"my.project.io", "my-project"},
+		{"shop.co", "shop"},
+		{"api.dev", "api"},
+		{"plain", "plain"},
+		{"has.dots.net", "has-dots"},
 	}
 	for _, c := range cases {
-		gotName, gotDomain := siteops.SiteNameAndDomain(c.dirName, c.tld)
-		if gotName != c.wantName {
-			t.Errorf("siteNameAndDomain(%q, %q) name = %q, want %q", c.dirName, c.tld, gotName, c.wantName)
-		}
-		if gotDomain != c.wantDomain {
-			t.Errorf("siteNameAndDomain(%q, %q) domain = %q, want %q", c.dirName, c.tld, gotDomain, c.wantDomain)
+		if gotName := siteops.SiteName(c.dirName); gotName != c.wantName {
+			t.Errorf("SiteName(%q) = %q, want %q", c.dirName, gotName, c.wantName)
 		}
 	}
 }

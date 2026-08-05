@@ -398,7 +398,7 @@ func ReloadNetworks() error {
 // EnsureNetworkDNS syncs the DNS servers on the named network to the provided list.
 // It drops servers no longer present and adds new ones. This sets the upstream
 // forwarders that aardvark-dns uses, which is necessary on systems where
-// /etc/resolv.conf points to a stub resolver (e.g. 127.0.0.53) that is not
+// the host resolver is a stub (e.g. 127.0.0.53) that is not
 // reachable from inside the container network namespace.
 func EnsureNetworkDNS(name string, servers []string) error {
 	if len(servers) == 0 {

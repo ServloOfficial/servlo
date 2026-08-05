@@ -11,17 +11,6 @@ On Linux, servlo requires systemd. Every container runs as a Podman Quadlet (sys
 ```
                           *.test DNS
                               │
-                   ┌──────────┴──────────┐
-                   │   DNS resolver      │
-                   │ (NM or resolved)    │
-                   └──────────┬──────────┘
-                              │ forwards .test queries
-                   ┌──────────┴──────────┐
-                   │      servlo-dns       │
-                   │  (dnsmasq, :5300)   │
-                   └──────────┬──────────┘
-                              │ resolves to 127.0.0.1
-                              ▼
   Browser ──── port 80/443 ──▶ servlo-nginx
                               (nginx:alpine)
                                   │
@@ -48,7 +37,6 @@ On Linux, servlo requires systemd. Every container runs as a Podman Quadlet (sys
 | Composer | `composer.phar` via bundled PHP CLI |
 | Node | [fnm](https://github.com/Schniz/fnm) binary, version per project |
 | Services | Podman Quadlet containers |
-| DNS | dnsmasq container + NetworkManager or systemd-resolved integration |
 | TLS | [mkcert](https://github.com/FiloSottile/mkcert), locally trusted CA |
 | Notifications | Single in-process notifier inside `servlo-ui` dispatches every kind (mail, worker failures, finished service ops, service updates) through both WebSocket (open tabs at `/api/ws`) and Web Push (closed PWA / minimised tabs). Per-install VAPID keys at `~/.local/share/servlo/vapid-{private,public}.key`; subscription store at `push-subscriptions.json` with per-category preferences. See features/notifications.md. |
 

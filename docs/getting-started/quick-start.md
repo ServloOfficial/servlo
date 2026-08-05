@@ -11,7 +11,7 @@ servlo status
 ```
 { .annotate }
 
-1. `servlo park` registers the directory with the watcher service. Every subdirectory that looks like a PHP project gets a `.test` domain, no `/etc/hosts` edits, DNS is handled by dnsmasq running in a Podman container.
+1. `servlo park` registers the directory with the watcher service. Every subdirectory that looks like a PHP project gets a domain; resolving it is up to you, since servlo runs no resolver of its own.
 2. `servlo status` shows a health summary: DNS, nginx, PHP-FPM containers, services, and cert expiry.
 
 If you only want to register a single project, `cd` into it and run `servlo link` instead of `servlo park`.

@@ -58,7 +58,7 @@ func NewLinkCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "link [domain]",
 		Short: "Link the current directory as a site",
-		Long:  "Register the current directory as a servlo site. The optional argument is the domain name without the TLD (e.g. 'myapp' becomes myapp.test). Defaults to the directory name.",
+		Long:  "Register the current directory as a servlo site. The optional argument is the full domain the site is served on (e.g. example.com). Without it the directory name is used when it is already a domain, or the .servlo.yaml domains are; otherwise the link is refused, since servlo has no suffix to complete a bare name with.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runLinkOrInit(args)
@@ -170,11 +170,11 @@ func runLink(args []string) error {
 		}
 	}
 
-	requested := ""
+	requestedDomain := ""
 	if len(args) > 0 {
-		requested = args[0]
+		requestedDomain = args[0]
 	}
-	policy := linkPolicy(requested)
+	policy := linkPolicy(requestedDomain)
 	plan, err := linker.Resolve(cwd, cfg, policy)
 	if err != nil {
 		return err

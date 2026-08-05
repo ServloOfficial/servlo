@@ -12,17 +12,15 @@ import (
 // re-exec and the fallback, so the root pass can be exercised without a real
 // login manager or sudo. Ports are deliberately absent: they are settled by
 // printing commands rather than by escalating.
-func stubSystemSetup(t *testing.T, lingerOff, sudoersReady bool) (*[][]string, *[]bool) {
+func stubSystemSetup(t *testing.T, lingerOff bool) (*[][]string, *[]bool) {
 	t.Helper()
-	origLinger, origSudoers := lingerNeeded, dnsSudoersReady
-	origRunner, origLegacy, origRecord := sudoSelfRunner, legacySystemSetup, recordDNSSudoers
+	origLinger := lingerNeeded
+	origRunner, origLegacy := sudoSelfRunner, legacySystemSetup
 	t.Cleanup(func() {
-		lingerNeeded, dnsSudoersReady = origLinger, origSudoers
-		sudoSelfRunner, legacySystemSetup, recordDNSSudoers = origRunner, origLegacy, origRecord
+		lingerNeeded = origLinger
+		sudoSelfRunner, legacySystemSetup = origRunner, origLegacy
 	})
 	lingerNeeded = func() bool { return lingerOff }
-	dnsSudoersReady = func() bool { return sudoersReady }
-	recordDNSSudoers = func(string) {}
 
 	var runs [][]string
 	sudoSelfRunner = func(args ...string) error {
@@ -30,8 +28,8 @@ func stubSystemSetup(t *testing.T, lingerOff, sudoersReady bool) (*[][]string, *
 		return nil
 	}
 	var legacy []bool
-	legacySystemSetup = func(wantDNS bool) error {
-		legacy = append(legacy, wantDNS)
+	legacySystemSetup = func() error {
+		legacy = append(legacy, true)
 		return nil
 	}
 	return &runs, &legacy
@@ -40,9 +38,9 @@ func stubSystemSetup(t *testing.T, lingerOff, sudoersReady bool) (*[][]string, *
 // The common case is a reinstall where every root step already applies. It must
 // stay completely silent rather than asking for a password to do nothing.
 func TestRunSystemSetupSkipsWhenAlreadyApplied(t *testing.T) {
-	runs, legacy := stubSystemSetup(t, false, true)
+	runs, legacy := stubSystemSetup(t, false)
 
-	if err := runSystemSetup(true); err != nil {
+	if err := runSystemSetup(); err != nil {
 		t.Fatalf("runSystemSetup: %v", err)
 	}
 	if len(*runs) != 0 || len(*legacy) != 0 {
@@ -50,23 +48,10 @@ func TestRunSystemSetupSkipsWhenAlreadyApplied(t *testing.T) {
 	}
 }
 
-// A localhost-mode install never configures a resolver, so a missing DNS grant
-// is not a reason to ask for root.
-func TestRunSystemSetupIgnoresSudoersWhenDNSUnmanaged(t *testing.T) {
-	runs, _ := stubSystemSetup(t, false, false)
-
-	if err := runSystemSetup(false); err != nil {
-		t.Fatalf("runSystemSetup: %v", err)
-	}
-	if len(*runs) != 0 {
-		t.Errorf("escalated for a DNS grant a localhost install never uses: %v", *runs)
-	}
-}
-
 func TestRunSystemSetupOneSudoCall(t *testing.T) {
-	runs, legacy := stubSystemSetup(t, true, false)
+	runs, legacy := stubSystemSetup(t, true)
 
-	if err := runSystemSetup(true); err != nil {
+	if err := runSystemSetup(); err != nil {
 		t.Fatalf("runSystemSetup: %v", err)
 	}
 	if len(*runs) != 1 {
@@ -81,53 +66,13 @@ func TestRunSystemSetupOneSudoCall(t *testing.T) {
 	}
 }
 
-func TestRunSystemSetupSkipsSudoersForLocalhostMode(t *testing.T) {
-	runs, _ := stubSystemSetup(t, true, false)
-
-	if err := runSystemSetup(false); err != nil {
-		t.Fatalf("runSystemSetup: %v", err)
-	}
-	if len(*runs) != 1 {
-		t.Fatalf("sudo calls = %d, want 1 (%v)", len(*runs), *runs)
-	}
-	got := strings.Join((*runs)[0], " ")
-	if got != "bootstrap --system --skip-sudoers" {
-		t.Errorf("sudo args = %q, want the sudoers grant left out", got)
-	}
-}
-
-// sudo hands the root pass its own HOME, so the marker it writes is invisible to
-// the user. Without recording it on this side, every later install would decide
-// the grant is missing and escalate again.
-func TestRunSystemSetupRecordsSudoersMarker(t *testing.T) {
-	stubSystemSetup(t, true, false)
-	var recorded []string
-	recordDNSSudoers = func(user string) { recorded = append(recorded, user) }
-
-	if err := runSystemSetup(true); err != nil {
-		t.Fatalf("runSystemSetup: %v", err)
-	}
-	if len(recorded) != 1 || recorded[0] != currentUserName() {
-		t.Errorf("marker recorded for %v, want [%s]", recorded, currentUserName())
-	}
-
-	// A localhost-mode install writes no grant, so there is nothing to record.
-	recorded = nil
-	if err := runSystemSetup(false); err != nil {
-		t.Fatalf("runSystemSetup: %v", err)
-	}
-	if len(recorded) != 0 {
-		t.Errorf("marker recorded with no grant written: %v", recorded)
-	}
-}
-
 // No sudo, or a user who cannot use it, must land on the old per-step path
 // rather than failing the install outright.
 func TestRunSystemSetupFallsBackWhenSudoFails(t *testing.T) {
-	_, legacy := stubSystemSetup(t, true, false)
+	_, legacy := stubSystemSetup(t, true)
 	sudoSelfRunner = func(...string) error { return errors.New("sudo: command not found") }
 
-	if err := runSystemSetup(true); err != nil {
+	if err := runSystemSetup(); err != nil {
 		t.Fatalf("runSystemSetup: %v", err)
 	}
 	if len(*legacy) != 1 || !(*legacy)[0] {
@@ -140,9 +85,9 @@ func TestRunSystemSetupFallsBackWhenSudoFails(t *testing.T) {
 // is the S1.2 half of "prints the sudo command rather than running it": if the
 // port step could still drag root in, printing would be theatre.
 func TestSystemSetupIgnoresPorts(t *testing.T) {
-	stubSystemSetup(t, false, true)
+	stubSystemSetup(t, false)
 
-	if systemSetupNeeded(true) {
+	if systemSetupNeeded() {
 		t.Error("systemSetupNeeded = true with only the port strategy outstanding")
 	}
 }

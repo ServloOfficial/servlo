@@ -818,7 +818,7 @@ func WriteFPMQuadlet(version string) error {
 	// Skip the write and daemon-reload if the quadlet is already up to date.
 	// Unnecessary daemon-reloads cause Podman's quadlet generator to regenerate
 	// all service files, which can briefly disrupt servlo-dns and cause
-	// systemd-resolved to mark 127.0.0.1:5300 as failed (breaking .test resolution).
+	// containers to restart for no reason.
 	existingPath := filepath.Join(config.QuadletDir(), unitName+".container")
 	if existing, err := os.ReadFile(existingPath); err == nil && string(existing) == content {
 		return nil

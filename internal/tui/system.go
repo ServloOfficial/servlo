@@ -6,7 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dns"
 	servloNode "github.com/realrashid/servlo/internal/node"
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	servloSystemd "github.com/realrashid/servlo/internal/systemd"
@@ -48,26 +47,6 @@ func (m *Model) systemRows() []systemRow {
 	add := func(r systemRow) { rows = append(rows, r) }
 	header := func(s string) { add(systemRow{kind: sysHeader, label: s}) }
 	info := func(label, value string) { add(systemRow{kind: sysInfo, label: label, value: value}) }
-
-	// DNS
-	header("DNS")
-	tld := "test"
-	dnsEnabled := true
-	if cfg != nil {
-		if cfg.DNS.TLD != "" {
-			tld = cfg.DNS.TLD
-		}
-		dnsEnabled = cfg.DNS.Enabled
-	}
-	info("TLD", tld)
-	if dnsEnabled {
-		info("Status", dnsStatusText(dns.CheckStatus(tld)))
-	} else {
-		info("Status", "disabled (system resolver only)")
-	}
-	if dns.VPNActive() {
-		info("VPN", "active (may bypass servlo-dns)")
-	}
 
 	// Nginx
 	header("Nginx")
@@ -148,7 +127,7 @@ func (m *Model) systemRows() []systemRow {
 		}
 	}
 	add(systemRow{kind: sysAutostart, label: "Autostart on login", on: servloSystemd.IsAutostartEnabled()})
-	add(systemRow{kind: sysLANExpose, label: "LAN expose (sites and DNS)", on: cfg != nil && cfg.LAN.Exposed})
+	add(systemRow{kind: sysLANExpose, label: "LAN expose (sites)", on: cfg != nil && cfg.LAN.Exposed})
 	add(systemRow{kind: sysLANServices, label: managedServiceLANLabel(cfg), on: cfg != nil && cfg.LAN.ServicesExposed})
 
 	return rows
@@ -276,20 +255,6 @@ func renderSystemInfoRow(label, value string) string {
 		padded = label + spaces(18-w)
 	}
 	return "    " + dimStyle.Render(padded) + " " + value
-}
-
-// dnsStatusText converts dns.Status into the user-facing string shown in the
-// status row. Centralised so both the system page and a future System
-// dashboard widget render the same text.
-func dnsStatusText(s dns.Status) string {
-	switch s {
-	case dns.StatusOK:
-		return "ok"
-	case dns.StatusDegraded:
-		return "degraded (servlo-dns up, system resolver bypassed)"
-	default:
-		return "down"
-	}
 }
 
 func runningOrStopped(running bool) string {

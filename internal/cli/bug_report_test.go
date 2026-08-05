@@ -442,20 +442,6 @@ func TestRedactNonLoopbackAddrs_keepsLoopback(t *testing.T) {
 	}
 }
 
-func TestRedactResolvConf_redactsServersAndSearch(t *testing.T) {
-	in := "# managed by NetworkManager\nnameserver 10.0.0.1\nnameserver 8.8.8.8\nsearch corp.example.com\ndomain example.com\noptions edns0 trust-ad\n"
-	out := redactResolvConf(in)
-	if strings.Contains(out, "10.0.0.1") || strings.Contains(out, "8.8.8.8") || strings.Contains(out, "corp.example.com") || strings.Contains(out, "example.com") {
-		t.Errorf("expected redaction, got: %q", out)
-	}
-	if !strings.Contains(out, "options edns0 trust-ad") {
-		t.Errorf("non-sensitive options line dropped: %q", out)
-	}
-	if !strings.Contains(out, "# managed by NetworkManager") {
-		t.Errorf("comment dropped: %q", out)
-	}
-}
-
 func TestIsSecretShapedKey(t *testing.T) {
 	cases := map[string]bool{
 		"SERVLO_GITHUB_TOKEN":  true,
