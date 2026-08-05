@@ -11,7 +11,6 @@ import (
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	nodeDet "github.com/realrashid/servlo/internal/node"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/services"
@@ -294,42 +293,13 @@ func RegenerateHostWorkersForSite(s config.Site) {
 		}
 	}
 	// Iterate the framework's host workers directly, not proj.Workers:
-	// some host workers (Vite is replaces_build/per_worktree) are enabled
-	// via the build flow and never persisted to the saved workers list.
+	// some host workers (Vite is replaces_build) are enabled via the build
+	// flow and never persisted to the saved workers list.
 	for w, wDef := range fw.Workers {
 		if !wDef.Host {
 			continue
 		}
 		regenerateWorkerUnit(s.Name, s.Path, phpVersion, w, wDef, "servlo-"+w+"-"+s.Name)
-	}
-	// A site's git worktrees run their own per-worktree host workers (e.g. Vite)
-	// under suffixed units; regenerate those too so a runtime toggle reaches a
-	// worktree's dev server instead of leaving it on the old runtime.
-	regenerateWorktreeHostWorkers(&s, fw, phpVersion)
-}
-
-// regenerateWorktreeHostWorkers rewrites and restarts (only when changed) the
-// per-worktree host worker units of a site, the worktree analogue of the main
-// loop in RegenerateHostWorkersForSite. Idle-suspended worktree workers are left
-// down (regenerateWorkerUnit also skips any unit that isn't enabled).
-func regenerateWorktreeHostWorkers(site *config.Site, fw *config.Framework, phpVersion string) {
-	wts, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	if err != nil {
-		return
-	}
-	for _, wt := range wts {
-		if wt.Path == site.Path {
-			continue // the main checkout, handled by the caller
-		}
-		wtBase := config.WorktreeUnitSlug(filepath.Base(wt.Path))
-		names := OptedInHostWorkers(site, wt.Path)
-		for _, name := range names {
-			wDef, ok := fw.Workers[name]
-			if !ok {
-				continue
-			}
-			regenerateWorkerUnit(site.Name, wt.Path, phpVersion, name, wDef, "servlo-"+name+"-"+site.Name+"-"+wtBase)
-		}
 	}
 }
 

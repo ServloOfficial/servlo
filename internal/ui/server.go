@@ -35,14 +35,12 @@ import (
 	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/envfile"
 	"github.com/realrashid/servlo/internal/eventbus"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	"github.com/realrashid/servlo/internal/grouping"
 	"github.com/realrashid/servlo/internal/nginx"
 	servloNode "github.com/realrashid/servlo/internal/node"
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/phpsets"
 	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/reqstats"
 	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/realrashid/servlo/internal/services"
 	"github.com/realrashid/servlo/internal/shims"
@@ -232,8 +230,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/node/set-manager", withCORS(publishAfter(handleNodeSetManager, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/link", withCORS(publishAfter(handleSiteLink, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/reorder", withCORS(publishAfter(handleSiteReorder, eventbus.KindSites)))
-	mux.HandleFunc("/api/sites/worktree-options", withCORS(handleSiteWorktreeOptions))
-	mux.HandleFunc("/api/sites/worktree-add", withCORS(publishAfter(handleSiteWorktreeAdd, eventbus.KindSites)))
 	mux.HandleFunc("/api/browse", withCORS(handleBrowse))
 	mux.HandleFunc("/api/workspaces", withCORS(publishAfter(handleWorkspaces, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/workspaces/", withCORS(publishAfter(handleWorkspaceRoutes, eventbus.KindStatus, eventbus.KindSites)))
@@ -700,27 +696,6 @@ func buildStatus() StatusResponse {
 
 func buildStatusJSON() ([]byte, error) { return []byte(mustJSON(buildStatus())), nil }
 
-// WorktreeResponse is embedded in SiteResponse for each git worktree.
-// PHP/NodeVersion are the effective values; *Override flags signal whether
-// the worktree's .servlo.yaml set them explicitly or it's inherited.
-type WorktreeResponse struct {
-	Branch              string         `json:"branch"`
-	Domain              string         `json:"domain"`
-	Path                string         `json:"path"`
-	PHPVersion          string         `json:"php_version,omitempty"`
-	PHPMin              string         `json:"php_min,omitempty"`
-	PHPMax              string         `json:"php_max,omitempty"`
-	NodeVersion         string         `json:"node_version,omitempty"`
-	PHPVersionOverride  bool           `json:"php_version_override,omitempty"`
-	NodeVersionOverride bool           `json:"node_version_override,omitempty"`
-	FrameworkVersion    string         `json:"framework_version,omitempty"`
-	FrameworkLabel      string         `json:"framework_label,omitempty"`
-	DBIsolated          bool           `json:"db_isolated,omitempty"`
-	DBDatabase          string         `json:"db_database,omitempty"`
-	LANPort             int            `json:"lan_port,omitempty"`
-	FrameworkWorkers    []WorkerStatus `json:"framework_workers,omitempty"`
-}
-
 // WorkerStatus represents a single framework worker and its running state.
 type WorkerStatus struct {
 	Name    string `json:"name"`
@@ -790,12 +765,11 @@ type SiteResponse struct {
 	// Pinned keeps a site at the top of the list.
 	Pinned bool `json:"pinned,omitempty"`
 	// LastRequestAt (unix milliseconds) and RequestCount are the site's traffic
-	// over the request store's retention window, worktrees included, filtered to
-	// the requests the app actually served. The sites list orders by them.
-	LastRequestAt int64              `json:"last_request_at,omitempty"`
-	RequestCount  int                `json:"request_count,omitempty"`
-	Branch        string             `json:"branch"`
-	Worktrees     []WorktreeResponse `json:"worktrees"`
+	// over the request store's retention window, filtered to the requests the
+	// app actually served. The sites list orders by them.
+	LastRequestAt int64  `json:"last_request_at,omitempty"`
+	RequestCount  int    `json:"request_count,omitempty"`
+	Branch        string `json:"branch"`
 	// Services lists the service names this site uses, sourced from the
 	// project's .servlo.yaml. Used by the dashboard to render service badges
 	// on the site detail panel.
@@ -912,48 +886,6 @@ func buildSites() ([]SiteResponse, error) {
 
 		usage := siteUsage[e.Name]
 
-		// Pinned and proxy-only sites are exempt from suspension, so they never
-		// report idle either.
-
-		var worktreeResponses []WorktreeResponse
-		for _, wt := range e.Worktrees {
-			lanPort := 0
-			if entry, ok, err := config.FindWorktreeLAN(e.Name, wt.Branch); err == nil && ok {
-				lanPort = entry.Port
-			}
-			var wtWorkers []WorkerStatus
-			for _, fw := range wt.FrameworkWorkers {
-				wtWorkers = append(wtWorkers, WorkerStatus{
-					Name:        fw.Name,
-					Label:       fw.Label,
-					Running:     fw.Running,
-					Failing:     fw.Failing,
-					Unreachable: fw.Unreachable,
-				})
-			}
-			usage = addUsage(usage, siteUsage[reqstats.Key(e.Name, wt.Branch)])
-			worktreeResponses = append(worktreeResponses, WorktreeResponse{
-				Branch:              wt.Branch,
-				Domain:              wt.Domain,
-				Path:                wt.Path,
-				PHPVersion:          wt.PHPVersion,
-				PHPMin:              e.FrameworkPHPMin,
-				PHPMax:              e.FrameworkPHPMax,
-				NodeVersion:         wt.NodeVersion,
-				PHPVersionOverride:  wt.PHPVersionOverride,
-				NodeVersionOverride: wt.NodeVersionOverride,
-				FrameworkVersion:    wt.FrameworkVersion,
-				FrameworkLabel:      wt.FrameworkLabel,
-				DBIsolated:          wt.DBIsolated,
-				DBDatabase:          wt.DBDatabase,
-				LANPort:             lanPort,
-				FrameworkWorkers:    wtWorkers,
-			})
-		}
-		if worktreeResponses == nil {
-			worktreeResponses = []WorktreeResponse{}
-		}
-
 		sites = append(sites, SiteResponse{
 			Name:               e.Name,
 			AppName:            laravelAppName(e.FrameworkName, e.Path),
@@ -1000,7 +932,6 @@ func buildSites() ([]SiteResponse, error) {
 			RequestCount:       usage.Count,
 			Pinned:             pinnedSites[e.Name],
 			Branch:             e.Branch,
-			Worktrees:          worktreeResponses,
 			Services:           e.Services,
 			DBDatabase:         envfile.ReadKey(filepath.Join(e.Path, ".env"), "DB_DATABASE"),
 			LANPort:            e.LANPort,
@@ -1117,15 +1048,11 @@ type ServiceResponse struct {
 	WorkerSite         string   `json:"worker_site,omitempty"`
 	WorkerName         string   `json:"worker_name,omitempty"`
 	WorkerLabel        string   `json:"worker_label,omitempty"`
-	// Set when this worker entry is for a per-worktree unit
-	// (servlo-<wname>-<site>-<wt>); empty for parent-site workers.
-	WorkerWorktree       string `json:"worker_worktree,omitempty"`
-	WorkerWorktreeDomain string `json:"worker_worktree_domain,omitempty"`
-	UpdateStrategy       string `json:"update_strategy,omitempty"`
-	UpdateAvailable      bool   `json:"update_available,omitempty"`
-	LatestVersion        string `json:"latest_version,omitempty"`
-	UpgradeVersion       string `json:"upgrade_version,omitempty"`
-	PreviousVersion      string `json:"previous_version,omitempty"`
+	UpdateStrategy     string   `json:"update_strategy,omitempty"`
+	UpdateAvailable    bool     `json:"update_available,omitempty"`
+	LatestVersion      string   `json:"latest_version,omitempty"`
+	UpgradeVersion     string   `json:"upgrade_version,omitempty"`
+	PreviousVersion    string   `json:"previous_version,omitempty"`
 	// MigrationSupported and CanRollback intentionally drop omitempty so the
 	// false case still appears in the JSON. The UI uses === to distinguish
 	// "field missing" (no avail check ran) from "explicitly false".
@@ -1486,7 +1413,7 @@ func buildServicesList() []ServiceResponse {
 			if !ok2 || fw2.Workers == nil {
 				continue
 			}
-			services = append(services, frameworkWorkerServicesForSite(s, fw2, frameworkUnitStatus, gitpkg.DetectWorktrees)...)
+			services = append(services, frameworkWorkerServicesForSite(s, fw2, frameworkUnitStatus)...)
 		}
 	}
 	return services
@@ -1496,35 +1423,16 @@ func buildServicesList() []ServiceResponse {
 // fake to drive the framework worker enumeration without systemd.
 var frameworkUnitStatus = podman.UnitStatus
 
-// frameworkWorkerTarget describes one (parent or worktree) target the worker
-// enumeration walks. wtBase is the worktree directory basename, empty for the
-// parent. domain is the worktree's full FQDN, empty for the parent.
-type frameworkWorkerTarget struct {
-	wtBase string
-	domain string
-}
-
 // frameworkWorkerServicesForSite enumerates active framework workers for one
-// site (parent + worktrees), excluding queue/schedule/reverb which surface
-// through their own loops. statusFn/detectWorktrees are injected for tests.
+// site, excluding queue/schedule/reverb which surface through their own loops.
+// statusFn is injected for tests.
 func frameworkWorkerServicesForSite(
 	s config.Site,
 	fw *config.Framework,
 	statusFn func(string) (string, error),
-	detectWorktrees func(string, string) ([]gitpkg.Worktree, error),
 ) []ServiceResponse {
 	if fw == nil || fw.Workers == nil {
 		return nil
-	}
-	// Worktree units follow servlo-<wname>-<site>-<wtBase>; parent uses wtBase="".
-	targets := []frameworkWorkerTarget{{}}
-	if wts, _ := detectWorktrees(s.Path, s.PrimaryDomain()); len(wts) > 0 {
-		for _, wt := range wts {
-			targets = append(targets, frameworkWorkerTarget{
-				wtBase: filepath.Base(wt.Path),
-				domain: wt.Domain,
-			})
-		}
 	}
 	var out []ServiceResponse
 	for wname, w := range fw.Workers {
@@ -1532,39 +1440,23 @@ func frameworkWorkerServicesForSite(
 		case "queue", "schedule", "reverb":
 			continue
 		}
-		perWT := w.IsPerWorktree()
 		label := w.Label
 		if label == "" {
 			label = wname
 		}
-		for _, t := range targets {
-			if t.wtBase != "" && !perWT {
-				continue
-			}
-			unitName := "servlo-" + wname + "-" + s.Name
-			respName := wname + "-" + s.Name
-			if t.wtBase != "" {
-				unitName += "-" + t.wtBase
-				respName += "-" + t.wtBase
-			}
-			unitStatus, _ := statusFn(unitName)
-			if unitStatus != "active" {
-				continue
-			}
-			resp := ServiceResponse{
-				Name:        respName,
-				Status:      "active",
-				EnvVars:     map[string]string{},
-				WorkerSite:  s.Name,
-				WorkerName:  wname,
-				WorkerLabel: label,
-			}
-			if t.wtBase != "" {
-				resp.WorkerWorktree = t.wtBase
-				resp.WorkerWorktreeDomain = t.domain
-			}
-			out = append(out, resp)
+		unitName := "servlo-" + wname + "-" + s.Name
+		unitStatus, _ := statusFn(unitName)
+		if unitStatus != "active" {
+			continue
 		}
+		out = append(out, ServiceResponse{
+			Name:        wname + "-" + s.Name,
+			Status:      "active",
+			EnvVars:     map[string]string{},
+			WorkerSite:  s.Name,
+			WorkerName:  wname,
+			WorkerLabel: label,
+		})
 	}
 	return out
 }
@@ -2297,8 +2189,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Custom framework workers: {workerName}-{siteName} or
-	// {workerName}-{siteName}-{wtBase} for the worktree variant.
+	// Custom framework workers: {workerName}-{siteName}.
 	if action == "stop" {
 		if reg3, err3 := config.LoadSites(); err3 == nil {
 			for _, s := range reg3.Sites {
@@ -2329,35 +2220,6 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 						writeJSON(w, resp)
 						return
 					}
-					if !strings.HasPrefix(name, prefix+"-") {
-						continue
-					}
-					wtBase := strings.TrimPrefix(name, prefix+"-")
-					wts, _ := gitpkg.DetectWorktrees(s.Path, s.PrimaryDomain())
-					var wtPath string
-					for _, wt := range wts {
-						if filepath.Base(wt.Path) == wtBase {
-							wtPath = wt.Path
-							break
-						}
-					}
-					if wtPath == "" {
-						continue
-					}
-					opErr := cli.WorkerStopForSite(s.Name, wtPath, wname)
-					resp := ServiceActionResponse{
-						ServiceResponse: ServiceResponse{
-							Name: name, Status: "inactive", EnvVars: map[string]string{},
-							WorkerSite: s.Name, WorkerName: wname, WorkerWorktree: wtBase,
-						},
-						OK: opErr == nil,
-					}
-					if opErr != nil {
-						resp.Error = opErr.Error()
-						resp.Status = "active"
-					}
-					writeJSON(w, resp)
-					return
 				}
 			}
 		}
@@ -2662,8 +2524,8 @@ func handleSiteFavicon(w http.ResponseWriter, r *http.Request) {
 // optional pre-overwrite backup. POST and other methods are rejected so
 // future shared dispatch does not accidentally widen the contract.
 //
-//	GET /api/sites/{domain}/env[?branch=<sanitized>]
-//	PUT /api/sites/{domain}/env[?branch=<sanitized>]
+//	GET /api/sites/{domain}/env
+//	PUT /api/sites/{domain}/env
 func handleSiteEnv(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -2795,18 +2657,12 @@ func envFileFromQuery(r *http.Request, defaultFile string) (string, bool) {
 	return f, true
 }
 
-// resolveEnvTarget resolves the branch directory and the target env file for a
-// site env request, shared by all five /env endpoints so they agree on the file
-// set. It writes the error and returns ok=false when the branch dir is unknown
-// (404) or the framework has no editable dotenv / the file is invalid (400).
+// resolveEnvTarget resolves the target env file for a site env request, shared
+// by all five /env endpoints so they agree on the file set. It writes the error
+// and returns ok=false when the framework has no editable dotenv or the file is
+// invalid (400).
 func resolveEnvTarget(w http.ResponseWriter, r *http.Request, site *config.Site) (dir, envFile string, ok bool) {
-	branch := r.URL.Query().Get("branch")
-	ensureWorktreeEnvIfBranch(site, branch)
-	dir = resolveSitePath(site, branch)
-	if dir == "" {
-		http.NotFound(w, r)
-		return "", "", false
-	}
+	dir = site.Path
 	def, has := frameworkEnvFile(site.Framework, dir)
 	if !has {
 		http.Error(w, "invalid file", http.StatusBadRequest)
@@ -2921,13 +2777,7 @@ func handleSiteEnvFiles(w http.ResponseWriter, r *http.Request, site *config.Sit
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	branch := r.URL.Query().Get("branch")
-	ensureWorktreeEnvIfBranch(site, branch)
-	dir := resolveSitePath(site, branch)
-	if dir == "" {
-		http.NotFound(w, r)
-		return
-	}
+	dir := site.Path
 	files, err := listEnvFiles(site.Framework, dir)
 	if err != nil {
 		http.Error(w, "listing env files: "+err.Error(), http.StatusInternalServerError)
@@ -2967,20 +2817,14 @@ type SiteEnvProposeEntry struct {
 // handleSiteEnvPropose returns a proposed .env that inserts the framework env
 // file's missing example keys next to their neighbours. It targets the
 // framework-resolved env file (the same one the env_drift check inspects), so
-// ?file is not honoured; ?branch selects a worktree, ?optional=1 also pulls in
-// the keys the app reads with a code default.
+// ?file is not honoured; ?optional=1 also pulls in the keys the app reads with
+// a code default.
 func handleSiteEnvPropose(w http.ResponseWriter, r *http.Request, site *config.Site) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	branch := r.URL.Query().Get("branch")
-	ensureWorktreeEnvIfBranch(site, branch)
-	dir := resolveSitePath(site, branch)
-	if dir == "" {
-		http.NotFound(w, r)
-		return
-	}
+	dir := site.Path
 
 	// GetFrameworkForDir, like the Env tab's own resolver: GetFramework returns
 	// the Go built-in and ignores the versioned store yaml, so it would propose
@@ -3183,7 +3027,7 @@ type SiteNginxRestoreResponse struct {
 // domain is validated against the registered sites, which also blocks any path
 // traversal via the {domain} segment.
 func handleSiteNginx(w http.ResponseWriter, r *http.Request, domain string) {
-	if _, err := siteops.SiteForDomain(domain); err != nil {
+	if _, err := config.FindSiteByDomain(domain); err != nil {
 		http.Error(w, "site not found", http.StatusNotFound)
 		return
 	}
@@ -3218,7 +3062,7 @@ func handleSiteNginxBackups(w http.ResponseWriter, r *http.Request, domain strin
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if _, err := siteops.SiteForDomain(domain); err != nil {
+	if _, err := config.FindSiteByDomain(domain); err != nil {
 		http.NotFound(w, r)
 		return
 	}
@@ -3241,7 +3085,7 @@ func handleSiteNginxBackupContent(w http.ResponseWriter, r *http.Request, domain
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if _, err := siteops.SiteForDomain(domain); err != nil {
+	if _, err := config.FindSiteByDomain(domain); err != nil {
 		http.NotFound(w, r)
 		return
 	}
@@ -3277,7 +3121,7 @@ func handleSiteNginxReset(w http.ResponseWriter, r *http.Request, domain string)
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if _, err := siteops.SiteForDomain(domain); err != nil {
+	if _, err := config.FindSiteByDomain(domain); err != nil {
 		http.NotFound(w, r)
 		return
 	}
@@ -3301,7 +3145,7 @@ func handleSiteNginxRestore(w http.ResponseWriter, r *http.Request, domain strin
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if _, err := siteops.SiteForDomain(domain); err != nil {
+	if _, err := config.FindSiteByDomain(domain); err != nil {
 		http.NotFound(w, r)
 		return
 	}
@@ -3539,7 +3383,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		// Funnel through the shared helper so the clamp, the .php-version and
 		// .servlo.yaml pins, the FrankenPHP fallback, the quadlet and the vhost all
 		// stay in sync with the CLI paths. It reloads nginx itself.
-		res, err := siteops.SetSitePHPVersion(site, version, siteops.PHPVersionOpts{Branch: r.URL.Query().Get("branch")})
+		res, err := siteops.SetSitePHPVersion(site, version)
 		if err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
@@ -3554,7 +3398,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		}
 		// "bun" is a JS-runtime toggle, not a Node version: pin js_runtime in
 		// .servlo.yaml (preserving node_version) and re-sync host workers so the
-		// dev/Vite worker switches to bun. Project-level, so branch is ignored.
+		// dev/Vite worker switches to bun.
 		if version == "bun" {
 			if err := config.SetProjectJSRuntime(site.Path, "bun"); err != nil {
 				writeJSON(w, SiteActionResponse{Error: "setting js_runtime: " + err.Error()})
@@ -3563,22 +3407,6 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			cli.RegenerateHostWorkersForSite(*site)
 			writeJSON(w, SiteActionResponse{OK: true})
 			return
-		}
-		if branch := r.URL.Query().Get("branch"); branch != "" {
-			wtPath := resolveSitePath(site, branch)
-			if wtPath == "" {
-				writeJSON(w, SiteActionResponse{Error: "unknown worktree branch"})
-				return
-			}
-			if err := os.WriteFile(filepath.Join(wtPath, ".node-version"), []byte(version+"\n"), 0644); err != nil {
-				writeJSON(w, SiteActionResponse{Error: "writing .node-version: " + err.Error()})
-				return
-			}
-			if err := config.SetWorktreeNodeVersion(wtPath, version); err != nil {
-				writeJSON(w, SiteActionResponse{Error: err.Error()})
-				return
-			}
-			break
 		}
 		if err := os.WriteFile(filepath.Join(site.Path, ".node-version"), []byte(version+"\n"), 0644); err != nil {
 			writeJSON(w, SiteActionResponse{Error: "writing .node-version: " + err.Error()})
@@ -3792,27 +3620,8 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		cli.RestartStripeIfActive(site)
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
-	case "db:isolate":
-		branch := r.URL.Query().Get("branch")
-		if branch == "" {
-			writeJSON(w, SiteActionResponse{Error: "branch parameter required"})
-			return
-		}
-		on := r.URL.Query().Get("isolated") == "true"
-		source := r.URL.Query().Get("source")
-		if err := setWorktreeDBIsolated(site, branch, on, source); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
 	case "terminal":
-		path := resolveSitePath(site, r.URL.Query().Get("branch"))
-		if path == "" {
-			writeJSON(w, SiteActionResponse{Error: "unknown worktree branch"})
-			return
-		}
-		if err := openTerminalAt(path); err != nil {
+		if err := openTerminalAt(site.Path); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
@@ -3850,7 +3659,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if site.Secured {
-			_ = certs.ReissueCertForWorktree(*site)
+			_ = certs.ReissueCert(*site)
 		}
 		_ = podman.WriteContainerHosts()
 		_ = nginx.Reload()
@@ -3900,7 +3709,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if site.Secured {
-			_ = certs.ReissueCertForWorktree(*site)
+			_ = certs.ReissueCert(*site)
 		}
 		_ = podman.WriteContainerHosts()
 		_ = nginx.Reload()
@@ -3980,7 +3789,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if site.Secured {
-			_ = certs.ReissueCertForWorktree(*site)
+			_ = certs.ReissueCert(*site)
 		}
 		_ = podman.WriteContainerHosts()
 		_ = nginx.Reload()
@@ -4051,38 +3860,20 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
-	case "worktree:remove":
-		branch := r.URL.Query().Get("branch")
-		if branch == "" {
-			writeJSON(w, SiteActionResponse{Error: "branch parameter required"})
-			return
-		}
-		force := r.URL.Query().Get("force") == "1" || r.URL.Query().Get("force") == "true"
-		dropDB := r.URL.Query().Get("drop_db") == "1" || r.URL.Query().Get("drop_db") == "true"
-		if err := cli.RemoveWorktreeAndCleanup(site, branch, force, dropDB, nil); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		_ = nginx.Reload()
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
 	default:
-		// worker:{name}:start|stop. ?branch=<wt> targets the worktree unit
-		// servlo-<wname>-<site>-<wtBase> instead of the parent's servlo-<wname>-<site>.
+		// worker:{name}:start|stop.
 		if strings.HasPrefix(action, "worker:") {
 			parts := strings.SplitN(action, ":", 3)
 			if len(parts) == 3 && (parts[2] == "start" || parts[2] == "stop") {
 				workerName := parts[1]
-				branch := r.URL.Query().Get("branch")
 				// A host-proxy site's dev server (the "app" worker) IS the site:
 				// nothing runs behind the proxy vhost but the dev command itself.
 				// Stopping just its unit leaves the vhost proxying to a now-dead
 				// port, so every request 502s. Route the parent app worker's
 				// start/stop through pause/unpause, which swap the vhost to the
 				// paused page (and back) and keep registry state consistent so the
-				// paused page's Resume button works. Worktree dev servers keep the
-				// plain worker path; their vhosts are handled by (un)pauseWorktrees.
-				if lifecycle, ok := hostProxyAppLifecycleOp(site.IsHostProxy(), workerName, branch, parts[2]); ok {
+				// paused page's Resume button works.
+				if lifecycle, ok := hostProxyAppLifecycleOp(site.IsHostProxy(), workerName, parts[2]); ok {
 					var opErr error
 					if lifecycle == "pause" {
 						opErr = cli.PauseSite(site.Name)
@@ -4097,21 +3888,13 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				targetPath := site.Path
-				if branch != "" {
-					wtPath := resolveSitePath(site, branch)
-					if wtPath == "" {
-						writeJSON(w, SiteActionResponse{Error: "unknown worktree branch"})
-						return
-					}
-					targetPath = wtPath
-				}
 				if parts[2] == "stop" {
 					// Stops orphans without a framework definition too.
 					if err := cli.WorkerStopForSite(site.Name, targetPath, workerName); err != nil {
 						writeJSON(w, SiteActionResponse{Error: err.Error()})
 						return
 					}
-					if branch == "" && !site.Paused {
+					if !site.Paused {
 						_ = config.SetProjectWorkers(site.Path, cli.CollectRunningWorkerNames(site))
 					}
 				} else {
@@ -4130,12 +3913,8 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 					if detected, err := phpPkg.DetectVersion(targetPath); err == nil && detected != "" {
 						phpVersion = detected
 					}
-					// WorkerStartForSite appends the worktree suffix when
-					// sitePath != site.Path — pass parent name + worktree path.
-					go cli.WorkerStartForSite(site.Name, targetPath, phpVersion, workerName, worker, branch == "") //nolint:errcheck
-					if branch == "" {
-						go syncServloYAMLWorkersDelayed(site)
-					}
+					go cli.WorkerStartForSite(site.Name, targetPath, phpVersion, workerName, worker, true) //nolint:errcheck
+					go syncServloYAMLWorkersDelayed(site)
 				}
 				writeJSON(w, SiteActionResponse{OK: true})
 				return
@@ -4161,12 +3940,11 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 // hostProxyAppLifecycleOp maps a worker start/stop on a host-proxy site's parent
 // dev-server worker ("app") to the site-level lifecycle op that also swaps the
 // proxy vhost: "stop" -> "pause", "start" -> "unpause". It returns ok=false for
-// anything that must take the normal per-worker path — a different worker, a
-// worktree target (branch set), or a non-host-proxy site — so only the parent
-// app worker is rerouted. Without this, stopping the app worker leaves the proxy
+// anything that must take the normal per-worker path — a different worker or a
+// non-host-proxy site. Without this, stopping the app worker leaves the proxy
 // vhost pointing at the dead dev-server port and every request to the site 502s.
-func hostProxyAppLifecycleOp(isHostProxy bool, workerName, branch, op string) (string, bool) {
-	if !isHostProxy || workerName != config.HostProxyWorkerName || branch != "" {
+func hostProxyAppLifecycleOp(isHostProxy bool, workerName, op string) (string, bool) {
+	if !isHostProxy || workerName != config.HostProxyWorkerName {
 		return "", false
 	}
 	switch op {
@@ -4362,7 +4140,7 @@ func startPHPBuildStream(w http.ResponseWriter) (*sseLineWriter, func(map[string
 
 // handlePHPInstall answers POST /api/php-versions/install?version=8.3 by
 // building the FPM image for that version, streaming the build log as SSE and
-// finishing with an `event: done` payload. Mirrors handleSiteWorktreeAdd.
+// finishing with an `event: done` payload.
 func handlePHPInstall(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.NotFound(w, r)
@@ -4956,31 +4734,6 @@ func handleWatcherStart(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// setWorktreeDBIsolated forwards to cli.SetWorktreeDBIsolated; the shared
-// implementation in cli is also used by `servlo db:isolate`.
-func setWorktreeDBIsolated(site *config.Site, branch string, isolated bool, source string) error {
-	return cli.SetWorktreeDBIsolated(site, branch, isolated, source)
-}
-
-// ensureWorktreeEnvIfBranch materialises the worktree's .env when the request
-// targets a worktree, so Laravel's env() works on freshly added worktrees
-// where .env hasn't been carried over yet. Cheap and idempotent.
-func ensureWorktreeEnvIfBranch(site *config.Site, branch string) {
-	if branch == "" {
-		return
-	}
-	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	if err != nil {
-		return
-	}
-	for _, wt := range worktrees {
-		if wt.Branch == branch {
-			gitpkg.EnsureWorktreeEnv(site.Path, wt.Path, wt.Domain, site.Secured)
-			return
-		}
-	}
-}
-
 // laravelAppName labels a sites-dashboard tile by its Laravel APP_NAME instead
 // of just the URL. Thin wrapper over siteinfo.LaravelAppName so the web and the
 // TUI share one implementation; see there for the gating rules.
@@ -5044,7 +4797,7 @@ func siteHasEnv(frameworkName, sitePath string) bool {
 }
 
 // siteHasEnvOverrides reports whether the project declares env_overrides in its
-// .servlo.yaml, which servlo uses for per-tenant/per-worktree subdomain templating.
+// .servlo.yaml, which servlo uses for per-tenant subdomain templating.
 // The UI warns when grouping a secondary under such a main, since the chosen
 // subdomain is carved out of the main's wildcard tenant space.
 func siteHasEnvOverrides(sitePath string) bool {
@@ -5055,32 +4808,10 @@ func siteHasEnvOverrides(sitePath string) bool {
 	return err == nil && cfg != nil && len(cfg.EnvOverrides) > 0
 }
 
-// resolveSitePath returns the filesystem path for the site or one of its
-// worktrees. Empty branch = site.Path; a known branch = wt.Path; an unknown
-// branch = "" so callers can 404 without leaking parent logs.
-func resolveSitePath(site *config.Site, branch string) string {
-	if branch == "" {
-		return site.Path
-	}
-	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	if err != nil {
-		return ""
-	}
-	for _, wt := range worktrees {
-		if wt.Branch == branch {
-			return wt.Path
-		}
-	}
-	return ""
-}
-
 // handleAppLogs serves application-level log files (e.g. Laravel's storage/logs/*.log).
 //
-//	GET /api/app-logs/{domain}[?branch=<sanitized>]            → list available log files
-//	GET /api/app-logs/{domain}/{filename}[?branch=<sanitized>] → parsed log entries
-//
-// When ?branch= is set, files are read from that worktree's checkout directory
-// rather than the parent site's path, scoping logs to the active branch.
+//	GET /api/app-logs/{domain}            → list available log files
+//	GET /api/app-logs/{domain}/{filename} → parsed log entries
 func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/app-logs/"), "/")
 	if len(parts) == 0 || parts[0] == "" {
@@ -5095,7 +4826,7 @@ func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	basePath := resolveSitePath(site, r.URL.Query().Get("branch"))
+	basePath := site.Path
 	if basePath == "" {
 		http.NotFound(w, r)
 		return
@@ -5373,165 +5104,6 @@ func handleSiteLink(w http.ResponseWriter, r *http.Request) {
 	flusher.Flush()
 }
 
-type labeledOption struct {
-	Value string `json:"value"`
-	Label string `json:"label"`
-}
-
-// worktreeBuildOptions enumerates the asset-build choices the dashboard's "Add
-// worktree" form should offer for site: "Automatic", every framework worker
-// eligible to replace the build at the parent checkout, every package.json
-// build script, and "Skip". The parent path is used as a proxy for the
-// not-yet-created worktree (a fresh worktree is a checkout of the same tree).
-func worktreeBuildOptions(site *config.Site) []labeledOption {
-	// Host-proxy worktrees run a dev server continuously; there is no
-	// build-then-serve step to choose, so the Assets picker is omitted.
-	if site.IsHostProxy() {
-		return nil
-	}
-	opts := []labeledOption{{Value: "auto", Label: "Automatic (recommended)"}}
-	var workers map[string]config.FrameworkWorker
-	if fw, ok := config.GetFrameworkForDir(site.Framework, site.Path); ok {
-		workers = fw.Workers
-	}
-	for _, name := range cli.EligibleBuildReplacers(site, site.Path) {
-		label := name
-		if w, ok := workers[name]; ok && w.Label != "" {
-			label = w.Label
-		}
-		opts = append(opts, labeledOption{Value: "worker:" + name, Label: "Use " + label + " (asset worker)"})
-	}
-	for _, s := range cli.AvailableBuildScripts(site.Path) {
-		opts = append(opts, labeledOption{Value: "script:" + s, Label: "npm run " + s})
-	}
-	opts = append(opts, labeledOption{Value: "skip", Label: "Skip, I'll build the assets myself"})
-	return opts
-}
-
-// worktreeDBOptions enumerates the database choices for the "Add worktree"
-// form. Without a branch it returns the generic set (share / isolated empty /
-// clone from main / clone from each isolated worktree). With a branch it
-// mirrors `servlo worktree add`'s prompt: when a preserved isolated DB exists
-// for that branch it adds "reuse" and "reset" and drops the plain "empty".
-func worktreeDBOptions(site *config.Site, branch string) []labeledOption {
-	var opts []labeledOption
-	var preserved config.WorktreeDBEntry
-	hasPreserved := false
-	if branch != "" {
-		if e, ok, _ := config.FindWorktreeDB(site.Name, branch); ok {
-			preserved, hasPreserved = e, true
-		}
-	}
-	if hasPreserved {
-		opts = append(opts,
-			labeledOption{Value: "reuse", Label: "Reuse preserved isolated DB " + preserved.DBName},
-			labeledOption{Value: "reset", Label: "Reset preserved DB " + preserved.DBName + " to a fresh empty schema (drops data)"},
-		)
-	}
-	opts = append(opts, labeledOption{Value: "share", Label: "Share parent's database"})
-	if !hasPreserved {
-		opts = append(opts, labeledOption{Value: "empty", Label: "Isolated database, empty schema"})
-	}
-	opts = append(opts, labeledOption{Value: "clone-main", Label: "Isolated database, cloned from main"})
-	if worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain()); err == nil {
-		for _, wt := range worktrees {
-			if wt.Branch == branch {
-				continue
-			}
-			if _, ok, _ := config.FindWorktreeDB(site.Name, wt.Branch); ok {
-				opts = append(opts, labeledOption{Value: "clone-" + wt.Branch, Label: "Isolated database, cloned from " + wt.Branch})
-			}
-		}
-	}
-	return opts
-}
-
-// worktreeBranchCandidates returns the branches a new worktree can target:
-// local branches not already checked out in some worktree, plus remote-tracking
-// branches that don't yet have a local counterpart (git dwims `worktree add
-// <path> origin/x` into a new local branch `x`). It also returns the branch
-// HEAD currently points at in the main checkout. Both slices are non-nil so the
-// JSON response is always an array, never null.
-func worktreeBranchCandidates(sitePath string) (local []string, remote []string, current string) {
-	local, remote = []string{}, []string{}
-	current = strings.TrimSpace(runGitOutput(sitePath, "symbolic-ref", "--short", "-q", "HEAD"))
-
-	checkedOut := map[string]bool{}
-	for _, line := range strings.Split(runGitOutput(sitePath, "worktree", "list", "--porcelain"), "\n") {
-		if b := strings.TrimPrefix(line, "branch refs/heads/"); b != line {
-			checkedOut[strings.TrimSpace(b)] = true
-		}
-	}
-	localSet := map[string]bool{}
-	for _, b := range strings.Split(runGitOutput(sitePath, "for-each-ref", "--format=%(refname:short)", "refs/heads/"), "\n") {
-		b = strings.TrimSpace(b)
-		if b == "" {
-			continue
-		}
-		localSet[b] = true
-		if !checkedOut[b] {
-			local = append(local, b)
-		}
-	}
-	for _, b := range strings.Split(runGitOutput(sitePath, "for-each-ref", "--format=%(refname:short)", "refs/remotes/"), "\n") {
-		b = strings.TrimSpace(b)
-		// Skip the remote's symbolic HEAD (e.g. "origin" or "origin/HEAD")
-		// and any remote whose tracking name already exists locally.
-		if b == "" || strings.HasSuffix(b, "/HEAD") || !strings.Contains(b, "/") {
-			continue
-		}
-		if localSet[b[strings.LastIndex(b, "/")+1:]] {
-			continue
-		}
-		remote = append(remote, b)
-	}
-	return local, remote, current
-}
-
-// runGitOutput is a thin wrapper around gitpkg.Output that swallows the
-// error and returns "" on failure, matching the call-sites that treat
-// missing branches / refs as benign empty lists rather than errors to
-// surface in the UI.
-func runGitOutput(dir string, args ...string) string {
-	out, err := gitpkg.Output(dir, args...)
-	if err != nil {
-		return ""
-	}
-	return out
-}
-
-// handleSiteWorktreeOptions answers GET /api/sites/worktree-options?domain=...
-// [&branch=...] with the choices the "Add worktree" modal needs.
-func handleSiteWorktreeOptions(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.NotFound(w, r)
-		return
-	}
-	site, err := config.FindSiteByDomain(r.URL.Query().Get("domain"))
-	if err != nil {
-		writeJSON(w, map[string]any{"error": "site not found"})
-		return
-	}
-	branch := ""
-	if raw := r.URL.Query().Get("branch"); raw != "" {
-		branch = gitpkg.SanitizeBranch(raw)
-	}
-	localBranches, remoteBranches, currentBranch := worktreeBranchCandidates(site.Path)
-	canMigrate := false
-	if _, statErr := os.Stat(filepath.Join(site.Path, "artisan")); statErr == nil {
-		canMigrate = true
-	}
-	writeJSON(w, map[string]any{
-		"local_branches":       localBranches,
-		"remote_branches":      remoteBranches,
-		"default_branch_label": currentBranch,
-		"build_options":        worktreeBuildOptions(site),
-		"build_default":        "auto",
-		"db_options":           worktreeDBOptions(site, branch),
-		"can_migrate":          canMigrate,
-	})
-}
-
 // sseLineWriter buffers writes into newline-delimited SSE `data:` frames so
 // arbitrary git/composer output streams cleanly to the browser.
 type sseLineWriter struct {
@@ -5565,52 +5137,6 @@ func (s *sseLineWriter) flushTail() {
 		s.emit(string(s.buf))
 		s.buf = nil
 	}
-}
-
-// handleSiteWorktreeAdd answers POST /api/sites/worktree-add?domain=... by
-// creating a git worktree and running servlo's setup pipeline, streaming
-// progress as SSE and finishing with an `event: done` payload.
-func handleSiteWorktreeAdd(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.NotFound(w, r)
-		return
-	}
-	q := r.URL.Query()
-	site, err := config.FindSiteByDomain(q.Get("domain"))
-	if err != nil {
-		writeJSON(w, SiteActionResponse{Error: "site not found"})
-		return
-	}
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
-
-	req := cli.WorktreeAddRequest{
-		NewBranch:      strings.TrimSpace(q.Get("new_branch")),
-		ExistingBranch: strings.TrimSpace(q.Get("existing_branch")),
-		BaseRef:        strings.TrimSpace(q.Get("base_ref")),
-		DBChoice:       q.Get("db"),
-		RunMigrations:  q.Get("migrate") == "1" || q.Get("migrate") == "true",
-		Build:          q.Get("build"),
-	}
-	done := func(payload map[string]any) {
-		fmt.Fprintf(w, "event: done\ndata: %s\n\n", mustJSON(payload))
-		flusher.Flush()
-	}
-	sw := &sseLineWriter{w: w, f: flusher}
-	branch, _, warnings, addErr := cli.RunWorktreeAdd(site, req, sw)
-	sw.flushTail()
-	if addErr != nil {
-		done(map[string]any{"ok": false, "error": addErr.Error(), "warnings": warnings})
-		return
-	}
-	done(map[string]any{"ok": true, "branch": branch, "domain": branch + "." + site.PrimaryDomain(), "warnings": warnings})
 }
 
 // syncServloYAMLWorkersDelayed waits briefly for the worker unit to start, then syncs.

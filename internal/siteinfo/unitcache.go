@@ -14,7 +14,7 @@ const unitCacheTTL = 3 * time.Second
 
 // UnitMeta carries the two per-unit properties the reachability probe needs
 // beyond active state: when the unit last entered active (for the dial gate) and
-// its WorkingDirectory (a worktree's checkout). Zero means unavailable this tick.
+// its WorkingDirectory. Zero means unavailable this tick.
 type UnitMeta struct {
 	ActiveEnter time.Time
 	WorkingDir  string
@@ -77,7 +77,7 @@ func defaultUnitShow(units []string) (string, error) {
 	}
 	// --timestamp=unix predates every systemd that can run a quadlet, but if it is
 	// ever rejected, fall back to the properties that always parse rather than lose
-	// WorkingDirectory (which pins a worktree's worker) along with the timestamp.
+	// WorkingDirectory along with the timestamp.
 	args = append([]string{"--user", "show", "-p", "Id", "-p", "WorkingDirectory"}, units...)
 	out, err = exec.Command("systemctl", args...).Output()
 	return string(out), err

@@ -57,8 +57,6 @@ type Framework struct {
 	NPM        string                     `yaml:"npm,omitempty"`      // auto | true | false
 	Workers    map[string]FrameworkWorker `yaml:"workers,omitempty"`
 	Setup      []FrameworkSetupCmd        `yaml:"setup,omitempty"`
-	// Worktree declares what a worktree needs beyond the seeded env file.
-	Worktree *FrameworkWorktree `yaml:"worktree,omitempty"`
 	// Commands are on-demand actions surfaced in the dashboard "Run command"
 	// dropdown. See FrameworkCommand for the schema. Projects extend or
 	// override this list in .servlo.yaml; use ResolveCommands to merge.
@@ -196,25 +194,15 @@ type FrameworkWorker struct {
 	Proxy          *WorkerProxy   `yaml:"proxy,omitempty"`          // WebSocket/HTTP proxy config for nginx
 	Health         *WorkerHealth  `yaml:"health,omitempty"`         // reachability probe: process alive but server not accepting = unhealthy
 	Host           bool           `yaml:"host,omitempty"`           // run on the host via fnm instead of inside the PHP-FPM container
-	// PerWorktree opts the worker into running independently per git worktree
-	// (servlo-<wname>-<site>-<wt>). Defaults to false; set true on workers that
-	// need a separate process per checkout (e.g. dev servers like vite).
-	PerWorktree *bool `yaml:"per_worktree,omitempty"`
 	// ReplacesBuild declares that, while this worker is running, the framework
-	// can render pages without a static asset build. Used by servlo worktree add
-	// and servlo setup to skip the npm run build step when the user opted into
-	// such a worker (vite is the canonical case).
+	// can render pages without a static asset build. Used by servlo setup to
+	// skip the npm run build step when the user opted into such a worker (vite
+	// is the canonical case).
 	ReplacesBuild bool `yaml:"replaces_build,omitempty"`
 	// ProjectOrigin marks a worker that came from the untrusted project .servlo.yaml
 	// (custom_workers), so the host-execution gate can require consent for it.
 	// Never persisted; set only at the merge point.
 	ProjectOrigin bool `yaml:"-" json:"-"`
-}
-
-// IsPerWorktree reports whether this worker can run independently per git
-// worktree. Defaults to false; framework yamls opt in with per_worktree: true.
-func (w FrameworkWorker) IsPerWorktree() bool {
-	return w.PerWorktree != nil && *w.PerWorktree
 }
 
 // WorkerProxy describes an HTTP/WebSocket proxy that nginx should configure
@@ -244,21 +232,6 @@ type FrameworkLogSource struct {
 }
 
 // FrameworkSetupCmd describes a one-off bootstrap command run during project setup.
-// FrameworkWorktree declares what a new worktree needs once its env file is
-// seeded. An app that keeps deployment state in the database (Magento hashes its
-// config there and refuses to serve when the file no longer matches) cannot come
-// up on a copy of the parent's env alone.
-type FrameworkWorktree struct {
-	// DBIsolation "required" forces an isolated database instead of prompting:
-	// the worktree's own config cannot be applied to a database it shares.
-	DBIsolation string `yaml:"db_isolation,omitempty"`
-	// DBSource is what an isolated database starts from, "empty" or "main".
-	DBSource string `yaml:"db_source,omitempty"`
-	// Commands are console commands run in the worktree once its env file and
-	// database are in place, e.g. Magento's app:config:import.
-	Commands []string `yaml:"commands,omitempty"`
-}
-
 type FrameworkSetupCmd struct {
 	Label   string         `yaml:"label"`
 	Command string         `yaml:"command"`
@@ -416,14 +389,6 @@ type FrameworkEnvConf struct {
 
 	// URLKey is the env key that holds the application URL (default: APP_URL).
 	URLKey string `yaml:"url_key,omitempty"`
-
-	// WorktreeURLKeys are env keys set to the worktree's own base URL
-	// ("<scheme>://<domain>/") on every worktree. They exist for frameworks
-	// whose canonical base URL lives outside the env file — Magento keeps its in
-	// the database, so url_key is "none", but env.php's web.*.base_url overrides
-	// the database and is what lets a worktree serve on its own domain instead of
-	// redirecting to the parent. Written verbatim through the env format's writer.
-	WorktreeURLKeys []string `yaml:"worktree_url_keys,omitempty"`
 
 	// Vars are unconditional KEY=VALUE env defaults the framework always wants
 	// applied during `servlo env`, regardless of which services are detected
@@ -1611,13 +1576,6 @@ func GetConsoleCommand(projectDir string) (string, error) {
 	frameworkName := ""
 	if site, err := FindSiteByPath(projectDir); err == nil {
 		frameworkName = site.Framework
-	}
-	if frameworkName == "" {
-		// Worktree checkouts aren't registered as their own site; inherit the
-		// parent site's framework so console commands run inside them too.
-		if parent, ok := ParentSiteForWorktreeDir(projectDir); ok {
-			frameworkName = parent.Framework
-		}
 	}
 	if frameworkName == "" {
 		return "", fmt.Errorf("no framework assigned — run 'servlo link' first")

@@ -248,7 +248,7 @@ describe('sites actions', () => {
     const opened: string[] = [];
     vi.stubGlobal('open', (url: string) => opened.push(url));
     const { openSiteInBrowser } = await import('./sites');
-    openSiteInBrowser({ domain: 'a.test', name: 'a', tls: true }, '', 'http://192.168.0.200:8080');
+    openSiteInBrowser({ domain: 'a.test', name: 'a', tls: true }, 'http://192.168.0.200:8080');
     expect(opened).toEqual(['http://192.168.0.200:8080']);
     vi.unstubAllGlobals();
   });

@@ -191,4 +191,4 @@ servlo status
 - [Frameworks & Workers](../usage/frameworks.md): extend `wordpress.yaml` to add log paths or custom workers (e.g. `wp cron event run`)
 - [Database](../usage/database.md): `servlo db:import` to load a production dump, `servlo db:shell` for quick queries
 - [Services](../usage/services.md): add a Mailpit service to capture outgoing mail in dev
-- [HTTPS](../features/https.md): wildcard certs for multi-site or git worktrees
+- [HTTPS](../features/https.md): wildcard certs for multi-site

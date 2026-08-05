@@ -13,16 +13,12 @@ func gridSite() *siteinfo.EnrichedSite {
 		Domains:        []string{"alpha.test", "alt.test"},
 		Services:       []string{"mysql"},
 		HasQueueWorker: true,
-		Worktrees: []siteinfo.WorktreeInfo{
-			{Branch: "feat", Path: "/tmp/wt", PHPVersion: "8.3", NodeVersion: "22"},
-		},
 	}
 }
 
 // The cursor walks detailRows, so that order has to match the order the Overview
 // draws its sections. When they drifted apart, `down` from a worker teleported the
-// cursor to the Toggles block at the bottom of the pane, and `down` again threw it
-// backwards into Worktrees.
+// cursor to the Toggles block at the bottom of the pane.
 func TestDetailRows_NavOrderMatchesRenderOrder(t *testing.T) {
 	rows := detailRows(gridSite())
 	nav := navigableRows(rows)
@@ -34,9 +30,7 @@ func TestDetailRows_NavOrderMatchesRenderOrder(t *testing.T) {
 	want := []detailKind{
 		kindDomain, kindDomain, kindDomainAdd, // Domains
 		kindPHP, kindNode, kindHTTPS, // Toggles
-		kindWorker,                        // Workers
-		kindWorktreeDB,                    // Worktrees
-		kindWorktreePHP, kindWorktreeNode, //
+		kindWorker, // Workers
 	}
 	if len(got) != len(want) {
 		t.Fatalf("nav order\n got %v\nwant %v", got, want)
@@ -44,17 +38,6 @@ func TestDetailRows_NavOrderMatchesRenderOrder(t *testing.T) {
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("nav[%d] = %v, want %v\n got %v\nwant %v", i, got[i], want[i], got, want)
-		}
-	}
-}
-
-// The worktree header is a caption with no toggle, and it renders no cursor, so
-// leaving it navigable made the cursor vanish for one keypress as it passed by.
-func TestNavigableRows_SkipsTheWorktreeHeader(t *testing.T) {
-	rows := detailRows(gridSite())
-	for _, i := range navigableRows(rows) {
-		if rows[i].kind == kindWorktreeHeader {
-			t.Fatal("the worktree header should not be a cursor stop")
 		}
 	}
 }

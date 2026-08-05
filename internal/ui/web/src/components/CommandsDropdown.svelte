@@ -4,9 +4,8 @@
 
   interface Props {
     domain: string;
-    branch?: string;
   }
-  let { domain, branch = '' }: Props = $props();
+  let { domain }: Props = $props();
 
   let commands: Command[] = $state([]);
   let menuOpen = $state(false);
@@ -16,16 +15,15 @@
   async function refresh() {
     if (!domain) return;
     try {
-      commands = await loadCommands(domain, branch);
+      commands = await loadCommands(domain);
     } catch {
       commands = [];
     }
   }
 
-  // Initial load on mount, plus a refresh whenever the domain or branch prop changes.
+  // Initial load on mount, plus a refresh whenever the domain prop changes.
   $effect(() => {
     void domain;
-    void branch;
     void refresh();
   });
 
@@ -57,7 +55,7 @@
 
   function pick(cmd: Command) {
     menuOpen = false;
-    launchCommand(domain, cmd, { branch });
+    launchCommand(domain, cmd);
   }
 
   function handleDocClick(e: MouseEvent) {

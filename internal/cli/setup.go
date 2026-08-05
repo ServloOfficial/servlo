@@ -81,9 +81,7 @@ mode with no .servlo.yaml, site registration falls back to auto-detection.`,
 // custom-FPM sites (a per-site FPM image built from a Containerfile), and
 // FrankenPHP; it excludes host-proxy and custom-(non-PHP)-container sites, whose
 // runtime lives elsewhere. A nil site is a bare-linked plain PHP site, which
-// qualifies. Driven off the resolved site (which setup folds a worktree back to
-// its parent for) rather than cwd's .servlo.yaml, so a worktree of a proxy site is
-// classified by its parent.
+// qualifies. Driven off the resolved site rather than cwd's .servlo.yaml.
 func siteServedByPHPFPM(site *config.Site) bool {
 	if site == nil {
 		return true
@@ -131,13 +129,6 @@ func runSetup(allSteps, skipOpen bool) error {
 	}
 
 	site, _ := config.FindSiteByPath(cwd)
-	// Worktrees aren't registered as sites; fall back to the parent so
-	// setup steps (workers, framework cmds) still apply against cwd.
-	if site == nil {
-		if parent, _, ok := findOwningWorktree(cwd); ok {
-			site = parent
-		}
-	}
 
 	// Load saved workers from .servlo.yaml to pre-select them in the step selector.
 	projCfg, _ := config.LoadProjectConfig(cwd)

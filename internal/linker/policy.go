@@ -93,7 +93,6 @@ type Skip string
 
 const (
 	SkipNone       Skip = ""
-	SkipWorktree   Skip = "worktree"
 	SkipRegistered Skip = "already-registered"
 )
 
@@ -111,10 +110,6 @@ type Plan struct {
 	// SkipDetail explains it in words the caller can print.
 	Skip       Skip
 	SkipDetail string
-	// WorktreeParent and WorktreeBranch are set alongside SkipWorktree: the
-	// site that owns this checkout, and the branch it holds.
-	WorktreeParent *config.Site
-	WorktreeBranch string
 	// Project is the parsed .servlo.yaml, or nil when the project has none.
 	Project *config.ProjectConfig
 	// DroppedDomains lists domains another site already owns, which were

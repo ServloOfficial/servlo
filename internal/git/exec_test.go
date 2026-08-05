@@ -172,9 +172,9 @@ func TestRunTTY_returnsErrorOnFailure(t *testing.T) {
 
 func TestRunCaptureStderr_capturesGitErrorMessage(t *testing.T) {
 	dir, _ := initRepo(t)
-	stderr, err := RunCaptureStderr(dir, "worktree", "remove", "no-such-path")
+	stderr, err := RunCaptureStderr(dir, "checkout", "no-such-branch")
 	if err == nil {
-		t.Fatal("expected error removing nonexistent worktree")
+		t.Fatal("expected error checking out a nonexistent branch")
 	}
 	if stderr == "" {
 		t.Error("expected captured stderr to be non-empty on failure")

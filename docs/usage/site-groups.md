@@ -11,7 +11,7 @@ Site groups let related sites share one base domain. One site is the **main** an
 A site group is about **domains**: it rewrites vhosts and reissues certificates so secondaries answer on subdomains of the main. A [workspace](sites.md#workspaces) is about **display only**: it groups sites in the sidebar, the overview and the TUI, and changes nothing about how they are served. A site can be in a group and a workspace at once, and a secondary always shows in its main's workspace.
 :::
 
-A secondary stays a completely independent site: its own project path, PHP version, workers, env and certificate. Grouping only changes the domain it answers on. Under the hood servlo gives the secondary an exact-match nginx vhost (`admin.astrolov.test`), and nginx prefers that exact host over the main's `*.astrolov.test` wildcard, so the subdomain routes to the secondary while everything else still hits the main. This is the same mechanism git worktree subdomains already use.
+A secondary stays a completely independent site: its own project path, PHP version, workers, env and certificate. Grouping only changes the domain it answers on. Under the hood servlo gives the secondary an exact-match nginx vhost (`admin.astrolov.test`), and nginx prefers that exact host over the main's `*.astrolov.test` wildcard, so the subdomain routes to the secondary while everything else still hits the main.
 
 ## Grouping sites in the web UI
 
@@ -57,8 +57,6 @@ servlo group list                   # show all groups and their members
 `servlo sites`, the `servlo tui` dashboard, and `servlo group list` all show the grouping: a secondary is listed directly under its main, marked with a `↳` and a `group` label. The TUI detail pane also notes whether a site is a group main (with a secondary count) or a secondary of another site, and whether it shares the main's database.
 
 ## How it interacts with other features
-
-**Git worktrees.** A worktree of the main repo whose branch sanitises to the same label as a secondary (a branch named `admin` when `admin.astrolov.test` is a secondary) would collide on the same host. Servlo reserves group subdomains: it refuses to assign a label a current main-repo worktree already uses, and it never generates a worktree vhost for a host a secondary already owns. The worktree checkout still exists, it just isn't served on that reserved subdomain.
 
 **Multi-tenant subdomains.** If the main uses wildcard tenant subdomains (via `env_overrides` in `.servlo.yaml`), a grouped subdomain is carved out of that wildcard space: `admin.astrolov.test` is served by the secondary instead of being treated as a tenant of the main. The UI shows a warning when you group a secondary under such a main.
 

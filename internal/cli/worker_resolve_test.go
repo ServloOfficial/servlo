@@ -100,17 +100,6 @@ func TestWorkerNames_parentPath(t *testing.T) {
 	}
 }
 
-func TestWorkerNames_worktreePath(t *testing.T) {
-	registerSite(t, "ws", "/p/ws")
-	unit, display := workerNames("ws", "/p/ws/feat-x", "vite")
-	if unit != "servlo-vite-ws-feat-x" {
-		t.Errorf("unit = %q, want servlo-vite-ws-feat-x", unit)
-	}
-	if display != "ws/feat-x" {
-		t.Errorf("display = %q, want ws/feat-x", display)
-	}
-}
-
 func TestWorkerNames_emptyPath(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
 	unit, display := workerNames("ws", "", "vite")

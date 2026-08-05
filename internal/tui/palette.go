@@ -116,8 +116,6 @@ var paletteCommands = []string{
 	"worker start",
 	"worker stop",
 	"workers mode",
-	"worktree add",
-	"worktree remove",
 }
 
 // openPalette switches to palette-input mode. We don't pin focus to a

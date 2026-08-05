@@ -53,7 +53,7 @@ func (b *ovBuilder) plain(s string) { b.add(s, false) }
 func (b *ovBuilder) empty() bool { return len(b.lines) == 0 }
 
 // section freezes the builder into a section of the given span. Returns nothing
-// for an empty builder, so a site with no worktrees doesn't leave a hole in the
+// for an empty builder, so an empty section doesn't leave a hole in the
 // grid.
 func (b *ovBuilder) section(span ovSpan) []ovSection {
 	if b.empty() {

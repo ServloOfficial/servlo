@@ -13,10 +13,6 @@ describe('loadSiteAnalytics', () => {
     expect(apiJson).toHaveBeenCalledWith('/api/sites/acme.test/analytics?range=24h');
   });
 
-  it('includes the worktree branch when given', async () => {
-    await loadSiteAnalytics('acme.test', '1h', 'staging');
-    expect(apiJson).toHaveBeenCalledWith('/api/sites/acme.test/analytics?range=1h&branch=staging');
-  });
 
   it('encodes a domain with unusual characters', async () => {
     await loadSiteAnalytics('a b.test', '15m');

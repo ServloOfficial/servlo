@@ -320,7 +320,7 @@ func TestApplyPhpArrayUpdates_NoOpWhenUnchanged(t *testing.T) {
 
 	// Re-applying the values the file already holds must not touch it: the writer
 	// reprints the whole file, so a rewrite would churn a Magento deployment config
-	// on every worktree sync.
+	// on every env sync.
 	time.Sleep(10 * time.Millisecond)
 	if err := ApplyPhpArrayUpdates(path, map[string]string{"db.host": "servlo-mysql"}); err != nil {
 		t.Fatalf("second write: %v", err)

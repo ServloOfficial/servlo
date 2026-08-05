@@ -19,7 +19,6 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/envfile"
 	"github.com/realrashid/servlo/internal/feedback"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	phpDet "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/serviceops"
@@ -1079,14 +1078,6 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// 7. Worktrees share the parent site's database SERVER (only DB_DATABASE
-	// differs, and only when isolated). Their .env was copied once at creation,
-	// so after this run realigned the parent to the selected services, mirror
-	// the connection coordinates into each worktree .env too — otherwise a
-	// worktree captured before a service switch (e.g. postgres -> postgres-18)
-	// keeps pointing at a host that no longer resolves.
-	alignWorktreeEnvDBConnection(site, envPath, envRelPath, envFormat)
-
 	// The connection a JetBrains project points at is rebuilt from the same
 	// resolution, so a database or an engine that changed here reaches the IDE
 	// rather than leaving it on coordinates that no longer answer.
@@ -1096,67 +1087,6 @@ func runEnv(_ *cobra.Command, _ []string) error {
 
 	envInfo("Done.\n")
 	return nil
-}
-
-// worktreeDBConnectionKeys are the shared database SERVER coordinates a worktree
-// inherits from its parent. DB_DATABASE is deliberately excluded: it is owned by
-// the isolated-DB logic (or the parent value for a non-isolated worktree).
-var worktreeDBConnectionKeys = []string{"DB_CONNECTION", "DB_HOST", "DB_PORT", "DB_USERNAME", "DB_PASSWORD"}
-
-// alignWorktreeEnvDBConnection mirrors the parent's (just-aligned) DB connection
-// coordinates into each existing worktree env file. It is the worktree arm of
-// `servlo env`'s "make the env match the selected services" guarantee. Best
-// effort: a worktree without an env file yet is skipped (it'll be seeded on its
-// next sync), and ApplyUpdates no-ops when nothing changed.
-//
-// Scoped to the dotenv format: the connection keys are Laravel-style, and the
-// php-const / php-array formats use a different writer and key set, so they are
-// left to their own env detection. envRelPath is the framework-resolved env file
-// path so a worktree of a framework whose env file isn't ".env" is still targeted.
-func alignWorktreeEnvDBConnection(site *config.Site, mainEnvPath, envRelPath, envFormat string) {
-	// Empty means the caller never resolved a format, which is dotenv.
-	if site == nil || (envFormat != "" && envFormat != "dotenv") {
-		return
-	}
-	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	if err != nil || len(worktrees) == 0 {
-		return
-	}
-	mainVals := envfile.ReadValues(mainEnvPath)
-	coords := map[string]string{}
-	for _, k := range worktreeDBConnectionKeys {
-		if v := mainVals[k]; v != "" {
-			coords[k] = v
-		}
-	}
-	if len(coords) == 0 {
-		return
-	}
-	for _, wt := range worktrees {
-		wtEnv := filepath.Join(wt.Path, envRelPath)
-		if _, statErr := os.Stat(wtEnv); statErr != nil {
-			continue
-		}
-		// Only touch worktrees whose coordinates actually drifted, so a steady
-		// state stays silent and the file's mtime is left alone. One read of the
-		// worktree env covers every key compared.
-		wtVals := envfile.ReadValues(wtEnv)
-		drifted := false
-		for k, v := range coords {
-			if wtVals[k] != v {
-				drifted = true
-				break
-			}
-		}
-		if !drifted {
-			continue
-		}
-		if err := envfile.ApplyUpdates(wtEnv, coords); err != nil {
-			feedback.Warn("aligning worktree %s .env: %v", wt.Branch, err)
-			continue
-		}
-		envInfo("  Aligned worktree %s DB connection\n", wt.Branch)
-	}
 }
 
 // frameworkServiceDetected returns true if any detect rule in def matches the env map.
@@ -1173,8 +1103,8 @@ func frameworkServiceDetected(def config.FrameworkServiceDef, envMap map[string]
 	return false
 }
 
-// CreateDatabase is the exported variant of createDatabase. Used by callers
-// outside the cli package (e.g. the worktree DB-isolation flow).
+// CreateDatabase is the exported variant of createDatabase, for callers outside
+// the cli package.
 func CreateDatabase(svc, name string) (bool, error) { return serviceops.CreateDatabase(svc, name) }
 
 // CloneDatabase delegates to serviceops.CloneDatabase for cli-package callers.

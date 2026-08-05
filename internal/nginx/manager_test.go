@@ -82,20 +82,6 @@ func TestGenerateVhost_plainSiteUsesSharedContainer(t *testing.T) {
 	}
 }
 
-// Worktree vhosts render the fastcgi template too. With no registered site they
-// must fall back to the shared container, not an empty $fpm (the regression the
-// FPMContainer change could have introduced).
-func TestGenerateWorktreeVhost_unknownSiteUsesSharedContainer(t *testing.T) {
-	confD := setupConfD(t)
-	if err := GenerateWorktreeVhost("feat.myapp.test", "/srv/myapp-feat", "8.3", "myapp", "feat"); err != nil {
-		t.Fatalf("GenerateWorktreeVhost: %v", err)
-	}
-	content := readConf(t, filepath.Join(confD, "feat.myapp.test.conf"))
-	if !strings.Contains(content, `set $fpm "servlo-php83-fpm"`) {
-		t.Errorf("worktree vhost should fastcgi to servlo-php83-fpm, got:\n%s", content)
-	}
-}
-
 func TestGenerateVhost_honoursSitePublicDir(t *testing.T) {
 	confD := setupConfD(t)
 	site := config.Site{
@@ -401,41 +387,6 @@ func TestGenerateHostProxySSLVhost_createsSSLConfWithCert(t *testing.T) {
 	}
 }
 
-func TestGenerateWorktreeHostProxyVhostFor_http(t *testing.T) {
-	confD := setupConfD(t)
-	if err := GenerateWorktreeHostProxyVhostFor("feat-x.nestapp.test", t.TempDir(), "nestapp.test", 3101, false, false); err != nil {
-		t.Fatalf("GenerateWorktreeHostProxyVhostFor: %v", err)
-	}
-	content := readConf(t, filepath.Join(confD, "feat-x.nestapp.test.conf"))
-	if !strings.Contains(content, "server_name feat-x.nestapp.test *.feat-x.nestapp.test") {
-		t.Errorf("expected worktree server_name with wildcard, got:\n%s", content)
-	}
-	if !strings.Contains(content, "proxy_pass http://"+hostProxyUpstream()+":3101;") {
-		t.Errorf("expected proxy_pass to the worktree port 3101, got:\n%s", content)
-	}
-	if strings.Contains(content, "ssl_certificate") {
-		t.Errorf("HTTP worktree vhost must not emit ssl_certificate:\n%s", content)
-	}
-}
-
-func TestGenerateWorktreeHostProxyVhostFor_sslUsesParentCert(t *testing.T) {
-	confD := setupConfD(t)
-	if err := GenerateWorktreeHostProxyVhostFor("feat-x.nestapp.test", t.TempDir(), "nestapp.test", 3101, false, true); err != nil {
-		t.Fatalf("GenerateWorktreeHostProxyVhostFor (ssl): %v", err)
-	}
-	content := readConf(t, filepath.Join(confD, "feat-x.nestapp.test.conf"))
-	// Worktree SSL must use the parent's wildcard cert, never its own.
-	if !strings.Contains(content, "ssl_certificate /etc/nginx/certs/nestapp.test.crt;") {
-		t.Errorf("expected parent cert, got:\n%s", content)
-	}
-	if strings.Contains(content, "feat-x.nestapp.test.crt") {
-		t.Errorf("worktree vhost must not reference its own cert:\n%s", content)
-	}
-	if !strings.Contains(content, "proxy_pass http://"+hostProxyUpstream()+":3101;") {
-		t.Errorf("expected proxy_pass to the worktree port, got:\n%s", content)
-	}
-}
-
 // ── phpShort ──────────────────────────────────────────────────────────────────
 
 func TestPhpShort(t *testing.T) {
@@ -589,76 +540,6 @@ func TestGenerateVhost_confFileNamedAfterPrimary(t *testing.T) {
 	// Should NOT create a file for the alias
 	if _, err := os.Stat(filepath.Join(confD, "alias.test.conf")); !os.IsNotExist(err) {
 		t.Error("should not create separate conf file for alias domain")
-	}
-}
-
-// ── GenerateWorktreeVhost ─────────────────────────────────────────────────────
-
-func TestGenerateWorktreeVhost_createsConfFile(t *testing.T) {
-	confD := setupConfD(t)
-	if err := GenerateWorktreeVhost("feat-x.myapp.test", "/srv/myapp-feat", "8.3", "myapp", "feat-x"); err != nil {
-		t.Fatalf("GenerateWorktreeVhost: %v", err)
-	}
-	content := readConf(t, filepath.Join(confD, "feat-x.myapp.test.conf"))
-	if !strings.Contains(content, "server_name feat-x.myapp.test") {
-		t.Errorf("expected worktree domain in:\n%s", content)
-	}
-	if !strings.Contains(content, "*.feat-x.myapp.test") {
-		t.Errorf("expected wildcard server_name for worktree subdomains in:\n%s", content)
-	}
-	if !strings.Contains(content, `root "/srv/myapp-feat/public`) {
-		t.Errorf("expected worktree path in:\n%s", content)
-	}
-}
-
-// ── GenerateWorktreeSSLVhost ──────────────────────────────────────────────────
-
-func TestGenerateWorktreeSSLVhost_usesParentCert(t *testing.T) {
-	confD := setupConfD(t)
-	if err := GenerateWorktreeSSLVhost("feat-x.myapp.test", "/srv/myapp-feat", "8.3", "myapp.test", "myapp", "feat-x"); err != nil {
-		t.Fatalf("GenerateWorktreeSSLVhost: %v", err)
-	}
-	content := readConf(t, filepath.Join(confD, "feat-x.myapp.test.conf"))
-	if !strings.Contains(content, "server_name feat-x.myapp.test") {
-		t.Errorf("expected worktree domain in:\n%s", content)
-	}
-	if !strings.Contains(content, "*.feat-x.myapp.test") {
-		t.Errorf("expected wildcard server_name for worktree subdomains in:\n%s", content)
-	}
-	// Must use parent domain's cert (wildcard *.myapp.test), not feat-x.myapp.test
-	if !strings.Contains(content, "myapp.test.crt") {
-		t.Errorf("expected parent domain cert in:\n%s", content)
-	}
-	if strings.Contains(content, "feat-x.myapp.test.crt") {
-		t.Error("worktree vhost must not reference its own cert file")
-	}
-}
-
-// ── GenerateWorktreeVhostFor ──────────────────────────────────────────────────
-
-// TestGenerateWorktreeVhostFor_routesByFlag pins the behaviour of the
-// shared wrapper that callers (scanWorktrees, syncWorktree, migrateTLD)
-// use to avoid repeating the secured-vs-plain branch around the two
-// underlying generators.
-func TestGenerateWorktreeVhostFor_routesByFlag(t *testing.T) {
-	confD := setupConfD(t)
-
-	if err := GenerateWorktreeVhostFor("feat-x.myapp.test", "/srv/myapp-feat", "8.3", "myapp.test", "myapp", "feat-x", false); err != nil {
-		t.Fatalf("HTTP wrapper: %v", err)
-	}
-	httpContent := readConf(t, filepath.Join(confD, "feat-x.myapp.test.conf"))
-	if strings.Contains(httpContent, "ssl_certificate") {
-		t.Error("HTTP variant must not emit ssl_certificate")
-	}
-
-	// Re-run with secured=true; the same conf path should now point at
-	// the parent's wildcard cert.
-	if err := GenerateWorktreeVhostFor("feat-x.myapp.test", "/srv/myapp-feat", "8.3", "myapp.test", "myapp", "feat-x", true); err != nil {
-		t.Fatalf("HTTPS wrapper: %v", err)
-	}
-	sslContent := readConf(t, filepath.Join(confD, "feat-x.myapp.test.conf"))
-	if !strings.Contains(sslContent, "myapp.test.crt") {
-		t.Errorf("HTTPS variant should reference parent cert, got:\n%s", sslContent)
 	}
 }
 
@@ -1371,11 +1252,11 @@ func TestEnsureNginxConfig_writesForwardedAndCustomD(t *testing.T) {
 	}
 }
 
-// TestEnsureNginxConfigServerNamesHashBucket guards against issue #455: a
-// worktree vhost emits a long "<branch>.<site>.test *.<branch>.<site>.test"
-// server_name that overflows nginx's default server_names_hash_bucket_size of
-// 64, crashing nginx for every site. The rendered global nginx.conf must raise
-// the bucket/max sizes so long branch names always fit.
+// TestEnsureNginxConfigServerNamesHashBucket guards against issue #455: a vhost
+// emits a long "<site>.test *.<site>.test" server_name that overflows nginx's
+// default server_names_hash_bucket_size of 64, crashing nginx for every site.
+// The rendered global nginx.conf must raise the bucket/max sizes so long
+// domains always fit.
 func TestEnsureNginxConfigServerNamesHashBucket(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)

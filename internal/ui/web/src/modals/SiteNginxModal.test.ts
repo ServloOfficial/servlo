@@ -25,7 +25,7 @@ describe('SiteNginxModal', () => {
     expect(screen.getByTestId('nginx-editor-stub')).toBeInTheDocument();
   });
 
-  it('edits the active worktree domain, not the site primary', () => {
+  it('edits whichever domain it is handed, not the site primary', () => {
     render(Harness, { props: { open: true, site, domain: 'feat.acme.test', onclose: () => {} } });
     expect(screen.getByText(/Nginx config: feat\.acme\.test/)).toBeInTheDocument();
     expect(screen.getByTestId('nginx-editor-stub')).toHaveTextContent('feat.acme.test');

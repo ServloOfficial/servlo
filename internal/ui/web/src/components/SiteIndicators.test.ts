@@ -22,10 +22,4 @@ describe('SiteIndicators', () => {
     expect(queryByTitle('Worker failing')).toBeNull();
   });
 
-  it('marks a site that has git worktrees', () => {
-    const { getByTitle } = render(SiteIndicators, {
-      props: { site: site({ worktrees: [{ branch: 'feat' }] as Site['worktrees'] }) }
-    });
-    expect(getByTitle('Git Worktrees')).toBeInTheDocument();
-  });
 });

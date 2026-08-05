@@ -478,48 +478,39 @@ func TestDetect_UnreachableActiveWorkerFlagged(t *testing.T) {
 func TestResolveWorkerUnit(t *testing.T) {
 	sites := map[string]string{"ws": "/home/u/ws", "feat": "/home/u/feat", "app": "/home/u/app"}
 
-	if s, w, p := resolveWorkerUnit("vite-app", sites, ""); s != "app" || w != "vite" || p != "" {
-		t.Errorf("parent: got %q/%q/%q, want app/vite/empty", s, w, p)
+	if s, w := resolveWorkerUnit("vite-app", sites); s != "app" || w != "vite" {
+		t.Errorf("got %q/%q, want app/vite", s, w)
 	}
-	if s, w, p := resolveWorkerUnit("vite-ws-feat-x", sites, "/home/u/wt/feat-x"); s != "ws" || w != "vite" || p != "/home/u/wt/feat-x" {
-		t.Errorf("worktree: got %q/%q/%q, want ws/vite//home/u/wt/feat-x", s, w, p)
+	// The longest registered site name wins, so a worker name that itself ends in
+	// another site's name still resolves to the site that owns the unit.
+	if s, w := resolveWorkerUnit("queue-feat-app", sites); s != "app" || w != "queue-feat" {
+		t.Errorf("worker name ending in a site name: got %q/%q, want app/queue-feat", s, w)
 	}
-	// Without a WorkingDirectory a worktree unit is unresolvable, so it is skipped
-	// rather than mis-parsed.
-	if s, _, _ := resolveWorkerUnit("vite-ws-feat-x", sites, ""); s != "" {
-		t.Errorf("no workingdir: got site %q, want empty", s)
-	}
-	// A worktree of "app" checked out into a directory named after the registered
-	// site "feat": the unit ends with "-feat", so a suffix match would hand it to
-	// feat as a worker named "vite-app". WorkingDirectory settles it.
-	if s, w, p := resolveWorkerUnit("vite-app-feat", sites, "/home/u/wt/feat"); s != "app" || w != "vite" || p != "/home/u/wt/feat" {
-		t.Errorf("colliding worktree dir: got %q/%q/%q, want app/vite//home/u/wt/feat", s, w, p)
-	}
-	// A parent host worker's WorkingDirectory is its own checkout, which must not be
-	// read as a worktree slug: here the worker name itself ends with another site's
-	// name, so treating the checkout as a worktree would resolve site "feat".
-	if s, w, p := resolveWorkerUnit("queue-feat-app", sites, "/home/u/app"); s != "app" || w != "queue-feat" || p != "" {
-		t.Errorf("parent whose worker name ends in a site name: got %q/%q/%q, want app/queue-feat/empty", s, w, p)
-	}
-	if s, w, p := resolveWorkerUnit("vite-app", sites, "/home/u/app"); s != "app" || w != "vite" || p != "" {
-		t.Errorf("parent with workingdir: got %q/%q/%q, want app/vite/empty", s, w, p)
-	}
-	// A container worker sets no WorkingDirectory, so systemd reports the inherited
-	// home with a "!" marker. It is not a checkout and must not resolve as one.
-	if s, w, p := resolveWorkerUnit("cron-app", sites, "!/home/app"); s != "app" || w != "cron" || p != "" {
-		t.Errorf("inherited workingdir: got %q/%q/%q, want app/cron/empty", s, w, p)
+	if s, _ := resolveWorkerUnit("vite-stranger", sites); s != "" {
+		t.Errorf("unregistered site: got %q, want empty", s)
 	}
 }
 
-func TestDetect_UnreachableWorktreeWorkerFlagged(t *testing.T) {
+// A container worker sets no WorkingDirectory, so systemd reports the inherited
+// home with a "!" marker. It is not a checkout and must not be treated as one.
+func TestUnitCheckout_ignoresInheritedHome(t *testing.T) {
+	if got := unitCheckout("!/home/app"); got != "" {
+		t.Errorf("unitCheckout(inherited) = %q, want empty", got)
+	}
+	if got := unitCheckout("/home/u/app"); got != "/home/u/app" {
+		t.Errorf("unitCheckout = %q, want the checkout path", got)
+	}
+}
+
+func TestDetect_UnreachableHostWorkerFlagged(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
-		map[string]string{"servlo-vite-myapp-featx.service": "active"},
+		map[string]string{"servlo-vite-myapp.service": "active"},
 		nil,
 	)
-	// The checkout has to be real: a worktree unit whose directory is gone is an
-	// orphan now, whatever its server is doing, so a fake path would test that
-	// instead of unreachability.
+	// The checkout has to be real: a unit whose directory is gone is an orphan,
+	// whatever its server is doing, so a fake path would test that instead of
+	// unreachability.
 	wt := filepath.Join(t.TempDir(), "featx")
 	if err := os.MkdirAll(wt, 0o755); err != nil {
 		t.Fatal(err)
@@ -530,7 +521,7 @@ func TestDetect_UnreachableWorktreeWorkerFlagged(t *testing.T) {
 	}
 	unitMetaFn = func() map[string]siteinfo.UnitMeta {
 		return map[string]siteinfo.UnitMeta{
-			"servlo-vite-myapp-featx.service": {WorkingDir: wt},
+			"servlo-vite-myapp.service": {WorkingDir: wt},
 		}
 	}
 	t.Cleanup(func() { workerReachableFn = prevReach; unitMetaFn = prevMeta })
@@ -539,7 +530,7 @@ func TestDetect_UnreachableWorktreeWorkerFlagged(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
-	if len(got) != 1 || got[0].Unit != "servlo-vite-myapp-featx" || got[0].State != "unreachable" {
+	if len(got) != 1 || got[0].Unit != "servlo-vite-myapp" || got[0].State != "unreachable" {
 		t.Fatalf("got %v, want [servlo-vite-myapp-featx unreachable]", unitNames(got))
 	}
 }
@@ -589,23 +580,23 @@ func TestHealAll_RestartsUnreachableWorker(t *testing.T) {
 	}
 }
 
-// ── orphaned worktree units ──────────────────────────────────────────────────
+// ── orphaned units ───────────────────────────────────────────────────────────
 
-// A per-worktree unit pins WorkingDirectory to the checkout. When the worktree
-// is removed outside servlo (an agent deleting its own directory, a plain rm),
-// the unit survives and systemd retries it forever, failing at CHDIR before the
-// command ever runs. Restarting it can only fail again, so it must not be
-// reported as merely failed, which is what invites a heal that cannot work.
-func TestDetect_MissingWorktreeDirIsOrphanedNotFailed(t *testing.T) {
+// A host unit pins WorkingDirectory to its checkout. When the checkout is
+// removed outside servlo, the unit survives and systemd retries it forever,
+// failing at CHDIR before the command ever runs. Restarting it can only fail
+// again, so it must not be reported as merely failed, which is what invites a
+// heal that cannot work.
+func TestDetect_MissingCheckoutIsOrphanedNotFailed(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
-		map[string]string{"servlo-vite-myapp-featx.service": "failed"},
+		map[string]string{"servlo-vite-myapp.service": "failed"},
 		nil,
 	)
 	prevMeta := unitMetaFn
 	unitMetaFn = func() map[string]siteinfo.UnitMeta {
 		return map[string]siteinfo.UnitMeta{
-			"servlo-vite-myapp-featx.service": {WorkingDir: "/definitely/not/here/featx"},
+			"servlo-vite-myapp.service": {WorkingDir: "/definitely/not/here/featx"},
 		}
 	}
 	t.Cleanup(func() { unitMetaFn = prevMeta })
@@ -623,17 +614,17 @@ func TestDetect_MissingWorktreeDirIsOrphanedNotFailed(t *testing.T) {
 }
 
 // The checkout still being there means an ordinary failure, which heal can fix.
-func TestDetect_PresentWorktreeDirStaysFailed(t *testing.T) {
+func TestDetect_PresentCheckoutStaysFailed(t *testing.T) {
 	wt := t.TempDir()
 	stubEnv(t,
 		[]string{"myapp"}, nil,
-		map[string]string{"servlo-vite-myapp-" + filepath.Base(wt) + ".service": "failed"},
+		map[string]string{"servlo-vite-myapp.service": "failed"},
 		nil,
 	)
 	prevMeta := unitMetaFn
 	unitMetaFn = func() map[string]siteinfo.UnitMeta {
 		return map[string]siteinfo.UnitMeta{
-			"servlo-vite-myapp-" + filepath.Base(wt) + ".service": {WorkingDir: wt},
+			"servlo-vite-myapp.service": {WorkingDir: wt},
 		}
 	}
 	t.Cleanup(func() { unitMetaFn = prevMeta })
@@ -654,15 +645,15 @@ func TestHealAll_SkipsOrphanedUnits(t *testing.T) {
 	stubEnv(t,
 		[]string{"myapp"}, nil,
 		map[string]string{
-			"servlo-vite-myapp-featx.service": "failed",
-			"servlo-queue-myapp.service":      "failed",
+			"servlo-vite-myapp.service":  "failed",
+			"servlo-queue-myapp.service": "failed",
 		},
 		func(unit string) error { healed = append(healed, unit); return nil },
 	)
 	prevMeta := unitMetaFn
 	unitMetaFn = func() map[string]siteinfo.UnitMeta {
 		return map[string]siteinfo.UnitMeta{
-			"servlo-vite-myapp-featx.service": {WorkingDir: "/definitely/not/here/featx"},
+			"servlo-vite-myapp.service": {WorkingDir: "/definitely/not/here/featx"},
 		}
 	}
 	t.Cleanup(func() { unitMetaFn = prevMeta })
@@ -672,7 +663,7 @@ func TestHealAll_SkipsOrphanedUnits(t *testing.T) {
 		t.Fatalf("HealAll: %v", err)
 	}
 	for _, u := range healed {
-		if strings.Contains(u, "featx") {
+		if strings.Contains(u, "vite") {
 			t.Errorf("orphaned unit %q must not be healed", u)
 		}
 	}
@@ -703,13 +694,13 @@ func TestDetect_OrphanCaughtWhileRestartLooping(t *testing.T) {
 		t.Run(state, func(t *testing.T) {
 			stubEnv(t,
 				[]string{"myapp"}, nil,
-				map[string]string{"servlo-vite-myapp-featx.service": state},
+				map[string]string{"servlo-vite-myapp.service": state},
 				nil,
 			)
 			prevMeta := unitMetaFn
 			unitMetaFn = func() map[string]siteinfo.UnitMeta {
 				return map[string]siteinfo.UnitMeta{
-					"servlo-vite-myapp-featx.service": {WorkingDir: "/definitely/not/here/featx"},
+					"servlo-vite-myapp.service": {WorkingDir: "/definitely/not/here/featx"},
 				}
 			}
 			t.Cleanup(func() { unitMetaFn = prevMeta })

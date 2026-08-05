@@ -69,18 +69,17 @@
   import { loadDoctor, type DoctorCheck, type DoctorReport } from '$stores/doctor';
   import { loadCommands, launchCommand, runSettled, executeDoctorFix, type Command } from '$stores/commands';
   import { goToTab } from '$stores/route';
-  import { activeWorktreeDomain, type Site } from '$stores/sites';
+  import { type Site } from '$stores/sites';
   import { m } from '../../paraglide/messages.js';
 
   interface Props {
     open: boolean;
     site: Site;
-    branch?: string;
     onclose: () => void;
   }
-  let { open, site, branch = '', onclose }: Props = $props();
+  let { open, site, onclose }: Props = $props();
 
-  const activeDomain = $derived(activeWorktreeDomain(site, branch));
+  const activeDomain = $derived(site.domain);
 
   let report = $state<DoctorReport | null>(null);
   let commands = $state<Command[]>([]);
@@ -94,22 +93,21 @@
     loading = true;
     error = '';
     const domain = site.domain;
-    const b = branch;
     try {
-      const [r, cmds] = await Promise.all([loadDoctor(domain, b), loadCommands(domain, b)]);
-      if (site.domain !== domain || branch !== b) return;
+      const [r, cmds] = await Promise.all([loadDoctor(domain), loadCommands(domain)]);
+      if (site.domain !== domain) return;
       report = r;
       commands = cmds;
     } catch (e) {
-      if (site.domain === domain && branch === b) error = e instanceof Error ? e.message : m.common_loadFailed();
+      if (site.domain === domain) error = e instanceof Error ? e.message : m.common_loadFailed();
     } finally {
-      if (site.domain === domain && branch === b) loading = false;
+      if (site.domain === domain) loading = false;
     }
   }
 
   // Run the checks only when the modal is opened, so the migrate:status exec
   // fires on an explicit click rather than eagerly on every site view. Stale
-  // results from a prior site/branch are cleared so the spinner shows instead
+  // results from a prior site are cleared so the spinner shows instead
   // of last run's findings while the fresh report loads.
   let wasOpen = false;
   $effect(() => {
@@ -136,13 +134,13 @@
       // Both paths drive the global CommandRunModal so the user sees streamed
       // output; once the run finishes we re-check.
       if (check.fix in DOCTOR_FIX) {
-        await executeDoctorFix(site.domain, check.fix, 'Run ' + DOCTOR_FIX[check.fix], branch);
+        await executeDoctorFix(site.domain, check.fix, 'Run ' + DOCTOR_FIX[check.fix]);
       } else {
         const cmd = commands.find((c) => c.name === check.fix);
         if (!cmd) return;
         // Launched, not executed: a fix naming a confirm: true command must
         // still prompt, and runSettled waits out that prompt before re-checking.
-        launchCommand(site.domain, cmd, { branch });
+        launchCommand(site.domain, cmd);
         await runSettled();
       }
       await reload();

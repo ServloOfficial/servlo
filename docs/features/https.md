@@ -64,7 +64,7 @@ To reset the clock on demand, without toggling HTTPS off and on, run:
 ```bash
 cd ~/Servlo/my-app
 servlo secure --renew
-# Reissues the certificate for my-app.test (covering worktree SANs), reloads nginx
+# Reissues the certificate for my-app.test, reloads nginx
 ```
 
 `servlo secure --renew` only applies to already-secured sites; on an HTTP site it tells you to run `servlo secure` first.
@@ -77,14 +77,6 @@ The Sites tab has an HTTPS toggle per site; clicking it runs `servlo secure` or 
 
 ---
 
-## Git worktrees
-
-When a site has git worktrees, securing the parent automatically enables HTTPS for all its worktrees too. The parent's certificate is issued with `*.myapp.test` to cover worktree subdomains. When a new worktree is created on a secured site, the certificate is reissued to also include `*.branch.myapp.test` SANs, so deep subdomains like `app.branch.myapp.test` (common in multi-tenant apps) are covered without manual cert regeneration.
-
-Unsecuring the parent switches all worktree vhosts back to HTTP and updates their `.env` files accordingly.
-
----
-
 ## Stripe listener
 
 If a Stripe webhook listener is running for the site, toggling HTTPS automatically restarts it so `--forward-to` points at the correct `http://` or `https://` URL. No manual intervention required.
@@ -94,7 +86,7 @@ If a Stripe webhook listener is running for the site, toggling HTTPS automatical
 ## How it works
 
 1. `servlo install` generates a local CA with mkcert and installs it into the system trust store (NSS databases for Chrome/Firefox, and the system root store).
-2. `servlo secure <site>` issues a certificate signed by that CA for `<site>.test` **and** `*.<site>.test` (wildcard), so all subdomain worktrees are covered. When worktrees exist, `*.branch.<site>.test` SANs are included so deep subdomains work too. The certificate is reissued automatically when new worktrees are created.
+2. `servlo secure <site>` issues a certificate signed by that CA for `<site>.test` **and** `*.<site>.test` (wildcard), so subdomains are covered too.
 3. The nginx vhost is regenerated to listen on port 443 with the new cert, and port 80 redirects to HTTPS (302, not 301, so the redirect is not cached by browsers).
-4. `APP_URL` in the project's `.env` (and any worktree `.env` files) is updated to `https://`.
+4. `APP_URL` in the project's `.env` is updated to `https://`.
 5. If a `servlo stripe:listen` service is active for the site, it is restarted with the updated forwarding URL.

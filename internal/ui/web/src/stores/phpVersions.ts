@@ -82,7 +82,7 @@ export interface PhpInstallEvent {
 }
 
 // streamPhpInstall POSTs to the SSE endpoint and invokes onEvent for each build
-// log line and the final done payload. Mirrors streamWorktreeAdd. Pass a signal
+// log line and the final done payload. Pass a signal
 // to abort the client read when the modal closes; the server build continues and
 // reports its result via a push notification.
 export async function streamPhpInstall(

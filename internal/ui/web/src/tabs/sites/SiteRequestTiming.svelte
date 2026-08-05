@@ -8,19 +8,16 @@
     type TimeRange
   } from '$stores/analytics';
   import { goToTab } from '$stores/route';
-  import { activeWorktreeDomain, type Site } from '$stores/sites';
+  import { type Site } from '$stores/sites';
   import { tooltip } from '$lib/tooltip';
   import { m } from '../../paraglide/messages.js';
 
   interface Props {
     site: Site;
-    activeWorktreeBranch?: string;
   }
-  let { site, activeWorktreeBranch = '' }: Props = $props();
+  let { site }: Props = $props();
 
-  // Requests are served by the active worktree's own subdomain, so opening or
-  // profiling a route has to target that, not the parent site.
-  let targetDomain = $derived(activeWorktreeDomain(site, activeWorktreeBranch));
+  let targetDomain = $derived(site.domain);
 
   let range = $state<TimeRange>('1h');
   let data = $state<Analytics | null>(null);
@@ -28,21 +25,19 @@
 
   async function load() {
     const d = site.domain;
-    const b = activeWorktreeBranch;
     const rg = range;
     try {
-      const a = await loadSiteAnalytics(d, rg, b);
-      if (d !== site.domain || b !== activeWorktreeBranch || rg !== range) return;
+      const a = await loadSiteAnalytics(d, rg);
+      if (d !== site.domain || rg !== range) return;
       data = a;
     } catch {
-      if (d !== site.domain || b !== activeWorktreeBranch || rg !== range) return;
+      if (d !== site.domain || rg !== range) return;
       data = null;
     }
   }
 
   $effect(() => {
     site.domain;
-    activeWorktreeBranch;
     range;
     load();
   });

@@ -144,10 +144,10 @@ func TestViewport_NoCursorClampsScrollPastEnd(t *testing.T) {
 	}
 }
 
-// TestCountFailingWorkers_AggregatesAcrossSitesAndWorktrees pins the helper
-// the header pill uses: every failed worker (built-in, custom, per-worktree)
-// counts so the "press H to heal" hint never under-reports.
-func TestCountFailingWorkers_AggregatesAcrossSitesAndWorktrees(t *testing.T) {
+// TestCountFailingWorkers_AggregatesAcrossSites pins the helper the header pill
+// uses: every failed worker (built-in and custom) counts so the "press H to
+// heal" hint never under-reports.
+func TestCountFailingWorkers_AggregatesAcrossSites(t *testing.T) {
 	snap := Snapshot{
 		Sites: []siteinfo.EnrichedSite{
 			{
@@ -157,20 +157,12 @@ func TestCountFailingWorkers_AggregatesAcrossSitesAndWorktrees(t *testing.T) {
 					{Name: "vite", Failing: true}, // +1
 					{Name: "messenger", Failing: false},
 				},
-				Worktrees: []siteinfo.WorktreeInfo{
-					{
-						Branch: "feat-x",
-						FrameworkWorkers: []siteinfo.WorkerInfo{
-							{Name: "vite", Failing: true}, // +1
-						},
-					},
-				},
 			},
 			{HorizonFailing: true}, // +1
 		},
 	}
-	if got := len(failingWorkerNames(snap)); got != 4 {
-		t.Errorf("failingWorkerNames count = %d, want 4", got)
+	if got := len(failingWorkerNames(snap)); got != 3 {
+		t.Errorf("failingWorkerNames count = %d, want 3", got)
 	}
 }
 

@@ -8,8 +8,6 @@ export type ModalKind =
   | 'preset'
   | 'remoteControl'
   | 'lanProgress'
-  | 'worktreeAdd'
-  | 'worktreeRemove'
   | 'phpAdd'
   | 'phpRebuild'
   | 'envSave'
@@ -35,7 +33,6 @@ export type LANAction = 'expose' | 'unexpose';
 
 export interface EnvSaveTarget {
   domain: string;
-  branch: string;
   file: string;
   content: string;
   original: string;
@@ -43,7 +40,6 @@ export interface EnvSaveTarget {
 
 export interface EnvRestoreTarget {
   domain: string;
-  branch: string;
   file: string;
   current: string;
   backupName: string;
@@ -151,7 +147,6 @@ export interface ModalState {
   site?: Site;
   lanAction?: LANAction;
   onSuccess?: () => void;
-  branch?: string;
   envSave?: EnvSaveTarget;
   envRestore?: EnvRestoreTarget;
   envPropose?: EnvProposeTarget;
@@ -214,14 +209,6 @@ export function openRemoteControlModal(onSuccess?: () => void) {
 
 export function openLANProgressModal(lanAction: LANAction) {
   modal.set({ kind: 'lanProgress', lanAction });
-}
-
-export function openWorktreeAddModal(site: Site) {
-  modal.set({ kind: 'worktreeAdd', site });
-}
-
-export function openWorktreeRemoveModal(site: Site, branch: string) {
-  modal.set({ kind: 'worktreeRemove', site, branch });
 }
 
 export function openPhpAddModal() {

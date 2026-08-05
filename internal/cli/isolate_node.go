@@ -34,16 +34,9 @@ func runIsolateNode(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("writing .node-version: %w", err)
 	}
 
-	// Persist node_version to .servlo.yaml so the override travels with the
-	// branch (worktree) or with the project (parent site). For worktrees the
-	// file is created if missing; for parents we only touch an existing file.
-	if _, _, ok := FindParentSiteForWorktree(cwd); ok {
-		if err := config.SetWorktreeNodeVersion(cwd, version); err != nil {
-			feedback.Warn("updating .servlo.yaml: %v", err)
-		}
-	} else {
-		_ = updateProjectNodeVersionIfExists(cwd, version)
-	}
+	// Persist node_version to an existing .servlo.yaml so the override travels
+	// with the project.
+	_ = updateProjectNodeVersionIfExists(cwd, version)
 
 	feedback.Begin()
 	feedback.Done("Node pinned to " + feedback.Val(version))

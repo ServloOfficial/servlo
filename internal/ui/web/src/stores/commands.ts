@@ -35,10 +35,9 @@ export function commandIconPath(name?: string): string {
   }
 }
 
-export async function loadCommands(domain: string, branch = ''): Promise<Command[]> {
+export async function loadCommands(domain: string): Promise<Command[]> {
   const path = `/api/sites/${encodeURIComponent(domain)}/commands`;
-  const q = branch ? `?branch=${encodeURIComponent(branch)}` : '';
-  const data = await apiJson<{ commands?: Command[] }>(path + q);
+  const data = await apiJson<{ commands?: Command[] }>(path);
   return data.commands ?? [];
 }
 
@@ -59,12 +58,10 @@ export async function runCommand(
   domain: string,
   name: string,
   cb: RunCallbacks = {},
-  branch = '',
   approve = false
 ): Promise<void> {
   const path = `/api/sites/${encodeURIComponent(domain)}/commands/${encodeURIComponent(name)}/run`;
   const params = new URLSearchParams();
-  if (branch) params.set('branch', branch);
   if (approve) params.set('approve', '1');
   const q = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(path + q, { method: 'POST', signal: cb.signal });
@@ -99,12 +96,10 @@ export async function runCommand(
 export async function runDoctorFix(
   domain: string,
   key: string,
-  cb: RunCallbacks = {},
-  branch = ''
+  cb: RunCallbacks = {}
 ): Promise<void> {
   const path = `/api/sites/${encodeURIComponent(domain)}/doctor/fix/${encodeURIComponent(key)}/run`;
-  const q = branch ? `?branch=${encodeURIComponent(branch)}` : '';
-  const res = await apiFetch(path + q, { method: 'POST', signal: cb.signal });
+  const res = await apiFetch(path, { method: 'POST', signal: cb.signal });
   if (!res.ok || !(res.headers.get('Content-Type') || '').startsWith('text/event-stream')) {
     try {
       const payload = await res.json();
@@ -185,7 +180,7 @@ export type RunLine = { stream: 'stdout' | 'stderr' | 'meta'; text: string };
 
 export type CurrentRun =
   | { kind: 'idle' }
-  | { kind: 'confirm'; domain: string; cmd: Command; branch: string }
+  | { kind: 'confirm'; domain: string; cmd: Command }
   | { kind: 'running'; domain: string; cmd: Command; lines: RunLine[]; started: number }
   | {
       kind: 'done';
@@ -215,45 +210,43 @@ function setToast(msg: string, ms = 2400) {
 // in the confirm state so the modal can prompt. Otherwise it executes.
 // Refuses if another run is in flight (toast + no-op) so a palette click
 // can't clobber an active dropdown run's state.
-export function launchCommand(domain: string, cmd: Command, opts: { skipConfirm?: boolean; branch?: string } = {}) {
+export function launchCommand(domain: string, cmd: Command, opts: { skipConfirm?: boolean } = {}) {
   const cur = get(currentRun);
   if (cur.kind === 'running') {
     setToast('Another command is running. Wait for it to finish.', 2400);
     return;
   }
   if (cmd.confirm && !opts.skipConfirm) {
-    // Carry the branch into the confirm state so Run Anyway targets the same
-    // worktree the command was launched for, not the parent checkout.
-    currentRun.set({ kind: 'confirm', domain, cmd, branch: opts.branch ?? '' });
+    currentRun.set({ kind: 'confirm', domain, cmd });
     return;
   }
-  void executeCommand(domain, cmd, opts.branch);
+  void executeCommand(domain, cmd);
 }
 
 // approve carries the user's consent (from the confirm modal) for a project-
 // supplied command that the server gates as host execution; the server persists
 // it on first run so later runs don't re-prompt.
-export async function executeCommand(domain: string, cmd: Command, branch = '', approve = false) {
-  return runInModal(domain, cmd, branch, (cb) => runCommand(domain, cmd.name, cb, branch, approve));
+export async function executeCommand(domain: string, cmd: Command, approve = false) {
+  return runInModal(domain, cmd, (cb) => runCommand(domain, cmd.name, cb, approve));
 }
 
 // executeDoctorFix runs a doctor fix (composer update, npm audit fix, …) in the
 // same run modal as commands, so the user watches the streamed output. Awaitable
 // so the caller can re-check once it finishes; no-ops if a run is already live.
-export async function executeDoctorFix(domain: string, key: string, label: string, branch = '') {
+export async function executeDoctorFix(domain: string, key: string, label: string) {
   if (get(currentRun).kind === 'running') {
     setToast('Another command is running. Wait for it to finish.', 2400);
     return;
   }
   const cmd: Command = { name: key, label, command: '' };
-  return runInModal(domain, cmd, branch, (cb) => runDoctorFix(domain, key, cb, branch));
+  return runInModal(domain, cmd, (cb) => runDoctorFix(domain, key, cb));
 }
 
 // runInModal drives the shared CommandRunModal state for any streaming runner,
 // folding stdout/stderr/done/error into currentRun and persisting history.
 // A silent command runs without the modal and toasts instead, the way a
 // terminal one does; a terminal command streams nowhere at all.
-async function runInModal(domain: string, cmd: Command, branch: string, run: (cb: RunCallbacks) => Promise<void>) {
+async function runInModal(domain: string, cmd: Command, run: (cb: RunCallbacks) => Promise<void>) {
   const started = Date.now();
   const quiet = cmd.output === 'silent' || cmd.output === 'terminal';
   runningName.set(cmd.name);

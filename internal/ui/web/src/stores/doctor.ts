@@ -16,13 +16,11 @@ export interface DoctorReport {
   warnings: number;
 }
 
-export async function loadDoctor(domain: string, branch = ''): Promise<DoctorReport> {
+export async function loadDoctor(domain: string): Promise<DoctorReport> {
   const path = `/api/sites/${encodeURIComponent(domain)}/doctor`;
-  const q = branch ? `?branch=${encodeURIComponent(branch)}` : '';
-  const data = await apiJson<DoctorReport & { error?: string }>(path + q);
-  // The route returns 200 with an { error } body for refusals (unknown
-  // worktree branch, site not found), so surface it instead of rendering an
-  // empty "all clear".
+  const data = await apiJson<DoctorReport & { error?: string }>(path);
+  // The route returns 200 with an { error } body for refusals (site not
+  // found), so surface it instead of rendering an empty "all clear".
   if (data.error) throw new Error(data.error);
   return {
     checks: Array.isArray(data.checks) ? data.checks : [],

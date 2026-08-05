@@ -7,9 +7,8 @@
 
   interface Props {
     site: Site;
-    activeWorktreeBranch?: string;
   }
-  let { site, activeWorktreeBranch = '' }: Props = $props();
+  let { site }: Props = $props();
 
   const svcNames = $derived(site.services || []);
 </script>
@@ -23,7 +22,7 @@
 <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
   <section>
     {@render sectionTitle(m.sites_overview_runtimeWorkers())}
-    <SiteControls {site} {activeWorktreeBranch} />
+    <SiteControls {site} />
   </section>
 
   {#if svcNames.length > 0}
@@ -37,5 +36,5 @@
     </section>
   {/if}
 
-  <SiteRequestTiming {site} {activeWorktreeBranch} />
+  <SiteRequestTiming {site} />
 </div>

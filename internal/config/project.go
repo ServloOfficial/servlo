@@ -96,15 +96,10 @@ type ProjectConfig struct {
 	// FrankenPHP container in worker mode. Framework-specific entrypoints
 	// decide whether this flag is honoured.
 	RuntimeWorker bool `yaml:"runtime_worker,omitempty"`
-	// DBIsolated, when true on a worktree's .servlo.yaml, opts the worktree
-	// into its own database (named <parent_db>_<sanitized_branch>) so
-	// migrations don't bleed into the parent. Off by default.
-	DBIsolated bool `yaml:"db_isolated,omitempty"`
 	// EnvOverrides maps env keys to template values that are resolved and
-	// written into the worktree's .env when a worktree is created. Supported
-	// placeholders: {{domain}} (worktree domain), {{scheme}} (http/https),
-	// {{site}} (database-safe name). When APP_URL is present here it takes
-	// precedence over the default scheme://domain rewrite.
+	// written into the site's .env. Supported placeholders: {{domain}},
+	// {{scheme}} (http/https), {{site}} (database-safe name). When APP_URL is
+	// present here it takes precedence over the default scheme://domain rewrite.
 	EnvOverrides map[string]string `yaml:"env_overrides,omitempty"`
 	// RequestTimeout overrides the nginx request timeout for this project, in
 	// seconds. Zero inherits the global nginx.request_timeout (default 60s).
@@ -126,7 +121,7 @@ func (c *ProjectConfig) IsEmpty() bool {
 		len(c.Workers) == 0 && len(c.CustomWorkers) == 0 && len(c.ReloadWorkers) == 0 && len(c.Commands) == 0 && !c.Secured &&
 		c.AppURL == "" && c.DB.Service == "" && c.DB.Database == "" &&
 		c.Container == nil && c.Proxy == nil && c.Runtime == "" && !c.RuntimeWorker &&
-		!c.DBIsolated && len(c.EnvOverrides) == 0 && c.RequestTimeout == 0 && c.Stripe == nil
+		len(c.EnvOverrides) == 0 && c.RequestTimeout == 0 && c.Stripe == nil
 }
 
 // Validate reports configuration that can't be honoured. A site is either a

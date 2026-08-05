@@ -7,7 +7,7 @@
 
   interface Props {
     site: Site;
-    /** Domain to edit — the active worktree's domain, or the site's primary. */
+    /** Domain to edit. */
     domain: string;
     open: boolean;
     onclose: () => void;

@@ -366,7 +366,7 @@ func unescape(s string) string { return unescaper.Replace(s) }
 
 // dataSourceUUID derives a stable identifier from the project and the key, so
 // repeated runs update the same entries instead of piling up, a site and its
-// worktree databases each keep their own, and two projects never collide.
+// each project keeps its own, so two never collide.
 func dataSourceUUID(projectDir, key string) string {
 	sum := sha1.Sum([]byte("servlo:datasource:" + projectDir + "\x00" + key))
 	b := sum[:16]

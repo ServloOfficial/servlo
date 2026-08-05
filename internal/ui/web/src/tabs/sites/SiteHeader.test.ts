@@ -7,14 +7,7 @@ const site = {
   domain: 'app.test',
   domains: ['app.test'],
   path: '/home/u/Code/app',
-  php_version: '8.3',
-  worktrees: []
-} as unknown as Site;
-
-const worktreeSite = {
-  ...site,
-  branch: 'main',
-  worktrees: [{ branch: 'feat', domain: 'feat.app.test', path: '/home/u/Code/app-feat' }]
+  php_version: '8.3'
 } as unknown as Site;
 
 const hostProxySite = {
@@ -50,25 +43,6 @@ describe('SiteHeader', () => {
 
     const tabRow = getByText('Overview').parentElement?.parentElement;
     expect(tabRow).toContainElement(getByText('/home/u/Code/app'));
-  });
-
-  it('shows the path once when the site also has worktree tabs', () => {
-    const { getAllByText, getByText } = render(Harness, {
-      props: { site: worktreeSite }
-    });
-
-    expect(getAllByText('/home/u/Code/app')).toHaveLength(1);
-    const tabRow = getByText('Overview').parentElement?.parentElement;
-    expect(tabRow).toContainElement(getByText('/home/u/Code/app'));
-  });
-
-  it('shows the active worktree path rather than the parent path', () => {
-    const { getByText, queryByText } = render(Harness, {
-      props: { site: worktreeSite, activeWorktreeBranch: 'feat' }
-    });
-
-    expect(getByText('/home/u/Code/app-feat')).toBeInTheDocument();
-    expect(queryByText('/home/u/Code/app')).not.toBeInTheDocument();
   });
 
   it('still shows the path when the site has no tabs', () => {

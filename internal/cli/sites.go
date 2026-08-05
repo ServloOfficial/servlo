@@ -43,7 +43,7 @@ func runSites(_ *cobra.Command, _ []string) error {
 
 	// Order sites: each main/standalone followed by its group secondaries (a
 	// secondary occupies <label>.<main-domain> and reads as a child of the main,
-	// like aliases and worktrees do).
+	// like aliases do).
 	secondariesByGroup := map[string][]siteinfo.EnrichedSite{}
 	for _, s := range sites {
 		if s.Group != "" && s.GroupSubdomain != "" {
@@ -100,7 +100,7 @@ type orderedSite struct {
 func pausedTag() string { return feedback.Amber("paused") }
 
 // siteRows renders a site as one main row plus a child row per alias domain and
-// worktree, the nested rows indented inside the first column so the grid keeps
+// alias, the nested rows indented inside the first column so the grid keeps
 // its parent/child shape. wide adds the Name and Node columns (≥120 cols);
 // otherwise the domain leads (80–119 cols).
 func siteRows(s siteinfo.EnrichedSite, grouped, wide bool) [][]string {
@@ -123,9 +123,6 @@ func siteRows(s siteinfo.EnrichedSite, grouped, wide bool) [][]string {
 		for _, d := range s.Domains[1:] {
 			rows = append(rows, []string{"↳ alias", truncate(d, 32), "", "", "", "", "", ""})
 		}
-		for _, wt := range s.Worktrees {
-			rows = append(rows, []string{"↳ " + truncate(wt.Branch, 18), truncate(wt.Domain, 32), s.PHPVersion, s.NodeVersion, "—", "", "", wt.Path})
-		}
 		return rows
 	}
 
@@ -137,15 +134,12 @@ func siteRows(s siteinfo.EnrichedSite, grouped, wide bool) [][]string {
 	for _, d := range s.Domains[1:] {
 		rows = append(rows, []string{"↳ " + truncate(d, 24), "", "", "", "", ""})
 	}
-	for _, wt := range s.Worktrees {
-		rows = append(rows, []string{"↳ " + truncate(wt.Domain, 24), s.PHPVersion, "—", "", "", wt.Path})
-	}
 	return rows
 }
 
-// printSiteCompact prints a site as two indented lines (plus its aliases and
-// worktrees) for terminals too narrow for the table. grouped renders a group
-// secondary nested beneath its main.
+// printSiteCompact prints a site as two indented lines (plus its aliases) for
+// terminals too narrow for the table. grouped renders a group secondary nested
+// beneath its main.
 func printSiteCompact(s siteinfo.EnrichedSite, grouped bool) {
 	status := ""
 	if s.Paused {
@@ -176,10 +170,6 @@ func printSiteCompact(s siteinfo.EnrichedSite, grouped bool) {
 
 	for _, d := range s.Domains[1:] {
 		fmt.Printf("  ↳ %s\n", d)
-	}
-	for _, wt := range s.Worktrees {
-		fmt.Printf("  ↳ %s\n", wt.Domain)
-		fmt.Printf("    %s\n", truncate(wt.Path, 74))
 	}
 }
 

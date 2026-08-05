@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -41,32 +42,30 @@ func chdir(t *testing.T, dir string) {
 	t.Cleanup(func() { os.Chdir(prev) }) //nolint:errcheck
 }
 
-// A worktree is never registered as a site of its own, so an exact path lookup
-// always misses and every directory-scoped command used to dead-end on "run
-// servlo link first", advice that can never work because link refuses a worktree.
-func TestEnsureSiteAndBranchForCwd_resolvesWorktreeToParent(t *testing.T) {
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	parent, wtPath := makeWorktreeLayout(t, "rapids", "feature")
-	writeSitesYAML(t, []config.Site{{Name: "rapids", Path: parent}})
-	chdir(t, wtPath)
-
-	site, branch, err := ensureSiteAndBranchForCwd()
-	if err != nil {
-		t.Fatalf("ensureSiteAndBranchForCwd: %v", err)
+// writeSitesYAML writes a minimal sites.yaml into the current XDG_DATA_HOME so
+// config.LoadSites returns the supplied sites.
+func writeSitesYAML(t *testing.T, sites []config.Site) {
+	t.Helper()
+	dir := filepath.Join(os.Getenv("XDG_DATA_HOME"), "servlo")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
 	}
-	if site.Name != "rapids" {
-		t.Errorf("site = %q, want rapids", site.Name)
+	body := "sites:\n"
+	for _, s := range sites {
+		body += "  - name: " + s.Name + "\n"
+		body += "    path: " + s.Path + "\n"
+		body += "    domains:\n      - " + s.Name + ".test\n"
+		body += "    php_version: \"8.4\"\n    node_version: \"22\"\n"
 	}
-	if branch != "feature" {
-		t.Errorf("branch = %q, want feature", branch)
+	if err := os.WriteFile(filepath.Join(dir, "sites.yaml"), []byte(body), 0644); err != nil {
+		t.Fatal(err)
 	}
 }
 
-// The registered site itself keeps resolving with no branch, so nothing that
-// already worked starts behaving like a worktree.
+// A registered site resolves with no branch.
 func TestEnsureSiteAndBranchForCwd_registeredSiteHasNoBranch(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	parent, _ := makeWorktreeLayout(t, "rapids", "feature")
+	parent := t.TempDir()
 	writeSitesYAML(t, []config.Site{{Name: "rapids", Path: parent}})
 	chdir(t, parent)
 
@@ -79,22 +78,5 @@ func TestEnsureSiteAndBranchForCwd_registeredSiteHasNoBranch(t *testing.T) {
 	}
 	if branch != "" {
 		t.Errorf("branch = %q, want empty for the parent checkout", branch)
-	}
-}
-
-// The worktree fallback must be reached before the link prompt, so a worktree
-// resolves in a non-interactive process instead of erroring.
-func TestEnsureSiteForCwd_worktreeResolvesWithoutPrompting(t *testing.T) {
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	parent, wtPath := makeWorktreeLayout(t, "rapids", "feature")
-	writeSitesYAML(t, []config.Site{{Name: "rapids", Path: parent}})
-	chdir(t, wtPath)
-
-	site, err := ensureSiteForCwd()
-	if err != nil {
-		t.Fatalf("ensureSiteForCwd: %v", err)
-	}
-	if site.Name != "rapids" {
-		t.Errorf("site = %q, want rapids", site.Name)
 	}
 }

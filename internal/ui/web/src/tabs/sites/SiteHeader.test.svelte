@@ -5,9 +5,8 @@
   interface Props {
     site: Site;
     withTabs?: boolean;
-    activeWorktreeBranch?: string;
   }
-  let { site, withTabs = true, activeWorktreeBranch = '' }: Props = $props();
+  let { site, withTabs = true }: Props = $props();
 </script>
 
 {#snippet tabs()}
@@ -15,4 +14,4 @@
   <button type="button">Env</button>
 {/snippet}
 
-<SiteHeader {site} {activeWorktreeBranch} tabs={withTabs ? tabs : undefined} />
+<SiteHeader {site} tabs={withTabs ? tabs : undefined} />

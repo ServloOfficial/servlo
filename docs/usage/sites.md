@@ -15,7 +15,6 @@
 | `servlo domain list` | List all domains for the current site |
 | `servlo sites` | Table view of all registered sites |
 | `servlo open [name]` | Open the site in the default browser |
-| `servlo share [name]` | Expose the site publicly via ngrok, cloudflared, or Expose (auto-detected) |
 | `servlo secure [name]` | Issue a mkcert TLS cert and enable HTTPS, updates `APP_URL` in `.env` |
 | `servlo unsecure [name]` | Remove TLS and switch back to HTTP, updates `APP_URL` in `.env` |
 | `servlo pause [name]` | Pause a site: stop its workers and replace the vhost with a landing page |
@@ -126,8 +125,6 @@ installs services, and never issues a certificate.
 Some projects are reported as skipped rather than registered:
 
 - A directory that is not a PHP project at all.
-- A git worktree of a project that is already a site; worktrees inherit the
-  parent's registration and are served at `branch.domain.test`.
 - A project that declares its own runtime, a custom container, a host-proxy dev
   server, FrankenPHP, or a custom FPM image. Each needs an image built or a
   command run, which an unattended sweep should not do on its own. Run `servlo
@@ -208,7 +205,7 @@ You can also manage domains from the web UI: click the pencil icon next to the d
 
 When a site is secured with HTTPS, the certificate is automatically reissued to cover all domains.
 
-Subdomains (e.g. `anything.myapp.test`) are automatically routed to the same site. Git worktree subdomains take priority when they exist.
+Subdomains (e.g. `anything.myapp.test`) are automatically routed to the same site.
 
 To route a subdomain to a **different** site instead (for example a separate admin app at `admin.myapp.test`), group the two sites rather than adding an alias. See [Site Groups](site-groups.md).
 
@@ -288,13 +285,11 @@ Toggling workers from the CLI (`servlo queue:start`, `servlo schedule:stop`, etc
 
 The Overview of a PHP site carries a **Request timing** section that reads the always-on nginx access feed to show how the site is responding as you work, no debug bridge needed. A range picker (15 minutes up to 7 days) drives the whole view: headline figures for the typical and p95 response times, the request count and error rate, a response-time distribution, a throughput chart, the slowest routes, and a table of every route with its p50 and p95. A **Recent requests** tab lists the latest calls with their time, method, path, status, and duration.
 
-Routes are grouped after collapsing id-like path segments, so `/users/123` and `/users/456` aggregate as one `GET /users/:id` entry, and query strings are dropped before anything is recorded. Requests nginx serves without the app are left out: static assets by file extension, anything with a zero request time (a static file nginx answers directly, like `manifest.json` or `robots.txt`), and upgraded connections such as WebSockets, so a page's dozens of asset requests don't drown out its app routes. Anything a [dev server](framework-workers.md) answered is left out on the same grounds: it serves under its own prefix on the site's domain, so without this its modules arrive looking like routes the app served, and the ones it rebuilds on every save would read as the busiest routes on the site. An upgrade is logged once, when the socket closes, carrying the whole lifetime of the connection as its request time, so a long-lived Reverb or Vite HMR socket would otherwise read as one route taking thousands of seconds. The first request after a site has sat idle past the idle-suspend timeout is treated as a **cold start**: its wake cost is kept out of every timing figure (the site and per-route percentiles and the distribution) while still counting toward the request total, and it's marked in the Recent list, so a wake never makes a route look slow. The last-seen time is seeded from the durable store on startup, so a wake right after a daemon restart is still recognised as cold rather than counted as warm. Requests are written to a small SQLite store in the data directory, so the history survives a restart and any range up to the seven-day retention window can be read back; the watcher also keeps an in-memory window, which is what the doctor and slow-route notifications read.
+Routes are grouped after collapsing id-like path segments, so `/users/123` and `/users/456` aggregate as one `GET /users/:id` entry, and query strings are dropped before anything is recorded. Requests nginx serves without the app are left out: static assets by file extension, anything with a zero request time (a static file nginx answers directly, like `manifest.json` or `robots.txt`), and upgraded connections such as WebSockets, so a page's dozens of asset requests don't drown out its app routes. Anything a [dev server](framework-workers.md) answered is left out on the same grounds: it serves under its own prefix on the site's domain, so without this its modules arrive looking like routes the app served, and the ones it rebuilds on every save would read as the busiest routes on the site. An upgrade is logged once, when the socket closes, carrying the whole lifetime of the connection as its request time, so a long-lived Reverb or Vite HMR socket would otherwise read as one route taking thousands of seconds. Requests are written to a small SQLite store in the data directory, so the history survives a restart and any range up to the seven-day retention window can be read back; the watcher also keeps an in-memory window, which is what the doctor and slow-route notifications read.
 
 The same flagged routes also surface as a `Response Time` warning in the site doctor (`servlo site:doctor` and the dashboard doctor card), so the nudge reaches you even when you're on another tab. The doctor reads the watcher's snapshot rather than re-measuring, so it stays quiet on a healthy or idle site. If you've enabled notifications, a route crossing the threshold also fires a `slow_route` push. It's edge-triggered: one push when the route goes slow, then it rearms once the route drops back within the typical band, so you're told again if it regresses later (see Notifications).
 
 This is a local, single-developer signal meant to catch a route that is dragging, not a production analytics system. Each flagged route is listed with its own timings so you can see which one is dragging. Profiling is global and stays off until you ask for it, so the button turns it on for every request until you turn it back off. A non-navigable route (a POST, say) can't be opened for you, so there the button just arms profiling and opens the Profiler for you to reproduce it (see Profiler).
-
-A git worktree is timed as its own thing. Requests to `feature-x.myapp.test` are recorded against that branch, not against the main checkout, so switching the worktree picker re-scopes the whole panel to the branch you're on and its routes open and profile on the worktree's own subdomain. The worktree's traffic still counts toward the parent when the sites list is ordered by use, since the project is the same project. The doctor's `Response Time` check and the `slow_route` push follow the same rule when they run against a worktree.
 
 ---
 
@@ -337,7 +332,7 @@ For **HTTPS** the catch-all uses `ssl_reject_handshake on;`, so the browser sees
 
 When you unlink a site that lives inside a parked directory, the vhost is removed but the registry entry is kept and marked as *ignored*; the watcher will not re-register it on its next scan. Running `servlo link` in that directory clears the ignored flag and restores the site.
 
-Either way, unlinking also drops the site's per-site request-timing and idle state: its rows in the durable request store, its entries in the persisted request-timing and idle-activity snapshots, and the running watcher's in-memory copy, so an unlinked site leaves no stale traffic history behind. A site's git worktrees are covered too.
+Either way, unlinking also drops the site's per-site request-timing state: its rows in the durable request store, its entry in the persisted request-timing snapshot, and the running watcher's in-memory copy, so an unlinked site leaves no stale traffic history behind.
 
 ---
 
@@ -434,109 +429,3 @@ The Sites Overview groups its tiles by workspace too. Empty workspaces are hidde
 Press `o` in the sites pane to cycle the sort order until it reads `sort: workspace`. Sites are then listed under a header per workspace, with the ungrouped ones trailing. The TUI shows workspaces but does not edit them; use the web UI or `servlo workspace`.
 
 ---
-
-## Git worktrees
-
-Servlo automatically creates a subdomain for each `git worktree` checkout. See Git Worktrees for details.
-
----
-
-## Sharing sites
-
-`servlo share` exposes the current site via a public tunnel. Requires [ngrok](https://ngrok.com/download), [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/), or [Expose](https://expose.dev) to be installed, or an ngrok auth token so servlo can run ngrok as a container. A tool installed with Homebrew is found by the dashboard too, which does not inherit your shell's `PATH`.
-
-| Command | Description |
-|---|---|
-| `servlo share` | Share the current site (auto-detects ngrok, cloudflared, or Expose) |
-| `servlo share <name>` | Share a named site |
-| `servlo share --ngrok` | Force ngrok |
-| `servlo share --cloudflare` | Force Cloudflare Tunnel (cloudflared) |
-| `servlo share --expose` | Force Expose |
-| `servlo share --localhost-run` | Force localhost.run (SSH, no signup) |
-| `servlo share --serveo` | Force serveo.net (SSH, no signup) |
-| `servlo share --domain <hostname>` | Serve on your own Cloudflare-managed hostname (implies Cloudflare Tunnel) |
-| `servlo share --token <token>` | ngrok auth token for this run, overriding the stored one |
-| `servlo share:tool [tool]` | Show or set the default tunnel tool (`ngrok`, `cloudflare`, `expose`, `serveo`, `localhost-run`, or `auto`) |
-| `servlo share:domain [domain]` | Show or set the base domain a Cloudflare share is served under (`none` forgets it) |
-| `servlo share:token [token]` | Show whether an ngrok auth token is stored, or set one (`none` forgets it) |
-
-Every tunnel is served through a small local proxy rather than pointed straight at nginx. The proxy sets the `Host` nginx routes on, dials a secured site over HTTPS without tripping on the local mkcert certificate, and rewrites the site's own `.test` domain out of redirects and asset URLs so the public hostname survives. Without it a secured site answers the first request with a redirect to its `.test` address, which means nothing to whoever opened the public URL.
-
-That rewrite covers more than the plain form of an address. JSON escapes its slashes, so the same URL reaches the browser as `https:\/\/site.test\/path` inside a payload embedded in the page or returned from an XHR, and it is matched in that form too. An external redirect does not always travel in a `Location` header either, since a framework can hand its own client one through a header of its own, so `Content-Location` and `X-Inertia-Location` are rewritten alongside it. Rewritten URLs always come back over `https`, because the tunnel is TLS and a plain-http one would be refused as mixed content.
-
-### ngrok without installing it
-
-ngrok is the one tool with a published image, so servlo can run it from `ngrok/ngrok:latest` under podman when the binary is not on the machine. A container carries none of the host's ngrok configuration, so this needs an auth token:
-
-```bash
-servlo share:token 2abcXYZ...   # get one at https://dashboard.ngrok.com/get-started/your-authtoken
-servlo share                     # ngrok is now an option even with nothing installed
-```
-
-The token authenticates an installed ngrok too, so a binary that was never run through `ngrok config add-authtoken` works the same way. `servlo share --token` overrides the stored token for a single run without replacing it.
-
-An installed tool always wins over the image: pulling one is the slower route to the same URL. The container only stands in when nothing is installed, where it ranks ahead of the signup-free SSH tools because storing a token is a deliberate choice of ngrok.
-
-The token is a credential. It is stored in `~/.config/servlo/config.yaml`, which is tightened to owner-only the moment a token is saved, it is passed to the container through the environment rather than the command line so it cannot be read off `ps`, and it is never printed back or returned by the dashboard's API. In the dashboard, the cog next to ngrok in the share menu sets and clears it.
-
-How the container reaches that local proxy depends on the platform, because the proxy is a host process either way. On Linux the container shares the host's own network namespace, so the proxy really is on loopback and ngrok is given the port. On macOS the container runs inside the podman machine VM, whose loopback is not the host's, so it is pointed at `host.containers.internal` instead. Sharing the VM's network namespace there would dial the VM, where nothing is listening, and every request would come back as ngrok's `ERR_NGROK_8012`.
-
-The container runs as `servlo-ngrok-<site>` (with the branch appended for a worktree), so a running tunnel appears alongside servlo's other containers in the dashboard's resource usage. The name is also how it is cleaned up. A container does not die with the process that started it: podman's supervisor is reparented out of the client's process tree and cgroup, so killing `servlo-ui` outright would otherwise leave the site publicly tunnelled. Stopping a tunnel removes the container by name rather than signalling a process, and every `servlo-ui` start sweeps any tunnel container a previous run left behind.
-
-### Tunnels from the dashboard
-
-The same tunnels can be started from the [web UI](../features/web-ui.md)'s share menu: hover the wifi button in a site's header and pick a tool (or the auto entry, which follows the same detection order and `share:tool` default as the CLI). The dashboard waits for the tool's public URL and shows it next to the domain with a hover-QR. A tunnel started from the UI belongs to the `servlo-ui` daemon, so it ends when you stop it or when the daemon shuts down, and it is not restored on restart. If the daemon is killed outright rather than asked to stop, the next start reaps whatever tunnel survived, so a public URL never outlives the dashboard that owns it.
-
-A shared site is marked in the sites list too: a violet globe against the row while a public tunnel is up, a teal wifi icon while it is on the LAN, both captioned with the address. A share on one of the site's worktrees counts for the row, since the list has one row per site.
-
-A `servlo share` running in a terminal shows up there as well. The CLI records the share while it runs and clears the record on the way out, so the dashboard reflects it like one of its own, labelled as started from the CLI. Stopping it from the dashboard signals that `servlo share` to exit. A share whose process is killed outright leaves its record behind; the dashboard drops it as soon as it notices the process is gone.
-
-### Sharing a worktree
-
-Run `servlo share` from inside a git worktree and servlo tunnels that branch's own domain (`<branch>.<site>.test`), not the parent checkout's. The worktree inherits the parent's registration, so there is nothing to link first: the command resolves the parent site and the branch you are standing in. The same is true of `servlo lan:share`, which assigns the branch its own LAN port, and of `servlo open`, which opens the branch domain.
-
-A worktree tunnel is independent of the parent's. Both can run at once, each on its own public URL, and stopping one leaves the other alone. In the dashboard, switch to the worktree's tab and the share menu acts on that branch.
-
-Naming a site explicitly (`servlo share myapp`) always means the site itself, never one of its branches.
-
-### Default tunnel tool
-
-Auto-detection picks the first installed tool, which may not be the one you want. `servlo share:tool cloudflare` pins the default; from then on a bare `servlo share` uses Cloudflare Tunnel even with ngrok installed. A tool flag still overrides the default per run, and `servlo share:tool auto` restores auto-detection.
-
-### Sharing on your own domain
-
-Quick tunnels hand out a fresh random `trycloudflare.com` URL on every run. When you need a stable URL (sending a client the same link twice, webhook or OAuth callback targets), pass `--domain` with a hostname whose DNS is managed by Cloudflare:
-
-```bash
-servlo share --domain dev.example.com
-```
-
-Custom hostnames are a Cloudflare Tunnel feature, so `--domain` selects that tool on its own. You never need `--cloudflare` alongside it, and it wins over a different default set with `servlo share:tool`. Combining it with another tool flag is rejected rather than silently ignored.
-
-#### A base domain, so you never type the hostname
-
-`--domain` takes a full hostname and applies to one run. Set a base domain instead and every Cloudflare share is served under it, with servlo composing the hostname from the site name:
-
-```bash
-servlo share:domain example.com   # myapp.test is shared on myapp.example.com
-servlo share:domain               # show the current one
-servlo share:domain none          # forget it, back to quick tunnels
-```
-
-The hostname follows the site's own domain rather than the folder the project sits in, so a `scorediviner.test` served out of a `score-diviner` directory is shared on `scorediviner.example.com`.
-
-The dashboard asks the first time you pick Cloudflare Tunnel from the share menu: type the base domain, or skip it for a quick tunnel. Tick **Remember this answer** and it stops asking, whichever way you answered. The cog next to the Cloudflare entry reopens that dialog whenever you want to change the domain, or clear it so servlo asks again.
-
-A worktree's subdomain flattens into one label, so `feat-login.myapp.test` is shared on `feat-login-myapp.example.com`: a Cloudflare certificate covers one level of subdomain and no more.
-
-`servlo share --domain` still wins for a single run, and the other tunnel tools ignore the base domain: no other one can hand out a subdomain of a domain you own.
-
-#### How the named tunnel is set up
-
-On the first run cloudflared opens a browser window to authorize your Cloudflare account (a one-time login that writes `~/.cloudflared/cert.pem`). The dashboard has no terminal to run that login in, so a share from the UI stops and tells you to run `cloudflared tunnel login` once. servlo then creates a named tunnel called `servlo-<site>`, routes the hostname to it with a CNAME record, and starts the tunnel. Later runs reuse the same tunnel and hostname, so the URL never changes. Re-routing a hostname that already points at the same tunnel is a no-op; if the record exists but points somewhere else, servlo leaves it alone and prints a note asking you to check it.
-
-A freshly created DNS record takes a moment to become visible. If you open the URL in the first seconds and your resolver caches the miss, it can keep answering NXDOMAIN for up to 30 minutes even though the tunnel is healthy.
-
-A local reverse proxy rewrites the `Host` header to the site's domain so nginx routes to the correct vhost. Response `Location` headers and HTML/CSS/JS/JSON body references to the local domain are also rewritten to the public tunnel URL, so redirects and asset links work correctly in the browser.
-
-When the tunnel forwards an `X-Forwarded-Host` header (the public hostname the visitor actually typed), servlo's generated vhosts propagate it into `HTTP_HOST`, `SERVER_NAME`, and the `HTTP_X_FORWARDED_*` family, so PHP apps that build absolute URLs from `$_SERVER` or Laravel's `url()` helper return the public URL instead of the local `.test` one. See [Nginx Overrides](./nginx-overrides.md#forwarded-headers-and-tunneling) for the full mapping, and for how to drop per-site snippets under `~/.local/share/servlo/nginx/custom.d/` without losing them on the next `servlo update`.

@@ -6,16 +6,13 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"bytes"
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/cleanup"
 	"github.com/realrashid/servlo/internal/cli"
 	"github.com/realrashid/servlo/internal/config"
@@ -23,7 +20,6 @@ import (
 	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/eventbus"
 	"github.com/realrashid/servlo/internal/feedback"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	"github.com/realrashid/servlo/internal/nginx"
 	nodeDet "github.com/realrashid/servlo/internal/node"
 	phpDet "github.com/realrashid/servlo/internal/php"
@@ -119,9 +115,6 @@ func main() {
 	root.AddCommand(cli.NewUseCmd())
 	root.AddCommand(cli.NewIsolateCmd())
 	root.AddCommand(cli.NewIsolateNodeCmd())
-	root.AddCommand(cli.NewDBIsolateCmd())
-	root.AddCommand(cli.NewDBShareCmd())
-	root.AddCommand(cli.NewWorktreeCmd())
 	root.AddCommand(cli.NewRuntimeCmd())
 	root.AddCommand(cli.NewNodeInstallCmd())
 	root.AddCommand(cli.NewNodeUninstallCmd())
@@ -403,80 +396,13 @@ func newWatchCmd() *cobra.Command {
 				}
 			}()
 
-			// Recover worktrees whose UI-driven install crashed mid-flight.
-			go func() {
-				for range time.Tick(60 * time.Second) {
-					rescanWorktreeInstalls()
-				}
-			}()
-
-			// Deleting a checkout directly leaves git's worktrees/ entry in place,
-			// so the watcher below never hears about it and its worker units keep
-			// retrying against a directory that has gone. Reconcile on the same
-			// cadence instead, so an agent that removes its own worktree costs a
-			// restart loop that lasts a minute rather than one that lasts forever.
+			// A worker unit whose checkout has gone restart-loops forever, so
+			// reconcile on a slow cadence rather than only at boot.
 			go func() {
 				for range time.Tick(60 * time.Second) {
 					if n := cli.PruneOrphanedWorkers(); n > 0 {
-						fmt.Printf("[INFO] pruned %d orphaned worker unit(s) whose worktree was removed\n", n)
+						fmt.Printf("[INFO] pruned %d orphaned worker unit(s) whose checkout was removed\n", n)
 					}
-				}
-			}()
-
-			// Watch for git worktree additions/removals.
-			go func() {
-				err := watcher.WatchWorktrees(
-					func() []string {
-						return mainRepoSitePaths()
-					},
-					func(sitePath, worktreeName string) {
-						if syncWorktree(sitePath, worktreeName, "added", false) {
-							if err := nginx.Reload(); err != nil {
-								fmt.Printf("[WARN] nginx reload: %v\n", err)
-							}
-						}
-						// Teach the access feed the new domain now, so the worktree's
-						// first request lands in its request timing rather than nowhere.
-						watcher.RefreshWorktreeIndex()
-					},
-					func(sitePath, worktreeName string) {
-						if syncWorktree(sitePath, worktreeName, "changed", true) {
-							if err := nginx.Reload(); err != nil {
-								fmt.Printf("[WARN] nginx reload: %v\n", err)
-							}
-							eventbus.Default.Publish(eventbus.KindSites)
-						}
-						watcher.RefreshWorktreeIndex()
-					},
-					func(sitePath, worktreeName string) {
-						defer watcher.RefreshWorktreeIndex()
-						site, err := config.FindSiteByPath(sitePath)
-						if err != nil {
-							return
-						}
-						// Cleanup order on plain `git worktree remove`:
-						// stop per-worktree worker units first so they
-						// don't restart-loop against the deleted dir, then
-						// vhost (URL stops resolving), then LAN share.
-						// Isolated databases are intentionally NOT dropped
-						// here — `servlo worktree remove` prompts the user
-						// about the DB explicitly, and the daemon's
-						// startup scanWorktrees pass catches any orphans
-						// left by direct git users.
-						if worktreeName != "" {
-							if err := cli.StopAllWorkersForWorktree(site.Name, worktreeName); err != nil {
-								fmt.Printf("[WARN] stopping worktree workers for %s/%s: %v\n", site.Name, worktreeName, err)
-							}
-						}
-						if cleanupWorktreeVhosts(site) {
-							if err := nginx.Reload(); err != nil {
-								fmt.Printf("[WARN] nginx reload: %v\n", err)
-							}
-						}
-					},
-				)
-				if err != nil {
-					fmt.Printf("[WARN] worktree watcher: %v\n", err)
 				}
 			}()
 
@@ -625,54 +551,20 @@ func newWatchCmd() *cobra.Command {
 	}
 }
 
-// mainRepoSitePaths returns the paths of non-ignored sites whose .git is a directory.
-// liveBranchesForSite returns the set of sanitized branches that currently
-// have a worktree on disk for the given site. Used by the watcher's
-// onRemoved hook so it can hand the live set to the LAN-cleanup helper.
-func liveBranchesForSite(site *config.Site) map[string]bool {
-	out := map[string]bool{}
-	wts, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	if err != nil {
-		return out
-	}
-	for _, w := range wts {
-		out[w.Branch] = true
-	}
-	return out
-}
-
-func mainRepoSitePaths() []string {
-	reg, err := config.LoadSites()
-	if err != nil {
-		return nil
-	}
-	var paths []string
-	for _, s := range reg.Sites {
-		if s.Ignored {
-			continue
-		}
-		if gitpkg.IsMainRepo(s.Path) {
-			paths = append(paths, s.Path)
-		}
-	}
-	return paths
-}
-
 // notifyReadyThenScan signals watcher readiness and then runs the boot scan in
-// the background. The order matters: the scan provisions worktrees, composer
-// install included, and that has no duration worth guessing at, while `servlo
-// watch` runs under a Type=notify unit with a start timeout. Signalling first
-// leaves a slow install as a slow install, instead of a SIGTERM before
-// readiness and a restart that begins the same install from scratch.
+// the background. The order matters: the scan can take an unguessable amount of
+// time, while `servlo watch` runs under a Type=notify unit with a start
+// timeout. Signalling first leaves a slow scan as a slow scan, instead of a
+// SIGTERM before readiness and a restart that begins the same work from scratch.
 func notifyReadyThenScan(notifyReady, scan func()) {
 	notifyReady()
 	go scan()
 }
 
 // bootScan is the watcher's one-shot reconciliation: register projects parked
-// while it was down, drop sites whose directory has gone, and provision the
-// worktrees found on disk. Nothing here is a precondition for serving, so it
-// runs off the startup path; the periodic passes cover whatever it misses.
+// while it was down and drop sites whose directory has gone. Nothing here is a
+// precondition for serving, so it runs off the startup path; the periodic
+// passes cover whatever it misses.
 func bootScan(cfg *config.GlobalConfig) {
 	reloadNeeded := false
 	for _, dir := range cfg.ParkedDirectories {
@@ -698,434 +590,11 @@ func bootScan(cfg *config.GlobalConfig) {
 		reloadNeeded = true
 	}
 
-	// Generate vhosts for any existing worktrees. The heavy per-worktree work
-	// comes back as deferred jobs so the reload below, and with it every
-	// worktree subdomain, does not queue behind the first composer install.
-	provision, generated := scanWorktrees()
-	if generated {
-		reloadNeeded = true
-	}
-
 	if reloadNeeded {
 		if err := nginx.Reload(); err != nil {
 			fmt.Printf("[WARN] nginx reload: %v\n", err)
 		}
 	}
-
-	gitpkg.ResetJSInstallFailures()
-	runProvisioning(provision, worktreeProvisionLimit())
-}
-
-// maxProvisionSlots caps how many worktrees are provisioned at once however
-// many cores the machine has. Past a handful the wait is the network and the
-// package caches rather than the CPU, so more installs only compete.
-const maxProvisionSlots = 4
-
-// provisionSlots is how many worktrees a machine with numCPU cores provisions
-// at once. A composer install and a JS install each saturate a core, and this
-// runs unattended at daemon start, so two cores are left for the rest of the
-// machine: the daemons, the containers serving every other site, and whatever
-// the user is in the middle of. A machine too small to spare them runs one.
-func provisionSlots(numCPU int) int {
-	return max(1, min(numCPU-2, maxProvisionSlots))
-}
-
-func worktreeProvisionLimit() int {
-	return provisionSlots(runtime.NumCPU())
-}
-
-// runProvisioning runs the deferred half of the boot scan, at most limit jobs
-// at a time. Worktrees are independent of one another, so the scan that used to
-// take one install after another now takes as long as the slowest few.
-func runProvisioning(jobs []func(), limit int) {
-	if limit < 1 {
-		limit = 1
-	}
-	slots := make(chan struct{}, limit)
-	var wg sync.WaitGroup
-	for _, job := range jobs {
-		slots <- struct{}{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer func() { <-slots }()
-			job()
-		}()
-	}
-	wg.Wait()
-}
-
-// scanWorktrees generates vhosts for all existing worktrees across all
-// main-repo sites, and returns the provisioning each one still needs alongside
-// whether any vhost was generated. Writing every vhost first is what keeps a
-// repo's last worktree from 404ing for as long as all the earlier installs
-// take: routing needs nothing but the vhost, so nothing that serving does not
-// depend on runs before the whole set is written.
-func scanWorktrees() ([]func(), bool) {
-	reg, err := config.LoadSites()
-	if err != nil {
-		return nil, false
-	}
-	// Per-worktree worker units whose checkout is gone, once for the whole
-	// install rather than per site, since one detection pass covers every unit.
-	// The watcher's onRemoved hook only fires when git's own worktrees/ entry
-	// disappears, so a checkout deleted directly leaves a unit that restart-loops
-	// on a missing WorkingDirectory until something reconciles it. This is that
-	// something, which is also what recovers an install already stuck that way.
-	if n := cli.PruneOrphanedWorkers(); n > 0 {
-		fmt.Printf("[INFO] pruned %d orphaned worker unit(s) whose worktree was removed\n", n)
-	}
-
-	generated := false
-	var provision []func()
-	for _, s := range reg.Sites {
-		if s.Ignored || s.Paused {
-			continue
-		}
-		// Catch up on isolated-DB cleanup for any worktree removed while
-		// the watcher was offline (event-driven cleanup needs fsnotify).
-		site := s
-		cli.DropOrphanedWorktreeDBs(&site)
-		// ServableWorktrees excludes any worktree whose subdomain is owned by a
-		// group secondary: the secondary serves that exact host already.
-		worktrees, err := gitpkg.ServableWorktrees(s.Path, s.PrimaryDomain())
-		if err != nil {
-			continue
-		}
-		// Drop any *.<site>.conf vhost that doesn't correspond to a live
-		// worktree any more — branch renames and detached→named transitions
-		// leave the previous name behind, and that orphan still routes to
-		// the same checkout, masking the new vhost.
-		if removeStaleWorktreeVhosts(&site, worktrees) {
-			generated = true
-		}
-		if len(worktrees) == 0 {
-			// A plain secured site never hits the worktree reissue below, so
-			// self-heal its leaf cert here: EnsureCert reuses a still-valid one
-			// and only reissues when it's aging, missing, or unparseable.
-			if s.Secured {
-				if err := certs.EnsureCert(s); err != nil {
-					fmt.Printf("[WARN] ensure cert for %s: %v\n", s.PrimaryDomain(), err)
-				}
-			}
-			continue
-		}
-		// Reissue once per site so the cert covers the wildcard SAN for every
-		// worktree even after a daemon restart that picked up worktrees added
-		// before the wildcard-SAN feature shipped.
-		if s.Secured {
-			if reissueErr := certs.ReissueCertForWorktree(s); reissueErr != nil {
-				fmt.Printf("[WARN] reissue cert for %s: %v\n", s.PrimaryDomain(), reissueErr)
-			}
-		}
-		for _, wt := range worktrees {
-			// Host-proxy sites mirror the parent dev command on a per-worktree
-			// port behind the worktree domain; no PHP vhost or framework workers.
-			if site.IsHostProxy() {
-				if err := cli.GenerateHostProxyWorktreeVhost(site, wt.Path, wt.Domain); err != nil {
-					fmt.Printf("[WARN] worktree host-proxy for %s: %v\n", wt.Domain, err)
-					continue
-				}
-				fmt.Printf("Worktree vhost: %s -> %s (host proxy)\n", wt.Branch, wt.Domain)
-			} else {
-				// Inheritance is intentionally NOT run on the boot rescan: it only
-				// fires on genuine creation (the "added" watcher event in
-				// syncWorktree). Re-seeding here would resurrect an override the
-				// user deliberately reset, on every daemon restart.
-				// A worktree can pin its own PHP version, and the vhost has to
-				// name that version's FPM container or the branch is served by
-				// the parent's PHP.
-				effectivePHP := config.WorktreePHPVersion(wt.Path, s.PHPVersion)
-				if err := nginx.GenerateWorktreeVhostFor(wt.Domain, wt.Path, effectivePHP, s.PrimaryDomain(), s.Name, wt.Branch, s.Secured); err != nil {
-					fmt.Printf("[WARN] worktree vhost for %s: %v\n", wt.Domain, err)
-					continue
-				}
-				fmt.Printf("Worktree vhost: %s -> %s\n", wt.Branch, wt.Domain)
-			}
-			generated = true
-			provision = append(provision, func() { provisionWorktree(site, wt) })
-		}
-	}
-	return provision, generated
-}
-
-// provisionWorktree is the part of a worktree's boot reconcile that its vhost
-// does not wait on: the dependency install, the isolated database, and the
-// workers, in that order because each one needs what the previous put in place.
-// The vhost is already written and reloaded by the time this runs.
-func provisionWorktree(site config.Site, wt gitpkg.Worktree) {
-	// Skip the install when the UI/CLI holds the cross-process lock: it is
-	// running composer/npm install with streamed output and would race the
-	// watcher's vendor seed otherwise.
-	if release, ok, _ := gitpkg.TryLockInstall(wt.Path); ok {
-		gitpkg.EnsureWorktreeDeps(site.Path, wt.Path, wt.Domain, site.Secured, nil)
-		release()
-	}
-	// Provision the isolated DB for a worktree that committed db_isolated: true
-	// but was never run through `servlo worktree add` (e.g. linked with the
-	// worktree already present). No-op otherwise.
-	if created, err := cli.EnsureWorktreeIsolatedDB(&site, wt.Branch, wt.Path); err != nil {
-		fmt.Printf("[WARN] isolated DB for worktree %s: %v\n", wt.Branch, err)
-	} else if created {
-		fmt.Printf("Worktree DB: created isolated database for %s\n", wt.Branch)
-	}
-	if site.IsHostProxy() {
-		if err := cli.StartHostProxyWorktreeServer(site, wt.Path); err != nil {
-			fmt.Printf("[WARN] worktree dev server for %s: %v\n", wt.Domain, err)
-		}
-		return
-	}
-	// Per-worktree host workers (e.g. vite) need to be (re)started at daemon
-	// boot too, not just when fsnotify fires onAdded. Without this, units
-	// stopped during downtime never come back.
-	cli.AutoStartOptedInWorktreeWorkers(&site, wt.Path, config.WorktreePHPVersion(wt.Path, site.PHPVersion))
-}
-
-// rescanWorktreeInstalls re-runs EnsureWorktreeDeps for any worktree whose
-// composer/JS install never completed. Covers the case where the UI's
-// streamed install crashed between `git worktree add` and EnsureWorktreeDeps
-// (the watcher's onAdded already fired and skipped because the UI held the
-// install lock at the time).
-func rescanWorktreeInstalls() {
-	reg, err := config.LoadSites()
-	if err != nil {
-		return
-	}
-	// Each pass gets a clean slate: a lockfile the user has fixed since the last
-	// one, or one whose install only failed on an unreachable registry, is due
-	// another attempt.
-	gitpkg.ResetJSInstallFailures()
-	for _, s := range reg.Sites {
-		if s.Ignored || s.Paused || !gitpkg.IsMainRepo(s.Path) {
-			continue
-		}
-		wts, err := gitpkg.DetectWorktrees(s.Path, s.PrimaryDomain())
-		if err != nil {
-			continue
-		}
-		for _, wt := range wts {
-			if !gitpkg.NeedsInstall(wt.Path) {
-				continue
-			}
-			release, ok, _ := gitpkg.TryLockInstall(wt.Path)
-			if !ok {
-				continue
-			}
-			fmt.Printf("Rescan: re-running install for %s (%s)\n", wt.Branch, wt.Path)
-			gitpkg.EnsureWorktreeDeps(s.Path, wt.Path, wt.Domain, s.Secured, nil)
-			release()
-		}
-	}
-}
-
-func syncWorktree(sitePath, worktreeName, action string, pruneStale bool) bool {
-	site, err := config.FindSiteByPath(sitePath)
-	if err != nil {
-		return false
-	}
-	if site.Paused {
-		return false
-	}
-	worktrees, err := gitpkg.ServableWorktrees(sitePath, site.PrimaryDomain())
-	if err != nil {
-		return false
-	}
-	if pruneStale {
-		removeStaleWorktreeVhosts(site, worktrees)
-	}
-	for _, wt := range worktrees {
-		if wt.Name != worktreeName {
-			continue
-		}
-		// Skip the install when the UI/CLI holds the cross-process lock:
-		// it is running composer/npm install with streamed output and
-		// would race the watcher's vendor seed otherwise.
-		if release, ok, _ := gitpkg.TryLockInstall(wt.Path); ok {
-			gitpkg.EnsureWorktreeDeps(sitePath, wt.Path, wt.Domain, site.Secured, nil)
-			release()
-		}
-		// Provision the isolated DB for a worktree that committed
-		// db_isolated: true but was never run through `servlo worktree add`.
-		// Gated to genuine creation like the worker/nginx seeding below: on
-		// "changed" (a commit/checkout) an already-provisioned worktree would
-		// no-op anyway, and a misconfigured one would re-warn on every HEAD
-		// write. The boot rescan catches worktrees that opt in while offline.
-		if shouldProvisionWorktreeDBOnSync(action) {
-			if created, err := cli.EnsureWorktreeIsolatedDB(site, wt.Branch, wt.Path); err != nil {
-				fmt.Printf("[WARN] isolated DB for worktree %s: %v\n", wt.Branch, err)
-			} else if created {
-				fmt.Printf("Worktree DB: created isolated database for %s\n", wt.Branch)
-			}
-		}
-		// Host-proxy worktrees run their own dev server behind the worktree
-		// domain; wire that instead of a PHP vhost + framework workers.
-		if site.IsHostProxy() {
-			if err := cli.SetupHostProxyWorktree(*site, wt.Path, wt.Domain); err != nil {
-				fmt.Printf("[WARN] worktree host-proxy for %s: %v\n", wt.Domain, err)
-				return false
-			}
-			if site.Secured {
-				if reissueErr := certs.ReissueCertForWorktree(*site); reissueErr != nil {
-					fmt.Printf("[WARN] reissue cert for worktree %s: %v\n", wt.Domain, reissueErr)
-				}
-			}
-			fmt.Printf("Worktree %s: %s -> %s (host proxy)\n", action, wt.Branch, wt.Domain)
-			return true
-		}
-		effectivePHP := config.WorktreePHPVersion(wt.Path, site.PHPVersion)
-		vhostErr := nginx.GenerateWorktreeVhostFor(wt.Domain, wt.Path, effectivePHP, site.PrimaryDomain(), site.Name, wt.Branch, site.Secured)
-		if site.Secured {
-			if reissueErr := certs.ReissueCertForWorktree(*site); reissueErr != nil {
-				fmt.Printf("[WARN] reissue cert for worktree %s: %v\n", wt.Domain, reissueErr)
-			}
-		}
-		if vhostErr != nil {
-			fmt.Printf("[WARN] worktree vhost for %s: %v\n", wt.Domain, vhostErr)
-			return false
-		}
-		// Seed the worktree's override from the main branch's, but only on
-		// genuine creation ("added"). On "changed" (a commit/checkout in the
-		// worktree) re-seeding would undo a deliberate reset of the override.
-		if shouldInheritNginxOnSync(action) {
-			_ = siteops.InheritCustomNginxConfig(site.PrimaryDomain(), wt.Domain)
-		}
-		fmt.Printf("Worktree %s: %s -> %s\n", action, wt.Branch, wt.Domain)
-
-		if shouldAutoStartWorkersOnSync(action) {
-			cli.AutoStartOptedInWorktreeWorkers(site, wt.Path, effectivePHP)
-		}
-
-		return true
-	}
-	return false
-}
-
-// "changed" fires on every HEAD write (commit, checkout, rebase);
-// worktree path is stable so existing units need no kick. Resurrecting
-// them clobbered user stops — issue #375.
-func shouldAutoStartWorkersOnSync(action string) bool {
-	return action == "added"
-}
-
-// shouldProvisionWorktreeDBOnSync gates isolated-DB creation to genuine
-// worktree creation. On "changed" an already-isolated worktree is a registry
-// no-op, and a worktree that can't isolate (no servlo-managed parent DB) would
-// otherwise log a warning on every commit/checkout. The boot rescan still
-// picks up worktrees that opted in while the watcher was offline.
-func shouldProvisionWorktreeDBOnSync(action string) bool {
-	return action == "added"
-}
-
-// shouldInheritNginxOnSync gates one-time inheritance of the main branch's
-// nginx override to genuine worktree creation. On "changed" (or the boot
-// rescan) the worktree override may have been deliberately reset, so re-seeding
-// it would silently resurrect config the user removed.
-func shouldInheritNginxOnSync(action string) bool {
-	return action == "added"
-}
-
-// cleanupWorktreeVhosts removes all subdomain vhosts for the given site's
-// domain, then re-generates for worktrees still on disk. Survivors keep their
-// .env; deps and APP_URL are handled by syncWorktree on add/rename, not here.
-func cleanupWorktreeVhosts(site *config.Site) bool {
-	removed := removeWorktreeVhosts(site)
-	worktrees, _ := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	// Drop the custom nginx override + backups for worktrees that are truly
-	// gone. removeWorktreeVhosts wipes every worktree vhost, so a survivor is
-	// any worktree still detected on disk; only the rest are pruned.
-	survivors := map[string]bool{}
-	for _, wt := range worktrees {
-		survivors[wt.Domain] = true
-	}
-	for _, domain := range removed {
-		if survivors[domain] {
-			continue
-		}
-		// Guard against a separately-registered site whose primary happens to
-		// be a subdomain of this one (e.g. app.test + admin.app.test): its
-		// vhost matches the suffix scan, but its override must not be deleted.
-		if _, err := config.FindSiteByDomain(domain); err == nil {
-			continue
-		}
-		_ = siteops.RemoveCustomNginxConfig(domain)
-	}
-	changed := len(removed) > 0
-	// Shrink the cert SAN list to just the surviving worktrees so removed
-	// branches drop their wildcard SAN.
-	if site.Secured {
-		if reissueErr := certs.ReissueCertForWorktree(*site); reissueErr != nil {
-			fmt.Printf("[WARN] reissue cert for %s: %v\n", site.PrimaryDomain(), reissueErr)
-		}
-	}
-	for _, wt := range worktrees {
-		effectivePHP := config.WorktreePHPVersion(wt.Path, site.PHPVersion)
-		var vhostErr error
-		if site.Secured {
-			vhostErr = nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, effectivePHP, site.PrimaryDomain(), site.Name, wt.Branch)
-		} else {
-			vhostErr = nginx.GenerateWorktreeVhost(wt.Domain, wt.Path, effectivePHP, site.Name, wt.Branch)
-		}
-		if vhostErr != nil {
-			fmt.Printf("[WARN] worktree vhost for %s: %v\n", wt.Domain, vhostErr)
-			continue
-		}
-		changed = true
-	}
-	return changed
-}
-
-func removeStaleWorktreeVhosts(site *config.Site, worktrees []gitpkg.Worktree) bool {
-	current := map[string]bool{}
-	for _, wt := range worktrees {
-		current[wt.Domain+".conf"] = true
-	}
-	confD := config.NginxConfD()
-	entries, err := os.ReadDir(confD)
-	if err != nil {
-		return false
-	}
-	suffix := "." + site.PrimaryDomain() + ".conf"
-	changed := false
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), suffix) && !current[e.Name()] {
-			// A conf whose domain belongs to a separately-registered site (e.g. a
-			// group secondary at <label>.<primary>) is not a stale worktree vhost;
-			// leave it alone.
-			domain := strings.TrimSuffix(e.Name(), ".conf")
-			if _, err := config.FindSiteByDomain(domain); err == nil {
-				continue
-			}
-			_ = os.Remove(filepath.Join(confD, e.Name()))
-			changed = true
-		}
-	}
-	return changed
-}
-
-// removeWorktreeVhosts removes every worktree subdomain vhost for the site and
-// returns the domains it removed (each vhost filename minus ".conf").
-func removeWorktreeVhosts(site *config.Site) []string {
-	confD := config.NginxConfD()
-	entries, err := os.ReadDir(confD)
-	if err != nil {
-		return nil
-	}
-	suffix := "." + site.PrimaryDomain() + ".conf"
-	var removed []string
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), suffix) {
-			// A conf whose domain belongs to a separately-registered site (e.g. a
-			// group secondary at <label>.<primary>) is not a worktree vhost; never
-			// delete it, or the secondary stops being served.
-			domain := strings.TrimSuffix(e.Name(), ".conf")
-			if _, err := config.FindSiteByDomain(domain); err == nil {
-				continue
-			}
-			_ = os.Remove(filepath.Join(confD, e.Name()))
-			removed = append(removed, domain)
-		}
-	}
-	return removed
 }
 
 // removeStale removes registered sites whose paths no longer exist on disk.

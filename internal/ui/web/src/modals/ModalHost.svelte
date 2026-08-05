@@ -6,8 +6,6 @@
   import PresetModal from './PresetModal.svelte';
   import RemoteControlModal from './RemoteControlModal.svelte';
   import LANProgressModal from './LANProgressModal.svelte';
-  import AddWorktreeModal from './AddWorktreeModal.svelte';
-  import RemoveWorktreeModal from './RemoveWorktreeModal.svelte';
   import AddPhpModal from './AddPhpModal.svelte';
   import RebuildPhpModal from './RebuildPhpModal.svelte';
   import ConfirmEnvSaveModal from './ConfirmEnvSaveModal.svelte';
@@ -41,10 +39,6 @@
   <RemoteControlModal />
 {:else if $modal.kind === 'lanProgress'}
   <LANProgressModal />
-{:else if $modal.kind === 'worktreeAdd' && $modal.site}
-  <AddWorktreeModal site={$modal.site} />
-{:else if $modal.kind === 'worktreeRemove' && $modal.site && $modal.branch}
-  <RemoveWorktreeModal site={$modal.site} branch={$modal.branch} />
 {:else if $modal.kind === 'phpAdd'}
   <AddPhpModal />
 {:else if $modal.kind === 'phpRebuild' && $modal.phpRebuild}

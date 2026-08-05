@@ -43,9 +43,6 @@ env:
   fallback_file: wp-config.php      # used when file doesn't exist
   fallback_format: php-const        # format for fallback_file
   url_key: APP_URL                  # env key holding the app URL (or "none")
-  worktree_url_keys:                # keys set to a worktree's own base URL
-    - system.default.web.unsecure.base_url
-    - system.default.web.secure.base_url
 
   # Application key generation
   key_generation:
@@ -123,11 +120,6 @@ env:
   url_key: DEFAULT_URI            # env key holding the app URL (default: APP_URL;
                                   # `none` opts out for frameworks that keep the
                                   # base URL elsewhere, e.g. Magento's database)
-  worktree_url_keys:              # keys set to a worktree's own base URL, even
-    - web.unsecure.base_url       # when url_key is `none` — lets a worktree whose
-    - web.secure.base_url         # canonical base URL is database-hosted (Magento)
-                                  # override it in env.php and serve on its own
-                                  # domain instead of redirecting to the parent
   vars:                           # unconditional env defaults, always applied (optional)
     - "CI_ENVIRONMENT=development" # e.g. force CodeIgniter into dev mode for local work
   key_generation:                 # application key generation (optional)
@@ -206,11 +198,8 @@ workers:
     host: false                   # run on the host via fnm instead of in the FPM
                                   # container (optional, default: false). Used for
                                   # HMR-sensitive Node tools (Vite, Tailwind watcher).
-    per_worktree: false           # run independently per git worktree under
-                                  # servlo-<wname>-<site>-<wt> (optional, default:
-                                  # false). Required for worktree auto-start.
     replaces_build: false         # while running, provides the asset manifest;
-                                  # `servlo worktree add` skips the build prompt for
+                                  # `servlo setup` skips the build prompt for
                                   # opted-in workers (optional, default: false).
 
 # One-off setup commands
@@ -260,20 +249,11 @@ nginx:
     location /static/ {
       try_files $uri $uri/ /static.php?$args;
     }
-
-# What a new worktree needs once its env file is seeded (optional)
-worktree:
-  db_isolation: required              # required | (unset, which prompts as usual)
-  db_source: main                     # what an isolated database starts from: empty | main
-  commands:                           # console commands run once env and database are ready
-    - app:config:import
 ```
-
-An app that keeps deployment state in its database cannot share the parent's. Magento hashes its file config and stores the hash in the database, so seeding a worktree's own base URL into `env.php` makes the store refuse to serve until `app:config:import` re-syncs it, and running that import against a shared database would rewrite the hash out from under the parent site. `db_isolation: required` therefore skips the prompt and isolates, `db_source: main` clones the parent's data (an empty schema is useless to a store that cannot bootstrap itself), and `commands` run afterwards, in the worktree, through the framework's own `console` binary.
 
 ## Site placeholders
 
-The <code v-pre>{{site}}</code>, <code v-pre>{{site_testing}}</code>, <code v-pre>{{bucket}}</code>, <code v-pre>{{domain}}</code>, <code v-pre>{{scheme}}</code>, and <code v-pre>{{&lt;service&gt;_version}}</code> placeholders listed above are expanded in three places: the `env.services` vars, every `setup:` command, and every `commands:` entry. They resolve against the registered site the command runs for. A git worktree is not a registered site, so a command run against one resolves <code v-pre>{{site}}</code> but leaves <code v-pre>{{domain}}</code> and <code v-pre>{{scheme}}</code> alone.
+The <code v-pre>{{site}}</code>, <code v-pre>{{site_testing}}</code>, <code v-pre>{{bucket}}</code>, <code v-pre>{{domain}}</code>, <code v-pre>{{scheme}}</code>, and <code v-pre>{{&lt;service&gt;_version}}</code> placeholders listed above are expanded in three places: the `env.services` vars, every `setup:` command, and every `commands:` entry. They resolve against the registered site the command runs for.
 
 This is what lets a framework whose bootstrap needs to know where the site lives declare that step as data. Magento 2.4 removed its web installer, so a fresh store is installed with `bin/magento setup:install --base-url=… --db-name=…`; the definition can now express exactly that. A step that creates schema should carry `default: false` so it is opt-in rather than running on every `servlo setup`.
 
@@ -283,7 +263,7 @@ A placeholder whose value is empty, or one servlo does not recognise, is left in
 
 The `commands:` list is the framework's own verbs: the things you would otherwise type into a console by hand. Each entry shows up on the site's dashboard, in the command palette, and as an argument to `servlo run`, and can be named as the `fix:` of a doctor check.
 
-`name` and `command` are the only required keys. The name is a stable identifier, unique within the definition, and is what `servlo run <name>` and a doctor `fix:` both refer to, so treat it as API and don't rename it casually. The command is a shell string handed to `sh -c`, with the [site placeholders](#site-placeholders) expanded first. It runs in the site's PHP-FPM container, from the project root unless `cwd` moves it; `cwd` is a path relative to that root, and `.` and an empty value both mean the root itself. When a command is run against a git worktree, the root is the worktree's own checkout.
+`name` and `command` are the only required keys. The name is a stable identifier, unique within the definition, and is what `servlo run <name>` and a doctor `fix:` both refer to, so treat it as API and don't rename it casually. The command is a shell string handed to `sh -c`, with the [site placeholders](#site-placeholders) expanded first. It runs in the site's PHP-FPM container, from the project root unless `cwd` moves it; `cwd` is a path relative to that root, and `.` and an empty value both mean the root itself.
 
 `output` decides where the command's output goes, and the four values are genuinely different surfaces:
 
@@ -400,8 +380,6 @@ Three placeholders are expanded before the config is written:
 The two path placeholders expand to nginx variables, `${servlo_root}` and `${servlo_public}`, which servlo declares at the top of the server block with the real paths. A project can live under a path with a space in it, and nginx splits a directive on whitespace: a literal path would turn `root` into three arguments and nginx would reject the whole config, taking every other site on the machine down with it. Quoting the value would fix a standalone `root {{root}};` but not a path used mid-token, as in `alias {{public}}/static/;`, since nginx will not glue a quoted token to a bare one. A variable is resolved after tokenizing, so it works in both positions. Write the placeholders exactly where you would write the path and servlo handles the rest.
 
 A snippet that passes requests to PHP should assign `{{fpm}}` to a variable first, `set $myfpm "{{fpm}}";` then `fastcgi_pass $myfpm:9000;`, exactly as the generated vhost does. nginx resolves a literal upstream name once when the config loads and caches it for the life of the process, so a container that comes back on a new address is never picked up.
-
-A git worktree of the site gets the same block, expanded against its own checkout: `{{root}}` and `{{public}}` point at the worktree's directory, not the parent's, so a branch serves its own `setup/`, `/static/` and `/media/` paths.
 
 The snippet must have balanced braces, since an unbalanced one would close the enclosing `server` block and start declaring its own. Balance alone is not enough, because a `}` followed by a `server {` still balances, so the values substituted into the placeholders are rejected too if they contain `{`, `}`, `;`, `#`, or a newline. A snippet failing either check is dropped and the site renders without it, rather than risking an nginx config that fails to load for every site.
 

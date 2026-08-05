@@ -31,22 +31,6 @@ func runIsolate(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Worktree path: the override travels with the branch, so the parent site's
-	// own version is left alone.
-	if site, branch, ok := FindParentSiteForWorktree(cwd); ok {
-		res, err := siteops.SetSitePHPVersion(site, version, siteops.PHPVersionOpts{Branch: branch})
-		if err != nil {
-			return err
-		}
-		feedback.Begin()
-		feedback.Done("PHP pinned to " + feedback.Val(res.Version) + " · worktree " + branch + " of " + site.Name)
-		if res.Clamped {
-			feedback.Note(res.Requested + " isn't usable here; clamped to " + res.Version)
-		}
-		reportImageGap(res)
-		return nil
-	}
-
 	// An unlinked directory has no site to switch, so the pin is all there is
 	// to write. link picks it up when the directory is eventually linked.
 	site, err := config.FindSiteByPath(cwd)
@@ -60,7 +44,7 @@ func runIsolate(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	res, err := siteops.SetSitePHPVersion(site, version, siteops.PHPVersionOpts{})
+	res, err := siteops.SetSitePHPVersion(site, version)
 	if err != nil {
 		return err
 	}

@@ -26,7 +26,7 @@
     busy = true;
     error = '';
     try {
-      const res = await saveSiteEnv(target.domain, target.branch, target.content, backup, target.file);
+      const res = await saveSiteEnv(target.domain, target.content, backup, target.file);
       if (!res.ok) {
         error = res.error || m.envEditor_saveFailed();
         return;

@@ -84,8 +84,7 @@ func runLinkOrInit(args []string) error {
 	// to the wizard, matching what runLink's old empty-project branch did.
 	proj, _ := config.LoadProjectConfig(cwd)
 	hasConfig := proj != nil && !proj.IsEmpty()
-	_, _, isWorktree := findOwningWorktree(cwd)
-	if linkShouldRunWizard(hasConfig, isInteractive(), len(args) > 0, isWorktree) {
+	if linkShouldRunWizard(hasConfig, isInteractive(), len(args) > 0) {
 		// fresh=true: linkShouldRunWizard already gated on !hasConfig (absent or
 		// empty .servlo.yaml), so force the wizard. Without it runInit re-decides on
 		// file existence and a present-but-empty file would skip the wizard into a
@@ -98,11 +97,10 @@ func runLinkOrInit(args []string) error {
 // linkShouldRunWizard reports whether a user-invoked `servlo link` should run the
 // init wizard rather than a bare link. Only true for a fresh, interactive,
 // argument-free link on a real site directory: a missing .servlo.yaml means
-// nothing is committed yet, the terminal can host the wizard, no explicit
-// domain was requested, and the directory isn't a worktree (which inherits its
-// parent's registration). Any false input keeps the fast, scriptable link.
-func linkShouldRunWizard(hasConfig, interactive, hasDomainArg, isWorktree bool) bool {
-	return !hasConfig && interactive && !hasDomainArg && !isWorktree
+// nothing is committed yet, the terminal can host the wizard, and no explicit
+// domain was requested. Any false input keeps the fast, scriptable link.
+func linkShouldRunWizard(hasConfig, interactive, hasDomainArg bool) bool {
+	return !hasConfig && interactive && !hasDomainArg
 }
 
 // linkShouldImportSail reports whether runLink should offer to import an
@@ -181,13 +179,6 @@ func runLink(args []string) error {
 	if err != nil {
 		return err
 	}
-	if plan.Skip == linker.SkipWorktree {
-		fmt.Printf("This directory is the %q worktree of site %q.\n", plan.WorktreeBranch, plan.WorktreeParent.Name)
-		fmt.Printf("Worktrees inherit the parent's registration; not linking %s as a separate site.\n", cwd)
-		fmt.Printf("Manage it from the parent (%s) or via `servlo worktree`.\n", plan.WorktreeParent.Path)
-		return nil
-	}
-
 	servesPHP := plan.Mode != linker.ModeCustomContainer && plan.Mode != linker.ModeHostProxy
 	if servesPHP {
 		fwStep := feedback.Start("detecting framework")
@@ -615,13 +606,6 @@ func linkNextStep(skipPrompt bool) (hint string, suggest bool) {
 // back to the interactive store picker for a terminal command.
 func resolveFramework(dir string) (string, bool) {
 	return linker.ResolveFramework(dir, true)
-}
-
-// findOwningWorktree returns the parent site if cwd is one of its worktree
-// checkouts. Used to short-circuit runLink so worktrees don't get registered
-// as standalone sites.
-func findOwningWorktree(cwd string) (*config.Site, string, bool) {
-	return linker.OwningWorktree(cwd)
 }
 
 // fetchFrameworkFromStore attempts to install a framework definition from the

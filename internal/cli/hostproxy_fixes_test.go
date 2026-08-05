@@ -1,12 +1,8 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
 )
 
@@ -94,47 +90,5 @@ func TestReservedHostPorts_exceptSiteKeepsServiceCoincidingPort(t *testing.T) {
 	}
 	if !reservedHostPorts("")[3000] {
 		t.Error("with no exceptSite, 3000 should still be reserved (gotenberg)")
-	}
-}
-
-// The High fix: securing a host-proxy site's worktree must render a reverse
-// proxy vhost (proxy_pass) pointing at the dev-server port, not a PHP fastcgi
-// vhost. The wired certs hook is what makes this happen.
-func TestRegenerateHostProxyWorktreeVhost_writesProxyNotFastcgi(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
-	t.Setenv("XDG_DATA_HOME", tmp)
-
-	if certs.RegenerateHostProxyWorktreeVhost == nil {
-		t.Fatal("cli init must wire certs.RegenerateHostProxyWorktreeVhost")
-	}
-
-	sitePath := t.TempDir()
-	site := config.Site{Name: "astro", Domains: []string{"astro.test"}, Path: sitePath, HostPort: 4321, HostCommand: "npm run dev"}
-
-	wtPath := t.TempDir()
-	if err := os.WriteFile(filepath.Join(wtPath, ".env"), []byte("PORT=4322\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	wtDomain := "feature.astro.test"
-
-	if err := certs.RegenerateHostProxyWorktreeVhost(site, wtPath, wtDomain, false); err != nil {
-		t.Fatalf("hook: %v", err)
-	}
-
-	conf := filepath.Join(config.NginxConfD(), wtDomain+".conf")
-	data, err := os.ReadFile(conf)
-	if err != nil {
-		t.Fatalf("read worktree vhost: %v", err)
-	}
-	s := string(data)
-	if !strings.Contains(s, "proxy_pass") {
-		t.Errorf("host-proxy worktree vhost must reverse-proxy; got:\n%s", s)
-	}
-	if strings.Contains(s, "fastcgi_pass") {
-		t.Errorf("host-proxy worktree vhost must NOT be a PHP fastcgi vhost; got:\n%s", s)
-	}
-	if !strings.Contains(s, "4322") {
-		t.Errorf("host-proxy worktree vhost must point at the worktree dev-server port 4322; got:\n%s", s)
 	}
 }

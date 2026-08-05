@@ -10,31 +10,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/freeport"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	"github.com/realrashid/servlo/internal/linker"
 	"github.com/realrashid/servlo/internal/nginx"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/siteops"
 )
-
-func init() {
-	// certs.SecureSite/UnsecureSite regenerate worktree vhosts but can't import
-	// cli (which owns host-proxy port allocation), so they call back through this
-	// hook for host-proxy worktrees. Mirrors SetupHostProxyWorktree's vhost step.
-	certs.RegenerateHostProxyWorktreeVhost = func(site config.Site, wtPath, wtDomain string, secured bool) error {
-		proxy := parentProxyConfig(site)
-		if proxy == nil {
-			return nil
-		}
-		port := WorktreeHostPort(proxy.Port, wtPath, hostProxyPortEnvKey(proxy))
-		return nginx.GenerateWorktreeHostProxyVhostFor(wtDomain, wtPath, site.PrimaryDomain(), port, proxy.SSL, secured)
-	}
-}
 
 // RegenerateHostProxyVhostsOnGatewayChange rewrites every host-proxy site's
 // nginx vhost so the host-gateway IP baked into proxy_pass (Linux only) tracks a
@@ -60,17 +43,6 @@ func RegenerateHostProxyVhostsOnGatewayChange() {
 		if proxy != nil {
 			if w, ok := hostProxyWorker(proxy); ok {
 				rebindHostProxyDevServer(proxy, s.Name, s.Path, w)
-			}
-		}
-		if wts, wErr := gitpkg.ServableWorktrees(s.Path, s.PrimaryDomain()); wErr == nil {
-			for _, wt := range wts {
-				_ = certs.RegenerateHostProxyWorktreeVhost(s, wt.Path, wt.Domain, s.Secured)
-				if proxy != nil {
-					port := WorktreeHostPort(proxy.Port, wt.Path, hostProxyPortEnvKey(proxy))
-					if w, ok := hostProxyWorkerForPort(proxy, port); ok {
-						rebindHostProxyDevServer(proxy, s.Name, wt.Path, w)
-					}
-				}
 			}
 		}
 		regenerated = true
@@ -223,11 +195,10 @@ func buildHostProxyCommand(proxy *config.ProxyConfig) string {
 	return buildHostProxyCommandPort(proxy, proxy.Port)
 }
 
-// hostProxyWorkerForPort builds the supervised dev-server worker on a specific
-// port. Worktrees mirror the parent command on their own port; the parent uses
-// proxy.Port via hostProxyWorker. ok is false in proxy-only mode (no command).
-func hostProxyWorkerForPort(proxy *config.ProxyConfig, port int) (config.FrameworkWorker, bool) {
-	command := buildHostProxyCommandPort(proxy, port)
+// hostProxyWorker builds the supervised dev-server worker for a host-proxy
+// site on its configured port. ok is false in proxy-only mode (no command).
+func hostProxyWorker(proxy *config.ProxyConfig) (config.FrameworkWorker, bool) {
+	command := buildHostProxyCommand(proxy)
 	if command == "" {
 		return config.FrameworkWorker{}, false
 	}
@@ -237,12 +208,6 @@ func hostProxyWorkerForPort(proxy *config.ProxyConfig, port int) (config.Framewo
 		Restart: "always",
 		Host:    true,
 	}, true
-}
-
-// hostProxyWorker builds the supervised dev-server worker for a host-proxy
-// site on its configured port.
-func hostProxyWorker(proxy *config.ProxyConfig) (config.FrameworkWorker, bool) {
-	return hostProxyWorkerForPort(proxy, proxy.Port)
 }
 
 // hostProxyWorkerUnit returns the worker unit name for a host-proxy site.
@@ -354,23 +319,6 @@ func reservedHostPorts(exceptSite string) map[int]bool {
 			if s.HostPort != 0 {
 				out[s.HostPort] = true
 			}
-			// Also reserve ports already assigned to this site's host-proxy
-			// worktrees (persisted in each worktree's .env): a stopped worktree
-			// dev server owns its port, which neither the registry HostPort nor a
-			// bind-probe reveals, so two worktrees could otherwise collide.
-			if s.IsHostProxy() {
-				if proxy := parentProxyConfig(s); proxy != nil {
-					key := hostProxyPortEnvKey(proxy)
-					wts, _ := gitpkg.ServableWorktrees(s.Path, s.PrimaryDomain())
-					for _, wt := range wts {
-						if v := envfile.ReadKey(filepath.Join(wt.Path, ".env"), key); v != "" {
-							if p, _ := strconv.Atoi(v); p > 0 {
-								out[p] = true
-							}
-						}
-					}
-				}
-			}
 		}
 	}
 	// Reserve host ports servlo services publish (e.g. gotenberg on 3000) even when
@@ -414,28 +362,9 @@ func allocateHostPort(start int, exceptSite string) int {
 	return start
 }
 
-// WorktreeHostPort returns the dev-server port for a host-proxy site's worktree:
-// the value persisted in the worktree's .env if present, otherwise a freshly
-// allocated free port (best-effort persisted so it stays stable). A worktree is
-// reached by its domain, so a floating port until a .env exists is harmless.
-func WorktreeHostPort(parentPort int, wtPath, portEnvKey string) int {
-	envPath := filepath.Join(wtPath, ".env")
-	if v := envfile.ReadKey(envPath, portEnvKey); v != "" {
-		if n, _ := strconv.Atoi(v); n > 0 {
-			return n
-		}
-	}
-	port := allocateHostPort(parentPort+1, "")
-	if _, err := os.Stat(envPath); err == nil {
-		_ = envfile.ApplyUpdates(envPath, map[string]string{portEnvKey: strconv.Itoa(port)})
-	}
-	return port
-}
-
-// parentProxyConfig returns the host-proxy config a worktree should mirror. It
-// prefers the parent's committed .servlo.yaml proxy block, falling back to the
-// fields persisted on the registered Site (proxy config is local config, so a
-// worktree checkout usually can't see it).
+// parentProxyConfig returns a host-proxy site's proxy config. It prefers the
+// committed .servlo.yaml proxy block, falling back to the fields persisted on
+// the registered Site.
 func parentProxyConfig(site config.Site) *config.ProxyConfig {
 	if proj, err := config.LoadProjectConfig(site.Path); err == nil && proj.Proxy != nil {
 		return proj.Proxy
@@ -444,51 +373,6 @@ func parentProxyConfig(site config.Site) *config.ProxyConfig {
 		return nil
 	}
 	return &config.ProxyConfig{Command: site.HostCommand, Port: site.HostPort, SSL: site.HostSSL}
-}
-
-// SetupHostProxyWorktree wires a host-proxy site's worktree: it mirrors the
-// parent's dev command on a per-worktree port, generates the worktree proxy
-// vhost, and starts the dev server from the worktree checkout. The unit name
-// (servlo-app-<site>-<branch>) and teardown are handled by the shared per-worktree
-// worker machinery.
-func SetupHostProxyWorktree(site config.Site, wtPath, wtDomain string) error {
-	if err := GenerateHostProxyWorktreeVhost(site, wtPath, wtDomain); err != nil {
-		return err
-	}
-	return StartHostProxyWorktreeServer(site, wtPath)
-}
-
-// GenerateHostProxyWorktreeVhost writes the proxy vhost that fronts a host-proxy
-// worktree's dev server. Split from starting that server so the watcher's boot
-// scan can route every worktree subdomain before it starts anything.
-func GenerateHostProxyWorktreeVhost(site config.Site, wtPath, wtDomain string) error {
-	proxy := parentProxyConfig(site)
-	if proxy == nil {
-		return fmt.Errorf("parent site %s has no proxy config to mirror", site.Name)
-	}
-	port := WorktreeHostPort(proxy.Port, wtPath, hostProxyPortEnvKey(proxy))
-	return nginx.GenerateWorktreeHostProxyVhostFor(wtDomain, wtPath, site.PrimaryDomain(), port, proxy.SSL, site.Secured)
-}
-
-// StartHostProxyWorktreeServer supervises the parent's dev command from the
-// worktree checkout, on the per-worktree port its vhost already proxies to.
-func StartHostProxyWorktreeServer(site config.Site, wtPath string) error {
-	proxy := parentProxyConfig(site)
-	if proxy == nil {
-		return fmt.Errorf("parent site %s has no proxy config to mirror", site.Name)
-	}
-	port := WorktreeHostPort(proxy.Port, wtPath, hostProxyPortEnvKey(proxy))
-	w, ok := hostProxyWorkerForPort(proxy, port)
-	if !ok {
-		return nil
-	}
-	if err := gateHostProxyAutostart(site, proxy.Command); err != nil {
-		return err
-	}
-	if err := WorkerStartForSite(site.Name, wtPath, "", hostProxyWorkerName, w, false); err != nil {
-		return fmt.Errorf("starting worktree dev server: %w", err)
-	}
-	return nil
 }
 
 // startHostProxyWorker supervises the dev command for a host-proxy site as a

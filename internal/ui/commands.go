@@ -90,8 +90,7 @@ func commandRoute(w http.ResponseWriter, r *http.Request, domain string, rest []
 }
 
 func handleCommandsList(w http.ResponseWriter, r *http.Request, site *config.Site) {
-	branch := r.URL.Query().Get("branch")
-	cmds := resolveSiteCommands(site, branch)
+	cmds := resolveSiteCommands(site)
 	// A project-supplied command that hasn't been approved yet runs on the host,
 	// so force the confirm modal (which shows the command) until the user approves
 	// it once. ProjectOrigin itself is not serialized; the UI only sees Confirm.
@@ -104,19 +103,12 @@ func handleCommandsList(w http.ResponseWriter, r *http.Request, site *config.Sit
 }
 
 // resolveSiteCommands merges the framework's command set with the project's
-// .servlo.yaml entries. When `branch` is non-empty, resolves from the
-// worktree's path so the worktree's .servlo.yaml overrides (or extras)
-// take precedence over the main checkout's.
-func resolveSiteCommands(site *config.Site, branch string) []config.FrameworkCommand {
+// .servlo.yaml entries.
+func resolveSiteCommands(site *config.Site) []config.FrameworkCommand {
 	if site == nil {
 		return nil
 	}
 	path := site.Path
-	if branch != "" {
-		if wt := resolveSitePath(site, branch); wt != "" {
-			path = wt
-		}
-	}
 	fw, _ := config.GetFrameworkForDir(site.Framework, path)
 	proj, _ := config.LoadProjectConfig(path)
 	return sitetpl.ExpandCommands(config.ResolveCommands(fw, proj, path), sitetpl.ForPath(path))
@@ -137,8 +129,7 @@ var urlRegex = regexp.MustCompile(`https?://[^\s'"]+`)
 // stderr is interleaved into the same stream so the UI can render a unified
 // terminal view, with a separate event type if we later want to colour it.
 func handleCommandRun(w http.ResponseWriter, r *http.Request, site *config.Site, name string) {
-	branch := r.URL.Query().Get("branch")
-	cmds := resolveSiteCommands(site, branch)
+	cmds := resolveSiteCommands(site)
 	var target *config.FrameworkCommand
 	for i := range cmds {
 		if cmds[i].Name == name {
@@ -183,17 +174,7 @@ func handleCommandRun(w http.ResponseWriter, r *http.Request, site *config.Site,
 	}
 	defer release()
 
-	// Worktree branch must resolve; falling back to site.Path would point
-	// destructive commands (migrate:fresh) at the main DB.
 	basePath := site.Path
-	if branch != "" {
-		wt := resolveSitePath(site, branch)
-		if wt == "" {
-			writeJSON(w, map[string]any{"error": "unknown worktree branch: " + branch})
-			return
-		}
-		basePath = wt
-	}
 	cwd := basePath
 	if target.CWD != "" && target.CWD != "." {
 		cwd = filepath.Join(basePath, target.CWD)

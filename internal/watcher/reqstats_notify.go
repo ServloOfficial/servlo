@@ -97,9 +97,7 @@ func lazyResolver(build func() func(string) string) func(string) string {
 
 // siteDomainResolver loads the site registry once and returns a key->domain
 // lookup, returning "" when the key has no domain so the caller can fall back to
-// the sites list rather than deep-link a route that resolves to nothing. A
-// worktree key resolves to the worktree's own domain, so the notification
-// deep-links to the branch that went slow rather than to its parent.
+// the sites list rather than deep-link a route that resolves to nothing.
 func siteDomainResolver() func(string) string {
 	reg, err := config.LoadSites()
 	if err != nil {
@@ -112,12 +110,6 @@ func siteDomainResolver() func(string) string {
 		}
 	}
 	return func(key string) string {
-		site, branch := reqstats.SplitKey(key)
-		if branch != "" {
-			if d := wtIndex.domainFor(site, branch); d != "" {
-				return d
-			}
-		}
-		return m[site]
+		return m[key]
 	}
 }

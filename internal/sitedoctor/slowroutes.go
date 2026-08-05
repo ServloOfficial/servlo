@@ -2,11 +2,9 @@ package sitedoctor
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	"github.com/realrashid/servlo/internal/reqstats"
 )
 
@@ -15,8 +13,7 @@ import (
 const slowRoutesInDetail = 3
 
 // checkSlowRoutes reports routes running well above the typical response time,
-// read from the watcher's request-timing snapshot. A git worktree is judged
-// against its own traffic rather than its parent's. Returns ok=false when the
+// read from the watcher's request-timing snapshot. Returns ok=false when the
 // path belongs to no site, or there's no snapshot or no flagged route, so a
 // healthy or quiet site adds nothing to the report. The remedy is investigation,
 // not a command, so no Fix is set.
@@ -58,28 +55,10 @@ func checkSlowRoutes(path string) (Check, bool) {
 }
 
 // storeKeyForPath maps a project path to the key its request timing is stored
-// under: the site name, or "<site>/<branch>" when the path is one of the site's
-// git worktrees. A path belonging to no site resolves to ok=false.
+// under, the site name. A path belonging to no site resolves to ok=false.
 func storeKeyForPath(path string) (string, bool) {
 	if site, err := config.FindSiteByPath(path); err == nil && site != nil {
-		return reqstats.Key(site.Name, ""), true
-	}
-	parent, ok := config.ParentSiteForWorktreeDir(path)
-	if !ok {
-		return "", false
-	}
-	wts, err := gitpkg.DetectWorktrees(parent.Path, parent.PrimaryDomain())
-	if err != nil {
-		return "", false
-	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return "", false
-	}
-	for _, wt := range wts {
-		if p, err := filepath.Abs(wt.Path); err == nil && p == abs {
-			return reqstats.Key(parent.Name, wt.Branch), true
-		}
+		return site.Name, true
 	}
 	return "", false
 }

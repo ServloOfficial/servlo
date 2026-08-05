@@ -13,16 +13,10 @@
 
   interface Props {
     site: Site;
-    activeWorktreeBranch?: string;
   }
-  let { site, activeWorktreeBranch = '' }: Props = $props();
+  let { site }: Props = $props();
 
   type TabId = string;
-
-  const activeWorktree = $derived.by(() => {
-    if (!activeWorktreeBranch) return undefined;
-    return (site.worktrees || []).find((w) => w.branch === activeWorktreeBranch);
-  });
 
   const tabs: TabItem<TabId>[] = $derived.by(() => {
     const xs: TabItem<TabId>[] = [];
@@ -33,17 +27,6 @@
     // Host-proxy sites run a supervised dev server on the host; surface its
     // journal as a read-only tab (no start/stop, the site owns its lifecycle).
     if (site.host_has_dev_server) xs.push({ id: 'devserver', label: m.sites_tabs_devServer() });
-    if (activeWorktreeBranch) {
-      // Shared queue/horizon/stripe/schedule/reverb run against main and
-      // their journals don't filter per worktree, so drop them here to
-      // avoid implying isolation. Per-worktree host workers (vite, etc.)
-      // do have their own launchd units — surface those off the
-      // worktree's own framework_workers list.
-      for (const w of activeWorktree?.framework_workers || []) {
-        if (w.running || w.failing) xs.push({ id: 'worker:' + w.name, label: (w.label || w.name) + (w.failing ? ' !' : '') });
-      }
-      return xs;
-    }
     if (site.queue_running || site.queue_failing) xs.push({ id: 'queue', label: m.sites_tabs_queue() + (site.queue_failing ? ' !' : '') });
     if (site.horizon_running || site.horizon_failing) xs.push({ id: 'horizon', label: m.sites_tabs_horizon() + (site.horizon_failing ? ' !' : '') });
     if (site.stripe_running) xs.push({ id: 'stripe', label: m.sites_tabs_stripe() });
@@ -86,13 +69,6 @@
     if (active === 'devserver') return `/api/worker/${name}/app/logs`;
     if (active.startsWith('worker:')) {
       const workerName = active.slice(7);
-      // Per-worktree units live under servlo-<worker>-<site>-<wtBase>;
-      // the backend handler builds the unit from <site>/<worker> in the
-      // path, so concat the worktree dir's basename onto the site slug.
-      if (activeWorktree?.path) {
-        const base = activeWorktree.path.split('/').pop();
-        if (base) return `/api/worker/${name}-${base}/${workerName}/logs`;
-      }
       return `/api/worker/${name}/${workerName}/logs`;
     }
     return '';
@@ -102,8 +78,8 @@
 <div class="flex-1 flex flex-col overflow-hidden min-h-0">
   <DetailTabs {tabs} {active} onchange={(id) => (active = id)} />
   {#if active === 'app' && site.has_app_logs}
-    {#key site.domain + '@' + activeWorktreeBranch}
-      <AppLogsTab {site} branch={activeWorktreeBranch} />
+    {#key site.domain}
+      <AppLogsTab {site} />
     {/key}
   {:else if streamPath}
     {#key active + '@' + streamPath}

@@ -10,8 +10,6 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/envfile"
 	"github.com/realrashid/servlo/internal/feedback"
-	gitpkg "github.com/realrashid/servlo/internal/git"
-	"github.com/realrashid/servlo/internal/nginx"
 	"github.com/realrashid/servlo/internal/siteops"
 )
 
@@ -91,10 +89,6 @@ func migrateSiteTLD(oldTLD, newTLD string, forceUnsecure bool) []string {
 			continue
 		}
 
-		// Capture worktrees against the OLD primary so we can identify
-		// their stale conf files before mutating the site.
-		worktrees, _ := gitpkg.DetectWorktrees(s.Path, oldPrimary)
-
 		s.Domains = newDomains
 		// Registry flag off while DNS is down; on re-enable restore HTTPS from
 		// the committed .servlo.yaml intent, or the registry-recorded pre-disable
@@ -120,22 +114,12 @@ func migrateSiteTLD(oldTLD, newTLD string, forceUnsecure bool) []string {
 				fmt.Printf("    WARN: %s: migrate custom nginx override: %v\n", s.Name, err)
 			}
 		}
-		// Only mirror a proxy config for sites the registry records as
-		// host-proxy; a PHP site with a stray proxy block in .servlo.yaml must
-		// still get PHP worktree vhosts, not reverse-proxy ones.
-		var wtProxy *config.ProxyConfig
-		if s.IsHostProxy() {
-			wtProxy = parentProxyConfig(s)
-		}
-		migrateWorktreeVhosts(worktrees, newPrimary, s.PHPVersion, s.Name, s.Secured, wtProxy)
-
-		// Reissue the parent cert under the NEW primary so wildcard SANs
-		// cover the renamed worktree subdomains. Without this, SSL
-		// handshakes to branch.<newPrimary> fail because the old cert's
-		// SANs still reference the old TLD. Skip when forceUnsecure flips
+		// Reissue the cert under the NEW primary. Without this, SSL
+		// handshakes to <newPrimary> fail because the old cert's SANs
+		// still reference the old TLD. Skip when forceUnsecure flips
 		// the site to plain HTTP — old certs go through removeStaleCerts.
 		if s.Secured {
-			if err := certs.ReissueCertForWorktree(s); err != nil {
+			if err := certs.ReissueCert(s); err != nil {
 				fmt.Printf("    WARN: %s: reissue cert: %v\n", s.Name, err)
 			}
 		}
@@ -162,26 +146,12 @@ func migrateSiteTLD(oldTLD, newTLD string, forceUnsecure bool) []string {
 }
 
 // adjustSitesSecuredForDNS tracks DNS availability for sites on a preserved
-// (custom) TLD without renaming: disabling drops to http (certs and worktree
-// vhosts follow), enabling restores HTTPS from .servlo.yaml or the recorded state.
+// (custom) TLD without renaming: disabling drops to http (certs follow),
+// enabling restores HTTPS from .servlo.yaml or the recorded state.
 func adjustSitesSecuredForDNS(tld string, enabling bool) {
 	reg, err := config.LoadSites()
 	if err != nil || reg == nil {
 		return
-	}
-	// regenWorktrees rewrites a site's worktree vhosts at the unchanged primary
-	// with the site's current secured state (http vs ssl), so a worktree tracks
-	// the parent's HTTPS flip instead of pointing at a removed wildcard cert.
-	regenWorktrees := func(s config.Site) {
-		worktrees, _ := gitpkg.DetectWorktrees(s.Path, s.PrimaryDomain())
-		if len(worktrees) == 0 {
-			return
-		}
-		var wtProxy *config.ProxyConfig
-		if s.IsHostProxy() {
-			wtProxy = parentProxyConfig(s)
-		}
-		migrateWorktreeVhosts(worktrees, s.PrimaryDomain(), s.PHPVersion, s.Name, s.Secured, wtProxy)
 	}
 	suffix := "." + tld
 	for _, s := range reg.Sites {
@@ -209,11 +179,10 @@ func adjustSitesSecuredForDNS(tld string, enabling bool) {
 				fmt.Printf("    WARN: %s: restore HTTPS: %v\n", s.Name, err)
 				continue
 			}
-			if err := certs.ReissueCertForWorktree(s); err != nil {
+			if err := certs.ReissueCert(s); err != nil {
 				fmt.Printf("    WARN: %s: reissue cert: %v\n", s.Name, err)
 			}
 			_ = envfile.SyncPrimaryDomain(s.Path, s.PrimaryDomain(), true)
-			regenWorktrees(s)
 			feedback.Note(fmt.Sprintf("%s: restored https://%s", s.Name, s.PrimaryDomain()))
 		} else {
 			if !s.Secured {
@@ -227,50 +196,7 @@ func adjustSitesSecuredForDNS(tld string, enabling bool) {
 			}
 			removeStaleCerts(s.PrimaryDomain())
 			_ = envfile.SyncPrimaryDomain(s.Path, s.PrimaryDomain(), false)
-			regenWorktrees(s)
 			feedback.Note(fmt.Sprintf("%s: dropped to http://%s (HTTPS unavailable with DNS off)", s.Name, s.PrimaryDomain()))
-		}
-	}
-}
-
-// migrateWorktreeVhosts removes each worktree's stale vhost confs (built from
-// its old <branch>.<oldPrimary> domain), regenerates a fresh vhost at the new
-// <branch>.<newPrimary> domain, and rewrites the worktree's .env APP_URL.
-// Worktree errors are warnings, not fatal; the parent site rename has already
-// landed and partial worktree state is preferable to abandoning the migration.
-func migrateWorktreeVhosts(worktrees []gitpkg.Worktree, newPrimary, phpVersion, siteName string, secured bool, proxy *config.ProxyConfig) {
-	for _, wt := range worktrees {
-		removeStaleVhosts(wt.Domain)
-		newWTDomain := wt.Branch + "." + newPrimary
-		// Host-proxy worktrees keep their dev server (the unit is keyed by site
-		// and branch, not domain); only the proxy vhost domain changes. Mirror
-		// the parent's proxy config rather than the worktree's .servlo.yaml, which
-		// the worktree checkout often doesn't have.
-		if proxy != nil {
-			port := WorktreeHostPort(proxy.Port, wt.Path, hostProxyPortEnvKey(proxy))
-			if err := nginx.GenerateWorktreeHostProxyVhostFor(newWTDomain, wt.Path, newPrimary, port, proxy.SSL, secured); err != nil {
-				fmt.Printf("    WARN: worktree %s: regenerate vhost: %v\n", wt.Branch, err)
-			}
-			scheme := "http"
-			if secured {
-				scheme = "https"
-			}
-			if err := envfile.UpdateAppURL(wt.Path, scheme, newWTDomain); err != nil {
-				fmt.Printf("    WARN: worktree %s: update .env: %v\n", wt.Branch, err)
-			}
-			continue
-		}
-		effectivePHP := config.WorktreePHPVersion(wt.Path, phpVersion)
-		err := nginx.GenerateWorktreeVhostFor(newWTDomain, wt.Path, effectivePHP, newPrimary, siteName, wt.Branch, secured)
-		if err != nil {
-			fmt.Printf("    WARN: worktree %s: regenerate vhost: %v\n", wt.Branch, err)
-		}
-		scheme := "http"
-		if secured {
-			scheme = "https"
-		}
-		if err := envfile.UpdateAppURL(wt.Path, scheme, newWTDomain); err != nil {
-			fmt.Printf("    WARN: worktree %s: update .env: %v\n", wt.Branch, err)
 		}
 	}
 }

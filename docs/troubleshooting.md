@@ -246,7 +246,7 @@ echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/99-servlo
 :::
 
 ::: details Watcher service not running
-The watcher monitors parked directories, site config files, git worktrees, and DNS health. If sites aren't being auto-registered or queue workers aren't restarting on `.env` changes:
+The watcher monitors parked directories, site config files, and DNS health. If sites aren't being auto-registered or queue workers aren't restarting on `.env` changes:
 
 ```bash
 servlo status                            # shows watcher running/stopped
@@ -254,7 +254,7 @@ systemctl --user start servlo-watcher   # start it from the terminal
 # or use the Start button in the UI under System > Watcher
 ```
 
-The watcher reports itself ready as soon as its watch loops are live and does its boot reconciliation (registering parked projects, provisioning worktrees) after that, in the background. A worktree install that takes minutes therefore delays only that worktree; it can't hold the unit below its start timeout and put systemd in a restart loop.
+The watcher reports itself ready as soon as its watch loops are live and does its boot reconciliation (registering parked projects) after that, in the background, so a slow reconcile can't hold the unit below its start timeout and put systemd in a restart loop.
 
 To see what the watcher is doing:
 

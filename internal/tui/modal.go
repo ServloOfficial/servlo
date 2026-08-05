@@ -280,17 +280,13 @@ func (m *Model) renderHelpModal(w, h int) string {
 func (m *Model) renderPickerModal(w, h int) string {
 	var title string
 	switch m.pickerKind {
-	case kindPHP, kindWorktreePHP:
+	case kindPHP:
 		title = "Select PHP version"
-	case kindNode, kindWorktreeNode:
+	case kindNode:
 		title = "Select Node version"
 	default:
 		title = "Select"
 	}
-	if m.pickerWorktreeName != "" {
-		title += " · worktree " + m.pickerWorktreeName
-	}
-
 	lines := make([]string, 0, len(m.pickerOptions)+1)
 	if len(m.pickerOptions) == 0 {
 		lines = append(lines, dimStyle.Render("no versions installed"))

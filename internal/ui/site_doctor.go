@@ -39,16 +39,7 @@ func doctorRoute(w http.ResponseWriter, r *http.Request, domain string, rest []s
 }
 
 func handleDoctorRun(w http.ResponseWriter, r *http.Request, site *config.Site) {
-	branch := r.URL.Query().Get("branch")
-	path, ok := resolveDoctorPath(w, site, branch)
-	if !ok {
-		return
-	}
-	// Freshly added worktrees don't carry .env (it's gitignored), so materialise
-	// it first — otherwise every file check reads a missing .env and reports a
-	// healthy worktree as broken. No-op for the parent and idempotent.
-	ensureWorktreeEnvIfBranch(site, branch)
-	writeJSON(w, sitedoctor.RunForPath(r.Context(), path, site.Framework))
+	writeJSON(w, sitedoctor.RunForPath(r.Context(), site.Path, site.Framework))
 }
 
 // handleDoctorFixRun runs an allowlisted package-manager fix (composer
@@ -60,11 +51,6 @@ func handleDoctorFixRun(w http.ResponseWriter, r *http.Request, site *config.Sit
 		writeJSON(w, map[string]any{"error": "unknown doctor fix: " + key})
 		return
 	}
-	branch := r.URL.Query().Get("branch")
-	path, ok := resolveDoctorPath(w, site, branch)
-	if !ok {
-		return
-	}
 	release, busyWith, ok := tryAcquireRun(siteRunLockKey(site), key)
 	if !ok {
 		w.WriteHeader(http.StatusConflict)
@@ -72,20 +58,5 @@ func handleDoctorFixRun(w http.ResponseWriter, r *http.Request, site *config.Sit
 		return
 	}
 	defer release()
-	streamShellRun(w, r.Context(), path, shell, false)
-}
-
-// resolveDoctorPath returns the project path for the site, refusing an
-// unresolved worktree branch rather than falling back to the parent checkout
-// (which would diagnose or mutate the main site's files and database).
-func resolveDoctorPath(w http.ResponseWriter, site *config.Site, branch string) (string, bool) {
-	if branch == "" {
-		return site.Path, true
-	}
-	wt := resolveSitePath(site, branch)
-	if wt == "" {
-		writeJSON(w, map[string]any{"error": "unknown worktree branch: " + branch})
-		return "", false
-	}
-	return wt, true
+	streamShellRun(w, r.Context(), site.Path, shell, false)
 }

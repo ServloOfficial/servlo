@@ -12,16 +12,13 @@
     openTerminal,
     openFolder,
     loadSites,
-    activeWorktreeDomain,
     toggleTLS,
   } from '$stores/sites';
   import {
     openDomainModal,
     openErrorModal,
     openGroupModal,
-    openSiteUnlinkModal,
-    openWorktreeAddModal,
-    openWorktreeRemoveModal
+    openSiteUnlinkModal
   } from '$stores/modals';
   import Icon from '$components/Icon.svelte';
   import { tooltip } from '$lib/tooltip';
@@ -38,17 +35,9 @@
   interface Props {
     site: Site;
     tabs?: Snippet;
-    activeWorktreeBranch?: string;
-    onWorktreeChange?: (branch: string) => void;
     onOpenNginx?: () => void;
   }
-  let {
-    site,
-    tabs,
-    activeWorktreeBranch = '',
-    onWorktreeChange = () => {},
-    onOpenNginx = () => {}
-  }: Props = $props();
+  let { site, tabs, onOpenNginx = () => {} }: Props = $props();
 
   let pauseBusy = $state(false);
   let restartBusy = $state(false);
@@ -67,40 +56,19 @@
   let overflowEl: HTMLDivElement | null = $state(null);
 
 
-  const activeDomain = $derived(activeWorktreeDomain(site, activeWorktreeBranch));
-  const activeWorktree = $derived.by(() => {
-    if (!activeWorktreeBranch) return undefined;
-    return (site.worktrees || []).find((w) => w.branch === activeWorktreeBranch);
-  });
-  const activePath = $derived(activeWorktree?.path || site.path || '');
+  const activeDomain = $derived(site.domain);
+  const activePath = $derived(site.path || '');
   const activePathLabel = $derived(homeShorten(activePath, $status.home));
-  const activeFrameworkLabel = $derived(activeWorktree?.framework_label || site.framework_label);
+  const activeFrameworkLabel = $derived(site.framework_label);
 
-  type TabEntry = { branch: string; domain: string; isMain: boolean };
-  const tabEntries = $derived.by<TabEntry[]>(() => {
-    const main: TabEntry = {
-      branch: site.branch || 'main',
-      domain: site.domain,
-      isMain: true
-    };
-    const wts: TabEntry[] = (site.worktrees || []).map((wt) => ({
-      branch: wt.branch || '',
-      domain: wt.domain || '',
-      isMain: false
-    }));
-    return [main, ...wts];
-  });
-  const showWorktreeTabs = $derived(Boolean(site.branch) && !site.paused);
-  const urlEditable = $derived(!site.paused && !activeWorktreeBranch);
+  const urlEditable = $derived(!site.paused);
   const dnsEnabled = $derived($status.dns?.enabled !== false);
   const tlsToggleable = $derived(urlEditable && dnsEnabled);
 
   // A host-proxy site's dev server is its only runtime, and restarting it is the
   // routine fix when it wedges, so it gets a first-class header button rather
   // than an overflow entry. Proxy-only sites have no process servlo can bounce.
-  const showDevServerRestart = $derived(
-    Boolean(site.host_has_dev_server) && !site.paused && !activeWorktreeBranch
-  );
+  const showDevServerRestart = $derived(Boolean(site.host_has_dev_server) && !site.paused);
 
   const useTLS = $derived(Boolean(site.tls));
   const scheme = $derived(useTLS ? 'https://' : 'http://');
@@ -108,7 +76,7 @@
   const remoteView = $derived(!$accessMode.localControl);
 
   function openTarget() {
-    openSiteInBrowser(site, activeWorktreeBranch);
+    openSiteInBrowser(site);
   }
 
   async function togglePause() {
@@ -142,10 +110,6 @@
     }
   }
 
-  function pickWorktree(e: TabEntry) {
-    onWorktreeChange(e.isMain ? '' : e.branch);
-  }
-
   function onDocClick(ev: MouseEvent) {
     if (!overflowOpen) return;
     if (overflowEl && !overflowEl.contains(ev.target as Node)) overflowOpen = false;
@@ -167,87 +131,6 @@
 </script>
 
 <div class="border-b border-gray-100 dark:border-servlo-border shrink-0 @container flex flex-col">
-  {#if showWorktreeTabs}
-    <div class="flex items-end bg-gray-50/60 dark:bg-white/[0.02]">
-      <div class="flex items-center gap-0.5 px-3 pt-3 overflow-x-auto flex-1 min-w-0">
-      {#each tabEntries as e (e.isMain ? '__main__' : e.branch)}
-        {@const isActive = e.isMain ? activeWorktreeBranch === '' : e.branch === activeWorktreeBranch}
-        <div
-          class="group flex items-center rounded-t-md border-t border-l border-r transition-colors max-w-56 shrink-0 {isActive
-            ? 'bg-white dark:bg-servlo-bg border-gray-200 dark:border-servlo-border'
-            : 'bg-transparent border-transparent hover:bg-gray-100/60 dark:hover:bg-white/5'}"
-        >
-          <button
-            type="button"
-            onclick={() => pickWorktree(e)}
-            use:tooltip={e.domain}
-            class="flex items-center gap-1.5 pl-3 pr-3 py-2.5 text-xs min-w-0 {isActive
-              ? 'text-gray-800 dark:text-gray-100 font-medium'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
-          >
-            {#if e.isMain}
-              <svg
-                class="w-3.5 h-3.5 shrink-0 {isActive ? 'text-servlo-red' : 'text-gray-400 dark:text-gray-500'}"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                viewBox="0 0 24 24"
-                aria-label={m.sites_ariaMain()}
-              >
-                <path d="M6 3v12M15 6a3 3 0 1 0 6 0a3 3 0 1 0-6 0M3 18a3 3 0 1 0 6 0a3 3 0 1 0-6 0M18 9a9 9 0 0 1-9 9" />
-              </svg>
-            {:else}
-              <svg
-                class="w-3.5 h-3.5 shrink-0 {isActive ? 'text-servlo-red' : 'text-violet-400'}"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                viewBox="0 0 24 24"
-              >
-                <path d="M6 3v12M15 6a3 3 0 1 0 6 0a3 3 0 1 0-6 0M3 18a3 3 0 1 0 6 0a3 3 0 1 0-6 0M18 9a9 9 0 0 1-9 9" />
-              </svg>
-            {/if}
-            <span class="font-mono truncate leading-none">{e.branch}</span>
-          </button>
-          {#if !e.isMain}
-            <button
-              type="button"
-              onclick={(ev) => {
-                ev.stopPropagation();
-                openWorktreeRemoveModal(site, e.branch);
-              }}
-              use:tooltip={m.common_remove() + ' ' + e.branch}
-              aria-label={m.common_remove() + ' ' + e.branch}
-              class="shrink-0 mr-1 w-4 h-4 flex items-center justify-center rounded-sm text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-            >
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                <path d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          {/if}
-        </div>
-      {/each}
-      {#if !site.paused && site.branch}
-        <button
-          type="button"
-          onclick={() => openWorktreeAddModal(site)}
-          class="ml-1 mb-0.5 w-6 h-6 flex items-center justify-center rounded-md text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors shrink-0"
-          use:tooltip={m.worktreeMgr_add()}
-          aria-label={m.worktreeMgr_add()}
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      {/if}
-      </div>
-    </div>
-  {/if}
-
   <div class="p-3 flex items-center gap-3">
     <div
       class="group flex-1 min-w-0 flex items-center gap-2 h-8 pl-3 pr-2 rounded-full border bg-gray-50 dark:bg-white/[0.03] transition-colors {site.paused
@@ -419,7 +302,7 @@
         </button>
       {/if}
 
-      {#if !activeWorktreeBranch && !site.host_proxy}
+      {#if !site.host_proxy}
         <button
           type="button"
           onclick={() => openGroupModal(site)}
@@ -435,14 +318,14 @@
 
       <!-- A group secondary shows its main's workspace and moves with it, so it
            has nothing of its own to pick. -->
-      {#if $accessMode.localControl && !activeWorktreeBranch && !site.group_subdomain}
+      {#if $accessMode.localControl && !site.group_subdomain}
         <WorkspacePicker {site} />
       {/if}
 
       {#if $accessMode.localControl}
         <button
           type="button"
-          onclick={() => openTerminal(site.domain, activeWorktreeBranch)}
+          onclick={() => openTerminal(site.domain)}
           aria-label={m.common_terminal()}
           use:tooltip={m.sites_openInTerminal()}
           class="hidden @md:flex w-8 h-8 items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
@@ -499,7 +382,7 @@
                 {restartBusy ? '...' : m.sites_restartContainer()}
               </button>
             {/if}
-            {#if !site.paused && !activeWorktreeBranch}
+            {#if !site.paused}
               <button
                 type="button"
                 role="menuitem"
@@ -518,34 +401,32 @@
                 {pinBusy ? '...' : site.pinned ? m.sites_unpin() : m.sites_pin()}
               </button>
             {/if}
-            {#if !activeWorktreeBranch}
-              <button
-                type="button"
-                role="menuitem"
-                onclick={() => {
-                  overflowOpen = false;
-                  togglePause();
-                }}
-                disabled={pauseBusy}
-                class="w-full px-3 py-1.5 text-xs text-left flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 {site.paused
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-amber-600 dark:text-amber-400'}"
-              >
-                {#if site.paused}
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4.5v15l13-7.5z" /></svg>
-                {:else}
-                  <svg class="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z" /></svg>
-                {/if}
-                {pauseBusy ? '...' : site.paused ? m.sites_resume() : m.sites_pause()}
-              </button>
-            {/if}
+            <button
+              type="button"
+              role="menuitem"
+              onclick={() => {
+                overflowOpen = false;
+                togglePause();
+              }}
+              disabled={pauseBusy}
+              class="w-full px-3 py-1.5 text-xs text-left flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 {site.paused
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-amber-600 dark:text-amber-400'}"
+            >
+              {#if site.paused}
+                <svg class="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4.5v15l13-7.5z" /></svg>
+              {:else}
+                <svg class="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z" /></svg>
+              {/if}
+              {pauseBusy ? '...' : site.paused ? m.sites_resume() : m.sites_pause()}
+            </button>
             {#if $accessMode.localControl}
               <button
                 type="button"
                 role="menuitem"
                 onclick={() => {
                   overflowOpen = false;
-                  openTerminal(site.domain, activeWorktreeBranch);
+                  openTerminal(site.domain);
                 }}
                 class="@md:hidden w-full px-3 py-1.5 text-xs text-left flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
               >
@@ -560,7 +441,7 @@
                 {m.common_terminal()}
               </button>
             {/if}
-            {#if !site.paused && !activeWorktreeBranch}
+            {#if !site.paused}
               <button
                 type="button"
                 role="menuitem"
@@ -581,9 +462,7 @@
                 {m.sites_manageDomains()}
               </button>
             {/if}
-            {#if !site.paused || !activeWorktreeBranch}
-              <div class="my-1 border-t border-gray-100 dark:border-servlo-border"></div>
-            {/if}
+            <div class="my-1 border-t border-gray-100 dark:border-servlo-border"></div>
             <button
               type="button"
               role="menuitem"

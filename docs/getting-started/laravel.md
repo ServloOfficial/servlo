@@ -183,4 +183,4 @@ Worker mode needs `composer require laravel/octane` in the project. FrankenPHP i
 - [Database](../usage/database.md): `servlo db:import`, `servlo db:shell`, switching engines
 - [Services](../usage/services.md): start Meilisearch, RustFS (S3), Postgres, custom services
 - Browser Testing: run Laravel Dusk with Selenium, no local Chrome needed
-- [HTTPS](../features/https.md): wildcard certs for git worktrees
+- [HTTPS](../features/https.md): certificates for your sites

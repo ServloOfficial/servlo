@@ -19,8 +19,6 @@ A worker can keep its process alive after its server has died: a Vite dev server
 
 A worker that declares a [`health` block](/usage/framework-workers) is probed for reachability instead. While its process is up, servlo reads the URL file the server writes on boot (Vite's `public/hot`) and dials its host and port; if nothing is accepting, the worker is reported **unreachable** and heal restarts it (a plain start is a no-op on a still-running unit). Workers with no `health` block keep the process-only check.
 
-Per-worktree workers are covered by the same pass. A `per_worktree` worker runs under its own `servlo-<worker>-<site>-<branch>` unit, so a Vite dev server that died on a branch checkout is found and healed exactly like the main site's.
-
 The probe is deliberately conservative about what it treats as a failure, because a false positive restarts a server that was working:
 
 - The URL file is read against the unit's activation time. A file older than the unit's current run is a leftover from the previous one, not a live address, so it is not dialled.

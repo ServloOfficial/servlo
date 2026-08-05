@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	phpDet "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/siteops"
@@ -18,14 +17,6 @@ import (
 // registers nothing.
 func Resolve(dir string, cfg *config.GlobalConfig, p Policy) (*Plan, error) {
 	plan := &Plan{Dir: dir}
-
-	if parent, branch, ok := OwningWorktree(dir); ok {
-		plan.Skip = SkipWorktree
-		plan.WorktreeParent, plan.WorktreeBranch = parent, branch
-		plan.SkipDetail = "the " + branch + " worktree of site " + parent.Name +
-			"; worktrees inherit the parent's registration"
-		return plan, nil
-	}
 
 	if p.SkipRegistered {
 		if existing, err := config.FindSiteByPath(dir); err == nil && existing != nil {
@@ -212,30 +203,4 @@ func ResolveFramework(dir string, allowStoreFallback bool) (string, bool) {
 		return "", false
 	}
 	return store.DetectFrameworkWithStore(dir)
-}
-
-// OwningWorktree returns the site dir is a git worktree of, so a checkout under
-// a registered project is not registered again as a site of its own.
-func OwningWorktree(dir string) (*config.Site, string, bool) {
-	reg, err := config.LoadSites()
-	if err != nil {
-		return nil, "", false
-	}
-	// Compare canonical paths, as the registry lookup does: a checkout under a
-	// symlinked parent (/var on macOS, /home on ostree) is spelled one way in
-	// the registry and git's metadata and another by os.Getwd.
-	target := config.CanonicalPath(dir)
-	for i := range reg.Sites {
-		s := &reg.Sites[i]
-		if s.Ignored || config.CanonicalPath(s.Path) == target {
-			continue
-		}
-		wts, _ := gitpkg.DetectWorktrees(s.Path, s.PrimaryDomain())
-		for _, wt := range wts {
-			if config.CanonicalPath(wt.Path) == target {
-				return s, wt.Branch, true
-			}
-		}
-	}
-	return nil, "", false
 }

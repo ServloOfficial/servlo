@@ -26,7 +26,7 @@ try {
   /* private mode */
 }
 
-// Mutable state so mock mutations (e.g. creating a worktree) persist across reloads of the list.
+// Mutable state so mock mutations persist across reloads of the list.
 const sites = structuredClone(sitesFixture) as Array<Record<string, unknown>>;
 const services = structuredClone(servicesFixture) as Array<Record<string, unknown>>;
 const presets = structuredClone(presetsFixture) as Array<Record<string, unknown>>;
@@ -319,25 +319,6 @@ function analyticsFor(domain: string, range: string): unknown {
   };
 }
 
-const WORKTREE_OPTIONS = {
-  default_branch_label: 'main',
-  local_branches: ['main', 'staging', 'feature/checkout-flow'],
-  remote_branches: ['origin/main', 'origin/develop', 'origin/release/2.0'],
-  build_options: [
-    { value: 'auto', label: 'Auto-detect (composer + npm)' },
-    { value: 'install', label: 'Install dependencies' },
-    { value: 'build', label: 'Install + build assets' },
-    { value: 'none', label: 'Skip' },
-  ],
-  build_default: 'auto',
-  db_options: [
-    { value: 'share', label: 'Share the main database' },
-    { value: 'empty', label: 'Fresh empty database' },
-    { value: 'reset', label: 'Copy, then reset & migrate' },
-  ],
-  can_migrate: true,
-};
-
 // ---- Overview "Actions" section: per-framework command sets + doctor ----
 // The command cards and the doctor card both call per-site endpoints; give them
 // framework-appropriate fixtures so the section looks like a real project.
@@ -411,34 +392,6 @@ function jsonResponse(data: unknown): Response {
 }
 function textResponse(s: string): Response {
   return new Response(s, { status: 200, headers: { 'content-type': 'text/plain' } });
-}
-
-function worktreeAddSSE(qs: URLSearchParams): Response {
-  const domain = qs.get('domain') || '';
-  const branch = qs.get('new_branch') || qs.get('existing_branch') || 'feature/demo';
-  const site = sites.find((s) => s.domain === domain);
-  const slug = branch.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-  const wtDomain = `${slug}.${domain}`;
-  if (site) {
-    if (!site.branch) site.branch = 'main';
-    const list = (site.worktrees as Array<Record<string, unknown>>) || [];
-    if (!list.some((w) => w.branch === branch)) {
-      site.worktrees = [
-        ...list,
-        {
-          branch,
-          domain: wtDomain,
-          path: `${site.path}/${slug}`,
-        },
-      ];
-    }
-  }
-  const body =
-    `event: log\ndata: creating worktree ${branch}…\n\n` +
-    `event: log\ndata: ✓ checked out ${branch}\n\n` +
-    `event: log\ndata: ✓ wrote nginx vhost · ${wtDomain}\n\n` +
-    `event: done\ndata: ${JSON.stringify({ ok: true, branch, domain: wtDomain })}\n\n`;
-  return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } });
 }
 
 // Installing a preset streams newline-delimited JSON phase events ending in a
@@ -554,20 +507,6 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
     const file = appLogsMatch[2];
     if (!file) return jsonResponse({ files: APP_LOG_FILES });
     if (file !== 'clear') return jsonResponse({ entries: appLogEntries() });
-  }
-
-  // Worktrees
-  if (path === '/api/sites/worktree-options') return jsonResponse(WORKTREE_OPTIONS);
-  if (path === '/api/sites/worktree-add') return worktreeAddSSE(qs);
-  if (path.includes('/worktree:remove')) {
-    const domain = qs.get('domain') || path.split('/')[3];
-    const branch = qs.get('branch') || '';
-    const site = sites.find((s) => s.domain === domain);
-    if (site)
-      site.worktrees = ((site.worktrees as Array<Record<string, unknown>>) || []).filter(
-        (w) => w.branch !== branch
-      );
-    return jsonResponse({ ok: true });
   }
 
   // Per-site .env editor — GET reads only; saves/restores fall through to {ok:true}

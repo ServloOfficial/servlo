@@ -24,7 +24,7 @@ Mouse support is on: clicking a tab switches screens, clicking a site or service
 
 - **Sites pane (Sites tab, left column)** lists every linked site by its primary domain, with an FPM running dot and worker glyphs (`q` queue, `s` schedule, `v` reverb, `h` horizon, plus a dot per custom framework worker). Paused sites are dimmed and marked. Columns line up across rows regardless of how many workers each site runs. The column is intentionally slim; the Services tab keeps a wider list since its rows carry version and usage metadata.
 - **Services pane (Services tab, left column)** is a compact list of built-in services (mysql, redis, postgres, meilisearch, rustfs, mailpit), custom services, and every site-owned worker (`queue-<site>`, `schedule-<site>`, `horizon-<site>`, `reverb-<site>`, and custom framework workers). Each row shows a running dot, how many sites use it, and `pinned` / `custom` tags where applicable.
-- **Site detail (Sites tab, right column, full height)** always mirrors the focused site and shows primary domain, the Laravel `APP_NAME` when the site sets a custom one, internal name, disk path, all domains, services used (with live state), workers, git worktrees, HTTPS / LAN share toggles, PHP / Node version pickers, and the [request-timing panel](#request-timing). On the Sites tab, `S` swaps it for global Settings, `?` swaps it for the Keybindings reference. Logs live on their own [tab](#site-detail-tabs) rather than in a pane beneath the detail.
+- **Site detail (Sites tab, right column, full height)** always mirrors the focused site and shows primary domain, the Laravel `APP_NAME` when the site sets a custom one, internal name, disk path, all domains, services used (with live state), workers, the HTTPS toggle, PHP / Node version pickers, and the [request-timing panel](#request-timing). On the Sites tab, `S` swaps it for global Settings, `?` swaps it for the Keybindings reference. Logs live on their own [tab](#site-detail-tabs) rather than in a pane beneath the detail.
 - **Logs pane** (toggle with `l`) tails the container, worker-journal, or app log file behind the focused item. On the Sites tab `l` opens the Logs tab instead, since the detail column already has room for the tail; on the Dashboard it opens a full-width pane taking at least half the window. Either way it renders a right-edge scrollbar showing position in the buffer.
 - **Status bar** briefly shows the most recent action (e.g. `✓ servlo service stop redis` or `✖ …exit 1`).
 - **Footer** summarises active keybindings for the current mode.
@@ -138,7 +138,7 @@ The site detail pane is split into read-side tabs the user can jump between with
 
 | Key | Tab | Contents |
 | --- | --- | --- |
-| `1` | Overview | The default: domains, toggles (HTTPS / LAN / PHP / Node), services used, workers, worktrees, and the [request-timing panel](#request-timing), laid out as a [responsive grid](#overview-layout) |
+| `1` | Overview | The default: domains, toggles (HTTPS / PHP / Node), services used, workers, and the [request-timing panel](#request-timing), laid out as a [responsive grid](#overview-layout) |
 | `2` | Logs | A live tail of any of the site's log sources: the FPM or custom container, every worker unit, and each of the framework's app-log files. `[` / `]` cycle the source, `{` / `}` scroll back through the buffer, `f` finds within it. `l` is a shortcut to this tab from anywhere on the Sites tab |
 | `3` | Env | Read-only display of the site's `.env` file (read up to 256 KB so a runaway file can't wedge the render loop) |
 | `4` | Debug | This site's slice of the Debug window: the active lens (Dumps · Queries · Jobs · Views · Mail · Cache · Events · HTTP) scoped to the focused site, with `[` / `]` to switch lens and `w` to toggle worker capture. Rows show their detail inline; press `D` for the full cross-site window |
@@ -148,7 +148,7 @@ Switching tabs resets the detail-pane scroll so the user lands at the top of the
 
 ## Overview layout
 
-The Overview is a grid, not a column. Each section says whether it wants the whole pane or half of it, and half-width sections pair up: **Domains** sits beside **Toggles**, and **Services used** beside **Workers**. The identity header, worktrees and request timing take the full width, and the timing panel subdivides internally into its distribution, slowest-routes and recent columns.
+The Overview is a grid, not a column. Each section says whether it wants the whole pane or half of it, and half-width sections pair up: **Domains** sits beside **Toggles**, and **Services used** beside **Workers**. The identity header and request timing take the full width, and the timing panel subdivides internally into its distribution, slowest-routes and recent columns.
 
 A column has a floor of 44 characters. When the pane can't give two columns that much, every section goes full width and the grid collapses to the single column it has always been, so a narrow terminal loses nothing. The same rule applies inside the timing panel, which drops from three blocks to two to one rather than truncating every row to a stub.
 
@@ -165,9 +165,6 @@ Two keys scope it:
 | Key | Effect |
 | --- | --- |
 | `[` / `]` | Cycle the window through `15m · 1h · 24h · 7d` |
-| `b` | Cycle the branch across the site and each of its git worktrees |
-
-A worktree records its traffic under its own key, so `b` reads the work done on that branch rather than folding it into the parent's numbers. Sites without worktrees show no branch label and `b` does nothing.
 
 Static assets, nginx-served files and WebSocket upgrades are filtered out, so an asset pipeline can't make a site look busy.
 
@@ -182,7 +179,6 @@ Sections, top to bottom:
 - **PHP / Node / framework / git branch**: one-line summary.
 - **Services used**: every service referenced in `.servlo.yaml` with its live state, so you can see at a glance whether redis / mysql / etc. are up for this site.
 - **Workers**: queue, schedule, horizon, reverb, and any custom framework workers, each with a running / failing indicator. `space` on a worker row toggles it (calls `servlo queue start/stop`, etc.).
-- **Worktrees**: every git worktree with its branch, domain, and path when the site uses them. Each worktree row carries its own controls, PHP / Node version pickers, LAN-share toggle, isolated-DB toggle, and per-worktree framework worker toggles (e.g. vite), so a branch's runtime can be tuned without affecting the parent. `space` on a worktree-scoped row toggles the matching state via the same CLI commands the parent rows use, just with the worktree's path threaded through.
 - **Toggles**: HTTPS (runs `servlo secure` / `servlo unsecure`), LAN share (runs `servlo lan share` / `unshare`, shows the full `http://<lan-ip>:<port>` URL when enabled), PHP version (opens an inline picker from installed versions → `servlo isolate <ver>`; a FrankenPHP site only lists the versions FrankenPHP publishes an image for, so the picker never offers one that would silently downgrade), Node version (picker backed by `fnm list` → `servlo isolate:node <ver>`; when a host bun is installed the list also carries a `bun` entry that pins the site's JS runtime via `servlo js:runtime bun`, and picking a Node version while pinned to bun clears the pin first so the dev worker actually switches back).
 
 ## Dashboard tab
@@ -236,7 +232,7 @@ During an in-flight action the status line (just above the toasts) shows an anim
 A handful of focused surfaces render as centered modal overlays (rounded border, accent colour) rather than swapping the detail pane:
 
 - **Command palette** (`:`), `servlo <args>` prompt with tab-completion suggestions; runs the command in a suspended shell so the output is visible, then pauses for `enter` before returning to the dashboard.
-- **PHP / Node version picker**: opens when `space` / `enter` lands on the PHP or Node row (site- or worktree-scoped). Pick with `↑` / `↓`, apply with `enter`, dismiss with `esc`.
+- **PHP / Node version picker**: opens when `space` / `enter` lands on the PHP or Node row. Pick with `↑` / `↓`, apply with `enter`, dismiss with `esc`.
 - **Keybindings reference** (`?`), described above.
 - **Confirmation prompt**: guards destructive single-key actions (e.g. `x` on a domain row). `y` confirms, `n` / `esc` cancels.
 

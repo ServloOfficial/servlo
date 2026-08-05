@@ -1,14 +1,11 @@
 package ui
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
 )
 
@@ -53,26 +50,6 @@ func stubPodmanOnPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", stubDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-}
-
-// makeWorktree fakes a git worktree at <sitePath>/.git/worktrees/<name>
-// pointing at <checkoutPath>. Matches what real `git worktree add` writes
-// so gitpkg.DetectWorktrees picks it up.
-func makeWorktree(t *testing.T, sitePath, name, branch, checkoutPath string) {
-	t.Helper()
-	wtDir := filepath.Join(sitePath, ".git", "worktrees", name)
-	if err := os.MkdirAll(wtDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(checkoutPath, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(wtDir, "HEAD"), []byte("ref: refs/heads/"+branch+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(wtDir, "gitdir"), []byte(filepath.Join(checkoutPath, ".git")+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // setupSecuredSite primes XDG, fake mkcert, global config, and registers a
@@ -123,97 +100,4 @@ func readSiteCert(t *testing.T, primary string) string {
 		t.Fatalf("reading cert %q: %v", path, err)
 	}
 	return string(body)
-}
-
-// Adding a domain to a secured site must reissue the cert so the new SAN
-// covers the new hostname AND so any existing worktree subdomains stay in
-// the SAN list. Regression pin for two related bugs:
-//
-//  1. The handler used certs.IssueCert (a documented no-op when the cert
-//     file already exists), so the new domain never made it into the SAN
-//     and the browser rejected it with ERR_CERT_AUTHORITY_INVALID.
-//  2. After switching to certs.IssueCertForce directly, the worktree
-//     subdomain (<branch>.<primary>) silently dropped out of the SAN
-//     because that bypass skipped the worktree-aware helper.
-//
-// Catching either regression requires asserting all three SAN classes
-// here: new alias, existing primary, and worktree subdomain.
-func TestHandleSiteAction_domainAdd_keepsWorktreeSANs(t *testing.T) {
-	sitePath := setupSecuredSite(t, "harborlist")
-	makeWorktree(t, sitePath, "main", "main", filepath.Join(t.TempDir(), "wt-main"))
-
-	// Pre-issue the cert so it already exists on disk when domain:add
-	// runs. Without this precondition a regression to bare certs.IssueCert
-	// would still write a fresh cert with the new SAN (because no prior
-	// file exists to short-circuit on) and the test would miss the bug.
-	if err := certs.ReissueCertForWorktree(config.Site{
-		Name: "harborlist", Path: sitePath,
-		Domains: []string{"harborlist.test"}, Secured: true,
-	}); err != nil {
-		t.Fatalf("pre-issue cert: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/sites/harborlist.test/domain:add?name=aaaddd", nil)
-	rec := httptest.NewRecorder()
-	handleSiteAction(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), `"ok":true`) {
-		t.Fatalf("expected ok response, got %s", rec.Body.String())
-	}
-
-	cert := readSiteCert(t, "harborlist.test")
-	for _, san := range []string{
-		"harborlist.test", "*.harborlist.test",
-		"aaaddd.test", "*.aaaddd.test",
-		"main.harborlist.test", "*.main.harborlist.test",
-	} {
-		if !strings.Contains(cert, san) {
-			t.Errorf("SAN %q missing after domain:add; cert body: %q", san, cert)
-		}
-	}
-}
-
-// Removing a domain must reissue the cert so the SAN list drops the
-// removed alias but keeps the worktree subdomains. Same regression shape
-// as domain:add — the original handler used the cert-skipping IssueCert,
-// and the first attempted fix dropped worktree SANs. Pin both.
-func TestHandleSiteAction_domainRemove_keepsWorktreeSANs(t *testing.T) {
-	sitePath := setupSecuredSite(t, "harborlist", "aaaddd.test")
-	makeWorktree(t, sitePath, "main", "main", filepath.Join(t.TempDir(), "wt-main"))
-
-	if err := certs.ReissueCertForWorktree(config.Site{
-		Name: "harborlist", Path: sitePath,
-		Domains: []string{"harborlist.test", "aaaddd.test"}, Secured: true,
-	}); err != nil {
-		t.Fatalf("pre-issue cert: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/sites/harborlist.test/domain:remove?name=aaaddd", nil)
-	rec := httptest.NewRecorder()
-	handleSiteAction(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), `"ok":true`) {
-		t.Fatalf("expected ok response, got %s", rec.Body.String())
-	}
-
-	cert := readSiteCert(t, "harborlist.test")
-	for _, san := range []string{
-		"harborlist.test", "*.harborlist.test",
-		"main.harborlist.test", "*.main.harborlist.test",
-	} {
-		if !strings.Contains(cert, san) {
-			t.Errorf("SAN %q missing after domain:remove; cert body: %q", san, cert)
-		}
-	}
-	for _, gone := range []string{"aaaddd.test", "*.aaaddd.test"} {
-		// The fake mkcert echoes every arg, so the removed SAN must
-		// not appear anywhere in the rewritten cert body.
-		if strings.Contains(cert, gone) {
-			t.Errorf("SAN %q should have been dropped after domain:remove; cert body: %q", gone, cert)
-		}
-	}
 }

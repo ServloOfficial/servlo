@@ -14,9 +14,7 @@ func errNotLinked() error {
 	return fmt.Errorf("no site registered for this directory — run 'servlo link' first")
 }
 
-// ensureSiteForCwd resolves the site for the current working directory. A
-// worktree resolves to its parent; callers that act on the branch itself want
-// ensureSiteAndBranchForCwd.
+// ensureSiteForCwd resolves the site for the current working directory.
 func ensureSiteForCwd() (*config.Site, error) {
 	site, _, err := ensureSiteAndBranchForCwd()
 	return site, err
@@ -25,7 +23,7 @@ func ensureSiteForCwd() (*config.Site, error) {
 // ensureSiteAndBranchForCwd resolves the site for the current working
 // directory, using os.Getwd for both lookup and link so they can't diverge. On
 // a miss in an interactive terminal it offers to link (cascading into init) and
-// re-resolves. The branch is empty unless the directory is a worktree.
+// re-resolves.
 func ensureSiteAndBranchForCwd() (*config.Site, string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -33,12 +31,6 @@ func ensureSiteAndBranchForCwd() (*config.Site, string, error) {
 	}
 	if site, err := config.FindSiteByPath(cwd); err == nil {
 		return site, "", nil
-	}
-	// A worktree inherits the parent's registration, so an exact lookup always
-	// misses. Resolve it ahead of the link prompt, which only leads to link
-	// refusing it and the caller advising a command that cannot work.
-	if parent, branch, ok := findOwningWorktree(cwd); ok {
-		return parent, branch, nil
 	}
 	if !isInteractive() {
 		return nil, "", errNotLinked()

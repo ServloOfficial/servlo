@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	"github.com/realrashid/servlo/internal/nginx"
 	"github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
@@ -21,7 +20,6 @@ var (
 	imageGapFn         = imageGap
 	imageStaleFn       = podman.FPMImageStale
 	imageExistsFn      = podman.FPMImageExists
-	detectWorktreesFn  = gitpkg.DetectWorktrees
 
 	// phpConstraintFor is what the site is allowed to run, as a composer-style
 	// constraint. The framework definition is the authority only when it is the
@@ -58,12 +56,6 @@ func phpRangeConstraint(min, max string) string {
 	return ""
 }
 
-// PHPVersionOpts varies what SetSitePHPVersion targets.
-type PHPVersionOpts struct {
-	// Branch targets a worktree of the site rather than the site itself.
-	Branch string
-}
-
 // PHPVersionResult reports what the switch actually did, so each caller can
 // render it in its own idiom rather than the funnel printing for everyone.
 type PHPVersionResult struct {
@@ -83,8 +75,8 @@ type PHPVersionResult struct {
 	NotInstalled bool
 }
 
-// SetSitePHPVersion switches a site (or one of its worktrees) to a PHP version
-// and runs every step that switch depends on. It is the single source of truth
+// SetSitePHPVersion switches a site to a PHP version and runs every step that
+// switch depends on. It is the single source of truth
 // for "what happens when a site changes PHP version"; CLI, UI, all call
 // it, so a step added here applies everywhere.
 //
@@ -100,7 +92,7 @@ type PHPVersionResult struct {
 //
 // It never builds an image and never prompts: callers own both, because only
 // they know whether a human is waiting.
-func SetSitePHPVersion(site *config.Site, version string, opts PHPVersionOpts) (PHPVersionResult, error) {
+func SetSitePHPVersion(site *config.Site, version string) (PHPVersionResult, error) {
 	res := PHPVersionResult{Requested: version, Version: version}
 
 	norm, err := config.NormalizePHPVersion(version)
@@ -122,10 +114,6 @@ func SetSitePHPVersion(site *config.Site, version string, opts PHPVersionOpts) (
 	}
 	gap := imageGapFn(version)
 	res.Missing, res.Stale, res.NotInstalled = gap.missing, gap.stale, gap.notInstalled
-
-	if opts.Branch != "" {
-		return res, setWorktreePHPVersion(site, opts.Branch, version)
-	}
 
 	if err := PinPHPVersionFile(site.Path, version); err != nil {
 		return res, fmt.Errorf("writing .php-version: %w", err)
@@ -228,50 +216,6 @@ func regenerateSiteVhost(site *config.Site, version string) error {
 		return fmt.Errorf("regenerating vhost: %w", err)
 	}
 	return nil
-}
-
-// setWorktreePHPVersion pins the override on a single worktree and regenerates
-// just that worktree's vhost, so the next request lands on the new FPM upstream.
-// The parent site's own version is untouched.
-func setWorktreePHPVersion(site *config.Site, branch, version string) error {
-	worktrees, err := detectWorktreesFn(site.Path, site.PrimaryDomain())
-	if err != nil {
-		return fmt.Errorf("detecting worktrees: %w", err)
-	}
-	for _, wt := range worktrees {
-		if wt.Branch != branch {
-			continue
-		}
-		if err := PinPHPVersionFile(wt.Path, version); err != nil {
-			return fmt.Errorf("writing .php-version: %w", err)
-		}
-		if err := config.SetWorktreePHPVersion(wt.Path, version); err != nil {
-			return fmt.Errorf("updating .servlo.yaml: %w", err)
-		}
-		// Same runtime setup the site path does: the vhost below points at the
-		// version's FPM container, which need not exist on this machine yet.
-		if err := podman.WriteFPMQuadlet(version); err == nil {
-			_ = podman.DaemonReloadFn()
-		}
-		if site.Secured {
-			err = nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, version, site.PrimaryDomain(), site.Name, wt.Branch)
-		} else {
-			err = nginx.GenerateWorktreeVhost(wt.Domain, wt.Path, version, site.Name, wt.Branch)
-		}
-		if err != nil {
-			return fmt.Errorf("regenerating worktree vhost: %w", err)
-		}
-		_ = podman.RewriteFPMQuadlets()
-		_ = podman.WriteContainerHosts()
-		if err := nginxReloadFn(); err != nil {
-			return fmt.Errorf("reloading nginx: %w", err)
-		}
-		if podman.AfterUnitChange != nil {
-			podman.AfterUnitChange("site:" + site.Name)
-		}
-		return nil
-	}
-	return fmt.Errorf("worktree %q not found", branch)
 }
 
 // PinPHPVersionFile writes the version servlo resolved into the project's

@@ -50,7 +50,7 @@ var helpReference = []helpSection{
 	{
 		title: "Site detail tabs",
 		rows: [][2]string{
-			{"1", "Overview tab (default: workers, toggles, worktrees)"},
+			{"1", "Overview tab (default: workers and toggles)"},
 			{"2", "Logs tab (FPM / container, every worker, the framework's app logs)"},
 			{"3", "Env tab (read-only .env display)"},
 			{"4", "Doctor tab (framework-agnostic health checks; press again to re-run)"},
@@ -68,12 +68,6 @@ var helpReference = []helpSection{
 			{"a", "add a new domain to the focused site (inline input)"},
 			{"e", "edit / rename the focused domain row (add new + remove old)"},
 			{"x", "remove the focused domain"},
-		},
-	},
-	{
-		title: "Worktrees",
-		rows: [][2]string{
-			{"space / enter", "toggle the focused per-worktree row (worker, isolated DB)"},
 		},
 	},
 	{

@@ -131,12 +131,6 @@ func TestSiteHasFailingWorker(t *testing.T) {
 				{Name: "vite", Failing: true},
 			},
 		}, true},
-		{siteinfo.EnrichedSite{
-			Name: "worktree-bad",
-			Worktrees: []siteinfo.WorktreeInfo{{
-				FrameworkWorkers: []siteinfo.WorkerInfo{{Name: "vite", Failing: true}},
-			}},
-		}, true},
 	}
 	for _, c := range cases {
 		if got := siteHasFailingWorker(c.s); got != c.want {

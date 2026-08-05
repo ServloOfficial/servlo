@@ -4,7 +4,7 @@
 // independent site; grouping only computes its primary domain as
 // <label>.<main-domain> and drives the same nginx/cert/env regeneration the
 // domain commands use. nginx routes the exact subdomain to the secondary over
-// the main's *.<domain> wildcard, the identical mechanism worktree subdomains
+// the main's *.<domain> wildcard, the identical mechanism any subdomain
 // rely on.
 package grouping
 
@@ -31,7 +31,7 @@ func ComputeSecondaryDomain(mainPrimary, label string) string {
 
 // ValidateLabel checks that label is a non-empty, DNS-safe subdomain label in
 // its canonical form (lowercase, no transformation needed). It reuses the same
-// sanitiser worktree branches go through so a label can never collide with a
+// sanitiser branches go through so a label can never collide with a
 // reserved name or produce an invalid host.
 func ValidateLabel(label string) error {
 	if label == "" {
@@ -78,12 +78,6 @@ func AssignSecondary(main, secondary *config.Site, label string, shareDB bool) e
 	if siblingLabelUsed(reg, main.Name, label, secondary.Name) {
 		return fmt.Errorf("another secondary in group %q already uses the subdomain %q", main.Name, label)
 	}
-	if taken, err := WorktreeLabelTaken(main, label); err != nil {
-		return err
-	} else if taken {
-		return fmt.Errorf("the main site %q has a git worktree using the subdomain %q; pick another label", main.Name, label)
-	}
-
 	mainPromoted := false
 	if main.Group == "" {
 		main.Group = main.Name
@@ -261,12 +255,6 @@ func SetSecondaryLabel(secondary *config.Site, newLabel string) error {
 	if siblingLabelUsed(reg, secondary.Group, newLabel, secondary.Name) {
 		return fmt.Errorf("another secondary in group %q already uses the subdomain %q", secondary.Group, newLabel)
 	}
-	if taken, err := WorktreeLabelTaken(main, newLabel); err != nil {
-		return err
-	} else if taken {
-		return fmt.Errorf("the main site %q has a git worktree using the subdomain %q; pick another label", main.Name, newLabel)
-	}
-
 	orig := snapshot(secondary)
 	oldPrimary := secondary.PrimaryDomain()
 	secondary.GroupSubdomain = newLabel
@@ -338,26 +326,10 @@ func DissolveGroup(group string) error {
 	return firstErr
 }
 
-// WorktreeLabelTaken reports whether the main site has an active git worktree
-// whose subdomain would collide with the given label.
-func WorktreeLabelTaken(main *config.Site, label string) (bool, error) {
-	wts, err := gitpkg.DetectWorktrees(main.Path, main.PrimaryDomain())
-	if err != nil {
-		return false, err
-	}
-	newDomain := ComputeSecondaryDomain(main.PrimaryDomain(), label)
-	for _, wt := range wts {
-		if wt.Branch == label || wt.Domain == newDomain {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 // Indirection points so the regeneration order can be asserted without mkcert
 // or nginx on the box.
 var (
-	reissueCertFn     = certs.ReissueCertForWorktree
+	reissueCertFn     = certs.ReissueCert
 	regenerateVhostFn = siteops.RegenerateSiteVhost
 )
 

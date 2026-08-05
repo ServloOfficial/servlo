@@ -103,12 +103,10 @@ func runDomainAdd(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	// If secured, force-reissue the cert through the worktree-aware helper
-	// so the SAN list picks up the new domain without dropping any existing
-	// worktree subdomains (e.g. <branch>.<primary>). A bare IssueCertForce
-	// here would clobber those worktree SANs.
+	// If secured, force-reissue the cert so the SAN list picks up the new
+	// domain.
 	if site.Secured {
-		if err := certs.ReissueCertForWorktree(*site); err != nil {
+		if err := certs.ReissueCert(*site); err != nil {
 			feedback.Warn("reissuing certificate: %v", err)
 		}
 	}
@@ -179,11 +177,10 @@ func runDomainRemove(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	// If secured, force-reissue the cert through the worktree-aware helper
-	// so the SAN list drops the removed domain without losing any existing
-	// worktree subdomains.
+	// If secured, force-reissue the cert so the SAN list drops the removed
+	// domain.
 	if site.Secured {
-		if err := certs.ReissueCertForWorktree(*site); err != nil {
+		if err := certs.ReissueCert(*site); err != nil {
 			feedback.Warn("reissuing certificate: %v", err)
 		}
 	}

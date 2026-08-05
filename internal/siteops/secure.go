@@ -15,7 +15,7 @@ import (
 var (
 	secureCertFn   = certs.SecureSite
 	unsecureCertFn = certs.UnsecureSite
-	reissueCertFn  = certs.ReissueCertForWorktree
+	reissueCertFn  = certs.ReissueCert
 	nginxReloadFn  = nginx.Reload
 	notifyDaemonFn = defaultNotifyDaemon
 )
@@ -112,8 +112,7 @@ func SetSecuredCascade(site *config.Site, secured bool) ([]string, error) {
 
 // RenewCert force-reissues a secured site's TLS certificate on demand, resetting
 // its validity window, and reloads nginx so the fresh cert takes effect. The new
-// cert covers the site's own domains plus every worktree wildcard SAN, matching
-// what securing the site issues. This is the manual counterpart to the automatic
+// cert covers the site's own domains, matching what securing the site issues. This is the manual counterpart to the automatic
 // self-heal (certs.EnsureCert reissues only an aging cert on start/watcher pass);
 // callers reach for it to reset the clock without toggling HTTPS off and on. It
 // is the single source of truth shared by the CLI renew paths.

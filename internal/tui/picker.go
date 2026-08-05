@@ -37,8 +37,8 @@ func (m *Model) openNodePicker(s *siteinfo.EnrichedSite) {
 		return
 	}
 	// bun is a JS-runtime toggle rather than a Node version, so it joins the
-	// list as a project-level pin (main site only, never per-worktree) when a
-	// host bun exists, mirroring the web Node dropdown.
+	// list as a project-level pin when a host bun exists, mirroring the web
+	// Node dropdown.
 	if bunAvailable {
 		versions = append(versions, "bun")
 	}
@@ -50,48 +50,6 @@ func (m *Model) openNodePicker(s *siteinfo.EnrichedSite) {
 	} else {
 		m.pickerCursor = indexOf(versions, s.NodeVersion)
 	}
-}
-
-// openWorktreePHPPicker mirrors openPHPPicker but scopes the apply to the
-// worktree's checkout via pickerWorktreePath, so the resulting .php-version
-// is written inside the worktree rather than the parent site.
-func (m *Model) openWorktreePHPPicker(s *siteinfo.EnrichedSite, row detailRow) {
-	wt := findWorktree(s, row.branch)
-	if wt == nil {
-		return
-	}
-	versions, err := phpPkg.ListInstalled()
-	if err != nil || len(versions) == 0 {
-		m.setStatus("no PHP versions installed", 3*time.Second)
-		return
-	}
-	versions = frankenPHPRunnable(s.Runtime, versions, wt.PHPVersion)
-	m.pickerKind = kindWorktreePHP
-	m.pickerOptions = versions
-	// A worktree shares the parent site's framework, so it inherits its range.
-	m.pickerDisabled = phpDisabledMask(versions, s.FrameworkPHPMin, s.FrameworkPHPMax, wt.PHPVersion)
-	m.pickerCursor = firstEnabledFrom(indexOf(versions, wt.PHPVersion), m.pickerDisabled)
-	m.pickerWorktreePath = row.branchPath
-	m.pickerWorktreeName = row.branch
-}
-
-// openWorktreeNodePicker is the Node analogue of openWorktreePHPPicker.
-func (m *Model) openWorktreeNodePicker(s *siteinfo.EnrichedSite, row detailRow) {
-	wt := findWorktree(s, row.branch)
-	if wt == nil {
-		return
-	}
-	versions := listNodeMajors()
-	if len(versions) == 0 {
-		m.setStatus("no Node versions installed (run 'servlo node install 20')", 3*time.Second)
-		return
-	}
-	m.pickerKind = kindWorktreeNode
-	m.pickerOptions = versions
-	m.pickerDisabled = nil
-	m.pickerCursor = indexOf(versions, wt.NodeVersion)
-	m.pickerWorktreePath = row.branchPath
-	m.pickerWorktreeName = row.branch
 }
 
 // pickerIsDisabled reports whether the option at index i is disabled (an
@@ -131,8 +89,6 @@ func (m *Model) closePicker() {
 	m.pickerOptions = nil
 	m.pickerDisabled = nil
 	m.pickerCursor = 0
-	m.pickerWorktreePath = ""
-	m.pickerWorktreeName = ""
 }
 
 // applyPicker runs `servlo isolate` or `servlo isolate:node` for the selected
@@ -174,16 +130,6 @@ func (m *Model) applyPicker() tea.Cmd {
 			cmds = append(cmds, runServlo(s.Path, a...))
 		}
 		return tea.Sequence(cmds...)
-	case kindWorktreePHP:
-		path, branch := m.pickerWorktreePath, m.pickerWorktreeName
-		m.pickerWorktreePath, m.pickerWorktreeName = "", ""
-		m.setStatus("switching "+branch+" to PHP "+ver+"…", 5*time.Second)
-		return runServlo(path, "isolate", ver)
-	case kindWorktreeNode:
-		path, branch := m.pickerWorktreePath, m.pickerWorktreeName
-		m.pickerWorktreePath, m.pickerWorktreeName = "", ""
-		m.setStatus("switching "+branch+" to Node "+ver+"…", 5*time.Second)
-		return runServlo(path, "isolate:node", ver)
 	}
 	return nil
 }

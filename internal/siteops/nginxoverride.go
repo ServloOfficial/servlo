@@ -1,7 +1,6 @@
 package siteops
 
 import (
-	"os"
 	"path/filepath"
 
 	"github.com/realrashid/servlo/internal/cfgedit"
@@ -90,52 +89,4 @@ func RestoreCustomNginx(domain, name string) (cfgedit.RestoreResult, error) {
 // ValidNginxBackupName reports whether name is a well-formed backup for domain.
 func ValidNginxBackupName(domain, name string) bool {
 	return nginxFile(domain).ValidBackupName(name)
-}
-
-// InheritCustomNginxConfig seeds a new worktree's override from its parent's:
-// it copies custom.d/{parent}.conf to custom.d/{worktree}.conf only when the
-// parent exists and the worktree override does not. Callers must invoke it only
-// on genuine worktree creation — running it on every resync would resurrect an
-// override the user deliberately reset (it can't tell "new" from "reset").
-func InheritCustomNginxConfig(parentDomain, worktreeDomain string) error {
-	if parentDomain == worktreeDomain {
-		return nil
-	}
-	dst := CustomNginxPath(worktreeDomain)
-	if _, err := os.Stat(dst); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	data, err := os.ReadFile(CustomNginxPath(parentDomain))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if err := os.MkdirAll(config.NginxCustomD(), 0o755); err != nil {
-		return err
-	}
-	return nginx.WriteFileAtomic(dst, data, 0o644)
-}
-
-// RemoveCustomNginxConfig deletes a worktree's live override and every
-// timestamped backup for that domain. Used when a worktree is removed.
-func RemoveCustomNginxConfig(domain string) error {
-	if err := os.Remove(CustomNginxPath(domain)); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	f := nginxFile(domain)
-	backups, err := f.ListBackups()
-	if err != nil {
-		return err
-	}
-	var firstErr error
-	for _, b := range backups {
-		if err := os.Remove(filepath.Join(f.BkpDir, b.Name)); err != nil && firstErr == nil {
-			firstErr = err
-		}
-	}
-	return firstErr
 }

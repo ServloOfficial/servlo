@@ -13,9 +13,9 @@ import (
 
 // workerVisual is the single source for how a worker's live state renders: its
 // style, dot glyph, and one-word label, applying the one precedence used
-// everywhere — failing > unreachable > running > suspended > stopped. The five render sites
-// (site rows, detail rows, worktree rows) all route through this so the
-// orderings and colours can't drift apart. stoppedStyle and dimStyle share a
+// everywhere — failing > unreachable > running > suspended > stopped. Every
+// render site routes through this so the orderings and colours can't drift
+// apart. stoppedStyle and dimStyle share a
 // colour, so the stopped word looks identical to the old dimStyle rendering.
 func workerVisual(failing, unreachable, running bool) (style lipgloss.Style, glyph, word string) {
 	switch {
@@ -38,11 +38,6 @@ type detailRow struct {
 	workerName string
 	// Domain kind: the full domain (including the TLD) this row represents.
 	domain string
-	// Worktree-scoped rows: branch is the sanitized branch name and path is
-	// the worktree checkout path; actions cd into path so cwd-keyed CLI
-	// helpers (workerNames, FindParentSiteForWorktree) target the right unit.
-	branch     string
-	branchPath string
 }
 
 type detailKind int
@@ -55,15 +50,10 @@ const (
 	kindNode
 	kindDomain
 	kindDomainAdd
-	kindWorktreeHeader
-	kindWorktreeWorker
-	kindWorktreeDB
-	kindWorktreePHP
-	kindWorktreeNode
 )
 
 // detailRows returns the rows the detail view draws, in the order the Overview
-// renders them: Domains, Toggles, Workers, then the worktrees. Cursor movement
+// renders them: Domains, Toggles, then Workers. Cursor movement
 // walks this slice, so the order has to match the layout or `down` teleports the
 // cursor to a block somewhere else on screen. Built on each render so worker
 // lists stay in sync with live state.
@@ -102,60 +92,14 @@ func detailRows(s *siteinfo.EnrichedSite) []detailRow {
 		}
 		rows = append(rows, detailRow{kind: kindWorker, workerName: fw.Name})
 	}
-	dbCapable := siteHasManagedDB(s)
-	for _, wt := range s.Worktrees {
-		rows = append(rows, detailRow{kind: kindWorktreeHeader, branch: wt.Branch, branchPath: wt.Path})
-		for _, fw := range wt.FrameworkWorkers {
-			rows = append(rows, detailRow{
-				kind: kindWorktreeWorker, workerName: fw.Name,
-				branch: wt.Branch, branchPath: wt.Path,
-			})
-		}
-		if dbCapable {
-			rows = append(rows, detailRow{kind: kindWorktreeDB, branch: wt.Branch, branchPath: wt.Path})
-		}
-		if s.ContainerPort == 0 && wt.PHPVersion != "" {
-			rows = append(rows, detailRow{kind: kindWorktreePHP, branch: wt.Branch, branchPath: wt.Path})
-		}
-		if wt.NodeVersion != "" {
-			rows = append(rows, detailRow{kind: kindWorktreeNode, branch: wt.Branch, branchPath: wt.Path})
-		}
-	}
 	return rows
-}
-
-// siteHasManagedDB reports whether the site uses a servlo-managed database
-// service that supports per-worktree isolation. Mirrors the gate the
-// dashboard uses to render the Isolated DB toggle.
-func siteHasManagedDB(s *siteinfo.EnrichedSite) bool {
-	for _, svc := range s.Services {
-		switch svc {
-		case "mysql", "mariadb", "postgres":
-			return true
-		}
-	}
-	return false
-}
-
-// findWorktree returns the WorktreeInfo for the given branch, or nil when
-// the branch has no live worktree on disk.
-func findWorktree(s *siteinfo.EnrichedSite, branch string) *siteinfo.WorktreeInfo {
-	for i := range s.Worktrees {
-		if s.Worktrees[i].Branch == branch {
-			return &s.Worktrees[i]
-		}
-	}
-	return nil
 }
 
 // navigableRows filters out info rows so cursor moves skip them.
 func navigableRows(rows []detailRow) []int {
 	var idx []int
 	for i, r := range rows {
-		// The worktree header is a caption, not a control: it has no toggle and
-		// renders no cursor, so leaving it navigable made the cursor vanish for a
-		// keypress as it passed through.
-		if r.kind == kindInfo || r.kind == kindWorktreeHeader {
+		if r.kind == kindInfo {
 			continue
 		}
 		idx = append(idx, i)
@@ -193,92 +137,8 @@ func (m *Model) detailToggleSelected(s *siteinfo.EnrichedSite, rows []detailRow,
 	case kindDomainAdd:
 		m.openDomainInput()
 		return nil
-	case kindWorktreeWorker:
-		return m.toggleWorktreeWorker(s, row)
-	case kindWorktreeDB:
-		return m.toggleWorktreeDB(s, row)
-	case kindWorktreePHP:
-		m.openWorktreePHPPicker(s, row)
-		return nil
-	case kindWorktreeNode:
-		m.openWorktreeNodePicker(s, row)
-		return nil
 	}
 	return nil
-}
-func (m *Model) toggleWorktreeWorker(s *siteinfo.EnrichedSite, row detailRow) tea.Cmd {
-	wt := findWorktree(s, row.branch)
-	if wt == nil {
-		return nil
-	}
-	running := worktreeWorkerRunning(wt, row.workerName)
-	verb := "start"
-	if running {
-		verb = "stop"
-	}
-	m.setStatus(verb+"ing "+row.workerName+" on "+row.branch+"…", 5*time.Second)
-	return runServlo(row.branchPath, "worker", verb, row.workerName)
-}
-
-func (m *Model) toggleWorktreeDB(s *siteinfo.EnrichedSite, row detailRow) tea.Cmd {
-	wt := findWorktree(s, row.branch)
-	if wt == nil {
-		return nil
-	}
-	if wt.DBIsolated {
-		m.setStatus("sharing parent DB on "+row.branch+"…", 5*time.Second)
-		return runServlo(row.branchPath, "db:share")
-	}
-	m.setStatus("isolating DB on "+row.branch+"…", 5*time.Second)
-	return runServlo(row.branchPath, "db:isolate")
-}
-
-func worktreeWorkerRunning(wt *siteinfo.WorktreeInfo, name string) bool {
-	if wt == nil {
-		return false
-	}
-	for _, fw := range wt.FrameworkWorkers {
-		if fw.Name == name {
-			return fw.Running
-		}
-	}
-	return false
-}
-
-func worktreeWorkerFailing(wt *siteinfo.WorktreeInfo, name string) bool {
-	if wt == nil {
-		return false
-	}
-	for _, fw := range wt.FrameworkWorkers {
-		if fw.Name == name {
-			return fw.Failing
-		}
-	}
-	return false
-}
-
-func worktreeWorkerUnreachable(wt *siteinfo.WorktreeInfo, name string) bool {
-	if wt == nil {
-		return false
-	}
-	for _, fw := range wt.FrameworkWorkers {
-		if fw.Name == name {
-			return fw.Unreachable
-		}
-	}
-	return false
-}
-
-func worktreeWorkerLabel(wt *siteinfo.WorktreeInfo, name string) string {
-	if wt == nil {
-		return name
-	}
-	for _, fw := range wt.FrameworkWorkers {
-		if fw.Name == name && fw.Label != "" {
-			return fw.Label
-		}
-	}
-	return name
 }
 
 // removeFocusedDomain gates `servlo domain remove <name>` behind a confirm
@@ -541,7 +401,6 @@ func detailContentLines(m *Model, site *siteinfo.EnrichedSite, focused bool, inn
 	secs = append(secs, overviewToggles(site, rows, sel, colW)...)
 	secs = append(secs, overviewServices(m, site, colW)...)
 	secs = append(secs, overviewWorkers(site, rows, sel, colW)...)
-	secs = append(secs, overviewWorktrees(site, rows, sel, scheme, innerW)...)
 	secs = append(secs, overviewTiming(m, site, innerW)...)
 
 	body, cursorLine := composeOverview(secs, innerW)
@@ -739,55 +598,6 @@ func overviewWorkers(site *siteinfo.EnrichedSite, rows []detailRow, sel func(int
 	return b.section(ovHalf)
 }
 
-func overviewWorktrees(site *siteinfo.EnrichedSite, rows []detailRow, sel func(int) bool, scheme string, w int) []ovSection {
-	if len(site.Worktrees) == 0 {
-		return nil
-	}
-	b := newOvBuilder(w)
-	b.plain(sectionStyle.Render("Worktrees"))
-	for _, wt := range site.Worktrees {
-		head := "  " + accentStyle.Render(wt.Branch)
-		if wt.Domain != "" {
-			head += "  " + dimStyle.Render(scheme+"://"+wt.Domain)
-		}
-		if wt.Path != "" {
-			head += "  " + dimStyle.Render(wt.Path)
-		}
-		b.plain(head)
-		renderedAny := false
-		for i, row := range rows {
-			if row.branch != wt.Branch {
-				continue
-			}
-			s := sel(i)
-			switch row.kind {
-			case kindWorktreeWorker:
-				renderedAny = true
-				b.add(renderDetailRow(s, worktreeWorkerGlyph(&wt, row.workerName),
-					"    "+worktreeWorkerLabel(&wt, row.workerName),
-					worktreeWorkerStateText(&wt, row.workerName)), s)
-			case kindWorktreeDB:
-				renderedAny = true
-				b.add(renderDetailRow(s, onOffGlyph(wt.DBIsolated),
-					"    Isolated DB", worktreeDBStateText(wt)), s)
-			case kindWorktreePHP:
-				renderedAny = true
-				b.add(renderDetailRow(s, accentStyle.Render("λ"),
-					"    PHP", worktreeVersionText(wt.PHPVersion, wt.PHPVersionOverride)), s)
-			case kindWorktreeNode:
-				renderedAny = true
-				b.add(renderDetailRow(s, accentStyle.Render("⬢"),
-					"    Node", worktreeVersionText(wt.NodeVersion, wt.NodeVersionOverride)), s)
-			}
-		}
-		if !renderedAny {
-			b.plain(dimStyle.Render("    (no per-worktree controls)"))
-		}
-	}
-	b.plain("")
-	return b.section(ovFull)
-}
-
 // overviewTiming wraps the request-timing panel as a full-width section. It's
 // read-only, so it holds no cursor.
 func overviewTiming(m *Model, site *siteinfo.EnrichedSite, innerW int) []ovSection {
@@ -862,40 +672,6 @@ func domainRole(s *siteinfo.EnrichedSite, domain string) string {
 		role = "primary"
 	}
 	return role + " · e edit · x remove"
-}
-
-func worktreeWorkerGlyph(wt *siteinfo.WorktreeInfo, name string) string {
-	st, glyph, _ := workerVisual(worktreeWorkerFailing(wt, name), worktreeWorkerUnreachable(wt, name), worktreeWorkerRunning(wt, name))
-	return st.Render(glyph)
-}
-
-func worktreeWorkerStateText(wt *siteinfo.WorktreeInfo, name string) string {
-	st, _, word := workerVisual(worktreeWorkerFailing(wt, name), worktreeWorkerUnreachable(wt, name), worktreeWorkerRunning(wt, name))
-	return st.Render(word)
-}
-
-func worktreeDBStateText(wt siteinfo.WorktreeInfo) string {
-	if wt.DBIsolated {
-		name := wt.DBDatabase
-		if name == "" {
-			name = "isolated"
-		}
-		return runningStyle.Render(name)
-	}
-	return dimStyle.Render("shared with parent")
-}
-
-// worktreeVersionText shows the effective PHP/Node version with an
-// "(inherited)" hint when the value comes from the parent rather than a
-// .servlo.yaml override on the worktree.
-func worktreeVersionText(version string, override bool) string {
-	if version == "" {
-		return dimStyle.Render("not set")
-	}
-	if override {
-		return accentStyle.Render(version)
-	}
-	return dimStyle.Render(version + " (inherited)")
 }
 
 func workerGlyphFor(s *siteinfo.EnrichedSite, name string) string {

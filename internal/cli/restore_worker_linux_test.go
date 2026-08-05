@@ -61,33 +61,3 @@ func TestRestoreWorker_parentPath_writesParentUnit(t *testing.T) {
 		t.Errorf("expected WorkingDirectory=/p/ws in unit content, got %q", mgr.writes[0].content)
 	}
 }
-
-// TestRestoreWorker_worktreePath_writesSuffixedUnit pins the fix: when
-// restoreWorker is invoked for a worktree path under the parent site, the
-// produced unit must be servlo-<worker>-<site>-<wtBase> with WorkingDirectory
-// set to the worktree path. Pre-fix, restoreWorker built the parent-shaped
-// unit name from siteName alone, so per-worktree workers couldn't survive
-// a daemon restart cleanly.
-func TestRestoreWorker_worktreePath_writesSuffixedUnit(t *testing.T) {
-	registerSite(t, "ws", "/p/ws")
-	mgr := &captureWriteMgr{writeChange: true}
-	swapServiceMgr(t, mgr)
-
-	w := config.FrameworkWorker{Command: "npm run dev", Host: true, Label: "Vite"}
-	restoreWorker("ws", "/p/ws/main", "8.4", "vite", w)
-
-	if len(mgr.writes) == 0 {
-		t.Fatal("expected at least one WriteServiceUnitIfChanged call")
-	}
-	if got := mgr.writes[0].name; got != "servlo-vite-ws-main" {
-		t.Errorf("got unit %q, want %q", got, "servlo-vite-ws-main")
-	}
-	if !strings.Contains(mgr.writes[0].content, "WorkingDirectory=/p/ws/main") {
-		t.Errorf("expected WorkingDirectory=/p/ws/main in unit content, got %q", mgr.writes[0].content)
-	}
-	// The systemd Description should reflect the worktree label so users
-	// can tell parent and worktree units apart in journalctl / systemctl.
-	if !strings.Contains(mgr.writes[0].content, "ws/main") {
-		t.Errorf("expected ws/main label in unit content for worktree, got %q", mgr.writes[0].content)
-	}
-}

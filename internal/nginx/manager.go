@@ -83,24 +83,6 @@ func detectSiteDevServer(site config.Site) (base string, port int) {
 	return tool.Base, site.DevServerPort
 }
 
-// detectWorktreeDevServer is detectSiteDevServer for a worktree checkout, whose
-// port is pinned on the parent site under the worktree's directory base.
-func detectWorktreeDevServer(siteName, path string) (base string, port int) {
-	site, err := config.FindSite(siteName)
-	if err != nil || site == nil {
-		return "", 0
-	}
-	port = site.WorktreeDevPorts[filepath.Base(path)]
-	if port == 0 {
-		return "", 0
-	}
-	tool := config.DevServerToolInstalled(path)
-	if tool == nil {
-		return "", 0
-	}
-	return tool.Base, port
-}
-
 type nginxConfData struct {
 	Resolver        string
 	AccessLogTarget string
@@ -130,9 +112,9 @@ type VhostData struct {
 	UpstreamHost  string // host-proxy upstream address (e.g. "host.containers.internal")
 	UpstreamPort  int    // host-proxy upstream port (the dev server's host port)
 	BackendSSL    bool   // proxy to the backend via HTTPS (app serves TLS on its own port)
-	// ServloSite / ServloBranch surface the parent site name and (for worktrees)
-	// the branch to PHP via fastcgi_param so the debug bridge can tag events
-	// with stable identifiers instead of guessing from DOCUMENT_ROOT.
+	// ServloSite / ServloBranch surface the site name and the branch to PHP via
+	// fastcgi_param so events carry stable identifiers instead of a guess from
+	// DOCUMENT_ROOT.
 	ServloSite   string
 	ServloBranch string
 	// RequestTimeout is the nginx request timeout in seconds rendered into the
@@ -147,7 +129,7 @@ type VhostData struct {
 
 // Root is the document root as the templates render it, quoted so a path with a
 // space stays a single nginx token. Every generator that fills a VhostData goes
-// through it, so the site, worktree, and SSL vhosts are all covered.
+// through it, so the plain and SSL vhosts are both covered.
 func (d VhostData) Root() string {
 	return nginxQuote(d.Path + "/" + d.PublicDir)
 }
@@ -213,9 +195,9 @@ func frameworkNginxBlock(w io.Writer, framework, domain, snippet, sitePath, publ
 const nginxValueForbidden = "{};#\n\r\x00"
 
 // validate refuses any value that could break out of the directive it lands in.
-// A project's .servlo.yaml supplies the domains, the public dir and the path, and
-// a worktree's domain carries a git branch name, which may legally contain `;`
-// and braces. Checked here rather than per field so a field added to the struct
+// A project's .servlo.yaml supplies the domains, the public dir and the path,
+// any of which may legally carry `;` and braces. Checked here rather than per
+// field so a field added to the struct
 // later is covered without anyone remembering. Ints and bools cannot carry
 // syntax, so only the strings are examined.
 //
@@ -372,9 +354,9 @@ func resolvePublicDir(site config.Site) string {
 }
 
 // serverNamesWithWildcards returns a space-separated list of all domains plus
-// a *.domain wildcard for each, so subdomains are routed to the site too.
-// Worktree subdomains take priority because they have their own vhost with an
-// exact server_name (nginx prefers exact over wildcard).
+// a *.domain wildcard for each, so subdomains are routed to the site too. A
+// subdomain with a vhost of its own still wins, since nginx prefers an exact
+// server_name over a wildcard.
 func serverNamesWithWildcards(domains []string) string {
 	var parts []string
 	for _, d := range domains {
@@ -679,173 +661,6 @@ func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl boo
 	return os.WriteFile(confPath, rendered, 0644)
 }
 
-// GenerateWorktreeVhostFor picks GenerateWorktreeSSLVhost or GenerateWorktreeVhost
-// based on the secured flag, so callers (scanWorktrees, syncWorktree,
-// migrateWorktreeVhosts) don't repeat the if/else around the two
-// underlying generators. parentDomain is consulted only on the SSL path.
-// siteName + branch are forwarded so the worktree's PHP requests get tagged
-// with SERVLO_SITE / SERVLO_BRANCH for dump grouping.
-func GenerateWorktreeVhostFor(domain, path, phpVersion, parentDomain, siteName, branch string, secured bool) error {
-	if secured {
-		return GenerateWorktreeSSLVhost(domain, path, phpVersion, parentDomain, siteName, branch)
-	}
-	return GenerateWorktreeVhost(domain, path, phpVersion, siteName, branch)
-}
-
-// worktreeSite rebases the parent site onto the worktree checkout: same
-// framework and public_dir, but rooted at the worktree's path and domain, so
-// everything derived from it (document root, framework nginx block) resolves
-// against the branch's own files. An unregistered parent yields a bare site,
-// which falls back to the shared FPM container and a "public" root.
-func worktreeSite(domain, path, siteName string) config.Site {
-	site := config.Site{Name: siteName, Domains: []string{domain}, Path: path}
-	if parent, _ := config.FindSite(siteName); parent != nil {
-		site = *parent
-		site.Path = path
-		site.Domains = []string{domain}
-	}
-	return site
-}
-
-// worktreeVhostConfig resolves the framework-dependent parts of a worktree
-// vhost, the same three the main-site generators resolve for the parent.
-func worktreeVhostConfig(domain, path, phpVersion, siteName string) (publicDir, fpmContainer, frameworkNginx string) {
-	site := worktreeSite(domain, path, siteName)
-	publicDir = resolvePublicDir(site)
-	fpmContainer = podman.FPMContainerName(site, phpVersion)
-	return publicDir, fpmContainer, resolveFrameworkNginx(site, publicDir, fpmContainer)
-}
-
-// GenerateWorktreeVhost renders the HTTP vhost template for a worktree checkout
-// and writes it to conf.d/<domain>.conf.
-func GenerateWorktreeVhost(domain, path, phpVersion, siteName, branch string) error {
-	tmplData, err := GetTemplate("vhost.conf.tmpl")
-	if err != nil {
-		return err
-	}
-
-	tmpl, err := template.New("vhost").Parse(string(tmplData))
-	if err != nil {
-		return err
-	}
-
-	publicDir, fpmContainer, frameworkNginx := worktreeVhostConfig(domain, path, phpVersion, siteName)
-	devBase, devPort := detectWorktreeDevServer(siteName, path)
-	data := VhostData{
-		Domain:          domain,
-		ServerNames:     domain + " *." + domain,
-		Path:            path,
-		PHPVersion:      phpVersion,
-		PHPVersionShort: phpShort(phpVersion),
-		FPMContainer:    fpmContainer,
-		PublicDir:       publicDir,
-		ServloSite:      siteName,
-		ServloBranch:    branch,
-		UpstreamHost:    hostProxyUpstream(),
-		DevServerBase:   devBase,
-		DevServerPort:   devPort,
-		RequestTimeout:  resolveRequestTimeout(path),
-		FrameworkNginx:  frameworkNginx,
-	}
-
-	rendered, err := renderVhost(tmpl, data)
-	if err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
-	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
-}
-
-// GenerateWorktreeSSLVhost renders the SSL vhost template for a worktree checkout,
-// reusing the parent site's wildcard certificate (*.parentDomain).
-func GenerateWorktreeSSLVhost(domain, path, phpVersion, parentDomain, siteName, branch string) error {
-	tmplData, err := GetTemplate("vhost-ssl.conf.tmpl")
-	if err != nil {
-		return err
-	}
-
-	tmpl, err := template.New("vhost-ssl").Parse(string(tmplData))
-	if err != nil {
-		return err
-	}
-
-	publicDir, fpmContainer, frameworkNginx := worktreeVhostConfig(domain, path, phpVersion, siteName)
-	devBase, devPort := detectWorktreeDevServer(siteName, path)
-	data := VhostData{
-		Domain:          domain,
-		ServerNames:     domain + " *." + domain,
-		Path:            path,
-		PHPVersion:      phpVersion,
-		PHPVersionShort: phpShort(phpVersion),
-		FPMContainer:    fpmContainer,
-		CertDomain:      parentDomain,
-		PublicDir:       publicDir,
-		ServloSite:      siteName,
-		ServloBranch:    branch,
-		UpstreamHost:    hostProxyUpstream(),
-		DevServerBase:   devBase,
-		DevServerPort:   devPort,
-		RequestTimeout:  resolveRequestTimeout(path),
-		FrameworkNginx:  frameworkNginx,
-	}
-
-	rendered, err := renderVhost(tmpl, data)
-	if err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
-	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
-}
-
-// GenerateWorktreeHostProxyVhostFor renders a worktree's host-proxy vhost: nginx
-// reverse-proxies the worktree domain to the dev server running on the host at
-// upstreamPort (the worktree's own port). The HTTP/SSL choice mirrors
-// GenerateWorktreeVhostFor, and the SSL variant reuses the parent's wildcard
-// cert (*.parentDomain) just like the PHP worktree path.
-func GenerateWorktreeHostProxyVhostFor(domain, path, parentDomain string, upstreamPort int, backendSSL, secured bool) error {
-	data := VhostData{
-		Domain:         domain,
-		ServerNames:    domain + " *." + domain,
-		UpstreamHost:   hostProxyUpstream(),
-		UpstreamPort:   upstreamPort,
-		BackendSSL:     backendSSL,
-		RequestTimeout: resolveRequestTimeout(path),
-	}
-	tmplName := "vhost-hostproxy.conf.tmpl"
-	if secured {
-		tmplName = "vhost-hostproxy-ssl.conf.tmpl"
-		data.CertDomain = parentDomain
-	}
-
-	tmplData, err := GetTemplate(tmplName)
-	if err != nil {
-		return err
-	}
-	tmpl, err := template.New(tmplName).Parse(string(tmplData))
-	if err != nil {
-		return err
-	}
-	rendered, err := renderVhost(tmpl, data)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-	config.GuardRealWrite(filepath.Join(config.NginxConfD(), domain+".conf"))
-	return os.WriteFile(filepath.Join(config.NginxConfD(), domain+".conf"), rendered, 0644)
-}
-
 // landingVhostConf renders a minimal vhost for site that serves htmlFile (read
 // from pausedDir) for every path. Shared by the paused and the idle-waking
 // landing pages. Secured sites get an 80->443 redirect plus a TLS server block;
@@ -911,54 +726,6 @@ func writeLandingVhost(site config.Site, htmlFile string) error {
 // so the redirect and TLS still work while the site is paused.
 func GeneratePausedVhost(site config.Site) error {
 	return writeLandingVhost(site, "paused.html")
-}
-
-// GeneratePausedWorktreeVhost writes a paused nginx vhost for a worktree domain.
-// certDomain is the parent site's domain whose cert files back the wildcard.
-func GeneratePausedWorktreeVhost(domain, certDomain, pausedDir string, secured bool) error {
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-
-	var conf string
-	if secured {
-		conf = fmt.Sprintf(`server {
-    listen 80;
-    listen [::]:80;
-    server_name %s;
-    return 302 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    server_name %s;
-    ssl_certificate /etc/nginx/certs/%s.crt;
-    ssl_certificate_key /etc/nginx/certs/%s.key;
-    root %s;
-    location / {
-        try_files /paused.html =503;
-        default_type text/html;
-    }
-}
-`, domain, domain, certDomain, certDomain, nginxQuote(pausedDir))
-	} else {
-		conf = fmt.Sprintf(`server {
-    listen 80;
-    listen [::]:80;
-    server_name %s;
-    root %s;
-    location / {
-        try_files /paused.html =503;
-        default_type text/html;
-    }
-}
-`, domain, nginxQuote(pausedDir))
-	}
-
-	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
-	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, []byte(conf), 0644)
 }
 
 // RemoveVhost deletes the vhost config files for the given domain.
@@ -1124,7 +891,7 @@ type VhostRepair struct {
 //   - If no matching site exists (orphan SSL vhost), the config is removed.
 //
 // Plain HTTP vhosts are left untouched even if they don't match any site — they
-// are harmless and may belong to worktrees, parked sites, or ignored sites.
+// are harmless and may belong to parked or ignored sites.
 func RepairVhosts() []VhostRepair {
 	certsDir := filepath.Join(config.CertsDir(), "sites")
 	confDir := config.NginxConfD()

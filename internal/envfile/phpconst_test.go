@@ -179,7 +179,7 @@ func TestApplyPhpConstUpdates_NoOpWhenUnchanged(t *testing.T) {
 	body, _ := os.ReadFile(path)
 
 	// Re-applying the value the file already holds must not touch it: wp-config.php
-	// is rewritten on every worktree sync otherwise.
+	// is rewritten on every env sync otherwise.
 	time.Sleep(10 * time.Millisecond)
 	if err := ApplyPhpConstUpdates(path, map[string]string{"DB_HOST": "servlo-mysql"}); err != nil {
 		t.Fatalf("no-op write: %v", err)

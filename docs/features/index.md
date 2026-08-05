@@ -18,7 +18,6 @@ Beyond serving PHP sites, servlo ships a set of tools for working with them. Eve
 - DNS resolves `.test` domains without editing `/etc/hosts`.
 - [Project setup](/features/project-setup) is how servlo detects a framework and configures it.
 - [Env setup](/features/env-setup) wires service credentials into your site's `.env`.
-- Git worktrees serves branches side by side on their own domains.
 - [FrankenPHP](/features/frankenphp) is the alternative runtime to PHP-FPM.
 
 ## Inspecting and debugging

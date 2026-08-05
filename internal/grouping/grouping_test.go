@@ -38,28 +38,6 @@ func reload(t *testing.T, name string) *config.Site {
 	return s
 }
 
-// fakeMainRepo creates a .git directory so DetectWorktrees treats path as a
-// main repo, optionally adding a worktree on the given branch.
-func fakeMainRepo(t *testing.T, branch, checkout string) string {
-	t.Helper()
-	dir := t.TempDir()
-	if branch == "" {
-		os.MkdirAll(filepath.Join(dir, ".git"), 0755)
-		return dir
-	}
-	wt := filepath.Join(dir, ".git", "worktrees", branch)
-	if err := os.MkdirAll(wt, 0755); err != nil {
-		t.Fatal(err)
-	}
-	os.WriteFile(filepath.Join(wt, "HEAD"), []byte("ref: refs/heads/"+branch+"\n"), 0644)
-	if checkout == "" {
-		checkout = t.TempDir()
-	}
-	os.MkdirAll(checkout, 0755)
-	os.WriteFile(filepath.Join(wt, "gitdir"), []byte(filepath.Join(checkout, ".git")+"\n"), 0644)
-	return dir
-}
-
 // ── ComputeSecondaryDomain ───────────────────────────────────────────────────
 
 func TestComputeSecondaryDomain(t *testing.T) {
@@ -182,16 +160,6 @@ func TestAssignSecondary_rejectsSiblingLabelDup(t *testing.T) {
 	mustAdd(t, config.Site{Name: "admin2", Domains: []string{"admin2.test"}, Path: "/srv/admin2"})
 	if err := AssignSecondary(reload(t, "starlane"), reload(t, "admin2"), "admin", false); err == nil {
 		t.Error("expected error for duplicate sibling label")
-	}
-}
-
-func TestAssignSecondary_rejectsWorktreeLabelCollision(t *testing.T) {
-	setup(t)
-	mainPath := fakeMainRepo(t, "admin", "")
-	mustAdd(t, config.Site{Name: "starlane", Domains: []string{"starlane.test"}, Path: mainPath})
-	mustAdd(t, config.Site{Name: "admin", Domains: []string{"admin.test"}, Path: "/srv/admin"})
-	if err := AssignSecondary(reload(t, "starlane"), reload(t, "admin"), "admin", false); err == nil {
-		t.Error("expected error when a main-site worktree already uses the label")
 	}
 }
 
@@ -433,19 +401,5 @@ func TestSyncSecondaryProjectDomains_replacesOldStandalone(t *testing.T) {
 	}
 	if len(cfg.Domains) != 1 || cfg.Domains[0] != "admin.starlane" {
 		t.Errorf(".servlo.yaml domains = %v, want [admin.starlane] (old standalone dropped)", cfg.Domains)
-	}
-}
-
-// ── WorktreeLabelTaken ───────────────────────────────────────────────────────
-
-func TestWorktreeLabelTaken(t *testing.T) {
-	setup(t)
-	mainPath := fakeMainRepo(t, "admin", "")
-	main := &config.Site{Name: "starlane", Domains: []string{"starlane.test"}, Path: mainPath}
-	if taken, err := WorktreeLabelTaken(main, "admin"); err != nil || !taken {
-		t.Errorf("expected admin label taken, got taken=%v err=%v", taken, err)
-	}
-	if taken, err := WorktreeLabelTaken(main, "free"); err != nil || taken {
-		t.Errorf("expected free label available, got taken=%v err=%v", taken, err)
 	}
 }

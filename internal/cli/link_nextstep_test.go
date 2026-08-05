@@ -31,23 +31,22 @@ func TestLinkNextStep(t *testing.T) {
 }
 
 func TestLinkShouldRunWizard(t *testing.T) {
-	// hasConfig, interactive, hasDomainArg, isWorktree
+	// hasConfig, interactive, hasDomainArg
 	cases := []struct {
-		name                                          string
-		hasConfig, interactive, domainArg, isWorktree bool
-		want                                          bool
+		name                              string
+		hasConfig, interactive, domainArg bool
+		want                              bool
 	}{
-		{"fresh interactive bare link runs wizard", false, true, false, false, true},
-		{"existing config links directly", true, true, false, false, false},
-		{"non-interactive stays bare (park/CI/scripts)", false, false, false, false, false},
-		{"explicit domain arg links directly", false, true, true, false, false},
-		{"worktree inherits parent, no wizard", false, true, false, true, false},
+		{"fresh interactive bare link runs wizard", false, true, false, true},
+		{"existing config links directly", true, true, false, false},
+		{"non-interactive stays bare (park/CI/scripts)", false, false, false, false},
+		{"explicit domain arg links directly", false, true, true, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := linkShouldRunWizard(c.hasConfig, c.interactive, c.domainArg, c.isWorktree); got != c.want {
-				t.Errorf("linkShouldRunWizard(%v,%v,%v,%v) = %v, want %v",
-					c.hasConfig, c.interactive, c.domainArg, c.isWorktree, got, c.want)
+			if got := linkShouldRunWizard(c.hasConfig, c.interactive, c.domainArg); got != c.want {
+				t.Errorf("linkShouldRunWizard(%v,%v,%v) = %v, want %v",
+					c.hasConfig, c.interactive, c.domainArg, got, c.want)
 			}
 		})
 	}

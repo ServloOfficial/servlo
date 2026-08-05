@@ -68,11 +68,6 @@ Setup steps include common tasks (composer install, npm install, servlo env) plu
 | `servlo unlink [name]` | Stop serving the site |
 | `servlo sites` | Table view of all registered sites |
 | `servlo open [name]` | Open the site in the default browser |
-| `servlo share [name]` | Expose the site publicly via ngrok, cloudflared, or Expose (auto-detected) |
-| `servlo share --domain <hostname>` | Expose the site on your own Cloudflare-managed hostname via a named tunnel (implies Cloudflare Tunnel) |
-| `servlo share:tool [tool]` | Show or set the default tunnel tool for `servlo share` (`auto` restores auto-detection) |
-| `servlo share:domain [domain]` | Show or set the base domain a Cloudflare share is served under, as `<site>.<domain>` (`none` forgets it) |
-| `servlo share:token [token]` | Show whether an ngrok auth token is stored, or set one so ngrok can run as a container without being installed (`none` forgets it) |
 | `servlo secure [name]` | Issue a mkcert TLS cert and enable HTTPS, updates `APP_URL` in `.env` |
 | `servlo secure --renew [name]` | Reissue a secured site's TLS cert on demand, resetting its expiry |
 | `servlo unsecure [name]` | Remove TLS and switch back to HTTP, updates `APP_URL` in `.env` |
@@ -97,17 +92,6 @@ Setup steps include common tasks (composer install, npm install, servlo env) plu
 | `servlo env:check` | Compare all `.env` files against `.env.example` and flag missing or extra keys |
 
 ## LAN
-
-### LAN sharing (per-site, no DNS setup required on clients)
-
-| Command | Description |
-|---|---|
-| `servlo lan:share` | Start a LAN reverse proxy for the current site on a stable port; prints the URL and a QR code |
-| `servlo lan:unshare` | Stop LAN sharing for the current site and release its port |
-
-The proxy runs inside the servlo daemon (`servlo-ui`), no external tool needed and no internet access required. Any device on the same network can reach the site at `http://<your-LAN-IP>:<port>` without configuring DNS. The assigned port is stored in `sites.yaml` and reused across restarts. The proxy rewrites the Host header so nginx routes correctly, and rewrites absolute URLs in HTML/CSS/JS responses so asset and redirect URLs point to the LAN address instead of the `.test` domain. See LAN sharing for details.
-
-`servlo share` (without `lan:`) is different: it wraps an external tunnel tool (ngrok/cloudflared/Expose/SSH) to expose the site to the **public internet**.
 
 ### Full LAN exposure (DNS-based)
 
@@ -286,19 +270,6 @@ Requires [Laravel Broadcasting](https://laravel.com/docs/13.x/broadcasting) with
 | `servlo worker start <name>` | Start any named framework worker for the current project |
 | `servlo worker stop <name>` | Stop a named framework worker |
 | `servlo worker list` | List all workers defined for the current project's framework |
-
-## Idle-suspend
-
-Activity-driven worker suspension: servlo gracefully stops each site's suspendable workers (queue, scheduler, Horizon, Reverb, Stripe listener, Vite) after a period of no activity and resumes them on the next request, CLI command, or source-file save. See the idle-suspend page for the full behaviour.
-
-| Command | Description |
-|---|---|
-| `servlo idle on` | Enable idle-suspend globally |
-| `servlo idle off` | Disable idle-suspend and resume every suspended worker |
-| `servlo idle status` | Show each site's idle-suspend policy and last-active time |
-| `servlo idle timeout <duration>` | Set the idle timeout (e.g. `30m`, `2h`) |
-| `servlo idle pin <site>` | Pin a site so idle-suspend never sleeps it |
-| `servlo idle unpin <site>` | Unpin a site so idle-suspend can sleep it again |
 
 ## Framework definitions
 

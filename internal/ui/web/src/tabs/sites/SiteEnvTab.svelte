@@ -19,9 +19,8 @@
 
   interface Props {
     site: Site;
-    branch: string;
   }
-  let { site, branch }: Props = $props();
+  let { site }: Props = $props();
 
   // Both empty until the file list loads: the server sorts the framework's
   // primary dotenv first, so we snap to files[0] rather than assuming a root
@@ -46,13 +45,7 @@
   let inserting = $state(false);
   let insertError = $state('');
 
-  const envPath = $derived.by(() => {
-    if (branch) {
-      const wt = (site.worktrees || []).find((w) => w.branch === branch);
-      if (wt?.path) return wt.path + '/' + file;
-    }
-    return (site.path || '') + '/' + file;
-  });
+  const envPath = $derived((site.path || '') + '/' + file);
   const envPathLabel = $derived(homeShorten(envPath, $status.home));
 
   const dirty = $derived(text !== original);
@@ -67,16 +60,15 @@
 
   function refreshProposal() {
     const domain = site.domain;
-    const b = branch;
-    proposeSiteEnv(domain, b, false)
+    proposeSiteEnv(domain, false)
       .then((p) => {
-        if (site.domain !== domain || branch !== b) return;
+        if (site.domain !== domain) return;
         missingCount = p.added.length;
         proposeFile = p.file;
         proposeEntries = p.entries;
       })
       .catch(() => {
-        if (site.domain !== domain || branch !== b) return;
+        if (site.domain !== domain) return;
         missingCount = 0;
         proposeEntries = [];
       });
@@ -95,53 +87,49 @@
   async function stageKeys(keys: string[]) {
     if (keys.length === 0) return;
     const domain = site.domain;
-    const b = branch;
     inserting = true;
     insertError = '';
     try {
-      const p = await proposeSiteEnv(domain, b, false, keys);
-      if (site.domain !== domain || branch !== b || file !== p.file) return;
+      const p = await proposeSiteEnv(domain, false, keys);
+      if (site.domain !== domain || file !== p.file) return;
       // Staging the merge makes the buffer differ from disk, so highlightLines
       // (derived from that diff) lights up the inserted lines on its own.
       text = p.merged;
     } catch (e: unknown) {
-      if (site.domain !== domain || branch !== b) return;
+      if (site.domain !== domain) return;
       insertError = e instanceof Error ? e.message : m.envEditor_proposeFailed();
     } finally {
       inserting = false;
     }
   }
 
-  // Refresh the file list whenever the site or branch changes. When the
-  // selected file disappears (or is still the empty initial value) we snap to
-  // the primary files[0] if there are no unsaved edits; a dirty buffer for a
-  // file that vanished on disk stays open so the user can copy out or save it.
+  // Refresh the file list whenever the site changes. When the selected file
+  // disappears (or is still the empty initial value) we snap to the primary
+  // files[0] if there are no unsaved edits; a dirty buffer for a file that
+  // vanished on disk stays open so the user can copy out or save it.
   $effect(() => {
     const domain = site.domain;
-    const b = branch;
-    loadSiteEnvFiles(domain, b).then((list) => {
-      if (site.domain !== domain || branch !== b) return;
+    loadSiteEnvFiles(domain).then((list) => {
+      if (site.domain !== domain) return;
       files = list;
       if (!list.includes(file) && !dirty) file = list[0] ?? '.env';
     });
   });
 
-  // Rescan for missing example keys when the site or branch changes. The
-  // proposal targets the framework env file, so it's independent of the file
-  // dropdown and doesn't need to re-run when only `file` changes.
+  // Rescan for missing example keys when the site changes. The proposal targets
+  // the framework env file, so it's independent of the file dropdown and
+  // doesn't need to re-run when only `file` changes.
   $effect(() => {
     void site.domain;
-    void branch;
     refreshProposal();
   });
 
-  // Reload content + backups whenever the chosen file (or site/branch) changes.
+  // Reload content + backups whenever the chosen file (or site) changes.
   // Stay in the loading state until the file list has named a file: fetching on
   // the empty initial value would load one file and then immediately reload the
   // one we snap to, and the editor must not be typeable against no file at all.
   $effect(() => {
     const domain = site.domain;
-    const b = branch;
     const f = file;
     loading = true;
     error = '';
@@ -150,9 +138,9 @@
     original = '';
     text = '';
     backups = [];
-    Promise.all([loadSiteEnv(domain, b, f), loadSiteEnvBackups(domain, b, f)])
+    Promise.all([loadSiteEnv(domain, f), loadSiteEnvBackups(domain, f)])
       .then(([t, list]) => {
-        if (site.domain !== domain || branch !== b || file !== f) return;
+        if (site.domain !== domain || file !== f) return;
         original = t;
         text = t;
         backups = list;
@@ -161,11 +149,11 @@
         // Guard the error setter the same way the success branch does, so
         // a stale rejection from a previous site cannot blow away the
         // current view's error state.
-        if (site.domain !== domain || branch !== b || file !== f) return;
+        if (site.domain !== domain || file !== f) return;
         error = e instanceof Error ? e.message : String(e);
       })
       .finally(() => {
-        if (site.domain === domain && branch === b && file === f) loading = false;
+        if (site.domain === domain && file === f) loading = false;
       });
   });
 
@@ -200,18 +188,15 @@
         // network round-trip the success callback should still apply to
         // the file we restored, not whatever is current at completion.
         const restoredFile = file;
-        const restoredBranch = branch;
         const restoredDomain = site.domain;
         const backupContent = await loadSiteEnvBackupContent(
           restoredDomain,
           latestBackup.name,
-          restoredBranch,
           restoredFile
         );
         openEnvRestoreModal(
           {
             domain: restoredDomain,
-            branch: restoredBranch,
             file: restoredFile,
             current: text,
             backupName: latestBackup.name,
@@ -221,20 +206,14 @@
             // Only refresh local state if the user is still looking at
             // the file we restored; if they navigated away, the next
             // load effect for the new context will populate fresh state.
-            if (
-              site.domain !== restoredDomain ||
-              branch !== restoredBranch ||
-              file !== restoredFile
-            ) {
-              return;
-            }
+            if (site.domain !== restoredDomain || file !== restoredFile) return;
             // The restore endpoint already returns the new content, so
             // we use the backupContent we loaded for the diff instead of
             // re-fetching via loadSiteEnv. We do refetch the backups list
             // because it shrank by one.
             original = backupContent;
             text = backupContent;
-            backups = await loadSiteEnvBackups(restoredDomain, restoredBranch, restoredFile);
+            backups = await loadSiteEnvBackups(restoredDomain, restoredFile);
           }
         );
       } catch (e: unknown) {
@@ -250,24 +229,17 @@
     // (or any other reactive change) cannot redirect the post-save reload
     // at the wrong file.
     const savedDomain = site.domain;
-    const savedBranch = branch;
     const savedFile = file;
     openEnvSaveModal(
-      { domain: savedDomain, branch: savedBranch, file: savedFile, content: text, original },
+      { domain: savedDomain, file: savedFile, content: text, original },
       async () => {
         const [t, list] = await Promise.all([
-          loadSiteEnv(savedDomain, savedBranch, savedFile),
-          loadSiteEnvBackups(savedDomain, savedBranch, savedFile)
+          loadSiteEnv(savedDomain, savedFile),
+          loadSiteEnvBackups(savedDomain, savedFile)
         ]);
         // Only apply if the user is still on the file we saved; otherwise
         // the load effect for the new file will populate its own state.
-        if (
-          site.domain !== savedDomain ||
-          branch !== savedBranch ||
-          file !== savedFile
-        ) {
-          return;
-        }
+        if (site.domain !== savedDomain || file !== savedFile) return;
         original = t;
         text = t;
         backups = list;

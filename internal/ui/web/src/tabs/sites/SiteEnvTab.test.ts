@@ -42,15 +42,15 @@ describe('SiteEnvTab', () => {
   });
 
   it('opens the framework dotenv the server sorted first, not a root .env', async () => {
-    const { getByText } = render(SiteEnvTab, { props: { site, branch: '' } });
+    const { getByText } = render(SiteEnvTab, { props: { site } });
 
     await waitFor(() => expect(loadSiteEnv).toHaveBeenCalled());
-    expect(loadSiteEnv.mock.calls[0][2]).toBe('.env.local');
+    expect(loadSiteEnv.mock.calls[0][1]).toBe('.env.local');
     await waitFor(() => getByText('.env.local'));
   });
 
   it('fetches the content once, after the file list names a file', async () => {
-    render(SiteEnvTab, { props: { site, branch: '' } });
+    render(SiteEnvTab, { props: { site } });
 
     await waitFor(() => expect(loadSiteEnv).toHaveBeenCalled());
     // Settle any follow-up effects before counting.
@@ -64,20 +64,9 @@ describe('SiteEnvTab', () => {
   });
 
   it('shows the absolute path of the selected dotenv', async () => {
-    const { getByText } = render(SiteEnvTab, { props: { site, branch: '' } });
+    const { getByText } = render(SiteEnvTab, { props: { site } });
 
     await waitFor(() => getByText('/home/u/Code/sf/.env.local'));
-  });
-
-  it('shows the worktree path when a worktree branch is active', async () => {
-    const wtSite = {
-      ...site,
-      worktrees: [{ branch: 'feat', path: '/home/u/Code/sf-feat' }]
-    } as unknown as Site;
-
-    const { getByText } = render(SiteEnvTab, { props: { site: wtSite, branch: 'feat' } });
-
-    await waitFor(() => getByText('/home/u/Code/sf-feat/.env.local'));
   });
 
   it('opens a nested dotenv when that is the only file the framework has', async () => {
@@ -93,9 +82,9 @@ describe('SiteEnvTab', () => {
       entries: []
     });
 
-    render(SiteEnvTab, { props: { site, branch: '' } });
+    render(SiteEnvTab, { props: { site } });
 
     await waitFor(() => expect(loadSiteEnv).toHaveBeenCalled());
-    expect(loadSiteEnv.mock.calls[0][2]).toBe('config/.env');
+    expect(loadSiteEnv.mock.calls[0][1]).toBe('config/.env');
   });
 });

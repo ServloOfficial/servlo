@@ -29,10 +29,10 @@ func TestInitShouldRunWizard_EmptyPresentConfigForcedByLinkPath(t *testing.T) {
 // linkShouldRunWizard must treat an empty config the same as an absent one, so
 // the link path routes into the (now forced) wizard.
 func TestLinkShouldRunWizard_EmptyConfigRoutesToWizard(t *testing.T) {
-	if !linkShouldRunWizard(false /* hasConfig */, true, false, false) {
-		t.Fatal("no committed config + interactive + no arg + not worktree should run the wizard")
+	if !linkShouldRunWizard(false /* hasConfig */, true, false) {
+		t.Fatal("no committed config + interactive + no arg should run the wizard")
 	}
-	if linkShouldRunWizard(true /* hasConfig */, true, false, false) {
+	if linkShouldRunWizard(true /* hasConfig */, true, false) {
 		t.Fatal("a real committed config should do a bare link, not the wizard")
 	}
 }

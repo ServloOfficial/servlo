@@ -60,30 +60,3 @@ describe('SiteRequestTiming Recent list', () => {
     });
   });
 });
-
-// A worktree is served from its own subdomain, so the panel must both ask for the
-// branch's timing. It used to load the parent's, showing the wrong checkout.
-describe('SiteRequestTiming on a worktree', () => {
-  const site = {
-    domain: 'whitewaters.test',
-    tls: true,
-    worktrees: [{ branch: 'feature-x', domain: 'feature-x.whitewaters.test' }]
-  };
-
-  it('loads the branch rather than the parent checkout', async () => {
-    loadSiteAnalytics.mockClear();
-
-    const { findAllByText } = render(SiteRequestTiming, {
-      props: {
-        site,
-        activeWorktreeBranch: 'feature-x'
-      }
-    });
-
-    await waitFor(() => {
-      expect(loadSiteAnalytics).toHaveBeenCalledWith('whitewaters.test', '1h', 'feature-x');
-    });
-
-    await findAllByText('/reports/:id');
-  });
-});

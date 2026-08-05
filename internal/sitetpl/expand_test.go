@@ -36,7 +36,7 @@ func TestExpandCommandsEmptySlice(t *testing.T) {
 	}
 }
 
-// An unregistered path (a git worktree is not a registered site) still yields a
+// An unregistered path still yields a
 // database handle, but no domain or scheme. Those placeholders are then left
 // verbatim by Apply rather than collapsing to "://".
 func TestForPathUnregisteredHasNoDomain(t *testing.T) {

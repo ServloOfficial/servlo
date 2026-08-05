@@ -375,14 +375,8 @@ func siteServiceForTool(cwd, tool string) string {
 }
 
 // dbEnvRootFor returns the directory whose .env describes the database a command
-// run from cwd talks to. A worktree nested inside its parent site matches that
-// site by path, so reading the site root would route a branch at the parent's DB.
+// run from cwd talks to.
 func dbEnvRootFor(cwd string) string {
-	if wt, _, ok := phpDet.WorktreeRootFor(cwd); ok {
-		if _, err := os.Stat(filepath.Join(wt, ".env")); err == nil {
-			return wt
-		}
-	}
 	return phpDet.SiteRootFor(cwd)
 }
 

@@ -95,7 +95,7 @@ func ApplyPhpArrayUpdates(path string, updates map[string]string) error {
 
 	// A rewrite reprints the whole file, so without this an env already holding
 	// every target value still gets its mtime bumped and its formatting churned
-	// on every call — and EnsureWorktreeEnv is called on every worktree sync.
+	// on every call, and this runs on every env sync.
 	if b.String() == original {
 		return nil
 	}

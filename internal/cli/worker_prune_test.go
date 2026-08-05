@@ -7,7 +7,7 @@ import (
 	"github.com/realrashid/servlo/internal/workerheal"
 )
 
-// A unit whose worktree is gone can never start again, so pruning is the only
+// A unit whose checkout is gone can never start again, so pruning is the only
 // resolution. Everything else in the same batch, including an ordinary failure
 // that heal can still fix, must be left exactly as it is.
 func TestPruneOrphanedWorkerUnits_removesOnlyOrphans(t *testing.T) {

@@ -622,7 +622,7 @@ func TestSetProjectWorkerReload_Toggle(t *testing.T) {
 
 // GetFrameworkForDir is reached from every vhost render, dashboard poll and TUI
 // row, so it must not write to the project. It used to repin framework_version on
-// the way past, which rewrote a worktree's committed .servlo.yaml under the user.
+// the way past, which rewrote a committed .servlo.yaml under the user.
 func TestGetFrameworkForDirDoesNotWriteTheProject(t *testing.T) {
 	dir := t.TempDir()
 	body := "framework: laravel\nframework_version: \"11\"\n"

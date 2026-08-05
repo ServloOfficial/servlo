@@ -15,9 +15,8 @@
 
   interface Props {
     site: Site;
-    branch?: string;
   }
-  let { site, branch = '' }: Props = $props();
+  let { site }: Props = $props();
 
   let files = $state<AppLogFile[]>([]);
   let selectedFile = $state('');
@@ -46,7 +45,7 @@
     if (clearing) return;
     clearing = true;
     try {
-      const r = await clearAppLogs(site.domain, branch);
+      const r = await clearAppLogs(site.domain);
       if (!r.ok) {
         // The confirmation closes first, or the failure stacks on top of it.
         confirmOpen = false;
@@ -63,7 +62,7 @@
   async function loadFiles() {
     loading = true;
     try {
-      const list = await listAppLogFiles(site.domain, branch);
+      const list = await listAppLogFiles(site.domain);
       files = list;
       if (list.length > 0) {
         selectedFile = list[0].name;
@@ -81,7 +80,7 @@
     if (!selectedFile) return;
     loading = true;
     try {
-      entries = await loadAppLogEntries(site.domain, selectedFile, showAll, branch);
+      entries = await loadAppLogEntries(site.domain, selectedFile, showAll);
     } finally {
       loading = false;
     }
@@ -89,14 +88,9 @@
     if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
   }
 
-  // Re-fetch the file list whenever the active site or branch changes.
-  // Without this the dropdown sticks on the first mount's branch, so
-  // switching from parent to a worktree (or between worktrees) leaves a
-  // stale "No log entries found." state — the API was scoped to the
-  // wrong path, not actually empty.
+  // Re-fetch the file list whenever the active site changes.
   $effect(() => {
     site.domain;
-    branch;
     untrack(() => loadFiles());
   });
 
@@ -207,7 +201,7 @@
   <div bind:this={scrollEl} class="flex-1 overflow-y-auto">
     {#if files.length === 0 && !loading}
       <div class="text-gray-400 dark:text-gray-600 italic text-xs p-4">
-        {branch ? m.sites_appLogs_noFilesWorktree() : m.sites_appLogs_noFiles()}
+        {m.sites_appLogs_noFiles()}
       </div>
     {:else if reversed.length === 0 && !loading}
       <div class="text-gray-400 dark:text-gray-600 italic text-xs p-4">{m.sites_appLogs_empty()}</div>

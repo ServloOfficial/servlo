@@ -8,13 +8,9 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 )
 
-// TestEnrichWorkers_keepsPerWorktreeOnParentWhenCheckPasses pins that
-// per_worktree workers (vite) are kept on the parent row when their
-// check rule matches at the parent path. The previous gate that skipped
-// IsPerWorktree() unconditionally stripped the toggle from sites without
-// worktrees that legitimately ran the worker at the parent, and stripped
-// the log tab from parents that did have worktrees.
-func TestEnrichWorkers_keepsPerWorktreeOnParentWhenCheckPasses(t *testing.T) {
+// TestEnrichWorkers_keepsWorkerWhenCheckPasses pins that a worker is reported
+// when its check rule matches at the site path.
+func TestEnrichWorkers_keepsWorkerWhenCheckPasses(t *testing.T) {
 	origUnit := unitStatusFn
 	unitStatusFn = func(name string) (string, error) {
 		if name == "servlo-vite-rapids" {
@@ -29,14 +25,12 @@ func TestEnrichWorkers_keepsPerWorktreeOnParentWhenCheckPasses(t *testing.T) {
 		t.Fatalf("setup: %v", err)
 	}
 
-	tr := true
 	fw := &config.Framework{
 		Workers: map[string]config.FrameworkWorker{
 			"vite": {
-				Label:       "Vite",
-				Command:     "npm run dev",
-				PerWorktree: &tr,
-				Check:       &config.FrameworkRule{File: "node_modules/vite"},
+				Label:   "Vite",
+				Command: "npm run dev",
+				Check:   &config.FrameworkRule{File: "node_modules/vite"},
 			},
 		},
 	}
@@ -59,24 +53,21 @@ func TestEnrichWorkers_keepsPerWorktreeOnParentWhenCheckPasses(t *testing.T) {
 	}
 }
 
-// TestEnrichWorkers_dropsPerWorktreeWhenCheckFails pins that the check
-// rule still gates parent visibility: a per_worktree worker whose check
-// file is absent at the parent path must not leak into FrameworkWorkers,
-// otherwise every Laravel project would show a vite toggle even without
-// vite installed.
-func TestEnrichWorkers_dropsPerWorktreeWhenCheckFails(t *testing.T) {
+// TestEnrichWorkers_dropsWorkerWhenCheckFails pins that the check rule gates
+// visibility: a worker whose check file is absent must not leak into
+// FrameworkWorkers, otherwise every Laravel project would show a vite toggle
+// even without vite installed.
+func TestEnrichWorkers_dropsWorkerWhenCheckFails(t *testing.T) {
 	origUnit := unitStatusFn
 	unitStatusFn = func(string) (string, error) { return "inactive", nil }
 	defer func() { unitStatusFn = origUnit }()
 
-	tr := true
 	fw := &config.Framework{
 		Workers: map[string]config.FrameworkWorker{
 			"vite": {
-				Label:       "Vite",
-				Command:     "npm run dev",
-				PerWorktree: &tr,
-				Check:       &config.FrameworkRule{File: "node_modules/vite"},
+				Label:   "Vite",
+				Command: "npm run dev",
+				Check:   &config.FrameworkRule{File: "node_modules/vite"},
 			},
 		},
 	}
@@ -86,15 +77,14 @@ func TestEnrichWorkers_dropsPerWorktreeWhenCheckFails(t *testing.T) {
 
 	for _, w := range e.FrameworkWorkers {
 		if w.Name == "vite" {
-			t.Errorf("vite leaked into parent when node_modules/vite was absent: %+v", e.FrameworkWorkers)
+			t.Errorf("vite leaked in when node_modules/vite was absent: %+v", e.FrameworkWorkers)
 		}
 	}
 }
 
-// TestEnrichWorkers_keepsNonPerWorktreeOnParent makes sure a custom
-// non-per-worktree worker that the framework yaml ships (e.g. a
-// "search-indexer" daemon) still reports correctly on the parent.
-func TestEnrichWorkers_keepsNonPerWorktreeOnParent(t *testing.T) {
+// TestEnrichWorkers_keepsCustomWorker makes sure a custom worker the framework
+// yaml ships (e.g. a "search-indexer" daemon) still reports correctly.
+func TestEnrichWorkers_keepsCustomWorker(t *testing.T) {
 	origUnit := unitStatusFn
 	unitStatusFn = func(name string) (string, error) {
 		if name == "servlo-search-indexer-rapids" {

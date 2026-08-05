@@ -88,30 +88,22 @@ func Rules() []Rule {
 			Allow:    specs,
 		},
 		{
-			Feature: "git worktrees", Story: "S0.6",
+			Feature: "git worktrees", Story: "S0.6", Enforced: true,
 			Patterns: []string{`(?i)\bworktree\b`},
 			Allow:    specs,
 		},
 		{
 			Feature: "idle-suspend", Story: "S0.6", Enforced: true,
 			Patterns: []string{`idle-suspend`, `idle_suspend`, `internal/idle`, `\bidleSuspend\b`, `activityping`},
-			// docs/ is exempt until the worktree half of S0.6 lands, so the pages
-			// describing both are rewritten once.
-			Allow: append(append([]string{}, specs...), "docs/"),
+			Allow:    specs,
 		},
 		{
 			Feature: "LAN and tunnel sharing", Story: "S0.6", Enforced: true,
 			// lan:expose is deliberately absent: it decides whether nginx binds
 			// loopback or every interface, which a server needs, and S1.2 owns it.
-			// The per-worktree LAN port registry dies with worktrees, the last
-			// piece of S0.6 still outstanding, so it is exempt until then. docs/
-			// is exempt for the same reason: the pages that describe sharing also
-			// describe worktrees, and rewriting them twice is wasted work.
 			Patterns: []string{`(?i)lanshare`, `lan:share`, `lan_share`, `tunnelshare`, `tunnel_url`, `Tunnel(Start|Stop|Status)`, `servlo share`, `\bngrok\b`, `cloudflared`},
 			Allow: append(append([]string{}, specs...),
-				"internal/config/worktree_lan_registry.go",
 				"internal/hostbin/hostbin_test.go",
-				"docs/",
 			),
 		},
 		{

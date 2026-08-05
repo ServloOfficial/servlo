@@ -24,7 +24,7 @@ const (
 	EnrichVersions                               // live PHP/Node detection from disk
 	EnrichWorkers                                // worker status via podman
 	EnrichFPM                                    // FPM container running check
-	EnrichGit                                    // worktrees + main branch
+	EnrichGit                                    // main branch
 	EnrichServices                               // .env + .servlo.yaml service detection
 	EnrichDomainConflicts                        // conflicting domain check
 	EnrichLogs                                   // app log file detection
@@ -50,29 +50,6 @@ type WorkerInfo struct {
 	Running     bool
 	Failing     bool
 	Unreachable bool
-}
-
-// WorktreeInfo describes a git worktree associated with a site.
-// PHP/NodeVersion are the effective values (override or inherited);
-// the *Override flags say which it is so callers can render an "inherited" hint.
-type WorktreeInfo struct {
-	Branch              string
-	Domain              string
-	Path                string
-	PHPVersion          string
-	NodeVersion         string
-	PHPVersionOverride  bool
-	NodeVersionOverride bool
-	FrameworkVersion    string
-	FrameworkLabel      string
-	DBIsolated          bool
-	DBDatabase          string
-	// LANPort, when non-zero, means a per-worktree reverse proxy is
-	// listening on 0.0.0.0:LANPort. Independent of the parent's LAN port.
-	LANPort int
-	// Per-worktree worker state (servlo-<wname>-<site>-<wtBase>).
-	// queue/schedule/reverb/horizon are excluded; those bind to the parent.
-	FrameworkWorkers []WorkerInfo
 }
 
 // ConflictingDomain describes a domain declared in .servlo.yaml that is owned
@@ -142,8 +119,7 @@ type EnrichedSite struct {
 	GroupSharedDB  bool
 
 	// Git
-	Branch    string
-	Worktrees []WorktreeInfo
+	Branch string
 
 	// Domain conflicts
 	ConflictingDomains []ConflictingDomain
@@ -536,10 +512,7 @@ func (e *EnrichedSite) enrichWorkers(fw *config.Framework, hasFw bool) {
 		e.HasQueueWorker = false // Horizon manages queues
 	}
 
-	// Custom framework workers. per_worktree workers still surface on the
-	// parent so the toggle and log tab stay available when the check rule
-	// matches at the parent path (e.g. node_modules/vite). enrichWorktreeWorkers
-	// reports per-worktree unit state separately on each worktree row.
+	// Custom framework workers.
 	names := make([]string, 0, len(fw.Workers))
 	for n, wDef := range fw.Workers {
 		switch n {
@@ -602,98 +575,8 @@ func workerLiveness(schedule, serviceState, timerState string) (running, failing
 	return serviceState == "active" || serviceState == "activating", failing
 }
 
-// enrichWorktreeWorkers returns running state for framework workers that the
-// framework yaml flags as per_worktree (default true; q/s/r/h default false).
-func enrichWorktreeWorkers(siteName, wtPath string, fw *config.Framework) []WorkerInfo {
-	if fw == nil || fw.Workers == nil {
-		return nil
-	}
-	wtBase := config.WorktreeUnitSlug(filepath.Base(wtPath))
-	names := make([]string, 0, len(fw.Workers))
-	for n, wDef := range fw.Workers {
-		if !wDef.IsPerWorktree() {
-			continue
-		}
-		if wDef.Check != nil && !config.MatchesRule(wtPath, *wDef.Check) {
-			continue
-		}
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	out := make([]WorkerInfo, 0, len(names))
-	for _, wname := range names {
-		w := fw.Workers[wname]
-		unit := "servlo-" + wname + "-" + siteName + "-" + wtBase
-		serviceState, _ := unitStatusFn(unit)
-		timerState := ""
-		if w.Schedule != "" {
-			timerState, _ = unitStatusFn(unit + ".timer")
-		}
-		running, failing := workerLiveness(w.Schedule, serviceState, timerState)
-		label := w.Label
-		if label == "" {
-			label = wname
-		}
-		unreachable := false
-		// Same server-reachability check as enrichWorkers, against this worktree's
-		// own checkout where its dev server writes the URL file. Active-but-unbound
-		// is unreachable, not failed.
-		if serviceState == "active" && w.Health != nil {
-			if reachable, probed := WorkerServerReachable(wtPath, w.Health, AllUnitMeta()[unit].ActiveEnter); probed && !reachable {
-				running = false
-				unreachable = true
-			}
-		}
-		out = append(out, WorkerInfo{
-			Name:        wname,
-			Label:       label,
-			Running:     running,
-			Failing:     failing,
-			Unreachable: unreachable,
-		})
-	}
-	return out
-}
-
 func (e *EnrichedSite) enrichGit() {
 	e.Branch = gitpkg.MainBranch(e.Path)
-	if wts, err := gitpkg.ServableWorktrees(e.Path, e.PrimaryDomain()); err == nil {
-		for _, wt := range wts {
-			info := WorktreeInfo{
-				Branch:      wt.Branch,
-				Domain:      wt.Domain,
-				Path:        wt.Path,
-				PHPVersion:  e.PHPVersion,
-				NodeVersion: e.NodeVersion,
-			}
-			if cfg, err := config.LoadProjectConfig(wt.Path); err == nil && cfg != nil {
-				if cfg.PHPVersion != "" {
-					info.PHPVersion = cfg.PHPVersion
-					info.PHPVersionOverride = true
-				}
-				if cfg.NodeVersion != "" {
-					info.NodeVersion = cfg.NodeVersion
-					info.NodeVersionOverride = true
-				}
-				info.DBIsolated = cfg.DBIsolated
-			}
-			info.DBDatabase = envfile.ReadKey(filepath.Join(wt.Path, ".env"), "DB_DATABASE")
-			if entry, ok, err := config.FindWorktreeLAN(e.Name, wt.Branch); err == nil && ok {
-				info.LANPort = entry.Port
-			}
-			if fw, ok := config.GetFrameworkForDir(e.FrameworkName, wt.Path); ok {
-				info.FrameworkVersion = fw.Version
-				if fw.VersionGuessed && fw.DetectedVersion != "" {
-					info.FrameworkVersion = fw.DetectedVersion
-				}
-				info.FrameworkLabel = frameworkLabel(e.FrameworkName, wt.Path, fw, true)
-				info.FrameworkWorkers = enrichWorktreeWorkers(e.Name, wt.Path, fw)
-			} else {
-				info.FrameworkLabel = e.FrameworkLabel
-			}
-			e.Worktrees = append(e.Worktrees, info)
-		}
-	}
 }
 
 func (e *EnrichedSite) enrichServices() {

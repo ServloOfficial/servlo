@@ -3,11 +3,9 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/siteops"
 	"github.com/spf13/cobra"
@@ -28,18 +26,9 @@ func init() {
 		if site.IsHostProxy() {
 			WorkerStopForSite(site.Name, site.Path, hostProxyWorkerName) //nolint:errcheck
 		}
-		// Worktrees run their own per-worktree units (servlo-<worker>-<site>-<slug>)
-		// that collectRunningWorkers (parent-only) misses. On unlink the site is
-		// going away, so stop every worktree's workers too — a host-proxy
-		// Restart=always dev server would otherwise loop against a removed dir.
-		if wts, err := gitpkg.ServableWorktrees(site.Path, site.PrimaryDomain()); err == nil {
-			for _, wt := range wts {
-				StopAllWorkersForWorktree(site.Name, filepath.Base(wt.Path)) //nolint:errcheck
-			}
-		}
 		// Path-independent backstop: when the site dir is already gone (watcher
-		// prune), worktree detection above finds nothing, so sweep any remaining
-		// worker units for this site by name. Idempotent with the loops above.
+		// prune), sweep any remaining worker units for this site by name.
+		// Idempotent with the loops above.
 		stopAllSiteWorkerUnits(site)
 	}
 }

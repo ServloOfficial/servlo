@@ -24,7 +24,7 @@ func handleRouteTiming(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	key := reqstats.Key(resolveSiteName(q.Get("site")), q.Get("branch"))
+	key := resolveSiteName(q.Get("site"))
 	stats, ok := reqstats.LoadSite(config.RequestStatsFile(), key)
 	if !ok {
 		stats = reqstats.SiteStats{Site: key, Slow: []reqstats.RouteStat{}}

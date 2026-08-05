@@ -229,7 +229,7 @@ container:
   ssl: true
 ```
 
-See [HTTPS / TLS](../features/https.md) for wildcard certs and git worktree support.
+See [HTTPS / TLS](../features/https.md) for wildcard certs.
 
 ---
 
@@ -375,4 +375,4 @@ This removes the old image, rebuilds from the current Containerfile, and restart
 - [Services walkthrough](services.md): add MongoDB, Elasticsearch, RabbitMQ, phpMyAdmin
 - [Database](../usage/database.md): `servlo db:import`, `servlo db:shell`, switching engines
 - [Queue Workers](../usage/queue-workers.md): `schedule:` timers, restart policies, health checks
-- [HTTPS](../features/https.md): wildcard certs, git worktree subdomains
+- [HTTPS](../features/https.md): wildcard certs

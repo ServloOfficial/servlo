@@ -13,25 +13,24 @@ import (
 func TestHostProxyAppLifecycleOp(t *testing.T) {
 	app := config.HostProxyWorkerName
 	cases := []struct {
-		name               string
-		isHostProxy        bool
-		worker, branch, op string
-		wantOp             string
-		wantOK             bool
+		name        string
+		isHostProxy bool
+		worker, op  string
+		wantOp      string
+		wantOK      bool
 	}{
-		{"host-proxy app stop -> pause", true, app, "", "stop", "pause", true},
-		{"host-proxy app start -> unpause", true, app, "", "start", "unpause", true},
-		{"non-host-proxy app untouched", false, app, "", "stop", "", false},
-		{"other worker on host-proxy untouched", true, "queue", "", "stop", "", false},
-		{"worktree app untouched", true, app, "feature", "stop", "", false},
-		{"unknown op untouched", true, app, "", "restart", "", false},
+		{"host-proxy app stop -> pause", true, app, "stop", "pause", true},
+		{"host-proxy app start -> unpause", true, app, "start", "unpause", true},
+		{"non-host-proxy app untouched", false, app, "stop", "", false},
+		{"other worker on host-proxy untouched", true, "queue", "stop", "", false},
+		{"unknown op untouched", true, app, "restart", "", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotOp, gotOK := hostProxyAppLifecycleOp(tc.isHostProxy, tc.worker, tc.branch, tc.op)
+			gotOp, gotOK := hostProxyAppLifecycleOp(tc.isHostProxy, tc.worker, tc.op)
 			if gotOp != tc.wantOp || gotOK != tc.wantOK {
-				t.Fatalf("hostProxyAppLifecycleOp(%v, %q, %q, %q) = (%q, %v), want (%q, %v)",
-					tc.isHostProxy, tc.worker, tc.branch, tc.op, gotOp, gotOK, tc.wantOp, tc.wantOK)
+				t.Fatalf("hostProxyAppLifecycleOp(%v, %q, %q) = (%q, %v), want (%q, %v)",
+					tc.isHostProxy, tc.worker, tc.op, gotOp, gotOK, tc.wantOp, tc.wantOK)
 			}
 		})
 	}

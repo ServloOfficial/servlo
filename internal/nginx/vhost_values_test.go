@@ -58,22 +58,6 @@ func TestGenerateVhostRefusesInjectedValues(t *testing.T) {
 	}
 }
 
-// A worktree vhost takes its domain from a git branch, and git allows `;`, `{`
-// and `}` in a refname.
-func TestGenerateWorktreeVhostRefusesInjectedBranch(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
-	t.Setenv("XDG_DATA_HOME", tmp)
-
-	err := GenerateWorktreeVhost("clean.test", t.TempDir(), "8.4", "probe", nginxPayload)
-	if err == nil {
-		t.Error("a branch carrying nginx syntax was accepted")
-	}
-	if got := confsUnder(t, tmp); strings.Contains(got, "autoindex on") {
-		t.Errorf("a worktree vhost carrying the injected block was written:\n%s", got)
-	}
-}
-
 // A directory whose name legitimately carries nginx punctuation still serves:
 // the path is quoted, so it never had to be refused.
 func TestGenerateVhostAcceptsAPathWithNginxPunctuation(t *testing.T) {

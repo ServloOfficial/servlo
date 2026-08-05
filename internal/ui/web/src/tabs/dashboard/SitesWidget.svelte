@@ -68,14 +68,6 @@
           {#if s.framework_label}
             <Badge tone="framework">{s.framework_label}</Badge>
           {/if}
-          {#if s.worktrees && s.worktrees.length > 0}
-            <span title={m.dashboard_sites_worktrees({ count: s.worktrees.length })} class="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-mono text-violet-500 dark:text-violet-400">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 3v12M15 6a3 3 0 1 0 6 0a3 3 0 1 0-6 0M3 18a3 3 0 1 0 6 0a3 3 0 1 0-6 0M18 9a9 9 0 0 1-9 9"/>
-              </svg>
-              {s.worktrees.length}
-            </span>
-          {/if}
           {#if siteWorkerFailing(s)}
             <span title={m.sites_workerFailing()} class="shrink-0"><StatusDot color="red" size="xs" pulse /></span>
           {/if}

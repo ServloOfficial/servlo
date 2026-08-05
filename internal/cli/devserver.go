@@ -13,19 +13,16 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/freeport"
-	gitpkg "github.com/realrashid/servlo/internal/git"
-	"github.com/realrashid/servlo/internal/nginx"
-	phpDet "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
 )
 
 // A host dev server normally advertises its own address, so everything it
-// serves points at localhost on a port only this machine can reach. Behind a
-// tunnel, on the LAN, or on a worktree domain, that address means nothing to
-// the visitor and the page arrives unstyled. Giving the server a base prefix
-// and proxying that one prefix from the site's vhost puts assets and the
-// hot-reload socket on the site's own origin, where they follow whatever
-// hostname the visitor actually used.
+// serves points at localhost on a port only this machine can reach. Reached
+// over the site's own domain that address means nothing to the visitor and the
+// page arrives unstyled. Giving the server a base prefix and proxying that one
+// prefix from the site's vhost puts assets and the hot-reload socket on the
+// site's own origin, where they follow whatever hostname the visitor actually
+// used.
 
 // devServerProjectConfig returns the first declared config filename that the
 // project actually has, or empty when it has none of them.
@@ -155,92 +152,34 @@ func devServerAddrFor(secured bool, primary string, domains []string) devServerA
 	return addr
 }
 
-// devServerAddress returns the addresses for whichever checkout is starting: the
-// site itself, or one of its worktrees on its own subdomain.
-func devServerAddress(site *config.Site, sitePath string) (devServerAddr, error) {
-	if isSiteItself(site, sitePath) {
-		domains := site.Domains
-		if len(domains) == 0 {
-			domains = []string{site.PrimaryDomain()}
-		}
-		return devServerAddrFor(site.Secured, site.PrimaryDomain(), domains), nil
+// devServerAddress returns the addresses the site answers on.
+func devServerAddress(site *config.Site) devServerAddr {
+	domains := site.Domains
+	if len(domains) == 0 {
+		domains = []string{site.PrimaryDomain()}
 	}
-	wt, ok := worktreeForPath(site, sitePath)
-	if !ok {
-		return devServerAddr{}, fmt.Errorf("no worktree registered for %s", sitePath)
-	}
-	return devServerAddrFor(site.Secured, wt.Domain, []string{wt.Domain}), nil
-}
-
-func isSiteItself(site *config.Site, sitePath string) bool {
-	return config.CanonicalPath(sitePath) == config.CanonicalPath(site.Path)
-}
-
-// worktreeForPath resolves a checkout directory to the worktree git knows about.
-func worktreeForPath(site *config.Site, sitePath string) (gitpkg.Worktree, bool) {
-	wts, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	if err != nil {
-		return gitpkg.Worktree{}, false
-	}
-	for _, wt := range wts {
-		if config.CanonicalPath(wt.Path) == config.CanonicalPath(sitePath) {
-			return wt, true
-		}
-	}
-	return gitpkg.Worktree{}, false
-}
-
-// regenSiteOrWorktreeVhost rewrites whichever vhost fronts this checkout so the
-// dev server locations land on the domain that actually serves it.
-func regenSiteOrWorktreeVhost(site *config.Site, sitePath string) {
-	if isSiteItself(site, sitePath) {
-		regenNginxVhost(site.Name, sitePath)
-		return
-	}
-	wt, ok := worktreeForPath(site, sitePath)
-	if !ok {
-		return
-	}
-	phpVer := site.PHPVersion
-	if detected, err := phpDet.DetectVersion(sitePath); err == nil && detected != "" {
-		phpVer = detected
-	}
-	if err := nginx.GenerateWorktreeVhostFor(wt.Domain, sitePath, phpVer, site.PrimaryDomain(), site.Name, wt.Branch, site.Secured); err == nil {
-		_ = nginx.Reload()
-	}
+	return devServerAddrFor(site.Secured, site.PrimaryDomain(), domains)
 }
 
 // devServerEnsurePort pins the site's dev server to a stable host port and
 // saves it, so the vhost generated later proxies somewhere the tool will
 // actually be listening.
-func devServerEnsurePort(siteName, sitePath string, defaultPort int) (int, error) {
+func devServerEnsurePort(siteName string, defaultPort int) (int, error) {
 	site, err := config.FindSite(siteName)
 	if err != nil {
 		return 0, err
 	}
-	key := ""
 	current := site.DevServerPort
-	if !isSiteItself(site, sitePath) {
-		key = filepath.Base(sitePath)
-		current = site.WorktreeDevPorts[key]
-	}
 	// A pinned port that something else has taken would make the tool refuse to
 	// start rather than drift, so an unusable pin is re-picked here.
 	if current != 0 && freeport.Bindable(current) {
 		return current, nil
 	}
-	port := assignDevServerPort(siteName, key, defaultPort)
+	port := assignDevServerPort(siteName, defaultPort)
 	if port == current {
 		return port, nil
 	}
-	if key == "" {
-		site.DevServerPort = port
-	} else {
-		if site.WorktreeDevPorts == nil {
-			site.WorktreeDevPorts = map[string]int{}
-		}
-		site.WorktreeDevPorts[key] = port
-	}
+	site.DevServerPort = port
 	if err := config.AddSite(*site); err != nil {
 		return 0, fmt.Errorf("saving dev server port: %w", err)
 	}
@@ -251,22 +190,15 @@ func devServerEnsurePort(siteName, sitePath string, defaultPort int) (int, error
 // port no other site has claimed and nothing on the machine is holding. The
 // registry alone is not enough: a dev server started before ports were pinned,
 // or anything else on the box, owns a port no site has claimed.
-func assignDevServerPort(excludeSiteName, excludeWorktree string, defaultPort int) int {
+func assignDevServerPort(excludeSiteName string, defaultPort int) int {
 	if defaultPort == 0 {
 		defaultPort = 5173
 	}
 	used := map[int]bool{}
 	if reg, err := config.LoadSites(); err == nil {
 		for _, s := range reg.Sites {
-			own := s.Name == excludeSiteName
-			if s.DevServerPort != 0 && !(own && excludeWorktree == "") {
+			if s.DevServerPort != 0 && s.Name != excludeSiteName {
 				used[s.DevServerPort] = true
-			}
-			for wt, p := range s.WorktreeDevPorts {
-				if p == 0 || (own && wt == excludeWorktree) {
-					continue
-				}
-				used[p] = true
 			}
 		}
 	}
@@ -287,21 +219,15 @@ func devServerSetup(siteName, sitePath string, tool *config.DevServerTool) (stri
 	if err != nil {
 		return "", err
 	}
-	// A worktree fronts its own domain and runs its own dev server, so it gets
-	// its own origin and its own pinned port rather than the parent's.
-	addr, err := devServerAddress(site, sitePath)
-	if err != nil {
-		return "", err
-	}
-	wrapper, err := writeDevServerWrapper(sitePath, tool, addr)
+	wrapper, err := writeDevServerWrapper(sitePath, tool, devServerAddress(site))
 	if err != nil || wrapper == "" {
 		return "", err
 	}
-	port, err := devServerEnsurePort(siteName, sitePath, tool.DefaultPort)
+	port, err := devServerEnsurePort(siteName, tool.DefaultPort)
 	if err != nil {
 		return "", err
 	}
-	regenSiteOrWorktreeVhost(site, sitePath)
+	regenNginxVhost(site.Name, sitePath)
 	return devServerArgs(tool, wrapper, port), nil
 }
 
@@ -316,25 +242,15 @@ func devServerArgs(tool *config.DevServerTool, wrapperPath string, port int) str
 }
 
 // RefreshDevServers brings the generated config back in line with the addresses
-// the site now answers on, for the site and for each of its worktrees, and
-// restarts a dev server still running on the old ones. The tool reads those
-// values once, at start, so every path that moves a site's scheme or its domains
-// has to come through here. Nothing changed means nothing is restarted.
+// the site now answers on, and restarts a dev server still running on the old
+// ones. The tool reads those values once, at start, so every path that moves a
+// site's scheme or its domains has to come through here. Nothing changed means
+// nothing is restarted.
 func RefreshDevServers(site *config.Site) {
 	if site == nil || site.Path == "" {
 		return
 	}
 	refreshDevServersAt(site, site.Path)
-	// A worktree pins its own port the first time its dev server runs, so an
-	// empty set means none of them has one to realign.
-	if len(site.WorktreeDevPorts) == 0 {
-		return
-	}
-	if wts, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain()); err == nil {
-		for _, wt := range wts {
-			refreshDevServersAt(site, wt.Path)
-		}
-	}
 }
 
 // refreshDevServersAt rewrites one checkout's generated config when the addresses
@@ -351,10 +267,7 @@ func refreshDevServersAt(site *config.Site, sitePath string) {
 	if _, err := os.Stat(filepath.Join(sitePath, tool.WrapperPath)); err != nil {
 		return
 	}
-	addr, err := devServerAddress(site, sitePath)
-	if err != nil {
-		return
-	}
+	addr := devServerAddress(site)
 	fw, ok := config.GetFrameworkForDir(site.Framework, sitePath)
 	if !ok || fw == nil {
 		return

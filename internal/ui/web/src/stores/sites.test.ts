@@ -21,30 +21,6 @@ describe('sites store', () => {
     expect(nodeSiteCount('24')).toBe(0);
   });
 
-  it('activeWorktreeDomain returns the parent domain when branch is empty', async () => {
-    const { activeWorktreeDomain } = await import('./sites');
-    const s = {
-      domain: 'acme.test',
-      worktrees: [{ branch: 'feat-a', domain: 'feat-a.acme.test' }]
-    };
-    expect(activeWorktreeDomain(s, '')).toBe('acme.test');
-  });
-
-  it('activeWorktreeDomain returns the worktree domain when branch matches', async () => {
-    const { activeWorktreeDomain } = await import('./sites');
-    const s = {
-      domain: 'acme.test',
-      worktrees: [{ branch: 'feat-a', domain: 'feat-a.acme.test' }]
-    };
-    expect(activeWorktreeDomain(s, 'feat-a')).toBe('feat-a.acme.test');
-  });
-
-  it('activeWorktreeDomain falls back to the parent when branch is unknown', async () => {
-    const { activeWorktreeDomain } = await import('./sites');
-    const s = { domain: 'acme.test', worktrees: [] };
-    expect(activeWorktreeDomain(s, 'mystery')).toBe('acme.test');
-  });
-
   it('siteDomainForName maps a site name back to its domain', async () => {
     const { siteDomainForName } = await import('./sites');
     const list = [
@@ -66,7 +42,7 @@ describe('sites store', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { saveSiteEnv } = await import('./sites');
 
-    const res = await saveSiteEnv('acme.test', '', 'FOO=bar\n', true);
+    const res = await saveSiteEnv('acme.test', 'FOO=bar\n', true);
 
     expect(res.ok).toBe(true);
     expect(res.backupPath).toBe('.env.20260528-103045');
@@ -81,20 +57,6 @@ describe('sites store', () => {
     vi.unstubAllGlobals();
   });
 
-  it('saveSiteEnv appends branch query param when set', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } })
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    const { saveSiteEnv } = await import('./sites');
-
-    await saveSiteEnv('acme.test', 'feature/x', 'A=1', false);
-
-    const [url] = fetchMock.mock.calls[0];
-    expect(String(url)).toMatch(/\/api\/sites\/acme\.test\/env\?branch=feature%2Fx$/);
-    vi.unstubAllGlobals();
-  });
-
   it('loadSiteEnvFiles GETs /env/files and returns the parsed list', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(['.env', '.env.local', '.env.testing']), {
@@ -105,7 +67,7 @@ describe('sites store', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { loadSiteEnvFiles } = await import('./sites');
 
-    const list = await loadSiteEnvFiles('acme.test', '');
+    const list = await loadSiteEnvFiles('acme.test');
 
     expect(list).toEqual(['.env', '.env.local', '.env.testing']);
     const [url] = fetchMock.mock.calls[0];
@@ -116,7 +78,7 @@ describe('sites store', () => {
   it('loadSiteEnvFiles returns an empty list on error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 500 })));
     const { loadSiteEnvFiles } = await import('./sites');
-    expect(await loadSiteEnvFiles('acme.test', '')).toEqual([]);
+    expect(await loadSiteEnvFiles('acme.test')).toEqual([]);
     vi.unstubAllGlobals();
   });
 
@@ -128,7 +90,7 @@ describe('sites store', () => {
       )
     );
     const { loadSiteEnvFiles } = await import('./sites');
-    expect(await loadSiteEnvFiles('acme.test', '')).toEqual([]);
+    expect(await loadSiteEnvFiles('acme.test')).toEqual([]);
     vi.unstubAllGlobals();
   });
 
@@ -142,7 +104,7 @@ describe('sites store', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { saveSiteEnv } = await import('./sites');
 
-    await saveSiteEnv('acme.test', '', 'X=1\n', true, '.env.testing');
+    await saveSiteEnv('acme.test', 'X=1\n', true, '.env.testing');
 
     const [url] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/api\/sites\/acme\.test\/env\?file=\.env\.testing$/);
@@ -156,7 +118,7 @@ describe('sites store', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { saveSiteEnv } = await import('./sites');
 
-    await saveSiteEnv('acme.test', '', 'X=1\n', false, 'config/.env');
+    await saveSiteEnv('acme.test', 'X=1\n', false, 'config/.env');
 
     const [url] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/api\/sites\/acme\.test\/env\?file=config%2F\.env$/);
@@ -170,7 +132,7 @@ describe('sites store', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { saveSiteEnv } = await import('./sites');
 
-    await saveSiteEnv('acme.test', '', 'X=1\n', false);
+    await saveSiteEnv('acme.test', 'X=1\n', false);
 
     const [url] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/api\/sites\/acme\.test\/env$/);
@@ -190,7 +152,7 @@ describe('sites store', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { loadSiteEnvBackups } = await import('./sites');
 
-    const list = await loadSiteEnvBackups('acme.test', '');
+    const list = await loadSiteEnvBackups('acme.test');
 
     expect(list).toHaveLength(2);
     expect(list[0].name).toBe('.env.20260528-103045');
@@ -203,7 +165,7 @@ describe('sites store', () => {
   it('loadSiteEnvBackups returns an empty list on error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 500 })));
     const { loadSiteEnvBackups } = await import('./sites');
-    expect(await loadSiteEnvBackups('acme.test', '')).toEqual([]);
+    expect(await loadSiteEnvBackups('acme.test')).toEqual([]);
     vi.unstubAllGlobals();
   });
 
@@ -217,13 +179,13 @@ describe('sites store', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { restoreSiteEnv } = await import('./sites');
 
-    const res = await restoreSiteEnv('acme.test', 'feature/x', '.env', '.env.20260528-103045');
+    const res = await restoreSiteEnv('acme.test', '.env', '.env.20260528-103045');
 
     expect(res.ok).toBe(true);
     expect(res.restored).toBe('.env.20260528-103045');
     expect(res.content).toBe('OLD=1\n');
     const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toMatch(/\/api\/sites\/acme\.test\/env\/restore\?branch=feature%2Fx&file=\.env$/);
+    expect(String(url)).toMatch(/\/api\/sites\/acme\.test\/env\/restore\?file=\.env$/);
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body as string)).toEqual({ name: '.env.20260528-103045' });
     vi.unstubAllGlobals();
@@ -241,7 +203,7 @@ describe('sites store', () => {
     );
     const { saveSiteEnv } = await import('./sites');
 
-    const res = await saveSiteEnv('acme.test', '', '', true);
+    const res = await saveSiteEnv('acme.test', '', true);
 
     expect(res.ok).toBe(false);
     expect(res.error).toBe('writing temp file: no space');

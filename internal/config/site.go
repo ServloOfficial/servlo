@@ -87,11 +87,6 @@ type Site struct {
 	// main's database instead of its own: DB_DATABASE in its .env is kept in
 	// sync with the main's database name.
 	GroupSharedDB bool `yaml:"group_shared_db,omitempty"`
-
-	// WorktreeDevPorts pins each worktree's dev server to its own host
-	// port, keyed by the worktree's directory base like the idle map. A
-	// worktree runs its own dev server, so it cannot share the parent's pin.
-	WorktreeDevPorts map[string]int `yaml:"worktree_dev_server_ports,omitempty"`
 }
 
 // IsGroupMain returns true when the site owns a group's base domain: it has a
@@ -183,35 +178,34 @@ func (s *Site) HasDomain(domain string) bool {
 // siteYAML is the on-disk YAML representation of a Site, supporting both the
 // legacy single "domain" field and the new "domains" array.
 type siteYAML struct {
-	Name                string         `yaml:"name"`
-	Domain              string         `yaml:"domain,omitempty"`  // legacy single domain
-	Domains             []string       `yaml:"domains,omitempty"` // new multi-domain
-	Path                string         `yaml:"path"`
-	PHPVersion          string         `yaml:"php_version"`
-	NodeVersion         string         `yaml:"node_version"`
-	Secured             bool           `yaml:"secured"`
-	SecuredBeforeDNSOff bool           `yaml:"secured_before_dns_off,omitempty"`
-	Ignored             bool           `yaml:"ignored,omitempty"`
-	Paused              bool           `yaml:"paused,omitempty"`
-	PausedWorkers       []string       `yaml:"paused_workers,omitempty"`
-	Pinned              bool           `yaml:"pinned,omitempty"`
-	Framework           string         `yaml:"framework,omitempty"`
-	PublicDir           string         `yaml:"public_dir,omitempty"`
-	AppURL              string         `yaml:"app_url,omitempty"`
-	LANPort             int            `yaml:"lan_port,omitempty"`
-	DevServerPort       int            `yaml:"dev_server_port,omitempty"`
-	WorktreeDevPorts    map[string]int `yaml:"worktree_dev_server_ports,omitempty"`
-	ContainerPort       int            `yaml:"container_port,omitempty"`
-	ContainerSSL        bool           `yaml:"container_ssl,omitempty"`
-	Runtime             string         `yaml:"runtime,omitempty"`
-	RuntimeWorker       bool           `yaml:"runtime_worker,omitempty"`
-	HostPort            int            `yaml:"host_port,omitempty"`
-	HostSSL             bool           `yaml:"host_ssl,omitempty"`
-	HostCommand         string         `yaml:"host_command,omitempty"`
-	ApprovedCommands    []string       `yaml:"approved_commands,omitempty"`
-	Group               string         `yaml:"group,omitempty"`
-	GroupSubdomain      string         `yaml:"group_subdomain,omitempty"`
-	GroupSharedDB       bool           `yaml:"group_shared_db,omitempty"`
+	Name                string   `yaml:"name"`
+	Domain              string   `yaml:"domain,omitempty"`  // legacy single domain
+	Domains             []string `yaml:"domains,omitempty"` // new multi-domain
+	Path                string   `yaml:"path"`
+	PHPVersion          string   `yaml:"php_version"`
+	NodeVersion         string   `yaml:"node_version"`
+	Secured             bool     `yaml:"secured"`
+	SecuredBeforeDNSOff bool     `yaml:"secured_before_dns_off,omitempty"`
+	Ignored             bool     `yaml:"ignored,omitempty"`
+	Paused              bool     `yaml:"paused,omitempty"`
+	PausedWorkers       []string `yaml:"paused_workers,omitempty"`
+	Pinned              bool     `yaml:"pinned,omitempty"`
+	Framework           string   `yaml:"framework,omitempty"`
+	PublicDir           string   `yaml:"public_dir,omitempty"`
+	AppURL              string   `yaml:"app_url,omitempty"`
+	LANPort             int      `yaml:"lan_port,omitempty"`
+	DevServerPort       int      `yaml:"dev_server_port,omitempty"`
+	ContainerPort       int      `yaml:"container_port,omitempty"`
+	ContainerSSL        bool     `yaml:"container_ssl,omitempty"`
+	Runtime             string   `yaml:"runtime,omitempty"`
+	RuntimeWorker       bool     `yaml:"runtime_worker,omitempty"`
+	HostPort            int      `yaml:"host_port,omitempty"`
+	HostSSL             bool     `yaml:"host_ssl,omitempty"`
+	HostCommand         string   `yaml:"host_command,omitempty"`
+	ApprovedCommands    []string `yaml:"approved_commands,omitempty"`
+	Group               string   `yaml:"group,omitempty"`
+	GroupSubdomain      string   `yaml:"group_subdomain,omitempty"`
+	GroupSharedDB       bool     `yaml:"group_shared_db,omitempty"`
 }
 
 func (s Site) toYAML() siteYAML {
@@ -232,7 +226,6 @@ func (s Site) toYAML() siteYAML {
 		AppURL:              s.AppURL,
 		LANPort:             s.LANPort,
 		DevServerPort:       s.DevServerPort,
-		WorktreeDevPorts:    s.WorktreeDevPorts,
 		ContainerPort:       s.ContainerPort,
 		ContainerSSL:        s.ContainerSSL,
 		Runtime:             s.Runtime,
@@ -269,7 +262,6 @@ func (sy siteYAML) toSite() Site {
 		AppURL:              sy.AppURL,
 		LANPort:             sy.LANPort,
 		DevServerPort:       sy.DevServerPort,
-		WorktreeDevPorts:    sy.WorktreeDevPorts,
 		ContainerPort:       sy.ContainerPort,
 		ContainerSSL:        sy.ContainerSSL,
 		Runtime:             sy.Runtime,

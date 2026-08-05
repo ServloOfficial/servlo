@@ -4,9 +4,8 @@
 
   interface Props {
     site: Site;
-    branch: string;
   }
-  let { site, branch }: Props = $props();
+  let { site }: Props = $props();
 </script>
 
-<AppLogsTab {site} {branch} />
+<AppLogsTab {site} />

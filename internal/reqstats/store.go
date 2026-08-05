@@ -185,11 +185,11 @@ func (s *Store) Prune(before time.Time) (int64, error) {
 	return res.RowsAffected()
 }
 
-// DeleteSite removes every stored request for a site, covering both its bare key
-// and its "<site>/<branch>" worktree rows, so an unlinked site leaves no traffic
-// behind in the durable store. Returns how many rows were removed.
+// DeleteSite removes every stored request for a site, so an unlinked site
+// leaves no traffic behind in the durable store. Returns how many rows were
+// removed.
 func (s *Store) DeleteSite(site string) (int64, error) {
-	res, err := s.db.Exec(`DELETE FROM requests WHERE site = ? OR instr(site, ?) = 1`, site, site+"/")
+	res, err := s.db.Exec(`DELETE FROM requests WHERE site = ?`, site)
 	if err != nil {
 		return 0, err
 	}

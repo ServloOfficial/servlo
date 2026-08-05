@@ -9,11 +9,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// resolveNginxDomain turns an optional [site] arg plus an optional --branch
-// into the domain whose custom nginx override to operate on. No branch means
-// the site's primary domain; a branch resolves to that worktree's subdomain
-// the same way the daemon does (gitpkg.DetectWorktrees).
-func resolveNginxDomain(args []string, branch string) (*config.Site, string, error) {
+// resolveNginxDomain turns an optional [site] arg into the domain whose custom
+// nginx override to operate on.
+func resolveNginxDomain(args []string) (*config.Site, string, error) {
 	name, err := resolveSiteName(args)
 	if err != nil {
 		return nil, "", err
@@ -22,11 +20,7 @@ func resolveNginxDomain(args []string, branch string) (*config.Site, string, err
 	if err != nil {
 		return nil, "", fmt.Errorf("site %q not found — run 'servlo link' first", name)
 	}
-	domain, err := siteops.WorktreeDomain(site, branch)
-	if err != nil {
-		return nil, "", err
-	}
-	return site, domain, nil
+	return site, site.PrimaryDomain(), nil
 }
 
 // NewNginxCmd returns the `servlo nginx` command group for the per-site custom
@@ -37,22 +31,20 @@ func NewNginxCmd() *cobra.Command {
 		Use:   "nginx",
 		Short: "Show, edit, or reset a site's custom nginx override",
 		Long: "Manage the per-site nginx override included at the end of a site's\n" +
-			"server block (custom.d/{domain}.conf). Pass --branch to target a\n" +
-			"worktree's override instead of the main branch's.",
+			"server block (custom.d/{domain}.conf).",
 	}
 	cmd.AddCommand(newNginxShowCmd(), newNginxEditCmd(), newNginxResetCmd())
 	return cmd
 }
 
 func newNginxShowCmd() *cobra.Command {
-	var branch string
 	var pathOnly bool
 	cmd := &cobra.Command{
 		Use:   "show [site]",
 		Short: "Print the custom nginx override (or its file path with --path)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, domain, err := resolveNginxDomain(args, branch)
+			_, domain, err := resolveNginxDomain(args)
 			if err != nil {
 				return err
 			}
@@ -71,19 +63,17 @@ func newNginxShowCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&branch, "branch", "", "Worktree branch to target instead of the main branch")
 	cmd.Flags().BoolVar(&pathOnly, "path", false, "Print the override file path and exit")
 	return cmd
 }
 
 func newNginxEditCmd() *cobra.Command {
-	var branch string
 	cmd := &cobra.Command{
 		Use:   "edit [site]",
 		Short: "Open the custom nginx override in $EDITOR, then validate and reload",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, domain, err := resolveNginxDomain(args, branch)
+			_, domain, err := resolveNginxDomain(args)
 			if err != nil {
 				return err
 			}
@@ -137,18 +127,16 @@ func newNginxEditCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&branch, "branch", "", "Worktree branch to target instead of the main branch")
 	return cmd
 }
 
 func newNginxResetCmd() *cobra.Command {
-	var branch string
 	cmd := &cobra.Command{
 		Use:   "reset [site]",
 		Short: "Delete the custom nginx override and reload nginx (backups are kept)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, domain, err := resolveNginxDomain(args, branch)
+			_, domain, err := resolveNginxDomain(args)
 			if err != nil {
 				return err
 			}
@@ -159,6 +147,5 @@ func newNginxResetCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&branch, "branch", "", "Worktree branch to target instead of the main branch")
 	return cmd
 }

@@ -25,8 +25,7 @@ import (
 const certReissueWindow = 30 * 24 * time.Hour
 
 // issueCertMu serialises issueCertAtomic calls per primaryDomain. Two
-// concurrent reissues for the same site (e.g. boot scanWorktrees racing the
-// watcher's syncWorktree on the same site) must not interleave their
+// concurrent reissues for the same site must not interleave their
 // renames — pre-fix both used a fixed "<primary>.crt.new" tempfile path,
 // so one would clobber the other's tempfile or rename a partially-flushed
 // file. Lock per domain so unrelated sites still issue in parallel.

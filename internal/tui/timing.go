@@ -38,15 +38,13 @@ const (
 )
 
 // timingScope is one entry in the branch cycle. key is the reqstats identity the
-// watcher records under, so a worktree reads its own traffic rather than having
-// it folded into the parent site's.
+// watcher records the site's traffic under.
 type timingScope struct {
 	label string
 	key   string
 }
 
-// timingScopes returns the branch cycle for a site: the checkout itself, then
-// one entry per git worktree.
+// timingScopes returns the branch cycle for a site: its checkout.
 func timingScopes(s *siteinfo.EnrichedSite) []timingScope {
 	if s == nil {
 		return nil
@@ -55,11 +53,7 @@ func timingScopes(s *siteinfo.EnrichedSite) []timingScope {
 	if label == "" {
 		label = "main"
 	}
-	out := []timingScope{{label: label, key: reqstats.Key(s.Name, "")}}
-	for _, wt := range s.Worktrees {
-		out = append(out, timingScope{label: wt.Branch, key: reqstats.Key(s.Name, wt.Branch)})
-	}
-	return out
+	return []timingScope{{label: label, key: s.Name}}
 }
 
 // timingResultMsg carries a finished store read back into the model. cacheKey
@@ -100,7 +94,7 @@ func (m *Model) timingActive() bool {
 }
 
 // currentTimingScope returns the focused branch scope, clamping the cycle index
-// against the focused site's worktrees, which differ from site to site.
+// against the focused site's scopes.
 func (m *Model) currentTimingScope() (timingScope, bool) {
 	scopes := timingScopes(m.currentSite())
 	if len(scopes) == 0 {

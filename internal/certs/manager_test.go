@@ -339,7 +339,7 @@ func TestIssueCert_reissuesUnparseableCert(t *testing.T) {
 
 // TestIssueCertForce_concurrentCallsDontCollide pins the fix for the shared
 // .new tempfile race: two parallel IssueCertForce calls for the same domain
-// (e.g. boot scanWorktrees + a watcher syncWorktree event firing on the same
+// (e.g. two reconcile passes firing on the same
 // site) must not interleave their renames. Pre-fix both writers used a
 // fixed "<primary>.crt.new" path; one would clobber the other's tempfile
 // mid-write or rename a partially-flushed file. The fix uses a unique

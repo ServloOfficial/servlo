@@ -2,7 +2,6 @@ package php
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -14,15 +13,10 @@ import (
 // tools all use, so a command can never exec into a different PHP than the
 // container serving the same directory.
 //
-// A worktree's own pin wins first: a worktree checked out inside its parent
-// site matches that site by path, so resolving the site first would ignore the
-// pin its vhost was generated from. A registered site's version comes next,
-// because servlo link clamps to the framework's supported range and re-detecting
-// would undo the clamp. Only then does the project's own configuration apply.
+// A registered site's version wins, because servlo link clamps to the
+// framework's supported range and re-detecting would undo the clamp. Only then
+// does the project's own configuration apply.
 func VersionForDir(dir string) (string, error) {
-	if wt, parent, ok := WorktreeRootFor(dir); ok {
-		return config.WorktreePHPVersion(wt, parent.PHPVersion), nil
-	}
 	if site, _ := config.FindSiteByPath(SiteRootFor(dir)); site != nil && site.PHPVersion != "" {
 		return site.PHPVersion, nil
 	}
@@ -35,30 +29,6 @@ func VersionForDir(dir string) (string, error) {
 		return "", fmt.Errorf("cannot detect PHP version: %w", err)
 	}
 	return cfg.PHP.DefaultVersion, nil
-}
-
-// WorktreeRootFor returns the worktree checkout containing dir and the site it
-// belongs to. Git writes .git as a file in a worktree and as a directory in the
-// main checkout, so the walk stops at the first .git either way.
-func WorktreeRootFor(dir string) (string, *config.Site, bool) {
-	cur := filepath.Clean(dir)
-	for {
-		fi, err := os.Stat(filepath.Join(cur, ".git"))
-		if err == nil {
-			if fi.IsDir() {
-				return "", nil, false
-			}
-			if site, ok := config.ParentSiteForWorktreeDir(cur); ok {
-				return cur, site, true
-			}
-			return "", nil, false
-		}
-		parent := filepath.Dir(cur)
-		if parent == cur {
-			return "", nil, false
-		}
-		cur = parent
-	}
 }
 
 // SiteRootFor returns the registered site path that contains dir, or dir itself

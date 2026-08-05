@@ -14,7 +14,6 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dns"
 	"github.com/realrashid/servlo/internal/feedback"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	"github.com/realrashid/servlo/internal/nginx"
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
@@ -621,7 +620,7 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// this, a boot or a manual start after stop would start a deliberately-asleep
 	// worker while the registry still records it suspended, drifting the dashboard
 	// (site shown asleep, workers actually running) and making workerheal skip it.
-	// Mirrors the worktree autostart filter; real activity wakes it via the engine.
+	// Mirrors the autostart filter; real activity wakes it via the engine.
 
 	feedback.Begin()
 	feedback.Line("starting servlo")
@@ -981,30 +980,12 @@ func restoreSiteInfrastructure() {
 			}
 			// Skip restore entirely when the platform can't run this worker
 			// shape — writeWorkerUnitFile would print a WARN and return
-			// (false, nil) for every worktree, every boot.
+			// (false, nil) every boot.
 			if ok, _ := workerSupportedOnPlatform(wDef); !ok {
 				continue
 			}
 			if !parentEnabled {
 				restoreWorker(s.Name, s.Path, phpVersion, w, wDef)
-			}
-			// Per-worktree host workers: rewrite each worktree's unit so
-			// stop/start cycles don't leave them stale. The parent unit
-			// alone is not enough because PR #319 shipped per-worktree
-			// units (servlo-<w>-<site>-<wtBase>) with a separate lifecycle.
-			if !wDef.Host {
-				continue
-			}
-			worktrees, err := gitpkg.DetectWorktrees(s.Path, s.PrimaryDomain())
-			if err != nil {
-				continue
-			}
-			for _, wt := range worktrees {
-				if services.Mgr.IsEnabled(WorkerUnitName(s.Name, wt.Path, w)) {
-					continue
-				}
-				wtPHP := config.WorktreePHPVersion(wt.Path, phpVersion)
-				restoreWorker(s.Name, wt.Path, wtPHP, w, wDef)
 			}
 		}
 	}

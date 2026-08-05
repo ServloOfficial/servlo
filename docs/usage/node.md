@@ -51,7 +51,7 @@ Installs use each manager's frozen-lockfile mode, so a servlo install never sile
 | yarn | `yarn install --immutable` | `yarn dev` | `yarn build` |
 | bun | `bun install` | `bun run dev` | `bun run build` |
 
-This is what the project-setup wizard runs, what a `servlo worktree add` runs when it installs a new checkout's dependencies, and what the Vite host worker runs for HMR. The wizard's step labels follow the detected manager, so a pnpm project shows **pnpm install** rather than **npm ci**.
+This is what the project-setup wizard runs, and what the Vite host worker runs for HMR. The wizard's step labels follow the detected manager, so a pnpm project shows **pnpm install** rather than **npm ci**.
 
 Nothing needs configuring. If you want to change the manager, change the project's `packageManager` field or its lockfile and servlo follows.
 

@@ -10,7 +10,6 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/envfile"
 	"github.com/realrashid/servlo/internal/feedback"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	"github.com/realrashid/servlo/internal/nginx"
 	phpDet "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
@@ -104,8 +103,6 @@ func PauseSite(name string) error {
 	if err := config.AddSite(*site); err != nil {
 		return fmt.Errorf("updating registry: %w", err)
 	}
-
-	pauseWorktrees(site)
 
 	nginx.ReloadOrWarn("")
 
@@ -235,10 +232,6 @@ func UnpauseSite(name string) error {
 				return fmt.Errorf("generating host-proxy vhost: %w", err)
 			}
 		}
-		// pauseWorktrees swapped each worktree to the paused page; the PHP
-		// unpauseWorktrees below never runs for host-proxy sites, so restore
-		// their host-proxy vhosts and dev servers here.
-		unpauseHostProxyWorktrees(site)
 	case site.IsFrankenPHP():
 		_ = podman.StartUnit(podman.FrankenPHPContainerName(site.Name))
 		if site.Secured {
@@ -285,14 +278,7 @@ func UnpauseSite(name string) error {
 				return fmt.Errorf("generating vhost: %w", err)
 			}
 		}
-
-		unpauseWorktrees(site, phpVersion)
 	}
-
-	// Restart the per-worktree workers PauseSite stopped (Vite). Universal across
-	// runtimes; a no-op for host-proxy, whose worktree dev servers are restored by
-	// unpauseHostProxyWorktrees above.
-	restartWorktreeWorkers(site, phpVersion)
 
 	nginx.ReloadOrWarn("")
 
@@ -427,41 +413,6 @@ func collectRunningWorkers(site *config.Site) []string {
 	}
 	active = append(active, servloSystemd.FindOrphanedWorkers(site.Name, known)...)
 
-	return active
-}
-
-// collectRunningWorktreeWorkers returns the active per-worktree workers for the
-// worktree checkout at wtPath, checked by their worktree unit names
-// (servlo-<w>-<site>-<wtBase>). Only workers a framework marks per_worktree:true
-// run per worktree (for Laravel, just vite), so only those are enumerated.
-func collectRunningWorktreeWorkers(site *config.Site, wtPath string) []string {
-	return collectRunningWorktreeWorkersByBase(site, config.WorktreeUnitSlug(filepath.Base(wtPath)))
-}
-
-// collectRunningWorktreeWorkersByBase is collectRunningWorktreeWorkers keyed by
-// the worktree's unit-slug base directly, for callers that hold the base (e.g. a
-// persisted WorktreeIdleSuspended key) but not the checkout path.
-func collectRunningWorktreeWorkersByBase(site *config.Site, wtBase string) []string {
-	fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
-	if !ok || fw.Workers == nil {
-		return nil
-	}
-	names := make([]string, 0, len(fw.Workers))
-	for wName, w := range fw.Workers {
-		if w.IsPerWorktree() {
-			names = append(names, wName)
-		}
-	}
-	sort.Strings(names)
-
-	var active []string
-	states := siteinfo.AllUnitStates()
-	for _, wName := range names {
-		unit := "servlo-" + wName + "-" + site.Name + "-" + wtBase
-		if unitIsActiveOrActivating(unit) || timerIsActive(states, unit) {
-			active = append(active, wName)
-		}
-	}
 	return active
 }
 
@@ -651,87 +602,6 @@ func writePausedHTML(_ *config.Site) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, "paused.html"), []byte(pausedPageHTML), 0644)
-}
-
-// pauseWorktrees generates paused HTML and nginx vhosts for every worktree of
-// a site that is being paused. The resume button on each worktree page unpauses
-// the parent site (which restores all worktree vhosts as well).
-func pauseWorktrees(site *config.Site) {
-	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	if err != nil || len(worktrees) == 0 {
-		return
-	}
-	for _, wt := range worktrees {
-		// Stop the worktree's own workers so a paused site does no background work,
-		// matching the main checkout. Covers per-worktree workers (Vite) and a
-		// host-proxy worktree's dev server (which also frees its host port). The
-		// unit suffix is the slugged checkout basename, so pass that.
-		if err := StopAllWorkersForWorktree(site.Name, filepath.Base(wt.Path)); err != nil {
-			feedback.Warn("stopping worktree workers %s: %v", wt.Domain, err)
-		}
-		if err := writePausedWorktreeHTML(wt, site); err != nil {
-			feedback.Warn("paused page for worktree %s: %v", wt.Domain, err)
-			continue
-		}
-		if err := nginx.GeneratePausedWorktreeVhost(wt.Domain, site.PrimaryDomain(), config.PausedDir(), site.Secured); err != nil {
-			feedback.Warn("paused vhost for worktree %s: %v", wt.Domain, err)
-		}
-	}
-}
-
-// unpauseHostProxyWorktrees restores the host-proxy vhost and dev server for
-// every worktree of a site that has just been unpaused. SetupHostProxyWorktree
-// mirrors the parent's proxy config (registry fallback), so it works even when
-// the worktree checkout has no .servlo.yaml of its own.
-func unpauseHostProxyWorktrees(site *config.Site) {
-	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	if err != nil || len(worktrees) == 0 {
-		return
-	}
-	for _, wt := range worktrees {
-		if err := SetupHostProxyWorktree(*site, wt.Path, wt.Domain); err != nil {
-			feedback.Warn("restoring worktree %s: %v", wt.Domain, err)
-		}
-	}
-}
-
-// unpauseWorktrees restores the normal nginx vhosts for every worktree of a
-// site that has just been unpaused and removes their paused HTML files.
-func unpauseWorktrees(site *config.Site, phpVersion string) {
-	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	if err != nil || len(worktrees) == 0 {
-		return
-	}
-	for _, wt := range worktrees {
-		effectivePHP := config.WorktreePHPVersion(wt.Path, phpVersion)
-		var vhostErr error
-		if site.Secured {
-			vhostErr = nginx.GenerateWorktreeSSLVhost(wt.Domain, wt.Path, effectivePHP, site.PrimaryDomain(), site.Name, wt.Branch)
-		} else {
-			vhostErr = nginx.GenerateWorktreeVhost(wt.Domain, wt.Path, effectivePHP, site.Name, wt.Branch)
-		}
-		if vhostErr != nil {
-			feedback.Warn("restoring worktree vhost %s: %v", wt.Domain, vhostErr)
-		}
-	}
-}
-
-// restartWorktreeWorkers restarts every worktree's per-worktree workers (e.g.
-// Vite) that PauseSite stopped, using the same opt-in path that started them on
-// worktree add. No-op for worktrees with no framework per-worktree workers.
-func restartWorktreeWorkers(site *config.Site, phpVersion string) {
-	worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain())
-	if err != nil || len(worktrees) == 0 {
-		return
-	}
-	for _, wt := range worktrees {
-		AutoStartOptedInWorktreeWorkers(site, wt.Path, config.WorktreePHPVersion(wt.Path, phpVersion))
-	}
-}
-
-// writePausedWorktreeHTML ensures the shared paused landing page exists (same file).
-func writePausedWorktreeHTML(_ gitpkg.Worktree, parent *config.Site) error {
-	return writePausedHTML(parent)
 }
 
 // workerResumable reports whether resumeWorkerByName knows how to bring the

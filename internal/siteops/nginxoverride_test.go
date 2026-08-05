@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/realrashid/servlo/internal/config"
 )
@@ -110,67 +109,5 @@ func TestListAndRestoreBackup_roundTrip(t *testing.T) {
 	}
 	if !res.OK || res.Content != "# v1\n" {
 		t.Fatalf("expected restored v1, got %+v", res)
-	}
-}
-
-func TestInheritCustomNginxConfig_copiesOnce(t *testing.T) {
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	writeOverride(t, "acme.test", "# parent\n")
-	if err := InheritCustomNginxConfig("acme.test", "feat.acme.test"); err != nil {
-		t.Fatal(err)
-	}
-	b, err := os.ReadFile(CustomNginxPath("feat.acme.test"))
-	if err != nil || string(b) != "# parent\n" {
-		t.Fatalf("expected inherited copy, got %q err=%v", string(b), err)
-	}
-}
-
-func TestInheritCustomNginxConfig_doesNotClobberWorktreeEdits(t *testing.T) {
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	writeOverride(t, "acme.test", "# parent\n")
-	writeOverride(t, "feat.acme.test", "# worktree-specific\n")
-	if err := InheritCustomNginxConfig("acme.test", "feat.acme.test"); err != nil {
-		t.Fatal(err)
-	}
-	b, _ := os.ReadFile(CustomNginxPath("feat.acme.test"))
-	if string(b) != "# worktree-specific\n" {
-		t.Fatalf("inherit must not clobber existing worktree override, got %q", string(b))
-	}
-}
-
-func TestInheritCustomNginxConfig_noParentIsNoOp(t *testing.T) {
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	if err := InheritCustomNginxConfig("acme.test", "feat.acme.test"); err != nil {
-		t.Fatalf("inherit with no parent override should be a no-op, got %v", err)
-	}
-	if _, err := os.Stat(CustomNginxPath("feat.acme.test")); !os.IsNotExist(err) {
-		t.Fatal("expected no worktree override to be created")
-	}
-}
-
-func TestRemoveCustomNginxConfig_deletesLiveAndBackups(t *testing.T) {
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	live := writeOverride(t, "feat.acme.test", "# wt\n")
-	if err := os.MkdirAll(config.NginxCustomDBkp(), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	mine := filepath.Join(config.NginxCustomDBkp(), "feat.acme.test.conf.bkp."+time.Now().Format("20060102-150405"))
-	other := filepath.Join(config.NginxCustomDBkp(), "acme.test.conf.bkp.20200101-000000")
-	for _, p := range []string{mine, other} {
-		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := RemoveCustomNginxConfig("feat.acme.test"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(live); !os.IsNotExist(err) {
-		t.Fatal("expected live override removed")
-	}
-	if _, err := os.Stat(mine); !os.IsNotExist(err) {
-		t.Fatal("expected worktree backup removed")
-	}
-	if _, err := os.Stat(other); err != nil {
-		t.Fatal("unrelated backup must survive")
 	}
 }

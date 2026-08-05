@@ -28,9 +28,6 @@ const reqStatsPruneInterval = time.Hour
 // be bound at boot.
 const accessFeedRetryInterval = 30 * time.Second
 
-// wtKey is the site/worktree composite the timing store keys worktree traffic by.
-func wtKey(site, wtBase string) string { return site + "/" + wtBase }
-
 // slowNotifier fires a one-time push per newly-flagged slow route on each save
 // tick.
 var slowNotifier = newSlowRouteNotifier()
@@ -53,14 +50,10 @@ var (
 )
 
 // StartRequestStats wires the request-timing subsystem: the aggregate the panel
-// reads live, the durable store behind the Request timing view, the worktree
-// index domains resolve through, and the always-on access-feed reader.
+// reads live, the durable store behind the Request timing view, and the
+// always-on access-feed reader.
 func StartRequestStats() {
 	reqAggregator = reqstats.New(resolveHostToStatsKey)
-	// Worktree domains resolve from an index that lives as long as the daemon, so
-	// request timing attributes worktree traffic too.
-	wtIndex.refresh()
-	go wtIndex.run()
 	if st, err := reqstats.OpenStore(config.RequestStatsDB()); err == nil {
 		reqStore = st
 		// Seed the cold-start clock from the durable store so the first request
@@ -224,31 +217,13 @@ func readDatagrams(conn net.PacketConn, handle func([]byte)) {
 	}
 }
 
-// resolveHostToSite maps a request host to its idle key. A worktree domain
-// resolves to the worktree's key (so its own traffic wakes the worktree, not the
-// parent site); other hosts resolve to the owning site name. Hosts that belong to
-// no registered site resolve to ok=false and are ignored by the tracker.
-func resolveHostToSite(host string) (string, bool) {
-	if wt, ok := wtIndex.lookup(host); ok {
-		return wtKey(wt.Site, wt.Base), true
-	}
-	return siteNameForHost(host)
-}
-
-// resolveHostToStatsKey maps a request host to its request-store key. It is the
-// idle key's twin, and separate on purpose: a worktree's stats key carries the
-// sanitized branch, the identity the HTTP API, the worktree registries
-// already share, while its idle key carries the checkout dir the worker units are
-// named after. Readers ask by branch, so the writer must record by branch.
+// resolveHostToStatsKey maps a request host to its request-store key.
 func resolveHostToStatsKey(host string) (string, bool) {
-	if wt, ok := wtIndex.lookup(host); ok {
-		return reqstats.Key(wt.Site, wt.Branch), true
-	}
 	return siteNameForHost(host)
 }
 
-// siteNameForHost resolves a non-worktree host to the site that owns it, ok=false
-// when no registered site does.
+// siteNameForHost resolves a host to the site that owns it, ok=false when no
+// registered site does.
 func siteNameForHost(host string) (string, bool) {
 	site, err := config.FindSiteByDomain(host)
 	if err != nil || site == nil {

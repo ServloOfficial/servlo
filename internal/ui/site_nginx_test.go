@@ -79,44 +79,6 @@ func TestHandleSiteNginx_getReturnsTemplateWhenMissing(t *testing.T) {
 	}
 }
 
-// A worktree's nginx override is keyed by its subdomain, which is not a
-// registered site domain — the handler must still resolve it (regression: it
-// 404'd because FindSiteByDomain only knows primary/alias domains).
-func TestHandleSiteNginx_getResolvesWorktreeDomain(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	stubNginxReload(t)
-
-	mainSite := filepath.Join(t.TempDir(), "acme")
-	survivor := filepath.Join(t.TempDir(), "acme-feat")
-	for _, d := range []string{filepath.Join(mainSite, ".git", "worktrees", "feat"), survivor} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	wtMeta := filepath.Join(mainSite, ".git", "worktrees", "feat")
-	_ = os.WriteFile(filepath.Join(wtMeta, "HEAD"), []byte("ref: refs/heads/feat\n"), 0o644)
-	_ = os.WriteFile(filepath.Join(wtMeta, "gitdir"), []byte(filepath.Join(survivor, ".git")+"\n"), 0o644)
-	if err := config.AddSite(config.Site{Name: "acme", Path: mainSite, Domains: []string{"acme.test"}}); err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/api/sites/feat.acme.test/nginx", nil)
-	rec := httptest.NewRecorder()
-	handleSiteAction(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("worktree nginx endpoint status %d: %s", rec.Code, rec.Body.String())
-	}
-	var resp SiteNginxReadResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if !strings.HasSuffix(resp.Path, "/custom.d/feat.acme.test.conf") {
-		t.Errorf("path: got %q want the worktree override path", resp.Path)
-	}
-}
-
 func TestHandleSiteNginx_getReportsExistsWhenFileSaved(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())

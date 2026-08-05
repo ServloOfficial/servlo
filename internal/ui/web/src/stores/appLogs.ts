@@ -14,14 +14,10 @@ export interface AppLogEntry {
   detail?: string;
 }
 
-function branchQuery(branch?: string): string {
-  return branch ? `?branch=${encodeURIComponent(branch)}` : '';
-}
-
-export async function listAppLogFiles(domain: string, branch?: string): Promise<AppLogFile[]> {
+export async function listAppLogFiles(domain: string): Promise<AppLogFile[]> {
   try {
     const res = await apiJson<{ files?: AppLogFile[] }>(
-      `/api/app-logs/${encodeURIComponent(domain)}${branchQuery(branch)}`
+      `/api/app-logs/${encodeURIComponent(domain)}`
     );
     return Array.isArray(res.files) ? res.files : [];
   } catch {
@@ -38,10 +34,10 @@ export interface ClearAppLogsResult {
 
 // clearAppLogs deletes the project's log files to reclaim disk. The active log
 // is recreated by the app on its next write.
-export async function clearAppLogs(domain: string, branch?: string): Promise<ClearAppLogsResult> {
+export async function clearAppLogs(domain: string): Promise<ClearAppLogsResult> {
   try {
     const res = await apiFetch(
-      `/api/app-logs/${encodeURIComponent(domain)}/clear${branchQuery(branch)}`,
+      `/api/app-logs/${encodeURIComponent(domain)}/clear`,
       { method: 'POST' }
     );
     const data = (await res.json()) as {
@@ -64,13 +60,11 @@ export async function clearAppLogs(domain: string, branch?: string): Promise<Cle
 export async function loadAppLogEntries(
   domain: string,
   file: string,
-  showAll: boolean,
-  branch?: string
+  showAll: boolean
 ): Promise<AppLogEntry[]> {
   try {
     const limit = showAll ? 0 : 100;
     const params = new URLSearchParams({ limit: String(limit) });
-    if (branch) params.set('branch', branch);
     const res = await apiJson<{ entries?: AppLogEntry[] }>(
       `/api/app-logs/${encodeURIComponent(domain)}/${encodeURIComponent(file)}?${params.toString()}`
     );

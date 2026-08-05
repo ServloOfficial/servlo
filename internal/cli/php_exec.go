@@ -70,12 +70,8 @@ func phpVersionForDir(dir string) (string, error) {
 // fpmContainerForDir resolves the FPM container an exec in dir should target:
 // the per-site container for custom-FPM sites, otherwise the shared
 // servlo-php<version>-fpm container. It resolves the site the same way version
-// detection does, so a worktree beside its project reaches the parent's custom
-// image rather than falling through to the shared container its vhost never uses.
+// detection does, so an exec reaches the same image the site's vhost uses.
 func fpmContainerForDir(dir, version string) string {
-	if _, parent, ok := phpDet.WorktreeRootFor(dir); ok {
-		return podman.FPMContainerName(*parent, version)
-	}
 	if site, _ := config.FindSiteByPath(phpDet.SiteRootFor(dir)); site != nil {
 		return podman.FPMContainerName(*site, version)
 	}
@@ -85,12 +81,8 @@ func fpmContainerForDir(dir, version string) string {
 // debugSiteEnvArgs returns the SERVLO_SITE exec flag for a CLI run in dir, so the
 // debug bridge and the devtools extension tag every event with the registered
 // site name. Without it the bridge falls back to the directory basename and the
-// extension emits no site at all, which strands the notification (#1005). A
-// worktree checkout reports its parent site, like the worktree vhost.
+// extension emits no site at all, which strands the notification (#1005).
 func debugSiteEnvArgs(dir string) []string {
-	if _, parent, ok := phpDet.WorktreeRootFor(dir); ok && parent != nil && parent.Name != "" {
-		return []string{"--env", "SERVLO_SITE=" + parent.Name}
-	}
 	if site, _ := config.FindSiteByPath(phpDet.SiteRootFor(dir)); site != nil && site.Name != "" {
 		return []string{"--env", "SERVLO_SITE=" + site.Name}
 	}

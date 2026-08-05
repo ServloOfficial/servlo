@@ -11,11 +11,9 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/envfile"
 	"github.com/realrashid/servlo/internal/feedback"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 	phpDet "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/services"
-	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -159,13 +157,9 @@ func newWorkerListCmd() *cobra.Command {
 func resolveSiteAndFramework(cwd string) (*config.Site, *config.Framework, string, error) {
 	site, err := config.FindSiteByPath(cwd)
 	if err != nil {
-		if parent, ok := config.ParentSiteForWorktreeDir(cwd); ok {
-			site = parent
-		} else {
-			site, err = ensureSiteForCwd()
-			if err != nil {
-				return nil, nil, "", err
-			}
+		site, err = ensureSiteForCwd()
+		if err != nil {
+			return nil, nil, "", err
 		}
 	}
 
@@ -318,7 +312,7 @@ func InstallChokidar(sitePath string) error {
 // If the worker has a Proxy config, the proxy port is auto-assigned and the
 // nginx vhost is regenerated to include the WebSocket/HTTP proxy block.
 // When persist is false the worker is not added to .servlo.yaml, used by the
-// auto-start path so worktree vite workers don't appear as user-opted entries.
+// auto-start path so vite workers don't appear as user-opted entries.
 func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w config.FrameworkWorker, persist bool) error {
 	if err := workerStartPreflight(sitePath, workerName, w); err != nil {
 		return err
@@ -348,9 +342,7 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 		}
 	}
 
-	// Stop conflicting workers before starting. Match the new worker's
-	// path so a per-worktree start tears down only the same worktree's
-	// conflicting unit and doesn't touch the parent's.
+	// Stop conflicting workers before starting.
 	for _, conflict := range w.ConflictsWith {
 		WorkerStopForSite(siteName, sitePath, conflict) //nolint:errcheck
 	}
@@ -447,9 +439,6 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 	startStep.OK("")
 	feedback.Note("logs: " + workerLogHint(unitName, w.Host))
 
-	// Clear any stale entry so the
-	// engine doesn't boot believing this site (or worktree) is still asleep.
-
 	// Regenerate nginx vhost if the worker has proxy config.
 	if w.Proxy != nil {
 		regenNginxVhost(siteName, sitePath)
@@ -457,7 +446,7 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 
 	// Persist this worker to .servlo.yaml so servlo install can restore it.
 	// Additive: other workers already in the list are not removed. Skipped
-	// when persist is false (auto-start path) so worktree workers don't
+	// when persist is false (auto-start path) so auto-started workers don't
 	// appear as user-opted entries.
 	if persist {
 		_ = config.AddProjectWorker(sitePath, workerName)
@@ -584,21 +573,11 @@ func newWorkerRemoveCmd() *cobra.Command {
 				return err
 			}
 
-			// Stop the worker if running — on the parent and on every
-			// worktree. Without the worktree pass, per-worktree units
-			// (servlo-<name>-<site>-<wt>) keep running against a
-			// definition that's about to be deleted from .servlo.yaml.
-			paths := []string{site.Path}
-			if worktrees, err := gitpkg.DetectWorktrees(site.Path, site.PrimaryDomain()); err == nil {
-				for _, wt := range worktrees {
-					paths = append(paths, wt.Path)
-				}
-			}
-			for _, p := range paths {
-				unit := WorkerUnitName(site.Name, p, name)
-				if isServiceActiveOrRestarting(unit) {
-					_ = WorkerStopForSite(site.Name, p, name)
-				}
+			// Stop the worker if running, so it can't outlive the
+			// definition about to be deleted from .servlo.yaml.
+			unit := WorkerUnitName(site.Name, site.Path, name)
+			if isServiceActiveOrRestarting(unit) {
+				_ = WorkerStopForSite(site.Name, site.Path, name)
 			}
 
 			if global {
@@ -646,28 +625,14 @@ func siteFrameworkName(siteName string) string {
 }
 
 // workerNames returns the systemd unit name and the human-readable display
-// site for the given (siteName, sitePath, workerName). When sitePath is a
-// worktree under the parent site, both values carry a "-<wtBase>" /
-// "/<wtBase>" suffix so per-worktree units don't collide with the parent's
-// and CLI output can tell them apart. Single config.FindSite call serves
-// both shapes — formerly two helpers each looked up independently.
+// site for the given (siteName, sitePath, workerName).
 func workerNames(siteName, sitePath, workerName string) (unit, display string) {
-	unit = "servlo-" + workerName + "-" + siteName
-	display = siteName
-	if siteName == "" || workerName == "" || sitePath == "" {
-		return unit, display
-	}
-	s, _ := config.FindSite(siteName)
-	if s == nil || s.Path == "" || s.Path == sitePath {
-		return unit, display
-	}
-	wtBase := filepath.Base(sitePath)
-	return unit + "-" + config.WorktreeUnitSlug(wtBase), display + "/" + wtBase
+	return "servlo-" + workerName + "-" + siteName, siteName
 }
 
 // WorkerUnitName is a thin wrapper around workerNames for callers that only
 // need the unit name, including callers outside this package, so the naming
-// rule (and its worktree suffix) is never re-spelled by hand.
+// rule is never re-spelled by hand.
 func WorkerUnitName(siteName, sitePath, workerName string) string {
 	unit, _ := workerNames(siteName, sitePath, workerName)
 	return unit
@@ -704,16 +669,12 @@ func resolveWorkerFPMUnit(siteName, phpVersion string) string {
 }
 
 // WorkerStopForSite stops and removes the named worker unit for the given site.
-// When sitePath is a path under a worktree (i.e. differs from the registered
-// site path), the per-worktree unit is targeted instead of the parent's.
-// Pass site.Path (or any path on the parent site) to stop the parent unit.
 func WorkerStopForSite(siteName, sitePath, workerName string) error {
 	unitName, displaySite := workerNames(siteName, sitePath, workerName)
 	return stopWorkerUnit(unitName, workerName, displaySite)
 }
 
-// stopWorkerUnit tears down a fully-qualified unit name. Used by both the
-// per-site stop entry point and the worktree-removal cleanup pass. Disable
+// stopWorkerUnit tears down a fully-qualified unit name. Disable
 // + Stop + RemoveTimerUnit + RemoveServiceUnit are run unconditionally so
 // the call works regardless of whether the worker was scheduled (.timer +
 // oneshot .service) or a long-running daemon (.service alone). Missing
@@ -754,44 +715,9 @@ func finalizeStopStep(step *feedback.Step, reloadErr error) {
 	}
 }
 
-// StopAllWorkersForWorktree stops every per-worktree worker unit attached
-// to the given (site, worktree) pair. Called from `servlo worktree remove`
-// and from the watcher's onRemoved hook so units don't restart-loop
-// against a deleted WorkingDirectory after the user tears down a worktree.
-// Returns the first underlying error so the caller can log it; siblings
-// keep being torn down regardless.
-func StopAllWorkersForWorktree(siteName, wtBase string) error {
-	if siteName == "" || wtBase == "" {
-		return nil
-	}
-	// Unit names sanitize dots, so match against the same slug used at creation.
-	wtBase = config.WorktreeUnitSlug(wtBase)
-	suffix := "-" + siteName + "-" + wtBase
-	pattern := "servlo-*" + suffix
-	units := services.Mgr.ListServiceUnits(pattern)
-	displaySite := siteName + "/" + wtBase
-	var firstErr error
-	for _, unit := range units {
-		// Defensive trim: globs can theoretically return false positives
-		// or the mgr may widen the result set. Skip anything that doesn't
-		// actually end in our suffix.
-		if !strings.HasSuffix(unit, suffix) {
-			continue
-		}
-		workerName := strings.TrimSuffix(strings.TrimPrefix(unit, "servlo-"), suffix)
-		if workerName == "" {
-			continue
-		}
-		if err := stopWorkerUnit(unit, workerName, displaySite); err != nil && firstErr == nil {
-			firstErr = err
-		}
-	}
-	return firstErr
-}
-
-// workerNameForSiteUnit parses a worker unit name shaped servlo-<worker>-<site> or
-// servlo-<worker>-<site>-<slug> and returns <worker>. ok is false when the unit
-// is not a worker unit for siteName.
+// workerNameForSiteUnit parses a worker unit name shaped servlo-<worker>-<site>
+// and returns <worker>. ok is false when the unit is not a worker unit for
+// siteName.
 func workerNameForSiteUnit(unit, siteName string) (string, bool) {
 	rem, ok := strings.CutPrefix(unit, "servlo-")
 	if !ok {
@@ -814,10 +740,10 @@ func workerNameForSiteUnit(unit, siteName string) (string, bool) {
 
 // siteOwnsWorkerUnit reports whether unit unambiguously belongs to siteName: the
 // name must parse as siteName's worker unit AND no other registered site parse
-// it too. Worker-unit names are ambiguous (servlo-horizon-web-feat is both web's
-// "feat" worktree horizon unit and a "feat" site's "horizon-web" worker), so
-// when another registered site also matches we decline rather than risk tearing
-// down the wrong site's unit; the cost is at most leaving one unit behind.
+// it too. Worker-unit names are ambiguous (servlo-horizon-web is both a "web"
+// site's horizon worker and a "" site's "horizon-web" worker), so when another
+// registered site also matches we decline rather than risk tearing down the
+// wrong site's unit; the cost is at most leaving one unit behind.
 func siteOwnsWorkerUnit(unit, siteName string, others []string) (string, bool) {
 	worker, ok := workerNameForSiteUnit(unit, siteName)
 	if !ok {
@@ -834,11 +760,10 @@ func siteOwnsWorkerUnit(unit, siteName string, others []string) (string, bool) {
 	return worker, true
 }
 
-// stopAllSiteWorkerUnits stops and removes every worker unit for a site, parent
-// and per-worktree, by listing units rather than walking git, so it works even
-// after the site path is deleted (watcher prune) when worktree detection can't
-// run. Only units siteOwnsWorkerUnit confirms are unambiguously this site's are
-// torn down.
+// stopAllSiteWorkerUnits stops and removes every worker unit for a site by
+// listing units rather than walking the checkout, so it works even after the
+// site path is deleted (watcher prune). Only units siteOwnsWorkerUnit confirms
+// are unambiguously this site's are torn down.
 func stopAllSiteWorkerUnits(site *config.Site) {
 	var others []string
 	if reg, err := config.LoadSites(); err == nil {
@@ -927,9 +852,6 @@ func findOrphanedWorkers(siteName string, known map[string]bool) []string {
 		switch workerName {
 		case "php84-fpm", "php83-fpm", "php82-fpm", "php81-fpm", "php80-fpm",
 			"nginx", "dns", "dns-forwarder", "watcher", "ui", "stripe":
-			continue
-		}
-		if servloSystemd.UnitBelongsToOtherSiteWorktree(workerName, siteName, sites) {
 			continue
 		}
 		if isServiceActiveOrRestarting(unit) {

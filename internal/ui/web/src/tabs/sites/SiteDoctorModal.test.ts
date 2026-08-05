@@ -31,7 +31,7 @@ afterEach(() => {
 
 describe('SiteDoctorModal', () => {
   it('does not run the checks while closed', () => {
-    render(SiteDoctorModal, { props: { open: false, site: site(), branch: '', onclose: () => {} } });
+    render(SiteDoctorModal, { props: { open: false, site: site(), onclose: () => {} } });
     expect(loadDoctor).not.toHaveBeenCalled();
     expect(loadCommands).not.toHaveBeenCalled();
   });
@@ -49,7 +49,7 @@ describe('SiteDoctorModal', () => {
       { name: 'key:generate', label: 'Generate APP_KEY', command: 'php artisan key:generate' }
     ]);
 
-    render(SiteDoctorModal, { props: { open: true, site: site(), branch: '', onclose: () => {} } });
+    render(SiteDoctorModal, { props: { open: true, site: site(), onclose: () => {} } });
 
     expect(loadDoctor).toHaveBeenCalled();
     expect(await screen.findByText('Application key')).toBeTruthy();
@@ -69,11 +69,11 @@ describe('SiteDoctorModal', () => {
     const cmd = { name: 'migrate:fresh', label: 'Drop and re-migrate', command: 'php artisan migrate:fresh', confirm: true };
     loadCommands.mockResolvedValue([cmd]);
 
-    render(SiteDoctorModal, { props: { open: true, site: site(), branch: 'feat-x', onclose: () => {} } });
+    render(SiteDoctorModal, { props: { open: true, site: site(), onclose: () => {} } });
 
     await fireEvent.click(await screen.findByRole('button', { name: 'Fix' }));
 
-    expect(launchCommand).toHaveBeenCalledWith('acme.test', cmd, { branch: 'feat-x' });
+    expect(launchCommand).toHaveBeenCalledWith('acme.test', cmd);
     expect(runSettled).toHaveBeenCalled();
   });
 
@@ -85,7 +85,7 @@ describe('SiteDoctorModal', () => {
     });
     loadCommands.mockResolvedValue([]);
 
-    render(SiteDoctorModal, { props: { open: true, site: site(), branch: '', onclose: () => {} } });
+    render(SiteDoctorModal, { props: { open: true, site: site(), onclose: () => {} } });
 
     expect(await screen.findByText('Storage symlink')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Fix' })).toBeNull();

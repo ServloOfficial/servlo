@@ -55,14 +55,8 @@ export interface Analytics {
 export type TimeRange = '15m' | '1h' | '24h' | '7d';
 export const TIME_RANGES: TimeRange[] = ['15m', '1h', '24h', '7d'];
 
-// loadSiteAnalytics fetches the request-timing analytics for a site over a window,
-// scoped to a worktree branch when given.
-export async function loadSiteAnalytics(
-  domain: string,
-  range: TimeRange,
-  branch = ''
-): Promise<Analytics> {
+// loadSiteAnalytics fetches the request-timing analytics for a site over a window.
+export async function loadSiteAnalytics(domain: string, range: TimeRange): Promise<Analytics> {
   const params = new URLSearchParams({ range });
-  if (branch) params.set('branch', branch);
   return apiJson<Analytics>(`/api/sites/${encodeURIComponent(domain)}/analytics?${params.toString()}`);
 }

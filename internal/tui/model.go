@@ -133,18 +133,13 @@ type Model struct {
 
 	// Picker state (PHP/Node version). When active, up/down navigates
 	// pickerOptions instead of detail rows and enter applies the pick.
-	// pickerWorktreePath is set when the picker was opened from a per-
-	// worktree row; applyPicker uses it as the cwd so the change writes
-	// .php-version / .node-version inside the worktree's checkout.
 	pickerKind    detailKind
 	pickerOptions []string
 	// pickerDisabled is parallel to pickerOptions: a true entry is shown dimmed
 	// and skipped on navigation and apply. Used to reflect a framework's PHP
 	// range so out-of-range versions are visible but not selectable.
-	pickerDisabled     []bool
-	pickerCursor       int
-	pickerWorktreePath string
-	pickerWorktreeName string
+	pickerDisabled []bool
+	pickerCursor   int
 
 	// Domain-input state: when active, typing adds characters to the
 	// pending domain name; enter runs `servlo domain add`, esc cancels.

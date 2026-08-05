@@ -24,10 +24,10 @@ func Output(dir string, args ...string) (string, error) {
 }
 
 // Run runs `git <args>` in dir, sending stdout and stderr to log (a single
-// writer; matches the modal-log pattern used by the worktree flows). When
+// writer; matches the modal-log pattern used by the streaming flows). When
 // log is nil, output is discarded. Empty dir means inherit cwd. The returned
 // error wraps the exec failure with the first non-flag arg so callers can
-// surface "git worktree: exit status 1" rather than the full arg list.
+// surface "git clone: exit status 1" rather than the full arg list.
 func Run(dir string, log io.Writer, args ...string) error {
 	cmd := exec.Command("git", args...)
 	if dir != "" {
@@ -91,7 +91,7 @@ func BranchExists(dir, branch string) bool {
 }
 
 // argSummary picks the first non-flag arg so error messages read as
-// "git worktree: ..." rather than the full command line. Keeps wrap text
+// "git clone: ..." rather than the full command line. Keeps wrap text
 // short while still naming the subcommand.
 func argSummary(args []string) string {
 	for _, a := range args {

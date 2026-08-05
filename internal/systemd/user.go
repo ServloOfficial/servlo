@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
-	gitpkg "github.com/realrashid/servlo/internal/git"
 )
 
 // WriteService writes a systemd user service unit file.
@@ -114,7 +113,7 @@ func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
 	if err != nil {
 		return nil
 	}
-	// Pre-loaded so worktree units (servlo-<wname>-<parent>-<wt>.service) can
+	// Pre-loaded so units named after another registered site can
 	// be filtered out instead of mis-attributed as orphans of <wt>.
 	var sites []config.Site
 	if reg, err := config.LoadSites(); err == nil {
@@ -153,9 +152,6 @@ func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
 		if known[workerName] {
 			continue
 		}
-		if UnitBelongsToOtherSiteWorktree(workerName, siteName, sites) {
-			continue
-		}
 		// Skip units owned by a registered site with a longer name whose suffix
 		// collides: servlo-queue-admin-astrolov is admin-astrolov's queue, not
 		// astrolov's "queue-admin". Without this, a group secondary's workers
@@ -170,33 +166,4 @@ func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
 	}
 	sort.Strings(orphans)
 	return orphans
-}
-
-// UnitBelongsToOtherSiteWorktree reports whether the parsed candidate
-// (workerName=<wname>-<parent>, thisSite=<wt>) is actually the worktree unit
-// servlo-<wname>-<parent>-<wt>.service of another registered site.
-func UnitBelongsToOtherSiteWorktree(workerName, thisSite string, sites []config.Site) bool {
-	if !strings.Contains(workerName, "-") {
-		return false
-	}
-	for off := 0; off < len(workerName); {
-		idx := strings.Index(workerName[off:], "-")
-		if idx == -1 {
-			return false
-		}
-		parentName := workerName[off+idx+1:]
-		off += idx + 1
-		for _, s := range sites {
-			if s.Name != parentName {
-				continue
-			}
-			wts, _ := gitpkg.DetectWorktrees(s.Path, s.PrimaryDomain())
-			for _, wt := range wts {
-				if filepath.Base(wt.Path) == thisSite {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }

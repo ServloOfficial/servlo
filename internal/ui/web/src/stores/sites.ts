@@ -56,23 +56,6 @@ export interface Site {
   group_main_domain?: string;
   group_shared_db?: boolean;
   multi_tenant?: boolean;
-  worktrees?: Array<{
-    branch?: string;
-    domain?: string;
-    path?: string;
-    php_version?: string;
-    php_min?: string;
-    php_max?: string;
-    node_version?: string;
-    php_version_override?: boolean;
-    node_version_override?: boolean;
-    framework_version?: string;
-    framework_label?: string;
-    db_isolated?: boolean;
-    db_database?: string;
-    lan_port?: number;
-    framework_workers?: FrameworkWorker[];
-    }>;
   has_queue_worker?: boolean;
   has_schedule_worker?: boolean;
   has_horizon?: boolean;
@@ -244,17 +227,10 @@ export function siteHasWorkers(s: Site): boolean {
   );
 }
 
-export function openSiteInBrowser(s: Site, branch: string = '', urlOverride?: string) {
-  const target = activeWorktreeDomain(s, branch);
+export function openSiteInBrowser(s: Site, urlOverride?: string) {
   const useTLS = Boolean(s.tls);
-  const url = urlOverride || (useTLS ? 'https://' : 'http://') + target;
+  const url = urlOverride || (useTLS ? 'https://' : 'http://') + s.domain;
   window.open(url, '_blank', 'noopener');
-}
-
-export function activeWorktreeDomain(s: Site, branch: string): string {
-  if (!branch) return s.domain;
-  const wt = (s.worktrees || []).find((w) => w.branch === branch);
-  return wt?.domain || s.domain;
 }
 
 async function postAction(path: string): Promise<{ ok: boolean; error?: string }> {
@@ -271,9 +247,8 @@ function site(path: string, action: string): string {
   return `/api/sites/${encodeURIComponent(path)}/${action}`;
 }
 
-function envQS(branch: string, file?: string): string {
+function envQS(file?: string): string {
   const params = new URLSearchParams();
-  if (branch) params.set('branch', branch);
   if (file) params.set('file', file);
   const s = params.toString();
   return s ? '?' + s : '';
@@ -282,9 +257,9 @@ function envQS(branch: string, file?: string): string {
 // An empty list is a real answer: the framework has no editable dotenv, or the
 // one it declares isn't on disk yet. Don't invent a .env the framework never
 // reads; the caller decides what to show.
-export async function loadSiteEnvFiles(domain: string, branch: string = ''): Promise<string[]> {
+export async function loadSiteEnvFiles(domain: string): Promise<string[]> {
   try {
-    const res = await apiFetch(site(domain, 'env') + '/files' + envQS(branch));
+    const res = await apiFetch(site(domain, 'env') + '/files' + envQS());
     if (!res.ok) return [];
     const list = (await res.json()) as string[] | null;
     return Array.isArray(list) ? list : [];
@@ -293,8 +268,8 @@ export async function loadSiteEnvFiles(domain: string, branch: string = ''): Pro
   }
 }
 
-export async function loadSiteEnv(domain: string, branch: string = '', file: string = ''): Promise<string> {
-  const res = await apiFetch(site(domain, 'env') + envQS(branch, file));
+export async function loadSiteEnv(domain: string, file: string = ''): Promise<string> {
+  const res = await apiFetch(site(domain, 'env') + envQS(file));
   if (!res.ok) throw new Error(m.sites_fileLoadFailed({ file, status: res.status }));
   return await res.text();
 }
@@ -330,12 +305,10 @@ export interface SiteEnvProposal {
 // the review modal can add just the ones the user ticked.
 export async function proposeSiteEnv(
   domain: string,
-  branch: string = '',
   includeOptional: boolean = false,
   keys?: string[]
 ): Promise<SiteEnvProposal> {
   const params = new URLSearchParams();
-  if (branch) params.set('branch', branch);
   if (keys && keys.length) params.set('keys', keys.join(','));
   else if (includeOptional) params.set('optional', '1');
   const qs = params.toString();
@@ -351,11 +324,10 @@ export interface SiteEnvBackup {
 
 export async function loadSiteEnvBackups(
   domain: string,
-  branch: string = '',
   file: string = ''
 ): Promise<SiteEnvBackup[]> {
   try {
-    const res = await apiFetch(site(domain, 'env') + '/backups' + envQS(branch, file));
+    const res = await apiFetch(site(domain, 'env') + '/backups' + envQS(file));
     if (!res.ok) return [];
     return (await res.json()) as SiteEnvBackup[];
   } catch {
@@ -366,10 +338,9 @@ export async function loadSiteEnvBackups(
 export async function loadSiteEnvBackupContent(
   domain: string,
   name: string,
-  branch: string = '',
   file: string = ''
 ): Promise<string> {
-  const res = await apiFetch(site(domain, 'env') + '/backups/' + encodeURIComponent(name) + envQS(branch, file));
+  const res = await apiFetch(site(domain, 'env') + '/backups/' + encodeURIComponent(name) + envQS(file));
   if (!res.ok) throw new Error(m.common_backupLoadFailed({ status: res.status }));
   return await res.text();
 }
@@ -383,12 +354,11 @@ export interface RestoreEnvResult {
 
 export async function restoreSiteEnv(
   domain: string,
-  branch: string = '',
   file: string = '',
   name: string = ''
 ): Promise<RestoreEnvResult> {
   try {
-    const res = await apiFetch(site(domain, 'env') + '/restore' + envQS(branch, file), {
+    const res = await apiFetch(site(domain, 'env') + '/restore' + envQS(file), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name })
@@ -402,13 +372,12 @@ export async function restoreSiteEnv(
 
 export async function saveSiteEnv(
   domain: string,
-  branch: string,
   content: string,
   backup: boolean,
   file: string = ''
 ): Promise<SaveEnvResult> {
   try {
-    const res = await apiFetch(site(domain, 'env') + envQS(branch, file), {
+    const res = await apiFetch(site(domain, 'env') + envQS(file), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, backup })
@@ -554,8 +523,7 @@ export const resumeSite = (d: string) => postAction(site(d, 'unpause'));
 export const pinSite = (d: string) => postAction(site(d, 'pin'));
 export const unpinSite = (d: string) => postAction(site(d, 'unpin'));
 export const unlinkSite = (d: string) => postAction(site(d, 'unlink'));
-export const openTerminal = (d: string, branch: string = '') =>
-  postAction(site(d, 'terminal') + (branch ? `?branch=${encodeURIComponent(branch)}` : ''));
+export const openTerminal = (d: string) => postAction(site(d, 'terminal'));
 
 export function openFolder(path: string) {
   return apiFetch('/api/open-folder', {
@@ -563,17 +531,6 @@ export function openFolder(path: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path })
   });
-}
-
-export function setWorktreeDBIsolated(
-  d: string,
-  branch: string,
-  isolated: boolean,
-  source: string = ''
-) {
-  const params = new URLSearchParams({ branch, isolated: String(isolated) });
-  if (isolated && source) params.set('source', source);
-  return postAction(site(d, 'db:isolate') + '?' + params.toString());
 }
 
 export const toggleTLS = (s: Site) => postAction(site(s.domain, s.tls ? 'unsecure' : 'secure'));
@@ -597,21 +554,12 @@ export const toggleStripe = (s: Site) =>
   postAction(site(s.domain, s.stripe_running ? 'stripe:stop' : 'stripe:start'));
 export const setStripeConfig = (s: Site, path: string) =>
   postAction(site(s.domain, 'stripe:config') + '?path=' + encodeURIComponent(path));
-export const toggleWorker = (s: Site, w: FrameworkWorker, branch: string = '') =>
-  postAction(
-    site(s.domain, 'worker:' + w.name + (w.running ? ':stop' : ':start')) +
-      (branch ? `?branch=${encodeURIComponent(branch)}` : '')
-  );
+export const toggleWorker = (s: Site, w: FrameworkWorker) =>
+  postAction(site(s.domain, 'worker:' + w.name + (w.running ? ':stop' : ':start')));
 
-export async function setSiteVersion(
-  s: Site,
-  type: 'php' | 'node',
-  version: string,
-  branch: string = ''
-) {
+export async function setSiteVersion(s: Site, type: 'php' | 'node', version: string) {
   try {
     const params = new URLSearchParams({ version });
-    if (branch) params.set('branch', branch);
     const res = await apiFetch(site(s.domain, type) + '?' + params.toString(), {
       method: 'POST'
     });

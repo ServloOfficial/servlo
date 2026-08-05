@@ -20,7 +20,7 @@ describe('appLogs store', () => {
     globalThis.fetch = realFetch;
   });
 
-  it('listAppLogFiles omits ?branch when not provided', async () => {
+  it('listAppLogFiles requests the app-logs endpoint', async () => {
     const { listAppLogFiles } = await import('./appLogs');
     await listAppLogFiles('acme.test');
     expect(calls).toHaveLength(1);
@@ -28,29 +28,16 @@ describe('appLogs store', () => {
     expect(calls[0]).not.toContain('branch=');
   });
 
-  it('listAppLogFiles includes ?branch= when provided', async () => {
-    const { listAppLogFiles } = await import('./appLogs');
-    await listAppLogFiles('acme.test', 'feat-a');
-    expect(calls[0]).toMatch(/[?&]branch=feat-a(&|$)/);
-  });
-
-  it('loadAppLogEntries omits branch when blank', async () => {
+  it('loadAppLogEntries requests the entries endpoint with a limit', async () => {
     const { loadAppLogEntries } = await import('./appLogs');
     await loadAppLogEntries('acme.test', 'laravel.log', false);
     expect(calls[0]).toContain('limit=100');
     expect(calls[0]).not.toContain('branch=');
   });
 
-  it('loadAppLogEntries includes branch alongside limit', async () => {
-    const { loadAppLogEntries } = await import('./appLogs');
-    await loadAppLogEntries('acme.test', 'laravel.log', true, 'feat-a');
-    expect(calls[0]).toContain('limit=0');
-    expect(calls[0]).toMatch(/[?&]branch=feat-a(&|$)/);
-  });
-
   it('loadAppLogEntries url-encodes filenames containing dots', async () => {
     const { loadAppLogEntries } = await import('./appLogs');
-    await loadAppLogEntries('acme.test', 'laravel-2026-05-02.log', false, 'feat-a');
+    await loadAppLogEntries('acme.test', 'laravel-2026-05-02.log', false);
     expect(calls[0]).toContain('laravel-2026-05-02.log');
   });
 });

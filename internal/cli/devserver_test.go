@@ -275,8 +275,8 @@ func TestRewriteDevServerWrapperSkipsAConfigItNeverWrote(t *testing.T) {
 	}
 }
 
-// A worktree seeds node_modules from its parent by reflink, so a wrapper left
-// over from the parent carries the wrong origin and must be overwritten.
+// node_modules can carry a wrapper left over from another checkout, whose
+// origin is wrong here and must be overwritten.
 func TestWriteDevServerWrapperOverwritesInheritedCopy(t *testing.T) {
 	dir := gitRepo(t, "/node_modules\n")
 	if err := os.WriteFile(filepath.Join(dir, "vite.config.js"), []byte("export default {}"), 0o644); err != nil {
@@ -302,7 +302,7 @@ func TestWriteDevServerWrapperOverwritesInheritedCopy(t *testing.T) {
 		t.Errorf("inherited wrapper survived:\n%s", body)
 	}
 	if !strings.Contains(string(body), "feature.myapp.test") {
-		t.Errorf("wrapper does not carry this worktree's origin:\n%s", body)
+		t.Errorf("wrapper does not carry this checkout's origin:\n%s", body)
 	}
 }
 
@@ -450,53 +450,11 @@ func TestAssignDevServerPortSkipsPortsInUse(t *testing.T) {
 	defer ln.Close()
 	busy := ln.Addr().(*net.TCPAddr).Port
 
-	got := assignDevServerPort("myapp", "", busy)
+	got := assignDevServerPort("myapp", busy)
 	if got == busy {
 		t.Fatalf("assignDevServerPort() handed out port %d, which is already bound", busy)
 	}
 	if got < busy {
 		t.Fatalf("assignDevServerPort() = %d, want a port at or above %d", got, busy)
-	}
-}
-
-// A worktree runs its own dev server, so it must never be handed the port its
-// parent site is already pinned to.
-func TestAssignDevServerPortKeepsWorktreesOffTheParentPort(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", dir)
-	t.Setenv("XDG_CONFIG_HOME", dir)
-	if err := config.AddSite(config.Site{
-		Name:             "myapp",
-		Path:             filepath.Join(dir, "myapp"),
-		Domains:          []string{"myapp.test"},
-		DevServerPort:    5173,
-		WorktreeDevPorts: map[string]int{"myapp-feature": 5174},
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	got := assignDevServerPort("myapp", "myapp-other", 5173)
-	if got == 5173 || got == 5174 {
-		t.Fatalf("assignDevServerPort() = %d, want a port clear of the site (5173) and its other worktree (5174)", got)
-	}
-}
-
-// Re-pinning the same worktree has to be able to keep the port it already owns,
-// otherwise every restart walks it up by one.
-func TestAssignDevServerPortLetsAWorktreeKeepItsOwnPort(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", dir)
-	t.Setenv("XDG_CONFIG_HOME", dir)
-	if err := config.AddSite(config.Site{
-		Name:             "myapp",
-		Path:             filepath.Join(dir, "myapp"),
-		Domains:          []string{"myapp.test"},
-		WorktreeDevPorts: map[string]int{"myapp-feature": 5199},
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	if got := assignDevServerPort("myapp", "myapp-feature", 5199); got != 5199 {
-		t.Fatalf("assignDevServerPort() = %d, want it to keep 5199", got)
 	}
 }

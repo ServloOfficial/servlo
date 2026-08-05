@@ -358,12 +358,6 @@ onBeforeUnmount(() => {
               <p>Queue, schedule, Horizon and Reverb workers plus the Stripe listener, monitored everywhere and recovered with one click.</p>
             </div>
 
-            <div class="feat col-6 reveal" data-tilt>
-              <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/><path d="m9 9 2 2-2 2M13 15h2"/></svg></div>
-              <h3>Debug window for every dump()</h3>
-              <p>Intercepts every <code class="kbd">dump()</code> / <code class="kbd">dd()</code> and streams it to the dashboard and TUI, scoped per site and per worktree branch. Captures SQL with N+1 detection, mail, events, jobs &amp; outgoing HTTP. Your response stays clean.</p>
-              <span class="feat-tag">// Laravel + Symfony</span>
-            </div>
           </div>
 
           <div class="feat-more">
@@ -443,18 +437,6 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-
-      <!-- ============ DEV DIGEST BANNER ============ -->
-      <div class="wrap">
-        <a class="digest" :href="withBase('/digest/v1.31.0.html')" target="_blank" rel="noopener">
-          <span class="digest-pill">NEW</span>
-          <span class="digest-body">
-            <span class="digest-title">v1.31.0 dev digest</span>
-            <span class="digest-sub">A Cloudflare base domain set once so every share keeps its URL, ngrok from its published image with nothing installed, and a dev server served on the site's own domain.</span>
-          </span>
-          <span class="digest-cta">Read the digest&nbsp;→</span>
-        </a>
-      </div>
 
     </main>
 

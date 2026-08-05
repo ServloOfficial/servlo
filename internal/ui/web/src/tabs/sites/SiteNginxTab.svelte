@@ -13,8 +13,7 @@
 
   interface Props {
     site: Site;
-    /** Domain whose override to edit. Defaults to the site's primary domain;
-     *  pass a worktree's domain to edit that worktree's override instead. */
+    /** Domain whose override to edit. Defaults to the site's primary domain. */
     domain?: string;
     /** Called after a successful save so the host can close the editor. */
     onSaved?: () => void;

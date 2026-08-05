@@ -64,8 +64,6 @@ export interface Service {
   worker_site?: string;
   worker_name?: string;
   worker_label?: string;
-  worker_worktree?: string;
-  worker_worktree_domain?: string;
   update_strategy?: string;
   update_available?: boolean;
   latest_version?: string;
@@ -738,11 +736,10 @@ export function workerSiteName(s: Service): string {
     s.stripe_listener_site ||
     s.worker_site ||
     s.name;
-  return s.worker_worktree ? base + '/' + s.worker_worktree : base;
+  return base;
 }
 
 export function parentSiteDomain(s: Service): string | null {
-  if (s.worker_worktree_domain) return s.worker_worktree_domain;
   const n =
     s.queue_site ||
     s.horizon_site ||

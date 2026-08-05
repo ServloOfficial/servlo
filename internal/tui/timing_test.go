@@ -10,84 +10,34 @@ import (
 )
 
 func timingSite() *siteinfo.EnrichedSite {
-	return &siteinfo.EnrichedSite{
-		Name:   "alpha",
-		Branch: "main",
-		Worktrees: []siteinfo.WorktreeInfo{
-			{Branch: "feature-x"},
-			{Branch: "hotfix"},
-		},
-	}
+	return &siteinfo.EnrichedSite{Name: "alpha", Branch: "main"}
 }
 
-func TestTimingScopes_KeyWorktreesSeparatelyFromTheSite(t *testing.T) {
+// The site reads on its bare name, the identity the watcher records under.
+func TestTimingScopes_KeyOnTheSiteName(t *testing.T) {
 	scopes := timingScopes(timingSite())
-	if len(scopes) != 3 {
-		t.Fatalf("expected the site plus its two worktrees, got %d scopes", len(scopes))
+	if len(scopes) != 1 {
+		t.Fatalf("expected one scope for the site, got %d", len(scopes))
 	}
-	// The site reads on its bare name; a worktree reads on site/branch, the same
-	// identity the watcher records under.
 	if scopes[0].key != "alpha" {
-		t.Errorf("main scope should key on the site name, got %q", scopes[0].key)
+		t.Errorf("scope should key on the site name, got %q", scopes[0].key)
 	}
-	if scopes[1].key != "alpha/feature-x" {
-		t.Errorf("worktree scope should key on site/branch, got %q", scopes[1].key)
-	}
-	if scopes[1].label != "feature-x" {
-		t.Errorf("worktree scope should be labelled by branch, got %q", scopes[1].label)
+	if scopes[0].label != "main" {
+		t.Errorf("scope should be labelled by branch, got %q", scopes[0].label)
 	}
 }
 
-func TestTimingScopes_SiteWithoutWorktrees(t *testing.T) {
+func TestTimingScopes_SiteWithNoDetectedBranch(t *testing.T) {
 	scopes := timingScopes(&siteinfo.EnrichedSite{Name: "solo"})
 	if len(scopes) != 1 {
-		t.Fatalf("a site with no worktrees has one scope, got %d", len(scopes))
+		t.Fatalf("expected one scope, got %d", len(scopes))
 	}
 	if scopes[0].label != "main" {
 		t.Errorf("a site with no detected branch should fall back to main, got %q", scopes[0].label)
 	}
 }
 
-func TestCycleTimingScope_WrapsAndIsNoOpWithoutWorktrees(t *testing.T) {
-	m := NewModel("test")
-	m.activeTab = tabSites
-	m.snap = Snapshot{Sites: []siteinfo.EnrichedSite{*timingSite()}}
-
-	m.cycleTimingScope(1)
-	if m.timingScope != 1 {
-		t.Fatalf("b should advance to the first worktree, got %d", m.timingScope)
-	}
-	m.cycleTimingScope(1)
-	m.cycleTimingScope(1)
-	if m.timingScope != 0 {
-		t.Fatalf("the branch cycle should wrap back to the site, got %d", m.timingScope)
-	}
-
-	m.snap = Snapshot{Sites: []siteinfo.EnrichedSite{{Name: "solo"}}}
-	m.cycleTimingScope(1)
-	if m.timingScope != 0 {
-		t.Fatalf("a site with no worktrees has nothing to cycle, got %d", m.timingScope)
-	}
-}
-
-func TestCurrentTimingScope_ClampsWhenMovingToASiteWithFewerWorktrees(t *testing.T) {
-	m := NewModel("test")
-	m.activeTab = tabSites
-	m.snap = Snapshot{Sites: []siteinfo.EnrichedSite{*timingSite()}}
-	m.timingScope = 2 // parked on the second worktree
-
-	// Navigating to a site with no worktrees must not index out of range.
-	m.snap = Snapshot{Sites: []siteinfo.EnrichedSite{{Name: "solo"}}}
-	scope, ok := m.currentTimingScope()
-	if !ok {
-		t.Fatal("expected a scope for the focused site")
-	}
-	if scope.key != "solo" {
-		t.Fatalf("scope should clamp back to the site, got %q", scope.key)
-	}
-}
-
-func TestTimingCacheKey_ChangesWithBranchAndWindow(t *testing.T) {
+func TestTimingCacheKey_ChangesWithTheWindow(t *testing.T) {
 	m := NewModel("test")
 	m.activeTab = tabSites
 	m.snap = Snapshot{Sites: []siteinfo.EnrichedSite{*timingSite()}}
@@ -97,22 +47,17 @@ func TestTimingCacheKey_ChangesWithBranchAndWindow(t *testing.T) {
 	if widened := m.timingCacheKey(); widened == base {
 		t.Fatal("changing the window must invalidate the cached figures")
 	}
-	m.cycleTimingRange(-1)
-	m.cycleTimingScope(1)
-	if branched := m.timingCacheKey(); branched == base {
-		t.Fatal("changing the branch must invalidate the cached figures")
-	}
 }
 
+// A read that finishes after the focus has moved must not land under the new
+// heading.
 func TestTimingResult_LateReadForAnotherScopeIsDiscarded(t *testing.T) {
 	m := NewModel("test")
 	m.activeTab = tabSites
 	m.snap = Snapshot{Sites: []siteinfo.EnrichedSite{*timingSite()}}
 	m.timingKey = "alpha@1h"
 
-	// A read that finishes after the user has cycled to a worktree must not land
-	// under the new heading.
-	m.Update(timingResultMsg{cacheKey: "alpha/feature-x@1h", analytic: reqstats.Analytics{Samples: 99}})
+	m.Update(timingResultMsg{cacheKey: "beta@1h", analytic: reqstats.Analytics{Samples: 99}})
 	if m.timingLoaded {
 		t.Fatal("a result for another scope should be discarded")
 	}

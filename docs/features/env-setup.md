@@ -117,9 +117,9 @@ Done.
 
 ## Editing .env in the dashboard
 
-The site detail panel has an **Env** tab that opens the project's env files in an inline editor with line numbers and dotenv syntax highlighting (`KEY`, comments, quoted values). On a worktree the editor opens that worktree's files, not the parent's.
+The site detail panel has an **Env** tab that opens the project's env files in an inline editor with line numbers and dotenv syntax highlighting (`KEY`, comments, quoted values).
 
-A dropdown at the start of the toolbar lists every env file the project has (`.env`, `.env.local`, `.env.testing`, `.env.example`, `.env.production`, anything matching `^\.env(\.[A-Za-z][\w-]*)?$`). Our own timestamped backups, temp files, and `.env.before_servlo` never appear in the dropdown. Pick the file you want to edit; the editor, save, and revert flows all scope to it. Next to the dropdown the toolbar shows the path of the file you are editing, shortened to `~` under your home directory, with the full path on hover. On a worktree tab that path points into the worktree's checkout, so it is always clear which file on disk a save will land on.
+A dropdown at the start of the toolbar lists every env file the project has (`.env`, `.env.local`, `.env.testing`, `.env.example`, `.env.production`, anything matching `^\.env(\.[A-Za-z][\w-]*)?$`). Our own timestamped backups, temp files, and `.env.before_servlo` never appear in the dropdown. Pick the file you want to edit; the editor, save, and revert flows all scope to it. Next to the dropdown the toolbar shows the path of the file you are editing, shortened to `~` under your home directory, with the full path on hover, so it is always clear which file on disk a save will land on.
 
 The file the framework actually reads is pre-selected and listed first, so it matches the file the doctor and service wiring use. For most frameworks that is the root `.env`, but Symfony opens `.env.local` (falling back to the committed `.env` when no `.env.local` exists) and CakePHP opens `config/.env` in the subdirectory. The version is resolved from the project (for example Symfony 7 versus 8), so per-version differences are respected. Frameworks whose configuration is PHP source rather than a dotenv file (WordPress, Magento) have no Env tab.
 

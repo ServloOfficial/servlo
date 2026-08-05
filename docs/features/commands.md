@@ -104,7 +104,7 @@ $ servlo run optimize:clear             # execute, stream stdout to your termina
 $ servlo run migrate:fresh --yes        # bypass the confirm prompt
 ```
 
-`servlo run` walks up from the current directory to find the nearest `.servlo.yaml`, so it works from any subdirectory of a site (including inside a git worktree). The exit code propagates from the underlying shell.
+`servlo run` walks up from the current directory to find the nearest `.servlo.yaml`, so it works from any subdirectory of a site. The exit code propagates from the underlying shell.
 
 Shell completion populates command names: `servlo run <TAB>` lists what's available in the current project.
 

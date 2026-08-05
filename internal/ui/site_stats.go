@@ -22,7 +22,7 @@ func statsRoute(w http.ResponseWriter, r *http.Request, domain string, rest []st
 		writeJSON(w, map[string]any{"error": "site not found: " + domain})
 		return true
 	}
-	key := reqstats.Key(site.Name, r.URL.Query().Get("branch"))
+	key := site.Name
 	stats, ok := reqstats.LoadSite(config.RequestStatsFile(), key)
 	if !ok {
 		// No traffic recorded yet: return an empty but well-formed view so the UI

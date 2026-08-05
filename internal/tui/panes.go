@@ -258,9 +258,9 @@ func (m *Model) renderDetailColumn(w, h int, focused bool) string {
 
 // failingWorkerNames returns kind-site pairs ("queue-acme", "vite-shop")
 // for every worker reporting failed across the snapshot. Built-in kinds
-// (queue / schedule / horizon / reverb) plus custom framework workers
-// plus per-worktree workers all funnel through here so the header pill,
-// dashboard hero, and future toast notifier render the same names.
+// (queue / schedule / horizon / reverb) plus custom framework workers all
+// funnel through here so the header pill, dashboard hero, and future toast
+// notifier render the same names.
 func failingWorkerNames(snap Snapshot) []string {
 	fw := failingWorkers(snap)
 	names := make([]string, len(fw))
@@ -295,11 +295,6 @@ func failingWorkers(snap Snapshot) []failingWorker {
 		for _, fw := range s.FrameworkWorkers {
 			add(fw.Name, s.Name, fw.Failing)
 		}
-		for _, wt := range s.Worktrees {
-			for _, fw := range wt.FrameworkWorkers {
-				add(fw.Name, s.Name+"/"+wt.Branch, fw.Failing)
-			}
-		}
 	}
 	return out
 }
@@ -325,13 +320,6 @@ func siteHasFailingWorker(s siteinfo.EnrichedSite) bool {
 	for _, fw := range s.FrameworkWorkers {
 		if fw.Failing {
 			return true
-		}
-	}
-	for _, wt := range s.Worktrees {
-		for _, fw := range wt.FrameworkWorkers {
-			if fw.Failing {
-				return true
-			}
 		}
 	}
 	return false

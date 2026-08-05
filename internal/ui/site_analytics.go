@@ -31,16 +31,6 @@ func loadSiteUsage() map[string]reqstats.SiteUsage {
 	return usage
 }
 
-// addUsage folds a worktree's traffic into its site's, so a project driven from a
-// worktree ranks by the work done on it rather than reading as untrafficked.
-func addUsage(a, b reqstats.SiteUsage) reqstats.SiteUsage {
-	a.Count += b.Count
-	if b.LastAt.After(a.LastAt) {
-		a.LastAt = b.LastAt
-	}
-	return a
-}
-
 // unixMilliOrZero renders a time for the sites payload, mapping the zero time to
 // 0 so a site with no traffic omits the field rather than sending a 1970 stamp.
 func unixMilliOrZero(t time.Time) int64 {
@@ -99,7 +89,7 @@ func analyticsRoute(w http.ResponseWriter, r *http.Request, domain string, rest 
 		writeJSON(w, map[string]any{"error": "site not found: " + domain})
 		return true
 	}
-	key := reqstats.Key(site.Name, r.URL.Query().Get("branch"))
+	key := site.Name
 	dur, rangeLabel := analyticsRange(r.URL.Query().Get("range"))
 
 	store, err := getAnalyticsStore()

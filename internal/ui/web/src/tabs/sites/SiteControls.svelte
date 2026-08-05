@@ -12,15 +12,12 @@
     toggleStripe,
     setStripeConfig,
     toggleWorker,
-    setWorktreeDBIsolated,
     loadSites
   } from '$stores/sites';
   import { loadServices } from '$stores/services';
   import { phpVersions, phpOptionsForSite } from '$stores/phpVersions';
   import { nodeVersions } from '$stores/nodeVersions';
   import { status } from '$stores/status';
-  import WorktreeDBIsolateModal from './WorktreeDBIsolateModal.svelte';
-  import WorktreeDBDropModal from './WorktreeDBDropModal.svelte';
   import HorizonControl from './HorizonControl.svelte';
   import HorizonReloadWatcherModal from './HorizonReloadWatcherModal.svelte';
   import OctaneControl from './OctaneControl.svelte';
@@ -36,22 +33,15 @@
 
   interface Props {
     site: Site;
-    activeWorktreeBranch?: string;
   }
-  let { site, activeWorktreeBranch = '' }: Props = $props();
+  let { site }: Props = $props();
 
-  const activeWorktree = $derived.by(() => {
-    if (!activeWorktreeBranch) return undefined;
-    return (site.worktrees || []).find((w) => w.branch === activeWorktreeBranch);
-  });
-  const effectivePhp = $derived(activeWorktree?.php_version ?? site.php_version ?? '');
-  const effectiveNode = $derived(activeWorktree?.node_version ?? site.node_version ?? '');
-  const phpInherited = $derived(Boolean(activeWorktree) && !activeWorktree?.php_version_override);
-  const nodeInherited = $derived(Boolean(activeWorktree) && !activeWorktree?.node_version_override);
+  const effectivePhp = $derived(site.php_version ?? '');
+  const effectiveNode = $derived(site.node_version ?? '');
   // Framework PHP range (empty when guessed), used to disable out-of-range
-  // versions in the picker. A worktree carries the parent's range.
-  const effectivePhpMin = $derived(activeWorktree?.php_min ?? site.php_min);
-  const effectivePhpMax = $derived(activeWorktree?.php_max ?? site.php_max);
+  // versions in the picker.
+  const effectivePhpMin = $derived(site.php_min);
+  const effectivePhpMax = $derived(site.php_max);
   const phpOptions = $derived(
     phpOptionsForSite(
       site.runtime,
@@ -64,24 +54,14 @@
   );
   // When host bun is available, the Node dropdown offers a "bun" entry that
   // pins .servlo.yaml js_runtime (project-level), leaving node_version intact.
-  // js_runtime is project-level, so the bun toggle only belongs on the main
-  // site dropdown — offering it per worktree would let a worktree action flip
-  // the whole project's runtime and show a confusing selection.
-  const usingBun = $derived(!activeWorktreeBranch && site.js_runtime === 'bun');
+  const usingBun = $derived(site.js_runtime === 'bun');
   // Bake "Node " into the version labels so the bun entry can stay bare "bun"
   // instead of reading "Node bun" (the Dropdown prefixes its label onto rows).
   const nodeOptions = $derived([
     ...$nodeVersions.map((v) => ({ value: v, label: 'Node ' + v })),
-    ...(!activeWorktreeBranch && $status.bun_available
-      ? [{ value: 'bun', label: 'bun', description: 'JS runtime' }]
-      : [])
+    ...($status.bun_available ? [{ value: 'bun', label: 'bun', description: 'JS runtime' }] : [])
   ]);
   const nodeValue = $derived(usingBun ? 'bun' : effectiveNode);
-  const dbCapable = $derived((site.services || []).some((s) => /^(mysql|mariadb|postgres)/.test(s)));
-  const dbIsolated = $derived(Boolean(activeWorktree?.db_isolated));
-  let dbBusy = $state(false);
-  let isolateModalOpen = $state(false);
-  let dropModalOpen = $state(false);
 
   // The doctor lives behind an on-demand button next to Commands rather than a
   // permanent tab: its checks (command and audit execs) only run when the modal
@@ -90,37 +70,6 @@
   // missing flag defaults to showing it so older snapshots aren't caught out.
   const canDoctor = $derived(site.doctor_applicable !== false);
   let doctorOpen = $state(false);
-
-  function onDBIsolatedChange() {
-    if (!activeWorktreeBranch || dbBusy) return;
-    if (dbIsolated) {
-      dropModalOpen = true;
-    } else {
-      isolateModalOpen = true;
-    }
-  }
-
-  async function disableIsolation() {
-    dbBusy = true;
-    try {
-      const res = await setWorktreeDBIsolated(site.domain, activeWorktreeBranch, false);
-      if (!res.ok) openErrorModal(m.sites_controls_dbToggleFailed({ error: res.error || '' }));
-      await loadSites();
-    } finally {
-      dbBusy = false;
-    }
-  }
-
-  async function enableIsolation(source: string) {
-    dbBusy = true;
-    try {
-      const res = await setWorktreeDBIsolated(site.domain, activeWorktreeBranch, true, source);
-      if (!res.ok) openErrorModal(m.sites_controls_dbIsolateFailed({ error: res.error || '' }));
-      await loadSites();
-    } finally {
-      dbBusy = false;
-    }
-  }
 
   let versionBusy = $state(false);
 
@@ -167,10 +116,7 @@
     reconcile('schedule', Boolean(site.schedule_running));
     reconcile('reverb', Boolean(site.reverb_running));
     reconcile('stripe', Boolean(site.stripe_running));
-    const sourceWorkers = activeWorktreeBranch
-      ? activeWorktree?.framework_workers || []
-      : site.framework_workers || [];
-    for (const w of sourceWorkers) {
+    for (const w of site.framework_workers || []) {
       reconcile('worker:' + w.name, Boolean(w.running));
     }
   });
@@ -266,7 +212,7 @@
     const v = (e.target as HTMLSelectElement).value;
     versionBusy = true;
     try {
-      const r = await setSiteVersion(site, 'php', v, activeWorktreeBranch);
+      const r = await setSiteVersion(site, 'php', v);
       if (!r.ok) openErrorModal(m.sites_controls_versionChangeFailed({ error: r.error || '' }));
       await loadSites();
     } finally {
@@ -278,7 +224,7 @@
     const v = (e.target as HTMLSelectElement).value;
     versionBusy = true;
     try {
-      const r = await setSiteVersion(site, 'node', v, activeWorktreeBranch);
+      const r = await setSiteVersion(site, 'node', v);
       if (!r.ok) openErrorModal(m.sites_controls_versionChangeFailed({ error: r.error || '' }));
       await loadSites();
     } finally {
@@ -309,9 +255,6 @@
           value={effectivePhp}
           options={phpOptions}
           disabled={versionBusy}
-          inherited={phpInherited}
-          inheritedSuffix={m.sites_controls_inheritedSuffix()}
-          title={phpInherited ? m.sites_controls_inheritsFromMain() : ''}
           placeholder={m.sites_controls_phpPlaceholder()}
           onchange={(v) => onPhpChange({ target: { value: v } } as unknown as Event)}
         />
@@ -325,9 +268,6 @@
         value={nodeValue}
         options={nodeOptions}
         disabled={versionBusy}
-        inherited={nodeInherited && !usingBun}
-        inheritedSuffix={m.sites_controls_inheritedSuffix()}
-        title={nodeInherited ? m.sites_controls_inheritsFromMain() : ''}
         placeholder={$status.node_default ? m.sites_controls_nodeDefaultVersion({ version: $status.node_default }) : m.sites_controls_nodeDefault()}
         onchange={(v) => onNodeChange({ target: { value: v } } as unknown as Event)}
       />
@@ -341,40 +281,6 @@
       />
     {/if}
 
-    {#if activeWorktreeBranch && dbCapable}
-      <ToggleButton
-        label={m.sites_controls_dbIsolated()}
-        on={dbIsolated}
-        loading={dbBusy}
-        onclick={onDBIsolatedChange}
-        title={dbIsolated ? m.sites_controls_dbIsolatedTitle({ db: activeWorktree?.db_database ?? '' }) : m.sites_controls_dbShareParent()}
-      />
-    {/if}
-
-    {#if activeWorktreeBranch}
-      {@const wtWorkers = activeWorktree?.framework_workers || []}
-      {#if wtWorkers.length === 0}
-        <span
-          class="text-[11px] text-gray-400 dark:text-gray-500 italic"
-          title={m.sites_controls_workersFromMainTitle()}
-        >
-          {m.sites_controls_workersFromMain()}
-        </span>
-      {:else}
-        {#each wtWorkers as w (w.name)}
-          <ToggleButton
-            label={w.label || w.name}
-            on={Boolean(w.running)}
-            failing={Boolean(w.failing)}
-            unreachable={Boolean(w.unreachable)}
-            loading={isPending('worker:' + w.name)}
-            disabled={isPending('worker:' + w.name)}
-            onclick={() => transition('worker:' + w.name, !w.running, () => toggleWorker(site, w, activeWorktreeBranch))}
-            title={w.running ? m.sites_controls_workerToggle_on({ label: w.label || w.name }) : m.sites_controls_workerToggle_off({ label: w.label || w.name })}
-          />
-        {/each}
-      {/if}
-    {:else}
       {#if site.has_queue_worker}
         <ToggleButton
           label={m.sites_controls_queue()}
@@ -453,7 +359,6 @@
               : 'Start ' + shortLabel}
         />
       {/each}
-    {/if}
 
     <div class="flex-grow-1"></div>
 
@@ -474,41 +379,13 @@
       </button>
     {/if}
 
-    <CommandsDropdown domain={site.domain} branch={activeWorktreeBranch} />
+    <CommandsDropdown domain={site.domain} />
   </div>
   </div>
 </div>
 
 {#if canDoctor}
-  <SiteDoctorModal
-    open={doctorOpen}
-    {site}
-    branch={activeWorktreeBranch}
-    onclose={() => (doctorOpen = false)}
-  />
-{/if}
-
-{#if activeWorktreeBranch}
-  <WorktreeDBIsolateModal
-    open={isolateModalOpen}
-    {site}
-    branch={activeWorktreeBranch}
-    onclose={() => (isolateModalOpen = false)}
-    onconfirm={(source) => {
-      isolateModalOpen = false;
-      void enableIsolation(source);
-    }}
-  />
-  <WorktreeDBDropModal
-    open={dropModalOpen}
-    branch={activeWorktreeBranch}
-    database={activeWorktree?.db_database ?? ''}
-    onclose={() => (dropModalOpen = false)}
-    onconfirm={() => {
-      dropModalOpen = false;
-      void disableIsolation();
-    }}
-  />
+  <SiteDoctorModal open={doctorOpen} {site} onclose={() => (doctorOpen = false)} />
 {/if}
 
 <HorizonReloadWatcherModal

@@ -169,7 +169,7 @@ func runUpdate(currentVersion string, beta bool) error {
 }
 
 // refreshStoreFrameworks re-fetches every cached framework yaml so users pick
-// up schema additions (per_worktree, etc.) without waiting for the 24h
+// up schema additions without waiting for the 24h
 // staleness check in GetFrameworkForDir to expire.
 func refreshStoreFrameworks() {
 	dir := config.StoreFrameworksDir()

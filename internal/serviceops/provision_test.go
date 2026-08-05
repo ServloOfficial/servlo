@@ -6,7 +6,7 @@ import (
 )
 
 // ValidateDatabaseName is the injection guard for every declared entity
-// command: a worktree DB name derives from a git branch, and git allows quotes
+// command: a database name derives from a site name, which allows quotes
 // and backticks in branch names, so anything that could terminate a shell word
 // or an SQL identifier's quoting must never reach substitution.
 func TestValidateDatabaseName(t *testing.T) {

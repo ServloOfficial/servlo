@@ -2,7 +2,6 @@ package cli
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -52,28 +51,6 @@ func devServerSite(t *testing.T, secured bool) string {
 		t.Fatal(err)
 	}
 	return dir
-}
-
-// addWorktree checks out a branch of the site as a git worktree beside it, with
-// the same project shape (a worktree seeds node_modules from its parent), and
-// returns its path.
-func addWorktree(t *testing.T, sitePath, branch string) string {
-	t.Helper()
-	run := func(args ...string) {
-		cmd := exec.Command("git", args...)
-		cmd.Dir = sitePath
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v (%s)", args, err, out)
-		}
-	}
-	run("add", "-A")
-	run("commit", "-qm", "initial")
-	path := filepath.Join(filepath.Dir(sitePath), filepath.Base(sitePath)+"-"+branch)
-	run("worktree", "add", "-q", "-b", branch, path)
-	if err := os.MkdirAll(filepath.Join(path, "node_modules", "vite"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return path
 }
 
 // Unsecuring a site leaves its dev server advertising https, so every asset URL
@@ -156,47 +133,6 @@ func TestRefreshDevServersFollowsAnAddedDomain(t *testing.T) {
 	}
 	if fake.restartedUnit != "servlo-vite-myapp" {
 		t.Errorf("restarted unit = %q, want servlo-vite-myapp", fake.restartedUnit)
-	}
-}
-
-// A worktree fronts its own subdomain of the site, so it has to be realigned
-// against that rather than against the parent's domain.
-func TestRefreshDevServersFollowsAWorktreeSubdomain(t *testing.T) {
-	dir := devServerSite(t, false)
-	wt := addWorktree(t, dir, "feature")
-	tool := config.DevServerToolInstalled(wt)
-	if tool == nil {
-		t.Fatal("vite not resolved from the worktree's node_modules")
-	}
-	stale := devServerAddrFor(false, "feature.old.test", []string{"feature.old.test"})
-	if _, err := writeDevServerWrapper(wt, tool, stale); err != nil {
-		t.Fatal(err)
-	}
-
-	site, err := config.FindSite("myapp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	site.WorktreeDevPorts = map[string]int{filepath.Base(wt): 5174}
-	if err := config.AddSite(*site); err != nil {
-		t.Fatal(err)
-	}
-
-	fake := &fakeUnitLifecycle{}
-	podman.UnitLifecycle = fake
-	defer func() { podman.UnitLifecycle = nil }()
-
-	RefreshDevServers(site)
-
-	body, err := os.ReadFile(filepath.Join(wt, tool.WrapperPath))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(body), `"http://feature.myapp.test"`) {
-		t.Errorf("worktree config does not carry its own subdomain:\n%s", body)
-	}
-	if fake.restartedUnit != "servlo-vite-myapp-"+config.WorktreeUnitSlug(filepath.Base(wt)) {
-		t.Errorf("restarted unit = %q, want the worktree's own unit", fake.restartedUnit)
 	}
 }
 

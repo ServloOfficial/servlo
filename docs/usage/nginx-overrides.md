@@ -6,13 +6,9 @@ To add per-site directives that survive every regeneration, drop a snippet in `~
 
 An override is for what *one site* needs. When every site of a framework needs the same directives, as Magento does for `/setup`, `/static`, and `/media`, that belongs in the framework definition's `nginx.snippet` instead, which is spliced in near the top of the server block. See [framework definitions](framework-definitions.md).
 
-## Worktrees
-
-Each worktree is served on its own subdomain (`{branch}.{primary}.test`) with its own generated vhost, so it also has its own override at `custom.d/{branch}.{primary}.test.conf`. When you create a worktree, servlo seeds that file once from the main branch's override, so the worktree starts with the same custom directives the main branch has. After that the two are independent: opening the editor while a worktree tab is selected (the sliders button shows the worktree's domain in the address bar) edits only that worktree's file, and saving reloads nginx for that subdomain alone. Removing a worktree deletes its override and its backups along with the vhost, so deleted branches leave nothing behind. The main branch's override is never touched by any of this.
-
 ## From the CLI
 
-The same override is reachable without the web UI, which is handy for scripting. `servlo nginx show [site]` prints the current override (`--path` prints just the file path), `servlo nginx edit [site]` opens it in `$EDITOR` and then validates with `nginx -t` and reloads on save, and `servlo nginx reset [site]` deletes it and falls back to the bundled defaults. Add `--branch <name>` to any of them to target a worktree's override instead of the main branch's. Both surfaces go through one shared edit service, so validation, backups, and reload behave identically whichever one you use.
+The same override is reachable without the web UI, which is handy for scripting. `servlo nginx show [site]` prints the current override (`--path` prints just the file path), `servlo nginx edit [site]` opens it in `$EDITOR` and then validates with `nginx -t` and reloads on save, and `servlo nginx reset [site]` deletes it and falls back to the bundled defaults. Both surfaces go through one shared edit service, so validation, backups, and reload behave identically whichever one you use.
 
 ## How it works
 
@@ -71,7 +67,7 @@ If you need directives at `http {}` level (gzip, proxy buffers, a global `client
 
 nginx does not let a later `http {}` directive win over an earlier one: a second `client_max_body_size` in the same block is a hard `directive is duplicate` error, not an override. So when your override declares a directive servlo also ships at `http {}` level (`client_max_body_size`, `sendfile`, `keepalive_timeout`, the `server_names_hash_*` pair), servlo comments its own default out of the generated `nginx.conf` and leaves the field to you. Reset the override and the default comes back. This happens while the file is saved, so if you edit `zz-servlo-user.conf` by hand instead, run `servlo start` afterwards to regenerate `nginx.conf` before restarting the container.
 
-`log_format` and `access_log` are the exception, because nginx allows either to appear more than once in the same block. Declaring your own adds to servlo's rather than colliding with it, so both are left in place: your log keeps its format and servlo keeps the `servlo_access` feed that idle-suspend and per-site request timing read. Retiring servlo's `log_format` would leave its `access_log` naming a format nginx no longer knows, which fails the config check and takes every site down.
+`log_format` and `access_log` are the exception, because nginx allows either to appear more than once in the same block. Declaring your own adds to servlo's rather than colliding with it, so both are left in place: your log keeps its format and servlo keeps the `servlo_access` feed that per-site request timing reads. Retiring servlo's `log_format` would leave its `access_log` naming a format nginx no longer knows, which fails the config check and takes every site down.
 
 Note that servlo's shipped `client_max_body_size` is `0`, meaning unlimited, so setting a value of your own can only make uploads stricter. If large uploads are failing without an override in place, the limit is PHP's, not nginx's: PHP defaults to a 2M `upload_max_filesize` and an 8M `post_max_size`. Raise both for every site and every PHP version with `servlo php:ini shared` (or the **shared** scope of the php.ini editor under System → PHP), where the two keys are already waiting as commented lines. Uncomment them, save, and FPM restarts with the new limits.
 
@@ -83,7 +79,7 @@ The catch-all vhost servlo ships for unlinked `.test` domains lives at `~/.local
 
 ## Forwarded headers and tunneling
 
-The generated vhosts already set the `X-Forwarded-*` family for you so tools like `servlo share`, `ngrok`, and `cloudflared` work out of the box:
+The generated vhosts already set the `X-Forwarded-*` family for you, so an upstream proxy or load balancer works out of the box:
 
 | Forwarded source | Where it comes from |
 | --- | --- |

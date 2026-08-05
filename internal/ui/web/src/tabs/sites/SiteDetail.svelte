@@ -5,7 +5,7 @@
   import SiteLogs from './SiteLogs.svelte';
   import SiteEnvTab from './SiteEnvTab.svelte';
   import SiteNginxModal from '../../modals/SiteNginxModal.svelte';
-  import { resumeSite, loadSites, activeWorktreeDomain, siteHasLogSources, type Site } from '$stores/sites';
+  import { resumeSite, loadSites, siteHasLogSources, type Site } from '$stores/sites';
   import { routeRest, goToTab } from '$stores/route';
   import { m } from '../../paraglide/messages.js';
 
@@ -36,7 +36,6 @@
   }
 
   let active = $state<TabId>(readStoredTab());
-  let activeWorktreeBranch = $state<string>('');
   let nginxOpen = $state(false);
   const canEnv = $derived(Boolean(site.has_env));
   // Logs get their own tab in the resource layout rather than living under the
@@ -67,13 +66,6 @@
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(TAB_STORAGE_KEY, active);
     }
-  });
-
-  // Reset selection when the site changes or the chosen branch disappears.
-  $effect(() => {
-    if (!activeWorktreeBranch) return;
-    const exists = (site.worktrees || []).some((w) => w.branch === activeWorktreeBranch);
-    if (!exists) activeWorktreeBranch = '';
   });
 
   // Select a tab and mirror it into the URL hash so the two never drift. Without
@@ -107,8 +99,6 @@
   <SiteHeader
     {site}
     tabs={site.paused || !hasExtraTabs ? undefined : tabs}
-    {activeWorktreeBranch}
-    onWorktreeChange={(b) => (activeWorktreeBranch = b)}
     onOpenNginx={() => (nginxOpen = true)}
   />
   {#if site.paused}
@@ -133,19 +123,19 @@
       </div>
     </div>
   {:else if active === 'overview'}
-    <SiteOverview {site} {activeWorktreeBranch} />
+    <SiteOverview {site} />
   {:else if active === 'logs'}
-    <SiteLogs {site} {activeWorktreeBranch} />
+    <SiteLogs {site} />
   {:else if active === 'env'}
-    {#key site.domain + '@' + activeWorktreeBranch}
-      <SiteEnvTab {site} branch={activeWorktreeBranch} />
+    {#key site.domain}
+      <SiteEnvTab {site} />
     {/key}
   {/if}
 </DetailPanel>
 
 <SiteNginxModal
   {site}
-  domain={activeWorktreeDomain(site, activeWorktreeBranch)}
+  domain={site.domain}
   open={nginxOpen}
   onclose={() => (nginxOpen = false)}
 />

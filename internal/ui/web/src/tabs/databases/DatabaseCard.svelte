@@ -88,9 +88,7 @@
   // The engines' dumps travel as SQL text unless the preset declares another
   // format, in which case any file may be a valid archive.
   const importAccept = $derived(engine.dump_format === 'sql' ? '.sql,.txt,.gz' : '');
-  // A worktree's isolated database is shown under the branch's own domain, so it
-  // reads as staging's data rather than as another database of the parent site.
-  const ownerDomain = $derived(active.branch ? `${active.branch}.${active.site}` : active.site);
+  const ownerDomain = $derived(active.site);
   const snapshotCount = $derived(active.snapshots?.length ?? 0);
   // The installed admin tool that can open this specific database (phpMyAdmin,
   // Adminer, Mongo Express); null when none is installed or can't deep-link.

@@ -18,7 +18,7 @@
 
   // A suspended worker's unit is stopped, so it drops out of /api/services
   // entirely. To keep it visible (asleep) instead of silently vanishing, we
-  // re-synthesize one entry per site/worktree suspended worker from the sites
+  // re-synthesize one entry per suspended worker from the sites
   // store and merge it into its group alongside the running ones.
   interface AsleepItem {
     id: string;
