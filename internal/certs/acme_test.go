@@ -23,8 +23,13 @@ func acmeEnv(t *testing.T) string {
 	return config.ACMEChallengeDir()
 }
 
-func newTestIssuer(t *testing.T, ca *fakeCA) Issuer {
+// newTestIssuer also satisfies the DNS gate: these tests are about the ACME
+// exchange, and the gate has its own. Leaving it live would resolve
+// example.com against the real internet, which is neither hermetic nor a thing
+// CI should depend on.
+func newTestIssuer(t *testing.T, ca *fakeCA, domains ...string) Issuer {
 	t.Helper()
+	withDNSReport(t, readyReport(domains...))
 	return NewACMEIssuer(ACMEConfig{DirectoryURL: ca.directoryURL(), Email: "ops@example.com"})
 }
 
@@ -33,7 +38,7 @@ func newTestIssuer(t *testing.T, ca *fakeCA) Issuer {
 func TestACMEIssuer_IssuesThroughHTTP01(t *testing.T) {
 	webroot := acmeEnv(t)
 	ca := newFakeCA(t, webroot)
-	withIssuer(t, newTestIssuer(t, ca))
+	withIssuer(t, newTestIssuer(t, ca, "example.com", "www.example.com", "other.example"))
 
 	dir := t.TempDir()
 	if err := IssueCertForce("example.com", []string{"example.com", "www.example.com"}, dir); err != nil {
@@ -88,7 +93,7 @@ func TestACMEIssuer_IssuesThroughHTTP01(t *testing.T) {
 func TestACMEIssuer_KeysAreNotWorldReadable(t *testing.T) {
 	webroot := acmeEnv(t)
 	ca := newFakeCA(t, webroot)
-	withIssuer(t, newTestIssuer(t, ca))
+	withIssuer(t, newTestIssuer(t, ca, "example.com", "www.example.com", "other.example"))
 
 	dir := t.TempDir()
 	if err := IssueCertForce("example.com", []string{"example.com"}, dir); err != nil {
@@ -124,7 +129,7 @@ func accountKeyPath(t *testing.T, ca *fakeCA) string {
 func TestACMEIssuer_ReusesTheAccountKey(t *testing.T) {
 	webroot := acmeEnv(t)
 	ca := newFakeCA(t, webroot)
-	withIssuer(t, newTestIssuer(t, ca))
+	withIssuer(t, newTestIssuer(t, ca, "example.com", "www.example.com", "other.example"))
 
 	dir := t.TempDir()
 	if err := IssueCertForce("example.com", []string{"example.com"}, dir); err != nil {
@@ -171,7 +176,7 @@ func TestACMEIssuer_FailedValidationLeavesNoCertAndSaysWhy(t *testing.T) {
 	webroot := acmeEnv(t)
 	ca := newFakeCA(t, webroot)
 	ca.failValidation = true
-	withIssuer(t, newTestIssuer(t, ca))
+	withIssuer(t, newTestIssuer(t, ca, "example.com", "www.example.com", "other.example"))
 
 	dir := t.TempDir()
 	err := IssueCertForce("example.com", []string{"example.com"}, dir)
@@ -192,7 +197,7 @@ func TestACMEIssuer_FailedValidationLeavesNoCertAndSaysWhy(t *testing.T) {
 func TestACMEIssuer_CleansUpChallengeTokens(t *testing.T) {
 	webroot := acmeEnv(t)
 	ca := newFakeCA(t, webroot)
-	withIssuer(t, newTestIssuer(t, ca))
+	withIssuer(t, newTestIssuer(t, ca, "example.com", "www.example.com", "other.example"))
 
 	dir := t.TempDir()
 	if err := IssueCertForce("example.com", []string{"example.com"}, dir); err != nil {
@@ -227,7 +232,7 @@ func assertNoTokensLeft(t *testing.T, webroot string) {
 func TestACMEIssuer_ReissueWindowAppliesToARealLeaf(t *testing.T) {
 	webroot := acmeEnv(t)
 	ca := newFakeCA(t, webroot)
-	withIssuer(t, newTestIssuer(t, ca))
+	withIssuer(t, newTestIssuer(t, ca, "example.com", "www.example.com", "other.example"))
 	dir := t.TempDir()
 
 	if err := IssueCert("example.com", []string{"example.com"}, dir); err != nil {

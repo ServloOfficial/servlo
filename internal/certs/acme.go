@@ -87,31 +87,52 @@ func directoryHost(directoryURL string) (string, error) {
 	return host, nil
 }
 
+// NeedsInboundReachability reports that this issuer validates over an inbound
+// connection: the authority fetches a token from the domain over port 80, so
+// the domain has to resolve here before an order is worth placing. DNS-01 will
+// answer false when it lands.
+func (a *acmeIssuer) NeedsInboundReachability() bool { return true }
+
 // Issue runs one HTTP-01 order to completion and writes the chain and key to
 // the paths the caller will rename into place.
 func (a *acmeIssuer) Issue(primary string, domains []string, certPath, keyPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), issueTimeout)
 	defer cancel()
 
+	// Each step is recorded so the panel can show what is happening during the
+	// minute the request is open, and so a failure says which step it died on.
+	startProgress(primary)
+	noteProgress(primary, "requesting a certificate from %s for %s", a.Name(), strings.Join(domains, ", "))
+
+	fail := func(err error) error {
+		noteProgress(primary, "failed: %v", err)
+		return err
+	}
+
 	client, err := a.client()
 	if err != nil {
-		return fmt.Errorf("preparing the ACME account for %s: %w", primary, err)
+		return fail(fmt.Errorf("preparing the ACME account for %s: %w", primary, err))
 	}
 	if err := a.register(ctx, client); err != nil {
-		return fmt.Errorf("registering with %s for %s: %w", a.Name(), primary, err)
+		return fail(fmt.Errorf("registering with %s for %s: %w", a.Name(), primary, err))
 	}
+	noteProgress(primary, "account ready")
 
 	order, err := client.AuthorizeOrder(ctx, acme.DomainIDs(domains...))
 	if err != nil {
-		return fmt.Errorf("ordering a certificate for %s: %w", primary, err)
+		return fail(fmt.Errorf("ordering a certificate for %s: %w", primary, err))
 	}
-	if err := a.satisfy(ctx, client, order); err != nil {
-		return err
+	if err := a.satisfy(ctx, client, primary, order); err != nil {
+		return fail(err)
 	}
 	if _, err := client.WaitOrder(ctx, order.URI); err != nil {
-		return fmt.Errorf("waiting for the order for %s: %w", primary, err)
+		return fail(fmt.Errorf("waiting for the order for %s: %w", primary, err))
 	}
-	return a.finalize(ctx, client, order, primary, domains, certPath, keyPath)
+	if err := a.finalize(ctx, client, order, primary, domains, certPath, keyPath); err != nil {
+		return fail(err)
+	}
+	noteProgress(primary, "certificate issued")
+	return nil
 }
 
 // client builds an ACME client on the account key, creating the key on first
@@ -191,7 +212,7 @@ func (a *acmeIssuer) register(ctx context.Context, client *acme.Client) error {
 // satisfy answers the HTTP-01 challenge for every authorization the order still
 // needs. Tokens are removed on the way out whatever happens: a token left in the
 // webroot is a public file that outlives the attempt that created it.
-func (a *acmeIssuer) satisfy(ctx context.Context, client *acme.Client, order *acme.Order) error {
+func (a *acmeIssuer) satisfy(ctx context.Context, client *acme.Client, primary string, order *acme.Order) error {
 	if err := nginx.EnsureChallengeDir(); err != nil {
 		return fmt.Errorf("preparing the challenge webroot: %w", err)
 	}
@@ -203,14 +224,14 @@ func (a *acmeIssuer) satisfy(ctx context.Context, client *acme.Client, order *ac
 		if authz.Status == acme.StatusValid {
 			continue
 		}
-		if err := a.satisfyOne(ctx, client, authz); err != nil {
+		if err := a.satisfyOne(ctx, client, primary, authz); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (a *acmeIssuer) satisfyOne(ctx context.Context, client *acme.Client, authz *acme.Authorization) error {
+func (a *acmeIssuer) satisfyOne(ctx context.Context, client *acme.Client, primary string, authz *acme.Authorization) error {
 	name := authz.Identifier.Value
 	var chal *acme.Challenge
 	for _, c := range authz.Challenges {
@@ -222,6 +243,8 @@ func (a *acmeIssuer) satisfyOne(ctx context.Context, client *acme.Client, authz 
 	if chal == nil {
 		return fmt.Errorf("%s: the authority offered no http-01 challenge, which is the only kind servlo can answer today", name)
 	}
+
+	noteProgress(primary, "proving control of %s over http", name)
 
 	keyAuth, err := client.HTTP01ChallengeResponse(chal.Token)
 	if err != nil {
@@ -238,6 +261,7 @@ func (a *acmeIssuer) satisfyOne(ctx context.Context, client *acme.Client, authz 
 	if _, err := client.WaitAuthorization(ctx, authz.URI); err != nil {
 		return fmt.Errorf("%s: %w", name, validationHint(err))
 	}
+	noteProgress(primary, "%s verified", name)
 	return nil
 }
 

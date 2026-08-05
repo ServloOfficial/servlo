@@ -534,6 +534,35 @@ export function openFolder(path: string) {
 }
 
 export const toggleTLS = (s: Site) => postAction(site(s.domain, s.tls ? 'unsecure' : 'secure'));
+
+/** One domain's DNS answer, measured against this server. */
+export type TLSDomain = {
+  domain: string;
+  resolved?: string[];
+  elsewhere?: string[];
+  matched: boolean;
+  error?: string;
+};
+
+/**
+ * Whether a certificate can be issued for this site right now, and why not.
+ *
+ * `progress` is the last issuance attempt's steps. Securing a site is one long
+ * POST, so the panel polls this while that POST is in flight; it is the only
+ * way to show what is happening inside a request it is already waiting on.
+ */
+export type TLSStatus = {
+  ready: boolean;
+  message: string;
+  server?: string[];
+  domains?: TLSDomain[];
+  issuer: string;
+  progress?: string[];
+  error?: string;
+};
+
+export const tlsStatus = (domain: string): Promise<TLSStatus> =>
+  apiJson<TLSStatus>(site(domain, 'tls'));
 export const toggleQueue = (s: Site) =>
   postAction(site(s.domain, s.queue_running ? 'queue:stop' : 'queue:start'));
 export const toggleHorizon = (s: Site) =>

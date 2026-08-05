@@ -12,7 +12,6 @@
     openTerminal,
     openFolder,
     loadSites,
-    toggleTLS,
   } from '$stores/sites';
   import {
     openDomainModal,
@@ -27,6 +26,7 @@
   import { apiBase } from '$lib/api';
   import { homeShorten } from '$lib/path';
   import DomainMorePill from './DomainMorePill.svelte';
+  import TLSControl from './TLSControl.svelte';
   import WorkspacePicker from './WorkspacePicker.svelte';
   import { m } from '../../paraglide/messages.js';
 
@@ -41,7 +41,6 @@
 
   let pauseBusy = $state(false);
   let restartBusy = $state(false);
-  let tlsBusy = $state(false);
   let pinBusy = $state(false);
 
   async function togglePin() {
@@ -98,17 +97,6 @@
     }
   }
 
-  async function flipTLS() {
-    if (tlsBusy) return;
-    tlsBusy = true;
-    try {
-      await toggleTLS(site);
-      await loadSites();
-    } finally {
-      tlsBusy = false;
-    }
-  }
-
   function onDocClick(ev: MouseEvent) {
     if (!overflowOpen) return;
     if (overflowEl && !overflowEl.contains(ev.target as Node)) overflowOpen = false;
@@ -136,65 +124,7 @@
         ? 'border-gray-200 dark:border-servlo-border opacity-70'
         : 'border-gray-200 dark:border-servlo-border hover:bg-white dark:hover:bg-white/[0.06] hover:border-gray-300 dark:hover:border-gray-600 focus-within:bg-white focus-within:border-servlo-red/40'}"
     >
-      {#if tlsToggleable}
-        <button
-          type="button"
-          onclick={flipTLS}
-          disabled={tlsBusy}
-          aria-label={site.tls ? m.sites_controls_httpsToggle_on() : m.sites_controls_httpsToggle_off()}
-          use:tooltip={site.tls ? m.sites_controls_httpsToggle_on() : m.sites_controls_httpsToggle_off()}
-          class="shrink-0 -ml-1 p-1 rounded-sm transition-colors disabled:opacity-50 {site.tls
-            ? 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-            : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}"
-        >
-          {#if tlsBusy}
-            <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
-          {:else if site.tls}
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
-          {:else}
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
-              />
-            </svg>
-          {/if}
-        </button>
-      {:else if useTLS}
-        <span class="shrink-0 -ml-1 p-1 inline-flex items-center text-emerald-500" aria-label={m.sites_tls_on()}>
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-            />
-          </svg>
-        </span>
-      {:else}
-        <span class="shrink-0 -ml-1 p-1 inline-flex items-center text-gray-400 dark:text-gray-500" aria-label={m.sites_tls_off()}>
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
-            />
-          </svg>
-        </span>
-      {/if}
+      <TLSControl {site} toggleable={tlsToggleable} />
 
       {#if site.has_favicon}
         <img

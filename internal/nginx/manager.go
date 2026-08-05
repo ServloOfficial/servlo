@@ -140,6 +140,12 @@ func (d VhostData) Root() string {
 // first request.
 func (d VhostData) ACMEChallenge() string { return acmeChallengeLocation }
 
+// HSTS is the Strict-Transport-Security header a secured vhost sends. A method
+// for the same reason as ACMEChallenge: every secured site gets it, and one
+// that quietly does not is a site whose first request of every session is
+// interceptable.
+func (d VhostData) HSTS() string { return hstsHeader }
+
 // resolveFrameworkNginx returns the site framework's nginx block, expanded and
 // indented for splicing into the server block. Empty when the framework declares
 // none, when the snippet is unbalanced, or when a substituted value carries
@@ -671,6 +677,12 @@ func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl boo
 // from pausedDir) for every path. Shared by the paused and the idle-waking
 // landing pages. Secured sites get an 80->443 redirect plus a TLS server block;
 // plain sites a single 80 server.
+//
+// Both carry the ACME challenge location, and the secured one carries it ahead
+// of the redirect. A paused site still holds a certificate and that certificate
+// still expires, so a site paused past its 30-day window has to be able to
+// answer a renewal; without this the authority would follow the redirect to 443
+// and be handed the paused page instead of the token.
 func landingVhostConf(site config.Site, pausedDir, htmlFile string) string {
 	serverNames := serverNamesWithWildcards(site.Domains)
 	if site.Secured {
@@ -678,13 +690,15 @@ func landingVhostConf(site config.Site, pausedDir, htmlFile string) string {
     listen 80;
     listen [::]:80;
     server_name %s;
-    return 302 https://$host$request_uri;
+%s
+    return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
     server_name %s;
+%s
     ssl_certificate /etc/nginx/certs/%s.crt;
     ssl_certificate_key /etc/nginx/certs/%s.key;
     root %s;
@@ -693,19 +707,20 @@ server {
         default_type text/html;
     }
 }
-`, serverNames, serverNames, site.PrimaryDomain(), site.PrimaryDomain(), nginxQuote(pausedDir), htmlFile)
+`, serverNames, acmeChallengeLocation, serverNames, hstsHeader, site.PrimaryDomain(), site.PrimaryDomain(), nginxQuote(pausedDir), htmlFile)
 	}
 	return fmt.Sprintf(`server {
     listen 80;
     listen [::]:80;
     server_name %s;
+%s
     root %s;
     location / {
         try_files /%s =503;
         default_type text/html;
     }
 }
-`, serverNames, nginxQuote(pausedDir), htmlFile)
+`, serverNames, acmeChallengeLocation, nginxQuote(pausedDir), htmlFile)
 }
 
 // writeLandingVhost writes site's static-page vhost (serving htmlFile) to
@@ -744,61 +759,6 @@ func RemoveVhost(domain string) error {
 		}
 	}
 	return nil
-}
-
-// proxyVhostData is the template data for vhost-proxy.conf.tmpl.
-type proxyVhostData struct {
-	Domain         string
-	UpstreamHost   string
-	UpstreamPort   int
-	RequestTimeout int
-}
-
-// renderProxyVhost is renderVhost for the LAN proxy template, which carries its
-// own smaller data type. Same rule: nothing substituted may end its directive.
-func renderProxyVhost(tmpl *template.Template, data proxyVhostData) ([]byte, error) {
-	for name, v := range map[string]string{"domain": data.Domain, "upstream host": data.UpstreamHost} {
-		if i := strings.IndexAny(v, nginxValueForbidden); i >= 0 {
-			return nil, fmt.Errorf("nginx %s %q contains %q, which would end the directive it lands in", name, v, string(v[i]))
-		}
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// GenerateProxyVhost renders vhost-proxy.conf.tmpl and writes conf.d/{domain}.conf.
-func GenerateProxyVhost(domain, upstreamHost string, upstreamPort int) error {
-	tmplData, err := GetTemplate("vhost-proxy.conf.tmpl")
-	if err != nil {
-		return err
-	}
-
-	tmpl, err := template.New("vhost-proxy").Parse(string(tmplData))
-	if err != nil {
-		return err
-	}
-
-	data := proxyVhostData{
-		Domain:         domain,
-		UpstreamHost:   upstreamHost,
-		UpstreamPort:   upstreamPort,
-		RequestTimeout: resolveRequestTimeout(""),
-	}
-
-	rendered, err := renderProxyVhost(tmpl, data)
-	if err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
-	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
 }
 
 // ErrNotRunning reports that servlo-nginx is down, so there is no process to

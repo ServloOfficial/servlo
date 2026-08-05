@@ -3,13 +3,14 @@ server {
     listen [::]:80;
     server_name {{.ServerNames}};
 {{.ACMEChallenge}}
-    return 302 https://$host$request_uri;
+    return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
     server_name {{.ServerNames}};
+{{.HSTS}}
 
     ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
     ssl_certificate_key /etc/nginx/certs/{{.CertDomain}}.key;

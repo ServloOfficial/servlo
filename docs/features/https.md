@@ -4,8 +4,37 @@ Servlo issues certificates through a certificate issuer, an interface with one j
 
 The issuer that ships is Let's Encrypt over HTTP-01. Servlo asks the authority for a certificate, the authority fetches a token from your site over port 80 to prove you control the domain, and the certificate comes back.
 
-> [!IMPORTANT]
-> The domain has to resolve to this server before any of that can work. HTTP-01 validation is the authority connecting to your public address on port 80; if DNS points somewhere else, or a firewall drops the connection, issuance fails no matter how the panel is configured.
+The domain has to resolve to this server before any of that can work, so Servlo checks first and refuses if it does not.
+
+---
+
+## The DNS gate
+
+Both the panel and `servlo secure` resolve A and AAAA for the primary domain and every alias, and compare them against this server's public addresses. Until they match, the padlock in the site header is disabled and its tooltip is the actual mismatch:
+
+> Waiting for DNS — example.com currently resolves to 1.2.3.4, this server is 5.6.7.8
+
+This is not politeness. Let's Encrypt locks an account out of retrying a domain after five failed validations, so clicking against a record that has not propagated costs an hour of waiting to learn what a DNS lookup answers instantly.
+
+Three details worth knowing:
+
+- **Every record has to point here, not just one.** A stale address left alongside the new one makes validation a coin flip, because the authority connects to whichever it picks. A renewal that fails half the time is harder to diagnose than one that never runs.
+- **AAAA counts.** Let's Encrypt prefers IPv6 when a AAAA record exists, so a site whose A record is correct and whose AAAA points at an old host fails validation while looking perfectly healthy over IPv4.
+- **A secured site is never gated.** Turning HTTPS *off* is exactly what you need when a domain has moved away, so the check only stands between an unsecured site and its first certificate.
+
+### When the public address is not on an interface
+
+Servlo reads this server's address from its own interfaces, which is right for an ordinary droplet where the public address is bound directly. Behind a cloud load balancer, a floating IP, or NAT with a port forward, it is not: the address the authority connects to is nowhere on the machine, and reading interfaces alone would refuse every certificate for a reason that is not true.
+
+Say what it is instead:
+
+```yaml
+certs:
+  server_addresses:
+    - 203.0.113.10
+```
+
+`servlo doctor` warns when no public address can be found and none is declared.
 
 ```bash
 cd /srv/my-app
@@ -67,6 +96,23 @@ Optional, and the only way the authority can tell you a renewal has been failing
 
 ---
 
+## HSTS and the redirect
+
+A secured site redirects port 80 to 443 with a **301** and sends:
+
+```
+Strict-Transport-Security: max-age=31536000
+```
+
+`always` is set, so the header goes out on error responses too, which are the ones an attacker can most easily provoke.
+
+Two things it deliberately does **not** carry. `includeSubDomains` would extend the policy to every subdomain including a group secondary you left on plain http on purpose, breaking it in every browser that had seen the parent. `preload` is effectively irreversible and is not a default anyone can consent to on your behalf.
+
+> [!WARNING]
+> HSTS is sticky. Once a browser has seen the header it will refuse plain http for that host for a year, and `servlo unsecure` cannot reach into browsers that already cached it. This is what HSTS is for, but it does mean turning HTTPS on is a decision with a tail.
+
+---
+
 ## Automatic renewal
 
 Servlo renews a secured site's certificate on its own before it lapses: whenever a certificate is within roughly 30 days of its `NotAfter` (or has already expired, gone missing, or been corrupted), the next ordinary `servlo start` or watcher pass reissues it in place. A still-valid certificate comfortably clear of that window is left untouched, so the renewal check is cheap and silent. `servlo status` continues to surface the same 30-day expiry warning under `[TLS Certificates]`, but you no longer need to act on it manually; a long-lived site that just keeps running self-heals its own certificate.
@@ -102,6 +148,6 @@ If a Stripe webhook listener is running for the site, toggling HTTPS automatical
 1. `servlo secure <site>` asks the active issuer for a certificate covering the site's primary domain and every alias. What SANs that implies is the issuer's decision: a CA can mint wildcards for free, an ACME authority cannot over HTTP-01.
 2. The issuer registers an ACME account on first use, keyed to the authority so staging and production never share one, and stores the key `0600` under `~/.local/share/servlo/acme/`. It publishes a token per domain, waits for validation, then sends a CSR and receives the chain.
 3. The certificate and key are swapped into place atomically, keeping a complete certificate at the live path at every instant. A fresh key is generated for every issuance rather than reused: a renewal that keeps the old key gains nothing and means one compromise covers every certificate the site has ever had.
-4. The nginx vhost is regenerated to listen on port 443 with the new cert, and port 80 redirects to HTTPS (302, not 301, so the redirect is not cached by browsers).
+4. The nginx vhost is regenerated to listen on port 443 with the new cert, port 80 redirects permanently to HTTPS, and the HSTS header is added.
 5. `APP_URL` in the project's `.env` is updated to `https://`.
 6. If a `servlo stripe:listen` service is active for the site, it is restarted with the updated forwarding URL.

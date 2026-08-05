@@ -253,7 +253,7 @@ func TestCustomContainer_NestJS_VhostGeneration_HTTPS(t *testing.T) {
 	if !strings.Contains(s, "ssl_certificate /etc/nginx/certs/nestapp.test.crt") {
 		t.Error("missing ssl_certificate")
 	}
-	if !strings.Contains(s, "return 302 https://") {
+	if !strings.Contains(s, "return 301 https://") {
 		t.Error("missing HTTP-to-HTTPS redirect")
 	}
 	if !strings.Contains(s, "proxy_pass http://$backend:3000") {

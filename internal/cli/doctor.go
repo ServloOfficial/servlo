@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/cleanup"
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dnscheck"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/nginx"
 	phpPkg "github.com/realrashid/servlo/internal/php"
@@ -387,6 +389,18 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 			rep.fixLast(manualFix)
 		default:
 			ok("ACME challenge webroot")
+		}
+
+		// A host with no public address on any interface cannot be measured
+		// against a DNS record, and every issuance would refuse. That is right
+		// for a machine that genuinely is not reachable, and wrong for one
+		// behind a load balancer or a floating IP, so say which fix applies.
+		if _, addrErr := dnscheck.ServerAddresses(context.Background()); addrErr != nil && len(cfg.ACMEServerAddresses()) == 0 {
+			warn("public address", addrErr.Error()+
+				" — if this server is reachable through a load balancer or a floating IP, set certs.server_addresses in "+config.ConfigDir())
+			rep.fixLast(manualFix)
+		} else {
+			ok("public address")
 		}
 
 		if cfg != nil {

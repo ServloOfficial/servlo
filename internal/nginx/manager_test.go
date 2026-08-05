@@ -490,7 +490,7 @@ func TestGenerateSSLVhost_createsSSLConfFile(t *testing.T) {
 		t.Errorf("expected cert file named after domain in:\n%s", content)
 	}
 	// HTTP→HTTPS redirect server block
-	if !strings.Contains(content, "return 302 https://") {
+	if !strings.Contains(content, "return 301 https://") {
 		t.Errorf("expected HTTP redirect in:\n%s", content)
 	}
 }
@@ -607,7 +607,7 @@ func TestRepairVhosts_missingCertSwitchesToHTTP(t *testing.T) {
 	sslConf := `server {
     listen 80;
     server_name myapp.test *.myapp.test;
-    return 302 https://$host$request_uri;
+    return 301 https://$host$request_uri;
 }
 server {
     listen 443 ssl;
@@ -841,7 +841,7 @@ func TestGenerateCustomSSLVhost_createsSSLConfFile(t *testing.T) {
 	if !strings.Contains(content, "servlo-custom-nestapp") {
 		t.Errorf("expected custom container name in:\n%s", content)
 	}
-	if !strings.Contains(content, "return 302 https://") {
+	if !strings.Contains(content, "return 301 https://") {
 		t.Errorf("expected HTTP redirect in:\n%s", content)
 	}
 	if strings.Contains(content, "fastcgi_pass") {

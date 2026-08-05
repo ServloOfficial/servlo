@@ -60,7 +60,7 @@ func TestGenerateSSLVhost_AnswersTheChallengeBeforeRedirecting(t *testing.T) {
 
 	got := vhostBody(t, tmp, "example.com-ssl.conf")
 	loc := strings.Index(got, challengeLocation)
-	redirect := strings.Index(got, "return 302 https://")
+	redirect := strings.Index(got, "return 301 https://")
 	if loc < 0 {
 		t.Fatalf("the SSL vhost does not serve the ACME challenge:\n%s", got)
 	}

@@ -139,6 +139,12 @@ type GlobalConfig struct {
 		// DirectoryURL overrides the authority entirely. For a private ACME
 		// server; empty means Let's Encrypt.
 		DirectoryURL string `yaml:"directory_url,omitempty" mapstructure:"directory_url"`
+		// ServerAddresses names this server's public addresses when they are not
+		// on any of its own interfaces: behind a load balancer, a floating IP,
+		// or NAT with a port forward. Such a host answers an HTTP-01 challenge
+		// perfectly well, so deciding from interfaces alone would lock it out of
+		// certificates for a reason that is not true.
+		ServerAddresses []string `yaml:"server_addresses,omitempty" mapstructure:"server_addresses"`
 	} `yaml:"certs,omitempty" mapstructure:"certs"`
 	Nginx struct {
 		HTTPPort  int `yaml:"http_port"  mapstructure:"http_port"`
@@ -955,6 +961,16 @@ func (c *GlobalConfig) ACMESettings() (email, directoryURL string, staging bool)
 		return "", "", false
 	}
 	return c.Certs.Email, c.Certs.DirectoryURL, c.Certs.Staging
+}
+
+// ACMEServerAddresses is the operator's answer to "what address will the
+// authority connect to", for a host whose public address is not on one of its
+// own interfaces. Empty means read the interfaces.
+func (c *GlobalConfig) ACMEServerAddresses() []string {
+	if c == nil {
+		return nil
+	}
+	return c.Certs.ServerAddresses
 }
 
 // SetPortStrategy records the choice, together with the nginx ports it implies,

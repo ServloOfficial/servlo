@@ -93,6 +93,13 @@ func issueCertAtomic(primaryDomain string, allDomains []string, certsDir string)
 	mu.Lock()
 	defer mu.Unlock()
 
+	iss := activeIssuer()
+	// Ahead of any filesystem work: an issuance that cannot succeed should cost
+	// nothing and leave nothing behind.
+	if err := guardDNS(iss, primaryDomain, allDomains); err != nil {
+		return err
+	}
+
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		return err
 	}
@@ -107,7 +114,6 @@ func issueCertAtomic(primaryDomain string, allDomains []string, certsDir string)
 	tmpCert := certFile + suffix
 	tmpKey := keyFile + suffix
 
-	iss := activeIssuer()
 	if err := iss.Issue(primaryDomain, allDomains, tmpCert, tmpKey); err != nil {
 		os.Remove(tmpCert) //nolint:errcheck
 		os.Remove(tmpKey)  //nolint:errcheck

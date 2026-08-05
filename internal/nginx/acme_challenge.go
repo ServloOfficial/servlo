@@ -33,6 +33,18 @@ const acmeChallengeLocation = `    location ^~ ` + acmeChallengePrefix + ` {
     }
 `
 
+// hstsHeader is what a secured vhost sends. A year is the standard max-age.
+//
+// Deliberately without includeSubDomains: a group secondary on a subdomain may
+// be on plain http on purpose, and claiming the whole subtree would break it in
+// every browser that had seen the parent. Deliberately without preload, which
+// is effectively irreversible and is not a default anyone can consent to on an
+// operator's behalf.
+//
+// `always` matters. Without it nginx omits the header on error responses, which
+// are the ones an attacker can most easily provoke.
+const hstsHeader = `    add_header Strict-Transport-Security "max-age=31536000" always;`
+
 // ACMEChallengeLocation returns the block for the vhost templates.
 func ACMEChallengeLocation() string { return acmeChallengeLocation }
 

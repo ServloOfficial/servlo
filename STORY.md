@@ -94,8 +94,16 @@ The staging flag records the authority for the whole install rather than overrid
 
 Still to come in this epic: the live DNS check that gates the button (S3.3), which is also what turns `httpsOfferable()` from a constant into a real answer.
 
-**S3.3 — The Get SSL button.**
+**S3.3 — The Get SSL button.** ✅
 *Done when:* the site panel shows a live DNS check resolving A and AAAA for the primary domain **and every alias**, compared against the droplet's public addresses. While unmatched the button is disabled and displays the actual mismatch — *"Waiting for DNS — example.com currently resolves to 1.2.3.4, this server is 5.6.7.8"*. Once matched, one click issues a certificate covering all domains, installs it, rewrites the vhost to 443, adds HSTS and a 301 redirect, and updates `APP_URL`. Progress and any ACME error stream into the panel. **L**
+
+The gate lives in the certificate layer rather than the panel, so `servlo secure` refuses on the same terms and a wrong record cannot spend the rate limit from either direction. Whether it applies is the issuer's answer: HTTP-01 needs the authority to reach this server, DNS-01 will not, and S3.4 answers false.
+
+Two calls worth recording. Every resolved record has to point here, not just one, because a stale address alongside the new one makes validation a coin flip and a half-failing renewal is harder to diagnose than one that never runs. And HSTS ships without `includeSubDomains` or `preload`, since the first breaks a group secondary deliberately left on plain http and the second is irreversible.
+
+Progress is written to a per-domain file rather than streamed over the websocket: issuance is one synchronous request, so the panel polls the file while its own POST is in flight. Replacing that with a real event stream is worth doing when there is a second long-running action that needs one.
+
+`httpsOfferable()` in the init wizard is still a constant. The wizard asks before a domain exists, so there is nothing to resolve at that point; the gate that matters runs at issuance.
 
 **S3.4 — DNS-01 with Cloudflare, Route53 and DigitalOcean.**
 *Done when:* wildcards issue successfully; provider credentials are stored 0600 outside any site directory; covered by a staging integration test. **L**
