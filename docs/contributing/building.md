@@ -20,6 +20,16 @@ make test-all    # test + test-ui + test-installer (bats) + surface-scan
 make clean       # remove ./build/ and internal/ui/web/dist/
 ```
 
+## What CI runs
+
+Two jobs, both pinned to `ubuntu-24.04` rather than `ubuntu-latest`. Servlo installs on Ubuntu 24.04 LTS and refuses everything else, so a runner that follows the image alias to the next LTS is a gate proving Servlo builds on a platform the installer will not install on. `pkg/distro` holds the supported release as a constant and a test there reads the workflow back, so the pin and the refusal cannot drift apart.
+
+The build job prepares a rootless runtime before it does anything else: it enables linger, then exports `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` and waits for the session bus to appear. Rootless podman and every unit Servlo generates run under the user's own systemd instance, and without a reachable bus the tests that touch systemd take their absent-systemd path instead of the real one. It then asserts the floor `servlo doctor` checks on a droplet, podman 4.5 or newer on cgroup v2, so an image change that drops below it fails the job rather than quietly reducing those tests to no-ops. The job goes on to build the UI, build both server architectures, and run the tests, vet, gofmt and the surface scan.
+
+The installer job installs bats-core and runs `tests/installer/installer.bats`. It needs the same pin for a different reason: `install.sh` reads `/etc/os-release` and refuses anything that is not 24.04, so only there does the suite exercise the accepting path.
+
+What CI still does not cover is the runtime surface. A green run means the code compiles and the unit tests pass on the right release; it does not mean a site came up. Install the build on a real droplet and drive the change by hand before calling it done.
+
 ## The surface scan
 
 Servlo removes a set of upstream features outright rather than hiding them behind a flag, so the only durable check is one that reads the tree and fails when a name comes back. `make surface-scan` is that check, and CI runs it on every push.

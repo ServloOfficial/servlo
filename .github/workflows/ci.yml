@@ -9,7 +9,11 @@ on:
 jobs:
   build:
     name: Build & Test
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest. Servlo installs on Ubuntu 24.04 and refuses
+    # everything else, so a gate that drifts to the next LTS with the runner
+    # image is a gate for a platform Servlo does not support. The hosted runner
+    # is a VM with a live systemd, which is what the podman and unit tests need.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -23,6 +27,56 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: internal/ui/web/package-lock.json
+
+      # Rootless podman and every generated unit run under the user's own
+      # systemd instance, so the tests that touch systemd need a user manager
+      # and a session bus. Linger starts the manager; without the bus address
+      # exported, systemctl --user has nothing to talk to and those tests are
+      # skipped rather than run, which is the failure mode this job exists to
+      # close.
+      - name: Prepare the rootless runtime
+        run: |
+          sudo loginctl enable-linger "$USER"
+          uid=$(id -u)
+          echo "XDG_RUNTIME_DIR=/run/user/$uid" >> "$GITHUB_ENV"
+          echo "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus" >> "$GITHUB_ENV"
+          for _ in $(seq 30); do
+            if [ -S "/run/user/$uid/bus" ]; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "the user session bus never appeared at /run/user/$uid/bus"
+          exit 1
+
+      # The same floor servlo doctor checks on a droplet. Asserting it here
+      # means a runner image change that drops below it fails this job rather
+      # than quietly reducing the systemd tests to no-ops.
+      - name: Verify the runtime floor
+        run: |
+          . /etc/os-release
+          if [ "$VERSION_ID" != "24.04" ]; then
+            echo "expected Ubuntu 24.04, got $VERSION_ID"
+            exit 1
+          fi
+          if ! command -v podman >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq podman
+          fi
+          podman --version
+          major=$(podman --version | sed -n 's/.* \([0-9]*\)\..*/\1/p')
+          minor=$(podman --version | sed -n 's/.* [0-9]*\.\([0-9]*\).*/\1/p')
+          if [ "$major" -lt 4 ] || { [ "$major" -eq 4 ] && [ "$minor" -lt 5 ]; }; then
+            echo "podman 4.5 or newer is required"
+            exit 1
+          fi
+          cgroup=$(stat -fc %T /sys/fs/cgroup)
+          if [ "$cgroup" != "cgroup2fs" ]; then
+            echo "expected cgroup v2, got $cgroup"
+            exit 1
+          fi
+          systemctl --user is-system-running || true
+          loginctl show-user "$USER" --property=Linger
 
       - name: Build UI
         run: make build-ui
@@ -50,7 +104,9 @@ jobs:
 
   installer:
     name: Installer Tests
-    runs-on: ubuntu-latest
+    # install.sh reads /etc/os-release and refuses anything but 24.04, so the
+    # bats suite has to run there to exercise the accepting path at all.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
