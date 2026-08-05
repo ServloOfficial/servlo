@@ -105,8 +105,16 @@ Progress is written to a per-domain file rather than streamed over the websocket
 
 `httpsOfferable()` in the init wizard is still a constant. The wizard asks before a domain exists, so there is nothing to resolve at that point; the gate that matters runs at issuance.
 
-**S3.4 — DNS-01 with Cloudflare, Route53 and DigitalOcean.**
+**S3.4 — DNS-01 with Cloudflare, Route53 and DigitalOcean.** ✅
 *Done when:* wildcards issue successfully; provider credentials are stored 0600 outside any site directory; covered by a staging integration test. **L**
+
+No new dependency. Route53 is signed with SigV4 by hand rather than through the AWS SDK, which would bring dozens of modules for two API calls; it is also why the provider interface exists, since a signed API cannot share a code path with two bearer-token ones.
+
+The wildcard subtlety worth remembering: `*.example.com` and `example.com` are separate authorizations sharing one record name, each with its own value, so both must be present at once. Publishing the second as a replacement withdraws the proof of the first.
+
+The integration test runs against an in-process authority rather than Let's Encrypt staging. A staging run needs a real domain and a real registrar credential, which CI has neither of; the in-process authority validates against the records the provider actually holds and requires as many distinct values at the shared record as there are authorizations pointing at it, which is the property a staging run would be checking. The first version of that assertion counted non-empty values and passed with a broken record name, so it is worth keeping the stricter form.
+
+Storing a credential is a separate command from using it: an operator may hold a token for one wildcard site and leave everything else on http-01, where none is needed.
 
 **S3.5 — Renewal failure is loud.**
 *Done when:* a failed renewal produces a dashboard banner and an audit entry (and an email once panel SMTP exists). A site never silently serves an expired certificate. **M**

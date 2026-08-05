@@ -70,6 +70,10 @@ Setup steps include common tasks (composer install, npm install, servlo env) plu
 | `servlo secure --renew [name]` | Reissue a secured site's TLS cert on demand, resetting its expiry |
 | `servlo secure --staging [name]` | Issue from Let's Encrypt staging from now on, for working out a DNS problem without spending the production rate limit |
 | `servlo unsecure [name]` | Remove TLS and switch back to HTTP, updates `APP_URL` in `.env` |
+| `servlo dns-provider set <provider>` | Store the DNS API credentials a wildcard certificate needs |
+| `servlo dns-provider use <provider|http-01>` | Choose how certificates prove control of a domain |
+| `servlo dns-provider list` | Show which DNS providers are configured, secrets redacted |
+| `servlo dns-provider remove <provider>` | Forget a provider's credentials |
 | `servlo pause [name]` | Pause a site: stop workers (and custom container if applicable), replace vhost with landing page |
 | `servlo unpause [name]` | Resume a paused site: start container, restore vhost, restart workers |
 | `servlo restart [name]` | Restart the container for the current or named site (custom container or PHP-FPM) |

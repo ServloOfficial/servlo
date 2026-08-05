@@ -113,6 +113,40 @@ Two things it deliberately does **not** carry. `includeSubDomains` would extend 
 
 ---
 
+## Wildcards, and the DNS-01 challenge
+
+HTTP-01 proves control by serving a file, so the authority has to reach this server at that exact name. There is no single name to fetch for `*.example.com`, which is why a wildcard cannot be proved that way at all. Asking for one over HTTP-01 is refused up front rather than forty seconds later by the authority, because a rejected validation counts against the rate limit.
+
+DNS-01 proves control by publishing a TXT record instead. That covers wildcards, and it works on a server the authority could never connect to.
+
+The cost is the credential. A DNS API token can create and delete any record in the zone, which for most operators means the whole domain: mail, subdomains, and the ability to obtain a certificate for any of them. It is a bigger secret than a database password. Scope it as narrowly as the provider allows — Servlo only ever creates and deletes TXT records under `_acme-challenge`.
+
+```bash
+servlo dns-provider set cloudflare --token <token>
+servlo dns-provider set digitalocean --token <token>
+servlo dns-provider set route53 --access-key-id <id> --secret-access-key <secret>
+
+servlo dns-provider use cloudflare      # prove control over DNS-01 from now on
+servlo dns-provider use http-01         # back to serving a file
+servlo dns-provider list                # shows which are configured, redacted
+```
+
+Credentials live in `dns-providers.yaml` under Servlo's config directory, created `0600` inside a `0700` directory, and never inside a site tree — a site tree is served by nginx, cloned from git and readable by the app that runs there, so a token in one is a single misconfigured location block from being downloadable. `servlo dns-provider list` prints only the last four characters.
+
+Storing a credential and using it are separate commands on purpose. An operator may hold a token for one wildcard site and leave everything else on HTTP-01, which needs no credential at all.
+
+### The wildcard record
+
+`*.example.com` and `example.com` are proved at the same record name, `_acme-challenge.example.com`, and each carries its own value. Both have to be present at once: publishing the second as a replacement withdraws the proof of the first and fails half the order. Servlo adds rather than replaces, and withdraws only the value it published, so a second order in flight for the same name keeps its own.
+
+After publishing, Servlo waits before telling the authority to look. A registrar answers its own API immediately and its nameservers a moment later, and an authority that checks too early records a failed validation that counts against the limit. The wait is paid once for the whole order rather than once per domain.
+
+### Why no AWS SDK
+
+Route53 is signed with SigV4 rather than bearer-authenticated, which is why it needs its own code path. It is signed by hand here: the AWS SDK would bring dozens of modules into a binary that needs exactly two API calls, and the algorithm is about a hundred lines that keep the whole provider auditable in one file.
+
+---
+
 ## Automatic renewal
 
 Servlo renews a secured site's certificate on its own before it lapses: whenever a certificate is within roughly 30 days of its `NotAfter` (or has already expired, gone missing, or been corrupted), the next ordinary `servlo start` or watcher pass reissues it in place. A still-valid certificate comfortably clear of that window is left untouched, so the renewal check is cheap and silent. `servlo status` continues to surface the same 30-day expiry warning under `[TLS Certificates]`, but you no longer need to act on it manually; a long-lived site that just keeps running self-heals its own certificate.

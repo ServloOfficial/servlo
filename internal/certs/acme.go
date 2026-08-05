@@ -19,6 +19,7 @@ import (
 	"golang.org/x/crypto/acme"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dnsprovider"
 	"github.com/realrashid/servlo/internal/nginx"
 )
 
@@ -38,6 +39,13 @@ const issueTimeout = 3 * time.Minute
 
 // ACMEConfig is what servlo needs to talk to an ACME authority.
 type ACMEConfig struct {
+	// Challenge is how control is proved. Empty means HTTP-01, which needs no
+	// credentials and covers every ordinary site; DNS-01 is what a wildcard
+	// requires and what a server the authority cannot reach needs.
+	Challenge Challenge
+	// DNSProvider names the registrar whose credentials publish the TXT record.
+	// Only read when Challenge is DNS-01.
+	DNSProvider dnsprovider.Name
 	// DirectoryURL is the ACME directory. Empty means Let's Encrypt production.
 	DirectoryURL string
 	// Email receives the authority's expiry notices. Optional: Let's Encrypt
@@ -58,16 +66,32 @@ func NewACMEIssuer(cfg ACMEConfig) Issuer {
 }
 
 func (a *acmeIssuer) Name() string {
+	name := "acme"
 	switch a.cfg.DirectoryURL {
 	case LetsEncryptProduction:
-		return "letsencrypt"
+		name = "letsencrypt"
 	case LetsEncryptStaging:
-		return "letsencrypt-staging"
+		name = "letsencrypt-staging"
+	default:
+		if host, err := directoryHost(a.cfg.DirectoryURL); err == nil {
+			name = "acme:" + host
+		}
 	}
-	if host, err := directoryHost(a.cfg.DirectoryURL); err == nil {
-		return "acme:" + host
+	// The challenge is part of the identity: which one is in force decides
+	// whether a wildcard can be issued and whether the DNS gate applies, so
+	// doctor and the panel have to be able to tell them apart.
+	if a.cfg.Challenge == ChallengeDNS01 {
+		return name + " (dns-01 via " + string(a.cfg.DNSProvider) + ")"
 	}
-	return "acme"
+	return name
+}
+
+// NeedsInboundReachability reports whether this issuer's challenge requires the
+// authority to connect to this server at the domain. HTTP-01 does. DNS-01
+// proves control through a TXT record, so gating it on the domain resolving
+// here would refuse exactly the case it exists for.
+func (a *acmeIssuer) NeedsInboundReachability() bool {
+	return a.cfg.Challenge != ChallengeDNS01
 }
 
 // directoryHost reduces a directory URL to a filesystem-safe name, used to keep
@@ -87,17 +111,18 @@ func directoryHost(directoryURL string) (string, error) {
 	return host, nil
 }
 
-// NeedsInboundReachability reports that this issuer validates over an inbound
-// connection: the authority fetches a token from the domain over port 80, so
-// the domain has to resolve here before an order is worth placing. DNS-01 will
-// answer false when it lands.
-func (a *acmeIssuer) NeedsInboundReachability() bool { return true }
-
 // Issue runs one HTTP-01 order to completion and writes the chain and key to
 // the paths the caller will rename into place.
 func (a *acmeIssuer) Issue(primary string, domains []string, certPath, keyPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), issueTimeout)
 	defer cancel()
+
+	// A wildcard has no single name to fetch, so HTTP-01 cannot prove one. Say
+	// so here rather than letting the authority record a failed validation
+	// forty seconds from now, which would count against the rate limit.
+	if anyWildcard(domains) && a.cfg.Challenge != ChallengeDNS01 {
+		return fmt.Errorf("cannot issue a wildcard certificate for %s over http-01: a wildcard can only be proved with dns-01, which needs credentials for the domain's DNS provider", primary)
+	}
 
 	// Each step is recorded so the panel can show what is happening during the
 	// minute the request is open, and so a failure says which step it died on.
@@ -213,6 +238,9 @@ func (a *acmeIssuer) register(ctx context.Context, client *acme.Client) error {
 // needs. Tokens are removed on the way out whatever happens: a token left in the
 // webroot is a public file that outlives the attempt that created it.
 func (a *acmeIssuer) satisfy(ctx context.Context, client *acme.Client, primary string, order *acme.Order) error {
+	if a.cfg.Challenge == ChallengeDNS01 {
+		return a.satisfyDNS01(ctx, client, primary, order)
+	}
 	if err := nginx.EnsureChallengeDir(); err != nil {
 		return fmt.Errorf("preparing the challenge webroot: %w", err)
 	}

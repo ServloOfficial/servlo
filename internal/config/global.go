@@ -139,6 +139,13 @@ type GlobalConfig struct {
 		// DirectoryURL overrides the authority entirely. For a private ACME
 		// server; empty means Let's Encrypt.
 		DirectoryURL string `yaml:"directory_url,omitempty" mapstructure:"directory_url"`
+		// Challenge is how control is proved: "http-01" (the default, no
+		// credentials needed) or "dns-01", which a wildcard requires.
+		Challenge string `yaml:"challenge,omitempty" mapstructure:"challenge"`
+		// DNSProvider names the registrar whose credentials publish the TXT
+		// record. Only read under dns-01. The credentials themselves live in
+		// dns-providers.yaml at 0600, never here.
+		DNSProvider string `yaml:"dns_provider,omitempty" mapstructure:"dns_provider"`
 		// ServerAddresses names this server's public addresses when they are not
 		// on any of its own interfaces: behind a load balancer, a floating IP,
 		// or NAT with a port forward. Such a host answers an HTTP-01 challenge
@@ -961,6 +968,15 @@ func (c *GlobalConfig) ACMESettings() (email, directoryURL string, staging bool)
 		return "", "", false
 	}
 	return c.Certs.Email, c.Certs.DirectoryURL, c.Certs.Staging
+}
+
+// ACMEChallenge is how control is proved, and which provider publishes the
+// record when it is dns-01.
+func (c *GlobalConfig) ACMEChallenge() (challenge, dnsProvider string) {
+	if c == nil {
+		return "", ""
+	}
+	return c.Certs.Challenge, c.Certs.DNSProvider
 }
 
 // ACMEServerAddresses is the operator's answer to "what address will the

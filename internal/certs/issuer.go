@@ -1,6 +1,9 @@
 package certs
 
-import "github.com/realrashid/servlo/internal/config"
+import (
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dnsprovider"
+)
 
 // Issuer produces a certificate and its key for a set of domains.
 //
@@ -44,7 +47,12 @@ func issuerFromConfig() Issuer {
 	if directoryURL == "" && staging {
 		directoryURL = LetsEncryptStaging
 	}
-	return NewACMEIssuer(ACMEConfig{DirectoryURL: directoryURL, Email: email})
+	acmeCfg := ACMEConfig{DirectoryURL: directoryURL, Email: email}
+	if challenge, provider := cfg.ACMEChallenge(); Challenge(challenge) == ChallengeDNS01 {
+		acmeCfg.Challenge = ChallengeDNS01
+		acmeCfg.DNSProvider = dnsprovider.Name(provider)
+	}
+	return NewACMEIssuer(acmeCfg)
 }
 
 // IssuerName reports which issuer is in force, for doctor and status output.

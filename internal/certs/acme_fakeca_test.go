@@ -55,6 +55,13 @@ type fakeCA struct {
 	// failValidation makes every challenge fetch fail, standing in for DNS that
 	// does not point here yet.
 	failValidation bool
+	// txt is the zone the dns-01 path validates against, keyed by record name.
+	// A test points it at the fake provider's records so the challenge is
+	// checked against what servlo actually published.
+	txt func(record string) []string
+	// wildcard marks the authorizations the order should report as covering a
+	// wildcard, by identifier value.
+	wildcard map[string]bool
 }
 
 func newFakeCA(t *testing.T, webroot string) *fakeCA {
@@ -123,6 +130,8 @@ func (c *fakeCA) route(w http.ResponseWriter, r *http.Request) {
 		c.getAuthz(w, path)
 	case strings.HasPrefix(path, "/chal/"):
 		c.acceptChallenge(w, path)
+	case strings.HasPrefix(path, "/chal-dns/"):
+		c.acceptDNSChallenge(w, path)
 	case strings.HasPrefix(path, "/order/"):
 		c.getOrder(w)
 	case path == "/finalize":
@@ -193,6 +202,7 @@ func (c *fakeCA) getAuthz(w http.ResponseWriter, path string) {
 	}
 	json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 		"status":     c.authzState[i],
+		"wildcard":   c.wildcard[c.authzName[i]],
 		"identifier": map[string]string{"type": "dns", "value": c.authzName[i]},
 		"challenges": []map[string]any{
 			{"type": "dns-01", "url": fmt.Sprintf("%s/chal-dns/%d", c.srv.URL, i), "token": c.authzToken[i], "status": "pending"},
@@ -239,6 +249,63 @@ func (c *fakeCA) acceptChallenge(w http.ResponseWriter, path string) {
 
 	json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 		"type": "http-01", "url": c.srv.URL + path, "token": token, "status": state,
+	})
+}
+
+// acceptDNSChallenge validates the way a real authority does: look up the TXT
+// record at the challenge name and accept a non-empty value there. What servlo
+// can get wrong is the record name and whether both values of a wildcard order
+// are present, which this checks; recomputing the digest would only re-test
+// x/crypto/acme.
+func (c *fakeCA) acceptDNSChallenge(w http.ResponseWriter, path string) {
+	i, err := strconv.Atoi(strings.TrimPrefix(path, "/chal-dns/"))
+	c.mu.Lock()
+	if err != nil || i >= len(c.authzState) {
+		c.mu.Unlock()
+		http.Error(w, "no such challenge", http.StatusNotFound)
+		return
+	}
+	name := c.authzName[i]
+	lookup := c.txt
+	fail := c.failValidation
+	c.mu.Unlock()
+
+	record := "_acme-challenge." + strings.TrimPrefix(name, "*.")
+
+	// A wildcard and its base are separate authorizations that share one record
+	// name, and each carries its own digest. Requiring as many distinct values
+	// at the record as there are authorizations pointing at it is what catches
+	// a client that published the second somewhere else, or replaced the first
+	// with it. Counting non-empty values would pass on either mistake.
+	c.mu.Lock()
+	need := 0
+	for _, other := range c.authzName {
+		if "_acme-challenge."+strings.TrimPrefix(other, "*.") == record {
+			need++
+		}
+	}
+	c.mu.Unlock()
+
+	state := "invalid"
+	if !fail && lookup != nil {
+		distinct := map[string]bool{}
+		for _, v := range lookup(record) {
+			if v != "" {
+				distinct[v] = true
+			}
+		}
+		if len(distinct) >= need {
+			state = "valid"
+		}
+	}
+
+	c.mu.Lock()
+	c.authzState[i] = state
+	c.fetched = append(c.fetched, "dns:"+record)
+	c.mu.Unlock()
+
+	json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
+		"type": "dns-01", "url": c.srv.URL + path, "status": state,
 	})
 }
 
