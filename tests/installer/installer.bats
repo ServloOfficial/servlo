@@ -147,6 +147,82 @@ teardown() {
   [[ "$output" == *"podman"* ]]
 }
 
+# ── crun ─────────────────────────────────────────────────────────────────────
+
+@test "require_crun accepts crun on PATH" {
+  function command() { if [ "$1" = "-v" ] && [ "$2" = "crun" ]; then echo "/usr/bin/crun"; return 0; fi; builtin command "$@"; }
+  export -f command
+
+  run require_crun
+  [ "$status" -eq 0 ]
+}
+
+# Servlo's quadlets name crun explicitly. runc is present on most hosts and
+# podman will happily fall back to it, so a missing crun does not surface until
+# the first container refuses to start, long after the installer has finished.
+@test "require_crun refuses when crun is missing, and names the package" {
+  function command() { if [ "$1" = "-v" ] && [ "$2" = "crun" ]; then return 1; fi; builtin command "$@"; }
+  export -f command
+
+  run require_crun
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"crun"* ]]
+  [[ "$output" == *"apt install"* ]]
+}
+
+# ── cgroup v2 ────────────────────────────────────────────────────────────────
+
+@test "require_cgroup_v2 accepts a unified hierarchy" {
+  function stat() { echo "cgroup2fs"; }
+  export -f stat
+
+  run require_cgroup_v2
+  [ "$status" -eq 0 ]
+}
+
+# Rootless podman needs the unified hierarchy for per-container resource
+# limits; on v1 the memory cap an asset build runs under silently does nothing.
+@test "require_cgroup_v2 refuses cgroup v1 and names the boot parameter" {
+  function stat() { echo "tmpfs"; }
+  export -f stat
+
+  run require_cgroup_v2
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"cgroup v2"* ]]
+  [[ "$output" == *"systemd.unified_cgroup_hierarchy=1"* ]]
+}
+
+# ── linger ───────────────────────────────────────────────────────────────────
+
+@test "require_linger accepts a lingering user" {
+  function loginctl() { echo "Linger=yes"; }
+  export -f loginctl
+
+  run require_linger
+  [ "$status" -eq 0 ]
+}
+
+# Without linger every servlo unit dies at logout, so the panel and every site
+# stop the moment the operator closes their SSH session. Refusing beats
+# installing something that only runs while someone is watching it.
+@test "require_linger refuses without linger and prints the exact command" {
+  function loginctl() { echo "Linger=no"; }
+  export -f loginctl
+
+  run require_linger
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"loginctl enable-linger"* ]]
+}
+
+@test "require_linger refuses when loginctl cannot answer at all" {
+  function loginctl() { return 1; }
+  export -f loginctl
+
+  run require_linger
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"loginctl enable-linger"* ]]
+}
+
 # ── _download_tool ────────────────────────────────────────────────────────────
 
 @test "_download_tool prefers curl when both are available" {
@@ -368,10 +444,12 @@ teardown() {
 # ── --check flag ──────────────────────────────────────────────────────────────
 
 @test "--check runs prerequisite checks and exits 0 when all pass" {
-  # Mock all check commands as present
+  # Mock all check commands as present. This runs the installer as a subprocess,
+  # where its own definitions shadow any exported function of the same name, so
+  # the gates are satisfied at the command level rather than stubbed out.
   function command() {
     case "$2" in
-      podman|unzip|certutil) return 0 ;;
+      podman|unzip|certutil|crun) return 0 ;;
       *) builtin command "$@" ;;
     esac
   }
@@ -380,7 +458,9 @@ teardown() {
     if [[ "$1" == "info" ]]; then echo "true"; fi
     if [[ "$1" == "--version" ]]; then echo "podman version 4.9.3"; fi
   }
-  export -f command systemctl podman
+  function stat() { echo "cgroup2fs"; }
+  function loginctl() { echo "Linger=yes"; }
+  export -f command systemctl podman stat loginctl
 
   run bash "$INSTALLER" --check
   [ "$status" -eq 0 ]
@@ -401,7 +481,10 @@ teardown() {
     if [[ "$1" == "info" ]]; then echo "true"; fi
     if [[ "$1" == "--version" ]]; then echo "podman version 4.9.3"; fi
   }
-  export -f command systemctl podman
+  function require_crun() { return 0; }
+  function require_cgroup_v2() { return 0; }
+  function linger_enabled() { return 0; }
+  export -f command systemctl podman require_crun require_cgroup_v2 linger_enabled
 
   MISSING_PKGS=()
   DNS_MODE="localhost"
@@ -423,7 +506,10 @@ teardown() {
     if [[ "$1" == "info" ]]; then echo "true"; fi
     if [[ "$1" == "--version" ]]; then echo "podman version 4.9.3"; fi
   }
-  export -f command systemctl podman
+  function require_crun() { return 0; }
+  function require_cgroup_v2() { return 0; }
+  function linger_enabled() { return 0; }
+  export -f command systemctl podman require_crun require_cgroup_v2 linger_enabled
 
   MISSING_PKGS=()
   DNS_MODE="managed"

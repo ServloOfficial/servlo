@@ -134,6 +134,51 @@ require_podman_min() {
   esac
 }
 
+# require_crun refuses a host without crun. Servlo's quadlets name crun as the
+# runtime explicitly, and podman falls back to runc without complaining, so the
+# absence does not surface until the first container refuses to start, well
+# after the installer has declared success.
+require_crun() {
+  if command -v crun >/dev/null 2>&1; then
+    return 0
+  fi
+  die "crun is not installed.\nServlo's container units name crun as the runtime: sudo apt install crun"
+}
+
+# require_cgroup_v2 refuses the v1 hierarchy. Rootless podman needs the unified
+# hierarchy to apply per-container limits at all, so on v1 the memory cap an
+# asset build runs under is accepted and silently ignored, which is the failure
+# mode that lets an oversized npm build take MySQL down with it.
+require_cgroup_v2() {
+  local fstype; fstype="$(stat -fc %T /sys/fs/cgroup 2>/dev/null || true)"
+  if [ "$fstype" = "cgroup2fs" ]; then
+    return 0
+  fi
+  die "This host is not on cgroup v2 (/sys/fs/cgroup is ${fstype:-unreadable}).\nServlo needs the unified hierarchy for per-container resource limits.\nAdd systemd.unified_cgroup_hierarchy=1 to the kernel command line and reboot."
+}
+
+# require_linger refuses a user without linger. Every servlo unit is a systemd
+# *user* unit, so without linger the panel, the watcher, nginx and every site
+# stop the moment the operator's session ends. Enabling it needs no privilege,
+# which is why this prints the command rather than running it.
+require_linger() {
+  linger_enabled && return 0
+  local user; user="$(invoking_user)"
+  die "systemd linger is not enabled for ${user}.\nWithout it every Servlo unit stops when you log out. Enable it with:\n  loginctl enable-linger ${user}"
+}
+
+# invoking_user names the user the units will belong to. $USER is not exported
+# in every context the installer can be piped into, so fall back to the passwd
+# entry rather than tripping set -u.
+invoking_user() { echo "${USER:-$(id -un)}"; }
+
+# linger_enabled is the predicate behind require_linger, split out so the
+# prerequisite pass can offer to fix it before refusing.
+linger_enabled() {
+  local user; user="$(invoking_user)"
+  [ "$(loginctl show-user "$user" --property=Linger 2>/dev/null || true)" = "Linger=yes" ]
+}
+
 # ── Prerequisite checks ──────────────────────────────────────────────────────
 MISSING_PKGS=()
 
@@ -177,10 +222,20 @@ check_systemd_user() {
   if systemctl --user status &>/dev/null 2>&1; then
     success "systemd user session active"
   else
-    warn "systemd user session not active"
-    warn "Run: loginctl enable-linger \$USER"
-    warn "Then log out and back in"
-    MISSING_PKGS+=("_systemd_linger")
+    warn "systemd user session not active — log out and back in if the linger check below fails"
+  fi
+}
+
+# offer_linger enables linger when it is off and the operator agrees. Enabling
+# needs no privilege, and a fresh droplet almost never has it, so refusing
+# without offering would send everyone to the same one-line fix by hand.
+# require_linger still runs afterwards and refuses if this did not take.
+offer_linger() {
+  linger_enabled && return 0
+  local user; user="$(invoking_user)"
+  warn "systemd linger is off for ${user} — Servlo units would stop at logout"
+  if ask "Enable systemd linger for ${user} now?"; then
+    loginctl enable-linger "$user" || true
   fi
 }
 
@@ -231,8 +286,15 @@ check_prerequisites_linux() {
   check_cmd unzip unzip "needed to extract fnm"
   require_podman_min
   success "podman $(podman_version) meets the ${PODMAN_MIN_MAJOR}.${PODMAN_MIN_MINOR} minimum"
+  require_crun
+  success "crun found ($(command -v crun))"
+  require_cgroup_v2
+  success "cgroup v2 unified hierarchy"
   check_dns_resolver
   check_systemd_user
+  offer_linger
+  require_linger
+  success "systemd linger enabled for $(invoking_user)"
   check_podman_rootless
   if [ "$DNS_MODE" = "managed" ]; then
     check_certutil
@@ -255,17 +317,6 @@ check_prerequisites_linux() {
     install_packages "${installable[@]}"
   fi
 
-  # Handle special cases
-  for p in "${MISSING_PKGS[@]}"; do
-    case "$p" in
-      _systemd_linger)
-        if ask "Enable systemd linger for $USER now?"; then
-          loginctl enable-linger "$USER"
-          success "Linger enabled — please log out and back in before running 'servlo install'"
-        fi
-        ;;
-    esac
-  done
 }
 
 install_packages() {

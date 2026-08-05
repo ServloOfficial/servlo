@@ -1,56 +1,42 @@
 # Requirements
 
-## Linux
+Servlo runs on **Ubuntu 24.04 LTS** and refuses to install anywhere else. The installer verifies everything below before it writes anything, and stops with a specific fix rather than leaving a half-installed system behind.
 
-- **Distribution**: Arch, Debian/Ubuntu, Fedora-based, or omarchy
-- **[Podman](https://podman.io/)** 4.5 or newer, rootless, with systemd user session active
-- **[crun](https://github.com/containers/crun)**: recommended OCI runtime for rootless Podman
-- **DNS resolver**: [NetworkManager](https://networkmanager.dev/) or [systemd-resolved](https://www.freedesktop.org/software/systemd/man/systemd-resolved.service.html) (at least one is required for `.test` DNS)
-- **`systemctl --user` functional**: run `loginctl enable-linger $USER` if needed
+## What the installer verifies
 
-### Podman 4.5 minimum
+| Requirement | Why | If it is missing |
+|---|---|---|
+| **Ubuntu 24.04 LTS** | The only release Servlo supports | Refuses, naming the distribution it found |
+| **[Podman](https://podman.io/) 4.5+**, rootless | Older podman cannot create the network Servlo needs | Refuses, with the upgrade path for the release you are on |
+| **[crun](https://github.com/containers/crun)** | Servlo's container units name crun as the runtime | `sudo apt install crun` |
+| **cgroup v2** | Per-container resource limits, including the memory cap asset builds run under | Add `systemd.unified_cgroup_hierarchy=1` to the kernel command line and reboot |
+| **systemd linger** | Servlo's units are systemd *user* units | `loginctl enable-linger $USER` — the installer offers to run it for you |
+| **`unzip`** | Extracting fnm during install | Offered as a package install |
 
-::: warning
-Servlo creates the `servlo` podman network with `podman network create --dns`, a flag added in podman 4.5 (April 2023). Older releases fail install with `Error: unknown flag: --dns`. Distribution defaults that ship podman older than 4.5:
+Ubuntu 24.04 ships podman 4.9 and boots cgroup v2 by default, so on a stock droplet linger is the only one you are likely to hit.
 
-| Distro                 | Default podman | Workaround                                                                       |
-|------------------------|---------------:|----------------------------------------------------------------------------------|
-| Ubuntu 22.04           | 3.4.4          | Install a newer podman from the [Kubic libcontainers OBS repo](https://podman.io/docs/installation#ubuntu-2204-2104-2010-2004) |
-| Zorin 17               | 3.4.4          | Same Kubic instructions as Ubuntu 22.04 (Zorin 17 is jammy-based)                |
-| Debian 12 (bookworm)   | 4.3.1          | `sudo apt install -t bookworm-backports podman` (ships 4.9+)                     |
-| Debian 11 (bullseye)   | 3.0.1          | Upgrade to Debian 12 + enable bookworm-backports                                 |
+### Why podman 4.5
 
-Fedora 38+, Ubuntu 24.04+, openSUSE Tumbleweed, Arch and CachyOS all ship podman 4.5 or newer out of the box.
-:::
+Servlo creates the `servlo` podman network with `podman network create --dns`, a flag added in podman 4.5 (April 2023). Older releases fail with `Error: unknown flag: --dns`. Ubuntu 22.04 ships podman 3.4.4 and cannot provide a newer one from its own archive, which is why the installer points at `do-release-upgrade` rather than at a package.
 
-::: warning Linger must be enabled
-If `systemctl --user` units do not survive logout, run:
+### Why linger matters
+
+Every container, every worker and the panel itself runs as a systemd **user** unit. Without linger, systemd tears the whole user manager down when your session ends, so closing an SSH connection stops every site on the server. This is the requirement most often missed on a fresh droplet, and enabling it needs no privilege, so the installer offers to run it before it refuses:
+
 ```bash
 loginctl enable-linger $USER
 ```
-This is required for Podman Quadlet containers to start automatically and persist across sessions.
-:::
 
-::: tip crun is the recommended OCI runtime
-Most distributions ship `crun` as the default rootless Podman runtime. On Arch-based systems, `runc` is the default and `crun` must be installed separately. While both runtimes work, `crun` is lighter and purpose-built for rootless containers. `servlo doctor` will warn if `crun` is not installed.
+`servlo doctor` re-checks it on every run, because a rebuild or a user change can quietly take it away again.
 
-```bash
-# Arch / omarchy
-sudo pacman -S crun
+### Why cgroup v2
 
-# Debian / Ubuntu
-sudo apt install crun
+Rootless podman needs the unified hierarchy to apply resource limits at all. On cgroup v1 a limit is accepted and then silently ignored, which is worse than refusing it: an oversized `npm run build` would run uncapped and let the OOM killer take MySQL down with it.
 
-# Fedora
-sudo dnf install crun
-```
-:::
+## Also needed
 
-- **`unzip`**: used during install to extract fnm
-- **`certutil` / `nss-tools`**: for mkcert to install the CA into Chrome/Firefox. Only needed when servlo manages DNS for `.test` sites with HTTPS. If you pick the `.localhost` mode at install time the installer skips this package, so immutable hosts like Fedora Silverblue don't need to layer it.
-    - Arch: `nss`
-    - Debian/Ubuntu: `libnss3-tools`
-    - Fedora: `nss-tools`
+- **DNS resolver**: [NetworkManager](https://networkmanager.dev/) or [systemd-resolved](https://www.freedesktop.org/software/systemd/man/systemd-resolved.service.html)
+- **`libnss3-tools`** (for `certutil`): only when servlo manages DNS for `.test` sites with HTTPS. The `.localhost` mode skips it.
 
 ::: tip Go is only needed to build from source
 The released binary is fully static with no runtime dependencies. You do not need Go installed to use Servlo.
