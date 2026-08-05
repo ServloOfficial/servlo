@@ -111,7 +111,7 @@ This directory isn't linked to servlo. Link it now? [Y/n]
 
 Accepting runs `servlo link` (which cascades into `servlo init` when there is no `.servlo.yaml`), then the original command continues, so a single command is enough rather than a link, init, retry sequence. In a non-interactive context (a script or CI) the command returns a single clear error and does nothing else.
 
-See [Configuration](../configuration.md#per-project-config-servloyaml) for the full field reference including inline service definitions and custom frameworks.
+See [Configuration](../configuration.md#per-project-config-servloyaml) for the full field reference, including custom frameworks and why an inline service definition is never run.
 
 ---
 

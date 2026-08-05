@@ -117,7 +117,7 @@ func TestBuildProjectServices_builtins(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("expected 2 services, got %d: %+v", len(got), got)
 	}
-	if got[0].Name != "redis" || got[0].Preset != "" || got[0].Custom != nil {
+	if got[0].Name != "redis" || got[0].Preset != "" || got[0].Inline() {
 		t.Errorf("redis built-in mapped wrong: %+v", got[0])
 	}
 	if got[1].Name != "mysql" {

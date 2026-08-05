@@ -316,8 +316,11 @@ runs `servlo link` / `servlo setup`, servlo checks whether the referenced preset
 is installed locally and calls `servlo service preset <name> --version <ver>`
 under the hood if it isn't.
 
-Hand-rolled custom services that don't come from a preset still inline their
-full definition into `.servlo.yaml` for portability; see Custom services.
+A service you defined by hand with `servlo service add` is referenced from
+`.servlo.yaml` by name only. Its definition is not written into the project
+file: servlo refuses to run a container from a definition the repository
+carries, so an inline block there would be dropped on the next link. See
+[Inline service definitions are not run](../configuration.md#inline-service-definitions-are-not-run).
 
 ## Dependency rules
 

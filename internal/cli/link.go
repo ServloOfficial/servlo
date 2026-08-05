@@ -395,27 +395,6 @@ func frameworkLabelOf(fw *config.Framework) string {
 
 // linkApplyServices installs and starts services declared in .servlo.yaml.
 // Shared by both the standard PHP link path and the custom container path.
-// approveInlineService surfaces a brand-new inline service defined in a
-// project's .servlo.yaml and confirms it before servlo installs and runs it as a
-// container, since the image and command come from the (possibly cloned) repo.
-// A scripted or UI link (--yes) and a non-interactive run proceed; an
-// interactive run prompts.
-func approveInlineService(svc *config.CustomService) bool {
-	if linkAssumeYes || !isInteractive() {
-		return true
-	}
-	fmt.Printf("\nThis project defines a service servlo will run as a container:\n")
-	fmt.Printf("  name:  %s\n", svc.Name)
-	fmt.Printf("  image: %s\n", svc.Image)
-	if svc.Exec != "" {
-		fmt.Printf("  exec:  %s\n", svc.Exec)
-	}
-	if len(svc.Ports) > 0 {
-		fmt.Printf("  ports: %s\n", strings.Join(svc.Ports, ", "))
-	}
-	return promptConfirm("Install and start it?")
-}
-
 func linkApplyServices(cwd string, proj *config.ProjectConfig) error {
 	if proj == nil {
 		return nil
@@ -430,7 +409,7 @@ func linkApplyServices(cwd string, proj *config.ProjectConfig) error {
 		// detected docker-compose, or an older .servlo.yaml written before this was
 		// normalised) has no Preset/Custom set; resolve it to its preset so it
 		// installs instead of failing as a missing custom service.
-		if svc.Preset == "" && svc.Custom == nil && config.PresetExists(svc.Name) && !config.IsDefaultPreset(svc.Name) {
+		if svc.Preset == "" && !svc.Inline() && config.PresetExists(svc.Name) && !config.IsDefaultPreset(svc.Name) {
 			svc.Preset = svc.Name
 		}
 		if svc.Preset != "" {
@@ -441,49 +420,13 @@ func linkApplyServices(cwd string, proj *config.ProjectConfig) error {
 					continue
 				}
 			}
-		} else if svc.Custom != nil {
-			svc.Custom.Name = svc.Name
-			existing, loadErr := config.LoadCustomService(svc.Name)
-			shouldSave := true
-			if loadErr != nil {
-				// Brand-new inline service from the project's .servlo.yaml: its
-				// image and command come from the (possibly cloned) repo, so
-				// show what it will run and confirm before installing it.
-				if !approveInlineService(svc.Custom) {
-					fmt.Printf("  Skipped service %s\n", svc.Name)
-					continue
-				}
-			}
-			if loadErr == nil {
-				action, err := confirmReplace("service", svc.Name, existing, svc.Custom)
-				if err != nil {
-					return err
-				}
-				switch action {
-				case replaceFromProject:
-					shouldSave = true
-				case replaceFromDisk:
-					svc.Custom = existing
-					shouldSave = false
-					if p, _ := config.LoadProjectConfig(cwd); p != nil {
-						for i, s := range p.Services {
-							if s.Name == svc.Name {
-								p.Services[i].Custom = existing
-								_ = config.SaveProjectConfig(cwd, p)
-								break
-							}
-						}
-					}
-				default:
-					shouldSave = false
-				}
-			}
-			if shouldSave {
-				if err := config.SaveCustomService(svc.Custom); err != nil {
-					feedback.Warn("registering service %s: %v", svc.Name, err)
-					continue
-				}
-			}
+		} else if svc.Inline() {
+			// The image and command come from the project's own .servlo.yaml,
+			// which may have arrived with a clone from anywhere. servlo only
+			// runs containers from reviewed store presets, so the entry is
+			// dropped and the site links without it.
+			feedback.Warn("service %s: this project defines it inline, which servlo does not run. Install it with 'servlo service preset %s' if a preset exists, or 'servlo service add' to define it yourself.", svc.Name, svc.Name)
+			continue
 		}
 		if err := ensureServiceRunning(svc.Name); err != nil {
 			feedback.Warn("service %s: %v", svc.Name, err)

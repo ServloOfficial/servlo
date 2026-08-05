@@ -123,7 +123,7 @@ A portable, self-contained description of a project's local environment. Created
 | `domains` | Site hostnames without the TLD (e.g. `[myapp, api]`). The first entry is the primary; additional entries become aliases. Conflict-filtered domains stay in this list on disk but are not registered. A hostname may not contain whitespace, a slash, or nginx punctuation (`{`, `}`, `;`, `#`), since it is written into the generated vhost's `server_name` |
 | `app_url` | Override for `APP_URL` (or the framework's URL key) written to `.env`. Highest priority, it beats the per-machine `sites.yaml` override and the default `<scheme>://<primary-domain>` generator. Use for custom path prefixes, ports, or unrelated hostnames you want shared across machines |
 | `env_overrides` | Map of env var names to templated or static values applied to `.env` on `servlo setup`. Values may use <code v-pre>{{domain}}</code>, <code v-pre>{{scheme}}</code>, and <code v-pre>{{site}}</code> placeholders, or be plain strings. When `APP_URL` is in `env_overrides` it takes precedence over the default rewrite; declared keys override defaults, undeclared defaults still apply. See Env overrides |
-| `services` | Services to start on apply. Accepts built-in names, custom service names, or full inline definitions |
+| `services` | Services to start on apply. Accepts built-in names, preset references, and the names of services already installed on this machine. A full inline definition is read but never run, see Inline service definitions are not run |
 | `workers` | Active worker names for the site (e.g. `queue`, `horizon`, `schedule`, `reverb`, `stripe`). Automatically kept in sync by start/stop commands. Used by `servlo start` to restore workers after reinstall |
 | `container` | Custom container config for non-PHP sites. When present, servlo builds a dedicated container from the project's Containerfile and nginx reverse-proxies to it. See below and Custom Containers |
 | `custom_workers` | Custom worker definitions (name to config map). Works for both PHP and custom container sites. See below |
@@ -220,53 +220,41 @@ Worker definitions stay in `custom_workers` permanently. The `workers` field (a 
 
 Framework yamls (under `servlo-frameworks/frameworks/<framework>/<version>.yaml`) declare workers under a sibling `workers:` block with the same shape, so `host` and `replaces_build` apply there too. The shipped Laravel 11 / 12 / 13 yamls use this for `vite` (`host: true`, `replaces_build: true`), and any custom framework can do the same to teach servlo about its dev server.
 
-### Inline custom service definitions
+### Inline service definitions are not run
 
-Custom services can be defined directly in `.servlo.yaml` instead of (or in addition to) registering them with `servlo service add`. This makes the project fully self-contained: cloning it and running `servlo link` is enough to reproduce the environment.
-
-Because an inline service runs a container image and command that come from the project, `servlo link` shows the image, command, and ports of a not-yet-installed inline service and asks before installing it (a non-interactive or dashboard link, which is itself an explicit action, proceeds without the prompt). servlo also rejects control characters in service fields so a definition can't inject directives into the generated container unit. Only link projects you trust, the same as before running their build or dev scripts.
+A `.servlo.yaml` may carry a full service definition inline, beside the named
+and preset forms:
 
 ```yaml
-php_version: "8.5"
-node_version: "22"
-framework: laravel
-secured: true
 services:
   - redis
   - mongodb:
       image: docker.io/library/mongo:7
       ports:
         - 27017:27017
-      environment:
-        MONGO_INITDB_ROOT_USERNAME: root
-        MONGO_INITDB_ROOT_PASSWORD: secret
-      data_dir: /data/db
-      description: "MongoDB document store"
-      env_vars:
-        - MONGO_URI=mongodb://root:secret@servlo-mongodb:27017/{{site}}
-      site_init:
-        exec: >
-          mongosh admin -u root -p secret --eval
-          "db.getSiblingDB('{{site}}').createCollection('_init')"
 ```
 
-The inline definition schema is identical to a custom service YAML file. On apply, the service is registered to `~/.config/servlo/services/<name>.yaml` then started.
+Servlo reads that entry and refuses it. The image and the command come from the
+repository, which the operator may have cloned from anywhere, and a server does
+not put a container on itself on that say-so. Only a reviewed store preset may
+run a container.
 
-If a service with that name already exists locally and the definitions differ, a diff is shown and you are asked whether to replace it:
+The site links either way. The inline entry is dropped, the rest of the config
+applies, and `servlo link` prints which service it dropped:
 
 ```
-~ service/mongodb already exists and differs:
-
---- service/mongodb (current)
-+++ service/mongodb (.servlo.yaml)
-@@ -1,4 +1,4 @@
- image: docker.io/library/mongo:7
--description: MongoDB
-+description: MongoDB document store
- ...
-
-Replace service/mongodb with the version from .servlo.yaml? (y/N)
+⚠ service mongodb: this project defines it inline, which servlo does not run.
+  Install it with 'servlo service preset mongodb' if a preset exists, or
+  'servlo service add' to define it yourself.
 ```
+
+`servlo check` reports the same entry as an error, so it surfaces before a link
+rather than only during one.
+
+To actually run the service, install it on the server yourself: `servlo service
+preset <name>` for a store preset, or `servlo service add` for a definition you
+write. Then reference it in `.servlo.yaml` by name. The block in the project
+file is left exactly as it was found, so nothing is rewritten under the author.
 
 ### Custom frameworks
 
@@ -290,7 +278,7 @@ If a framework with that name already exists locally and differs from the embedd
 
 The config is applied whenever `servlo link` or `servlo init` runs in the project root:
 
-- **`servlo link`**: framework definition restored, `.node-version` written, PHP version applied, HTTPS toggled, services registered and started.
+- **`servlo link`**: framework definition restored, `.node-version` written, PHP version applied, HTTPS toggled, presets installed and services started.
 - **`servlo init`**: installs PHP FPM if needed, then runs `servlo link` (which applies everything above). Re-runs the wizard if `--fresh` is passed.
 
 Commit `.servlo.yaml` to the repository. On a fresh machine, `servlo link` is sufficient to reproduce the full local environment. Servlo writes the file through a temp file and a rename so a crash or two concurrent writers can never leave it half-written, and it normalises the output (two-space indentation, `services` and `workers` sorted), so a worker starting or stopping produces a minimal, stable git diff rather than a reshuffled block.

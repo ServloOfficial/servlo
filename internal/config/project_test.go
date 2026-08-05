@@ -22,13 +22,17 @@ func TestProjectService_UnmarshalYAML_Named(t *testing.T) {
 		if services[i].Name != want {
 			t.Errorf("services[%d].Name = %q, want %q", i, services[i].Name, want)
 		}
-		if services[i].Custom != nil {
-			t.Errorf("services[%d].Custom should be nil for named reference", i)
+		if services[i].Inline() {
+			t.Errorf("services[%d] should not be inline for a named reference", i)
 		}
 	}
 }
 
-func TestProjectService_UnmarshalYAML_Inline(t *testing.T) {
+// An inline definition names an image and a command a cloned repository chose,
+// so it is recognised by name and nothing else: no definition is decoded from it
+// and Resolve hands back nothing to run. Only a reviewed store preset may put a
+// container on the machine.
+func TestProjectService_UnmarshalYAML_InlineCarriesNoDefinition(t *testing.T) {
 	input := `- redis
 - mongodb:
     image: docker.io/library/mongo:7
@@ -44,7 +48,7 @@ func TestProjectService_UnmarshalYAML_Inline(t *testing.T) {
 		t.Fatalf("want 2 services, got %d", len(services))
 	}
 
-	if services[0].Name != "redis" || services[0].Custom != nil {
+	if services[0].Name != "redis" || services[0].Inline() {
 		t.Errorf("unexpected first service: %+v", services[0])
 	}
 
@@ -52,64 +56,104 @@ func TestProjectService_UnmarshalYAML_Inline(t *testing.T) {
 	if svc.Name != "mongodb" {
 		t.Errorf("Name = %q, want \"mongodb\"", svc.Name)
 	}
-	if svc.Custom == nil {
-		t.Fatal("Custom is nil for inline service")
+	if !svc.Inline() {
+		t.Fatal("an inline definition must be recognised as one")
 	}
-	if svc.Custom.Image != "docker.io/library/mongo:7" {
-		t.Errorf("Image = %q, want docker.io/library/mongo:7", svc.Custom.Image)
+	def, err := svc.Resolve()
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
 	}
-	if len(svc.Custom.Ports) != 1 || svc.Custom.Ports[0] != "27017:27017" {
-		t.Errorf("Ports = %v", svc.Custom.Ports)
-	}
-	if svc.Custom.Description != "MongoDB" {
-		t.Errorf("Description = %q", svc.Custom.Description)
+	if def != nil {
+		t.Errorf("an inline definition must resolve to nothing to run, got %+v", def)
 	}
 }
 
-func TestProjectService_RoundTrip(t *testing.T) {
-	original := []ProjectService{
-		{Name: "redis"},
-		{Name: "mongodb", Custom: &CustomService{
-			Name:        "mongodb",
-			Image:       "mongo:7",
-			Description: "MongoDB",
-		}},
+// A preset reference beside an inline one still resolves: rejecting inline
+// definitions must not take the supported form down with it.
+func TestProjectService_UnmarshalYAML_PresetBesideInline(t *testing.T) {
+	input := `- mongodb:
+    image: docker.io/library/mongo:7
+- mysql:
+    preset: mysql
+    version: "8.4"
+`
+	var services []ProjectService
+	if err := yaml.Unmarshal([]byte(input), &services); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !services[0].Inline() {
+		t.Error("the inline entry should be marked inline")
+	}
+	if services[1].Inline() {
+		t.Error("a preset reference is not an inline definition")
+	}
+	if services[1].Preset != "mysql" || services[1].PresetVersion != "8.4" {
+		t.Errorf("preset reference = %+v", services[1])
+	}
+}
+
+// Refusing to run an inline definition is not a licence to edit someone's
+// committed file, so a save that rewrites .servlo.yaml for an unrelated reason
+// puts the block back exactly as it was found.
+func TestProjectService_RoundTripPreservesAnInlineBlock(t *testing.T) {
+	input := `- redis
+- mongodb:
+    image: mongo:7
+    description: MongoDB
+`
+	var services []ProjectService
+	if err := yaml.Unmarshal([]byte(input), &services); err != nil {
+		t.Fatalf("unmarshal: %v", err)
 	}
 
-	data, err := yaml.Marshal(original)
+	data, err := yaml.Marshal(services)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(data), "image: mongo:7") {
+		t.Errorf("the inline block was not written back:\n%s", data)
 	}
 
 	var restored []ProjectService
 	if err := yaml.Unmarshal(data, &restored); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf("re-unmarshal: %v", err)
 	}
-
 	if len(restored) != 2 {
 		t.Fatalf("want 2, got %d", len(restored))
 	}
-	if restored[0].Name != "redis" || restored[0].Custom != nil {
+	if restored[0].Name != "redis" || restored[0].Inline() {
 		t.Errorf("first service: %+v", restored[0])
 	}
-	if restored[1].Name != "mongodb" || restored[1].Custom == nil {
+	if restored[1].Name != "mongodb" || !restored[1].Inline() {
 		t.Errorf("second service: %+v", restored[1])
-	}
-	if restored[1].Custom.Image != "mongo:7" {
-		t.Errorf("Image = %q", restored[1].Custom.Image)
 	}
 }
 
+// inlineBody parses a service body the way UnmarshalYAML sees one, so a test can
+// build the rejected shape without reaching for a struct literal that no longer
+// exists.
+func inlineBody(t *testing.T, body string) *yaml.Node {
+	t.Helper()
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(body), &doc); err != nil {
+		t.Fatalf("parsing inline body: %v", err)
+	}
+	return doc.Content[0]
+}
+
+// ServiceNames feeds env wiring and the service badges, so an inline definition
+// has to drop out of it: naming a service that will never run would wire a site
+// at a host nothing answers on.
 func TestProjectConfig_ServiceNames(t *testing.T) {
 	cfg := &ProjectConfig{
 		Services: []ProjectService{
 			{Name: "mysql"},
 			{Name: "redis"},
-			{Name: "mongodb", Custom: &CustomService{Name: "mongodb", Image: "mongo:7"}},
+			{Name: "mongodb", inline: inlineBody(t, "image: mongo:7")},
 		},
 	}
 	names := cfg.ServiceNames()
-	want := []string{"mysql", "redis", "mongodb"}
+	want := []string{"mysql", "redis"}
 	if len(names) != len(want) {
 		t.Fatalf("want %v, got %v", want, names)
 	}

@@ -176,14 +176,11 @@ func runCheck(_ *cobra.Command, _ []string) error {
 
 	// Services
 	for _, svc := range cfg.Services {
-		if svc.Custom != nil {
-			// Inline definition — check required fields.
-			if svc.Custom.Image == "" {
-				ckFail("service %q: inline definition is missing required \"image\" field\n", svc.Name)
-				errors++
-			} else {
-				ckOK("service: %s (inline, image: %s)\n", svc.Name, svc.Custom.Image)
-			}
+		if svc.Inline() {
+			// The image and command come from the repository, so servlo will
+			// not run it. Say so here rather than at link time only.
+			ckFail("service %q: inline definitions are not run; install a preset with 'servlo service preset %s'\n", svc.Name, svc.Name)
+			errors++
 			continue
 		}
 

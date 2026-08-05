@@ -681,11 +681,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 					// restart, like rewriteDefaultPreset already handles.
 					path := filepath.Join(config.QuadletDir(), "servlo-"+svc.Name+".container")
 					before, _ := os.ReadFile(path)
-					if svc.Custom != nil {
-						ensureCustomServiceQuadlet(svc.Custom) //nolint:errcheck
-					} else {
-						ensureServiceQuadlet(svc.Name) //nolint:errcheck
-					}
+					ensureServiceQuadlet(svc.Name) //nolint:errcheck
 					if after, _ := os.ReadFile(path); string(before) != string(after) {
 						changedQuadlets = append(changedQuadlets, "servlo-"+svc.Name)
 					}

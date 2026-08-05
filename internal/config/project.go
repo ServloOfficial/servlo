@@ -154,12 +154,17 @@ func ProjectReloadsWorker(dir, name string) bool {
 	return cfg.ReloadsWorker(name)
 }
 
-// ServiceNames returns the name of every service in the config, for callers
-// that only need the list of names (e.g. the init wizard multi-select).
+// ServiceNames returns the name of every service servlo will actually run, for
+// callers that only need the list of names (e.g. the init wizard multi-select).
+// An inline definition is left out: nothing will run it, and naming it here
+// would wire a site at a host that never answers.
 func (p *ProjectConfig) ServiceNames() []string {
-	names := make([]string, len(p.Services))
-	for i, s := range p.Services {
-		names[i] = s.Name
+	names := make([]string, 0, len(p.Services))
+	for _, s := range p.Services {
+		if s.Inline() {
+			continue
+		}
+		names = append(names, s.Name)
 	}
 	return names
 }
@@ -170,7 +175,7 @@ func (p *ProjectConfig) ServiceNames() []string {
 //   - mysql:                      # preset reference, optional version
 //     preset: mysql
 //     version: "5.6"
-//   - mongodb:                    # inline custom definition (legacy / hand-rolled)
+//   - mongodb:                    # inline definition, recognised but never run
 //     image: mongo:7
 //     ...
 //
@@ -178,12 +183,24 @@ func (p *ProjectConfig) ServiceNames() []string {
 // `servlo service preset` because each machine resolves the embedded preset
 // locally — picking up bug fixes, default tweaks, and per-machine port
 // allocations without churn in .servlo.yaml.
+//
+// The third shape is read but never acted on. Its image and command are chosen
+// by the repository, which the operator may have cloned from anywhere, and
+// servlo will not put a container on the server on that say-so: only a reviewed
+// store preset may do that. The body is kept verbatim so a save that rewrites
+// .servlo.yaml for some other reason hands it back untouched, and nothing else
+// in servlo ever reads it.
 type ProjectService struct {
 	Name          string
-	Preset        string         // empty unless this is a preset reference
-	PresetVersion string         // empty for single-version presets
-	Custom        *CustomService // nil unless this is an inline definition
+	Preset        string // empty unless this is a preset reference
+	PresetVersion string // empty for single-version presets
+	inline        *yaml.Node
 }
+
+// Inline reports whether this entry is a definition the project wrote itself.
+// Such an entry is a name and nothing more: it installs nothing and runs
+// nothing, and callers must drop it rather than treat it as a service.
+func (s ProjectService) Inline() bool { return s.inline != nil }
 
 // UnmarshalYAML accepts the three shapes documented on ProjectService.
 func (s *ProjectService) UnmarshalYAML(value *yaml.Node) error {
@@ -212,12 +229,9 @@ func (s *ProjectService) UnmarshalYAML(value *yaml.Node) error {
 			s.PresetVersion = ref.Version
 			return nil
 		}
-		var svc CustomService
-		if err := body.Decode(&svc); err != nil {
-			return fmt.Errorf("decoding inline service %q: %w", s.Name, err)
-		}
-		svc.Name = s.Name
-		s.Custom = &svc
+		// Anything else under the name is an inline definition. It is kept as
+		// the node it arrived as, never decoded into something runnable.
+		s.inline = body
 		return nil
 
 	default:
@@ -238,10 +252,10 @@ func hasMappingKey(node *yaml.Node, key string) bool {
 }
 
 // MarshalYAML serialises back to the compact form: plain string for named
-// references, single-key preset map for preset references, single-key custom
-// map for inline definitions.
+// references, single-key preset map for preset references, and an inline
+// definition written back exactly as it was read.
 func (s ProjectService) MarshalYAML() (interface{}, error) {
-	if s.Preset == "" && s.Custom == nil {
+	if s.Preset == "" && s.inline == nil {
 		return s.Name, nil
 	}
 	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Value: s.Name}
@@ -255,9 +269,7 @@ func (s ProjectService) MarshalYAML() (interface{}, error) {
 			return nil, err
 		}
 	} else {
-		if err := valNode.Encode(s.Custom); err != nil {
-			return nil, err
-		}
+		valNode = s.inline
 	}
 	if valNode.Kind == yaml.DocumentNode && len(valNode.Content) == 1 {
 		valNode = valNode.Content[0]
@@ -269,8 +281,8 @@ func (s ProjectService) MarshalYAML() (interface{}, error) {
 }
 
 // Resolve returns the concrete CustomService for this entry. Preset references
-// are resolved against the embedded preset library; inline definitions are
-// returned as-is. Named built-in references return (nil, nil) — callers handle
+// are resolved against the embedded preset library. Inline definitions and
+// named built-in references return (nil, nil) — callers handle
 // built-ins separately.
 func (s ProjectService) Resolve() (*CustomService, error) {
 	if s.Preset != "" {
@@ -280,10 +292,8 @@ func (s ProjectService) Resolve() (*CustomService, error) {
 		}
 		return preset.Resolve(s.PresetVersion)
 	}
-	if s.Custom != nil {
-		copy := *s.Custom
-		return &copy, nil
-	}
+	// An inline definition resolves to nothing: there is no reviewed preset
+	// behind it, so there is nothing servlo is willing to run.
 	return nil, nil
 }
 

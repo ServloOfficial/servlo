@@ -122,8 +122,12 @@ func Rules() []Rule {
 			Allow:    specs,
 		},
 		{
-			Feature: "inline service definitions", Story: "S0.7",
-			Patterns: []string{`InlineService`, `custom_containers`},
+			Feature: "inline service definitions", Story: "S0.7", Enforced: true,
+			// A name tripwire, not the real guard: what actually holds is
+			// ProjectService.Resolve returning nothing for an inline entry and
+			// linkApplyServices refusing it, both pinned by their own tests.
+			// This catches the shape coming back by its old names.
+			Patterns: []string{`InlineService`, `custom_containers`, `SaveCustomService\(svc\.Custom`},
 			Allow:    specs,
 		},
 		{

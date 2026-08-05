@@ -451,26 +451,15 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 		builtIn[s] = true
 	}
 	builtIn["sqlite"] = true
-	inlineByName := map[string]*config.CustomService{}
-	for _, svc := range defaults.Services {
-		if svc.Custom != nil {
-			inlineByName[svc.Name] = svc.Custom
-		}
-	}
-
 	services := make([]config.ProjectService, len(selectedServices))
 	for i, name := range selectedServices {
 		if builtIn[name] {
 			services[i] = config.ProjectService{Name: name}
 			continue
 		}
-		// Prefer the on-disk service definition (it's freshest) and fall back
-		// to the inlined one in defaults for portability.
 		var loaded *config.CustomService
 		if svc, err := config.LoadCustomService(name); err == nil {
 			loaded = svc
-		} else if existing := inlineByName[name]; existing != nil {
-			loaded = existing
 		}
 		if loaded != nil && loaded.Preset != "" {
 			services[i] = config.ProjectService{
@@ -487,7 +476,11 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 			services[i] = config.ProjectService{Name: name, Preset: name}
 			continue
 		}
-		services[i] = config.ProjectService{Name: name, Custom: loaded}
+		// A service the operator installed by hand is not written into
+		// .servlo.yaml as a definition: servlo would refuse to run it from
+		// there anyway. The bare name resolves against this machine's own
+		// custom service, and says nothing on a machine that lacks it.
+		services[i] = config.ProjectService{Name: name}
 	}
 
 	// Resolve framework version from the definition that was used.
@@ -682,13 +675,6 @@ func buildProjectServices(selectedServices []string, defaults *config.ProjectCon
 	for _, s := range knownServices() {
 		builtIn[s] = true
 	}
-	inlineByName := map[string]*config.CustomService{}
-	for _, svc := range defaults.Services {
-		if svc.Custom != nil {
-			inlineByName[svc.Name] = svc.Custom
-		}
-	}
-
 	services := make([]config.ProjectService, len(selectedServices))
 	for i, name := range selectedServices {
 		if builtIn[name] {
@@ -698,8 +684,6 @@ func buildProjectServices(selectedServices []string, defaults *config.ProjectCon
 		var loaded *config.CustomService
 		if svc, err := config.LoadCustomService(name); err == nil {
 			loaded = svc
-		} else if existing := inlineByName[name]; existing != nil {
-			loaded = existing
 		}
 		if loaded != nil && loaded.Preset != "" {
 			services[i] = config.ProjectService{
@@ -716,7 +700,11 @@ func buildProjectServices(selectedServices []string, defaults *config.ProjectCon
 			services[i] = config.ProjectService{Name: name, Preset: name}
 			continue
 		}
-		services[i] = config.ProjectService{Name: name, Custom: loaded}
+		// A service the operator installed by hand is not written into
+		// .servlo.yaml as a definition: servlo would refuse to run it from
+		// there anyway. The bare name resolves against this machine's own
+		// custom service, and says nothing on a machine that lacks it.
+		services[i] = config.ProjectService{Name: name}
 	}
 	return services
 }
