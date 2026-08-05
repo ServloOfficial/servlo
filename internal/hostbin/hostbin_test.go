@@ -17,28 +17,28 @@ func TestLookFindsBinaryOnPATH(t *testing.T) {
 	}
 }
 
-// The launchd case: a Homebrew tool with none of its prefixes on PATH. The name
-// is synthetic because a machine holding the real tool in a system prefix would
-// resolve it there, failing a test that is about the fallback.
+// The daemon case: a tool installed in a prefix the unit's PATH leaves out. The
+// name is synthetic because a machine holding the real tool in a system prefix
+// would resolve it there, failing a test that is about the fallback.
 func TestLookFallsBackToExtraDirs(t *testing.T) {
-	brew := t.TempDir()
-	writeExe(t, filepath.Join(brew, "servlotunnel"))
-	withExtraDirs(t, brew)
+	prefix := t.TempDir()
+	writeExe(t, filepath.Join(prefix, "servlotunnel"))
+	withExtraDirs(t, prefix)
 	t.Setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
 
 	got, ok := Look("servlotunnel")
-	if !ok || got != filepath.Join(brew, "servlotunnel") {
-		t.Fatalf("Look() = %q, %v; want %s", got, ok, filepath.Join(brew, "servlotunnel"))
+	if !ok || got != filepath.Join(prefix, "servlotunnel") {
+		t.Fatalf("Look() = %q, %v; want %s", got, ok, filepath.Join(prefix, "servlotunnel"))
 	}
 }
 
 // A non-executable file of the right name is not a tool.
 func TestLookIgnoresNonExecutable(t *testing.T) {
-	brew := t.TempDir()
-	if err := os.WriteFile(filepath.Join(brew, "cloudflared"), []byte("notes"), 0o644); err != nil {
+	prefix := t.TempDir()
+	if err := os.WriteFile(filepath.Join(prefix, "cloudflared"), []byte("notes"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	withExtraDirs(t, brew)
+	withExtraDirs(t, prefix)
 	t.Setenv("PATH", t.TempDir())
 
 	if got, ok := Look("cloudflared"); ok {
@@ -57,21 +57,6 @@ func TestPathFallsBackToBareName(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if got := Path("servlo-no-such-binary-anywhere"); got != "servlo-no-such-binary-anywhere" {
 		t.Fatalf("Path() = %q; want the bare name", got)
-	}
-}
-
-func TestExtraDirsCoverHomebrewOnMacOS(t *testing.T) {
-	t.Skip("macOS only")
-	want := map[string]bool{"/opt/homebrew/bin": false, "/usr/local/bin": false}
-	for _, dir := range ExtraDirs() {
-		if _, ok := want[dir]; ok {
-			want[dir] = true
-		}
-	}
-	for dir, found := range want {
-		if !found {
-			t.Errorf("ExtraDirs() is missing %s", dir)
-		}
 	}
 }
 

@@ -568,7 +568,7 @@
   "system_workerMode_containerBadge": "Chế độ container",
   "system_workerMode_description": "Kiểm soát cách framework worker (queue, schedule, horizon, reverb, tùy chỉnh) được khởi chạy trên macOS. Mặc định là chế độ exec để tiết kiệm bộ nhớ hơn.",
   "system_workerMode_exec_title": "Exec (khuyến nghị)",
-  "system_workerMode_exec_description": "Một podman exec cho mỗi worker vào container FPM dùng chung, được launchd giám sát với một cơ chế chống trùng bằng pid-file. Gần như không tốn thêm bộ nhớ cho mỗi worker. Khớp với profile Linux.",
+  "system_workerMode_exec_description": "Một podman exec cho mỗi worker vào container FPM dùng chung, được systemd giám sát với một cơ chế chống trùng bằng pid-file. Gần như không tốn thêm bộ nhớ cho mỗi worker. Khớp với profile Linux.",
   "system_workerMode_container_title": "Container",
   "system_workerMode_container_description": "Một container tách rời cho mỗi worker, sinh ra từ image FPM. Tốn bộ nhớ hơn (đặc biệt với Horizon vốn giám sát pool riêng), nhưng có ranh giới giám sát 1:1 với chính sách khởi động lại của podman.",
   "system_workerMode_note_label": "Lưu ý:",

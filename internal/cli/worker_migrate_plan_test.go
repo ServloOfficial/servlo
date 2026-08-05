@@ -10,7 +10,7 @@ import (
 // workerMigrationStep describes one per-worker action the migration will
 // take when the user flips servlo workers mode. Keeping the plan as pure
 // data lets us unit-test the decision layer without touching podman,
-// launchd, or the disk.
+// the service manager, or the disk.
 
 func TestWorkerMigrationPlan_NoOpWhenModeUnchanged(t *testing.T) {
 	plan := planWorkerMigration(config.WorkerExecModeExec, config.WorkerExecModeExec, []string{"servlo-queue-alpha", "servlo-horizon-beta"})

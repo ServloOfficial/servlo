@@ -87,10 +87,6 @@ func runUpdate(currentVersion string, beta bool) error {
 		fmt.Printf("  %s/tag/v%s\n", origin.ReleaseBaseURLs()[0], lat)
 	}
 
-	// A Homebrew-managed binary lives under a Cellar prefix; self-replacing it
-	// would fight `brew`, so defer to it. Curl-installed binaries (the default
-	// on macOS now) live in ~/.local/bin and self-update like Linux does below.
-
 	// A deb/rpm install lives under /usr and is owned by the package manager;
 	// self-replacing it would fight apt/dnf, so defer to them.
 	if self, err := selfPath(); err == nil && isSystemPackageManaged(self) {
@@ -258,9 +254,8 @@ func pluralS(n int) string {
 	return "s"
 }
 
-// restartServloUserServices restarts the long-running servlo user units (systemd on
-// Linux, launchd on macOS) so they pick up the freshly replaced binary. Both
-// keep the old executable alive for processes that already have it open, so
+// restartServloUserServices restarts the long-running servlo user units so they
+// pick up the freshly replaced binary. systemd keeps the old executable alive for processes that already have it open, so
 // without an explicit restart the daemons keep running the pre-update code and
 // report the old version. Only currently-active units are restarted, so
 // disabled services are left alone.
@@ -338,13 +333,6 @@ func downloadArchive(ver, filename, archive string) error {
 	return fmt.Errorf("download failed: %s", strings.Join(errs, "; "))
 }
 
-// isHomebrewManaged reports whether the resolved binary path lives inside a
-// Homebrew Cellar, in which case `servlo update` defers to `brew upgrade` rather
-// than self-replacing files brew owns.
-func isHomebrewManaged(path string) bool {
-	return strings.Contains(path, "/Cellar/")
-}
-
 // isSystemPackageManaged reports whether the binary lives under a system prefix
 // owned by a package manager. servlo's own installers use ~/.local/bin, so a
 // binary under /usr came from a deb/rpm/pacman package and one under /nix/store
@@ -353,12 +341,6 @@ func isHomebrewManaged(path string) bool {
 func isSystemPackageManaged(path string) bool {
 	if strings.HasPrefix(path, "/nix/store/") {
 		return true
-	}
-	// The /usr prefixes only mean "packaged" where a deb/rpm/pacman could have
-	// put it there. On macOS /usr/local is an ordinary install prefix (and where
-	// Intel Homebrew lives), with no package manager to hand the job to.
-	if runtime.GOOS != "linux" {
-		return false
 	}
 	// /var/usrlocal is what /usr/local resolves to on ostree systems
 	// (Silverblue), where selfPath's symlink resolution hides the /usr prefix.
@@ -388,9 +370,6 @@ func packageManagerUpdateHint(self string) string {
 	if strings.HasPrefix(self, "/nix/store/") {
 		return "nix profile upgrade servlo    (or rebuild your NixOS configuration)"
 	}
-	if isHomebrewManaged(self) {
-		return "brew upgrade servlo"
-	}
 	for _, pm := range systemPackageManagers {
 		if _, err := lookPath(pm.bin); err == nil {
 			return pm.update
@@ -404,9 +383,6 @@ func packageManagerUpdateHint(self string) string {
 func packageManagerRemoveHint(self string) string {
 	if strings.HasPrefix(self, "/nix/store/") {
 		return "nix profile remove servlo    (or your NixOS configuration)"
-	}
-	if isHomebrewManaged(self) {
-		return "brew uninstall servlo"
 	}
 	for _, pm := range systemPackageManagers {
 		if _, err := lookPath(pm.bin); err == nil {

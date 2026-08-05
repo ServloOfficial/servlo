@@ -77,7 +77,7 @@ func TestDiagnose_containerDownAndPortClosedStopsChain(t *testing.T) {
 }
 
 func TestDiagnose_legacyHostResolverDetectedAsWarn(t *testing.T) {
-	// Field-report scenario: user has Homebrew/launchd dnsmasq holding
+	// Field-report scenario: user has a host-packaged dnsmasq holding
 	// :5300, servlo-dns container is absent. The chain should surface this
 	// as a WARN (not a hard fail) with a hint explaining the situation.
 	p := fakeProbes()

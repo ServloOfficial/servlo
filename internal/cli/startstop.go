@@ -432,7 +432,7 @@ func checkPortConflicts(units []string) {
 // own dnsmasq is already answering; and on macOS the podman machine's gvproxy
 // owns any published port by forwarding it into the VM.
 //
-// The dnsmasq case matters because on macOS servlo-dns runs as a launchd-managed
+// The dnsmasq case matters because servlo-dns can run as a host-managed
 // dnsmasq process, not a podman container, so containerRunning is always false
 // for it; without the dnsAnswering guard the still-listening dnsmasq from the
 // previous session looks like a foreign conflict and mis-fires the "port 5300

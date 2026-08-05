@@ -568,7 +568,7 @@
   "system_workerMode_containerBadge": "Container mode",
   "system_workerMode_description": "Controls how framework workers (queue, schedule, horizon, reverb, custom) are launched on macOS. The default is exec mode for lower memory.",
   "system_workerMode_exec_title": "Exec (recommended)",
-  "system_workerMode_exec_description": "One podman exec per worker into the shared FPM container, supervised by launchd with a pid-file dedup guard. Near-zero memory overhead per worker. Matches the Linux profile.",
+  "system_workerMode_exec_description": "One podman exec per worker into the shared FPM container, supervised by systemd with a pid-file dedup guard. Near-zero memory overhead per worker. Matches the Linux profile.",
   "system_workerMode_container_title": "Container",
   "system_workerMode_container_description": "One detached container per worker, spawned from the FPM image. Higher memory (especially for Horizon which supervises its own pool), but 1:1 supervisor boundary with podman's own restart policy.",
   "system_workerMode_note_label": "Note:",

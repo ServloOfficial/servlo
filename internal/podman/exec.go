@@ -29,15 +29,14 @@ func ShellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// PodmanBin returns the full path to the podman binary. On macOS it searches
-// well-known Homebrew locations when PATH is restricted (e.g. launchd services).
-// Resolved fresh each call: tests override PATH per-case to force a fake binary.
+// PodmanBin returns the full path to the podman binary, falling back to the
+// prefixes a user unit's restricted PATH leaves out. Resolved fresh each call:
+// tests override PATH per-case to force a fake binary.
 func PodmanBin() string {
 	if p, err := exec.LookPath("podman"); err == nil {
 		return p
 	}
 	for _, candidate := range []string{
-		"/opt/homebrew/bin/podman",
 		"/usr/local/bin/podman",
 	} {
 		if _, err := exec.Command(candidate, "--version").Output(); err == nil {
@@ -48,7 +47,7 @@ func PodmanBin() string {
 }
 
 // Cmd returns an exec.Cmd for podman with the given arguments, using PodmanBin()
-// so the binary is found even under launchd's restricted PATH.
+// so the binary is found even under a user unit's restricted PATH.
 func Cmd(args ...string) *exec.Cmd {
 	return execCommand(PodmanBin(), args...)
 }

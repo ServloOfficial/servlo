@@ -19,7 +19,7 @@ import (
 // and DetectHostGatewayIP's last-resort fallback runs a real `podman run` of
 // the alpine image when every other probe fails) can never reach a real
 // binary. PATH alone doesn't guarantee that: PodmanBin() also tries hardcoded
-// absolute paths (homebrew's install locations) that bypass PATH entirely,
+// absolute install paths that bypass PATH entirely,
 // and matching one on the host running the test would have podman actually
 // pull and run a container, leaving container-storage overlay layers in the
 // temp dir that the Go TempDir cleanup can't remove afterward.

@@ -109,7 +109,7 @@ func collectBugReport(w io.Writer, logLines int, anon *anonymizer, filter *logFi
 	section(w, "Installed runtimes")
 	dumpRuntimes(w)
 
-	section(w, "Systemd / launchd unit state")
+	section(w, "Systemd unit state")
 	dumpUnitState(w)
 
 	section(w, "Containers")

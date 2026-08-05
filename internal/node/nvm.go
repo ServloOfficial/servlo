@@ -45,32 +45,17 @@ func nvmDir() string {
 
 func (nvmManager) Available() bool { return ScriptPresent() }
 
-// brewNvmScripts listed where a Homebrew nvm kept nvm.sh. Homebrew was a macOS
-// concern, so there is nothing to look for on the Linux host Servlo supports.
-// Kept as a var because the resolver below still calls it and tests point it at
-// a fixture.
-var brewNvmScripts = func() []string { return nil }
-
-// nvmScript resolves the nvm.sh to source. $NVM_DIR/nvm.sh is the script
-// install's layout and wins. Homebrew is the other common one: it keeps the
-// script under its own prefix and has the user create an empty ~/.nvm for the
-// versions, so NVM_DIR is a real nvm dir with no script in it. Empty when nvm
-// is not installed at all.
+// nvmScript resolves the nvm.sh to source, which the install script keeps at
+// $NVM_DIR/nvm.sh. Empty when nvm is not installed.
 func nvmScript() string {
 	if p := filepath.Join(nvmDir(), "nvm.sh"); fileExists(p) {
 		return p
 	}
-	for _, p := range brewNvmScripts() {
-		if fileExists(p) {
-			return p
-		}
-	}
 	return ""
 }
 
-// ScriptPresent reports whether an nvm this host can drive is installed, in
-// either layout. Install and the manager switch ask through here so a Homebrew
-// nvm counts as one.
+// ScriptPresent reports whether an nvm this host can drive is installed. Install
+// and the manager switch ask through here.
 func ScriptPresent() bool { return nvmScript() != "" }
 
 // scriptToSource is nvmScript with $NVM_DIR/nvm.sh as the fallback. A fragment
@@ -92,7 +77,7 @@ func fileExists(path string) bool {
 
 // sourceScript is the shell prelude that loads nvm into the current bash
 // process. Embedded verbatim in every generated fragment and in-process call.
-// NVM_DIR and the script are named separately because Homebrew splits them.
+// NVM_DIR and the script are named separately because a layout may split them.
 func sourceScript() string {
 	script := shellQuote(scriptToSource())
 	return fmt.Sprintf(`export NVM_DIR=%s; [ -s %s ] && . %s; `,

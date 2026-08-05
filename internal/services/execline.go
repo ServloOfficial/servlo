@@ -4,7 +4,7 @@ import "strings"
 
 // SplitExecStart splits a systemd ExecStart= line into argv the way systemd
 // does, honouring single and double quotes so an argument may contain spaces.
-// The launchd backend translates the same unit files systemd reads on Linux, so
+// The backend reads the same unit files systemd does, so
 // it has to agree on the quoting: a site under a path with a space passes its
 // working directory as `-w '/Users/me/My Projects/shop'`, and splitting that on
 // whitespace alone would hand podman `Projects/shop'` as the container name.

@@ -4,7 +4,7 @@ import "github.com/realrashid/servlo/internal/config"
 
 // workerArtifactKind is the on-disk artifact a worker lives as in a given
 // mode. container mode writes a .container quadlet; exec mode writes a
-// .service file plus (on macOS) a launchd plist, guard script, and pid
+// .service file plus a guard script and pid
 // file. The migration planner uses these to decide what to clean up.
 type workerArtifactKind int
 

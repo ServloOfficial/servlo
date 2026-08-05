@@ -893,7 +893,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	restoreSiteInfrastructure()
 
 	// Ensure all globally configured services have unit files on disk.
-	// On macOS this writes launchd plists for any service that has a config
+	// This writes the unit files for any service that has a config
 	// entry but no plist (e.g. services installed before the macOS port, or
 	// after a clean install from config backup).
 	migrateServiceUnits()
@@ -1273,7 +1273,7 @@ func installLaravelInstaller() error {
 		if err := podman.StartUnit(container); err != nil {
 			return fmt.Errorf("starting %s: %w", container, err)
 		}
-		// Wait for the container to be ready for exec (launchd starts the
+		// Wait for the container to be ready for exec (systemd starts the
 		// podman run -d asynchronously, so the container may not exist yet).
 		deadline := time.Now().Add(30 * time.Second)
 		for time.Now().Before(deadline) {
@@ -1477,7 +1477,7 @@ func detectSystemNode() string {
 
 // detectNvm reports whether a user-installed nvm is present, so declining
 // servlo-managed Node can hand Node back to it instead of the bundled fnm. Both
-// layouts count: the script install's $NVM_DIR/nvm.sh, and Homebrew's, which
+// layout that counts is the script install's $NVM_DIR/nvm.sh, which
 // keeps nvm.sh under its own prefix and leaves NVM_DIR holding only the
 // versions.
 func detectNvm() bool {
@@ -1626,7 +1626,7 @@ func addShellShims(manageNode bool) error {
 	home, _ := os.UserHomeDir()
 	binDir := config.BinDir()
 	// Use the running binary so shims work regardless of install method
-	// (Homebrew at /opt/homebrew/bin/servlo, manual at ~/.local/bin/servlo, etc.).
+	// (the installer's ~/.local/bin/servlo, a distribution package's /usr/bin, etc.).
 	servloBin, _ := os.Executable()
 	if servloBin == "" {
 		servloBin = filepath.Join(home, ".local", "bin", "servlo")

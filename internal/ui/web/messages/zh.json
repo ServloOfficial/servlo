@@ -568,7 +568,7 @@
   "system_workerMode_containerBadge": "容器模式",
   "system_workerMode_description": "控制框架 worker（队列、调度、horizon、reverb、自定义）在 macOS 上的启动方式。默认为 exec 模式以降低内存占用。",
   "system_workerMode_exec_title": "Exec（推荐）",
-  "system_workerMode_exec_description": "每个 worker 通过一次 podman exec 进入共享的 FPM 容器，由 launchd 监管并带有 pid 文件去重保护。每个 worker 的内存开销几乎为零。与 Linux 配置一致。",
+  "system_workerMode_exec_description": "每个 worker 通过一次 podman exec 进入共享的 FPM 容器，由 systemd 监管并带有 pid 文件去重保护。每个 worker 的内存开销几乎为零。与 Linux 配置一致。",
   "system_workerMode_container_title": "容器",
   "system_workerMode_container_description": "每个 worker 一个独立容器，从 FPM 镜像生成。内存占用更高（尤其是监管自身 pool 的 Horizon），但提供 1:1 的监管边界以及 podman 自身的重启策略。",
   "system_workerMode_note_label": "注意：",

@@ -1086,7 +1086,7 @@ func init() {
 		refreshHostProxySitesForService(service)
 	}
 	// Route reconcile's "is the unit installed" check through the platform
-	// service manager (launchd plist on macOS, .container quadlet on Linux) so
+	// service manager (the .container quadlet) so
 	// it matches `servlo start`'s notion of an installed unit.
 	serviceops.UnitInstalledFn = services.Mgr.ContainerUnitInstalled
 	// Drop-in alternatives for missing depends_on (mariadb for mysql, valkey

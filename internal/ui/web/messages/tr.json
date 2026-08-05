@@ -568,7 +568,7 @@
   "system_workerMode_containerBadge": "Konteyner modu",
   "system_workerMode_description": "macOS'ta framework worker'larının (queue, schedule, horizon, reverb, özel) nasıl başlatıldığını kontrol eder. Daha düşük bellek için varsayılan exec modudur.",
   "system_workerMode_exec_title": "Exec (önerilen)",
-  "system_workerMode_exec_description": "Her worker için paylaşılan FPM konteynerine bir podman exec, pid-file dedup koruyucu ile launchd tarafından denetlenir. Worker başına sıfıra yakın bellek yükü. Linux profiline uyar.",
+  "system_workerMode_exec_description": "Her worker için paylaşılan FPM konteynerine bir podman exec, pid-file dedup koruyucu ile systemd tarafından denetlenir. Worker başına sıfıra yakın bellek yükü. Linux profiline uyar.",
   "system_workerMode_container_title": "Konteyner",
   "system_workerMode_container_description": "Her worker için FPM imajından üretilen ayrı bir konteyner. Daha yüksek bellek (özellikle kendi havuzunu denetleyen Horizon için), ama podman'ın kendi yeniden başlatma politikasıyla 1:1 supervisor sınırı.",
   "system_workerMode_note_label": "Not:",

@@ -244,8 +244,7 @@ err()  { printf "  \033[31m✗\033[0m %%s\n" "$*" >&2; }
 
 OS_KIND="unknown"
 case "$(uname -s)" in
-  Linux*)  OS_KIND="linux" ;;
-  Darwin*) OS_KIND="macos" ;;
+  Linux*) OS_KIND="linux" ;;
 esac
 
 # ── 1. install mkcert if missing ─────────────────────────────────────────
@@ -266,13 +265,6 @@ else
         err "No supported package manager found. Install mkcert manually and re-run."
         exit 1
       fi
-      ;;
-    macos)
-      if ! command -v brew >/dev/null 2>&1; then
-        err "Homebrew not found. Install Homebrew or mkcert manually."
-        exit 1
-      fi
-      brew install mkcert nss
       ;;
     *)
       err "Unsupported OS for automatic mkcert install."

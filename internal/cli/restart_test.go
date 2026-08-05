@@ -107,7 +107,7 @@ func TestRestartSite_StaticSiteRefused(t *testing.T) {
 }
 
 // devServerLifecycle records the unit ops in order and reports the unit gone
-// once it has been stopped, the way launchd/systemd do.
+// once it has been stopped, the way systemd does.
 type devServerLifecycle struct {
 	ops     []string
 	stopped bool

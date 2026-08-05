@@ -254,7 +254,7 @@ func healNginxOnResume(d dnsWatchDeps) {
 // routing once the old lease is gone. The config dir (DnsmasqDir) is
 // user-owned and mounted read-only into the servlo-dns container, so the
 // rewrite needs no privilege escalation and a unit reload picks it up on both
-// macOS (launchd) and Linux (systemd).
+// systemd.
 //
 // Returns (false, nil), a safe no-op, when expose is off, the host has no
 // LAN IP yet, or the mapping already matches, so it can run on every failed

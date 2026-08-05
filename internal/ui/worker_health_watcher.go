@@ -27,7 +27,7 @@ const (
 )
 
 // workerHealthDeps is the injection surface for tickWorkerHealth so the
-// detect-diff-publish logic can be tested without launchd or the event bus.
+// detect-diff-publish logic can be tested without systemd or the event bus.
 type workerHealthDeps struct {
 	detect  func() ([]workerheal.UnhealthyWorker, error)
 	visible func() bool
@@ -69,7 +69,7 @@ var lastUnhealthySet atomic.Value // []workerheal.UnhealthyWorker
 
 // healthWatcherInitialized gates first-tick notifications. The first run
 // seeds lastUnhealthySet from whatever workers were already failed when
-// servlo-panel came up, without firing — otherwise a launchd restart with N
+// servlo-panel came up, without firing — otherwise a panel restart with N
 // pre-existing failures would dispatch N notifications instantly.
 var healthWatcherInitialized atomic.Bool
 
@@ -125,7 +125,7 @@ func tickWorkerHealth(d workerHealthDeps) {
 	d.publish()
 }
 
-// seedHealthState records the baseline at process start so a launchd
+// seedHealthState records the baseline at process start so a panel
 // restart with pre-existing failures doesn't fire N notifications on the
 // first tick, AND a clean start still notifies when a failure later
 // appears (the loop's sig-changed guard would otherwise leave the helper's

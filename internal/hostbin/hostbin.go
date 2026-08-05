@@ -1,9 +1,9 @@
 // Package hostbin resolves host binaries that live outside the PATH a daemon
-// inherits. servlo-panel and servlo-watcher are started by launchd (or systemd), which
-// hands them a minimal PATH — on macOS literally /usr/bin:/bin:/usr/sbin:/sbin —
-// so a tool the user installed with Homebrew is invisible to exec.LookPath even
-// though it works fine in their terminal. Anything a daemon may have to run goes
-// through here so the CLI and the daemons resolve the same binary.
+// inherits. servlo-panel and servlo-watcher are started by systemd, which hands
+// them a minimal PATH, so a tool the user installed into a prefix outside it is
+// invisible to exec.LookPath even though it works fine in their terminal.
+// Anything a daemon may have to run goes through here so the CLI and the daemons
+// resolve the same binary.
 package hostbin
 
 import (
@@ -12,10 +12,9 @@ import (
 	"path/filepath"
 )
 
-// ExtraDirs lists the install prefixes a daemon's PATH leaves out: both
-// Homebrew prefixes on macOS (Apple Silicon and Intel), and the equivalents on
-// Linux. Ordered the way a login shell would see them. A var so tests can point
-// it at a fixture instead of depending on what the host has installed.
+// ExtraDirs lists the install prefixes a daemon's PATH leaves out, ordered the
+// way a login shell would see them. A var so tests can point it at a fixture
+// instead of depending on what the host has installed.
 var ExtraDirs = func() []string {
 	return []string{"/usr/local/bin", "/snap/bin", "/home/linuxbrew/.linuxbrew/bin"}
 }

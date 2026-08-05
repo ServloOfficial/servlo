@@ -10,7 +10,7 @@ import (
 
 // TestWorkerSupportedOnPlatform_linuxAlwaysOK pins that Linux supports
 // every worker shape: host, scheduled, both. The platform gate exists
-// only for macOS where launchd doesn't yet have parity for these.
+// only where the service manager lacks parity for these.
 func TestWorkerSupportedOnPlatform_linuxAlwaysOK(t *testing.T) {
 	cases := []config.FrameworkWorker{
 		{Command: "true"},

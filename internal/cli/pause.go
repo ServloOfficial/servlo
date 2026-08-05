@@ -399,9 +399,8 @@ func collectRunningWorkers(site *config.Site) []string {
 	}
 
 	// Host-proxy sites supervise a single "app" dev-server worker that is
-	// neither a framework worker nor in proj.Workers, and on macOS lives as a
-	// launchd plist rather than a SystemdUserDir .service file (so the orphan
-	// scan below won't see it). Check it explicitly.
+	// neither a framework worker nor in proj.Workers, so the orphan scan below
+	// won't see it. Check it explicitly.
 	if site.IsHostProxy() && unitIsActiveOrActivating(hostProxyWorkerUnit(site.Name)) {
 		active = append(active, hostProxyWorkerName)
 	}

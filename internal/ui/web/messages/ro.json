@@ -568,7 +568,7 @@
   "system_workerMode_containerBadge": "Mod container",
   "system_workerMode_description": "Controlează modul în care sunt lansați workerii de framework (coadă, planificare, horizon, reverb, personalizat) pe macOS. Implicit este modul exec pentru consum mai mic de memorie.",
   "system_workerMode_exec_title": "Exec (recomandat)",
-  "system_workerMode_exec_description": "Un podman exec per worker în containerul FPM partajat, supravegheat de launchd cu o protecție de deduplicare prin fișier pid. Suprasarcină de memorie aproape zero per worker. Se potrivește cu profilul Linux.",
+  "system_workerMode_exec_description": "Un podman exec per worker în containerul FPM partajat, supravegheat de systemd cu o protecție de deduplicare prin fișier pid. Suprasarcină de memorie aproape zero per worker. Se potrivește cu profilul Linux.",
   "system_workerMode_container_title": "Container",
   "system_workerMode_container_description": "Un container detașat per worker, generat din imaginea FPM. Memorie mai mare (mai ales pentru Horizon care își supraveghează propriul grup), dar o limită de supraveghere 1:1 cu politica de repornire proprie a podman.",
   "system_workerMode_note_label": "Notă:",

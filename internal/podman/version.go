@@ -90,8 +90,8 @@ var (
 
 func defaultSupportsContainerStopTimeoutKey() bool {
 	stopTimeoutOnce.Do(func() {
-		// Use PodmanBin() so the probe still resolves under launchd's
-		// restricted PATH on macOS, where "podman" alone misses Homebrew.
+		// Use PodmanBin() so the probe still resolves under a user unit's
+		// restricted PATH, where "podman" alone can miss the install prefix.
 		out, err := execCommand(PodmanBin(), "--version").Output()
 		if err != nil {
 			// Conservative fallback: PodmanArgs= works on every quadlet

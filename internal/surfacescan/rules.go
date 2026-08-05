@@ -46,8 +46,6 @@ func Rules() []Rule {
 			Patterns: []string{`(?i)\bmcp\b`, `ModelContextProtocol`, `modelcontextprotocol`},
 			Allow:    specs,
 		},
-
-		// Pending. Each is deleted by the story named, which turns its rule on.
 		{
 			Feature: "Tinker REPL", Story: "S0.5", Enforced: true,
 			Patterns: []string{`(?i)\btinker\b`, `phpantom_lsp`},
@@ -106,18 +104,23 @@ func Rules() []Rule {
 				"internal/hostbin/hostbin_test.go",
 			),
 		},
+		// Pending. Each names the story that deletes it, which is what turns its
+		// rule on. These three outlive Phase 0 on purpose: the DNS stack and
+		// mkcert are what Phase 1 replaces with real domains and real
+		// certificates, so they come out as those stories land rather than
+		// leaving the tree unable to serve anything in between.
 		{
-			Feature: ".test domains and host resolver mutation", Story: "S0.6",
+			Feature: ".test domains and host resolver mutation", Story: "S2.1",
 			Patterns: []string{`\bdnsmasq\b`, `\.localhost\b`, `dns:repair`, `\bsudoers\b`},
 			Allow:    specs,
 		},
 		{
-			Feature: "mkcert", Story: "S0.6",
+			Feature: "mkcert", Story: "S3.1",
 			Patterns: []string{`\bmkcert\b`},
 			Allow:    specs,
 		},
 		{
-			Feature: "Mailpit", Story: "S0.6",
+			Feature: "Mailpit", Story: "S13.0",
 			Patterns: []string{`(?i)\bmailpit\b`},
 			Allow:    specs,
 		},
@@ -131,7 +134,7 @@ func Rules() []Rule {
 			Allow:    specs,
 		},
 		{
-			Feature: "launchd and Homebrew residue in comments", Story: "S0.5",
+			Feature: "launchd and Homebrew residue", Story: "S0.2", Enforced: true,
 			Patterns: []string{`(?i)\blaunchd\b`, `(?i)\bhomebrew\b`, `Library/Logs`},
 			Allow:    specs,
 		},

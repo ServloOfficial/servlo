@@ -28,7 +28,7 @@ import (
 func init() {
 	// discover_family lists only running members so admin UIs do not offer
 	// offline hosts. Container state is the source of truth: unit status can
-	// lag (especially on launchd) and would omit a just-started engine or keep
+	// lag and would omit a just-started engine or keep
 	// a just-stopped one in the host list.
 	config.ServiceRunning = func(name string) bool {
 		ok, _ := podman.ContainerRunning("servlo-" + name)
@@ -64,7 +64,7 @@ func ServiceInstalled(name string) bool {
 
 // UnitInstalledFn reports whether the platform container unit is installed.
 // Defaults to the .container check; the CLI overrides it with the platform-aware
-// services.Mgr.ContainerUnitInstalled (launchd plist on macOS) for reconcile.
+// services.Mgr.ContainerUnitInstalled for reconcile.
 var UnitInstalledFn = func(unit string) bool { return podman.QuadletInstalled(unit) }
 
 // PortAvailable reports whether a TCP port is free to bind on both loopback
@@ -1067,7 +1067,7 @@ func StartDependencies(svc *config.CustomService) error {
 // caller's family-consumer regen refreshes it. Then stops name itself.
 //
 // Returns the first stop error encountered. Unit status can lag (especially on
-// launchd); ContainerRunning is checked the same way RegenerateFamilyConsumers
+// the unit); ContainerRunning is checked the same way RegenerateFamilyConsumers
 // does, and StopUnit is always attempted when either signal says the unit is
 // up so a lagging "inactive" reading cannot report a silent success.
 func StopWithDependents(name string) error {

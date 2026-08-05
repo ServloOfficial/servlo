@@ -141,9 +141,8 @@ const lastErrorMaxLen = 220
 
 // readLastError returns the last log line emitted for a failed worker unit.
 // Best-effort: if no log source is available, the empty string is returned
-// and the dashboard simply omits the error excerpt. On Linux it reads the
-// systemd journal via journalctl; on macOS it tails ~/Library/Logs/servlo/
-// where launchd redirects each unit's stdout+stderr.
+// and the dashboard simply omits the error excerpt. It reads the systemd
+// journal via journalctl.
 func readLastError(unit string) string {
 	if line := readLastErrorPlatform(unit); line != "" {
 		if len(line) > lastErrorMaxLen {
@@ -342,9 +341,8 @@ func Detect() ([]UnhealthyWorker, error) {
 // single "fix this" primitive — every surface (CLI / UI / TUI / ) goes
 // through here. Crucially, it does NOT touch .servlo.yaml or rewrite the
 // unit file: a failed worker is a transient runtime condition, not a
-// change of user intent. The reset-failed step is implicit: on Linux,
-// systemd.DBusStartUnit calls DBusResetFailed first; on macOS launchd's
-// bootstrap path replaces the job entirely.
+// change of user intent. The reset-failed step is implicit:
+// systemd.DBusStartUnit calls DBusResetFailed first.
 func HealUnit(unit string) error {
 	return healFn(unit)
 }

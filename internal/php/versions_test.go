@@ -9,18 +9,6 @@ import (
 	"github.com/realrashid/servlo/internal/podman"
 )
 
-// --- listInstalledFromServiceDir ---
-
-func TestListInstalledFromServiceDir_linux(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux-only: listInstalledFromServiceDir reads quadlet files")
-	}
-	result := listInstalledFromServiceDir()
-	if result != nil {
-		t.Errorf("expected nil on linux, got %v", result)
-	}
-}
-
 // --- fpmQuadletRe ---
 
 func TestFpmQuadletRe_matchesValidNames(t *testing.T) {

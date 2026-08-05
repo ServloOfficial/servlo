@@ -96,9 +96,9 @@ func TestIsPortConflict(t *testing.T) {
 		dnsAnswering     func() bool
 		want             bool
 	}{
-		// The regression this fixes: servlo-dns is a launchd dnsmasq (no
+		// The regression this fixes: servlo-dns is a host dnsmasq (no
 		// container), already answering, holding 5300 — NOT a conflict.
-		{"dns self-owns port via launchd dnsmasq", dnsCheck, portList, notRunning, dnsUp, false},
+		{"dns self-owns port via host dnsmasq", dnsCheck, portList, notRunning, dnsUp, false},
 		// dns genuinely down but something foreign holds 5300 — real conflict.
 		{"dns down with foreign listener on 5300", dnsCheck, portList, notRunning, dnsDown, true},
 		// A running container owns its port directly — never a conflict.

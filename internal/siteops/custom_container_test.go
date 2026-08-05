@@ -20,21 +20,16 @@ func setupCustomContainerEnv(t *testing.T) (projectDir, confD string) {
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "config"))
 
 	// Stub out functions that call podman/systemd.
-	origWriteUnit := podman.WriteContainerUnitFn
 	origDaemonReload := podman.DaemonReloadFn
 	origAfterUnitChange := podman.AfterUnitChange
 	t.Cleanup(func() {
-		podman.WriteContainerUnitFn = origWriteUnit
 		podman.DaemonReloadFn = origDaemonReload
 		podman.AfterUnitChange = origAfterUnitChange
 	})
 
-	// Write quadlets to a temp dir instead of the real quadlet dir.
+	// Quadlets land under the temp XDG config dir, not the real quadlet dir.
 	quadletDir := filepath.Join(tmp, "config", "containers", "systemd")
 	os.MkdirAll(quadletDir, 0755)
-	podman.WriteContainerUnitFn = func(name, content string) error {
-		return os.WriteFile(filepath.Join(quadletDir, name+".container"), []byte(content), 0644)
-	}
 	podman.DaemonReloadFn = func() error { return nil }
 	podman.AfterUnitChange = nil
 

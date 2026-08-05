@@ -18,10 +18,6 @@ func TestNvmSourceScriptFallsBackToCanonicalPath(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("NVM_DIR", filepath.Join(home, ".nvm"))
 
-	prev := brewNvmScripts
-	brewNvmScripts = func() []string { return nil }
-	t.Cleanup(func() { brewNvmScripts = prev })
-
 	want := filepath.Join(home, ".nvm", "nvm.sh")
 	if got := sourceScript(); !strings.Contains(got, want) {
 		t.Errorf("sourceScript() = %q; want it to reference %s", got, want)

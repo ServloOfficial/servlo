@@ -568,7 +568,7 @@
   "system_workerMode_containerBadge": "Container-modus",
   "system_workerMode_description": "Bepaalt hoe frameworkworkers (queue, schedule, horizon, reverb, aangepast) op macOS worden gestart. Standaard is de exec-modus voor lager geheugengebruik.",
   "system_workerMode_exec_title": "Exec (aanbevolen)",
-  "system_workerMode_exec_description": "Eén podman exec per worker in de gedeelde FPM-container, bewaakt door launchd met een pid-bestand-dedup-bewaking. Vrijwel geen geheugenoverhead per worker. Komt overeen met het Linux-profiel.",
+  "system_workerMode_exec_description": "Eén podman exec per worker in de gedeelde FPM-container, bewaakt door systemd met een pid-bestand-dedup-bewaking. Vrijwel geen geheugenoverhead per worker. Komt overeen met het Linux-profiel.",
   "system_workerMode_container_title": "Container",
   "system_workerMode_container_description": "Eén losse container per worker, opgestart vanuit de FPM-image. Hoger geheugengebruik (vooral voor Horizon, dat zijn eigen pool bewaakt), maar een 1:1-supervisorgrens met Podmans eigen restartbeleid.",
   "system_workerMode_note_label": "Let op:",

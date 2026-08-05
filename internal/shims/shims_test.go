@@ -14,7 +14,7 @@ import (
 
 // fakeMgr reports every name in installed as having an installed container
 // unit, so a test can control installedServiceNames() without a real podman
-// or launchd/systemd backend.
+// or systemd backend.
 type fakeMgr struct {
 	services.ServiceManager
 	installed map[string]bool

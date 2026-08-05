@@ -312,8 +312,7 @@ func regenerateWorkerUnit(siteName, sitePath, phpVersion, workerName string, wDe
 		return
 	}
 	// Snapshot the unit before rewriting so we only restart it when its
-	// ExecStart actually changed. On macOS the unit is a launchd plist
-	// elsewhere, so before is empty and we always fall through to restart.
+	// ExecStart actually changed.
 	// Rewrite the unit quietly first so we can tell whether the runtime actually
 	// changed, without starting or announcing it. startRestoredServices already
 	// started this worker during install (or it's a build-replacer like Vite that
@@ -329,10 +328,9 @@ func regenerateWorkerUnit(siteName, sitePath, phpVersion, workerName string, wDe
 		_ = podman.StartUnit(unitName)
 		return
 	}
-	// The unit changed, or can't be diffed (macOS host workers are launchd plists,
-	// not .service files, so both reads come back empty): announce under the
-	// host-workers header, then do a full platform-correct (re)start.
-	// WorkerStartForSite owns the macOS launchd lifecycle, clears stale
+	// The unit changed, or can't be diffed because neither read found a file:
+	// announce under the host-workers header, then do a full (re)start.
+	// WorkerStartForSite owns the worker lifecycle, clears stale
 	// state, and regenerates the proxy vhost; the reload+restart
 	// afterward bounces a running Linux worker onto the new ExecStart, which
 	// StartUnit alone would not.

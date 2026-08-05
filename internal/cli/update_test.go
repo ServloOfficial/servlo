@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -18,16 +17,13 @@ import (
 // ── package-managed detection ─────────────────────────────────────────────────
 
 func TestIsSystemPackageManaged(t *testing.T) {
-	// The /usr prefixes only mean "a package manager put it there" on Linux;
-	// on macOS /usr/local is an ordinary prefix and Intel Homebrew's own.
-	linuxOnly := runtime.GOOS == "linux"
 	cases := []struct {
 		path string
 		want bool
 	}{
-		{"/usr/bin/servlo", linuxOnly},
-		{"/usr/local/bin/servlo", linuxOnly},
-		{"/var/usrlocal/bin/servlo", linuxOnly},
+		{"/usr/bin/servlo", true},
+		{"/usr/local/bin/servlo", true},
+		{"/var/usrlocal/bin/servlo", true},
 		{"/nix/store/abc123-servlo-1.30.0/bin/servlo", true},
 		{"/home/george/.local/bin/servlo", false},
 		{"/opt/servlo/servlo", false},
@@ -103,26 +99,6 @@ func TestStripV(t *testing.T) {
 		got := stripV(c.in)
 		if got != c.want {
 			t.Errorf("stripV(%q) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}
-
-// ── isHomebrewManaged ──────────────────────────────────────────────────────────
-
-func TestIsHomebrewManaged(t *testing.T) {
-	cases := []struct {
-		path string
-		want bool
-	}{
-		{"/opt/homebrew/Cellar/servlo/1.25.0/bin/servlo", true},
-		{"/usr/local/Cellar/servlo/1.25.0/bin/servlo", true},
-		{"/Users/me/.local/bin/servlo", false},
-		{"/home/me/.local/bin/servlo", false},
-		{"/usr/local/bin/servlo", false},
-	}
-	for _, c := range cases {
-		if got := isHomebrewManaged(c.path); got != c.want {
-			t.Errorf("isHomebrewManaged(%q) = %v, want %v", c.path, got, c.want)
 		}
 	}
 }

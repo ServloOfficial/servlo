@@ -168,7 +168,7 @@ func TestBuildWorkerGuard_RunsOrphanCleanupBeforeExec(t *testing.T) {
 
 // TestBuildWorkerGuard_SkipsOrphanCleanupWhenOuterAlive ensures the live
 // host-side process short-circuit happens before any podman call —
-// otherwise we'd wake the podman machine for every launchd respawn.
+// otherwise we'd wake podman for every respawn.
 func TestBuildWorkerGuard_SkipsOrphanCleanupWhenOuterAlive(t *testing.T) {
 	tmp := t.TempDir()
 	pidFile := filepath.Join(tmp, "worker.pid")

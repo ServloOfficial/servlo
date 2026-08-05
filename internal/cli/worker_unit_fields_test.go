@@ -52,7 +52,7 @@ func TestWriteWorkerUnitFileRefusesInjectionInAnyField(t *testing.T) {
 }
 
 // The ordinary shape still writes. What the unit says is asserted per platform,
-// since Linux writes a systemd unit and macOS a launchd plist.
+// since the unit written is a systemd .service file.
 func TestWriteWorkerUnitFileAcceptsNormalFields(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)

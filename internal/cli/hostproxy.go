@@ -376,7 +376,7 @@ func parentProxyConfig(site config.Site) *config.ProxyConfig {
 }
 
 // startHostProxyWorker supervises the dev command for a host-proxy site as a
-// host-mode worker (launchd/fnm on macOS), reusing the standard worker
+// host-mode worker, reusing the standard worker
 // machinery for auto-restart, logs, and health. No-op in proxy-only mode.
 func startHostProxyWorker(site config.Site, proxy *config.ProxyConfig) {
 	w, ok := hostProxyWorker(proxy)

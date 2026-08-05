@@ -121,7 +121,7 @@ func diagnose(tld string, p probeFns) Diagnostic {
 	d := Diagnostic{TLD: tld, FirstFailure: -1}
 
 	// Rung 1, servlo-dns container, with a fallback check so a host-side
-	// dnsmasq owning :5300 (Homebrew, system package) doesn't get
+	// dnsmasq owning :5300 (a system package) doesn't get
 	// misreported as "container not running".
 	switch {
 	case p.containerRunning():
@@ -426,11 +426,11 @@ func parseDummyLinkRouting(output, tld string) (present bool, routed bool) {
 
 // serviceActive reports whether the servlo-dns service unit is active. It is a
 // var so tests can stub it; production resolves to the platform service
-// manager, which uses launchd on macOS and systemd on linux.
+// manager, systemd.
 var serviceActive = func(name string) bool { return services.Mgr.IsActive(name) }
 
 func defaultContainerRunning() bool {
-	// Consult the service manager first so a launchd-managed host dnsmasq on
+	// Consult the service manager first so a unit-managed host dnsmasq on
 	// macOS (no container, no systemctl) isn't misreported as a foreign
 	// resolver. Falls back to a direct container probe for the podman case.
 	if serviceActive("servlo-dns") {

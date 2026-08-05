@@ -223,6 +223,10 @@ Tinker REPL, container shell, SPX profiler, dump bridge, Xdebug toggles, browser
 
 ## E13 — Email
 
+**S13.0 — Delete Mailpit.**
+Mailpit is on the deleted list (PRD §4.2) but nothing in Phase 0 removed it, so the preset, the framework stores' `MAIL_*` wiring, the dashboard card and the docs all still ship it.
+*Done when:* the service preset, its env mappings in every framework definition, the UI and the documentation are gone, and the surface scan rule that names it is enforced. It sits here rather than in Phase 0 because per-site SMTP is what replaces it: a local mail catcher is a development convenience, and deleting it before there is anywhere for mail to go would leave a site with no mail story at all. **M**
+
 **S13.1 — Per-site SMTP** written into `.env` or `wp-config.php`, with a **Send test email** button. **M**
 **S13.2 — Panel SMTP** for alerts, configured separately. **S**
 

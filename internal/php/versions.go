@@ -33,11 +33,6 @@ func ListInstalled() ([]string, error) {
 		}
 	}
 
-	// Source 1b: launchd plists (macOS — QuadletDir is always empty there)
-	for _, v := range listInstalledFromServiceDir() {
-		seen[v] = true
-	}
-
 	// Source 2: podman containers (catches installs where the quadlet is missing).
 	// Read-only: this MUST stay free of side effects. Production heal of a
 	// missing quadlet happens explicitly in install/start paths via

@@ -1,5 +1,5 @@
 // Package services provides a platform-agnostic abstraction over the
-// underlying service manager (systemd on Linux, launchd on macOS).
+// underlying service manager, systemd.
 //
 // All service lifecycle operations and unit file management go through the
 // package-level Mgr variable, which is set to the appropriate implementation
@@ -8,7 +8,7 @@ package services
 
 // ServiceManager is the interface for managing servlo's user-space services and
 // container units. On Linux it is backed by systemd + Podman Quadlets; on
-// macOS it will be backed by launchd.
+// systemd backs it.
 type ServiceManager interface {
 	// --- Service unit files (servlo-watcher, servlo-panel, servlo-queue-*, …) ---
 

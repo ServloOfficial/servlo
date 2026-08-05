@@ -17,7 +17,7 @@ import (
 // Two flavours of output are exposed because servlo drives the manager from two
 // places: directly from Go (Command, used by the CLI/UI/) and from generated
 // shell scripts where the servlo binary may be unreachable — worker units,
-// launchd guard scripts, and PATH shims (ExecPrefix and ShimScript).
+// worker guard scripts, and PATH shims (ExecPrefix and ShimScript).
 type Manager interface {
 	// Name is the manager's identifier: "fnm" or "nvm".
 	Name() string

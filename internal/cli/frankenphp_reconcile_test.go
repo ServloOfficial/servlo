@@ -25,14 +25,11 @@ func stubFrankenPHPTeardown(t *testing.T, lc *stopRecorder) {
 	t.Helper()
 	origLC := podman.UnitLifecycle
 	origReload := podman.DaemonReloadFn
-	origRemoveUnit := podman.RemoveContainerUnitFn
 	podman.UnitLifecycle = lc
 	podman.DaemonReloadFn = func() error { return nil }
-	podman.RemoveContainerUnitFn = nil
 	t.Cleanup(func() {
 		podman.UnitLifecycle = origLC
 		podman.DaemonReloadFn = origReload
-		podman.RemoveContainerUnitFn = origRemoveUnit
 	})
 }
 

@@ -110,7 +110,7 @@ func BunPath() string {
 	if p, err := exec.LookPath("bun"); err == nil {
 		return p
 	}
-	// Homebrew installs bun outside the servlo-watcher daemon's restricted PATH
+	// bun can be installed outside the servlo-watcher daemon's restricted PATH
 	// on macOS; check the standard prefixes before giving up.
 	return ""
 }

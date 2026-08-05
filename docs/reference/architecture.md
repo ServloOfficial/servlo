@@ -3,7 +3,7 @@
 All containers join the rootless Podman network `servlo`. Communication between Nginx and PHP-FPM uses container names as hostnames.
 
 ::: info Platform requirement
-On Linux, servlo requires systemd. Every container runs as a Podman Quadlet (systemd unit), every worker as a systemd user service, and the autostart flow uses systemd user linger. Non-systemd distros (OpenRC, runit, s6, sysvinit) are not supported. On macOS the same responsibilities are handled by launchd, which servlo manages automatically.
+On Linux, servlo requires systemd. Every container runs as a Podman Quadlet (systemd unit), every worker as a systemd user service, and the autostart flow uses systemd user linger. Non-systemd distros (OpenRC, runit, s6, sysvinit) are not supported.
 :::
 
 ## Request flow

@@ -39,7 +39,7 @@ func newWorkersModeCmd() *cobra.Command {
 		Short: "Show or set how framework workers are launched on macOS",
 		Long: `Show or set the macOS worker runtime mode.
 
-  exec       one podman exec per worker, supervised by launchd with a pid-file
+  exec       one podman exec per worker, supervised by systemd with a pid-file
              dedup guard. Lower memory; all workers share the FPM container's
              PHP process and OPcache. Default.
 

@@ -42,7 +42,7 @@ var (
 	// allUnitStatesFn lets non-systemd platforms override the enumeration
 	// entirely. When non-nil it bypasses unitCacheListFn and returns the
 	// unit→state map directly. Set from unitcache_darwin.go's init() to
-	// route through podman.UnitLifecycle (launchd-backed on macOS).
+	// route through podman.UnitLifecycle.
 	allUnitStatesFn func() map[string]string
 
 	// allUnitMetaFn is the darwin override for AllUnitMeta, mirroring
@@ -51,7 +51,7 @@ var (
 
 	// invalidateExtraFn clears any platform-specific TTL cache layered on
 	// top of allUnitStatesFn. Set from unitcache_darwin.go to drop the
-	// launchd-states cache; nil on Linux where the systemctl path uses the
+	// unit-states cache; nil where the systemctl path uses the
 	// shared globalUnitCache directly.
 	invalidateExtraFn func()
 )
@@ -129,7 +129,7 @@ func parseUnitMeta(raw string) map[string]UnitMeta {
 // InvalidateUnitCache forces the next UnitStatus lookup to re-run systemctl.
 // Call this after any mutation that changes servlo-* unit state (start, stop,
 // enable, disable, etc.) so cached "active" values do not go stale. Also
-// invalidates any platform-specific cache (launchd states on darwin).
+// invalidates any cached unit states.
 func InvalidateUnitCache() {
 	globalUnitCache.mu.Lock()
 	globalUnitCache.at = time.Time{}
@@ -187,7 +187,7 @@ func AllUnitStatesOK() (map[string]string, bool) {
 
 // AllUnitMeta snapshots the per-unit ActiveEnter + WorkingDirectory filled by the
 // same batched refresh AllUnitStates uses, so the reachability probe reads one
-// source. On darwin it returns whatever the launchd walker can supply.
+// source.
 func AllUnitMeta() map[string]UnitMeta {
 	if allUnitMetaFn != nil {
 		return allUnitMetaFn()

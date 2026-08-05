@@ -97,14 +97,6 @@ func WriteQuadletDiff(name, content string) (changed bool, err error) {
 			return false, err
 		}
 	}
-	// Always sync the platform unit (e.g. macOS launchd plist) so it stays
-	// consistent with the .container file — even if the file didn't change,
-	// the plist may be stale (e.g. after a config change like LAN exposure).
-	if AfterQuadletWriteFn != nil {
-		if err := AfterQuadletWriteFn(name, content); err != nil {
-			return fileChanged, err
-		}
-	}
 	return fileChanged, nil
 }
 
@@ -197,11 +189,6 @@ func RebindInstalledQuadletsForLAN() ([]string, error) {
 			if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
 				return nil, fmt.Errorf("rewriting %s: %w", filepath.Base(path), err)
 			}
-			if AfterQuadletWriteFn != nil {
-				if err := AfterQuadletWriteFn(name, updated); err != nil {
-					return nil, fmt.Errorf("syncing %s: %w", name, err)
-				}
-			}
 			restart = append(restart, name)
 			continue
 		}
@@ -258,19 +245,12 @@ func ListManagedServiceNames() []string {
 	return names
 }
 
-// RemoveQuadlet removes a Podman quadlet container unit file. On macOS it
-// also removes the launchd plist that AfterQuadletWriteFn keeps in sync, so
-// callers don't leave an orphan agent in ~/Library/LaunchAgents/.
+// RemoveQuadlet removes a Podman quadlet container unit file.
 func RemoveQuadlet(name string) error {
 	path := filepath.Join(config.QuadletDir(), name+".container")
 	config.GuardRealWrite(path)
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return err
-	}
-	if RemoveContainerUnitFn != nil {
-		if err := RemoveContainerUnitFn(name); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -281,16 +261,12 @@ func RemoveContainer(name string) {
 	_ = execCommand(PodmanBin(), "rm", "-f", name).Run()
 }
 
-// AfterQuadletWriteFn, if non-nil, is called by WriteQuadletDiff after
-// writing the .container file. On macOS it is set to the launchd plist
-// writer so both formats stay in sync (the .container file is the
-// canonical source of truth; the plist is the live runtime unit).
-var AfterQuadletWriteFn func(name, content string) error
-
 // UnitLifecycle is the interface for starting, stopping, restarting, and
-// querying service units. Set by the platform service manager on macOS so that
-// StartUnit/StopUnit/RestartUnit/UnitStatus route through launchd instead of
-// systemctl. Nil on Linux (the systemctl fallback is used).
+// querying service units. Nil in normal operation, where the systemctl
+// fallback is used; tests set it to observe unit transitions without a
+// service manager.
+//
+//nolint:unused // a test seam, and the nil checks around it are the fallback.
 var UnitLifecycle interface {
 	Start(name string) error
 	Stop(name string) error
@@ -299,10 +275,9 @@ var UnitLifecycle interface {
 	AllUnitStates() map[string]string
 }
 
-// DaemonReload runs the equivalent of systemctl --user daemon-reload.
-// On Linux it goes through systemd DBus. On macOS the DBus stub returns
-// a sentinel and we fall through to the historical shell-out so launchd
-// users still get the legacy path (a no-op for non-systemd systems).
+// DaemonReload runs the equivalent of systemctl --user daemon-reload, through
+// systemd DBus where that is reachable and by shelling out to systemctl when it
+// is not.
 func DaemonReload() error {
 	if err := systemd.DBusDaemonReload(); err == nil {
 		return nil
@@ -417,9 +392,8 @@ func StopUnit(name string) error {
 
 // ResetFailedUnit clears a unit's failed / start-rate-limit state so a
 // following RestartUnit recovers a crash-looped worker instead of being
-// refused. Linux only: DBusRestartUnit does not reset-failed the way
-// DBusStartUnit does. On macOS launchd has no separate failed state (the
-// bootstrap path replaces the job), so this is a no-op. Best-effort.
+// refused. DBusRestartUnit does not reset-failed the way DBusStartUnit does.
+// Best-effort.
 func ResetFailedUnit(name string) {
 	if UnitLifecycle != nil || realSystemdBlocked() {
 		return

@@ -273,7 +273,7 @@ const forwarderPort = 5300
 
 // preflightForwarderPort refuses to install the LAN DNS forwarder when
 // something else (typically a legacy host-side dnsmasq) already owns
-// lanIP:5300. Without this check the launchd plist would write fine,
+// lanIP:5300. Without this check the unit would write fine,
 // then the daemon would race against the existing holder on every boot.
 // Skipped when our own forwarder is already active or activating: that's
 // the re-run-of-lan-expose case where the existing unit will be replaced.

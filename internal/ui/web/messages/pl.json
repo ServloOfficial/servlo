@@ -568,7 +568,7 @@
   "system_workerMode_containerBadge": "Tryb kontenera",
   "system_workerMode_description": "Kontroluje sposób uruchamiania workerów frameworka (kolejka, harmonogram, horizon, reverb, niestandardowe) na macOS. Domyślny jest tryb exec dla niższego zużycia pamięci.",
   "system_workerMode_exec_title": "Exec (zalecane)",
-  "system_workerMode_exec_description": "Jeden podman exec na workera do współdzielonego kontenera FPM, nadzorowany przez launchd z zabezpieczeniem dedup opartym na pliku pid. Niemal zerowy narzut pamięci na workera. Zgodne z profilem Linux.",
+  "system_workerMode_exec_description": "Jeden podman exec na workera do współdzielonego kontenera FPM, nadzorowany przez systemd z zabezpieczeniem dedup opartym na pliku pid. Niemal zerowy narzut pamięci na workera. Zgodne z profilem Linux.",
   "system_workerMode_container_title": "Kontener",
   "system_workerMode_container_description": "Jeden odłączony kontener na workera, tworzony z obrazu FPM. Wyższe zużycie pamięci (zwłaszcza dla Horizon, który nadzoruje własną pulę), ale granica nadzoru 1:1 z własną polityką restartu podmana.",
   "system_workerMode_note_label": "Uwaga:",

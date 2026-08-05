@@ -13,8 +13,8 @@ import (
 
 // TestNoDirectPodmanExec enforces the single-seam invariant: outside this
 // package nothing may build a podman exec directly. Every call must go through
-// podman.Cmd/CmdContext/Run/RunSilent. Systemd ExecStart and launchd plist
-// argv are fine (systemd/launchd runs those, not Go), so only exec.Command and
+// podman.Cmd/CmdContext/Run/RunSilent. Systemd ExecStart
+// argv is fine (systemd runs that, not Go), so only exec.Command and
 // exec.CommandContext calls whose binary argument denotes podman are flagged.
 func TestNoDirectPodmanExec(t *testing.T) {
 	root, err := filepath.Abs("../..")

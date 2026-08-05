@@ -73,7 +73,7 @@ func runUninstall(force bool) error {
 	step("Stopping containers and services")
 	{
 		// Use the service manager so this works on both Linux (systemd/quadlet)
-		// and macOS (launchd plists).
+		// units.
 		seen := map[string]bool{}
 		for _, unit := range services.Mgr.ListContainerUnits("servlo-*") {
 			seen[unit] = true
@@ -150,9 +150,8 @@ func runUninstall(force bool) error {
 
 	step("Removing servlo binaries")
 	// A binary someone else owns is left where it is: deleting a file out of a
-	// Homebrew Cellar or a package's file list leaves that manager believing
-	// servlo is still installed.
-	if self, err := selfPath(); err == nil && (isSystemPackageManaged(self) || isHomebrewManaged(self)) {
+	// package's file list leaves that manager believing servlo is still installed.
+	if self, err := selfPath(); err == nil && isSystemPackageManaged(self) {
 		fmt.Println(feedback.Dim("kept, package-managed"))
 		feedback.Note("remove the binaries with your package manager, e.g. " + packageManagerRemoveHint(self))
 	} else {

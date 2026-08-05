@@ -1045,7 +1045,7 @@ func plural(n int, one, many string) string {
 }
 
 // runCapture runs a shell command in cwd with servlo's bin shims on PATH (so php,
-// composer, and npm resolve to the container shims under launchd's restricted
+// composer, and npm resolve to the container shims under the daemon's restricted
 // PATH), mirroring the command runner. Returns combined output and the exit
 // code; a non-ExitError (couldn't even start) comes back as exit -1.
 func runCapture(ctx context.Context, cwd, command string) (string, int, error) {

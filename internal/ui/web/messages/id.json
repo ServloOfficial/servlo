@@ -568,7 +568,7 @@
   "system_workerMode_containerBadge": "Mode kontainer",
   "system_workerMode_description": "Mengontrol bagaimana worker framework (queue, schedule, horizon, reverb, kustom) dijalankan di macOS. Bawaannya adalah mode exec untuk penggunaan memori lebih rendah.",
   "system_workerMode_exec_title": "Exec (disarankan)",
-  "system_workerMode_exec_description": "Satu podman exec per worker ke dalam kontainer FPM bersama, diawasi oleh launchd dengan pengaman dedup berkas pid. Hampir tanpa overhead memori per worker. Sesuai dengan profil Linux.",
+  "system_workerMode_exec_description": "Satu podman exec per worker ke dalam kontainer FPM bersama, diawasi oleh systemd dengan pengaman dedup berkas pid. Hampir tanpa overhead memori per worker. Sesuai dengan profil Linux.",
   "system_workerMode_container_title": "Kontainer",
   "system_workerMode_container_description": "Satu kontainer terpisah per worker, dijalankan dari image FPM. Memori lebih tinggi (terutama untuk Horizon yang mengawasi pool-nya sendiri), tetapi batas supervisor 1:1 dengan kebijakan restart milik Podman.",
   "system_workerMode_note_label": "Catatan:",

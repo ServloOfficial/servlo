@@ -17,20 +17,10 @@ import (
 	"github.com/realrashid/servlo/internal/origin"
 )
 
-// WriteContainerUnitFn writes a container unit file for the given name and content.
-// Defaults to writing a systemd quadlet (.container) file.
-// Override this on macOS to write a launchd plist instead.
-var WriteContainerUnitFn func(name, content string) error = WriteQuadlet
-
 // DaemonReloadFn reloads the service manager after a unit file change.
-// Defaults to systemctl --user daemon-reload.
-// Override this on macOS with a no-op.
+// Defaults to systemctl --user daemon-reload; a seam so tests can write units
+// without reloading a real one.
 var DaemonReloadFn func() error = DaemonReload
-
-// SkipQuadletUpToDateCheck disables the early-return optimisation in
-// WriteFPMQuadlet that skips writing when the .container file is unchanged.
-// Set to true on macOS where the unit file is a launchd plist, not a quadlet.
-var SkipQuadletUpToDateCheck bool
 
 // OnImageRebuilt, when set, is invoked after a PHP FPM/FrankenPHP image is
 // actually (re)built — the moment the old image of that version is orphaned. A
@@ -829,12 +819,9 @@ func WriteFPMQuadlet(version string) error {
 	// Unnecessary daemon-reloads cause Podman's quadlet generator to regenerate
 	// all service files, which can briefly disrupt servlo-dns and cause
 	// systemd-resolved to mark 127.0.0.1:5300 as failed (breaking .test resolution).
-	// On macOS the unit file is a launchd plist (not a quadlet), so the check is skipped.
-	if !SkipQuadletUpToDateCheck {
-		existingPath := filepath.Join(config.QuadletDir(), unitName+".container")
-		if existing, err := os.ReadFile(existingPath); err == nil && string(existing) == content {
-			return nil
-		}
+	existingPath := filepath.Join(config.QuadletDir(), unitName+".container")
+	if existing, err := os.ReadFile(existingPath); err == nil && string(existing) == content {
+		return nil
 	}
 
 	if _, err := WriteQuadletDiff(unitName, content); err != nil {

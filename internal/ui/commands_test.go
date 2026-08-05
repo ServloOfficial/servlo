@@ -281,7 +281,7 @@ commands:
 }
 
 // Asserts the runner prepends BinDir to PATH so php/composer/npm shims
-// resolve under launchd's restricted PATH on macOS.
+// resolve under the daemon's restricted PATH.
 func TestCommandsRun_BinDirOnPath(t *testing.T) {
 	sitePath := registerSite(t, "acme", "acme.test")
 	binDir := config.BinDir()

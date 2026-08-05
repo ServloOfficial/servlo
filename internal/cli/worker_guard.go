@@ -13,7 +13,7 @@ import (
 //
 //  1. Brief podman-machine SSH hiccup. The outer `podman exec` exits but
 //     the inner artisan process inside the FPM container survives. The
-//     pid-file mutex (step 1) catches the case where launchd respawns
+//     pid-file mutex (step 1) catches the case where systemd respawns
 //     before the outer process is gone.
 //
 //  2. Suspend/wake. The laptop sleeps; on wake the host-side `podman exec`
@@ -69,7 +69,7 @@ func inContainerReapSnippet(workerCmd, sitePath string) string {
 
 // buildWorkerReapCommand returns a host shell command that runs
 // inContainerReapSnippet inside the FPM container. Persisted as the worker's
-// .reap sidecar at start and run on stop: stopping the launchd job only kills
+// .reap sidecar at start and run on stop: stopping the unit only kills
 // the host-side `podman exec`, so without this the in-container worker (and its
 // file-watcher child) survive as orphans — the cause of sites
 // still burning CPU.

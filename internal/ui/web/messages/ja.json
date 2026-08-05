@@ -568,7 +568,7 @@
   "system_workerMode_containerBadge": "コンテナモード",
   "system_workerMode_description": "macOS でフレームワークワーカー（キュー、スケジュール、horizon、reverb、カスタム）をどのように起動するかを制御します。デフォルトはメモリ消費の少ない exec モードです。",
   "system_workerMode_exec_title": "Exec（推奨）",
-  "system_workerMode_exec_description": "ワーカーごとに共有 FPM コンテナへ podman exec を 1 つ実行し、pid ファイルによる重複防止ガード付きで launchd が監視します。ワーカーあたりのメモリオーバーヘッドはほぼゼロ。Linux のプロファイルと一致します。",
+  "system_workerMode_exec_description": "ワーカーごとに共有 FPM コンテナへ podman exec を 1 つ実行し、pid ファイルによる重複防止ガード付きで systemd が監視します。ワーカーあたりのメモリオーバーヘッドはほぼゼロ。Linux のプロファイルと一致します。",
   "system_workerMode_container_title": "コンテナ",
   "system_workerMode_container_description": "ワーカーごとに FPM イメージから生成したデタッチドコンテナを 1 つ起動します。メモリ消費は多め（特に自前のプールを監視する Horizon）ですが、podman 自身の再起動ポリシーで 1:1 のスーパーバイザ境界になります。",
   "system_workerMode_note_label": "注意:",

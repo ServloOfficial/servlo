@@ -132,7 +132,7 @@ func TestCleanStartThenFirstFailureFires(t *testing.T) {
 }
 
 // First tick after process start seeds lastUnhealthySet without firing.
-// Otherwise a launchd restart with N already-failed workers would dispatch
+// Otherwise a panel restart with N already-failed workers would dispatch
 // N notifications instantly.
 func TestDiffNewFailuresAndCommit_FirstTickSilent(t *testing.T) {
 	t.Cleanup(resetHealthState)

@@ -12,32 +12,20 @@ import (
 var unitsFS embed.FS
 
 // servloBinaryPath resolves the absolute path to the running servlo binary so unit
-// ExecStart lines point at wherever servlo is actually installed: ~/.local/bin
-// for curl/brew, /usr/bin for the deb. A var so tests can override it; returns
-// "" when the path can't be resolved, in which case GetUnit leaves the template
-// default in place.
+// ExecStart lines point at wherever servlo is actually installed: ~/.local/bin for
+// the installer, /usr/bin for the deb. Symlinks are resolved so a link that later
+// moves cannot break the unit. A var so tests can override it; returns "" when the
+// path can't be resolved, in which case GetUnit leaves the template default in
+// place.
 var servloBinaryPath = func() string {
 	exe, err := os.Executable()
 	if err != nil {
 		return ""
 	}
 	if resolved, rErr := filepath.EvalSymlinks(exe); rErr == nil {
-		return stableBinaryPath(exe, resolved)
+		return resolved
 	}
 	return exe
-}
-
-// stableBinaryPath picks which spelling of the binary a unit should carry.
-// Normally the resolved one, so a symlink that moves cannot break the unit. A
-// Homebrew Cellar is the exception: it is version-pinned, so resolving there
-// writes a path that `brew upgrade servlo` deletes, leaving the daemons pointing
-// at a binary that no longer exists. Homebrew's own symlink is the stable name,
-// so that one is kept.
-func stableBinaryPath(exe, resolved string) string {
-	if strings.Contains(resolved, "/Cellar/") {
-		return exe
-	}
-	return resolved
 }
 
 // GetUnit returns the content of an embedded systemd unit file with the servlo

@@ -55,7 +55,7 @@ func SystemNodeBinDirsFor(version string) []string {
 }
 
 // unitPathDirs are extra prefixes the generated worker unit puts on PATH that a
-// daemon's own PATH omits. That gap was a launchd behaviour; systemd user units
+// daemon's own PATH omits. systemd user units
 // inherit the same PATH on both routes, so there is nothing extra to add. A var
 // so tests can drive it.
 var unitPathDirs = func() []string { return nil }

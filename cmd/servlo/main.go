@@ -422,7 +422,7 @@ func newWatchCmd() *cobra.Command {
 
 			// Self-heal exec-mode framework workers on macOS. Container mode
 			// uses podman --restart=always; exec mode runs guard scripts
-			// under launchd that can be left orphaned by an interrupted
+			// under systemd that can be left orphaned by an interrupted
 			// migration or sleep/wake bridge churn. No-op on Linux.
 			go watcher.WatchExecWorkers(60 * time.Second)
 

@@ -233,7 +233,7 @@ func TestTickDNS(t *testing.T) {
 // TestTickDNS_repairUnavailable_logsOnceAndSkipsResolverWrite pins the
 // macOS-without-sudoers fix: when repairPossible() returns false, the
 // watcher must not call configureResolver (which would prompt for a sudo
-// password from a non-interactive systemd / launchd context and spam the
+// password from a non-interactive systemd context and spam the
 // log every tick). Instead, log exactly once until the gate opens again.
 func TestTickDNS_repairUnavailable_logsOnceAndSkipsResolverWrite(t *testing.T) {
 	var checks, repairs, waits int

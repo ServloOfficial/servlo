@@ -21,7 +21,7 @@ import (
 // guard in unit tests.
 func installFakeMysqlQuadlet(t *testing.T) {
 	t.Helper()
-	// Isolate HOME too: on macOS the service manager writes launchd plists to
+	// Isolate HOME too: the service manager writes unit files under
 	// $HOME/Library/LaunchAgents (launchAgentsDir), which is NOT covered by the
 	// XDG_* overrides. Without this, a handler that regenerates a quadlet writes
 	// a real servlo-<svc>.plist with volume sources pointing at the test's temp

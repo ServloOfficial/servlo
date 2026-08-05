@@ -104,7 +104,7 @@ type GlobalConfig struct {
 		Manager string `yaml:"manager,omitempty" mapstructure:"manager"`
 		// NvmDir is the nvm install directory when Manager is "nvm". Persisted
 		// at install/switch time so daemons (servlo-panel, watcher) find nvm even
-		// though systemd/launchd never load the user's shell rc that exports
+		// though systemd never loads the user's shell rc that exports
 		// $NVM_DIR. Empty means fall back to $NVM_DIR or ~/.nvm.
 		NvmDir string `yaml:"nvm_dir,omitempty" mapstructure:"nvm_dir"`
 	} `yaml:"node" mapstructure:"node"`
@@ -194,7 +194,7 @@ type GlobalConfig struct {
 	Workers struct {
 		// ExecMode controls how framework workers (queue, schedule, horizon,
 		// reverb, custom) are launched on macOS. "exec" (default) wraps a
-		// single `podman exec` per worker in a dedup guard and lets launchd
+		// single `podman exec` per worker in a dedup guard and lets systemd
 		// supervise that process, matching Linux's lower-memory behaviour.
 		// "container" runs each worker as its own detached container, which
 		// costs more memory per worker but makes the podman supervisor

@@ -568,7 +568,7 @@
   "system_workerMode_containerBadge": "Modo contêiner",
   "system_workerMode_description": "Controla como os workers de framework (queue, schedule, horizon, reverb, personalizados) são iniciados no macOS. O padrão é o modo exec para menor uso de memória.",
   "system_workerMode_exec_title": "Exec (recomendado)",
-  "system_workerMode_exec_description": "Um podman exec por worker dentro do contêiner FPM compartilhado, supervisionado pelo launchd com proteção antidup baseada em arquivo pid. Sobrecarga de memória quase nula por worker. Corresponde ao perfil do Linux.",
+  "system_workerMode_exec_description": "Um podman exec por worker dentro do contêiner FPM compartilhado, supervisionado pelo systemd com proteção antidup baseada em arquivo pid. Sobrecarga de memória quase nula por worker. Corresponde ao perfil do Linux.",
   "system_workerMode_container_title": "Contêiner",
   "system_workerMode_container_description": "Um contêiner desanexado por worker, criado a partir da imagem FPM. Maior consumo de memória (especialmente para o Horizon, que supervisiona seu próprio pool), mas limite de supervisor 1:1 com a política de reinício do próprio podman.",
   "system_workerMode_note_label": "Nota:",
