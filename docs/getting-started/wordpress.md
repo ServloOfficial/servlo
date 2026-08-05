@@ -141,7 +141,7 @@ Generate fresh authentication salts (the installer does this automatically; for 
 servlo secure myblog
 ```
 
-This issues a trusted local cert via mkcert and switches the vhost to HTTPS. WordPress also stores its canonical URL in two places, so update them too:
+This issues a certificate and switches the vhost to HTTPS. WordPress also stores its canonical URL in two places, so update them too:
 
 ```php
 // wp-config.php
@@ -182,7 +182,7 @@ servlo status
 | `servlo init` | Wrote `.servlo.yaml` with PHP 8.3 and the MySQL service |
 | `servlo db:create myblog` | Created `myblog` and `myblog_testing` inside servlo-mysql |
 | (manual) `wp-config.php` edits | Pointed WordPress at `servlo-mysql` and the new database |
-| `servlo secure myblog` | Issued mkcert TLS, switched vhost to HTTPS |
+| `servlo secure myblog` | Issued TLS, switched vhost to HTTPS |
 
 ---
 

@@ -1,6 +1,6 @@
 name: Check Upstream Tool Releases
 
-# Daily check of the host tools servlo pins (composer, fnm, mkcert). Where the
+# Daily check of the host tools servlo pins (composer, fnm). Where the
 # PHP image check auto-rebuilds artifacts, the pins live in tools.yaml, so a
 # stale pin becomes a bump PR; merging it publishes the new pins to every
 # install through the fetched manifest, no binary release needed.
@@ -24,10 +24,9 @@ jobs:
           FILE=internal/tools/tools.yaml
 
           FNM=$(curl -fsSL https://api.github.com/repos/Schniz/fnm/releases/latest | jq -r .tag_name)
-          MKCERT=$(curl -fsSL https://api.github.com/repos/FiloSottile/mkcert/releases/latest | jq -r .tag_name)
           COMPOSER=$(curl -fsSL https://getcomposer.org/versions | jq -r '.stable[0].version')
 
-          for pair in "composer=${COMPOSER}" "fnm=${FNM}" "mkcert=${MKCERT}"; do
+          for pair in "composer=${COMPOSER}" "fnm=${FNM}"; do
             tool="${pair%%=*}" version="${pair#*=}"
             if [ -z "$version" ] || [ "$version" = "null" ]; then
               echo "Skipping ${tool}: upstream lookup failed"
@@ -41,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           FILE=internal/tools/tools.yaml
-          for tool in composer fnm mkcert; do
+          for tool in composer fnm; do
             version=$(yq -r ".tools.${tool}.version" "$FILE")
             url=$(yq -r ".tools.${tool}.url" "$FILE")
             asset=$(yq -r ".tools.${tool}.assets.\"linux/amd64\" // \"\"" "$FILE")
@@ -58,4 +57,4 @@ jobs:
           branch: chore/bump-tool-pins
           commit-message: 'chore: bump pinned host tool versions'
           title: 'chore: bump pinned host tool versions'
-          body: 'Automated bump of the pinned composer, fnm and mkcert versions in internal/tools/tools.yaml to the current upstream releases. The resolved download URLs were verified to exist before this PR was opened. Merging publishes the new pins to every install through the fetched manifest, and the embedded fallback ships with the next release.'
+          body: 'Automated bump of the pinned composer and fnm versions in internal/tools/tools.yaml to the current upstream releases. The resolved download URLs were verified to exist before this PR was opened. Merging publishes the new pins to every install through the fetched manifest, and the embedded fallback ships with the next release.'

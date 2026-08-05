@@ -31,7 +31,7 @@ var platforms = []struct{ goos, goarch string }{
 func TestEmbedded_ResolvesEveryToolOnEveryPlatform(t *testing.T) {
 	offline(t)
 	m := Load(context.Background())
-	for _, name := range []string{"composer", "fnm", "mkcert"} {
+	for _, name := range []string{"composer", "fnm"} {
 		tool, ok := m.Tools[name]
 		if !ok {
 			t.Fatalf("embedded manifest is missing %s", name)
@@ -52,15 +52,21 @@ func TestEmbedded_ResolvesEveryToolOnEveryPlatform(t *testing.T) {
 	}
 }
 
+// {version} is expanded in the asset name as well as the URL, so a manifest can
+// pin a tool whose release assets carry the version in their filename.
 func TestURL_ExpandsAssetTemplate(t *testing.T) {
-	offline(t)
-	m := Load(context.Background())
-	got, err := m.URL("mkcert", "linux", "arm64")
+	m := Manifest{Tools: map[string]Tool{
+		"widget": {
+			Version: "v1.2.3",
+			URL:     "https://example.com/download/{version}/{asset}",
+			Assets:  map[string]string{"linux/arm64": "widget-{version}-linux-arm64"},
+		},
+	}}
+	got, err := m.URL("widget", "linux", "arm64")
 	if err != nil {
 		t.Fatal(err)
 	}
-	v := m.Tools["mkcert"].Version
-	want := "https://github.com/FiloSottile/mkcert/releases/download/" + v + "/mkcert-" + v + "-linux-arm64"
+	want := "https://example.com/download/v1.2.3/widget-v1.2.3-linux-arm64"
 	if got != want {
 		t.Errorf("URL = %q, want %q", got, want)
 	}
@@ -94,8 +100,8 @@ func TestLoad_OverlaysPublishedPins(t *testing.T) {
 		t.Errorf("published composer pin not applied, URL = %q", url)
 	}
 	// Tools absent from the published manifest keep their embedded pins.
-	if _, err := m.URL("mkcert", "linux", "amd64"); err != nil {
-		t.Errorf("embedded mkcert pin lost after overlay: %v", err)
+	if _, err := m.URL("fnm", "linux", "amd64"); err != nil {
+		t.Errorf("embedded fnm pin lost after overlay: %v", err)
 	}
 }
 
@@ -205,19 +211,19 @@ func TestInstalledVersion_StampAndProbe(t *testing.T) {
 	}
 
 	// Missing binary reports empty.
-	if v := InstalledVersion("mkcert"); v != "" {
+	if v := InstalledVersion("fnm"); v != "" {
 		t.Errorf("InstalledVersion for missing binary = %q, want empty", v)
 	}
 
 	// A stamped binary reports the stamp without probing.
-	bin := filepath.Join(config.BinDir(), "mkcert")
+	bin := filepath.Join(config.BinDir(), "fnm")
 	if err := os.WriteFile(bin, []byte("bin"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteStamp("mkcert", "v1.4.4"); err != nil {
+	if err := WriteStamp("fnm", "v1.4.4"); err != nil {
 		t.Fatal(err)
 	}
-	if v := InstalledVersion("mkcert"); v != "v1.4.4" {
+	if v := InstalledVersion("fnm"); v != "v1.4.4" {
 		t.Errorf("InstalledVersion = %q, want v1.4.4", v)
 	}
 
@@ -230,7 +236,7 @@ func TestInstalledVersion_StampAndProbe(t *testing.T) {
 	orig := probeOutput
 	probeOutput = func(path string, args ...string) ([]byte, error) { return []byte("v2.0.0\n"), nil }
 	defer func() { probeOutput = orig }()
-	if v := InstalledVersion("mkcert"); v != "v2.0.0" {
+	if v := InstalledVersion("fnm"); v != "v2.0.0" {
 		t.Errorf("InstalledVersion after newer binary = %q, want probed v2.0.0", v)
 	}
 }
@@ -256,14 +262,14 @@ func TestStatusAll_FlagsUpdates(t *testing.T) {
 	if err := os.MkdirAll(config.BinDir(), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	pin := embeddedManifest().Tools["mkcert"].Version
+	pin := embeddedManifest().Tools["fnm"].Version
 
-	// mkcert matches the pin (v-prefix differences must not count as updates),
-	// composer is stamped behind the pin, fnm is absent.
-	if err := os.WriteFile(filepath.Join(config.BinDir(), "mkcert"), []byte("b"), 0o755); err != nil {
+	// fnm matches the pin (v-prefix differences must not count as updates) and
+	// composer is stamped behind it.
+	if err := os.WriteFile(filepath.Join(config.BinDir(), "fnm"), []byte("b"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteStamp("mkcert", strings.TrimPrefix(pin, "v")); err != nil {
+	if err := WriteStamp("fnm", strings.TrimPrefix(pin, "v")); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(config.BinDir(), "composer.phar"), []byte("b"), 0o755); err != nil {
@@ -277,14 +283,11 @@ func TestStatusAll_FlagsUpdates(t *testing.T) {
 	for _, s := range StatusAll(context.Background()) {
 		byName[s.Name] = s
 	}
-	if s := byName["mkcert"]; !s.Present || s.UpdateAvailable {
-		t.Errorf("mkcert status = %+v, want present with no update", s)
+	if s := byName["fnm"]; !s.Present || s.UpdateAvailable {
+		t.Errorf("fnm status = %+v, want present with no update", s)
 	}
 	if s := byName["composer"]; !s.Present || !s.UpdateAvailable || s.Installed != "0.0.1" {
 		t.Errorf("composer status = %+v, want present with update available", s)
-	}
-	if s := byName["fnm"]; s.Present || s.UpdateAvailable {
-		t.Errorf("fnm status = %+v, want absent without update", s)
 	}
 }
 
@@ -365,7 +368,7 @@ func TestManifestDigestLookup(t *testing.T) {
 	if got := m.Digest("fnm", "darwin", "arm64"); got != "" {
 		t.Errorf("an unpinned platform must report no digest, got %q", got)
 	}
-	if got := m.Digest("mkcert", "linux", "amd64"); got != "" {
+	if got := m.Digest("composer", "linux", "amd64"); got != "" {
 		t.Errorf("an unknown tool must report no digest, got %q", got)
 	}
 }

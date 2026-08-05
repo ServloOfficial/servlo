@@ -205,16 +205,10 @@ systemctl --user restart servlo-watcher
 ```
 :::
 
-::: details HTTPS certificate warning in browser
-The mkcert CA must be installed in your browser's trust store. Ensure `certutil` / `nss-tools` is installed, then re-run `servlo install`:
+::: details `servlo secure` says no certificate issuer is configured
+There is no issuer wired up yet. ACME (Let's Encrypt) arrives in S3.2; until then a site is served over plain http and `servlo secure` refuses rather than producing a certificate no browser would accept.
 
-- Arch: `sudo pacman -S nss`
-- Debian/Ubuntu: `sudo apt install libnss3-tools`
-- Fedora: `sudo dnf install nss-tools`
-
-After installing the package, run `servlo install` again to register the CA.
-
-On macOS, this can also show up after a reinstall even though everything worked the first time: a macOS update can drop a certificate's trust settings while leaving the certificate itself in the keychain. `servlo install` asks whether the keychain still trusts the CA now, rather than only whether the certificate is there, and repairs it (with the usual admin authorization prompt) when it finds that drifted state. Just re-run `servlo install`.
+Servlo will not fall back to a self-signed certificate, because on a real domain a browser cannot tell one apart from someone intercepting the connection.
 :::
 
 ::: details PHP image build is slow on first run

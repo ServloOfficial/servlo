@@ -44,13 +44,13 @@ func TestStepInfoAndFail(t *testing.T) {
 	defer SetTestWriter(&buf)()
 
 	Start("writing vhost").Info("done")
-	Start("provisioning TLS").Fail(errors.New("mkcert missing"))
+	Start("provisioning TLS").Fail(errors.New("issuer missing"))
 
 	got := buf.String()
 	if !strings.Contains(got, " → writing vhost… done\n") {
 		t.Errorf("missing info line: %q", got)
 	}
-	if !strings.Contains(got, " → provisioning TLS… ✗ mkcert missing\n") {
+	if !strings.Contains(got, " → provisioning TLS… ✗ issuer missing\n") {
 		t.Errorf("missing fail line: %q", got)
 	}
 }
@@ -84,7 +84,7 @@ func TestAlreadyShownAfterFail(t *testing.T) {
 	var buf bytes.Buffer
 	defer SetTestWriter(&buf)()
 
-	bare := errors.New("mkcert missing")
+	bare := errors.New("issuer missing")
 	Start("provisioning TLS").Fail(bare)
 
 	if !AlreadyShown(bare) {

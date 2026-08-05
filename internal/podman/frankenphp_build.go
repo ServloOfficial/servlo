@@ -149,7 +149,7 @@ func buildFrankenPHPImage(version string, force bool, customExts, packages []str
 	defer os.RemoveAll(tmp)
 
 	exts := append(append([]string{}, frankenPHPRuntimeExtensions...), sanitizeExtNames(customExts)...)
-	containerfile, err := renderFrankenPHPContainerfile(version, exts, packages, mkcertCABlock(tmp))
+	containerfile, err := renderFrankenPHPContainerfile(version, exts, packages)
 	if err != nil {
 		return err
 	}
@@ -178,10 +178,10 @@ func buildFrankenPHPImage(version string, force bool, customExts, packages []str
 }
 
 // renderFrankenPHPContainerfile substitutes the embedded template with the PHP
-// version, the full extension list (standard + custom), the user's extra
-// packages, and the mkcert CA block. Pure, so the build's image definition has
-// unit-test coverage without invoking podman.
-func renderFrankenPHPContainerfile(version string, exts, packages []string, mkcertBlock string) (string, error) {
+// version, the full extension list (standard + custom) and the user's extra
+// packages. Pure, so the build's image definition has unit-test coverage
+// without invoking podman.
+func renderFrankenPHPContainerfile(version string, exts, packages []string) (string, error) {
 	tmpl, err := GetQuadletTemplate("servlo-frankenphp.Containerfile")
 	if err != nil {
 		return "", err
@@ -191,7 +191,6 @@ func renderFrankenPHPContainerfile(version string, exts, packages []string, mkce
 	cf = strings.ReplaceAll(cf, "{{.CoreExtensions}}", strings.Join(core, " "))
 	cf = strings.ReplaceAll(cf, "{{.OptionalExtensions}}", strings.Join(optional, " "))
 	cf = strings.ReplaceAll(cf, "{{.CustomPackages}}", buildCustomPackagesBlock(packages))
-	cf = strings.ReplaceAll(cf, "{{.MkcertCA}}", mkcertBlock)
 	return cf, nil
 }
 

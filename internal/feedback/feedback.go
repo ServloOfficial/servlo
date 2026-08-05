@@ -442,7 +442,7 @@ func Note(msg string) {
 }
 
 // Sudo prints a privileged-step line: a gold lock glyph and gold message, so
-// the password prompt the next command (mkcert, a sudo write) raises reads as
+// the password prompt the next command (a sudo write) raises reads as
 // expected rather than a surprise. Use it in place of a bare "[sudo required] …"
 // print so every privileged step looks the same. Routed through emit so it
 // lands cleanly above any live spinner.

@@ -542,7 +542,7 @@
   "system_servlo_updateHint": "Servlo se met à jour en réexécutant son installeur, qui a besoin d'un terminal interactif pour demander sudo et montrer la progression. Cliquez ci-dessous pour en ouvrir un avec la commande préremplie, ou exécutez {cmd} dans un terminal.",
   "system_tools_title": "Outils",
   "system_tools_current": "à jour",
-  "system_tools_description": "Binaires autonomes que servlo installe et gère : Composer, fnm et mkcert.",
+  "system_tools_description": "Binaires autonomes que servlo installe et gère : Composer et fnm.",
   "system_tools_notInstalled": "non installé",
   "system_tools_versionUnknown": "version inconnue",
   "system_tools_updateAvailable": "{version} disponible",

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// stubOutdatedTools makes the host look like one where composer and mkcert are
+// stubOutdatedTools makes the host look like one where composer and fnm are
 // both installed at a version that is not the pinned one, so the update loop
 // has more than one tool to work through.
 func stubOutdatedTools(t *testing.T) {
@@ -18,7 +18,7 @@ func stubOutdatedTools(t *testing.T) {
 	if err := os.MkdirAll(bin, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"composer.phar", "mkcert"} {
+	for _, name := range []string{"composer.phar", "fnm"} {
 		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -53,8 +53,8 @@ func TestRunToolsUpdateContinuesPastAFailure(t *testing.T) {
 	if attempted[0] != "composer" {
 		t.Fatalf("expected composer first, got %v", attempted)
 	}
-	if !containsName(attempted, "mkcert") {
-		t.Errorf("mkcert was never attempted after composer failed: %v", attempted)
+	if !containsName(attempted, "fnm") {
+		t.Errorf("fnm was never attempted after composer failed: %v", attempted)
 	}
 	if err == nil {
 		t.Error("a failed tool must still be reported in the return value")

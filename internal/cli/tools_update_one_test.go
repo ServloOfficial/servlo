@@ -22,14 +22,14 @@ func TestUpdateOneTool(t *testing.T) {
 		return nil
 	}
 
-	if err := UpdateOneTool("mkcert"); err != nil {
-		t.Errorf("UpdateOneTool(mkcert) = %v, want nil", err)
+	if err := UpdateOneTool("fnm"); err != nil {
+		t.Errorf("UpdateOneTool(fnm) = %v, want nil", err)
 	}
 	err := UpdateOneTool("composer")
 	if err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
 		t.Errorf("UpdateOneTool(composer) = %v, want the underlying failure", err)
 	}
-	if len(asked) != 2 || asked[0] != "mkcert" || asked[1] != "composer" {
+	if len(asked) != 2 || asked[0] != "fnm" || asked[1] != "composer" {
 		t.Errorf("updated %v, want exactly the two named tools", asked)
 	}
 }

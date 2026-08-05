@@ -7,11 +7,6 @@ import (
 )
 
 func TestResolveSecured(t *testing.T) {
-	dnsOn := &config.GlobalConfig{}
-	dnsOn.DNS.Enabled = true
-	dnsOff := &config.GlobalConfig{}
-	dnsOff.DNS.Enabled = false
-
 	securedProj := &config.ProjectConfig{Secured: true}
 	plainProj := &config.ProjectConfig{Secured: false}
 
@@ -19,22 +14,18 @@ func TestResolveSecured(t *testing.T) {
 		name   string
 		relink bool
 		proj   *config.ProjectConfig
-		cfg    *config.GlobalConfig
 		want   bool
 	}{
-		{"secured project, DNS managed", false, securedProj, dnsOn, true},
-		{"secured project, DNS disabled stays http", false, securedProj, dnsOff, false},
-		{"plain project, DNS managed", false, plainProj, dnsOn, false},
-		{"no .servlo.yaml", false, nil, dnsOn, false},
-		{"re-link preserves prior secured when DNS managed", true, plainProj, dnsOn, true},
-		{"re-link degrades to http when DNS disabled", true, plainProj, dnsOff, false},
+		{"secured project", false, securedProj, true},
+		{"plain project", false, plainProj, false},
+		{"no .servlo.yaml", false, nil, false},
+		{"re-link preserves prior secured", true, plainProj, true},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := ResolveSecured(tc.relink, tc.proj, tc.cfg); got != tc.want {
-				t.Errorf("ResolveSecured(%v, %+v, dns=%v) = %v, want %v",
-					tc.relink, tc.proj, tc.cfg.DNS.Enabled, got, tc.want)
+			if got := ResolveSecured(tc.relink, tc.proj); got != tc.want {
+				t.Errorf("ResolveSecured(%v, %+v) = %v, want %v", tc.relink, tc.proj, got, tc.want)
 			}
 		})
 	}

@@ -19,39 +19,24 @@ func TestIssueCertForce_certNeverAbsentDuringReissue(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	binDir := filepath.Join(tmp, "servlo", "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	fakeMkcert := `#!/bin/sh
-CRT=""
-KEY=""
-while [ $# -gt 0 ]; do
-  case "$1" in
-    -cert-file) shift; CRT="$1" ;;
-    -key-file)  shift; KEY="$1" ;;
-  esac
-  shift
-done
-printf 'CERT' > "$CRT"
-printf 'KEY' > "$KEY"
-exit 0
-`
-	if err := os.WriteFile(filepath.Join(binDir, "mkcert"), []byte(fakeMkcert), 0755); err != nil {
-		t.Fatal(err)
-	}
+	withIssuer(t, issuerFunc(func(_ string, _ []string, certPath, keyPath string) error {
+		if err := os.WriteFile(certPath, []byte("CERT"), 0644); err != nil {
+			return err
+		}
+		return os.WriteFile(keyPath, []byte("KEY"), 0600)
+	}))
 
 	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	certPath := filepath.Join(certsDir, "myapp.test.crt")
+	certPath := filepath.Join(certsDir, "myapp.example.crt")
 	// Seed an initial cert/key so every reissue hits the "previous cert exists"
 	// branch, the one that used to move the live cert out of the way.
 	if err := os.WriteFile(certPath, []byte("CERT"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(certsDir, "myapp.test.key"), []byte("KEY"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(certsDir, "myapp.example.key"), []byte("KEY"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -73,7 +58,7 @@ exit 0
 	}()
 
 	for i := 0; i < 400; i++ {
-		if err := IssueCertForce("myapp.test", []string{"myapp.test"}, certsDir); err != nil {
+		if err := IssueCertForce("myapp.example", []string{"myapp.example"}, certsDir); err != nil {
 			t.Fatalf("reissue %d: %v", i, err)
 		}
 	}

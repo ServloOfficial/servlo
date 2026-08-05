@@ -109,7 +109,7 @@ func TestRegenerateSecondary_certFailureAbortsBeforeVhost(t *testing.T) {
 	origReissue, origVhost := reissueCertFn, regenerateVhostFn
 	reissueCertFn = func(_ config.Site) error {
 		order = append(order, "cert")
-		return errors.New("mkcert exploded")
+		return errors.New("issuer exploded")
 	}
 	regenerateVhostFn = func(_ *config.Site, _ string) error {
 		order = append(order, "vhost")

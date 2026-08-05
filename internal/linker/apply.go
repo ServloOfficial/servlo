@@ -114,7 +114,7 @@ func Apply(plan *Plan, p Policy, d Deps, r Reporter) (*Result, error) {
 
 // provision writes the vhost and runtime units for the site's mode, then issues
 // its certificate. The certificate is a separate step from the runtime so
-// mkcert's work gets its own line rather than being buried in the runtime's.
+// issuance gets its own line rather than being buried in the runtime's.
 func provision(plan *Plan, site config.Site, p Policy, d Deps, r Reporter) error {
 	ensureServableFPMImage(plan, site, p, d, r)
 

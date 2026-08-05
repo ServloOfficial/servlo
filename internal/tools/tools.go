@@ -1,5 +1,5 @@
 // Package tools resolves the pinned versions and download URLs of the host
-// tools servlo installs (composer, fnm, mkcert). tools.yaml is the source of
+// tools servlo installs (composer, fnm). tools.yaml is the source of
 // truth: embedded at build time as the offline fallback, and fetched from
 // GitHub before use so a bad pin can be fixed without a binary release.
 package tools
@@ -208,7 +208,7 @@ func fetchPublished(ctx context.Context) (map[string]Tool, []byte) {
 }
 
 // Names lists the managed tools in display order.
-func Names() []string { return []string{"composer", "fnm", "mkcert"} }
+func Names() []string { return []string{"composer", "fnm"} }
 
 func binPath(name string) string {
 	bin := name
@@ -301,8 +301,6 @@ func probeVersion(name, path string) string {
 	switch name {
 	case "fnm":
 		arg = "--version"
-	case "mkcert":
-		arg = "-version"
 	case "composer":
 		return composerVersion(path)
 	default:

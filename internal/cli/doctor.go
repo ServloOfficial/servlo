@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/cleanup"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
@@ -159,26 +158,6 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 			}
 		} else {
 			ok("systemd user session")
-		}
-
-		// mkcert can only trust .test in the browser when certutil (nss-tools) is
-		// present. Without it servlo's mkcert step installs the CA to the system
-		// store only, so curl and PHP trust it but Firefox and Chrome warn, and
-		// the mkcert warning is swallowed. Only relevant when DNS/HTTPS is managed.
-		if cfg, cfgErr := config.LoadGlobal(); cfgErr == nil && cfg.DNSManaged() {
-			// certutil being installed says nothing about the store it writes
-			// into, so the CA itself has to be found there.
-			missing := certs.BrowserStoresMissingCA()
-			switch {
-			case !certs.BrowserTrustAvailable():
-				warn("browser HTTPS trust", browserTrustGuidance(ostreeBootedFn()))
-				rep.fixLast(manualFix)
-			case len(missing) > 0:
-				warn("browser HTTPS trust", browserTrustStoreGuidance(missing))
-				rep.fixLast(manualFix)
-			default:
-				ok("browser HTTPS trust")
-			}
 		}
 
 		// Podman orders every rootless quadlet after its network-online wait

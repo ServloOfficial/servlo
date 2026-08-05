@@ -131,7 +131,7 @@ func TestFrankenPHPImageName(t *testing.T) {
 // placeholders.
 func TestRenderFrankenPHPContainerfile(t *testing.T) {
 	exts := append(append([]string{}, frankenPHPRuntimeExtensions...), "myext")
-	cf, err := renderFrankenPHPContainerfile("8.4", exts, []string{"jq"}, "# mkcert\n")
+	cf, err := renderFrankenPHPContainerfile("8.4", exts, []string{"jq"})
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
@@ -254,7 +254,7 @@ func TestSplitFrankenPHPExtensions(t *testing.T) {
 // hard install that a single unavailable extension would fail.
 func TestFrankenPHPContainerfileToleratesOptionalFailures(t *testing.T) {
 	exts := append(append([]string{}, frankenPHPRuntimeExtensions...), "myext")
-	cf, err := renderFrankenPHPContainerfile("8.4", exts, nil, "")
+	cf, err := renderFrankenPHPContainerfile("8.4", exts, nil)
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}

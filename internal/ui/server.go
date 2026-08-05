@@ -574,7 +574,7 @@ type StatusResponse struct {
 	// Instance identifies this servlo-panel process. An open dashboard reloads when
 	// it changes, so a restarted server never leaves a stale page behind.
 	Instance string `json:"instance"`
-	// Tools reports the managed host binaries (composer, fnm, mkcert) against
+	// Tools reports the managed host binaries (composer, fnm) against
 	// their pinned versions; fnm is omitted on nvm-managed setups where its
 	// absence is deliberate.
 	Tools []tools.ToolStatus `json:"tools"`

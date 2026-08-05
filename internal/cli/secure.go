@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/siteops"
@@ -101,11 +100,6 @@ func toggleSecureCmd(args []string, secured bool) error {
 	site, err := config.FindSite(name)
 	if err != nil {
 		return fmt.Errorf("site %q not found — run 'servlo link' first", name)
-	}
-	if secured {
-		if gcfg, _ := config.LoadGlobal(); !gcfg.DNSManaged() {
-			return certs.ErrDNSDisabled
-		}
 	}
 	verb := "enabling HTTPS"
 	if !secured {

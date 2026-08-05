@@ -340,8 +340,8 @@ func DissolveGroup(group string) error {
 	return firstErr
 }
 
-// Indirection points so the regeneration order can be asserted without mkcert
-// or nginx on the box.
+// Indirection points so the regeneration order can be asserted without a
+// certificate issuer or nginx on the box.
 var (
 	reissueCertFn     = certs.ReissueCert
 	regenerateVhostFn = siteops.RegenerateSiteVhost

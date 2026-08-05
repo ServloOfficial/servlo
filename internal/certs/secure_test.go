@@ -1,7 +1,6 @@
 package certs
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,111 +10,63 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 )
 
-// ReissueCert must cover the site's primary domain and every alias, so a
-// domain mutation routed through it leaves no name the browser will reject.
+// ReissueCert must hand the issuer the site's primary domain and every alias,
+// so a domain mutation routed through it leaves no name the browser will
+// reject. What SANs that implies is the issuer's business, not this layer's.
 func TestReissueCert_coversEveryDomain(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
-
-	binDir := filepath.Join(tmp, "servlo", "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	// Fake mkcert that echoes the SAN args into the cert so the test can
-	// grep them. Matches the pattern used by manager_test.go.
-	fakeMkcert := `#!/bin/sh
-CRT=""
-KEY=""
-SANS=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    -cert-file) shift; CRT="$1" ;;
-    -key-file)  shift; KEY="$1" ;;
-    *) SANS="$SANS $1" ;;
-  esac
-  shift
-done
-printf '%s' "$SANS" > "$CRT"
-printf 'KEY' > "$KEY"
-`
-	if err := os.WriteFile(filepath.Join(binDir, "mkcert"), []byte(fakeMkcert), 0755); err != nil {
-		t.Fatal(err)
-	}
+	rec := withIssuer(t, &recordingIssuer{name: "test"})
 
 	site := config.Site{
 		Name:    "harborlist",
 		Path:    filepath.Join(tmp, "project"),
-		Domains: []string{"harborlist.test", "aaaddd.test"},
+		Domains: []string{"harborlist.example", "aaaddd.example"},
 		Secured: true,
 	}
 
 	if err := ReissueCert(site); err != nil {
 		t.Fatalf("ReissueCert: %v", err)
 	}
-
-	certPath := filepath.Join(tmp, "servlo", "certs", "sites", "harborlist.test.crt")
-	body, err := os.ReadFile(certPath)
-	if err != nil {
-		t.Fatalf("reading cert: %v", err)
+	if len(rec.calls) != 1 {
+		t.Fatalf("issuer called %d times, want 1", len(rec.calls))
 	}
-	got := string(body)
-	wantSANs := []string{
-		"harborlist.test",
-		"*.harborlist.test",
-		"aaaddd.test",
-		"*.aaaddd.test",
+	if rec.calls[0].primary != "harborlist.example" {
+		t.Errorf("primary = %q, want harborlist.example", rec.calls[0].primary)
 	}
-	for _, san := range wantSANs {
-		if !strings.Contains(got, san) {
-			t.Errorf("SAN %q missing from cert; got %q", san, got)
-		}
-	}
-}
-
-func TestSecureSite_RefusesWhenDNSDisabled(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
-	t.Setenv("XDG_DATA_HOME", tmp)
-
-	cfg := &config.GlobalConfig{}
-	cfg.DNS.Enabled = false
-	cfg.DNS.TLD = "localhost"
-	if err := config.SaveGlobal(cfg); err != nil {
-		t.Fatalf("SaveGlobal: %v", err)
-	}
-
-	site := config.Site{Name: "myapp", Domains: []string{"myapp.example"}}
-	err := SecureSite(site)
-	if !errors.Is(err, ErrDNSDisabled) {
-		t.Fatalf("SecureSite err = %v, want ErrDNSDisabled", err)
+	if strings.Join(rec.calls[0].domains, ",") != "harborlist.example,aaaddd.example" {
+		t.Errorf("issuer got domains %v, want the primary and every alias", rec.calls[0].domains)
 	}
 }
 
 // EnsureCert is the routine boot/watcher self-heal: it must leave a still-valid
-// cert untouched (no mkcert run) so calling it every scan is cheap.
+// cert untouched so calling it every scan is cheap.
 func TestEnsureCert_reusesValidCert(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
-	fakeMkcertBin(t, tmp)
+	rec := withIssuer(t, &recordingIssuer{name: "test"})
 
 	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	certPath := filepath.Join(certsDir, "myapp.test.crt")
-	keyPath := filepath.Join(certsDir, "myapp.test.key")
+	certPath := filepath.Join(certsDir, "myapp.example.crt")
+	keyPath := filepath.Join(certsDir, "myapp.example.key")
 	writeLeafCert(t, certPath, time.Now().Add(200*24*time.Hour))
 	original, err := os.ReadFile(certPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(keyPath, []byte("KEY"), 0644); err != nil {
+	if err := os.WriteFile(keyPath, []byte("KEY"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
-	site := config.Site{Name: "myapp", Path: filepath.Join(tmp, "myapp"), Domains: []string{"myapp.test"}, Secured: true}
+	site := config.Site{Name: "myapp", Path: filepath.Join(tmp, "myapp"), Domains: []string{"myapp.example"}, Secured: true}
 	if err := EnsureCert(site); err != nil {
 		t.Fatalf("EnsureCert: %v", err)
+	}
+	if len(rec.calls) != 0 {
+		t.Errorf("EnsureCert called the issuer for a still-valid cert")
 	}
 	got, err := os.ReadFile(certPath)
 	if err != nil {
@@ -131,31 +82,31 @@ func TestEnsureCert_reusesValidCert(t *testing.T) {
 func TestEnsureCert_reissuesAgingCert(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
-	fakeMkcertBin(t, tmp)
+	rec := withIssuer(t, &recordingIssuer{name: "reissued"})
 
 	certsDir := filepath.Join(tmp, "servlo", "certs", "sites")
 	if err := os.MkdirAll(certsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	certPath := filepath.Join(certsDir, "myapp.test.crt")
-	keyPath := filepath.Join(certsDir, "myapp.test.key")
+	certPath := filepath.Join(certsDir, "myapp.example.crt")
+	keyPath := filepath.Join(certsDir, "myapp.example.key")
 	writeLeafCert(t, certPath, time.Now().Add(5*24*time.Hour))
-	if err := os.WriteFile(keyPath, []byte("KEY"), 0644); err != nil {
+	if err := os.WriteFile(keyPath, []byte("KEY"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
-	site := config.Site{Name: "myapp", Path: filepath.Join(tmp, "myapp"), Domains: []string{"myapp.test"}, Secured: true}
+	site := config.Site{Name: "myapp", Path: filepath.Join(tmp, "myapp"), Domains: []string{"myapp.example"}, Secured: true}
 	if err := EnsureCert(site); err != nil {
 		t.Fatalf("EnsureCert: %v", err)
+	}
+	if len(rec.calls) != 1 {
+		t.Fatalf("EnsureCert did not reissue an aging cert; issuer called %d times", len(rec.calls))
 	}
 	got, err := os.ReadFile(certPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(got), "REISSUED") {
-		t.Errorf("EnsureCert did not reissue an aging cert; body %q", got)
-	}
-	if !strings.Contains(string(got), "myapp.test") {
-		t.Errorf("reissued cert missing SAN; body %q", got)
+	if string(got) != "issued-by-reissued-cert" {
+		t.Errorf("the aging cert was not replaced; body %q", got)
 	}
 }

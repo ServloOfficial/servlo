@@ -116,7 +116,7 @@ servlo setup
   ◯ php artisan db:seed
   ◉ php artisan storage:link
   ◉ npm run build
-  ◉ servlo secure                  # issues mkcert TLS for myapp.example.com
+  ◉ servlo secure                  # issues TLS for myapp.example.com
   ◉ queue:start
   ◉ schedule:start
   ◉ servlo open
@@ -148,7 +148,7 @@ You should see `myapp` listed as `active`, the configured services running, and 
 | `servlo init` | Wrote `.servlo.yaml` with PHP 8.5, Node 22, MySQL, Redis, Mailpit, queue, schedule |
 | `servlo env` (via setup) | Injected `DB_HOST=servlo-mysql`, `REDIS_HOST=servlo-redis`, `MAIL_HOST=servlo-mailpit` into `.env` |
 | `servlo db:create` (via env) | Created `myapp` and `myapp_testing` databases |
-| `servlo secure` (via setup) | Issued an mkcert cert, switched the vhost to HTTPS, set `APP_URL=https://myapp.example.com` |
+| `servlo secure` (via setup) | Issued a certificate, switched the vhost to HTTPS, set `APP_URL=https://myapp.example.com` |
 | `servlo worker start queue/schedule` (via setup) | Launched `servlo-queue-myapp` and `servlo-schedule-myapp` systemd units |
 
 ---

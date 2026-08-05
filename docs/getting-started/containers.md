@@ -219,7 +219,7 @@ Poll interval around 1 second is usually fine for development.
 servlo secure
 ```
 
-`servlo secure` issues an mkcert certificate for `myapp.example.com`, flips the nginx vhost to TLS, and regenerates the proxy config. Your app keeps receiving plain HTTP from nginx, which handles TLS termination.
+`servlo secure` issues a certificate for `myapp.example.com`, flips the nginx vhost to TLS, and regenerates the proxy config. Your app keeps receiving plain HTTP from nginx, which handles TLS termination.
 
 If your app serves its own HTTPS (FrankenPHP with built-in TLS, a Go service with Let's Encrypt test certs), add `ssl: true` so nginx proxies via HTTPS with verification disabled:
 
@@ -350,7 +350,7 @@ custom_workers:
 | `servlo init` | Detected `Containerfile.servlo`, ran the container wizard, wrote `.servlo.yaml` with `container:`, services, and workers |
 | `servlo link` | Built `servlo-custom-myapp:local`, wrote the quadlet, started the container on the `servlo` network, generated an nginx proxy vhost, reloaded nginx |
 | `servlo db:create myapp` | Created the `myapp` database in the selected engine |
-| `servlo secure` | Issued a mkcert cert, flipped the vhost to HTTPS |
+| `servlo secure` | Issued a certificate, flipped the vhost to HTTPS |
 | `servlo worker start dev` | Started `servlo-dev-myapp.service` which `podman exec`s into the container |
 
 ---

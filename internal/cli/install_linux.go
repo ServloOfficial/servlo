@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
 )
@@ -33,14 +32,6 @@ func downloadBinaries(w io.Writer) error {
 	if cfg == nil || cfg.NodeManager() != "nvm" {
 		if err := ensureFnmBinary(w); err != nil {
 			return err
-		}
-	}
-
-	// mkcert
-	mkcertPath := certs.MkcertPath()
-	if _, err := os.Stat(mkcertPath); os.IsNotExist(err) {
-		if err := replaceTool(&pins, "mkcert", mkcertPath, w); err != nil {
-			return fmt.Errorf("mkcert download: %w", err)
 		}
 	}
 
@@ -104,40 +95,4 @@ func defaultLegacySystemSetup() error {
 		feedback.Warn("%v", err)
 	}
 	return nil
-}
-
-// ensureMkcertCA generates the root CA and gets it trusted. Generation and the
-// browser NSS store are per-user and need no root; the system trust store is
-// done by re-executing `servlo bootstrap --trust-ca`, so the CA reaches the same
-// place by the same code on both install routes. An unattended run stops after
-// generation because its maintainer script runs the trust pass itself.
-func ensureMkcertCA(unattended bool) {
-	gen := exec.Command(certs.MkcertPath(), "-install")
-	gen.Env = append(os.Environ(), "TRUST_STORES=nss")
-	gen.Stdout, gen.Stderr = io.Discard, io.Discard
-	gen.Run() //nolint:errcheck
-
-	if unattended || certs.CATrusted() {
-		return
-	}
-	args := []string{"bootstrap", "--trust-ca"}
-	if root, err := certs.CARoot(); err == nil && root != "" {
-		args = append(args, "--ca-root", root)
-	}
-	feedback.Sudo("Trusting the mkcert CA in the system store")
-	if err := sudoSelfRunner(args...); err != nil {
-		feedback.Warn("trusting the mkcert CA: %v", err)
-	}
-}
-
-// removeSystemTrustAnchor drops the CA that ensureMkcertCA installed. mkcert's
-// own -uninstall keys on the filename it wrote, so it never removes this one.
-func removeSystemTrustAnchor() {
-	if !certs.SystemTrustAnchorPresent() {
-		return
-	}
-	feedback.Sudo("Removing the mkcert CA from the system trust store")
-	if err := sudoSelfRunner("bootstrap", "--untrust-ca"); err != nil {
-		feedback.Warn("removing the mkcert CA: %v", err)
-	}
 }

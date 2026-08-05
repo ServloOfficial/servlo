@@ -1,16 +1,13 @@
 package certs
 
 import (
-	"bytes"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -44,25 +41,9 @@ func lockForDomain(domain string) *sync.Mutex {
 // per-domain mutex is bypassed somehow.
 var tempSuffixSeq atomic.Uint64
 
-// MkcertPath returns the path to the mkcert binary.
-func MkcertPath() string {
-	return filepath.Join(config.BinDir(), "mkcert")
-}
-
-// InstallCA installs the mkcert root CA into the system trust store.
-func InstallCA() error {
-	cmd := exec.Command(MkcertPath(), "-install")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("mkcert -install: %w", err)
-	}
-	return nil
-}
-
-// IssueCert issues a TLS certificate covering all the given domains using mkcert.
-// The cert files are named after primaryDomain. Each domain also gets a wildcard entry.
-// An existing cert/key pair is reused without re-running mkcert only while the
+// IssueCert issues a TLS certificate covering all the given domains through the
+// active issuer. The cert files are named after primaryDomain.
+// An existing cert/key pair is reused without calling the issuer only while the
 // cert is still valid and more than certReissueWindow from NotAfter; a cert that
 // is expired, near expiry, or unreadable falls through to the atomic reissue so
 // an ordinary start or watcher pass self-heals an aging cert.
@@ -100,7 +81,7 @@ func certNeedsReissue(path string, window time.Duration) bool {
 }
 
 // IssueCertForce regenerates the certificate for primaryDomain even if files
-// exist. Writes to temp paths and renames atomically so a transient mkcert
+// exist. Writes to temp paths and renames atomically so a transient issuance
 // failure leaves the previous cert/key intact (which is critical: a missing
 // cert trips RepairVhosts into flipping the site to plain HTTP).
 func IssueCertForce(primaryDomain string, allDomains []string, certsDir string) error {
@@ -126,24 +107,19 @@ func issueCertAtomic(primaryDomain string, allDomains []string, certsDir string)
 	tmpCert := certFile + suffix
 	tmpKey := keyFile + suffix
 
-	var sans []string
-	for _, d := range allDomains {
-		sans = append(sans, d, "*."+d)
-	}
-
-	args := []string{"-cert-file", tmpCert, "-key-file", tmpKey}
-	args = append(args, sans...)
-
-	// Capture mkcert's chatty success banner instead of letting it spill into
-	// the CLI's clean step output; surface it only when the command fails.
-	cmd := exec.Command(MkcertPath(), args...)
-	var mkOut bytes.Buffer
-	cmd.Stdout = &mkOut
-	cmd.Stderr = &mkOut
-	if err := cmd.Run(); err != nil {
+	iss := activeIssuer()
+	if err := iss.Issue(primaryDomain, allDomains, tmpCert, tmpKey); err != nil {
 		os.Remove(tmpCert) //nolint:errcheck
 		os.Remove(tmpKey)  //nolint:errcheck
-		return fmt.Errorf("mkcert for %s: %w\n%s", primaryDomain, err, strings.TrimSpace(mkOut.String()))
+		return err
+	}
+	// The key's mode is enforced here rather than trusted to the issuer: an
+	// issuer that writes a world-readable key would otherwise leak it silently,
+	// and this is the one place every issuance passes through.
+	if err := os.Chmod(tmpKey, 0600); err != nil {
+		os.Remove(tmpCert) //nolint:errcheck
+		os.Remove(tmpKey)  //nolint:errcheck
+		return fmt.Errorf("securing the key for %s: %w", primaryDomain, err)
 	}
 
 	// Swap the new cert and key in with os.Rename, which atomically replaces

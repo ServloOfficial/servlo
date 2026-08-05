@@ -224,15 +224,6 @@ check_dns_resolver() {
   fi
 }
 
-check_certutil() {
-  if command -v certutil &>/dev/null; then
-    success "certutil found (needed for mkcert CA trust in browsers)"
-    return
-  fi
-  warn "certutil not found — mkcert cannot trust HTTPS certs in Chrome or Firefox"
-  MISSING_PKGS+=("libnss3-tools")
-}
-
 check_podman_rootless() {
   if ! command -v podman &>/dev/null; then
     return  # already flagged by check_cmd
@@ -270,7 +261,6 @@ check_prerequisites_linux() {
   require_linger
   success "systemd linger enabled for $(invoking_user)"
   check_podman_rootless
-  check_certutil
 
   if [ ${#MISSING_PKGS[@]} -eq 0 ]; then
     success "All prerequisites met"

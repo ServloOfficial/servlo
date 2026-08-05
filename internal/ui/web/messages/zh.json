@@ -542,7 +542,7 @@
   "system_servlo_updateHint": "Servlo 通过重新运行其安装程序进行更新，这需要交互式终端以便提示输入 sudo 并显示下载进度。点击下方打开一个预填更新命令的终端，或自行在任意终端运行 {cmd}。",
   "system_tools_title": "工具",
   "system_tools_current": "最新",
-  "system_tools_description": "servlo 安装并管理的独立二进制文件:Composer、fnm 和 mkcert。",
+  "system_tools_description": "servlo 安装并管理的独立二进制文件:Composer 和 fnm。",
   "system_tools_notInstalled": "未安装",
   "system_tools_versionUnknown": "版本未知",
   "system_tools_updateAvailable": "{version} 可用",

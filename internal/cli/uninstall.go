@@ -3,11 +3,9 @@ package cli
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/podman"
@@ -61,7 +59,6 @@ func runUninstall(force bool) error {
 		}
 	}
 
-	removeMkcertCA := force || confirmRemoveMkcertCA()
 	purgeImages := force || confirmPurgeServloImages()
 
 	step("Stopping containers and services")
@@ -126,18 +123,6 @@ func runUninstall(force bool) error {
 		removeServloImages()
 	}
 
-	if removeMkcertCA {
-		feedback.Sudo("Uninstalling mkcert CA from system trust stores")
-		cmd := exec.Command(certs.MkcertPath(), "-uninstall")
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		_ = cmd.Run()
-		// mkcert only removes the anchor it wrote itself, so the one servlo
-		// installed as root has to go separately or it stays trusted for good.
-		removeSystemTrustAnchor()
-	}
-
 	step("Removing shell PATH entry")
 	removeShellEntry()
 	ok()
@@ -177,10 +162,6 @@ func runUninstall(force bool) error {
 
 	feedback.Done("servlo uninstalled")
 	return nil
-}
-
-func confirmRemoveMkcertCA() bool {
-	return feedback.Confirm("Uninstall mkcert CA from system trust stores?", false)
 }
 
 func confirmPurgeServloImages() bool {

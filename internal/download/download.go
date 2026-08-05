@@ -1,5 +1,5 @@
 // Package download is the shared helper behind every binary servlo fetches from
-// the network: composer, fnm, mkcert, and self-update archives.
+// the network: composer, fnm, and self-update archives.
 // It retries transient failures with a short backoff and cancels stalled
 // transfers, so a momentary CDN hiccup doesn't abort a whole install.
 package download

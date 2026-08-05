@@ -10,8 +10,9 @@ import (
 	"github.com/realrashid/servlo/internal/nginx"
 )
 
-// Indirection points so tests can swap in inert stubs without touching mkcert,
-// nginx, podman, or the daemon HTTP API. Production code uses the real impls.
+// Indirection points so tests can swap in inert stubs without touching a
+// certificate issuer, nginx, podman, or the daemon HTTP API. Production code
+// uses the real impls.
 var (
 	secureCertFn   = certs.SecureSite
 	unsecureCertFn = certs.UnsecureSite
@@ -78,12 +79,6 @@ func SetSecuredCascade(site *config.Site, secured bool) ([]string, error) {
 		}
 	}
 	if secured {
-		// HTTPS needs the servlo-managed DNS/cert layer; gate here so UI
-		// callers fail the same clean way the CLI does instead of erroring deep
-		// in the cert layer.
-		if gcfg, _ := config.LoadGlobal(); !gcfg.DNSManaged() {
-			return nil, certs.ErrDNSDisabled
-		}
 		if err := secureCertFn(*site); err != nil {
 			return nil, fmt.Errorf("issuing certificate: %w", err)
 		}

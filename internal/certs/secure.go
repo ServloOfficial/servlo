@@ -9,16 +9,8 @@ import (
 	"github.com/realrashid/servlo/internal/nginx"
 )
 
-// ErrDNSDisabled signals that the operation requires the servlo-managed DNS /
-// mkcert CA stack, which the user has opted out of. Surfaces through the CLI
-// `servlo secure` command and the dashboard HTTPS toggle.
-var ErrDNSDisabled = fmt.Errorf("HTTPS requires servlo-managed DNS, set dns.enabled: true and re-run servlo install")
-
 // SecureSite issues a TLS certificate for the site and switches its nginx vhost to HTTPS.
 func SecureSite(site config.Site) error {
-	if cfg, _ := config.LoadGlobal(); !cfg.DNSManaged() {
-		return ErrDNSDisabled
-	}
 	if err := issueSiteCert(site); err != nil {
 		return fmt.Errorf("issuing certificate: %w", err)
 	}

@@ -161,7 +161,7 @@ Toggling never restarts FPM or its workers. The bridge auto-prepend file and its
 
 ## Pre-built images
 
-servlo ships pre-built PHP-FPM base images on ghcr.io for all supported versions (7.4 and 8.0–8.5), covering both `amd64` and `arm64`. When you run `servlo fetch` or `servlo php:rebuild`, servlo pulls the matching base image and layers just your mkcert CA certificate on top, bringing first-time build time from ~5 minutes down to ~30 seconds.
+servlo ships pre-built PHP-FPM base images on ghcr.io for all supported versions (7.4 and 8.0–8.5), covering both `amd64` and `arm64`. When you run `servlo fetch` or `servlo php:rebuild`, servlo pulls the matching base image and layers only your custom extensions and packages on top, bringing first-time build time from ~5 minutes down to ~30 seconds.
 
 The base image tag is derived from the embedded Containerfile, so servlo always pulls the exact image that matches the version of servlo you have installed. If the pull fails (no internet, image not yet published) servlo falls back to a full local build transparently.
 

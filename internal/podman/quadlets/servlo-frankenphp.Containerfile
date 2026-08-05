@@ -34,5 +34,3 @@ RUN install-php-extensions {{.CoreExtensions}} \
 # works without auth failures. All matching the FPM image.
 RUN apk add --no-cache nodejs npm git openssh-client && rm -rf /var/cache/apk/*
 
-# Servlo mkcert CA so the app trusts local .test HTTPS from inside the container.
-{{.MkcertCA}}

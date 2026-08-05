@@ -1481,7 +1481,7 @@ func randNumeric(n int) string {
 // patchDuskTestCase modifies tests/DuskTestCase.php so it works with servlo's
 // Selenium container out of the box:
 //   - Skips starting a local ChromeDriver when DUSK_DRIVER_URL is set
-//   - Adds --ignore-certificate-errors so Chromium accepts mkcert certificates
+//   - Adds --ignore-certificate-errors so Chromium accepts the site's certificate
 func patchDuskTestCase(dir string) {
 	path := filepath.Join(dir, "tests", "DuskTestCase.php")
 	data, err := os.ReadFile(path)
@@ -1504,7 +1504,7 @@ func patchDuskTestCase(dir string) {
 		changed = true
 	}
 
-	// 2. Add --ignore-certificate-errors so Chromium trusts mkcert certs.
+	// 2. Add --ignore-certificate-errors so Chromium trusts the site's cert.
 	if !strings.Contains(src, "--ignore-certificate-errors") {
 		// Insert after --disable-smooth-scrolling or --disable-search-engine-choice-screen
 		for _, anchor := range []string{

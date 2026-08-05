@@ -163,7 +163,7 @@ servlo setup
   ◉ Run migrations               # from framework setup block
   ◉ Clear cache                  # from framework setup block
   ◯ Load fixtures
-  ◉ servlo secure                  # mkcert TLS for myapp.example.com
+  ◉ servlo secure                  # TLS for myapp.example.com
   ◉ messenger:start
   ◉ servlo open
 ```
@@ -197,7 +197,7 @@ App logs (anything in `var/log/*.log`) show up in the [Web UI](../features/web-u
 | `servlo link` | Assigned `myapp.example.com`, set document root to `public/` |
 | `servlo init` | Wrote `.servlo.yaml` with PHP, Node, MySQL, Mailpit, messenger |
 | `servlo env` (via setup) | Wrote `DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/myapp?serverVersion=8.0` and `MAILER_DSN=smtp://servlo-mailpit:1025` into `.env.local`, seeded from the committed `.env` |
-| `servlo secure` (via setup) | Issued mkcert cert, set `DEFAULT_URI=https://myapp.example.com` |
+| `servlo secure` (via setup) | Issued a certificate, set `DEFAULT_URI=https://myapp.example.com` |
 | Doctrine migrations + cache:clear | Ran via the framework's `setup:` block |
 | `servlo worker start messenger` (via setup) | Launched `servlo-messenger-myapp` |
 

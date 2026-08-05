@@ -152,4 +152,3 @@ RUN apk add --no-cache zsh fzf \
 # Override pool: run workers as root, log errors to stderr
 RUN printf '[www]\nuser=root\ngroup=root\ncatch_workers_output=yes\nphp_flag[display_errors]=off\nphp_admin_value[error_log]=/proc/self/fd/2\nphp_admin_flag[log_errors]=on\n' > /usr/local/etc/php-fpm.d/zz-servlo.conf
 
-{{.MkcertCA}}

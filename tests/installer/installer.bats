@@ -449,7 +449,7 @@ teardown() {
   # the gates are satisfied at the command level rather than stubbed out.
   function command() {
     case "$2" in
-      podman|unzip|certutil|crun) return 0 ;;
+      podman|unzip|crun) return 0 ;;
       *) builtin command "$@" ;;
     esac
   }
@@ -464,33 +464,6 @@ teardown() {
 
   run bash "$INSTALLER" --check
   [ "$status" -eq 0 ]
-}
-
-# ── DNS mode gating of the HTTPS-only prerequisites ───────────────────────────
-
-# certutil is checked unconditionally now: the DNS mode that used to gate it
-# went with the .test stack.
-@test "check_prerequisites flags a missing certutil" {
-  function command() {
-    case "$2" in
-      podman|unzip) return 0 ;;
-      certutil) return 1 ;;
-      *) builtin command "$@" ;;
-    esac
-  }
-  function systemctl() { return 0; }
-  function podman() {
-    if [[ "$1" == "info" ]]; then echo "true"; fi
-    if [[ "$1" == "--version" ]]; then echo "podman version 4.9.3"; fi
-  }
-  function require_crun() { return 0; }
-  function require_cgroup_v2() { return 0; }
-  function linger_enabled() { return 0; }
-  export -f command systemctl podman require_crun require_cgroup_v2 linger_enabled
-
-  MISSING_PKGS=()
-  run check_prerequisites
-  [[ "$output" == *"certutil not found"* ]]
 }
 
 # ── uninstall_linux_dns ───────────────────────────────────────────────────────

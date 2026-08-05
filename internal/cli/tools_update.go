@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/tools"
@@ -18,7 +17,7 @@ import (
 func NewToolsUpdateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "tools:update",
-		Short: "Update composer, fnm and mkcert to their pinned versions",
+		Short: "Update composer and fnm to their pinned versions",
 		Long:  "Re-downloads any managed host tool whose installed version differs from the pinned one. Tools that are not installed (e.g. fnm on an nvm-managed setup) are left alone.",
 		RunE:  runToolsUpdate,
 	}
@@ -71,13 +70,11 @@ func runToolsUpdate(_ *cobra.Command, _ []string) error {
 var updateToolFn = updateTool
 
 // updateTool reinstalls one tool at its pinned version. fnm goes through the
-// zip extract; composer and mkcert are plain binary swaps.
+// zip extract; composer is a plain binary swap.
 func updateTool(pins *pinnedTools, name string) error {
 	switch name {
 	case "fnm":
 		return installFnm(pins, io.Discard)
-	case "mkcert":
-		return replaceTool(pins, name, certs.MkcertPath(), io.Discard)
 	default:
 		return replaceTool(pins, name, filepath.Join(config.BinDir(), "composer.phar"), io.Discard)
 	}

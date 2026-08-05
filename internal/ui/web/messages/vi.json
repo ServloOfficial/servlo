@@ -542,7 +542,7 @@
   "system_servlo_updateHint": "Servlo cập nhật bằng cách chạy lại trình cài đặt, vốn cần một terminal tương tác để có thể hỏi sudo và hiển thị tiến trình tải xuống. Nhấp bên dưới để mở một terminal với lệnh cập nhật điền sẵn, hoặc tự chạy {cmd} trong bất kỳ terminal nào.",
   "system_tools_title": "Công cụ",
   "system_tools_current": "hiện tại",
-  "system_tools_description": "Các tệp nhị phân độc lập mà servlo cài đặt và quản lý: Composer, fnm và mkcert.",
+  "system_tools_description": "Các tệp nhị phân độc lập mà servlo cài đặt và quản lý: Composer và fnm.",
   "system_tools_notInstalled": "chưa cài đặt",
   "system_tools_versionUnknown": "không rõ phiên bản",
   "system_tools_updateAvailable": "{version} khả dụng",

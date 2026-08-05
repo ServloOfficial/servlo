@@ -542,7 +542,7 @@
   "system_servlo_updateHint": "Servlo, sudo soracak ve indirme ilerlemesini gösterecek interaktif terminal gerektiren kurucusunu yeniden çalıştırarak güncelleme yapar. Güncelleme komutu önceden doldurulmuş bir terminal açmak için aşağıya tıklayın veya herhangi bir terminalde {cmd} çalıştırın.",
   "system_tools_title": "Araçlar",
   "system_tools_current": "güncel",
-  "system_tools_description": "servlo'in kurup yönettiği bağımsız ikili dosyalar: Composer, fnm ve mkcert.",
+  "system_tools_description": "servlo'in kurup yönettiği bağımsız ikili dosyalar: Composer ve fnm.",
   "system_tools_notInstalled": "kurulu değil",
   "system_tools_versionUnknown": "sürüm bilinmiyor",
   "system_tools_updateAvailable": "{version} mevcut",

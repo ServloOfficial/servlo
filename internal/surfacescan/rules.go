@@ -136,11 +136,11 @@ func Rules() []Rule {
 				"internal/hostbin/hostbin_test.go",
 			),
 		},
-		// Pending. Each names the story that deletes it, which is what turns its
-		// rule on. These three outlive Phase 0 on purpose: the DNS stack and
-		// mkcert are what Phase 1 replaces with real domains and real
-		// certificates, so they come out as those stories land rather than
-		// leaving the tree unable to serve anything in between.
+		// The DNS stack and the local CA outlived Phase 0 on purpose: they are
+		// what Phase 1 replaces with real domains and real certificates, so they
+		// came out as those stories landed rather than leaving the tree unable
+		// to serve anything in between. Mailpit below is still pending, waiting
+		// on the per-site SMTP settings that replace it.
 		{
 			Feature: ".test domains and host resolver mutation", Story: "S2.1", Enforced: true,
 			// The resolver paths are the story's own acceptance criterion: a test
@@ -164,8 +164,12 @@ func Rules() []Rule {
 			),
 		},
 		{
-			Feature: "mkcert", Story: "S3.1",
-			Patterns: []string{`\bmkcert\b`},
+			Feature: "mkcert", Story: "S3.1", Enforced: true,
+			// The names of the trust plumbing go too, not just the binary: a
+			// certificate issued by a CA only this machine trusts is the wrong
+			// shape for a real domain however it is installed, so the NSS
+			// databases and the system anchor have no successor to come back for.
+			Patterns: []string{`\bmkcert\b`, `\bcertutil\b`, `\bnss(db|_tools|-tools)\b`, `rootCA\.pem`, `\bCAROOT\b`},
 			Allow:    specs,
 		},
 		{

@@ -237,7 +237,7 @@ func runLink(args []string) error {
 		}
 	}
 
-	if proj != nil && shouldSecureOnLink(proj.Secured, site.Secured, cfg.DNSManaged()) {
+	if proj != nil && shouldSecureOnLink(proj.Secured, site.Secured) {
 		if err := runSecure(nil, []string{}); err != nil {
 			feedback.Warn("securing site: %v", err)
 		}
@@ -295,11 +295,9 @@ func printLinkSummary(site config.Site, start time.Time, wroteDataSource bool) {
 // so an absent .servlo.yaml, an empty one, and one that omits the field all read
 // as false — and treating that as "turn HTTPS off" silently dropped a secured
 // site back to HTTP every time it was re-linked, undoing the carry-over
-// CleanupRelink had just performed. The DNS gate is folded in so a secured:
-// true project on a localhost install stays on http rather than triggering a
-// runSecure the cert layer would only reject.
-func shouldSecureOnLink(projSecured, siteSecured, dnsManaged bool) bool {
-	return projSecured && !siteSecured && dnsManaged
+// CleanupRelink had just performed.
+func shouldSecureOnLink(projSecured, siteSecured bool) bool {
+	return projSecured && !siteSecured
 }
 
 // summaryEnvReader reads the site's live env file, resolved through the

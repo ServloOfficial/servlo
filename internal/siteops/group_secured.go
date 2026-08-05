@@ -15,8 +15,6 @@ import (
 // subdomain, serving the main's app (#811). Securing a main therefore secures
 // its secondaries, and unsecuring a secondary under a secured main is refused.
 
-var dnsManagedFn = func() bool { cfg, _ := config.LoadGlobal(); return cfg.DNSManaged() }
-
 // securedMainOf returns the secured group main above site, or nil when site is
 // not a secondary, its main is missing, or that main is on plain HTTP (which
 // publishes no 443 wildcard and so cannot swallow the subdomain).
@@ -79,11 +77,8 @@ func cascadeGroupSecondaries(main *config.Site) ([]string, error) {
 //
 // Returns the secondaries it changed. A failure on one is reported but does not
 // stop the rest: a partially repaired group still serves more sites correctly
-// than an aborted pass. No-op when DNS is disabled, where nothing has HTTPS.
+// than an aborted pass.
 func EnforceGroupSecondaries() ([]string, error) {
-	if !dnsManagedFn() {
-		return nil, nil
-	}
 	reg, err := config.LoadSites()
 	if err != nil || reg == nil {
 		return nil, err

@@ -78,8 +78,12 @@ Verification is by sha256 digests recorded in each index, not by signature. A si
 
 ## E3 — Certificates
 
-**S3.1 — Extract a certificate-issuer interface.**
+**S3.1 — Extract a certificate-issuer interface.** ✅
 *Done when:* mkcert is removed and the interface is in place; the inherited 30-day reissue scanner, expiry warnings and nginx reload all operate through it without modification. **M**
+
+Two things landed alongside, both of which existed only to serve the local CA. The trust plumbing went with the binary (NSS databases, the system anchor, the certutil probes, the libnss3-tools prerequisite, the bootstrap trust flags) because a locally trusted certificate is the wrong shape for a real domain however it is installed. And the `dns.enabled` gate that refused HTTPS whenever servlo was not managing local DNS was gating on a deleted subsystem; whether a domain can be issued for is a live DNS question, which S3.3 answers, so the wizard keeps the plumbing and sources it from a predicate that says as much.
+
+Between here and S3.2 the issuer in force refuses. It does not fall back to a self-signed certificate: on a real domain a browser cannot tell one apart from an interception, so shipping one would train the operator to click through the warning that protects them.
 
 **S3.2 — HTTP-01 issuance from Let's Encrypt.**
 *Done when:* the challenge is served by the existing nginx container; the key is written 0600; a staging flag targets the ACME staging endpoint; the certificate installs and the vhost regenerates. **L**

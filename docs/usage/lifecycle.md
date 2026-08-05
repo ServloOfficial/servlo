@@ -121,7 +121,7 @@ servlo status
 
 Shows a live snapshot: DNS reachability, nginx, PHP-FPM containers, watcher, host tools, services, certificate expiry, and LAN exposure. Run it after every `servlo start` to confirm everything is healthy. See [Troubleshooting](../troubleshooting.md) if anything is reported as down.
 
-The `[Tools]` section lists the host binaries servlo manages (Composer, fnm, mkcert) with their installed versions, and flags any that differ from the versions servlo currently pins. The same information appears in the web UI under System > Tools, where the pending version on a tool's card is a button that updates that one tool. Apply pending updates from the terminal with:
+The `[Tools]` section lists the host binaries servlo manages (Composer, fnm) with their installed versions, and flags any that differ from the versions servlo currently pins. The same information appears in the web UI under System > Tools, where the pending version on a tool's card is a button that updates that one tool. Apply pending updates from the terminal with:
 
 ```bash
 servlo tools:update
@@ -143,11 +143,11 @@ A pin may also carry a `digests` map alongside `assets`, giving the sha256 of ea
 
 ```yaml
 tools:
-  mkcert:
-    version: v1.4.4
-    url: https://github.com/FiloSottile/mkcert/releases/download/{version}/{asset}
+  fnm:
+    version: v1.39.0
+    url: https://github.com/Schniz/fnm/releases/download/{version}/{asset}
     assets:
-      linux/amd64: mkcert-{version}-linux-amd64
+      linux/amd64: fnm-linux.zip
     digests:
       linux/amd64: 6d31c65b03972c6dc4a14ab429f2928300518b26503f58723e532d1b0a3bbb52
 ```

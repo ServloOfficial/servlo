@@ -30,10 +30,10 @@ func TestHandleToolUpdate(t *testing.T) {
 		updateToolFn = func(name string) error { asked = name; return nil }
 
 		rec := httptest.NewRecorder()
-		handleTools(rec, httptest.NewRequest(http.MethodPost, "/api/tools/mkcert/update", nil))
+		handleTools(rec, httptest.NewRequest(http.MethodPost, "/api/tools/fnm/update", nil))
 
-		if asked != "mkcert" {
-			t.Errorf("updated %q, want mkcert", asked)
+		if asked != "fnm" {
+			t.Errorf("updated %q, want fnm", asked)
 		}
 		if got := toolUpdateResult(t, rec)["ok"]; got != true {
 			t.Errorf("ok = %v, want true", got)
@@ -60,7 +60,7 @@ func TestHandleToolUpdate(t *testing.T) {
 	t.Run("refuses a read method", func(t *testing.T) {
 		updateToolFn = func(string) error { t.Error("GET reached the installer"); return nil }
 		rec := httptest.NewRecorder()
-		handleTools(rec, httptest.NewRequest(http.MethodGet, "/api/tools/mkcert/update", nil))
+		handleTools(rec, httptest.NewRequest(http.MethodGet, "/api/tools/fnm/update", nil))
 		if rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("status = %d, want 405", rec.Code)
 		}

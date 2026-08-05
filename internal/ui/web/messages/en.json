@@ -542,7 +542,7 @@
   "system_servlo_updateHint": "Servlo updates by re-running its installer, which needs an interactive terminal so it can prompt for sudo and show the download progress. Click below to open one with the update command pre-filled, or run {cmd} in any terminal yourself.",
   "system_tools_title": "Tools",
   "system_tools_current": "current",
-  "system_tools_description": "Standalone binaries servlo installs and manages: Composer, fnm and mkcert.",
+  "system_tools_description": "Standalone binaries servlo installs and manages: Composer and fnm.",
   "system_tools_notInstalled": "not installed",
   "system_tools_versionUnknown": "version unknown",
   "system_tools_updateAvailable": "{version} available",

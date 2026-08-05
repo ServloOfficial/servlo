@@ -48,7 +48,7 @@ func Resolve(dir string, cfg *config.GlobalConfig, p Policy) (*Plan, error) {
 
 	secured := false
 	if p.Certs {
-		secured = siteops.ResolveSecured(relinkSecured(dir), proj, cfg)
+		secured = siteops.ResolveSecured(relinkSecured(dir), proj)
 	}
 
 	// A project that runs in its own container, or a dev server on the host,

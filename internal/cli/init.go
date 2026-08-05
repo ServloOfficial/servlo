@@ -250,7 +250,7 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 
 	phpVersion := phpDefault
 	nodeVersion := defaults.NodeVersion
-	httpsAvailable := gcfg.DNSManaged()
+	httpsAvailable := httpsOfferable()
 	secured := defaults.Secured && httpsAvailable
 
 	// FrankenPHP detection. If the project has signals we offer it as a
@@ -1098,13 +1098,17 @@ func maybeCreateContainerfile(cwd, containerfile string, port int) {
 	}
 }
 
+// httpsOfferable reports whether the wizard offers the HTTPS prompt at all.
+// Certificates are no longer tied to a locally trusted CA, so every site can be
+// secured; S3.3 narrows this to domains that actually resolve to this server,
+// which is why the callers keep taking it as a value rather than assuming it.
+func httpsOfferable() bool { return true }
+
 // resolveSecuredDefault computes a wizard's initial "secured" value and whether
-// the HTTPS prompt should be offered at all. HTTPS is only available when servlo
-// manages DNS; otherwise secured is forced off and the prompt is hidden so the
-// wizard never offers a choice that `servlo secure` would later refuse. When
-// available, an already-secured linked site seeds the default to on.
+// the HTTPS prompt should be offered at all. When it is, an already-secured
+// linked site seeds the default to on.
 func resolveSecuredDefault(cwd string, defaultsSecured bool, gcfg *config.GlobalConfig) (secured, httpsAvailable bool) {
-	httpsAvailable = gcfg.DNSManaged()
+	httpsAvailable = httpsOfferable()
 	secured = defaultsSecured && httpsAvailable
 	if httpsAvailable && !secured {
 		if site, err := config.FindSiteByPath(cwd); err == nil && site.Secured {

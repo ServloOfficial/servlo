@@ -11,8 +11,8 @@ import (
 // The machine-global, user-independent steps that `servlo install` would
 // otherwise perform through interactive sudo. A package maintainer script runs
 // as root but cannot prompt, so it calls `servlo bootstrap --system` for the
-// prerequisites and `servlo bootstrap --trust-ca` after the per-user install, so
-// `servlo install --unattended` in between needs no sudo. See lerd-env/lerd#979.
+// prerequisites and `servlo install --unattended` afterwards needs no sudo.
+// See lerd-env/lerd#979.
 const unprivPortSetting = "net.ipv4.ip_unprivileged_port_start=80"
 
 // Vars rather than consts so tests can redirect the root actions away from the
@@ -73,33 +73,22 @@ func bootstrapTargetUser(flagUser string) string {
 // non-interactive halves of setup so a deb/rpm postinst can finish the install
 // without prompting, pairing with `servlo install --unattended`.
 func NewBootstrapCmd() *cobra.Command {
-	var system, trustCA, untrustCA bool
-	var user, caRoot string
+	var system bool
+	var user string
 	cmd := &cobra.Command{
 		Use:   "bootstrap",
 		Short: "Apply the root-level system setup (for package maintainer scripts)",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			if !system && !trustCA && !untrustCA {
-				return fmt.Errorf("nothing to do: pass --system, --trust-ca or --untrust-ca")
+			if !system {
+				return fmt.Errorf("nothing to do: pass --system")
 			}
 			if os.Geteuid() != 0 {
 				return fmt.Errorf("servlo bootstrap configures system-level settings and must run as root")
 			}
-			switch {
-			case trustCA:
-				return runBootstrapTrustCA(bootstrapTargetUser(user), caRoot)
-			case untrustCA:
-				return runBootstrapUntrustCA()
-			default:
-				return runBootstrapSystem(bootstrapTargetUser(user))
-			}
+			return runBootstrapSystem(bootstrapTargetUser(user))
 		},
 	}
 	cmd.Flags().BoolVar(&system, "system", false, "Apply root-level setup: unprivileged ports and linger")
-	cmd.Flags().BoolVar(&trustCA, "trust-ca", false, "Trust the user's mkcert CA in the system store (run after install)")
-	cmd.Flags().BoolVar(&untrustCA, "untrust-ca", false, "Remove servlo's mkcert CA from the system store (run on uninstall)")
 	cmd.Flags().StringVar(&user, "user", "", "Target user for per-user settings (defaults to SUDO_USER)")
-	cmd.Flags().StringVar(&caRoot, "ca-root", "",
-		"mkcert CAROOT holding the CA to trust (defaults to the target user's ~/.local/share/mkcert)")
 	return cmd
 }

@@ -53,7 +53,7 @@ Steps for all frameworks:
   2. npm install/ci          — skipped if node_modules/ already exists (uses ci if lockfile exists)
   3. servlo env                — configure env file with servlo service settings
   4. npm run <build|production|prod> — build front-end assets (detected from package.json scripts)
-  5. servlo secure             — enable HTTPS via mkcert (off by default)
+  5. servlo secure             — enable HTTPS for the site (off by default)
 
 Additional steps for Laravel projects:
   6. php artisan storage:link — create storage symlink

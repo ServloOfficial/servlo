@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -138,33 +137,6 @@ func sortPaths(paths []string) {
 			}
 		}
 	}
-}
-
-// mkcertPath returns the path to the mkcert binary managed by servlo.
-func mkcertPath() string {
-	return filepath.Join(config.BinDir(), "mkcert")
-}
-
-// mkcertCABlock copies the mkcert rootCA.pem into tmpDir and returns the
-// Containerfile snippet that installs it into the Alpine trust store.
-// Returns empty string if mkcert is not installed or the CA does not exist.
-func mkcertCABlock(tmpDir string) string {
-	out, err := exec.Command(mkcertPath(), "-CAROOT").Output()
-	if err != nil {
-		return ""
-	}
-	rootCA := filepath.Join(strings.TrimSpace(string(out)), "rootCA.pem")
-	src, err := os.ReadFile(rootCA)
-	if err != nil {
-		return ""
-	}
-	dest := filepath.Join(tmpDir, "mkcert-ca.crt")
-	if err := os.WriteFile(dest, src, 0644); err != nil {
-		return ""
-	}
-	return "# Servlo mkcert CA — trust local .test HTTPS inside the container\n" +
-		"COPY mkcert-ca.crt /usr/local/share/ca-certificates/mkcert-ca.crt\n" +
-		"RUN update-ca-certificates\n"
 }
 
 // ContainerfileHash returns the SHA-256 hash of the embedded PHP-FPM Containerfile.
@@ -350,7 +322,6 @@ func baseContainerfileHash() (string, error) {
 	base := strings.ReplaceAll(tmpl, "{{.CustomExtensions}}", "")
 	base = strings.ReplaceAll(base, "{{.CustomExtensionsRuntime}}", "")
 	base = strings.ReplaceAll(base, "{{.CustomPackages}}", "")
-	base = strings.ReplaceAll(base, "{{.MkcertCA}}", "")
 	sum := sha256.Sum256([]byte(base))
 	return fmt.Sprintf("%x", sum)[:12], nil
 }
@@ -471,15 +442,14 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 	// can't stamp a digest the pulled base has already moved past.
 	var baseDigest string
 
-	// Fast path: pull pre-built base and layer just mkcert CA + custom extensions on top.
+	// Fast path: pull pre-built base and layer just the custom extensions on top.
 	if !local {
 		if baseRef := tryPullBaseImage(version, w); baseRef != "" {
 			baseDigest, _ = refreshManifestDigestFn(baseRef)
 			containerfile = "FROM " + baseRef + "\n" +
 				"RUN mkdir -p /etc/my.cnf.d && printf '[client]\\nssl=0\\n' > /etc/my.cnf.d/servlo-no-ssl.cnf\n" +
 				buildCustomExtBlockWithToolchain(customExts, extDeps) +
-				buildCustomPackagesBlock(packages) +
-				mkcertCABlock(tmp)
+				buildCustomPackagesBlock(packages)
 			goto build
 		}
 	}
@@ -494,7 +464,6 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 		containerfile = strings.ReplaceAll(containerfile, "{{.CustomExtensions}}", buildCustomExtBlock(customExts, extDeps))
 		containerfile = strings.ReplaceAll(containerfile, "{{.CustomExtensionsRuntime}}", buildCustomExtRuntimeDeps(customExts, extDeps))
 		containerfile = strings.ReplaceAll(containerfile, "{{.CustomPackages}}", buildCustomPackagesBlock(packages))
-		containerfile = strings.ReplaceAll(containerfile, "{{.MkcertCA}}", mkcertCABlock(tmp))
 	}
 
 build:

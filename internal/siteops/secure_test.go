@@ -25,7 +25,7 @@ type secureStubs struct {
 }
 
 // stubSecureDeps replaces every external dependency SetSecured touches so
-// tests run without mkcert, podman, nginx, or the daemon HTTP API.
+// tests run without a certificate issuer, podman, nginx, or the daemon HTTP API.
 func stubSecureDeps(t *testing.T) *secureStubs {
 	t.Helper()
 	s := &secureStubs{}
@@ -161,7 +161,7 @@ func TestSetSecured_notifiesDaemonForStripe(t *testing.T) {
 
 func TestSetSecured_skipsNotificationsAndAbortsOnCertError(t *testing.T) {
 	stubs := stubSecureDeps(t)
-	stubs.secureErr = errors.New("mkcert boom")
+	stubs.secureErr = errors.New("issuer boom")
 	projectDir := withTempEnv(t)
 
 	site := &config.Site{Name: "myapp", Domains: []string{"myapp.test"}, Path: projectDir}
@@ -170,7 +170,7 @@ func TestSetSecured_skipsNotificationsAndAbortsOnCertError(t *testing.T) {
 	}
 
 	err := SetSecured(site, true)
-	if err == nil || !strings.Contains(err.Error(), "mkcert boom") {
+	if err == nil || !strings.Contains(err.Error(), "issuer boom") {
 		t.Errorf("expected cert error, got %v", err)
 	}
 	if site.Secured {
@@ -199,36 +199,6 @@ func TestSetSecured_skipsNotificationsOnNginxReloadError(t *testing.T) {
 	}
 	if len(stubs.notifications) != 0 {
 		t.Errorf("daemon notifications fired after nginx reload failure: %v", stubs.notifications)
-	}
-}
-
-func TestSetSecured_refusesWhenDNSDisabled(t *testing.T) {
-	stubs := stubSecureDeps(t)
-	projectDir := withTempEnv(t)
-
-	gcfg, err := config.LoadGlobal()
-	if err != nil {
-		t.Fatalf("load global: %v", err)
-	}
-	gcfg.DNS.Enabled = false
-	if err := config.SaveGlobal(gcfg); err != nil {
-		t.Fatalf("save global: %v", err)
-	}
-
-	site := &config.Site{Name: "myapp", Domains: []string{"myapp.test"}, Path: projectDir}
-	if err := config.AddSite(*site); err != nil {
-		t.Fatal(err)
-	}
-
-	err = SetSecured(site, true)
-	if !errors.Is(err, certs.ErrDNSDisabled) {
-		t.Fatalf("SetSecured err = %v, want ErrDNSDisabled", err)
-	}
-	if stubs.secureCallCount != 0 {
-		t.Errorf("certs.SecureSite ran despite DNS disabled (calls = %d)", stubs.secureCallCount)
-	}
-	if site.Secured {
-		t.Errorf("site.Secured flipped despite DNS disabled")
 	}
 }
 
@@ -265,11 +235,11 @@ func TestRenewCert_refusesUnsecuredSite(t *testing.T) {
 
 func TestRenewCert_abortsOnReissueError(t *testing.T) {
 	stubs := stubSecureDeps(t)
-	stubs.reissueErr = errors.New("mkcert boom")
+	stubs.reissueErr = errors.New("issuer boom")
 
 	site := &config.Site{Name: "myapp", Domains: []string{"myapp.test"}, Secured: true}
-	if err := RenewCert(site); err == nil || !strings.Contains(err.Error(), "mkcert boom") {
-		t.Fatalf("RenewCert err = %v, want mkcert boom", err)
+	if err := RenewCert(site); err == nil || !strings.Contains(err.Error(), "issuer boom") {
+		t.Fatalf("RenewCert err = %v, want issuer boom", err)
 	}
 	if stubs.reloadCallCount != 0 {
 		t.Errorf("nginx.Reload should not run after a reissue failure (calls = %d)", stubs.reloadCallCount)

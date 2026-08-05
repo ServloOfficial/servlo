@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/nginx"
@@ -138,8 +137,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// Unattended runs are driven by a package maintainer script: reuse the
 	// non-interactive update path for prompts. The sudo-gated system steps are
 	// skipped here because `servlo bootstrap --system` performs them as root
-	// beforehand, and the mkcert CA's system-trust is done afterward by
-	// `servlo bootstrap --trust-ca`, so managed .test DNS works with no prompts.
+	// beforehand, so the install itself needs no prompts.
 	if err := checkUnattendedSupported(unattended); err != nil {
 		return err
 	}
@@ -322,7 +320,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// 3. Binaries (composer, fnm, mkcert) — after manager is persisted so an
+	// 3. Binaries (composer, fnm) — after manager is persisted so an
 	// nvm choice skips the fnm download.
 	step("Downloading binaries")
 	if err := downloadBinaries(os.Stdout); err != nil {
@@ -340,18 +338,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	var wantLaravelInstaller bool
 	if installedPHP, _ := phpDet.ListInstalled(); len(installedPHP) > 0 && !laravelInstallerPresent() {
 		wantLaravelInstaller = confirmInstallPrompt("Install Laravel installer (laravel new)?")
-	}
-
-	// 4. mkcert CA. Unconditional now that there is no DNS mode to gate it on;
-	// S3.1 replaces it with the ACME issuer.
-	ensureMkcertCA(unattended)
-
-	// mkcert only adds the CA to the browser NSS stores when certutil is
-	// present, and it exits 0 with a warning otherwise (which the discard path
-	// above hides). Surface it ourselves so the user knows HTTPS works for
-	// tooling but not the browser, and how to fix or side-step it.
-	if !certs.BrowserTrustAvailable() {
-		feedback.Note(browserTrustGuidance(ostreeBootedFn()))
 	}
 
 	// 6. Nginx

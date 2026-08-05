@@ -542,7 +542,7 @@
   "system_servlo_updateHint": "Servlo se actualizează rerulând instalatorul său, care are nevoie de un terminal interactiv pentru a putea cere sudo și a afișa progresul descărcării. Apasă mai jos pentru a deschide unul cu comanda de actualizare precompletată sau execută tu însuți {cmd} în orice terminal.",
   "system_tools_title": "Unelte",
   "system_tools_current": "actual",
-  "system_tools_description": "Binare de sine stătătoare pe care servlo le instalează și le administrează: Composer, fnm și mkcert.",
+  "system_tools_description": "Binare de sine stătătoare pe care servlo le instalează și le administrează: Composer și fnm.",
   "system_tools_notInstalled": "neinstalat",
   "system_tools_versionUnknown": "versiune necunoscută",
   "system_tools_updateAvailable": "{version} disponibil",

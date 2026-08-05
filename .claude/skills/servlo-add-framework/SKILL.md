@@ -65,4 +65,4 @@ S0.8 resolves that. Author here anyway; do not assume a droplet sees your change
 - Version the file by major version; keep detection specific enough to pick the
   right one.
 - Production defaults, not development ones. Nothing here may assume a `.test`
-  domain, mkcert, a local resolver or a developer's laptop.
+  domain, a locally trusted CA, a local resolver or a developer's laptop.

@@ -33,10 +33,6 @@ loginctl enable-linger $USER
 
 Rootless podman needs the unified hierarchy to apply resource limits at all. On cgroup v1 a limit is accepted and then silently ignored, which is worse than refusing it: an oversized `npm run build` would run uncapped and let the OOM killer take MySQL down with it.
 
-## Also needed
-
-- **`libnss3-tools`** (for `certutil`): only needed for browser trust of locally issued certificates.
-
 ::: tip Go is only needed to build from source
 The released binary is fully static with no runtime dependencies. You do not need Go installed to use Servlo.
 :::

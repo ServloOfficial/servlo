@@ -14,10 +14,10 @@ func TestNotifyOnToolUpdates_FirstSnapshotIsQuiet(t *testing.T) {
 }
 
 func TestNotifyOnToolUpdates_FiresOnTransitionOnly(t *testing.T) {
-	toolUpdatesPrev = map[string]bool{"composer": false, "mkcert": true}
+	toolUpdatesPrev = map[string]bool{"composer": false, "fnm": true}
 	got := toolUpdateTransitions([]byte(
 		`{"tools":[{"name":"composer","pinned":"2.10.3","present":true,"update_available":true},` +
-			`{"name":"mkcert","pinned":"v1.4.4","present":true,"update_available":true}]}`))
+			`{"name":"fnm","pinned":"v1.39.0","present":true,"update_available":true}]}`))
 	if len(got) != 1 || got[0].name != "composer" {
 		t.Fatalf("expected only the newly-pending tool, got %+v", got)
 	}
@@ -55,7 +55,7 @@ func TestNotificationForToolUpdate_Shape(t *testing.T) {
 	}
 	// Two tools going stale in the same snapshot must not collapse onto one
 	// notification, the way two services do not.
-	if other := notificationForToolUpdate("mkcert", "v1.4.4"); other.Tag == n.Tag {
+	if other := notificationForToolUpdate("fnm", "v1.39.0"); other.Tag == n.Tag {
 		t.Errorf("both tools share the tag %q", n.Tag)
 	}
 }

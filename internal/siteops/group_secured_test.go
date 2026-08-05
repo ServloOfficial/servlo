@@ -9,16 +9,13 @@ import (
 	"github.com/realrashid/servlo/internal/nginx"
 )
 
-// groupSetup stubs the cert/nginx/daemon side effects and forces DNS on, so the
-// invariant can be asserted on registry state alone.
+// groupSetup stubs the cert/nginx/daemon side effects, so the invariant can be
+// asserted on registry state alone.
 func groupSetup(t *testing.T) *secureStubs {
 	t.Helper()
 	stubs := stubSecureDeps(t)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	orig := dnsManagedFn
-	dnsManagedFn = func() bool { return true }
-	t.Cleanup(func() { dnsManagedFn = orig })
 	return stubs
 }
 
@@ -102,23 +99,6 @@ func TestEnforceGroupSecondaries_leavesConsistentGroupsAlone(t *testing.T) {
 				t.Errorf("secondary secured = %v, want %v", got.Secured, c.wantSecuredAfter)
 			}
 		})
-	}
-}
-
-// With DNS off there is no HTTPS at all, so every site is plain HTTP and the
-// wildcard cannot swallow anything. Enforcing would only fail on ErrDNSDisabled.
-func TestEnforceGroupSecondaries_noopWhenDNSDisabled(t *testing.T) {
-	stubs := groupSetup(t)
-	dnsManagedFn = func() bool { return false }
-	mustAdd(t, mainSite("astrolov", true))
-	mustAdd(t, secondarySite("astrolov-2", "astrolov", "blog", false))
-
-	changed, err := EnforceGroupSecondaries()
-	if err != nil {
-		t.Fatalf("EnforceGroupSecondaries: %v", err)
-	}
-	if len(changed) != 0 || stubs.secureCallCount != 0 {
-		t.Errorf("changed=%v secureCalls=%d, want no action with DNS disabled", changed, stubs.secureCallCount)
 	}
 }
 

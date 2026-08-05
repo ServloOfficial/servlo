@@ -9,7 +9,7 @@
 └── servlo-watcher.service
 
 ~/.local/share/servlo/
-├── bin/                             # mkcert, fnm, static PHP binaries
+├── bin/                             # fnm, composer, static PHP binaries
 ├── nginx/
 │   ├── nginx.conf
 │   ├── conf.d/                      # one .conf per site (auto-generated)
