@@ -48,14 +48,14 @@ func downloadBinaries(w io.Writer) error {
 	return nil
 }
 
-// ensurePortForwarding is a no-op on Linux; the system setup pass handles
-// port 80/443 access via the ip_unprivileged_port_start sysctl.
-func ensurePortForwarding() error { return nil }
+// ensurePortForwarding records the port strategy and prints whatever the
+// operator still has to run for it. Named for the call site in install; the
+// decision itself lives in internal/ports.
+func ensurePortForwarding() error { return applyPortStrategy() }
 
 // Seams for the root pass, so tests can drive each precondition and observe the
 // escalation without a real kernel, login manager, or sudo.
 var (
-	unprivPortsNeeded = defaultUnprivPortsNeeded
 	lingerNeeded      = defaultLingerNeeded
 	dnsSudoersReady   = dns.SudoersCurrent
 	recordDNSSudoers  = dns.RecordSudoersForUser
@@ -80,7 +80,7 @@ func defaultSudoSelfRunner(args ...string) error {
 // install where they all already apply must not ask for a password to do
 // nothing, which is the common case on every reinstall and update.
 func systemSetupNeeded(wantDNS bool) bool {
-	if unprivPortsNeeded() || lingerNeeded() {
+	if lingerNeeded() {
 		return true
 	}
 	return wantDNS && !dnsSudoersReady()
@@ -114,9 +114,6 @@ func runSystemSetup(wantDNS bool) error {
 // defaultLegacySystemSetup is the pre-bootstrap path, kept as the fallback for
 // hosts without a usable sudo. Each step prompts on its own.
 func defaultLegacySystemSetup(wantDNS bool) error {
-	if err := ensureUnprivilegedPorts(); err != nil {
-		return err
-	}
 	if err := ensureSystemdLinger(); err != nil {
 		feedback.Warn("%v", err)
 	}

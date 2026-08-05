@@ -8,18 +8,18 @@ import (
 	"testing"
 )
 
-// stubSystemSetup drives the three preflight conditions and captures both the
-// sudo re-exec and the fallback, so the root pass can be exercised without a
-// real kernel, login manager, or sudo.
-func stubSystemSetup(t *testing.T, portsNeeded, lingerOff, sudoersReady bool) (*[][]string, *[]bool) {
+// stubSystemSetup drives the preflight conditions and captures both the sudo
+// re-exec and the fallback, so the root pass can be exercised without a real
+// login manager or sudo. Ports are deliberately absent: they are settled by
+// printing commands rather than by escalating.
+func stubSystemSetup(t *testing.T, lingerOff, sudoersReady bool) (*[][]string, *[]bool) {
 	t.Helper()
-	origPorts, origLinger, origSudoers := unprivPortsNeeded, lingerNeeded, dnsSudoersReady
+	origLinger, origSudoers := lingerNeeded, dnsSudoersReady
 	origRunner, origLegacy, origRecord := sudoSelfRunner, legacySystemSetup, recordDNSSudoers
 	t.Cleanup(func() {
-		unprivPortsNeeded, lingerNeeded, dnsSudoersReady = origPorts, origLinger, origSudoers
+		lingerNeeded, dnsSudoersReady = origLinger, origSudoers
 		sudoSelfRunner, legacySystemSetup, recordDNSSudoers = origRunner, origLegacy, origRecord
 	})
-	unprivPortsNeeded = func() bool { return portsNeeded }
 	lingerNeeded = func() bool { return lingerOff }
 	dnsSudoersReady = func() bool { return sudoersReady }
 	recordDNSSudoers = func(string) {}
@@ -40,7 +40,7 @@ func stubSystemSetup(t *testing.T, portsNeeded, lingerOff, sudoersReady bool) (*
 // The common case is a reinstall where every root step already applies. It must
 // stay completely silent rather than asking for a password to do nothing.
 func TestRunSystemSetupSkipsWhenAlreadyApplied(t *testing.T) {
-	runs, legacy := stubSystemSetup(t, false, false, true)
+	runs, legacy := stubSystemSetup(t, false, true)
 
 	if err := runSystemSetup(true); err != nil {
 		t.Fatalf("runSystemSetup: %v", err)
@@ -53,7 +53,7 @@ func TestRunSystemSetupSkipsWhenAlreadyApplied(t *testing.T) {
 // A localhost-mode install never configures a resolver, so a missing DNS grant
 // is not a reason to ask for root.
 func TestRunSystemSetupIgnoresSudoersWhenDNSUnmanaged(t *testing.T) {
-	runs, _ := stubSystemSetup(t, false, false, false)
+	runs, _ := stubSystemSetup(t, false, false)
 
 	if err := runSystemSetup(false); err != nil {
 		t.Fatalf("runSystemSetup: %v", err)
@@ -64,7 +64,7 @@ func TestRunSystemSetupIgnoresSudoersWhenDNSUnmanaged(t *testing.T) {
 }
 
 func TestRunSystemSetupOneSudoCall(t *testing.T) {
-	runs, legacy := stubSystemSetup(t, true, true, false)
+	runs, legacy := stubSystemSetup(t, true, false)
 
 	if err := runSystemSetup(true); err != nil {
 		t.Fatalf("runSystemSetup: %v", err)
@@ -82,7 +82,7 @@ func TestRunSystemSetupOneSudoCall(t *testing.T) {
 }
 
 func TestRunSystemSetupSkipsSudoersForLocalhostMode(t *testing.T) {
-	runs, _ := stubSystemSetup(t, true, false, false)
+	runs, _ := stubSystemSetup(t, true, false)
 
 	if err := runSystemSetup(false); err != nil {
 		t.Fatalf("runSystemSetup: %v", err)
@@ -100,7 +100,7 @@ func TestRunSystemSetupSkipsSudoersForLocalhostMode(t *testing.T) {
 // the user. Without recording it on this side, every later install would decide
 // the grant is missing and escalate again.
 func TestRunSystemSetupRecordsSudoersMarker(t *testing.T) {
-	stubSystemSetup(t, true, false, false)
+	stubSystemSetup(t, true, false)
 	var recorded []string
 	recordDNSSudoers = func(user string) { recorded = append(recorded, user) }
 
@@ -124,7 +124,7 @@ func TestRunSystemSetupRecordsSudoersMarker(t *testing.T) {
 // No sudo, or a user who cannot use it, must land on the old per-step path
 // rather than failing the install outright.
 func TestRunSystemSetupFallsBackWhenSudoFails(t *testing.T) {
-	_, legacy := stubSystemSetup(t, true, false, false)
+	_, legacy := stubSystemSetup(t, true, false)
 	sudoSelfRunner = func(...string) error { return errors.New("sudo: command not found") }
 
 	if err := runSystemSetup(true); err != nil {
@@ -132,5 +132,17 @@ func TestRunSystemSetupFallsBackWhenSudoFails(t *testing.T) {
 	}
 	if len(*legacy) != 1 || !(*legacy)[0] {
 		t.Errorf("fallback runs = %v, want one call with DNS managed", *legacy)
+	}
+}
+
+// The port strategy is applied by printing commands, not by escalating, so a
+// host that only needs the sysctl lowered must not trigger the sudo pass. This
+// is the S1.2 half of "prints the sudo command rather than running it": if the
+// port step could still drag root in, printing would be theatre.
+func TestSystemSetupIgnoresPorts(t *testing.T) {
+	stubSystemSetup(t, false, true)
+
+	if systemSetupNeeded(true) {
+		t.Error("systemSetupNeeded = true with only the port strategy outstanding")
 	}
 }

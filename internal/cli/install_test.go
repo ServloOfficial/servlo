@@ -91,8 +91,11 @@ func TestPortPreflightConflicts(t *testing.T) {
 	})
 }
 
+// It records the port strategy, so it writes config and has to be isolated.
 func TestEnsurePortForwarding(t *testing.T) {
-	// Should not error on any platform
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
 	if err := ensurePortForwarding(); err != nil {
 		t.Errorf("ensurePortForwarding error: %v", err)
 	}

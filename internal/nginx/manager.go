@@ -1431,5 +1431,7 @@ func RewriteNginxQuadlet() (changed bool, err error) {
 	// directory outside $HOME must have its Volume= line re-injected here, the
 	// same way RewriteFPMQuadlets does, or nginx restarts without the docroot.
 	content = podman.InjectExtraVolumes(content, podman.ExtraVolumePaths())
+	httpPort, httpsPort := podman.ConfiguredHostPorts()
+	content = podman.ApplyHostPorts(content, httpPort, httpsPort)
 	return podman.WriteQuadletDiff("servlo-nginx", content)
 }

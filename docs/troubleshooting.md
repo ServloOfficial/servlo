@@ -234,15 +234,16 @@ The mount comes back on its own once the directory is there again and you run an
 :::
 
 ::: details Permission denied on port 80/443
-Rootless Podman cannot bind to ports below 1024 by default. Allow it:
+Rootless Podman cannot bind to ports below 1024 by default. `servlo install` prints the commands that fix it and records which strategy applies, but it never runs them for you, so this is what you see if they were never run or a kernel update reset the sysctl.
 
 ```bash
 sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80
-# Make permanent:
-echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/99-servlo.conf
+sudo sh -c 'echo net.ipv4.ip_unprivileged_port_start=80 > /etc/sysctl.d/99-servlo-ports.conf'
 ```
 
-`servlo install` sets this automatically, but it may need to be re-applied after a kernel update.
+Both lines matter: the first takes effect now and is lost at reboot, the second survives a reboot and does nothing until one.
+
+`servlo doctor` re-checks this on every run. If your kernel does not expose `ip_unprivileged_port_start` at all, servlo picks the nftables strategy instead and prints a different set of commands; see [Port binding](/reference/architecture#port-binding).
 :::
 
 ::: details Watcher service not running

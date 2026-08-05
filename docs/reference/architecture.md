@@ -54,7 +54,17 @@ On Linux, servlo requires systemd. Every container runs as a Podman Quadlet (sys
 
 ## Key design decisions
 
-**Rootless Podman**: all containers run without root privileges. The only operations requiring `sudo` are DNS setup (configures NetworkManager or systemd-resolved to route `.test` queries) and the initial `net.ipv4.ip_unprivileged_port_start=80` sysctl. Both are applied by `servlo bootstrap`, which the install re-executes once under `sudo` on Linux and a package maintainer script calls directly as root.
+**Rootless Podman**: all containers run without root privileges, and servlo keeps no root process at all. Where a step genuinely needs privilege, servlo prints the exact command and leaves running it to you.
+
+### Port binding
+
+Rootless podman cannot publish a privileged port, so nginx reaches 80 and 443 one of two ways. Which one applies is decided at install and recorded under `ports.strategy` in `~/.config/servlo/config.yaml`, together with the nginx ports it implies, so `servlo doctor` checks the same thing later instead of guessing.
+
+**`sysctl`**, the default. `net.ipv4.ip_unprivileged_port_start` is lowered to 80, and nginx publishes 80 and 443 directly. 80 rather than 0: it is the lowest value that admits both ports while leaving ssh, smtp and the rest of the low range privileged.
+
+**`nftables`**, the fallback for a kernel that does not expose that sysctl. nginx publishes 8080 and 8443, and nftables redirects 80 and 443 into them. The rules live in `/etc/nftables.d/servlo-ports.conf`, included from `/etc/nftables.conf` so `nftables.service` restores them at boot. Both a prerouting and an output chain are needed: traffic the server originates to its own site never passes prerouting, so without the output chain a local request to port 80 reaches nothing.
+
+Servlo never applies either one itself. The install prints the commands, and a server that has not had them run yet installs fine and simply does not serve on 80 until it does.
 
 **Dual-stack networking**: the servlo podman bridge is created with both an IPv4 and an IPv6 ULA subnet (`fd00:1e7d::/64`) when the host has a usable IPv6 address (anything outside `::1` and `fe80::/10`). On hosts that advertise IPv6 in the kernel but have no routable v6 on any interface, typical in headless QEMU/KVM VMs, containers, and networks without v6 DHCP, netavark can't reliably hold the ULA gateway on the rootless bridge, so aardvark-dns fails to bind `[fd00:1e7d::1]:53` and service containers exit on start. Servlo detects this by reading `/proc/net/if_inet6` and `/proc/sys/net/ipv6/conf/all/disable_ipv6`, and when no usable v6 is present the `servlo` network is created v4-only instead. Existing networks whose schema doesn't match the current host (dual-stack on a v6-less host, or v4-only on a host that now has v6) are recreated in place on the next `servlo install`: attached containers stop, the network is recreated with the right schema, the previous `network_dns_servers` list is restored, and the containers restart. When dual-stack is in use, nginx vhosts listen on `0.0.0.0` and `[::]`, servlo-dns answers AAAA records for `*.test` (`::1` locally, the host's primary global v6 when `servlo lan:expose on`), and every managed `PublishPort` in service quadlets is paired (a `127.0.0.1:5432` bind also gets a `[::1]:5432`). To opt out, set an explicit subnet via `podman network create` before `servlo install` runs, or override the `servlo-*` quadlets to remove the `[::]` / `[::1]` lines before they're written.
 

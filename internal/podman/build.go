@@ -885,6 +885,8 @@ func RewriteFPMQuadlets() error {
 	// Also rewrite nginx quadlet with the same extra volumes.
 	if nginxContent, err := GetQuadletTemplate("servlo-nginx.container"); err == nil {
 		nginxContent = InjectExtraVolumes(nginxContent, extraPaths)
+		httpPort, httpsPort := ConfiguredHostPorts()
+		nginxContent = ApplyHostPorts(nginxContent, httpPort, httpsPort)
 		if changed, err := WriteQuadletDiff("servlo-nginx", nginxContent); err == nil {
 			if changed || UnitMissingMounts("servlo-nginx", extraPaths) {
 				changedUnits = append(changedUnits, "servlo-nginx")

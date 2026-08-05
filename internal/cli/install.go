@@ -19,6 +19,7 @@ import (
 	nodeDet "github.com/realrashid/servlo/internal/node"
 	phpDet "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/ports"
 	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/realrashid/servlo/internal/services"
 	"github.com/realrashid/servlo/internal/shims"
@@ -1161,23 +1162,6 @@ func currentUserName() string {
 	return os.Getenv("LOGNAME")
 }
 
-// unprivilegedPortStart reads the sysctl gating rootless binds of 80/443. ok is
-// false on a kernel that does not expose it, where there is nothing to set.
-func unprivilegedPortStart() (int, bool) {
-	data, err := os.ReadFile("/proc/sys/net/ipv4/ip_unprivileged_port_start")
-	if err != nil {
-		return 0, false
-	}
-	val := 1024
-	fmt.Sscanf(strings.TrimSpace(string(data)), "%d", &val)
-	return val, true
-}
-
-func defaultUnprivPortsNeeded() bool {
-	val, available := unprivilegedPortStart()
-	return available && val > 80
-}
-
 // defaultLingerNeeded acts only on a clear "Linger=no". A missing or
 // unparseable loginctl reads as nothing to do rather than as a failure.
 func defaultLingerNeeded() bool {
@@ -1195,33 +1179,41 @@ func defaultLingerNeeded() bool {
 	return strings.Contains(string(out), "Linger=no")
 }
 
-// ensureUnprivilegedPorts checks net.ipv4.ip_unprivileged_port_start and
-// offers to set it to 80 so rootless Podman can bind to ports 80 and 443.
-func ensureUnprivilegedPorts() error {
-	val, available := unprivilegedPortStart()
-	if !available || val <= 80 {
+// applyPortStrategy decides how nginx will reach 80 and 443 on this host,
+// records the choice with the ports it implies, and prints what the operator
+// has to run. It never runs any of it: acquiring privilege behind the
+// operator's back is what the no-root-process design exists to avoid, so the
+// commands are output, not actions.
+//
+// It does not fail the install when the host is not ready. The rest of the
+// install is per-user and correct either way, and refusing here would leave the
+// operator with a half-configured machine and a command to run anyway. servlo
+// doctor re-checks the recorded strategy on every run.
+func applyPortStrategy() error {
+	plan := ports.Detect()
+
+	if cfg, err := config.LoadGlobal(); err == nil && cfg != nil {
+		cfg.SetPortStrategy(string(plan.Strategy), plan.HTTPPort, plan.HTTPSPort)
+		if err := config.SaveGlobal(cfg); err != nil {
+			return fmt.Errorf("recording the port strategy: %w", err)
+		}
+	}
+
+	if plan.Satisfied {
+		feedback.Note("ports: " + plan.Reason)
 		return nil
 	}
 
-	feedback.Warn("port 80/443 require net.ipv4.ip_unprivileged_port_start ≤ 80 (current: %d)", val)
-	feedback.Note("this is needed for rootless Podman to run Nginx on standard HTTP/HTTPS ports")
-
-	step("setting net.ipv4.ip_unprivileged_port_start=80")
+	feedback.Warn("nginx cannot bind 80 and 443 yet")
+	feedback.Note(plan.Reason)
 	fmt.Println()
-	cmds := [][]string{
-		{"sudo", "sysctl", "-w", "net.ipv4.ip_unprivileged_port_start=80"},
-		{"sudo", "sh", "-c", "echo 'net.ipv4.ip_unprivileged_port_start=80' > /etc/sysctl.d/99-servlo-ports.conf"},
+	feedback.Note("run these once, as a user who can sudo:")
+	fmt.Println()
+	for _, c := range plan.Commands {
+		fmt.Println("  " + c)
 	}
-	for _, args := range cmds {
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("setting unprivileged port start: %w", err)
-		}
-	}
-	ok()
+	fmt.Println()
+	feedback.Note("'servlo doctor' re-checks this, so you can run them after the install finishes")
 	return nil
 }
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/realrashid/servlo/internal/config"
 )
 
 //go:embed quadlets
@@ -158,6 +160,42 @@ func SetHostPortForContainerPort(ports []string, containerPort, hostPort int) []
 		return out
 	}
 	return ports
+}
+
+// ApplyHostPorts rewrites the host side of every PublishPort line whose
+// container side is 80 or 443. Under the nftables strategy nginx must not hold
+// the privileged ports itself, because those are the ports the redirect is
+// aimed at: nginx binding 80 there would swallow the traffic before the DNAT
+// could send it to 8080. Container ports are left alone, since nginx inside
+// always listens on 80 and 443.
+func ApplyHostPorts(content string, http, https int) string {
+	if http <= 0 || https <= 0 {
+		return content
+	}
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "PublishPort=") {
+			continue
+		}
+		value := strings.TrimPrefix(trimmed, "PublishPort=")
+		segs := strings.Split(value, ":")
+		if len(segs) < 2 {
+			continue
+		}
+		container := segs[len(segs)-1]
+		hostIdx := len(segs) - 2
+		switch container {
+		case "80":
+			segs[hostIdx] = strconv.Itoa(http)
+		case "443":
+			segs[hostIdx] = strconv.Itoa(https)
+		default:
+			continue
+		}
+		lines[i] = "PublishPort=" + strings.Join(segs, ":")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // ApplyExtraPorts appends extra PublishPort lines to quadlet content.
@@ -410,4 +448,17 @@ func PairIPv6Binds(content string) string {
 		}
 	}
 	return strings.Join(out, "\n")
+}
+
+// ConfiguredHostPorts reports the host ports nginx should publish, from the
+// strategy recorded at install. Zeroes when nothing is recorded, which
+// ApplyHostPorts treats as "leave the template alone" — the template already
+// carries 80 and 443, the strategy every install used before the choice was
+// written down.
+func ConfiguredHostPorts() (http, https int) {
+	cfg, err := config.LoadGlobal()
+	if err != nil || cfg == nil {
+		return 0, 0
+	}
+	return cfg.Nginx.HTTPPort, cfg.Nginx.HTTPSPort
 }

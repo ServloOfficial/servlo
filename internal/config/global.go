@@ -108,6 +108,13 @@ type GlobalConfig struct {
 		// $NVM_DIR. Empty means fall back to $NVM_DIR or ~/.nvm.
 		NvmDir string `yaml:"nvm_dir,omitempty" mapstructure:"nvm_dir"`
 	} `yaml:"node" mapstructure:"node"`
+	// Ports records how this host gives nginx the privileged ports: "sysctl"
+	// when ip_unprivileged_port_start was lowered, "nftables" when 80 and 443
+	// are redirected into the high ports instead. Recorded at install so doctor
+	// can check the same thing later rather than guessing which one applied.
+	Ports struct {
+		Strategy string `yaml:"strategy,omitempty" mapstructure:"strategy"`
+	} `yaml:"ports,omitempty" mapstructure:"ports"`
 	Nginx struct {
 		HTTPPort  int `yaml:"http_port"  mapstructure:"http_port"`
 		HTTPSPort int `yaml:"https_port" mapstructure:"https_port"`
@@ -915,6 +922,21 @@ func (c *GlobalConfig) SetNodeManager(manager string) {
 }
 
 // NodeNvmDir returns the persisted nvm install directory, or empty when unset.
+// PortStrategy is the recorded way this host reaches 80 and 443. Empty means a
+// config written before the choice was recorded, which was always the sysctl.
+func (c *GlobalConfig) PortStrategy() string {
+	return c.Ports.Strategy
+}
+
+// SetPortStrategy records the choice, together with the nginx ports it implies,
+// so the two can never disagree: nginx binding 80 under an nftables redirect
+// would take the port the redirect is aimed at.
+func (c *GlobalConfig) SetPortStrategy(strategy string, httpPort, httpsPort int) {
+	c.Ports.Strategy = strategy
+	c.Nginx.HTTPPort = httpPort
+	c.Nginx.HTTPSPort = httpsPort
+}
+
 func (c *GlobalConfig) NodeNvmDir() string {
 	return c.Node.NvmDir
 }
