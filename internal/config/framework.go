@@ -980,16 +980,10 @@ func GetFrameworkForDir(name, projectDir string) (*Framework, bool) {
 		base = loadFrameworkYAML(versionedPath)
 	}
 
-	// 3. Auto-fetch from the store: either the file is missing, or it's older
-	//    than 24 hours and may have been updated upstream.
+	// 3. Fetch from the store when there is nothing on disk, or when the
+	//    operator has opted into refreshing what is.
 	if version != "" && frameworkFetchHook != nil {
-		shouldFetch := base == nil
-		if !shouldFetch && versionedPath != "" {
-			if info, err := os.Stat(versionedPath); err == nil {
-				shouldFetch = time.Since(info.ModTime()) > 24*time.Hour
-			}
-		}
-		if shouldFetch {
+		if shouldRefetchDefinition(base != nil, storeAutoRefresh()) {
 			if fetched, err := frameworkFetchHook(name, version); err == nil && fetched != nil {
 				base = fetched
 			}
@@ -2148,4 +2142,20 @@ func ComposerHasPackage(dir, pkg string, extraSections ...string) bool {
 		}
 	}
 	return false
+}
+
+// shouldRefetchDefinition decides whether to go to the store for a definition.
+// A definition that is not on disk is always fetched: there is nothing to pin
+// and nothing to serve. One that is on disk is left alone unless the operator
+// asked for refreshes, because it carries the commands every site on that
+// framework runs on deploy, and replacing it on a timer changes them under a
+// site nobody touched.
+func shouldRefetchDefinition(onDisk, autoRefresh bool) bool {
+	return !onDisk || autoRefresh
+}
+
+// storeAutoRefresh reads the opt-in, treating an unreadable config as pinned.
+func storeAutoRefresh() bool {
+	cfg, err := LoadGlobal()
+	return err == nil && cfg != nil && cfg.StoreAutoRefresh()
 }

@@ -146,3 +146,40 @@ func TestAppStore_IndexExistsAndIsEmpty(t *testing.T) {
 		t.Fatalf("parsing app index: %v", err)
 	}
 }
+
+// A digest that has drifted from the file it names is worse than no digest: it
+// fails every fetch of a definition that is perfectly fine. This is what keeps
+// the two in step, and what tells a contributor who edited a YAML that the
+// index needs regenerating.
+func TestFrameworkStore_DigestsMatchTheFilesTheyName(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join(storesDir, "frameworks", "index.json"))
+	if err != nil {
+		t.Fatalf("reading framework index: %v", err)
+	}
+	var idx Index
+	if err := json.Unmarshal(data, &idx); err != nil {
+		t.Fatalf("parsing framework index: %v", err)
+	}
+
+	var checked int
+	for _, entry := range idx.Frameworks {
+		for _, v := range entry.Versions {
+			digest := entry.DigestFor(v)
+			if digest == "" {
+				t.Errorf("%s@%s: no digest in the index, so a fetch of it is unverified", entry.Name, v)
+				continue
+			}
+			body, err := os.ReadFile(filepath.Join(storesDir, "frameworks", entry.Name, v+".yaml"))
+			if err != nil {
+				continue // the missing-file case is already reported above
+			}
+			if err := verifyDigest(body, digest, entry.Name+"/"+v+".yaml"); err != nil {
+				t.Errorf("%v\n\tregenerate the index digests after editing a definition", err)
+			}
+			checked++
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no digests were checked, so this test proves nothing")
+	}
+}

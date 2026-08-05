@@ -3,92 +3,195 @@
     {
       "name": "laravel",
       "label": "Laravel",
-      "versions": ["13", "12", "11", "10"],
+      "versions": [
+        "13",
+        "12",
+        "11",
+        "10"
+      ],
       "latest": "13",
       "detect": [
-        {"file": "artisan"},
-        {"composer": "laravel/framework"}
-      ]
+        {
+          "file": "artisan"
+        },
+        {
+          "composer": "laravel/framework"
+        }
+      ],
+      "digests": {
+        "13": "sha256:981aa699e5786f026adbc20bc01ca8e377d38e440723bac5d35f7437b53f1e5a",
+        "12": "sha256:2106163596d4cef8dffb6b3160921ea46b1e7f51d688841a60e7ad9e466fa2d8",
+        "11": "sha256:836cd7c3450380276d6bfb2c8100da8127d5591da53fe88a496c9d7a87fd1a9e",
+        "10": "sha256:b2d6b0c3587f5f2f6e33af0055809532dcf6d8cf32dfe6be42f40215a8b8ab81"
+      }
     },
     {
       "name": "symfony",
       "label": "Symfony",
-      "versions": ["8", "7"],
+      "versions": [
+        "8",
+        "7"
+      ],
       "latest": "8",
       "detect": [
-        {"file": "symfony.lock"},
-        {"composer": "symfony/framework-bundle", "composer_sections": ["flex-require"], "version_key": "extra.symfony.require"}
-      ]
+        {
+          "file": "symfony.lock"
+        },
+        {
+          "composer": "symfony/framework-bundle",
+          "composer_sections": [
+            "flex-require"
+          ],
+          "version_key": "extra.symfony.require"
+        }
+      ],
+      "digests": {
+        "8": "sha256:0e83d6c0d8e4d31825f81d9e8018d67c388b807117e7087f13744d7e72e16ab5",
+        "7": "sha256:65153e32d3e2d2528fefaf1248f9e6e5da9b6da3caeeb6f8523b6aa3686a5b48"
+      }
     },
     {
       "name": "wordpress",
       "label": "WordPress",
-      "versions": ["6", "5"],
+      "versions": [
+        "6",
+        "5"
+      ],
       "latest": "6",
       "detect": [
-        {"file": "wp-login.php", "version_file": "wp-includes/version.php", "version_pattern": "\\$wp_version\\s*=\\s*'([^']+)'"},
-        {"file": "wp-config.php"}
-      ]
+        {
+          "file": "wp-login.php",
+          "version_file": "wp-includes/version.php",
+          "version_pattern": "\\$wp_version\\s*=\\s*'([^']+)'"
+        },
+        {
+          "file": "wp-config.php"
+        }
+      ],
+      "digests": {
+        "6": "sha256:fe35bc904e4bf4e2e6f4b45e7f5c95938815e034ebb3f40359c884698634a77f",
+        "5": "sha256:bb8eda3f5c93cc2b4a3aee007d07b7520f011af00315b52283b6101b702fd769"
+      }
     },
     {
       "name": "drupal",
       "label": "Drupal",
-      "versions": ["11", "10"],
+      "versions": [
+        "11",
+        "10"
+      ],
       "latest": "11",
       "detect": [
-        {"composer": "drupal/core-recommended"},
-        {"composer": "drupal/core"}
-      ]
+        {
+          "composer": "drupal/core-recommended"
+        },
+        {
+          "composer": "drupal/core"
+        }
+      ],
+      "digests": {
+        "11": "sha256:f63563d4416cc6af12cf155df322b08966f18f69f3965c394bfecf61ea803692",
+        "10": "sha256:18b846db48e016ca38889e635dc7cd50889c8132fdb451206e80a23d96d48365"
+      }
     },
     {
       "name": "cakephp",
       "label": "CakePHP",
-      "versions": ["5", "4"],
+      "versions": [
+        "5",
+        "4"
+      ],
       "latest": "5",
       "detect": [
-        {"file": "bin/cake"},
-        {"composer": "cakephp/cakephp"}
-      ]
+        {
+          "file": "bin/cake"
+        },
+        {
+          "composer": "cakephp/cakephp"
+        }
+      ],
+      "digests": {
+        "5": "sha256:113d28bdf3f36ea785c57e239dd67b568e18ba45bc8cfa4abc48b4fe009cb469",
+        "4": "sha256:6959851ac5be2d741f067f5553e13fdc19fb71943fe70be2b7ff77e1aa466dda"
+      }
     },
     {
       "name": "codeigniter",
       "label": "CodeIgniter",
-      "versions": ["4"],
+      "versions": [
+        "4"
+      ],
       "latest": "4",
       "detect": [
-        {"file": "spark"},
-        {"composer": "codeigniter4/framework"}
-      ]
+        {
+          "file": "spark"
+        },
+        {
+          "composer": "codeigniter4/framework"
+        }
+      ],
+      "digests": {
+        "4": "sha256:9a7274ab74b2998ff5fe30db80c9de40f8ecc5c9708feb61599e960cc3bb1e07"
+      }
     },
     {
       "name": "statamic",
       "label": "Statamic",
-      "versions": ["6", "5"],
+      "versions": [
+        "6",
+        "5"
+      ],
       "latest": "6",
       "detect": [
-        {"composer": "statamic/cms"}
-      ]
+        {
+          "composer": "statamic/cms"
+        }
+      ],
+      "digests": {
+        "6": "sha256:52910cec5e70a2fc4871af5833f42014abfd756d937405d6befc1dbe24efc53a",
+        "5": "sha256:0df0c7184aa121f50b3a44a5a053f2e5f1928cc5d979e3c6a3eccf87192efe2b"
+      }
     },
     {
       "name": "magento",
       "label": "Magento",
-      "versions": ["2"],
+      "versions": [
+        "2"
+      ],
       "latest": "2",
       "detect": [
-        {"file": "bin/magento"},
-        {"composer": "magento/product-community-edition"},
-        {"composer": "magento/product-enterprise-edition"}
-      ]
+        {
+          "file": "bin/magento"
+        },
+        {
+          "composer": "magento/product-community-edition"
+        },
+        {
+          "composer": "magento/product-enterprise-edition"
+        }
+      ],
+      "digests": {
+        "2": "sha256:ab8d7cb606e7757d0f2f974403a6d174f95d8839f551a159386bee94d9f2f667"
+      }
     },
     {
       "name": "tempest",
       "label": "Tempest",
-      "versions": ["3"],
+      "versions": [
+        "3"
+      ],
       "latest": "3",
       "detect": [
-        {"composer": "tempest/framework"},
-        {"file": "tempest"}
-      ]
+        {
+          "composer": "tempest/framework"
+        },
+        {
+          "file": "tempest"
+        }
+      ],
+      "digests": {
+        "3": "sha256:d453bdb263fc9a72f0fee0c3e2e19e93f626f2659ee3919ca963349b9e083310"
+      }
     }
   ]
 }

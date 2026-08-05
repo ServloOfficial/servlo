@@ -48,6 +48,10 @@ type IndexEntry struct {
 	Versions []string               `json:"versions"`
 	Latest   string                 `json:"latest"`
 	Detect   []config.FrameworkRule `json:"detect"`
+	// Digests maps a version to the sha256 of its YAML, so a fetched definition
+	// can be checked before it is parsed. Absent for definitions published
+	// before digests existed; see integrity.go for what the check covers.
+	Digests map[string]string `json:"digests,omitempty"`
 }
 
 func init() {
@@ -155,14 +159,16 @@ func writeCachedIndex(data []byte) {
 	}
 }
 
-// FetchFramework downloads a framework definition from the store.
-// Always fetches from remote to ensure definitions are up to date.
+// FetchFramework downloads a framework definition from the store. Always
+// fetches from remote so definitions stay up to date, and always checks the
+// body against the digest the index records before parsing it: the definition
+// carries the commands servlo will run, so it is verified before it is read,
+// not after.
 func (c *Client) FetchFramework(name, version string) (*config.Framework, error) {
+	idx, idxErr := c.FetchIndex()
 	if version == "" {
-		// Resolve latest from index
-		idx, err := c.FetchIndex()
-		if err != nil {
-			return nil, err
+		if idxErr != nil {
+			return nil, idxErr
 		}
 		entry, ok := c.findEntry(idx, name)
 		if !ok {
@@ -175,6 +181,16 @@ func (c *Client) FetchFramework(name, version string) (*config.Framework, error)
 	data, err := c.fetch(remotePath)
 	if err != nil {
 		return nil, fmt.Errorf("fetching %s@%s: %w", name, version, err)
+	}
+	// An unreachable index leaves nothing to check against. That is the offline
+	// case, where the fetch above came from the embedded copy, which no network
+	// party can influence.
+	if idxErr == nil {
+		if entry, ok := c.findEntry(idx, name); ok {
+			if err := verifyDigest(data, entry.DigestFor(version), remotePath); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	var fw config.Framework

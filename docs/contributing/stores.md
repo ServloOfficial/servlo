@@ -38,6 +38,47 @@ repository.
 override the fetch base (comma-separated for several), for a mirror or a test
 rig. The embedded fallback still applies underneath.
 
+## Pinning
+
+A definition already on disk is **not** re-fetched. It carries the deploy
+commands and the worker set for every site on that framework, so replacing it on
+a timer would change what the next deploy runs on a site nobody touched. A
+definition that is missing is always fetched, since there is nothing to pin and
+nothing to serve.
+
+To move a pinned install forward, opt in:
+
+```yaml
+stores:
+  auto_refresh: true
+```
+
+## What integrity checking covers, and what it does not
+
+`index.json` records a `sha256` for every definition it lists, and a fetched
+body that does not match is refused before it reaches the parser. That matters
+because a framework definition is not inert data: it declares the commands
+servlo runs on deploy and the images it starts, so a swapped one is code
+execution on the droplet.
+
+This is **integrity, not authenticity**. It detects a definition that was
+changed independently of the index: a broken mirror, a truncated download, a
+tampered file behind a `SERVLO_STORE_BASE_URL` override. It does **not** defend
+against someone who controls the index itself, because they would publish a
+matching digest alongside the swapped file.
+
+Closing that gap needs a signature over the index, made with a key servlo does
+not hold and cannot rotate on the maintainer's behalf. A key committed to this
+repository would sign nothing meaningful, so none is claimed; `verifyDigest` in
+`internal/store/integrity.go` is the seam a real signature check would slot
+into. Until then the strongest guarantee is the embedded copy: every binary
+carries the definitions it shipped with, compiled in, and no fetch can replace
+them.
+
+**Regenerate the digests whenever you edit a definition.** `go test
+./internal/store/` fails when a digest and its file have drifted apart, which is
+the reminder.
+
 ## Adding or changing a definition
 
 1. Write the YAML. Copy the closest existing file; those files are the schema of

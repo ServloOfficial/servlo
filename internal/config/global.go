@@ -108,6 +108,16 @@ type GlobalConfig struct {
 		// $NVM_DIR. Empty means fall back to $NVM_DIR or ~/.nvm.
 		NvmDir string `yaml:"nvm_dir,omitempty" mapstructure:"nvm_dir"`
 	} `yaml:"node" mapstructure:"node"`
+	// Stores controls how store definitions reach this install.
+	Stores struct {
+		// AutoRefresh re-fetches a definition servlo already has whenever it is
+		// more than a day old. Off by default: a definition carries the deploy
+		// commands and the worker set for every site using it, so refreshing it
+		// silently changes what the next deploy runs on a site nobody touched.
+		// A missing definition is always fetched regardless; this governs
+		// replacing one that is already on disk.
+		AutoRefresh *bool `yaml:"auto_refresh,omitempty" mapstructure:"auto_refresh"`
+	} `yaml:"stores,omitempty" mapstructure:"stores"`
 	// Ports records how this host gives nginx the privileged ports: "sysctl"
 	// when ip_unprivileged_port_start was lowered, "nftables" when 80 and 443
 	// are redirected into the high ports instead. Recorded at install so doctor
@@ -920,6 +930,13 @@ func (c *GlobalConfig) SetNodeManager(manager string) {
 // NodeNvmDir returns the persisted nvm install directory, or empty when unset.
 // PortStrategy is the recorded way this host reaches 80 and 443. Empty means a
 // config written before the choice was recorded, which was always the sysctl.
+// StoreAutoRefresh reports whether definitions already on disk are re-fetched.
+// Absent means pinned, which is the safe reading for a config written before
+// the setting existed.
+func (c *GlobalConfig) StoreAutoRefresh() bool {
+	return c.Stores.AutoRefresh != nil && *c.Stores.AutoRefresh
+}
+
 func (c *GlobalConfig) PortStrategy() string {
 	return c.Ports.Strategy
 }

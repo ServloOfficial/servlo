@@ -42,8 +42,9 @@ Tinker REPL, container shell, SPX profiler, dump bridge, Xdebug toggles, browser
 *Done when:* a project declaring an inline service is linked without it and the operator is told why; only reviewed store presets can run a container. **S**
 
 **S0.8 — Bring the stores in-repo, and solve serving them.**
-*Done when:* `stores/frameworks/`, `stores/services/` and `stores/apps/` exist in this repository, mirroring upstream's subdir layout so `internal/origin/origin.go` needs only new base URLs; versions are pinned in config; manifest signatures are verified before use; the promotion process is documented.
-**Blocked on a decision, and the story is not done until it is made.** An installed binary on a droplet fetches stores over `raw.githubusercontent.com`, which returns 404 for a private repository unless the request carries a token. So authoring the stores here does not by itself make them reachable. The two exits are a separate public store repository, or this repository becoming public. Until one is chosen, the runtime fetch stays pointed at the public `lerd-env/frameworks` and `lerd-env/services`, and that fallback must be visible in config rather than silent. **L**
+*Done when:* `stores/frameworks/`, `stores/services/` and `stores/apps/` exist in this repository, mirroring upstream's subdir layout so `internal/origin/origin.go` needs only new base URLs; versions are pinned in config; definitions are verified before use; the promotion process is documented. **L**
+The serving question is settled by embedding: `stores/stores.go` compiles the whole tree into the binary, so a fresh install never depends on the repository being reachable or public, and the fetch is the update path rather than the only way in.
+Verification is by sha256 digests recorded in each index, not by signature. A signature is worth what the key ceremony behind it is, and a key committed to this repository would sign nothing; digests catch a definition changed independently of the index, which is the case a mirror or a `SERVLO_STORE_BASE_URL` override creates, and `verifyDigest` is the seam a signature check would slot into if the project ever holds a key.
 
 **S0.9 — CI on Ubuntu 24.04.**
 *Done when:* build, unit tests, installer tests and the surface scan all run on a real 24.04 VM rather than a container. **M**
