@@ -2,10 +2,10 @@
 
 Servlo issues certificates through a certificate issuer, an interface with one job: mint a certificate and key for a set of domains. Everything around it is issuer-agnostic, so switching issuers changes nothing about renewal, the atomic swap or the nginx reload.
 
+The issuer that ships is Let's Encrypt over HTTP-01. Servlo asks the authority for a certificate, the authority fetches a token from your site over port 80 to prove you control the domain, and the certificate comes back.
+
 > [!IMPORTANT]
-> There is no issuer wired up yet. `servlo secure` refuses and tells you so. ACME (Let's Encrypt) arrives in S3.2, and until then a site is served over plain http.
->
-> The local CA Servlo inherited from upstream is gone. A locally trusted CA is meaningless on a real domain: only the machine that generated it trusts it, so every visitor gets a warning. Servlo does not fall back to a self-signed certificate either, because to a browser a self-signed certificate on a real domain is indistinguishable from someone intercepting the connection, and shipping one would teach you to click through the warning that exists to protect you.
+> The domain has to resolve to this server before any of that can work. HTTP-01 validation is the authority connecting to your public address on port 80; if DNS points somewhere else, or a firewall drops the connection, issuance fails no matter how the panel is configured.
 
 ```bash
 cd /srv/my-app
@@ -23,6 +23,47 @@ servlo unsecure
 HTTPS can also be enabled during `servlo init` or `servlo setup`, the wizard asks the question upfront and applies it as part of the configuration step.
 
 Certificates are stored in `~/.local/share/servlo/certs/sites/`. Private keys are written `0600` and Servlo enforces that mode on every issuance rather than trusting the issuer to have got it right.
+
+---
+
+## The challenge path
+
+Every vhost Servlo writes, HTTP and HTTPS alike, answers `/.well-known/acme-challenge/`. The location uses nginx's `^~` prefix match so it wins over any regex location a framework declares, and on a secured site it sits ahead of the HTTPS redirect: a renewal request that got bounced to port 443 would be a renewal that quietly stops working the day the certificate needs it most.
+
+The tokens themselves live in `~/.local/share/servlo/acme-challenge/`, bind-mounted read-only into the nginx container. They are written just before validation and removed straight after, whether it succeeded or not.
+
+---
+
+## Staging first
+
+Let's Encrypt's production rate limits are strict: five failed validations for the same domain locks you out of retrying it for an hour, and there are weekly caps on top. A DNS record that has not propagated yet burns those attempts for nothing.
+
+Staging issues from an untrusted root, so browsers reject the certificate, but the limits are generous enough to work a problem out:
+
+```bash
+servlo secure --staging
+# ... fix DNS, retry until it issues ...
+servlo secure --staging=false
+```
+
+The flag records the authority for the whole install rather than overriding one run. That is deliberate: if issuance used staging and renewal used production, the certificate you just tested with would be silently replaced at the 30-day mark, spending the production quota the staging run existed to protect.
+
+---
+
+## Contact email
+
+```yaml
+certs:
+  email: ops@example.com
+```
+
+Optional, and the only way the authority can tell you a renewal has been failing before the certificate actually lapses. `servlo doctor` warns when it is unset.
+
+---
+
+## A private ACME server
+
+`certs.directory_url` points Servlo at any RFC 8555 authority. An explicit directory wins over the staging flag, so setting one does not need the flag turned off first.
 
 ---
 
@@ -59,7 +100,8 @@ If a Stripe webhook listener is running for the site, toggling HTTPS automatical
 ## How it works
 
 1. `servlo secure <site>` asks the active issuer for a certificate covering the site's primary domain and every alias. What SANs that implies is the issuer's decision: a CA can mint wildcards for free, an ACME authority cannot over HTTP-01.
-2. The certificate and key are swapped into place atomically, keeping a complete certificate at the live path at every instant.
-3. The nginx vhost is regenerated to listen on port 443 with the new cert, and port 80 redirects to HTTPS (302, not 301, so the redirect is not cached by browsers).
-4. `APP_URL` in the project's `.env` is updated to `https://`.
-5. If a `servlo stripe:listen` service is active for the site, it is restarted with the updated forwarding URL.
+2. The issuer registers an ACME account on first use, keyed to the authority so staging and production never share one, and stores the key `0600` under `~/.local/share/servlo/acme/`. It publishes a token per domain, waits for validation, then sends a CSR and receives the chain.
+3. The certificate and key are swapped into place atomically, keeping a complete certificate at the live path at every instant. A fresh key is generated for every issuance rather than reused: a renewal that keeps the old key gains nothing and means one compromise covers every certificate the site has ever had.
+4. The nginx vhost is regenerated to listen on port 443 with the new cert, and port 80 redirects to HTTPS (302, not 301, so the redirect is not cached by browsers).
+5. `APP_URL` in the project's `.env` is updated to `https://`.
+6. If a `servlo stripe:listen` service is active for the site, it is restarted with the updated forwarding URL.

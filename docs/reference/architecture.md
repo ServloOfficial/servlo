@@ -37,7 +37,7 @@ On Linux, servlo requires systemd. Every container runs as a Podman Quadlet (sys
 | Composer | `composer.phar` via bundled PHP CLI |
 | Node | [fnm](https://github.com/Schniz/fnm) binary, version per project |
 | Services | Podman Quadlet containers |
-| TLS | Certificate issuer interface; ACME (Let's Encrypt) from S3.2 |
+| TLS | Let's Encrypt over HTTP-01, behind a certificate issuer interface |
 | Notifications | Single in-process notifier inside `servlo-ui` dispatches every kind (mail, worker failures, finished service ops, service updates) through both WebSocket (open tabs at `/api/ws`) and Web Push (closed PWA / minimised tabs). Per-install VAPID keys at `~/.local/share/servlo/vapid-{private,public}.key`; subscription store at `push-subscriptions.json` with per-category preferences. See features/notifications.md. |
 
 ## Key design decisions

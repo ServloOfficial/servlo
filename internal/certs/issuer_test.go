@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // recordingIssuer stands in for a real one and writes recognisable bytes, so a
@@ -152,20 +154,36 @@ func TestIssueCert_SkipsAFreshCertificate(t *testing.T) {
 	}
 }
 
-// With no issuer configured, securing a site has to fail with something that
-// says what is missing rather than producing a certificate no browser accepts.
-func TestUnavailableIssuer_RefusesAndSaysWhy(t *testing.T) {
-	dir := t.TempDir()
-	withIssuer(t, unavailableIssuer{})
+// The issuer in force comes from config on every issuance, so an operator who
+// corrects their authority settings does not have to restart the panel for the
+// next renewal to use them.
+func TestIssuerFromConfig_HonoursTheConfiguredAuthority(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
-	err := IssueCertForce("example.com", []string{"example.com"}, dir)
-	if err == nil {
-		t.Fatal("issuing with no issuer configured reported success")
+	if got := IssuerName(); got != "letsencrypt" {
+		t.Errorf("a fresh install issues from %q, want Let's Encrypt production", got)
 	}
-	if !strings.Contains(err.Error(), "example.com") {
-		t.Errorf("error %q does not name the domain", err)
+
+	cfg, err := config.LoadGlobal()
+	if err != nil {
+		t.Fatalf("LoadGlobal: %v", err)
 	}
-	if _, statErr := os.Stat(filepath.Join(dir, "example.com.crt")); statErr == nil {
-		t.Error("a certificate was written despite there being no issuer")
+	cfg.Certs.Staging = true
+	if err := config.SaveGlobal(cfg); err != nil {
+		t.Fatalf("SaveGlobal: %v", err)
+	}
+	if got := IssuerName(); got != "letsencrypt-staging" {
+		t.Errorf("with staging on the issuer is %q, want the staging directory", got)
+	}
+
+	// An explicit directory is for a private ACME server, so the staging flag
+	// must not quietly override it.
+	cfg.Certs.DirectoryURL = "https://acme.internal:14000/dir"
+	if err := config.SaveGlobal(cfg); err != nil {
+		t.Fatalf("SaveGlobal: %v", err)
+	}
+	if got := IssuerName(); !strings.Contains(got, "acme.internal") {
+		t.Errorf("an explicit directory was ignored; issuer is %q", got)
 	}
 }

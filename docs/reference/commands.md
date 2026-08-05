@@ -68,6 +68,7 @@ Setup steps include common tasks (composer install, npm install, servlo env) plu
 | `servlo open [name]` | Open the site in the default browser |
 | `servlo secure [name]` | Issue a TLS certificate and enable HTTPS, updates `APP_URL` in `.env` |
 | `servlo secure --renew [name]` | Reissue a secured site's TLS cert on demand, resetting its expiry |
+| `servlo secure --staging [name]` | Issue from Let's Encrypt staging from now on, for working out a DNS problem without spending the production rate limit |
 | `servlo unsecure [name]` | Remove TLS and switch back to HTTP, updates `APP_URL` in `.env` |
 | `servlo pause [name]` | Pause a site: stop workers (and custom container if applicable), replace vhost with landing page |
 | `servlo unpause [name]` | Resume a paused site: start container, restore vhost, restart workers |

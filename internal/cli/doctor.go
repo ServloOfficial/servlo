@@ -10,9 +10,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/cleanup"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/nginx"
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/ports"
@@ -364,6 +366,37 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 			fail("port "+https, "in use by another process", "find the process: "+FindListenerCmd(https))
 		} else {
 			ok(fmt.Sprintf("port %s (free)", https))
+		}
+	}
+
+	// ── Certificates ─────────────────────────────────────────────────────────
+	section = "Certificates"
+	fmt.Fprintln(w, "\n[Certificates]")
+	{
+		ok("issuer (" + certs.IssuerName() + ")")
+
+		// The webroot is a bind mount. Podman creates a missing source as a
+		// root-owned directory, which servlo then cannot write tokens into, so
+		// an HTTP-01 challenge fails with a permission error that says nothing
+		// about certificates. Check it is there and writable before that.
+		challengeDir := config.ACMEChallengeDir()
+		switch err := nginx.EnsureChallengeDir(); {
+		case err != nil:
+			fail("ACME challenge webroot", err.Error(),
+				"create it and make it yours: mkdir -p "+challengeDir)
+			rep.fixLast(manualFix)
+		default:
+			ok("ACME challenge webroot")
+		}
+
+		if cfg != nil {
+			if email, _, _ := cfg.ACMESettings(); email == "" {
+				warn("certificate contact email",
+					"unset, so the authority cannot warn you when a renewal has been failing — set certs.email in "+config.ConfigDir())
+				rep.fixLast(manualFix)
+			} else {
+				ok("certificate contact email")
+			}
 		}
 	}
 

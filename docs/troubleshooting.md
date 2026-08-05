@@ -205,10 +205,21 @@ systemctl --user restart servlo-watcher
 ```
 :::
 
-::: details `servlo secure` says no certificate issuer is configured
-There is no issuer wired up yet. ACME (Let's Encrypt) arrives in S3.2; until then a site is served over plain http and `servlo secure` refuses rather than producing a certificate no browser would accept.
+::: details `servlo secure` fails with an authorization error
+Let's Encrypt validates over HTTP-01: it connects to your domain on port 80 and fetches a token Servlo just published. An authorization error means that fetch did not return what it should have. In rough order of likelihood:
 
-Servlo will not fall back to a self-signed certificate, because on a real domain a browser cannot tell one apart from someone intercepting the connection.
+- **The domain does not resolve to this server.** Check with `dig +short example.com` and compare against the droplet's public address. A record you added minutes ago may not have propagated yet.
+- **Port 80 is not reachable from the internet.** A cloud firewall or security group in front of the droplet will not show up in `servlo doctor`, which can only see the host.
+- **Something else answers first.** Another web server bound to 80, or a CDN or proxy in front of the domain that serves its own content for `/.well-known/`.
+- **nginx is not running.** `servlo status` shows it; the challenge is served by the same nginx that serves the sites.
+
+Work the problem against staging rather than production. Production locks you out of retrying a domain after five failures, and a DNS record that has not propagated will burn all five:
+
+```bash
+servlo secure --staging
+```
+
+Switch back with `servlo secure --staging=false` once it issues.
 :::
 
 ::: details PHP image build is slow on first run

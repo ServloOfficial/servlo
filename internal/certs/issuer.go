@@ -1,6 +1,6 @@
 package certs
 
-import "fmt"
+import "github.com/realrashid/servlo/internal/config"
 
 // Issuer produces a certificate and its key for a set of domains.
 //
@@ -29,27 +29,22 @@ type Issuer interface {
 }
 
 // activeIssuer returns the issuer in force. A func rather than a value so tests
-// can swap it, and so the choice can later come from config once there is more
-// than one to choose between.
-var activeIssuer = func() Issuer { return unavailableIssuer{} }
+// can swap it, and so the choice is read fresh on every issuance: an operator
+// who fixes their authority settings should not have to restart the panel for
+// the next renewal to use them.
+var activeIssuer = func() Issuer { return issuerFromConfig() }
 
-// unavailableIssuer is what ships until ACME lands. The locally trusted CA
-// Servlo inherited went with the local DNS stack it belonged to: a certificate
-// only this machine trusts is exactly wrong for a site on a real domain that
-// real browsers visit.
-//
-// It refuses rather than falling back to a self-signed certificate. A
-// self-signed certificate on a real domain is indistinguishable from an
-// interception to a browser, and shipping one would teach operators to click
-// through the warning that is supposed to protect them.
-type unavailableIssuer struct{}
-
-func (unavailableIssuer) Name() string { return "none" }
-
-func (unavailableIssuer) Issue(primary string, _ []string, _, _ string) error {
-	return fmt.Errorf("cannot issue a certificate for %s: no certificate issuer is configured. "+
-		"A locally trusted CA is meaningless for a real domain, so it was removed, "+
-		"and ACME issuance arrives in S3.2. Serve the site over http until then", primary)
+// issuerFromConfig builds the ACME issuer from the global config. An explicit
+// directory URL wins over the staging flag, which wins over Let's Encrypt
+// production, so a private ACME server is reachable without the staging switch
+// silently overriding it.
+func issuerFromConfig() Issuer {
+	cfg, _ := config.LoadGlobal()
+	email, directoryURL, staging := cfg.ACMESettings()
+	if directoryURL == "" && staging {
+		directoryURL = LetsEncryptStaging
+	}
+	return NewACMEIssuer(ACMEConfig{DirectoryURL: directoryURL, Email: email})
 }
 
 // IssuerName reports which issuer is in force, for doctor and status output.

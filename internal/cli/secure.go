@@ -22,6 +22,8 @@ func NewSecureCmd() *cobra.Command {
 		RunE:  runSecure,
 	}
 	cmd.Flags().Bool("renew", false, "Reissue the cert on an already-secured site, resetting expiry")
+	cmd.Flags().Bool("staging", false,
+		"Issue from Let's Encrypt staging instead of production, for this and every later issuance (sets certs.staging)")
 	return cmd
 }
 
@@ -53,11 +55,44 @@ func resolveSiteName(args []string) (string, error) {
 
 func runSecure(cmd *cobra.Command, args []string) error {
 	if cmd != nil {
+		// Applied before issuing, so the certificate this run produces comes
+		// from the authority the flag names.
+		if cmd.Flags().Changed("staging") {
+			staging, _ := cmd.Flags().GetBool("staging")
+			if err := applyStagingFlag(staging); err != nil {
+				return err
+			}
+		}
 		if renew, _ := cmd.Flags().GetBool("renew"); renew {
 			return renewCert(args)
 		}
 	}
 	return toggleSecureCmd(args, true)
+}
+
+// applyStagingFlag records the authority for the whole install rather than
+// overriding a single issuance. Issuance and renewal read the same setting, so
+// a staging certificate an operator issued to test their DNS is not quietly
+// replaced by a production one at the 30-day mark, spending the production rate
+// limit the staging run existed to protect.
+func applyStagingFlag(staging bool) error {
+	cfg, err := config.LoadGlobal()
+	if err != nil {
+		return fmt.Errorf("reading the global config: %w", err)
+	}
+	if cfg.Certs.Staging == staging {
+		return nil
+	}
+	cfg.Certs.Staging = staging
+	if err := config.SaveGlobal(cfg); err != nil {
+		return fmt.Errorf("recording the certificate authority: %w", err)
+	}
+	if staging {
+		feedback.Note("issuing from Let's Encrypt staging: certificates will not be trusted by browsers, and every later issuance uses staging until you run this with --staging=false")
+	} else {
+		feedback.Note("issuing from Let's Encrypt production")
+	}
+	return nil
 }
 
 func runUnsecure(_ *cobra.Command, args []string) error {

@@ -134,6 +134,12 @@ func (d VhostData) Root() string {
 	return nginxQuote(d.Path + "/" + d.PublicDir)
 }
 
+// ACMEChallenge is the HTTP-01 location block. A method rather than a field so
+// no generator can forget to set it: every site needs a certificate eventually,
+// and a vhost that silently omits this fails its first renewal instead of its
+// first request.
+func (d VhostData) ACMEChallenge() string { return acmeChallengeLocation }
+
 // resolveFrameworkNginx returns the site framework's nginx block, expanded and
 // indented for splicing into the server block. Empty when the framework declares
 // none, when the snippet is unbalanced, or when a substituted value carries
@@ -1337,6 +1343,9 @@ func EnsureNginxConfig() error {
 		return err
 	}
 	if err := EnsureForwardedConf(); err != nil {
+		return err
+	}
+	if err := EnsureChallengeDir(); err != nil {
 		return err
 	}
 

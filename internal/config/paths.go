@@ -95,6 +95,23 @@ func CertsDir() string {
 	return filepath.Join(DataDir(), "certs")
 }
 
+// ACMEChallengeDir returns the webroot nginx serves HTTP-01 challenges from.
+// One directory for every site rather than one per site: the challenge is a
+// token nginx hands back verbatim, it carries no site content, and a single
+// bind mount is one thing to get right instead of one per vhost.
+func ACMEChallengeDir() string {
+	return filepath.Join(DataDir(), "acme-challenge")
+}
+
+// ACMEAccountDir returns where the ACME account key and registration live.
+// Namespaced by directory host so a staging account and a production account
+// never share a key: an ACME account belongs to the directory that issued it,
+// and reusing one against the other fails registration in a way that reads
+// like a broken key.
+func ACMEAccountDir(directoryHost string) string {
+	return filepath.Join(DataDir(), "acme", directoryHost)
+}
+
 // DataSubDir returns a named subdirectory under data.
 func DataSubDir(name string) string {
 	return filepath.Join(DataDir(), "data", name)

@@ -85,8 +85,14 @@ Two things landed alongside, both of which existed only to serve the local CA. T
 
 Between here and S3.2 the issuer in force refuses. It does not fall back to a self-signed certificate: on a real domain a browser cannot tell one apart from an interception, so shipping one would train the operator to click through the warning that protects them.
 
-**S3.2 — HTTP-01 issuance from Let's Encrypt.**
+**S3.2 — HTTP-01 issuance from Let's Encrypt.** ✅
 *Done when:* the challenge is served by the existing nginx container; the key is written 0600; a staging flag targets the ACME staging endpoint; the certificate installs and the vhost regenerates. **L**
+
+The client is `x/crypto/acme`, which was already in the module graph, so this added no dependency. The challenge location reaches the templates as a method rather than a field, so a new vhost generator cannot forget it, and on a secured site it sits ahead of the HTTPS redirect.
+
+The staging flag records the authority for the whole install rather than overriding one run, because issuance on staging and renewal on production would silently replace the tested certificate at the 30-day mark and spend the production rate limit the staging run existed to protect.
+
+Still to come in this epic: the live DNS check that gates the button (S3.3), which is also what turns `httpsOfferable()` from a constant into a real answer.
 
 **S3.3 — The Get SSL button.**
 *Done when:* the site panel shows a live DNS check resolving A and AAAA for the primary domain **and every alias**, compared against the droplet's public addresses. While unmatched the button is disabled and displays the actual mismatch — *"Waiting for DNS — example.com currently resolves to 1.2.3.4, this server is 5.6.7.8"*. Once matched, one click issues a certificate covering all domains, installs it, rewrites the vhost to 443, adds HSTS and a 301 redirect, and updates `APP_URL`. Progress and any ACME error stream into the panel. **L**

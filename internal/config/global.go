@@ -125,6 +125,21 @@ type GlobalConfig struct {
 	Ports struct {
 		Strategy string `yaml:"strategy,omitempty" mapstructure:"strategy"`
 	} `yaml:"ports,omitempty" mapstructure:"ports"`
+	// Certs configures the ACME authority certificates come from.
+	Certs struct {
+		// Email receives the authority's expiry notices. Optional, and the only
+		// reason a renewal that has been failing for a month reaches a human
+		// before the certificate lapses.
+		Email string `yaml:"email,omitempty" mapstructure:"email"`
+		// Staging targets Let's Encrypt's staging directory, which issues from
+		// an untrusted root but has generous rate limits. The place to work out
+		// a DNS or firewall problem, because production locks an operator out
+		// for a week after five failures on the same domain.
+		Staging bool `yaml:"staging,omitempty" mapstructure:"staging"`
+		// DirectoryURL overrides the authority entirely. For a private ACME
+		// server; empty means Let's Encrypt.
+		DirectoryURL string `yaml:"directory_url,omitempty" mapstructure:"directory_url"`
+	} `yaml:"certs,omitempty" mapstructure:"certs"`
 	Nginx struct {
 		HTTPPort  int `yaml:"http_port"  mapstructure:"http_port"`
 		HTTPSPort int `yaml:"https_port" mapstructure:"https_port"`
@@ -918,9 +933,6 @@ func (c *GlobalConfig) SetNodeManager(manager string) {
 	c.Node.Manager = manager
 }
 
-// NodeNvmDir returns the persisted nvm install directory, or empty when unset.
-// PortStrategy is the recorded way this host reaches 80 and 443. Empty means a
-// config written before the choice was recorded, which was always the sysctl.
 // StoreAutoRefresh reports whether definitions already on disk are re-fetched.
 // Absent means pinned, which is the safe reading for a config written before
 // the setting existed.
@@ -928,8 +940,21 @@ func (c *GlobalConfig) StoreAutoRefresh() bool {
 	return c.Stores.AutoRefresh != nil && *c.Stores.AutoRefresh
 }
 
+// PortStrategy is the recorded way this host reaches 80 and 443. Empty means a
+// config written before the choice was recorded, which was always the sysctl.
 func (c *GlobalConfig) PortStrategy() string {
 	return c.Ports.Strategy
+}
+
+// ACMESettings returns the certificate authority settings, safe on a nil
+// receiver: an install that cannot read its own config should still renew
+// against the default authority rather than refuse. Which of these wins is
+// decided in internal/certs, the only package that knows what the URLs mean.
+func (c *GlobalConfig) ACMESettings() (email, directoryURL string, staging bool) {
+	if c == nil {
+		return "", "", false
+	}
+	return c.Certs.Email, c.Certs.DirectoryURL, c.Certs.Staging
 }
 
 // SetPortStrategy records the choice, together with the nginx ports it implies,

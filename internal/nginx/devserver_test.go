@@ -52,7 +52,9 @@ func TestRenderVhost_noDevServerNoLocations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("renderVhost: %v", err)
 	}
-	if strings.Contains(string(out), "location ^~ ") {
+	// Not "location ^~ " on its own: the ACME challenge block is a prefix
+	// location every vhost carries, so the dev server has to be named directly.
+	if strings.Contains(string(out), "@servlo_dev_unprefixed") {
 		t.Errorf("unexpected dev server location:\n%s", out)
 	}
 }
