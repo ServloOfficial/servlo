@@ -44,3 +44,40 @@ func TestPortListOutput_format(t *testing.T) {
 		t.Errorf("PortListOutput should contain LISTEN headers, got: %.100s", output)
 	}
 }
+
+// S1.4 asks for the port strategy to be confirmed on every run, so the finding
+// has to be emitted unconditionally rather than only when something is wrong.
+// Its verdict depends on the host and is not asserted here; that logic is
+// covered in internal/ports.
+func TestDoctorAlwaysReportsThePortStrategy(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	rep, err := RunDoctorReport()
+	if err != nil {
+		t.Fatalf("RunDoctorReport: %v", err)
+	}
+	for _, f := range rep.Findings {
+		if strings.HasPrefix(f.Name, "port strategy") {
+			return
+		}
+	}
+	t.Error("doctor reported no port strategy finding")
+}
+
+// A failed strategy has to carry the commands that repair it: servlo will not
+// run them, so a hint without them leaves the operator with nothing to do.
+func TestPortFixHintCarriesTheCommands(t *testing.T) {
+	got := portFixHint([]string{"sudo sysctl -w x=1", "sudo sh -c 'echo x'"})
+	for _, want := range []string{"sudo sysctl -w x=1", "sudo sh -c 'echo x'"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("hint %q is missing %q", got, want)
+		}
+	}
+}
+
+func TestPortFixHintWithNothingToRun(t *testing.T) {
+	if got := portFixHint(nil); got == "" {
+		t.Error("empty hint for a finding with no commands")
+	}
+}

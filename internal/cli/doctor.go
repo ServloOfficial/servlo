@@ -17,6 +17,7 @@ import (
 	"github.com/realrashid/servlo/internal/feedback"
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/ports"
 	"github.com/realrashid/servlo/internal/services"
 	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	servloUpdate "github.com/realrashid/servlo/internal/update"
@@ -391,20 +392,56 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	section = "Ports"
 	fmt.Fprintln(w, "\n[Ports]")
 
+	// The port strategy is the one piece of setup servlo asks a human to apply
+	// and then never touches again, so it is the most likely to have drifted
+	// since. Checked on every run rather than only at install, and in two halves:
+	// a strategy that is live but not persisted serves fine today and stops at
+	// the next reboot, which is precisely the failure nobody notices until the
+	// droplet comes back up.
+	strategy := ports.ParseStrategy("")
+	httpPort, httpsPort := ports.Publish(strategy)
+	if cfg != nil {
+		strategy = ports.ParseStrategy(cfg.PortStrategy())
+		httpPort, httpsPort = ports.Publish(strategy)
+
+		health := ports.CheckHealth(strategy)
+		if health.Healthy() {
+			ok(fmt.Sprintf("port strategy (%s)", strategy))
+		} else {
+			hint := portFixHint(health.Fix)
+			fail(fmt.Sprintf("port strategy (%s)", strategy), health.Detail, hint)
+			rep.fixLast(manualFixWith(hint))
+		}
+
+		// A recorded strategy whose ports disagree with the config means one of
+		// the two was changed by hand. Under the nftables strategy nginx on 80
+		// would swallow the traffic the redirect is aimed at.
+		if cfg.Nginx.HTTPPort != httpPort || cfg.Nginx.HTTPSPort != httpsPort {
+			fail("port strategy ports",
+				fmt.Sprintf("%s implies %d/%d but config says %d/%d", strategy, httpPort, httpsPort, cfg.Nginx.HTTPPort, cfg.Nginx.HTTPSPort),
+				"re-run 'servlo install' to record the strategy and its ports together")
+			rep.fixLast(manualFix)
+			httpPort, httpsPort = cfg.Nginx.HTTPPort, cfg.Nginx.HTTPSPort
+		}
+	}
+
+	// The ports checked below are the ones nginx actually publishes, which under
+	// the nftables strategy are the high ones rather than 80 and 443.
+	http, https := strconv.Itoa(httpPort), strconv.Itoa(httpsPort)
 	nginxRunning, _ := podman.ContainerRunning("servlo-nginx")
 	if nginxRunning {
-		ok("port 80  (nginx running)")
-		ok("port 443 (nginx running)")
+		ok(fmt.Sprintf("port %s (nginx running)", http))
+		ok(fmt.Sprintf("port %s (nginx running)", https))
 	} else {
-		if PortInUse("80") {
-			fail("port 80", "in use by another process", "find the process: "+FindListenerCmd("80"))
+		if PortInUse(http) {
+			fail("port "+http, "in use by another process", "find the process: "+FindListenerCmd(http))
 		} else {
-			ok("port 80  (free)")
+			ok(fmt.Sprintf("port %s (free)", http))
 		}
-		if PortInUse("443") {
-			fail("port 443", "in use by another process", "find the process: "+FindListenerCmd("443"))
+		if PortInUse(https) {
+			fail("port "+https, "in use by another process", "find the process: "+FindListenerCmd(https))
 		} else {
-			ok("port 443 (free)")
+			ok(fmt.Sprintf("port %s (free)", https))
 		}
 	}
 
@@ -599,4 +636,13 @@ func checkDirWritable(dir string) error {
 // checkPortConflicts in startstop.go for batch checks.
 func PortInUseIn(port, output string) bool {
 	return strings.Contains(output, ":"+port+" ")
+}
+
+// portFixHint renders the commands a port-strategy repair needs into one hint
+// line. Servlo never runs them, so the hint has to carry the whole thing.
+func portFixHint(cmds []string) string {
+	if len(cmds) == 0 {
+		return "see 'Port binding' in the architecture reference"
+	}
+	return "run: " + strings.Join(cmds, "  &&  ")
 }
