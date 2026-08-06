@@ -133,7 +133,7 @@ The web UI is Svelte under `internal/ui/web/`, built to `dist/` and embedded via
 ## 5. The contribution lifecycle — follow every step, in order
 
 ### Step 0 — An issue exists first
-Recommended while the project is one person, required again the moment a second joins. Frame it as future work, one issue per unit of work. What does **not** relax: never create GitHub issues, comments or PRs without explicit approval, and never push without being asked. Draft the text, show it, wait.
+Recommended while the project is one person, required again the moment a second joins. Frame it as future work, one issue per unit of work. During the phased build the backlog in `STORY.md` is the issue list, so a story does not need one raised first.
 
 Sessions here have no `gh` CLI. GitHub goes through the MCP tools.
 
@@ -160,12 +160,16 @@ make test-ui                           # Vitest, if UI changed
 bats tests/installer/installer.bats    # if install.sh changed
 make surface-scan                      # deleted-feature gate
 ```
-Then install the local build on a **real Ubuntu 24.04 droplet or VM** and drive the change by hand. Tests do not catch runtime-surface bugs. Never rely on CI alone for anything with a runtime surface.
+CI runs the same gate on a real Ubuntu 24.04 runner. That is the gate for a story: local green, then CI green, then merge.
 
-A browser session has no droplet, so the smoke test cannot run there. That is a reason to say which steps were skipped, never a reason to call a change verified. Say plainly what ran and what did not.
+**The droplet smoke test is deferred to the end of the build, by the project owner's decision.** It used to sit here as a per-story gate, which in a browser session meant every story ended blocked on something no session could do. It now happens once, against the finished product, after the last phase lands. Do not wait for it, do not treat it as a merge condition, and do not re-raise it story by story.
 
-### Step 6 — Commit only when asked
-No automatic commit, push, or PR. Wait for an explicit go-ahead, and pause at phase boundaries of a staged change so a human can smoke-test in the browser first.
+What this does not change: say plainly what ran. A story is "tests and CI green", not "verified working on a server", and the two are different claims. Write the honest one. Anything genuinely unverifiable in a session (a real certificate from Let's Encrypt, a live registrar, a running container's bind mount) is worth one line in the PR body so the eventual droplet pass knows where to look, and no more than that.
+
+### Step 6 — Commit, PR, merge
+The standing instruction for this build is to work straight through the phases: write the code and its tests, run the gate, open the PR, wait for CI, merge to `main`, and start the next story without stopping to ask. Do not pause at phase boundaries for a manual check.
+
+This is a deliberate relaxation of the older "only commit when asked" rule and applies to the phased build in `STORY.md`. It is not licence to skip the gate, invent a story, or start work outside the backlog: the ordering and the scope still come from `STORY.md`, and anything that is a genuine judgement call about the product still gets raised.
 
 ### Step 7 — Open the PR the Servlo way (see §7)
 
@@ -173,7 +177,6 @@ No automatic commit, push, or PR. Wait for an explicit go-ahead, and pause at ph
 
 ## 6. Commit conventions
 
-- **Only commit when explicitly asked.** Ask before each git step.
 - Branch off `main`; never commit straight to `main`.
 - Conventional-commit subject (`feat:`, `fix:`, `docs:`…). Body is prose paragraphs that read like a human wrote them, single-line paragraphs, no robotic bullet lists.
 - **No `Co-Authored-By` trailer. No "Generated with…" footer. Ever.**
@@ -183,7 +186,7 @@ No automatic commit, push, or PR. Wait for an explicit go-ahead, and pause at ph
 
 ## 7. Pull request conventions
 
-- Nothing hits GitHub without per-action approval. Draft it, show it, wait.
+- For the phased build, open the PR and merge it once CI is green, without waiting. Outside that, draft it and show it first.
 - PR body is human prose. No Test plan, no checklists, no "Notes for reviewers", no file:line citations.
 - Feature PRs use `Closes #N`. Bug issues use `Refs #N` and stay open until the release ships — except security issues, which close when the fix merges.
 - Comment style: casual plain prose, no markdown, no bullets.

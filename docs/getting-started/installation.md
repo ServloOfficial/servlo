@@ -39,7 +39,23 @@ The installer will:
 - Automatically run `servlo install` to complete environment setup
 
 ::: info Setup asks for sudo once, up front
-Everything `servlo install` needs root for happens in one step at the very start, before any downloading or container work: the unprivileged-port sysctl so nginx can bind 80 and 443, and systemd linger so your containers survive logout. It runs as `sudo servlo bootstrap --system`, the same command the apt package runs as root, so both routes apply identical settings.
+Everything `servlo install` needs root for happens in one step at the very start, before any downloading or container work: the unprivileged-port sysctl so nginx can bind 80 and 443, systemd linger so your containers survive logout, and the server basics below. It runs as `sudo servlo bootstrap --system`, the same command the apt package runs as root, so both routes apply identical settings.
+
+## Server basics
+
+A fresh droplet is missing four things before it is a server worth putting a site on. `sudo servlo bootstrap --system` applies them; an install run without it prints the exact commands instead, and `servlo doctor` re-checks them on every run because a rebuilt machine forgets.
+
+**Swap**, sized from installed memory: double the RAM below 2GB, matching RAM up to 8GB, capped there. The small end is the one that matters — a 1GB droplet running `composer install` or an asset build will exhaust itself, and with no swap the OOM killer takes MySQL rather than the build. Above 8GB more swap stops helping; a machine swapping that hard needs fewer sites, not more disk. A machine that already has swap is left alone. The file is created `0600` before anything is swapped to it, because a readable swap file hands every local process the memory of every other one.
+
+**Timezone**, set to UTC. Right for a server even when you are not in it: logs, cron schedules, backup timestamps and certificate expiry all get compared across machines, and a local timezone makes every one of those a conversion somebody has to remember. It also removes daylight saving, which otherwise makes one hour a year happen twice and another never.
+
+**Unattended security updates**, security only and never rebooting on their own. Pulling every update automatically means a package changing behaviour under a running site with nobody watching, which is worse than being a week behind on a non-security release. A site going down at 3am because a kernel landed is not an improvement over a reboot you apply deliberately.
+
+**fail2ban in front of SSH**, banning an address after five failures for an hour.
+
+> [!IMPORTANT]
+> Servlo never touches SSH password authentication, and never restarts sshd. Turning off password login on a machine whose owner has not added a key yet locks them out of their own droplet, which is what "hardening" scripts do and why this one does not. fail2ban throttles the attempts and the login method stays yours. A test in the repository asserts that no server basic mentions `sshd_config`, `PasswordAuthentication` or `PermitRootLogin`, so this cannot drift.
+
 
 Reinstalling for an update or a test reuses what is already in place and does not ask again, and if a step cannot run through `sudo` it falls back to prompting for each one separately. Uninstalling takes the CA back out, so it lasts exactly as long as servlo does.
 :::

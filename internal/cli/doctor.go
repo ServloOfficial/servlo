@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/cleanup"
@@ -20,6 +21,7 @@ import (
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/ports"
+	"github.com/realrashid/servlo/internal/serverbasics"
 	"github.com/realrashid/servlo/internal/services"
 	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	servloUpdate "github.com/realrashid/servlo/internal/update"
@@ -371,6 +373,26 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 		}
 	}
 
+	// ── Server basics ────────────────────────────────────────────────────────
+	// Re-checked on every run rather than only at install. These are applied
+	// once and never touched again, which makes them the most likely to have
+	// been undone: a rebuilt droplet, an image that ships its own timezone, a
+	// fail2ban that failed to start after an upgrade.
+	section = "Server basics"
+	fmt.Fprintln(w, "\n[Server basics]")
+	for _, plan := range serverbasics.All() {
+		if plan.Satisfied {
+			ok(plan.Name)
+			continue
+		}
+		hint := strings.Join(plan.ForHuman(), " && ")
+		if hint == "" {
+			hint = "no automatic fix for this one"
+		}
+		warn(plan.Name, plan.Detail)
+		rep.fixLast(manualFixWith(hint))
+	}
+
 	// ── Certificates ─────────────────────────────────────────────────────────
 	section = "Certificates"
 	fmt.Fprintln(w, "\n[Certificates]")
@@ -401,6 +423,39 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 			rep.fixLast(manualFix)
 		} else {
 			ok("public address")
+		}
+
+		// A renewal that has been failing while the certificate still has weeks
+		// on it is the state this exists to surface: everything works, nobody is
+		// told, and a month later the site goes down for a reason that stopped
+		// being visible back here.
+		for _, f := range certs.RenewalFailures() {
+			fail("certificate renewal for "+f.Domain,
+				fmt.Sprintf("failing since %s: %s", f.Since.Format(time.DateOnly), f.Reason),
+				"fix the cause, then: servlo secure --renew "+f.Domain)
+			rep.fixLast(manualFix)
+		}
+
+		// And what is actually on disk, which a machine restored from a backup
+		// can get wrong with no failure record at all.
+		var secured []string
+		if reg, regErr := config.LoadSites(); regErr == nil && reg != nil {
+			for _, site := range reg.Sites {
+				if site.Secured {
+					secured = append(secured, site.PrimaryDomain())
+				}
+			}
+		}
+		for _, p := range certs.ExpiryProblems(secured) {
+			if p.Expired {
+				fail("certificate for "+p.Domain, p.Reason, "servlo secure --renew "+p.Domain)
+			} else {
+				warn("certificate for "+p.Domain, p.Reason)
+			}
+			rep.fixLast(manualFix)
+		}
+		if len(secured) > 0 && len(certs.ExpiryProblems(secured)) == 0 && len(certs.RenewalFailures()) == 0 {
+			ok(fmt.Sprintf("certificates (%d secured site(s))", len(secured)))
 		}
 
 		if cfg != nil {

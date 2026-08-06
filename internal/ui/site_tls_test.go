@@ -124,3 +124,44 @@ func TestTLSStatus_RefusesOtherMethods(t *testing.T) {
 		t.Errorf("status %d, want 404 for a POST", rec.Code)
 	}
 }
+
+// The banner has to distinguish "renewal is failing" from "the certificate on
+// disk is expiring". They have different causes and different fixes, and a
+// machine restored from a backup can have the second with no record of the
+// first.
+func TestCertAlerts_SeparatesFailuresFromExpiry(t *testing.T) {
+	tlsTestSite(t, "example.invalid")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/certs/alerts", nil)
+	req.RemoteAddr = "127.0.0.1:54321"
+	handleCertAlerts(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var alerts CertAlerts
+	if err := json.Unmarshal(rec.Body.Bytes(), &alerts); err != nil {
+		t.Fatalf("decoding: %v (%s)", err, rec.Body.String())
+	}
+	// The site is registered but not secured, so nothing is wrong yet.
+	if alerts.Any() {
+		t.Errorf("an unsecured site raised a certificate alert: %+v", alerts)
+	}
+	// Both lists must serialise as arrays rather than null, or the panel has to
+	// guard every iteration.
+	if !strings.Contains(rec.Body.String(), `"failures":[]`) {
+		t.Errorf("failures serialised as null rather than an empty list: %s", rec.Body.String())
+	}
+}
+
+func TestCertAlerts_RefusesOtherMethods(t *testing.T) {
+	tlsTestSite(t, "example.invalid")
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/certs/alerts", nil)
+	req.RemoteAddr = "127.0.0.1:54321"
+	handleCertAlerts(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status %d, want 404 for a POST", rec.Code)
+	}
+}

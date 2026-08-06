@@ -96,20 +96,48 @@ Optional, and the only way the authority can tell you a renewal has been failing
 
 ---
 
-## HSTS and the redirect
+## What a secured site is served with
 
-A secured site redirects port 80 to 443 with a **301** and sends:
+Every secured vhost carries the same TLS defaults. Without them a vhost inherits whatever the nginx image happens to default to, which for images still in circulation has included TLS 1.0 and 1.1.
 
+```nginx
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_ciphers <Mozilla intermediate>;
+ssl_prefer_server_ciphers off;
+ssl_session_cache shared:SSL:10m;
+ssl_session_timeout 1d;
+ssl_session_tickets off;
 ```
-Strict-Transport-Security: max-age=31536000
-```
 
-`always` is set, so the header goes out on error responses too, which are the ones an attacker can most easily provoke.
+Three of those are choices rather than boilerplate:
+
+**`ssl_prefer_server_ciphers off`** lets the client choose. The old advice was to impose the server's order; the current advice is the opposite, because a phone without AES hardware is faster and no less safe on ChaCha20 and is the only party that knows which it is.
+
+**`ssl_session_tickets off`** because nginx reuses one ticket key for the life of the process. Anyone who later obtains that key can decrypt every session recorded since it was created, which throws away exactly the forward secrecy the cipher list was chosen for.
+
+**The cipher list** is Mozilla's intermediate set: forward secrecy on every suite, AES-GCM and ChaCha20 only, nothing with CBC, RC4, 3DES or MD5. TLS 1.3 ignores it entirely, since its suites are fixed by the protocol.
+
+### OCSP stapling
+
+Emitted only when the certificate actually names a responder, with `ssl_stapling_verify on` so nginx checks what it staples.
+
+Let's Encrypt has retired OCSP in favour of CRLs, and its certificates no longer carry a responder URL. Turning stapling on against one makes nginx warn on every reload and staple nothing, so Servlo reads the certificate rather than assuming: a site on an authority that still publishes OCSP gets stapling, and one that does not gets a clean config instead of a warning nobody can act on.
+
+### HSTS and the redirect
+
+A secured site redirects port 80 to 443 with a **301** and sends `Strict-Transport-Security` with `always` set, so the header goes out on error responses too — the ones an attacker can most easily provoke.
 
 Two things it deliberately does **not** carry. `includeSubDomains` would extend the policy to every subdomain including a group secondary you left on plain http on purpose, breaking it in every browser that had seen the parent. `preload` is effectively irreversible and is not a default anyone can consent to on your behalf.
 
+The lifetime is a year by default and configurable:
+
+```yaml
+certs:
+  hsts_max_age: 31536000   # 0 omits the header entirely
+```
+
 > [!WARNING]
-> HSTS is sticky. Once a browser has seen the header it will refuse plain http for that host for a year, and `servlo unsecure` cannot reach into browsers that already cached it. This is what HSTS is for, but it does mean turning HTTPS on is a decision with a tail.
+> HSTS is sticky. Once a browser has seen the header it will refuse plain http for that host until the max-age runs out, and `servlo unsecure` cannot reach into browsers that already cached it. This is what HSTS is for, but it does mean turning HTTPS on is a decision with a tail. Set `hsts_max_age: 0` if you do not want that commitment.
 
 ---
 
@@ -152,6 +180,22 @@ Route53 is signed with SigV4 rather than bearer-authenticated, which is why it n
 Servlo renews a secured site's certificate on its own before it lapses: whenever a certificate is within roughly 30 days of its `NotAfter` (or has already expired, gone missing, or been corrupted), the next ordinary `servlo start` or watcher pass reissues it in place. A still-valid certificate comfortably clear of that window is left untouched, so the renewal check is cheap and silent. `servlo status` continues to surface the same 30-day expiry warning under `[TLS Certificates]`, but you no longer need to act on it manually; a long-lived site that just keeps running self-heals its own certificate.
 
 A failed renewal never costs you the certificate you already have. The new certificate and key are written to temporary paths and renamed into place, with the previous certificate copied aside first so the live path always holds a complete certificate, even for the instant between the two renames. If the key rename fails the previous certificate is rolled back, because a new certificate paired with an old key is worse than a stale certificate: nginx refuses to start the site at all.
+
+### When renewal fails
+
+The dangerous shape is not a certificate that expires. It is a renewal that starts failing while the certificate still has a month on it: everything keeps working, nobody is told, and thirty days later the site goes down for a reason that stopped being visible a month earlier.
+
+So a failure is loud from the first attempt. It is written to the append-only audit log at `~/.local/share/servlo/audit.log`, kept until an issuance actually succeeds, and shown in the dashboard and by `servlo doctor`:
+
+```
+✗ certificate renewal for example.com
+  failing since 2026-03-14: the authority could not validate this domain
+  fix the cause, then: servlo secure --renew example.com
+```
+
+The record keeps the time of the **first** failure rather than the most recent one. A renewal that has been failing for three weeks is a different problem from one that failed once this morning, and resetting the clock on every attempt hides which you are looking at. A successful issuance clears it, because an alarm that outlives its problem is one operators learn to ignore.
+
+Separately, `servlo doctor` checks what is actually on disk. A machine restored from a backup, or one whose panel has never run, has no failure records and can still be serving something expired. An expired or missing certificate is reported as a failure; one inside the renewal window is a warning, since the self-heal still has weeks of attempts left.
 
 To reset the clock on demand, without toggling HTTPS off and on, run:
 

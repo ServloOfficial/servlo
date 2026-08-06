@@ -40,6 +40,49 @@ type domainDNS struct {
 	Error     string   `json:"error,omitempty"`
 }
 
+// CertAlerts is what the dashboard banner renders: renewals that are failing
+// and certificates that are expired or close to it.
+//
+// Two lists rather than one because they answer different questions. A failure
+// says renewal is not working, which is actionable now. An expiry says what is
+// actually on disk, which a machine restored from a backup can get wrong with
+// no failure record at all.
+type CertAlerts struct {
+	Failures []certs.RenewalFailure `json:"failures"`
+	Expiring []certs.ExpiryProblem  `json:"expiring"`
+}
+
+// Any reports whether there is anything to show, so the panel can hide the
+// banner entirely rather than rendering an empty card.
+func (a CertAlerts) Any() bool { return len(a.Failures) > 0 || len(a.Expiring) > 0 }
+
+// handleCertAlerts serves GET /api/certs/alerts.
+func handleCertAlerts(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.NotFound(w, r)
+		return
+	}
+	alerts := CertAlerts{Failures: certs.RenewalFailures()}
+
+	var secured []string
+	if reg, err := config.LoadSites(); err == nil && reg != nil {
+		for _, site := range reg.Sites {
+			if site.Secured {
+				secured = append(secured, site.PrimaryDomain())
+			}
+		}
+	}
+	alerts.Expiring = certs.ExpiryProblems(secured)
+
+	if alerts.Failures == nil {
+		alerts.Failures = []certs.RenewalFailure{}
+	}
+	if alerts.Expiring == nil {
+		alerts.Expiring = []certs.ExpiryProblem{}
+	}
+	writeJSON(w, alerts)
+}
+
 // tlsRoute serves GET /api/sites/{domain}/tls.
 func tlsRoute(w http.ResponseWriter, r *http.Request, domain string, rest []string) bool {
 	if len(rest) != 1 || rest[0] != "tls" {

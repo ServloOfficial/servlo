@@ -146,6 +146,12 @@ type GlobalConfig struct {
 		// record. Only read under dns-01. The credentials themselves live in
 		// dns-providers.yaml at 0600, never here.
 		DNSProvider string `yaml:"dns_provider,omitempty" mapstructure:"dns_provider"`
+		// HSTSMaxAge is how long a browser is told to refuse plain http for a
+		// secured site, in seconds. Absent means a year. Zero omits the header,
+		// which is the only way to decline a commitment that outlives the
+		// setting: unsecuring a site cannot reach browsers that already cached
+		// it.
+		HSTSMaxAge *int `yaml:"hsts_max_age,omitempty" mapstructure:"hsts_max_age"`
 		// ServerAddresses names this server's public addresses when they are not
 		// on any of its own interfaces: behind a load balancer, a floating IP,
 		// or NAT with a port forward. Such a host answers an HTTP-01 challenge
@@ -977,6 +983,16 @@ func (c *GlobalConfig) ACMEChallenge() (challenge, dnsProvider string) {
 		return "", ""
 	}
 	return c.Certs.Challenge, c.Certs.DNSProvider
+}
+
+// HSTSMaxAge is the configured Strict-Transport-Security lifetime, or nil for
+// the default. A pointer because zero is a meaningful choice here rather than
+// an unset field.
+func (c *GlobalConfig) HSTSMaxAge() *int {
+	if c == nil {
+		return nil
+	}
+	return c.Certs.HSTSMaxAge
 }
 
 // ACMEServerAddresses is the operator's answer to "what address will the

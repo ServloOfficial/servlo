@@ -60,24 +60,29 @@ func IssueCert(primaryDomain string, allDomains []string, certsDir string) error
 	return issueCertAtomic(primaryDomain, allDomains, certsDir)
 }
 
+// readLeaf parses the leaf certificate at path.
+func readLeaf(path string) (*x509.Certificate, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("not a PEM certificate")
+	}
+	return x509.ParseCertificate(block.Bytes)
+}
+
 // certNeedsReissue reports whether the PEM cert at path should be reissued: it
 // returns true when the file is unreadable, not a parseable certificate, or
 // within window of (or past) its NotAfter. An unreadable or malformed cert is
 // treated as needing reissue rather than trusted.
 func certNeedsReissue(path string, window time.Duration) bool {
-	data, err := os.ReadFile(path)
+	leaf, err := readLeaf(path)
 	if err != nil {
 		return true
 	}
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return true
-	}
-	parsed, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return true
-	}
-	return time.Until(parsed.NotAfter) < window
+	return time.Until(leaf.NotAfter) < window
 }
 
 // IssueCertForce regenerates the certificate for primaryDomain even if files
@@ -97,6 +102,7 @@ func issueCertAtomic(primaryDomain string, allDomains []string, certsDir string)
 	// Ahead of any filesystem work: an issuance that cannot succeed should cost
 	// nothing and leave nothing behind.
 	if err := guardDNS(iss, primaryDomain, allDomains); err != nil {
+		recordFailure(primaryDomain, err)
 		return err
 	}
 
@@ -117,6 +123,11 @@ func issueCertAtomic(primaryDomain string, allDomains []string, certsDir string)
 	if err := iss.Issue(primaryDomain, allDomains, tmpCert, tmpKey); err != nil {
 		os.Remove(tmpCert) //nolint:errcheck
 		os.Remove(tmpKey)  //nolint:errcheck
+		// Recorded here rather than left to the caller. Every route into
+		// issuance passes through this function, and a failure nobody hears
+		// about is the whole failure mode this guards against: the certificate
+		// keeps working for another month while the renewal quietly does not.
+		recordFailure(primaryDomain, err)
 		return err
 	}
 	// The key's mode is enforced here rather than trusted to the issuer: an
@@ -167,6 +178,7 @@ func issueCertAtomic(primaryDomain string, allDomains []string, certsDir string)
 	if hadPrevCert {
 		os.Remove(bakCert) //nolint:errcheck
 	}
+	clearFailure(primaryDomain)
 	return nil
 }
 

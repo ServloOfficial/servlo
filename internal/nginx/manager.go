@@ -140,11 +140,15 @@ func (d VhostData) Root() string {
 // first request.
 func (d VhostData) ACMEChallenge() string { return acmeChallengeLocation }
 
-// HSTS is the Strict-Transport-Security header a secured vhost sends. A method
-// for the same reason as ACMEChallenge: every secured site gets it, and one
-// that quietly does not is a site whose first request of every session is
-// interceptable.
-func (d VhostData) HSTS() string { return hstsHeader }
+// HSTS is the TLS configuration a secured vhost carries: protocol and cipher
+// defaults, the Strict-Transport-Security header, and OCSP stapling where the
+// certificate supports it. A method for the same reason as ACMEChallenge:
+// every secured site gets it, and one that quietly does not is a site whose
+// first request of every session is interceptable.
+//
+// The name is kept from when this was only the header, because the templates
+// substitute it by name and renaming it there would be churn for nothing.
+func (d VhostData) HSTS() string { return tlsBlockFor(d.CertDomain) }
 
 // resolveFrameworkNginx returns the site framework's nginx block, expanded and
 // indented for splicing into the server block. Empty when the framework declares
@@ -707,7 +711,7 @@ server {
         default_type text/html;
     }
 }
-`, serverNames, acmeChallengeLocation, serverNames, hstsHeader, site.PrimaryDomain(), site.PrimaryDomain(), nginxQuote(pausedDir), htmlFile)
+`, serverNames, acmeChallengeLocation, serverNames, tlsBlockFor(site.PrimaryDomain()), site.PrimaryDomain(), site.PrimaryDomain(), nginxQuote(pausedDir), htmlFile)
 	}
 	return fmt.Sprintf(`server {
     listen 80;

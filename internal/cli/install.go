@@ -18,6 +18,7 @@ import (
 	phpDet "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/ports"
+	"github.com/realrashid/servlo/internal/serverbasics"
 	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/realrashid/servlo/internal/services"
 	"github.com/realrashid/servlo/internal/shims"
@@ -319,6 +320,12 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 			}
 		}
 	}
+
+	// Server basics. Reported rather than applied: every one needs root, and
+	// servlo never runs sudo on its own behalf. The root pass through
+	// `servlo bootstrap --system` applies them; this is what an operator who
+	// installed without it has to run themselves.
+	reportServerBasics()
 
 	// 3. Binaries (composer, fnm) — after manager is persisted so an
 	// nvm choice skips the fnm download.
@@ -991,6 +998,25 @@ func defaultLingerNeeded() bool {
 		return false
 	}
 	return strings.Contains(string(out), "Linger=no")
+}
+
+// reportServerBasics prints the swap, timezone, unattended-upgrades and
+// fail2ban steps this machine still needs, with the exact commands. It never
+// runs them: they need root, and an install that silently reconfigured a
+// machine's timezone and package policy would be doing more than it was asked.
+func reportServerBasics() {
+	outstanding := serverbasics.Outstanding()
+	if len(outstanding) == 0 {
+		return
+	}
+	feedback.Note("server basics this machine is missing:")
+	for _, plan := range outstanding {
+		feedback.Line("  " + plan.Name + " — " + plan.Detail)
+		for _, c := range plan.ForHuman() {
+			feedback.Line("    " + c)
+		}
+	}
+	feedback.Note("or apply them all at once with: sudo servlo bootstrap --system")
 }
 
 // applyPortStrategy decides how nginx will reach 80 and 443 on this host,
