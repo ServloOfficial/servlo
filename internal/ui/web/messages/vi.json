@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "Bỏ qua",
   "shareDomain_use": "Dùng tên miền này",
   "shareDomain_configure": "Cấu hình tên miền",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "Thêm trang",
+  "addsite_domain": "Tên miền",
+  "addsite_domainHint": "Tên miền đầy đủ mà trang này được phục vụ. Trỏ DNS của nó về máy chủ này, rồi dùng Get SSL.",
+  "addsite_path": "Thư mục",
+  "addsite_browse": "Duyệt",
+  "addsite_phpVersion": "Phiên bản PHP",
+  "addsite_publicDir": "Thư mục gốc tài liệu",
+  "addsite_auto": "tự động",
+  "addsite_submit": "Thêm trang",
+  "addsite_failed": "Không thể thêm trang.",
+  "addsite_willCreate": "Thư mục này chưa tồn tại và sẽ được tạo.",
+  "addsite_detected": "Đã phát hiện {framework}.",
+  "addsite_noFramework": "Không phát hiện framework; thư mục gốc tài liệu sẽ được đoán."
 }

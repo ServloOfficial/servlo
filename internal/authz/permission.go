@@ -106,11 +106,12 @@ func Permissions() Registry {
 		"/api/sites/":    PermSite,
 		"/api/app-logs/": PermSite,
 
-		// Under the sites tree but not about one site: link takes an arbitrary
-		// host path and reorder rewrites the whole list. Declared above the
-		// prefix so they are admin rather than being read as a site named
-		// "link" that nobody is assigned.
-		"/api/sites/link":    PermAdmin,
+		// Under the sites tree but not about one site: create takes an arbitrary
+		// host path, inspect reads one, and reorder rewrites the whole list.
+		// Declared above the prefix so they are admin rather than being read as
+		// sites named "create" or "reorder" that nobody is assigned.
+		"/api/sites/create":  PermAdmin,
+		"/api/sites/inspect": PermAdmin,
 		"/api/sites/reorder": PermAdmin,
 
 		// Named in the story as things a Developer should reach, and admin

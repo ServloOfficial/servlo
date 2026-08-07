@@ -51,6 +51,11 @@ type feedbackStep struct{ s *feedback.Step }
 func (f feedbackStep) OK(detail string) { f.s.OK(detail) }
 func (f feedbackStep) Fail(err error)   { f.s.Fail(err) }
 
+// LinkDeps is linkDeps for callers above this package. The panel links in
+// process rather than shelling out to the binary, and it needs the same side
+// effects a CLI link gets.
+func LinkDeps() linker.Deps { return linkDeps() }
+
 // linkDeps are the side effects the linker cannot reach from below the cli
 // package: image builds, worker supervision, runtime reconciliation and the
 // JetBrains data-source sync.

@@ -74,6 +74,26 @@ func CLIPolicy(name, domain string, assumeYes bool, prompt Prompter) Policy {
 	}
 }
 
+// PanelPolicy is the policy for a site added from the browser. A submitted form
+// is consent, so the link proceeds without asking, and there is no terminal for
+// a follow-up question to reach.
+//
+// It differs from the CLI's in two places, and both are the reason it exists.
+// RepoCommands stays off because "add site" is consent to serve a project, not
+// to run the dev-server command or the inline service containers the repository
+// itself chose; the browser has no way to ask about that properly. Certs stays
+// off because issuance is gated on a live check that the domain resolves here,
+// which a site created a second ago has not passed. Get SSL is its own button.
+func PanelPolicy(domain string) Policy {
+	return Policy{
+		Domain:        domain,
+		AssumeYes:     true,
+		ProjectWrites: true,
+		Services:      true,
+		ImageBuild:    true,
+	}
+}
+
 // WatcherPolicy is the policy for `servlo park` and the parked-directory watcher.
 // It runs unattended against every subdirectory of a parked tree, so it reads
 // the project's committed configuration but never asks a question, never writes

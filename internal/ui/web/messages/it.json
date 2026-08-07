@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "Salta",
   "shareDomain_use": "Usa questo dominio",
   "shareDomain_configure": "Configura il dominio",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "Aggiungi sito",
+  "addsite_domain": "Dominio",
+  "addsite_domainHint": "Il dominio completo su cui questo sito viene servito. Punta il suo DNS a questo server, poi usa Get SSL.",
+  "addsite_path": "Directory",
+  "addsite_browse": "Sfoglia",
+  "addsite_phpVersion": "Versione PHP",
+  "addsite_publicDir": "Radice dei documenti",
+  "addsite_auto": "automatico",
+  "addsite_submit": "Aggiungi sito",
+  "addsite_failed": "Impossibile aggiungere il sito.",
+  "addsite_willCreate": "Questa directory non esiste ancora e verrà creata.",
+  "addsite_detected": "Rilevato {framework}.",
+  "addsite_noFramework": "Nessun framework rilevato; la radice dei documenti verrà indovinata."
 }

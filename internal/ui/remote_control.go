@@ -25,8 +25,6 @@ type ctxKeyRemoteDashboard struct{}
 var loopbackOnlyRoutes = []string{
 	"/api/servlo/stop", // shuts down all servlo containers
 	"/api/servlo/quit", // exits the dashboard process
-	"/api/sites/link",  // links arbitrary host filesystem paths
-	"/api/browse",      // browses host filesystem
 	"/api/push/test",   // fires notifications onto subscribed devices
 }
 

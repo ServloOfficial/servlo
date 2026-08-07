@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "Skip",
   "shareDomain_use": "Use this domain",
   "shareDomain_configure": "Configure the domain",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "Add Site",
+  "addsite_domain": "Domain",
+  "addsite_domainHint": "The full domain this site is served on. Point its DNS at this server, then use Get SSL.",
+  "addsite_path": "Directory",
+  "addsite_browse": "Browse",
+  "addsite_phpVersion": "PHP version",
+  "addsite_publicDir": "Document root",
+  "addsite_auto": "auto",
+  "addsite_submit": "Add Site",
+  "addsite_failed": "Could not add the site.",
+  "addsite_willCreate": "This directory does not exist yet and will be created.",
+  "addsite_detected": "Detected {framework}.",
+  "addsite_noFramework": "No framework detected; the document root will be guessed."
 }

@@ -11,7 +11,7 @@
     openSiteInBrowser,
     type Site
   } from '$stores/sites';
-  import { openLinkModal } from '$stores/modals';
+  import { openAddSiteModal } from '$stores/modals';
   import { goToTab } from '$stores/route';
   import { accessMode } from '$stores/accessMode';
   import { apiBase } from '$lib/api';
@@ -90,7 +90,7 @@
     <div class="flex flex-wrap items-center gap-2">
       {#if $accessMode.localControl}
         <button
-          onclick={openLinkModal}
+          onclick={openAddSiteModal}
           class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-servlo-red hover:bg-servlo-redhov text-white transition-colors"
         >
           <Icon name="plus" class="w-3.5 h-3.5" />

@@ -2,7 +2,7 @@
   import { modal } from '$stores/modals';
   import DomainModal from './DomainModal.svelte';
   import GroupModal from './GroupModal.svelte';
-  import LinkModal from './LinkModal.svelte';
+  import AddSiteModal from './AddSiteModal.svelte';
   import PresetModal from './PresetModal.svelte';
   import RemoteControlModal from './RemoteControlModal.svelte';
   import LANProgressModal from './LANProgressModal.svelte';
@@ -31,8 +31,8 @@
   <DomainModal site={$modal.site} />
 {:else if $modal.kind === 'group' && $modal.site}
   <GroupModal site={$modal.site} />
-{:else if $modal.kind === 'link'}
-  <LinkModal />
+{:else if $modal.kind === 'addSite'}
+  <AddSiteModal />
 {:else if $modal.kind === 'preset'}
   <PresetModal />
 {:else if $modal.kind === 'remoteControl'}

@@ -9,7 +9,7 @@
   import { sites, sitesLoaded, siteWorkerFailing, type Site } from '$stores/sites';
   import { accessMode } from '$stores/accessMode';
   import { status } from '$stores/status';
-  import { openLinkModal } from '$stores/modals';
+  import { openAddSiteModal } from '$stores/modals';
   import { m } from '../../paraglide/messages.js';
 
   const total = $derived($sites.length);
@@ -96,7 +96,7 @@
 
     {#if $accessMode.localControl && $sitesLoaded && total > 0}
       <button
-        onclick={openLinkModal}
+        onclick={openAddSiteModal}
         class="inline-flex items-center gap-1 text-xs font-medium text-servlo-red hover:text-servlo-redhov"
       >
         <Icon name="plus" class="w-3.5 h-3.5" />

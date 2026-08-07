@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "Sari peste",
   "shareDomain_use": "Folosește acest domeniu",
   "shareDomain_configure": "Configurează domeniul",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "Adaugă site",
+  "addsite_domain": "Domeniu",
+  "addsite_domainHint": "Domeniul complet pe care este servit acest site. Îndreaptă DNS-ul lui către acest server, apoi folosește Get SSL.",
+  "addsite_path": "Director",
+  "addsite_browse": "Răsfoiește",
+  "addsite_phpVersion": "Versiune PHP",
+  "addsite_publicDir": "Rădăcina documentelor",
+  "addsite_auto": "automat",
+  "addsite_submit": "Adaugă site",
+  "addsite_failed": "Site-ul nu a putut fi adăugat.",
+  "addsite_willCreate": "Acest director nu există încă și va fi creat.",
+  "addsite_detected": "S-a detectat {framework}.",
+  "addsite_noFramework": "Niciun framework detectat; rădăcina documentelor va fi ghicită."
 }

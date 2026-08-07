@@ -228,7 +228,8 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/node/manage", withCORS(publishAfter(handleNodeManage, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/node/unmanage", withCORS(publishAfter(handleNodeUnmanage, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/node/set-manager", withCORS(publishAfter(handleNodeSetManager, eventbus.KindStatus, eventbus.KindSites)))
-	mux.HandleFunc("/api/sites/link", withCORS(publishAfter(handleSiteLink, eventbus.KindSites)))
+	mux.HandleFunc("/api/sites/create", withCORS(publishAfter(handleSiteCreate, eventbus.KindSites)))
+	mux.HandleFunc("/api/sites/inspect", withCORS(handleSiteInspect))
 	mux.HandleFunc("/api/sites/reorder", withCORS(publishAfter(handleSiteReorder, eventbus.KindSites)))
 	mux.HandleFunc("/api/browse", withCORS(handleBrowse))
 	mux.HandleFunc("/api/workspaces", withCORS(publishAfter(handleWorkspaces, eventbus.KindStatus, eventbus.KindSites)))
@@ -4652,48 +4653,6 @@ func handleBrowse(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"current": dir, "dirs": dirs})
 }
 
-// failureMessage extracts why a servlo command failed from its output. A failure
-// is printed as a "✗" line followed by any guidance, so everything from that
-// marker on is the message; without one, the last non-empty line is the best
-// available. Trimmed so the modal shows a sentence rather than a wall of output.
-func failureMessage(out string) string {
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-
-	from := -1
-	for i, line := range lines {
-		if strings.Contains(line, "✗") {
-			from = i
-		}
-	}
-
-	var parts []string
-	if from >= 0 {
-		for _, line := range lines[from:] {
-			if t := strings.TrimSpace(strings.ReplaceAll(line, "✗", "")); t != "" {
-				parts = append(parts, t)
-			}
-		}
-	} else {
-		for i := len(lines) - 1; i >= 0; i-- {
-			if t := strings.TrimSpace(lines[i]); t != "" {
-				parts = append(parts, t)
-				break
-			}
-		}
-	}
-
-	msg := strings.Join(parts, " — ")
-	if msg == "" {
-		msg = strings.TrimSpace(out)
-	}
-	if len(msg) > 300 {
-		return strings.TrimSpace(msg[:300]) + "…"
-	}
-	return msg
-}
-
-// handleSiteLink links a directory as a site via POST /api/sites/link.
-// It streams command output as SSE events and sends a final "done" event.
 // SiteReorderRequest is the JSON body for POST /api/sites/reorder.
 type SiteReorderRequest struct {
 	Order []string `json:"order"` // site names in the desired display order
@@ -4715,109 +4674,6 @@ func handleSiteReorder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, SiteActionResponse{OK: true})
-}
-
-func handleSiteLink(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.NotFound(w, r)
-		return
-	}
-
-	path := r.URL.Query().Get("path")
-	if path == "" {
-		writeJSON(w, SiteActionResponse{Error: "path parameter required"})
-		return
-	}
-	path = filepath.Clean(path)
-
-	info, err := os.Stat(path)
-	if err != nil || !info.IsDir() {
-		writeJSON(w, SiteActionResponse{Error: "not a valid directory: " + path})
-		return
-	}
-
-	self, err := os.Executable()
-	if err != nil {
-		writeJSON(w, SiteActionResponse{Error: "resolving executable: " + err.Error()})
-		return
-	}
-
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
-
-	// streamCmd runs a command and streams its output as SSE data events.
-	// Returns the combined output and whether the command failed.
-	streamCmd := func(name string, args ...string) (string, bool) {
-		cmd := exec.CommandContext(r.Context(), name, args...)
-		cmd.Dir = path
-
-		pr, pw := io.Pipe()
-		cmd.Stdout = pw
-		cmd.Stderr = pw
-
-		if startErr := cmd.Start(); startErr != nil {
-			msg := startErr.Error()
-			fmt.Fprintf(w, "data: %s\n\n", msg)
-			flusher.Flush()
-			return msg, true
-		}
-
-		go func() {
-			cmd.Wait() //nolint:errcheck
-			pw.Close()
-		}()
-
-		var out strings.Builder
-		scanner := bufio.NewScanner(pr)
-		for scanner.Scan() {
-			line := scanner.Text()
-			out.WriteString(line)
-			out.WriteByte('\n')
-			escaped := strings.ReplaceAll(line, "\\", "\\\\")
-			fmt.Fprintf(w, "data: %s\n\n", escaped)
-			flusher.Flush()
-		}
-		return out.String(), cmd.ProcessState != nil && cmd.ProcessState.ExitCode() != 0
-	}
-
-	// Run servlo link.
-	fmt.Fprintf(w, "data: → Linking site...\n\n")
-	flusher.Flush()
-	// --yes: clicking Link in the UI is the explicit consent the host-proxy
-	// confirmation prompt would otherwise ask for at the (non-interactive) CLI.
-	out, failed := streamCmd(self, "link", "--yes")
-	if failed {
-		fmt.Fprintf(w, "event: done\ndata: %s\n\n", mustJSON(map[string]any{"ok": false, "error": "link failed: " + out}))
-		flusher.Flush()
-		return
-	}
-
-	// Run env setup. The site is linked either way, so a failure here is a
-	// warning rather than an error — but it must reach the modal: a project with
-	// no framework, or a framework whose YAML declares no env section, leaves the
-	// .env untouched, and silently reporting success hid that entirely.
-	fmt.Fprintf(w, "data: → Setting up environment...\n\n")
-	flusher.Flush()
-	envOut, envFailed := streamCmd(self, "env")
-
-	done := map[string]any{"ok": true}
-	if envFailed {
-		done["warning"] = "environment setup failed: " + failureMessage(envOut)
-	}
-	// Find the newly linked site to return its domain.
-	if site, err := config.FindSiteByPath(path); err == nil {
-		done["domain"] = site.PrimaryDomain()
-	}
-	fmt.Fprintf(w, "event: done\ndata: %s\n\n", mustJSON(done))
-	flusher.Flush()
 }
 
 // sseLineWriter buffers writes into newline-delimited SSE `data:` frames so

@@ -62,7 +62,7 @@ The dashboard ships in fourteen languages: English, German, Spanish, French, Ind
 
 The Dashboard is the root page (`#dashboard`) and the default destination when the UI loads. It hides the middle list panel and fills the main pane with a responsive grid of widgets:
 
-- **Sites**: total / running / paused / failing counts, the top frameworks across linked sites as red badges, and a **Link site** call to action that opens the same modal as the Sites tab `+` button.
+- **Sites**: total / running / paused / failing counts, the top frameworks across linked sites as red badges, and an **Add site** call to action that opens the same modal as the Sites tab `+` button.
 - **Services**: an active-vs-total summary pill, a click-through banner when one or more services have updates available, a two-column list of every core service with status dot and version, an **Add** button that opens the preset picker, and a link into the Services tab.
 - **Workers**: per-group counts (Queues, Schedules, Horizon, Reverb, Stripe, custom Workers), a red pulsing dot when any unit in a group is failing, and a **Heal all** button that runs the same heal flow as the worker-health banner. Otherwise shows an "All healthy" pill.
 - **System health**: overall pill (Healthy / Attention / Problem) derived from DNS, Nginx, and the file watcher, plus a row per component and a chip per installed PHP-FPM version coloured by its running state.
@@ -113,9 +113,7 @@ Selecting a site opens the detail panel with:
 
   ![Paused site detail with the Resume placeholder](/assets/screenshots/site-detail-paused.png)
 
-- **Link site**: a CTA on the dashboard Sites widget and a **+** button next to the Sites list header open the Link Site modal, which lets you pick a directory below your home folder. Submitting it runs `servlo link <path>` and the new site shows up immediately.
-
-  ![Link Site modal](/assets/screenshots/link-site-modal.png)
+- **Add site**: a CTA on the dashboard Sites widget and a **+** button next to the Sites list header open the Add Site modal. It takes the site's fully qualified domain and its directory, creates the directory if it is not there yet, prefills the PHP version and document root from what it detects in the project, and registers the site. The new site appears immediately, unsecured, with its Get SSL button waiting on DNS. See [Adding a site from the panel](/usage/sites#adding-a-site-from-the-panel).
 
 - **Unlink button**: remove a site from nginx without reaching for a shell. It opens a confirmation modal naming the site, and on confirm the site is unlinked while its files stay on disk; a refused unlink reports the reason inside the modal
 - **Live PHP-FPM log**: streams FPM output for the selected site; tab switches to queue/horizon/schedule/reverb logs when those workers are running

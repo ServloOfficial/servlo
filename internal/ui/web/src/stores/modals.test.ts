@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { get } from 'svelte/store';
-import { modal, openDomainModal, openLinkModal, openPresetModal, closeModal } from './modals';
+import { modal, openDomainModal, openAddSiteModal, openPresetModal, closeModal } from './modals';
 import type { Site } from './sites';
 
 describe('modal store', () => {
@@ -18,8 +18,8 @@ describe('modal store', () => {
   });
 
   it('opens link modal', () => {
-    openLinkModal();
-    expect(get(modal).kind).toBe('link');
+    openAddSiteModal();
+    expect(get(modal).kind).toBe('addSite');
     closeModal();
   });
 
@@ -30,7 +30,7 @@ describe('modal store', () => {
   });
 
   it('closeModal resets state', () => {
-    openLinkModal();
+    openAddSiteModal();
     closeModal();
     expect(get(modal).kind).toBeNull();
   });

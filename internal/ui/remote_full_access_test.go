@@ -14,8 +14,6 @@ import (
 // exact match, prefix subtree, and per-site subaction.
 var hostActionPaths = []string{
 	"/api/servlo/stop",
-	"/api/sites/link",
-	"/api/browse",
 	"/api/tools/composer/update",
 	"/api/databases/mysql/drop",
 	"/api/sites/myapp.test/env",
@@ -209,8 +207,6 @@ func TestIsLoopbackOnlyPath(t *testing.T) {
 		{"/api/servlo/stop", true},
 		{"/api/servlo/quit", true},
 		{"/api/logs/servlo-nginx", false},
-		{"/api/sites/link", true},
-		{"/api/browse", true},
 		{"/api/sites/myapp.test/env", true},
 		{"/api/sites/myapp.test/env/files", true},
 		{"/api/sites/myapp.test/env/backups", true},

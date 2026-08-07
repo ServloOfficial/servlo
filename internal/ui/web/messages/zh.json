@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "跳过",
   "shareDomain_use": "使用该域名",
   "shareDomain_configure": "配置域名",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "添加站点",
+  "addsite_domain": "域名",
+  "addsite_domainHint": "此站点对外提供服务的完整域名。将其 DNS 指向本服务器，然后使用 Get SSL。",
+  "addsite_path": "目录",
+  "addsite_browse": "浏览",
+  "addsite_phpVersion": "PHP 版本",
+  "addsite_publicDir": "文档根目录",
+  "addsite_auto": "自动",
+  "addsite_submit": "添加站点",
+  "addsite_failed": "无法添加站点。",
+  "addsite_willCreate": "该目录尚不存在，将被创建。",
+  "addsite_detected": "检测到 {framework}。",
+  "addsite_noFramework": "未检测到框架；将猜测文档根目录。"
 }

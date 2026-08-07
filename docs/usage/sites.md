@@ -306,19 +306,21 @@ Paths are compared after resolving symlinks, and the resolved path is what gets 
 
 ---
 
-## Linking from the web UI
+## Adding a site from the panel
 
-You can link a new site directly from the dashboard by clicking the **+** button in the sites panel header. A directory browser modal lets you navigate to the project folder and click **Link This Directory**. After linking, the site's `.env` is auto-configured and the UI switches to the new site's settings.
+The **+** button next to the Sites list header, and the **Add site** call to action on the dashboard, both open the Add Site modal.
 
-Clicking **Link This Directory** is the consent a terminal link would ask for, so
-a project that declares a host-proxy dev command has that command started for
-you. The command is printed in the modal's output, so what servlo runs on your host
-is on screen either way.
+Two fields matter. **Domain** is the fully qualified name the site is served on, typed in full: servlo has no TLD of its own to complete a bare name with, so `myapp` is refused rather than turned into something that resolves nowhere. **Directory** is where the project lives, either typed or picked with **Browse**. If the directory does not exist yet, servlo creates it, provided its parent does; a whole missing tree is refused, because that turns a typo into a directory nobody will look for again.
 
-The environment step can fail on its own, a project with no framework, or a
-framework that declares no env file, has nothing to configure. The site is still
-linked, and the modal says what went wrong instead of closing on a clean
-success.
+As soon as a directory is named, servlo reads it and says what it found: the framework it detected, or that it detected none and will guess the document root. **PHP version** and **Document root** are prefilled from that and can be overridden, because the operator looking at the detected values is the one best placed to disagree with them.
+
+Submitting registers the site, generates its vhost and provisions its runtime. Nothing is created before every refusal has had its chance, so a rejected domain leaves no directory behind on the retry.
+
+The new site is not secured. Point the domain's DNS at this server, and the site's **Get SSL** button issues a certificate once its live DNS check sees every domain and alias resolving here.
+
+A site added on an empty directory is registered and served, and serves nothing until a project is put in it. The modal says so rather than closing onto a blank page.
+
+Adding a site from the panel does not run anything the repository authored. A project declaring a host-proxy dev command has that command registered but not started: a click is consent to serve a project, not to execute code it chose, and the browser has no way to ask about that properly. Run `servlo link` from a shell in the project when you want that.
 
 ---
 

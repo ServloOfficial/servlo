@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "スキップ",
   "shareDomain_use": "このドメインを使う",
   "shareDomain_configure": "ドメインを設定",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "サイトを追加",
+  "addsite_domain": "ドメイン",
+  "addsite_domainHint": "このサイトを配信する完全なドメインです。DNS をこのサーバーに向けてから Get SSL を使ってください。",
+  "addsite_path": "ディレクトリ",
+  "addsite_browse": "参照",
+  "addsite_phpVersion": "PHP バージョン",
+  "addsite_publicDir": "ドキュメントルート",
+  "addsite_auto": "自動",
+  "addsite_submit": "サイトを追加",
+  "addsite_failed": "サイトを追加できませんでした。",
+  "addsite_willCreate": "このディレクトリはまだ存在しないため作成されます。",
+  "addsite_detected": "{framework} を検出しました。",
+  "addsite_noFramework": "フレームワークは検出されませんでした。ドキュメントルートは推測されます。"
 }

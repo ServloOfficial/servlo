@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { sites, sitesLoaded } from '$stores/sites';
-  import { openLinkModal, openPresetModal } from '$stores/modals';
+  import { openAddSiteModal, openPresetModal } from '$stores/modals';
   import { openDocs } from '$stores/dashboard';
   import { accessMode } from '$stores/accessMode';
   import { m } from '../../paraglide/messages.js';
@@ -68,7 +68,7 @@
         {#if $accessMode.localControl}
           <button
             type="button"
-            onclick={openLinkModal}
+            onclick={openAddSiteModal}
             class="self-start inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-servlo-red hover:bg-servlo-redhov text-white transition-colors"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

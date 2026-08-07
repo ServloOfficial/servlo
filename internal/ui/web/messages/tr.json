@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "Atla",
   "shareDomain_use": "Bu alan adını kullan",
   "shareDomain_configure": "Alan adını yapılandır",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "Site Ekle",
+  "addsite_domain": "Alan adı",
+  "addsite_domainHint": "Bu sitenin sunulduğu tam alan adı. DNS'ini bu sunucuya yönlendirin, sonra Get SSL'i kullanın.",
+  "addsite_path": "Dizin",
+  "addsite_browse": "Gözat",
+  "addsite_phpVersion": "PHP sürümü",
+  "addsite_publicDir": "Belge kökü",
+  "addsite_auto": "otomatik",
+  "addsite_submit": "Site Ekle",
+  "addsite_failed": "Site eklenemedi.",
+  "addsite_willCreate": "Bu dizin henüz yok ve oluşturulacak.",
+  "addsite_detected": "{framework} algılandı.",
+  "addsite_noFramework": "Framework algılanmadı; belge kökü tahmin edilecek."
 }

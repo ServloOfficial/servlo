@@ -4,7 +4,7 @@ import type { Site, EnvProposeEntry } from './sites';
 export type ModalKind =
   | 'domain'
   | 'group'
-  | 'link'
+  | 'addSite'
   | 'preset'
   | 'remoteControl'
   | 'lanProgress'
@@ -195,8 +195,8 @@ export function openGroupModal(site: Site) {
   modal.set({ kind: 'group', site });
 }
 
-export function openLinkModal() {
-  modal.set({ kind: 'link' });
+export function openAddSiteModal() {
+  modal.set({ kind: 'addSite' });
 }
 
 export function openPresetModal() {

@@ -297,8 +297,16 @@ Private vulnerability reporting on GitHub, three working days to acknowledge, cr
 
 ## E6 — Adding sites
 
-**S6.1 — Add site: existing folder.**
+**S6.1 — Add site: existing folder.** ✅
 *Done when:* domain, PHP version, auto-detected framework and document root are captured; the directory is created, the vhost generated, the site registered; the Get SSL button appears with its DNS check running. **L**
+
+The inherited flow could not be kept. It shelled out to the servlo binary with the browser's chosen directory as the working directory and let `servlo link` derive the rest, which worked while a site's domain was its directory name plus a TLD servlo resolved itself. Here the domain is given and never derived, so it has to reach the linker as a value rather than as an argv the CLI parses back out. The panel resolves and applies a plan in process now: same linker, same registration, same vhost the CLI takes, differing only in policy.
+
+That policy is the interesting part, and it refuses two things a CLI link allows. A repository's own dev-server command and its inline service containers stay unrun, because a click is consent to serve a project and not to execute code the repository chose, and a browser has no way to ask about that properly. Issuance stays off, because it is gated on a live check that the domain resolves here and a site created a second ago has not passed it. Get SSL is its own button for exactly that reason.
+
+Asking about a path is a separate request from creating a site, and a GET, so the form can show what servlo found in a directory before anything exists. One missing level is created; a missing tree is refused, since that is how a typo becomes a directory nobody looks for again. Every refusal happens before anything is written, so a rejected domain leaves nothing behind on the retry.
+
+The `/api/browse` and `/api/sites/link` routes were on the loopback-only list, which on a droplet means the add-site flow could not be reached from the panel at all. Link is deleted; browse is now what its permission says it is, admin, with a session, CSRF and an audit entry behind it. What remains on that list, databases, raw `.env`, tools, is the same question deferred to the stories that own them.
 
 **S6.2 — Add site: clone from GitHub.**
 *Done when:* Servlo generates an SSH deploy key, displays it for pasting into the repository, verifies the connection with a test, then clones. Connection failure gives a specific reason, not a generic error. **L**

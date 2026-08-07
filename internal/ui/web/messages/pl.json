@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "Pomiń",
   "shareDomain_use": "Użyj tej domeny",
   "shareDomain_configure": "Skonfiguruj domenę",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "Dodaj witrynę",
+  "addsite_domain": "Domena",
+  "addsite_domainHint": "Pełna domena, pod którą serwowana jest ta witryna. Skieruj jej DNS na ten serwer, a potem użyj Get SSL.",
+  "addsite_path": "Katalog",
+  "addsite_browse": "Przeglądaj",
+  "addsite_phpVersion": "Wersja PHP",
+  "addsite_publicDir": "Katalog dokumentów",
+  "addsite_auto": "automatycznie",
+  "addsite_submit": "Dodaj witrynę",
+  "addsite_failed": "Nie udało się dodać witryny.",
+  "addsite_willCreate": "Ten katalog jeszcze nie istnieje i zostanie utworzony.",
+  "addsite_detected": "Wykryto {framework}.",
+  "addsite_noFramework": "Nie wykryto frameworka; katalog dokumentów zostanie odgadnięty."
 }

@@ -16,7 +16,7 @@
   import { coreServices, serviceLabel } from '$stores/services';
   import { installablePresets, loadPresets, installPresetAndOpen } from '$stores/presets';
   import { unhealthyWorkers, healAll, loadWorkerHealth } from '$stores/workerHealth';
-  import { openLinkModal, openPresetModal } from '$stores/modals';
+  import { openAddSiteModal, openPresetModal } from '$stores/modals';
   import { openDocs } from '$stores/dashboard';
   import { theme } from '$stores/theme';
   import { loadVersion } from '$stores/version';
@@ -187,7 +187,7 @@
     }
 
     if ($accessMode.localControl) {
-      list.push({ id: 'act:link', label: m.palette_action_link(), group: 'actions', action: openLinkModal });
+      list.push({ id: 'act:link', label: m.palette_action_link(), group: 'actions', action: openAddSiteModal });
       list.push({ id: 'act:preset', label: m.palette_action_addService(), group: 'actions', action: openPresetModal });
     }
     if ($unhealthyWorkers.length > 0) {

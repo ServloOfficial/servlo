@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "Overslaan",
   "shareDomain_use": "Dit domein gebruiken",
   "shareDomain_configure": "Domein instellen",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "Site toevoegen",
+  "addsite_domain": "Domein",
+  "addsite_domainHint": "Het volledige domein waarop deze site wordt geserveerd. Richt de DNS op deze server en gebruik daarna Get SSL.",
+  "addsite_path": "Map",
+  "addsite_browse": "Bladeren",
+  "addsite_phpVersion": "PHP-versie",
+  "addsite_publicDir": "Documentroot",
+  "addsite_auto": "automatisch",
+  "addsite_submit": "Site toevoegen",
+  "addsite_failed": "De site kon niet worden toegevoegd.",
+  "addsite_willCreate": "Deze map bestaat nog niet en wordt aangemaakt.",
+  "addsite_detected": "{framework} gedetecteerd.",
+  "addsite_noFramework": "Geen framework gedetecteerd; de documentroot wordt geraden."
 }

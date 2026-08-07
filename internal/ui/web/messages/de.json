@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "Überspringen",
   "shareDomain_use": "Diese Domain verwenden",
   "shareDomain_configure": "Domain konfigurieren",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "Site hinzufügen",
+  "addsite_domain": "Domain",
+  "addsite_domainHint": "Die vollständige Domain, unter der diese Site ausgeliefert wird. Richte ihr DNS auf diesen Server, dann nutze Get SSL.",
+  "addsite_path": "Verzeichnis",
+  "addsite_browse": "Durchsuchen",
+  "addsite_phpVersion": "PHP-Version",
+  "addsite_publicDir": "Dokumentwurzel",
+  "addsite_auto": "automatisch",
+  "addsite_submit": "Site hinzufügen",
+  "addsite_failed": "Die Site konnte nicht hinzugefügt werden.",
+  "addsite_willCreate": "Dieses Verzeichnis existiert noch nicht und wird angelegt.",
+  "addsite_detected": "{framework} erkannt.",
+  "addsite_noFramework": "Kein Framework erkannt; die Dokumentwurzel wird geraten."
 }

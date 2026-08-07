@@ -1077,5 +1077,18 @@
   "shareDomain_skip": "Lewati",
   "shareDomain_use": "Gunakan domain ini",
   "shareDomain_configure": "Konfigurasikan domain",
-  "system_remote_qrAlt": "Dashboard QR code"
+  "system_remote_qrAlt": "Dashboard QR code",
+  "addsite_title": "Tambah Situs",
+  "addsite_domain": "Domain",
+  "addsite_domainHint": "Domain lengkap tempat situs ini disajikan. Arahkan DNS-nya ke server ini, lalu gunakan Get SSL.",
+  "addsite_path": "Direktori",
+  "addsite_browse": "Telusuri",
+  "addsite_phpVersion": "Versi PHP",
+  "addsite_publicDir": "Root dokumen",
+  "addsite_auto": "otomatis",
+  "addsite_submit": "Tambah Situs",
+  "addsite_failed": "Situs tidak dapat ditambahkan.",
+  "addsite_willCreate": "Direktori ini belum ada dan akan dibuat.",
+  "addsite_detected": "{framework} terdeteksi.",
+  "addsite_noFramework": "Tidak ada framework terdeteksi; root dokumen akan ditebak."
 }
