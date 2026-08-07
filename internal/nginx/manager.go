@@ -97,7 +97,11 @@ type VhostData struct {
 	PHPVersionShort string
 	// FPMContainer is the container nginx fastcgi's to: the shared
 	// servlo-php<ver>-fpm, or a per-site container for custom-FPM sites.
-	FPMContainer    string
+	FPMContainer string
+	// FPMSocket is the site's own pool socket, set only once that pool exists.
+	// Empty falls back to FPMContainer, which is what keeps a site that has not
+	// been given a pool yet serving instead of answering 502.
+	FPMSocket       string
 	CertDomain      string // domain whose cert files to use (defaults to Domain)
 	PublicDir       string // document root subdirectory, e.g. "public", "web", "."
 	Proxy           bool   // true when the site has a worker with WebSocket/HTTP proxy config
@@ -399,6 +403,7 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 	proxyPath, proxyPort, hasProxy := detectSiteProxy(site)
 	devBase, devPort := detectSiteDevServer(site)
 	fpmContainer := podman.FPMContainerName(site, phpVersion)
+	fpmSocket := FPMUpstream(config.FPMPoolDir(), config.FPMSocketDir(), site.Name, fpmContainer).Socket
 	data := VhostData{
 		Domain:          site.PrimaryDomain(),
 		ServerNames:     serverNames,
@@ -406,6 +411,7 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 		PHPVersion:      phpVersion,
 		PHPVersionShort: phpShort(phpVersion),
 		FPMContainer:    fpmContainer,
+		FPMSocket:       fpmSocket,
 		PublicDir:       publicDir,
 		Proxy:           hasProxy,
 		ProxyPath:       proxyPath,
@@ -449,6 +455,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 	proxyPath, proxyPort, hasProxy := detectSiteProxy(site)
 	devBase, devPort := detectSiteDevServer(site)
 	fpmContainer := podman.FPMContainerName(site, phpVersion)
+	fpmSocket := FPMUpstream(config.FPMPoolDir(), config.FPMSocketDir(), site.Name, fpmContainer).Socket
 	data := VhostData{
 		Domain:          site.PrimaryDomain(),
 		ServerNames:     serverNames,
@@ -456,6 +463,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 		PHPVersion:      phpVersion,
 		PHPVersionShort: phpShort(phpVersion),
 		FPMContainer:    fpmContainer,
+		FPMSocket:       fpmSocket,
 		CertDomain:      site.PrimaryDomain(),
 		PublicDir:       publicDir,
 		Proxy:           hasProxy,

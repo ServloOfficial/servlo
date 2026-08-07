@@ -50,8 +50,14 @@ server {
     }
 
     location ~ \.php$ {
+{{- if .FPMSocket}}
+        # The site's own pool. A unix socket needs no resolution, so the
+        # variable indirection below is not needed here.
+        fastcgi_pass unix:{{.FPMSocket}};
+{{- else}}
         set $fpm "{{.FPMContainer}}";
         fastcgi_pass $fpm:9000;
+{{- end}}
         fastcgi_index index.php;
         fastcgi_read_timeout {{.RequestTimeout}}s;
         fastcgi_send_timeout {{.RequestTimeout}}s;

@@ -434,3 +434,18 @@ func ContainerHostsFile() string {
 func BrowserHostsFile() string {
 	return filepath.Join(DataDir(), "browser-hosts")
 }
+
+// FPMPoolDir returns the directory holding one PHP-FPM pool per site. It is
+// bind-mounted into the FPM container as php-fpm.d, so a file here is a pool
+// the master process reads on its next reload.
+func FPMPoolDir() string {
+	return filepath.Join(DataDir(), "fpm-pools")
+}
+
+// FPMSocketDir returns the directory a site's pool listens in. It sits under
+// RunDir because that is what both the FPM container and servlo-nginx mount at
+// the same absolute path, which is what lets the pool's listen address and the
+// vhost's fastcgi_pass name the same socket.
+func FPMSocketDir() string {
+	return filepath.Join(RunDir(), "fpm")
+}
