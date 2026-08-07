@@ -165,10 +165,10 @@ func TestCommandsRun_NotFound(t *testing.T) {
 	}
 }
 
-func TestCommandsRun_TerminalModeReturnsImmediately(t *testing.T) {
-	// Force openTerminalCommand to fail by clearing PATH so no terminal
-	// emulator binary can be looked up. The handler must enter the
-	// terminal branch (JSON response with "error", not SSE).
+// A command declaring the deleted terminal output must not run at all. The
+// store no longer produces one, but a hand-edited project file still can, and
+// spawning a desktop emulator on a headless droplet is not a thing to attempt.
+func TestCommandsRun_RejectsTheDeletedTerminalOutput(t *testing.T) {
 	sitePath := registerSite(t, "acme", "acme.test")
 	writeProjectYAML(t, sitePath, `
 commands:
@@ -177,7 +177,6 @@ commands:
     command: bash
     output: terminal
 `)
-	t.Setenv("PATH", "")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/sites/acme.test/commands/shell/run?approve=1", nil)
 	req.RemoteAddr = "127.0.0.1:1234"
@@ -185,13 +184,10 @@ commands:
 	handleSiteAction(rec, req)
 	body := rec.Body.String()
 	if strings.Contains(body, "event: stdout") || strings.Contains(body, "event: done") {
-		t.Errorf("terminal mode should not produce SSE events: %q", body)
+		t.Errorf("an invalid output ran the command anyway: %q", body)
 	}
-	// PATH is empty so no terminal emulator can be spawned; the handler
-	// returns the "no terminal emulator found" error. This proves the
-	// terminal branch was taken without actually opening a window.
 	if !strings.Contains(body, `"error"`) {
-		t.Errorf("expected error JSON (no terminal in empty PATH): %q", body)
+		t.Errorf("expected an error, got: %q", body)
 	}
 }
 

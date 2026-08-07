@@ -6,28 +6,10 @@
   import { version, loadVersion } from '$stores/version';
   import { autostartEnabled } from '$stores/autostart';
   import { lan } from '$stores/lan';
-  import { accessMode } from '$stores/accessMode';
   import { goToTab } from '$stores/route';
-  import { apiFetch } from '$lib/api';
   import { m } from '../../paraglide/messages.js';
 
-  let updateTerminalLoading = $state(false);
-  let updateTerminalError = $state('');
   let changelogOpen = $state(false);
-
-  async function openUpdateTerminal() {
-    updateTerminalLoading = true;
-    updateTerminalError = '';
-    try {
-      const res = await apiFetch('/api/servlo/update-terminal', { method: 'POST' });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (!data.ok) updateTerminalError = data.error || m.common_failed();
-    } catch (e) {
-      updateTerminalError = e instanceof Error ? e.message : m.common_failed();
-    } finally {
-      updateTerminalLoading = false;
-    }
-  }
 </script>
 
 <DashboardCard title={m.dashboard_servlo_title()} tone={$version.hasUpdate ? 'warn' : 'default'}>
@@ -53,24 +35,6 @@
       </svg>
       <div class="flex-1 space-y-2">
         <span>{m.system_servlo_available({ version: $version.latest })}</span>
-        {#if $accessMode.localControl}
-          <div>
-            <button
-              onclick={openUpdateTerminal}
-              disabled={updateTerminalLoading}
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-white hover:bg-gray-50 dark:bg-white/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-200 disabled:opacity-50 transition-colors"
-            >
-              {#if updateTerminalLoading}
-                {m.system_servlo_openingTerminal()}
-              {:else}
-                {m.system_servlo_openTerminal()}
-              {/if}
-            </button>
-          </div>
-        {/if}
-        {#if updateTerminalError}
-          <p class="text-xs text-red-500">{updateTerminalError}</p>
-        {/if}
         {#if $version.changelog}
           <button
             type="button"

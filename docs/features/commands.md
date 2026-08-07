@@ -27,7 +27,8 @@ Clicking a command (or pressing Enter on a palette entry, or running `servlo run
 - **`text`** (default), streams stdout and stderr into the modal as a scrollable monospace block, and leaves it open on the exit code. Use for commands whose output you'd want to read (test runs, route lists, config diffs).
 - **`silent`**: runs without opening the modal and toasts when it's done, so a cache clear doesn't cost you a click. A failure still opens the modal with the captured output, since that's the only thing that explains it.
 - **`url`**: captures stdout, scans it for the first `http(s)://...` URL, and surfaces it with Copy and Open buttons. The killer feature for `drush uli` and similar one-time-login generators.
-- **`terminal`**: spawns the user's terminal emulator (kitty, foot, alacritty, wezterm, ghostty, ptyxis, konsole, gnome-terminal, xterm) with the command running inside. Use for interactive commands like `bin/cake bake` or `wp shell` that need a real TTY. The servlo-ui modal stays closed.
+
+There is no `terminal` output. It spawned a terminal emulator on the machine's desktop, which a headless server does not have, and it was an execution surface the panel had no way to scope. A command that genuinely needs a TTY is a command to run over SSH.
 
 The dashboard modal streams output as it arrives via Server-Sent Events from `POST /api/sites/:domain/commands/:name/run`; the CLI streams straight to your terminal (`servlo run` is stdio-passthrough).
 
@@ -75,7 +76,7 @@ commands:
     label: Clear all caches       # UI label
     command: php artisan optimize:clear   # shell, passed to `sh -c`
     description: Clear config, route, view, event, and compiled caches
-    output: silent                # silent | text | url | terminal (default: text)
+    output: silent                # silent | text | url (default: text)
     confirm: false                # ask before running
     icon: broom                   # from the known icon set
     cwd: .                        # optional, relative to project root
@@ -84,7 +85,7 @@ commands:
     # `disabled: true` is only meaningful in .servlo.yaml; ignored in framework yamls
 ```
 
-**Known icons**: `broom`, `database`, `refresh`, `link`, `check`, `list`, `key`, `edit`, `arrow-down`, `arrow-up`, `play`, `terminal`. An unknown icon falls back to a generic glyph; `servlo check` warns.
+**Known icons**: `broom`, `database`, `refresh`, `link`, `check`, `list`, `key`, `edit`, `arrow-down`, `arrow-up`, `play`. An unknown icon falls back to a generic glyph; `servlo check` warns.
 
 **Output values:** invalid values fail `servlo check`. Defaults to `text`.
 

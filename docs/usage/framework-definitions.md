@@ -223,7 +223,7 @@ commands:
     label: Clear cache                # display name
     command: bin/console cache:clear  # shell, run through `sh -c`
     description: Clear the Symfony cache for the current environment
-    output: silent                    # silent | text | url | terminal (default: text)
+    output: silent                    # silent | text | url (default: text)
     confirm: false                    # gate behind a confirmation (optional, default: false)
     icon: broom                       # name from the known icon set (optional)
     cwd: .                            # working dir relative to project root (optional, default: .)
@@ -272,7 +272,8 @@ The `commands:` list is the framework's own verbs: the things you would otherwis
 | `text` | Streams stdout and stderr into the run modal as they arrive, and the modal stays open afterwards showing the exit code and duration. This is what you get when `output` is omitted. |
 | `silent` | Runs without opening the modal at all, and shows a toast when it finishes. A non-zero exit is the exception: the modal opens after all, carrying the captured output, because that output is the only thing that explains the failure. Use it for commands whose output nobody reads, like a cache clear. |
 | `url` | Streams like `text`, and additionally lifts the first `http://` or `https://` URL out of the output into a copy-and-open panel on the finished modal. This exists for one-time login links, like Drupal's `drush uli`. |
-| `terminal` | Spawns the user's terminal emulator running the command, instead of streaming it anywhere. Nothing is captured, so there is no output pane, no exit code, and no run history. Use it for commands that are interactive or long-lived enough that a modal is the wrong container. |
+
+A `terminal` value used to exist and no longer does. It spawned a terminal emulator on the machine's desktop, which a server does not have, so a definition still carrying it is refused rather than run some other way.
 
 `confirm: true` puts the command behind a confirmation showing the exact command line before anything runs, and both the dashboard and `servlo run` (unless you pass `--yes`) honour it. This is what lets a genuinely destructive command ship as a command rather than as a setup step: Laravel's `migrate:fresh` drops every table, and Magento ships `setup:install` this way.
 
@@ -280,7 +281,7 @@ The `commands:` list is the framework's own verbs: the things you would otherwis
 
 `icon` is drawn from a fixed vocabulary, and a name outside it renders a generic fallback rather than failing. The set is:
 
-`broom`, `database`, `refresh`, `link`, `check`, `list`, `key`, `edit`, `arrow-down`, `arrow-up`, `play`, `terminal`
+`broom`, `database`, `refresh`, `link`, `check`, `list`, `key`, `edit`, `arrow-down`, `arrow-up`, `play`
 
 `servlo check` validates a definition's commands, and it is the fastest way to catch a typo: an unknown `output` is an error, and an unknown `icon` is a warning.
 

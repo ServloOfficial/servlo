@@ -270,11 +270,25 @@ A shell command is attributed to the Unix user running it and carries no IP. On 
 
 Query strings are never recorded. The file is 0600 and it is also the file an operator pastes into a support thread, which is the same reason `Detail` was already redacted.
 
-**S5.7 — Strip dev-only UI surfaces.**
+**S5.7 — Strip dev-only UI surfaces.** ✅
 *Done when:* no Tinker tab, terminal button, profiler view, dump viewer, Xdebug toggle, per-version `php.ini` editor or worktree strip remains anywhere in the Svelte app. **L**
 
-**S5.8 — `SECURITY.md`.**
+Most of the named list was already gone, deleted by the story that owned each feature. What was left was one family nobody had named yet, and naming it is what made it obvious: three buttons that all did the same thing, which was start a desktop application on the machine running servlo. A terminal emulator tailing a unit, a file manager opened on a site's directory, an IDE opened on a file and a line.
+
+A droplet has no desktop for any of them to appear on, so each spawned a process nobody would ever see. That is the harmless reading. The other one is that each was a way to start an arbitrary process on the box that runs every site, reached from a browser, and the panel is now on the public internet.
+
+The terminal one outlived the container shell drop-in S0.5 deleted, because they look alike and are not: that entered a container, this opened a window. Different features, same fate.
+
+The `terminal` command output went with them, and the runner now refuses an output it does not recognise instead of quietly running it as `text`. The store no longer produces one, but a hand-edited project file still can, and a value that means nothing should say so rather than mean something else.
+
+**S5.8 — `SECURITY.md`.** ✅
 *Done when:* the threat model — including the shared-Linux-user tradeoff from PRD §6 — and a disclosure process are written down. **M**
+
+The tradeoff gets its own section rather than a line in a list, because it is the one thing to understand before putting a client's site next to your own: every site runs as the same Linux user, so a site that gets code execution reads every other site's `.env`. Written as what it is, a deliberate trade with two real mitigations and one piece of advice no code can enforce.
+
+The attackers are the ones who actually show up: a scanner finding the login form, a compromised WordPress plugin, a developer with an account reaching a third site, and anyone who ends up with a copy of a file. What is out of scope says so plainly — an attacker with a root shell, a hostile base image, a hostile host — because a threat model that claims to cover those is not one to trust about anything else.
+
+Private vulnerability reporting on GitHub, three working days to acknowledge, credit in the release notes. No bounty, and it says so.
 
 ---
 

@@ -52,11 +52,6 @@ type ServiceConfig struct {
 
 // GlobalConfig is the top-level servlo configuration.
 type GlobalConfig struct {
-	// Editor is the command servlo runs to open a file at a line (the
-	// "open in editor" links in the dashboard). Optional {file} and {line}
-	// placeholders; if omitted, servlo appends the file. Empty = autodetect a
-	// known GUI editor (code/cursor/phpstorm/subl/zed), then xdg-open/open.
-	Editor string `yaml:"editor,omitempty" mapstructure:"editor"`
 	// IDEDataSource keeps a JetBrains project's database connection pointed at
 	// servlo, written only into a project that already has a .idea directory. Set
 	// false to leave every IDE file alone.

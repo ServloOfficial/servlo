@@ -23,13 +23,11 @@ type ctxKeyRemoteDashboard struct{}
 // user can still use them as normal, and a remote session reaches them only
 // after `servlo remote-control full-access on`.
 var loopbackOnlyRoutes = []string{
-	"/api/servlo/stop",            // shuts down all servlo containers
-	"/api/servlo/quit",            // exits the dashboard process
-	"/api/servlo/update-terminal", // spawns a terminal emulator on the host
-	"/api/logs/terminal",          // spawns a terminal emulator on the host
-	"/api/sites/link",             // links arbitrary host filesystem paths
-	"/api/browse",                 // browses host filesystem
-	"/api/push/test",              // fires notifications onto subscribed devices
+	"/api/servlo/stop", // shuts down all servlo containers
+	"/api/servlo/quit", // exits the dashboard process
+	"/api/sites/link",  // links arbitrary host filesystem paths
+	"/api/browse",      // browses host filesystem
+	"/api/push/test",   // fires notifications onto subscribed devices
 }
 
 // loopbackOnlyRoutePrefixes are endpoint subtrees restricted in full, so a
@@ -50,8 +48,7 @@ var loopbackOnlyRoutePrefixes = []string{
 // new subresource cannot accidentally escape the gate by failing to be
 // re-listed here.
 var loopbackOnlySiteSubactions = []string{
-	"/terminal", // opens an interactive shell on the host
-	"/env",      // raw .env content + backups + restore (APP_KEY, DB creds, tokens)
+	"/env", // raw .env content + backups + restore (APP_KEY, DB creds, tokens)
 }
 
 // isLoopbackOnlyPath reports whether the given URL path is in either the

@@ -3,7 +3,6 @@
   import { writable } from 'svelte/store';
   import { createLogStream, type LogStream } from '$lib/logStream';
   import { ansiToHtml } from '$lib/ansi';
-  import { apiFetch, decodeJSONResult } from '$lib/api';
   import { tooltip } from '$lib/tooltip';
   import { m } from '../paraglide/messages.js';
 
@@ -61,25 +60,6 @@
     current?.clear();
   }
 
-  let terminalError: string | null = $state(null);
-
-  // Hand the stream path to the daemon, which resolves it to the unit and
-  // tails it in the user's terminal emulator.
-  async function followInTerminal() {
-    terminalError = null;
-    try {
-      const res = await apiFetch('/api/logs/terminal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path })
-      });
-      const out = await decodeJSONResult<{ ok?: boolean; error?: string }>(res);
-      if (!out.ok) terminalError = out.error ?? m.common_failed();
-    } catch (e) {
-      terminalError = e instanceof Error ? e.message : String(e);
-    }
-  }
-
   function lineClass(line: string): string {
     if (highlight) {
       const out = highlight(line);
@@ -104,11 +84,6 @@
       {$connected ? m.common_live() : m.common_disconnected()}
     </span>
     <div class="flex items-center gap-2">
-      {#if terminalError}
-        <span class="text-[10px] text-red-500 truncate max-w-[16rem]" use:tooltip={terminalError}
-          >{terminalError}</span
-        >
-      {/if}
       <button
         onclick={clearLines}
         use:tooltip={m.common_clear()}
@@ -134,18 +109,6 @@
           <path d="M21 3v5h-5" />
           <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
           <path d="M3 21v-5h5" />
-        </svg>
-      </button>
-      <button
-        onclick={followInTerminal}
-        use:tooltip={m.common_followInTerminal()}
-        aria-label={m.common_followInTerminal()}
-        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-      >
-        <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="4" width="18" height="16" rx="2" />
-          <path d="M7 9l3 3-3 3M13 15h4" />
         </svg>
       </button>
     </div>

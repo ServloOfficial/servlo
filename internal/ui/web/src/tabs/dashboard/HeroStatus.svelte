@@ -39,20 +39,10 @@
   const sitesTotal = $derived($sites.length);
   const servicesActive = $derived($coreServices.filter((s) => s.status === 'active').length);
 
-  let updateTerminalLoading = $state(false);
 
   async function onHeal() {
     await healAll();
     await loadWorkerHealth();
-  }
-
-  async function onUpdateServlo() {
-    updateTerminalLoading = true;
-    try {
-      await apiFetch('/api/servlo/update-terminal', { method: 'POST' });
-    } finally {
-      updateTerminalLoading = false;
-    }
   }
 
   const failingWorkerSites = $derived.by(() => {
@@ -117,15 +107,6 @@
           {m.dashboard_hero_servloUpdate({ version: $version.latest })}
         </p>
       </div>
-      {#if $accessMode.localControl}
-        <button
-          onclick={onUpdateServlo}
-          disabled={updateTerminalLoading}
-          class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-yellow-600 hover:bg-yellow-700 text-white disabled:opacity-50 transition-colors"
-        >
-          {updateTerminalLoading ? m.system_servlo_openingTerminal() : m.system_servlo_openTerminal()}
-        </button>
-      {/if}
     </div>
   </div>
 {:else}

@@ -5,7 +5,7 @@ package surfacescan
 // list of forbidden names.
 var specs = []string{
 	"CLAUDE.md", "PRD.md", "STORY.md", "CHANGELOG.md", "README.md",
-	".claude/", "internal/surfacescan/",
+	"SECURITY.md", ".claude/", "internal/surfacescan/",
 }
 
 // panelVhostFiles carry servlo.localhost, the panel's own hostname. That is not
@@ -174,6 +174,25 @@ func Rules() []Rule {
 			// databases and the system anchor have no successor to come back for.
 			Patterns: []string{`\bmkcert\b`, `\bcertutil\b`, `\bnss(db|_tools|-tools)\b`, `rootCA\.pem`, `\bCAROOT\b`},
 			Allow:    specs,
+		},
+		{
+			// Three buttons that all did the same thing: spawn a desktop
+			// application on the machine running servlo. A terminal emulator
+			// tailing a unit, a file manager on a site's directory, an IDE on a
+			// file and line. A headless droplet has no desktop for any of them to
+			// appear on, so each spawned a process nobody would ever see while
+			// being an execution surface on the box that runs every site.
+			//
+			// Not the same thing as the container shell drop-in S0.5 deleted,
+			// which is why the terminal one outlived it: that entered a
+			// container, this opened a window.
+			Feature: "host desktop launchers", Story: "S5.7", Enforced: true,
+			Patterns: []string{
+				`openTerminal`, `update-terminal`, `logs/terminal`,
+				`x-terminal-emulator`, `gnome-terminal`, `konsole`,
+				`open-folder`, `open-editor`, `openInEditor`, `editorCommand`,
+			},
+			Allow: specs,
 		},
 		{
 			Feature: "Mailpit", Story: "S13.0",

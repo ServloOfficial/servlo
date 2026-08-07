@@ -25,13 +25,6 @@ func logStreamCmd(ctx context.Context, unit string) *exec.Cmd {
 	return exec.CommandContext(ctx, "journalctl", "--user", "-u", unit, "-f", "--no-pager", "-n", "100", "--output=cat")
 }
 
-// logFollowScript returns the shell command a spawned terminal runs to follow a
-// unit's logs. Every servlo unit is a systemd user unit, so journalctl covers
-// both container and host workers.
-func logFollowScript(unit string) string {
-	return "journalctl --user -u " + unit + " -f --no-pager -n 100"
-}
-
 // isContainerUnit returns true on Linux — all servlo units run as Podman containers.
 func isContainerUnit(unit string) bool { return unitlog.IsContainerUnit(unit) }
 

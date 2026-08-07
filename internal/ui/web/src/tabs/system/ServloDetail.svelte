@@ -56,8 +56,6 @@
     }
   }
 
-  let updateTerminalLoading = $state(false);
-  let updateTerminalError = $state('');
 
   // There is no remote session to widen while servlo is loopback-only, so the
   // setting stays out of the way. An already enabled setting keeps showing, so
@@ -71,20 +69,6 @@
   const remoteCardHidden = $derived(
     !$lan.exposed && !$remoteControl.enabled && true
   );
-  async function openUpdateTerminal() {
-    updateTerminalLoading = true;
-    updateTerminalError = '';
-    try {
-      const res = await apiFetch('/api/servlo/update-terminal', { method: 'POST' });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (!data.ok) updateTerminalError = data.error || m.common_failed();
-    } catch (e) {
-      updateTerminalError = e instanceof Error ? e.message : m.common_failed();
-    } finally {
-      updateTerminalLoading = false;
-    }
-  }
-
   async function doDisableRemoteControl() {
     await disableRemoteControl();
   }
@@ -125,29 +109,6 @@
           <p class="text-xs text-gray-500 dark:text-gray-400">
             {@html m.system_servlo_updateHint({ cmd: '<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded-sm font-mono">servlo update</code>' })}
           </p>
-          {#if $accessMode.localControl}
-            <button
-              onclick={openUpdateTerminal}
-              disabled={updateTerminalLoading}
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 disabled:opacity-50 transition-colors"
-            >
-              {#if updateTerminalLoading}
-                <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                </svg>
-                {m.system_servlo_openingTerminal()}
-              {:else}
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-                {m.system_servlo_openTerminal()}
-              {/if}
-            </button>
-          {/if}
-          {#if updateTerminalError}
-            <p class="text-xs text-red-500">{updateTerminalError}</p>
-          {/if}
           {#if $version.changelog}
             <div>
               <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">{m.system_servlo_whatsNew()}</p>

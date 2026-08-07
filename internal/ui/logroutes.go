@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 )
@@ -11,9 +10,9 @@ import (
 // its mux registration.
 var siteWorkerLogKinds = []string{"queue", "horizon", "schedule", "reverb", "stripe"}
 
-// unitForLogPath maps a log stream path back to the unit behind it. Both the
-// stream handlers and "follow in terminal" resolve through here, so the two can
-// never disagree about which unit a pane is showing.
+// unitForLogPath maps a log stream path back to the unit behind it. Every log
+// route resolves through here, so no two of them can disagree about which unit
+// a pane is showing.
 func unitForLogPath(path string) (string, bool) {
 	if path == "/api/watcher/logs" {
 		return "servlo-watcher", true
@@ -54,34 +53,4 @@ func handleUnitLogStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	streamUnitLogs(w, r, unit)
-}
-
-// openTerminal is the seam tests replace so the handler can be exercised
-// without launching a real emulator.
-var openTerminal = openTerminalCommand
-
-// handleLogTerminal opens the host's terminal emulator tailing the same unit
-// the given log stream path shows, so a long-running tail can outlive the tab.
-func handleLogTerminal(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Path string `json:"path"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	unit, ok := unitForLogPath(body.Path)
-	if !ok {
-		http.Error(w, "unknown log stream", http.StatusNotFound)
-		return
-	}
-	if err := openTerminal(logFollowScript(unit)); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	writeJSON(w, map[string]any{"ok": true, "unit": unit})
 }

@@ -10,13 +10,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/logcolor"
-	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/sitetpl"
 )
 
@@ -145,6 +145,13 @@ func handleCommandRun(w http.ResponseWriter, r *http.Request, site *config.Site,
 		writeJSON(w, map[string]any{"error": "command has no shell invocation"})
 		return
 	}
+	// An output the panel cannot render is refused rather than run through the
+	// default path, so a hand-edited project file naming a deleted mode fails
+	// loudly instead of quietly meaning something else.
+	if target.Output != "" && !slices.Contains(config.ValidCommandOutputs, target.Output) {
+		writeJSON(w, map[string]any{"error": "command output is not one of " + strings.Join(config.ValidCommandOutputs, ", ") + ": " + target.Output})
+		return
+	}
 
 	// A project-supplied command runs on the host. Require the user to have
 	// approved this exact command (the confirm modal posts approve=1) before
@@ -178,19 +185,6 @@ func handleCommandRun(w http.ResponseWriter, r *http.Request, site *config.Site,
 	cwd := basePath
 	if target.CWD != "" && target.CWD != "." {
 		cwd = filepath.Join(basePath, target.CWD)
-	}
-
-	// Terminal mode: spawn the user's terminal emulator with the command
-	// running inside, then return immediately. The UI handles this by
-	// skipping the modal and showing a toast.
-	if target.Output == config.CommandOutputTerminal {
-		script := "cd " + podman.ShellQuote(cwd) + " && " + target.Command + "\nprintf '\\n[press any key to close]'\nread -n 1 -s -r 2>/dev/null || read"
-		if err := openTerminalCommand(script); err != nil {
-			writeJSON(w, map[string]any{"error": err.Error()})
-			return
-		}
-		writeJSON(w, map[string]any{"terminal": true})
-		return
 	}
 
 	streamShellRun(w, r.Context(), cwd, target.Command, target.Output == config.CommandOutputURL)

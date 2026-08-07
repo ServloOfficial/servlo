@@ -14,13 +14,11 @@ import (
 // exact match, prefix subtree, and per-site subaction.
 var hostActionPaths = []string{
 	"/api/servlo/stop",
-	"/api/logs/terminal",
 	"/api/sites/link",
 	"/api/browse",
 	"/api/tools/composer/update",
 	"/api/databases/mysql/drop",
 	"/api/sites/myapp.test/env",
-	"/api/sites/myapp.test/terminal",
 }
 
 // remoteRequest builds an authenticated request from a LAN address, carrying
@@ -210,18 +208,14 @@ func TestIsLoopbackOnlyPath(t *testing.T) {
 	}{
 		{"/api/servlo/stop", true},
 		{"/api/servlo/quit", true},
-		{"/api/logs/terminal", true},
 		{"/api/logs/servlo-nginx", false},
 		{"/api/sites/link", true},
 		{"/api/browse", true},
-		{"/api/sites/myapp.test/terminal", true},
-		{"/api/sites/foo.bar.test/terminal", true},
 		{"/api/sites/myapp.test/env", true},
 		{"/api/sites/myapp.test/env/files", true},
 		{"/api/sites/myapp.test/env/backups", true},
 		{"/api/sites/myapp.test/env/backups/.env.bkp.20260528-103045", true},
 		{"/api/sites/myapp.test/env/restore", true},
-		{"/api/sites/myapp.test/terminal/anything", true},
 		{"/api/databases", true},
 		{"/api/databases/mysql", true},
 		{"/api/databases/mysql/drop", true},

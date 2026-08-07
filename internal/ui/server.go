@@ -234,11 +234,8 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/workspaces", withCORS(publishAfter(handleWorkspaces, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/workspaces/", withCORS(publishAfter(handleWorkspaceRoutes, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/", withCORS(publishAfter(handleSiteAction, eventbus.KindSites, eventbus.KindServices)))
-	mux.HandleFunc("/api/logs/terminal", withCORS(handleLogTerminal))
 	mux.HandleFunc("/api/logs/", withCORS(handleLogs))
 	mux.HandleFunc("/api/queries/route-timing", withCORS(handleRouteTiming))
-	mux.HandleFunc("/api/open-editor", withCORS(handleOpenEditor))
-	mux.HandleFunc("/api/open-folder", withCORS(handleOpenFolder))
 	mux.HandleFunc("/_svc/", handleDashProxy)
 	mux.HandleFunc("/api/queue/", withCORS(handleUnitLogStream))
 	mux.HandleFunc("/api/horizon/", withCORS(handleUnitLogStream))
@@ -259,7 +256,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/servlo/start", withCORS(handleServloStart))
 	mux.HandleFunc("/api/servlo/stop", withCORS(handleServloStop))
 	mux.HandleFunc("/api/servlo/quit", withCORS(handleServloQuit))
-	mux.HandleFunc("/api/servlo/update-terminal", withCORS(handleServloUpdateTerminal))
 	mux.HandleFunc("/api/remote-control", withCORS(handleRemoteControl))
 	mux.HandleFunc("/api/access-mode", withCORS(handleAccessMode))
 	mux.HandleFunc("/api/lan/status", withCORS(handleLANStatus))
@@ -392,162 +388,6 @@ func withCORS(h http.HandlerFunc) http.HandlerFunc {
 		}
 		h(w, r)
 	}
-}
-
-// graphicalSessionKeys lists the env vars a GUI terminal needs to attach to
-// the user's compositor. Missing any of these (notably WAYLAND_DISPLAY /
-// DISPLAY) causes the spawned terminal to exit silently after fork.
-var graphicalSessionKeys = []string{
-	"WAYLAND_DISPLAY",
-	"DISPLAY",
-	"XAUTHORITY",
-	"XDG_SESSION_TYPE",
-	"XDG_CURRENT_DESKTOP",
-	"XDG_RUNTIME_DIR",
-	"XDG_DATA_DIRS",
-	"DBUS_SESSION_BUS_ADDRESS",
-}
-
-// graphicalEnv returns os.Environ() enriched with graphical-session vars
-// pulled from the systemd user manager and (as a last resort) probed from
-// $XDG_RUNTIME_DIR. When servlo-panel runs as a lingering user service started at
-// boot, its own env has no DISPLAY / WAYLAND_DISPLAY, so any GUI child it
-// spawns dies on startup. This helper patches that up at spawn time.
-//
-// Darwin doesn't need this (Terminal/iTerm are launched via `open` which
-// reattaches to the user's Aqua session), so the caller should skip it there.
-func graphicalEnv() []string {
-	env := os.Environ()
-	have := map[string]string{}
-	for _, kv := range env {
-		if i := strings.IndexByte(kv, '='); i > 0 {
-			have[kv[:i]] = kv[i+1:]
-		}
-	}
-
-	merged := map[string]string{}
-	for _, k := range graphicalSessionKeys {
-		if v := have[k]; v != "" {
-			merged[k] = v
-		}
-	}
-
-	if out, err := exec.Command("systemctl", "--user", "show-environment").Output(); err == nil {
-		sc := bufio.NewScanner(strings.NewReader(string(out)))
-		for sc.Scan() {
-			line := sc.Text()
-			i := strings.IndexByte(line, '=')
-			if i <= 0 {
-				continue
-			}
-			k, v := line[:i], line[i+1:]
-			for _, want := range graphicalSessionKeys {
-				if k == want && merged[k] == "" && v != "" {
-					merged[k] = v
-				}
-			}
-		}
-	}
-
-	if merged["WAYLAND_DISPLAY"] == "" {
-		runtimeDir := merged["XDG_RUNTIME_DIR"]
-		if runtimeDir == "" {
-			runtimeDir = have["XDG_RUNTIME_DIR"]
-		}
-		if runtimeDir == "" {
-			runtimeDir = fmt.Sprintf("/run/user/%d", os.Getuid())
-		}
-		if entries, err := os.ReadDir(runtimeDir); err == nil {
-			for _, e := range entries {
-				name := e.Name()
-				if strings.HasPrefix(name, "wayland-") && !strings.HasSuffix(name, ".lock") {
-					merged["WAYLAND_DISPLAY"] = name
-					if merged["XDG_RUNTIME_DIR"] == "" {
-						merged["XDG_RUNTIME_DIR"] = runtimeDir
-					}
-					break
-				}
-			}
-		}
-	}
-
-	out := make([]string, 0, len(env)+len(merged))
-	for _, kv := range env {
-		i := strings.IndexByte(kv, '=')
-		if i <= 0 {
-			out = append(out, kv)
-			continue
-		}
-		if _, overridden := merged[kv[:i]]; overridden {
-			continue
-		}
-		out = append(out, kv)
-	}
-	for k, v := range merged {
-		out = append(out, k+"="+v)
-	}
-	return out
-}
-
-// terminalCmd is a terminal emulator binary and the args that open it at a dir.
-type terminalCmd struct {
-	bin  string
-	args []string
-}
-
-// terminalDirCandidates returns the ordered emulator candidates for opening a
-// new terminal at dir. $TERMINAL leads, then a fixed fallback list.
-func terminalDirCandidates(dir string) []terminalCmd {
-	candidates := []terminalCmd{}
-
-	if t := os.Getenv("TERMINAL"); t != "" {
-		candidates = append(candidates, terminalCmd{t, []string{}})
-	}
-
-	candidates = append(candidates,
-		terminalCmd{"kitty", []string{"--directory", dir}},
-		terminalCmd{"foot", []string{"--working-directory", dir}},
-		terminalCmd{"alacritty", []string{"--working-directory", dir}},
-		terminalCmd{"wezterm", []string{"start", "--cwd", dir}},
-		terminalCmd{"ghostty", []string{"--working-directory=" + dir}},
-		// ptyxis is single-instance: --working-directory is honoured only
-		// alongside --new-window/--tab/-x, so a bare launch lands in $HOME.
-		terminalCmd{"ptyxis", []string{"--new-window", "--working-directory", dir}},
-		terminalCmd{"konsole", []string{"--separate", "--workdir", dir}},
-		terminalCmd{"gnome-terminal", []string{"--working-directory", dir}},
-		terminalCmd{"xfce4-terminal", []string{"--working-directory", dir}},
-		terminalCmd{"tilix", []string{"--working-directory", dir}},
-		terminalCmd{"terminator", []string{"--working-directory", dir}},
-		terminalCmd{"xterm", []string{"-e", "sh", "-c", `cd "$0" && exec "$SHELL"`, dir}},
-	)
-
-	return candidates
-}
-
-// openTerminalAt opens the user's preferred terminal emulator in dir.
-// It checks $TERMINAL first, then falls back to a list of common emulators.
-func openTerminalAt(dir string) error {
-	for _, t := range terminalDirCandidates(dir) {
-		bin, err := exec.LookPath(t.bin)
-		if err != nil {
-			continue
-		}
-		args := t.args
-		// For $TERMINAL with no preset args, just pass the dir via cd wrapper
-		if t.bin == os.Getenv("TERMINAL") && len(args) == 0 {
-			args = []string{"-e", "sh", "-c", `cd "$0" && exec "$SHELL"`, dir}
-		}
-		cmd := exec.Command(bin, args...)
-		cmd.Dir = dir
-		cmd.Env = graphicalEnv()
-		if err := cmd.Start(); err != nil {
-			return err
-		}
-		// Reap the child so we don't leave a zombie behind for every click.
-		go func() { _ = cmd.Wait() }()
-		return nil
-	}
-	return fmt.Errorf("no terminal emulator found; set $TERMINAL or install kitty, foot, alacritty, wezterm, ghostty, ptyxis, konsole, or gnome-terminal")
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
@@ -3636,13 +3476,6 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		cli.RestartStripeIfActive(site)
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
-	case "terminal":
-		if err := openTerminalAt(site.Path); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
 	case "domain:add":
 		domainName := r.URL.Query().Get("name")
 		if domainName == "" {
@@ -4592,78 +4425,6 @@ func handleServloQuit(w http.ResponseWriter, r *http.Request) {
 		f.Flush()
 	}
 	go cli.RunQuit() //nolint:errcheck
-}
-
-// handleServloUpdateTerminal opens the host's terminal emulator running
-// `servlo update`. It requires dashboard-control authority. Uses os.Executable()
-// because the spawned shell does not load the user's interactive PATH.
-func handleServloUpdateTerminal(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	self, err := os.Executable()
-	if err != nil || self == "" {
-		self = "servlo"
-	}
-	if err := openTerminalCommand(buildUpdateScript(self)); err != nil {
-		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	writeJSON(w, map[string]any{"ok": true})
-}
-
-// buildUpdateScript returns the sh -c payload the spawned terminal runs.
-// Extracted so tests can pin the absolute-path quoting without launching
-// a real terminal emulator.
-func buildUpdateScript(executable string) string {
-	return podman.ShellQuote(executable) + ` update; echo; read -rp "Press Enter to close..."`
-}
-
-// openTerminalCommand opens the user's terminal emulator and runs the given
-// shell script in it. Mirrors openTerminalAt's candidate list — the two
-// could merge later but the arg shapes diverge enough that keeping them
-// separate is clearer for now.
-func openTerminalCommand(script string) error {
-	type termCmd struct {
-		bin  string
-		args []string
-	}
-	combined := "sh -c " + podman.ShellQuote(script)
-	candidates := []termCmd{}
-	// $TERMINAL leads, matching openTerminalAt and the error message below.
-	if t := os.Getenv("TERMINAL"); t != "" {
-		candidates = append(candidates, termCmd{t, []string{"-e", "sh", "-c", script}})
-	}
-	candidates = append(candidates,
-		termCmd{"kitty", []string{"sh", "-c", script}},
-		termCmd{"foot", []string{"sh", "-c", script}},
-		termCmd{"alacritty", []string{"-e", "sh", "-c", script}},
-		termCmd{"wezterm", []string{"start", "--", "sh", "-c", script}},
-		termCmd{"ghostty", []string{"-e", combined}},
-		termCmd{"ptyxis", []string{"--", "sh", "-c", script}},
-		termCmd{"konsole", []string{"--separate", "-e", "sh", "-c", script}},
-		termCmd{"gnome-terminal", []string{"--", "sh", "-c", script}},
-		termCmd{"xfce4-terminal", []string{"-e", combined}},
-		termCmd{"tilix", []string{"-e", combined}},
-		termCmd{"terminator", []string{"-e", combined}},
-		termCmd{"xterm", []string{"-e", "sh", "-c", script}},
-	)
-
-	for _, t := range candidates {
-		bin, err := exec.LookPath(t.bin)
-		if err != nil {
-			continue
-		}
-		cmd := exec.Command(bin, t.args...)
-		cmd.Env = graphicalEnv()
-		if err := cmd.Start(); err != nil {
-			return err
-		}
-		go func() { _ = cmd.Wait() }()
-		return nil
-	}
-	return fmt.Errorf("no terminal emulator found; set $TERMINAL or install kitty, foot, alacritty, wezterm, ghostty, ptyxis, konsole, or gnome-terminal")
 }
 
 // appleScriptStr returns an AppleScript string expression for s.

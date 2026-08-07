@@ -265,14 +265,13 @@ type FrameworkCommand struct {
 
 // Valid Output values for FrameworkCommand.
 const (
-	CommandOutputSilent   = "silent"
-	CommandOutputText     = "text"
-	CommandOutputURL      = "url"
-	CommandOutputTerminal = "terminal" // spawn the user's terminal emulator instead of streaming to the modal
+	CommandOutputSilent = "silent"
+	CommandOutputText   = "text"
+	CommandOutputURL    = "url"
 )
 
 // ValidCommandOutputs lists the accepted Output values; used by validation.
-var ValidCommandOutputs = []string{CommandOutputSilent, CommandOutputText, CommandOutputURL, CommandOutputTerminal}
+var ValidCommandOutputs = []string{CommandOutputSilent, CommandOutputText, CommandOutputURL}
 
 // KnownCommandIcons is the curated icon vocabulary. .servlo.yaml entries with an
 // icon outside this set fail `servlo check`. Keep in sync with the UI Icon

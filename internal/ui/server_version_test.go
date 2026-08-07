@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"strings"
 	"testing"
 
 	servloUpdate "github.com/realrashid/servlo/internal/update"
@@ -38,35 +37,5 @@ func TestBuildVersionResponse_HandlesPrereleaseTag(t *testing.T) {
 	resp := buildVersionResponse("1.20.0-beta.1", &servloUpdate.UpdateInfo{LatestVersion: "v1.20.0-beta.2"})
 	if resp.Latest != "1.20.0-beta.2" {
 		t.Errorf("prerelease Latest mishandled, got %q", resp.Latest)
-	}
-}
-
-// TestBuildUpdateScript_UsesAbsolutePath pins the fix for "servlo: command
-// not found" when the dashboard's "Open terminal & update" button spawned
-// a terminal whose non-login shell didn't have ~/.local/bin on PATH.
-// The script must reference the resolved executable, not the bare name.
-func TestBuildUpdateScript_UsesAbsolutePath(t *testing.T) {
-	got := buildUpdateScript("/home/alice/.local/bin/servlo")
-	if !strings.Contains(got, "/home/alice/.local/bin/servlo") {
-		t.Errorf("script should reference absolute path, got %q", got)
-	}
-	if strings.HasPrefix(got, "servlo ") {
-		t.Errorf("script should not start with bare 'servlo', got %q", got)
-	}
-	if !strings.Contains(got, " update;") {
-		t.Errorf("script should run `update` subcommand, got %q", got)
-	}
-	if !strings.Contains(got, "Press Enter to close") {
-		t.Errorf("script should keep the wait-for-input tail, got %q", got)
-	}
-}
-
-// TestBuildUpdateScript_QuotesPathWithSpaces protects the shell substitution
-// when the binary lives under a path with spaces (a Mac install in
-// "/Users/J D/.local/bin/servlo", say). shQuote should single-quote it.
-func TestBuildUpdateScript_QuotesPathWithSpaces(t *testing.T) {
-	got := buildUpdateScript("/Users/J D/.local/bin/servlo")
-	if !strings.Contains(got, `'/Users/J D/.local/bin/servlo'`) {
-		t.Errorf("path with spaces should be single-quoted, got %q", got)
 	}
 }

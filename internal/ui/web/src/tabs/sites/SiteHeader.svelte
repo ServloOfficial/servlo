@@ -9,8 +9,6 @@
     unpinSite,
     restartSite,
     openSiteInBrowser,
-    openTerminal,
-    openFolder,
     loadSites,
   } from '$stores/sites';
   import {
@@ -236,25 +234,6 @@
         <WorkspacePicker {site} />
       {/if}
 
-      {#if $accessMode.localControl}
-        <button
-          type="button"
-          onclick={() => openTerminal(site.domain)}
-          aria-label={m.common_terminal()}
-          use:tooltip={m.sites_openInTerminal()}
-          class="hidden @md:flex w-8 h-8 items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-servlo-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        </button>
-      {/if}
-
       <div class="relative" bind:this={overflowEl}>
         <button
           type="button"
@@ -334,27 +313,6 @@
               {/if}
               {pauseBusy ? '...' : site.paused ? m.sites_resume() : m.sites_pause()}
             </button>
-            {#if $accessMode.localControl}
-              <button
-                type="button"
-                role="menuitem"
-                onclick={() => {
-                  overflowOpen = false;
-                  openTerminal(site.domain);
-                }}
-                class="@md:hidden w-full px-3 py-1.5 text-xs text-left flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-              >
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-                {m.common_terminal()}
-              </button>
-            {/if}
             {#if !site.paused}
               <button
                 type="button"
@@ -403,16 +361,7 @@
   </div>
 
   {#snippet pathLabel()}
-    {#if $accessMode.localControl}
-      <button
-        type="button"
-        onclick={() => openFolder(activePath)}
-        use:tooltip={m.sites_openFolder()}
-        class="font-mono leading-none truncate hover:text-servlo-red transition-colors"
-      >{activePathLabel}</button>
-    {:else}
-      <span class="font-mono leading-none truncate" title={activePath}>{activePathLabel}</span>
-    {/if}
+    <span class="font-mono leading-none truncate" title={activePath}>{activePathLabel}</span>
   {/snippet}
 
   {#if activePath && !tabs}
