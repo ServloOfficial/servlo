@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "Najpierw wpisz domenę: klucz wdrożeniowy należy do witryny.",
   "addsite_testConnection": "Testuj połączenie",
   "addsite_testing": "Testowanie...",
-  "addsite_testOK": "Repozytorium zaakceptowało klucz."
+  "addsite_testOK": "Repozytorium zaakceptowało klucz.",
+  "addsite_sourceUpload": "Prześlij ZIP",
+  "addsite_archive": "Archiwum",
+  "addsite_archiveHint": "Plik .zip projektu. Jeśli wszystko jest w jednym katalogu, ten katalog zostanie usunięty."
 }

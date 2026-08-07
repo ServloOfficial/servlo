@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/realrashid/servlo/internal/cli"
 	"github.com/realrashid/servlo/internal/config"
@@ -102,6 +104,11 @@ func handleSiteCreate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteCreateResponse{Error: "a site needs a directory to serve"})
 		return
 	}
+	chosen, err := checkOverrides(req.PHPVersion, req.PublicDir)
+	if err != nil {
+		writeJSON(w, SiteCreateResponse{Error: err.Error()})
+		return
+	}
 
 	prepared, err := siteops.PrepareSiteDirectory(req.Path)
 	if err != nil {
@@ -121,14 +128,7 @@ func handleSiteCreate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteCreateResponse{Error: err.Error()})
 		return
 	}
-	// The form's choices win over detection, because the operator looked at
-	// what detection proposed and changed it on purpose.
-	if req.PHPVersion != "" {
-		plan.Site.PHPVersion = req.PHPVersion
-	}
-	if req.PublicDir != "" {
-		plan.Site.PublicDir = req.PublicDir
-	}
+	chosen.apply(plan)
 
 	res, err := linker.Apply(plan, policy, cli.LinkDeps(), nil)
 	if err != nil {
@@ -152,4 +152,84 @@ func handleSiteCreate(w http.ResponseWriter, r *http.Request) {
 		resp.Warning = "the site directory is empty, so it will serve nothing until you put a project in it"
 	}
 	writeJSON(w, resp)
+}
+
+// overrides are the form's PHP version and document root, checked.
+//
+// They are checked up front, before a directory is made or a repository is
+// fetched, because a refusal after four seconds of network is a refusal that
+// wasted four seconds and left something to clear up. Applying them has to wait
+// for the plan, which is why validating and applying are two steps.
+type overrides struct {
+	phpVersion string
+	publicDir  string
+}
+
+// checkOverrides validates what the form sent.
+//
+// The form's choices win over detection, because the operator looked at what
+// detection proposed and changed it on purpose. That is exactly why they have
+// to be checked: nothing downstream treats them as untrusted. The PHP version
+// becomes the FPM upstream's name in the generated vhost, and a document root
+// the vhost writer rejects is silently replaced with "public", which registers
+// a site claiming a root it does not serve from.
+func checkOverrides(phpVersion, publicDir string) (overrides, error) {
+	var o overrides
+	if phpVersion != "" {
+		// Normalised rather than merely checked, so "php8.4" and "8.4.7" mean
+		// what the operator obviously meant.
+		normalised, err := config.NormalizePHPVersion(phpVersion)
+		if err != nil {
+			return o, fmt.Errorf("that is not a PHP version servlo can serve: %w", err)
+		}
+		o.phpVersion = normalised
+	}
+	if publicDir != "" {
+		if err := config.ValidatePublicDir(publicDir); err != nil {
+			return o, fmt.Errorf("that is not a usable document root: it must be a directory inside the site, and %w", err)
+		}
+		o.publicDir = publicDir
+	}
+	return o, nil
+}
+
+// apply puts the checked overrides onto the plan. An empty field is the form
+// saying "keep what detection chose", so it leaves the plan alone.
+func (o overrides) apply(plan *linker.Plan) {
+	if o.phpVersion != "" {
+		plan.Site.PHPVersion = o.phpVersion
+	}
+	if o.publicDir != "" {
+		plan.Site.PublicDir = o.publicDir
+	}
+}
+
+// rollback undoes what a half-finished clone or upload left on disk.
+//
+// Both of those flows require the directory to be empty before they start, and
+// they check it, so everything in it afterwards was put there by servlo
+// seconds ago. That is what makes emptying it safe: there is nothing of the
+// operator's in there to lose.
+//
+// Without it, a failure after the files land, the linker refusing, the vhost
+// failing to write, leaves a directory full of servlo's work and no site
+// registered. The retry is then refused as "not empty" by servlo's own
+// leftovers, and the operator has to clear up by hand a directory they never
+// touched.
+//
+// A directory servlo created goes entirely; one the operator made is emptied
+// and left standing, because taking it would be removing something they chose
+// to have.
+func rollback(prepared siteops.PrepareResult) {
+	if prepared.Created {
+		_ = os.RemoveAll(prepared.Path)
+		return
+	}
+	entries, err := os.ReadDir(prepared.Path)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		_ = os.RemoveAll(filepath.Join(prepared.Path, e.Name()))
+	}
 }

@@ -314,6 +314,8 @@ Two fields matter. **Domain** is the fully qualified name the site is served on,
 
 As soon as a directory is named, servlo reads it and says what it found: the framework it detected, or that it detected none and will guess the document root. **PHP version** and **Document root** are prefilled from that and can be overridden, because the operator looking at the detected values is the one best placed to disagree with them.
 
+An override servlo cannot use is refused with the reason rather than stored. The PHP version has to be one servlo can serve, since it names the FPM container the vhost points at, and the document root has to be a directory inside the site, since a vhost cannot serve a root outside the project it belongs to.
+
 Submitting registers the site, generates its vhost and provisions its runtime. Nothing is created before every refusal has had its chance, so a rejected domain leaves no directory behind on the retry.
 
 The new site is not secured. Point the domain's DNS at this server, and the site's **Get SSL** button issues a certificate once its live DNS check sees every domain and alias resolving here.
@@ -337,11 +339,27 @@ Without that middle step a clone of a private repository fails with `Permission 
 
 Anything servlo has not seen before carries ssh's own words rather than a sentence servlo made up about a failure it does not understand.
 
-The key is per site, not per server. A compromised site hands over one repository rather than everything the account can read, and revoking a site's access is deleting one key rather than working out what else would break. Pressing **Show deploy key** twice returns the same key, so the one you already pasted stays the right one.
+The key is per site, not per server. A compromised site hands over one repository rather than everything the account can read, and revoking a site's access is deleting one key rather than working out what else would break. Each site's key lives in its own directory under `~/.local/share/servlo/deploy-keys/`, private half 0600. Pressing **Show deploy key** twice returns the same key, so the one you already pasted stays the right one.
 
 Paste whichever URL the repository's clone menu offered: the SSH form, the HTTPS form, or `ssh://`. All three name the same repository and servlo converts to the SSH form, since that is the one a deploy key can authenticate. A URL carrying a username or token is refused; that token would end up in the site config and the audit log, and the deploy key is what replaces it.
 
 The clone goes into an empty directory. Pointing it at a directory that already holds a project is refused with that reason rather than attempted, and a clone that fails takes back the directory servlo made for it, so the retry is not blocked by a stub of its own making.
+
+### Uploading a ZIP
+
+The third source takes a `.zip` of the project. Pick the file, name the domain and the directory, and submit; servlo unpacks it, detects the framework and document root from what landed, and registers the site.
+
+If everything in the archive sits inside one folder, which is what every forge's "Download ZIP" produces, that folder is unwrapped so the project sits at the site root rather than one level below it. An archive with several things at its top level is left as it is, since moving either would be inventing a structure the archive did not have.
+
+Unpacking is where an archive gets to decide what servlo writes, so it is bounded and refuses more than it accepts:
+
+- An entry whose name climbs out of the site directory is refused. So is an absolute path, and a name carrying a backslash, which is a path separator on the machine that wrote the archive and an ordinary character to a check that only looks for `/`.
+- Symlinks are refused outright. A link pointing at `/etc/passwd` turns a file the site serves into a file the machine owns, and no site needs one badly enough to be worth checking its target.
+- The archive is bounded at 60,000 entries and a gigabyte expanded, checked from the declared sizes before a byte is written, so an oversized archive costs no disk at all.
+- Modes from the archive are not honoured. Everything lands 0644, directories 0755. Every site here runs as the same user, and an execute bit in a zip is a decision somebody else made about a file on this machine. PHP is read by the FPM pool, not executed by the kernel, so nothing in a site needs one.
+
+Extraction happens in a scratch directory beside the target and is moved into place only once the whole archive has been read. A refused upload leaves the site directory as empty as it found it, and takes back the directory servlo created for it, so nothing has to be cleared up before trying again.
+
 
 
 Adding a site from the panel does not run anything the repository authored. A project declaring a host-proxy dev command has that command registered but not started: a click is consent to serve a project, not to execute code it chose, and the browser has no way to ask about that properly. Run `servlo link` from a shell in the project when you want that.

@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/linker"
+	"github.com/realrashid/servlo/internal/siteops"
 )
 
 // panelDirs isolates the registry and data dir the way registerSite does, for
@@ -143,5 +145,152 @@ func TestHandleSiteCreate_RequiresPost(t *testing.T) {
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Errorf("status = %d, want 405", rec.Code)
+	}
+}
+
+// The form's overrides win over detection, which is the point of having them,
+// so a value the rest of the stack cannot use has to be refused here rather
+// than stored and quietly ignored.
+//
+// The PHP version reaches the generated vhost as the FPM upstream's name, and
+// nothing between the form and that template was checking it. A version with a
+// newline and a brace in it is nginx configuration written through an add-site
+// form.
+func TestHandleSiteCreate_RefusesAPHPVersionItCannotServe(t *testing.T) {
+	for _, bad := range []string{"8.9", "nonsense", "x;}\nserver { listen 80; }", "../../etc", "8.4; rm -rf /"} {
+		panelDirs(t)
+		rec := postJSON(t, "/api/sites/create", map[string]any{
+			"domain": "example.com", "path": t.TempDir(), "php_version": bad,
+		})
+		out := decodeCreate(t, rec)
+		msg, _ := out["error"].(string)
+		// Named specifically. Any other error means the request got further
+		// than it should have and failed for an unrelated reason.
+		if !strings.Contains(msg, "PHP version") {
+			t.Errorf("php_version %q: error = %q, want it refused as an unusable PHP version", bad, msg)
+		}
+	}
+}
+
+// A document root that escapes the project is dropped by the vhost writer and
+// replaced with "public", so the site would be registered claiming a root it
+// does not serve from. Saying no beats silently serving something else.
+func TestHandleSiteCreate_RefusesADocumentRootThatEscapesTheSite(t *testing.T) {
+	for _, bad := range []string{"../../etc", "/etc", "~/secrets", "a/../../b"} {
+		panelDirs(t)
+		rec := postJSON(t, "/api/sites/create", map[string]any{
+			"domain": "example.com", "path": t.TempDir(), "public_dir": bad,
+		})
+		msg, _ := decodeCreate(t, rec)["error"].(string)
+		if !strings.Contains(msg, "document root") {
+			t.Errorf("public_dir %q: error = %q, want it refused as a document root", bad, msg)
+		}
+	}
+}
+
+// Both overrides are refused on the clone path too: it is the same form.
+func TestHandleSiteClone_RefusesTheSameBadOverrides(t *testing.T) {
+	panelDirs(t)
+	out := postClone(t, handleSiteClone, "/api/sites/clone", map[string]any{
+		"domain": "example.com", "path": t.TempDir(),
+		"repository": "git@github.com:realrashid/servlo.git", "php_version": "8.9",
+	})
+	msg, _ := out["error"].(string)
+	if !strings.Contains(msg, "PHP version") {
+		t.Errorf("error = %q, want the clone path to refuse the version too", msg)
+	}
+}
+
+// The accepting half is tested against applyOverrides rather than the handler.
+//
+// Driving the handler all the way through would register the site for real,
+// and on a machine that has podman that means building a PHP image: the first
+// version of these two tests took the whole package past Go's ten-minute
+// timeout on CI. The refusals can go through the handler because they return
+// before any of that; the acceptances cannot.
+func TestCheckOverrides_TakesWhatTheOperatorChose(t *testing.T) {
+	plan := &linker.Plan{}
+
+	chosen, err := checkOverrides("8.4", "public")
+	if err != nil {
+		t.Fatalf("checkOverrides: %v", err)
+	}
+	chosen.apply(plan)
+	if plan.Site.PHPVersion != "8.4" {
+		t.Errorf("PHPVersion = %q, want 8.4", plan.Site.PHPVersion)
+	}
+	if plan.Site.PublicDir != "public" {
+		t.Errorf("PublicDir = %q, want public", plan.Site.PublicDir)
+	}
+}
+
+// Normalised rather than merely checked, so the spellings an operator actually
+// types mean what they obviously mean.
+func TestCheckOverrides_NormalisesThePHPVersion(t *testing.T) {
+	for _, in := range []string{"php8.4", "PHP 8.4", "8.4.7", "84"} {
+		plan := &linker.Plan{}
+		chosen, err := checkOverrides(in, "")
+		if err != nil {
+			t.Errorf("checkOverrides(%q): %v", in, err)
+			continue
+		}
+		chosen.apply(plan)
+		if plan.Site.PHPVersion != "8.4" {
+			t.Errorf("checkOverrides(%q) gave %q, want 8.4", in, plan.Site.PHPVersion)
+		}
+	}
+}
+
+// An empty override is the form saying "keep what detection chose", so it must
+// not overwrite the plan with an empty string.
+func TestCheckOverrides_LeavesDetectionAloneWhenTheFormSaidNothing(t *testing.T) {
+	plan := &linker.Plan{}
+	plan.Site.PHPVersion = "8.3"
+	plan.Site.PublicDir = "web"
+
+	chosen, err := checkOverrides("", "")
+	if err != nil {
+		t.Fatalf("checkOverrides: %v", err)
+	}
+	chosen.apply(plan)
+	if plan.Site.PHPVersion != "8.3" || plan.Site.PublicDir != "web" {
+		t.Errorf("an empty override overwrote detection: %+v", plan.Site)
+	}
+}
+
+// rollback is what stops a failure after the files land from leaving servlo's
+// own work in the way of the retry. Both branches, directly, because reaching
+// them through a handler means registering a site for real.
+func TestRollback_RemovesADirectoryServloCreated(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "example.com")
+	if err := os.MkdirAll(filepath.Join(dir, "vendor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	rollback(siteops.PrepareResult{Path: dir, Created: true})
+
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Error("a directory servlo created survived the rollback")
+	}
+}
+
+// A directory the operator made is emptied and left standing: taking it would
+// be removing something they chose to have.
+func TestRollback_EmptiesADirectoryTheOperatorMade(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "vendor", "acme"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "index.php"), []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	rollback(siteops.PrepareResult{Path: dir})
+
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatalf("the operator's directory was removed: %v", err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Errorf("the rollback left %d entries behind", len(entries))
 	}
 }

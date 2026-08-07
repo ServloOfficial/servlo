@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "Masukkan domain dulu: deploy key milik situs ini.",
   "addsite_testConnection": "Uji koneksi",
   "addsite_testing": "Menguji...",
-  "addsite_testOK": "Repositori menerima key tersebut."
+  "addsite_testOK": "Repositori menerima key tersebut.",
+  "addsite_sourceUpload": "Unggah ZIP",
+  "addsite_archive": "Arsip",
+  "addsite_archiveHint": "Berkas .zip proyek. Jika semuanya berada di dalam satu folder, folder itu dilepas."
 }

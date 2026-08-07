@@ -147,3 +147,54 @@ describe('clone', () => {
     expect(JSON.parse(body).domain).toBe('example.com');
   });
 });
+
+describe('upload', () => {
+  const realFetch = globalThis.fetch;
+  beforeEach(() => vi.resetModules());
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it('sends the archive as multipart with the rest of the form', async () => {
+    let sent: FormData | null = null;
+    let headers: HeadersInit | undefined;
+    globalThis.fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+      sent = init?.body as FormData;
+      headers = init?.headers;
+      return new Response(JSON.stringify({ ok: true, domain: 'example.com' }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const { uploadSite } = await import('./addsite');
+    await uploadSite({
+      domain: 'example.com',
+      path: '/srv/example.com',
+      php_version: '8.4',
+      archive: new File([new Uint8Array([80, 75, 3, 4])], 'site.zip', { type: 'application/zip' })
+    });
+
+    expect(sent).toBeInstanceOf(FormData);
+    expect(sent!.get('domain')).toBe('example.com');
+    expect(sent!.get('php_version')).toBe('8.4');
+    expect((sent!.get('archive') as File).name).toBe('site.zip');
+    // Setting Content-Type by hand would omit the boundary and the server would
+    // read an empty form.
+    const sentHeaders = new Headers(headers);
+    expect(sentHeaders.get('Content-Type')).toBeNull();
+  });
+
+  it('surfaces a refusal rather than throwing on it', async () => {
+    globalThis.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ error: 'the archive entry points outside the site directory' }), { status: 200 })
+    ) as unknown as typeof fetch;
+
+    const { uploadSite } = await import('./addsite');
+    const res = await uploadSite({
+      domain: 'example.com',
+      path: '/srv/x',
+      archive: new File([new Uint8Array([1])], 'bad.zip')
+    });
+
+    expect(res.ok).toBeFalsy();
+    expect(res.error).toContain('outside the site directory');
+  });
+});

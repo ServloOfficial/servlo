@@ -85,3 +85,23 @@ export async function cloneSite(body: {
   });
   return (await res.json()) as AddSiteResult;
 }
+
+// The archive goes as multipart rather than JSON, so apiFetch must not set a
+// Content-Type: the browser has to write the boundary itself.
+export async function uploadSite(body: {
+  domain: string;
+  path: string;
+  archive: File;
+  php_version?: string;
+  public_dir?: string;
+}): Promise<AddSiteResult> {
+  const form = new FormData();
+  form.append('domain', body.domain);
+  form.append('path', body.path);
+  if (body.php_version) form.append('php_version', body.php_version);
+  if (body.public_dir) form.append('public_dir', body.public_dir);
+  form.append('archive', body.archive);
+
+  const res = await apiFetch('/api/sites/upload', { method: 'POST', body: form });
+  return (await res.json()) as AddSiteResult;
+}

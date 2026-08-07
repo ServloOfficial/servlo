@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "先にドメインを入力してください。デプロイキーはサイトごとに作られます。",
   "addsite_testConnection": "接続をテスト",
   "addsite_testing": "テスト中...",
-  "addsite_testOK": "リポジトリがキーを受け入れました。"
+  "addsite_testOK": "リポジトリがキーを受け入れました。",
+  "addsite_sourceUpload": "ZIP をアップロード",
+  "addsite_archive": "アーカイブ",
+  "addsite_archiveHint": "プロジェクトの .zip です。すべてが 1 つのフォルダーに入っている場合、そのフォルダーは取り除かれます。"
 }

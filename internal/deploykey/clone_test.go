@@ -81,7 +81,7 @@ func TestCloneURL_SuggestsADirectoryName(t *testing.T) {
 func TestSSHCommand_PinsTheIdentity(t *testing.T) {
 	cmd := SSHCommand("/home/servlo/.local/share/servlo/deploy-keys/example.com")
 
-	for _, want := range []string{"IdentitiesOnly=yes", "BatchMode=yes", "-i "} {
+	for _, want := range []string{"IdentitiesOnly=yes", "BatchMode=yes", "ConnectTimeout=", "-i "} {
 		if !strings.Contains(cmd, want) {
 			t.Errorf("SSHCommand = %q, missing %q", cmd, want)
 		}

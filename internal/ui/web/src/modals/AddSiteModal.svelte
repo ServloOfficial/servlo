@@ -7,6 +7,7 @@
     inspectDirectory,
     addSite,
     cloneSite,
+    uploadSite,
     deployKeyFor,
     testClone,
     type DirectoryReport,
@@ -25,7 +26,8 @@
 
   // Two sources, one form. The fields they share are the same fields, so the
   // clone flow is three extra controls rather than a second modal that drifts.
-  let source = $state<'folder' | 'clone'>('folder');
+  let source = $state<'folder' | 'clone' | 'upload'>('folder');
+  let archive = $state<File | null>(null);
   let repository = $state('');
   let deployKey = $state('');
   let keyLoading = $state(false);
@@ -45,9 +47,21 @@
   const canSubmit = $derived(
     domain.trim() !== '' &&
       path.trim() !== '' &&
-      (source === 'folder' || repository.trim() !== '') &&
+      (source !== 'clone' || repository.trim() !== '') &&
+      (source !== 'upload' || archive !== null) &&
       !submitting
   );
+
+  // Switching source clears what belonged to the one being left. Otherwise a
+  // clone that failed leaves its reason on screen under the folder form, where
+  // it describes something the operator is no longer doing.
+  function pickSource(next: 'folder' | 'clone' | 'upload') {
+    if (next === source) return;
+    source = next;
+    error = '';
+    warning = '';
+    testResult = null;
+  }
 
   // The key is per site, so it cannot be minted until the domain is typed.
   async function loadDeployKey() {
@@ -139,7 +153,15 @@
     warning = '';
     try {
       const res =
-        source === 'clone'
+        source === 'upload'
+        ? await uploadSite({
+            domain: domain.trim(),
+            path: path.trim(),
+            archive: archive as File,
+            php_version: phpVersion.trim(),
+            public_dir: publicDir.trim()
+          })
+        : source === 'clone'
           ? await cloneSite({
               domain: domain.trim(),
               path: path.trim(),
@@ -177,12 +199,12 @@
 <Modal open title={m.addsite_title()} onclose={closeModal}>
   <div class="px-5 py-3 space-y-3">
     <div class="flex gap-1 p-0.5 rounded-md bg-gray-100 dark:bg-white/5" role="tablist">
-      {#each [{ id: 'folder' as const, label: m.addsite_sourceFolder() }, { id: 'clone' as const, label: m.addsite_sourceClone() }] as opt (opt.id)}
+      {#each [{ id: 'folder' as const, label: m.addsite_sourceFolder() }, { id: 'clone' as const, label: m.addsite_sourceClone() }, { id: 'upload' as const, label: m.addsite_sourceUpload() }] as opt (opt.id)}
         <button
           type="button"
           role="tab"
           aria-selected={source === opt.id}
-          onclick={() => (source = opt.id)}
+          onclick={() => pickSource(opt.id)}
           class="flex-1 px-2.5 py-1 text-xs font-medium rounded-sm transition-colors {source === opt.id
             ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-gray-100 shadow-xs'
             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}"
@@ -325,6 +347,19 @@
           {/if}
         </div>
       </div>
+    {/if}
+
+    {#if source === 'upload'}
+      <label class="block">
+        <span class="text-xs text-gray-500 dark:text-gray-400">{m.addsite_archive()}</span>
+        <input
+          type="file"
+          accept=".zip,application/zip"
+          onchange={(e) => (archive = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)}
+          class="mt-1 w-full text-xs text-gray-600 dark:text-gray-300 file:mr-3 file:px-2.5 file:py-1 file:text-xs file:rounded-md file:border file:border-gray-200 dark:file:border-servlo-border file:bg-white dark:file:bg-white/5 file:text-gray-700 dark:file:text-gray-200"
+        />
+        <span class="mt-1 block text-[11px] text-gray-400 dark:text-gray-500">{m.addsite_archiveHint()}</span>
+      </label>
     {/if}
 
     <div class="grid grid-cols-2 gap-3">

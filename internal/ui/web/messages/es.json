@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "Introduce primero el dominio: la clave de despliegue pertenece al sitio.",
   "addsite_testConnection": "Probar conexión",
   "addsite_testing": "Probando...",
-  "addsite_testOK": "El repositorio aceptó la clave."
+  "addsite_testOK": "El repositorio aceptó la clave.",
+  "addsite_sourceUpload": "Subir un ZIP",
+  "addsite_archive": "Archivo",
+  "addsite_archiveHint": "Un .zip del proyecto. Si todo está dentro de una sola carpeta, esa carpeta se descarta."
 }

@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "Introduza primeiro o domínio: a chave de implantação pertence ao site.",
   "addsite_testConnection": "Testar ligação",
   "addsite_testing": "A testar...",
-  "addsite_testOK": "O repositório aceitou a chave."
+  "addsite_testOK": "O repositório aceitou a chave.",
+  "addsite_sourceUpload": "Carregar um ZIP",
+  "addsite_archive": "Arquivo",
+  "addsite_archiveHint": "Um .zip do projeto. Se tudo estiver dentro de uma só pasta, essa pasta é removida."
 }

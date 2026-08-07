@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "Nhập tên miền trước: khóa triển khai thuộc về trang này.",
   "addsite_testConnection": "Kiểm tra kết nối",
   "addsite_testing": "Đang kiểm tra...",
-  "addsite_testOK": "Kho đã chấp nhận khóa."
+  "addsite_testOK": "Kho đã chấp nhận khóa.",
+  "addsite_sourceUpload": "Tải lên tệp ZIP",
+  "addsite_archive": "Tệp nén",
+  "addsite_archiveHint": "Tệp .zip của dự án. Nếu mọi thứ nằm trong một thư mục, thư mục đó sẽ được bỏ đi."
 }

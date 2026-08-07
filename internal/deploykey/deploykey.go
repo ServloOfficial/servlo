@@ -45,7 +45,18 @@ var safeSiteKey = regexp.MustCompile(`^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$`)
 // inside a site directory, which a deploy publishes to the world.
 func Dir() string { return filepath.Join(config.DataDir(), "deploy-keys") }
 
-func keyPath(site string) string { return filepath.Join(Dir(), site) }
+// Each site gets a directory rather than a pair of files named <site> and
+// <site>.pub in a shared one.
+//
+// ".pub" is a real TLD, so "blog.example" and "blog.example.pub" are both
+// domains somebody can own, and under the flat layout the second site's private
+// key was written over the first site's public key file. The first site then
+// read its private key back as its public one and the panel offered it up to be
+// pasted into GitHub. A directory each cannot collide however the domain is
+// spelled, and it costs an inode.
+func siteDir(site string) string { return filepath.Join(Dir(), site) }
+func keyPath(site string) string { return filepath.Join(siteDir(site), "id_ed25519") }
+func pubPath(site string) string { return keyPath(site) + ".pub" }
 
 // Ensure returns the site's deploy key, generating it the first time.
 //
@@ -60,7 +71,7 @@ func Ensure(site string) (Key, error) {
 	}
 
 	path := keyPath(site)
-	if existing, err := os.ReadFile(path + ".pub"); err == nil {
+	if existing, err := os.ReadFile(pubPath(site)); err == nil {
 		return Key{Public: strings.TrimSpace(string(existing)), PrivatePath: path}, nil
 	}
 
@@ -80,7 +91,7 @@ func Ensure(site string) (Key, error) {
 	// these, so it names the site rather than a user@host nobody chose.
 	line := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(sshPub))) + " servlo-" + site
 
-	if err := os.MkdirAll(Dir(), 0o700); err != nil {
+	if err := os.MkdirAll(siteDir(site), 0o700); err != nil {
 		return Key{}, err
 	}
 	// Written 0600 by the open rather than chmodded after, so it is never
@@ -96,7 +107,7 @@ func Ensure(site string) (Key, error) {
 	if err := f.Close(); err != nil {
 		return Key{}, err
 	}
-	if err := os.WriteFile(path+".pub", []byte(line+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(pubPath(site), []byte(line+"\n"), 0o644); err != nil {
 		return Key{}, err
 	}
 	return Key{Public: line, PrivatePath: path}, nil
@@ -109,20 +120,23 @@ func Remove(site string) error {
 	if !safeSiteKey.MatchString(site) {
 		return fmt.Errorf("%q is not a usable site name for a deploy key", site)
 	}
-	for _, p := range []string{keyPath(site), keyPath(site) + ".pub"} {
-		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
-			return err
-		}
+	if err := os.RemoveAll(siteDir(site)); err != nil && !os.IsNotExist(err) {
+		return err
 	}
 	return nil
 }
 
 // SSHCommand is the GIT_SSH_COMMAND that makes git use this key and nothing
-// else. IdentitiesOnly stops ssh offering every key in the agent first, which
-// on a server with an agent loaded is how a clone succeeds under the wrong
-// identity and nobody notices until the key is revoked.
+// else.
+//
+// IdentitiesOnly stops ssh offering every key in the agent first, which on a
+// server with an agent loaded is how a clone succeeds under the wrong identity
+// and nobody notices until the key is revoked. ConnectTimeout bounds the wait:
+// a firewall that drops rather than refuses would otherwise leave the panel
+// request hanging for as long as the kernel keeps retrying.
 func SSHCommand(privatePath string) string {
-	return "ssh -i " + shellQuote(privatePath) + " -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes"
+	return "ssh -i " + shellQuote(privatePath) +
+		" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=10"
 }
 
 // authSuccessBanners are how the forges say "yes, I know this key". GitHub

@@ -130,6 +130,11 @@ func handleSiteClone(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteCreateResponse{Error: "a site needs a directory to clone into"})
 		return
 	}
+	chosen, err := checkOverrides(req.PHPVersion, req.PublicDir)
+	if err != nil {
+		writeJSON(w, SiteCreateResponse{Error: err.Error()})
+		return
+	}
 	// A clone into a directory holding a project would either fail confusingly
 	// or land on top of somebody's site, so it is refused with the reason.
 	if entries, err := os.ReadDir(req.Path); err == nil && len(entries) > 0 {
@@ -142,42 +147,39 @@ func handleSiteClone(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteCreateResponse{Error: err.Error()})
 		return
 	}
+	// From here on the directory holds servlo's own work and nothing else, so
+	// every failure takes it back rather than leaving a half-cloned stub the
+	// retry would refuse as non-empty.
+	fail := func(msg string) {
+		rollback(prepared)
+		writeJSON(w, SiteCreateResponse{Error: msg})
+	}
+
 	key, err := deploykey.Ensure(domain)
 	if err != nil {
-		writeJSON(w, SiteCreateResponse{Error: err.Error()})
+		fail(err.Error())
 		return
 	}
 	if err := deploykey.Clone(r.Context(), key, target, prepared.Path, nil); err != nil {
-		// A clone that failed leaves a directory servlo made a moment ago and
-		// nothing else, so take it back rather than leaving a stub the retry
-		// would then refuse as non-empty.
-		if prepared.Created {
-			_ = os.RemoveAll(prepared.Path)
-		}
-		writeJSON(w, SiteCreateResponse{Error: err.Error()})
+		fail(err.Error())
 		return
 	}
 
 	cfg, err := config.LoadGlobal()
 	if err != nil {
-		writeJSON(w, SiteCreateResponse{Error: "reading the servlo config: " + err.Error()})
+		fail("reading the servlo config: " + err.Error())
 		return
 	}
 	policy := linker.PanelPolicy(domain)
 	plan, err := linker.Resolve(prepared.Path, cfg, policy)
 	if err != nil {
-		writeJSON(w, SiteCreateResponse{Error: err.Error()})
+		fail(err.Error())
 		return
 	}
-	if req.PHPVersion != "" {
-		plan.Site.PHPVersion = req.PHPVersion
-	}
-	if req.PublicDir != "" {
-		plan.Site.PublicDir = req.PublicDir
-	}
+	chosen.apply(plan)
 	res, err := linker.Apply(plan, policy, cli.LinkDeps(), nil)
 	if err != nil {
-		writeJSON(w, SiteCreateResponse{Error: err.Error()})
+		fail(err.Error())
 		return
 	}
 

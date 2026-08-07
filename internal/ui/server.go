@@ -233,6 +233,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/sites/clone", withCORS(publishAfter(handleSiteClone, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/clone-test", withCORS(handleCloneTest))
 	mux.HandleFunc("/api/sites/deploy-key", withCORS(handleDeployKey))
+	mux.HandleFunc("/api/sites/upload", withCORS(publishAfter(handleSiteUpload, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/reorder", withCORS(publishAfter(handleSiteReorder, eventbus.KindSites)))
 	mux.HandleFunc("/api/browse", withCORS(handleBrowse))
 	mux.HandleFunc("/api/workspaces", withCORS(publishAfter(handleWorkspaces, eventbus.KindStatus, eventbus.KindSites)))

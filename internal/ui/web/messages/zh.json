@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "请先填写域名：部署密钥属于该站点。",
   "addsite_testConnection": "测试连接",
   "addsite_testing": "测试中...",
-  "addsite_testOK": "仓库已接受该密钥。"
+  "addsite_testOK": "仓库已接受该密钥。",
+  "addsite_sourceUpload": "上传 ZIP",
+  "addsite_archive": "压缩包",
+  "addsite_archiveHint": "项目的 .zip 文件。若所有内容都在同一个文件夹内，该文件夹会被去掉。"
 }

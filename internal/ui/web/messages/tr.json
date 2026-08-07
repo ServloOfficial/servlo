@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "Önce alan adını girin: dağıtım anahtarı siteye aittir.",
   "addsite_testConnection": "Bağlantıyı test et",
   "addsite_testing": "Test ediliyor...",
-  "addsite_testOK": "Depo anahtarı kabul etti."
+  "addsite_testOK": "Depo anahtarı kabul etti.",
+  "addsite_sourceUpload": "ZIP yükle",
+  "addsite_archive": "Arşiv",
+  "addsite_archiveHint": "Projenin .zip dosyası. Her şey tek bir klasörün içindeyse o klasör kaldırılır."
 }

@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "Saisissez d'abord le domaine : la clé de déploiement appartient au site.",
   "addsite_testConnection": "Tester la connexion",
   "addsite_testing": "Test en cours...",
-  "addsite_testOK": "Le dépôt a accepté la clé."
+  "addsite_testOK": "Le dépôt a accepté la clé.",
+  "addsite_sourceUpload": "Téléverser un ZIP",
+  "addsite_archive": "Archive",
+  "addsite_archiveHint": "Un .zip du projet. Si tout se trouve dans un seul dossier, ce dossier est retiré."
 }

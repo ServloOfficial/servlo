@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "Introdu mai întâi domeniul: cheia de deploy aparține site-ului.",
   "addsite_testConnection": "Testează conexiunea",
   "addsite_testing": "Se testează...",
-  "addsite_testOK": "Repository-ul a acceptat cheia."
+  "addsite_testOK": "Repository-ul a acceptat cheia.",
+  "addsite_sourceUpload": "Încarcă un ZIP",
+  "addsite_archive": "Arhivă",
+  "addsite_archiveHint": "Un .zip al proiectului. Dacă totul se află într-un singur director, acel director este eliminat."
 }

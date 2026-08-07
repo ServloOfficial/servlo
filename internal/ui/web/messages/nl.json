@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "Vul eerst het domein in: de deploy key hoort bij de site.",
   "addsite_testConnection": "Verbinding testen",
   "addsite_testing": "Bezig met testen...",
-  "addsite_testOK": "De repository accepteerde de key."
+  "addsite_testOK": "De repository accepteerde de key.",
+  "addsite_sourceUpload": "ZIP uploaden",
+  "addsite_archive": "Archief",
+  "addsite_archiveHint": "Een .zip van het project. Zit alles in één map, dan wordt die map weggehaald."
 }

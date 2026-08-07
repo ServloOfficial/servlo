@@ -1099,5 +1099,8 @@
   "addsite_domainFirst": "Gib zuerst die Domain ein: der Deploy-Key gehört zur Site.",
   "addsite_testConnection": "Verbindung testen",
   "addsite_testing": "Wird getestet...",
-  "addsite_testOK": "Das Repository hat den Key akzeptiert."
+  "addsite_testOK": "Das Repository hat den Key akzeptiert.",
+  "addsite_sourceUpload": "ZIP hochladen",
+  "addsite_archive": "Archiv",
+  "addsite_archiveHint": "Eine .zip des Projekts. Liegt alles in einem einzigen Ordner, wird dieser Ordner entfernt."
 }

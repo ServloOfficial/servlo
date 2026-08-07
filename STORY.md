@@ -323,8 +323,36 @@ Whichever of the three URL spellings the clone menu offered is accepted and conv
 
 Mutation testing earned its keep here. Four refusals in the URL parser all survived being deleted, because every test input was being caught by an earlier guard; the inputs that actually reach each one found a real hole, a repository path of `../../etc/passwd` that the character class read as a legal owner and name. And the non-empty-directory refusal survived too, because git's own failure for that case also contains the word "empty" and the assertion was matching on it. It asserts servlo's own words now, and that git never ran.
 
-**S6.3 — Add site: upload a ZIP.**
+Three bugs found reading back over S6.1 and S6.2, all fixed.
+
+The deploy keys were a pair of files named `<site>` and `<site>.pub` in one directory. `.pub` is a real TLD, so `blog.example` and `blog.example.pub` are both domains somebody can own, and the second site's private key was written straight over the first site's public key file. The first site then read its private key back as its public one, and the panel offered it up to be pasted into GitHub. Each site gets its own directory now, which cannot collide however the domain is spelled and costs an inode. The flat layout had a second, quieter version of the same fault: removing one site's key deleted the other's.
+
+The form's PHP version and document root were taken as given. The version becomes the FPM upstream's name in the generated vhost, so nothing between the form and that template was checking a string that ends up in nginx configuration; the vhost writer's own guard caught a semicolon, which is defence in depth doing input validation's job, and it caught nothing about `8.9` or `nonsense`, which registered a site that could only ever answer 502. The document root was worse in a quieter way: the vhost writer silently replaces one it does not like with `public`, so a site was registered claiming a root it did not serve from. Both are normalised and refused at the handler now, with the reason.
+
+Two of the tests written for those fixes passed before the fix, because the container has no running nginx and any error at all satisfied "was it refused". They assert the specific refusal now. A test that passes on the wrong error is a test that will keep passing after the bug comes back.
+
+**S6.3 — Add site: upload a ZIP.** ✅
 *Done when:* the archive uploads, extracts, and the document root is detected. **M**
+
+The extractor is written as a refusal engine with extraction as a side effect, because this is the one place in servlo where a file the operator did not write decides a path servlo writes to. Zip slip, obviously, and also the backslash spelling of it, which is a path separator on the machine that wrote the archive and an ordinary filename character to a check looking only for slashes. Symlinks are refused rather than resolved: a link at `/etc/passwd` turns a file the site serves into a file the machine owns, and no site needs one badly enough to be worth checking its target.
+
+Modes from the archive are dropped. Everything lands 0644 and directories 0755, because every site here runs as the same user and an execute bit in a zip is a decision somebody else made about a file on this machine.
+
+Extraction goes to a scratch directory beside the target and is moved in only once the whole archive has been read, so a refusal leaves the site directory as empty as it found it. The handler takes back a directory it created, the way the clone path does, so servlo's own leftovers never block the retry.
+
+Everything a forge's "Download ZIP" produces is wrapped in one directory named for the branch, and extracting that verbatim gives a site whose document root is one level below where anyone would look. One top-level directory is unwrapped; two or more are left alone, since moving either would be inventing a structure the archive did not have.
+
+Eleven mutations, ten killed. The eleventh is the per-entry byte cap, and it survives honestly: `archive/zip` validates the stream against the declared size itself and refuses an entry that lies before servlo's counter sees a byte of it. The check stays as three lines that do not depend on that staying true, and the comment says so rather than implying it is load-bearing today. Getting there took separating the two size guards, which had been covering for each other: the total is checked from the declared sizes before anything is written, and the per-entry bound is only about one entry against the ceiling.
+
+Two tests were wrong before they were right. The mode test built its archive with `w.Create`, which ignores the header, so it asserted nothing at all. And the lying-archive test asserted servlo's own error message for a case `archive/zip` catches first; it asserts the property that matters now, which is that the archive is refused and the directory is left clean.
+
+A fourth bug turned up while writing this, and it was in S6.2 as well. A failure *after* the files land, the linker refusing or the vhost failing to write, left a directory full of servlo's own work and no site registered, and the operator's retry was then refused as "not empty" by servlo's leftovers. Both flows require the directory to be empty before they start and check it, so everything in it afterwards was put there seconds ago and rolling it back cannot take anything of the operator's. A directory servlo created goes entirely; one the operator made is emptied and left standing, because taking it would be removing something they chose to have.
+
+And CI found a fifth, in the tests rather than the code. Two of them drove the handler all the way through to a real registration, which on a machine that has podman means building a PHP image: the package went past Go's ten-minute timeout on the runner, having spent it compiling PHP extensions. The refusals can go through the handler because they return before any of that; the acceptances are tested against the validation function directly now.
+
+Chasing that turned up the ordering it was hiding. The overrides were checked after the clone, so refusing a PHP version cost a four-second network round trip first and left a directory to roll back, which is the opposite of the "refuse everything refusable before anything happens" the comments claimed. Checking and applying are two steps now: checked up front with the domain and the path, applied once there is a plan to apply them to. The clone-refusal test went from four seconds to nothing. The one test that does still want a failing clone names a host that cannot resolve, rather than depending on whether the machine running it can reach GitHub, and `GIT_SSH_COMMAND` grew a connect timeout so a dropped connection cannot hang a panel request for as long as the kernel keeps retrying.
+
+One papercut in the modal while it grew a third source: switching source left the previous one's error on screen, where it described something the operator was no longer doing.
 
 **S6.4 — Add site: app installer.**
 *Done when:* a fresh WordPress installs in one click — database created, `wp-config.php` written, admin account set up. The app is defined as **store YAML with no Go code specific to it**, so further apps need no release. **L**

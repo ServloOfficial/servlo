@@ -171,3 +171,27 @@ func TestCloneHandlers_RequirePost(t *testing.T) {
 		}
 	}
 }
+
+// The clone path needs the same rollback as the upload path, for the same
+// reason: a failure after the files land leaves them with no site registered,
+// and the retry is refused as "not empty" by servlo's own leftovers.
+func TestHandleSiteClone_TakesBackADirectoryItCreatedForAFailedClone(t *testing.T) {
+	panelDirs(t)
+	target := filepath.Join(t.TempDir(), "example.com")
+
+	// A host that cannot resolve, so the clone fails the same way wherever this
+	// runs. Naming a real repository would make the test depend on whether the
+	// machine running it can reach GitHub and on what that key is allowed to
+	// see, which are two things a rollback test is not about.
+	out := postClone(t, handleSiteClone, "/api/sites/clone", map[string]any{
+		"domain": "example.com", "path": target,
+		"repository": "git@nothing.invalid:owner/repo.git",
+	})
+
+	if out["error"] == nil {
+		t.Skip("the clone succeeded, so there is no failure to roll back")
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Error("the directory servlo created survived a failed clone")
+	}
+}
