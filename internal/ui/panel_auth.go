@@ -60,7 +60,9 @@ func isPublicPath(path string) bool {
 // withPanelAuth wraps the panel mux so nothing behind it is reachable without
 // a session.
 func withPanelAuth(guard *authz.Guard, next http.Handler) http.Handler {
-	guarded := guard.Require(next)
+	// Require establishes who the request is; ScopeSites establishes what they
+	// may reach. In that order, because the second needs the first.
+	guarded := guard.Require(guard.ScopeSites(next))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// A preflight carries no cookie by design, so gating it would break
 		// every cross-origin request from servlo's own split-origin dev server.

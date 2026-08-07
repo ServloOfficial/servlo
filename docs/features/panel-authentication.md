@@ -122,7 +122,26 @@ servlo users role alice developer
 servlo users remove bob
 ```
 
-Two roles. **Admin** can do everything. **Developer** reaches only the sites assigned to them — the role is recorded now and enforced in a later story, so an account created today needs no migrating when it lands.
+Two roles. **Admin** runs the server: every site, plus the things that are not a site at all — services, backups, accounts, the panel's own settings. **Developer** works on the sites assigned to them and sees nothing else.
+
+```bash
+servlo users sites alice                        # what they work on
+servlo users sites alice example.com shop.example.com
+```
+
+That is a shell command on purpose. A developer able to widen their own list would make the role advisory rather than enforced.
+
+A developer with nothing assigned sees nothing, which is the state an account is in the moment it is made. Reading an empty list as "unrestricted" would make every new developer an admin until somebody noticed.
+
+Assignments take effect on the next request. Narrowing a list is not a reason to sign somebody out mid-deploy, and every route is checked against the live account rather than anything the session remembers.
+
+### How it is enforced
+
+Deny by default. A route this classification does not recognise is refused to a developer, so one added without a thought for roles breaks for them loudly rather than working for everyone quietly.
+
+The websocket is scoped too, not just the routes. It pushes a snapshot of the sites to every connection, and a developer who cannot open another team's site should not be able to watch it either — gating the routes and leaving the socket open is the door beside the door. A developer's frames carry their own sites and no services at all; filtering in the browser would put the enforcement in the client.
+
+A snapshot Servlo cannot parse is filtered to empty rather than passed through, or a malformed frame becomes the way to see everything.
 
 Changing a password signs that account out everywhere by default. If you are changing it because it may be known, the sessions opened with it may be too. `--keep-sessions` is for the ordinary rotation where nothing is suspected.
 

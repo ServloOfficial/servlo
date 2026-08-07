@@ -42,6 +42,7 @@ func NewUsersCmd() *cobra.Command {
 		newUsersRoleCmd(),
 		newUsersRemoveCmd(),
 		newUsersTOTPCmd(),
+		newUsersSitesCmd(),
 	)
 	return cmd
 }
@@ -251,9 +252,11 @@ func listAccounts() error {
 		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "USERNAME\tROLE\tCREATED")
+	fmt.Fprintln(w, "USERNAME\tROLE\t2FA\tSITES\tCREATED")
 	for _, account := range list {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", account.Name, account.Role, account.Created.Format("2006-01-02"))
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			account.Name, account.Role, yesNo(account.TOTPEnabled),
+			describeSites(account), account.Created.Format("2006-01-02"))
 	}
 	return w.Flush()
 }
@@ -277,6 +280,26 @@ func listSessions() error {
 			humanSince(session.LastSeen), shortUserAgent(session.UserAgent))
 	}
 	return w.Flush()
+}
+
+func yesNo(v bool) string {
+	if v {
+		return "on"
+	}
+	return "off"
+}
+
+// describeSites is what an operator scanning the table needs: "all" for an
+// admin, the domains for a developer, and a warning for the developer who has
+// none, because that account can sign in and see nothing.
+func describeSites(account authz.Account) string {
+	if account.Role == authz.RoleAdmin {
+		return "all"
+	}
+	if len(account.Sites) == 0 {
+		return "none yet"
+	}
+	return strings.Join(account.Sites, " ")
 }
 
 func humanSince(t time.Time) string {
@@ -346,6 +369,63 @@ func AdoptInheritedCredentials() error {
 	cfg.UI.PasswordHash = ""
 	cfg.UI.Username = ""
 	return config.SaveGlobal(cfg)
+}
+
+// newUsersSitesCmd assigns the sites a developer may work on.
+//
+// Only from a shell, and only for a developer. An admin reaches everything by
+// definition, and a developer able to widen their own list would make the role
+// advisory rather than enforced.
+func newUsersSitesCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "sites <username> [domain...]",
+		Short: "Set which sites a developer may work on, or list them",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			accounts, err := authz.OpenAccounts()
+			if err != nil {
+				return err
+			}
+			account, found := accounts.Lookup(args[0])
+			if !found {
+				return fmt.Errorf("no account named %q", args[0])
+			}
+
+			feedback.Begin()
+			if len(args) == 1 {
+				if account.Role == authz.RoleAdmin {
+					feedback.Line(args[0] + " is an admin, so every site is theirs")
+					return nil
+				}
+				if len(account.Sites) == 0 {
+					feedback.Line(args[0] + " has no sites assigned, so they see none")
+					feedback.Note("assign some with: servlo users sites " + args[0] + " example.com")
+					return nil
+				}
+				for _, site := range account.Sites {
+					fmt.Println("  " + site)
+				}
+				return nil
+			}
+
+			if account.Role == authz.RoleAdmin {
+				return fmt.Errorf("%q is an admin and already reaches every site. Make them a developer first: servlo users role %s developer", args[0], args[0])
+			}
+			if err := accounts.SetSites(args[0], args[1:]); err != nil {
+				return err
+			}
+			auditlog.Record(auditlog.Entry{
+				Action: "users.sites.set", Subject: args[0],
+				Detail: strings.Join(args[1:], ","),
+			})
+			feedback.Done(args[0] + " now works on " + feedback.Val(strings.Join(args[1:], ", ")))
+			// Sessions are left alone deliberately: narrowing a list is not a
+			// reason to sign someone out mid-deploy, and every route checks the
+			// live account rather than anything the session remembers.
+			feedback.Note("this takes effect on their next request; no need to sign them out")
+			return nil
+		},
+	}
 }
 
 func newUsersTOTPCmd() *cobra.Command {

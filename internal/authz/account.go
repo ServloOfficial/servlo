@@ -431,3 +431,31 @@ func (s *AccountStore) PasswordMatches(name, password string) bool {
 	}
 	return false
 }
+
+// SetSites assigns the domains a Developer may act on.
+//
+// An admin action: a developer widening their own list would make the role
+// advisory. The panel only offers it to an admin, and the CLI needs a shell.
+func (s *AccountStore) SetSites(name string, sites []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	accounts, err := s.load()
+	if err != nil {
+		return err
+	}
+	for i := range accounts {
+		if accounts[i].Name != name {
+			continue
+		}
+		cleaned := make([]string, 0, len(sites))
+		for _, site := range sites {
+			if site = normaliseDomain(site); site != "" {
+				cleaned = append(cleaned, site)
+			}
+		}
+		accounts[i].Sites = cleaned
+		return s.save(accounts)
+	}
+	return fmt.Errorf("no account named %q", name)
+}

@@ -23,6 +23,8 @@
 | `servlo users password <name>` | Change a password, and sign that account out everywhere |
 | `servlo users role <name> <admin\|developer>` | Change an account's role |
 | `servlo users remove <name>` | Remove an account and end its sessions |
+| `servlo users sites <name>` | Show which sites a developer works on |
+| `servlo users sites <name> <domain...>` | Set which sites a developer works on |
 | `servlo users totp enable <name>` | Enrol an authenticator app, showing a QR code and the recovery codes |
 | `servlo users totp disable <name>` | Turn the second factor off, which is the way back from a lost phone |
 | `servlo users totp codes <name>` | Issue a fresh set of recovery codes, replacing the old |

@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/realrashid/servlo/internal/authz"
 	"github.com/realrashid/servlo/internal/eventbus"
 	"github.com/realrashid/servlo/internal/podman"
 	servloSystemd "github.com/realrashid/servlo/internal/systemd"
@@ -228,10 +229,16 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	// What this connection may see. Read once at open rather than per frame:
+	// a role or assignment changed mid-session takes effect on the next
+	// connection, and every route is checked against the live account anyway,
+	// so the worst case is a stale list on screen rather than access.
+	scope, _ := authz.ScopeFrom(r.Context())
+
 	// Initial snapshot: assemble one JSON object containing all kinds.
 	initial := assembleSnapshot(
-		snapshots.Sites(),
-		snapshots.Services(),
+		scopeSites(snapshots.Sites(), scope),
+		scopeServices(snapshots.Services(), scope),
 		snapshots.Status(),
 		snapshots.UnhealthyWorkers(),
 		nil,
@@ -250,7 +257,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			frame := assembleSnapshot(msg.Sites, msg.Services, msg.Status, msg.UnhealthyWorkers, msg.Notification, msg.Kinds)
+			frame := assembleSnapshot(
+				scopeSites(msg.Sites, scope),
+				scopeServices(msg.Services, scope),
+				msg.Status, msg.UnhealthyWorkers, msg.Notification, msg.Kinds,
+			)
 			if err := sendText(frame); err != nil {
 				return
 			}

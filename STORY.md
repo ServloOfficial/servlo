@@ -227,8 +227,18 @@ A missing or wrong code counts against the limiter like a wrong password, or the
 
 Two things fell out. `redact` is one function now rather than a line in each of four methods, because a credential field added later has to be stripped in one place rather than remembered in four. And the recovery-code count needed to survive redaction while the hashes do not, since the panel shows how many are left.
 
-**S5.4 — Roles.**
+**S5.4 — Roles.** ✅
 *Done when:* Admin sees everything; Developer sees deploy, logs, files, cron and settings for assigned sites only. Enforced on every route and in every WebSocket message. **L**
+
+Deny by default, which is the decision the rest follows from. A path the classification does not recognise is refused to a developer, so a route added later without a thought for roles breaks for them loudly rather than working for everyone quietly. The cost is real and it is the right one: the alternative fails silently and nobody finds out.
+
+"Every WebSocket message" is the half that would have been easy to skip. The broker builds one snapshot and hands it to every connection, so a developer who could not open another team's site could still watch it — the door beside the door S5.2 already closed once. Frames are filtered per connection at send time, not per role in the broker, because the broker does not know who is listening and a role-keyed cache would be one more thing to invalidate when an assignment changed.
+
+Two details that read as fussy and are not. An absent sites payload stays absent rather than becoming an empty array, because the client reads a missing key as "unchanged" and an empty one as "there are none", so converting would wipe the list on every frame that happened not to carry sites. And a snapshot servlo cannot parse is filtered to empty rather than passed through, or a malformed frame is the way to see everything.
+
+An empty site list on a developer means nothing, not everything. It is the state an account is in the moment it is created, and the other reading makes every new developer an admin until someone notices.
+
+Assignments are a shell command. A developer able to widen their own list would make the role advisory. They take effect on the next request rather than signing anyone out, since every route checks the live account rather than anything the session remembers.
 
 **S5.5 — Permission registry.**
 *Done when:* every state-changing route declares a permission and the surface scan fails the build on any undeclared route. **L**
