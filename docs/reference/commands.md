@@ -14,6 +14,10 @@
 | `servlo whatsnew` | Show what changed between the installed version and the latest release |
 | `servlo uninstall` | Stop all containers and remove Servlo |
 | `servlo uninstall --force` | Same, skipping all confirmation prompts |
+| `servlo panel` | Show how the panel is reached |
+| `servlo panel domain set <fqdn>` | Serve the panel on a domain, through nginx |
+| `servlo panel domain secure` | Issue a real certificate for the panel's domain |
+| `servlo panel domain remove` | Stop serving the panel on its domain |
 | `servlo production` | Show whether production mode is on |
 | `servlo production on` | Turn production mode on (asks for confirmation; `--yes` skips it) |
 | `servlo production off --force` | Turn production mode off, which starts showing PHP errors to visitors |

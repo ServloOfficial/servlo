@@ -1,6 +1,6 @@
 export const apiBase =
   typeof location !== 'undefined' && location.hostname === 'servlo.localhost'
-    ? 'http://localhost:7073'
+    ? 'https://localhost:7073'
     : '';
 
 export function apiUrl(path: string): string {

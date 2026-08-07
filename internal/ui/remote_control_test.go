@@ -666,12 +666,11 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 		}
 	})
 
-	// These endpoints are reached by non-browser clients (or cross-origin
-	// pages we can't control) that can't carry the header, and each keeps its
-	// own source gate: unpause from the paused-site holding page, the internal
-	// notify bridge POSTed by out-of-process CLI commands over loopback.
+	// These endpoints are reached by non-browser clients that can't carry the
+	// header, and each keeps its own source gate: the internal notify bridge
+	// is POSTed by out-of-process CLI commands over loopback.
 	t.Run("exempt paths bypass the gate", func(t *testing.T) {
-		for _, path := range []string{"/api/sites/myapp.test/unpause", "/api/internal/notify"} {
+		for _, path := range []string{"/api/internal/notify"} {
 			t.Run(path, func(t *testing.T) {
 				next := &nextHandler{}
 				gate := withRemoteControlGate(next)
@@ -684,6 +683,22 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 					t.Errorf("%s blocked by CSRF gate, status=%d", path, rec.Code)
 				}
 			})
+		}
+	})
+
+	// Unpause was exempt for a button on the paused-site holding page that
+	// POSTed here cross-origin. That page is served to whoever visits the
+	// site, so the button is a link now and the exemption is gone.
+	t.Run("unpause is no longer exempt", func(t *testing.T) {
+		next := &nextHandler{}
+		gate := withRemoteControlGate(next)
+		req := httptest.NewRequest(http.MethodPost, "/api/sites/myapp.test/unpause", nil)
+		req.RemoteAddr = "127.0.0.1:54321"
+		req.Host = "localhost:7073"
+		rec := httptest.NewRecorder()
+		gate.ServeHTTP(rec, req)
+		if next.called {
+			t.Error("an unpause with no CSRF proof reached the handler")
 		}
 	})
 

@@ -180,8 +180,18 @@ The database caveat worth remembering: MySQL and PostgreSQL apply a root passwor
 
 ## E5 — Authentication
 
-**S5.1 — Panel access, both paths.**
+**S5.1 — Panel access, both paths.** ✅
 *Done when:* at first boot the panel is reachable at `https://<ip>:<port>` with a self-signed certificate; a subdomain can then be attached and receives a real certificate through the normal Get SSL flow. **L**
+
+One port, not two. The listener reads the first byte of each connection: a TLS handshake starts with 0x16, and anything else is answered with a 308 to the same URL over https. A second listener for the redirect would need a second port in every firewall rule and every page of documentation, to serve a response whose whole content is "use the other one". The redirect never reaches the panel's handler, because whatever the plain request carried was already in the clear and answering it with real content or a cookie makes the mistake worse.
+
+The self-signed certificate is a leaf that signs itself, not a local authority. Nothing is installed into any trust store; S3.1 deleted that and it has no successor here. It is reused rather than regenerated, because a fingerprint that changes on every restart teaches an operator to click through warnings, and it is replaced only when the addresses change, a domain is attached, or it nears expiry.
+
+The domain path reuses the site machinery whole: the same ACME challenge location, the same certificate directory (so the renewal scanner finds it without being told), the same TLS defaults. The vhost is written on port 80 alone until a certificate exists, because nginx refuses to start when an `ssl_certificate` file is missing and a panel misconfiguration that stops nginx takes every site with it.
+
+The trap worth recording. Servlo treats requests arriving over its unix socket as local control, bypassing the remote gate entirely, and that was safe because the only thing proxying into that socket was the `servlo.localhost` vhost, which RFC 6761 makes unreachable from any other machine. A panel domain proxies into the same socket and is reachable from anywhere, so attaching one would have handed terminal access, filesystem browsing and raw `.env` reads to whoever typed the URL. The vhost now marks what it forwards and the panel refuses local-control trust to anything carrying the mark. `proxy_set_header` overwrites what the client sent, so it cannot be stripped from outside, and it only ever removes trust, so setting it directly denies only yourself.
+
+Two things fell out of that. The CSRF gate had the same socket shortcut and got the same treatment. And the paused-site holding page carried a Resume button that POSTed cross-origin to the panel on 127.0.0.1 — a page served to whoever visits the site, which on a server is the public. It is a link to the dashboard now, and the CSRF exemption that existed for it is gone.
 
 **S5.2 — Session authentication.**
 *Done when:* Argon2id hashing; cookies `HttpOnly`, `Secure`, `SameSite=Strict`; CSRF on every state-changing route; per-IP rate limiting with progressive lockout; sessions listable and revocable from the CLI. **L**

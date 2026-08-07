@@ -564,31 +564,11 @@ const pausedPageHTML = `<!DOCTYPE html>
     <p class="host" id="host"></p>
     <p>This site has been paused. Resume it to restore the application and restart any workers.</p>
     <div class="actions">
-      <button id="btn" class="btn-primary" onclick="resume()">Resume</button>
-      <a href="http://servlo.localhost" class="btn-secondary">Dashboard</a>
+      <a href="http://servlo.localhost" class="btn-primary">Open the dashboard</a>
     </div>
   </div>
   <script>
     document.getElementById('host').textContent = location.hostname;
-    async function resume() {
-      const btn = document.getElementById('btn');
-      btn.disabled = true;
-      btn.textContent = 'Resuming\u2026';
-      try {
-        const r = await fetch('http://127.0.0.1:7073/api/sites/' + location.hostname + '/unpause', { method: 'POST' });
-        const data = await r.json();
-        if (data.ok) {
-          btn.textContent = 'Redirecting\u2026';
-          setTimeout(() => location.reload(), 1200);
-        } else {
-          throw new Error(data.error || 'unknown error');
-        }
-      } catch (e) {
-        btn.disabled = false;
-        btn.textContent = 'Resume';
-        alert('Error: ' + e.message);
-      }
-    }
   </script>
 </body>
 </html>

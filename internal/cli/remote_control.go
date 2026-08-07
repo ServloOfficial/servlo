@@ -14,7 +14,7 @@ import (
 
 // NewRemoteControlCmd returns the `servlo remote-control` parent command with
 // on / off / status subcommands. Controls whether the servlo dashboard at
-// http://<server>:7073 accepts requests from non-loopback (LAN) sources.
+// https://<server>:7073 accepts requests from non-loopback (LAN) sources.
 //
 // State machine (single field, presence of cfg.UI.PasswordHash):
 //
@@ -120,7 +120,7 @@ Re-running this command rotates the password.`,
 
 			feedback.Begin()
 			feedback.Done("remote dashboard access enabled (user: " + feedback.Val(username) + ")")
-			feedback.Note("LAN clients can now reach http://<server-ip>:7073 with HTTP Basic auth")
+			feedback.Note("LAN clients can now reach https://<server-ip>:7073 with HTTP Basic auth")
 			feedback.Note("loopback (127.0.0.1) bypasses authentication as always")
 			feedback.Note("run `servlo remote-control off` to lock LAN access back down")
 			return nil

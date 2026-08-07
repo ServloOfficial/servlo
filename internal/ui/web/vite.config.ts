@@ -32,11 +32,14 @@ export default defineConfig(() => ({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://localhost:7073', changeOrigin: true, ws: true },
-      '/icons': 'http://localhost:7073',
-      '/manifest.webmanifest': 'http://localhost:7073',
-      '/sw.js': 'http://localhost:7073',
-      '/offline.html': 'http://localhost:7073'
+      // secure: false because the panel's certificate is self-signed until a
+      // domain is attached, and the dev proxy has no reason to be stricter
+      // than the browser the developer already clicked through.
+      '/api': { target: 'https://localhost:7073', changeOrigin: true, ws: true, secure: false },
+      '/icons': { target: 'https://localhost:7073', secure: false },
+      '/manifest.webmanifest': { target: 'https://localhost:7073', secure: false },
+      '/sw.js': { target: 'https://localhost:7073', secure: false },
+      '/offline.html': { target: 'https://localhost:7073', secure: false }
     }
   },
   test: {

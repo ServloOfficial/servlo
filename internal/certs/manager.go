@@ -201,9 +201,17 @@ func copyFile(src, dst string) error {
 	return out.Close()
 }
 
+// SitePaths returns where a domain's certificate and key live. One place
+// spells the layout, so a caller outside this package reads the same files the
+// issuer writes rather than a second copy of the same join.
+func SitePaths(domain string) (certPath, keyPath string) {
+	dir := filepath.Join(config.CertsDir(), "sites")
+	return filepath.Join(dir, domain+".crt"), filepath.Join(dir, domain+".key")
+}
+
 // CertExists returns true if the certificate for the domain already exists.
 func CertExists(domain string) bool {
-	certFile := filepath.Join(config.CertsDir(), "sites", domain+".crt")
+	certFile, _ := SitePaths(domain)
 	_, err := os.Stat(certFile)
 	return err == nil
 }

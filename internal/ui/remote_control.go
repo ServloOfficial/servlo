@@ -157,16 +157,19 @@ const csrfHeader = "X-Servlo-CSRF"
 // can't control) that can't carry the header, and each already has its own
 // source protection: /api/remote-setup has a token + RFC1918 + lockout gate,
 // the mailpit webhook is restricted to host-NAT'd source IPs, the internal
-// notify bridge (POSTed over loopback by out-of-process CLI commands) has
-// its own loopback gate and only triggers a dashboard refresh, and the
-// per-site unpause is POSTed from the paused-site holding page on the site's
-// own domain and is non-destructive.
+// notify bridge (POSTed over loopback by out-of-process CLI commands) has its
+// own loopback gate and only triggers a dashboard refresh.
+//
+// The per-site unpause used to be exempt too, for a button on the paused-site
+// holding page that POSTed here cross-origin. That page is served to whoever
+// visits the site, which on a server is the public, so the button is a link to
+// the dashboard now and the exemption went with it.
 func csrfExemptPath(path string) bool {
 	switch path {
 	case "/api/remote-setup", "/api/webhooks/mailpit", "/api/internal/notify":
 		return true
 	}
-	return strings.HasPrefix(path, "/api/sites/") && strings.HasSuffix(path, "/unpause")
+	return false
 }
 
 // passesCSRF reports whether an unsafe-method request carries proof it was
@@ -183,7 +186,10 @@ func csrfExemptPath(path string) bool {
 // can't set a custom header without a preflight, and servlo only answers
 // preflight for its own origins, so the header's presence is proof enough.
 func passesCSRF(r *http.Request) bool {
-	if v, _ := r.Context().Value(ctxKeyUnixSocket{}).(bool); v {
+	// The socket shortcut is for the local dashboard vhost. A request that
+	// arrived over the panel's public domain uses the same socket and gets no
+	// such pass: it is a browser on the internet like any other.
+	if v, _ := r.Context().Value(ctxKeyUnixSocket{}).(bool); v && !fromPublicPanel(r) {
 		return true
 	}
 	switch r.Header.Get("Sec-Fetch-Site") {
@@ -632,7 +638,30 @@ func hasValidTrustToken(r *http.Request) bool {
 		subtle.ConstantTimeCompare([]byte(claimed), []byte(token)) == 1
 }
 
+// publicPanelHeader marks a request that reached the panel over its public
+// domain rather than the local dashboard vhost.
+//
+// The unix socket is treated as local control because, until a panel domain
+// existed, the only thing proxying into it was the servlo.localhost vhost, and
+// RFC 6761 makes .localhost resolve to the visiting device's own loopback, so
+// no remote browser could reach it. A panel domain is a real name on the public
+// internet proxying into that same socket, so it says so, and this is what
+// stops attaching one from handing every host action to whoever types the URL.
+//
+// nginx sets it with proxy_set_header, which overwrites whatever the client
+// sent, so it cannot be stripped from outside. It only ever removes trust: a
+// client that sets it directly is denying itself and nobody else.
+const publicPanelHeader = "X-Servlo-Public-Panel"
+
+// fromPublicPanel reports whether r arrived over the panel's public domain.
+func fromPublicPanel(r *http.Request) bool {
+	return r.Header.Get(publicPanelHeader) != ""
+}
+
 func isLocalControlRequest(r *http.Request) bool {
+	if fromPublicPanel(r) {
+		return false
+	}
 	if v, _ := r.Context().Value(ctxKeyUnixSocket{}).(bool); v {
 		return true
 	}
@@ -687,6 +716,9 @@ func hasDashboardControl(r *http.Request) bool {
 //     per-install token. Kept for backward compatibility with old vhosts
 //     that may still inject the header; new installs use the unix socket.
 func isLoopbackRequest(r *http.Request) bool {
+	if fromPublicPanel(r) {
+		return false
+	}
 	if v, _ := r.Context().Value(ctxKeyUnixSocket{}).(bool); v {
 		return true
 	}

@@ -346,18 +346,28 @@ func Start(currentVersion string) error {
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", listenAddr, err)
 	}
-	fmt.Printf("Servlo UI listening on http://%s\n", listenAddr)
+	fmt.Printf("Servlo panel listening on https://%s\n", listenAddr)
+	if domain := PanelDomain(); domain != "" {
+		fmt.Printf("Panel domain: https://%s\n", domain)
+	} else {
+		fmt.Println("No panel domain yet, so the certificate is self-signed and your browser will warn once.")
+		fmt.Println("Attach one with: servlo panel domain set panel.example.com")
+	}
 	// Notify systemd we're ready only after the listener is accepting, so
 	// Type=notify units make systemctl start block until the UI can serve.
 	servloSystemd.NotifyReady()
-	return http.Serve(ln, handler)
+	return servePanelTLS(ln, handler)
 }
 
+// allowedCORSOrigins are the origins servlo's own dashboard is served from.
+// The :7073 entries are https only: the panel listener speaks TLS and answers
+// a plain-HTTP request with a redirect, so an http origin on that port is
+// either a stale bookmark or someone else's page.
 var allowedCORSOrigins = map[string]bool{
 	"http://servlo.localhost":  true,
 	"https://servlo.localhost": true,
-	"http://localhost:7073":    true,
-	"http://127.0.0.1:7073":    true,
+	"https://localhost:7073":   true,
+	"https://127.0.0.1:7073":   true,
 }
 
 func withCORS(h http.HandlerFunc) http.HandlerFunc {
@@ -2936,7 +2946,7 @@ func handleSiteEnvRestore(w http.ResponseWriter, r *http.Request, site *config.S
 }
 
 // handleDashboardQR serves a QR code PNG encoding the dashboard's own LAN URL
-// (http://<lan-ip>:7073) so a phone can scan straight into the remote
+// (https://<lan-ip>:7073) so a phone can scan straight into the remote
 // dashboard. Only meaningful while LAN exposure is on; 404 otherwise.
 func handleDashboardQR(w http.ResponseWriter, r *http.Request) {
 	cfg, _ := config.LoadGlobal()
@@ -2949,7 +2959,7 @@ func handleDashboardQR(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	png, err := qrcode.Encode("http://"+ip+":7073", qrcode.Medium, 160)
+	png, err := qrcode.Encode("https://"+ip+":7073", qrcode.Medium, 160)
 	if err != nil {
 		http.Error(w, "qr encode: "+err.Error(), http.StatusInternalServerError)
 		return

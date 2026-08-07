@@ -1,12 +1,22 @@
 # Web UI
 
-Servlo includes a browser dashboard available at **`http://servlo.localhost`**, served by the `servlo-ui` systemd service (started automatically with `servlo install`).
+Servlo includes a browser dashboard, served by the `servlo-panel` systemd service (started automatically with `servlo install`).
+
+There are three ways to reach it, and which one you want depends on where you are:
+
+| From | URL |
+|---|---|
+| A shell on the server | `http://servlo.localhost` |
+| Anywhere, before DNS exists | `https://<server-ip>:7073` |
+| Anywhere, once a domain points here | `https://panel.example.com` |
 
 ```bash
 servlo dashboard   # open in your default browser
 ```
 
-The `.localhost` TLD resolves to `127.0.0.1` natively on all modern systems (RFC 6761), so the dashboard needs no DNS configuration. The dashboard is also reachable directly at `http://127.0.0.1:7073` if nginx is not running.
+The `.localhost` TLD resolves to `127.0.0.1` natively on all modern systems (RFC 6761), so that first URL needs no DNS and is unreachable from anywhere but the machine itself.
+
+See [Panel access](/features/panel-access) for the other two, including why the browser warns about the certificate on a fresh server and how to replace it with a real one.
 
 ## Real-time updates
 

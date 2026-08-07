@@ -22,7 +22,7 @@
 
   // The remote dashboard always binds :7073; when LAN-exposed we surface the
   // address plus a scannable QR so a phone can jump straight in.
-  const dashboardURL = $derived('http://' + $lan.lanIP + ':7073');
+  const dashboardURL = $derived('https://' + $lan.lanIP + ':7073');
   const dashboardQRSrc = $derived(apiBase + '/api/dashboard-qr?v=' + encodeURIComponent($lan.lanIP));
 
   onMount(() => {

@@ -505,6 +505,11 @@ func runStart(_ *cobra.Command, _ []string) error {
 	if err := nginx.EnsureNginxConfig(); err != nil {
 		fmt.Printf("  WARN: nginx config: %v\n", err)
 	}
+	// A panel domain set while servlo was down, or a config edited by hand,
+	// takes effect here rather than waiting for the next `panel domain set`.
+	if err := ApplyPanelDomain(); err != nil {
+		fmt.Printf("[WARN] writing the panel vhost: %v\n", err)
+	}
 	if err := nginx.EnsureServloVhost(); err != nil {
 		fmt.Printf("  WARN: servlo vhost: %v\n", err)
 	}

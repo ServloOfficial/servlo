@@ -247,6 +247,13 @@ type GlobalConfig struct {
 		// Toggled via `servlo remote-control full-access on/off`, which only
 		// the local dashboard or a local shell can do.
 		RemoteFullAccess bool `yaml:"remote_full_access,omitempty" mapstructure:"remote_full_access"`
+
+		// Domain is the FQDN the panel answers to, empty until one is
+		// attached. Until then the panel is reachable by address over a
+		// self-signed certificate; once it is set, the panel goes through the
+		// same Get SSL flow as any site and serves the real certificate the
+		// moment there is one.
+		Domain string `yaml:"domain,omitempty" mapstructure:"domain"`
 	} `yaml:"ui,omitempty" mapstructure:"ui"`
 	Workers struct {
 		// ExecMode controls how framework workers (queue, schedule, horizon,

@@ -209,6 +209,7 @@ func main() {
 	root.AddCommand(cli.NewSailCmd())
 	root.AddCommand(cli.NewPauseCmd())
 	root.AddCommand(cli.NewUnpauseCmd())
+	root.AddCommand(cli.NewPanelCmd())
 	root.AddCommand(cli.NewLANCmd())
 	root.AddCommand(cli.NewLANExposeCmd())
 	root.AddCommand(cli.NewLANUnexposeCmd())

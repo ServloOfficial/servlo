@@ -104,9 +104,9 @@ ports and devices that require access.`,
 				feedback.Note("sites: reachable on the host's LAN address once exposed")
 			}
 			if cfg != nil && cfg.UI.PasswordHash != "" {
-				feedback.Note(fmt.Sprintf("dashboard: http://%s:7073 (HTTP Basic auth required)", lanIP))
+				feedback.Note(fmt.Sprintf("dashboard: https://%s:7073 (HTTP Basic auth required)", lanIP))
 			} else {
-				feedback.Note(fmt.Sprintf("dashboard: http://%s:7073 (LAN clients get 403 — run `servlo remote-control on` to grant LAN access)", lanIP))
+				feedback.Note(fmt.Sprintf("dashboard: https://%s:7073 (LAN clients get 403 — run `servlo remote-control on` to grant LAN access)", lanIP))
 			}
 			feedback.Note("managed services: loopback-only, always")
 			if dnsOn {
