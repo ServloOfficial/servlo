@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { apiUrl, wsUrl, apiFetch } from './api';
+import { apiUrl, wsUrl, apiFetch, setCSRFToken } from './api';
 
 describe('apiUrl', () => {
   it('passes absolute URLs through', () => {
@@ -24,11 +24,14 @@ describe('apiFetch CSRF header', () => {
     return fetchMock;
   }
 
-  it('adds X-Servlo-CSRF to state-changing requests', async () => {
+  // The header used to carry a placeholder, and its presence was the proof.
+  // It carries the session's token now: a marker anyone can set is not a token.
+  it('adds the session CSRF token to state-changing requests', async () => {
+    setCSRFToken('the-token');
     const fetchMock = stubFetch();
     await apiFetch('/api/sites/x/restart', { method: 'POST' });
     const sent = new Headers(fetchMock.mock.calls[0][1]?.headers);
-    expect(sent.get('X-Servlo-CSRF')).toBe('1');
+    expect(sent.get('X-Servlo-CSRF')).toBe('the-token');
   });
 
   it('leaves GET and HEAD untouched', async () => {

@@ -28,6 +28,7 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 
 	"github.com/realrashid/servlo/internal/applog"
+	"github.com/realrashid/servlo/internal/authz"
 	"github.com/realrashid/servlo/internal/certs"
 	"github.com/realrashid/servlo/internal/cfgedit"
 	"github.com/realrashid/servlo/internal/cli"
@@ -307,7 +308,11 @@ func Start(currentVersion string) error {
 	})
 	mux.Handle("/", serveSvelte())
 
-	handler := withRemoteControlGate(mux)
+	guard, err := authz.NewGuard()
+	if err != nil {
+		return fmt.Errorf("opening the panel's account store: %w", err)
+	}
+	handler := withPanelAuth(guard, withRemoteControlGate(mux))
 
 	// Unix socket listener for the servlo.localhost nginx vhost. Linux only:
 	// on macOS, servlo-nginx runs inside the podman-machine VM and unix

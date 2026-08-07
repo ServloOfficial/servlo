@@ -101,6 +101,7 @@ func TestHostActionRoutesAlwaysAllowedLocally(t *testing.T) {
 // never stand in for authentication itself.
 func TestFullAccessStillRequiresCredentials(t *testing.T) {
 	setupConfigDirFullAccess(t, "", "", true)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 	next := &nextHandler{}
 	req := httptest.NewRequest(http.MethodPost, "/api/browse", nil)
@@ -108,13 +109,13 @@ func TestFullAccessStillRequiresCredentials(t *testing.T) {
 	req.Host = "dashboard.example.net"
 	req.Header.Set("X-Servlo-CSRF", "1")
 	rec := httptest.NewRecorder()
-	withRemoteControlGate(next).ServeHTTP(rec, req)
+	panelStack(t, next).ServeHTTP(rec, req)
 
 	if next.called {
 		t.Fatal("unauthenticated remote request reached a host-action route")
 	}
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
 }
 

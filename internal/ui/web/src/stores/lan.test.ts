@@ -61,7 +61,7 @@ describe('LAN store', () => {
     ) as unknown as typeof fetch;
 
     await loadLANStatus();
-    const state = get(lan) as Record<string, unknown>;
+    const state = get(lan) as unknown as Record<string, unknown>;
     expect(state.servicesEnabled).toBeUndefined();
     expect(state.servicesReachable).toBeUndefined();
   });

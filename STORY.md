@@ -193,8 +193,24 @@ The trap worth recording. Servlo treats requests arriving over its unix socket a
 
 Two things fell out of that. The CSRF gate had the same socket shortcut and got the same treatment. And the paused-site holding page carried a Resume button that POSTed cross-origin to the panel on 127.0.0.1 — a page served to whoever visits the site, which on a server is the public. It is a link to the dashboard now, and the CSRF exemption that existed for it is gone.
 
-**S5.2 — Session authentication.**
+**S5.2 — Session authentication.** ✅
 *Done when:* Argon2id hashing; cookies `HttpOnly`, `Secure`, `SameSite=Strict`; CSRF on every state-changing route; per-IP rate limiting with progressive lockout; sessions listable and revocable from the CLI. **L**
+
+This is where the laptop model finally goes. Upstream trusted loopback absolutely and asked everyone else for HTTP Basic credentials; on a droplet a request from 127.0.0.1 is a reverse proxy or a container, and Basic sends the password on every request with no way to sign out and no way to see who is signed in. Now every request carries a session or it goes no further, whatever address it came from.
+
+Sessions are records rather than a signed cookie, which is the only shape in which "listable and revocable" means anything. The store holds each token's SHA-256, so reading it is not the same as holding every live session, and both the panel and the CLI read through to the file so a session ended from a shell stops working on the next request.
+
+Two acceptance criteria turned out to need more than they say. `SameSite=Strict` means the cookie is never attached to a cross-origin request, and the dashboard was cross-origin with itself: served from `servlo.localhost`, calling `https://localhost:7073`. The `servlo.localhost` vhost proxies `/api/` now and the split-origin arrangement is gone. The origin allowlist stays, because the websocket handshake still checks against it. And CSRF was a header whose *presence* was the proof; it carries a per-session token now, because a marker anyone can set is not a token.
+
+The cookie carries the `__Host-` prefix on top of the three flags asked for. It is a promise the browser enforces — Secure, path `/`, no Domain — and on a panel sharing a parent domain with the sites it hosts, it is what stops a site's own JavaScript planting a session cookie.
+
+Deleted rather than kept: `internal/ui/remote_session.go`, the HMAC-over-the-password-hash cookie, superseded whole. The LAN-exposure gate and the Basic challenge went with it. What is left of the old gate is the cross-origin check on the routes that reach the panel without a session, the source gate on the mailpit webhook, and the host-action restriction — a terminal on the host is not something a password alone should open, and S5.4 and S5.5 replace that with roles and a permission per route.
+
+One bug this introduced and caught: stripping the gate left the mailpit webhook falling through instead of being refused, because its check was written as "if from the host, pass" with the rejection implied by what came after. Its own test found it.
+
+`servlo users` and `servlo sessions`, not `servlo auth`, which upstream already uses for sharing SSH keys with the containers. Two unrelated meanings of the word under one command would be worse than a longer name.
+
+Credentials an install already had become an account at the next start, once, and the inherited bcrypt hash is rehashed to Argon2id the first time it is used. Without that, upgrading would present the first-run setup form on a machine that already had a password.
 
 **S5.3 — Optional TOTP.**
 *Done when:* QR enrolment, one-time recovery codes, and a CLI reset path for lockout recovery all work. **M**

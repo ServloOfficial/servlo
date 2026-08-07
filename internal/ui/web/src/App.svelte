@@ -27,6 +27,8 @@
   import CommandPalette from '$components/CommandPalette.svelte';
   import CommandRunModal from '$components/CommandRunModal.svelte';
   import { initNotify } from '$lib/notify';
+  import { session, loadSession } from '$stores/session';
+  import LoginScreen from '$components/LoginScreen.svelte';
 
   import SitesTab from '$tabs/SitesTab.svelte';
   import ServicesTab from '$tabs/ServicesTab.svelte';
@@ -41,7 +43,13 @@
     disconnectWs();
   }
 
-  onMount(() => {
+  // Everything the dashboard loads is behind the session, so nothing starts
+  // until there is one. Firing the loads first would mean a screen of failed
+  // requests behind the login form and a websocket retrying against a 401.
+  let started = false;
+  function startDashboard() {
+    if (started) return;
+    started = true;
     loadVersion();
     loadAccessMode();
     loadStatus();
@@ -54,7 +62,15 @@
     connectWs();
     initDashboardRoute();
     initNotify();
+  }
+
+  onMount(() => {
+    loadSession();
     window.addEventListener('pagehide', handlePageHide);
+  });
+
+  $effect(() => {
+    if ($session.authenticated) startDashboard();
   });
 
   onDestroy(() => {
@@ -70,6 +86,11 @@
   const onDashboard = $derived($tab === 'dashboard');
 </script>
 
+{#if !$session.loaded}
+  <div class="min-h-screen bg-gray-50 dark:bg-black"></div>
+{:else if !$session.authenticated}
+  <LoginScreen />
+{:else}
 <div class="h-screen flex">
   <NavRail />
 
@@ -143,3 +164,4 @@
   <CommandPalette />
   <CommandRunModal />
 </div>
+{/if}

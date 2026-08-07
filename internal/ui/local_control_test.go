@@ -38,11 +38,13 @@ func TestLocalControlAcceptsLoopbackHostnames(t *testing.T) {
 }
 
 // A reverse proxy relaying a remote browser also connects from 127.0.0.1. The
-// forwarding headers it adds are what separates it from a local browser.
+// forwarding headers it adds are what separates it from a local browser, and
+// neither one gets in without a session.
 func TestLocalControlRejectsForwardedRequests(t *testing.T) {
 	for _, header := range proxyHeaders {
 		t.Run(header, func(t *testing.T) {
-			setupConfigDirRaw(t, "", "", true) // LAN exposed, no credentials
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+			t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 			next := &nextHandler{}
 			req := httptest.NewRequest(http.MethodGet, "/api/sites", nil)
@@ -50,13 +52,18 @@ func TestLocalControlRejectsForwardedRequests(t *testing.T) {
 			req.Host = "dashboard.example.ts.net"
 			req.Header.Set(header, "203.0.113.7")
 			rec := httptest.NewRecorder()
-			withRemoteControlGate(next).ServeHTTP(rec, req)
+			panelStack(t, next).ServeHTTP(rec, req)
 
 			if next.called {
-				t.Errorf("%s did not stop a proxied request from bypassing authentication", header)
+				t.Errorf("%s did not stop a proxied request from reaching the panel", header)
 			}
-			if rec.Code != http.StatusForbidden {
-				t.Errorf("status = %d, want %d", rec.Code, http.StatusForbidden)
+			if rec.Code != http.StatusUnauthorized {
+				t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+			}
+			// The distinction itself has to survive, because S5.4 still needs
+			// it to tell a local operator from a proxied browser.
+			if isLocalControlRequest(req) {
+				t.Errorf("%s still counts as local control", header)
 			}
 		})
 	}

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { get } from 'svelte/store';
+import { getCSRFToken } from '$lib/api';
 
 describe('sites store', () => {
   beforeEach(() => {
@@ -52,7 +53,7 @@ describe('sites store', () => {
     expect(init.method).toBe('PUT');
     const sentHeaders = new Headers(init.headers);
     expect(sentHeaders.get('Content-Type')).toBe('application/json');
-    expect(sentHeaders.get('X-Servlo-CSRF')).toBe('1');
+    expect(sentHeaders.get('X-Servlo-CSRF')).toBe(getCSRFToken());
     expect(JSON.parse(init.body as string)).toEqual({ content: 'FOO=bar\n', backup: true });
     vi.unstubAllGlobals();
   });

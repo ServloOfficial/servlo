@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"time"
 
 	servlocli "github.com/realrashid/servlo/internal/cli"
 	"github.com/realrashid/servlo/internal/config"
@@ -201,29 +200,20 @@ func passesCSRF(r *http.Request) bool {
 	return r.Header.Get(csrfHeader) != ""
 }
 
-// withRemoteControlGate wraps the dashboard mux with the LAN-access gate.
-// Two independent flags control LAN access:
+// withRemoteControlGate is what is left of the gate after S5.2.
 //
-//   - cfg.LAN.Exposed   — "may LAN clients reach servlo at all?" (servlo lan:expose)
-//   - cfg.UI.PasswordHash — "if they may, what credentials do they need?"
-//     (servlo remote-control on)
+// Authentication is no longer its job. withPanelAuth sits in front and refuses
+// anything without a session, whatever address it came from, so the LAN
+// exposure flag and the HTTP Basic challenge that used to live here are gone
+// along with the model that needed them: on a server there is no trusted side
+// of the connection to exempt.
 //
-// Behavior matrix for non-loopback requests:
-//
-//	cfg.LAN.Exposed | cfg.UI.PasswordHash | result
-//	----------------|---------------------|--------------------------------
-//	false           | empty               | 403 (LAN exposure off)
-//	false           | set                 | 403 (LAN exposure off — credentials are inert)
-//	true            | empty               | 403 (no credentials configured)
-//	true            | set                 | require HTTP Basic auth
-//
-// Direct local dashboard requests bypass both checks. OPTIONS preflight
-// passes through because it has no Authorization header. /api/remote-setup
-// has its own token and IP gate.
-//
-// Beyond authentication, the loopbackOnlyRoutes list stays closed to remote
-// clients unless cfg.UI.RemoteFullAccess is set. The local user keeps those
-// routes either way.
+// What remains is the part sessions do not answer. The cross-origin check,
+// which still applies to the routes that reach the panel without a session.
+// The source gate on the mailpit webhook, which is POSTed by a container that
+// holds no cookie. And the host-action restriction: a terminal on the host is
+// not something a password alone should open, whoever is holding it. S5.4
+// replaces that last one with roles and S5.5 with a permission per route.
 func withRemoteControlGate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 1. CORS preflight: pass through. Browsers don't include the
@@ -260,7 +250,12 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 		// IPs, so we accept any caller whose source IP belongs to the
 		// host. A LAN attacker arrives from a different IP and is rejected,
 		// closing the "anyone on the WiFi can spam fake mail pushes" vector.
-		if r.URL.Path == "/api/webhooks/mailpit" && fromHost(r) {
+		if r.URL.Path == "/api/webhooks/mailpit" {
+			if !fromHost(r) {
+				w.Header().Set("Cache-Control", "no-store")
+				http.Error(w, "Forbidden — this webhook is only accepted from the servlo host.", http.StatusForbidden)
+				return
+			}
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -272,77 +267,21 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 			return
 		}
 
-		// 4. Non-loopback path. Inspect the configured LAN/remote-control
-		// state. All gate responses set Cache-Control: no-store so
-		// browsers don't replay an old 403/401 after the user enables
-		// remote control or LAN exposure.
-		cfg, _ := config.LoadGlobal()
-
-		// 4pre. Host-action routes stay closed to remote clients unless the
-		// user has explicitly opted in. This is checked before credentials
-		// so an unopted install answers the same way whatever is guessed.
-		if isLoopbackOnlyPath(r.URL.Path) && (cfg == nil || !cfg.UI.RemoteFullAccess) {
+		// 4. Host-action routes stay closed to remote clients unless the user
+		// has explicitly opted in. Authentication is no longer this gate's
+		// job: withPanelAuth has already refused anything without a session,
+		// so what reaches here is a signed-in operator, and the only question
+		// left is whether they are at the machine.
+		//
+		// S5.4 replaces this with roles, and S5.5 with a permission declared
+		// per route. Until then the shape upstream had is the one that holds:
+		// a terminal on the host is not something a password alone should open.
+		if isLoopbackOnlyPath(r.URL.Path) && !isLocalControlRequest(r) && !remoteFullAccessEnabled() {
 			w.Header().Set("Cache-Control", "no-store")
 			http.Error(w, "Forbidden — this action is only available from the servlo host. Run `servlo remote-control full-access on` to allow it remotely.", http.StatusForbidden)
 			return
 		}
 
-		// 4a. LAN exposure is the top-level gate. If lan:expose is off,
-		// LAN clients are denied regardless of whether credentials are
-		// set — this prevents stale credentials from a previous expose
-		// session from surviving lan:unexpose, and matches the safe
-		// default state of "servlo is invisible to the network".
-		if cfg == nil || !cfg.LAN.Exposed {
-			w.Header().Set("Cache-Control", "no-store")
-			http.Error(w, "Forbidden — servlo is not exposed to the LAN. Run `servlo lan:expose` on the server to enable LAN access.", http.StatusForbidden)
-			return
-		}
-
-		// 4b. LAN exposure is on, but no remote-control credentials have
-		// been configured. The dashboard is reachable but unauthenticated
-		// access would be a free-for-all, so deny.
-		if cfg.UI.PasswordHash == "" {
-			w.Header().Set("Cache-Control", "no-store")
-			http.Error(w, "Forbidden — dashboard credentials are not configured. Run `servlo remote-control on` on the server to enable.", http.StatusForbidden)
-			return
-		}
-
-		// 5. A valid session cookie authenticates without re-challenging.
-		// It is issued after a Basic-auth success below and HMAC'd with the
-		// password hash, so changing or clearing credentials invalidates it.
-		// This is what stops iOS Safari, which drops cached Basic
-		// credentials between refreshes, from prompting on every load.
-		now := time.Now()
-		if c, err := r.Cookie(remoteSessionCookie); err == nil &&
-			remoteSessionValid(c.Value, cfg.UI.Username, cfg.UI.PasswordHash, now) {
-			serveRemoteDashboard(next, w, r)
-			return
-		}
-
-		// 6. Validate HTTP Basic auth.
-		user, pass, ok := r.BasicAuth()
-		if !ok {
-			w.Header().Set("WWW-Authenticate", `Basic realm="servlo dashboard"`)
-			w.Header().Set("Cache-Control", "no-store")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		if subtle.ConstantTimeCompare([]byte(user), []byte(cfg.UI.Username)) != 1 {
-			w.Header().Set("WWW-Authenticate", `Basic realm="servlo dashboard"`)
-			w.Header().Set("Cache-Control", "no-store")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		if bcrypt.CompareHashAndPassword([]byte(cfg.UI.PasswordHash), []byte(pass)) != nil {
-			w.Header().Set("WWW-Authenticate", `Basic realm="servlo dashboard"`)
-			w.Header().Set("Cache-Control", "no-store")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		// Basic auth cleared — mint a session cookie so the browser skips
-		// the challenge on subsequent requests.
-		setRemoteSessionCookie(w, cfg.UI.Username, cfg.UI.PasswordHash, now)
 		serveRemoteDashboard(next, w, r)
 	})
 }

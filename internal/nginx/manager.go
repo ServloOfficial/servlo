@@ -1258,6 +1258,17 @@ func EnsureServloVhost() error {
         proxy_pass http://unix:%[1]s:;
     }
 
+    # The API is proxied through this vhost rather than reached directly on
+    # port 7073, so the dashboard is one origin. A session cookie is
+    # SameSite=Strict and would never be attached to a cross-origin request,
+    # which is what the split-origin arrangement used to require.
+    location ^~ /api/ {
+        proxy_pass http://unix:%[1]s:$request_uri;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 3600s;
+    }
+
     location ^~ /icons/ {
         proxy_pass http://unix:%[1]s:$request_uri;
     }

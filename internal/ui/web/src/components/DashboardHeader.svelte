@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ProductionBadge from './ProductionBadge.svelte';
+  import SignedInAs from './SignedInAs.svelte';
 
   interface Props {
     title: string;
@@ -14,9 +15,12 @@
     <h1 class="text-base font-semibold text-gray-900 dark:text-white truncate">{title}</h1>
     <ProductionBadge />
   </div>
-  {#if stats}
-    <div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-      {@render stats()}
-    </div>
-  {/if}
+  <div class="flex items-center gap-4">
+    {#if stats}
+      <div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+        {@render stats()}
+      </div>
+    {/if}
+    <SignedInAs />
+  </div>
 </div>

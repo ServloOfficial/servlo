@@ -18,6 +18,14 @@
 | `servlo panel domain set <fqdn>` | Serve the panel on a domain, through nginx |
 | `servlo panel domain secure` | Issue a real certificate for the panel's domain |
 | `servlo panel domain remove` | Stop serving the panel on its domain |
+| `servlo users` | List the panel accounts |
+| `servlo users add <name> --role admin\|developer` | Add a panel account |
+| `servlo users password <name>` | Change a password, and sign that account out everywhere |
+| `servlo users role <name> <admin\|developer>` | Change an account's role |
+| `servlo users remove <name>` | Remove an account and end its sessions |
+| `servlo sessions list` | Show who is signed in, from where, and when they were last seen |
+| `servlo sessions revoke <id>` | End one session |
+| `servlo sessions revoke --all` | End every session |
 | `servlo production` | Show whether production mode is on |
 | `servlo production on` | Turn production mode on (asks for confirmation; `--yes` skips it) |
 | `servlo production off --force` | Turn production mode off, which starts showing PHP errors to visitors |

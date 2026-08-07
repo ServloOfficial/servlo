@@ -203,6 +203,7 @@ export default defineConfig({
           text: 'Running in production',
           items: [
             { text: 'Panel access', link: '/features/panel-access' },
+            { text: 'Panel authentication', link: '/features/panel-authentication' },
             { text: 'Production mode', link: '/features/production-mode' },
           ],
         },

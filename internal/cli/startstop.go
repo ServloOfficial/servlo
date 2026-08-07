@@ -505,6 +505,13 @@ func runStart(_ *cobra.Command, _ []string) error {
 	if err := nginx.EnsureNginxConfig(); err != nil {
 		fmt.Printf("  WARN: nginx config: %v\n", err)
 	}
+	// The credentials an install carried before session authentication become
+	// an account here, once, so upgrading does not present the first-run setup
+	// form on a machine that already had a password.
+	if err := AdoptInheritedCredentials(); err != nil {
+		fmt.Printf("[WARN] adopting the existing dashboard credentials: %v\n", err)
+	}
+
 	// A panel domain set while servlo was down, or a config edited by hand,
 	// takes effect here rather than waiting for the next `panel domain set`.
 	if err := ApplyPanelDomain(); err != nil {

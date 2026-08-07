@@ -6,6 +6,8 @@ The Servlo panel is reachable two ways on a server, and both are meant to be use
 
 **By domain, once one points here.** `https://panel.example.com`, served through nginx with a real certificate from Let's Encrypt, issued by the same flow every site uses.
 
+Whichever you use, the panel asks who you are before it shows you anything. See [Panel authentication](/features/panel-authentication).
+
 A third URL, `http://servlo.localhost`, works from a shell on the server itself. RFC 6761 makes `.localhost` resolve to the visiting device's own loopback, so it is unreachable from anywhere else, which is exactly why the local dashboard uses it.
 
 ---

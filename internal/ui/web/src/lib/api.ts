@@ -1,25 +1,36 @@
-export const apiBase =
-  typeof location !== 'undefined' && location.hostname === 'servlo.localhost'
-    ? 'https://localhost:7073'
-    : '';
+// One origin, always. The dashboard used to call https://localhost:7073
+// directly when it was served from servlo.localhost, which made every API call
+// cross-origin; a session cookie is SameSite=Strict and would never be attached
+// to one of those. The servlo.localhost vhost proxies /api/ instead.
+export const apiBase = '';
+
+// csrfToken is handed out by /api/auth/session and /api/auth/login, bound to
+// the session it belongs to. The session store sets it; nothing else should.
+let csrfToken = '';
+
+export function setCSRFToken(token: string) {
+  csrfToken = token;
+}
+
+export function getCSRFToken(): string {
+  return csrfToken;
+}
 
 export function apiUrl(path: string): string {
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
   return apiBase + path;
 }
 
-// State-changing requests carry X-Servlo-CSRF so the daemon's cross-origin gate
-// can tell a dashboard request apart from a CORS-simple POST forged by another
-// page in the browser. Read-only methods are left untouched to avoid turning
-// every cross-origin GET into a preflighted request.
+// State-changing requests carry the session's CSRF token. Reads do not need
+// one: a forged GET returns data to the panel, not to whoever forged it.
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const method = (init?.method ?? 'GET').toUpperCase();
   if (method !== 'GET' && method !== 'HEAD') {
     const headers = new Headers(init?.headers);
-    if (!headers.has('X-Servlo-CSRF')) headers.set('X-Servlo-CSRF', '1');
+    if (!headers.has('X-Servlo-CSRF')) headers.set('X-Servlo-CSRF', csrfToken);
     init = { ...init, headers };
   }
-  return fetch(apiUrl(path), init);
+  return fetch(apiUrl(path), { credentials: 'same-origin', ...init });
 }
 
 export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
