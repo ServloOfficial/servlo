@@ -4,30 +4,22 @@ import { apiJson, apiFetch } from '$lib/api';
 
 export interface LANStatus {
   exposed: boolean;
-  servicesEnabled: boolean;
-  servicesReachable: boolean;
   lanIP: string;
   macos: boolean;
   loaded: boolean;
   progressSteps: string[];
   loading: boolean;
-  servicesLoading: boolean;
-  servicesError: string;
   error: string;
   justExposed: boolean;
 }
 
 const empty: LANStatus = {
   exposed: false,
-  servicesEnabled: false,
-  servicesReachable: false,
   lanIP: '',
   macos: false,
   loaded: false,
   progressSteps: [],
   loading: false,
-  servicesLoading: false,
-  servicesError: '',
   error: '',
   justExposed: false
 };
@@ -40,8 +32,6 @@ function patch(up: Partial<LANStatus>) {
 
 interface StatusResponse {
   exposed?: boolean;
-  services_enabled?: boolean;
-  services_reachable?: boolean;
   lan_ip?: string;
   macos?: boolean;
 }
@@ -50,8 +40,6 @@ interface LANActionEvent {
   step?: string;
   result?: string;
   exposed?: boolean;
-  services_enabled?: boolean;
-  services_reachable?: boolean;
   lan_ip?: string;
   error?: string;
 }
@@ -99,8 +87,6 @@ export async function loadLANStatus() {
     const data = await apiJson<StatusResponse>('/api/lan/status');
     patch({
       exposed: Boolean(data.exposed),
-      servicesEnabled: Boolean(data.services_enabled),
-      servicesReachable: Boolean(data.services_reachable),
       lanIP: data.lan_ip || '',
       macos: Boolean(data.macos),
       loaded: true
@@ -126,8 +112,6 @@ export async function toggleLAN(action: 'expose' | 'unexpose') {
     patch({
       loading: false,
       exposed: Boolean(finalEvent.exposed),
-      servicesEnabled: Boolean(finalEvent.services_enabled),
-      servicesReachable: Boolean(finalEvent.services_reachable),
       lanIP: finalEvent.lan_ip || '',
       justExposed: action === 'expose'
     });
@@ -138,30 +122,3 @@ export async function toggleLAN(action: 'expose' | 'unexpose') {
     });
   }
 }
-
-export async function toggleLANServices(enabled: boolean) {
-  patch({ servicesLoading: true, servicesError: '' });
-  try {
-    const response = await apiFetch('/api/lan/status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: enabled ? 'services_on' : 'services_off' })
-    });
-    const finalEvent = await readLANActionResponse(
-      response,
-      m.system_lan_services_toggleFailed()
-    );
-    patch({
-      servicesLoading: false,
-      servicesEnabled: Boolean(finalEvent.services_enabled),
-      servicesReachable: Boolean(finalEvent.services_reachable)
-    });
-  } catch (error) {
-    patch({
-      servicesLoading: false,
-      servicesError:
-        error instanceof Error ? error.message : m.system_lan_services_toggleFailed()
-    });
-  }
-}
-

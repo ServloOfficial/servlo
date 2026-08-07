@@ -20,7 +20,6 @@ type settingsKind int
 
 const (
 	settingsLANExpose settingsKind = iota
-	settingsLANServices
 	settingsAutostart
 	settingsWorkerMode
 )
@@ -34,11 +33,6 @@ func (m *Model) settingsRows() []settingsRow {
 		kind:  settingsLANExpose,
 		label: "LAN expose (sites and DNS)",
 		on:    lanExposed,
-	})
-	rows = append(rows, settingsRow{
-		kind:  settingsLANServices,
-		label: managedServiceLANLabel(cfg),
-		on:    cfg != nil && cfg.LAN.ServicesExposed,
 	})
 	rows = append(rows, settingsRow{
 		kind:  settingsAutostart,
@@ -69,17 +63,6 @@ func (m *Model) settingsToggle(rows []settingsRow) tea.Cmd {
 		}
 		m.setStatus("toggling LAN expose "+verb+"…", 5*time.Second)
 		return runServlo("", "lan", "expose", verb)
-	case settingsLANServices:
-		verb := "on"
-		if row.on {
-			verb = "off"
-		}
-		if row.on {
-			m.setStatus("disabling managed service LAN access…", 5*time.Second)
-		} else {
-			m.setStatus("enabling managed service LAN access — trusted networks only…", 5*time.Second)
-		}
-		return runServlo("", "lan", "services", verb)
 	case settingsAutostart:
 		sub := "enable"
 		if row.on {
@@ -99,11 +82,4 @@ func (m *Model) settingsToggle(rows []settingsRow) tea.Cmd {
 		return runServlo("", "workers", "mode", target)
 	}
 	return nil
-}
-
-func managedServiceLANLabel(cfg *config.GlobalConfig) string {
-	if cfg != nil && cfg.LAN.ServicesExposed && !cfg.LAN.Exposed {
-		return "Managed service LAN access (inactive — LAN exposure off)"
-	}
-	return "Managed service LAN access"
 }

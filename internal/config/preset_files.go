@@ -70,7 +70,11 @@ func PresetDashboardBootstrap(svc *CustomService) string {
 		}
 		pass := svc.Environment["RABBITMQ_DEFAULT_PASS"]
 		if pass == "" {
-			pass = "servlo"
+			// A service installed before the preset carried a password reads
+			// its own; falling back to this install's generated one is the
+			// only other value that can be right, and a literal here would put
+			// a published password back into a browser's local storage.
+			pass, _ = ServicePassword()
 		}
 		creds := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
 		return "<script>(function(){try{" +

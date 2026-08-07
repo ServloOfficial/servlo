@@ -125,6 +125,17 @@ type GlobalConfig struct {
 	Ports struct {
 		Strategy string `yaml:"strategy,omitempty" mapstructure:"strategy"`
 	} `yaml:"ports,omitempty" mapstructure:"ports"`
+	// Production records whether this install is live. One flag that several
+	// other decisions read, because "does PHP show errors", "does OPcache trust
+	// its cache" and "how does a worker restart" are the same question asked
+	// three ways, and setting them individually is how a machine ends up
+	// half-production.
+	Production struct {
+		Enabled bool `yaml:"enabled,omitempty" mapstructure:"enabled"`
+		// Since is when it was turned on. Six months live and switched on an
+		// hour ago are different situations to be debugging in.
+		Since time.Time `yaml:"since,omitempty" mapstructure:"since"`
+	} `yaml:"production,omitempty" mapstructure:"production"`
 	// Certs configures the ACME authority certificates come from.
 	Certs struct {
 		// Email receives the authority's expiry notices. Optional, and the only
@@ -177,18 +188,17 @@ type GlobalConfig struct {
 		Upstream []string `yaml:"upstream,omitempty" mapstructure:"upstream"`
 	} `yaml:"dns" mapstructure:"dns"`
 	LAN struct {
-		// Exposed controls whether servlo sites are reachable from other devices
-		// on the local network. When false (the safe default), container ports
-		// and servlo-panel bind to loopback and the DNS forwarder is stopped. When
-		// true, nginx, DNS, and the dashboard bind to the LAN.
+		// Exposed controls whether servlo sites are reachable from other
+		// devices on the network. When false (the safe default), nginx and
+		// servlo-panel bind to loopback. When true, nginx binds every
+		// interface so it can serve the sites.
 		//
-		// ServicesExposed separately controls host access to servlo-managed
-		// databases, caches, and other services. It has no effect unless
-		// Exposed is also true. Keeping this opt-in separate preserves the safe
-		// default while allowing trusted development machines to publish
-		// services without per-port configuration.
-		Exposed         bool `yaml:"exposed,omitempty"          mapstructure:"exposed"`
-		ServicesExposed bool `yaml:"services_exposed,omitempty" mapstructure:"services_exposed"`
+		// It covers nginx and nothing else. Databases, caches and admin UIs
+		// are loopback-only always (CLAUDE.md 3.7): a database reachable from
+		// off the machine is a database anyone who finds the port can attack,
+		// and on a box hosting other people's sites there is no version of
+		// that worth the convenience.
+		Exposed bool `yaml:"exposed,omitempty" mapstructure:"exposed"`
 	} `yaml:"lan,omitempty" mapstructure:"lan"`
 	Autostart struct {
 		// Disabled controls whether servlo boots itself at login. The

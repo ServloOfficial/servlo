@@ -28,10 +28,10 @@ env:
         - key: database.default.DBDriver
           value_prefix: "MySQLi"
       vars:
-        - "database.default.hostname=lerd-mysql"
+        - "database.default.hostname=servlo-mysql"
         - "database.default.database={{site}}"
         - "database.default.username=root"
-        - "database.default.password=lerd"
+        - "database.default.password={{password}}"
         - "database.default.DBDriver=MySQLi"
         - "database.default.port=3306"
     postgres:
@@ -39,10 +39,10 @@ env:
         - key: database.default.DBDriver
           value_prefix: "Postgre"
       vars:
-        - "database.default.hostname=lerd-postgres"
+        - "database.default.hostname=servlo-postgres"
         - "database.default.database={{site}}"
         - "database.default.username=postgres"
-        - "database.default.password=lerd"
+        - "database.default.password={{password}}"
         - "database.default.DBDriver=Postgre"
         - "database.default.port=5432"
     redis:
@@ -51,14 +51,14 @@ env:
           value_prefix: "redis"
       vars:
         - "cache.handler=redis"
-        - "cache.redis.host=lerd-redis"
+        - "cache.redis.host=servlo-redis"
         - "cache.redis.port=6379"
     mailpit:
       detect:
         - key: email.SMTPHost
       vars:
         - "email.protocol=smtp"
-        - "email.SMTPHost=lerd-mailpit"
+        - "email.SMTPHost=servlo-mailpit"
         - "email.SMTPPort=1025"
 
 composer: auto
@@ -69,7 +69,7 @@ workers:
   queue:
     label: Queue Worker
     command: php spark queue:work default
-    # Parameterized variant for `lerd queue:start --queue/--tries`. CI4 takes the
+    # Parameterized variant for `servlo queue:start --queue/--tries`. CI4 takes the
     # queue name positionally and has no per-job timeout flag, so timeout is omitted.
     tune_command: php spark queue:work {queue} -tries={tries}
     restart: always

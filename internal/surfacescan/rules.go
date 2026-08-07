@@ -187,6 +187,28 @@ func Rules() []Rule {
 			Allow:    specs,
 		},
 		{
+			// The rename that S0.1 performed swept the repository, but the
+			// stores arrived in-repo at S0.8, copied from upstream and still
+			// carrying its name. That was not cosmetic: container hostnames
+			// like lerd-redis pointed at containers servlo never creates, so
+			// every service integration in those definitions was broken, and
+			// every database preset shipped the same published password.
+			//
+			// Only the GHCR image namespace is retained on purpose (PRD 0),
+			// alongside the fork statement and the upstream copyright.
+			Feature: "upstream project name in the stores", Story: "S4.3", Enforced: true,
+			// Case-insensitive: the first version of this rule was not, and
+			// LERD_POSTGRES_HOSTS survived it in the pgadmin definition, where
+			// it quietly broke that preset's family discovery.
+			Patterns: []string{`(?i)\blerd\b`},
+			// Scoped to the stores, which is where the regression was and where
+			// no retained reference exists. The GHCR image namespace keeps the
+			// old name on purpose (PRD 0) and is spelled across the podman,
+			// registry and cleanup packages, so a repository-wide rule would be
+			// an allowlist that grows a line every time one of those is touched.
+			Only: []string{"stores/"},
+		},
+		{
 			Feature: "launchd and Homebrew residue", Story: "S0.2", Enforced: true,
 			Patterns: []string{`(?i)\blaunchd\b`, `(?i)\bhomebrew\b`, `Library/Logs`},
 			Allow:    specs,

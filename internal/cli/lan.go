@@ -8,26 +8,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewLANCmd returns the `servlo lan` parent command. Site exposure and managed
-// service exposure are separate persisted settings: sites follow
-// cfg.LAN.Exposed, while databases, caches, and other managed services require
-// both cfg.LAN.Exposed and cfg.LAN.ServicesExposed.
+// NewLANCmd returns the `servlo lan` parent command. Exposure covers nginx and
+// nothing else: databases, caches and admin UIs are loopback-only always, so
+// there is one setting here rather than two.
 func NewLANCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lan",
 		Short: "Expose servlo to other devices on the local network",
-		Long: `Control whether servlo sites and managed services are reachable from
-other devices on the local network.
+		Long: `Control whether servlo sites are reachable from other devices on the
+network.
 
 By default every container PublishPort and the dashboard bind to loopback.
-Run 'servlo lan:expose' to expose sites, DNS, and the dashboard listener on a
-trusted LAN. Managed databases, caches, and other services remain loopback-only
-unless you explicitly run 'servlo lan:services on'.`,
+Run 'servlo lan:expose' to expose sites, DNS, and the dashboard listener.
+Databases, caches and other managed services never leave loopback, whatever
+this is set to.`,
 	}
 	cmd.AddCommand(newLANExposeCmd())
 	cmd.AddCommand(newLANUnexposeCmd())
 	cmd.AddCommand(newLANStatusCmd())
-	cmd.AddCommand(newLANServicesCmd())
 	return cmd
 }
 
@@ -55,13 +53,6 @@ func NewLANStatusCmd() *cobra.Command {
 	return cmd
 }
 
-// NewLANServicesCmd returns the `servlo lan:services` colon-style command.
-func NewLANServicesCmd() *cobra.Command {
-	cmd := newLANServicesCmd()
-	cmd.Use = "lan:services [on|off|status]"
-	return cmd
-}
-
 func newLANExposeCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "expose",
@@ -72,9 +63,8 @@ func newLANExposeCmd() *cobra.Command {
   - Restarts nginx when its bind changes.
   - Starts the userspace DNS forwarder where the platform requires it.
 
-Managed databases, caches, and other services stay loopback-only by default.
-Run 'servlo lan:services on' once to include them. That preference persists and
-applies automatically as services start, stop, or change ports.
+Databases, caches, and other managed services stay on loopback and are not
+affected by this command.
 
 The dashboard at port 7073 is gated by remote-control middleware. LAN clients
 get 403 unless 'servlo remote-control on' has configured HTTP Basic auth.
@@ -118,11 +108,7 @@ ports and devices that require access.`,
 			} else {
 				feedback.Note(fmt.Sprintf("dashboard: http://%s:7073 (LAN clients get 403 — run `servlo remote-control on` to grant LAN access)", lanIP))
 			}
-			if cfg != nil && cfg.LAN.ServicesExposed {
-				feedback.Note("managed services: exposed on their configured host ports")
-			} else {
-				feedback.Note("managed services: loopback-only (run `servlo lan:services on` to expose them)")
-			}
+			feedback.Note("managed services: loopback-only, always")
 			if dnsOn {
 				feedback.Note("allow ports 80, 443, 5300, 7073 through your firewall; `servlo remote-setup` generates a one-time bootstrap code")
 			} else {
@@ -153,55 +139,6 @@ func newLANUnexposeCmd() *cobra.Command {
 		},
 	}
 }
-func newLANServicesCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:       "services [on|off|status]",
-		Short:     "Control LAN access to managed databases, caches, and services",
-		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
-		ValidArgs: []string{"on", "off", "status"},
-		RunE: func(_ *cobra.Command, args []string) error {
-			cfg, err := config.LoadGlobal()
-			if err != nil {
-				return err
-			}
-
-			if args[0] == "status" {
-				feedback.Begin()
-				switch {
-				case cfg.LAN.ServicesExposed && cfg.LAN.Exposed:
-					feedback.Done("managed service LAN access is active")
-				case cfg.LAN.ServicesExposed:
-					feedback.Line("managed service LAN access is enabled but inactive until `servlo lan:expose`")
-				default:
-					feedback.Line("managed service LAN access is off; services are loopback-only")
-				}
-				return nil
-			}
-
-			enabled := args[0] == "on"
-			// Turning it on while servlo is loopback-only would persist a
-			// setting that publishes nothing, so refuse rather than store an
-			// inert preference. Turning it off always works, so a setting
-			// armed before an unexpose can still be cleared.
-			if enabled && !cfg.LAN.Exposed {
-				return fmt.Errorf("LAN exposure is off — run `servlo lan:expose` first. Managed services can only reach the LAN while servlo itself does")
-			}
-			feedback.Begin()
-			update := feedback.Start("updating managed service LAN access")
-			if err := SetManagedServiceLANExposure(enabled, nil); err != nil {
-				update.Fail(err)
-				return err
-			}
-			if enabled {
-				update.OK(feedback.Val("enabled"))
-				feedback.Note("development services may use weak or empty credentials; restrict their ports with the host firewall and use only on a trusted network")
-			} else {
-				update.OK(feedback.Val("loopback-only"))
-			}
-			return nil
-		},
-	}
-}
 
 func newLANStatusCmd() *cobra.Command {
 	return &cobra.Command{
@@ -219,11 +156,7 @@ func newLANStatusCmd() *cobra.Command {
 					lanIP = "(unknown)"
 				}
 				feedback.Done("exposed to the LAN at " + feedback.Val(lanIP))
-				if cfg.LAN.ServicesExposed {
-					feedback.Note("managed services: exposed")
-				} else {
-					feedback.Note("managed services: loopback-only")
-				}
+				feedback.Note("managed services: loopback-only, always")
 			} else {
 				feedback.Line("loopback-only (127.0.0.1) — LAN devices cannot reach it")
 			}

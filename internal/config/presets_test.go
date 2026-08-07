@@ -1318,9 +1318,7 @@ func TestPresetResolve_PostgresCanonical(t *testing.T) {
 	if len(svc.Ports) != 1 || svc.Ports[0] != "5432:5432" {
 		t.Errorf("canonical postgres Ports = %v, want [5432:5432]", svc.Ports)
 	}
-	if svc.ConnectionURL != "postgresql://postgres:servlo@127.0.0.1:5432/servlo" {
-		t.Errorf("canonical postgres ConnectionURL = %q", svc.ConnectionURL)
-	}
+	assertConnectionURL(t, svc.ConnectionURL, "postgresql://postgres:", "@127.0.0.1:5432/servlo")
 }
 
 func TestPresetResolve_PostgresAlternates(t *testing.T) {
@@ -1405,9 +1403,7 @@ func TestPresetResolve_PostgresPgvectorCanonical(t *testing.T) {
 	if len(svc.Ports) != 1 || svc.Ports[0] != "5432:5432" {
 		t.Errorf("canonical postgres-pgvector Ports = %v, want [5432:5432] (family canonical, #704)", svc.Ports)
 	}
-	if svc.ConnectionURL != "postgresql://postgres:servlo@127.0.0.1:5432/servlo" {
-		t.Errorf("canonical postgres-pgvector ConnectionURL = %q", svc.ConnectionURL)
-	}
+	assertConnectionURL(t, svc.ConnectionURL, "postgresql://postgres:", "@127.0.0.1:5432/servlo")
 	wantHost := "DB_HOST=servlo-postgres-pgvector"
 	found := false
 	for _, kv := range svc.EnvVars {
@@ -1469,9 +1465,10 @@ func TestDefaultPresetMeta_Caches(t *testing.T) {
 	if DefaultPresetDashboard("mailpit") != "http://localhost:8025" {
 		t.Errorf("DefaultPresetDashboard(mailpit) wrong")
 	}
-	if DefaultPresetConnectionURL("postgres") != "postgresql://postgres:servlo@127.0.0.1:5432/servlo" {
-		t.Errorf("DefaultPresetConnectionURL(postgres) wrong")
-	}
+	// The memo is filled by whichever test resolved postgres first, under that
+	// test's config home, so the exact password here is not this test's to
+	// predict. What it can hold is that a generated one got in.
+	assertGeneratedPassword(t, DefaultPresetConnectionURL("postgres"), "postgresql://postgres:", "@127.0.0.1:5432/servlo")
 }
 
 // PresetPorts must return the same ports as DefaultPresetMeta without the deep
@@ -1512,7 +1509,7 @@ func TestLoadPreset_DefaultEnvVarsParity(t *testing.T) {
 			"DB_PORT=3306",
 			"DB_DATABASE=servlo",
 			"DB_USERNAME=root",
-			"DB_PASSWORD=servlo",
+			"DB_PASSWORD=" + servicePasswordForTest(t),
 		},
 		"postgres": {
 			"DB_CONNECTION=pgsql",
@@ -1520,7 +1517,7 @@ func TestLoadPreset_DefaultEnvVarsParity(t *testing.T) {
 			"DB_PORT=5432",
 			"DB_DATABASE=servlo",
 			"DB_USERNAME=postgres",
-			"DB_PASSWORD=servlo",
+			"DB_PASSWORD=" + servicePasswordForTest(t),
 		},
 		"redis": {
 			"REDIS_HOST=servlo-redis",
@@ -1537,7 +1534,7 @@ func TestLoadPreset_DefaultEnvVarsParity(t *testing.T) {
 		"rustfs": {
 			"FILESYSTEM_DISK=s3",
 			"AWS_ACCESS_KEY_ID=servlo",
-			"AWS_SECRET_ACCESS_KEY=servlopassword",
+			"AWS_SECRET_ACCESS_KEY=" + servicePasswordForTest(t),
 			"AWS_DEFAULT_REGION=us-east-1",
 			"AWS_BUCKET=servlo",
 			"AWS_URL=http://localhost:9000",
@@ -1610,4 +1607,47 @@ func TestRewriteDependencyHosts_StopsAtANameBoundary(t *testing.T) {
 	if got := svc.Environment["URL"]; got != "mysql://servlo-mariadb-11-8:3306/app" {
 		t.Errorf("URL = %q, want the host rewritten in place", got)
 	}
+}
+
+// servicePasswordForTest is this install's generated service password, which is
+// what a preset's credential fields resolve to. Asserting on the literal a
+// preset used to ship is what these tests did before the password was
+// generated; asserting on the generated one keeps the shape of the check.
+func servicePasswordForTest(t *testing.T) string {
+	t.Helper()
+	pw, err := ServicePassword()
+	if err != nil {
+		t.Fatalf("ServicePassword: %v", err)
+	}
+	return pw
+}
+
+// assertConnectionURL checks a connection URL around its password, which is
+// generated per install and so cannot be spelled in a test.
+func assertConnectionURL(t *testing.T, got, wantPrefix, wantSuffix string) {
+	t.Helper()
+	pw, ok := connectionURLPassword(t, got, wantPrefix, wantSuffix)
+	if ok && pw != servicePasswordForTest(t) {
+		t.Errorf("connection URL carries %q, not this install's password", pw)
+	}
+}
+
+// assertGeneratedPassword is the weaker form, for a value read through a memo
+// that outlives one test's config home: the password is some generated one
+// rather than a literal shipped in the preset.
+func assertGeneratedPassword(t *testing.T, got, wantPrefix, wantSuffix string) {
+	t.Helper()
+	pw, ok := connectionURLPassword(t, got, wantPrefix, wantSuffix)
+	if ok && len(pw) < 16 {
+		t.Errorf("connection URL carries %q, which is too short to be generated", pw)
+	}
+}
+
+func connectionURLPassword(t *testing.T, got, wantPrefix, wantSuffix string) (string, bool) {
+	t.Helper()
+	if !strings.HasPrefix(got, wantPrefix) || !strings.HasSuffix(got, wantSuffix) {
+		t.Errorf("connection URL = %q, want %s<password>%s", got, wantPrefix, wantSuffix)
+		return "", false
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(got, wantPrefix), wantSuffix), true
 }

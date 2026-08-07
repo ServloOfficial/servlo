@@ -14,6 +14,9 @@
 | `servlo whatsnew` | Show what changed between the installed version and the latest release |
 | `servlo uninstall` | Stop all containers and remove Servlo |
 | `servlo uninstall --force` | Same, skipping all confirmation prompts |
+| `servlo production` | Show whether production mode is on |
+| `servlo production on` | Turn production mode on (asks for confirmation; `--yes` skips it) |
+| `servlo production off --force` | Turn production mode off, which starts showing PHP errors to visitors |
 | `servlo autostart enable` | Start Servlo automatically on every login |
 | `servlo autostart disable` | Disable autostart on login |
 | `servlo path:disable` | Take servlo's shims (`php`, `composer`, `node`…) off your shell PATH; `servlo php` etc. keep working, and installs/updates stop re-adding the entry |
@@ -96,16 +99,17 @@ Setup steps include common tasks (composer install, npm install, servlo env) plu
 
 ## LAN
 
+Exposure covers nginx and nothing else. Databases, caches and admin UIs bind to
+loopback whatever this is set to, so there is no command here that publishes
+one. See [Production mode](/features/production-mode).
+
 ### Full LAN exposure (DNS-based)
 
 | Command | Description |
 |---|---|
 | `servlo lan:expose` | Expose sites, DNS, and the dashboard listener to the LAN |
 | `servlo lan:unexpose` | Restrict all Servlo endpoints to loopback |
-| `servlo lan:status` | Show site and managed-service LAN exposure state |
-| `servlo lan:services on` | Explicitly include managed databases, caches, and services |
-| `servlo lan:services off` | Return managed services to loopback without hiding sites |
-| `servlo lan:services status` | Show the persisted managed-service setting |
+| `servlo lan:status` | Show whether sites are reachable beyond loopback |
 | `servlo remote-control full-access on` | Let authenticated remote sessions run host actions |
 | `servlo remote-control full-access off` | Keep host actions local-only (the default) |
 | `servlo remote-control full-access status` | Show the persisted host-action setting |

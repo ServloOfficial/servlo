@@ -24,7 +24,7 @@ ports:
   - "{{host_port}}:3306"
 data_dir: /var/lib/mysql
 environment:
-  MYSQL_ROOT_PASSWORD: servlo
+  MYSQL_ROOT_PASSWORD: "{{password}}"
   MYSQL_DATABASE: servlo
 env_vars:
   - DB_CONNECTION=mysql
@@ -32,8 +32,8 @@ env_vars:
   - DB_PORT=3306
   - DB_DATABASE=servlo
   - DB_USERNAME=root
-  - DB_PASSWORD=servlo
-connection_url: mysql://root:servlo@127.0.0.1:{{host_port}}/servlo
+  - DB_PASSWORD={{password}}
+connection_url: mysql://root:{{password}}@127.0.0.1:{{host_port}}/servlo
 client_shims:
   - mysql
   - mysqldump

@@ -29,22 +29,22 @@ env:
           value_prefix: mariadb
       vars:
         - DB_CONNECTION=mysql
-        - DB_HOST=lerd-mysql
+        - DB_HOST=servlo-mysql
         - DB_PORT=3306
         - DB_DATABASE={{site}}
         - DB_USERNAME=root
-        - DB_PASSWORD=lerd
+        - DB_PASSWORD={{password}}
     postgres:
       detect:
         - key: DB_CONNECTION
           value_prefix: pgsql
       vars:
         - DB_CONNECTION=pgsql
-        - DB_HOST=lerd-postgres
+        - DB_HOST=servlo-postgres
         - DB_PORT=5432
         - DB_DATABASE={{site}}
         - DB_USERNAME=postgres
-        - DB_PASSWORD=lerd
+        - DB_PASSWORD={{password}}
     redis:
       detect:
         - key: REDIS_HOST
@@ -55,7 +55,7 @@ env:
         - key: QUEUE_CONNECTION
           value_prefix: redis
       vars:
-        - REDIS_HOST=lerd-redis
+        - REDIS_HOST=servlo-redis
         - REDIS_PORT=6379
         - REDIS_PASSWORD=
     meilisearch:
@@ -63,7 +63,7 @@ env:
         - key: SCOUT_DRIVER
           value_prefix: meilisearch
       vars:
-        - MEILISEARCH_HOST=http://lerd-meilisearch:7700
+        - MEILISEARCH_HOST=http://servlo-meilisearch:7700
         - MEILISEARCH_NO_ANALYTICS=true
     rustfs:
       detect:
@@ -71,10 +71,10 @@ env:
           value_prefix: s3
         - key: AWS_ENDPOINT
       vars:
-        - AWS_ACCESS_KEY_ID=lerd
-        - AWS_SECRET_ACCESS_KEY=lerdpassword
+        - AWS_ACCESS_KEY_ID=servlo
+        - AWS_SECRET_ACCESS_KEY={{password}}
         - AWS_BUCKET={{site}}
-        - AWS_ENDPOINT=http://lerd-rustfs:9000
+        - AWS_ENDPOINT=http://servlo-rustfs:9000
         - AWS_URL=http://localhost:9000/{{site}}
         - AWS_USE_PATH_STYLE_ENDPOINT=true
     mailpit:
@@ -82,7 +82,7 @@ env:
         - key: MAIL_HOST
       vars:
         - MAIL_MAILER=smtp
-        - MAIL_HOST=lerd-mailpit
+        - MAIL_HOST=servlo-mailpit
         - MAIL_PORT=1025
         - MAIL_USERNAME=null
         - MAIL_PASSWORD=null

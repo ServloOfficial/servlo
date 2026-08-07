@@ -56,7 +56,7 @@ servlo service start mongo
 |---|---|
 | Your app (PHP-FPM) | `servlo-mongo:27017` |
 | Host tools (Compass, mongosh) | `127.0.0.1:27017` |
-| User / password | `root` / `servlo` |
+| User / password | `root` / generated (`servlo service start mysql`) |
 
 The preset ships with `env_detect` and `site_init` already wired up, so when `servlo env` runs in a project that has `MONGO_DSN=mongodb://...` in its `.env`, the connection string is rewritten to point at `servlo-mongo` and a per-site database is created automatically.
 
@@ -89,7 +89,7 @@ servlo service preset pgadmin
 servlo service start pgadmin
 ```
 
-Open `http://localhost:8081`, log in with `admin@pgadmin.org` / `servlo`. The preset ships with a pre-loaded `Servlo Postgres` connection (via a bundled `servers.json` + `pgpass`) so you don't need to add a server manually. Server mode is disabled and there is no master password. The preset declares `depends_on: postgres`, so PostgreSQL starts first automatically.
+Open `http://localhost:8081`, log in with `admin@pgadmin.org` and the generated service password (`cat ~/.config/servlo/service-password`). The preset ships with a pre-loaded `Servlo Postgres` connection (via a bundled `servers.json` + `pgpass`) so you don't need to add a server manually. Server mode is disabled and there is no master password. The preset declares `depends_on: postgres`, so PostgreSQL starts first automatically.
 
 ---
 
@@ -114,7 +114,7 @@ servlo service add ~/.config/servlo/services/adminer.yaml
 servlo service start adminer
 ```
 
-Open `http://localhost:8083`. Choose the system (MySQL with host `servlo-mysql`, or PostgreSQL with host `servlo-postgres`), then user `root` / `postgres` and password `servlo`.
+Open `http://localhost:8083`. Choose the system (MySQL with host `servlo-mysql`, or PostgreSQL with host `servlo-postgres`), then user `root` / `postgres` and the generated service password.
 
 ---
 
@@ -162,13 +162,13 @@ ports:
   - 15672:15672
 environment:
   RABBITMQ_DEFAULT_USER: servlo
-  RABBITMQ_DEFAULT_PASS: servlo
+  RABBITMQ_DEFAULT_PASS: "{{password}}"
 data_dir: /var/lib/rabbitmq
 env_vars:
   - "RABBITMQ_HOST=servlo-rabbitmq"
   - "RABBITMQ_PORT=5672"
   - "RABBITMQ_USER=servlo"
-  - "RABBITMQ_PASSWORD=servlo"
+  - "RABBITMQ_PASSWORD={{password}}"
 env_detect:
   key: RABBITMQ_HOST
 dashboard: http://localhost:15672

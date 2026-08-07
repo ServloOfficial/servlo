@@ -8,23 +8,23 @@ ports:
   - "8123:8123"
   - "9010:9000"
 environment:
-  CLICKHOUSE_USER: lerd
-  CLICKHOUSE_PASSWORD: lerd
+  CLICKHOUSE_USER: servlo
+  CLICKHOUSE_PASSWORD: "{{password}}"
   CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
   # Rootless podman maps container root to the host user, so the bind-mounted
   # data dir is only writable when the server keeps that uid.
   CLICKHOUSE_RUN_AS_ROOT: "1"
 data_dir: /var/lib/clickhouse
-connection_url: http://lerd:lerd@127.0.0.1:8123
+connection_url: http://servlo:{{password}}@127.0.0.1:8123
 env_vars:
-  - CLICKHOUSE_HOST=lerd-clickhouse
+  - CLICKHOUSE_HOST=servlo-clickhouse
   - CLICKHOUSE_PORT=8123
-  - CLICKHOUSE_USERNAME=lerd
-  - CLICKHOUSE_PASSWORD=lerd
+  - CLICKHOUSE_USERNAME=servlo
+  - CLICKHOUSE_PASSWORD={{password}}
   - CLICKHOUSE_DATABASE={{site}}
 # ClickHouse serves its own SQL console on the HTTP port, and the play page
 # reads the credentials off the query string, so it opens already connected.
-dashboard: http://localhost:8123/play?user=lerd&password=lerd
+dashboard: http://localhost:8123/play?user=servlo&password={{password}}
 env_detect:
   key: CLICKHOUSE_HOST
   composer: smi2/phpclickhouse
@@ -35,7 +35,7 @@ client_shims:
 category: databases
 icon: database
 files:
-  - target: /etc/clickhouse-server/config.d/lerd.xml
+  - target: /etc/clickhouse-server/config.d/servlo.xml
     content: |
       <clickhouse>
           <listen_host>0.0.0.0</listen_host>
@@ -69,11 +69,11 @@ files:
   - target: /etc/clickhouse-client/config.xml
     content: |
       <clickhouse>
-          <user>lerd</user>
-          <password>lerd</password>
+          <user>servlo</user>
+          <password>{{password}}</password>
       </clickhouse>
 introspect:
-  # list_databases is kept alongside entities so lerd versions from before the
+  # list_databases is kept alongside entities so servlo versions from before the
   # entities schema still list the databases.
   list_databases: >
     clickhouse-client -q "SELECT d.name, ifNull(s.bytes, 0) FROM system.databases AS d

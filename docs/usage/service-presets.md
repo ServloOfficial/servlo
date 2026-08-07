@@ -9,7 +9,7 @@ Both kinds use the same YAML schema in `internal/config/presets/*.yaml` and the 
 
 ## The external service store
 
-Beyond the presets bundled in the binary, servlo can fetch presets from an external store repo, so new services can be published without shipping a new servlo release. This mirrors the [framework store](framework-definitions.md): the presets live in the `lerd-env/services` repo as a flat `index.json` plus one `<name>.yaml` per preset.
+Beyond the presets bundled in the binary, servlo can fetch presets from an external store repo, so new services can be published without shipping a new servlo release. This mirrors the [framework store](framework-definitions.md): the presets live in this repository under `stores/services/` as a flat `index.json` plus one `<name>.yaml` per preset.
 
 ```bash
 servlo service search                # list everything the store offers
@@ -21,7 +21,7 @@ servlo service preset <name>         # install a store preset (fetched on demand
 
 The binary embeds the default presets as a permanent offline fallback, and `servlo install` and `servlo update` re-fetch the store preset backing every installed service into that same cache, so an add-on service (pgAdmin, phpMyAdmin, and the rest that live only in the store) keeps resolving by name, config-mount files included, even when the store is later unreachable. If the store can't be reached during install the previously cached copy is left in place, so an offline install never breaks a service that already resolved.
 
-Point `SERVLO_SERVICES_BASE_URL` at an alternate base (comma-separated for several) to use a private or local store instead of `lerd-env/services`.
+Point `SERVLO_SERVICES_BASE_URL` at an alternate base (comma-separated for several) to use a private or local store instead of `stores/services/`.
 
 ### Config-file mounts
 
@@ -333,21 +333,38 @@ A preset's `depends_on` is enforced two ways:
 
 ## Default credentials
 
+Every password below is generated once per install rather than shipped in the
+definition. A preset writes `{{password}}` wherever a credential belongs and
+Servlo substitutes this install's value when it reads the file; quote it when it
+is the whole value of a YAML field, since bare braces parse as a mapping rather
+than a string.
+
+```yaml
+environment:
+  MYSQL_ROOT_PASSWORD: "{{password}}"
+env_vars:
+  - DB_PASSWORD={{password}}
+connection_url: mysql://root:{{password}}@127.0.0.1:{{host_port}}/servlo
+```
+
+Read the value with `servlo service start <name>`, or from
+`~/.config/servlo/service-password`. "generated" below means exactly that value.
+
 | Preset | Sign-in |
 |---|---|
-| `phpmyadmin` | auto-authenticated against `servlo-mysql` as `root` / `servlo` |
-| `pgadmin` | `admin@pgadmin.org` / `servlo` (server mode disabled, no master password), pre-loaded with the `Servlo Postgres` connection via a bundled `servers.json` + `pgpass` |
-| `mongo` | root user `root` / `servlo` |
+| `phpmyadmin` | auto-authenticated against `servlo-mysql` as `root` / generated |
+| `pgadmin` | `admin@pgadmin.org` / generated (server mode disabled, no master password), pre-loaded with the `Servlo Postgres` connection via a bundled `servers.json` + `pgpass` |
+| `mongo` | root user `root` / generated |
 | `mongo-express` | basic auth disabled, open `http://localhost:8082` directly |
 | `stripe-mock` | no auth (Stripe test mock) |
 | `memcached` | no auth (Memcached has no native authentication) |
 | `valkey` | no auth (no password set for local dev, same as `redis`) |
-| `rabbitmq` | management UI: `root` / `servlo` (also the default AMQP user) |
-| `soketi` | Pusher app id / key / secret all `servlo`, default cluster `mt1` |
+| `rabbitmq` | management UI: `root` / generated (also the default AMQP user) |
+| `soketi` | Pusher app id and key `servlo`, secret generated, default cluster `mt1` |
 | `beanstalkd` | no auth (Beanstalkd has no native authentication) |
 | `elasticsearch` | no auth (`xpack.security.enabled=false` for local dev) |
 | `opensearch` | no auth (security plugin disabled for local dev) |
-| `typesense` | API key `servlo`, sent as the `X-TYPESENSE-API-KEY` header |
+| `typesense` | generated API key, sent as the `X-TYPESENSE-API-KEY` header |
 | `typesense-dashboard` | no sign-in, opens pre-connected to the servlo Typesense node at `localhost:8108` |
 | `elasticvue` | no auth, opens straight to the pre-configured `Servlo Elasticsearch` cluster at `http://localhost:9200` |
 | `redisinsight` | no sign-in, opens pre-wired to the servlo Redis connection at `servlo-redis:6379` |

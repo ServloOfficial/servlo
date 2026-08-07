@@ -579,6 +579,21 @@ type StatusResponse struct {
 	// their pinned versions; fnm is omitted on nvm-managed setups where its
 	// absence is deliberate.
 	Tools []tools.ToolStatus `json:"tools"`
+	// Production is whether this install is live. Shown prominently rather than
+	// buried in a settings page: which mode a machine is in changes what a
+	// visitor sees when something breaks, and someone about to debug a blank
+	// page needs to know it before they start.
+	Production bool `json:"production"`
+	// ProductionSince is when it was turned on, empty when it is off.
+	ProductionSince string `json:"production_since,omitempty"`
+}
+
+// productionSince renders when production mode was turned on, empty when off.
+func productionSince(cfg *config.GlobalConfig) string {
+	if since := cfg.ProductionSince(); !since.IsZero() {
+		return since.Format(time.RFC3339)
+	}
+	return ""
 }
 
 // serverInstance identifies this servlo-panel process for the lifetime of the run.
@@ -668,6 +683,8 @@ func buildStatus() StatusResponse {
 		Home:                homeDir,
 		Workspaces:          workspaces,
 		Instance:            serverInstance,
+		Production:          cfg.ProductionMode(),
+		ProductionSince:     productionSince(cfg),
 		Tools:               toolStatuses,
 	}
 }

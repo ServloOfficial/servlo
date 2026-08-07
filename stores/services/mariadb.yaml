@@ -33,21 +33,21 @@ ports:
   - "{{host_port}}:3306"
 data_dir: /var/lib/mysql
 files:
-  - target: /etc/mysql/conf.d/lerd.cnf
+  - target: /etc/mysql/conf.d/servlo.cnf
     content: |
       [mysqld]
       max_allowed_packet=256M
 environment:
-  MARIADB_ROOT_PASSWORD: lerd
-  MARIADB_DATABASE: lerd
+  MARIADB_ROOT_PASSWORD: "{{password}}"
+  MARIADB_DATABASE: servlo
 env_vars:
   - DB_CONNECTION=mysql
-  - DB_HOST=lerd-mariadb-{{tag_safe}}
+  - DB_HOST=servlo-mariadb-{{tag_safe}}
   - DB_PORT=3306
-  - DB_DATABASE=lerd
+  - DB_DATABASE=servlo
   - DB_USERNAME=root
-  - DB_PASSWORD=lerd
-connection_url: mysql://root:lerd@127.0.0.1:{{host_port}}/lerd
+  - DB_PASSWORD={{password}}
+connection_url: mysql://root:{{password}}@127.0.0.1:{{host_port}}/servlo
 client_shims:
   - name: mysql
     binary: [mariadb, mysql]
@@ -55,7 +55,7 @@ client_shims:
     binary: [mariadb-dump, mysqldump]
 category: databases
 icon: database
-# list_databases is kept alongside entities so lerd versions from before the
+# list_databases is kept alongside entities so servlo versions from before the
 # entities schema still list the databases.
 introspect:
   list_databases: >

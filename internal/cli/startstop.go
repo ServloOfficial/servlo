@@ -495,6 +495,13 @@ func runStart(_ *cobra.Command, _ []string) error {
 	ensureImages()
 
 	// Rewrite nginx.conf so any config changes in new binary versions take effect.
+	// Rewritten on every start so the drop-in matches the flag even after a
+	// restore, a rebuild, or a config edited by hand. Best effort: a start must
+	// not fail because a php.ini could not be written.
+	if cfg, cfgErr := config.LoadGlobal(); cfgErr == nil {
+		_ = config.WriteProductionIni(cfg.ProductionMode())
+	}
+
 	if err := nginx.EnsureNginxConfig(); err != nil {
 		fmt.Printf("  WARN: nginx config: %v\n", err)
 	}

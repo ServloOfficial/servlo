@@ -25,27 +25,27 @@ env:
           value_prefix: mysql
       vars:
         - DB_CONNECTION=mysql
-        - DB_HOST=lerd-mysql
+        - DB_HOST=servlo-mysql
         - DB_PORT=3306
         - DB_DATABASE={{site}}
         - DB_USERNAME=root
-        - DB_PASSWORD=lerd
+        - DB_PASSWORD={{password}}
     postgres:
       detect:
         - key: DB_CONNECTION
           value_prefix: pgsql
       vars:
         - DB_CONNECTION=pgsql
-        - DB_HOST=lerd-postgres
+        - DB_HOST=servlo-postgres
         - DB_PORT=5432
         - DB_DATABASE={{site}}
         - DB_USERNAME=postgres
-        - DB_PASSWORD=lerd
+        - DB_PASSWORD={{password}}
     redis:
       detect:
         - key: REDIS_HOST
       vars:
-        - REDIS_HOST=lerd-redis
+        - REDIS_HOST=servlo-redis
         - REDIS_PORT=6379
         - REDIS_PASSWORD=
     mailpit:
@@ -53,7 +53,7 @@ env:
         - key: MAIL_HOST
       vars:
         - MAIL_MAILER=smtp
-        - MAIL_HOST=lerd-mailpit
+        - MAIL_HOST=servlo-mailpit
         - MAIL_PORT=1025
         - MAIL_USERNAME=null
         - MAIL_PASSWORD=null

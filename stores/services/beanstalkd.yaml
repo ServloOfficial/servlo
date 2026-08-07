@@ -7,7 +7,7 @@ ports:
   - "11300:11300"
 env_vars:
   - QUEUE_CONNECTION=beanstalkd
-  - BEANSTALKD_QUEUE_HOST=lerd-beanstalkd
+  - BEANSTALKD_QUEUE_HOST=servlo-beanstalkd
   - BEANSTALKD_QUEUE_PORT=11300
 env_detect:
   composer: pda/pheanstalk

@@ -14,11 +14,11 @@ chown_data: true
 dashboard: http://localhost:9001/rustfs/console/
 environment:
   RUSTFS_ACCESS_KEY: servlo
-  RUSTFS_SECRET_KEY: servlopassword
+  RUSTFS_SECRET_KEY: "{{password}}"
 env_vars:
   - FILESYSTEM_DISK=s3
   - AWS_ACCESS_KEY_ID=servlo
-  - AWS_SECRET_ACCESS_KEY=servlopassword
+  - AWS_SECRET_ACCESS_KEY={{password}}
   - AWS_DEFAULT_REGION=us-east-1
   - AWS_BUCKET=servlo
   - AWS_URL=http://localhost:9000
@@ -32,7 +32,7 @@ introspect:
       label: Buckets
       image: docker.io/minio/mc:latest
       env:
-        - MC_HOST_servlo=http://servlo:servlopassword@servlo-rustfs:9000
+        - MC_HOST_servlo=http://servlo:{{password}}@servlo-rustfs:9000
       owner_env: AWS_BUCKET
       list: >
         mc du --depth 2 --json servlo/ | while IFS= read -r l; do
@@ -64,7 +64,7 @@ introspect:
             - RCLONE_S3_PROVIDER=Minio
             - RCLONE_S3_ENDPOINT=http://servlo-rustfs:9000
             - RCLONE_S3_ACCESS_KEY_ID=servlo
-            - RCLONE_S3_SECRET_ACCESS_KEY=servlopassword
+            - RCLONE_S3_SECRET_ACCESS_KEY={{password}}
         import:
           exec: >
             mkdir -p /tmp/b && tar -xf - -C /tmp/b &&
@@ -74,4 +74,4 @@ introspect:
             - RCLONE_S3_PROVIDER=Minio
             - RCLONE_S3_ENDPOINT=http://servlo-rustfs:9000
             - RCLONE_S3_ACCESS_KEY_ID=servlo
-            - RCLONE_S3_SECRET_ACCESS_KEY=servlopassword
+            - RCLONE_S3_SECRET_ACCESS_KEY={{password}}

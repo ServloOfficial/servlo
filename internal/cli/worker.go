@@ -154,6 +154,25 @@ func newWorkerListCmd() *cobra.Command {
 // Falls back to framework detection if the site has no Framework set.
 // For custom container sites without a framework, a synthetic framework is
 // returned that contains only the custom_workers from .servlo.yaml.
+// resolveWorkerRestart decides a worker's systemd restart policy.
+//
+// In production mode it is always "always", whatever the framework store
+// declared. on-failure does not respawn a worker that exited cleanly, and a
+// queue worker exiting 0 is the ordinary case: it is what a graceful restart, a
+// memory limit and Laravel's own --max-jobs all do. On a development machine
+// leaving it stopped is a fair reading of "it finished"; on a live one it means
+// queued work silently stops being processed and nobody finds out until a
+// customer asks where their email went.
+func resolveWorkerRestart(declared string) string {
+	if cfg, _ := config.LoadGlobal(); cfg.ProductionMode() {
+		return "always"
+	}
+	if declared == "" {
+		return "always"
+	}
+	return declared
+}
+
 func resolveSiteAndFramework(cwd string) (*config.Site, *config.Framework, string, error) {
 	site, err := config.FindSiteByPath(cwd)
 	if err != nil {
@@ -378,10 +397,7 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 	fpmUnit := resolveWorkerFPMUnit(siteName, phpVersion)
 	unitName, unitSiteName := workerNames(siteName, sitePath, workerName)
 
-	restart := w.Restart
-	if restart == "" {
-		restart = "always"
-	}
+	restart := resolveWorkerRestart(w.Restart)
 	label := w.Label
 	if label == "" {
 		label = workerName

@@ -143,7 +143,7 @@ REDIS_ADDR=servlo-redis:6379
 | PostgreSQL | `servlo-postgres` | `5432` | `servlo` (user `postgres`) |
 | Redis | `servlo-redis` | `6379` | (none) |
 | Meilisearch | `servlo-meilisearch` | `7700` | (none) |
-| RustFS (S3) | `servlo-rustfs` | `9000` | `servlo` / `servlopassword` |
+| RustFS (S3) | `servlo-rustfs` | `9000` | `servlo` / generated |
 | Mailpit (SMTP) | `servlo-mailpit` | `1025` | (none) |
 
 See [Services](../usage/services.md) for the full credential matrix, including host-tool ports (127.0.0.1) versus container-network hostnames.

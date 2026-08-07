@@ -9,7 +9,7 @@ environment:
   SE_VNC_NO_PASSWORD: "1"
 share_hosts: true
 env_vars:
-  - DUSK_DRIVER_URL=http://lerd-selenium:4444
+  - DUSK_DRIVER_URL=http://servlo-selenium:4444
 env_detect:
   composer: laravel/dusk
 dashboard: http://localhost:7900/?autoconnect=1&resize=scale

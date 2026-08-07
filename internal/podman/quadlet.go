@@ -42,8 +42,7 @@ func DaemonReloadIfNeeded(changed bool) error {
 
 // WriteQuadlet writes a Podman quadlet container unit file. Before writing
 // it applies the current LAN bind policy centrally. Nginx follows
-// cfg.LAN.Exposed. Servlo-managed services require both cfg.LAN.Exposed and
-// cfg.LAN.ServicesExposed. Other containers stay loopback-bound.
+// cfg.LAN.Exposed; every other container stays loopback-bound.
 func WriteQuadlet(name, content string) error {
 	_, err := WriteQuadletDiff(name, content)
 	return err
@@ -61,14 +60,12 @@ func WriteQuadletDiff(name, content string) (changed bool, err error) {
 		return false, err
 	}
 	lanExposed := false
-	servicesExposed := false
 	autostartDisabled := false
 	if cfg, err := config.LoadGlobal(); err == nil && cfg != nil {
 		lanExposed = cfg.LAN.Exposed
-		servicesExposed = cfg.LAN.ServicesExposed
 		autostartDisabled = cfg.Autostart.Disabled
 	}
-	content = BindQuadletForLAN(name, content, lanExposed, servicesExposed)
+	content = BindQuadletForLAN(name, content, lanExposed)
 	content = PairIPv6Binds(content)
 	content = StripInstallSection(content, autostartDisabled)
 	// Centralised platform image rewrite + podman-run flags so every quadlet
@@ -107,13 +104,19 @@ func QuadletInstalled(name string) bool {
 	return err == nil
 }
 
-// BindQuadletForLAN applies the LAN policy for one quadlet. Nginx serves sites,
-// while CustomServiceQuadletMarker identifies default and custom managed
-// services. Site and worker containers do not publish directly to the LAN.
-func BindQuadletForLAN(name, content string, lanExposed, servicesExposed bool) string {
-	exposed := lanExposed && (name == "servlo-nginx" ||
-		(servicesExposed && strings.Contains(content, CustomServiceQuadletMarker)))
-	return BindForLAN(content, exposed)
+// BindQuadletForLAN applies the LAN policy for one quadlet.
+//
+// Only nginx ever binds beyond loopback, because only nginx has a reason to:
+// it serves the sites. Databases, caches, search engines and admin UIs stay on
+// loopback whatever the LAN settings say, and a quadlet that arrives bound to
+// every interface is pulled back rather than left.
+//
+// This is a design law rather than a setting (CLAUDE.md 3.7). A database
+// reachable from off the machine is a database anyone who finds the port can
+// attack, and on a box hosting other people's sites there is no version of
+// that worth the convenience, so there is no opt-in to offer.
+func BindQuadletForLAN(name, content string, lanExposed bool) string {
+	return BindForLAN(content, lanExposed && name == "servlo-nginx")
 }
 
 // ContainerPublishesLANFn probes whether a running container currently
@@ -166,10 +169,8 @@ func portsPublishToLAN(ports string) bool {
 // is picked up on the next run even though its file already reads correctly.
 func RebindInstalledQuadletsForLAN() ([]string, error) {
 	lanExposed := false
-	servicesExposed := false
 	if cfg, err := config.LoadGlobal(); err == nil && cfg != nil {
 		lanExposed = cfg.LAN.Exposed
-		servicesExposed = cfg.LAN.ServicesExposed
 	}
 	paths, err := filepath.Glob(filepath.Join(config.QuadletDir(), "servlo-*.container"))
 	if err != nil {
@@ -183,7 +184,7 @@ func RebindInstalledQuadletsForLAN() ([]string, error) {
 			return nil, fmt.Errorf("reading %s: %w", filepath.Base(path), err)
 		}
 		name := strings.TrimSuffix(filepath.Base(path), ".container")
-		updated := PairIPv6Binds(BindQuadletForLAN(name, string(content), lanExposed, servicesExposed))
+		updated := PairIPv6Binds(BindQuadletForLAN(name, string(content), lanExposed))
 		if string(content) != updated {
 			config.GuardRealWrite(path)
 			if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {

@@ -62,7 +62,7 @@ env:
         - DB_PORT=3306
         - DB_DATABASE={{site}}
         - DB_USERNAME=root
-        - DB_PASSWORD=servlo
+        - DB_PASSWORD={{password}}
 ```
 
 ### Env file formats

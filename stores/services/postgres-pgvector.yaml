@@ -20,17 +20,17 @@ ports:
   - "{{host_port}}:5432"
 data_dir: /var/lib/postgresql/data
 environment:
-  POSTGRES_PASSWORD: lerd
-  POSTGRES_DB: lerd
+  POSTGRES_PASSWORD: "{{password}}"
+  POSTGRES_DB: servlo
   PGDATA: /var/lib/postgresql/data
 env_vars:
   - DB_CONNECTION=pgsql
-  - DB_HOST=lerd-{{name}}
+  - DB_HOST=servlo-{{name}}
   - DB_PORT=5432
-  - DB_DATABASE=lerd
+  - DB_DATABASE=servlo
   - DB_USERNAME=postgres
-  - DB_PASSWORD=lerd
-connection_url: postgresql://postgres:lerd@127.0.0.1:{{host_port}}/lerd
+  - DB_PASSWORD={{password}}
+connection_url: postgresql://postgres:{{password}}@127.0.0.1:{{host_port}}/servlo
 client_shims:
   - psql
   - pg_dump
@@ -38,7 +38,7 @@ client_shims:
   - pg_restore
 category: databases
 icon: elephant
-# list_databases is kept alongside entities so lerd versions from before the
+# list_databases is kept alongside entities so servlo versions from before the
 # entities schema still list the databases.
 introspect:
   list_databases: >

@@ -26,27 +26,27 @@ env:
         - key: DATABASE_PORT
           value_prefix: "3306"
       vars:
-        - DATABASE_HOST=lerd-mysql
+        - DATABASE_HOST=servlo-mysql
         - DATABASE_PORT=3306
         - DATABASE_DATABASE={{site}}
         - DATABASE_USERNAME=root
-        - DATABASE_PASSWORD=lerd
+        - DATABASE_PASSWORD={{password}}
     postgres:
       detect:
         - key: DATABASE_PORT
           value_prefix: "5432"
       vars:
-        - DATABASE_HOST=lerd-postgres
+        - DATABASE_HOST=servlo-postgres
         - DATABASE_PORT=5432
         - DATABASE_DATABASE={{site}}
         - DATABASE_USERNAME=postgres
-        - DATABASE_PASSWORD=lerd
+        - DATABASE_PASSWORD={{password}}
     mailpit:
       detect:
         - key: MAIL_SMTP_HOST
       vars:
         - MAIL_SMTP_SCHEME=smtp
-        - MAIL_SMTP_HOST=lerd-mailpit
+        - MAIL_SMTP_HOST=servlo-mailpit
         - MAIL_SMTP_PORT=1025
 
 composer: auto

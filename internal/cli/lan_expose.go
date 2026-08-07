@@ -23,7 +23,7 @@ type LANProgressFunc func(step string)
 // LAN-exposed mode. Concretely:
 //
 //   - persists cfg.LAN.Exposed=true
-//   - exposes nginx and, when cfg.LAN.ServicesExposed is set, managed services
+//   - exposes nginx, and nginx only
 //   - daemon-reloads the runtime and restarts only rewritten active containers
 //
 // progress, if non-nil, is invoked after each step so the caller can
@@ -91,21 +91,6 @@ func DisableLANExposure(progress LANProgressFunc) error {
 
 	emit("Done — servlo is loopback only")
 	return nil
-}
-
-// SetManagedServiceLANExposure persists the explicit managed-service opt-in
-// and reapplies the bind policy to every installed quadlet. Active services
-// restart when their host bind changes; inactive services remain stopped.
-func SetManagedServiceLANExposure(enabled bool, progress LANProgressFunc) error {
-	cfg, err := config.LoadGlobal()
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
-	}
-	cfg.LAN.ServicesExposed = enabled
-	if err := config.SaveGlobal(cfg); err != nil {
-		return fmt.Errorf("saving config: %w", err)
-	}
-	return regenerateLANContainerQuadlets(progress)
 }
 
 // regenerateLANContainerQuadlets reapplies the current LAN bind policy to every

@@ -38,6 +38,12 @@ export interface StatusResponse {
   instance?: string;
   // Managed host binaries (composer, fnm) against their pinned versions.
   tools?: ToolStatus[];
+  // Whether this install is live. Shown in the shell rather than a settings
+  // page: which mode a machine is in changes what a visitor sees when something
+  // breaks, and someone about to debug a blank page needs to know it first.
+  production?: boolean;
+  // When production mode was turned on, RFC3339, absent when it is off.
+  production_since?: string;
 }
 
 export interface ToolStatus {

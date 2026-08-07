@@ -200,6 +200,12 @@ export default defineConfig({
           ],
         },
         {
+          text: 'Running in production',
+          items: [
+            { text: 'Production mode', link: '/features/production-mode' },
+          ],
+        },
+        {
           text: 'Networking',
           items: [
             { text: 'HTTPS / TLS', link: '/features/https' },

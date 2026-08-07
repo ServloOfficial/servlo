@@ -22,24 +22,24 @@ env:
         - key: DATABASE_URL
           value_prefix: "mysql://"
       vars:
-        - "DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/{{site}}"
+        - "DATABASE_URL=mysql://root:{{password}}@servlo-mysql:3306/{{site}}"
     postgres:
       detect:
         - key: DATABASE_URL
           value_prefix: "postgres://"
       vars:
-        - "DATABASE_URL=postgres://postgres:lerd@lerd-postgres:5432/{{site}}"
+        - "DATABASE_URL=postgres://postgres:{{password}}@servlo-postgres:5432/{{site}}"
     redis:
       detect:
         - key: CACHE_URL
           value_prefix: "redis://"
       vars:
-        - "CACHE_URL=redis://lerd-redis:6379"
+        - "CACHE_URL=redis://servlo-redis:6379"
     mailpit:
       detect:
         - key: EMAIL_TRANSPORT_DEFAULT_URL
       vars:
-        - "EMAIL_TRANSPORT_DEFAULT_URL=smtp://lerd-mailpit:1025"
+        - "EMAIL_TRANSPORT_DEFAULT_URL=smtp://servlo-mailpit:1025"
 
 composer: auto
 npm: auto

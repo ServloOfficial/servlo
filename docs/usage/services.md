@@ -120,12 +120,17 @@ Services run as Podman containers on the `servlo` network. Two hostnames apply d
 
 | Service | Default version | Host (host tools) | Host (Laravel `.env`) | Port | User | Password | DB |
 |---|---|---|---|---|---|---|---|
-| MySQL | 8.4 LTS (`mysql:8.4`) | 127.0.0.1 | servlo-mysql | 3306 | root | `servlo` | `servlo` |
-| PostgreSQL | 16 + PostGIS 3.5 | 127.0.0.1 | servlo-postgres | 5432 | postgres | `servlo` | `servlo` |
+| MySQL | 8.4 LTS (`mysql:8.4`) | 127.0.0.1 | servlo-mysql | 3306 | root | generated | `servlo` |
+| PostgreSQL | 16 + PostGIS 3.5 | 127.0.0.1 | servlo-postgres | 5432 | postgres | generated | `servlo` |
 | Redis | 7-alpine | 127.0.0.1 | servlo-redis | 6379 | - | - | - |
 | Meilisearch | v1.42 | 127.0.0.1 | servlo-meilisearch | 7700 | - | - | - |
-| RustFS | latest | 127.0.0.1 | servlo-rustfs | 9000 | `servlo` | `servlopassword` | per-site bucket |
+| RustFS | latest | 127.0.0.1 | servlo-rustfs | 9000 | `servlo` | generated | per-site bucket |
 | Mailpit SMTP | latest | 127.0.0.1 | servlo-mailpit | 1025 | - | - | - |
+
+Passwords are generated once per install rather than shipped in the definitions,
+so no two machines share one. `servlo service start <name>` prints the values for
+that service, and they also live at `~/.config/servlo/service-password`. See
+[Production mode](/features/production-mode) for how the substitution works.
 
 Additional UIs:
 
@@ -147,7 +152,7 @@ RustFS is an S3-compatible object storage service (a drop-in replacement for Min
 ```ini
 FILESYSTEM_DISK=s3
 AWS_ACCESS_KEY_ID=servlo
-AWS_SECRET_ACCESS_KEY=servlopassword
+AWS_SECRET_ACCESS_KEY=<generated, see servlo service start rustfs>
 AWS_DEFAULT_REGION=us-east-1
 AWS_BUCKET=my-project
 AWS_URL=http://localhost:9000/my-project

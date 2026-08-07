@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"bufio"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,11 +10,10 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 )
 
-func TestLANStatusIncludesManagedServiceExposure(t *testing.T) {
+func TestLANStatusReportsExposure(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	cfg := &config.GlobalConfig{}
 	cfg.LAN.Exposed = true
-	cfg.LAN.ServicesExposed = true
 	if err := config.SaveGlobal(cfg); err != nil {
 		t.Fatalf("SaveGlobal: %v", err)
 	}
@@ -27,70 +25,25 @@ func TestLANStatusIncludesManagedServiceExposure(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	var body struct {
-		Exposed           bool `json:"exposed"`
-		ServicesEnabled   bool `json:"services_enabled"`
-		ServicesReachable bool `json:"services_reachable"`
-	}
+	var body map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if !body.Exposed || !body.ServicesEnabled || !body.ServicesReachable {
-		t.Fatalf("response = %+v, want enabled and reachable services", body)
+	if body["exposed"] != true {
+		t.Fatalf("response = %+v, want exposed", body)
+	}
+	// The dashboard reads this to decide what to show. A field claiming a
+	// service is reachable off the machine would be reporting something that
+	// can no longer happen.
+	for _, gone := range []string{"services_enabled", "services_reachable"} {
+		if _, present := body[gone]; present {
+			t.Errorf("response still carries %q: %+v", gone, body)
+		}
 	}
 }
 
-func TestLANStatusCanToggleManagedServiceExposureFromLoopback(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	exposed := &config.GlobalConfig{}
-	exposed.LAN.Exposed = true
-	if err := config.SaveGlobal(exposed); err != nil {
-		t.Fatalf("SaveGlobal: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/lan/status", strings.NewReader(`{"action":"services_on"}`))
-	req.RemoteAddr = "127.0.0.1:12345"
-	req.Host = "localhost:7073"
-	rec := httptest.NewRecorder()
-	handleLANStatus(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
-	}
-	cfg, err := config.LoadGlobal()
-	if err != nil {
-		t.Fatalf("LoadGlobal: %v", err)
-	}
-	if !cfg.LAN.ServicesExposed {
-		t.Fatal("services_on did not persist managed-service exposure")
-	}
-
-	var final struct {
-		Result            string `json:"result"`
-		ServicesEnabled   bool   `json:"services_enabled"`
-		ServicesReachable bool   `json:"services_reachable"`
-	}
-	scanner := bufio.NewScanner(rec.Body)
-	for scanner.Scan() {
-		var event struct {
-			Result            string `json:"result"`
-			ServicesEnabled   bool   `json:"services_enabled"`
-			ServicesReachable bool   `json:"services_reachable"`
-		}
-		if err := json.Unmarshal(scanner.Bytes(), &event); err == nil && event.Result != "" {
-			final = event
-		}
-	}
-	if final.Result != "ok" || !final.ServicesEnabled {
-		t.Fatalf("final event = %+v", final)
-	}
-	if !final.ServicesReachable {
-		t.Fatalf("services must be reachable once both settings are on: %+v", final)
-	}
-}
-
-func TestLANStatusRejectsUnauthenticatedRemoteManagedServiceToggle(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/api/lan/status", strings.NewReader(`{"action":"services_on"}`))
+func TestLANStatusRejectsUnauthenticatedRemoteToggle(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/lan/status", strings.NewReader(`{"action":"expose"}`))
 	req.RemoteAddr = "192.0.2.10:12345"
 	rec := httptest.NewRecorder()
 	handleLANStatus(rec, req)
@@ -101,7 +54,7 @@ func TestLANStatusRejectsUnauthenticatedRemoteManagedServiceToggle(t *testing.T)
 }
 
 func TestLANStatusRejectsUnauthenticatedLoopbackReverseProxy(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/api/lan/status", strings.NewReader(`{"action":"services_on"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/lan/status", strings.NewReader(`{"action":"expose"}`))
 	req.RemoteAddr = "127.0.0.1:54321"
 	req.Host = "robotbox.example.net"
 	req.Header.Set("X-Forwarded-For", "203.0.113.7")

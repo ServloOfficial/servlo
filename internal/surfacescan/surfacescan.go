@@ -28,6 +28,11 @@ type Rule struct {
 	// Allow lists path substrings the rule tolerates: the retained upstream
 	// references, and the specification documents that describe the deletions.
 	Allow []string
+	// Only, when set, limits the rule to paths carrying one of these
+	// substrings. For a rule whose forbidden string legitimately appears
+	// elsewhere, scoping is more honest than an allowlist that grows a line
+	// every time someone touches an unrelated file.
+	Only []string
 }
 
 // Finding is one place a rule matched. Line is 0 for a path-level match.
@@ -82,6 +87,21 @@ func compile(r Rule) (compiled, error) {
 }
 
 func (c compiled) allows(path string) bool {
+	// A scoped rule ignores everything outside its scope, which is how a rule
+	// whose forbidden string legitimately appears elsewhere stays strict where
+	// it matters without an allowlist that grows on every unrelated change.
+	if len(c.rule.Only) > 0 {
+		inScope := false
+		for _, o := range c.rule.Only {
+			if strings.Contains(path, o) {
+				inScope = true
+				break
+			}
+		}
+		if !inScope {
+			return true
+		}
+	}
 	for _, a := range c.rule.Allow {
 		if strings.Contains(path, a) {
 			return true

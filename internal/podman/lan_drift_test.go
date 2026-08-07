@@ -21,7 +21,7 @@ func stubRuntimeBinds(t *testing.T, lanBound map[string]bool) {
 // file comparison alone reports nothing to do and the drift never heals.
 func TestRebindReportsRuntimeDriftWhenFileAlreadyCorrect(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	writeLANConfig(t, false, false)
+	writeLANConfig(t, false)
 	writeLANQuadlet(t, "servlo-redis", true, "PublishPort=127.0.0.1:6379:6379\nPublishPort=[::1]:6379:6379")
 	stubRuntimeBinds(t, map[string]bool{"servlo-redis": true})
 
@@ -38,7 +38,7 @@ func TestRebindReportsRuntimeDriftWhenFileAlreadyCorrect(t *testing.T) {
 // still running its old loopback bind.
 func TestRebindReportsRuntimeDriftWhenContainerStillLoopback(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	writeLANConfig(t, true, true)
+	writeLANConfig(t, true)
 	writeLANQuadlet(t, "servlo-mysql", true, "PublishPort=[::]:3306:3306")
 	stubRuntimeBinds(t, map[string]bool{"servlo-mysql": false})
 
@@ -55,7 +55,7 @@ func TestRebindReportsRuntimeDriftWhenContainerStillLoopback(t *testing.T) {
 // repeated toggle stays quiet.
 func TestRebindStaysQuietWhenRuntimeMatches(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	writeLANConfig(t, false, false)
+	writeLANConfig(t, false)
 	writeLANQuadlet(t, "servlo-redis", true, "PublishPort=127.0.0.1:6379:6379\nPublishPort=[::1]:6379:6379")
 	stubRuntimeBinds(t, map[string]bool{"servlo-redis": false})
 
@@ -71,7 +71,7 @@ func TestRebindStaysQuietWhenRuntimeMatches(t *testing.T) {
 // Nothing running (or no podman at all) must not invent restarts.
 func TestRebindIgnoresUnknownRuntimeState(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	writeLANConfig(t, false, false)
+	writeLANConfig(t, false)
 	writeLANQuadlet(t, "servlo-redis", true, "PublishPort=127.0.0.1:6379:6379\nPublishPort=[::1]:6379:6379")
 	stubRuntimeBinds(t, map[string]bool{})
 

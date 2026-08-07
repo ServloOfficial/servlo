@@ -362,6 +362,13 @@ func BindForLAN(content string, lanExposed bool) string {
 		if strings.HasPrefix(value, "[") {
 			continue
 		}
+		// 0.0.0.0 is not an address someone chose, it is "every interface"
+		// spelled out, so it is pulled back like a bare port rather than
+		// preserved as a deliberate bind.
+		if rest, ok := strings.CutPrefix(value, "0.0.0.0:"); ok {
+			lines[i] = "PublishPort=127.0.0.1:" + rest
+			continue
+		}
 		firstSeg := strings.SplitN(value, ":", 2)[0]
 		if strings.ContainsRune(firstSeg, '.') {
 			continue

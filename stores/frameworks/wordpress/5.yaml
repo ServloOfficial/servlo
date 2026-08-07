@@ -23,8 +23,8 @@ env:
       vars:
         - DB_NAME={{site}}
         - DB_USER=root
-        - DB_PASSWORD=lerd
-        - DB_HOST=lerd-mysql
+        - DB_PASSWORD={{password}}
+        - DB_HOST=servlo-mysql
 
 logs:
   - path: wp-content/debug.log

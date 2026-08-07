@@ -359,11 +359,12 @@ func handleAccessMode(w http.ResponseWriter, r *http.Request) {
 
 // handleLANStatus serves /api/lan/status.
 //
-//	GET                               → { exposed, services_enabled, services_reachable, lan_ip }
+//	GET                               → { exposed, lan_ip }
 //	POST { action: "expose" }         → exposes sites, DNS, and dashboard bind
 //	POST { action: "unexpose" }       → returns every endpoint to loopback
-//	POST { action: "services_on" }    → opts managed services into LAN access
-//	POST { action: "services_off" }   → returns managed services to loopback
+//
+// Databases and caches are not part of this: they are loopback-only always
+// (CLAUDE.md 3.7), so there is no action here that could publish one.
 //
 // POST requires dashboard-control authority because it rewrites runtime units
 // and host configuration.
@@ -372,20 +373,16 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		cfg, _ := config.LoadGlobal()
 		exposed := false
-		servicesEnabled := false
 		if cfg != nil {
 			exposed = cfg.LAN.Exposed
-			servicesEnabled = cfg.LAN.ServicesExposed
 		}
 		lanIP := ""
 		if exposed {
 			lanIP = uiPrimaryLANIP()
 		}
 		writeJSON(w, map[string]any{
-			"exposed":            exposed,
-			"services_enabled":   servicesEnabled,
-			"services_reachable": exposed && servicesEnabled,
-			"lan_ip":             lanIP,
+			"exposed": exposed,
+			"lan_ip":  lanIP,
 		})
 		return
 
@@ -402,19 +399,9 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		switch body.Action {
-		case "expose", "unexpose", "services_on", "services_off":
-			// Managed services can only reach the LAN while servlo itself does,
-			// so opting in beforehand would persist a setting that publishes
-			// nothing. Opting out stays available so a setting armed before an
-			// unexpose can still be cleared.
-			if body.Action == "services_on" {
-				if cfg, _ := config.LoadGlobal(); cfg == nil || !cfg.LAN.Exposed {
-					http.Error(w, "LAN exposure is off — managed services can only reach the LAN while servlo itself does.", http.StatusBadRequest)
-					return
-				}
-			}
+		case "expose", "unexpose":
 		default:
-			http.Error(w, "unknown action — expected 'expose', 'unexpose', 'services_on', or 'services_off'", http.StatusBadRequest)
+			http.Error(w, "unknown action — expected 'expose' or 'unexpose'", http.StatusBadRequest)
 			return
 		}
 
@@ -437,14 +424,6 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 		progress := func(step string) {
 			writeLine(map[string]any{"step": step})
 		}
-		serviceState := func() (enabled, reachable bool) {
-			cfg, _ := config.LoadGlobal()
-			if cfg == nil {
-				return false, false
-			}
-			return cfg.LAN.ServicesExposed, cfg.LAN.Exposed && cfg.LAN.ServicesExposed
-		}
-
 		switch body.Action {
 		case "expose":
 			lanIP, err := servlocli.EnableLANExposure(progress)
@@ -452,13 +431,10 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 				writeLine(map[string]any{"result": "error", "error": err.Error()})
 				return
 			}
-			enabled, reachable := serviceState()
 			writeLine(map[string]any{
-				"result":             "ok",
-				"exposed":            true,
-				"services_enabled":   enabled,
-				"services_reachable": reachable,
-				"lan_ip":             lanIP,
+				"result":  "ok",
+				"exposed": true,
+				"lan_ip":  lanIP,
 			})
 			return
 		case "unexpose":
@@ -466,26 +442,10 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 				writeLine(map[string]any{"result": "error", "error": err.Error()})
 				return
 			}
-			enabled, _ := serviceState()
 			writeLine(map[string]any{
-				"result":             "ok",
-				"exposed":            false,
-				"services_enabled":   enabled,
-				"services_reachable": false,
-				"lan_ip":             "",
-			})
-			return
-		case "services_on", "services_off":
-			enabled := body.Action == "services_on"
-			if err := servlocli.SetManagedServiceLANExposure(enabled, progress); err != nil {
-				writeLine(map[string]any{"result": "error", "error": err.Error()})
-				return
-			}
-			serviceEnabled, reachable := serviceState()
-			writeLine(map[string]any{
-				"result":             "ok",
-				"services_enabled":   serviceEnabled,
-				"services_reachable": reachable,
+				"result":  "ok",
+				"exposed": false,
+				"lan_ip":  "",
 			})
 			return
 		}

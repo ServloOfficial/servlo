@@ -6,7 +6,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// The vite worker's health block (mirrored in the lerd-env/frameworks store)
+// The vite worker's health block (mirrored in the stores/frameworks store)
 // must unmarshal into WorkerHealth so Detect can find where the dev server
 // publishes its port.
 func TestWorkerHealthUnmarshals(t *testing.T) {

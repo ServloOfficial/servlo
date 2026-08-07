@@ -24,7 +24,7 @@ ports:
 data_dir: /var/lib/postgresql/data
 data_version_file: PG_VERSION
 environment:
-  POSTGRES_PASSWORD: servlo
+  POSTGRES_PASSWORD: "{{password}}"
   POSTGRES_DB: servlo
   PGDATA: /var/lib/postgresql/data
 env_vars:
@@ -33,8 +33,8 @@ env_vars:
   - DB_PORT=5432
   - DB_DATABASE=servlo
   - DB_USERNAME=postgres
-  - DB_PASSWORD=servlo
-connection_url: postgresql://postgres:servlo@127.0.0.1:{{host_port}}/servlo
+  - DB_PASSWORD={{password}}
+connection_url: postgresql://postgres:{{password}}@127.0.0.1:{{host_port}}/servlo
 client_shims:
   - psql
   - pg_dump

@@ -71,10 +71,7 @@ func rebindHostProxyDevServer(proxy *config.ProxyConfig, siteName, sitePath stri
 	if label == "" {
 		label = hostProxyWorkerName
 	}
-	restart := w.Restart
-	if restart == "" {
-		restart = "always"
-	}
+	restart := resolveWorkerRestart(w.Restart)
 	command := resolveWorkerCommand(sitePath, hostProxyWorkerName, w)
 	fpmUnit := resolveWorkerFPMUnit(siteName, "")
 	changed, err := writeWorkerUnitFile(unitName, label, unitSiteName, sitePath, "", command, restart, w.Schedule, fpmUnit, w.Host)

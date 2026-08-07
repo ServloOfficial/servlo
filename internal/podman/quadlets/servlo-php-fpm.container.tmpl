@@ -21,6 +21,7 @@ Volume=%h:%h:rw
 # the user's passphrase-protected keys. Named volume, auto-created by podman;
 # empty until `servlo auth ssh` starts the agent sidecar.
 Volume=servlo-ssh-agent:/ssh-agent
+Volume={{.ProductionIniPath}}:/usr/local/etc/php/conf.d/90-servlo-production.ini:ro
 Volume={{.UserIniPath}}:/usr/local/etc/php/conf.d/98-servlo-user.ini:ro
 Volume={{.SharedIniPath}}:/usr/local/etc/php/conf.d/95-servlo-shared.ini:ro
 Volume={{.ZshHistoryDir}}:/root/.zsh_state:rw

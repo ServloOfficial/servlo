@@ -6,11 +6,11 @@ ports:
   - "27017:27017"
 environment:
   MONGO_INITDB_ROOT_USERNAME: root
-  MONGO_INITDB_ROOT_PASSWORD: lerd
+  MONGO_INITDB_ROOT_PASSWORD: "{{password}}"
 data_dir: /data/db
-connection_url: mongodb://root:lerd@127.0.0.1:27017/?authSource=admin
+connection_url: mongodb://root:{{password}}@127.0.0.1:27017/?authSource=admin
 env_vars:
-  - MONGO_DSN=mongodb://root:lerd@lerd-mongo:27017/{{site}}?authSource=admin
+  - MONGO_DSN=mongodb://root:servlo@servlo-mongo:27017/{{site}}?authSource=admin
 client_shims:
   - mongosh
   - mongodump
@@ -21,19 +21,19 @@ env_detect:
   key: MONGO_DSN
   value_prefix: mongodb://
 site_init:
-  exec: mongosh --quiet -u root -p lerd --authenticationDatabase admin --eval "try { db.getSiblingDB('{{site}}').createCollection('_lerd_init') } catch (e) {}"
+  exec: mongosh --quiet -u root -p {{password}} --authenticationDatabase admin --eval "try { db.getSiblingDB('{{site}}').createCollection('_servlo_init') } catch (e) {}"
 category: databases
 icon: leaf
-# list_databases is kept alongside entities so lerd versions from before the
+# list_databases is kept alongside entities so servlo versions from before the
 # entities schema still list the databases.
 introspect:
   list_databases: >
-    mongosh --quiet -u root -p lerd --authenticationDatabase admin --eval
+    mongosh --quiet -u root -p {{password}} --authenticationDatabase admin --eval
     'db.adminCommand({listDatabases:1}).databases.forEach(function(d){ if(["admin","local","config"].indexOf(d.name)<0) print(d.name+"\t"+d.sizeOnDisk) })'
   entities:
     - kind: databases
       list: >
-        mongosh --quiet -u root -p lerd --authenticationDatabase admin --eval
+        mongosh --quiet -u root -p {{password}} --authenticationDatabase admin --eval
         'db.adminCommand({listDatabases:1}).databases.forEach(function(d){ if(["admin","local","config"].indexOf(d.name)<0) print(d.name+"\t"+d.sizeOnDisk) })'
       columns:
         - key: size
@@ -41,23 +41,23 @@ introspect:
           format: bytes
       actions:
         create: >
-          mongosh --quiet -u root -p lerd --authenticationDatabase admin --eval
-          'db.getSiblingDB("{{name}}").createCollection("_lerd_init")'
+          mongosh --quiet -u root -p {{password}} --authenticationDatabase admin --eval
+          'db.getSiblingDB("{{name}}").createCollection("_servlo_init")'
         drop:
           exec: >
-            mongosh --quiet -u root -p lerd --authenticationDatabase admin --eval
+            mongosh --quiet -u root -p {{password}} --authenticationDatabase admin --eval
             'db.getSiblingDB("{{name}}").dropDatabase()'
           destructive: true
         export:
           exec: >
-            mongodump --quiet -u root -p lerd --authenticationDatabase admin
+            mongodump --quiet -u root -p {{password}} --authenticationDatabase admin
             --db {{name}} --archive
           filename: "{{name}}.archive"
         import: >
-          mongorestore --quiet -u root -p lerd --authenticationDatabase admin
+          mongorestore --quiet -u root -p {{password}} --authenticationDatabase admin
           --nsInclude '{{name}}.*' --drop --archive
         export_all: >
-          mongodump --quiet -u root -p lerd --authenticationDatabase admin --archive
+          mongodump --quiet -u root -p {{password}} --authenticationDatabase admin --archive
         import_all: >
-          mongorestore --quiet -u root -p lerd --authenticationDatabase admin
+          mongorestore --quiet -u root -p {{password}} --authenticationDatabase admin
           --drop --archive

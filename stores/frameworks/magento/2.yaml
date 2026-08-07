@@ -30,17 +30,17 @@ env:
       detect:
         - key: db.connection.default.host
       vars:
-        - db.connection.default.host=lerd-mysql
+        - db.connection.default.host=servlo-mysql
         - db.connection.default.dbname={{site}}
         - db.connection.default.username=root
-        - db.connection.default.password=lerd
+        - db.connection.default.password={{password}}
         - db.connection.default.active=1
     opensearch:
       detect:
         - key: system.default.catalog.search.engine
       vars:
         - system.default.catalog.search.engine=opensearch
-        - system.default.catalog.search.opensearch_server_hostname=lerd-opensearch
+        - system.default.catalog.search.opensearch_server_hostname=servlo-opensearch
         - system.default.catalog.search.opensearch_server_port=9200
         - system.default.catalog.search.opensearch_index_prefix={{site}}
     redis:
@@ -48,7 +48,7 @@ env:
         - key: cache.frontend.default.backend_options.server
       vars:
         - cache.frontend.default.backend=Magento\Framework\Cache\Backend\Redis
-        - cache.frontend.default.backend_options.server=lerd-redis
+        - cache.frontend.default.backend_options.server=servlo-redis
         - cache.frontend.default.backend_options.port=6379
 
 # Magento 2.4 removed the MySQL catalog search engine, so a store cannot boot
@@ -114,7 +114,7 @@ logs:
     format: monolog
 
 # Every step below needs an installed store. app/etc/config.php is the marker:
-# setup:install writes it, and lerd's env wiring never does, unlike env.php.
+# setup:install writes it, and servlo's env wiring never does, unlike env.php.
 setup:
   - label: Apply schema and data updates
     command: php bin/magento setup:upgrade
@@ -142,18 +142,18 @@ setup:
 commands:
   # Magento 2.4 removed the web installer, so a fresh store is installed from the
   # CLI. Confirm-gated rather than a setup step: it creates schema and an admin
-  # user, and `lerd setup --all` runs every setup step regardless of default.
+  # user, and `servlo setup --all` runs every setup step regardless of default.
   - name: setup:install
     label: Install Magento
     command: >
       php bin/magento setup:install
       --base-url={{scheme}}://{{domain}}/
-      --db-host=lerd-mysql --db-name={{site}} --db-user=root --db-password=lerd
-      --search-engine=opensearch --opensearch-host=lerd-opensearch --opensearch-port=9200
-      --admin-firstname=Lerd --admin-lastname=Admin --admin-email=admin@{{domain}}
-      --admin-user=admin --admin-password=lerdadmin1
+      --db-host=servlo-mysql --db-name={{site}} --db-user=root --db-password={{password}}
+      --search-engine=opensearch --opensearch-host=servlo-opensearch --opensearch-port=9200
+      --admin-firstname=Servlo --admin-lastname=Admin --admin-email=admin@{{domain}}
+      --admin-user=admin --admin-password={{password}}
       --language=en_US --currency=USD --timezone=UTC --use-rewrites=1
-    description: Install a fresh store against lerd's mysql and opensearch, admin user admin/lerdadmin1
+    description: Install a fresh store against servlo's mysql and opensearch, admin user admin/{{password}}
     output: text
     confirm: true
     icon: play

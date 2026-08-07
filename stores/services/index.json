@@ -11,7 +11,7 @@
       "name": "clickhouse",
       "description": "ClickHouse column-oriented analytics database",
       "family": "clickhouse",
-      "dashboard": "http://localhost:8123/play?user=lerd&password=lerd",
+      "dashboard": "http://localhost:8123/play?user=servlo&password={{password}}",
       "image": "docker.io/library/clickhouse:26.3",
       "category": "databases",
       "icon": "database"
@@ -25,7 +25,7 @@
     },
     {
       "name": "elasticvue",
-      "description": "Elasticvue web UI for the lerd Elasticsearch service",
+      "description": "Elasticvue web UI for the servlo Elasticsearch service",
       "dashboard": "http://localhost:8083",
       "depends_on": [
         "elasticsearch"
@@ -107,7 +107,7 @@
     },
     {
       "name": "mongo-express",
-      "description": "Mongo Express web UI for the lerd MongoDB service",
+      "description": "Mongo Express web UI for the servlo MongoDB service",
       "dashboard": "http://localhost:8082",
       "depends_on": [
         "mongo"
@@ -128,7 +128,7 @@
     },
     {
       "name": "opensearch-dashboards",
-      "description": "OpenSearch Dashboards web UI for the lerd OpenSearch service",
+      "description": "OpenSearch Dashboards web UI for the servlo OpenSearch service",
       "dashboard": "http://localhost:8086",
       "depends_on": [
         "opensearch"
@@ -142,7 +142,7 @@
     },
     {
       "name": "pgadmin",
-      "description": "pgAdmin web UI for the lerd Postgres service",
+      "description": "pgAdmin web UI for the servlo Postgres service",
       "dashboard": "http://localhost:8081",
       "depends_on": [
         "postgres"
@@ -158,7 +158,7 @@
     },
     {
       "name": "phpmyadmin",
-      "description": "phpMyAdmin web UI for every installed lerd MySQL service",
+      "description": "phpMyAdmin web UI for every installed servlo MySQL service",
       "dashboard": "http://localhost:8080",
       "depends_on": [
         "mysql"
@@ -233,7 +233,7 @@
     },
     {
       "name": "redisinsight",
-      "description": "RedisInsight web UI for every installed lerd Redis and Valkey service",
+      "description": "RedisInsight web UI for every installed servlo Redis and Valkey service",
       "dashboard": "http://localhost:8085",
       "depends_on": [
         "redis"
@@ -278,7 +278,7 @@
     },
     {
       "name": "typesense-dashboard",
-      "description": "Typesense Dashboard web UI for the lerd Typesense service",
+      "description": "Typesense Dashboard web UI for the servlo Typesense service",
       "dashboard": "http://localhost:8084",
       "depends_on": [
         "typesense"

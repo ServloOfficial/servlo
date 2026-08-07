@@ -30,7 +30,7 @@ env:
         - key: DATABASE_URL
           value_prefix: "mariadb://"
       vars:
-        - "DATABASE_URL=mysql://root:lerd@lerd-mysql:3306/{{site}}"
+        - "DATABASE_URL=mysql://root:{{password}}@servlo-mysql:3306/{{site}}"
     postgres:
       detect:
         - key: DATABASE_URL
@@ -38,24 +38,24 @@ env:
         - key: DATABASE_URL
           value_prefix: "postgres://"
       vars:
-        - "DATABASE_URL=postgresql://postgres:lerd@lerd-postgres:5432/{{site}}"
+        - "DATABASE_URL=postgresql://postgres:{{password}}@servlo-postgres:5432/{{site}}"
     redis:
       detect:
         - key: REDIS_URL
         - key: REDIS_DSN
       vars:
-        - "REDIS_URL=redis://lerd-redis:6379"
+        - "REDIS_URL=redis://servlo-redis:6379"
     mailpit:
       detect:
         - key: MAILER_DSN
       vars:
-        - "MAILER_DSN=smtp://lerd-mailpit:1025"
+        - "MAILER_DSN=smtp://servlo-mailpit:1025"
     meilisearch:
       detect:
         - key: MEILISEARCH_HOST
         - key: MEILISEARCH_DSN
       vars:
-        - "MEILISEARCH_HOST=http://lerd-meilisearch:7700"
+        - "MEILISEARCH_HOST=http://servlo-meilisearch:7700"
 
 composer: auto
 npm: auto

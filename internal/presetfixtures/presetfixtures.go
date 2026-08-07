@@ -1,24 +1,24 @@
-// Package presetfixtures embeds the add-on service presets that ship in the
-// external lerd-env/services store rather than the binary, and exposes them as
-// an fs.FS. Tests wire it under the config preset seam (via
+// Package presetfixtures exposes the add-on service presets as an fs.FS for
+// tests. Tests wire it under the config preset seam (via
 // config.SetExtraPresetsForTest) so mechanism and functionality tests keep
 // resolving add-ons — dependencies, families, dashboards, auto-login file
-// mounts — without a network fetch. It is imported only from _test.go files, so
-// nothing here reaches the production binary. It imports no servlo packages, so any
-// package's tests can use it without an import cycle.
+// mounts — without a network fetch.
+//
+// It serves the real definitions from the in-repo service store rather than a
+// copy of them. A copy is how a test suite ends up green against definitions
+// nobody ships: the copy taken at S0.8 had already drifted from the store by
+// several fields and an entire credential scheme.
 package presetfixtures
 
 import (
-	"embed"
 	"io/fs"
-)
 
-//go:embed testdata/*.yaml
-var embedded embed.FS
+	"github.com/realrashid/servlo/stores"
+)
 
 // FS returns the add-on presets as a flat filesystem of <name>.yaml files.
 func FS() fs.FS {
-	sub, err := fs.Sub(embedded, "testdata")
+	sub, err := fs.Sub(stores.FS(), string(stores.Services))
 	if err != nil {
 		panic(err)
 	}

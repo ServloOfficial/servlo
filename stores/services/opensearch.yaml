@@ -22,9 +22,9 @@ data_dir: /usr/share/opensearch/data
 userns: keep-id:uid=1000,gid=0
 chown_data: true
 env_vars:
-  - OPENSEARCH_HOST=lerd-opensearch
+  - OPENSEARCH_HOST=servlo-opensearch
   - OPENSEARCH_PORT=9200
-  - OPENSEARCH_URL=http://lerd-opensearch:9200
+  - OPENSEARCH_URL=http://servlo-opensearch:9200
 env_detect:
   composer: opensearch-project/opensearch-php
 connection_url: http://127.0.0.1:9201

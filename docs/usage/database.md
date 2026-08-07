@@ -203,8 +203,8 @@ The database for a Laravel project is configured through `.servlo.yaml` and appl
 | Choice | Service | `.env` keys written |
 |---|---|---|
 | `sqlite` | none (local file) | `DB_CONNECTION=sqlite`, `DB_DATABASE=database/database.sqlite` |
-| `mysql` | `servlo-mysql` (Podman) | `DB_CONNECTION=mysql`, `DB_HOST=servlo-mysql`, `DB_PORT=3306`, `DB_DATABASE=<project>`, `DB_USERNAME=root`, `DB_PASSWORD=servlo` |
-| `postgres` | `servlo-postgres` (Podman) | `DB_CONNECTION=pgsql`, `DB_HOST=servlo-postgres`, `DB_PORT=5432`, `DB_DATABASE=<project>`, `DB_USERNAME=postgres`, `DB_PASSWORD=servlo` |
+| `mysql` | `servlo-mysql` (Podman) | `DB_CONNECTION=mysql`, `DB_HOST=servlo-mysql`, `DB_PORT=3306`, `DB_DATABASE=<project>`, `DB_USERNAME=root`, `DB_PASSWORD=<generated>` |
+| `postgres` | `servlo-postgres` (Podman) | `DB_CONNECTION=pgsql`, `DB_HOST=servlo-postgres`, `DB_PORT=5432`, `DB_DATABASE=<project>`, `DB_USERNAME=postgres`, `DB_PASSWORD=<generated>` |
 
 Installed family alternates are valid picks too: `mariadb` / `mariadb-10-11`, `mysql-5-7`, `postgres-pgvector` / `postgres-17`, etc. They go through the same env-write + database-create flow as the built-ins, using the host and port from their preset. Install one first with `servlo service preset <name>`, then list it in `.servlo.yaml` under `services:` or pick it in the `servlo init` wizard.
 

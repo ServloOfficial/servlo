@@ -17,33 +17,19 @@ func localPost(path, body string) *http.Request {
 	return req
 }
 
-// Opting managed services in while servlo is loopback only would persist a
-// setting that publishes nothing, which reads as exposure that never happened.
-func TestServicesOnRefusedWhileLoopbackOnly(t *testing.T) {
+// Databases and caches are loopback-only always, so the route that used to
+// publish them has no such action left. An old dashboard, or anyone probing the
+// API with the name it used to answer to, is refused rather than served.
+func TestLANStatusHasNoActionThatPublishesAService(t *testing.T) {
 	setupConfigDirRaw(t, "", "", false)
 
-	rec := httptest.NewRecorder()
-	handleLANStatus(rec, localPost("/api/lan/status", `{"action":"services_on"}`))
+	for _, action := range []string{"services_on", "services_off"} {
+		rec := httptest.NewRecorder()
+		handleLANStatus(rec, localPost("/api/lan/status", `{"action":"`+action+`"}`))
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
-	}
-	cfg, _ := config.LoadGlobal()
-	if cfg != nil && cfg.LAN.ServicesExposed {
-		t.Fatal("refused request still persisted lan.services_exposed")
-	}
-}
-
-// Opting out has to keep working, or a setting armed before an unexpose can
-// never be cleared from the dashboard.
-func TestServicesOffAllowedWhileLoopbackOnly(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
-
-	rec := httptest.NewRecorder()
-	handleLANStatus(rec, localPost("/api/lan/status", `{"action":"services_off"}`))
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 (%s)", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want %d (%s)", action, rec.Code, http.StatusBadRequest, rec.Body.String())
+		}
 	}
 }
 

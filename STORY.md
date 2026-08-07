@@ -147,14 +147,36 @@ OCSP stapling deviates from the wording, deliberately. Let's Encrypt has retired
 
 ## E4 — Production defaults
 
-**S4.1 — Production mode switch.**
+**S4.1 — Production mode switch.** ✅
 *Done when:* a mode flag exists in config; enabling is confirmed; disabling requires a force flag; the mode is shown prominently in the dashboard. **M**
 
-**S4.2 — Production defaults across the stack.**
+The asymmetry is the point. Turning it on is confirmed because it changes what visitors see; turning it off needs `--force` because doing that on a live machine starts showing stack traces to the internet. A flag rather than a prompt, since a prompt can be answered by muscle memory or by a script piping y.
+
+The badge sits in the dashboard header rather than a settings tab, so the state is visible from every page.
+
+**S4.2 — Production defaults across the stack.** ✅
 *Done when:* idle-suspend off; worker restart policy `always`; PHP defaults `display_errors=Off`, `expose_php=Off`, OPcache on with `validate_timestamps=0`. **M**
 
-**S4.3 — Service hardening.**
+Idle-suspend needed nothing: S0.6 deleted it, so there is no state to set off.
+
+The PHP settings land in a drop-in named `90-production.ini`, which sorts ahead of the shared and per-site files so a site can still override any of them. Writing it happens the moment the flag changes rather than at the next restart, so what is on disk always matches what the flag says.
+
+`ProductionIniFile` was going to live in `internal/phpini` and could not: phpini imports php imports podman, and podman needs the path to mount it. It sits in `internal/config` with the other paths instead.
+
+**S4.3 — Service hardening.** ✅
 *Done when:* database and cache services bind to the container network only and never publish to a public interface; passwords are generated strong; a test asserts no service listens on a public address. **M**
+
+Only nginx ever binds beyond loopback. `lan:expose --services` could publish MySQL and Redis to every interface, which contradicts both this story and CLAUDE.md §3.7, so the whole managed-service exposure setting is gone rather than defaulted off: config field, CLI command, TUI rows, dashboard card and the two API actions. A toggle that cannot do anything is worse than no toggle, and the route now refuses the action names it used to answer to. A quadlet arriving bound to `0.0.0.0` is pulled back rather than read as a deliberate operator bind.
+
+Passwords are generated once per install, stored 0600, and substituted wherever a definition writes `{{password}}`. Substitution happens on the raw YAML at load, not field by field at use: the placeholder appears in container environment, site `.env` vars, connection URLs, launch commands and mounted config files, and the first version of this — a replacer inside `Resolve` — reached four of those and missed `Environment`, which is where every database password actually lives. It also skipped single-version presets entirely, which is most of them.
+
+Quote the placeholder when it is a whole YAML value. Bare braces are a flow mapping, so `MYSQL_ROOT_PASSWORD: {{password}}` does not parse at all, which the first pass over the store shipped in nine files.
+
+One password per install rather than one per service, because the definitions cross-reference each other: phpMyAdmin logs into MySQL, RedisInsight into Redis, and a per-service secret needs a resolution pass those definitions cannot express.
+
+Three things this turned up that were not the story. `internal/presetfixtures` carried a copy of the service store for tests, taken at S0.8, and it had already drifted by whole fields; it now serves the real definitions, and one of the differences it was hiding was `LERD_POSTGRES_HOSTS` in pgadmin, silently breaking that preset's family discovery. The scan rule that should have caught it was case-sensitive and is not any more. And `embed/` was an unreferenced copy of the quadlets and units, still carrying the published passwords, so it is deleted.
+
+The database caveat worth remembering: MySQL and PostgreSQL apply a root password once, when the data dir is initialised. Generating a new one does not change an existing database's password. There are no releases yet, so no install needs migrating, but rotating one later is a database operation rather than a file edit.
 
 ## E5 — Authentication
 

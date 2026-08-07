@@ -812,6 +812,10 @@ func renderFPMQuadletContent(version string) (string, error) {
 	}
 	content := strings.ReplaceAll(tmplContent, "{{.Version}}", version)
 	content = strings.ReplaceAll(content, "{{.VersionShort}}", short)
+	// 90 sorts before the shared 95 and the per-version 98, so anything an
+	// operator sets by hand still wins: conf.d loads alphabetically and the
+	// last value read applies.
+	content = strings.ReplaceAll(content, "{{.ProductionIniPath}}", config.ProductionIniFile())
 	content = strings.ReplaceAll(content, "{{.UserIniPath}}", config.PHPUserIniFile(version))
 	content = strings.ReplaceAll(content, "{{.SharedIniPath}}", config.SharedIniFile())
 	content = strings.ReplaceAll(content, "{{.HostNameLine}}", hostNameLine())

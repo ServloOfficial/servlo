@@ -15,7 +15,6 @@
   import { autostartEnabled, loadAutostart, toggleAutostart } from '$stores/autostart';
   import Toggle from '$components/Toggle.svelte';
   import SettingsCard from '$components/SettingsCard.svelte';
-  import LANServicesSetting from './LANServicesSetting.svelte';
   import LanguageSwitcher from '$components/LanguageSwitcher.svelte';
   import { apiFetch, apiBase } from '$lib/api';
   import { escapeHtml } from '$lib/html';
@@ -202,7 +201,6 @@
 
     </div>
 
-    {#if true}
     <SettingsCard>
       <div class="flex items-center justify-between mb-2">
         <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{m.system_lan_title()}</span>
@@ -249,12 +247,7 @@
       {/if}
 
       {#if $lan.error}<p class="text-xs text-red-500 mt-2">{$lan.error}</p>{/if}
-
-      <LANServicesSetting nested />
     </SettingsCard>
-    {:else}
-    <LANServicesSetting />
-    {/if}
 
     {#if !remoteCardHidden}
     <SettingsCard>

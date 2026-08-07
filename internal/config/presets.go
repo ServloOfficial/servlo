@@ -157,6 +157,7 @@ func LoadPreset(name string) (*Preset, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown preset %q", name)
 	}
+	data = substitutePassword(data)
 	if err := ValidatePresetYAML(data, name); err != nil {
 		return nil, err
 	}
