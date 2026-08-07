@@ -1090,5 +1090,14 @@
   "addsite_failed": "Impossibile aggiungere il sito.",
   "addsite_willCreate": "Questa directory non esiste ancora e verrà creata.",
   "addsite_detected": "Rilevato {framework}.",
-  "addsite_noFramework": "Nessun framework rilevato; la radice dei documenti verrà indovinata."
+  "addsite_noFramework": "Nessun framework rilevato; la radice dei documenti verrà indovinata.",
+  "addsite_sourceFolder": "Cartella esistente",
+  "addsite_sourceClone": "Clona un repository",
+  "addsite_repository": "Repository",
+  "addsite_deployKeyHint": "Servlo clona con una propria deploy key. Aggiungi la key qui sotto alle deploy key del repository, poi prova la connessione.",
+  "addsite_showDeployKey": "Mostra la deploy key",
+  "addsite_domainFirst": "Inserisci prima il dominio: la deploy key appartiene al sito.",
+  "addsite_testConnection": "Prova la connessione",
+  "addsite_testing": "Prova in corso...",
+  "addsite_testOK": "Il repository ha accettato la key."
 }

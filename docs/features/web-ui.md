@@ -113,7 +113,7 @@ Selecting a site opens the detail panel with:
 
   ![Paused site detail with the Resume placeholder](/assets/screenshots/site-detail-paused.png)
 
-- **Add site**: a CTA on the dashboard Sites widget and a **+** button next to the Sites list header open the Add Site modal. It takes the site's fully qualified domain and its directory, creates the directory if it is not there yet, prefills the PHP version and document root from what it detects in the project, and registers the site. The new site appears immediately, unsecured, with its Get SSL button waiting on DNS. See [Adding a site from the panel](/usage/sites#adding-a-site-from-the-panel).
+- **Add site**: a CTA on the dashboard Sites widget and a **+** button next to the Sites list header open the Add Site modal. It takes the site's fully qualified domain and its directory, creates the directory if it is not there yet, prefills the PHP version and document root from what it detects in the project, and registers the site. The new site appears immediately, unsecured, with its Get SSL button waiting on DNS. It also clones: pick **Clone a repository**, paste the repository URL, add servlo's generated deploy key to the repository, and test the connection before the clone runs. See [Adding a site from the panel](/usage/sites#adding-a-site-from-the-panel).
 
 - **Unlink button**: remove a site from nginx without reaching for a shell. It opens a confirmation modal naming the site, and on confirm the site is unlinked while its files stay on disk; a refused unlink reports the reason inside the modal
 - **Live PHP-FPM log**: streams FPM output for the selected site; tab switches to queue/horizon/schedule/reverb logs when those workers are running

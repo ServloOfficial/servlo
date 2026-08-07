@@ -1090,5 +1090,14 @@
   "addsite_failed": "サイトを追加できませんでした。",
   "addsite_willCreate": "このディレクトリはまだ存在しないため作成されます。",
   "addsite_detected": "{framework} を検出しました。",
-  "addsite_noFramework": "フレームワークは検出されませんでした。ドキュメントルートは推測されます。"
+  "addsite_noFramework": "フレームワークは検出されませんでした。ドキュメントルートは推測されます。",
+  "addsite_sourceFolder": "既存のフォルダー",
+  "addsite_sourceClone": "リポジトリをクローン",
+  "addsite_repository": "リポジトリ",
+  "addsite_deployKeyHint": "Servlo は専用のデプロイキーでクローンします。下のキーをリポジトリのデプロイキーに追加してから、接続をテストしてください。",
+  "addsite_showDeployKey": "デプロイキーを表示",
+  "addsite_domainFirst": "先にドメインを入力してください。デプロイキーはサイトごとに作られます。",
+  "addsite_testConnection": "接続をテスト",
+  "addsite_testing": "テスト中...",
+  "addsite_testOK": "リポジトリがキーを受け入れました。"
 }

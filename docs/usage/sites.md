@@ -320,6 +320,30 @@ The new site is not secured. Point the domain's DNS at this server, and the site
 
 A site added on an empty directory is registered and served, and serves nothing until a project is put in it. The modal says so rather than closing onto a blank page.
 
+### Cloning a repository
+
+The modal's second source clones instead of pointing at what is already there, and it is three steps rather than one because the middle one is the point.
+
+Type the domain, then press **Show deploy key**. Servlo generates an ed25519 key for that site, keeps the private half 0600 in its own data directory, and shows you the public half to paste into the repository's **Deploy keys** on GitHub, GitLab or Bitbucket. Read access is enough. Then press **Test connection**.
+
+Without that middle step a clone of a private repository fails with `Permission denied (publickey)` and nothing on screen explains that a key needed pasting anywhere. With it, every failure says what to do:
+
+| What you see | What it means |
+|---|---|
+| the host refused the key | the key is not on the repository yet, or it is on a different one |
+| authentication worked but the repository was not found | the key is on another repository, or the URL names one that is not there |
+| the host name did not resolve | a typo in the URL, or this server has no working DNS |
+| this server could not reach the host on port 22 | an outbound firewall between the droplet and the forge |
+
+Anything servlo has not seen before carries ssh's own words rather than a sentence servlo made up about a failure it does not understand.
+
+The key is per site, not per server. A compromised site hands over one repository rather than everything the account can read, and revoking a site's access is deleting one key rather than working out what else would break. Pressing **Show deploy key** twice returns the same key, so the one you already pasted stays the right one.
+
+Paste whichever URL the repository's clone menu offered: the SSH form, the HTTPS form, or `ssh://`. All three name the same repository and servlo converts to the SSH form, since that is the one a deploy key can authenticate. A URL carrying a username or token is refused; that token would end up in the site config and the audit log, and the deploy key is what replaces it.
+
+The clone goes into an empty directory. Pointing it at a directory that already holds a project is refused with that reason rather than attempted, and a clone that fails takes back the directory servlo made for it, so the retry is not blocked by a stub of its own making.
+
+
 Adding a site from the panel does not run anything the repository authored. A project declaring a host-proxy dev command has that command registered but not started: a click is consent to serve a project, not to execute code it chose, and the browser has no way to ask about that properly. Run `servlo link` from a shell in the project when you want that.
 
 ---

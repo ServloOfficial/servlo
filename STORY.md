@@ -308,8 +308,20 @@ Asking about a path is a separate request from creating a site, and a GET, so th
 
 The `/api/browse` and `/api/sites/link` routes were on the loopback-only list, which on a droplet means the add-site flow could not be reached from the panel at all. Link is deleted; browse is now what its permission says it is, admin, with a session, CSRF and an audit entry behind it. What remains on that list, databases, raw `.env`, tools, is the same question deferred to the stories that own them.
 
-**S6.2 — Add site: clone from GitHub.**
+**S6.2 — Add site: clone from GitHub.** ✅
 *Done when:* Servlo generates an SSH deploy key, displays it for pasting into the repository, verifies the connection with a test, then clones. Connection failure gives a specific reason, not a generic error. **L**
+
+Three requests rather than one, and the middle one is the story. Without the test button a clone of a private repository fails with "Permission denied (publickey)" and nothing on screen says that a key needed pasting anywhere, which is the generic error the acceptance criterion names.
+
+A deploy key servlo generates, not the operator's own key, and one per site. A key that is scoped to a repository means a compromised site hands over that repository rather than everything its owner can read, and revoking one site's access is deleting one file rather than working out what else breaks. Servlo generates it rather than asking, because the alternative is a form that asks somebody to paste a private key into a browser. The private half is 0600 next to the other credentials and never appears in a response; its own test asserts that, and the assertion caught a version that returned the path.
+
+Exit status is not how you read a connection test. GitHub answers a perfectly good deploy key with its refusal-of-shell-access banner and exits 1, so reading the code would report every working key as broken. What the host said is the answer.
+
+The five failures each get their own sentence, because each has a different fix: the key is not on the repository, the key is on a different repository, DNS, an outbound firewall, a host key that changed. Anything unanticipated carries ssh's own words, which beats a sentence servlo invented about a failure it does not know.
+
+Whichever of the three URL spellings the clone menu offered is accepted and converted to the SSH form, since refusing the https one would be correct and useless: it is the one GitHub puts first. A URL carrying a token is refused, because that token would land in the site config and the audit log, and the deploy key is what replaces it.
+
+Mutation testing earned its keep here. Four refusals in the URL parser all survived being deleted, because every test input was being caught by an earlier guard; the inputs that actually reach each one found a real hole, a repository path of `../../etc/passwd` that the character class read as a legal owner and name. And the non-empty-directory refusal survived too, because git's own failure for that case also contains the word "empty" and the assertion was matching on it. It asserts servlo's own words now, and that git never ran.
 
 **S6.3 — Add site: upload a ZIP.**
 *Done when:* the archive uploads, extracts, and the document root is detected. **M**

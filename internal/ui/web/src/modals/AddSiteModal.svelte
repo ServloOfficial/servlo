@@ -3,7 +3,15 @@
   import DetailButton from '$components/DetailButton.svelte';
   import { closeModal } from '$stores/modals';
   import { browseDir } from '$stores/browse';
-  import { inspectDirectory, addSite, type DirectoryReport } from '$stores/addsite';
+  import {
+    inspectDirectory,
+    addSite,
+    cloneSite,
+    deployKeyFor,
+    testClone,
+    type DirectoryReport,
+    type CloneTestResult
+  } from '$stores/addsite';
   import { loadSites } from '$stores/sites';
   import { goToTab } from '$stores/route';
   import { m } from '../paraglide/messages.js';
@@ -15,6 +23,16 @@
   let phpVersion = $state('');
   let publicDir = $state('');
 
+  // Two sources, one form. The fields they share are the same fields, so the
+  // clone flow is three extra controls rather than a second modal that drifts.
+  let source = $state<'folder' | 'clone'>('folder');
+  let repository = $state('');
+  let deployKey = $state('');
+  let keyLoading = $state(false);
+  let copied = $state(false);
+  let testing = $state(false);
+  let testResult = $state<CloneTestResult | null>(null);
+
   let browsing = $state(false);
   let dirs = $state<Array<{ name: string; path: string }>>([]);
   let loading = $state(false);
@@ -24,7 +42,57 @@
   let warning = $state('');
   let addedDomain = $state('');
 
-  const canSubmit = $derived(domain.trim() !== '' && path.trim() !== '' && !submitting);
+  const canSubmit = $derived(
+    domain.trim() !== '' &&
+      path.trim() !== '' &&
+      (source === 'folder' || repository.trim() !== '') &&
+      !submitting
+  );
+
+  // The key is per site, so it cannot be minted until the domain is typed.
+  async function loadDeployKey() {
+    if (!domain.trim()) {
+      error = m.addsite_domainFirst();
+      return;
+    }
+    keyLoading = true;
+    error = '';
+    try {
+      const res = await deployKeyFor(domain.trim());
+      if (res.error) {
+        error = res.error;
+        return;
+      }
+      deployKey = res.public ?? '';
+    } catch (e) {
+      error = e instanceof Error ? e.message : m.common_failed();
+    } finally {
+      keyLoading = false;
+    }
+  }
+
+  async function copyKey() {
+    try {
+      await navigator.clipboard.writeText(deployKey);
+      copied = true;
+      setTimeout(() => (copied = false), 1500);
+    } catch {
+      // Clipboard denied. The key is on screen and selectable either way.
+    }
+  }
+
+  async function runTest() {
+    testing = true;
+    testResult = null;
+    error = '';
+    try {
+      testResult = await testClone({ domain: domain.trim(), repository: repository.trim() });
+    } catch (e) {
+      testResult = { ok: false, reason: e instanceof Error ? e.message : m.common_failed() };
+    } finally {
+      testing = false;
+    }
+  }
 
   async function browse(dir: string) {
     loading = true;
@@ -70,12 +138,21 @@
     error = '';
     warning = '';
     try {
-      const res = await addSite({
-        domain: domain.trim(),
-        path: path.trim(),
-        php_version: phpVersion.trim(),
-        public_dir: publicDir.trim()
-      });
+      const res =
+        source === 'clone'
+          ? await cloneSite({
+              domain: domain.trim(),
+              path: path.trim(),
+              repository: repository.trim(),
+              php_version: phpVersion.trim(),
+              public_dir: publicDir.trim()
+            })
+          : await addSite({
+              domain: domain.trim(),
+              path: path.trim(),
+              php_version: phpVersion.trim(),
+              public_dir: publicDir.trim()
+            });
       if (!res.ok) {
         error = res.error || m.addsite_failed();
         return;
@@ -99,6 +176,22 @@
 
 <Modal open title={m.addsite_title()} onclose={closeModal}>
   <div class="px-5 py-3 space-y-3">
+    <div class="flex gap-1 p-0.5 rounded-md bg-gray-100 dark:bg-white/5" role="tablist">
+      {#each [{ id: 'folder' as const, label: m.addsite_sourceFolder() }, { id: 'clone' as const, label: m.addsite_sourceClone() }] as opt (opt.id)}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={source === opt.id}
+          onclick={() => (source = opt.id)}
+          class="flex-1 px-2.5 py-1 text-xs font-medium rounded-sm transition-colors {source === opt.id
+            ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-gray-100 shadow-xs'
+            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}"
+        >
+          {opt.label}
+        </button>
+      {/each}
+    </div>
+
     <label class="block">
       <span class="text-xs text-gray-500 dark:text-gray-400">{m.addsite_domain()}</span>
       <input
@@ -171,6 +264,66 @@
         {:else}
           {m.addsite_noFramework()}
         {/if}
+      </div>
+    {/if}
+
+    {#if source === 'clone'}
+      <label class="block">
+        <span class="text-xs text-gray-500 dark:text-gray-400">{m.addsite_repository()}</span>
+        <input
+          bind:value={repository}
+          placeholder="git@github.com:owner/repo.git"
+          autocomplete="off"
+          spellcheck="false"
+          class="mt-1 w-full px-2.5 py-1.5 text-sm font-mono rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-white/[0.03] text-gray-800 dark:text-gray-100 focus:outline-hidden focus:border-servlo-red/50"
+        />
+      </label>
+
+      <div class="rounded-md border border-gray-100 dark:border-servlo-border/60 p-3 space-y-2">
+        <p class="text-[11px] text-gray-500 dark:text-gray-400">{m.addsite_deployKeyHint()}</p>
+        {#if deployKey}
+          <div class="flex items-start gap-2">
+            <code
+              class="flex-1 min-w-0 block px-2 py-1.5 rounded-sm bg-gray-50 dark:bg-black/30 text-[11px] font-mono text-gray-700 dark:text-gray-300 break-all"
+              data-deploy-key>{deployKey}</code>
+            <button
+              type="button"
+              onclick={copyKey}
+              class="shrink-0 px-2 py-1 text-[11px] rounded-sm border border-gray-200 dark:border-servlo-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+            >
+              {copied ? m.common_copied() : m.common_copy()}
+            </button>
+          </div>
+        {:else}
+          <button
+            type="button"
+            onclick={loadDeployKey}
+            disabled={keyLoading}
+            class="px-2.5 py-1 text-xs rounded-md border border-gray-200 dark:border-servlo-border text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
+          >
+            {keyLoading ? m.common_loading() : m.addsite_showDeployKey()}
+          </button>
+        {/if}
+
+        <div class="flex items-center gap-2 pt-1">
+          <button
+            type="button"
+            onclick={runTest}
+            disabled={testing || !domain.trim() || !repository.trim()}
+            class="px-2.5 py-1 text-xs rounded-md border border-gray-200 dark:border-servlo-border text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
+          >
+            {testing ? m.addsite_testing() : m.addsite_testConnection()}
+          </button>
+          {#if testResult}
+            {#if testResult.ok}
+              <span class="text-[11px] text-emerald-600 dark:text-emerald-500" data-clone-test-ok>
+                {testResult.greeting || m.addsite_testOK()}
+              </span>
+            {:else}
+              <span class="text-[11px] text-red-500" data-clone-test-error>{testResult.reason}</span>
+            {/if}
+          {/if}
+        </div>
       </div>
     {/if}
 

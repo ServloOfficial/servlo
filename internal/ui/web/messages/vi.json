@@ -1090,5 +1090,14 @@
   "addsite_failed": "Không thể thêm trang.",
   "addsite_willCreate": "Thư mục này chưa tồn tại và sẽ được tạo.",
   "addsite_detected": "Đã phát hiện {framework}.",
-  "addsite_noFramework": "Không phát hiện framework; thư mục gốc tài liệu sẽ được đoán."
+  "addsite_noFramework": "Không phát hiện framework; thư mục gốc tài liệu sẽ được đoán.",
+  "addsite_sourceFolder": "Thư mục sẵn có",
+  "addsite_sourceClone": "Nhân bản một kho",
+  "addsite_repository": "Kho mã",
+  "addsite_deployKeyHint": "Servlo nhân bản bằng khóa triển khai riêng. Thêm khóa bên dưới vào deploy keys của kho, rồi kiểm tra kết nối.",
+  "addsite_showDeployKey": "Hiện khóa triển khai",
+  "addsite_domainFirst": "Nhập tên miền trước: khóa triển khai thuộc về trang này.",
+  "addsite_testConnection": "Kiểm tra kết nối",
+  "addsite_testing": "Đang kiểm tra...",
+  "addsite_testOK": "Kho đã chấp nhận khóa."
 }

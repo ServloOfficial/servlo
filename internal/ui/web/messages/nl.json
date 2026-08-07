@@ -1090,5 +1090,14 @@
   "addsite_failed": "De site kon niet worden toegevoegd.",
   "addsite_willCreate": "Deze map bestaat nog niet en wordt aangemaakt.",
   "addsite_detected": "{framework} gedetecteerd.",
-  "addsite_noFramework": "Geen framework gedetecteerd; de documentroot wordt geraden."
+  "addsite_noFramework": "Geen framework gedetecteerd; de documentroot wordt geraden.",
+  "addsite_sourceFolder": "Bestaande map",
+  "addsite_sourceClone": "Repository klonen",
+  "addsite_repository": "Repository",
+  "addsite_deployKeyHint": "Servlo kloont met een eigen deploy key. Voeg de key hieronder toe aan de deploy keys van de repository en test daarna de verbinding.",
+  "addsite_showDeployKey": "Deploy key tonen",
+  "addsite_domainFirst": "Vul eerst het domein in: de deploy key hoort bij de site.",
+  "addsite_testConnection": "Verbinding testen",
+  "addsite_testing": "Bezig met testen...",
+  "addsite_testOK": "De repository accepteerde de key."
 }

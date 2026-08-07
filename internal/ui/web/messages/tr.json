@@ -1090,5 +1090,14 @@
   "addsite_failed": "Site eklenemedi.",
   "addsite_willCreate": "Bu dizin henüz yok ve oluşturulacak.",
   "addsite_detected": "{framework} algılandı.",
-  "addsite_noFramework": "Framework algılanmadı; belge kökü tahmin edilecek."
+  "addsite_noFramework": "Framework algılanmadı; belge kökü tahmin edilecek.",
+  "addsite_sourceFolder": "Mevcut klasör",
+  "addsite_sourceClone": "Bir depoyu klonla",
+  "addsite_repository": "Depo",
+  "addsite_deployKeyHint": "Servlo kendi dağıtım anahtarıyla klonlar. Aşağıdaki anahtarı deponun dağıtım anahtarlarına ekleyin, sonra bağlantıyı test edin.",
+  "addsite_showDeployKey": "Dağıtım anahtarını göster",
+  "addsite_domainFirst": "Önce alan adını girin: dağıtım anahtarı siteye aittir.",
+  "addsite_testConnection": "Bağlantıyı test et",
+  "addsite_testing": "Test ediliyor...",
+  "addsite_testOK": "Depo anahtarı kabul etti."
 }

@@ -1090,5 +1090,14 @@
   "addsite_failed": "No se pudo añadir el sitio.",
   "addsite_willCreate": "Este directorio aún no existe y se creará.",
   "addsite_detected": "Se detectó {framework}.",
-  "addsite_noFramework": "No se detectó ningún framework; se adivinará la raíz de documentos."
+  "addsite_noFramework": "No se detectó ningún framework; se adivinará la raíz de documentos.",
+  "addsite_sourceFolder": "Carpeta existente",
+  "addsite_sourceClone": "Clonar un repositorio",
+  "addsite_repository": "Repositorio",
+  "addsite_deployKeyHint": "Servlo clona con su propia clave de despliegue. Añade la clave de abajo a las claves de despliegue del repositorio y luego prueba la conexión.",
+  "addsite_showDeployKey": "Mostrar clave de despliegue",
+  "addsite_domainFirst": "Introduce primero el dominio: la clave de despliegue pertenece al sitio.",
+  "addsite_testConnection": "Probar conexión",
+  "addsite_testing": "Probando...",
+  "addsite_testOK": "El repositorio aceptó la clave."
 }

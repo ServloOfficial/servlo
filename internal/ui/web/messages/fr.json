@@ -1090,5 +1090,14 @@
   "addsite_failed": "Impossible d'ajouter le site.",
   "addsite_willCreate": "Ce répertoire n'existe pas encore et sera créé.",
   "addsite_detected": "{framework} détecté.",
-  "addsite_noFramework": "Aucun framework détecté ; la racine des documents sera devinée."
+  "addsite_noFramework": "Aucun framework détecté ; la racine des documents sera devinée.",
+  "addsite_sourceFolder": "Dossier existant",
+  "addsite_sourceClone": "Cloner un dépôt",
+  "addsite_repository": "Dépôt",
+  "addsite_deployKeyHint": "Servlo clone avec sa propre clé de déploiement. Ajoutez la clé ci-dessous aux clés de déploiement du dépôt, puis testez la connexion.",
+  "addsite_showDeployKey": "Afficher la clé de déploiement",
+  "addsite_domainFirst": "Saisissez d'abord le domaine : la clé de déploiement appartient au site.",
+  "addsite_testConnection": "Tester la connexion",
+  "addsite_testing": "Test en cours...",
+  "addsite_testOK": "Le dépôt a accepté la clé."
 }

@@ -1090,5 +1090,14 @@
   "addsite_failed": "Não foi possível adicionar o site.",
   "addsite_willCreate": "Este diretório ainda não existe e será criado.",
   "addsite_detected": "{framework} detetado.",
-  "addsite_noFramework": "Nenhum framework detetado; a raiz de documentos será adivinhada."
+  "addsite_noFramework": "Nenhum framework detetado; a raiz de documentos será adivinhada.",
+  "addsite_sourceFolder": "Pasta existente",
+  "addsite_sourceClone": "Clonar um repositório",
+  "addsite_repository": "Repositório",
+  "addsite_deployKeyHint": "O Servlo clona com uma chave de implantação própria. Adicione a chave abaixo às chaves de implantação do repositório e depois teste a ligação.",
+  "addsite_showDeployKey": "Mostrar chave de implantação",
+  "addsite_domainFirst": "Introduza primeiro o domínio: a chave de implantação pertence ao site.",
+  "addsite_testConnection": "Testar ligação",
+  "addsite_testing": "A testar...",
+  "addsite_testOK": "O repositório aceitou a chave."
 }

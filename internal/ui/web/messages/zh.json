@@ -1090,5 +1090,14 @@
   "addsite_failed": "无法添加站点。",
   "addsite_willCreate": "该目录尚不存在，将被创建。",
   "addsite_detected": "检测到 {framework}。",
-  "addsite_noFramework": "未检测到框架；将猜测文档根目录。"
+  "addsite_noFramework": "未检测到框架；将猜测文档根目录。",
+  "addsite_sourceFolder": "已有目录",
+  "addsite_sourceClone": "克隆仓库",
+  "addsite_repository": "仓库",
+  "addsite_deployKeyHint": "Servlo 使用自己的部署密钥克隆。请将下面的密钥添加到仓库的 Deploy keys 中，然后测试连接。",
+  "addsite_showDeployKey": "显示部署密钥",
+  "addsite_domainFirst": "请先填写域名：部署密钥属于该站点。",
+  "addsite_testConnection": "测试连接",
+  "addsite_testing": "测试中...",
+  "addsite_testOK": "仓库已接受该密钥。"
 }

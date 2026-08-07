@@ -1090,5 +1090,14 @@
   "addsite_failed": "Nie udało się dodać witryny.",
   "addsite_willCreate": "Ten katalog jeszcze nie istnieje i zostanie utworzony.",
   "addsite_detected": "Wykryto {framework}.",
-  "addsite_noFramework": "Nie wykryto frameworka; katalog dokumentów zostanie odgadnięty."
+  "addsite_noFramework": "Nie wykryto frameworka; katalog dokumentów zostanie odgadnięty.",
+  "addsite_sourceFolder": "Istniejący katalog",
+  "addsite_sourceClone": "Sklonuj repozytorium",
+  "addsite_repository": "Repozytorium",
+  "addsite_deployKeyHint": "Servlo klonuje własnym kluczem wdrożeniowym. Dodaj poniższy klucz do kluczy wdrożeniowych repozytorium, a potem przetestuj połączenie.",
+  "addsite_showDeployKey": "Pokaż klucz wdrożeniowy",
+  "addsite_domainFirst": "Najpierw wpisz domenę: klucz wdrożeniowy należy do witryny.",
+  "addsite_testConnection": "Testuj połączenie",
+  "addsite_testing": "Testowanie...",
+  "addsite_testOK": "Repozytorium zaakceptowało klucz."
 }

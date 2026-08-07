@@ -1090,5 +1090,14 @@
   "addsite_failed": "Die Site konnte nicht hinzugefügt werden.",
   "addsite_willCreate": "Dieses Verzeichnis existiert noch nicht und wird angelegt.",
   "addsite_detected": "{framework} erkannt.",
-  "addsite_noFramework": "Kein Framework erkannt; die Dokumentwurzel wird geraten."
+  "addsite_noFramework": "Kein Framework erkannt; die Dokumentwurzel wird geraten.",
+  "addsite_sourceFolder": "Vorhandener Ordner",
+  "addsite_sourceClone": "Repository klonen",
+  "addsite_repository": "Repository",
+  "addsite_deployKeyHint": "Servlo klont mit einem eigenen Deploy-Key. Füge den Key unten zu den Deploy-Keys des Repositories hinzu und teste dann die Verbindung.",
+  "addsite_showDeployKey": "Deploy-Key anzeigen",
+  "addsite_domainFirst": "Gib zuerst die Domain ein: der Deploy-Key gehört zur Site.",
+  "addsite_testConnection": "Verbindung testen",
+  "addsite_testing": "Wird getestet...",
+  "addsite_testOK": "Das Repository hat den Key akzeptiert."
 }

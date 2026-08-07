@@ -1090,5 +1090,14 @@
   "addsite_failed": "Could not add the site.",
   "addsite_willCreate": "This directory does not exist yet and will be created.",
   "addsite_detected": "Detected {framework}.",
-  "addsite_noFramework": "No framework detected; the document root will be guessed."
+  "addsite_noFramework": "No framework detected; the document root will be guessed.",
+  "addsite_sourceFolder": "Existing folder",
+  "addsite_sourceClone": "Clone a repository",
+  "addsite_repository": "Repository",
+  "addsite_deployKeyHint": "Servlo clones with a deploy key of its own. Add the key below to the repository's deploy keys, then test the connection.",
+  "addsite_showDeployKey": "Show deploy key",
+  "addsite_domainFirst": "Enter the domain first: the deploy key belongs to the site.",
+  "addsite_testConnection": "Test connection",
+  "addsite_testing": "Testing...",
+  "addsite_testOK": "The repository accepted the key."
 }

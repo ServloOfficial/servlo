@@ -1090,5 +1090,14 @@
   "addsite_failed": "Situs tidak dapat ditambahkan.",
   "addsite_willCreate": "Direktori ini belum ada dan akan dibuat.",
   "addsite_detected": "{framework} terdeteksi.",
-  "addsite_noFramework": "Tidak ada framework terdeteksi; root dokumen akan ditebak."
+  "addsite_noFramework": "Tidak ada framework terdeteksi; root dokumen akan ditebak.",
+  "addsite_sourceFolder": "Folder yang ada",
+  "addsite_sourceClone": "Klon repositori",
+  "addsite_repository": "Repositori",
+  "addsite_deployKeyHint": "Servlo mengklon dengan deploy key miliknya sendiri. Tambahkan key di bawah ke deploy keys repositori, lalu uji koneksinya.",
+  "addsite_showDeployKey": "Tampilkan deploy key",
+  "addsite_domainFirst": "Masukkan domain dulu: deploy key milik situs ini.",
+  "addsite_testConnection": "Uji koneksi",
+  "addsite_testing": "Menguji...",
+  "addsite_testOK": "Repositori menerima key tersebut."
 }

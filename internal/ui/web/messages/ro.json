@@ -1090,5 +1090,14 @@
   "addsite_failed": "Site-ul nu a putut fi adăugat.",
   "addsite_willCreate": "Acest director nu există încă și va fi creat.",
   "addsite_detected": "S-a detectat {framework}.",
-  "addsite_noFramework": "Niciun framework detectat; rădăcina documentelor va fi ghicită."
+  "addsite_noFramework": "Niciun framework detectat; rădăcina documentelor va fi ghicită.",
+  "addsite_sourceFolder": "Director existent",
+  "addsite_sourceClone": "Clonează un repository",
+  "addsite_repository": "Repository",
+  "addsite_deployKeyHint": "Servlo clonează cu o cheie de deploy proprie. Adaugă cheia de mai jos la cheile de deploy ale repository-ului, apoi testează conexiunea.",
+  "addsite_showDeployKey": "Arată cheia de deploy",
+  "addsite_domainFirst": "Introdu mai întâi domeniul: cheia de deploy aparține site-ului.",
+  "addsite_testConnection": "Testează conexiunea",
+  "addsite_testing": "Se testează...",
+  "addsite_testOK": "Repository-ul a acceptat cheia."
 }
