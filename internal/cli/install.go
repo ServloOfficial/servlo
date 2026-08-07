@@ -50,8 +50,6 @@ func NewInstallCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool("no-ipv6", false,
 		"Force the servlo network to v4-only even if the host supports IPv6 (also: SERVLO_DISABLE_IPV6=1)")
-	cmd.Flags().String("dns", "",
-		"Preselect the DNS mode and skip the prompt: 'managed' (.test + HTTPS) or 'localhost' (.localhost, plain HTTP)")
 	cmd.Flags().Bool("from-update", false, "")
 	_ = cmd.Flags().MarkHidden("from-update")
 	cmd.Flags().Bool("unattended", false,
@@ -152,11 +150,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 
 	ensurePortsAvailable()
-
-	// Resolved before the root pass below, which needs to know whether to
-	// install the resolver sudoers grant. The side effects of a changed answer
-	// (TLD rename, persistence) stay further down, once the directories and
-	// network this run depends on exist.
 
 	// Skipped under --unattended: this escalates to root, which a package
 	// maintainer script cannot answer for. `servlo bootstrap --system` already
@@ -1320,72 +1313,6 @@ func detectNvm() bool {
 // RunParallel invocation, which leaves a goroutine reading from os.Stdin.
 func confirmInstallPrompt(question string) bool {
 	return confirmInstallPromptDefault(question, true)
-}
-
-// parseDNSMode maps the --dns flag to a wantDNS bool. It lets the installer
-// script ask the .test/.localhost question up front (so it can skip the
-// HTTPS-only prerequisites for localhost mode) and hand the answer to
-// `servlo install` instead of prompting twice. An empty or unrecognised value
-// returns ok=false so the caller falls back to the interactive prompt.
-func parseDNSMode(flag string) (enabled bool, ok bool) {
-	switch strings.ToLower(strings.TrimSpace(flag)) {
-	case "managed", "enabled", "test", "on", "yes", "true":
-		return true, true
-	case "localhost", "disabled", "off", "no", "false":
-		return false, true
-	default:
-		return false, false
-	}
-}
-
-// dnsManageDecision resolves whether servlo should manage DNS for this install
-// run, and whether the question must be asked. The choice is asked once and then
-// remembered: the --dns flag always wins, an update honours the saved choice
-// silently, and any run over an existing config honours the saved choice without
-// re-prompting. Only a genuine first install (no config file yet) asks, and it
-// defaults to managed. After that the mode is flipped with dns:enable /
-// dns:disable, not by re-running the installer. When needPrompt is true the
-// caller runs the prompt and overrides want with the answer.
-func dnsManageDecision(fromUpdate, configExisted bool, flag *bool, savedEnabled bool) (want, needPrompt bool) {
-	if flag != nil {
-		return *flag, false
-	}
-	if fromUpdate || configExisted {
-		return savedEnabled, false
-	}
-	return true, true
-}
-
-// resolveDNSChoice decides whether servlo manages local DNS for this run, and
-// prompts when the answer is not already settled. It runs early because the
-// answer decides whether the root pass installs the resolver sudoers grant.
-// haveConfig is false when the config could not be read, in which case the
-// caller skips the TLD and persistence side effects and proceeds with DNS on.
-func resolveDNSChoice(fromUpdate, configExisted bool, dnsFlag string) (want, haveConfig, prevEnabled bool, prevTLD string) {
-	cfg, err := config.LoadGlobal()
-	if err != nil || cfg == nil {
-		if err != nil {
-			fmt.Printf("    WARN: load config (%v); proceeding with DNS enabled\n", err)
-		}
-		return true, false, true, "test"
-	}
-	prevEnabled = cfg.DNS.Enabled
-	prevTLD = "test"
-	if cfg.DNS.TLD != "" {
-		prevTLD = cfg.DNS.TLD
-	}
-	var flagDNS *bool
-	if v, ok := parseDNSMode(dnsFlag); ok {
-		flagDNS = &v
-	}
-	want, needPrompt := dnsManageDecision(fromUpdate, configExisted, flagDNS, prevEnabled)
-	if needPrompt {
-		want = confirmInstallPromptDefault(
-			"Let servlo manage DNS for local sites (No: use *.localhost, no dnsmasq, no HTTPS)?",
-			true,
-		)
-	}
-	return want, true, prevEnabled, prevTLD
 }
 
 // confirmInstallPromptDefault is like confirmInstallPrompt but lets the caller

@@ -17,36 +17,36 @@ Companion to `PRD.md` v1.1. Sizes: **S** ≤ 1 day, **M** ≤ 3 days, **L** ≤ 
 # PHASE 0 — Fork and strip
 *Goal: a clean, minimal, Ubuntu-only Servlo binary with nothing dangerous left in it.*
 
-**S0.1 — Rename to Servlo.**
+**S0.1 — Rename to Servlo.** ✅
 Binary `servlo`; systemd unit prefix `servlo-` (`servlo-nginx`, `servlo-php84-fpm`, `servlo-panel`, `servlo-watcher`, `servlo-queue-<site>`); config at `~/.config/servlo/`; data at `~/.local/share/servlo/`; the Go module path becomes `github.com/realrashid/servlo`; the stale root `mkdocs.yml` is deleted, the docs site is VitePress under `docs/`.
 *Done when:* no "lerd" string appears in user-facing output, unit names, paths or docs; the upstream MIT copyright notice is retained in `LICENSE`; the README states the fork relationship and links upstream. **M**
 
-**S0.2 — Server-only build.**
+**S0.2 — Server-only build.** ✅
 *Done when:* `make build-server` produces a CGO-free `servlo` binary; `cmd/lerd-tray` is **deleted outright**, along with desktop notifications and every macOS and WSL2 code path, and the `nogui` build tag goes with them; amd64 and arm64 both build.
 Deleted, not build-tagged. A tray excluded by a tag is still in the tree and still one tag away from shipping, which is exactly what CLAUDE.md 3.1 forbids and what the surface scan asserts against. **S**
 
-**S0.3 — Ubuntu-only platform gate.**
+**S0.3 — Ubuntu-only platform gate.** ✅
 *Done when:* distro detection collapses to Ubuntu; the installer refuses other distributions, and refuses Ubuntu 22.04 when Podman is below 4.5 while printing the upgrade path rather than half-installing. **M**
 
-**S0.4 — Delete the MCP server.**
+**S0.4 — Delete the MCP server.** ✅
 *Done when:* the MCP package, all `mcp:*` commands and MCP documentation are removed; the surface scan asserts no MCP symbols remain. **M**
 
-**S0.5 — Delete the code-execution surfaces.**
+**S0.5 — Delete the code-execution surfaces.** ✅
 Tinker REPL, container shell, SPX profiler, dump bridge, Xdebug toggles, browser `php.ini` editing.
 *Done when:* all are removed from Go and the Svelte UI, **including the dump bridge's `auto_prepend` mount inside every generated PHP-FPM unit** — verified by inspecting a generated unit file, not by checking a runtime flag. **L**
 
-**S0.6 — Delete local-development site features.**
+**S0.6 — Delete local-development site features.** ✅
 *Done when:* git worktrees, idle-suspend, LAN sharing and tunnel sharing are gone. **L**
 
-**S0.7 — Reject inline service definitions from the project config file.**
+**S0.7 — Reject inline service definitions from the project config file.** ✅
 *Done when:* a project declaring an inline service is linked without it and the operator is told why; only reviewed store presets can run a container. **S**
 
-**S0.8 — Bring the stores in-repo, and solve serving them.**
+**S0.8 — Bring the stores in-repo, and solve serving them.** ✅
 *Done when:* `stores/frameworks/`, `stores/services/` and `stores/apps/` exist in this repository, mirroring upstream's subdir layout so `internal/origin/origin.go` needs only new base URLs; versions are pinned in config; definitions are verified before use; the promotion process is documented. **L**
 The serving question is settled by embedding: `stores/stores.go` compiles the whole tree into the binary, so a fresh install never depends on the repository being reachable or public, and the fetch is the update path rather than the only way in.
 Verification is by sha256 digests recorded in each index, not by signature. A signature is worth what the key ceremony behind it is, and a key committed to this repository would sign nothing; digests catch a definition changed independently of the index, which is the case a mirror or a `SERVLO_STORE_BASE_URL` override creates, and `verifyDigest` is the seam a signature check would slot into if the project ever holds a key.
 
-**S0.9 — CI on Ubuntu 24.04.**
+**S0.9 — CI on Ubuntu 24.04.** ✅
 *Done when:* build, unit tests, installer tests and the surface scan all run on a real 24.04 VM rather than a container. **M**
 
 ---
@@ -56,10 +56,10 @@ Verification is by sha256 digests recorded in each index, not by signature. A si
 
 ## E1 — Server foundation
 
-**S1.1 — Installer preflight.**
+**S1.1 — Installer preflight.** ✅
 *Done when:* Ubuntu version, Podman ≥ 4.5, crun, cgroup v2 and linger are all verified; anything unmet refuses cleanly with a specific message rather than half-installing. **M**
 
-**S1.2 — Port binding.**
+**S1.2 — Port binding.** ✅
 *Done when:* the installer applies `net.ipv4.ip_unprivileged_port_start=0`, falls back to nftables DNAT 80→8080 / 443→8443 persisted across reboot, records the choice in config, and prints the sudo command rather than running it. **M**
 
 **S1.3 — Automatic server basics.** ✅
@@ -71,15 +71,19 @@ Swap is doubled below 2GB, matches RAM to 8GB and caps there. A machine that alr
 
 Commands are stored without sudo and gain it only when printed, so what bootstrap runs as root is exactly the operation an operator was shown. The same Plan/Satisfied/Commands shape as `internal/ports`, so every privileged step is reported and repaired the same way.
 
-**S1.4 — Health verification of the port strategy.**
+**S1.4 — Health verification of the port strategy.** ✅
 *Done when:* `servlo doctor` confirms the strategy still holds on every run and specifically after a reboot. **S**
 
 ## E2 — Real domains
 
-**S2.1 — Remove the `.test` DNS stack.**
+**S2.1 — Remove the `.test` DNS stack.** ✅
 *Done when:* the dnsmasq container, its config, the host resolver mutation, the sudoers rule and `.localhost` mode are all gone; a test asserts no host resolver file is ever written. **L**
 
-**S2.2 — Sites registered on real FQDNs.**
+Reopened once, in the session that finished E6. The installer still carried a `--dns` flag, a prompt offering to "manage DNS for local sites (No: use *.localhost, no dnsmasq, no HTTPS)", and the three helpers behind it, none of them reachable from anything.
+
+The surface scan should have caught that on the day it was written, and the reason it did not is worth more than the leftover code. `Allow` exempts a file from a whole *rule*, not from one *pattern*. The panel's own hostname is `servlo.localhost`, so `internal/cli/install.go` sat on the allowlist for `\.localhost` and was thereby exempt from `\bdnsmasq\b` as well. A gate that exists to catch exactly this said nothing for a phase and a half. The rule is two rules now, one per thing being excused, and the narrow one catches install.go the moment `dnsmasq` reappears there.
+
+**S2.2 — Sites registered on real FQDNs.** ✅
 *Done when:* site creation takes a full domain; the registry, vhost, `APP_URL` and certificate SANs all use it; no TLD is ever appended. **M**
 
 ## E3 — Certificates
@@ -354,8 +358,32 @@ Chasing that turned up the ordering it was hiding. The overrides were checked af
 
 One papercut in the modal while it grew a third source: switching source left the previous one's error on screen, where it described something the operator was no longer doing.
 
-**S6.4 — Add site: app installer.**
+**S6.4 — Add site: app installer.** (engine, definition, setup and install done; panel wiring blocked on S11.4)
 *Done when:* a fresh WordPress installs in one click — database created, `wp-config.php` written, admin account set up. The app is defined as **store YAML with no Go code specific to it**, so further apps need no release. **L**
+
+The store had a directory and an empty index and nothing else, so this is the engine as well as the first definition. Split because the criterion has two halves that fail differently: fetching, verifying and configuring is one shape of work, and driving an application's own setup flow to create an admin account is another. This is the first half.
+
+Verification is the part worth being strict about. The definition pins a version and a sha256, and both are refused at parse time rather than at install time; a source URL that is not https is refused too, because the checksum only helps if the definition carrying it arrived intact. Nothing is written into the site until the whole download has been read and its checksum has matched, which is why the release is held in memory rather than streamed to disk. The archive is a zip so it goes through the extractor S6.3 hardened, rather than a second unpacker with its own oversights.
+
+The wrapper directory is named in the definition rather than inferred. Inference is right for an operator's upload, where servlo has no idea what is in the archive; for a pinned release, a version that stops shipping a wrapper should fail loudly rather than quietly install a directory deeper than the vhost expects.
+
+Salts are the case that proves the law. WordPress wants eight independent keys, and the engine knows only that a definition asked for eight named random values of a given length. The alphabet they are drawn from excludes quotes, backslashes and newlines, because the values are substituted into a config file the application then executes, and generating a value the renderer would refuse is a bug waiting for a one-in-a-hundred install to find it.
+
+The checksum was cross-checked against the SHA-1 wordpress.org publishes beside the release, so it is verified against upstream rather than computed from a single download and trusted.
+
+Best thing in this story is the law test. The skill for this store says plainly that the surface scan does not catch "no app name in Go" and that review does, which is a person remembering rather than a mechanism. There is a mechanism now: every app the store ships is looked for in every Go file in the package. Its first version used word boundaries and a mutation proved that useless, since `_` is a word character and `wordpress_config` is exactly the shape the law forbids. It matches anywhere now, and it immediately caught two things I had written myself, a test fixture named for the app and a framework field carrying a real framework name.
+
+The admin account is the application's own installer, driven once over HTTP. Writing WordPress's user table from Go would be app-specific and wrong the first time that schema changes, so the definition describes the form: where it posts, what goes in it, and what the answer has to say. The path must be site-relative, because that request carries an admin password generated seconds earlier and a definition able to name a host would be choosing where to send it. A response has to say it worked, or a setup that silently did not happen leaves an uninstalled application on a live domain for the first passer-by to claim. A failure reports what the application said with every value servlo put into the request removed from it, since an application echoing its own form back into an error page is not hypothetical.
+
+A second guard there looked prudent and was unreachable: once the path starts with a single slash, Go's parser keeps the host as the site's whatever the path spells, backslashes and encoded slashes included. A mutation showed it by surviving, and it is gone rather than shipped as a branch no test can reach.
+
+The install order is the design. Each step is undoable only by the step that has not happened yet, so the expensive and fallible parts run first: fetch and verify, then the database, then the config file. A release that fails its checksum therefore leaves no orphaned database behind, and that has its own test rather than being left as a property of the reading order. Registering the site and driving the setup form come last, because those are the two that need the site to be servable, and splitting there keeps the install function honest about what it can promise.
+
+A database is a Connection rather than an assumption about a local container, so an app installed against an external managed database goes down the same path (PRD §5.9). An app declaring it needs one and given no way to make it is refused rather than quietly writing a config file pointing at nothing.
+
+The panel wiring stops here, and writing it is what showed why. `serviceops` can create a database and nothing else: there is no per-site user with a password, because that is S11.4. So the install handler had a connection carrying a name and a host and an empty password, and the renderer accepted it, and the config file would have gone to disk with `DB_PASSWORD` blank. Either the site cannot connect, or it connects as whoever needs no password.
+
+The renderer refuses a blank credential now, which turns that from a live site with an empty password into a refusal at the point of writing. The handler itself is not in the tree: an app install that cannot give the app a database it can reach is not an app install, and shipping the route with the hole in it would have been the third silent-wrong-value bug of the session. S6.4 finishes when S11.4 does.
 
 ## E7 — Site settings
 

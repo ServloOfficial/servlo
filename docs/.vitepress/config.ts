@@ -173,6 +173,7 @@ export default defineConfig({
             { text: 'Framework Workers', link: '/usage/framework-workers' },
             { text: 'Framework Commands', link: '/features/commands' },
             { text: 'Framework Definitions', link: '/usage/framework-definitions' },
+            { text: 'App Definitions', link: '/usage/app-definitions' },
             { text: 'Queue Workers', link: '/usage/queue-workers' },
             { text: 'Healing Failed Workers', link: '/usage/worker-heal' },
           ],

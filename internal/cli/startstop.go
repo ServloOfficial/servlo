@@ -624,10 +624,9 @@ func runStart(_ *cobra.Command, _ []string) error {
 		fmt.Printf("  WARN: browser hosts file: %v\n", err)
 	}
 
-	// Sync the pasta DNS proxy (169.254.1.1) as the aardvark-dns upstream for the servlo
-	// network. This address chains through systemd-resolved, which resolves both .test
-	// domains (via servlo-dns) and internet domains. Using 169.254.1.1 instead of the
-	// host's real upstream avoids NXDOMAIN for .test while retaining internet access.
+	// Sync the pasta DNS proxy (169.254.1.1) as the aardvark-dns upstream for the
+	// servlo network, so a container resolving a public name reaches the host's
+	// resolver rather than an address that means nothing inside the netns.
 	if err := podman.EnsureNetworkDNS("servlo", podman.ContainerDNS()); err != nil {
 		fmt.Printf("  WARN: network DNS: %v\n", err)
 	}

@@ -145,24 +145,38 @@ func Rules() []Rule {
 		// to serve anything in between. Mailpit below is still pending, waiting
 		// on the per-site SMTP settings that replace it.
 		{
+			// Split from the rule below, and the split is the point.
+			//
+			// Allow exempts a file from a whole rule, not from one pattern. The
+			// panel's own hostname is servlo.localhost, so install.go sat on the
+			// allowlist for `.localhost` and was thereby exempt from `dnsmasq`
+			// too. It kept a prompt offering to manage DNS for local sites, and
+			// the gate that exists to catch exactly that said nothing for a
+			// phase and a half. One allowlist per thing being excused.
+			Feature: ".localhost site mode", Story: "S2.1", Enforced: true,
+			Patterns: []string{`\.localhost\b`},
+			// servlo.localhost is not the deleted .localhost site mode: RFC 6761
+			// makes it resolve to loopback with no DNS at all, which is why the
+			// dashboard uses it.
+			Allow: append(append(append([]string{}, specs...), panelVhostFiles...),
+				"install.sh", "tests/installer/installer.bats",
+			),
+		},
+		{
 			Feature: ".test domains and host resolver mutation", Story: "S2.1", Enforced: true,
 			// The resolver paths are the story's own acceptance criterion: a test
 			// asserting no host resolver file is ever written. Naming the paths
 			// catches a rewrite that reaches for them under any other name.
 			Patterns: []string{
-				`\bdnsmasq\b`, `\.localhost\b`, `dns:repair`, `\bsudoers\b`,
+				`\bdnsmasq\b`, `dns:repair`, `\bsudoers\b`,
 				`/etc/resolv\.conf`, `NetworkManager/conf\.d`, `resolved\.conf\.d`, `/etc/resolver`,
 				`\bresolvectl\b`, `\bsystemd-resolved\b`,
 			},
-			// The panel's own vhost is servlo.localhost, which is not the deleted
-			// .localhost site mode: RFC 6761 makes it resolve to loopback with no
-			// DNS at all, which is why the dashboard uses it. Where the panel
-			// lives on a real server is Phase 2's question, not this story's.
 			// install.sh and its tests keep the teardown for the root-owned files
 			// an older servlo wrote, including a passwordless sudoers grant. They
 			// name those paths to remove them, never to create them, and dropping
 			// the teardown would strand that grant on every upgraded machine.
-			Allow: append(append(append([]string{}, specs...), panelVhostFiles...),
+			Allow: append(append([]string{}, specs...),
 				"install.sh", "tests/installer/installer.bats",
 			),
 		},

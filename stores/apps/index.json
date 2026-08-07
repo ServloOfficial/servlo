@@ -1,3 +1,11 @@
 {
-  "apps": []
+  "apps": [
+    {
+      "name": "wordpress",
+      "label": "WordPress",
+      "description": "The content manager most of the web runs on.",
+      "framework": "wordpress",
+      "version": "7.0.3"
+    }
+  ]
 }

@@ -34,6 +34,17 @@ type UnzipOptions struct {
 	MaxBytes int64
 	// MaxFiles is the most entries it may contain.
 	MaxFiles int
+	// StripPrefix names the single top-level directory to remove, for a caller
+	// that knows what the archive is. Empty means infer it: strip the only
+	// top-level directory when there is exactly one, and otherwise strip
+	// nothing.
+	//
+	// The difference matters for a pinned release. Inference is right for an
+	// operator's upload, where servlo has no idea what is in the archive. For a
+	// definition that names the wrapper, a release that stops shipping one
+	// should fail loudly rather than quietly install a directory deeper than
+	// the vhost expects.
+	StripPrefix string
 }
 
 // UnzipResult describes what was extracted.
@@ -124,6 +135,7 @@ func Unzip(r io.ReaderAt, size int64, dir string, opts UnzipOptions) (UnzipResul
 // Validating the whole archive first is what makes the refusal clean: an entry
 // that escapes is found before anything has been written, not halfway through.
 func planEntries(zr *zip.Reader, opts UnzipOptions) (string, error) {
+	want := strings.TrimSuffix(opts.StripPrefix, "/")
 	var declared int64
 	tops := map[string]bool{}
 	sawFileAtRoot := false
@@ -161,6 +173,14 @@ func planEntries(zr *zip.Reader, opts UnzipOptions) (string, error) {
 				sawFileAtRoot = true
 			}
 		}
+	}
+
+	// A caller that named the wrapper gets it checked rather than inferred.
+	if want != "" {
+		if !tops[want] || sawFileAtRoot {
+			return "", fmt.Errorf("the archive does not hold everything inside %q, so servlo will not strip it", want)
+		}
+		return want + "/", nil
 	}
 
 	// "Download ZIP" wraps everything in one directory named for the repository

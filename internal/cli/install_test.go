@@ -757,37 +757,6 @@ func TestPromptSource_PipedStdinFallsBackToTTY(t *testing.T) {
 	}
 }
 
-func TestParseDNSMode(t *testing.T) {
-	cases := []struct {
-		in          string
-		wantEnabled bool
-		wantOK      bool
-	}{
-		{"managed", true, true},
-		{"enabled", true, true},
-		{"test", true, true},
-		{"  TEST  ", true, true},
-		{"localhost", false, true},
-		{"disabled", false, true},
-		{"off", false, true},
-		{"LocalHost", false, true},
-		{"", false, false},
-		{"bogus", false, false},
-	}
-	for _, c := range cases {
-		gotEnabled, gotOK := parseDNSMode(c.in)
-		if gotEnabled != c.wantEnabled || gotOK != c.wantOK {
-			t.Errorf("parseDNSMode(%q) = (%v, %v), want (%v, %v)",
-				c.in, gotEnabled, gotOK, c.wantEnabled, c.wantOK)
-		}
-	}
-}
-
-// TestMergeMigrationRestarts_keepsHealTornDownContainers guards the install
-// regression where a run that triggered both the podman-upgrade heal and a
-// network migration overwrote the heal-torn-down container list with the
-// migration's, leaving those services stopped. The merge must keep both sets,
-// de-duplicated.
 func TestMergeMigrationRestarts_keepsHealTornDownContainers(t *testing.T) {
 	healed := []string{"servlo-mysql", "servlo-redis"}
 	recreated := []string{"servlo-redis", "servlo-postgres"}

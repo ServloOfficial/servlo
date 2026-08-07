@@ -1,0 +1,127 @@
+name: wordpress
+label: WordPress
+description: >-
+  The content manager most of the web runs on. Installs with its own database,
+  a generated admin account, and a real system cron in place of WP's
+  request-driven pseudo-cron.
+
+# Detection, the deploy template, the worker set, the doctor checks and the
+# WordPress exclude list all come from stores/frameworks/wordpress. An app says
+# which framework it is, and stops there rather than restating any of it.
+framework: wordpress
+
+source:
+  # Pinned, never "latest". An installer that fetches whatever is current
+  # installs a different thing every week and cannot be verified at all.
+  #
+  # The zip rather than the tarball, so the release goes through the same
+  # hardened extractor an operator's own upload does.
+  version: "7.0.3"
+  url: https://downloads.wordpress.org/release/wordpress-7.0.3.zip
+  # Cross-checked against the SHA-1 wordpress.org publishes beside the release
+  # (ccfd5109f9f87d7639a874e19bcac717b6ad1795), so this is verified against
+  # upstream rather than computed from one download and trusted.
+  sha256: 01c5afff226dbafe548f1138c016039d20e7337fd23f1b28b55f5a3f3fbff1aa
+  # The archive wraps everything in wordpress/. Named rather than inferred: if a
+  # future release stops shipping the wrapper, the install should fail loudly
+  # rather than quietly put the document root one level too deep.
+  strip_prefix: wordpress
+
+# WordPress wants eight independent keys. The engine knows only that a
+# definition asked for eight named random values of that length.
+secrets:
+  - name: salt_auth_key
+    length: 64
+  - name: salt_secure_auth_key
+    length: 64
+  - name: salt_logged_in_key
+    length: 64
+  - name: salt_nonce_key
+    length: 64
+  - name: salt_auth_salt
+    length: 64
+  - name: salt_secure_auth_salt
+    length: 64
+  - name: salt_logged_in_salt
+    length: 64
+  - name: salt_nonce_salt
+    length: 64
+
+database:
+  required: true
+  charset: utf8mb4
+
+config_file:
+  path: wp-config.php
+  # It holds the database password and the auth salts, and every site on this
+  # machine runs as the same user. 0600 is the least this can be.
+  mode: "0600"
+  template: |
+    <?php
+    /**
+     * Written by servlo when this site was created. Safe to edit: servlo does
+     * not rewrite it, and a deploy does not replace it.
+     */
+
+    define( 'DB_NAME', '{{db_name}}' );
+    define( 'DB_USER', '{{db_user}}' );
+    define( 'DB_PASSWORD', '{{db_password}}' );
+    define( 'DB_HOST', '{{db_host}}' );
+    define( 'DB_CHARSET', 'utf8mb4' );
+    define( 'DB_COLLATE', '' );
+
+    define( 'AUTH_KEY',         '{{salt_auth_key}}' );
+    define( 'SECURE_AUTH_KEY',  '{{salt_secure_auth_key}}' );
+    define( 'LOGGED_IN_KEY',    '{{salt_logged_in_key}}' );
+    define( 'NONCE_KEY',        '{{salt_nonce_key}}' );
+    define( 'AUTH_SALT',        '{{salt_auth_salt}}' );
+    define( 'SECURE_AUTH_SALT', '{{salt_secure_auth_salt}}' );
+    define( 'LOGGED_IN_SALT',   '{{salt_logged_in_salt}}' );
+    define( 'NONCE_SALT',       '{{salt_nonce_salt}}' );
+
+    $table_prefix = 'wp_';
+
+    // Production defaults, matching what servlo sets everywhere else: nothing
+    // that would print a stack trace to a visitor.
+    define( 'WP_DEBUG', false );
+    define( 'WP_DEBUG_DISPLAY', false );
+
+    // The site is served over its own domain, and telling WordPress so up front
+    // stops it guessing from the request and writing a wrong URL into options.
+    define( 'WP_HOME', '{{site_url}}' );
+    define( 'WP_SITEURL', '{{site_url}}' );
+
+    // Servlo installs a real one-minute system cron for this site, so WP's
+    // pseudo-cron, which only fires when somebody happens to visit, is off.
+    define( 'DISABLE_WP_CRON', true );
+
+    // Updates and plugin installs go through servlo's deploy, not through the
+    // browser writing to the document root a visitor can reach.
+    define( 'DISALLOW_FILE_EDIT', true );
+
+    if ( ! defined( 'ABSPATH' ) ) {
+      define( 'ABSPATH', __DIR__ . '/' );
+    }
+
+    require_once ABSPATH . 'wp-settings.php';
+
+# The application's own installer, driven once over HTTP against the site
+# servlo just created. Reimplementing it would mean writing WordPress's user
+# table from Go, which is app-specific and wrong the first time that schema
+# changes.
+#
+# The path is site-relative and servlo refuses anything else: this request
+# carries an admin password generated seconds earlier.
+setup:
+  path: /wp-admin/install.php?step=2
+  success_contains: "Success"
+  fields:
+    weblog_title: "{{site_title}}"
+    user_name: "{{admin_user}}"
+    admin_password: "{{admin_password}}"
+    admin_password2: "{{admin_password}}"
+    admin_email: "{{admin_email}}"
+    # WordPress refuses a generated password as "weak" without this, and
+    # servlo's generated passwords are not weak.
+    pw_weak: "1"
+    language: ""
