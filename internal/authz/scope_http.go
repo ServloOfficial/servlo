@@ -18,24 +18,6 @@ import (
 
 type ctxKeyScope struct{}
 
-// developerPaths are the routes a Developer may reach that name no site: their
-// own session and account, and the read-only overviews the panel needs to
-// render at all. The list route returns their sites; filtering is the
-// handler's job, and refusing it outright would leave them looking at an error
-// page instead of their own work.
-var developerPaths = map[string]bool{
-	"/api/status":            true,
-	"/api/sites":             true,
-	"/api/ws":                true,
-	"/api/version":           true,
-	"/api/auth/session":      true,
-	"/api/auth/logout":       true,
-	"/api/auth/totp/enrol":   true,
-	"/api/auth/totp/confirm": true,
-	"/api/auth/totp/disable": true,
-	"/api/auth/totp/qr":      true,
-}
-
 // ScopeFrom returns the authority a request was granted.
 func ScopeFrom(ctx context.Context) (Scope, bool) {
 	scope, ok := ctx.Value(ctxKeyScope{}).(Scope)
@@ -72,6 +54,10 @@ func (g *Guard) scopeFor(user string) Scope {
 }
 
 // allows reports whether this scope may reach a path.
+//
+// It reads the permission registry rather than a second list of its own. Two
+// lists is how they drift, and the one that drifts is always the one doing the
+// enforcing.
 func (s Scope) allows(path string) bool {
 	if s.MayAdminister() {
 		return true
@@ -79,21 +65,37 @@ func (s Scope) allows(path string) bool {
 	if s.Role != RoleDeveloper {
 		return false
 	}
-	if developerPaths[path] {
+	permission, pattern, declared := Permissions().lookup(path)
+	if !declared {
+		// Deny by default. See the note at the top of the file: this is what
+		// makes a route added without a thought for roles fail loudly rather
+		// than open, and it is what the surface scan turns into a build error.
+		return false
+	}
+	switch permission {
+	case PermPublic, PermSelf, PermSiteList:
+		// The list route filters to what this scope may see rather than
+		// refusing outright; refusing would leave a developer looking at an
+		// error page instead of their own work.
 		return true
-	}
-	if domain, ok := siteFromPath(path); ok {
+	case PermSite:
+		domain, named := siteFromPattern(pattern, path)
+		if !named {
+			// A site route with no site in it. Refusing is the safe reading:
+			// there is nothing to compare the scope against.
+			return false
+		}
 		return s.MaySee(domain)
+	default:
+		return false
 	}
-	// Deny by default. See the note at the top of the file: this is what makes
-	// a route added without a thought for roles fail loudly rather than open.
-	return false
 }
 
-// siteFromPath pulls the domain out of /api/sites/<domain>/... and reports
-// whether the path named one at all.
-func siteFromPath(path string) (string, bool) {
-	rest, ok := strings.CutPrefix(path, "/api/sites/")
+// siteFromPattern pulls the domain out of a path, given the registry pattern
+// that matched it. The domain is the first segment after the prefix, which is
+// the shape every PermSite route has and the reason the others are not one.
+func siteFromPattern(pattern, path string) (string, bool) {
+	rest, ok := strings.CutPrefix(path, pattern)
 	if !ok || rest == "" {
 		return "", false
 	}

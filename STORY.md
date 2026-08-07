@@ -240,8 +240,20 @@ An empty site list on a developer means nothing, not everything. It is the state
 
 Assignments are a shell command. A developer able to widen their own list would make the role advisory. They take effect on the next request rather than signing anyone out, since every route checks the live account rather than anything the session remembers.
 
-**S5.5 — Permission registry.**
+**S5.5 — Permission registry.** ✅
 *Done when:* every state-changing route declares a permission and the surface scan fails the build on any undeclared route. **L**
+
+The scan's permission half, which CLAUDE.md has said was unbuilt since S0.4 because there was no registry to audit against. It reads the panel's own dispatch — the mux registrations and the auth middleware's switch, since the login routes have to answer before there is a session for the mux to be reached with — and fails on a route that declares nothing, or a declaration no route registers. The second direction matters as much: a stale entry is a permission somebody will read as describing the panel, and it is how a renamed route quietly loses its own while the count still looks right.
+
+Deny by default already made an undeclared route fail closed for a developer, which is the safe direction. This makes it fail at build time, so the person adding the route finds out rather than the person using it.
+
+One site permission rather than the read/write pair the first draft had. With two roles they are the same check, and a distinction that changes nothing is a distinction to keep in step for no benefit; splitting it belongs to whatever story introduces a role that reads without writing.
+
+The narrowing worth recording. The worker and unit log streams are keyed by container or unit name rather than by domain, so their paths carry nothing to check an assignment against. They are admin until those routes say which site they are about. That is narrower than S5.4's wording implies, and the alternative — declaring site scope on a path servlo cannot read a site out of — would be a leak dressed as a feature. The registry comments say so at the entries themselves.
+
+Three lists became one on the way through. `scope_http.go` had its own developer-path list, `panel_auth.go` had its own public-path list, and the registry is now what both read. Two lists is how they drift, and the one that drifts is always the one doing the enforcing.
+
+The scan found three real gaps the moment it ran: `/api/sites/link` and `/api/sites/reorder` were being read as sites named "link" and "reorder", accidentally safe for the wrong reason, and `/api/logs/terminal` was undeclared entirely.
 
 **S5.6 — Audit log.**
 *Done when:* append-only, 0600, rotated, never truncated by the app; records actor, source IP, action, target, result and timestamp; visible in the dashboard. **M**

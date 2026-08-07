@@ -22,29 +22,19 @@ import (
 //   - The mailpit webhook and the internal notify bridge, which are POSTed by
 //     things that hold no cookie and have their own source gates.
 
-// publicPaths are served without a session. Exact matches only; prefixes are
-// listed separately so a new route cannot join this set by accident.
-var publicPaths = map[string]bool{
-	"/":                     true,
-	"/sw.js":                true,
-	"/offline.html":         true,
-	"/manifest.webmanifest": true,
-	"/api/auth/session":     true,
-	"/api/auth/login":       true,
-	"/api/auth/logout":      true,
-	"/api/auth/setup":       true,
-	"/api/webhooks/mailpit": true,
-	"/api/internal/notify":  true,
-}
-
-// publicPrefixes are asset subtrees. They serve files, never state, so a
-// subtree is safe where it would not be for an API.
+// publicPrefixes are the built asset subtrees. They serve files, never state,
+// and their names are hashed at build time so listing them individually would
+// be listing something that changes on every build.
 var publicPrefixes = []string{"/assets/", "/icons/"}
 
 // isPublicPath reports whether a request may be served without a session.
+//
+// It reads the permission registry rather than a list of its own. Two lists of
+// what is public is how they drift, and the one that drifts is the one deciding
+// whether to ask for a password.
 func isPublicPath(path string) bool {
-	if publicPaths[path] {
-		return true
+	if permission, ok := authz.Permissions().For(path); ok {
+		return permission == authz.PermPublic
 	}
 	for _, prefix := range publicPrefixes {
 		if strings.HasPrefix(path, prefix) {

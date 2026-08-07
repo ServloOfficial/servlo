@@ -126,7 +126,7 @@ Config: `~/.config/servlo/`. Data: `~/.local/share/servlo/`. systemd units are p
 
 The web UI is Svelte under `internal/ui/web/`, built to `dist/` and embedded via `//go:embed`. `make build` builds the UI first.
 
-`make build-server` (the CGO-free production target, S0.2) and `make surface-scan` (the standing deleted-feature gate, S0.4) both exist now. The surface scan lives in `internal/surfacescan`: one rule per deleted feature, naming the story that owns its deletion. An `Enforced` rule fails the gate; a rule whose story has not run yet is reported as pending, so deleting a feature ends with turning its own rule on. The permission half of the scan is not built yet, because there is no permission registry to audit against until `internal/authz` lands.
+`make build-server` (the CGO-free production target, S0.2) and `make surface-scan` (the standing deleted-feature gate, S0.4) both exist now. The surface scan lives in `internal/surfacescan`: one rule per deleted feature, naming the story that owns its deletion. An `Enforced` rule fails the gate; a rule whose story has not run yet is reported as pending, so deleting a feature ends with turning its own rule on. The permission half landed with S5.5. `internal/authz` declares one permission per route in `Permissions()`, and the scan reads the panel's own dispatch — the mux registrations and the auth middleware's switch — failing the build on a route that declares none, or a declaration no route registers. The enforcement in `scope_http.go` reads the same table, so there is one list rather than two to keep in step.
 
 ---
 

@@ -137,7 +137,17 @@ Assignments take effect on the next request. Narrowing a list is not a reason to
 
 ### How it is enforced
 
-Deny by default. A route this classification does not recognise is refused to a developer, so one added without a thought for roles breaks for them loudly rather than working for everyone quietly.
+Every route declares what authority it needs, in one table, and the build fails on a route that declares none — or on a declaration no route registers, which is how a renamed route quietly loses its own.
+
+Five permissions. `public` is reachable without a session: the login routes and what a browser fetches before there is one. `self` is about the signed-in account. `site` acts on one site, named as the first path segment after the route's prefix. `site:list` returns many and filters. `admin` is everything else.
+
+One site permission rather than a read/write pair: with two roles they would be the same check, and a distinction that changes nothing is a distinction to keep in step for no benefit. Splitting it is the work of whichever story introduces a role that reads without writing.
+
+Deny by default. A route this table does not recognise is refused to a developer, so one added without a thought for roles breaks for them loudly rather than working for everyone quietly. The scan turns that into a build failure, so the person adding the route finds out rather than the person using it.
+
+::: warning Log routes are admin for now
+`servlo`'s worker and unit log streams are keyed by container or unit name rather than by domain, so their paths carry nothing to check a developer's assignment against. They are `admin` until those routes say which site they are about. Claiming site scope on a path Servlo cannot read a site out of would be a leak dressed as a feature.
+:::
 
 The websocket is scoped too, not just the routes. It pushes a snapshot of the sites to every connection, and a developer who cannot open another team's site should not be able to watch it either — gating the routes and leaving the socket open is the door beside the door. A developer's frames carry their own sites and no services at all; filtering in the browser would put the enforcement in the client.
 
