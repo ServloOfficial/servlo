@@ -165,6 +165,7 @@ func Permissions() Registry {
 		"/api/browse":                 PermAdmin,
 		"/api/open-editor":            PermAdmin,
 		"/api/open-folder":            PermAdmin,
+		"/api/audit":                  PermAdmin,
 		"/api/stats":                  PermAdmin,
 		"/api/disk":                   PermAdmin,
 		"/api/watcher/logs":           PermAdmin,

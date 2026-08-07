@@ -50,9 +50,11 @@ func isPublicPath(path string) bool {
 // withPanelAuth wraps the panel mux so nothing behind it is reachable without
 // a session.
 func withPanelAuth(guard *authz.Guard, next http.Handler) http.Handler {
-	// Require establishes who the request is; ScopeSites establishes what they
-	// may reach. In that order, because the second needs the first.
-	guarded := guard.Require(guard.ScopeSites(next))
+	// Require establishes who the request is, Audit records what they tried,
+	// and ScopeSites decides whether they may. Audit sits outside the decision
+	// so a refusal is recorded too, which is the entry somebody is most often
+	// looking for.
+	guarded := guard.Require(guard.Audit(guard.ScopeSites(next)))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// A preflight carries no cookie by design, so gating it would break
 		// every cross-origin request from servlo's own split-origin dev server.
@@ -84,6 +86,9 @@ func withPanelAuth(guard *authz.Guard, next http.Handler) http.Handler {
 			return
 		case "/api/auth/totp/confirm":
 			guard.Require(http.HandlerFunc(guard.HandleTOTPConfirm)).ServeHTTP(w, r)
+			return
+		case "/api/audit":
+			guard.Require(guard.ScopeSites(http.HandlerFunc(guard.HandleAuditLog))).ServeHTTP(w, r)
 			return
 		case "/api/auth/totp/qr":
 			guard.Require(http.HandlerFunc(guard.HandleTOTPQR)).ServeHTTP(w, r)

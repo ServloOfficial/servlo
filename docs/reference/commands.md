@@ -28,6 +28,8 @@
 | `servlo users totp enable <name>` | Enrol an authenticator app, showing a QR code and the recovery codes |
 | `servlo users totp disable <name>` | Turn the second factor off, which is the way back from a lost phone |
 | `servlo users totp codes <name>` | Issue a fresh set of recovery codes, replacing the old |
+| `servlo audit` | Show what changed on this machine, and who changed it |
+| `servlo audit --limit <n>` | Same, showing more or fewer entries |
 | `servlo sessions list` | Show who is signed in, from where, and when they were last seen |
 | `servlo sessions revoke <id>` | End one session |
 | `servlo sessions revoke --all` | End every session |

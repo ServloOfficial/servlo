@@ -255,8 +255,20 @@ Three lists became one on the way through. `scope_http.go` had its own developer
 
 The scan found three real gaps the moment it ran: `/api/sites/link` and `/api/sites/reorder` were being read as sites named "link" and "reorder", accidentally safe for the wrong reason, and `/api/logs/terminal` was undeclared entirely.
 
-**S5.6 — Audit log.**
+**S5.6 — Audit log.** ✅
 *Done when:* append-only, 0600, rotated, never truncated by the app; records actor, source IP, action, target, result and timestamp; visible in the dashboard. **M**
+
+"Rotated" and "never truncated by the app" look like they pull against each other and do not: rotation is a rename. The live file is only ever appended to, and past four megabytes it is renamed and a fresh one starts, so nothing written is unwritten. Five kept, because rotation that never prunes trades one unbounded file for an unbounded number of them. Reading spans them, or the history vanishes the moment the log grows past its threshold, which is exactly when it becomes interesting.
+
+Not logrotate, which would put the guarantee in a config file servlo does not own, on a schedule servlo cannot see, and an operator who disabled it would get a full disk rather than a rotation. The check happens at the append, on a size already in hand.
+
+Recording is middleware, not a line in each handler. Seventy handlers is seventy chances to forget, and the one that forgets is the one somebody later needs. Reads are excluded, because a log with every page view in it is a log nobody reads; refusals are included, because somebody reaching for what they may not have is most of why the log exists.
+
+The ordering took a correction. Audit started inside `ScopeSites` and so never saw a refusal, since the refusal is written before the inner handler runs. It sits outside now: Require establishes who, Audit records what they tried, ScopeSites decides.
+
+A shell command is attributed to the Unix user running it and carries no IP. On a box where one operator has the login and the rest reach the panel, that is exactly the distinction worth recording, and a loopback address would suggest the entry knows something it does not. No actor at all still means servlo on a timer, which is what a renewal or a self-heal is.
+
+Query strings are never recorded. The file is 0600 and it is also the file an operator pastes into a support thread, which is the same reason `Detail` was already redacted.
 
 **S5.7 — Strip dev-only UI surfaces.**
 *Done when:* no Tinker tab, terminal button, profiler view, dump viewer, Xdebug toggle, per-version `php.ini` editor or worktree strip remains anywhere in the Svelte app. **L**

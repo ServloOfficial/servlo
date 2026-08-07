@@ -88,7 +88,7 @@ func newUsersAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "users.added", Subject: created.Name, Detail: string(created.Role)})
+			recordAudit(auditlog.Entry{Action: "users.added", Subject: created.Name, Detail: string(created.Role)})
 			feedback.Begin()
 			feedback.Done("added " + feedback.Val(created.Name) + " as " + string(created.Role))
 			return nil
@@ -116,7 +116,7 @@ func newUsersPasswordCmd() *cobra.Command {
 			if err := accounts.SetPassword(args[0], password); err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "users.password.changed", Subject: args[0]})
+			recordAudit(auditlog.Entry{Action: "users.password.changed", Subject: args[0]})
 
 			feedback.Begin()
 			feedback.Done("changed the password for " + feedback.Val(args[0]))
@@ -156,7 +156,7 @@ func newUsersRoleCmd() *cobra.Command {
 			if err := accounts.SetRole(args[0], authz.Role(args[1])); err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "users.role.changed", Subject: args[0], Detail: args[1]})
+			recordAudit(auditlog.Entry{Action: "users.role.changed", Subject: args[0], Detail: args[1]})
 			feedback.Begin()
 			feedback.Done(args[0] + " is now " + feedback.Val(args[1]))
 			return nil
@@ -186,7 +186,7 @@ func newUsersRemoveCmd() *cobra.Command {
 			if err := sessions.RevokeUser(args[0]); err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "users.removed", Subject: args[0]})
+			recordAudit(auditlog.Entry{Action: "users.removed", Subject: args[0]})
 			feedback.Begin()
 			feedback.Done("removed " + feedback.Val(args[0]) + " and signed out its sessions")
 			return nil
@@ -218,7 +218,7 @@ func newSessionsRevokeCmd() *cobra.Command {
 				if err := sessions.RevokeAll(); err != nil {
 					return err
 				}
-				auditlog.Record(auditlog.Entry{Action: "sessions.revoked", Subject: "all"})
+				recordAudit(auditlog.Entry{Action: "sessions.revoked", Subject: "all"})
 				feedback.Begin()
 				feedback.Done("signed out every session")
 				return nil
@@ -229,7 +229,7 @@ func newSessionsRevokeCmd() *cobra.Command {
 			if err := sessions.Revoke(args[0]); err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "sessions.revoked", Subject: args[0]})
+			recordAudit(auditlog.Entry{Action: "sessions.revoked", Subject: args[0]})
 			feedback.Begin()
 			feedback.Done("ended session " + feedback.Val(args[0]))
 			return nil
@@ -414,7 +414,7 @@ func newUsersSitesCmd() *cobra.Command {
 			if err := accounts.SetSites(args[0], args[1:]); err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{
+			recordAudit(auditlog.Entry{
 				Action: "users.sites.set", Subject: args[0],
 				Detail: strings.Join(args[1:], ","),
 			})
@@ -490,7 +490,7 @@ func newUsersTOTPEnableCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "users.totp.enabled", Subject: args[0]})
+			recordAudit(auditlog.Entry{Action: "users.totp.enabled", Subject: args[0]})
 			feedback.Done("the second factor is on for " + feedback.Val(args[0]))
 			printRecoveryCodes(codes)
 			return nil
@@ -511,7 +511,7 @@ func newUsersTOTPDisableCmd() *cobra.Command {
 			if err := accounts.DisableTOTP(args[0]); err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "users.totp.disabled", Subject: args[0]})
+			recordAudit(auditlog.Entry{Action: "users.totp.disabled", Subject: args[0]})
 			feedback.Begin()
 			feedback.Done("the second factor is off for " + feedback.Val(args[0]))
 			feedback.Note("that account signs in on its password alone now; enrol again with: servlo users totp enable " + args[0])
@@ -534,7 +534,7 @@ func newUsersTOTPCodesCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "users.totp.codes.regenerated", Subject: args[0]})
+			recordAudit(auditlog.Entry{Action: "users.totp.codes.regenerated", Subject: args[0]})
 			feedback.Begin()
 			feedback.Done("fresh recovery codes for " + feedback.Val(args[0]))
 			printRecoveryCodes(codes)
@@ -566,4 +566,45 @@ func promptLine(prompt string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(line), nil
+}
+
+// NewAuditCmd returns `servlo audit`: the same log the dashboard shows, for
+// when the panel is what you are trying to diagnose.
+func NewAuditCmd() *cobra.Command {
+	var limit int
+	cmd := &cobra.Command{
+		Use:   "audit",
+		Short: "Show what changed on this machine, and who changed it",
+		Args:  cobra.NoArgs,
+		RunE: func(*cobra.Command, []string) error {
+			entries, err := auditlog.Recent(limit)
+			if err != nil {
+				return err
+			}
+			feedback.Begin()
+			if len(entries) == 0 {
+				feedback.Line("nothing has changed yet")
+				return nil
+			}
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintln(w, "WHEN\tACTION\tSUBJECT\tWHO\tRESULT")
+			for _, entry := range entries {
+				who := entry.Actor
+				if who == "" {
+					// No actor means servlo itself, on a timer or a watcher
+					// pass, which is what a renewal or a self-heal is.
+					who = "servlo"
+				}
+				if entry.IP != "" {
+					who += " (" + entry.IP + ")"
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+					entry.At.Local().Format("2006-01-02 15:04"),
+					entry.Action, entry.Subject, who, entry.Result)
+			}
+			return w.Flush()
+		},
+	}
+	cmd.Flags().IntVar(&limit, "limit", 50, "How many entries to show")
+	return cmd
 }

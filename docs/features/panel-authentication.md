@@ -165,6 +165,41 @@ servlo users password alice
 ```
 :::
 
+## The audit log
+
+Everything that changed on this machine, and who changed it.
+
+```bash
+servlo audit
+servlo audit --limit 200
+```
+
+It is also a card on the panel's System page, for administrators only: the log records what every account did and from where, which is not a developer's to read.
+
+Each line answers the five questions asked after something goes wrong — when, who, from where, what to, and did it work:
+
+```json
+{"at":"2026-08-07T10:42:11Z","action":"site.deploy","subject":"example.com","actor":"alice","ip":"203.0.113.9","result":"ok"}
+```
+
+Recording happens in the middleware, not in each handler. Seventy handlers is seventy chances to forget, and the one that forgets is the one somebody later needs. A route added tomorrow is audited the day it is added, without anyone remembering to.
+
+Reads are not recorded. A log with every page view in it is a log nobody reads, and the question an audit answers is what changed. **Refusals are** — somebody reaching for something they may not have is most of why the log exists.
+
+A command run from a shell is attributed to the Unix user running it, with no IP. On a box where one operator has the login and the rest reach the panel, that is exactly the distinction worth recording, and a loopback address would suggest the entry knows something it does not. An entry with no actor at all is Servlo itself, on a timer: a renewal, a self-heal.
+
+### Append-only, and what rotation means
+
+The application appends and never edits. A log a process can rewrite is a log that tells you what the last writer wanted you to believe.
+
+That leaves the disk, which rotation handles: past four megabytes the live file is **renamed**, not emptied, and a fresh one starts. Nothing written is unwritten; it is somewhere else. Five rotations are kept, because rotation that never prunes trades one unbounded file for an unbounded number of them.
+
+Not logrotate. That would put the guarantee in a config file Servlo does not own, on a schedule Servlo cannot see, and an operator who disabled it would get a full disk rather than a rotation.
+
+Reading spans the rotations, so the history does not vanish the moment the log grows past its threshold — which is exactly when it becomes interesting.
+
+Secrets are redacted on the way in. The file is `0600`, and it is also the file an operator pastes into a support thread, so a token must not be in it in the first place. Query strings are never recorded for the same reason.
+
 ## What authentication does not grant
 
 Signing in is not the same as sitting at the machine. A terminal on the host, filesystem browsing, raw `.env` reads and database drops stay with the local dashboard, or with a remote session explicitly opted in with `servlo remote-control full-access on`.

@@ -67,7 +67,7 @@ func newPanelDomainSetCmd() *cobra.Command {
 			if err := config.SaveGlobal(cfg); err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "panel.domain.set", Subject: domain})
+			recordAudit(auditlog.Entry{Action: "panel.domain.set", Subject: domain})
 
 			feedback.Begin()
 			write := feedback.Start("writing the panel vhost")
@@ -128,7 +128,7 @@ func newPanelDomainSecureCmd() *cobra.Command {
 			if err := ApplyPanelDomain(); err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "panel.domain.secured", Subject: domain})
+			recordAudit(auditlog.Entry{Action: "panel.domain.secured", Subject: domain})
 			feedback.Done("the panel is on https://" + domain)
 			feedback.Note("apply the vhost with: servlo restart")
 			return nil
@@ -169,7 +169,7 @@ func newPanelDomainRemoveCmd() *cobra.Command {
 			if err := nginx.RemovePanelVhost(); err != nil {
 				return err
 			}
-			auditlog.Record(auditlog.Entry{Action: "panel.domain.removed", Subject: previous})
+			recordAudit(auditlog.Entry{Action: "panel.domain.removed", Subject: previous})
 
 			feedback.Begin()
 			feedback.Done("the panel no longer answers on " + feedback.Val(previous))

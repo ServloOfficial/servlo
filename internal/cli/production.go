@@ -122,7 +122,7 @@ func setProductionMode(cfg *config.GlobalConfig, on bool) error {
 	if on {
 		action, message = "production.enabled", "production mode on"
 	}
-	auditlog.Record(auditlog.Entry{Action: action})
+	recordAudit(auditlog.Entry{Action: action})
 
 	feedback.Begin()
 	feedback.Done(message)

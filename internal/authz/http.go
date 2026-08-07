@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
+
+	"github.com/realrashid/servlo/internal/auditlog"
 )
 
 // The gate.
@@ -449,4 +452,33 @@ func (g *Guard) HandleTOTPQR(w http.ResponseWriter, r *http.Request) {
 	// It carries the secret, so it is never cached anywhere.
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write(png)
+}
+
+// HandleAuditLog serves the recent audit entries.
+//
+// Admin only, and declared as such in the registry: the log records who did
+// what from where across every account, which is not a developer's to read.
+func (g *Guard) HandleAuditLog(w http.ResponseWriter, r *http.Request) {
+	scope, ok := ScopeFrom(r.Context())
+	if !ok || !scope.MayAdminister() {
+		http.Error(w, "Forbidden — the audit log is for administrators.", http.StatusForbidden)
+		return
+	}
+	limit := 200
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 && n <= 1000 {
+			limit = n
+		}
+	}
+	entries, err := auditlog.Recent(limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if entries == nil {
+		// An empty log is a normal state, and a null would have the dashboard
+		// rendering "no entries" as an error.
+		entries = []auditlog.Entry{}
+	}
+	writeJSON(w, map[string]any{"entries": entries})
 }

@@ -24,18 +24,37 @@ import (
 )
 
 // Entry is one thing that happened.
+//
+// The fields are the five questions asked of an audit line after something has
+// gone wrong: when, who, from where, what to, and did it work.
 type Entry struct {
 	At time.Time `json:"at"`
-	// Action is a dotted verb: cert.renew.failed, site.secure, dnsprovider.set.
+	// Action is a dotted verb: cert.renew.failed, site.secure, users.added.
 	Action string `json:"action"`
-	// Subject is what it happened to, usually a domain or a site name.
+	// Subject is what it happened to, usually a domain or an account name.
 	Subject string `json:"subject,omitempty"`
 	// Actor is who did it. Empty means servlo itself, on a timer or a watcher
-	// pass, which is the case for everything until authentication lands.
+	// pass, which is what a renewal or a self-heal is.
 	Actor string `json:"actor,omitempty"`
+	// IP is where the request came from, for anything a person did through the
+	// panel. Empty for the CLI and for servlo's own timers, where the answer
+	// is "a shell on this machine" and recording a loopback address would
+	// suggest more than it knows.
+	IP string `json:"ip,omitempty"`
+	// Result is "ok" or "failed". A log of attempts that does not say which
+	// ones worked describes half of what happened, and the failures are the
+	// half somebody is usually looking for.
+	Result string `json:"result,omitempty"`
 	// Detail is free text for a human. Redacted on the way in.
 	Detail string `json:"detail,omitempty"`
 }
+
+// Result values. Two, because an audit line is read at a glance and a
+// vocabulary is one more thing to remember.
+const (
+	ResultOK     = "ok"
+	ResultFailed = "failed"
+)
 
 var mu sync.Mutex
 
@@ -65,6 +84,12 @@ func Append(e Entry) error {
 	if e.At.IsZero() {
 		e.At = time.Now().UTC()
 	}
+	if e.Result == "" {
+		// An entry that says nothing about its outcome is one that succeeded:
+		// the failure paths say so explicitly, and defaulting the other way
+		// would mark every existing call site as a failure.
+		e.Result = ResultOK
+	}
 	e.Detail = redact(e.Detail)
 
 	line, err := json.Marshal(e)
@@ -75,6 +100,11 @@ func Append(e Entry) error {
 	mu.Lock()
 	defer mu.Unlock()
 	if err := os.MkdirAll(filepath.Dir(Path()), 0700); err != nil {
+		return err
+	}
+	// Checked here rather than on a timer, because the size is already in hand
+	// and a schedule servlo cannot see is a schedule an operator can disable.
+	if err := rotateIfLarger(maxLogBytes); err != nil {
 		return err
 	}
 	f, err := os.OpenFile(Path(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
@@ -103,27 +133,16 @@ func Record(e Entry) {
 // truncated write from a killed process should cost that line and not the
 // readable ones around it.
 func Recent(n int) ([]Entry, error) {
-	f, err := os.Open(Path())
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	defer f.Close() //nolint:errcheck
-
+	// Rotations first, oldest to newest, then the live file. Reading only the
+	// live one would make the dashboard's history vanish the moment the log
+	// grew past its threshold, which is exactly when it becomes interesting.
 	var all []Entry
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		var e Entry
-		if err := json.Unmarshal(scanner.Bytes(), &e); err != nil {
-			continue
+	for _, path := range append(rotationFiles(), Path()) {
+		entries, err := readEntries(path)
+		if err != nil {
+			return nil, err
 		}
-		all = append(all, e)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+		all = append(all, entries...)
 	}
 
 	// Newest first: the question being asked is what just went wrong.
@@ -132,4 +151,27 @@ func Recent(n int) ([]Entry, error) {
 		out = append(out, all[i])
 	}
 	return out, nil
+}
+
+func readEntries(path string) ([]Entry, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer f.Close() //nolint:errcheck
+
+	var entries []Entry
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		var e Entry
+		if err := json.Unmarshal(scanner.Bytes(), &e); err != nil {
+			continue
+		}
+		entries = append(entries, e)
+	}
+	return entries, scanner.Err()
 }

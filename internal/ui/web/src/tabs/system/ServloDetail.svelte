@@ -16,6 +16,7 @@
   import Toggle from '$components/Toggle.svelte';
   import SettingsCard from '$components/SettingsCard.svelte';
   import TwoFactorSetting from './TwoFactorSetting.svelte';
+  import AuditLog from './AuditLog.svelte';
   import LanguageSwitcher from '$components/LanguageSwitcher.svelte';
   import { apiFetch, apiBase } from '$lib/api';
   import { escapeHtml } from '$lib/html';
@@ -169,6 +170,8 @@
     </SettingsCard>
 
     <TwoFactorSetting />
+
+    <AuditLog />
 
     <SettingsCard>
       <div class="flex items-center justify-between mb-2">

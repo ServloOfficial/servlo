@@ -212,6 +212,7 @@ func main() {
 	root.AddCommand(cli.NewPanelCmd())
 	root.AddCommand(cli.NewUsersCmd())
 	root.AddCommand(cli.NewSessionsCmd())
+	root.AddCommand(cli.NewAuditCmd())
 	root.AddCommand(cli.NewLANCmd())
 	root.AddCommand(cli.NewLANExposeCmd())
 	root.AddCommand(cli.NewLANUnexposeCmd())
