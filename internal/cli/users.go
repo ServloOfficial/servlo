@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
 	"text/tabwriter"
 	"time"
 
+	qrcode "github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
 	"github.com/realrashid/servlo/internal/auditlog"
@@ -39,6 +41,7 @@ func NewUsersCmd() *cobra.Command {
 		newUsersPasswordCmd(),
 		newUsersRoleCmd(),
 		newUsersRemoveCmd(),
+		newUsersTOTPCmd(),
 	)
 	return cmd
 }
@@ -343,4 +346,144 @@ func AdoptInheritedCredentials() error {
 	cfg.UI.PasswordHash = ""
 	cfg.UI.Username = ""
 	return config.SaveGlobal(cfg)
+}
+
+func newUsersTOTPCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "totp",
+		Short: "Turn the second factor on or off for an account",
+		Args:  cobra.NoArgs,
+		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+	}
+	cmd.AddCommand(newUsersTOTPEnableCmd(), newUsersTOTPDisableCmd(), newUsersTOTPCodesCmd())
+	return cmd
+}
+
+func newUsersTOTPEnableCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "enable <username>",
+		Short: "Enrol an authenticator app for an account",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			accounts, err := authz.OpenAccounts()
+			if err != nil {
+				return err
+			}
+			if _, found := accounts.Lookup(args[0]); !found {
+				return fmt.Errorf("no account named %q", args[0])
+			}
+			secret, err := authz.NewTOTPSecret()
+			if err != nil {
+				return err
+			}
+			cfg, _ := config.LoadGlobal()
+			issuer := ""
+			if cfg != nil {
+				issuer = strings.TrimSpace(cfg.UI.Domain)
+			}
+			uri := authz.TOTPEnrolmentURI(args[0], issuer, secret)
+
+			feedback.Begin()
+			feedback.Line("Scan this with your authenticator app:")
+			fmt.Println()
+			// Rendered in the terminal rather than saved somewhere, because a
+			// QR code containing the secret is a file nobody remembers to
+			// delete.
+			qr, err := qrcode.New(uri, qrcode.Medium)
+			if err != nil {
+				return err
+			}
+			fmt.Println(qr.ToSmallString(false))
+			feedback.Note("or type the secret in by hand: " + feedback.Val(secret))
+
+			// Confirmed before it is stored, so an app that failed to scan is
+			// discovered now rather than at the next sign-in.
+			code, err := promptLine("Enter the code your app shows: ")
+			if err != nil {
+				return err
+			}
+			if !authz.VerifyTOTP(secret, strings.TrimSpace(code)) {
+				return fmt.Errorf("that code does not match, so nothing was changed. Try again and check your phone's clock is right")
+			}
+
+			codes, err := accounts.EnableTOTP(args[0], secret)
+			if err != nil {
+				return err
+			}
+			auditlog.Record(auditlog.Entry{Action: "users.totp.enabled", Subject: args[0]})
+			feedback.Done("the second factor is on for " + feedback.Val(args[0]))
+			printRecoveryCodes(codes)
+			return nil
+		},
+	}
+}
+
+func newUsersTOTPDisableCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "disable <username>",
+		Short: "Turn the second factor off, which is the way back in from a lost phone",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			accounts, err := authz.OpenAccounts()
+			if err != nil {
+				return err
+			}
+			if err := accounts.DisableTOTP(args[0]); err != nil {
+				return err
+			}
+			auditlog.Record(auditlog.Entry{Action: "users.totp.disabled", Subject: args[0]})
+			feedback.Begin()
+			feedback.Done("the second factor is off for " + feedback.Val(args[0]))
+			feedback.Note("that account signs in on its password alone now; enrol again with: servlo users totp enable " + args[0])
+			return nil
+		},
+	}
+}
+
+func newUsersTOTPCodesCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "codes <username>",
+		Short: "Issue a fresh set of recovery codes, replacing the old ones",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			accounts, err := authz.OpenAccounts()
+			if err != nil {
+				return err
+			}
+			codes, err := accounts.RegenerateRecoveryCodes(args[0])
+			if err != nil {
+				return err
+			}
+			auditlog.Record(auditlog.Entry{Action: "users.totp.codes.regenerated", Subject: args[0]})
+			feedback.Begin()
+			feedback.Done("fresh recovery codes for " + feedback.Val(args[0]))
+			printRecoveryCodes(codes)
+			return nil
+		},
+	}
+}
+
+// printRecoveryCodes shows a batch once. There is no command to show them
+// again, because storing them in a form servlo could reprint would make them a
+// second password sitting on the same disk as the first.
+func printRecoveryCodes(codes []string) {
+	fmt.Println()
+	fmt.Println("  Recovery codes. Each works once, in place of a code from the app.")
+	fmt.Println("  Write them down now: this is the only time they are shown.")
+	fmt.Println()
+	for _, code := range codes {
+		fmt.Println("    " + code)
+	}
+	fmt.Println()
+}
+
+// promptLine prompts and reads one line, visibly: a TOTP code is not a secret
+// worth hiding, and hiding it stops the operator seeing a typo.
+func promptLine(prompt string) (string, error) {
+	fmt.Fprint(os.Stderr, prompt)
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil && line == "" {
+		return "", err
+	}
+	return strings.TrimSpace(line), nil
 }

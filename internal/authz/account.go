@@ -51,6 +51,33 @@ type Account struct {
 	// Sites are the domains a Developer may act on. Empty for an Admin, who
 	// reaches everything. S5.4 enforces it.
 	Sites []string `json:"sites,omitempty"`
+
+	// TOTPSecret is the shared secret for this account's authenticator app.
+	// It is exactly as sensitive as a password — anyone holding it can
+	// generate the second factor forever — so it is stripped from everything
+	// this package hands out and only ever read to check a code.
+	TOTPSecret string `json:"totp_secret,omitempty"`
+	// TOTPEnabled says whether a second factor is required. It is a field
+	// rather than "is the secret set", because the secret is stripped from
+	// every copy that leaves this package and the panel still has to know
+	// which accounts have one.
+	TOTPEnabled bool `json:"totp_enabled,omitempty"`
+	// RecoveryHashes are the unspent recovery codes, hashed. Each is spent on
+	// use, which is what makes them one-time rather than a second password.
+	RecoveryHashes []string `json:"recovery_hashes,omitempty"`
+	// RecoveryLeft is how many are unspent. Derived from RecoveryHashes and
+	// filled in by redact, because the panel shows the count so an operator
+	// knows when to make more, and the hashes themselves never leave here.
+	RecoveryLeft int `json:"-"`
+}
+
+// RecoveryCodesLeft is how many unspent codes remain, which the panel shows so
+// an operator knows when to make more.
+func (a Account) RecoveryCodesLeft() int {
+	if len(a.RecoveryHashes) > 0 {
+		return len(a.RecoveryHashes)
+	}
+	return a.RecoveryLeft
 }
 
 // AccountStore is the on-disk set of accounts.
@@ -113,8 +140,7 @@ func (s *AccountStore) Create(name, password string, role Role) (Account, error)
 	if err := s.save(append(accounts, created)); err != nil {
 		return Account{}, err
 	}
-	created.PasswordHash = ""
-	return created, nil
+	return redact(created), nil
 }
 
 // Adopt adds an account with a hash servlo did not make, which is how the
@@ -147,9 +173,15 @@ func (s *AccountStore) Adopt(name, passwordHash string, role Role) error {
 	}))
 }
 
-// Authenticate checks a name and password, and quietly replaces a hash that is
-// due for rehashing while it holds the plaintext. An inherited bcrypt hash is
-// therefore used exactly once more.
+// Authenticate checks a name and password.
+//
+// An account with a second factor is refused here whatever the password: the
+// password is one of the two things it needs, and returning true on half of
+// them would make every caller responsible for remembering the other half.
+// AuthenticateWithCode is the one that takes both.
+//
+// It also quietly replaces a hash that is due for rehashing while it holds the
+// plaintext, so an inherited bcrypt hash is used exactly once more.
 func (s *AccountStore) Authenticate(name, password string) (Account, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -165,6 +197,9 @@ func (s *AccountStore) Authenticate(name, password string) (Account, bool) {
 		if !VerifyPassword(accounts[i].PasswordHash, password) {
 			return Account{}, false
 		}
+		if accounts[i].TOTPEnabled {
+			return Account{}, false
+		}
 		if NeedsRehash(accounts[i].PasswordHash) {
 			if hash, err := HashPassword(password); err == nil {
 				accounts[i].PasswordHash = hash
@@ -173,9 +208,7 @@ func (s *AccountStore) Authenticate(name, password string) (Account, bool) {
 				_ = s.save(accounts)
 			}
 		}
-		found := accounts[i]
-		found.PasswordHash = ""
-		return found, true
+		return redact(accounts[i]), true
 	}
 	return Account{}, false
 }
@@ -191,8 +224,7 @@ func (s *AccountStore) Lookup(name string) (Account, bool) {
 	}
 	for _, account := range accounts {
 		if account.Name == name {
-			account.PasswordHash = ""
-			return account, true
+			return redact(account), true
 		}
 	}
 	return Account{}, false
@@ -261,8 +293,7 @@ func (s *AccountStore) List() []Account {
 	}
 	out := make([]Account, 0, len(accounts))
 	for _, account := range accounts {
-		account.PasswordHash = ""
-		out = append(out, account)
+		out = append(out, redact(account))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
@@ -294,6 +325,17 @@ func (s *AccountStore) Delete(name string) error {
 		return fmt.Errorf("%q is the only admin, so removing it would leave the panel with none", name)
 	}
 	return s.save(kept)
+}
+
+// redact strips every credential from a copy of an account. One function, so a
+// field added later is stripped in one place rather than four, and forgetting
+// is a compile error at the struct rather than a leak at one of the callers.
+func redact(account Account) Account {
+	account.RecoveryLeft = len(account.RecoveryHashes)
+	account.PasswordHash = ""
+	account.TOTPSecret = ""
+	account.RecoveryHashes = nil
+	return account
 }
 
 // ValidatePassword reports whether a password clears the floor.
@@ -370,4 +412,22 @@ func (s *AccountStore) save(accounts []Account) error {
 		return err
 	}
 	return os.Rename(tmp.Name(), AccountsPath())
+}
+
+// PasswordMatches checks a password without signing anyone in, for the places
+// that re-ask an already-authenticated operator to confirm who they are.
+func (s *AccountStore) PasswordMatches(name, password string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	accounts, err := s.load()
+	if err != nil {
+		return false
+	}
+	for _, account := range accounts {
+		if subtle.ConstantTimeCompare([]byte(account.Name), []byte(name)) == 1 {
+			return VerifyPassword(account.PasswordHash, password)
+		}
+	}
+	return false
 }

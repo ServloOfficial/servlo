@@ -7,6 +7,7 @@
   let username = $state('');
   let password = $state('');
   let confirm = $state('');
+  let code = $state('');
 
   const setup = $derived($state.snapshot($session).setupNeeded);
   const busy = $derived($session.busy);
@@ -19,8 +20,11 @@
       await createFirstAccount(username, password);
       return;
     }
-    await signIn(username, password);
-    password = '';
+    const ok = await signIn(username, password, code);
+    if (ok) {
+      password = '';
+      code = '';
+    }
   }
 </script>
 
@@ -82,6 +86,25 @@
       {#if mismatch}
         <p class="mt-2 text-xs text-red-500" data-login-error>The two passwords do not match.</p>
       {/if}
+    {/if}
+
+    {#if $session.codeRequired && !setup}
+      <label class="block mt-4 text-xs font-medium text-gray-600 dark:text-gray-400" for="login-code">
+        Code
+      </label>
+      <input
+        id="login-code"
+        bind:value={code}
+        inputmode="text"
+        autocomplete="one-time-code"
+        autocapitalize="none"
+        spellcheck="false"
+        data-login-code
+        class="mt-1 w-full rounded-lg border border-gray-200 dark:border-servlo-border bg-white dark:bg-black/40 px-3 py-2 text-sm font-mono text-gray-900 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-servlo-red/40"
+      />
+      <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        From your authenticator app, or one of the recovery codes you wrote down.
+      </p>
     {/if}
 
     {#if $session.error}

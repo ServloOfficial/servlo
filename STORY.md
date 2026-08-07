@@ -212,8 +212,20 @@ One bug this introduced and caught: stripping the gate left the mailpit webhook 
 
 Credentials an install already had become an account at the next start, once, and the inherited bcrypt hash is rehashed to Argon2id the first time it is used. Without that, upgrading would present the first-run setup form on a machine that already had a password.
 
-**S5.3 — Optional TOTP.**
+**S5.3 — Optional TOTP.** ✅
 *Done when:* QR enrolment, one-time recovery codes, and a CLI reset path for lockout recovery all work. **M**
+
+SHA-1, six digits, thirty-second step, which is not a choice so much as the only interoperable option: it is what every authenticator app assumes when it scans a QR code, and a stronger digest produces codes no app will generate. The RFC 6238 test vectors are in the tests, because a code Google Authenticator will not produce is a code nobody can enter, and nothing short of the vectors proves the implementation is TOTP rather than something that merely behaves like it.
+
+Nothing is stored until the operator types back a matching code, so an app that failed to scan leaves the account as it was. Both surfaces work that way: the panel and `servlo users totp enable`, which draws the QR in the terminal rather than writing it to a file nobody remembers to delete.
+
+Recovery codes are hashed with SHA-256, not Argon2id. They are uniform randomness with no dictionary to try, so the slow hash buys nothing and would cost 46 MiB per attempt on a box someone can aim attempts at. They are shown once and there is no command to show them again: storing them in a form servlo could reprint would make them a second password on the same disk as the first.
+
+The enumeration bug worth recording. The first version said "that account needs a code" whenever the account had TOTP on, which announced that the account existed and had a second factor — the same enumeration the single failure message avoids, by another route. The store reports an outcome now, and "a code is owed" is only ever returned when the password was right, so it tells the holder of that password something they can act on and everyone else nothing. Its own test caught it.
+
+A missing or wrong code counts against the limiter like a wrong password, or the second factor is six digits an attacker can try a million times.
+
+Two things fell out. `redact` is one function now rather than a line in each of four methods, because a credential field added later has to be stripped in one place rather than remembered in four. And the recovery-code count needed to survive redaction while the hashes do not, since the panel shows how many are left.
 
 **S5.4 — Roles.**
 *Done when:* Admin sees everything; Developer sees deploy, logs, files, cron and settings for assigned sites only. Enforced on every route and in every WebSocket message. **L**

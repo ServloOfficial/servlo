@@ -5,8 +5,12 @@ export type SessionState = {
   loaded: boolean;
   authenticated: boolean;
   setupNeeded: boolean;
+  /** True once the panel has said this account owes a code. */
+  codeRequired: boolean;
   user: string;
   role: string;
+  totpEnabled: boolean;
+  recoveryCodesLeft: number;
   error: string;
   busy: boolean;
 };
@@ -15,8 +19,11 @@ const empty: SessionState = {
   loaded: false,
   authenticated: false,
   setupNeeded: false,
+  codeRequired: false,
   user: '',
   role: '',
+  totpEnabled: false,
+  recoveryCodesLeft: 0,
   error: '',
   busy: false
 };
@@ -33,6 +40,8 @@ type SessionResponse = {
   user?: string;
   role?: string;
   csrf?: string;
+  totp_enabled?: boolean;
+  recovery_codes?: number;
 };
 
 function adopt(data: SessionResponse) {
@@ -43,8 +52,11 @@ function adopt(data: SessionResponse) {
     loaded: true,
     authenticated: Boolean(data.authenticated),
     setupNeeded: Boolean(data.setup_needed),
+    codeRequired: false,
     user: data.user ?? '',
     role: data.role ?? '',
+    totpEnabled: Boolean(data.totp_enabled),
+    recoveryCodesLeft: data.recovery_codes ?? 0,
     error: ''
   });
 }
@@ -63,16 +75,19 @@ export async function loadSession() {
   }
 }
 
-async function submit(path: string, username: string, password: string) {
+async function submit(path: string, username: string, password: string, code = '') {
   patch({ busy: true, error: '' });
   try {
     const res = await apiFetch(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password, code })
     });
     if (!res.ok) {
-      patch({ busy: false, error: (await res.text()).trim() || 'That did not work.' });
+      const message = (await res.text()).trim() || 'That did not work.';
+      // The panel says a code is owed only after a correct password, so this
+      // is the cue to show the field rather than a guess at what went wrong.
+      patch({ busy: false, error: message, codeRequired: message.includes('authenticator app') });
       return false;
     }
     adopt({ ...((await res.json()) as SessionResponse), authenticated: true });
@@ -84,8 +99,8 @@ async function submit(path: string, username: string, password: string) {
   }
 }
 
-export const signIn = (username: string, password: string) =>
-  submit('/api/auth/login', username, password);
+export const signIn = (username: string, password: string, code = '') =>
+  submit('/api/auth/login', username, password, code);
 
 export const createFirstAccount = (username: string, password: string) =>
   submit('/api/auth/setup', username, password);

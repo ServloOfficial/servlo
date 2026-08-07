@@ -15,6 +15,7 @@
   import { autostartEnabled, loadAutostart, toggleAutostart } from '$stores/autostart';
   import Toggle from '$components/Toggle.svelte';
   import SettingsCard from '$components/SettingsCard.svelte';
+  import TwoFactorSetting from './TwoFactorSetting.svelte';
   import LanguageSwitcher from '$components/LanguageSwitcher.svelte';
   import { apiFetch, apiBase } from '$lib/api';
   import { escapeHtml } from '$lib/html';
@@ -166,6 +167,8 @@
         </p>
       </div>
     </SettingsCard>
+
+    <TwoFactorSetting />
 
     <SettingsCard>
       <div class="flex items-center justify-between mb-2">

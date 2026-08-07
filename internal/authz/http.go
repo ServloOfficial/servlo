@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 // The gate.
@@ -41,6 +43,10 @@ type Guard struct {
 	Accounts *AccountStore
 	Sessions *SessionStore
 	Limiter  *Limiter
+	// Issuer is what an authenticator app lists this panel under, normally its
+	// domain. Empty is fine: the enrolment URI falls back to a name rather
+	// than an empty label.
+	Issuer string
 }
 
 // NewGuard opens the stores.
@@ -111,17 +117,27 @@ func (g *Guard) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
+		Code     string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	account, ok := g.Accounts.Authenticate(body.Username, body.Password)
-	if !ok {
+	account, outcome := g.Accounts.AuthenticateWithOutcome(body.Username, body.Password, body.Code)
+	if outcome != AuthOK {
+		// A wrong code counts against the limiter like a wrong password, or
+		// the second factor is six digits an attacker can try a million times.
+		// A missing one does too: it is an attempt that did not sign in.
 		g.Limiter.Failed(addr)
-		// One message for both halves. Saying which was wrong turns the form
-		// into a way to enumerate account names.
+		if outcome == AuthCodeRequired {
+			// Only ever reached with a correct password, so this says nothing
+			// to anyone who does not already hold it.
+			http.Error(w, "That account needs a code from its authenticator app.", http.StatusUnauthorized)
+			return
+		}
+		// One message for a wrong password and an unknown account, because
+		// telling them apart turns the form into a way to enumerate names.
 		http.Error(w, "That username and password do not match.", http.StatusUnauthorized)
 		return
 	}
@@ -195,14 +211,20 @@ func (g *Guard) HandleSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	role := RoleDeveloper
+	totpEnabled := false
+	recoveryLeft := 0
 	if account, found := g.Accounts.Lookup(session.User); found {
 		role = account.Role
+		totpEnabled = account.TOTPEnabled
+		recoveryLeft = account.RecoveryCodesLeft()
 	}
 	writeJSON(w, map[string]any{
-		"authenticated": true,
-		"user":          session.User,
-		"role":          role,
-		"csrf":          CSRFToken(session.ID),
+		"authenticated":  true,
+		"user":           session.User,
+		"role":           role,
+		"csrf":           CSRFToken(session.ID),
+		"totp_enabled":   totpEnabled,
+		"recovery_codes": recoveryLeft,
 	})
 }
 
@@ -309,4 +331,122 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return strings.TrimSpace(s[:n])
+}
+
+// HandleTOTPEnrol starts enrolment: it mints a secret and returns it with the
+// otpauth URI to render as a QR code. Nothing is stored until the operator
+// proves their app produced a matching code, so an app that failed to scan
+// leaves the account exactly as it was.
+func (g *Guard) HandleTOTPEnrol(w http.ResponseWriter, r *http.Request) {
+	session, ok := SessionFrom(r.Context())
+	if !ok {
+		unauthorized(w)
+		return
+	}
+	secret, err := NewTOTPSecret()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{
+		"secret": secret,
+		"uri":    TOTPEnrolmentURI(session.User, g.Issuer, secret),
+	})
+}
+
+// HandleTOTPConfirm finishes enrolment and returns the recovery codes, once.
+func (g *Guard) HandleTOTPConfirm(w http.ResponseWriter, r *http.Request) {
+	session, ok := SessionFrom(r.Context())
+	if !ok {
+		unauthorized(w)
+		return
+	}
+	var body struct {
+		Secret string `json:"secret"`
+		Code   string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !VerifyTOTP(body.Secret, body.Code) {
+		http.Error(w, "That code does not match. Check your phone's clock, then try the next one.", http.StatusBadRequest)
+		return
+	}
+	codes, err := g.Accounts.EnableTOTP(session.User, body.Secret)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "recovery_codes": codes})
+}
+
+// HandleTOTPDisable turns the second factor off for the signed-in account.
+//
+// It asks for the password again. Turning off a factor on a session someone
+// walked away from is exactly the case this protects against, and the person
+// doing it legitimately knows their own password.
+func (g *Guard) HandleTOTPDisable(w http.ResponseWriter, r *http.Request) {
+	session, ok := SessionFrom(r.Context())
+	if !ok {
+		unauthorized(w)
+		return
+	}
+	var body struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	addr := sourceAddress(r)
+	if wait := g.Limiter.Retry(addr); wait > 0 {
+		http.Error(w, "Too many attempts. Try again shortly.", http.StatusTooManyRequests)
+		return
+	}
+	// Password only: asking for a code as well would make a lost phone
+	// impossible to recover from in the browser, which is what the recovery
+	// codes and the CLI reset are for.
+	if !g.Accounts.PasswordMatches(session.User, body.Password) {
+		g.Limiter.Failed(addr)
+		http.Error(w, "That password does not match.", http.StatusUnauthorized)
+		return
+	}
+	g.Limiter.Succeeded(addr)
+	if err := g.Accounts.DisableTOTP(session.User); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+// HandleTOTPQR renders an enrolment URI as a PNG.
+//
+// Server-side so the dashboard does not carry a QR encoder for one screen. The
+// URI arrives in the query string rather than being looked up, because the
+// secret it contains is never stored until enrolment is confirmed, and storing
+// it early would leave a half-enrolled secret behind on every abandoned
+// attempt.
+func (g *Guard) HandleTOTPQR(w http.ResponseWriter, r *http.Request) {
+	if _, ok := SessionFrom(r.Context()); !ok {
+		unauthorized(w)
+		return
+	}
+	uri := r.URL.Query().Get("uri")
+	// Only ever an otpauth URI. Encoding whatever arrives would turn the panel
+	// into a QR generator for anything an attacker wanted a signed-in operator
+	// to scan.
+	if !strings.HasPrefix(uri, "otpauth://totp/") || len(uri) > 512 {
+		http.Error(w, "not an enrolment URI", http.StatusBadRequest)
+		return
+	}
+	png, err := qrcode.Encode(uri, qrcode.Medium, 360)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	// It carries the secret, so it is never cached anywhere.
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write(png)
 }

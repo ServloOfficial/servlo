@@ -83,6 +83,23 @@ func withPanelAuth(guard *authz.Guard, next http.Handler) http.Handler {
 			guard.HandleSetup(w, r)
 			return
 		}
+		// The TOTP routes need a session, so they go behind the guard rather
+		// than beside the login routes: enrolling a second factor is something
+		// you do while signed in, not instead of signing in.
+		switch r.URL.Path {
+		case "/api/auth/totp/enrol":
+			guard.Require(http.HandlerFunc(guard.HandleTOTPEnrol)).ServeHTTP(w, r)
+			return
+		case "/api/auth/totp/confirm":
+			guard.Require(http.HandlerFunc(guard.HandleTOTPConfirm)).ServeHTTP(w, r)
+			return
+		case "/api/auth/totp/qr":
+			guard.Require(http.HandlerFunc(guard.HandleTOTPQR)).ServeHTTP(w, r)
+			return
+		case "/api/auth/totp/disable":
+			guard.Require(http.HandlerFunc(guard.HandleTOTPDisable)).ServeHTTP(w, r)
+			return
+		}
 		if isPublicPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return

@@ -68,6 +68,50 @@ The lockout holds against the right password too. One that let a correct guess t
 
 The counter lives in the running panel rather than on disk. A restart clears it, which sounds like a weakness and is not: restarting Servlo needs access to the machine, and anyone with that has no reason to be guessing at the login. Persisting it would hand an attacker a disk write per attempt.
 
+## Two-factor authentication
+
+Optional, and off unless you turn it on. A panel behind a long passphrase and a doubling lockout is already hard to guess; this is for when you want a stolen password not to be enough on its own.
+
+From the panel, **System → Two-factor authentication → Turn on**: scan the QR with any authenticator app, type back the code it shows, and write down the ten recovery codes. From a shell:
+
+```bash
+servlo users totp enable alice
+servlo users totp codes alice     # a fresh set, replacing the old
+servlo users totp disable alice
+```
+
+Nothing is stored until you type back a matching code, so an app that failed to scan leaves the account exactly as it was.
+
+It is TOTP as RFC 6238 specifies it — SHA-1, six digits, thirty-second step — which is not a choice so much as the only interoperable option. It is what every authenticator app assumes when it scans a QR code, and a stronger digest produces codes no app will generate. The security comes from the second factor existing, not from the hash.
+
+Codes are accepted one step either side of now, and no further. Phone clocks are rarely exact and a code typed as the window turns over should still work; a wider window is a longer life for a code read over your shoulder.
+
+### Recovery codes
+
+Ten, each good once, shown exactly when they are made. There is no command to show them again — storing them in a form Servlo could reprint would make them a second password sitting on the same disk as the first.
+
+A recovery code goes in the same box as a code from the app. The panel tries one and then the other, because the person typing it does not have to know which kind it is.
+
+They are stored hashed, with SHA-256 rather than Argon2id. Unlike a password these are uniform randomness with no dictionary to try, so the slow hash would buy nothing and cost 46 MiB per attempt on a box someone can aim attempts at.
+
+### Locked out
+
+Three ways back, in the order you would reach for them:
+
+1. A recovery code, from anywhere.
+2. `servlo users totp disable <name>`, which needs a shell but works whatever happened to the phone.
+3. `servlo users password <name>`, if the password is the part you lost.
+
+Turning the second factor off takes the secret and the unspent codes with it, so turning it back on enrols the app fresh rather than silently restoring a factor you thought was gone.
+
+### What the login form says
+
+A wrong password and an unknown account answer identically, because telling them apart turns the form into a way to enumerate account names.
+
+"That account needs a code" is different, and only ever follows a **correct** password. Saying it after a wrong one would announce that the account exists and has a second factor — the same enumeration by another route.
+
+A missing or wrong code counts against the rate limiter like a wrong password. Without that, the second factor is six digits an attacker can try a million times.
+
 ## Accounts
 
 ```bash

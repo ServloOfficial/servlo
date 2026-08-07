@@ -312,6 +312,9 @@ func Start(currentVersion string) error {
 	if err != nil {
 		return fmt.Errorf("opening the panel's account store: %w", err)
 	}
+	// What an authenticator app lists this panel under. The domain when there
+	// is one, so three servers in someone's app do not all read the same.
+	guard.Issuer = PanelDomain()
 	handler := withPanelAuth(guard, withRemoteControlGate(mux))
 
 	// Unix socket listener for the servlo.localhost nginx vhost. Linux only:
