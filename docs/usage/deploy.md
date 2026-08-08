@@ -72,6 +72,25 @@ If a site pins a version that is not installed, the deploy stops and says so rat
 
 A site with no Node pin, or a machine with no Node at all, runs the script as an ordinary shell script. Most WordPress sites never run a build and should not need a Node manager to exist.
 
+## Asset builds and memory
+
+`npm run build` is the hungriest thing servlo ever runs, and on a small droplet it is the thing most likely to exhaust the machine. When that happens the kernel's OOM killer picks a victim by its own arithmetic, and that victim is routinely MySQL, because MySQL is the biggest resident process on the box. One site's oversized build takes every other site's database with it, and what the operator sees is a database outage rather than a failed deploy.
+
+So the deploy script runs inside its own systemd scope with a memory ceiling. The build is the only thing in that cgroup, and when it hits the ceiling the cgroup's OOM killer stops the build. One deploy fails, loudly, saying it ran out of memory and what to do about it. Nothing else on the machine notices.
+
+The ceiling is half the machine's memory, floored at 512MB and capped at 4GB. Half leaves the other half for the databases, the PHP pools and nginx, which is what has to survive. The floor is there because a build capped below 512MB fails on almost any real front end, and refusing to build is not an improvement on failing under load. The ceiling is there because past a few gigabytes a build is not hungry, it is broken, and a large droplet should not hide that for longer.
+
+Swap is not available to the build. With swap it would not fail at the ceiling, it would start paging, and a droplet thrashing for twenty minutes is worse for every site on it than one deploy failing in two. The [swap file](../getting-started/installation.md) servlo sets up at install exists so the system survives pressure, not so one build can ignore its limit.
+
+On a machine with no systemd user session the build runs unconfined. A panel that refused to build assets because it could not confine them would trade a rare failure for a certain one.
+
+### The warning before the build
+
+On a small machine, a deploy that compiles assets says so before it starts, naming the ceiling. Before rather than after, because after is a failed deploy and the moment to do something about it has passed.
+
+It fires only when both halves are true: this machine is at the floor of what servlo will allocate, and this deploy actually builds something. A line on every deploy is a line nobody reads by the third one. A commented-out build does not count.
+
+
 ## Deploy history
 
 Every deploy writes down what it did, and the Deploy tab lists the recent ones: the commit and its subject, who wrote it, who triggered the deploy from the panel, how long it took, whether it worked, and the reason if it did not.

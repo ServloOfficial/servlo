@@ -123,7 +123,7 @@ func TestDefaults_WiresEverySeam(t *testing.T) {
 
 	if o.Git == nil || o.Head == nil || o.Snapshot == nil || o.RunScript == nil ||
 		o.Reload == nil || o.Migrates == nil || o.Script == nil ||
-		o.Keep == nil || o.Excludes == nil {
+		o.Keep == nil || o.Excludes == nil || o.BuildWarning == nil {
 		t.Errorf("a seam is nil: %+v", o)
 	}
 	if o.Out == nil {
@@ -268,4 +268,116 @@ func stubNode(t *testing.T, s nodeStub) func() {
 		return s.version, nil
 	}
 	return func() { nodeActive, nodeDetectVersion = prevActive, prevDetect }
+}
+
+// The deploy script is the thing that runs `npm run build`, so it is the thing
+// that has to be confined. An unconfined build is the one that takes MySQL with
+// it when it runs out of memory.
+func TestRunScript_RunsInsideAMemoryCappedScope(t *testing.T) {
+	defer stubNode(t, nodeStub{available: false})()
+	var got struct {
+		limit int64
+		unit  string
+		inner []string
+	}
+	prev := wrapScopeFn
+	wrapScopeFn = func(cmd *exec.Cmd, limit int64, unit string) *exec.Cmd {
+		got.limit, got.unit, got.inner = limit, unit, cmd.Args
+		return cmd
+	}
+	defer func() { wrapScopeFn = prev }()
+
+	if err := RunScript(t.TempDir(), "echo npm run build\n", &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if got.limit <= 0 {
+		t.Errorf("the build was given no memory ceiling (%d)", got.limit)
+	}
+	if got.unit == "" {
+		t.Error("the build was given no scope name")
+	}
+	if len(got.inner) == 0 || !strings.Contains(strings.Join(got.inner, " "), "npm run build") {
+		t.Errorf("the wrong thing was confined: %v", got.inner)
+	}
+}
+
+// The Node wrapper and the scope compose the right way round: the scope
+// confines the whole thing, Node included, rather than Node wrapping a scope
+// that the build then escapes.
+func TestRunScript_TheScopeIsOutsideTheNodeWrapper(t *testing.T) {
+	defer stubNode(t, nodeStub{
+		available: true, installed: []string{"22"}, version: "22",
+		command: func(version, bin string, args []string) *exec.Cmd {
+			return exec.Command("fnm-stub", append([]string{"exec", version, bin}, args...)...)
+		},
+	})()
+	var confined []string
+	prev := wrapScopeFn
+	wrapScopeFn = func(cmd *exec.Cmd, _ int64, _ string) *exec.Cmd {
+		confined = cmd.Args
+		return exec.Command("true")
+	}
+	defer func() { wrapScopeFn = prev }()
+
+	if err := RunScript(t.TempDir(), "npm run build\n", &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(confined) == 0 || confined[0] != "fnm-stub" {
+		t.Errorf("the scope confined %v, want the Node-wrapped command", confined)
+	}
+}
+
+// Running out of memory is the one build failure whose cause the operator has
+// to be told, because the fix is a bigger droplet or a smaller build rather
+// than pressing deploy again. A bare exit code says none of that.
+//
+// Both codes, because a scope stops a build either way: 137 when the kernel
+// SIGKILLed the task it picked, 143 when systemd then SIGTERMed the rest of the
+// scope. The operator is in the same situation and reads the same sentence.
+func TestRunScript_SaysWhenTheBuildRanOutOfMemory(t *testing.T) {
+	for _, code := range []string{"137", "143"} {
+		defer stubNode(t, nodeStub{available: false})()
+		prev := wrapScopeFn
+		wrapScopeFn = func(cmd *exec.Cmd, _ int64, _ string) *exec.Cmd {
+			return exec.Command("sh", "-c", "exit "+code)
+		}
+
+		err := RunScript(t.TempDir(), "npm run build\n", &bytes.Buffer{})
+		wrapScopeFn = prev
+
+		if err == nil {
+			t.Fatalf("a build stopped with %s reported success", code)
+		}
+		said := strings.ToLower(err.Error())
+		if !strings.Contains(said, "memory") {
+			t.Errorf("exit %s: error = %q, does not say it ran out of memory", code, err)
+		}
+		if !strings.Contains(said, "mb") {
+			t.Errorf("exit %s: error = %q, does not name the ceiling it hit", code, err)
+		}
+	}
+}
+
+// On a machine with no user manager the build runs unconfined, and then those
+// same signals are not a ceiling being hit, they are somebody having stopped
+// the deploy. Saying "out of memory" there sends them after a machine size that
+// was never the problem.
+func TestRunScript_DoesNotBlameMemoryForAnUnconfinedBuild(t *testing.T) {
+	defer stubNode(t, nodeStub{available: false})()
+	prev := wrapScopeFn
+	// What Wrap does when it cannot make a scope: hands the command straight
+	// back.
+	wrapScopeFn = func(cmd *exec.Cmd, _ int64, _ string) *exec.Cmd { return cmd }
+	defer func() { wrapScopeFn = prev }()
+
+	err := RunScript(t.TempDir(), "kill -TERM $$; sleep 5\n", &bytes.Buffer{})
+
+	if err == nil {
+		t.Fatal("the shell survived being terminated")
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "memory") {
+		t.Errorf("error = %q, blamed memory for a build nothing was confining", err)
+	}
 }

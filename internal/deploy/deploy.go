@@ -50,6 +50,10 @@ type Options struct {
 	// Excludes are the paths this deploy must not remove.
 	Excludes func(*config.Site) ([]string, error)
 
+	// BuildWarning is what to tell the operator before the script runs, empty
+	// when there is nothing worth saying.
+	BuildWarning func(script string) string
+
 	// Migrates reports whether this deploy is schema-changing.
 	Migrates func(*config.Site) (bool, error)
 	// Script is the site's deploy script.
@@ -137,6 +141,11 @@ func Run(o Options) (Result, error) {
 
 	if hasCommands(script) {
 		phase(o.Out, "Deploy script")
+		// Before the build, not after it. After it is a failed deploy and the
+		// moment the operator could have done something about it has passed.
+		if warning := o.BuildWarning(script); warning != "" {
+			fmt.Fprintf(o.Out, "%s\n\n", warning)
+		}
 		if err := o.RunScript(o.Site.Path, script, o.Out); err != nil {
 			// No reload. Production OPcache runs with validate_timestamps off,
 			// so PHP keeps serving the bytecode it already has: withholding the

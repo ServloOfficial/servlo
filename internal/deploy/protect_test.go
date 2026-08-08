@@ -90,17 +90,18 @@ var errWriteFailed = errors.New("the disk is full")
 // git is the real thing, which is the point of this file.
 func testOptions(site string, out writer, excludes []string) Options {
 	return Options{
-		Site:      &config.Site{Name: "shop", Domains: []string{"shop.example"}, Path: site},
-		Out:       out,
-		Git:       gitpkg.Run,
-		Head:      Head,
-		Keep:      Keep,
-		Excludes:  func(*config.Site) ([]string, error) { return excludes, nil },
-		Snapshot:  func(*config.Site) (string, error) { return "", errors.New("no database in this test") },
-		RunScript: func(string, string, writer) error { return nil },
-		Reload:    func(*config.Site) error { return nil },
-		Migrates:  func(*config.Site) (bool, error) { return false, nil },
-		Script:    func(*config.Site) (string, error) { return "", nil },
+		Site:         &config.Site{Name: "shop", Domains: []string{"shop.example"}, Path: site},
+		Out:          out,
+		Git:          gitpkg.Run,
+		Head:         Head,
+		Keep:         Keep,
+		Excludes:     func(*config.Site) ([]string, error) { return excludes, nil },
+		BuildWarning: func(string) string { return "" },
+		Snapshot:     func(*config.Site) (string, error) { return "", errors.New("no database in this test") },
+		RunScript:    func(string, string, writer) error { return nil },
+		Reload:       func(*config.Site) error { return nil },
+		Migrates:     func(*config.Site) (bool, error) { return false, nil },
+		Script:       func(*config.Site) (string, error) { return "", nil },
 	}
 }
 

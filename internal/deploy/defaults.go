@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/realrashid/servlo/internal/buildscope"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/envfile"
 	gitpkg "github.com/realrashid/servlo/internal/git"
@@ -34,8 +35,11 @@ func Defaults(site *config.Site, out io.Writer) Options {
 		Reload:    Reload,
 		Keep:      Keep,
 		Excludes:  siteops.DeployExcludes,
-		Migrates:  siteops.DeployScriptMigrates,
-		Script:    deployScript,
+		BuildWarning: func(script string) string {
+			return buildscope.Warning(buildscope.HostTotalRAM(), script)
+		},
+		Migrates: siteops.DeployScriptMigrates,
+		Script:   deployScript,
 	}
 }
 
@@ -63,6 +67,10 @@ var (
 	nodeDetectVersion = node.DetectVersion
 )
 
+// wrapScopeFn confines the build, indirected so a test does not need a systemd
+// user session.
+var wrapScopeFn = buildscope.Wrap
+
 // RunScript runs a site's deploy script with the site as its working directory,
 // under the site's own Node version.
 //
@@ -84,14 +92,37 @@ func RunScript(dir, script string, out io.Writer) error {
 	// migration against half-installed code, and the deploy reports success.
 	args := []string{"-e", "-c", script}
 
-	cmd, err := nodeScriptCommand(dir, args)
+	plain, err := nodeScriptCommand(dir, args)
 	if err != nil {
 		return err
 	}
+
+	// The scope goes outside the Node wrapper, not inside it. Whatever fnm
+	// spawns has to be in the cgroup too, or the build escapes the ceiling
+	// through the very process that does the building.
+	limit := buildscope.HostLimit()
+	cmd := wrapScopeFn(plain, limit, buildscope.UnitName(filepath.Base(dir)))
+	// Whether this machine could actually confine the build. It decides how a
+	// killed build is read afterwards: inside a scope the kill is the ceiling,
+	// outside one the same signals mean somebody stopped the deploy by hand, and
+	// telling them they ran out of memory would send them after the wrong thing.
+	confined := cmd != plain
 	cmd.Dir = dir
 	cmd.Stdout = out
 	cmd.Stderr = out
-	return cmd.Run()
+
+	if err := cmd.Run(); err != nil {
+		if confined && buildscope.OutOfMemory(err) {
+			// Exit 137 tells an operator nothing. This is the one build failure
+			// where the output is empty and the fix is not another try.
+			return fmt.Errorf(
+				"the build ran out of memory and was stopped at its %dMB ceiling, so nothing else on this server was affected: "+
+					"give the build less to do, or move this site to a larger machine",
+				limit/buildscope.MB)
+		}
+		return err
+	}
+	return nil
 }
 
 // nodeScriptCommand builds the shell command, under the site's Node version

@@ -3,6 +3,7 @@ package deploy
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -13,14 +14,15 @@ import (
 // harness records what a deploy did, in order, without any of it reaching a
 // repository, a database or a container.
 type harness struct {
-	steps  []string
-	out    bytes.Buffer
-	gitErr map[string]error
-	snapEr error
-	runEr  error
-	reload error
-	keepEr error
-	head   string
+	steps   []string
+	out     bytes.Buffer
+	gitErr  map[string]error
+	snapEr  error
+	runEr   error
+	reload  error
+	keepEr  error
+	warning string
+	head    string
 }
 
 func newHarness() *harness {
@@ -44,6 +46,9 @@ func (h *harness) options(site *config.Site) Options {
 		},
 		RunScript: func(dir, script string, out io.Writer) error {
 			h.steps = append(h.steps, "script")
+			// The script's own first line of output, so a test can tell what
+			// was printed before the build from what was printed after it.
+			fmt.Fprintln(out, "the build is running")
 			return h.runEr
 		},
 		Reload: func(*config.Site) error {
@@ -54,9 +59,10 @@ func (h *harness) options(site *config.Site) Options {
 			h.steps = append(h.steps, "keep")
 			return nil, h.keepEr
 		},
-		Excludes: func(*config.Site) ([]string, error) { return nil, nil },
-		Migrates: func(*config.Site) (bool, error) { return true, nil },
-		Script:   func(*config.Site) (string, error) { return "php artisan migrate --force\n", nil },
+		Excludes:     func(*config.Site) ([]string, error) { return nil, nil },
+		BuildWarning: func(string) string { return h.warning },
+		Migrates:     func(*config.Site) (bool, error) { return true, nil },
+		Script:       func(*config.Site) (string, error) { return "php artisan migrate --force\n", nil },
 	}
 }
 
@@ -283,4 +289,52 @@ func indexOf(steps []string, want string) int {
 		}
 	}
 	return -1
+}
+
+// The warning has to reach the operator before the build, not after it. After
+// it is a failed deploy, and the moment they could have done something about it
+// has gone.
+func TestRun_WarnsBeforeTheBuildRuns(t *testing.T) {
+	h := newHarness()
+	h.warning = "This machine is small, so the asset build is capped at 512MB."
+
+	if _, err := Run(h.options(deploySite())); err != nil {
+		t.Fatal(err)
+	}
+
+	out := h.out.String()
+	if !strings.Contains(out, "capped at 512MB") {
+		t.Fatalf("the warning never reached the operator:\n%s", out)
+	}
+	if !strings.Contains(out, "=== Deploy script ===") {
+		t.Fatalf("no script phase in the output:\n%s", out)
+	}
+	if strings.Index(out, "capped at 512MB") < strings.Index(out, "=== Deploy script ===") {
+		t.Error("the warning came before the phase header, so it reads as belonging to the pull")
+	}
+	// And before the build itself, which is the whole point: after it, the
+	// operator is reading about a decision they can no longer make.
+	if strings.Index(out, "capped at 512MB") > strings.Index(out, "the build is running") {
+		t.Errorf("the warning came after the build had already started:\n%s", out)
+	}
+}
+
+// Nothing worth saying, nothing said. A line on every deploy is a line nobody
+// reads by the third one.
+func TestRun_SaysNothingWhenThereIsNoWarning(t *testing.T) {
+	h := newHarness()
+	h.warning = ""
+
+	if _, err := Run(h.options(deploySite())); err != nil {
+		t.Fatal(err)
+	}
+
+	// Between the phase header and the build's own first line there is
+	// nothing, because there was nothing worth saying.
+	out := h.out.String()
+	start := strings.Index(out, "=== Deploy script ===") + len("=== Deploy script ===")
+	between := out[start:strings.Index(out, "the build is running")]
+	if strings.TrimSpace(between) != "" {
+		t.Errorf("something was printed before the build with no warning to give: %q", between)
+	}
 }
