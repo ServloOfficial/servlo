@@ -34,10 +34,18 @@ func SyncFPMPool(site config.Site) error {
 	}
 
 	container := podman.FPMContainerName(site, site.PHPVersion)
+	if err := site.ValidatePHPSettings(); err != nil {
+		return err
+	}
 	if _, err := fpmpool.Write(config.FPMPoolDir(container), fpmpool.Settings{
 		Site:      site.Name,
 		Root:      site.Path,
 		SocketDir: config.FPMSocketDir(),
+		// The PHP half of each pair. nginx's half of the same two fields is
+		// written into the vhost from the same site, see nginx.VhostData.
+		MaxUploadMB:         site.MaxUploadMB,
+		MaxExecutionSeconds: site.MaxExecutionSeconds,
+		MemoryLimitMB:       site.MemoryLimitMB,
 	}); err != nil {
 		return err
 	}

@@ -206,6 +206,14 @@ type imageGapResult struct {
 // regenerateSiteVhost rewrites the site's vhost with the given PHP version,
 // picking the secured or plain template from the site's TLS state.
 func regenerateSiteVhost(site *config.Site, version string) error {
+	// The pool moves with the site. Each container's master defines every pool
+	// in the directory it mounts, so a pool left in the version the site came
+	// from keeps that master binding the socket the new one needs, and the new
+	// container has no pool for the site at all. Before the vhost, because the
+	// vhost points at the socket only once the pool file is there.
+	if err := SyncFPMPool(*site); err != nil {
+		return fmt.Errorf("moving the site's PHP-FPM pool: %w", err)
+	}
 	if site.Secured {
 		if err := secureCertFn(*site); err != nil {
 			return fmt.Errorf("regenerating SSL vhost: %w", err)

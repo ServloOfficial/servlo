@@ -11,8 +11,7 @@ server {
     listen [::]:443 ssl;
     server_name {{.ServerNames}};
 {{.HSTS}}
-
-    ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
+{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}    ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
     ssl_certificate_key /etc/nginx/certs/{{.CertDomain}}.key;
 
     location / {

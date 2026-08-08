@@ -288,6 +288,28 @@ The directory is per container rather than one for all of them on purpose. An FP
 
 Writing or removing a pool reloads the master with `SIGUSR2` rather than restarting the container. FPM re-reads its configuration, starts new workers and lets the running ones finish, so changing one site's upload limit does not interrupt another site's checkout.
 
+#### Changing a site's PHP version
+
+Switching a site to another PHP version moves its pool with it, into the directory belonging to the new version's container, and removes the one it left behind. Both masters are reloaded: the version the site came from so it stops defining a pool for a site it no longer serves, and the version it moved to so it picks the pool up. The vhost is rewritten to the same socket in the same step, and it is rewritten after the pool exists rather than before, because the vhost points at the socket only once there is a pool listening on it.
+
+Neither reload is a restart, so no other site on either version drops a request while this happens.
+
+#### Changing them from the panel
+
+Open a site, then **Settings**. Three fields:
+
+| Field | What it writes |
+|---|---|
+| Max upload size | PHP `upload_max_filesize`, PHP `post_max_size`, nginx `client_max_body_size` |
+| Max execution time | PHP `max_execution_time`, nginx `fastcgi_read_timeout` and `fastcgi_send_timeout` |
+| Memory limit | PHP `memory_limit` |
+
+Three fields rather than six on purpose. Max upload size is one decision that has to reach three directives: raise `upload_max_filesize` alone and `post_max_size` refuses the request, raise both and nginx refuses it before PHP is even asked. Whichever one stayed low is the one that fails, and it reads to an operator as the setting not working. Max execution time is the same shape, in two places instead of three: whichever of PHP and nginx gives up first is the one the visitor experiences, so an import set to 600 seconds in PHP alone still dies at nginx's 60.
+
+Saving writes the pool and the vhost together from the same saved values, runs `nginx -t` before committing the vhost, and reloads both. Leaving a field empty means the default: the directive is removed rather than pinned to whatever it last was.
+
+The same settings live in the site registry at `~/.local/share/servlo/sites.yaml` as `max_upload_mb`, `max_execution_seconds` and `memory_limit_mb`.
+
 Two production settings are pinned in every pool and cannot be turned back on from an application's own `ini_set`:
 
 ```

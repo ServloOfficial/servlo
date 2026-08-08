@@ -69,6 +69,14 @@ func NginxCustomDBkp() string {
 	return filepath.Join(NginxDir(), "custom.d.bkp")
 }
 
+// NginxConfDBkp holds the previous contents of a generated vhost, kept every
+// time servlo replaces one. Outside conf.d, because nginx includes conf.d/*.conf
+// and a backup kept beside the live file would load as a second server block
+// for the same domain.
+func NginxConfDBkp() string {
+	return filepath.Join(NginxDir(), "conf.d.bkp")
+}
+
 // NginxHttpD holds user-authored nginx snippets included at the http{} level
 // (e.g. global gzip, proxy buffers, client_max_body_size). Servlo never writes
 // here, so edits survive nginx.conf regeneration and `servlo update`.

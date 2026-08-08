@@ -604,3 +604,80 @@ export function fpmTabLabel(s: Site): string {
   if (s.runtime === 'fpm-custom') return 'Custom FPM';
   return 'PHP-FPM';
 }
+
+// Per-site PHP settings. Three fields rather than five: max upload size is one
+// number that has to reach upload_max_filesize, post_max_size and
+// client_max_body_size, and max execution time is one number that has to reach
+// max_execution_time and both fastcgi timeouts. The halves are never offered
+// separately, here or on the server.
+export interface SitePHPSettings {
+  max_upload_mb: number;
+  max_execution_seconds: number;
+  memory_limit_mb: number;
+  max_upload_ceiling_mb: number;
+  max_execution_ceiling_s: number;
+  memory_limit_ceiling_mb: number;
+}
+
+export async function loadSitePHPSettings(domain: string): Promise<SitePHPSettings> {
+  const res = await apiFetch(site(domain, 'php-settings'));
+  if (!res.ok) throw new Error(m.common_requestFailed());
+  return (await res.json()) as SitePHPSettings;
+}
+
+// The whole set every time. A save that sent only the changed field would leave
+// the server unable to tell "unchanged" from "cleared".
+export async function saveSitePHPSettings(
+  domain: string,
+  values: { max_upload_mb: number; max_execution_seconds: number; memory_limit_mb: number }
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(site(domain, 'php-settings'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values)
+    });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    return { ok: Boolean(data.ok), error: data.error };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
+  }
+}
+
+// A site's own nginx settings: response headers and the static-asset cache
+// window. Separate from the PHP settings because they land in a different file
+// through a different validation, and one form failing should not roll the
+// other back.
+export interface ResponseHeader {
+  name: string;
+  value: string;
+}
+
+export interface SiteNginxSettings {
+  static_cache_days: number;
+  response_headers: ResponseHeader[];
+  static_cache_ceiling_days: number;
+}
+
+export async function loadSiteNginxSettings(domain: string): Promise<SiteNginxSettings> {
+  const res = await apiFetch(site(domain, 'nginx-settings'));
+  if (!res.ok) throw new Error(m.common_requestFailed());
+  return (await res.json()) as SiteNginxSettings;
+}
+
+export async function saveSiteNginxSettings(
+  domain: string,
+  values: { static_cache_days: number; response_headers: ResponseHeader[] }
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(site(domain, 'nginx-settings'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values)
+    });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    return { ok: Boolean(data.ok), error: data.error };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
+  }
+}

@@ -123,8 +123,18 @@ type VhostData struct {
 	ServloBranch string
 	// RequestTimeout is the nginx request timeout in seconds rendered into the
 	// fastcgi_*_timeout / proxy_*_timeout directives. Resolved per site by
-	// resolveRequestTimeout (project .servlo.yaml, then global config, then 60s).
+	// siteRequestTimeout: the site's own max execution time first, then the
+	// project .servlo.yaml, then global config, then 60s. It is nginx's half of
+	// the max-execution-time pair, whose PHP half is written into the pool.
 	RequestTimeout int
+	// MaxUploadMB is the site's upload ceiling, nginx's half of the pair whose
+	// PHP half (upload_max_filesize and post_max_size) is written into the
+	// pool. Zero writes no directive and leaves nginx's own default.
+	MaxUploadMB int
+	// StaticCacheDays and ResponseHeaders are the site's own nginx settings,
+	// rendered by StaticCache and SiteHeaders. Zero and empty write nothing.
+	StaticCacheDays int
+	ResponseHeaders []config.ResponseHeader
 	// FrameworkNginx is the framework definition's nginx block, already
 	// placeholder-expanded and indented. Rendered ahead of the generic
 	// locations so a framework can claim paths they would otherwise swallow.
@@ -143,6 +153,22 @@ func (d VhostData) Root() string {
 // and a vhost that silently omits this fails its first renewal instead of its
 // first request.
 func (d VhostData) ACMEChallenge() string { return acmeChallengeLocation }
+
+// UploadLimit is nginx's half of the max-upload-size pair, rendered as a whole
+// directive so a template cannot spell it or place it differently between the
+// plain and SSL vhosts. Empty when the site sets no limit, because a directive
+// restating nginx's own default would stop the global config from moving it.
+//
+// A method for the same reason as ACMEChallenge: every vhost gets it, and one
+// that quietly omits it is a site whose upload is refused by nginx before PHP
+// ever sees the request, with the operator looking at a PHP setting that says
+// the upload is allowed.
+func (d VhostData) UploadLimit() string {
+	if d.MaxUploadMB <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("    client_max_body_size %dm;\n", d.MaxUploadMB)
+}
 
 // HSTS is the TLS configuration a secured vhost carries: protocol and cipher
 // defaults, the Strict-Transport-Security header, and OCSP stapling where the
@@ -350,6 +376,20 @@ func resolveRequestTimeout(sitePath string) int {
 	return gc.RequestTimeoutSeconds()
 }
 
+// siteRequestTimeout is nginx's half of the max-execution-time pair. The site's
+// own setting is the more specific one, so it wins over whatever the project
+// and global resolution produced; a site that sets none keeps that.
+//
+// The two have to agree or the pair is only half exposed: PHP set to 600 with
+// nginx still at 60 means the request is cut off at 60, and the operator is
+// looking at a PHP setting that says otherwise.
+func siteRequestTimeout(site config.Site, resolved int) int {
+	if site.MaxExecutionSeconds > 0 {
+		return site.MaxExecutionSeconds
+	}
+	return resolved
+}
+
 // phpShort converts "8.4" → "84".
 func phpShort(version string) string {
 	return strings.ReplaceAll(version, ".", "")
@@ -421,7 +461,10 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 		DevServerBase:   devBase,
 		DevServerPort:   devPort,
 		ServloSite:      site.Name,
-		RequestTimeout:  resolveRequestTimeout(site.Path),
+		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:     site.MaxUploadMB,
+		StaticCacheDays: site.StaticCacheDays,
+		ResponseHeaders: site.ResponseHeaders,
 		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, upstream),
 	}
 
@@ -435,7 +478,7 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 	}
 	confPath := filepath.Join(config.NginxConfD(), site.PrimaryDomain()+".conf")
 	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return commitVhost(confPath, rendered)
 }
 
 // GenerateSSLVhost renders the SSL vhost template and writes it to conf.d.
@@ -474,7 +517,10 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 		DevServerBase:   devBase,
 		DevServerPort:   devPort,
 		ServloSite:      site.Name,
-		RequestTimeout:  resolveRequestTimeout(site.Path),
+		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:     site.MaxUploadMB,
+		StaticCacheDays: site.StaticCacheDays,
+		ResponseHeaders: site.ResponseHeaders,
 		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, upstream),
 	}
 
@@ -488,7 +534,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 	}
 	confPath := filepath.Join(config.NginxConfD(), site.PrimaryDomain()+"-ssl.conf")
 	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return commitVhost(confPath, rendered)
 }
 
 // GenerateFrankenPHPVhost renders the HTTP vhost template for a FrankenPHP
@@ -509,7 +555,10 @@ func GenerateFrankenPHPVhost(site config.Site) error {
 		ServerNames:     serverNamesWithWildcards(site.Domains),
 		CustomContainer: podman.FrankenPHPContainerName(site.Name),
 		CustomPort:      podman.FrankenPHPPort,
-		RequestTimeout:  resolveRequestTimeout(site.Path),
+		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:     site.MaxUploadMB,
+		StaticCacheDays: site.StaticCacheDays,
+		ResponseHeaders: site.ResponseHeaders,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -521,7 +570,7 @@ func GenerateFrankenPHPVhost(site config.Site) error {
 	}
 	confPath := filepath.Join(config.NginxConfD(), site.PrimaryDomain()+".conf")
 	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return commitVhost(confPath, rendered)
 }
 
 // GenerateFrankenPHPSSLVhost renders the HTTPS vhost template for a FrankenPHP site.
@@ -541,7 +590,10 @@ func GenerateFrankenPHPSSLVhost(site config.Site) error {
 		CertDomain:      site.PrimaryDomain(),
 		CustomContainer: podman.FrankenPHPContainerName(site.Name),
 		CustomPort:      podman.FrankenPHPPort,
-		RequestTimeout:  resolveRequestTimeout(site.Path),
+		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:     site.MaxUploadMB,
+		StaticCacheDays: site.StaticCacheDays,
+		ResponseHeaders: site.ResponseHeaders,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -553,7 +605,7 @@ func GenerateFrankenPHPSSLVhost(site config.Site) error {
 	}
 	confPath := filepath.Join(config.NginxConfD(), site.PrimaryDomain()+"-ssl.conf")
 	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return commitVhost(confPath, rendered)
 }
 
 // GenerateCustomVhost renders the HTTP vhost template for a custom container
@@ -576,7 +628,10 @@ func GenerateCustomVhost(site config.Site) error {
 		CustomContainer: podman.CustomContainerName(site.Name),
 		CustomPort:      site.ContainerPort,
 		BackendSSL:      site.ContainerSSL,
-		RequestTimeout:  resolveRequestTimeout(site.Path),
+		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:     site.MaxUploadMB,
+		StaticCacheDays: site.StaticCacheDays,
+		ResponseHeaders: site.ResponseHeaders,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -589,7 +644,7 @@ func GenerateCustomVhost(site config.Site) error {
 	}
 	confPath := filepath.Join(config.NginxConfD(), site.PrimaryDomain()+".conf")
 	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return commitVhost(confPath, rendered)
 }
 
 // GenerateCustomSSLVhost renders the SSL vhost template for a custom container
@@ -612,7 +667,10 @@ func GenerateCustomSSLVhost(site config.Site) error {
 		CustomContainer: podman.CustomContainerName(site.Name),
 		CustomPort:      site.ContainerPort,
 		BackendSSL:      site.ContainerSSL,
-		RequestTimeout:  resolveRequestTimeout(site.Path),
+		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:     site.MaxUploadMB,
+		StaticCacheDays: site.StaticCacheDays,
+		ResponseHeaders: site.ResponseHeaders,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -625,7 +683,7 @@ func GenerateCustomSSLVhost(site config.Site) error {
 	}
 	confPath := filepath.Join(config.NginxConfD(), site.PrimaryDomain()+"-ssl.conf")
 	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return commitVhost(confPath, rendered)
 }
 
 // hostProxyUpstream returns the host address nginx proxies a host-proxy site to.
@@ -662,12 +720,15 @@ func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl boo
 	}
 
 	data := VhostData{
-		Domain:         site.PrimaryDomain(),
-		ServerNames:    serverNamesWithWildcards(site.Domains),
-		UpstreamHost:   hostProxyUpstream(),
-		UpstreamPort:   site.HostPort,
-		BackendSSL:     site.HostSSL,
-		RequestTimeout: resolveRequestTimeout(site.Path),
+		Domain:          site.PrimaryDomain(),
+		ServerNames:     serverNamesWithWildcards(site.Domains),
+		UpstreamHost:    hostProxyUpstream(),
+		UpstreamPort:    site.HostPort,
+		BackendSSL:      site.HostSSL,
+		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:     site.MaxUploadMB,
+		StaticCacheDays: site.StaticCacheDays,
+		ResponseHeaders: site.ResponseHeaders,
 	}
 	if ssl {
 		data.CertDomain = site.PrimaryDomain()
@@ -683,7 +744,7 @@ func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl boo
 	}
 	confPath := filepath.Join(config.NginxConfD(), confName)
 	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return commitVhost(confPath, rendered)
 }
 
 // landingVhostConf renders a minimal vhost for site that serves htmlFile (read

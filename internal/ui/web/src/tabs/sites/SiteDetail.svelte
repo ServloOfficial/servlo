@@ -4,6 +4,7 @@
   import SiteOverview from './SiteOverview.svelte';
   import SiteLogs from './SiteLogs.svelte';
   import SiteEnvTab from './SiteEnvTab.svelte';
+  import SitePHPSettingsTab from './SitePHPSettingsTab.svelte';
   import SiteNginxModal from '../../modals/SiteNginxModal.svelte';
   import { resumeSite, loadSites, siteHasLogSources, type Site } from '$stores/sites';
   import { routeRest, goToTab } from '$stores/route';
@@ -25,13 +26,13 @@
   }
   let { site }: Props = $props();
 
-  type TabId = 'overview' | 'logs' | 'env';
+  type TabId = 'overview' | 'logs' | 'env' | 'settings';
   const TAB_STORAGE_KEY = 'servlo:siteDetailTab';
 
   function readStoredTab(): TabId {
     if (typeof localStorage === 'undefined') return 'overview';
     const v = localStorage.getItem(TAB_STORAGE_KEY);
-    if (v === 'logs' || v === 'env') return v;
+    if (v === 'logs' || v === 'env' || v === 'settings') return v;
     return 'overview';
   }
 
@@ -44,7 +45,12 @@
   const canLogs = $derived(siteHasLogSources(site));
   // A lone Overview tab can't be switched to anything, so don't render the tab
   // row at all when no other tab is available (e.g. static sites).
-  const hasExtraTabs = $derived(canLogs || canEnv);
+  // Settings is offered for anything served by PHP-FPM: it writes a pool, and
+  // a site with no pool has nothing for these fields to change.
+  const canSettings = $derived(
+    !site.custom_container && site.runtime !== 'frankenphp' && !site.host_port
+  );
+  const hasExtraTabs = $derived(canLogs || canEnv || canSettings);
 
   // The route can deep-link a sub-tab. When the second segment names a tab, honour it
   // and overwrite the stored selection.
@@ -52,7 +58,7 @@
     const seg = $routeRest.split('/')[1] ?? '';
     if (seg === 'nginx') {
       nginxOpen = true;
-    } else if (seg === 'logs' || seg === 'env' || seg === 'overview') {
+    } else if (seg === 'logs' || seg === 'env' || seg === 'settings' || seg === 'overview') {
       active = seg;
     }
   });
@@ -60,6 +66,7 @@
   $effect(() => {
     if (active === 'logs' && !canLogs) active = 'overview';
     if (active === 'env' && !canEnv) active = 'overview';
+    if (active === 'settings' && !canSettings) active = 'overview';
   });
 
   $effect(() => {
@@ -92,6 +99,9 @@
   {/if}
   {#if canEnv}
     <button class={tabBtn('env', active === 'env')} onclick={() => selectTab('env')}>{m.sites_tabs_env()}</button>
+  {/if}
+  {#if canSettings}
+    <button class={tabBtn('settings', active === 'settings')} onclick={() => selectTab('settings')}>{m.sites_tabs_settings()}</button>
   {/if}
 {/snippet}
 
@@ -129,6 +139,10 @@
   {:else if active === 'env'}
     {#key site.domain}
       <SiteEnvTab {site} />
+    {/key}
+  {:else if active === 'settings'}
+    {#key site.domain}
+      <SitePHPSettingsTab {site} onOpenRaw={() => (nginxOpen = true)} />
     {/key}
   {/if}
 </DetailPanel>

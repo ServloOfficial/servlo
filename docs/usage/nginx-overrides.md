@@ -6,6 +6,39 @@ To add per-site directives that survive every regeneration, drop a snippet in `~
 
 An override is for what *one site* needs. When every site of a framework needs the same directives, as Magento does for `/setup`, `/static`, and `/media`, that belongs in the framework definition's `nginx.snippet` instead, which is spliced in near the top of the server block. See [framework definitions](framework-definitions.md).
 
+## Site settings, before you reach for an override
+
+Most of what a site needs from nginx is a field on its **Settings** tab, and a field is safer than a snippet: servlo knows what the value has to be valid for, and writes every directive the setting needs rather than the one you happened to think of.
+
+| Field | What it writes |
+|---|---|
+| Max upload size | nginx `client_max_body_size`, and PHP's `upload_max_filesize` and `post_max_size` |
+| Max execution time | nginx `fastcgi_read_timeout` and `fastcgi_send_timeout`, and PHP's `max_execution_time` |
+| Cache static assets | an `expires` and `Cache-Control` block for CSS, JS, images and fonts |
+| Response headers | an `add_header ... always` per header, on every response including error pages |
+
+The upload and execution fields are the PHP ones described under [per-site PHP settings](php.md); they appear here too because half of each lands in nginx.
+
+Static-asset caching never matches `.php` or `.html`. A PHP file cached for a month is a site that cannot be deployed, and an HTML page is usually the one file that has to be able to change now.
+
+The cache block repeats the site's response headers and its HSTS inside itself, which looks redundant and is not: nginx's `add_header` does not merge downward, so a location that sets one discards every header inherited from the server block. Without the repetition, turning caching on would silently drop a site's security headers for exactly the files a browser fetches the most.
+
+`Strict-Transport-Security` is refused as a response header. Servlo writes it from the site's TLS state, `add_header` appends rather than replaces, and a browser is entitled to honour the shorter `max-age` of the two, so the form could quietly weaken it.
+
+The raw editor sits underneath the fields on the same tab, for everything they do not cover.
+
+## Generated vhosts are validated too
+
+The override above is not the only file that gets `nginx -t` before it counts. Every generated vhost servlo writes goes through the same commit: the previous contents are kept as a timestamped backup in `~/.local/share/servlo/nginx/conf.d.bkp/`, the new file is written, and nginx is asked whether it will load. If nginx objects to *this* file, the previous contents go back and the diagnostic comes back with the error. nginx loads its whole configuration or none of it, so one refused file is every site on the machine down, not just the one whose file it is.
+
+Backups live in `conf.d.bkp/` rather than beside the live file because nginx includes `conf.d/*.conf`, and a backup kept there would load as a second server block for the same domain.
+
+Two things deliberately do not roll back. A failure naming some other file is somebody else's broken config, and reverting this site would lose a good change without fixing anything. And a container that cannot be asked at all is the ordinary state during install and the first link, where refusing to write would mean a site never gets the vhost nginx needs in order to start.
+
+A regeneration whose bytes match what is already on disk does nothing: no write, no backup, no validation. Every link, install and quadlet rewrite regenerates every vhost, so without that the backup directory would fill with copies of one file.
+
+Restoring a generated vhost puts a backup back through the same validation and reloads. It is for getting a site serving again now, not for holding config against servlo: the next regeneration overwrites it. For changes meant to last, use the override above, or the site's Settings tab.
+
 ## From the CLI
 
 The same override is reachable without the web UI, which is handy for scripting. `servlo nginx show [site]` prints the current override (`--path` prints just the file path), `servlo nginx edit [site]` opens it in `$EDITOR` and then validates with `nginx -t` and reloads on save, and `servlo nginx reset [site]` deletes it and falls back to the bundled defaults. Both surfaces go through one shared edit service, so validation, backups, and reload behave identically whichever one you use.

@@ -1,0 +1,134 @@
+import { render, fireEvent, waitFor } from '@testing-library/svelte';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { SitePHPSettings } from '$stores/sites';
+
+const settings: SitePHPSettings = {
+  max_upload_mb: 64,
+  max_execution_seconds: 0,
+  memory_limit_mb: 0,
+  max_upload_ceiling_mb: 16384,
+  max_execution_ceiling_s: 86400,
+  memory_limit_ceiling_mb: 65536
+};
+
+const loadSitePHPSettings = vi.fn(async () => settings);
+const saveSitePHPSettings = vi.fn(async () => ({ ok: true }));
+
+const loadSiteNginxSettings = vi.fn(async () => ({
+  static_cache_days: 0,
+  response_headers: [],
+  static_cache_ceiling_days: 365
+}));
+const saveSiteNginxSettings = vi.fn(async () => ({ ok: true }));
+
+vi.mock('$stores/sites', () => ({
+  loadSitePHPSettings: (...a: unknown[]) => loadSitePHPSettings(...(a as [])),
+  saveSitePHPSettings: (...a: unknown[]) => saveSitePHPSettings(...(a as [])),
+  loadSiteNginxSettings: (...a: unknown[]) => loadSiteNginxSettings(...(a as [])),
+  saveSiteNginxSettings: (...a: unknown[]) => saveSiteNginxSettings(...(a as []))
+}));
+
+import SitePHPSettingsTab from './SitePHPSettingsTab.svelte';
+import { m } from '../../paraglide/messages.js';
+
+const site = { domain: 'shop.example' } as never;
+const props = { site, onOpenRaw: () => {} } as never;
+
+beforeEach(() => {
+  loadSitePHPSettings.mockClear();
+  saveSitePHPSettings.mockClear();
+  loadSiteNginxSettings.mockClear();
+  saveSiteNginxSettings.mockClear();
+});
+
+describe('SitePHPSettingsTab', () => {
+  it('shows the three fields, and no half of a pair on its own', async () => {
+    const { findByLabelText, queryByLabelText } = render(SitePHPSettingsTab, { props });
+
+    expect(await findByLabelText(m.sites_phpSettings_upload())).toBeTruthy();
+    expect(await findByLabelText(m.sites_phpSettings_execution())).toBeTruthy();
+    expect(await findByLabelText(m.sites_phpSettings_memory())).toBeTruthy();
+    // The directives the combined fields stand in for are never their own
+    // controls: offering post_max_size beside upload_max_filesize is exactly
+    // how one gets raised without the other.
+    for (const half of ['post_max_size', 'upload_max_filesize', 'client_max_body_size']) {
+      expect(queryByLabelText(half)).toBeNull();
+    }
+  });
+
+  it('sends every field on save, so clearing one is not read as leaving it alone', async () => {
+    const { findByLabelText, getByRole } = render(SitePHPSettingsTab, { props });
+
+    const upload = (await findByLabelText(m.sites_phpSettings_upload())) as HTMLInputElement;
+    await fireEvent.input(upload, { target: { value: '' } });
+    await fireEvent.click(getByRole('button', { name: m.sites_phpSettings_savePhp() }));
+
+    await waitFor(() => {
+      expect(saveSitePHPSettings).toHaveBeenCalledWith('shop.example', {
+        max_upload_mb: 0,
+        max_execution_seconds: 0,
+        memory_limit_mb: 0
+      });
+    });
+  });
+
+  it('sends a typed limit as a number rather than the string in the box', async () => {
+    const { findByLabelText, getByRole } = render(SitePHPSettingsTab, { props });
+
+    const upload = (await findByLabelText(m.sites_phpSettings_upload())) as HTMLInputElement;
+    await fireEvent.input(upload, { target: { value: '256' } });
+    await fireEvent.click(getByRole('button', { name: m.sites_phpSettings_savePhp() }));
+
+    await waitFor(() => {
+      expect(saveSitePHPSettings).toHaveBeenCalledWith('shop.example', {
+        max_upload_mb: 256,
+        max_execution_seconds: 0,
+        memory_limit_mb: 0
+      });
+    });
+  });
+
+  it('reports a refused save rather than showing it as saved', async () => {
+    saveSitePHPSettings.mockResolvedValueOnce({ ok: false, error: 'the max upload size is out of range' } as never);
+    const { findByText, getByRole } = render(SitePHPSettingsTab, { props });
+
+    await findByText(m.sites_phpSettings_title());
+    await fireEvent.click(getByRole('button', { name: m.sites_phpSettings_savePhp() }));
+
+    expect(await findByText('the max upload size is out of range')).toBeTruthy();
+  });
+});
+
+describe('the nginx card underneath', () => {
+  it('sends only the header rows that were filled in', async () => {
+    const { findByText, getByRole, getAllByRole } = render(SitePHPSettingsTab, { props });
+
+    await findByText(m.sites_nginxSettings_title());
+    await fireEvent.click(getByRole('button', { name: m.sites_nginxSettings_addHeader() }));
+    await fireEvent.click(getByRole('button', { name: m.sites_nginxSettings_addHeader() }));
+
+    const boxes = getAllByRole('textbox') as HTMLInputElement[];
+    await fireEvent.input(boxes[0], { target: { value: 'X-Frame-Options' } });
+    await fireEvent.input(boxes[1], { target: { value: 'DENY' } });
+    // The second row is left blank, which is a row the operator started and
+    // abandoned rather than a header called "".
+    await fireEvent.click(getByRole('button', { name: m.sites_nginxSettings_saveNginx() }));
+
+    await waitFor(() => {
+      expect(saveSiteNginxSettings).toHaveBeenCalledWith('shop.example', {
+        static_cache_days: 0,
+        response_headers: [{ name: 'X-Frame-Options', value: 'DENY' }]
+      });
+    });
+  });
+
+  it('offers the raw editor underneath the fields', async () => {
+    let opened = false;
+    const { findByRole } = render(SitePHPSettingsTab, {
+      props: { site, onOpenRaw: () => (opened = true) } as never
+    });
+
+    await fireEvent.click(await findByRole('button', { name: m.sites_nginxSettings_rawOpen() }));
+    expect(opened).toBe(true);
+  });
+});

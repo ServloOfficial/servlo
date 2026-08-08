@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -92,6 +93,104 @@ type Site struct {
 	// re-derived from the directory name, which only worked while servlo had a
 	// TLD to append; a real domain cannot be guessed back.
 	StandaloneDomain string `yaml:"standalone_domain,omitempty"`
+
+	// MaxUploadMB is the site's upload ceiling. One field because it is one
+	// decision that has to reach three directives: upload_max_filesize and
+	// post_max_size in the site's PHP-FPM pool, client_max_body_size in its
+	// vhost. Raise only some and whichever stayed low refuses the upload, which
+	// reads to an operator as the setting not working. Zero leaves every one of
+	// them to its default.
+	MaxUploadMB int `yaml:"max_upload_mb,omitempty"`
+	// MaxExecutionSeconds is how long a request may run. Also one decision in
+	// two places: PHP's max_execution_time and nginx's fastcgi read and send
+	// timeouts. Whichever is lower is the one the visitor experiences, so an
+	// import set to 600 in PHP alone still dies at nginx's 60.
+	MaxExecutionSeconds int `yaml:"max_execution_seconds,omitempty"`
+	// MemoryLimitMB is the site's PHP memory_limit. Zero leaves the default.
+	MemoryLimitMB int `yaml:"memory_limit_mb,omitempty"`
+
+	// StaticCacheDays is how long a browser may keep this site's static
+	// assets. Zero leaves nginx's default, which is to say nothing and let the
+	// browser revalidate.
+	StaticCacheDays int `yaml:"static_cache_days,omitempty"`
+	// ResponseHeaders are headers added to every response from this site.
+	ResponseHeaders []ResponseHeader `yaml:"response_headers,omitempty"`
+}
+
+// ResponseHeader is one header a site adds to its responses.
+type ResponseHeader struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
+}
+
+// Ceilings for the per-site PHP settings. A value past one of these is a
+// mistake, and writing it produces a pool FPM refuses to start with, which
+// takes down every site sharing the container.
+const (
+	MaxUploadCeilingMB   = 16384
+	MaxExecutionCeilingS = 86400
+	MemoryLimitCeilingMB = 65536
+	// StaticCacheCeilingDays is a year, which is already the longest anyone
+	// sensibly caches an asset. Past it the number is a typo.
+	StaticCacheCeilingDays = 365
+)
+
+// headerName is a field name as HTTP defines one: a token, no separators. It
+// lands unquoted in an add_header directive, so anything else is refused.
+var headerName = regexp.MustCompile(`^[A-Za-z0-9!#$%&'*+.^_` + "`" + `|~-]{1,64}$`)
+
+// servloOwnedHeaders are headers servlo writes itself. add_header appends
+// rather than replaces, so a second one is emitted alongside, and for HSTS a
+// browser is entitled to honour the shorter max-age: the form could quietly
+// weaken what the TLS block set.
+var servloOwnedHeaders = map[string]string{
+	"strict-transport-security": "Strict-Transport-Security",
+}
+
+// ValidateNginxSettings refuses a per-site nginx setting that would not survive
+// contact with the directive it lands in. nginx loads its whole configuration
+// or none of it, so a value that ends a directive early takes every site on the
+// machine down, not only this one.
+func (s *Site) ValidateNginxSettings() error {
+	if s.StaticCacheDays < 0 || s.StaticCacheDays > StaticCacheCeilingDays {
+		return fmt.Errorf("the static cache window %d days is outside 0 to %d", s.StaticCacheDays, StaticCacheCeilingDays)
+	}
+	seen := map[string]bool{}
+	for _, h := range s.ResponseHeaders {
+		if !headerName.MatchString(h.Name) {
+			return fmt.Errorf("%q is not a usable header name", h.Name)
+		}
+		key := strings.ToLower(h.Name)
+		if canonical, owned := servloOwnedHeaders[key]; owned {
+			return fmt.Errorf("servlo writes %s itself from this site's TLS state, and a second one would be sent alongside it", canonical)
+		}
+		if seen[key] {
+			return fmt.Errorf("%s is set twice, which would send it twice", h.Name)
+		}
+		seen[key] = true
+		// The value goes inside quotes in an add_header directive. A quote ends
+		// the string it sits in; a brace or a semicolon ends the directive and
+		// starts whatever the value says next.
+		if i := strings.IndexAny(h.Value, "\"\\{};#\n\r\x00"); i >= 0 {
+			return fmt.Errorf("the value for %s contains %q, which would end the directive it is written into", h.Name, string(h.Value[i]))
+		}
+	}
+	return nil
+}
+
+// ValidatePHPSettings refuses a per-site setting that is out of range. These
+// reach the site from the panel and land in a pool and an nginx directive, and
+// either file failing to parse takes more than this site down with it.
+func (s *Site) ValidatePHPSettings() error {
+	switch {
+	case s.MaxUploadMB < 0 || s.MaxUploadMB > MaxUploadCeilingMB:
+		return fmt.Errorf("the max upload size %dM is outside 0 to %dM", s.MaxUploadMB, MaxUploadCeilingMB)
+	case s.MaxExecutionSeconds < 0 || s.MaxExecutionSeconds > MaxExecutionCeilingS:
+		return fmt.Errorf("the max execution time %ds is outside 0 to %ds", s.MaxExecutionSeconds, MaxExecutionCeilingS)
+	case s.MemoryLimitMB < 0 || s.MemoryLimitMB > MemoryLimitCeilingMB:
+		return fmt.Errorf("the memory limit %dM is outside 0 to %dM", s.MemoryLimitMB, MemoryLimitCeilingMB)
+	}
+	return nil
 }
 
 // IsGroupMain returns true when the site owns a group's base domain: it has a
@@ -183,35 +282,40 @@ func (s *Site) HasDomain(domain string) bool {
 // siteYAML is the on-disk YAML representation of a Site, supporting both the
 // legacy single "domain" field and the new "domains" array.
 type siteYAML struct {
-	Name                string   `yaml:"name"`
-	Domain              string   `yaml:"domain,omitempty"`  // legacy single domain
-	Domains             []string `yaml:"domains,omitempty"` // new multi-domain
-	Path                string   `yaml:"path"`
-	PHPVersion          string   `yaml:"php_version"`
-	NodeVersion         string   `yaml:"node_version"`
-	Secured             bool     `yaml:"secured"`
-	SecuredBeforeDNSOff bool     `yaml:"secured_before_dns_off,omitempty"`
-	Ignored             bool     `yaml:"ignored,omitempty"`
-	Paused              bool     `yaml:"paused,omitempty"`
-	PausedWorkers       []string `yaml:"paused_workers,omitempty"`
-	Pinned              bool     `yaml:"pinned,omitempty"`
-	Framework           string   `yaml:"framework,omitempty"`
-	PublicDir           string   `yaml:"public_dir,omitempty"`
-	AppURL              string   `yaml:"app_url,omitempty"`
-	LANPort             int      `yaml:"lan_port,omitempty"`
-	DevServerPort       int      `yaml:"dev_server_port,omitempty"`
-	ContainerPort       int      `yaml:"container_port,omitempty"`
-	ContainerSSL        bool     `yaml:"container_ssl,omitempty"`
-	Runtime             string   `yaml:"runtime,omitempty"`
-	RuntimeWorker       bool     `yaml:"runtime_worker,omitempty"`
-	HostPort            int      `yaml:"host_port,omitempty"`
-	HostSSL             bool     `yaml:"host_ssl,omitempty"`
-	HostCommand         string   `yaml:"host_command,omitempty"`
-	ApprovedCommands    []string `yaml:"approved_commands,omitempty"`
-	Group               string   `yaml:"group,omitempty"`
-	GroupSubdomain      string   `yaml:"group_subdomain,omitempty"`
-	GroupSharedDB       bool     `yaml:"group_shared_db,omitempty"`
-	StandaloneDomain    string   `yaml:"standalone_domain,omitempty"`
+	Name                string           `yaml:"name"`
+	Domain              string           `yaml:"domain,omitempty"`  // legacy single domain
+	Domains             []string         `yaml:"domains,omitempty"` // new multi-domain
+	Path                string           `yaml:"path"`
+	PHPVersion          string           `yaml:"php_version"`
+	NodeVersion         string           `yaml:"node_version"`
+	Secured             bool             `yaml:"secured"`
+	SecuredBeforeDNSOff bool             `yaml:"secured_before_dns_off,omitempty"`
+	Ignored             bool             `yaml:"ignored,omitempty"`
+	Paused              bool             `yaml:"paused,omitempty"`
+	PausedWorkers       []string         `yaml:"paused_workers,omitempty"`
+	Pinned              bool             `yaml:"pinned,omitempty"`
+	Framework           string           `yaml:"framework,omitempty"`
+	PublicDir           string           `yaml:"public_dir,omitempty"`
+	AppURL              string           `yaml:"app_url,omitempty"`
+	LANPort             int              `yaml:"lan_port,omitempty"`
+	DevServerPort       int              `yaml:"dev_server_port,omitempty"`
+	ContainerPort       int              `yaml:"container_port,omitempty"`
+	ContainerSSL        bool             `yaml:"container_ssl,omitempty"`
+	Runtime             string           `yaml:"runtime,omitempty"`
+	RuntimeWorker       bool             `yaml:"runtime_worker,omitempty"`
+	HostPort            int              `yaml:"host_port,omitempty"`
+	HostSSL             bool             `yaml:"host_ssl,omitempty"`
+	HostCommand         string           `yaml:"host_command,omitempty"`
+	ApprovedCommands    []string         `yaml:"approved_commands,omitempty"`
+	Group               string           `yaml:"group,omitempty"`
+	GroupSubdomain      string           `yaml:"group_subdomain,omitempty"`
+	GroupSharedDB       bool             `yaml:"group_shared_db,omitempty"`
+	StandaloneDomain    string           `yaml:"standalone_domain,omitempty"`
+	MaxUploadMB         int              `yaml:"max_upload_mb,omitempty"`
+	MaxExecutionSeconds int              `yaml:"max_execution_seconds,omitempty"`
+	MemoryLimitMB       int              `yaml:"memory_limit_mb,omitempty"`
+	StaticCacheDays     int              `yaml:"static_cache_days,omitempty"`
+	ResponseHeaders     []ResponseHeader `yaml:"response_headers,omitempty"`
 }
 
 func (s Site) toYAML() siteYAML {
@@ -244,6 +348,11 @@ func (s Site) toYAML() siteYAML {
 		GroupSubdomain:      s.GroupSubdomain,
 		GroupSharedDB:       s.GroupSharedDB,
 		StandaloneDomain:    s.StandaloneDomain,
+		MaxUploadMB:         s.MaxUploadMB,
+		MaxExecutionSeconds: s.MaxExecutionSeconds,
+		MemoryLimitMB:       s.MemoryLimitMB,
+		StaticCacheDays:     s.StaticCacheDays,
+		ResponseHeaders:     s.ResponseHeaders,
 	}
 }
 
@@ -281,6 +390,11 @@ func (sy siteYAML) toSite() Site {
 		GroupSubdomain:      sy.GroupSubdomain,
 		GroupSharedDB:       sy.GroupSharedDB,
 		StandaloneDomain:    sy.StandaloneDomain,
+		MaxUploadMB:         sy.MaxUploadMB,
+		MaxExecutionSeconds: sy.MaxExecutionSeconds,
+		MemoryLimitMB:       sy.MemoryLimitMB,
+		StaticCacheDays:     sy.StaticCacheDays,
+		ResponseHeaders:     sy.ResponseHeaders,
 	}
 }
 

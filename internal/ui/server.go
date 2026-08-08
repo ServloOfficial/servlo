@@ -3251,6 +3251,12 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, SiteActionResponse{OK: true, Warning: phpSwitchWarning(res)})
 		return
+	case "php-settings":
+		handleSitePHPSettings(w, r, site)
+		return
+	case "nginx-settings":
+		handleSiteNginxSettings(w, r, site)
+		return
 	case "node":
 		version := r.URL.Query().Get("version")
 		if version == "" {

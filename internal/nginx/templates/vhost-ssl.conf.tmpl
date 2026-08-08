@@ -13,8 +13,7 @@ server {
 {{.HSTS}}
     root {{.Root}};
     index index.php index.html;
-
-    ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
+{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}    ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
     ssl_certificate_key /etc/nginx/certs/{{.CertDomain}}.key;
 {{if .FrameworkNginx}}
 {{.FrameworkNginx}}
