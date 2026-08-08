@@ -3256,6 +3256,12 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	case "nginx-settings":
 		handleSiteNginxSettings(w, r, site)
 		return
+	case "deploy":
+		handleSiteDeploy(w, r, site)
+		return
+	case "deploy-script":
+		handleSiteDeployScript(w, r, site)
+		return
 	case "node":
 		version := r.URL.Query().Get("version")
 		if version == "" {
