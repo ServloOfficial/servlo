@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dbconn"
 )
 
 // Snapshot is the meta.json sidecar describing one stored database snapshot.
@@ -122,10 +123,11 @@ func readSnapshotMeta(dir string) (Snapshot, error) {
 // snapshotEnv returns the podman exec env pairs carrying the container admin
 // password for the target family.
 func snapshotEnv(family string) []string {
-	if family == "postgres" {
-		return []string{"PGPASSWORD=servlo"}
+	c, err := dbconn.ForFamily(family)
+	if err != nil {
+		return nil
 	}
-	return []string{"MYSQL_PWD=servlo"}
+	return c.ClientEnv()
 }
 
 // snapshotDumpCommand builds the in-container shell command that writes a

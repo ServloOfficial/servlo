@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/systemd"
 )
 
@@ -424,14 +425,34 @@ func RestartUnit(name string) error {
 
 // mysqlReadyArgs probes servlo-mysql over IPv4 loopback TCP, never the Unix
 // socket (its path differs across mysql/mariadb images). Container-internal
-// 127.0.0.1 holds on macOS and IPv6-only host networks too.
-var mysqlReadyArgs = []string{"mysqladmin", "ping", "-h127.0.0.1", "-P3306", "-uroot", "-pservlo", "--silent"}
+// 127.0.0.1 holds on IPv6-only host networks too.
+//
+// No password here: the credential travels in the exec's environment, both
+// because it is generated per install and because an argument is readable out
+// of the process list by every other user on this machine.
+var mysqlReadyArgs = []string{"mysqladmin", "ping", "-h127.0.0.1", "-P3306", "-uroot", "--silent"}
 
 // mariadbReadyArgs mirrors mysqlReadyArgs but calls mariadb-admin. The
 // mariadb:11 image dropped the legacy mysqladmin symlink, so probing it with
 // mysqladmin can never succeed and WaitReady would time out on every poll.
 // mariadb-admin is present in every mariadb version servlo ships (10.5+).
-var mariadbReadyArgs = []string{"mariadb-admin", "ping", "-h127.0.0.1", "-P3306", "-uroot", "-pservlo", "--silent"}
+var mariadbReadyArgs = []string{"mariadb-admin", "ping", "-h127.0.0.1", "-P3306", "-uroot", "--silent"}
+
+// mysqlProbeArgs is a ping inside unit, with the password in the environment.
+// A probe that cannot read the password would report a healthy server as
+// unready forever, so a failure to resolve it is a failed probe rather than an
+// unauthenticated one.
+func mysqlProbeArgs(unit string, probe []string) ([]string, bool) {
+	c, err := dbconn.ForFamily("mysql")
+	if err != nil {
+		return nil, false
+	}
+	args := []string{"exec"}
+	for _, pair := range c.ClientEnv() {
+		args = append(args, "--env", pair)
+	}
+	return append(append(args, unit), probe...), true
+}
 
 // readyFamily strips known version suffixes ("mariadb-10-11" →
 // "mariadb", "mysql-8.0" → "mysql", "postgres-16" → "postgres") so
@@ -478,14 +499,14 @@ func WaitReady(service string, timeout time.Duration) error {
 	var probe func() bool
 	switch family {
 	case "mysql":
-		args := append([]string{"exec", unit}, mysqlReadyArgs...)
 		probe = func() bool {
-			return execCommand(PodmanBin(), args...).Run() == nil
+			args, ok := mysqlProbeArgs(unit, mysqlReadyArgs)
+			return ok && execCommand(PodmanBin(), args...).Run() == nil
 		}
 	case "mariadb":
-		args := append([]string{"exec", unit}, mariadbReadyArgs...)
 		probe = func() bool {
-			return execCommand(PodmanBin(), args...).Run() == nil
+			args, ok := mysqlProbeArgs(unit, mariadbReadyArgs)
+			return ok && execCommand(PodmanBin(), args...).Run() == nil
 		}
 	case "postgres":
 		probe = func() bool {

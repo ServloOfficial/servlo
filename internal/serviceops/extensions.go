@@ -110,7 +110,7 @@ func CreateExtension(service, database, name string) error {
 	sql := fmt.Sprintf("CREATE EXTENSION IF NOT EXISTS %q", name)
 	out, err := containerExec("servlo-"+service,
 		"psql -U postgres -v ON_ERROR_STOP=1 -d "+podman.ShellQuote(database)+" -c "+podman.ShellQuote(sql),
-		[]string{"PGPASSWORD=servlo"}, nil, introspectTimeout)
+		snapshotEnv("postgres"), nil, introspectTimeout)
 	if err != nil {
 		return fmt.Errorf("creating extension %s in %s: %w\n%s", name, database, err, strings.TrimSpace(string(out)))
 	}
@@ -125,7 +125,7 @@ func InstalledExtensions(service, database string) ([]string, error) {
 	out, err := containerExec("servlo-"+service,
 		"psql -U postgres -At -d "+podman.ShellQuote(database)+" -c "+
 			podman.ShellQuote("SELECT extname FROM pg_extension ORDER BY extname"),
-		[]string{"PGPASSWORD=servlo"}, nil, introspectTimeout)
+		snapshotEnv("postgres"), nil, introspectTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("listing extensions in %s: %w\n%s", database, err, strings.TrimSpace(string(out)))
 	}

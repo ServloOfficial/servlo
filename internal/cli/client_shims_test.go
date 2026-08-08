@@ -3,6 +3,8 @@ package cli
 import (
 	"reflect"
 	"testing"
+
+	"github.com/realrashid/servlo/internal/config"
 )
 
 // resolveLoopbackTarget owns the whole "did the caller name a host" answer, so
@@ -92,13 +94,23 @@ func TestIsSQLTool(t *testing.T) {
 	}
 }
 
+// A shim dumping from the local server authenticates with this install's own
+// generated password, which is what the server was started with. Postgres also
+// needs the superuser name, since the container user is root and root is not a
+// role there.
 func TestLocalCredsEnv(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	password, err := config.ServicePassword()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	pg := localCredsEnv("pg_dump")
-	if len(pg) != 2 || pg[0] != "PGUSER=postgres" || pg[1] != "PGPASSWORD=servlo" {
+	if len(pg) != 2 || pg[0] != "PGUSER=postgres" || pg[1] != "PGPASSWORD="+password {
 		t.Errorf("postgres creds = %v", pg)
 	}
 	my := localCredsEnv("mysqldump")
-	if len(my) != 1 || my[0] != "MYSQL_PWD=servlo" {
+	if len(my) != 1 || my[0] != "MYSQL_PWD="+password {
 		t.Errorf("mysql creds = %v", my)
 	}
 }

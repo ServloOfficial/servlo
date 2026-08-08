@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/envfile"
 	"github.com/realrashid/servlo/internal/feedback"
 	phpDet "github.com/realrashid/servlo/internal/php"
@@ -316,10 +317,18 @@ func effectiveHostGiven(tool string, argHostGiven bool, prefer string) bool {
 // (the container user is root, which is not a role); the mysql families default
 // to root already, so only the password is needed.
 func localCredsEnv(tool string) []string {
+	family := "mysql"
 	if isPostgresTool(tool) {
-		return []string{"PGUSER=postgres", "PGPASSWORD=servlo"}
+		family = "postgres"
 	}
-	return []string{"MYSQL_PWD=servlo"}
+	c, err := dbconn.ForFamily(family)
+	if err != nil {
+		return nil
+	}
+	if family == "postgres" {
+		return append([]string{"PGUSER=" + c.User}, c.ClientEnv()...)
+	}
+	return c.ClientEnv()
 }
 
 func isPostgresTool(tool string) bool {

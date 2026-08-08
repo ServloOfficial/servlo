@@ -40,6 +40,42 @@ func TestMariaDBReadinessProbeUsesMariaDBAdmin(t *testing.T) {
 	}
 }
 
+// The probe has to authenticate, or a healthy server answers "access denied"
+// and WaitReady burns its whole timeout on a container that came up fine. The
+// password goes in the exec's environment rather than its arguments, because an
+// argument is readable out of the process list by every other user here, and
+// every site on this machine runs as one of them.
+func TestMySQLProbeCarriesThePasswordInTheEnvironment(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	password, err := config.ServicePassword()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	args, ok := mysqlProbeArgs("servlo-mysql", mysqlReadyArgs)
+	if !ok {
+		t.Fatal("the probe could not be built")
+	}
+
+	env := false
+	for i, a := range args {
+		if a == "--env" && i+1 < len(args) && args[i+1] == "MYSQL_PWD="+password {
+			env = true
+		}
+		if a == "servlo-mysql" && !env {
+			t.Fatal("the container was named before the password was passed, so the exec never carries it")
+		}
+	}
+	if !env {
+		t.Errorf("probe = %v, carries no password", args)
+	}
+	for _, a := range args {
+		if strings.Contains(a, password) && !strings.HasPrefix(a, "MYSQL_PWD=") {
+			t.Errorf("the password appears in %q, which lands in the process list", a)
+		}
+	}
+}
+
 func TestRustFSProbeAddrFollowsPublishedPort(t *testing.T) {
 	// rustfs is the one service probed by a host-side TCP dial rather than an
 	// in-container exec, so its probe must target the port rustfs is actually

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/podman"
 )
 
@@ -27,10 +28,20 @@ type DatabaseInfo struct {
 	SizeBytes int64  `json:"size_bytes"`
 }
 
-// introspectEnv supplies the fixed admin credentials servlo sets on every built-in
-// DB container, passed via the exec env so no password lands in argv. The engine
+// introspectEnv supplies the admin credentials servlo sets on every built-in DB
+// container, passed via the exec env so no password lands in argv. The engine
 // picks whichever variable applies and ignores the rest.
-func introspectEnv() []string { return []string{"MYSQL_PWD=servlo", "PGPASSWORD=servlo"} }
+//
+// Empty when the password cannot be read, which leaves the command to fail on
+// authentication and say so, rather than this deciding on its behalf what a
+// database it cannot open should do.
+func introspectEnv() []string {
+	c, err := dbconn.ForFamily("")
+	if err != nil {
+		return nil
+	}
+	return c.ClientEnv()
+}
 
 // IntrospectCommand resolves an engine's list-databases query through the
 // entity surface, so both the entities form and the legacy list_databases

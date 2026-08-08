@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/serviceops"
@@ -92,11 +93,14 @@ type dbEnv struct {
 // The family is inferred from the service name prefix.
 func serviceToDBEnv(name string) *dbEnv {
 	lower := strings.ToLower(name)
+	family, connection := "mysql", "mysql"
 	if strings.HasPrefix(lower, "postgres") || lower == "pgsql" {
-		return &dbEnv{service: name, connection: "pgsql", username: "postgres", password: "servlo"}
+		family, connection = "postgres", "pgsql"
 	}
-	// mysql, mariadb, mysql-5-7, etc.
-	return &dbEnv{service: name, connection: "mysql", username: "root", password: "servlo"}
+	// A password servlo cannot read is left empty rather than guessed: the
+	// command then fails on authentication and says so.
+	c, _ := dbconn.ForFamily(family)
+	return &dbEnv{service: name, connection: connection, username: c.User, password: c.Password}
 }
 
 // servloServiceFromHost returns the servlo service a DB host of the form
@@ -600,9 +604,15 @@ func databaseExists(svc, name string) (bool, error) {
 		if family == "mariadb" {
 			binaries = []string{"mariadb", "mysql"}
 		}
+		c, err := dbconn.ForFamily("mysql")
+		if err != nil {
+			return false, err
+		}
 		var lastErr error
 		for _, bin := range binaries {
-			check := podman.Cmd("exec", container, bin, "-uroot", "-pservlo",
+			// The password rides in the exec's environment: an argument would
+			// be readable out of the process list by every other user here.
+			check := podman.Cmd("exec", "--env", c.ClientEnv()[0], container, bin, "-uroot",
 				"-sNe", mysqlDatabaseExistsQuery(name))
 			out, err := check.Output()
 			if err != nil {

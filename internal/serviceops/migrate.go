@@ -401,7 +401,7 @@ func migrateMysql(name, targetImage string, emit func(PhaseEvent)) error {
 		return fmt.Errorf("reading service config: %w", err)
 	}
 	dump := filepath.Join(config.BackupsDir(), name+"-"+timestamped()+".sql")
-	rootEnv := []string{"MYSQL_PWD=servlo"}
+	rootEnv := snapshotEnv("mysql")
 
 	emit(PhaseEvent{Phase: "dumping_data", Message: "mysqldump → " + dump})
 	if err := dumpToHost(unit, mysqlMigrateDumpCommand(), rootEnv, dump, dumpRestoreTimeout); err != nil {
@@ -464,7 +464,7 @@ func migratePostgres(name, targetImage string, emit func(PhaseEvent)) error {
 		return fmt.Errorf("reading service config: %w", err)
 	}
 	dump := filepath.Join(config.BackupsDir(), name+"-"+timestamped()+".sql")
-	pgEnv := []string{"PGPASSWORD=servlo"}
+	pgEnv := snapshotEnv("postgres")
 
 	emit(PhaseEvent{Phase: "dumping_data", Message: "pg_dumpall → " + dump})
 	dumpCmd := "pg_dumpall -h 127.0.0.1 -U postgres --clean --if-exists"

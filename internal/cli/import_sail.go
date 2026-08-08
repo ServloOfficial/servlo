@@ -172,9 +172,10 @@ func runImportSail(noStop, skipS3 bool, sailDBUser, sailDBPassword, sailDBName s
 	}
 
 	// --- Read .env for servlo-side values ---
-	// After `servlo setup`, .env contains servlo's credentials (DB_HOST=servlo-mysql,
-	// DB_PASSWORD=servlo, etc.) which are correct for importing INTO servlo but wrong
-	// for dumping FROM Sail. We keep these as the servlo import target.
+	// After `servlo setup`, .env contains servlo's credentials (DB_HOST=servlo-mysql
+	// and this install's generated password) which are correct for importing INTO
+	// servlo but wrong for dumping FROM Sail. We keep these as the servlo import
+	// target.
 	servloEnv, err := loadDBEnv(cwd)
 	if err != nil {
 		return fmt.Errorf("reading .env: %w", err)
