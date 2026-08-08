@@ -106,6 +106,13 @@ func Rules() []Rule {
 			Patterns: []string{
 				`auto_prepend`, `servlo-dump`, `internal/dumps`, `servlo_devtools`,
 				`/api/dumps`, `/api/devtools`,
+				// The message keys too. Deleting a feature's Go and its routes
+				// left fifty-one locale strings for its Debug tab sitting in
+				// every one of the fourteen message files, translated, for three
+				// phases. `debug_` on its own is too ordinary a prefix to
+				// forbid, so this names the tab's own keys rather than the word.
+				`\bdumps_[a-z]`, `\bnav_dumps\b`, `dumpBridge`,
+				`\bdebug_(tab|disabled|waiting|loadMore|show_tests|tests_hidden)`,
 			},
 			// The guards that keep auto_prepend_file out of a framework's php.ini,
 			// and the test that proves no generated unit mounts the bridge, have to
