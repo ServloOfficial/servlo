@@ -98,7 +98,15 @@ func Rules() []Rule {
 		},
 		{
 			Feature: "dump()/dd() bridge", Story: "S0.5", Enforced: true,
-			Patterns: []string{`auto_prepend`, `servlo-dump`, `internal/dumps`, `servlo_devtools`},
+			// The HTTP surface is named as well as the Go plumbing. The original
+			// patterns described how the bridge was built, so the routes it was
+			// reached through survived the deletion: the docs demo went on
+			// stubbing /api/dumps and /api/devtools long after nothing served
+			// them, and the build only broke when a fixture was removed.
+			Patterns: []string{
+				`auto_prepend`, `servlo-dump`, `internal/dumps`, `servlo_devtools`,
+				`/api/dumps`, `/api/devtools`,
+			},
 			// The guards that keep auto_prepend_file out of a framework's php.ini,
 			// and the test that proves no generated unit mounts the bridge, have to
 			// name the thing they forbid.

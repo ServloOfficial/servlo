@@ -171,3 +171,72 @@ func repoRoot(t *testing.T) string {
 	}
 	return filepath.Clean(filepath.Join(wd, "..", ".."))
 }
+
+// The routes are part of the deleted surface, not only the Go plumbing that
+// served them. The original dump-bridge patterns described how the bridge was
+// built, so the docs demo went on stubbing its endpoints long after nothing
+// answered them, and nothing noticed until an unrelated fixture was deleted and
+// the demo stopped building.
+func TestRules_DumpBridgeCoversItsHTTPRoutes(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("stub.ts", "const routes = { '/api/dumps/status': x, '/api/devtools/status': y };\n")
+
+	found, err := ScanSource(dir, Rules())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var hits int
+	for _, f := range found {
+		if strings.Contains(f.Rule, "dump") {
+			hits++
+		}
+	}
+	if hits == 0 {
+		t.Errorf("the dump bridge's HTTP routes are not part of its rule: %+v", found)
+	}
+}
+
+// The gate must not depend on whether somebody has built the docs demo. That
+// output is gitignored, so a clean checkout passed and a built one failed on
+// strings inside minified vendor chunks, which is the kind of flake that
+// teaches people to stop trusting the scan.
+func TestScanSource_SkipsTheGeneratedDemoBundle(t *testing.T) {
+	dir := t.TempDir()
+	generated := filepath.Join(dir, "docs", "public", "demo", "assets")
+	if err := os.MkdirAll(generated, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(generated, "index-abc123.js"), []byte("var mcp='tray';auto_prepend;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	found, err := ScanSource(dir, Rules())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(found) != 0 {
+		t.Errorf("the generated demo bundle was scanned: %+v", found)
+	}
+
+	// The demo's source is a different matter, and still scanned.
+	src := filepath.Join(dir, "internal", "ui", "web", "demo")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "stubs.ts"), []byte("'/api/dumps/status'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	found, err = ScanSource(dir, Rules())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(found) == 0 {
+		t.Error("the demo's own source is not scanned, so a deleted feature could live there")
+	}
+}

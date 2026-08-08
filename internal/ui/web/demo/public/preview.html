@@ -90,7 +90,7 @@
         </div>
         <h1 id="title">Your app would open here</h1>
         <p>
-          In a real Servlo setup, <span class="host" id="host">project.test</span> opens your live
+          In a real Servlo setup, <span class="host" id="host">example.com</span> opens your live
           application with HTTPS. This is an interactive demo, so there's no server behind it.
         </p>
         <div class="note">Run it for real → <a href="https://example.com" target="_blank" rel="noopener">example.com</a></div>
@@ -98,7 +98,7 @@
     </div>
     <script>
       const q = new URLSearchParams(location.search);
-      const host = q.get('host') || 'project.test';
+      const host = q.get('host') || 'example.com';
       const url = q.get('url') || '';
       document.getElementById('host').textContent = host;
       document.getElementById('url').textContent = url || host;

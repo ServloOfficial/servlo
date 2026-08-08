@@ -13,7 +13,6 @@ import phpVersions from './fixtures/php-versions.json';
 import nodeVersions from './fixtures/node-versions.json';
 import phpInstallable from './fixtures/php-installable.json';
 import lanStatus from './fixtures/lan_status.json';
-import dumpsStatus from './fixtures/dumps_status.json';
 import stats from './fixtures/stats.json';
 import workersHealth from './fixtures/workers_health.json';
 import databasesFixture from './fixtures/databases.json';
@@ -35,6 +34,17 @@ const status = structuredClone(statusFixture) as Record<string, unknown>;
 
 // Static GET fixtures keyed by exact path.
 const ROUTES: Record<string, unknown> = {
+  // The panel asks who you are before it renders anything. Without this the
+  // demo is a login form, which is what the docs landing page showed from the
+  // moment session auth landed until somebody looked.
+  '/api/auth/session': {
+    authenticated: true,
+    user: 'demo',
+    role: 'admin',
+    csrf: 'demo-csrf-token',
+    setup_needed: false,
+    totp_enabled: false,
+  },
   '/api/version': version,
   '/api/status': status,
   '/api/access-mode': accessMode,
@@ -43,8 +53,6 @@ const ROUTES: Record<string, unknown> = {
   '/api/node-versions': nodeVersions,
   '/api/php-installable': phpInstallable,
   '/api/lan/status': lanStatus,
-  '/api/dumps/status': dumpsStatus,
-  '/api/devtools/status': { enabled: true },
   '/api/stats': stats,
   '/api/workers/health': workersHealth,
 };
@@ -56,7 +64,7 @@ const ENV_TEXT = `APP_NAME="Acme"
 APP_ENV=local
 APP_KEY=base64:0aF3l9Qx7sample0key0not0real0value0here=
 APP_DEBUG=true
-APP_URL=https://acme.test
+APP_URL=https://acme-supply.com
 
 LOG_CHANNEL=stack
 LOG_LEVEL=debug
@@ -77,9 +85,9 @@ QUEUE_CONNECTION=redis
 SESSION_DRIVER=redis
 
 MAIL_MAILER=smtp
-MAIL_HOST=servlo-mailpit
+MAIL_HOST=smtp.postmarkapp.com
 MAIL_PORT=1025
-MAIL_FROM_ADDRESS="hello@acme.test"
+MAIL_FROM_ADDRESS="hello@acme-supply.com"
 
 SCOUT_DRIVER=meilisearch
 MEILISEARCH_HOST=http://servlo-meilisearch:7700
@@ -91,11 +99,11 @@ AWS_ENDPOINT=http://servlo-rustfs:9000
 const NGINX_TEXT = `server {
     listen 443 ssl;
     http2 on;
-    server_name acme.test;
+    server_name acme-supply.com;
     root "/home/dev/code/acme/public";
 
-    ssl_certificate     "/home/dev/.config/servlo/certs/acme.test.crt";
-    ssl_certificate_key "/home/dev/.config/servlo/certs/acme.test.key";
+    ssl_certificate     "/home/dev/.config/servlo/certs/acme-supply.com.crt";
+    ssl_certificate_key "/home/dev/.config/servlo/certs/acme-supply.com.key";
 
     index index.php;
     charset utf-8;
@@ -182,7 +190,7 @@ function wave(n: number, avg: number): number[] {
 }
 
 const ANALYTICS_PROFILES: Record<string, AnalyticsProfile> = {
-  'acme.test': {
+  'acme-supply.com': {
     samples: 1846,
     cold_starts: 3,
     median_millis: 72,
@@ -214,7 +222,7 @@ const ANALYTICS_PROFILES: Record<string, AnalyticsProfile> = {
       { agoSec: 900, method: 'GET', route: 'GET /', uri: '/', status: 200, millis: 613, cold: true },
     ],
   },
-  'shopfront.test': {
+  'shopfront.io': {
     samples: 921,
     cold_starts: 1,
     median_millis: 44,
@@ -520,7 +528,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   // Nginx — global /api/nginx and per-site /api/sites/<domain>/nginx (+ /backups)
   if (path.includes('/nginx')) {
     if (path.includes('/backups')) return /\/backups\/.+/.test(path) ? textResponse(NGINX_TEXT) : jsonResponse([]);
-    if (method === 'GET') return jsonResponse({ path: '/home/dev/.config/servlo/nginx/acme.test.conf', content: NGINX_TEXT, exists: true });
+    if (method === 'GET') return jsonResponse({ path: '/home/dev/.config/servlo/nginx/acme-supply.com.conf', content: NGINX_TEXT, exists: true });
     return jsonResponse({ ok: true, content: NGINX_TEXT, exists: true });
   }
   // php.ini config (per PHP version, or per-site for FrankenPHP) — GET reads only
@@ -562,9 +570,9 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   return realFetch(input as RequestInfo, init);
 };
 
-// External opens (a site's .test URL, a service dashboard) have no server in the
-// demo — route them to a styled mockup page instead of a dead tab. external links
-// (docs, the LAN-share QR target) open for real.
+// External opens (a site's own URL, a service dashboard) have no server in the
+// demo, so they go to a styled mockup page rather than a dead tab. Links to the
+// project itself open for real.
 const realOpen = window.open.bind(window);
 (window as unknown as { open: typeof window.open }).open = ((
   url?: string | URL,
@@ -572,7 +580,7 @@ const realOpen = window.open.bind(window);
   features?: string
 ) => {
   const u = String(url ?? '');
-  if (/servlo\.sh/.test(u) || u === '' || u.startsWith('#')) return realOpen(url, target, features);
+  if (/github\.com\/realrashid/.test(u) || u === '' || u.startsWith('#')) return realOpen(url, target, features);
   let host = u;
   try {
     host = new URL(u, location.href).host || u;
@@ -585,73 +593,6 @@ const realOpen = window.open.bind(window);
     'noopener'
   );
 }) as typeof window.open;
-
-// ---- Debug window test data ----
-// The Debug tab consumes a shared EventSource at /api/dumps/stream; each message
-// is a JSON DumpEvent (kind = dump|query|job|view|mail|cache|event|http). We
-// emit a couple of realistic request traces so every lens has content.
-function debugEvents(): Array<Record<string, unknown>> {
-  const now = Date.now();
-  let n = 0;
-  const make = (
-    over: number,
-    site: string,
-    domain: string,
-    rid: string,
-    request: string,
-    kind: string,
-    extra: Record<string, unknown>
-  ) => ({
-    v: 1,
-    id: `${kind}-${site}-${++n}`,
-    ts: new Date(now - over).toISOString(),
-    kind,
-    ctx: { type: 'fpm', site, domain, request, rid },
-    src: extra.src ?? { file: 'app/Http/Controllers/OrderController.php', line: 48 },
-    label: extra.label,
-    text: extra.text,
-    data: extra.data,
-  });
-  const out: Array<Record<string, unknown>> = [];
-  // acme — a full Laravel request lifecycle (covers all eight lenses)
-  const A = (kind: string, extra: Record<string, unknown>, over: number) =>
-    out.push(make(over, 'acme', 'acme.test', 'req-acme-1', 'GET /orders/42', kind, extra));
-  A('query', { data: { sql: 'select * from `orders` where `id` = ?', bindings: [42], time_ms: 0.6, connection: 'mysql', rw_type: 'read' }, src: { file: 'app/Models/Order.php', line: 31 } }, 9000);
-  A('query', { data: { sql: 'select * from `order_items` where `order_id` in (?, ?, ?)', bindings: [42, 43, 44], time_ms: 1.4, connection: 'mysql', rw_type: 'read' }, src: { file: 'app/Models/Order.php', line: 52 } }, 8800);
-  A('dump', { text: 'App\\Models\\Order {#812\n  id: 42,\n  total: "249.00",\n  status: "shipped",\n}', src: { file: 'app/Http/Controllers/OrderController.php', line: 48 } }, 8600);
-  A('event', { data: { name: 'App\\Events\\OrderShipped', listeners: 2 }, src: { file: 'app/Events/OrderShipped.php', line: 18 } }, 8400);
-  A('mail', { data: { subject: 'Your order has shipped', from: ['shop@acme.test'], to: ['jane@acme.test'] }, src: { file: 'app/Mail/OrderShipped.php', line: 22 } }, 8200);
-  A('job', { data: { class: 'App\\Jobs\\SendShipmentNotification', status: 'processed', connection: 'redis' }, src: { file: 'app/Jobs/SendShipmentNotification.php', line: 14 } }, 8000);
-  A('http', { data: { method: 'POST', url: 'https://api.stripe.com/v1/charges', status: 200 }, src: { file: 'app/Services/Billing.php', line: 67 } }, 7800);
-  A('view', { data: { name: 'orders.show', path: 'resources/views/orders/show.blade.php', data_keys: ['order', 'user', 'items'] }, src: { file: 'resources/views/orders/show.blade.php', line: 1 } }, 7600);
-  A('cache', { data: { op: 'hit', key: 'user.42', store: 'redis' }, src: { file: 'app/Http/Middleware/Authenticate.php', line: 20 } }, 7400);
-  // shopfront — a Symfony request (no cache lens)
-  const S = (kind: string, extra: Record<string, unknown>, over: number) =>
-    out.push(make(over, 'shopfront', 'shopfront.test', 'req-shop-1', 'GET /cart', kind, extra));
-  S('query', { data: { sql: 'SELECT t0.* FROM cart t0 WHERE t0.id = ?', bindings: [7], time_ms: 0.9, connection: 'pgsql', rw_type: 'read' }, src: { file: 'src/Repository/CartRepository.php', line: 40 } }, 5000);
-  S('dump', { text: 'App\\Entity\\Cart {#311\n  items: 3,\n  total: "84.00",\n}', src: { file: 'src/Controller/CartController.php', line: 29 } }, 4800);
-  S('event', { data: { name: 'kernel.request' }, src: { file: 'src/EventSubscriber/LocaleSubscriber.php', line: 33 } }, 4600);
-  S('http', { data: { method: 'GET', url: 'https://api.exchangerate.host/latest', status: 200 }, src: { file: 'src/Service/Fx.php', line: 18 } }, 4400);
-  S('mail', { data: { subject: 'You left items in your cart', from: ['shop@shopfront.test'], to: ['sam@shopfront.test'] }, src: { file: 'src/Mailer/CartReminder.php', line: 12 } }, 4200);
-  // acme — the other routes surfaced in Request timing, so the database icon on
-  // each slow route (which deep-links to the Queries lens filtered by that route)
-  // lands on the queries captured behind it instead of an empty lens: a slow
-  // write on checkout, a classic N+1 on the dashboard, light reads on the rest.
-  const R = (rid: string, request: string, kind: string, extra: Record<string, unknown>, over: number) =>
-    out.push(make(over, 'acme', 'acme.test', rid, request, kind, extra));
-  R('req-acme-checkout', 'POST /checkout', 'query', { data: { sql: 'select * from `carts` where `user_id` = ? limit 1', bindings: [42], time_ms: 1.1, connection: 'mysql', rw_type: 'read' }, src: { file: 'app/Http/Controllers/CheckoutController.php', line: 33 } }, 6800);
-  R('req-acme-checkout', 'POST /checkout', 'query', { data: { sql: 'insert into `orders` (`user_id`, `total`, `status`) values (?, ?, ?)', bindings: [42, '249.00', 'pending'], time_ms: 3.2, connection: 'mysql', rw_type: 'write' }, src: { file: 'app/Http/Controllers/CheckoutController.php', line: 41 } }, 6700);
-  R('req-acme-checkout', 'POST /checkout', 'query', { data: { sql: 'update `inventory` set `stock` = `stock` - ? where `product_id` = ?', bindings: [1, 12], time_ms: 214.0, connection: 'mysql', rw_type: 'write' }, src: { file: 'app/Services/Inventory.php', line: 58 } }, 6600);
-  R('req-acme-checkout', 'POST /checkout', 'job', { data: { class: 'App\\Jobs\\ChargeCard', status: 'queued', connection: 'redis' }, src: { file: 'app/Http/Controllers/CheckoutController.php', line: 63 } }, 6500);
-  const DASH = [1, 2, 3, 4, 5];
-  for (const uid of DASH)
-    R('req-acme-dash', 'GET /dashboard', 'query', { data: { sql: 'select count(*) from `orders` where `user_id` = ?', bindings: [uid], time_ms: 2.0 + uid / 10, connection: 'mysql', rw_type: 'read' }, src: { file: 'app/Http/Controllers/DashboardController.php', line: 27 } }, 5200 - uid * 40);
-  R('req-acme-dash', 'GET /dashboard', 'query', { data: { sql: 'select * from `users` where `team_id` = ?', bindings: [3], time_ms: 1.8, connection: 'mysql', rw_type: 'read' }, src: { file: 'app/Http/Controllers/DashboardController.php', line: 22 } }, 5250);
-  R('req-acme-home', 'GET /', 'query', { data: { sql: 'select * from `products` where `featured` = ? limit 12', bindings: [1], time_ms: 4.6, connection: 'mysql', rw_type: 'read' }, src: { file: 'app/Http/Controllers/HomeController.php', line: 19 } }, 4200);
-  R('req-acme-home', 'GET /', 'query', { data: { sql: 'select * from `categories` order by `sort` asc', bindings: [], time_ms: 0.7, connection: 'mysql', rw_type: 'read' }, src: { file: 'app/Http/Controllers/HomeController.php', line: 24 } }, 4100);
-  R('req-acme-products', 'GET /products', 'query', { data: { sql: 'select * from `products` order by `created_at` desc limit 24 offset 0', bindings: [], time_ms: 5.3, connection: 'mysql', rw_type: 'read' }, src: { file: 'app/Http/Controllers/ProductController.php', line: 30 } }, 3600);
-  return out;
-}
 
 // Canned log lines for the Logs tab's streamed views (FPM/container, queue,
 // schedule, reverb, and the host dev-server journal), picked off the stream path
@@ -684,7 +625,7 @@ function logLinesFor(url: string): string[] {
   if (/\/worker\//.test(url))
     return [
       `  VITE v5.4.10  ready in 214 ms`,
-      `  ➜  Local:   https://acme.test:5173/`,
+      `  ➜  Local:   https://acme-supply.com:5173/`,
       `  ➜  press h + enter to show help`,
       `${t(6)} [vite] hmr update /resources/js/app.js`,
     ];
@@ -711,14 +652,11 @@ class DemoEventSource {
 
   constructor(url: string) {
     const u = String(url);
-    const isDumps = u.includes('/api/dumps/stream');
-    const isLog = !isDumps && /\/logs(\/|$|\?)/.test(u);
+    const isLog = /\/logs(\/|$|\?)/.test(u);
     setTimeout(() => {
       this.readyState = 1;
       this.emit('open', { type: 'open' });
-      if (isDumps) {
-        for (const e of debugEvents()) this.emit('message', { data: JSON.stringify(e) });
-      } else if (isLog) {
+      if (isLog) {
         for (const line of logLinesFor(u)) this.emit('message', { data: line });
       }
     }, 0);

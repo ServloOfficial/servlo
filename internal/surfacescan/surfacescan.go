@@ -56,6 +56,20 @@ var skipDirs = map[string]bool{
 	"paraglide": true,
 }
 
+// skipPaths are generated trees whose directory name is not distinctive enough
+// for skipDirs. Relative to the repository root, slash separated.
+//
+// The demo bundle is the case this exists for. It is gitignored build output,
+// so a clean checkout does not have it and the gate passed; the moment anyone
+// ran `npm run build:demo` the scan started reading minified vendor chunks and
+// failing on strings inside them. A gate that breaks depending on whether you
+// built something is a gate people learn to ignore. The demo's *source* under
+// internal/ui/web/demo is still scanned, which is where a deleted feature could
+// actually come back.
+var skipPaths = map[string]bool{
+	"docs/public/demo": true,
+}
+
 // textExts are the file kinds a deleted feature can hide in. Anything else is
 // a binary or an asset and is checked by name only.
 var textExts = map[string]bool{
@@ -161,7 +175,7 @@ func ScanSource(root string, rules []Rule) ([]Finding, error) {
 			return relErr
 		}
 		if d.IsDir() {
-			if rel != "." && skipDirs[d.Name()] {
+			if rel != "." && (skipDirs[d.Name()] || skipPaths[filepath.ToSlash(rel)]) {
 				return fs.SkipDir
 			}
 			return nil

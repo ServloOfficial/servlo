@@ -203,7 +203,7 @@ func TestRemoteControlGateAuthenticatedDashboardUsesOrdinaryRoutes(t *testing.T)
 		"/api/sites/myapp.test/secure",
 		"/api/sites/myapp.test/restart",
 		"/api/services/mysql/restart",
-		"/api/dumps/toggle",
+		"/api/php-versions/8.4/rebuild",
 	} {
 		t.Run(path, func(t *testing.T) {
 			called = false

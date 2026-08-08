@@ -45,7 +45,7 @@ describe('apiFetch CSRF header', () => {
 
   it('preserves caller-supplied headers and CSRF override', async () => {
     const fetchMock = stubFetch();
-    await apiFetch('/api/dumps/clear', {
+    await apiFetch('/api/services/redis/restart', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Servlo-CSRF': 'custom' }
     });
