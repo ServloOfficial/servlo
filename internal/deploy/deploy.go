@@ -44,6 +44,12 @@ type Options struct {
 	// in-flight request would be a worse outcome than the one it replaced.
 	Reload func(*config.Site) error
 
+	// Keep restores files under the site's excluded paths that the update
+	// removed, and reports which ones it kept.
+	Keep func(dir, from, to string, excludes []string, out writer) ([]string, error)
+	// Excludes are the paths this deploy must not remove.
+	Excludes func(*config.Site) ([]string, error)
+
 	// Migrates reports whether this deploy is schema-changing.
 	Migrates func(*config.Site) (bool, error)
 	// Script is the site's deploy script.
@@ -57,6 +63,8 @@ type Result struct {
 	// Snapshot names the pre-deploy database backup, empty when the deploy was
 	// not schema-changing.
 	Snapshot string
+	// Kept are files the update removed that the site's exclude list put back.
+	Kept     []string
 	Duration time.Duration
 }
 
@@ -74,6 +82,13 @@ func Run(o Options) (Result, error) {
 	script, err := o.Script(o.Site)
 	if err != nil {
 		return res, fmt.Errorf("reading the deploy script: %w", err)
+	}
+
+	// Read before the pull, because after it the answer could come from a
+	// framework definition the pull itself changed.
+	excludes, err := o.Excludes(o.Site)
+	if err != nil {
+		return res, fmt.Errorf("reading the paths this deploy must not remove: %w", err)
 	}
 
 	migrates, err := o.Migrates(o.Site)
@@ -104,6 +119,18 @@ func Run(o Options) (Result, error) {
 		return res, fmt.Errorf("reading the new commit: %w", err)
 	}
 	res.ToCommit = to
+
+	// Before the script rather than after it. A script that rebuilds a cache or
+	// runs a plugin update should see the tree the site actually has, not one
+	// briefly missing the client's plugins.
+	kept, err := o.Keep(o.Site.Path, from, to, excludes, o.Out)
+	if err != nil {
+		// Not something to carry on past. The operator named these paths
+		// precisely so a deploy would not lose them, and one that reports
+		// success having lost them is the outcome this exists to prevent.
+		return res, fmt.Errorf("this deploy removed files the site protects and they could not be put back: %w", err)
+	}
+	res.Kept = kept
 
 	if hasCommands(script) {
 		phase(o.Out, "Deploy script")

@@ -19,6 +19,7 @@ type harness struct {
 	snapEr error
 	runEr  error
 	reload error
+	keepEr error
 	head   string
 }
 
@@ -49,6 +50,11 @@ func (h *harness) options(site *config.Site) Options {
 			h.steps = append(h.steps, "reload")
 			return h.reload
 		},
+		Keep: func(dir, from, to string, excludes []string, out io.Writer) ([]string, error) {
+			h.steps = append(h.steps, "keep")
+			return nil, h.keepEr
+		},
+		Excludes: func(*config.Site) ([]string, error) { return nil, nil },
 		Migrates: func(*config.Site) (bool, error) { return true, nil },
 		Script:   func(*config.Site) (string, error) { return "php artisan migrate --force\n", nil },
 	}
@@ -61,8 +67,9 @@ func deploySite() *config.Site {
 	}
 }
 
-// The order is the story. Back up before anything changes, pull, run the
-// script, and only then make the new code live.
+// The order is the story. Back up before anything changes, pull, put back
+// whatever the pull removed that the site protects, run the script, and only
+// then make the new code live.
 func TestRun_DoesThePhasesInOrder(t *testing.T) {
 	h := newHarness()
 
@@ -71,7 +78,7 @@ func TestRun_DoesThePhasesInOrder(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 
-	want := []string{"snapshot", "git pull --ff-only", "script", "reload"}
+	want := []string{"snapshot", "git pull --ff-only", "keep", "script", "reload"}
 	if strings.Join(h.steps, ",") != strings.Join(want, ",") {
 		t.Errorf("steps = %v, want %v", h.steps, want)
 	}

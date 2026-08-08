@@ -4,12 +4,13 @@ Every site has its own deploy script. Servlo seeds it from the framework's [depl
 
 ## What a deploy does
 
-Press **Deploy** on the site, or POST to `/api/sites/{domain}/deploy`. Four phases, in this order, each one refusing to start if the one before it did not finish:
+Press **Deploy** on the site's Deploy tab, or POST to `/api/sites/{domain}/deploy`. Five phases, in this order, each one refusing to start if the one before it did not finish:
 
 1. **Database backup**, if the script runs a migration. Named `predeploy-<site>-<timestamp>`.
 2. **`git pull --ff-only`**.
-3. **The deploy script**, with the site as its working directory.
-4. **A graceful PHP-FPM reload**, which is what makes the new code live.
+3. **Putting back** anything the pull removed that the site's [exclude list](#paths-a-deploy-must-not-remove) protects.
+4. **The deploy script**, with the site as its working directory.
+5. **A graceful PHP-FPM reload**, which is what makes the new code live.
 
 Output streams into the panel as it happens, both stdout and stderr, with each phase announced before it runs. A deploy takes minutes and a spinner that eventually says "failed" is exactly what this replaces.
 
@@ -26,6 +27,8 @@ The order is the design, and each part of it is deliberate:
 **A failed script does not reload PHP-FPM**, and that is the safe direction rather than an oversight. Production OPcache runs with `validate_timestamps=0`, so PHP keeps serving the bytecode it already has: withholding the reload leaves visitors on the last version that worked rather than on the half-deployed one now on disk. The failure says so explicitly, along with the commit the pull had already reached.
 
 **The reload is graceful.** `SIGUSR2` to the FPM master, which starts new workers and lets the running ones finish. A deploy that dropped every in-flight request on every site sharing the container would be worse than the problem it solves.
+
+**Files are put back before the script, not after it.** A script that rebuilds a cache or runs a plugin update should see the tree the site actually has, not one briefly missing the client's plugins.
 
 A deploy takes the same per-site lock as the command runner and the doctor's fixes, so it cannot run at the same time as either. Two processes writing the same `vendor` directory is not a race worth having.
 
@@ -45,9 +48,9 @@ A header explaining all of that, followed by the framework's template. For Larav
 
 A framework with no profile, and a site with no framework, get the header and nothing else.
 
-## Editing it
+## Editing the script
 
-Saving keeps a timestamped backup of what it replaced, in a `bkp/` directory beside the script, and any backup can be restored. Resetting deletes the script so the site goes back to its framework's template; the backups survive that too.
+Edit it on the site's Deploy tab. Saving keeps a timestamped backup of what it replaced, in a `bkp/` directory beside the script, and any backup can be restored. Resetting deletes the script so the site goes back to its framework's template; the backups survive that too.
 
 Nothing validates the contents beyond refusing a NUL byte. It is a shell script you wrote to run on your own server, and servlo guessing at which commands are reasonable would be both wrong and impossible to get right.
 
@@ -58,3 +61,32 @@ Servlo reads the saved script to decide whether a deploy is schema-changing, mat
 It reads the script that will actually run, not the framework's template, so taking the migration out means no backup and adding one the template never had means there is. Blank and commented-out lines do not count: a migration somebody commented out would otherwise snapshot the database on every deploy from then on.
 
 A framework that declares no migration command has no schema-changing deploys, and nothing on it is ever backed up on that basis.
+
+## Paths a deploy must not remove
+
+Some directories belong to the application rather than to the repository: everything a client has uploaded, every plugin they installed through an admin screen. A deploy that removed one would destroy the site, and the operator would find out from the client.
+
+Each site has a list of those paths. It starts as its framework's, declared in the [deploy profile](framework-definitions.md#deploy-profile), and a WordPress site gets `wp-content/uploads` and `wp-content/plugins` without anybody configuring it. Edit it on the Deploy tab, one path per line relative to the site directory, or through `/api/sites/{domain}/deploy-exclude`.
+
+### What it is actually protecting against
+
+On most installs, nothing, and that is worth knowing before you go looking for the list to do more than it does.
+
+`wp-content/uploads` and `wp-content/plugins` are normally gitignored, so git does not track them, and a file git does not track is one a pull cannot touch. The list has nothing to do on those sites.
+
+The sites that lose a client's data are the ones whose repository committed those directories, and there git behaves in two different ways:
+
+- A file you changed **locally**, git refuses to overwrite. The pull fails, loudly, naming the file. Nothing is lost and nothing needs protecting.
+- A file that was deleted **upstream**, git deletes here, silently, because from its point of view nothing local was at risk.
+
+That second case is the whole gap. A developer tidying a repository from a checkout that never had the client's plugins removes them from every site running it. So the list protects against deletion: after the pull, any file under one of these paths that the update removed is written back at the content it had before.
+
+Restoring only deletions is also what makes the repair clean. The file is gone from the new commit, so writing the old content back leaves it **untracked**, and every later pull is as clean as it was before. Restoring over a file git still tracks would leave the tree permanently dirty and wedge the next deploy, which is a worse failure than the one being prevented because it arrives later.
+
+If a path could not be put back, the deploy fails and says so. Carrying on would report success having lost exactly what the list exists to keep.
+
+### Changing the list
+
+Saving replaces the list for this site, and the site stops following its framework. **Go back to the framework's list** undoes that, which is a different thing from saving an empty list: an empty list protects nothing, and following the framework protects whatever the definition declares, including a definition updated after the site was created. The form says which of the two the site is on.
+
+Paths are relative to the site directory and one that climbs out of it is refused. They match whole path segments, so `wp-content/uploads` does not reach into `wp-content/uploads-old`.

@@ -131,6 +131,12 @@ type Site struct {
 	RedirectPermanent bool `yaml:"redirect_permanent,omitempty"`
 	// Redirects are single addresses that have moved, matched exactly.
 	Redirects []Redirect `yaml:"redirects,omitempty"`
+
+	// DeployExclude names paths a deploy of this site must not remove,
+	// relative to the site root. A pointer because unset and empty are
+	// different answers: unset follows the framework's list, and an empty list
+	// is an operator saying this site protects nothing.
+	DeployExclude *[]string `yaml:"deploy_exclude,omitempty"`
 }
 
 // Redirect is one address that has moved.
@@ -346,6 +352,7 @@ type siteYAML struct {
 	RedirectTo          string           `yaml:"redirect_to,omitempty"`
 	RedirectPermanent   bool             `yaml:"redirect_permanent,omitempty"`
 	Redirects           []Redirect       `yaml:"redirects,omitempty"`
+	DeployExclude       *[]string        `yaml:"deploy_exclude,omitempty"`
 }
 
 func (s Site) toYAML() siteYAML {
@@ -387,6 +394,7 @@ func (s Site) toYAML() siteYAML {
 		RedirectTo:          s.RedirectTo,
 		RedirectPermanent:   s.RedirectPermanent,
 		Redirects:           s.Redirects,
+		DeployExclude:       s.DeployExclude,
 	}
 }
 
@@ -433,6 +441,7 @@ func (sy siteYAML) toSite() Site {
 		RedirectTo:          sy.RedirectTo,
 		RedirectPermanent:   sy.RedirectPermanent,
 		Redirects:           sy.Redirects,
+		DeployExclude:       sy.DeployExclude,
 	}
 }
 
@@ -919,6 +928,25 @@ func (s *Site) WWWPair() (apex, www string, ok bool) {
 		return b, a, true
 	}
 	return "", "", false
+}
+
+// ValidateDeployExclude refuses an exclude path a deploy could not act on
+// safely.
+//
+// These names decide where servlo writes files back during a deploy, so one
+// that climbs out of the site is one that writes over the rest of the
+// filesystem. An unset list and an empty one are both fine: they are the two
+// ways of saying nothing about this site.
+func (s *Site) ValidateDeployExclude() error {
+	if s.DeployExclude == nil {
+		return nil
+	}
+	for _, p := range *s.DeployExclude {
+		if err := safeSitePath(p); err != nil {
+			return fmt.Errorf("site %q deploy exclude: %w", s.Name, err)
+		}
+	}
+	return nil
 }
 
 // ValidateCanonicalHost refuses a canonical host the site could not honour.

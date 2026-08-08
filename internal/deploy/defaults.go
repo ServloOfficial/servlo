@@ -30,6 +30,8 @@ func Defaults(site *config.Site, out io.Writer) Options {
 		Snapshot:  Snapshot,
 		RunScript: RunScript,
 		Reload:    Reload,
+		Keep:      Keep,
+		Excludes:  siteops.DeployExcludes,
 		Migrates:  siteops.DeployScriptMigrates,
 		Script:    deployScript,
 	}

@@ -120,7 +120,8 @@ func TestDefaults_WiresEverySeam(t *testing.T) {
 	o := Defaults(&config.Site{Name: "shop", Domains: []string{"shop.example"}}, &bytes.Buffer{})
 
 	if o.Git == nil || o.Head == nil || o.Snapshot == nil || o.RunScript == nil ||
-		o.Reload == nil || o.Migrates == nil || o.Script == nil {
+		o.Reload == nil || o.Migrates == nil || o.Script == nil ||
+		o.Keep == nil || o.Excludes == nil {
 		t.Errorf("a seam is nil: %+v", o)
 	}
 	if o.Out == nil {

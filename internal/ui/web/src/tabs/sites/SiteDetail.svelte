@@ -5,6 +5,7 @@
   import SiteLogs from './SiteLogs.svelte';
   import SiteEnvTab from './SiteEnvTab.svelte';
   import SitePHPSettingsTab from './SitePHPSettingsTab.svelte';
+  import SiteDeployTab from './SiteDeployTab.svelte';
   import SiteNginxModal from '../../modals/SiteNginxModal.svelte';
   import { resumeSite, loadSites, siteHasLogSources, type Site } from '$stores/sites';
   import { routeRest, goToTab } from '$stores/route';
@@ -26,13 +27,13 @@
   }
   let { site }: Props = $props();
 
-  type TabId = 'overview' | 'logs' | 'env' | 'settings';
+  type TabId = 'overview' | 'logs' | 'env' | 'deploy' | 'settings';
   const TAB_STORAGE_KEY = 'servlo:siteDetailTab';
 
   function readStoredTab(): TabId {
     if (typeof localStorage === 'undefined') return 'overview';
     const v = localStorage.getItem(TAB_STORAGE_KEY);
-    if (v === 'logs' || v === 'env' || v === 'settings') return v;
+    if (v === 'logs' || v === 'env' || v === 'deploy' || v === 'settings') return v;
     return 'overview';
   }
 
@@ -50,7 +51,10 @@
   const canSettings = $derived(
     !site.custom_container && site.runtime !== 'frankenphp' && !site.host_port
   );
-  const hasExtraTabs = $derived(canLogs || canEnv || canSettings);
+  // Deploy is offered to any site with a repository: the tab is git pull plus a
+  // script, and a site that was never cloned has nothing to pull.
+  const canDeploy = $derived(Boolean(site.branch));
+  const hasExtraTabs = $derived(canLogs || canEnv || canDeploy || canSettings);
 
   // The route can deep-link a sub-tab. When the second segment names a tab, honour it
   // and overwrite the stored selection.
@@ -58,7 +62,13 @@
     const seg = $routeRest.split('/')[1] ?? '';
     if (seg === 'nginx') {
       nginxOpen = true;
-    } else if (seg === 'logs' || seg === 'env' || seg === 'settings' || seg === 'overview') {
+    } else if (
+      seg === 'logs' ||
+      seg === 'env' ||
+      seg === 'deploy' ||
+      seg === 'settings' ||
+      seg === 'overview'
+    ) {
       active = seg;
     }
   });
@@ -66,6 +76,7 @@
   $effect(() => {
     if (active === 'logs' && !canLogs) active = 'overview';
     if (active === 'env' && !canEnv) active = 'overview';
+    if (active === 'deploy' && !canDeploy) active = 'overview';
     if (active === 'settings' && !canSettings) active = 'overview';
   });
 
@@ -99,6 +110,9 @@
   {/if}
   {#if canEnv}
     <button class={tabBtn('env', active === 'env')} onclick={() => selectTab('env')}>{m.sites_tabs_env()}</button>
+  {/if}
+  {#if canDeploy}
+    <button class={tabBtn('deploy', active === 'deploy')} onclick={() => selectTab('deploy')}>{m.sites_tabs_deploy()}</button>
   {/if}
   {#if canSettings}
     <button class={tabBtn('settings', active === 'settings')} onclick={() => selectTab('settings')}>{m.sites_tabs_settings()}</button>
@@ -139,6 +153,10 @@
   {:else if active === 'env'}
     {#key site.domain}
       <SiteEnvTab {site} />
+    {/key}
+  {:else if active === 'deploy'}
+    {#key site.domain}
+      <SiteDeployTab {site} />
     {/key}
   {:else if active === 'settings'}
     {#key site.domain}

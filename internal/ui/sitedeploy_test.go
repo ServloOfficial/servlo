@@ -7,11 +7,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/deploy"
+	"gopkg.in/yaml.v3"
 )
 
 func deployHome(t *testing.T) *config.Site {
@@ -230,5 +232,160 @@ func TestHandleSiteDeployScript_SavesAndReadsBack(t *testing.T) {
 	}
 	if !got.Exists || !strings.Contains(got.Body, "echo mine") {
 		t.Errorf("the saved script did not come back: %+v", got)
+	}
+}
+
+// deployWordPress is a WordPress site whose definition is in the local store,
+// so its exclude list arrives from the store the way a real one does.
+func deployWordPress(t *testing.T) *config.Site {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+	t.Setenv("XDG_CONFIG_HOME", "")
+
+	body, err := os.ReadFile(filepath.Join("..", "..", "stores", "frameworks", "wordpress", "6.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fw config.Framework
+	if err := yaml.Unmarshal(body, &fw); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.SaveStoreFramework(&fw); err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(t.TempDir(), "shop")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"wp-login.php", "wp-config.php"} {
+		if err := os.WriteFile(filepath.Join(path, f), []byte("<?php\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	site := config.Site{
+		Name: "shop", Domains: []string{"shop.example"},
+		Path: path, PHPVersion: "8.3", Framework: "wordpress",
+	}
+	if err := config.AddSite(site); err != nil {
+		t.Fatal(err)
+	}
+	return &site
+}
+
+func getExclude(t *testing.T, site *config.Site) SiteDeployExcludeResponse {
+	t.Helper()
+	r := httptest.NewRequest(http.MethodGet, "/api/sites/shop.example/deploy-exclude", nil)
+	w := httptest.NewRecorder()
+	handleSiteDeployExclude(w, r, site)
+	var got SiteDeployExcludeResponse
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("%v\n%s", err, w.Body.String())
+	}
+	return got
+}
+
+func postExclude(t *testing.T, site *config.Site, body string) SiteActionResponse {
+	t.Helper()
+	r := httptest.NewRequest(http.MethodPost, "/api/sites/shop.example/deploy-exclude", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	handleSiteDeployExclude(w, r, site)
+	var got SiteActionResponse
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("%v\n%s", err, w.Body.String())
+	}
+	return got
+}
+
+// A WordPress site protects uploads and plugins without anybody configuring it,
+// and the form is told the list came from the framework rather than from here.
+func TestHandleSiteDeployExclude_StartsFromTheFramework(t *testing.T) {
+	site := deployWordPress(t)
+
+	got := getExclude(t, site)
+
+	if got.Custom {
+		t.Error("a site that never set a list was reported as having its own")
+	}
+	for _, want := range []string{"wp-content/uploads", "wp-content/plugins"} {
+		if !slices.Contains(got.Paths, want) {
+			t.Errorf("Paths = %v, does not protect %q", got.Paths, want)
+		}
+		if !slices.Contains(got.Default, want) {
+			t.Errorf("Default = %v, does not offer %q", got.Default, want)
+		}
+	}
+}
+
+func TestHandleSiteDeployExclude_SavesAndReadsBack(t *testing.T) {
+	site := deployWordPress(t)
+
+	if res := postExclude(t, site, `{"paths":["wp-content/uploads","wp-content/languages"]}`); !res.OK {
+		t.Fatalf("save failed: %+v", res)
+	}
+
+	got := getExclude(t, site)
+	if !got.Custom {
+		t.Error("a site that saved a list was reported as still following its framework")
+	}
+	if !slices.Equal(got.Paths, []string{"wp-content/uploads", "wp-content/languages"}) {
+		t.Errorf("Paths = %v", got.Paths)
+	}
+	// And the framework's list is still offered, because reset restores it.
+	if !slices.Contains(got.Default, "wp-content/plugins") {
+		t.Errorf("Default = %v, no longer offers the framework's list", got.Default)
+	}
+}
+
+// Saving an empty list and resetting are different actions, and the difference
+// survives: one protects nothing, the other goes back to the framework's list.
+func TestHandleSiteDeployExclude_EmptyIsNotTheSameAsReset(t *testing.T) {
+	site := deployWordPress(t)
+
+	if res := postExclude(t, site, `{"paths":[]}`); !res.OK {
+		t.Fatalf("save failed: %+v", res)
+	}
+	got := getExclude(t, site)
+	if !got.Custom || len(got.Paths) != 0 {
+		t.Errorf("an emptied list came back as %+v, want the site protecting nothing", got)
+	}
+
+	if res := postExclude(t, site, `{"reset":true}`); !res.OK {
+		t.Fatalf("reset failed: %+v", res)
+	}
+	got = getExclude(t, site)
+	if got.Custom {
+		t.Error("a reset site is still reported as having its own list")
+	}
+	if !slices.Contains(got.Paths, "wp-content/plugins") {
+		t.Errorf("Paths = %v, the framework's list did not come back", got.Paths)
+	}
+}
+
+// A path that climbs out of the site decides where a deploy writes files, so it
+// is refused at the door rather than stored and acted on later.
+func TestHandleSiteDeployExclude_RefusesAPathOutsideTheSite(t *testing.T) {
+	site := deployWordPress(t)
+
+	res := postExclude(t, site, `{"paths":["../../etc"]}`)
+
+	if res.OK {
+		t.Fatal("a path outside the site was accepted")
+	}
+	if getExclude(t, site).Custom {
+		t.Error("the refused list was stored anyway")
+	}
+}
+
+func TestHandleSiteDeployExclude_RefusesOtherMethods(t *testing.T) {
+	site := deployWordPress(t)
+
+	r := httptest.NewRequest(http.MethodDelete, "/api/sites/shop.example/deploy-exclude", nil)
+	w := httptest.NewRecorder()
+	handleSiteDeployExclude(w, r, site)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("status = %d, want 405", w.Code)
 	}
 }

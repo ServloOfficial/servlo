@@ -69,6 +69,76 @@ func handleSiteDeploy(w http.ResponseWriter, r *http.Request, site *config.Site)
 	})
 }
 
+// SiteDeployExcludeResponse is the paths this site's deploys must not remove.
+type SiteDeployExcludeResponse struct {
+	// Paths is what the next deploy will actually protect, whether it came from
+	// the site or from its framework.
+	Paths []string `json:"paths"`
+	// Custom is false while the site is still following its framework, so the
+	// form can say where the list came from and offer to go back to it.
+	Custom bool `json:"custom"`
+	// Default is the framework's list, which is what "reset" restores and what
+	// the form shows as the alternative to the site's own.
+	Default []string `json:"default"`
+}
+
+// SiteDeployExcludeRequest saves a site's own list.
+type SiteDeployExcludeRequest struct {
+	Paths []string `json:"paths"`
+	// Reset clears the site's list so it follows its framework again, which is
+	// a different thing from saving an empty one: an empty list protects
+	// nothing, and following the framework protects whatever it declares.
+	Reset bool `json:"reset"`
+}
+
+// handleSiteDeployExclude serves GET and POST on
+// /api/sites/{domain}/deploy-exclude.
+func handleSiteDeployExclude(w http.ResponseWriter, r *http.Request, site *config.Site) {
+	switch r.Method {
+	case http.MethodGet:
+		paths, err := siteops.DeployExcludes(site)
+		if err != nil {
+			writeJSON(w, SiteActionResponse{Error: err.Error()})
+			return
+		}
+		var fallback []string
+		if fw, ok := config.GetFrameworkForDir(site.Framework, site.Path); ok {
+			fallback = fw.DeployExcludes()
+		}
+		writeJSON(w, SiteDeployExcludeResponse{
+			Paths:   orEmpty(paths),
+			Custom:  site.DeployExclude != nil,
+			Default: orEmpty(fallback),
+		})
+	case http.MethodPost:
+		var req SiteDeployExcludeRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, SiteActionResponse{Error: "reading the list: " + err.Error()})
+			return
+		}
+		list := &req.Paths
+		if req.Reset {
+			list = nil
+		}
+		if err := siteops.SetSiteDeployExclude(site, list); err != nil {
+			writeJSON(w, SiteActionResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, SiteActionResponse{OK: true})
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// orEmpty sends an empty list rather than null, so the form iterates it without
+// having to know that JSON has two ways to say nothing.
+func orEmpty(in []string) []string {
+	if in == nil {
+		return []string{}
+	}
+	return in
+}
+
 // SiteDeployScriptResponse is the site's deploy script and where it lives.
 type SiteDeployScriptResponse struct {
 	Path string `json:"path"`
