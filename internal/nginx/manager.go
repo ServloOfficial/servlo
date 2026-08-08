@@ -158,13 +158,13 @@ func (d VhostData) HSTS() string { return tlsBlockFor(d.CertDomain) }
 // indented for splicing into the server block. Empty when the framework declares
 // none, when the snippet is unbalanced, or when a substituted value carries
 // nginx syntax of its own.
-func resolveFrameworkNginx(site config.Site, publicDir, fpmContainer string) string {
+func resolveFrameworkNginx(site config.Site, publicDir string, up Upstream) string {
 	fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
 	if !ok || fw.Nginx == nil {
 		return ""
 	}
 	var warn bytes.Buffer
-	block := frameworkNginxBlock(&warn, site.Framework, site.PrimaryDomain(), fw.Nginx.Snippet, site.Path, publicDir, fpmContainer)
+	block := frameworkNginxBlock(&warn, site.Framework, site.PrimaryDomain(), fw.Nginx.Snippet, site.Path, publicDir, up)
 	emitOnce(os.Stdout, warn.String())
 	return block
 }
@@ -193,7 +193,7 @@ func emitOnce(w io.Writer, msg string) {
 // frameworkNginxBlock validates and expands a framework snippet into an indented
 // server-block fragment, "" when it declares none. A drop writes a warning to w
 // rather than vanishing silently (the caller rate-limits it, see emitOnce).
-func frameworkNginxBlock(w io.Writer, framework, domain, snippet, sitePath, publicDir, fpmContainer string) string {
+func frameworkNginxBlock(w io.Writer, framework, domain, snippet, sitePath, publicDir string, up Upstream) string {
 	if strings.TrimSpace(snippet) == "" {
 		return ""
 	}
@@ -201,7 +201,7 @@ func frameworkNginxBlock(w io.Writer, framework, domain, snippet, sitePath, publ
 		fmt.Fprintf(w, "[WARN] dropping %s nginx config for %s: %v\n", framework, domain, err)
 		return ""
 	}
-	expanded, err := expandNginxSnippet(snippet, sitePath, publicDir, fpmContainer)
+	expanded, err := expandNginxSnippet(snippet, sitePath, publicDir, up)
 	if err != nil {
 		fmt.Fprintf(w, "[WARN] dropping %s nginx config for %s: %v\n", framework, domain, err)
 		return ""
@@ -296,12 +296,12 @@ func nginxPathVars(sitePath, docRoot string) string {
 // a template, so its braces must never be evaluated as template actions. Values
 // are rejected rather than escaped, since nginx has no general escape for them
 // and every legitimate value here is a path or a container name.
-func expandNginxSnippet(snippet, sitePath, publicDir, fpmContainer string) (string, error) {
+func expandNginxSnippet(snippet, sitePath, publicDir string, up Upstream) (string, error) {
 	docRoot := sitePath
 	if publicDir != "" && publicDir != "." {
 		docRoot = filepath.Join(sitePath, publicDir)
 	}
-	for _, v := range []string{sitePath, docRoot, fpmContainer} {
+	for _, v := range []string{sitePath, docRoot, up.Container, up.Socket} {
 		if i := strings.IndexAny(v, nginxValueForbidden); i >= 0 {
 			return "", fmt.Errorf("nginx value %q contains %q", v, v[i])
 		}
@@ -309,7 +309,8 @@ func expandNginxSnippet(snippet, sitePath, publicDir, fpmContainer string) (stri
 	out := strings.NewReplacer(
 		"{{root}}", nginxRootVar,
 		"{{public}}", nginxPublicVar,
-		"{{fpm}}", fpmContainer,
+		"{{fpm}}", up.Container,
+		"{{fastcgi_pass}}", fastcgiPassBlock(up),
 	).Replace(snippet)
 	// A misspelled placeholder has balanced braces, so it survives validation and
 	// would reach nginx verbatim, breaking the config for every site.
@@ -403,7 +404,7 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 	proxyPath, proxyPort, hasProxy := detectSiteProxy(site)
 	devBase, devPort := detectSiteDevServer(site)
 	fpmContainer := podman.FPMContainerName(site, phpVersion)
-	fpmSocket := FPMUpstream(config.FPMPoolDir(), config.FPMSocketDir(), site.Name, fpmContainer).Socket
+	upstream := FPMUpstream(config.FPMPoolDir(fpmContainer), config.FPMSocketDir(), site.Name, fpmContainer)
 	data := VhostData{
 		Domain:          site.PrimaryDomain(),
 		ServerNames:     serverNames,
@@ -411,7 +412,7 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 		PHPVersion:      phpVersion,
 		PHPVersionShort: phpShort(phpVersion),
 		FPMContainer:    fpmContainer,
-		FPMSocket:       fpmSocket,
+		FPMSocket:       upstream.Socket,
 		PublicDir:       publicDir,
 		Proxy:           hasProxy,
 		ProxyPath:       proxyPath,
@@ -421,7 +422,7 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 		DevServerPort:   devPort,
 		ServloSite:      site.Name,
 		RequestTimeout:  resolveRequestTimeout(site.Path),
-		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, fpmContainer),
+		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, upstream),
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -455,7 +456,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 	proxyPath, proxyPort, hasProxy := detectSiteProxy(site)
 	devBase, devPort := detectSiteDevServer(site)
 	fpmContainer := podman.FPMContainerName(site, phpVersion)
-	fpmSocket := FPMUpstream(config.FPMPoolDir(), config.FPMSocketDir(), site.Name, fpmContainer).Socket
+	upstream := FPMUpstream(config.FPMPoolDir(fpmContainer), config.FPMSocketDir(), site.Name, fpmContainer)
 	data := VhostData{
 		Domain:          site.PrimaryDomain(),
 		ServerNames:     serverNames,
@@ -463,7 +464,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 		PHPVersion:      phpVersion,
 		PHPVersionShort: phpShort(phpVersion),
 		FPMContainer:    fpmContainer,
-		FPMSocket:       fpmSocket,
+		FPMSocket:       upstream.Socket,
 		CertDomain:      site.PrimaryDomain(),
 		PublicDir:       publicDir,
 		Proxy:           hasProxy,
@@ -474,7 +475,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 		DevServerPort:   devPort,
 		ServloSite:      site.Name,
 		RequestTimeout:  resolveRequestTimeout(site.Path),
-		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, fpmContainer),
+		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, upstream),
 	}
 
 	rendered, err := renderVhost(tmpl, data)

@@ -19,6 +19,13 @@ import (
 func RegenerateSiteVhost(site *config.Site, oldPrimary string) error {
 	newPrimary := site.PrimaryDomain()
 
+	// The vhost reads the pool to decide where to send PHP, so the pool is
+	// brought up to date first. This is also the path a site takes when it
+	// changes PHP version, which moves its pool between containers.
+	if err := SyncFPMPool(*site); err != nil {
+		return fmt.Errorf("writing the site's PHP-FPM pool: %w", err)
+	}
+
 	if oldPrimary != newPrimary {
 		_ = nginx.RemoveVhost(oldPrimary)
 		if err := MoveCustomNginxConfig(oldPrimary, newPrimary); err != nil {

@@ -14,6 +14,12 @@ func CustomFPMContainerName(siteName string) string {
 	return "servlo-cfpm-" + siteName
 }
 
+// SharedFPMContainerName returns the shared per-version FPM container name,
+// e.g. "servlo-php84-fpm".
+func SharedFPMContainerName(version string) string {
+	return "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
+}
+
 // FPMContainerName resolves the FPM container nginx fastcgi's to and the php
 // shims exec into: a per-site container for custom-FPM sites, otherwise the
 // shared servlo-php<version>-fpm container.
@@ -21,7 +27,7 @@ func FPMContainerName(site config.Site, version string) string {
 	if site.IsCustomFPM() {
 		return CustomFPMContainerName(site.Name)
 	}
-	return "servlo-php" + strings.ReplaceAll(version, ".", "") + "-fpm"
+	return SharedFPMContainerName(version)
 }
 
 // WriteCustomFPMQuadlet writes a per-site PHP-FPM quadlet running the site's
@@ -62,6 +68,12 @@ func generateCustomFPMQuadlet(siteName, version string) (string, error) {
 	short := strings.ReplaceAll(version, ".", "")
 	content = strings.ReplaceAll(content, "Image=servlo-php"+short+"-fpm:local", "Image="+CustomImageName(siteName))
 	content = strings.ReplaceAll(content, "ContainerName=servlo-php"+short+"-fpm", "ContainerName="+CustomFPMContainerName(siteName))
+	// Its own pools, for the same reason every container has its own: a master
+	// binds the socket of every pool it can see, so sharing the shared
+	// container's directory would have the two fighting over each other's sites.
+	content = strings.ReplaceAll(content,
+		"Volume="+config.FPMPoolDir(SharedFPMContainerName(version))+":",
+		"Volume="+config.FPMPoolDir(CustomFPMContainerName(siteName))+":")
 	content = strings.ReplaceAll(content, "Description=Servlo PHP "+version+" FPM", "Description=Servlo PHP "+version+" FPM (custom: "+siteName+")")
 	return content, nil
 }

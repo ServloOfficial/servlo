@@ -48,7 +48,7 @@ func TestVhostRootIsQuotedNotBackslashEscaped(t *testing.T) {
 func TestExpandNginxSnippetUsesPathVariables(t *testing.T) {
 	got, err := expandNginxSnippet(
 		"root {{root}};\nalias {{public}}/static/;\nfastcgi_pass {{fpm}}:9000;",
-		"/media/tim/My Laravel CMS/shop", "pub", "servlo-php84-fpm",
+		"/media/tim/My Laravel CMS/shop", "pub", Upstream{Container: "servlo-php84-fpm"},
 	)
 	if err != nil {
 		t.Fatalf("expandNginxSnippet: %v", err)
@@ -65,7 +65,7 @@ func TestExpandNginxSnippetUsesPathVariables(t *testing.T) {
 
 // A snippet that names no path gets no variables: nothing would read them.
 func TestExpandNginxSnippetWithoutPathsDeclaresNoVariables(t *testing.T) {
-	got, err := expandNginxSnippet("fastcgi_pass {{fpm}}:9000;", "/home/u/shop", "public", "servlo-php84-fpm")
+	got, err := expandNginxSnippet("fastcgi_pass {{fpm}}:9000;", "/home/u/shop", "public", Upstream{Container: "servlo-php84-fpm"})
 	if err != nil {
 		t.Fatalf("expandNginxSnippet: %v", err)
 	}

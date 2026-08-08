@@ -53,6 +53,12 @@ type Settings struct {
 // systemd-adjacent path, so it may not name a path or carry whitespace.
 var siteHandle = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$`)
 
+// UsableHandle reports whether a site can have a pool at all. Exported because
+// the vhost has to make the same call: nginx points a site at its socket only
+// when there is a pool, and the two deciding separately is how a site ends up
+// with a pool nothing routes to.
+func UsableHandle(site string) bool { return siteHandle.MatchString(site) }
+
 // Bounds. A value outside them produces a pool FPM refuses to start with, which
 // takes down every site sharing the container, so they are refused here.
 const (

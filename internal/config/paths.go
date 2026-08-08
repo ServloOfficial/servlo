@@ -435,11 +435,23 @@ func BrowserHostsFile() string {
 	return filepath.Join(DataDir(), "browser-hosts")
 }
 
-// FPMPoolDir returns the directory holding one PHP-FPM pool per site. It is
-// bind-mounted into the FPM container as php-fpm.d, so a file here is a pool
-// the master process reads on its next reload.
-func FPMPoolDir() string {
+// FPMPoolRoot returns the parent of every FPM container's pool directory.
+func FPMPoolRoot() string {
 	return filepath.Join(DataDir(), "fpm-pools")
+}
+
+// FPMPoolDir returns the directory holding one PHP-FPM pool per site for a
+// single FPM container, named for that container's unit. It is bind-mounted
+// into that container as php-fpm.d, so a file here is a pool its master process
+// reads on its next reload.
+//
+// Per container rather than one directory for all of them, because a master
+// defines every pool it can see and binds every socket those pools listen on.
+// Two masters sharing a directory would each define the other's sites, and
+// whichever started last would be answering for all of them: a site pinned to
+// 8.3 quietly served by 8.4.
+func FPMPoolDir(unit string) string {
+	return filepath.Join(FPMPoolRoot(), unit)
 }
 
 // FPMSocketDir returns the directory a site's pool listens in. It sits under

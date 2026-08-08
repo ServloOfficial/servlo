@@ -85,7 +85,7 @@ func TestFPMUpstream_FallsBackForAHandleThatIsNotOne(t *testing.T) {
 // up there rather than only in the decision.
 func TestVhost_PassesToTheSocketWhenTheSiteHasAPool(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	poolDir := config.FPMPoolDir()
+	poolDir := config.FPMPoolDir("servlo-php84-fpm")
 	if err := os.MkdirAll(poolDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

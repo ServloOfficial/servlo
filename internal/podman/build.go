@@ -818,6 +818,7 @@ func renderFPMQuadletContent(version string) (string, error) {
 	content = strings.ReplaceAll(content, "{{.ProductionIniPath}}", config.ProductionIniFile())
 	content = strings.ReplaceAll(content, "{{.UserIniPath}}", config.PHPUserIniFile(version))
 	content = strings.ReplaceAll(content, "{{.SharedIniPath}}", config.SharedIniFile())
+	content = strings.ReplaceAll(content, "{{.FPMPoolDir}}", config.FPMPoolDir(SharedFPMContainerName(version)))
 	content = strings.ReplaceAll(content, "{{.HostNameLine}}", hostNameLine())
 	content = applyShellMounts(content, short)
 	content = InjectExtraVolumes(content, ExtraVolumePaths())

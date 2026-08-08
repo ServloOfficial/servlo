@@ -24,6 +24,10 @@ Volume=servlo-ssh-agent:/ssh-agent
 Volume={{.ProductionIniPath}}:/usr/local/etc/php/conf.d/90-servlo-production.ini:ro
 Volume={{.UserIniPath}}:/usr/local/etc/php/conf.d/98-servlo-user.ini:ro
 Volume={{.SharedIniPath}}:/usr/local/etc/php/conf.d/95-servlo-shared.ini:ro
+# One pool per site, read-only: servlo writes them, FPM reads them. A file in
+# here is a pool the master process picks up on its next reload, which is what
+# makes a site's PHP settings its own rather than its version's.
+Volume={{.FPMPoolDir}}:/usr/local/etc/php-fpm.d:ro
 Volume={{.ZshHistoryDir}}:/root/.zsh_state:rw
 # Persistent home for an optional in-container musl bun (servlo php:bun install).
 # bun installs and self-updates here; survives image rebuilds and is shared

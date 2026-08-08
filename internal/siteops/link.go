@@ -148,6 +148,13 @@ func FinishLink(site config.Site, phpVersion string) error {
 // work once instead of once per project — those steps rewrite every quadlet and
 // every container hosts entry, which turns a park into quadratic work.
 func FinishSiteOnly(site config.Site, phpVersion string) error {
+	// Before the vhost, not after: the vhost points at the site's own socket
+	// only once the pool exists, so the other order leaves a new site on the
+	// shared container until something happens to regenerate it.
+	if err := SyncFPMPool(site); err != nil {
+		return fmt.Errorf("writing the site's PHP-FPM pool: %w", err)
+	}
+
 	if site.Secured {
 		if err := certs.SecureSite(site); err != nil {
 			return fmt.Errorf("securing site: %w", err)

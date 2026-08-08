@@ -37,7 +37,7 @@ func TestIndentBlock(t *testing.T) {
 func TestExpandNginxSnippet(t *testing.T) {
 	got, err := expandNginxSnippet(
 		"root {{root}};\nalias {{public}};\nfastcgi_pass {{fpm}}:9000;",
-		"/home/u/shop", "pub", "servlo-php84-fpm",
+		"/home/u/shop", "pub", Upstream{Container: "servlo-php84-fpm"},
 	)
 	if err != nil {
 		t.Fatalf("expand: %v", err)
@@ -65,14 +65,14 @@ func TestExpandNginxSnippetRejectsUnknownPlaceholder(t *testing.T) {
 	if err := config.ValidateNginxSnippet(snippet); err != nil {
 		t.Fatalf("typo has balanced braces, should validate: %v", err)
 	}
-	if _, err := expandNginxSnippet(snippet, "/p", "pub", "fpm"); err == nil {
+	if _, err := expandNginxSnippet(snippet, "/p", "pub", Upstream{Container: "fpm"}); err == nil {
 		t.Error("unknown placeholder was accepted")
 	}
 }
 
 // A "." public_dir means the project root is the document root.
 func TestExpandNginxSnippetDotPublicDir(t *testing.T) {
-	got, err := expandNginxSnippet("root {{public}};", "/home/u/wp", ".", "fpm")
+	got, err := expandNginxSnippet("root {{public}};", "/home/u/wp", ".", Upstream{Container: "fpm"})
 	if err != nil {
 		t.Fatalf("expand: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestExpandNginxSnippetRejectsHostileValues(t *testing.T) {
 	}
 
 	escape := "/home/u/x}\nserver { listen 81;"
-	if _, err := expandNginxSnippet(snippet, escape, "pub", "fpm"); err == nil {
+	if _, err := expandNginxSnippet(snippet, escape, "pub", Upstream{Container: "fpm"}); err == nil {
 		t.Error("a path that closes the block and opens a server was accepted")
 	}
 	// It would have passed a post-expansion brace check, which is the whole point.
@@ -100,14 +100,14 @@ func TestExpandNginxSnippetRejectsHostileValues(t *testing.T) {
 	}
 
 	for _, bad := range []string{"/p;deny all", "/p{", "/p}", "/p#c", "/p\nx", "/p\x00"} {
-		if _, err := expandNginxSnippet(snippet, bad, "pub", "fpm"); err == nil {
+		if _, err := expandNginxSnippet(snippet, bad, "pub", Upstream{Container: "fpm"}); err == nil {
 			t.Errorf("path %q accepted", bad)
 		}
 	}
-	if _, err := expandNginxSnippet(snippet, "/p", "pub", "fpm;deny all"); err == nil {
+	if _, err := expandNginxSnippet(snippet, "/p", "pub", Upstream{Container: "fpm;deny all"}); err == nil {
 		t.Error("hostile fpm container name accepted")
 	}
-	if _, err := expandNginxSnippet(snippet, "/p", "pub}x{", "fpm"); err == nil {
+	if _, err := expandNginxSnippet(snippet, "/p", "pub}x{", Upstream{Container: "fpm"}); err == nil {
 		t.Error("hostile public dir accepted")
 	}
 }
@@ -118,7 +118,7 @@ func TestFrameworkNginxBlockWarnsOnDrop(t *testing.T) {
 	snippet := "location /a/ {\n    root {{root}};\n}"
 
 	var buf bytes.Buffer
-	if got := frameworkNginxBlock(&buf, "magento", "shop.test", snippet, "/home/u/a;b", "pub", "fpm"); got != "" {
+	if got := frameworkNginxBlock(&buf, "magento", "shop.test", snippet, "/home/u/a;b", "pub", Upstream{Container: "fpm"}); got != "" {
 		t.Fatalf("hostile path should be dropped, got %q", got)
 	}
 	if !strings.Contains(buf.String(), "[WARN]") || !strings.Contains(buf.String(), "shop.test") {
@@ -127,7 +127,7 @@ func TestFrameworkNginxBlockWarnsOnDrop(t *testing.T) {
 
 	// A clean snippet expands and stays quiet.
 	buf.Reset()
-	if got := frameworkNginxBlock(&buf, "magento", "shop.test", snippet, "/home/u/a", "pub", "fpm"); got == "" {
+	if got := frameworkNginxBlock(&buf, "magento", "shop.test", snippet, "/home/u/a", "pub", Upstream{Container: "fpm"}); got == "" {
 		t.Fatal("valid snippet was dropped")
 	}
 	if buf.Len() != 0 {
@@ -135,7 +135,7 @@ func TestFrameworkNginxBlockWarnsOnDrop(t *testing.T) {
 	}
 	// An empty snippet is the common case: no output, no block.
 	buf.Reset()
-	if got := frameworkNginxBlock(&buf, "laravel", "app.test", "  ", "/p", "public", "fpm"); got != "" || buf.Len() != 0 {
+	if got := frameworkNginxBlock(&buf, "laravel", "app.test", "  ", "/p", "public", Upstream{Container: "fpm"}); got != "" || buf.Len() != 0 {
 		t.Fatalf("empty snippet: got %q, warned %q", got, buf.String())
 	}
 }

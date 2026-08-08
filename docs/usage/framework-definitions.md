@@ -370,17 +370,28 @@ Most frameworks route every request through a single front controller, which ser
 
 The optional `nginx.snippet` is raw nginx config, spliced into the site's server block **before** servlo's `location /` and `location ~ \.php$`. Placement matters, because nginx picks the first matching regex location in declaration order, so a framework block always gets first refusal on the paths it claims.
 
-Three placeholders are expanded before the config is written:
+Four placeholders are expanded before the config is written:
 
 | Placeholder | Expands to |
 |---|---|
 | `{{root}}` | the project root |
 | `{{public}}` | the document root (project root joined with `public_dir`) |
+| `{{fastcgi_pass}}` | a complete `fastcgi_pass` directive aimed at whichever PHP-FPM serves the site |
 | `{{fpm}}` | the site's PHP-FPM container name |
 
 The two path placeholders expand to nginx variables, `${servlo_root}` and `${servlo_public}`, which servlo declares at the top of the server block with the real paths. A project can live under a path with a space in it, and nginx splits a directive on whitespace: a literal path would turn `root` into three arguments and nginx would reject the whole config, taking every other site on the machine down with it. Quoting the value would fix a standalone `root {{root}};` but not a path used mid-token, as in `alias {{public}}/static/;`, since nginx will not glue a quoted token to a bare one. A variable is resolved after tokenizing, so it works in both positions. Write the placeholders exactly where you would write the path and servlo handles the rest.
 
-A snippet that passes requests to PHP should assign `{{fpm}}` to a variable first, `set $myfpm "{{fpm}}";` then `fastcgi_pass $myfpm:9000;`, exactly as the generated vhost does. nginx resolves a literal upstream name once when the config loads and caches it for the life of the process, so a container that comes back on a new address is never picked up.
+A snippet that passes requests to PHP should use `{{fastcgi_pass}}` and nothing else. Every site has its own PHP-FPM pool listening on its own unix socket, which is what makes its PHP settings its own rather than its version's, but a site created before per-site pools existed is still served by the shared per-version container. `{{fastcgi_pass}}` resolves to whichever of the two applies and expands to the entire directive, including the semicolon, so write it on a line of its own:
+
+```
+location ~ ^/(setup|update)/index\.php {
+    {{fastcgi_pass}}
+    fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+    include fastcgi_params;
+}
+```
+
+`{{fpm}}` remains for a snippet that needs the container name for something other than passing requests. If you do build a `fastcgi_pass` out of it by hand, assign it to a variable first, `set $myfpm "{{fpm}}";` then `fastcgi_pass $myfpm:9000;`, exactly as `{{fastcgi_pass}}` does: nginx resolves a literal upstream name once when the config loads and caches it for the life of the process, so a container that comes back on a new address is never picked up. A snippet built that way also stays on the shared container even for a site that has a pool, which means those locations run with the version's PHP settings while the rest of the site runs with its own.
 
 The snippet must have balanced braces, since an unbalanced one would close the enclosing `server` block and start declaring its own. Balance alone is not enough, because a `}` followed by a `server {` still balances, so the values substituted into the placeholders are rejected too if they contain `{`, `}`, `;`, `#`, or a newline. A snippet failing either check is dropped and the site renders without it, rather than risking an nginx config that fails to load for every site.
 

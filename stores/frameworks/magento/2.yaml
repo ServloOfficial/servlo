@@ -69,8 +69,11 @@ nginx:
         root {{root}};
 
         location ~ ^/(setup|update)/index\.php {
-            set $setupfpm "{{fpm}}";
-            fastcgi_pass $setupfpm:9000;
+            # {{fastcgi_pass}} rather than the container by name: it resolves to
+            # whichever the site is on, its own pool socket or the shared
+            # container, so these locations get the site's PHP settings like the
+            # rest of the site does.
+            {{fastcgi_pass}}
             fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
             include fastcgi_params;
         }

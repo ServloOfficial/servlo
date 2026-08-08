@@ -45,6 +45,11 @@ func UnlinkSiteCore(site *config.Site, parkedDirs []string) error {
 
 	_ = nginx.RemoveVhost(site.PrimaryDomain())
 
+	// Left behind, the pool keeps its master chdir'd into a directory that is
+	// about to stop existing, and keeps a socket bound that the next site to
+	// take this name would inherit.
+	_ = RemoveFPMPool(site.Name)
+
 	if site.Secured {
 		certsDir := config.CertsDir()
 		domain := site.PrimaryDomain()

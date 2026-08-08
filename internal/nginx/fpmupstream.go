@@ -2,7 +2,6 @@ package nginx
 
 import (
 	"os"
-	"regexp"
 
 	"github.com/realrashid/servlo/internal/fpmpool"
 )
@@ -18,10 +17,6 @@ import (
 // one uses it; a site that does not keeps the shared container until it does.
 // That makes the change safe to ship before anything has been migrated, which
 // is the only way to ship it at all.
-
-// siteHandle mirrors the pool package's: this decides a socket path, so a
-// handle that could name a path falls back rather than being trusted.
-var siteHandle = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$`)
 
 // Upstream is where a site's PHP requests go.
 type Upstream struct {
@@ -42,10 +37,26 @@ func (u Upstream) PassTarget() string {
 	return u.Container + ":9000"
 }
 
+// fastcgiPassBlock is what {{fastcgi_pass}} expands to in a framework snippet:
+// the whole directive, so a definition never has to know whether the site is on
+// its own socket or on the shared container.
+//
+// The container case carries the same variable indirection the main vhost uses.
+// nginx resolves a literal upstream once at config load and caches it for the
+// worker's lifetime, so a snippet naming the container directly keeps sending
+// requests to an address that stops existing the first time that container
+// restarts. Through a variable it resolves per request.
+func fastcgiPassBlock(u Upstream) string {
+	if u.Socket != "" {
+		return "fastcgi_pass unix:" + u.Socket + ";"
+	}
+	return `set $servlofpm "` + u.Container + "\";\n    fastcgi_pass $servlofpm:9000;"
+}
+
 // FPMUpstream decides where a site's PHP requests go.
 func FPMUpstream(poolDir, socketDir, site, container string) Upstream {
 	up := Upstream{Container: container}
-	if !siteHandle.MatchString(site) {
+	if !fpmpool.UsableHandle(site) {
 		return up
 	}
 	if _, err := os.Stat(fpmpool.Path(poolDir, site)); err != nil {

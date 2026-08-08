@@ -278,6 +278,25 @@ servlo php:ext list                # show your custom extensions and their apk d
 servlo php:ext remove swoole       # remove from every version and rebuild
 ```
 
+### Per-site PHP settings
+
+Every site gets its own PHP-FPM pool. That is what makes a PHP setting belong to a site rather than to a PHP version: one site can have a 256M upload limit and a 512M memory limit while every other site on the same version keeps the defaults.
+
+There is still one FPM master process per PHP version, because a container per site would be twenty containers on a twenty-site droplet. What is per site is the pool inside it. Servlo writes one pool file per site to `~/.local/share/servlo/fpm-pools/<container>/<site>.conf`, mounted read-only into that container as `php-fpm.d`, and each pool listens on its own unix socket at `~/.local/share/servlo/run/fpm/<site>.sock`. The site's nginx vhost passes to that socket, so a request arrives at the pool carrying that site's settings.
+
+The directory is per container rather than one for all of them on purpose. An FPM master defines every pool it can see and binds every socket those pools listen on, so two masters sharing a directory would each define the other's sites and whichever started last would answer for all of them, quietly serving an 8.3 site on 8.4.
+
+Writing or removing a pool reloads the master with `SIGUSR2` rather than restarting the container. FPM re-reads its configuration, starts new workers and lets the running ones finish, so changing one site's upload limit does not interrupt another site's checkout.
+
+Two production settings are pinned in every pool and cannot be turned back on from an application's own `ini_set`:
+
+```
+php_admin_value[display_errors] = Off
+php_admin_value[expose_php] = Off
+```
+
+A site that sets nothing gets a pool with only those, and everything else still comes from the layered ini files below. A site created before per-site pools existed has no pool file, and keeps being served by the shared container until it gets one.
+
 ### php.ini settings
 
 Each PHP version has a user-editable ini file at `~/.local/share/servlo/php/<version>/98-servlo-user.ini`, mounted read-only into the FPM container. Edit it with:
