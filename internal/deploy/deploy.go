@@ -64,7 +64,10 @@ type Result struct {
 	// not schema-changing.
 	Snapshot string
 	// Kept are files the update removed that the site's exclude list put back.
-	Kept     []string
+	Kept []string
+	// Redeploy marks a result that went back to an earlier commit rather than
+	// forward to a new one.
+	Redeploy bool
 	Duration time.Duration
 }
 

@@ -389,3 +389,191 @@ func TestHandleSiteDeployExclude_RefusesOtherMethods(t *testing.T) {
 		t.Errorf("status = %d, want 405", w.Code)
 	}
 }
+
+func stubRedeploy(t *testing.T, res deploy.Result, err error) *[]string {
+	t.Helper()
+	var gotCommit []string
+	prev := redeployFn
+	redeployFn = func(o deploy.Options, commit string) (deploy.Result, error) {
+		gotCommit = append(gotCommit, commit)
+		if o.Out != nil {
+			_, _ = o.Out.Write([]byte("going back\n"))
+		}
+		return res, err
+	}
+	t.Cleanup(func() { redeployFn = prev })
+	return &gotCommit
+}
+
+// recorded captures what the handler writes to the history without needing one.
+func recorded(t *testing.T) *[]deploy.Entry {
+	t.Helper()
+	var got []deploy.Entry
+	prev := recordDeployFn
+	recordDeployFn = func(_ *config.Site, e deploy.Entry) error {
+		got = append(got, e)
+		return nil
+	}
+	t.Cleanup(func() { recordDeployFn = prev })
+	return &got
+}
+
+// Every deploy is recorded, because the redeploy that undoes it needs to know
+// which commit the site was standing on.
+func TestHandleSiteDeploy_RecordsWhatItDid(t *testing.T) {
+	site := deployHome(t)
+	entries := recorded(t)
+	stubDeploy(t, deploy.Result{FromCommit: "aaaa1111", ToCommit: "bbbb2222", Snapshot: "snap-1"}, nil)
+
+	postDeploy(t, site)
+
+	if len(*entries) != 1 {
+		t.Fatalf("recorded %d entries, want 1", len(*entries))
+	}
+	e := (*entries)[0]
+	if e.From != "aaaa1111" || e.To != "bbbb2222" || !e.OK {
+		t.Errorf("entry = %+v", e)
+	}
+	if e.Redeploy {
+		t.Error("a forward deploy was recorded as a redeploy")
+	}
+	if e.At.IsZero() {
+		t.Error("the entry has no time, so a history cannot be ordered by it")
+	}
+}
+
+// A failed deploy is recorded too. A history that only remembers the ones that
+// worked cannot answer the question it actually gets asked.
+func TestHandleSiteDeploy_RecordsAFailure(t *testing.T) {
+	site := deployHome(t)
+	entries := recorded(t)
+	stubDeploy(t, deploy.Result{FromCommit: "aaaa1111", ToCommit: "bbbb2222"},
+		errors.New("the deploy script failed"))
+
+	postDeploy(t, site)
+
+	if len(*entries) != 1 {
+		t.Fatalf("recorded %d entries, want 1", len(*entries))
+	}
+	if e := (*entries)[0]; e.OK || !strings.Contains(e.Error, "script failed") {
+		t.Errorf("entry = %+v, want the failure and its reason", e)
+	}
+}
+
+func getRedeploy(t *testing.T, site *config.Site) SiteRedeployResponse {
+	t.Helper()
+	r := httptest.NewRequest(http.MethodGet, "/api/sites/shop.example/redeploy", nil)
+	w := httptest.NewRecorder()
+	handleSiteRedeploy(w, r, site)
+	var got SiteRedeployResponse
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("%v\n%s", err, w.Body.String())
+	}
+	return got
+}
+
+// The panel is told the target commit before the operator presses anything, so
+// the button is not a surprise.
+func TestHandleSiteRedeploy_SaysWhereItWouldGo(t *testing.T) {
+	site := deployHome(t)
+	if err := deploy.Record(site, deploy.Entry{From: "aaaa1111", To: "bbbb2222", OK: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	got := getRedeploy(t, site)
+
+	if !got.Available || got.Commit != "aaaa1111" {
+		t.Errorf("GET = %+v, want the commit the site was on", got)
+	}
+}
+
+// A site that never deployed has nowhere to go back to, and says so rather than
+// offering a button that would fail.
+func TestHandleSiteRedeploy_UnavailableBeforeAnyDeploy(t *testing.T) {
+	site := deployHome(t)
+
+	if got := getRedeploy(t, site); got.Available {
+		t.Errorf("GET = %+v, want unavailable", got)
+	}
+
+	calls := stubRedeploy(t, deploy.Result{}, nil)
+	r := httptest.NewRequest(http.MethodPost, "/api/sites/shop.example/redeploy", nil)
+	w := httptest.NewRecorder()
+	handleSiteRedeploy(w, r, site)
+
+	if len(*calls) != 0 {
+		t.Error("a redeploy ran with no commit to go back to")
+	}
+	if !strings.Contains(w.Body.String(), "no recorded deploy") {
+		t.Errorf("the refusal does not say why:\n%s", w.Body.String())
+	}
+}
+
+// It goes back to the recorded commit, not to whatever the caller asked for:
+// the target comes from the history, so a request cannot name an arbitrary one.
+func TestHandleSiteRedeploy_GoesToTheRecordedCommit(t *testing.T) {
+	site := deployHome(t)
+	for _, e := range []deploy.Entry{
+		{From: "aaaa1111", To: "bbbb2222", OK: true},
+		{From: "bbbb2222", To: "cccc3333", OK: true},
+	} {
+		if err := deploy.Record(site, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	calls := stubRedeploy(t, deploy.Result{FromCommit: "cccc3333", ToCommit: "bbbb2222"}, nil)
+	entries := recorded(t)
+
+	r := httptest.NewRequest(http.MethodPost, "/api/sites/shop.example/redeploy?commit=deadbeef", nil)
+	w := httptest.NewRecorder()
+	handleSiteRedeploy(w, r, site)
+
+	if len(*calls) != 1 || (*calls)[0] != "bbbb2222" {
+		t.Errorf("redeploy targets = %v, want the last recorded From", *calls)
+	}
+	got := doneFrame(t, w.Body.String())
+	if got["ok"] != true || got["to"] != "bbbb2222" {
+		t.Errorf("done = %v", got)
+	}
+	// And the redeploy is itself recorded, marked as one.
+	if len(*entries) != 1 || !(*entries)[0].Redeploy {
+		t.Errorf("entries = %+v, want one marked as a redeploy", *entries)
+	}
+}
+
+func TestHandleSiteRedeploy_RefusesWhileTheSiteIsBusy(t *testing.T) {
+	site := deployHome(t)
+	if err := deploy.Record(site, deploy.Entry{From: "aaaa1111", To: "bbbb2222", OK: true}); err != nil {
+		t.Fatal(err)
+	}
+	calls := stubRedeploy(t, deploy.Result{}, nil)
+
+	release, _, ok := tryAcquireRun(siteRunLockKey(site), "deploy")
+	if !ok {
+		t.Fatal("could not take the lock")
+	}
+	defer release()
+
+	r := httptest.NewRequest(http.MethodPost, "/api/sites/shop.example/redeploy", nil)
+	w := httptest.NewRecorder()
+	handleSiteRedeploy(w, r, site)
+
+	if len(*calls) != 0 {
+		t.Error("a redeploy started while the site was busy")
+	}
+	if !strings.Contains(w.Body.String(), "deploy") {
+		t.Errorf("the refusal does not say what it is busy with:\n%s", w.Body.String())
+	}
+}
+
+func TestHandleSiteRedeploy_RefusesOtherMethods(t *testing.T) {
+	site := deployHome(t)
+
+	r := httptest.NewRequest(http.MethodDelete, "/api/sites/shop.example/redeploy", nil)
+	w := httptest.NewRecorder()
+	handleSiteRedeploy(w, r, site)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("status = %d, want 405", w.Code)
+	}
+}

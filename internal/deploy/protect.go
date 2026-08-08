@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	gitpkg "github.com/realrashid/servlo/internal/git"
@@ -153,3 +154,7 @@ func plural(n int, word string) string {
 	}
 	return fmt.Sprintf("%d %ss", n, word)
 }
+
+// siteFileName is the filename half of a per-site path, so a name that could
+// climb out of the directory is refused rather than joined into one.
+var siteFileName = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,62}[a-zA-Z0-9])?$`)

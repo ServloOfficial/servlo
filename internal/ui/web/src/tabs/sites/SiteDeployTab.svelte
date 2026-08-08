@@ -1,5 +1,6 @@
 <script lang="ts">
   import SettingsCard from '$components/SettingsCard.svelte';
+  import SiteRedeployCard from './SiteRedeployCard.svelte';
   import SiteDeployScriptCard from './SiteDeployScriptCard.svelte';
   import SiteDeployExcludeCard from './SiteDeployExcludeCard.svelte';
   import { streamDeploy, type DeployDone } from '$stores/deploy';
@@ -93,6 +94,7 @@
     {/if}
   </SettingsCard>
 
+  <SiteRedeployCard {site} />
   <SiteDeployScriptCard {site} />
   <SiteDeployExcludeCard {site} />
 </div>

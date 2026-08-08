@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/deploy"
@@ -43,6 +44,7 @@ func handleSiteDeploy(w http.ResponseWriter, r *http.Request, site *config.Site)
 	}
 
 	res, err := runDeployFn(deploy.Defaults(site, sw))
+	recordDeploy(site, res, err, false)
 	if err != nil {
 		// Into the stream rather than as a status code: the response has been
 		// streaming for minutes and its headers went out long ago, so the only
@@ -194,6 +196,93 @@ func handleSiteDeployScript(w http.ResponseWriter, r *http.Request, site *config
 			return
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// recordDeployFn is the history write, indirected so a handler test does not
+// need a data directory.
+var recordDeployFn = deploy.Record
+
+// recordDeploy writes what a deploy did, whether or not it worked.
+//
+// Failures are recorded too. A history that only remembers the deploys that
+// succeeded cannot answer "what happened at 3am", which is the question it gets
+// asked. The write is best-effort: losing the record is not worth failing a
+// deploy that already ran.
+func recordDeploy(site *config.Site, res deploy.Result, err error, redeploy bool) {
+	e := deploy.Entry{
+		At:         time.Now().UTC(),
+		From:       res.FromCommit,
+		To:         res.ToCommit,
+		OK:         err == nil,
+		Snapshot:   res.Snapshot,
+		Kept:       len(res.Kept),
+		DurationMS: res.Duration.Milliseconds(),
+		Redeploy:   redeploy,
+	}
+	if err != nil {
+		e.Error = err.Error()
+	}
+	_ = recordDeployFn(site, e)
+}
+
+// redeployFn is the redeploy itself, indirected the same way the deploy is.
+var redeployFn = deploy.Redeploy
+
+// SiteRedeployResponse says whether there is a commit to go back to, and which.
+type SiteRedeployResponse struct {
+	// Available is false when this site has no recorded deploy to go back from,
+	// which is every site before its first one. The button is offered only when
+	// there is somewhere to go.
+	Available bool   `json:"available"`
+	Commit    string `json:"commit,omitempty"`
+}
+
+// handleSiteRedeploy serves GET and POST on /api/sites/{domain}/redeploy.
+//
+// GET answers what a redeploy would do; POST does it. Split so the panel can
+// show the target commit before the operator commits to anything, rather than
+// offering a button whose effect is only discoverable by pressing it.
+func handleSiteRedeploy(w http.ResponseWriter, r *http.Request, site *config.Site) {
+	switch r.Method {
+	case http.MethodGet:
+		commit, ok := deploy.PreviousCommit(site)
+		writeJSON(w, SiteRedeployResponse{Available: ok, Commit: commit})
+	case http.MethodPost:
+		commit, ok := deploy.PreviousCommit(site)
+		if !ok {
+			writeJSON(w, SiteActionResponse{Error: "this site has no recorded deploy to go back from"})
+			return
+		}
+
+		release, busyWith, ok := tryAcquireRun(siteRunLockKey(site), "redeploy")
+		if !ok {
+			writeJSON(w, SiteActionResponse{Error: "this site is busy running " + busyWith})
+			return
+		}
+		defer release()
+
+		sw, done, ok := startPHPBuildStream(w)
+		if !ok {
+			http.Error(w, "streaming not supported", http.StatusInternalServerError)
+			return
+		}
+
+		res, err := redeployFn(deploy.Defaults(site, sw), commit)
+		recordDeploy(site, res, err, true)
+		if err != nil {
+			done(map[string]any{
+				"ok": false, "error": err.Error(),
+				"from": res.FromCommit, "to": res.ToCommit,
+			})
+			return
+		}
+		done(map[string]any{
+			"ok": true, "from": res.FromCommit, "to": res.ToCommit,
+			"duration_ms": res.Duration.Milliseconds(),
+		})
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}

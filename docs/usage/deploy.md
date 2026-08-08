@@ -62,6 +62,31 @@ It reads the script that will actually run, not the framework's template, so tak
 
 A framework that declares no migration command has no schema-changing deploys, and nothing on it is ever backed up on that basis.
 
+## Going back a deploy
+
+A deploy that made things worse has one button: **Go back a deploy**, on the Deploy tab, or POST to `/api/sites/{domain}/redeploy`. It checks the site out at the commit it was running before the last deploy and runs the deploy script again.
+
+**Code only. Database migrations are not undone.** The schema stays as the last deploy's migrations left it, and the older code has to run against it. That is stated on the button and in the deploy output, because an operator who believes the data went back too will make the next decision on a false premise. To put the data back, restore that deploy's snapshot yourself, deliberately.
+
+There is no automatic reverse migration and there will not be one. Reversing a migration means running your own `down()` against production data on the say-so of a panel button, and the frameworks that offer it do not promise it is lossless.
+
+### Which commit it goes back to
+
+The one the site was standing on before the last successful deploy, **not** `HEAD~1`. A deploy that pulled five commits moved the site five commits, and `HEAD~1` is a commit nobody ever ran. Servlo knows the difference because every deploy writes down where it started, in `~/.local/share/servlo/deploy-history/<site>.jsonl`.
+
+That has two consequences worth knowing. A site whose first deploy from this panel has not happened yet has nothing recorded and the button is not offered. And the target comes from that record rather than from the request, so the panel cannot ask to go back to an arbitrary commit.
+
+A deploy that failed, or one that pulled nothing, is skipped when looking for the target: neither moved the site, so going back to where they started would land on the commit already running.
+
+### The rest of it is an ordinary deploy
+
+It takes the same per-site lock, honours the same [exclude list](#paths-a-deploy-must-not-remove), runs the same script, and reloads PHP the same way. The exclude list matters more here than on a pull: a checkout removes tracked files the older commit does not have, which is exactly how a plugin installed after that commit would disappear.
+
+It never pulls. The operator is going backwards, and going to the network first is how a rollback ends up back on the commit it was escaping.
+
+As with a forward deploy, a failed script means no reload, so visitors stay on the version that was working rather than on a half-prepared rollback.
+
+
 ## Paths a deploy must not remove
 
 Some directories belong to the application rather than to the repository: everything a client has uploaded, every plugin they installed through an admin screen. A deploy that removed one would destroy the site, and the operator would find out from the client.

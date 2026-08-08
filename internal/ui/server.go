@@ -3265,6 +3265,9 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	case "deploy-exclude":
 		handleSiteDeployExclude(w, r, site)
 		return
+	case "redeploy":
+		handleSiteRedeploy(w, r, site)
+		return
 	case "node":
 		version := r.URL.Query().Get("version")
 		if version == "" {

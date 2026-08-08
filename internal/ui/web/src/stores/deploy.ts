@@ -115,3 +115,43 @@ export async function streamDeploy(
     }
   });
 }
+
+// Whether this site has somewhere to go back to, and where.
+export interface SiteRedeploy {
+  available: boolean;
+  commit?: string;
+}
+
+export async function loadSiteRedeploy(domain: string): Promise<SiteRedeploy> {
+  const res = await apiFetch(site(domain, 'redeploy'));
+  if (!res.ok) throw new Error(m.common_requestFailed());
+  return (await res.json()) as SiteRedeploy;
+}
+
+// The target commit is not sent. It comes from the server's own record of the
+// last deploy, so the panel cannot ask for an arbitrary one.
+export async function streamRedeploy(
+  domain: string,
+  onEvent: (e: DeployEvent) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  const res = await apiFetch(site(domain, 'redeploy'), { method: 'POST', signal });
+  const ct = res.headers.get('Content-Type') || '';
+  if (!ct.startsWith('text/event-stream')) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    onEvent({ done: true, ok: false, error: data.error ?? m.common_requestFailed() });
+    return;
+  }
+  await readSSE(res, (event, data) => {
+    if (event !== 'done') {
+      onEvent({ line: data });
+      return;
+    }
+    try {
+      const r = JSON.parse(data) as DeployDone;
+      onEvent({ done: true, ...r, ok: Boolean(r.ok) });
+    } catch {
+      onEvent({ done: true, ok: false, error: m.common_requestFailed() });
+    }
+  });
+}

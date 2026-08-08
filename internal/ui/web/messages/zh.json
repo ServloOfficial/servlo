@@ -1178,5 +1178,14 @@
   "sites_deployExclude_save": "Save list",
   "sites_deployExclude_reset": "Go back to the framework's list ({paths})",
   "sites_deployExclude_none": "nothing",
-  "sites_deployExclude_loadFailed": "Could not load this site's exclude list."
+  "sites_deployExclude_loadFailed": "Could not load this site's exclude list.",
+  "sites_redeploy_title": "Go back a deploy",
+  "sites_redeploy_desc": "Checks the site out at {commit}, the commit it was running before the last deploy, and runs the deploy script again.",
+  "sites_redeploy_migrationWarning": "Code only. Database migrations are not undone, so the schema stays as the last deploy left it and the older code has to run against it. To put the data back too, restore that deploy's snapshot yourself.",
+  "sites_redeploy_action": "Go back to {commit}",
+  "sites_redeploy_running": "Going back…",
+  "sites_redeploy_confirm": "Confirm: go back to {commit}",
+  "sites_redeploy_cancel": "Cancel",
+  "sites_redeploy_none": "This site has no recorded deploy to go back from. The first deploy from this panel records where it started, and after that you can come back here.",
+  "sites_redeploy_ok": "Back on {commit}."
 }
