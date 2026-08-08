@@ -232,17 +232,6 @@ type GlobalConfig struct {
 		Username     string `yaml:"username,omitempty" mapstructure:"username"`
 		PasswordHash string `yaml:"password_hash,omitempty" mapstructure:"password_hash"`
 
-		// RemoteFullAccess opts authenticated remote sessions into the host
-		// actions that are otherwise reserved for the local dashboard: raw
-		// .env reads, filesystem browsing, database drops, terminals and
-		// command execution. Off by default, so a leaked or guessed password
-		// alone never reaches them. It widens which routes an authenticated
-		// session may use; it never substitutes for authentication.
-		//
-		// Toggled via `servlo remote-control full-access on/off`, which only
-		// the local dashboard or a local shell can do.
-		RemoteFullAccess bool `yaml:"remote_full_access,omitempty" mapstructure:"remote_full_access"`
-
 		// Domain is the FQDN the panel answers to, empty until one is
 		// attached. Until then the panel is reachable by address over a
 		// self-signed certificate; once it is set, the panel goes through the

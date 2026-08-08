@@ -4421,10 +4421,6 @@ func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !hasHostActionAuthority(r) {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
 		handleAppLogsClear(w, basePath, fw.Logs)
 		return
 	}

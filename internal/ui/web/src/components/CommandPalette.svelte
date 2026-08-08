@@ -21,7 +21,7 @@
   import { theme } from '$stores/theme';
   import { loadVersion } from '$stores/version';
   import { goToTab } from '$stores/route';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { paletteOpen, openCommandPalette, closeCommandPalette } from '$stores/commandPalette';
   import {
     commandsBySiteStore,
@@ -75,7 +75,7 @@
 
     // Installable service presets: each surfaces as a direct install action so
     // a search like "install redis" runs the install without opening the modal.
-    if ($accessMode.localControl) {
+    if ($isAdmin) {
       for (const p of $installablePresets) {
         list.push({
           id: 'preset:' + p.name,
@@ -186,7 +186,7 @@
       }
     }
 
-    if ($accessMode.localControl) {
+    if ($isAdmin) {
       list.push({ id: 'act:link', label: m.palette_action_link(), group: 'actions', action: openAddSiteModal });
       list.push({ id: 'act:preset', label: m.palette_action_addService(), group: 'actions', action: openPresetModal });
     }

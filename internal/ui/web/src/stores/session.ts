@@ -1,4 +1,4 @@
-import { writable, get } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { apiFetch, setCSRFToken } from '$lib/api';
 
 export type SessionState = {
@@ -119,3 +119,13 @@ export async function signOut() {
 
 /** True once the panel has answered, whatever the answer was. */
 export const sessionLoaded = () => get(session).loaded;
+
+// isAdmin is what the views ask before offering anything that runs the server
+// rather than one site: services, databases, accounts, the machine itself.
+//
+// It mirrors the permission the panel declares for those routes, so a view that
+// offers a button the API would refuse is a view out of step with one table
+// rather than with a second model. Nothing here is a security boundary: hiding
+// a button is a courtesy to a Developer who cannot use it, and the panel
+// refuses the request either way.
+export const isAdmin = derived(session, (s) => s.role === 'admin');

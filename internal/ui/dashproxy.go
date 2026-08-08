@@ -259,12 +259,8 @@ func resolveDashboardURL(svc *config.CustomService, services map[string]config.S
 }
 
 // handleDashProxy serves a bundled service dashboard same-origin under
-// /_svc/<name>/. It requires dashboard-control authority.
+// /_svc/<name>/, which the permission registry declares admin.
 func handleDashProxy(w http.ResponseWriter, r *http.Request) {
-	if !hasHostActionAuthority(r) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
 	// The global CSRF gate trusts the unix socket unconditionally, but every
 	// /_svc/ request arrives over it (the servlo.localhost vhost proxies to the
 	// socket), so that trust alone would forward a cross-origin request straight

@@ -3,8 +3,6 @@
   import StatusPill from '$components/StatusPill.svelte';
   import StatusDot from '$components/StatusDot.svelte';
   import NotificationsToggle from '$components/NotificationsToggle.svelte';
-  import { accessMode } from '$stores/accessMode';
-  import { notifyPrefs } from '$lib/notify';
   import { status, servloStatusColor } from '$stores/status';
   import { sitesByPhp, sitesByNode } from '$stores/sites';
   import { goToTab } from '$stores/route';
@@ -49,13 +47,7 @@
 
   <div class="flex items-center justify-between text-sm">
     <span class="text-gray-600 dark:text-gray-300">{m.notify_settings_title()}</span>
-    {#if $accessMode.localControl}
-      <NotificationsToggle />
-    {:else}
-      <span class="inline-flex w-6 h-6 items-center justify-center shrink-0">
-        <StatusDot color={$notifyPrefs.enabled ? 'green' : 'gray'} />
-      </span>
-    {/if}
+    <NotificationsToggle />
   </div>
 
   {#if $status.php_fpms.length > 0}

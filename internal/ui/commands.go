@@ -76,12 +76,6 @@ func commandRoute(w http.ResponseWriter, r *http.Request, domain string, rest []
 		// Listing commands does not mutate the host.
 		handleCommandsList(w, r, site)
 	case len(rest) == 3 && rest[2] == "run" && r.Method == http.MethodPost:
-		// Running a command requires dashboard-control authority because it
-		// executes arbitrary shell code as the servlo-panel user.
-		if !hasHostActionAuthority(r) {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return true
-		}
 		handleCommandRun(w, r, site, rest[1])
 	default:
 		http.NotFound(w, r)

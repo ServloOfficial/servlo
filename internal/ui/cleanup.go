@@ -100,10 +100,6 @@ func handleDisk(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		writeJSON(w, cachedDisk())
 	case http.MethodPost:
-		if !hasHostActionAuthority(r) {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
 		handleDiskCleanup(w)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

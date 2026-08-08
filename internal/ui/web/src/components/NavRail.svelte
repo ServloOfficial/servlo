@@ -15,15 +15,14 @@
   } from '$stores/dashboard';
   import { dashboardIconSvg } from '$lib/dashboardIcons';
   import { serviceLabel } from '$stores/services';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { m } from '../paraglide/messages.js';
 
   onMount(() => {
   });
 
-  // Hide host-local launchers only when dashboard-control authority is
-  // unavailable. Authenticated remote dashboards receive authority.
-  const remote = $derived(!$accessMode.localControl);
+  // The launchers open /_svc/, which is admin-only.
+  const canOpenDashboards = $derived($isAdmin);
 
   const labels = $derived<Record<TabId, string>>({
     dashboard: m.nav_dashboard(),
@@ -57,7 +56,7 @@
     {/each}
   </div>
 
-  {#if !remote}
+  {#if canOpenDashboards}
     <div class="flex flex-col items-center gap-1 mt-3 pt-3 border-t border-gray-200 dark:border-servlo-border w-8">
       {#each $dashboardServices as svc (svc.name)}
         <IconButton

@@ -11,7 +11,7 @@
   import { nodeVersions } from '$stores/nodeVersions';
   import { sitesByNode } from '$stores/sites';
   import { version } from '$stores/version';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { servloStart, servloStop, servloStarting, servloStopping } from '$stores/servloLifecycle';
   import { workerExecMode, workerModeApplies, loadWorkerMode } from '$stores/workerMode';
   import { notifyPrefs, permissionState, autoSubscribeDisabled } from '$lib/notify';
@@ -34,7 +34,7 @@
 </script>
 
 {#snippet actions()}
-  {#if $accessMode.localControl && !$allCoreRunning}
+  {#if $isAdmin && !$allCoreRunning}
     <ActionButton
       title={m.system_startServlo()}
       tone="success"
@@ -45,7 +45,7 @@
       <Icon name="play" class="w-3.5 h-3.5" />
     </ActionButton>
   {/if}
-  {#if $accessMode.localControl}
+  {#if $isAdmin}
     <ActionButton
       title={m.system_stopServlo()}
       onclick={servloStop}

@@ -19,7 +19,7 @@
   } from '$stores/modals';
   import Icon from '$components/Icon.svelte';
   import { tooltip } from '$lib/tooltip';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { status, loadStatus } from '$stores/status';
   import { apiBase } from '$lib/api';
   import { homeShorten } from '$lib/path';
@@ -68,8 +68,6 @@
 
   const useTLS = $derived(Boolean(site.tls));
   const scheme = $derived(useTLS ? 'https://' : 'http://');
-
-  const remoteView = $derived(!$accessMode.localControl);
 
   function openTarget() {
     openSiteInBrowser(site);
@@ -230,7 +228,7 @@
 
       <!-- A group secondary shows its main's workspace and moves with it, so it
            has nothing of its own to pick. -->
-      {#if $accessMode.localControl && !site.group_subdomain}
+      {#if $isAdmin && !site.group_subdomain}
         <WorkspacePicker {site} />
       {/if}
 

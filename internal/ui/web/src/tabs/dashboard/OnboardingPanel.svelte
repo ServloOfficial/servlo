@@ -3,7 +3,7 @@
   import { sites, sitesLoaded } from '$stores/sites';
   import { openAddSiteModal, openPresetModal } from '$stores/modals';
   import { openDocs } from '$stores/dashboard';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { m } from '../../paraglide/messages.js';
 
   const KEY = 'servlo-onboarding-dismissed';
@@ -65,7 +65,7 @@
           <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">{m.onboarding_link_title()}</span>
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400 mb-3 flex-1">{m.onboarding_link_body()}</p>
-        {#if $accessMode.localControl}
+        {#if $isAdmin}
           <button
             type="button"
             onclick={openAddSiteModal}
@@ -77,7 +77,7 @@
             {m.onboarding_link_cta()}
           </button>
         {:else}
-          <p class="text-[11px] text-gray-400 dark:text-gray-500">{m.onboarding_loopbackOnly()}</p>
+          <p class="text-[11px] text-gray-400 dark:text-gray-500">{m.onboarding_adminOnly()}</p>
         {/if}
       </div>
 
@@ -87,14 +87,14 @@
           <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">{m.onboarding_service_title()}</span>
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400 mb-3 flex-1">{m.onboarding_service_body()}</p>
-        {#if $accessMode.localControl}
+        {#if $isAdmin}
           <button
             type="button"
             onclick={openPresetModal}
             class="self-start inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 text-gray-700 dark:text-gray-200 transition-colors"
           >{m.onboarding_service_cta()}</button>
         {:else}
-          <p class="text-[11px] text-gray-400 dark:text-gray-500">{m.onboarding_loopbackOnly()}</p>
+          <p class="text-[11px] text-gray-400 dark:text-gray-500">{m.onboarding_adminOnly()}</p>
         {/if}
       </div>
     </div>

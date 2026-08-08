@@ -20,13 +20,7 @@
   import { adminServiceFor } from '$stores/presetSuggestions';
   import { openDashboard, openServiceDashboard } from '$stores/dashboard';
   import { databases } from '$stores/databases';
-  import { accessMode } from '$stores/accessMode';
   import { m } from '../../paraglide/messages.js';
-
-  // Disable localhost dashboard links only when dashboard-control authority is
-  // unavailable. Authenticated remote dashboards receive full authority and
-  // intentionally show the same actions as direct local dashboards.
-  const remote = $derived(!$accessMode.localControl);
 
   function localDetailLabel(s: Service): string {
     if (s.queue_site) return m.services_labels_queueWorker();
@@ -224,39 +218,32 @@
       });
     }
 
-    // Without dashboard-control authority, strip localhost links instead of
-    // offering actions that cannot be trusted or completed.
-    const openAct = (a: ButtonMenuAction): ButtonMenuAction =>
-      remote
-        ? { id: a.id, tone: a.tone, icon: a.icon, disabled: true, label: `${a.label} · ${m.services_hostOnly()}`, title: m.services_hostOnly() }
-        : a;
-
     if (active && admin) {
       const adminLabel = m.services_openAdmin({ name: serviceLabel(admin.name) });
-      rest.push(openAct({
+      rest.push({
         id: 'admin',
         tone: 'info',
         icon: icons.external,
         label: adminLabel,
         title: adminLabel,
         onclick: openAdmin
-      }));
+      });
     } else if (active && svc.dashboard) {
-      rest.push(openAct({
+      rest.push({
         id: 'dashboard',
         icon: icons.external,
         label: m.services_dashboard(),
         title: m.services_dashboard(),
         onclick: () => openDashboard(svc)
-      }));
+      });
     } else if (active && svc.connection_url) {
-      rest.push(openAct({
+      rest.push({
         id: 'connection',
         icon: icons.external,
         label: m.services_openConnection(),
         title: svc.connection_url,
         href: svc.connection_url
-      }));
+      });
     }
 
     if (!isWorker && !active && !updating) {

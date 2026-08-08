@@ -92,12 +92,6 @@ func tlsRoute(w http.ResponseWriter, r *http.Request, domain string, rest []stri
 		http.NotFound(w, r)
 		return true
 	}
-	// A read, but one that performs live DNS lookups on names the caller chose,
-	// so it sits behind the same authority as the actions it gates.
-	if !hasHostActionAuthority(r) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return true
-	}
 	site, err := config.FindSiteByDomain(domain)
 	if err != nil {
 		writeJSON(w, map[string]any{"error": "site not found: " + domain})

@@ -9,7 +9,7 @@
   import { coreServices, servicesLoaded } from '$stores/services';
   import { discoverablePresets, presetsLoaded, loadPresets } from '$stores/presets';
   import { openPresetModal } from '$stores/modals';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { groupByCategory, CATEGORY_LABELS } from '$lib/presetCategories';
   import { m } from '../../paraglide/messages.js';
 
@@ -44,7 +44,7 @@
       {/if}
     </section>
 
-    {#if $accessMode.localControl}
+    {#if $isAdmin}
       <section class="space-y-3">
         <div class="flex items-center justify-between gap-3">
           <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{m.services_dash_discover()}</h2>

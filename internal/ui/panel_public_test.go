@@ -14,9 +14,9 @@ import (
 //
 // A panel domain breaks that assumption: it is a real name on the public
 // internet proxying into the same socket. Without a marker, attaching one would
-// hand every host action to anyone who typed the URL. The vhost sets the marker
-// with proxy_set_header, which overwrites whatever the client sent, so it
-// cannot be stripped from outside.
+// have the CSRF gate trust every request that arrived over it. The vhost sets
+// the marker with proxy_set_header, which overwrites whatever the client sent,
+// so it cannot be stripped from outside.
 func TestPublicPanelRequest_IsNotLocalControl(t *testing.T) {
 	req := unixSocketRequest(http.MethodPost, "/api/servlo/stop")
 	req.Header.Set(publicPanelHeader, "1")
@@ -27,11 +27,8 @@ func TestPublicPanelRequest_IsNotLocalControl(t *testing.T) {
 	if isLoopbackRequest(req) {
 		t.Error("a request that arrived over the public panel domain was treated as loopback")
 	}
-	if hasDashboardControl(req) {
-		t.Error("a request that arrived over the public panel domain was granted dashboard control")
-	}
-	if hasHostActionAuthority(req) {
-		t.Error("a request that arrived over the public panel domain was granted host-action authority")
+	if passesCSRF(req) {
+		t.Error("a request that arrived over the public panel domain skipped the cross-origin check")
 	}
 }
 

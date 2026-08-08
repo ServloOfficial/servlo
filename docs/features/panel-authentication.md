@@ -202,6 +202,6 @@ Secrets are redacted on the way in. The file is `0600`, and it is also the file 
 
 ## What authentication does not grant
 
-Signing in is not the same as sitting at the machine. A terminal on the host, filesystem browsing, raw `.env` reads and database drops stay with the local dashboard, or with a remote session explicitly opted in with `servlo remote-control full-access on`.
+Signing in says who you are, not what you may do. Filesystem browsing, raw `.env` reads, database drops and the machine's own controls are admin, and a Developer signing in reaches the sites assigned to them and nothing else.
 
-A password alone should not open a shell on the server, whoever is holding it. A later story replaces this with a permission declared per route and checked against the signed-in account's role.
+There used to be a further rule underneath that one: a set of routes no remote client could reach whatever its password, on the reasoning that being at the machine is itself a credential. That belongs to a local development tool. Servlo's panel is reached over the internet by design, so the rule only ever hid the panel from the person who owns it, and it is gone. The permission a route declares is the whole answer, and it is the same answer wherever the request came from.

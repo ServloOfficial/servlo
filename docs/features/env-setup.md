@@ -129,7 +129,7 @@ The save preserves the file mode of the existing file, including permissions nar
 
 The **Revert** button rolls back the most recent backup for the active file. When a backup exists, clicking Revert opens a diff modal showing exactly what restoring will change (removed lines from the current file marked `-`, lines coming back from the backup marked `+`). Accept and the backup is copied over the file and removed. Repeated Revert clicks peel backups off newest-first. When no backup exists, Revert simply discards unsaved edits.
 
-The endpoint is loopback only, the same gate that protects the env reader and `terminal`, so a LAN client cannot edit a project's env files even when remote-control is enabled with valid credentials.
+The endpoint carries the site permission, the same as the env reader, so a Developer edits the env files of the sites assigned to them and nobody else's. Every save is audited.
 
 ---
 

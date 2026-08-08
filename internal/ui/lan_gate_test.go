@@ -5,8 +5,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/realrashid/servlo/internal/config"
 )
 
 func localPost(path, body string) *http.Request {
@@ -33,7 +31,9 @@ func TestLANStatusHasNoActionThatPublishesAService(t *testing.T) {
 	}
 }
 
-func TestFullAccessRefusedWhileLoopbackOnly(t *testing.T) {
+// The host-action opt-in is gone with the gate it widened, and an old client
+// still asking for it is answered rather than obeyed.
+func TestRemoteControlHasNoFullAccessAction(t *testing.T) {
 	setupConfigDirRaw(t, "alice", "s3cret", false)
 
 	rec := httptest.NewRecorder()
@@ -41,20 +41,5 @@ func TestFullAccessRefusedWhileLoopbackOnly(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d (%s)", rec.Code, http.StatusBadRequest, rec.Body.String())
-	}
-	cfg, _ := config.LoadGlobal()
-	if cfg != nil && cfg.UI.RemoteFullAccess {
-		t.Fatal("refused request still persisted ui.remote_full_access")
-	}
-}
-
-func TestFullAccessOffAllowedWhileLoopbackOnly(t *testing.T) {
-	setupConfigDirRaw(t, "alice", "s3cret", false)
-
-	rec := httptest.NewRecorder()
-	handleRemoteControl(rec, localPost("/api/remote-control", `{"action":"full-access","enabled":false}`))
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 (%s)", rec.Code, rec.Body.String())
 	}
 }

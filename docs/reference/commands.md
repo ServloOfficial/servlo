@@ -129,16 +129,12 @@ one. See [Production mode](/features/production-mode).
 | `servlo lan:expose` | Expose sites, DNS, and the dashboard listener to the LAN |
 | `servlo lan:unexpose` | Restrict all Servlo endpoints to loopback |
 | `servlo lan:status` | Show whether sites are reachable beyond loopback |
-| `servlo remote-control full-access on` | Let authenticated remote sessions run host actions |
-| `servlo remote-control full-access off` | Keep host actions local-only (the default) |
-| `servlo remote-control full-access status` | Show the persisted host-action setting |
 
-The dashboard **System** tab and terminal UI expose the same independent
-settings. Host actions such as reading a site's `.env`, browsing the
-filesystem, dropping databases or opening a terminal stay local-only until
-`servlo remote-control full-access on`, which only the servlo host can set.
-
-See Remote / LAN Development for the full walkthrough.
+The dashboard **System** tab and terminal UI expose the same settings. What a
+signed-in operator may do in the panel is decided by their role and by the
+permission each route declares, not by where they are: an Admin reads a site's
+`.env`, browses the filesystem and drops a database from wherever they signed
+in, and a Developer does none of those anywhere.
 
 ## PHP
 

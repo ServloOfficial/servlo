@@ -31,13 +31,16 @@ func TestDoctorFixRun_StreamsAllowlistedCommand(t *testing.T) {
 	}
 }
 
-func TestDoctorFixRun_NonLoopbackForbidden(t *testing.T) {
+// Doctor is what an operator opens when a site is misbehaving, and they open it
+// from a browser rather than from the droplet. Its fixes belong to the site,
+// and the site permission is the gate.
+func TestDoctorFixRun_RunsForARemoteCaller(t *testing.T) {
 	registerSite(t, "acme", "acme.test")
 	req := httptest.NewRequest(http.MethodPost, "/api/sites/acme.test/doctor/fix/composer_install/run", nil)
-	req.RemoteAddr = "192.0.2.1:1234"
+	req.RemoteAddr = "203.0.113.10:1234"
 	rec := httptest.NewRecorder()
 	handleSiteAction(rec, req)
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("non-loopback fix should be forbidden, got %d", rec.Code)
+	if !strings.Contains(rec.Body.String(), "event: done") {
+		t.Errorf("the fix did not run for a remote caller: %d %s", rec.Code, rec.Body.String())
 	}
 }

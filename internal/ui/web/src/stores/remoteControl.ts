@@ -5,8 +5,6 @@ import { apiJson, apiFetch } from '$lib/api';
 export interface RemoteControl {
   enabled: boolean;
   username: string;
-  fullAccess: boolean;
-  fullAccessLoading: boolean;
   loading: boolean;
   error: string;
 }
@@ -14,8 +12,6 @@ export interface RemoteControl {
 const empty: RemoteControl = {
   enabled: false,
   username: '',
-  fullAccess: false,
-  fullAccessLoading: false,
   loading: false,
   error: ''
 };
@@ -25,7 +21,6 @@ export const remoteControl = writable<RemoteControl>(empty);
 interface RemoteControlResponse {
   enabled?: boolean;
   username?: string;
-  full_access?: boolean;
   error?: string;
 }
 
@@ -35,8 +30,7 @@ export async function loadRemoteControl() {
     remoteControl.set({
       ...empty,
       enabled: Boolean(data.enabled),
-      username: data.username || '',
-      fullAccess: Boolean(data.full_access)
+      username: data.username || ''
     });
   } catch (e) {
     remoteControl.update((v) => ({
@@ -95,39 +89,6 @@ export async function disableRemoteControl(): Promise<boolean> {
     return false;
   } catch (e) {
     remoteControl.update((v) => ({ ...v, loading: false, error: e instanceof Error ? e.message : m.common_requestFailed() }));
-    return false;
-  }
-}
-
-// setRemoteFullAccess opts authenticated remote sessions into the host actions
-// that are otherwise local-only. The backend accepts it from the local
-// dashboard only, so a remote session cannot widen its own authority.
-export async function setRemoteFullAccess(enabled: boolean): Promise<boolean> {
-  remoteControl.update((v) => ({ ...v, fullAccessLoading: true, error: '' }));
-  try {
-    const res = await apiFetch('/api/remote-control', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'full-access', enabled })
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      remoteControl.update((v) => ({ ...v, fullAccessLoading: false, error: text || `HTTP ${res.status}` }));
-      return false;
-    }
-    const data = (await res.json()) as { ok?: boolean; full_access?: boolean; error?: string };
-    if (data.ok) {
-      remoteControl.update((v) => ({ ...v, fullAccess: Boolean(data.full_access), fullAccessLoading: false }));
-      return true;
-    }
-    remoteControl.update((v) => ({ ...v, fullAccessLoading: false, error: data.error || m.common_failed() }));
-    return false;
-  } catch (e) {
-    remoteControl.update((v) => ({
-      ...v,
-      fullAccessLoading: false,
-      error: e instanceof Error ? e.message : m.common_requestFailed()
-    }));
     return false;
   }
 }

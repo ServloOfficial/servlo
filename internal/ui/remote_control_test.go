@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -33,15 +32,7 @@ func setupConfigDirRaw(t *testing.T, username, plainPassword string, lanExposed 
 	setupConfigDirWith(t, username, plainPassword, lanExposed, false)
 }
 
-// setupConfigDirFullAccess is setupConfigDir with ui.remote_full_access set,
-// for the tests that exercise the host-action opt-in. LAN exposure is on so
-// the remote requests reach the authentication step.
-func setupConfigDirFullAccess(t *testing.T, username, plainPassword string, fullAccess bool) {
-	t.Helper()
-	setupConfigDirWith(t, username, plainPassword, true, fullAccess)
-}
-
-func setupConfigDirWith(t *testing.T, username, plainPassword string, lanExposed, fullAccess bool) {
+func setupConfigDirWith(t *testing.T, username, plainPassword string, lanExposed, _ bool) {
 	t.Helper()
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
@@ -58,9 +49,6 @@ func setupConfigDirWith(t *testing.T, username, plainPassword string, lanExposed
 		}
 		ui["username"] = username
 		ui["password_hash"] = string(hash)
-	}
-	if fullAccess {
-		ui["remote_full_access"] = true
 	}
 	if len(ui) > 0 {
 		cfg["ui"] = ui
@@ -114,31 +102,8 @@ func TestRemoteControlGate_loopbackBypassesEverything(t *testing.T) {
 	}
 }
 
-func TestRemoteControlGateAuthenticatedReverseProxyReceivesDashboardControl(t *testing.T) {
-	setupConfigDirFullAccess(t, "alice", "s3cret", true)
-	gate := withRemoteControlGate(http.HandlerFunc(handleAccessMode))
-
-	req := httptest.NewRequest(http.MethodGet, "/api/access-mode", nil)
-	req.RemoteAddr = "127.0.0.1:54321"
-	req.Host = "robotbox.example.net"
-	req.Header.Set("X-Forwarded-For", "203.0.113.7")
-	req.SetBasicAuth("alice", "s3cret")
-	rec := httptest.NewRecorder()
-	gate.ServeHTTP(rec, req)
-
-	var body struct {
-		LocalControl bool `json:"local_control"`
-	}
-	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if !body.LocalControl {
-		t.Fatalf("response = %+v, authenticated dashboard must receive full controls", body)
-	}
-}
-
 func TestRemoteControlGateAuthenticatedDashboardCanMutateLANSettings(t *testing.T) {
-	setupConfigDirFullAccess(t, "alice", "s3cret", true)
+	setupConfigDirRaw(t, "alice", "s3cret", true)
 	gate := withRemoteControlGate(http.HandlerFunc(handleLANStatus))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/lan/status", http.NoBody)
@@ -187,8 +152,8 @@ func TestRemoteControlGate_remoteSetupBypassesEvenWhenDisabled(t *testing.T) {
 	}
 }
 
-// Ordinary dashboard routes are the ones a remote session is meant to drive.
-// The host-action subset is covered in remote_full_access_test.go.
+// Every dashboard route is one a remote session is meant to drive, which is
+// the whole of what this gate now has to say about where a request came from.
 func TestRemoteControlGateAuthenticatedDashboardUsesOrdinaryRoutes(t *testing.T) {
 	setupConfigDir(t, "alice", "s3cret")
 	called := false

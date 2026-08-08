@@ -89,23 +89,26 @@ func TestDiskCleanupReinspects(t *testing.T) {
 	}
 }
 
-func TestDiskCleanupRejectsNonLoopback(t *testing.T) {
+// Reclaiming disk is an admin action, and admin is a role rather than a
+// location. A droplet filling up is exactly the situation an operator handles
+// from wherever they are.
+func TestDiskCleanupRunsForARemoteCaller(t *testing.T) {
 	called := false
 	stubDisk(t,
 		func() (cleanup.Plan, error) { called = true; return cleanup.Plan{}, nil },
-		func(p cleanup.Plan) (int, int64) { called = true; return 0, 0 },
+		func(p cleanup.Plan) (int, int64) { return 0, 0 },
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/disk", nil)
-	req.RemoteAddr = "192.168.1.50:5555"
+	req.RemoteAddr = "203.0.113.10:5555"
 	rec := httptest.NewRecorder()
 	handleDisk(rec, req)
 
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("status: got %d want 403", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Errorf("status: got %d want 200 (%s)", rec.Code, rec.Body.String())
 	}
-	if called {
-		t.Error("a non-loopback POST must never reach inspect/apply")
+	if !called {
+		t.Error("the cleanup never ran")
 	}
 }
 

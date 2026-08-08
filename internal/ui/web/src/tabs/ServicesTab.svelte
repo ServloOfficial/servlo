@@ -7,7 +7,7 @@
   import ListGroupHeader from '$components/ListGroupHeader.svelte';
   import StatusDot from '$components/StatusDot.svelte';
   import LoadingRow from '$components/LoadingRow.svelte';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { routeRest, goToTab } from '$stores/route';
   import {
     coreServiceGroups,
@@ -38,7 +38,7 @@
 </script>
 
 {#snippet actions()}
-  {#if $accessMode.localControl}
+  {#if $isAdmin}
     <ActionButton title={m.services_addPreset()} tone="accent" onclick={openPresetModal}>
       <Icon name="plus" class="w-3.5 h-3.5" />
     </ActionButton>

@@ -18,10 +18,6 @@ func doctorRoute(w http.ResponseWriter, r *http.Request, domain string, rest []s
 	if len(rest) == 0 || rest[0] != "doctor" {
 		return false
 	}
-	if !hasHostActionAuthority(r) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return true
-	}
 	site, err := config.FindSiteByDomain(domain)
 	if err != nil {
 		writeJSON(w, map[string]any{"error": "site not found: " + domain})

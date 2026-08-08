@@ -42,45 +42,37 @@ func TestLANStatusReportsExposure(t *testing.T) {
 	}
 }
 
-func TestLANStatusRejectsUnauthenticatedRemoteToggle(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/api/lan/status", strings.NewReader(`{"action":"expose"}`))
-	req.RemoteAddr = "192.0.2.10:12345"
+// The action still has to be one this route knows, whoever is asking. What is
+// gone is the second question underneath it, which used to turn a remote
+// caller away before it got this far.
+func TestLANStatusValidatesTheActionForARemoteCaller(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	req := httptest.NewRequest(http.MethodPost, "/api/lan/status", strings.NewReader(`{"action":"sideways"}`))
+	req.RemoteAddr = "203.0.113.10:12345"
 	rec := httptest.NewRecorder()
 	handleLANStatus(rec, req)
 
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d (%s)", rec.Code, http.StatusBadRequest, rec.Body.String())
 	}
 }
 
-func TestLANStatusRejectsUnauthenticatedLoopbackReverseProxy(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/api/lan/status", strings.NewReader(`{"action":"expose"}`))
-	req.RemoteAddr = "127.0.0.1:54321"
-	req.Host = "robotbox.example.net"
-	req.Header.Set("X-Forwarded-For", "203.0.113.7")
-	rec := httptest.NewRecorder()
-	handleLANStatus(rec, req)
+// Where the request came from is not something the panel reports any more,
+// because nothing is decided by it. A dashboard still reading the old field
+// would hide half of itself from the operator who owns the machine.
+func TestAccessModeNoLongerReportsLocalControl(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
-	}
-}
-
-func TestAccessModeRejectsUnauthenticatedLoopbackReverseProxy(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/access-mode", nil)
-	req.RemoteAddr = "127.0.0.1:54321"
-	req.Host = "robotbox.example.net"
-	req.Header.Set("X-Forwarded-For", "203.0.113.7")
 	rec := httptest.NewRecorder()
 	handleAccessMode(rec, req)
 
-	var body struct {
-		LocalControl bool `json:"local_control"`
-	}
+	var body map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if body.LocalControl {
-		t.Fatalf("response = %+v, reverse proxy must not grant local control", body)
+	if _, present := body["local_control"]; present {
+		t.Errorf("response still carries local_control: %+v", body)
 	}
 }

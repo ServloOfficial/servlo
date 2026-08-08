@@ -221,7 +221,6 @@ func main() {
 	root.AddCommand(cli.NewRemoteControlOnCmd())
 	root.AddCommand(cli.NewRemoteControlOffCmd())
 	root.AddCommand(cli.NewRemoteControlStatusCmd())
-	root.AddCommand(cli.NewRemoteControlFullAccessCmd())
 	root.AddCommand(newWatchCmd())
 	root.AddCommand(newServeUICmd())
 

@@ -12,7 +12,7 @@ vi.mock('./ServiceEntitiesTab.svelte', () => import('./ServiceDetail.stub.svelte
 vi.mock('$components/LogViewer.svelte', () => import('./ServiceDetail.stub.svelte'));
 
 import ServiceDetail from './ServiceDetail.svelte';
-import { accessMode } from '$stores/accessMode';
+import { session } from '$stores/session';
 import type { Service } from '$stores/services';
 
 function dbService(): Service {
@@ -26,22 +26,22 @@ function dbService(): Service {
 }
 
 describe('ServiceDetail databases tab', () => {
-  beforeEach(() => accessMode.set({ localControl: true, lanExposed: false, checked: true }));
+  beforeEach(() => session.update((s) => ({ ...s, role: 'admin' })));
 
-  it('shows the Databases tab with dashboard-control authority', () => {
+  it('shows the Databases tab to an admin', () => {
     const { getByRole } = render(ServiceDetail, { props: { svc: dbService() } });
     expect(getByRole('button', { name: 'Databases' })).toBeInTheDocument();
   });
 
-  it('hides the Databases tab without dashboard-control authority', () => {
-    accessMode.set({ localControl: false, lanExposed: true, checked: true });
+  it('hides the Databases tab from a developer', () => {
+    session.update((s) => ({ ...s, role: 'developer' }));
     const { queryByRole } = render(ServiceDetail, { props: { svc: dbService() } });
     expect(queryByRole('button', { name: 'Databases' })).toBeNull();
   });
 });
 
 describe('ServiceDetail entities tab', () => {
-  beforeEach(() => accessMode.set({ localControl: true, lanExposed: false, checked: true }));
+  beforeEach(() => session.update((s) => ({ ...s, role: 'admin' })));
 
   function entityService(): Service {
     return {
@@ -61,8 +61,8 @@ describe('ServiceDetail entities tab', () => {
     expect(tab.className).toContain('border-servlo-red');
   });
 
-  it('hides the entity tab without dashboard-control authority', () => {
-    accessMode.set({ localControl: false, lanExposed: true, checked: true });
+  it('hides the entity tab from a developer', () => {
+    session.update((s) => ({ ...s, role: 'developer' }));
     const { queryByRole } = render(ServiceDetail, { props: { svc: entityService() } });
     expect(queryByRole('button', { name: 'Buckets' })).toBeNull();
   });

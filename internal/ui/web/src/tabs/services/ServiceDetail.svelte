@@ -12,7 +12,7 @@
   import ServiceEntitiesTab from './ServiceEntitiesTab.svelte';
   import PresetSuggestionBanner from './PresetSuggestionBanner.svelte';
   import { isServiceWorker, type Service } from '$stores/services';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { m } from '../../paraglide/messages.js';
 
   interface Props {
@@ -32,11 +32,10 @@
   const hasTools = $derived(Boolean(svc.client_shims && svc.client_shims.length > 0));
   // Workers publish nothing, so the ports tab tracks the header gear's old guard.
   const hasPorts = $derived(!isServiceWorker(svc));
-  // Database and entity actions require dashboard-control authority because
-  // they can read, create, and delete service data. Authenticated remote
-  // dashboards receive that authority.
-  const hasDatabases = $derived(svc.is_database && $accessMode.localControl);
-  const hasEntities = $derived((svc.entity_kinds?.length ?? 0) > 0 && $accessMode.localControl);
+  // Database and entity actions read, create and delete service data, so they
+  // are admin-only.
+  const hasDatabases = $derived(svc.is_database && $isAdmin);
+  const hasEntities = $derived((svc.entity_kinds?.length ?? 0) > 0 && $isAdmin);
   // A single declared kind names its own tab (Buckets, Keyspaces); several
   // fold under a generic label.
   const entitiesLabel = $derived.by(() => {

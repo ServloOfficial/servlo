@@ -7,7 +7,7 @@
   import SiteIndicators from '$components/SiteIndicators.svelte';
   import SitesSectionHeader from '$components/SitesSectionHeader.svelte';
   import LoadingRow from '$components/LoadingRow.svelte';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { routeRest, goToTab } from '$stores/route';
   import { sites, sitesLoaded, type Site } from '$stores/sites';
   import { sitesSort, type SitesSort } from '$stores/sitesSort';
@@ -50,9 +50,9 @@
   // section keeps its own rows since syncZones fans this list into the zones.
   const mains = $derived(active.filter((s) => !s.group_subdomain));
   const sortedMains = $derived(sortSites(mains, $sitesSort));
-  // Reordering is available whenever we can write (loopback), in any sort mode.
-  // Dragging a site auto-switches the list into manual mode (see persistRowDrop).
-  const canReorder = $derived($accessMode.localControl);
+  // Reordering is available to an admin in any sort mode. Dragging a site
+  // auto-switches the list into manual mode (see persistRowDrop).
+  const canReorder = $derived($isAdmin);
 
   // Collapse key for the paused block. Leading space, like UNGROUPED, so it can
   // never collide with a workspace name (the server trims those).
@@ -444,7 +444,7 @@
 </script>
 
 {#snippet actions()}
-  {#if $accessMode.localControl}
+  {#if $isAdmin}
     <ActionButton title={m.sites_linkNew()} tone="accent" onclick={openAddSiteModal}>
       <Icon name="plus" class="w-3.5 h-3.5" />
     </ActionButton>
@@ -514,7 +514,7 @@
       </div>
     {/if}
 
-    {#if $accessMode.localControl}
+    {#if $isAdmin}
       <button
         type="button"
         onclick={() => ((addingWorkspace = !addingWorkspace), (sortMenuOpen = false))}

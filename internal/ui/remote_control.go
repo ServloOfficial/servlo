@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"net"
@@ -13,79 +12,6 @@ import (
 	"github.com/realrashid/servlo/internal/nginx"
 	"golang.org/x/crypto/bcrypt"
 )
-
-type ctxKeyRemoteDashboard struct{}
-
-// loopbackOnlyRoutes are dashboard endpoints that perform actions too
-// destructive or sensitive to hand to a remote (LAN) client on the strength
-// of a password alone: shutting servlo down entirely, opening a terminal on
-// the host, linking arbitrary host filesystem paths as new sites. The local
-// user can still use them as normal, and a remote session reaches them only
-// after `servlo remote-control full-access on`.
-var loopbackOnlyRoutes = []string{
-	"/api/servlo/stop", // shuts down all servlo containers
-	"/api/servlo/quit", // exits the dashboard process
-	"/api/push/test",   // fires notifications onto subscribed devices
-}
-
-// loopbackOnlyRoutePrefixes are endpoint subtrees restricted in full, so a
-// new subresource cannot escape by failing to be listed. Databases read out,
-// drop and overwrite the data the "/env" gate already protects.
-var loopbackOnlyRoutePrefixes = []string{
-	"/api/databases",
-	"/api/entities",
-	// Replaces executables on the host's PATH, so it stays with the terminal
-	// and link routes rather than behind Basic auth alone.
-	"/api/tools",
-}
-
-// loopbackOnlySiteSubactions are the per-site actions (under
-// /api/sites/{domain}/) whose entire subtree is restricted. A subaction
-// "/env" gates /api/sites/{d}/env and every nested route under it (e.g.
-// /env/files, /env/backups, /env/backups/<name>, /env/restore), so adding a
-// new subresource cannot accidentally escape the gate by failing to be
-// re-listed here.
-var loopbackOnlySiteSubactions = []string{
-	"/env", // raw .env content + backups + restore (APP_KEY, DB creds, tokens)
-}
-
-// isLoopbackOnlyPath reports whether the given URL path is in either the
-// exact-match list or matches a per-site action whose entire subtree is
-// restricted.
-func isLoopbackOnlyPath(path string) bool {
-	for _, p := range loopbackOnlyRoutes {
-		if path == p {
-			return true
-		}
-	}
-	for _, p := range loopbackOnlyRoutePrefixes {
-		if path == p || strings.HasPrefix(path, p+"/") {
-			return true
-		}
-	}
-	if !strings.HasPrefix(path, "/api/sites/") {
-		return false
-	}
-	rest := strings.TrimPrefix(path, "/api/sites/")
-	slash := strings.Index(rest, "/")
-	if slash < 0 {
-		return false
-	}
-	after := rest[slash:]
-	for _, action := range loopbackOnlySiteSubactions {
-		if after == action || strings.HasPrefix(after, action+"/") {
-			return true
-		}
-	}
-	return false
-}
-
-// remoteFullAccessEnabled reports whether authenticated remote sessions have
-// been opted into host actions.
-func remoteFullAccessEnabled() bool {
-	cfg, _ := config.LoadGlobal()
-	return cfg != nil && cfg.UI.RemoteFullAccess
-}
 
 // fromHost reports whether r's source IP belongs to one of the host's
 // own interfaces. The mailpit container reaches the dashboard via
@@ -195,7 +121,7 @@ func passesCSRF(r *http.Request) bool {
 	return r.Header.Get(csrfHeader) != ""
 }
 
-// withRemoteControlGate is what is left of the gate after S5.2.
+// withRemoteControlGate is what is left of the gate after S5.5.
 //
 // Authentication is no longer its job. withPanelAuth sits in front and refuses
 // anything without a session, whatever address it came from, so the LAN
@@ -203,12 +129,21 @@ func passesCSRF(r *http.Request) bool {
 // along with the model that needed them: on a server there is no trusted side
 // of the connection to exempt.
 //
-// What remains is the part sessions do not answer. The cross-origin check,
-// which still applies to the routes that reach the panel without a session.
-// The source gate on the mailpit webhook, which is POSTed by a container that
-// holds no cookie. And the host-action restriction: a terminal on the host is
-// not something a password alone should open, whoever is holding it. S5.4
-// replaces that last one with roles and S5.5 with a permission per route.
+// Authority is no longer its job either. It used to hold a list of routes a
+// remote client could not reach whatever its password, on the reasoning that
+// being at the machine is itself a credential. That reasoning belongs to a
+// local development tool. Servlo's panel is reached over the internet by
+// design, and a rule that only an operator sitting at the droplet may add a
+// site or open a database is a rule that nobody can satisfy, so the whole
+// surface was hidden from the only person who was ever going to use it. Roles
+// (S5.4), a permission declared per route (S5.5) and the audit log (S5.6) are
+// what answer the question now, and they answer it the same wherever the
+// request came from.
+//
+// What remains is the part sessions do not answer: the cross-origin check,
+// which still applies to the routes that reach the panel without a session,
+// and the source gate on the mailpit webhook, which is POSTed by a container
+// that holds no cookie.
 func withRemoteControlGate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 1. CORS preflight: pass through. Browsers don't include the
@@ -255,46 +190,16 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 			return
 		}
 
-		// 3. Only direct host control bypasses authentication. A reverse proxy
-		// may connect from 127.0.0.1 on behalf of a remote browser.
-		if isLocalControlRequest(r) {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// 4. Host-action routes stay closed to remote clients unless the user
-		// has explicitly opted in. Authentication is no longer this gate's
-		// job: withPanelAuth has already refused anything without a session,
-		// so what reaches here is a signed-in operator, and the only question
-		// left is whether they are at the machine.
-		//
-		// S5.4 replaces this with roles, and S5.5 with a permission declared
-		// per route. Until then the shape upstream had is the one that holds:
-		// a terminal on the host is not something a password alone should open.
-		if isLoopbackOnlyPath(r.URL.Path) && !isLocalControlRequest(r) && !remoteFullAccessEnabled() {
-			w.Header().Set("Cache-Control", "no-store")
-			http.Error(w, "Forbidden — this action is only available from the servlo host. Run `servlo remote-control full-access on` to allow it remotely.", http.StatusForbidden)
-			return
-		}
-
-		serveRemoteDashboard(next, w, r)
+		next.ServeHTTP(w, r)
 	})
 }
 
-func serveRemoteDashboard(next http.Handler, w http.ResponseWriter, r *http.Request) {
-	ctx := context.WithValue(r.Context(), ctxKeyRemoteDashboard{}, true)
-	next.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// handleAccessMode serves /api/access-mode. It reports whether this request
-// has dashboard-control authority and whether LAN exposure is enabled.
+// handleAccessMode serves /api/access-mode. It reports whether LAN exposure is
+// enabled, which is a property of the machine rather than of the caller.
 func handleAccessMode(w http.ResponseWriter, r *http.Request) {
 	cfg, _ := config.LoadGlobal()
 	lanExposed := cfg != nil && cfg.LAN.Exposed
-	writeJSON(w, map[string]any{
-		"local_control": hasDashboardControl(r),
-		"lan_exposed":   lanExposed,
-	})
+	writeJSON(w, map[string]any{"lan_exposed": lanExposed})
 }
 
 // handleLANStatus serves /api/lan/status.
@@ -303,11 +208,9 @@ func handleAccessMode(w http.ResponseWriter, r *http.Request) {
 //	POST { action: "expose" }         → exposes sites, DNS, and dashboard bind
 //	POST { action: "unexpose" }       → returns every endpoint to loopback
 //
-// Databases and caches are not part of this: they are loopback-only always
-// (CLAUDE.md 3.7), so there is no action here that could publish one.
-//
-// POST requires dashboard-control authority because it rewrites runtime units
-// and host configuration.
+// Databases and caches are not part of this: they bind to the container
+// network and nothing publishes them (CLAUDE.md 3.7), so there is no action
+// here that could.
 func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -327,10 +230,6 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case http.MethodPost:
-		if !hasDashboardControl(r) {
-			http.Error(w, "Forbidden — dashboard authentication is required to change LAN exposure.", http.StatusForbidden)
-			return
-		}
 		var body struct {
 			Action string `json:"action"`
 		}
@@ -438,9 +337,8 @@ func handleRemoteControl(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, map[string]any{
-			"enabled":     cfg.UI.PasswordHash != "",
-			"username":    cfg.UI.Username,
-			"full_access": cfg.UI.RemoteFullAccess,
+			"enabled":  cfg.UI.PasswordHash != "",
+			"username": cfg.UI.Username,
 		})
 		return
 
@@ -494,39 +392,15 @@ func handleRemoteControl(w http.ResponseWriter, r *http.Request) {
 		case "disable":
 			cfg.UI.Username = ""
 			cfg.UI.PasswordHash = ""
-			cfg.UI.RemoteFullAccess = false
 			if err := config.SaveGlobal(cfg); err != nil {
 				http.Error(w, "saving config: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			writeJSON(w, map[string]any{"ok": true, "enabled": false, "full_access": false})
-			return
-
-		case "full-access":
-			// Only the local dashboard may widen remote authority, so a
-			// remote session can never grant itself host actions.
-			if !isLocalControlRequest(r) {
-				http.Error(w, "Forbidden — remote full access can only be changed from the servlo host.", http.StatusForbidden)
-				return
-			}
-			if body.Enabled && !cfg.LAN.Exposed {
-				http.Error(w, "LAN exposure is off — there are no remote sessions to widen while the dashboard is loopback-only.", http.StatusBadRequest)
-				return
-			}
-			if body.Enabled && cfg.UI.PasswordHash == "" {
-				http.Error(w, "dashboard credentials are not configured — run `servlo remote-control on` first", http.StatusBadRequest)
-				return
-			}
-			cfg.UI.RemoteFullAccess = body.Enabled
-			if err := config.SaveGlobal(cfg); err != nil {
-				http.Error(w, "saving config: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			writeJSON(w, map[string]any{"ok": true, "full_access": body.Enabled})
+			writeJSON(w, map[string]any{"ok": true, "enabled": false})
 			return
 
 		default:
-			http.Error(w, "unknown action — expected 'enable', 'disable' or 'full-access'", http.StatusBadRequest)
+			http.Error(w, "unknown action — expected 'enable' or 'disable'", http.StatusBadRequest)
 			return
 		}
 
@@ -611,30 +485,6 @@ func isLocalControlRequest(r *http.Request) bool {
 	}
 	ip := net.ParseIP(peer)
 	return ip != nil && ip.IsLoopback()
-}
-
-// remoteSessionMayActOnHost reports whether r is an authenticated remote
-// dashboard session that the user has opted into host actions.
-func remoteSessionMayActOnHost(r *http.Request) bool {
-	authenticated, _ := r.Context().Value(ctxKeyRemoteDashboard{}).(bool)
-	return authenticated && remoteFullAccessEnabled()
-}
-
-// hasHostActionAuthority reports whether r may perform an action that reaches
-// the host itself: executing commands, reading raw .env content, touching the
-// filesystem, deleting captured data. The local dashboard always may; a remote
-// session only after `servlo remote-control full-access on`. The middleware has
-// already applied the stricter local check to anything that reaches a handler,
-// so the loopback test here is the peer one.
-func hasHostActionAuthority(r *http.Request) bool {
-	return isLoopbackRequest(r) || remoteSessionMayActOnHost(r)
-}
-
-// hasDashboardControl is hasHostActionAuthority for the handlers that must
-// hold up on their own, without the middleware in front: it rejects a reverse
-// proxy connecting from 127.0.0.1 on behalf of a remote browser.
-func hasDashboardControl(r *http.Request) bool {
-	return isLocalControlRequest(r) || remoteSessionMayActOnHost(r)
 }
 
 // isLoopbackRequest reports whether r originates from the local host. Three

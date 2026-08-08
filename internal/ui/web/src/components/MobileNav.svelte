@@ -3,12 +3,11 @@
   import Icon, { type IconName } from './Icon.svelte';
   import { dashboardOpen } from '$stores/dashboard';
   import { mobileView, goToApps } from '$stores/mobileView';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { m } from '../paraglide/messages.js';
 
-  // Hide host-local app launchers only when dashboard-control authority is
-  // unavailable. Authenticated remote dashboards receive authority.
-  const remote = $derived(!$accessMode.localControl);
+  // The launchers open /_svc/, which is admin-only.
+  const canOpenDashboards = $derived($isAdmin);
 
   const labels = $derived<Record<TabId, string>>({
     dashboard: m.nav_dashboard(),
@@ -41,7 +40,7 @@
       <span class="text-[10px] font-medium">{labels[t]}</span>
     </button>
   {/each}
-  {#if !remote}
+  {#if canOpenDashboards}
     <button
       onclick={goToApps}
       class="grow basis-0 min-w-0 flex flex-col items-center justify-center gap-0.5 transition-colors {$mobileView === 'apps'

@@ -12,10 +12,9 @@ describe('accessMode store', () => {
     globalThis.fetch = realFetch;
   });
 
-  it('defaults to loopback peer without assuming local control', async () => {
+  it('starts unchecked, assuming nothing about the machine', async () => {
     const { accessMode } = await import('./accessMode');
     expect(get(accessMode)).toEqual({
-      localControl: false,
       lanExposed: false,
       checked: false
     });
@@ -23,7 +22,7 @@ describe('accessMode store', () => {
 
   it('maps API response', async () => {
     globalThis.fetch = vi.fn(async () =>
-      new Response(JSON.stringify({ local_control: true, lan_exposed: true }), {
+      new Response(JSON.stringify({ lan_exposed: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       })
@@ -31,7 +30,6 @@ describe('accessMode store', () => {
     const { accessMode, loadAccessMode } = await import('./accessMode');
     await loadAccessMode();
     expect(get(accessMode)).toEqual({
-      localControl: true,
       lanExposed: true,
       checked: true
     });

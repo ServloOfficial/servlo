@@ -7,7 +7,7 @@
   import DashboardSection from '$components/DashboardSection.svelte';
   import SiteTile from './SiteTile.svelte';
   import { sites, sitesLoaded, siteWorkerFailing, type Site } from '$stores/sites';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { status } from '$stores/status';
   import { openAddSiteModal } from '$stores/modals';
   import { m } from '../../paraglide/messages.js';
@@ -94,7 +94,7 @@
       {/if}
     {/if}
 
-    {#if $accessMode.localControl && $sitesLoaded && total > 0}
+    {#if $isAdmin && $sitesLoaded && total > 0}
       <button
         onclick={openAddSiteModal}
         class="inline-flex items-center gap-1 text-xs font-medium text-servlo-red hover:text-servlo-redhov"

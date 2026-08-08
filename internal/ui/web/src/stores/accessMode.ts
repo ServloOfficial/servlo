@@ -1,21 +1,18 @@
 import { writable } from 'svelte/store';
 import { apiJson } from '$lib/api';
 
-// localControl means this request has full dashboard-control authority.
-// Authenticated remote sessions and direct local sessions both set it to true.
+// Whether nginx is bound to the LAN, which is a property of the machine. What
+// the caller may do is a matter of their role and lives on the session.
 export interface AccessMode {
-  localControl: boolean;
   lanExposed: boolean;
   checked: boolean;
 }
 
 export const accessMode = writable<AccessMode>({
-  localControl: false,
   lanExposed: false,
   checked: false
 });
 interface AccessModeResponse {
-  local_control?: boolean;
   lan_exposed?: boolean;
 }
 
@@ -23,7 +20,6 @@ export async function loadAccessMode() {
   try {
     const res = await apiJson<AccessModeResponse>('/api/access-mode');
     accessMode.set({
-      localControl: Boolean(res.local_control),
       lanExposed: Boolean(res.lan_exposed),
       checked: true
     });

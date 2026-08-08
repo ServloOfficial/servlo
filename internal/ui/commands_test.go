@@ -191,7 +191,10 @@ commands:
 	}
 }
 
-func TestCommandsRun_RejectsNonLoopback(t *testing.T) {
+// A site's declared commands are part of driving that site, and the site
+// permission is what says who may drive it. The browser running them is on
+// somebody's laptop, which is the ordinary case rather than the exception.
+func TestCommandsRun_RunsForARemoteCaller(t *testing.T) {
 	sitePath := registerSite(t, "acme", "acme.test")
 	writeProjectYAML(t, sitePath, `
 commands:
@@ -201,11 +204,11 @@ commands:
     output: text
 `)
 	req := httptest.NewRequest(http.MethodPost, "/api/sites/acme.test/commands/hello/run?approve=1", nil)
-	req.RemoteAddr = "192.168.1.50:42000"
+	req.RemoteAddr = "203.0.113.10:42000"
 	rec := httptest.NewRecorder()
 	handleSiteAction(rec, req)
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("non-loopback should get 403, got %d body %s", rec.Code, rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "event: done") {
+		t.Errorf("the command did not run for a remote caller: %d %s", rec.Code, rec.Body.String())
 	}
 }
 

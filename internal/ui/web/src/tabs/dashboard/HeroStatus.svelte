@@ -11,7 +11,6 @@
   import { coreServices } from '$stores/services';
   import { sites } from '$stores/sites';
   import { status, statusLoaded } from '$stores/status';
-  import { accessMode } from '$stores/accessMode';
   import { goToTab } from '$stores/route';
   import { apiFetch } from '$lib/api';
   import { m } from '../../paraglide/messages.js';

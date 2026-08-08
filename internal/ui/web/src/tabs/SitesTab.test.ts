@@ -5,7 +5,7 @@ import SitesTab from './SitesTab.svelte';
 import { sites, sitesLoaded, type Site } from '$stores/sites';
 import { status } from '$stores/status';
 import { sitesSort } from '$stores/sitesSort';
-import { accessMode } from '$stores/accessMode';
+import { session } from '$stores/session';
 import { workspaceCollapse } from '$stores/workspaces';
 import { modal, closeModal } from '$stores/modals';
 
@@ -35,7 +35,7 @@ describe('SitesTab workspace sections', () => {
     workspaceCollapse.set([]);
     sitesSort.set('manual');
     sitesLoaded.set(true);
-    accessMode.set({ localControl: true } as never);
+    session.update((s) => ({ ...s, role: 'admin' }));
     setWorkspaces([]);
     sites.set([]);
   });
@@ -122,8 +122,8 @@ describe('SitesTab workspace sections', () => {
     expect(createWorkspace).toHaveBeenCalledWith('Client Work');
   });
 
-  it('hides workspace controls without dashboard-control authority', () => {
-    accessMode.set({ localControl: false } as never);
+  it('hides workspace controls from a developer', () => {
+    session.update((s) => ({ ...s, role: 'developer' }));
     setWorkspaces(['Client Work']);
     sites.set([site()]);
     const { queryByLabelText } = render(SitesTab);

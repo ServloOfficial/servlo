@@ -91,21 +91,21 @@ func TestTLSStatus_CoversEveryAlias(t *testing.T) {
 	}
 }
 
-// A live DNS lookup on caller-chosen names is not a free read, and it gates a
-// state-changing action, so it sits behind the same authority as that action.
-func TestTLSStatus_RequiresHostActionAuthority(t *testing.T) {
+// Get SSL is a browser flow, and the browser is on somebody's laptop rather
+// than on the droplet. The DNS pre-flight behind the button answers a remote
+// caller like any other site route, because the site permission is what decides
+// who may ask and where they are asking from is not part of it.
+func TestTLSStatus_AnswersARemoteCaller(t *testing.T) {
 	tlsTestSite(t, "example.invalid")
 
 	rec := httptest.NewRecorder()
-	// A remote peer with no full-access grant: the same caller the other
-	// host-reaching routes turn away.
 	req := httptest.NewRequest(http.MethodGet, "/api/sites/example.invalid/tls", nil)
-	req.RemoteAddr = "192.168.1.42:54321"
+	req.RemoteAddr = "203.0.113.10:54321"
 	if !tlsRoute(rec, req, "example.invalid", []string{"tls"}) {
 		t.Fatal("the tls route did not claim its own path")
 	}
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("status %d, want 403 for a caller without host action authority", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Errorf("status %d, want 200: a remote operator cannot see whether DNS is ready", rec.Code)
 	}
 }
 

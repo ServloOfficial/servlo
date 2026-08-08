@@ -6,7 +6,7 @@
   import { coreServices, servicesLoaded, serviceLabel } from '$stores/services';
   import { openPresetModal } from '$stores/modals';
   import { goToTab } from '$stores/route';
-  import { accessMode } from '$stores/accessMode';
+  import { isAdmin } from '$stores/session';
   import { m } from '../../paraglide/messages.js';
 
   const total = $derived($coreServices.length);
@@ -60,7 +60,7 @@
 
   {#snippet footer()}
     <div class="flex flex-wrap items-center gap-2">
-      {#if $accessMode.localControl}
+      {#if $isAdmin}
         <button
           onclick={openPresetModal}
           class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-servlo-red hover:bg-servlo-redhov text-white transition-colors"
