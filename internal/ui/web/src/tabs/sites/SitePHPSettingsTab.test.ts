@@ -14,11 +14,16 @@ const settings: SitePHPSettings = {
 const loadSitePHPSettings = vi.fn(async () => settings);
 const saveSitePHPSettings = vi.fn(async () => ({ ok: true }));
 
-const loadSiteNginxSettings = vi.fn(async () => ({
+const nginxSettings = {
   static_cache_days: 0,
   response_headers: [],
-  static_cache_ceiling_days: 365
-}));
+  static_cache_ceiling_days: 365,
+  canonical_host: '',
+  canonical_available: true,
+  apex_host: 'shop.example',
+  www_host: 'www.shop.example'
+};
+const loadSiteNginxSettings = vi.fn(async () => nginxSettings);
 const saveSiteNginxSettings = vi.fn(async () => ({ ok: true }));
 
 vi.mock('$stores/sites', () => ({
@@ -117,7 +122,8 @@ describe('the nginx card underneath', () => {
     await waitFor(() => {
       expect(saveSiteNginxSettings).toHaveBeenCalledWith('shop.example', {
         static_cache_days: 0,
-        response_headers: [{ name: 'X-Frame-Options', value: 'DENY' }]
+        response_headers: [{ name: 'X-Frame-Options', value: 'DENY' }],
+        canonical_host: ''
       });
     });
   });
@@ -130,5 +136,41 @@ describe('the nginx card underneath', () => {
 
     await fireEvent.click(await findByRole('button', { name: m.sites_nginxSettings_rawOpen() }));
     expect(opened).toBe(true);
+  });
+});
+
+describe('the canonical domain toggle', () => {
+  it('offers both hosts by name and sends the choice', async () => {
+    const { findByLabelText, getByRole } = render(SitePHPSettingsTab, { props });
+
+    const select = (await findByLabelText(m.sites_nginxSettings_canonical())) as HTMLSelectElement;
+    // Named, not "www" and "non-www": the operator is picking between two
+    // addresses their visitors will see, so the addresses are what is shown.
+    expect([...select.options].map((o) => o.value)).toEqual(['', 'apex', 'www']);
+    expect([...select.options].map((o) => o.textContent?.trim())).toContain('www.shop.example');
+
+    await fireEvent.change(select, { target: { value: 'apex' } });
+    await fireEvent.click(getByRole('button', { name: m.sites_nginxSettings_saveNginx() }));
+
+    await waitFor(() => {
+      expect(saveSiteNginxSettings).toHaveBeenCalledWith('shop.example', {
+        static_cache_days: 0,
+        response_headers: [],
+        canonical_host: 'apex'
+      });
+    });
+  });
+
+  // A site with one domain has nothing to redirect to. Offering the choice
+  // would mean offering a save the server refuses.
+  it('explains itself instead of offering a choice the site cannot make', async () => {
+    loadSiteNginxSettings.mockResolvedValueOnce({
+      ...nginxSettings,
+      canonical_available: false
+    } as never);
+    const { findByText, queryByLabelText } = render(SitePHPSettingsTab, { props });
+
+    expect(await findByText(m.sites_nginxSettings_canonicalUnavailable())).toBeTruthy();
+    expect(queryByLabelText(m.sites_nginxSettings_canonical())).toBeNull();
   });
 });

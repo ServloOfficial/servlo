@@ -17,6 +17,7 @@
   let { site, onOpenRaw }: Props = $props();
 
   let cacheDays = $state<number | null>(null);
+  let canonical = $state('');
   let headers = $state<ResponseHeader[]>([]);
   let ceilings = $state<SiteNginxSettings | null>(null);
   let loading = $state(true);
@@ -32,6 +33,7 @@
       .then((s) => {
         ceilings = s;
         cacheDays = s.static_cache_days || null;
+        canonical = s.canonical_host ?? '';
         headers = s.response_headers ?? [];
       })
       .catch(() => (error = m.sites_phpSettings_loadFailed()))
@@ -46,7 +48,8 @@
       static_cache_days: cacheDays == null || !Number.isFinite(cacheDays) ? 0 : Math.trunc(cacheDays),
       // A row the operator started and left blank is not a header; sending it
       // would fail validation on a name they never meant to add.
-      response_headers: headers.filter((h) => h.name.trim() !== '')
+      response_headers: headers.filter((h) => h.name.trim() !== ''),
+      canonical_host: canonical
     });
     saving = false;
     if (res.ok) {
@@ -77,6 +80,30 @@
         max={ceilings?.static_cache_ceiling_days}
         bind:value={cacheDays}
       />
+    </div>
+
+    <div class="mt-5">
+      <div class="text-xs font-medium text-gray-700 dark:text-gray-200">
+        {m.sites_nginxSettings_canonical()}
+      </div>
+      <p class="mt-1 text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">
+        {m.sites_nginxSettings_canonicalHint()}
+      </p>
+      {#if ceilings?.canonical_available}
+        <select
+          aria-label={m.sites_nginxSettings_canonical()}
+          bind:value={canonical}
+          class="mt-2 px-2 py-1 rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-servlo-card text-xs text-gray-700 dark:text-gray-200"
+        >
+          <option value="">{m.sites_nginxSettings_canonicalBoth()}</option>
+          <option value="apex">{ceilings.apex_host}</option>
+          <option value="www">{ceilings.www_host}</option>
+        </select>
+      {:else}
+        <p class="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
+          {m.sites_nginxSettings_canonicalUnavailable()}
+        </p>
+      {/if}
     </div>
 
     <div class="mt-5">

@@ -52,4 +52,35 @@ describe('domains store', () => {
     expect(r.ok).toBe(false);
     expect(r.error).toBe('taken');
   });
+
+  // The server answers OK with a warning when a secured site's certificate
+  // could not be reissued to cover the domain that just changed. Dropping it
+  // here would put back exactly the silence the server side stopped: the site
+  // serves a certificate that does not name a domain it answers to, and the
+  // panel reports the change as clean.
+  it('carries a certificate warning alongside ok', async () => {
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response('{"ok":true,"warning":"the certificate does not cover shop2.example"}', {
+          status: 200
+        })
+    ) as unknown as typeof fetch;
+    const { addDomain } = await import('./domains');
+
+    const res = await addDomain({ domain: 'shop.example' } as never, 'shop2.example');
+
+    expect(res.ok).toBe(true);
+    expect(res.warning).toBe('the certificate does not cover shop2.example');
+  });
+
+  it('leaves the warning unset when there is nothing to say', async () => {
+    globalThis.fetch = vi.fn(
+      async () => new Response('{"ok":true}', { status: 200 })
+    ) as unknown as typeof fetch;
+    const { addDomain } = await import('./domains');
+
+    const res = await addDomain({ domain: 'shop.example' } as never, 'x.example');
+
+    expect(res.warning).toBeUndefined();
+  });
 });

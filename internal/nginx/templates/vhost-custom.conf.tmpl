@@ -3,7 +3,7 @@ server {
     listen [::]:80;
     server_name {{.ServerNames}};
 {{.ACMEChallenge}}
-{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}    location / {
+{{.CanonicalRedirect}}{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}    location / {
         set $backend "{{.CustomContainer}}";
         proxy_pass {{if .BackendSSL}}https{{else}}http{{end}}://$backend:{{.CustomPort}};
         proxy_http_version 1.1;

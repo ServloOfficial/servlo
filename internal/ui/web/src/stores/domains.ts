@@ -5,13 +5,17 @@ import type { Site } from './sites';
 interface ActionResult {
   ok: boolean;
   error?: string;
+  // A change that went through but left something the operator has to act on,
+  // the certificate not covering a domain the site now answers to being the
+  // one that matters. Dropping it here would put the silence back.
+  warning?: string;
 }
 
 async function post(path: string): Promise<ActionResult> {
   try {
     const res = await apiFetch(path, { method: 'POST' });
     const data = (await res.json()) as ActionResult;
-    return { ok: Boolean(data.ok), error: data.error };
+    return { ok: Boolean(data.ok), error: data.error, warning: data.warning };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
   }

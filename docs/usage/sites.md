@@ -175,10 +175,10 @@ For example: `admin.example.com` becomes `admin-example.test`
 
 ## Multiple domains
 
-A site can respond to multiple domains. The argument to `servlo link` is the domain name without the `.test` TLD; it is appended automatically from the global config.
+A site can respond to several domains. The first is its primary: the one that names the vhost file, the certificate files and `APP_URL`. The rest are aliases, and they are equal in every way that matters to a visitor.
 
 ```bash
-servlo link myapp                # links as myapp.example.com
+servlo link myapp.example.com
 ```
 
 After linking, you can add more domains:
@@ -194,6 +194,32 @@ servlo domain remove api.example.com
 ```
 
 Every domain is a fully qualified name. Servlo appends nothing, so a bare label like `api` is refused rather than completed: the only name that reaches this server is the one DNS points here, and inventing a suffix would produce a site nobody can visit.
+
+Every alias goes into the site's certificate as a SAN and into the DNS pre-flight, so one alias pointing somewhere else blocks the whole issuance rather than producing a certificate that covers some of the site.
+
+That is also why changing the domains on a site that already has a certificate usually cannot reissue on the spot. The ordinary sequence is to add the alias and then point its DNS here, and the pre-flight refuses to issue for a name that does not resolve to this server yet. When that happens the domain change still goes through, and the panel says plainly that the certificate does not cover the new name and what to do about it. It does not fail quietly: a site serving a certificate that does not name a domain it answers to gives every visitor to that domain a browser warning, and the operator has to be able to see why.
+
+Point the DNS, then use **Get SSL**.
+
+### Subdomains
+
+A subdomain is a site like any other. Register `admin.example.com` the way you would register anything else: its own directory, its own PHP version, its own settings, its own certificate. It is not a mode of the site at `example.com` and shares nothing with it.
+
+A site's `server_name` also carries a wildcard for each of its domains, so a subdomain nobody has registered is served by the parent. Once the subdomain is a site of its own, its vhost names it exactly and nginx resolves an exact `server_name` before any wildcard, so the subdomain's own vhost is the one that answers.
+
+Worth knowing about that wildcard: while a subdomain is unregistered, the parent answers for it under a hostname its certificate does not cover, so a visitor reaching it over HTTPS gets a name warning. Unlinking a subdomain site puts it back in that state rather than making it 404.
+
+### Picking a canonical domain
+
+A site serving both `example.com` and `www.example.com` is serving the same content at two addresses. That splits its analytics, and a search engine treats the two as separate pages competing with each other.
+
+Open the site, go to **Settings**, and under **Canonical domain** pick which of the two is the real one. The other is permanently redirected to it, keeping the path and the scheme. Leave it on **Serve both** and nothing is written, which is the default.
+
+Both names stay in `server_name` and in the certificate. The redirecting one still has to be answered, over TLS as well, or somebody typing `https://www.example.com` gets a certificate warning instead of a redirect.
+
+The choice is only offered when the site serves a domain and its own www form, because otherwise there is no other host to redirect. It is refused rather than saved if the site could not honour it: the redirect is permanent and browsers cache it, so pointing it at a name nothing answers for is not something an operator can undo by changing their mind.
+
+The redirect deliberately does not apply to `/.well-known/acme-challenge/`. A validation for the redirecting host has to be answerable at that host.
 
 Domains are stored whole in `.servlo.yaml`:
 

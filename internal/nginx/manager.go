@@ -135,6 +135,9 @@ type VhostData struct {
 	// rendered by StaticCache and SiteHeaders. Zero and empty write nothing.
 	StaticCacheDays int
 	ResponseHeaders []config.ResponseHeader
+	// CanonicalHost is which of the site's two www forms is the real one, and
+	// the other is permanently redirected to it. Empty leaves both serving.
+	CanonicalHost string
 	// FrameworkNginx is the framework definition's nginx block, already
 	// placeholder-expanded and indented. Rendered ahead of the generic
 	// locations so a framework can claim paths they would otherwise swallow.
@@ -465,6 +468,7 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 		MaxUploadMB:     site.MaxUploadMB,
 		StaticCacheDays: site.StaticCacheDays,
 		ResponseHeaders: site.ResponseHeaders,
+		CanonicalHost:   site.CanonicalHost,
 		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, upstream),
 	}
 
@@ -521,6 +525,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 		MaxUploadMB:     site.MaxUploadMB,
 		StaticCacheDays: site.StaticCacheDays,
 		ResponseHeaders: site.ResponseHeaders,
+		CanonicalHost:   site.CanonicalHost,
 		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, upstream),
 	}
 
@@ -559,6 +564,7 @@ func GenerateFrankenPHPVhost(site config.Site) error {
 		MaxUploadMB:     site.MaxUploadMB,
 		StaticCacheDays: site.StaticCacheDays,
 		ResponseHeaders: site.ResponseHeaders,
+		CanonicalHost:   site.CanonicalHost,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -594,6 +600,7 @@ func GenerateFrankenPHPSSLVhost(site config.Site) error {
 		MaxUploadMB:     site.MaxUploadMB,
 		StaticCacheDays: site.StaticCacheDays,
 		ResponseHeaders: site.ResponseHeaders,
+		CanonicalHost:   site.CanonicalHost,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -632,6 +639,7 @@ func GenerateCustomVhost(site config.Site) error {
 		MaxUploadMB:     site.MaxUploadMB,
 		StaticCacheDays: site.StaticCacheDays,
 		ResponseHeaders: site.ResponseHeaders,
+		CanonicalHost:   site.CanonicalHost,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -671,6 +679,7 @@ func GenerateCustomSSLVhost(site config.Site) error {
 		MaxUploadMB:     site.MaxUploadMB,
 		StaticCacheDays: site.StaticCacheDays,
 		ResponseHeaders: site.ResponseHeaders,
+		CanonicalHost:   site.CanonicalHost,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -729,6 +738,7 @@ func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl boo
 		MaxUploadMB:     site.MaxUploadMB,
 		StaticCacheDays: site.StaticCacheDays,
 		ResponseHeaders: site.ResponseHeaders,
+		CanonicalHost:   site.CanonicalHost,
 	}
 	if ssl {
 		data.CertDomain = site.PrimaryDomain()

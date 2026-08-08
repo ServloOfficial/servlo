@@ -37,6 +37,7 @@ type SitePHPSettingsResponse struct {
 type SiteNginxSettingsRequest struct {
 	StaticCacheDays int                     `json:"static_cache_days"`
 	ResponseHeaders []config.ResponseHeader `json:"response_headers"`
+	CanonicalHost   string                  `json:"canonical_host"`
 }
 
 // SiteNginxSettingsResponse is what that form reads back on GET.
@@ -44,6 +45,13 @@ type SiteNginxSettingsResponse struct {
 	StaticCacheDays        int                     `json:"static_cache_days"`
 	ResponseHeaders        []config.ResponseHeader `json:"response_headers"`
 	StaticCacheCeilingDays int                     `json:"static_cache_ceiling_days"`
+	CanonicalHost          string                  `json:"canonical_host"`
+	// CanonicalAvailable is false when the site does not serve a domain and its
+	// own www form, which is every site the toggle cannot apply to. The form
+	// explains that rather than offering a choice that would be refused.
+	CanonicalAvailable bool   `json:"canonical_available"`
+	ApexHost           string `json:"apex_host"`
+	WWWHost            string `json:"www_host"`
 }
 
 // handleSiteNginxSettings serves GET and POST on
@@ -51,6 +59,7 @@ type SiteNginxSettingsResponse struct {
 func handleSiteNginxSettings(w http.ResponseWriter, r *http.Request, site *config.Site) {
 	switch r.Method {
 	case http.MethodGet:
+		apex, www, available := site.WWWPair()
 		headers := site.ResponseHeaders
 		if headers == nil {
 			// An empty list rather than null, so the form iterates it without
@@ -61,6 +70,10 @@ func handleSiteNginxSettings(w http.ResponseWriter, r *http.Request, site *confi
 			StaticCacheDays:        site.StaticCacheDays,
 			ResponseHeaders:        headers,
 			StaticCacheCeilingDays: config.StaticCacheCeilingDays,
+			CanonicalHost:          site.CanonicalHost,
+			CanonicalAvailable:     available,
+			ApexHost:               apex,
+			WWWHost:                www,
 		})
 	case http.MethodPost:
 		var req SiteNginxSettingsRequest
@@ -71,6 +84,7 @@ func handleSiteNginxSettings(w http.ResponseWriter, r *http.Request, site *confi
 		if err := siteops.SetSiteNginxSettings(site, siteops.NginxSettings{
 			StaticCacheDays: req.StaticCacheDays,
 			ResponseHeaders: req.ResponseHeaders,
+			CanonicalHost:   req.CanonicalHost,
 		}); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return

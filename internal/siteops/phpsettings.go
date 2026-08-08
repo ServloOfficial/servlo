@@ -22,6 +22,8 @@ type PHPSettings struct {
 type NginxSettings struct {
 	StaticCacheDays int
 	ResponseHeaders []config.ResponseHeader
+	// CanonicalHost is "www", "apex", or empty to serve both.
+	CanonicalHost string
 }
 
 // SetSiteNginxSettings saves a site's response headers and static-asset cache
@@ -34,7 +36,14 @@ func SetSiteNginxSettings(site *config.Site, s NginxSettings) error {
 	updated := *site
 	updated.StaticCacheDays = s.StaticCacheDays
 	updated.ResponseHeaders = s.ResponseHeaders
+	updated.CanonicalHost = s.CanonicalHost
 	if err := updated.ValidateNginxSettings(); err != nil {
+		return err
+	}
+	// A canonical host is a permanent redirect browsers cache, so a choice the
+	// site could not honour is refused before it is written rather than after
+	// visitors have it stored.
+	if err := updated.ValidateCanonicalHost(); err != nil {
 		return err
 	}
 

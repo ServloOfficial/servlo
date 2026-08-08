@@ -3,7 +3,13 @@ server {
     listen [::]:80;
     server_name {{.ServerNames}};
 {{.ACMEChallenge}}
-    return 301 https://$host$request_uri;
+    # In a location, not at server level. nginx runs the server rewrite phase
+    # before it picks a location, so a bare `return` here would fire first and
+    # the challenge location above would be dead config: renewal 301'd to a
+    # secure side that would then have to answer for it.
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
 server {
@@ -11,9 +17,9 @@ server {
     listen [::]:443 ssl;
     server_name {{.ServerNames}};
 {{.HSTS}}
-{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}    ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
+{{.CanonicalRedirect}}{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}    ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
     ssl_certificate_key /etc/nginx/certs/{{.CertDomain}}.key;
-
+{{.ACMEChallenge}}
     location / {
         set $backend "{{.CustomContainer}}";
         proxy_pass {{if .BackendSSL}}https{{else}}http{{end}}://$backend:{{.CustomPort}};

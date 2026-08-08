@@ -1134,5 +1134,9 @@
   "sites_nginxSettings_rawHint": "For what the fields above do not cover. Included at the end of this site's server block, and never overwritten by servlo.",
   "sites_nginxSettings_rawOpen": "Edit raw config",
   "sites_phpSettings_savePhp": "Save PHP settings",
-  "sites_nginxSettings_saveNginx": "Save nginx settings"
+  "sites_nginxSettings_saveNginx": "Save nginx settings",
+  "sites_nginxSettings_canonical": "Canonical domain",
+  "sites_nginxSettings_canonicalHint": "One address for the site. The other is permanently redirected to it, so visitors and search engines see a single name.",
+  "sites_nginxSettings_canonicalBoth": "Serve both",
+  "sites_nginxSettings_canonicalUnavailable": "Available once the site serves a domain and its own www form. Add the other one under Domains."
 }

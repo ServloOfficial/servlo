@@ -657,6 +657,13 @@ export interface SiteNginxSettings {
   static_cache_days: number;
   response_headers: ResponseHeader[];
   static_cache_ceiling_days: number;
+  // '' serves both hosts, 'www' and 'apex' name which one is canonical.
+  canonical_host: string;
+  // False for every site that does not serve a domain and its own www form,
+  // which is the only shape the toggle applies to.
+  canonical_available: boolean;
+  apex_host: string;
+  www_host: string;
 }
 
 export async function loadSiteNginxSettings(domain: string): Promise<SiteNginxSettings> {
@@ -667,7 +674,7 @@ export async function loadSiteNginxSettings(domain: string): Promise<SiteNginxSe
 
 export async function saveSiteNginxSettings(
   domain: string,
-  values: { static_cache_days: number; response_headers: ResponseHeader[] }
+  values: { static_cache_days: number; response_headers: ResponseHeader[]; canonical_host: string }
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await apiFetch(site(domain, 'nginx-settings'), {

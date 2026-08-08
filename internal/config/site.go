@@ -115,6 +115,11 @@ type Site struct {
 	StaticCacheDays int `yaml:"static_cache_days,omitempty"`
 	// ResponseHeaders are headers added to every response from this site.
 	ResponseHeaders []ResponseHeader `yaml:"response_headers,omitempty"`
+	// CanonicalHost names which of a site's two www forms is the real one:
+	// "www" or "apex". The other is permanently redirected to it. Empty leaves
+	// both serving, which is the default and what a site that never asked for
+	// one keeps.
+	CanonicalHost string `yaml:"canonical_host,omitempty"`
 }
 
 // ResponseHeader is one header a site adds to its responses.
@@ -316,6 +321,7 @@ type siteYAML struct {
 	MemoryLimitMB       int              `yaml:"memory_limit_mb,omitempty"`
 	StaticCacheDays     int              `yaml:"static_cache_days,omitempty"`
 	ResponseHeaders     []ResponseHeader `yaml:"response_headers,omitempty"`
+	CanonicalHost       string           `yaml:"canonical_host,omitempty"`
 }
 
 func (s Site) toYAML() siteYAML {
@@ -353,6 +359,7 @@ func (s Site) toYAML() siteYAML {
 		MemoryLimitMB:       s.MemoryLimitMB,
 		StaticCacheDays:     s.StaticCacheDays,
 		ResponseHeaders:     s.ResponseHeaders,
+		CanonicalHost:       s.CanonicalHost,
 	}
 }
 
@@ -395,6 +402,7 @@ func (sy siteYAML) toSite() Site {
 		MemoryLimitMB:       sy.MemoryLimitMB,
 		StaticCacheDays:     sy.StaticCacheDays,
 		ResponseHeaders:     sy.ResponseHeaders,
+		CanonicalHost:       sy.CanonicalHost,
 	}
 }
 
@@ -853,4 +861,64 @@ func IsDomainUsed(domain string) (*Site, error) {
 		}
 	}
 	return nil, nil
+}
+
+// Canonical host choices. A site names which of its two www forms is the real
+// one; the other is permanently redirected to it.
+const (
+	CanonicalWWW  = "www"
+	CanonicalApex = "apex"
+)
+
+// WWWPair returns a site's apex and www hosts when its domains are exactly a
+// domain and its own www form, in either order. ok is false otherwise, which is
+// every site the canonical-host toggle does not apply to.
+//
+// Exactly two, and one the www of the other: a site serving three names, or two
+// unrelated ones, has no "the other host" to redirect, and a primary that is
+// already a subdomain has no www form anyone wants.
+func (s *Site) WWWPair() (apex, www string, ok bool) {
+	if len(s.Domains) != 2 {
+		return "", "", false
+	}
+	a, b := s.Domains[0], s.Domains[1]
+	switch {
+	case "www."+a == b:
+		return a, b, true
+	case "www."+b == a:
+		return b, a, true
+	}
+	return "", "", false
+}
+
+// ValidateCanonicalHost refuses a canonical host the site could not honour.
+//
+// The redirect it produces is permanent and browsers cache it, so pointing it
+// at a name the site does not answer for is not a mistake an operator can undo
+// by changing their mind: every visitor who saw it keeps going to the dead
+// name until the cache expires.
+func (s *Site) ValidateCanonicalHost() error {
+	if s.CanonicalHost == "" {
+		return nil
+	}
+	if s.CanonicalHost != CanonicalWWW && s.CanonicalHost != CanonicalApex {
+		return fmt.Errorf("%q is not a canonical host: use %q, %q, or leave it unset to serve both", s.CanonicalHost, CanonicalWWW, CanonicalApex)
+	}
+	if _, _, ok := s.WWWPair(); !ok {
+		return fmt.Errorf("a canonical host needs the site to serve a domain and its own www form, and this one serves %s", strings.Join(s.Domains, ", "))
+	}
+	return nil
+}
+
+// CanonicalRedirect returns the host to redirect and the host to redirect it
+// to, or ok false when the site serves both.
+func (s *Site) CanonicalRedirect() (from, to string, ok bool) {
+	if s.ValidateCanonicalHost() != nil || s.CanonicalHost == "" {
+		return "", "", false
+	}
+	apex, www, _ := s.WWWPair()
+	if s.CanonicalHost == CanonicalWWW {
+		return apex, www, true
+	}
+	return www, apex, true
 }

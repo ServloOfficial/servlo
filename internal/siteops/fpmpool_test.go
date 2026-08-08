@@ -19,12 +19,12 @@ func poolHome(t *testing.T) *[]string {
 	t.Setenv("XDG_DATA_HOME", "")
 
 	var reloaded []string
-	prev := reloadFPM
-	reloadFPM = func(container string) error {
+	prev := ReloadFPMPoolsFn
+	ReloadFPMPoolsFn = func(container string) error {
 		reloaded = append(reloaded, container)
 		return nil
 	}
-	t.Cleanup(func() { reloadFPM = prev })
+	t.Cleanup(func() { ReloadFPMPoolsFn = prev })
 	return &reloaded
 }
 

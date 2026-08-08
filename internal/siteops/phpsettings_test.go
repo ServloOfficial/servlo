@@ -22,11 +22,11 @@ func settingsHome(t *testing.T) {
 
 	prevReload := nginxReloadFn
 	nginxReloadFn = func() error { return nil }
-	prevFPM := reloadFPM
-	reloadFPM = func(string) error { return nil }
+	prevFPM := ReloadFPMPoolsFn
+	ReloadFPMPoolsFn = func(string) error { return nil }
 	t.Cleanup(func() {
 		nginxReloadFn = prevReload
-		reloadFPM = prevFPM
+		ReloadFPMPoolsFn = prevFPM
 	})
 }
 
@@ -263,5 +263,60 @@ func TestSetSiteNginxSettings_ClearingRemovesWhatItWrote(t *testing.T) {
 		if strings.Contains(vhost, unwanted) {
 			t.Errorf("%q survived the clear:\n%s", unwanted, vhost)
 		}
+	}
+}
+
+// The toggle lands in the vhost as a permanent redirect from the host the
+// operator did not choose.
+func TestSetSiteNginxSettings_WritesTheCanonicalRedirect(t *testing.T) {
+	settingsHome(t)
+	site := settingsSite(t)
+	site.Domains = []string{"shop.example", "www.shop.example"}
+	if err := config.AddSite(*site); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := SetSiteNginxSettings(site, NginxSettings{CanonicalHost: config.CanonicalApex}); err != nil {
+		t.Fatalf("SetSiteNginxSettings: %v", err)
+	}
+
+	vhost := readVhost(t, site)
+	if !strings.Contains(vhost, `if ($host = "www.shop.example")`) {
+		t.Errorf("the vhost does not redirect the www host:\n%s", vhost)
+	}
+	if !strings.Contains(vhost, "return 301 $scheme://shop.example$request_uri;") {
+		t.Errorf("the redirect does not target the apex:\n%s", vhost)
+	}
+}
+
+// A choice the site cannot honour would 301 every visitor to a name nothing
+// answers for, and browsers cache that.
+func TestSetSiteNginxSettings_RefusesACanonicalTheSiteCannotHonour(t *testing.T) {
+	settingsHome(t)
+	site := settingsSite(t)
+	// A vhost already on disk, so the refusal is shown to leave it alone rather
+	// than merely never having written one.
+	if err := SetSiteNginxSettings(site, NginxSettings{StaticCacheDays: 7}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := SetSiteNginxSettings(site, NginxSettings{CanonicalHost: config.CanonicalWWW})
+
+	if err == nil {
+		t.Fatal("a www canonical was accepted for a site with no www domain")
+	}
+	vhost := readVhost(t, site)
+	if strings.Contains(vhost, "$host = ") {
+		t.Errorf("the refused choice reached the vhost anyway:\n%s", vhost)
+	}
+	if !strings.Contains(vhost, "expires 7d;") {
+		t.Errorf("the refused save discarded the settings the site already had:\n%s", vhost)
+	}
+	saved, err := config.FindSiteByDomain("shop.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.CanonicalHost != "" {
+		t.Errorf("the registry kept the refused choice: %q", saved.CanonicalHost)
 	}
 }

@@ -210,9 +210,13 @@ func TestSSLVhostRendersFrameworkNginx(t *testing.T) {
 		FrameworkNginx: "    location /media/ {\n        try_files $uri /get.php;\n    }",
 	}
 	out := renderVhostForTest(t, "vhost-ssl.conf.tmpl", data)
-	iMedia := strings.Index(out, "location /media/ {")
-	iSlash := strings.Index(out, "location / {")
+	// Scoped to the TLS block. The plain block has a `location /` of its own
+	// now, the one that redirects to HTTPS, and it is not what this is about.
+	blocks := serverBlocks(t, out)
+	secure := blocks[len(blocks)-1]
+	iMedia := strings.Index(secure, "location /media/ {")
+	iSlash := strings.Index(secure, "location / {")
 	if iMedia < 0 || iMedia > iSlash {
-		t.Fatalf("media=%d slash=%d\n%s", iMedia, iSlash, out)
+		t.Fatalf("media=%d slash=%d\n%s", iMedia, iSlash, secure)
 	}
 }

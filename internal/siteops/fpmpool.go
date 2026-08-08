@@ -9,9 +9,11 @@ import (
 	"github.com/realrashid/servlo/internal/podman"
 )
 
-// reloadFPM is podman.ReloadFPMPools, indirected so the tests can watch what
-// gets signalled without a container to signal.
-var reloadFPM = podman.ReloadFPMPools
+// ReloadFPMPoolsFn is podman.ReloadFPMPools, indirected so a caller's tests can
+// watch what gets signalled without a container to signal. Exported for the
+// same reason NginxTestFn and NginxReloadFn are: the panel drives this path,
+// and its tests cannot start a container either.
+var ReloadFPMPoolsFn = podman.ReloadFPMPools
 
 // SyncFPMPool gives a site its own PHP-FPM pool, in the directory belonging to
 // the FPM container that serves it, and tells that container's master to
@@ -52,7 +54,7 @@ func SyncFPMPool(site config.Site) error {
 	if err := os.MkdirAll(config.FPMSocketDir(), 0o755); err != nil {
 		return err
 	}
-	return reloadFPM(container)
+	return ReloadFPMPoolsFn(container)
 }
 
 // RemoveFPMPool drops a site's pool from every FPM container's directory and
@@ -84,7 +86,7 @@ func RemoveFPMPool(name string) error {
 			errs = append(errs, err)
 			continue
 		}
-		if err := reloadFPM(e.Name()); err != nil {
+		if err := ReloadFPMPoolsFn(e.Name()); err != nil {
 			errs = append(errs, err)
 		}
 	}

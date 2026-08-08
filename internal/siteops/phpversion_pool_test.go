@@ -69,7 +69,7 @@ func TestSetSitePHPVersion_PointsTheRewrittenVhostAtTheMovedPool(t *testing.T) {
 // poolSignals keeps the pool sync from signalling a container.
 func poolSignals(t *testing.T) {
 	t.Helper()
-	prev := reloadFPM
-	reloadFPM = func(string) error { return nil }
-	t.Cleanup(func() { reloadFPM = prev })
+	prev := ReloadFPMPoolsFn
+	ReloadFPMPoolsFn = func(string) error { return nil }
+	t.Cleanup(func() { ReloadFPMPoolsFn = prev })
 }

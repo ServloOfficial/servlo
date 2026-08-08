@@ -31,6 +31,11 @@
   let editValue = $state('');
   let loading = $state(false);
   let error = $state('');
+  // A change that went through but left the certificate not covering a domain
+  // the site now answers to. It is not a failure, so it does not read as one,
+  // and it does not time out like the flash: it stays until the operator does
+  // something about it.
+  let warning = $state('');
   let flash = $state('');
   let flashTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -40,15 +45,20 @@
     flashTimer = setTimeout(() => (flash = ''), 3000);
   }
 
-  async function runAction(fn: () => Promise<{ ok: boolean; error?: string }>, successMsg: string) {
+  async function runAction(
+    fn: () => Promise<{ ok: boolean; error?: string; warning?: string }>,
+    successMsg: string
+  ) {
     loading = true;
     error = '';
+    warning = '';
     try {
       const r = await fn();
       if (!r.ok) {
         error = r.error || m.common_failed();
         return;
       }
+      warning = r.warning ?? '';
       await loadSites();
       showFlash(successMsg);
     } finally {
@@ -186,6 +196,11 @@
   {#if flash}
     <div class="px-5 py-2 border-t border-gray-100 dark:border-servlo-border">
       <p class="text-xs text-emerald-700 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-2 py-1.5 text-center">{flash}</p>
+    </div>
+  {/if}
+  {#if warning}
+    <div class="px-5 py-2 border-t border-gray-100 dark:border-servlo-border">
+      <p class="text-xs text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-2 py-1.5">{warning}</p>
     </div>
   {/if}
   {#if error}

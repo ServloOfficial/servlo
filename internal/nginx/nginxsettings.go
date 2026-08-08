@@ -77,3 +77,56 @@ func (d VhostData) hstsHeaderLine() string {
 	}
 	return ""
 }
+
+// CanonicalRedirect is the block that sends a site's non-canonical www form to
+// its canonical one, empty when the site serves both.
+//
+// An `if` at server level rather than a second server block. A dedicated block
+// would have to be excluded from this one's server_name, carry its own
+// certificate, and be duplicated across six templates; `if` with nothing but a
+// `return` in it is the one use nginx's own documentation calls safe.
+//
+// The condition tests the request path as well as the host, and that half is
+// load-bearing. A server-level `if` runs in the rewrite phase, before nginx
+// picks a location, so without it this would fire ahead of the ACME challenge
+// location and 301 a validation for the redirecting host somewhere the
+// authority was not asking about. That is exactly the mistake the HTTPS
+// redirect used to make.
+func (d VhostData) CanonicalRedirect() string {
+	// No separate check for the toggle being off: canonicalPair answers false
+	// for that as well as for a site the pair does not apply to, and two places
+	// deciding it is two places to keep in step.
+	from, to, ok := d.canonicalPair()
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf(`    if ($host = %q) {
+        set $canonical 1;
+    }
+    if ($request_uri !~ ^%s) {
+        set $canonical "${canonical}1";
+    }
+    if ($canonical = "11") {
+        return 301 $scheme://%s$request_uri;
+    }
+`, from, acmeChallengePrefix, to)
+}
+
+// canonicalPair resolves the two hosts from the domains the vhost was built
+// with, so the template data carries the choice and not the arithmetic.
+func (d VhostData) canonicalPair() (from, to string, ok bool) {
+	site := config.Site{Domains: d.domains(), CanonicalHost: d.CanonicalHost}
+	return site.CanonicalRedirect()
+}
+
+// domains recovers the site's domain list from the rendered server_name, which
+// is where the vhost data already carries it.
+func (d VhostData) domains() []string {
+	var out []string
+	for _, name := range strings.Fields(d.ServerNames) {
+		if !strings.HasPrefix(name, "*.") {
+			out = append(out, name)
+		}
+	}
+	return out
+}

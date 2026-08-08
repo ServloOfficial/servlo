@@ -57,7 +57,9 @@ Certificates are stored in `~/.local/share/servlo/certs/sites/`. Private keys ar
 
 ## The challenge path
 
-Every vhost Servlo writes, HTTP and HTTPS alike, answers `/.well-known/acme-challenge/`. The location uses nginx's `^~` prefix match so it wins over any regex location a framework declares, and on a secured site it sits ahead of the HTTPS redirect: a renewal request that got bounced to port 443 would be a renewal that quietly stops working the day the certificate needs it most.
+Every vhost Servlo writes, HTTP and HTTPS alike, answers `/.well-known/acme-challenge/`. The location uses nginx's `^~` prefix match so it wins over any regex location a framework declares.
+
+On a secured site, being written above the HTTPS redirect is not enough to make it win, and for a while it did not. nginx runs a server block's rewrite phase before it selects a location, so a bare `return 301` at server level fires for every request no matter what locations sit above it, and the challenge location was unreachable config. The redirect therefore lives in its own `location /`, where the `^~` challenge prefix beats it, and the challenge is answered on the secure side as well so a validation that follows a redirect from anywhere still lands on a token rather than on the site's 404 page. This is the failure mode worth being careful about: nothing is visibly wrong until the certificate comes up for renewal, sixty days after the site was set up and working.
 
 The tokens themselves live in `~/.local/share/servlo/acme-challenge/`, bind-mounted read-only into the nginx container. They are written just before validation and removed straight after, whether it succeeded or not.
 
