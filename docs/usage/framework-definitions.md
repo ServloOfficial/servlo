@@ -139,13 +139,14 @@ env:
   #   {{postgres_version}}  : running PostgreSQL server version
   #   {{redis_version}}     : running Redis server version
   #   {{meilisearch_version}} : running Meilisearch server version
+  #   {{password}}          : this install's generated service password
   services:
     mysql:
       detect:
         - key: DATABASE_URL
           value_prefix: "mysql://"
       vars:
-        - "DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/{{site}}"
+        - "DATABASE_URL=mysql://root:{{password}}@servlo-mysql:3306/{{site}}"
 
 # Scaffold command for "servlo new"
 create: composer create-project symfony/skeleton
@@ -258,6 +259,8 @@ The <code v-pre>{{site}}</code>, <code v-pre>{{site_testing}}</code>, <code v-pr
 This is what lets a framework whose bootstrap needs to know where the site lives declare that step as data. Magento 2.4 removed its web installer, so a fresh store is installed with `bin/magento setup:install --base-url=… --db-name=…`; the definition can now express exactly that. A step that creates schema should carry `default: false` so it is opt-in rather than running on every `servlo setup`.
 
 A placeholder whose value is empty, or one servlo does not recognise, is left in the command verbatim rather than being replaced with an empty string, so a half-resolved context can never quietly produce `--base-url=://`.
+
+<code v-pre>{{password}}</code> is different from the rest: it is this install's generated service password, it depends on nothing about the site, and it is substituted into the definition's bytes as the file is read rather than per site. Write it wherever a definition needs the credential the local databases and caches actually run with, in a var or inside a connection URL, and never write a literal password in its place.
 
 ## Custom commands
 

@@ -14,7 +14,6 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/origin"
 	"github.com/realrashid/servlo/stores"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -193,15 +192,18 @@ func (c *Client) FetchFramework(name, version string) (*config.Framework, error)
 		}
 	}
 
-	var fw config.Framework
-	if err := yaml.Unmarshal(data, &fw); err != nil {
+	// After the digest check, not before: the bytes that are verified have to be
+	// the bytes the store published, and the password is substituted into them
+	// on the way to a definition this install can use.
+	fw, err := config.ParseFramework(data)
+	if err != nil {
 		return nil, fmt.Errorf("parsing %s@%s: %w", name, version, err)
 	}
 	if fw.Name == "" {
 		return nil, fmt.Errorf("invalid framework definition for %s@%s: missing name", name, version)
 	}
 
-	return &fw, nil
+	return fw, nil
 }
 
 // Search filters the store index by a case-insensitive substring match on name or label.

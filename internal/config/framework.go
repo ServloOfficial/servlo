@@ -1116,6 +1116,27 @@ var (
 	frameworkFileCache   = map[string]frameworkCacheEntry{}
 )
 
+// ParseFramework turns framework YAML into a definition.
+//
+// The password substitution is the reason this is a function rather than a
+// yaml.Unmarshal at each call site. A framework wires a site's .env to the
+// services servlo runs, and those services have a generated password, so the
+// definition carries the same {{password}} placeholder a service preset does.
+// Presets have always had it substituted; frameworks were parsed straight from
+// their bytes, and every definition that used it wrote the placeholder itself
+// into DB_PASSWORD and left the site unable to reach its own database.
+//
+// On the bytes, before parsing, for the same reason presets do it there: the
+// password reaches a var added to a definition tomorrow without anybody
+// remembering to substitute that one too.
+func ParseFramework(data []byte) (*Framework, error) {
+	var fw Framework
+	if err := yaml.Unmarshal(substitutePassword(data), &fw); err != nil {
+		return nil, err
+	}
+	return &fw, nil
+}
+
 // loadFrameworkYAML reads and parses a single framework YAML file.
 func loadFrameworkYAML(path string) *Framework {
 	info, statErr := os.Stat(path)
@@ -1134,9 +1155,8 @@ func loadFrameworkYAML(path string) *Framework {
 	var parsed *Framework
 	if statErr == nil {
 		if data, err := os.ReadFile(path); err == nil {
-			var fw Framework
-			if yaml.Unmarshal(data, &fw) == nil && fw.Name != "" {
-				parsed = &fw
+			if fw, err := ParseFramework(data); err == nil && fw.Name != "" {
+				parsed = fw
 			}
 		}
 	}
