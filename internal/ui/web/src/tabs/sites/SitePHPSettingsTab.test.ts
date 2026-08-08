@@ -21,7 +21,10 @@ const nginxSettings = {
   canonical_host: '',
   canonical_available: true,
   apex_host: 'shop.example',
-  www_host: 'www.shop.example'
+  www_host: 'www.shop.example',
+  redirect_to: '',
+  redirect_permanent: false,
+  redirects: []
 };
 const loadSiteNginxSettings = vi.fn(async () => nginxSettings);
 const saveSiteNginxSettings = vi.fn(async () => ({ ok: true }));
@@ -123,7 +126,10 @@ describe('the nginx card underneath', () => {
       expect(saveSiteNginxSettings).toHaveBeenCalledWith('shop.example', {
         static_cache_days: 0,
         response_headers: [{ name: 'X-Frame-Options', value: 'DENY' }],
-        canonical_host: ''
+        canonical_host: '',
+        redirect_to: '',
+        redirect_permanent: false,
+        redirects: []
       });
     });
   });
@@ -156,7 +162,10 @@ describe('the canonical domain toggle', () => {
       expect(saveSiteNginxSettings).toHaveBeenCalledWith('shop.example', {
         static_cache_days: 0,
         response_headers: [],
-        canonical_host: 'apex'
+        canonical_host: 'apex',
+        redirect_to: '',
+        redirect_permanent: false,
+        redirects: []
       });
     });
   });
@@ -172,5 +181,80 @@ describe('the canonical domain toggle', () => {
 
     expect(await findByText(m.sites_nginxSettings_canonicalUnavailable())).toBeTruthy();
     expect(queryByLabelText(m.sites_nginxSettings_canonical())).toBeNull();
+  });
+});
+
+describe('the redirects card', () => {
+  it('sends a whole-domain redirect and its permanence', async () => {
+    const { findByLabelText, getByRole, getByLabelText } = render(SitePHPSettingsTab, { props });
+
+    const whole = (await findByLabelText(m.sites_redirects_whole())) as HTMLInputElement;
+    await fireEvent.input(whole, { target: { value: ' https://newshop.example ' } });
+    await fireEvent.click(getByLabelText(m.sites_redirects_permanent()));
+    await fireEvent.click(getByRole('button', { name: m.sites_redirects_save() }));
+
+    await waitFor(() => {
+      expect(saveSiteNginxSettings).toHaveBeenCalledWith(
+        'shop.example',
+        expect.objectContaining({
+          // Trimmed: a pasted URL with a stray space is not a different URL,
+          // and the server would refuse it as one.
+          redirect_to: 'https://newshop.example',
+          redirect_permanent: true
+        })
+      );
+    });
+  });
+
+  it('sends only the rules that were filled in', async () => {
+    const { findByRole, getByRole, getByLabelText } = render(SitePHPSettingsTab, { props });
+
+    const add = await findByRole('button', { name: m.sites_redirects_add() });
+    await fireEvent.click(add);
+    await fireEvent.click(add);
+
+    await fireEvent.input(getByLabelText(`${m.sites_redirects_from()} 1`), {
+      target: { value: '/old' }
+    });
+    await fireEvent.input(getByLabelText(`${m.sites_redirects_to()} 1`), {
+      target: { value: '/new' }
+    });
+    await fireEvent.click(getByRole('button', { name: m.sites_redirects_save() }));
+
+    await waitFor(() => {
+      expect(saveSiteNginxSettings).toHaveBeenCalledWith(
+        'shop.example',
+        expect.objectContaining({
+          redirects: [{ from: '/old', to: '/new', permanent: false }]
+        })
+      );
+    });
+  });
+
+  it('reports a refused redirect rather than showing it as saved', async () => {
+    saveSiteNginxSettings.mockResolvedValueOnce({
+      ok: false,
+      error: 'this site answers for shop.example, so redirecting the whole domain there is a loop'
+    } as never);
+    const { findByRole, findByText } = render(SitePHPSettingsTab, { props });
+
+    await fireEvent.click(await findByRole('button', { name: m.sites_redirects_save() }));
+
+    expect(
+      await findByText(
+        'this site answers for shop.example, so redirecting the whole domain there is a loop'
+      )
+    ).toBeTruthy();
+  });
+
+// The two cards send one request, so a failure has two places it could appear
+// and appearing in both reads as two separate problems.
+  it('shows a save failure once, beside the button that was pressed', async () => {
+  saveSiteNginxSettings.mockResolvedValueOnce({ ok: false, error: 'nginx said no' } as never);
+  const { findByRole, findAllByText } = render(SitePHPSettingsTab, { props });
+
+  await fireEvent.click(await findByRole('button', { name: m.sites_redirects_save() }));
+
+  expect(await findAllByText('nginx said no')).toHaveLength(1);
   });
 });

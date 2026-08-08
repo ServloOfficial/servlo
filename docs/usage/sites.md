@@ -221,6 +221,20 @@ The choice is only offered when the site serves a domain and its own www form, b
 
 The redirect deliberately does not apply to `/.well-known/acme-challenge/`. A validation for the redirecting host has to be answerable at that host.
 
+### Redirects
+
+Under **Settings** the site can send visitors somewhere else, at two scales.
+
+**The whole domain.** Give a target and everything on the site goes there, keeping the path and query, so every deep link anybody ever shared still lands somewhere useful. Use it for a domain that has moved. It applies before anything the site or its framework would otherwise serve, and on a secured site it applies from the plain-HTTP block too: the target is an absolute URL, so sending the visitor straight there beats bouncing them through the HTTPS version of a domain that has moved.
+
+**A single address.** Give a path and where it now lives, a path on this site or an absolute URL. Matched exactly, so `/old` does not also capture `/older` or anything under it. On a secured site these live on the HTTPS block only, because a relative redirect issued from port 80 resolves against `http://` and would send the visitor to the new path over plain HTTP before redirecting again.
+
+Both default to a temporary 302. Tick **Permanent** for a 301 when the move is final: browsers cache a 301 and will not ask again, which is the point of it and also why it is not the default.
+
+Two things are refused rather than saved, because a permanent redirect is not something an operator can take back once visitors have it cached: a whole-domain target this site already answers for, and a rule pointing at its own path. Both are loops the browser gives up on, and in the first case the site being looped is the one you would need to reach to undo it.
+
+Whole-domain redirects deliberately do not apply to `/.well-known/acme-challenge/`. A moved domain still has to prove itself to the certificate authority, or it can never renew the certificate it is serving the redirect over.
+
 Domains are stored whole in `.servlo.yaml`:
 
 ```yaml

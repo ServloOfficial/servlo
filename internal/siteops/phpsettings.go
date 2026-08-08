@@ -24,6 +24,10 @@ type NginxSettings struct {
 	ResponseHeaders []config.ResponseHeader
 	// CanonicalHost is "www", "apex", or empty to serve both.
 	CanonicalHost string
+	// RedirectTo, RedirectPermanent and Redirects are the site's redirects.
+	RedirectTo        string
+	RedirectPermanent bool
+	Redirects         []config.Redirect
 }
 
 // SetSiteNginxSettings saves a site's response headers and static-asset cache
@@ -37,6 +41,9 @@ func SetSiteNginxSettings(site *config.Site, s NginxSettings) error {
 	updated.StaticCacheDays = s.StaticCacheDays
 	updated.ResponseHeaders = s.ResponseHeaders
 	updated.CanonicalHost = s.CanonicalHost
+	updated.RedirectTo = s.RedirectTo
+	updated.RedirectPermanent = s.RedirectPermanent
+	updated.Redirects = s.Redirects
 	if err := updated.ValidateNginxSettings(); err != nil {
 		return err
 	}
@@ -44,6 +51,11 @@ func SetSiteNginxSettings(site *config.Site, s NginxSettings) error {
 	// site could not honour is refused before it is written rather than after
 	// visitors have it stored.
 	if err := updated.ValidateCanonicalHost(); err != nil {
+		return err
+	}
+	// A redirect that loops or points nowhere is the same shape of problem: the
+	// permanent kind is cached, so it is refused before it is written.
+	if err := updated.ValidateRedirects(); err != nil {
 		return err
 	}
 

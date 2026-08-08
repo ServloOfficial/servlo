@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -120,6 +121,26 @@ type Site struct {
 	// both serving, which is the default and what a site that never asked for
 	// one keeps.
 	CanonicalHost string `yaml:"canonical_host,omitempty"`
+
+	// RedirectTo is where this whole domain has moved. Everything on the site
+	// goes there, path and query kept. Empty means the site serves itself.
+	RedirectTo string `yaml:"redirect_to,omitempty"`
+	// RedirectPermanent makes the whole-domain redirect a 301 rather than a
+	// 302. Off by default, because a 301 is cached by browsers and is not
+	// something an operator can take back.
+	RedirectPermanent bool `yaml:"redirect_permanent,omitempty"`
+	// Redirects are single addresses that have moved, matched exactly.
+	Redirects []Redirect `yaml:"redirects,omitempty"`
+}
+
+// Redirect is one address that has moved.
+type Redirect struct {
+	// From is a path on this site, matched exactly.
+	From string `yaml:"from"`
+	// To is a path on this site or an absolute http(s) URL.
+	To string `yaml:"to"`
+	// Permanent makes it a 301 rather than a 302.
+	Permanent bool `yaml:"permanent,omitempty"`
 }
 
 // ResponseHeader is one header a site adds to its responses.
@@ -322,6 +343,9 @@ type siteYAML struct {
 	StaticCacheDays     int              `yaml:"static_cache_days,omitempty"`
 	ResponseHeaders     []ResponseHeader `yaml:"response_headers,omitempty"`
 	CanonicalHost       string           `yaml:"canonical_host,omitempty"`
+	RedirectTo          string           `yaml:"redirect_to,omitempty"`
+	RedirectPermanent   bool             `yaml:"redirect_permanent,omitempty"`
+	Redirects           []Redirect       `yaml:"redirects,omitempty"`
 }
 
 func (s Site) toYAML() siteYAML {
@@ -360,6 +384,9 @@ func (s Site) toYAML() siteYAML {
 		StaticCacheDays:     s.StaticCacheDays,
 		ResponseHeaders:     s.ResponseHeaders,
 		CanonicalHost:       s.CanonicalHost,
+		RedirectTo:          s.RedirectTo,
+		RedirectPermanent:   s.RedirectPermanent,
+		Redirects:           s.Redirects,
 	}
 }
 
@@ -403,6 +430,9 @@ func (sy siteYAML) toSite() Site {
 		StaticCacheDays:     sy.StaticCacheDays,
 		ResponseHeaders:     sy.ResponseHeaders,
 		CanonicalHost:       sy.CanonicalHost,
+		RedirectTo:          sy.RedirectTo,
+		RedirectPermanent:   sy.RedirectPermanent,
+		Redirects:           sy.Redirects,
 	}
 }
 
@@ -921,4 +951,85 @@ func (s *Site) CanonicalRedirect() (from, to string, ok bool) {
 		return apex, www, true
 	}
 	return www, apex, true
+}
+
+// redirectPath is a path as a redirect rule may name one: absolute, and
+// carrying nothing that would end the directive it lands in.
+var redirectPath = regexp.MustCompile(`^/[^\s"'{};#\\]*$`)
+
+// ValidateRedirects refuses a redirect the site could not serve or a browser
+// could not escape.
+//
+// Both kinds land in an nginx directive and are followed by a browser, and a
+// permanent one is cached, so a rule that loops or points somewhere useless is
+// not a mistake the operator can simply undo: every visitor who saw it keeps
+// following it until their cache expires.
+func (s *Site) ValidateRedirects() error {
+	if s.RedirectTo != "" {
+		if err := s.validateWholeDomainTarget(); err != nil {
+			return err
+		}
+	}
+	seen := map[string]bool{}
+	for _, r := range s.Redirects {
+		if !redirectPath.MatchString(r.From) {
+			return fmt.Errorf("%q is not a path this site can redirect: use an absolute path like /old-page", r.From)
+		}
+		if seen[r.From] {
+			return fmt.Errorf("%s is redirected twice, which is a duplicate location nginx will not load", r.From)
+		}
+		seen[r.From] = true
+		if err := validateRedirectTarget(r.To); err != nil {
+			return fmt.Errorf("the redirect for %s: %w", r.From, err)
+		}
+		if r.To == r.From {
+			return fmt.Errorf("%s redirects to itself, which never arrives anywhere", r.From)
+		}
+	}
+	return nil
+}
+
+// validateWholeDomainTarget refuses a destination that is not somewhere else.
+func (s *Site) validateWholeDomainTarget() error {
+	u, err := parseRedirectURL(s.RedirectTo)
+	if err != nil {
+		return fmt.Errorf("the whole-domain redirect target: %w", err)
+	}
+	host := strings.ToLower(u.Hostname())
+	for _, d := range s.Domains {
+		if strings.EqualFold(d, host) {
+			return fmt.Errorf("this site answers for %s, so redirecting the whole domain there is a loop the browser gives up on", host)
+		}
+	}
+	return nil
+}
+
+// validateRedirectTarget accepts a path on this site or an absolute http(s)
+// URL, and nothing else. A scheme a browser will execute rather than fetch has
+// no business in a server-issued Location header.
+func validateRedirectTarget(to string) error {
+	if strings.HasPrefix(to, "/") {
+		if !redirectPath.MatchString(to) {
+			return fmt.Errorf("%q is not a usable path", to)
+		}
+		return nil
+	}
+	if _, err := parseRedirectURL(to); err != nil {
+		return err
+	}
+	return nil
+}
+
+func parseRedirectURL(raw string) (*url.URL, error) {
+	if strings.ContainsAny(raw, " \t\"'{};#\\\n\r\x00") {
+		return nil, fmt.Errorf("%q contains a character that would end the directive it is written into", raw)
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%q is not a usable URL", raw)
+	}
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return nil, fmt.Errorf("%q is not an absolute http or https URL", raw)
+	}
+	return u, nil
 }

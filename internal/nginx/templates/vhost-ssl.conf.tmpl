@@ -2,8 +2,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name {{.ServerNames}};
-{{.ACMEChallenge}}
-    # In a location, not at server level. nginx runs the server rewrite phase
+{{.ACMEChallenge}}{{.WholeDomainRedirect}}    # In a location, not at server level. nginx runs the server rewrite phase
     # before it picks a location, so a bare `return` here would fire first and
     # the challenge location above would be dead config: renewal 301'd to a
     # secure side that would then have to answer for it.
@@ -19,7 +18,7 @@ server {
 {{.HSTS}}
     root {{.Root}};
     index index.php index.html;
-{{.CanonicalRedirect}}{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}    ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
+{{.WholeDomainRedirect}}{{.CanonicalRedirect}}{{.URLRedirects}}{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}    ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
     ssl_certificate_key /etc/nginx/certs/{{.CertDomain}}.key;
 {{.ACMEChallenge}}{{if .FrameworkNginx}}
 {{.FrameworkNginx}}

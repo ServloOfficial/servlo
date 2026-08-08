@@ -1,11 +1,13 @@
 <script lang="ts">
   import SettingsCard from '$components/SettingsCard.svelte';
   import SettingsNumberField from './SettingsNumberField.svelte';
+  import SiteRedirectsCard from './SiteRedirectsCard.svelte';
   import {
     loadSiteNginxSettings,
     saveSiteNginxSettings,
     type Site,
     type ResponseHeader,
+    type Redirect,
     type SiteNginxSettings
   } from '$stores/sites';
   import { m } from '../../paraglide/messages.js';
@@ -19,11 +21,18 @@
   let cacheDays = $state<number | null>(null);
   let canonical = $state('');
   let headers = $state<ResponseHeader[]>([]);
+  let redirectTo = $state('');
+  let redirectPermanent = $state(false);
+  let redirects = $state<Redirect[]>([]);
   let ceilings = $state<SiteNginxSettings | null>(null);
   let loading = $state(true);
   let saving = $state(false);
   let saved = $state(false);
   let error = $state('');
+  // Both cards send one request, so one failure has two places it could be
+  // shown and showing it in both reads as two problems. It goes next to the
+  // button that was pressed.
+  let source = $state<'settings' | 'redirects'>('settings');
 
   $effect(() => {
     const domain = site.domain;
@@ -35,12 +44,16 @@
         cacheDays = s.static_cache_days || null;
         canonical = s.canonical_host ?? '';
         headers = s.response_headers ?? [];
+        redirectTo = s.redirect_to ?? '';
+        redirectPermanent = Boolean(s.redirect_permanent);
+        redirects = s.redirects ?? [];
       })
       .catch(() => (error = m.sites_phpSettings_loadFailed()))
       .finally(() => (loading = false));
   });
 
-  async function save() {
+  async function save(from: 'settings' | 'redirects' = 'settings') {
+    source = from;
     saving = true;
     saved = false;
     error = '';
@@ -49,7 +62,12 @@
       // A row the operator started and left blank is not a header; sending it
       // would fail validation on a name they never meant to add.
       response_headers: headers.filter((h) => h.name.trim() !== ''),
-      canonical_host: canonical
+      canonical_host: canonical,
+      redirect_to: redirectTo.trim(),
+      redirect_permanent: redirectPermanent,
+      // A row the operator started and abandoned is not a rule; sending it
+      // would fail validation on a path they never meant to add.
+      redirects: redirects.filter((r) => r.from.trim() !== '' || r.to.trim() !== '')
     });
     saving = false;
     if (res.ok) {
@@ -153,19 +171,19 @@
     <div class="mt-4 flex items-center gap-3">
       <button
         type="button"
-        onclick={save}
+        onclick={() => save('settings')}
         disabled={saving}
         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-servlo-red hover:bg-servlo-redhov text-white disabled:opacity-50 transition-colors"
       >
         {saving ? m.sites_phpSettings_saving() : m.sites_nginxSettings_saveNginx()}
       </button>
-      {#if saved}
+      {#if saved && source === 'settings'}
         <span class="text-xs text-green-600 dark:text-green-400">{m.sites_phpSettings_saved()}</span>
       {/if}
     </div>
   {/if}
 
-  {#if error}
+  {#if error && source === 'settings'}
     <p class="mt-3 text-xs text-servlo-red whitespace-pre-wrap">{error}</p>
   {/if}
 
@@ -185,3 +203,15 @@
     </button>
   </div>
 </SettingsCard>
+
+<div class="mt-4">
+  <SiteRedirectsCard
+    bind:redirectTo
+    bind:redirectPermanent
+    bind:redirects
+    saving={saving && source === 'redirects'}
+    saved={saved && source === 'redirects'}
+    error={source === 'redirects' ? error : ''}
+    onSave={() => save('redirects')}
+  />
+</div>

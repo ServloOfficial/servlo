@@ -1138,5 +1138,18 @@
   "sites_nginxSettings_canonical": "Canonical domain",
   "sites_nginxSettings_canonicalHint": "One address for the site. The other is permanently redirected to it, so visitors and search engines see a single name.",
   "sites_nginxSettings_canonicalBoth": "Serve both",
-  "sites_nginxSettings_canonicalUnavailable": "Available once the site serves a domain and its own www form. Add the other one under Domains."
+  "sites_nginxSettings_canonicalUnavailable": "Available once the site serves a domain and its own www form. Add the other one under Domains.",
+  "sites_redirects_title": "Redirects",
+  "sites_redirects_desc": "Send visitors somewhere else. A permanent redirect is cached by browsers, so leave it temporary unless the move is final.",
+  "sites_redirects_whole": "Redirect the whole domain to",
+  "sites_redirects_wholeHint": "Everything on this site goes there, keeping the path and query. Leave empty to serve the site normally.",
+  "sites_redirects_wholePlaceholder": "https://example.com",
+  "sites_redirects_permanent": "Permanent (301)",
+  "sites_redirects_rules": "Single addresses",
+  "sites_redirects_rulesHint": "Matched exactly, so /old does not also capture /older or anything under it.",
+  "sites_redirects_from": "From path",
+  "sites_redirects_to": "To path or URL",
+  "sites_redirects_add": "Add redirect",
+  "sites_redirects_remove": "Remove redirect",
+  "sites_redirects_save": "Save redirects"
 }

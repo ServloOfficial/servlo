@@ -5,7 +5,7 @@ server {
 {{.ACMEChallenge}}
     root {{.Root}};
     index index.php index.html;
-{{.CanonicalRedirect}}{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}{{if .FrameworkNginx}}
+{{.WholeDomainRedirect}}{{.CanonicalRedirect}}{{.URLRedirects}}{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}{{if .FrameworkNginx}}
 {{.FrameworkNginx}}
 {{end}}{{if .Proxy}}
     location ~ ^{{.ProxyPath}}(/|$) {

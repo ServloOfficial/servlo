@@ -138,6 +138,11 @@ type VhostData struct {
 	// CanonicalHost is which of the site's two www forms is the real one, and
 	// the other is permanently redirected to it. Empty leaves both serving.
 	CanonicalHost string
+	// RedirectTo, RedirectPermanent and Redirects are the site's redirects,
+	// rendered by WholeDomainRedirect and URLRedirects.
+	RedirectTo        string
+	RedirectPermanent bool
+	Redirects         []config.Redirect
 	// FrameworkNginx is the framework definition's nginx block, already
 	// placeholder-expanded and indented. Rendered ahead of the generic
 	// locations so a framework can claim paths they would otherwise swallow.
@@ -449,27 +454,30 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 	fpmContainer := podman.FPMContainerName(site, phpVersion)
 	upstream := FPMUpstream(config.FPMPoolDir(fpmContainer), config.FPMSocketDir(), site.Name, fpmContainer)
 	data := VhostData{
-		Domain:          site.PrimaryDomain(),
-		ServerNames:     serverNames,
-		Path:            site.Path,
-		PHPVersion:      phpVersion,
-		PHPVersionShort: phpShort(phpVersion),
-		FPMContainer:    fpmContainer,
-		FPMSocket:       upstream.Socket,
-		PublicDir:       publicDir,
-		Proxy:           hasProxy,
-		ProxyPath:       proxyPath,
-		ProxyPort:       proxyPort,
-		UpstreamHost:    hostProxyUpstream(),
-		DevServerBase:   devBase,
-		DevServerPort:   devPort,
-		ServloSite:      site.Name,
-		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
-		MaxUploadMB:     site.MaxUploadMB,
-		StaticCacheDays: site.StaticCacheDays,
-		ResponseHeaders: site.ResponseHeaders,
-		CanonicalHost:   site.CanonicalHost,
-		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, upstream),
+		Domain:            site.PrimaryDomain(),
+		ServerNames:       serverNames,
+		Path:              site.Path,
+		PHPVersion:        phpVersion,
+		PHPVersionShort:   phpShort(phpVersion),
+		FPMContainer:      fpmContainer,
+		FPMSocket:         upstream.Socket,
+		PublicDir:         publicDir,
+		Proxy:             hasProxy,
+		ProxyPath:         proxyPath,
+		ProxyPort:         proxyPort,
+		UpstreamHost:      hostProxyUpstream(),
+		DevServerBase:     devBase,
+		DevServerPort:     devPort,
+		ServloSite:        site.Name,
+		RequestTimeout:    siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:       site.MaxUploadMB,
+		StaticCacheDays:   site.StaticCacheDays,
+		ResponseHeaders:   site.ResponseHeaders,
+		CanonicalHost:     site.CanonicalHost,
+		RedirectTo:        site.RedirectTo,
+		RedirectPermanent: site.RedirectPermanent,
+		Redirects:         site.Redirects,
+		FrameworkNginx:    resolveFrameworkNginx(site, publicDir, upstream),
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -505,28 +513,31 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 	fpmContainer := podman.FPMContainerName(site, phpVersion)
 	upstream := FPMUpstream(config.FPMPoolDir(fpmContainer), config.FPMSocketDir(), site.Name, fpmContainer)
 	data := VhostData{
-		Domain:          site.PrimaryDomain(),
-		ServerNames:     serverNames,
-		Path:            site.Path,
-		PHPVersion:      phpVersion,
-		PHPVersionShort: phpShort(phpVersion),
-		FPMContainer:    fpmContainer,
-		FPMSocket:       upstream.Socket,
-		CertDomain:      site.PrimaryDomain(),
-		PublicDir:       publicDir,
-		Proxy:           hasProxy,
-		ProxyPath:       proxyPath,
-		ProxyPort:       proxyPort,
-		UpstreamHost:    hostProxyUpstream(),
-		DevServerBase:   devBase,
-		DevServerPort:   devPort,
-		ServloSite:      site.Name,
-		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
-		MaxUploadMB:     site.MaxUploadMB,
-		StaticCacheDays: site.StaticCacheDays,
-		ResponseHeaders: site.ResponseHeaders,
-		CanonicalHost:   site.CanonicalHost,
-		FrameworkNginx:  resolveFrameworkNginx(site, publicDir, upstream),
+		Domain:            site.PrimaryDomain(),
+		ServerNames:       serverNames,
+		Path:              site.Path,
+		PHPVersion:        phpVersion,
+		PHPVersionShort:   phpShort(phpVersion),
+		FPMContainer:      fpmContainer,
+		FPMSocket:         upstream.Socket,
+		CertDomain:        site.PrimaryDomain(),
+		PublicDir:         publicDir,
+		Proxy:             hasProxy,
+		ProxyPath:         proxyPath,
+		ProxyPort:         proxyPort,
+		UpstreamHost:      hostProxyUpstream(),
+		DevServerBase:     devBase,
+		DevServerPort:     devPort,
+		ServloSite:        site.Name,
+		RequestTimeout:    siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:       site.MaxUploadMB,
+		StaticCacheDays:   site.StaticCacheDays,
+		ResponseHeaders:   site.ResponseHeaders,
+		CanonicalHost:     site.CanonicalHost,
+		RedirectTo:        site.RedirectTo,
+		RedirectPermanent: site.RedirectPermanent,
+		Redirects:         site.Redirects,
+		FrameworkNginx:    resolveFrameworkNginx(site, publicDir, upstream),
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -556,15 +567,18 @@ func GenerateFrankenPHPVhost(site config.Site) error {
 	}
 
 	data := VhostData{
-		Domain:          site.PrimaryDomain(),
-		ServerNames:     serverNamesWithWildcards(site.Domains),
-		CustomContainer: podman.FrankenPHPContainerName(site.Name),
-		CustomPort:      podman.FrankenPHPPort,
-		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
-		MaxUploadMB:     site.MaxUploadMB,
-		StaticCacheDays: site.StaticCacheDays,
-		ResponseHeaders: site.ResponseHeaders,
-		CanonicalHost:   site.CanonicalHost,
+		Domain:            site.PrimaryDomain(),
+		ServerNames:       serverNamesWithWildcards(site.Domains),
+		CustomContainer:   podman.FrankenPHPContainerName(site.Name),
+		CustomPort:        podman.FrankenPHPPort,
+		RequestTimeout:    siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:       site.MaxUploadMB,
+		StaticCacheDays:   site.StaticCacheDays,
+		ResponseHeaders:   site.ResponseHeaders,
+		CanonicalHost:     site.CanonicalHost,
+		RedirectTo:        site.RedirectTo,
+		RedirectPermanent: site.RedirectPermanent,
+		Redirects:         site.Redirects,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -591,16 +605,19 @@ func GenerateFrankenPHPSSLVhost(site config.Site) error {
 	}
 
 	data := VhostData{
-		Domain:          site.PrimaryDomain(),
-		ServerNames:     serverNamesWithWildcards(site.Domains),
-		CertDomain:      site.PrimaryDomain(),
-		CustomContainer: podman.FrankenPHPContainerName(site.Name),
-		CustomPort:      podman.FrankenPHPPort,
-		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
-		MaxUploadMB:     site.MaxUploadMB,
-		StaticCacheDays: site.StaticCacheDays,
-		ResponseHeaders: site.ResponseHeaders,
-		CanonicalHost:   site.CanonicalHost,
+		Domain:            site.PrimaryDomain(),
+		ServerNames:       serverNamesWithWildcards(site.Domains),
+		CertDomain:        site.PrimaryDomain(),
+		CustomContainer:   podman.FrankenPHPContainerName(site.Name),
+		CustomPort:        podman.FrankenPHPPort,
+		RequestTimeout:    siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:       site.MaxUploadMB,
+		StaticCacheDays:   site.StaticCacheDays,
+		ResponseHeaders:   site.ResponseHeaders,
+		CanonicalHost:     site.CanonicalHost,
+		RedirectTo:        site.RedirectTo,
+		RedirectPermanent: site.RedirectPermanent,
+		Redirects:         site.Redirects,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -630,16 +647,19 @@ func GenerateCustomVhost(site config.Site) error {
 	}
 
 	data := VhostData{
-		Domain:          site.PrimaryDomain(),
-		ServerNames:     serverNamesWithWildcards(site.Domains),
-		CustomContainer: podman.CustomContainerName(site.Name),
-		CustomPort:      site.ContainerPort,
-		BackendSSL:      site.ContainerSSL,
-		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
-		MaxUploadMB:     site.MaxUploadMB,
-		StaticCacheDays: site.StaticCacheDays,
-		ResponseHeaders: site.ResponseHeaders,
-		CanonicalHost:   site.CanonicalHost,
+		Domain:            site.PrimaryDomain(),
+		ServerNames:       serverNamesWithWildcards(site.Domains),
+		CustomContainer:   podman.CustomContainerName(site.Name),
+		CustomPort:        site.ContainerPort,
+		BackendSSL:        site.ContainerSSL,
+		RequestTimeout:    siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:       site.MaxUploadMB,
+		StaticCacheDays:   site.StaticCacheDays,
+		ResponseHeaders:   site.ResponseHeaders,
+		CanonicalHost:     site.CanonicalHost,
+		RedirectTo:        site.RedirectTo,
+		RedirectPermanent: site.RedirectPermanent,
+		Redirects:         site.Redirects,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -669,17 +689,20 @@ func GenerateCustomSSLVhost(site config.Site) error {
 	}
 
 	data := VhostData{
-		Domain:          site.PrimaryDomain(),
-		ServerNames:     serverNamesWithWildcards(site.Domains),
-		CertDomain:      site.PrimaryDomain(),
-		CustomContainer: podman.CustomContainerName(site.Name),
-		CustomPort:      site.ContainerPort,
-		BackendSSL:      site.ContainerSSL,
-		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
-		MaxUploadMB:     site.MaxUploadMB,
-		StaticCacheDays: site.StaticCacheDays,
-		ResponseHeaders: site.ResponseHeaders,
-		CanonicalHost:   site.CanonicalHost,
+		Domain:            site.PrimaryDomain(),
+		ServerNames:       serverNamesWithWildcards(site.Domains),
+		CertDomain:        site.PrimaryDomain(),
+		CustomContainer:   podman.CustomContainerName(site.Name),
+		CustomPort:        site.ContainerPort,
+		BackendSSL:        site.ContainerSSL,
+		RequestTimeout:    siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:       site.MaxUploadMB,
+		StaticCacheDays:   site.StaticCacheDays,
+		ResponseHeaders:   site.ResponseHeaders,
+		CanonicalHost:     site.CanonicalHost,
+		RedirectTo:        site.RedirectTo,
+		RedirectPermanent: site.RedirectPermanent,
+		Redirects:         site.Redirects,
 	}
 
 	rendered, err := renderVhost(tmpl, data)
@@ -729,16 +752,19 @@ func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl boo
 	}
 
 	data := VhostData{
-		Domain:          site.PrimaryDomain(),
-		ServerNames:     serverNamesWithWildcards(site.Domains),
-		UpstreamHost:    hostProxyUpstream(),
-		UpstreamPort:    site.HostPort,
-		BackendSSL:      site.HostSSL,
-		RequestTimeout:  siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
-		MaxUploadMB:     site.MaxUploadMB,
-		StaticCacheDays: site.StaticCacheDays,
-		ResponseHeaders: site.ResponseHeaders,
-		CanonicalHost:   site.CanonicalHost,
+		Domain:            site.PrimaryDomain(),
+		ServerNames:       serverNamesWithWildcards(site.Domains),
+		UpstreamHost:      hostProxyUpstream(),
+		UpstreamPort:      site.HostPort,
+		BackendSSL:        site.HostSSL,
+		RequestTimeout:    siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
+		MaxUploadMB:       site.MaxUploadMB,
+		StaticCacheDays:   site.StaticCacheDays,
+		ResponseHeaders:   site.ResponseHeaders,
+		CanonicalHost:     site.CanonicalHost,
+		RedirectTo:        site.RedirectTo,
+		RedirectPermanent: site.RedirectPermanent,
+		Redirects:         site.Redirects,
 	}
 	if ssl {
 		data.CertDomain = site.PrimaryDomain()

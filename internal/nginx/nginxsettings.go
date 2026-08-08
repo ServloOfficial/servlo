@@ -130,3 +130,46 @@ func (d VhostData) domains() []string {
 	}
 	return out
 }
+
+// WholeDomainRedirect is the block for a domain that has moved: everything on
+// it goes to the new home, path and query kept.
+//
+// Server level, so it applies before any location the site or its framework
+// declares. That is the point of a moved domain, and it is also why the
+// condition exempts the challenge path: the domain still has to be able to
+// prove itself to the authority, or it can never renew the certificate it is
+// serving the redirect over.
+func (d VhostData) WholeDomainRedirect() string {
+	if d.RedirectTo == "" {
+		return ""
+	}
+	return fmt.Sprintf(`    if ($request_uri !~ ^%s) {
+        return %d %s$request_uri;
+    }
+`, acmeChallengePrefix, redirectStatus(d.RedirectPermanent), d.RedirectTo)
+}
+
+// URLRedirects are the single addresses that have moved.
+//
+// An exact-match location each, so /old does not also capture /older or
+// anything under /old, and so nginx resolves them ahead of the site's own
+// locations without depending on where in the file they sit.
+func (d VhostData) URLRedirects() string {
+	var b strings.Builder
+	for _, r := range d.Redirects {
+		fmt.Fprintf(&b, "    location = %s {\n", r.From)
+		fmt.Fprintf(&b, "        return %d %s;\n", redirectStatus(r.Permanent), r.To)
+		fmt.Fprintf(&b, "    }\n")
+	}
+	return b.String()
+}
+
+// redirectStatus is 301 only when the operator said so. A 301 is cached by
+// browsers and is not something they can take back, so the default is the one
+// that can be changed later.
+func redirectStatus(permanent bool) int {
+	if permanent {
+		return 301
+	}
+	return 302
+}

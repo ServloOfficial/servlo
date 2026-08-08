@@ -653,6 +653,12 @@ export interface ResponseHeader {
   value: string;
 }
 
+export interface Redirect {
+  from: string;
+  to: string;
+  permanent?: boolean;
+}
+
 export interface SiteNginxSettings {
   static_cache_days: number;
   response_headers: ResponseHeader[];
@@ -664,6 +670,9 @@ export interface SiteNginxSettings {
   canonical_available: boolean;
   apex_host: string;
   www_host: string;
+  redirect_to: string;
+  redirect_permanent: boolean;
+  redirects: Redirect[];
 }
 
 export async function loadSiteNginxSettings(domain: string): Promise<SiteNginxSettings> {
@@ -674,7 +683,14 @@ export async function loadSiteNginxSettings(domain: string): Promise<SiteNginxSe
 
 export async function saveSiteNginxSettings(
   domain: string,
-  values: { static_cache_days: number; response_headers: ResponseHeader[]; canonical_host: string }
+  values: {
+    static_cache_days: number;
+    response_headers: ResponseHeader[];
+    canonical_host: string;
+    redirect_to: string;
+    redirect_permanent: boolean;
+    redirects: Redirect[];
+  }
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await apiFetch(site(domain, 'nginx-settings'), {

@@ -35,9 +35,12 @@ type SitePHPSettingsResponse struct {
 
 // SiteNginxSettingsRequest is the panel's nginx settings form.
 type SiteNginxSettingsRequest struct {
-	StaticCacheDays int                     `json:"static_cache_days"`
-	ResponseHeaders []config.ResponseHeader `json:"response_headers"`
-	CanonicalHost   string                  `json:"canonical_host"`
+	StaticCacheDays   int                     `json:"static_cache_days"`
+	ResponseHeaders   []config.ResponseHeader `json:"response_headers"`
+	CanonicalHost     string                  `json:"canonical_host"`
+	RedirectTo        string                  `json:"redirect_to"`
+	RedirectPermanent bool                    `json:"redirect_permanent"`
+	Redirects         []config.Redirect       `json:"redirects"`
 }
 
 // SiteNginxSettingsResponse is what that form reads back on GET.
@@ -52,6 +55,10 @@ type SiteNginxSettingsResponse struct {
 	CanonicalAvailable bool   `json:"canonical_available"`
 	ApexHost           string `json:"apex_host"`
 	WWWHost            string `json:"www_host"`
+
+	RedirectTo        string            `json:"redirect_to"`
+	RedirectPermanent bool              `json:"redirect_permanent"`
+	Redirects         []config.Redirect `json:"redirects"`
 }
 
 // handleSiteNginxSettings serves GET and POST on
@@ -60,6 +67,10 @@ func handleSiteNginxSettings(w http.ResponseWriter, r *http.Request, site *confi
 	switch r.Method {
 	case http.MethodGet:
 		apex, www, available := site.WWWPair()
+		redirects := site.Redirects
+		if redirects == nil {
+			redirects = []config.Redirect{}
+		}
 		headers := site.ResponseHeaders
 		if headers == nil {
 			// An empty list rather than null, so the form iterates it without
@@ -74,6 +85,9 @@ func handleSiteNginxSettings(w http.ResponseWriter, r *http.Request, site *confi
 			CanonicalAvailable:     available,
 			ApexHost:               apex,
 			WWWHost:                www,
+			RedirectTo:             site.RedirectTo,
+			RedirectPermanent:      site.RedirectPermanent,
+			Redirects:              redirects,
 		})
 	case http.MethodPost:
 		var req SiteNginxSettingsRequest
@@ -82,9 +96,12 @@ func handleSiteNginxSettings(w http.ResponseWriter, r *http.Request, site *confi
 			return
 		}
 		if err := siteops.SetSiteNginxSettings(site, siteops.NginxSettings{
-			StaticCacheDays: req.StaticCacheDays,
-			ResponseHeaders: req.ResponseHeaders,
-			CanonicalHost:   req.CanonicalHost,
+			StaticCacheDays:   req.StaticCacheDays,
+			ResponseHeaders:   req.ResponseHeaders,
+			CanonicalHost:     req.CanonicalHost,
+			RedirectTo:        req.RedirectTo,
+			RedirectPermanent: req.RedirectPermanent,
+			Redirects:         req.Redirects,
 		}); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return

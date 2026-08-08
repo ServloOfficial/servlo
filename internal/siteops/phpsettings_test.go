@@ -320,3 +320,52 @@ func TestSetSiteNginxSettings_RefusesACanonicalTheSiteCannotHonour(t *testing.T)
 		t.Errorf("the registry kept the refused choice: %q", saved.CanonicalHost)
 	}
 }
+
+// Redirects land in the same vhost through the same validated commit.
+func TestSetSiteNginxSettings_WritesTheRedirects(t *testing.T) {
+	settingsHome(t)
+	site := settingsSite(t)
+
+	err := SetSiteNginxSettings(site, NginxSettings{
+		RedirectTo:        "https://newshop.example",
+		RedirectPermanent: true,
+		Redirects:         []config.Redirect{{From: "/old", To: "/new"}},
+	})
+	if err != nil {
+		t.Fatalf("SetSiteNginxSettings: %v", err)
+	}
+
+	vhost := readVhost(t, site)
+	for _, want := range []string{
+		"return 301 https://newshop.example$request_uri;",
+		"location = /old {",
+		"return 302 /new;",
+	} {
+		if !strings.Contains(vhost, want) {
+			t.Errorf("the vhost is missing %q:\n%s", want, vhost)
+		}
+	}
+}
+
+// A site redirected to itself never arrives, and a permanent one is cached, so
+// it is refused before it can reach the config the operator would need to
+// reach the panel to undo.
+func TestSetSiteNginxSettings_RefusesARedirectLoopWithoutTouchingTheVhost(t *testing.T) {
+	settingsHome(t)
+	site := settingsSite(t)
+	if err := SetSiteNginxSettings(site, NginxSettings{StaticCacheDays: 7}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := SetSiteNginxSettings(site, NginxSettings{RedirectTo: "https://shop.example"}); err == nil {
+		t.Fatal("a site redirected to a domain it serves was accepted")
+	}
+
+	vhost := readVhost(t, site)
+	if strings.Contains(vhost, "shop.example$request_uri") {
+		t.Errorf("the loop reached the vhost anyway:\n%s", vhost)
+	}
+	if !strings.Contains(vhost, "expires 7d;") {
+		t.Errorf("the refused save discarded what the site already had:\n%s", vhost)
+	}
+}
