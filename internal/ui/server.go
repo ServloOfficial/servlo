@@ -187,6 +187,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/services", withCORS(handleServices))
 	mux.HandleFunc("/api/ws", handleWS)
 	mux.HandleFunc("/api/webhooks/mailpit", handleMailpitWebhook)
+	mux.HandleFunc("/api/webhooks/deploy/", withCORS(handleWebhookDeploy))
 	mux.HandleFunc("/api/push/vapid-public-key", withCORS(handlePushVAPIDPublicKey))
 	mux.HandleFunc("/api/push/subscribe", withCORS(handlePushSubscribe))
 	mux.HandleFunc("/api/push/unsubscribe", withCORS(handlePushUnsubscribe))
@@ -3270,6 +3271,9 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		return
 	case "deploy-history":
 		handleSiteDeployHistory(w, r, site)
+		return
+	case "webhook":
+		handleSiteWebhook(w, r, site)
 		return
 	case "node":
 		version := r.URL.Query().Get("version")

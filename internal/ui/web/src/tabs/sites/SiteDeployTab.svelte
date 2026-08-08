@@ -4,6 +4,7 @@
   import SiteDeployHistoryCard from './SiteDeployHistoryCard.svelte';
   import SiteDeployScriptCard from './SiteDeployScriptCard.svelte';
   import SiteDeployExcludeCard from './SiteDeployExcludeCard.svelte';
+  import SiteWebhookCard from './SiteWebhookCard.svelte';
   import { streamDeploy, type DeployDone } from '$stores/deploy';
   import type { Site } from '$stores/sites';
   import { m } from '../../paraglide/messages.js';
@@ -103,4 +104,5 @@
   <SiteDeployHistoryCard {site} reload={deployed} />
   <SiteDeployScriptCard {site} />
   <SiteDeployExcludeCard {site} />
+  <SiteWebhookCard {site} />
 </div>

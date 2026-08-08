@@ -179,3 +179,33 @@ export async function loadSiteDeployHistory(domain: string): Promise<DeployHisto
   const data = (await res.json()) as { entries?: DeployHistoryEntry[] };
   return data.entries ?? [];
 }
+
+// A site's deploy webhook. The secret is present only on the response that
+// mints it, because that is the one moment it can be copied into the
+// repository's settings; the panel never reads it back.
+export interface SiteWebhook {
+  enabled: boolean;
+  url?: string;
+  branch?: string;
+  secret?: string;
+  signature_header: string;
+  delivery_header: string;
+}
+
+export async function loadSiteWebhook(domain: string): Promise<SiteWebhook> {
+  const res = await apiFetch(site(domain, 'webhook'));
+  if (!res.ok) throw new Error(m.common_requestFailed());
+  return (await res.json()) as SiteWebhook;
+}
+
+export async function saveSiteWebhook(
+  domain: string,
+  values: { enabled: boolean; branch: string; regenerate?: boolean }
+): Promise<SiteWebhook & { error?: string }> {
+  const res = await apiFetch(site(domain, 'webhook'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(values)
+  });
+  return (await res.json()) as SiteWebhook & { error?: string };
+}

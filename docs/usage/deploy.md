@@ -125,3 +125,33 @@ If a path could not be put back, the deploy fails and says so. Carrying on would
 Saving replaces the list for this site, and the site stops following its framework. **Go back to the framework's list** undoes that, which is a different thing from saving an empty list: an empty list protects nothing, and following the framework protects whatever the definition declares, including a definition updated after the site was created. The form says which of the two the site is on.
 
 Paths are relative to the site directory and one that climbs out of it is refused. They match whole path segments, so `wp-content/uploads` does not reach into `wp-content/uploads-old`.
+
+## Deploy on push
+
+A site can deploy itself whenever somebody pushes. It is **off until you turn it on**, per site, on the Deploy tab.
+
+Turning it on mints two things. The **payload URL** ends in a random public identifier and is what you paste into your repository's webhook settings, content type `application/json`. The **secret** keys the signature, and servlo shows it once, on the response that creates it, and never again. Lose it and you generate a new one, which keeps the URL and invalidates every old signature at the same time.
+
+Set the **branch that deploys**. A push to anything else is ignored. Leaving it empty deploys every branch, which is a real choice and rarely the right one on a site serving customers.
+
+### What it checks before it deploys
+
+A request that fails any of these deploys nothing:
+
+- **The signature.** `X-Hub-Signature-256`, HMAC-SHA256 over the raw body, keyed by that site's secret and compared in constant time. This is the whole authentication: nothing else about the request is evidence. The source address belongs to a host with a large and changing range, and a token in a header is a token in every proxy log along the way.
+- **The branch.** From `refs/heads/...` in the payload. A tag push and a branch deletion carry no branch and never deploy.
+- **The delivery.** `X-GitHub-Delivery` identifies one delivery attempt, and servlo remembers the recent ones per site so a retry, or a captured body sent again, runs once. A request with no delivery header is refused rather than waved through: without it a replay cannot be told from a new push, and a signed body stays valid forever.
+
+The body is capped at a megabyte and read no further. This is the only route on the panel that takes bytes from the internet with no session behind them.
+
+### What it answers
+
+`200` when it deployed, and also when it deliberately did not: a push to another branch, or a delivery already handled. That is on purpose. A git host retries a `5xx` and eventually disables a hook that keeps failing, and neither of those is a failure.
+
+`401` for a bad signature, `404` for an endpoint that does not exist or has been turned off, and `409` while the site is busy with another deploy, which is worth the host retrying.
+
+A webhook deploy is an ordinary deploy: same pre-deploy database backup, same [exclude list](#paths-a-deploy-must-not-remove), same script, same graceful reload. It appears in the [deploy history](#deploy-history) like any other, attributed to no signed-in user, because there wasn't one.
+
+### Where the credentials live
+
+`~/.config/servlo/deploy-webhooks.json`, mode 0600, and nothing else is in it. Not the site registry: that file is world readable by design, which is right for ports and paths and wrong for a token that deploys code to your server.

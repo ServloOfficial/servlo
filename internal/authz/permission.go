@@ -76,6 +76,10 @@ func Permissions() Registry {
 		"/api/auth/logout":      PermPublic,
 		"/api/auth/setup":       PermPublic,
 		"/api/webhooks/mailpit": PermPublic,
+		// The deploy webhook holds no session by design: a git host has no
+		// cookie. It authenticates with an HMAC signature over the body, keyed
+		// by a secret only that one site has.
+		"/api/webhooks/deploy/": PermPublic,
 		"/api/internal/notify":  PermPublic,
 
 		// Fetched by the browser before there is a session, because they are
