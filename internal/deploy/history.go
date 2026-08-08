@@ -37,7 +37,24 @@ type Entry struct {
 	// Redeploy marks a deploy that went back to an earlier commit rather than
 	// forward to a new one.
 	Redeploy bool `json:"redeploy,omitempty"`
+
+	// Author and Subject describe the commit that was deployed. A SHA alone
+	// does not tell an operator scanning a list which change went out, and by
+	// the time they are reading the history the commit may no longer be
+	// checked out to look up.
+	Author  string `json:"author,omitempty"`
+	Subject string `json:"subject,omitempty"`
+	// Actor is the panel user who triggered it, empty for a deploy that did not
+	// come from a signed-in session.
+	Actor string `json:"actor,omitempty"`
 }
+
+// HistoryLimit is how many deploys a site keeps.
+//
+// Bounded because nothing else prunes this file, and a site deploying from a
+// webhook on every push writes an entry per push forever. Two hundred is far
+// more than anyone scrolls and still a small file.
+const HistoryLimit = 200
 
 // HistoryDir holds one file per site.
 func HistoryDir() string {
@@ -74,11 +91,64 @@ func Record(site *config.Site, e Entry) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 	if _, err := f.Write(append(line, '\n')); err != nil {
+		f.Close()
 		return err
 	}
-	return f.Close()
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return trimHistory(path)
+}
+
+// trimHistory drops the oldest entries once the file is well past the limit.
+//
+// Rewritten in one go through a temporary file and a rename, so a crash part
+// way through leaves the previous history rather than a truncated one. Only
+// done when the file has drifted a good way over, because rewriting on every
+// single deploy to remove one line is work nobody asked for.
+func trimHistory(path string) error {
+	lines, err := readLines(path)
+	if err != nil || len(lines) <= HistoryLimit+50 {
+		return nil
+	}
+
+	tmp := path + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	for _, l := range lines[len(lines)-HistoryLimit:] {
+		if _, err := f.WriteString(l + "\n"); err != nil {
+			f.Close()
+			os.Remove(tmp)
+			return err
+		}
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+// readLines returns the file's non-empty lines, oldest first.
+func readLines(path string) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var out []string
+	s := bufio.NewScanner(f)
+	s.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for s.Scan() {
+		if line := s.Text(); line != "" {
+			out = append(out, line)
+		}
+	}
+	return out, s.Err()
 }
 
 // History returns a site's deploys, newest first.
@@ -115,6 +185,12 @@ func History(site *config.Site) ([]Entry, error) {
 
 	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
 		out[i], out[j] = out[j], out[i]
+	}
+	// Capped here as well as on disk. The file is trimmed lazily, in batches,
+	// so between trims it holds a little more than the limit; a reader should
+	// still never be handed more than the limit promises.
+	if len(out) > HistoryLimit {
+		out = out[:HistoryLimit]
 	}
 	return out, nil
 }

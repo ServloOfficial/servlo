@@ -110,3 +110,24 @@ func resolveCommit(dir, commit string) (string, error) {
 	}
 	return strings.TrimSpace(out), nil
 }
+
+// CommitMeta is who wrote a commit and what they called it.
+//
+// Blank rather than an error when it cannot be read. This decorates a history
+// entry, and an entry that says what happened without saying who wrote the
+// change is still worth having; one that failed to write because git could not
+// resolve a commit is not.
+func CommitMeta(dir, commit string) (author, subject string) {
+	if strings.TrimSpace(commit) == "" {
+		return "", ""
+	}
+	out, err := gitpkg.Output(dir, "show", "--no-patch", "--format=%an%n%s", commit)
+	if err != nil {
+		return "", ""
+	}
+	parts := strings.SplitN(strings.TrimRight(out, "\n"), "\n", 2)
+	if len(parts) < 2 {
+		return strings.TrimSpace(parts[0]), ""
+	}
+	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+}

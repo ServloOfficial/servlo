@@ -1187,5 +1187,16 @@
   "sites_redeploy_confirm": "Confirm: go back to {commit}",
   "sites_redeploy_cancel": "Cancel",
   "sites_redeploy_none": "This site has no recorded deploy to go back from. The first deploy from this panel records where it started, and after that you can come back here.",
-  "sites_redeploy_ok": "Back on {commit}."
+  "sites_redeploy_ok": "Back on {commit}.",
+  "sites_deployHistory_title": "Recent deploys",
+  "sites_deployHistory_empty": "Nothing deployed from this panel yet.",
+  "sites_deployHistory_loadFailed": "Could not load this site's deploy history.",
+  "sites_deployHistory_ok": "Deployed",
+  "sites_deployHistory_failed": "Failed",
+  "sites_deployHistory_wentBack": "Went back",
+  "sites_deployHistory_by": "by {author}",
+  "sites_deployHistory_triggeredBy": "triggered by {actor}",
+  "sites_deployHistory_automatic": "no signed-in user",
+  "sites_deployHistory_kept": "kept {count}",
+  "sites_deployHistory_snapshot": "backup {name}"
 }

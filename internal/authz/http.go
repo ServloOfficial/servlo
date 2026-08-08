@@ -75,6 +75,13 @@ func SessionFrom(ctx context.Context) (Session, bool) {
 	return session, ok
 }
 
+// WithSession attaches a session to a context. The middleware's own way of
+// doing it, exported so a handler test can stand in a signed-in user without a
+// second copy of the context key.
+func WithSession(ctx context.Context, session Session) context.Context {
+	return context.WithValue(ctx, ctxKeySession{}, session)
+}
+
 // Require is the middleware every panel route sits behind.
 func (g *Guard) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +107,7 @@ func (g *Guard) Require(next http.Handler) http.Handler {
 			return
 		}
 
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKeySession{}, session)))
+		next.ServeHTTP(w, r.WithContext(WithSession(r.Context(), session)))
 	})
 }
 

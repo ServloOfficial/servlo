@@ -229,3 +229,30 @@ func TestRedeploy_TakesNoSnapshotAndRevertsNoMigration(t *testing.T) {
 		t.Errorf("the output does not point at the snapshot as the way to put data back:\n%s", out.String())
 	}
 }
+
+// The history says which change went out, which means reading the commit, not
+// just its hash.
+func TestCommitMeta_ReadsTheAuthorAndSubject(t *testing.T) {
+	dev, site := wordpressClone(t)
+	head := git(t, site, "rev-parse", "HEAD")
+
+	author, subject := CommitMeta(site, head)
+
+	if author != "t" {
+		t.Errorf("author = %q, want the commit author", author)
+	}
+	if subject != "one" {
+		t.Errorf("subject = %q, want the commit subject", subject)
+	}
+	_ = dev
+}
+
+// A commit that is not there, or a path that is not a repository, is blank
+// rather than an error: the history entry is still worth writing without it.
+func TestCommitMeta_BlankWhenItCannotRead(t *testing.T) {
+	author, subject := CommitMeta(t.TempDir(), "deadbeef")
+
+	if author != "" || subject != "" {
+		t.Errorf("got %q / %q, want both blank", author, subject)
+	}
+}

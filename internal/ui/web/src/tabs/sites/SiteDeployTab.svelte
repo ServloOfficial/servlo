@@ -1,6 +1,7 @@
 <script lang="ts">
   import SettingsCard from '$components/SettingsCard.svelte';
   import SiteRedeployCard from './SiteRedeployCard.svelte';
+  import SiteDeployHistoryCard from './SiteDeployHistoryCard.svelte';
   import SiteDeployScriptCard from './SiteDeployScriptCard.svelte';
   import SiteDeployExcludeCard from './SiteDeployExcludeCard.svelte';
   import { streamDeploy, type DeployDone } from '$stores/deploy';
@@ -16,6 +17,9 @@
   let output = $state<string[]>([]);
   let result = $state<DeployDone | null>(null);
   let logEl = $state<HTMLPreElement | null>(null);
+  // Bumped when a deploy finishes so the history reloads, rather than showing a
+  // list that is stale the moment the thing above it runs.
+  let deployed = $state(0);
 
   // A deploy is minutes of output, so the view follows it rather than making
   // the operator scroll to find out what phase it is in.
@@ -38,6 +42,7 @@
       });
     } finally {
       running = false;
+      deployed += 1;
     }
   }
 
@@ -94,7 +99,8 @@
     {/if}
   </SettingsCard>
 
-  <SiteRedeployCard {site} />
+  <SiteRedeployCard {site} ondone={() => (deployed += 1)} />
+  <SiteDeployHistoryCard {site} reload={deployed} />
   <SiteDeployScriptCard {site} />
   <SiteDeployExcludeCard {site} />
 </div>

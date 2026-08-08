@@ -167,3 +167,53 @@ func TestRecord_FileIsNotWorldReadable(t *testing.T) {
 		t.Errorf("mode = %04o, want 0600", perm)
 	}
 }
+
+// The history answers "who and what", not only "when". A commit SHA on its own
+// does not tell an operator scanning a list which change went out.
+func TestHistory_CarriesAuthorAndWhoTriggeredIt(t *testing.T) {
+	site := historyHome(t)
+	if err := Record(site, Entry{
+		From: "aaaa1111", To: "bbbb2222", OK: true,
+		Author: "Sam Rivera", Subject: "add the orders index", Actor: "alice",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := History(site)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("got %d entries", len(got))
+	}
+	e := got[0]
+	if e.Author != "Sam Rivera" || e.Subject != "add the orders index" {
+		t.Errorf("entry = %+v, does not say what was deployed or by whom it was written", e)
+	}
+	if e.Actor != "alice" {
+		t.Errorf("entry = %+v, does not say who triggered it", e)
+	}
+}
+
+// A history that grows without bound on a site deploying from a webhook is a
+// file nobody prunes, so the log keeps the recent entries and drops the rest.
+func TestRecord_KeepsTheHistoryBounded(t *testing.T) {
+	site := historyHome(t)
+	for i := 0; i < HistoryLimit+25; i++ {
+		if err := Record(site, Entry{From: "aaa", To: "bbb", OK: true, Subject: string(rune('a' + i%26))}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := History(site)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) > HistoryLimit {
+		t.Errorf("kept %d entries, want at most %d", len(got), HistoryLimit)
+	}
+	// And it is the recent ones that survive, not the first ones.
+	if len(got) == 0 || got[0].Subject != string(rune('a'+(HistoryLimit+24)%26)) {
+		t.Errorf("the newest entry is not at the front: %+v", got[0])
+	}
+}

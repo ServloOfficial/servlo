@@ -6,8 +6,11 @@
 
   interface Props {
     site: Site;
+    // Called when a redeploy finishes, so the history beside this card can
+    // reload rather than showing a list that no longer matches the site.
+    ondone?: () => void;
   }
-  let { site }: Props = $props();
+  let { site, ondone }: Props = $props();
 
   let available = $state(false);
   let commit = $state('');
@@ -57,6 +60,7 @@
     } finally {
       running = false;
       await load();
+      ondone?.();
     }
   }
 </script>

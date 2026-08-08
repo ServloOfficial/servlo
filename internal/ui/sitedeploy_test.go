@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/realrashid/servlo/internal/authz"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/deploy"
 	"gopkg.in/yaml.v3"
@@ -572,6 +573,99 @@ func TestHandleSiteRedeploy_RefusesOtherMethods(t *testing.T) {
 	r := httptest.NewRequest(http.MethodDelete, "/api/sites/shop.example/redeploy", nil)
 	w := httptest.NewRecorder()
 	handleSiteRedeploy(w, r, site)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("status = %d, want 405", w.Code)
+	}
+}
+
+// The history has to say which change went out and who sent it, not just when.
+func TestHandleSiteDeploy_RecordsTheAuthorAndTheActor(t *testing.T) {
+	site := deployHome(t)
+	entries := recorded(t)
+	stubDeploy(t, deploy.Result{FromCommit: "aaaa1111", ToCommit: "bbbb2222"}, nil)
+
+	r := httptest.NewRequest(http.MethodPost, "/api/sites/shop.example/deploy", nil)
+	r = r.WithContext(authz.WithSession(r.Context(), authz.Session{User: "alice"}))
+	handleSiteDeploy(httptest.NewRecorder(), r, site)
+
+	if len(*entries) != 1 {
+		t.Fatalf("recorded %d entries", len(*entries))
+	}
+	if got := (*entries)[0].Actor; got != "alice" {
+		t.Errorf("actor = %q, want the signed-in user", got)
+	}
+}
+
+// A deploy with no session has no actor and says so, rather than borrowing a
+// name. That is the shape a webhook deploy will arrive in.
+func TestHandleSiteDeploy_NoSessionMeansNoActor(t *testing.T) {
+	site := deployHome(t)
+	entries := recorded(t)
+	stubDeploy(t, deploy.Result{FromCommit: "aaaa1111", ToCommit: "bbbb2222"}, nil)
+
+	postDeploy(t, site)
+
+	if len(*entries) != 1 {
+		t.Fatalf("recorded %d entries", len(*entries))
+	}
+	if got := (*entries)[0].Actor; got != "" {
+		t.Errorf("actor = %q, want empty", got)
+	}
+}
+
+func TestHandleSiteDeployHistory_ReturnsTheDeploysNewestFirst(t *testing.T) {
+	site := deployHome(t)
+	for _, e := range []deploy.Entry{
+		{From: "aaaa1111", To: "bbbb2222", OK: true, Subject: "first"},
+		{From: "bbbb2222", To: "cccc3333", OK: false, Error: "boom", Subject: "second"},
+	} {
+		if err := deploy.Record(site, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/api/sites/shop.example/deploy-history", nil)
+	w := httptest.NewRecorder()
+	handleSiteDeployHistory(w, r, site)
+
+	var got SiteDeployHistoryResponse
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("%v\n%s", err, w.Body.String())
+	}
+	if len(got.Entries) != 2 {
+		t.Fatalf("got %d entries, want 2", len(got.Entries))
+	}
+	if got.Entries[0].Subject != "second" {
+		t.Errorf("entries are not newest first: %+v", got.Entries)
+	}
+	// The failure is in the list, with its reason. A history that hid failures
+	// would be missing the entries anyone actually goes looking for.
+	if got.Entries[0].OK || got.Entries[0].Error != "boom" {
+		t.Errorf("the failed deploy lost its outcome: %+v", got.Entries[0])
+	}
+}
+
+// An empty history is a list, not null, so the panel renders it without
+// knowing that JSON has two ways to say nothing.
+func TestHandleSiteDeployHistory_EmptyIsAList(t *testing.T) {
+	site := deployHome(t)
+
+	r := httptest.NewRequest(http.MethodGet, "/api/sites/shop.example/deploy-history", nil)
+	w := httptest.NewRecorder()
+	handleSiteDeployHistory(w, r, site)
+
+	if !strings.Contains(w.Body.String(), `"entries":[]`) {
+		t.Errorf("body = %s, want an empty list", w.Body.String())
+	}
+}
+
+func TestHandleSiteDeployHistory_RefusesOtherMethods(t *testing.T) {
+	site := deployHome(t)
+
+	r := httptest.NewRequest(http.MethodPost, "/api/sites/shop.example/deploy-history", nil)
+	w := httptest.NewRecorder()
+	handleSiteDeployHistory(w, r, site)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf("status = %d, want 405", w.Code)

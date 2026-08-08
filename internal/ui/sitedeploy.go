@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/realrashid/servlo/internal/authz"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/deploy"
 	"github.com/realrashid/servlo/internal/siteops"
@@ -44,7 +45,7 @@ func handleSiteDeploy(w http.ResponseWriter, r *http.Request, site *config.Site)
 	}
 
 	res, err := runDeployFn(deploy.Defaults(site, sw))
-	recordDeploy(site, res, err, false)
+	recordDeploy(r, site, res, err, false)
 	if err != nil {
 		// Into the stream rather than as a status code: the response has been
 		// streaming for minutes and its headers went out long ago, so the only
@@ -211,7 +212,11 @@ var recordDeployFn = deploy.Record
 // succeeded cannot answer "what happened at 3am", which is the question it gets
 // asked. The write is best-effort: losing the record is not worth failing a
 // deploy that already ran.
-func recordDeploy(site *config.Site, res deploy.Result, err error, redeploy bool) {
+func recordDeploy(r *http.Request, site *config.Site, res deploy.Result, err error, redeploy bool) {
+	// Read while the commit is still checked out. By the time anyone reads the
+	// history the tree may have moved on, and a subject looked up then would be
+	// the wrong one or missing.
+	author, subject := deploy.CommitMeta(site.Path, res.ToCommit)
 	e := deploy.Entry{
 		At:         time.Now().UTC(),
 		From:       res.FromCommit,
@@ -221,6 +226,9 @@ func recordDeploy(site *config.Site, res deploy.Result, err error, redeploy bool
 		Kept:       len(res.Kept),
 		DurationMS: res.Duration.Milliseconds(),
 		Redeploy:   redeploy,
+		Author:     author,
+		Subject:    subject,
+		Actor:      actorOf(r),
 	}
 	if err != nil {
 		e.Error = err.Error()
@@ -271,7 +279,7 @@ func handleSiteRedeploy(w http.ResponseWriter, r *http.Request, site *config.Sit
 		}
 
 		res, err := redeployFn(deploy.Defaults(site, sw), commit)
-		recordDeploy(site, res, err, true)
+		recordDeploy(r, site, res, err, true)
 		if err != nil {
 			done(map[string]any{
 				"ok": false, "error": err.Error(),
@@ -286,4 +294,36 @@ func handleSiteRedeploy(w http.ResponseWriter, r *http.Request, site *config.Sit
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// actorOf is the signed-in user who asked for this, empty when the request did
+// not come from a session. A webhook deploy has no actor and should say so
+// rather than borrow somebody's name.
+func actorOf(r *http.Request) string {
+	if session, ok := authz.SessionFrom(r.Context()); ok {
+		return session.User
+	}
+	return ""
+}
+
+// SiteDeployHistoryResponse is a site's recent deploys, newest first.
+type SiteDeployHistoryResponse struct {
+	Entries []deploy.Entry `json:"entries"`
+}
+
+// handleSiteDeployHistory serves GET on /api/sites/{domain}/deploy-history.
+func handleSiteDeployHistory(w http.ResponseWriter, r *http.Request, site *config.Site) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	entries, err := deploy.History(site)
+	if err != nil {
+		writeJSON(w, SiteActionResponse{Error: err.Error()})
+		return
+	}
+	if entries == nil {
+		entries = []deploy.Entry{}
+	}
+	writeJSON(w, SiteDeployHistoryResponse{Entries: entries})
 }

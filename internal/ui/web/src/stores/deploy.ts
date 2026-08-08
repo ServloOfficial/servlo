@@ -155,3 +155,27 @@ export async function streamRedeploy(
     }
   });
 }
+
+// One past deploy. Author and subject describe the commit; actor is the panel
+// user who triggered it, empty when nobody signed in did.
+export interface DeployHistoryEntry {
+  at: string;
+  from?: string;
+  to?: string;
+  ok: boolean;
+  error?: string;
+  snapshot?: string;
+  kept?: number;
+  duration_ms?: number;
+  redeploy?: boolean;
+  author?: string;
+  subject?: string;
+  actor?: string;
+}
+
+export async function loadSiteDeployHistory(domain: string): Promise<DeployHistoryEntry[]> {
+  const res = await apiFetch(site(domain, 'deploy-history'));
+  if (!res.ok) throw new Error(m.common_requestFailed());
+  const data = (await res.json()) as { entries?: DeployHistoryEntry[] };
+  return data.entries ?? [];
+}

@@ -62,6 +62,16 @@ It reads the script that will actually run, not the framework's template, so tak
 
 A framework that declares no migration command has no schema-changing deploys, and nothing on it is ever backed up on that basis.
 
+## Deploy history
+
+Every deploy writes down what it did, and the Deploy tab lists the recent ones: the commit and its subject, who wrote it, who triggered the deploy from the panel, how long it took, whether it worked, and the reason if it did not.
+
+Failures are in the list. A history that remembered only the deploys that worked could not answer what happened at 3am, which is the question it gets asked.
+
+The author and subject are read while the commit is still checked out and stored with the entry, because by the time anyone reads the history the tree has usually moved on. "No signed-in user" means the deploy did not come from a panel session, which is how a scheduled or webhook deploy will appear.
+
+It lives at `~/.local/share/servlo/deploy-history/<site>.jsonl`, one JSON object per line, appended and never rewritten in place, mode 0600. A site keeps its last 200 deploys; the file is trimmed in batches, through a temporary file and a rename, so a crash part way through leaves the previous history rather than a truncated one. A line that will not parse is skipped rather than failing the read, so one half-finished write cannot take the rest of the log with it.
+
 ## Going back a deploy
 
 A deploy that made things worse has one button: **Go back a deploy**, on the Deploy tab, or POST to `/api/sites/{domain}/redeploy`. It checks the site out at the commit it was running before the last deploy and runs the deploy script again.
