@@ -186,3 +186,36 @@ doctor:
       unknown_on_error: true
       fix: migrate
       detail: "There are pending migrations, run migrate to apply them."
+
+# The production profile: what deploying a site on this framework runs, what a
+# migration looks like, and where to check the site came back. Servlo reads all
+# of it from here; no Go knows any of it.
+deploy:
+  # Pre-fills a new site's deploy script. The site's copy is editable and servlo
+  # never rewrites it, because what a particular application needs at deploy
+  # time is not knowable from its framework.
+  #
+  # --no-dev because a production host has no business installing a test suite,
+  # and --optimize-autoloader because the classmap is generated once here rather
+  # than resolved on every request.
+  script: |
+    composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+    npm ci --omit=dev
+    npm run build
+    php artisan migrate --force
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
+    php artisan queue:restart
+
+  # How servlo recognises a migration in that script, which is what decides
+  # whether the deploy takes a database backup first. Matched as a substring, so
+  # the --force the script actually uses still counts.
+  migrate: php artisan migrate
+
+  # Nothing here. A Laravel repository owns its whole tree; storage/ is where
+  # the application writes and it is not something a pull removes.
+  exclude: []
+
+  # Laravel 10 ships no health route, so the front page is the honest check.
+  health: /

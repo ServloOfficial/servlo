@@ -364,6 +364,41 @@ The site doctor reports the same thing after the fact: a required service that i
 
 A required service pulls an image and runs a container, so, like host workers and `nginx.snippet`, `requires:` is honoured only from the trusted store and from a user overlay. An embedded `framework_def` in a project's `.servlo.yaml` has it stripped.
 
+## Deploy profile
+
+A framework's `deploy` block is everything servlo needs to deploy a site running it. All of it is data: nothing in the binary knows how any particular framework deploys.
+
+```yaml
+deploy:
+  script: |
+    composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+    npm ci --omit=dev
+    npm run build
+    php artisan migrate --force
+  migrate: php artisan migrate
+  exclude: []
+  health: /up
+```
+
+| Key | What it is |
+|---|---|
+| `script` | Pre-fills a new site's deploy script |
+| `migrate` | What a migration looks like, so servlo can spot one |
+| `exclude` | Paths a deploy must never remove |
+| `health` | A path to request afterwards to confirm the site answers |
+
+`script` is a starting point and nothing more. The site's copy is editable, servlo never rewrites it, and what a particular application needs at deploy time is not knowable from its framework.
+
+`migrate` is matched as a substring against the site's script, ignoring blank and commented-out lines, and that match is what decides whether the deploy takes a database backup first. So `php artisan migrate` recognises the `--force` the script actually runs, and a line somebody commented out does not trigger a snapshot on every deploy afterwards. A framework with no migrations leaves it empty and no deploy on it is ever treated as schema-changing.
+
+`exclude` is the field to think hardest about. It names the directories the application writes to in production that the repository does not own, and getting it wrong loses a client's data. WordPress is the case it exists for: `wp-content/uploads` is every image the client has ever added and `wp-content/plugins` is everything they have installed through wp-admin, neither of which a deploy has any business removing. A framework whose repository genuinely owns its whole tree declares an empty list, and says so in a comment.
+
+`health` is requested after the deploy. Prefer a route that answers without touching the database, so a failure means "the deploy broke the site" rather than being a second way to discover the database is down. Where a framework has no such route, the front page is the honest choice.
+
+A path in `exclude` must stay inside the site, and `health` must be a path on the site rather than a URL elsewhere. Both are refused at parse time, because the definition is not something the operator wrote.
+
+A framework declaring no `deploy` block at all is fine and is what plain PHP gets: an empty starting script, no migration to recognise, nothing excluded, no health check.
+
 ## Framework nginx config
 
 Most frameworks route every request through a single front controller, which servlo's generic `location /` already handles. A few need paths that the generic rules would otherwise swallow: Magento keeps `setup/` outside the document root and generates `/static/` and `/media/` on demand through `pub/static.php` and `pub/get.php`.

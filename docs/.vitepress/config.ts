@@ -154,6 +154,7 @@ export default defineConfig({
             { text: 'PHP', link: '/usage/php' },
             { text: 'Node', link: '/usage/node' },
             { text: 'Nginx Overrides', link: '/usage/nginx-overrides' },
+            { text: 'Deploy', link: '/usage/deploy' },
           ],
         },
         {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -84,6 +85,10 @@ type Framework struct {
 	// Nginx, when set, declares extra server-block config the framework needs
 	// (Magento's /setup, /static, and /media handling). See FrameworkNginx.
 	Nginx *FrameworkNginx `yaml:"nginx,omitempty"`
+	// Deploy, when set, is the framework's production profile: what a deploy of
+	// a site on it should run, what a migration looks like, what must never be
+	// removed, and where to check the site came back. See FrameworkDeploy.
+	Deploy *FrameworkDeploy `yaml:"deploy,omitempty"`
 	// Requires names the service presets the framework cannot run without
 	// (Magento 2.4 has no MySQL catalog search engine, so it needs opensearch).
 	// Link installs and starts them; the doctor reports one that goes missing.
@@ -2157,4 +2162,128 @@ func shouldRefetchDefinition(onDisk, autoRefresh bool) bool {
 func storeAutoRefresh() bool {
 	cfg, err := LoadGlobal()
 	return err == nil && cfg != nil && cfg.StoreAutoRefresh()
+}
+
+// FrameworkDeploy is a framework's production profile: everything servlo needs
+// to deploy a site on it, declared rather than known.
+//
+// No Go decides any of this. A framework that builds assets, one that runs
+// migrations and one that does neither differ only in these fields, which is
+// what keeps "how do you deploy a Laravel site" out of the binary (CLAUDE.md
+// §2).
+type FrameworkDeploy struct {
+	// Script pre-fills a new site's deploy script. It is a starting point, not
+	// a rule: the site's copy is editable and servlo never rewrites it, because
+	// the commands a particular application needs are not knowable from its
+	// framework alone.
+	Script string `yaml:"script,omitempty"`
+	// Migrate is what running migrations looks like for this framework. Servlo
+	// uses it to recognise a migration in a site's script, which is what
+	// decides whether a deploy takes a database backup first. Empty means the
+	// framework has no migrations and no deploy on it is ever treated as
+	// schema-changing.
+	Migrate string `yaml:"migrate,omitempty"`
+	// Exclude names paths a deploy must never remove, relative to the site
+	// root. These are the directories an application writes to in production
+	// and a repository does not own: uploaded media, plugins installed through
+	// an admin screen. Losing one is losing a client's data.
+	Exclude []string `yaml:"exclude,omitempty"`
+	// Health is a path to request after a deploy to confirm the site still
+	// answers. Empty means servlo does not check.
+	Health string `yaml:"health,omitempty"`
+}
+
+// deployHealthPath is a health path as a definition may name one: absolute, and
+// carrying nothing that a URL would not.
+var deployHealthPath = regexp.MustCompile(`^/[A-Za-z0-9\-._~/%?=&]*$`)
+
+// DeployScript is the framework's starting deploy script, empty when it
+// declares no profile.
+func (f *Framework) DeployScript() string {
+	if f.Deploy == nil {
+		return ""
+	}
+	return f.Deploy.Script
+}
+
+// MigrateCommand is what a migration looks like for this framework.
+func (f *Framework) MigrateCommand() string {
+	if f.Deploy == nil {
+		return ""
+	}
+	return strings.TrimSpace(f.Deploy.Migrate)
+}
+
+// DeployExcludes are the paths a deploy of this framework must never remove.
+func (f *Framework) DeployExcludes() []string {
+	if f.Deploy == nil {
+		return nil
+	}
+	return f.Deploy.Exclude
+}
+
+// HealthPath is where to check the site came back after a deploy.
+func (f *Framework) HealthPath() string {
+	if f.Deploy == nil {
+		return ""
+	}
+	return f.Deploy.Health
+}
+
+// ScriptMigrates reports whether a site's deploy script runs this framework's
+// migration, which is what decides whether the deploy takes a database backup
+// first.
+//
+// A commented-out line does not count. Reading one as a migration would take a
+// snapshot on every deploy of a script that once had one, which is slow enough
+// that an operator would start turning the backup off.
+func (f *Framework) ScriptMigrates(script string) bool {
+	migrate := f.MigrateCommand()
+	if migrate == "" {
+		return false
+	}
+	for _, line := range strings.Split(script, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.Contains(line, migrate) {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateDeploy refuses a profile servlo would not act on safely.
+func (f *Framework) ValidateDeploy() error {
+	if f.Deploy == nil {
+		return nil
+	}
+	for _, p := range f.Deploy.Exclude {
+		if err := safeSitePath(p); err != nil {
+			return fmt.Errorf("framework %q deploy exclude: %w", f.Name, err)
+		}
+	}
+	if h := f.Deploy.Health; h != "" && !deployHealthPath.MatchString(h) {
+		return fmt.Errorf("framework %q deploy health %q is not a path on the site", f.Name, h)
+	}
+	return nil
+}
+
+// safeSitePath refuses a path that would not stay inside the site directory.
+func safeSitePath(p string) error {
+	if strings.TrimSpace(p) == "" {
+		return fmt.Errorf("a path is empty")
+	}
+	if strings.ContainsAny(p, "\x00") || strings.Contains(p, `\`) {
+		return fmt.Errorf("path %q contains a NUL or a backslash", p)
+	}
+	if strings.HasPrefix(p, "/") || filepath.IsAbs(p) {
+		return fmt.Errorf("path %q is absolute; it must be inside the site", p)
+	}
+	cleaned := path.Clean(p)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return fmt.Errorf("path %q points outside the site directory", p)
+	}
+	return nil
 }

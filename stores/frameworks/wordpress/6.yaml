@@ -52,3 +52,28 @@ commands:
     description: Dump the database to a SQL file in the project directory
     output: text
     icon: database
+
+# The production profile. WordPress is the case the exclude list exists for.
+deploy:
+  # Empty by default. A WordPress deploy is usually just the pull: themes and
+  # plugins are managed through wp-admin on most installs, and a script that
+  # assumed otherwise would fight the client.
+  script: ""
+
+  # WordPress has no migration command of its own. Schema changes happen inside
+  # a plugin or core update, which servlo does not drive, so no deploy here is
+  # treated as schema-changing and none takes a database backup on that basis.
+  migrate: ""
+
+  # The reason this field exists. Both of these are written by the client
+  # through wp-admin and are not the repository's to own: uploads is every image
+  # they have ever added, plugins is everything they have installed. A deploy
+  # that removed either would destroy the site, and the operator would find out
+  # from the client.
+  exclude:
+    - wp-content/uploads
+    - wp-content/plugins
+
+  # WordPress has no health endpoint that avoids the database, so the front page
+  # is the honest check: if it answers, the site is up.
+  health: /
