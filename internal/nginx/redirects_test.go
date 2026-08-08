@@ -10,7 +10,7 @@ import (
 func redirectData(site config.Site) VhostData {
 	d := vhostDataFor(site)
 	d.CertDomain = site.PrimaryDomain()
-	d.ServerNames = serverNamesWithWildcards(site.Domains)
+	d.ServerNames = serverNames(site.Domains)
 	d.RedirectTo = site.RedirectTo
 	d.RedirectPermanent = site.RedirectPermanent
 	d.Redirects = site.Redirects

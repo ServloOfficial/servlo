@@ -422,16 +422,23 @@ func resolvePublicDir(site config.Site) string {
 	return "public"
 }
 
-// serverNamesWithWildcards returns a space-separated list of all domains plus
-// a *.domain wildcard for each, so subdomains are routed to the site too. A
-// subdomain with a vhost of its own still wins, since nginx prefers an exact
-// server_name over a wildcard.
-func serverNamesWithWildcards(domains []string) string {
-	var parts []string
-	for _, d := range domains {
-		parts = append(parts, d, "*."+d)
-	}
-	return strings.Join(parts, " ")
+// serverNames is the site's server_name: the domains it was given, and nothing
+// else.
+//
+// It used to add a *.domain wildcard for each, so an unregistered subdomain was
+// served by its parent. That is a convenience worth having on a laptop and
+// wrong on a server. The parent's certificate does not name the subdomain, so a
+// visitor reaching it over HTTPS meets a browser security warning served by a
+// site nobody meant to put there; and unlinking a subdomain that did have a
+// site of its own silently handed its traffic back to the parent rather than
+// answering "not found".
+//
+// A site that genuinely wants every subdomain adds the wildcard as a domain of
+// its own, which is passed through here untouched. That needs a wildcard
+// certificate, which servlo can only issue over DNS-01, so it is a decision the
+// operator makes once rather than one applied to every site by default.
+func serverNames(domains []string) string {
+	return strings.Join(domains, " ")
 }
 
 // GenerateVhost renders the HTTP vhost template and writes it to conf.d.
@@ -447,7 +454,7 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 	}
 
 	publicDir := resolvePublicDir(site)
-	serverNames := serverNamesWithWildcards(site.Domains)
+	serverNames := serverNames(site.Domains)
 
 	proxyPath, proxyPort, hasProxy := detectSiteProxy(site)
 	devBase, devPort := detectSiteDevServer(site)
@@ -506,7 +513,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 	}
 
 	publicDir := resolvePublicDir(site)
-	serverNames := serverNamesWithWildcards(site.Domains)
+	serverNames := serverNames(site.Domains)
 
 	proxyPath, proxyPort, hasProxy := detectSiteProxy(site)
 	devBase, devPort := detectSiteDevServer(site)
@@ -568,7 +575,7 @@ func GenerateFrankenPHPVhost(site config.Site) error {
 
 	data := VhostData{
 		Domain:            site.PrimaryDomain(),
-		ServerNames:       serverNamesWithWildcards(site.Domains),
+		ServerNames:       serverNames(site.Domains),
 		CustomContainer:   podman.FrankenPHPContainerName(site.Name),
 		CustomPort:        podman.FrankenPHPPort,
 		RequestTimeout:    siteRequestTimeout(site, resolveRequestTimeout(site.Path)),
@@ -606,7 +613,7 @@ func GenerateFrankenPHPSSLVhost(site config.Site) error {
 
 	data := VhostData{
 		Domain:            site.PrimaryDomain(),
-		ServerNames:       serverNamesWithWildcards(site.Domains),
+		ServerNames:       serverNames(site.Domains),
 		CertDomain:        site.PrimaryDomain(),
 		CustomContainer:   podman.FrankenPHPContainerName(site.Name),
 		CustomPort:        podman.FrankenPHPPort,
@@ -648,7 +655,7 @@ func GenerateCustomVhost(site config.Site) error {
 
 	data := VhostData{
 		Domain:            site.PrimaryDomain(),
-		ServerNames:       serverNamesWithWildcards(site.Domains),
+		ServerNames:       serverNames(site.Domains),
 		CustomContainer:   podman.CustomContainerName(site.Name),
 		CustomPort:        site.ContainerPort,
 		BackendSSL:        site.ContainerSSL,
@@ -690,7 +697,7 @@ func GenerateCustomSSLVhost(site config.Site) error {
 
 	data := VhostData{
 		Domain:            site.PrimaryDomain(),
-		ServerNames:       serverNamesWithWildcards(site.Domains),
+		ServerNames:       serverNames(site.Domains),
 		CertDomain:        site.PrimaryDomain(),
 		CustomContainer:   podman.CustomContainerName(site.Name),
 		CustomPort:        site.ContainerPort,
@@ -753,7 +760,7 @@ func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl boo
 
 	data := VhostData{
 		Domain:            site.PrimaryDomain(),
-		ServerNames:       serverNamesWithWildcards(site.Domains),
+		ServerNames:       serverNames(site.Domains),
 		UpstreamHost:      hostProxyUpstream(),
 		UpstreamPort:      site.HostPort,
 		BackendSSL:        site.HostSSL,
@@ -794,7 +801,7 @@ func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl boo
 // answer a renewal; without this the authority would follow the redirect to 443
 // and be handed the paused page instead of the token.
 func landingVhostConf(site config.Site, pausedDir, htmlFile string) string {
-	serverNames := serverNamesWithWildcards(site.Domains)
+	serverNames := serverNames(site.Domains)
 	if site.Secured {
 		return fmt.Sprintf(`server {
     listen 80;

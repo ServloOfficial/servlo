@@ -106,8 +106,8 @@ func TestHostProxy_VhostGeneration(t *testing.T) {
 		t.Fatalf("reading vhost: %v", err)
 	}
 	s := string(content)
-	if !strings.Contains(s, "server_name nestapp.test *.nestapp.test") {
-		t.Error("missing server_name with wildcard")
+	if !strings.Contains(s, "server_name nestapp.test") {
+		t.Error("missing the site.s server_name")
 	}
 	if !strings.Contains(s, ":3000;") {
 		t.Error("missing proxy_pass to port 3000")

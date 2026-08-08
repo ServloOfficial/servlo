@@ -205,9 +205,11 @@ Point the DNS, then use **Get SSL**.
 
 A subdomain is a site like any other. Register `admin.example.com` the way you would register anything else: its own directory, its own PHP version, its own settings, its own certificate. It is not a mode of the site at `example.com` and shares nothing with it.
 
-A site's `server_name` also carries a wildcard for each of its domains, so a subdomain nobody has registered is served by the parent. Once the subdomain is a site of its own, its vhost names it exactly and nginx resolves an exact `server_name` before any wildcard, so the subdomain's own vhost is the one that answers.
+A site answers for the domains it was given and nothing else. A subdomain nobody has registered is not served by its parent: the request falls through to servlo's default vhost and gets "not found", which is the honest answer.
 
-Worth knowing about that wildcard: while a subdomain is unregistered, the parent answers for it under a hostname its certificate does not cover, so a visitor reaching it over HTTPS gets a name warning. Unlinking a subdomain site puts it back in that state rather than making it 404.
+Servlo used to add a `*.example.com` wildcard to every site, so any subdomain reached the parent automatically. That is a convenience worth having on a laptop and wrong on a server. The parent's certificate does not name the subdomain, so a visitor arriving over HTTPS met a browser security warning attached to a site nobody meant to put there, and unlinking a subdomain that did have a site of its own silently handed its traffic back to the parent instead of answering "not found".
+
+If you do want one site to answer for every subdomain, add `*.example.com` as one of its domains. Servlo passes it through untouched. That needs a wildcard certificate, which means [DNS-01](../features/https.md), so it is a decision you make once for the site that wants it rather than one applied to every site by default.
 
 ### Picking a canonical domain
 

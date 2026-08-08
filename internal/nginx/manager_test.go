@@ -504,9 +504,9 @@ func TestGenerateVhost_multiDomain(t *testing.T) {
 		t.Fatalf("GenerateVhost: %v", err)
 	}
 	content := readConf(t, filepath.Join(confD, "myapp.test.conf"))
-	// server_name should list all domains plus wildcards
-	if !strings.Contains(content, "server_name myapp.test *.myapp.test api.test *.api.test admin.test *.admin.test") {
-		t.Errorf("expected all domains with wildcards in server_name, got:\n%s", content)
+	// server_name lists exactly the domains the site has, and nothing else
+	if !strings.Contains(content, "server_name myapp.test api.test admin.test") {
+		t.Errorf("expected every domain in server_name, got:\n%s", content)
 	}
 }
 
@@ -517,9 +517,9 @@ func TestGenerateSSLVhost_multiDomain(t *testing.T) {
 		t.Fatalf("GenerateSSLVhost: %v", err)
 	}
 	content := readConf(t, filepath.Join(confD, "myapp.test-ssl.conf"))
-	// Both server blocks should list all domains with wildcards
-	if !strings.Contains(content, "server_name myapp.test *.myapp.test api.test *.api.test") {
-		t.Errorf("expected all domains with wildcards in server_name, got:\n%s", content)
+	// Both server blocks list exactly the domains the site has
+	if !strings.Contains(content, "server_name myapp.test api.test") {
+		t.Errorf("expected every domain in server_name, got:\n%s", content)
 	}
 	// Cert should be named after primary domain only
 	if !strings.Contains(content, "myapp.test.crt") {
@@ -799,8 +799,8 @@ func TestGenerateCustomVhost_multiDomain(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := readConf(t, filepath.Join(confD, "nestapp.test.conf"))
-	if !strings.Contains(content, "server_name nestapp.test *.nestapp.test api.test *.api.test") {
-		t.Errorf("expected all domains with wildcards in:\n%s", content)
+	if !strings.Contains(content, "server_name nestapp.test api.test") {
+		t.Errorf("expected every domain in:\n%s", content)
 	}
 }
 
@@ -1252,11 +1252,13 @@ func TestEnsureNginxConfig_writesForwardedAndCustomD(t *testing.T) {
 	}
 }
 
-// TestEnsureNginxConfigServerNamesHashBucket guards against issue #455: a vhost
-// emits a long "<site>.test *.<site>.test" server_name that overflows nginx's
-// default server_names_hash_bucket_size of 64, crashing nginx for every site.
-// The rendered global nginx.conf must raise the bucket/max sizes so long
-// domains always fit.
+// TestEnsureNginxConfigServerNamesHashBucket guards against issue #455: a
+// server_name long enough to overflow nginx's default
+// server_names_hash_bucket_size of 64 crashes nginx for every site, not just
+// the one whose name is long. The rendered global nginx.conf must raise the
+// bucket and max sizes. Dropping the automatic subdomain wildcard halved the
+// typical length but did not remove the risk: a site with several aliases, or
+// one long domain, still reaches it.
 func TestEnsureNginxConfigServerNamesHashBucket(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)

@@ -11,7 +11,7 @@ func wwwData(site config.Site) VhostData {
 	d := vhostDataFor(site)
 	d.CertDomain = site.PrimaryDomain()
 	d.CanonicalHost = site.CanonicalHost
-	d.ServerNames = serverNamesWithWildcards(site.Domains)
+	d.ServerNames = serverNames(site.Domains)
 	return d
 }
 
