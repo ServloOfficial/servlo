@@ -62,6 +62,16 @@ It reads the script that will actually run, not the framework's template, so tak
 
 A framework that declares no migration command has no schema-changing deploys, and nothing on it is ever backed up on that basis.
 
+## Which Node the build uses
+
+The site's, not the daemon's. Servlo runs the whole deploy script under the Node version the site is pinned to, so `npm ci && npm run build` in a deploy script produces a bundle from the toolchain that site chose.
+
+The whole script goes under that version rather than each command, because a script is several commands and the second one needs the same Node as the first.
+
+If a site pins a version that is not installed, the deploy stops and says so rather than quietly building with a different one. It does not install it for you: a deploy that paused to download a toolchain would be minutes of surprise in the middle of an operation somebody is watching. Run `servlo node:install <version>` and deploy again.
+
+A site with no Node pin, or a machine with no Node at all, runs the script as an ordinary shell script. Most WordPress sites never run a build and should not need a Node manager to exist.
+
 ## Deploy history
 
 Every deploy writes down what it did, and the Deploy tab lists the recent ones: the commit and its subject, who wrote it, who triggered the deploy from the panel, how long it took, whether it worked, and the reason if it did not.

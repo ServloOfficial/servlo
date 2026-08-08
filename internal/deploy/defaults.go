@@ -5,12 +5,14 @@ import (
 	"io"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/envfile"
 	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/realrashid/servlo/internal/node"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/realrashid/servlo/internal/siteops"
@@ -54,23 +56,72 @@ func Head(dir string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
-// RunScript runs a site's deploy script with the site as its working
-// directory.
+// The Node manager, reached through variables so a test can run a deploy
+// script without fnm on the machine.
+var (
+	nodeActive        = func() node.Manager { return node.Active() }
+	nodeDetectVersion = node.DetectVersion
+)
+
+// RunScript runs a site's deploy script with the site as its working directory,
+// under the site's own Node version.
 //
 // Through `sh -c` rather than by writing the script somewhere executable and
 // running it: the script is already a file, but running it in place would mean
 // its permissions and its shebang decide how it executes, and an operator who
 // saved one without a shebang would get a confusing failure rather than the
 // shell they expected.
+//
+// The Node version is the site's, not the daemon's. This is the one place a
+// site's assets are actually built, and a deploy that ran `npm run build` under
+// whatever Node the panel happens to have would ship a bundle from the wrong
+// toolchain to a site that carefully pinned one. The whole script goes under
+// the version rather than each command, because a script is several commands
+// and the second one needs the same Node as the first.
 func RunScript(dir, script string, out io.Writer) error {
 	// -e so the deploy stops at the first command that fails. Without it a
 	// composer install that could not reach the network is followed by a
 	// migration against half-installed code, and the deploy reports success.
-	cmd := exec.Command("sh", "-e", "-c", script)
+	args := []string{"-e", "-c", script}
+
+	cmd, err := nodeScriptCommand(dir, args)
+	if err != nil {
+		return err
+	}
 	cmd.Dir = dir
 	cmd.Stdout = out
 	cmd.Stderr = out
 	return cmd.Run()
+}
+
+// nodeScriptCommand builds the shell command, under the site's Node version
+// when there is one to use.
+func nodeScriptCommand(dir string, args []string) (*exec.Cmd, error) {
+	mgr := nodeActive()
+	if mgr == nil || !mgr.Available() {
+		// No Node on this machine at all. Most WordPress sites never run a
+		// build, and a PHP-only script must not need a Node manager to exist.
+		return exec.Command("sh", args...), nil
+	}
+
+	version, _ := nodeDetectVersion(dir)
+	if version == "" || version == "default" {
+		if !mgr.HasDefault() {
+			return exec.Command("sh", args...), nil
+		}
+		return mgr.Command("default", "sh", args), nil
+	}
+
+	// A pinned version that is not installed is refused rather than silently
+	// swapped for another. Installing one here would mean a deploy quietly
+	// downloading a toolchain, which is minutes of surprise in the middle of an
+	// operation somebody is watching.
+	if !slices.Contains(mgr.List(), version) {
+		return nil, fmt.Errorf(
+			"this site builds with Node %s and it is not installed: run `servlo node:install %s` and deploy again",
+			version, version)
+	}
+	return mgr.Command(version, "sh", args), nil
 }
 
 // Reload makes a site's new code live, gracefully.

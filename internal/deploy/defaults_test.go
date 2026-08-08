@@ -3,11 +3,13 @@ package deploy
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/node"
 )
 
 // The script stops at the first command that fails. Without that, a composer
@@ -127,4 +129,143 @@ func TestDefaults_WiresEverySeam(t *testing.T) {
 	if o.Out == nil {
 		t.Error("nowhere for the output to go")
 	}
+}
+
+// A site pinned to a Node version has to get that Node in its deploy, which is
+// the one place its assets are actually built. Building production bundles with
+// whatever Node the daemon happens to run is how a site pinned to 22 ships
+// output from 18 and nobody notices until something breaks in a browser.
+func TestRunScript_RunsUnderTheSitesNodeVersion(t *testing.T) {
+	dir := t.TempDir()
+	var got struct {
+		version string
+		bin     string
+		args    []string
+	}
+	restore := stubNode(t, nodeStub{
+		available: true,
+		installed: []string{"22"},
+		version:   "22",
+		command: func(version, bin string, args []string) *exec.Cmd {
+			got.version, got.bin, got.args = version, bin, args
+			return exec.Command("true")
+		},
+	})
+	defer restore()
+
+	if err := RunScript(dir, "npm run build\n", &bytes.Buffer{}); err != nil {
+		t.Fatalf("RunScript: %v", err)
+	}
+
+	if got.version != "22" {
+		t.Errorf("ran under Node %q, want the site's 22", got.version)
+	}
+	// The whole script runs under that version, not just its first command: a
+	// script is several commands and the second one needs the same Node.
+	if got.bin != "sh" {
+		t.Errorf("bin = %q, want the shell so the whole script is covered", got.bin)
+	}
+	if len(got.args) < 3 || got.args[0] != "-e" || !strings.Contains(got.args[2], "npm run build") {
+		t.Errorf("args = %v, want the script under sh -e -c", got.args)
+	}
+}
+
+// A site that pins a version servlo does not have fails, loudly, rather than
+// quietly building with a different one. A deploy is not the moment to download
+// a toolchain either, so it says what to run instead of doing it.
+func TestRunScript_RefusesAMissingPinnedVersion(t *testing.T) {
+	restore := stubNode(t, nodeStub{available: true, installed: []string{"20"}, version: "22"})
+	defer restore()
+
+	err := RunScript(t.TempDir(), "npm run build\n", &bytes.Buffer{})
+
+	if err == nil {
+		t.Fatal("a deploy ran with a Node version the site did not pin")
+	}
+	if !strings.Contains(err.Error(), "22") || !strings.Contains(err.Error(), "node:install") {
+		t.Errorf("error = %q, does not name the version or how to install it", err)
+	}
+}
+
+// A site with no Node at all still deploys. Most WordPress sites never run a
+// build, and a PHP-only script must not need a Node manager to exist.
+func TestRunScript_NoNodeStillRuns(t *testing.T) {
+	for _, stub := range []nodeStub{
+		{available: false},
+		{available: true, version: ""},
+	} {
+		restore := stubNode(t, stub)
+		var out bytes.Buffer
+		err := RunScript(t.TempDir(), "echo built\n", &out)
+		restore()
+
+		if err != nil {
+			t.Errorf("%+v: RunScript: %v", stub, err)
+		}
+		if !strings.Contains(out.String(), "built") {
+			t.Errorf("%+v: the script did not run: %q", stub, out.String())
+		}
+	}
+}
+
+// The site directory decides the version, because that is where the project's
+// own Node pin lives.
+func TestRunScript_AsksAboutTheSiteDirectory(t *testing.T) {
+	dir := t.TempDir()
+	var asked string
+	restore := stubNode(t, nodeStub{
+		available: true, installed: []string{"22"}, version: "22",
+		detect:  func(d string) (string, error) { asked = d; return "22", nil },
+		command: func(string, string, []string) *exec.Cmd { return exec.Command("true") },
+	})
+	defer restore()
+
+	if err := RunScript(dir, "npm run build\n", &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if asked != dir {
+		t.Errorf("asked about %q, want the site directory %q", asked, dir)
+	}
+}
+
+// nodeStub stands in for a Node version manager so a deploy script can be run
+// on a machine with no fnm.
+type nodeStub struct {
+	available  bool
+	installed  []string
+	hasDefault bool
+	version    string
+	detect     func(dir string) (string, error)
+	command    func(version, bin string, args []string) *exec.Cmd
+}
+
+func (s nodeStub) Name() string                              { return "stub" }
+func (s nodeStub) Available() bool                           { return s.available }
+func (s nodeStub) List() []string                            { return s.installed }
+func (s nodeStub) HasDefault() bool                          { return s.hasDefault }
+func (s nodeStub) Install(string) error                      { return nil }
+func (s nodeStub) Uninstall(string) error                    { return nil }
+func (s nodeStub) SetDefault(string) error                   { return nil }
+func (s nodeStub) ApplyEnv(*exec.Cmd, []string)              {}
+func (s nodeStub) ExecPrefix(string) string                  { return "" }
+func (s nodeStub) ExecPrefixWithEnv(string, []string) string { return "" }
+func (s nodeStub) ShimScript(string, string) string          { return "" }
+func (s nodeStub) Command(version, bin string, args []string) *exec.Cmd {
+	if s.command != nil {
+		return s.command(version, bin, args)
+	}
+	return exec.Command("true")
+}
+
+func stubNode(t *testing.T, s nodeStub) func() {
+	t.Helper()
+	prevActive, prevDetect := nodeActive, nodeDetectVersion
+	nodeActive = func() node.Manager { return s }
+	nodeDetectVersion = func(dir string) (string, error) {
+		if s.detect != nil {
+			return s.detect(dir)
+		}
+		return s.version, nil
+	}
+	return func() { nodeActive, nodeDetectVersion = prevActive, prevDetect }
 }
