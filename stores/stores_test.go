@@ -215,3 +215,46 @@ func contains(list []string, want string) bool {
 	}
 	return false
 }
+
+// A command that runs beside its own server still has to say where the server
+// is, for the MySQL family.
+//
+// The client's compiled-in socket path and the server's configured one are two
+// separate settings, and the MySQL image servlo pins has them disagreeing: the
+// server listens on /var/lib/mysql/mysql.sock while the client looks for
+// /var/run/mysqld/mysqld.sock. A command that leaves it to the default fails
+// with "Can't connect to local MySQL server through socket" against an engine
+// that is running, which reads like a dead database and is a client default.
+//
+// Scoped to the family that has been seen to disagree. Postgres is deliberately
+// not held to this: its client and server agree on the socket, and moving those
+// commands to TCP would change how they authenticate, which is a different and
+// riskier thing than naming an address.
+func TestServicePresets_MySQLFamilyCommandsNameTheAddress(t *testing.T) {
+	entries, err := fs.ReadDir(FS(), string(Services))
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") {
+			continue
+		}
+		data, _ := Read(Services, e.Name())
+		for i, line := range strings.Split(string(data), "\n") {
+			// -uroot is the local spelling; the aimed commands take
+			// -u {{admin_user}} and carry a host already.
+			if !strings.Contains(line, "-uroot") {
+				continue
+			}
+			checked++
+			if !strings.Contains(line, "-h ") && !strings.Contains(line, "--socket") {
+				t.Errorf("%s:%d leaves the address to the client's default socket: %s",
+					e.Name(), i+1, strings.TrimSpace(line))
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no local MySQL-family command was checked, so this proves nothing")
+	}
+}
