@@ -5,6 +5,7 @@
 | Command | Description |
 |---|---|
 | `servlo install` | One-time setup: directories, network, binaries, DNS, nginx, watcher |
+| `servlo install --database mysql\|mariadb\|postgres\|none` | Install that engine and put new sites on it |
 | `servlo start` | Start DNS, nginx, PHP-FPM containers, and all installed services; warns about port conflicts and builds or pulls any missing images first |
 | `servlo stop` | Stop nginx, PHP-FPM containers, and all running services; leaves the `servlo-dns` forwarder running as install-level plumbing so `.test` keeps resolving |
 | `servlo quit` | Stop all Servlo processes and containers including the UI, watcher and the `servlo-dns` forwarder |

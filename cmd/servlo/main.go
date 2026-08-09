@@ -182,6 +182,7 @@ func main() {
 	root.AddCommand(cli.NewDbSnapshotRmCmd())
 	root.AddCommand(cli.NewDbMoveCmd())
 	root.AddCommand(cli.NewDbExtensionCmd())
+	root.AddCommand(cli.NewDbConnectionCmd())
 	root.AddCommand(cli.NewClientExecCmd())
 	root.AddCommand(cli.NewShimsCmd())
 	root.AddCommand(cli.NewPathEnableCmd())

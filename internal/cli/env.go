@@ -610,9 +610,16 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	// Where this site's database lives. A definition that spells out
 	// servlo-mysql keeps pointing there; one that asks through the placeholders
 	// follows the site's own connection, local or managed.
+	// dbIsLocal decides whether the database side effects below are ours to
+	// perform. A container to start and a database to create are things that
+	// exist for a database servlo runs; for a managed one, starting a local
+	// MySQL and creating the site's schema inside it would be servlo quietly
+	// provisioning the wrong server.
+	dbIsLocal := true
 	if c, err := dbconn.Named(site.Database); err == nil {
 		tplCtx.dbHost, tplCtx.dbPort = c.Host, strconv.Itoa(c.Port)
 		tplCtx.dbUser, tplCtx.dbPassword = c.User, c.Password
+		dbIsLocal = c.Local()
 	}
 
 	// Framework default env vars: seeded only when the key is absent, so a value
@@ -737,6 +744,10 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				updates[k] = applySiteHandle(v, tplCtx)
 			}
 			if externalManaged(svc, extServices) {
+				continue
+			}
+			if isDB && !dbIsLocal {
+				envInfo("  this site is on %s, a database servlo does not run, so no container was started and nothing was created there\n", tplCtx.dbHost)
 				continue
 			}
 			if isDB {

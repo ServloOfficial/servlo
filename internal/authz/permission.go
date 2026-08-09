@@ -148,6 +148,7 @@ func Permissions() Registry {
 		"/api/services/presets":      PermAdmin,
 		"/api/services/presets/":     PermAdmin,
 		"/api/databases":             PermAdmin,
+		"/api/db-connections":        PermAdmin,
 		"/api/databases/":            PermAdmin,
 		"/api/entities/":             PermAdmin,
 		"/api/servlo/start":          PermAdmin,

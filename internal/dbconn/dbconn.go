@@ -52,6 +52,39 @@ type Connection struct {
 // Local reports whether this database is one servlo runs.
 func (c Connection) Local() bool { return c.Service != "" }
 
+// Dialect is the protocol a service family speaks, which is not the same thing
+// as the family.
+//
+// MariaDB is its own family: a different project on a different release line,
+// with its own preset and its own upgrade path. But a MySQL client opens it and
+// a mysqldump restores into it, so everything about reaching a database cares
+// about the dialect and nothing about the fork. Empty for a family that is not
+// a SQL database servlo can manage, which Validate then refuses by name rather
+// than quietly treating as MySQL.
+func Dialect(family string) string {
+	switch family {
+	case "postgres":
+		return "postgres"
+	case "mysql", "mariadb":
+		return "mysql"
+	}
+	return ""
+}
+
+// DialectForService is the dialect a servlo service speaks.
+//
+// The family index is built from the presets installed here, so a service whose
+// preset has not been fetched yet resolves to no family at all. Falling back to
+// the service's own name covers exactly that case: "mariadb" is a dialect this
+// knows whether or not its preset is on disk, which matters at install time,
+// before anything has been fetched.
+func DialectForService(service string) string {
+	if d := Dialect(config.FamilyOfName(service)); d != "" {
+		return d
+	}
+	return Dialect(service)
+}
+
 // familyUser is the administrative account each engine ships with. Two
 // engines, two names, and no third case: an engine servlo cannot name an admin
 // for is one it cannot provision either.
@@ -76,14 +109,13 @@ func familyPort(family string) int {
 // than remembered, because it is written once at install and a value cached in
 // a long-running panel would survive the operator rotating it.
 func ForService(service string) (Connection, error) {
-	family := config.FamilyOfName(service)
-	return forFamilyService(family, service)
+	return forFamilyService(DialectForService(service), service)
 }
 
 // ForFamily is the connection to the canonical local service of a family, for
 // callers that know the dialect but not which service is in front of them.
 func ForFamily(family string) (Connection, error) {
-	return forFamilyService(family, "")
+	return forFamilyService(Dialect(family), "")
 }
 
 // forFamilyService fills in everything it can and reports separately whether

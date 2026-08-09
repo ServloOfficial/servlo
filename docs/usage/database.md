@@ -11,6 +11,7 @@ Database commands work with any project type: Laravel, Symfony, NestJS, Next.js,
 | `servlo db:export [-s service] [-d name] [-o file.sql]` | Export a database to a SQL dump |
 | `servlo db:shell [-s service] [-d name]` | Open an interactive MySQL or PostgreSQL shell |
 | `servlo db:extension list\|add <name>` | List or create the extensions an engine offers |
+| `servlo db:connection` | Manage the databases sites can be put on, local or managed |
 | `servlo db:snapshot [name] [-A]` | Create a named, restorable snapshot of a database |
 | `servlo db:snapshots [--all]` | List stored snapshots |
 | `servlo db:restore <name> [-A] [-f]` | Restore a database from a stored snapshot |
@@ -207,6 +208,28 @@ Connections live in `~/.config/servlo/databases.yaml`, mode `0600`, because a ma
 Framework definitions never write a database's address themselves. They ask for it with the <code v-pre>{{db_host}}</code>, <code v-pre>{{db_port}}</code>, <code v-pre>{{db_user}}</code> and <code v-pre>{{db_password}}</code> placeholders, and servlo fills them from the connection the site is on. That is what lets one Laravel definition serve a site on the local MySQL and a site on a managed PostgreSQL without either one being a special case. See [Framework definitions](framework-definitions.md#site-placeholders).
 
 A connection servlo cannot resolve, because its name was removed or the default points at nothing, leaves those placeholders in the env file untouched rather than substituting a database nobody chose. A site pointed at something that is not there should say so, not quietly connect somewhere else.
+
+### Managing connections
+
+| Command | Description |
+|---|---|
+| `servlo db:connection` | List the configured connections, marking the default |
+| `servlo db:connection add <name> --service <service>` | Add a connection to a database servlo runs |
+| `servlo db:connection add <name> --engine <mysql\|postgres> --host <host> [--port N] --user <user> [--tls require\|verify-ca] [--ca-cert <path>]` | Add a managed database |
+| `servlo db:connection rm <name>` | Remove a connection |
+| `servlo db:connection default <name>` | Put new sites on this connection |
+
+A managed database's password is read from a prompt rather than taken as a flag, so it stays out of the shell history and the process list of a server several people log into. For an unattended install, `SERVLO_DB_PASSWORD` is read instead.
+
+The first connection added becomes the default. Removing one that sites are on is refused, and names the sites in the way: their env still points at that database, and the connection they name would resolve to nothing. Changing the default never moves a site that already exists.
+
+The panel has the same thing under **Services → Connections**, including the per-site picker on a site's settings tab. Assigning a site to a different connection changes where its next `servlo env` writes and moves no data; copying the data across is `servlo db:move`.
+
+### Choosing at install
+
+`servlo install --database mysql|mariadb|postgres` installs that engine, starts it, and makes it the connection new sites go on. `--database none`, or leaving the flag off, installs no database and leaves sites on the local MySQL as before.
+
+The engine is asked for at install because it is the one database decision that is expensive to change afterwards: moving a site from MySQL to PostgreSQL is a dump and a reload, not a setting. A managed database is deliberately not part of the flag, since it needs a host and credentials that belong in a prompt rather than an installer argument; add one with `servlo db:connection add` afterwards and new sites go on it just the same.
 
 ## Picking a database for a Laravel project
 

@@ -6,6 +6,7 @@
   import DashboardSection from '$components/DashboardSection.svelte';
   import InstalledServiceTile from './InstalledServiceTile.svelte';
   import PresetCard from './PresetCard.svelte';
+  import DatabaseConnectionsCard from './DatabaseConnectionsCard.svelte';
   import { coreServices, servicesLoaded } from '$stores/services';
   import { discoverablePresets, presetsLoaded, loadPresets } from '$stores/presets';
   import { openPresetModal } from '$stores/modals';
@@ -45,6 +46,8 @@
     </section>
 
     {#if $isAdmin}
+      <DatabaseConnectionsCard />
+
       <section class="space-y-3">
         <div class="flex items-center justify-between gap-3">
           <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{m.services_dash_discover()}</h2>

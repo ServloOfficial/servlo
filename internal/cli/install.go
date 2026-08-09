@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/nginx"
 	nodeDet "github.com/realrashid/servlo/internal/node"
@@ -54,7 +55,55 @@ func NewInstallCmd() *cobra.Command {
 	_ = cmd.Flags().MarkHidden("from-update")
 	cmd.Flags().Bool("unattended", false,
 		"Run non-interactively for package installs on Linux: no prompts, and skip the sudo-gated system steps that `servlo bootstrap` handles")
+	cmd.Flags().String("database", "",
+		"Which database new sites go on: mysql, mariadb, postgres, or none. A managed database is added afterwards with `servlo db:connection add`")
 	return cmd
+}
+
+// ensureDatabaseService installs and starts the chosen engine, indirected so a
+// test can exercise the choice without a container runtime.
+var ensureDatabaseService = serviceops.EnsureServiceRunning
+
+// installDatabaseChoice records which database new sites go on.
+//
+// The engine is picked here rather than discovered later because it is the one
+// database decision that is awkward to change once sites exist: moving a site
+// between engines is a dump and a reload, not a setting. A managed database is
+// deliberately not asked for at install time, since it needs a host and
+// credentials that belong in a prompt rather than an installer flag, and adding
+// one afterwards puts new sites on it just the same.
+func installDatabaseChoice(cmd *cobra.Command) error {
+	choice, _ := cmd.Flags().GetString("database")
+	choice = strings.ToLower(strings.TrimSpace(choice))
+	if choice == "" || choice == "none" {
+		return nil
+	}
+
+	if dbconn.DialectForService(choice) == "" {
+		return fmt.Errorf("--database %s is not a database servlo runs: mysql, mariadb, postgres, or none", choice)
+	}
+
+	step("Setting " + choice + " as the database new sites go on")
+	if err := ensureDatabaseService(choice); err != nil {
+		return fmt.Errorf("installing %s: %w", choice, err)
+	}
+	reg, err := dbconn.LoadRegistry()
+	if err != nil {
+		return err
+	}
+	if _, exists := reg.Find(choice); !exists {
+		if err := reg.Add(dbconn.LocalConnection(choice, choice)); err != nil {
+			return err
+		}
+	}
+	if err := reg.SetDefault(choice); err != nil {
+		return err
+	}
+	if err := dbconn.SaveRegistry(reg); err != nil {
+		return err
+	}
+	ok()
+	return nil
 }
 
 // step/ok render one install action in the shared feedback vocabulary: step
@@ -505,6 +554,10 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		_ = rewriteDefaultPreset(svc)
 	}
 	ok()
+
+	if err := installDatabaseChoice(cmd); err != nil {
+		return err
+	}
 
 	// Always ensure the default PHP-FPM is available (needed for servlo new on fresh installs).
 	// Then restore quadlets for any additional PHP versions and services from registered sites.

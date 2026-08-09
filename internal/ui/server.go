@@ -212,6 +212,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/services/presets/", withCORS(publishAfter(handleServicePresetInstall, eventbus.KindServices, eventbus.KindStatus)))
 	mux.HandleFunc("/api/services/", withCORS(publishAfter(handleServiceAction, eventbus.KindServices, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/databases", withCORS(handleDatabases))
+	mux.HandleFunc("/api/db-connections", withCORS(handleDBConnections))
 	mux.HandleFunc("/api/databases/", withCORS(handleDatabaseAction))
 	mux.HandleFunc("/api/entities/", withCORS(handleEntities))
 	mux.HandleFunc("/api/version", withCORS(func(w http.ResponseWriter, r *http.Request) {

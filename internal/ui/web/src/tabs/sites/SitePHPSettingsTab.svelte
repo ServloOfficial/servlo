@@ -2,6 +2,8 @@
   import SettingsCard from '$components/SettingsCard.svelte';
   import SettingsNumberField from './SettingsNumberField.svelte';
   import SiteNginxSettingsCard from './SiteNginxSettingsCard.svelte';
+  import SiteDatabaseCard from './SiteDatabaseCard.svelte';
+  import { isAdmin } from '$stores/session';
   import {
     loadSitePHPSettings,
     saveSitePHPSettings,
@@ -121,4 +123,10 @@
   </SettingsCard>
 
   <SiteNginxSettingsCard {site} {onOpenRaw} />
+
+  <!-- Connections are an admin read: the API refuses a Developer, so offering
+       the picker to one would only ever show them a 403. -->
+  {#if $isAdmin}
+    <SiteDatabaseCard {site} />
+  {/if}
 </div>

@@ -212,8 +212,8 @@ func (c Connection) Validate() error {
 	switch {
 	case !connectionName.MatchString(c.Name):
 		return fmt.Errorf("%q is not a usable connection name: lowercase letters, digits and dashes, up to 40 characters", c.Name)
-	case c.Family != "mysql" && c.Family != "postgres":
-		return fmt.Errorf("connection %q: %q is not a database servlo can manage, which is mysql or postgres", c.Name, c.Family)
+	case Dialect(c.Family) == "":
+		return fmt.Errorf("connection %q: %q is not a database servlo can manage, which is mysql, mariadb or postgres", c.Name, c.Family)
 	}
 	if c.Local() {
 		return nil
@@ -244,7 +244,7 @@ func External(name, family, host string, port int, user, password string) Connec
 	}
 	return Connection{
 		Name:     name,
-		Family:   family,
+		Family:   Dialect(family),
 		Host:     strings.TrimSpace(host),
 		Port:     port,
 		User:     strings.TrimSpace(user),
@@ -254,5 +254,5 @@ func External(name, family, host string, port int, user, password string) Connec
 
 // LocalConnection builds a connection to a service servlo runs.
 func LocalConnection(name, service string) Connection {
-	return Connection{Name: name, Family: config.FamilyOfName(service), Service: service}
+	return Connection{Name: name, Family: DialectForService(service), Service: service}
 }
