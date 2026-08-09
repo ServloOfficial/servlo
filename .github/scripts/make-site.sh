@@ -26,8 +26,12 @@ PHP
 # A real database with a row in it, so the rebuild job proves data comes back
 # rather than only that a site serves. A backup of a site with no database
 # proves the smaller half of the story.
+# DB_CONNECTION as well as DB_DATABASE. Creating a database will pick a service
+# on its own, but loading a dump into one will not guess which engine to load
+# it into, and says so.
 cat > "$root/.env" <<ENV
 APP_ENV=production
+DB_CONNECTION=mysql
 DB_DATABASE=$(echo "$domain" | tr '.-' '__')
 ENV
 
