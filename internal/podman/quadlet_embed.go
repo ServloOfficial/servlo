@@ -131,8 +131,8 @@ func ContainerPort(spec string) int {
 // SetHostPortForContainerPort rewrites the host (published) side of whichever
 // spec in ports maps to containerPort, leaving the container-internal port and
 // every other mapping untouched. It generalises SetPrimaryHostPort past the
-// index-0 primary so a service's secondary published port (mailpit's 8025 UI,
-// rustfs' 9001 console) can be remapped too. Returns ports unchanged when empty,
+// index-0 primary so a service's secondary published port (rustfs' 9001
+// console) can be remapped too. Returns ports unchanged when empty,
 // hostPort is non-positive, or no spec maps to containerPort. Pure.
 func SetHostPortForContainerPort(ports []string, containerPort, hostPort int) []string {
 	if len(ports) == 0 || hostPort <= 0 || containerPort <= 0 {

@@ -73,7 +73,6 @@ services:
   postgres:    { enabled: false, image: "docker.io/postgis/postgis:16-3.5-alpine", port: 5432 }
   meilisearch: { enabled: false, image: "docker.io/getmeili/meilisearch:v1.7",     port: 7700 }
   rustfs:      { enabled: false, image: "docker.io/rustfs/rustfs:latest",          port: 9000 }
-  mailpit:     { enabled: false, image: "docker.io/axllent/mailpit:latest",        port: 1025 }
 php:
   extensions: [mongodb] # custom PHP extensions (`servlo php:ext`). One declared set,
                         # applied to every PHP image servlo builds: extensions belong

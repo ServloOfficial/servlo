@@ -110,6 +110,18 @@
       </ListRow>
     {/if}
 
+    {#if $isAdmin}
+      {#snippet sftpDot()}<StatusDot color="gray" />{/snippet}
+      <ListRow active={selected === 'sftp'} onclick={() => select('sftp')} leading={sftpDot}>
+        {m.system_sftp()}
+      </ListRow>
+
+      {#snippet mailDot()}<StatusDot color="gray" />{/snippet}
+      <ListRow active={selected === 'mail'} onclick={() => select('mail')} leading={mailDot}>
+        {m.system_mail()}
+      </ListRow>
+    {/if}
+
     {#snippet watcherDot()}<StatusDot color={$status.watcher_running ? 'green' : 'gray'} />{/snippet}
     <ListRow active={selected === 'watcher'} onclick={() => select('watcher')} leading={watcherDot}>{m.system_watcher()}</ListRow>
 

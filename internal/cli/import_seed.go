@@ -359,7 +359,6 @@ var landoServiceTypeToServlo = map[string]string{
 	"redis":         "redis",
 	"memcached":     "memcached",
 	"elasticsearch": "elasticsearch",
-	"mailhog":       "mailpit",
 }
 
 // landoSeed reads .lando.yml / .lando.yaml from dir and translates it into a

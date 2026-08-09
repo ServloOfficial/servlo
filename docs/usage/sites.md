@@ -54,7 +54,6 @@ servlo init
   ◉ redis
   ◯ meilisearch
   ◯ rustfs
-  ◯ mailpit
 Saved .servlo.yaml
 Linked: my-app -> my-app.test (PHP 8.5, Node 22, Framework: laravel)
 ```

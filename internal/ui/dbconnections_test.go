@@ -30,6 +30,7 @@ func connectionsPost(t *testing.T, body string) map[string]any {
 // the host and the credentials in front of them.
 func TestDBConnections_AddsAManagedDatabase(t *testing.T) {
 	setupConfigDirRaw(t, "", "", false)
+	stubConnectionTest(t, nil)
 
 	got := connectionsPost(t, `{"action":"add","name":"managed","engine":"postgres",
 		"host":"db.example.net","port":25060,"user":"doadmin","password":"s3cret","tls_mode":"require"}`)
@@ -51,6 +52,7 @@ func TestDBConnections_AddsAManagedDatabase(t *testing.T) {
 // to read it back: they typed it.
 func TestDBConnections_NeverRendersThePassword(t *testing.T) {
 	setupConfigDirRaw(t, "", "", false)
+	stubConnectionTest(t, nil)
 
 	if got := connectionsPost(t, `{"action":"add","name":"managed","engine":"mysql",
 		"host":"db.example.net","user":"admin","password":"hunter2"}`); got["error"] != nil {
@@ -74,6 +76,7 @@ func TestDBConnections_NeverRendersThePassword(t *testing.T) {
 // the most expensive possible misreading of a click.
 func TestDBConnections_AssignsASiteWithoutMovingData(t *testing.T) {
 	setupConfigDirRaw(t, "", "", false)
+	stubConnectionTest(t, nil)
 	registerSite(t, "shop", "shop.example")
 
 	if got := connectionsPost(t, `{"action":"add","name":"managed","engine":"mysql",
@@ -98,6 +101,7 @@ func TestDBConnections_AssignsASiteWithoutMovingData(t *testing.T) {
 // nothing.
 func TestDBConnections_RefusesToRemoveOneInUse(t *testing.T) {
 	setupConfigDirRaw(t, "", "", false)
+	stubConnectionTest(t, nil)
 	registerSite(t, "shop", "shop.example")
 
 	connectionsPost(t, `{"action":"add","name":"managed","engine":"mysql","host":"db.example.net","user":"admin","password":"pw"}`)

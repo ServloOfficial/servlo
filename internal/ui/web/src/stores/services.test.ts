@@ -35,7 +35,7 @@ describe('services store', () => {
       { name: 'valkey', status: 'active', site_count: 0, category: 'cache' },
       { name: 'mariadb', status: 'active', site_count: 0, category: 'databases' },
       { name: 'memcached', status: 'active', site_count: 0, category: 'cache' },
-      { name: 'mailpit', status: 'active', site_count: 0, category: 'mail' }
+      { name: 'gotenberg', status: 'active', site_count: 0, category: 'mail' }
     ]);
     const groups = get(coreServiceGroups);
     expect(groups.map((g) => g.key)).toEqual(['databases', 'cache', 'mail']);
@@ -139,20 +139,20 @@ describe('services store', () => {
     const calls: Array<[string, RequestInit | undefined]> = [];
     globalThis.fetch = vi.fn(async (url: unknown, init?: RequestInit) => {
       calls.push([String(url), init]);
-      if (String(url).endsWith('/mailpit/ports'))
+      if (String(url).endsWith('/rustfs/ports'))
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       return new Response('[]', { status: 200 });
     }) as unknown as typeof fetch;
     const { setServicePorts } = await import('./services');
-    const res = await setServicePorts('mailpit', {
+    const res = await setServicePorts('rustfs', {
       published_port: null,
-      published_ports: { '8025': 8026 },
+      published_ports: { '9001': 9002 },
       extra_ports: []
     });
     expect(res.ok).toBe(true);
     expect(JSON.parse(String(calls[0][1]?.body))).toEqual({
       published_port: null,
-      published_ports: { '8025': 8026 },
+      published_ports: { '9001': 9002 },
       extra_ports: []
     });
   });

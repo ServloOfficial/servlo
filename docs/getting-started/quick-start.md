@@ -54,7 +54,7 @@ See the [Containers walkthrough](containers.md) for Node, Python, Go, and Ruby e
 
 ## Add extra services
 
-Servlo ships with **MySQL, PostgreSQL, Redis, Meilisearch, RustFS, and Mailpit** built in. Need anything else? The [**Services walkthrough**](services.md) has copy-paste recipes for the most common ones:
+Servlo ships with **MySQL, PostgreSQL, Redis, Meilisearch, and RustFS** built in. Need anything else? The [**Services walkthrough**](services.md) has copy-paste recipes for the most common ones:
 
 - **MongoDB**: document store with per-site database auto-provisioning
 - **phpMyAdmin / pgAdmin / Adminer**: web UIs for MySQL and PostgreSQL

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -46,6 +47,9 @@ func init() {
 		}
 		return "servlo-" + name
 	}
+	// An admin UI's server list is every database this install can reach, which
+	// discover_family cannot answer on its own once one of them is managed.
+	config.DatabaseConnections = DatabaseConnectionsFor
 }
 
 // IsBuiltin reports whether name is a built-in (default-preset) servlo service.
@@ -189,7 +193,7 @@ func portClaimedByOtherInstalled(self string, p int) bool {
 		return false
 	}
 	// serviceEffectiveHostPorts includes a multi-port service's un-overridden
-	// secondary defaults (mailpit's 8025, rustfs' 9001), which HostPorts() omits,
+	// secondary defaults (rustfs' 9001), which HostPorts() omits,
 	// so a stopped sibling still reserves them and two units can't collide at boot.
 	claims := func(name string, sc config.ServiceConfig) bool {
 		for _, hp := range serviceEffectiveHostPorts(name, sc) {
@@ -298,7 +302,7 @@ func WithURLPort(rawURL string, port int) string {
 // service's default port mappings, resolves that mapping's effective host port
 // (per-port override, then primary override, then default), and rewrites the URL
 // to it. A dashboard on the primary (meilisearch's 7700) follows a primary move;
-// one on a secondary (mailpit's 8025 UI, rustfs' 9001 console) follows only a
+// one on a secondary (rustfs' 9001 console) follows only a
 // move of that secondary, and stays put otherwise. Proxied same-origin paths
 // (/_svc/<name>/) have no host and pass through unchanged.
 func WithDashboardPort(rawURL string, defaultPorts []string, cfg config.ServiceConfig) string {
@@ -362,6 +366,10 @@ func InstallPresetStreaming(name, version string, emit func(PhaseEvent)) (*confi
 	}
 
 	for _, dep := range svc.DependsOn {
+		// A dep met only by a managed connection has nothing here to start.
+		if connectionSatisfiesDep(svc, dep) && ResolveDependency(dep) == "" {
+			continue
+		}
 		emit(PhaseEvent{Phase: "starting_deps", Dep: dep, State: "starting"})
 		resolved, err := EnsureDependencyRunning(dep)
 		if err != nil {
@@ -382,7 +390,50 @@ func InstallPresetStreaming(name, version string, emit func(PhaseEvent)) (*confi
 	if err := waitReadyFn(svc.Name, 60*time.Second); err != nil {
 		return svc, err
 	}
+	installAdminUIs(svc.Name, emit)
 	return svc, nil
+}
+
+// installAdminUIs brings up the admin UI that goes with what was just
+// installed, without asking a second time (S11.3).
+//
+// A failure here does not fail the install. The engine is up and working; a
+// phpMyAdmin whose image would not pull is a missing convenience, not a reason
+// to unwind a database somebody is about to put a site on. It is reported
+// through the same phase stream the rest of the install uses, so it is visible
+// rather than silent.
+func installAdminUIs(service string, emit func(PhaseEvent)) {
+	for _, name := range AdminUIsFor(service) {
+		emit(PhaseEvent{Phase: "installing_admin_ui", Dep: name, State: "starting"})
+		// The admin UI is installed the same way anything else is, minus this
+		// step: a UI does not administer a UI, and the recursion is stopped by
+		// saying so here rather than by hoping no preset ever declares it.
+		if _, err := installWithoutAdminUIs(name); err != nil {
+			emit(PhaseEvent{Phase: "installing_admin_ui", Dep: name, State: "failed", Message: err.Error()})
+			continue
+		}
+		emit(PhaseEvent{Phase: "installing_admin_ui", Dep: name, State: "ready"})
+	}
+}
+
+// installWithoutAdminUIs is the install path a companion takes. Kept as a seam
+// so a test can watch what would have been installed without a container
+// runtime under it.
+var installWithoutAdminUIs = func(name string) (*config.CustomService, error) {
+	svc, err := resolvePresetForInstall(name, "")
+	if err != nil {
+		return nil, err
+	}
+	if err := podman.PullImageIfMissing(svc.Image); err != nil {
+		return nil, err
+	}
+	if err := registerPreset(svc); err != nil {
+		return nil, err
+	}
+	if err := StartService(svc.Name); err != nil {
+		return svc, err
+	}
+	return svc, waitReadyFn(svc.Name, 60*time.Second)
 }
 
 // InstallPresetByName materialises a bundled preset as a custom service.
@@ -469,12 +520,71 @@ func registerPreset(svc *config.CustomService) error {
 func MissingPresetDependencies(svc *config.CustomService) []string {
 	var missing []string
 	for _, dep := range svc.DependsOn {
+		if connectionSatisfiesDep(svc, dep) {
+			continue
+		}
 		resolved := ResolveDependency(dep)
 		if resolved == "" || (resolved != dep && !consumerCanUseDropIn(svc, dep, resolved)) {
 			missing = append(missing, missingDepLabel(dep, svc))
 		}
 	}
 	return missing
+}
+
+// connectionSatisfiesDep reports whether a registered database connection meets
+// dep for this consumer.
+//
+// A managed database is a first-class place for a site's data (PRD §6), and it
+// has no container. An admin UI that builds its server list with a
+// connections: directive is reading the registry, not the running containers,
+// so a managed server is exactly as usable to it as a local one, and requiring
+// something to be running locally would leave a managed-only install unable to
+// install the tool at all.
+//
+// The gate is the directive, not the dep. A tool that pins servlo-mysql and
+// never reads the registry still needs a container: satisfying its dep from a
+// connection would install it green and leave it talking to nothing.
+//
+// Only a managed connection counts. A local one is a container by another name,
+// and whether that container is there is the question ResolveDependency already
+// answers; letting it through here would report pgAdmin's postgres dep
+// satisfied on an install with no postgres at all.
+func connectionSatisfiesDep(svc *config.CustomService, dep string) bool {
+	if svc == nil || config.DatabaseConnections == nil {
+		return false
+	}
+	for _, directive := range svc.DynamicEnv {
+		families, ok := connectionFamilies(directive)
+		if !ok || !slices.Contains(families, dep) {
+			continue
+		}
+		for _, c := range config.DatabaseConnections(families) {
+			if !c.Local {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// connectionFamilies pulls the family list out of a "connections:<families>=<field>"
+// dynamic_env directive. Anything else reports false.
+func connectionFamilies(directive string) ([]string, bool) {
+	rest, ok := strings.CutPrefix(directive, "connections:")
+	if !ok {
+		return nil, false
+	}
+	spec, _, ok := strings.Cut(rest, "=")
+	if !ok {
+		return nil, false
+	}
+	var families []string
+	for _, f := range strings.Split(spec, ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			families = append(families, f)
+		}
+	}
+	return families, len(families) > 0
 }
 
 // consumerCanUseDropIn reports whether svc can wire a non-literal satisfier for
@@ -766,7 +876,7 @@ func EnsureDefaultPresetQuadletPinned(name, pinnedImage string) error {
 		// users from their installed minor (e.g. meilisearch v1.7.x) to whatever
 		// the new preset.Image declares (v1.42), bypassing the per-service
 		// migration UX that `servlo service update` enforces. Rolling-strategy
-		// services (mailpit, rustfs, gotenberg) intentionally fall through to the
+		// services (rustfs, gotenberg) intentionally fall through to the
 		// preset image and the track_latest block below.
 		strategy := registry.Strategy(p.UpdateStrategy)
 		if strategy == registry.StrategyPatch || strategy == registry.StrategyMinor || strategy == registry.StrategyNone {
@@ -927,7 +1037,7 @@ func ensureCustomServiceQuadletDiff(svc *config.CustomService) (bool, error) {
 		svc.Ports = podman.SetPrimaryHostPort(svc.Ports, pp)
 		svc.ConnectionURL = WithURLPort(svc.ConnectionURL, pp)
 	}
-	// Secondary published ports (mailpit's UI, rustfs' console): apply any recorded
+	// Secondary published ports (rustfs' console): apply any recorded
 	// per-port override, then run the same ownership guard the primary gets on the
 	// rest — an unoverridden secondary whose default host port is taken shifts to a
 	// free port and persists, so a multi-port service can't fail to bind at boot.
@@ -1397,8 +1507,12 @@ func consumerDiscoverFamilies(svc *config.CustomService) []string {
 		list := parts[1]
 		switch parts[0] {
 		case "discover_family":
-		case "repeat_family":
-			// The family list comes ahead of "=<value>".
+		case "repeat_family", "connections":
+			// The family list comes ahead of "=<value>". connections reads the
+			// same families through the connection registry rather than through
+			// the running containers, so a preset wired with it is a consumer of
+			// those families just the same: installing a postgres alternate has
+			// to rebuild pgAdmin's server list either way.
 			eq := strings.Index(list, "=")
 			if eq < 0 {
 				continue

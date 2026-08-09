@@ -91,7 +91,7 @@ export function diffServicesEvents(
     if (!old) {
       // New service. Skip workers — those come and go as side-effects of
       // site state changes and would flood the timeline. Core services
-      // (mysql, redis, mailpit, etc.) are user-driven adds.
+      // (mysql, redis, postgres, etc.) are user-driven adds.
       if (!isServiceWorker(s)) {
         out.push({ kind: 'service_added', subject: name });
       }

@@ -124,7 +124,7 @@ func TestExternalDBPicked(t *testing.T) {
 	}{
 		{"builtin postgres", map[string]bool{"postgres": true}, true},
 		{"builtin mysql", map[string]bool{"mysql": true}, true},
-		{"non-db service", map[string]bool{"mailpit": true}, false},
+		{"non-db service", map[string]bool{"meilisearch": true}, false},
 		{"empty", map[string]bool{}, false},
 	}
 	for _, c := range cases {

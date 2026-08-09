@@ -667,21 +667,12 @@ func WorkerUnitName(siteName, sitePath, workerName string) string {
 // the shared FPM container that doesn't run their PHP at all.
 func resolveWorkerFPMUnit(siteName, phpVersion string) string {
 	if site, _ := config.FindSite(siteName); site != nil {
-		switch {
-		case site.IsHostProxy():
-			// Host-proxy sites run their dev server on the host and have no FPM
-			// container, so there is nothing to depend on or exec into. Returning
-			// "" lets writeHostWorkerUnitFile skip the FPM ordering block.
-			return ""
-		case site.IsCustomContainer():
-			return podman.CustomContainerName(siteName)
-		case site.IsFrankenPHP():
-			return podman.FrankenPHPContainerName(siteName)
-		case site.IsCustomFPM():
-			return podman.CustomFPMContainerName(siteName)
-		}
+		// Host-proxy sites run their dev server on the host and have no FPM
+		// container, so there is nothing to depend on or exec into. The empty
+		// name lets writeHostWorkerUnitFile skip the FPM ordering block.
+		return podman.SiteContainerName(*site, phpVersion)
 	}
-	return "servlo-php" + strings.ReplaceAll(phpVersion, ".", "") + "-fpm"
+	return podman.SharedFPMContainerName(phpVersion)
 }
 
 // WorkerStopForSite stops and removes the named worker unit for the given site.

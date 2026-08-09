@@ -95,6 +95,43 @@ func TestForSite_FillsAConnectionString(t *testing.T) {
 	}
 }
 
+// Once a site has its own database account, that is what its env file carries.
+// The administrator's credentials in a site's .env are what let one site read
+// every other site's data, which is the whole reason per-site accounts exist.
+func TestForSite_PrefersTheSitesOwnDatabaseAccount(t *testing.T) {
+	site := registerSite(t, config.Site{Name: "shop", Domains: []string{"shop.example"}, Database: "managed"})
+
+	reg := &dbconn.Registry{}
+	_ = reg.Add(dbconn.External("managed", "mysql", "db.example.net", 25060, "doadmin", "s3cret"))
+	if err := dbconn.SaveRegistry(reg); err != nil {
+		t.Fatal(err)
+	}
+	if err := dbconn.RecordSiteUser("managed", "shop", "shop", "sitepasswordsitepasswordsite"); err != nil {
+		t.Fatal(err)
+	}
+
+	got := Apply("{{db_user}}:{{db_password}}", ForSite(site))
+
+	if got != "shop:sitepasswordsitepasswordsite" {
+		t.Errorf("got %q, want the site's own account", got)
+	}
+	if strings.Contains(got, "doadmin") || strings.Contains(got, "s3cret") {
+		t.Errorf("got %q, which hands the site the administrator", got)
+	}
+}
+
+// A site created before per-site accounts existed has none, and it must keep
+// working exactly as it does today rather than losing its credentials.
+func TestForSite_FallsBackToTheAdministratorWithoutAnAccount(t *testing.T) {
+	site := registerSite(t, config.Site{Name: "legacy", Domains: []string{"legacy.example"}})
+
+	got := Apply("{{db_user}}", ForSite(site))
+
+	if got != "root" {
+		t.Errorf("got %q, want the connection's administrator", got)
+	}
+}
+
 // A connection servlo cannot resolve leaves the placeholder visible rather than
 // writing a host it made up. A site pointed at a database that is not there
 // should say so in its own env file, not connect to a different one.

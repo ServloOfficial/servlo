@@ -5,55 +5,12 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
-	"strings"
 
 	servlocli "github.com/realrashid/servlo/internal/cli"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/nginx"
 	"golang.org/x/crypto/bcrypt"
 )
-
-// fromHost reports whether r's source IP belongs to one of the host's
-// own interfaces. The mailpit container reaches the dashboard via
-// host.containers.internal, which pasta (Linux) and gvproxy / vmnet
-// (macOS) source-NAT to the host, so servlo-panel sees the request as coming
-// from one of its own addresses. A LAN attacker arrives from a different
-// IP and is rejected. Spoofing a host-owned address would break the TCP
-// handshake because the SYN-ACK routes back into the host rather than
-// reaching the attacker.
-//
-// Interfaces are re-read on every call so VPN attach, WiFi switch, or
-// a late-arriving podman bridge are picked up without a daemon restart.
-// Each call is a few syscalls, fine for webhook-rate traffic.
-func fromHost(r *http.Request) bool {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	// IPv6 link-local sources may carry a zone suffix (fe80::1%eth0);
-	// strip it before parsing so the value compare below works.
-	if i := strings.Index(host, "%"); i != -1 {
-		host = host[:i]
-	}
-	src := net.ParseIP(host)
-	if src == nil {
-		return false
-	}
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return false
-	}
-	for _, a := range addrs {
-		ipNet, ok := a.(*net.IPNet)
-		if !ok || ipNet.IP == nil {
-			continue
-		}
-		if src.Equal(ipNet.IP) {
-			return true
-		}
-	}
-	return false
-}
 
 // unsafeMethod reports whether m can mutate server state and therefore must
 // pass the cross-origin gate. Read-only methods (GET, HEAD, OPTIONS) can't,
@@ -76,9 +33,8 @@ const csrfHeader = "X-Servlo-CSRF"
 // endpoints are reached by non-browser clients (or cross-origin pages we
 // can't control) that can't carry the header, and each already has its own
 // source protection: /api/remote-setup has a token + RFC1918 + lockout gate,
-// the mailpit webhook is restricted to host-NAT'd source IPs, the internal
-// notify bridge (POSTed over loopback by out-of-process CLI commands) has its
-// own loopback gate and only triggers a dashboard refresh.
+// the internal notify bridge (POSTed over loopback by out-of-process CLI
+// commands) has its own loopback gate and only triggers a dashboard refresh.
 //
 // The per-site unpause used to be exempt too, for a button on the paused-site
 // holding page that POSTed here cross-origin. That page is served to whoever
@@ -86,7 +42,7 @@ const csrfHeader = "X-Servlo-CSRF"
 // the dashboard now and the exemption went with it.
 func csrfExemptPath(path string) bool {
 	switch path {
-	case "/api/remote-setup", "/api/webhooks/mailpit", "/api/internal/notify":
+	case "/api/remote-setup", "/api/internal/notify":
 		return true
 	}
 	return false
@@ -141,9 +97,7 @@ func passesCSRF(r *http.Request) bool {
 // request came from.
 //
 // What remains is the part sessions do not answer: the cross-origin check,
-// which still applies to the routes that reach the panel without a session,
-// and the source gate on the mailpit webhook, which is POSTed by a container
-// that holds no cookie.
+// which still applies to the routes that reach the panel without a session.
 func withRemoteControlGate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 1. CORS preflight: pass through. Browsers don't include the
@@ -170,22 +124,6 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 		// RFC 1918 source IP, brute-force lockout). It must remain reachable
 		// from a remote laptop *before* the user has set up dashboard auth.
 		if r.URL.Path == "/api/remote-setup" {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// 2b. Mailpit's webhook is POSTed from inside the mailpit container
-		// to host.containers.internal:7073. pasta (Linux) and gvproxy /
-		// vmnet (macOS) source-NAT that to one of the host's own interface
-		// IPs, so we accept any caller whose source IP belongs to the
-		// host. A LAN attacker arrives from a different IP and is rejected,
-		// closing the "anyone on the WiFi can spam fake mail pushes" vector.
-		if r.URL.Path == "/api/webhooks/mailpit" {
-			if !fromHost(r) {
-				w.Header().Set("Cache-Control", "no-store")
-				http.Error(w, "Forbidden — this webhook is only accepted from the servlo host.", http.StatusForbidden)
-				return
-			}
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -19,8 +19,8 @@ import (
 //   - The page itself and its assets, because the login form has to load
 //     before anyone can log in.
 //   - The auth routes, which are the way in.
-//   - The mailpit webhook and the internal notify bridge, which are POSTed by
-//     things that hold no cookie and have their own source gates.
+//   - The internal notify bridge, which is POSTed by something that holds no
+//     cookie and has its own source gate.
 
 // publicPrefixes are the built asset subtrees. They serve files, never state,
 // and their names are hashed at build time so listing them individually would

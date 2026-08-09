@@ -43,7 +43,7 @@ describe('groupByCategory', () => {
       p('redis', 'cache'),
       p('mysql', 'databases'),
       p('mongo', 'databases'),
-      p('mailpit', 'mail')
+      p('gotenberg', 'mail')
     ]);
     expect(groups.map((g) => g.key)).toEqual(['databases', 'cache', 'mail']);
     expect(groups[0].items.map((x) => x.name)).toEqual(['mongo', 'mysql']);

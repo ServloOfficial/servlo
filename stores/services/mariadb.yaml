@@ -102,3 +102,30 @@ introspect:
           --add-drop-database --all-databases
         import_all: >
           $(command -v mariadb || command -v mysql) --max-allowed-packet=1G -uroot
+    # The account a site reaches its own database as, so one site's code cannot
+    # read the site next door. Every statement takes its host, port and
+    # administrator from the connection the site is on, so the same declaration
+    # provisions a container here and a managed server somewhere else.
+    - kind: site_users
+      image: docker.io/library/mariadb:11.8
+      # MariaDB's client spells TLS its own way: --ssl rather than MySQL's
+      # --ssl-mode, and a CA file is what turns verification on. Which is the
+      # point of declaring the flags here instead of deriving them in Go.
+      tls:
+        require: "--ssl"
+        verify-ca: "--ssl --ssl-ca={{ca_cert}}"
+      actions:
+        create: >
+          $(command -v mariadb || command -v mysql) -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -e
+          "CREATE USER IF NOT EXISTS '{{name}}'@'%' IDENTIFIED BY '{{user_password}}';"
+        rotate: >
+          $(command -v mariadb || command -v mysql) -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -e
+          "ALTER USER '{{name}}'@'%' IDENTIFIED BY '{{user_password}}'; FLUSH PRIVILEGES;"
+        grant: >
+          $(command -v mariadb || command -v mysql) -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -e
+          "GRANT ALL PRIVILEGES ON \`{{database}}\`.* TO '{{name}}'@'%'; FLUSH PRIVILEGES;"
+        drop:
+          exec: >
+            $(command -v mariadb || command -v mysql) -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -e
+            "DROP USER IF EXISTS '{{name}}'@'%';"
+          destructive: true

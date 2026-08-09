@@ -1,0 +1,121 @@
+{
+  "root": "/home/dev/code/acme",
+  "listings": {
+    "": {
+      "entries": [
+        { "name": "app", "path": "app", "dir": true, "size": 0, "mode": "0755", "modified": 1786120000, "symlink": false },
+        { "name": "bootstrap", "path": "bootstrap", "dir": true, "size": 0, "mode": "0755", "modified": 1785990000, "symlink": false },
+        { "name": "public", "path": "public", "dir": true, "size": 0, "mode": "0755", "modified": 1786210000, "symlink": false },
+        { "name": "storage", "path": "storage", "dir": true, "size": 0, "mode": "0775", "modified": 1786240000, "symlink": false },
+        { "name": "tmp-empty", "path": "tmp-empty", "dir": true, "size": 0, "mode": "0755", "modified": 1786100000, "symlink": false },
+        { "name": ".env", "path": ".env", "dir": false, "size": 1284, "mode": "0644", "modified": 1786239000, "symlink": false },
+        { "name": "artisan", "path": "artisan", "dir": false, "size": 1686, "mode": "0755", "modified": 1785300000, "symlink": false },
+        { "name": "composer.json", "path": "composer.json", "dir": false, "size": 2417, "mode": "0644", "modified": 1786001000, "symlink": false },
+        { "name": "acme-marketing-theme-2026-final-revised.zip", "path": "acme-marketing-theme-2026-final-revised.zip", "dir": false, "size": 8419233, "mode": "0644", "modified": 1786244000, "symlink": false },
+        { "name": "logo.png", "path": "logo.png", "dir": false, "size": 48213, "mode": "0644", "modified": 1785120000, "symlink": false },
+        { "name": "shared-uploads", "path": "shared-uploads", "dir": false, "size": 0, "mode": "0777", "modified": 1785800000, "symlink": true, "escapes": true }
+      ],
+      "truncated": false
+    },
+    "app": {
+      "entries": [
+        { "name": "Http", "path": "app/Http", "dir": true, "size": 0, "mode": "0755", "modified": 1786120000, "symlink": false },
+        { "name": "Models", "path": "app/Models", "dir": true, "size": 0, "mode": "0755", "modified": 1786119000, "symlink": false },
+        { "name": "Providers", "path": "app/Providers", "dir": true, "size": 0, "mode": "0755", "modified": 1785700000, "symlink": false },
+        { "name": "Services", "path": "app/Services", "dir": true, "size": 0, "mode": "0755", "modified": 1786118000, "symlink": false }
+      ],
+      "truncated": false
+    },
+    "app/Models": {
+      "entries": [
+        { "name": "Order.php", "path": "app/Models/Order.php", "dir": false, "size": 3922, "mode": "0644", "modified": 1786118000, "symlink": false },
+        { "name": "OrderLineItemAdjustment.php", "path": "app/Models/OrderLineItemAdjustment.php", "dir": false, "size": 7714, "mode": "0666", "modified": 1786117000, "symlink": false },
+        { "name": "User.php", "path": "app/Models/User.php", "dir": false, "size": 1802, "mode": "0644", "modified": 1785990000, "symlink": false }
+      ],
+      "truncated": false
+    },
+    "tmp-empty": { "entries": [], "truncated": false },
+    "public": {
+      "entries": [
+        { "name": "build", "path": "public/build", "dir": true, "size": 0, "mode": "0755", "modified": 1786210000, "symlink": false },
+        { "name": "index.php", "path": "public/index.php", "dir": false, "size": 543, "mode": "0644", "modified": 1785300000, "symlink": false },
+        { "name": "robots.txt", "path": "public/robots.txt", "dir": false, "size": 24, "mode": "0644", "modified": 1785300000, "symlink": false }
+      ],
+      "truncated": false
+    }
+  },
+  "content": {
+    ".env": {
+      "path": ".env",
+      "size": 1284,
+      "mode": "0600",
+      "binary": false,
+      "truncated": false
+    },
+    "composer.json": {
+      "path": "composer.json",
+      "size": 2417,
+      "mode": "0644",
+      "binary": false,
+      "truncated": false,
+      "text": "{\n  \"name\": \"acme/supply\",\n  \"type\": \"project\",\n  \"require\": {\n    \"php\": \"^8.4\",\n    \"laravel/framework\": \"^12.0\"\n  },\n  \"scripts\": {\n    \"post-autoload-dump\": [\n      \"@php artisan package:discover --ansi\"\n    ]\n  }\n}\n"
+    },
+    "public/index.php": {
+      "path": "public/index.php",
+      "size": 543,
+      "mode": "0644",
+      "binary": false,
+      "truncated": false,
+      "text": "<?php\n\nuse Illuminate\\Foundation\\Application;\n\ndefine('LARAVEL_START', microtime(true));\n\nrequire __DIR__.'/../vendor/autoload.php';\n\n$app = require_once __DIR__.'/../bootstrap/app.php';\n\n$app->handleRequest(Request::capture());\n"
+    },
+    "logo.png": {
+      "path": "logo.png",
+      "size": 48213,
+      "mode": "0644",
+      "binary": true,
+      "truncated": false,
+      "text": ""
+    }
+  },
+  "permissions": {
+    "ok": true,
+    "changes": 214,
+    "skipped": 1188,
+    "truncated": false,
+    "applied": 0,
+    "rules": [
+      {
+        "name": "directories",
+        "octal": "0755",
+        "reason": "nginx and PHP-FPM have to traverse the tree to serve anything under it",
+        "count": 412,
+        "changes": 3,
+        "samples": ["storage", "storage/framework", "storage/logs"]
+      },
+      {
+        "name": "files",
+        "octal": "0644",
+        "reason": "readable by the server, writable only by the account that owns the site",
+        "count": 3877,
+        "changes": 209,
+        "samples": ["app/Models/OrderLineItemAdjustment.php", "public/build/manifest.json", "resources/views/mail/order.blade.php"]
+      },
+      {
+        "name": "executables",
+        "octal": "0755",
+        "reason": "a file that is already executable stays executable, so artisan and vendor/bin keep working",
+        "count": 46,
+        "changes": 1,
+        "samples": ["vendor/bin/phpunit"]
+      },
+      {
+        "name": "secrets",
+        "octal": "0600",
+        "reason": "credentials and private keys stay readable only by the account that owns the site",
+        "count": 2,
+        "changes": 1,
+        "samples": [".env"]
+      }
+    ]
+  }
+}

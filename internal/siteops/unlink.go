@@ -43,6 +43,11 @@ func UnlinkSiteCore(site *config.Site, parkedDirs []string) error {
 		StopSiteWorkers(site)
 	}
 
+	// A schedule outlives the site otherwise: the timer keeps firing a command
+	// at a directory that is no longer served, and there is no longer a page in
+	// the panel from which to notice or stop it.
+	RemoveSiteCron(site)
+
 	_ = nginx.RemoveVhost(site.PrimaryDomain())
 
 	// Left behind, the pool keeps its master chdir'd into a directory that is

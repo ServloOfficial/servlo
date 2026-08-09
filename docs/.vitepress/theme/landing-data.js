@@ -20,7 +20,6 @@ export const LOGOS = {
   redis:    { ch: 'R', c: '#ff5b50' },
   meili:    { ch: 'M', c: '#fb7185' },
   rustfs:   { ch: 'S', c: '#fbbf24' },
-  mailpit:  { ch: '@', c: '#34d399' },
   mongo:    { ch: 'M', c: '#34d399' },
   stripe:   { ch: '$', c: '#a78bfa' },
 }
@@ -60,7 +59,6 @@ export const SVC_SHOW = [
   { logo: 'redis',    name: 'Redis',       port: ':6379' },
   { logo: 'meili',    name: 'Meilisearch', port: ':7700' },
   { logo: 'rustfs',   name: 'RustFS / S3', port: ':9000' },
-  { logo: 'mailpit',  name: 'Mailpit',     port: ':1025' },
   { logo: 'mongo',    name: 'MongoDB',     port: ':27017' },
   { logo: 'stripe',   name: 'Stripe Mock', port: ':12111' },
 ]

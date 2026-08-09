@@ -1,13 +1,23 @@
 package ui
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/realrashid/servlo/internal/dnscheck"
 	"github.com/realrashid/servlo/internal/serviceops"
+)
+
+// Reaching a managed database and working out this server's own address are the
+// two things here that touch the network, so they are the two seams: the
+// panel's behaviour around them is worth testing without either.
+var (
+	testConnection = dbconn.Test
+	serverIPs      = func() ([]string, error) { return dnscheck.ThisServerStrings(context.Background()) }
 )
 
 // The connections a site's database can be on, and which site is on which.
@@ -31,7 +41,13 @@ type connectionsResponse struct {
 	// Services are the local database services installed here, which is what
 	// the "add a local connection" form can offer.
 	Services []string `json:"services"`
-	Error    string   `json:"error,omitempty"`
+	// ServerIPs are this server's public addresses, which is what a managed
+	// provider's trusted-sources list has to hold before anything here can reach
+	// it. It travels with the list because the operator needs it before they save
+	// a connection, not after it fails.
+	ServerIPs      []string `json:"server_ips"`
+	ServerIPsError string   `json:"server_ips_error,omitempty"`
+	Error          string   `json:"error,omitempty"`
 }
 
 func handleDBConnections(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +62,12 @@ func handleDBConnections(w http.ResponseWriter, r *http.Request) {
 }
 
 func listConnections() connectionsResponse {
-	out := connectionsResponse{Connections: []connectionResponse{}, Services: []string{}}
+	out := connectionsResponse{Connections: []connectionResponse{}, Services: []string{}, ServerIPs: []string{}}
+	if ips, err := serverIPs(); err != nil {
+		out.ServerIPsError = err.Error()
+	} else {
+		out.ServerIPs = ips
+	}
 	reg, err := dbconn.LoadRegistry()
 	if err != nil {
 		out.Error = err.Error()
@@ -112,6 +133,10 @@ type connectionRequest struct {
 	Password string `json:"password"`
 	TLSMode  string `json:"tls_mode"`
 	CACert   string `json:"ca_cert"`
+	// CACertPEM is the provider's certificate as uploaded. Servlo stores it
+	// itself rather than keeping a path into somebody's home directory or, worse,
+	// into a site tree that nginx serves and a deploy can delete.
+	CACertPEM string `json:"ca_cert_pem"`
 	// Domain and Connection carry an assignment: which site moves to which.
 	Domain     string `json:"domain"`
 	Connection string `json:"connection"`
@@ -134,6 +159,8 @@ func handleDBConnectionAction(w http.ResponseWriter, r *http.Request) {
 		err = defaultConnection(body.Name)
 	case "assign":
 		err = assignConnection(body.Domain, body.Connection)
+	case "test":
+		err = testSavedConnection(body.Name)
 	default:
 		writeJSON(w, map[string]any{"error": "unknown action: " + body.Action})
 		return
@@ -154,13 +181,42 @@ func addConnection(body connectionRequest) error {
 	if body.Service == "" {
 		c = dbconn.External(body.Name, body.Engine, body.Host, body.Port, body.User, body.Password)
 		c.TLSMode, c.CACert = body.TLSMode, body.CACert
+		if strings.TrimSpace(body.CACertPEM) != "" {
+			path, err := dbconn.SaveCACert(body.Name, []byte(body.CACertPEM))
+			if err != nil {
+				return err
+			}
+			c.CACert = path
+		}
 	} else if !serviceops.ServiceInstalled(body.Service) {
 		return errServiceNotInstalled(body.Service)
 	}
 	if err := reg.Add(c); err != nil {
 		return err
 	}
+	// Reached before it is written down. A connection saved and found to be
+	// unreachable at the first deploy is a site whose env file points at a
+	// database nothing here can open, discovered by the person deploying it.
+	if !c.Local() {
+		if err := testConnection(c); err != nil {
+			// The certificate belongs to a connection that was never saved.
+			_ = dbconn.RemoveCACert(body.Name)
+			return err
+		}
+	}
 	return dbconn.SaveRegistry(reg)
+}
+
+// testSavedConnection reaches a connection that is already configured, for the
+// Test button on a row. The reason to press it is usually that something moved
+// on the provider's side, so it re-reads the connection rather than trusting
+// what the panel last rendered.
+func testSavedConnection(name string) error {
+	c, err := dbconn.Named(name)
+	if err != nil {
+		return err
+	}
+	return testConnection(c)
 }
 
 func errServiceNotInstalled(service string) error {
@@ -186,7 +242,16 @@ func removeConnection(name string) error {
 	if err := reg.Remove(name); err != nil {
 		return err
 	}
-	return dbconn.SaveRegistry(reg)
+	if err := dbconn.SaveRegistry(reg); err != nil {
+		return err
+	}
+	// The certificate and the accounts servlo created on it go too: kept, they
+	// are credentials for a server nothing points at, and the next connection to
+	// take that name would inherit them.
+	if err := dbconn.RemoveCACert(name); err != nil {
+		return err
+	}
+	return dbconn.ForgetSiteUsers(name)
 }
 
 type connectionInUseError struct {

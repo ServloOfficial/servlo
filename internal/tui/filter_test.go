@@ -57,7 +57,7 @@ func servicesFixture() []ServiceRow {
 	return []ServiceRow{
 		{Name: "mysql", State: stateRunning, SiteCount: 3},
 		{Name: "redis", State: stateStopped, SiteCount: 1},
-		{Name: "mailpit", State: statePaused, SiteCount: 2},
+		{Name: "rustfs", State: statePaused, SiteCount: 2},
 		{Name: "custom-x", State: stateRunning, SiteCount: 0, Custom: true},
 	}
 }
@@ -71,7 +71,7 @@ func TestFilterServices_ByName(t *testing.T) {
 
 func TestSortServices_Usage(t *testing.T) {
 	got := filteredSortedServices(servicesFixture(), "", svcSortUsage)
-	// Highest site count first (mysql=3, mailpit=2, redis=1, custom-x=0).
+	// Highest site count first (mysql=3, rustfs=2, redis=1, custom-x=0).
 	if got[0].Name != "mysql" || got[3].Name != "custom-x" {
 		t.Fatalf("usage sort wrong: %+v", svcNames(got))
 	}
@@ -79,7 +79,7 @@ func TestSortServices_Usage(t *testing.T) {
 
 func TestSortServices_Status(t *testing.T) {
 	got := filteredSortedServices(servicesFixture(), "", svcSortStatus)
-	// Within the Core group: running (mysql) first, paused (mailpit) last.
+	// Within the Core group: running (mysql) first, paused (rustfs) last.
 	// custom-x is in the Custom group so it lands after all Core entries
 	// regardless of status; that's why we check the position of the Core
 	// states explicitly rather than the global last element.

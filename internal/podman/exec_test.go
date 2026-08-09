@@ -36,7 +36,7 @@ func TestServiceVersionLabel(t *testing.T) {
 		{"docker.io/postgis/postgis:16-3.5", "v16"},
 		{"docker.io/postgis/postgis:16-3.5-alpine", "v16"},
 		{"docker.io/getmeili/meilisearch:v1.7", "v1.7"},
-		{"docker.io/axllent/mailpit:latest", "latest"},
+		{"docker.io/rustfs/rustfs:latest", "latest"},
 		{"docker.io/rustfs/rustfs:latest", "latest"},
 		{"docker.io/library/redis:main", "main"},
 		{"nginx:alpine", "alpine"},

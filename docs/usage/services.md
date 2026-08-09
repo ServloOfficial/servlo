@@ -18,10 +18,10 @@
 | `servlo service expose <name> <host:container>` | Publish an extra port on a built-in service |
 | `servlo service expose <name> <host:container> --remove` | Remove a previously exposed port |
 | `servlo service port <name> <port>` | Move a service's primary published host port (e.g. free 3306 for a host server) |
-| `servlo service port <name> <port> --container <cport>` | Move a specific mapping of a multi-port service (e.g. Mailpit's 8025 UI) |
+| `servlo service port <name> <port> --container <cport>` | Move a specific mapping of a multi-port service (e.g. RustFS' 9001 console) |
 | `servlo service port <name> --reset` | Reset a service to its preset default published port |
 
-Available services: `mysql` (8.4 LTS canonical, 9.7 LTS / 5.7 alternates), `redis` (7-alpine), `postgres` (16 canonical with PostGIS, 17 / 18 alternates), `meilisearch` (v1.42), `rustfs` (S3-compatible), `mailpit` (SMTP catcher).
+Available services: `mysql` (8.4 LTS canonical, 9.7 LTS / 5.7 alternates), `redis` (7-alpine), `postgres` (16 canonical with PostGIS, 17 / 18 alternates), `meilisearch` (v1.42), `rustfs` (S3-compatible).
 
 Default services are defined as YAML presets with `default: true` in the servlo binary. Adding or replacing a default service is a YAML edit, not a code change. Each preset declares its own `update_strategy` (patch / minor / rolling), whether `track_latest` should auto-bump fresh installs to the current upstream, whether `allow_major_upgrade` lets the cross-strategy upgrade button cross numeric majors, and where the engine records the version that wrote its data (`data_version_file`) so a data dir that outlives its config still gets a server that can open it. See [Service updates](service-updates.md) for the full update / upgrade / migrate / rollback flow.
 
@@ -31,7 +31,6 @@ Default services are defined as YAML presets with `default: true` in the servlo 
 ╭─────────────┬─────────┬────────┬────────╮
 │ Service     │ Version │ Status │ Update │
 ├─────────────┼─────────┼────────┼────────┤
-│ mailpit     │ latest  │ active │        │
 │ meilisearch │ v1.42.1 │ active │        │
 │ mysql       │ v8.4.9  │ active │        │
 │ postgres    │ v16     │ active │        │
@@ -85,17 +84,17 @@ servlo service port mysql --reset   # or: servlo service port mysql 0
 
 The container-internal port never changes, so containerized apps (which reach the service by name over the `servlo` network) are unaffected. Only host clients pointed at the old published port need to follow. Host-proxy sites that connect over the published loopback port have their `.env` regenerated automatically when the port moves. A host-proxy site that is paused when the port moves is skipped at that moment and picks up the new port when it is next unpaused.
 
-Some services publish more than one host port: Mailpit exposes SMTP on `1025` and its web UI on `8025`, RustFS the S3 API on `9000` and the console on `9001`, Selenium the WebDriver on `4444` and the noVNC view on `7900`. `servlo service port <name> <port>` moves the primary (first) mapping. To move any other published port, name the mapping by its container-internal port with `--container`:
+Some services publish more than one host port: RustFS exposes the S3 API on `9000` and the console on `9001`, Selenium the WebDriver on `4444` and the noVNC view on `7900`. `servlo service port <name> <port>` moves the primary (first) mapping. To move any other published port, name the mapping by its container-internal port with `--container`:
 
 ```bash
-# Move Mailpit's web UI off 8025 to 8026 (SMTP on 1025 is untouched)
-servlo service port mailpit 8026 --container 8025
+# Move the RustFS console off 9001 to 9002 (the S3 API on 9000 is untouched)
+servlo service port rustfs 9002 --container 9001
 
 # Put it back
-servlo service port mailpit --reset --container 8025
+servlo service port rustfs --reset --container 9001
 ```
 
-The dashboard link for a service always follows the port its dashboard is served on, so moving Mailpit's UI port re-points the dashboard and the "open dashboard" iframe automatically.
+The dashboard link for a service always follows the port its dashboard is served on, so moving the RustFS console port re-points the dashboard and the "open dashboard" iframe automatically.
 
 The chosen ports are persisted in `~/.config/servlo/config.yaml` and reapplied on every start: the primary under `services.<name>.published_port`, any other mapping under `services.<name>.published_ports` keyed by container port. Once a port is set, automatically or with `servlo service port`, it sticks: servlo never moves it again on its own, not even back to the default when that frees up later. Change it only with `servlo service port`.
 
@@ -125,7 +124,6 @@ Services run as Podman containers on the `servlo` network. Two hostnames apply d
 | Redis | 7-alpine | 127.0.0.1 | servlo-redis | 6379 | - | - | - |
 | Meilisearch | v1.42 | 127.0.0.1 | servlo-meilisearch | 7700 | - | - | - |
 | RustFS | latest | 127.0.0.1 | servlo-rustfs | 9000 | `servlo` | generated | per-site bucket |
-| Mailpit SMTP | latest | 127.0.0.1 | servlo-mailpit | 1025 | - | - | - |
 
 Passwords are generated once per install rather than shipped in the definitions,
 so no two machines share one. `servlo service start <name>` prints the values for
@@ -135,11 +133,18 @@ that service, and they also live at `~/.config/servlo/service-password`. See
 Additional UIs:
 
 - RustFS console: `http://127.0.0.1:9001`
-- Mailpit web UI: `http://127.0.0.1:8025`
 
-### Mailpit notifications
+### Database admin UIs
 
-Captured emails can pop a notification with the subject and sender; clicking the notification opens the captured message in the Mailpit overlay. This is one of several notification kinds the dashboard supports, see Notifications for the full list (worker failures, finished service operations, service updates, dumps) and how to configure them under **System → Notifications**.
+Installing a database installs its admin UI with it: phpMyAdmin with MySQL or MariaDB, pgAdmin with PostgreSQL. There is no second question, because there was never a second answer. It arrives after the engine is up, reported as its own step in the install output, and a UI that fails to install is said so rather than failing the database that had just come up fine.
+
+Nothing in servlo knows that phpMyAdmin goes with MySQL. Each admin UI's definition already declares what it administers, in `admin_for`, and the install reads that backwards: given the engine going in, which definitions say they administer it. A UI already installed is left alone, and a second engine of the same family does not get a second copy of the same UI, since one already lists every database of that family. Bringing an admin UI to a new engine is a line of YAML in the store.
+
+**They list connections, not containers.** Both UIs take their server list from the [connections](database.md#connections) this install knows: the local engines and any managed database a site is on. A site whose data is on DigitalOcean opens phpMyAdmin and finds its own database there beside the local one, already logged in, with the TLS mode the connection uses and the provider's CA certificate mounted in for `verify-ca`. That list is rebuilt whenever a database service starts, stops or is installed, so it does not go stale.
+
+The definitions ask for it through a `connections:<families>=<field>` entry in `dynamic_env`, which resolves to one comma-separated value per connection — hosts, names, users, passwords and TLS modes as parallel lists. `discover_family` still exists and still answers the question it always answered, which is which containers of a family are up; it simply cannot see a database that is not one.
+
+Both UIs are reachable from the panel, embedded same-origin, and from the Databases tab's **Open in** button on each engine.
 
 ### RustFS, per-site buckets
 

@@ -50,12 +50,15 @@ env:
       vars:
         - REDIS_HOST=servlo-redis
         - REDIS_PORT=6379
-    mailpit:
-      detect:
-        - key: SMTP_HOST
-      vars:
-        - SMTP_HOST=servlo-mailpit
-        - SMTP_PORT=1025
+  smtp:
+    vars:
+      - SMTP_HOST={{smtp_host}}
+      - SMTP_PORT={{smtp_port}}
+      - SMTP_USERNAME={{smtp_user}}
+      - SMTP_PASSWORD={{smtp_password}}
+      - SMTP_PROTOCOL={{smtp_crypto}}
+      - SMTP_FROM={{smtp_from_address}}
+      - SMTP_FROMNAME="{{smtp_from_name}}"
 
 composer: auto
 npm: false

@@ -11,6 +11,8 @@ import {
   connectionForSite,
   connectionMeta,
   siteCountLabel,
+  testConnection,
+  isManagedConnection,
   type DBConnection
 } from './dbConnections';
 
@@ -42,7 +44,14 @@ describe('dbConnections store', () => {
   const realFetch = globalThis.fetch;
 
   beforeEach(() => {
-    dbConnections.set({ connections: [], services: [], loading: false, error: '' });
+    dbConnections.set({
+      connections: [],
+      services: [],
+      serverIPs: [],
+      serverIPsError: '',
+      loading: false,
+      error: ''
+    });
   });
 
   afterEach(() => {
@@ -88,7 +97,7 @@ describe('dbConnections store', () => {
       user: 'doadmin',
       password: 's3cret',
       tls_mode: 'require',
-      ca_cert: '/home/user/ca.crt'
+      ca_cert_pem: '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n'
     });
     expect(res.ok).toBe(true);
     // One request: the action's own reply is where the next state comes from.
@@ -104,7 +113,7 @@ describe('dbConnections store', () => {
       user: 'doadmin',
       password: 's3cret',
       tls_mode: 'require',
-      ca_cert: '/home/user/ca.crt'
+      ca_cert_pem: '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n'
     });
     expect(get(dbConnections).connections.map((c) => c.name)).toEqual(['managed', 'local']);
   });
@@ -193,6 +202,56 @@ describe('dbConnections store', () => {
     expect(meta.location).toBe('db.example.net:25060');
     expect(meta.kind).toBe('Managed');
     expect(meta.sites).toBe('1 site');
+  });
+
+  it('loadDBConnections keeps this server\'s address for the trusted-sources note', async () => {
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ connections: [managed], services: [], server_ips: ['203.0.113.10'] }),
+          { status: 200 }
+        )
+    ) as unknown as typeof fetch;
+    await loadDBConnections();
+    expect(get(dbConnections).serverIPs).toEqual(['203.0.113.10']);
+    expect(get(dbConnections).serverIPsError).toBe('');
+  });
+
+  it('loadDBConnections keeps the reason the address could not be worked out', async () => {
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            connections: [],
+            services: [],
+            server_ips: [],
+            server_ips_error: 'no public address on any interface'
+          }),
+          { status: 200 }
+        )
+    ) as unknown as typeof fetch;
+    await loadDBConnections();
+    expect(get(dbConnections).serverIPsError).toBe('no public address on any interface');
+  });
+
+  it('testConnection POSTs the test action and carries the failure back', async () => {
+    const bodies: string[] = [];
+    globalThis.fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(String(init?.body));
+      return new Response(
+        JSON.stringify({ error: 'cannot reach db.example.net:25060: i/o timeout' }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+    const res = await testConnection('managed');
+    expect(JSON.parse(bodies[0])).toEqual({ action: 'test', name: 'managed' });
+    expect(res.ok).toBe(false);
+    expect(res.error).toBe('cannot reach db.example.net:25060: i/o timeout');
+  });
+
+  it('only a managed connection is one servlo reaches over the network', () => {
+    expect(isManagedConnection(managed)).toBe(true);
+    expect(isManagedConnection(local)).toBe(false);
   });
 
   it('assignConnection sends an empty connection for the install default', async () => {

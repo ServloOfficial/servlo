@@ -6,6 +6,8 @@
   import SiteEnvTab from './SiteEnvTab.svelte';
   import SitePHPSettingsTab from './SitePHPSettingsTab.svelte';
   import SiteDeployTab from './SiteDeployTab.svelte';
+  import SiteFilesTab from './SiteFilesTab.svelte';
+  import SiteCronTab from './SiteCronTab.svelte';
   import SiteNginxModal from '../../modals/SiteNginxModal.svelte';
   import { resumeSite, loadSites, siteHasLogSources, type Site } from '$stores/sites';
   import { routeRest, goToTab } from '$stores/route';
@@ -27,13 +29,14 @@
   }
   let { site }: Props = $props();
 
-  type TabId = 'overview' | 'logs' | 'env' | 'deploy' | 'settings';
+  type TabId = 'overview' | 'logs' | 'env' | 'deploy' | 'cron' | 'files' | 'settings';
   const TAB_STORAGE_KEY = 'servlo:siteDetailTab';
 
   function readStoredTab(): TabId {
     if (typeof localStorage === 'undefined') return 'overview';
     const v = localStorage.getItem(TAB_STORAGE_KEY);
-    if (v === 'logs' || v === 'env' || v === 'deploy' || v === 'settings') return v;
+    if (v === 'logs' || v === 'env' || v === 'deploy' || v === 'cron' || v === 'files' || v === 'settings')
+      return v;
     return 'overview';
   }
 
@@ -54,7 +57,12 @@
   // Deploy is offered to any site with a repository: the tab is git pull plus a
   // script, and a site that was never cloned has nothing to pull.
   const canDeploy = $derived(Boolean(site.branch));
-  const hasExtraTabs = $derived(canLogs || canEnv || canDeploy || canSettings);
+  // A scheduled command runs inside the site's container, so a host-proxy site
+  // has nowhere to run one and is not offered the tab at all.
+  const canCron = $derived(!site.host_port);
+  // The file manager browses the site's own directory, which every site has.
+  const canFiles = $derived(true);
+  const hasExtraTabs = $derived(canLogs || canEnv || canDeploy || canCron || canFiles || canSettings);
 
   // The route can deep-link a sub-tab. When the second segment names a tab, honour it
   // and overwrite the stored selection.
@@ -66,6 +74,8 @@
       seg === 'logs' ||
       seg === 'env' ||
       seg === 'deploy' ||
+      seg === 'cron' ||
+      seg === 'files' ||
       seg === 'settings' ||
       seg === 'overview'
     ) {
@@ -77,6 +87,8 @@
     if (active === 'logs' && !canLogs) active = 'overview';
     if (active === 'env' && !canEnv) active = 'overview';
     if (active === 'deploy' && !canDeploy) active = 'overview';
+    if (active === 'files' && !canFiles) active = 'overview';
+    if (active === 'cron' && !canCron) active = 'overview';
     if (active === 'settings' && !canSettings) active = 'overview';
   });
 
@@ -113,6 +125,12 @@
   {/if}
   {#if canDeploy}
     <button class={tabBtn('deploy', active === 'deploy')} onclick={() => selectTab('deploy')}>{m.sites_tabs_deploy()}</button>
+  {/if}
+  {#if canCron}
+    <button class={tabBtn('cron', active === 'cron')} onclick={() => selectTab('cron')}>{m.sites_tabs_cron()}</button>
+  {/if}
+  {#if canFiles}
+    <button class={tabBtn('files', active === 'files')} onclick={() => selectTab('files')}>{m.sites_tabs_files()}</button>
   {/if}
   {#if canSettings}
     <button class={tabBtn('settings', active === 'settings')} onclick={() => selectTab('settings')}>{m.sites_tabs_settings()}</button>
@@ -157,6 +175,14 @@
   {:else if active === 'deploy'}
     {#key site.domain}
       <SiteDeployTab {site} />
+    {/key}
+  {:else if active === 'cron'}
+    {#key site.domain}
+      <SiteCronTab {site} />
+    {/key}
+  {:else if active === 'files'}
+    {#key site.domain}
+      <SiteFilesTab {site} />
     {/key}
   {:else if active === 'settings'}
     {#key site.domain}

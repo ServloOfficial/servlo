@@ -73,6 +73,8 @@ func recordFailure(domain string, cause error) {
 	f, existing := failures[domain]
 	if !existing {
 		f = RenewalFailure{Domain: domain, Since: now}
+		// The email goes on the first failure only; see renewalalert.go.
+		alertFirstFailure(domain, cause)
 	}
 	f.Reason = cause.Error()
 	f.LastAttempt = now

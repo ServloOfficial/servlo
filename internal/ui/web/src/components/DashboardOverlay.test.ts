@@ -5,9 +5,9 @@ import { dashboardOpen } from '../stores/dashboard';
 
 function openService() {
   dashboardOpen.set({
-    name: 'mailpit',
-    label: 'Mailpit',
-    dashboard: 'http://localhost:8025'
+    name: 'rustfs',
+    label: 'RustFS',
+    dashboard: 'http://localhost:9001'
   });
 }
 
@@ -26,8 +26,8 @@ describe('DashboardOverlay', () => {
     const { container } = render(DashboardOverlay);
 
     const frame = container.querySelector('iframe');
-    expect(frame?.getAttribute('src')).toBe('http://localhost:8025');
-    expect(frame?.getAttribute('title')).toBe('Mailpit');
+    expect(frame?.getAttribute('src')).toBe('http://localhost:9001');
+    expect(frame?.getAttribute('title')).toBe('RustFS');
   });
 
   it('offers the dashboard in a new tab as an escape from the iframe', () => {
@@ -35,7 +35,7 @@ describe('DashboardOverlay', () => {
     render(DashboardOverlay);
 
     const link = screen.getByTitle('Open in new tab');
-    expect(link.getAttribute('href')).toBe('http://localhost:8025');
+    expect(link.getAttribute('href')).toBe('http://localhost:9001');
     expect(link.getAttribute('rel')).toBe('noopener');
   });
 });

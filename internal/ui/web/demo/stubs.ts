@@ -17,6 +17,11 @@ import stats from './fixtures/stats.json';
 import workersHealth from './fixtures/workers_health.json';
 import databasesFixture from './fixtures/databases.json';
 import dbConnections from './fixtures/db-connections.json';
+import filesFixture from './fixtures/files.json';
+import sftpFixture from './fixtures/sftp.json';
+import cronFixture from './fixtures/cron.json';
+import dbUsers from './fixtures/db-user.json';
+import smtpFixture from './fixtures/smtp.json';
 
 // Demo follows the system theme (auto). Reset any stale value a previous demo
 // session may have pinned, so it isn't stuck on a forced light/dark.
@@ -32,6 +37,38 @@ const services = structuredClone(servicesFixture) as Array<Record<string, unknow
 const presets = structuredClone(presetsFixture) as Array<Record<string, unknown>>;
 // Status is mutable too, so applying a tool update lands on the card that asked.
 const status = structuredClone(statusFixture) as Record<string, unknown>;
+// Mail settings are mutable too, so a save in the demo lands on the card that
+// made it rather than snapping back to the fixture on the next load.
+interface DemoSMTP {
+  configured: boolean;
+  settings: Record<string, unknown>;
+  env_file?: string;
+  env_keys?: string[];
+  note?: string;
+}
+const smtp = structuredClone(smtpFixture) as { panel: DemoSMTP; sites: Record<string, DemoSMTP> };
+
+function smtpFor(domain: string): DemoSMTP {
+  if (!smtp.sites[domain]) smtp.sites[domain] = structuredClone(smtp.sites['default']);
+  return smtp.sites[domain];
+}
+
+// The password goes in and never comes back, exactly as the real API behaves.
+function applySMTP(target: DemoSMTP, raw: string): DemoSMTP {
+  const body = JSON.parse(raw || '{}') as Record<string, unknown>;
+  const password = String(body.password ?? '');
+  target.settings = {
+    host: body.host ?? '',
+    port: body.port ?? 587,
+    username: body.username ?? '',
+    has_password: password !== '' || Boolean(target.settings.has_password),
+    encryption: body.encryption ?? 'starttls',
+    from_address: body.from_address ?? '',
+    from_name: body.from_name ?? '',
+  };
+  target.configured = Boolean(body.host) && Boolean(body.port);
+  return target;
+}
 
 // Static GET fixtures keyed by exact path.
 const ROUTES: Record<string, unknown> = {
@@ -394,9 +431,107 @@ function commandRunSSE(domain: string, name: string): Response {
   return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } });
 }
 
-function jsonResponse(data: unknown): Response {
+
+// ---- Per-site cron (Sites -> Cron) ----
+// A schedule reads as fixture data only if the timestamps move, so the fixture
+// stores offsets ("@+9h", "@-40s") and they are stamped relative to now here.
+// Mutable, so adding, editing, deleting and the WordPress switch all behave the
+// way they do against the daemon.
+interface DemoCronRun {
+  at: string;
+  ok: boolean;
+  running: boolean;
+  exit_code: number;
+  result?: string;
+  output?: string[];
+}
+interface DemoCronEntry {
+  id: string;
+  name: string;
+  command: string;
+  schedule: string;
+  calendar: string;
+  capture_output: boolean;
+  disabled: boolean;
+  managed?: boolean;
+  unit: string;
+  next_run?: string;
+  last_run?: DemoCronRun;
+}
+interface DemoSiteCron {
+  supported: boolean;
+  unsupported?: string;
+  pseudo_cron: {
+    available: boolean;
+    label?: string;
+    description?: string;
+    replaced: boolean;
+    schedule?: string;
+    command?: string;
+    constant?: string;
+    file?: string;
+  };
+  entries: DemoCronEntry[];
+}
+
+const cronBySite = structuredClone(cronFixture) as Record<string, DemoSiteCron>;
+
+const OFFSET_UNITS: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
+
+// "@+9h" / "@-40s" -> an ISO timestamp that many units either side of now.
+function stampOffset(value: string): string {
+  const match = /^@([+-])(\d+)([smhd])$/.exec(value);
+  if (!match) return value;
+  const delta = Number(match[2]) * OFFSET_UNITS[match[3]];
+  return new Date(Date.now() + (match[1] === '-' ? -delta : delta)).toISOString();
+}
+
+function cronFor(domain: string): DemoSiteCron {
+  const known = cronBySite[domain];
+  if (known) return known;
+  // Every other demo site has a schedule of its own to add to, rather than a
+  // tab that looks broken.
+  cronBySite[domain] = {
+    supported: true,
+    pseudo_cron: { available: false, replaced: false },
+    entries: []
+  };
+  return cronBySite[domain];
+}
+
+function cronResponse(domain: string): DemoSiteCron {
+  const site = cronFor(domain);
+  return {
+    ...site,
+    entries: site.entries.map((e) => ({
+      ...e,
+      next_run: e.next_run ? stampOffset(e.next_run) : undefined,
+      last_run: e.last_run ? { ...e.last_run, at: stampOffset(e.last_run.at) } : undefined
+    }))
+  };
+}
+
+// Enough of the real translation for the demo to show a saved entry's calendar:
+// the two forms an operator types most, and the input itself for the rest.
+function demoCalendar(schedule: string): string {
+  const cron = schedule.trim().split(/\s+/);
+  if (cron.length === 5) {
+    const [min, hour] = cron;
+    if (min.startsWith('*/')) return `*-*-* *:0/${min.slice(2)}:00`;
+    if (min === '*' && hour === '*') return '*-*-* *:*:00';
+    if (/^\d+$/.test(min) && /^\d+$/.test(hour))
+      return `*-*-* ${hour.padStart(2, '0')}:${min.padStart(2, '0')}:00`;
+  }
+  return schedule.replace(/^@/, '');
+}
+
+function cronSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'job';
+}
+
+function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
-    status: 200,
+    status,
     headers: { 'content-type': 'application/json' },
   });
 }
@@ -437,6 +572,34 @@ function presetInstallStream(name: string, version: string): Response {
     `${JSON.stringify({ phase: 'done', name: svcName })}\n`;
   return new Response(body, { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
 }
+
+// ---- File manager ----
+// One tree, reused for every site: the point of the fixture is the shapes a
+// listing can take (a nested folder, an empty one, a name long enough to
+// truncate, a symlink that leaves the site, an archive worth extracting), not
+// which domain it belongs to.
+const fileListings = filesFixture.listings as Record<
+  string,
+  { entries: Array<Record<string, unknown>>; truncated: boolean }
+>;
+const fileContent = filesFixture.content as Record<string, Record<string, unknown>>;
+
+// A .env with real-looking values, so the editor renders something rather than
+// an empty buffer, and so the 0600 mode on the row has a reason behind it.
+(fileContent['.env'] as Record<string, unknown>).text = ENV_TEXT;
+
+function fileListingFor(at: string): unknown {
+  const known = fileListings[at];
+  return {
+    path: at,
+    root: filesFixture.root,
+    entries: known ? known.entries : [],
+    truncated: known ? known.truncated : false,
+    ...(known ? {} : { error: '' }),
+  };
+}
+
+const sftp = structuredClone(sftpFixture) as Record<string, unknown>;
 
 const realFetch = window.fetch.bind(window);
 window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -502,12 +665,143 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (presetInstall && method === 'POST')
     return presetInstallStream(decodeURIComponent(presetInstall[1]), qs.get('version') || '');
 
+  // The file manager. Listing, one file's content, the permission plan, and
+  // the writes, which answer ok so the panel's success paths are reachable.
+  const filesMatch = path.match(/^\/api\/sites\/([^/]+)\/files(?:\/([^/]+))?$/);
+  if (filesMatch) {
+    const leaf = filesMatch[2] ?? '';
+    const at = qs.get('path') ?? '';
+    if (!leaf && method === 'GET') return jsonResponse(fileListingFor(at));
+    if (leaf === 'content' && method === 'GET') {
+      const known = fileContent[at];
+      return jsonResponse(
+        known ?? { path: at, text: '', size: 0, mode: '0644', binary: false, truncated: false },
+      );
+    }
+    if (leaf === 'content' && method === 'PUT') return jsonResponse({ ok: true, path: at });
+    if (leaf === 'upload' && method === 'POST') return jsonResponse({ ok: true, path: at });
+    if (leaf === 'unzip' && method === 'POST') return jsonResponse({ ok: true, files: 214, bytes: 8419233 });
+    if (leaf === 'entry' && method === 'DELETE') return jsonResponse({ ok: true, path: at });
+    if (leaf === 'permissions' && method === 'GET') return jsonResponse(filesFixture.permissions);
+    if (leaf === 'permissions' && method === 'POST')
+      return jsonResponse({ ...filesFixture.permissions, applied: 214, changes: 0 });
+  }
+
+  // SFTP access. Authorising and withdrawing mutate the fixture, so the page
+  // behaves like the real one when it reloads itself after a write.
+  if (path === '/api/sftp' && method === 'GET') return jsonResponse(sftp);
+  if (path === '/api/sftp' && method === 'POST') {
+    const body = JSON.parse(String(init?.body || '{}')) as {
+      domain?: string;
+      label?: string;
+      key?: string;
+    };
+    const sites_ = sftp.sites as Array<Record<string, unknown>>;
+    const site = sites_.find((s) => s.domain === body.domain);
+    const key = {
+      site: body.domain,
+      label: body.label,
+      type: (body.key ?? '').split(' ')[0] || 'ssh-ed25519',
+      fingerprint: 'SHA256:demo' + Math.random().toString(36).slice(2, 12),
+      site_path: '/home/dev/code/demo',
+    };
+    if (site) (site.keys as unknown[]).push(key);
+    else
+      sites_.push({
+        domain: body.domain,
+        path: '/home/dev/code/demo',
+        port: 2200 + sites_.length,
+        confined: false,
+        keys: [key],
+      });
+    return jsonResponse({ ok: true, path: body.domain });
+  }
+  const sftpKeyMatch = path.match(/^\/api\/sftp\/keys\/(.+)$/);
+  if (sftpKeyMatch && method === 'DELETE') {
+    const fingerprint = decodeURIComponent(sftpKeyMatch[1]);
+    const sites_ = sftp.sites as Array<Record<string, unknown>>;
+    for (const site of sites_) {
+      site.keys = (site.keys as Array<Record<string, unknown>>).filter(
+        (k) => k.fingerprint !== fingerprint,
+      );
+    }
+    sftp.sites = sites_.filter((s) => (s.keys as unknown[]).length > 0);
+    return jsonResponse({ ok: true });
+  }
+
   // Per-site request-timing analytics — a busy profile with flagged slow routes
   // and a cold start for a couple of sites, a healthy populated one for the rest.
   const analyticsMatch = path.match(/^\/api\/sites\/([^/]+)\/analytics$/);
   if (analyticsMatch) {
     const domain = decodeURIComponent(analyticsMatch[1]);
     return jsonResponse(analyticsFor(domain, qs.get('range') || '1h'));
+  }
+
+  // Per-site database account (the Settings tab's Database account card). A
+  // site with no fixture of its own gets the ordinary case, so every site in
+  // the demo renders the card rather than half of them showing nothing.
+  const dbUserMatch = path.match(/^\/api\/sites\/([^/]+)\/db-user$/);
+  if (dbUserMatch && method === 'GET') {
+    const known = dbUsers as Record<string, unknown>;
+    const domain = decodeURIComponent(dbUserMatch[1]);
+    return jsonResponse(known[domain] ?? known['default']);
+  }
+  // The panel's own mail account (System → Mail), separate from any site's.
+  if (path === '/api/settings/smtp/test' && method === 'POST') {
+    if (!smtp.panel.configured) return jsonResponse({ error: 'the panel has no SMTP settings yet' }, 400);
+    const to = String((JSON.parse(String(init?.body || '{}')) as { to?: string }).to || '');
+    return jsonResponse({ ok: true, to: to || String(smtp.panel.settings.from_address || '') });
+  }
+  if (path === '/api/settings/smtp') {
+    if (method === 'GET') return jsonResponse(smtp.panel);
+    if (method === 'POST') {
+      applySMTP(smtp.panel, String(init?.body || '{}'));
+      return jsonResponse({ ok: true });
+    }
+    if (method === 'DELETE') {
+      smtp.panel.configured = false;
+      smtp.panel.settings = { has_password: false };
+      return jsonResponse({ ok: true });
+    }
+  }
+
+  // Per-site outgoing mail (Settings tab → Outgoing mail). Save, test and
+  // remove all mutate the in-memory copy so the card reflects what was pressed.
+  const smtpTest = path.match(/^\/api\/sites\/([^/]+)\/smtp\/test$/);
+  if (smtpTest && method === 'POST') {
+    const account = smtpFor(decodeURIComponent(smtpTest[1]));
+    const to = String((JSON.parse(String(init?.body || '{}')) as { to?: string }).to || '');
+    if (!account.configured) return jsonResponse({ error: 'this site has no SMTP settings yet' }, 400);
+    // Empty box falls back to the account's own sender address, as the API does.
+    // One site refuses, so the failure path is visible in the demo too.
+    if (String(account.settings.host || '').includes('mailgun'))
+      return jsonResponse(
+        { error: 'the mail server refused the sender orders@acme-supply.com: 550 5.7.1 Sender address not verified' },
+        502,
+      );
+    return jsonResponse({ ok: true, to: to || String(account.settings.from_address || '') });
+  }
+  const smtpSite = path.match(/^\/api\/sites\/([^/]+)\/smtp$/);
+  if (smtpSite) {
+    const domain = decodeURIComponent(smtpSite[1]);
+    const account = smtpFor(domain);
+    if (method === 'GET') return jsonResponse(account);
+    if (method === 'POST') {
+      applySMTP(account, String(init?.body || '{}'));
+      return jsonResponse({ ok: true, env_keys: account.env_keys ?? [] });
+    }
+    if (method === 'DELETE') {
+      account.configured = false;
+      account.settings = { has_password: false };
+      return jsonResponse({ ok: true });
+    }
+  }
+
+  const dbUserRotate = path.match(/^\/api\/sites\/([^/]+)\/db-user\/rotate$/);
+  if (dbUserRotate && method === 'POST') {
+    const known = dbUsers as Record<string, { user?: string; env_keys?: string[] }>;
+    const account = known[decodeURIComponent(dbUserRotate[1])] ?? known['default'];
+    return jsonResponse({ ok: true, user: account.user, env_keys: account.env_keys ?? [] });
   }
 
   // Per-site application logs (Logs tab → App logs). List files, then a file's
@@ -537,6 +831,69 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (method === 'GET' && /\/php-versions\/[^/]+\/config$/.test(path))
     return jsonResponse({ path: '~/.config/servlo/php/8.4/php.ini', content: PHP_INI_TEXT, exists: true });
 
+
+  // Per-site cron: the schedule, saving one, deleting one, and the framework's
+  // pseudo-cron switch. Above the catch-alls, which would otherwise answer the
+  // DELETE with a bare {ok:true} and leave the row on screen.
+  const cronList = path.match(/^\/api\/sites\/([^/]+)\/cron$/);
+  if (cronList) {
+    const domain = decodeURIComponent(cronList[1]);
+    if (method === 'GET') return jsonResponse(cronResponse(domain));
+    if (method === 'POST') {
+      const body = JSON.parse(String(init?.body || '{}')) as Partial<DemoCronEntry> & { id?: string };
+      const site = cronFor(domain);
+      const id = body.id || cronSlug(String(body.name || ''));
+      const entry: DemoCronEntry = {
+        id,
+        name: String(body.name || ''),
+        command: String(body.command || ''),
+        schedule: String(body.schedule || ''),
+        calendar: demoCalendar(String(body.schedule || '')),
+        capture_output: Boolean(body.capture_output),
+        disabled: Boolean(body.disabled),
+        unit: `servlo-cron-${domain.split('.')[0]}-${id}`
+      };
+      const at = site.entries.findIndex((e) => e.id === id);
+      if (at >= 0) entry.last_run = site.entries[at].last_run;
+      if (at >= 0) site.entries[at] = entry;
+      else site.entries.push(entry);
+      return jsonResponse({ ok: true, entry });
+    }
+  }
+  const cronOne = path.match(/^\/api\/sites\/([^/]+)\/cron\/([^/]+)$/);
+  if (cronOne && method === 'DELETE') {
+    const site = cronFor(decodeURIComponent(cronOne[1]));
+    const id = decodeURIComponent(cronOne[2]);
+    site.entries = site.entries.filter((e) => e.id !== id);
+    return jsonResponse({ ok: true });
+  }
+  const pseudoCron = path.match(/^\/api\/sites\/([^/]+)\/pseudo-cron$/);
+  if (pseudoCron && method === 'POST') {
+    const site = cronFor(decodeURIComponent(pseudoCron[1]));
+    const replace = Boolean((JSON.parse(String(init?.body || '{}')) as { replace?: boolean }).replace);
+    site.pseudo_cron.replaced = replace;
+    if (replace) {
+      site.entries = [
+        {
+          id: 'wp-cron',
+          name: site.pseudo_cron.label || 'Framework cron',
+          command: site.pseudo_cron.command || '',
+          schedule: site.pseudo_cron.schedule || '',
+          calendar: demoCalendar(site.pseudo_cron.schedule || ''),
+          capture_output: false,
+          disabled: false,
+          managed: true,
+          unit: 'servlo-cron-blog-orbitlabs-wp-cron',
+          next_run: '@+1m'
+        },
+        ...site.entries.filter((e) => !e.managed)
+      ];
+    } else {
+      site.entries = site.entries.filter((e) => !e.managed);
+    }
+    return jsonResponse({ ok: true });
+  }
+
   // Overview "Actions": command list, doctor report, and running a command.
   const cmdRun = path.match(/^\/api\/sites\/([^/]+)\/commands\/([^/]+)\/run$/);
   if (cmdRun && method === 'POST')
@@ -560,6 +917,22 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
       tool.update_available = false;
     }
     return jsonResponse({ ok: true });
+  }
+
+  // Database connections. Testing one is the action worth stubbing: a managed
+  // database whose trusted sources have not been set up yet is exactly the
+  // state the card has to render, and it is invisible from a happy fixture.
+  if (path === '/api/db-connections' && method === 'POST') {
+    const body = JSON.parse(String(init?.body || '{}')) as { action?: string; name?: string };
+    if (body.action === 'test' && body.name === 'analytics') {
+      return jsonResponse({
+        error:
+          'cannot reach analytics-mysql-do-user-1234567-0.k.db.ondigitalocean.com:25060: dial tcp 10.20.30.40:25060: i/o timeout. ' +
+          "If this is a managed database, add this server's public IP to the provider's trusted sources and check the port",
+      });
+    }
+    if (body.action === 'test') return jsonResponse({ ok: true });
+    return jsonResponse({ ok: true, connections: dbConnections });
   }
 
   // Static fixtures

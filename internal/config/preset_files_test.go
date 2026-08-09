@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -46,19 +48,34 @@ func TestPresetFiles_KnownGeneratorResolves(t *testing.T) {
 	}
 }
 
-func TestPgadminServersJSON_listsEveryFamilyMember(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
-	t.Setenv("XDG_DATA_HOME", tmp)
+// stubConnections points the generators at a fixed set of databases, standing
+// in for the enumeration serviceops wires in.
+func stubConnections(t *testing.T, conns ...DBConnectionInfo) {
+	t.Helper()
+	old := DatabaseConnections
+	DatabaseConnections = func([]string) []DBConnectionInfo { return conns }
+	t.Cleanup(func() { DatabaseConnections = old })
+}
 
-	// Built-in postgres + one alternate exercises the family-discovery path.
-	if err := SaveCustomService(&CustomService{
-		Name:   "postgres-18",
-		Image:  "docker.io/postgis/postgis:18-3.6-alpine",
-		Family: "postgres",
-	}); err != nil {
-		t.Fatalf("SaveCustomService: %v", err)
+func localPostgres(name string) DBConnectionInfo {
+	return DBConnectionInfo{
+		Name: name, Family: "postgres", Local: true,
+		Host: "servlo-" + name, Port: 5432, User: "postgres", Password: "generated-install-password",
 	}
+}
+
+// A site's database may be on a managed server, and pgAdmin is no use to that
+// site if the only servers it lists are the containers on this box.
+func TestPgadminServersJSON_listsEveryDatabaseIncludingManaged(t *testing.T) {
+	stubConnections(t,
+		localPostgres("postgres"),
+		localPostgres("postgres-18"),
+		DBConnectionInfo{
+			Name: "do-managed", Family: "postgres",
+			Host: "db.example.net", Port: 25060, User: "doadmin", Password: "provider-password",
+			TLSMode: "verify-ca", CACert: "/home/dev/.config/servlo/db-ca/do-managed.crt",
+		},
+	)
 
 	out, err := pgadminServersJSON(nil)
 	if err != nil {
@@ -67,41 +84,81 @@ func TestPgadminServersJSON_listsEveryFamilyMember(t *testing.T) {
 	for _, want := range []string{
 		`"Host": "servlo-postgres"`,
 		`"Host": "servlo-postgres-18"`,
-		`"Name": "Servlo Postgres"`,
 		`"Name": "Servlo Postgres 18"`,
-		`"Port": 5432`,
+		`"Host": "db.example.net"`,
+		`"Port": 25060`,
+		`"Username": "doadmin"`,
+		`"SSLMode": "verify-ca"`,
+		`"SSLRootCert": "/etc/servlo/db-ca-bundle.crt"`,
 		`"PassFile": "/pgpass"`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("servers.json missing %q\n%s", want, out)
 		}
 	}
+	// A local database is on the container network and is not asked to prove
+	// anything; requiring TLS there would break every existing install.
+	if !strings.Contains(out, `"SSLMode": "prefer"`) {
+		t.Errorf("a local server must stay on prefer\n%s", out)
+	}
 }
 
-func TestPgadminPgpass_oneLinePerFamilyMember(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
-	t.Setenv("XDG_DATA_HOME", tmp)
-
-	if err := SaveCustomService(&CustomService{
-		Name:   "postgres-17",
-		Image:  "docker.io/postgis/postgis:17-3.6-alpine",
-		Family: "postgres",
-	}); err != nil {
-		t.Fatalf("SaveCustomService: %v", err)
-	}
+// The passfile carries this install's real password. It shipped a literal
+// "servlo" long after the presets moved to a generated one, which is a pgAdmin
+// that asks for a password nobody has.
+func TestPgadminPgpass_carriesEachConnectionsOwnPassword(t *testing.T) {
+	stubConnections(t,
+		localPostgres("postgres"),
+		DBConnectionInfo{Name: "do-managed", Family: "postgres", Host: "db.example.net", Port: 25060, User: "doadmin", Password: "provider:password"},
+	)
 
 	out, err := pgadminPgpass(nil)
 	if err != nil {
 		t.Fatalf("pgadminPgpass: %v", err)
 	}
-	for _, want := range []string{
-		"servlo-postgres:5432:*:postgres:servlo",
-		"servlo-postgres-17:5432:*:postgres:servlo",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("pgpass missing %q\n%s", want, out)
-		}
+	if !strings.Contains(out, "servlo-postgres:5432:*:postgres:generated-install-password") {
+		t.Errorf("pgpass missing the local line\n%s", out)
+	}
+	// A provider generates the administrator's password, so a colon in it is
+	// somebody else's decision and has to survive the file format.
+	if !strings.Contains(out, `db.example.net:25060:*:doadmin:provider\:password`) {
+		t.Errorf("pgpass did not escape the managed password\n%s", out)
+	}
+	if strings.Contains(out, ":servlo\n") {
+		t.Errorf("pgpass still carries the published literal password\n%s", out)
+	}
+}
+
+// The bundle is what a verify-ca server is checked against, and it holds every
+// such certificate because one mount cannot be one file per connection.
+func TestDBCABundle_concatenatesTheVerifiedCertificates(t *testing.T) {
+	dir := t.TempDir()
+	first := filepath.Join(dir, "one.crt")
+	second := filepath.Join(dir, "two.crt")
+	if err := os.WriteFile(first, []byte("-----BEGIN CERTIFICATE-----\nONE\n-----END CERTIFICATE-----"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(second, []byte("-----BEGIN CERTIFICATE-----\nTWO\n-----END CERTIFICATE-----\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	stubConnections(t,
+		localPostgres("postgres"),
+		DBConnectionInfo{Name: "a", Family: "mysql", Host: "a.example", Port: 25060, TLSMode: "verify-ca", CACert: first},
+		DBConnectionInfo{Name: "b", Family: "postgres", Host: "b.example", Port: 25060, TLSMode: "require"},
+		DBConnectionInfo{Name: "c", Family: "postgres", Host: "c.example", Port: 25060, TLSMode: "verify-ca", CACert: second},
+	)
+
+	out, err := dbCABundle(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "ONE") || !strings.Contains(out, "TWO") {
+		t.Errorf("bundle is missing a certificate:\n%s", out)
+	}
+	// A certificate that does not end in a newline must not run into the next
+	// one's BEGIN line, or neither parses.
+	if strings.Contains(out, "-----END CERTIFICATE----------BEGIN") {
+		t.Errorf("two certificates ran together:\n%s", out)
 	}
 }
 
@@ -113,8 +170,8 @@ func TestPgadminPreset_consumesPostgresFamily(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadPreset(pgadmin): %v", err)
 	}
-	if got := p.DynamicEnv["SERVLO_POSTGRES_HOSTS"]; got != "discover_family:postgres" {
-		t.Errorf("pgadmin must declare discover_family:postgres dynamic_env, got %q", got)
+	if got := p.DynamicEnv["SERVLO_POSTGRES_HOSTS"]; got != "connections:postgres=hostport" {
+		t.Errorf("pgadmin must read the postgres connections, got %q", got)
 	}
 	if p.Environment["PGADMIN_REPLACE_SERVERS_ON_STARTUP"] != "True" {
 		t.Errorf("pgadmin must set PGADMIN_REPLACE_SERVERS_ON_STARTUP=True so the regenerated servers.json gets re-imported on restart")

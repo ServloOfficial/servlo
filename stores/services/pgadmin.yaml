@@ -1,6 +1,6 @@
 name: pgadmin
 image: docker.io/dpage/pgadmin4:latest
-description: pgAdmin web UI for the servlo Postgres service
+description: pgAdmin web UI for every Postgres database this install reaches
 ports:
   - "8081:80"
 environment:
@@ -9,12 +9,16 @@ environment:
   PGADMIN_CONFIG_SERVER_MODE: "False"
   PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
   PGADMIN_REPLACE_SERVERS_ON_STARTUP: "True"
+# The server list is the connections rather than the containers, so a site on a
+# managed Postgres finds its own database here alongside the local ones.
 dynamic_env:
-  SERVLO_POSTGRES_HOSTS: discover_family:postgres
+  SERVLO_POSTGRES_HOSTS: connections:postgres=hostport
 depends_on:
   - postgres
 dashboard: http://localhost:8081
 files:
+  - target: /etc/servlo/db-ca-bundle.crt
+    generator: db_ca_bundle
   - target: /pgadmin4/servers.json
     generator: pgadmin_servers
   - target: /pgpass

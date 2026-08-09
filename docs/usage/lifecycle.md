@@ -64,7 +64,7 @@ Stops everything `servlo start` started **except** the Web UI, watcher and the `
 A few important details:
 
 - **The DNS forwarder stays up.** `servlo-dns` is treated as install-level plumbing: the system resolver keeps pointing `.test` at it until `servlo uninstall`, so stopping it would leave the resolver aimed at a dead port and make `.test` lookups stall. It is only torn down by `servlo quit` or `servlo uninstall`.
-- **Manually paused services are remembered.** If you stopped Mailpit earlier with `servlo service stop mailpit`, then `servlo stop` + `servlo start` will not bring Mailpit back. The pause flag survives the cycle.
+- **Manually paused services are remembered.** If you stopped Meilisearch earlier with `servlo service stop meilisearch`, then `servlo stop` + `servlo start` will not bring Meilisearch back. The pause flag survives the cycle.
 - **Pinned services start anyway.** A `servlo service pin <name>` overrides auto-stop logic; pinned services are always started by `servlo start` regardless of which sites are active.
 - **Worker state is preserved.** Workers running before `servlo stop` are restarted by the next `servlo start`; workers you manually stopped stay stopped.
 
@@ -90,7 +90,7 @@ After `servlo quit` there are no servlo processes left running. This is the righ
 Servlo can boot itself every time you log in. Autostart is a single switch over every servlo-owned systemd user unit on the machine:
 
 - the dashboard (`servlo-ui.service`) and project watcher (`servlo-watcher.service`)
-- every container quadlet (`servlo-mysql`, `servlo-nginx`, `servlo-redis`, `servlo-postgres`, `servlo-dns`, `servlo-php*-fpm`, `servlo-mailpit`, `servlo-meilisearch`, `servlo-minio`, `servlo-rustfs`)
+- every container quadlet (`servlo-mysql`, `servlo-nginx`, `servlo-redis`, `servlo-postgres`, `servlo-dns`, `servlo-php*-fpm`, `servlo-meilisearch`, `servlo-minio`, `servlo-rustfs`)
 - every per-site worker, queue, schedule, horizon, reverb, and stripe-listen unit
 
 ```bash

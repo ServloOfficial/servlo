@@ -71,11 +71,10 @@ func Permissions() Registry {
 		// Reachable without a session. The page and its assets are not here
 		// because they are not routes the mux answers with data; withPanelAuth
 		// serves them and the list lives there.
-		"/api/auth/session":     PermPublic,
-		"/api/auth/login":       PermPublic,
-		"/api/auth/logout":      PermPublic,
-		"/api/auth/setup":       PermPublic,
-		"/api/webhooks/mailpit": PermPublic,
+		"/api/auth/session": PermPublic,
+		"/api/auth/login":   PermPublic,
+		"/api/auth/logout":  PermPublic,
+		"/api/auth/setup":   PermPublic,
 		// The deploy webhook holds no session by design: a git host has no
 		// cookie. It authenticates with an HMAC signature over the body, keyed
 		// by a secret only that one site has.
@@ -157,6 +156,8 @@ func Permissions() Registry {
 		"/api/settings":              PermAdmin,
 		"/api/settings/autostart":    PermAdmin,
 		"/api/settings/worker-mode":  PermAdmin,
+		"/api/settings/smtp":         PermAdmin,
+		"/api/settings/smtp/test":    PermAdmin,
 		"/api/lan/status":            PermAdmin,
 		"/api/remote-control":        PermAdmin,
 		"/api/php-versions":          PermAdmin,
@@ -171,6 +172,12 @@ func Permissions() Registry {
 		"/api/node/set-manager":      PermAdmin,
 		"/api/tools/":                PermAdmin,
 		"/api/browse":                PermAdmin,
+		// SFTP is admin, not site-scoped. Authorising a key hands out
+		// filesystem access as the account every site runs as, and until the
+		// operator has installed the chroot block it is not confined to one
+		// site at all. That is not a developer's call to make.
+		"/api/sftp":                  PermAdmin,
+		"/api/sftp/":                 PermAdmin,
 		"/api/audit":                 PermAdmin,
 		"/api/stats":                 PermAdmin,
 		"/api/disk":                  PermAdmin,

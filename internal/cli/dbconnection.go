@@ -1,17 +1,23 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/realrashid/servlo/internal/dnscheck"
 	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
+
+// testConnection is the network reach, a seam so the command's own behaviour
+// can be driven through both outcomes without a database.
+var testConnection = dbconn.Test
 
 // NewDbConnectionCmd returns the `servlo db:connection` command group: the
 // named databases sites can be put on, local or managed.
@@ -36,6 +42,12 @@ people log into.`,
 		RunE:  func(_ *cobra.Command, _ []string) error { return runDbConnectionList() },
 	})
 	cmd.AddCommand(newDbConnectionAddCmd())
+	cmd.AddCommand(&cobra.Command{
+		Use:   "test <name>",
+		Short: "Open a connection and report what happened",
+		Args:  cobra.ExactArgs(1),
+		RunE:  func(_ *cobra.Command, args []string) error { return runDbConnectionTest(args[0]) },
+	})
 	cmd.AddCommand(&cobra.Command{
 		Use:   "rm <name>",
 		Short: "Remove a connection",
@@ -108,7 +120,7 @@ database they are already on.`,
 	cmd.Flags().IntVar(&port, "port", 0, "Port of a managed database (default: the engine's)")
 	cmd.Flags().StringVar(&user, "user", "", "Administrative user servlo creates databases as")
 	cmd.Flags().StringVar(&tlsMode, "tls", "", "TLS for a managed database: require or verify-ca")
-	cmd.Flags().StringVar(&caCert, "ca-cert", "", "Path to the CA certificate, for verify-ca")
+	cmd.Flags().StringVar(&caCert, "ca-cert", "", "Path to the provider's CA certificate (.crt), for verify-ca. Servlo keeps its own copy")
 	return cmd
 }
 
@@ -140,13 +152,32 @@ func runDbConnectionAdd(name, service, engine, host string, port int, user, tlsM
 			return err
 		}
 		c = dbconn.External(name, engine, host, port, user, password)
-		c.TLSMode, c.CACert = tlsMode, caCert
+		c.TLSMode = tlsMode
+		if caCert != "" {
+			// Copied rather than referenced: a path into a home directory is one
+			// tidy-up away from a connection that stops verifying.
+			stored, err := dbconn.ImportCACert(name, caCert)
+			if err != nil {
+				return err
+			}
+			c.CACert = stored
+		}
 	default:
 		return fmt.Errorf("say where this database is: --service <name> for one servlo runs, or --host <host> for a managed one")
 	}
 
 	if err := reg.Add(c); err != nil {
 		return err
+	}
+	// Reached before it is written down: a connection saved and found unreachable
+	// at the first deploy is a site whose env file points at a database nothing
+	// here can open, discovered by whoever was deploying.
+	if !c.Local() {
+		if err := testConnection(c); err != nil {
+			_ = dbconn.RemoveCACert(name)
+			printTrustedSourcesHint()
+			return err
+		}
 	}
 	if err := dbconn.SaveRegistry(reg); err != nil {
 		return err
@@ -158,9 +189,39 @@ func runDbConnectionAdd(name, service, engine, host string, port int, user, tlsM
 		feedback.Note("new sites go on it; sites that already exist keep the database they are on")
 	}
 	if !c.Local() {
-		feedback.Note("servlo does not create the database or its user on a managed server yet, so create them there for now")
+		feedback.Note("servlo creates each site's database and its own user there when you run `servlo env`")
 	}
 	return nil
+}
+
+// runDbConnectionTest opens a configured connection and says what happened.
+func runDbConnectionTest(name string) error {
+	c, err := dbconn.Named(name)
+	if err != nil {
+		return err
+	}
+	if err := testConnection(c); err != nil {
+		printTrustedSourcesHint()
+		return err
+	}
+	feedback.Begin()
+	feedback.Done(feedback.Val(name) + " answered")
+	return nil
+}
+
+// printTrustedSourcesHint prints this server's public address beside a failure.
+//
+// It is the whole difference between a fix and an afternoon: a managed provider
+// drops the packet from an address its trusted-sources list does not hold, and
+// the operator cannot paste in an address nothing has told them.
+func printTrustedSourcesHint() {
+	addrs, err := dnscheck.ThisServerStrings(context.Background())
+	feedback.Begin()
+	if err != nil {
+		feedback.Note("servlo could not work out this server's public address (" + err.Error() + "), which is what a managed provider's trusted-sources list needs")
+		return
+	}
+	feedback.Note("this server is " + strings.Join(addrs, ", ") + " — add that to the database's trusted sources (DigitalOcean: Databases, Settings, Trusted sources)")
 }
 
 // readManagedPassword takes the credential from a prompt rather than a flag, so
@@ -202,6 +263,14 @@ func runDbConnectionRemove(name string) error {
 	}
 	if err := dbconn.SaveRegistry(reg); err != nil {
 		return err
+	}
+	// The certificate and the accounts servlo created on it go too: kept, they
+	// are credentials for a server nothing points at.
+	if err := dbconn.RemoveCACert(name); err != nil {
+		feedback.Warn("could not remove the CA certificate for %s: %v", name, err)
+	}
+	if err := dbconn.ForgetSiteUsers(name); err != nil {
+		feedback.Warn("could not forget the database users on %s: %v", name, err)
 	}
 	feedback.Begin()
 	feedback.Done("removed connection " + feedback.Val(name))

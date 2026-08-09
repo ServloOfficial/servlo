@@ -3,6 +3,7 @@ package serviceops
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -349,5 +350,115 @@ func TestDependentsOf_EnvRoleDropIn(t *testing.T) {
 	}
 	if got := dependentsOf("mariadb-12-3"); len(got) != 1 || got[0] != "phpmyadmin" {
 		t.Errorf("dependentsOf(mariadb) = %v, want [phpmyadmin]", got)
+	}
+}
+
+// An admin UI that reads its server list out of the connection registry is
+// satisfied by a managed database, which has no container to start. Without
+// this, an install whose only MySQL is on DigitalOcean cannot install
+// phpMyAdmin at all: the dep resolves to nothing local and the install refuses,
+// even though the tool would come up pointed straight at the managed server.
+func TestMissingPresetDependencies_AManagedConnectionSatisfiesTheDep(t *testing.T) {
+	withServiceHome(t)
+
+	prev := config.DatabaseConnections
+	config.DatabaseConnections = func(families []string) []config.DBConnectionInfo {
+		if slices.Contains(families, "mysql") {
+			return []config.DBConnectionInfo{{Name: "managed", Family: "mysql", Host: "db.example.net", Port: 25060}}
+		}
+		return nil
+	}
+	t.Cleanup(func() { config.DatabaseConnections = prev })
+
+	missing := MissingPresetDependencies(&config.CustomService{
+		Name: "phpmyadmin", DependsOn: []string{"mysql"},
+		DynamicEnv: map[string]string{"PMA_HOSTS": "connections:mysql,mariadb=hostport"},
+	})
+	if len(missing) != 0 {
+		t.Errorf("a managed mysql connection should satisfy the dep, got missing=%v", missing)
+	}
+}
+
+// The escape hatch is not a blanket one. A tool that does not read the registry
+// still needs something running: pointing RedisInsight at a connection list it
+// never consults would install it green and leave it talking to nothing.
+func TestMissingPresetDependencies_AConnectionDoesNotSatisfyAToolThatIgnoresIt(t *testing.T) {
+	withServiceHome(t)
+
+	prev := config.DatabaseConnections
+	config.DatabaseConnections = func([]string) []config.DBConnectionInfo {
+		return []config.DBConnectionInfo{{Name: "managed", Family: "mysql", Host: "db.example.net", Port: 25060}}
+	}
+	t.Cleanup(func() { config.DatabaseConnections = prev })
+
+	missing := MissingPresetDependencies(&config.CustomService{
+		Name: "somequeueui", DependsOn: []string{"mysql"},
+		Environment: map[string]string{"DB_HOST": "servlo-mysql"},
+	})
+	if len(missing) != 1 {
+		t.Errorf("a tool that never reads the registry should still report the dep missing, got %v", missing)
+	}
+}
+
+// The directive is not the whole answer: it says where the tool would look, not
+// that anything is there. An install with no mysql of any kind still has a
+// missing dependency, and saying otherwise would install phpMyAdmin against an
+// empty server list.
+func TestMissingPresetDependencies_TheDirectiveAloneDoesNotSatisfyTheDep(t *testing.T) {
+	withServiceHome(t)
+
+	prev := config.DatabaseConnections
+	config.DatabaseConnections = func([]string) []config.DBConnectionInfo { return nil }
+	t.Cleanup(func() { config.DatabaseConnections = prev })
+
+	missing := MissingPresetDependencies(&config.CustomService{
+		Name: "phpmyadmin", DependsOn: []string{"mysql"},
+		DynamicEnv: map[string]string{"PMA_HOSTS": "connections:mysql,mariadb=hostport"},
+	})
+	if len(missing) != 1 {
+		t.Errorf("no connection and no container is still a missing dep, got %v", missing)
+	}
+}
+
+// A directive for some other family is not this dep's answer. A tool listing
+// postgres connections does not make a missing mysql acceptable.
+func TestMissingPresetDependencies_ADirectiveForAnotherFamilyDoesNotCount(t *testing.T) {
+	withServiceHome(t)
+
+	prev := config.DatabaseConnections
+	config.DatabaseConnections = func([]string) []config.DBConnectionInfo {
+		return []config.DBConnectionInfo{{Name: "managed", Family: "postgres", Host: "db.example.net", Port: 25060}}
+	}
+	t.Cleanup(func() { config.DatabaseConnections = prev })
+
+	missing := MissingPresetDependencies(&config.CustomService{
+		Name: "pgadmin", DependsOn: []string{"mysql"},
+		DynamicEnv: map[string]string{"SERVERS": "connections:postgres=hostport"},
+	})
+	if len(missing) != 1 {
+		t.Errorf("a postgres directive should not satisfy a mysql dep, got %v", missing)
+	}
+}
+
+// A local connection is a container by another name. Whether that container is
+// installed is the question ResolveDependency already answers, and letting a
+// local connection through here reported pgAdmin's postgres dep satisfied on an
+// install with no postgres at all, because the registry names the local preset
+// whether or not anything is running.
+func TestMissingPresetDependencies_ALocalConnectionIsNotAnExcuseForAMissingContainer(t *testing.T) {
+	withServiceHome(t)
+
+	prev := config.DatabaseConnections
+	config.DatabaseConnections = func([]string) []config.DBConnectionInfo {
+		return []config.DBConnectionInfo{{Name: "postgres", Family: "postgres", Local: true, Host: "servlo-postgres", Port: 5432}}
+	}
+	t.Cleanup(func() { config.DatabaseConnections = prev })
+
+	missing := MissingPresetDependencies(&config.CustomService{
+		Name: "pgadmin", DependsOn: []string{"postgres"},
+		DynamicEnv: map[string]string{"SERVERS": "connections:postgres=hostport"},
+	})
+	if len(missing) != 1 {
+		t.Errorf("a local connection with no container is still a missing dep, got %v", missing)
 	}
 }

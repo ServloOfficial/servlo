@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -44,6 +45,31 @@ func (a *auditRecorder) Write(b []byte) (int, error) {
 // that streams, which is most of the interesting ones.
 func (a *auditRecorder) Unwrap() http.ResponseWriter { return a.ResponseWriter }
 
+type ctxKeyAuditDetail struct{}
+
+// auditDetail is the note a handler may leave for the entry about to be
+// written. A pointer in the context rather than a new context returned from the
+// handler, because a handler does not get to replace the request the middleware
+// is holding.
+type auditDetail struct{ text string }
+
+// SetAuditDetail records what a request actually acted on, for the audit entry
+// the middleware writes when the handler returns.
+//
+// The method and the path answer "somebody saved a file on acme.com". They do
+// not answer "which file", because the path carries the site and the file
+// arrives in a body or a query, and the query is deliberately never logged.
+// Anything whose subject is finer-grained than the route says so here.
+//
+// Calling it is optional and calling it twice replaces the note: the entry is
+// written either way, so a handler that forgets loses detail rather than the
+// record.
+func SetAuditDetail(r *http.Request, detail string) {
+	if note, ok := r.Context().Value(ctxKeyAuditDetail{}).(*auditDetail); ok {
+		note.text = detail
+	}
+}
+
 // Audit records every state-changing request that passes through it.
 func (g *Guard) Audit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +78,8 @@ func (g *Guard) Audit(next http.Handler) http.Handler {
 			return
 		}
 		recorder := &auditRecorder{ResponseWriter: w}
+		note := &auditDetail{}
+		r = r.WithContext(context.WithValue(r.Context(), ctxKeyAuditDetail{}, note))
 		next.ServeHTTP(recorder, r)
 
 		actor := ""
@@ -68,6 +96,7 @@ func (g *Guard) Audit(next http.Handler) http.Handler {
 			Actor:   actor,
 			IP:      sourceAddress(r),
 			Result:  result,
+			Detail:  note.text,
 		})
 	})
 }

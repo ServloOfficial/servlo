@@ -47,7 +47,7 @@ introspect:
 	if isDatabaseEngine("objectstore") {
 		t.Error("a service holding buckets is not a database engine")
 	}
-	if isDatabaseEngine("mailpit") {
+	if isDatabaseEngine("gotenberg") {
 		t.Error("a service declaring no entities is not a database engine")
 	}
 }

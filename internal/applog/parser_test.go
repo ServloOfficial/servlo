@@ -20,7 +20,7 @@ const sampleLaravelLog = `[2024-01-08 14:05:08] local.ERROR: Database file at pa
 #0 /Users/seb/Code/herd-templates/vendor/laravel/framework/src/Illuminate/Routing/Router.php(511): Illuminate\Routing\Router->loadRoutes()
 #1 /Users/seb/Code/herd-templates/vendor/laravel/framework/src/Illuminate/Routing/Router.php(465): Illuminate\Routing\Router->loadRoutes()
 [2024-01-09 13:14:00] local.ERROR: Maximum execution time of 30 seconds exceeded {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError)"}
-[2024-01-11 14:58:09] local.ERROR: Connection could not be established with host "mailpit:1025": stream_socket_client(): php_network_getaddresses: getaddrinfo for mailpit failed {"exception":"[object] (Symfony\\Component\\Mailer\\Exception\\TransportException)"}
+[2024-01-11 14:58:09] local.ERROR: Connection could not be established with host "smtp.example.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.example.com failed {"exception":"[object] (Symfony\\Component\\Mailer\\Exception\\TransportException)"}
 `
 
 // ── parseLaravel ─────────────────────────────────────────────────────────────
@@ -42,8 +42,8 @@ func TestParseLaravel(t *testing.T) {
 	if entries[0].Channel != "local" {
 		t.Errorf("expected channel local, got %s", entries[0].Channel)
 	}
-	if !strings.Contains(entries[0].Message, "mailpit:1025") {
-		t.Errorf("expected message to contain mailpit:1025, got %s", entries[0].Message)
+	if !strings.Contains(entries[0].Message, "smtp.example.com:587") {
+		t.Errorf("expected message to contain smtp.example.com:587, got %s", entries[0].Message)
 	}
 
 	// Entry with stacktrace should have detail

@@ -279,8 +279,14 @@ func DeclaresDatabases(service string) bool {
 	return EntityFor(service, "databases") != nil
 }
 
-// ServiceEntities returns the non-database entity specs a service declares.
-// The databases kind is excluded because the Databases tab is its surface.
+// ServiceEntities returns the entity specs a service declares that belong on
+// the generic entity surface: a list of rows with actions hanging off them.
+//
+// Databases are excluded because the Databases tab is their surface. So is any
+// kind that declares nothing to list, because it is not that shape at all: it
+// is a set of statements something else drives with its own placeholders (a
+// site's database account), and rendering it here would be an empty table whose
+// buttons run a command with half its values unfilled.
 func ServiceEntities(service string) []config.EntitySpec {
 	in := resolveIntrospect(service)
 	if in == nil {
@@ -288,7 +294,7 @@ func ServiceEntities(service string) []config.EntitySpec {
 	}
 	var out []config.EntitySpec
 	for _, e := range in.Entities {
-		if e.Kind != "databases" {
+		if e.Kind != "databases" && strings.TrimSpace(e.List) != "" {
 			out = append(out, e)
 		}
 	}

@@ -24,6 +24,10 @@
   import ConfirmTuningResetModal from './ConfirmTuningResetModal.svelte';
   import ConfirmSiteUnlinkModal from './ConfirmSiteUnlinkModal.svelte';
   import ConfirmServiceInstallModal from './ConfirmServiceInstallModal.svelte';
+  import ConfirmCronDeleteModal from './ConfirmCronDeleteModal.svelte';
+  import ConfirmFileDeleteModal from './ConfirmFileDeleteModal.svelte';
+  import FixPermissionsModal from './FixPermissionsModal.svelte';
+  import ConfirmSFTPWithdrawModal from './ConfirmSFTPWithdrawModal.svelte';
   import ErrorModal from './ErrorModal.svelte';
 </script>
 
@@ -75,6 +79,14 @@
   <ConfirmSiteUnlinkModal />
 {:else if $modal.kind === 'serviceInstall' && $modal.serviceInstall}
   <ConfirmServiceInstallModal />
+{:else if $modal.kind === 'cronDelete' && $modal.cronDelete}
+  <ConfirmCronDeleteModal />
+{:else if $modal.kind === 'fileDelete' && $modal.fileDelete}
+  <ConfirmFileDeleteModal />
+{:else if $modal.kind === 'filePermissions' && $modal.filePermissions}
+  <FixPermissionsModal />
+{:else if $modal.kind === 'sftpWithdraw' && $modal.sftpWithdraw}
+  <ConfirmSFTPWithdrawModal />
 {:else if $modal.kind === 'error' && $modal.error}
   <ErrorModal />
 {/if}

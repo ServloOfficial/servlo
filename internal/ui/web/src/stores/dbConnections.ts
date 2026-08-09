@@ -24,6 +24,12 @@ export interface DBConnectionsState {
   // The local database services installed here, which is what an "add a local
   // connection" form can offer.
   services: string[];
+  // This server's public addresses, and why they could not be worked out. A
+  // managed provider drops the packet from any address its trusted-sources list
+  // does not hold, so this is what the operator has to paste in over there
+  // before anything here can reach the database.
+  serverIPs: string[];
+  serverIPsError: string;
   loading: boolean;
   error: string;
 }
@@ -31,10 +37,19 @@ export interface DBConnectionsState {
 interface ConnectionsResponse {
   connections?: DBConnection[];
   services?: string[];
+  server_ips?: string[];
+  server_ips_error?: string;
   error?: string;
 }
 
-const empty: DBConnectionsState = { connections: [], services: [], loading: false, error: '' };
+const empty: DBConnectionsState = {
+  connections: [],
+  services: [],
+  serverIPs: [],
+  serverIPsError: '',
+  loading: false,
+  error: ''
+};
 
 export const dbConnections = writable<DBConnectionsState>(empty);
 
@@ -42,6 +57,8 @@ function apply(res: ConnectionsResponse): void {
   dbConnections.set({
     connections: res.connections ?? [],
     services: res.services ?? [],
+    serverIPs: res.server_ips ?? [],
+    serverIPsError: res.server_ips_error ?? '',
     loading: false,
     error: res.error ?? ''
   });
@@ -78,6 +95,9 @@ export interface AddConnectionPayload {
   password?: string;
   tls_mode?: string;
   ca_cert?: string;
+  // The provider's certificate as text. Servlo stores it itself and keeps the
+  // path, so the panel never asks the operator for one.
+  ca_cert_pem?: string;
 }
 
 // Every action answers with the whole list, so the store takes its next state
@@ -107,6 +127,14 @@ async function act(body: Record<string, unknown>): Promise<DBConnectionResult> {
 export const addConnection = (payload: AddConnectionPayload) => act({ action: 'add', ...payload });
 
 export const removeConnection = (name: string) => act({ action: 'remove', name });
+
+// Open a saved connection and report what happened. Its own action because the
+// reason to press it is usually that something moved on the provider's side.
+export const testConnection = (name: string) => act({ action: 'test', name });
+
+// Reaching a managed database before it is saved is the same request as adding
+// it, so the form tests by adding: the server refuses to save a connection it
+// cannot open, and says why.
 
 export const setDefaultConnection = (name: string) => act({ action: 'default', name });
 
@@ -160,3 +188,7 @@ export function connectionForSite(connections: DBConnection[], domain: string): 
 // The port an engine answers on, shown as a placeholder so an untouched field
 // means "the usual one" rather than a number the operator never chose.
 export const defaultPortFor = (engine: string) => (engine === 'postgres' ? 5432 : 3306);
+
+// A connection servlo has to reach over the network, which is the only kind
+// with anything to test and the only kind a trusted-sources list applies to.
+export const isManagedConnection = (c: DBConnection) => !isLocalConnection(c);

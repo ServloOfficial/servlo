@@ -197,7 +197,7 @@ func serviceDefaultPorts(name string) []string {
 // SetPublishedPort. hostPort 0 (or the mapping's preset default) clears the
 // override. When containerPort is the primary mapping it delegates to
 // SetPublishedPort so the primary keeps its guard and host-proxy-follower
-// handling; secondary ports (mailpit's 8025 UI, rustfs' 9001 console) persist to
+// handling; secondary ports (rustfs' 9001 console) persist to
 // PublishedPorts and re-render like an extra-ports change.
 func SetPublishedPortFor(name string, containerPort, hostPort int) (PortChange, error) {
 	res := PortChange{Requested: hostPort, Actual: hostPort}
@@ -443,7 +443,7 @@ func rerenderServiceQuadlet(name string) error {
 // portReservedByOther reports whether host port p is already claimed by a servlo
 // service other than self: its effective primary, its extra ports, and — unlike a
 // bare HostPorts() read — a multi-port service's un-overridden SECONDARY default
-// ports too, so a stopped mailpit still reserves its 8025 web UI.
+// ports too, so a stopped rustfs still reserves its 9001 console.
 func portReservedByOther(self string, p int) bool {
 	cfg, err := config.LoadGlobal()
 	if err != nil || cfg == nil {
@@ -466,7 +466,7 @@ func portReservedByOther(self string, p int) bool {
 // publish: each default mapping resolved through its override (primary or per-port
 // via HostPortFor), plus its extra ports. It differs from ServiceConfig.HostPorts
 // by also reporting a multi-port service's un-overridden secondary default ports
-// (mailpit's 8025 UI, rustfs' 9001 console), which no config field records, so the
+// (rustfs' 9001 console), which no config field records, so the
 // interactive reservation check can't hand another service a port a stopped
 // sibling owns by default and collide at boot.
 func serviceEffectiveHostPorts(name string, cfg config.ServiceConfig) []int {

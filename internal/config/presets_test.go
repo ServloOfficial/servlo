@@ -571,6 +571,67 @@ func TestResolveDynamicEnv_RepeatFamily(t *testing.T) {
 	}
 }
 
+// The connections directive is how an admin UI's server list reaches a database
+// servlo does not run. Every field is read off the same connection in the same
+// order, because phpMyAdmin pairs its arrays by index: one list a member short
+// logs a server in as somebody else.
+func TestResolveDynamicEnv_Connections(t *testing.T) {
+	old := DatabaseConnections
+	var asked []string
+	DatabaseConnections = func(families []string) []DBConnectionInfo {
+		asked = families
+		return []DBConnectionInfo{
+			{Name: "mysql", Family: "mysql", Local: true, Host: "servlo-mysql", Port: 3306, User: "root", Password: "local-password"},
+			{Name: "do-managed", Family: "mysql", Host: "db.example.net", Port: 25060, User: "doadmin", Password: "provider-password", TLSMode: "require"},
+		}
+	}
+	defer func() { DatabaseConnections = old }()
+
+	svc := &CustomService{
+		Name:  "phpmyadmin",
+		Image: "phpmyadmin:latest",
+		DynamicEnv: map[string]string{
+			"PMA_HOSTS":     "connections:mysql,mariadb=hostport",
+			"PMA_VERBOSES":  "connections:mysql,mariadb=name",
+			"PMA_USERS":     "connections:mysql,mariadb=user",
+			"PMA_PASSWORDS": "connections:mysql,mariadb=password",
+			"PMA_SSL_MODES": "connections:mysql,mariadb=tls",
+		},
+	}
+	if err := ResolveDynamicEnv(svc); err != nil {
+		t.Fatalf("ResolveDynamicEnv: %v", err)
+	}
+	if strings.Join(asked, ",") != "mysql,mariadb" {
+		t.Errorf("asked for families %v, want the ones the directive names", asked)
+	}
+	for key, want := range map[string]string{
+		"PMA_HOSTS":     "servlo-mysql:3306,db.example.net:25060",
+		"PMA_VERBOSES":  "mysql,do-managed",
+		"PMA_USERS":     "root,doadmin",
+		"PMA_PASSWORDS": "local-password,provider-password",
+		"PMA_SSL_MODES": ",require",
+	} {
+		if got := svc.Environment[key]; got != want {
+			t.Errorf("%s = %q, want %q", key, got, want)
+		}
+	}
+}
+
+// A field no connection has is a definition mistake worth reporting, not an
+// empty server list nobody can explain.
+func TestResolveDynamicEnv_ConnectionsRejectsAnUnknownField(t *testing.T) {
+	old := DatabaseConnections
+	DatabaseConnections = func([]string) []DBConnectionInfo {
+		return []DBConnectionInfo{{Name: "mysql", Family: "mysql", Local: true, Host: "servlo-mysql", Port: 3306}}
+	}
+	defer func() { DatabaseConnections = old }()
+
+	svc := &CustomService{Name: "x", DynamicEnv: map[string]string{"A": "connections:mysql=nonsense"}}
+	if err := ResolveDynamicEnv(svc); err == nil {
+		t.Error("an undeclared connection field must be reported")
+	}
+}
+
 // An unknown directive is what a binary older than the store definition sees.
 // It must degrade to a warning: the quadlet still generates, carrying whatever
 // static environment the preset ships, instead of the service refusing to start.
@@ -914,8 +975,8 @@ func TestLoadPreset_Beanstalkd(t *testing.T) {
 func TestLoadPreset_DefaultsTrackLatest(t *testing.T) {
 	// Auto-bumping via track_latest is the user-facing promise that servlo, not
 	// users, keeps fresh installs current. The 4 versioned default presets
-	// must opt in. Mailpit/rustfs already use rolling :latest tags so the
-	// flag is redundant for them.
+	// must opt in. rustfs already uses a rolling :latest tag so the
+	// flag is redundant for it.
 	for _, name := range []string{"mysql", "postgres", "redis", "meilisearch"} {
 		p, err := LoadPreset(name)
 		if err != nil {
@@ -1002,11 +1063,11 @@ func TestPresetExists(t *testing.T) {
 	}
 }
 
-func TestDefaultPresetNames_ContainsAllSix(t *testing.T) {
+func TestDefaultPresetNames_ContainsAllFive(t *testing.T) {
 	names := DefaultPresetNames()
 	want := map[string]bool{
 		"mysql": false, "redis": false, "postgres": false,
-		"meilisearch": false, "rustfs": false, "mailpit": false,
+		"meilisearch": false, "rustfs": false,
 	}
 	for _, n := range names {
 		if _, ok := want[n]; ok {
@@ -1027,7 +1088,7 @@ func TestDefaultPresetNames_ContainsAllSix(t *testing.T) {
 }
 
 func TestIsDefaultPreset(t *testing.T) {
-	for _, name := range []string{"mysql", "postgres", "redis", "meilisearch", "rustfs", "mailpit"} {
+	for _, name := range []string{"mysql", "postgres", "redis", "meilisearch", "rustfs"} {
 		if !IsDefaultPreset(name) {
 			t.Errorf("IsDefaultPreset(%q) = false, want true", name)
 		}
@@ -1040,7 +1101,7 @@ func TestIsDefaultPreset(t *testing.T) {
 }
 
 func TestLoadPreset_DefaultsHaveFlag(t *testing.T) {
-	for _, name := range []string{"mysql", "postgres", "redis", "meilisearch", "rustfs", "mailpit"} {
+	for _, name := range []string{"mysql", "postgres", "redis", "meilisearch", "rustfs"} {
 		p, err := LoadPreset(name)
 		if err != nil {
 			t.Fatalf("LoadPreset(%s): %v", name, err)
@@ -1462,8 +1523,8 @@ func TestDefaultPresetMeta_Caches(t *testing.T) {
 	if got := DefaultPresetEnvVars("sqlite"); got != nil {
 		t.Errorf("DefaultPresetEnvVars(sqlite) must return nil for non-default presets")
 	}
-	if DefaultPresetDashboard("mailpit") != "http://localhost:8025" {
-		t.Errorf("DefaultPresetDashboard(mailpit) wrong")
+	if DefaultPresetDashboard("rustfs") != "http://localhost:9001/rustfs/console/" {
+		t.Errorf("DefaultPresetDashboard(rustfs) wrong")
 	}
 	// The memo is filled by whichever test resolved postgres first, under that
 	// test's config home, so the exact password here is not this test's to
@@ -1540,14 +1601,6 @@ func TestLoadPreset_DefaultEnvVarsParity(t *testing.T) {
 			"AWS_URL=http://localhost:9000",
 			"AWS_ENDPOINT=http://servlo-rustfs:9000",
 			"AWS_USE_PATH_STYLE_ENDPOINT=true",
-		},
-		"mailpit": {
-			"MAIL_MAILER=smtp",
-			"MAIL_HOST=servlo-mailpit",
-			"MAIL_PORT=1025",
-			"MAIL_USERNAME=null",
-			"MAIL_PASSWORD=null",
-			"MAIL_ENCRYPTION=null",
 		},
 	}
 	for name, want := range cases {

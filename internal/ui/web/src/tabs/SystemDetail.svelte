@@ -8,6 +8,8 @@
   import ServloDetail from './system/ServloDetail.svelte';
   import ToolsDetail from './system/ToolsDetail.svelte';
   import WorkerModeDetail from './system/WorkerModeDetail.svelte';
+  import SftpDetail from './system/SftpDetail.svelte';
+  import MailDetail from './system/MailDetail.svelte';
 
   const selected = $derived($routeRest || 'servlo');
   const phpVersion = $derived(selected.startsWith('php-') ? selected.slice(4) : '');
@@ -26,6 +28,10 @@
   <NodePage />
 {:else if selected === 'workermode'}
   <WorkerModeDetail />
+{:else if selected === 'sftp'}
+  <SftpDetail />
+{:else if selected === 'mail'}
+  <MailDetail />
 {:else if selected === 'tools'}
   <ToolsDetail />
 {:else}

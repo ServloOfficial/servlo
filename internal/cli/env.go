@@ -495,10 +495,6 @@ var serviceDetectors = map[string]func(map[string]string) bool{
 		_, hasEndpoint := env["AWS_ENDPOINT"]
 		return strings.ToLower(env["FILESYSTEM_DISK"]) == "s3" || hasEndpoint
 	},
-	"mailpit": func(env map[string]string) bool {
-		_, hasHost := env["MAIL_HOST"]
-		return hasHost
-	},
 }
 
 func runEnv(_ *cobra.Command, _ []string) error {
@@ -616,10 +612,27 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	// MySQL and creating the site's schema inside it would be servlo quietly
 	// provisioning the wrong server.
 	dbIsLocal := true
+	var dbConn dbconn.Connection
 	if c, err := dbconn.Named(site.Database); err == nil {
+		dbConn = c
 		tplCtx.dbHost, tplCtx.dbPort = c.Host, strconv.Itoa(c.Port)
 		tplCtx.dbUser, tplCtx.dbPassword = c.User, c.Password
 		dbIsLocal = c.Local()
+		if !dbIsLocal {
+			// The site's schema and its own account are created on the managed
+			// server here, before anything is written, so the env file carries the
+			// least-privilege account rather than the provider's administrator.
+			user, password, provErr := managedSiteCredentials(c, dbName)
+			switch {
+			case provErr != nil:
+				feedback.Warn("could not create %s on %s: %v", dbName, c.Host, provErr)
+			case user == "":
+				feedback.Warn("%s already has a user for %s that servlo did not create, so %s keeps the database credentials it already has",
+					c.Host, dbName, envRelPath)
+			default:
+				tplCtx.dbUser, tplCtx.dbPassword = user, password
+			}
+		}
 	}
 
 	// Framework default env vars: seeded only when the key is absent, so a value
@@ -739,6 +752,13 @@ func runEnv(_ *cobra.Command, _ []string) error {
 
 			envApplyLine(svc, detectedFromEnv)
 			isDB := svc == "mysql" || svc == "postgres"
+			// A definition asking for the database credentials is what triggers
+			// the site's own account: a site on SQLite never grows one it does
+			// not use. The managed case was provisioned above, where the
+			// connection was resolved.
+			if dbIsLocal && wantsDBAccount(def.Vars) {
+				ensureSiteDBAccount(&tplCtx, dbConn, ensureServiceRunning)
+			}
 			for _, kv := range def.Vars {
 				k, v, _ := strings.Cut(kv, "=")
 				updates[k] = applySiteHandle(v, tplCtx)
@@ -747,7 +767,9 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				continue
 			}
 			if isDB && !dbIsLocal {
-				envInfo("  this site is on %s, a database servlo does not run, so no container was started and nothing was created there\n", tplCtx.dbHost)
+				// Nothing to start: the database is somewhere else, and its schema
+				// and account were created there before this loop ran.
+				envInfo("  this site is on %s, where servlo created %q and the user %q\n", tplCtx.dbHost, dbName, tplCtx.dbUser)
 				continue
 			}
 			if isDB {
@@ -957,6 +979,9 @@ func runEnv(_ *cobra.Command, _ []string) error {
 
 		if len(vars) > 0 {
 			envApplyLine(svc.Name, !pickedFromYAML)
+			if dbIsLocal && wantsDBAccount(vars) {
+				ensureSiteDBAccount(&tplCtx, dbConn, ensureServiceRunning)
+			}
 			for _, kv := range vars {
 				k, v, _ := strings.Cut(kv, "=")
 				updates[k] = applySiteHandle(v, tplCtx)
@@ -1311,6 +1336,9 @@ type siteTemplateCtx struct {
 	dbPort     string
 	dbUser     string
 	dbPassword string
+	// dbAccountResolved marks that the site's own database account has been
+	// asked for already, so a run that wires two definitions provisions once.
+	dbAccountResolved bool
 }
 
 // applySiteHandle replaces {{site}}, {{site_testing}}, {{bucket}}, {{domain}},

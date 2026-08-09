@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/realrashid/servlo/internal/sitefs"
 )
 
 // Extracting an uploaded archive.
@@ -195,29 +196,12 @@ func planEntries(zr *zip.Reader, opts UnzipOptions) (string, error) {
 }
 
 // safeEntryName refuses any name that would not land inside the directory.
+//
+// The rules live in internal/sitefs, the leaf package the file manager's own
+// extraction also goes through. Zip slip with two spellings in one codebase is
+// zip slip with one of them out of date.
 func safeEntryName(name string) error {
-	if name == "" {
-		return fmt.Errorf("the archive contains an entry with no name")
-	}
-	if strings.ContainsRune(name, 0) {
-		return fmt.Errorf("the archive contains an entry whose name has a NUL byte")
-	}
-	// Backslashes are a path separator on the machine that wrote the archive,
-	// so `..\x` is a traversal that a forward-slash check alone reads as a
-	// perfectly ordinary filename.
-	if strings.Contains(name, `\`) {
-		return fmt.Errorf("the archive entry %q contains a backslash", name)
-	}
-	if strings.HasPrefix(name, "/") || filepath.IsAbs(name) {
-		return fmt.Errorf("the archive entry %q is an absolute path", name)
-	}
-	// path.Clean resolves the traversal; anything still climbing after that is
-	// climbing out.
-	cleaned := path.Clean(name)
-	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
-		return fmt.Errorf("the archive entry %q points outside the site directory", name)
-	}
-	return nil
+	return sitefs.SafeEntryName(name)
 }
 
 // writeEntry copies one entry, refusing to write more than limit bytes.

@@ -35,11 +35,9 @@ env:
           value_prefix: "redis://"
       vars:
         - "CACHE_URL=redis://servlo-redis:6379"
-    mailpit:
-      detect:
-        - key: EMAIL_TRANSPORT_DEFAULT_URL
-      vars:
-        - "EMAIL_TRANSPORT_DEFAULT_URL=smtp://servlo-mailpit:1025"
+  smtp:
+    vars:
+      - "EMAIL_TRANSPORT_DEFAULT_URL=smtp://{{smtp_user_urlencoded}}:{{smtp_password_urlencoded}}@{{smtp_host}}:{{smtp_port}}?tls={{smtp_tls}}"
 
 composer: auto
 npm: auto

@@ -148,3 +148,33 @@ func TestAudit_DoesNotRecordQueryStrings(t *testing.T) {
 		}
 	}
 }
+
+// The route says a file was saved on a site. It cannot say which file, because
+// the name arrives in a body or a query and the query is never logged. A
+// handler that knows fills that in, and the entry carries it.
+func TestAudit_RecordsTheDetailAHandlerLeaves(t *testing.T) {
+	guard := scopedGuard(t)
+	handler := guard.Require(guard.Audit(guard.ScopeSites(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		SetAuditDetail(r, "saved wp-config.php")
+		w.WriteHeader(http.StatusOK)
+	}))))
+
+	handler.ServeHTTP(httptest.NewRecorder(), signedInAs(t, guard, "alice", http.MethodPut, "/api/sites/example.com/files/content"))
+
+	entries, err := auditlog.Recent(10)
+	if err != nil {
+		t.Fatalf("Recent: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("recorded %d entries, want 1", len(entries))
+	}
+	if entries[0].Detail != "saved wp-config.php" {
+		t.Errorf("detail = %q, want the file the handler named", entries[0].Detail)
+	}
+}
+
+// A handler reached outside the audit middleware must not panic when it leaves
+// a note, because the note is for an entry nobody is writing.
+func TestSetAuditDetail_IsANoOpWithoutTheMiddleware(t *testing.T) {
+	SetAuditDetail(httptest.NewRequest(http.MethodPost, "/api/sites/example.com/files/content", nil), "nothing is listening")
+}

@@ -45,17 +45,15 @@ env:
         - key: REDIS_DSN
       vars:
         - "REDIS_URL=redis://servlo-redis:6379"
-    mailpit:
-      detect:
-        - key: MAILER_DSN
-      vars:
-        - "MAILER_DSN=smtp://servlo-mailpit:1025"
     meilisearch:
       detect:
         - key: MEILISEARCH_HOST
         - key: MEILISEARCH_DSN
       vars:
         - "MEILISEARCH_HOST=http://servlo-meilisearch:7700"
+  smtp:
+    vars:
+      - "MAILER_DSN=smtp://{{smtp_user_urlencoded}}:{{smtp_password_urlencoded}}@{{smtp_host}}:{{smtp_port}}"
 
 composer: auto
 npm: auto

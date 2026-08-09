@@ -408,6 +408,41 @@ A path in `exclude` must stay inside the site, and `health` must be a path on th
 
 A framework declaring no `deploy` block at all is fine and is what plain PHP gets: an empty starting script, no migration to recognise, nothing excluded, no health check.
 
+## Built-in schedulers
+
+Some frameworks run their scheduled work off page loads rather than a real timer. A `pseudo_cron` block says so, and says what to run instead. Nothing in the binary knows which frameworks have one.
+
+```yaml
+pseudo_cron:
+  label: WordPress cron
+  description: wp-cron.php runs on page loads, so scheduled posts and updates wait for a visitor.
+  file: wp-config.php
+  constant: DISABLE_WP_CRON
+  replaced_value: "true"
+  restored_value: "false"
+  entry:
+    id: wp-cron
+    name: WordPress cron
+    command: php wp-cron.php
+    schedule: "* * * * *"
+```
+
+| Key | What it is |
+|---|---|
+| `label` | What the thing being replaced is called, in the framework's own words |
+| `description` | One sentence on why replacing it is worth doing |
+| `file` | The config file holding the constant, relative to the site root |
+| `constant` | The PHP constant that turns the built-in scheduler off |
+| `replaced_value` | Written into the constant while servlo's timer does the work |
+| `restored_value` | Written back when the operator switches it off again |
+| `entry` | The schedule installed in its place: `id`, `name`, `command`, `schedule`, and an optional `capture_output` |
+
+Both values are written as **PHP literals, unquoted**. PHP reads every non-empty string as true, so a `restored_value` of `'false'` would leave the scheduler off while the file appeared to say otherwise, and the site would have no cron at all.
+
+The entry's `schedule` is an ordinary servlo schedule: a crontab line or a systemd calendar expression. See [Cron](cron.md).
+
+A definition with no `pseudo_cron` block offers nothing, which is every framework that schedules its own work properly.
+
 ## Framework nginx config
 
 Most frameworks route every request through a single front controller, which servlo's generic `location /` already handles. A few need paths that the generic rules would otherwise swallow: Magento keeps `setup/` outside the document root and generates `/static/` and `/media/` on demand through `pub/static.php` and `pub/get.php`.

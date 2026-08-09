@@ -26,6 +26,10 @@ export type ModalKind =
   | 'workspaceDelete'
   | 'siteUnlink'
   | 'serviceInstall'
+  | 'cronDelete'
+  | 'fileDelete'
+  | 'filePermissions'
+  | 'sftpWithdraw'
   | 'error'
   | null;
 
@@ -114,6 +118,15 @@ export interface ServiceInstallTarget {
   name: string;
 }
 
+export interface CronDeleteTarget {
+  domain: string;
+  id: string;
+  name: string;
+  /** Called once the entry and its units are gone, so the list reloads from
+   *  the server rather than from what the modal assumed happened. */
+  onDeleted: () => void;
+}
+
 export interface TuningSaveTarget {
   name: string;
   content: string;
@@ -142,6 +155,28 @@ export interface ErrorTarget {
   title?: string;
 }
 
+// Deleting a file on a live site is the one action in the file manager with no
+// undo behind it, so the target carries enough for the modal to say exactly
+// what goes and to make the operator type the name back.
+export interface FileDeleteTarget {
+  domain: string;
+  path: string;
+  name: string;
+  dir: boolean;
+  onDeleted: () => void;
+}
+
+export interface FilePermissionsTarget {
+  domain: string;
+  onApplied: () => void;
+}
+
+export interface SFTPWithdrawTarget {
+  fingerprint: string;
+  label: string;
+  onWithdrawn: () => void;
+}
+
 export interface ModalState {
   kind: ModalKind;
   site?: Site;
@@ -164,6 +199,10 @@ export interface ModalState {
   workspaceDelete?: WorkspaceDeleteTarget;
   siteUnlink?: SiteUnlinkTarget;
   serviceInstall?: ServiceInstallTarget;
+  cronDelete?: CronDeleteTarget;
+  fileDelete?: FileDeleteTarget;
+  filePermissions?: FilePermissionsTarget;
+  sftpWithdraw?: SFTPWithdrawTarget;
   error?: ErrorTarget;
 }
 
@@ -181,6 +220,22 @@ export function openWorkspaceDeleteModal(target: WorkspaceDeleteTarget) {
 
 export function openSiteUnlinkModal(target: SiteUnlinkTarget) {
   modal.set({ kind: 'siteUnlink', siteUnlink: target });
+}
+
+export function openCronDeleteModal(target: CronDeleteTarget) {
+  modal.set({ kind: 'cronDelete', cronDelete: target });
+}
+
+export function openFileDeleteModal(target: FileDeleteTarget) {
+  modal.set({ kind: 'fileDelete', fileDelete: target });
+}
+
+export function openFilePermissionsModal(target: FilePermissionsTarget) {
+  modal.set({ kind: 'filePermissions', filePermissions: target });
+}
+
+export function openSFTPWithdrawModal(target: SFTPWithdrawTarget) {
+  modal.set({ kind: 'sftpWithdraw', sftpWithdraw: target });
 }
 
 export function openServiceInstallModal(name: string) {

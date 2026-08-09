@@ -186,7 +186,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/certs/alerts", withCORS(handleCertAlerts))
 	mux.HandleFunc("/api/services", withCORS(handleServices))
 	mux.HandleFunc("/api/ws", handleWS)
-	mux.HandleFunc("/api/webhooks/mailpit", handleMailpitWebhook)
 	mux.HandleFunc("/api/webhooks/deploy/", withCORS(handleWebhookDeploy))
 	mux.HandleFunc("/api/push/vapid-public-key", withCORS(handlePushVAPIDPublicKey))
 	mux.HandleFunc("/api/push/subscribe", withCORS(handlePushSubscribe))
@@ -237,6 +236,8 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/sites/upload", withCORS(publishAfter(handleSiteUpload, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/reorder", withCORS(publishAfter(handleSiteReorder, eventbus.KindSites)))
 	mux.HandleFunc("/api/browse", withCORS(handleBrowse))
+	mux.HandleFunc("/api/sftp", withCORS(handleSFTP))
+	mux.HandleFunc("/api/sftp/", withCORS(handleSFTPKey))
 	mux.HandleFunc("/api/workspaces", withCORS(publishAfter(handleWorkspaces, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/workspaces/", withCORS(publishAfter(handleWorkspaceRoutes, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/", withCORS(publishAfter(handleSiteAction, eventbus.KindSites, eventbus.KindServices)))
@@ -255,6 +256,8 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/settings", withCORS(handleSettings))
 	mux.HandleFunc("/api/settings/autostart", withCORS(handleSettingsAutostart))
 	mux.HandleFunc("/api/settings/worker-mode", withCORS(handleSettingsWorkerMode))
+	mux.HandleFunc("/api/settings/smtp", withCORS(handlePanelSMTP))
+	mux.HandleFunc("/api/settings/smtp/test", withCORS(handlePanelSMTPTest))
 	mux.HandleFunc("/api/workers/health", withCORS(handleWorkersHealth))
 	mux.HandleFunc("/api/workers/heal", withCORS(handleWorkersHeal))
 	mux.HandleFunc("/api/stats", withCORS(handleStats))
@@ -872,7 +875,7 @@ type ServiceResponse struct {
 	DefaultPort   int      `json:"default_port,omitempty"`
 	ExtraPorts    []string `json:"extra_ports,omitempty"`
 	// SecondaryPorts are the service's published mappings past the primary (a
-	// multi-port service like mailpit or rustfs), each with its container-internal
+	// multi-port service like rustfs), each with its container-internal
 	// port, preset-default host port, and current override. The ports modal renders
 	// one editable host-port field per entry so every published port is movable.
 	SecondaryPorts []ServicePortMapping `json:"secondary_ports,omitempty"`
@@ -3119,7 +3122,19 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	if statsRoute(w, r, domain, parts[1:]) {
 		return
 	}
+	if dbUserRoute(w, r, domain, parts[1:]) {
+		return
+	}
 	if analyticsRoute(w, r, domain, parts[1:]) {
+		return
+	}
+	if filesRoute(w, r, domain, parts[1:]) {
+		return
+	}
+	if cronRoute(w, r, domain, parts[1:]) {
+		return
+	}
+	if smtpRoute(w, r, domain, parts[1:]) {
 		return
 	}
 	// /nginx subroutes (backups, restore) sit alongside the GET/POST on
@@ -3272,6 +3287,9 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		return
 	case "deploy-history":
 		handleSiteDeployHistory(w, r, site)
+		return
+	case "pseudo-cron":
+		handleSitePseudoCron(w, r, site)
 		return
 	case "webhook":
 		handleSiteWebhook(w, r, site)

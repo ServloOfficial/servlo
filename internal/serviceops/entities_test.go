@@ -79,6 +79,32 @@ introspect:
 	}
 }
 
+// The generic entity surface is a list with actions hanging off each row. A
+// kind that declares nothing to list is not that: it is a set of statements
+// something else drives (site_users, whose surface is the site's own database
+// card), and offering it as an empty table with buttons would be both clutter
+// and a route that runs a command with half its placeholders unfilled.
+func TestServiceEntitiesExcludesKindsWithNothingToList(t *testing.T) {
+	writeCustomService(t, "myengine", `name: myengine
+image: example/engine:1
+introspect:
+  entities:
+    - kind: buckets
+      list: list-buckets
+    - kind: site_users
+      actions:
+        create: make-user {{name}}
+`)
+	kinds := EntityKinds("myengine")
+	if len(kinds) != 1 || kinds[0] != "buckets" {
+		t.Fatalf("kinds = %v, want [buckets]", kinds)
+	}
+	// It still resolves for the code that does drive it.
+	if EntityFor("myengine", "site_users") == nil {
+		t.Error("a kind kept off the generic surface must still resolve for its own caller")
+	}
+}
+
 func TestExpandEntityCommandValidatesAndSubstitutes(t *testing.T) {
 	cmd, err := expandEntityCommand("do-thing {{name}} on {{name}}", "shop_db")
 	if err != nil {

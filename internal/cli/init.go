@@ -1212,10 +1212,6 @@ func detectServicesHeuristic(envFilePath, envFormat string) []string {
 		detected = append(detected, "rustfs")
 	}
 
-	if mailHost := readKey("MAIL_HOST"); mailHost == "servlo-mailpit" || readKey("MAIL_PORT") == "1025" {
-		detected = append(detected, "mailpit")
-	}
-
 	return detected
 }
 

@@ -16,7 +16,6 @@ const AUTO_SUB_KEY = 'servlo:notify:auto-subscribe';
 // the only filter; the backend forwards every kind and trusts each
 // subscription's stored EnabledKinds to gate Web Push delivery.
 export type NotifyKind =
-  | 'mail'
   | 'worker_failed'
   | 'op_done'
   | 'update_available'
@@ -25,7 +24,6 @@ export type NotifyKind =
   | 'dump';
 
 export const ALL_KINDS: NotifyKind[] = [
-  'mail',
   'worker_failed',
   'op_done',
   'update_available',
@@ -42,7 +40,6 @@ export interface NotifyPrefs {
 const DEFAULTS: NotifyPrefs = {
   enabled: true,
   kinds: {
-    mail: true,
     worker_failed: true,
     op_done: true,
     update_available: true,

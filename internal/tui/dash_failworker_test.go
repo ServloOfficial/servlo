@@ -56,7 +56,7 @@ func TestSelectSiteByName_ClearsHidingFilter(t *testing.T) {
 
 func TestSelectServiceByName_ClearsHidingFilter(t *testing.T) {
 	m := NewModel("test")
-	m.snap = fakeSnap() // services: mysql, redis, mailpit
+	m.snap = fakeSnap() // services: mysql, redis, rustfs
 	m.svcFilter = "mysql"
 
 	m.selectServiceByName("redis")

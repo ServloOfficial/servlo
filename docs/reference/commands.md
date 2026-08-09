@@ -216,7 +216,7 @@ Switch the PHP runtime for the current site between shared PHP-FPM and per-site 
 | `servlo service expose <name> <host:container>` | Publish an extra port on any bundled preset service (persisted, auto-restarts if running) |
 | `servlo service expose <name> <host:container> --remove` | Remove a previously exposed port |
 | `servlo service port <name> <port>` | Move a service's primary published host port without touching its container-internal port; persisted and auto-restarts if running |
-| `servlo service port <name> <port> --container <cport>` | Move a specific mapping of a multi-port service (e.g. Mailpit's `8025` web UI behind the `1025` SMTP primary), named by its container-internal port |
+| `servlo service port <name> <port> --container <cport>` | Move a specific mapping of a multi-port service (e.g. RustFS' `9001` console behind the `9000` S3 API primary), named by its container-internal port |
 | `servlo service port <name> --reset` | Reset a service to its preset default published port (same as `port <name> 0`); combine with `--container` to reset one mapping |
 | `servlo service pin <name>` | Pin a service so it is never auto-stopped when no sites use it |
 | `servlo service unpin <name>` | Unpin a service so it can be auto-stopped when unused |
@@ -240,6 +240,8 @@ Switch the PHP runtime for the current site between shared PHP-FPM and per-site 
 | `servlo db:restore <name> [-A] [-f]` | Restore a database from a stored snapshot |
 | `servlo db:snapshot:rm <name> [-A]` | Delete a stored database snapshot |
 | `servlo db:move [--from svc] [--to svc] [--all\|--site name]` | Move sites' databases between two installed services in the same family and repoint their `.env`; wizard when run without flags |
+| `servlo db user [site]` | Show the database account a site reaches its database as |
+| `servlo db user rotate [site]` | Issue a new password for that account and write it into the site's env file |
 
 ## Import
 

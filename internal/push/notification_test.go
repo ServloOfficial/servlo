@@ -14,7 +14,7 @@ func TestNotification_Payload_IncludesAllUserVisibleFields(t *testing.T) {
 		BodyKey:  "notify.mail.body",
 		Params:   map[string]string{"subject": "Welcome", "from": "alice@example.com"},
 		Tag:      "servlo-mail-abc",
-		URL:      "#service/mailpit/view/abc",
+		URL:      "#service/rustfs",
 		Icon:     "/icons/icon-192.png",
 		Data:     map[string]string{"id": "abc"},
 	}
@@ -33,7 +33,7 @@ func TestNotification_Payload_IncludesAllUserVisibleFields(t *testing.T) {
 		"body":      "From: alice@example.com",
 		"body_key":  "notify.mail.body",
 		"tag":       "servlo-mail-abc",
-		"url":       "#service/mailpit/view/abc",
+		"url":       "#service/rustfs",
 		"icon":      "/icons/icon-192.png",
 	}
 	for k, want := range cases {

@@ -18,7 +18,7 @@ func fakeSnap() Snapshot {
 		Services: []ServiceRow{
 			{Name: "mysql", State: stateRunning, SiteCount: 2},
 			{Name: "redis", State: stateStopped, SiteCount: 1},
-			{Name: "mailpit", State: statePaused, SiteCount: 0},
+			{Name: "gotenberg", State: statePaused, SiteCount: 0},
 		},
 		Status: StatusRow{
 			TLD: "test", NginxRunning: true,
@@ -157,10 +157,10 @@ func TestCurrentSiteAndService(t *testing.T) {
 		t.Fatal("expected beta at cursor 1")
 	}
 
-	// Services render sorted by name by default, so the first row is mailpit,
+	// Services render sorted by name by default, so the first row is gotenberg,
 	// not mysql (the snapshot insertion order).
-	if m.currentService().Name != "mailpit" {
-		t.Fatalf("expected mailpit at cursor 0 (name sort), got %s", m.currentService().Name)
+	if m.currentService().Name != "gotenberg" {
+		t.Fatalf("expected gotenberg at cursor 0 (name sort), got %s", m.currentService().Name)
 	}
 }
 

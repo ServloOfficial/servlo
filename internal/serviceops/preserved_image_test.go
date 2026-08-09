@@ -99,11 +99,11 @@ func TestEnsureDefaultPresetQuadlet_singleVersionPresetSkipsPin(t *testing.T) {
 	t.Cleanup(func() { podman.DaemonReloadFn = orig })
 	podman.DaemonReloadFn = func() error { return nil }
 
-	if err := EnsureDefaultPresetQuadlet("mailpit"); err != nil {
-		t.Fatalf("EnsureDefaultPresetQuadlet(mailpit): %v", err)
+	if err := EnsureDefaultPresetQuadlet("rustfs"); err != nil {
+		t.Fatalf("EnsureDefaultPresetQuadlet(rustfs): %v", err)
 	}
 	cfg, _ := config.LoadGlobal()
-	if got := cfg.Services["mailpit"].CanonicalVersion; got != "" {
+	if got := cfg.Services["rustfs"].CanonicalVersion; got != "" {
 		t.Errorf("single-version preset must not write a CanonicalVersion pin, got %q", got)
 	}
 }

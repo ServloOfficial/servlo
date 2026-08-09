@@ -5,7 +5,7 @@ Servlo watches Docker Hub / GHCR for newer images of every running default servi
 | Tier | When it fires | What it does | Risk |
 |---|---|---|---|
 | **Update** (green) | A newer image exists in the same major / minor line as configured by the preset's `update_strategy` (`patch` / `minor`) | Pull, rewrite quadlet, restart | None, same data format |
-| **Upgrade** (amber) | A newer same-major tag exists outside the safe-update strategy (e.g. mailpit, rustfs rolling re-pulls) | Same as Update, but the user's accepting potential format changes | Up to the user, no migration |
+| **Upgrade** (amber) | A newer same-major tag exists outside the safe-update strategy (e.g. rustfs rolling re-pulls) | Same as Update, but the user's accepting potential format changes | Up to the user, no migration |
 | **Migrate** (violet) | The service family has a registered SQL-based migrator (mysql, mariadb, postgres) and a newer same-major tag exists | Dump current data, swap data dir, start new image, restore the dump | Safest path for cross-version moves; pre-migrate dump and data dir are preserved |
 
 Default services declare their policy in their preset YAML. The most common combination, `update_strategy: minor`, `allow_major_upgrade: false`, `track_latest: true`, applies to mysql, postgres, redis, meilisearch.
@@ -14,7 +14,7 @@ Default services declare their policy in their preset YAML. The most common comb
 
 Click the green **Update → \<tag\>** button in the dashboard or run `servlo service update <name>`. Servlo queries the registry for the newest tag matching the preset's `update_strategy`, applies the same digest comparison the rolling-tag flow uses (suppresses no-op updates), pulls, persists the chosen image, and restarts the unit. The previous image is recorded so a rollback button appears next to the version label.
 
-For services on rolling tags (`mailpit:latest`, `rustfs:latest`), Update only fires when the local manifest digest differs from the registry's, re-pulling the same `:latest` digest doesn't surface a phantom badge.
+For services on rolling tags (`rustfs:latest`), Update only fires when the local manifest digest differs from the registry's, re-pulling the same `:latest` digest doesn't surface a phantom badge.
 
 ## Upgrade, same-major across minor lines
 

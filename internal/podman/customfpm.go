@@ -30,6 +30,26 @@ func FPMContainerName(site config.Site, version string) string {
 	return SharedFPMContainerName(version)
 }
 
+// SiteContainerName is the container a per-site command execs into: the site's
+// own when it has one, the shared per-version FPM container otherwise.
+//
+// Empty for a host-proxy site, which runs on the host and has no container to
+// enter. Callers have to say what they do about that rather than exec into a
+// container name that is not there.
+func SiteContainerName(site config.Site, phpVersion string) string {
+	switch {
+	case site.IsHostProxy():
+		return ""
+	case site.IsCustomContainer():
+		return CustomContainerName(site.Name)
+	case site.IsFrankenPHP():
+		return FrankenPHPContainerName(site.Name)
+	case site.IsCustomFPM():
+		return CustomFPMContainerName(site.Name)
+	}
+	return SharedFPMContainerName(phpVersion)
+}
+
 // WriteCustomFPMQuadlet writes a per-site PHP-FPM quadlet running the site's
 // custom-built image (CustomImageName) under a per-site container name. It
 // reuses the shared FPM template so the container inherits every servlo mount

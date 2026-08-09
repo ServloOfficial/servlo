@@ -195,6 +195,8 @@ So a failure is loud from the first attempt. It is written to the append-only au
   fix the cause, then: servlo secure --renew example.com
 ```
 
+It is also emailed, once the panel has an SMTP account under **System → Mail** ([Email](/usage/email)). The first failure for a domain sends one message with the reason the authority gave, and nothing after that: the banner and the audit log carry the repetition, and an identical email every hour for three weeks is a filter rule rather than an alert. With no panel account configured, nothing is sent and the banner and the log are the whole story.
+
 The record keeps the time of the **first** failure rather than the most recent one. A renewal that has been failing for three weeks is a different problem from one that failed once this morning, and resetting the clock on every attempt hides which you are looking at. A successful issuance clears it, because an alarm that outlives its problem is one operators learn to ignore.
 
 Separately, `servlo doctor` checks what is actually on disk. A machine restored from a backup, or one whose panel has never run, has no failure records and can still be serving something expired. An expired or missing certificate is reported as a failure; one inside the renewal window is a warning, since the self-heal still has weeks of attempts left.

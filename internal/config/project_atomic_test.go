@@ -36,7 +36,7 @@ func TestSaveProjectConfig_TwoSpaceIndent(t *testing.T) {
 func TestSaveProjectConfig_SortsWorkersAndServices(t *testing.T) {
 	dir := t.TempDir()
 	cfg := &ProjectConfig{
-		Services:      []ProjectService{{Name: "redis"}, {Name: "mysql"}, {Name: "mailpit"}},
+		Services:      []ProjectService{{Name: "redis"}, {Name: "mysql"}, {Name: "meilisearch"}},
 		Workers:       []string{"vite", "horizon", "schedule"},
 		ReloadWorkers: []string{"vite", "horizon"},
 	}
@@ -47,7 +47,7 @@ func TestSaveProjectConfig_SortsWorkersAndServices(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	wantSvc := []string{"mailpit", "mysql", "redis"}
+	wantSvc := []string{"meilisearch", "mysql", "redis"}
 	for i, w := range wantSvc {
 		if got.Services[i].Name != w {
 			t.Errorf("services not sorted: got %v", serviceNames(got.Services))

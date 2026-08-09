@@ -309,13 +309,13 @@ func TestExtApkDeps_DeepCopied(t *testing.T) {
 func TestCloneGlobalConfig_PublishedPortsDeepCopied(t *testing.T) {
 	cfg := &GlobalConfig{
 		Services: map[string]ServiceConfig{
-			"mailpit": {PublishedPorts: map[int]int{8025: 8025}},
+			"rustfs": {PublishedPorts: map[int]int{9001: 9001}},
 		},
 	}
 	clone := cloneGlobalConfig(cfg)
-	clone.Services["mailpit"].PublishedPorts[8025] = 9025
-	if got := cfg.Services["mailpit"].PublishedPorts[8025]; got != 8025 {
-		t.Errorf("mutating the clone must not affect the original: got %d, want 8025", got)
+	clone.Services["rustfs"].PublishedPorts[9001] = 9101
+	if got := cfg.Services["rustfs"].PublishedPorts[9001]; got != 9001 {
+		t.Errorf("mutating the clone must not affect the original: got %d, want 9001", got)
 	}
 }
 

@@ -116,7 +116,7 @@ func TestPickNewer_MinorStrategy_Postgres_VariantMustMatch(t *testing.T) {
 }
 
 func TestPickNewer_RollingStrategy_DigestChange(t *testing.T) {
-	// Rolling tag (e.g. mailpit:latest) — pickNewer must look at the same
+	// Rolling tag (e.g. rustfs:latest) — pickNewer must look at the same
 	// tag name and only return it when the digest differs from current.
 	current := parseTag("latest")
 	candidates := []TagInfo{

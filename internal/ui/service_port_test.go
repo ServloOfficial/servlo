@@ -81,16 +81,16 @@ func TestBuildServiceResponse_dashboardFollowsPublishedPort(t *testing.T) {
 }
 
 // TestBuildServiceResponse_secondaryPortDashboardUntouched guards the regression
-// the other way: mailpit's dashboard is its 8025 web UI, published behind the
-// primary 1025 SMTP port. A published-port move shifts only the primary, so the
-// dashboard must keep 8025 rather than being dragged onto the primary's port.
+// the other way: rustfs' dashboard is its 9001 console, published behind the
+// primary 9000 S3 API port. A published-port move shifts only the primary, so the
+// dashboard must keep 9001 rather than being dragged onto the primary's port.
 func TestBuildServiceResponse_secondaryPortDashboardUntouched(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
-	base := buildServiceResponse("mailpit")
-	if !strings.Contains(base.Dashboard, ":8025") {
-		t.Fatalf("mailpit Dashboard = %q, want the 8025 web UI port", base.Dashboard)
+	base := buildServiceResponse("rustfs")
+	if !strings.Contains(base.Dashboard, ":9001") {
+		t.Fatalf("rustfs Dashboard = %q, want the 9001 console port", base.Dashboard)
 	}
 
 	cfg, err := config.LoadGlobal()
@@ -100,24 +100,24 @@ func TestBuildServiceResponse_secondaryPortDashboardUntouched(t *testing.T) {
 	if cfg.Services == nil {
 		cfg.Services = map[string]config.ServiceConfig{}
 	}
-	cfg.Services["mailpit"] = config.ServiceConfig{Enabled: true, Port: 1025, PublishedPort: 1026}
+	cfg.Services["rustfs"] = config.ServiceConfig{Enabled: true, Port: 9000, PublishedPort: 9010}
 	if err := config.SaveGlobal(cfg); err != nil {
 		t.Fatalf("SaveGlobal: %v", err)
 	}
 
-	moved := buildServiceResponse("mailpit")
-	if !strings.Contains(moved.Dashboard, ":8025") || strings.Contains(moved.Dashboard, ":1026") {
-		t.Errorf("mailpit Dashboard after primary move = %q, want the untouched 8025 web UI", moved.Dashboard)
+	moved := buildServiceResponse("rustfs")
+	if !strings.Contains(moved.Dashboard, ":9001") || strings.Contains(moved.Dashboard, ":9010") {
+		t.Errorf("rustfs Dashboard after primary move = %q, want the untouched 9001 console", moved.Dashboard)
 	}
 
-	// Now move the 8025 UI mapping itself: the dashboard must follow to 8026.
-	cfg.Services["mailpit"] = config.ServiceConfig{Enabled: true, Port: 1025, PublishedPorts: map[int]int{8025: 8026}}
+	// Now move the 9001 console mapping itself: the dashboard must follow to 9002.
+	cfg.Services["rustfs"] = config.ServiceConfig{Enabled: true, Port: 9000, PublishedPorts: map[int]int{9001: 9002}}
 	if err := config.SaveGlobal(cfg); err != nil {
 		t.Fatalf("SaveGlobal: %v", err)
 	}
-	uiMoved := buildServiceResponse("mailpit")
-	if !strings.Contains(uiMoved.Dashboard, ":8026") || strings.Contains(uiMoved.Dashboard, ":8025") {
-		t.Errorf("mailpit Dashboard after UI-port move = %q, want 8026", uiMoved.Dashboard)
+	uiMoved := buildServiceResponse("rustfs")
+	if !strings.Contains(uiMoved.Dashboard, ":9002") || strings.Contains(uiMoved.Dashboard, ":9001") {
+		t.Errorf("rustfs Dashboard after console-port move = %q, want 9002", uiMoved.Dashboard)
 	}
 }
 
@@ -128,18 +128,18 @@ func TestBuildServiceResponse_secondaryPortsExposed(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
-	base := buildServiceResponse("mailpit")
+	base := buildServiceResponse("rustfs")
 	var ui *ServicePortMapping
 	for i := range base.SecondaryPorts {
-		if base.SecondaryPorts[i].Container == 8025 {
+		if base.SecondaryPorts[i].Container == 9001 {
 			ui = &base.SecondaryPorts[i]
 		}
 	}
 	if ui == nil {
-		t.Fatalf("mailpit SecondaryPorts missing the 8025 mapping: %+v", base.SecondaryPorts)
+		t.Fatalf("rustfs SecondaryPorts missing the 9001 mapping: %+v", base.SecondaryPorts)
 	}
-	if ui.Default != 8025 || ui.Published != 0 {
-		t.Errorf("8025 mapping = %+v, want default 8025, no override", *ui)
+	if ui.Default != 9001 || ui.Published != 0 {
+		t.Errorf("9001 mapping = %+v, want default 9001, no override", *ui)
 	}
 
 	cfg, err := config.LoadGlobal()
@@ -149,14 +149,14 @@ func TestBuildServiceResponse_secondaryPortsExposed(t *testing.T) {
 	if cfg.Services == nil {
 		cfg.Services = map[string]config.ServiceConfig{}
 	}
-	cfg.Services["mailpit"] = config.ServiceConfig{Enabled: true, Port: 1025, PublishedPorts: map[int]int{8025: 8026}}
+	cfg.Services["rustfs"] = config.ServiceConfig{Enabled: true, Port: 9000, PublishedPorts: map[int]int{9001: 9002}}
 	if err := config.SaveGlobal(cfg); err != nil {
 		t.Fatalf("SaveGlobal: %v", err)
 	}
-	moved := buildServiceResponse("mailpit")
+	moved := buildServiceResponse("rustfs")
 	for _, p := range moved.SecondaryPorts {
-		if p.Container == 8025 && p.Published != 8026 {
-			t.Errorf("8025 mapping Published = %d, want 8026", p.Published)
+		if p.Container == 9001 && p.Published != 9002 {
+			t.Errorf("9001 mapping Published = %d, want 9002", p.Published)
 		}
 	}
 }

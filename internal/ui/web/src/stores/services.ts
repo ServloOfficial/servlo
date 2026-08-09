@@ -28,8 +28,8 @@ export interface Service {
   published_port?: number;
   default_port?: number;
   extra_ports?: string[];
-  // Published mappings past the primary (a multi-port service like mailpit or
-  // rustfs): container-internal port, preset-default host port, current override.
+  // Published mappings past the primary (a multi-port service like rustfs):
+  // container-internal port, preset-default host port, current override.
   secondary_ports?: ServicePortMapping[];
   custom?: boolean;
   is_default?: boolean;
@@ -699,7 +699,6 @@ export function serviceLabel(name: string): string {
     'postgres-pgvector': 'PostgreSQL + pgvector',
     'postgres-postgis': 'PostgreSQL + PostGIS',
     meilisearch: 'Meilisearch',
-    mailpit: 'Mailpit',
     rustfs: 'RustFS',
     mongo: 'MongoDB',
     'mongo-express': 'Mongo Express',

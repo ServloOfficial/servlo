@@ -28,7 +28,7 @@ servlo env
 Creating .env from .env.example...
   Detected mysql:        applying servlo connection values
   Detected redis:        applying servlo connection values
-  From .servlo.yaml mailpit: applying servlo connection values
+  From .servlo.yaml meilisearch: applying servlo connection values
   Setting APP_URL=http://my-app.test
   Generating APP_KEY...
 Done.

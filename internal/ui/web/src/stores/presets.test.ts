@@ -74,9 +74,9 @@ describe('presets store', () => {
       // mongo not installed yet — discoverable
       { name: 'mongo', installed: false, versions: [{ tag: '7' }], installed_tags: [] } as never,
       // single-version service, not installed — discoverable
-      { name: 'mailpit', installed: false } as never
+      { name: 'rabbitmq', installed: false } as never
     ]);
-    expect(get(discoverablePresets).map((p) => p.name)).toEqual(['mongo', 'mailpit']);
+    expect(get(discoverablePresets).map((p) => p.name)).toEqual(['mongo', 'rabbitmq']);
   });
 
   it('discoverablePresets still hides presets with missing deps', async () => {

@@ -84,11 +84,11 @@ describe('notify dispatcher', () => {
 
     initNotify();
     const evt: Notification = {
-      kind: 'mail',
+      kind: 'op_done',
       title: 'New email: Welcome',
       body: 'From: alice@x.com',
       tag: 'servlo-mail-abc',
-      url: '#service/mailpit/view/abc',
+      url: '#service/rustfs',
       data: { id: 'abc' }
     };
     wsMessage.set({ type: 'notification', notification: evt });
@@ -99,7 +99,7 @@ describe('notify dispatcher', () => {
     expect(swShows[0].title).toBe('New email: Welcome');
     expect(swShows[0].opts?.body).toBe('From: alice@x.com');
     expect(swShows[0].opts?.tag).toBe('servlo-mail-abc');
-    expect((swShows[0].opts?.data as { kind?: string })?.kind).toBe('mail');
+    expect((swShows[0].opts?.data as { kind?: string })?.kind).toBe('op_done');
   });
 
   it('raises nothing on the desktop while the dashboard window has focus', async () => {
@@ -110,7 +110,7 @@ describe('notify dispatcher', () => {
     initNotify();
     wsMessage.set({
       type: 'notification',
-      notification: { kind: 'mail', title: 'already on screen' }
+      notification: { kind: 'op_done', title: 'already on screen' }
     });
     await Promise.resolve();
     await Promise.resolve();
@@ -126,7 +126,7 @@ describe('notify dispatcher', () => {
     initNotify();
     wsMessage.set({
       type: 'notification',
-      notification: { kind: 'mail', title: 'New email: Welcome' }
+      notification: { kind: 'op_done', title: 'New email: Welcome' }
     });
     await Promise.resolve();
     await Promise.resolve();
@@ -139,11 +139,11 @@ describe('notify dispatcher', () => {
     const { wsMessage } = await import('./ws');
 
     initNotify();
-    setNotifyPref('mail', false);
+    setNotifyPref('op_done', false);
 
     wsMessage.set({
       type: 'notification',
-      notification: { kind: 'mail', title: 'should not fire' }
+      notification: { kind: 'op_done', title: 'should not fire' }
     });
     await Promise.resolve();
     await Promise.resolve();
@@ -160,7 +160,7 @@ describe('notify dispatcher', () => {
 
     wsMessage.set({
       type: 'notification',
-      notification: { kind: 'mail', title: 'masked' }
+      notification: { kind: 'op_done', title: 'masked' }
     });
     await Promise.resolve();
     await Promise.resolve();
@@ -198,7 +198,7 @@ describe('notify dispatcher', () => {
     const { wsMessage } = await import('./ws');
 
     initNotify();
-    const evt: Notification = { kind: 'mail', title: 'x', tag: 'servlo-mail-dup' };
+    const evt: Notification = { kind: 'op_done', title: 'x', tag: 'servlo-mail-dup' };
     wsMessage.set({ type: 'notification', notification: evt });
     wsMessage.set({ type: 'notification', notification: { ...evt } });
     await Promise.resolve();
@@ -215,7 +215,7 @@ describe('notify dispatcher', () => {
       const { wsMessage } = await import('./ws');
 
       initNotify();
-      const evt: Notification = { kind: 'mail', title: 'first', tag: 'servlo-test' };
+      const evt: Notification = { kind: 'op_done', title: 'first', tag: 'servlo-test' };
       wsMessage.set({ type: 'notification', notification: evt });
       await Promise.resolve();
       await Promise.resolve();
@@ -241,7 +241,7 @@ describe('notify dispatcher', () => {
     initNotify();
     wsMessage.set({
       type: 'notification',
-      notification: { kind: 'mail', title: 'M', tag: 'shared' }
+      notification: { kind: 'op_done', title: 'M', tag: 'shared' }
     });
     wsMessage.set({
       type: 'notification',
@@ -270,11 +270,10 @@ describe('notify dispatcher', () => {
     expect(parsed.enabled).toBe(false);
   });
 
-  it('default prefs enable mail/worker/op/update and disable dump', async () => {
+  it('default prefs enable worker/op/update and disable dump', async () => {
     const { notifyPrefs } = await import('./notify');
     const cur = get(notifyPrefs);
     expect(cur.enabled).toBe(true);
-    expect(cur.kinds.mail).toBe(true);
     expect(cur.kinds.worker_failed).toBe(true);
     expect(cur.kinds.op_done).toBe(true);
     expect(cur.kinds.update_available).toBe(true);
@@ -482,7 +481,7 @@ describe('in-app notifications', () => {
     initNotify();
     wsMessage.set({
       type: 'notification',
-      notification: { kind: 'mail', title: 'New email', body: 'From alice' }
+      notification: { kind: 'op_done', title: 'New email', body: 'From alice' }
     });
     await Promise.resolve();
     await Promise.resolve();
@@ -720,7 +719,6 @@ describe('notification severity', () => {
     expect(notificationSeverity('nplusone', false)).toBe('warning');
     expect(notificationSeverity('slow_route', false)).toBe('warning');
     expect(notificationSeverity('op_done', false)).toBe('info');
-    expect(notificationSeverity('mail', false)).toBe('info');
     expect(notificationSeverity('op_failed', true)).toBe('failure');
     // A failed operation outranks its category.
     expect(notificationSeverity('nplusone', true)).toBe('failure');

@@ -51,7 +51,7 @@ func isKnownService(name string) bool { return config.IsDefaultPreset(name) }
 func NewServiceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "service",
-		Short: "Manage Servlo services (mysql, redis, postgres, meilisearch, rustfs, mailpit)",
+		Short: "Manage Servlo services (mysql, redis, postgres, meilisearch, rustfs)",
 	}
 
 	cmd.AddCommand(newServiceStartCmd())
@@ -996,11 +996,11 @@ on 3307. Containerized apps reach the service over the servlo network by name, s
 they are unaffected. Works for any built-in or installed service. Use --reset
 (or "port mysql 0") to return to the default.
 
-A multi-port service exposes more than its primary port (mailpit's 8025 web UI
-behind the 1025 SMTP port). Target a specific mapping with --container, the
+A multi-port service exposes more than its primary port (rustfs' 9001 console
+behind the 9000 S3 API port). Target a specific mapping with --container, the
 container-internal port of the mapping to move:
 
-    servlo service port mailpit 8026 --container 8025`,
+    servlo service port rustfs 9002 --container 9001`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			name := args[0]
@@ -1144,7 +1144,7 @@ func autoStopUnusedServices() {
 				// Soft stop only: do not go through StopService, which sets the
 				// paused flag. Auto-stop means "nothing needs this right now",
 				// not "the user manually stopped it"; servlo start must bring
-				// redis/mailpit back the way it did before the shared lifecycle.
+				// redis back the way it did before the shared lifecycle.
 				_ = serviceops.StopWithDependents(name)
 			}
 		}

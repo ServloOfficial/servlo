@@ -93,6 +93,46 @@ type Framework struct {
 	// (Magento 2.4 has no MySQL catalog search engine, so it needs opensearch).
 	// Link installs and starts them; the doctor reports one that goes missing.
 	Requires []string `yaml:"requires,omitempty"`
+	// PseudoCron, when set, says this framework fires its own scheduled work
+	// from page loads and declares what to run instead. See FrameworkPseudoCron.
+	PseudoCron *FrameworkPseudoCron `yaml:"pseudo_cron,omitempty"`
+}
+
+// FrameworkPseudoCron describes a framework that runs its scheduled work on
+// page loads, and the real schedule that replaces it.
+//
+// It is declared rather than implemented because the shape is the same wherever
+// it turns up: a constant in a config file that switches the built-in scheduler
+// off, and a command on a timer that does the work properly. A framework that
+// has no such thing simply omits the block, and servlo offers nothing.
+type FrameworkPseudoCron struct {
+	// Label names the thing being replaced, in the framework's own words.
+	Label string `yaml:"label"`
+	// Description is one sentence on why replacing it is worth doing.
+	Description string `yaml:"description,omitempty"`
+	// File is the config file holding the constant, relative to the site root.
+	File string `yaml:"file"`
+	// Constant is the PHP constant that turns the built-in scheduler off.
+	Constant string `yaml:"constant"`
+	// ReplacedValue is written into the constant while servlo's timer is doing
+	// the work; RestoredValue is written back when the operator turns it off
+	// again. Both are PHP literals, written unquoted: a quoted 'false' is a
+	// non-empty string, which PHP reads as true, so the site would be left with
+	// no cron at all while the panel said the built-in one was back.
+	ReplacedValue string `yaml:"replaced_value"`
+	RestoredValue string `yaml:"restored_value"`
+	// Entry is the schedule installed in the pseudo-cron's place.
+	Entry FrameworkCronEntry `yaml:"entry"`
+}
+
+// FrameworkCronEntry is a scheduled command a framework declares. It becomes an
+// ordinary CronEntry on the site, marked as one servlo manages.
+type FrameworkCronEntry struct {
+	ID            string `yaml:"id"`
+	Name          string `yaml:"name"`
+	Command       string `yaml:"command"`
+	Schedule      string `yaml:"schedule"`
+	CaptureOutput bool   `yaml:"capture_output,omitempty"`
 }
 
 // FrameworkNginx carries a raw nginx block spliced into the site's server block
@@ -403,8 +443,15 @@ type FrameworkEnvConf struct {
 	Vars []string `yaml:"vars,omitempty"`
 
 	// Services defines per-service detection rules and env vars to apply.
-	// Keys match the built-in service names: mysql, postgres, redis, meilisearch, rustfs, mailpit.
+	// Keys match the built-in service names: mysql, postgres, redis, meilisearch, rustfs.
 	Services map[string]FrameworkServiceDef `yaml:"services,omitempty"`
+
+	// SMTP names the env keys this framework reads its mail transport from,
+	// with the {{smtp_*}} placeholders sitetpl fills from the site's own
+	// account. It sits beside Services rather than in it because there is
+	// nothing to detect: servlo runs no mail server, so mail is a setting an
+	// operator types rather than a container that turns up on the network.
+	SMTP *FrameworkSMTPDef `yaml:"smtp,omitempty"`
 
 	// KeyGeneration describes how to generate an application key if missing.
 	KeyGeneration *EnvKeyGeneration `yaml:"key_generation,omitempty"`
@@ -419,6 +466,14 @@ func (f *Framework) HasEnvConfig() bool {
 	}
 	e := f.Env
 	return e.File != "" || e.FallbackFile != "" || e.ExampleFile != "" || e.KeyGeneration != nil || len(e.Services) > 0
+}
+
+// FrameworkSMTPDef declares which env keys carry a site's outgoing mail
+// settings. Only vars: there is no detection half, and a framework with no
+// entry here is one servlo cannot wire mail into, which it says rather than
+// guessing at key names.
+type FrameworkSMTPDef struct {
+	Vars []string `yaml:"vars"`
 }
 
 // EnvKeyGeneration describes how to generate an application encryption key.
@@ -608,19 +663,6 @@ var laravelFramework = &Framework{
 					"AWS_USE_PATH_STYLE_ENDPOINT=true",
 				},
 			},
-			"mailpit": {
-				Detect: []FrameworkServiceDetect{
-					{Key: "MAIL_HOST"},
-				},
-				Vars: []string{
-					"MAIL_MAILER=smtp",
-					"MAIL_HOST=servlo-mailpit",
-					"MAIL_PORT=1025",
-					"MAIL_USERNAME=null",
-					"MAIL_PASSWORD=null",
-					"MAIL_ENCRYPTION=null",
-				},
-			},
 		},
 	},
 	Composer: "auto",
@@ -754,10 +796,6 @@ var symfonyFramework = &Framework{
 			"redis": {
 				Detect: []FrameworkServiceDetect{{Key: "REDIS_URL"}, {Key: "MESSENGER_TRANSPORT_DSN", ValuePrefix: "redis"}},
 				Vars:   []string{"REDIS_URL=redis://servlo-redis:6379"},
-			},
-			"mailpit": {
-				Detect: []FrameworkServiceDetect{{Key: "MAILER_DSN"}},
-				Vars:   []string{"MAILER_DSN=smtp://servlo-mailpit:1025"},
 			},
 		},
 	},

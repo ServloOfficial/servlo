@@ -13,6 +13,7 @@ import (
 	"github.com/realrashid/servlo/internal/nginx"
 	phpDet "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
+	"github.com/realrashid/servlo/internal/sitecron"
 	"github.com/realrashid/servlo/internal/siteinfo"
 	servloSystemd "github.com/realrashid/servlo/internal/systemd"
 	"github.com/spf13/cobra"
@@ -88,6 +89,14 @@ func PauseSite(name string) error {
 	// [Install]-bearing quadlet into default.target.wants on every boot.
 	if setSiteContainerAutostart(site, false) {
 		_ = podman.DaemonReloadFn()
+	}
+
+	// Scheduled commands stop with the workers. A timer still running php
+	// artisan against a site the operator took offline is the site working with
+	// nobody able to reach it, and the entries keep their unit files so the
+	// resume below puts back exactly what was scheduled.
+	if err := sitecron.Stop(*site); err != nil {
+		feedback.Warn("stopping %s's scheduled commands: %v", name, err)
 	}
 
 	if err := writePausedHTML(site); err != nil {
@@ -292,6 +301,10 @@ func UnpauseSite(name string) error {
 	resumed := site.PausedWorkers
 	for _, w := range resumed {
 		resumeWorkerByName(site, w, phpVersion)
+	}
+
+	if err := sitecron.Resume(*site); err != nil {
+		feedback.Warn("restoring %s's scheduled commands: %v", name, err)
 	}
 
 	site.Paused = false

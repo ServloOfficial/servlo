@@ -56,8 +56,8 @@ describe('SiteServiceCard', () => {
   });
 
   it('offers a dashboard button when an active service has one', () => {
-    services.set([{ name: 'mailpit', status: 'active', dashboard: 'http://localhost:8025' } as never]);
-    const { getByLabelText } = render(SiteServiceCard, { props: { name: 'mailpit' } });
+    services.set([{ name: 'rustfs', status: 'active', dashboard: 'http://localhost:9001' } as never]);
+    const { getByLabelText } = render(SiteServiceCard, { props: { name: 'rustfs' } });
     expect(getByLabelText('Dashboard')).toBeTruthy();
   });
 
@@ -68,16 +68,16 @@ describe('SiteServiceCard', () => {
   });
 
   it('hides the dashboard button while the service is stopped', () => {
-    services.set([{ name: 'mailpit', status: 'inactive', dashboard: 'http://localhost:8025' } as never]);
-    const { queryByLabelText } = render(SiteServiceCard, { props: { name: 'mailpit' } });
+    services.set([{ name: 'rustfs', status: 'inactive', dashboard: 'http://localhost:9001' } as never]);
+    const { queryByLabelText } = render(SiteServiceCard, { props: { name: 'rustfs' } });
     expect(queryByLabelText('Dashboard')).toBeNull();
   });
 
   it('opens a service that owns its dashboard', () => {
-    services.set([{ name: 'mailpit', status: 'active', dashboard: 'http://localhost:8025' } as never]);
-    const { getByLabelText } = render(SiteServiceCard, { props: { name: 'mailpit' } });
+    services.set([{ name: 'rustfs', status: 'active', dashboard: 'http://localhost:9001' } as never]);
+    const { getByLabelText } = render(SiteServiceCard, { props: { name: 'rustfs' } });
     getByLabelText('Dashboard').click();
-    expect(openServiceDashboard).toHaveBeenCalledWith(expect.objectContaining({ name: 'mailpit' }));
+    expect(openServiceDashboard).toHaveBeenCalledWith(expect.objectContaining({ name: 'rustfs' }));
   });
 
   // mysql declares no dashboard of its own, so reaching phpMyAdmin used to mean

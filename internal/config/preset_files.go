@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"encoding/json"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -16,7 +17,13 @@ import (
 var presetFileGenerators = map[string]func(*CustomService) (string, error){
 	"pgadmin_servers": pgadminServersJSON,
 	"pgadmin_pgpass":  pgadminPgpass,
+	"db_ca_bundle":    dbCABundle,
 }
+
+// containerCABundle is where a generated CA bundle is mounted in an admin UI's
+// container. A single file rather than one per connection, because a mount has
+// a fixed target and a PEM bundle may hold as many certificates as it likes.
+const containerCABundle = "/etc/servlo/db-ca-bundle.crt"
 
 // DashboardProxyPrefix is the servlo-panel mount under which bundled admin
 // dashboards (rabbitmq, redisinsight) are served same-origin so their cookies
@@ -114,10 +121,10 @@ func PresetFiles(presetName string) []FileMount {
 	return out
 }
 
-// pgadminFriendlyName turns a container hostname like "servlo-postgres-18"
-// into a human-friendly server label "Servlo Postgres 18".
-func pgadminFriendlyName(host string) string {
-	parts := strings.Split(strings.TrimPrefix(host, "servlo-"), "-")
+// pgadminFriendlyName turns a connection name like "postgres-18" or
+// "do-managed" into a human-friendly server label.
+func pgadminFriendlyName(name string) string {
+	parts := strings.Split(strings.TrimPrefix(name, "servlo-"), "-")
 	for i, p := range parts {
 		if len(p) > 0 {
 			parts[i] = strings.ToUpper(p[:1]) + p[1:]
@@ -126,20 +133,41 @@ func pgadminFriendlyName(host string) string {
 	return "Servlo " + strings.Join(parts, " ")
 }
 
-// pgadminPostgresHosts returns the postgres family members, falling back to
-// the canonical servlo-postgres when discovery is empty (fresh install before
-// the family registry has been populated).
-func pgadminPostgresHosts() []string {
-	hosts := ServicesInFamily("postgres")
-	if len(hosts) == 0 {
-		return []string{"servlo-postgres"}
+// postgresConnections is every Postgres database this install can reach.
+//
+// The fallback is the canonical local service, for a fresh install where
+// nothing is running yet and for a config-package unit test with no seam wired:
+// an empty servers.json is a pgAdmin that opens on "add a server", which is
+// worse than one entry that might not be up yet.
+func postgresConnections() []DBConnectionInfo {
+	conns := databaseConnectionsFor("postgres")
+	if len(conns) == 0 {
+		return []DBConnectionInfo{{
+			Name: "postgres", Family: "postgres", Local: true,
+			Host: "servlo-postgres", Port: 5432, User: "postgres",
+		}}
 	}
-	return hosts
+	return conns
 }
 
-// pgadminServersJSON renders pgAdmin's servers.json with every installed
-// postgres family member, so alternates like postgres-18 appear in the
-// dashboard alongside the canonical postgres without manual server setup.
+// pgadminSSLMode is what libpq calls the connection's protection. A local
+// database is on the container network and is not asked to prove anything;
+// verify-ca is checked against the bundle mounted beside servers.json.
+func pgadminSSLMode(c DBConnectionInfo) string {
+	switch {
+	case c.Local:
+		return "prefer"
+	case c.TLSMode == "require":
+		return "require"
+	case c.TLSMode == "verify-ca":
+		return "verify-ca"
+	}
+	return "prefer"
+}
+
+// pgadminServersJSON renders pgAdmin's servers.json with every Postgres
+// database this install can reach: the local services and any managed server a
+// site is on, each already logged in through the passfile beside it.
 func pgadminServersJSON(_ *CustomService) (string, error) {
 	type server struct {
 		Name          string `json:"Name"`
@@ -150,19 +178,24 @@ func pgadminServersJSON(_ *CustomService) (string, error) {
 		Username      string `json:"Username"`
 		SSLMode       string `json:"SSLMode"`
 		PassFile      string `json:"PassFile"`
+		SSLRootCert   string `json:"SSLRootCert,omitempty"`
 	}
 	servers := map[string]server{}
-	for i, host := range pgadminPostgresHosts() {
-		servers[strconv.Itoa(i+1)] = server{
-			Name:          pgadminFriendlyName(host),
+	for i, c := range postgresConnections() {
+		entry := server{
+			Name:          pgadminFriendlyName(c.Name),
 			Group:         "Servers",
-			Host:          host,
-			Port:          5432,
+			Host:          c.Host,
+			Port:          c.Port,
 			MaintenanceDB: "postgres",
-			Username:      "postgres",
-			SSLMode:       "prefer",
+			Username:      c.User,
+			SSLMode:       pgadminSSLMode(c),
 			PassFile:      "/pgpass",
 		}
+		if entry.SSLMode == "verify-ca" {
+			entry.SSLRootCert = containerCABundle
+		}
+		servers[strconv.Itoa(i+1)] = entry
 	}
 	data, err := json.MarshalIndent(map[string]any{"Servers": servers}, "", "  ")
 	if err != nil {
@@ -171,13 +204,53 @@ func pgadminServersJSON(_ *CustomService) (string, error) {
 	return string(data) + "\n", nil
 }
 
-// pgadminPgpass renders a libpq passfile with one line per postgres family
-// member so pgAdmin's PassFile=/pgpass entry auto-logs every alternate.
+// pgadminPgpass renders a libpq passfile with one line per Postgres database,
+// so every server in the list opens without a password prompt. A password with
+// a colon or a backslash in it is escaped, because a managed provider generates
+// the administrator's password and servlo does not get to choose its alphabet.
 func pgadminPgpass(_ *CustomService) (string, error) {
 	var b strings.Builder
-	for _, host := range pgadminPostgresHosts() {
-		b.WriteString(host)
-		b.WriteString(":5432:*:postgres:servlo\n")
+	for _, c := range postgresConnections() {
+		password := c.Password
+		if password == "" {
+			// A connection whose password cannot be read still belongs in the
+			// list; pgAdmin will ask for it rather than the entry vanishing.
+			continue
+		}
+		b.WriteString(pgpassEscape(c.Host))
+		b.WriteString(":" + strconv.Itoa(c.Port) + ":*:")
+		b.WriteString(pgpassEscape(c.User))
+		b.WriteString(":" + pgpassEscape(password) + "\n")
+	}
+	return b.String(), nil
+}
+
+// pgpassEscape escapes the two characters a passfile field cannot hold.
+func pgpassEscape(v string) string {
+	return strings.NewReplacer(`\`, `\\`, `:`, `\:`).Replace(v)
+}
+
+// dbCABundle concatenates the CA certificates of every managed database this
+// install reaches, so an admin UI has one file to verify any of them against.
+// Empty when nothing is verified, which is the ordinary case.
+func dbCABundle(_ *CustomService) (string, error) {
+	var b strings.Builder
+	seen := map[string]bool{}
+	for _, c := range databaseConnectionsFor("mysql,mariadb,postgres") {
+		if c.TLSMode != "verify-ca" || c.CACert == "" || seen[c.CACert] {
+			continue
+		}
+		seen[c.CACert] = true
+		data, err := os.ReadFile(c.CACert)
+		if err != nil {
+			// A certificate that cannot be read leaves that one server
+			// unverifiable rather than emptying the bundle for the rest.
+			continue
+		}
+		b.Write(data)
+		if !strings.HasSuffix(string(data), "\n") {
+			b.WriteString("\n")
+		}
 	}
 	return b.String(), nil
 }

@@ -116,7 +116,6 @@
   }
 
   const kindLabel: Record<NotifyKind, string> = {
-    mail: m.notify_settings_category_mail(),
     worker_failed: m.notify_settings_category_worker_failed(),
     op_done: m.notify_settings_category_op_done(),
     update_available: m.notify_settings_category_update_available(),
@@ -125,7 +124,6 @@
     dump: m.notify_settings_category_dump()
   };
   const kindHint: Record<NotifyKind, string> = {
-    mail: m.notify_settings_category_mail_hint(),
     worker_failed: m.notify_settings_category_worker_failed_hint(),
     op_done: m.notify_settings_category_op_done_hint(),
     update_available: m.notify_settings_category_update_available_hint(),

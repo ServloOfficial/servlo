@@ -157,8 +157,8 @@ func Rules() []Rule {
 		// The DNS stack and the local CA outlived Phase 0 on purpose: they are
 		// what Phase 1 replaces with real domains and real certificates, so they
 		// came out as those stories landed rather than leaving the tree unable
-		// to serve anything in between. Mailpit below is still pending, waiting
-		// on the per-site SMTP settings that replace it.
+		// to serve anything in between. Mailpit came out the same way in S13.0,
+		// once per-site SMTP gave a site somewhere for its mail to go.
 		{
 			// Split from the rule below, and the split is the point.
 			//
@@ -224,8 +224,11 @@ func Rules() []Rule {
 			Allow: specs,
 		},
 		{
-			Feature: "Mailpit", Story: "S13.0",
-			Patterns: []string{`(?i)\bmailpit\b`},
+			Feature: "Mailpit", Story: "S13.0", Enforced: true,
+			// mailhog is named too: the Sail importer used to translate it into
+			// the mailpit preset, so leaving the old name behind would let the
+			// catcher back in under the alias it arrived by.
+			Patterns: []string{`(?i)\bmailpit\b`, `(?i)\bmailhog\b`},
 			Allow:    specs,
 		},
 		{

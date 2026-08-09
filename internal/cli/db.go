@@ -34,6 +34,7 @@ func NewDbCmd() *cobra.Command {
 	cmd.AddCommand(newDbSnapshotRmCmd("snapshot:rm"))
 	cmd.AddCommand(newDbMoveCmd("move"))
 	cmd.AddCommand(newDbExtensionCmd("extension"))
+	cmd.AddCommand(newDbUserCmd("user"))
 	return cmd
 }
 

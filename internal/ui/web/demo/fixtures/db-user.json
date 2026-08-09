@@ -1,0 +1,56 @@
+{
+  "acme-supply.com": {
+    "connection": "do-managed",
+    "location": "db-mysql-lon1-12345.b.db.ondigitalocean.com:25060",
+    "database": "acme",
+    "user": "acme",
+    "own_account": true,
+    "admin_user": "doadmin",
+    "env_keys": ["DB_PASSWORD", "DB_USERNAME"]
+  },
+  "shopfront.io": {
+    "connection": "mysql",
+    "location": "servlo-mysql",
+    "database": "shopfront",
+    "user": "shopfront",
+    "own_account": true,
+    "admin_user": "root",
+    "env_keys": ["DB_PASSWORD", "DB_USERNAME"]
+  },
+  "blog.orbitlabs.app": {
+    "connection": "mysql",
+    "location": "servlo-mysql",
+    "database": "orbit_blog",
+    "user": "root",
+    "own_account": false,
+    "admin_user": "root",
+    "env_keys": ["DB_PASSWORD", "DB_USER"]
+  },
+  "workshop.studio": {
+    "connection": "postgres",
+    "location": "servlo-postgres",
+    "database": "workshop",
+    "user": "workshop",
+    "own_account": true,
+    "admin_user": "postgres",
+    "env_keys": ["DATABASE_URL"]
+  },
+  "metrics.orbitlabs.app": {
+    "connection": "mysql",
+    "location": "servlo-mysql",
+    "database": "metrics",
+    "user": "root",
+    "own_account": false,
+    "admin_user": "root",
+    "note": "servlo does not manage an env file for metrics, so its database credentials have to be updated by hand."
+  },
+  "default": {
+    "connection": "mysql",
+    "location": "servlo-mysql",
+    "database": "site",
+    "user": "site",
+    "own_account": true,
+    "admin_user": "root",
+    "env_keys": ["DB_PASSWORD", "DB_USERNAME"]
+  }
+}

@@ -66,6 +66,37 @@ introspect:
         import: psql -U postgres -d {{name}}
         export_all: pg_dumpall -U postgres --clean --if-exists
         import_all: psql -U postgres -d postgres
+    # The account a site reaches its own database as, so one site's code cannot
+    # read the site next door. Every statement takes its host, port and
+    # administrator from the connection the site is on, so the same declaration
+    # provisions a container here and a managed server somewhere else. The site
+    # owns its own database and the public schema inside it, which is what lets
+    # a migration create tables without any rights outside that one database.
+    - kind: site_users
+      image: docker.io/library/postgres:16-alpine
+      tls:
+        require: "?sslmode=require"
+        verify-ca: "?sslmode=verify-ca&sslrootcert={{ca_cert}}"
+      actions:
+        create: >
+          psql "postgresql://{{admin_user}}@{{host}}:{{port}}/postgres{{tls_flags}}" -tAc
+          "SELECT 1 FROM pg_roles WHERE rolname = '{{name}}'" | grep -q 1 ||
+          psql "postgresql://{{admin_user}}@{{host}}:{{port}}/postgres{{tls_flags}}" -v ON_ERROR_STOP=1 -c
+          "CREATE ROLE \"{{name}}\" LOGIN PASSWORD '{{user_password}}'"
+        rotate: >
+          psql "postgresql://{{admin_user}}@{{host}}:{{port}}/postgres{{tls_flags}}" -v ON_ERROR_STOP=1 -c
+          "ALTER ROLE \"{{name}}\" WITH PASSWORD '{{user_password}}'"
+        grant: >
+          psql "postgresql://{{admin_user}}@{{host}}:{{port}}/{{database}}{{tls_flags}}" -v ON_ERROR_STOP=1
+          -c "GRANT CONNECT ON DATABASE \"{{database}}\" TO \"{{name}}\""
+          -c "ALTER DATABASE \"{{database}}\" OWNER TO \"{{name}}\""
+          -c "ALTER SCHEMA public OWNER TO \"{{name}}\""
+          -c "GRANT ALL ON SCHEMA public TO \"{{name}}\""
+        drop:
+          exec: >
+            psql "postgresql://{{admin_user}}@{{host}}:{{port}}/postgres{{tls_flags}}" -c
+            "DROP ROLE IF EXISTS \"{{name}}\""
+          destructive: true
 extensions:
   - name: postgis
     types: [geometry, geography]

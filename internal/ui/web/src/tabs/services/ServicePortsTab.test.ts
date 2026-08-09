@@ -11,12 +11,12 @@ vi.mock('$stores/services', async (orig) => {
 
 function svc(over: Partial<Service> = {}): Service {
   return {
-    name: 'mailpit',
+    name: 'rustfs',
     status: 'active',
     site_count: 0,
     preset_owned: true,
-    default_port: 1025,
-    secondary_ports: [{ container: 8025, default: 8025 }],
+    default_port: 9000,
+    secondary_ports: [{ container: 9001, default: 9001 }],
     ...over
   } as Service;
 }
@@ -27,26 +27,26 @@ describe('ServicePortsTab', () => {
   it('saves a changed primary port', async () => {
     const { container, getByText } = render(ServicePortsTab, { props: { svc: svc() } });
     const input = container.querySelector('input[type="number"]') as HTMLInputElement;
-    await fireEvent.input(input, { target: { value: '1026' } });
+    await fireEvent.input(input, { target: { value: '9010' } });
     await fireEvent.click(getByText('Save'));
-    expect(setServicePorts).toHaveBeenCalledWith('mailpit', {
-      published_port: 1026,
-      published_ports: { '8025': 8025 },
+    expect(setServicePorts).toHaveBeenCalledWith('rustfs', {
+      published_port: 9010,
+      published_ports: { '9001': 9001 },
       extra_ports: []
     });
   });
 
   it('clears a secondary override when its field is blanked', async () => {
-    const s = svc({ secondary_ports: [{ container: 8025, default: 8025, published: 38026 }] });
+    const s = svc({ secondary_ports: [{ container: 9001, default: 9001, published: 39002 }] });
     const { container, getByText } = render(ServicePortsTab, { props: { svc: s } });
     const inputs = container.querySelectorAll('input[type="number"]');
-    // Blank the seeded 38026 override: an empty field means reset to default, so
+    // Blank the seeded 39002 override: an empty field means reset to default, so
     // the default is sent and the backend clears the override.
     await fireEvent.input(inputs[1], { target: { value: '' } });
     await fireEvent.click(getByText('Save'));
-    expect(setServicePorts).toHaveBeenCalledWith('mailpit', {
+    expect(setServicePorts).toHaveBeenCalledWith('rustfs', {
       published_port: null,
-      published_ports: { '8025': 8025 },
+      published_ports: { '9001': 9001 },
       extra_ports: []
     });
   });
@@ -54,12 +54,12 @@ describe('ServicePortsTab', () => {
   it('saves a changed secondary port keyed by container port', async () => {
     const { container, getByText } = render(ServicePortsTab, { props: { svc: svc() } });
     const inputs = container.querySelectorAll('input[type="number"]');
-    // Second published-port field is the 8025 secondary mapping.
-    await fireEvent.input(inputs[1], { target: { value: '8026' } });
+    // Second published-port field is the 9001 secondary mapping.
+    await fireEvent.input(inputs[1], { target: { value: '9002' } });
     await fireEvent.click(getByText('Save'));
-    expect(setServicePorts).toHaveBeenCalledWith('mailpit', {
+    expect(setServicePorts).toHaveBeenCalledWith('rustfs', {
       published_port: null,
-      published_ports: { '8025': 8026 },
+      published_ports: { '9001': 9002 },
       extra_ports: []
     });
   });
@@ -68,7 +68,7 @@ describe('ServicePortsTab', () => {
     const { container, queryByText } = render(ServicePortsTab, { props: { svc: svc() } });
     expect(queryByText('Save')).toBeNull();
     const input = container.querySelector('input[type="number"]') as HTMLInputElement;
-    await fireEvent.input(input, { target: { value: '1026' } });
+    await fireEvent.input(input, { target: { value: '9010' } });
     expect(queryByText('Save')).not.toBeNull();
   });
 });

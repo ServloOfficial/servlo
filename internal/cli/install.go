@@ -221,7 +221,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		config.QuadletDir(), config.SystemdUserDir(),
 		config.DataSubDir("mysql"), config.DataSubDir("redis"),
 		config.DataSubDir("postgres"), config.DataSubDir("meilisearch"),
-		config.DataSubDir("rustfs"), config.DataSubDir("mailpit"),
+		config.DataSubDir("rustfs"),
 	}
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
@@ -523,7 +523,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 	// rewriteDefaultPreset handles the YAML-driven default services (mysql,
-	// postgres, redis, meilisearch, rustfs, mailpit). The shared serviceops
+	// postgres, redis, meilisearch, rustfs). The shared serviceops
 	// path applies user image / extra-port overrides and the platform image
 	// override, so the install pass produces byte-identical output to the
 	// runtime service path (no perpetual "PublishPort changed" diff).

@@ -4,12 +4,14 @@
 package sitetpl
 
 import (
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/realrashid/servlo/internal/dbcred"
 	"github.com/realrashid/servlo/internal/grouping"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/serviceops"
@@ -32,6 +34,31 @@ type Ctx struct {
 	DBPort     string
 	DBUser     string
 	DBPassword string
+
+	// The site's SMTP account, the same idea one layer over: the definition
+	// says which keys carry the mail transport, the site says what goes in
+	// them. SMTPSet distinguishes "no account configured", which leaves the
+	// placeholders alone, from an account whose optional fields are empty,
+	// which renders them empty.
+	SMTPSet         bool
+	SMTPHost        string
+	SMTPPort        string
+	SMTPUser        string
+	SMTPPassword    string
+	SMTPFromAddress string
+	SMTPFromName    string
+	// Three ways to say the same thing, because frameworks do not agree on the
+	// word for it: Laravel writes MAIL_ENCRYPTION=tls or the literal null,
+	// CodeIgniter and the WordPress mail plugins want a bare tls or nothing at
+	// all, and a DSN query parameter wants true or false. A definition picks
+	// the one its own key understands.
+	SMTPEncryption string // "tls" | "null"
+	SMTPCrypto     string // "tls" | ""
+	SMTPTLS        string // "true" | "false"
+	// The DSN forms. A password with an @ or a colon in it silently truncates a
+	// smtp://user:pass@host URL, so a definition that builds one asks for these.
+	SMTPUserURLEncoded     string
+	SMTPPasswordURLEncoded string
 }
 
 // versionedServices are the presets whose {{<name>_version}} placeholder resolves
@@ -61,6 +88,24 @@ func Apply(s string, ctx Ctx) string {
 		"{{db_password}}": ctx.DBPassword,
 	} {
 		if value != "" {
+			s = strings.ReplaceAll(s, placeholder, value)
+		}
+	}
+	if ctx.SMTPSet {
+		for placeholder, value := range map[string]string{
+			"{{smtp_host}}":         ctx.SMTPHost,
+			"{{smtp_port}}":         ctx.SMTPPort,
+			"{{smtp_user}}":         ctx.SMTPUser,
+			"{{smtp_password}}":     ctx.SMTPPassword,
+			"{{smtp_encryption}}":   ctx.SMTPEncryption,
+			"{{smtp_crypto}}":       ctx.SMTPCrypto,
+			"{{smtp_tls}}":          ctx.SMTPTLS,
+			"{{smtp_from_address}}": ctx.SMTPFromAddress,
+			"{{smtp_from_name}}":    ctx.SMTPFromName,
+
+			"{{smtp_user_urlencoded}}":     ctx.SMTPUserURLEncoded,
+			"{{smtp_password_urlencoded}}": ctx.SMTPPasswordURLEncoded,
+		} {
 			s = strings.ReplaceAll(s, placeholder, value)
 		}
 	}
@@ -116,6 +161,32 @@ func ForSite(site *config.Site) Ctx {
 		ctx.DBPort = strconv.Itoa(c.Port)
 		ctx.DBUser = c.User
 		ctx.DBPassword = c.Password
+		// The site's own account where it has one. The administrator is the
+		// fallback for a site created before per-site accounts existed, which is
+		// what it is already using: nothing there breaks, and it moves onto its
+		// own account the next time `servlo env` runs.
+		if cred, ok := dbcred.For(c, db); ok {
+			ctx.DBUser = cred.User
+			ctx.DBPassword = cred.Password
+		}
+	}
+	if smtp, ok, err := config.SiteSMTP(site.Name); err == nil && ok {
+		ctx.SMTPSet = true
+		ctx.SMTPHost = smtp.Host
+		ctx.SMTPPort = strconv.Itoa(smtp.Port)
+		ctx.SMTPUser = smtp.Username
+		ctx.SMTPPassword = smtp.Password
+		ctx.SMTPFromAddress = smtp.FromAddress
+		ctx.SMTPFromName = smtp.FromName
+		encrypted := smtp.Encryption != config.SMTPNone
+		ctx.SMTPEncryption = "null"
+		ctx.SMTPCrypto = ""
+		ctx.SMTPTLS = "false"
+		if encrypted {
+			ctx.SMTPEncryption, ctx.SMTPCrypto, ctx.SMTPTLS = "tls", "tls", "true"
+		}
+		ctx.SMTPUserURLEncoded = url.QueryEscape(smtp.Username)
+		ctx.SMTPPasswordURLEncoded = url.QueryEscape(smtp.Password)
 	}
 	return ctx
 }

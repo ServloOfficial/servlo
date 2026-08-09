@@ -1,0 +1,102 @@
+{
+  "panel": {
+    "configured": true,
+    "settings": {
+      "host": "smtp.postmarkapp.com",
+      "port": 587,
+      "username": "b7c1e0a4-3f2d-4f6a-9a01-2c5d8e4f7b13",
+      "has_password": true,
+      "encryption": "starttls",
+      "from_address": "alerts@orbitlabs.app",
+      "from_name": "Servlo on lon1-web-01"
+    }
+  },
+  "sites": {
+    "acme-supply.com": {
+      "configured": true,
+      "settings": {
+        "host": "smtp.eu.mailgun.org",
+        "port": 465,
+        "username": "postmaster@mg.acme-supply.com",
+        "has_password": true,
+        "encryption": "tls",
+        "from_address": "orders@acme-supply.com",
+        "from_name": "Acme Supply Co."
+      },
+      "env_file": ".env",
+      "env_keys": [
+        "MAIL_ENCRYPTION",
+        "MAIL_FROM_ADDRESS",
+        "MAIL_FROM_NAME",
+        "MAIL_HOST",
+        "MAIL_MAILER",
+        "MAIL_PASSWORD",
+        "MAIL_PORT",
+        "MAIL_USERNAME"
+      ]
+    },
+    "shopfront.io": {
+      "configured": false,
+      "settings": { "has_password": false },
+      "env_file": ".env",
+      "env_keys": [
+        "MAIL_ENCRYPTION",
+        "MAIL_FROM_ADDRESS",
+        "MAIL_FROM_NAME",
+        "MAIL_HOST",
+        "MAIL_MAILER",
+        "MAIL_PASSWORD",
+        "MAIL_PORT",
+        "MAIL_USERNAME"
+      ]
+    },
+    "blog.orbitlabs.app": {
+      "configured": true,
+      "settings": {
+        "host": "email-smtp.eu-west-1.amazonaws.com",
+        "port": 587,
+        "username": "AKIA4XKPZQ7WJ2NLVE3M",
+        "has_password": true,
+        "encryption": "starttls",
+        "from_address": "no-reply@blog.orbitlabs.app",
+        "from_name": ""
+      },
+      "env_file": "wp-config.php",
+      "env_keys": ["SMTP_FROM", "SMTP_HOST", "SMTP_NAME", "SMTP_PASS", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER"]
+    },
+    "workshop.studio": {
+      "configured": true,
+      "settings": {
+        "host": "relay.internal.workshop.studio",
+        "port": 25,
+        "username": "",
+        "has_password": false,
+        "encryption": "none",
+        "from_address": "studio@workshop.studio",
+        "from_name": "Workshop"
+      },
+      "env_file": ".env.local",
+      "env_keys": ["MAILER_DSN"]
+    },
+    "metrics.orbitlabs.app": {
+      "configured": false,
+      "settings": { "has_password": false },
+      "note": "nothing in the magento definition says which keys carry mail settings, so metrics has to be wired by hand"
+    },
+    "default": {
+      "configured": false,
+      "settings": { "has_password": false },
+      "env_file": ".env",
+      "env_keys": [
+        "MAIL_ENCRYPTION",
+        "MAIL_FROM_ADDRESS",
+        "MAIL_FROM_NAME",
+        "MAIL_HOST",
+        "MAIL_MAILER",
+        "MAIL_PASSWORD",
+        "MAIL_PORT",
+        "MAIL_USERNAME"
+      ]
+    }
+  }
+}

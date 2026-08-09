@@ -50,18 +50,18 @@ func TestStartService_customStartsAndMarksManual(t *testing.T) {
 	t.Cleanup(func() { config.ServiceRunning = prevRun })
 
 	if err := config.SaveCustomService(&config.CustomService{
-		Name: "mailhog-test", Image: "docker.io/library/alpine:latest",
+		Name: "smtp-test", Image: "docker.io/library/alpine:latest",
 		Ports: []string{"127.0.0.1:1025:1025"},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := StartService("mailhog-test"); err != nil {
+	if err := StartService("smtp-test"); err != nil {
 		t.Fatalf("StartService: %v", err)
 	}
-	if !config.ServiceIsManuallyStarted("mailhog-test") {
+	if !config.ServiceIsManuallyStarted("smtp-test") {
 		t.Fatal("StartService must mark the service manually started")
 	}
-	if config.ServiceIsPaused("mailhog-test") {
+	if config.ServiceIsPaused("smtp-test") {
 		t.Fatal("StartService must clear paused")
 	}
 }
@@ -70,19 +70,19 @@ func TestStopService_marksPaused(t *testing.T) {
 	withServiceHome(t)
 	stubLifecycle(t)
 	if err := config.SaveCustomService(&config.CustomService{
-		Name: "mailhog-test", Image: "docker.io/library/alpine:latest",
+		Name: "smtp-test", Image: "docker.io/library/alpine:latest",
 		Ports: []string{"127.0.0.1:1025:1025"},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	_ = config.SetServiceManuallyStarted("mailhog-test", true)
-	if err := StopService("mailhog-test"); err != nil {
+	_ = config.SetServiceManuallyStarted("smtp-test", true)
+	if err := StopService("smtp-test"); err != nil {
 		t.Fatalf("StopService: %v", err)
 	}
-	if !config.ServiceIsPaused("mailhog-test") {
+	if !config.ServiceIsPaused("smtp-test") {
 		t.Fatal("StopService must mark paused")
 	}
-	if config.ServiceIsManuallyStarted("mailhog-test") {
+	if config.ServiceIsManuallyStarted("smtp-test") {
 		t.Fatal("StopService must clear manually started")
 	}
 }
@@ -91,19 +91,19 @@ func TestRestartService_clearsPaused(t *testing.T) {
 	withServiceHome(t)
 	stubLifecycle(t)
 	if err := config.SaveCustomService(&config.CustomService{
-		Name: "mailhog-test", Image: "docker.io/library/alpine:latest",
+		Name: "smtp-test", Image: "docker.io/library/alpine:latest",
 		Ports: []string{"127.0.0.1:1025:1025"},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	_ = config.SetServicePaused("mailhog-test", true)
-	if err := RestartService("mailhog-test"); err != nil {
+	_ = config.SetServicePaused("smtp-test", true)
+	if err := RestartService("smtp-test"); err != nil {
 		t.Fatalf("RestartService: %v", err)
 	}
-	if config.ServiceIsPaused("mailhog-test") {
+	if config.ServiceIsPaused("smtp-test") {
 		t.Fatal("RestartService must clear paused")
 	}
-	if !config.ServiceIsManuallyStarted("mailhog-test") {
+	if !config.ServiceIsManuallyStarted("smtp-test") {
 		t.Fatal("RestartService must mark manually started")
 	}
 }

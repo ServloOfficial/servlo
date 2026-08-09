@@ -1,6 +1,7 @@
 <script lang="ts">
   import SettingsCard from '$components/SettingsCard.svelte';
   import SettingsField from '$components/SettingsField.svelte';
+  import SiteDatabaseUserCard from './SiteDatabaseUserCard.svelte';
   import {
     dbConnections,
     loadDBConnections,
@@ -90,4 +91,6 @@
   {#if error}
     <p class="mt-3 text-xs text-servlo-red whitespace-pre-wrap">{error}</p>
   {/if}
+
+  <SiteDatabaseUserCard {site} />
 </SettingsCard>

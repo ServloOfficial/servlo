@@ -121,8 +121,6 @@ Services on the `servlo` network are reachable by hostname. Wire them into your 
 ```bash [Node (.env)]
 DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/myapp
 REDIS_URL=redis://servlo-redis:6379
-MAIL_HOST=servlo-mailpit
-MAIL_PORT=1025
 ```
 
 ```bash [Python (.env)]
@@ -144,7 +142,6 @@ REDIS_ADDR=servlo-redis:6379
 | Redis | `servlo-redis` | `6379` | (none) |
 | Meilisearch | `servlo-meilisearch` | `7700` | (none) |
 | RustFS (S3) | `servlo-rustfs` | `9000` | `servlo` / generated |
-| Mailpit (SMTP) | `servlo-mailpit` | `1025` | (none) |
 
 See [Services](../usage/services.md) for the full credential matrix, including host-tool ports (127.0.0.1) versus container-network hostnames.
 

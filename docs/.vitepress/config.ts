@@ -155,6 +155,10 @@ export default defineConfig({
             { text: 'Node', link: '/usage/node' },
             { text: 'Nginx Overrides', link: '/usage/nginx-overrides' },
             { text: 'Deploy', link: '/usage/deploy' },
+            { text: 'Cron', link: '/usage/cron' },
+            { text: 'File manager', link: '/usage/file-manager' },
+            { text: 'SFTP', link: '/usage/sftp' },
+            { text: 'Email', link: '/usage/email' },
           ],
         },
         {

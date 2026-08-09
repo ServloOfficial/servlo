@@ -24,7 +24,7 @@ func NewLogsCmd() *cobra.Command {
 Target can be:
   (none)       — PHP-FPM container for the current project
   nginx        — nginx container
-  <service>    — any known service (mysql, redis, mailpit, etc.)
+  <service>    — any known service (mysql, redis, postgres, etc.)
   <version>    — explicit PHP version, e.g. "8.4"`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {

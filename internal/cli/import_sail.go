@@ -786,7 +786,6 @@ var sailDataServices = map[string]bool{
 	"redis":       true,
 	"meilisearch": true,
 	"minio":       true,
-	"mailpit":     true,
 	"soketi":      true,
 	"selenium":    true,
 }

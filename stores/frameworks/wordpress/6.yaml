@@ -25,6 +25,15 @@ env:
         - DB_USER={{db_user}}
         - DB_PASSWORD={{db_password}}
         - DB_HOST={{db_host}}
+  smtp:
+    vars:
+      - SMTP_HOST={{smtp_host}}
+      - SMTP_PORT={{smtp_port}}
+      - SMTP_USER={{smtp_user}}
+      - SMTP_PASS={{smtp_password}}
+      - SMTP_SECURE={{smtp_crypto}}
+      - SMTP_FROM={{smtp_from_address}}
+      - SMTP_NAME={{smtp_from_name}}
 
 logs:
   - path: wp-content/debug.log
@@ -77,3 +86,24 @@ deploy:
   # WordPress has no health endpoint that avoids the database, so the front page
   # is the honest check: if it answers, the site is up.
   health: /
+
+# WordPress fires its scheduled work from page loads: wp-cron.php runs on a
+# visitor's request, which means the schedule is only as reliable as the
+# traffic, and every visitor pays for whatever was due. On a real server the
+# fix is the one WordPress documents, so it is declared here rather than
+# implemented anywhere: switch the page-load scheduler off and put the same
+# work on a timer that runs whether or not anybody is looking.
+pseudo_cron:
+  label: WordPress cron
+  description: wp-cron.php runs on page loads, so scheduled posts and updates wait for a visitor and every visitor pays for them.
+  file: wp-config.php
+  constant: DISABLE_WP_CRON
+  # PHP literals, written unquoted. A quoted 'false' is a non-empty string and
+  # PHP reads it as true, which would leave the site with no cron at all.
+  replaced_value: "true"
+  restored_value: "false"
+  entry:
+    id: wp-cron
+    name: WordPress cron
+    command: php wp-cron.php
+    schedule: "* * * * *"

@@ -52,8 +52,39 @@ const SHOTS = [
     } },
   { name: 'site-settings', height: 2200, act: siteTab('Acme', 'Settings'), bottom: true },
   { name: 'site-deploy', height: 1600, act: siteTab('Acme', 'Deploy') },
+  { name: 'site-cron', height: 1700, act: siteTab('Acme', 'Cron') },
+  { name: 'site-cron-form', height: 1900, act: async (page) => {
+      await siteTab('Acme', 'Cron')(page);
+      await page.getByRole('button', { name: /Add a scheduled command/i }).first().click();
+      await page.waitForTimeout(400);
+    } },
+  { name: 'site-cron-output', height: 1900, act: async (page) => {
+      await siteTab('Acme', 'Cron')(page);
+      await page.getByRole('button', { name: /Show the last run's output/i }).last().click();
+      await page.waitForTimeout(400);
+    } },
+  { name: 'site-cron-delete', height: 1400, act: async (page) => {
+      await siteTab('Acme', 'Cron')(page);
+      await page.getByRole('button', { name: /^Delete$/ }).first().click();
+      await page.waitForTimeout(500);
+    } },
+  { name: 'site-cron-wordpress', height: 1500, act: siteTab('blog.orbitlabs.app', 'Cron') },
+  { name: 'site-files', height: 1700, act: siteTab('Acme', 'Files') },
+  // Upload opens the browser's own file picker, so there is no page state to
+  // shoot; the states worth looking at here are the listing and the editor.
+  { name: 'site-db-user', height: 2600, act: siteTab('Acme', 'Settings'), bottom: true },
   { name: 'dashboard', act: rail('Dashboard') },
   { name: 'system', height: 2200, act: rail('System') },
+  { name: 'system-mail', height: 1800, act: async (page) => {
+      await rail('System')(page);
+      await page.getByText(/^Mail$/).first().click();
+      await page.waitForTimeout(900);
+    } },
+  { name: 'system-sftp', height: 1800, act: async (page) => {
+      await rail('System')(page);
+      await page.getByText(/SFTP|File access/i).first().click();
+      await page.waitForTimeout(900);
+    } },
 ];
 
 await mkdir(OUT, { recursive: true });

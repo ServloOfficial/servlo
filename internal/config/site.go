@@ -142,6 +142,10 @@ type Site struct {
 	// install's default, which is what every site had before a database could
 	// be anywhere but the container next door.
 	Database string `yaml:"database,omitempty"`
+
+	// Cron is what this site runs on a schedule. One systemd timer per entry;
+	// see internal/sitecron.
+	Cron []CronEntry `yaml:"cron,omitempty"`
 }
 
 // Redirect is one address that has moved.
@@ -359,6 +363,7 @@ type siteYAML struct {
 	Redirects           []Redirect       `yaml:"redirects,omitempty"`
 	DeployExclude       *[]string        `yaml:"deploy_exclude,omitempty"`
 	Database            string           `yaml:"database,omitempty"`
+	Cron                []CronEntry      `yaml:"cron,omitempty"`
 }
 
 func (s Site) toYAML() siteYAML {
@@ -402,6 +407,7 @@ func (s Site) toYAML() siteYAML {
 		Redirects:           s.Redirects,
 		DeployExclude:       s.DeployExclude,
 		Database:            s.Database,
+		Cron:                s.Cron,
 	}
 }
 
@@ -450,6 +456,7 @@ func (sy siteYAML) toSite() Site {
 		Redirects:           sy.Redirects,
 		DeployExclude:       sy.DeployExclude,
 		Database:            sy.Database,
+		Cron:                sy.Cron,
 	}
 }
 
@@ -542,6 +549,9 @@ func cloneSiteRegistry(in *SiteRegistry) *SiteRegistry {
 		}
 		if s.PausedWorkers != nil {
 			cp.PausedWorkers = append([]string(nil), s.PausedWorkers...)
+		}
+		if s.Cron != nil {
+			cp.Cron = append([]CronEntry(nil), s.Cron...)
 		}
 		out.Sites[i] = cp
 	}

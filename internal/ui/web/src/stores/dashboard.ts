@@ -10,7 +10,7 @@ export interface DashboardRef {
   // refs, which are named in the UI-only icon map instead.
   icon?: string;
   // extraPath is appended to dashboard for the iframe src, used to deep-link
-  // a service overlay (e.g. mailpit's /view/{id} for a captured email).
+  // a service overlay (e.g. an admin tool's /db/{name} for one database).
   extraPath?: string;
 }
 
@@ -54,23 +54,6 @@ export function openDashboard(svc: Service) {
 export async function openServiceDashboard(svc: Service) {
   if (svc.status !== 'active' && !(await serviceAction(svc.name, 'start'))) return;
   openDashboard(get(services).find((s) => s.name === svc.name) || svc);
-}
-
-// openMailpitMessage opens the mailpit dashboard overlay with the iframe
-// pointed at /view/<id> so a clicked email notification lands the user on
-// the captured message instead of mailpit's inbox.
-export function openMailpitMessage(id: string) {
-  const mp = get(services).find((s) => s.name === 'mailpit');
-  if (!mp?.dashboard) return;
-  const safeId = encodeURIComponent(id);
-  dashboardOpen.set({
-    name: 'mailpit',
-    label: 'Mailpit',
-    dashboard: mp.dashboard,
-    icon: mp.icon,
-    extraPath: '/view/' + safeId
-  });
-  location.hash = 'service/mailpit/view/' + safeId;
 }
 
 // DB_DEEP_LINK maps an admin tool to the URL suffix that opens a specific
@@ -138,20 +121,6 @@ function refFromHash(): DashboardRef | null {
   if (h === 'docs') return DOCS_REF;
   if (h.startsWith('service/')) {
     const rest = h.slice('service/'.length);
-    // service/mailpit/view/<id> deep-links into a specific captured email.
-    const mpDeep = rest.match(/^mailpit\/view\/(.+)$/);
-    if (mpDeep) {
-      const mp = get(services).find((x) => x.name === 'mailpit');
-      if (mp?.dashboard) {
-        return {
-          name: 'mailpit',
-          label: 'Mailpit',
-          dashboard: mp.dashboard,
-          icon: mp.icon,
-          extraPath: '/view/' + mpDeep[1]
-        };
-      }
-    }
     // service/<admin>/db/<database> deep-links an admin tool to one database.
     const dbDeep = rest.match(/^(.+?)\/db\/(.+)$/);
     if (dbDeep) {

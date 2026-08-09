@@ -1,0 +1,183 @@
+{
+  "acme-supply.com": {
+    "supported": true,
+    "pseudo_cron": { "available": false, "replaced": false },
+    "entries": [
+      {
+        "id": "prune-batches",
+        "name": "Prune finished job batches",
+        "command": "php artisan queue:prune-batches --hours=48",
+        "schedule": "0 3 * * *",
+        "calendar": "*-*-* 03:00:00",
+        "capture_output": true,
+        "disabled": false,
+        "unit": "servlo-cron-acme-prune-batches",
+        "next_run": "@+9h",
+        "last_run": {
+          "at": "@-15h",
+          "ok": true,
+          "running": false,
+          "exit_code": 0,
+          "result": "success",
+          "output": [
+            "Pruning batches older than 48 hours.",
+            "3 entries deleted."
+          ]
+        }
+      },
+      {
+        "id": "sitemap",
+        "name": "Rebuild the sitemap",
+        "command": "php artisan sitemap:generate",
+        "schedule": "@daily",
+        "calendar": "daily",
+        "capture_output": false,
+        "disabled": false,
+        "unit": "servlo-cron-acme-sitemap",
+        "next_run": "@+9h",
+        "last_run": {
+          "at": "@-15h",
+          "ok": true,
+          "running": false,
+          "exit_code": 0,
+          "result": "success"
+        }
+      },
+      {
+        "id": "reconcile-payouts",
+        "name": "Reconcile yesterday's payouts against the ledger",
+        "command": "php artisan payouts:reconcile --since=yesterday",
+        "schedule": "15 2 * * 1-5",
+        "calendar": "Mon..Fri *-*-* 02:15:00",
+        "capture_output": true,
+        "disabled": false,
+        "unit": "servlo-cron-acme-reconcile-payouts",
+        "next_run": "@+8h",
+        "last_run": {
+          "at": "@-16h",
+          "ok": false,
+          "running": false,
+          "exit_code": 1,
+          "result": "exit-code",
+          "output": [
+            "Reconciling 412 payouts since 2026-08-07.",
+            "PHP Fatal error:  Uncaught Stripe\\Exception\\ApiConnectionException: Could not connect to api.stripe.com in /app/Services/Payouts.php:88",
+            "Stack trace:",
+            "#0 /app/Console/Commands/ReconcilePayouts.php(41): App\\Services\\Payouts->fetch()",
+            "#1 {main}"
+          ]
+        }
+      },
+      {
+        "id": "warm-cache",
+        "name": "Warm the catalogue cache",
+        "command": "php artisan cache:warm catalogue",
+        "schedule": "*/15 * * * *",
+        "calendar": "*-*-* *:0/15:00",
+        "capture_output": true,
+        "disabled": false,
+        "unit": "servlo-cron-acme-warm-cache",
+        "next_run": "@+7m"
+      },
+      {
+        "id": "purge-exports",
+        "name": "Purge old CSV exports",
+        "command": "php artisan exports:purge --older-than=30d",
+        "schedule": "0 4 * * 0",
+        "calendar": "Sun *-*-* 04:00:00",
+        "capture_output": true,
+        "disabled": true,
+        "unit": "servlo-cron-acme-purge-exports"
+      }
+    ]
+  },
+  "blog.orbitlabs.app": {
+    "supported": true,
+    "pseudo_cron": {
+      "available": true,
+      "label": "WordPress cron",
+      "description": "wp-cron.php runs on page loads, so scheduled posts and updates wait for a visitor and every visitor pays for them.",
+      "replaced": true,
+      "schedule": "* * * * *",
+      "command": "php wp-cron.php",
+      "constant": "DISABLE_WP_CRON",
+      "file": "wp-config.php"
+    },
+    "entries": [
+      {
+        "id": "wp-cron",
+        "name": "WordPress cron",
+        "command": "php wp-cron.php",
+        "schedule": "* * * * *",
+        "calendar": "*-*-* *:*:00",
+        "capture_output": false,
+        "disabled": false,
+        "managed": true,
+        "unit": "servlo-cron-blog-orbitlabs-wp-cron",
+        "next_run": "@+1m",
+        "last_run": {
+          "at": "@-40s",
+          "ok": true,
+          "running": false,
+          "exit_code": 0,
+          "result": "success"
+        }
+      },
+      {
+        "id": "backup-uploads",
+        "name": "Sync uploads to object storage",
+        "command": "php wp-cli.phar media sync --quiet",
+        "schedule": "30 1 * * *",
+        "calendar": "*-*-* 01:30:00",
+        "capture_output": true,
+        "disabled": false,
+        "unit": "servlo-cron-blog-orbitlabs-backup-uploads",
+        "next_run": "@+7h",
+        "last_run": {
+          "at": "@-17h",
+          "ok": true,
+          "running": false,
+          "exit_code": 0,
+          "result": "success",
+          "output": ["Synced 118 files, skipped 4402 unchanged."]
+        }
+      }
+    ]
+  },
+  "shopfront.io": {
+    "supported": true,
+    "pseudo_cron": { "available": false, "replaced": false },
+    "entries": [
+      {
+        "id": "restock-feed",
+        "name": "Pull the supplier restock feed",
+        "command": "php artisan suppliers:pull-restock",
+        "schedule": "*/5 * * * *",
+        "calendar": "*-*-* *:0/5:00",
+        "capture_output": true,
+        "disabled": false,
+        "unit": "servlo-cron-shopfront-restock-feed",
+        "next_run": "@+2m",
+        "last_run": {
+          "at": "@-3m",
+          "ok": true,
+          "running": true,
+          "exit_code": 0,
+          "result": "success",
+          "output": ["Fetching feed from partner-api.example…"]
+        }
+      }
+    ]
+  },
+  "gateway.acme-supply.com": {
+    "supported": false,
+    "unsupported": "gateway runs on the host rather than in a container, so servlo has nowhere to run a scheduled command for it",
+    "pseudo_cron": { "available": false, "replaced": false },
+    "entries": []
+  },
+  "workshop.studio": {
+    "supported": true,
+    "pseudo_cron": { "available": false, "replaced": false },
+    "entries": []
+  }
+}

@@ -5,7 +5,6 @@ import { notifyPrefs, permissionState, autoSubscribeDisabled } from '../lib/noti
 import type { NotifyKind } from '../lib/notify';
 
 const allKinds: Record<NotifyKind, boolean> = {
-  mail: true,
   worker_failed: true,
   op_done: true,
   update_available: true,

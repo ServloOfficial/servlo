@@ -53,11 +53,6 @@ env:
         - key: REDIS_DSN
       vars:
         - "REDIS_URL=redis://servlo-redis:6379"
-    mailpit:
-      detect:
-        - key: MAILER_DSN
-      vars:
-        - "MAILER_DSN=smtp://servlo-mailpit:1025"
 composer: auto
 npm: auto
 workers:
@@ -140,7 +135,7 @@ servlo init
 ? Node version (leave blank to skip): 22
 ? Enable HTTPS? Yes
 ? Database: mysql
-? Services: [mailpit]
+? Services: [redis]
 ? Workers to auto-start: [messenger]
 Saved .servlo.yaml
 ```
@@ -195,8 +190,8 @@ App logs (anything in `var/log/*.log`) show up in the [Web UI](../features/web-u
 |---|---|
 | `servlo framework add symfony` | Registered the YAML so Symfony projects are auto-detected |
 | `servlo link` | Assigned `myapp.example.com`, set document root to `public/` |
-| `servlo init` | Wrote `.servlo.yaml` with PHP, Node, MySQL, Mailpit, messenger |
-| `servlo env` (via setup) | Wrote `DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/myapp?serverVersion=8.0` and `MAILER_DSN=smtp://servlo-mailpit:1025` into `.env.local`, seeded from the committed `.env` |
+| `servlo init` | Wrote `.servlo.yaml` with PHP, Node, MySQL, messenger |
+| `servlo env` (via setup) | Wrote `DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/myapp?serverVersion=8.0` into `.env.local`, seeded from the committed `.env` |
 | `servlo secure` (via setup) | Issued a certificate, set `DEFAULT_URI=https://myapp.example.com` |
 | Doctrine migrations + cache:clear | Ran via the framework's `setup:` block |
 | `servlo worker start messenger` (via setup) | Launched `servlo-messenger-myapp` |

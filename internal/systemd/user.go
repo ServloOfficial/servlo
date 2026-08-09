@@ -107,8 +107,6 @@ func unitBelongsToLongerSite(unitFile, siteName string, sites []config.Site) boo
 }
 
 func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
-	suffix := "-" + siteName + ".service"
-	prefix := "servlo-"
 	entries, err := os.ReadDir(config.SystemdUserDir())
 	if err != nil {
 		return nil
@@ -132,31 +130,8 @@ func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
 	var orphans []string
 	for _, e := range entries {
 		name := e.Name()
-		if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
-			continue
-		}
-		workerName := strings.TrimPrefix(name, prefix)
-		workerName = strings.TrimSuffix(workerName, suffix)
-		if workerName == "" {
-			continue
-		}
-		if hostProxySite && workerName == config.HostProxyWorkerName {
-			continue
-		}
-		// Skip non-worker units.
-		switch workerName {
-		case "php84-fpm", "php83-fpm", "php82-fpm", "php81-fpm", "php80-fpm",
-			"nginx", "dns", "dns-forwarder", "watcher", "ui", "stripe":
-			continue
-		}
-		if known[workerName] {
-			continue
-		}
-		// Skip units owned by a registered site with a longer name whose suffix
-		// collides: servlo-queue-admin-astrolov is admin-astrolov's queue, not
-		// astrolov's "queue-admin". Without this, a group secondary's workers
-		// leak into the parent.
-		if unitBelongsToLongerSite(name, siteName, sites) {
+		workerName, ok := orphanCandidate(name, siteName, known, sites, hostProxySite)
+		if !ok {
 			continue
 		}
 		unitName := strings.TrimSuffix(name, ".service")
@@ -166,4 +141,47 @@ func FindOrphanedWorkers(siteName string, known map[string]bool) []string {
 	}
 	sort.Strings(orphans)
 	return orphans
+}
+
+// orphanCandidate decides whether one unit file could be an orphaned worker of
+// siteName, and what that worker is called. Split out from the liveness check
+// above so the naming rules are testable without a running systemd, which is
+// the half of this that gets a unit stopped that should not have been.
+func orphanCandidate(name, siteName string, known map[string]bool, sites []config.Site, hostProxySite bool) (string, bool) {
+	const prefix = "servlo-"
+	suffix := "-" + siteName + ".service"
+	if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
+		return "", false
+	}
+	workerName := strings.TrimSuffix(strings.TrimPrefix(name, prefix), suffix)
+	if workerName == "" {
+		return "", false
+	}
+	if hostProxySite && workerName == config.HostProxyWorkerName {
+		return "", false
+	}
+	// A site's scheduled commands are named servlo-cron-<site>-<id>, so one
+	// whose id happens to be another site's name reads as a worker of that site
+	// called "cron-<owner>". It is not a worker, and stopping it would take
+	// somebody else's schedule down.
+	if strings.HasPrefix(workerName, "cron-") {
+		return "", false
+	}
+	// Skip non-worker units.
+	switch workerName {
+	case "php84-fpm", "php83-fpm", "php82-fpm", "php81-fpm", "php80-fpm",
+		"nginx", "dns", "dns-forwarder", "watcher", "ui", "stripe":
+		return "", false
+	}
+	if known[workerName] {
+		return "", false
+	}
+	// Skip units owned by a registered site with a longer name whose suffix
+	// collides: servlo-queue-admin-astrolov is admin-astrolov's queue, not
+	// astrolov's "queue-admin". Without this, a group secondary's workers leak
+	// into the parent.
+	if unitBelongsToLongerSite(name, siteName, sites) {
+		return "", false
+	}
+	return workerName, true
 }

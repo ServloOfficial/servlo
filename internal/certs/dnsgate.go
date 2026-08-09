@@ -4,10 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
-	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dnscheck"
 )
 
@@ -21,17 +18,11 @@ var ErrDNSNotReady = errors.New("domains do not resolve to this server")
 // load balancer or a floating IP is measured against the address the authority
 // will actually connect to rather than the one on its interface.
 var checkDNS = func(ctx context.Context, domains []string) dnscheck.Report {
-	cfg, _ := config.LoadGlobal()
-	if declared := cfg.ACMEServerAddresses(); len(declared) > 0 {
-		var mine []net.IP
-		for _, s := range declared {
-			if ip := net.ParseIP(strings.TrimSpace(s)); ip != nil {
-				mine = append(mine, ip)
-			}
-		}
-		return dnscheck.CheckAgainst(ctx, domains, mine)
+	mine, err := dnscheck.ThisServer(ctx)
+	if err != nil {
+		return dnscheck.Report{Error: err.Error()}
 	}
-	return dnscheck.Check(ctx, domains)
+	return dnscheck.CheckAgainst(ctx, domains, mine)
 }
 
 // challengeReachability is implemented by an issuer that says whether its

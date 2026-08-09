@@ -38,7 +38,7 @@ describe('PresetSuggestionBanner', () => {
 
   it('renders nothing on a service nothing administers', () => {
     const { container } = render(PresetSuggestionBanner, {
-      props: { svc: svc({ name: 'mailpit' }) }
+      props: { svc: svc({ name: 'meilisearch' }) }
     });
     expect(container.textContent?.trim()).toBe('');
   });

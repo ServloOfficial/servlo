@@ -48,16 +48,16 @@ env:
         - REDIS_HOST=servlo-redis
         - REDIS_PORT=6379
         - REDIS_PASSWORD=
-    mailpit:
-      detect:
-        - key: MAIL_HOST
-      vars:
-        - MAIL_MAILER=smtp
-        - MAIL_HOST=servlo-mailpit
-        - MAIL_PORT=1025
-        - MAIL_USERNAME=null
-        - MAIL_PASSWORD=null
-        - MAIL_ENCRYPTION=null
+  smtp:
+    vars:
+      - MAIL_MAILER=smtp
+      - MAIL_HOST={{smtp_host}}
+      - MAIL_PORT={{smtp_port}}
+      - MAIL_USERNAME={{smtp_user}}
+      - MAIL_PASSWORD={{smtp_password}}
+      - MAIL_ENCRYPTION={{smtp_encryption}}
+      - MAIL_FROM_ADDRESS={{smtp_from_address}}
+      - MAIL_FROM_NAME="{{smtp_from_name}}"
 
 composer: auto
 npm: auto

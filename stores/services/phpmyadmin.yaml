@@ -1,18 +1,25 @@
 name: phpmyadmin
 image: docker.io/library/phpmyadmin:latest
-description: phpMyAdmin web UI for every installed servlo MySQL service
+description: phpMyAdmin web UI for every MySQL database this install reaches
 ports:
   - "8080:80"
 environment:
   UPLOAD_LIMIT: 256M
+# The server list is the connections, not the containers. discover_family can
+# only see what runs here, so a site whose data is on a managed database would
+# find every server in this list except its own.
 dynamic_env:
-  PMA_HOSTS: discover_family:mysql,mariadb
-  PMA_USERS: repeat_family:mysql,mariadb=root
-  PMA_PASSWORDS: repeat_family:mysql,mariadb={{password}}
+  PMA_HOSTS: connections:mysql,mariadb=hostport
+  PMA_VERBOSES: connections:mysql,mariadb=name
+  PMA_USERS: connections:mysql,mariadb=user
+  PMA_PASSWORDS: connections:mysql,mariadb=password
+  PMA_SSL_MODES: connections:mysql,mariadb=tls
 depends_on:
   - mysql
 dashboard: http://localhost:8080
 files:
+  - target: /etc/servlo/db-ca-bundle.crt
+    generator: db_ca_bundle
   - target: /etc/phpmyadmin/config.user.inc.php
     content: |
       <?php
@@ -30,20 +37,45 @@ files:
       // single-host setups; in multi-host (PMA_HOSTS) it writes host/verbose
       // per server but leaves user/password blank, forcing a login screen.
       // Rebuild $cfg['Servers'] from our own parallel env arrays so every
-      // discovered mysql/mariadb service auto-logs in with config auth.
-      $hosts = array_values(array_filter(array_map('trim', explode(',', (string) getenv('PMA_HOSTS')))));
-      $users = array_map('trim', explode(',', (string) getenv('PMA_USERS')));
-      $passwords = array_map('trim', explode(',', (string) getenv('PMA_PASSWORDS')));
+      // database servlo knows about auto-logs in with config auth. The arrays
+      // are one entry per connection, local or managed, in the same order.
+      $split = static function (string $name): array {
+          return array_map('trim', explode(',', (string) getenv($name)));
+      };
+      $hosts = array_values(array_filter($split('PMA_HOSTS')));
+      $verboses = $split('PMA_VERBOSES');
+      $users = $split('PMA_USERS');
+      $passwords = $split('PMA_PASSWORDS');
+      $sslModes = $split('PMA_SSL_MODES');
       foreach ($hosts as $i => $host) {
           $idx = $i + 1;
-          $cfg['Servers'][$idx] = [
+          $port = '';
+          // A managed database answers on a port of the provider's choosing,
+          // which arrives here as host:port.
+          if (($colon = strrpos($host, ':')) !== false) {
+              $port = substr($host, $colon + 1);
+              $host = substr($host, 0, $colon);
+          }
+          $server = [
               'host'      => $host,
-              'verbose'   => $host,
+              'verbose'   => $verboses[$i] ?? $host,
               'auth_type' => 'config',
               'user'      => $users[$i] ?? 'root',
-              'password'  => $passwords[$i] ?? '{{password}}',
+              'password'  => $passwords[$i] ?? '',
               'AllowNoPassword' => false,
           ];
+          if ($port !== '') {
+              $server['port'] = $port;
+          }
+          $ssl = $sslModes[$i] ?? '';
+          if ($ssl !== '') {
+              $server['ssl'] = true;
+              $server['ssl_verify'] = $ssl === 'verify-ca';
+              if ($ssl === 'verify-ca') {
+                  $server['ssl_ca'] = '/etc/servlo/db-ca-bundle.crt';
+              }
+          }
+          $cfg['Servers'][$idx] = $server;
       }
       $cfg['AllowThirdPartyFraming'] = true;
 category: admin

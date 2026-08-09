@@ -90,8 +90,8 @@ func TestFrameworkMapsService(t *testing.T) {
 			t.Errorf("framework maps %q but frameworkMapsService said no", name)
 		}
 	}
-	if frameworkMapsService(fw, "mailpit") {
-		t.Error("mailpit is not mapped by this framework")
+	if frameworkMapsService(fw, "redis") {
+		t.Error("redis is not mapped by this framework")
 	}
 	if frameworkMapsService(nil, "mysql") {
 		t.Error("nil framework maps nothing")

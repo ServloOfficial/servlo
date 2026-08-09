@@ -329,24 +329,24 @@ func TestSetPublishedPortRollsBackOnStartFailure(t *testing.T) {
 }
 
 // TestSetPublishedPortForSecondary moves a multi-port service's secondary mapping
-// (mailpit's 8025 UI) and persists it under PublishedPorts keyed by container port,
+// (rustfs' 9001 console) and persists it under PublishedPorts keyed by container port,
 // leaving the primary untouched.
 func TestSetPublishedPortForSecondary(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	res, err := SetPublishedPortFor("mailpit", 8025, 38026)
+	res, err := SetPublishedPortFor("rustfs", 9001, 39002)
 	if err != nil {
 		t.Fatalf("SetPublishedPortFor: %v", err)
 	}
-	if res.Actual != 38026 {
-		t.Errorf("Actual = %d, want 38026", res.Actual)
+	if res.Actual != 39002 {
+		t.Errorf("Actual = %d, want 39002", res.Actual)
 	}
-	if got := config.ServicePublishedPorts("mailpit")[8025]; got != 38026 {
-		t.Errorf("PublishedPorts[8025] = %d, want 38026", got)
+	if got := config.ServicePublishedPorts("rustfs")[9001]; got != 39002 {
+		t.Errorf("PublishedPorts[9001] = %d, want 39002", got)
 	}
-	if config.ServicePublishedPort("mailpit") != 0 {
+	if config.ServicePublishedPort("rustfs") != 0 {
 		t.Error("moving a secondary must not touch the primary PublishedPort")
 	}
 }
@@ -358,17 +358,17 @@ func TestSetPublishedPortForReset(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	if _, err := SetPublishedPortFor("mailpit", 8025, 38026); err != nil {
+	if _, err := SetPublishedPortFor("rustfs", 9001, 39002); err != nil {
 		t.Fatalf("initial move: %v", err)
 	}
-	repeat, err := SetPublishedPortFor("mailpit", 8025, 38026)
+	repeat, err := SetPublishedPortFor("rustfs", 9001, 39002)
 	if err != nil || !repeat.NoOp {
 		t.Errorf("repeat = %+v, err %v, want NoOp", repeat, err)
 	}
-	if _, err := SetPublishedPortFor("mailpit", 8025, 8025); err != nil { // the preset default
+	if _, err := SetPublishedPortFor("rustfs", 9001, 9001); err != nil { // the preset default
 		t.Fatalf("reset to default: %v", err)
 	}
-	if got := config.ServicePublishedPorts("mailpit"); len(got) != 0 {
+	if got := config.ServicePublishedPorts("rustfs"); len(got) != 0 {
 		t.Errorf("requesting the default must clear the override, got %v", got)
 	}
 }
@@ -381,13 +381,13 @@ func TestSetPublishedPortForPrimaryDelegates(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	if _, err := SetPublishedPortFor("mailpit", 1025, 41025); err != nil {
+	if _, err := SetPublishedPortFor("rustfs", 9000, 49000); err != nil {
 		t.Fatalf("SetPublishedPortFor primary: %v", err)
 	}
-	if config.ServicePublishedPort("mailpit") != 41025 {
-		t.Errorf("primary override = %d, want 41025", config.ServicePublishedPort("mailpit"))
+	if config.ServicePublishedPort("rustfs") != 49000 {
+		t.Errorf("primary override = %d, want 49000", config.ServicePublishedPort("rustfs"))
 	}
-	if len(config.ServicePublishedPorts("mailpit")) != 0 {
+	if len(config.ServicePublishedPorts("rustfs")) != 0 {
 		t.Error("primary move must not write the secondary map")
 	}
 }
@@ -399,13 +399,13 @@ func TestSetPublishedPortForRejects(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	if _, err := SetPublishedPortFor("mailpit", 9999, 38026); err == nil {
+	if _, err := SetPublishedPortFor("rustfs", 9999, 39002); err == nil {
 		t.Error("unknown container port = nil, want error")
 	}
-	if _, err := SetPublishedPortFor("mailpit", 8025, 70000); err == nil {
+	if _, err := SetPublishedPortFor("rustfs", 9001, 70000); err == nil {
 		t.Error("out-of-range host port = nil, want error")
 	}
-	if _, err := SetPublishedPortFor("mailpit", 8025, 1025); !errors.Is(err, ErrPortInUse) {
+	if _, err := SetPublishedPortFor("rustfs", 9001, 9000); !errors.Is(err, ErrPortInUse) {
 		t.Errorf("secondary onto primary's port err = %v, want ErrPortInUse", err)
 	}
 }
@@ -418,7 +418,7 @@ func TestSetPublishedPortForRollsBackOnStartFailure(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
-	fakeQuadletOnDisk(t, "mailpit") // ServiceInstalled -> true
+	fakeQuadletOnDisk(t, "rustfs") // ServiceInstalled -> true
 
 	prevStatus, prevStop, prevStart := portsUnitStatus, portsStopUnit, portsStartUnit
 	prevWait, prevRerender := portsWaitReady, portsRerender
@@ -440,47 +440,47 @@ func TestSetPublishedPortForRollsBackOnStartFailure(t *testing.T) {
 		return nil // the rollback restart on the previous port succeeds
 	}
 
-	if _, err := SetPublishedPortFor("mailpit", 8025, 38026); err == nil {
+	if _, err := SetPublishedPortFor("rustfs", 9001, 39002); err == nil {
 		t.Fatal("a failed start must surface an error so the caller knows the move didn't take")
 	}
 	if startCalls != 2 {
 		t.Fatalf("expected a rollback restart attempt after the failed start, startCalls=%d", startCalls)
 	}
-	if got := config.ServicePublishedPorts("mailpit"); len(got) != 0 {
+	if got := config.ServicePublishedPorts("rustfs"); len(got) != 0 {
 		t.Errorf("config must roll the secondary override back (had none), got %v", got)
 	}
 }
 
 // TestPortReservedBySecondaryDefaultOfOther pins finding C: a stopped multi-port
 // service reserves its un-overridden secondary DEFAULT port too, so another
-// service can't be assigned onto it and collide at boot (mailpit's 8025 UI).
+// service can't be assigned onto it and collide at boot (rustfs' 9001 console).
 func TestPortReservedBySecondaryDefaultOfOther(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
-	if _, err := SetPublishedPort("redis", 8025); !errors.Is(err, ErrPortReserved) {
-		t.Fatalf("SetPublishedPort(redis, 8025) err = %v, want ErrPortReserved (mailpit's secondary default)", err)
+	if _, err := SetPublishedPort("redis", 9001); !errors.Is(err, ErrPortReserved) {
+		t.Fatalf("SetPublishedPort(redis, 9001) err = %v, want ErrPortReserved (rustfs' secondary default)", err)
 	}
 }
 
 // TestSetPublishedPortForResetNormalizesRequested pins finding 5: resetting a
 // secondary by passing the mapping's default reports Requested 0, so callers print
-// "cleared the override" rather than "saved published port 8025".
+// "cleared the override" rather than "saved published port 9001".
 func TestSetPublishedPortForResetNormalizesRequested(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
-	if _, err := SetPublishedPortFor("mailpit", 8025, 38026); err != nil {
+	if _, err := SetPublishedPortFor("rustfs", 9001, 39002); err != nil {
 		t.Fatalf("initial move: %v", err)
 	}
-	res, err := SetPublishedPortFor("mailpit", 8025, 8025) // pass the preset default
+	res, err := SetPublishedPortFor("rustfs", 9001, 9001) // pass the preset default
 	if err != nil {
 		t.Fatalf("reset via default: %v", err)
 	}
 	if res.Requested != 0 {
 		t.Errorf("Requested = %d, want 0 (passing the default is a reset)", res.Requested)
 	}
-	if got := config.ServicePublishedPorts("mailpit"); len(got) != 0 {
+	if got := config.ServicePublishedPorts("rustfs"); len(got) != 0 {
 		t.Errorf("override must be cleared, got %v", got)
 	}
 }
@@ -492,32 +492,32 @@ func TestSnapshotRestorePublishedPorts(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	if _, err := SetPublishedPort("mailpit", 41025); err != nil {
+	if _, err := SetPublishedPort("rustfs", 49000); err != nil {
 		t.Fatalf("seed primary: %v", err)
 	}
-	if _, err := SetPublishedPortFor("mailpit", 8025, 38026); err != nil {
+	if _, err := SetPublishedPortFor("rustfs", 9001, 39002); err != nil {
 		t.Fatalf("seed secondary: %v", err)
 	}
-	snap, ok := SnapshotPublishedPorts("mailpit")
+	snap, ok := SnapshotPublishedPorts("rustfs")
 	if !ok {
 		t.Fatal("SnapshotPublishedPorts returned !ok")
 	}
 
 	// Mutate away from the snapshot, then restore.
-	if _, err := SetPublishedPort("mailpit", 42025); err != nil {
+	if _, err := SetPublishedPort("rustfs", 49100); err != nil {
 		t.Fatalf("mutate primary: %v", err)
 	}
-	if _, err := SetPublishedPortFor("mailpit", 8025, 8025); err != nil {
+	if _, err := SetPublishedPortFor("rustfs", 9001, 9001); err != nil {
 		t.Fatalf("mutate secondary: %v", err)
 	}
-	if err := RestorePublishedPorts("mailpit", snap); err != nil {
+	if err := RestorePublishedPorts("rustfs", snap); err != nil {
 		t.Fatalf("RestorePublishedPorts: %v", err)
 	}
-	if got := config.ServicePublishedPort("mailpit"); got != 41025 {
-		t.Errorf("primary not restored, got %d want 41025", got)
+	if got := config.ServicePublishedPort("rustfs"); got != 49000 {
+		t.Errorf("primary not restored, got %d want 49000", got)
 	}
-	if got := config.ServicePublishedPorts("mailpit")[8025]; got != 38026 {
-		t.Errorf("secondary not restored, got %d want 38026", got)
+	if got := config.ServicePublishedPorts("rustfs")[9001]; got != 39002 {
+		t.Errorf("secondary not restored, got %d want 39002", got)
 	}
 }
 

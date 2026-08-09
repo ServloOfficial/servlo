@@ -78,7 +78,7 @@ describe('suggestedPresetFor', () => {
   });
 
   it('returns null for a service nothing administers', () => {
-    expect(suggestedPresetFor(svc({ name: 'mailpit' }))).toBeNull();
+    expect(suggestedPresetFor(svc({ name: 'meilisearch' }))).toBeNull();
   });
 
   it('returns null once the suggestion is dismissed', () => {

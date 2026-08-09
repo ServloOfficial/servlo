@@ -22,7 +22,7 @@ func TestHandleSiteEnv_returnsRawContents(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 
 	sitePath := t.TempDir()
-	envBody := "# header comment\nDB_HOST=127.0.0.1\nDB_PORT=3306\n\nMAIL_HOST=mailhog\n"
+	envBody := "# header comment\nDB_HOST=127.0.0.1\nDB_PORT=3306\n\nMAIL_HOST=smtp.example.com\n"
 	if err := os.WriteFile(filepath.Join(sitePath, ".env"), []byte(envBody), 0o644); err != nil {
 		t.Fatal(err)
 	}

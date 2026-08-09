@@ -203,7 +203,7 @@ A database is a **connection**, not a container. It may be MySQL or MariaDB runn
 
 Each site names the connection its data lives on, and a site that names none gets the install's default. An install that has never configured a connection has no default written down, and a site with no choice of its own lands on the local MySQL, which is where every site went before any of this existed: nothing to migrate, nothing moves.
 
-Connections live in `~/.config/servlo/databases.yaml`, mode `0600`, because a managed database's password is in it. A local connection stores only which service it is. Its address and credentials are properties of this install, so writing them into a second file would only leave a stale copy behind the first time the service password is rotated.
+Connections live in `~/.config/servlo/databases.yaml`, mode `0600`, because a managed database's password is in it. A local connection stores only which service it is. Its address and credentials are properties of this install, so writing them into a second file would only leave a stale copy behind the first time the service password is rotated. Two files sit beside it, both `0600` and both owned by a connection: `db-ca/<connection>.crt` is the CA certificate a managed provider handed over, and `database-users.yaml` holds the per-site accounts servlo created on a managed server.
 
 Framework definitions never write a database's address themselves. They ask for it with the <code v-pre>{{db_host}}</code>, <code v-pre>{{db_port}}</code>, <code v-pre>{{db_user}}</code> and <code v-pre>{{db_password}}</code> placeholders, and servlo fills them from the connection the site is on. That is what lets one Laravel definition serve a site on the local MySQL and a site on a managed PostgreSQL without either one being a special case. See [Framework definitions](framework-definitions.md#site-placeholders).
 
@@ -217,6 +217,7 @@ A connection servlo cannot resolve, because its name was removed or the default 
 | `servlo db:connection add <name> --service <service>` | Add a connection to a database servlo runs |
 | `servlo db:connection add <name> --engine <mysql\|postgres> --host <host> [--port N] --user <user> [--tls require\|verify-ca] [--ca-cert <path>]` | Add a managed database |
 | `servlo db:connection rm <name>` | Remove a connection |
+| `servlo db:connection test <name>` | Open a connection and report what happened |
 | `servlo db:connection default <name>` | Put new sites on this connection |
 
 A managed database's password is read from a prompt rather than taken as a flag, so it stays out of the shell history and the process list of a server several people log into. For an unattended install, `SERVLO_DB_PASSWORD` is read instead.
@@ -225,11 +226,78 @@ The first connection added becomes the default. Removing one that sites are on i
 
 The panel has the same thing under **Services → Connections**, including the per-site picker on a site's settings tab. Assigning a site to a different connection changes where its next `servlo env` writes and moves no data; copying the data across is `servlo db:move`.
 
+### Managed databases
+
+A managed database is added the same way as a local one, and everything below applies to DigitalOcean Managed Databases, RDS, Cloud SQL or anything else that speaks MySQL or PostgreSQL over the network.
+
+**Trusted sources come first.** A managed provider firewalls its cluster and silently drops packets from any address its trusted-sources list does not hold. That failure looks identical to a wrong port and to a database that is down, so servlo prints this server's public address beside every connection failure, and the panel shows it in the add form before you save anything. On DigitalOcean it goes in **Databases → your cluster → Settings → Trusted sources**; add the droplet itself, which the dropdown offers by name.
+
+**The CA certificate.** DigitalOcean offers a **Download CA certificate** link on the cluster's connection details, next to the host, port, user and password. Servlo takes a copy of that file rather than remembering where you left it: `--ca-cert <path>` on the CLI, or the file picker in the panel. It lands in `~/.config/servlo/db-ca/<connection>.crt`, mode `0600`, and the connection stores the path. A file that is not a PEM certificate is refused when you add it, with a message saying so, rather than at the first handshake as a driver error about an empty certificate pool. The certificate is removed with the connection.
+
+**The port is not the default.** DigitalOcean answers on **25060** for both engines, not 3306 or 5432, and offers a connection pool on 25061. Pass `--port 25060`, or type it in the panel.
+
+**TLS.** `--tls require` encrypts without checking who is on the other end; `--tls verify-ca` checks the chain against the CA certificate you uploaded and deliberately does not check the hostname, because a managed certificate is issued to the cluster and the host you connect to is frequently a CNAME, a private endpoint or a pooler. `verify-ca` is what the providers document, and it is what you want.
+
+```bash
+servlo db:connection add managed \
+  --engine postgres \
+  --host app-db-do-user-1234567-0.k.db.ondigitalocean.com \
+  --port 25060 \
+  --user doadmin \
+  --tls verify-ca \
+  --ca-cert ~/Downloads/ca-certificate.crt
+```
+
+**Adding tests before it saves.** The connection is opened before it is written down, so a database nothing here can reach is refused at the point you add it rather than discovered by whoever runs the next deploy. The four failures are told apart, because they take different actions: the host could not be reached (trusted sources, or the port), the credentials were refused, the TLS handshake failed, or the database answered and said no to something. Test a connection again at any time with `servlo db:connection test <name>`, or the **Test** button on its row in the panel.
+
+**What `servlo env` creates.** For a site on a managed connection, `servlo env` creates the site's database on that server and a user with rights to that database and nothing else, then writes those credentials into the site's env file. It is the same operation twice: the database is only created if it is missing, and a user that already exists keeps the password it already has, because rotating it would lock out every site whose env file carries the old one.
+
+On PostgreSQL the site's role owns its database and `CONNECT` is revoked from `PUBLIC`, which matters on a managed cluster: without it, every site's role could connect to every other site's database. On MySQL the grant is ``ON `<database>`.*`` and never `ON *.*`.
+
+The generated passwords live in `~/.config/servlo/database-users.yaml`, mode `0600`, beside the connection registry. Servlo is the only thing that holds them, so a re-run of `servlo env` can write the same value back into the env file rather than a blank one.
+
+**Your provider's administrator is never written into a site.** The account on the connection (`doadmin` and its password) is what servlo provisions with. What each site gets is its own account.
+
+**Admin UIs work on a managed-only install.** phpMyAdmin, Adminer, pgAdmin and Mongo Express declare a dependency on their engine, and they build their server list from the connections rather than from what is running here. So a managed connection of the right family satisfies that dependency and the tool installs with nothing local to start, pointed straight at the provider. A tool that does not read the connections still needs its engine installed, because pointing it at a list it never consults would install it green and leave it talking to nothing.
+
 ### Choosing at install
 
 `servlo install --database mysql|mariadb|postgres` installs that engine, starts it, and makes it the connection new sites go on. `--database none`, or leaving the flag off, installs no database and leaves sites on the local MySQL as before.
 
 The engine is asked for at install because it is the one database decision that is expensive to change afterwards: moving a site from MySQL to PostgreSQL is a dump and a reload, not a setting. A managed database is deliberately not part of the flag, since it needs a host and credentials that belong in a prompt rather than an installer argument; add one with `servlo db:connection add` afterwards and new sites go on it just the same.
+
+## Per-site database accounts
+
+Every site reaches its database as an account of its own, granted on that site's own schemas and nothing else. Servlo runs all sites as the same Linux user, which is a documented tradeoff, and this is one of the two things that stops that tradeoff from meaning every site can read every other site's data: a site whose code is compromised has the credentials for one database, not for the server.
+
+The account is named after the site's database, so `SHOW GRANTS` and `\du` read as a list of sites. A handle too long for the engine keeps as much of its front as fits and ends in a digest of the whole thing, because MySQL truncates at 32 characters and two truncated names would be one account with both sites' rights. The name is derived the same way whether the database is local or managed, so a site that moves between the two arrives as the account it already had rather than acquiring a second one.
+
+**Where it comes from.** The statements are the engine's, declared in its service definition under a `site_users` entity, in that engine's own dialect. On MySQL that is `CREATE USER`, ``GRANT ALL PRIVILEGES ON `<database>`.*`` and `ALTER USER`; on PostgreSQL a `CREATE ROLE` and ownership of the database and its `public` schema, which is what lets migrations create tables without any rights outside it. Adding an engine adds its statements to that definition and needs no servlo release.
+
+**Local and managed both.** For a database servlo runs, the statements run inside its container. For a managed one there is no container, so the engine's client runs on the servlo network aimed at the provider's host and port, with the TLS flags the definition spells for that client and the provider's CA certificate mounted in. The administrator's password reaches the client through the environment either way, never in an argument list.
+
+**When a site gets one.** On its next `servlo env`, and only if its framework actually asks for database credentials, so a site on SQLite never grows an account it does not use. There is no upgrade-time migration: rewriting env files for applications that are already running and holding the old credentials is a way to take a working server down without being asked. A site that has not been migrated yet keeps reaching its database exactly as it does now, as the administrator, and the panel says so on its card.
+
+If the account cannot be created — the engine is down, the definition has no statements for it — `servlo env` says so and leaves the site on the credentials it already has. A working site with the old tradeoff beats a broken one with the new guarantee.
+
+### Rotating a site's password
+
+| Command | Description |
+|---|---|
+| `servlo db user [site]` | What this site reaches its database as |
+| `servlo db user rotate [site]` | New password, updated on the server and written into the site's env file |
+
+With no site named, both read the site the shell is standing in.
+
+The panel has the same thing on a site's **Settings** tab, under **Database account**, behind a second press that spells out what happens next.
+
+What happens next is the part worth knowing: **the application picks the new password up at its next deploy or PHP-FPM reload.** Until then it keeps serving on the connection pool it already has open, so rotating does not interrupt a running site and does not take effect the moment you press the button either.
+
+The server is changed first and the stored credential second. If the server refuses, the old password stays where it is, because a store that has moved on without the server is a site locked out of its own database with nothing to say why. The one loud failure is the other order: the password rotated and the env file could not be written. That is reported as an error, in the CLI and in the panel, naming what to fix, since the site will fail to connect at its next reload.
+
+Which keys get rewritten comes from the framework definition — whichever ones ask for <code v-pre>{{db_user}}</code> or <code v-pre>{{db_password}}</code>. That is `DB_USERNAME` and `DB_PASSWORD` on Laravel, `DB_USER` and `DB_PASSWORD` on WordPress, and the single `DATABASE_URL` on Symfony and CakePHP, rewritten whole and on the dialect the site is actually on. A framework servlo manages no env file for says so rather than reporting a rotation that landed nowhere.
+
+The passwords are stored 0600 beside the connections, in `~/.config/servlo/database-users.yaml`. Servlo is the only thing that holds them, which is what lets a re-run of `servlo env` write the same value back rather than a blank one.
 
 ## Picking a database for a Laravel project
 

@@ -67,7 +67,7 @@ servlo init
 ? Node version (leave blank to skip): 22
 ? Enable HTTPS? Yes
 ? Database: MySQL (servlo-mysql)
-? Services: [redis, mailpit]
+? Services: [redis]
 ? Workers to auto-start: [queue, schedule]
 Saved .servlo.yaml
 ```
@@ -145,8 +145,8 @@ You should see `myapp` listed as `active`, the configured services running, and 
 | Command | What it did |
 |---|---|
 | `servlo link` | Registered `myapp.example.com` with nginx |
-| `servlo init` | Wrote `.servlo.yaml` with PHP 8.5, Node 22, MySQL, Redis, Mailpit, queue, schedule |
-| `servlo env` (via setup) | Injected `DB_HOST=servlo-mysql`, `REDIS_HOST=servlo-redis`, `MAIL_HOST=servlo-mailpit` into `.env` |
+| `servlo init` | Wrote `.servlo.yaml` with PHP 8.5, Node 22, MySQL, Redis, queue, schedule |
+| `servlo env` (via setup) | Injected `DB_HOST=servlo-mysql` and `REDIS_HOST=servlo-redis` into `.env` |
 | `servlo db:create` (via env) | Created `myapp` and `myapp_testing` databases |
 | `servlo secure` (via setup) | Issued a certificate, switched the vhost to HTTPS, set `APP_URL=https://myapp.example.com` |
 | `servlo worker start queue/schedule` (via setup) | Launched `servlo-queue-myapp` and `servlo-schedule-myapp` systemd units |

@@ -2,6 +2,7 @@
   import DetailButton from '$components/DetailButton.svelte';
   import SegmentedControl, { type SegmentOption } from '$components/SegmentedControl.svelte';
   import SettingsField from '$components/SettingsField.svelte';
+  import DatabaseTrustedSources from './DatabaseTrustedSources.svelte';
   import { addConnection, defaultPortFor } from '$stores/dbConnections';
   import { m } from '../../paraglide/messages.js';
 
@@ -9,10 +10,15 @@
   // one form with a mode rather than two forms sharing a heading.
   interface Props {
     services: string[];
+    // This server's public addresses, shown before anything is saved: the add
+    // will fail on a provider whose trusted sources do not hold them, and by
+    // then the operator has typed everything twice.
+    serverIPs: string[];
+    serverIPsError: string;
     onadded: () => void;
     oncancel: () => void;
   }
-  let { services, onadded, oncancel }: Props = $props();
+  let { services, serverIPs, serverIPsError, onadded, oncancel }: Props = $props();
 
   type Mode = 'local' | 'managed';
 
@@ -25,9 +31,24 @@
   let user = $state('');
   let password = $state('');
   let tlsMode = $state('');
-  let caCert = $state('');
+  // The certificate travels as text and servlo stores it: a path would point
+  // into somebody's home directory, which a tidy-up deletes.
+  let caCertPem = $state('');
+  let caCertName = $state('');
   let submitting = $state(false);
   let error = $state('');
+
+  async function readCACert(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      caCertPem = '';
+      caCertName = '';
+      return;
+    }
+    caCertName = file.name;
+    caCertPem = await file.text();
+  }
 
   const modes: SegmentOption<Mode>[] = [
     { value: 'local', label: m.dbconn_modeLocal() },
@@ -63,7 +84,7 @@
             user: user.trim(),
             password,
             tls_mode: tlsMode,
-            ca_cert: caCert.trim()
+            ca_cert_pem: caCertPem
           }
     );
     submitting = false;
@@ -94,6 +115,7 @@
       <p class="text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">
         {m.dbconn_managedNote()}
       </p>
+      <DatabaseTrustedSources ips={serverIPs} error={serverIPsError} />
     {/if}
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -183,19 +205,23 @@
         <SettingsField label={m.dbconn_caCert()} hint={m.dbconn_caCertHint()} forId="dbconn-ca">
           <input
             id="dbconn-ca"
-            type="text"
-            autocomplete="off"
-            placeholder={m.dbconn_caCertPlaceholder()}
-            bind:value={caCert}
-            class={field}
+            type="file"
+            accept=".crt,.pem,application/x-x509-ca-cert"
+            onchange={readCACert}
+            class="{field} file:mr-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-white/10 file:px-2 file:py-0.5 file:text-xs file:text-gray-700 dark:file:text-gray-200"
           />
+          {#if caCertName}
+            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+              {m.dbconn_caCertChosen({ file: caCertName })}
+            </p>
+          {/if}
         </SettingsField>
       </div>
     {/if}
 
     <div class="flex items-center gap-2">
       <DetailButton tone="primary" onclick={submit} disabled={!complete || submitting}>
-        {submitting ? m.dbconn_adding() : m.dbconn_add()}
+        {submitting ? (mode === 'managed' ? m.dbconn_testing() : m.dbconn_adding()) : m.dbconn_add()}
       </DetailButton>
       <DetailButton tone="secondary" onclick={oncancel}>{m.common_cancel()}</DetailButton>
     </div>

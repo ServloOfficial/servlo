@@ -139,6 +139,7 @@ func main() {
 	root.AddCommand(cli.NewNpxCmd())
 	root.AddCommand(cli.NewComposerCmd())
 	root.AddCommand(cli.NewAuthCmd())
+	root.AddCommand(cli.NewSFTPCmd())
 	root.AddCommand(cli.NewServiceCmd())
 	root.AddCommand(cli.NewStatusCmd())
 	root.AddCommand(cli.NewTuiCmd())

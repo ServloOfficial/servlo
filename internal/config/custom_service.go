@@ -78,6 +78,12 @@ type EntitySpec struct {
 	// Env is extra KEY=VALUE pairs for the command's environment, e.g. the
 	// client's connection alias with the fixed servlo credentials.
 	Env []string `yaml:"env,omitempty" json:"env,omitempty"`
+	// TLS maps a connection's TLS mode ("require", "verify-ca") to the client
+	// flags that turn it on, for entities whose commands run against a database
+	// somewhere else. Every engine spells this differently — MySQL's
+	// --ssl-mode, MariaDB's --ssl, libpq's sslmode query parameter — so the
+	// spelling belongs in the preset rather than in a switch in Go.
+	TLS map[string]string `yaml:"tls,omitempty" json:"tls,omitempty"`
 	// OwnerEnv names the site .env key whose value is the entity a site owns
 	// (AWS_BUCKET for buckets), so the UI can link each row to its site the way
 	// database cards do. Only sites whose .env references this service count.
@@ -496,6 +502,61 @@ func EnvRoleOf(svc *CustomService) string {
 	return ""
 }
 
+// DBConnectionInfo is one database this install knows about, as an admin UI's
+// server list needs it. It is a plain value rather than the connection type
+// itself because that lives in a package this one cannot import: dbconn is
+// built on config, so the direction of the dependency is fixed and the answer
+// comes back through the seam below.
+type DBConnectionInfo struct {
+	// Name is what the connection is called, which is what an admin UI labels
+	// its entry with. A local service falls back to its own name.
+	Name string
+	// Family is the dialect: "mysql" or "postgres".
+	Family string
+	// Local marks a database servlo runs, for a caller that wants to say where
+	// a server is rather than only how to reach it.
+	Local bool
+	Host  string
+	Port  int
+	// User and Password are the administrator's, which is what an admin UI logs
+	// in as. TLSMode and CACert are how the connection is protected in transit,
+	// empty for a local one.
+	User     string
+	Password string
+	TLSMode  string
+	CACert   string
+}
+
+// DatabaseConnections, when set, lists every database of the given families
+// this install can reach: the connections in the registry, local and managed,
+// plus the local services of those families that no connection names. Wired
+// from serviceops, which can see both halves. Nil leaves the connections
+// directive resolving to nothing, which is what a unit test of the config
+// package wants.
+var DatabaseConnections func(families []string) []DBConnectionInfo
+
+// connectionField reads one field of a connection by the name a preset uses in
+// a connections directive.
+func connectionField(c DBConnectionInfo, field string) (string, bool) {
+	switch field {
+	case "name":
+		return c.Name, true
+	case "host":
+		return c.Host, true
+	case "port":
+		return strconv.Itoa(c.Port), true
+	case "hostport":
+		return c.Host + ":" + strconv.Itoa(c.Port), true
+	case "user":
+		return c.User, true
+	case "password":
+		return c.Password, true
+	case "tls":
+		return c.TLSMode, true
+	}
+	return "", false
+}
+
 // ResolveDynamicEnv applies any dynamic_env directives on svc, writing the
 // computed values into svc.Environment. Called immediately before quadlet
 // generation so the resolved values land in the rendered .container file.
@@ -530,6 +591,26 @@ func ResolveDynamicEnv(svc *CustomService) error {
 				repeats[i] = value
 			}
 			svc.Environment[k] = strings.Join(repeats, ",")
+		case "connections":
+			// connections:<families>=<field> → that field of every database of
+			// those families, comma-joined, in the same order every time. It is
+			// what lets an admin UI list a managed database beside the local
+			// one: discover_family can only ever see containers, and a site on
+			// DigitalOcean has no container to find.
+			eq := strings.Index(parts[1], "=")
+			if eq < 0 {
+				return fmt.Errorf("service %s: connections needs <families>=<field>, got %q", svc.Name, parts[1])
+			}
+			field := parts[1][eq+1:]
+			var values []string
+			for _, c := range databaseConnectionsFor(parts[1][:eq]) {
+				value, ok := connectionField(c, field)
+				if !ok {
+					return fmt.Errorf("service %s: %q is not a field of a database connection", svc.Name, field)
+				}
+				values = append(values, value)
+			}
+			svc.Environment[k] = strings.Join(values, ",")
 		default:
 			// A directive this binary predates: warn and skip so the quadlet
 			// still generates with the preset's static environment. Erroring
@@ -611,6 +692,22 @@ func continuesHostName(v string, i int) bool {
 	}
 	c := v[i]
 	return c == '-' || (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z')
+}
+
+// databaseConnectionsFor resolves a comma-separated family list through the
+// seam. No seam (a unit test of this package) is no connections, rather than a
+// panic in the middle of writing a quadlet.
+func databaseConnectionsFor(families string) []DBConnectionInfo {
+	if DatabaseConnections == nil {
+		return nil
+	}
+	var list []string
+	for _, f := range strings.Split(families, ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			list = append(list, f)
+		}
+	}
+	return DatabaseConnections(list)
 }
 
 // uniqueFamilyHosts returns sorted, de-duplicated container hostnames across a

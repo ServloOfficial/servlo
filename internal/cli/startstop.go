@@ -291,8 +291,7 @@ type PortCheck struct {
 // builtinExtraPorts lists secondary host ports for built-in services that are
 // hardcoded in the quadlet files but not reflected in config.ServiceConfig.Port.
 var builtinExtraPorts = map[string][]string{
-	"rustfs":  {"9001"},
-	"mailpit": {"8025"},
+	"rustfs": {"9001"},
 }
 
 // hostPort extracts the host port from a port mapping string ("host:container").

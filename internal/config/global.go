@@ -28,7 +28,7 @@ type ServiceConfig struct {
 	PublishedPort int `yaml:"published_port,omitempty" mapstructure:"published_port"`
 	// PublishedPorts overrides the host (published) side of this service's
 	// secondary mappings, keyed by container-internal port. A multi-port service
-	// (mailpit's 8025 UI behind the 1025 SMTP primary, rustfs' 9001 console)
+	// (rustfs' 9001 console behind the 9000 S3 API primary)
 	// exposes ports past the primary; this lets the user remap each one while the
 	// primary stays in PublishedPort. Empty = every secondary on its preset
 	// default. Keyed on the container port because that is the stable identity
@@ -765,9 +765,6 @@ var staleServiceImages = map[string][]string{
 	// minor through defaultConfig; existing users keep their pinned image.
 	"rustfs": {
 		"rustfs/rustfs:latest",
-	},
-	"mailpit": {
-		"axllent/mailpit:latest",
 	},
 }
 
