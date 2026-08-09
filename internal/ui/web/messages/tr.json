@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "Çalışıyor",
   "security_fail2banStopped": "Çalışmıyor",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <adres>",
-  "system_security": "Güvenlik"
+  "system_security": "Güvenlik",
+  "staging_title": "Staging",
+  "staging_isCopyDesc": "Bu site, canlı bir sitenin kopyasıdır. Dizine eklenmez ve parola arkasındadır; ikisi de isteğe bağlı değildir.",
+  "staging_hasCopiesDesc": "Bu sitenin staging kopyaları. Birini yenilemek bu siteyi oraya kopyalar, asla tersi olmaz.",
+  "staging_copiesFrom": "Kopyaladığı",
+  "staging_lastRefreshed": "Son yenileme",
+  "staging_never": "hiç",
+  "staging_username": "Kullanıcı adı",
+  "staging_originGone": "canlı site artık yok",
+  "staging_refresh": "Canlıdan yenile",
+  "staging_refreshFiles": "Yalnızca dosyalar",
+  "staging_resetPassword": "Yeni parola",
+  "staging_newPassword": "Yeni parola",
+  "staging_shownOnce": "Şimdi kopyalayın. Servlo yalnızca özeti saklar, bu yüzden tekrar gösterilemez.",
+  "staging_refreshed": "{files} dosya kopyalandı, veritabanı {database}.",
+  "staging_oneDirection": "Yenileme her zaman canlıdan staging'e doğru gider. Ters yön için bir düğme yok ve olmayacak. .env de asla kopyalanmaz; bu site kendi veritabanı bilgilerini ve kendi adresini korur."
 }

@@ -4,6 +4,7 @@
   import SiteNginxSettingsCard from './SiteNginxSettingsCard.svelte';
   import SiteDatabaseCard from './SiteDatabaseCard.svelte';
   import SiteBackupCard from './SiteBackupCard.svelte';
+  import SiteStagingCard from './SiteStagingCard.svelte';
   import SiteMailCard from './SiteMailCard.svelte';
   import { isAdmin } from '$stores/session';
   import {
@@ -131,6 +132,7 @@
   {#if $isAdmin}
     <SiteDatabaseCard {site} />
     <SiteBackupCard {site} />
+    <SiteStagingCard {site} />
     <SiteMailCard {site} />
   {/if}
 </div>

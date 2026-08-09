@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "Läuft",
   "security_fail2banStopped": "Läuft nicht",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <die Adresse>",
-  "system_security": "Sicherheit"
+  "system_security": "Sicherheit",
+  "staging_title": "Staging",
+  "staging_isCopyDesc": "Diese Website ist eine Kopie einer produktiven. Sie wird nicht indexiert und ist passwortgeschützt, und beides ist nicht abschaltbar.",
+  "staging_hasCopiesDesc": "Staging-Kopien dieser Website. Ein Refresh kopiert diese Website dorthin, niemals umgekehrt.",
+  "staging_copiesFrom": "Kopiert von",
+  "staging_lastRefreshed": "Zuletzt aktualisiert",
+  "staging_never": "nie",
+  "staging_username": "Benutzername",
+  "staging_originGone": "die produktive Website gibt es nicht mehr",
+  "staging_refresh": "Aus der Produktion aktualisieren",
+  "staging_refreshFiles": "Nur Dateien",
+  "staging_resetPassword": "Neues Passwort",
+  "staging_newPassword": "Das neue Passwort",
+  "staging_shownOnce": "Jetzt kopieren. Servlo speichert nur den Hash, es kann nicht erneut angezeigt werden.",
+  "staging_refreshed": "{files} Dateien kopiert, Datenbank {database}.",
+  "staging_oneDirection": "Ein Refresh geht immer nur von der Produktion zum Staging. Für die Gegenrichtung gibt es keinen Knopf, und es wird keinen geben. Die .env wird ebenfalls nie kopiert, diese Website behält also ihre eigenen Datenbank-Zugangsdaten und ihre eigene Adresse."
 }

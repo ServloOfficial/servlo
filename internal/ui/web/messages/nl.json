@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "Draait",
   "security_fail2banStopped": "Draait niet",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <het adres>",
-  "system_security": "Beveiliging"
+  "system_security": "Beveiliging",
+  "staging_title": "Staging",
+  "staging_isCopyDesc": "Deze site is een kopie van een live site. Hij wordt niet geïndexeerd en zit achter een wachtwoord, en geen van beide is optioneel.",
+  "staging_hasCopiesDesc": "Staging-kopieën van deze site. Een refresh kopieert deze site daarheen, nooit andersom.",
+  "staging_copiesFrom": "Kopieert van",
+  "staging_lastRefreshed": "Laatst ververst",
+  "staging_never": "nooit",
+  "staging_username": "Gebruikersnaam",
+  "staging_originGone": "de live site bestaat niet meer",
+  "staging_refresh": "Ververs vanaf live",
+  "staging_refreshFiles": "Alleen bestanden",
+  "staging_resetPassword": "Nieuw wachtwoord",
+  "staging_newPassword": "Het nieuwe wachtwoord",
+  "staging_shownOnce": "Kopieer het nu. Servlo bewaart alleen de hash, dus het kan niet nogmaals getoond worden.",
+  "staging_refreshed": "{files} bestanden gekopieerd, database {database}.",
+  "staging_oneDirection": "Een refresh gaat altijd van live naar staging. Er is geen knop voor de andere richting en die komt er niet. De .env gaat ook nooit mee, dus deze site houdt zijn eigen databasegegevens en zijn eigen adres."
 }

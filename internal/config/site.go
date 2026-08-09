@@ -154,6 +154,11 @@ type Site struct {
 	// know it is happening.
 	Backup *SiteBackup `yaml:"backup,omitempty"`
 
+	// Staging marks this site as a copy of another and carries what makes it
+	// one: the origin, and the credentials nginx asks for. Absent means an
+	// ordinary site.
+	Staging *SiteStaging `yaml:"staging,omitempty"`
+
 	// Database names the connection this site's data lives on. Empty means the
 	// install's default, which is what every site had before a database could
 	// be anywhere but the container next door.
@@ -380,6 +385,7 @@ type siteYAML struct {
 	DeployExclude       *[]string        `yaml:"deploy_exclude,omitempty"`
 	BackupExclude       *[]string        `yaml:"backup_exclude,omitempty"`
 	Backup              *SiteBackup      `yaml:"backup,omitempty"`
+	Staging             *SiteStaging     `yaml:"staging,omitempty"`
 	Database            string           `yaml:"database,omitempty"`
 	Cron                []CronEntry      `yaml:"cron,omitempty"`
 }
@@ -426,6 +432,7 @@ func (s Site) toYAML() siteYAML {
 		DeployExclude:       s.DeployExclude,
 		BackupExclude:       s.BackupExclude,
 		Backup:              s.Backup,
+		Staging:             s.Staging,
 		Database:            s.Database,
 		Cron:                s.Cron,
 	}
@@ -477,6 +484,7 @@ func (sy siteYAML) toSite() Site {
 		DeployExclude:       sy.DeployExclude,
 		BackupExclude:       sy.BackupExclude,
 		Backup:              sy.Backup,
+		Staging:             sy.Staging,
 		Database:            sy.Database,
 		Cron:                sy.Cron,
 	}

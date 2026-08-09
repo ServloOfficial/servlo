@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "A correr",
   "security_fail2banStopped": "Não está a correr",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <o endereço>",
-  "system_security": "Segurança"
+  "system_security": "Segurança",
+  "staging_title": "Staging",
+  "staging_isCopyDesc": "Este site é uma cópia de um site em produção. Não é indexado e está protegido por palavra-passe, e nenhuma dessas coisas é opcional.",
+  "staging_hasCopiesDesc": "Cópias de staging deste site. Atualizar uma copia este site para ela, nunca ao contrário.",
+  "staging_copiesFrom": "Copia de",
+  "staging_lastRefreshed": "Última atualização",
+  "staging_never": "nunca",
+  "staging_username": "Utilizador",
+  "staging_originGone": "o site em produção já não existe",
+  "staging_refresh": "Atualizar a partir da produção",
+  "staging_refreshFiles": "Apenas ficheiros",
+  "staging_resetPassword": "Nova palavra-passe",
+  "staging_newPassword": "A nova palavra-passe",
+  "staging_shownOnce": "Copie-a agora. O servlo guarda apenas o hash, por isso não pode ser mostrada de novo.",
+  "staging_refreshed": "{files} ficheiros copiados, base de dados {database}.",
+  "staging_oneDirection": "Uma atualização vai sempre da produção para o staging. Não há botão para o sentido inverso, nem vai haver. O .env também nunca é copiado, por isso este site mantém as suas credenciais de base de dados e o seu endereço."
 }

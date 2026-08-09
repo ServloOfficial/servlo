@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "Działa",
   "security_fail2banStopped": "Nie działa",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <adres>",
-  "system_security": "Bezpieczeństwo"
+  "system_security": "Bezpieczeństwo",
+  "staging_title": "Staging",
+  "staging_isCopyDesc": "Ta witryna jest kopią działającej. Nie jest indeksowana i wymaga hasła, a żadnej z tych rzeczy nie da się wyłączyć.",
+  "staging_hasCopiesDesc": "Kopie staging tej witryny. Odświeżenie kopiuje tę witrynę do kopii, nigdy odwrotnie.",
+  "staging_copiesFrom": "Kopiuje z",
+  "staging_lastRefreshed": "Ostatnie odświeżenie",
+  "staging_never": "nigdy",
+  "staging_username": "Nazwa użytkownika",
+  "staging_originGone": "działająca witryna już nie istnieje",
+  "staging_refresh": "Odśwież z działającej",
+  "staging_refreshFiles": "Tylko pliki",
+  "staging_resetPassword": "Nowe hasło",
+  "staging_newPassword": "Nowe hasło",
+  "staging_shownOnce": "Skopiuj je teraz. Servlo przechowuje tylko skrót, więc nie da się go pokazać ponownie.",
+  "staging_refreshed": "Skopiowano {files} plików, baza danych {database}.",
+  "staging_oneDirection": "Odświeżenie zawsze idzie z działającej witryny do staging. Nie ma przycisku w drugą stronę i nie będzie. Plik .env też nigdy nie jest kopiowany, więc ta witryna zachowuje własne dane dostępu do bazy i własny adres."
 }

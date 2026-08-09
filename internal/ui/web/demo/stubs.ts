@@ -504,6 +504,30 @@ let demoAlerts = (structuredClone(alertsFixture) as { alerts: DemoAlert[] }).ale
 interface DemoSSHKey { type: string; comment: string; fingerprint: string }
 const demoSecurity = structuredClone(securityFixture) as Record<string, unknown> & { keys: DemoSSHKey[] };
 
+// Staging, per domain. Mutable so a refresh in the demo moves the timestamp.
+interface DemoStaging {
+  staging: boolean;
+  origin?: string;
+  origin_domain?: string;
+  origin_exists: boolean;
+  user?: string;
+  refreshed_at?: string;
+  copies: string[];
+}
+const demoStaging: Record<string, DemoStaging> = {
+  'acme.test': { staging: false, origin_exists: false, copies: ['staging.acme-supply.com'] },
+  'acme-supply.com': { staging: false, origin_exists: false, copies: ['staging.acme-supply.com'] },
+  'staging.acme-supply.com': {
+    staging: true,
+    origin: 'acme-supply-com',
+    origin_domain: 'acme-supply.com',
+    origin_exists: true,
+    user: 'staging',
+    refreshed_at: '@-3h',
+    copies: []
+  }
+};
+
 function backupsFor(domain: string): DemoSiteBackups {
   if (!backupsBySite[domain]) {
     backupsBySite[domain] = structuredClone(backupsBySite['default']);
@@ -868,6 +892,32 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (method === 'GET' && /\/php-versions\/[^/]+\/config$/.test(path))
     return jsonResponse({ path: '~/.config/servlo/php/8.4/php.ini', content: PHP_INI_TEXT, exists: true });
 
+
+  // Staging: the two sides of the same relationship. A live site with one copy,
+  // and the copy itself.
+  const stagingMatch = path.match(/^\/api\/sites\/([^/]+)\/staging$/);
+  if (stagingMatch) {
+    const domain = decodeURIComponent(stagingMatch[1]);
+    const state = demoStaging[domain];
+    if (method === 'POST') {
+      const body = JSON.parse(String(init?.body ?? '{}')) as { action?: string; bring?: string };
+      if (!state?.staging) return jsonResponse({ ok: false, error: domain + ' is not a staging site' });
+      if (body.action === 'password') {
+        return jsonResponse({ ok: true, user: state.user, password: 'kQ7pR2wX9mL4vN8bT6yH3sD5fG1jZ0aC' });
+      }
+      state.refreshed_at = new Date().toISOString();
+      return jsonResponse({
+        ok: true,
+        files: 4127,
+        bytes: 488000000,
+        database: body.bring === 'files' ? '' : 'staging_acme'
+      });
+    }
+    return jsonResponse(
+      state ? { ...state, refreshed_at: state.refreshed_at ? stampOffset(state.refreshed_at) : '' }
+            : { staging: false, origin_exists: false, copies: [] }
+    );
+  }
 
   if (path === '/api/security') return jsonResponse(demoSecurity);
   if (path === '/api/security/keys') {

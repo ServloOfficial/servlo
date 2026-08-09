@@ -3122,6 +3122,9 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	if tlsRoute(w, r, domain, parts[1:]) {
 		return
 	}
+	if stagingRoute(w, r, domain, parts[1:]) {
+		return
+	}
 	if statsRoute(w, r, domain, parts[1:]) {
 		return
 	}

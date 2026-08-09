@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "In esecuzione",
   "security_fail2banStopped": "Non in esecuzione",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <l'indirizzo>",
-  "system_security": "Sicurezza"
+  "system_security": "Sicurezza",
+  "staging_title": "Staging",
+  "staging_isCopyDesc": "Questo sito è una copia di uno live. Non è indicizzato ed è protetto da password, e nessuna delle due cose è facoltativa.",
+  "staging_hasCopiesDesc": "Copie di staging di questo sito. Aggiornarne una vi copia questo sito, mai il contrario.",
+  "staging_copiesFrom": "Copia da",
+  "staging_lastRefreshed": "Ultimo aggiornamento",
+  "staging_never": "mai",
+  "staging_username": "Nome utente",
+  "staging_originGone": "il sito live non esiste più",
+  "staging_refresh": "Aggiorna dal live",
+  "staging_refreshFiles": "Solo i file",
+  "staging_resetPassword": "Nuova password",
+  "staging_newPassword": "La nuova password",
+  "staging_shownOnce": "Copiala ora. Servlo conserva solo l'hash, quindi non potrà essere mostrata di nuovo.",
+  "staging_refreshed": "{files} file copiati, database {database}.",
+  "staging_oneDirection": "Un aggiornamento va sempre dal live allo staging. Non c'è un pulsante per il verso opposto e non ci sarà. Nemmeno il .env attraversa mai, quindi questo sito mantiene le proprie credenziali di database e il proprio indirizzo."
 }

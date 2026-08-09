@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "Đang chạy",
   "security_fail2banStopped": "Không chạy",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <địa chỉ>",
-  "system_security": "Bảo mật"
+  "system_security": "Bảo mật",
+  "staging_title": "Staging",
+  "staging_isCopyDesc": "Trang này là bản sao của một trang đang chạy. Nó không được lập chỉ mục và có mật khẩu bảo vệ, cả hai đều bắt buộc.",
+  "staging_hasCopiesDesc": "Các bản sao staging của trang này. Làm mới sẽ chép trang này sang đó, không bao giờ ngược lại.",
+  "staging_copiesFrom": "Sao chép từ",
+  "staging_lastRefreshed": "Làm mới lần cuối",
+  "staging_never": "chưa bao giờ",
+  "staging_username": "Tên đăng nhập",
+  "staging_originGone": "trang gốc không còn nữa",
+  "staging_refresh": "Làm mới từ bản chạy",
+  "staging_refreshFiles": "Chỉ tệp",
+  "staging_resetPassword": "Mật khẩu mới",
+  "staging_newPassword": "Mật khẩu mới",
+  "staging_shownOnce": "Hãy sao chép ngay. Servlo chỉ giữ giá trị băm nên không thể hiển thị lại.",
+  "staging_refreshed": "Đã chép {files} tệp, cơ sở dữ liệu {database}.",
+  "staging_oneDirection": "Làm mới luôn đi từ bản chạy sang staging. Không có nút cho chiều ngược lại và sẽ không có. Tệp .env cũng không bao giờ được chép, nên trang này giữ thông tin cơ sở dữ liệu và địa chỉ riêng của nó."
 }

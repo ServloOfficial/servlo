@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "En cours",
   "security_fail2banStopped": "Arrêté",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <l'adresse>",
-  "system_security": "Sécurité"
+  "system_security": "Sécurité",
+  "staging_title": "Préproduction",
+  "staging_isCopyDesc": "Ce site est une copie d'un site en production. Il n'est pas indexé et il est protégé par mot de passe, et aucun des deux n'est optionnel.",
+  "staging_hasCopiesDesc": "Copies de préproduction de ce site. Rafraîchir l'une y copie ce site, jamais l'inverse.",
+  "staging_copiesFrom": "Copie de",
+  "staging_lastRefreshed": "Dernier rafraîchissement",
+  "staging_never": "jamais",
+  "staging_username": "Identifiant",
+  "staging_originGone": "le site en production n'existe plus",
+  "staging_refresh": "Rafraîchir depuis la production",
+  "staging_refreshFiles": "Fichiers seulement",
+  "staging_resetPassword": "Nouveau mot de passe",
+  "staging_newPassword": "Le nouveau mot de passe",
+  "staging_shownOnce": "Copiez-le maintenant. Servlo ne conserve que l'empreinte, il ne pourra pas être réaffiché.",
+  "staging_refreshed": "{files} fichiers copiés, base de données {database}.",
+  "staging_oneDirection": "Un rafraîchissement va toujours de la production vers la préproduction. Il n'y a pas de bouton pour l'inverse, et il n'y en aura pas. Le .env ne traverse jamais non plus : ce site garde ses identifiants de base de données et sa propre adresse."
 }

@@ -143,6 +143,9 @@ type VhostData struct {
 	RedirectTo        string
 	RedirectPermanent bool
 	Redirects         []config.Redirect
+	// Staging is set for a staging site and carries what makes it one: it is
+	// not indexed, and it is behind a password. Nil for an ordinary site.
+	Staging *config.SiteStaging
 	// FrameworkNginx is the framework definition's nginx block, already
 	// placeholder-expanded and indented. Rendered ahead of the generic
 	// locations so a framework can claim paths they would otherwise swallow.
@@ -160,7 +163,9 @@ func (d VhostData) Root() string {
 // no generator can forget to set it: every site needs a certificate eventually,
 // and a vhost that silently omits this fails its first renewal instead of its
 // first request.
-func (d VhostData) ACMEChallenge() string { return acmeChallengeLocation }
+func (d VhostData) ACMEChallenge() string {
+	return fmt.Sprintf(acmeChallengeLocation, d.stagingChallengeExemption())
+}
 
 // UploadLimit is nginx's half of the max-upload-size pair, rendered as a whole
 // directive so a template cannot spell it or place it differently between the
@@ -481,6 +486,7 @@ func GenerateVhost(site config.Site, phpVersion string) error {
 		StaticCacheDays:   site.StaticCacheDays,
 		ResponseHeaders:   site.ResponseHeaders,
 		CanonicalHost:     site.CanonicalHost,
+		Staging:           site.Staging,
 		RedirectTo:        site.RedirectTo,
 		RedirectPermanent: site.RedirectPermanent,
 		Redirects:         site.Redirects,
@@ -541,6 +547,7 @@ func GenerateSSLVhost(site config.Site, phpVersion string) error {
 		StaticCacheDays:   site.StaticCacheDays,
 		ResponseHeaders:   site.ResponseHeaders,
 		CanonicalHost:     site.CanonicalHost,
+		Staging:           site.Staging,
 		RedirectTo:        site.RedirectTo,
 		RedirectPermanent: site.RedirectPermanent,
 		Redirects:         site.Redirects,
@@ -583,6 +590,7 @@ func GenerateFrankenPHPVhost(site config.Site) error {
 		StaticCacheDays:   site.StaticCacheDays,
 		ResponseHeaders:   site.ResponseHeaders,
 		CanonicalHost:     site.CanonicalHost,
+		Staging:           site.Staging,
 		RedirectTo:        site.RedirectTo,
 		RedirectPermanent: site.RedirectPermanent,
 		Redirects:         site.Redirects,
@@ -622,6 +630,7 @@ func GenerateFrankenPHPSSLVhost(site config.Site) error {
 		StaticCacheDays:   site.StaticCacheDays,
 		ResponseHeaders:   site.ResponseHeaders,
 		CanonicalHost:     site.CanonicalHost,
+		Staging:           site.Staging,
 		RedirectTo:        site.RedirectTo,
 		RedirectPermanent: site.RedirectPermanent,
 		Redirects:         site.Redirects,
@@ -664,6 +673,7 @@ func GenerateCustomVhost(site config.Site) error {
 		StaticCacheDays:   site.StaticCacheDays,
 		ResponseHeaders:   site.ResponseHeaders,
 		CanonicalHost:     site.CanonicalHost,
+		Staging:           site.Staging,
 		RedirectTo:        site.RedirectTo,
 		RedirectPermanent: site.RedirectPermanent,
 		Redirects:         site.Redirects,
@@ -707,6 +717,7 @@ func GenerateCustomSSLVhost(site config.Site) error {
 		StaticCacheDays:   site.StaticCacheDays,
 		ResponseHeaders:   site.ResponseHeaders,
 		CanonicalHost:     site.CanonicalHost,
+		Staging:           site.Staging,
 		RedirectTo:        site.RedirectTo,
 		RedirectPermanent: site.RedirectPermanent,
 		Redirects:         site.Redirects,
@@ -769,6 +780,7 @@ func generateHostProxyVhost(site config.Site, tmplName, confName string, ssl boo
 		StaticCacheDays:   site.StaticCacheDays,
 		ResponseHeaders:   site.ResponseHeaders,
 		CanonicalHost:     site.CanonicalHost,
+		Staging:           site.Staging,
 		RedirectTo:        site.RedirectTo,
 		RedirectPermanent: site.RedirectPermanent,
 		Redirects:         site.Redirects,

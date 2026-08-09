@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "Running",
   "security_fail2banStopped": "Not running",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <the address>",
-  "system_security": "Security"
+  "system_security": "Security",
+  "staging_title": "Staging",
+  "staging_isCopyDesc": "This site is a copy of a live one. It is not indexed and it is behind a password, and neither of those is optional.",
+  "staging_hasCopiesDesc": "Staging copies of this site. Refreshing one copies this site onto it, never the other way round.",
+  "staging_copiesFrom": "Copies from",
+  "staging_lastRefreshed": "Last refreshed",
+  "staging_never": "never",
+  "staging_username": "Username",
+  "staging_originGone": "the live site is gone",
+  "staging_refresh": "Refresh from live",
+  "staging_refreshFiles": "Files only",
+  "staging_resetPassword": "New password",
+  "staging_newPassword": "The new password",
+  "staging_shownOnce": "Copy it now. Servlo keeps only the hash, so it cannot be shown again.",
+  "staging_refreshed": "{files} files copied, database {database}.",
+  "staging_oneDirection": "A refresh only ever goes from live to staging. There is no button for the other direction and there is not going to be one. The .env never crosses either, so this site keeps its own database credentials and its own address."
 }

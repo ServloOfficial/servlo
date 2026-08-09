@@ -61,6 +61,12 @@ func (d VhostData) StaticCache() string {
 	if hsts := d.hstsHeaderLine(); hsts != "" {
 		fmt.Fprintf(&b, "%s\n", hsts)
 	}
+	// Including the staging noindex. Without it, turning static caching on
+	// would quietly make a staging site's images and stylesheets indexable,
+	// which is enough for a search engine to find the rest of it.
+	if robots := d.stagingRobotsLine(); robots != "" {
+		fmt.Fprintf(&b, "%s\n", robots)
+	}
 	b.WriteString(responseHeaderLines(d.ResponseHeaders, "        "))
 	fmt.Fprintf(&b, "    }\n")
 	return b.String()

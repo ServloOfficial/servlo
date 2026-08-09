@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "En ejecución",
   "security_fail2banStopped": "No está en ejecución",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <la dirección>",
-  "system_security": "Seguridad"
+  "system_security": "Seguridad",
+  "staging_title": "Staging",
+  "staging_isCopyDesc": "Este sitio es una copia de uno en producción. No se indexa y está protegido con contraseña, y ninguna de las dos cosas es opcional.",
+  "staging_hasCopiesDesc": "Copias de staging de este sitio. Al actualizar una se copia este sitio sobre ella, nunca al revés.",
+  "staging_copiesFrom": "Copia de",
+  "staging_lastRefreshed": "Última actualización",
+  "staging_never": "nunca",
+  "staging_username": "Usuario",
+  "staging_originGone": "el sitio en producción ya no existe",
+  "staging_refresh": "Actualizar desde producción",
+  "staging_refreshFiles": "Solo archivos",
+  "staging_resetPassword": "Nueva contraseña",
+  "staging_newPassword": "La nueva contraseña",
+  "staging_shownOnce": "Cópiala ahora. Servlo solo guarda el hash, así que no se podrá volver a mostrar.",
+  "staging_refreshed": "{files} archivos copiados, base de datos {database}.",
+  "staging_oneDirection": "Una actualización solo va de producción a staging. No hay botón para la otra dirección ni lo habrá. El .env tampoco se copia, así que este sitio conserva sus credenciales de base de datos y su propia dirección."
 }

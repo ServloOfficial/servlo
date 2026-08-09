@@ -82,6 +82,10 @@ const SHOTS = [
       await page.waitForTimeout(300);
     } },
   { name: 'site-backups-none', height: 2600, act: siteTab('blog.orbitlabs.app', 'Settings'), bottom: true },
+  // Both sides of the staging relationship: the copy, and the live site that
+  // has one.
+  { name: 'site-staging', height: 3200, bottom: true, act: siteTab('Acme (staging)', 'Settings') },
+  { name: 'site-staging-live', height: 3200, bottom: true, act: siteTab('Acme', 'Settings') },
   { name: 'dashboard', act: rail('Dashboard') },
   { name: 'dashboard-alerts-cleared', act: async (page) => {
       await rail('Dashboard')(page);

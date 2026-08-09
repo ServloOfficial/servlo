@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "运行中",
   "security_fail2banStopped": "未运行",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <该地址>",
-  "system_security": "安全"
+  "system_security": "安全",
+  "staging_title": "预发布",
+  "staging_isCopyDesc": "本站点是线上站点的副本。它不被索引，并且需要密码访问，这两点都不可关闭。",
+  "staging_hasCopiesDesc": "本站点的预发布副本。刷新会把本站点复制过去，绝不会反过来。",
+  "staging_copiesFrom": "复制自",
+  "staging_lastRefreshed": "上次刷新",
+  "staging_never": "从未",
+  "staging_username": "用户名",
+  "staging_originGone": "线上站点已不存在",
+  "staging_refresh": "从线上刷新",
+  "staging_refreshFiles": "仅文件",
+  "staging_resetPassword": "新密码",
+  "staging_newPassword": "新密码",
+  "staging_shownOnce": "现在就复制。servlo 只保存哈希，无法再次显示。",
+  "staging_refreshed": "已复制 {files} 个文件，数据库 {database}。",
+  "staging_oneDirection": "刷新只会从线上流向预发布。没有反向按钮，将来也不会有。.env 同样从不复制，因此本站点保留自己的数据库凭据和地址。"
 }

@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "Berjalan",
   "security_fail2banStopped": "Tidak berjalan",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <alamatnya>",
-  "system_security": "Keamanan"
+  "system_security": "Keamanan",
+  "staging_title": "Staging",
+  "staging_isCopyDesc": "Situs ini adalah salinan dari situs live. Tidak diindeks dan dilindungi kata sandi, dan keduanya tidak opsional.",
+  "staging_hasCopiesDesc": "Salinan staging dari situs ini. Menyegarkan salah satunya menyalin situs ini ke sana, tidak pernah sebaliknya.",
+  "staging_copiesFrom": "Menyalin dari",
+  "staging_lastRefreshed": "Terakhir disegarkan",
+  "staging_never": "belum pernah",
+  "staging_username": "Nama pengguna",
+  "staging_originGone": "situs live sudah tidak ada",
+  "staging_refresh": "Segarkan dari live",
+  "staging_refreshFiles": "Hanya berkas",
+  "staging_resetPassword": "Kata sandi baru",
+  "staging_newPassword": "Kata sandi baru",
+  "staging_shownOnce": "Salin sekarang. Servlo hanya menyimpan hash-nya, jadi tidak bisa ditampilkan lagi.",
+  "staging_refreshed": "{files} berkas disalin, basis data {database}.",
+  "staging_oneDirection": "Penyegaran hanya berjalan dari live ke staging. Tidak ada tombol untuk arah sebaliknya, dan tidak akan ada. Berkas .env juga tidak pernah disalin, jadi situs ini mempertahankan kredensial basis datanya sendiri dan alamatnya sendiri."
 }

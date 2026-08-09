@@ -44,7 +44,7 @@ func NewImportCmd() *cobra.Command {
 		Use:   "import",
 		Short: "Import data from other environments",
 	}
-	cmd.AddCommand(newImportSailCmd("sail"))
+	cmd.AddCommand(newImportSiteCmd(), newImportSailCmd("sail"))
 	return cmd
 }
 

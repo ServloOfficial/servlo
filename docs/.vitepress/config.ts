@@ -151,6 +151,8 @@ export default defineConfig({
           items: [
             { text: 'Site Management', link: '/usage/sites' },
             { text: 'Site Groups', link: '/usage/site-groups' },
+            { text: 'Staging sites', link: '/usage/staging' },
+            { text: 'Importing a site', link: '/usage/import' },
             { text: 'PHP', link: '/usage/php' },
             { text: 'Node', link: '/usage/node' },
             { text: 'Nginx Overrides', link: '/usage/nginx-overrides' },

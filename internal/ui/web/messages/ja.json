@@ -1449,5 +1449,20 @@
   "security_fail2banRunning": "稼働中",
   "security_fail2banStopped": "停止中",
   "security_unbanCommand": "sudo fail2ban-client set sshd unbanip <対象のアドレス>",
-  "system_security": "セキュリティ"
+  "system_security": "セキュリティ",
+  "staging_title": "ステージング",
+  "staging_isCopyDesc": "このサイトは本番サイトの複製です。検索エンジンに登録されず、パスワードで保護されています。どちらも解除できません。",
+  "staging_hasCopiesDesc": "このサイトのステージング複製です。更新するとこのサイトが複製側にコピーされます。その逆は決してありません。",
+  "staging_copiesFrom": "複製元",
+  "staging_lastRefreshed": "最終更新",
+  "staging_never": "なし",
+  "staging_username": "ユーザー名",
+  "staging_originGone": "本番サイトがありません",
+  "staging_refresh": "本番から更新",
+  "staging_refreshFiles": "ファイルのみ",
+  "staging_resetPassword": "新しいパスワード",
+  "staging_newPassword": "新しいパスワード",
+  "staging_shownOnce": "今すぐ控えてください。servlo はハッシュのみを保持するため、再表示はできません。",
+  "staging_refreshed": "{files} 件のファイルをコピー、データベース {database}。",
+  "staging_oneDirection": "更新は常に本番からステージングへの一方向です。逆方向のボタンはなく、今後も作りません。.env も決してコピーされないため、このサイトは自分のデータベース資格情報とアドレスを保ちます。"
 }
