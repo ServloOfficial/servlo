@@ -2,6 +2,7 @@ package nginx
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/realrashid/servlo/internal/config"
@@ -27,6 +28,33 @@ const htpasswdRoot = "/etc/nginx/htpasswd"
 // keeping what was on it. Sent always, because an error page on a staging site
 // is exactly as indexable as a working one.
 const stagingRobots = `add_header X-Robots-Tag "noindex, nofollow, noarchive" always;`
+
+// EnsureContainerMounts creates the host directories the nginx container binds
+// that nothing else on the start path already makes.
+//
+// Podman refuses a bind mount whose source is missing, with a statfs error and
+// exit 125, and systemd restarting the unit cannot conjure a directory. So one
+// absent path is not a degraded nginx, it is no nginx, every site down, and an
+// error message naming a directory rather than whatever added the mount. The
+// htpasswd directory is the one that proved it: staging writes a credential
+// file into it when a staging site is created, so on a server that had never
+// created one it did not exist and the container would not start at all.
+//
+// Called from EnsureNginxConfig rather than only at install, so an install
+// upgraded into a version with a new mount heals on its next start instead of
+// staying down until somebody reinstalls.
+func EnsureContainerMounts() error {
+	for _, dir := range []string{
+		config.NginxHtpasswdDir(),
+		filepath.Join(config.CertsDir(), "sites"),
+		config.RunDir(),
+	} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("creating %s, which the nginx container mounts: %w", dir, err)
+		}
+	}
+	return nil
+}
 
 // HtpasswdPathIn is the credential file for a domain as nginx sees it.
 func HtpasswdPathIn(domain string) string { return htpasswdRoot + "/" + domain }

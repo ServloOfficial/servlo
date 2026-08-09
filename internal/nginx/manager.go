@@ -1448,6 +1448,9 @@ func EnsureNginxConfig() error {
 	if err := EnsureChallengeDir(); err != nil {
 		return err
 	}
+	if err := EnsureContainerMounts(); err != nil {
+		return err
+	}
 
 	destPath := filepath.Join(nginxDir, "nginx.conf")
 	tmplData, err := GetTemplate("nginx.conf")
