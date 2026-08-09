@@ -8,8 +8,16 @@ import "fmt"
 //	-X github.com/realrashid/servlo/internal/version.Version=<tag>
 //	-X github.com/realrashid/servlo/internal/version.Commit=<sha>
 //	-X github.com/realrashid/servlo/internal/version.Date=<iso8601>
+//
+// The fallback when nothing is injected. Servlo is a fork that has not
+// released, so it starts at 0.1.0 rather than inheriting upstream's number:
+// 1.31.0 would claim thirty-one minor releases of Servlo that never happened,
+// and the update checker compares against it.
+//
+// 0.y.z already means anything may change. The -beta.1 says so out loud, and
+// sorts before 0.1.0, so the first stable release is a clean v0.1.0.
 var (
-	Version = "1.31.0"
+	Version = "0.1.0-beta.1"
 	Commit  = "none"
 	Date    = "unknown"
 )
