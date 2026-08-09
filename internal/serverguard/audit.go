@@ -81,25 +81,19 @@ func listeningFindings(want FirewallWant) []Finding {
 // needs privilege, and asking for it to read a status would be servlo running
 // sudo, which it does not do.
 func fail2banFinding() Finding {
-	for _, p := range []string{"/var/run/fail2ban/fail2ban.sock", "/run/fail2ban/fail2ban.sock"} {
-		if _, err := os.Stat(p); err == nil {
-			return Finding{
-				Severity: OK,
-				Title:    "fail2ban is running",
-				Detail:   "Banned addresses: sudo fail2ban-client status sshd",
-			}
+	status := Fail2banStatus(DefaultJail)
+	if status.Running {
+		return Finding{
+			Severity: OK,
+			Title:    "fail2ban is running",
+			Detail:   "Banned addresses: " + status.StatusCommand,
 		}
 	}
 	return Finding{
 		Severity: Warn,
 		Title:    "fail2ban does not appear to be running",
-		Detail: "Servlo keeps SSH password authentication enabled by design, which makes fail2ban the thing " +
-			"standing between this server and an automated password guesser.",
-		Fix: []string{
-			"sudo apt-get install -y fail2ban",
-			"sudo systemctl enable --now fail2ban",
-			"sudo fail2ban-client status sshd",
-		},
+		Detail:   status.Why,
+		Fix:      append(status.InstallCommands, status.StatusCommand),
 	}
 }
 
@@ -124,12 +118,16 @@ func unattendedUpgradesFinding() Finding {
 // is invisible from inside it. What servlo can do is say it exists, so a port
 // that is open in ufw and still unreachable is looked for in the right place.
 func cloudFirewallFinding() Finding {
-	return Finding{
-		Severity: OK,
-		Title:    "A provider firewall may also be filtering",
-		Detail: "DigitalOcean, AWS and the rest filter in front of the droplet, where servlo cannot see it. " +
-			"If a port is open in ufw and still unreachable, that is where to look before anything on this machine.",
+	p := DetectProvider()
+	title := "A provider firewall may also be filtering"
+	if p.Name != "" {
+		title = p.Name + "'s firewall may also be filtering"
 	}
+	detail := p.Detail
+	if p.FirewallURL != "" {
+		detail += " " + p.FirewallURL
+	}
+	return Finding{Severity: OK, Title: title, Detail: detail}
 }
 
 // configModeFindings checks the modes on what servlo keeps, because half of it

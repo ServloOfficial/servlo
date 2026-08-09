@@ -120,6 +120,11 @@
       <ListRow active={selected === 'mail'} onclick={() => select('mail')} leading={mailDot}>
         {m.system_mail()}
       </ListRow>
+
+      {#snippet securityDot()}<StatusDot color="gray" />{/snippet}
+      <ListRow active={selected === 'security'} onclick={() => select('security')} leading={securityDot}>
+        {m.system_security()}
+      </ListRow>
     {/if}
 
     {#snippet watcherDot()}<StatusDot color={$status.watcher_running ? 'green' : 'gray'} />{/snippet}

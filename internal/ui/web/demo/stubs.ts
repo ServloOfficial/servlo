@@ -24,6 +24,7 @@ import backupsFixture from './fixtures/backups.json';
 import dbUsers from './fixtures/db-user.json';
 import smtpFixture from './fixtures/smtp.json';
 import alertsFixture from './fixtures/alerts.json';
+import securityFixture from './fixtures/security.json';
 
 // Demo follows the system theme (auto). Reset any stale value a previous demo
 // session may have pinned, so it isn't stuck on a forced light/dark.
@@ -498,6 +499,11 @@ interface DemoAlert {
 }
 let demoAlerts = (structuredClone(alertsFixture) as { alerts: DemoAlert[] }).alerts;
 
+// The security page. Mutable so authorising and removing a key in the demo
+// lands on the list, which is the only part of that page servlo really changes.
+interface DemoSSHKey { type: string; comment: string; fingerprint: string }
+const demoSecurity = structuredClone(securityFixture) as Record<string, unknown> & { keys: DemoSSHKey[] };
+
 function backupsFor(domain: string): DemoSiteBackups {
   if (!backupsBySite[domain]) {
     backupsBySite[domain] = structuredClone(backupsBySite['default']);
@@ -862,6 +868,31 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (method === 'GET' && /\/php-versions\/[^/]+\/config$/.test(path))
     return jsonResponse({ path: '~/.config/servlo/php/8.4/php.ini', content: PHP_INI_TEXT, exists: true });
 
+
+  if (path === '/api/security') return jsonResponse(demoSecurity);
+  if (path === '/api/security/keys') {
+    const body = JSON.parse(String(init?.body ?? '{}')) as {
+      action?: string; key?: string; name?: string; fingerprint?: string;
+    };
+    if (body.action === 'remove') {
+      demoSecurity.keys = demoSecurity.keys.filter((k) => k.fingerprint !== body.fingerprint);
+      return jsonResponse({ ok: true, keys: demoSecurity.keys });
+    }
+    const line = String(body.key ?? '').trim();
+    const name = String(body.name ?? '').trim();
+    if (!line.startsWith('ssh-')) {
+      return jsonResponse({
+        keys: demoSecurity.keys,
+        error:
+          'that is not a public key servlo recognises. It should start with a type such as ssh-ed25519 followed by the key itself'
+      });
+    }
+    demoSecurity.keys = [
+      ...demoSecurity.keys,
+      { type: line.split(' ')[0], comment: name, fingerprint: 'SHA256:' + line.slice(-43) }
+    ];
+    return jsonResponse({ ok: true, keys: demoSecurity.keys });
+  }
 
   // What is currently wrong with the server, and dismissing one of them.
   if (path === '/api/alerts') {

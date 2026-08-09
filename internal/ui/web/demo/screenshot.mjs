@@ -102,6 +102,16 @@ const SHOTS = [
       await page.getByText(/^Mail$/).first().click();
       await page.waitForTimeout(900);
     } },
+  { name: 'system-security', height: 2600, act: async (page) => {
+      await rail('System')(page);
+      await page.getByText(/^Security$/).first().click();
+      await page.waitForTimeout(900);
+    } },
+  { name: 'system-security-bottom', height: 2600, bottom: true, act: async (page) => {
+      await rail('System')(page);
+      await page.getByText(/^Security$/).first().click();
+      await page.waitForTimeout(900);
+    } },
   { name: 'system-sftp', height: 1800, act: async (page) => {
       await rail('System')(page);
       await page.getByText(/SFTP|File access/i).first().click();

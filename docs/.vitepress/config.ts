@@ -161,6 +161,7 @@ export default defineConfig({
             { text: 'Email', link: '/usage/email' },
             { text: 'Backups', link: '/usage/backups' },
             { text: 'Hardening', link: '/usage/hardening' },
+            { text: 'Security', link: '/usage/security' },
             { text: 'Alerts', link: '/usage/alerts' },
           ],
         },
