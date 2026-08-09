@@ -153,3 +153,12 @@ commands:
     icon: arrow-down
     check:
       composer: drush/drush
+
+# What a backup leaves out. Everything here is rebuilt by a deploy or written
+# again on the next request, so carrying it would grow every archive for nothing.
+# sites/default/files is NOT here: it is every file the site's editors have
+# uploaded, and losing it is losing the site.
+backup:
+  exclude:
+    - vendor
+    - node_modules

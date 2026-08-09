@@ -219,3 +219,19 @@ deploy:
 
   # Laravel 10 ships no health route, so the front page is the honest check.
   health: /
+
+# What a backup leaves out. Everything here is rebuilt by a deploy or written
+# again on the next request, so carrying it would grow every archive for nothing.
+# composer and npm rebuild the first two from the lockfiles, the compiled
+# caches are written on the next request, and public/storage is a symlink
+# that `artisan storage:link` puts back. storage/app is NOT here: that is
+# uploaded files, and it is the whole reason the site is being backed up.
+backup:
+  exclude:
+    - vendor
+    - node_modules
+    - storage/framework/cache
+    - storage/framework/sessions
+    - storage/framework/views
+    - bootstrap/cache
+    - public/storage

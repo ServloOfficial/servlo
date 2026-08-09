@@ -76,3 +76,13 @@ commands:
     description: Drop the cached database schema
     output: silent
     icon: refresh
+
+# What a backup leaves out. Everything here is rebuilt by a deploy or written
+# again on the next request, so carrying it would grow every archive for nothing.
+# tmp/cache is regenerated on the next request; logs is this server's.
+backup:
+  exclude:
+    - vendor
+    - node_modules
+    - tmp/cache
+    - logs

@@ -82,3 +82,14 @@ pseudo_cron:
     name: WordPress cron
     command: php wp-cron.php
     schedule: "* * * * *"
+
+# What a backup leaves out. Everything here is rebuilt by a deploy or written
+# again on the next request, so carrying it would grow every archive for nothing.
+# wp-content/uploads and wp-content/plugins are deliberately absent: on most
+# installs they are managed through wp-admin and exist nowhere else, which is
+# the same reason the deploy exclude list protects them.
+backup:
+  exclude:
+    - wp-content/cache
+    - wp-content/upgrade
+    - node_modules

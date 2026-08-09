@@ -1,0 +1,42 @@
+{
+  "acme-supply.com": {
+    "schedule": "*-*-* 03:30:00",
+    "verify": "Sun *-*-* 04:00:00",
+    "disabled": false,
+    "keep": { "daily": 7, "weekly": 4, "monthly": 3 },
+    "key_path": "/home/deploy/.config/servlo/backup.key",
+    "archives": [
+      { "name": "acme-20260809-033000.servlobak", "size": 486539264, "taken": "2026-08-09T03:30:12Z" },
+      { "name": "acme-20260808-033000.servlobak", "size": 481296384, "taken": "2026-08-08T03:30:09Z" },
+      { "name": "acme-20260807-033000.servlobak", "size": 479174656, "taken": "2026-08-07T03:30:14Z" },
+      { "name": "acme-20260802-033000.servlobak", "size": 462438400, "taken": "2026-08-02T03:30:11Z" },
+      { "name": "acme-20260701-033000.servlobak", "size": 391249920, "taken": "2026-07-01T03:30:08Z" }
+    ]
+  },
+  "blog.orbitlabs.app": {
+    "schedule": "",
+    "verify": "",
+    "disabled": false,
+    "keep": { "daily": 7, "weekly": 4, "monthly": 3 },
+    "key_path": "/home/deploy/.config/servlo/backup.key",
+    "archives": []
+  },
+  "shopfront.io": {
+    "schedule": "*-*-* 02:00:00",
+    "verify": "",
+    "disabled": true,
+    "keep": { "daily": 3, "weekly": 0, "monthly": 0 },
+    "key_path": "/home/deploy/.config/servlo/backup.key",
+    "archives": [
+      { "name": "shopfront-20260806-020000.servlobak", "size": 12058624, "taken": "2026-08-06T02:00:07Z" }
+    ]
+  },
+  "default": {
+    "schedule": "",
+    "verify": "",
+    "disabled": false,
+    "keep": { "daily": 7, "weekly": 4, "monthly": 3 },
+    "key_path": "/home/deploy/.config/servlo/backup.key",
+    "archives": []
+  }
+}

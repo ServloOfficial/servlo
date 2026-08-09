@@ -10,6 +10,7 @@ import (
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/dbcred"
+	"github.com/realrashid/servlo/internal/dbexec"
 )
 
 // recorder stands in for podman. Every test asserts on what would have been
@@ -17,11 +18,15 @@ import (
 // and where it is aimed, not that exec returned zero.
 type recorder struct {
 	runs [][]string
+	// envs is kept apart from runs because the difference matters: a credential
+	// belongs in one and must never appear in the other.
+	envs [][]string
 	fail error
 }
 
 func (r *recorder) run(args []string, env []string) ([]byte, error) {
-	r.runs = append(r.runs, append(append([]string{}, args...), env...))
+	r.runs = append(r.runs, append([]string{}, args...))
+	r.envs = append(r.envs, append([]string{}, env...))
 	return nil, r.fail
 }
 
@@ -235,10 +240,10 @@ func TestEnsure_ManagedMountsTheCACertificate(t *testing.T) {
 		t.Fatal(err)
 	}
 	first := strings.Join(rec.runs[0], " ")
-	if !strings.Contains(first, "-v "+caPath+":"+containerCACert) {
+	if !strings.Contains(first, "-v "+caPath+":"+dbexec.ContainerCACert) {
 		t.Errorf("the CA certificate was not mounted:\n%s", first)
 	}
-	if !strings.Contains(first, "--ssl-ca="+containerCACert) {
+	if !strings.Contains(first, "--ssl-ca="+dbexec.ContainerCACert) {
 		t.Errorf("the client was not pointed at the mounted certificate:\n%s", first)
 	}
 }
@@ -379,19 +384,6 @@ func TestEnsure_ManagedWithoutAClientImageSaysSo(t *testing.T) {
 	}
 }
 
-// Nothing that is not an identifier reaches a statement. The names come from
-// site handles and from a file on disk, and both are places a mistake can land.
-func TestExpand_RefusesValuesThatCouldBreakTheStatement(t *testing.T) {
-	for _, bad := range []string{"acme'; DROP USER root; --", "acme`", "acme user", ""} {
-		if _, err := expand("CREATE USER '{{name}}'", map[string]string{"name": bad}); err == nil {
-			t.Errorf("name %q must be refused", bad)
-		}
-	}
-	if _, err := expand("x {{host}}", map[string]string{"host": "db.example.com; rm -rf /"}); err == nil {
-		t.Error("a host with a shell metacharacter must be refused")
-	}
-}
-
 // writeCustomService drops a service definition where config will read it.
 func writeCustomService(t *testing.T, name, body string) {
 	t.Helper()
@@ -401,5 +393,40 @@ func writeCustomService(t *testing.T, name, body string) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, name+".yaml"), []byte(body), 0644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The credentials reach the container through the environment, not the argv.
+// CommandArgs forwards them by name, so the value has to be in the environment
+// of the podman process or the client is handed an empty password and the
+// statement fails for a reason nobody would guess from the error.
+func TestEnsure_PassesTheCredentialsThroughTheEnvironment(t *testing.T) {
+	rec := isolate(t)
+	conn := dbconn.Connection{Name: "managed", Family: "mysql", Host: "db.example.net", Port: 25060, User: "doadmin", Password: "adminpassword"}
+	spec := &config.EntitySpec{
+		Kind: siteUsersKind, Image: "docker.io/library/mysql:8.4",
+		Actions: map[string]config.EntityAction{
+			"create": {Exec: "mysql -h {{host}} -u {{admin_user}} -e \"CREATE USER '{{name}}'\""},
+			"grant":  {Exec: "true"},
+		},
+	}
+
+	if _, err := ensureWith(spec, conn, "acme", nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.envs) == 0 {
+		t.Fatal("nothing was run")
+	}
+	var carried bool
+	for _, kv := range rec.envs[0] {
+		if strings.Contains(kv, "adminpassword") {
+			carried = true
+		}
+	}
+	if !carried {
+		t.Errorf("the administrator's password never reached the container: env was %v", rec.envs[0])
+	}
+	if strings.Contains(strings.Join(rec.runs[0], " "), "adminpassword") {
+		t.Error("the password is in the argv, where anything running as this user can read it out of ps")
 	}
 }

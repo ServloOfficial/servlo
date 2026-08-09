@@ -159,6 +159,7 @@ export default defineConfig({
             { text: 'File manager', link: '/usage/file-manager' },
             { text: 'SFTP', link: '/usage/sftp' },
             { text: 'Email', link: '/usage/email' },
+            { text: 'Backups', link: '/usage/backups' },
           ],
         },
         {

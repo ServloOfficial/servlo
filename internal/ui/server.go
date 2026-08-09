@@ -3131,6 +3131,9 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	if filesRoute(w, r, domain, parts[1:]) {
 		return
 	}
+	if backupRoute(w, r, domain, parts[1:]) {
+		return
+	}
 	if cronRoute(w, r, domain, parts[1:]) {
 		return
 	}

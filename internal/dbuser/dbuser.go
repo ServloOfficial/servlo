@@ -20,14 +20,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/dbcred"
+	"github.com/realrashid/servlo/internal/dbexec"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/serviceops"
 )
@@ -36,15 +35,10 @@ import (
 // statements under.
 const siteUsersKind = "site_users"
 
-// containerCACert is where a managed connection's CA certificate is mounted
-// inside the container running the client, so the declared flags have a fixed
-// path to name.
-const containerCACert = "/etc/servlo/db-ca.crt"
-
 // commandTimeout bounds one statement. Creating a user and granting on a schema
 // are both quick; this is here so an unreachable managed host reports rather
 // than holding a panel request open.
-const commandTimeout = 60 * time.Second
+const commandTimeout = dbexec.DefaultTimeout
 
 // runCommand is the seam. Every test in this package asserts on the argv that
 // would have run, because what matters about provisioning an account is the
@@ -207,142 +201,44 @@ func presetSpecForDialect(dialect string) *config.EntitySpec {
 }
 
 // run expands one declared statement and executes it.
+//
+// The account name and its password are the two values only this package can
+// supply; everything else about where the statement runs and what it may be
+// handed is dbexec's, shared with the dump and provisioning paths so the
+// injection guard has one home rather than three.
 func run(spec *config.EntitySpec, conn dbconn.Connection, action string, cred dbconn.SiteUser, database string) error {
 	act, ok := spec.Actions[action]
 	if !ok {
 		return fmt.Errorf("this engine declares no %s for a site's database account", action)
 	}
-	vars, err := statementVars(spec, conn, cred, database)
-	if err != nil {
-		return err
-	}
-	shellCmd, err := expand(act.Exec, vars)
-	if err != nil {
-		return err
-	}
-	args, err := commandArgs(spec, conn, shellCmd)
-	if err != nil {
-		return err
-	}
-	out, err := runCommand(args, nil)
-	if err != nil {
-		return fmt.Errorf("%s the database account for %s: %w\n%s", action, database, err,
-			redact(strings.TrimSpace(string(out)), cred.Password, conn.Password))
-	}
-	return nil
-}
-
-// statementVars is everything a declared statement can ask for.
-//
-// A local database is addressed as 127.0.0.1 because the client runs inside the
-// engine's own container; a managed one by the host the provider gave. The TLS
-// flags are the preset's, keyed by the mode the connection asks for, so the
-// engine's own spelling stays in the store.
-func statementVars(spec *config.EntitySpec, conn dbconn.Connection, cred dbconn.SiteUser, database string) (map[string]string, error) {
-	host := conn.Host
-	if conn.Local() {
-		host = "127.0.0.1"
-	}
-	vars := map[string]string{
-		"name": cred.User,
+	vars, err := dbexec.Vars(spec, conn, map[string]string{
 		// Not {{password}}: that placeholder is replaced across a preset's raw
 		// bytes with this install's service password before the definition is
 		// even parsed, so a statement using it would set every site's account
 		// to the administrator's password.
+		"name":          cred.User,
 		"user_password": cred.Password,
 		"database":      database,
-		"host":          host,
-		"port":          strconv.Itoa(conn.Port),
-		"admin_user":    conn.User,
-		"ca_cert":       containerCACert,
-		"tls_flags":     "",
+	})
+	if err != nil {
+		return err
 	}
-	if !conn.Local() && conn.TLSMode != dbconn.TLSOff {
-		flags, declared := spec.TLS[conn.TLSMode]
-		if !declared {
-			return nil, fmt.Errorf("connection %q asks for TLS mode %q, which this engine's definition does not say how to spell", conn.Name, conn.TLSMode)
-		}
-		// The flags are the one value that may itself name another: verify-ca
-		// has to point the client at where the certificate was mounted.
-		vars["tls_flags"] = strings.ReplaceAll(flags, "{{ca_cert}}", containerCACert)
+	shellCmd, err := dbexec.Expand(act.Exec, vars)
+	if err != nil {
+		return err
 	}
-	return vars, nil
-}
-
-// commandArgs is where the client runs: inside the engine's container for a
-// database servlo runs, and ephemerally on the servlo network for one it does
-// not. The administrator's password goes in through the environment either way,
-// so it is never in an argument list the rest of the machine can read.
-func commandArgs(spec *config.EntitySpec, conn dbconn.Connection, shellCmd string) ([]string, error) {
-	if conn.Local() {
-		args := []string{"exec"}
-		for _, kv := range conn.ClientEnv() {
-			args = append(args, "--env", kv)
-		}
-		return append(args, "servlo-"+conn.Service, "sh", "-c", shellCmd), nil
+	args, err := dbexec.CommandArgs(spec, conn, shellCmd)
+	if err != nil {
+		return err
 	}
-	if strings.TrimSpace(spec.Image) == "" {
-		return nil, fmt.Errorf("this engine's definition names no client image, so there is nothing to run the statement in for a database servlo does not host")
+	// The credentials travel in the environment, because CommandArgs forwards
+	// them into the container by name rather than spelling them in the argv.
+	out, err := runCommand(args, conn.ClientEnv())
+	if err != nil {
+		return fmt.Errorf("%s the database account for %s: %w\n%s", action, database, err,
+			dbexec.Redact(strings.TrimSpace(string(out)), cred.Password, conn.Password))
 	}
-	// --entrypoint sh for the same reason the entity runner does it: an engine
-	// image makes its server or its client the entrypoint, which would swallow
-	// the command as its own arguments.
-	args := []string{"run", "--rm", "--network", "servlo", "--entrypoint", "sh"}
-	for _, kv := range conn.ClientEnv() {
-		args = append(args, "-e", kv)
-	}
-	if conn.TLSMode == dbconn.TLSVerifyCA && conn.CACert != "" {
-		args = append(args, "-v", conn.CACert+":"+containerCACert+":ro")
-	}
-	return append(args, spec.Image, "-c", shellCmd), nil
-}
-
-// Values a declared statement may be given, and what each may contain.
-//
-// This is the injection guard, and it is a whitelist rather than an escape:
-// every value here is either generated by servlo or read from a connection the
-// operator configured, and none of them has any business carrying a quote, a
-// backtick or a shell metacharacter. A value that does is a bug somewhere
-// earlier, and running it would be running whatever the bug wrote.
-var valuePatterns = map[string]*regexp.Regexp{
-	"name":          regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`),
-	"user_password": regexp.MustCompile(`^[A-Za-z0-9]{24,128}$`),
-	"database":      regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$`),
-	"host":          regexp.MustCompile(`^[A-Za-z0-9._-]{1,253}$`),
-	"port":          regexp.MustCompile(`^[1-9][0-9]{0,4}$`),
-	"admin_user":    regexp.MustCompile(`^[A-Za-z0-9_.-]{1,63}$`),
-	"ca_cert":       regexp.MustCompile(`^[A-Za-z0-9._/-]{0,255}$`),
-	// The TLS flags come from the preset itself rather than from anything a
-	// user typed, so what is checked is that expansion left nothing behind.
-	"tls_flags": regexp.MustCompile(`^[A-Za-z0-9=?&_.:/ -]*$`),
-}
-
-// expand fills a declared statement's placeholders, refusing any value that is
-// not what its placeholder is allowed to hold.
-func expand(command string, vars map[string]string) (string, error) {
-	out := strings.TrimSpace(command)
-	for key, value := range vars {
-		pattern, known := valuePatterns[key]
-		if !known {
-			return "", fmt.Errorf("%q is not a value a database account statement can take", key)
-		}
-		if !pattern.MatchString(value) {
-			return "", fmt.Errorf("%q is not a usable %s for a database account statement", value, key)
-		}
-		out = strings.ReplaceAll(out, "{{"+key+"}}", value)
-	}
-	return out, nil
-}
-
-// redact keeps a client that echoes its arguments out of the error, the audit
-// log and every screenshot of either.
-func redact(text string, secrets ...string) string {
-	for _, s := range secrets {
-		if len(s) >= 8 {
-			text = strings.ReplaceAll(text, s, "****")
-		}
-	}
-	return text
+	return nil
 }
 
 // Address is where a connection answers, for a panel that shows an operator

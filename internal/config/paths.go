@@ -103,6 +103,21 @@ func CertsDir() string {
 	return filepath.Join(DataDir(), "certs")
 }
 
+// SiteBackupsDir is where a site's own backups land on this server before they
+// go anywhere else.
+//
+// A local copy exists even when a remote destination is configured, because the
+// restore an operator needs most urgently is usually the one taken an hour ago,
+// and fetching it back from object storage to find that out is time spent while
+// the site is down.
+//
+// Deliberately not BackupsDir, which is the migration dumps below and predates
+// this. Sharing a directory would put two unrelated things under one retention
+// sweep, and the first one to run would delete the other's.
+func SiteBackupsDir() string {
+	return filepath.Join(DataDir(), "site-backups")
+}
+
 // ACMEChallengeDir returns the webroot nginx serves HTTP-01 challenges from.
 // One directory for every site rather than one per site: the challenge is a
 // token nginx hands back verbatim, it carries no site content, and a single

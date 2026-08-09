@@ -135,3 +135,15 @@ commands:
     icon: trash
     check:
       composer: codeigniter4/queue
+
+# What a backup leaves out. Everything here is rebuilt by a deploy or written
+# again on the next request, so carrying it would grow every archive for nothing.
+# writable/uploads stays: it is the application's data. Only the cache, log
+# and session directories under writable/ are rebuildable.
+backup:
+  exclude:
+    - vendor
+    - node_modules
+    - writable/cache
+    - writable/logs
+    - writable/session

@@ -73,6 +73,15 @@ const SHOTS = [
   // Upload opens the browser's own file picker, so there is no page state to
   // shoot; the states worth looking at here are the listing and the editor.
   { name: 'site-db-user', height: 2600, act: siteTab('Acme', 'Settings'), bottom: true },
+  { name: 'site-backups', height: 3000, act: siteTab('Acme', 'Settings'), bottom: true },
+  { name: 'site-backups-form', height: 3400, act: async (page) => {
+      await siteTab('Acme', 'Settings')(page);
+      await page.getByRole('button', { name: /Change schedule|Add a schedule/i }).first().click();
+      await page.waitForTimeout(500);
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await page.waitForTimeout(300);
+    } },
+  { name: 'site-backups-none', height: 2600, act: siteTab('blog.orbitlabs.app', 'Settings'), bottom: true },
   { name: 'dashboard', act: rail('Dashboard') },
   { name: 'system', height: 2200, act: rail('System') },
   { name: 'system-mail', height: 1800, act: async (page) => {

@@ -3,6 +3,7 @@
   import SettingsNumberField from './SettingsNumberField.svelte';
   import SiteNginxSettingsCard from './SiteNginxSettingsCard.svelte';
   import SiteDatabaseCard from './SiteDatabaseCard.svelte';
+  import SiteBackupCard from './SiteBackupCard.svelte';
   import SiteMailCard from './SiteMailCard.svelte';
   import { isAdmin } from '$stores/session';
   import {
@@ -129,6 +130,7 @@
        the picker to one would only ever show them a 403. -->
   {#if $isAdmin}
     <SiteDatabaseCard {site} />
+    <SiteBackupCard {site} />
     <SiteMailCard {site} />
   {/if}
 </div>

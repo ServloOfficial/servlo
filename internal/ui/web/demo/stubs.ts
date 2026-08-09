@@ -20,6 +20,7 @@ import dbConnections from './fixtures/db-connections.json';
 import filesFixture from './fixtures/files.json';
 import sftpFixture from './fixtures/sftp.json';
 import cronFixture from './fixtures/cron.json';
+import backupsFixture from './fixtures/backups.json';
 import dbUsers from './fixtures/db-user.json';
 import smtpFixture from './fixtures/smtp.json';
 
@@ -474,6 +475,24 @@ interface DemoSiteCron {
   entries: DemoCronEntry[];
 }
 
+type DemoBackupArchive = { name: string; size: number; taken: string };
+type DemoSiteBackups = {
+  schedule: string;
+  verify: string;
+  disabled: boolean;
+  keep: { daily: number; weekly: number; monthly: number };
+  key_path: string;
+  archives: DemoBackupArchive[];
+};
+const backupsBySite = structuredClone(backupsFixture) as Record<string, DemoSiteBackups>;
+
+function backupsFor(domain: string): DemoSiteBackups {
+  if (!backupsBySite[domain]) {
+    backupsBySite[domain] = structuredClone(backupsBySite['default']);
+  }
+  return backupsBySite[domain];
+}
+
 const cronBySite = structuredClone(cronFixture) as Record<string, DemoSiteCron>;
 
 const OFFSET_UNITS: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
@@ -831,6 +850,38 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (method === 'GET' && /\/php-versions\/[^/]+\/config$/.test(path))
     return jsonResponse({ path: '~/.config/servlo/php/8.4/php.ini', content: PHP_INI_TEXT, exists: true });
 
+
+  // Per-site backups: what is scheduled, what is on disk, and the four things
+  // the card can do. Above the catch-alls for the same reason cron is.
+  const backupList = path.match(/^\/api\/sites\/([^/]+)\/backups$/);
+  if (backupList) {
+    const domain = decodeURIComponent(backupList[1]);
+    const state = backupsFor(domain);
+    if (method === 'GET') {
+      return jsonResponse({
+        ...state,
+        archives: state.archives.map((a) => ({ ...a, taken: stampOffset(a.taken) }))
+      });
+    }
+    const body = JSON.parse(String(init?.body ?? '{}'));
+    if (body.action === 'run') {
+      const name = `${domain.split('.')[0]}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-041500.servlobak`;
+      state.archives.unshift({ name, size: 488000000, taken: '@-1s' });
+      return jsonResponse({ ok: true, archive: name, files: 4127, pruned: 1 });
+    }
+    if (body.action === 'verify') {
+      return jsonResponse({ ok: true, archive: state.archives[0]?.name ?? '', tables: 63 });
+    }
+    if (body.action === 'unschedule') {
+      state.schedule = '';
+      state.verify = '';
+      return jsonResponse({ ok: true });
+    }
+    state.schedule = body.schedule === 'daily' ? 'daily' : '*-*-* 03:30:00';
+    state.verify = body.verify ? 'Sun *-*-* 04:00:00' : '';
+    if (body.keep) state.keep = body.keep;
+    return jsonResponse({ ok: true });
+  }
 
   // Per-site cron: the schedule, saving one, deleting one, and the framework's
   // pseudo-cron switch. Above the catch-alls, which would otherwise answer the

@@ -210,6 +210,8 @@ func main() {
 	root.AddCommand(cli.NewImportCmd())
 	root.AddCommand(cli.NewSailCmd())
 	root.AddCommand(cli.NewPauseCmd())
+	root.AddCommand(cli.NewBackupCmd())
+	root.AddCommand(cli.NewRestoreCmd())
 	root.AddCommand(cli.NewUnpauseCmd())
 	root.AddCommand(cli.NewPanelCmd())
 	root.AddCommand(cli.NewUsersCmd())

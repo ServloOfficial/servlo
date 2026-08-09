@@ -249,3 +249,18 @@ doctor:
       severity: warn
       fix: deploy:mode:developer
       detail: "The store is in production mode, so template changes need a static content deploy to show up. Switch to developer mode."
+
+# What a backup leaves out. Everything here is rebuilt by a deploy or written
+# again on the next request, so carrying it would grow every archive for nothing.
+# Magento's generated code and static content are built by setup:di:compile
+# and setup:static-content:deploy, and together they dwarf the application.
+# pub/media stays: it is the product imagery.
+backup:
+  exclude:
+    - vendor
+    - node_modules
+    - var/cache
+    - var/page_cache
+    - var/view_preprocessed
+    - generated
+    - pub/static

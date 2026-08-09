@@ -54,6 +54,14 @@ icon: database
 introspect:
   entities:
     - kind: databases
+      # Dumping a database servlo does not host. The local export above runs
+      # inside the engine's container and needs no address; this one is aimed,
+      # so it takes the host, port, administrator and TLS spelling from the
+      # connection. The password arrives in MYSQL_PWD, never in the argv.
+      image: docker.io/library/mysql:8.4
+      tls:
+        require: "--ssl-mode=REQUIRED"
+        verify-ca: "--ssl-mode=VERIFY_CA --ssl-ca={{ca_cert}}"
       format: sql
       list: >
         $(command -v mysql || command -v mariadb) -uroot -sN -e
@@ -67,6 +75,26 @@ introspect:
           label: Size
           format: bytes
       actions:
+        remote_export: >
+          $(command -v mysqldump || command -v mariadb-dump)
+          -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}}
+          --single-transaction --quick --no-tablespaces --routines --triggers --events
+          {{database}}
+        remote_import: >
+          $(command -v mysql || command -v mariadb) --max-allowed-packet=1G
+          -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} {{database}}
+        remote_create: >
+          $(command -v mysql || command -v mariadb)
+          -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -e
+          'CREATE DATABASE IF NOT EXISTS `{{database}}`;'
+        remote_drop: >
+          $(command -v mysql || command -v mariadb)
+          -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -e
+          'DROP DATABASE IF EXISTS `{{database}}`;'
+        remote_count_tables: >
+          $(command -v mysql || command -v mariadb)
+          -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -sN -e
+          "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '{{database}}'"
         create: >
           $(command -v mysql || command -v mariadb) -uroot -e
           'CREATE DATABASE IF NOT EXISTS `{{name}}`;'

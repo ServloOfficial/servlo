@@ -105,3 +105,11 @@ commands:
     command: php tempest cache:clear --force
     output: silent
     icon: broom
+
+# What a backup leaves out. Everything here is rebuilt by a deploy or written
+# again on the next request, so carrying it would grow every archive for nothing.
+# Both come back from the lockfiles.
+backup:
+  exclude:
+    - vendor
+    - node_modules

@@ -138,6 +138,22 @@ type Site struct {
 	// is an operator saying this site protects nothing.
 	DeployExclude *[]string `yaml:"deploy_exclude,omitempty"`
 
+	// BackupExclude names paths a backup of this site leaves out, relative to
+	// the site root. A pointer for the same reason as DeployExclude: unset
+	// follows the framework's list, and an empty list is an operator saying
+	// this site's backup carries everything.
+	//
+	// It is a separate list from DeployExclude and means close to the opposite.
+	// A deploy exclude is something too precious to remove; a backup exclude is
+	// something cheap enough to rebuild.
+	BackupExclude *[]string `yaml:"backup_exclude,omitempty"`
+
+	// Backup is this site's schedule and how much history to keep. Absent means
+	// nothing is scheduled, which is what every site starts as: a backup timer
+	// nobody asked for is disk filling up on a server whose operator does not
+	// know it is happening.
+	Backup *SiteBackup `yaml:"backup,omitempty"`
+
 	// Database names the connection this site's data lives on. Empty means the
 	// install's default, which is what every site had before a database could
 	// be anywhere but the container next door.
@@ -362,6 +378,8 @@ type siteYAML struct {
 	RedirectPermanent   bool             `yaml:"redirect_permanent,omitempty"`
 	Redirects           []Redirect       `yaml:"redirects,omitempty"`
 	DeployExclude       *[]string        `yaml:"deploy_exclude,omitempty"`
+	BackupExclude       *[]string        `yaml:"backup_exclude,omitempty"`
+	Backup              *SiteBackup      `yaml:"backup,omitempty"`
 	Database            string           `yaml:"database,omitempty"`
 	Cron                []CronEntry      `yaml:"cron,omitempty"`
 }
@@ -406,6 +424,8 @@ func (s Site) toYAML() siteYAML {
 		RedirectPermanent:   s.RedirectPermanent,
 		Redirects:           s.Redirects,
 		DeployExclude:       s.DeployExclude,
+		BackupExclude:       s.BackupExclude,
+		Backup:              s.Backup,
 		Database:            s.Database,
 		Cron:                s.Cron,
 	}
@@ -455,6 +475,8 @@ func (sy siteYAML) toSite() Site {
 		RedirectPermanent:   sy.RedirectPermanent,
 		Redirects:           sy.Redirects,
 		DeployExclude:       sy.DeployExclude,
+		BackupExclude:       sy.BackupExclude,
+		Backup:              sy.Backup,
 		Database:            sy.Database,
 		Cron:                sy.Cron,
 	}

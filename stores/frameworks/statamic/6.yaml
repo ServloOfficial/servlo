@@ -122,3 +122,15 @@ doctor:
       target: storage/app/public
       requires_dir: public
       detail: "public/storage symlink is missing, so files on the public disk won't be web-accessible. Run php please storage:link."
+
+# What a backup leaves out. Everything here is rebuilt by a deploy or written
+# again on the next request, so carrying it would grow every archive for nothing.
+# Statamic keeps its content in content/, which is flat files and is exactly
+# what has to survive, so only the rebuildable Laravel caches go.
+backup:
+  exclude:
+    - vendor
+    - node_modules
+    - storage/framework/cache
+    - storage/framework/views
+    - bootstrap/cache

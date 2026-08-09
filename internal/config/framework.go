@@ -96,6 +96,22 @@ type Framework struct {
 	// PseudoCron, when set, says this framework fires its own scheduled work
 	// from page loads and declares what to run instead. See FrameworkPseudoCron.
 	PseudoCron *FrameworkPseudoCron `yaml:"pseudo_cron,omitempty"`
+	// Backup declares what a backup of this framework leaves out.
+	Backup *FrameworkBackup `yaml:"backup,omitempty"`
+}
+
+// FrameworkBackup is what a backup of a site on this framework should skip.
+//
+// It is the framework's to declare because what is regenerable is a property of
+// the framework, not of servlo: composer rebuilds vendor, npm rebuilds
+// node_modules, and a framework that keeps a compiled cache knows where. A
+// backup that carried them would be an order of magnitude larger, take an order
+// of magnitude longer, and restore nothing a deploy would not.
+type FrameworkBackup struct {
+	// Exclude names site-relative paths to leave out of the archive. Anything
+	// here has to be something a deploy puts back, because a restore is only as
+	// good as what the backup carried.
+	Exclude []string `yaml:"exclude,omitempty"`
 }
 
 // FrameworkPseudoCron describes a framework that runs its scheduled work on
@@ -2278,6 +2294,14 @@ func (f *Framework) DeployExcludes() []string {
 		return nil
 	}
 	return f.Deploy.Exclude
+}
+
+// BackupExcludes are the paths a backup of this framework leaves out.
+func (f *Framework) BackupExcludes() []string {
+	if f.Backup == nil {
+		return nil
+	}
+	return f.Backup.Exclude
 }
 
 // HealthPath is where to check the site came back after a deploy.

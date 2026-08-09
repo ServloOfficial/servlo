@@ -1,0 +1,500 @@
+package cli
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/realrashid/servlo/internal/backup"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/realrashid/servlo/internal/dbdump"
+	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/version"
+	"github.com/spf13/cobra"
+)
+
+// NewBackupCmd is `servlo backup`: take one, and see what is already here.
+func NewBackupCmd() *cobra.Command {
+	var filesOnly bool
+	cmd := &cobra.Command{
+		Use:   "backup [site]",
+		Short: "Back up a site: its files and its database, encrypted",
+		Long: "Writes one encrypted archive holding the site's files and a dump of its database. " +
+			"What it leaves out comes from the framework's definition, which names only what a " +
+			"deploy puts back.\n\n" +
+			"The archive can only be opened with this server's backup key. Copy that key " +
+			"somewhere off this machine: without it the backups are not recoverable, and that " +
+			"is the point of them being encrypted.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			feedback.Begin()
+			return runBackup(siteRefOrCwd(args), filesOnly)
+		},
+	}
+	cmd.Flags().BoolVar(&filesOnly, "files-only", false,
+		"Back up the files and skip the database, for a site whose data is backed up elsewhere")
+	cmd.AddCommand(newBackupListCmd(), newBackupKeyCmd(), newBackupScheduleCmd(), newBackupVerifyCmd(), newBackupStateCmd())
+	return cmd
+}
+
+func runBackup(ref string, filesOnly bool) error {
+	if ref == "" {
+		return fmt.Errorf("which site? Run this from a site's directory, or name one")
+	}
+	site, err := config.FindSite(ref)
+	if err != nil {
+		return fmt.Errorf("site %q not found", ref)
+	}
+
+	runner := backup.ForSites()
+	if filesOnly {
+		// Not a fallback and not an error: some sites have their data backed up
+		// by the provider, and the archive says which it is so a restore never
+		// mistakes one for the other.
+		runner.Dump = nil
+	}
+
+	step := feedback.Start("backing up " + site.Name)
+	rec, err := runner.Run(site)
+	if err != nil {
+		step.Fail(err)
+		return err
+	}
+	step.OK(feedback.Val(filepath.Base(rec.Path)))
+
+	what := fmt.Sprintf("%d %s", rec.Manifest.Files, plural(rec.Manifest.Files, "file", "files"))
+	if rec.Manifest.Database {
+		what += " and " + rec.Manifest.DatabaseName
+	} else {
+		what += ", no database"
+	}
+	fmt.Printf("  %s, %s on disk\n", what, humanSize(rec.Size))
+	fmt.Printf("  %s\n", rec.Path)
+	if rec.Pruned > 0 {
+		fmt.Printf("  Retention removed %d older %s.\n", rec.Pruned, plural(rec.Pruned, "archive", "archives"))
+	}
+	if rec.PruneError != nil {
+		// The backup is on disk. Only the tidying up failed, and saying so
+		// without calling the backup failed is the difference between an
+		// operator freeing some disk and an operator re-running a good backup.
+		feedback.Warn("the backup was written, but clearing older ones failed: %v", rec.PruneError)
+	}
+	if !rec.Manifest.Database {
+		// Two different situations that must not read the same. One is a
+		// choice; the other is servlo telling you something you may not know.
+		if filesOnly {
+			fmt.Println("  Files only, as asked. The database was not touched.")
+		} else {
+			fmt.Println("  This site has no database servlo can name, so the archive holds files only.")
+		}
+	}
+	return nil
+}
+
+func newBackupListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list [site]",
+		Short: "The backups on this server",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			var only string
+			if len(args) > 0 {
+				if site, err := config.FindSite(args[0]); err == nil {
+					only = config.SiteSlug(site.Name)
+				} else {
+					only = config.SiteSlug(args[0])
+				}
+			}
+			return runBackupList(only)
+		},
+	}
+}
+
+func runBackupList(only string) error {
+	dir := config.SiteBackupsDir()
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		fmt.Println("No backups yet. Take one with `servlo backup`.")
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	type row struct{ name, size string }
+	var rows []row
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), backup.Extension) {
+			continue
+		}
+		if only != "" && !strings.HasPrefix(e.Name(), only+"-") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		rows = append(rows, row{e.Name(), humanSize(info.Size())})
+	}
+	if len(rows) == 0 {
+		fmt.Println("No backups yet. Take one with `servlo backup`.")
+		return nil
+	}
+	// Newest first: the archive an operator wants during an incident is almost
+	// always the most recent, and the name sorts by time already.
+	sort.Slice(rows, func(i, j int) bool { return rows[i].name > rows[j].name })
+	for _, r := range rows {
+		fmt.Printf("  %-52s %10s\n", r.name, r.size)
+	}
+	fmt.Printf("\n  in %s\n", dir)
+	return nil
+}
+
+func newBackupKeyCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "key",
+		Short: "Where this server's backup key is, and why it matters",
+		Long: "Every backup this server writes is encrypted with one key, and nothing else can " +
+			"open them. Copy it somewhere off this machine now rather than after the machine " +
+			"you would be restoring from is gone.",
+		Args: cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if _, err := backup.Key(); err != nil {
+				return err
+			}
+			fmt.Printf("  %s\n\n", backup.KeyPath())
+			fmt.Println("  Keep a copy off this server. Without this key the backups cannot be")
+			fmt.Println("  opened, by you or by anyone else, which is what makes them safe to")
+			fmt.Println("  store somewhere you do not control.")
+			return nil
+		},
+	}
+	cmd.AddCommand(newBackupKeyImportCmd())
+	return cmd
+}
+
+// newBackupKeyImportCmd is the first step of a rebuild. The archives are
+// already encrypted with the old server's key, so nothing can be restored until
+// it is here.
+func newBackupKeyImportCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "import <key>",
+		Short: "Bring the backup key over from another server",
+		Long: "The archives were encrypted with that server's key and nothing else opens them, " +
+			"so this is the first thing to do when rebuilding onto a new droplet.\n\n" +
+			"An existing key is never overwritten. If this server has already written backups " +
+			"of its own, that key is the only thing that opens them.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			feedback.Begin()
+			if err := backup.ImportKey(args[0]); err != nil {
+				return err
+			}
+			feedback.Start("importing the backup key").OK(feedback.Val(backup.KeyPath()))
+			return nil
+		},
+	}
+}
+
+func newBackupScheduleCmd() *cobra.Command {
+	var off bool
+	var verify string
+	var keepDaily, keepWeekly, keepMonthly int
+	cmd := &cobra.Command{
+		Use:   "schedule [site] [when]",
+		Short: "Back this site up on a schedule",
+		Long: "Arms a systemd timer for the site. The schedule can be written as a crontab " +
+			"line, an @shorthand, or a systemd calendar expression: \"30 3 * * *\", \"daily\" " +
+			"and \"*-*-* 03:30:00\" all work.\n\n" +
+			"The timer catches up after a reboot, so a droplet that was off overnight still " +
+			"takes the backup it missed rather than skipping the day.",
+		Args: cobra.MaximumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			feedback.Begin()
+			// One argument is ambiguous: `backup schedule acme` names a site,
+			// `backup schedule daily` names a schedule for the site the shell
+			// is in. It is settled by asking the registry, which is the same
+			// thing an operator does in their head.
+			var ref, when string
+			switch {
+			case len(args) == 2:
+				ref, when = args[0], args[1]
+			case len(args) == 1:
+				if _, err := config.FindSite(args[0]); err == nil {
+					ref = args[0]
+				} else {
+					ref, when = siteRefOrCwd(nil), args[0]
+				}
+			default:
+				ref = siteRefOrCwd(nil)
+			}
+			keep := &config.BackupKeep{Daily: keepDaily, Weekly: keepWeekly, Monthly: keepMonthly}
+			if !cmd.Flags().Changed("daily") && !cmd.Flags().Changed("weekly") && !cmd.Flags().Changed("monthly") {
+				keep = nil
+			}
+			return runBackupSchedule(ref, when, verify, off, keep)
+		},
+	}
+	cmd.Flags().BoolVar(&off, "off", false, "Stop backing this site up on a schedule")
+	cmd.Flags().StringVar(&verify, "verify", "",
+		"Also test-restore the newest backup on this schedule (e.g. \"Sun *-*-* 04:00:00\", or \"weekly\")")
+	cmd.Flags().IntVar(&keepDaily, "daily", backup.DefaultPolicy.Daily, "How many daily backups to keep")
+	cmd.Flags().IntVar(&keepWeekly, "weekly", backup.DefaultPolicy.Weekly, "How many weekly backups to keep")
+	cmd.Flags().IntVar(&keepMonthly, "monthly", backup.DefaultPolicy.Monthly, "How many monthly backups to keep")
+	return cmd
+}
+
+func runBackupSchedule(ref, when, verify string, off bool, keep *config.BackupKeep) error {
+	if ref == "" {
+		return fmt.Errorf("which site? Run this from a site's directory, or name one")
+	}
+	site, err := config.FindSite(ref)
+	if err != nil {
+		return fmt.Errorf("site %q not found", ref)
+	}
+
+	switch {
+	case off:
+		site.Backup = nil
+	case when == "":
+		return showBackupSchedule(site)
+	default:
+		calendar, err := backup.NormalizeSchedule(when)
+		if err != nil {
+			return err
+		}
+		next := &config.SiteBackup{Schedule: calendar, Keep: keep}
+		if site.Backup != nil {
+			// Setting a schedule again should not silently switch off a check
+			// that was already arranged.
+			next.Verify = site.Backup.Verify
+		}
+		if verify != "" {
+			check, err := backup.NormalizeSchedule(verify)
+			if err != nil {
+				return err
+			}
+			next.Verify = check
+		}
+		site.Backup = next
+	}
+
+	if err := config.AddSite(*site); err != nil {
+		return err
+	}
+	if err := backup.ApplySchedule(*site, servloBinaryPath()); err != nil {
+		return err
+	}
+	if off {
+		feedback.Start("unscheduling backups for " + site.Name).OK("")
+		return nil
+	}
+	feedback.Start("scheduling backups for " + site.Name).OK(feedback.Val(site.Backup.Schedule))
+	return showBackupRetention(site)
+}
+
+func showBackupSchedule(site *config.Site) error {
+	if site.Backup == nil || site.Backup.Schedule == "" {
+		fmt.Printf("  %s is not backed up on a schedule.\n", site.Name)
+		fmt.Printf("  Arm one with `servlo backup schedule %s daily`.\n", site.Name)
+		return nil
+	}
+	state := site.Backup.Schedule
+	if site.Backup.Disabled {
+		state += " (switched off)"
+	}
+	fmt.Printf("  %s backs up %s\n", site.Name, state)
+	if site.Backup.Verify != "" {
+		fmt.Printf("  Test restore %s\n", site.Backup.Verify)
+	} else {
+		fmt.Println("  No scheduled test restore. A backup nothing has ever restored is not known to work.")
+	}
+	return showBackupRetention(site)
+}
+
+func showBackupRetention(site *config.Site) error {
+	p := backup.SitePolicy(site)
+	fmt.Printf("  Keeping %d daily, %d weekly, %d monthly\n", p.Daily, p.Weekly, p.Monthly)
+	return nil
+}
+
+// plural is for one line of output, not a translation layer.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
+}
+
+// servloBinaryPath is what the timer's unit runs. An absolute path, because a
+// unit that resolves servlo from PATH stops working the first time PATH
+// changes, and the way that failure shows up is a backup that silently stopped
+// happening months ago.
+func servloBinaryPath() string {
+	if self, err := os.Executable(); err == nil {
+		if resolved, err := filepath.EvalSymlinks(self); err == nil {
+			return resolved
+		}
+		return self
+	}
+	return filepath.Join(config.BinDir(), "servlo")
+}
+
+func newBackupVerifyCmd() *cobra.Command {
+	var latest bool
+	cmd := &cobra.Command{
+		Use:   "verify <archive>",
+		Short: "Restore a backup into a scratch database and check what came back",
+		Long: "Opens the archive, restores its dump into a database of its own, counts what " +
+			"arrived, and drops the scratch database again. The site's own database is never " +
+			"touched.\n\n" +
+			"A backup that has never been restored is not a backup. Most panels ship a green " +
+			"tick that means a file was written, which says nothing about whether it can be " +
+			"put back, and the day you find out is the day it matters.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			feedback.Begin()
+			ref := args[0]
+			if latest {
+				site, err := config.FindSite(ref)
+				if err != nil {
+					return fmt.Errorf("site %q not found", ref)
+				}
+				ref, err = backup.Newest(config.SiteBackupsDir(), config.SiteSlug(site.Name))
+				if err != nil {
+					return err
+				}
+			}
+			return runBackupVerify(ref)
+		},
+	}
+	cmd.Flags().BoolVar(&latest, "latest", false,
+		"Treat the argument as a site and check its newest backup, which is what the scheduled check does")
+	return cmd
+}
+
+func runBackupVerify(ref string) error {
+	path, err := resolveArchive(ref)
+	if err != nil {
+		return err
+	}
+	key, err := backup.Key()
+	if err != nil {
+		return err
+	}
+	man, err := readArchiveManifest(path, key)
+	if err != nil {
+		return err
+	}
+	if !man.Database {
+		fmt.Printf("  %s holds no database, so there is nothing to restore and check.\n", filepath.Base(path))
+		fmt.Println("  Its files were verified by opening the archive: it decrypts and it is complete.")
+		return nil
+	}
+
+	site, err := config.FindSite(man.Site)
+	if err != nil {
+		return fmt.Errorf("this archive is of %q, which is not a site on this server, so servlo does not know which database server to check it against", man.Site)
+	}
+	conn, err := dbconn.Named(site.Database)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close() //nolint:errcheck
+
+	scratch := dbdump.ScratchName(man.Site)
+	step := feedback.Start("restoring " + filepath.Base(path) + " into " + scratch)
+
+	pr, pw := io.Pipe()
+	errc := make(chan error, 1)
+	go func() {
+		_, err := backup.OpenDump(f, key, pw)
+		_ = pw.CloseWithError(err)
+		errc <- err
+	}()
+	res, verifyErr := dbdump.Verify(conn, scratch, pr)
+	dumpErr := <-errc
+	if dumpErr != nil {
+		step.Fail(dumpErr)
+		return dumpErr
+	}
+	if verifyErr != nil {
+		step.Fail(verifyErr)
+		return verifyErr
+	}
+	step.OK(feedback.Val(fmt.Sprintf("%d %s", res.Tables, plural(res.Tables, "table", "tables"))))
+	fmt.Printf("  This backup restores. The scratch database was dropped.\n")
+	return nil
+}
+
+func newBackupStateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "state",
+		Short: "Back up servlo's own configuration and the site registry",
+		Long: "Everything servlo knows that is not a site's files or data: the registry, the " +
+			"connections, the per-site database accounts, the SMTP settings, the provider " +
+			"certificates and every per-site setting.\n\n" +
+			"This is what makes a rebuild onto a fresh droplet possible. Restoring a site's " +
+			"archive alone gives you the files and the database on a server with no idea what " +
+			"a site is.\n\n" +
+			"The backup key is deliberately not in it. It is what opens this archive, so " +
+			"putting it inside would be locking the door and taping the key to the front.",
+		Args: cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			feedback.Begin()
+			return runBackupState()
+		},
+	}
+}
+
+func runBackupState() error {
+	key, err := backup.Key()
+	if err != nil {
+		return err
+	}
+	dir := config.SiteBackupsDir()
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, ".partial-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) //nolint:errcheck
+
+	if err := tmp.Chmod(0600); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	step := feedback.Start("backing up this server's own state")
+	man, err := backup.CreateState(tmp, key, backup.StateOptions{Version: version.Version})
+	if err != nil {
+		_ = tmp.Close()
+		step.Fail(err)
+		return err
+	}
+	size, _ := tmp.Seek(0, io.SeekCurrent)
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	final := filepath.Join(dir, "servlo-state-"+man.Taken.Format("20060102-150405")+backup.Extension)
+	if err := os.Rename(tmp.Name(), final); err != nil {
+		return err
+	}
+	step.OK(feedback.Val(filepath.Base(final)))
+	fmt.Printf("  %d %s, %s on disk\n", man.Files, plural(man.Files, "file", "files"), humanSize(size))
+	fmt.Printf("  %s\n", final)
+	fmt.Println("  The backup key is not in here. Keep a copy of it somewhere else, or this")
+	fmt.Println("  archive is not recoverable either.")
+	return nil
+}
