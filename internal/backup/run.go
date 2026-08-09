@@ -26,6 +26,10 @@ type Record struct {
 	// untouched, so the two are reported rather than raised.
 	Pruned     int
 	PruneError error
+	// SendErrors is one entry per destination that could not be reached. The
+	// archive is on disk regardless, so these are reported beside a successful
+	// backup rather than instead of one.
+	SendErrors []error
 }
 
 // Runner takes a backup of a site.
@@ -49,6 +53,10 @@ type Runner struct {
 	// the backup rather than as a second timer, because a retention timer
 	// nobody armed is a disk that fills and takes the sites down with it.
 	Policy func(*config.Site) Policy
+	// Send copies the finished archive somewhere that is not this server. A
+	// backup that only exists on the machine it is a backup of is not one, and
+	// this is the step that fixes that.
+	Send func(path, name string) []error
 	// Now is the clock, so a test can name the file it expects.
 	Now func() time.Time
 }
@@ -124,6 +132,12 @@ func (r Runner) Run(site *config.Site) (Record, error) {
 	}
 
 	rec := Record{Path: final, Size: size, Manifest: man}
+	if r.Send != nil {
+		// Failures here are reported, not raised. The archive is on this server
+		// and usable; what failed is the copy going elsewhere, and calling the
+		// whole backup failed would have an operator re-running one that worked.
+		rec.SendErrors = r.Send(final, filepath.Base(final))
+	}
 	if r.Policy != nil {
 		// A sweep that fails is a warning, not a failed backup. The archive is
 		// already on disk and reporting otherwise would have an operator

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/realrashid/servlo/internal/backup"
+	"github.com/realrashid/servlo/internal/backupdest"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/dbdump"
@@ -37,7 +38,7 @@ func NewBackupCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&filesOnly, "files-only", false,
 		"Back up the files and skip the database, for a site whose data is backed up elsewhere")
-	cmd.AddCommand(newBackupListCmd(), newBackupKeyCmd(), newBackupScheduleCmd(), newBackupVerifyCmd(), newBackupStateCmd())
+	cmd.AddCommand(newBackupListCmd(), newBackupKeyCmd(), newBackupScheduleCmd(), newBackupVerifyCmd(), newBackupStateCmd(), newBackupDestCmd())
 	return cmd
 }
 
@@ -76,6 +77,12 @@ func runBackup(ref string, filesOnly bool) error {
 	fmt.Printf("  %s\n", rec.Path)
 	if rec.Pruned > 0 {
 		fmt.Printf("  Retention removed %d older %s.\n", rec.Pruned, plural(rec.Pruned, "archive", "archives"))
+	}
+	for _, err := range rec.SendErrors {
+		// The archive is on this server and usable. What failed is the copy
+		// going elsewhere, and calling the backup failed would have an operator
+		// re-running one that worked.
+		feedback.Warn("the backup was written, but a destination could not be reached: %v", err)
 	}
 	if rec.PruneError != nil {
 		// The backup is on disk. Only the tidying up failed, and saying so
@@ -497,4 +504,132 @@ func runBackupState() error {
 	fmt.Println("  The backup key is not in here. Keep a copy of it somewhere else, or this")
 	fmt.Println("  archive is not recoverable either.")
 	return nil
+}
+
+func newBackupDestCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "destination",
+		Aliases: []string{"destinations", "dest"},
+		Short:   "Where finished archives are copied to",
+		Long: "A backup that only exists on the machine it is a backup of is not a backup. " +
+			"Archives are copied to every destination configured here as soon as they are " +
+			"written.\n\n" +
+			"Two kinds: S3-compatible storage, which covers DigitalOcean Spaces and Amazon S3 " +
+			"with one driver, and SFTP to another server.",
+		Args: cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error { return runDestList() },
+	}
+	cmd.AddCommand(newDestAddCmd(), newDestRemoveCmd(), newDestTestCmd())
+	return cmd
+}
+
+func runDestList() error {
+	reg, err := backupdest.Load()
+	if err != nil {
+		return err
+	}
+	if len(reg.Destinations) == 0 {
+		fmt.Println("  No destinations. Archives stay on this server only, which is not an")
+		fmt.Println("  offsite backup. Add one with `servlo backup destination add`.")
+		return nil
+	}
+	for _, d := range reg.Destinations {
+		fmt.Printf("  %-16s %-6s %s\n", d.Name, d.Kind, destWhere(d))
+	}
+	return nil
+}
+
+func destWhere(d backupdest.Destination) string {
+	if d.Kind == backupdest.KindS3 {
+		where := d.Bucket
+		if d.Prefix != "" {
+			where += "/" + strings.Trim(d.Prefix, "/")
+		}
+		return where + " at " + d.Endpoint
+	}
+	return d.User + "@" + d.Host + ":" + d.Path
+}
+
+func newDestAddCmd() *cobra.Command {
+	var d backupdest.Destination
+	cmd := &cobra.Command{
+		Use:   "add <name>",
+		Short: "Add a destination archives are copied to",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			feedback.Begin()
+			d.Name = args[0]
+			if err := backupdest.Add(d); err != nil {
+				return err
+			}
+			feedback.Start("adding " + d.Name).OK(feedback.Val(destWhere(d)))
+			fmt.Println("  Take a backup, or run `servlo backup destination test` to check it now.")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&d.Kind, "kind", backupdest.KindS3, "s3 or sftp")
+	cmd.Flags().StringVar(&d.Bucket, "bucket", "", "S3 bucket")
+	cmd.Flags().StringVar(&d.Prefix, "prefix", "", "S3 prefix, so one bucket can hold several servers")
+	cmd.Flags().StringVar(&d.Endpoint, "endpoint", "", "S3 endpoint, e.g. https://fra1.digitaloceanspaces.com")
+	cmd.Flags().StringVar(&d.Region, "region", "", "S3 region")
+	cmd.Flags().StringVar(&d.AccessKey, "access-key", "", "S3 access key")
+	cmd.Flags().StringVar(&d.SecretKey, "secret-key", "", "S3 secret key")
+	cmd.Flags().StringVar(&d.Host, "host", "", "SFTP host")
+	cmd.Flags().IntVar(&d.Port, "port", 0, "SFTP port (default 22)")
+	cmd.Flags().StringVar(&d.User, "user", "", "SFTP user")
+	cmd.Flags().StringVar(&d.Path, "path", "", "SFTP directory to write into")
+	cmd.Flags().StringVar(&d.KeyFile, "key-file", "", "SFTP private key")
+	return cmd
+}
+
+func newDestRemoveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "remove <name>",
+		Short: "Stop copying archives to a destination",
+		Long: "The archives already there are left alone. Deleting somebody's offsite copies " +
+			"as a side effect of editing a setting is never what was meant.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			feedback.Begin()
+			if err := backupdest.Remove(args[0]); err != nil {
+				return err
+			}
+			feedback.Start("removing " + args[0]).OK("")
+			fmt.Println("  The archives already at that destination were left where they are.")
+			return nil
+		},
+	}
+}
+
+func newDestTestCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "test [name]",
+		Short: "Check a destination can be reached",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			feedback.Begin()
+			reg, err := backupdest.Load()
+			if err != nil {
+				return err
+			}
+			var failed bool
+			for _, d := range reg.Destinations {
+				if len(args) > 0 && !strings.EqualFold(d.Name, args[0]) {
+					continue
+				}
+				step := feedback.Start("reaching " + d.Name)
+				names, err := backupdest.List(d)
+				if err != nil {
+					step.Fail(err)
+					failed = true
+					continue
+				}
+				step.OK(feedback.Val(fmt.Sprintf("%d %s there", len(names), plural(len(names), "archive", "archives"))))
+			}
+			if failed {
+				return fmt.Errorf("a destination could not be reached")
+			}
+			return nil
+		},
+	}
 }

@@ -208,3 +208,33 @@ func TestRun_ASweepFailureDoesNotLoseTheBackup(t *testing.T) {
 		t.Errorf("the archive is gone: %v", err)
 	}
 }
+
+// Every destination is attempted even after one fails. Two exist precisely so
+// that one being unreachable is survivable, and stopping at the first would
+// turn a partial outage into a total one.
+func TestRun_SendsToEveryDestinationEvenAfterOneFails(t *testing.T) {
+	withConfigHome(t)
+	var sent []string
+	r := Runner{
+		Dir:      t.TempDir(),
+		Excludes: func(*config.Site) ([]string, error) { return nil, nil },
+		Send: func(_, name string) []error {
+			sent = append(sent, name)
+			return []error{errors.New("spaces unreachable")}
+		},
+	}
+	site := runnerSite(t)
+	rec, err := r.Run(&site)
+	if err != nil {
+		t.Fatal("a destination failing was reported as a failed backup, and the archive is on disk")
+	}
+	if len(sent) != 1 {
+		t.Errorf("the archive was not offered to the destinations")
+	}
+	if len(rec.SendErrors) != 1 {
+		t.Errorf("the destination failure was not reported: %v", rec.SendErrors)
+	}
+	if _, err := os.Stat(rec.Path); err != nil {
+		t.Error("the archive was removed because a destination was unreachable")
+	}
+}
