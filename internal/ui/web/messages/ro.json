@@ -1464,5 +1464,17 @@
   "staging_newPassword": "Noua parolă",
   "staging_shownOnce": "Copiaz-o acum. Servlo păstrează doar hash-ul, așa că nu mai poate fi afișată.",
   "staging_refreshed": "{files} fișiere copiate, baza de date {database}.",
-  "staging_oneDirection": "O reîmprospătare merge întotdeauna de la live la staging. Nu există buton pentru sensul invers și nici nu va exista. Nici .env nu trece vreodată, deci acest site își păstrează propriile credențiale de bază de date și propria adresă."
+  "staging_oneDirection": "O reîmprospătare merge întotdeauna de la live la staging. Nu există buton pentru sensul invers și nici nu va exista. Nici .env nu trece vreodată, deci acest site își păstrează propriile credențiale de bază de date și propria adresă.",
+  "addsite_sourceApp": "App",
+  "addsite_app": "Application",
+  "addsite_adminEmail": "Administrator email",
+  "addsite_appWithDatabase": "Servlo creates a database and an account scoped to it.",
+  "addsite_appNoDatabase": "Servlo creates no database for this site.",
+  "addsite_appAdminCreated": "Servlo creates the administrator account and shows its password once.",
+  "addsite_appSelfSetup": "This application finishes in its own installer. Complete it before pointing DNS at the domain.",
+  "addsite_appInstalled": "Installed and serving on {domain}.",
+  "addsite_appPasswordOnce": "Shown once. Servlo keeps no copy of this password.",
+  "addsite_appAdminUser": "Account",
+  "addsite_appPassword": "Password",
+  "addsite_appDatabase": "Database {name}, with an account of its own."
 }

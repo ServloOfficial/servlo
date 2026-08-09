@@ -1,0 +1,28 @@
+{
+  "apps": [
+    {
+      "name": "grav",
+      "label": "Grav",
+      "description": "A flat-file CMS. Pages are Markdown files in the site directory, so there is no database, no schema and nothing to migrate.",
+      "version": "2.0.17",
+      "needs_database": false,
+      "self_setup": true
+    },
+    {
+      "name": "joomla",
+      "label": "Joomla",
+      "description": "The second CMS most of the web runs on. Servlo creates the database and the account scoped to it; Joomla's own installer finishes.",
+      "version": "5.4.7",
+      "needs_database": true,
+      "self_setup": true
+    },
+    {
+      "name": "wordpress",
+      "label": "WordPress",
+      "description": "The content manager most of the web runs on. Installs with its own database, a generated admin account, and a real system cron.",
+      "version": "7.0.3",
+      "needs_database": true,
+      "self_setup": false
+    }
+  ]
+}

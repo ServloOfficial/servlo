@@ -28,6 +28,10 @@ The domain is given, never derived, and the directory has to be empty. Everythin
 
 The order is the design. Fetch and verify, then the database, then the config file, then register the site, then post the setup form, because each step is undoable only by the step that has not happened yet. A release that fails its checksum leaves no orphaned database behind. A setup form that fails leaves the site registered and serving, and says so, because taking it away would lose the release and the database with it.
 
+Or from the panel: **Add Site** has a fourth source, **App**. It says before you start whether a database is coming and whether the install ends with an account or with a page you have to finish, because both are properties of the definition and neither is guessable from the name.
+
+The panel stops on the result rather than closing onto the new site. The administrator password is generated at install and held nowhere else, so that screen is the only place it exists.
+
 Afterwards, point DNS at this server and run `servlo secure <domain>`.
 
 ## Where they live

@@ -1464,5 +1464,17 @@
   "staging_newPassword": "Le nouveau mot de passe",
   "staging_shownOnce": "Copiez-le maintenant. Servlo ne conserve que l'empreinte, il ne pourra pas être réaffiché.",
   "staging_refreshed": "{files} fichiers copiés, base de données {database}.",
-  "staging_oneDirection": "Un rafraîchissement va toujours de la production vers la préproduction. Il n'y a pas de bouton pour l'inverse, et il n'y en aura pas. Le .env ne traverse jamais non plus : ce site garde ses identifiants de base de données et sa propre adresse."
+  "staging_oneDirection": "Un rafraîchissement va toujours de la production vers la préproduction. Il n'y a pas de bouton pour l'inverse, et il n'y en aura pas. Le .env ne traverse jamais non plus : ce site garde ses identifiants de base de données et sa propre adresse.",
+  "addsite_sourceApp": "App",
+  "addsite_app": "Application",
+  "addsite_adminEmail": "Administrator email",
+  "addsite_appWithDatabase": "Servlo creates a database and an account scoped to it.",
+  "addsite_appNoDatabase": "Servlo creates no database for this site.",
+  "addsite_appAdminCreated": "Servlo creates the administrator account and shows its password once.",
+  "addsite_appSelfSetup": "This application finishes in its own installer. Complete it before pointing DNS at the domain.",
+  "addsite_appInstalled": "Installed and serving on {domain}.",
+  "addsite_appPasswordOnce": "Shown once. Servlo keeps no copy of this password.",
+  "addsite_appAdminUser": "Account",
+  "addsite_appPassword": "Password",
+  "addsite_appDatabase": "Database {name}, with an account of its own."
 }

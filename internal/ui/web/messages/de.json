@@ -1464,5 +1464,17 @@
   "staging_newPassword": "Das neue Passwort",
   "staging_shownOnce": "Jetzt kopieren. Servlo speichert nur den Hash, es kann nicht erneut angezeigt werden.",
   "staging_refreshed": "{files} Dateien kopiert, Datenbank {database}.",
-  "staging_oneDirection": "Ein Refresh geht immer nur von der Produktion zum Staging. Für die Gegenrichtung gibt es keinen Knopf, und es wird keinen geben. Die .env wird ebenfalls nie kopiert, diese Website behält also ihre eigenen Datenbank-Zugangsdaten und ihre eigene Adresse."
+  "staging_oneDirection": "Ein Refresh geht immer nur von der Produktion zum Staging. Für die Gegenrichtung gibt es keinen Knopf, und es wird keinen geben. Die .env wird ebenfalls nie kopiert, diese Website behält also ihre eigenen Datenbank-Zugangsdaten und ihre eigene Adresse.",
+  "addsite_sourceApp": "App",
+  "addsite_app": "Application",
+  "addsite_adminEmail": "Administrator email",
+  "addsite_appWithDatabase": "Servlo creates a database and an account scoped to it.",
+  "addsite_appNoDatabase": "Servlo creates no database for this site.",
+  "addsite_appAdminCreated": "Servlo creates the administrator account and shows its password once.",
+  "addsite_appSelfSetup": "This application finishes in its own installer. Complete it before pointing DNS at the domain.",
+  "addsite_appInstalled": "Installed and serving on {domain}.",
+  "addsite_appPasswordOnce": "Shown once. Servlo keeps no copy of this password.",
+  "addsite_appAdminUser": "Account",
+  "addsite_appPassword": "Password",
+  "addsite_appDatabase": "Database {name}, with an account of its own."
 }

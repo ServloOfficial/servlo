@@ -1464,5 +1464,17 @@
   "staging_newPassword": "新しいパスワード",
   "staging_shownOnce": "今すぐ控えてください。servlo はハッシュのみを保持するため、再表示はできません。",
   "staging_refreshed": "{files} 件のファイルをコピー、データベース {database}。",
-  "staging_oneDirection": "更新は常に本番からステージングへの一方向です。逆方向のボタンはなく、今後も作りません。.env も決してコピーされないため、このサイトは自分のデータベース資格情報とアドレスを保ちます。"
+  "staging_oneDirection": "更新は常に本番からステージングへの一方向です。逆方向のボタンはなく、今後も作りません。.env も決してコピーされないため、このサイトは自分のデータベース資格情報とアドレスを保ちます。",
+  "addsite_sourceApp": "App",
+  "addsite_app": "Application",
+  "addsite_adminEmail": "Administrator email",
+  "addsite_appWithDatabase": "Servlo creates a database and an account scoped to it.",
+  "addsite_appNoDatabase": "Servlo creates no database for this site.",
+  "addsite_appAdminCreated": "Servlo creates the administrator account and shows its password once.",
+  "addsite_appSelfSetup": "This application finishes in its own installer. Complete it before pointing DNS at the domain.",
+  "addsite_appInstalled": "Installed and serving on {domain}.",
+  "addsite_appPasswordOnce": "Shown once. Servlo keeps no copy of this password.",
+  "addsite_appAdminUser": "Account",
+  "addsite_appPassword": "Password",
+  "addsite_appDatabase": "Database {name}, with an account of its own."
 }

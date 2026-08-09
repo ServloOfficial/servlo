@@ -42,6 +42,37 @@ const siteTab = (card, tab) => async (page) => {
 };
 
 const SHOTS = [
+  { name: 'addsite-app', height: 1500, act: async (page) => {
+      await rail('Sites')(page);
+      await page.getByText('Link new site', { exact: true }).first().click();
+      await page.waitForTimeout(500);
+      await page.getByRole('tab', { name: /^App$/ }).first().click();
+      await page.waitForTimeout(400);
+      // The app that ends with an account, which is the fuller of the two shapes.
+      await page.locator('select').first().selectOption('wordpress');
+      await page.waitForTimeout(400);
+    } },
+  { name: 'addsite-app-selfsetup', height: 1500, act: async (page) => {
+      await rail('Sites')(page);
+      await page.getByText('Link new site', { exact: true }).first().click();
+      await page.waitForTimeout(500);
+      await page.getByRole('tab', { name: /^App$/ }).first().click();
+      await page.waitForTimeout(400);
+      await page.locator('select').first().selectOption('grav');
+      await page.waitForTimeout(400);
+    } },
+  { name: 'addsite-app-installed', height: 1400, act: async (page) => {
+      await rail('Sites')(page);
+      await page.getByText('Link new site', { exact: true }).first().click();
+      await page.waitForTimeout(500);
+      await page.getByRole('tab', { name: /^App$/ }).first().click();
+      await page.waitForTimeout(400);
+      await page.getByPlaceholder('example.com').first().fill('blog.acme.com');
+      await page.getByPlaceholder('/home/servlo/sites/example.com').first().fill('/home/servlo/sites/blog.acme.com');
+      await page.waitForTimeout(200);
+      await page.getByRole('button', { name: /^Add Site$/ }).last().click();
+      await page.waitForTimeout(900);
+    } },
   { name: 'services', act: rail('Services') },
   { name: 'services-connections-add', height: 2400, act: async (page) => {
       await rail('Services')(page);

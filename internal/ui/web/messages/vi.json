@@ -1464,5 +1464,17 @@
   "staging_newPassword": "Mật khẩu mới",
   "staging_shownOnce": "Hãy sao chép ngay. Servlo chỉ giữ giá trị băm nên không thể hiển thị lại.",
   "staging_refreshed": "Đã chép {files} tệp, cơ sở dữ liệu {database}.",
-  "staging_oneDirection": "Làm mới luôn đi từ bản chạy sang staging. Không có nút cho chiều ngược lại và sẽ không có. Tệp .env cũng không bao giờ được chép, nên trang này giữ thông tin cơ sở dữ liệu và địa chỉ riêng của nó."
+  "staging_oneDirection": "Làm mới luôn đi từ bản chạy sang staging. Không có nút cho chiều ngược lại và sẽ không có. Tệp .env cũng không bao giờ được chép, nên trang này giữ thông tin cơ sở dữ liệu và địa chỉ riêng của nó.",
+  "addsite_sourceApp": "App",
+  "addsite_app": "Application",
+  "addsite_adminEmail": "Administrator email",
+  "addsite_appWithDatabase": "Servlo creates a database and an account scoped to it.",
+  "addsite_appNoDatabase": "Servlo creates no database for this site.",
+  "addsite_appAdminCreated": "Servlo creates the administrator account and shows its password once.",
+  "addsite_appSelfSetup": "This application finishes in its own installer. Complete it before pointing DNS at the domain.",
+  "addsite_appInstalled": "Installed and serving on {domain}.",
+  "addsite_appPasswordOnce": "Shown once. Servlo keeps no copy of this password.",
+  "addsite_appAdminUser": "Account",
+  "addsite_appPassword": "Password",
+  "addsite_appDatabase": "Database {name}, with an account of its own."
 }

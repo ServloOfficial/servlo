@@ -24,6 +24,7 @@ import backupsFixture from './fixtures/backups.json';
 import dbUsers from './fixtures/db-user.json';
 import smtpFixture from './fixtures/smtp.json';
 import alertsFixture from './fixtures/alerts.json';
+import appsFixture from './fixtures/apps.json';
 import securityFixture from './fixtures/security.json';
 
 // Demo follows the system theme (auto). Reset any stale value a previous demo
@@ -942,6 +943,25 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
       { type: line.split(' ')[0], comment: name, fingerprint: 'SHA256:' + line.slice(-43) }
     ];
     return jsonResponse({ ok: true, keys: demoSecurity.keys });
+  }
+
+  // What the app store offers, for the Add Site form's fourth source.
+  if (path === '/api/apps') {
+    return jsonResponse(appsFixture);
+  }
+
+  // Installing one. WordPress is the app that ends with an account, so this
+  // answers the way that one does: credentials the panel shows once.
+  if (path === '/api/sites/app') {
+    return jsonResponse({
+      ok: true,
+      site: 'blog-acme-com',
+      domain: 'blog.acme.com',
+      path: '/home/servlo/sites/blog.acme.com',
+      admin_user: 'admin',
+      admin_password: 'Qr7-tvB2xk9WmLpc',
+      database: 'blog_acme_com'
+    });
   }
 
   // What is currently wrong with the server, and dismissing one of them.

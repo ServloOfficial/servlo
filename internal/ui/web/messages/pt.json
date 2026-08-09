@@ -1464,5 +1464,17 @@
   "staging_newPassword": "A nova palavra-passe",
   "staging_shownOnce": "Copie-a agora. O servlo guarda apenas o hash, por isso não pode ser mostrada de novo.",
   "staging_refreshed": "{files} ficheiros copiados, base de dados {database}.",
-  "staging_oneDirection": "Uma atualização vai sempre da produção para o staging. Não há botão para o sentido inverso, nem vai haver. O .env também nunca é copiado, por isso este site mantém as suas credenciais de base de dados e o seu endereço."
+  "staging_oneDirection": "Uma atualização vai sempre da produção para o staging. Não há botão para o sentido inverso, nem vai haver. O .env também nunca é copiado, por isso este site mantém as suas credenciais de base de dados e o seu endereço.",
+  "addsite_sourceApp": "App",
+  "addsite_app": "Application",
+  "addsite_adminEmail": "Administrator email",
+  "addsite_appWithDatabase": "Servlo creates a database and an account scoped to it.",
+  "addsite_appNoDatabase": "Servlo creates no database for this site.",
+  "addsite_appAdminCreated": "Servlo creates the administrator account and shows its password once.",
+  "addsite_appSelfSetup": "This application finishes in its own installer. Complete it before pointing DNS at the domain.",
+  "addsite_appInstalled": "Installed and serving on {domain}.",
+  "addsite_appPasswordOnce": "Shown once. Servlo keeps no copy of this password.",
+  "addsite_appAdminUser": "Account",
+  "addsite_appPassword": "Password",
+  "addsite_appDatabase": "Database {name}, with an account of its own."
 }

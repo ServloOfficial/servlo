@@ -1464,5 +1464,17 @@
   "staging_newPassword": "Kata sandi baru",
   "staging_shownOnce": "Salin sekarang. Servlo hanya menyimpan hash-nya, jadi tidak bisa ditampilkan lagi.",
   "staging_refreshed": "{files} berkas disalin, basis data {database}.",
-  "staging_oneDirection": "Penyegaran hanya berjalan dari live ke staging. Tidak ada tombol untuk arah sebaliknya, dan tidak akan ada. Berkas .env juga tidak pernah disalin, jadi situs ini mempertahankan kredensial basis datanya sendiri dan alamatnya sendiri."
+  "staging_oneDirection": "Penyegaran hanya berjalan dari live ke staging. Tidak ada tombol untuk arah sebaliknya, dan tidak akan ada. Berkas .env juga tidak pernah disalin, jadi situs ini mempertahankan kredensial basis datanya sendiri dan alamatnya sendiri.",
+  "addsite_sourceApp": "App",
+  "addsite_app": "Application",
+  "addsite_adminEmail": "Administrator email",
+  "addsite_appWithDatabase": "Servlo creates a database and an account scoped to it.",
+  "addsite_appNoDatabase": "Servlo creates no database for this site.",
+  "addsite_appAdminCreated": "Servlo creates the administrator account and shows its password once.",
+  "addsite_appSelfSetup": "This application finishes in its own installer. Complete it before pointing DNS at the domain.",
+  "addsite_appInstalled": "Installed and serving on {domain}.",
+  "addsite_appPasswordOnce": "Shown once. Servlo keeps no copy of this password.",
+  "addsite_appAdminUser": "Account",
+  "addsite_appPassword": "Password",
+  "addsite_appDatabase": "Database {name}, with an account of its own."
 }

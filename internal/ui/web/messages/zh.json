@@ -1464,5 +1464,17 @@
   "staging_newPassword": "新密码",
   "staging_shownOnce": "现在就复制。servlo 只保存哈希，无法再次显示。",
   "staging_refreshed": "已复制 {files} 个文件，数据库 {database}。",
-  "staging_oneDirection": "刷新只会从线上流向预发布。没有反向按钮，将来也不会有。.env 同样从不复制，因此本站点保留自己的数据库凭据和地址。"
+  "staging_oneDirection": "刷新只会从线上流向预发布。没有反向按钮，将来也不会有。.env 同样从不复制，因此本站点保留自己的数据库凭据和地址。",
+  "addsite_sourceApp": "App",
+  "addsite_app": "Application",
+  "addsite_adminEmail": "Administrator email",
+  "addsite_appWithDatabase": "Servlo creates a database and an account scoped to it.",
+  "addsite_appNoDatabase": "Servlo creates no database for this site.",
+  "addsite_appAdminCreated": "Servlo creates the administrator account and shows its password once.",
+  "addsite_appSelfSetup": "This application finishes in its own installer. Complete it before pointing DNS at the domain.",
+  "addsite_appInstalled": "Installed and serving on {domain}.",
+  "addsite_appPasswordOnce": "Shown once. Servlo keeps no copy of this password.",
+  "addsite_appAdminUser": "Account",
+  "addsite_appPassword": "Password",
+  "addsite_appDatabase": "Database {name}, with an account of its own."
 }
