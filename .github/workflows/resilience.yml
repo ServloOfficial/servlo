@@ -189,6 +189,11 @@ jobs:
           # new machine and it opens nothing the old one wrote.
           servlo backup key import "$BACKUP_KEY"
 
+      # A restore loads a dump into the engine, so the engine has to be
+      # answering first. Nothing between here and there waits for it.
+      - name: Wait for the database engine
+        run: .github/scripts/wait-for-db.sh
+
       - name: Restore the server's own state
         run: |
           set -euo pipefail

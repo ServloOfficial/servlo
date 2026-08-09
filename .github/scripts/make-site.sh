@@ -30,6 +30,10 @@ ENV
 cd "$root"
 servlo link "$domain"
 servlo start
+
+# The engine has to be answering before a database can be created in it, and
+# starting servlo does not wait for that.
+"$(dirname "$0")/wait-for-db.sh"
 servlo db:create
 
 cat > /tmp/seed-$domain.sql <<SQL
