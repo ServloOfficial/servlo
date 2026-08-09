@@ -2,7 +2,7 @@
 
 Servlo uses **framework definitions** to describe how a PHP project type behaves: where the document root is, how to detect it automatically, which env file to use, and which background workers it supports.
 
-Laravel has a built-in definition. Other frameworks (Symfony, WordPress, Drupal, CakePHP, Statamic, Magento, etc.) can be installed from the [store in this repository](https://github.com/realrashid/servlo/tree/main/stores/frameworks) or defined manually.
+Laravel has a built-in definition. Other frameworks (Symfony, WordPress, Drupal, CakePHP, CodeIgniter, Statamic, Magento, Tempest, Joomla, Grav) can be installed from the [store in this repository](https://github.com/realrashid/servlo/tree/main/stores/frameworks) or defined manually.
 
 ---
 
@@ -34,16 +34,21 @@ servlo framework search
 ```
 
 ```
-╭───────────┬───────────┬────────┬────────────────╮
-│ Name      │ Label     │ Latest │ Versions       │
-├───────────┼───────────┼────────┼────────────────┤
-│ laravel   │ Laravel   │ 13     │ 13, 12, 11, 10 │
-│ symfony   │ Symfony   │ 8      │ 8, 7           │
-│ wordpress │ WordPress │ 6      │ 6, 5           │
-│ drupal    │ Drupal    │ 11     │ 11, 10         │
-│ cakephp   │ CakePHP   │ 5      │ 5, 4           │
-│ statamic  │ Statamic  │ 6      │ 6, 5           │
-╰───────────┴───────────┴────────┴────────────────╯
+╭─────────────┬─────────────┬────────┬────────────────╮
+│ Name        │ Label       │ Latest │ Versions       │
+├─────────────┼─────────────┼────────┼────────────────┤
+│ laravel     │ Laravel     │ 13     │ 13, 12, 11, 10 │
+│ symfony     │ Symfony     │ 8      │ 8, 7           │
+│ wordpress   │ WordPress   │ 6      │ 6, 5           │
+│ drupal      │ Drupal      │ 11     │ 11, 10         │
+│ cakephp     │ CakePHP     │ 5      │ 5, 4           │
+│ codeigniter │ CodeIgniter │ 4      │ 4              │
+│ statamic    │ Statamic    │ 6      │ 6, 5           │
+│ magento     │ Magento     │ 2      │ 2              │
+│ tempest     │ Tempest     │ 3      │ 3              │
+│ joomla      │ Joomla      │ 5      │ 5              │
+│ grav        │ Grav        │ 2      │ 2              │
+╰─────────────┴─────────────┴────────┴────────────────╯
 ```
 
 ### Getting definitions from the store

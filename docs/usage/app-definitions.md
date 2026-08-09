@@ -1,8 +1,20 @@
 # App Definitions
 
-An **app** is the fourth way to create a site, alongside an existing folder, a clone and a ZIP upload: one click fetches the application, creates its database, writes its config file and sets up its admin account.
+An **app** is the fourth way to create a site, alongside an existing folder, a clone and a ZIP upload: one click fetches the application, creates its database, writes its config file and, where the application lets anything else do it, sets up its admin account.
 
 Which application, and every detail of how, is YAML in `stores/apps/`. No app's name appears anywhere in servlo's Go, which is what makes a new app a store change rather than a release. A test enforces that: every app the store ships is looked for in every Go file in the engine, and a match fails the build.
+
+## What ships
+
+| App | Database | Finishes at |
+|---|---|---|
+| WordPress | Its own, created here | An admin account servlo created, ready to log into |
+| Joomla | Its own, created here | Joomla's own installer, with the credentials to give it |
+| Grav | None | A site already serving, edited in files |
+
+Three apps, three shapes, and the differences are the schema working rather than a definition being incomplete. Grav has no database, no config file and no setup step, so its install is the fetch and nothing else. Joomla has a database and neither of the other two, because it writes its own configuration file at the end of its own installer and treats one that already exists as a site that is already installed.
+
+Only WordPress ends with an account, and that is not favouritism: its installer is a single form that takes no token, so servlo can post it. Where an application's setup cannot be driven, the honest thing is to say what is left to do rather than to pretend, so the definition carries no `setup` block at all and the description says where the install stops. Finish it before pointing DNS at the domain: an installer nobody has completed is an installer anybody who reaches it can complete.
 
 ## Where they live
 
@@ -106,6 +118,16 @@ The path must start with a single `/`. A definition naming a host, including the
 `success_contains` is required. Without something to check for, any response at all reads as success, and a setup that silently did not happen leaves an uninstalled application on a live domain for the first passer-by to claim.
 
 A failure reports what the application said, with every value servlo put into the request removed from it first. An application echoing its own form back into an error page is not hypothetical, and that error reaches the panel and the audit log.
+
+## What does not fit yet
+
+Three things stop an application becoming a definition, and all three are worth knowing before you spend an afternoon on one.
+
+**A setup flow with a token on it.** The setup step posts one form once. An installer that hands out a CSRF token on a page you have to fetch first, or that walks through several screens, cannot be driven this way. That is most modern applications, and closing it means teaching the engine to fetch, read a token out of the response and post it back — a general capability, but a code change.
+
+**A setup that is a command rather than a form.** Plenty of applications install from their own CLI, which is the cleanest flow of all and the one the engine cannot reach: there is no step that runs a command inside the site's container.
+
+**A release laid out differently from its framework.** The document root comes from the framework definition, and an app has no way to override it. Drupal is the example: the framework definition describes the composer project, which serves from `web/`, and the zip release on drupal.org serves from its own root. Installing that release would give a site whose document root is a directory that is not there. The local release check catches it, which is why that check reads `public_dir` out of the framework store rather than naming files it expects.
 
 ## Adding an app
 

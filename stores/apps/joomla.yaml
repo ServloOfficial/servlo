@@ -1,0 +1,42 @@
+name: joomla
+label: Joomla
+description: >-
+  The second CMS most of the web runs on. Servlo fetches and verifies the
+  release and creates the database and its scoped account; Joomla's own
+  installer takes those credentials and finishes, which is the one step it will
+  not let anything else do for it.
+
+# Detection, the deploy template, the scheduler and the nginx rules that keep
+# the working directories out of reach come from stores/frameworks/joomla.
+framework: joomla
+
+source:
+  # Pinned, never "latest". An installer that fetches whatever is current
+  # installs a different thing every week and cannot be verified at all.
+  version: "5.4.7"
+  url: https://update.joomla.org/releases/5.4.7/Joomla_5.4.7-Stable-Full_Package.zip
+  # Cross-checked by fetching the same release from the project's GitHub release
+  # assets, a different host on different infrastructure, and comparing: the two
+  # copies are byte-identical, so this is verified against upstream rather than
+  # computed from one download and trusted.
+  sha256: f7340a93d03b2b9d13191ab82cb2e08bfca882315998f55ce56a8ebb4309da8f
+  # No strip_prefix: the full package is laid out flat, with index.php at the top
+  # of the archive, and there is no wrapper directory to remove.
+
+database:
+  required: true
+  charset: utf8mb4
+
+# No config file, and this is where the design of the installer decides it.
+#
+# Joomla writes configuration.php itself at the end of its own installer, and it
+# treats an existing one as "already installed", which would leave a site
+# pointing at a database that has no tables in it. So servlo creates the
+# database and the account scoped to it and stops there, and the credentials it
+# generated are what goes into the installer's second screen.
+#
+# There is no setup block either. Joomla's installer is a multi-step flow with a
+# token on every request, so it cannot be driven by posting one form the way an
+# unauthenticated installer can. Finish it straight after creating the site and
+# before pointing DNS at the domain: an installer that has not been completed is
+# an installer anybody who reaches it can complete.

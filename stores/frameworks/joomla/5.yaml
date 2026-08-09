@@ -1,0 +1,119 @@
+name: joomla
+version: "5"
+label: Joomla
+# Joomla serves from the site root: there is no public/ directory in any of its
+# distributions, and the nginx block below is what keeps the parts of the tree
+# that are not pages from being downloadable.
+public_dir: .
+php:
+  min: "8.1"
+  max: "8.4"
+
+detect:
+  # The manifest is the version Joomla itself reads on every update check, and
+  # it is present from the moment the release is unpacked, before the site has
+  # been installed and before configuration.php exists.
+  - file: administrator/manifests/files/joomla.xml
+    version_file: administrator/manifests/files/joomla.xml
+    version_pattern: "<version>([^<]+)</version>"
+  - file: administrator/includes/framework.php
+
+# No env block, and that is the honest answer rather than a gap.
+#
+# Joomla keeps its settings in configuration.php as properties of a class, which
+# is neither of the formats servlo can read or write, and the file is written by
+# Joomla's own installer and rewritten by its Global Configuration screen. A
+# site on Joomla gets its database credentials once, by hand, in the installer,
+# and servlo has no business holding a second opinion about them afterwards.
+
+composer: false
+npm: false
+console: cli/joomla.php
+
+workers:
+  scheduler:
+    label: Scheduled tasks
+    # Joomla's task scheduler defaults to firing on page loads, so on a quiet
+    # site nothing runs and on a busy one a visitor pays for it. Running it from
+    # a timer is what the Joomla documentation recommends for a real server, and
+    # the lazy scheduler is switched off in Global Configuration to match.
+    command: php cli/joomla.php scheduler:run --all
+    schedule: minutely
+    restart: on-failure
+
+logs:
+  # Joomla writes its logs with a .php extension and a die() on the first line,
+  # so that a webserver serving the directory cannot hand them out. The nginx
+  # block below denies the directory anyway.
+  - path: administrator/logs/*.php
+    format: raw
+
+commands:
+  - name: cache:clean
+    label: Clear cache
+    command: php cli/joomla.php cache:clean --all
+    description: Clear every Joomla cache group
+    output: silent
+    icon: broom
+  - name: core:check-updates
+    label: Check for updates
+    command: php cli/joomla.php core:check-updates
+    description: Ask Joomla whether a core update is available
+    icon: refresh
+  - name: extension:list
+    label: List extensions
+    command: php cli/joomla.php extension:list
+    description: List the extensions installed on this site
+    icon: list
+
+nginx:
+  # The directories Joomla writes to and the files it ships describing itself.
+  # With the document root at the site root, the default answer for all of them
+  # is to serve the file.
+  snippet: |
+    # Working directories. Nothing under them is a page, and the log and tmp
+    # directories hold whatever an extension has left there.
+    location ~* ^/(cli|tmp|cache|logs)/ { return 403; }
+    location ~* ^/administrator/(cache|logs)/ { return 403; }
+
+    # The text files at the root state the exact version and the webserver
+    # configuration this install shipped with.
+    location ~ ^/(LICENSE|README|htaccess|web\.config)\.txt$ { return 403; }
+
+deploy:
+  # Empty by default. Joomla has no build step and no console deploy command:
+  # on most sites the pull is the whole deploy, and extensions are installed
+  # through the administrator rather than committed.
+  script: ""
+
+  # Joomla applies its schema changes as part of an extension or core update,
+  # driven from the administrator rather than from a command servlo could run.
+  # No deploy on it is treated as schema-changing and none takes a database
+  # backup on that basis.
+  migrate: ""
+
+  # images is every file the site's editors have uploaded through the media
+  # manager. The rest are where extensions installed through the administrator
+  # put themselves, which is the same case as WordPress's plugin directory: the
+  # repository does not own them and a deploy that removed one would take a
+  # working site apart.
+  exclude:
+    - images
+    - media
+    - components
+    - modules
+    - plugins
+    - administrator/components
+    - administrator/modules
+
+  health: /
+
+# What a backup leaves out. All of it is written again on the next request.
+# images and media are deliberately absent: they are the site's own files.
+backup:
+  exclude:
+    - cache
+    - tmp
+    - logs
+    - administrator/cache
+    - administrator/logs

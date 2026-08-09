@@ -1,6 +1,20 @@
 {
   "apps": [
     {
+      "name": "grav",
+      "label": "Grav",
+      "description": "A flat-file CMS with no database.",
+      "framework": "grav",
+      "version": "2.0.17"
+    },
+    {
+      "name": "joomla",
+      "label": "Joomla",
+      "description": "The second CMS most of the web runs on.",
+      "framework": "joomla",
+      "version": "5.4.7"
+    },
+    {
       "name": "wordpress",
       "label": "WordPress",
       "description": "The content manager most of the web runs on.",

@@ -1,0 +1,47 @@
+name: grav
+label: Grav
+description: >-
+  A flat-file CMS. Pages are Markdown files in the site directory, so there is
+  no database, no schema and nothing to migrate, and the site answers the moment
+  it is unpacked.
+
+# Detection, the deploy template, the nginx rules that keep the private half of
+# a root-served site private, and the scheduler all come from
+# stores/frameworks/grav.
+framework: grav
+
+source:
+  # Pinned, never "latest". An installer that fetches whatever is current
+  # installs a different thing every week and cannot be verified at all.
+  version: "2.0.17"
+  url: https://github.com/getgrav/grav/releases/download/2.0.17/grav-v2.0.17.zip
+  # The project publishes no digest beside the release, so unlike the checksum
+  # on a definition that could be cross-checked against upstream's own, this one
+  # was computed from the download. What it still buys is that every install
+  # from this definition gets the same bytes as every other, and that a release
+  # replaced under its own tag stops installing rather than installing quietly.
+  sha256: 350b613bd4e37d0b73269f36d777a88a7f3661d56d1f6ea68467365d374a06cc
+  # The archive wraps everything in grav/. Named rather than inferred: if a
+  # future release stops shipping the wrapper, the install should fail loudly
+  # rather than quietly put the document root one level too deep.
+  strip_prefix: grav
+
+# Pages are files. A site on this needs no database at all, which is most of
+# why it installs in one step.
+database:
+  required: false
+
+# No config file and no setup form, and both absences are the point.
+#
+# This is the core release rather than the admin bundle, on purpose. The bundle
+# ships the admin plugin, whose first visitor is invited to create the
+# administrator account, and between the install finishing and the operator
+# getting there that account belongs to whoever asks for it first. Servlo cannot
+# close that window from here: the form is nonce-protected, so it cannot be
+# posted the way an unauthenticated installer can.
+#
+# The core release has no such form and no account to claim. Content is edited
+# in the files, which is how a site kept in git is edited anyway, and an
+# operator who wants the browser admin installs it themselves with
+# `bin/gpm install admin` and creates the first account with `bin/grav newuser`,
+# both of which authenticate as the shell user rather than as a passer-by.

@@ -192,6 +192,44 @@
       "digests": {
         "3": "sha256:ef8b62508e41ccf97fbc853c18f42df7bfe29e160804e59835f85c20901f9caa"
       }
+    },
+    {
+      "name": "grav",
+      "label": "Grav",
+      "versions": [
+        "2"
+      ],
+      "latest": "2",
+      "detect": [
+        {
+          "file": "system/defines.php"
+        },
+        {
+          "file": "bin/grav"
+        }
+      ],
+      "digests": {
+        "2": "sha256:572303d9ed1923ff2445c28bc5a325dd107ee07604e20d5189a01fc843a7eedb"
+      }
+    },
+    {
+      "name": "joomla",
+      "label": "Joomla",
+      "versions": [
+        "5"
+      ],
+      "latest": "5",
+      "detect": [
+        {
+          "file": "administrator/manifests/files/joomla.xml"
+        },
+        {
+          "file": "administrator/includes/framework.php"
+        }
+      ],
+      "digests": {
+        "5": "sha256:89d8568813d24acea5d00a77d4bf13602d4c5ec167cab8b43717a627aa297ec8"
+      }
     }
   ]
 }
