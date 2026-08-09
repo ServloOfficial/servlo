@@ -160,6 +160,7 @@ export default defineConfig({
             { text: 'SFTP', link: '/usage/sftp' },
             { text: 'Email', link: '/usage/email' },
             { text: 'Backups', link: '/usage/backups' },
+            { text: 'Hardening', link: '/usage/hardening' },
           ],
         },
         {
