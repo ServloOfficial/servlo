@@ -28,23 +28,23 @@ env:
         - key: database.default.DBDriver
           value_prefix: "MySQLi"
       vars:
-        - "database.default.hostname=servlo-mysql"
+        - "database.default.hostname={{db_host}}"
         - "database.default.database={{site}}"
-        - "database.default.username=root"
-        - "database.default.password={{password}}"
+        - "database.default.username={{db_user}}"
+        - "database.default.password={{db_password}}"
         - "database.default.DBDriver=MySQLi"
-        - "database.default.port=3306"
+        - "database.default.port={{db_port}}"
     postgres:
       detect:
         - key: database.default.DBDriver
           value_prefix: "Postgre"
       vars:
-        - "database.default.hostname=servlo-postgres"
+        - "database.default.hostname={{db_host}}"
         - "database.default.database={{site}}"
-        - "database.default.username=postgres"
-        - "database.default.password={{password}}"
+        - "database.default.username={{db_user}}"
+        - "database.default.password={{db_password}}"
         - "database.default.DBDriver=Postgre"
-        - "database.default.port=5432"
+        - "database.default.port={{db_port}}"
     redis:
       detect:
         - key: cache.handler

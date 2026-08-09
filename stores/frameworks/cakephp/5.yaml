@@ -22,13 +22,13 @@ env:
         - key: DATABASE_URL
           value_prefix: "mysql://"
       vars:
-        - "DATABASE_URL=mysql://root:{{password}}@servlo-mysql:3306/{{site}}"
+        - "DATABASE_URL=mysql://{{db_user}}:{{db_password}}@{{db_host}}:{{db_port}}/{{site}}"
     postgres:
       detect:
         - key: DATABASE_URL
           value_prefix: "postgres://"
       vars:
-        - "DATABASE_URL=postgres://postgres:{{password}}@servlo-postgres:5432/{{site}}"
+        - "DATABASE_URL=postgres://{{db_user}}:{{db_password}}@{{db_host}}:{{db_port}}/{{site}}"
     redis:
       detect:
         - key: CACHE_URL

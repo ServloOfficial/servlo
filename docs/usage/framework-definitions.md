@@ -140,13 +140,17 @@ env:
   #   {{redis_version}}     : running Redis server version
   #   {{meilisearch_version}} : running Meilisearch server version
   #   {{password}}          : this install's generated service password
+  #   {{db_host}}           : the site's database connection, host
+  #   {{db_port}}           : ...port
+  #   {{db_user}}           : ...administrative user
+  #   {{db_password}}       : ...that user's password
   services:
     mysql:
       detect:
         - key: DATABASE_URL
           value_prefix: "mysql://"
       vars:
-        - "DATABASE_URL=mysql://root:{{password}}@servlo-mysql:3306/{{site}}"
+        - "DATABASE_URL=mysql://{{db_user}}:{{db_password}}@{{db_host}}:{{db_port}}/{{site}}"
 
 # Scaffold command for "servlo new"
 create: composer create-project symfony/skeleton
@@ -260,7 +264,9 @@ This is what lets a framework whose bootstrap needs to know where the site lives
 
 A placeholder whose value is empty, or one servlo does not recognise, is left in the command verbatim rather than being replaced with an empty string, so a half-resolved context can never quietly produce `--base-url=://`.
 
-<code v-pre>{{password}}</code> is different from the rest: it is this install's generated service password, it depends on nothing about the site, and it is substituted into the definition's bytes as the file is read rather than per site. Write it wherever a definition needs the credential the local databases and caches actually run with, in a var or inside a connection URL, and never write a literal password in its place.
+<code v-pre>{{password}}</code> is different from the rest: it is this install's generated service password, it depends on nothing about the site, and it is substituted into the definition's bytes as the file is read rather than per site. Write it wherever a definition needs the credential the local caches and search engines actually run with, and never write a literal password in its place.
+
+The four <code v-pre>{{db_*}}</code> placeholders are where a database is, and they are not the same thing. A site's database is a [connection](database.md#connections), which may be a container servlo runs or a managed database somewhere else, and the connection is a property of the site rather than of the install. A definition that writes `servlo-mysql` works on exactly one kind of install; one that writes <code v-pre>{{db_host}}</code> follows whichever database the site is actually on, with no line of Go knowing what that framework calls its host key. Use them for the host, the port, the administrative user and that user's password, in a var or inside a connection URL, and use <code v-pre>{{site}}</code> for the database name as before.
 
 ## Custom commands
 

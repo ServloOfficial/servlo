@@ -17,6 +17,7 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/envfile"
 	"github.com/realrashid/servlo/internal/feedback"
 	phpDet "github.com/realrashid/servlo/internal/php"
@@ -605,6 +606,13 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		bucket: s3BucketName(dbName),
 		domain: site.PrimaryDomain(),
 		scheme: scheme,
+	}
+	// Where this site's database lives. A definition that spells out
+	// servlo-mysql keeps pointing there; one that asks through the placeholders
+	// follows the site's own connection, local or managed.
+	if c, err := dbconn.Named(site.Database); err == nil {
+		tplCtx.dbHost, tplCtx.dbPort = c.Host, strconv.Itoa(c.Port)
+		tplCtx.dbUser, tplCtx.dbPassword = c.User, c.Password
 	}
 
 	// Framework default env vars: seeded only when the key is absent, so a value
@@ -1286,16 +1294,26 @@ type siteTemplateCtx struct {
 	bucket string // S3-safe bucket name (lowercase, hyphens)
 	domain string // primary domain (e.g. myapp.test)
 	scheme string // "http" or "https"
+
+	// The site's database connection, resolved once per run.
+	dbHost     string
+	dbPort     string
+	dbUser     string
+	dbPassword string
 }
 
 // applySiteHandle replaces {{site}}, {{site_testing}}, {{bucket}}, {{domain}},
 // {{scheme}}, and service version placeholders (e.g. {{mysql_version}}) in s.
 func applySiteHandle(s string, ctx siteTemplateCtx) string {
 	return sitetpl.Apply(s, sitetpl.Ctx{
-		Site:   ctx.site,
-		Bucket: ctx.bucket,
-		Domain: ctx.domain,
-		Scheme: ctx.scheme,
+		Site:       ctx.site,
+		Bucket:     ctx.bucket,
+		Domain:     ctx.domain,
+		Scheme:     ctx.scheme,
+		DBHost:     ctx.dbHost,
+		DBPort:     ctx.dbPort,
+		DBUser:     ctx.dbUser,
+		DBPassword: ctx.dbPassword,
 	})
 }
 

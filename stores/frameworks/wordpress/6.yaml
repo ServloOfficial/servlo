@@ -22,9 +22,9 @@ env:
         - key: DB_HOST
       vars:
         - DB_NAME={{site}}
-        - DB_USER=root
-        - DB_PASSWORD={{password}}
-        - DB_HOST=servlo-mysql
+        - DB_USER={{db_user}}
+        - DB_PASSWORD={{db_password}}
+        - DB_HOST={{db_host}}
 
 logs:
   - path: wp-content/debug.log

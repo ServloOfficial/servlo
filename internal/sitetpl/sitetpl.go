@@ -5,9 +5,11 @@ package sitetpl
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/grouping"
 	"github.com/realrashid/servlo/internal/podman"
 	"github.com/realrashid/servlo/internal/serviceops"
@@ -20,6 +22,16 @@ type Ctx struct {
 	Bucket string // S3-safe bucket name (lowercase, hyphens)
 	Domain string // primary domain (e.g. myapp.test)
 	Scheme string // "http" or "https"
+
+	// The site's database connection, which is where a definition gets its
+	// coordinates from rather than writing servlo-mysql into every framework.
+	// A definition that spells them out still works and still points at the
+	// local default; one that uses these follows the site to a managed
+	// database without a line of Go knowing the framework's key names.
+	DBHost     string
+	DBPort     string
+	DBUser     string
+	DBPassword string
 }
 
 // versionedServices are the presets whose {{<name>_version}} placeholder resolves
@@ -41,6 +53,16 @@ func Apply(s string, ctx Ctx) string {
 	}
 	if ctx.Scheme != "" {
 		s = strings.ReplaceAll(s, "{{scheme}}", ctx.Scheme)
+	}
+	for placeholder, value := range map[string]string{
+		"{{db_host}}":     ctx.DBHost,
+		"{{db_port}}":     ctx.DBPort,
+		"{{db_user}}":     ctx.DBUser,
+		"{{db_password}}": ctx.DBPassword,
+	} {
+		if value != "" {
+			s = strings.ReplaceAll(s, placeholder, value)
+		}
 	}
 	for _, svc := range versionedServices {
 		placeholder := "{{" + svc + "_version}}"
@@ -79,12 +101,23 @@ func ForSite(site *config.Site) Ctx {
 	if site.Secured {
 		scheme = "https"
 	}
-	return Ctx{
+	ctx := Ctx{
 		Site:   db,
 		Bucket: serviceops.S3BucketName(db),
 		Domain: site.PrimaryDomain(),
 		Scheme: scheme,
 	}
+	// A connection servlo cannot resolve leaves the placeholders alone, the
+	// same as every other empty value here. The definition is then written into
+	// the env file with {{db_host}} still in it, which is visible, rather than
+	// with a host guessed on the site's behalf, which is not.
+	if c, err := dbconn.Named(site.Database); err == nil {
+		ctx.DBHost = c.Host
+		ctx.DBPort = strconv.Itoa(c.Port)
+		ctx.DBUser = c.User
+		ctx.DBPassword = c.Password
+	}
+	return ctx
 }
 
 // ForPath builds the context for the project at path, falling back to a

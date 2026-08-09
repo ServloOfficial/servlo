@@ -552,11 +552,11 @@ var laravelFramework = &Framework{
 				},
 				Vars: []string{
 					"DB_CONNECTION=mysql",
-					"DB_HOST=servlo-mysql",
-					"DB_PORT=3306",
+					"DB_HOST={{db_host}}",
+					"DB_PORT={{db_port}}",
 					"DB_DATABASE={{site}}",
-					"DB_USERNAME=root",
-					"DB_PASSWORD=" + servicePasswordOrPlaceholder(),
+					"DB_USERNAME={{db_user}}",
+					"DB_PASSWORD={{db_password}}",
 				},
 			},
 			"postgres": {
@@ -565,11 +565,11 @@ var laravelFramework = &Framework{
 				},
 				Vars: []string{
 					"DB_CONNECTION=pgsql",
-					"DB_HOST=servlo-postgres",
-					"DB_PORT=5432",
+					"DB_HOST={{db_host}}",
+					"DB_PORT={{db_port}}",
 					"DB_DATABASE={{site}}",
-					"DB_USERNAME=postgres",
-					"DB_PASSWORD=" + servicePasswordOrPlaceholder(),
+					"DB_USERNAME={{db_user}}",
+					"DB_PASSWORD={{db_password}}",
 				},
 			},
 			"redis": {
@@ -745,11 +745,11 @@ var symfonyFramework = &Framework{
 		Services: map[string]FrameworkServiceDef{
 			"mysql": {
 				Detect: []FrameworkServiceDetect{{Key: "DATABASE_URL", ValuePrefix: "mysql"}},
-				Vars:   []string{"DATABASE_URL=mysql://root:" + servicePasswordOrPlaceholder() + "@servlo-mysql:3306/{{site}}?serverVersion=8.0"},
+				Vars:   []string{"DATABASE_URL=mysql://{{db_user}}:{{db_password}}@{{db_host}}:{{db_port}}/{{site}}?serverVersion=8.0"},
 			},
 			"postgres": {
 				Detect: []FrameworkServiceDetect{{Key: "DATABASE_URL", ValuePrefix: "postgres"}, {Key: "DATABASE_URL", ValuePrefix: "pgsql"}},
-				Vars:   []string{"DATABASE_URL=postgresql://postgres:" + servicePasswordOrPlaceholder() + "@servlo-postgres:5432/{{site}}?serverVersion=16"},
+				Vars:   []string{"DATABASE_URL=postgresql://{{db_user}}:{{db_password}}@{{db_host}}:{{db_port}}/{{site}}?serverVersion=16"},
 			},
 			"redis": {
 				Detect: []FrameworkServiceDetect{{Key: "REDIS_URL"}, {Key: "MESSENGER_TRANSPORT_DSN", ValuePrefix: "redis"}},
@@ -1115,22 +1115,6 @@ var (
 	frameworkFileCacheMu sync.Mutex
 	frameworkFileCache   = map[string]frameworkCacheEntry{}
 )
-
-// servicePasswordOrPlaceholder is what the built-in definitions wire as the
-// database password. They are Go values rather than YAML, so they cannot carry
-// the placeholder ParseFramework substitutes and have to ask directly.
-//
-// The placeholder is the fallback because it is the visible failure. A blank
-// password would have a site connect as root with no credential at all on any
-// engine that allows it, and an install where the secret file cannot be read is
-// not one to guess on behalf of.
-func servicePasswordOrPlaceholder() string {
-	pw, err := ServicePassword()
-	if err != nil {
-		return passwordPlaceholder
-	}
-	return pw
-}
 
 // ParseFramework turns framework YAML into a definition.
 //

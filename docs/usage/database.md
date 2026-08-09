@@ -196,6 +196,18 @@ When you restore with an external client instead (a GUI, a manual `mysql` call),
 
 ---
 
+## Connections
+
+A database is a **connection**, not a container. It may be MySQL or MariaDB running here, PostgreSQL running here, or a managed database somewhere else entirely, and every part of servlo treats those the same. A connection has a name, an engine, an address, the administrative account servlo provisions with, and for a managed database the TLS mode and CA certificate its provider requires.
+
+Each site names the connection its data lives on, and a site that names none gets the install's default. An install that has never configured a connection has no default written down, and a site with no choice of its own lands on the local MySQL, which is where every site went before any of this existed: nothing to migrate, nothing moves.
+
+Connections live in `~/.config/servlo/databases.yaml`, mode `0600`, because a managed database's password is in it. A local connection stores only which service it is. Its address and credentials are properties of this install, so writing them into a second file would only leave a stale copy behind the first time the service password is rotated.
+
+Framework definitions never write a database's address themselves. They ask for it with the <code v-pre>{{db_host}}</code>, <code v-pre>{{db_port}}</code>, <code v-pre>{{db_user}}</code> and <code v-pre>{{db_password}}</code> placeholders, and servlo fills them from the connection the site is on. That is what lets one Laravel definition serve a site on the local MySQL and a site on a managed PostgreSQL without either one being a special case. See [Framework definitions](framework-definitions.md#site-placeholders).
+
+A connection servlo cannot resolve, because its name was removed or the default points at nothing, leaves those placeholders in the env file untouched rather than substituting a database nobody chose. A site pointed at something that is not there should say so, not quietly connect somewhere else.
+
 ## Picking a database for a Laravel project
 
 The database for a Laravel project is configured through `.servlo.yaml` and applied to `.env` when `servlo env` runs (which the `servlo init` wizard calls automatically). The supported choices are:

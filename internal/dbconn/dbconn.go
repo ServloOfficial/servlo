@@ -24,20 +24,29 @@ import (
 
 // Connection is where a database lives and how to reach it.
 type Connection struct {
+	// Name is what a site calls this connection. Empty on a connection built
+	// on the spot for a service rather than read from the registry.
+	Name string `yaml:"name" json:"name"`
 	// Family is the engine dialect: "mysql" or "postgres". Not the service
 	// name, because mariadb and mysql-8-4 speak the same protocol and take the
 	// same client.
-	Family string
+	Family string `yaml:"family" json:"family"`
 	// Service is the servlo service holding the database, empty when the
 	// database is somewhere servlo does not run.
-	Service string
-	// Host and Port reach the database from outside its own container.
-	Host string
-	Port int
+	Service string `yaml:"service,omitempty" json:"service,omitempty"`
+	// Host and Port reach the database from outside its own container. Derived
+	// for a local connection, so not written down for one.
+	Host string `yaml:"host,omitempty" json:"host,omitempty"`
+	Port int    `yaml:"port,omitempty" json:"port,omitempty"`
 	// User is the administrative account servlo provisions with.
-	User string
-	// Password is what opens that account.
-	Password string
+	User string `yaml:"user,omitempty" json:"user,omitempty"`
+	// Password is what opens that account. Never rendered to a client: the
+	// panel shows a connection without ever showing what opens it.
+	Password string `yaml:"password,omitempty" json:"-"`
+	// TLSMode is how an external connection is protected in transit, and
+	// CACert is the certificate that verifies the server when it is verified.
+	TLSMode string `yaml:"tls_mode,omitempty" json:"tls_mode,omitempty"`
+	CACert  string `yaml:"ca_cert,omitempty" json:"ca_cert,omitempty"`
 }
 
 // Local reports whether this database is one servlo runs.

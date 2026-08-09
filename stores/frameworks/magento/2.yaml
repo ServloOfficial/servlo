@@ -30,10 +30,10 @@ env:
       detect:
         - key: db.connection.default.host
       vars:
-        - db.connection.default.host=servlo-mysql
+        - db.connection.default.host={{db_host}}
         - db.connection.default.dbname={{site}}
-        - db.connection.default.username=root
-        - db.connection.default.password={{password}}
+        - db.connection.default.username={{db_user}}
+        - db.connection.default.password={{db_password}}
         - db.connection.default.active=1
     opensearch:
       detect:
@@ -151,7 +151,7 @@ commands:
     command: >
       php bin/magento setup:install
       --base-url={{scheme}}://{{domain}}/
-      --db-host=servlo-mysql --db-name={{site}} --db-user=root --db-password={{password}}
+      --db-host={{db_host}}:{{db_port}} --db-name={{site}} --db-user={{db_user}} --db-password={{db_password}}
       --search-engine=opensearch --opensearch-host=servlo-opensearch --opensearch-port=9200
       --admin-firstname=Servlo --admin-lastname=Admin --admin-email=admin@{{domain}}
       --admin-user=admin --admin-password={{password}}

@@ -30,7 +30,7 @@ env:
         - key: DATABASE_URL
           value_prefix: "mariadb://"
       vars:
-        - "DATABASE_URL=mysql://root:{{password}}@servlo-mysql:3306/{{site}}"
+        - "DATABASE_URL=mysql://{{db_user}}:{{db_password}}@{{db_host}}:{{db_port}}/{{site}}"
     postgres:
       detect:
         - key: DATABASE_URL
@@ -38,7 +38,7 @@ env:
         - key: DATABASE_URL
           value_prefix: "postgres://"
       vars:
-        - "DATABASE_URL=postgresql://postgres:{{password}}@servlo-postgres:5432/{{site}}"
+        - "DATABASE_URL=postgresql://{{db_user}}:{{db_password}}@{{db_host}}:{{db_port}}/{{site}}"
     redis:
       detect:
         - key: REDIS_URL

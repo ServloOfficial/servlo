@@ -137,6 +137,11 @@ type Site struct {
 	// different answers: unset follows the framework's list, and an empty list
 	// is an operator saying this site protects nothing.
 	DeployExclude *[]string `yaml:"deploy_exclude,omitempty"`
+
+	// Database names the connection this site's data lives on. Empty means the
+	// install's default, which is what every site had before a database could
+	// be anywhere but the container next door.
+	Database string `yaml:"database,omitempty"`
 }
 
 // Redirect is one address that has moved.
@@ -353,6 +358,7 @@ type siteYAML struct {
 	RedirectPermanent   bool             `yaml:"redirect_permanent,omitempty"`
 	Redirects           []Redirect       `yaml:"redirects,omitempty"`
 	DeployExclude       *[]string        `yaml:"deploy_exclude,omitempty"`
+	Database            string           `yaml:"database,omitempty"`
 }
 
 func (s Site) toYAML() siteYAML {
@@ -395,6 +401,7 @@ func (s Site) toYAML() siteYAML {
 		RedirectPermanent:   s.RedirectPermanent,
 		Redirects:           s.Redirects,
 		DeployExclude:       s.DeployExclude,
+		Database:            s.Database,
 	}
 }
 
@@ -442,6 +449,7 @@ func (sy siteYAML) toSite() Site {
 		RedirectPermanent:   sy.RedirectPermanent,
 		Redirects:           sy.Redirects,
 		DeployExclude:       sy.DeployExclude,
+		Database:            sy.Database,
 	}
 }
 

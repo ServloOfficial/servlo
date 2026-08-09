@@ -26,21 +26,21 @@ env:
         - key: DATABASE_PORT
           value_prefix: "3306"
       vars:
-        - DATABASE_HOST=servlo-mysql
-        - DATABASE_PORT=3306
+        - DATABASE_HOST={{db_host}}
+        - DATABASE_PORT={{db_port}}
         - DATABASE_DATABASE={{site}}
-        - DATABASE_USERNAME=root
-        - DATABASE_PASSWORD={{password}}
+        - DATABASE_USERNAME={{db_user}}
+        - DATABASE_PASSWORD={{db_password}}
     postgres:
       detect:
         - key: DATABASE_PORT
           value_prefix: "5432"
       vars:
-        - DATABASE_HOST=servlo-postgres
-        - DATABASE_PORT=5432
+        - DATABASE_HOST={{db_host}}
+        - DATABASE_PORT={{db_port}}
         - DATABASE_DATABASE={{site}}
-        - DATABASE_USERNAME=postgres
-        - DATABASE_PASSWORD={{password}}
+        - DATABASE_USERNAME={{db_user}}
+        - DATABASE_PASSWORD={{db_password}}
     mailpit:
       detect:
         - key: MAIL_SMTP_HOST
