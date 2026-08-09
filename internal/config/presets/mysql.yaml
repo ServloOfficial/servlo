@@ -65,11 +65,13 @@ introspect:
   # and it does not care where either side thinks the socket lives.
   entities:
     - kind: databases
-      # Dumping a database servlo does not host. The local export above runs
-      # inside the engine's container and needs no address; this one is aimed,
-      # so it takes the host, port, administrator and TLS spelling from the
-      # connection. The password arrives in MYSQL_PWD, never in the argv.
-      image: docker.io/library/mysql:8.4
+      # No image at this level, and that is load-bearing rather than an
+      # omission. An image on the entity sends every one of its commands into an
+      # ephemeral client container, the local ones included, and a local command
+      # has no address in it because it is written to run beside the server. The
+      # result was `servlo db:create` reaching for a database engine inside a
+      # throwaway container that holds none. The client image belongs to the
+      # aimed commands, so each of them carries its own.
       tls:
         require: "--ssl-mode=REQUIRED"
         verify-ca: "--ssl-mode=VERIFY_CA --ssl-ca={{ca_cert}}"
@@ -86,26 +88,41 @@ introspect:
           label: Size
           format: bytes
       actions:
-        remote_export: >
-          $(command -v mysqldump || command -v mariadb-dump)
-          -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}}
-          --single-transaction --quick --no-tablespaces --routines --triggers --events
-          {{database}}
-        remote_import: >
-          $(command -v mysql || command -v mariadb) --max-allowed-packet=1G
-          -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} {{database}}
-        remote_create: >
-          $(command -v mysql || command -v mariadb)
-          -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -e
-          'CREATE DATABASE IF NOT EXISTS `{{database}}`;'
-        remote_drop: >
-          $(command -v mysql || command -v mariadb)
-          -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -e
-          'DROP DATABASE IF EXISTS `{{database}}`;'
-        remote_count_tables: >
-          $(command -v mysql || command -v mariadb)
-          -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -sN -e
-          "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '{{database}}'"
+        # The aimed commands, for a database servlo does not host. Each carries
+        # the client image, because there is no container of servlo's to run it
+        # in: the server is somewhere else. Host, port, administrator and TLS
+        # spelling come from the connection, and the password arrives in
+        # MYSQL_PWD, never in the argv.
+        remote_export:
+          image: docker.io/library/mysql:8.4
+          exec: >
+            $(command -v mysqldump || command -v mariadb-dump)
+            -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}}
+            --single-transaction --quick --no-tablespaces --routines --triggers --events
+            {{database}}
+        remote_import:
+          image: docker.io/library/mysql:8.4
+          exec: >
+            $(command -v mysql || command -v mariadb) --max-allowed-packet=1G
+            -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} {{database}}
+        remote_create:
+          image: docker.io/library/mysql:8.4
+          exec: >
+            $(command -v mysql || command -v mariadb)
+            -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -e
+            'CREATE DATABASE IF NOT EXISTS `{{database}}`;'
+        remote_drop:
+          image: docker.io/library/mysql:8.4
+          exec: >
+            $(command -v mysql || command -v mariadb)
+            -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -e
+            'DROP DATABASE IF EXISTS `{{database}}`;'
+        remote_count_tables:
+          image: docker.io/library/mysql:8.4
+          exec: >
+            $(command -v mysql || command -v mariadb)
+            -h {{host}} -P {{port}} -u {{admin_user}} {{tls_flags}} -sN -e
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '{{database}}'"
         create: >
           $(command -v mysql || command -v mariadb) -h 127.0.0.1 -uroot -e
           'CREATE DATABASE IF NOT EXISTS `{{name}}`;'

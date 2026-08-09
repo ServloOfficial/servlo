@@ -68,3 +68,44 @@ func TestMySQLLocalCommands_NameTheAddressRatherThanTrustTheDefaultSocket(t *tes
 		}
 	}
 }
+
+// An image on a databases entity is not a default, it is a routing decision.
+//
+// A command runs inside the service's own container unless the entity or the
+// action names a client image, and then it runs in an ephemeral container of
+// that image instead. A database client given no address falls back to a unix
+// socket, and that socket only exists beside the server, so a local command
+// routed into a client container is a command looking for an engine in a
+// container that holds none. The symptom is `servlo db:create` failing against
+// a database that is running, and CI found it on a real runner.
+//
+// Scoped to databases on purpose. An entity image is right where the service's
+// own image ships no tooling for what it holds and the client addresses the
+// server over the network anyway, which is what rustfs's buckets do. It is
+// wrong for a database, whose client falls back to a socket instead.
+func TestPresetDatabases_NameNoClientImageOnTheEntity(t *testing.T) {
+	metas, err := ListPresets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, meta := range metas {
+		p, err := LoadPreset(meta.Name)
+		if err != nil || p == nil || p.Introspect == nil {
+			continue
+		}
+		for _, spec := range p.Introspect.Entities {
+			if spec.Kind != "databases" {
+				continue
+			}
+			checked++
+			if spec.Image != "" {
+				t.Errorf("%s: the databases entity names the client image %s, which sends its local commands into a container with no engine in it; put the image on the aimed actions that need it",
+					meta.Name, spec.Image)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no preset declares a databases entity, so this proves nothing")
+	}
+}
