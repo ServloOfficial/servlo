@@ -47,7 +47,7 @@ func runBackup(ref string, filesOnly bool) error {
 	if ref == "" {
 		return fmt.Errorf("which site? Run this from a site's directory, or name one")
 	}
-	site, err := config.FindSite(ref)
+	site, err := config.FindSiteByRef(ref)
 	if err != nil {
 		return fmt.Errorf("site %q not found", ref)
 	}
@@ -114,7 +114,7 @@ func newBackupListCmd() *cobra.Command {
 		RunE: func(_ *cobra.Command, args []string) error {
 			var only string
 			if len(args) > 0 {
-				if site, err := config.FindSite(args[0]); err == nil {
+				if site, err := config.FindSiteByRef(args[0]); err == nil {
 					only = config.SiteSlug(site.Name)
 				} else {
 					only = config.SiteSlug(args[0])
@@ -235,7 +235,7 @@ func newBackupScheduleCmd() *cobra.Command {
 			case len(args) == 2:
 				ref, when = args[0], args[1]
 			case len(args) == 1:
-				if _, err := config.FindSite(args[0]); err == nil {
+				if _, err := config.FindSiteByRef(args[0]); err == nil {
 					ref = args[0]
 				} else {
 					ref, when = siteRefOrCwd(nil), args[0]
@@ -263,7 +263,7 @@ func runBackupSchedule(ref, when, verify string, off bool, keep *config.BackupKe
 	if ref == "" {
 		return fmt.Errorf("which site? Run this from a site's directory, or name one")
 	}
-	site, err := config.FindSite(ref)
+	site, err := config.FindSiteByRef(ref)
 	if err != nil {
 		return fmt.Errorf("site %q not found", ref)
 	}
@@ -371,7 +371,7 @@ func newBackupVerifyCmd() *cobra.Command {
 			feedback.Begin()
 			ref := args[0]
 			if latest {
-				site, err := config.FindSite(ref)
+				site, err := config.FindSiteByRef(ref)
 				if err != nil {
 					return fmt.Errorf("site %q not found", ref)
 				}
