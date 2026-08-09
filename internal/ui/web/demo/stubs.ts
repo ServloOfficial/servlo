@@ -25,6 +25,7 @@ import dbUsers from './fixtures/db-user.json';
 import smtpFixture from './fixtures/smtp.json';
 import alertsFixture from './fixtures/alerts.json';
 import appsFixture from './fixtures/apps.json';
+import serverStateFixture from './fixtures/server-state.json';
 import securityFixture from './fixtures/security.json';
 
 // Demo follows the system theme (auto). Reset any stale value a previous demo
@@ -943,6 +944,14 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
       { type: line.split(' ')[0], comment: name, fingerprint: 'SHA256:' + line.slice(-43) }
     ];
     return jsonResponse({ ok: true, keys: demoSecurity.keys });
+  }
+
+  // Servlo's own state: what a rebuild onto a fresh machine needs.
+  if (path === '/api/backup/state') {
+    if (method === 'POST') {
+      return jsonResponse({ ok: true, name: 'servlo-state-20260309-141500.servlobak', size: 185344, files: 37 });
+    }
+    return jsonResponse(serverStateFixture);
   }
 
   // What the app store offers, for the Add Site form's fourth source.

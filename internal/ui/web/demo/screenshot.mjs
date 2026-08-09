@@ -73,6 +73,7 @@ const SHOTS = [
       await page.getByRole('button', { name: /^Add Site$/ }).last().click();
       await page.waitForTimeout(900);
     } },
+  { name: 'system-server-state', height: 2600, act: rail('System') },
   { name: 'services', act: rail('Services') },
   { name: 'services-connections-add', height: 2400, act: async (page) => {
       await rail('Services')(page);

@@ -476,39 +476,15 @@ func runBackupState() error {
 	if err != nil {
 		return err
 	}
-	dir := config.SiteBackupsDir()
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, ".partial-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name()) //nolint:errcheck
-
-	if err := tmp.Chmod(0600); err != nil {
-		_ = tmp.Close()
-		return err
-	}
 	step := feedback.Start("backing up this server's own state")
-	man, err := backup.CreateState(tmp, key, backup.StateOptions{Version: version.Version})
+	path, man, size, err := backup.WriteState(config.SiteBackupsDir(), key, backup.StateOptions{Version: version.Version})
 	if err != nil {
-		_ = tmp.Close()
 		step.Fail(err)
 		return err
 	}
-	size, _ := tmp.Seek(0, io.SeekCurrent)
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-
-	final := filepath.Join(dir, "servlo-state-"+man.Taken.Format("20060102-150405")+backup.Extension)
-	if err := os.Rename(tmp.Name(), final); err != nil {
-		return err
-	}
-	step.OK(feedback.Val(filepath.Base(final)))
+	step.OK(feedback.Val(filepath.Base(path)))
 	fmt.Printf("  %d %s, %s on disk\n", man.Files, plural(man.Files, "file", "files"), humanSize(size))
-	fmt.Printf("  %s\n", final)
+	fmt.Printf("  %s\n", path)
 	fmt.Println("  The backup key is not in here. Keep a copy of it somewhere else, or this")
 	fmt.Println("  archive is not recoverable either.")
 	return nil

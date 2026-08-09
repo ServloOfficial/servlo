@@ -12,6 +12,7 @@
   import SettingsCard from '$components/SettingsCard.svelte';
   import TwoFactorSetting from './TwoFactorSetting.svelte';
   import AuditLog from './AuditLog.svelte';
+  import ServerStateCard from './ServerStateCard.svelte';
   import LanguageSwitcher from '$components/LanguageSwitcher.svelte';
   import { apiFetch, apiBase } from '$lib/api';
   import { escapeHtml } from '$lib/html';
@@ -121,6 +122,8 @@
     </SettingsCard>
 
     <TwoFactorSetting />
+
+    <ServerStateCard />
 
     <AuditLog />
 

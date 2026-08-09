@@ -127,6 +127,8 @@ servlo backup state
 
 A site's archive holds that site. Restoring one onto a fresh droplet gives you the files and the database on a server that has no idea what a site is: no registry, no connections, no schedules, no settings.
 
+The panel has it too, on **System, Servlo**, as the Server state card: what exists, when each was taken, and a button that takes another.
+
 `servlo backup state` is the other half. It carries everything servlo knows that is not a site's files or data: the site registry, the connections, the per-site database accounts, the SMTP settings, the provider certificates and every per-site setting.
 
 **The backup key is deliberately not in it.** It is what opens the archive, so putting it inside would be locking the door and taping the key to the front.

@@ -121,6 +121,7 @@ func Permissions() Registry {
 		"/api/sites/upload":     PermAdmin,
 		"/api/sites/app":        PermAdmin,
 		"/api/apps":             PermAdmin,
+		"/api/backup/state":     PermAdmin,
 		"/api/sites/reorder":    PermAdmin,
 
 		// Named in the story as things a Developer should reach, and admin

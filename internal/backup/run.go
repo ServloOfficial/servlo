@@ -156,7 +156,7 @@ func (r Runner) Run(site *config.Site) (Record, error) {
 // a name, and the second silently replacing the first is the loss that
 // retention exists to prevent, arriving by a different route.
 func uniquePath(dir, site string, now time.Time) (string, error) {
-	base := fmt.Sprintf("%s-%s", config.SiteSlug(site), now.Format("20060102-150405"))
+	base := fmt.Sprintf("%s-%s", config.SiteSlug(site), now.Format(stampLayout))
 	for n := 0; n < 1000; n++ {
 		name := base
 		if n > 0 {

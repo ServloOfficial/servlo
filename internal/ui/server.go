@@ -239,6 +239,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/sites/upload", withCORS(publishAfter(handleSiteUpload, eventbus.KindSites)))
 	mux.HandleFunc("/api/sites/app", withCORS(publishAfter(handleSiteApp, eventbus.KindSites)))
 	mux.HandleFunc("/api/apps", withCORS(handleApps))
+	mux.HandleFunc("/api/backup/state", withCORS(handleServerState))
 	mux.HandleFunc("/api/sites/reorder", withCORS(publishAfter(handleSiteReorder, eventbus.KindSites)))
 	mux.HandleFunc("/api/browse", withCORS(handleBrowse))
 	mux.HandleFunc("/api/sftp", withCORS(handleSFTP))

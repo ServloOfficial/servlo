@@ -183,3 +183,49 @@ func writeStateFileFrom(tw *tar.Writer, from, name string, info os.FileInfo) (in
 	}
 	return 1, n, nil
 }
+
+// StateName is the prefix every server-state archive carries, which is also
+// what lists them: they sit in the same directory as the sites' own.
+const StateName = "servlo-state"
+
+// WriteState creates a server-state archive in dir and returns where it landed.
+//
+// The file is written under a temporary name and renamed into place, so a
+// process killed halfway through leaves a .partial rather than something that
+// looks like an archive and is not one. Restoring from a truncated backup is
+// the failure this exists to prevent, so it must not be able to produce one.
+//
+// Shared by the command and the panel. Two copies of this would be two chances
+// for one of them to skip the rename.
+func WriteState(dir string, key []byte, opts StateOptions) (path string, man Manifest, size int64, err error) {
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", Manifest{}, 0, err
+	}
+	tmp, err := os.CreateTemp(dir, ".partial-*")
+	if err != nil {
+		return "", Manifest{}, 0, err
+	}
+	defer os.Remove(tmp.Name()) //nolint:errcheck
+
+	// The mode is set before anything is written. It holds every credential
+	// servlo has, and a file that is briefly world-readable is world-readable.
+	if err := tmp.Chmod(0600); err != nil {
+		_ = tmp.Close()
+		return "", Manifest{}, 0, err
+	}
+	man, err = CreateState(tmp, key, opts)
+	if err != nil {
+		_ = tmp.Close()
+		return "", Manifest{}, 0, err
+	}
+	size, _ = tmp.Seek(0, io.SeekCurrent)
+	if err := tmp.Close(); err != nil {
+		return "", Manifest{}, 0, err
+	}
+
+	path = filepath.Join(dir, StateName+"-"+man.Taken.Format(stampLayout)+Extension)
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return "", Manifest{}, 0, err
+	}
+	return path, man, size, nil
+}
