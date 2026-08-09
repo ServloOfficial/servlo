@@ -758,6 +758,42 @@ func hasHostGatewayEntry(path string) bool {
 	return err == nil && strings.Contains(string(body), "host.containers.internal")
 }
 
+// ensureFPMMounts creates the two host paths the FPM quadlet binds that are
+// otherwise written by something later than the quadlet itself.
+//
+// Podman refuses a bind mount whose source is missing, so a container whose
+// pool directory does not exist yet does not start at all, and systemd
+// restarting it cannot conjure a directory. The pool directory is written when
+// a site is linked and the production drop-in when servlo starts, both of which
+// happen after the quadlet on a fresh install, so the shared FPM came up only
+// once something else had happened to create them.
+//
+// The drop-in is created empty rather than with a body, because what goes in it
+// is the production flag's answer and this is not the place that knows it. The
+// next start writes the real contents over the top.
+func ensureFPMMounts(version string) error {
+	if err := os.MkdirAll(config.FPMPoolDir(SharedFPMContainerName(version)), 0755); err != nil {
+		return fmt.Errorf("creating the FPM pool directory: %w", err)
+	}
+
+	path := config.ProductionIniFile()
+	if info, err := os.Stat(path); err == nil {
+		if !info.IsDir() {
+			return nil
+		}
+		// Older podman creates a missing bind source as a directory rather than
+		// refusing, and a directory where a php.ini belongs keeps the container
+		// down after the path exists. EnsureSharedIni heals the same way.
+		if err := os.Remove(path); err != nil {
+			return fmt.Errorf("removing a stale production ini directory: %w", err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, nil, 0644)
+}
+
 // WriteFPMQuadlet writes the systemd quadlet for a PHP-FPM version and reloads the
 // systemd daemon if the content changed. It also ensures the user ini file exists.
 func WriteFPMQuadlet(version string) error {
@@ -772,6 +808,9 @@ func WriteFPMQuadlet(version string) error {
 	}
 
 	if err := ensureFPMHostsFile(); err != nil {
+		return err
+	}
+	if err := ensureFPMMounts(version); err != nil {
 		return err
 	}
 
