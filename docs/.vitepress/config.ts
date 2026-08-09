@@ -285,6 +285,7 @@ export default defineConfig({
             { text: 'Building from Source', link: '/contributing/building' },
             { text: 'The Stores', link: '/contributing/stores' },
             { text: 'Pull Requests', link: '/contributing/pull-requests' },
+            { text: 'The resilience jobs', link: '/contributing/resilience' },
           ],
         },
       ],
