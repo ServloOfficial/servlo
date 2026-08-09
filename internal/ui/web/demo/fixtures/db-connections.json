@@ -1,0 +1,41 @@
+{
+  "connections": [
+    {
+      "name": "local",
+      "family": "mysql",
+      "service": "mysql",
+      "host": "servlo-mysql",
+      "port": 3306,
+      "user": "root",
+      "tls_mode": "",
+      "ca_cert": "",
+      "default": true,
+      "sites": ["acme.example.com", "blog.example.com", "docs.example.com"]
+    },
+    {
+      "name": "reporting",
+      "family": "postgres",
+      "service": "postgres",
+      "host": "servlo-postgres",
+      "port": 5432,
+      "user": "postgres",
+      "tls_mode": "",
+      "ca_cert": "",
+      "default": false,
+      "sites": []
+    },
+    {
+      "name": "managed",
+      "family": "postgres",
+      "service": "",
+      "host": "app-db-do-user-1234567-0.k.db.ondigitalocean.com",
+      "port": 25060,
+      "user": "doadmin",
+      "tls_mode": "verify-ca",
+      "ca_cert": "/home/servlo/.config/servlo/ca/managed.crt",
+      "default": false,
+      "sites": ["shop.example.com"]
+    }
+  ],
+  "services": ["mysql", "postgres", "mariadb"]
+}

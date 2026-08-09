@@ -16,6 +16,7 @@ import lanStatus from './fixtures/lan_status.json';
 import stats from './fixtures/stats.json';
 import workersHealth from './fixtures/workers_health.json';
 import databasesFixture from './fixtures/databases.json';
+import dbConnections from './fixtures/db-connections.json';
 
 // Demo follows the system theme (auto). Reset any stale value a previous demo
 // session may have pinned, so it isn't stuck on a forced light/dark.
@@ -55,6 +56,7 @@ const ROUTES: Record<string, unknown> = {
   '/api/lan/status': lanStatus,
   '/api/stats': stats,
   '/api/workers/health': workersHealth,
+  '/api/db-connections': dbConnections,
 };
 
 // ---- Example payloads for the editor / REPL tabs ----

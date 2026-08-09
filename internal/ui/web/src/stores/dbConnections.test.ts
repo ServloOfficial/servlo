@@ -9,6 +9,8 @@ import {
   assignConnection,
   connectionLocation,
   connectionForSite,
+  connectionMeta,
+  siteCountLabel,
   type DBConnection
 } from './dbConnections';
 
@@ -169,6 +171,28 @@ describe('dbConnections store', () => {
       connection: 'managed'
     });
     expect(connectionForSite(get(dbConnections).connections, 'shop.example')).toBe('managed');
+  });
+
+  it('siteCountLabel counts one site in the singular', () => {
+    expect(siteCountLabel(1)).toBe('1 site');
+    expect(siteCountLabel(0)).toBe('0 sites');
+    expect(siteCountLabel(3)).toBe('3 sites');
+  });
+
+  it('connectionMeta names a local connection once and skips its address', () => {
+    const meta = connectionMeta({ ...local, sites: ['a.example', 'b.example'] });
+    expect(meta.engine).toBe('MySQL');
+    expect(meta.location).toBe('');
+    expect(meta.kind).toBe('local service');
+    expect(meta.sites).toBe('2 sites');
+  });
+
+  it('connectionMeta keeps the dialect and the address for a managed connection', () => {
+    const meta = connectionMeta(managed);
+    expect(meta.engine).toBe('PostgreSQL');
+    expect(meta.location).toBe('db.example.net:25060');
+    expect(meta.kind).toBe('Managed');
+    expect(meta.sites).toBe('1 site');
   });
 
   it('assignConnection sends an empty connection for the install default', async () => {

@@ -4,6 +4,10 @@
   // One labelled control with its hint, the text half of a settings row. The
   // control itself is the caller's, so a select, an input and a path box all
   // read the same way without three copies of the same markup.
+  //
+  // The hint sits under the control, not between it and the label, so two
+  // fields side by side put their inputs on the same line whether or not
+  // either one has a hint.
   interface Props {
     label: string;
     hint?: string;
@@ -15,10 +19,10 @@
 
 <div>
   <label class="text-xs font-medium text-gray-700 dark:text-gray-200" for={forId}>{label}</label>
+  <div class="mt-1.5">
+    {@render children()}
+  </div>
   {#if hint}
     <p class="mt-1 text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">{hint}</p>
   {/if}
-  <div class="mt-2">
-    {@render children()}
-  </div>
 </div>

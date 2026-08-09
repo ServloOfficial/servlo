@@ -149,6 +149,29 @@ Reuse existing patterns and helpers. In the web UI, extract shared markup into c
 ### Step 4 — Document it
 Update the relevant page under `docs/` for every feature or behaviour change, before committing.
 
+### Step 4.5 — Look at the UI you built
+
+**Any story that adds or changes a view, a card, a form, a modal or a state in the panel ends with you rendering it in a browser and looking at the screenshot.** Not "it compiles", not "svelte-check is clean", not "Vitest passes". Those say the code runs. They say nothing about whether the thing is legible, aligned, reachable, or says the right words, and a panel is judged entirely on that.
+
+This is not optional and it is not a nice-to-have at the end of the phase. A card shipped unseen is a card shipped broken. It has already happened here: a Connections card merged with a meta line reading `mysql · mysql`, "1 sites", ragged action columns, a heading in a style no other section on the page used, and a site count of zero beside the connection every site was actually on. Every one of those was obvious in the first screenshot and invisible to the entire test suite.
+
+The harness is `internal/ui/web/demo`: the real panel with `window.fetch` stubbed, so it runs with no Go backend, no containers and no database.
+
+```
+cd internal/ui/web && npx vite --config vite.demo.config.ts --port 5199 --host 127.0.0.1
+```
+
+then drive Chromium at `http://127.0.0.1:5199/demo/` with Playwright (`playwright-core`, `executablePath: '/opt/pw-browsers/chromium'`) and read the PNGs back.
+
+- **Add a fixture first.** A new endpoint needs an entry in `demo/fixtures/` and a line in `demo/stubs.ts`, or your view renders its empty state and you have looked at nothing. Give the fixture realistic data: a long hostname, a count of one *and* a count of several, a row that is the default and a row that is not. Uniform fixtures hide exactly the bugs worth finding.
+- **Both themes.** `colorScheme: 'dark'` as well as light. Contrast and border tokens break in one and not the other.
+- **Every state, not just the happy one.** The collapsed form and the open one, each mode of a switch, the confirmation modal, the disabled button, the error.
+- **Read the screenshot properly.** Duplicated words, singular/plural, things that do not line up between adjacent rows, a heading that does not match its siblings on the same page, an action that is a bare link where the rest of the page uses buttons, text that will overflow at a narrower width.
+- **Then fix what you saw and render it again.** One pass is a look; two is a check.
+- Attach the screenshots when you report the work, so the person reading you can see it too.
+
+Be straight about what this does and does not prove. It is fixture data in a headless browser: it catches layout, copy, contrast, alignment and dead affordances, which is most of what goes wrong. It does not prove the button reaches the API on a real droplet. Say which one you did.
+
 ### Step 5 — Run the full local gate
 ```
 make build-ui                          # if UI changed
@@ -160,6 +183,7 @@ make test-ui                           # Vitest, if UI changed
 bats tests/installer/installer.bats    # if install.sh changed
 make surface-scan                      # deleted-feature gate
 ```
+Plus step 4.5's screenshot pass whenever the change is visible in the panel. A green suite over a view nobody has looked at is not a passed gate.
 CI runs the same gate on a real Ubuntu 24.04 runner. That is the gate for a story: local green, then CI green, then merge.
 
 **The droplet smoke test is deferred to the end of the build, by the project owner's decision.** It used to sit here as a per-story gate, which in a browser session meant every story ended blocked on something no session could do. It now happens once, against the finished product, after the last phase lands. Do not wait for it, do not treat it as a merge condition, and do not re-raise it story by story.

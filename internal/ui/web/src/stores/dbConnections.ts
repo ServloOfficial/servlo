@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { apiFetch, apiJson, decodeJSONResult } from '$lib/api';
+import { serviceLabel } from './services';
 import { m } from '../paraglide/messages.js';
 
 // A database is a connection, either a local service servlo runs or a managed
@@ -121,6 +122,32 @@ export function connectionLocation(c: DBConnection): string {
   if (isLocalConnection(c)) return c.service ?? '';
   if (!c.host) return '';
   return c.port ? `${c.host}:${c.port}` : c.host;
+}
+
+// Two keys and pick one, the way the rest of the panel counts things.
+export const siteCountLabel = (count: number) =>
+  count === 1 ? m.dbconn_siteOn({ count }) : m.dbconn_sitesOn({ count });
+
+// The one line a connection row carries under its name, already translated.
+// An empty location is a location the row should not print.
+export interface ConnectionMeta {
+  engine: string;
+  location: string;
+  kind: string;
+  sites: string;
+}
+
+// A local connection's dialect and its service are the same word, so it names
+// the service once; a managed one keeps the dialect because a hostname does
+// not say what answers on it.
+export function connectionMeta(c: DBConnection): ConnectionMeta {
+  const local = isLocalConnection(c);
+  return {
+    engine: serviceLabel(local ? (c.service ?? '') : c.family),
+    location: local ? '' : connectionLocation(c),
+    kind: local ? m.dbconn_localService() : m.dbconn_kindManaged(),
+    sites: siteCountLabel(c.sites.length)
+  };
 }
 
 // The connection a site is on, or empty when it follows the install default.

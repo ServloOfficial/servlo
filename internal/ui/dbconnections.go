@@ -52,7 +52,7 @@ func listConnections() connectionsResponse {
 		out.Error = err.Error()
 		return out
 	}
-	onConnection := sitesByConnection()
+	onConnection := sitesByConnection(reg.Default)
 	for _, c := range reg.Connections {
 		sites := onConnection[c.Name]
 		if sites == nil {
@@ -76,19 +76,26 @@ func listConnections() connectionsResponse {
 }
 
 // sitesByConnection maps a connection name to the domains of the sites on it.
-// A site that names nothing is on the default, which the caller already knows,
-// so it is not counted here.
-func sitesByConnection() map[string][]string {
+//
+// A site that names nothing is on the default, and it is counted there. The
+// alternative reads as "0 sites" beside the connection every site on the
+// machine is actually using, which is worse than useless: it is the number an
+// operator would check before deciding a connection is safe to remove.
+func sitesByConnection(defaultName string) map[string][]string {
 	reg, err := config.LoadSites()
 	if err != nil {
 		return nil
 	}
 	on := map[string][]string{}
 	for _, s := range reg.Sites {
-		if s.Database == "" {
+		name := s.Database
+		if name == "" {
+			name = defaultName
+		}
+		if name == "" {
 			continue
 		}
-		on[s.Database] = append(on[s.Database], s.PrimaryDomain())
+		on[name] = append(on[name], s.PrimaryDomain())
 	}
 	return on
 }
@@ -173,7 +180,7 @@ func removeConnection(name string) error {
 	}
 	// Not out from under the sites on it: their env still points at that
 	// database, and the connection they name would resolve to nothing.
-	if sites := sitesByConnection()[name]; len(sites) > 0 {
+	if sites := sitesByConnection(reg.Default)[name]; len(sites) > 0 {
 		return &connectionInUseError{name: name, sites: sites}
 	}
 	if err := reg.Remove(name); err != nil {

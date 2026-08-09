@@ -44,10 +44,20 @@
       'bg-sky-50 dark:bg-sky-500/10 hover:bg-sky-100 dark:hover:bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-500/30'
   };
 
+  // A filled tone faded to half strength still reads as a live button, so the
+  // filled ones drop their colour when disabled instead. The outlined tones are
+  // already quiet enough that fading them is the whole story.
+  const disabledClass: Partial<Record<DetailButtonTone, string>> = {
+    primary: 'bg-gray-200 dark:bg-white/10 text-gray-400 dark:text-gray-500',
+    success: 'bg-gray-200 dark:bg-white/10 text-gray-400 dark:text-gray-500'
+  };
+
   const cls = $derived(
     (block ? 'flex w-full justify-center' : 'inline-flex') +
-      ' items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50 ' +
-      toneClass[tone]
+      ' items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 transition-colors ' +
+      (disabled
+        ? (disabledClass[tone] ?? toneClass[tone] + ' opacity-50') + ' cursor-not-allowed'
+        : toneClass[tone])
   );
 </script>
 

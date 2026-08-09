@@ -39,7 +39,11 @@
   <div class="px-5 py-4 space-y-3">
     {#if connection.sites.length > 0}
       <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 rounded-sm px-3 py-2 text-xs text-red-700 dark:text-red-300">
-        <p class="font-medium mb-1">{m.dbconn_removeInUse({ count: connection.sites.length })}</p>
+        <p class="font-medium mb-1">
+          {connection.sites.length === 1
+            ? m.dbconn_removeInUseOne({ count: connection.sites.length })
+            : m.dbconn_removeInUse({ count: connection.sites.length })}
+        </p>
         <ul class="list-disc list-inside space-y-0.5">
           {#each connection.sites as domain (domain)}
             <li class="font-mono">{domain}</li>
