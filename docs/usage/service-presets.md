@@ -400,7 +400,7 @@ introspect:
     - kind: databases
       format: sql
       list: >
-        $(command -v mysql || command -v mariadb) -uroot -sN -e
+        $(command -v mysql || command -v mariadb) -h 127.0.0.1 -uroot -sN -e
         "SELECT s.SCHEMA_NAME, COALESCE(SUM(t.DATA_LENGTH + t.INDEX_LENGTH), 0)
         FROM information_schema.SCHEMATA s
         LEFT JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = s.SCHEMA_NAME
@@ -412,21 +412,21 @@ introspect:
           format: bytes
       actions:
         create: >
-          $(command -v mysql || command -v mariadb) -uroot -e
+          $(command -v mysql || command -v mariadb) -h 127.0.0.1 -uroot -e
           'CREATE DATABASE IF NOT EXISTS `{{name}}`;'
         drop:
           exec: >
-            $(command -v mysql || command -v mariadb) -uroot -e
+            $(command -v mysql || command -v mariadb) -h 127.0.0.1 -uroot -e
             'DROP DATABASE IF EXISTS `{{name}}`;'
           destructive: true
         export:
           exec: >
-            $(command -v mysqldump || command -v mariadb-dump) -uroot
+            $(command -v mysqldump || command -v mariadb-dump) -h 127.0.0.1 -uroot
             --single-transaction --quick --no-tablespaces --routines --triggers --events
             {{name}}
           filename: "{{name}}.sql"
         import: >
-          $(command -v mysql || command -v mariadb) --max-allowed-packet=1G -uroot {{name}}
+          $(command -v mysql || command -v mariadb) --max-allowed-packet=1G -h 127.0.0.1 -uroot {{name}}
 ```
 
 Every command runs via `sh -c` inside the `servlo-<service>` container. The `list`
@@ -435,6 +435,15 @@ declared column, in order; servlo parses the output and never branches on the
 engine name. The fixed `servlo` admin password is passed through the exec
 environment (`MYSQL_PWD` / `PGPASSWORD`), so commands need no inline credentials
 for MySQL and PostgreSQL; other engines embed theirs the way their client expects.
+
+Name the address even for a command running beside its own server. A client's
+compiled-in socket path and the server's configured one are two separate
+settings, and they do disagree: the MySQL image servlo pins listens on
+`/var/lib/mysql/mysql.sock` while its client looks for
+`/var/run/mysqld/mysqld.sock`, so a command left on the default fails with
+"Can't connect to local MySQL server through socket" against an engine that is
+running perfectly well. `-h 127.0.0.1` uses the port the server is already
+listening on and does not care where either side thinks the socket lives.
 
 In an action, every `{{name}}` is replaced by the entity name after validation
 against a strict pattern (letters, digits, underscores and dashes only, 64

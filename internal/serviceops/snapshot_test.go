@@ -249,12 +249,12 @@ func TestSnapshotDumpCommand(t *testing.T) {
 		{
 			"mysql one database",
 			SnapshotTarget{Service: "mysql", Database: "myapp"},
-			`( $(command -v mysqldump || command -v mariadb-dump) -uroot --single-transaction --quick --no-tablespaces --routines --triggers --events myapp ) | gzip -c`,
+			`( $(command -v mysqldump || command -v mariadb-dump) -h 127.0.0.1 -uroot --single-transaction --quick --no-tablespaces --routines --triggers --events myapp ) | gzip -c`,
 		},
 		{
 			"mysql all databases",
 			SnapshotTarget{Service: "mysql", AllDatabases: true},
-			`( $(command -v mysqldump || command -v mariadb-dump) -uroot --single-transaction --quick --no-tablespaces --routines --triggers --events --add-drop-database --all-databases ) | gzip -c`,
+			`( $(command -v mysqldump || command -v mariadb-dump) -h 127.0.0.1 -uroot --single-transaction --quick --no-tablespaces --routines --triggers --events --add-drop-database --all-databases ) | gzip -c`,
 		},
 		{
 			"postgres one database",
@@ -295,12 +295,12 @@ func TestSnapshotRestoreCommand(t *testing.T) {
 		{
 			"mysql one database",
 			SnapshotTarget{Service: "mysql", Database: "myapp"},
-			`gunzip -c | ( $(command -v mysql || command -v mariadb) --max-allowed-packet=1G -uroot myapp )`,
+			`gunzip -c | ( $(command -v mysql || command -v mariadb) --max-allowed-packet=1G -h 127.0.0.1 -uroot myapp )`,
 		},
 		{
 			"mysql all databases",
 			SnapshotTarget{Service: "mysql", AllDatabases: true},
-			`gunzip -c | ( $(command -v mysql || command -v mariadb) --max-allowed-packet=1G -uroot )`,
+			`gunzip -c | ( $(command -v mysql || command -v mariadb) --max-allowed-packet=1G -h 127.0.0.1 -uroot )`,
 		},
 		{
 			"postgres one database",
