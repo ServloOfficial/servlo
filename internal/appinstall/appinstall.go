@@ -1,0 +1,268 @@
+// Package appinstall turns an app definition into a serving site.
+//
+// The engine in internal/appstore stops deliberately short: it fetches and
+// verifies a release, creates a database if the definition asks for one, and
+// writes the config file. What it cannot do from there is register a site or
+// drive an application's own setup form, because both of those need the site to
+// exist and answer requests. This is the part that knows how.
+//
+// It is its own package rather than a function in the CLI because the panel
+// needs the same steps in the same order, and the order is the design: each
+// step is undoable only by the step that has not happened yet.
+//
+// Nothing here knows what any app is (CLAUDE.md §2). It reads a definition and
+// does what it says.
+package appinstall
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/realrashid/servlo/internal/appstore"
+	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/realrashid/servlo/internal/dbcred"
+	"github.com/realrashid/servlo/internal/dbuser"
+	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/realrashid/servlo/internal/siteops"
+)
+
+// Options is what the operator asked for.
+type Options struct {
+	// App is the name in the app store.
+	App string
+	// Domain is where the site is served. Given, never derived: servlo appends
+	// no TLD to anything (CLAUDE.md §3.3).
+	Domain string
+	// Path is the directory the application is unpacked into. It must be empty
+	// or absent.
+	Path string
+	// Connection names the database connection to use. Empty takes the default,
+	// which may equally be a local container or a managed server somewhere else
+	// (PRD §5.9).
+	Connection string
+	// AdminUser, AdminEmail and SiteTitle fill the application's own setup form
+	// for the apps that have one. The password is generated, never given.
+	AdminUser  string
+	AdminEmail string
+	SiteTitle  string
+}
+
+// Installed is what the install produced, including the one-time credentials.
+type Installed struct {
+	Site config.Site
+	App  appstore.App
+	// Database is the account the application will connect as. Its password is
+	// in here because the caller has to show it once; nothing logs this.
+	Database appstore.Connection
+	// AdminUser and AdminPassword are the account the setup form created. Both
+	// empty when the app declares no setup, which is not a failure: see Note.
+	AdminUser     string
+	AdminPassword string
+	// Note is what is left for the operator to do, for an app whose own
+	// installer servlo cannot drive. Empty when the install finished the job.
+	Note string
+}
+
+// The fallible steps, as seams. Every one of them needs a container, a network
+// or a registry, so a test that could not replace them could only be run on a
+// server.
+var (
+	loadApp        = appstore.Load
+	namedConn      = dbconn.Named
+	defaultConn    = dbconn.Default
+	createDatabase = serviceops.CreateDatabase
+	ensureDBUser   = dbuser.Ensure
+	provisionRemat = dbconn.CreateDatabaseAndUser
+	fetchAndWrite  = func(ctx context.Context, app appstore.App, req appstore.Request, deps appstore.Deps) (appstore.Result, error) {
+		return app.Install(ctx, req, deps)
+	}
+	registerSite = siteops.FinishLink
+	runSetup     = func(ctx context.Context, app appstore.App, siteURL string, values map[string]string) error {
+		return app.Setup.Run(ctx, siteURL, values)
+	}
+	generatePassword = dbcred.GeneratePassword
+)
+
+// Install carries out the whole thing, in the order that leaves the least
+// behind when a step fails.
+func Install(ctx context.Context, opts Options) (Installed, error) {
+	var out Installed
+
+	app, err := loadApp(strings.TrimSpace(opts.App))
+	if err != nil {
+		return out, err
+	}
+	out.App = app
+
+	domain, err := siteops.NormalizeDomain(opts.Domain)
+	if err != nil {
+		return out, err
+	}
+	if existing, err := config.FindSiteByDomain(domain); err == nil {
+		return out, fmt.Errorf("%s is already served by %s", domain, existing.Name)
+	}
+
+	path, err := prepareDir(opts.Path, domain)
+	if err != nil {
+		return out, err
+	}
+
+	siteName := siteops.SiteName(domain)
+	siteURL := "http://" + domain
+
+	var conn dbconn.Connection
+	if app.Database.Required {
+		conn, err = resolveConnection(opts.Connection)
+		if err != nil {
+			return out, err
+		}
+	}
+
+	deps := appstore.Deps{}
+	if app.Database.Required {
+		deps.CreateDatabase = func(name string) (appstore.Connection, error) {
+			return provision(conn, name)
+		}
+	}
+
+	res, err := fetchAndWrite(ctx, app, appstore.Request{
+		Dir:          path,
+		SiteURL:      siteURL,
+		DatabaseName: config.SiteSlug(siteName),
+	}, deps)
+	if err != nil {
+		return out, err
+	}
+	out.Database = res.Connection
+
+	site := config.Site{
+		Name:      siteName,
+		Domains:   []string{domain},
+		Path:      path,
+		Framework: app.Framework,
+	}
+	if err := registerSite(site, site.PHPVersion); err != nil {
+		return out, err
+	}
+	out.Site = site
+
+	if !app.Setup.Declared() {
+		// Not a failure and not silence either. An application whose own
+		// installer servlo cannot drive is one the operator has to finish, and
+		// an install that did not say so leaves an uninstalled application on a
+		// live domain for the first passer-by to claim.
+		out.Note = fmt.Sprintf("%s finishes in its own installer. Open %s and complete it before pointing DNS at this domain.", app.Label, siteURL)
+		return out, nil
+	}
+
+	password, err := generatePassword()
+	if err != nil {
+		return out, err
+	}
+	values := map[string]string{
+		"site_title":     firstNonEmpty(opts.SiteTitle, domain),
+		"admin_user":     firstNonEmpty(opts.AdminUser, "admin"),
+		"admin_password": password,
+		"admin_email":    opts.AdminEmail,
+		"site_url":       siteURL,
+	}
+	if err := runSetup(ctx, app, siteURL, values); err != nil {
+		// The site is registered and serving, so this is reported rather than
+		// rolled back: the operator can finish the form themselves, and taking
+		// the site away would lose the release and the database with it.
+		return out, fmt.Errorf("%s is installed and serving, but its setup did not complete: %w", app.Label, err)
+	}
+	out.AdminUser = values["admin_user"]
+	out.AdminPassword = password
+	return out, nil
+}
+
+// prepareDir resolves the site directory and refuses one with anything in it.
+//
+// Refused before the download rather than after it, so a mistake costs a
+// message instead of sixty megabytes and a half-populated directory.
+func prepareDir(path, domain string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		path = filepath.Join(cwd, domain)
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	if entries, err := os.ReadDir(abs); err == nil && len(entries) > 0 {
+		return "", fmt.Errorf("%s already has something in it. Name an empty directory, or move that aside first", abs)
+	}
+	if err := os.MkdirAll(abs, 0755); err != nil {
+		return "", err
+	}
+	return abs, nil
+}
+
+// resolveConnection returns the connection to provision on, by name or the
+// default.
+func resolveConnection(name string) (dbconn.Connection, error) {
+	if strings.TrimSpace(name) != "" {
+		return namedConn(name)
+	}
+	return defaultConn()
+}
+
+// provision creates the database and the account that reaches it, and returns
+// what the config file should point at.
+//
+// The two halves of PRD §5.9 arrive at the same answer by different routes. A
+// database servlo hosts is created inside its container and its account issued
+// by the store-declared statements; one it does not host is opened over the
+// network, because the alternative is writing the provider's administrator into
+// the site's config file.
+func provision(conn dbconn.Connection, database string) (appstore.Connection, error) {
+	out := appstore.Connection{Name: database, Host: dbuser.Address(conn)}
+
+	if !conn.Local() {
+		user := dbcred.UserName(database)
+		password, err := provisionRemat(conn, database, user)
+		if err != nil {
+			return appstore.Connection{}, err
+		}
+		if password == "" {
+			// The account is on the server and servlo did not create it, so it
+			// does not hold the password. Writing a blank one into a config file
+			// is the silent-wrong-value bug the renderer already refuses; say so
+			// here instead, where the cause is known.
+			return appstore.Connection{}, fmt.Errorf("the account %s already exists on %s and servlo did not create it, so it cannot give the application a password for it", user, conn.Name)
+		}
+		out.User, out.Password = user, password
+		return out, nil
+	}
+
+	if _, err := createDatabase(conn.Service, database); err != nil {
+		return appstore.Connection{}, err
+	}
+	su, err := ensureDBUser(conn, database, nil)
+	if err != nil {
+		if dbuser.Unsupported(err) {
+			return appstore.Connection{}, fmt.Errorf("%s issues no per-site database accounts, so this app has no credentials to connect with", conn.Service)
+		}
+		return appstore.Connection{}, err
+	}
+	out.User, out.Password = su.User, su.Password
+	return out, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}

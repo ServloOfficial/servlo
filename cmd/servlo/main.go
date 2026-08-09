@@ -216,6 +216,7 @@ func main() {
 	root.AddCommand(cli.NewHardenCmd())
 	root.AddCommand(cli.NewAlertsCmd())
 	root.AddCommand(cli.NewStagingCmd())
+	root.AddCommand(cli.NewAppsCmd())
 	root.AddCommand(cli.NewUnpauseCmd())
 	root.AddCommand(cli.NewPanelCmd())
 	root.AddCommand(cli.NewUsersCmd())

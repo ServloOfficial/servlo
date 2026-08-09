@@ -16,6 +16,20 @@ Three apps, three shapes, and the differences are the schema working rather than
 
 Only WordPress ends with an account, and that is not favouritism: its installer is a single form that takes no token, so servlo can post it. Where an application's setup cannot be driven, the honest thing is to say what is left to do rather than to pretend, so the definition carries no `setup` block at all and the description says where the install stops. Finish it before pointing DNS at the domain: an installer nobody has completed is an installer anybody who reaches it can complete.
 
+## Installing one
+
+```bash
+servlo apps                                   # what the store offers
+servlo apps install wordpress blog.acme.com
+servlo apps install wordpress blog.acme.com --path /srv/blog --admin-email me@acme.com
+```
+
+The domain is given, never derived, and the directory has to be empty. Everything else is generated: the database, the account scoped to it, and the administrator password, which is printed once and written to no file and no log.
+
+The order is the design. Fetch and verify, then the database, then the config file, then register the site, then post the setup form, because each step is undoable only by the step that has not happened yet. A release that fails its checksum leaves no orphaned database behind. A setup form that fails leaves the site registered and serving, and says so, because taking it away would lose the release and the database with it.
+
+Afterwards, point DNS at this server and run `servlo secure <domain>`.
+
 ## Where they live
 
 ```
