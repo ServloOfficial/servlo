@@ -1410,5 +1410,13 @@
   "backups_verified": "Se restaura: han vuelto {n} tablas y la base de datos temporal se eliminó.",
   "backups_onDiskOne": "1 copia en este servidor",
   "backups_onDiskMany": "{n} copias en este servidor",
-  "backups_keepLabel": "Cuántas conservar"
+  "backups_keepLabel": "Cuántas conservar",
+  "alerts_title": "Requiere atención",
+  "alerts_count": "{count} abiertas",
+  "alerts_thisServer": "este servidor",
+  "alerts_dismiss": "Descartar",
+  "alerts_dismissHint": "Quítala de la lista. No cambia nada en el servidor y, si el fallo sigue ocurriendo, la próxima comprobación volverá a mostrarla.",
+  "alerts_sinceMinutes": "hace {count} min",
+  "alerts_sinceHours": "hace {count} h",
+  "alerts_sinceDays": "hace {count} d"
 }

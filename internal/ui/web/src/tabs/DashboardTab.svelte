@@ -3,9 +3,11 @@
   import { sites } from '$stores/sites';
   import { coreServices } from '$stores/services';
   import { unhealthyWorkers } from '$stores/workerHealth';
+  import { alerts } from '$stores/alerts';
   import { status, statusLoaded } from '$stores/status';
   import HeroStatus from './dashboard/HeroStatus.svelte';
   import OnboardingPanel from './dashboard/OnboardingPanel.svelte';
+  import AlertsWidget from './dashboard/AlertsWidget.svelte';
   import SystemHealthWidget from './dashboard/SystemHealthWidget.svelte';
   import ServloInfoWidget from './dashboard/ServloInfoWidget.svelte';
   import SitesWidget from './dashboard/SitesWidget.svelte';
@@ -22,7 +24,8 @@
   const sitesTotal = $derived($sites.length);
   const servicesActive = $derived($coreServices.filter((s) => s.status === 'active').length);
   const everythingHealthy = $derived(
-    $unhealthyWorkers.length === 0 &&
+    $alerts.length === 0 &&
+      $unhealthyWorkers.length === 0 &&
       $statusLoaded &&
       $status.nginx.running &&
       $status.watcher_running &&
@@ -67,6 +70,12 @@
       <HeroStatus />
     {/if}
     <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 xl:flex-1 xl:min-h-0 xl:auto-rows-fr">
+      <!-- Only when there is something in it. An empty "Needs attention" card
+           is the dashboard clutter CLAUDE.md section 8 rules out, and a
+           permanent green tick is how a real alert stops being noticed. -->
+      {#if $alerts.length > 0}
+        <AlertsWidget />
+      {/if}
       <SitesWidget />
       <ServicesWidget />
       <WorkersWidget />

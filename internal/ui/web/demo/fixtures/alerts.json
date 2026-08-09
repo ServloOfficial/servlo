@@ -1,0 +1,38 @@
+{
+  "alerts": [
+    {
+      "kind": "site_down",
+      "site": "shop.northwindtrading.example",
+      "title": "Site is down",
+      "message": "the site answered 502 Bad Gateway\n\nChecked https://shop.northwindtrading.example:443/up from this server.",
+      "at": "@-14m"
+    },
+    {
+      "kind": "cert_renew_failed",
+      "site": "invoices.acme.example",
+      "title": "Certificate renewal failed",
+      "message": "acme: authorization error for invoices.acme.example: DNS problem: NXDOMAIN looking up A for invoices.acme.example\n\nThe site keeps serving its existing certificate until that expires. Open the panel to see the failure and retry.",
+      "at": "@-31h"
+    },
+    {
+      "kind": "backup_unverified",
+      "site": "acme.example",
+      "title": "A backup could not be restored",
+      "message": "acme-20260809-030000 could not be restored into a scratch database, so it is not known to be a working backup.\n\nthe dump loaded but left no tables behind",
+      "at": "@-9h"
+    },
+    {
+      "kind": "deploy_failed",
+      "site": "acme.example",
+      "title": "Deploy failed",
+      "message": "Bump the invoice totals\n\ncomposer install exited 1: Your requirements could not be resolved to an installable set of packages.",
+      "at": "@-2h"
+    },
+    {
+      "kind": "disk_filling",
+      "title": "Disk is filling up",
+      "message": "/home/deploy/.local/share/servlo is 94% full.\n\nBackups, container images and logs are what usually fill a droplet. servlo cleanup reclaims unused images, and servlo backup list shows what retention is keeping.",
+      "at": "@-6d"
+    }
+  ]
+}

@@ -1410,5 +1410,13 @@
   "backups_verified": "Sie lässt sich wiederherstellen: {n} Tabellen kamen zurück, die temporäre Datenbank wurde verworfen.",
   "backups_onDiskOne": "1 Sicherung auf diesem Server",
   "backups_onDiskMany": "{n} Sicherungen auf diesem Server",
-  "backups_keepLabel": "Wie viele behalten"
+  "backups_keepLabel": "Wie viele behalten",
+  "alerts_title": "Erfordert Aufmerksamkeit",
+  "alerts_count": "{count} offen",
+  "alerts_thisServer": "dieser Server",
+  "alerts_dismiss": "Ausblenden",
+  "alerts_dismissHint": "Nimmt sie von der Liste. Am Server ändert sich nichts, und wenn der Fehler weiterhin auftritt, meldet ihn die nächste Prüfung erneut.",
+  "alerts_sinceMinutes": "vor {count} Min.",
+  "alerts_sinceHours": "vor {count} Std.",
+  "alerts_sinceDays": "vor {count} Tg."
 }

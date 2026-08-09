@@ -37,6 +37,7 @@
   import ServicesDetail from '$tabs/ServicesDetail.svelte';
   import SystemDetail from '$tabs/SystemDetail.svelte';
   import AppsPage from '$tabs/AppsPage.svelte';
+  import { loadAlerts } from '$stores/alerts';
   import DashboardTab from '$tabs/DashboardTab.svelte';
 
   function handlePageHide() {
@@ -59,6 +60,7 @@
     loadSites();
     loadServices();
     loadWorkerHealth();
+    loadAlerts();
     connectWs();
     initDashboardRoute();
     initNotify();

@@ -1410,5 +1410,13 @@
   "backups_verified": "可以恢复：{n} 张表已回到位，临时数据库已删除。",
   "backups_onDiskOne": "本服务器上有 1 份备份",
   "backups_onDiskMany": "本服务器上有 {n} 份备份",
-  "backups_keepLabel": "保留数量"
+  "backups_keepLabel": "保留数量",
+  "alerts_title": "需要处理",
+  "alerts_count": "{count} 项未解决",
+  "alerts_thisServer": "本服务器",
+  "alerts_dismiss": "忽略",
+  "alerts_dismissHint": "从列表中移除。服务器上不会有任何改变；如果故障仍在，下次检查会再次报出。",
+  "alerts_sinceMinutes": "{count} 分钟前",
+  "alerts_sinceHours": "{count} 小时前",
+  "alerts_sinceDays": "{count} 天前"
 }

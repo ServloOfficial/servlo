@@ -23,6 +23,7 @@ import cronFixture from './fixtures/cron.json';
 import backupsFixture from './fixtures/backups.json';
 import dbUsers from './fixtures/db-user.json';
 import smtpFixture from './fixtures/smtp.json';
+import alertsFixture from './fixtures/alerts.json';
 
 // Demo follows the system theme (auto). Reset any stale value a previous demo
 // session may have pinned, so it isn't stuck on a forced light/dark.
@@ -486,6 +487,17 @@ type DemoSiteBackups = {
 };
 const backupsBySite = structuredClone(backupsFixture) as Record<string, DemoSiteBackups>;
 
+// Alerts are mutable so dismissing one in the demo takes it off the card,
+// which is the only way to see the empty state the dashboard hides.
+interface DemoAlert {
+  kind: string;
+  site?: string;
+  title: string;
+  message: string;
+  at: string;
+}
+let demoAlerts = (structuredClone(alertsFixture) as { alerts: DemoAlert[] }).alerts;
+
 function backupsFor(domain: string): DemoSiteBackups {
   if (!backupsBySite[domain]) {
     backupsBySite[domain] = structuredClone(backupsBySite['default']);
@@ -850,6 +862,16 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (method === 'GET' && /\/php-versions\/[^/]+\/config$/.test(path))
     return jsonResponse({ path: '~/.config/servlo/php/8.4/php.ini', content: PHP_INI_TEXT, exists: true });
 
+
+  // What is currently wrong with the server, and dismissing one of them.
+  if (path === '/api/alerts') {
+    if (method === 'POST') {
+      const body = JSON.parse(String(init?.body ?? '{}')) as { kind?: string; site?: string };
+      if (!body.kind) return jsonResponse({ alerts: [], error: 'which alert?' });
+      demoAlerts = demoAlerts.filter((a) => !(a.kind === body.kind && (a.site ?? '') === (body.site ?? '')));
+    }
+    return jsonResponse({ alerts: demoAlerts.map((a) => ({ ...a, at: stampOffset(a.at) })) });
+  }
 
   // Per-site backups: what is scheduled, what is on disk, and the four things
   // the card can do. Above the catch-alls for the same reason cron is.

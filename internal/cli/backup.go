@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"os"
@@ -61,6 +62,9 @@ func runBackup(ref string, filesOnly bool) error {
 
 	step := feedback.Start("backing up " + site.Name)
 	rec, err := runner.Run(site)
+	// Reported whichever way it went, because this is what the nightly timer
+	// runs and nobody reads a journal at three in the morning.
+	backup.Report(site.Name, rec, err)
 	if err != nil {
 		step.Fail(err)
 		return err
@@ -430,6 +434,10 @@ func runBackupVerify(ref string) error {
 	}()
 	res, verifyErr := dbdump.Verify(conn, scratch, pr)
 	dumpErr := <-errc
+	// A check that runs weekly on a timer reports what it found, the same way
+	// the backup itself does. An unverifiable backup that only ever appeared in
+	// a journal is the failure this whole story exists to catch.
+	backup.ReportVerify(man.Site, filepath.Base(path), cmp.Or(dumpErr, verifyErr))
 	if dumpErr != nil {
 		step.Fail(dumpErr)
 		return dumpErr

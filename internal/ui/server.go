@@ -184,6 +184,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/status", withCORS(handleStatus))
 	mux.HandleFunc("/api/sites", withCORS(handleSites))
 	mux.HandleFunc("/api/certs/alerts", withCORS(handleCertAlerts))
+	mux.HandleFunc("/api/alerts", withCORS(handleAlerts))
 	mux.HandleFunc("/api/services", withCORS(handleServices))
 	mux.HandleFunc("/api/ws", handleWS)
 	mux.HandleFunc("/api/webhooks/deploy/", withCORS(handleWebhookDeploy))

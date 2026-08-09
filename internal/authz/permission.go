@@ -178,6 +178,7 @@ func Permissions() Registry {
 		// site at all. That is not a developer's call to make.
 		"/api/sftp":                  PermAdmin,
 		"/api/sftp/":                 PermAdmin,
+		"/api/alerts":                PermAdmin,
 		"/api/audit":                 PermAdmin,
 		"/api/stats":                 PermAdmin,
 		"/api/disk":                  PermAdmin,

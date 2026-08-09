@@ -1410,5 +1410,13 @@
   "backups_verified": "Phục hồi được: {n} bảng đã trở lại, và cơ sở dữ liệu tạm đã bị xóa.",
   "backups_onDiskOne": "1 bản sao lưu trên máy chủ này",
   "backups_onDiskMany": "{n} bản sao lưu trên máy chủ này",
-  "backups_keepLabel": "Giữ lại bao nhiêu"
+  "backups_keepLabel": "Giữ lại bao nhiêu",
+  "alerts_title": "Cần chú ý",
+  "alerts_count": "{count} chưa xử lý",
+  "alerts_thisServer": "máy chủ này",
+  "alerts_dismiss": "Bỏ qua",
+  "alerts_dismissHint": "Gỡ khỏi danh sách. Không có gì trên máy chủ thay đổi, và nếu sự cố vẫn còn, lần kiểm tra tới sẽ báo lại.",
+  "alerts_sinceMinutes": "{count} phút trước",
+  "alerts_sinceHours": "{count} giờ trước",
+  "alerts_sinceDays": "{count} ngày trước"
 }

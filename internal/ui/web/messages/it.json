@@ -1410,5 +1410,13 @@
   "backups_verified": "Si ripristina: sono tornate {n} tabelle e il database temporaneo è stato eliminato.",
   "backups_onDiskOne": "1 backup su questo server",
   "backups_onDiskMany": "{n} backup su questo server",
-  "backups_keepLabel": "Quanti conservarne"
+  "backups_keepLabel": "Quanti conservarne",
+  "alerts_title": "Richiede attenzione",
+  "alerts_count": "{count} aperti",
+  "alerts_thisServer": "questo server",
+  "alerts_dismiss": "Ignora",
+  "alerts_dismissHint": "La toglie dall'elenco. Sul server non cambia nulla e, se il guasto persiste, il controllo successivo la segnala di nuovo.",
+  "alerts_sinceMinutes": "{count} min fa",
+  "alerts_sinceHours": "{count} h fa",
+  "alerts_sinceDays": "{count} g fa"
 }

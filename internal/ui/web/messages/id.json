@@ -1410,5 +1410,13 @@
   "backups_verified": "Bisa dipulihkan: {n} tabel kembali, dan basis data sementara sudah dihapus.",
   "backups_onDiskOne": "1 cadangan di server ini",
   "backups_onDiskMany": "{n} cadangan di server ini",
-  "backups_keepLabel": "Berapa yang disimpan"
+  "backups_keepLabel": "Berapa yang disimpan",
+  "alerts_title": "Perlu perhatian",
+  "alerts_count": "{count} terbuka",
+  "alerts_thisServer": "server ini",
+  "alerts_dismiss": "Tutup",
+  "alerts_dismissHint": "Menghapusnya dari daftar. Tidak ada yang berubah di server, dan jika kegagalan masih terjadi, pemeriksaan berikutnya akan memunculkannya lagi.",
+  "alerts_sinceMinutes": "{count} mnt lalu",
+  "alerts_sinceHours": "{count} jam lalu",
+  "alerts_sinceDays": "{count} hr lalu"
 }

@@ -1410,5 +1410,13 @@
   "backups_verified": "Odtwarza się: wróciło {n} tabel, a tymczasowa baza została usunięta.",
   "backups_onDiskOne": "1 kopia na tym serwerze",
   "backups_onDiskMany": "Kopie na tym serwerze: {n}",
-  "backups_keepLabel": "Ile zachować"
+  "backups_keepLabel": "Ile zachować",
+  "alerts_title": "Wymaga uwagi",
+  "alerts_count": "{count} otwartych",
+  "alerts_thisServer": "ten serwer",
+  "alerts_dismiss": "Odrzuć",
+  "alerts_dismissHint": "Usuwa z listy. Na serwerze nic się nie zmienia, a jeśli awaria trwa, kolejne sprawdzenie zgłosi ją ponownie.",
+  "alerts_sinceMinutes": "{count} min temu",
+  "alerts_sinceHours": "{count} godz. temu",
+  "alerts_sinceDays": "{count} dni temu"
 }

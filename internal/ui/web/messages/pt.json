@@ -1410,5 +1410,13 @@
   "backups_verified": "Restaura: voltaram {n} tabelas e a base de dados temporária foi eliminada.",
   "backups_onDiskOne": "1 cópia neste servidor",
   "backups_onDiskMany": "{n} cópias neste servidor",
-  "backups_keepLabel": "Quantas manter"
+  "backups_keepLabel": "Quantas manter",
+  "alerts_title": "Precisa de atenção",
+  "alerts_count": "{count} em aberto",
+  "alerts_thisServer": "este servidor",
+  "alerts_dismiss": "Dispensar",
+  "alerts_dismissHint": "Remove-a da lista. Nada muda no servidor e, se a falha continuar, a próxima verificação volta a levantá-la.",
+  "alerts_sinceMinutes": "há {count} min",
+  "alerts_sinceHours": "há {count} h",
+  "alerts_sinceDays": "há {count} d"
 }

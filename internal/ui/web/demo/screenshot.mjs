@@ -83,6 +83,19 @@ const SHOTS = [
     } },
   { name: 'site-backups-none', height: 2600, act: siteTab('blog.orbitlabs.app', 'Settings'), bottom: true },
   { name: 'dashboard', act: rail('Dashboard') },
+  { name: 'dashboard-alerts-cleared', act: async (page) => {
+      await rail('Dashboard')(page);
+      // The other state of the alerts card: dismiss every one and confirm it
+      // disappears rather than sitting there empty, and that the all-good
+      // strip comes back with it.
+      for (let i = 0; i < 8; i++) {
+        const button = page.getByRole('button', { name: /^Dismiss$/ }).first();
+        if (!(await button.count())) break;
+        await button.click();
+        await page.waitForTimeout(250);
+      }
+      await page.waitForTimeout(500);
+    } },
   { name: 'system', height: 2200, act: rail('System') },
   { name: 'system-mail', height: 1800, act: async (page) => {
       await rail('System')(page);

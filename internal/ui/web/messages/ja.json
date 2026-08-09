@@ -1410,5 +1410,13 @@
   "backups_verified": "復元できます: {n} 個のテーブルが戻り、一時データベースは破棄されました。",
   "backups_onDiskOne": "このサーバーに1件",
   "backups_onDiskMany": "このサーバーに{n}件",
-  "backups_keepLabel": "保持する数"
+  "backups_keepLabel": "保持する数",
+  "alerts_title": "対応が必要",
+  "alerts_count": "{count} 件未解決",
+  "alerts_thisServer": "このサーバー",
+  "alerts_dismiss": "閉じる",
+  "alerts_dismissHint": "一覧から取り除きます。サーバーには何の変更もなく、障害が続いていれば次回の点検で再び報告されます。",
+  "alerts_sinceMinutes": "{count} 分前",
+  "alerts_sinceHours": "{count} 時間前",
+  "alerts_sinceDays": "{count} 日前"
 }

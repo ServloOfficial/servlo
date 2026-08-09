@@ -1410,5 +1410,13 @@
   "backups_verified": "It restores: {n} tables came back, and the scratch database was dropped.",
   "backups_onDiskOne": "1 backup on this server",
   "backups_onDiskMany": "{n} backups on this server",
-  "backups_keepLabel": "How many to keep"
+  "backups_keepLabel": "How many to keep",
+  "alerts_title": "Needs attention",
+  "alerts_count": "{count} open",
+  "alerts_thisServer": "this server",
+  "alerts_dismiss": "Dismiss",
+  "alerts_dismissHint": "Take it off the list. Nothing on the server changes, and if the failure is still happening the next check raises it again.",
+  "alerts_sinceMinutes": "{count}m ago",
+  "alerts_sinceHours": "{count}h ago",
+  "alerts_sinceDays": "{count}d ago"
 }

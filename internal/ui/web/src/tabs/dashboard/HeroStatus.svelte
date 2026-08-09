@@ -11,6 +11,7 @@
   import { coreServices } from '$stores/services';
   import { sites } from '$stores/sites';
   import { status, statusLoaded } from '$stores/status';
+  import { alerts } from '$stores/alerts';
   import { goToTab } from '$stores/route';
   import { apiFetch } from '$lib/api';
   import { m } from '../../paraglide/messages.js';
@@ -108,7 +109,10 @@
       </div>
     </div>
   </div>
-{:else}
+<!-- The all-good strip is skipped whenever the alerts card is on screen. A
+     green "everything's running smoothly" directly above a list of five things
+     that are not is worse than saying nothing. -->
+{:else if $alerts.length === 0}
   <div class="rounded-xl border border-emerald-200/70 dark:border-emerald-500/20 bg-emerald-50/60 dark:bg-emerald-500/5 px-3 py-2 flex items-center gap-3">
     <span class="relative flex shrink-0">
       <span class="absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75 animate-ping"></span>

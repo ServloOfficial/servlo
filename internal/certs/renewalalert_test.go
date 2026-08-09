@@ -2,116 +2,113 @@ package certs
 
 import (
 	"errors"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/realrashid/servlo/internal/alerts"
 )
 
-type sentMail struct {
-	acct             config.SMTPSettings
-	to, subject, msg string
-}
-
-// captureAlerts swaps the sender for one that records, and returns a function
-// that waits for n messages. The real one runs in a goroutine so a dead mail
+// captureAlerts swaps the raiser for one that records, and returns a function
+// that waits for n of them. The real one runs in a goroutine so a dead mail
 // server cannot hang an issuance.
-func captureAlerts(t *testing.T) func(n int) []sentMail {
+func captureAlerts(t *testing.T) func(n int) []alerts.Alert {
 	t.Helper()
-	ch := make(chan sentMail, 8)
-	old := alertSender
-	alertSender = func(acct config.SMTPSettings, to, subject, body string) error {
-		ch <- sentMail{acct, to, subject, body}
+	ch := make(chan alerts.Alert, 8)
+	old := raiseAlert
+	raiseAlert = func(a alerts.Alert) error {
+		ch <- a
 		return nil
 	}
-	t.Cleanup(func() { alertSender = old })
+	t.Cleanup(func() { raiseAlert = old })
 
-	return func(n int) []sentMail {
+	return func(n int) []alerts.Alert {
 		t.Helper()
-		var got []sentMail
+		var got []alerts.Alert
 		deadline := time.After(2 * time.Second)
 		for len(got) < n {
 			select {
-			case m := <-ch:
-				got = append(got, m)
+			case a := <-ch:
+				got = append(got, a)
 			case <-deadline:
-				t.Fatalf("only %d of %d alerts were sent", len(got), n)
+				t.Fatalf("only %d of %d alerts were raised", len(got), n)
 			}
 		}
 		// Give a spurious extra one a moment to show up.
 		select {
-		case m := <-ch:
-			got = append(got, m)
+		case a := <-ch:
+			got = append(got, a)
 		case <-time.After(200 * time.Millisecond):
 		}
 		return got
 	}
 }
 
-func panelAccount(t *testing.T) {
-	t.Helper()
-	if err := config.SavePanelSMTP(config.SMTPSettings{
-		Host: "smtp.panel.example", Port: 587, Username: "ops", Password: "s3cret",
-		Encryption: config.SMTPStartTLS, FromAddress: "alerts@panel.example", FromName: "Servlo",
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
-
 // The banner and the audit entry only reach somebody already looking at the
-// panel. The email is the half that reaches an operator who is not.
-func TestFailedRenewal_EmailsTheOperatorThroughPanelSMTP(t *testing.T) {
+// panel. The alert is the half that reaches an operator who is not.
+func TestFailedRenewal_RaisesAnAlertNamingTheDomainAndTheReason(t *testing.T) {
 	renewalEnv(t)
-	panelAccount(t)
 	wait := captureAlerts(t)
 
 	recordFailure("example.com", errors.New("dns-01 challenge timed out"))
 
 	got := wait(1)
 	if len(got) != 1 {
-		t.Fatalf("sent %d alerts, want exactly 1", len(got))
+		t.Fatalf("raised %d alerts, want exactly 1", len(got))
 	}
-	if got[0].to != "alerts@panel.example" {
-		t.Errorf("addressed to %q, want the panel's own address", got[0].to)
+	if got[0].Kind != alerts.KindCertRenewFailed {
+		t.Errorf("raised a %q alert, want %q", got[0].Kind, alerts.KindCertRenewFailed)
 	}
-	if !strings.Contains(got[0].subject, "example.com") {
-		t.Errorf("subject %q does not name the domain", got[0].subject)
+	if got[0].Site != "example.com" {
+		t.Errorf("the alert is against %q, not the failing domain", got[0].Site)
 	}
-	if !strings.Contains(got[0].msg, "dns-01 challenge timed out") {
-		t.Errorf("body does not carry the reason:\n%s", got[0].msg)
+	if !strings.Contains(got[0].Message, "dns-01 challenge timed out") {
+		t.Errorf("the alert does not carry the reason:\n%s", got[0].Message)
 	}
-}
-
-// A renewal retries on a timer. An operator who gets the same email hourly for
-// three weeks has a filter rule, not an alert, so only the first one goes out.
-func TestFailedRenewal_EmailsOnlyTheFirstFailure(t *testing.T) {
-	renewalEnv(t)
-	panelAccount(t)
-	wait := captureAlerts(t)
-
-	recordFailure("example.com", errors.New("first"))
-	recordFailure("example.com", errors.New("second"))
-	recordFailure("example.com", errors.New("third"))
-
-	if got := wait(1); len(got) != 1 {
-		t.Fatalf("sent %d alerts for one failing domain, want 1", len(got))
+	// The subject an operator actually reads has to name the domain, or twenty
+	// sites produce twenty indistinguishable emails.
+	if !strings.Contains(got[0].Subject(), "example.com") {
+		t.Errorf("subject %q does not name the domain", got[0].Subject())
 	}
 }
 
-// A fresh install has no panel account and is not broken for it.
-func TestFailedRenewal_SendsNothingWithoutAPanelAccount(t *testing.T) {
+// Issuance that works again takes the alert away. An alarm that outlives its
+// problem is an alarm operators learn to ignore.
+func TestSuccessfulRenewal_ClearsTheAlert(t *testing.T) {
 	renewalEnv(t)
-	sent := false
-	old := alertSender
-	alertSender = func(config.SMTPSettings, string, string, string) error { sent = true; return nil }
-	t.Cleanup(func() { alertSender = old })
+	captureAlerts(t)
 
-	recordFailure("example.com", os.ErrPermission)
-	time.Sleep(200 * time.Millisecond)
+	var cleared []string
+	old := clearAlert
+	clearAlert = func(kind, site string) error {
+		cleared = append(cleared, kind+"/"+site)
+		return nil
+	}
+	t.Cleanup(func() { clearAlert = old })
 
-	if sent {
-		t.Error("an install with no panel SMTP tried to send an alert")
+	recordFailure("example.com", errors.New("boom"))
+	clearFailure("example.com")
+
+	want := alerts.KindCertRenewFailed + "/example.com"
+	if len(cleared) != 1 || cleared[0] != want {
+		t.Errorf("cleared %v, want [%s]", cleared, want)
+	}
+}
+
+// A domain that was never failing does not clear an alert it never raised,
+// because a successful renewal happens far more often than a failing one and
+// rewriting the alert store on each of them is pure churn.
+func TestSuccessfulRenewal_ClearsNothingWhenNothingWasFailing(t *testing.T) {
+	renewalEnv(t)
+
+	called := false
+	old := clearAlert
+	clearAlert = func(string, string) error { called = true; return nil }
+	t.Cleanup(func() { clearAlert = old })
+
+	clearFailure("example.com")
+
+	if called {
+		t.Error("a domain that was never failing tried to clear an alert")
 	}
 }

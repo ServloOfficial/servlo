@@ -1410,5 +1410,13 @@
   "backups_verified": "Geri yükleniyor: {n} tablo geri geldi ve geçici veritabanı silindi.",
   "backups_onDiskOne": "Bu sunucuda 1 yedek",
   "backups_onDiskMany": "Bu sunucuda {n} yedek",
-  "backups_keepLabel": "Kaç tanesi tutulsun"
+  "backups_keepLabel": "Kaç tanesi tutulsun",
+  "alerts_title": "İlgi gerekiyor",
+  "alerts_count": "{count} açık",
+  "alerts_thisServer": "bu sunucu",
+  "alerts_dismiss": "Kapat",
+  "alerts_dismissHint": "Listeden kaldırır. Sunucuda hiçbir şey değişmez ve sorun devam ediyorsa sonraki denetim onu yeniden bildirir.",
+  "alerts_sinceMinutes": "{count} dk önce",
+  "alerts_sinceHours": "{count} sa önce",
+  "alerts_sinceDays": "{count} gün önce"
 }

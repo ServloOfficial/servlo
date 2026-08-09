@@ -1410,5 +1410,13 @@
   "backups_verified": "Se restaurează: au revenit {n} tabele, iar baza temporară a fost ștearsă.",
   "backups_onDiskOne": "1 copie pe acest server",
   "backups_onDiskMany": "{n} copii pe acest server",
-  "backups_keepLabel": "Câte se păstrează"
+  "backups_keepLabel": "Câte se păstrează",
+  "alerts_title": "Necesită atenție",
+  "alerts_count": "{count} deschise",
+  "alerts_thisServer": "acest server",
+  "alerts_dismiss": "Ignoră",
+  "alerts_dismissHint": "O scoate din listă. Nimic nu se schimbă pe server, iar dacă defecțiunea persistă, următoarea verificare o va semnala din nou.",
+  "alerts_sinceMinutes": "acum {count} min",
+  "alerts_sinceHours": "acum {count} h",
+  "alerts_sinceDays": "acum {count} z"
 }

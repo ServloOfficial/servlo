@@ -1410,5 +1410,13 @@
   "backups_verified": "Hij is terug te zetten: {n} tabellen kwamen terug en de tijdelijke database is weggegooid.",
   "backups_onDiskOne": "1 back-up op deze server",
   "backups_onDiskMany": "{n} back-ups op deze server",
-  "backups_keepLabel": "Hoeveel bewaren"
+  "backups_keepLabel": "Hoeveel bewaren",
+  "alerts_title": "Vraagt aandacht",
+  "alerts_count": "{count} open",
+  "alerts_thisServer": "deze server",
+  "alerts_dismiss": "Sluiten",
+  "alerts_dismissHint": "Haalt hem van de lijst. Er verandert niets op de server, en als de storing aanhoudt meldt de volgende controle hem opnieuw.",
+  "alerts_sinceMinutes": "{count} min geleden",
+  "alerts_sinceHours": "{count} uur geleden",
+  "alerts_sinceDays": "{count} d geleden"
 }

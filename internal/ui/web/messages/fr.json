@@ -1410,5 +1410,13 @@
   "backups_verified": "Elle se restaure : {n} tables sont revenues, et la base temporaire a été supprimée.",
   "backups_onDiskOne": "1 sauvegarde sur ce serveur",
   "backups_onDiskMany": "{n} sauvegardes sur ce serveur",
-  "backups_keepLabel": "Combien en conserver"
+  "backups_keepLabel": "Combien en conserver",
+  "alerts_title": "À traiter",
+  "alerts_count": "{count} en cours",
+  "alerts_thisServer": "ce serveur",
+  "alerts_dismiss": "Ignorer",
+  "alerts_dismissHint": "La retire de la liste. Rien ne change sur le serveur, et si la panne persiste, la prochaine vérification la signalera à nouveau.",
+  "alerts_sinceMinutes": "il y a {count} min",
+  "alerts_sinceHours": "il y a {count} h",
+  "alerts_sinceDays": "il y a {count} j"
 }
