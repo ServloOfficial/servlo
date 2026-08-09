@@ -19,8 +19,23 @@ cat > "$root/public/index.php" <<PHP
 echo "servlo-ci:$domain\n";
 PHP
 
+# A real database with a row in it, so the rebuild job proves data comes back
+# rather than only that a site serves. A backup of a site with no database
+# proves the smaller half of the story.
+cat > "$root/.env" <<ENV
+APP_ENV=production
+DB_DATABASE=$(echo "$domain" | tr '.-' '__')
+ENV
+
 cd "$root"
 servlo link "$domain"
 servlo start
+servlo db:create
+
+cat > /tmp/seed-$domain.sql <<SQL
+CREATE TABLE IF NOT EXISTS servlo_ci (note VARCHAR(64));
+INSERT INTO servlo_ci (note) VALUES ('$domain survived');
+SQL
+servlo db:import "/tmp/seed-$domain.sql"
 
 servlo sites

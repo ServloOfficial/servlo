@@ -130,8 +130,9 @@ jobs:
         run: |
           set -euo pipefail
           # Touching a backup generates the key, so this is the first command
-          # that has one to read.
-          servlo backup "$SITE" >/dev/null
+          # that has one to read. Not silenced: when it fails, its own output is
+          # the only thing that says why.
+          servlo backup "$SITE"
           echo "key=$(cat ~/.config/servlo/backup.key)" >> "$GITHUB_OUTPUT"
 
       - name: Back up everything
@@ -215,6 +216,17 @@ jobs:
         run: |
           .github/scripts/expect-serving.sh "$SITE"
           .github/scripts/expect-serving.sh "$SITE_TWO"
+
+      - name: The data came back too
+        run: |
+          set -euo pipefail
+          cd "$HOME/sites/$SITE"
+          servlo db:export --output /tmp/rebuilt.sql
+          if ! grep -q "$SITE survived" /tmp/rebuilt.sql; then
+            echo "the row this site had before the rebuild is not in its database"
+            head -40 /tmp/rebuilt.sql
+            exit 1
+          fi
 
       - name: The settings came back with them
         run: |
