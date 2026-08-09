@@ -173,6 +173,25 @@ type GlobalConfig struct {
 		// back to nginx's own 60s default; read it via RequestTimeoutSeconds.
 		RequestTimeout int `yaml:"request_timeout,omitempty" mapstructure:"request_timeout"`
 	} `yaml:"nginx" mapstructure:"nginx"`
+	// Logs is how much application log a site keeps. nginx, PHP-FPM and the
+	// workers are not here: they log to the journal, whose size is journald's
+	// setting and needs root, so servlo reports it and prints the command
+	// rather than owning it.
+	Logs struct {
+		// Disabled switches rotation off, units and all. Off means nothing
+		// rotates anything, which is a decision an operator running their own
+		// logrotate is entitled to make.
+		Disabled bool `yaml:"disabled,omitempty" mapstructure:"disabled"`
+		// MaxSizeMB is how large a log gets before it is rotated. Zero is the
+		// default rather than zero bytes.
+		MaxSizeMB int `yaml:"max_size_mb,omitempty" mapstructure:"max_size_mb"`
+		// Keep is how many rotated copies survive.
+		Keep int `yaml:"keep,omitempty" mapstructure:"keep"`
+		// KeepUncompressed leaves rotations as plain text. The default gzips
+		// them, because a log compresses to roughly a tenth and that is the
+		// difference between keeping a week of them and not.
+		KeepUncompressed bool `yaml:"keep_uncompressed,omitempty" mapstructure:"keep_uncompressed"`
+	} `yaml:"logs,omitempty" mapstructure:"logs"`
 	// DNS is legacy. The .test stack it configured was removed in S2.1; these
 	// fields are retained only so a config file written before that still
 	// parses. Nothing reads them, and S2.2 removes TLD along with the last

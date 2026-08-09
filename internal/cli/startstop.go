@@ -12,6 +12,7 @@ import (
 
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/logrotate"
 	"github.com/realrashid/servlo/internal/nginx"
 	phpPkg "github.com/realrashid/servlo/internal/php"
 	"github.com/realrashid/servlo/internal/podman"
@@ -481,6 +482,13 @@ func runStart(_ *cobra.Command, _ []string) error {
 	// Reconcile custom services against their YAMLs (issue #678): regenerate a
 	// missing quadlet, drop an orphan quadlet with no YAML. Data dirs untouched.
 	reconcileCustomServices()
+
+	// Arm log rotation. Here rather than only when the setting is changed, so
+	// an install that has never touched the setting still gets the timer, and a
+	// server whose unit was lost to a reinstall gets it back.
+	if err := logrotate.ApplySchedule(logrotate.Enabled(), servloBinaryPath()); err != nil {
+		feedback.Warn("arming log rotation: %v", err)
+	}
 
 	// If the configured default PHP version has never been installed (no plist /
 	// quadlet / container), install it now so coreUnits() can include it.
