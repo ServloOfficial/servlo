@@ -17,7 +17,11 @@ for attempt in $(seq 1 90); do
   # -h 127.0.0.1 for the same reason the preset's own commands carry it: the
   # client's default socket path is not where this image's server puts one, so
   # a socket connection fails against a server that is perfectly ready.
-  if podman exec "$container" sh -c 'mysqladmin -h 127.0.0.1 ping 2>&1 | grep -q "is alive"'; then
+  #
+  # The password comes out of the container's own environment rather than being
+  # written here, and travels in MYSQL_PWD rather than argv, which is how servlo
+  # passes it too.
+  if podman exec "$container" sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqladmin -h 127.0.0.1 -uroot ping 2>&1 | grep -q "is alive"'; then
     echo "$container is answering after ${attempt}s"
     exit 0
   fi
@@ -27,5 +31,5 @@ done
 echo "$container never answered in 90s"
 podman ps -a || true
 podman logs --tail 100 "$container" || true
-podman exec "$container" sh -c 'mysqladmin -h 127.0.0.1 ping' || true
+podman exec "$container" sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqladmin -h 127.0.0.1 -uroot ping' || true
 exit 1
