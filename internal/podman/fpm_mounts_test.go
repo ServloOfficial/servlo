@@ -22,7 +22,17 @@ import (
 // Derived from the rendered quadlet rather than from a list, because a list
 // beside the template is a list that goes stale the next time a mount is added.
 func TestWriteFPMQuadlet_createsEveryMountItDeclares(t *testing.T) {
-	sandbox := t.TempDir()
+	// Not t.TempDir(). Writing the quadlet reaches podman, which on a machine
+	// that has one creates a container storage tree under the data directory
+	// with entries the test user cannot unlink, and t.TempDir's cleanup fails
+	// the test over a directory that is podman's rather than ours. Removed
+	// best-effort instead: a few megabytes left in the runner's tmp is not worth
+	// failing a green suite for.
+	sandbox, err := os.MkdirTemp("", "servlo-fpm-mounts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(sandbox) })
 	t.Setenv("HOME", filepath.Join(sandbox, "home"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(sandbox, "config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(sandbox, "data"))
@@ -40,6 +50,7 @@ func TestWriteFPMQuadlet_createsEveryMountItDeclares(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	checked := 0
 	for _, line := range strings.Split(content, "\n") {
 		if !strings.HasPrefix(line, "Volume=") {
