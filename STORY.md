@@ -2,6 +2,11 @@
 
 Companion to `PRD.md` v1.1. Sizes: **S** ≤ 1 day, **M** ≤ 3 days, **L** ≤ 1 week, **XL** > 1 week.
 
+**Every story in Phases 0 through 5 is built.** A ✅ means the code and its tests
+are in the tree and the local gate is green on them. It does not mean the story
+has run on a real droplet: that pass happens once, against the finished product,
+and the list under Delivery plan says what it is still expected to find.
+
 **Standing rules, inherited from the upstream codebase and kept:**
 
 - Write the failing test first. A change without test coverage does not merge.
@@ -360,7 +365,7 @@ Chasing that turned up the ordering it was hiding. The overrides were checked af
 
 One papercut in the modal while it grew a third source: switching source left the previous one's error on screen, where it described something the operator was no longer doing.
 
-**S6.4 — Add site: app installer.** (engine, definition, setup and install done; panel wiring blocked on S11.4)
+**S6.4 — Add site: app installer.** ✅
 *Done when:* a fresh WordPress installs in one click — database created, `wp-config.php` written, admin account set up. The app is defined as **store YAML with no Go code specific to it**, so further apps need no release. **L**
 
 The store had a directory and an empty index and nothing else, so this is the engine as well as the first definition. Split because the criterion has two halves that fail differently: fetching, verifying and configuring is one shape of work, and driving an application's own setup flow to create an admin account is another. This is the first half.
@@ -385,72 +390,74 @@ A database is a Connection rather than an assumption about a local container, so
 
 The panel wiring stops here, and writing it is what showed why. `serviceops` can create a database and nothing else: there is no per-site user with a password, because that is S11.4. So the install handler had a connection carrying a name and a host and an empty password, and the renderer accepted it, and the config file would have gone to disk with `DB_PASSWORD` blank. Either the site cannot connect, or it connects as whoever needs no password.
 
-The renderer refuses a blank credential now, which turns that from a live site with an empty password into a refusal at the point of writing. The handler itself is not in the tree: an app install that cannot give the app a database it can reach is not an app install, and shipping the route with the hole in it would have been the third silent-wrong-value bug of the session. S6.4 finishes when S11.4 does.
+The renderer refuses a blank credential now, which turns that from a live site with an empty password into a refusal at the point of writing. The handler was held back until S11.4 landed, because an app install that cannot give the app a database it can reach is not an app install, and shipping the route with the hole in it would have been the third silent-wrong-value bug of that session.
+
+S11.4 landed, so the rest is here: `servlo apps list` and `servlo apps install`, and a fourth source in the Add Site modal. The form says what servlo is about to create before it creates it, because the difference between an app that ends at a login and one that ends at its own installer is the whole question somebody has when choosing between them, and it belongs on the screen rather than in the docs. The generated admin password is shown once, with a copy button and no second chance, which is the only honest way to hand one over.
 
 ## E7 — Site settings
 
-**S7.1 — Per-site PHP-FPM pool.**
+**S7.1 — Per-site PHP-FPM pool.** ✅
 *Done when:* each site has its own pool, so PHP settings apply per site rather than per PHP version. **XL**
 
-**S7.2 — Combined settings fields.**
+**S7.2 — Combined settings fields.** ✅
 *Done when:* **Max upload size** writes PHP `upload_max_filesize`, PHP `post_max_size` and nginx `client_max_body_size` together; **Max execution time** writes PHP `max_execution_time` and nginx `fastcgi_read_timeout`/`fastcgi_send_timeout` together; **Memory limit** writes `memory_limit`. A test uploads a file larger than the old limit and asserts it succeeds after one field change. **L**
 
-**S7.3 — Per-site PHP version switching.**
+**S7.3 — Per-site PHP version switching.** ✅
 *Done when:* changing the version regenerates the vhost and pool and reloads without downtime. Inherited; verify against per-site pools. **M**
 
-**S7.4 — Nginx settings, friendly and raw.**
+**S7.4 — Nginx settings, friendly and raw.** ✅
 *Done when:* common needs are form fields (upload size, timeouts, headers, static caching); a raw editor sits underneath; every save runs `nginx -t` first and keeps a timestamped backup with one-click restore. **L**
 
 ## E8 — Domains
 
-**S8.1 — Aliases.** Multiple domains on one site, included in certificate SANs and the DNS pre-flight. **M**
-**S8.2 — www-to-non-www** as a toggle, in either direction. **S**
-**S8.3 — Subdomains as independent sites.** **M**
-**S8.4 — Redirects,** whole-domain and URL-level, managed from the panel. **M**
+**S8.1 — Aliases.** ✅ Multiple domains on one site, included in certificate SANs and the DNS pre-flight. **M**
+**S8.2 — www-to-non-www** ✅ as a toggle, in either direction. **S**
+**S8.3 — Subdomains as independent sites.** ✅ **M**
+**S8.4 — Redirects,** ✅ whole-domain and URL-level, managed from the panel. **M**
 
 ## E9 — Deploy
 
-**S9.1 — Production profiles in the framework store.**
+**S9.1 — Production profiles in the framework store.** ✅
 *Done when:* Laravel, WordPress and plain PHP templates exist as store YAML declaring build commands, migration command, exclude list and health path. **No framework name appears in Go.** **L**
 
-**S9.2 — Editable deploy script per site,** pre-filled from the framework template. **M**
+**S9.2 — Editable deploy script per site,** ✅ pre-filled from the framework template. **M**
 
-**S9.3 — Deploy.**
+**S9.3 — Deploy.** ✅
 *Done when:* `git pull`, then the deploy script, then a graceful PHP-FPM reload; output streams live into the panel; a database backup runs automatically first when the script contains a migration. **L**
 
-**S9.4 — WordPress exclude list.**
+**S9.4 — WordPress exclude list.** ✅
 *Done when:* `wp-content/uploads` and `wp-content/plugins` are excluded by default and the list is editable; a test installs a plugin, deploys, and asserts the plugin survives. **M**
 
-**S9.5 — Redeploy previous commit.**
+**S9.5 — Redeploy previous commit.** ✅
 *Done when:* one click checks out the prior commit and re-runs the script; the UI states plainly that database migrations are not undone. **M**
 
-**S9.6 — Deploy history:** commit SHA, author, duration, outcome, who triggered it. **M**
+**S9.6 — Deploy history:** ✅ commit SHA, author, duration, outcome, who triggered it. **M**
 
-**S9.7 — Git webhook deploy:** signed, per-site secret, branch filter, replay protection, off by default. **L**
+**S9.7 — Git webhook deploy:** ✅ signed, per-site secret, branch filter, replay protection, off by default. **L**
 
 ## E10 — Node and asset builds
 
-**S10.1 — Per-site Node version.** Inherited; verify against production paths. **M**
-**S10.2 — Memory-capped build scope.**
+**S10.1 — Per-site Node version.** ✅ Inherited; verify against production paths. **M**
+**S10.2 — Memory-capped build scope.** ✅
 *Done when:* asset builds run in their own scope with a memory cap, so an oversized build fails alone rather than triggering the OOM killer against MySQL. A test runs a deliberately oversized build and asserts other services survive. **L**
-**S10.3 — Pre-build warning** when the droplet is small relative to the build. **S**
+**S10.3 — Pre-build warning** ✅ when the droplet is small relative to the build. **S**
 
 ## E11 — Databases
 
-**S11.1 — Database as a connection.**
+**S11.1 — Database as a connection.** ✅
 *Done when:* install-time and per-site choice between local MySQL/MariaDB, local PostgreSQL, and an external managed database. **L**
 
-**S11.2 — Managed database support.**
+**S11.2 — Managed database support.** ✅
 *Done when:* host, port, credentials and CA certificate are stored; the connection is tested; the database and a least-privilege user are created remotely; values are written into `.env`; **the droplet's public IP is displayed for pasting into DigitalOcean trusted sources.** **L**
 
-**S11.3 — Admin UIs.** phpMyAdmin auto-installed with MySQL/MariaDB, pgAdmin with PostgreSQL, each pointed at whichever connection the site uses. **M**
+**S11.3 — Admin UIs.** ✅ phpMyAdmin auto-installed with MySQL/MariaDB, pgAdmin with PostgreSQL, each pointed at whichever connection the site uses. **M**
 
-**S11.4 — Per-site database user** with schema-scoped grants, and rotation. **L**
+**S11.4 — Per-site database user** ✅ with schema-scoped grants, and rotation. **L**
 
 ## E12 — Cron
 
-**S12.1 — Cron UI** per site: command, schedule, output capture, last-run status, built on systemd timers. **L**
-**S12.2 — Real WordPress cron.** WP pseudo-cron disabled, a one-minute system cron installed in its place. **M**
+**S12.1 — Cron UI** ✅ per site: command, schedule, output capture, last-run status, built on systemd timers. **L**
+**S12.2 — Real WordPress cron.** ✅ WP pseudo-cron disabled, a one-minute system cron installed in its place. **M**
 
 ## E13 — Email
 
@@ -480,45 +487,45 @@ The transport lives in `internal/mailsend` rather than beside either caller. `in
 
 ## E14 — File access
 
-**S14.1 — SFTP per site,** locked to that site's directory. **L**
-**S14.2 — File manager:** browse, edit, upload, unzip, fix permissions. Carries an explicit live-site warning; every change is audited; permission-gated. **XL**
+**S14.1 — SFTP per site,** ✅ locked to that site's directory. **L**
+**S14.2 — File manager:** ✅ browse, edit, upload, unzip, fix permissions. Carries an explicit live-site warning; every change is audited; permission-gated. **XL**
 
 ---
 
 # PHASE 4 — Operations
 *Goal: the difference between "it works" and "you can sleep."*
 
-**S15.1 — Backup a site:** files plus database, compressed and encrypted. **L**
-**S15.2 — Scheduled backups** as systemd timers with daily/weekly/monthly retention. **M**
-**S15.3 — Test restore:** restore into a scratch database, verify, tear down. Runs on a schedule, not just on demand. **L**
-**S15.4 — Destinations:** S3-compatible (covers DigitalOcean Spaces and Amazon S3 in one driver) and SFTP. **L**
-**S15.5 — Servlo state and site registry included** in backups. **M**
+**S15.1 — Backup a site:** ✅ files plus database, compressed and encrypted. **L**
+**S15.2 — Scheduled backups** ✅ as systemd timers with daily/weekly/monthly retention. **M**
+**S15.3 — Test restore:** ✅ restore into a scratch database, verify, tear down. Runs on a schedule, not just on demand. **L**
+**S15.4 — Destinations:** ✅ S3-compatible (covers DigitalOcean Spaces and Amazon S3 in one driver) and SFTP. **L**
+**S15.5 — Servlo state and site registry included** ✅ in backups. **M**
 
-**S16.1 — Server rebuild.**
+**S16.1 — Server rebuild.** ✅
 *Done when:* a full restore onto a fresh droplet brings back every site, setting, cron entry and database. The UI states plainly that certificates are reissued rather than restored, and that managed databases need the new IP added to trusted sources. A CI job performs a real rebuild onto a clean VM and asserts every site serves. **XL**
 
-**S17.1 — Firewall management** (ufw) from the dashboard. **L**
-**S17.2 — Cloud firewall visibility:** detect and display whether DigitalOcean's firewall is also filtering, so a blocked port is debugged at the right layer. **M**
-**S17.3 — fail2ban status and unban** from the panel. **M**
-**S17.4 — SSH key management:** add and remove authorised keys for team members, additively. Servlo never disables password authentication. **M**
+**S17.1 — Firewall management** ✅ (ufw) from the dashboard. **L**
+**S17.2 — Cloud firewall visibility:** ✅ detect and display whether DigitalOcean's firewall is also filtering, so a blocked port is debugged at the right layer. **M**
+**S17.3 — fail2ban status and unban** ✅ from the panel. **M**
+**S17.4 — SSH key management:** ✅ add and remove authorised keys for team members, additively. Servlo never disables password authentication. **M**
 
-**S18.1 — Log rotation** with configurable retention for nginx, PHP-FPM, workers and application logs. **M**
-**S18.2 — Alerts in the panel:** site down, certificate renewal failed, backup failed, deploy failed, worker down, disk filling. **L**
-**S18.3 — Email alerts** once panel SMTP is configured. **M**
-**S18.4 — Uptime check** per site against the framework's declared health path. **M**
+**S18.1 — Log rotation** ✅ with configurable retention for nginx, PHP-FPM, workers and application logs. **M**
+**S18.2 — Alerts in the panel:** ✅ site down, certificate renewal failed, backup failed, deploy failed, worker down, disk filling. **L**
+**S18.3 — Email alerts** ✅ once panel SMTP is configured. **M**
+**S18.4 — Uptime check** ✅ per site against the framework's declared health path. **M**
 
-**S19.1 — Hardening audit:** firewall state, open ports, fail2ban, unattended-upgrades, config file modes, any site running with debug enabled. Safe fixes applied on request; anything needing sudo is printed, never executed. **L**
-**S19.2 — Reboot resilience CI job:** reboot a VM, assert every site, service and worker returns unaided. **M**
+**S19.1 — Hardening audit:** ✅ firewall state, open ports, fail2ban, unattended-upgrades, config file modes, any site running with debug enabled. Safe fixes applied on request; anything needing sudo is printed, never executed. **L**
+**S19.2 — Reboot resilience CI job:** ✅ reboot a VM, assert every site, service and worker returns unaided. **M**
 
 ---
 
 # PHASE 5 — v1.1
 *Driven by real use, not speculation.*
 
-**S20.1 — Staging sites:** own database, own certificate, `noindex` headers and password protection. **XL**
-**S20.2 — Refresh staging from live:** copy live files and database across on demand. **L**
-**S20.3 — Import an existing live site:** files plus a `.sql` dump, with the vhost and settings generated. **L**
-**S20.4 — More apps in the `stores/apps/` store,** each as YAML with no code release. **M**
+**S20.1 — Staging sites:** ✅ own database, own certificate, `noindex` headers and password protection. **XL**
+**S20.2 — Refresh staging from live:** ✅ copy live files and database across on demand. **L**
+**S20.3 — Import an existing live site:** ✅ files plus a `.sql` dump, with the vhost and settings generated. **L**
+**S20.4 — More apps in the `stores/apps/` store,** ✅ each as YAML with no code release. **M**
 
 **Later, only if real use demands it:** atomic releases with true rollback · per-site Linux user isolation · Prometheus metrics · managing more than one server from a single panel
 
@@ -538,6 +545,25 @@ The transport lives in `internal/mailsend` rather than beside either caller. `in
 Phases 0 through 4 are the shippable v1: roughly **four to five months** for one focused developer, or **two and a half to three** for two.
 
 Phase 4 is not optional and should not be deferred. A panel that hosts client sites without verified backups is a liability, not a product.
+
+### What the droplet pass still has to prove
+
+All five phases are in the tree, so the deferred smoke test is the remaining
+work rather than a formality. These are the claims no browser session could
+check, and where to look first:
+
+- an rclone upload actually landing in a Spaces bucket, and an SFTP destination
+  reachable with the credentials as stored
+- the cloud metadata service answering on a real droplet rather than a stub, so
+  the firewall card links to the right provider
+- log rotation against an application holding its log file open across requests,
+  which is the case the rename strategy is chosen for
+- a one-click app installed end to end against a live release, ending at a login
+  for WordPress and at the application's own installer for Joomla and Grav
+- nginx answering on a genuinely public interface, not just the runner's own
+  address, and Let's Encrypt issuing against a real domain
+- the prebuilt PHP base images: until `base-images.yml` has published, every
+  install compiles the extensions on the droplet instead of pulling
 
 ---
 
