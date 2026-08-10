@@ -60,11 +60,12 @@ describe('version store', () => {
   });
 
   it('requests a live refresh when forced', async () => {
-    const spy = vi.fn(async () =>
-      new Response(JSON.stringify({ current: '1.19.0', has_update: false }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      })
+    const spy = vi.fn(
+      async (_url: RequestInfo | URL) =>
+        new Response(JSON.stringify({ current: '1.19.0', has_update: false }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
     );
     globalThis.fetch = spy as unknown as typeof fetch;
     const { loadVersion } = await import('./version');

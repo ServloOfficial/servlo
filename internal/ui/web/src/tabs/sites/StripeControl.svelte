@@ -9,13 +9,12 @@
   // listener is first enabled, which is what non-Laravel projects need.
   interface Props {
     running: boolean;
-    asleep?: boolean;
     loading?: boolean;
     webhookPath?: string;
     onToggle: () => void;
     onSaveConfig: (path: string) => void;
   }
-  let { running, asleep = false, loading = false, webhookPath = '', onToggle, onSaveConfig }: Props = $props();
+  let { running, loading = false, webhookPath = '', onToggle, onSaveConfig }: Props = $props();
 
   let modalOpen = $state(false);
 </script>
@@ -24,7 +23,6 @@
   <ToggleButton
     label={m.sites_controls_stripe()}
     on={running}
-    {asleep}
     {loading}
     disabled={loading}
     rounding="rounded-l-md border-r-0"
