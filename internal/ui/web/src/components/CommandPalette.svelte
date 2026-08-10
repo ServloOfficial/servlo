@@ -87,7 +87,7 @@
       }
     }
 
-    // Toggles: site-level state toggles (HTTPS, LAN share) and worker
+    // Toggles: site-level state toggles (HTTPS) and worker
     // start/stop entries. Labels flip between Enable/Disable or Start/Stop
     // based on current state, so searches like "stop queue" only surface
     // running queues and "enable https" only insecure sites.

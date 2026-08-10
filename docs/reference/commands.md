@@ -41,7 +41,7 @@
 | `servlo autostart disable` | Disable autostart on login |
 | `servlo path:disable` | Take servlo's shims (`php`, `composer`, `node`…) off your shell PATH; `servlo php` etc. keep working, and installs/updates stop re-adding the entry |
 | `servlo path:enable` | Put servlo's shims back on your shell PATH (the default) |
-| `servlo status` | Health summary: DNS, nginx, PHP-FPM containers, watcher, services, cert expiry, LAN exposure and dashboard remote access; shows a notice if an update is available |
+| `servlo status` | Health summary: DNS, nginx, PHP-FPM containers, watcher, services, cert expiry and dashboard remote access; shows a notice if an update is available |
 | `servlo which` | Show resolved PHP version, Node version, document root, and nginx config for the current site |
 | `servlo about` | Show version, build info, and project URL |
 | `servlo man [page]` | Browse the built-in documentation in the terminal; pass a page name to jump directly (e.g. `servlo man sites`) |
@@ -117,25 +117,19 @@ Setup steps include common tasks (composer install, npm install, servlo env) plu
 | `servlo env:override [KEY=VALUE ...]` | Create/seed a personal, gitignored `.env.servlo_override` whose values win over servlo's defaults on `servlo env`; `SERVLO_EXTERNAL_SERVICES=` marks services servlo should not start or provision |
 | `servlo env:check` | Compare all `.env` files against `.env.example` and flag missing or extra keys |
 
-## LAN
+## Where things bind
 
-Exposure covers nginx and nothing else. Databases, caches and admin UIs bind to
-loopback whatever this is set to, so there is no command here that publishes
-one. See [Production mode](/features/production-mode).
+There is no command here, and that is the point. Nginx serves the sites, so it
+publishes on every interface; databases, caches and admin UIs publish on
+loopback and nothing else. Neither half is configurable, because a server whose
+sites answer nobody is not serving and a database anyone can reach is not safe.
+See [Production mode](/features/production-mode).
 
-### Full LAN exposure (DNS-based)
-
-| Command | Description |
-|---|---|
-| `servlo lan:expose` | Expose sites, DNS, and the dashboard listener to the LAN |
-| `servlo lan:unexpose` | Restrict all Servlo endpoints to loopback |
-| `servlo lan:status` | Show whether sites are reachable beyond loopback |
-
-The dashboard **System** tab and terminal UI expose the same settings. What a
-signed-in operator may do in the panel is decided by their role and by the
-permission each route declares, not by where they are: an Admin reads a site's
-`.env`, browses the filesystem and drops a database from wherever they signed
-in, and a Developer does none of those anywhere.
+What a signed-in operator may do in the panel is decided by their role and by
+the permission each route declares, not by where they are: an Admin reads a
+site's `.env`, browses the filesystem and drops a database from wherever they
+signed in, and a Developer does none of those anywhere. Reaching the panel from
+another machine at all needs credentials, set with `servlo remote-control on`.
 
 ## PHP
 

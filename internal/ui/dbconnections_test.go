@@ -29,7 +29,7 @@ func connectionsPost(t *testing.T, body string) map[string]any {
 // panel: an operator who has just clicked through DigitalOcean's console has
 // the host and the credentials in front of them.
 func TestDBConnections_AddsAManagedDatabase(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubConnectionTest(t, nil)
 
 	got := connectionsPost(t, `{"action":"add","name":"managed","engine":"postgres",
@@ -51,7 +51,7 @@ func TestDBConnections_AddsAManagedDatabase(t *testing.T) {
 // is a panel that renders it in a screen share, and the operator has no reason
 // to read it back: they typed it.
 func TestDBConnections_NeverRendersThePassword(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubConnectionTest(t, nil)
 
 	if got := connectionsPost(t, `{"action":"add","name":"managed","engine":"mysql",
@@ -75,7 +75,7 @@ func TestDBConnections_NeverRendersThePassword(t *testing.T) {
 // moves, because a dropdown that migrated a production database on change is
 // the most expensive possible misreading of a click.
 func TestDBConnections_AssignsASiteWithoutMovingData(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubConnectionTest(t, nil)
 	registerSite(t, "shop", "shop.example")
 
@@ -100,7 +100,7 @@ func TestDBConnections_AssignsASiteWithoutMovingData(t *testing.T) {
 // still points at that database, and the name they carry would resolve to
 // nothing.
 func TestDBConnections_RefusesToRemoveOneInUse(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubConnectionTest(t, nil)
 	registerSite(t, "shop", "shop.example")
 
@@ -125,7 +125,7 @@ func TestDBConnections_RefusesToRemoveOneInUse(t *testing.T) {
 // by which time the site exists and its env is written against a database
 // nothing can reach.
 func TestDBConnections_RefusesAnIncompleteConnection(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 
 	got := connectionsPost(t, `{"action":"add","name":"managed","engine":"mysql","host":"db.example.net"}`)
 

@@ -7,7 +7,6 @@
   import MobileBackBar from '$components/MobileBackBar.svelte';
   import { tab, routeRest } from '$stores/route';
   import { loadVersion } from '$stores/version';
-  import { loadAccessMode } from '$stores/accessMode';
   import { loadStatus } from '$stores/status';
   import { loadPhpVersions } from '$stores/phpVersions';
   import { loadNodeVersions } from '$stores/nodeVersions';
@@ -52,7 +51,6 @@
     if (started) return;
     started = true;
     loadVersion();
-    loadAccessMode();
     loadStatus();
     loadPhpVersions();
     loadNodeVersions();

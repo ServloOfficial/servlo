@@ -23,8 +23,8 @@ var (
 
 // defaultNotifyDaemon posts an action to the running servlo-panel daemon HTTP
 // API. Best-effort: if the daemon isn't running, the systemd services it
-// would have refreshed (Stripe listener, LAN share proxy) aren't being
-// supervised anyway, so silently skipping the notification is correct.
+// would have refreshed (the Stripe listener) aren't being supervised
+// anyway, so silently skipping the notification is correct.
 func defaultNotifyDaemon(domain, action string) error {
 	url := fmt.Sprintf("http://127.0.0.1:7073/api/sites/%s/%s", domain, action)
 	req, err := http.NewRequest(http.MethodPost, url, nil)
@@ -54,11 +54,10 @@ func defaultNotifyDaemon(domain, action string) error {
 //  3. Sync APP_URL and VITE_REVERB_HOST/SCHEME/PORT in the project's .env.
 //  4. Update the per-project .servlo.yaml secured flag.
 //  5. Reload nginx so the new vhost takes effect.
-//  6. Notify the daemon to refresh dependent listeners (Stripe webhook URL,
-//     LAN share proxy backend port). The daemon owns the in-process state
-//     for these, so even callers running inside the daemon hit the same
-//     HTTP endpoints; a tiny loopback roundtrip is the cost of having one
-//     identical post-toggle path.
+//  6. Notify the daemon to refresh the Stripe webhook URL. The daemon owns
+//     the in-process state for that listener, so even callers running inside
+//     the daemon hit the same HTTP endpoint; a tiny loopback roundtrip is the
+//     cost of having one identical post-toggle path.
 //  7. Realign the generated dev server config, and any dev server running on
 //     the old scheme, with the site's new one.
 //  8. Cascade to the group secondaries when the site is a secured group main,
@@ -97,7 +96,6 @@ func SetSecuredCascade(site *config.Site, secured bool) ([]string, error) {
 		return nil, fmt.Errorf("reloading nginx: %w", err)
 	}
 	_ = notifyDaemonFn(site.PrimaryDomain(), "stripe:refresh")
-	_ = notifyDaemonFn(site.PrimaryDomain(), "lan:refresh")
 	RefreshDevServers(site)
 	if secured && site.IsGroupMain() {
 		return cascadeGroupSecondaries(site)

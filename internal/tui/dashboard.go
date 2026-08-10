@@ -446,9 +446,8 @@ func (m *Model) dashServloCard(width int) cardContent {
 	if m.updateAvailable != "" {
 		lines = append(lines, accentStyle.Render("update: "+m.updateAvailable))
 	}
-	// Autostart / LAN come from the periodic snapshot, not a syscall per frame.
+	// Autostart comes from the periodic snapshot, not a syscall per frame.
 	lines = append(lines, row("Autostart", onOffWord(m.snap.Status.Autostart)))
-	lines = append(lines, row("LAN", onOffWord(m.snap.Status.LANExposed)))
 	lines = append(lines, row("Platform", runtime.GOOS+"/"+runtime.GOARCH))
 
 	lines = append(lines, "", sectionStyle.Render("Recent activity"))

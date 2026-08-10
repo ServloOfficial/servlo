@@ -40,11 +40,6 @@ type Site struct {
 	// (`<scheme>://<primary-domain>`). Use this for personal customizations
 	// you don't want to share via .servlo.yaml.
 	AppURL string `yaml:"app_url,omitempty"`
-	// LANPort, when non-zero, means a host-level reverse proxy is (or should
-	// be) listening on 0.0.0.0:LANPort, forwarding to the site with the Host
-	// header rewritten. LAN devices can reach the site at <lanIP>:LANPort
-	// without any DNS configuration.
-	LANPort int `yaml:"lan_port,omitempty"`
 	// DevServerPort, when non-zero, is the host port the site's dev server is
 	// pinned to. It has to be stable and known ahead of time, because the
 	// site's vhost proxies to it and the tool would otherwise drift to the
@@ -359,7 +354,6 @@ type siteYAML struct {
 	Framework           string           `yaml:"framework,omitempty"`
 	PublicDir           string           `yaml:"public_dir,omitempty"`
 	AppURL              string           `yaml:"app_url,omitempty"`
-	LANPort             int              `yaml:"lan_port,omitempty"`
 	DevServerPort       int              `yaml:"dev_server_port,omitempty"`
 	ContainerPort       int              `yaml:"container_port,omitempty"`
 	ContainerSSL        bool             `yaml:"container_ssl,omitempty"`
@@ -406,7 +400,6 @@ func (s Site) toYAML() siteYAML {
 		Framework:           s.Framework,
 		PublicDir:           s.PublicDir,
 		AppURL:              s.AppURL,
-		LANPort:             s.LANPort,
 		DevServerPort:       s.DevServerPort,
 		ContainerPort:       s.ContainerPort,
 		ContainerSSL:        s.ContainerSSL,
@@ -458,7 +451,6 @@ func (sy siteYAML) toSite() Site {
 		Framework:           sy.Framework,
 		PublicDir:           sy.PublicDir,
 		AppURL:              sy.AppURL,
-		LANPort:             sy.LANPort,
 		DevServerPort:       sy.DevServerPort,
 		ContainerPort:       sy.ContainerPort,
 		ContainerSSL:        sy.ContainerSSL,

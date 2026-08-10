@@ -189,14 +189,14 @@ func TestStripInstallSectionPreservesIntermediateSections(t *testing.T) {
 	}
 }
 
-func TestBindForLANUnexposedPrependsLoopback(t *testing.T) {
+func TestBindPortsLoopbackPrependsLoopback(t *testing.T) {
 	in := strings.Join([]string{
 		"[Container]",
 		"PublishPort=80:80",
 		"PublishPort=443:443",
 	}, "\n")
 
-	out := BindForLAN(in, false)
+	out := BindPorts(in, false)
 	if !strings.Contains(out, "PublishPort=127.0.0.1:80:80") {
 		t.Errorf("expected 80 to be prefixed with 127.0.0.1, got:\n%s", out)
 	}
@@ -208,13 +208,13 @@ func TestBindForLANUnexposedPrependsLoopback(t *testing.T) {
 	}
 }
 
-func TestBindForLANExposedKeepsBareForm(t *testing.T) {
+func TestBindPortsPublicKeepsBareForm(t *testing.T) {
 	in := strings.Join([]string{
 		"[Container]",
 		"PublishPort=80:80",
 	}, "\n")
 
-	out := BindForLAN(in, true)
+	out := BindPorts(in, true)
 	if !strings.Contains(out, "PublishPort=80:80") {
 		t.Errorf("expected unprefixed form to remain in exposed mode, got:\n%s", out)
 	}
@@ -223,12 +223,12 @@ func TestBindForLANExposedKeepsBareForm(t *testing.T) {
 	}
 }
 
-func TestBindForLANRoundTrip(t *testing.T) {
+func TestBindPortsRoundTrip(t *testing.T) {
 	// Toggling unexposed → exposed → unexposed should converge.
 	in := "PublishPort=80:80\nPublishPort=443:443\n"
-	step1 := BindForLAN(in, false)
-	step2 := BindForLAN(step1, true)
-	step3 := BindForLAN(step2, false)
+	step1 := BindPorts(in, false)
+	step2 := BindPorts(step1, true)
+	step3 := BindPorts(step2, false)
 	if step1 != step3 {
 		t.Errorf("round-trip failed:\nstep1=%q\nstep3=%q", step1, step3)
 	}
@@ -237,13 +237,12 @@ func TestBindForLANRoundTrip(t *testing.T) {
 	}
 }
 
-func TestBindForLANPreservesServloDNS(t *testing.T) {
+func TestBindPortsPreservesServloDNS(t *testing.T) {
 	// servlo-dns is the only quadlet that ships with explicit 127.0.0.1
-	// because LAN access to DNS is via the userspace forwarder. Both
-	// modes must leave it alone.
+	// pinned in the embed. Both modes must leave it alone.
 	in := "PublishPort=127.0.0.1:5300:5300/udp\nPublishPort=127.0.0.1:5300:5300/tcp\n"
 	for _, exposed := range []bool{true, false} {
-		out := BindForLAN(in, exposed)
+		out := BindPorts(in, exposed)
 		if !strings.Contains(out, "PublishPort=127.0.0.1:5300:5300/udp") ||
 			!strings.Contains(out, "PublishPort=127.0.0.1:5300:5300/tcp") {
 			t.Errorf("servlo-dns publish lines should be untouched (exposed=%v), got:\n%s", exposed, out)
@@ -251,39 +250,39 @@ func TestBindForLANPreservesServloDNS(t *testing.T) {
 	}
 }
 
-func TestBindForLANIgnoresOperatorOverrides(t *testing.T) {
+func TestBindPortsIgnoresOperatorOverrides(t *testing.T) {
 	// If the user has an explicit non-loopback IP (e.g. 192.168.1.5)
-	// pinned in a quadlet, BindForLAN must not stomp it in either mode.
+	// pinned in a quadlet, BindPorts must not stomp it in either mode.
 	in := "PublishPort=192.168.1.5:80:80\n"
 	for _, exposed := range []bool{true, false} {
-		out := BindForLAN(in, exposed)
+		out := BindPorts(in, exposed)
 		if !strings.Contains(out, "PublishPort=192.168.1.5:80:80") {
 			t.Errorf("operator override should be preserved (exposed=%v), got:\n%s", exposed, out)
 		}
 	}
 }
 
-func TestBindForLANHandlesProtocolSuffixes(t *testing.T) {
+func TestBindPortsHandlesProtocolSuffixes(t *testing.T) {
 	in := "PublishPort=5300:5300/udp\n"
-	out := BindForLAN(in, false)
+	out := BindPorts(in, false)
 	if !strings.Contains(out, "PublishPort=127.0.0.1:5300:5300/udp") {
 		t.Errorf("protocol suffix should be preserved when prefixing, got:\n%s", out)
 	}
 }
 
-func TestBindForLANTogglesIPv6InLockstep(t *testing.T) {
-	// Both stacks must flip together. Leaving [::1] behind on expose
-	// dedups against the bare v4 line and loses LAN reach; leaving [::]
-	// behind on unexpose loses loopback-only safety.
+func TestBindPortsTogglesIPv6InLockstep(t *testing.T) {
+	// Both stacks must flip together. Leaving [::1] behind on the public
+	// form dedups against the bare v4 line and loses v6 reach; leaving [::]
+	// behind on the loopback form loses loopback-only safety.
 	loopback := "PublishPort=127.0.0.1:80:80\nPublishPort=[::1]:80:80\n"
-	exposed := BindForLAN(loopback, true)
+	exposed := BindPorts(loopback, true)
 	if strings.Contains(exposed, "127.0.0.1:") || strings.Contains(exposed, "[::1]:") {
 		t.Errorf("loopback prefixes must be stripped on expose, got:\n%s", exposed)
 	}
 	if !strings.Contains(exposed, "PublishPort=80:80") || !strings.Contains(exposed, "PublishPort=[::]:80:80") {
 		t.Errorf("expected bare + [::] after expose, got:\n%s", exposed)
 	}
-	back := BindForLAN(exposed, false)
+	back := BindPorts(exposed, false)
 	if !strings.Contains(back, "PublishPort=127.0.0.1:80:80") || !strings.Contains(back, "PublishPort=[::1]:80:80") {
 		t.Errorf("expected 127.0.0.1 + [::1] after unexpose, got:\n%s", back)
 	}

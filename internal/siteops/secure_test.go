@@ -135,10 +135,9 @@ func TestSetSecured_unsecuringCallsUnsecureSiteAndFlipsFlag(t *testing.T) {
 }
 
 func TestSetSecured_notifiesDaemonForStripe(t *testing.T) {
-	// Every successful toggle must notify the daemon to refresh both
-	// dependent listeners. Missing either has been the source of past bugs
-	// (Stripe webhook stuck on wrong scheme, LAN share proxying to old
-	// port). Pinning the call set + ordering catches future regressions.
+	// Every successful toggle must notify the daemon to refresh the Stripe
+	// listener. Missing it has been the source of past bugs (a webhook stuck
+	// on the wrong scheme), so the call set is pinned.
 	stubs := stubSecureDeps(t)
 	projectDir := withTempEnv(t)
 
@@ -151,7 +150,7 @@ func TestSetSecured_notifiesDaemonForStripe(t *testing.T) {
 		t.Fatalf("SetSecured: %v", err)
 	}
 
-	want := []string{"myapp.test:stripe:refresh", "myapp.test:lan:refresh"}
+	want := []string{"myapp.test:stripe:refresh"}
 	if !equalStrings(stubs.notifications, want) {
 		got := append([]string(nil), stubs.notifications...)
 		sort.Strings(got)

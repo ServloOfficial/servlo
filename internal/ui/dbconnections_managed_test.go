@@ -92,7 +92,7 @@ func connectionsGet(t *testing.T) map[string]any {
 // finding out at the first deploy means a site whose env file points at a
 // database nothing here can open.
 func TestDBConnections_TestsAManagedDatabaseBeforeSavingIt(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubConnectionTest(t, errors.New("cannot reach db.example.net:25060: connection refused. If this is a managed database, add this server's public IP to the provider's trusted sources"))
 
 	got := connectionsPost(t, `{"action":"add","name":"managed","engine":"postgres",
@@ -113,7 +113,7 @@ func TestDBConnections_TestsAManagedDatabaseBeforeSavingIt(t *testing.T) {
 // A local connection is a container on a network the panel is not on, so there
 // is nothing to dial before saving it.
 func TestDBConnections_DoesNotDialALocalService(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	calls := stubConnectionTest(t, errors.New("should not have been called"))
 
 	got := connectionsPost(t, `{"action":"add","name":"local","service":"mysql"}`)
@@ -131,7 +131,7 @@ func TestDBConnections_DoesNotDialALocalService(t *testing.T) {
 // connection list, so the form can show it before the operator saves anything
 // and the card can show it beside a connection that will not answer.
 func TestDBConnections_CarriesThisServersPublicIP(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubServerIPs(t, []string{"203.0.113.10"}, nil)
 
 	got := connectionsGet(t)
@@ -144,7 +144,7 @@ func TestDBConnections_CarriesThisServersPublicIP(t *testing.T) {
 // A server that cannot work out its own address says so. An empty list reads as
 // "nothing to add", which is the one conclusion that leaves the operator stuck.
 func TestDBConnections_SaysWhenItCannotWorkOutThePublicIP(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubServerIPs(t, nil, errors.New("no public address on any interface"))
 
 	got := connectionsGet(t)
@@ -156,7 +156,7 @@ func TestDBConnections_SaysWhenItCannotWorkOutThePublicIP(t *testing.T) {
 // The provider hands over a .crt. It is uploaded, stored where servlo keeps its
 // own configuration, and the connection carries the path rather than the file.
 func TestDBConnections_StoresAnUploadedCACertificate(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubConnectionTest(t, nil)
 	cert := caPEM(t)
 
@@ -195,7 +195,7 @@ func TestDBConnections_StoresAnUploadedCACertificate(t *testing.T) {
 // and nothing is saved: a connection in verify-ca mode with an unusable file is
 // a connection that fails at every handshake.
 func TestDBConnections_RefusesACACertificateThatIsNotOne(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubConnectionTest(t, nil)
 
 	body, err := json.Marshal(map[string]any{
@@ -220,7 +220,7 @@ func TestDBConnections_RefusesACACertificateThatIsNotOne(t *testing.T) {
 // Testing an existing connection is its own action, because the reason to press
 // it is that something changed on the provider's side rather than in the panel.
 func TestDBConnections_TestsAConnectionThatIsAlreadySaved(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubConnectionTest(t, nil)
 
 	if got := connectionsPost(t, `{"action":"add","name":"managed","engine":"mysql",
@@ -243,7 +243,7 @@ func TestDBConnections_TestsAConnectionThatIsAlreadySaved(t *testing.T) {
 // Removing a connection takes its certificate with it, so a name reused later
 // does not silently inherit the last connection's CA.
 func TestDBConnections_RemovingAConnectionForgetsItsCertificate(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubConnectionTest(t, nil)
 
 	body, _ := json.Marshal(map[string]any{
@@ -267,7 +267,7 @@ func TestDBConnections_RemovingAConnectionForgetsItsCertificate(t *testing.T) {
 // The certificate is a file, not a field. Nothing in the API response carries
 // its contents, and nothing puts it in the registry beside the password.
 func TestDBConnections_NeverRendersTheCertificateContents(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 	stubConnectionTest(t, nil)
 	cert := caPEM(t)
 

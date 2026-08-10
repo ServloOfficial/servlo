@@ -147,9 +147,13 @@ func Rules() []Rule {
 		},
 		{
 			Feature: "LAN and tunnel sharing", Story: "S0.6", Enforced: true,
-			// lan:expose is deliberately absent: it decides whether nginx binds
-			// loopback or every interface, which a server needs, and S1.2 owns it.
-			Patterns: []string{`(?i)lanshare`, `lan:share`, `lan_share`, `tunnelshare`, `tunnel_url`, `Tunnel(Start|Stop|Status)`, `servlo share`, `\bngrok\b`, `cloudflared`},
+			// lan:expose was carved out of this rule for a phase and a half on
+			// the grounds that a server needs to choose its bind. It does not:
+			// nginx serves the sites, so it publishes on every interface and
+			// everything else stays on loopback, and neither half is a setting.
+			// What the toggle actually did was default a fresh production
+			// install to loopback, where it served nobody.
+			Patterns: []string{`(?i)lanshare`, `lan:share`, `lan_share`, `lan:expose`, `lan_expose`, `LANExposed`, `BindForLAN`, `tunnelshare`, `tunnel_url`, `Tunnel(Start|Stop|Status)`, `servlo share`, `\bngrok\b`, `cloudflared`},
 			Allow: append(append([]string{}, specs...),
 				"internal/hostbin/hostbin_test.go",
 			),

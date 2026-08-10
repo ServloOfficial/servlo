@@ -60,7 +60,6 @@ type StatusRow struct {
 	PHPRunning     []string
 	Version        string
 	Autostart      bool
-	LANExposed     bool
 }
 
 // loadSnapshot collects everything the TUI needs in one shot. Called on every
@@ -190,7 +189,6 @@ func loadStatus() StatusRow {
 		TLD:          tld,
 		NginxRunning: podman.Cache.Running("servlo-nginx"),
 		Autostart:    servloSystemd.IsAutostartEnabled(),
-		LANExposed:   cfg != nil && cfg.LAN.Exposed,
 	}
 
 	if versions, err := phpPkg.ListInstalled(); err == nil {

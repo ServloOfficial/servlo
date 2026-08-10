@@ -11,7 +11,7 @@ import (
 //
 // One rule: every API request carries a session or it goes no further. Not
 // "unless it came from loopback", which on a server means a reverse proxy or a
-// container; not "unless LAN exposure is off", which was upstream's way of
+// container; not "unless the request looks local", which was upstream's way of
 // saying the panel was only ever reachable from one machine.
 //
 // Three things are outside it, and each has to be:

@@ -144,9 +144,6 @@ type EnrichedSite struct {
 	Runtime       string
 	RuntimeWorker bool
 
-	// LAN sharing
-	LANPort int
-
 	// App metadata
 	HasAppLogs bool
 	HasFavicon bool
@@ -252,7 +249,6 @@ func Enrich(s config.Site, flags EnrichFlag) EnrichedSite {
 		PausedWorkers:       s.PausedWorkers,
 		PublicDir:           s.PublicDir,
 		AppURL:              s.AppURL,
-		LANPort:             s.LANPort,
 		ContainerPort:       s.ContainerPort,
 		ContainerSSL:        s.ContainerSSL,
 		ContainerImage:      containerImage(s),

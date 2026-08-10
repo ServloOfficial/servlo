@@ -119,7 +119,7 @@ These map one-to-one to the CLI commands above, no special UI-only behaviour.
 servlo status
 ```
 
-Shows a live snapshot: DNS reachability, nginx, PHP-FPM containers, watcher, host tools, services, certificate expiry, and LAN exposure. Run it after every `servlo start` to confirm everything is healthy. See [Troubleshooting](../troubleshooting.md) if anything is reported as down.
+Shows a live snapshot: DNS reachability, nginx, PHP-FPM containers, watcher, host tools, services, and certificate expiry. Run it after every `servlo start` to confirm everything is healthy. See [Troubleshooting](../troubleshooting.md) if anything is reported as down.
 
 The `[Tools]` section lists the host binaries servlo manages (Composer, fnm) with their installed versions, and flags any that differ from the versions servlo currently pins. The same information appears in the web UI under System > Tools, where the pending version on a tool's card is a button that updates that one tool. Apply pending updates from the terminal with:
 

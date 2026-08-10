@@ -409,7 +409,7 @@ servlo php:ports list
 servlo php:ports remove 5173
 ```
 
-The same list is available in the dashboard under **System > PHP > (version) > Ports**. If the host port is already taken (by a servlo service, another PHP version's list, or any other listener) servlo shifts it to the next free one and tells you where it landed, so an add never fails on a collision. Ports bind loopback by default and follow `servlo lan:expose` like every other servlo port. Changing the list restarts that version's FPM container, so PHP bounces for every site on that version.
+The same list is available in the dashboard under **System > PHP > (version) > Ports**. If the host port is already taken (by a servlo service, another PHP version's list, or any other listener) servlo shifts it to the next free one and tells you where it landed, so an add never fails on a collision. Ports bind loopback and stay there, like every servlo port that is not nginx. Changing the list restarts that version's FPM container, so PHP bounces for every site on that version.
 
 This is a per-version pool, not per site. There is one shared FPM container per PHP version serving every site on it, so a published port maps to whichever single process binds it inside, and two sites wanting the same in-container port on the same version collide. It is a power-user escape hatch: for anything you can reach for a blessed path instead, prefer host-proxy (run the dev server on the host) or a worker with a proxy, which both scope cleanly to a single site.
 

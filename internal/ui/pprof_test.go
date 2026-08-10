@@ -51,7 +51,7 @@ func TestPprof_DisabledByDefault(t *testing.T) {
 	}
 }
 
-// servlo-panel binds 0.0.0.0 so LAN clients can reach it when lan:expose is on.
+// servlo-panel binds 0.0.0.0 so a browser on another machine can reach it.
 // Profiling dumps goroutine stacks, the command line, and heap contents, so
 // the marker alone must never be enough: off-host callers stay locked out.
 func TestPprof_RejectsNonLoopbackEvenWhenEnabled(t *testing.T) {

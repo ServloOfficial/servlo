@@ -1,6 +1,6 @@
 # Panel authentication
 
-Every request to the panel carries a session or it goes no further. Not "unless it came from loopback", and not "unless the LAN is exposed" — on a server there is no trusted side of the connection to exempt.
+Every request to the panel carries a session or it goes no further. Not "unless it came from loopback", and not "unless the request looks local", because on a server there is no trusted side of the connection to exempt.
 
 Open the panel and it asks who you are. On a fresh install it asks you to create the first account instead, and that account is an administrator, because a panel whose only account cannot administer it is a panel nobody can administer.
 

@@ -498,8 +498,8 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 	ok()
 
-	// WriteQuadlet centrally applies the unit-aware LAN policy. Nginx follows
-	// cfg.LAN.Exposed; managed services also require cfg.LAN.ServicesExposed.
+	// WriteQuadlet centrally applies the unit-aware bind policy: nginx
+	// publishes on every interface, every managed service stays on loopback.
 	// WriteQuadletDiff lets this install restart only units whose binds changed.
 	// This also repairs drift from older releases without starting inactive
 	// services.

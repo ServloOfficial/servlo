@@ -7,7 +7,6 @@ export type ModalKind =
   | 'addSite'
   | 'preset'
   | 'remoteControl'
-  | 'lanProgress'
   | 'phpAdd'
   | 'phpRebuild'
   | 'envSave'
@@ -33,7 +32,6 @@ export type ModalKind =
   | 'error'
   | null;
 
-export type LANAction = 'expose' | 'unexpose';
 
 export interface EnvSaveTarget {
   domain: string;
@@ -180,7 +178,6 @@ export interface SFTPWithdrawTarget {
 export interface ModalState {
   kind: ModalKind;
   site?: Site;
-  lanAction?: LANAction;
   onSuccess?: () => void;
   envSave?: EnvSaveTarget;
   envRestore?: EnvRestoreTarget;
@@ -260,10 +257,6 @@ export function openPresetModal() {
 
 export function openRemoteControlModal(onSuccess?: () => void) {
   modal.set({ kind: 'remoteControl', onSuccess });
-}
-
-export function openLANProgressModal(lanAction: LANAction) {
-  modal.set({ kind: 'lanProgress', lanAction });
 }
 
 export function openPhpAddModal() {

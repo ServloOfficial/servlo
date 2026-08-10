@@ -82,7 +82,7 @@ type GlobalConfig struct {
 		// localhost:PORT. Environment-wide per version, not per site; the one
 		// shared FPM container per version owns the list, so two sites wanting
 		// the same in-container port on the same version collide. Each mapping is
-		// a "host:container" spec; the loopback/LAN bind is applied centrally on
+		// a "host:container" spec; the loopback/public bind is applied centrally on
 		// write. Managed via the PHP page's Ports tab (servlo php:ports).
 		FPMPorts map[string][]string `yaml:"fpm_ports,omitempty" mapstructure:"fpm_ports"`
 	} `yaml:"php" mapstructure:"php"`
@@ -201,19 +201,6 @@ type GlobalConfig struct {
 		TLD      string   `yaml:"tld"     mapstructure:"tld"`
 		Upstream []string `yaml:"upstream,omitempty" mapstructure:"upstream"`
 	} `yaml:"dns" mapstructure:"dns"`
-	LAN struct {
-		// Exposed controls whether servlo sites are reachable from other
-		// devices on the network. When false (the safe default), nginx and
-		// servlo-panel bind to loopback. When true, nginx binds every
-		// interface so it can serve the sites.
-		//
-		// It covers nginx and nothing else. Databases, caches and admin UIs
-		// are loopback-only always (CLAUDE.md 3.7): a database reachable from
-		// off the machine is a database anyone who finds the port can attack,
-		// and on a box hosting other people's sites there is no version of
-		// that worth the convenience.
-		Exposed bool `yaml:"exposed,omitempty" mapstructure:"exposed"`
-	} `yaml:"lan,omitempty" mapstructure:"lan"`
 	Autostart struct {
 		// Disabled controls whether servlo boots itself at login. The
 		// zero value (false) means servlo autostarts as it always has:
@@ -245,8 +232,8 @@ type GlobalConfig struct {
 	} `yaml:"shims,omitempty" mapstructure:"shims"`
 	UI struct {
 		// RemoteControl gates non-loopback access to the servlo dashboard.
-		// Empty PasswordHash = disabled = LAN clients get 403. With a hash
-		// set, LAN clients must present matching HTTP Basic auth. Loopback
+		// Empty PasswordHash = disabled = remote clients get 403. With a
+		// hash set, they must present matching HTTP Basic auth. Loopback
 		// (127.0.0.1, ::1) always bypasses both checks.
 		Username     string `yaml:"username,omitempty" mapstructure:"username"`
 		PasswordHash string `yaml:"password_hash,omitempty" mapstructure:"password_hash"`

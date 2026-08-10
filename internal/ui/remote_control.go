@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 
-	servlocli "github.com/realrashid/servlo/internal/cli"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/nginx"
 	"golang.org/x/crypto/bcrypt"
@@ -132,110 +131,19 @@ func withRemoteControlGate(next http.Handler) http.Handler {
 	})
 }
 
-// handleAccessMode serves /api/access-mode. It reports whether LAN exposure is
-// enabled, which is a property of the machine rather than of the caller.
+// handleAccessMode serves /api/access-mode.
+//
+// Sites are served on every interface, always: a server panel whose web server
+// answers only itself is a server nobody can reach. Nothing decides that any
+// more, so the route reports it as a fact and the panel no longer asks. It is
+// kept for a browser still running a cached bundle that does.
 func handleAccessMode(w http.ResponseWriter, r *http.Request) {
-	cfg, _ := config.LoadGlobal()
-	lanExposed := cfg != nil && cfg.LAN.Exposed
-	writeJSON(w, map[string]any{"lan_exposed": lanExposed})
+	writeJSON(w, map[string]any{"sites_served": true})
 }
 
-// handleLANStatus serves /api/lan/status.
-//
-//	GET                               → { exposed, lan_ip }
-//	POST { action: "expose" }         → exposes sites, DNS, and dashboard bind
-//	POST { action: "unexpose" }       → returns every endpoint to loopback
-//
-// Databases and caches are not part of this: they bind to the container
-// network and nothing publishes them (CLAUDE.md 3.7), so there is no action
-// here that could.
-func handleLANStatus(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		cfg, _ := config.LoadGlobal()
-		exposed := false
-		if cfg != nil {
-			exposed = cfg.LAN.Exposed
-		}
-		lanIP := ""
-		if exposed {
-			lanIP = uiPrimaryLANIP()
-		}
-		writeJSON(w, map[string]any{
-			"exposed": exposed,
-			"lan_ip":  lanIP,
-		})
-		return
-
-	case http.MethodPost:
-		var body struct {
-			Action string `json:"action"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-		switch body.Action {
-		case "expose", "unexpose":
-		default:
-			http.Error(w, "unknown action — expected 'expose' or 'unexpose'", http.StatusBadRequest)
-			return
-		}
-
-		// Stream NDJSON progress so the dashboard can render per-step
-		// feedback instead of a single opaque spinner. Each line is a
-		// JSON object: {step, status} for in-flight steps and a final
-		// {result, exposed, lan_ip, error} envelope when the toggle
-		// completes (or errors).
-		w.Header().Set("Content-Type", "application/x-ndjson")
-		w.Header().Set("Cache-Control", "no-store")
-		w.WriteHeader(http.StatusOK)
-		flusher, _ := w.(http.Flusher)
-		writeLine := func(payload map[string]any) {
-			data, _ := json.Marshal(payload)
-			_, _ = w.Write(append(data, '\n'))
-			if flusher != nil {
-				flusher.Flush()
-			}
-		}
-		progress := func(step string) {
-			writeLine(map[string]any{"step": step})
-		}
-		switch body.Action {
-		case "expose":
-			lanIP, err := servlocli.EnableLANExposure(progress)
-			if err != nil {
-				writeLine(map[string]any{"result": "error", "error": err.Error()})
-				return
-			}
-			writeLine(map[string]any{
-				"result":  "ok",
-				"exposed": true,
-				"lan_ip":  lanIP,
-			})
-			return
-		case "unexpose":
-			if err := servlocli.DisableLANExposure(progress); err != nil {
-				writeLine(map[string]any{"result": "error", "error": err.Error()})
-				return
-			}
-			writeLine(map[string]any{
-				"result":  "ok",
-				"exposed": false,
-				"lan_ip":  "",
-			})
-			return
-		}
-
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-}
-
-// uiPrimaryLANIP duplicates the dial-trick from cli/dns.go because importing
-// cli from ui would risk a cycle. Cheap.
-func uiPrimaryLANIP() string {
+// uiPrimaryIP reports the address the kernel would source outbound traffic
+// from, which is the one a phone on the same network can reach the panel on.
+func uiPrimaryIP() string {
 	conn, err := net.Dial("udp4", "1.1.1.1:80")
 	if err == nil {
 		defer conn.Close()
@@ -300,15 +208,6 @@ func handleRemoteControl(w http.ResponseWriter, r *http.Request) {
 
 		switch body.Action {
 		case "enable":
-			// In disabled-DNS mode the dashboard chains "set credentials"
-			// with "flip lan:expose" into a single user action because the
-			// dashboard is effectively the only thing LAN exposure unlocks
-			// (a remote device has no way to resolve a loopback-only name). So we
-			// only require lan:expose to be on first when DNS is enabled.
-			if !cfg.LAN.Exposed && cfg.DNS.Enabled {
-				http.Error(w, "LAN exposure is off — run `servlo lan:expose` first. Dashboard credentials are only meaningful while the dashboard is reachable from other devices.", http.StatusBadRequest)
-				return
-			}
 			if body.Username == "" || body.Password == "" {
 				http.Error(w, "username and password are required", http.StatusBadRequest)
 				return

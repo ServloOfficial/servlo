@@ -104,7 +104,6 @@ func TestScopedRoutes_DeveloperCannotAdminister(t *testing.T) {
 		"/api/services/mysql/start",
 		"/api/servlo/stop",
 		"/api/users",
-		"/api/lan/status",
 		"/api/tools",
 	} {
 		reached = false

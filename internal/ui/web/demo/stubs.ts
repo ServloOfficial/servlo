@@ -7,12 +7,10 @@ import sitesFixture from './fixtures/sites.json';
 import servicesFixture from './fixtures/services.json';
 import presetsFixture from './fixtures/presets.json';
 import statusFixture from './fixtures/status.json';
-import accessMode from './fixtures/access-mode.json';
 import settings from './fixtures/settings.json';
 import phpVersions from './fixtures/php-versions.json';
 import nodeVersions from './fixtures/node-versions.json';
 import phpInstallable from './fixtures/php-installable.json';
-import lanStatus from './fixtures/lan_status.json';
 import stats from './fixtures/stats.json';
 import workersHealth from './fixtures/workers_health.json';
 import databasesFixture from './fixtures/databases.json';
@@ -90,12 +88,10 @@ const ROUTES: Record<string, unknown> = {
   },
   '/api/version': version,
   '/api/status': status,
-  '/api/access-mode': accessMode,
   '/api/settings': settings,
   '/api/php-versions': phpVersions,
   '/api/node-versions': nodeVersions,
   '/api/php-installable': phpInstallable,
-  '/api/lan/status': lanStatus,
   '/api/stats': stats,
   '/api/workers/health': workersHealth,
   '/api/db-connections': dbConnections,
@@ -684,26 +680,6 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (path === '/api/sites') return jsonResponse(sites);
   if (path === '/api/services') return jsonResponse(services);
   if (path === '/api/services/presets') return jsonResponse(presets);
-
-  if (path === '/api/lan/status' && method === 'POST') {
-    const body = JSON.parse(String(init?.body || '{}')) as { action?: string };
-    if (body.action === 'expose' || body.action === 'unexpose') {
-      lanStatus.exposed = body.action === 'expose';
-      lanStatus.lan_ip = lanStatus.exposed ? '192.168.1.42' : '';
-    } else if (body.action === 'services_on' || body.action === 'services_off') {
-      lanStatus.services_enabled = body.action === 'services_on';
-    }
-    const result = {
-      result: 'ok',
-      exposed: lanStatus.exposed,
-      services_enabled: lanStatus.services_enabled,
-      services_reachable: lanStatus.exposed && lanStatus.services_enabled,
-    };
-    return new Response(`${JSON.stringify(result)}\n`, {
-      status: 200,
-      headers: { 'content-type': 'application/x-ndjson' }
-    });
-  }
 
   // An engine's databases. An engine with no fixture reports none rather than
   // falling through to the empty catch-all, which the tab reads as an error.

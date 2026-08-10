@@ -161,7 +161,6 @@ func Permissions() Registry {
 		"/api/settings/worker-mode":  PermAdmin,
 		"/api/settings/smtp":         PermAdmin,
 		"/api/settings/smtp/test":    PermAdmin,
-		"/api/lan/status":            PermAdmin,
 		"/api/remote-control":        PermAdmin,
 		"/api/php-versions":          PermAdmin,
 		"/api/php-versions/":         PermAdmin,

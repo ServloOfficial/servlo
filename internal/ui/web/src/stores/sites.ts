@@ -77,7 +77,6 @@ export interface Site {
   schedule_failing?: boolean;
   reverb_running?: boolean;
   reverb_failing?: boolean;
-  lan_port?: number;
   framework_workers?: FrameworkWorker[];
   last_request_at?: number;
   request_count?: number;

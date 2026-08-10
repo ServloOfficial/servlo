@@ -308,10 +308,8 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// LAN exposure + remote dashboard access
 	fmt.Println("\n[Remote Access]")
-	lanIP, _ := detectPrimaryLANIP()
-	printRemoteAccessStatus(cfg, lanIP)
+	printRemoteAccessStatus(cfg)
 
 	// Update notice
 	if info, _ := servloUpdate.CachedUpdateCheck(version.Version); info != nil {
@@ -323,24 +321,14 @@ func runStatus(_ *cobra.Command, _ []string) error {
 }
 
 // printRemoteAccessStatus renders the [Remote Access] section of `servlo status`.
-// Split out from runStatus so it can be tested without mocking podman/DNS/sites.
-// lanIP may be empty — the caller is responsible for detection so tests can
-// inject a deterministic value.
-func printRemoteAccessStatus(cfg *config.GlobalConfig, lanIP string) {
-	if cfg.LAN.Exposed {
-		ip := lanIP
-		if ip == "" {
-			ip = "(unknown)"
-		}
-		ok2(fmt.Sprintf("LAN exposure (%s)", ip))
-	} else {
-		warn2("LAN exposure", "loopback only — enable with: servlo lan expose")
-	}
+// Split out from runStatus so it can be tested without mocking podman or sites.
+func printRemoteAccessStatus(cfg *config.GlobalConfig) {
+	ok2("Sites served on every interface")
 	ok2("Managed services (loopback-only, always)")
 	if cfg.UI.PasswordHash != "" {
 		ok2(fmt.Sprintf("Dashboard remote access (user: %s)", cfg.UI.Username))
 	} else {
-		warn2("Dashboard remote access", "LAN clients get 403 — enable with: servlo remote-control on")
+		warn2("Dashboard remote access", "remote clients get 403 — enable with: servlo remote-control on")
 	}
 }
 
