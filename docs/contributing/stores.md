@@ -116,6 +116,6 @@ its own rather than correct alongside a matching Go change. A field the running
 binary does not understand is ignored, so adding one is safe; changing what an
 existing field means is not, and needs a new version file instead.
 
-The stores were seeded from the upstream Lerd stores, which Servlo consumed
-until S0.8. They are Servlo's own now and drift from upstream on purpose: the
-deleted-feature schema was stripped on the way in.
+The stores were seeded from the upstream project Servlo forked from, and
+consumed from there until S0.8. They are Servlo's own now and drift on purpose:
+the deleted-feature schema was stripped on the way in.

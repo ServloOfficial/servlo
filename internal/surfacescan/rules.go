@@ -245,26 +245,42 @@ func Rules() []Rule {
 			Allow:    specs,
 		},
 		{
-			// The rename that S0.1 performed swept the repository, but the
-			// stores arrived in-repo at S0.8, copied from upstream and still
-			// carrying its name. That was not cosmetic: container hostnames
-			// like lerd-redis pointed at containers servlo never creates, so
-			// every service integration in those definitions was broken, and
-			// every database preset shipped the same published password.
+			// The rename that S0.1 performed swept the repository, and this is
+			// what keeps it swept. It was scoped to stores/ for a while, on the
+			// grounds that a repository-wide rule would need an allowlist that
+			// grew every time the image-ref files were touched. That allowlist
+			// is eleven entries and has not moved since, which is a cheaper
+			// price than the alternative: with the narrow rule, a stale
+			// reference could sit in a comment, a skill or a doc for a phase
+			// and nothing would say so, and three of them did.
 			//
-			// Only the GHCR image namespace is retained on purpose (PRD 0),
-			// alongside the fork statement and the upstream copyright.
-			Feature: "upstream project name in the stores", Story: "S4.3", Enforced: true,
+			// The regression it was written for was not cosmetic. Container
+			// hostnames like lerd-redis pointed at containers servlo never
+			// creates, so every service integration in the copied definitions
+			// was broken, and every database preset shipped the same published
+			// password.
+			Feature: "upstream project name", Story: "S0.1", Enforced: true,
 			// Case-insensitive: the first version of this rule was not, and
 			// LERD_POSTGRES_HOSTS survived it in the pgadmin definition, where
 			// it quietly broke that preset's family discovery.
 			Patterns: []string{`(?i)\blerd\b`},
-			// Scoped to the stores, which is where the regression was and where
-			// no retained reference exists. The GHCR image namespace keeps the
-			// old name on purpose (PRD 0) and is spelled across the podman,
-			// registry and cleanup packages, so a repository-wide rule would be
-			// an allowlist that grows a line every time one of those is touched.
-			Only: []string{"stores/"},
+			// Two things are excused and nothing else is. The specs describe
+			// the fork and carry its one permitted statement of it (README),
+			// and the files below spell the GHCR namespace the prebuilt PHP
+			// base images are published under, which is a live dependency
+			// rather than a missed rename (PRD 0). When those images move to
+			// an owned namespace, every entry after the specs comes out and
+			// the rule needs no other change.
+			Allow: append(append([]string{}, specs...),
+				"internal/origin/origin.go",
+				"internal/origin/origin_test.go",
+				"internal/podman/build.go",
+				"internal/podman/build_test.go",
+				"internal/podman/image_extensions_test.go",
+				"internal/registry/digest_test.go",
+				"internal/cleanup/cleanup.go",
+				"internal/cleanup/cleanup_test.go",
+			),
 		},
 		{
 			Feature: "launchd and Homebrew residue", Story: "S0.2", Enforced: true,

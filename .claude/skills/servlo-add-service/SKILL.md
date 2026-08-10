@@ -17,9 +17,9 @@ Only reviewed presets in this store may run a container. A project's own config
 file declaring an inline service is rejected (S0.7) — that is a code-execution
 path, not a convenience.
 
-As with frameworks, the runtime fetch still points at the public
-`lerd-env/services` because this repository is private and cannot serve raw
-fetches to an installed binary. Author here; S0.8 owns making it reachable.
+As with frameworks, these live in `stores/services/`, are embedded into the
+binary, and are fetched from this repository at runtime. While the repository is
+private that fetch answers 404 and the embedded copy is what runs.
 
 ## Procedure
 

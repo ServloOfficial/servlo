@@ -10,9 +10,8 @@ import (
 	"github.com/realrashid/servlo/stores"
 )
 
-// The service-preset store mirrors the framework store but targets the dedicated
-// lerd-env/services repo, whose definitions live under a services/ subdir: an
-// index.json plus one <name>.yaml per preset (service presets carry their
+// The service-preset store mirrors the framework store, under stores/services/:
+// an index.json plus one <name>.yaml per preset (service presets carry their
 // versions inline, so unlike frameworks there is no per-version file). It reuses
 // the Client fetch/fallback machinery so the two stores can never drift.
 

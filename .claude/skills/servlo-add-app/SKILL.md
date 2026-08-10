@@ -10,9 +10,9 @@ per app. An app is the fourth way to create a site, alongside an existing folder
 a ZIP upload and a GitHub clone: one click installs the application, creates its
 database, writes its config file and sets up the admin account (PRD 5.2, S6.4).
 
-**This store has no upstream.** Servlo has no app installer, so unlike frameworks
-and services there is no `lerd-env` original to copy from and no existing file to
-treat as the schema of record. That makes this the most likely place for an agent
+**This store has no upstream.** The project Servlo forked from had no app
+installer, so unlike frameworks and services there is no original to copy from
+and no inherited file to treat as the schema of record. That makes this the most likely place for an agent
 to give up and write Go instead. Do not. The acceptance criterion on S6.4 is
 explicit: WordPress installs in one click and is **defined as store YAML with no
 Go code specific to it**, so that further apps need no release.

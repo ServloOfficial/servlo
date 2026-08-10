@@ -9,13 +9,12 @@ Framework definitions live in **`stores/frameworks/<name>/<version>.yaml`** in t
 repository, one file per major version. Servlo is framework-agnostic: no Go code
 knows a framework's name. Everything a framework needs is declared here as data.
 
-Upstream authored these in a separate `lerd-env/frameworks` repo so a change
-shipped to every install in ~24h with no binary release. Servlo keeps the same
-file layout so the fetch code in `internal/origin/origin.go` needs only new base
-URLs, but the no-release property is not live yet: this repository is private, so
-an installed binary cannot fetch `raw.githubusercontent.com` from it without a
-token. The runtime fetch still points at the public `lerd-env/frameworks` until
-S0.8 resolves that. Author here anyway; do not assume a droplet sees your change.
+These live in `stores/frameworks/` and are embedded into the binary by
+`stores/stores.go`, so a new install has them from the moment it is built. The
+runtime fetch in `internal/origin/origin.go` points at this repository, which is
+how a definition published since a build reaches an existing install. While the
+repository is private that fetch answers 404 and the embedded copy is what runs,
+so do not assume a droplet sees your change before its next build.
 
 ## Procedure
 
