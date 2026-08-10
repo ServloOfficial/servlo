@@ -73,9 +73,10 @@ func recordFailure(domain string, cause error) {
 	f, existing := failures[domain]
 	if !existing {
 		f = RenewalFailure{Domain: domain, Since: now}
-		// The email goes on the first failure only; see renewalalert.go.
-		alertFirstFailure(domain, cause)
 	}
+	// Raised on every attempt; the alerts package is where a repeat of the same
+	// failure stops being news. See renewalalert.go.
+	alertRenewalFailure(domain, cause)
 	f.Reason = cause.Error()
 	f.LastAttempt = now
 	failures[domain] = f
@@ -104,6 +105,7 @@ func clearFailure(domain string) {
 	}
 	delete(failures, domain)
 	writeFailures(failures)
+	alertRenewalRecovered(domain)
 	auditlog.Record(auditlog.Entry{Action: "cert.issue.recovered", Subject: domain})
 }
 

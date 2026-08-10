@@ -42,6 +42,38 @@ const siteTab = (card, tab) => async (page) => {
 };
 
 const SHOTS = [
+  { name: 'addsite-app', height: 1500, act: async (page) => {
+      await rail('Sites')(page);
+      await page.getByText('Link new site', { exact: true }).first().click();
+      await page.waitForTimeout(500);
+      await page.getByRole('tab', { name: /^App$/ }).first().click();
+      await page.waitForTimeout(400);
+      // The app that ends with an account, which is the fuller of the two shapes.
+      await page.locator('select').first().selectOption('wordpress');
+      await page.waitForTimeout(400);
+    } },
+  { name: 'addsite-app-selfsetup', height: 1500, act: async (page) => {
+      await rail('Sites')(page);
+      await page.getByText('Link new site', { exact: true }).first().click();
+      await page.waitForTimeout(500);
+      await page.getByRole('tab', { name: /^App$/ }).first().click();
+      await page.waitForTimeout(400);
+      await page.locator('select').first().selectOption('grav');
+      await page.waitForTimeout(400);
+    } },
+  { name: 'addsite-app-installed', height: 1400, act: async (page) => {
+      await rail('Sites')(page);
+      await page.getByText('Link new site', { exact: true }).first().click();
+      await page.waitForTimeout(500);
+      await page.getByRole('tab', { name: /^App$/ }).first().click();
+      await page.waitForTimeout(400);
+      await page.getByPlaceholder('example.com').first().fill('blog.acme.com');
+      await page.getByPlaceholder('/home/servlo/sites/example.com').first().fill('/home/servlo/sites/blog.acme.com');
+      await page.waitForTimeout(200);
+      await page.getByRole('button', { name: /^Add Site$/ }).last().click();
+      await page.waitForTimeout(900);
+    } },
+  { name: 'system-server-state', height: 2600, act: rail('System') },
   { name: 'services', act: rail('Services') },
   { name: 'services-connections-add', height: 2400, act: async (page) => {
       await rail('Services')(page);
@@ -82,11 +114,38 @@ const SHOTS = [
       await page.waitForTimeout(300);
     } },
   { name: 'site-backups-none', height: 2600, act: siteTab('blog.orbitlabs.app', 'Settings'), bottom: true },
+  // Both sides of the staging relationship: the copy, and the live site that
+  // has one.
+  { name: 'site-staging', height: 3200, bottom: true, act: siteTab('Acme (staging)', 'Settings') },
+  { name: 'site-staging-live', height: 3200, bottom: true, act: siteTab('Acme', 'Settings') },
   { name: 'dashboard', act: rail('Dashboard') },
+  { name: 'dashboard-alerts-cleared', act: async (page) => {
+      await rail('Dashboard')(page);
+      // The other state of the alerts card: dismiss every one and confirm it
+      // disappears rather than sitting there empty, and that the all-good
+      // strip comes back with it.
+      for (let i = 0; i < 8; i++) {
+        const button = page.getByRole('button', { name: /^Dismiss$/ }).first();
+        if (!(await button.count())) break;
+        await button.click();
+        await page.waitForTimeout(250);
+      }
+      await page.waitForTimeout(500);
+    } },
   { name: 'system', height: 2200, act: rail('System') },
   { name: 'system-mail', height: 1800, act: async (page) => {
       await rail('System')(page);
       await page.getByText(/^Mail$/).first().click();
+      await page.waitForTimeout(900);
+    } },
+  { name: 'system-security', height: 2600, act: async (page) => {
+      await rail('System')(page);
+      await page.getByText(/^Security$/).first().click();
+      await page.waitForTimeout(900);
+    } },
+  { name: 'system-security-bottom', height: 2600, bottom: true, act: async (page) => {
+      await rail('System')(page);
+      await page.getByText(/^Security$/).first().click();
       await page.waitForTimeout(900);
     } },
   { name: 'system-sftp', height: 1800, act: async (page) => {

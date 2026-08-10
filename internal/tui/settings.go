@@ -19,21 +19,13 @@ type settingsRow struct {
 type settingsKind int
 
 const (
-	settingsLANExpose settingsKind = iota
-	settingsAutostart
+	settingsAutostart settingsKind = iota
 	settingsWorkerMode
 )
 
 func (m *Model) settingsRows() []settingsRow {
-	cfg, _ := config.LoadGlobal()
 	var rows []settingsRow
 
-	lanExposed := cfg != nil && cfg.LAN.Exposed
-	rows = append(rows, settingsRow{
-		kind:  settingsLANExpose,
-		label: "LAN expose (sites and DNS)",
-		on:    lanExposed,
-	})
 	rows = append(rows, settingsRow{
 		kind:  settingsAutostart,
 		label: "Autostart servlo on login",
@@ -56,13 +48,6 @@ func (m *Model) settingsToggle(rows []settingsRow) tea.Cmd {
 	}
 	row := rows[m.settingsRow]
 	switch row.kind {
-	case settingsLANExpose:
-		verb := "on"
-		if row.on {
-			verb = "off"
-		}
-		m.setStatus("toggling LAN expose "+verb+"…", 5*time.Second)
-		return runServlo("", "lan", "expose", verb)
 	case settingsAutostart:
 		sub := "enable"
 		if row.on {

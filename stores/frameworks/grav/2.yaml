@@ -1,0 +1,151 @@
+name: grav
+version: "2"
+label: Grav
+# Grav serves from the site root. It has no public/ directory and no build step
+# that would create one, so everything the operator uploads is under the
+# document root and the nginx block below is what keeps the private half of it
+# out of reach.
+public_dir: .
+php:
+  min: "8.3"
+  max: "8.5"
+
+detect:
+  # system/defines.php carries GRAV_VERSION as a literal, which is the only
+  # place the running version is written down: Grav ships no composer.json
+  # requirement naming itself, and its release archives are not composer
+  # projects.
+  - file: system/defines.php
+    version_file: system/defines.php
+    version_pattern: "GRAV_VERSION\",\\s*\"([^\"]+)\""
+  - file: bin/grav
+
+env:
+  # Grav 2 reads a .env at the site root before its configuration is compiled,
+  # which is what makes it wirable at all: version 1 had no env of any kind and
+  # every setting lived in YAML servlo has no business rewriting.
+  file: .env
+  example_file: .env.example
+  format: dotenv
+  # The address comes from the request. Writing one into the env would only
+  # give Grav a second opinion about where it is.
+  url_key: none
+  # No services block. Grav keeps its content in files, so there is no database
+  # to point it at, and toggling MySQL for a site on it correctly does nothing.
+  smtp:
+    # GRAV_CONFIG__ keys map double underscores onto dots in Grav's own
+    # configuration tree, so these are the email plugin's settings written from
+    # outside the YAML rather than a servlo-specific mechanism. The switch has
+    # to be on or the overrides are read and ignored.
+    vars:
+      - GRAV_CONFIG=true
+      - GRAV_CONFIG__plugins__email__mailer__engine=smtp
+      - GRAV_CONFIG__plugins__email__mailer__smtp__server={{smtp_host}}
+      - GRAV_CONFIG__plugins__email__mailer__smtp__port={{smtp_port}}
+      - GRAV_CONFIG__plugins__email__mailer__smtp__encryption={{smtp_crypto}}
+      - GRAV_CONFIG__plugins__email__mailer__smtp__user={{smtp_user}}
+      - GRAV_CONFIG__plugins__email__mailer__smtp__password={{smtp_password}}
+      - GRAV_CONFIG__plugins__email__from={{smtp_from_address}}
+      - GRAV_CONFIG__plugins__email__from_name={{smtp_from_name}}
+
+# The release archive ships its dependencies, and a site created from it has no
+# composer.json worth acting on. A Grav site tracked in git may well have one,
+# and `auto` would then run an install nobody asked for on every deploy.
+composer: false
+npm: false
+console: bin/grav
+
+workers:
+  scheduler:
+    label: Scheduler
+    # Grav's own scheduler, which is what its plugins queue work on. It expects
+    # to be woken every minute rather than to run as a daemon, so this is a
+    # timer rather than a long-running unit.
+    command: php bin/grav scheduler
+    schedule: minutely
+    restart: on-failure
+
+logs:
+  - path: logs/*.log
+    format: raw
+
+commands:
+  - name: cache:clear
+    label: Clear cache
+    command: php bin/grav clearcache
+    description: Clear the compiled configuration, page and image caches
+    output: silent
+    icon: broom
+  - name: scheduler:list
+    label: Scheduled jobs
+    command: php bin/grav scheduler --jobs
+    description: List the jobs Grav's scheduler is set to run
+    icon: list
+
+nginx:
+  # Adapted from the nginx configuration Grav ships in webserver-configs/, which
+  # is the project's own statement of what must not be reachable. It matters
+  # more here than the equivalent does for most frameworks: with the document
+  # root at the site root, the default answer for every one of these paths is to
+  # serve the file, and user/accounts holds the password hashes.
+  snippet: |
+    # Direct access to the working directories serves nothing and leaks plenty.
+    location ~* ^/(\.git|cache|bin|logs|backup|tests)/.*$ { return 403; }
+
+    # The configuration and the accounts, whatever the file extension.
+    location ~* ^/user/(config|env)/.*$ { return 403; }
+
+    # Avatars are the one thing under accounts that is meant to be public, and
+    # this has to come before the deny below to win nginx's first match. SVG is
+    # left out on purpose: it is a stored-XSS vector on a same-origin path.
+    location ~* ^/user/accounts/[^/]+/[^/]+\.(jpe?g|png|gif|webp|avif|bmp|ico)$ { try_files $uri =404; }
+    location ~* ^/user/accounts/.*$ { return 403; }
+
+    # The same shape for uploaded media, which is public, against the rest of
+    # user/data, which is not.
+    location ~* ^/user/data/.*\.(jpe?g|png|gif|webp|avif|bmp|ico|mp4|webm|ogg|ogv|mov|mp3|wav|m4a|flac|pdf)$ { try_files $uri =404; }
+    location ~* ^/user/data/.*$ { return 403; }
+
+    # Nothing under the code directories is a page, and several of them are
+    # scripts that would run if something reached them.
+    location ~* ^/(system|vendor)/.*\.(txt|xml|md|html|htm|shtml|shtm|json|yaml|yml|php|php2|php3|php4|php5|phar|phtml|pl|py|cgi|twig|sh|bat)$ { return 403; }
+    location ~* ^/user/.*\.(txt|md|json|yaml|yml|php|php2|php3|php4|php5|phar|phtml|pl|py|cgi|twig|sh|bat)$ { return 403; }
+
+    # Files the release ships at the root that describe the install.
+    location ~ ^/(LICENSE\.txt|composer\.lock|composer\.json|now\.json|htaccess\.txt|web\.config) { return 403; }
+    location ~ /\.env(\.|$) { return 403; }
+
+deploy:
+  # Empty by default. Grav's pages are files, so on most sites the pull is the
+  # whole deploy and anything else is the operator's own build step.
+  script: ""
+
+  # Grav has no schema and no migrations, so no deploy on it is ever treated as
+  # schema-changing and none takes a database backup on that basis.
+  migrate: ""
+
+  # Written by the running site and owned by nobody's repository: the accounts,
+  # whatever plugins have stored, and the plugins themselves, which are
+  # installed through admin on most sites and are the same case as WordPress's.
+  # user/pages is deliberately absent: on a Grav site tracked in git the pages
+  # are the repository's content, and protecting them from deletion would mean
+  # a page deleted upstream came back on every deploy.
+  exclude:
+    - user/accounts
+    - user/data
+    - user/plugins
+
+  health: /
+
+# What a backup leaves out. Every one of these is regenerated on the next
+# request or by the scheduler. user/ is deliberately absent: on a Grav site it
+# is the content, the accounts and the configuration all at once, and a backup
+# without it restores an empty site.
+backup:
+  exclude:
+    - cache
+    - tmp
+    - logs
+    - assets
+    - images
+    - backup

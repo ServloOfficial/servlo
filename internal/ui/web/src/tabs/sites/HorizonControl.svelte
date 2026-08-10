@@ -10,7 +10,6 @@
   interface Props {
     running: boolean;
     failing?: boolean;
-    asleep?: boolean;
     reload?: boolean;
     horizonLoading?: boolean;
     reloadLoading?: boolean;
@@ -20,7 +19,6 @@
   let {
     running,
     failing = false,
-    asleep = false,
     reload = false,
     horizonLoading = false,
     reloadLoading = false,
@@ -59,7 +57,6 @@
     label={m.sites_controls_horizon()}
     on={running}
     {failing}
-    {asleep}
     loading={horizonLoading}
     disabled={horizonLoading}
     rounding={showReload ? 'rounded-l-md border-r-0' : 'rounded-md'}

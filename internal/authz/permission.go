@@ -119,6 +119,9 @@ func Permissions() Registry {
 		"/api/sites/clone-test": PermAdmin,
 		"/api/sites/deploy-key": PermAdmin,
 		"/api/sites/upload":     PermAdmin,
+		"/api/sites/app":        PermAdmin,
+		"/api/apps":             PermAdmin,
+		"/api/backup/state":     PermAdmin,
 		"/api/sites/reorder":    PermAdmin,
 
 		// Named in the story as things a Developer should reach, and admin
@@ -158,7 +161,6 @@ func Permissions() Registry {
 		"/api/settings/worker-mode":  PermAdmin,
 		"/api/settings/smtp":         PermAdmin,
 		"/api/settings/smtp/test":    PermAdmin,
-		"/api/lan/status":            PermAdmin,
 		"/api/remote-control":        PermAdmin,
 		"/api/php-versions":          PermAdmin,
 		"/api/php-versions/":         PermAdmin,
@@ -176,8 +178,14 @@ func Permissions() Registry {
 		// filesystem access as the account every site runs as, and until the
 		// operator has installed the chroot block it is not confined to one
 		// site at all. That is not a developer's call to make.
-		"/api/sftp":                  PermAdmin,
-		"/api/sftp/":                 PermAdmin,
+		"/api/sftp":   PermAdmin,
+		"/api/sftp/":  PermAdmin,
+		"/api/alerts": PermAdmin,
+		// Authorising an SSH key hands out shell access as the account every
+		// site runs as. That is never a developer's call, and neither is reading
+		// what is listening on a public address.
+		"/api/security":              PermAdmin,
+		"/api/security/keys":         PermAdmin,
 		"/api/audit":                 PermAdmin,
 		"/api/stats":                 PermAdmin,
 		"/api/disk":                  PermAdmin,

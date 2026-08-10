@@ -14,6 +14,9 @@ A backup is one encrypted archive holding a site's files and a dump of its datab
 | `servlo backup verify <archive>` | Restore it into a scratch database and check what came back |
 | `servlo backup state` | Back up servlo's own configuration and the site registry |
 | `servlo backup key import <key>` | Bring a backup key over from another server |
+| `servlo backup destination` | Where finished archives are copied to |
+| `servlo backup destination add <name>` | Add an S3 or SFTP destination |
+| `servlo backup destination test [name]` | Check a destination can be reached |
 | `servlo restore <archive>` | Put an archive back |
 | `servlo restore <archive> --state` | Put the server's own configuration back |
 
@@ -89,6 +92,33 @@ Weekly rather than nightly, and deliberately not folded into the backup itself. 
 
 `servlo backup schedule acme` says whether a check is armed, and says so plainly when one is not.
 
+## Sending archives somewhere else
+
+A backup that only exists on the machine it is a backup of is not a backup. Archives are copied to every configured destination as soon as they are written.
+
+```bash
+servlo backup destination add spaces --kind s3 \
+  --bucket acme-backups --prefix servers/lon1 \
+  --endpoint https://fra1.digitaloceanspaces.com --region fra1 \
+  --access-key DO00... --secret-key ...
+
+servlo backup destination add offsite --kind sftp \
+  --host backups.example.net --user servlo \
+  --path /srv/backups/lon1 --key-file ~/.ssh/backup_ed25519
+```
+
+S3-compatible covers DigitalOcean Spaces and Amazon S3 with one driver. The prefix is what lets one bucket hold several servers without them overwriting each other.
+
+Neither protocol is spoken by servlo itself. rclone runs in a container on the servlo network, the same way the database clients do, because it already speaks both correctly and the alternative is hand-rolling request signing whose first failure would be a backup that silently never arrived.
+
+The credentials travel in the environment, never in an argument list, so nothing running as the same user can read them out of `ps`. They are stored at `~/.config/servlo/backup-destinations.yaml`, mode `0600`.
+
+**A destination failing does not fail the backup.** The archive is on this server and usable; what failed is the copy going elsewhere, and reporting otherwise would have you re-running a backup that worked. Every destination is attempted even after one fails, because two exist precisely so that one being unreachable is survivable.
+
+`servlo backup destination test` lists what is actually at each one, which is the check worth running after adding it rather than waiting for 03:30.
+
+Removing a destination leaves the archives already there alone. Deleting somebody's offsite copies as a side effect of editing a setting is never what was meant.
+
 ## The server's own state
 
 ```bash
@@ -96,6 +126,8 @@ servlo backup state
 ```
 
 A site's archive holds that site. Restoring one onto a fresh droplet gives you the files and the database on a server that has no idea what a site is: no registry, no connections, no schedules, no settings.
+
+The panel has it too, on **System, Servlo**, as the Server state card: what exists, when each was taken, and a button that takes another.
 
 `servlo backup state` is the other half. It carries everything servlo knows that is not a site's files or data: the site registry, the connections, the per-site database accounts, the SMTP settings, the provider certificates and every per-site setting.
 

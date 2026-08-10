@@ -1,12 +1,10 @@
-// Package origin centralises every URL servlo fetches its own assets from: release
-// binaries, the framework and service stores, the changelog, and the GHCR base
-// images. Each endpoint is overridable via its environment variable for tests
-// and mirrors.
+// Package origin centralises every URL servlo fetches its own assets from:
+// release binaries, the framework, service and app stores, the changelog, and
+// the GHCR base images. Each endpoint is overridable via its environment
+// variable for tests and mirrors.
 //
-// The constants below straddle the fork boundary deliberately, so keep the two
-// groups apart. Servlo's own artefacts come from Servlo's repository; two
-// upstream dependencies are consumed unchanged for now and are tracked as debt
-// rather than architecture (PRD §0).
+// Every one of them derives from mainRepo, so moving the project to an
+// organisation is a one-line change here and nothing else in the tree.
 package origin
 
 import (
@@ -14,21 +12,22 @@ import (
 	"strings"
 )
 
-// Servlo's own artefacts. The repository is private today, so these endpoints
-// 404 and every caller falls back: the stores to the copy embedded in the
-// binary, the tools manifest to its embedded copy, the changelog to printing the
-// release URL. That is acceptable because Servlo has published no releases yet,
-// and it is still the right target — resolving Servlo's updates against Lerd's
-// release feed would hand a different project's binaries to a Servlo install.
-const mainRepo = "realrashid/servlo" // releases, installer, stores, tools manifest, changelog
+// The repository is private today, so these endpoints 404 and every caller
+// falls back: the stores to the copy embedded in the binary, the tools manifest
+// to its embedded copy, the changelog to printing the release URL, the base
+// images to a local build. That is acceptable because Servlo has published no
+// releases yet, and it is still the right target — resolving Servlo's updates
+// against the upstream release feed would hand a different project's binaries
+// to a Servlo install.
+const mainRepo = "realrashid/servlo" // releases, installer, stores, tools manifest, changelog, images
 
-// Retained upstream dependencies (PRD §0), not oversights.
-const (
-	// imageOwner is the GHCR namespace for the prebuilt PHP-FPM base images.
-	// They are public and MIT, Servlo consumes them unchanged through Phases 0
-	// and 1, and they are mirrored into an owned namespace before v1 ships.
-	imageOwner = "lerd-env"
-)
+// imageOwner is the GHCR namespace the prebuilt PHP-FPM base images are
+// published under, taken from mainRepo so the images follow the project rather
+// than needing a second edit when it moves to an organisation.
+func imageOwner() string {
+	owner, _, _ := strings.Cut(mainRepo, "/")
+	return owner
+}
 
 // storeBase is where a store's definitions are fetched from: this repository,
 // under stores/. A private repository answers 404 there, which is why every
@@ -117,18 +116,22 @@ func ChangelogURLs() []string {
 	return []string{"https://raw.githubusercontent.com/" + mainRepo + "/main/CHANGELOG.md"}
 }
 
-// BaseImageRefs lists GHCR refs for a prebuilt PHP-FPM base image, where phpShort
-// is the dotless version (e.g. "85") and hash pins the image to the embedded
-// Containerfile template.
+// BaseImageRefs lists GHCR refs for a prebuilt PHP-FPM base image, where
+// phpShort is the dotless version (e.g. "85") and hash pins the image to the
+// embedded Containerfile template.
+//
+// A miss here is not a failure. The image is a shortcut past compiling every
+// extension, and the caller falls back to building from the official
+// php:<version>-fpm-alpine the Containerfile starts from, which is where the
+// image came from in the first place. A slice rather than one ref so a
+// namespace move can serve the old location as a fallback while binaries built
+// before it are still in the field.
 func BaseImageRefs(phpShort, hash string) []string {
-	// "lerd-php…" is upstream's image name, not a missed rename: these are the
-	// retained GHCR base images from PRD §0. Renaming it here would point at an
-	// image that does not exist.
-	suffix := "/lerd-php" + phpShort + "-fpm-base:" + hash
+	suffix := "/servlo-php" + phpShort + "-fpm-base:" + hash
 	if v := os.Getenv("SERVLO_BASE_IMAGE_REGISTRY"); v != "" {
 		return []string{v + suffix}
 	}
-	return []string{"ghcr.io/" + imageOwner + suffix}
+	return []string{"ghcr.io/" + imageOwner() + suffix}
 }
 
 // splitList parses a comma-separated override into trimmed, non-empty entries.

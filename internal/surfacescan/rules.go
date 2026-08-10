@@ -147,9 +147,13 @@ func Rules() []Rule {
 		},
 		{
 			Feature: "LAN and tunnel sharing", Story: "S0.6", Enforced: true,
-			// lan:expose is deliberately absent: it decides whether nginx binds
-			// loopback or every interface, which a server needs, and S1.2 owns it.
-			Patterns: []string{`(?i)lanshare`, `lan:share`, `lan_share`, `tunnelshare`, `tunnel_url`, `Tunnel(Start|Stop|Status)`, `servlo share`, `\bngrok\b`, `cloudflared`},
+			// lan:expose was carved out of this rule for a phase and a half on
+			// the grounds that a server needs to choose its bind. It does not:
+			// nginx serves the sites, so it publishes on every interface and
+			// everything else stays on loopback, and neither half is a setting.
+			// What the toggle actually did was default a fresh production
+			// install to loopback, where it served nobody.
+			Patterns: []string{`(?i)lanshare`, `lan:share`, `lan_share`, `lan:expose`, `lan_expose`, `LANExposed`, `BindForLAN`, `tunnelshare`, `tunnel_url`, `Tunnel(Start|Stop|Status)`, `servlo share`, `\bngrok\b`, `cloudflared`},
 			Allow: append(append([]string{}, specs...),
 				"internal/hostbin/hostbin_test.go",
 			),
@@ -241,26 +245,30 @@ func Rules() []Rule {
 			Allow:    specs,
 		},
 		{
-			// The rename that S0.1 performed swept the repository, but the
-			// stores arrived in-repo at S0.8, copied from upstream and still
-			// carrying its name. That was not cosmetic: container hostnames
-			// like lerd-redis pointed at containers servlo never creates, so
-			// every service integration in those definitions was broken, and
-			// every database preset shipped the same published password.
+			// The rename that S0.1 performed swept the repository, and this is
+			// what keeps it swept. It was scoped to stores/ for a while, on the
+			// grounds that a repository-wide rule would need an allowlist that
+			// grew every time the image-ref files were touched. That allowlist
+			// is eleven entries and has not moved since, which is a cheaper
+			// price than the alternative: with the narrow rule, a stale
+			// reference could sit in a comment, a skill or a doc for a phase
+			// and nothing would say so, and three of them did.
 			//
-			// Only the GHCR image namespace is retained on purpose (PRD 0),
-			// alongside the fork statement and the upstream copyright.
-			Feature: "upstream project name in the stores", Story: "S4.3", Enforced: true,
+			// The regression it was written for was not cosmetic. Container
+			// hostnames like lerd-redis pointed at containers servlo never
+			// creates, so every service integration in the copied definitions
+			// was broken, and every database preset shipped the same published
+			// password.
+			Feature: "upstream project name", Story: "S0.1", Enforced: true,
 			// Case-insensitive: the first version of this rule was not, and
 			// LERD_POSTGRES_HOSTS survived it in the pgadmin definition, where
 			// it quietly broke that preset's family discovery.
 			Patterns: []string{`(?i)\blerd\b`},
-			// Scoped to the stores, which is where the regression was and where
-			// no retained reference exists. The GHCR image namespace keeps the
-			// old name on purpose (PRD 0) and is spelled across the podman,
-			// registry and cleanup packages, so a repository-wide rule would be
-			// an allowlist that grows a line every time one of those is touched.
-			Only: []string{"stores/"},
+			// One thing is excused: the documents that describe the fork, which
+			// carry its single permitted statement of it in README.md. The
+			// prebuilt PHP base images were the other exemption and are not
+			// any more, now that they publish under Servlo's own namespace.
+			Allow: specs,
 		},
 		{
 			Feature: "launchd and Homebrew residue", Story: "S0.2", Enforced: true,

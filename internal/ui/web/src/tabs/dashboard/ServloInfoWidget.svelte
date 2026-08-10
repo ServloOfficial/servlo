@@ -5,7 +5,6 @@
   import ActivityList from './ActivityList.svelte';
   import { version, loadVersion } from '$stores/version';
   import { autostartEnabled } from '$stores/autostart';
-  import { lan } from '$stores/lan';
   import { goToTab } from '$stores/route';
   import { m } from '../../paraglide/messages.js';
 
@@ -55,22 +54,7 @@
     </div>
   {/if}
 
-  <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
-    <span class="inline-flex items-center gap-1.5">
-      <span class="text-gray-500 dark:text-gray-400">{m.system_autostart_title()}</span>
-      <StatusPill
-        tone={$autostartEnabled ? 'ok' : 'muted'}
-        label={$autostartEnabled ? m.system_autostart_enabled() : m.system_autostart_disabled()}
-      />
-    </span>
-    <span class="inline-flex items-center gap-1.5">
-      <span class="text-gray-500 dark:text-gray-400">{m.system_lan_title()}</span>
-      <StatusPill
-        tone={$lan.exposed ? 'ok' : 'muted'}
-        label={$lan.exposed ? m.system_lan_exposed() : m.system_lan_loopback()}
-      />
-    </span>
-  </div>
+  
 
   <div class="pt-2 border-t border-gray-100 dark:border-servlo-border space-y-1.5">
     <div class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{m.dashboard_activity_title()}</div>

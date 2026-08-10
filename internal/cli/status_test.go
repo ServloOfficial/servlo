@@ -38,55 +38,31 @@ func captureStdout(t *testing.T, fn func()) string {
 func TestPrintRemoteAccessStatus(t *testing.T) {
 	cases := []struct {
 		name       string
-		exposed    bool
-		lanIP      string
 		username   string
 		passHash   string
 		wantSubstr []string
 	}{
 		{
-			name:    "both off",
-			exposed: false,
+			// The sites answer on every interface and the managed services
+			// answer on none of them. Neither is a setting, so the section
+			// says both plainly rather than reporting a state.
+			name: "dashboard credentials not set",
 			wantSubstr: []string{
-				"LAN exposure",
-				"loopback only",
+				"Sites served on every interface",
 				"Managed services (loopback-only, always)",
-				"servlo lan expose",
 				"Dashboard remote access",
-				"LAN clients get 403",
+				"remote clients get 403",
 				"servlo remote-control on",
 			},
 		},
 		{
-			name:    "lan exposed, dashboard off",
-			exposed: true,
-			lanIP:   "192.168.1.42",
-			wantSubstr: []string{
-				"LAN exposure (192.168.1.42)",
-				"✓",
-				"Managed services (loopback-only, always)",
-				"Dashboard remote access",
-				"LAN clients get 403",
-			},
-		},
-		{
-			name:     "both on",
-			exposed:  true,
-			lanIP:    "10.0.0.5",
+			name:     "dashboard credentials set",
 			username: "george",
 			passHash: "$2a$10$fakehashfakehashfakehashfakehashfakehashfakehashfake",
 			wantSubstr: []string{
-				"LAN exposure (10.0.0.5)",
+				"Sites served on every interface",
 				"Dashboard remote access (user: george)",
 				"Managed services (loopback-only, always)",
-			},
-		},
-		{
-			name:    "lan exposed with unknown ip",
-			exposed: true,
-			lanIP:   "",
-			wantSubstr: []string{
-				"LAN exposure ((unknown))",
 			},
 		},
 	}
@@ -94,12 +70,11 @@ func TestPrintRemoteAccessStatus(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := &config.GlobalConfig{}
-			cfg.LAN.Exposed = tc.exposed
 			cfg.UI.Username = tc.username
 			cfg.UI.PasswordHash = tc.passHash
 
 			out := captureStdout(t, func() {
-				printRemoteAccessStatus(cfg, tc.lanIP)
+				printRemoteAccessStatus(cfg)
 			})
 
 			for _, want := range tc.wantSubstr {

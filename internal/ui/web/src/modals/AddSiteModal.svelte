@@ -10,8 +10,12 @@
     uploadSite,
     deployKeyFor,
     testClone,
+    loadApps,
+    installApp,
     type DirectoryReport,
-    type CloneTestResult
+    type CloneTestResult,
+    type AppOption,
+    type AppInstallResult
   } from '$stores/addsite';
   import { loadSites } from '$stores/sites';
   import { goToTab } from '$stores/route';
@@ -24,9 +28,9 @@
   let phpVersion = $state('');
   let publicDir = $state('');
 
-  // Two sources, one form. The fields they share are the same fields, so the
-  // clone flow is three extra controls rather than a second modal that drifts.
-  let source = $state<'folder' | 'clone' | 'upload'>('folder');
+  // Four sources, one form. The fields they share are the same fields, so each
+  // source is a few extra controls rather than a second modal that drifts.
+  let source = $state<'folder' | 'clone' | 'upload' | 'app'>('folder');
   let archive = $state<File | null>(null);
   let repository = $state('');
   let deployKey = $state('');
@@ -34,6 +38,15 @@
   let copied = $state(false);
   let testing = $state(false);
   let testResult = $state<CloneTestResult | null>(null);
+
+  // The app source. apps is loaded once, the first time the tab is opened: the
+  // store is embedded in the binary, so there is nothing to refresh.
+  let apps = $state<AppOption[]>([]);
+  let appsLoaded = $state(false);
+  let appName = $state('');
+  let adminEmail = $state('');
+  let installed = $state<AppInstallResult | null>(null);
+  const chosenApp = $derived(apps.find((a) => a.name === appName) ?? null);
 
   let browsing = $state(false);
   let dirs = $state<Array<{ name: string; path: string }>>([]);
@@ -49,18 +62,30 @@
       path.trim() !== '' &&
       (source !== 'clone' || repository.trim() !== '') &&
       (source !== 'upload' || archive !== null) &&
+      (source !== 'app' || appName !== '') &&
       !submitting
   );
 
   // Switching source clears what belonged to the one being left. Otherwise a
   // clone that failed leaves its reason on screen under the folder form, where
   // it describes something the operator is no longer doing.
-  function pickSource(next: 'folder' | 'clone' | 'upload') {
+  function pickSource(next: 'folder' | 'clone' | 'upload' | 'app') {
     if (next === source) return;
     source = next;
     error = '';
     warning = '';
     testResult = null;
+    if (next === 'app' && !appsLoaded) loadAppOptions();
+  }
+
+  async function loadAppOptions() {
+    try {
+      apps = await loadApps();
+      appsLoaded = true;
+      if (!appName && apps.length > 0) appName = apps[0].name;
+    } catch (e) {
+      error = e instanceof Error ? e.message : m.common_failed();
+    }
   }
 
   // The key is per site, so it cannot be minted until the domain is typed.
@@ -82,6 +107,19 @@
       error = e instanceof Error ? e.message : m.common_failed();
     } finally {
       keyLoading = false;
+    }
+  }
+
+  // Copying the one-time password. Shown once and held nowhere else, so asking
+  // the operator to select it by hand is asking them to lose it.
+  let copiedPassword = $state(false);
+  async function copyPassword() {
+    try {
+      await navigator.clipboard.writeText(installed?.admin_password ?? '');
+      copiedPassword = true;
+      setTimeout(() => (copiedPassword = false), 1500);
+    } catch {
+      // Clipboard denied. The password is on screen and selectable either way.
     }
   }
 
@@ -152,6 +190,24 @@
     error = '';
     warning = '';
     try {
+      if (source === 'app') {
+        const app = await installApp({
+          app: appName,
+          domain: domain.trim(),
+          path: path.trim(),
+          admin_email: adminEmail.trim()
+        });
+        if (!app.ok) {
+          error = app.error || m.addsite_failed();
+          return;
+        }
+        await loadSites();
+        addedDomain = app.domain ?? '';
+        // Stops here rather than closing. The password is generated, shown
+        // once, and held nowhere else, so closing onto the site would lose it.
+        installed = app;
+        return;
+      }
       const res =
         source === 'upload'
         ? await uploadSite({
@@ -197,9 +253,51 @@
 </script>
 
 <Modal open title={m.addsite_title()} onclose={closeModal}>
+  {#if installed}
+    <!-- Shown once. The password is generated at install and held nowhere
+         else, so there is no screen that can show it again. -->
+    <div class="px-5 py-3 space-y-3" data-app-installed>
+      <p class="text-sm text-gray-700 dark:text-gray-200">
+        {m.addsite_appInstalled({ domain: installed.domain ?? '' })}
+      </p>
+
+      {#if installed.admin_password}
+        <div class="rounded-md border border-amber-300/60 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 space-y-1">
+          <p class="text-[11px] font-medium text-amber-700 dark:text-amber-400">{m.addsite_appPasswordOnce()}</p>
+          <dl class="text-xs text-gray-700 dark:text-gray-200 space-y-0.5">
+            <div class="flex gap-2">
+              <dt class="w-20 shrink-0 text-gray-500 dark:text-gray-400">{m.addsite_appAdminUser()}</dt>
+              <dd class="font-mono break-all">{installed.admin_user}</dd>
+            </div>
+            <div class="flex gap-2 items-center">
+              <dt class="w-20 shrink-0 text-gray-500 dark:text-gray-400">{m.addsite_appPassword()}</dt>
+              <dd class="font-mono break-all">{installed.admin_password}</dd>
+              <button
+                type="button"
+                onclick={copyPassword}
+                class="ml-auto shrink-0 px-2 py-0.5 text-[11px] rounded-md border border-amber-300/60 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100/60 dark:hover:bg-amber-500/10 transition-colors"
+              >
+                {copiedPassword ? m.common_copied() : m.common_copy()}
+              </button>
+            </div>
+          </dl>
+        </div>
+      {/if}
+
+      {#if installed.note}
+        <p class="text-xs text-amber-600 dark:text-amber-500">{installed.note}</p>
+      {/if}
+
+      {#if installed.database}
+        <p class="text-[11px] text-gray-400 dark:text-gray-500">
+          {m.addsite_appDatabase({ name: installed.database })}
+        </p>
+      {/if}
+    </div>
+  {:else}
   <div class="px-5 py-3 space-y-3">
     <div class="flex gap-1 p-0.5 rounded-md bg-gray-100 dark:bg-white/5" role="tablist">
-      {#each [{ id: 'folder' as const, label: m.addsite_sourceFolder() }, { id: 'clone' as const, label: m.addsite_sourceClone() }, { id: 'upload' as const, label: m.addsite_sourceUpload() }] as opt (opt.id)}
+      {#each [{ id: 'folder' as const, label: m.addsite_sourceFolder() }, { id: 'clone' as const, label: m.addsite_sourceClone() }, { id: 'upload' as const, label: m.addsite_sourceUpload() }, { id: 'app' as const, label: m.addsite_sourceApp() }] as opt (opt.id)}
         <button
           type="button"
           role="tab"
@@ -349,6 +447,43 @@
       </div>
     {/if}
 
+    {#if source === 'app'}
+      <label class="block">
+        <span class="text-xs text-gray-500 dark:text-gray-400">{m.addsite_app()}</span>
+        <select
+          bind:value={appName}
+          class="mt-1 w-full px-2.5 py-1.5 text-sm rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-white/[0.03] text-gray-800 dark:text-gray-100 focus:outline-hidden focus:border-servlo-red/50"
+        >
+          {#each apps as app (app.name)}
+            <option value={app.name}>{app.label} {app.version}</option>
+          {/each}
+        </select>
+        {#if chosenApp}
+          <span class="mt-1 block text-[11px] text-gray-400 dark:text-gray-500">{chosenApp.description}</span>
+        {/if}
+      </label>
+
+      {#if chosenApp}
+        <ul class="text-[11px] text-gray-500 dark:text-gray-400 space-y-0.5">
+          <li>{chosenApp.needs_database ? m.addsite_appWithDatabase() : m.addsite_appNoDatabase()}</li>
+          <li>{chosenApp.self_setup ? m.addsite_appSelfSetup() : m.addsite_appAdminCreated()}</li>
+        </ul>
+      {/if}
+
+      {#if chosenApp && !chosenApp.self_setup}
+        <label class="block">
+          <span class="text-xs text-gray-500 dark:text-gray-400">{m.addsite_adminEmail()}</span>
+          <input
+            bind:value={adminEmail}
+            placeholder="you@example.com"
+            autocomplete="off"
+            spellcheck="false"
+            class="mt-1 w-full px-2.5 py-1.5 text-sm rounded-md border border-gray-200 dark:border-servlo-border bg-white dark:bg-white/[0.03] text-gray-800 dark:text-gray-100 focus:outline-hidden focus:border-servlo-red/50"
+          />
+        </label>
+      {/if}
+    {/if}
+
     {#if source === 'upload'}
       <label class="block">
         <span class="text-xs text-gray-500 dark:text-gray-400">{m.addsite_archive()}</span>
@@ -362,6 +497,7 @@
       </label>
     {/if}
 
+    {#if source !== 'app'}
     <div class="grid grid-cols-2 gap-3">
       <label class="block">
         <span class="text-xs text-gray-500 dark:text-gray-400">{m.addsite_phpVersion()}</span>
@@ -383,7 +519,9 @@
         />
       </label>
     </div>
+    {/if}
   </div>
+  {/if}
 
   {#if error}
     <div class="px-5 py-2">
@@ -398,7 +536,9 @@
   {/if}
 
   {#snippet footer()}
-    {#if warning}
+    {#if installed}
+      <DetailButton tone="primary" onclick={openAddedSite}>{m.link_continueToSite()}</DetailButton>
+    {:else if warning}
       <DetailButton tone="primary" onclick={openAddedSite}>{m.link_continueToSite()}</DetailButton>
     {:else}
       <DetailButton onclick={closeModal}>{m.common_cancel()}</DetailButton>

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -467,6 +468,50 @@ func TestAddShellShims_ComposerShimDelegatesToServlo(t *testing.T) {
 	}
 	if !strings.Contains(shim, "composer.phar") {
 		t.Errorf("composer shim should keep a composer.phar fallback path, got:\n%s", shim)
+	}
+}
+
+// Reading the script proves the delegate line is written. Running it is the
+// only thing that proves the branch is ever taken, and for a phase it was not:
+// the rename missed the line assigning SERVLO, so an empty variable sent every
+// composer call down the fallback path and global installs stopped producing
+// the bin-dir wrappers that are the entire reason for delegating.
+func TestComposerShim_ActuallyDelegatesWhenTheBinaryIsThere(t *testing.T) {
+	tmp := t.TempDir()
+	servloBin := filepath.Join(tmp, "servlo")
+	if err := os.WriteFile(servloBin, []byte("#!/bin/sh\necho \"delegated: $*\"\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	shimPath := filepath.Join(tmp, "composer")
+	if err := os.WriteFile(shimPath, []byte(composerShimScript(servloBin, tmp)), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := exec.Command(shimPath, "require", "vendor/pkg").CombinedOutput()
+	if err != nil {
+		t.Fatalf("running the shim: %v\n%s", err, out)
+	}
+	if got := strings.TrimSpace(string(out)); got != "delegated: composer require vendor/pkg" {
+		t.Errorf("the shim did not delegate to the servlo binary, it ran the fallback instead: %q", got)
+	}
+}
+
+// And the other half: no binary to run means the phar path, not a hard failure.
+func TestComposerShim_FallsBackWhenTheBinaryCannotRun(t *testing.T) {
+	tmp := t.TempDir()
+	script := composerShimScript(filepath.Join(tmp, "absent"), tmp)
+	if !strings.Contains(script, "composer.phar") {
+		t.Fatalf("no fallback in the script:\n%s", script)
+	}
+	shimPath := filepath.Join(tmp, "composer")
+	if err := os.WriteFile(shimPath, []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// The fallback execs a binary that is not there either, so the shim exits
+	// non-zero. What matters is that it got that far rather than delegating.
+	out, _ := exec.Command(shimPath, "install").CombinedOutput()
+	if strings.Contains(string(out), "delegated") {
+		t.Errorf("an absent binary was still treated as runnable: %s", out)
 	}
 }
 

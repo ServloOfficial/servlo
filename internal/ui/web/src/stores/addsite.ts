@@ -105,3 +105,54 @@ export async function uploadSite(body: {
   const res = await apiFetch('/api/sites/upload', { method: 'POST', body: form });
   return (await res.json()) as AddSiteResult;
 }
+
+// Installing an application is the fourth source. It differs from the other
+// three in one way that shapes the form: it comes back with credentials that
+// exist nowhere else, so the modal has to stop and show them rather than close
+// onto the new site.
+
+export interface AppOption {
+  name: string;
+  label: string;
+  description: string;
+  version: string;
+  needs_database: boolean;
+  // True for an application whose own installer servlo cannot drive, so the
+  // form can say where the install stops before anybody starts it.
+  self_setup: boolean;
+}
+
+export interface AppInstallResult {
+  ok?: boolean;
+  error?: string;
+  site?: string;
+  domain?: string;
+  path?: string;
+  admin_user?: string;
+  admin_password?: string;
+  database?: string;
+  note?: string;
+}
+
+export async function loadApps(): Promise<AppOption[]> {
+  const res = await apiFetch('/api/apps');
+  if (!res.ok) throw new Error(await res.text());
+  const body = (await res.json()) as { apps?: AppOption[] };
+  return body.apps ?? [];
+}
+
+export async function installApp(body: {
+  app: string;
+  domain: string;
+  path: string;
+  admin_user?: string;
+  admin_email?: string;
+  site_title?: string;
+}): Promise<AppInstallResult> {
+  const res = await apiFetch('/api/sites/app', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return (await res.json()) as AppInstallResult;
+}

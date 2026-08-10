@@ -77,6 +77,16 @@ func NginxConfDBkp() string {
 	return filepath.Join(NginxDir(), "conf.d.bkp")
 }
 
+// NginxHtpasswdDir holds one credential file per staging site, mounted
+// read-only into the nginx container so auth_basic_user_file can reach it.
+//
+// Its own directory rather than a file beside the vhost: conf.d is included
+// wholesale by nginx.conf, and a credential file sitting in it would be parsed
+// as configuration the first time somebody widened the include glob.
+func NginxHtpasswdDir() string {
+	return filepath.Join(NginxDir(), "htpasswd")
+}
+
 // NginxHttpD holds user-authored nginx snippets included at the http{} level
 // (e.g. global gzip, proxy buffers, client_max_body_size). Servlo never writes
 // here, so edits survive nginx.conf regeneration and `servlo update`.

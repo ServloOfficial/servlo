@@ -5,6 +5,7 @@
   import StatusPill from '$components/StatusPill.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Icon from '$components/Icon.svelte';
+  import CommandBlock from '$components/CommandBlock.svelte';
   import { sites } from '$stores/sites';
   import { authoriseSFTPKey, loadSFTP, sftpLoaded, sftpStatus } from '$stores/sftp';
   import { openSFTPWithdrawModal } from '$stores/modals';
@@ -21,10 +22,8 @@
   let key = $state('');
   let busy = $state(false);
   let error = $state('');
-  let copied = $state(false);
 
   const status = $derived($sftpStatus);
-  const commands = $derived(status.commands.join('\n'));
 
   onMount(() => {
     void loadSFTP();
@@ -56,16 +55,6 @@
       label: keyLabel,
       onWithdrawn: () => void loadSFTP()
     });
-  }
-
-  async function copyCommands() {
-    try {
-      await navigator.clipboard.writeText(commands);
-      copied = true;
-      setTimeout(() => (copied = false), 1500);
-    } catch {
-      /* no clipboard permission */
-    }
   }
 </script>
 
@@ -221,23 +210,11 @@
           </div>
         {/each}
 
-        <div class="rounded-sm border border-gray-200 dark:border-servlo-border">
-          <div
-            class="flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-100 dark:border-servlo-border"
-          >
-            <h3 class="text-xs font-semibold text-gray-700 dark:text-gray-200">
-              {m.sftp_setupTitle()}
-            </h3>
-            <DetailButton onclick={copyCommands}>
-              {copied ? m.common_copied() : m.common_copy()}
-            </DetailButton>
-          </div>
-          <p class="px-3 pt-2 text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
-            {m.sftp_setupIntro({ path: status.staged_path })}
-          </p>
-          <pre
-            class="px-3 py-2 text-[11px] font-mono text-gray-700 dark:text-gray-300 overflow-x-auto">{commands}</pre>
-        </div>
+        <CommandBlock
+          commands={status.commands}
+          title={m.sftp_setupTitle()}
+          intro={m.sftp_setupIntro({ path: status.staged_path })}
+        />
       {/if}
     </section>
   </div>

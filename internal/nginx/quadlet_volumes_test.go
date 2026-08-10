@@ -6,8 +6,55 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/podman"
 )
+
+// Every host path the nginx container mounts has to exist before it starts.
+//
+// Podman refuses a bind mount whose source is not there, with a statfs error
+// and exit 125, and systemd's restart loop cannot fix a missing directory. So
+// the container never comes up, every site stops serving, and the message
+// names a path rather than the feature that added it. That is exactly what a
+// mount added for staging's htpasswd files did: it was written into the quadlet
+// and nothing created the directory, so a fresh install had no nginx at all.
+//
+// Derived from the quadlet rather than from a list, because a list beside the
+// template is a list that goes stale the next time a mount is added.
+func TestEnsureNginxConfig_createsEveryMountTheQuadletDeclares(t *testing.T) {
+	sandbox := t.TempDir()
+	t.Setenv("HOME", filepath.Join(sandbox, "home"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(sandbox, "config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(sandbox, "data"))
+
+	if err := EnsureNginxConfig(); err != nil {
+		t.Fatalf("EnsureNginxConfig: %v", err)
+	}
+
+	tmpl, err := podman.GetQuadletTemplate("servlo-nginx.container")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const dataPrefix = "%h/.local/share/servlo/"
+	checked := 0
+	for _, line := range strings.Split(string(tmpl), "\n") {
+		if !strings.HasPrefix(line, "Volume=") {
+			continue
+		}
+		src, _, ok := strings.Cut(strings.TrimPrefix(line, "Volume="), ":")
+		if !ok || !strings.HasPrefix(src, dataPrefix) {
+			continue
+		}
+		checked++
+		path := filepath.Join(config.DataDir(), filepath.FromSlash(strings.TrimPrefix(src, dataPrefix)))
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("the nginx quadlet mounts %s and nothing creates it, so podman refuses to start the container: %v", src, err)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no mounts were checked, so this proves nothing")
+	}
+}
 
 // RewriteNginxQuadlet must preserve the Volume= lines for paths outside $HOME.
 // It renders the bundled template, which carries no site mounts, so without

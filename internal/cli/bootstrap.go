@@ -12,7 +12,6 @@ import (
 // otherwise perform through interactive sudo. A package maintainer script runs
 // as root but cannot prompt, so it calls `servlo bootstrap --system` for the
 // prerequisites and `servlo install --unattended` afterwards needs no sudo.
-// See lerd-env/lerd#979.
 const unprivPortSetting = "net.ipv4.ip_unprivileged_port_start=80"
 
 // Vars rather than consts so tests can redirect the root actions away from the

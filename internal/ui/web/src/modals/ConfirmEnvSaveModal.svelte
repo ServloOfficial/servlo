@@ -19,7 +19,7 @@
   async function confirm() {
     if (!target) return;
     // Snapshot the success callback BEFORE awaiting; an unrelated modal
-    // dispatched on the store (LAN progress, link, etc.) during the network
+    // dispatched on the store (link, etc.) during the network
     // round-trip would otherwise clear $modal and the post-save refresh
     // never fires, leaving the editor with stale dirty/backup state.
     const onSuccess = $modal.onSuccess;

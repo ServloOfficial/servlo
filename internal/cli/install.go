@@ -498,8 +498,8 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 	ok()
 
-	// WriteQuadlet centrally applies the unit-aware LAN policy. Nginx follows
-	// cfg.LAN.Exposed; managed services also require cfg.LAN.ServicesExposed.
+	// WriteQuadlet centrally applies the unit-aware bind policy: nginx
+	// publishes on every interface, every managed service stays on loopback.
 	// WriteQuadletDiff lets this install restart only units whose binds changed.
 	// This also repairs drift from older releases without starting inactive
 	// services.
@@ -1454,8 +1454,7 @@ func addShellShims(manageNode bool) error {
 	// land in servlo's bin dir as wrappers (mirroring the npm flow), falling
 	// back to a direct `servlo php composer.phar` invocation when the servlo
 	// binary is not reachable (containers where the glibc binary can't run).
-	composerShim := fmt.Sprintf("#!/bin/sh\nLERD=%q\nif [ -x \"$SERVLO\" ]; then\n  exec \"$SERVLO\" composer \"$@\"\nfi\nexec %s php %s/.local/share/servlo/bin/composer.phar \"$@\"\n", servloBin, servloBin, home)
-	if err := os.WriteFile(filepath.Join(binDir, "composer"), []byte(composerShim), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(binDir, "composer"), []byte(composerShimScript(servloBin, home)), 0755); err != nil {
 		return fmt.Errorf("writing composer shim: %w", err)
 	}
 
@@ -1504,6 +1503,21 @@ func addShellShims(manageNode bool) error {
 	}
 	installShellCompletions(home, servloBin)
 	return nil
+}
+
+// composerShimScript is the ~/.local/share/servlo/bin/composer script: delegate
+// to `servlo composer` when the binary runs here, fall back to driving
+// composer.phar directly when it does not (containers where the glibc binary
+// cannot execute).
+//
+// Its own function so a test can run it rather than only read it. The rename
+// renamed the branch that reads SERVLO but not the line that assigns it, so the
+// variable was empty, the test never passed, and every composer call took the
+// fallback route, which does not produce the bin-dir wrappers global installs
+// need. The test that was supposed to cover this asserted the delegate line was
+// present, which it was.
+func composerShimScript(servloBin, home string) string {
+	return fmt.Sprintf("#!/bin/sh\nSERVLO=%q\nif [ -x \"$SERVLO\" ]; then\n  exec \"$SERVLO\" composer \"$@\"\nfi\nexec %s php %s/.local/share/servlo/bin/composer.phar \"$@\"\n", servloBin, servloBin, home)
 }
 
 // pathShimDisabled reports whether the user opted out of the shell PATH entry

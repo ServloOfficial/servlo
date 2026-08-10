@@ -36,7 +36,7 @@ var helpReference = []helpSection{
 	{
 		title: "Actions",
 		rows: [][2]string{
-			{"space / enter", "toggle the focused detail row (worker, HTTPS, LAN share, PHP, Node)"},
+			{"space / enter", "toggle the focused detail row (worker, HTTPS, PHP, Node)"},
 			{"s", "start / unpause the focused site or start the focused service"},
 			{"x", "stop / pause the focused site or stop / remove the focused domain"},
 			{"r", "restart the focused site or service"},
@@ -83,7 +83,7 @@ var helpReference = []helpSection{
 		title: "Panes & overlays",
 		rows: [][2]string{
 			{"Dashboard tab", "six-card overview (Sites · Services · Workers · System Health · Resources · Servlo)"},
-			{"S", "swap the detail pane for global Settings (LAN expose, autostart) — Sites tab"},
+			{"S", "swap the detail pane for global Settings (autostart) — Sites tab"},
 			{"Y", "swap the detail pane for the System overview (DNS, Nginx, Watcher, PHP, Node, Servlo) — Sites tab"},
 			{"D", "open the Debug window (dumps, queries with N+1, jobs, mail, …) — Sites tab"},
 			{"?", "swap the detail pane for this help reference"},

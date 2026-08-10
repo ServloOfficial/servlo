@@ -59,3 +59,39 @@ export const scheduleBackup = (
   verify: string,
   keep: { daily: number; weekly: number; monthly: number }
 ) => post(domain, { action: 'schedule', schedule, verify, keep });
+
+// The server's own state, which is not a site's and so has no site to hang
+// off. Everything servlo knows that is not files or data: the registry, the
+// connections, the accounts, the settings. It is what makes a rebuild onto a
+// fresh machine possible.
+
+export interface StateArchive {
+  name: string;
+  size: number;
+  taken: string;
+}
+
+export interface ServerStateResult {
+  archives?: StateArchive[];
+  directory?: string;
+  error?: string;
+}
+
+export interface StateTaken {
+  ok?: boolean;
+  error?: string;
+  name?: string;
+  size?: number;
+  files?: number;
+}
+
+export async function loadServerState(): Promise<ServerStateResult> {
+  const res = await apiFetch('/api/backup/state');
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as ServerStateResult;
+}
+
+export async function backUpServerState(): Promise<StateTaken> {
+  const res = await apiFetch('/api/backup/state', { method: 'POST' });
+  return (await res.json()) as StateTaken;
+}

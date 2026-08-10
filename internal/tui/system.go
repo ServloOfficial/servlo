@@ -21,7 +21,6 @@ const (
 	sysInfo
 	sysNotifEnabled
 	sysAutostart
-	sysLANExpose
 	sysWorkerMode
 )
 
@@ -126,7 +125,6 @@ func (m *Model) systemRows() []systemRow {
 		}
 	}
 	add(systemRow{kind: sysAutostart, label: "Autostart on login", on: servloSystemd.IsAutostartEnabled()})
-	add(systemRow{kind: sysLANExpose, label: "LAN expose (sites)", on: cfg != nil && cfg.LAN.Exposed})
 
 	return rows
 }
@@ -172,13 +170,6 @@ func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 		}
 		m.setStatus("autostart "+sub+"…", 5*time.Second)
 		return runServlo("", "autostart", sub)
-	case sysLANExpose:
-		verb := "on"
-		if row.on {
-			verb = "off"
-		}
-		m.setStatus("LAN expose "+verb+"…", 5*time.Second)
-		return runServlo("", "lan", "expose", verb)
 	case sysWorkerMode:
 		target := config.WorkerExecModeContainer
 		if row.on {

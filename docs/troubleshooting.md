@@ -223,7 +223,9 @@ Switch back with `servlo secure --staging=false` once it issues.
 :::
 
 ::: details PHP image build is slow on first run
-servlo normally pulls a pre-built base image from ghcr.io and finishes in ~30 seconds. If you see it fall back to a local build instead, the most common cause is being logged into ghcr.io with expired or unrelated credentials; the registry rejects the authenticated request even though the image is public.
+servlo pulls a pre-built base image from ghcr.io when one is published for your PHP version and finishes in ~30 seconds. Otherwise it builds from the official `php:<version>-fpm-alpine` and compiles the extensions, which is slower but produces the same image; the build prints which of the two it is doing and why.
+
+If a pull that should have worked falls back anyway, the most common cause is being logged into ghcr.io with expired or unrelated credentials; the registry rejects the authenticated request even though the image is public.
 
 servlo handles this automatically since v1.3.4 by always pulling anonymously. If you are on an older version, running `podman logout ghcr.io` before the build will fix it.
 :::

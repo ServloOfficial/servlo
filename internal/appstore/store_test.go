@@ -1,8 +1,11 @@
 package appstore
 
 import (
+	"io/fs"
 	"strings"
 	"testing"
+
+	"github.com/realrashid/servlo/stores"
 )
 
 // The guard that matters most in this package. Every definition servlo ships
@@ -83,6 +86,24 @@ func TestList_EveryConfigTemplateRenders(t *testing.T) {
 		}
 		if _, err := app.ConfigFile.Render(values); err != nil {
 			t.Errorf("%s: %v", app.Name, err)
+		}
+	}
+}
+
+// An app takes its detection, deploy template, worker set and doctor checks
+// from a framework definition, so a framework name with no definition behind it
+// is an app that installs and then has none of them. Parsing cannot catch it:
+// the field is present and non-empty, and only the store beside it knows the
+// name is wrong.
+func TestList_EveryAppNamesAFrameworkTheStoreHas(t *testing.T) {
+	apps, err := List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, app := range apps {
+		entries, err := fs.ReadDir(stores.FS(), "frameworks/"+app.Framework)
+		if err != nil || len(entries) == 0 {
+			t.Errorf("%s names the framework %q, which the framework store does not have", app.Name, app.Framework)
 		}
 	}
 }

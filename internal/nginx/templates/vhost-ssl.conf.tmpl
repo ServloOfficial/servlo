@@ -18,7 +18,7 @@ server {
 {{.HSTS}}
     root {{.Root}};
     index index.php index.html;
-{{.WholeDomainRedirect}}{{.CanonicalRedirect}}{{.URLRedirects}}{{.UploadLimit}}{{.SiteHeaders}}{{.StaticCache}}    ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
+{{.WholeDomainRedirect}}{{.CanonicalRedirect}}{{.URLRedirects}}{{.UploadLimit}}{{.StagingGuard}}{{.SiteHeaders}}{{.StaticCache}}    ssl_certificate /etc/nginx/certs/{{.CertDomain}}.crt;
     ssl_certificate_key /etc/nginx/certs/{{.CertDomain}}.key;
 {{.ACMEChallenge}}{{if .FrameworkNginx}}
 {{.FrameworkNginx}}

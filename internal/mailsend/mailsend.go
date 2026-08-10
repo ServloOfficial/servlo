@@ -121,3 +121,19 @@ func message(acct config.SMTPSettings, to, subject, body string) []byte {
 	b.WriteString("\r\n")
 	return []byte(b.String())
 }
+
+// SendPanelAlert emails through the panel's own SMTP account.
+//
+// No account configured is not an error: SMTP is optional, the alert is already
+// in the panel, and treating a server whose operator reads the dashboard as a
+// failure would put a permanent complaint beside every alert.
+func SendPanelAlert(subject, body string) error {
+	acct, ok, err := config.PanelSMTP()
+	if err != nil {
+		return err
+	}
+	if !ok || !acct.Configured() {
+		return nil
+	}
+	return Send(acct, acct.FromAddress, subject, body)
+}

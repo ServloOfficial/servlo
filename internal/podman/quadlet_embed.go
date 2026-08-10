@@ -56,7 +56,7 @@ func CurrentImage(content string) string {
 // container-internal port. A spec may be "host:container" or "ip:host:container".
 // Returns ports unchanged when empty, hostPort is non-positive, or the first
 // spec is unrecognised. Pure; operates on the pre-render svc.Ports form (before
-// BindForLAN/PairIPv6Binds add the loopback/IPv6 prefixes).
+// BindPorts/PairIPv6Binds add the loopback/IPv6 prefixes).
 func SetPrimaryHostPort(ports []string, hostPort int) []string {
 	if len(ports) == 0 || hostPort <= 0 {
 		return ports
@@ -328,11 +328,13 @@ func OCIRuntime() string {
 	return strings.TrimSpace(string(out))
 }
 
-// BindForLAN flips every PublishPort= between the loopback and LAN form on
-// both stacks in lockstep: 127.0.0.1 ↔ bare and [::1] ↔ [::]. servlo-dns
-// (:5300) is pinned on 127.0.0.1 in the embed because LAN access routes
-// via the userspace forwarder, so its lines are preserved as-is.
-func BindForLAN(content string, lanExposed bool) string {
+// BindPorts puts every PublishPort= into the public form or the loopback form
+// on both stacks in lockstep: 127.0.0.1 ↔ bare and [::1] ↔ [::].
+//
+// Which one a container gets is not a setting, it is what the container is for
+// (see BindQuadletPorts). servlo-dns (:5300) is pinned on 127.0.0.1 in the
+// embed, so its lines are preserved as-is.
+func BindPorts(content string, public bool) string {
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -346,7 +348,7 @@ func BindForLAN(content string, lanExposed bool) string {
 		}
 		value := strings.TrimPrefix(trimmed, "PublishPort=")
 
-		if lanExposed {
+		if public {
 			if rest, ok := strings.CutPrefix(value, "127.0.0.1:"); ok {
 				lines[i] = "PublishPort=" + rest
 			} else if rest, ok := strings.CutPrefix(value, "[::1]:"); ok {

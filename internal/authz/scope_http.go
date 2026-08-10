@@ -24,6 +24,12 @@ func ScopeFrom(ctx context.Context) (Scope, bool) {
 	return scope, ok
 }
 
+// WithScope attaches an authority to a context. One place puts a scope on a
+// request, so a handler reading one knows the middleware decided it.
+func WithScope(ctx context.Context, scope Scope) context.Context {
+	return context.WithValue(ctx, ctxKeyScope{}, scope)
+}
+
 // ScopeSites attaches the request's scope and refuses what it does not cover.
 // It sits behind Require, so the session is already known.
 func (g *Guard) ScopeSites(next http.Handler) http.Handler {
@@ -39,7 +45,7 @@ func (g *Guard) ScopeSites(next http.Handler) http.Handler {
 			http.Error(w, "Forbidden — your account does not have access to this.", http.StatusForbidden)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKeyScope{}, scope)))
+		next.ServeHTTP(w, r.WithContext(WithScope(r.Context(), scope)))
 	})
 }
 

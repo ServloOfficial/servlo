@@ -12,7 +12,7 @@ import (
 // /etc/hosts aliases are common. Those requests must keep working, or the local
 // user is locked out of their own dashboard with no credential that helps.
 func TestLocalControlAcceptsLoopbackHostnames(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false) // LAN off, no credentials: only local works
+	setupConfigDir(t, "", "") // no credentials: only local works
 
 	for _, tc := range []struct{ name, peer, host string }{
 		{"localhost", "127.0.0.1:54321", "localhost:7073"},
@@ -72,7 +72,7 @@ func TestLocalControlRejectsForwardedRequests(t *testing.T) {
 // The unix socket carries no peer address and no forwarding headers; it is
 // reached only by host processes, so it stays authoritative.
 func TestLocalControlAcceptsUnixSocketWithForeignHost(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false)
+	setupConfigDir(t, "", "")
 
 	next := &nextHandler{}
 	req := httptest.NewRequest(http.MethodGet, "/api/sites", nil)

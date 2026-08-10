@@ -118,6 +118,7 @@ func handleSiteBackupAction(w http.ResponseWriter, r *http.Request, site *config
 
 func runSiteBackup(w http.ResponseWriter, r *http.Request, site *config.Site) {
 	rec, err := backup.ForSites().Run(site)
+	backup.Report(site.Name, rec, err)
 	if err != nil {
 		writeJSON(w, SiteBackupActionResponse{Error: err.Error()})
 		return
@@ -145,6 +146,7 @@ func verifySiteBackup(w http.ResponseWriter, r *http.Request, site *config.Site)
 		return
 	}
 	res, err := verifyArchive(path, site)
+	backup.ReportVerify(site.Name, baseName(path), err)
 	if err != nil {
 		writeJSON(w, SiteBackupActionResponse{Error: err.Error()})
 		return

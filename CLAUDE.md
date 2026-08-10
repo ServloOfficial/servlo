@@ -114,11 +114,12 @@ internal/
 pkg/distro/          Ubuntu detection + refusal for everything else
 docs/                VitePress docs site (docs/.vitepress/)
 tests/installer/     bats tests for install.sh
+scripts/             operator scripts run by hand, not by CI
 ```
 
 S0.1 landed the rename, so the tree above is what you will actually find. The module path is `github.com/realrashid/servlo` and the entrypoint is `cmd/servlo`; `cmd/lerd-tray` is gone.
 
-The only strings left containing "lerd" are the one upstream dependency PRD §0 retains on purpose, and it must stay: the GHCR PHP base images (`ghcr.io/lerd-env/lerd-php*`). Alongside it sit the fork statement in `README.md`, the upstream copyright in `LICENSE`, and two upstream issue citations in code comments. Treat that set as an allowlist: anything else spelling "lerd" is a regression.
+No upstream name survives in the code, the panel, the stores or the docs. The prebuilt PHP base images were the last one and now publish under Servlo's own GHCR namespace, derived from `mainRepo` in `internal/origin/origin.go` so moving the project to an organisation is one line. What remains is the fork statement in `README.md`, the upstream copyright in `LICENSE` (which the MIT terms require), and the working documents that explain the fork to whoever picks the codebase up: this file, `PRD.md` and `STORY.md`. The surface scan enforces exactly that, repository-wide: anything else spelling the upstream name is a regression, including in a comment.
 
 S0.8 brought the stores in-repo: `stores/frameworks/`, `stores/services/` and `stores/apps/` are the definitions themselves, and `stores/stores.go` embeds them into the binary. The layout mirrors what the client fetches, so `internal/origin` needs only the base URL. The embedded copy is the floor an install bootstraps from; the fetch is how a definition published since that build reaches an existing install. The surface scan walks `stores/` like any other directory, so a deleted feature cannot come back as store data either.
 
@@ -184,14 +185,16 @@ bats tests/installer/installer.bats    # if install.sh changed
 make surface-scan                      # deleted-feature gate
 ```
 Plus step 4.5's screenshot pass whenever the change is visible in the panel. A green suite over a view nobody has looked at is not a passed gate.
-CI runs the same gate on a real Ubuntu 24.04 runner. That is the gate for a story: local green, then CI green, then merge.
+**GitHub Actions is switched off for this repository and is not coming back on a schedule anyone should wait for.** The account has no Actions billing, so every job fails to provision in a couple of seconds with no logs and zero billable time. That is not a symptom to diagnose; it is the standing condition. Do not re-run jobs hoping for a different answer, and do not hold a merge waiting for a green tick that cannot appear.
 
-**The droplet smoke test is deferred to the end of the build, by the project owner's decision.** It used to sit here as a per-story gate, which in a browser session meant every story ended blocked on something no session could do. It now happens once, against the finished product, after the last phase lands. Do not wait for it, do not treat it as a merge condition, and do not re-raise it story by story.
+So the gate for a story is the local gate above, run in full, and nothing else. Say so in the PR body rather than implying CI passed. What Actions used to add on top, and what is therefore unverified until somebody runs it by hand, is written down in `HANDOVER.md`: the Ubuntu 24.04 runner, the installer bats suite, the reboot-resilience job and the rebuild-from-backup job. If Actions is ever paid for again, that file says how to turn the gate back on.
 
-What this does not change: say plainly what ran. A story is "tests and CI green", not "verified working on a server", and the two are different claims. Write the honest one. Anything genuinely unverifiable in a session (a real certificate from Let's Encrypt, a live registrar, a running container's bind mount) is worth one line in the PR body so the eventual droplet pass knows where to look, and no more than that.
+**The droplet smoke test is deferred to the end of the build, by the project owner's decision.** Its checklist lives in `HANDOVER.md` §3, alongside everything else that needs a human, a machine or money. It used to sit here as a per-story gate, which in a browser session meant every story ended blocked on something no session could do. It now happens once, against the finished product, after the last phase lands. Do not wait for it, do not treat it as a merge condition, and do not re-raise it story by story.
+
+What this does not change: say plainly what ran. A story is "the local gate is green", not "verified working on a server", and the two are different claims. Write the honest one. Anything genuinely unverifiable in a session (a real certificate from Let's Encrypt, a live registrar, a running container's bind mount) is worth one line in the PR body so the eventual droplet pass knows where to look, and no more than that.
 
 ### Step 6 — Commit, PR, merge
-The standing instruction for this build is to work straight through the phases: write the code and its tests, run the gate, open the PR, wait for CI, merge to `main`, and start the next story without stopping to ask. Do not pause at phase boundaries for a manual check.
+The standing instruction for this build is to work straight through the phases: write the code and its tests, run the gate, open the PR, merge to `main`, and start the next story without stopping to ask. There is no CI to wait for; see the gate note above. Do not pause at phase boundaries for a manual check.
 
 This is a deliberate relaxation of the older "only commit when asked" rule and applies to the phased build in `STORY.md`. It is not licence to skip the gate, invent a story, or start work outside the backlog: the ordering and the scope still come from `STORY.md`, and anything that is a genuine judgement call about the product still gets raised.
 

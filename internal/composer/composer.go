@@ -10,7 +10,7 @@ import "os"
 // post-autoload-dump `package:discover` boots the whole application, which on a
 // container filesystem (cold opcache, bind-mounted vendor/) can legitimately run
 // well past 300s — long enough that an otherwise-successful `composer require`
-// dies mid-script. See lerd-env/lerd#449.
+// dies mid-script.
 const DefaultProcessTimeout = "1800"
 
 // ProcessTimeoutEnv returns the COMPOSER_PROCESS_TIMEOUT `KEY=VALUE` entry to

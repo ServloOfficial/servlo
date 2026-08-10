@@ -2,7 +2,9 @@ package backup
 
 import (
 	"io"
+	"os"
 
+	"github.com/realrashid/servlo/internal/backupdest"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/dbcred"
@@ -20,8 +22,34 @@ func ForSites() Runner {
 		Excludes: siteops.BackupExcludes,
 		Dump:     SiteDump,
 		Policy:   SitePolicy,
+		Send:     SendEverywhere,
 		Version:  version.Version,
 	}
+}
+
+// SendEverywhere copies a finished archive to every configured destination.
+//
+// Every one is attempted even after one fails, because two destinations exist
+// precisely so that one of them being unreachable is survivable, and stopping
+// at the first would turn a partial outage into a total one.
+func SendEverywhere(path, name string) []error {
+	reg, err := backupdest.Load()
+	if err != nil {
+		return []error{err}
+	}
+	var failures []error
+	for _, d := range reg.Destinations {
+		f, err := os.Open(path)
+		if err != nil {
+			failures = append(failures, err)
+			continue
+		}
+		if err := backupdest.Upload(d, name, f); err != nil {
+			failures = append(failures, err)
+		}
+		_ = f.Close()
+	}
+	return failures
 }
 
 // SitePolicy is how much history a site keeps.

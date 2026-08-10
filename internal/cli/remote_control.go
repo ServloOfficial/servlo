@@ -14,12 +14,12 @@ import (
 
 // NewRemoteControlCmd returns the `servlo remote-control` parent command with
 // on / off / status subcommands. Controls whether the servlo dashboard at
-// https://<server>:7073 accepts requests from non-loopback (LAN) sources.
+// https://<server>:7073 accepts requests from anywhere but loopback.
 //
 // State machine (single field, presence of cfg.UI.PasswordHash):
 //
-//   - empty:   loopback only — LAN sources get 403 Forbidden
-//   - present: loopback bypasses, LAN sources must present HTTP Basic auth
+//   - empty:   loopback only, everything else gets 403 Forbidden
+//   - present: loopback bypasses, everything else must present HTTP Basic auth
 //
 // The `/api/remote-setup` bootstrap endpoint is not affected by this gate
 // (it has its own token + IP + brute-force gate). Loopback always bypasses
@@ -28,13 +28,13 @@ import (
 func NewRemoteControlCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remote-control",
-		Short: "Toggle dashboard access from LAN clients (off by default)",
+		Short: "Toggle dashboard access from remote clients (off by default)",
 		Long: `By default the servlo dashboard at port 7073 only accepts requests from
-the loopback interface (127.0.0.1) — LAN sources get 403 Forbidden. Run
-'servlo remote-control on' to set a Basic-auth password and grant LAN
-clients access. The local user is never affected: loopback always
-bypasses authentication so you can't lock yourself out of your own
-machine.
+the loopback interface (127.0.0.1), and everything else gets 403
+Forbidden. Run 'servlo remote-control on' to set a Basic-auth password
+and grant remote clients access. The local user is never affected:
+loopback always bypasses authentication so you can't lock yourself out
+of your own machine.
 
 The /api/remote-setup laptop-bootstrap endpoint is independent of this
 flag — it has its own token + IP + brute-force gate.`,
@@ -73,10 +73,10 @@ func newRemoteControlOnCmd() *cobra.Command {
 	var username string
 	cmd := &cobra.Command{
 		Use:   "on [--user <name>]",
-		Short: "Enable LAN access to the dashboard with HTTP Basic auth",
+		Short: "Enable remote access to the dashboard with HTTP Basic auth",
 		Long: `Prompts for a password (twice for confirmation), bcrypt-hashes it, and
 stores the hash and username in ~/.config/servlo/config.yaml. From this
-point on, LAN clients hitting the dashboard must present HTTP Basic
+point on, remote clients hitting the dashboard must present HTTP Basic
 auth with the configured username and password. Loopback continues to
 bypass authentication.
 
@@ -85,10 +85,6 @@ Re-running this command rotates the password.`,
 			cfg, err := config.LoadGlobal()
 			if err != nil {
 				return fmt.Errorf("loading config: %w", err)
-			}
-
-			if !cfg.LAN.Exposed {
-				return fmt.Errorf("LAN exposure is off — run `servlo lan:expose` first. Dashboard credentials are only meaningful while the dashboard is reachable from other devices")
 			}
 
 			if username == "" {
@@ -119,9 +115,9 @@ Re-running this command rotates the password.`,
 
 			feedback.Begin()
 			feedback.Done("remote dashboard access enabled (user: " + feedback.Val(username) + ")")
-			feedback.Note("LAN clients can now reach https://<server-ip>:7073 with HTTP Basic auth")
+			feedback.Note("remote clients can now reach https://<server-ip>:7073 with HTTP Basic auth")
 			feedback.Note("loopback (127.0.0.1) bypasses authentication as always")
-			feedback.Note("run `servlo remote-control off` to lock LAN access back down")
+			feedback.Note("run `servlo remote-control off` to lock remote access back down")
 			return nil
 		},
 	}
@@ -132,8 +128,8 @@ Re-running this command rotates the password.`,
 func newRemoteControlOffCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "off",
-		Short: "Disable LAN access to the dashboard",
-		Long: `Clears the stored Basic-auth credentials so LAN clients hitting the
+		Short: "Disable remote access to the dashboard",
+		Long: `Clears the stored Basic-auth credentials so remote clients hitting the
 dashboard get 403 Forbidden. Loopback access is unaffected.
 
 Safe to run from a loopback shell at any time, even if you've forgotten
@@ -149,7 +145,7 @@ the password — you cannot lock yourself out of your own machine.`,
 				return fmt.Errorf("saving config: %w", err)
 			}
 			feedback.Begin()
-			feedback.Done("remote dashboard access disabled — LAN clients now get 403 Forbidden")
+			feedback.Done("remote dashboard access disabled, remote clients now get 403 Forbidden")
 			return nil
 		},
 	}
@@ -158,7 +154,7 @@ the password — you cannot lock yourself out of your own machine.`,
 func newRemoteControlStatusCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
-		Short: "Show whether LAN access to the dashboard is enabled",
+		Short: "Show whether remote access to the dashboard is enabled",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			cfg, err := config.LoadGlobal()
 			if err != nil {
@@ -167,56 +163,16 @@ func newRemoteControlStatusCmd() *cobra.Command {
 			feedback.Begin()
 			if cfg.UI.PasswordHash == "" {
 				feedback.Line("remote dashboard access: " + feedback.Amber("disabled"))
-				feedback.Note("LAN clients get 403 Forbidden; loopback (127.0.0.1) is always allowed")
+				feedback.Note("remote clients get 403 Forbidden; loopback (127.0.0.1) is always allowed")
 				feedback.Note("enable with: servlo remote-control on")
 				return nil
 			}
 			feedback.Line("remote dashboard access: " + feedback.Green("enabled") + " (user: " + cfg.UI.Username + ")")
-			feedback.Note("LAN clients must present HTTP Basic auth; loopback bypasses it")
+			feedback.Note("remote clients must present HTTP Basic auth; loopback bypasses it")
 			feedback.Note("disable with: servlo remote-control off")
 			return nil
 		},
 	}
-}
-
-// promptAndPersistRemoteControl prompts on stdin for a username (defaulting to
-// $USER) and a password (twice), bcrypt-hashes the password, and saves both
-// into ~/.config/servlo/config.yaml. Used by `servlo lan:expose` in disabled-DNS
-// mode to bundle the credential setup into a single command.
-func promptAndPersistRemoteControl() error {
-	cfg, err := config.LoadGlobal()
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
-	}
-	username := os.Getenv("USER")
-	if username == "" {
-		username = os.Getenv("LOGNAME")
-	}
-	if username == "" {
-		username = "servlo"
-	}
-	fmt.Fprintf(os.Stderr, "  Username [%s]: ", username)
-	var input string
-	if _, scanErr := fmt.Fscanln(os.Stdin, &input); scanErr == nil {
-		if trimmed := strings.TrimSpace(input); trimmed != "" {
-			username = trimmed
-		}
-	}
-	password, err := readPasswordTwice()
-	if err != nil {
-		return err
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("hashing password: %w", err)
-	}
-	cfg.UI.Username = username
-	cfg.UI.PasswordHash = string(hash)
-	if err := config.SaveGlobal(cfg); err != nil {
-		return fmt.Errorf("saving config: %w", err)
-	}
-	feedback.Note("saved dashboard credentials for " + username)
-	return nil
 }
 
 // readPasswordTwice prompts for a password on stdin twice and returns it

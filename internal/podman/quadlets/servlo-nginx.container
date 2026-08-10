@@ -13,6 +13,7 @@ Volume=%h/.local/share/servlo/nginx/conf.d:/etc/nginx/conf.d:ro,z
 Volume=%h/.local/share/servlo/nginx/custom.d:/etc/nginx/custom.d:ro,z
 Volume=%h/.local/share/servlo/nginx/http.d:/etc/nginx/http.d:ro,z
 Volume=%h/.local/share/servlo/certs/sites:/etc/nginx/certs:ro,z
+Volume=%h/.local/share/servlo/nginx/htpasswd:/etc/nginx/htpasswd:ro,z
 Volume=%h/.local/share/servlo/acme-challenge:/etc/nginx/acme-challenge:ro,z
 Volume=%h/.local/share/servlo/run:%h/.local/share/servlo/run:rw
 Volume=%h:%h:ro

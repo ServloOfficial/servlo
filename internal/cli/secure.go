@@ -124,9 +124,7 @@ func renewCert(args []string) error {
 // toggleSecureCmd is the CLI entry-point shared by `servlo secure` and
 // `servlo unsecure`. It delegates the core flip to siteops.SetSecured (the
 // single source of truth shared with the UI code paths) and supplies
-// CLI-specific post-toggle hooks: Stripe listener restart and a
-// best-effort lan:refresh notification to the daemon so any running LAN
-// share proxy re-binds to the new backend port.
+// CLI-specific post-toggle hooks, today the Stripe listener restart.
 func toggleSecureCmd(args []string, secured bool) error {
 	name, err := resolveSiteName(args)
 	if err != nil {

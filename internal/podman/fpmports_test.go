@@ -205,8 +205,6 @@ func TestRemoveFPMPort_DropsMapping(t *testing.T) {
 	}
 }
 
-// The version's FPM ports must reach the shared quadlet as loopback-bound
-// PublishPort lines (LAN off) — mirroring exactly what WriteFPMQuadlet then
 // The shared ini must mount into the FPM container at 95-servlo-shared.ini, which
 // sorts below the per-version 98-servlo-user.ini so the per-version value wins.
 func TestFPMQuadletMountsSharedIniBelowUserIni(t *testing.T) {
@@ -225,7 +223,9 @@ func TestFPMQuadletMountsSharedIniBelowUserIni(t *testing.T) {
 	}
 }
 
-// WriteQuadletDiff do: render, ApplyExtraPorts, BindForLAN.
+// The version's FPM ports must reach the shared quadlet as loopback-bound
+// PublishPort lines, mirroring exactly what WriteFPMQuadlet then
+// WriteQuadletDiff do: render, ApplyExtraPorts, BindPorts.
 func TestFPMPortsRenderAsLoopbackPublish(t *testing.T) {
 	fpmTestEnv(t)
 	if _, err := SetFPMPorts("8.3", []string{"3000:3000"}); err != nil {
@@ -236,12 +236,12 @@ func TestFPMPortsRenderAsLoopbackPublish(t *testing.T) {
 		t.Fatalf("renderFPMQuadletContent: %v", err)
 	}
 	content = ApplyExtraPorts(content, config.FPMPortsFor("8.3"))
-	loopback := BindForLAN(content, false)
+	loopback := BindPorts(content, false)
 	if !strings.Contains(loopback, "PublishPort=127.0.0.1:3000:3000") {
 		t.Errorf("expected loopback-bound FPM publish line, got:\n%s", loopback)
 	}
-	lan := BindForLAN(content, true)
-	if !strings.Contains(lan, "PublishPort=3000:3000") {
-		t.Errorf("expected bare LAN publish line, got:\n%s", lan)
+	public := BindPorts(content, true)
+	if !strings.Contains(public, "PublishPort=3000:3000") {
+		t.Errorf("expected bare publish line in the public form, got:\n%s", public)
 	}
 }

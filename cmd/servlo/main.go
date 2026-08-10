@@ -18,6 +18,7 @@ import (
 	"github.com/realrashid/servlo/internal/daemon"
 	"github.com/realrashid/servlo/internal/eventbus"
 	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/monitor"
 	"github.com/realrashid/servlo/internal/nginx"
 	nodeDet "github.com/realrashid/servlo/internal/node"
 	phpDet "github.com/realrashid/servlo/internal/php"
@@ -212,15 +213,15 @@ func main() {
 	root.AddCommand(cli.NewPauseCmd())
 	root.AddCommand(cli.NewBackupCmd())
 	root.AddCommand(cli.NewRestoreCmd())
+	root.AddCommand(cli.NewHardenCmd())
+	root.AddCommand(cli.NewAlertsCmd())
+	root.AddCommand(cli.NewStagingCmd())
+	root.AddCommand(cli.NewAppsCmd())
 	root.AddCommand(cli.NewUnpauseCmd())
 	root.AddCommand(cli.NewPanelCmd())
 	root.AddCommand(cli.NewUsersCmd())
 	root.AddCommand(cli.NewSessionsCmd())
 	root.AddCommand(cli.NewAuditCmd())
-	root.AddCommand(cli.NewLANCmd())
-	root.AddCommand(cli.NewLANExposeCmd())
-	root.AddCommand(cli.NewLANUnexposeCmd())
-	root.AddCommand(cli.NewLANStatusCmd())
 	root.AddCommand(cli.NewRemoteControlCmd())
 	root.AddCommand(cli.NewRemoteControlOnCmd())
 	root.AddCommand(cli.NewRemoteControlOffCmd())
@@ -370,6 +371,12 @@ func newWatchCmd() *cobra.Command {
 			// would otherwise keep polling at the mains rate. No-op where the
 			// reload watcher doesn't have to poll.
 			go watcher.WatchPower(30 * time.Second)
+
+			// The three failures nothing reports at the moment they happen: a
+			// site that stopped answering, a worker that quietly went down, a
+			// disk filling up. Each has to be looked for, so look on a timer
+			// and keep the alert list in step both ways.
+			go monitor.Watch(monitor.Interval)
 
 			// Reclaim orphaned servlo images (safe tier) on a slow daily cadence,
 			// so rebuild leftovers and stale base images don't pile up. Gated by

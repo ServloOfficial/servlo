@@ -52,6 +52,7 @@ Target can be:
 	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Follow log output")
 	cmd.Flags().IntVarP(&lines, "lines", "n", 100, "Number of lines to show from the end (0 = all)")
 
+	cmd.AddCommand(newLogsRetentionCmds()...)
 	return cmd
 }
 

@@ -78,9 +78,8 @@ var swJS []byte
 var offlineHTML []byte
 
 // listenAddr is the TCP address servlo-panel binds to. It listens on 0.0.0.0:7073
-// so browsers can hit it directly and LAN clients (gated by the remote-control
-// middleware) can reach it when lan:expose is on. The gate — not the bind
-// address — is the security boundary.
+// so browsers can hit it directly, wherever they are; the remote-control
+// middleware, not the bind address, is the security boundary.
 //
 // servlo-panel ALSO listens on a unix socket at config.UISocketPath() for the
 // servlo.localhost nginx vhost. Bind-mounting a socket into servlo-nginx is more
@@ -108,8 +107,6 @@ func Start(currentVersion string) error {
 	// IsActive) read from the cache instead of spawning per-container
 	// podman inspect subprocesses.
 	podman.Cache.Start(context.Background())
-
-	// Restart any LAN share proxies that were active before this process started.
 
 	// A public tunnel must not outlive the process that owns it. Stop them on
 	// the way out, and kill anything a previous run was killed too hard to
@@ -184,6 +181,9 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/status", withCORS(handleStatus))
 	mux.HandleFunc("/api/sites", withCORS(handleSites))
 	mux.HandleFunc("/api/certs/alerts", withCORS(handleCertAlerts))
+	mux.HandleFunc("/api/alerts", withCORS(handleAlerts))
+	mux.HandleFunc("/api/security", withCORS(handleSecurity))
+	mux.HandleFunc("/api/security/keys", withCORS(handleSecurityKeys))
 	mux.HandleFunc("/api/services", withCORS(handleServices))
 	mux.HandleFunc("/api/ws", handleWS)
 	mux.HandleFunc("/api/webhooks/deploy/", withCORS(handleWebhookDeploy))
@@ -234,6 +234,9 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/sites/clone-test", withCORS(handleCloneTest))
 	mux.HandleFunc("/api/sites/deploy-key", withCORS(handleDeployKey))
 	mux.HandleFunc("/api/sites/upload", withCORS(publishAfter(handleSiteUpload, eventbus.KindSites)))
+	mux.HandleFunc("/api/sites/app", withCORS(publishAfter(handleSiteApp, eventbus.KindSites)))
+	mux.HandleFunc("/api/apps", withCORS(handleApps))
+	mux.HandleFunc("/api/backup/state", withCORS(handleServerState))
 	mux.HandleFunc("/api/sites/reorder", withCORS(publishAfter(handleSiteReorder, eventbus.KindSites)))
 	mux.HandleFunc("/api/browse", withCORS(handleBrowse))
 	mux.HandleFunc("/api/sftp", withCORS(handleSFTP))
@@ -267,7 +270,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/servlo/quit", withCORS(handleServloQuit))
 	mux.HandleFunc("/api/remote-control", withCORS(handleRemoteControl))
 	mux.HandleFunc("/api/access-mode", withCORS(handleAccessMode))
-	mux.HandleFunc("/api/lan/status", withCORS(handleLANStatus))
 	mux.HandleFunc("/manifest.webmanifest", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/manifest+json")
 		base := "http://" + r.Host
@@ -639,7 +641,6 @@ type SiteResponse struct {
 	// DBDatabase is the site's DB_DATABASE, so the overview's database card can
 	// open the admin tool straight to this site's database.
 	DBDatabase       string `json:"db_database,omitempty"`
-	LANPort          int    `json:"lan_port,omitempty"`
 	CustomContainer  bool   `json:"custom_container,omitempty"`
 	ContainerPort    int    `json:"container_port,omitempty"`
 	ContainerImage   string `json:"container_image,omitempty"`
@@ -796,7 +797,6 @@ func buildSites() ([]SiteResponse, error) {
 			Branch:             e.Branch,
 			Services:           e.Services,
 			DBDatabase:         envfile.ReadKey(filepath.Join(e.Path, ".env"), "DB_DATABASE"),
-			LANPort:            e.LANPort,
 			CustomContainer:    e.ContainerPort > 0,
 			ContainerPort:      e.ContainerPort,
 			ContainerImage:     e.ContainerImage,
@@ -2802,16 +2802,11 @@ func handleSiteEnvRestore(w http.ResponseWriter, r *http.Request, site *config.S
 	writeJSON(w, SiteEnvRestoreResponse(res))
 }
 
-// handleDashboardQR serves a QR code PNG encoding the dashboard's own LAN URL
-// (https://<lan-ip>:7073) so a phone can scan straight into the remote
-// dashboard. Only meaningful while LAN exposure is on; 404 otherwise.
+// handleDashboardQR serves a QR code PNG encoding the panel's own address
+// (https://<ip>:7073) so a phone can scan straight into the dashboard rather
+// than typing an address out. 404 when the machine has no routable address.
 func handleDashboardQR(w http.ResponseWriter, r *http.Request) {
-	cfg, _ := config.LoadGlobal()
-	if cfg == nil || !cfg.LAN.Exposed {
-		http.NotFound(w, r)
-		return
-	}
-	ip := uiPrimaryLANIP()
+	ip := uiPrimaryIP()
 	if ip == "" {
 		http.NotFound(w, r)
 		return
@@ -3119,6 +3114,9 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	if tlsRoute(w, r, domain, parts[1:]) {
 		return
 	}
+	if stagingRoute(w, r, domain, parts[1:]) {
+		return
+	}
 	if statsRoute(w, r, domain, parts[1:]) {
 		return
 	}
@@ -3243,11 +3241,10 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	switch action {
 	case "secure", "unsecure":
 		// Funnel through the shared helper so cert + .env + .servlo.yaml +
-		// nginx reload + Stripe restart + LAN share refresh all stay in
-		// sync with the CLI paths. SetSecured posts to this same
-		// daemon's stripe:refresh / lan:refresh endpoints for the
-		// dependent listeners, so the in-process Stripe and share handlers
-		// run via the existing case handlers below.
+		// nginx reload + Stripe restart all stay in sync with the CLI
+		// paths. SetSecured posts to this same daemon's stripe:refresh
+		// endpoint, so the in-process Stripe handler runs via the existing
+		// case handler below.
 		if err := siteops.SetSecured(site, action == "secure"); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return

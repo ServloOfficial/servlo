@@ -14,32 +14,15 @@ import (
 )
 
 // setupConfigDir points config.LoadGlobal at a temp dir, optionally writing
-// a config.yaml with the given UI credentials. When credentials are
-// provided, lan.exposed is also set to true: the gate now treats LAN
-// exposure as a top-level flag, so credentials without lan:expose result
-// in 403 (which is correct production behavior but would break every
-// existing "non-loopback with valid auth → 200" test). Tests that
-// specifically want to verify the LAN-off-with-creds path should call
-// setupConfigDirRaw directly.
+// a config.yaml with the given UI credentials. Empty credentials leave the
+// config absent, which is what a server that has never run
+// `servlo remote-control on` looks like.
 func setupConfigDir(t *testing.T, username, plainPassword string) {
-	t.Helper()
-	setupConfigDirRaw(t, username, plainPassword, username != "" || plainPassword != "")
-}
-
-func setupConfigDirRaw(t *testing.T, username, plainPassword string, lanExposed bool) {
-	t.Helper()
-	setupConfigDirWith(t, username, plainPassword, lanExposed, false)
-}
-
-func setupConfigDirWith(t *testing.T, username, plainPassword string, lanExposed, _ bool) {
 	t.Helper()
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	cfg := map[string]any{}
-	if lanExposed {
-		cfg["lan"] = map[string]any{"exposed": true}
-	}
 	ui := map[string]any{}
 	if username != "" || plainPassword != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(plainPassword), bcrypt.MinCost)
@@ -101,11 +84,16 @@ func TestRemoteControlGate_loopbackBypassesEverything(t *testing.T) {
 	}
 }
 
-func TestRemoteControlGateAuthenticatedDashboardCanMutateLANSettings(t *testing.T) {
-	setupConfigDirRaw(t, "alice", "s3cret", true)
-	gate := withRemoteControlGate(http.HandlerFunc(handleLANStatus))
+// A state-changing request from off the machine, carrying valid credentials
+// and the CSRF header, reaches the handler. This is the whole point of the
+// gate: it is an authentication check, not a source-address check.
+func TestRemoteControlGate_authenticatedRemoteRequestReachesTheHandler(t *testing.T) {
+	setupConfigDir(t, "alice", "s3cret")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/lan/status", http.NoBody)
+	next := &nextHandler{}
+	gate := withRemoteControlGate(next)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/sites", http.NoBody)
 	req.RemoteAddr = "192.168.1.42:54321"
 	req.Host = "robotbox.example.net"
 	req.Header.Set("X-Forwarded-For", "203.0.113.7")
@@ -114,8 +102,8 @@ func TestRemoteControlGateAuthenticatedDashboardCanMutateLANSettings(t *testing.
 	rec := httptest.NewRecorder()
 	gate.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400 after authenticated request reaches action validation", rec.Code)
+	if !next.called {
+		t.Fatalf("an authenticated remote POST was turned away with %d", rec.Code)
 	}
 }
 
@@ -211,7 +199,7 @@ func TestRemoteControlGate_optionsBypassesAuth(t *testing.T) {
 // dashboard would be unreachable via servlo.localhost. Regression test for
 // the fix that replaced host.containers.internal:7073 with the unix socket.
 func TestRemoteControlGate_unixSocketTreatedAsLoopback(t *testing.T) {
-	setupConfigDirRaw(t, "", "", false) // LAN exposure off, no creds
+	setupConfigDir(t, "", "")
 
 	next := &nextHandler{}
 	gate := withRemoteControlGate(next)

@@ -20,9 +20,7 @@ func TestEndpointsRespectTheForkBoundary(t *testing.T) {
 		"service-store":   ServiceStoreBaseURLs(),
 		"app-store":       AppStoreBaseURLs(),
 	}
-	upstream := map[string][]string{
-		"baseimage": BaseImageRefs("85", "h"),
-	}
+	servlo["baseimage"] = BaseImageRefs("85", "h")
 
 	for name, got := range servlo {
 		if len(got) == 0 {
@@ -31,26 +29,12 @@ func TestEndpointsRespectTheForkBoundary(t *testing.T) {
 		if !strings.Contains(got[0], "realrashid/servlo") {
 			t.Errorf("%s: primary %q must resolve against realrashid/servlo", name, got[0])
 		}
-		if strings.Contains(got[0], "lerd-env") {
-			t.Errorf("%s: primary %q still points at upstream", name, got[0])
-		}
 	}
 
-	for name, got := range upstream {
-		if len(got) == 0 {
-			t.Fatalf("%s: empty base list", name)
-		}
-		if !strings.Contains(got[0], "lerd-env") {
-			t.Errorf("%s: primary %q is not the retained upstream location", name, got[0])
-		}
-	}
-
-	for _, lists := range []map[string][]string{servlo, upstream} {
-		for name, got := range lists {
-			for _, u := range got {
-				if strings.Contains(u, "geodro") {
-					t.Errorf("%s: must not reference geodro, got %q", name, u)
-				}
+	for name, got := range servlo {
+		for _, u := range got {
+			if strings.Contains(u, "geodro") {
+				t.Errorf("%s: must not reference geodro, got %q", name, u)
 			}
 		}
 	}
@@ -58,15 +42,15 @@ func TestEndpointsRespectTheForkBoundary(t *testing.T) {
 
 func TestBaseImageRefFormat(t *testing.T) {
 	refs := BaseImageRefs("84", "abc")
-	if len(refs) != 1 || refs[0] != "ghcr.io/lerd-env/lerd-php84-fpm-base:abc" {
-		t.Errorf("base ref = %v, want [ghcr.io/lerd-env/lerd-php84-fpm-base:abc]", refs)
+	if len(refs) != 1 || refs[0] != "ghcr.io/realrashid/servlo-php84-fpm-base:abc" {
+		t.Errorf("base ref = %v, want [ghcr.io/realrashid/servlo-php84-fpm-base:abc]", refs)
 	}
 }
 
 func TestBaseImageRegistryOverride(t *testing.T) {
 	t.Setenv("SERVLO_BASE_IMAGE_REGISTRY", "registry.example/mirror")
 	refs := BaseImageRefs("85", "h")
-	if len(refs) != 1 || refs[0] != "registry.example/mirror/lerd-php85-fpm-base:h" {
+	if len(refs) != 1 || refs[0] != "registry.example/mirror/servlo-php85-fpm-base:h" {
 		t.Errorf("override base ref = %v", refs)
 	}
 }

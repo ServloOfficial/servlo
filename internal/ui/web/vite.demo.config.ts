@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 
 const r = (p: string) => resolve(__dirname, p);
 
-// Swap specific real components for demo-only versions (e.g. the LAN-share QR,
+// Swap specific real components for demo-only versions (e.g. the dashboard QR,
 // whose image is daemon-served). Matches the import by filename so the relative
 // path inside the app doesn't matter.
 const demoOverrides = {

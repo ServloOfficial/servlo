@@ -40,11 +40,6 @@ type Site struct {
 	// (`<scheme>://<primary-domain>`). Use this for personal customizations
 	// you don't want to share via .servlo.yaml.
 	AppURL string `yaml:"app_url,omitempty"`
-	// LANPort, when non-zero, means a host-level reverse proxy is (or should
-	// be) listening on 0.0.0.0:LANPort, forwarding to the site with the Host
-	// header rewritten. LAN devices can reach the site at <lanIP>:LANPort
-	// without any DNS configuration.
-	LANPort int `yaml:"lan_port,omitempty"`
 	// DevServerPort, when non-zero, is the host port the site's dev server is
 	// pinned to. It has to be stable and known ahead of time, because the
 	// site's vhost proxies to it and the tool would otherwise drift to the
@@ -153,6 +148,11 @@ type Site struct {
 	// nobody asked for is disk filling up on a server whose operator does not
 	// know it is happening.
 	Backup *SiteBackup `yaml:"backup,omitempty"`
+
+	// Staging marks this site as a copy of another and carries what makes it
+	// one: the origin, and the credentials nginx asks for. Absent means an
+	// ordinary site.
+	Staging *SiteStaging `yaml:"staging,omitempty"`
 
 	// Database names the connection this site's data lives on. Empty means the
 	// install's default, which is what every site had before a database could
@@ -354,7 +354,6 @@ type siteYAML struct {
 	Framework           string           `yaml:"framework,omitempty"`
 	PublicDir           string           `yaml:"public_dir,omitempty"`
 	AppURL              string           `yaml:"app_url,omitempty"`
-	LANPort             int              `yaml:"lan_port,omitempty"`
 	DevServerPort       int              `yaml:"dev_server_port,omitempty"`
 	ContainerPort       int              `yaml:"container_port,omitempty"`
 	ContainerSSL        bool             `yaml:"container_ssl,omitempty"`
@@ -380,6 +379,7 @@ type siteYAML struct {
 	DeployExclude       *[]string        `yaml:"deploy_exclude,omitempty"`
 	BackupExclude       *[]string        `yaml:"backup_exclude,omitempty"`
 	Backup              *SiteBackup      `yaml:"backup,omitempty"`
+	Staging             *SiteStaging     `yaml:"staging,omitempty"`
 	Database            string           `yaml:"database,omitempty"`
 	Cron                []CronEntry      `yaml:"cron,omitempty"`
 }
@@ -400,7 +400,6 @@ func (s Site) toYAML() siteYAML {
 		Framework:           s.Framework,
 		PublicDir:           s.PublicDir,
 		AppURL:              s.AppURL,
-		LANPort:             s.LANPort,
 		DevServerPort:       s.DevServerPort,
 		ContainerPort:       s.ContainerPort,
 		ContainerSSL:        s.ContainerSSL,
@@ -426,6 +425,7 @@ func (s Site) toYAML() siteYAML {
 		DeployExclude:       s.DeployExclude,
 		BackupExclude:       s.BackupExclude,
 		Backup:              s.Backup,
+		Staging:             s.Staging,
 		Database:            s.Database,
 		Cron:                s.Cron,
 	}
@@ -451,7 +451,6 @@ func (sy siteYAML) toSite() Site {
 		Framework:           sy.Framework,
 		PublicDir:           sy.PublicDir,
 		AppURL:              sy.AppURL,
-		LANPort:             sy.LANPort,
 		DevServerPort:       sy.DevServerPort,
 		ContainerPort:       sy.ContainerPort,
 		ContainerSSL:        sy.ContainerSSL,
@@ -477,6 +476,7 @@ func (sy siteYAML) toSite() Site {
 		DeployExclude:       sy.DeployExclude,
 		BackupExclude:       sy.BackupExclude,
 		Backup:              sy.Backup,
+		Staging:             sy.Staging,
 		Database:            sy.Database,
 		Cron:                sy.Cron,
 	}

@@ -7,12 +7,10 @@ import sitesFixture from './fixtures/sites.json';
 import servicesFixture from './fixtures/services.json';
 import presetsFixture from './fixtures/presets.json';
 import statusFixture from './fixtures/status.json';
-import accessMode from './fixtures/access-mode.json';
 import settings from './fixtures/settings.json';
 import phpVersions from './fixtures/php-versions.json';
 import nodeVersions from './fixtures/node-versions.json';
 import phpInstallable from './fixtures/php-installable.json';
-import lanStatus from './fixtures/lan_status.json';
 import stats from './fixtures/stats.json';
 import workersHealth from './fixtures/workers_health.json';
 import databasesFixture from './fixtures/databases.json';
@@ -23,6 +21,10 @@ import cronFixture from './fixtures/cron.json';
 import backupsFixture from './fixtures/backups.json';
 import dbUsers from './fixtures/db-user.json';
 import smtpFixture from './fixtures/smtp.json';
+import alertsFixture from './fixtures/alerts.json';
+import appsFixture from './fixtures/apps.json';
+import serverStateFixture from './fixtures/server-state.json';
+import securityFixture from './fixtures/security.json';
 
 // Demo follows the system theme (auto). Reset any stale value a previous demo
 // session may have pinned, so it isn't stuck on a forced light/dark.
@@ -86,12 +88,10 @@ const ROUTES: Record<string, unknown> = {
   },
   '/api/version': version,
   '/api/status': status,
-  '/api/access-mode': accessMode,
   '/api/settings': settings,
   '/api/php-versions': phpVersions,
   '/api/node-versions': nodeVersions,
   '/api/php-installable': phpInstallable,
-  '/api/lan/status': lanStatus,
   '/api/stats': stats,
   '/api/workers/health': workersHealth,
   '/api/db-connections': dbConnections,
@@ -486,6 +486,46 @@ type DemoSiteBackups = {
 };
 const backupsBySite = structuredClone(backupsFixture) as Record<string, DemoSiteBackups>;
 
+// Alerts are mutable so dismissing one in the demo takes it off the card,
+// which is the only way to see the empty state the dashboard hides.
+interface DemoAlert {
+  kind: string;
+  site?: string;
+  title: string;
+  message: string;
+  at: string;
+}
+let demoAlerts = (structuredClone(alertsFixture) as { alerts: DemoAlert[] }).alerts;
+
+// The security page. Mutable so authorising and removing a key in the demo
+// lands on the list, which is the only part of that page servlo really changes.
+interface DemoSSHKey { type: string; comment: string; fingerprint: string }
+const demoSecurity = structuredClone(securityFixture) as Record<string, unknown> & { keys: DemoSSHKey[] };
+
+// Staging, per domain. Mutable so a refresh in the demo moves the timestamp.
+interface DemoStaging {
+  staging: boolean;
+  origin?: string;
+  origin_domain?: string;
+  origin_exists: boolean;
+  user?: string;
+  refreshed_at?: string;
+  copies: string[];
+}
+const demoStaging: Record<string, DemoStaging> = {
+  'acme.test': { staging: false, origin_exists: false, copies: ['staging.acme-supply.com'] },
+  'acme-supply.com': { staging: false, origin_exists: false, copies: ['staging.acme-supply.com'] },
+  'staging.acme-supply.com': {
+    staging: true,
+    origin: 'acme-supply-com',
+    origin_domain: 'acme-supply.com',
+    origin_exists: true,
+    user: 'staging',
+    refreshed_at: '@-3h',
+    copies: []
+  }
+};
+
 function backupsFor(domain: string): DemoSiteBackups {
   if (!backupsBySite[domain]) {
     backupsBySite[domain] = structuredClone(backupsBySite['default']);
@@ -640,26 +680,6 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (path === '/api/sites') return jsonResponse(sites);
   if (path === '/api/services') return jsonResponse(services);
   if (path === '/api/services/presets') return jsonResponse(presets);
-
-  if (path === '/api/lan/status' && method === 'POST') {
-    const body = JSON.parse(String(init?.body || '{}')) as { action?: string };
-    if (body.action === 'expose' || body.action === 'unexpose') {
-      lanStatus.exposed = body.action === 'expose';
-      lanStatus.lan_ip = lanStatus.exposed ? '192.168.1.42' : '';
-    } else if (body.action === 'services_on' || body.action === 'services_off') {
-      lanStatus.services_enabled = body.action === 'services_on';
-    }
-    const result = {
-      result: 'ok',
-      exposed: lanStatus.exposed,
-      services_enabled: lanStatus.services_enabled,
-      services_reachable: lanStatus.exposed && lanStatus.services_enabled,
-    };
-    return new Response(`${JSON.stringify(result)}\n`, {
-      status: 200,
-      headers: { 'content-type': 'application/x-ndjson' }
-    });
-  }
 
   // An engine's databases. An engine with no fixture reports none rather than
   // falling through to the empty catch-all, which the tab reads as an error.
@@ -850,6 +870,94 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (method === 'GET' && /\/php-versions\/[^/]+\/config$/.test(path))
     return jsonResponse({ path: '~/.config/servlo/php/8.4/php.ini', content: PHP_INI_TEXT, exists: true });
 
+
+  // Staging: the two sides of the same relationship. A live site with one copy,
+  // and the copy itself.
+  const stagingMatch = path.match(/^\/api\/sites\/([^/]+)\/staging$/);
+  if (stagingMatch) {
+    const domain = decodeURIComponent(stagingMatch[1]);
+    const state = demoStaging[domain];
+    if (method === 'POST') {
+      const body = JSON.parse(String(init?.body ?? '{}')) as { action?: string; bring?: string };
+      if (!state?.staging) return jsonResponse({ ok: false, error: domain + ' is not a staging site' });
+      if (body.action === 'password') {
+        return jsonResponse({ ok: true, user: state.user, password: 'kQ7pR2wX9mL4vN8bT6yH3sD5fG1jZ0aC' });
+      }
+      state.refreshed_at = new Date().toISOString();
+      return jsonResponse({
+        ok: true,
+        files: 4127,
+        bytes: 488000000,
+        database: body.bring === 'files' ? '' : 'staging_acme'
+      });
+    }
+    return jsonResponse(
+      state ? { ...state, refreshed_at: state.refreshed_at ? stampOffset(state.refreshed_at) : '' }
+            : { staging: false, origin_exists: false, copies: [] }
+    );
+  }
+
+  if (path === '/api/security') return jsonResponse(demoSecurity);
+  if (path === '/api/security/keys') {
+    const body = JSON.parse(String(init?.body ?? '{}')) as {
+      action?: string; key?: string; name?: string; fingerprint?: string;
+    };
+    if (body.action === 'remove') {
+      demoSecurity.keys = demoSecurity.keys.filter((k) => k.fingerprint !== body.fingerprint);
+      return jsonResponse({ ok: true, keys: demoSecurity.keys });
+    }
+    const line = String(body.key ?? '').trim();
+    const name = String(body.name ?? '').trim();
+    if (!line.startsWith('ssh-')) {
+      return jsonResponse({
+        keys: demoSecurity.keys,
+        error:
+          'that is not a public key servlo recognises. It should start with a type such as ssh-ed25519 followed by the key itself'
+      });
+    }
+    demoSecurity.keys = [
+      ...demoSecurity.keys,
+      { type: line.split(' ')[0], comment: name, fingerprint: 'SHA256:' + line.slice(-43) }
+    ];
+    return jsonResponse({ ok: true, keys: demoSecurity.keys });
+  }
+
+  // Servlo's own state: what a rebuild onto a fresh machine needs.
+  if (path === '/api/backup/state') {
+    if (method === 'POST') {
+      return jsonResponse({ ok: true, name: 'servlo-state-20260309-141500.servlobak', size: 185344, files: 37 });
+    }
+    return jsonResponse(serverStateFixture);
+  }
+
+  // What the app store offers, for the Add Site form's fourth source.
+  if (path === '/api/apps') {
+    return jsonResponse(appsFixture);
+  }
+
+  // Installing one. WordPress is the app that ends with an account, so this
+  // answers the way that one does: credentials the panel shows once.
+  if (path === '/api/sites/app') {
+    return jsonResponse({
+      ok: true,
+      site: 'blog-acme-com',
+      domain: 'blog.acme.com',
+      path: '/home/servlo/sites/blog.acme.com',
+      admin_user: 'admin',
+      admin_password: 'Qr7-tvB2xk9WmLpc',
+      database: 'blog_acme_com'
+    });
+  }
+
+  // What is currently wrong with the server, and dismissing one of them.
+  if (path === '/api/alerts') {
+    if (method === 'POST') {
+      const body = JSON.parse(String(init?.body ?? '{}')) as { kind?: string; site?: string };
+      if (!body.kind) return jsonResponse({ alerts: [], error: 'which alert?' });
+      demoAlerts = demoAlerts.filter((a) => !(a.kind === body.kind && (a.site ?? '') === (body.site ?? '')));
+    }
+    return jsonResponse({ alerts: demoAlerts.map((a) => ({ ...a, at: stampOffset(a.at) })) });
+  }
 
   // Per-site backups: what is scheduled, what is on disk, and the four things
   // the card can do. Above the catch-alls for the same reason cron is.

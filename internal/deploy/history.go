@@ -98,6 +98,8 @@ func Record(site *config.Site, e Entry) error {
 	if err := f.Close(); err != nil {
 		return err
 	}
+	// After the write, so an alert never claims a deploy that was not recorded.
+	alertOutcome(site.Name, e)
 	return trimHistory(path)
 }
 

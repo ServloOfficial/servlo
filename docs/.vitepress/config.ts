@@ -151,6 +151,8 @@ export default defineConfig({
           items: [
             { text: 'Site Management', link: '/usage/sites' },
             { text: 'Site Groups', link: '/usage/site-groups' },
+            { text: 'Staging sites', link: '/usage/staging' },
+            { text: 'Importing a site', link: '/usage/import' },
             { text: 'PHP', link: '/usage/php' },
             { text: 'Node', link: '/usage/node' },
             { text: 'Nginx Overrides', link: '/usage/nginx-overrides' },
@@ -160,6 +162,9 @@ export default defineConfig({
             { text: 'SFTP', link: '/usage/sftp' },
             { text: 'Email', link: '/usage/email' },
             { text: 'Backups', link: '/usage/backups' },
+            { text: 'Hardening', link: '/usage/hardening' },
+            { text: 'Security', link: '/usage/security' },
+            { text: 'Alerts', link: '/usage/alerts' },
           ],
         },
         {
@@ -170,6 +175,7 @@ export default defineConfig({
             { text: 'Service presets', link: '/usage/service-presets' },
             { text: 'Database', link: '/usage/database' },
             { text: 'Disk cleanup', link: '/usage/cleanup' },
+            { text: 'Logs', link: '/usage/logs' },
           ],
         },
         {
@@ -281,6 +287,7 @@ export default defineConfig({
             { text: 'Building from Source', link: '/contributing/building' },
             { text: 'The Stores', link: '/contributing/stores' },
             { text: 'Pull Requests', link: '/contributing/pull-requests' },
+            { text: 'The resilience jobs', link: '/contributing/resilience' },
           ],
         },
       ],

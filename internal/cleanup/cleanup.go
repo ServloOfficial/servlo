@@ -1,6 +1,6 @@
 // Package cleanup reclaims podman disk servlo's own image rebuilds leave behind.
 // The safe tier only ever removes what is provably servlo's: an image with a
-// dev.servlo.* label, or the lerd-php*-fpm-base repo name only the pre-built
+// dev.servlo.* label, or the servlo-php*-fpm-base repo name only the pre-built
 // base images use. The deep tier additionally reaps every dangling image, which
 // is untagged and unreferenced by definition so removing it strands nothing, and
 // catalog service images no service references any more. Neither tier ever
@@ -23,9 +23,8 @@ const servloLabelPrefix = "dev.servlo."
 
 // baseImageRe matches a pre-built PHP base image ref. These are pulled from a
 // registry and carry no dev.servlo.* label, so the repo name is the ownership
-// signal. The name stays "lerd-php…" because the images themselves are the
-// retained upstream ones from PRD §0, not a missed rename.
-var baseImageRe = regexp.MustCompile(`/lerd-php\d+-fpm-base:`)
+// signal.
+var baseImageRe = regexp.MustCompile(`/servlo-php\d+-fpm-base:`)
 
 // Target is one reclaimable resource.
 type Target struct {

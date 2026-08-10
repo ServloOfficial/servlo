@@ -862,7 +862,7 @@ func newServiceReinstallCmd() *cobra.Command {
 }
 
 // migrateServiceUnits rewrites unit files for all globally configured services.
-// This ensures BindForLAN and other install-time settings are applied even for
+// This ensures the bind policy and other install-time settings are applied even for
 // services that already have a unit file on disk. Default presets are skipped
 // when no quadlet exists for them (i.e. the user removed the service); without
 // this skip a subsequent CLI invocation would silently recreate the quadlet.

@@ -59,7 +59,7 @@ Dots follow the same convention everywhere: green `●` running, grey `○` stop
 
 | Key | Action |
 | --- | --- |
-| `space` / `enter` | Toggle the focused detail row (worker, HTTPS, LAN share, PHP, Node) |
+| `space` / `enter` | Toggle the focused detail row (worker, HTTPS, PHP, Node) |
 | `s` | Start / resume the focused site or start the focused service / worker |
 | `x` | Stop / pause the focused site or stop the focused service / worker · on a domain row, remove that domain |
 | `r` | Restart the focused site / service / worker |
@@ -95,7 +95,7 @@ Available when focus is on the Detail pane with the cursor on a domain row.
 
 | Key | Action |
 | --- | --- |
-| `S` | Swap the Detail pane for global Settings (LAN expose, autostart) and focus it, Sites tab |
+| `S` | Swap the Detail pane for global Settings (autostart) and focus it, Sites tab |
 | `Y` | Swap the Detail pane for the System overview (DNS, Nginx, Watcher, Notifications, Debug bridge, PHP per-version, Node, Servlo) and focus it, Sites tab |
 | `D` | Open the Debug window, the same capture the web dashboard shows. `[` / `]` switch lens across `Dumps · Queries · Jobs · Views · Mail · Cache · Events · HTTP`; the Queries lens groups by request with N+1 and slow-query (≥100ms) flags, and the other lenses group by request too. Use `/` to search the active lens (site, request, worker, file, text, payload) · `1`/`2` toggle the FPM / CLI context-filter chips · `enter` expands the selected row (query bindings and caller, job exception, view template, mail recipients, …) · `w` toggles worker capture (queue / scheduler events, off by default) · `c` clears the buffer (and runs `servlo dump clear`) · `T` toggles the bridge globally. The buffer is independent of the servlo-ui ring because the TUI runs in its own process and only sees what the SSE connection delivers |
 | `?` | Open the Keybindings reference as a centered modal overlay; `?` again or `esc` closes it |
@@ -179,7 +179,7 @@ Sections, top to bottom:
 - **PHP / Node / framework / git branch**: one-line summary.
 - **Services used**: every service referenced in `.servlo.yaml` with its live state, so you can see at a glance whether redis / mysql / etc. are up for this site.
 - **Workers**: queue, schedule, horizon, reverb, and any custom framework workers, each with a running / failing indicator. `space` on a worker row toggles it (calls `servlo queue start/stop`, etc.).
-- **Toggles**: HTTPS (runs `servlo secure` / `servlo unsecure`), LAN share (runs `servlo lan share` / `unshare`, shows the full `http://<lan-ip>:<port>` URL when enabled), PHP version (opens an inline picker from installed versions → `servlo isolate <ver>`; a FrankenPHP site only lists the versions FrankenPHP publishes an image for, so the picker never offers one that would silently downgrade), Node version (picker backed by `fnm list` → `servlo isolate:node <ver>`; when a host bun is installed the list also carries a `bun` entry that pins the site's JS runtime via `servlo js:runtime bun`, and picking a Node version while pinned to bun clears the pin first so the dev worker actually switches back).
+- **Toggles**: HTTPS (runs `servlo secure` / `servlo unsecure`), PHP version (opens an inline picker from installed versions → `servlo isolate <ver>`; a FrankenPHP site only lists the versions FrankenPHP publishes an image for, so the picker never offers one that would silently downgrade), Node version (picker backed by `fnm list` → `servlo isolate:node <ver>`; when a host bun is installed the list also carries a `bun` entry that pins the site's JS runtime via `servlo js:runtime bun`, and picking a Node version while pinned to bun clears the pin first so the dev worker actually switches back).
 
 ## Dashboard tab
 
@@ -190,13 +190,12 @@ The **Dashboard** tab is the terminal counterpart to the web UI's home page: a r
 - **Workers**: active · asleep · failing counts, then every worker (site · kind) with its state, and the failing units with a `press H to heal` hint.
 - **System Health**: DNS (ok / degraded / down / disabled), Nginx, Watcher, and the running PHP FPM versions.
 - **Resources**: total CPU% and memory across servlo's footprint, then every container by load. Polled in the background every 3 s, matching the cache TTL the web UI uses; a `collecting…` placeholder shows until the first sample lands.
-- **Servlo**: version, an `update:` banner when a newer release is available, autostart, LAN expose, platform, and a **Recent activity** feed (site link/pause/resume/start/stop, service add/remove/start/stop, worker fail/heal, DNS transitions) derived live, mirroring the web UI's activity list.
+- **Servlo**: version, an `update:` banner when a newer release is available, autostart, platform, and a **Recent activity** feed (site link/pause/resume/start/stop, service add/remove/start/stop, worker fail/heal, DNS transitions) derived live, mirroring the web UI's activity list.
 
 ## Settings view
 
 Press `S` (on the Sites tab) to swap the detail pane for global settings. Navigate with `↑` `↓`, toggle with `space`:
 
-- **LAN expose**: flip every container to 0.0.0.0 binds (`servlo lan expose on/off`).
 - **Autostart on login**: `servlo autostart enable/disable`.
 
 `S` again (or `esc`) returns to Site detail.
@@ -213,7 +212,7 @@ Press `Y` (on the Sites tab) to swap the detail pane for the System overview, th
 - **PHP versions**: default version plus one row per installed PHP showing FPM running state.
 - **Node**: default version (from the global config) and the installed major versions reported by `fnm list`.
 - **Worker mode**: macOS only; toggles `servlo workers mode exec|container`. Hidden on Linux where workers always run under systemd.
-- **Servlo**: current version, cached update check result, autostart toggle, LAN-expose toggle.
+- **Servlo**: current version, cached update check result, autostart toggle.
 
 Navigate the rows with `↑` `↓` (the cursor skips section headers and info-only rows), `space` / `enter` to toggle. `Y` again or `esc` returns to Site detail. Every toggle shells out to the public CLI verb so the TUI shares the same code path as a manual `servlo …` invocation.
 

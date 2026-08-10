@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/realrashid/servlo/internal/backup"
+	"github.com/realrashid/servlo/internal/backupdest"
 	"github.com/realrashid/servlo/internal/config"
 	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/dbdump"
@@ -37,7 +39,7 @@ func NewBackupCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&filesOnly, "files-only", false,
 		"Back up the files and skip the database, for a site whose data is backed up elsewhere")
-	cmd.AddCommand(newBackupListCmd(), newBackupKeyCmd(), newBackupScheduleCmd(), newBackupVerifyCmd(), newBackupStateCmd())
+	cmd.AddCommand(newBackupListCmd(), newBackupKeyCmd(), newBackupScheduleCmd(), newBackupVerifyCmd(), newBackupStateCmd(), newBackupDestCmd())
 	return cmd
 }
 
@@ -45,7 +47,7 @@ func runBackup(ref string, filesOnly bool) error {
 	if ref == "" {
 		return fmt.Errorf("which site? Run this from a site's directory, or name one")
 	}
-	site, err := config.FindSite(ref)
+	site, err := config.FindSiteByRef(ref)
 	if err != nil {
 		return fmt.Errorf("site %q not found", ref)
 	}
@@ -60,6 +62,9 @@ func runBackup(ref string, filesOnly bool) error {
 
 	step := feedback.Start("backing up " + site.Name)
 	rec, err := runner.Run(site)
+	// Reported whichever way it went, because this is what the nightly timer
+	// runs and nobody reads a journal at three in the morning.
+	backup.Report(site.Name, rec, err)
 	if err != nil {
 		step.Fail(err)
 		return err
@@ -76,6 +81,12 @@ func runBackup(ref string, filesOnly bool) error {
 	fmt.Printf("  %s\n", rec.Path)
 	if rec.Pruned > 0 {
 		fmt.Printf("  Retention removed %d older %s.\n", rec.Pruned, plural(rec.Pruned, "archive", "archives"))
+	}
+	for _, err := range rec.SendErrors {
+		// The archive is on this server and usable. What failed is the copy
+		// going elsewhere, and calling the backup failed would have an operator
+		// re-running one that worked.
+		feedback.Warn("the backup was written, but a destination could not be reached: %v", err)
 	}
 	if rec.PruneError != nil {
 		// The backup is on disk. Only the tidying up failed, and saying so
@@ -103,7 +114,7 @@ func newBackupListCmd() *cobra.Command {
 		RunE: func(_ *cobra.Command, args []string) error {
 			var only string
 			if len(args) > 0 {
-				if site, err := config.FindSite(args[0]); err == nil {
+				if site, err := config.FindSiteByRef(args[0]); err == nil {
 					only = config.SiteSlug(site.Name)
 				} else {
 					only = config.SiteSlug(args[0])
@@ -224,7 +235,7 @@ func newBackupScheduleCmd() *cobra.Command {
 			case len(args) == 2:
 				ref, when = args[0], args[1]
 			case len(args) == 1:
-				if _, err := config.FindSite(args[0]); err == nil {
+				if _, err := config.FindSiteByRef(args[0]); err == nil {
 					ref = args[0]
 				} else {
 					ref, when = siteRefOrCwd(nil), args[0]
@@ -252,7 +263,7 @@ func runBackupSchedule(ref, when, verify string, off bool, keep *config.BackupKe
 	if ref == "" {
 		return fmt.Errorf("which site? Run this from a site's directory, or name one")
 	}
-	site, err := config.FindSite(ref)
+	site, err := config.FindSiteByRef(ref)
 	if err != nil {
 		return fmt.Errorf("site %q not found", ref)
 	}
@@ -360,7 +371,7 @@ func newBackupVerifyCmd() *cobra.Command {
 			feedback.Begin()
 			ref := args[0]
 			if latest {
-				site, err := config.FindSite(ref)
+				site, err := config.FindSiteByRef(ref)
 				if err != nil {
 					return fmt.Errorf("site %q not found", ref)
 				}
@@ -423,6 +434,10 @@ func runBackupVerify(ref string) error {
 	}()
 	res, verifyErr := dbdump.Verify(conn, scratch, pr)
 	dumpErr := <-errc
+	// A check that runs weekly on a timer reports what it found, the same way
+	// the backup itself does. An unverifiable backup that only ever appeared in
+	// a journal is the failure this whole story exists to catch.
+	backup.ReportVerify(man.Site, filepath.Base(path), cmp.Or(dumpErr, verifyErr))
 	if dumpErr != nil {
 		step.Fail(dumpErr)
 		return dumpErr
@@ -461,40 +476,144 @@ func runBackupState() error {
 	if err != nil {
 		return err
 	}
-	dir := config.SiteBackupsDir()
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, ".partial-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name()) //nolint:errcheck
-
-	if err := tmp.Chmod(0600); err != nil {
-		_ = tmp.Close()
-		return err
-	}
 	step := feedback.Start("backing up this server's own state")
-	man, err := backup.CreateState(tmp, key, backup.StateOptions{Version: version.Version})
+	path, man, size, err := backup.WriteState(config.SiteBackupsDir(), key, backup.StateOptions{Version: version.Version})
 	if err != nil {
-		_ = tmp.Close()
 		step.Fail(err)
 		return err
 	}
-	size, _ := tmp.Seek(0, io.SeekCurrent)
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-
-	final := filepath.Join(dir, "servlo-state-"+man.Taken.Format("20060102-150405")+backup.Extension)
-	if err := os.Rename(tmp.Name(), final); err != nil {
-		return err
-	}
-	step.OK(feedback.Val(filepath.Base(final)))
+	step.OK(feedback.Val(filepath.Base(path)))
 	fmt.Printf("  %d %s, %s on disk\n", man.Files, plural(man.Files, "file", "files"), humanSize(size))
-	fmt.Printf("  %s\n", final)
+	fmt.Printf("  %s\n", path)
 	fmt.Println("  The backup key is not in here. Keep a copy of it somewhere else, or this")
 	fmt.Println("  archive is not recoverable either.")
 	return nil
+}
+
+func newBackupDestCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "destination",
+		Aliases: []string{"destinations", "dest"},
+		Short:   "Where finished archives are copied to",
+		Long: "A backup that only exists on the machine it is a backup of is not a backup. " +
+			"Archives are copied to every destination configured here as soon as they are " +
+			"written.\n\n" +
+			"Two kinds: S3-compatible storage, which covers DigitalOcean Spaces and Amazon S3 " +
+			"with one driver, and SFTP to another server.",
+		Args: cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error { return runDestList() },
+	}
+	cmd.AddCommand(newDestAddCmd(), newDestRemoveCmd(), newDestTestCmd())
+	return cmd
+}
+
+func runDestList() error {
+	reg, err := backupdest.Load()
+	if err != nil {
+		return err
+	}
+	if len(reg.Destinations) == 0 {
+		fmt.Println("  No destinations. Archives stay on this server only, which is not an")
+		fmt.Println("  offsite backup. Add one with `servlo backup destination add`.")
+		return nil
+	}
+	for _, d := range reg.Destinations {
+		fmt.Printf("  %-16s %-6s %s\n", d.Name, d.Kind, destWhere(d))
+	}
+	return nil
+}
+
+func destWhere(d backupdest.Destination) string {
+	if d.Kind == backupdest.KindS3 {
+		where := d.Bucket
+		if d.Prefix != "" {
+			where += "/" + strings.Trim(d.Prefix, "/")
+		}
+		return where + " at " + d.Endpoint
+	}
+	return d.User + "@" + d.Host + ":" + d.Path
+}
+
+func newDestAddCmd() *cobra.Command {
+	var d backupdest.Destination
+	cmd := &cobra.Command{
+		Use:   "add <name>",
+		Short: "Add a destination archives are copied to",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			feedback.Begin()
+			d.Name = args[0]
+			if err := backupdest.Add(d); err != nil {
+				return err
+			}
+			feedback.Start("adding " + d.Name).OK(feedback.Val(destWhere(d)))
+			fmt.Println("  Take a backup, or run `servlo backup destination test` to check it now.")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&d.Kind, "kind", backupdest.KindS3, "s3 or sftp")
+	cmd.Flags().StringVar(&d.Bucket, "bucket", "", "S3 bucket")
+	cmd.Flags().StringVar(&d.Prefix, "prefix", "", "S3 prefix, so one bucket can hold several servers")
+	cmd.Flags().StringVar(&d.Endpoint, "endpoint", "", "S3 endpoint, e.g. https://fra1.digitaloceanspaces.com")
+	cmd.Flags().StringVar(&d.Region, "region", "", "S3 region")
+	cmd.Flags().StringVar(&d.AccessKey, "access-key", "", "S3 access key")
+	cmd.Flags().StringVar(&d.SecretKey, "secret-key", "", "S3 secret key")
+	cmd.Flags().StringVar(&d.Host, "host", "", "SFTP host")
+	cmd.Flags().IntVar(&d.Port, "port", 0, "SFTP port (default 22)")
+	cmd.Flags().StringVar(&d.User, "user", "", "SFTP user")
+	cmd.Flags().StringVar(&d.Path, "path", "", "SFTP directory to write into")
+	cmd.Flags().StringVar(&d.KeyFile, "key-file", "", "SFTP private key")
+	return cmd
+}
+
+func newDestRemoveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "remove <name>",
+		Short: "Stop copying archives to a destination",
+		Long: "The archives already there are left alone. Deleting somebody's offsite copies " +
+			"as a side effect of editing a setting is never what was meant.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			feedback.Begin()
+			if err := backupdest.Remove(args[0]); err != nil {
+				return err
+			}
+			feedback.Start("removing " + args[0]).OK("")
+			fmt.Println("  The archives already at that destination were left where they are.")
+			return nil
+		},
+	}
+}
+
+func newDestTestCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "test [name]",
+		Short: "Check a destination can be reached",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			feedback.Begin()
+			reg, err := backupdest.Load()
+			if err != nil {
+				return err
+			}
+			var failed bool
+			for _, d := range reg.Destinations {
+				if len(args) > 0 && !strings.EqualFold(d.Name, args[0]) {
+					continue
+				}
+				step := feedback.Start("reaching " + d.Name)
+				names, err := backupdest.List(d)
+				if err != nil {
+					step.Fail(err)
+					failed = true
+					continue
+				}
+				step.OK(feedback.Val(fmt.Sprintf("%d %s there", len(names), plural(len(names), "archive", "archives"))))
+			}
+			if failed {
+				return fmt.Errorf("a destination could not be reached")
+			}
+			return nil
+		},
+	}
 }

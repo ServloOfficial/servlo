@@ -7,7 +7,6 @@
   import MobileBackBar from '$components/MobileBackBar.svelte';
   import { tab, routeRest } from '$stores/route';
   import { loadVersion } from '$stores/version';
-  import { loadAccessMode } from '$stores/accessMode';
   import { loadStatus } from '$stores/status';
   import { loadPhpVersions } from '$stores/phpVersions';
   import { loadNodeVersions } from '$stores/nodeVersions';
@@ -37,6 +36,7 @@
   import ServicesDetail from '$tabs/ServicesDetail.svelte';
   import SystemDetail from '$tabs/SystemDetail.svelte';
   import AppsPage from '$tabs/AppsPage.svelte';
+  import { loadAlerts } from '$stores/alerts';
   import DashboardTab from '$tabs/DashboardTab.svelte';
 
   function handlePageHide() {
@@ -51,7 +51,6 @@
     if (started) return;
     started = true;
     loadVersion();
-    loadAccessMode();
     loadStatus();
     loadPhpVersions();
     loadNodeVersions();
@@ -59,6 +58,7 @@
     loadSites();
     loadServices();
     loadWorkerHealth();
+    loadAlerts();
     connectWs();
     initDashboardRoute();
     initNotify();

@@ -1,0 +1,91 @@
+{
+  "findings": [
+    {
+      "severity": "bad",
+      "title": "2 ports listening on a public address that should not be",
+      "detail": "Open and unaccounted for: 3306, 6379. A servlo service binds to the container network, so anything here is either a published port that is no longer needed or a service bound to the wrong address.",
+      "fix": [
+        "sudo ufw allow 22/tcp comment 'SSH'",
+        "sudo ufw allow 80/tcp comment 'HTTP and ACME challenges'",
+        "sudo ufw allow 443/tcp comment 'HTTPS'",
+        "sudo ufw default deny incoming",
+        "sudo ufw default allow outgoing",
+        "sudo ufw --force enable",
+        "sudo ufw status verbose"
+      ]
+    },
+    {
+      "severity": "warn",
+      "title": "fail2ban does not appear to be running",
+      "detail": "Servlo keeps SSH password authentication enabled by design, which makes fail2ban the thing standing between this server and an automated password guesser.",
+      "fix": [
+        "sudo apt-get install -y fail2ban",
+        "sudo systemctl enable --now fail2ban"
+      ]
+    },
+    {
+      "severity": "ok",
+      "title": "Unattended upgrades are configured"
+    },
+    {
+      "severity": "ok",
+      "title": "DigitalOcean's firewall may also be filtering",
+      "detail": "This is a DigitalOcean droplet, so a cloud firewall may be filtering in front of it where servlo cannot see. A port open in ufw and still unreachable is almost always this. Check the droplet's Networking tab, and remember an inbound rule there has to allow 80 and 443 as well as SSH. https://cloud.digitalocean.com/networking/firewalls"
+    },
+    {
+      "severity": "ok",
+      "title": "Every stored credential is private (4 checked)"
+    }
+  ],
+  "firewall": {
+    "why": "Open SSH on 22, HTTP and HTTPS, and refuse everything else. Every servlo service binds to the container network, so nothing else needs to face the internet.",
+    "commands": [
+      "sudo ufw allow 22/tcp comment 'SSH'",
+      "sudo ufw allow 80/tcp comment 'HTTP and ACME challenges'",
+      "sudo ufw allow 443/tcp comment 'HTTPS'",
+      "sudo ufw default deny incoming",
+      "sudo ufw default allow outgoing",
+      "sudo ufw --force enable",
+      "sudo ufw status verbose"
+    ],
+    "open": [
+      22,
+      80,
+      443,
+      3306,
+      6379
+    ],
+    "unexpected": [
+      3306,
+      6379
+    ]
+  },
+  "fail2ban": {
+    "running": false,
+    "status_command": "sudo fail2ban-client status sshd",
+    "install_commands": [
+      "sudo apt-get install -y fail2ban",
+      "sudo systemctl enable --now fail2ban"
+    ],
+    "why": "Servlo keeps SSH password authentication enabled by design, which makes fail2ban the thing standing between this server and an automated password guesser."
+  },
+  "provider": {
+    "name": "DigitalOcean",
+    "firewall_url": "https://cloud.digitalocean.com/networking/firewalls",
+    "detail": "This is a DigitalOcean droplet, so a cloud firewall may be filtering in front of it where servlo cannot see. A port open in ufw and still unreachable is almost always this. Check the droplet's Networking tab, and remember an inbound rule there has to allow 80 and 443 as well as SSH."
+  },
+  "keys": [
+    {
+      "type": "ssh-ed25519",
+      "comment": "alex laptop",
+      "fingerprint": "SHA256:o8Bv2Rk3qYh1LxWc9dTfPzN0aJmEu7Gs4Vb6XyQiZrU"
+    },
+    {
+      "type": "ssh-rsa",
+      "comment": "provisioning key from the droplet image",
+      "fingerprint": "SHA256:t4Kd9WpQ2sXn6ZcYh0LmBvR8eJfUa3GiO5TyNxQwErM"
+    }
+  ],
+  "keys_path": "/home/deploy/.ssh/authorized_keys",
+  "ssh_port": 22
+}

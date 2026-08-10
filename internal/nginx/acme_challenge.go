@@ -1,6 +1,7 @@
 package nginx
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -27,14 +28,14 @@ const acmeChallengePrefix = "/.well-known/acme-challenge/"
 // that as "not ready" and retries, where falling through to the site would hand
 // it an HTML page and fail the authorization outright.
 const acmeChallengeLocation = `    location ^~ ` + acmeChallengePrefix + ` {
-        root ` + acmeChallengeRoot + `;
+%s        root ` + acmeChallengeRoot + `;
         default_type "text/plain";
         try_files $uri =404;
     }
 `
 
 // ACMEChallengeLocation returns the block for the vhost templates.
-func ACMEChallengeLocation() string { return acmeChallengeLocation }
+func ACMEChallengeLocation() string { return fmt.Sprintf(acmeChallengeLocation, "") }
 
 // challengeTokenPath is where a token for the given name is written on the host.
 // It mirrors the URL under the webroot because the location above uses `root`.

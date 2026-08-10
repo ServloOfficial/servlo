@@ -1,0 +1,250 @@
+name: Resilience
+
+# The two claims Phase 4 makes that a unit test cannot check, because both are
+# about what survives losing the machine.
+#
+#   reboot   — every site, service and worker comes back unaided (S19.2)
+#   rebuild  — a fresh machine plus the backups is the old machine (S16.1)
+#
+# Both run against real podman, real systemd user units and real HTTP. They are
+# in their own workflow rather than in ci.yml because they take minutes rather
+# than seconds, and because when one of them goes red the thing that broke is a
+# different kind of thing from a failing unit test.
+
+on:
+  push:
+    branches: ["main", "release/**"]
+  pull_request:
+    branches: ["main", "release/**"]
+
+env:
+  # The site the jobs create and then ask for. A real FQDN with no DNS
+  # anywhere, resolved at the curl rather than written into a hosts file:
+  # servlo never touches a host resolver (CLAUDE.md §3.1) and neither does its
+  # own CI.
+  SITE: ci-one.example
+  SITE_TWO: ci-two.example
+
+jobs:
+  reboot:
+    name: Everything comes back on its own
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: internal/ui/web/package-lock.json
+
+      - name: Prepare the rootless runtime
+        run: .github/scripts/prepare-runtime.sh
+
+      - name: Install servlo
+        run: .github/scripts/install-servlo.sh
+
+      - name: Create a site
+        run: .github/scripts/make-site.sh "$SITE"
+
+      - name: It serves before anything is stopped
+        run: .github/scripts/expect-serving.sh "$SITE"
+
+      # The boot path, without a kernel.
+      #
+      # Stopping every servlo unit and then starting default.target is exactly
+      # what the user manager does when a lingering user's session starts at
+      # boot: it pulls in everything WantedBy=default.target and nothing else.
+      # A unit that servlo wrote but never enabled does not come back here, and
+      # that is precisely the bug this job exists to catch.
+      #
+      # Be straight about the difference: this does not reboot the kernel, so it
+      # does not cover a container image that fails to start from a cold page
+      # cache, or a tmpfs that a reboot empties. Those belong to the droplet
+      # pass. What it does cover is the enablement, which is where the failure
+      # has always actually been.
+      - name: Stop everything, then start the way a boot does
+        run: .github/scripts/simulate-boot.sh
+
+      - name: It serves again, with nobody running servlo start
+        run: .github/scripts/expect-serving.sh "$SITE"
+
+      - name: Every unit servlo installed is enabled
+        run: .github/scripts/expect-enabled.sh
+
+      - name: What the runtime looked like
+        if: always()
+        run: |
+          systemctl --user list-units 'servlo-*' --all --no-pager || true
+          podman ps -a || true
+
+  rebuild-source:
+    name: The server that is about to be lost
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      # The backup key for this run only. Generated here, used by the job
+      # below, and it encrypts nothing but the fixture site this workflow
+      # creates. A real key never leaves the server it was generated on.
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: internal/ui/web/package-lock.json
+
+      - name: Prepare the rootless runtime
+        run: .github/scripts/prepare-runtime.sh
+
+      - name: Install servlo
+        run: .github/scripts/install-servlo.sh
+
+      - name: Create two sites
+        run: |
+          .github/scripts/make-site.sh "$SITE"
+          .github/scripts/make-site.sh "$SITE_TWO"
+
+      - name: Give one of them a setting worth losing
+        run: |
+          set -euo pipefail
+          servlo backup schedule "$SITE" daily --daily 3 --weekly 2 --monthly 1
+          servlo backup schedule "$SITE" | tee /tmp/schedule-before.txt
+
+      - name: They both serve
+        run: |
+          .github/scripts/expect-serving.sh "$SITE"
+          .github/scripts/expect-serving.sh "$SITE_TWO"
+
+      - name: Read the backup key
+        id: key
+        run: |
+          set -euo pipefail
+          # Touching a backup generates the key, so this is the first command
+          # that has one to read. Not silenced: when it fails, its own output is
+          # the only thing that says why.
+          servlo backup "$SITE"
+          echo "key=$(cat ~/.config/servlo/backup.key)" >> "$GITHUB_OUTPUT"
+
+      - name: Back up everything
+        run: |
+          set -euo pipefail
+          servlo backup "$SITE_TWO"
+          servlo backup state
+          ls -la ~/.local/share/servlo/site-backups/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rebuild-archives
+          path: ~/.local/share/servlo/site-backups/
+          retention-days: 1
+          if-no-files-found: error
+
+  rebuild-target:
+    name: A fresh machine plus the backups is the old machine
+    needs: rebuild-source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: internal/ui/web/package-lock.json
+
+      - name: Prepare the rootless runtime
+        run: .github/scripts/prepare-runtime.sh
+
+      # Deliberately nothing else: no sites, no registry, no settings. This
+      # runner has never seen the machine the archives came from, which is the
+      # whole point of the job.
+      - name: Install servlo, and nothing else
+        run: .github/scripts/install-servlo.sh
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: rebuild-archives
+          path: /tmp/archives
+
+      - name: The key comes first
+        env:
+          BACKUP_KEY: ${{ needs.rebuild-source.outputs.key }}
+        run: |
+          set -euo pipefail
+          # Without it nothing opens: servlo generates a key of its own on a
+          # new machine and it opens nothing the old one wrote.
+          servlo backup key import "$BACKUP_KEY"
+
+      # A restore loads a dump into the engine, so the engine has to be
+      # answering first. Nothing between here and there waits for it.
+      - name: Wait for the database engine
+        run: .github/scripts/wait-for-db.sh
+
+      - name: Restore the server's own state
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.local/share/servlo/site-backups
+          cp /tmp/archives/*.servlobak ~/.local/share/servlo/site-backups/
+          state=$(ls -1 ~/.local/share/servlo/site-backups/servlo-state-*.servlobak | head -1)
+          servlo restore "$(basename "$state")" --state --yes
+
+      - name: Restore each site
+        run: |
+          set -euo pipefail
+          for archive in ~/.local/share/servlo/site-backups/*.servlobak; do
+            name=$(basename "$archive")
+            case "$name" in servlo-state-*) continue ;; esac
+            servlo restore "$name" --yes
+          done
+
+      - name: Bring it up
+        run: |
+          set -euo pipefail
+          servlo start
+          servlo sites
+
+      - name: Every site serves
+        run: |
+          .github/scripts/expect-serving.sh "$SITE"
+          .github/scripts/expect-serving.sh "$SITE_TWO"
+
+      - name: The data came back too
+        run: |
+          set -euo pipefail
+          cd "$HOME/sites/$SITE"
+          servlo db:export --output /tmp/rebuilt.sql
+          if ! grep -q "$SITE survived" /tmp/rebuilt.sql; then
+            echo "the row this site had before the rebuild is not in its database"
+            head -40 /tmp/rebuilt.sql
+            exit 1
+          fi
+
+      - name: The settings came back with them
+        run: |
+          set -euo pipefail
+          servlo backup schedule "$SITE" | tee /tmp/schedule-after.txt
+          if ! grep -q 'daily' /tmp/schedule-after.txt; then
+            echo "the site's backup schedule did not survive the rebuild"
+            cat /tmp/schedule-after.txt
+            exit 1
+          fi
+
+      - name: What the rebuilt server looks like
+        if: always()
+        run: |
+          servlo status || true
+          systemctl --user list-units 'servlo-*' --all --no-pager || true

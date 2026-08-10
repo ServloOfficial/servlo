@@ -42,8 +42,8 @@ func DaemonReloadIfNeeded(changed bool) error {
 }
 
 // WriteQuadlet writes a Podman quadlet container unit file. Before writing
-// it applies the current LAN bind policy centrally. Nginx follows
-// cfg.LAN.Exposed; every other container stays loopback-bound.
+// it applies the bind policy centrally: nginx publishes on every interface
+// because it serves the sites, every other container stays loopback-bound.
 func WriteQuadlet(name, content string) error {
 	_, err := WriteQuadletDiff(name, content)
 	return err
@@ -52,21 +52,19 @@ func WriteQuadlet(name, content string) error {
 // WriteQuadletDiff writes a quadlet like WriteQuadlet, but also reports
 // whether the on-disk file actually changed. Callers can use this to
 // daemon-reload + restart only the units that need it (e.g. servlo install
-// rewriting binds from 0.0.0.0 to 127.0.0.1 when migrating to a build
-// where lan:expose defaults to off — without a restart the running
-// container would silently keep its old bind).
+// pulling a service back from 0.0.0.0 to 127.0.0.1 on an install that
+// predates the policy — without a restart the running container would
+// silently keep its old bind).
 func WriteQuadletDiff(name, content string) (changed bool, err error) {
 	dir := config.QuadletDir()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return false, err
 	}
-	lanExposed := false
 	autostartDisabled := false
 	if cfg, err := config.LoadGlobal(); err == nil && cfg != nil {
-		lanExposed = cfg.LAN.Exposed
 		autostartDisabled = cfg.Autostart.Disabled
 	}
-	content = BindQuadletForLAN(name, content, lanExposed)
+	content = BindQuadletPorts(name, content)
 	content = PairIPv6Binds(content)
 	content = StripInstallSection(content, autostartDisabled)
 	// Centralised platform image rewrite + podman-run flags so every quadlet
@@ -105,28 +103,30 @@ func QuadletInstalled(name string) bool {
 	return err == nil
 }
 
-// BindQuadletForLAN applies the LAN policy for one quadlet.
+// BindQuadletPorts decides where one quadlet publishes, from what it is.
 //
-// Only nginx ever binds beyond loopback, because only nginx has a reason to:
-// it serves the sites. Databases, caches, search engines and admin UIs stay on
-// loopback whatever the LAN settings say, and a quadlet that arrives bound to
-// every interface is pulled back rather than left.
+// Nginx binds to every interface, always. It serves the sites, and a server
+// panel whose web server answers only itself is a server nobody can reach. It
+// was a toggle once, off by default, which is a local development idea: a
+// fresh install came up serving nothing to the internet and said nothing about
+// why.
 //
-// This is a design law rather than a setting (CLAUDE.md 3.7). A database
-// reachable from off the machine is a database anyone who finds the port can
-// attack, and on a box hosting other people's sites there is no version of
-// that worth the convenience, so there is no opt-in to offer.
-func BindQuadletForLAN(name, content string, lanExposed bool) string {
-	return BindForLAN(content, lanExposed && name == "servlo-nginx")
+// Everything else stays on loopback whatever else changes, and a quadlet that
+// arrives bound to every interface is pulled back rather than left. That half
+// is a design law (CLAUDE.md 3.7): a database reachable from off the machine is
+// a database anyone who finds the port can attack, and on a box hosting other
+// people's sites there is no version of that worth the convenience.
+func BindQuadletPorts(name, content string) string {
+	return BindPorts(content, name == "servlo-nginx")
 }
 
-// ContainerPublishesLANFn probes whether a running container currently
-// publishes any port beyond loopback. It reports (lanBound, known); known is
+// ContainerPublishesPubliclyFn probes whether a running container currently
+// publishes any port beyond loopback. It reports (public, known); known is
 // false when the container is absent, stopped, or podman can't be reached.
 // Swappable in tests.
-var ContainerPublishesLANFn = containerPublishesLAN
+var ContainerPublishesPubliclyFn = containerPublishesPublicly
 
-func containerPublishesLAN(name string) (bool, bool) {
+func containerPublishesPublicly(name string) (bool, bool) {
 	out, err := Run("ps", "--filter", "name=^"+name+"$", "--format", "{{.Ports}}")
 	if err != nil {
 		return false, false
@@ -161,18 +161,14 @@ func portsPublishToLAN(ports string) bool {
 	return false
 }
 
-// RebindInstalledQuadletsForLAN reapplies the current LAN policy to every
-// installed servlo container, preserving each unit's image, ports, volumes and
-// custom settings. It returns the units that need restarting: those whose file
-// it rewrote, plus those whose running container still publishes on the wrong
-// side of the policy. That second group is what makes the operation heal
-// itself — a container left LAN-bound by an earlier toggle that failed part way
-// is picked up on the next run even though its file already reads correctly.
-func RebindInstalledQuadletsForLAN() ([]string, error) {
-	lanExposed := false
-	if cfg, err := config.LoadGlobal(); err == nil && cfg != nil {
-		lanExposed = cfg.LAN.Exposed
-	}
+// RebindInstalledQuadlets reapplies the bind policy to every installed servlo
+// container, preserving each unit's image, ports, volumes and custom settings.
+// It returns the units that need restarting: those whose file it rewrote, plus
+// those whose running container still publishes on the wrong side of the
+// policy. That second group is what makes the operation heal itself — a
+// container left publicly bound by an install that failed part way is picked
+// up on the next run even though its file already reads correctly.
+func RebindInstalledQuadlets() ([]string, error) {
 	paths, err := filepath.Glob(filepath.Join(config.QuadletDir(), "servlo-*.container"))
 	if err != nil {
 		return nil, err
@@ -185,7 +181,7 @@ func RebindInstalledQuadletsForLAN() ([]string, error) {
 			return nil, fmt.Errorf("reading %s: %w", filepath.Base(path), err)
 		}
 		name := strings.TrimSuffix(filepath.Base(path), ".container")
-		updated := PairIPv6Binds(BindQuadletForLAN(name, string(content), lanExposed))
+		updated := PairIPv6Binds(BindQuadletPorts(name, string(content)))
 		if string(content) != updated {
 			config.GuardRealWrite(path)
 			if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
@@ -194,16 +190,16 @@ func RebindInstalledQuadletsForLAN() ([]string, error) {
 			restart = append(restart, name)
 			continue
 		}
-		if lanBound, known := ContainerPublishesLANFn(name); known && lanBound != quadletWantsLAN(updated) {
+		if lanBound, known := ContainerPublishesPubliclyFn(name); known && lanBound != quadletWantsPublicBind(updated) {
 			restart = append(restart, name)
 		}
 	}
 	return restart, nil
 }
 
-// quadletWantsLAN reports whether the given quadlet content publishes beyond
+// quadletWantsPublicBind reports whether the given quadlet content publishes beyond
 // loopback, i.e. what the running container should look like.
-func quadletWantsLAN(content string) bool {
+func quadletWantsPublicBind(content string) bool {
 	for _, line := range strings.Split(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if !strings.HasPrefix(trimmed, "PublishPort=") {

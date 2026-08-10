@@ -5,7 +5,6 @@
   import AddSiteModal from './AddSiteModal.svelte';
   import PresetModal from './PresetModal.svelte';
   import RemoteControlModal from './RemoteControlModal.svelte';
-  import LANProgressModal from './LANProgressModal.svelte';
   import AddPhpModal from './AddPhpModal.svelte';
   import RebuildPhpModal from './RebuildPhpModal.svelte';
   import ConfirmEnvSaveModal from './ConfirmEnvSaveModal.svelte';
@@ -41,8 +40,6 @@
   <PresetModal />
 {:else if $modal.kind === 'remoteControl'}
   <RemoteControlModal />
-{:else if $modal.kind === 'lanProgress'}
-  <LANProgressModal />
 {:else if $modal.kind === 'phpAdd'}
   <AddPhpModal />
 {:else if $modal.kind === 'phpRebuild' && $modal.phpRebuild}

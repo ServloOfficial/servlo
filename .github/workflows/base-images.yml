@@ -1,0 +1,237 @@
+name: Build Base Images
+
+# Publishes the prebuilt PHP-FPM base images servlo pulls instead of compiling
+# every extension on the operator's droplet. The tag is the hash of the
+# Containerfile with the user-customisation placeholders emptied, computed the
+# same way internal/podman/build.go's baseContainerfileHash does, so a template
+# edit publishes a new tag and every install that pulls asks for the tag its own
+# binary was built against.
+#
+# A missing image is not a failure: the client falls back to building from the
+# official php:<version>-fpm-alpine the Containerfile starts from. That is the
+# state before this workflow has ever run, and it is why the fallback is tested.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'internal/podman/quadlets/servlo-php-fpm.Containerfile'
+      - '.github/workflows/base-images.yml'
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Rebuild even when the tag already exists (picks up upstream base-image updates)'
+        required: false
+        default: 'false'
+
+jobs:
+  build:
+    name: PHP ${{ matrix.php }} (${{ matrix.arch.name }})
+    runs-on: ${{ matrix.arch.runner }}
+    permissions:
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"]
+        arch:
+          - { name: amd64, runner: ubuntu-latest }
+          - { name: arm64, runner: ubuntu-24.04-arm }
+
+    env:
+      CONTAINERFILE: internal/podman/quadlets/servlo-php-fpm.Containerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute the image tag and the dotless version
+        id: tag
+        run: |
+          python3 - <<'EOF'
+          import hashlib, os
+          with open(os.environ['CONTAINERFILE']) as f:
+              content = f.read()
+          # Exactly the three placeholders baseContainerfileHash strips, in the
+          # same order. Adding one here without adding it there publishes images
+          # under a tag no client ever asks for.
+          for ph in ('{{.CustomExtensions}}', '{{.CustomExtensionsRuntime}}', '{{.CustomPackages}}'):
+              content = content.replace(ph, '')
+          h = hashlib.sha256(content.encode()).hexdigest()[:12]
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'tag={h}\n')
+          print(f'base image tag: {h}')
+          EOF
+          echo "php_short=$(echo '${{ matrix.php }}' | tr -d '.')" >> "$GITHUB_OUTPUT"
+
+      - name: Fill in the version
+        run: |
+          python3 - "${{ matrix.php }}" <<'EOF'
+          import sys, os
+          version = sys.argv[1]
+          with open(os.environ['CONTAINERFILE']) as f:
+              content = f.read()
+          content = content.replace('{{.Version}}', version)
+          for ph in ('{{.CustomExtensions}}', '{{.CustomExtensionsRuntime}}', '{{.CustomPackages}}'):
+              content = content.replace(ph, '')
+          with open('/tmp/Containerfile', 'w') as f:
+              f.write(content)
+          EOF
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Is this tag already published
+        id: check
+        run: |
+          if [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "force rebuild requested"
+          elif docker manifest inspect "${{ env.IMG }}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "already published, nothing to do"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          IMG: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base:${{ steps.tag.outputs.tag }}-${{ matrix.arch.name }}
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.exists != 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        if: steps.check.outputs.exists != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: /tmp/Containerfile
+          push: true
+          pull: ${{ inputs.force_rebuild == 'true' }}
+          platforms: linux/${{ matrix.arch.name }}
+          tags: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base:${{ steps.tag.outputs.tag }}-${{ matrix.arch.name }}
+          cache-from: type=gha,scope=php-${{ matrix.php }}-${{ matrix.arch.name }}
+          cache-to: type=gha,mode=max,scope=php-${{ matrix.php }}-${{ matrix.arch.name }}
+
+      - name: Smoke-test the image
+        if: steps.check.outputs.exists != 'true'
+        run: |
+          docker pull "$IMG" >/dev/null
+          docker run --rm "$IMG" php -m > /tmp/php-modules.txt 2>&1
+          COUNT=$(grep -vc '^\[\|^$' /tmp/php-modules.txt)
+          echo "PHP ${{ matrix.php }}: $COUNT modules loaded"
+          cat /tmp/php-modules.txt
+          # Drift guard: a Containerfile edit that silently drops extensions
+          # trips here rather than in an operator's rebuild. 50 is the floor;
+          # additions push the count up and never trigger it.
+          if [ "$COUNT" -lt 50 ]; then
+            echo "::error::PHP ${{ matrix.php }} module count dropped to $COUNT (expected >=50)"
+            exit 1
+          fi
+          docker run --rm "$IMG" php -r 'exit(count(PDO::getAvailableDrivers()) >= 3 ? 0 : 1);'
+          docker run --rm "$IMG" composer --version >/dev/null
+        env:
+          IMG: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base:${{ steps.tag.outputs.tag }}-${{ matrix.arch.name }}
+
+      - name: Set up Go
+        if: steps.check.outputs.exists != 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # The image is the only thing that can falsify BundledExtensions: a name
+      # in the always-compiled core group is a claim about upstream's
+      # php:fpm-alpine that nothing in this repository can contradict. Compare
+      # the whole advertised set against `php -m`.
+      - name: Verify the image loads every advertised extension
+        if: steps.check.outputs.exists != 'true'
+        env:
+          SERVLO_PHP_MODULES: /tmp/php-modules.txt
+          SERVLO_PHP_VERSION: ${{ matrix.php }}
+        run: go test ./internal/podman -run TestImageReportsAdvertisedExtensions -v
+
+  manifest:
+    name: Manifest PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    needs: build
+    # Per version, and it runs even when a sibling cell failed: one arch or one
+    # version falling over must not skip manifest creation for the rest. The
+    # un-suffixed tag is the only one the client asks for, so without this job
+    # every install falls back to building from source.
+    if: ${{ !cancelled() }}
+    permissions:
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"]
+
+    env:
+      CONTAINERFILE: internal/podman/quadlets/servlo-php-fpm.Containerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute the image tag and the dotless version
+        id: tag
+        run: |
+          python3 - <<'EOF'
+          import hashlib, os
+          with open(os.environ['CONTAINERFILE']) as f:
+              content = f.read()
+          for ph in ('{{.CustomExtensions}}', '{{.CustomExtensionsRuntime}}', '{{.CustomPackages}}'):
+              content = content.replace(ph, '')
+          h = hashlib.sha256(content.encode()).hexdigest()[:12]
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'tag={h}\n')
+          EOF
+          echo "php_short=$(echo '${{ matrix.php }}' | tr -d '.')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Both architectures published
+        run: |
+          MISSING=""
+          for a in amd64 arm64; do
+            docker manifest inspect "${BASE}:${TAG}-${a}" > /dev/null 2>&1 || MISSING="$MISSING ${a}"
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::PHP ${{ matrix.php }} did not publish:$MISSING, so no manifest is created and this version builds from source on install until it is rebuilt"
+            exit 1
+          fi
+        env:
+          BASE: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base
+          TAG: ${{ steps.tag.outputs.tag }}
+
+      - name: Is the manifest already there
+        id: check
+        run: |
+          if [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          elif docker manifest inspect "${BASE}:${TAG}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          BASE: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base
+          TAG: ${{ steps.tag.outputs.tag }}
+
+      - name: Create the multi-arch manifest
+        if: steps.check.outputs.exists != 'true'
+        run: |
+          docker buildx imagetools create \
+            --tag "${BASE}:${TAG}" \
+            "${BASE}:${TAG}-amd64" \
+            "${BASE}:${TAG}-arm64"
+        env:
+          BASE: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base
+          TAG: ${{ steps.tag.outputs.tag }}
