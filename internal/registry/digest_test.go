@@ -35,7 +35,7 @@ func TestManifestDigest_GHCRTokenFlow(t *testing.T) {
 	withStubHTTP(t, srv)
 	withTempCacheDir(t)
 
-	got, err := ManifestDigest("ghcr.io/lerd-env/lerd-php84-fpm-base:abc123")
+	got, err := ManifestDigest("ghcr.io/realrashid/servlo-php84-fpm-base:abc123")
 	if err != nil {
 		t.Fatalf("ManifestDigest: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestManifestDigest_GHCRTokenFlow(t *testing.T) {
 	}
 
 	// A second call is served from the on-disk cache, so the registry is hit once.
-	if _, err := ManifestDigest("ghcr.io/lerd-env/lerd-php84-fpm-base:abc123"); err != nil {
+	if _, err := ManifestDigest("ghcr.io/realrashid/servlo-php84-fpm-base:abc123"); err != nil {
 		t.Fatalf("second ManifestDigest: %v", err)
 	}
 	if manifestHits != 1 {
@@ -52,10 +52,10 @@ func TestManifestDigest_GHCRTokenFlow(t *testing.T) {
 	}
 
 	// Dropping the cache entry forces a fresh fetch.
-	if err := InvalidateManifestDigest("ghcr.io/lerd-env/lerd-php84-fpm-base:abc123"); err != nil {
+	if err := InvalidateManifestDigest("ghcr.io/realrashid/servlo-php84-fpm-base:abc123"); err != nil {
 		t.Fatalf("InvalidateManifestDigest: %v", err)
 	}
-	if _, err := ManifestDigest("ghcr.io/lerd-env/lerd-php84-fpm-base:abc123"); err != nil {
+	if _, err := ManifestDigest("ghcr.io/realrashid/servlo-php84-fpm-base:abc123"); err != nil {
 		t.Fatalf("third ManifestDigest: %v", err)
 	}
 	if manifestHits != 2 {
@@ -77,7 +77,7 @@ func TestManifestDigest_NotFound(t *testing.T) {
 	withStubHTTP(t, srv)
 	withTempCacheDir(t)
 
-	if _, err := ManifestDigest("ghcr.io/lerd-env/lerd-php84-fpm-base:gone"); err == nil {
+	if _, err := ManifestDigest("ghcr.io/realrashid/servlo-php84-fpm-base:gone"); err == nil {
 		t.Fatal("expected an error for a missing tag")
 	}
 }
@@ -96,7 +96,7 @@ func TestManifestDigest_MissingHeader(t *testing.T) {
 	withStubHTTP(t, srv)
 	withTempCacheDir(t)
 
-	if _, err := ManifestDigest("ghcr.io/lerd-env/lerd-php84-fpm-base:abc123"); err == nil {
+	if _, err := ManifestDigest("ghcr.io/realrashid/servlo-php84-fpm-base:abc123"); err == nil {
 		t.Fatal("expected an error when the registry omits Docker-Content-Digest")
 	}
 }
@@ -118,7 +118,7 @@ func TestManifestDigest_FailureCachedAsMiss(t *testing.T) {
 	withTempCacheDir(t)
 
 	for range 3 {
-		if _, err := ManifestDigest("ghcr.io/lerd-env/lerd-php84-fpm-base:abc123"); err == nil {
+		if _, err := ManifestDigest("ghcr.io/realrashid/servlo-php84-fpm-base:abc123"); err == nil {
 			t.Fatal("expected an error from a 500")
 		}
 	}

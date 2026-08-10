@@ -13,7 +13,7 @@ import (
 )
 
 func TestBasePullArgs(t *testing.T) {
-	ref := "ghcr.io/lerd-env/lerd-php85-fpm-base:abc123def456"
+	ref := "ghcr.io/realrashid/servlo-php85-fpm-base:abc123def456"
 
 	args := basePullArgs(ref, "/tmp/auth.json")
 	if args[0] != "pull" {
@@ -40,14 +40,14 @@ func TestBasePullArgs(t *testing.T) {
 }
 
 // TestBaseImagePullResolvesFromRegistry guards the FPM base-image pull: as long
-// as the published ref (ghcr.io/lerd-env) is pullable, it must return that ref
+// as the published ref (ghcr.io/realrashid) is pullable, it must return that ref
 // rather than collapsing to a slow full local build.
 func TestBaseImagePullResolvesFromRegistry(t *testing.T) {
 	prevExec := execCommand
 	t.Cleanup(func() { execCommand = prevExec })
 	execCommand = func(name string, args ...string) *exec.Cmd {
 		ref := args[len(args)-1]
-		if strings.Contains(ref, "ghcr.io/lerd-env/") {
+		if strings.Contains(ref, "ghcr.io/realrashid/") {
 			return fakeExec("", "", 0)(name, args...)
 		}
 		return fakeExec("", "Error: manifest unknown", 1)(name, args...)
@@ -58,10 +58,10 @@ func TestBaseImagePullResolvesFromRegistry(t *testing.T) {
 	if got == "" {
 		t.Fatalf("pull returned empty (would force a full local build); log:\n%s", buf.String())
 	}
-	if !strings.Contains(got, "ghcr.io/lerd-env/") {
-		t.Errorf("pulled %q, want a ref under ghcr.io/lerd-env/", got)
+	if !strings.Contains(got, "ghcr.io/realrashid/") {
+		t.Errorf("pulled %q, want a ref under ghcr.io/realrashid/", got)
 	}
-	if !strings.Contains(got, "lerd-php85-fpm-base") {
+	if !strings.Contains(got, "servlo-php85-fpm-base") {
 		t.Errorf("pulled %q, not the php 8.5 base image", got)
 	}
 }

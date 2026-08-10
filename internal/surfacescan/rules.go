@@ -264,23 +264,11 @@ func Rules() []Rule {
 			// LERD_POSTGRES_HOSTS survived it in the pgadmin definition, where
 			// it quietly broke that preset's family discovery.
 			Patterns: []string{`(?i)\blerd\b`},
-			// Two things are excused and nothing else is. The specs describe
-			// the fork and carry its one permitted statement of it (README),
-			// and the files below spell the GHCR namespace the prebuilt PHP
-			// base images are published under, which is a live dependency
-			// rather than a missed rename (PRD 0). When those images move to
-			// an owned namespace, every entry after the specs comes out and
-			// the rule needs no other change.
-			Allow: append(append([]string{}, specs...),
-				"internal/origin/origin.go",
-				"internal/origin/origin_test.go",
-				"internal/podman/build.go",
-				"internal/podman/build_test.go",
-				"internal/podman/image_extensions_test.go",
-				"internal/registry/digest_test.go",
-				"internal/cleanup/cleanup.go",
-				"internal/cleanup/cleanup_test.go",
-			),
+			// One thing is excused: the documents that describe the fork, which
+			// carry its single permitted statement of it in README.md. The
+			// prebuilt PHP base images were the other exemption and are not
+			// any more, now that they publish under Servlo's own namespace.
+			Allow: specs,
 		},
 		{
 			Feature: "launchd and Homebrew residue", Story: "S0.2", Enforced: true,

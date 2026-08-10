@@ -23,7 +23,7 @@ Concrete identity strings, used consistently everywhere:
 | Panel service | `servlo-panel` |
 | Watcher service | `servlo-watcher` |
 | Repository | `realrashid/servlo`, private, single operator |
-| Go module path | `github.com/realrashid/servlo` (currently `github.com/geodro/lerd`; changed in S0.1) |
+| Go module path | `github.com/realrashid/servlo` |
 | Stores | `stores/frameworks/`, `stores/services/`, `stores/apps/` inside this repository |
 
 Everything above is settled and safe to write into code.
@@ -32,13 +32,13 @@ Everything above is settled and safe to write into code.
 
 The upstream MIT copyright notice is retained in `LICENSE`; the README states plainly that Servlo is a fork of Lerd and links upstream.
 
-### Inherited from upstream, deliberately not yet replaced
+### Inherited from upstream, and now replaced
 
-Two upstream dependencies survive the fork on purpose, and both are tracked as debt rather than architecture.
+Both dependencies that survived the fork are gone.
 
-The PHP container images come from `lerd-env/lerd-php` on GHCR, referenced from ten places in Go. They are public and MIT, Servlo consumes them unchanged through Phases 0 and 1, and they are mirrored into an owned namespace before v1 ships.
+The stores moved first, at S0.8: the definitions live in this repository under `stores/`, are embedded into the binary, and are fetched from this repository at runtime. While the repository is private that fetch answers 404 and the embedded copy is what runs, which is the documented fallback rather than a failure.
 
-The framework and service stores are still fetched from the public `lerd-env/frameworks` and `lerd-env/services`. Servlo's own stores are authored in this repository under `stores/`, but a private repository cannot serve `raw.githubusercontent.com` fetches to an installed binary without a token, so the runtime fetch cannot move to them until either a public store mirror exists or this repository becomes public. S0.8 owns that decision.
+The prebuilt PHP-FPM base images moved second. They publish to `ghcr.io/<owner>/servlo-php<nn>-fpm-base`, where the owner is derived from the repository so an organisation move needs no second edit, and `.github/workflows/base-images.yml` builds them per PHP version and architecture. They were never a hard dependency: the Containerfile builds from the official `php:<version>-fpm-alpine`, and the prebuilt image is a shortcut past compiling every extension that the client already falls back from when a pull misses. Until the workflow has published a tag, every install takes that fallback and compiles on the droplet.
 
 ---
 
