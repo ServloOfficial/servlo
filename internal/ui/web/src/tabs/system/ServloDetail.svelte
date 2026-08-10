@@ -68,7 +68,7 @@
 <div class="flex-1 overflow-y-auto">
   <div class="flex flex-wrap items-center justify-between gap-y-2 p-3 border-b border-gray-100 dark:border-servlo-border">
     <span class="font-semibold text-gray-900 dark:text-white text-base">{m.system_servlo()}</span>
-    <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 font-mono">v{$version.current}</span>
+    <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 font-mono">v{$version.current}<span class="ml-1.5 text-[10px] uppercase tracking-wide text-amber-600 dark:text-amber-500">{m.common_beta()}</span></span>
   </div>
 
   <div class="p-3 space-y-3">

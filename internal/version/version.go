@@ -14,10 +14,12 @@ import "fmt"
 // 1.31.0 would claim thirty-one minor releases of Servlo that never happened,
 // and the update checker compares against it.
 //
-// 0.y.z already means anything may change. The -beta.1 says so out loud, and
-// sorts before 0.1.0, so the first stable release is a clean v0.1.0.
+// 0.y.z already means anything may change, which is the whole statement. No
+// prerelease tag: "beta" is a thing to tell a person, and the panel says it in
+// words, whereas a -beta suffix in the version string is a thing every tag
+// comparison and package manager has to parse.
 var (
-	Version = "0.1.0-beta.1"
+	Version = "0.1.0"
 	Commit  = "none"
 	Date    = "unknown"
 )
