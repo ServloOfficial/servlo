@@ -22,6 +22,12 @@ const demoOverrides = {
 export default defineConfig({
   root: r('demo'),
   base: '/demo/',
+  // The panel's static assets, served here too. Rooting at demo/ means Vite
+  // would otherwise look for demo/public and find nothing, so the logo and the
+  // manifest 404 in the demo while working in the real build. That is not a
+  // cosmetic difference: the screenshot pass runs against this harness, so an
+  // asset missing here is an asset nobody can see is missing.
+  publicDir: r('public'),
   plugins: [demoOverrides, svelte({ preprocess: vitePreprocess() })],
   css: { postcss: { plugins: [tailwindcss()] } },
   resolve: {

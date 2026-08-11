@@ -1,0 +1,12 @@
+{
+  "name": "Servlo",
+  "short_name": "Servlo",
+  "description": "Production PHP server panel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#1E293B",
+  "icons": [
+    { "src": "/icons/icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" }
+  ]
+}
