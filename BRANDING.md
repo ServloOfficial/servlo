@@ -1,8 +1,8 @@
 # BRANDING.md — Servlo's visual identity
 
 Servlo has never had one. It inherited the upstream project's, the rename swept
-the strings and left the pixels, and the pixels are the part people see. This is the brief for
-fixing that, plus the prompts to generate the logo.
+the strings and left the pixels, and the pixels are the part people see. This
+records what was inherited, what replaced it, and why.
 
 ## What was actually inherited
 
@@ -29,107 +29,63 @@ but that red already means failure and cannot also mean Servlo.
 `/icons/icon.svg` and `/manifest.webmanifest` both failed to load and the rail
 rendered a broken-image glyph. Fixed, with an interim mark, alongside this file.
 
-## The interim mark
+## The mark
 
-`internal/ui/web/public/icons/icon.svg`: three stacked rounded bars on a slate
-square. A rack, which is what the product manages. Geometry only, no embedded
-font, under 1KB.
+**Stacked layers.** Three sheared bars stepping right to left, so the silhouette
+reads as an S without anyone drawing a letter. Chosen from six concepts explored
+with an image model, then redrawn here as geometry.
 
-It is a placeholder and should read as one. It exists so the panel is not broken
-while you decide, and because a neutral slate is a more honest holding position
-than a competitor's red.
+`internal/ui/web/public/icons/icon.svg` and `docs/public/assets/logo.svg`, one
+shape in both. **284 bytes**, against the 22,018 the letter L cost by embedding
+a whole font to draw itself.
 
-## Palette
+Three decisions inside it worth not undoing:
 
-Pick one direction. Every one of these avoids the three status colours the panel
-already spends — red for failure, amber for warning, emerald for healthy — which
-is the constraint that rules out most obvious choices.
+**The middle bar is wider.** Equal bars flatten into a hamburger menu. The step
+in and out is the whole S.
 
-| Direction | Primary | Why | Against |
-|---|---|---|---|
-| **Slate + cyan** (interim leans here) | `#0891B2` on `#1E293B` | Reads as infrastructure without shouting. Cyan is far from all three status colours. | Cyan is common in devops tooling |
-| **Deep violet** | `#6D28D9` | Distinct in the hosting space, which is overwhelmingly blue. Strong at 16px. | Close to several PaaS brands |
-| **Ink + warm sand** | `#0F172A` with `#D97706` accent | Calm and unusual; the accent carries the brand and the ink carries the UI. | Sand is near the amber warning colour, needs care |
+**No tile.** A bare mark sits correctly on the light rail and the dark one; a
+tile has to pick a side, and then needs a second asset for the other. The
+reference sheet used a tile for the app icon and bare in the nav, which is two
+files to keep in step for no gain.
 
-My recommendation is **slate + cyan**: the panel is already a dark slate surface,
-so it needs the least reworking, and cyan is the furthest from anything the
-status colours use. But this is a judgement call about how you want the product
-to feel, and you should look at all three rather than take my word.
+**Geometry, no font.** Three polygons. Nothing to embed, nothing to fall back
+to, identical everywhere.
 
-Whatever you pick, it is four values in
-`internal/ui/web/src/app.css` (`--color-servlo-red` and friends, which should be
-renamed to `--color-servlo-accent` at the same time, because the token being
-called *red* is how the brand ended up meaning failure), plus `theme-color` in
-`index.html` and the manifest.
+## Colour
 
-## The logo brief
+**`#FF2D20`, kept.** The project owner's call, made with the constraint known.
 
-Constraints, in the order they matter:
+The constraint, recorded once so nobody rediscovers it as a surprise: this is
+Laravel's brand red exactly, and Servlo competes in the Laravel ecosystem
+against a Laravel product. Someone will eventually notice. Shifting it a few
+percent would make it Servlo's own and cost one token change in
+`internal/ui/web/src/app.css`, since every other red in the UI derives from
+`--color-servlo-red`. That option stays open and cheap; it is not being taken
+now.
 
-1. **Legible at 16px.** It is a favicon and a 28px rail icon far more often than
-   it is a hero image. Thin lines and fine detail disappear.
-2. **Works in one colour.** It will be stamped on a terminal, a README badge and
-   a monochrome favicon.
-3. **Reads on `#0d0d0d` and on white.** The panel ships both themes.
-4. **No gradients, no bevels, no glow.** They fall apart when scaled down and
-   date badly.
-5. **Not a cloud, not a gear, not a generic hexagon.** Every hosting product has
-   one and none of them is memorable.
+What keeping it also buys: the accent appears in **224 places** across the panel
+— links, active tabs, primary buttons, badges — so none of them move.
 
-Concept directions worth exploring: stacked units suggesting a rack or layers;
-an abstract S built from two or three geometric strokes; a container/box motif
-that hints at Podman without being a whale; a monogram where the S doubles as a
-signal or a path.
+### One thing still worth fixing, separately from the brand
 
-## Prompts
-
-Be realistic about what image models are for here. They are good at exploring a
-direction and bad at clean vector logos, and they cannot spell — an "S" will
-come out malformed more often than not. Use these to find a direction you like,
-then send me the one you want and I will redraw it as a proper SVG. Do not ship
-a raster from any of them.
-
-**Prompt 1 — abstract mark exploration**
-
-> Design a minimalist app icon for "Servlo", a self-hosted control panel for
-> managing production web servers. The mark is abstract and geometric, suggesting
-> stacked server units or layered infrastructure. Flat vector style, solid
-> shapes, no gradients, no shadows, no 3D. Two colours only: a deep slate
-> background and a single bright accent. Centred on a rounded square. Must stay
-> readable when shrunk to 16 pixels. Show 6 distinct variations on a plain grey
-> background. No text, no lettering, no words anywhere in the image.
-
-**Prompt 2 — monogram**
-
-> Design a geometric letter S monogram for a developer tool called Servlo. The S
-> is constructed from two or three thick straight or angular strokes, like a
-> logotype cut from paper, not handwriting and not a script font. Flat vector,
-> single accent colour on a dark slate rounded square, no gradients, no outlines,
-> no shadows. Bold enough to read at 16 pixels. Show 6 variations. The only
-> letterform in the image is the S itself.
-
-**Prompt 3 — the honest one, run it as a conversation not an image**
-
-Paste this into ChatGPT as text, without asking for a picture:
-
-> I need a logo concept for "Servlo", a free open-source control panel for
-> running PHP sites on a single Ubuntu server. It competes with cPanel, Laravel
-> Forge and Ploi. It is self-hosted, deliberately plain, and the feeling I want
-> is calm reliability, the thing you are glad to open at 3am, not a flashy
-> startup. It must not look framework-specific, because it runs WordPress,
-> Laravel, Symfony, Joomla and Grav equally. Constraints: legible at 16px, works
-> in one colour, works on both black and white backgrounds, no gradients, and
-> not a cloud or a gear. Give me 5 concepts described in words, each with the
-> idea behind it and how it would be constructed geometrically. Do not generate
-> images yet.
-
-That third one usually beats both image prompts, because the useful output at
-this stage is an idea you can have drawn properly, not a picture you cannot
-edit.
+Red is the accent *and* the failure colour. Mostly that is fine: chrome can be
+red without meaning anything. The exception is the **Autostart toggle, which is
+red when it is on**. On/off has a colour convention older than this product, and
+a switch that goes red to mean *enabled* is backwards in a panel whose job is
+telling you what broke. That is a component fix, not a palette one — the toggle
+should use emerald for on, and leave red to the brand and to errors.
 
 ## When you have picked one
 
-Send me the concept and I will produce: the SVG mark, the panel icon, the
-favicon, the docs logo, a wordmark for the README, and the palette wired through
-`app.css`, `index.html` and the manifest, with a screenshot of the panel in both
-themes before I call it done.
+## Still to do
+
+The mark, the panel icon, the favicon, the docs logo and the manifest are done
+and verified in both themes. Outstanding:
+
+- a **wordmark** for the README and the docs header, pairing the mark with
+  "Servlo" set properly rather than in whatever the page inherits
+- the **Autostart toggle** colour, above
+- `--color-servlo-red` is a poor name for a token that means *accent*, and
+  renaming it is how the brand stops accidentally meaning failure in the next
+  person's head. 224 call sites, mechanical, worth doing before more accumulate.

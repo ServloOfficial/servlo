@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Servlo">
-  <!-- Interim mark: three stacked units, a rack, which is what the product
-       manages. Geometry only, no embedded font, so it stays under 1KB and
-       renders the same everywhere. Read BRANDING.md before treating any of
-       this as final; the colour is one value here and one token in app.css. -->
-  <rect width="100" height="100" rx="22" fill="#1E293B"/>
-  <rect x="26" y="27" width="48" height="13" rx="6.5" fill="#FFFFFF"/>
-  <rect x="26" y="43.5" width="48" height="13" rx="6.5" fill="#FFFFFF" opacity="0.72"/>
-  <rect x="26" y="60" width="48" height="13" rx="6.5" fill="#FFFFFF" opacity="0.44"/>
+  <!-- Three sheared layers, stepping right to left, so the stack reads as an S
+       without drawing a letter. The middle bar is wider on purpose: equal bars
+       flatten into a hamburger, and the step is what carries the S.
+       No tile: a bare mark sits correctly on the light rail and the dark one,
+       where a tile would have to pick a side. Geometry only, no font. -->
+  <polygon points="40,20 86,20 74,34 28,34" fill="#FF2D20"/>
+  <polygon points="27,43 84,43 72,57 15,57" fill="#FF2D20"/>
+  <polygon points="26,66 72,66 60,80 14,80" fill="#FF2D20"/>
 </svg>
