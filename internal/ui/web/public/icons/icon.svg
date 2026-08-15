@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Servlo">
+  <!-- Three sheared layers, stepping right to left, so the stack reads as an S
+       without drawing a letter. The middle bar is wider on purpose: equal bars
+       flatten into a hamburger, and the step is what carries the S.
+       No tile: a bare mark sits correctly on the light rail and the dark one,
+       where a tile would have to pick a side. Geometry only, no font. -->
+  <polygon points="40,20 86,20 74,34 28,34" fill="#FF2D20"/>
+  <polygon points="27,43 84,43 72,57 15,57" fill="#FF2D20"/>
+  <polygon points="26,66 72,66 60,80 14,80" fill="#FF2D20"/>
+</svg>

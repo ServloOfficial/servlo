@@ -4,6 +4,8 @@
   import { m } from '../paraglide/messages.js';
   import { tooltip } from '$lib/tooltip';
 
+  const iconSrc = import.meta.env.BASE_URL + 'icons/icon.svg';
+
   const label = $derived(
     $version.hasUpdate ? m.system_servlo_updateAvailable() : m.nav_dashboard()
   );
@@ -15,7 +17,7 @@
   use:tooltip={{ label, placement: 'right' }}
   onclick={() => goToTab('dashboard')}
 >
-  <img src="/icons/icon.svg" class="w-7 h-7 rounded-lg" alt="Servlo" />
+  <img src={iconSrc} class="w-7 h-7 rounded-lg" alt="Servlo" />
   {#if $version.hasUpdate}
     <span
       class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-400 ring-2 ring-white dark:ring-servlo-card"

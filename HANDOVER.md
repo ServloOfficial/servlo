@@ -98,11 +98,12 @@ and the workflow both compute it the same way. Change the Containerfile and the
 tag changes, which is the point: a client only ever pulls an image built from
 the recipe its own binary carries. Today's tag is `0db4a0b5cdaa`.
 
-**If you make a GitHub organisation later**, change `mainRepo` in
-`internal/origin/origin.go` and nothing else. Releases, the installer, the three
-stores, the changelog and the image namespace all derive from it. Then republish
-the images under the new owner, or leave the old ones and let installs build
-from source until you do.
+**If you make a GitHub organisation later**, every runtime URL follows one
+line: `mainRepo` in `internal/origin/origin.go` carries the release feed, the
+installer, all three stores, the changelog and this image namespace. The Go
+module path is a separate thing and a separate sweep, so the move as a whole is
+not one line. `MIGRATION.md` has the full plan and the ordering that makes it
+cheap.
 
 ---
 
@@ -174,7 +175,11 @@ is rebuilt. Going public switches the update path on with no code change.
 chip beside it. `CHANGELOG.md` has a Servlo-starts-here entry with nothing under
 it. Tagging `v0.1.0` runs `release.yml`, which needs Actions.
 
-**The organisation.** Covered in §2. One line, whenever you want it.
+**The organisation, and going public.** Both are planned in `MIGRATION.md`,
+and they belong together: going public is what switches the store update path on
+and what gives this repository runners again, since GitHub provides those free
+to public repositories. Doing it before the first release is what keeps it
+cheap.
 
 ---
 
