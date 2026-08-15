@@ -76,8 +76,6 @@ a switch that goes red to mean *enabled* is backwards in a panel whose job is
 telling you what broke. That is a component fix, not a palette one — the toggle
 should use emerald for on, and leave red to the brand and to errors.
 
-## When you have picked one
-
 ## Still to do
 
 The mark, the panel icon, the favicon, the docs logo and the manifest are done
