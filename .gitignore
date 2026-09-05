@@ -8,6 +8,10 @@ servlo-frameworks/
 servlo-services/
 .claude/*
 !.claude/skills/
+# Committed on purpose: CLAUDE.md section 6 forbids agent attribution trailers,
+# and a setting that travels with the repository enforces that for everyone
+# rather than leaving it as a rule each person has to remember.
+!.claude/settings.json
 site/
 docs/node_modules/
 docs/.vitepress/dist/
