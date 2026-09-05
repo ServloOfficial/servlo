@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/authz"
 )
 
 // The websocket pushes a snapshot of every site to every connection. Gating

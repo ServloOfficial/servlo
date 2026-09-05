@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // siteTree lays down a small site: real content, a regenerable directory the

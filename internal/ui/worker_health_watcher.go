@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/eventbus"
-	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/eventbus"
+	"github.com/ServloOfficial/servlo/internal/workerheal"
 )
 
 // healthWatchInterval is how often the watcher re-runs the detector while a

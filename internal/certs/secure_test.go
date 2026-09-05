@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // ReissueCert must hand the issuer the site's primary domain and every alias,

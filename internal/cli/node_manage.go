@@ -9,11 +9,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
-	nodeDet "github.com/realrashid/servlo/internal/node"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/services"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	nodeDet "github.com/ServloOfficial/servlo/internal/node"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/services"
 	"github.com/spf13/cobra"
 )
 

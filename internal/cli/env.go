@@ -16,14 +16,14 @@ import (
 	neturl "net/url"
 
 	"charm.land/huh/v2"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/envfile"
-	"github.com/realrashid/servlo/internal/feedback"
-	phpDet "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/serviceops"
-	"github.com/realrashid/servlo/internal/sitetpl"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/sitetpl"
 	"github.com/spf13/cobra"
 )
 

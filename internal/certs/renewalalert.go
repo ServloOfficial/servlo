@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/realrashid/servlo/internal/alerts"
+	"github.com/ServloOfficial/servlo/internal/alerts"
 )
 
 // The loud half of "renewal failure is loud" (S3.5).

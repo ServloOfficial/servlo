@@ -3,7 +3,7 @@ package watcher
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/ServloOfficial/servlo/internal/reqstats"
 )
 
 func snapWithSlow(routes ...string) []reqstats.SiteStats {

@@ -9,10 +9,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/realrashid/servlo/internal/authz"
-	"github.com/realrashid/servlo/internal/eventbus"
-	"github.com/realrashid/servlo/internal/podman"
-	servloSystemd "github.com/realrashid/servlo/internal/systemd"
+	"github.com/ServloOfficial/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/eventbus"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 )
 
 var (

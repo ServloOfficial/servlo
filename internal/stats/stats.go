@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // ContainerStat is one row of resource usage for a single servlo-prefixed

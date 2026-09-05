@@ -10,9 +10,9 @@
 //	frameworks/<name>/<ver>.yaml   services/<name>.yaml     apps/<name>.yaml
 //
 // Embedding is what makes the store reachable at all. An installed binary
-// fetches definitions from raw.githubusercontent.com, which answers 404 for a
-// private repository, so a fetch cannot be the only way in without tying a fresh
-// install to the repository's visibility. The embedded copy is the floor: every
+// fetches definitions from raw.githubusercontent.com, and making that the only
+// way in would tie a fresh install to the network answering and to the
+// repository staying public. The embedded copy is the floor: every
 // binary already holds every definition it shipped with, and the network fetch
 // is how a definition published since that build reaches an existing install.
 package stores

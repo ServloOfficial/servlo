@@ -1,6 +1,6 @@
 package siteops
 
-import "github.com/realrashid/servlo/internal/config"
+import "github.com/ServloOfficial/servlo/internal/config"
 
 // BackupExcludes are the paths a backup of this site leaves out.
 //

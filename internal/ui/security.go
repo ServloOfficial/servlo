@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/authz"
-	"github.com/realrashid/servlo/internal/serverguard"
-	"github.com/realrashid/servlo/internal/sshkeys"
+	"github.com/ServloOfficial/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/serverguard"
+	"github.com/ServloOfficial/servlo/internal/sshkeys"
 )
 
 // The security panel surface.

@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The first link of a project is exactly when .env.before_servlo is written, so a

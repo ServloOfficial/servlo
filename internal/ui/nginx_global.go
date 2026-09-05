@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/cfgedit"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/nginx"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/cfgedit"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
 // nginxQuadletRestartTimeout bounds the readiness wait after a quadlet-changing

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // Timeout bounds the whole SMTP exchange. A provider that accepts the

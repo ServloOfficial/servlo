@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // RefreshIndex must persist the fetched index to config.StoreIndexFile() so the

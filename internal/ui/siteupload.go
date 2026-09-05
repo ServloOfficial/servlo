@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/cli"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/linker"
-	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/cli"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/linker"
+	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
 // Adding a site from an uploaded archive.

@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 	"github.com/pmezard/go-difflib/difflib"
-	"github.com/realrashid/servlo/internal/envfile"
-	"github.com/realrashid/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 

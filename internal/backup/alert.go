@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/alerts"
+	"github.com/ServloOfficial/servlo/internal/alerts"
 )
 
 // Alerting a backup, and why it is here rather than in the caller.

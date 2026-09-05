@@ -13,15 +13,15 @@ Tested and known-good: Ubuntu, Fedora, Arch, Debian, Mint, Pop!_OS, openSUSE, Ca
 ::: code-group
 
 ```bash [curl]
-curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash
 ```
 
 ```bash [wget]
-wget -qO- https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash
 ```
 
 ```bash [From source]
-git clone https://github.com/realrashid/servlo
+git clone https://github.com/ServloOfficial/servlo
 cd servlo
 make build
 make install            # installs to ~/.local/bin/servlo
@@ -104,11 +104,11 @@ You can also re-run the installer:
 ::: code-group
 
 ```bash [curl]
-curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash -s -- --update
+curl -fsSL https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash -s -- --update
 ```
 
 ```bash [wget]
-wget -qO- https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash -s -- --update
+wget -qO- https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash -s -- --update
 ```
 
 :::

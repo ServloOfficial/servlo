@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // FrankenPHPContainerName returns the Podman container name for a site's

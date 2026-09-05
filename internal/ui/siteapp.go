@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/appinstall"
-	"github.com/realrashid/servlo/internal/appstore"
+	"github.com/ServloOfficial/servlo/internal/appinstall"
+	"github.com/ServloOfficial/servlo/internal/appstore"
 )
 
 // Adding a site by installing an application.

@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/deploy"
-	"github.com/realrashid/servlo/internal/webhook"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/deploy"
+	"github.com/ServloOfficial/servlo/internal/webhook"
 )
 
 // The one route on the panel that takes bytes from the internet with no

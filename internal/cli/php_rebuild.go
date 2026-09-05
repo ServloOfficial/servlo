@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
-	phpPkg "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
-	servloSystemd "github.com/realrashid/servlo/internal/systemd"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	phpPkg "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
 

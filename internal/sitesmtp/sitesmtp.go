@@ -17,10 +17,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	"github.com/realrashid/servlo/internal/mailsend"
-	"github.com/realrashid/servlo/internal/sitetpl"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/mailsend"
+	"github.com/ServloOfficial/servlo/internal/sitetpl"
 )
 
 // declared returns the KEY=VALUE lines the site's framework declares for mail,

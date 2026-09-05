@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/appstore"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/appstore"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
 )
 
 // sandbox isolates the registry so a test never reads or writes the machine's

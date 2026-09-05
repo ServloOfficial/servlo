@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/sftpaccess"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/sftpaccess"
 )
 
 const sftpTestKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB1ZQ9K1nQyR9m5D3VvJ8xO1XkS8pR3wHqM2vN0aB4cD alice@laptop"

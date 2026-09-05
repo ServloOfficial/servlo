@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/realrashid/servlo/internal/backup"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/version"
+	"github.com/ServloOfficial/servlo/internal/backup"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/version"
 )
 
 // Backing up the server's own state from the panel.

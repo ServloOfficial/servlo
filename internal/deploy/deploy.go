@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // writer is io.Writer, spelled inline so Options reads as a list of things the

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/siteinfo"
-	"github.com/realrashid/servlo/internal/stats"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/stats"
 )
 
 // TestDashboardGrid_RendersAllCards ensures every promised card title is

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // deployTwice moves the site forward one commit through a real deploy, so the

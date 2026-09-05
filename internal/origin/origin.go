@@ -12,14 +12,15 @@ import (
 	"strings"
 )
 
-// The repository is private today, so these endpoints 404 and every caller
-// falls back: the stores to the copy embedded in the binary, the tools manifest
-// to its embedded copy, the changelog to printing the release URL, the base
-// images to a local build. That is acceptable because Servlo has published no
-// releases yet, and it is still the right target — resolving Servlo's updates
+// The repository is public, so these endpoints answer and a definition
+// published since a binary was built reaches that install. Every caller still
+// falls back when a fetch fails: the stores to the copy embedded in the binary,
+// the tools manifest to its embedded copy, the changelog to printing the
+// release URL, the base images to a local build. Servlo has published no
+// releases yet, and this is still the right target: resolving Servlo's updates
 // against the upstream release feed would hand a different project's binaries
 // to a Servlo install.
-const mainRepo = "realrashid/servlo" // releases, installer, stores, tools manifest, changelog, images
+const mainRepo = "ServloOfficial/servlo" // releases, installer, stores, tools manifest, changelog, images
 
 // imageOwner is the GHCR namespace the prebuilt PHP-FPM base images are
 // published under, taken from mainRepo so the images follow the project rather
@@ -37,9 +38,8 @@ func ghcrNamespace(repo string) string {
 }
 
 // storeBase is where a store's definitions are fetched from: this repository,
-// under stores/. A private repository answers 404 there, which is why every
-// binary also embeds the stores (see package stores) and the client falls
-// through to that copy. The fetch is how a definition published since a build
+// under stores/. Every binary also embeds the stores (see package stores) and
+// the client falls through to that copy when the fetch does not answer. The fetch is how a definition published since a build
 // reaches an existing install; it is not how an install bootstraps.
 func storeBase(kind string) string {
 	return "https://raw.githubusercontent.com/" + mainRepo + "/main/stores/" + kind

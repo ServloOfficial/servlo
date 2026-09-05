@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	gitpkg "github.com/realrashid/servlo/internal/git"
+	gitpkg "github.com/ServloOfficial/servlo/internal/git"
 )
 
 // Going back a commit.

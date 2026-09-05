@@ -5,7 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // DeployExcludes are the paths a deploy of this site must not remove.

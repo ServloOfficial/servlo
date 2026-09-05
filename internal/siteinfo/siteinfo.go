@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	gitpkg "github.com/realrashid/servlo/internal/git"
-	nodePkg "github.com/realrashid/servlo/internal/node"
-	phpPkg "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	gitpkg "github.com/ServloOfficial/servlo/internal/git"
+	nodePkg "github.com/ServloOfficial/servlo/internal/node"
+	phpPkg "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // EnrichFlag controls which enrichment steps run during site loading.

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/serverbasics"
+	"github.com/ServloOfficial/servlo/internal/serverbasics"
 )
 
 // stubBootstrapSystem redirects the root actions runBootstrapSystem performs so

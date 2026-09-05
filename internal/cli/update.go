@@ -11,14 +11,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/download"
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/origin"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/services"
-	"github.com/realrashid/servlo/internal/store"
-	servloUpdate "github.com/realrashid/servlo/internal/update"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/download"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/origin"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/services"
+	"github.com/ServloOfficial/servlo/internal/store"
+	servloUpdate "github.com/ServloOfficial/servlo/internal/update"
 	"github.com/spf13/cobra"
 )
 

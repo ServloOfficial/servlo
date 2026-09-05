@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/origin"
-	"github.com/realrashid/servlo/internal/registry"
+	"github.com/ServloOfficial/servlo/internal/origin"
+	"github.com/ServloOfficial/servlo/internal/registry"
 )
 
 // fpmBaseDigestLabel records the registry digest of the prebuilt base an FPM

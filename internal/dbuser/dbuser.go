@@ -23,12 +23,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbcred"
-	"github.com/realrashid/servlo/internal/dbexec"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbcred"
+	"github.com/ServloOfficial/servlo/internal/dbexec"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
 )
 
 // siteUsersKind is the entity a database preset declares its per-site account

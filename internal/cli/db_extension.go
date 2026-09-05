@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 )
 

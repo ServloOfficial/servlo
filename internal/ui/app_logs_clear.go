@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/realrashid/servlo/internal/applog"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/applog"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // handleAppLogsClear deletes the matched application log files (the same files

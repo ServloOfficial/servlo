@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/realrashid/servlo/internal/power"
+	"github.com/ServloOfficial/servlo/internal/power"
 )
 
 // WatcherNeedsPolling reports whether a file-change watcher has to poll because

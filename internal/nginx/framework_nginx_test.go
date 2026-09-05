@@ -6,7 +6,7 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 func renderVhostForTest(t *testing.T, name string, data VhostData) string {

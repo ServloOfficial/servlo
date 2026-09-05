@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/push"
+	"github.com/ServloOfficial/servlo/internal/push"
 )
 
 // withFreshDataDir gives each ui-push test its own XDG_DATA_HOME so VAPID

@@ -1,4 +1,4 @@
-module github.com/realrashid/servlo
+module github.com/ServloOfficial/servlo
 
 go 1.25.8
 

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/dnsprovider"
+	"github.com/ServloOfficial/servlo/internal/dnsprovider"
 )
 
 // fakeProvider records what was published and withdrawn, so a test can show the

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/push"
+	"github.com/ServloOfficial/servlo/internal/push"
 )
 
 // handlePushVAPIDPublicKey returns the per-install VAPID public key for

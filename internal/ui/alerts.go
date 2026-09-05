@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/alerts"
-	"github.com/realrashid/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/alerts"
+	"github.com/ServloOfficial/servlo/internal/authz"
 )
 
 // The alerts panel surface.

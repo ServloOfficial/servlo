@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/presetfixtures"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/presetfixtures"
 )
 
 func init() { config.SetExtraPresetsForTest(presetfixtures.FS()) }

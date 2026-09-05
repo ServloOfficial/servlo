@@ -2,7 +2,7 @@
 
 Servlo uses **framework definitions** to describe how a PHP project type behaves: where the document root is, how to detect it automatically, which env file to use, and which background workers it supports.
 
-Laravel has a built-in definition. Other frameworks (Symfony, WordPress, Drupal, CakePHP, CodeIgniter, Statamic, Magento, Tempest, Joomla, Grav) can be installed from the [store in this repository](https://github.com/realrashid/servlo/tree/main/stores/frameworks) or defined manually.
+Laravel has a built-in definition. Other frameworks (Symfony, WordPress, Drupal, CakePHP, CodeIgniter, Statamic, Magento, Tempest, Joomla, Grav) can be installed from the [store in this repository](https://github.com/ServloOfficial/servlo/tree/main/stores/frameworks) or defined manually.
 
 ---
 
@@ -25,7 +25,7 @@ Laravel has a built-in definition. Other frameworks (Symfony, WordPress, Drupal,
 
 ## Framework store
 
-Servlo has a community-driven framework store backed by [`stores/frameworks/`](https://github.com/realrashid/servlo/tree/main/stores/frameworks). The store hosts definitions for popular PHP frameworks, versioned by major release.
+Servlo has a community-driven framework store backed by [`stores/frameworks/`](https://github.com/ServloOfficial/servlo/tree/main/stores/frameworks). The store hosts definitions for popular PHP frameworks, versioned by major release.
 
 ### Available frameworks
 
@@ -111,7 +111,7 @@ During `servlo link`, `servlo init`, or `servlo setup`, if no framework is detec
 
 ### Contributing to the store
 
-Submit a pull request to [`stores/frameworks/`](https://github.com/realrashid/servlo/tree/main/stores/frameworks) with a YAML file under `frameworks/<name>/<version>.yaml` and update `frameworks/index.json`.
+Submit a pull request to [`stores/frameworks/`](https://github.com/ServloOfficial/servlo/tree/main/stores/frameworks) with a YAML file under `frameworks/<name>/<version>.yaml` and update `frameworks/index.json`.
 
 ---
 

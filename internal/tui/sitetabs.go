@@ -10,8 +10,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 	zone "github.com/lrstanley/bubblezone/v2"
-	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // siteTab identifies which sub-view of Site detail is showing. Tabs let the

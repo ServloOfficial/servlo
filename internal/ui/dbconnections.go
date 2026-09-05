@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dnscheck"
-	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dnscheck"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
 )
 
 // Reaching a managed database and working out this server's own address are the

@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	"github.com/realrashid/servlo/internal/nginx"
-	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/nginx"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
 	"github.com/spf13/cobra"
 )
 

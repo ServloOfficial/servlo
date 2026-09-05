@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // fpmCustomSetHashLabel fingerprints the declared extension/package set an FPM

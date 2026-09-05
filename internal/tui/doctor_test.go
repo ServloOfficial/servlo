@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/sitedoctor"
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/sitedoctor"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
 func TestSiteDoctorContent_PromptsToRunWhenNoResult(t *testing.T) {

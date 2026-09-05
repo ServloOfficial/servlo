@@ -3,8 +3,8 @@ package serviceops
 import (
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
 )
 
 // Every database this install can reach, for an admin UI's server list.

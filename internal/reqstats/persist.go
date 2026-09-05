@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/realrashid/servlo/internal/atomicfile"
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 )
 
 // Save writes the current snapshot of every site to path as JSON, via a temp

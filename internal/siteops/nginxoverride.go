@@ -3,9 +3,9 @@ package siteops
 import (
 	"path/filepath"
 
-	"github.com/realrashid/servlo/internal/cfgedit"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/cfgedit"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/nginx"
 )
 
 // NginxTestFn / NginxReloadFn are indirections so tests can stub the

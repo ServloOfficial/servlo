@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/cli"
-	"github.com/realrashid/servlo/internal/tools"
+	"github.com/ServloOfficial/servlo/internal/cli"
+	"github.com/ServloOfficial/servlo/internal/tools"
 )
 
 // Seams so the handlers can be tested without a download or the network.

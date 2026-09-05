@@ -5,12 +5,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/realrashid/servlo/internal/certs"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/nginx"
-	nodeDet "github.com/realrashid/servlo/internal/node"
-	phpDet "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/certs"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/nginx"
+	nodeDet "github.com/ServloOfficial/servlo/internal/node"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // VersionResult holds the detected and suggested versions for a site.

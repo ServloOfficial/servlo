@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/siteimport"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/siteimport"
 	"github.com/spf13/cobra"
 )
 

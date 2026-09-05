@@ -22,13 +22,13 @@ Concrete identity strings, used consistently everywhere:
 | Data directory | `~/.local/share/servlo/` |
 | Panel service | `servlo-panel` |
 | Watcher service | `servlo-watcher` |
-| Repository | `realrashid/servlo`, private, single operator |
-| Go module path | `github.com/realrashid/servlo` |
+| Repository | `ServloOfficial/servlo`, public, single operator |
+| Go module path | `github.com/ServloOfficial/servlo` |
 | Stores | `stores/frameworks/`, `stores/services/`, `stores/apps/` inside this repository |
 
 Everything above is settled and safe to write into code.
 
-**Not settled, and not to be referenced anywhere until it exists.** The `servlo` GitHub organisation is unregistered, and so are `servlo.sh` and `servlo.com`. They remain the preferred destination, and if the organisation is registered later the module path and store locations move with it, but until then no constant, fetch URL, unit file, installer string or documentation page may name them. Write `realrashid/servlo` instead.
+**Not settled, and not to be referenced anywhere until it exists.** `servlo.sh` and `servlo.com` are unregistered. They remain the preferred home for the docs site and the installer URL, but until one of them is registered no constant, fetch URL, unit file, installer string or documentation page may name them. The organisation question is settled: the project lives at `ServloOfficial/servlo`, and the module path, the store locations and the image namespace all derive from it.
 
 The upstream MIT copyright notice is retained in `LICENSE`; the README states plainly that Servlo is a fork of Lerd and links upstream.
 
@@ -36,7 +36,7 @@ The upstream MIT copyright notice is retained in `LICENSE`; the README states pl
 
 Both dependencies that survived the fork are gone.
 
-The stores moved first, at S0.8: the definitions live in this repository under `stores/`, are embedded into the binary, and are fetched from this repository at runtime. While the repository is private that fetch answers 404 and the embedded copy is what runs, which is the documented fallback rather than a failure.
+The stores moved first, at S0.8: the definitions live in this repository under `stores/`, are embedded into the binary, and are fetched from this repository at runtime. The repository is public, so that fetch answers and a definition published since a build reaches an existing install. When it does not answer the embedded copy is what runs, which is the documented fallback rather than a failure.
 
 The prebuilt PHP-FPM base images moved second. They publish to `ghcr.io/<owner>/servlo-php<nn>-fpm-base`, where the owner is derived from the repository so an organisation move needs no second edit, and `.github/workflows/base-images.yml` builds them per PHP version and architecture. They were never a hard dependency: the Containerfile builds from the official `php:<version>-fpm-alpine`, and the prebuilt image is a shortcut past compiling every extension that the client already falls back from when a pull misses. Until the workflow has published a tag, every install takes that fallback and compiles on the droplet.
 

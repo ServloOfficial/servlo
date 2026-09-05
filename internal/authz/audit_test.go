@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
 )
 
 func auditedHandler(t *testing.T, guard *Guard, status int) http.Handler {

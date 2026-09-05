@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/push"
+	"github.com/ServloOfficial/servlo/internal/push"
 )
 
 var (

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/eventbus"
+	"github.com/ServloOfficial/servlo/internal/eventbus"
 )
 
 // publishAfter wraps a mutating HTTP handler so that every successful

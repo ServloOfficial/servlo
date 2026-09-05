@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/ServloOfficial/servlo/internal/workerheal"
 )
 
 // A unit whose checkout is gone can never start again, so pruning is the only

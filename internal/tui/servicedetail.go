@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
 )
 
 // presetSuggestions mirrors internal/ui/web/src/stores/presetSuggestions.ts:

@@ -11,10 +11,10 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
-	"github.com/realrashid/servlo/internal/auditlog"
-	"github.com/realrashid/servlo/internal/authz"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 )
 
 // NewUsersCmd returns the `servlo users` command group: who can sign in to the

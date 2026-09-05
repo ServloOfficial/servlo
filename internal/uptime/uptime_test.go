@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // serve stands a handler up where nginx would be, so a check runs through the

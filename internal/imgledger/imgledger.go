@@ -11,7 +11,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 var mu sync.Mutex

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // Fallback for podman rootless + pasta/netavark/slirp4netns when no other

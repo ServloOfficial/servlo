@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 )
 
 // warnFilteredDomains prints a single-line warning for each domain that

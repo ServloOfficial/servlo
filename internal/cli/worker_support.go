@@ -3,8 +3,8 @@ package cli
 import (
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/logcolor"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/logcolor"
 )
 
 // workerColorArgs returns the `podman exec` colour flags with a trailing space

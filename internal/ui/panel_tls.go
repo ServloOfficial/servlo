@@ -9,9 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/certs"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dnscheck"
+	"github.com/ServloOfficial/servlo/internal/certs"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dnscheck"
 )
 
 // The panel over TLS.

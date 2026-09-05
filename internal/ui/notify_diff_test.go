@@ -3,8 +3,8 @@ package ui
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/workerheal"
 )
 
 func uw(unit, site, worker, state string) workerheal.UnhealthyWorker {

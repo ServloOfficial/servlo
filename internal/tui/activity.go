@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
 // activityCap bounds the recent-activity ring so a long-running TUI doesn't

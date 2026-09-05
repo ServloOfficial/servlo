@@ -3,8 +3,8 @@ package siteops
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // PHPSettings is one site's PHP settings as the panel sends them. A struct

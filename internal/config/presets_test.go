@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 )
 
 func TestListPresets_IncludesShippedPresets(t *testing.T) {

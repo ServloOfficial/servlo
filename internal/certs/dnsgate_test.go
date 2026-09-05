@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dnscheck"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dnscheck"
 )
 
 // withDNSReport swaps the live check for a fixed answer, so the gate can be

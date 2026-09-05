@@ -3,8 +3,8 @@ package ui
 import (
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/sitedoctor"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/sitedoctor"
 )
 
 // doctorRoute handles the doctor subroutes for a site. It requires

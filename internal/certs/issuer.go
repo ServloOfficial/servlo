@@ -1,8 +1,8 @@
 package certs
 
 import (
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dnsprovider"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dnsprovider"
 )
 
 // Issuer produces a certificate and its key for a set of domains.

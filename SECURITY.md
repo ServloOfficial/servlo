@@ -7,7 +7,7 @@ not, and how to tell us when we got something wrong.
 ## Reporting a vulnerability
 
 Use GitHub's private vulnerability reporting on
-[realrashid/servlo](https://github.com/realrashid/servlo/security/advisories/new).
+[ServloOfficial/servlo](https://github.com/ServloOfficial/servlo/security/advisories/new).
 It reaches the maintainers without the report being public first, which is what
 you want if the finding is real.
 

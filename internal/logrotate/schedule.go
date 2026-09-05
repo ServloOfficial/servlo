@@ -3,8 +3,8 @@ package logrotate
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/services"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/services"
 )
 
 // The timer. One for the server rather than one per site: rotation is cheap,

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/serverguard"
+	"github.com/ServloOfficial/servlo/internal/serverguard"
 	"github.com/spf13/cobra"
 )
 

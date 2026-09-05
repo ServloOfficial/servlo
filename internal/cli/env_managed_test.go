@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbcred"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbcred"
 )
 
 func stubProvisionManaged(t *testing.T, password string, err error) *[]string {

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbdump"
-	"github.com/realrashid/servlo/internal/sitetpl"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbdump"
+	"github.com/ServloOfficial/servlo/internal/sitetpl"
 )
 
 // Copying live onto staging, and the one thing this file is really about:

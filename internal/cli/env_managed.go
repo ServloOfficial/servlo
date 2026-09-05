@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbcred"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbcred"
 )
 
 // Giving a site on a managed database something to connect with.

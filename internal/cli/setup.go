@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	"github.com/realrashid/servlo/internal/feedback"
-	nodeDet "github.com/realrashid/servlo/internal/node"
-	phpDet "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/sitetpl"
-	servloSystemd "github.com/realrashid/servlo/internal/systemd"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	nodeDet "github.com/ServloOfficial/servlo/internal/node"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/sitetpl"
+	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
 

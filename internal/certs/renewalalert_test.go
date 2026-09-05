@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/alerts"
+	"github.com/ServloOfficial/servlo/internal/alerts"
 )
 
 // captureAlerts swaps the raiser for one that records, and returns a function

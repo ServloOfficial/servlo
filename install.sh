@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Servlo installer — https://github.com/realrashid/servlo
+# Servlo installer — https://github.com/ServloOfficial/servlo
 # Usage:
-#   Install:   curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash
-#      or:     wget -qO- https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash
+#   Install:   curl -fsSL https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash
+#      or:     wget -qO- https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash
 #   Update:    servlo-installer --update
 #   Uninstall: servlo-installer --uninstall
 
@@ -11,7 +11,7 @@ set -euo pipefail
 # ── Constants ────────────────────────────────────────────────────────────────
 # REPO is the GitHub owner/name release assets are fetched from; override with
 # SERVLO_REPO so a future org move needs no installer change.
-REPO="${SERVLO_REPO:-realrashid/servlo}"
+REPO="${SERVLO_REPO:-ServloOfficial/servlo}"
 BINARY="servlo"
 INSTALL_DIR="${SERVLO_INSTALL_DIR:-$HOME/.local/bin}"
 SERVLO_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/servlo"
@@ -677,7 +677,7 @@ main() {
   echo "  ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝ ╚═════╝ "
   echo -e "${RESET}"
   echo "  Servlo — Podman-powered PHP server panel for Ubuntu 24.04 LTS"
-  echo "  https://github.com/realrashid/servlo"
+  echo "  https://github.com/ServloOfficial/servlo"
   echo ""
 
   case "${1:-install}" in

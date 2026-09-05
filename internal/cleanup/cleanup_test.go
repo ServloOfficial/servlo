@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/imgledger"
+	"github.com/ServloOfficial/servlo/internal/imgledger"
 )
 
 // withImages swaps the image-scan and layer-inspect seams for fixtures and
@@ -249,11 +249,11 @@ func TestInspect_ReclaimsOrphanBasesKeepsInUse(t *testing.T) {
 			// live derived image, built on the current php84 base
 			{ID: "local84", Names: []string{"localhost/servlo-php84-fpm:local"}, Size: 700, Labels: map[string]string{"dev.servlo.fpm.containerfile-hash": "h"}},
 			// current php84 base: its top layer is in the live image → keep
-			{ID: "baseCur", Names: []string{"ghcr.io/realrashid/servlo-php84-fpm-base:cur"}, Size: 500},
+			{ID: "baseCur", Names: []string{"ghcr.io/servloofficial/servlo-php84-fpm-base:cur"}, Size: 500},
 			// old-hash php84 base: top layer used by nothing live → reclaim
-			{ID: "baseOld", Names: []string{"ghcr.io/realrashid/servlo-php84-fpm-base:old"}, Size: 500},
+			{ID: "baseOld", Names: []string{"ghcr.io/servloofficial/servlo-php84-fpm-base:old"}, Size: 500},
 			// base for php82, a version no longer installed → reclaim
-			{ID: "base82", Names: []string{"ghcr.io/realrashid/servlo-php82-fpm-base:cur"}, Size: 500},
+			{ID: "base82", Names: []string{"ghcr.io/servloofficial/servlo-php82-fpm-base:cur"}, Size: 500},
 		},
 		map[string][]string{
 			"local84": {"L1", "L2", "L3", "Lcustom"}, // built on current base + custom layer
@@ -273,8 +273,8 @@ func TestInspect_ReclaimsOrphanBasesKeepsInUse(t *testing.T) {
 		got[tg.ID] = true
 	}
 	want := map[string]bool{
-		"ghcr.io/realrashid/servlo-php84-fpm-base:old": true,
-		"ghcr.io/realrashid/servlo-php82-fpm-base:cur": true,
+		"ghcr.io/servloofficial/servlo-php84-fpm-base:old": true,
+		"ghcr.io/servloofficial/servlo-php82-fpm-base:cur": true,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("want the two orphan bases reaped, got %+v", p.Targets)

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // trustTokenFile is the on-disk location of the per-install random token used

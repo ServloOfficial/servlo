@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 )
 
 // runEnvLive must save and restore the previous live line rather than nilling

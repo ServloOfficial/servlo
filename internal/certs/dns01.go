@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/crypto/acme"
 
-	"github.com/realrashid/servlo/internal/dnsprovider"
+	"github.com/ServloOfficial/servlo/internal/dnsprovider"
 )
 
 // DNS-01, and what it buys.

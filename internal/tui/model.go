@@ -11,15 +11,15 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/eventbus"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/reqstats"
+	"github.com/ServloOfficial/servlo/internal/sitedoctor"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/stats"
+	servloUpdate "github.com/ServloOfficial/servlo/internal/update"
 	zone "github.com/lrstanley/bubblezone/v2"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/eventbus"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/reqstats"
-	"github.com/realrashid/servlo/internal/sitedoctor"
-	"github.com/realrashid/servlo/internal/siteinfo"
-	"github.com/realrashid/servlo/internal/stats"
-	servloUpdate "github.com/realrashid/servlo/internal/update"
 )
 
 // focusPane identifies which pane currently owns keyboard focus. Detail sits

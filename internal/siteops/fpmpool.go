@@ -4,9 +4,9 @@ import (
 	"errors"
 	"os"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/fpmpool"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/fpmpool"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // ReloadFPMPoolsFn is podman.ReloadFPMPools, indirected so a caller's tests can

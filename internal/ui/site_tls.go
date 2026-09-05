@@ -3,8 +3,8 @@ package ui
 import (
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/certs"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/certs"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // TLSStatus is what the panel needs to decide whether Get SSL can be clicked,

@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/realrashid/servlo/internal/services"
+	"github.com/ServloOfficial/servlo/internal/services"
 )
 
 // recordingMgr embeds the real ServiceManager interface (nil here, since only

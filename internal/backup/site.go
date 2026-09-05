@@ -4,14 +4,14 @@ import (
 	"io"
 	"os"
 
-	"github.com/realrashid/servlo/internal/backupdest"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbcred"
-	"github.com/realrashid/servlo/internal/dbdump"
-	"github.com/realrashid/servlo/internal/siteops"
-	"github.com/realrashid/servlo/internal/sitetpl"
-	"github.com/realrashid/servlo/internal/version"
+	"github.com/ServloOfficial/servlo/internal/backupdest"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbcred"
+	"github.com/ServloOfficial/servlo/internal/dbdump"
+	"github.com/ServloOfficial/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/sitetpl"
+	"github.com/ServloOfficial/servlo/internal/version"
 )
 
 // ForSites is the runner the CLI and the panel both use: real excludes from the

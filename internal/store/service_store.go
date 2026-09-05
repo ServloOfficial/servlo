@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/origin"
-	"github.com/realrashid/servlo/stores"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/origin"
+	"github.com/ServloOfficial/servlo/stores"
 )
 
 // The service-preset store mirrors the framework store, under stores/services/:

@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
 )
 
 // A shell action is attributed to whoever is at the keyboard. An entry with no

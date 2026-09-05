@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // resetPathMountAttempts clears the debounce cache so tests can drive the

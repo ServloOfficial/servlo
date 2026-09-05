@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
 )
 
 func renewalEnv(t *testing.T) string {

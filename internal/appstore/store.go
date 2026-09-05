@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/stores"
+	"github.com/ServloOfficial/servlo/stores"
 )
 
 // Reading the store.

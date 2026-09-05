@@ -96,7 +96,7 @@
         </svg>
         <p class="leading-relaxed">
           {m.system_servlo_starBlurb()}
-          <a href="https://github.com/realrashid/servlo" target="_blank" rel="noopener" class="font-medium text-servlo-red hover:text-servlo-redhov underline-offset-2 hover:underline">{m.system_servlo_starCta()}</a>
+          <a href="https://github.com/ServloOfficial/servlo" target="_blank" rel="noopener" class="font-medium text-servlo-red hover:text-servlo-redhov underline-offset-2 hover:underline">{m.system_servlo_starCta()}</a>
           {m.system_servlo_starAfter()}
         </p>
       </div>

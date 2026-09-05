@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // offline points the manifest fetch at a dead endpoint so Load exercises the

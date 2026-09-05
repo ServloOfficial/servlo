@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/authz"
 )
 
 // panelRouteFiles are the files that register the panel's routes. One place,

@@ -13,7 +13,7 @@ package presetfixtures
 import (
 	"io/fs"
 
-	"github.com/realrashid/servlo/stores"
+	"github.com/ServloOfficial/servlo/stores"
 )
 
 // FS returns the add-on presets as a flat filesystem of <name>.yaml files.

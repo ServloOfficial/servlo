@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // healthDialTimeout bounds one reachability probe so a hung dev server can't

@@ -12,7 +12,7 @@ import (
 
 	qrcode "github.com/skip2/go-qrcode"
 
-	"github.com/realrashid/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
 )
 
 // The gate.

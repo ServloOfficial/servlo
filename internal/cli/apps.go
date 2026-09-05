@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/appinstall"
-	"github.com/realrashid/servlo/internal/appstore"
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/appinstall"
+	"github.com/ServloOfficial/servlo/internal/appstore"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 

@@ -2,7 +2,7 @@
 
 package cli
 
-import "github.com/realrashid/servlo/internal/config"
+import "github.com/ServloOfficial/servlo/internal/config"
 
 // workerSupportedOnPlatform reports whether the given worker can run on the
 // current host. Linux supports every shape — host workers go through fnm +

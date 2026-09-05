@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/power"
+	"github.com/ServloOfficial/servlo/internal/power"
 )
 
 func TestPowerWatchState_NoRestartWithoutAChange(t *testing.T) {

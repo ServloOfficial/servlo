@@ -12,10 +12,10 @@ func TestNormalizeCloneURL(t *testing.T) {
 	for _, tc := range []struct {
 		in, wantURL, wantHost string
 	}{
-		{"git@github.com:realrashid/servlo.git", "git@github.com:realrashid/servlo.git", "github.com"},
-		{"https://github.com/realrashid/servlo.git", "git@github.com:realrashid/servlo.git", "github.com"},
-		{"https://github.com/realrashid/servlo", "git@github.com:realrashid/servlo.git", "github.com"},
-		{"ssh://git@github.com/realrashid/servlo.git", "git@github.com:realrashid/servlo.git", "github.com"},
+		{"git@github.com:ServloOfficial/servlo.git", "git@github.com:ServloOfficial/servlo.git", "github.com"},
+		{"https://github.com/ServloOfficial/servlo.git", "git@github.com:ServloOfficial/servlo.git", "github.com"},
+		{"https://github.com/ServloOfficial/servlo", "git@github.com:ServloOfficial/servlo.git", "github.com"},
+		{"ssh://git@github.com/ServloOfficial/servlo.git", "git@github.com:ServloOfficial/servlo.git", "github.com"},
 		{"  git@gitlab.com:group/sub/app.git  ", "git@gitlab.com:group/sub/app.git", "gitlab.com"},
 	} {
 		got, err := NormalizeCloneURL(tc.in)
@@ -42,14 +42,14 @@ func TestNormalizeCloneURL_Refuses(t *testing.T) {
 		"file:///etc/passwd",
 		"--upload-pack=/bin/sh",
 		"ext::sh -c whoami",
-		"git@github.com:realrashid/servlo.git --config=core.sshCommand=id",
+		"git@github.com:ServloOfficial/servlo.git --config=core.sshCommand=id",
 		// Each of these reaches a different guard, and every one of them was
 		// accepted at some point while this was being written.
-		"-x@github.com:realrashid/servlo.git",
+		"-x@github.com:ServloOfficial/servlo.git",
 		"https://github.com/onlyanowner",
 		"ssh://git@github.com/",
 		"git@github.com:../../etc/passwd",
-		"https://token@github.com/realrashid/servlo.git",
+		"https://token@github.com/ServloOfficial/servlo.git",
 	} {
 		if got, err := NormalizeCloneURL(bad); err == nil {
 			t.Errorf("NormalizeCloneURL(%q) was accepted as %+v", bad, got)
@@ -60,13 +60,13 @@ func TestNormalizeCloneURL_Refuses(t *testing.T) {
 // A password in an https URL would end up in the audit log, the site config and
 // the operator's clipboard. Deploy keys are the whole point of this story.
 func TestNormalizeCloneURL_RefusesEmbeddedCredentials(t *testing.T) {
-	if _, err := NormalizeCloneURL("https://user:token@github.com/realrashid/servlo.git"); err == nil {
+	if _, err := NormalizeCloneURL("https://user:token@github.com/ServloOfficial/servlo.git"); err == nil {
 		t.Error("a URL carrying credentials was accepted")
 	}
 }
 
 func TestCloneURL_SuggestsADirectoryName(t *testing.T) {
-	got, err := NormalizeCloneURL("git@github.com:realrashid/My-App.git")
+	got, err := NormalizeCloneURL("git@github.com:ServloOfficial/My-App.git")
 	if err != nil {
 		t.Fatal(err)
 	}

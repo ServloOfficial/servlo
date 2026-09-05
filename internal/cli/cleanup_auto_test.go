@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/cleanup"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/cleanup"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The held-by-containers hint is silent when nothing is held, and otherwise

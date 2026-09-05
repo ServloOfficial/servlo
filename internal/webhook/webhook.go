@@ -25,7 +25,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // SignatureHeader is what GitHub and Gitea send. Named here because the

@@ -4,7 +4,7 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/realrashid/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
 )
 
 // Who a command-line action was taken by.

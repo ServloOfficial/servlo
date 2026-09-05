@@ -385,7 +385,7 @@ teardown() {
   # Mock curl -fsSLI to return headers containing a Location pointing to the tag
   function curl() {
     echo "HTTP/2 302"
-    echo "location: https://github.com/realrashid/servlo/releases/tag/v2.0.0"
+    echo "location: https://github.com/ServloOfficial/servlo/releases/tag/v2.0.0"
     echo ""
   }
   export -f curl

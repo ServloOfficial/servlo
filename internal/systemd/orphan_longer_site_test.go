@@ -3,7 +3,7 @@ package systemd
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // TestUnitBelongsToLongerSite guards the group-secondary leak: a unit named for

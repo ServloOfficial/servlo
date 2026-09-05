@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/stores"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/stores"
 )
 
 func testServer(t *testing.T) *httptest.Server {
@@ -164,8 +164,8 @@ func TestFetchFramework_FallsBackToTheEmbeddedStore(t *testing.T) {
 // authored here now, so the fetch and the embedded copy resolve the same paths.
 func TestNewClient_UsesTheInRepoStore(t *testing.T) {
 	c := NewClient()
-	if !strings.Contains(c.BaseURL, "realrashid/servlo") {
-		t.Errorf("primary store URL = %q, want realrashid/servlo", c.BaseURL)
+	if !strings.Contains(c.BaseURL, "ServloOfficial/servlo") {
+		t.Errorf("primary store URL = %q, want ServloOfficial/servlo", c.BaseURL)
 	}
 	if !strings.HasSuffix(c.BaseURL, "/stores/frameworks") {
 		t.Errorf("store URL = %q, want it to end at the frameworks store", c.BaseURL)

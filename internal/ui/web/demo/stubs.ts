@@ -1114,7 +1114,7 @@ const realOpen = window.open.bind(window);
   features?: string
 ) => {
   const u = String(url ?? '');
-  if (/github\.com\/realrashid/.test(u) || u === '' || u.startsWith('#')) return realOpen(url, target, features);
+  if (/github\.com\/ServloOfficial/.test(u) || u === '' || u.startsWith('#')) return realOpen(url, target, features);
   let host = u;
   try {
     host = new URL(u, location.href).host || u;

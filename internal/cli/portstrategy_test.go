@@ -3,8 +3,8 @@ package cli
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/ports"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/ports"
 )
 
 // The recorded strategy is what doctor checks against later, so an install that

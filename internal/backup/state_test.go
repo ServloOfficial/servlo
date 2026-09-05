@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 	"io"
 	"os"
 	"path/filepath"

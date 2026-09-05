@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // writeCustomServiceBeside adds a second service to the config directory a test

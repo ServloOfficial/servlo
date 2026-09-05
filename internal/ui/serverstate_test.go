@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/backup"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/backup"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The list is what makes the card worth having: an operator who has never

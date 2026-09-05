@@ -35,7 +35,7 @@ export function glyph(name, size) {
 }
 
 /* ---- Install command (canonical install URL) ---- */
-export const INSTALL = 'curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash'
+export const INSTALL = 'curl -fsSL https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash'
 
 /* ---- Comparison ---- */
 export const CMP = {

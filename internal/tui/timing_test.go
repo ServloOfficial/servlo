@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/reqstats"
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/reqstats"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
 func timingSite() *siteinfo.EnrichedSite {

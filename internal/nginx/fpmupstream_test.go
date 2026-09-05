@@ -7,7 +7,7 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // A site gets its own pool's socket once that pool exists, and the shared

@@ -18,10 +18,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/realrashid/servlo/internal/alerts"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/uptime"
-	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/ServloOfficial/servlo/internal/alerts"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/uptime"
+	"github.com/ServloOfficial/servlo/internal/workerheal"
 )
 
 // Interval is how often the checks run.

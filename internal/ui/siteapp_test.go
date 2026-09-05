@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/appinstall"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/appinstall"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The form has to know two things about an app before anybody fills it in:

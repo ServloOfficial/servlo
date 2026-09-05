@@ -12,7 +12,7 @@ var publishedPHPVersions = []string{"7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8
 // TestPublishedImagesReportBundledExtensions is the direction no Containerfile
 // parse can reach: a name BundledExtensions advertises that nothing in the image
 // loads. Fixtures are real output from the published bases, refreshed after a
-// rebuild with: podman run --rm ghcr.io/realrashid/servlo-php<nn>-fpm-base:<hash> php -m
+// rebuild with: podman run --rm ghcr.io/servloofficial/servlo-php<nn>-fpm-base:<hash> php -m
 func TestPublishedImagesReportBundledExtensions(t *testing.T) {
 	for _, version := range publishedPHPVersions {
 		t.Run(version, func(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/cleanup"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/cleanup"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // autoCleanupInterval is the minimum gap between automatic sweeps. Orphaned and

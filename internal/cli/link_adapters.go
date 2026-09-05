@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/linker"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/linker"
 
 	"charm.land/huh/v2"
 )

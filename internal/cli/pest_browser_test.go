@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // The shim is the whole mechanism: Playwright's glibc browser can't run on

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/nginx"
 )
 
 // setupGlobalNginx prepares an isolated data/config home and pre-writes the

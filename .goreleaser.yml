@@ -18,9 +18,9 @@ builds:
       - amd64
     ldflags:
       - -s -w
-      - -X github.com/realrashid/servlo/internal/version.Version={{.Version}}
-      - -X github.com/realrashid/servlo/internal/version.Commit={{.Commit}}
-      - -X github.com/realrashid/servlo/internal/version.Date={{.Date}}
+      - -X github.com/ServloOfficial/servlo/internal/version.Version={{.Version}}
+      - -X github.com/ServloOfficial/servlo/internal/version.Commit={{.Commit}}
+      - -X github.com/ServloOfficial/servlo/internal/version.Date={{.Date}}
 
   - id: servlo-arm64
     main: ./cmd/servlo
@@ -33,9 +33,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/realrashid/servlo/internal/version.Version={{.Version}}
-      - -X github.com/realrashid/servlo/internal/version.Commit={{.Commit}}
-      - -X github.com/realrashid/servlo/internal/version.Date={{.Date}}
+      - -X github.com/ServloOfficial/servlo/internal/version.Version={{.Version}}
+      - -X github.com/ServloOfficial/servlo/internal/version.Commit={{.Commit}}
+      - -X github.com/ServloOfficial/servlo/internal/version.Date={{.Date}}
 
   - id: servlo-amd64
     ids: [servlo-amd64]
@@ -78,7 +78,7 @@ changelog:
 
 release:
   github:
-    owner: realrashid
+    owner: ServloOfficial
     name: servlo
   name_template: "v{{ .Version }}"
   draft: false
@@ -92,7 +92,7 @@ release:
     ### Install
 
     ```bash
-    curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash
     ```
 
     Or if already installed:
@@ -102,4 +102,4 @@ release:
     ```
 
   footer: |
-    **Full Changelog**: https://github.com/realrashid/servlo/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/ServloOfficial/servlo/compare/{{ .PreviousTag }}...{{ .Tag }}

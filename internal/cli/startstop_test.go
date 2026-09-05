@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // A host-proxy site whose .servlo.yaml dev command has drifted from the approved

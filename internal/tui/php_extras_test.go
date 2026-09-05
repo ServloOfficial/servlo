@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The System view rebuilds every frame, so this summary reads only config: what

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/push"
-	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/push"
+	"github.com/ServloOfficial/servlo/internal/reqstats"
 )
 
 // slowRouteClearAfter is how many consecutive snapshots a warned route must be

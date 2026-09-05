@@ -5,11 +5,11 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/realrashid/servlo/internal/config"
-	servloNode "github.com/realrashid/servlo/internal/node"
-	phpPkg "github.com/realrashid/servlo/internal/php"
-	servloSystemd "github.com/realrashid/servlo/internal/systemd"
-	servloUpdate "github.com/realrashid/servlo/internal/update"
+	"github.com/ServloOfficial/servlo/internal/config"
+	servloNode "github.com/ServloOfficial/servlo/internal/node"
+	phpPkg "github.com/ServloOfficial/servlo/internal/php"
+	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
+	servloUpdate "github.com/ServloOfficial/servlo/internal/update"
 )
 
 // systemKind identifies each row in the System detail mode. Non-actionable

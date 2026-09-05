@@ -20,7 +20,7 @@ export const dashboardOpen = writable<DashboardRef | null>(null);
 const DOCS_REF: DashboardRef = {
   name: 'docs',
   label: 'Documentation',
-  dashboard: 'https://realrashid.github.io/servlo/getting-started/requirements'
+  dashboard: 'https://servloofficial.github.io/servlo/getting-started/requirements'
 };
 
 function fallbackHash(): string {

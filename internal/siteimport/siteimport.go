@@ -19,11 +19,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbdump"
-	"github.com/realrashid/servlo/internal/siteops"
-	"github.com/realrashid/servlo/internal/sitetpl"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbdump"
+	"github.com/ServloOfficial/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/sitetpl"
 )
 
 // Options is what to import.

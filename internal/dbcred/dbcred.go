@@ -21,7 +21,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
 )
 
 // Key is what a connection is called in the account store.

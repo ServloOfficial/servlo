@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
 )
 
 // Auditing at the chokepoint.

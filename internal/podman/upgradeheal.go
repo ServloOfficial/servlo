@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // PodmanEnv fingerprints the host podman that servlo last installed against.

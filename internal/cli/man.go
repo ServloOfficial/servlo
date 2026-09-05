@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/realrashid/servlo/internal/man"
+	"github.com/ServloOfficial/servlo/internal/man"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

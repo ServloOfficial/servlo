@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/realrashid/servlo/internal/config"
-	nodeDet "github.com/realrashid/servlo/internal/node"
+	"github.com/ServloOfficial/servlo/internal/config"
+	nodeDet "github.com/ServloOfficial/servlo/internal/node"
 )
 
 // validateWorkerUnitFields refuses any value that would break out of its line

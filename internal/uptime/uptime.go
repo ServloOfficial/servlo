@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // Timeout bounds one check. Short: a site that takes longer than this to answer

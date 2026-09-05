@@ -23,7 +23,7 @@ and the list under Delivery plan says what it is still expected to find.
 *Goal: a clean, minimal, Ubuntu-only Servlo binary with nothing dangerous left in it.*
 
 **S0.1 — Rename to Servlo.** ✅
-Binary `servlo`; systemd unit prefix `servlo-` (`servlo-nginx`, `servlo-php84-fpm`, `servlo-panel`, `servlo-watcher`, `servlo-queue-<site>`); config at `~/.config/servlo/`; data at `~/.local/share/servlo/`; the Go module path becomes `github.com/realrashid/servlo`; the stale root `mkdocs.yml` is deleted, the docs site is VitePress under `docs/`.
+Binary `servlo`; systemd unit prefix `servlo-` (`servlo-nginx`, `servlo-php84-fpm`, `servlo-panel`, `servlo-watcher`, `servlo-queue-<site>`); config at `~/.config/servlo/`; data at `~/.local/share/servlo/`; the Go module path becomes `github.com/ServloOfficial/servlo`; the stale root `mkdocs.yml` is deleted, the docs site is VitePress under `docs/`.
 *Done when:* no "lerd" string appears in user-facing output, unit names, paths or docs; the upstream MIT copyright notice is retained in `LICENSE`; the README states the fork relationship and links upstream. **M**
 
 **S0.2 — Server-only build.** ✅

@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/linker"
+	"github.com/ServloOfficial/servlo/internal/linker"
 )
 
 type def struct {

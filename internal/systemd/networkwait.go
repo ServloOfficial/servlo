@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // podmanNetworkWaitUnit is the unit podman's quadlet generator makes every

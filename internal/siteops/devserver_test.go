@@ -3,7 +3,7 @@ package siteops
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // recordDevServerRefresh captures the sites handed to the dev server refresh, so

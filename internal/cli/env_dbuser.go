@@ -3,9 +3,9 @@ package cli
 import (
 	"strings"
 
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbuser"
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbuser"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 )
 
 // A site's own database account, during `servlo env`.
