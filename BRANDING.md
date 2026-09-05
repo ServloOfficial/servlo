@@ -8,8 +8,8 @@ records what was inherited, what replaced it, and why.
 
 **The mark was a letter L.** `docs/public/assets/logo.svg` is a red rounded
 square with a white "L" set in Nunito Bold, 22KB of it because the whole font is
-embedded to render one glyph. It is still the upstream logo, unchanged, on the
-docs site.
+embedded to render one glyph. It was the upstream logo, carried over unchanged,
+and it was still on the docs site when this file was written.
 
 **The brand colour is Laravel's.** `--color-servlo-red: #ff2d20` is Laravel's
 brand red exactly. The project this was forked from was a Laravel-focused local
@@ -76,13 +76,23 @@ a switch that goes red to mean *enabled* is backwards in a panel whose job is
 telling you what broke. That is a component fix, not a palette one — the toggle
 should use emerald for on, and leave red to the brand and to errors.
 
+## Off-site assets
+
+The GitHub organisation avatar and the transparent mark are rendered from the
+same SVG into `brand/`, by `brand/render.mjs`. The dark variant is the one to
+upload; `brand/README.md` says why and shows the size ladder that settled it.
+
 ## Still to do
 
-The mark, the panel icon, the favicon, the docs logo and the manifest are done
-and verified in both themes. Outstanding:
+The mark, the panel icon, the favicon, the docs logo, the manifest and the
+organisation avatar are done and verified in both themes, at every size GitHub
+renders them. Outstanding:
 
 - a **wordmark** for the README and the docs header, pairing the mark with
-  "Servlo" set properly rather than in whatever the page inherits
+  "Servlo" set properly rather than in whatever the page inherits. Note that
+  the concept sheet this mark came from spelled it "ServLo", with a capital L.
+  That is not the product's name and was not adopted; the wordmark sets
+  **Servlo**.
 - the **Autostart toggle** colour, above
 - `--color-servlo-red` is a poor name for a token that means *accent*, and
   renaming it is how the brand stops accidentally meaning failure in the next

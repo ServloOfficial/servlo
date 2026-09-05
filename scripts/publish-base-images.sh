@@ -24,7 +24,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 RECIPE="internal/podman/quadlets/servlo-php-fpm.Containerfile"
 ALL_VERSIONS=(7.4 8.0 8.1 8.2 8.3 8.4 8.5)
-OWNER="${OWNER:-realrashid}"
+# Lowercased: GHCR refuses a reference containing capitals, and an
+# organisation name is free to have them.
+OWNER="$(printf '%s' "${OWNER:-realrashid}" | tr '[:upper:]' '[:lower:]')"
 ENGINE="${ENGINE:-$(command -v podman || command -v docker)}"
 
 versions=("$@")

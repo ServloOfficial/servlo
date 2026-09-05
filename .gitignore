@@ -15,3 +15,6 @@ docs/.vitepress/cache/
 docs/public/install.sh
 docs/public/demo/
 docs/public/icons/icon.svg
+
+# The proof sheet is a check, not a deliverable: regenerate it, do not commit it.
+brand/preview.png

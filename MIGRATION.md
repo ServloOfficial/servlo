@@ -1,4 +1,4 @@
-# MIGRATION.md — moving to `servlo/servlo` and going public
+# MIGRATION.md — moving to `ServloOfficial/servlo` and going public
 
 One-time operation. Delete this file when it is done.
 
@@ -33,8 +33,13 @@ the safety net the move hands you.
 GitHub installs redirects from the old location automatically, so nothing breaks
 between A and B.
 
+0. **Upload the organisation avatar.** `brand/org-avatar.png`, at
+   Organisation settings → Profile → Profile picture. Dark ground, because it
+   is the only variant that holds on both GitHub themes; the light one is in
+   `brand/` if you ever need it on a printed page.
 1. **Transfer the repository.** Settings → General → Danger Zone → Transfer, to
-   the `servlo` organisation. Keep the name `servlo`, giving `servlo/servlo`.
+   the `ServloOfficial` organisation. Keep the name `servlo`, giving
+   `ServloOfficial/servlo`.
 2. **Make it public.** Settings → General → Danger Zone → Change visibility.
    Read the checklist GitHub shows: history becomes public too. That is fine
    here, `git log` carries no secrets, and `SECURITY.md` is already in place.
@@ -45,7 +50,10 @@ between A and B.
    still fail in seconds with zero billable time, stop here and tell me: the
    rest of the plan assumes CI works.
 4. **Re-point GitHub Pages** at the new location if the docs site is published
-   from it, and check the custom domain if there is one.
+   from it, and check the custom domain if there is one. The docs move from
+   `realrashid.github.io/servlo` to `servloofficial.github.io/servlo`, so
+   `base: '/servlo/'` in `docs/.vitepress/config.ts` stays as it is. It only
+   changes, to `'/'`, if you put the docs on a custom domain.
 5. **Check secrets and variables** survived the transfer. `GITHUB_TOKEN` is
    automatic, but anything you added by hand needs re-adding.
 
@@ -60,9 +68,9 @@ The whole of B is one branch and one PR, and CI verifies it.
 **The import path**, 713 Go files plus `go.mod`:
 
 ```bash
-go mod edit -module github.com/servlo/servlo
+go mod edit -module github.com/ServloOfficial/servlo
 grep -rl 'github.com/realrashid/servlo' --include='*.go' . \
-  | xargs sed -i 's|github.com/realrashid/servlo|github.com/servlo/servlo|g'
+  | xargs sed -i 's|github.com/realrashid/servlo|github.com/ServloOfficial/servlo|g'
 gofmt -l .          # expect empty
 go build ./... && go vet ./... && go test ./...
 ```
@@ -71,10 +79,26 @@ The compiler is the check here: a missed import does not build. This is the
 least risky large diff in the project, which is another reason to do it while
 there is a runner to prove it.
 
+**The module path keeps the organisation's exact case.** `ServloOfficial`, not
+`servloofficial`. Go resolves a module by asking GitHub for a `go-import` meta
+tag and refusing the answer if the path it gets back differs from the one it
+asked for, and GitHub answers with the canonical spelling, so a lowercased
+module path is a coin flip rather than a tidy-up. The visible cost is that the
+module cache escapes capitals: the directory becomes
+`pkg/mod/github.com/!servlo!official/servlo`. That is cosmetic and nobody types
+it. What is not cosmetic is `go install github.com/ServloOfficial/servlo/...`
+needing the case exactly right, which is worth one line in the install docs.
+
 **The one line that moves everything at runtime.** `mainRepo` in
-`internal/origin/origin.go` becomes `servlo/servlo`, and with it the release
+`internal/origin/origin.go` becomes `ServloOfficial/servlo`, and with it the release
 feed, the release API, the installer URL, all three store fetches, the changelog
 and the GHCR image namespace. They all derive from it, deliberately.
+
+GHCR lowercases namespaces whatever the organisation is called, so the images
+publish to `ghcr.io/servloofficial/servlo-php84-fpm-base` and friends.
+`imageOwner()` already lowercases what it derives from `mainRepo`; confirm that
+still holds after the change rather than assuming it, because a push to a
+namespace that differs by case fails at the registry, not at build time.
 
 **Everything else**, about 35 references:
 

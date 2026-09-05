@@ -25,8 +25,15 @@ const mainRepo = "realrashid/servlo" // releases, installer, stores, tools manif
 // published under, taken from mainRepo so the images follow the project rather
 // than needing a second edit when it moves to an organisation.
 func imageOwner() string {
-	owner, _, _ := strings.Cut(mainRepo, "/")
-	return owner
+	return ghcrNamespace(mainRepo)
+}
+
+// ghcrNamespace reduces an owner/repo to the owner, lowercased. GHCR rejects a
+// reference containing capitals, and an organisation name may well have them,
+// so the case cannot simply carry over from the repository path.
+func ghcrNamespace(repo string) string {
+	owner, _, _ := strings.Cut(repo, "/")
+	return strings.ToLower(owner)
 }
 
 // storeBase is where a store's definitions are fetched from: this repository,
