@@ -62,6 +62,10 @@ jobs:
           print(f'base image tag: {h}')
           EOF
           echo "php_short=$(echo '${{ matrix.php }}' | tr -d '.')" >> "$GITHUB_OUTPUT"
+          # GHCR refuses a reference containing capitals, and the owner comes
+          # back from GitHub in its canonical case, so an organisation with a
+          # capital in its name fails every push here without this.
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
 
       - name: Fill in the version
         run: |
@@ -97,7 +101,7 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
         env:
-          IMG: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base:${{ steps.tag.outputs.tag }}-${{ matrix.arch.name }}
+          IMG: ghcr.io/${{ steps.tag.outputs.owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base:${{ steps.tag.outputs.tag }}-${{ matrix.arch.name }}
 
       - name: Set up Docker Buildx
         if: steps.check.outputs.exists != 'true'
@@ -112,7 +116,7 @@ jobs:
           push: true
           pull: ${{ inputs.force_rebuild == 'true' }}
           platforms: linux/${{ matrix.arch.name }}
-          tags: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base:${{ steps.tag.outputs.tag }}-${{ matrix.arch.name }}
+          tags: ghcr.io/${{ steps.tag.outputs.owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base:${{ steps.tag.outputs.tag }}-${{ matrix.arch.name }}
           cache-from: type=gha,scope=php-${{ matrix.php }}-${{ matrix.arch.name }}
           cache-to: type=gha,mode=max,scope=php-${{ matrix.php }}-${{ matrix.arch.name }}
 
@@ -134,7 +138,7 @@ jobs:
           docker run --rm "$IMG" php -r 'exit(count(PDO::getAvailableDrivers()) >= 3 ? 0 : 1);'
           docker run --rm "$IMG" composer --version >/dev/null
         env:
-          IMG: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base:${{ steps.tag.outputs.tag }}-${{ matrix.arch.name }}
+          IMG: ghcr.io/${{ steps.tag.outputs.owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base:${{ steps.tag.outputs.tag }}-${{ matrix.arch.name }}
 
       - name: Set up Go
         if: steps.check.outputs.exists != 'true'
@@ -189,6 +193,10 @@ jobs:
               f.write(f'tag={h}\n')
           EOF
           echo "php_short=$(echo '${{ matrix.php }}' | tr -d '.')" >> "$GITHUB_OUTPUT"
+          # GHCR refuses a reference containing capitals, and the owner comes
+          # back from GitHub in its canonical case, so an organisation with a
+          # capital in its name fails every push here without this.
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -208,7 +216,7 @@ jobs:
             exit 1
           fi
         env:
-          BASE: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base
+          BASE: ghcr.io/${{ steps.tag.outputs.owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base
           TAG: ${{ steps.tag.outputs.tag }}
 
       - name: Is the manifest already there
@@ -222,7 +230,7 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
         env:
-          BASE: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base
+          BASE: ghcr.io/${{ steps.tag.outputs.owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base
           TAG: ${{ steps.tag.outputs.tag }}
 
       - name: Create the multi-arch manifest
@@ -233,5 +241,5 @@ jobs:
             "${BASE}:${TAG}-amd64" \
             "${BASE}:${TAG}-arm64"
         env:
-          BASE: ghcr.io/${{ github.repository_owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base
+          BASE: ghcr.io/${{ steps.tag.outputs.owner }}/servlo-php${{ steps.tag.outputs.php_short }}-fpm-base
           TAG: ${{ steps.tag.outputs.tag }}

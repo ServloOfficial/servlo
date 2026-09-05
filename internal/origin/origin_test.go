@@ -82,3 +82,28 @@ func TestEnvOverrideIgnoredWhenEmpty(t *testing.T) {
 		t.Fatalf("empty override must fall back to the in-repo store, got %v", got)
 	}
 }
+
+// GHCR refuses a namespace containing capitals, and an organisation is free to
+// have them in its name, so the namespace is lowercased rather than passed
+// through from mainRepo. Pinned by a test because the failure surfaces at the
+// registry on push, a long way from the build that produced the ref, and only
+// on the day the project moves to such an organisation.
+func TestGHCRNamespaceIsLowercasedWhateverTheOrgIsCalled(t *testing.T) {
+	for _, tc := range []struct{ repo, want string }{
+		{"ServloOfficial/servlo", "servloofficial"},
+		{"realrashid/servlo", "realrashid"},
+	} {
+		if got := ghcrNamespace(tc.repo); got != tc.want {
+			t.Errorf("ghcrNamespace(%q) = %q, want %q", tc.repo, got, tc.want)
+		}
+	}
+}
+
+// The whole ref, not just the namespace, since that is what gets pushed.
+func TestBaseImageRefIsAValidGHCRReference(t *testing.T) {
+	ref := BaseImageRefs("84", "0db4a0b5cdaa")[0]
+	name, _, _ := strings.Cut(ref, ":")
+	if name != strings.ToLower(name) {
+		t.Errorf("base image ref has capitals GHCR will reject: %q", ref)
+	}
+}
