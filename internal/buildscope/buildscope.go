@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -106,10 +107,23 @@ func Available() bool { return scopeAvailable() }
 // unitSafe replaces everything a systemd unit name cannot carry.
 var unitSafe = regexp.MustCompile(`[^a-zA-Z0-9_.-]+`)
 
-// UnitName is the scope a site's build runs in. Per site, so two sites building
-// at once are two scopes with two ceilings rather than one shared one.
+// buildSeq numbers the builds this process has started, so two of them never
+// ask for the same scope name.
+var buildSeq atomic.Uint64
+
+// UnitName is the scope a site's build runs in. The site is in the name so a
+// running scope can be read back to the build that owns it, and two sites
+// building at once are two scopes with two ceilings rather than one shared one.
+//
+// The name is unique per build rather than stable per site. A transient unit is
+// not always collected by the time the next build starts, and systemd refuses a
+// name that is still in use, so a stable name turned a redeploy straight after
+// a failed deploy into a build that would not start at all. Nothing looks a
+// scope up by this name after the fact, so there is nothing for the suffix to
+// break.
 func UnitName(site string) string {
-	return "servlo-build-" + unitSafe.ReplaceAllString(site, "-")
+	return fmt.Sprintf("servlo-build-%s-%d-%d",
+		unitSafe.ReplaceAllString(site, "-"), os.Getpid(), buildSeq.Add(1))
 }
 
 // Wrap returns cmd confined to a memory-capped scope, or cmd unchanged when
