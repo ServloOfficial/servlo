@@ -55,7 +55,7 @@
       "settings": {
         "host": "email-smtp.eu-west-1.amazonaws.com",
         "port": 587,
-        "username": "AKIA4XKPZQ7WJ2NLVE3M",
+        "username": "AKIAIOSFODNN7EXAMPLE",
         "has_password": true,
         "encryption": "starttls",
         "from_address": "no-reply@blog.orbitlabs.app",
