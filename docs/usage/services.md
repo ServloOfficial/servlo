@@ -159,8 +159,18 @@ Both UIs are reachable from the panel, embedded same-origin, and from the Databa
 RustFS is an S3-compatible object storage service (a drop-in replacement for MinIO). When `servlo env` detects it is needed (via `FILESYSTEM_DISK=s3` or `AWS_ENDPOINT` in `.env`), it automatically:
 
 1. Creates a bucket named after the site handle, sanitised to match the S3 naming rules (lowercase, digits, hyphens, dots only, max 63 chars). Underscores in the handle are rewritten as hyphens, so `admin_astrolov` becomes bucket `admin-astrolov`.
-2. Sets the bucket to **public access** (suitable for local development)
+2. Sets the bucket to **anonymous read**, so an object can be served by URL without a signed request
 3. Writes the correct `.env` values:
+
+::: warning What "anonymous read" means here
+Anyone who can reach RustFS can read any object in the bucket without
+credentials. RustFS publishes on loopback only — like every service except
+nginx, its ports are pinned to `127.0.0.1` — so that is this server and the
+containers on its Podman network, not the internet. It still means a site's
+uploads are readable by anything else running on this machine, and that
+proxying the bucket out through a vhost would publish it. Do not put anything in
+it you would not serve.
+:::
 
 ```ini
 FILESYSTEM_DISK=s3

@@ -159,7 +159,7 @@ Where a digest is given the download is checked against it and rejected on a mis
 | Situation | Command |
 |---|---|
 | Just installed servlo | Nothing, `servlo install` already started everything |
-| Coming back to your laptop after `servlo stop` | `servlo start` |
+| Bringing the sites back up after `servlo stop` | `servlo start` |
 | Reboot, autostart disabled | `servlo start` |
 | Reboot, autostart enabled | Nothing, happens automatically |
 | Free up CPU / RAM during a heavy build | `servlo stop` |
