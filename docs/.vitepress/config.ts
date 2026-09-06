@@ -170,6 +170,7 @@ export default defineConfig({
             { text: 'Backups', link: '/usage/backups' },
             { text: 'Rebuilding a server', link: '/usage/backups#rebuilding-onto-a-fresh-droplet' },
             { text: 'Hardening', link: '/usage/hardening' },
+            { text: 'Production tradeoffs', link: '/usage/tradeoffs' },
             { text: 'Security', link: '/usage/security' },
             { text: 'Alerts', link: '/usage/alerts' },
           ],
