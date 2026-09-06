@@ -14,7 +14,7 @@ const SOFTWARE_VERSION = readFileSync(VERSION_GO, 'utf8').match(/Version\s*=\s*"
 
 export default defineConfig({
   title: 'Servlo',
-  description: 'Open-source, Herd-like local PHP development for Linux and macOS. Automatic .test domains, HTTPS, per-project PHP and Node, rootless Podman, no Docker daemon.',
+  description: 'The free, self-hosted control panel for production PHP servers. Sites from a ZIP, a Git clone, a folder or one click, real domains with Let\'s Encrypt, a PHP version per site, deploys, and backups proved by restoring them. Ubuntu 24.04, rootless Podman, no paid tier.',
   base: '/servlo/',
   lang: 'en-US',
   cleanUrls: true,
@@ -41,12 +41,12 @@ export default defineConfig({
     ['meta', { property: 'og:image:type', content: 'image/png' }],
     ['meta', { property: 'og:image:width', content: '1499' }],
     ['meta', { property: 'og:image:height', content: '787' }],
-    ['meta', { property: 'og:image:alt', content: 'Servlo, local PHP development for Linux and macOS' }],
+    ['meta', { property: 'og:image:alt', content: 'Servlo, the self-hosted control panel for production PHP servers' }],
 
     // Twitter / X
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:image', content: OG_IMAGE }],
-    ['meta', { name: 'twitter:image:alt', content: 'Servlo, local PHP development for Linux and macOS' }],
+    ['meta', { name: 'twitter:image:alt', content: 'Servlo, the self-hosted control panel for production PHP servers' }],
 
     // Structured data (rich results / knowledge graph)
     [
@@ -58,18 +58,18 @@ export default defineConfig({
           {
             '@type': 'SoftwareApplication',
             name: 'Servlo',
-            applicationCategory: 'DeveloperApplication',
-            operatingSystem: 'Linux, macOS',
+            applicationCategory: 'ServerApplication',
+            operatingSystem: 'Ubuntu 24.04 LTS',
             description:
-              'Open-source, Herd-like local PHP development environment for Linux and macOS: automatic .test domains and HTTPS, per-project PHP 7.4–8.5 and Node, rootless Podman and a built-in Web UI. No Docker daemon, no sudo.',
+              'Free, self-hosted control panel for production PHP servers on Ubuntu 24.04: sites from a ZIP, a Git clone, a folder or one click, Let\'s Encrypt certificates, a PHP version per site, deploys, workers and backups proved by restoring them. Rootless Podman, no paid tier.',
             keywords:
-              'local PHP development, Laravel Herd for Linux, Laragon for Linux, Laragon alternative Linux, .test domains, rootless Podman, PHP-FPM, local development environment',
+              'PHP hosting control panel, self-hosted cPanel alternative, Laravel Forge alternative, Ploi alternative, PHP server panel, Ubuntu server, Let\'s Encrypt, rootless Podman, PHP-FPM, site backups',
             url: SITE_URL,
             downloadUrl: 'https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh',
             softwareVersion: SOFTWARE_VERSION,
             license: 'https://opensource.org/licenses/MIT',
             image: OG_IMAGE,
-            author: { '@type': 'Person', name: 'George Dumitrescu' },
+            author: { '@type': 'Person', name: 'Rashid Ali' },
             offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
           },
           {
@@ -77,7 +77,7 @@ export default defineConfig({
             name: 'Servlo',
             url: SITE_URL,
             description:
-              'Documentation and downloads for Servlo, the open-source local PHP development environment for Linux and macOS.',
+              'Documentation and downloads for Servlo, the free self-hosted control panel for production PHP servers on Ubuntu 24.04.',
           },
         ],
       }),

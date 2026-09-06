@@ -37,21 +37,6 @@ export function glyph(name, size) {
 /* ---- Install command (canonical install URL) ---- */
 export const INSTALL = 'curl -fsSL https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash'
 
-/* ---- Comparison ---- */
-export const CMP = {
-  cols: ['Servlo', 'Laravel Herd', 'Laragon', 'DDEV', 'Lando', 'Sail'],
-  rows: [
-    { f: 'Runs on Linux',            v: ['yes', 'no', 'no', 'yes', 'yes', 'yes'] },
-    { f: 'No Docker daemon',         v: ['yes', 'yes', 'yes', 'no', 'no', 'no'] },
-    { f: 'Rootless · no sudo',       v: ['yes', 'yes', 'partial', 'partial', 'partial', 'no'] },
-    { f: 'Open source',              v: ['yes', 'no', 'no', 'yes', 'yes', 'yes'] },
-    { f: 'Automatic .test + TLS',    v: ['yes', 'yes', 'yes', 'yes', 'partial', 'no'] },
-    { f: 'Zero per-project config',  v: ['yes', 'yes', 'yes', 'no', 'no', 'no'] },
-    { f: 'Built-in Web UI',          v: ['yes', 'yes', 'no', 'partial', 'no', 'no'] },
-    { f: 'Profiler & debug window',  v: ['yes', 'yes', 'no', 'no', 'no', 'no'] },
-  ],
-}
-
 /* ---- Services showcase ---- */
 export const SVC_SHOW = [
   { logo: 'mysql',    name: 'MySQL',       port: ':3306' },
@@ -66,13 +51,13 @@ export const SVC_SHOW = [
 /* ---- Quick-start steps ---- */
 export const STEPS = [
   {
-    n: '01', title: 'Install Servlo',
-    desc: 'One script. Rootless Podman, systemd user units, the CLI and Web UI, no sudo.',
-    file: '~',
+    n: '01', title: 'Install on the server',
+    desc: 'One script on a fresh Ubuntu 24.04 droplet. Rootless Podman, systemd user units, the panel and the CLI. Anything needing root is printed for you to run.',
+    file: 'servlo@droplet',
   },
   {
-    n: '02', title: 'Link your project',
-    desc: 'cd into any PHP repo and run servlo link. It routes through the init wizard, installs dependencies, runs migrations, starts your workers and provisions TLS, live at project.test. Then servlo open to launch it.',
-    file: '~/code/acme',
+    n: '02', title: 'Add a site and secure it',
+    desc: 'A ZIP, a Git clone, a folder you already have, or one click for WordPress. Point the domain at the server, then Get SSL issues from Let\'s Encrypt once a live lookup shows it resolving here.',
+    file: 'blog.example.com',
   },
 ]
