@@ -340,10 +340,40 @@ onBeforeUnmount(() => {
               <p>Queue, schedule, Horizon and Reverb workers plus the Stripe listener, monitored everywhere and recovered with one click.</p>
             </div>
 
+
+            <div class="feat col-3 reveal" data-tilt>
+              <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></div>
+              <h3>Backups you have already restored</h3>
+              <p>Files and database, encrypted, on a schedule with retention, to S3-compatible storage or another server over SFTP. Then the part most panels skip: each one is restored into a scratch database, checked, and torn down. A backup nobody has restored is not a backup.</p>
+              <span class="feat-tag">// verified, not just green</span>
+            </div>
+            <div class="feat col-3 reveal d1" data-tilt>
+              <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.2L3 16M3 21v-5h5"/></svg></div>
+              <h3>A dead droplet, rebuilt</h3>
+              <p>Servlo's own config and the site registry ride along in the backups, so a fresh droplet plus the archives is the old server: every site, setting, cron entry and database back. Certificates are reissued rather than restored, and it says so rather than pretending.</p>
+              <span class="feat-tag">// the answer to "and now I do it all again"</span>
+            </div>
+
+            <div class="feat col-2 reveal" data-tilt>
+              <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></div>
+              <h3>Deploys that back up first</h3>
+              <p>A pull and a per-site script, output streaming live. A deploy that migrates takes a database backup first and refuses to run if that fails. One click puts the previous commit back.</p>
+            </div>
+            <div class="feat col-2 reveal d1" data-tilt>
+              <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 6v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg></div>
+              <h3>A login, roles and a record</h3>
+              <p>Argon2id, optional TOTP, revocable sessions. Admins run the server; developers get only the sites you assign. Every state-changing action lands in an append-only audit log.</p>
+            </div>
           </div>
 
           <div class="feat-more">
             <span class="feat-more-label">Also includes</span>
+            <span class="feat-chip">Staging sites, refreshed from live</span>
+            <span class="feat-chip">One-click WordPress</span>
+            <span class="feat-chip">Managed databases · DigitalOcean, RDS</span>
+            <span class="feat-chip">Per-site SFTP &amp; file manager</span>
+            <span class="feat-chip">Cron UI on systemd timers</span>
+            <span class="feat-chip">ufw &amp; fail2ban from the panel</span>
             <span class="feat-chip">FrankenPHP &amp; Octane</span>
             <span class="feat-chip">Tabbed mouse-driven TUI</span>
             <span class="feat-chip">Polyglot sites · Node, Python, Go &amp; Ruby</span>

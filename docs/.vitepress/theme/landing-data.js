@@ -21,7 +21,7 @@ export const LOGOS = {
   meili:    { ch: 'M', c: '#fb7185' },
   rustfs:   { ch: 'S', c: '#fbbf24' },
   mongo:    { ch: 'M', c: '#34d399' },
-  stripe:   { ch: '$', c: '#a78bfa' },
+  rabbitmq: { ch: 'R', c: '#f97316' },
 }
 
 export function glyph(name, size) {
@@ -45,7 +45,7 @@ export const SVC_SHOW = [
   { logo: 'meili',    name: 'Meilisearch', port: ':7700' },
   { logo: 'rustfs',   name: 'RustFS / S3', port: ':9000' },
   { logo: 'mongo',    name: 'MongoDB',     port: ':27017' },
-  { logo: 'stripe',   name: 'Stripe Mock', port: ':12111' },
+  { logo: 'rabbitmq', name: 'RabbitMQ',    port: ':5672' },
 ]
 
 /* ---- Quick-start steps ---- */
