@@ -13,6 +13,7 @@ import (
 	"github.com/realrashid/servlo/internal/dbconn"
 	"github.com/realrashid/servlo/internal/dbdump"
 	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/realrashid/servlo/internal/serviceops"
 	"github.com/realrashid/servlo/internal/sitetpl"
 	"github.com/spf13/cobra"
 )
@@ -130,6 +131,9 @@ func restoreDatabase(path string, key []byte, site *config.Site, man backup.Mani
 	if database == "" {
 		return fmt.Errorf("the files are restored, but this site names no database to load into")
 	}
+	if err := ensureRestoreDatabase(conn, database); err != nil {
+		return err
+	}
 
 	f, err := os.Open(path)
 	if err != nil {
@@ -160,6 +164,30 @@ func restoreDatabase(path string, key []byte, site *config.Site, man backup.Mani
 		return loadErr
 	}
 	step.OK(feedback.Val(man.DatabaseName))
+	return nil
+}
+
+// createRestoreDatabase is the seam a test replaces. The real one creates the
+// database through the create action the engine's preset declares, and is a
+// no-op when it is already there.
+var createRestoreDatabase = serviceops.CreateDatabase
+
+// ensureRestoreDatabase makes sure there is a database for the dump to load
+// into. A rebuild restores onto a machine that holds the registry and the
+// credentials but none of the databases, because a state archive carries what
+// servlo knows rather than the engine's contents, and a dump loads into a
+// database rather than creating one. Without this a rebuild stops at the first
+// site with an unknown-database error that says nothing about backups.
+//
+// A database servlo does not run is left alone: it belongs to the provider, and
+// creating one there is not servlo's to do.
+func ensureRestoreDatabase(conn dbconn.Connection, database string) error {
+	if !conn.Local() {
+		return nil
+	}
+	if _, err := createRestoreDatabase(conn.Service, database); err != nil {
+		return fmt.Errorf("the files are restored, but the database %s could not be created to load into: %w", database, err)
+	}
 	return nil
 }
 
