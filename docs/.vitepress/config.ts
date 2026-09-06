@@ -155,6 +155,7 @@ export default defineConfig({
           text: 'Sites & Runtimes',
           items: [
             { text: 'Site Management', link: '/usage/sites' },
+            { text: 'Domains', link: '/usage/domains' },
             { text: 'Site Groups', link: '/usage/site-groups' },
             { text: 'Staging sites', link: '/usage/staging' },
             { text: 'Importing a site', link: '/usage/import' },
@@ -167,6 +168,7 @@ export default defineConfig({
             { text: 'SFTP', link: '/usage/sftp' },
             { text: 'Email', link: '/usage/email' },
             { text: 'Backups', link: '/usage/backups' },
+            { text: 'Rebuilding a server', link: '/usage/backups#rebuilding-onto-a-fresh-droplet' },
             { text: 'Hardening', link: '/usage/hardening' },
             { text: 'Security', link: '/usage/security' },
             { text: 'Alerts', link: '/usage/alerts' },
@@ -195,15 +197,10 @@ export default defineConfig({
             { text: 'Healing Failed Workers', link: '/usage/worker-heal' },
           ],
         },
-        {
-          text: 'Integrations & Migration',
-          items: [
-          ],
-        },
       ],
       '/features/': [
         {
-          text: 'UI & AI',
+          text: 'Dashboards',
           items: [
             { text: 'Web UI', link: '/features/web-ui' },
             { text: 'Terminal Dashboard', link: '/features/tui' },
