@@ -189,11 +189,6 @@ jobs:
           # new machine and it opens nothing the old one wrote.
           servlo backup key import "$BACKUP_KEY"
 
-      # A restore loads a dump into the engine, so the engine has to be
-      # answering first. Nothing between here and there waits for it.
-      - name: Wait for the database engine
-        run: .github/scripts/wait-for-db.sh
-
       - name: Restore the server's own state
         run: |
           set -euo pipefail
@@ -201,6 +196,22 @@ jobs:
           cp /tmp/archives/*.servlobak ~/.local/share/servlo/site-backups/
           state=$(ls -1 ~/.local/share/servlo/site-backups/servlo-state-*.servlobak | head -1)
           servlo restore "$(basename "$state")" --state --yes
+
+      # The engine has to be rebuilt on top of the state, not merely running
+      # under it. servlo's service password lives in the config directory a
+      # state archive carries, and MySQL bakes the password it is handed into
+      # its data directory the first time it starts, so the engine installed
+      # above still holds this runner's password while the restored config holds
+      # the old machine's. Reinstalling recreates the container from the
+      # restored config and, with --reset-data, gives each restored site its
+      # database back to load a dump into.
+      - name: Rebuild the engine on the restored credentials
+        run: servlo service reinstall mysql --reset-data
+
+      # A restore loads a dump into the engine, so the engine has to be
+      # answering first. Nothing between here and there waits for it.
+      - name: Wait for the database engine
+        run: .github/scripts/wait-for-db.sh
 
       - name: Restore each site
         run: |
