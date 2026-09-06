@@ -34,7 +34,7 @@ Walks the install in dependency order:
 4. Boots every PHP-FPM container that has at least one site referencing its version. Unused PHP versions stay stopped.
 5. Boots all installed services that are **not** marked as manually paused (see [Manually stopped services](services.md#manually-stopped-services) for the pause-state contract).
 6. Restores per-site workers (`servlo-queue-*`, `servlo-schedule-*`, `servlo-reverb-*`, `servlo-messenger-*`, custom workers) and stripe listeners (`servlo-stripe-*`) from the `workers` list saved in each site's `.servlo.yaml`.
-7. Starts the Web UI (`servlo-ui`).
+7. Starts the Web UI (`servlo-panel.service`, which runs `servlo serve-ui`).
 
 A live spinner shows the per-unit progress. If a single SSL vhost references a missing certificate file, servlo switches that site back to HTTP automatically and continues; one broken cert no longer blocks the whole nginx start.
 
@@ -78,7 +78,7 @@ servlo quit
 The full off-switch:
 
 1. Runs everything `servlo stop` does.
-2. Stops `servlo-ui` (Web UI).
+2. Stops `servlo-panel` (the Web UI).
 3. Stops `servlo-watcher`.
 
 After `servlo quit` there are no servlo processes left running. This is the right command before a reinstall, a system reboot, or before pulling a major update.
@@ -87,7 +87,7 @@ After `servlo quit` there are no servlo processes left running. This is the righ
 
 Servlo can boot itself every time you log in. Autostart is a single switch over every servlo-owned systemd user unit on the machine:
 
-- the dashboard (`servlo-ui.service`) and project watcher (`servlo-watcher.service`)
+- the dashboard (`servlo-panel.service`) and project watcher (`servlo-watcher.service`)
 - every container quadlet (`servlo-mysql`, `servlo-nginx`, `servlo-redis`, `servlo-postgres`, `servlo-php*-fpm`, `servlo-meilisearch`, `servlo-minio`, `servlo-rustfs`)
 - every per-site worker, queue, schedule, horizon, reverb, and stripe-listen unit
 
