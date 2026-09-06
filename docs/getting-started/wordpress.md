@@ -1,6 +1,6 @@
 # WordPress walkthrough
 
-End-to-end: from `servlo install` to a WordPress site running on `https://myblog.test` with MySQL.
+End-to-end: from `servlo install` to a WordPress site running on `https://myblog.example.com` with MySQL.
 
 ::: info Prerequisites
 You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
@@ -70,7 +70,7 @@ cd ~/Servlo/myblog
 servlo link
 ```
 
-`servlo link` detects WordPress (via `wp-login.php` or `wp-config.php`), assigns `http://myblog.test`, and serves from the project root.
+`servlo link` detects WordPress (via `wp-login.php` or `wp-config.php`), assigns `http://myblog.example.com`, and serves from the project root.
 
 ---
 
@@ -116,7 +116,7 @@ These come from the servlo built-in MySQL service. See [Services](../usage/servi
 
 ## 6. Configure `wp-config.php`
 
-Run the WordPress installer (browser at `http://myblog.test`) which will prompt for the values above, **or** copy `wp-config-sample.php` and edit it manually:
+Run the WordPress installer (browser at `http://myblog.example.com`) which will prompt for the values above, **or** copy `wp-config-sample.php` and edit it manually:
 
 ```bash
 cp wp-config-sample.php wp-config.php
@@ -145,8 +145,8 @@ This issues a certificate and switches the vhost to HTTPS. WordPress also stores
 
 ```php
 // wp-config.php
-define( 'WP_HOME',    'https://myblog.test' );
-define( 'WP_SITEURL', 'https://myblog.test' );
+define( 'WP_HOME',    'https://myblog.example.com' );
+define( 'WP_SITEURL', 'https://myblog.example.com' );
 ```
 
 (Or update the same values in **Settings > General** from the WordPress admin.)
@@ -159,7 +159,7 @@ define( 'WP_SITEURL', 'https://myblog.test' );
 servlo open
 ```
 
-Walk through the five-minute install (admin user, site title, password). When you're done, `https://myblog.test/wp-admin` is your dashboard.
+Walk through the five-minute install (admin user, site title, password). When you're done, `https://myblog.example.com/wp-admin` is your dashboard.
 
 ---
 
@@ -178,7 +178,7 @@ servlo status
 | Command | What it did |
 |---|---|
 | `servlo framework add wordpress` | Registered the YAML so WordPress projects are auto-detected |
-| `servlo link` | Assigned `myblog.test`, set document root to project root |
+| `servlo link` | Assigned `myblog.example.com`, set document root to project root |
 | `servlo init` | Wrote `.servlo.yaml` with PHP 8.3 and the MySQL service |
 | `servlo db:create myblog` | Created `myblog` and `myblog_testing` inside servlo-mysql |
 | (manual) `wp-config.php` edits | Pointed WordPress at `servlo-mysql` and the new database |

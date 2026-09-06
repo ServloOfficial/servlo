@@ -55,7 +55,7 @@ servlo init
   ◯ meilisearch
   ◯ rustfs
 Saved .servlo.yaml
-Linked: my-app -> my-app.test (PHP 8.5, Node 22, Framework: laravel)
+Linked: my-app -> my-app.example.com (PHP 8.5, Node 22, Framework: laravel)
 ```
 
 Wizard defaults are populated intelligently on first run:
@@ -166,9 +166,9 @@ The containers are restarted once to pick up the new mount. Subsequent commands 
 
 ## Domain naming
 
-Directories with real TLDs are automatically normalised: dots are replaced with dashes and the TLD is stripped before appending `.test`.
+A directory name that looks like a domain is normalised into the site handle: dots become dashes and a trailing TLD is dropped. The handle names units and containers and is not a domain. The domain is never derived, because servlo has no TLD of its own to append, so a link that names no domain and finds none in the project config is refused rather than given an invented one.
 
-For example: `admin.example.com` becomes `admin-example.test`
+For example: `admin.example.com` becomes `admin-example.example.com`
 
 ---
 
@@ -260,8 +260,8 @@ A domain may only be claimed by one site at a time. When `servlo link`, the watc
 
 ```
 $ servlo link
-  [WARN] domain "shared.test" already used by site "owner-app", skipped
-Linked: clone-app -> clone-app.test (PHP 8.5, Node 22, Framework: laravel)
+  [WARN] domain "shared.example.com" already used by site "owner-app", skipped
+Linked: clone-app -> clone-app.example.com (PHP 8.5, Node 22, Framework: laravel)
 ```
 
 The site still gets registered with whatever domains survived the filter. If every requested domain is conflicted, servlo falls back to a freshly generated `<dirname>.<tld>` (with a numeric suffix to avoid name collisions).
@@ -409,9 +409,9 @@ Adding a site from the panel does not run anything the repository authored. A pr
 
 ## Unlinked domains
 
-When you visit a `.test` domain that isn't linked to any site over **HTTP**, servlo shows a branded "Site Not Found" page with a link to the dashboard and a retry button. This replaces the browser's generic connection error.
+When you visit a domain that is not linked to any site over **HTTP**, servlo shows a branded "Site Not Found" page with a link to the dashboard and a retry button. This replaces the browser's generic connection error.
 
-For **HTTPS** the catch-all uses `ssl_reject_handshake on;`, so the browser sees a clean `ERR_SSL_UNRECOGNIZED_NAME_ALERT` connection error rather than a landing page. This is unavoidable: servlo cannot pre-issue a certificate covering arbitrary `*.test` hostnames because browsers (Chrome especially) reject TLD-level wildcard certificates with `ERR_CERT_COMMON_NAME_INVALID`. If you're hitting this on a domain you used to have linked, the fix is browser-side (clear site data / unregister the service worker), not server-side.
+For **HTTPS** the catch-all uses `ssl_reject_handshake on;`, so the browser sees a clean `ERR_SSL_UNRECOGNIZED_NAME_ALERT` connection error rather than a landing page. This is unavoidable: a certificate exists only for a domain somebody asked servlo to secure, so there is nothing to present for a hostname that reaches this server without being linked to a site. If you are hitting this on a domain you used to have linked, the fix is browser-side (clear site data / unregister the service worker), not server-side.
 
 ---
 

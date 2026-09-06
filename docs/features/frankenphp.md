@@ -150,7 +150,6 @@ Everything else, the full runtime extension set, per-site php.ini, bun, and Pest
 ## Other notes
 
 - **PHP version picker** (in the Web UI and `servlo isolate`) rebuilds the derived image for the matching `dunglas/frankenphp:php<version>-alpine` base and restarts the site. On a FrankenPHP site the dashboard dropdown only lists the versions FrankenPHP publishes an image for, so it never offers one that would silently downgrade the site; a site pinned to a version like 8.5 runs that image rather than dropping back to 8.4.
-- **macOS** works the same way as Linux because FrankenPHP runs inside the Podman Machine VM; no extra wiring required.
 
 ---
 

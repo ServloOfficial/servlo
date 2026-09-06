@@ -178,10 +178,8 @@ workers:
     reload_command: ""            # alternate command for auto-reload (restart on
                                   # file changes) during development (optional). When a
                                   # project opts this worker into reload mode, servlo runs
-                                  # this command instead of `command`, and on macOS
-                                  # appends `--poll` since the container cannot observe
-                                  # host filesystem events. Laravel's horizon worker sets
-                                  # it to `php artisan horizon:listen`.
+                                  # this command instead of `command`. Laravel's horizon
+                                  # worker sets it to `php artisan horizon:listen`.
     restart: always               # always | on-failure (default: always)
     schedule: ""                  # systemd OnCalendar expression (optional). When set, the
                                   # worker is run as a Type=oneshot service triggered by a
@@ -190,8 +188,7 @@ workers:
                                   # `php artisan schedule:run`, which exits immediately and
                                   # would otherwise restart-loop under restart=always. Any
                                   # systemd OnCalendar value is accepted (e.g. `minutely`,
-                                  # `*:0/5`, `Mon..Fri *-*-* 02:00:00`). Linux only; on
-                                  # macOS scheduled workers currently log a warning and skip.
+                                  # `*:0/5`, `Mon..Fri *-*-* 02:00:00`).
     check:                        # only shown when check passes (optional)
       composer: symfony/messenger
     conflicts_with:               # workers to stop before starting (optional)

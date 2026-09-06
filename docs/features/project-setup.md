@@ -29,7 +29,7 @@ servlo init
 ? Services: [mysql, redis]
 ? Workers to auto-start: [queue, schedule]
 Saved .servlo.yaml
-Linked: my-app -> my-app.test (PHP 8.5, Node 22, Framework: laravel)
+Linked: my-app -> my-app.example.com (PHP 8.5, Node 22, Framework: laravel)
 ```
 
 The answers are saved to `.servlo.yaml` in the project root and applied immediately: the site is linked, HTTPS is enabled if requested, the database is created, and the chosen services are started.

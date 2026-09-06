@@ -311,7 +311,7 @@ Requires [Laravel Broadcasting](https://laravel.com/docs/13.x/broadcasting) with
 
 | Command | Description |
 |---|---|
-| `servlo auth ssh [key...]` | Load SSH keys into a shared `servlo-ssh-agent` sidecar so `servlo composer` can reach private git repositories, including passphrase-protected keys. Defaults to `~/.ssh/id_*`. The agent socket lives on a named volume shared into the FPM containers, so it works on macOS where the host agent can't cross the podman-machine boundary. Unlocked keys stay in the agent's memory and clear when it stops |
+| `servlo auth ssh [key...]` | Load SSH keys into a shared `servlo-ssh-agent` sidecar so `servlo composer` can reach private git repositories, including passphrase-protected keys. Defaults to `~/.ssh/id_*`. The agent socket lives on a named volume shared into the FPM containers, so it is reachable from inside them. Unlocked keys stay in the agent's memory and clear when it stops |
 | `servlo auth ssh --list` | List the keys currently loaded into the agent |
 | `servlo auth ssh --remove` | Remove all keys and stop the agent |
 

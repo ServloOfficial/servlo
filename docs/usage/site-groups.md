@@ -5,13 +5,13 @@ description: Group related sites so one main site owns a base domain and seconda
 
 # Site Groups
 
-Site groups let related sites share one base domain. One site is the **main** and owns the base domain (for example `astrolov.test`); each **secondary** occupies a subdomain of it (`admin.astrolov.test`). This mirrors production, where the app lives on the apex domain and the admin lives on an `admin.` subdomain, without having to run the admin on an unrelated `.test` domain locally.
+Site groups let related sites share one base domain. One site is the **main** and owns the base domain (for example `astrolov.example.com`); each **secondary** occupies a subdomain of it (`admin.astrolov.example.com`). The app lives on the apex domain and the admin on an `admin.` subdomain, rather than the admin needing a domain of its own.
 
 ::: info Not the same as a workspace
 A site group is about **domains**: it rewrites vhosts and reissues certificates so secondaries answer on subdomains of the main. A [workspace](sites.md#workspaces) is about **display only**: it groups sites in the sidebar, the overview and the TUI, and changes nothing about how they are served. A site can be in a group and a workspace at once, and a secondary always shows in its main's workspace.
 :::
 
-A secondary stays a completely independent site: its own project path, PHP version, workers, env and certificate. Grouping only changes the domain it answers on. Under the hood servlo gives the secondary an exact-match nginx vhost (`admin.astrolov.test`), and nginx prefers that exact host over the main's `*.astrolov.test` wildcard, so the subdomain routes to the secondary while everything else still hits the main.
+A secondary stays a completely independent site: its own project path, PHP version, workers, env and certificate. Grouping only changes the domain it answers on. Under the hood servlo gives the secondary an exact-match nginx vhost (`admin.astrolov.example.com`), and nginx prefers that exact host over the main's `*.astrolov.example.com` wildcard, so the subdomain routes to the secondary while everything else still hits the main.
 
 ## Grouping sites in the web UI
 
@@ -29,7 +29,7 @@ So you can build a group from either end: add secondaries from the main, or atta
 
 In the sites list a secondary appears directly under its main, marked with a group icon. Opening a secondary shows which main it belongs to and lets you change its label, toggle the shared database, or ungroup it.
 
-When you group an existing site, its old standalone domain is replaced by the subdomain, matching production. For example `admin-astrolov.test` becomes `admin.astrolov.test`.
+When you group an existing site, its old standalone domain is replaced by the subdomain, matching production. For example `admin-astrolov.example.com` becomes `admin.astrolov.example.com`.
 
 ## Sharing the main's database
 
@@ -43,9 +43,9 @@ Run the commands from the secondary site's directory:
 
 ```bash
 cd ~/Projects/admin-astrolov
-servlo group add astrolov admin     # admin-astrolov.test -> admin.astrolov.test
+servlo group add astrolov admin     # admin-astrolov.example.com -> admin.astrolov.example.com
 servlo group add astrolov admin --share-db   # ...and share astrolov's database
-servlo group label backoffice       # change the subdomain to backoffice.astrolov.test
+servlo group label backoffice       # change the subdomain to backoffice.astrolov.example.com
 servlo group db share               # share the main's database
 servlo group db separate            # go back to a separate database
 servlo group remove                 # restore the standalone domain
@@ -58,11 +58,11 @@ servlo group list                   # show all groups and their members
 
 ## How it interacts with other features
 
-**Multi-tenant subdomains.** If the main uses wildcard tenant subdomains (via `env_overrides` in `.servlo.yaml`), a grouped subdomain is carved out of that wildcard space: `admin.astrolov.test` is served by the secondary instead of being treated as a tenant of the main. The UI shows a warning when you group a secondary under such a main.
+**Multi-tenant subdomains.** If the main uses wildcard tenant subdomains (via `env_overrides` in `.servlo.yaml`), a grouped subdomain is carved out of that wildcard space: `admin.astrolov.example.com` is served by the secondary instead of being treated as a tenant of the main. The UI shows a warning when you group a secondary under such a main.
 
 **Renaming the base domain.** Changing the main's domain cascades to every secondary automatically: each one's subdomain is recomputed against the new base domain and its vhost, certificate and `.env` are regenerated.
 
-**HTTPS.** A secondary inherits HTTPS from its main. The exact-match preference nginx applies to `admin.astrolov.test` only holds on ports the secondary actually listens on, so a secondary left on plain HTTP under a secured main would have no `443` block and the main's `*.astrolov.test` wildcard would answer its subdomain over HTTPS, serving the main's app instead.
+**HTTPS.** A secondary inherits HTTPS from its main. The exact-match preference nginx applies to `admin.astrolov.example.com` only holds on ports the secondary actually listens on, so a secondary left on plain HTTP under a secured main would have no `443` block and the main's `*.astrolov.example.com` wildcard would answer its subdomain over HTTPS, serving the main's app instead.
 
 Servlo keeps the two in step from both ends. `servlo secure <main>` secures the group's secondaries along with it, joining a secured main secures the site as it joins, and `servlo install` repairs the combination on an install that has already drifted into it, which is also what `servlo dns:enable` runs. In the other direction `servlo unsecure <secondary>` is refused while its main is secured, since dropping that one site to plain HTTP is what hands its subdomain back to the wildcard; unsecure the main first, or unsecure them together. An unsecured main has no wildcard on `443`, so a secondary may still be secured on its own there, and `servlo unsecure` on a secondary under an unsecured main is allowed.
 

@@ -76,7 +76,7 @@ A long nginx timeout only helps if PHP is allowed to run that long too. For requ
 
 ## Example: raise the upload limit for one site
 
-Create `~/.local/share/servlo/nginx/custom.d/bigapp.test.conf`:
+Create `~/.local/share/servlo/nginx/custom.d/bigapp.example.com.conf`:
 
 ```nginx
 client_max_body_size 200m;
@@ -88,7 +88,7 @@ Then reload nginx so the include picks it up. The `custom.d` directory is read b
 systemctl --user restart servlo-nginx
 ```
 
-That's it. The snippet is merged into the generated server block for `bigapp.test` and nothing servlo does afterwards (including a version upgrade) will touch it.
+That's it. The snippet is merged into the generated server block for `bigapp.example.com` and nothing servlo does afterwards (including a version upgrade) will touch it.
 
 ## Scope
 
@@ -108,7 +108,7 @@ Prefer keeping it on disk? Drop a snippet into `~/.local/share/servlo/nginx/conf
 
 ## Customising the catch-all (`_default.conf`)
 
-The catch-all vhost servlo ships for unlinked `.test` domains lives at `~/.local/share/servlo/nginx/conf.d/_default.conf`. Editing it directly is supported: servlo stamps a hash sidecar (`_default.conf.servlo-managed-hash`) when it first writes the file, then compares your on-disk content to that hash on every subsequent `servlo start`. If the hashes match, servlo keeps the file in sync with template changes; if they differ, your edit is preserved and the next start logs that it skipped the rewrite. Delete the conf (or the sidecar) to restore servlo's default. A common reason to edit it is swapping `ssl_reject_handshake on;` for `ssl_reject_handshake off;` on a staging machine where you want unlinked HTTPS hostnames to receive a 444 close rather than a TLS alert.
+The catch-all vhost servlo ships for domains that reach this server without being linked to a site lives at `~/.local/share/servlo/nginx/conf.d/_default.conf`. Editing it directly is supported: servlo stamps a hash sidecar (`_default.conf.servlo-managed-hash`) when it first writes the file, then compares your on-disk content to that hash on every subsequent `servlo start`. If the hashes match, servlo keeps the file in sync with template changes; if they differ, your edit is preserved and the next start logs that it skipped the rewrite. Delete the conf (or the sidecar) to restore servlo's default. A common reason to edit it is swapping `ssl_reject_handshake on;` for `ssl_reject_handshake off;` on a staging machine where you want unlinked HTTPS hostnames to receive a 444 close rather than a TLS alert.
 
 ## Forwarded headers and tunneling
 

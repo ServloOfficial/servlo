@@ -192,7 +192,7 @@ Workers appear in the [Web UI](../features/web-ui.md) with live logs. For `sched
 
 ## 6. Hot reload (polling)
 
-The project directory is bind-mounted, but **inotify events don't cross the Podman Machine boundary on macOS, and can be unreliable on Linux with virtiofs**. File watchers that rely on inotify need polling:
+The project directory is bind-mounted, but **inotify events can be unreliable across a virtiofs mount**. File watchers that rely on inotify need polling:
 
 | Tool | Config |
 |---|---|
