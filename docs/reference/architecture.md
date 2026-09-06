@@ -23,7 +23,7 @@ On Linux, servlo requires systemd. Every container runs as a Podman Quadlet (sys
                               reads (bind mount)
                                   │
                                   ▼
-                       ~/Servlo/my-app (or any path)
+                       ~/sites/myapp.example.com (or any path)
 ```
 
 ## Components

@@ -37,7 +37,7 @@ certs:
 `servlo doctor` warns when no public address can be found and none is declared.
 
 ```bash
-cd /srv/my-app
+cd /srv/myapp.example.com
 servlo secure
 # Issues a cert for the site's domains, regenerates the SSL vhost, reloads nginx
 # Updates APP_URL=https://example.com in .env if it exists
@@ -204,7 +204,7 @@ Separately, `servlo doctor` checks what is actually on disk. A machine restored 
 To reset the clock on demand, without toggling HTTPS off and on, run:
 
 ```bash
-cd /srv/my-app
+cd /srv/myapp.example.com
 servlo secure --renew
 # Reissues the certificate for the site's domains, reloads nginx
 ```

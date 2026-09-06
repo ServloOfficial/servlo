@@ -102,7 +102,7 @@ Start it first: servlo services start redis
 ## Example
 
 ```bash
-cd ~/Servlo/my-app
+cd ~/sites/myapp.example.com
 servlo queue:start --queue=emails,default --tries=5 --timeout=120
 # Systemd unit: servlo-queue-my-app.service
 # Logs: journalctl --user -u servlo-queue-my-app -f

@@ -1,9 +1,21 @@
-# Start, Stop & Autostart
+# Start, stop and coming back after a reboot
 
-Day-to-day lifecycle commands for the entire servlo stack: nginx, PHP-FPM containers, services, workers, the Web UI and the watcher.
+The lifecycle commands for the whole stack: nginx, PHP-FPM, services, workers,
+the dashboard and the watcher.
 
-::: tip You don't need to run `servlo start` after installing
-`servlo install` already starts everything for you on first run: it boots `servlo-nginx` and the `servlo-watcher`. Services like MySQL or Redis are started on demand the first time something needs them (`servlo service start`, `servlo init`, or `servlo env`). Reach for `servlo start` only after a `servlo stop`, a reboot without autostart enabled, or after you've manually killed containers.
+::: danger Stopping servlo takes every site on this server offline
+This is a server other people's sites are served from. `servlo stop` is not a
+way to free up memory — it is an outage, for every site at once, until somebody
+runs `servlo start`. There is no per-site stop here: to take one site down and
+leave the rest serving, use `servlo pause <name>`, which swaps that site's vhost
+for a holding page and stops only its workers.
+:::
+
+::: tip You should not need `servlo start` at all
+`servlo install` starts everything, and autostart keeps it that way across
+reboots. Reaching for `servlo start` means something already went wrong — a
+`servlo stop` somebody ran, a reboot with autostart turned off, or containers
+killed by hand. On a healthy server it is a no-op.
 :::
 
 ---
@@ -16,7 +28,11 @@ Day-to-day lifecycle commands for the entire servlo stack: nginx, PHP-FPM contai
 | `servlo stop` | All containers and workers above. Leaves the watcher and Web UI alone. | nothing |
 | `servlo quit` | Everything `servlo stop` does, **plus** the Web UI and watcher. | nothing |
 
-`servlo stop` is the everyday "give my laptop back its CPU" command. `servlo quit` is a full shutdown: use it before a reinstall, a system reboot without autostart, or when you really want servlo out of the way.
+Both take the sites down. The difference is what is left running to bring them
+back: after `servlo stop` the dashboard and the watcher are still up, so you can
+start the server again from a browser. After `servlo quit` nothing is left and
+you need a shell on the machine. Use `quit` before a reinstall or a major
+update, and prefer `stop` otherwise for exactly that reason.
 
 ---
 
@@ -83,26 +99,51 @@ The full off-switch:
 
 After `servlo quit` there are no servlo processes left running. This is the right command before a reinstall, a system reboot, or before pulling a major update.
 
-## Autostart on login
+## Coming back after a reboot
 
-Servlo can boot itself every time you log in. Autostart is a single switch over every servlo-owned systemd user unit on the machine:
+A server reboots — a kernel update, a hypervisor migration, a power event — and
+every site has to come back without anybody logging in to make it happen. That
+is what autostart is, and **it is on by default**.
+
+The word "login" appears in some of servlo's own help text here and is
+misleading. Servlo's units are systemd *user* units, and `servlo install` enables
+[linger](/getting-started/requirements#why-linger-matters) precisely so they do
+not wait for a login: with linger on, systemd starts them at boot and keeps them
+running when no one is connected. Closing your SSH session does not stop the
+sites, and nobody has to open one to bring them back.
+
+Autostart is a single switch over every servlo-owned systemd user unit:
 
 - the dashboard (`servlo-panel.service`) and project watcher (`servlo-watcher.service`)
 - every container quadlet (`servlo-mysql`, `servlo-nginx`, `servlo-redis`, `servlo-postgres`, `servlo-php*-fpm`, `servlo-meilisearch`, `servlo-minio`, `servlo-rustfs`)
 - every per-site worker, queue, schedule, horizon, reverb, and stripe-listen unit
 
 ```bash
-servlo autostart enable      # boot servlo on every login
-servlo autostart disable     # stop booting on login
+servlo autostart enable      # come back automatically after a reboot
+servlo autostart disable     # do not
 ```
 
-`servlo autostart enable` runs `systemctl --user enable` on the full set; `servlo autostart disable` runs the matching `disable`. The dashboard's enabled state is the canonical "is autostart on" indicator.
+`enable` runs `systemctl --user enable` across the full set; `disable` runs the
+matching `disable`, strips the `[Install]` section from the container quadlets so
+the podman generator stops wiring them into `default.target`, and stops them. The
+dashboard's toggle is the same switch.
+
+::: warning Disabling this means the sites do not come back
+On a production server the reboot you did not plan is the one this exists for.
+With autostart off, a reboot leaves every site down until somebody notices and
+runs `servlo start` by hand. There is a CI job whose whole purpose is to reboot a
+machine and assert that every site, service and worker returns unaided; turning
+this off opts out of that guarantee. Turn it off for a machine you are
+deliberately keeping quiet, not for one serving anybody.
+:::
 
 ---
 
-## From the Web UI
+## From the dashboard
 
-The dashboard at `http://127.0.0.1:7073` has **Start** and **Stop** buttons in the header:
+The dashboard — reached at `https://<this-server-ip>:7073`, or at the domain you
+attached with `servlo panel domain set`, not at loopback unless you are on the
+machine itself — has **Start** and **Stop** buttons in the header:
 
 - **Start** appears only when one or more core services (nginx, PHP-FPM) are not running. Clicking it calls `servlo start` via the API.
 - **Stop** is always visible while servlo is running. Clicking it calls `servlo stop`.
@@ -159,10 +200,10 @@ Where a digest is given the download is checked against it and rejected on a mis
 | Situation | Command |
 |---|---|
 | Just installed servlo | Nothing, `servlo install` already started everything |
-| Bringing the sites back up after `servlo stop` | `servlo start` |
-| Reboot, autostart disabled | `servlo start` |
-| Reboot, autostart enabled | Nothing, happens automatically |
-| Free up CPU / RAM during a heavy build | `servlo stop` |
+| Bringing the sites back after somebody ran `servlo stop` | `servlo start` |
+| Reboot with autostart disabled, sites are down | `servlo start`, then turn autostart on |
+| Reboot with autostart enabled | Nothing, the sites come back on their own |
+| Take one site down, leave the rest serving | `servlo pause <name>` |
 | Full shutdown before a reinstall | `servlo quit` |
 | Verify everything's healthy | `servlo status` |
 | Update Composer and fnm to their pinned versions | `servlo tools:update` |

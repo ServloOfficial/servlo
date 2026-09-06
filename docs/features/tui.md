@@ -194,7 +194,7 @@ The **Dashboard** tab is the terminal counterpart to the web UI's home page: a r
 
 Press `S` (on the Sites tab) to swap the detail pane for global settings. Navigate with `↑` `↓`, toggle with `space`:
 
-- **Autostart on login**: `servlo autostart enable/disable`.
+- **Autostart**: `servlo autostart enable/disable` — whether the sites come back on their own after a reboot.
 
 `S` again (or `esc`) returns to Site detail.
 

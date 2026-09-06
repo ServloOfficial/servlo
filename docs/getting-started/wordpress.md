@@ -1,194 +1,91 @@
-# WordPress walkthrough
+# WordPress
 
-End-to-end: from `servlo install` to a WordPress site running on `https://myblog.example.com` with MySQL.
+From a fresh server to a WordPress site serving HTTPS on its own domain.
 
 ::: info Prerequisites
-You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
+`servlo install` has run on this server. If not, see [Installation](installation.md).
 :::
 
-::: tip Drive it from your AI assistant
-:::
-
----
-
-## 1. Register the WordPress framework definition (one-time)
-
-Save this as `~/.config/servlo/frameworks/wordpress.yaml`:
-
-```yaml
-# ~/.config/servlo/frameworks/wordpress.yaml
-name: wordpress
-label: WordPress
-detect:
-  - file: wp-login.php
-  - file: wp-config.php
-public_dir: .
-env:
-  fallback_file: wp-config.php
-  fallback_format: php-const
-composer: false
-npm: false
-```
-
-Then register it:
+## The short version
 
 ```bash
-servlo framework add wordpress --from-file ~/.config/servlo/frameworks/wordpress.yaml
+servlo apps install wordpress myblog.example.com --admin-email you@example.com
+servlo secure myblog.example.com
 ```
 
-::: info Why no `.env`?
-WordPress stores configuration in `wp-config.php` as PHP constants, not in a `.env` file. The `fallback_file` / `fallback_format` settings tell servlo to read constants like `DB_HOST`, `WP_HOME`, and `WP_SITEURL` directly from `wp-config.php`. This means `servlo env` doesn't auto-inject database credentials the way it does for Laravel or Symfony; you'll wire them up by hand in step 5.
-:::
+That is the whole install. The first command downloads a pinned WordPress
+release, verifies it against a recorded sha256, extracts it, creates a database
+and a least-privilege user for it, writes `wp-config.php` with the eight keys
+WordPress wants, generates an administrator account, and registers the site.
+The admin password is **printed once and never written to a log**, so copy it
+before you clear the terminal.
 
----
+The second issues a Let's Encrypt certificate, rewrites the vhost to 443, adds
+the redirect and updates the site URL. It refuses until `myblog.example.com`
+actually resolves to this server — see [HTTPS / TLS](/features/https).
 
-## 2. Download WordPress
+Options worth knowing:
 
-::: code-group
-
-```bash [wp-cli]
-cd ~/Servlo
-wp core download --path=myblog
-```
-
-```bash [curl + tar]
-cd ~/Servlo
-mkdir myblog && cd myblog
-curl -O https://wordpress.org/latest.tar.gz
-tar -xzf latest.tar.gz --strip-components=1
-rm latest.tar.gz
-```
-
-:::
-
----
-
-## 3. Register the site
-
-```bash
-cd ~/Servlo/myblog
-servlo link
-```
-
-`servlo link` detects WordPress (via `wp-login.php` or `wp-config.php`), assigns `http://myblog.example.com`, and serves from the project root.
-
----
-
-## 4. Configure PHP and start MySQL
-
-```bash
-servlo init
-```
-
-```
-? PHP version: 8.3
-? Node version (leave blank to skip):
-? Enable HTTPS? Yes
-? Services: [mysql]
-Saved .servlo.yaml
-```
-
-Workers are not shown; the WordPress framework definition declares none.
-
----
-
-## 5. Create the database
-
-```bash
-servlo db:create myblog
-```
-
-This creates `myblog` and `myblog_testing` inside the servlo-mysql container.
-
-::: info Database credentials
-| Setting | Value |
+| Flag | Default |
 |---|---|
-| Host | `servlo-mysql` |
-| Port | `3306` |
-| User | `root` |
-| Password | `servlo` |
-| Database | `myblog` |
+| `--admin-user` | `admin` |
+| `--admin-email` | asked for; WordPress needs one |
+| `--title` | the domain |
+| `--path` | `./<domain>` |
+| `--connection` | the default database connection |
 
-These come from the servlo built-in MySQL service. See [Services](../usage/services.md#service-credentials).
-:::
+The directory must be empty. An installer that writes into somebody's existing
+files is one bad argument away from destroying a site.
 
----
+## What you get that a manual install does not
 
-## 6. Configure `wp-config.php`
+**A real cron.** WordPress's own scheduler only fires when somebody loads a
+page, so on a quiet site scheduled posts and updates simply wait. Servlo
+disables the pseudo-cron and installs a one-minute system cron in its place.
+See [Cron](/usage/cron).
 
-Run the WordPress installer (browser at `http://myblog.example.com`) which will prompt for the values above, **or** copy `wp-config-sample.php` and edit it manually:
+**A pinned, verified release.** The version and its sha256 are recorded in the
+app definition rather than fetched as "latest", so the same command installs the
+same thing next month, and a tampered download fails rather than installing.
 
-```bash
-cp wp-config-sample.php wp-config.php
-```
+**A database user scoped to this site.** Not the root account. If this site is
+ever compromised, its credentials are worth only its own schema — which is the
+main thing standing between one bad plugin and every other site on the server.
 
-Then edit the `DB_*` constants:
+**A deploy that will not delete the uploads.** `wp-content/uploads` and
+`wp-content/plugins` are excluded by default, because the client installs
+plugins and uploads media through wp-admin and the first deploy after that would
+otherwise wipe them. See [Deploy](/usage/deploy).
 
-```php
-define( 'DB_NAME',     'myblog' );
-define( 'DB_USER',     'root' );
-define( 'DB_PASSWORD', 'servlo' );
-define( 'DB_HOST',     'servlo-mysql' );
-```
+## Bringing an existing WordPress site
 
-Generate fresh authentication salts (the installer does this automatically; for the manual path, replace the placeholder block with output from <https://api.wordpress.org/secret-key/1.1/salt/>).
-
----
-
-## 7. Enable HTTPS
-
-```bash
-servlo secure myblog
-```
-
-This issues a certificate and switches the vhost to HTTPS. WordPress also stores its canonical URL in two places, so update them too:
-
-```php
-// wp-config.php
-define( 'WP_HOME',    'https://myblog.example.com' );
-define( 'WP_SITEURL', 'https://myblog.example.com' );
-```
-
-(Or update the same values in **Settings > General** from the WordPress admin.)
-
----
-
-## 8. Open it
+Already running somewhere else, with files and a database dump:
 
 ```bash
-servlo open
+servlo import site /srv/oldblog myblog.example.com --dump ~/oldblog.sql
 ```
 
-Walk through the five-minute install (admin user, site title, password). When you're done, `https://myblog.example.com/wp-admin` is your dashboard.
+Servlo works out the document root, registers the site, writes the vhost, and
+loads the dump into a database of its own. The files are not copied — a
+directory you have just uploaded a few gigabytes into is not one to duplicate
+for no reason. See [Importing a site](/usage/import).
 
----
+Then point DNS at this server and run `servlo secure`.
 
-## 9. Verify
+## Verify
 
 ```bash
-servlo status
+servlo sites          # myblog.example.com, active
+servlo status         # nginx, PHP-FPM, mysql
+servlo site:doctor    # app-level checks for this site
 ```
 
-`myblog` should be listed as `active` and `mysql` as `running`. Live nginx and PHP-FPM logs are in the [Web UI](../features/web-ui.md) at `http://127.0.0.1:7073`.
-
----
-
-## What just happened
-
-| Command | What it did |
-|---|---|
-| `servlo framework add wordpress` | Registered the YAML so WordPress projects are auto-detected |
-| `servlo link` | Assigned `myblog.example.com`, set document root to project root |
-| `servlo init` | Wrote `.servlo.yaml` with PHP 8.3 and the MySQL service |
-| `servlo db:create myblog` | Created `myblog` and `myblog_testing` inside servlo-mysql |
-| (manual) `wp-config.php` edits | Pointed WordPress at `servlo-mysql` and the new database |
-| `servlo secure myblog` | Issued TLS, switched vhost to HTTPS |
-
----
+Logs for the site are in the dashboard, or `servlo logs`.
 
 ## Next steps
 
-- [Frameworks & Workers](../usage/frameworks.md): extend `wordpress.yaml` to add log paths or custom workers (e.g. `wp cron event run`)
-- [Database](../usage/database.md): `servlo db:import` to load a production dump, `servlo db:shell` for quick queries
-- [Services](../usage/services.md): the full service catalogue and how sites are wired to it
-- [HTTPS](../features/https.md): wildcard certs for multi-site
+- [Domains](/usage/domains) — aliases, the canonical www form, redirects
+- [Backups](/usage/backups) — scheduled, and verified by restoring
+- [Deploy](/usage/deploy) — the exclude list matters most for WordPress
+- [Database](/usage/database) — `servlo db:import`, `servlo db:shell`
+- [Security](/usage/security) — firewall, fail2ban, SSH keys

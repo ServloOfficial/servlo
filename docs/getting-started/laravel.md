@@ -6,30 +6,34 @@ End-to-end: from `servlo install` to a Laravel app running on `https://myapp.exa
 You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
 :::
 
-::: tip Drive it from your AI assistant
-:::
-
 ---
 
 ## 1. Create the project
 
-Servlo ships with the official Laravel installer, available in your shell after `servlo install`:
+Most sites on a server arrive from a repository rather than being created on
+it — clone from GitHub in the dashboard and Servlo mints a deploy key for you to
+paste into the repository, verifies the connection, then clones. See
+[Site management](/usage/sites).
+
+For a project you are starting here, Servlo ships the official Laravel installer,
+on your PATH after `servlo install`. Name the directory for the domain it will be
+served on, and the link step has nothing to ask you:
 
 ::: code-group
 
 ```bash [laravel new]
-cd ~/Servlo
-laravel new myapp
+mkdir -p ~/sites && cd ~/sites
+laravel new myapp.example.com
 ```
 
 ```bash [servlo new]
-cd ~/Servlo
-servlo new myapp
-# runs: composer create-project laravel/laravel ./myapp
+mkdir -p ~/sites && cd ~/sites
+servlo new myapp.example.com
+# runs: composer create-project laravel/laravel ./myapp.example.com
 ```
 
 ```bash [existing repo]
-cd ~/Servlo
+cd ~/sites
 git clone git@github.com:you/myapp.git
 ```
 
@@ -42,14 +46,16 @@ The `laravel new` installer walks you through starter kit, auth, and database ch
 ## 2. Register the site
 
 ```bash
-cd myapp
+cd myapp.example.com
 servlo link
 ```
 
 `servlo link myapp.example.com` registers the directory and serves it on that name. The domain is required: servlo has no TLD of its own to append, so a bare name is refused. If the directory is itself named `myapp.example.com`, that is used and the argument can be left off. Pointing the name at this server is yours to do.
 
 ::: info Already parked?
-If `~/Servlo` was registered with `servlo park ~/Servlo` earlier, every subdirectory under it is auto-linked. You can skip `servlo link` entirely.
+If `~/sites` was registered with `servlo park ~/sites`, every project under it is
+linked automatically as it appears, each on the domain its own directory is named
+for. You can skip `servlo link` entirely.
 :::
 
 ---

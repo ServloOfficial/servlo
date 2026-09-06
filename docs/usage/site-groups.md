@@ -42,7 +42,7 @@ Sharing assumes both sites use the same servlo-managed database service (the usu
 Run the commands from the secondary site's directory:
 
 ```bash
-cd ~/Projects/admin-astrolov
+cd ~/sites/admin.astrolov.com
 servlo group add astrolov admin     # admin-astrolov.example.com -> admin.astrolov.example.com
 servlo group add astrolov admin --share-db   # ...and share astrolov's database
 servlo group label backoffice       # change the subdomain to backoffice.astrolov.example.com

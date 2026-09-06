@@ -3,7 +3,7 @@
 `servlo env` sets up the `.env` file for a Laravel project in one command:
 
 ```bash
-cd ~/Servlo/my-app
+cd ~/sites/myapp.example.com
 servlo env
 ```
 

@@ -66,7 +66,7 @@ auto_cleanup: true      # when true (default), servlo reclaims its own orphaned
                         # (or set this key); `servlo cleanup` still works on demand
                         # when off. See reference/commands.md.
 parked_directories:
-  - ~/Servlo
+  - ~/sites
 services:
   mysql:       { enabled: true,  image: "docker.io/library/mysql:8.4",             port: 3306 }
   redis:       { enabled: true,  image: "docker.io/library/redis:7-alpine",        port: 6379 }
