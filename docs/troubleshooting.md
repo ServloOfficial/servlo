@@ -3,7 +3,7 @@
 When something isn't working, start with the built-in diagnostics:
 
 ```bash
-servlo doctor   # full check: podman, systemd, DNS, ports, images, config
+servlo doctor   # full check: podman, systemd, container DNS, ports, images, config
 servlo status   # quick health snapshot of all running services
 ```
 
@@ -38,7 +38,7 @@ What gets filtered before it lands on disk:
 - Site `.env` files are excluded outright.
 - Home paths render as `$HOME` and the username as `$USER`.
 - Site names, domains and parked-directory paths are replaced with `site-1`/`site1.<tld>`/`$PARK_1` placeholders. Pass `--show-real-names` to keep the raw values for local debugging.
-- Logs are kept only for servlo's own infra (`servlo-nginx`, `servlo-ui`, `servlo-dns`, `servlo-watcher`, etc.). Preset services (mysql, redis, meilisearch, gotenberg, …), FPM containers and per-site workers still appear in the unit-state and container tables but their logs are dropped, they were producing repetitive request-shaped noise that didn't help triage.
+- Logs are kept only for servlo's own infra (`servlo-nginx`, `servlo-panel`, `servlo-watcher`, etc.). Preset services (mysql, redis, meilisearch, gotenberg, …), FPM containers and per-site workers still appear in the unit-state and container tables but their logs are dropped, they were producing repetitive request-shaped noise that didn't help triage.
 - Custom services and per-site custom / FrankenPHP containers are omitted entirely so the report doesn't expose user app identifiers.
 - Nginx structured error lines have their `request:` / `upstream:` / `referrer:` URI fields redacted, and HTTP access lines are dropped.
 
@@ -177,7 +177,7 @@ Both lines matter: the first takes effect now and is lost at reboot, the second 
 :::
 
 ::: details Watcher service not running
-The watcher monitors parked directories, site config files, and DNS health. If sites aren't being auto-registered or queue workers aren't restarting on `.env` changes:
+The watcher monitors parked directories and site config files. If sites aren't being auto-registered or queue workers aren't restarting on `.env` changes:
 
 ```bash
 servlo status                            # shows watcher running/stopped
@@ -324,7 +324,7 @@ Your host's DNS configuration includes a zoned link-local IPv6 nameserver, typic
 
 Servlo 1.18+ filters these addresses automatically before handing them to podman. If you're still on 1.17 or older, upgrade with `servlo update` and rerun `servlo install`. The filter is conservative: only zoned link-local (`fe80::...%iface`) addresses are dropped; globally routable IPv6 nameservers (e.g. `2606:4700:4700::1111`) are preserved.
 
-When filtering empties the entire DNS list, servlo falls back to pasta's standard forwarder (`169.254.1.1`), which bridges into the host's resolver and preserves `.test` routing.
+When filtering empties the entire DNS list, servlo falls back to pasta's standard forwarder (`169.254.1.1`), which bridges into the host's resolver so containers can still resolve public names.
 :::
 
 ::: details Services fail to start with "aardvark-dns failed to bind [fd00:1e7d::1]:53"
