@@ -65,7 +65,7 @@ Dots follow the same convention everywhere: green `●` running, grey `○` stop
 | `r` | Restart the focused site / service / worker |
 | `p` | Pause / unpause toggle for a site |
 | `t` | Open an interactive shell inside the focused container (FPM or custom for sites, the service container for services, the owning site's FPM for worker rows) |
-| `O` | Open in the default browser (uses `xdg-open` on Linux, `open` on macOS): the focused site's primary domain, or, when the Services pane is focused, the focused service's dashboard URL (phpMyAdmin, RustFS, RabbitMQ, RedisInsight, …). A service with no dashboard says so in the status bar |
+| `O` | Open in the default browser (via `xdg-open`): the focused site's primary domain, or, when the Services pane is focused, the focused service's dashboard URL (phpMyAdmin, RustFS, RabbitMQ, RedisInsight, …). A service with no dashboard says so in the status bar |
 | `u` | Run `servlo service update <name>` for the focused service so a presets bump or version pin lands without leaving the TUI. The action is in-strategy and reversible. |
 | `b` | Run `servlo service rollback <name>` to swap the focused service back to its previous version; pairs with `u` as the symmetric undo |
 | `H` | Run `servlo worker heal` to restart every failing framework worker in one pass. The header pill shows the count and the keybind is most relevant when it's lit |
@@ -211,7 +211,6 @@ Press `Y` (on the Sites tab) to swap the detail pane for the System overview, th
 - **Debug bridge**: `Enabled` toggle (runs `servlo dump on/off`), passthrough indicator (web-UI managed), listen socket address, and the current TUI buffered count.
 - **PHP versions**: default version plus one row per installed PHP showing FPM running state.
 - **Node**: default version (from the global config) and the installed major versions reported by `fnm list`.
-- **Worker mode**: macOS only; toggles `servlo workers mode exec|container`. Hidden on Linux where workers always run under systemd.
 - **Servlo**: current version, cached update check result, autostart toggle.
 
 Navigate the rows with `↑` `↓` (the cursor skips section headers and info-only rows), `space` / `enter` to toggle. `Y` again or `esc` returns to Site detail. Every toggle shells out to the public CLI verb so the TUI shares the same code path as a manual `servlo …` invocation.

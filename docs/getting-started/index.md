@@ -1,5 +1,5 @@
 ---
-description: Install servlo and get a PHP site running on a local .test domain with HTTPS, on Ubuntu 24.04.
+description: Install servlo on Ubuntu 24.04 and get a PHP site running on its own domain with HTTPS.
 ---
 
 # Getting Started
@@ -12,7 +12,7 @@ If you just want a site running, read [Requirements](/getting-started/requiremen
 
 - [Requirements](/getting-started/requirements) covers the supported distributions and the handful of packages servlo expects to find.
 - [Installation](/getting-started/installation) is the main path, a single install script that sets up directories, the container network, DNS and certificates.
-- [Quick Start](/getting-started/quick-start) is the short version once servlo is installed: link a directory, get a `.test` domain with HTTPS.
+- [Quick Start](/getting-started/quick-start) is the short version once servlo is installed: register a project and put it on a domain with HTTPS.
 
 ## Framework walkthroughs
 

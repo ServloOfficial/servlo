@@ -8,7 +8,7 @@ Framework workers (queue, schedule, horizon, reverb, custom) run as systemd user
 
 Two common paths:
 
-1. **Restart-rate-limit cascade.** If something stops the unit's parent FPM container repeatedly (a quadlet rewrite cascade, a podman-machine bridge wedge on macOS, an external process), the worker's `BindsTo=` directive stops it as collateral. systemd then tries to restart it, hits `StartLimitBurst`, and parks the unit in `failed`.
+1. **Restart-rate-limit cascade.** If something stops the unit's parent FPM container repeatedly (a quadlet rewrite cascade, an external process), the worker's `BindsTo=` directive stops it as collateral. systemd then tries to restart it, hits `StartLimitBurst`, and parks the unit in `failed`.
 2. **Application crash loop.** A worker that throws on startup (missing env var, bad migration, dependency removed) exits faster than `RestartSec=`, exhausts the burst budget, and lands in `failed` with the same message.
 
 The second case requires fixing the underlying error before heal will stick. Heal will start the unit, but if it crashes again it'll burn through the rate limit and re-enter `failed`. The dashboard banner will reappear; check the worker logs (`servlo worker logs <name>` or the dashboard logs pane) for the real cause.

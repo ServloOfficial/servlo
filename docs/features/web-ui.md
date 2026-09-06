@@ -75,7 +75,7 @@ Every widget is driven by the same Svelte stores that power the rest of the dash
 
 ![Command palette overlay](/assets/screenshots/command-palette.png)
 
-Press **`Cmd+K`** (macOS) / **`Ctrl+K`** (Linux/Windows), or **`/`** anywhere outside an input, to open a global command palette overlay. It searches across:
+Press **`Ctrl+K`**, or **`/`** anywhere outside an input, to open a global command palette overlay. It searches across:
 
 - **Pages**: Dashboard, Sites, Services, System
 - **Sites**: every linked domain, with framework hint

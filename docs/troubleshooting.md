@@ -98,7 +98,7 @@ Check that nginx and the PHP-FPM container are running, then inspect the generat
 ```bash
 servlo status                         # check nginx and FPM are running
 podman logs servlo-nginx              # nginx error log
-cat ~/.local/share/servlo/nginx/conf.d/my-app.test.conf   # check generated vhost
+cat ~/.local/share/servlo/nginx/conf.d/my-app.example.com.conf   # check generated vhost
 ```
 :::
 
@@ -262,14 +262,10 @@ Port conflicts detected:
 Common culprits are Apache, another nginx instance, or a previously running servlo that wasn't stopped cleanly. Find and stop the conflicting process:
 
 ```bash
-# Linux
 ss -tlnp sport = :80
-
-# macOS
-lsof -nP -iTCP:80 -sTCP:LISTEN
 ```
 
-The exact command servlo suggests in `servlo doctor` and `servlo start` output is already platform-correct, so you can copy it from there.
+The exact command servlo suggests in `servlo doctor` and `servlo start` output is the same one, so you can copy it from there.
 
 `servlo doctor` also checks for port conflicts as part of its full diagnostic, and adds a dedicated **[Stopped service ports]** section that flags installed services whose host port is already bound by another process. The same warning is shown next to the inactive status pill in the web UI, so you can spot the conflict without running anything: most often this is a system-installed service (Postgres, MySQL, Redis) listening on the default port. Stop the conflicting process and the warning clears on the next snapshot refresh.
 :::
@@ -403,23 +399,3 @@ systemctl is-active network-online.target   # "inactive" here means every quadle
 To go back to podman's stock behaviour, delete the drop-in and run `systemctl --user daemon-reload`.
 :::
 
-::: details Podman Machine overlay-storage error (macOS)
-Symptom: on macOS, `servlo start` fails and **every** container start reports a graph-driver / overlay error:
-
-```
-exit status 125: Error: getting graph driver info "<id>":
-readlink /var/lib/containers/storage/overlay: invalid argument
-```
-
-Cause: the macOS host was shut down ungracefully (forced power-off, battery death, kernel panic) while the Podman Machine VM was still running. The VM's container storage is left with a stale overlay mount and corrupt container layers, so no container can start until the storage is remounted and the stale containers are rebuilt.
-
-`servlo start` detects this and **self-heals automatically** on the first run: it restarts the Podman Machine to remount the storage, force-removes the stale `servlo-*` containers so they rebuild on fresh storage, and retries the start pass once. Your data is safe throughout: servlo bind-mounts every database and site directory to the host, not into the VM.
-
-If the automatic recovery isn't enough (it prints guidance pointing here), recreate the VM:
-
-```bash
-servlo machine reset
-```
-
-This stops the VM, removes it, and re-initialises it. Databases and site data are preserved (they live on the host); container images are rebuilt automatically on the next `servlo start`. See [Start, Stop & Autostart → `servlo machine reset`](usage/lifecycle.md#servlo-machine-reset-macos).
-:::
