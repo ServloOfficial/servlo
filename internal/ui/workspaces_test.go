@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
 // workspaceEnv points the global config and the site registry at temp dirs.

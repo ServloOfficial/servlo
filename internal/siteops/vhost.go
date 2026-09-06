@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/nginx"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // RegenerateSiteVhost regenerates the nginx vhost for a site after domain changes.

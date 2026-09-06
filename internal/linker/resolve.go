@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	phpDet "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/siteops"
-	"github.com/realrashid/servlo/internal/store"
+	"github.com/ServloOfficial/servlo/internal/config"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/store"
 )
 
 // Resolve decides everything about linking dir as a site without changing

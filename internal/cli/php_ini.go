@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/phpini"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/phpini"
 	"github.com/spf13/cobra"
 )
 

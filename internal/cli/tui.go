@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/realrashid/servlo/internal/tui"
-	"github.com/realrashid/servlo/internal/version"
+	"github.com/ServloOfficial/servlo/internal/tui"
+	"github.com/ServloOfficial/servlo/internal/version"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

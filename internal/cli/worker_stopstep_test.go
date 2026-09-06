@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 )
 
 // A non-fatal daemon-reload warning must be emitted after the step completes,

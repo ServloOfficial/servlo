@@ -12,7 +12,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/unitlog"
+	"github.com/ServloOfficial/servlo/internal/unitlog"
 )
 
 func serviceRecentLogs(unit string) string {

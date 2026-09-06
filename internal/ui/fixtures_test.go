@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/presetfixtures"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/presetfixtures"
 )
 
 // Add-ons ship in the external store, not the binary. Tests resolve them through

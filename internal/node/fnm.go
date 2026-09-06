@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // fnmManager drives Schniz/fnm, the single static binary servlo downloads to its

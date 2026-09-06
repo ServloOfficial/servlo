@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	gitpkg "github.com/realrashid/servlo/internal/git"
+	"github.com/ServloOfficial/servlo/internal/config"
+	gitpkg "github.com/ServloOfficial/servlo/internal/git"
 )
 
 // A real repository, because the whole question this story answers is what git

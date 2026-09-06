@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	servloUpdate "github.com/realrashid/servlo/internal/update"
+	servloUpdate "github.com/ServloOfficial/servlo/internal/update"
 )
 
 // ── package-managed detection ─────────────────────────────────────────────────

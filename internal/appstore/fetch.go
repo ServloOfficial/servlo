@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
 // Fetching a release.

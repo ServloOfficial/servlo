@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/systemd"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/systemd"
 )
 
 // stubSystemd replaces the three reads that need a running systemd, so the

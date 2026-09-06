@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/ServloOfficial/servlo/internal/workerheal"
 )
 
 // workerFailureBatchDelay is the settle window between the first new failure

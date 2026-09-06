@@ -6,8 +6,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/nginx"
 	"golang.org/x/crypto/bcrypt"
 )
 

@@ -100,7 +100,7 @@ func TestHandleSiteClone_RefusesANonEmptyDirectory(t *testing.T) {
 	}
 
 	out := postClone(t, handleSiteClone, "/api/sites/clone", map[string]any{
-		"domain": "example.com", "path": dir, "repository": "git@github.com:realrashid/servlo.git",
+		"domain": "example.com", "path": dir, "repository": "git@github.com:ServloOfficial/servlo.git",
 	})
 
 	msg, _ := out["error"].(string)
@@ -124,7 +124,7 @@ func TestHandleSiteClone_RefusesADomainThatIsNotFullyQualified(t *testing.T) {
 	panelDirs(t)
 
 	out := postClone(t, handleSiteClone, "/api/sites/clone", map[string]any{
-		"domain": "myapp", "path": t.TempDir(), "repository": "git@github.com:realrashid/servlo.git",
+		"domain": "myapp", "path": t.TempDir(), "repository": "git@github.com:ServloOfficial/servlo.git",
 	})
 
 	msg, _ := out["error"].(string)

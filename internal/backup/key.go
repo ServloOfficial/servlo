@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // keyFile is where the one secret that opens every backup lives. It stays on

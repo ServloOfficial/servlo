@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/ServloOfficial/servlo/internal/workerheal"
 )
 
 // installBatchTestSink swaps the dispatcher and shrinks the delay so a real

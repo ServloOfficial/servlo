@@ -17,7 +17,7 @@ stores/
 Two sources, in order:
 
 1. **The network.** An installed binary fetches from
-   `raw.githubusercontent.com/realrashid/servlo/main/stores/<kind>/…`. This is
+   `raw.githubusercontent.com/ServloOfficial/servlo/main/stores/<kind>/…`. This is
    how a definition published since a build reaches an existing install.
 2. **The binary itself.** `stores/stores.go` embeds the whole tree, and the
    store client falls through to it when no base answers.

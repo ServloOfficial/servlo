@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 func TestPadToWidth_PadsShort(t *testing.T) {

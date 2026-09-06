@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
 // TestDetailPane_ServicesTabShowsServiceEvenWhenDetailFocused guards the

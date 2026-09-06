@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/stores"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/stores"
 )
 
 // smtpSite registers one Laravel site, whose store definition declares the mail

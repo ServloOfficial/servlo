@@ -14,9 +14,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/systemd"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/systemd"
 )
 
 // quadletReloadPending records that a previous DaemonReloadIfNeeded call
@@ -332,7 +332,7 @@ func unitOpCaller() string {
 	frames := runtime.CallersFrames(pc[:n])
 	for {
 		frame, more := frames.Next()
-		if !strings.Contains(frame.Function, "realrashid/servlo/internal/podman") {
+		if !strings.Contains(frame.Function, "ServloOfficial/servlo/internal/podman") {
 			return fmt.Sprintf("%s (%s:%d)", frame.Function, filepath.Base(frame.File), frame.Line)
 		}
 		if !more {

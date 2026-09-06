@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The challenge location is what makes HTTP-01 possible at all: Let's Encrypt

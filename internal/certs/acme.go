@@ -18,9 +18,9 @@ import (
 
 	"golang.org/x/crypto/acme"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dnsprovider"
-	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dnsprovider"
+	"github.com/ServloOfficial/servlo/internal/nginx"
 )
 
 // The two directories Let's Encrypt publishes. Staging issues from an untrusted

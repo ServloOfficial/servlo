@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/services"
+	"github.com/ServloOfficial/servlo/internal/services"
 )
 
 type fakeServiceMgr struct {

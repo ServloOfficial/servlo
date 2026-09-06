@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
 )
 
 func isolate(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 func stagingData(t *testing.T, s *config.SiteStaging) VhostData {

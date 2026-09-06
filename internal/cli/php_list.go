@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/config"
-	phpPkg "github.com/realrashid/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/config"
+	phpPkg "github.com/ServloOfficial/servlo/internal/php"
 	"github.com/spf13/cobra"
 )
 

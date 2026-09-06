@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/auditlog"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 func productionEnv(t *testing.T) {

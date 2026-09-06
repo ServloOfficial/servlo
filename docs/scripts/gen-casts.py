@@ -70,7 +70,7 @@ c.write('hero.cast')
 
 # ---- quick-start: install, then `servlo link` (which runs init/setup/TLS itself) ----
 s1 = Cast(70, 7)
-s1.type('$ ', 'curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash')
+s1.type('$ ', 'curl -fsSL https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash')
 s1.line(col('dim', '→ installing podman, fpm, nginx (rootless)…'))
 s1.line(col('ok', '✓ servlo ready'))
 s1.wait(2.5)

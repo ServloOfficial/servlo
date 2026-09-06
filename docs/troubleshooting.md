@@ -25,7 +25,7 @@ Reclaimable disk is listed separately as optional, because nothing is wrong when
 
 ## Filing a bug report
 
-If you need help on the [issue tracker](https://github.com/realrashid/servlo/issues), run:
+If you need help on the [issue tracker](https://github.com/ServloOfficial/servlo/issues), run:
 
 ```bash
 servlo bug-report

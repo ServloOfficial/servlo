@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // isolatePprofState points the marker at a temp run dir. Without it these

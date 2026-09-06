@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/authz"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/sftpaccess"
+	"github.com/ServloOfficial/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/sftpaccess"
 )
 
 // SFTP access, from the panel.

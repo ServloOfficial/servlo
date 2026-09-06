@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbexec"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbexec"
 )
 
 // record swaps the runner for one that remembers the argv it was handed, which

@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // Installing the admin UI that goes with a database.

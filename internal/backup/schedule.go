@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/services"
-	"github.com/realrashid/servlo/internal/sitecron"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/services"
+	"github.com/ServloOfficial/servlo/internal/sitecron"
 )
 
 // unitPrefix is what every backup unit is called, so a stale one left by a site

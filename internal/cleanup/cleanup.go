@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // servloLabelPrefix is stamped (as a hash label) on every image servlo builds. Its

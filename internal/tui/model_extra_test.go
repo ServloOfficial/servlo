@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
 func TestNextFocus_SitesTabCyclesSitesAndDetail(t *testing.T) {

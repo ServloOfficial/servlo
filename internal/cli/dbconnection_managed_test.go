@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
 )
 
 func stubConnectionTest(t *testing.T, err error) *int {

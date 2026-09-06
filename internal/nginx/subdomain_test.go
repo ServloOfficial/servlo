@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // A site answers for the domains it has and nothing else.

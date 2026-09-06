@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/sitefs"
+	"github.com/ServloOfficial/servlo/internal/sitefs"
 )
 
 // Extracting an uploaded archive.

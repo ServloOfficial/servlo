@@ -192,7 +192,7 @@ func TestExplainSSHFailure_FallsBackToWhatSSHSaid(t *testing.T) {
 // GitHub answers a successful auth on stderr with exit status 1, so treating a
 // non-zero exit as failure would report every working key as broken.
 func TestAuthenticated_ReadsGitHubsSuccessBanner(t *testing.T) {
-	if !Authenticated("Hi realrashid/servlo! You've successfully authenticated, but GitHub does not provide shell access.") {
+	if !Authenticated("Hi ServloOfficial/servlo! You've successfully authenticated, but GitHub does not provide shell access.") {
 		t.Error("GitHub's success banner was not recognised")
 	}
 	if Authenticated("git@github.com: Permission denied (publickey).") {

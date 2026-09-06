@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // A self-mount whose host source has disappeared is the one line podman refuses

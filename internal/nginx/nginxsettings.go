@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The site's own nginx settings: response headers and static-asset caching.

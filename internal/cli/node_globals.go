@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	nodeDet "github.com/realrashid/servlo/internal/node"
+	"github.com/ServloOfficial/servlo/internal/config"
+	nodeDet "github.com/ServloOfficial/servlo/internal/node"
 )
 
 // userNPMPrefix returns the npm prefix the user configured themselves —

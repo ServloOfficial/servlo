@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // databaseNamePattern is the strict shape an entity name must have to reach a

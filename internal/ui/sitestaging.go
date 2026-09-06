@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/authz"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/staging"
+	"github.com/ServloOfficial/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/staging"
 )
 
 // The staging surface on a site.

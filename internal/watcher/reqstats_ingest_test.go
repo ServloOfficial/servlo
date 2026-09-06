@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/ServloOfficial/servlo/internal/reqstats"
 )
 
 // A cold start (the first request after the site sat idle past coldGap) must not

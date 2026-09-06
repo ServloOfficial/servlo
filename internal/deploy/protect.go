@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	gitpkg "github.com/realrashid/servlo/internal/git"
+	gitpkg "github.com/ServloOfficial/servlo/internal/git"
 )
 
 // The exclude list, and the one thing it has to stop.

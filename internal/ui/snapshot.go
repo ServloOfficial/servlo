@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/eventbus"
+	"github.com/ServloOfficial/servlo/internal/eventbus"
 )
 
 // snapshotTTL bounds how long a cached snapshot is reused before the next

@@ -119,7 +119,7 @@ Take a fresh Ubuntu 24.04 droplet, 2GB or more, and a domain you can point at
 it.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash
 ```
 
 The installer refuses anything that is not Ubuntu 24.04, and refuses 22.04 with

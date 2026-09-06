@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
 
-// GitHub Pages for realrashid/servlo. PRD §0: servlo.sh is unregistered and
+// GitHub Pages for ServloOfficial/servlo. PRD §0: servlo.sh is unregistered and
 // must not be named anywhere until it exists.
-const SITE_URL = 'https://realrashid.github.io/servlo'
+const SITE_URL = 'https://servloofficial.github.io/servlo'
 const OG_IMAGE = `${SITE_URL}/assets/social-preview.png`
 
 // Read the version off the Go source of truth so the structured data can't
@@ -65,7 +65,7 @@ export default defineConfig({
             keywords:
               'local PHP development, Laravel Herd for Linux, Laragon for Linux, Laragon alternative Linux, .test domains, rootless Podman, PHP-FPM, local development environment',
             url: SITE_URL,
-            downloadUrl: 'https://raw.githubusercontent.com/realrashid/servlo/main/install.sh',
+            downloadUrl: 'https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh',
             softwareVersion: SOFTWARE_VERSION,
             license: 'https://opensource.org/licenses/MIT',
             image: OG_IMAGE,
@@ -294,7 +294,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/realrashid/servlo' },
+      { icon: 'github', link: 'https://github.com/ServloOfficial/servlo' },
       { icon: 'discord', link: 'https://discord.gg/5JK54s7xCC' },
       {
         icon: {
@@ -314,7 +314,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/realrashid/servlo/edit/main/docs/:path',
+      pattern: 'https://github.com/ServloOfficial/servlo/edit/main/docs/:path',
       text: 'Edit this page on GitHub',
     },
   },

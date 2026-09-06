@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The flag has to be interpolatable straight into the exec command, so it

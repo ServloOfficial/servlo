@@ -1,6 +1,6 @@
 package siteops
 
-import "github.com/realrashid/servlo/internal/config"
+import "github.com/ServloOfficial/servlo/internal/config"
 
 // RefreshDevServers realigns a site's generated dev server config, and the dev
 // server running on it, with the addresses the site now answers on. A dev server

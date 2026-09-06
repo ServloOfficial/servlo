@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // Extension is an engine's declared extension, aliased so callers work in one

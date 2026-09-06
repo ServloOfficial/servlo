@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/feedback"
-	phpDet "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
 	"golang.org/x/term"
 )
 

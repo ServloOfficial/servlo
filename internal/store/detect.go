@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 	"golang.org/x/term"
 )
 

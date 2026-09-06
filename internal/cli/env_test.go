@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // writeProject writes a minimal .servlo.yaml at dir with the given AppURL.

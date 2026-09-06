@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/reqstats"
 )
 
 // seedSlowSnapshot registers a site at dir and writes a request-timing snapshot

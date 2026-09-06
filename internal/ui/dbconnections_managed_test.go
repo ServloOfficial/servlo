@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
 )
 
 // stubConnectionTest replaces the network reach with an answer, so the panel's

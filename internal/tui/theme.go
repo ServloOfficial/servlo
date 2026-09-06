@@ -4,7 +4,7 @@ import (
 	"image/color"
 
 	"charm.land/lipgloss/v2"
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 )
 
 // lipgloss v2 dropped AdaptiveColor; default to the dark variant (unchanged look

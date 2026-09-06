@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // TestHostProxyAppLifecycleOp pins the routing that fixes the host-proxy 502:

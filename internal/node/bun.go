@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // JSRuntime returns the explicit per-project JS runtime override from

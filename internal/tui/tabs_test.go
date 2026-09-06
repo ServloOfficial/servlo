@@ -9,8 +9,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 	zone "github.com/lrstanley/bubblezone/v2"
-	"github.com/realrashid/servlo/internal/siteinfo"
 )
 
 // TestMain initialises the global bubblezone manager so View() (which marks

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/fpmpool"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/fpmpool"
 )
 
 // One field, every place it has to land.

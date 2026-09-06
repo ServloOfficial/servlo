@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/push"
-	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/push"
+	"github.com/ServloOfficial/servlo/internal/reqstats"
 )
 
 // The nginx access feed is a single datagram socket every served request is

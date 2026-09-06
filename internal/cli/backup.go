@@ -9,13 +9,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/backup"
-	"github.com/realrashid/servlo/internal/backupdest"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbdump"
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/version"
+	"github.com/ServloOfficial/servlo/internal/backup"
+	"github.com/ServloOfficial/servlo/internal/backupdest"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbdump"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/version"
 	"github.com/spf13/cobra"
 )
 

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
 )
 
 // Snapshot is the meta.json sidecar describing one stored database snapshot.

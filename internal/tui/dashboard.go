@@ -10,8 +10,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/ServloOfficial/servlo/internal/stats"
 	zone "github.com/lrstanley/bubblezone/v2"
-	"github.com/realrashid/servlo/internal/stats"
 )
 
 // statsPollInterval is how often the background poller asks for stats. It has

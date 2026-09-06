@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://realrashid.github.io/servlo/sitemap.xml
+Sitemap: https://servloofficial.github.io/servlo/sitemap.xml

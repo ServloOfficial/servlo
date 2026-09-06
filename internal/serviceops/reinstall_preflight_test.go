@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // stubPreflightSeams installs configurable pre-flight seams plus permissive

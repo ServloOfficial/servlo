@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
 // stubEnv stages a sites.yaml with the given names in a temp XDG_DATA_HOME

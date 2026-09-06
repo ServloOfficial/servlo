@@ -3,9 +3,9 @@ package cli
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/cleanup"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/cleanup"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 	"github.com/spf13/cobra"
 )
 

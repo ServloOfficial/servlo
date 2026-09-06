@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // reconcileEnv sets up an isolated HOME/XDG tree and a no-op daemon reload so

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/realrashid/servlo/internal/config"
-	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/config"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
 	"github.com/spf13/cobra"
 )
 

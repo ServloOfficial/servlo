@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/sitedoctor"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/sitedoctor"
 	"github.com/spf13/cobra"
 )
 

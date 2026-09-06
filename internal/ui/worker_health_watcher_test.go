@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/ServloOfficial/servlo/internal/workerheal"
 )
 
 // testHealthDeps returns a deps set wired to counters plus pointers to them,

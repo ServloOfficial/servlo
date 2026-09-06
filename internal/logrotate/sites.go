@@ -3,7 +3,7 @@ package logrotate
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // Everything above this line is mechanism. This is where it meets the site

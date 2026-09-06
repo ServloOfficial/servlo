@@ -15,9 +15,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/logcolor"
-	"github.com/realrashid/servlo/internal/sitetpl"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/logcolor"
+	"github.com/ServloOfficial/servlo/internal/sitetpl"
 )
 
 // runLocks holds a per-site mutex so two browser tabs (or the palette + the

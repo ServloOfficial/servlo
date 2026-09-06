@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
-	nodeDet "github.com/realrashid/servlo/internal/node"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	nodeDet "github.com/ServloOfficial/servlo/internal/node"
 	"github.com/spf13/cobra"
 )
 

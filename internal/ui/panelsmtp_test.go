@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 func panelSMTPCall(t *testing.T, method, path, body string) (*httptest.ResponseRecorder, map[string]any) {

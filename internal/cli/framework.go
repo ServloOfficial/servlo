@@ -7,10 +7,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/store"
 	"github.com/pmezard/go-difflib/difflib"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/store"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

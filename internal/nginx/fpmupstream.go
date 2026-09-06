@@ -3,7 +3,7 @@ package nginx
 import (
 	"os"
 
-	"github.com/realrashid/servlo/internal/fpmpool"
+	"github.com/ServloOfficial/servlo/internal/fpmpool"
 )
 
 // Which FPM a site's requests go to.

@@ -3,7 +3,7 @@ package cleanup
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // SweepRefs reaps exactly the refs servlo hands it, skipping any the protected set

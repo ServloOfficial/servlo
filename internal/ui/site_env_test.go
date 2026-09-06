@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // handleSiteAction routes GET /api/sites/{domain}/env to handleSiteEnv and

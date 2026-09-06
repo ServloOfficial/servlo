@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/alerts"
+	"github.com/ServloOfficial/servlo/internal/alerts"
 )
 
 func captureAlerts(t *testing.T) (*[]alerts.Alert, *[]string) {

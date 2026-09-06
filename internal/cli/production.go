@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/realrashid/servlo/internal/auditlog"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 )
 
 // NewProductionCmd returns the production command group.

@@ -3,8 +3,8 @@ package ui
 import (
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/reqstats"
 )
 
 // statsRoute serves the request-timing view for a site: its typical response

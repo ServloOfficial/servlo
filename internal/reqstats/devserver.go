@@ -3,7 +3,7 @@ package reqstats
 import (
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // IsDevServerRequest reports whether a request URI was answered by the site's

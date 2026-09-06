@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 func TestRefreshDiscoverFamilyConsumers_fillsEmptyHostsAfterBulkStart(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // TestRollback_RequiresPreviousImage covers the contract that rollback fails

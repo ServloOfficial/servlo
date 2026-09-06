@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	nodeDet "github.com/realrashid/servlo/internal/node"
+	nodeDet "github.com/ServloOfficial/servlo/internal/node"
 	"github.com/spf13/cobra"
 )
 

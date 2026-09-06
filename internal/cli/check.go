@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
-	phpPkg "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	phpPkg "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 )
 

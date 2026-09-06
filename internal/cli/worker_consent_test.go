@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // Regression for the host-worker consent bypass: the gate must authorize the

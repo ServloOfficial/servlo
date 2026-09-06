@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/push"
+	"github.com/ServloOfficial/servlo/internal/push"
 )
 
 // opNotification builds the op_done / op_failed notification for a long-running

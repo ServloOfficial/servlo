@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/logcolor"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/logcolor"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // unitPrefix is the shape of every cron unit's name. The site comes before the

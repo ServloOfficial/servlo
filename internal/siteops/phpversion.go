@@ -7,10 +7,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/nginx"
-	"github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // Indirection points so tests can drive the funnel's decisions without the

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/dnscheck"
+	"github.com/ServloOfficial/servlo/internal/dnscheck"
 )
 
 // ErrDNSNotReady means the domains do not resolve to this server yet, so no

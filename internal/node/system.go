@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // SystemNodeBinDirs resolves the directories where an unmanaged node and npm

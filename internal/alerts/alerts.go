@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/mailsend"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/mailsend"
 )
 
 // What can be wrong. Each is one line in the panel and one subject in an inbox.

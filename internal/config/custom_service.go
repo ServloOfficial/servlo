@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 	"gopkg.in/yaml.v3"
 )
 

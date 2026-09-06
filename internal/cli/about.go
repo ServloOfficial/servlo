@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/version"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +25,7 @@ func runAbout(_ *cobra.Command, _ []string) error {
 		Row("Version", feedback.Val(version.Version)).
 		Row("Commit", version.Commit).
 		Row("Built", version.Date).
-		Row("Repo", feedback.Val("https://github.com/realrashid/servlo")).
+		Row("Repo", feedback.Val("https://github.com/ServloOfficial/servlo")).
 		Print()
 	feedback.Begin()
 	fmt.Println("  " + feedback.Dim("© George Dumitrescu"))

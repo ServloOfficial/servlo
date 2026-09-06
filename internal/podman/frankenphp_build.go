@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // frankenPHPRuntimeExtensions is the standard PHP extension set baked into the

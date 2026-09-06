@@ -3,7 +3,7 @@ package deploy
 import (
 	"log"
 
-	"github.com/realrashid/servlo/internal/alerts"
+	"github.com/ServloOfficial/servlo/internal/alerts"
 )
 
 // A failed deploy is loud in the panel while somebody is watching it happen,

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // What the archive holds, at fixed paths so a restore does not have to guess.

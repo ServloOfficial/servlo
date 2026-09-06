@@ -117,7 +117,7 @@ tests/installer/     bats tests for install.sh
 scripts/             operator scripts run by hand, not by CI
 ```
 
-S0.1 landed the rename, so the tree above is what you will actually find. The module path is `github.com/realrashid/servlo` and the entrypoint is `cmd/servlo`; `cmd/lerd-tray` is gone.
+S0.1 landed the rename, so the tree above is what you will actually find. The module path is `github.com/ServloOfficial/servlo` and the entrypoint is `cmd/servlo`; `cmd/lerd-tray` is gone.
 
 No upstream name survives in the code, the panel, the stores or the docs. The prebuilt PHP base images were the last one and now publish under Servlo's own GHCR namespace, derived from `mainRepo` in `internal/origin/origin.go` so moving the project to an organisation is one line. What remains is the fork statement in `README.md`, the upstream copyright in `LICENSE` (which the MIT terms require), and the working documents that explain the fork to whoever picks the codebase up: this file, `PRD.md` and `STORY.md`. The surface scan enforces exactly that, repository-wide: anything else spelling the upstream name is a regression, including in a comment.
 

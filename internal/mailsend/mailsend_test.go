@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // fakeSMTP is a one-connection SMTP server. reject, when set, is the reply it

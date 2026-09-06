@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/ServloOfficial/servlo/internal/linker"
 	"github.com/pmezard/go-difflib/difflib"
-	"github.com/realrashid/servlo/internal/linker"
 	"gopkg.in/yaml.v3"
 )
 

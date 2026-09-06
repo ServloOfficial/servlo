@@ -5,10 +5,10 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/realrashid/servlo/internal/config"
-	nodeDet "github.com/realrashid/servlo/internal/node"
-	phpPkg "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/config"
+	nodeDet "github.com/ServloOfficial/servlo/internal/node"
+	phpPkg "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
 // openPHPPicker loads installed PHP versions and enters picker mode on the

@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
-	gitpkg "github.com/realrashid/servlo/internal/git"
-	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	gitpkg "github.com/ServloOfficial/servlo/internal/git"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 )
 

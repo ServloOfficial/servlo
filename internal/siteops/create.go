@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/realrashid/servlo/internal/config"
-	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/config"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
 )
 
 // Adding a site from the browser, before anything is registered.

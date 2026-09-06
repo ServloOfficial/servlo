@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/phpsets"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/phpsets"
 )
 
 // printPerVersionStatus renders what each built version's image really carries.

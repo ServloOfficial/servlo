@@ -3,8 +3,8 @@ package ui
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/push"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/push"
 )
 
 // dispatchNotification is the single choke point for emitting notifications.

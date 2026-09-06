@@ -21,13 +21,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/appstore"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbcred"
-	"github.com/realrashid/servlo/internal/dbuser"
-	"github.com/realrashid/servlo/internal/serviceops"
-	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/appstore"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbcred"
+	"github.com/ServloOfficial/servlo/internal/dbuser"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
 // Options is what the operator asked for.

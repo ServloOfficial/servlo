@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // errNotLinked is the single message every directory-scoped command shows when

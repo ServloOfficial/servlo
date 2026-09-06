@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // Issuance progress, and why it is on disk rather than in memory.

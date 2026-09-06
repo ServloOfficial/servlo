@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // LogEntry represents a single parsed log entry.

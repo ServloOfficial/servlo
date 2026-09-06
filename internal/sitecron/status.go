@@ -3,8 +3,8 @@ package sitecron
 import (
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/systemd"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/systemd"
 )
 
 // outputLines is how much of a run's output the panel is shown. Enough for a

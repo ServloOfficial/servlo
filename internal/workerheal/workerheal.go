@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
 // StateOrphaned marks a unit whose checkout is gone. It is kept apart from

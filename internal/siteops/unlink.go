@@ -4,10 +4,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/nginx"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/reqstats"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/reqstats"
 )
 
 // IsParkedSite checks whether a site's path is inside one of the parked directories.

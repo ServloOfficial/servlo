@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/alerts"
+	"github.com/ServloOfficial/servlo/internal/alerts"
 	"github.com/spf13/cobra"
 )
 

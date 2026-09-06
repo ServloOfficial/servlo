@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/sitecron"
-	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/sitecron"
+	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
 // SiteCronResponse is a site's schedule: what it runs, what happened last time,

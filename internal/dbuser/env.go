@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/envfile"
-	"github.com/realrashid/servlo/internal/sitetpl"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/sitetpl"
 )
 
 // Writing a rotated credential back into the site's env file.

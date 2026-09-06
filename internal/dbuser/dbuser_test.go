@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbcred"
-	"github.com/realrashid/servlo/internal/dbexec"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbcred"
+	"github.com/ServloOfficial/servlo/internal/dbexec"
 )
 
 // recorder stands in for podman. Every test asserts on what would have been

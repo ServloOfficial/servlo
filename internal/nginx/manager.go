@@ -17,9 +17,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // detectSiteProxy checks the site's framework definition for a worker with a

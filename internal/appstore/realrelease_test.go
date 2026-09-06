@@ -11,8 +11,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/realrashid/servlo/internal/siteops"
-	"github.com/realrashid/servlo/stores"
+	"github.com/ServloOfficial/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/stores"
 )
 
 // The definition checked against the artefact it actually pins, rather than a

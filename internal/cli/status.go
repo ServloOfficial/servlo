@@ -9,14 +9,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
-	phpPkg "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/services"
-	"github.com/realrashid/servlo/internal/tools"
-	servloUpdate "github.com/realrashid/servlo/internal/update"
-	"github.com/realrashid/servlo/internal/version"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	phpPkg "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/services"
+	"github.com/ServloOfficial/servlo/internal/tools"
+	servloUpdate "github.com/ServloOfficial/servlo/internal/update"
+	"github.com/ServloOfficial/servlo/internal/version"
 	"github.com/spf13/cobra"
 )
 

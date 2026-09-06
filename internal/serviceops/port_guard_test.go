@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The dual-stack bind probe and first-free search the guard builds on now live

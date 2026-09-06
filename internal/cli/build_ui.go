@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 	"golang.org/x/term"
 )
 

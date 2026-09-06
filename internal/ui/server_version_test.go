@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	servloUpdate "github.com/realrashid/servlo/internal/update"
+	servloUpdate "github.com/ServloOfficial/servlo/internal/update"
 )
 
 // TestBuildVersionResponse_StripsLeadingV pins the fix for "Servlo vv1.19.2

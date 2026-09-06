@@ -1,8 +1,8 @@
 package cleanup
 
 import (
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // autoEnabled reports whether automatic cleanup is on. Seam for tests.

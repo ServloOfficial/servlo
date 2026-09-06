@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/linker"
-	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/linker"
+	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
 // panelDirs isolates the registry and data dir the way registerSite does, for
@@ -193,7 +193,7 @@ func TestHandleSiteClone_RefusesTheSameBadOverrides(t *testing.T) {
 	panelDirs(t)
 	out := postClone(t, handleSiteClone, "/api/sites/clone", map[string]any{
 		"domain": "example.com", "path": t.TempDir(),
-		"repository": "git@github.com:realrashid/servlo.git", "php_version": "8.9",
+		"repository": "git@github.com:ServloOfficial/servlo.git", "php_version": "8.9",
 	})
 	msg, _ := out["error"].(string)
 	if !strings.Contains(msg, "PHP version") {

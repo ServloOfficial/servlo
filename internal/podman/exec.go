@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/imgledger"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/imgledger"
 )
 
 // execCommand and execCommandContext are the single seam every podman

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/feedback"
-	servloUpdate "github.com/realrashid/servlo/internal/update"
-	"github.com/realrashid/servlo/internal/version"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	servloUpdate "github.com/ServloOfficial/servlo/internal/update"
+	"github.com/ServloOfficial/servlo/internal/version"
 	"github.com/spf13/cobra"
 )
 

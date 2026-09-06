@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The guard's shift hook is silenced only while a SetPublishedPort window is

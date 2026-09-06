@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/cfgedit"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/cfgedit"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // Committing a generated vhost.

@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // --staging sets the install's authority rather than overriding one issuance.

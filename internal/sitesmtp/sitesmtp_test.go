@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // laravelish is a framework definition that declares its mail keys the way the

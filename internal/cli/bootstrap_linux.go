@@ -5,8 +5,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/serverbasics"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/serverbasics"
 )
 
 // runBootstrapSystem performs the root prerequisites the per-user install relies

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // acmeEnv points servlo's data home at a temp dir and returns the webroot the

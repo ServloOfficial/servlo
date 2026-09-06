@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // CustomFPMContainerName returns the per-site PHP-FPM container name for a site

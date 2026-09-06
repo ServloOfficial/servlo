@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // stubFPMUnit makes the FPM unit look installed and active, with a no-op quadlet

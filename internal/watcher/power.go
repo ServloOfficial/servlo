@@ -3,10 +3,10 @@ package watcher
 import (
 	"time"
 
-	"github.com/realrashid/servlo/internal/cli"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/power"
+	"github.com/ServloOfficial/servlo/internal/cli"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/power"
 )
 
 // powerRestartCooldown is the shortest gap between two power-driven restart

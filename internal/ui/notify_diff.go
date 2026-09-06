@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/push"
-	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/push"
+	"github.com/ServloOfficial/servlo/internal/workerheal"
 )
 
 // siteDomainForRoute resolves a registered site name to its primary domain

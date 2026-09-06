@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/services"
-	"github.com/realrashid/servlo/internal/sitecron"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/services"
+	"github.com/ServloOfficial/servlo/internal/sitecron"
 )
 
 // cronMgr is systemd for the duration of a test: unit bodies in a map, so an

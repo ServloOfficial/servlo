@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/services"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/services"
 )
 
 // ErrFPMNotInstalled is returned (wrapped) by StartFPM when the requested

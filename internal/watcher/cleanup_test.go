@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/cleanup"
+	"github.com/ServloOfficial/servlo/internal/cleanup"
 )
 
 // The daily sweep must run the managed tier so upgraded service images are

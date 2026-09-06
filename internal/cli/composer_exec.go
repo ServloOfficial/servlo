@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/realrashid/servlo/internal/composer"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/composer"
+	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/spf13/cobra"
 )
 

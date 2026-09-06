@@ -26,8 +26,8 @@ func TestEndpointsRespectTheForkBoundary(t *testing.T) {
 		if len(got) == 0 {
 			t.Fatalf("%s: empty base list", name)
 		}
-		if !strings.Contains(got[0], "realrashid/servlo") {
-			t.Errorf("%s: primary %q must resolve against realrashid/servlo", name, got[0])
+		if !strings.Contains(strings.ToLower(got[0]), "servloofficial/servlo") {
+			t.Errorf("%s: primary %q must resolve against ServloOfficial/servlo", name, got[0])
 		}
 	}
 
@@ -42,8 +42,8 @@ func TestEndpointsRespectTheForkBoundary(t *testing.T) {
 
 func TestBaseImageRefFormat(t *testing.T) {
 	refs := BaseImageRefs("84", "abc")
-	if len(refs) != 1 || refs[0] != "ghcr.io/realrashid/servlo-php84-fpm-base:abc" {
-		t.Errorf("base ref = %v, want [ghcr.io/realrashid/servlo-php84-fpm-base:abc]", refs)
+	if len(refs) != 1 || refs[0] != "ghcr.io/servloofficial/servlo-php84-fpm-base:abc" {
+		t.Errorf("base ref = %v, want [ghcr.io/servloofficial/servlo-php84-fpm-base:abc]", refs)
 	}
 }
 
@@ -78,7 +78,7 @@ func TestServiceStoreEnvOverride(t *testing.T) {
 func TestEnvOverrideIgnoredWhenEmpty(t *testing.T) {
 	t.Setenv("SERVLO_STORE_BASE_URL", " , , ")
 	got := StoreBaseURLs()
-	if len(got) == 0 || !strings.Contains(got[0], "realrashid/servlo") {
+	if len(got) == 0 || !strings.Contains(got[0], "ServloOfficial/servlo") {
 		t.Fatalf("empty override must fall back to the in-repo store, got %v", got)
 	}
 }
@@ -91,7 +91,7 @@ func TestEnvOverrideIgnoredWhenEmpty(t *testing.T) {
 func TestGHCRNamespaceIsLowercasedWhateverTheOrgIsCalled(t *testing.T) {
 	for _, tc := range []struct{ repo, want string }{
 		{"ServloOfficial/servlo", "servloofficial"},
-		{"realrashid/servlo", "realrashid"},
+		{"acme/servlo", "acme"},
 	} {
 		if got := ghcrNamespace(tc.repo); got != tc.want {
 			t.Errorf("ghcrNamespace(%q) = %q, want %q", tc.repo, got, tc.want)

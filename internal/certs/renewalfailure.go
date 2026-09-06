@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/auditlog"
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // Renewal failure, and why it gets its own file.

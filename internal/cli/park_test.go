@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
 // ── siteNameAndDomain ────────────────────────────────────────────────────────

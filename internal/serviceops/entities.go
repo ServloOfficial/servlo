@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // entityActionTimeout caps a mutating entity action. Creates are quick but a

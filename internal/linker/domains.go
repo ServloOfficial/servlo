@@ -3,7 +3,7 @@ package linker
 import (
 	"fmt"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // reservedDomains are domains servlo itself uses, which cannot be assigned to a

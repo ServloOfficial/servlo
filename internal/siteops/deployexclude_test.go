@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // wordpressSite is a WordPress site with its definition in the local store, so

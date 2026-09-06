@@ -3,7 +3,7 @@ package cli
 import (
 	"sort"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // EligibleBuildReplacers returns every framework worker eligible to provide

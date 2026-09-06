@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/fpmpool"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/fpmpool"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // settingsHome gives the test its own config, data and nginx directories, and

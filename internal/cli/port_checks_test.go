@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // TestCollectPortChecks_usesPublishedPortOverride covers the PublishedPort > 0

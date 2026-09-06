@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/stores"
+	"github.com/ServloOfficial/servlo/stores"
 )
 
 // The guard that matters most in this package. Every definition servlo ships

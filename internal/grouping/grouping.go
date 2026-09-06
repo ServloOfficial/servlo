@@ -14,13 +14,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/realrashid/servlo/internal/certs"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	gitpkg "github.com/realrashid/servlo/internal/git"
-	"github.com/realrashid/servlo/internal/nginx"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/certs"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	gitpkg "github.com/ServloOfficial/servlo/internal/git"
+	"github.com/ServloOfficial/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
 // ComputeSecondaryDomain returns the domain a secondary occupies on the group

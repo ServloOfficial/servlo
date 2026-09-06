@@ -5,7 +5,7 @@ import (
 	"net/http/pprof"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // handlePprof serves the Go runtime profiling endpoints under /debug/pprof/,

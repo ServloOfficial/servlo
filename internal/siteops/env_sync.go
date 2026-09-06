@@ -1,8 +1,8 @@
 package siteops
 
 import (
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
 )
 
 // SyncEnvIfPrimaryChanged updates APP_URL and the VITE_REVERB_* keys in the

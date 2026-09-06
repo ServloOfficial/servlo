@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/podman"
-	servloSystemd "github.com/realrashid/servlo/internal/systemd"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
 

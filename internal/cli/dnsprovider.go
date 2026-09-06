@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/realrashid/servlo/internal/certs"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dnsprovider"
-	"github.com/realrashid/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/certs"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dnsprovider"
+	"github.com/ServloOfficial/servlo/internal/feedback"
 )
 
 // NewDNSProviderCmd returns the dns-provider command group. Wildcard

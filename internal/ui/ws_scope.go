@@ -3,7 +3,7 @@ package ui
 import (
 	"encoding/json"
 
-	"github.com/realrashid/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/authz"
 )
 
 // Scoping the websocket.

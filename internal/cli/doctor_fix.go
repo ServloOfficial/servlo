@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/realrashid/servlo/internal/feedback"
-	servloSystemd "github.com/realrashid/servlo/internal/systemd"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 )
 
 // Automatic fix keys. Each is attached to a finding by the doctor and dispatched

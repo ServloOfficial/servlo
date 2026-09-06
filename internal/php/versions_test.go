@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // --- fpmQuadletRe ---

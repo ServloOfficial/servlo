@@ -3,7 +3,7 @@ package node
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // SetDefault must persist into servlo's config only. The test env has no nvm at

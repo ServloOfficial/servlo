@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/realrashid/servlo/internal/authz"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
-	"github.com/realrashid/servlo/internal/dbcred"
-	"github.com/realrashid/servlo/internal/dbuser"
-	"github.com/realrashid/servlo/internal/sitetpl"
+	"github.com/ServloOfficial/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbcred"
+	"github.com/ServloOfficial/servlo/internal/dbuser"
+	"github.com/ServloOfficial/servlo/internal/sitetpl"
 )
 
 // The site's own database account, in the panel.

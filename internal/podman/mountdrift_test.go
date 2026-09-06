@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // fakeInspect stubs `podman inspect` with one canned line, the format

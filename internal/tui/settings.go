@@ -4,8 +4,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/realrashid/servlo/internal/config"
-	servloSystemd "github.com/realrashid/servlo/internal/systemd"
+	"github.com/ServloOfficial/servlo/internal/config"
+	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 )
 
 // settingsRow describes one focusable line in the settings view.

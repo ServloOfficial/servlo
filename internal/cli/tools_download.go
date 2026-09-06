@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/download"
-	"github.com/realrashid/servlo/internal/tools"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/download"
+	"github.com/ServloOfficial/servlo/internal/tools"
 )
 
 // pinnedTools resolves host-tool download URLs for the current platform,

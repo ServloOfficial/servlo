@@ -3,8 +3,8 @@ package serviceops
 import (
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
 )
 
 // An install that has configured nothing sees exactly what it saw before: the

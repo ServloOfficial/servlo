@@ -18,10 +18,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	phpkg "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	phpkg "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // Check statuses, mirroring the doctor's check shape so the diagnostics

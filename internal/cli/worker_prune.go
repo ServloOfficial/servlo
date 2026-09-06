@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/workerheal"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/workerheal"
 )
 
 // PruneOrphanedWorkerUnits tears down every unit whose checkout is gone, and

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
 )
 
 // Bundled admin dashboards (rabbitmq, redisinsight) set session/consent cookies

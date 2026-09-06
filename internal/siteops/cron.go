@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	"github.com/realrashid/servlo/internal/sitecron"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/sitecron"
 )
 
 // SaveCron adds or replaces one of a site's scheduled commands.

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
 )
 
 // A rebuild restores onto a machine that has the registry and the credentials

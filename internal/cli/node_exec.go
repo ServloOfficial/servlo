@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	nodeDet "github.com/realrashid/servlo/internal/node"
+	"github.com/ServloOfficial/servlo/internal/config"
+	nodeDet "github.com/ServloOfficial/servlo/internal/node"
 	"github.com/spf13/cobra"
 )
 

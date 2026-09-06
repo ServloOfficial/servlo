@@ -4,7 +4,7 @@
 // differs only in the capabilities it grants through a Policy.
 package linker
 
-import "github.com/realrashid/servlo/internal/config"
+import "github.com/ServloOfficial/servlo/internal/config"
 
 // Prompter resolves a question a link cannot answer on its own. Callers with a
 // terminal supply one; every other caller passes nil, and the link takes the

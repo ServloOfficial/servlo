@@ -5,8 +5,8 @@ import (
 	"os"
 	"unicode/utf8"
 
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

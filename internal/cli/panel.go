@@ -10,12 +10,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/realrashid/servlo/internal/auditlog"
-	"github.com/realrashid/servlo/internal/certs"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/dnscheck"
-	"github.com/realrashid/servlo/internal/feedback"
-	"github.com/realrashid/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/auditlog"
+	"github.com/ServloOfficial/servlo/internal/certs"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dnscheck"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/nginx"
 )
 
 // NewPanelCmd returns the `servlo panel` command group.

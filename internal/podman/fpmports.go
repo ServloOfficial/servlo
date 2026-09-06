@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/freeport"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/freeport"
 )
 
 // fpmPortsBindable is the port-bindability probe, swapped in tests so the shift

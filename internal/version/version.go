@@ -5,9 +5,9 @@ import "fmt"
 
 // These variables are set at build time via:
 //
-//	-X github.com/realrashid/servlo/internal/version.Version=<tag>
-//	-X github.com/realrashid/servlo/internal/version.Commit=<sha>
-//	-X github.com/realrashid/servlo/internal/version.Date=<iso8601>
+//	-X github.com/ServloOfficial/servlo/internal/version.Version=<tag>
+//	-X github.com/ServloOfficial/servlo/internal/version.Commit=<sha>
+//	-X github.com/ServloOfficial/servlo/internal/version.Date=<iso8601>
 //
 // The fallback when nothing is injected. Servlo has not released, so it starts
 // at 0.1.0 rather than carrying over the version it was forked at, which would

@@ -9,10 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
 )
 
 // entityKindResponse is one declared entity kind with its live rows, rendered

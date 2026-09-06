@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/authz"
 )
 
 // The panel's gate.

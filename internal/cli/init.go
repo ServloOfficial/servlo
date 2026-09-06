@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	"github.com/realrashid/servlo/internal/feedback"
-	phpPkg "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	phpPkg "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
 	"github.com/spf13/cobra"
 )
 

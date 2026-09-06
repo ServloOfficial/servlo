@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://realrashid.github.io/servlo">
+  <a href="https://servloofficial.github.io/servlo">
     <img src="docs/public/assets/logo.svg" alt="Servlo" width="88" height="88">
   </a>
 </p>
@@ -35,7 +35,7 @@ nothing, has no paid tier, and phones home to nobody.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/realrashid/servlo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ServloOfficial/servlo/main/install.sh | bash
 ```
 
 Anything needing root is printed for you to run. Servlo never calls `sudo`
@@ -52,7 +52,7 @@ servlo doctor                                             # is this machine actu
 ```
 
 <h3 align="center">
-  <a href="https://realrashid.github.io/servlo">Documentation</a>
+  <a href="https://servloofficial.github.io/servlo">Documentation</a>
 </h3>
 
 ## What it does

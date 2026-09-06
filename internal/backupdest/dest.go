@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realrashid/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // The kinds of destination servlo can send to.

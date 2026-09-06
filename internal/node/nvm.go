@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // nvmManager drives nvm-sh/nvm. Unlike fnm, nvm is not a binary: it is a bash

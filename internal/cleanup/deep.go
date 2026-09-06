@@ -4,10 +4,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/imgledger"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/registry"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/imgledger"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/registry"
 )
 
 // serviceRepos and protectedImages are the seams tests override. serviceRepos

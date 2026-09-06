@@ -5,7 +5,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // Which addresses this server answers on.

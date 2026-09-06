@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
 )
 
 // installFakeMysqlQuadlet drops a stub quadlet on disk so

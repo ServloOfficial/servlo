@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/siteinfo"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
 // siteSortMode picks the ordering for the sites pane.

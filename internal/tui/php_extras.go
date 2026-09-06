@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // phpExtrasSummary describes what a PHP version's image carries of the declared

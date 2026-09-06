@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/feedback"
-	nodeDet "github.com/realrashid/servlo/internal/node"
-	phpDet "github.com/realrashid/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/feedback"
+	nodeDet "github.com/ServloOfficial/servlo/internal/node"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
 	"github.com/spf13/cobra"
 )
 

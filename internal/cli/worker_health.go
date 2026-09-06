@@ -1,6 +1,6 @@
 package cli
 
-import "github.com/realrashid/servlo/internal/workerheal"
+import "github.com/ServloOfficial/servlo/internal/workerheal"
 
 // Re-exports of internal/workerheal so existing CLI / UI server callers can
 // keep importing from internal/cli, while the implementation itself lives in

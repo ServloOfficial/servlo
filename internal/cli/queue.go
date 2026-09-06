@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/envfile"
-	phpDet "github.com/realrashid/servlo/internal/php"
-	"github.com/realrashid/servlo/internal/podman"
-	"github.com/realrashid/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/envfile"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
+	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/siteops"
 	"github.com/spf13/cobra"
 )
 

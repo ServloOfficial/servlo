@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // The CLI SAPI never reads a project's .user.ini, so a framework whose commands

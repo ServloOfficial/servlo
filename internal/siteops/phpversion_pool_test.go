@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/fpmpool"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/fpmpool"
 )
 
 // Each site's pool lives in the directory belonging to the FPM container that

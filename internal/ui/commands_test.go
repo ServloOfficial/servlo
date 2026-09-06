@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // writeProjectYAML writes a .servlo.yaml containing a commands: block so tests

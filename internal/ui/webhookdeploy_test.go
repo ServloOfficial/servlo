@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realrashid/servlo/internal/authz"
-	"github.com/realrashid/servlo/internal/config"
-	"github.com/realrashid/servlo/internal/deploy"
-	"github.com/realrashid/servlo/internal/webhook"
+	"github.com/ServloOfficial/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/deploy"
+	"github.com/ServloOfficial/servlo/internal/webhook"
 )
 
 const pushBody = `{"ref":"refs/heads/main","after":"bbbb2222","head_commit":{"id":"bbbb2222","message":"add the orders index"}}`

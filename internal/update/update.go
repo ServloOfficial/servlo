@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/realrashid/servlo/internal/origin"
+	"github.com/ServloOfficial/servlo/internal/origin"
 )
 
 // ReleaseBaseURLs returns the GitHub releases bases in priority order, read live
