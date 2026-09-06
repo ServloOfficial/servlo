@@ -1,6 +1,6 @@
 ---
 layout: landing
-title: Servlo - Local PHP development for Linux and macOS
+title: Servlo - The free, self-hosted control panel for production PHP servers
 titleTemplate: false
-description: Open-source, Herd-like local PHP development for Linux and macOS. Automatic .test domains, HTTPS, per-project PHP and Node, rootless Podman, no Docker daemon.
+description: The free, self-hosted control panel for production PHP servers. Sites from a ZIP, a Git clone, a folder or one click, real domains with Let's Encrypt, a PHP version per site, deploys, and backups proved by restoring them. Ubuntu 24.04, rootless Podman, no paid tier.
 ---
