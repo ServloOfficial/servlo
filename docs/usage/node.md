@@ -72,7 +72,7 @@ Every source has to be version shaped: letters, digits, dots, dashes, underscore
 To pin a project to a specific version:
 
 ```bash
-cd ~/Servlo/my-app
+cd ~/sites/myapp.example.com
 servlo isolate:node 20
 # writes .node-version and installs Node 20 via the active version manager
 ```

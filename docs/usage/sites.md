@@ -70,7 +70,7 @@ private half never leaves the server or appears in an API response.
 Every way of linking a project resolves the same plan: the CLI, the dashboard's **+** button, `servlo park`, and the parked-directory watcher. They differ only in what they are allowed to do, and the difference is deliberate. A link you type can prompt, write `.php-version` and `.node-version`, install services, issue a certificate, and supervise a dev command the project declares. An unattended link (park and the watcher) reads the same committed configuration but never prompts, never writes into the project, and never runs anything the repository authored.
 
 ```bash
-cd ~/Projects/my-app
+cd ~/sites/myapp.example.com
 servlo init
 ```
 
@@ -127,12 +127,12 @@ servlo init --fresh
 
 ## Parking a directory of projects
 
-`servlo park ~/Code` registers every PHP project directly inside a directory, and
+`servlo park ~/sites` registers every PHP project directly inside a directory, and
 records the directory so the watcher keeps up with it: a project you clone into
 it later is registered on its own, and one you delete is unlinked.
 
 ```bash
-servlo park ~/Code
+servlo park ~/sites
 ```
 
 ```

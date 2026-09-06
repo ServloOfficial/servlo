@@ -16,7 +16,7 @@ Use `servlo init` when you only want to configure the site (PHP version, service
 `servlo init` is the entry point for `.servlo.yaml`. Run it from the project root:
 
 ```bash
-cd ~/Projects/my-app
+cd ~/sites/myapp.example.com
 servlo init
 ```
 
@@ -75,7 +75,7 @@ MariaDB folds into MySQL because servlo's `mariadb` preset is an opt-in alternat
 `servlo setup` is the one-shot bootstrap command for a fresh PHP project. It runs `servlo init` first (so the wizard described above appears), then shows a checkbox list of install/migrate/build steps:
 
 ```bash
-cd ~/Projects/my-app
+cd ~/sites/myapp.example.com
 servlo setup
 ```
 

@@ -20,7 +20,7 @@ runtime_worker: true
 **From the CLI**:
 
 ```bash
-cd ~/Code/my-app
+cd ~/sites/myapp.example.com
 servlo runtime frankenphp --worker
 ```
 
@@ -79,7 +79,7 @@ Queue workers, schedulers, Reverb, Horizon, and any framework-defined worker con
 Start a worker the same way you would on an FPM site:
 
 ```bash
-cd ~/Code/my-app
+cd ~/sites/myapp.example.com
 servlo worker start queue       # Laravel
 servlo worker start messenger   # Symfony
 ```
@@ -97,7 +97,7 @@ Both modes use the same FrankenPHP binary, so you always get HTTP/2, HTTP/3, and
 Tradeoffs of worker mode:
 
 - **State leaks across requests.** Anything you stored in a static property, a singleton service, or the global `$_SERVER` / `$_SESSION` arrays from request A is still there for request B. This is usually fine for well-written frameworks (Octane's "state resetters" and Symfony's Runtime handle the common cases), but custom code that assumes a fresh process per request can misbehave.
-- **File edits are not picked up automatically.** The worker holds PHP in memory, so editing a controller doesn't affect the next request until the worker reloads. Symfony worker mode passes `--watch` so edits reload the worker within a second or two; Laravel worker mode reloads when you opt in with `servlo octane:reload on` (see [Dev iteration and hot reload](#dev-iteration-and-hot-reload)), otherwise it needs `servlo restart <site>` or `servlo runtime fpm`.
+- **File edits are not picked up automatically.** The worker holds PHP in memory, so editing a controller doesn't affect the next request until the worker reloads. Symfony worker mode passes `--watch` so edits reload the worker within a second or two; Laravel worker mode reloads when you opt in with `servlo octane:reload on` (see [Reloading a worker after a code change](#reloading-a-worker-after-a-code-change)), otherwise it needs `servlo restart <site>` or `servlo runtime fpm`.
 - **Memory usage grows over time.** Leaks that would be invisible in FPM (where each request gets a fresh process) become visible over thousands of requests.
 
 Typical usage:
@@ -108,7 +108,7 @@ Typical usage:
 
 ---
 
-## Dev iteration and hot reload
+## Reloading a worker after a code change
 
 Non-worker mode (the default) serves each request with a fresh PHP request lifecycle for both Laravel and Symfony, so file edits take effect on the next request, just like FPM. That's the right default for local iteration.
 
@@ -118,7 +118,7 @@ Worker mode keeps PHP resident, so a source file change is **not** picked up on 
 - **Laravel** worker mode is opt-in for auto-reload:
 
   ```bash
-  cd ~/Code/my-app
+  cd ~/sites/myapp.example.com
   servlo octane:reload on    # serve via octane:start --watch
   servlo octane:reload off   # back to standard worker mode
   servlo octane:reload       # print the current state

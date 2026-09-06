@@ -6,9 +6,6 @@ Servlo ships with **MySQL, PostgreSQL, Redis, Meilisearch, and RustFS** built in
 You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
 :::
 
-::: tip Drive it from your AI assistant
-:::
-
 ---
 
 ## How it works (30 seconds)

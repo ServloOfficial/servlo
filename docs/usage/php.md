@@ -86,7 +86,7 @@ When `.php-version` changes on disk, the servlo watcher automatically updates th
 To pin a project permanently:
 
 ```bash
-cd ~/Servlo/my-app
+cd ~/sites/myapp.example.com
 servlo isolate 8.5
 ```
 

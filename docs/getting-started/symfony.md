@@ -6,86 +6,20 @@ End-to-end: from `servlo install` to a Symfony app running on `https://myapp.exa
 You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
 :::
 
-::: tip Drive it from your AI assistant
-:::
-
 ---
 
-## 1. Register the Symfony framework definition (one-time)
+## 1. Symfony is already known
 
-Servlo's built-in framework is Laravel. Other frameworks are user-defined YAML files dropped into `~/.config/servlo/frameworks/`. Save this as `~/.config/servlo/frameworks/symfony.yaml`:
+Nothing to register. Symfony ships in the framework store, embedded in the
+binary, alongside Laravel, WordPress, Drupal, Joomla, Grav, Magento, CakePHP,
+CodeIgniter, Statamic and Tempest. Servlo detects the framework from the
+project itself — for Symfony, `symfony.lock` or the `symfony/framework-bundle`
+requirement — and takes the document root, the console binary, the env wiring
+and the worker set from that definition.
 
-```yaml
-# ~/.config/servlo/frameworks/symfony.yaml
-name: symfony
-label: Symfony
-detect:
-  - file: symfony.lock
-  - composer: symfony/framework-bundle
-public_dir: public
-create: composer create-project symfony/skeleton
-console: bin/console
-env:
-  file: .env.local
-  example_file: .env
-  format: dotenv
-  url_key: DEFAULT_URI
-  services:
-    mysql:
-      detect:
-        - key: DATABASE_URL
-          value_prefix: "mysql://"
-        - key: DATABASE_URL
-          value_prefix: "mariadb://"
-      vars:
-        - "DATABASE_URL=mysql://root:servlo@servlo-mysql:3306/{{site}}?serverVersion={{mysql_version}}"
-    postgres:
-      detect:
-        - key: DATABASE_URL
-          value_prefix: "postgresql://"
-        - key: DATABASE_URL
-          value_prefix: "postgres://"
-      vars:
-        - "DATABASE_URL=postgresql://postgres:servlo@servlo-postgres:5432/{{site}}?serverVersion={{postgres_version}}"
-    redis:
-      detect:
-        - key: REDIS_URL
-        - key: REDIS_DSN
-      vars:
-        - "REDIS_URL=redis://servlo-redis:6379"
-composer: auto
-npm: auto
-workers:
-  messenger:
-    label: Messenger
-    command: php bin/console messenger:consume async --time-limit=3600
-    restart: always
-    check:
-      composer: symfony/messenger
-setup:
-  - label: "Run migrations"
-    command: "php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration"
-    default: true
-    check:
-      composer: doctrine/doctrine-migrations-bundle
-  - label: "Load fixtures"
-    command: "php bin/console doctrine:fixtures:load --no-interaction"
-    check:
-      composer: doctrine/doctrine-fixtures-bundle
-  - label: "Clear cache"
-    command: "php bin/console cache:clear"
-    default: true
-```
-
-Then register it with servlo:
-
-```bash
-servlo framework add symfony --from-file ~/.config/servlo/frameworks/symfony.yaml
-```
-
-You only do this once per machine. From now on, every Symfony project is auto-detected via `symfony.lock` or `symfony/framework-bundle`.
-
-See [Frameworks & Workers](../usage/frameworks.md) for the full schema reference.
+`servlo framework list` shows what this install knows. You only write a YAML of
+your own for a framework the store does not carry; see
+[Framework definitions](/usage/framework-definitions).
 
 ---
 
@@ -94,18 +28,18 @@ See [Frameworks & Workers](../usage/frameworks.md) for the full schema reference
 ::: code-group
 
 ```bash [servlo new]
-cd ~/Servlo
+cd ~/sites
 servlo new myapp --framework=symfony
 # runs: composer create-project symfony/skeleton ./myapp
 ```
 
 ```bash [composer]
-cd ~/Servlo
+cd ~/sites
 composer create-project symfony/skeleton myapp
 ```
 
 ```bash [existing repo]
-cd ~/Servlo
+cd ~/sites
 git clone git@github.com:you/myapp.git
 ```
 
