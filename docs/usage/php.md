@@ -22,9 +22,6 @@
 | `servlo php:ports add <host:container...> [--php version]` | Publish a host port on the version's FPM container; a bare number publishes the same port straight through, and a busy host port shifts to the next free one |
 | `servlo php:ports remove <host...> [--php version]` | Unpublish a host port from the version's FPM container |
 | `servlo php:ports list [--php version]` | List the extra host ports published for a PHP version |
-| `servlo pest:browser install [version]` | Set up in-container Pest browser testing (musl chromium + Playwright shim); see browser testing |
-| `servlo pest:browser remove [version]` | Remove chromium from the FPM image and disable Pest browser testing |
-| `servlo pest:browser doctor [version]` | Diagnose the Pest browser testing setup for a PHP version |
 | `servlo php:ini [version]` | Open the user php.ini for a PHP version in `$EDITOR` |
 
 If no version is given, the version is resolved from the current directory (`.php-version` or `composer.json`, falling back to the global default).

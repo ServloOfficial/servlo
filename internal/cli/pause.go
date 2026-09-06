@@ -406,11 +406,6 @@ func collectRunningWorkers(site *config.Site) []string {
 		}
 	}
 
-	// Stripe is not a framework worker — check it separately.
-	if unitIsActiveOrActivating("servlo-stripe-" + site.Name) {
-		active = append(active, "stripe")
-	}
-
 	// Host-proxy sites supervise a single "app" dev-server worker that is
 	// neither a framework worker nor in proj.Workers, so the orphan scan below
 	// won't see it. Check it explicitly.
@@ -452,10 +447,6 @@ func unitIsActiveOrActivating(unit string) bool {
 
 // stopWorkerByName stops a single named worker for the site.
 func stopWorkerByName(site *config.Site, workerName string) {
-	if workerName == "stripe" {
-		StripeStopForSite(site.Name) //nolint:errcheck
-		return
-	}
 	WorkerStopForSite(site.Name, site.Path, workerName) //nolint:errcheck
 }
 
@@ -465,14 +456,6 @@ func stopWorkerByName(site *config.Site, workerName string) {
 // blocks it.
 func resumeWorkerByName(site *config.Site, workerName, phpVersion string) {
 	if !workerResumable(site, workerName) {
-		return
-	}
-	if workerName == "stripe" {
-		scheme := "http"
-		if site.Secured {
-			scheme = "https"
-		}
-		StripeStartForSite(site.Name, site.Path, scheme+"://"+site.PrimaryDomain()) //nolint:errcheck
 		return
 	}
 	if workerName == hostProxyWorkerName {

@@ -138,7 +138,6 @@ func Permissions() Registry {
 		"/api/worker/":        PermAdmin,
 		"/api/workers/heal":   PermAdmin,
 		"/api/workers/health": PermAdmin,
-		"/api/stripe/":        PermAdmin,
 		"/api/nginx/":         PermAdmin,
 		"/api/certs/alerts":   PermAdmin,
 

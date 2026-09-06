@@ -3,12 +3,8 @@
 package ui
 
 import (
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
-
-	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 func listActiveUnitsBySuffix(pattern, prefix string) []string {
@@ -30,19 +26,4 @@ func listActiveUnitsBySuffix(pattern, prefix string) []string {
 		}
 	}
 	return sites
-}
-
-// listActiveStripeListeners returns the site names of active servlo-stripe-* units
-// that were started by `servlo stripe:listen` (i.e. have a .service file in the
-// systemd user dir, as opposed to quadlet-based services like stripe-mock).
-func listActiveStripeListeners() []string {
-	all := listActiveUnitsBySuffix("servlo-stripe-*.service", "servlo-stripe-")
-	var result []string
-	for _, name := range all {
-		unitFile := filepath.Join(config.SystemdUserDir(), "servlo-stripe-"+name+".service")
-		if _, err := os.Stat(unitFile); err == nil {
-			result = append(result, name)
-		}
-	}
-	return result
 }

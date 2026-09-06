@@ -18,7 +18,7 @@ var SupportedPHPVersions = config.SupportedPHPVersions
 
 // LegacyPHPVersions is the frozen legacy tier built from Alpine 3.16 with an old
 // bundled Node. Kept here next to SupportedPHPVersions so the single definition
-// of "legacy" is reused (e.g. pest:browser, which needs a modern Node) instead
+// of "legacy" is reused instead
 // of being duplicated as literals elsewhere.
 var LegacyPHPVersions = []string{"7.4", "8.0"}
 

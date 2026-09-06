@@ -192,11 +192,7 @@ func main() {
 	root.AddCommand(cli.NewPhpBunCmd())
 	root.AddCommand(cli.NewPhpPkgCmd())
 	root.AddCommand(cli.NewPhpPortsCmd())
-	root.AddCommand(cli.NewPestBrowserCmd())
 	root.AddCommand(cli.NewPhpIniCmd())
-	for _, cmd := range cli.NewStripeCmds() {
-		root.AddCommand(cmd)
-	}
 	root.AddCommand(cli.NewDomainCmd())
 	root.AddCommand(cli.NewGroupCmd())
 	root.AddCommand(cli.NewWorkspaceCmd())

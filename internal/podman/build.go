@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -648,16 +647,6 @@ func buildCustomPackagesBlock(packages []string) string {
 	block := "# User-requested extra packages (servlo php:pkg)\nRUN for p in " +
 		strings.Join(valid, " ") + "; do apk add --no-cache \"$p\" || true; done \\\n" +
 		"    && rm -rf /var/cache/apk/*\n"
-	// When chromium is present (the package servlo pest:browser install adds), pin
-	// Playwright's browser path to the persistent cache volume. `servlo test`/`servlo
-	// pest` exec with the host HOME, so without this Playwright would look under
-	// the host home instead of the volume where the registry and shims live. The
-	// env is inert for anyone not running Playwright, so deriving it from the
-	// chromium package (rather than a separate flag threaded through every build
-	// caller) keeps the image contract in one place.
-	if slices.Contains(valid, "chromium") {
-		block += "ENV PLAYWRIGHT_BROWSERS_PATH=" + PlaywrightCachePath + "\n"
-	}
 	return block
 }
 
@@ -958,7 +947,6 @@ func hostNameLine() string {
 func applyShellMounts(content, versionShort string) string {
 	content = strings.ReplaceAll(content, "{{.ZshHistoryDir}}", zshHistoryDir(versionShort))
 	content = strings.ReplaceAll(content, "{{.BunVolumeDir}}", BunVolumeDir())
-	content = strings.ReplaceAll(content, "{{.PlaywrightVolumeDir}}", PlaywrightVolumeDir())
 	return content
 }
 
@@ -967,22 +955,6 @@ func applyShellMounts(content, versionShort string) string {
 // across PHP versions and created so the bind mount succeeds on first start.
 func BunVolumeDir() string {
 	dir := filepath.Join(config.DataDir(), "bun")
-	_ = os.MkdirAll(dir, 0o755)
-	return dir
-}
-
-// PlaywrightCachePath is the in-container path where the Playwright registry and
-// servlo's musl-chromium shims live (the mount target of PlaywrightVolumeDir). It
-// is baked into the image as PLAYWRIGHT_BROWSERS_PATH and is the single source of
-// truth shared with the cli package's pest:browser command.
-const PlaywrightCachePath = "/root/.cache/ms-playwright"
-
-// PlaywrightVolumeDir is the host directory backing the container's
-// /root/.cache/ms-playwright mount, where opt-in Pest browser testing keeps the
-// Playwright registry and servlo's musl-chromium shims (servlo pest:browser
-// install). Shared across PHP versions and created so the bind mount succeeds.
-func PlaywrightVolumeDir() string {
-	dir := filepath.Join(config.DataDir(), "playwright")
 	_ = os.MkdirAll(dir, 0o755)
 	return dir
 }

@@ -37,7 +37,6 @@
     horizon: 'Horizon',
     schedule: 'Schedules',
     reverb: 'Reverb',
-    stripe: 'Stripe',
     vite: 'Vite'
   };
   const groupLabelFor = (key: string) =>

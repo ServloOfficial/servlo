@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1017,22 +1016,6 @@ func runEnv(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// 3c. Patch DuskTestCase.php for servlo's Selenium container if applicable.
-	if _, hasDriver := updates["DUSK_DRIVER_URL"]; hasDriver {
-		patchDuskTestCase(cwd)
-	}
-
-	// 3c-bis. Pest browser testing drives Playwright in-container, which the
-	// Selenium preset does not provide. Surface the one-time setup command when
-	// the plugin is present but chromium isn't baked into the FPM image yet.
-	if config.ComposerHasPackage(cwd, "pestphp/pest-plugin-browser") {
-		if v, derr := phpDet.DetectVersion(cwd); derr == nil && pestBrowserSupportedVersion(v) == nil {
-			if gcfg, cerr := config.LoadGlobal(); cerr == nil && !slices.Contains(gcfg.GetPackages(), pestBrowserPkg) {
-				envInfo("  Detected pest-plugin-browser — run `servlo pest:browser install` to enable in-container browser testing\n")
-			}
-		}
-	}
-
 	// 3d. Generate REVERB_ env vars if a worker with proxy config is detected and
 	// BROADCAST_CONNECTION=reverb is set.
 	if fw.HasWorker("reverb", cwd) &&
@@ -1533,66 +1516,4 @@ func randNumeric(n int) string {
 		b[i] = digits[int(c)%len(digits)]
 	}
 	return string(b)
-}
-
-// patchDuskTestCase modifies tests/DuskTestCase.php so it works with servlo's
-// Selenium container out of the box:
-//   - Skips starting a local ChromeDriver when DUSK_DRIVER_URL is set
-//   - Adds --ignore-certificate-errors so Chromium accepts the site's certificate
-func patchDuskTestCase(dir string) {
-	path := filepath.Join(dir, "tests", "DuskTestCase.php")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return // no DuskTestCase — nothing to patch
-	}
-	src := string(data)
-	changed := false
-
-	// 1. Skip local ChromeDriver when DUSK_DRIVER_URL is set.
-	// The default Dusk scaffold has:
-	//   if (! static::runningInSail()) {
-	//       static::startChromeDriver(...)
-	// We add a check for DUSK_DRIVER_URL so the local driver isn't started
-	// when a remote Selenium container is configured.
-	old := "if (! static::runningInSail()) {"
-	replacement := "if (! static::runningInSail() && ! env('DUSK_DRIVER_URL')) {"
-	if strings.Contains(src, old) && !strings.Contains(src, replacement) {
-		src = strings.Replace(src, old, replacement, 1)
-		changed = true
-	}
-
-	// 2. Add --ignore-certificate-errors so Chromium trusts the site's cert.
-	if !strings.Contains(src, "--ignore-certificate-errors") {
-		// Insert after --disable-smooth-scrolling or --disable-search-engine-choice-screen
-		for _, anchor := range []string{
-			"'--disable-smooth-scrolling',",
-			"'--disable-search-engine-choice-screen',",
-		} {
-			if idx := strings.Index(src, anchor); idx != -1 {
-				insertAt := idx + len(anchor)
-				// Detect indentation from the anchor line.
-				lineStart := strings.LastIndex(src[:idx], "\n") + 1
-				indent := ""
-				for _, ch := range src[lineStart:idx] {
-					if ch == ' ' || ch == '\t' {
-						indent += string(ch)
-					} else {
-						break
-					}
-				}
-				insert := "\n" + indent + "'--ignore-certificate-errors',"
-				src = src[:insertAt] + insert + src[insertAt:]
-				changed = true
-				break
-			}
-		}
-	}
-
-	if changed {
-		if err := os.WriteFile(path, []byte(src), 0644); err != nil {
-			feedback.Warn("could not patch DuskTestCase.php: %v", err)
-			return
-		}
-		fmt.Println("  Patched tests/DuskTestCase.php for servlo Selenium")
-	}
 }

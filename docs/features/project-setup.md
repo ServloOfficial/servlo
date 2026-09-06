@@ -102,7 +102,7 @@ On a machine where `.servlo.yaml` already exists the wizard is skipped and the s
 
 ## Running a command in an unlinked project
 
-Commands that operate on the current site (`servlo runtime`, `servlo worker`, `servlo stripe`, `servlo env`, `servlo domain`, and the worker-backed `servlo reverb`, `servlo schedule`, `servlo queue`) need the directory to be linked. When you run one in a project that has not been linked yet, servlo offers to link it for you instead of stopping with an error:
+Commands that operate on the current site (`servlo runtime`, `servlo worker`, `servlo env`, `servlo domain`, and the worker-backed `servlo reverb`, `servlo schedule`, `servlo queue`) need the directory to be linked. When you run one in a project that has not been linked yet, servlo offers to link it for you instead of stopping with an error:
 
 ```
 This directory isn't linked to servlo. Link it now? [Y/n]

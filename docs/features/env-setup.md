@@ -152,8 +152,6 @@ Example output when keys are out of sync:
 ```
   KEY              .env.example  .env  .env.testing
   ---------------  ------------  ----  ------------
-  STRIPE_KEY            ✓         ✗         ✗
-  STRIPE_SECRET         ✓         ✗         ✗
   LEGACY_TOKEN          ✗         ✓         ✗
 
   3 key(s) out of sync

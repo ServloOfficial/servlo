@@ -363,7 +363,7 @@ servlo pause my-project   # pause a named site
 
 When a site is paused:
 
-- All running workers for that site are stopped (queue, schedule, reverb, stripe, and any custom workers)
+- All running workers for that site are stopped (queue, schedule, reverb, and any custom workers)
 - The nginx vhost is replaced with a minimal landing page that shows a **Resume** button
 - Services no longer needed by any other active site are auto-stopped
 - The paused state is persisted, so the site stays paused across `servlo start` / `servlo stop` cycles

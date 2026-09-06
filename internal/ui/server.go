@@ -249,7 +249,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/_svc/", handleDashProxy)
 	mux.HandleFunc("/api/queue/", withCORS(handleUnitLogStream))
 	mux.HandleFunc("/api/horizon/", withCORS(handleUnitLogStream))
-	mux.HandleFunc("/api/stripe/", withCORS(handleUnitLogStream))
 	mux.HandleFunc("/api/schedule/", withCORS(handleUnitLogStream))
 	mux.HandleFunc("/api/reverb/", withCORS(handleUnitLogStream))
 	mux.HandleFunc("/api/worker/", withCORS(handleUnitLogStream))
@@ -603,9 +602,6 @@ type SiteResponse struct {
 	FrameworkLabel     string         `json:"framework_label"`
 	QueueRunning       bool           `json:"queue_running"`
 	QueueFailing       bool           `json:"queue_failing,omitempty"`
-	StripeRunning      bool           `json:"stripe_running"`
-	StripeSecretSet    bool           `json:"stripe_secret_set"`
-	StripeWebhookPath  string         `json:"stripe_webhook_path,omitempty"`
 	ScheduleRunning    bool           `json:"schedule_running"`
 	ScheduleFailing    bool           `json:"schedule_failing,omitempty"`
 	ReverbRunning      bool           `json:"reverb_running"`
@@ -768,9 +764,6 @@ func buildSites() ([]SiteResponse, error) {
 			FPMRunning:         e.FPMRunning,
 			QueueRunning:       e.QueueRunning,
 			QueueFailing:       e.QueueFailing,
-			StripeRunning:      e.StripeRunning,
-			StripeSecretSet:    e.StripeSecretSet,
-			StripeWebhookPath:  e.StripeWebhookPath,
 			ScheduleRunning:    e.ScheduleRunning,
 			ScheduleFailing:    e.ScheduleFailing,
 			ReverbRunning:      e.ReverbRunning,
@@ -902,7 +895,6 @@ type ServiceResponse struct {
 	Paused             bool     `json:"paused,omitempty"`
 	DependsOn          []string `json:"depends_on,omitempty"`
 	QueueSite          string   `json:"queue_site,omitempty"`
-	StripeListenerSite string   `json:"stripe_listener_site,omitempty"`
 	ScheduleWorkerSite string   `json:"schedule_worker_site,omitempty"`
 	ReverbSite         string   `json:"reverb_site,omitempty"`
 	HorizonSite        string   `json:"horizon_site,omitempty"`
@@ -1228,14 +1220,6 @@ func buildServicesList() []ServiceResponse {
 			Status:    "active",
 			EnvVars:   map[string]string{},
 			QueueSite: siteName,
-		})
-	}
-	for _, siteName := range listActiveStripeListeners() {
-		services = append(services, ServiceResponse{
-			Name:               "stripe-" + siteName,
-			Status:             "active",
-			EnvVars:            map[string]string{},
-			StripeListenerSite: siteName,
 		})
 	}
 	for _, siteName := range listActiveScheduleWorkers() {
@@ -1944,9 +1928,6 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If the name matches a registered custom service, skip the prefix-based
-	// per-site routes below — otherwise a custom service named e.g. "stripe-mock"
-	// would be routed as a per-site stripe listener and fail with
-	// "unsupported action for stripe listener".
 	_, customLoadErr := config.LoadCustomService(name)
 	isCustom := customLoadErr == nil
 
@@ -1966,26 +1947,6 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, resp)
 		} else {
 			http.Error(w, "unsupported action for queue worker", http.StatusBadRequest)
-		}
-		return
-	}
-
-	// Handle stripe listener services (stripe-{sitename})
-	if !isCustom && strings.HasPrefix(name, "stripe-") {
-		siteName := strings.TrimPrefix(name, "stripe-")
-		if action == "stop" {
-			opErr := cli.StripeStopForSite(siteName)
-			resp := ServiceActionResponse{
-				ServiceResponse: ServiceResponse{Name: name, Status: "inactive", EnvVars: map[string]string{}, StripeListenerSite: siteName},
-				OK:              opErr == nil,
-			}
-			if opErr != nil {
-				resp.Error = opErr.Error()
-				resp.Status = "active"
-			}
-			writeJSON(w, resp)
-		} else {
-			writeJSON(w, ServiceActionResponse{OK: false, Error: "unsupported action for stripe listener"})
 		}
 		return
 	}
@@ -3240,8 +3201,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	switch action {
 	case "secure", "unsecure":
 		// Funnel through the shared helper so cert + .env + .servlo.yaml +
-		// nginx reload + Stripe restart all stay in sync with the CLI
-		// paths. SetSecured posts to this same daemon's stripe:refresh
+		// nginx reload all stay in sync with the CLI paths.
 		// endpoint, so the in-process Stripe handler runs via the existing
 		// case handler below.
 		if err := siteops.SetSecured(site, action == "secure"); err != nil {
@@ -3447,37 +3407,6 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
-	case "stripe:start":
-		scheme := "http"
-		if site.Secured {
-			scheme = "https"
-		}
-		go cli.StripeStartForSite(site.Name, site.Path, scheme+"://"+site.PrimaryDomain()) //nolint:errcheck
-		go syncServloYAMLWorkersDelayed(site)
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "stripe:stop":
-		if err := cli.StripeStopForSite(site.Name); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		if !site.Paused {
-			_ = config.SetProjectWorkers(site.Path, cli.CollectRunningWorkerNames(site))
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "stripe:config":
-		path := r.URL.Query().Get("path")
-		secretEnvKey := r.URL.Query().Get("secret_env_key")
-		if err := config.SetProjectStripe(site.Path, path, secretEnvKey); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		// Re-forward to the new route immediately when a listener is already
-		// running; no-op otherwise.
-		cli.RestartStripeIfActive(site)
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
 	case "schedule:start":
 		phpVersion := site.PHPVersion
 		if detected, err := phpPkg.DetectVersion(site.Path); err == nil && detected != "" {
@@ -3514,13 +3443,6 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		if !site.Paused {
 			_ = config.SetProjectWorkers(site.Path, cli.CollectRunningWorkerNames(site))
 		}
-		writeJSON(w, SiteActionResponse{OK: true})
-		return
-	case "stripe:refresh":
-		// Restart the Stripe listener with the current scheme/host so its
-		// --forward-to flag matches reality. Used by callers that
-		// can't run the systemd commands inline.
-		cli.RestartStripeIfActive(site)
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "domain:add", "domain:edit", "domain:remove":

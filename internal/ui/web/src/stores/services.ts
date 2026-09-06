@@ -57,7 +57,6 @@ export interface Service {
   // against another preset's admin_for to find the UI that administers it.
   preset?: string;
   queue_site?: string;
-  stripe_listener_site?: string;
   schedule_worker_site?: string;
   reverb_site?: string;
   horizon_site?: string;
@@ -137,7 +136,6 @@ function isWorker(s: Service): boolean {
   return Boolean(
     s.queue_site ||
       s.horizon_site ||
-      s.stripe_listener_site ||
       s.schedule_worker_site ||
       s.reverb_site ||
       s.worker_site
@@ -185,7 +183,6 @@ export const workerGroups = derived(services, ($s): WorkerGroup[] => {
     { key: 'horizon', label: 'Horizon', items: $s.filter((x) => x.horizon_site) },
     { key: 'schedule', label: 'Schedules', items: $s.filter((x) => x.schedule_worker_site) },
     { key: 'reverb', label: 'Reverb', items: $s.filter((x) => x.reverb_site) },
-    { key: 'stripe', label: 'Stripe', items: $s.filter((x) => x.stripe_listener_site) },
     ...dynamic
   ];
   return groups.filter((g) => g.items.length > 0);
@@ -702,7 +699,6 @@ export function serviceLabel(name: string): string {
     rustfs: 'RustFS',
     mongo: 'MongoDB',
     'mongo-express': 'Mongo Express',
-    'stripe-mock': 'Stripe Mock',
     elasticsearch: 'Elasticsearch',
     elasticvue: 'Elasticvue',
     memcached: 'Memcached',
@@ -732,7 +728,6 @@ export function workerSiteName(s: Service): string {
     s.horizon_site ||
     s.schedule_worker_site ||
     s.reverb_site ||
-    s.stripe_listener_site ||
     s.worker_site ||
     s.name;
   return base;
@@ -744,7 +739,6 @@ export function parentSiteDomain(s: Service): string | null {
     s.horizon_site ||
     s.schedule_worker_site ||
     s.reverb_site ||
-    s.stripe_listener_site ||
     s.worker_site;
   if (!n) return null;
   // Use the actual registered domain from the sites store rather than
@@ -758,7 +752,6 @@ export function parentSiteDomain(s: Service): string | null {
 export function detailLabel(s: Service): string {
   if (s.queue_site) return 'Queue worker';
   if (s.horizon_site) return 'Horizon';
-  if (s.stripe_listener_site) return 'Stripe listener';
   if (s.schedule_worker_site) return 'Scheduler';
   if (s.reverb_site) return 'Reverb';
   if (s.worker_site && s.worker_name === 'vite') return 'Vite';

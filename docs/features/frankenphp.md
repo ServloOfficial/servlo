@@ -136,7 +136,7 @@ Worker mode keeps PHP resident, so a source file change is **not** picked up on 
 
 servlo builds a derived image, `localhost/servlo-frankenphp<version>:local`, FROM the dunglas base with the same runtime extension set the FPM image ships (redis, gd, pdo_mysql/pgsql, intl, imagick, igbinary, mongodb, gmp, bcmath, soap, ldap, zip, ...), plus any extensions and packages you add globally. They are compiled for the ZTS runtime and baked once, so `pcntl` and `nodejs` are present from first boot rather than installed at container start. The image rebuilds automatically when servlo's definition changes or via `servlo php:rebuild`.
 
-CLI tooling (`servlo test`, `servlo pest`, `servlo php:bun`, `servlo pest:browser`, `php`, `composer`) execs into the shared FPM container for the site's PHP version, so bun and Pest browser testing work for FrankenPHP sites with no extra setup.
+CLI tooling (`servlo test`, `servlo php:bun`, `php`, `composer`) execs into the shared FPM container for the site's PHP version, so it works for FrankenPHP sites with no extra setup.
 
 **php.ini** is edited per site on FrankenPHP, not per PHP version. A FrankenPHP site runs its own container, so it has its own `php.ini` file edited from a **php.ini tab in the site's config modal** (the gear/Nginx button); the change applies to that site only and restarts just its container. This is different from FPM sites, which share one per-version `php.ini` edited under System → PHP. The System → PHP per-version editor does not affect FrankenPHP sites.
 

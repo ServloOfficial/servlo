@@ -8,7 +8,7 @@ import (
 // siteWorkerLogKinds are the /api/{kind}/{site}/logs stream routes. The kind
 // doubles as the unit-name infix, so a new worker route is one entry here plus
 // its mux registration.
-var siteWorkerLogKinds = []string{"queue", "horizon", "schedule", "reverb", "stripe"}
+var siteWorkerLogKinds = []string{"queue", "horizon", "schedule", "reverb"}
 
 // unitForLogPath maps a log stream path back to the unit behind it. Every log
 // route resolves through here, so no two of them can disagree about which unit

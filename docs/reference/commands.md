@@ -146,10 +146,6 @@ Supported versions are **8.5**, **8.4**, **8.3**, **8.2** and **8.1**, plus a fr
 | `servlo runtime` | Switch the PHP runtime for the current site (fpm or frankenphp) |
 | `servlo rebuild` | Rebuild the custom container image and restart the container |
 | `servlo restart` | Restart the container for the current or named site |
-| `servlo pest:browser` | Set up in-container Pest browser testing (Playwright on musl chromium) |
-| `servlo pest:browser doctor` | Diagnose the Pest browser testing setup for a PHP version |
-| `servlo pest:browser install` | Bake musl chromium into the FPM image and wire up Playwright for Pest |
-| `servlo pest:browser remove` | Remove chromium from the FPM image and disable Pest browser testing |
 
 ## Node and JavaScript
 
@@ -293,8 +289,6 @@ Horizon and Reverb are detected from `composer.json` rather than configured: a p
 | `servlo worker remove` | Remove a custom worker from .servlo.yaml or global framework overlay |
 | `servlo worker start` | Start a framework worker as a systemd service |
 | `servlo worker stop` | Stop a framework worker |
-| `servlo stripe:config` | Show or set the Stripe webhook path and secret env key for the current site (without starting the listener) |
-| `servlo stripe:listen` | Start a Stripe webhook listener for the current site as a systemd service |
 
 ## Backups and restore
 

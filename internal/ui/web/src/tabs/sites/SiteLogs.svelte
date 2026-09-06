@@ -29,7 +29,6 @@
     if (site.host_has_dev_server) xs.push({ id: 'devserver', label: m.sites_tabs_devServer() });
     if (site.queue_running || site.queue_failing) xs.push({ id: 'queue', label: m.sites_tabs_queue() + (site.queue_failing ? ' !' : '') });
     if (site.horizon_running || site.horizon_failing) xs.push({ id: 'horizon', label: m.sites_tabs_horizon() + (site.horizon_failing ? ' !' : '') });
-    if (site.stripe_running) xs.push({ id: 'stripe', label: m.sites_tabs_stripe() });
     if (site.schedule_running || site.schedule_failing) xs.push({ id: 'schedule', label: m.sites_tabs_schedule() + (site.schedule_failing ? ' !' : '') });
     if (site.reverb_running || site.reverb_failing) xs.push({ id: 'reverb', label: m.sites_tabs_reverb() + (site.reverb_failing ? ' !' : '') });
     for (const w of site.framework_workers || []) {
@@ -63,7 +62,6 @@
     }
     if (active === 'queue') return `/api/queue/${name}/logs`;
     if (active === 'horizon') return `/api/horizon/${name}/logs`;
-    if (active === 'stripe') return `/api/stripe/${name}/logs`;
     if (active === 'schedule') return `/api/schedule/${name}/logs`;
     if (active === 'reverb') return `/api/reverb/${name}/logs`;
     if (active === 'devserver') return `/api/worker/${name}/app/logs`;

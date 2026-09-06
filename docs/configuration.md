@@ -115,11 +115,10 @@ A portable, self-contained description of a project's local environment. Created
 | `app_url` | Override for `APP_URL` (or the framework's URL key) written to `.env`. Highest priority, it beats the per-machine `sites.yaml` override and the default `<scheme>://<primary-domain>` generator. Use for custom path prefixes, ports, or unrelated hostnames you want shared across machines |
 | `env_overrides` | Map of env var names to templated or static values applied to `.env` on `servlo setup`. Values may use <code v-pre>{{domain}}</code>, <code v-pre>{{scheme}}</code>, and <code v-pre>{{site}}</code> placeholders, or be plain strings. When `APP_URL` is in `env_overrides` it takes precedence over the default rewrite; declared keys override defaults, undeclared defaults still apply. See Env overrides |
 | `services` | Services to start on apply. Accepts built-in names, preset references, and the names of services already installed on this machine. A full inline definition is read but never run, see Inline service definitions are not run |
-| `workers` | Active worker names for the site (e.g. `queue`, `horizon`, `schedule`, `reverb`, `stripe`). Automatically kept in sync by start/stop commands. Used by `servlo start` to restore workers after reinstall |
+| `workers` | Active worker names for the site (e.g. `queue`, `horizon`, `schedule`, `reverb`). Automatically kept in sync by start/stop commands. Used by `servlo start` to restore workers after reinstall |
 | `container` | Custom container config for non-PHP sites. When present, servlo builds a dedicated container from the project's Containerfile and nginx reverse-proxies to it. See below and Custom Containers |
 | `custom_workers` | Custom worker definitions (name to config map). Works for both PHP and custom container sites. See below |
 | `db` | Database targeting for non-PHP projects: `service` (e.g. `mysql`, `postgres`) and `database` name |
-| `stripe` | Optional Stripe webhook listener config: `path` (forward route, defaults to `/stripe/webhook`) and `secret_env_key` (which `.env` key holds the secret, defaults to auto-detection). See Stripe |
 
 ### Basic example
 

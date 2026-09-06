@@ -1,6 +1,6 @@
 # Services walkthrough
 
-Servlo ships with **MySQL, PostgreSQL, Redis, Meilisearch, and RustFS** built in. For a curated set of common extras (**MongoDB, phpMyAdmin, pgAdmin, Mongo Express, stripe-mock, MariaDB, alternative MySQL versions**) servlo ships **bundled presets** you can install with one command. Anything not on either list runs as a **custom service**: a YAML file dropped into `~/.config/servlo/services/`, registered with one command, and managed by `servlo service start/stop/list` exactly like the built-ins.
+Servlo ships with **MySQL, PostgreSQL, Redis, Meilisearch, and RustFS** built in. For a curated set of common extras (**MongoDB, phpMyAdmin, pgAdmin, Mongo Express, MariaDB, alternative MySQL versions**) servlo ships **bundled presets** you can install with one command. Anything not on either list runs as a **custom service**: a YAML file dropped into `~/.config/servlo/services/`, registered with one command, and managed by `servlo service start/stop/list` exactly like the built-ins.
 
 ::: info Prerequisites
 You've already run `servlo install` once on this machine. If not, see [Installation](installation.md).
@@ -213,5 +213,5 @@ This means installing the preset (or dropping the YAML) once is enough, every pr
 
 ## Next steps
 
-- [Services reference](../usage/services.md): full YAML schema, dependency rules, custom command flags, RustFS / Soketi / stripe-mock built-in details
+- [Services reference](../usage/services.md): full YAML schema, dependency rules, custom command flags, RustFS and Soketi built-in details
 - [Configuration](../configuration.md): embedding services directly in `.servlo.yaml` so they ship with the repo

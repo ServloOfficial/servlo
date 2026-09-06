@@ -9,7 +9,6 @@ import (
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/feedback"
 	"github.com/ServloOfficial/servlo/internal/siteops"
-	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 )
 
@@ -123,8 +122,7 @@ func renewCert(args []string) error {
 
 // toggleSecureCmd is the CLI entry-point shared by `servlo secure` and
 // `servlo unsecure`. It delegates the core flip to siteops.SetSecured (the
-// single source of truth shared with the UI code paths) and supplies
-// CLI-specific post-toggle hooks, today the Stripe listener restart.
+// single source of truth shared with the UI code paths).
 func toggleSecureCmd(args []string, secured bool) error {
 	name, err := resolveSiteName(args)
 	if err != nil {
@@ -154,33 +152,4 @@ func toggleSecureCmd(args []string, secured bool) error {
 		feedback.Note("also secured group secondaries: " + strings.Join(cascaded, ", "))
 	}
 	return nil
-}
-
-// RestartStripeIfActive is exported so the daemon's stripe:refresh HTTP
-// handler can run the same Stripe restart logic as the CLI. SetSecured
-// posts to that endpoint after every toggle, so this is the single
-// implementation across the CLI and the UI.
-func RestartStripeIfActive(site *config.Site) { restartStripeIfActive(site) }
-
-// restartStripeIfActive restarts the Stripe listener for the site if it is currently running,
-// so that --forward-to picks up the new http/https scheme.
-func restartStripeIfActive(site *config.Site) {
-	unitName := "servlo-stripe-" + site.Name
-	if !servloSystemd.IsServiceActive(unitName) {
-		return
-	}
-	scheme := "http"
-	if site.Secured {
-		scheme = "https"
-	}
-	baseURL := scheme + "://" + site.PrimaryDomain()
-	if err := StripeStartForSite(site.Name, site.Path, baseURL); err != nil {
-		feedback.Warn("updating stripe listener unit: %v", err)
-		return
-	}
-	if err := servloSystemd.RestartService(unitName); err != nil {
-		feedback.Warn("restarting stripe listener: %v", err)
-		return
-	}
-	fmt.Printf("  Restarted stripe listener → %s%s\n", baseURL, config.StripeWebhookPath(site.Path))
 }

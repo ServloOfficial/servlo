@@ -9,7 +9,6 @@
     toggleHorizon,
     toggleSchedule,
     toggleReverb,
-    toggleStripe,
     toggleWorker,
     loadSites
   } from '$stores/sites';
@@ -145,16 +144,6 @@
           hint: d,
           group: 'toggles',
           action: async () => { await toggleReverb(s); await refresh(); }
-        });
-      }
-      if (s.stripe_secret_set) {
-        const on = Boolean(s.stripe_running);
-        list.push({
-          id: 'tgl:' + d + ':stripe',
-          label: m.palette_toggle({ action: on ? m.common_stop() : m.common_start(), feature: 'Stripe listener' }),
-          hint: d,
-          group: 'toggles',
-          action: async () => { await toggleStripe(s); await refresh(); }
         });
       }
       for (const w of s.framework_workers || []) {

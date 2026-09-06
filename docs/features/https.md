@@ -219,12 +219,6 @@ The Sites tab has an HTTPS toggle per site; clicking it runs `servlo secure` or 
 
 ---
 
-## Stripe listener
-
-If a Stripe webhook listener is running for the site, toggling HTTPS automatically restarts it so `--forward-to` points at the correct `http://` or `https://` URL. No manual intervention required.
-
----
-
 ## How it works
 
 1. `servlo secure <site>` asks the active issuer for a certificate covering the site's primary domain and every alias. What SANs that implies is the issuer's decision: a CA can mint wildcards for free, an ACME authority cannot over HTTP-01.
@@ -232,4 +226,3 @@ If a Stripe webhook listener is running for the site, toggling HTTPS automatical
 3. The certificate and key are swapped into place atomically, keeping a complete certificate at the live path at every instant. A fresh key is generated for every issuance rather than reused: a renewal that keeps the old key gains nothing and means one compromise covers every certificate the site has ever had.
 4. The nginx vhost is regenerated to listen on port 443 with the new cert, port 80 redirects permanently to HTTPS, and the HSTS header is added.
 5. `APP_URL` in the project's `.env` is updated to `https://`.
-6. If a `servlo stripe:listen` service is active for the site, it is restarted with the updated forwarding URL.

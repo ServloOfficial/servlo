@@ -308,7 +308,6 @@ describe('services store', () => {
     const { serviceLabel } = await import('./services');
     expect(serviceLabel('mysql')).toBe('MySQL');
     expect(serviceLabel('mysql-5-7')).toBe('MySQL');
-    expect(serviceLabel('stripe-mock')).toBe('Stripe Mock');
     expect(serviceLabel('custom-thing')).toBe('Custom Thing');
   });
 
