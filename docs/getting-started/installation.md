@@ -1,14 +1,16 @@
 # Installation
 
-## Linux
+::: warning Ubuntu 24.04 LTS only
+Servlo installs on Ubuntu 24.04 LTS and refuses anywhere else, naming what it
+found rather than half-installing. Derivatives are refused too, because they are
+not the thing that was tested.
 
-::: warning Requires systemd
-Servlo runs every container as a Podman Quadlet and every worker as a systemd user service, so a systemd-based distro is required. OpenRC (Gentoo, Artix-openrc, Alpine), runit (Void, Artix-runit), s6, and sysvinit-based distros (Devuan) are not supported.
-
-Tested and known-good: Ubuntu, Fedora, Arch, Debian, Mint, Pop!_OS, openSUSE, CachyOS, Omarchy. Any systemd distro should work.
+24.04 is the floor for a concrete reason rather than caution: 22.04 ships podman
+3.4.4, below the 4.5 minimum, and cannot provide a newer one from its own
+archive. See [Requirements](/getting-started/requirements).
 :::
 
-### One-line installer (recommended)
+## One-line installer (recommended)
 
 ::: code-group
 
@@ -32,7 +34,7 @@ make install-installer  # installs servlo-installer to ~/.local/bin/
 
 The installer will:
 
-- Check and offer to install missing prerequisites (Podman, NetworkManager, unzip)
+- Check the prerequisites and offer to install what is missing (podman, crun, unzip)
 - Download the latest `servlo` binary for your architecture (amd64 / arm64)
 - Install it to `~/.local/bin/servlo`
 - Add `~/.local/bin` to your shell's `PATH` (bash, zsh, or fish)
@@ -80,7 +82,7 @@ If something is already serving on ports 80/443, typically a system nginx or Apa
 
 ---
 
-### Install from a local build
+## Install from a local build
 
 If you built from source and want to skip the GitHub download:
 

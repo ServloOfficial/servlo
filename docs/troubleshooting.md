@@ -316,7 +316,7 @@ Symptom: `servlo install` aborts at the `podman network create` step with `Error
 
 Cause: your podman is older than 4.5. The `--dns` flag on `podman network create` was added in podman 4.5 (April 2023), and servlo needs it to write upstream DNS servers into netavark's per-network JSON atomically (otherwise the post-create `network update --dns-add` path crashes on Ubuntu 24.04's netavark <1.11). Distributions that ship podman older than 4.5: Ubuntu 22.04 / Zorin 17 (3.4.4), Debian 12 (4.3.1), Debian 11 (3.0.1).
 
-Fix: upgrade podman to 4.5 or newer. On Ubuntu 22.04 and Zorin 17 the main archive doesn't ship a new enough podman, but the [Kubic libcontainers OBS repo](https://podman.io/docs/installation#ubuntu-2204-2104-2010-2004) does (it's the path podman's own docs recommend). On Debian 12 enable bookworm-backports and run `sudo apt install -t bookworm-backports podman`. See the [requirements page](getting-started/requirements.md#podman-4-5-minimum) for the full distro/version table.
+Fix: upgrade to Ubuntu 24.04 LTS, which ships podman 4.9. Servlo installs on 24.04 and refuses older releases for this exact reason, so the fix is `do-release-upgrade` rather than a third-party podman package. See [Requirements](/getting-started/requirements#why-podman-4-5).
 :::
 
 ::: details Error: unable to parse ip fe80::...%18 specified in AddDNSServer: invalid argument
@@ -379,7 +379,7 @@ cat "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/containers/networks/aardvark-dns/ser
 ```
 :::
 
-::: details Every container takes 90 seconds to start (Fedora Silverblue and other atomic images)
+::: details Every container takes 90 seconds to start
 Symptom: `servlo start` sits there for a minute and a half per container, and after a reboot nothing is serving until well over a minute in. `systemctl --user list-units --state=failed` shows `podman-user-wait-network-online.service` failed with a timeout, and `servlo doctor` reports the `podman network-online wait` check as a warning.
 
 Cause: podman's quadlet generator makes every rootless container `Wants=` and `After=podman-user-wait-network-online.service`, a unit that polls the system's `network-online.target` until it gives up after 90 seconds. That target is only reached when some unit pulls it in, and on atomic images (Silverblue, Kinoite, Bazzite, CoreOS) nothing does, so the wait can never succeed. Every container start, and the boot itself, pays the full timeout.
