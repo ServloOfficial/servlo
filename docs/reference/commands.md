@@ -4,11 +4,11 @@
 
 | Command | Description |
 |---|---|
-| `servlo install` | One-time setup: directories, network, binaries, DNS, nginx, watcher |
+| `servlo install` | One-time setup: directories, network, binaries, nginx, watcher |
 | `servlo install --database mysql\|mariadb\|postgres\|none` | Install that engine and put new sites on it |
-| `servlo start` | Start DNS, nginx, PHP-FPM containers, and all installed services; warns about port conflicts and builds or pulls any missing images first |
-| `servlo stop` | Stop nginx, PHP-FPM containers, and all running services; leaves the `servlo-dns` forwarder running as install-level plumbing so `.test` keeps resolving |
-| `servlo quit` | Stop all Servlo processes and containers including the UI, watcher and the `servlo-dns` forwarder |
+| `servlo start` | Start nginx, PHP-FPM containers, and all installed services; warns about port conflicts and builds or pulls any missing images first |
+| `servlo stop` | Stop nginx, PHP-FPM containers, and all running services; leaves the dashboard and watcher running so you can bring servlo back up from either |
+| `servlo quit` | Stop all Servlo processes and containers, including the dashboard and the watcher |
 | `servlo update` | Check for updates and update after confirmation |
 | `servlo update --beta` | Update to the latest pre-release build |
 | `servlo update --rollback` | Revert to the previously installed version |
@@ -41,13 +41,13 @@
 | `servlo autostart disable` | Disable autostart on login |
 | `servlo path:disable` | Take servlo's shims (`php`, `composer`, `node`…) off your shell PATH; `servlo php` etc. keep working, and installs/updates stop re-adding the entry |
 | `servlo path:enable` | Put servlo's shims back on your shell PATH (the default) |
-| `servlo status` | Health summary: DNS, nginx, PHP-FPM containers, watcher, services, cert expiry and dashboard remote access; shows a notice if an update is available |
+| `servlo status` | Health summary: nginx, PHP-FPM containers, watcher, services, cert expiry and dashboard remote access; shows a notice if an update is available |
 | `servlo which` | Show resolved PHP version, Node version, document root, and nginx config for the current site |
 | `servlo about` | Show version, build info, and project URL |
 | `servlo man [page]` | Browse the built-in documentation in the terminal; pass a page name to jump directly (e.g. `servlo man sites`) |
 | `servlo tui` | Open a btop-style terminal dashboard with live site / service / worker status, per-site detail pane, inline domain and version editing, shell drop-in, log tailing, filter + sort, and global settings |
 | `servlo check` | Validate `.servlo.yaml` syntax, services, and PHP version before setup |
-| `servlo doctor` | Full environment diagnostic: podman, systemd, DNS, the recorded port strategy (checked both live and across a reboot), PHP images, config validity; also reports how much podman disk is reclaimable. Add `--fix` to apply the safe automatic repairs (confirming each; `--yes` to skip prompts, `--dry-run` to preview); privileged and external-state findings are left for you to run. `--json` emits the findings, each tagged with a fix tier, for tooling |
+| `servlo doctor` | Full environment diagnostic: podman, systemd, container DNS, the recorded port strategy (checked both live and across a reboot), PHP images, config validity; also reports how much podman disk is reclaimable. Add `--fix` to apply the safe automatic repairs (confirming each; `--yes` to skip prompts, `--dry-run` to preview); privileged and external-state findings are left for you to run. `--json` emits the findings, each tagged with a fix tier, for tooling |
 | `servlo site:doctor [domain]` | App-level health checks for a single site (env file, env drift, application key, a configured SQLite database that is missing or empty, composer/node dependency install + lock, `composer audit`/`npm audit`, PHP version range, routes running well above the site's typical response time, plus the framework's own checks). A broken database suppresses the framework migration check so the remedy isn't repeated. Defaults to the site in the current directory; pass a domain to target another. Add `--json` for machine-readable output |
 | `servlo cleanup` | Reclaim podman disk from orphaned servlo images (old PHP build and base images a rebuild left behind), unused service images no installed service references any more (e.g. an old `mysql:8.0` after upgrading, keeping each service's current image and its one-back rollback target), and dangling untagged images. Previews the list and confirms before removing. Never touches a tagged image in use, your databases, or volumes |
 | `servlo cleanup --dry-run` | Show what would be reclaimed and the approximate size, remove nothing |

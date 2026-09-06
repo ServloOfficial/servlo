@@ -3,16 +3,18 @@
 After `servlo install`, two commands cover every project type:
 
 ```bash
-# Park a directory, every PHP project inside gets a .test domain automatically
-servlo park ~/Servlo
+# Park a directory: every PHP project inside is served on the domain it is named for
+servlo park ~/sites
 
-# Confirm DNS, nginx, services, and certs are healthy
+# Confirm nginx, PHP-FPM, services, and certs are healthy
 servlo status
 ```
 { .annotate }
 
-1. `servlo park` registers the directory with the watcher service. Every subdirectory that looks like a PHP project gets a domain; resolving it is up to you, since servlo runs no resolver of its own.
-2. `servlo status` shows a health summary: DNS, nginx, PHP-FPM containers, services, and cert expiry.
+1. `servlo park` registers the directory with the watcher service and links every PHP project in it. Each project is served on the domain its own directory is named for, so `~/sites/example.com` becomes `example.com`; a project whose `.servlo.yaml` declares `domains:` uses those instead. A directory not named for a domain is reported and skipped, because servlo has no TLD of its own to complete a bare name with — `cd` into it and run `servlo link example.com`.
+2. `servlo status` shows a health summary: nginx, PHP-FPM containers, services, and cert expiry.
+
+Servlo does not resolve these domains for you and does not touch this machine's resolver. Point each domain's DNS at this server at your registrar; `servlo secure` checks the record before it asks Let's Encrypt for a certificate.
 
 If you only want to register a single project, `cd` into it and run `servlo link` instead of `servlo park`.
 

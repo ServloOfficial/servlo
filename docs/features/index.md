@@ -14,8 +14,7 @@ Beyond serving PHP sites, servlo ships a set of tools for working with them. Eve
 
 ## Serving sites
 
-- [HTTPS](/features/https) issues locally trusted certificates automatically.
-- DNS resolves `.test` domains without editing `/etc/hosts`.
+- [HTTPS](/features/https) issues Let's Encrypt certificates for your domains and renews them.
 - [Project setup](/features/project-setup) is how servlo detects a framework and configures it.
 - [Env setup](/features/env-setup) wires service credentials into your site's `.env`.
 - [FrankenPHP](/features/frankenphp) is the alternative runtime to PHP-FPM.

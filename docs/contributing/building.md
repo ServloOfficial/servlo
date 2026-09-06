@@ -38,7 +38,7 @@ Each deleted feature is one rule in `internal/surfacescan/rules.go`, naming the 
 
 Patterns are matched against a file's path and each of its lines, and against a camel-split copy of each line, so a rule can be written as a plain word and still catch the same word buried inside a camel-case identifier. Without that, a deleted feature comes back simply by living inside a longer name. The specification documents that describe the deletions on purpose, and the rules file itself, are exempt.
 
-Tests must isolate servlo's state before they touch it, with `t.Setenv("XDG_CONFIG_HOME", t.TempDir())` and `t.Setenv("XDG_DATA_HOME", t.TempDir())`. Anything writing or deleting a real config file, systemd unit or quadlet panics with the path it tried to touch, because a test that skipped this once removed a developer's servlo-dns quadlet and left the container running under a unit systemd no longer knew about.
+Tests must isolate servlo's state before they touch it, with `t.Setenv("XDG_CONFIG_HOME", t.TempDir())` and `t.Setenv("XDG_DATA_HOME", t.TempDir())`. Anything writing or deleting a real config file, systemd unit or quadlet panics with the path it tried to touch, because a test that skipped this once removed a real quadlet from the developer's own machine and left the container running under a unit systemd no longer knew about.
 
 ## Cross-compile for arm64
 

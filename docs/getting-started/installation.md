@@ -57,25 +57,25 @@ A fresh droplet is missing four things before it is a server worth putting a sit
 > Servlo never touches SSH password authentication, and never restarts sshd. Turning off password login on a machine whose owner has not added a key yet locks them out of their own droplet, which is what "hardening" scripts do and why this one does not. fail2ban throttles the attempts and the login method stays yours. A test in the repository asserts that no server basic mentions `sshd_config`, `PasswordAuthentication` or `PermitRootLogin`, so this cannot drift.
 
 
-Reinstalling for an update or a test reuses what is already in place and does not ask again, and if a step cannot run through `sudo` it falls back to prompting for each one separately. Uninstalling takes the CA back out, so it lasts exactly as long as servlo does.
+Reinstalling for an update or a test reuses what is already in place and does not ask again, and if a step cannot run through `sudo` it falls back to prompting for each one separately.
 :::
 
 After install, reload your shell or open a new terminal so `PATH` takes effect.
 
 `servlo install` will:
 
-1. Check that the host ports servlo binds first (HTTP 80, HTTPS 443, DNS 5300) are free
+1. Check that the host ports servlo binds first (HTTP 80, HTTPS 443) are free
 2. Create XDG config and data directories
 3. Create the `servlo` Podman network
 4. Download static binaries: Composer, fnm
-6. Write and start the `servlo-dns` and `servlo-nginx` Podman Quadlet containers
-7. Enable the `servlo-watcher` background service (auto-discovers new projects)
-8. Add `~/.local/share/servlo/bin` to your shell's `PATH`
+5. Write and start the `servlo-nginx` Podman Quadlet container
+6. Enable the `servlo-watcher` background service (auto-discovers new projects)
+7. Add `~/.local/share/servlo/bin` to your shell's `PATH`
 
 The downloaded tools are pinned to explicit versions, so a fresh install always gets the same Composer and fnm regardless of what upstream shipped that day. The pins live in a small manifest published in the servlo repository: the binary fetches it before downloading and falls back to its embedded copy when offline, so a broken pin can be fixed for every install without waiting for a release. Downloads retry transient network and server errors with a short backoff, and a stalled transfer is cancelled and retried instead of hanging, so a momentary CDN hiccup doesn't abort the install. Already-installed tools are never touched by an upgrade; `servlo status` shows their versions and `servlo tools:update` brings them to the current pins when you want that.
 
-::: info Running alongside Laravel Herd or another local stack
-If another tool is already serving sites on ports 80/443 (Laravel Herd, a system nginx/Apache) or holding the DNS port, install prints a warning naming each busy port and how to find the process. Install still continues, so stop the other stack to free the ports first, otherwise `servlo-nginx` and `servlo-dns` will fail to start.
+::: info Running alongside another web server
+If something is already serving on ports 80/443, typically a system nginx or Apache, install prints a warning naming each busy port and how to find the process. Install still continues, so stop the other stack to free the ports first, otherwise `servlo-nginx` will fail to start.
 :::
 
 ---
