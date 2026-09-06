@@ -37,10 +37,11 @@ builds:
       - -X github.com/ServloOfficial/servlo/internal/version.Commit={{.Commit}}
       - -X github.com/ServloOfficial/servlo/internal/version.Date={{.Date}}
 
+archives:
   - id: servlo-amd64
     ids: [servlo-amd64]
     name_template: "servlo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format: tar.gz
+    formats: [tar.gz]
     files:
       - README.md
       - install.sh
@@ -48,7 +49,7 @@ builds:
   - id: servlo-arm64
     ids: [servlo-arm64]
     name_template: "servlo_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format: tar.gz
+    formats: [tar.gz]
     files:
       - README.md
       - install.sh
