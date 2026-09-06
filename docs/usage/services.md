@@ -9,7 +9,7 @@
 | `servlo service restart <name>` | Restart a service container; refreshes the quadlet first so config edits land |
 | `servlo service status <name>` | Show systemd unit status |
 | `servlo service list` | All services with status, version, and an Update column |
-| `servlo service search [query]` | Browse the external service-preset store; install a hit with `servlo service preset <name>` |
+| `servlo service search [query]` | Browse the service-preset store; install a hit with `servlo service preset <name>` |
 | `servlo service update <name> [tag]` | Pull a newer image and restart; tag selects an explicit upgrade target |
 | `servlo service migrate <name> <version>` | SQL dump + restore for cross-version moves (mysql, mariadb, postgres); `<version>` is a preset version label such as `18` |
 | `servlo service rollback <name>` | Swap back to the previously-running image (toggles) |
@@ -20,6 +20,14 @@
 | `servlo service port <name> <port>` | Move a service's primary published host port (e.g. free 3306 for a host server) |
 | `servlo service port <name> <port> --container <cport>` | Move a specific mapping of a multi-port service (e.g. RustFS' 9001 console) |
 | `servlo service port <name> --reset` | Reset a service to its preset default published port |
+
+The five services above are compiled into the binary as YAML presets. The other
+twenty-three — Elasticsearch, OpenSearch, MongoDB, RabbitMQ, Typesense, Selenium,
+phpMyAdmin, pgAdmin and the rest — live in this repository under
+`stores/services/` and are embedded too, so a fresh install never depends on the
+repository being reachable. The runtime fetch is the update path rather than the
+only way in, and a definition is verified against a recorded sha256 digest before
+it is used.
 
 Available services: `mysql` (8.4 LTS canonical, 9.7 LTS / 5.7 alternates), `redis` (7-alpine), `postgres` (16 canonical with PostGIS, 17 / 18 alternates), `meilisearch` (v1.42), `rustfs` (S3-compatible).
 
