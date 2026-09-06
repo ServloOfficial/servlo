@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -834,6 +835,12 @@ func SetSitePinned(name string, pinned bool) error {
 }
 
 // FindSite returns the site with the given name, or an error if not found.
+// ErrSiteNotFound is what a lookup returns when the registry was read and the
+// site simply is not in it. A caller that cannot tell this from a registry it
+// failed to read will blame the wrong thing: one is the operator naming a site
+// that does not exist, the other is servlo unable to read its own config.
+var ErrSiteNotFound = errors.New("not a registered site")
+
 func FindSite(name string) (*Site, error) {
 	reg, err := LoadSites()
 	if err != nil {
@@ -846,7 +853,7 @@ func FindSite(name string) (*Site, error) {
 			return &s, nil
 		}
 	}
-	return nil, fmt.Errorf("site %q not found", name)
+	return nil, fmt.Errorf("site %q: %w", name, ErrSiteNotFound)
 }
 
 // FindSiteByRef looks up a site by its internal name first, then by any of its

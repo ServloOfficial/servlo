@@ -142,10 +142,13 @@ The order matters, and the first step is the one that is easy to miss:
 ```bash
 servlo backup key import <the key from the old server>
 servlo restore servlo-state-20260809-030000 --state
+servlo service reinstall mysql --reset-data
 servlo restore acme-20260809-030000
 ```
 
 Without the key first, nothing opens: servlo will have generated a key of its own on the new machine, which opens nothing that the old one wrote. It says so when that happens rather than leaving "wrong key" to be puzzled over.
+
+The engine is reinstalled after the state, and not before, for a reason of the same shape. servlo's service password lives in the config directory a state archive carries, and MySQL bakes the password it is handed into its data directory the first time it starts. The engine the install put on the new machine is therefore holding that machine's password while the restored config holds the old one, and every dump load afterwards is refused with an access denied that says nothing about backups. Reinstalling recreates it from the restored config. There is nothing to lose to `--reset-data` on a machine being rebuilt, and the databases the sites need are created as each site archive goes back.
 
 Two things a restore cannot give back, both said plainly at the end of one:
 

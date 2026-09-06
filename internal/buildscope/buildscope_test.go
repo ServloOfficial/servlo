@@ -198,6 +198,16 @@ func TestUnitName_IsPerSiteAndUsable(t *testing.T) {
 	}
 }
 
+// Two builds must not ask systemd for the same scope name, even for the same
+// site. A transient unit is not always collected by the time the next build
+// starts and systemd refuses a name that is still in use, so a redeploy right
+// after a failed deploy would not start at all.
+func TestUnitName_DiffersBetweenRuns(t *testing.T) {
+	if a, b := UnitName("shop"), UnitName("shop"); a == b {
+		t.Errorf("two builds of the same site share the scope name %q", a)
+	}
+}
+
 // withScope pretends this machine can start a transient scope, so the wrapping
 // itself can be asserted on a container that has no user manager.
 func withScope(t *testing.T) func() {
