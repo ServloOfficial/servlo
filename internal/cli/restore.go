@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -75,8 +76,7 @@ func runRestore(archivePath, into string, filesOnly, yes bool) error {
 	if target == "" {
 		site, err = config.FindSite(man.Site)
 		if err != nil {
-			return fmt.Errorf("this archive is of %q, which is not a site on this server. "+
-				"Name a directory with --into to restore it somewhere", man.Site)
+			return siteLookupFailure(man.Site, err)
 		}
 		target = site.Path
 	}
@@ -165,6 +165,19 @@ func restoreDatabase(path string, key []byte, site *config.Site, man backup.Mani
 	}
 	step.OK(feedback.Val(man.DatabaseName))
 	return nil
+}
+
+// siteLookupFailure explains why the archive's site could not be resolved. The
+// two reasons want different words: a site that is not registered is the
+// operator reaching for the wrong archive, while a registry servlo could not
+// read is servlo's own problem, and saying "not a site on this server" for that
+// sends them to look at their backups instead of at their config.
+func siteLookupFailure(name string, err error) error {
+	if errors.Is(err, config.ErrSiteNotFound) {
+		return fmt.Errorf("this archive is of %q, which is not a site on this server. "+
+			"Name a directory with --into to restore it somewhere", name)
+	}
+	return fmt.Errorf("this archive is of %q, and servlo could not read its own site registry to look it up: %w", name, err)
 }
 
 // createRestoreDatabase is the seam a test replaces. The real one creates the
