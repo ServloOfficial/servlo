@@ -169,10 +169,19 @@ jobs:
       - name: Prepare the rootless runtime
         run: .github/scripts/prepare-runtime.sh
 
-      # Deliberately nothing else: no sites, no registry, no settings. This
-      # runner has never seen the machine the archives came from, which is the
-      # whole point of the job.
+      # Deliberately nothing else: no sites, no registry, no settings, and no
+      # database engine either. This runner has never seen the machine the
+      # archives came from, which is the whole point of the job.
+      #
+      # The engine waits until after the state restore. servlo's service
+      # password lives in the config directory a state archive carries, and
+      # MySQL bakes the password it is handed into its data directory the first
+      # time it starts. An engine created before the restore therefore holds
+      # this machine's password while the restored config holds the old one, and
+      # every dump load afterwards is refused.
       - name: Install servlo, and nothing else
+        env:
+          SERVLO_CI_DATABASE: none
         run: .github/scripts/install-servlo.sh
 
       - uses: actions/download-artifact@v4
@@ -189,11 +198,6 @@ jobs:
           # new machine and it opens nothing the old one wrote.
           servlo backup key import "$BACKUP_KEY"
 
-      # A restore loads a dump into the engine, so the engine has to be
-      # answering first. Nothing between here and there waits for it.
-      - name: Wait for the database engine
-        run: .github/scripts/wait-for-db.sh
-
       - name: Restore the server's own state
         run: |
           set -euo pipefail
@@ -201,6 +205,16 @@ jobs:
           cp /tmp/archives/*.servlobak ~/.local/share/servlo/site-backups/
           state=$(ls -1 ~/.local/share/servlo/site-backups/servlo-state-*.servlobak | head -1)
           servlo restore "$(basename "$state")" --state --yes
+
+      # Now, and not before. The restored config is in place, so the engine is
+      # created with the password the old machine's sites were given.
+      - name: Add the database engine the restored server had
+        run: servlo install --unattended --database mysql
+
+      # A restore loads a dump into the engine, so the engine has to be
+      # answering first. Nothing between here and there waits for it.
+      - name: Wait for the database engine
+        run: .github/scripts/wait-for-db.sh
 
       - name: Restore each site
         run: |

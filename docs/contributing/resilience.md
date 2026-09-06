@@ -26,8 +26,11 @@ The second runs on a runner that has never seen the first. It installs servlo an
 
 1. `servlo backup key import` — without it nothing opens, because servlo has generated a key of its own on the new machine and it opens nothing the old one wrote
 2. `servlo restore … --state` — the registry, the connections, every per-site setting
-3. `servlo restore …` for each site
-4. `servlo start`
+3. the database engine, added only now
+4. `servlo restore …` for each site
+5. `servlo start`
+
+Step three is the one with a trap in it. The install on this runner asks for no database at all, and the engine is added after the state restore rather than before. servlo's service password lives in the config directory a state archive carries, and MySQL bakes the password it is handed into its data directory the first time it starts. Create the engine first and it holds the new machine's password while the restored config holds the old one, so every dump load afterwards is refused with an access-denied that says nothing about backups. This is the first thing CI ever caught here.
 
 Then it asserts every site serves its own page, and that the backup schedule set on the first machine came back with it.
 
