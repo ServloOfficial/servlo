@@ -4,7 +4,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/ServloOfficial/servlo/internal/config"
 	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 )
 
@@ -20,7 +19,6 @@ type settingsKind int
 
 const (
 	settingsAutostart settingsKind = iota
-	settingsWorkerMode
 )
 
 func (m *Model) settingsRows() []settingsRow {
@@ -55,16 +53,6 @@ func (m *Model) settingsToggle(rows []settingsRow) tea.Cmd {
 		}
 		m.setStatus("autostart "+sub+"…", 5*time.Second)
 		return runServlo("", "autostart", sub)
-	case settingsWorkerMode:
-		// Toggle between exec (off) and container (on). Mirrors
-		// `servlo workers mode <value>`. Does not stop running workers —
-		// caller should restart them for the change to take effect.
-		target := config.WorkerExecModeContainer
-		if row.on {
-			target = config.WorkerExecModeExec
-		}
-		m.setStatus("switching worker mode to "+target+"…", 5*time.Second)
-		return runServlo("", "workers", "mode", target)
 	}
 	return nil
 }

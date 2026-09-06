@@ -50,7 +50,6 @@ func TestDashboardActions_NoSiteTarget(t *testing.T) {
 		"restart":     (*Model).actionRestart,
 		"shell":       (*Model).actionShell,
 		"pauseToggle": (*Model).actionPauseToggle,
-		"openBrowser": (*Model).openInBrowserCmd,
 	}
 	for name, fn := range actions {
 		m := NewModel("test")

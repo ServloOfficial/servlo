@@ -110,7 +110,6 @@ var paletteCommands = []string{
 	"worker heal",
 	"worker start",
 	"worker stop",
-	"workers mode",
 }
 
 // openPalette switches to palette-input mode. We don't pin focus to a

@@ -11,7 +11,6 @@ There are three ways to reach it, and which one you want depends on where you ar
 | Anywhere, once a domain points here | `https://panel.example.com` |
 
 ```bash
-servlo dashboard   # open in your default browser
 ```
 
 The `.localhost` TLD resolves to `127.0.0.1` natively on all modern systems (RFC 6761), so that first URL needs no DNS and is unreachable from anywhere but the machine itself.

@@ -35,11 +35,10 @@ type setupStep struct {
 // NewSetupCmd returns the setup command.
 func NewSetupCmd() *cobra.Command {
 	var allSteps bool
-	var skipOpen bool
 
 	cmd := &cobra.Command{
 		Use:   "setup",
-		Short: "Bootstrap a PHP project (composer, npm, env, migrate, assets, open)",
+		Short: "Bootstrap a PHP project (composer, npm, env, migrate, assets)",
 		Long: `Configures the site and runs a series of standard project setup steps with
 an interactive step-selector so you can toggle which steps to execute.
 
@@ -67,12 +66,11 @@ Additional steps for Laravel projects:
 Use --all to skip all selectors and run everything (useful in CI). In --all
 mode with no .servlo.yaml, site registration falls back to auto-detection.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return runSetup(allSteps, skipOpen)
+			return runSetup(allSteps)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&allSteps, "all", "a", false, "Select all steps without prompting (for CI/automation)")
-	cmd.Flags().BoolVar(&skipOpen, "skip-open", false, "Do not open the site in the browser at the end")
 	return cmd
 }
 
@@ -110,7 +108,7 @@ func frameworkForSetup(site *config.Site, cwd string) *config.Framework {
 	return &config.Framework{}
 }
 
-func runSetup(allSteps, skipOpen bool) error {
+func runSetup(allSteps bool) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -417,16 +415,6 @@ func runSetup(allSteps, skipOpen bool) error {
 					return fmt.Errorf("could not resolve site URL, run 'servlo link' first")
 				}
 				return StripeStartForSite(ownerSite.Name, cwd, base)
-			},
-		})
-	}
-
-	if !skipOpen {
-		steps = append(steps, setupStep{
-			label:   "servlo open",
-			enabled: true,
-			run: func() error {
-				return runOpen(nil, nil)
 			},
 		})
 	}

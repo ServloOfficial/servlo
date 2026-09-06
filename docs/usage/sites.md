@@ -46,7 +46,6 @@ private half never leaves the server or appears in an API response.
 | `servlo domain remove <name>` | Remove a domain from the current site |
 | `servlo domain list` | List all domains for the current site |
 | `servlo sites` | Table view of all registered sites |
-| `servlo open [name]` | Open the site in the default browser (via `xdg-open`, so nothing happens over SSH on a headless server) |
 | `servlo secure [name]` | Issue a TLS certificate and enable HTTPS, updates `APP_URL` in `.env` |
 | `servlo unsecure [name]` | Remove TLS and switch back to HTTP, updates `APP_URL` in `.env` |
 | `servlo pause [name]` | Pause a site: stop its workers and replace the vhost with a landing page |

@@ -670,9 +670,6 @@ func (m *Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.actionServiceRollback()
 
-	case "O":
-		return m, m.openInBrowserCmd()
-
 	case "1":
 		return m, m.selectSiteTab(1)
 

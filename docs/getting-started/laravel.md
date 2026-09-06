@@ -125,7 +125,6 @@ servlo setup
   ◉ servlo secure                  # issues TLS for myapp.example.com
   ◉ queue:start
   ◉ schedule:start
-  ◉ servlo open
 ```
 
 Press enter and watch them run. When it's done, the browser opens at `https://myapp.example.com` and the queue + scheduler are running as systemd user services.

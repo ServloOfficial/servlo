@@ -119,24 +119,6 @@ func TestServiceDetail_ShowsOpenDashboardHint(t *testing.T) {
 	}
 }
 
-func TestOpenInBrowser_ServiceDashboard(t *testing.T) {
-	m := NewModel("test")
-	m.activeTab = tabServices
-	m.focus = paneServices
-	m.snap.Services = []ServiceRow{{Name: "rabbitmq", State: stateRunning, Dashboard: "http://localhost:15672"}}
-	m.svcCursor = 0
-	// browserOpener exists on this platform, so a real dashboard yields a cmd
-	// (the test never runs it, so no browser actually launches).
-	if browserOpener() != "" && m.openInBrowserCmd() == nil {
-		t.Error("expected a command to open the service dashboard")
-	}
-
-	m.snap.Services = []ServiceRow{{Name: "redis", State: stateRunning}}
-	if m.openInBrowserCmd() != nil {
-		t.Error("a service with no dashboard should not open anything")
-	}
-}
-
 func TestServiceDetail_WorkerRowRendersWorkerVariant(t *testing.T) {
 	m := NewModel("test")
 	svc := &ServiceRow{

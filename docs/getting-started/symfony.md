@@ -94,7 +94,6 @@ servlo setup
   ◯ Load fixtures
   ◉ servlo secure                  # TLS for myapp.example.com
   ◉ messenger:start
-  ◉ servlo open
 ```
 
 The "Run migrations", "Clear cache", and "Load fixtures" steps come from the `setup:` block in your `symfony.yaml`. Servlo surfaces them automatically and respects the `check:` rules; fixtures only appears if `doctrine/doctrine-fixtures-bundle` is installed.

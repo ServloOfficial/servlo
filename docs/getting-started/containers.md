@@ -241,7 +241,6 @@ You should see `myapp` as `active`, the container as `running`, services healthy
 Open the site:
 
 ```bash
-servlo open
 ```
 
 ---

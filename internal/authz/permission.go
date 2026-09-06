@@ -158,7 +158,6 @@ func Permissions() Registry {
 		"/api/servlo/quit":           PermAdmin,
 		"/api/settings":              PermAdmin,
 		"/api/settings/autostart":    PermAdmin,
-		"/api/settings/worker-mode":  PermAdmin,
 		"/api/settings/smtp":         PermAdmin,
 		"/api/settings/smtp/test":    PermAdmin,
 		"/api/remote-control":        PermAdmin,

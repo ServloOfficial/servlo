@@ -228,7 +228,7 @@ func runLink(args []string) error {
 	if hint, suggest := linkNextStep(linkSkipSetupPrompt); suggest {
 		if isInteractive() {
 			if feedback.Confirm("Run servlo setup?", true) {
-				if err := runSetup(false, false); err != nil {
+				if err := runSetup(false); err != nil {
 					feedback.Warn("setup: %v", err)
 				}
 			}

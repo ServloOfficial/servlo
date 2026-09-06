@@ -82,7 +82,7 @@ func WatchPower(interval time.Duration) {
 // resurrect a worker the user deliberately stopped, and a worker that is down
 // will pick up the new interval whenever it is next started anyway.
 func restartPollingReloadWorkers(state power.State) {
-	if config.IsStopped() || cli.WorkerMigrationActive() {
+	if config.IsStopped() {
 		return
 	}
 	reg, err := config.LoadSites()

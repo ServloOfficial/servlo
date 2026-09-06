@@ -258,7 +258,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/watcher/start", withCORS(handleWatcherStart))
 	mux.HandleFunc("/api/settings", withCORS(handleSettings))
 	mux.HandleFunc("/api/settings/autostart", withCORS(handleSettingsAutostart))
-	mux.HandleFunc("/api/settings/worker-mode", withCORS(handleSettingsWorkerMode))
 	mux.HandleFunc("/api/settings/smtp", withCORS(handlePanelSMTP))
 	mux.HandleFunc("/api/settings/smtp/test", withCORS(handlePanelSMTPTest))
 	mux.HandleFunc("/api/workers/health", withCORS(handleWorkersHealth))
@@ -4165,9 +4164,8 @@ var allowedQueueUnit = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 // SettingsResponse is the response for GET /api/settings.
 type SettingsResponse struct {
-	AutostartOnLogin  bool   `json:"autostart_on_login"`
-	WorkerExecMode    string `json:"worker_exec_mode"`
-	WorkerModeApplies bool   `json:"worker_mode_applies"` // true on macOS only
+	AutostartOnLogin bool   `json:"autostart_on_login"`
+	WorkerExecMode   string `json:"worker_exec_mode"`
 }
 
 func handleSettings(w http.ResponseWriter, _ *http.Request) {
@@ -4177,38 +4175,9 @@ func handleSettings(w http.ResponseWriter, _ *http.Request) {
 		mode = cfg.WorkerExecMode()
 	}
 	writeJSON(w, SettingsResponse{
-		AutostartOnLogin:  servloSystemd.IsAutostartEnabled(),
-		WorkerExecMode:    mode,
-		WorkerModeApplies: false,
+		AutostartOnLogin: servloSystemd.IsAutostartEnabled(),
+		WorkerExecMode:   mode,
 	})
-}
-
-func handleSettingsWorkerMode(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Mode string `json:"mode"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-	if body.Mode != config.WorkerExecModeExec && body.Mode != config.WorkerExecModeContainer {
-		writeJSON(w, map[string]any{"ok": false, "error": "unknown mode"})
-		return
-	}
-	// NDJSON: stream phase events so the dashboard modal can show live
-	// per-worker progress instead of a 30-60s blank spinner. Each line is
-	// a cli.WorkerModePhaseEvent; the client treats {"phase":"done"} as
-	// success and {"phase":"error"} as failure.
-	writeLine, _ := startNDJSONStream(w, r)
-	if err := cli.ApplyWorkersModeStreaming(body.Mode, func(evt cli.WorkerModePhaseEvent) {
-		writeLine(evt)
-	}); err != nil {
-		writeLine(cli.WorkerModePhaseEvent{Phase: "error", Error: err.Error()})
-	}
 }
 
 // handleWorkersHealth reports every worker unit currently in the systemd
