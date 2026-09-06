@@ -349,6 +349,15 @@ connection_url: mysql://root:{{password}}@127.0.0.1:{{host_port}}/servlo
 Read the value with `servlo service start <name>`, or from
 `~/.config/servlo/service-password`. "generated" below means exactly that value.
 
+::: warning What "no auth" means on a server
+Several presets below ship with authentication off. That is safe only because
+every service except nginx publishes on loopback and nothing else, so reaching
+one means already being on this machine or on its Podman network. It is not a
+password you are meant to add later — it is a bind you are meant not to widen.
+Anything that proxies one of these out through a vhost publishes an unauthenticated
+service to the internet.
+:::
+
 | Preset | Sign-in |
 |---|---|
 | `phpmyadmin` | auto-authenticated against `servlo-mysql` as `root` / generated |
@@ -357,12 +366,12 @@ Read the value with `servlo service start <name>`, or from
 | `mongo-express` | basic auth disabled, open `http://localhost:8082` directly |
 | `stripe-mock` | no auth (Stripe test mock) |
 | `memcached` | no auth (Memcached has no native authentication) |
-| `valkey` | no auth (no password set for local dev, same as `redis`) |
+| `valkey` | no auth, same as `redis` |
 | `rabbitmq` | management UI: `root` / generated (also the default AMQP user) |
 | `soketi` | Pusher app id and key `servlo`, secret generated, default cluster `mt1` |
 | `beanstalkd` | no auth (Beanstalkd has no native authentication) |
-| `elasticsearch` | no auth (`xpack.security.enabled=false` for local dev) |
-| `opensearch` | no auth (security plugin disabled for local dev) |
+| `elasticsearch` | no auth (`xpack.security.enabled=false`) |
+| `opensearch` | no auth (security plugin disabled) |
 | `typesense` | generated API key, sent as the `X-TYPESENSE-API-KEY` header |
 | `typesense-dashboard` | no sign-in, opens pre-connected to the servlo Typesense node at `localhost:8108` |
 | `elasticvue` | no auth, opens straight to the pre-configured `Servlo Elasticsearch` cluster at `http://localhost:9200` |

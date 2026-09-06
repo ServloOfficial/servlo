@@ -69,6 +69,15 @@ Each recipe is a single YAML file plus `servlo service add` and `servlo service 
 
 ## Web UI
 
-The dashboard is available at **`http://127.0.0.1:7073`** once Servlo is installed. It gives you a visual overview of all your sites, services, and system health.
+The dashboard comes up with the install, on port **7073** over HTTPS. From
+another machine that is `https://<this-server-ip>:7073`, behind a certificate
+this server signed itself, so the first visit warns. That certificate is not
+trusted and is not meant to be — it is the bootstrap, and it is reused rather
+than regenerated so the fingerprint you accept stays put. Attach a real domain
+with `servlo panel domain set` and it gets a real certificate through the usual
+Get SSL flow. See [Panel access](/features/panel-access).
+
+The dashboard gives you a visual overview of every site, the services and the
+server's health.
 
 See [Web UI](../features/web-ui.md) for details.

@@ -102,9 +102,9 @@ Tradeoffs of worker mode:
 
 Typical usage:
 
-- **Local dev, iterating on code**: worker off, or Symfony worker on (auto reload). Laravel dev is usually happier with worker off or the shared FPM runtime.
-- **Benchmarking, perf testing, staging**: worker on, this is the realistic production picture.
-- **CI / ephemeral environments**: worker off, simpler, no state-leak surprises.
+- **A live site**: worker on. This is what the runtime is for — the process stays warm between requests, which is the whole speedup.
+- **A staging site you are load-testing**: worker on, so the numbers mean something for the live one.
+- **A site you are actively changing on the server**: worker off, or Symfony's worker with auto-reload. A worker holds PHP in memory, so an edit does not take effect until it reloads.
 
 ---
 

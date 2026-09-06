@@ -69,7 +69,7 @@ A site is a directory served on a real domain. There are four ways to create one
 | `servlo check` | Validate .servlo.yaml — PHP version, services, workers, container config, custom_workers, and db |
 | `servlo which` | Show resolved PHP, Node, document root, and nginx config for the current site |
 | `servlo site:doctor` | Run app-level health checks for a site |
-| `servlo open` | Open the current site in the default browser |
+| `servlo open` | Open the current site in the default browser. Needs a desktop on the machine running it, so on a headless server it has nothing to open — use the URL |
 | `servlo pause` | Pause a site: stop its workers and replace the vhost with a landing page |
 | `servlo unpause` | Resume a paused site: restore its vhost and restart previously running workers |
 | `servlo group` | Group the current site under a main site as a subdomain |

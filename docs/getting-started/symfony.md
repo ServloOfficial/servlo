@@ -165,7 +165,7 @@ servlo setup
 
 The "Run migrations", "Clear cache", and "Load fixtures" steps come from the `setup:` block in your `symfony.yaml`. Servlo surfaces them automatically and respects the `check:` rules; fixtures only appears if `doctrine/doctrine-fixtures-bundle` is installed.
 
-When it finishes, `https://myapp.example.com` opens in your browser and `servlo-messenger-myapp` is running as a systemd user service.
+When it finishes, `https://myapp.example.com` is serving and `servlo-messenger-myapp` is running as a systemd user service.
 
 ---
 
