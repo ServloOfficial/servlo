@@ -12,6 +12,7 @@ import (
 
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/feedback"
+	"github.com/ServloOfficial/servlo/internal/fpmpool"
 	"github.com/ServloOfficial/servlo/internal/logrotate"
 	"github.com/ServloOfficial/servlo/internal/nginx"
 	phpPkg "github.com/ServloOfficial/servlo/internal/php"
@@ -19,6 +20,7 @@ import (
 	"github.com/ServloOfficial/servlo/internal/serviceops"
 	"github.com/ServloOfficial/servlo/internal/services"
 	"github.com/ServloOfficial/servlo/internal/shims"
+	"github.com/ServloOfficial/servlo/internal/siteops"
 	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -774,6 +776,33 @@ func reconcileCustomServices() {
 // units exist for all registered (non-paused) sites. This repairs state after
 // an uninstall/reinstall cycle where unit files were deleted but site configs
 // (sites.yaml, .servlo.yaml) were preserved.
+// siteServingFilesMissing reports whether the generated files that make a site
+// answerable are absent: its nginx vhost, or the PHP-FPM pool the vhost sends
+// requests to.
+//
+// Both are generated rather than backed up, so a site restored onto a fresh
+// server arrives with its registry entry and its files and neither of these.
+// `servlo restore` writes only files and the database, and the start path
+// regenerated quadlets, services and workers while leaving these two out, so
+// every restored site answered with nginx's not-found page and the FPM unit
+// failed outright — a pool directory with no pool in it is a config error
+// php-fpm exits on rather than a container that comes up idle.
+//
+// Only a site the shared FPM serves has a pool here. A FrankenPHP, custom
+// container or host-proxy site has none, and expecting one would regenerate its
+// vhost on every start.
+func siteServingFilesMissing(s config.Site) bool {
+	if _, err := os.Stat(filepath.Join(config.NginxConfD(), s.PrimaryDomain()+".conf")); err != nil {
+		return true
+	}
+	if s.IsFrankenPHP() || s.IsCustomContainer() || s.IsHostProxy() {
+		return false
+	}
+	poolDir := config.FPMPoolDir(podman.FPMContainerName(s, s.PHPVersion))
+	_, err := os.Stat(fpmpool.Path(poolDir, s.Name))
+	return err != nil
+}
+
 func restoreSiteInfrastructure() {
 	reg, err := config.LoadSites()
 	if err != nil {
@@ -831,6 +860,18 @@ func restoreSiteInfrastructure() {
 						feedback.Warn("restoring custom FPM unit for %s: %v", s.Name, err)
 					}
 				}
+			}
+		}
+
+		// Put back the vhost and the pool when either has gone missing. This is
+		// the state a restored site arrives in, and the state an operator lands
+		// in after removing a conf.d file by hand. Regenerating is safe: both
+		// files are derived from the registry and the project config, and a
+		// custom nginx override lives in its own file that this does not touch.
+		if siteServingFilesMissing(s) {
+			site := s
+			if err := siteops.RegenerateSiteVhost(&site, site.PrimaryDomain()); err != nil {
+				feedback.Warn("restoring the vhost and PHP-FPM pool for %s: %v", site.Name, err)
 			}
 		}
 
