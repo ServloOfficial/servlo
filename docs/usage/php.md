@@ -145,20 +145,6 @@ systemctl --user stop   servlo-php84-fpm
 
 **`servlo status`**: stopped FPM containers for unused versions are reported as a warning, not an error.
 
-## Debug bridge
-
-Calls to `dump()` and `dd()` can be captured into the servlo dashboard and TUI instead of (or alongside) the response. Enable with:
-
-```bash
-servlo dump on        # touch the sentinel; next request captures
-servlo dump tail      # follow the live feed
-servlo dump off       # remove the sentinel; subsequent requests are no-ops
-```
-
-Toggling never restarts FPM or its workers. The bridge auto-prepend file and its conf.d ini are always mounted into every FPM container; the on/off state lives in a runtime sentinel the bridge stats on each request. By default the bridge captures only and the HTTP response stays clean. Set `dumps.passthrough: true` in `config.yaml` to also keep the original `sf-dump` output in the response. See the Dump viewer feature page for the wire format, the surfaces (per-site tab, System sidebar, antenna toggle), and tuning knobs.
-
----
-
 ## Pre-built images
 
 servlo ships pre-built PHP-FPM base images on ghcr.io for all supported versions (7.4 and 8.0–8.5), covering both `amd64` and `arm64`. When you run `servlo fetch` or `servlo php:rebuild`, servlo pulls the matching base image and layers only your custom extensions and packages on top, bringing first-time build time from ~5 minutes down to ~30 seconds.
@@ -340,7 +326,7 @@ A setting placed in a per-version file only applies to that version, so a site t
 servlo php:ini shared   # applies to every PHP version
 ```
 
-The shared file lives at `~/.local/share/servlo/php/shared/95-servlo-shared.ini` and is mounted into every PHP container (FPM, custom-image FPM, and FrankenPHP) below the per-version `98-servlo-user.ini`. Because `conf.d` loads alphabetically and the last file wins, layering happens for free:
+The shared file lives at `~/.local/share/servlo/php/shared/95-shared.ini` and is mounted into every PHP container (FPM, custom-image FPM, and FrankenPHP) below the per-version `98-servlo-user.ini`. Because `conf.d` loads alphabetically and the last file wins, layering happens for free:
 
 - A key set only in the shared file applies to all versions.
 - A key set in both files takes the per-version value on that version, and the shared value everywhere else.

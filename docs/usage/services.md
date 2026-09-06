@@ -9,7 +9,7 @@
 | `servlo service restart <name>` | Restart a service container; refreshes the quadlet first so config edits land |
 | `servlo service status <name>` | Show systemd unit status |
 | `servlo service list` | All services with status, version, and an Update column |
-| `servlo service search [query]` | Browse the external service-preset store; install a hit with `servlo service preset <name>` |
+| `servlo service search [query]` | Browse the service-preset store; install a hit with `servlo service preset <name>` |
 | `servlo service update <name> [tag]` | Pull a newer image and restart; tag selects an explicit upgrade target |
 | `servlo service migrate <name> <version>` | SQL dump + restore for cross-version moves (mysql, mariadb, postgres); `<version>` is a preset version label such as `18` |
 | `servlo service rollback <name>` | Swap back to the previously-running image (toggles) |
@@ -20,6 +20,14 @@
 | `servlo service port <name> <port>` | Move a service's primary published host port (e.g. free 3306 for a host server) |
 | `servlo service port <name> <port> --container <cport>` | Move a specific mapping of a multi-port service (e.g. RustFS' 9001 console) |
 | `servlo service port <name> --reset` | Reset a service to its preset default published port |
+
+The five services above are compiled into the binary as YAML presets. The other
+twenty-three — Elasticsearch, OpenSearch, MongoDB, RabbitMQ, Typesense, Selenium,
+phpMyAdmin, pgAdmin and the rest — live in this repository under
+`stores/services/` and are embedded too, so a fresh install never depends on the
+repository being reachable. The runtime fetch is the update path rather than the
+only way in, and a definition is verified against a recorded sha256 digest before
+it is used.
 
 Available services: `mysql` (8.4 LTS canonical, 9.7 LTS / 5.7 alternates), `redis` (7-alpine), `postgres` (16 canonical with PostGIS, 17 / 18 alternates), `meilisearch` (v1.42), `rustfs` (S3-compatible).
 
@@ -151,8 +159,18 @@ Both UIs are reachable from the panel, embedded same-origin, and from the Databa
 RustFS is an S3-compatible object storage service (a drop-in replacement for MinIO). When `servlo env` detects it is needed (via `FILESYSTEM_DISK=s3` or `AWS_ENDPOINT` in `.env`), it automatically:
 
 1. Creates a bucket named after the site handle, sanitised to match the S3 naming rules (lowercase, digits, hyphens, dots only, max 63 chars). Underscores in the handle are rewritten as hyphens, so `admin_astrolov` becomes bucket `admin-astrolov`.
-2. Sets the bucket to **public access** (suitable for local development)
+2. Sets the bucket to **anonymous read**, so an object can be served by URL without a signed request
 3. Writes the correct `.env` values:
+
+::: warning What "anonymous read" means here
+Anyone who can reach RustFS can read any object in the bucket without
+credentials. RustFS publishes on loopback only — like every service except
+nginx, its ports are pinned to `127.0.0.1` — so that is this server and the
+containers on its Podman network, not the internet. It still means a site's
+uploads are readable by anything else running on this machine, and that
+proxying the bucket out through a vhost would publish it. Do not put anything in
+it you would not serve.
+:::
 
 ```ini
 FILESYSTEM_DISK=s3

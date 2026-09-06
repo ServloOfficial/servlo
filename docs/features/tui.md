@@ -96,8 +96,7 @@ Available when focus is on the Detail pane with the cursor on a domain row.
 | Key | Action |
 | --- | --- |
 | `S` | Swap the Detail pane for global Settings (autostart) and focus it, Sites tab |
-| `Y` | Swap the Detail pane for the System overview (DNS, Nginx, Watcher, Notifications, Debug bridge, PHP per-version, Node, Servlo) and focus it, Sites tab |
-| `D` | Open the Debug window, the same capture the web dashboard shows. `[` / `]` switch lens across `Dumps · Queries · Jobs · Views · Mail · Cache · Events · HTTP`; the Queries lens groups by request with N+1 and slow-query (≥100ms) flags, and the other lenses group by request too. Use `/` to search the active lens (site, request, worker, file, text, payload) · `1`/`2` toggle the FPM / CLI context-filter chips · `enter` expands the selected row (query bindings and caller, job exception, view template, mail recipients, …) · `w` toggles worker capture (queue / scheduler events, off by default) · `c` clears the buffer (and runs `servlo dump clear`) · `T` toggles the bridge globally. The buffer is independent of the servlo-ui ring because the TUI runs in its own process and only sees what the SSE connection delivers |
+| `Y` | Swap the Detail pane for the System overview (Nginx, Watcher, Notifications, PHP per-version, Node, Servlo) and focus it, Sites tab |
 | `?` | Open the Keybindings reference as a centered modal overlay; `?` again or `esc` closes it |
 | `esc` | Dismiss the active modal (palette / picker / help / confirm), return to the pane underneath |
 
@@ -141,8 +140,7 @@ The site detail pane is split into read-side tabs the user can jump between with
 | `1` | Overview | The default: domains, toggles (HTTPS / PHP / Node), services used, workers, and the [request-timing panel](#request-timing), laid out as a [responsive grid](#overview-layout) |
 | `2` | Logs | A live tail of any of the site's log sources: the FPM or custom container, every worker unit, and each of the framework's app-log files. `[` / `]` cycle the source, `{` / `}` scroll back through the buffer, `f` finds within it. `l` is a shortcut to this tab from anywhere on the Sites tab |
 | `3` | Env | Read-only display of the site's `.env` file (read up to 256 KB so a runaway file can't wedge the render loop) |
-| `4` | Debug | This site's slice of the Debug window: the active lens (Dumps · Queries · Jobs · Views · Mail · Cache · Events · HTTP) scoped to the focused site, with `[` / `]` to switch lens and `w` to toggle worker capture. Rows show their detail inline; press `D` for the full cross-site window |
-| `5` | Doctor | The same framework-agnostic app-level health checks the web dashboard runs: a universal baseline (env file present, env drift warning only on keys the code reads without a default, application key set, composer and node dependencies installed with lockfiles in step, `composer audit` and `npm audit` clean, PHP version in range) plus each framework's own checks from its store definition (for Laravel, the `APP_DEBUG`-in-production footgun, the `public/storage` symlink, and pending migrations). Some checks exec in the container, so the run is on-demand: press `5` to run and again to re-run. The panel is read-only and names the suggested fix (e.g. `key:generate`, `migrate`) rather than running it, so a status view can never migrate a database |
+| `4` | Doctor | The same framework-agnostic app-level health checks the web dashboard runs: a universal baseline (env file present, env drift warning only on keys the code reads without a default, application key set, composer and node dependencies installed with lockfiles in step, `composer audit` and `npm audit` clean, PHP version in range) plus each framework's own checks from its store definition (for Laravel, the `APP_DEBUG`-in-production footgun, the `public/storage` symlink, and pending migrations). Some checks exec in the container, so the run is on-demand: press `5` to run and again to re-run. The panel is read-only and names the suggested fix (e.g. `key:generate`, `migrate`) rather than running it, so a status view can never migrate a database |
 
 Switching tabs resets the detail-pane scroll so the user lands at the top of the new tab. Picker overlays (PHP / Node version) only show in Overview; selecting a different tab dismisses them.
 
@@ -208,7 +206,6 @@ Press `Y` (on the Sites tab) to swap the detail pane for the System overview, th
 - **Nginx**: running / stopped.
 - **Watcher**: running / stopped.
 - **Notifications**: `Enabled` toggle (runs `servlo notify on/off`).
-- **Debug bridge**: `Enabled` toggle (runs `servlo dump on/off`), passthrough indicator (web-UI managed), listen socket address, and the current TUI buffered count.
 - **PHP versions**: default version plus one row per installed PHP showing FPM running state.
 - **Node**: default version (from the global config) and the installed major versions reported by `fnm list`.
 - **Servlo**: current version, cached update check result, autostart toggle.
