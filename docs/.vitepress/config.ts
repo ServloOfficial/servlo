@@ -7,6 +7,11 @@ import { defineConfig } from 'vitepress'
 const SITE_URL = 'https://servloofficial.github.io/servlo'
 const OG_IMAGE = `${SITE_URL}/assets/social-preview.png`
 
+// The site is published under a path prefix, and VitePress applies `base` to
+// markdown links and themeConfig but not to raw `head` entries, so anything
+// pointed at from there has to carry the prefix itself.
+const BASE = '/servlo/'
+
 // Read the version off the Go source of truth so the structured data can't
 // drift behind a release.
 const VERSION_GO = fileURLToPath(new URL('../../internal/version/version.go', import.meta.url))
@@ -15,7 +20,7 @@ const SOFTWARE_VERSION = readFileSync(VERSION_GO, 'utf8').match(/Version\s*=\s*"
 export default defineConfig({
   title: 'Servlo',
   description: 'The free, self-hosted control panel for production PHP servers. Sites from a ZIP, a Git clone, a folder or one click, real domains with Let\'s Encrypt, a PHP version per site, deploys, and backups proved by restoring them. Ubuntu 24.04, rootless Podman, no paid tier.',
-  base: '/servlo/',
+  base: BASE,
   lang: 'en-US',
   cleanUrls: true,
 
@@ -24,7 +29,7 @@ export default defineConfig({
   },
 
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/assets/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${BASE}assets/logo.svg` }],
 
     // Display fonts for the home page hero (Archivo + JetBrains Mono)
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],

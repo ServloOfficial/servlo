@@ -21,7 +21,13 @@ const demoOverrides = {
 // can iframe the genuine app. Fixtures + stubs live under demo/.
 export default defineConfig({
   root: r('demo'),
-  base: '/demo/',
+  // Relative, not '/demo/'. The docs site is published under a path prefix
+  // (/servlo/ on GitHub Pages), so an absolute base sends the iframe looking
+  // for its own bundle at /demo/assets/... while it was deployed under
+  // /servlo/demo/assets/..., and the marketing page shows an empty window.
+  // The demo is one page loaded directly by URL and changes no path depth, so
+  // resolving against the document works wherever the site is mounted.
+  base: './',
   // The panel's static assets, served here too. Rooting at demo/ means Vite
   // would otherwise look for demo/public and find nothing, so the logo and the
   // manifest 404 in the demo while working in the real build. That is not a
