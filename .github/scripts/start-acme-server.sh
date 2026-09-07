@@ -40,12 +40,23 @@ cat > "$dir/servlo-ci.json" <<JSON
 }
 JSON
 
-# Two knobs that only make sense for a test authority. NOSLEEP drops the random
-# 0-15s Pebble adds before validating, which is there to catch clients that
-# assume it is instant. NONCEREJECT makes it reject 5% of nonces to catch
-# clients that do not retry; servlo's client does, and it is tested for that
-# elsewhere, so leaving it on here would buy nothing but flakes.
-PEBBLE_VA_NOSLEEP=1 PEBBLE_WFE_NONCEREJECT=0 \
+# Three knobs that only make sense for a test authority.
+#
+# NOSLEEP drops the random 0-15s Pebble adds before validating, which is there
+# to catch clients that assume it is instant.
+#
+# NONCEREJECT makes it reject 5% of nonces to catch clients that do not retry;
+# servlo's client does, and is tested for that elsewhere, so leaving it on here
+# would buy nothing but flakes.
+#
+# AUTHZREUSE is the one that changes what this job proves. Pebble reuses a
+# valid authorization half the time by default, and on the first run of this
+# job the renewal drew that half: it got a new certificate without revalidating
+# anything. A renewal that skips the challenge is the one shape of renewal that
+# cannot fail, so the step would have passed on a server whose challenge path
+# was broken — which is exactly the ninety-day failure it exists to catch. At
+# zero, every issuance validates.
+PEBBLE_VA_NOSLEEP=1 PEBBLE_WFE_NONCEREJECT=0 PEBBLE_AUTHZREUSE=0 \
   "$dir/pebble" -config "$dir/servlo-ci.json" >/tmp/pebble.log 2>&1 &
 
 # Pebble serves its directory over HTTPS with a certificate from a test root

@@ -151,9 +151,28 @@ jobs:
 
       # Reissuing is not the same code path as issuing: it has to replace a
       # certificate nginx currently holds open, and reload without dropping the
-      # site. This is the ninety-day event, compressed.
-      - name: Renew it
-        run: servlo secure "$TLS_SITE" --renew
+      # site. With Pebble's authorization reuse switched off in
+      # start-acme-server.sh this revalidates over http as well, which is what
+      # makes it the ninety-day event compressed rather than a second issuance.
+      # Renewing, with the count of http-01 validations taken on either side.
+      # Said out loud because a renewal that quietly reused its authorization
+      # would pass every check below it while proving nothing: the challenge
+      # path is the half that breaks in ninety days, and an issuance that skips
+      # it cannot fail. Compared rather than thresholded — Pebble validates
+      # from three perspectives, so any fixed number is a number that happens
+      # to be right for one shape of run.
+      - name: Renew it, and prove it revalidated
+        run: |
+          set -euo pipefail
+          before=$(grep -c 'Attempting to validate w/ HTTP' /tmp/pebble.log || true)
+          servlo secure "$TLS_SITE" --renew
+          after=$(grep -c 'Attempting to validate w/ HTTP' /tmp/pebble.log || true)
+          echo "http-01 validation attempts: $before before the renewal, $after after"
+          if [ "${after:-0}" -le "${before:-0}" ]; then
+            echo "the renewal issued without revalidating, so nothing tested the challenge path"
+            grep -E 'validate|Issued certificate|authz' /tmp/pebble.log || true
+            exit 1
+          fi
 
       - name: It still serves over HTTPS after the renewal
         run: .github/scripts/expect-secured.sh "$TLS_SITE"
