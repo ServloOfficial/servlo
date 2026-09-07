@@ -105,13 +105,13 @@ func TestSaveProjectConfig_AtomicNoTempLeftAndAlwaysValid(t *testing.T) {
 
 // AddProjectWorker is the only additive path into the workers list, so it must
 // refuse a whitespace-bearing name that would otherwise land as a single
-// mangled element like "horizon - schedule - vite - stripe".
+// mangled element like "horizon - schedule - vite - reverb".
 func TestAddProjectWorker_RejectsWhitespaceName(t *testing.T) {
 	dir := t.TempDir()
 	if err := SaveProjectConfig(dir, &ProjectConfig{Workers: []string{"horizon"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := AddProjectWorker(dir, "horizon - schedule - vite - stripe"); err == nil {
+	if err := AddProjectWorker(dir, "horizon - schedule - vite - reverb"); err == nil {
 		t.Error("expected an error for a whitespace-bearing worker name")
 	}
 	got, err := LoadProjectConfig(dir)

@@ -16,7 +16,7 @@ func TestWithServiceSuffix(t *testing.T) {
 		{"servlo-queue-myapp", "servlo-queue-myapp.service"},
 		{"servlo-panel.service", "servlo-panel.service"},
 		{"servlo-test.timer", "servlo-test.timer"},
-		{"servlo-stripe-my.app", "servlo-stripe-my.app"},
+		{"servlo-queue-my.app", "servlo-queue-my.app"},
 		{"", ".service"},
 	}
 	for _, tc := range cases {

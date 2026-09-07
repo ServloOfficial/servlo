@@ -252,20 +252,6 @@ func runStatus(_ *cobra.Command, _ []string) error {
 						}
 					}
 				}
-				// Stripe listener.
-				if stripeStatus, _ := podman.UnitStatus("servlo-stripe-" + s.Name); stripeStatus == "active" {
-					ok2(fmt.Sprintf("%s/stripe", s.Name))
-					hasWorkers = true
-				} else if stripeStatus == "failed" || stripeStatus == "activating" {
-					label := s.Name + "/stripe"
-					if stripeStatus == "activating" {
-						warn2(label, "restarting")
-					} else {
-						fail2(label, "failed", unitLogHint("servlo-stripe-"+s.Name))
-						failedCount++
-					}
-					hasWorkers = true
-				}
 			}
 			if !hasWorkers {
 				fmt.Println("  No workers running.")

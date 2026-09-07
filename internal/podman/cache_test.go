@@ -362,15 +362,15 @@ func TestLoopKeepsPollingUntilTeardownSettles(t *testing.T) {
 	var mu sync.Mutex
 	polls := 0
 	// Mirrors a teardown in progress: still running on the first poll, gone by
-	// the second. servlo-dns stays up throughout, as it does in a real stop.
+	// the second. servlo-nginx stays up throughout, as it does in a real stop.
 	c := newTestCache(func() (string, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		polls++
 		if polls == 1 {
-			return "servlo-dns\trunning\nservlo-fp-demo\trunning", nil
+			return "servlo-nginx\trunning\nservlo-fp-demo\trunning", nil
 		}
-		return "servlo-dns\trunning\nservlo-fp-demo\texited", nil
+		return "servlo-nginx\trunning\nservlo-fp-demo\texited", nil
 	})
 
 	prev := stoppedFn
@@ -388,8 +388,8 @@ func TestLoopKeepsPollingUntilTeardownSettles(t *testing.T) {
 	if c.Running("servlo-fp-demo") {
 		t.Error("map still reports a container that went down during the teardown")
 	}
-	if !c.Running("servlo-dns") {
-		t.Error("servlo-dns stays up through a stop and must still read as running")
+	if !c.Running("servlo-nginx") {
+		t.Error("servlo-nginx stays up through a stop and must still read as running")
 	}
 
 	mu.Lock()

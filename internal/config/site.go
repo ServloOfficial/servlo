@@ -299,17 +299,14 @@ func (s *Site) IsProxyOnly() bool {
 // dev server. There is exactly one per site.
 const HostProxyWorkerName = "app"
 
-// StripeWorkerName is the Stripe webhook listener, run through its own unit
-// (servlo-stripe-<site>) rather than declared by any framework.
-const StripeWorkerName = "stripe"
-
 // IsBuiltinWorker reports whether name is a servlo-managed worker that lives
-// outside a framework's worker definitions: the Stripe listener and the
-// host-proxy dev server. A validator checking a site's workers against its
-// framework must treat these as valid rather than undefined, the same way the
-// running-worker collector and the orphan scan already special-case them.
+// outside a framework's worker definitions. The host-proxy dev server is the
+// only one left; the Stripe listener was the other until S0.6 deleted it. A
+// validator checking a site's workers against its framework must treat it as
+// valid rather than undefined, the same way the running-worker collector and
+// the orphan scan already special-case it.
 func IsBuiltinWorker(name string) bool {
-	return name == StripeWorkerName || name == HostProxyWorkerName
+	return name == HostProxyWorkerName
 }
 
 // HostProxyWorkerUnit returns the worker unit name for a host-proxy site's dev
@@ -646,7 +643,7 @@ const domainForbidden = "{};#\n\r\x00 \t/\\'\""
 // AddSite appends or updates a site in the registry.
 func AddSite(site Site) error {
 	// A site name flows into systemd unit file names and bodies (Description=,
-	// --env=SERVLO_SITE=, servlo-stripe-<name>, ...). Refuse newline/NUL (which
+	// --env=SERVLO_SITE=, servlo-queue-<name>, ...). Refuse newline/NUL (which
 	// would inject a unit directive) and slash (which would escape the unit
 	// path), closing the injection even for callers that bypass SiteNameAndDomain.
 	if ContainsUnitInjectionChars(site.Name) || strings.ContainsRune(site.Name, '/') {

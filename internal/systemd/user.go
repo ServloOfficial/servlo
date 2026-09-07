@@ -169,8 +169,13 @@ func orphanCandidate(name, siteName string, known map[string]bool, sites []confi
 	}
 	// Skip non-worker units.
 	switch workerName {
+	// Infrastructure units that share the servlo- prefix but are not a site's
+	// workers. The entries for the DNS stack and the Stripe listener are
+	// deliberately gone: nothing writes those units any more, so a machine
+	// still carrying one is carrying a leftover from before S2.1 or S0.6, and
+	// it should read as the orphan it is rather than be skipped forever.
 	case "php84-fpm", "php83-fpm", "php82-fpm", "php81-fpm", "php80-fpm",
-		"nginx", "dns", "dns-forwarder", "watcher", "ui", "stripe":
+		"nginx", "watcher", "ui":
 		return "", false
 	}
 	if known[workerName] {

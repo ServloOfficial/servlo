@@ -2,7 +2,6 @@ package siteops
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/ServloOfficial/servlo/internal/certs"
 	"github.com/ServloOfficial/servlo/internal/config"
@@ -11,37 +10,13 @@ import (
 )
 
 // Indirection points so tests can swap in inert stubs without touching a
-// certificate issuer, nginx, podman, or the daemon HTTP API. Production code
-// uses the real impls.
+// certificate issuer, nginx or podman. Production code uses the real impls.
 var (
 	secureCertFn   = certs.SecureSite
 	unsecureCertFn = certs.UnsecureSite
 	reissueCertFn  = certs.ReissueCert
 	nginxReloadFn  = nginx.Reload
-	notifyDaemonFn = defaultNotifyDaemon
 )
-
-// defaultNotifyDaemon posts an action to the running servlo-panel daemon HTTP
-// API. Best-effort: if the daemon isn't running, the systemd services it
-// would have refreshed (the Stripe listener) aren't being supervised
-// anyway, so silently skipping the notification is correct.
-func defaultNotifyDaemon(domain, action string) error {
-	url := fmt.Sprintf("http://127.0.0.1:7073/api/sites/%s/%s", domain, action)
-	req, err := http.NewRequest(http.MethodPost, url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	// The daemon's cross-origin gate blocks unsafe methods that can't prove
-	// they came from a trusted local client; this header clears it.
-	req.Header.Set("X-Servlo-CSRF", "1")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	resp.Body.Close()
-	return nil
-}
 
 // SetSecured toggles the site's TLS state and runs every step the toggle
 // depends on. It is the single source of truth for "what happens when a
@@ -54,13 +29,9 @@ func defaultNotifyDaemon(domain, action string) error {
 //  3. Sync APP_URL and VITE_REVERB_HOST/SCHEME/PORT in the project's .env.
 //  4. Update the per-project .servlo.yaml secured flag.
 //  5. Reload nginx so the new vhost takes effect.
-//  6. Notify the daemon to refresh the Stripe webhook URL. The daemon owns
-//     the in-process state for that listener, so even callers running inside
-//     the daemon hit the same HTTP endpoint; a tiny loopback roundtrip is the
-//     cost of having one identical post-toggle path.
-//  7. Realign the generated dev server config, and any dev server running on
+//  6. Realign the generated dev server config, and any dev server running on
 //     the old scheme, with the site's new one.
-//  8. Cascade to the group secondaries when the site is a secured group main,
+//  7. Cascade to the group secondaries when the site is a secured group main,
 //     and refuse to unsecure a secondary whose main is secured (see #811).
 func SetSecured(site *config.Site, secured bool) error {
 	_, err := SetSecuredCascade(site, secured)
@@ -95,7 +66,6 @@ func SetSecuredCascade(site *config.Site, secured bool) ([]string, error) {
 	if err := nginxReloadFn(); err != nil {
 		return nil, fmt.Errorf("reloading nginx: %w", err)
 	}
-	_ = notifyDaemonFn(site.PrimaryDomain(), "stripe:refresh")
 	RefreshDevServers(site)
 	if secured && site.IsGroupMain() {
 		return cascadeGroupSecondaries(site)

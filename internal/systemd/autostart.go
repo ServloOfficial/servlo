@@ -10,7 +10,7 @@ import (
 // AutostartUserUnits returns the servlo-* systemd user units (NOT podman
 // quadlets) that participate in "autostart at login": servlo-panel,
 // servlo-watcher, and every per-site worker/queue/schedule/
-// horizon/reverb/stripe service file currently present in the user's
+// horizon/reverb service file currently present in the user's
 // systemd/user/ directory. These can be enabled/disabled with
 // `systemctl --user enable/disable` because they are real on-disk unit
 // files (not generator output).

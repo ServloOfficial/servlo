@@ -45,7 +45,7 @@ type ServiceManager interface {
 	// e.g. nameGlob="servlo-queue-*" → ["servlo-queue-myapp", …]
 	ListServiceUnits(nameGlob string) []string
 
-	// --- Container unit files (servlo-dns, servlo-nginx, servlo-php*-fpm, …) ---
+	// --- Container unit files (servlo-nginx, servlo-php*-fpm, …) ---
 
 	// WriteContainerUnit writes a named container unit file.
 	WriteContainerUnit(name, content string) error
@@ -57,7 +57,7 @@ type ServiceManager interface {
 	RemoveContainerUnit(name string) error
 
 	// ListContainerUnits returns container unit names whose files match nameGlob.
-	// e.g. nameGlob="servlo-*" → ["servlo-dns", "servlo-nginx", …]
+	// e.g. nameGlob="servlo-*" → ["servlo-nginx", "servlo-redis", …]
 	ListContainerUnits(nameGlob string) []string
 
 	// --- Service lifecycle ---

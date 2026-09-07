@@ -156,7 +156,7 @@ func TestDetect_GlobalUnitsSkipped(t *testing.T) {
 		map[string]string{
 			"servlo-php85-fpm.service": "failed", // global FPM unit
 			"servlo-nginx.service":     "failed",
-			"servlo-dns.service":       "failed",
+			"servlo-redis.service":     "failed",
 		},
 		nil,
 	)

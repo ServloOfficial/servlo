@@ -237,19 +237,6 @@ func TestBindPortsRoundTrip(t *testing.T) {
 	}
 }
 
-func TestBindPortsPreservesServloDNS(t *testing.T) {
-	// servlo-dns is the only quadlet that ships with explicit 127.0.0.1
-	// pinned in the embed. Both modes must leave it alone.
-	in := "PublishPort=127.0.0.1:5300:5300/udp\nPublishPort=127.0.0.1:5300:5300/tcp\n"
-	for _, exposed := range []bool{true, false} {
-		out := BindPorts(in, exposed)
-		if !strings.Contains(out, "PublishPort=127.0.0.1:5300:5300/udp") ||
-			!strings.Contains(out, "PublishPort=127.0.0.1:5300:5300/tcp") {
-			t.Errorf("servlo-dns publish lines should be untouched (exposed=%v), got:\n%s", exposed, out)
-		}
-	}
-}
-
 func TestBindPortsIgnoresOperatorOverrides(t *testing.T) {
 	// If the user has an explicit non-loopback IP (e.g. 192.168.1.5)
 	// pinned in a quadlet, BindPorts must not stomp it in either mode.

@@ -111,20 +111,18 @@ func TestIsPortConflict(t *testing.T) {
 	}
 }
 
-// TestQuitProcessUnits_FullTeardown pins that `servlo quit` is a full teardown: it
-// stops servlo-dns (unlike `servlo stop`), and stops servlo-watcher before servlo-dns so
-// the watcher can't restart dns after it goes down.
+// TestQuitProcessUnits_FullTeardown pins that `servlo quit` takes down the host
+// process units `servlo stop` leaves running.
+//
+// It used to pin an ordering too: the DNS unit had to be stopped after the
+// watcher, because the watcher was the only thing that would restart it. S2.1
+// deleted that unit, and with it the one unit here whose position mattered —
+// so what is left to assert is the set, and that it no longer names a unit
+// nothing writes.
 func TestQuitProcessUnits_FullTeardown(t *testing.T) {
 	units := quitProcessUnits()
-	dns := slices.Index(units, "servlo-dns")
-	watcher := slices.Index(units, "servlo-watcher")
-	if dns < 0 {
-		t.Fatal("quit must stop servlo-dns for a full teardown")
-	}
-	if watcher < 0 {
-		t.Fatal("quit must stop servlo-watcher")
-	}
-	if watcher > dns {
-		t.Errorf("servlo-watcher (%d) must be stopped before servlo-dns (%d) so the watcher can't restart dns", watcher, dns)
+	want := []string{"servlo-panel", "servlo-watcher"}
+	if !slices.Equal(units, want) {
+		t.Errorf("quitProcessUnits() = %v, want %v", units, want)
 	}
 }

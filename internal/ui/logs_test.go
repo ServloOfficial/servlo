@@ -22,9 +22,9 @@ func TestIsContainerUnit_nginx(t *testing.T) {
 	}
 }
 
-func TestIsContainerUnit_dns(t *testing.T) {
-	if !isContainerUnit("servlo-dns") {
-		t.Error("expected isContainerUnit to return true for servlo-dns")
+func TestIsContainerUnit_service(t *testing.T) {
+	if !isContainerUnit("servlo-redis") {
+		t.Error("expected isContainerUnit to return true for servlo-redis")
 	}
 }
 

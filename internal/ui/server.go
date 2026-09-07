@@ -167,11 +167,6 @@ func Start(currentVersion string) error {
 	// KindSites only when the unhealthy set actually changes.
 	go runWorkerHealthWatcher()
 
-	// WatchDNS lives in the servlo-watcher process; its eventbus publishes
-	// don't cross over here. This in-process probe surfaces DNS transitions
-	// (notably servlo-dns coming up after a boot where the dashboard opened
-	// before resolver was ready) to live WebSocket clients.
-
 	mux := http.NewServeMux()
 
 	// Gated inside the handler (marker file plus loopback), so a daemon
@@ -3202,8 +3197,6 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	case "secure", "unsecure":
 		// Funnel through the shared helper so cert + .env + .servlo.yaml +
 		// nginx reload all stay in sync with the CLI paths.
-		// endpoint, so the in-process Stripe handler runs via the existing
-		// case handler below.
 		if err := siteops.SetSecured(site, action == "secure"); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
