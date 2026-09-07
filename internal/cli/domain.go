@@ -29,7 +29,7 @@ func NewDomainCmd() *cobra.Command {
 func newDomainAddCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "add <name>",
-		Short: "Add a domain to the current site (name without .test)",
+		Short: "Add a domain to the current site (the full domain, e.g. example.com)",
 		Args:  cobra.ExactArgs(1),
 		RunE:  runDomainAdd,
 	}
@@ -38,7 +38,7 @@ func newDomainAddCmd() *cobra.Command {
 func newDomainRemoveCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "remove <name>",
-		Short: "Remove a domain from the current site (name without .test)",
+		Short: "Remove a domain from the current site",
 		Args:  cobra.ExactArgs(1),
 		RunE:  runDomainRemove,
 	}

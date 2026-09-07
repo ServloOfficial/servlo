@@ -200,6 +200,47 @@ func Rules() []Rule {
 			),
 		},
 		{
+			// Split from the rule above for the reason the .localhost split
+			// documents: Allow exempts a file from a whole rule. The fixture
+			// domains that fill every _test.go are harmless, but tolerating
+			// them in the rule above would tolerate a dnsmasq container coming
+			// back in one too.
+			//
+			// The rule above named the resolver files and the DNS container and
+			// never the TLD itself, so `.test` was the one thing the ".test
+			// domains" rule did not look for. What that cost: `servlo domain
+			// add`'s own help still told the operator to type a name "without
+			// .test", and `servlo env` still said it set APP_URL to "the
+			// registered .test domain", a phase and a half after the stack that
+			// resolved such a name was deleted.
+			Feature: ".test domains in shipped text", Story: "S2.1", Enforced: true,
+			// Two shapes, because the residue took two. A domain-shaped .test
+			// (myapp.test), with the character that follows it constrained so a
+			// JavaScript `re.test(s)` call and a Vitest .test.ts path are not
+			// mistaken for domains; and a bare `.test` standing as a word in
+			// prose, which is how the help strings and the stale comments named
+			// the TLD. A quoted ".test" is deliberately matched by neither: it
+			// is a suffix check, and the one that matters is allowed below.
+			Patterns: []string{`[A-Za-z0-9*-]+\.test([^(A-Za-z0-9_.]|$)`, `\s\.test\b`},
+			Allow: append(append([]string{}, specs...),
+				// Fixture domains. .test is the RFC 6761 TLD reserved for
+				// exactly this, so a test that needs a domain should use one;
+				// what was deleted is servlo resolving it, not the reservation.
+				"_test.go", ".test.ts",
+				// The teardown for the root-owned files an older servlo wrote.
+				"install.sh", "tests/installer/installer.bats",
+				// These two name the deleted stack to explain their own
+				// relationship to it: what container DNS was never part of, and
+				// what the legacy dns block in the global config configured.
+				"internal/podman/containerdns.go", "internal/config/global.go",
+				// The WebSocket DNS-rebinding defence accepts a hostname only
+				// under a reserved local TLD. .test is one whether or not servlo
+				// resolves it, and a site served on such a name still needs its
+				// own same-origin socket to open.
+				"internal/ui/wsframe.go",
+			),
+		},
+		{
 			Feature: "mkcert", Story: "S3.1", Enforced: true,
 			// The names of the trust plumbing go too, not just the binary: a
 			// certificate issued by a CA only this machine trusts is the wrong

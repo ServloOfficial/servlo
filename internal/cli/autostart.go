@@ -16,7 +16,9 @@ import (
 
 // NewAutostartCmd returns the autostart command with enable/disable subcommands.
 //
-// "Autostart" governs whether servlo comes up at login as a single switch:
+// "Autostart" governs whether servlo comes back after a reboot, as a single
+// switch. Not "at login": install enables linger precisely so the units do not
+// wait for one, and a server is not logged into.
 // every servlo-* container quadlet, the servlo UI, the watcher, and every
 // per-site worker/queue/schedule/horizon/reverb/stripe unit are enabled
 // or disabled together. The state lives in cfg.Autostart.Disabled (zero
@@ -46,7 +48,7 @@ import (
 func NewAutostartCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "autostart",
-		Short: "Manage autostart on login",
+		Short: "Manage whether servlo comes back after a reboot",
 	}
 	cmd.AddCommand(newAutostartEnableCmd())
 	cmd.AddCommand(newAutostartDisableCmd())
@@ -56,13 +58,13 @@ func NewAutostartCmd() *cobra.Command {
 func newAutostartEnableCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "enable",
-		Short: "Enable servlo autostart on login",
+		Short: "Bring servlo back automatically after a reboot",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := ApplyAutostart(false); err != nil {
 				return fmt.Errorf("enabling autostart: %w", err)
 			}
 			feedback.Begin()
-			feedback.Done("autostart enabled — servlo will start automatically on login")
+			feedback.Done("autostart enabled — the sites come back after a reboot")
 			return nil
 		},
 	}
@@ -71,13 +73,13 @@ func newAutostartEnableCmd() *cobra.Command {
 func newAutostartDisableCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "disable",
-		Short: "Disable servlo autostart on login",
+		Short: "Leave servlo down after a reboot until it is started by hand",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if err := ApplyAutostart(true); err != nil {
 				return fmt.Errorf("disabling autostart: %w", err)
 			}
 			feedback.Begin()
-			feedback.Done("autostart disabled — servlo will not start automatically on login")
+			feedback.Done("autostart disabled — the sites stay down after a reboot until `servlo start`")
 			return nil
 		},
 	}

@@ -31,8 +31,8 @@ var nginxInspectTimeout = 5 * time.Second
 
 // WriteContainerHosts writes the shared /etc/hosts bind-mounted into every
 // PHP-FPM container. host.containers.internal uses an IP that has been
-// verified reachable from inside servlo-nginx; .test domains point at
-// servlo-nginx directly on the servlo bridge network.
+// verified reachable from inside servlo-nginx; every registered site domain
+// points at servlo-nginx directly on the servlo bridge network.
 func WriteContainerHosts() error {
 	hostIP := DetectHostGatewayIP()
 	return WriteContainerHostsWith(hostIP, nginxContainerIP())
@@ -64,7 +64,7 @@ func WriteContainerHostsWith(hostIP, nginxIP string) error {
 }
 
 // renderContainerHosts builds the /etc/hosts contents for PHP-FPM containers.
-// .test domains go to nginxIP (direct bridge), host.containers.internal to
+// Site domains go to nginxIP (direct bridge), host.containers.internal to
 // hostIP (host gateway for host-side services).
 func renderContainerHosts(reg *config.SiteRegistry, hostIP, nginxIP string) string {
 	var sb strings.Builder
@@ -80,8 +80,8 @@ func renderContainerHosts(reg *config.SiteRegistry, hostIP, nginxIP string) stri
 	return sb.String()
 }
 
-// writeBrowserHosts writes the browser-testing hosts file, mapping all .test
-// domains to nginxIP. When nginx isn't running the caller passes loopback and
+// writeBrowserHosts writes the shared-hosts variant, mapping every registered
+// site domain to nginxIP. When nginx isn't running the caller passes loopback and
 // the file stays well-formed (safe no-op — Selenium simply can't reach sites
 // until nginx starts).
 func writeBrowserHosts(reg *config.SiteRegistry, nginxIP string) error {

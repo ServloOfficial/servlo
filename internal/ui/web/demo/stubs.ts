@@ -513,7 +513,6 @@ interface DemoStaging {
   copies: string[];
 }
 const demoStaging: Record<string, DemoStaging> = {
-  'acme.test': { staging: false, origin_exists: false, copies: ['staging.acme-supply.com'] },
   'acme-supply.com': { staging: false, origin_exists: false, copies: ['staging.acme-supply.com'] },
   'staging.acme-supply.com': {
     staging: true,

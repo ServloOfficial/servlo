@@ -7,7 +7,7 @@ import (
 	"github.com/ServloOfficial/servlo/internal/reqstats"
 )
 
-// resolveSiteName maps a site identifier that may be a domain (astrolov.test) to
+// resolveSiteName maps a site identifier that may be a domain (astrolov.com) to
 // the internal site name (astrolov) the dumps ring and reqstats key on, so a
 // caller can pass either. Shares one resolver with the dispatch boundary.
 func resolveSiteName(s string) string {

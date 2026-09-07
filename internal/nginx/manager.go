@@ -1094,7 +1094,7 @@ const defaultVhostManagedHashSuffix = ".servlo-managed-hash"
 // EnsureDefaultVhost writes a catch-all default server that shows a branded
 // error page for any HTTP request that doesn't match a registered site. For
 // HTTPS we cannot serve a real catch-all because browsers (Chrome especially)
-// reject TLD-level wildcard certificates like `*.test` with
+// reject TLD-level wildcard certificates like `*.com` with
 // ERR_CERT_COMMON_NAME_INVALID, and we can't issue per-domain certs ahead of
 // time. ssl_reject_handshake produces a clean connection error
 // (ERR_SSL_UNRECOGNIZED_NAME_ALERT) which is the best UX available.

@@ -80,8 +80,8 @@
       return;
     }
     // Last-chance lookup: scan the sites store directly. Hard-coding
-    // a TLD here breaks for custom-domain sites and for users running
-    // on a non-default .test TLD.
+    // a TLD here breaks for every site, since a site's domain is whatever
+    // the operator registered.
     const name = workerSiteName(item).split('/')[0];
     const site = get(sites).find((x) => x.name === name);
     if (site && site.domain) {
