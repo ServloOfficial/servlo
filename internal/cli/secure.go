@@ -36,9 +36,22 @@ func NewUnsecureCmd() *cobra.Command {
 	}
 }
 
+// resolveSiteName maps this command group's optional [name] argument, or the
+// current directory, to a registered site name.
+//
+// The argument may be either identifier, because both are ones servlo itself
+// puts on screen. `servlo sites` prints the name and the domain side by side
+// and the domain is the wider, more memorable column, so it is what an
+// operator reaches for — and `servlo secure astrolov.com` answered "site not
+// found — run 'servlo link' first" on a site that was linked and serving. The
+// backup and staging commands already took either through FindSiteByRef; the
+// seven commands built on this helper did not.
+//
+// An unknown reference is returned unchanged, so a genuine typo still reaches
+// the caller's own "not found" rather than being rewritten on the way.
 func resolveSiteName(args []string) (string, error) {
 	if len(args) > 0 {
-		return args[0], nil
+		return config.ResolveSiteRef(args[0]), nil
 	}
 	cwd, err := os.Getwd()
 	if err != nil {

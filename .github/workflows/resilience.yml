@@ -5,11 +5,12 @@ name: Resilience
 #
 #   reboot   — every site, service and worker comes back unaided (S19.2)
 #   rebuild  — a fresh machine plus the backups is the old machine (S16.1)
+#   tls      — a site gets a real certificate from a real authority (S3.1)
 #
-# Both run against real podman, real systemd user units and real HTTP. They are
-# in their own workflow rather than in ci.yml because they take minutes rather
-# than seconds, and because when one of them goes red the thing that broke is a
-# different kind of thing from a failing unit test.
+# All three run against real podman, real systemd user units and real HTTP.
+# They are in their own workflow rather than in ci.yml because they take
+# minutes rather than seconds, and because when one of them goes red the thing
+# that broke is a different kind of thing from a failing unit test.
 
 on:
   push:
@@ -81,6 +82,115 @@ jobs:
         run: |
           systemctl --user list-units 'servlo-*' --all --no-pager || true
           podman ps -a || true
+
+  tls:
+    name: A site gets a real certificate from a real authority
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: internal/ui/web/package-lock.json
+
+      - name: Prepare the rootless runtime
+        run: .github/scripts/prepare-runtime.sh
+
+      - name: Install servlo
+        run: .github/scripts/install-servlo.sh
+
+      # The other jobs use a name that resolves nowhere and reach it with
+      # curl --resolve. That cannot work here: an HTTP-01 challenge is the
+      # authority looking the name up itself and connecting to what it finds,
+      # so the name has to genuinely resolve to this runner.
+      #
+      # sslip.io answers any <dashed-ip>.sslip.io with that address, which
+      # makes the runner's own address a real, publicly resolvable domain for
+      # as long as the job runs. Nothing is registered and nothing is written
+      # to a resolver on this machine — servlo never touches one (CLAUDE.md
+      # §3.1) and neither does its CI.
+      - name: Name this runner
+        run: |
+          set -euo pipefail
+          ip=$(ip -4 -o route get 1.1.1.1 | awk '{for (i=1;i<NF;i++) if ($i=="src") print $(i+1)}')
+          echo "TLS_SITE=${ip//./-}.sslip.io" >> "$GITHUB_ENV"
+          echo "RUNNER_IP=$ip" >> "$GITHUB_ENV"
+
+      - name: Stand up an ACME server
+        run: .github/scripts/start-acme-server.sh
+
+      # No CLI writes these, by design: an authority is a machine-level setting
+      # an operator picks once. CI is the operator here, the same way it is for
+      # the sysctl in prepare-runtime.sh.
+      - name: Point servlo at it
+        run: |
+          set -euo pipefail
+          cfg=~/.config/servlo/config.yaml
+          yq -i '.certs.directory_url = "https://localhost:14000/dir"' "$cfg"
+          yq -i '.certs.email = "ci@servlo.invalid"' "$cfg"
+          yq -i ".certs.server_addresses = [\"$RUNNER_IP\"]" "$cfg"
+          yq '.certs' "$cfg"
+
+      - name: Create the site
+        run: .github/scripts/make-site.sh "$TLS_SITE" servlo_ci_tls
+
+      - name: It serves over plain http first
+        run: .github/scripts/expect-serving.sh "$TLS_SITE"
+
+      - name: Secure it
+        run: servlo secure "$TLS_SITE"
+
+      - name: It serves over HTTPS, and renewal can still be validated
+        run: .github/scripts/expect-secured.sh "$TLS_SITE"
+
+      # Reissuing is not the same code path as issuing: it has to replace a
+      # certificate nginx currently holds open, and reload without dropping the
+      # site. With Pebble's authorization reuse switched off in
+      # start-acme-server.sh this revalidates over http as well, which is what
+      # makes it the ninety-day event compressed rather than a second issuance.
+      # Renewing, with the count of http-01 validations taken on either side.
+      # Said out loud because a renewal that quietly reused its authorization
+      # would pass every check below it while proving nothing: the challenge
+      # path is the half that breaks in ninety days, and an issuance that skips
+      # it cannot fail. Compared rather than thresholded — Pebble validates
+      # from three perspectives, so any fixed number is a number that happens
+      # to be right for one shape of run.
+      - name: Renew it, and prove it revalidated
+        run: |
+          set -euo pipefail
+          before=$(grep -c 'Attempting to validate w/ HTTP' /tmp/pebble.log || true)
+          servlo secure "$TLS_SITE" --renew
+          after=$(grep -c 'Attempting to validate w/ HTTP' /tmp/pebble.log || true)
+          echo "http-01 validation attempts: $before before the renewal, $after after"
+          if [ "${after:-0}" -le "${before:-0}" ]; then
+            echo "the renewal issued without revalidating, so nothing tested the challenge path"
+            grep -E 'validate|Issued certificate|authz' /tmp/pebble.log || true
+            exit 1
+          fi
+
+      - name: It still serves over HTTPS after the renewal
+        run: .github/scripts/expect-secured.sh "$TLS_SITE"
+
+      - name: Unsecure it, and it goes back to plain http
+        run: |
+          set -euo pipefail
+          servlo unsecure "$TLS_SITE"
+          .github/scripts/expect-serving.sh "$TLS_SITE"
+
+      - name: What the runtime looked like
+        if: always()
+        run: |
+          servlo status || true
+          ls -la ~/.local/share/servlo/acme/ || true
+          systemctl --user list-units 'servlo-*' --all --no-pager || true
+          podman ps -a || true
+          tail -100 /tmp/pebble.log || true
 
   rebuild-source:
     name: The server that is about to be lost
