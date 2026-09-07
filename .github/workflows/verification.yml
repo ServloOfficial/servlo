@@ -1,0 +1,106 @@
+name: Verification
+
+# What a droplet pass would check, minus the droplet.
+#
+# The resilience workflow proves the machine survives losing itself. This one
+# proves the things an operator does on the first afternoon actually work:
+# that the PHP image is the one the Containerfile promises, that a page served
+# by it can reach the database, and that a one-click application install ends
+# with a site somebody can log into.
+#
+# Every line here was previously a claim only the unit tests made, with the
+# operating system stubbed out. None of it replaces the droplet pass — a runner
+# has no public IP, no registrar and no real Let's Encrypt — but it moves the
+# part that does not need any of those onto a real machine.
+
+on:
+  push:
+    branches: ["main", "release/**"]
+  pull_request:
+    branches: ["main", "release/**"]
+
+jobs:
+  php:
+    name: PHP, its image, and the database behind it
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SITE: ci-php.example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: internal/ui/web/package-lock.json
+
+      - name: Prepare the rootless runtime
+        run: .github/scripts/prepare-runtime.sh
+
+      - name: Install servlo
+        run: .github/scripts/install-servlo.sh
+
+      # Before any site exists. The shims have to work on a fresh install with
+      # zero registered sites, which is the state an operator's first
+      # `servlo php -v` runs in.
+      - name: The image is what the Containerfile promises
+        run: .github/scripts/expect-php.sh
+
+      - name: Create a site with a database
+        run: .github/scripts/make-site.sh "$SITE" servlo_ci_php
+
+      - name: It serves
+        run: .github/scripts/expect-serving.sh "$SITE"
+
+      - name: PHP reaches the database, through nginx and its own pool
+        run: .github/scripts/expect-php-reaches-the-database.sh "$SITE"
+
+      - name: What the runtime looked like
+        if: always()
+        run: |
+          servlo status || true
+          servlo php:list || true
+          podman images || true
+          podman ps -a || true
+
+  app-install:
+    name: A one-click application install ends in a login page
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      APP_SITE: ci-blog.example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: internal/ui/web/package-lock.json
+
+      - name: Prepare the rootless runtime
+        run: .github/scripts/prepare-runtime.sh
+
+      - name: Install servlo
+        run: .github/scripts/install-servlo.sh
+
+      - name: Wait for the database engine
+        run: .github/scripts/wait-for-db.sh
+
+      - name: Install WordPress on a domain
+        run: .github/scripts/expect-app-install.sh wordpress "$APP_SITE"
+
+      - name: What the runtime looked like
+        if: always()
+        run: |
+          servlo status || true
+          servlo sites || true
+          systemctl --user list-units 'servlo-*' --all --no-pager || true
+          podman ps -a || true
