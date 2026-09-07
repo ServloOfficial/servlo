@@ -65,11 +65,10 @@ A site is a directory served on a real domain. There are four ways to create one
 | `servlo unlink` | Unlink the current directory site |
 | `servlo park` | Park a directory to serve all subdirectories as sites |
 | `servlo unpark` | Remove a parked directory and unlink all its sites |
-| `servlo setup` | Bootstrap a PHP project (composer, npm, env, migrate, assets, open) |
+| `servlo setup` | Bootstrap a PHP project (composer, npm, env, migrate, assets) |
 | `servlo check` | Validate .servlo.yaml — PHP version, services, workers, container config, custom_workers, and db |
 | `servlo which` | Show resolved PHP, Node, document root, and nginx config for the current site |
 | `servlo site:doctor` | Run app-level health checks for a site |
-| `servlo open` | Open the current site in the default browser. Needs a desktop on the machine running it, so on a headless server it has nothing to open — use the URL |
 | `servlo pause` | Pause a site: stop its workers and replace the vhost with a landing page |
 | `servlo unpause` | Resume a paused site: restore its vhost and restart previously running workers |
 | `servlo group` | Group the current site under a main site as a subdomain |
@@ -147,10 +146,6 @@ Supported versions are **8.5**, **8.4**, **8.3**, **8.2** and **8.1**, plus a fr
 | `servlo runtime` | Switch the PHP runtime for the current site (fpm or frankenphp) |
 | `servlo rebuild` | Rebuild the custom container image and restart the container |
 | `servlo restart` | Restart the container for the current or named site |
-| `servlo pest:browser` | Set up in-container Pest browser testing (Playwright on musl chromium) |
-| `servlo pest:browser doctor` | Diagnose the Pest browser testing setup for a PHP version |
-| `servlo pest:browser install` | Bake musl chromium into the FPM image and wire up Playwright for Pest |
-| `servlo pest:browser remove` | Remove chromium from the FPM image and disable Pest browser testing |
 
 ## Node and JavaScript
 
@@ -294,10 +289,6 @@ Horizon and Reverb are detected from `composer.json` rather than configured: a p
 | `servlo worker remove` | Remove a custom worker from .servlo.yaml or global framework overlay |
 | `servlo worker start` | Start a framework worker as a systemd service |
 | `servlo worker stop` | Stop a framework worker |
-| `servlo workers` | Inert on Ubuntu. Left over from macOS support; the setting it manages is ignored on Linux, which always runs workers under systemd |
-| `servlo workers mode` | Inert on Ubuntu, as above |
-| `servlo stripe:config` | Show or set the Stripe webhook path and secret env key for the current site (without starting the listener) |
-| `servlo stripe:listen` | Start a Stripe webhook listener for the current site as a systemd service |
 
 ## Backups and restore
 
@@ -359,7 +350,6 @@ Reaching the dashboard, and who may sign in to it. See [Panel access](/features/
 | `servlo remote-control off` | Disable remote access to the dashboard |
 | `servlo remote-control on` | Enable remote access to the dashboard with HTTP Basic auth |
 | `servlo remote-control status` | Show whether remote access to the dashboard is enabled |
-| `servlo dashboard` | Open the Servlo dashboard in a browser |
 | `servlo tui` | Open a terminal dashboard for sites, services, and workers |
 | `servlo notify` | Globally enable or disable servlo notifications |
 | `servlo notify off` | Disable notifications globally |

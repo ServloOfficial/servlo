@@ -112,7 +112,7 @@ servlo queue:start --queue=emails,default --tries=5 --timeout=120
 
 ## Worker state in `.servlo.yaml`
 
-Every start/stop command (`queue:start`, `queue:stop`, `horizon:start`, `schedule:start`, `reverb:start`, `stripe:listen`, `worker start`, etc.) automatically updates the `workers` list in `.servlo.yaml` when the file exists. This means:
+Every start/stop command (`queue:start`, `queue:stop`, `horizon:start`, `schedule:start`, `reverb:start`, `worker start`, etc.) automatically updates the `workers` list in `.servlo.yaml` when the file exists. This means:
 
 - Cloning a project and running `servlo link` or `servlo setup` restores all workers.
 - After an uninstall/reinstall cycle, `servlo start` reads `.servlo.yaml` and recreates missing worker units automatically, no need to re-run each start command manually.

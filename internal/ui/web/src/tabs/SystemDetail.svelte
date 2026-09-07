@@ -7,7 +7,6 @@
   import NodePage from './system/NodePage.svelte';
   import ServloDetail from './system/ServloDetail.svelte';
   import ToolsDetail from './system/ToolsDetail.svelte';
-  import WorkerModeDetail from './system/WorkerModeDetail.svelte';
   import SftpDetail from './system/SftpDetail.svelte';
   import MailDetail from './system/MailDetail.svelte';
   import SecurityDetail from './system/SecurityDetail.svelte';
@@ -27,8 +26,6 @@
   <PhpPage initialVersion={phpVersion} />
 {:else if selected === 'node' || selected === 'node-install' || selected.startsWith('node-')}
   <NodePage />
-{:else if selected === 'workermode'}
-  <WorkerModeDetail />
 {:else if selected === 'sftp'}
   <SftpDetail />
 {:else if selected === 'mail'}

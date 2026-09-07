@@ -3,13 +3,9 @@ package tui
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/ServloOfficial/servlo/internal/siteinfo"
 	zone "github.com/lrstanley/bubblezone/v2"
 )
@@ -163,78 +159,4 @@ func readBoundedFile(path string, max int64) ([]byte, error) {
 		return buf[:n], err
 	}
 	return buf[:n], nil
-}
-
-// openInBrowserCmd opens the focused row in the browser: a service's dashboard
-// URL when the Services pane is focused, otherwise the focused site's primary
-// domain. Falls back to a status-bar message when there's nothing to open or
-// the platform lacks a known opener.
-func (m *Model) openInBrowserCmd() tea.Cmd {
-	switch m.activeTab {
-	case tabServices:
-		return m.openServiceDashboardCmd()
-	case tabSites:
-		site := m.currentSite()
-		if site == nil {
-			return nil
-		}
-		domain := site.PrimaryDomain()
-		if domain == "" {
-			m.setStatus("no domain to open for "+site.Name, 3*time.Second)
-			return nil
-		}
-		scheme := "http"
-		if site.Secured {
-			scheme = "https"
-		}
-		return m.openURL(scheme + "://" + domain)
-	}
-	return nil
-}
-
-// openServiceDashboardCmd opens the focused service's dashboard URL. Worker
-// rows and services without a dashboard get a status-bar note rather than a
-// silent no-op, so the user knows the key was heard.
-func (m *Model) openServiceDashboardCmd() tea.Cmd {
-	svc := m.currentService()
-	if svc == nil {
-		return nil
-	}
-	if svc.Dashboard == "" {
-		m.setStatus(svc.Name+" has no dashboard to open", 3*time.Second)
-		return nil
-	}
-	return m.openURL(svc.Dashboard)
-}
-
-// openURL launches the default browser on url via the platform opener, or
-// surfaces a status message when no opener exists. The browser detaches, so the
-// command returns as soon as the opener is spawned.
-func (m *Model) openURL(url string) tea.Cmd {
-	opener := browserOpener()
-	if opener == "" {
-		m.setStatus("no browser opener available on "+runtime.GOOS, 3*time.Second)
-		return nil
-	}
-	m.setStatus("opening "+url+"…", 3*time.Second)
-	return func() tea.Msg {
-		cmd := exec.Command(opener, url)
-		runErr := cmd.Start()
-		return ActionResult{Summary: "open " + url, Err: runErr}
-	}
-}
-
-// browserOpener picks the platform command that launches the default
-// browser. Linux uses xdg-open, macOS uses open. Returns "" on platforms
-// where neither is appropriate so the caller surfaces a status message
-// instead of erroring.
-func browserOpener() string {
-	switch runtime.GOOS {
-	case "darwin":
-		return "open"
-	case "linux":
-		return "xdg-open"
-	default:
-		return ""
-	}
 }

@@ -13,13 +13,11 @@
   import { version } from '$stores/version';
   import { isAdmin } from '$stores/session';
   import { servloStart, servloStop, servloStarting, servloStopping } from '$stores/servloLifecycle';
-  import { workerExecMode, workerModeApplies, loadWorkerMode } from '$stores/workerMode';
   import { notifyPrefs, permissionState, autoSubscribeDisabled } from '$lib/notify';
   import { onMount } from 'svelte';
   import { m } from '../paraglide/messages.js';
 
   onMount(() => {
-    loadWorkerMode();
   });
 
   const selected = $derived($routeRest || 'servlo');
@@ -102,13 +100,6 @@
       {m.notify_settings_title()}
     </ListRow>
 
-
-    {#if $workerModeApplies}
-      {#snippet workerModeDot()}<StatusDot color={$workerExecMode === 'container' ? 'sky' : 'emerald'} />{/snippet}
-      <ListRow active={selected === 'workermode'} onclick={() => select('workermode')} leading={workerModeDot}>
-        {m.system_workerMode_listLabel()}
-      </ListRow>
-    {/if}
 
     {#if $isAdmin}
       {#snippet sftpDot()}<StatusDot color="gray" />{/snippet}

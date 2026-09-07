@@ -92,7 +92,6 @@ After the wizard, a checkbox list appears with all available steps pre-selected 
   ◉ npm run build
   ◯ servlo secure
   ◉ queue:start
-  ◉ servlo open
 ```
 
 The `servlo secure` step is omitted entirely when HTTPS was already enabled in the init wizard, because there is nothing left to do.
@@ -103,7 +102,7 @@ On a machine where `.servlo.yaml` already exists the wizard is skipped and the s
 
 ## Running a command in an unlinked project
 
-Commands that operate on the current site (`servlo open`, `servlo runtime`, `servlo worker`, `servlo stripe`, `servlo env`, `servlo domain`, and the worker-backed `servlo reverb`, `servlo schedule`, `servlo queue`) need the directory to be linked. When you run one in a project that has not been linked yet, servlo offers to link it for you instead of stopping with an error:
+Commands that operate on the current site (`servlo runtime`, `servlo worker`, `servlo env`, `servlo domain`, and the worker-backed `servlo reverb`, `servlo schedule`, `servlo queue`) need the directory to be linked. When you run one in a project that has not been linked yet, servlo offers to link it for you instead of stopping with an error:
 
 ```
 This directory isn't linked to servlo. Link it now? [Y/n]
@@ -140,7 +139,6 @@ No hooks or per-project setup needed; it works for every linked site out of the 
 | build assets | - [x] on | only if `package.json` exists; runs the build script through the [detected package manager](/usage/node) |
 | `servlo secure` | - [ ] off | opt-in |
 | `queue:start` | - [x] on | only if `QUEUE_CONNECTION=redis` is set in `.env` or `.env.example` |
-| `servlo open` | - [x] on | always |
 
 The asset build step detects the right command from `package.json`; it looks for `build`, `production`, or `prod` scripts in priority order.
 
@@ -162,4 +160,3 @@ If a step fails, you are prompted to continue or abort:
 | Flag | Description |
 |---|---|
 | `--all` / `-a` | Select all steps without showing the prompt (CI/automation) |
-| `--skip-open` | Skip opening the browser at the end |

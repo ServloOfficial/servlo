@@ -22,7 +22,6 @@
 | `servlo service port <name> --reset` | Reset a service to its preset default published port |
 
 The five services above are compiled into the binary as YAML presets. The other
-twenty-three — Elasticsearch, OpenSearch, MongoDB, RabbitMQ, Typesense, Selenium,
 phpMyAdmin, pgAdmin and the rest — live in this repository under
 `stores/services/` and are embedded too, so a fresh install never depends on the
 repository being reachable. The runtime fetch is the update path rather than the
@@ -92,7 +91,6 @@ servlo service port mysql --reset   # or: servlo service port mysql 0
 
 The container-internal port never changes, so containerized apps (which reach the service by name over the `servlo` network) are unaffected. Only host clients pointed at the old published port need to follow. Host-proxy sites that connect over the published loopback port have their `.env` regenerated automatically when the port moves. A host-proxy site that is paused when the port moves is skipped at that moment and picks up the new port when it is next unpaused.
 
-Some services publish more than one host port: RustFS exposes the S3 API on `9000` and the console on `9001`, Selenium the WebDriver on `4444` and the noVNC view on `7900`. `servlo service port <name> <port>` moves the primary (first) mapping. To move any other published port, name the mapping by its container-internal port with `--container`:
 
 ```bash
 # Move the RustFS console off 9001 to 9002 (the S3 API on 9000 is untouched)
@@ -226,5 +224,4 @@ rm -rf ~/.local/share/servlo/data/minio
 ## More
 
 - [Service updates](service-updates.md): the Update / Upgrade / Migrate / Rollback flow, `update_strategy` / `track_latest` / `allow_major_upgrade` configuration, and recovery from failed migrations.
-- [Service presets](service-presets.md): one-command installers for phpMyAdmin, pgAdmin, MongoDB, alternate MySQL / MariaDB versions, Selenium, and Stripe Mock.
-- Custom services: YAML schema for your own OCI-based services, with env injection, placeholders, dependencies, and worked examples (Soketi, Stripe).
+- Custom services: YAML schema for your own OCI-based services, with env injection, placeholders, dependencies, and worked examples (Soketi).

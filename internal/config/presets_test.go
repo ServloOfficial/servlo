@@ -19,8 +19,6 @@ func TestListPresets_IncludesShippedPresets(t *testing.T) {
 		"pgadmin":               false,
 		"mongo":                 false,
 		"mongo-express":         false,
-		"selenium":              false,
-		"stripe-mock":           false,
 		"mysql":                 false,
 		"memcached":             false,
 		"rabbitmq":              false,
@@ -744,19 +742,6 @@ func TestSanitizeImageTag(t *testing.T) {
 		if got := SanitizeImageTag(in); got != want {
 			t.Errorf("SanitizeImageTag(%q) = %q, want %q", in, got, want)
 		}
-	}
-}
-
-func TestLoadPreset_Selenium(t *testing.T) {
-	p, err := LoadPreset("selenium")
-	if err != nil {
-		t.Fatalf("LoadPreset(selenium) error = %v", err)
-	}
-	if p.Name != "selenium" || p.Image == "" || len(p.Ports) == 0 || p.Dashboard == "" {
-		t.Errorf("selenium preset missing required fields: %+v", p)
-	}
-	if !p.ShareHosts {
-		t.Error("selenium preset should have share_hosts: true")
 	}
 }
 

@@ -29,12 +29,11 @@ const (
 	EnrichDomainConflicts                        // conflicting domain check
 	EnrichLogs                                   // app log file detection
 	EnrichFavicon                                // favicon detection
-	EnrichStripe                                 // stripe secret check
 
 	EnrichCLI = EnrichFramework | EnrichGit
 	EnrichUI  = EnrichFramework | EnrichVersions | EnrichWorkers |
 		EnrichFPM | EnrichGit | EnrichServices |
-		EnrichDomainConflicts | EnrichLogs | EnrichFavicon | EnrichStripe
+		EnrichDomainConflicts | EnrichLogs | EnrichFavicon
 )
 
 // WorkerInfo describes a framework worker and its runtime state.
@@ -105,9 +104,6 @@ type EnrichedSite struct {
 	HasHorizon        bool
 	HorizonRunning    bool
 	HorizonFailing    bool
-	StripeSecretSet   bool
-	StripeRunning     bool
-	StripeWebhookPath string
 
 	// Custom framework workers
 	FrameworkWorkers []WorkerInfo
@@ -300,10 +296,6 @@ func Enrich(s config.Site, flags EnrichFlag) EnrichedSite {
 		e.enrichFPM()
 	}
 
-	if flags&EnrichStripe != 0 {
-		e.enrichStripe()
-	}
-
 	if flags&EnrichWorkers != 0 {
 		e.enrichWorkers(fw, hasFw)
 	}
@@ -429,15 +421,6 @@ func (e *EnrichedSite) enrichFPM() {
 	if e.PHPVersion != "" {
 		short := strings.ReplaceAll(e.PHPVersion, ".", "")
 		e.FPMRunning, _ = containerRunningFn("servlo-php" + short + "-fpm")
-	}
-}
-
-func (e *EnrichedSite) enrichStripe() {
-	if config.StripeSecretSet(e.Path) {
-		e.StripeSecretSet = true
-		e.StripeWebhookPath = config.StripeWebhookPath(e.Path)
-		status, _ := unitStatusFn("servlo-stripe-" + e.Name)
-		e.StripeRunning = status == "active"
 	}
 }
 

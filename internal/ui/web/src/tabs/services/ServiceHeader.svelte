@@ -25,7 +25,6 @@
   function localDetailLabel(s: Service): string {
     if (s.queue_site) return m.services_labels_queueWorker();
     if (s.horizon_site) return m.services_labels_horizon();
-    if (s.stripe_listener_site) return m.services_labels_stripeListener();
     if (s.schedule_worker_site) return m.services_labels_scheduler();
     if (s.reverb_site) return m.services_labels_reverb();
     if (s.worker_site && s.worker_name === 'vite') return m.services_labels_vite();

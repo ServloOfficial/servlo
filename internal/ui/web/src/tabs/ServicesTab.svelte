@@ -31,7 +31,6 @@
     if (key === 'horizon') return m.services_groups_horizon();
     if (key === 'schedule') return m.services_groups_schedules();
     if (key === 'reverb') return m.services_groups_reverb();
-    if (key === 'stripe') return m.services_groups_stripe();
     if (key === 'workers') return m.services_groups_workers();
     return key;
   }

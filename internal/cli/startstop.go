@@ -771,7 +771,7 @@ func reconcileCustomServices() {
 }
 
 // registeredStripeUnits returns unit names for all servlo-stripe-* service files
-// present in the systemd user dir (i.e. started via `servlo stripe:listen`).
+// present in the systemd user dir.
 // restoreSiteInfrastructure ensures FPM quadlets, service quadlets, and worker
 // units exist for all registered (non-paused) sites. This repairs state after
 // an uninstall/reinstall cycle where unit files were deleted but site configs
@@ -938,16 +938,6 @@ func restoreSiteInfrastructure() {
 			if phpVersion == "" {
 				cfg, _ := config.LoadGlobal()
 				phpVersion = cfg.PHP.DefaultVersion
-			}
-			if w == "stripe" {
-				if parentEnabled {
-					continue
-				}
-				base := siteURL(s.Path)
-				if base != "" {
-					StripeRestoreUnit(s.Name, s.Path, base) //nolint:errcheck
-				}
-				continue
 			}
 			fwName := s.Framework
 			fw, fwOK := config.GetFrameworkForDir(fwName, s.Path)

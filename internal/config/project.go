@@ -105,10 +105,8 @@ type ProjectConfig struct {
 	// seconds. Zero inherits the global nginx.request_timeout (default 60s).
 	// Raise it for apps with deliberately long-running requests.
 	RequestTimeout int `yaml:"request_timeout,omitempty"`
-	// Stripe holds optional per-project Stripe webhook listener settings: the
 	// route events forward to and which .env key holds the secret. Absent for
 	// projects on the Laravel defaults, which are auto-detected.
-	Stripe *StripeConfig `yaml:"stripe,omitempty"`
 }
 
 // IsEmpty returns true when the config has no meaningful content, which
@@ -121,7 +119,7 @@ func (c *ProjectConfig) IsEmpty() bool {
 		len(c.Workers) == 0 && len(c.CustomWorkers) == 0 && len(c.ReloadWorkers) == 0 && len(c.Commands) == 0 && !c.Secured &&
 		c.AppURL == "" && c.DB.Service == "" && c.DB.Database == "" &&
 		c.Container == nil && c.Proxy == nil && c.Runtime == "" && !c.RuntimeWorker &&
-		len(c.EnvOverrides) == 0 && c.RequestTimeout == 0 && c.Stripe == nil
+		len(c.EnvOverrides) == 0 && c.RequestTimeout == 0
 }
 
 // Validate reports configuration that can't be honoured. A site is either a
@@ -373,13 +371,6 @@ func LoadProjectConfig(dir string) (*ProjectConfig, error) {
 	}
 
 	// Neutralise a hostile webhook path at the source so it can never reach the
-	// Stripe listener unit's ExecStart line; readers fall back to the default.
-	if cfg.Stripe != nil && cfg.Stripe.Path != "" {
-		if _, err := ValidateStripeWebhookPath(cfg.Stripe.Path); err != nil {
-			fmt.Printf("[WARN] %s: %v, ignoring stripe path\n", path, err)
-			cfg.Stripe.Path = ""
-		}
-	}
 
 	projectConfigCacheMu.Lock()
 	projectConfigCache[path] = projectConfigCacheEntry{
@@ -430,10 +421,6 @@ func cloneProjectConfig(in *ProjectConfig) *ProjectConfig {
 	if in.Proxy != nil {
 		cp := *in.Proxy
 		out.Proxy = &cp
-	}
-	if in.Stripe != nil {
-		cp := *in.Stripe
-		out.Stripe = &cp
 	}
 	if in.FrameworkDef != nil {
 		out.FrameworkDef = cloneFrameworkMutable(in.FrameworkDef)

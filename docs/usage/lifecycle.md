@@ -24,7 +24,7 @@ killed by hand. On a healthy server it is a no-op.
 
 | Command | Stops | Starts |
 |---|---|---|
-| `servlo start` | nothing | nginx, watcher, all PHP-FPM containers in use, services that were running before stop, queue / schedule / reverb / messenger workers, stripe listeners, Web UI |
+| `servlo start` | nothing | nginx, watcher, all PHP-FPM containers in use, services that were running before stop, queue / schedule / reverb / messenger workers, Web UI |
 | `servlo stop` | All containers and workers above. Leaves the watcher and Web UI alone. | nothing |
 | `servlo quit` | Everything `servlo stop` does, **plus** the Web UI and watcher. | nothing |
 
@@ -49,7 +49,7 @@ Walks the install in dependency order:
 3. Boots core: `servlo-nginx` and `servlo-watcher`.
 4. Boots every PHP-FPM container that has at least one site referencing its version. Unused PHP versions stay stopped.
 5. Boots all installed services that are **not** marked as manually paused (see [Manually stopped services](services.md#manually-stopped-services) for the pause-state contract).
-6. Restores per-site workers (`servlo-queue-*`, `servlo-schedule-*`, `servlo-reverb-*`, `servlo-messenger-*`, custom workers) and stripe listeners (`servlo-stripe-*`) from the `workers` list saved in each site's `.servlo.yaml`.
+6. Restores per-site workers (`servlo-queue-*`, `servlo-schedule-*`, `servlo-reverb-*`, `servlo-messenger-*`, custom workers) from the `workers` list saved in each site's `.servlo.yaml`.
 7. Starts the Web UI (`servlo-panel.service`, which runs `servlo serve-ui`).
 
 A live spinner shows the per-unit progress. If a single SSL vhost references a missing certificate file, servlo switches that site back to HTTP automatically and continues; one broken cert no longer blocks the whole nginx start.
@@ -116,7 +116,7 @@ Autostart is a single switch over every servlo-owned systemd user unit:
 
 - the dashboard (`servlo-panel.service`) and project watcher (`servlo-watcher.service`)
 - every container quadlet (`servlo-mysql`, `servlo-nginx`, `servlo-redis`, `servlo-postgres`, `servlo-php*-fpm`, `servlo-meilisearch`, `servlo-minio`, `servlo-rustfs`)
-- every per-site worker, queue, schedule, horizon, reverb, and stripe-listen unit
+- every per-site worker, queue, schedule, horizon and reverb unit
 
 ```bash
 servlo autostart enable      # come back automatically after a reboot

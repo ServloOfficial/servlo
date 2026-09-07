@@ -247,26 +247,11 @@
       ]
     },
     {
-      "name": "selenium",
-      "description": "Selenium + Chromium for browser testing (Laravel Dusk, Symfony Panther, etc.)",
-      "dashboard": "http://localhost:7900/?autoconnect=1&resize=scale",
-      "image": "docker.io/selenium/standalone-chromium:latest",
-      "category": "testing",
-      "icon": "browserPlay"
-    },
-    {
       "name": "soketi",
       "description": "Soketi realtime WebSocket server (Pusher-compatible)",
       "image": "quay.io/soketi/soketi:1.6-16-alpine",
       "category": "messaging",
       "icon": "broadcast"
-    },
-    {
-      "name": "stripe-mock",
-      "description": "Local Stripe API mock for Cashier and webhook testing",
-      "image": "docker.io/stripemock/stripe-mock:latest",
-      "category": "testing",
-      "icon": "card"
     },
     {
       "name": "typesense",

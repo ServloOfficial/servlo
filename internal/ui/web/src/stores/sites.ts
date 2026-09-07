@@ -70,9 +70,8 @@ export interface Site {
   horizon_reload_ready?: boolean;
   octane_reload?: boolean;
   octane_reload_ready?: boolean;
-  stripe_running?: boolean;
-  stripe_secret_set?: boolean;
-  stripe_webhook_path?: string;
+
+
   schedule_running?: boolean;
   schedule_failing?: boolean;
   reverb_running?: boolean;
@@ -169,10 +168,10 @@ export function siteWorkerFailing(s: Site): boolean {
 
 // siteHasLogSources reports whether a site exposes any streamable log tab: app
 // logs, a PHP-FPM/container runtime, a host dev server, or any running/failing
-// worker (queue, horizon, stripe, schedule, reverb, or a framework worker).
+// worker (queue, horizon, schedule, reverb, or a framework worker).
 // Kept in sync with the tab list SiteLogs builds so the Logs tab is offered iff
 // SiteLogs has something to show; a proxy-only host site whose sole source is a
-// stripe listener would otherwise never get the tab.
+// a worker-only site would otherwise never get the tab.
 export function siteHasLogSources(s: Site): boolean {
   return Boolean(
     s.has_app_logs ||
@@ -181,7 +180,6 @@ export function siteHasLogSources(s: Site): boolean {
       s.host_has_dev_server ||
       s.queue_running ||
       s.horizon_running ||
-      s.stripe_running ||
       s.schedule_running ||
       s.reverb_running ||
       (s.framework_workers || []).some((w) => w.running) ||
@@ -197,7 +195,6 @@ export function runningWorkerColors(s: Site): WorkerDotColor[] {
   const dots: WorkerDotColor[] = [];
   if (s.queue_running) dots.push('amber');
   if (s.horizon_running) dots.push('amber');
-  if (s.stripe_running) dots.push('violet');
   if (s.schedule_running) dots.push('emerald');
   if (s.reverb_running) dots.push('sky');
   for (const w of s.framework_workers || []) if (w.running) dots.push('indigo');
@@ -206,22 +203,19 @@ export function runningWorkerColors(s: Site): WorkerDotColor[] {
 
 function workerColorByName(name: string): WorkerDotColor {
   if (name === 'queue' || name === 'horizon') return 'amber';
-  if (name === 'stripe') return 'violet';
   if (name === 'schedule') return 'emerald';
   if (name === 'reverb') return 'sky';
   return 'indigo';
 }
 
 // siteHasWorkers reports whether a site has any background worker at all (queue,
-// schedule, horizon, reverb, a stripe listener, or a framework worker).
+// schedule, horizon, reverb, or a framework worker).
 export function siteHasWorkers(s: Site): boolean {
   return Boolean(
     s.has_queue_worker ||
       s.has_schedule_worker ||
       s.has_horizon ||
       s.has_reverb ||
-      s.stripe_running ||
-      s.stripe_secret_set ||
       (s.framework_workers && s.framework_workers.length > 0)
   );
 }
@@ -569,10 +563,6 @@ export const toggleSchedule = (s: Site) =>
   postAction(site(s.domain, s.schedule_running ? 'schedule:stop' : 'schedule:start'));
 export const toggleReverb = (s: Site) =>
   postAction(site(s.domain, s.reverb_running ? 'reverb:stop' : 'reverb:start'));
-export const toggleStripe = (s: Site) =>
-  postAction(site(s.domain, s.stripe_running ? 'stripe:stop' : 'stripe:start'));
-export const setStripeConfig = (s: Site, path: string) =>
-  postAction(site(s.domain, 'stripe:config') + '?path=' + encodeURIComponent(path));
 export const toggleWorker = (s: Site, w: FrameworkWorker) =>
   postAction(site(s.domain, 'worker:' + w.name + (w.running ? ':stop' : ':start')));
 

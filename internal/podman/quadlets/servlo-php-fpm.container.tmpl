@@ -36,7 +36,6 @@ Volume={{.BunVolumeDir}}:/root/.bun:rw
 # Persistent Playwright browser cache for opt-in Pest browser testing (servlo
 # pest:browser install). Holds the downloaded registry and servlo's musl-chromium
 # shims so they survive image rebuilds. Empty until the user opts in.
-Volume={{.PlaywrightVolumeDir}}:/root/.cache/ms-playwright:rw
 Environment=HOME=/root
 PodmanArgs=--security-opt=label=disable
 Exec=php-fpm -F -R

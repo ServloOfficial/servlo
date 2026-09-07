@@ -3,7 +3,6 @@
 Service presets are the YAML-driven definitions for every service servlo manages. There are two kinds:
 
 - **Default presets** (`default: true`), the always-recognised services that ship with servlo: `mysql`, `redis`, `postgres`, `meilisearch`, `rustfs`. They get auto-listed in `servlo service` everywhere; their lifecycle is identical to add-on presets but they don't need an explicit install step.
-- **Add-on presets**: opt-in installers for phpMyAdmin, pgAdmin, MongoDB, alternate MySQL / MariaDB versions, Selenium, Stripe Mock, Memcached, Valkey, RabbitMQ, Soketi, Beanstalkd, Elasticsearch, OpenSearch, Typesense, Typesense Dashboard, Elasticvue, RedisInsight.
 
 Both kinds use the same YAML schema in `internal/config/presets/*.yaml` and the same code path. Adding or replacing a default service is a YAML edit, not a code change. See [Service updates](service-updates.md) for the configuration knobs (`update_strategy`, `track_latest`, `allow_major_upgrade`).
 
@@ -64,8 +63,6 @@ Static files are declared inline with `content`. A file whose body must be compu
 | `mariadb` | `12` / `12.3` LTS / `11.8` LTS (default) / `11.4` LTS / `10.11` LTS / `11` (legacy) | - | family port `3306` (guard shifts later siblings) |
 | `mongo` | `docker.io/library/mongo:7` | - | `127.0.0.1:27017` |
 | `mongo-express` | `docker.io/library/mongo-express:latest` | `mongo` (preset) | `http://localhost:8082` |
-| `selenium` | `docker.io/selenium/standalone-chromium:latest` | - | `http://localhost:7900` (noVNC) |
-| `stripe-mock` | `docker.io/stripemock/stripe-mock:latest` | - | `127.0.0.1:12111` |
 | `memcached` | `docker.io/library/memcached:1.6-alpine` | - | `127.0.0.1:11211` |
 | `valkey` | `docker.io/valkey/valkey:9-alpine` | - | `127.0.0.1:6380` |
 | `rabbitmq` | `docker.io/library/rabbitmq:3-management-alpine` | - | `http://localhost:15672` (mgmt UI, opens in new tab) |
@@ -364,7 +361,6 @@ service to the internet.
 | `pgadmin` | `admin@pgadmin.org` / generated (server mode disabled, no master password), pre-loaded with the `Servlo Postgres` connection via a bundled `servers.json` + `pgpass` |
 | `mongo` | root user `root` / generated |
 | `mongo-express` | basic auth disabled, open `http://localhost:8082` directly |
-| `stripe-mock` | no auth (Stripe test mock) |
 | `memcached` | no auth (Memcached has no native authentication) |
 | `valkey` | no auth, same as `redis` |
 | `rabbitmq` | management UI: `root` / generated (also the default AMQP user) |

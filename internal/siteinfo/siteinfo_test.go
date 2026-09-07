@@ -803,53 +803,6 @@ func TestEnrichedSitePrimaryDomain(t *testing.T) {
 
 // ── Stripe detection ────────────────────────────────────────────────────────
 
-func TestEnrichStripe(t *testing.T) {
-	t.Run("no .env means no stripe", func(t *testing.T) {
-		e := &EnrichedSite{Path: t.TempDir(), Name: "myapp"}
-		e.enrichStripe()
-		if e.StripeSecretSet {
-			t.Error("expected StripeSecretSet = false")
-		}
-	})
-
-	t.Run("STRIPE_SECRET in .env sets flag", func(t *testing.T) {
-		dir := t.TempDir()
-		os.WriteFile(filepath.Join(dir, ".env"), []byte("STRIPE_SECRET=sk_test_123\n"), 0644)
-
-		origUnit := unitStatusFn
-		unitStatusFn = func(name string) (string, error) {
-			if name == "servlo-stripe-myapp" {
-				return "active", nil
-			}
-			return "", nil
-		}
-		defer func() { unitStatusFn = origUnit }()
-
-		e := &EnrichedSite{Path: dir, Name: "myapp"}
-		e.enrichStripe()
-		if !e.StripeSecretSet {
-			t.Error("expected StripeSecretSet = true")
-		}
-		if !e.StripeRunning {
-			t.Error("expected StripeRunning = true")
-		}
-	})
-
-	t.Run("non-Laravel STRIPE_SECRET_KEY in .env sets flag", func(t *testing.T) {
-		// A NestJS/Node project names the secret differently; detection must
-		// still fire so the UI surfaces the listener toggle.
-		dir := t.TempDir()
-		os.WriteFile(filepath.Join(dir, ".env"), []byte("STRIPE_SECRET_KEY=sk_test_node\n"), 0644)
-		e := &EnrichedSite{Path: dir, Name: "nestapp"}
-		e.enrichStripe()
-		if !e.StripeSecretSet {
-			t.Error("expected StripeSecretSet = true for STRIPE_SECRET_KEY")
-		}
-	})
-}
-
-// ── Worker enrichment ───────────────────────────────────────────────────────
-
 func TestEnrichWorkers(t *testing.T) {
 	t.Run("no framework means no workers", func(t *testing.T) {
 		e := &EnrichedSite{Name: "myapp", Path: t.TempDir()}

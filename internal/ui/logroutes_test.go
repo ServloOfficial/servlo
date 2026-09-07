@@ -18,7 +18,6 @@ func TestUnitForLogPath(t *testing.T) {
 		{"/api/horizon/alpha/logs", "servlo-horizon-alpha"},
 		{"/api/schedule/alpha/logs", "servlo-schedule-alpha"},
 		{"/api/reverb/alpha/logs", "servlo-reverb-alpha"},
-		{"/api/stripe/alpha/logs", "servlo-stripe-alpha"},
 		{"/api/worker/alpha/vite/logs", "servlo-vite-alpha"},
 		{"/api/worker/alpha-feature/app/logs", "servlo-app-alpha-feature"},
 	}

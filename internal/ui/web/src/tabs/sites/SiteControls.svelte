@@ -9,8 +9,6 @@
     setOctaneReload,
     toggleSchedule,
     toggleReverb,
-    toggleStripe,
-    setStripeConfig,
     toggleWorker,
     loadSites
   } from '$stores/sites';
@@ -22,7 +20,6 @@
   import HorizonReloadWatcherModal from './HorizonReloadWatcherModal.svelte';
   import OctaneControl from './OctaneControl.svelte';
   import OctaneReloadWatcherModal from './OctaneReloadWatcherModal.svelte';
-  import StripeControl from './StripeControl.svelte';
   import CommandsDropdown from '$components/CommandsDropdown.svelte';
   import SiteDoctorModal from './SiteDoctorModal.svelte';
   import Dropdown from '$components/Dropdown.svelte';
@@ -115,7 +112,6 @@
     reconcile('horizon', Boolean(site.horizon_running));
     reconcile('schedule', Boolean(site.schedule_running));
     reconcile('reverb', Boolean(site.reverb_running));
-    reconcile('stripe', Boolean(site.stripe_running));
     for (const w of site.framework_workers || []) {
       reconcile('worker:' + w.name, Boolean(w.running));
     }
@@ -326,16 +322,6 @@
           disabled={isPending('reverb')}
           onclick={() => transition('reverb', !site.reverb_running, () => toggleReverb(site))}
           title={site.reverb_running ? m.sites_controls_reverbToggle_on() : m.sites_controls_reverbToggle_off()}
-        />
-      {/if}
-
-      {#if site.stripe_secret_set}
-        <StripeControl
-          running={Boolean(site.stripe_running)}
-          loading={isPending('stripe')}
-          webhookPath={site.stripe_webhook_path}
-          onToggle={() => transition('stripe', !site.stripe_running, () => toggleStripe(site))}
-          onSaveConfig={(path) => setStripeConfig(site, path)}
         />
       {/if}
 

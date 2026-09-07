@@ -79,7 +79,7 @@ func runInit(fresh bool) error {
 
 	if isInteractive() {
 		if feedback.Confirm("Run servlo setup?", true) {
-			if err := runSetup(false, false); err != nil {
+			if err := runSetup(false); err != nil {
 				feedback.Warn("setup: %v", err)
 			}
 		}
@@ -386,12 +386,6 @@ func runWizard(cwd string, defaults *config.ProjectConfig) (*config.ProjectConfi
 			workerOptions = append(workerOptions, name)
 		}
 		sort.Strings(workerOptions)
-	}
-
-	// Stripe is not a framework worker but can be auto-started when
-	// STRIPE_SECRET is present in the project's .env.
-	if StripeSecretSet(cwd) {
-		workerOptions = append(workerOptions, "stripe")
 	}
 
 	// Remove any selected workers that are no longer available.

@@ -275,5 +275,60 @@ func Rules() []Rule {
 			Patterns: []string{`(?i)\blaunchd\b`, `(?i)\bhomebrew\b`, `Library/Logs`},
 			Allow:    specs,
 		},
+		{
+			// A browser launcher is a laptop's idea of a command. Servlo runs on
+			// a headless server reached over ssh, where xdg-open has nothing to
+			// open and `.Start()` does not wait to find out, so the whole
+			// feature was a command that silently did nothing.
+			Feature: "browser launchers", Story: "S0.6", Enforced: true,
+			// xdg-open is the mechanism, so it is the pattern that matters.
+			// A bare openBrowser is deliberately not forbidden: it is the
+			// natural name for a click handler in the dashboard's own
+			// JavaScript, which opens a link in the visitor's browser and is
+			// nothing to do with launching one on the server.
+			Patterns: []string{`xdg-open`, `\bbrowserOpener\b`, `skip-open`},
+			Allow:    specs,
+		},
+		{
+			// stripe listen --forward-to relays webhooks to an endpoint Stripe
+			// cannot reach, which is a laptop. A site here is on a real domain
+			// with a real certificate, so Stripe delivers to it directly and the
+			// forwarder is a long-lived process holding a live key for nothing.
+			// The key was also interpolated into the unit's ExecStart, putting a
+			// live secret in the process argument list, where every site on the
+			// machine could read it out of ps: they all run as the same user.
+			Feature: "Stripe webhook listener and mock", Story: "S0.6", Enforced: true,
+			Patterns: []string{`(?i)stripe[-_:]?listen`, `stripe-mock`, `stripe-cli`, `StripeListener`},
+			Allow:    specs,
+		},
+		{
+			// Browser testing is a thing CI does, not a thing a server does.
+			// This baked chromium into the shared PHP-FPM image, the one every
+			// site on the machine is served from.
+			Feature: "in-container browser testing", Story: "S0.6", Enforced: true,
+			// PLAYWRIGHT_BROWSERS_PATH rather than the word playwright: the
+			// mechanism was baking a browser into the shared image and pointing
+			// the registry at it. A local script that renders brand assets with
+			// playwright on somebody's own machine is not this, and forbidding
+			// the bare word would only teach the next person to allowlist a
+			// directory out of the whole rule.
+			// Selenium is not matched by name here. It is a plausible fixture
+			// name in a test about services in general, and forbidding the word
+			// would mean allowlisting half the podman and serviceops tests out
+			// of this rule entirely — which is how S2.1's leftover survived.
+			// What actually matters is that no preset the binary ships is a
+			// testing tool, and TestNoTestingPresetsShip asserts exactly that
+			// against the store index rather than against prose.
+			Patterns: []string{`pest[-_:]?browser`, `PLAYWRIGHT_BROWSERS_PATH`},
+			Allow:    specs,
+		},
+		{
+			// The worker-mode setting existed to choose between exec and
+			// container workers on macOS, and its own help said Linux ignores
+			// it. S0.2 deleted the macOS paths; this is what they left behind.
+			Feature: "macOS worker runtime mode", Story: "S0.2", Enforced: true,
+			Patterns: []string{`\bworkersMode\b`, `\bWorkerMigrationActive\b`, `workers mode`},
+			Allow:    specs,
+		},
 	}
 }

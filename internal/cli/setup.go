@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -35,11 +34,10 @@ type setupStep struct {
 // NewSetupCmd returns the setup command.
 func NewSetupCmd() *cobra.Command {
 	var allSteps bool
-	var skipOpen bool
 
 	cmd := &cobra.Command{
 		Use:   "setup",
-		Short: "Bootstrap a PHP project (composer, npm, env, migrate, assets, open)",
+		Short: "Bootstrap a PHP project (composer, npm, env, migrate, assets)",
 		Long: `Configures the site and runs a series of standard project setup steps with
 an interactive step-selector so you can toggle which steps to execute.
 
@@ -60,19 +58,17 @@ Additional steps for Laravel projects:
   7. php artisan migrate     — run database migrations
   8. php artisan db:seed     — seed the database (off by default)
   10. queue:start            — start queue worker
-  11. stripe:listen          — start Stripe webhook listener (off by default)
   12. schedule:start         — start task scheduler
   13. reverb:start           — start Reverb WebSocket server (if configured)
 
 Use --all to skip all selectors and run everything (useful in CI). In --all
 mode with no .servlo.yaml, site registration falls back to auto-detection.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return runSetup(allSteps, skipOpen)
+			return runSetup(allSteps)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&allSteps, "all", "a", false, "Select all steps without prompting (for CI/automation)")
-	cmd.Flags().BoolVar(&skipOpen, "skip-open", false, "Do not open the site in the browser at the end")
 	return cmd
 }
 
@@ -110,7 +106,7 @@ func frameworkForSetup(site *config.Site, cwd string) *config.Framework {
 	return &config.Framework{}
 }
 
-func runSetup(allSteps, skipOpen bool) error {
+func runSetup(allSteps bool) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -273,25 +269,6 @@ func runSetup(allSteps, skipOpen bool) error {
 	// default: selecting it triggers a multi-minute image rebuild + browser
 	// download, too heavy to run on a blind Enter. Runs after the JS install step
 	// so playwright is in node_modules. Non-fatal: installPestBrowser fails fast
-	// (before any rebuild) when playwright is missing, surfaced here as a warning.
-	if hasComposerJSON && bunPHPVersion != "" &&
-		pestBrowserSupportedVersion(bunPHPVersion) == nil &&
-		config.ComposerHasPackage(cwd, "pestphp/pest-plugin-browser") {
-		alreadyBaked := false
-		if gcfg, err := config.LoadGlobal(); err == nil {
-			alreadyBaked = slices.Contains(gcfg.GetPackages(), pestBrowserPkg)
-		}
-		if !alreadyBaked {
-			steps = append(steps, setupStep{
-				label:    "pest:browser (container)",
-				enabled:  false,
-				optional: true,
-				run: func() error {
-					return installPestBrowser(bunPHPVersion, os.Stdout)
-				},
-			})
-		}
-	}
 
 	// Framework setup commands (one-off bootstrap steps like migrations, storage:link, etc.)
 	if site != nil {
@@ -403,32 +380,6 @@ func runSetup(allSteps, skipOpen bool) error {
 				})
 			}
 		}
-	}
-
-	// Stripe listener (not a framework worker, still special-cased).
-	if site != nil && siteHasStripeSecret(cwd) {
-		ownerSite := site
-		steps = append(steps, setupStep{
-			label:   "stripe:listen",
-			enabled: true,
-			run: func() error {
-				base := siteURL(cwd)
-				if base == "" {
-					return fmt.Errorf("could not resolve site URL, run 'servlo link' first")
-				}
-				return StripeStartForSite(ownerSite.Name, cwd, base)
-			},
-		})
-	}
-
-	if !skipOpen {
-		steps = append(steps, setupStep{
-			label:   "servlo open",
-			enabled: true,
-			run: func() error {
-				return runOpen(nil, nil)
-			},
-		})
 	}
 
 	// Determine which steps to run.
@@ -556,22 +507,6 @@ func siteNeedsStorageLink(cwd string) bool {
 		}
 	}
 	return true // FILESYSTEM_DISK unset → defaults to local
-}
-
-// siteHasStripeSecret returns true if a Stripe secret is present for the
-// project. The live .env is resolved through config.StripeSecretSet so a pinned
-// secret_env_key is honoured (matching what StripeStartForSite will read);
-// .env.example is probed against the candidate keys as a scaffold fallback.
-func siteHasStripeSecret(cwd string) bool {
-	if config.StripeSecretSet(cwd) {
-		return true
-	}
-	for _, key := range config.StripeSecretEnvCandidates {
-		if envfile.ReadKey(filepath.Join(cwd, ".env.example"), key) != "" {
-			return true
-		}
-	}
-	return false
 }
 
 // execInContainer runs an arbitrary command string inside the site's PHP-FPM container.

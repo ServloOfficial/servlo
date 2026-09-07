@@ -45,7 +45,7 @@
   const canEnv = $derived(Boolean(site.has_env));
   // Logs get their own tab in the resource layout rather than living under the
   // overview. Offer it whenever the site exposes any log source, including a
-  // worker-only source like a stripe listener on a proxy-only host site.
+  // worker-only source on a proxy-only host site.
   const canLogs = $derived(siteHasLogSources(site));
   // A lone Overview tab can't be switched to anything, so don't render the tab
   // row at all when no other tab is available (e.g. static sites).

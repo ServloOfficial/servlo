@@ -46,7 +46,6 @@ private half never leaves the server or appears in an API response.
 | `servlo domain remove <name>` | Remove a domain from the current site |
 | `servlo domain list` | List all domains for the current site |
 | `servlo sites` | Table view of all registered sites |
-| `servlo open [name]` | Open the site in the default browser (via `xdg-open`, so nothing happens over SSH on a headless server) |
 | `servlo secure [name]` | Issue a TLS certificate and enable HTTPS, updates `APP_URL` in `.env` |
 | `servlo unsecure [name]` | Remove TLS and switch back to HTTP, updates `APP_URL` in `.env` |
 | `servlo pause [name]` | Pause a site: stop its workers and replace the vhost with a landing page |
@@ -364,7 +363,7 @@ servlo pause my-project   # pause a named site
 
 When a site is paused:
 
-- All running workers for that site are stopped (queue, schedule, reverb, stripe, and any custom workers)
+- All running workers for that site are stopped (queue, schedule, reverb, and any custom workers)
 - The nginx vhost is replaced with a minimal landing page that shows a **Resume** button
 - Services no longer needed by any other active site are auto-stopped
 - The paused state is persisted, so the site stays paused across `servlo start` / `servlo stop` cycles
