@@ -13,6 +13,10 @@ set -euo pipefail
 scripts="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 domain="$1"
+# The database name, when the one derived from the domain would not be legal.
+# MySQL will not take an unquoted identifier that starts with a digit, and the
+# TLS job's domain is the runner's own address, which does.
+db="${2:-$(echo "$domain" | tr '.-' '__')}"
 root="$HOME/sites/$domain"
 
 mkdir -p "$root/public"
@@ -32,7 +36,7 @@ PHP
 cat > "$root/.env" <<ENV
 APP_ENV=production
 DB_CONNECTION=mysql
-DB_DATABASE=$(echo "$domain" | tr '.-' '__')
+DB_DATABASE=$db
 ENV
 
 cd "$root"
