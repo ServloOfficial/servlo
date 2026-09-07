@@ -339,8 +339,46 @@ func Rules() []Rule {
 			// live secret in the process argument list, where every site on the
 			// machine could read it out of ps: they all run as the same user.
 			Feature: "Stripe webhook listener and mock", Story: "S0.6", Enforced: true,
-			Patterns: []string{`(?i)stripe[-_:]?listen`, `stripe-mock`, `stripe-cli`, `StripeListener`},
-			Allow:    specs,
+			// The unit name and the worker name, not just the command.
+			//
+			// The first pass at this rule matched the listener's own vocabulary
+			// — stripe listen, stripe-mock, StripeListener — and deleted the two
+			// files that spoke it. Everything built around them answered to a
+			// different name and survived: StripeWorkerName, registeredStripeUnits,
+			// servlo-stripe-<site> in the status output, the bug report, the
+			// autostart set, and a "stripe:refresh" post to a daemon endpoint
+			// that no longer existed, fired on every certificate issuance.
+			//
+			// A feature is not the code that implements it. It is also every
+			// name the rest of the tree knows it by, which is what these match.
+			Patterns: []string{
+				`(?i)stripe[-_:]?listen`, `stripe-mock`, `stripe-cli`, `StripeListener`,
+				`servlo-stripe`, `StripeWorkerName`, `[Ss]tripeUnits`, `stripe:refresh`,
+			},
+			// The demo's fixture logs carry a PHP exception from a site that
+			// uses Stripe's own SDK. An application billing its customers is not
+			// this feature; servlo running a webhook forwarder for it was.
+			Allow: append(append([]string{}, specs...),
+				"internal/ui/web/demo/fixtures/cron.json",
+				"internal/ui/web/demo/stubs.ts",
+			),
+		},
+		{
+			// The dnsmasq container the S2.1 rule forbids was packaged as the
+			// servlo-dns quadlet, and that name is not dnsmasq, so nothing
+			// caught what it left: a PublishPort special case preserving :5300
+			// for a quadlet that no longer ships, two reserved-name lists that
+			// skipped "dns" and "dns-forwarder" (and so would have hidden a
+			// leftover unit from the orphan scan that exists to report it), a
+			// port probe in the bug report, and a comment about an in-process
+			// DNS watcher that had already been deleted.
+			Feature: "the servlo-dns container", Story: "S2.1", Enforced: true,
+			Patterns: []string{`servlo-dns`, `servlo0\b`, `dns-forwarder`},
+			// install.sh removes the root-owned link unit an older servlo wrote,
+			// and names it to do so.
+			Allow: append(append([]string{}, specs...),
+				"install.sh", "tests/installer/installer.bats",
+			),
 		},
 		{
 			// Browser testing is a thing CI does, not a thing a server does.

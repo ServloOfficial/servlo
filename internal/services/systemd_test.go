@@ -44,7 +44,7 @@ func TestLinuxListContainerUnits(t *testing.T) {
 	os.MkdirAll(dir, 0755)
 
 	os.WriteFile(filepath.Join(dir, "servlo-nginx.container"), []byte("[Container]\n"), 0644)
-	os.WriteFile(filepath.Join(dir, "servlo-dns.container"), []byte("[Container]\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "servlo-redis.container"), []byte("[Container]\n"), 0644)
 
 	mgr := &linuxServiceManager{}
 	units := mgr.ListContainerUnits("servlo-*")

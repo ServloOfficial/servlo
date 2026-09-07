@@ -379,7 +379,7 @@ func TestFailPathsAlwaysShowReason(t *testing.T) {
 		return buf.String()
 	}
 	cases := map[string]func(){
-		"Step.Fail(nil)":      func() { Start("starting servlo-dns").Fail(nil) },
+		"Step.Fail(nil)":      func() { Start("starting servlo-nginx").Fail(nil) },
 		"Step.Fail(emptyErr)": func() { Start("starting servlo-redis").Fail(errors.New("")) },
 		"Live.Fail(nil)":      func() { StartLive("pulling image").Fail(nil) },
 	}

@@ -975,7 +975,7 @@ func refreshUnreferencedCustomQuadlets(seenSvc map[string]bool, reg *config.Site
 
 // ensureSystemdLinger checks whether systemd user linger is enabled for the
 // current user and runs `sudo loginctl enable-linger` if not. Without linger
-// the rootless Podman containers (servlo-dns, servlo-nginx, PHP-FPM, …) get torn
+// the rootless Podman containers (servlo-nginx, PHP-FPM, …) get torn
 // down by systemd-logind when the session goes inactive — screen blank,
 // lock, switch user, logout — and servlo appears to silently stop working
 // until the user manually re-runs `servlo install` or restarts the units.

@@ -46,7 +46,7 @@ func SetProjectWorkers(dir string, workers []string) error {
 
 // AddProjectWorker appends name to the workers list if not already present.
 // No-op if .servlo.yaml does not exist. A whitespace-bearing name is rejected so a
-// mangled value like "horizon - schedule - vite - stripe" can never land as a
+// mangled value like "horizon - schedule - vite - reverb" can never land as a
 // single worker entry; real worker names map to systemd units and have none.
 func AddProjectWorker(dir, name string) error {
 	name = strings.TrimSpace(name)

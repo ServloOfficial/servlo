@@ -372,8 +372,8 @@ func startServicesForSiteNoticed(sitePath, siteName string) {
 	}
 }
 
-// CollectRunningWorkerNames returns the names of active workers for the site,
-// including stripe. Used to sync .servlo.yaml.
+// CollectRunningWorkerNames returns the names of active workers for the site.
+// Used to sync .servlo.yaml.
 func CollectRunningWorkerNames(site *config.Site) []string {
 	return collectRunningWorkers(site)
 }
@@ -583,8 +583,6 @@ func writePausedHTML(_ *config.Site) error {
 // named worker back, so pause never stops one it cannot restart.
 func workerResumable(site *config.Site, workerName string) bool {
 	switch workerName {
-	case "stripe":
-		return true
 	case hostProxyWorkerName:
 		// resumeWorkerByName only restarts the host-proxy worker when the project
 		// still declares a proxy command; without this guard a site whose proxy

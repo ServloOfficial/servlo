@@ -28,7 +28,6 @@ func TestAutostartUserUnits(t *testing.T) {
 		"servlo-schedule-myapp.service",
 		"servlo-horizon-myapp.service",
 		"servlo-reverb-myapp.service",
-		"servlo-stripe-myapp.service",
 	} {
 		if err := os.WriteFile(filepath.Join(systemdDir, name), []byte("[Service]\n"), 0644); err != nil {
 			t.Fatal(err)
@@ -46,7 +45,6 @@ func TestAutostartUserUnits(t *testing.T) {
 		"servlo-queue-myapp.service",
 		"servlo-reverb-myapp.service",
 		"servlo-schedule-myapp.service",
-		"servlo-stripe-myapp.service",
 		"servlo-watcher.service",
 	}
 	if !reflect.DeepEqual(got, want) {

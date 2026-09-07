@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -579,8 +578,7 @@ func runStart(_ *cobra.Command, _ []string) error {
 	serviceUnits = append(serviceUnits, "servlo-panel", "servlo-watcher")
 
 	// Phase 2: worker units that depend on running containers.
-	workerUnits := append(registeredQueueUnits(), registeredStripeUnits()...)
-	workerUnits = append(workerUnits, registeredScheduleUnits()...)
+	workerUnits := append(registeredQueueUnits(), registeredScheduleUnits()...)
 	workerUnits = append(workerUnits, registeredReverbUnits()...)
 	// Also include non-standard framework workers (horizon, vite-dev, etc.)
 	// declared in the site registry, so restored unit files get started here
@@ -604,12 +602,7 @@ func runStart(_ *cobra.Command, _ []string) error {
 			label := strings.TrimSuffix(strings.TrimPrefix(unit, "servlo-"), ".timer")
 			jobs[i] = BuildJob{
 				Label: label,
-				Run: func(w io.Writer) error {
-					if unit == "servlo-dns" {
-						return podman.RestartUnit(unit)
-					}
-					return podman.StartUnit(unit)
-				},
+				Run:   func(w io.Writer) error { return podman.StartUnit(unit) },
 			}
 		}
 		return jobs
@@ -705,8 +698,7 @@ func startRestoredServices() {
 	// runStart's phase 1 → phase 2 split. Without this, `servlo install` would
 	// leave workers enabled-but-stopped after restoreSiteInfrastructure, since
 	// restoreWorker only writes the unit file and defers Start to here.
-	workerUnits := append(registeredQueueUnits(), registeredStripeUnits()...)
-	workerUnits = append(workerUnits, registeredScheduleUnits()...)
+	workerUnits := append(registeredQueueUnits(), registeredScheduleUnits()...)
 	workerUnits = append(workerUnits, registeredReverbUnits()...)
 	workerUnits = append(workerUnits, registeredFrameworkWorkerUnits()...)
 	workerUnits = append(workerUnits, registeredTimerUnits()...)
@@ -770,8 +762,6 @@ func reconcileCustomServices() {
 	}
 }
 
-// registeredStripeUnits returns unit names for all servlo-stripe-* service files
-// present in the systemd user dir.
 // restoreSiteInfrastructure ensures FPM quadlets, service quadlets, and worker
 // units exist for all registered (non-paused) sites. This repairs state after
 // an uninstall/reinstall cycle where unit files were deleted but site configs
@@ -994,10 +984,6 @@ func cleanOrphanTimerUnits() {
 	}
 }
 
-func registeredStripeUnits() []string {
-	return services.Mgr.ListServiceUnits("servlo-stripe-*")
-}
-
 // registeredQueueUnits returns unit names for all servlo-queue-* service units
 // (i.e. started via `servlo queue:start`).
 func registeredQueueUnits() []string {
@@ -1025,7 +1011,7 @@ func registeredTimerUnits() []string {
 // registeredFrameworkWorkerUnits returns servlo-{worker}-{site} unit names for
 // every site/worker pair declared in the site registry. Used to make sure
 // non-standard workers (horizon, vite-dev, etc.) get started in phase 2 of
-// runStart, not just the queue/stripe/schedule/reverb glob.
+// runStart, not just the queue/schedule/reverb glob.
 func registeredFrameworkWorkerUnits() []string {
 	reg, err := config.LoadSites()
 	if err != nil || reg == nil {
@@ -1041,9 +1027,6 @@ func registeredFrameworkWorkerUnits() []string {
 			continue
 		}
 		for _, w := range proj.Workers {
-			if w == "stripe" {
-				continue
-			}
 			out = append(out, "servlo-"+w+"-"+s.Name)
 		}
 		// Enumerate the dev-server unit unconditionally: this list also drives
@@ -1113,7 +1096,6 @@ func stopUnitSet() []string {
 	units := append(coreUnits(), allInstalledServiceUnits()...)
 	units = append(units, installedCustomContainerUnits()...)
 	units = append(units, registeredQueueUnits()...)
-	units = append(units, registeredStripeUnits()...)
 	units = append(units, registeredScheduleUnits()...)
 	units = append(units, registeredReverbUnits()...)
 	units = append(units, registeredFrameworkWorkerUnits()...)
@@ -1121,7 +1103,7 @@ func stopUnitSet() []string {
 	// oneshot .service is a no-op (it isn't running between firings),
 	// so without this the timer keeps dispatching after `servlo stop`.
 	units = append(units, registeredTimerUnits()...)
-	return slices.DeleteFunc(units, func(u string) bool { return u == "servlo-dns" })
+	return units
 }
 
 func runStop(_ *cobra.Command, _ []string) error {
@@ -1149,23 +1131,22 @@ func runStop(_ *cobra.Command, _ []string) error {
 }
 
 // quitProcessUnits is the ordered set of host process units `servlo quit` tears
-// down after runStop. Unlike `servlo stop`, quit is a full teardown, so it
-// includes servlo-dns. servlo-watcher precedes servlo-dns because the watcher is the
-// only thing that restarts servlo-dns; stopping it first keeps dns down.
+// down after runStop.
+//
+// `servlo stop` used to leave one unit up as install-level plumbing and quit
+// existed to take it down too. That unit belonged to the DNS stack S2.1
+// deleted, so the two commands now stop the same set; quit remains as the name
+// for tearing the panel and the watcher down with everything else.
 func quitProcessUnits() []string {
-	return []string{"servlo-panel", "servlo-watcher", "servlo-dns"}
+	return []string{"servlo-panel", "servlo-watcher"}
 }
 
 func runQuit(_ *cobra.Command, _ []string) error {
-	// Stop containers and services (same as stop). `servlo stop` leaves servlo-dns
-	// up as install-level plumbing; `servlo quit` is a full teardown, so it also
-	// stops servlo-dns below.
+	// Stop containers and services (same as stop), then the host process units.
 	if err := runStop(nil, nil); err != nil {
 		return err
 	}
 
-	// Stop process units. servlo-watcher comes before servlo-dns: the watcher is the
-	// only thing that restarts servlo-dns, so stopping it first keeps dns down.
 	for _, unit := range quitProcessUnits() {
 		s := feedback.Start("stopping " + unit)
 		if err := podman.StopUnit(unit); err != nil {

@@ -20,12 +20,12 @@ import (
 // switch. Not "at login": install enables linger precisely so the units do not
 // wait for one, and a server is not logged into.
 // every servlo-* container quadlet, the servlo UI, the watcher, and every
-// per-site worker/queue/schedule/horizon/reverb/stripe unit are enabled
+// per-site worker/queue/schedule/horizon/reverb unit are enabled
 // or disabled together. The state lives in cfg.Autostart.Disabled (zero
 // value = enabled, so existing installs are unchanged) and is the
 // canonical source of truth — `IsAutostartEnabled` reads it directly.
 //
-// The toggle only affects what happens at the next login. Toggling to
+// The toggle only affects what happens at the next reboot. Toggling to
 // off does NOT stop currently-running services, and toggling to on does
 // NOT start anything — the user is in the middle of working and a
 // session-level switch should not yank infrastructure out from under
@@ -39,7 +39,7 @@ import (
 //     generator units.
 //  2. Runs `systemctl --user disable` on every servlo-*.service file
 //     (servlo-panel, servlo-watcher, every per-site worker/queue/schedule/
-//     horizon/reverb/stripe), removing the `default.target.wants`
+//     horizon/reverb), removing the `default.target.wants`
 //     symlink without touching the running unit.
 //
 // Enabling reverses both steps. To actually stop or start a running

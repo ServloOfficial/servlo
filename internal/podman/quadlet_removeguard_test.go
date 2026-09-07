@@ -9,10 +9,10 @@ import (
 	"github.com/ServloOfficial/servlo/internal/config"
 )
 
-// A test that forgot to isolate XDG deleted the developer's real servlo-dns quadlet,
-// leaving the container running under a unit systemd no longer had a definition
-// for, so Restart=always silently stopped applying. Writes have always been
-// guarded; removals were the hole.
+// A test that forgot to isolate XDG deleted a quadlet out of the developer's
+// real state directory, leaving the container running under a unit systemd no
+// longer had a definition for, so Restart=always silently stopped applying.
+// Writes have always been guarded; removals were the hole.
 func TestRemoveQuadlet_guardsTheRealQuadletDir(t *testing.T) {
 	defer func() {
 		r := recover()
@@ -23,7 +23,7 @@ func TestRemoveQuadlet_guardsTheRealQuadletDir(t *testing.T) {
 			t.Errorf("panic should name the problem, got %v", r)
 		}
 	}()
-	_ = RemoveQuadlet("servlo-dns")
+	_ = RemoveQuadlet("servlo-nginx")
 }
 
 // The guard must stay out of the way of an isolated test.

@@ -332,18 +332,12 @@ func OCIRuntime() string {
 // on both stacks in lockstep: 127.0.0.1 ↔ bare and [::1] ↔ [::].
 //
 // Which one a container gets is not a setting, it is what the container is for
-// (see BindQuadletPorts). servlo-dns (:5300) is pinned on 127.0.0.1 in the
-// embed, so its lines are preserved as-is.
+// (see BindQuadletPorts).
 func BindPorts(content string, public bool) string {
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if !strings.HasPrefix(trimmed, "PublishPort=") {
-			continue
-		}
-		// Preserve servlo-dns (pinned to 127.0.0.1 in the embed because LAN
-		// DNS is routed via the userspace forwarder, not the publish).
-		if strings.Contains(trimmed, ":5300:5300") {
 			continue
 		}
 		value := strings.TrimPrefix(trimmed, "PublishPort=")

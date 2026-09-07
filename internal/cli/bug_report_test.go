@@ -262,7 +262,6 @@ func TestIsContentUnit(t *testing.T) {
 		"servlo-nginx":           false,
 		"servlo-panel":           false,
 		"servlo-watcher":         false,
-		"servlo-dns":             false,
 		"servlo-autostart":       false,
 		"servlo-fpm-init":        false,
 		"servlo-nginx.container": false,
@@ -279,7 +278,6 @@ func TestIsContentUnit(t *testing.T) {
 		"servlo-queue-laravel":    true,
 		"servlo-schedule-laravel": true,
 		"servlo-horizon-myapp":    true,
-		"servlo-stripe-myapp":     true,
 		"servlo-reverb-myapp":     true,
 		// Custom containers / FrankenPHP per-site: dropped.
 		"servlo-custom-myapp": true,
@@ -427,13 +425,13 @@ func TestRedactGenericPII_idempotent(t *testing.T) {
 
 func TestRedactNonLoopbackAddrs_keepsLoopback(t *testing.T) {
 	cases := map[string]string{
-		"LISTEN 0 0 127.0.0.1:53 0.0.0.0:* servlo-dns": "LISTEN 0 0 127.0.0.1:53 0.0.0.0:* servlo-dns",
-		"LISTEN 0 0 ::1:443 *:*":                       "LISTEN 0 0 ::1:443 *:*",
-		"LISTEN 0 0 192.168.1.10:80 *:*":               "LISTEN 0 0 <redacted-ip>:80 *:*",
-		"LISTEN 0 0 169.254.169.254:80 *:*":            "LISTEN 0 0 169.254.169.254:80 *:*",
-		"connection from 10.89.7.8 to 10.89.0.1":       "connection from <redacted-ip> to <redacted-ip>",
-		"fe80::1%en0 link-local":                       "fe80::1%en0 link-local",
-		"2001:db8::1 public ipv6":                      "<redacted-ip> public ipv6",
+		"LISTEN 0 0 127.0.0.1:80 0.0.0.0:* servlo-nginx": "LISTEN 0 0 127.0.0.1:80 0.0.0.0:* servlo-nginx",
+		"LISTEN 0 0 ::1:443 *:*":                         "LISTEN 0 0 ::1:443 *:*",
+		"LISTEN 0 0 192.168.1.10:80 *:*":                 "LISTEN 0 0 <redacted-ip>:80 *:*",
+		"LISTEN 0 0 169.254.169.254:80 *:*":              "LISTEN 0 0 169.254.169.254:80 *:*",
+		"connection from 10.89.7.8 to 10.89.0.1":         "connection from <redacted-ip> to <redacted-ip>",
+		"fe80::1%en0 link-local":                         "fe80::1%en0 link-local",
+		"2001:db8::1 public ipv6":                        "<redacted-ip> public ipv6",
 	}
 	for in, want := range cases {
 		if got := redactNonLoopbackAddrs(in); got != want {

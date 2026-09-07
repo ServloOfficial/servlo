@@ -258,7 +258,7 @@ func dumpUnitState(w io.Writer) {
 // is not a per-site worker. Kept in sync with isContentUnit so the unit
 // state aggregation matches the log-skip policy.
 func workerUnitPrefix(name string) string {
-	for _, p := range []string{"servlo-queue", "servlo-schedule", "servlo-horizon", "servlo-stripe", "servlo-reverb"} {
+	for _, p := range []string{"servlo-queue", "servlo-schedule", "servlo-horizon", "servlo-reverb"} {
 		if strings.HasPrefix(name, p+"-") {
 			return p
 		}
@@ -341,7 +341,7 @@ func dumpContainers(w io.Writer) {
 		return
 	}
 	// Same aggregation as dumpUnitState: collapse per-site worker
-	// containers (stripe-, reverb-, etc) into a "<type>-* (N total)"
+	// containers (queue-, reverb-, etc) into a "<type>-* (N total)"
 	// summary so the listing doesn't reveal site→container fan-out.
 	// Custom services and per-site custom/FrankenPHP containers are
 	// dropped entirely (privacy: their names are user-defined).
@@ -429,7 +429,7 @@ func dumpContainerLogs(w io.Writer, n int, filter *logFilter) {
 func dumpNetwork(w io.Writer) {
 	fmt.Fprintln(w, "── listening sockets (servlo-relevant ports)")
 	listing := PortListOutput()
-	for _, port := range []string{"53", "80", "443", "5300", "7073"} {
+	for _, port := range []string{"80", "443", "7073"} {
 		for _, line := range strings.Split(listing, "\n") {
 			if strings.Contains(line, ":"+port+" ") {
 				fmt.Fprintf(w, "  port %-4s  %s\n", port, redactNonLoopbackAddrs(strings.TrimSpace(line)))
@@ -690,7 +690,6 @@ var servloInfraUnits = map[string]struct{}{
 	"servlo-nginx":     {},
 	"servlo-panel":     {},
 	"servlo-watcher":   {},
-	"servlo-dns":       {},
 	"servlo-autostart": {},
 	"servlo-fpm-init":  {},
 }

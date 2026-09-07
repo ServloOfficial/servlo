@@ -132,8 +132,8 @@ func runCheck(_ *cobra.Command, _ []string) error {
 					hasHorizon = true
 				}
 
-				// Stripe and the host-proxy app worker are servlo built-ins, run
-				// through their own units and never declared by a framework.
+				// The host-proxy app worker is a servlo built-in, run through
+				// its own unit and never declared by a framework.
 				if config.IsBuiltinWorker(w) {
 					ckOK("worker: %s\n", w)
 					continue

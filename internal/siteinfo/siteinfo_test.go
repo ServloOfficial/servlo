@@ -801,8 +801,6 @@ func TestEnrichedSitePrimaryDomain(t *testing.T) {
 	}
 }
 
-// ── Stripe detection ────────────────────────────────────────────────────────
-
 func TestEnrichWorkers(t *testing.T) {
 	t.Run("no framework means no workers", func(t *testing.T) {
 		e := &EnrichedSite{Name: "myapp", Path: t.TempDir()}

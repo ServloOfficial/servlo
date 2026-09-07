@@ -856,9 +856,13 @@ func findOrphanedWorkers(siteName string, known map[string]bool) []string {
 		if hostProxySite && workerName == config.HostProxyWorkerName {
 			continue
 		}
+		// Same list as systemd.WorkerNameFromUnit, and short for the same
+		// reason: a unit left behind by the DNS stack or the Stripe listener
+		// is an orphan now that neither is written, and skipping it by name
+		// would hide it from the one scan that would tell the operator.
 		switch workerName {
 		case "php84-fpm", "php83-fpm", "php82-fpm", "php81-fpm", "php80-fpm",
-			"nginx", "dns", "dns-forwarder", "watcher", "ui", "stripe":
+			"nginx", "watcher", "ui":
 			continue
 		}
 		if isServiceActiveOrRestarting(unit) {
