@@ -902,8 +902,8 @@ func RewriteFPMQuadlets() error {
 			_ = RestartUnit(unit)
 		}
 		// Nginx may have restarted and received a new IP. Regenerate the
-		// browser-testing hosts file so Selenium resolves .test domains to
-		// the current nginx container address.
+		// shared-hosts file so containers on the servlo network resolve site
+		// domains to the current nginx container address.
 		_ = WriteContainerHosts()
 	}
 	return nil

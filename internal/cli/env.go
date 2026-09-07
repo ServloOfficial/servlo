@@ -360,7 +360,7 @@ func NewEnvCmd() *cobra.Command {
   - Detects which services the project uses and sets servlo connection values
   - Starts any referenced services that are not already running
   - Generates APP_KEY if missing
-  - Sets APP_URL to the registered .test domain`,
+  - Sets APP_URL to the site's primary domain`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// --verbose (and any non-interactive output, e.g. the dashboard or a
@@ -1311,7 +1311,7 @@ func consoleIn(dir, console string, args ...string) error {
 type siteTemplateCtx struct {
 	site   string // database / handle name (underscored)
 	bucket string // S3-safe bucket name (lowercase, hyphens)
-	domain string // primary domain (e.g. myapp.test)
+	domain string // primary domain (e.g. myapp.com)
 	scheme string // "http" or "https"
 
 	// The site's database connection, resolved once per run.

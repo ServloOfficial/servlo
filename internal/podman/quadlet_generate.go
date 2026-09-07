@@ -52,7 +52,8 @@ func GenerateCustomQuadlet(svc *config.CustomService) string {
 
 	// Without an explicit mount podman derives /etc/hosts from the host's own,
 	// so a hand-added "127.0.0.1 servlo-<svc>" line there shadows container DNS.
-	// ShareHosts services get the browser variant for .test resolution instead.
+	// ShareHosts services get the shared variant, which resolves site domains
+	// to the nginx container instead of the host.
 	if svc.ShareHosts {
 		fmt.Fprintf(&b, "Volume=%s:/etc/hosts:ro,z\n", config.BrowserHostsFile())
 	} else {

@@ -202,7 +202,7 @@ type GlobalConfig struct {
 		Upstream []string `yaml:"upstream,omitempty" mapstructure:"upstream"`
 	} `yaml:"dns" mapstructure:"dns"`
 	Autostart struct {
-		// Disabled controls whether servlo boots itself at login. The
+		// Disabled controls whether servlo comes back after a reboot. The
 		// zero value (false) means servlo autostarts as it always has:
 		// every servlo-* container quadlet ships with its [Install]
 		// section, the podman generator wires it into

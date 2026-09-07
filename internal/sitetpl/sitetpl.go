@@ -22,7 +22,7 @@ import (
 type Ctx struct {
 	Site   string // database / handle name (underscored)
 	Bucket string // S3-safe bucket name (lowercase, hyphens)
-	Domain string // primary domain (e.g. myapp.test)
+	Domain string // primary domain (e.g. myapp.com)
 	Scheme string // "http" or "https"
 
 	// The site's database connection, which is where a definition gets its

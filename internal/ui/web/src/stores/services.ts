@@ -742,8 +742,8 @@ export function parentSiteDomain(s: Service): string | null {
     s.worker_site;
   if (!n) return null;
   // Use the actual registered domain from the sites store rather than
-  // constructing <name>.test, which silently breaks for sites with custom
-  // TLDs or non-default subdomains.
+  // constructing one from the site name, which silently breaks for sites with
+  // custom TLDs or non-default subdomains.
   const site = get(sites).find((x) => x.name === n);
   if (site && site.domain) return site.domain;
   return null;

@@ -1,6 +1,6 @@
 // Package grouping manages site groups: a main site that owns a base domain and
 // one or more secondary sites that each occupy a chosen subdomain label of that
-// base domain (e.g. astrolov.test + admin.astrolov.test). A secondary is a fully
+// base domain (e.g. astrolov.com + admin.astrolov.com). A secondary is a fully
 // independent site; grouping only computes its primary domain as
 // <label>.<main-domain> and drives the same nginx/cert/env regeneration the
 // domain commands use. nginx routes the exact subdomain to the secondary over

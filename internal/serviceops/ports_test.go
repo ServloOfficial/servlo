@@ -7,7 +7,24 @@ import (
 	"time"
 
 	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/freeport"
 )
+
+// freePort returns a port nothing currently holds, searching upward from start.
+//
+// These tests used to name ports outright. That made them fail whenever anything
+// else on the machine happened to be holding one, which turned pull requests red
+// for reasons having nothing to do with their changes — and the production path
+// right here already handles a taken port by shifting to the next one, so the
+// tests were stricter about the environment than the code they cover.
+func freePort(t *testing.T, start int) int {
+	t.Helper()
+	p := freeport.FirstFree(start, func(port int) bool { return !freeport.Bindable(port) })
+	if p == 0 {
+		t.Skipf("no free port at or above %d on this machine", start)
+	}
+	return p
+}
 
 // The guard's shift hook is silenced only while a SetPublishedPort window is
 // open, counted so overlapping windows both hold it, while the forced fire
@@ -259,7 +276,7 @@ func TestSetPublishedPortDefaultResetsNotCollides(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	if _, err := SetPublishedPort("mysql", 33071); err != nil {
+	if _, err := SetPublishedPort("mysql", freePort(t, 33000)); err != nil {
 		t.Fatalf("move off default: %v", err)
 	}
 	res, err := SetPublishedPort("mysql", 3306) // mysql's preset default
@@ -317,7 +334,7 @@ func TestSetPublishedPortRollsBackOnStartFailure(t *testing.T) {
 		return nil // the rollback restart on the previous port succeeds
 	}
 
-	if _, err := SetPublishedPort("mysql", 33072); err == nil {
+	if _, err := SetPublishedPort("mysql", freePort(t, 33000)); err == nil {
 		t.Fatal("a failed start must surface an error so the caller knows the change didn't take")
 	}
 	if startCalls != 2 {
@@ -555,15 +572,16 @@ func TestRestorePublishedPorts_RefreshesHostProxyToRestoredPort(t *testing.T) {
 	OnPublishedPortShift = func(_ string, port int) { fired = append(fired, port) }
 	t.Cleanup(func() { OnPublishedPortShift = prevHook })
 
-	if _, err := SetPublishedPort("mysql", 33061); err != nil {
+	seeded := freePort(t, 33000)
+	if _, err := SetPublishedPort("mysql", seeded); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	snap, ok := SnapshotPublishedPorts("mysql")
 	if !ok {
 		t.Fatal("snapshot !ok")
 	}
-	// The apply moved the primary and refreshed host-proxy .env to 33072.
-	if _, err := SetPublishedPort("mysql", 33072); err != nil {
+	// The apply moves the primary and refreshes host-proxy .env to the new port.
+	if _, err := SetPublishedPort("mysql", freePort(t, seeded+1)); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 
@@ -571,11 +589,11 @@ func TestRestorePublishedPorts_RefreshesHostProxyToRestoredPort(t *testing.T) {
 	if err := RestorePublishedPorts("mysql", snap); err != nil {
 		t.Fatalf("restore: %v", err)
 	}
-	if got := config.ServicePublishedPort("mysql"); got != 33061 {
-		t.Fatalf("port not restored, got %d want 33061", got)
+	if got := config.ServicePublishedPort("mysql"); got != seeded {
+		t.Fatalf("port not restored, got %d want %d", got, seeded)
 	}
 	// Exactly one refresh, carrying the restored port, so host-proxy .env follows.
-	if len(fired) != 1 || fired[0] != 33061 {
-		t.Errorf("rollback must refresh host-proxy sites to the restored port; fired=%v want [33061]", fired)
+	if len(fired) != 1 || fired[0] != seeded {
+		t.Errorf("rollback must refresh host-proxy sites to the restored port; fired=%v want [%d]", fired, seeded)
 	}
 }

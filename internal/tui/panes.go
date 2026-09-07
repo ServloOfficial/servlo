@@ -356,11 +356,19 @@ func (m *Model) renderFooter() string {
 		return helpStyle.Render("  filter: type to match · enter apply · esc clear")
 	}
 
+	return m.renderFootChips(m.footerChips())
+}
+
+// footerChips returns the key hints for the current tab and width. Split out of
+// renderFooter so a test can read what the footer advertises without a terminal:
+// two chips outlived their handlers and went on being printed for a phase and a
+// half, which is what TestFooterChipKeysAreHandled now catches.
+func (m *Model) footerChips() []footChip {
 	// Narrow terminals only have room for the essentials; `?` reveals the rest.
 	if m.width < narrowWidth {
-		return m.renderFootChips([]footChip{
+		return []footChip{
 			nav("ctrl+←→", "tabs"), nav("↑↓", "nav"), act("space", "toggle"), nav("?", "help"), act("q", "quit"),
-		})
+		}
 	}
 
 	// Context-aware: each tab shows only the keys that act on it, so the bar
@@ -376,16 +384,16 @@ func (m *Model) renderFooter() string {
 		chips = []footChip{
 			nav("ctrl+←→", "tabs"), nav("↑↓", "nav"), nav("/", "filter"),
 			act("s", "start"), act("x", "stop"), act("r", "restart"), act("u", "update"), act("b", "rollback"),
-			act("t", "shell"), act("O", "open"), nav("?", "help"), act("q", "quit"),
+			act("t", "shell"), nav("?", "help"), act("q", "quit"),
 		}
 	default: // tabSites
 		chips = []footChip{
 			nav("ctrl+←→", "tabs"), nav("tab", "panes"), nav("↑↓", "nav"), act("space", "toggle"), nav("/", "filter"),
 			act("s", "start"), act("x", "stop"), act("r", "restart"), nav("l", "logs"), act("t", "shell"),
-			nav("S", "settings"), nav("Y", "system"), nav("D", "debug"), nav("?", "help"), act("q", "quit"),
+			nav("S", "settings"), nav("Y", "system"), nav("?", "help"), act("q", "quit"),
 		}
 	}
-	return m.renderFootChips(chips)
+	return chips
 }
 
 func (m *Model) renderStatus() string {

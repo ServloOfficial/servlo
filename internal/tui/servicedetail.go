@@ -66,7 +66,7 @@ func serviceDetailContentLines(m *Model, svc *ServiceRow, innerW int) []string {
 		add(dimStyle.Render("  pinned:  ") + accentStyle.Render("yes (preset will not auto-update)"))
 	}
 	if svc.Dashboard != "" {
-		add(dimStyle.Render("  dashbd:  ") + svc.Dashboard + dimStyle.Render("  (") + accentStyle.Render("O") + dimStyle.Render(" to open)"))
+		add(dimStyle.Render("  dashbd:  ") + svc.Dashboard)
 	}
 	add("")
 
@@ -119,11 +119,7 @@ func serviceDetailContentLines(m *Model, svc *ServiceRow, innerW int) []string {
 	// Quick-action hint so the user discovers what's reversible from the
 	// services pane: matches what the help reference says.
 	add(sectionStyle.Render("Actions"))
-	actions := "  s start · x stop · r restart · t shell · u update · b rollback · l logs"
-	if svc.Dashboard != "" {
-		actions += " · O dashboard"
-	}
-	add(dimStyle.Render(actions))
+	add(dimStyle.Render("  s start · x stop · r restart · t shell · u update · b rollback · l logs"))
 	return out
 }
 

@@ -255,11 +255,11 @@ type CustomService struct {
 	// PreMigrateBackup is the absolute host path to the data dir that was
 	// preserved when the most recent op was a migrate.
 	PreMigrateBackup string `yaml:"pre_migrate_backup,omitempty"`
-	// ShareHosts mounts the browser-testing hosts file
+	// ShareHosts mounts the shared-hosts file
 	// (~/.local/share/servlo/browser-hosts) into the container at /etc/hosts,
-	// so the container can resolve .test domains to the nginx container's IP
-	// on the Podman network. Used by browser testing services like Selenium
-	// that need to reach servlo sites by domain name.
+	// so the container resolves every registered site domain to the nginx
+	// container's IP on the Podman network. Used by services that need to
+	// reach servlo sites by domain name from inside the network.
 	ShareHosts bool `yaml:"share_hosts,omitempty" json:"share_hosts,omitempty"`
 	// DynamicEnv declares container env vars whose value is computed at
 	// quadlet generation time. Supported directives:

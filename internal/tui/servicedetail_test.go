@@ -102,20 +102,20 @@ func TestServiceDetail_ShowsActionsHint(t *testing.T) {
 	}
 }
 
-func TestServiceDetail_ShowsOpenDashboardHint(t *testing.T) {
+// The pane used to print the URL alongside an "O to open" hint and an
+// "O dashboard" action, from when servlo could launch the operator's browser.
+// S0.6 deleted the launchers and left all three advertisements behind, so the
+// key did nothing at all when pressed. The URL itself stays: it is how the
+// operator reaches the dashboard, by copying it.
+func TestServiceDetail_ShowsDashboardURLWithoutAnOpenKey(t *testing.T) {
 	m := NewModel("test")
 	svc := &ServiceRow{Name: "rabbitmq", State: stateRunning, Dashboard: "http://localhost:15672"}
 	joined := stripANSI(strings.Join(serviceDetailContentLines(m, svc, 120), "\n"))
 	if !strings.Contains(joined, "http://localhost:15672") {
 		t.Errorf("expected the dashboard URL:\n%s", joined)
 	}
-	if !strings.Contains(joined, "to open") || !strings.Contains(joined, "O dashboard") {
-		t.Errorf("expected open hints next to the URL and in the actions line:\n%s", joined)
-	}
-
-	noDash := stripANSI(strings.Join(serviceDetailContentLines(m, &ServiceRow{Name: "redis", State: stateRunning}, 120), "\n"))
-	if strings.Contains(noDash, "O dashboard") {
-		t.Errorf("a service without a dashboard should not advertise the open action:\n%s", noDash)
+	if strings.Contains(joined, "to open") || strings.Contains(joined, "O dashboard") {
+		t.Errorf("the pane must not advertise an open key, which nothing handles:\n%s", joined)
 	}
 }
 

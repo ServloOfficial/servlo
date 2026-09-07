@@ -21,7 +21,7 @@ func NewSiteDoctorCmd() *cobra.Command {
 		Use:          "site:doctor [domain]",
 		Short:        "Run app-level health checks for a site",
 		Long:         "Run app-level health checks (env, dependencies, security audit, framework specifics) for a site. Defaults to the site in the current directory; pass a domain to target another.",
-		Example:      "  servlo site:doctor\n  servlo site:doctor acme.test\n  servlo site:doctor --json",
+		Example:      "  servlo site:doctor\n  servlo site:doctor acme.com\n  servlo site:doctor --json",
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, args []string) error {

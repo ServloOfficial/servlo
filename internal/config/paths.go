@@ -460,10 +460,10 @@ func ContainerHostsFile() string {
 	return filepath.Join(DataDir(), "hosts")
 }
 
-// BrowserHostsFile returns the path to the hosts file for browser testing
-// containers (e.g. Selenium). It maps .test domains to the nginx container's
-// IP so that Chromium inside the container can reach servlo sites directly over
-// the Podman network instead of going through the host gateway.
+// BrowserHostsFile returns the path to the hosts file mounted into containers
+// that declare ShareHosts. It maps every registered site domain to the nginx
+// container's IP so a container can reach servlo sites directly over the
+// Podman network instead of going through the host gateway.
 func BrowserHostsFile() string {
 	return filepath.Join(DataDir(), "browser-hosts")
 }

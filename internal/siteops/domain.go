@@ -51,9 +51,9 @@ func SiteName(dirName string) string {
 // surrounding space removed.
 //
 // It requires a fully qualified name. A bare label is refused rather than
-// completed, because completing it is exactly what this replaces: "myapp"
-// silently became "myapp.test", which resolved only on the machine that made it
-// up. An IP address is refused too: a certificate cannot be issued for one, and
+// completed, because completing it is exactly what this replaces: upstream
+// turned a bare "myapp" into a name under a TLD only the machine that made it
+// up resolved. An IP address is refused too: a certificate cannot be issued for one, and
 // a vhost keyed on an address serves every name that reaches it.
 func NormalizeDomain(raw string) (string, error) {
 	d := strings.TrimSpace(strings.ToLower(raw))
