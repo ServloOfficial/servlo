@@ -549,7 +549,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				_ = os.MkdirAll(dir, 0755)
 			}
 			envInfo("Creating empty %s (no example file found)...\n", envRelPath)
-			if err := os.WriteFile(envPath, emptyEnvFile(envFormat), 0644); err != nil {
+			if err := os.WriteFile(envPath, emptyEnvFile(envFormat), envfile.SecretMode); err != nil {
 				return fmt.Errorf("creating %s: %w", envRelPath, err)
 			}
 		} else {
@@ -1419,13 +1419,21 @@ func envFileHasServlo(path string) bool {
 	return strings.Contains(strings.ToLower(string(data)), "servlo")
 }
 
-// copyEnvFile copies src to dst with 0644 permissions.
+// copyEnvFile copies src to dst.
+//
+// The example file it copies is committed and public; the .env it becomes is
+// the file servlo writes the site's database password into moments later, so it
+// is created at the mode that file has to end up at rather than at the mode its
+// source happened to have.
 func copyEnvFile(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, data, 0644)
+	if err := os.WriteFile(dst, data, envfile.SecretMode); err != nil {
+		return err
+	}
+	return os.Chmod(dst, envfile.SecretMode)
 }
 
 // reverbEnvUpdates returns REVERB_ and VITE_REVERB_ env key→value pairs.

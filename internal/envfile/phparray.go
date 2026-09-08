@@ -97,14 +97,17 @@ func ApplyPhpArrayUpdates(path string, updates map[string]string) error {
 	// every target value still gets its mtime bumped and its formatting churned
 	// on every call, and this runs on every env sync.
 	if b.String() == original {
-		return nil
+		return secure(path)
 	}
 	if dir := filepath.Dir(path); dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}
 	}
-	return os.WriteFile(path, []byte(b.String()), 0o644)
+	if err := os.WriteFile(path, []byte(b.String()), SecretMode); err != nil {
+		return err
+	}
+	return secure(path)
 }
 
 func flatten(prefix string, v *phpValue, out map[string]string) {
