@@ -877,6 +877,31 @@ func TestEnsureDefaultVhost_writesDefaultConf(t *testing.T) {
 	}
 }
 
+// Anything waiting for a site to come up has to tell the site's own vhost from
+// the catch-all, because servlo answers an unlinked domain rather than refusing
+// the connection. The header is how it tells them apart, and it belongs to no
+// other server block.
+func TestDefaultVhost_namesItselfSoWaitersCanSkipIt(t *testing.T) {
+	setupConfD(t)
+	content := string(renderDefaultVhost())
+	want := "add_header " + CatchAllHeader + " " + CatchAllHeaderValue + " always;"
+	if !strings.Contains(content, want) {
+		t.Errorf("expected %q in:\n%s", want, content)
+	}
+}
+
+func TestSiteVhost_doesNotCarryTheCatchAllHeader(t *testing.T) {
+	confD := setupConfD(t)
+	site := config.Site{Name: "myapp", Domains: []string{"myapp.example"}, Path: "/srv/myapp"}
+	if err := GenerateVhost(site, "8.4"); err != nil {
+		t.Fatalf("GenerateVhost: %v", err)
+	}
+	content := readConf(t, filepath.Join(confD, "myapp.example.conf"))
+	if strings.Contains(content, CatchAllHeader) {
+		t.Errorf("a site's own vhost must not carry the catch-all header:\n%s", content)
+	}
+}
+
 func TestEnsureDefaultVhost_preservesUserEdits(t *testing.T) {
 	confD := setupConfD(t)
 	// First pass: servlo writes the canonical content + sentinel.

@@ -1191,6 +1191,21 @@ func WriteFileAtomic(path string, data []byte, mode os.FileMode) error {
 	return nil
 }
 
+// CatchAllHeader is set by the catch-all default server on every response it
+// serves, and by nothing else. A request that reaches this server matched no
+// registered site: either the domain is not linked, or it is linked and nginx
+// has not reloaded yet.
+//
+// The distinction matters to anything that waits for a site to come up. Servlo
+// answers an unlinked domain with a branded page rather than refusing the
+// connection, so "the domain answers over HTTP" is true well before the site
+// behind it exists. Waiters that took an answer as readiness drove application
+// installers against a site that was still the catch-all.
+const (
+	CatchAllHeader      = "X-Servlo-Site"
+	CatchAllHeaderValue = "none"
+)
+
 // renderDefaultVhost returns the canonical _default.conf content.
 // Separate from the writer so callers (and tests) can compute the same
 // bytes servlo would write without touching disk.
@@ -1201,6 +1216,7 @@ func renderDefaultVhost() []byte {
     listen [::]:80 default_server;
     root %s;
     location / {
+        add_header %s %s always;
         try_files /404.html =404;
         default_type text/html;
     }
@@ -1210,7 +1226,7 @@ server {
     listen [::]:443 default_server ssl;
     ssl_reject_handshake on;
 }
-`, nginxQuote(errorDir)))
+`, nginxQuote(errorDir), CatchAllHeader, CatchAllHeaderValue))
 }
 
 // contentHashHex is sha256 → hex, used as the managed-file sentinel value.
