@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -312,17 +311,6 @@ func stateChanging(method string) bool {
 		return true
 	}
 	return false
-}
-
-// sourceAddress is what the limiter counts against. It is the peer address,
-// not a forwarded header: a header is set by whoever is calling, so counting
-// against it lets an attacker reset their own budget on every request.
-func sourceAddress(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }
 
 func unauthorized(w http.ResponseWriter) {

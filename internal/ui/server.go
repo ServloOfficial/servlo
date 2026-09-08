@@ -338,7 +338,13 @@ func Start(currentVersion string) error {
 			unixSrv := &http.Server{
 				Handler: handler,
 				ConnContext: func(ctx context.Context, _ net.Conn) context.Context {
-					return context.WithValue(ctx, ctxKeyUnixSocket{}, true)
+					// Two markers, because they answer different questions. The
+					// first is whether the request may be treated as local; the
+					// second is whether servlo's own nginx put the client's real
+					// address in a header this process may believe. Only this
+					// listener sets either, and only filesystem access to the
+					// socket reaches it.
+					return authz.WithOwnProxy(context.WithValue(ctx, ctxKeyUnixSocket{}, true))
 				},
 			}
 			go func() {

@@ -66,6 +66,8 @@ The first few failures are free, because mistyping a passphrase is the common ca
 
 Doubling rather than a fixed delay, because a fixed delay is a rate an attacker plans around: at one attempt a second a dictionary still finishes overnight. And per source address, or anyone could deny you your own panel by guessing badly from somewhere else.
 
+Which address that is takes some care once a panel domain is attached, because then every remote request reaches the panel through Servlo's own nginx and they all share one peer address: nginx's. Counting against that is one bucket for the whole internet, which turns the lockout upside down, since an attacker guessing passwords would lock out every operator rather than themselves. So the address nginx recorded is used instead, but only for requests that arrived over the socket only nginx is on. A request that came straight to the port keeps its peer address and cannot talk Servlo out of it: a header is set by whoever is calling, and believing one from a direct client would let an attacker reset their own budget on every request. The audit log records the same address, so "who signed in from where" answers with a person rather than a proxy.
+
 The lockout holds against the right password too. One that let a correct guess through would only be slowing down an attacker who was going to fail anyway.
 
 The counter lives in the running panel rather than on disk. A restart clears it, which sounds like a weakness and is not: restarting Servlo needs access to the machine, and anyone with that has no reason to be guessing at the login. Persisting it would hand an attacker a disk write per attempt.
