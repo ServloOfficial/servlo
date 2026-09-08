@@ -24,9 +24,26 @@ echo "$ip $domain" | sudo tee -a /etc/hosts >/dev/null
 # The generated admin password is printed once, and this repository's CI logs
 # are public. Redacted on the way through rather than after the fact: `tee` to a
 # file and `cat` it later would have put it in the log twice.
+# The install's own exit status is not the assertion. When its final step — the
+# POST that drives the application's installer — fails, what matters next is
+# what the site actually serves, and aborting here threw that away. So it is
+# recorded and checked after the evidence has been gathered.
 cd "$HOME"
+install_ok=0
 servlo apps install "$app" "$domain" --admin-email ci@servlo.invalid --title "Servlo CI" 2>&1 |
-  sed -E 's/^(  Password  *).*/\1<redacted>/' | tee /tmp/app-install.log
+  sed -E 's/^(  Password  *).*/\1<redacted>/' | tee /tmp/app-install.log || install_ok=1
+
+if [ "$install_ok" -ne 0 ]; then
+  echo
+  echo "── the install reported a failure; what does the site serve? ──"
+  for path in / /wp-admin/install.php; do
+    code=$(curl -sS -o /tmp/body -w '%{http_code}' --max-time 20 --resolve "$domain:80:$ip" "http://$domain$path" || true)
+    echo "GET $path -> $code"
+    head -c 300 /tmp/body; echo
+  done
+  echo "── php-fpm's own output (the pool logs errors to container stderr) ──"
+  podman logs servlo-php85-fpm 2>&1 | tail -25 || true
+fi
 
 echo
 echo "── the site is registered ──"

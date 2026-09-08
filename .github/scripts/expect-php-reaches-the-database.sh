@@ -57,6 +57,19 @@ try {
 }
 PHP
 
+# The image checks turned production mode on earlier in this job, which sets
+# opcache.validate_timestamps=0 — PHP stops checking whether a file changed and
+# keeps serving the bytecode it already has. The page just written over the
+# fixture's own index.php is therefore invisible until the master re-reads.
+#
+# That is not a defect, it is what production mode is for, and servlo says so
+# itself: `servlo production on` prints "apply it to the running stack with:
+# servlo restart". Doing it here tests that instruction rather than working
+# around it. The first cut of this script did not, and the site answered with
+# the fixture's original string, which is exactly the failure a real operator
+# gets when they edit a file on a production box and nothing changes.
+servlo restart
+
 ip=$(ip -4 -o route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<NF;i++) if ($i=="src") print $(i+1)}')
 want="servlo-db:$domain survived"
 
@@ -72,7 +85,7 @@ if [ "$body" != "$want" ]; then
   echo "wanted: $want"
   echo "got:    ${body:-<nothing>}"
   curl -sS -i --max-time 15 --resolve "$domain:80:$ip" "http://$domain/" || true
-  echo "── fpm ──"; servlo logs --lines 60 2>&1 | tail -60 || true
+  echo "── fpm ──"; podman logs servlo-php85-fpm 2>&1 | tail -25 || true
   exit 1
 fi
 
