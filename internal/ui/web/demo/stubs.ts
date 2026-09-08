@@ -496,6 +496,8 @@ interface DemoAlert {
   at: string;
 }
 let demoAlerts = (structuredClone(alertsFixture) as { alerts: DemoAlert[] }).alerts;
+// Counts clicks on the Server state card so the demo can show both outcomes.
+let stateBackupsTaken = 0;
 
 // The security page. Mutable so authorising and removing a key in the demo
 // lands on the list, which is the only part of that page servlo really changes.
@@ -922,9 +924,25 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   }
 
   // Servlo's own state: what a rebuild onto a fresh machine needs.
+  //
+  // The second click answers with a destination that could not be reached, so
+  // the card's other state is reachable in the demo. An archive that stayed on
+  // the machine it is a backup of is the one case this backup exists for, and
+  // a card that looks identical either way is how nobody finds out.
   if (path === '/api/backup/state') {
     if (method === 'POST') {
-      return jsonResponse({ ok: true, name: 'servlo-state-20260309-141500.servlobak', size: 185344, files: 37 });
+      stateBackupsTaken += 1;
+      const sendErrors =
+        stateBackupsTaken % 2 === 0
+          ? ['s3: acme-backups: RequestTimeout after 30s', 'sftp: backup.example.net: connection refused']
+          : undefined;
+      return jsonResponse({
+        ok: true,
+        name: 'servlo-state-20260309-141500.servlobak',
+        size: 185344,
+        files: 37,
+        send_errors: sendErrors
+      });
     }
     return jsonResponse(serverStateFixture);
   }

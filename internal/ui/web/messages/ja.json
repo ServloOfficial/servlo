@@ -1389,6 +1389,7 @@
   "system_state_blurb": "Everything servlo knows that is not a site's files or data: the registry, the connections, the per-site database accounts and every setting. Restoring a site's archive onto a fresh machine without this gives you the files and a server with no idea what a site is.",
   "system_state_none": "No server-state backup has been taken on this machine.",
   "system_state_took": "Wrote {name}.",
+  "system_state_notSentOffsite": "This archive is on the server but could not be copied to a destination, so it would be lost with the machine.",
   "system_state_keyWarning": "A state archive never contains the backup key. Keep a copy of the key somewhere else, or these archives cannot be opened.",
   "common_beta": "beta"
 }

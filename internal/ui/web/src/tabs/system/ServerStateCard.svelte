@@ -20,6 +20,7 @@
   let taking = $state(false);
   let error = $state('');
   let justTook = $state('');
+  let sendErrors = $state<string[]>([]);
 
   async function refresh() {
     try {
@@ -41,6 +42,7 @@
     taking = true;
     error = '';
     justTook = '';
+    sendErrors = [];
     try {
       const res = await backUpServerState();
       if (!res.ok) {
@@ -48,6 +50,9 @@
         return;
       }
       justTook = res.name ?? '';
+      // A written archive that reached no destination is still only on this
+      // machine, which is the one thing this archive exists to survive.
+      sendErrors = res.send_errors ?? [];
       await refresh();
     } catch (e) {
       error = e instanceof Error ? e.message : m.common_failed();
@@ -101,6 +106,22 @@
 
   {#if justTook}
     <p class="mt-2 text-xs text-green-600 dark:text-green-500">{m.system_state_took({ name: justTook })}</p>
+  {/if}
+
+  <!-- Boxed, because the standing note about the backup key below is amber too
+       and two amber paragraphs in a row read as one. This is a result of the
+       click just made; that one is always true. -->
+  {#if sendErrors.length}
+    <div class="mt-2 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-2.5">
+      <p class="text-xs font-medium text-amber-700 dark:text-amber-400">{m.system_state_notSentOffsite()}</p>
+      <ul class="mt-1.5 space-y-1">
+        {#each sendErrors as reason (reason)}
+          <li class="flex gap-1.5 text-[11px] font-mono text-amber-800/80 dark:text-amber-200/70 break-all">
+            <span aria-hidden="true" class="shrink-0">&bull;</span><span>{reason}</span>
+          </li>
+        {/each}
+      </ul>
+    </div>
   {/if}
 
   {#if error}

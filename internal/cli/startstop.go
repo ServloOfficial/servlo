@@ -493,6 +493,12 @@ func runStart(_ *cobra.Command, _ []string) error {
 	if err := logrotate.ApplySchedule(logrotate.Enabled(), servloBinaryPath()); err != nil {
 		feedback.Warn("arming log rotation: %v", err)
 	}
+	// The server's own nightly state backup. Every install gets it: a machine
+	// backing its sites up nightly while the registry that makes them
+	// restorable ages is the gap a rebuild finds.
+	if err := backup.ApplyStateSchedule(true, servloBinaryPath()); err != nil {
+		feedback.Warn("arming the server's own backup: %v", err)
+	}
 
 	// If the configured default PHP version has never been installed (no plist /
 	// quadlet / container), install it now so coreUnits() can include it.

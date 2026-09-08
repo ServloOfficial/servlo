@@ -58,8 +58,12 @@ func TestHandleServerState_EmptyIsAListWithNothingInIt(t *testing.T) {
 
 func TestHandleServerState_CreatesOneAndNamesIt(t *testing.T) {
 	stateSandbox(t)
-	defer swapWriteState(func(dir string, key []byte, opts backup.StateOptions) (string, backup.Manifest, int64, error) {
-		return filepath.Join(dir, "servlo-state-20260309-120000.servlobak"), backup.Manifest{Files: 31}, 20481, nil
+	defer swapBackUpState(func([]byte, backup.StateOptions) (backup.Record, error) {
+		return backup.Record{
+			Path:     filepath.Join(config.SiteBackupsDir(), "servlo-state-20260309-120000.servlobak"),
+			Size:     20481,
+			Manifest: backup.Manifest{Files: 31},
+		}, nil
 	})()
 
 	var got ServerStateCreated
@@ -76,8 +80,8 @@ func TestHandleServerState_CreatesOneAndNamesIt(t *testing.T) {
 // a card that lets an operator believe they have a backup they do not have.
 func TestHandleServerState_ReportsAFailureToWrite(t *testing.T) {
 	stateSandbox(t)
-	defer swapWriteState(func(string, []byte, backup.StateOptions) (string, backup.Manifest, int64, error) {
-		return "", backup.Manifest{}, 0, errors.New("no space left on device")
+	defer swapBackUpState(func([]byte, backup.StateOptions) (backup.Record, error) {
+		return backup.Record{}, errors.New("no space left on device")
 	})()
 
 	var got ServerStateCreated
@@ -115,10 +119,10 @@ func writeArchive(t *testing.T, path string, size int) {
 	}
 }
 
-func swapWriteState(fn func(string, []byte, backup.StateOptions) (string, backup.Manifest, int64, error)) func() {
-	old := writeState
-	writeState = fn
-	return func() { writeState = old }
+func swapBackUpState(fn func([]byte, backup.StateOptions) (backup.Record, error)) func() {
+	old := backUpState
+	backUpState = fn
+	return func() { backUpState = old }
 }
 
 func getState(t *testing.T, into any) {

@@ -6,7 +6,6 @@ import (
 
 	"github.com/ServloOfficial/servlo/internal/backup"
 	"github.com/ServloOfficial/servlo/internal/config"
-	"github.com/ServloOfficial/servlo/internal/version"
 )
 
 // Backing up the server's own state from the panel.
@@ -41,11 +40,22 @@ type ServerStateCreated struct {
 	Name  string `json:"name,omitempty"`
 	Size  int64  `json:"size,omitempty"`
 	Files int    `json:"files,omitempty"`
+	// SendErrors is one entry per destination the archive could not be copied
+	// to. The archive is on this server either way, so these travel beside a
+	// successful write rather than instead of one.
+	SendErrors []string `json:"send_errors,omitempty"`
 }
 
-// writeState is a seam: the real one reaches the filesystem and every
-// credential servlo holds.
-var writeState = backup.WriteState
+// backUpState is a seam: the real one reaches the filesystem, every credential
+// servlo holds, and whatever destinations the operator has configured.
+//
+// It is the shared runner rather than the bare archive writer, so the button
+// and `servlo backup state` do the same thing. They did not: both wrote an
+// archive to local disk and neither sent it anywhere, which made the panel's
+// Server state card a backup of the machine, kept on the machine.
+var backUpState = func(key []byte, opts backup.StateOptions) (backup.Record, error) {
+	return backup.ForState().Run(key, opts)
+}
 
 // handleServerState answers GET /api/backup/state with what exists and POST
 // with one more.
@@ -69,12 +79,22 @@ func handleServerState(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, ServerStateCreated{Error: err.Error()})
 			return
 		}
-		path, man, size, err := writeState(config.SiteBackupsDir(), key, backup.StateOptions{Version: version.Version})
+		rec, err := backUpState(key, backup.StateOptions{})
 		if err != nil {
 			writeJSON(w, ServerStateCreated{Error: err.Error()})
 			return
 		}
-		writeJSON(w, ServerStateCreated{OK: true, Name: baseName(path), Size: size, Files: man.Files})
+		// A destination that could not be reached is said here rather than
+		// swallowed: the card's whole claim is that this archive is somewhere
+		// other than this machine.
+		var sendErrors []string
+		for _, sendErr := range rec.SendErrors {
+			sendErrors = append(sendErrors, sendErr.Error())
+		}
+		writeJSON(w, ServerStateCreated{
+			OK: true, Name: baseName(rec.Path), Size: rec.Size,
+			Files: rec.Manifest.Files, SendErrors: sendErrors,
+		})
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
