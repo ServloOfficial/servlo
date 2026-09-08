@@ -192,3 +192,43 @@ func Remove(dir, site string) error {
 	}
 	return nil
 }
+
+// keepaliveName sorts before any site's pool so a reader scanning the directory
+// meets the explanation first. The "zz-" the image used would have sorted it
+// last, behind the pools it exists to stand in for.
+const keepaliveName = "00-servlo-keepalive.conf"
+
+// KeepalivePath is the placeholder pool inside dir.
+func KeepalivePath(dir string) string { return filepath.Join(dir, keepaliveName) }
+
+// WriteKeepalive puts a pool in dir that owns no site and serves no traffic.
+//
+// The quadlet mounts this directory over /usr/local/etc/php-fpm.d, which is
+// where the image's own [www] pool lives, so the mount hides it. php-fpm exits
+// when it can find no pool at all, and systemd restarts it into a loop. On a
+// fresh install there are no sites, so there are no pool files, so that is
+// exactly what happened: install reported success and left PHP-FPM restarting
+// forever, which took `servlo php`, `servlo composer` and every shim with it
+// until the operator happened to link their first site.
+//
+// It listens on FPM's default 127.0.0.1:9000 inside the container, which
+// nothing routes to — nginx addresses each site by its own unix socket. Its
+// whole job is to be a pool that exists.
+func WriteKeepalive(dir string) (string, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	body := "; Written by servlo. This pool owns no site and serves no requests.\n" +
+		"; php-fpm refuses to start with no pool defined, and this directory is\n" +
+		"; empty until the first site is linked, so without this the container\n" +
+		"; restart-loops on a fresh install. Safe to leave alone.\n" +
+		"[servlo-keepalive]\n" +
+		"listen = 127.0.0.1:9000\n" +
+		"pm = static\n" +
+		"pm.max_children = 1\n"
+	path := KeepalivePath(dir)
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}

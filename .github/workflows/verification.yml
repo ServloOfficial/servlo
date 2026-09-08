@@ -44,9 +44,10 @@ jobs:
       - name: Install servlo
         run: .github/scripts/install-servlo.sh
 
-      # Before any site exists. The shims have to work on a fresh install with
-      # zero registered sites, which is the state an operator's first
-      # `servlo php -v` runs in.
+      # Before any site exists, deliberately. The shims have to work on a fresh
+      # install with zero registered sites, which is the state an operator's
+      # first `servlo php -v` runs in — and the state in which this job first
+      # found PHP-FPM crash-looping behind a successful install.
       - name: The image is what the Containerfile promises
         run: .github/scripts/expect-php.sh
 
@@ -59,11 +60,18 @@ jobs:
       - name: PHP reaches the database, through nginx and its own pool
         run: .github/scripts/expect-php-reaches-the-database.sh "$SITE"
 
+      # php-fpm failing to start is the one thing these jobs kept hitting, and
+      # its reason is in the unit's journal rather than anywhere servlo prints.
       - name: What the runtime looked like
         if: always()
         run: |
           servlo status || true
           servlo php:list || true
+          systemctl --user list-units 'servlo-*' --all --no-pager || true
+          echo "── php-fpm journal ──"
+          journalctl --user -u 'servlo-php*-fpm' -n 60 --no-pager || true
+          echo "── pool directory (empty here means no pool, which php-fpm exits on) ──"
+          ls -la ~/.local/share/servlo/fpm-pools/*/ || true
           podman images || true
           podman ps -a || true
 
@@ -103,4 +111,15 @@ jobs:
           servlo status || true
           servlo sites || true
           systemctl --user list-units 'servlo-*' --all --no-pager || true
+          echo "── php-fpm journal ──"
+          journalctl --user -u 'servlo-php*-fpm' -n 60 --no-pager || true
+          echo "── nginx ──"
+          podman logs servlo-nginx 2>&1 | tail -40 || true
+          # A 405 on a POST to a .php path means nginx served it as a static
+          # file, which means the vhost was generated without a PHP upstream.
+          # The vhost and the pool it points at are what settle that.
+          echo "── generated vhosts ──"
+          cat ~/.local/share/servlo/nginx/conf.d/*.conf 2>/dev/null || true
+          echo "── pool files ──"
+          ls -la ~/.local/share/servlo/fpm-pools/*/ || true
           podman ps -a || true

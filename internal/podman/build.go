@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/fpmpool"
 	"github.com/ServloOfficial/servlo/internal/origin"
 )
 
@@ -757,12 +758,26 @@ func hasHostGatewayEntry(path string) bool {
 // happen after the quadlet on a fresh install, so the shared FPM came up only
 // once something else had happened to create them.
 //
+// Existing is not enough for the pool directory, though, and that is the second
+// half of the same bug. The quadlet mounts it over /usr/local/etc/php-fpm.d,
+// which is where the image keeps its own pool, so an empty directory does not
+// leave FPM with the image's default: it leaves FPM with nothing. php-fpm exits
+// when no pool is defined and systemd restarts it into a loop, which is what a
+// fresh install did — it has no sites, so it wrote no pools — while reporting
+// that it had succeeded. The keepalive is a pool that owns no site, so the
+// directory is never empty and the container the shims depend on is up from the
+// first minute rather than from the first linked site.
+//
 // The drop-in is created empty rather than with a body, because what goes in it
 // is the production flag's answer and this is not the place that knows it. The
 // next start writes the real contents over the top.
 func ensureFPMMounts(version string) error {
-	if err := os.MkdirAll(config.FPMPoolDir(SharedFPMContainerName(version)), 0755); err != nil {
+	poolDir := config.FPMPoolDir(SharedFPMContainerName(version))
+	if err := os.MkdirAll(poolDir, 0755); err != nil {
 		return fmt.Errorf("creating the FPM pool directory: %w", err)
+	}
+	if _, err := fpmpool.WriteKeepalive(poolDir); err != nil {
+		return fmt.Errorf("writing the keepalive pool: %w", err)
 	}
 
 	path := config.ProductionIniFile()
