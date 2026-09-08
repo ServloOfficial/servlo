@@ -1007,8 +1007,19 @@ func RepairVhosts() []VhostRepair {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".conf") {
 			continue
 		}
-		// Skip internal configs (default catch-all and servlo dashboard proxy).
-		if entry.Name() == "_default.conf" || entry.Name() == "servlo.localhost.conf" {
+		// Skip internal configs (default catch-all, servlo dashboard proxy, and
+		// the panel's own domain vhost).
+		//
+		// The panel one matters most. This scan matches a file against the
+		// sites by its filename, and no site is called servlo-panel, so a
+		// secured panel vhost whose certificate is missing falls through to the
+		// orphan branch below and is deleted: the operator's panel domain stops
+		// being served, quietly, and the config still says it is set. Whether
+		// that vhost is secured is ApplyPanelDomain's to decide, and it decides
+		// it on every start from whether the certificate exists, which is the
+		// same question this scan asks.
+		if entry.Name() == "_default.conf" || entry.Name() == "servlo.localhost.conf" ||
+			entry.Name() == panelVhostFile {
 			continue
 		}
 
@@ -1426,8 +1437,12 @@ func EnsureServloVhost() error {
     }
 }
 `, config.UISocketPath())
-	config.GuardRealWrite(filepath.Join(config.NginxConfD(), "servlo.localhost.conf"))
-	return os.WriteFile(filepath.Join(config.NginxConfD(), "servlo.localhost.conf"), []byte(content), 0644)
+	// The dashboard vhost goes through the same commit as every other: it is
+	// one more file in the directory nginx loads whole, and one it refuses
+	// stops the sites, not only the dashboard.
+	dashboardPath := filepath.Join(config.NginxConfD(), "servlo.localhost.conf")
+	config.GuardRealWrite(dashboardPath)
+	return commitVhost(dashboardPath, []byte(content))
 }
 
 // EnsureNginxConfig copies the base nginx.conf to the data dir if it is missing.

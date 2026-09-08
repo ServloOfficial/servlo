@@ -22,6 +22,7 @@ var panelVhostFiles = []string{
 	"internal/nginx/manager.go",
 	"internal/nginx/manager_test.go",
 	"internal/nginx/panel_vhost.go",
+	"internal/nginx/panelvhost_commit_test.go",
 	"internal/ui/dashproxy.go",
 	"internal/ui/dashproxy_test.go",
 	"internal/ui/local_control_test.go",
