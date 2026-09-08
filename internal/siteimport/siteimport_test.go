@@ -1,6 +1,7 @@
 package siteimport
 
 import (
+	"github.com/ServloOfficial/servlo/internal/config"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,5 +90,37 @@ func TestImport_ChecksTheDumpBeforeRegisteringAnything(t *testing.T) {
 	}
 	if _, statErr := os.Stat(filepath.Join(root, "data", "servlo", "sites.yaml")); statErr == nil {
 		t.Error("a site was registered even though the import was refused")
+	}
+}
+
+// An imported site has to be in the registry, and it was not in it at all.
+//
+// Import writes the artifacts through siteops.FinishLink — pool, vhost, quadlet
+// — but adding the site to sites.yaml happens a layer up in linker.Apply, and
+// this path does not go through linker. So `servlo import` produced a site
+// nginx served and nothing else knew about: absent from `servlo sites`, skipped
+// by backups and cron, and invisible to `servlo secure`, which is exactly what
+// the command's own last line tells the operator to run next.
+func TestImport_PutsTheSiteInTheRegistry(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
+	site := filepath.Join(root, "acme")
+	write(t, filepath.Join(site, "index.php"), "<?php\n")
+
+	orig := finishLink
+	finishLink = func(config.Site, string) error { return nil }
+	t.Cleanup(func() { finishLink = orig })
+
+	if _, err := Import(Options{Path: site, Domain: "acme.example"}); err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+
+	got, err := config.FindSiteByDomain("acme.example")
+	if err != nil {
+		t.Fatalf("the imported site is not in the registry, so nothing but nginx knows it exists: %v", err)
+	}
+	if got.Path != site {
+		t.Errorf("the registered site points at %q, want %q", got.Path, site)
 	}
 }

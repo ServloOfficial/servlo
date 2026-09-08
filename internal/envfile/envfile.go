@@ -33,10 +33,6 @@ func ApplyUpdates(path string, updates map[string]string) error {
 			return fmt.Errorf("value for %q: %w", k, err)
 		}
 	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return err
-	}
 	original, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -106,9 +102,15 @@ func ApplyUpdates(path string, updates map[string]string) error {
 		out += "\n"
 	}
 	if out == string(original) {
-		return nil
+		// Still narrowed. A .env servlo created at 0644 before this was
+		// enforced holds the same password it holds today, and the next env
+		// sync is when servlo gets to notice.
+		return secure(path)
 	}
-	return os.WriteFile(path, []byte(out), info.Mode().Perm())
+	if err := os.WriteFile(path, []byte(out), SecretMode); err != nil {
+		return err
+	}
+	return secure(path)
 }
 
 // validateEnvKey rejects keys that would corrupt .env structure if written

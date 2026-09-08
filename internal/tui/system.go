@@ -21,7 +21,6 @@ const (
 	sysInfo
 	sysNotifEnabled
 	sysAutostart
-	sysWorkerMode
 )
 
 // systemRow is one line in the System detail view. value is shown dimmed on
@@ -170,13 +169,6 @@ func (m *Model) systemToggle(rows []systemRow) tea.Cmd {
 		}
 		m.setStatus("autostart "+sub+"…", 5*time.Second)
 		return runServlo("", "autostart", sub)
-	case sysWorkerMode:
-		target := config.WorkerExecModeContainer
-		if row.on {
-			target = config.WorkerExecModeExec
-		}
-		m.setStatus("switching worker mode to "+target+"…", 5*time.Second)
-		return runServlo("", "workers", "mode", target)
 	}
 	return nil
 }
@@ -224,9 +216,8 @@ func systemContentLinesWithCursor(m *Model, focused bool, innerW int) ([]string,
 	return out, cursorLine
 }
 
-// renderSystemInfoRow formats a left-label / right-value line, e.g.
-// "  TLD                 test". Keeps padding consistent with toggle rows
-// so the columns line up.
+// renderSystemInfoRow formats a left-label / right-value line. Keeps padding
+// consistent with toggle rows so the columns line up.
 func renderSystemInfoRow(label, value string) string {
 	padded := label
 	if w := len([]rune(label)); w < 18 {

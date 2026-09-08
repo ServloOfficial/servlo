@@ -1,0 +1,122 @@
+name: Verification
+
+# What a droplet pass would check, minus the droplet.
+#
+# The resilience workflow proves the machine survives losing itself. This one
+# proves the things an operator does on the first afternoon actually work:
+# that the PHP image is the one the Containerfile promises, that a page served
+# by it can reach the database, and that a one-click application install ends
+# with a site somebody can log into.
+#
+# Every line here was previously a claim only the unit tests made, with the
+# operating system stubbed out. None of it replaces the droplet pass — a runner
+# has no public IP, no registrar and no real Let's Encrypt — but it moves the
+# part that does not need any of those onto a real machine.
+
+on:
+  push:
+    branches: ["main", "release/**"]
+  pull_request:
+    branches: ["main", "release/**"]
+
+jobs:
+  php:
+    name: PHP, its image, and the database behind it
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SITE: ci-php.example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: internal/ui/web/package-lock.json
+
+      - name: Prepare the rootless runtime
+        run: .github/scripts/prepare-runtime.sh
+
+      - name: Install servlo
+        run: .github/scripts/install-servlo.sh
+
+      # Before any site exists, deliberately. The shims have to work on a fresh
+      # install with zero registered sites, which is the state an operator's
+      # first `servlo php -v` runs in — and the state in which this job first
+      # found PHP-FPM crash-looping behind a successful install.
+      - name: The image is what the Containerfile promises
+        run: .github/scripts/expect-php.sh
+
+      - name: Create a site with a database
+        run: .github/scripts/make-site.sh "$SITE" servlo_ci_php
+
+      - name: It serves
+        run: .github/scripts/expect-serving.sh "$SITE"
+
+      - name: PHP reaches the database, through nginx and its own pool
+        run: .github/scripts/expect-php-reaches-the-database.sh "$SITE"
+
+      # Deliberately terse, and only on failure. A CI log is retrievable from
+      # the end, so a chatty always-block buries the failure it exists to
+      # explain — which is exactly what happened on the second run.
+      - name: What the runtime looked like
+        if: failure()
+        run: |
+          systemctl --user list-units 'servlo-php*' --all --no-pager || true
+          echo "── pools (empty means no pool, which php-fpm exits on) ──"
+          ls ~/.local/share/servlo/fpm-pools/*/ || true
+          journalctl --user -u servlo-php85-fpm -n 40 --no-pager -o cat 2>/dev/null | grep -iE 'error|fatal|warn|fail|no pool' | tail -8 || true
+
+  app-install:
+    name: A one-click application install ends in a login page
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      APP_SITE: ci-blog.example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: internal/ui/web/package-lock.json
+
+      - name: Prepare the rootless runtime
+        run: .github/scripts/prepare-runtime.sh
+
+      - name: Install servlo
+        run: .github/scripts/install-servlo.sh
+
+      - name: Wait for the database engine
+        run: .github/scripts/wait-for-db.sh
+
+      - name: Install WordPress on a domain
+        run: .github/scripts/expect-app-install.sh wordpress "$APP_SITE"
+
+      # Terse and failure-only, for the reason above. The pool listing is kept
+      # because it is what identified the version-less container the first time.
+      - name: What the runtime looked like
+        if: failure()
+        run: |
+          servlo sites || true
+          echo "── pools ──"
+          ls ~/.local/share/servlo/fpm-pools/*/ || true
+          # "File not found." from php-fpm means the script path it was handed
+          # does not exist, so what settles it is the root nginx sends, the
+          # directory the pool chdirs into, and what is actually on disk.
+          echo "── vhost root and php upstream ──"
+          grep -hE '^\s*(root|fastcgi_pass)' ~/.local/share/servlo/nginx/conf.d/*.conf 2>/dev/null || echo "NO vhost wires PHP"
+          echo "── pool chdir ──"
+          grep -h chdir ~/.local/share/servlo/fpm-pools/*/*.conf 2>/dev/null || true
+          echo "── what is actually in the site directory ──"
+          ls -a ~/"$APP_SITE" 2>/dev/null | head -20 || echo "the site directory is not there"
+          ls ~/"$APP_SITE"/wp-admin/install.php 2>/dev/null || echo "wp-admin/install.php is NOT on disk"
+          journalctl --user -u servlo-php85-fpm -n 40 --no-pager -o cat 2>/dev/null | grep -iE 'error|fatal|warn|fail|no pool' | tail -8 || true

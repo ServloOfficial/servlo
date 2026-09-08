@@ -21,8 +21,8 @@ func fakeSnap() Snapshot {
 			{Name: "gotenberg", State: statePaused, SiteCount: 0},
 		},
 		Status: StatusRow{
-			TLD: "test", NginxRunning: true,
-			PHPRunning: []string{"8.3"},
+			NginxRunning: true,
+			PHPRunning:   []string{"8.3"},
 		},
 	}
 }

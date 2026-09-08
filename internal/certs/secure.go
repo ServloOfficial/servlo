@@ -50,13 +50,35 @@ func ReissueCert(site config.Site) error {
 	return issueSiteCert(site)
 }
 
-// EnsureCert reuses the site's existing certificate when it is still valid and
-// clear of the reissue window, otherwise reissues one. Unlike ReissueCert it
-// never forces, so it is cheap to call on every boot/watcher pass as the routine
-// self-heal that keeps a long-lived secured site's leaf cert from expiring.
-func EnsureCert(site config.Site) error {
+// RenewIfDue reissues the site's certificate when it has drifted inside the
+// reissue window, and leaves a healthy one alone. Unlike ReissueCert it never
+// forces, so it is cheap to call on every boot and every watcher pass, which is
+// what keeps a long-lived secured site from quietly serving an expired leaf.
+//
+// It reports whether it actually reissued, because nginx goes on serving the
+// certificate it loaded at its last reload: a renewal nobody reloads for is a
+// new file on disk and an old certificate on the wire.
+func RenewIfDue(site config.Site) (renewed bool, err error) {
 	certsDir, domains := siteCertDomains(site)
-	return IssueCert(site.PrimaryDomain(), domains, certsDir)
+	if !NeedsRenewal(site) {
+		return false, nil
+	}
+	if err := IssueCertForce(site.PrimaryDomain(), domains, certsDir); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// NeedsRenewal reports whether the site's certificate is missing, unreadable,
+// expired, or close enough to expiry to be reissued now.
+func NeedsRenewal(site config.Site) bool {
+	certsDir, _ := siteCertDomains(site)
+	certFile := filepath.Join(certsDir, site.PrimaryDomain()+".crt")
+	keyFile := filepath.Join(certsDir, site.PrimaryDomain()+".key")
+	if _, err := os.Stat(keyFile); err != nil {
+		return true
+	}
+	return certNeedsReissue(certFile, certReissueWindow)
 }
 
 // siteCertDomains assembles the cert output directory and the SAN list shared by

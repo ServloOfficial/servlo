@@ -7,7 +7,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
@@ -70,9 +69,7 @@ func detailRows(s *siteinfo.EnrichedSite) []detailRow {
 	if s.NodeVersion != "" {
 		rows = append(rows, detailRow{kind: kindNode})
 	}
-	if cfg, _ := config.LoadGlobal(); cfg == nil || cfg.DNS.Enabled {
-		rows = append(rows, detailRow{kind: kindHTTPS})
-	}
+	rows = append(rows, detailRow{kind: kindHTTPS})
 	if s.HasQueueWorker {
 		rows = append(rows, detailRow{kind: kindWorker, workerName: "queue"})
 	}
@@ -162,43 +159,15 @@ func (m *Model) removeFocusedDomain() (handled bool, cmd tea.Cmd) {
 	if row.kind != kindDomain {
 		return false, nil
 	}
-	short := trimTLD(row.domain)
 	sitePath := s.Path
 	siteName := s.Name
 	full := row.domain
 	m.openConfirm(
 		"Remove domain",
 		"Remove "+full+" from "+siteName+"?\nThis unregisters the alias from nginx immediately.",
-		runServlo(sitePath, "domain", "remove", short),
+		runServlo(sitePath, "domain", "remove", full),
 	)
 	return true, nil
-}
-
-// trimTLD strips the configured TLD suffix from a full domain so the short
-// form is what `servlo domain add/remove` expects. Falls back to stripping
-// the last dotted component if the config can't be read.
-func trimTLD(full string) string {
-	cfg, _ := config.LoadGlobal()
-	if cfg != nil && cfg.DNS.TLD != "" {
-		if trimmed := strings.TrimSuffix(full, "."+cfg.DNS.TLD); trimmed != full {
-			return trimmed
-		}
-	}
-	if i := strings.LastIndexByte(full, '.'); i >= 0 {
-		return full[:i]
-	}
-	return full
-}
-
-// currentTLD returns the configured TLD, defaulting to "test" when global
-// config can't be read. Centralised so the handful of call sites don't
-// each have to inline the fallback.
-func currentTLD() string {
-	cfg, _ := config.LoadGlobal()
-	if cfg != nil && cfg.DNS.TLD != "" {
-		return cfg.DNS.TLD
-	}
-	return "test"
 }
 
 func (m *Model) toggleWorker(s *siteinfo.EnrichedSite, name string) tea.Cmd {

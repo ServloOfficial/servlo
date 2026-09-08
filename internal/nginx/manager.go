@@ -1191,6 +1191,21 @@ func WriteFileAtomic(path string, data []byte, mode os.FileMode) error {
 	return nil
 }
 
+// CatchAllHeader is set by the catch-all default server on every response it
+// serves, and by nothing else. A request that reaches this server matched no
+// registered site: either the domain is not linked, or it is linked and nginx
+// has not reloaded yet.
+//
+// The distinction matters to anything that waits for a site to come up. Servlo
+// answers an unlinked domain with a branded page rather than refusing the
+// connection, so "the domain answers over HTTP" is true well before the site
+// behind it exists. Waiters that took an answer as readiness drove application
+// installers against a site that was still the catch-all.
+const (
+	CatchAllHeader      = "X-Servlo-Site"
+	CatchAllHeaderValue = "none"
+)
+
 // renderDefaultVhost returns the canonical _default.conf content.
 // Separate from the writer so callers (and tests) can compute the same
 // bytes servlo would write without touching disk.
@@ -1201,6 +1216,7 @@ func renderDefaultVhost() []byte {
     listen [::]:80 default_server;
     root %s;
     location / {
+        add_header %s %s always;
         try_files /404.html =404;
         default_type text/html;
     }
@@ -1210,7 +1226,7 @@ server {
     listen [::]:443 default_server ssl;
     ssl_reject_handshake on;
 }
-`, nginxQuote(errorDir)))
+`, nginxQuote(errorDir), CatchAllHeader, CatchAllHeaderValue))
 }
 
 // contentHashHex is sha256 → hex, used as the managed-file sentinel value.
@@ -1338,26 +1354,13 @@ func writeErrorPages() error {
 // which reverse-proxies to the servlo-panel process running on the host so the
 // browser's URL bar stays on servlo.localhost (no redirect to localhost:7073).
 //
-// The upstream differs by platform because container → host connectivity
-// works differently on each:
-//
-//   - Linux: servlo-nginx runs in a rootless podman bridge. Reaching the
-//     host over TCP via host.containers.internal depends on netavark /
-//     pasta wiring up the 169.254.1.2 alias, which silently breaks
-//     across podman versions and host network changes. We bind-mount
-//     servlo-panel's unix socket into the container instead — filesystem
-//     access only, no networking, no detection. servlo-panel marks
-//     socket-arriving requests as loopback in isLoopbackRequest.
-//
-//   - macOS: servlo-panel runs as a native macOS process and servlo-nginx runs
-//     inside the podman-machine VM. Unix sockets don't traverse the
-//     virtio-fs / 9p hypervisor boundary as functional sockets, so
-//     binding one on the macOS host doesn't help the VM. We fall back
-//     to TCP via host.containers.internal:7073 — gvproxy reliably
-//     forwards this on podman-machine, and the request carries an
-//     X-Servlo-Trust header that the gate matches against the per-install
-//     token (proxy_set_header overwrites any client-supplied value, so
-//     a LAN attacker can't inject it).
+// servlo-nginx runs in a rootless podman bridge, so reaching the host over TCP
+// via host.containers.internal depends on netavark and pasta wiring up the
+// 169.254.1.2 alias, which silently breaks across podman versions and host
+// network changes. servlo-panel's unix socket is bind-mounted into the
+// container instead: filesystem access only, no networking, nothing to detect.
+// servlo-panel marks socket-arriving requests as loopback in
+// isLoopbackRequest.
 //
 // .localhost is RFC 6761 reserved and always resolves to the visiting
 // device's loopback, so this vhost is unreachable from a LAN browser doing

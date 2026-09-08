@@ -150,6 +150,8 @@ Without the key first, nothing opens: servlo will have generated a key of its ow
 
 The engine is reinstalled after the state, and not before, for a reason of the same shape. servlo's service password lives in the config directory a state archive carries, and MySQL bakes the password it is handed into its data directory the first time it starts. The engine the install put on the new machine is therefore holding that machine's password while the restored config holds the old one, and every dump load afterwards is refused with an access denied that says nothing about backups. Reinstalling recreates it from the restored config. There is nothing to lose to `--reset-data` on a machine being rebuilt, and the databases the sites need are created as each site archive goes back.
 
+Between the state and the last site archive the registry is ahead of the disk: every site is registered and none of their directories are back yet. The watcher's stale sweep would read that as projects the operator had deleted and unregister them, so a restore records that it is happening and the sweep holds off for two hours, pushed out again by each site archive that goes back. What that costs is a directory you really did delete lingering in the registry until the window closes. What it buys is a rebuild that does not eat itself while you work through a dozen archives.
+
 Two things a restore cannot give back, both said plainly at the end of one:
 
 - **Certificates are reissued, not restored.** Let's Encrypt binds them to the domain, and DNS has to point at the new server before it will issue. Point DNS, then run `servlo secure` per site.

@@ -371,6 +371,12 @@ func newWatchCmd() *cobra.Command {
 			// and keep the alert list in step both ways.
 			go monitor.Watch(monitor.Interval)
 
+			// Renew the certificates of secured sites as they age into the
+			// reissue window. A Let's Encrypt leaf lasts ninety days and
+			// nothing here renewed one, so every secured site on an install
+			// went down together three months in.
+			go watcher.WatchCertRenewal(watcher.CertRenewalInterval)
+
 			// Reclaim orphaned servlo images (safe tier) on a slow daily cadence,
 			// so rebuild leftovers and stale base images don't pile up. Gated by
 			// the auto_cleanup config; never touches service images (--deep).
@@ -542,6 +548,18 @@ func bootScan(cfg *config.GlobalConfig) {
 //
 //nolint:unparam // cfg reserved for future per-park gating
 func removeStale(_ *config.GlobalConfig) bool {
+	// Not during a rebuild. A restore brings the registry back before the
+	// directories, so every site is briefly registered with nothing on disk,
+	// and sweeping then unregisters the sites the operator is in the middle of
+	// restoring. The next `servlo restore` of a site archive is told the site
+	// is not on this server, which by then is true.
+	if config.RestoreInProgress() {
+		if left := config.RestoreWindowRemaining(); left != "" {
+			fmt.Printf("Restore in progress, so sites with no directory yet are left alone for another %s\n", left)
+		}
+		return false
+	}
+
 	reg, err := config.LoadSites()
 	if err != nil {
 		return false

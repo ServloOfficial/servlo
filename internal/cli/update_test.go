@@ -3,7 +3,10 @@ package cli
 import (
 	"archive/tar"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -225,10 +228,7 @@ func TestDownloadReleaseBinary_success(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/gzip")
-		w.Write(archiveBytes)
-	}))
+	srv := httptest.NewServer(releaseServer(archiveBytes, sha256Of(archiveBytes)))
 	defer srv.Close()
 
 	orig := githubDownloadBases
@@ -576,5 +576,82 @@ func TestPrepUserUnitsForRollback_skipsMissingFiles(t *testing.T) {
 func TestNixStaysPackageManaged(t *testing.T) {
 	if !isSystemPackageManaged("/nix/store/abc123-servlo-1.31.0/bin/servlo") {
 		t.Error("a /nix/store binary must stay package-managed")
+	}
+}
+
+// A release serves its archive and the checksums.txt goreleaser publishes
+// beside it. Both come from the same base, which is what a real release does.
+func releaseServer(archive []byte, digest string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "checksums.txt") {
+			fmt.Fprintf(w, "%s  servlo_0.1.0_linux_amd64.tar.gz\n", digest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/gzip")
+		w.Write(archive) //nolint:errcheck
+	}
+}
+
+func sha256Of(b []byte) string {
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
+}
+
+// servlo already refuses an application release it cannot verify, on the
+// grounds that an unverified release is a supply-chain hole on a machine
+// serving other people's sites. The binary that serves all of them was held to
+// a lower standard than WordPress, and what an archive replaces here is the
+// working binary, so a truncated download costs the whole machine.
+func TestDownloadReleaseBinary_refusesAnArchiveThatDoesNotMatchItsChecksum(t *testing.T) {
+	tmp := t.TempDir()
+	makeFakeTarGz(t, tmp, "#!/bin/sh\necho servlo")
+	archiveBytes, err := os.ReadFile(filepath.Join(tmp, "servlo_0.1.0_linux_amd64.tar.gz"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The digest of something else entirely: what a tampered or truncated
+	// download looks like from here.
+	srv := httptest.NewServer(releaseServer(archiveBytes, sha256Of([]byte("not this archive"))))
+	defer srv.Close()
+
+	orig := githubDownloadBases
+	githubDownloadBases = func() []string { return []string{srv.URL} }
+	t.Cleanup(func() { githubDownloadBases = orig })
+
+	_, cleanup, err := downloadReleaseBinary("v0.1.0")
+	cleanup()
+	if err == nil {
+		t.Fatal("an archive whose digest does not match was unpacked over the running binary")
+	}
+}
+
+// No checksum, no install. An archive whose digest cannot be established is not
+// one to unpack over the thing running every site on the machine.
+func TestDownloadReleaseBinary_refusesAReleaseWithNoChecksums(t *testing.T) {
+	tmp := t.TempDir()
+	makeFakeTarGz(t, tmp, "#!/bin/sh\necho servlo")
+	archiveBytes, err := os.ReadFile(filepath.Join(tmp, "servlo_0.1.0_linux_amd64.tar.gz"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "checksums.txt") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Write(archiveBytes) //nolint:errcheck
+	}))
+	defer srv.Close()
+
+	orig := githubDownloadBases
+	githubDownloadBases = func() []string { return []string{srv.URL} }
+	t.Cleanup(func() { githubDownloadBases = orig })
+
+	_, cleanup, err := downloadReleaseBinary("v0.1.0")
+	cleanup()
+	if err == nil {
+		t.Fatal("a release with no checksums.txt was installed anyway")
 	}
 }

@@ -8,18 +8,15 @@ Read §1 first. It changes what the rest of the repository's rules mean.
 
 ---
 
-## 1. GitHub Actions is off, and the build no longer waits for it
+## 1. GitHub Actions is on, and it is the gate again
 
-The account has no Actions billing, so every job fails to provision in a couple
-of seconds: no logs, no runner, zero billable time. Thirteen attempts across
-five workflow runs and three commits produced identical results. It is a
-standing condition, not an incident.
+It was off: the account had no Actions billing, so every job failed to provision
+in a couple of seconds with no logs and zero billable time. That is over. Jobs
+provision, run and report, and CI is the gate for a merge again, alongside the
+local one.
 
-**What this changes.** `CLAUDE.md` used to say a story was done at "local green,
-then CI green, then merge". It now says the local gate is the gate. A PR body
-should say the local gate passed, never imply CI did.
-
-**Run the gate yourself before any merge:**
+**Run the local gate before you push,** because a red runner costs ten minutes
+and a reviewer's attention:
 
 ```bash
 make build-ui                          # if the UI changed
@@ -35,26 +32,24 @@ cd internal/ui/web && npx svelte-check --threshold error   # expect 0
 Two Go tests fail in a container and pass on a real machine, so do not chase
 them: `TestHandleServiceTuningReset_NoOpWhenMissing` needs dbus, and
 `TestHandleWorkspaceLayoutRollsBackAndReportsTheReorderError` needs to not be
-running as root. Under parallel load some Vitest files time out at the default
-5s; re-run with `--testTimeout=30000` and they pass.
+running as root. Both are green in CI, which is how you tell them from a real
+failure. Under parallel load some Vitest files time out at the default 5s;
+re-run with `--testTimeout=30000` and they pass.
 
-**What you lose without Actions**, and therefore what is unverified:
+**What runs on a push**, and what each job is actually for:
 
-| Job | What it proved |
-|---|---|
-| Build & Test | the gate above on a real Ubuntu 24.04 VM, not a container |
-| Installer Tests | `tests/installer/installer.bats` against `install.sh` |
-| Everything comes back on its own | stop every unit, start `default.target`, assert sites serve with nobody running `servlo start` |
-| The server that is about to be lost | a real backup of a real site with a real database |
-| A fresh machine plus the backups is the old machine | restore onto a runner that never saw the first, assert every site serves and its settings came back |
+| Workflow | Job | What it proves |
+|---|---|---|
+| `ci.yml` | Build & Test | the gate above on a real Ubuntu 24.04 VM, not a container |
+| `ci.yml` | Installer Tests | `tests/installer/installer.bats` against `install.sh` |
+| `verification.yml` | PHP, its image, and the database behind it | the shims reach the container, the extensions are there, production mode moves all four settings, and PHP reaches MySQL through nginx and its own pool |
+| `verification.yml` | A one-click application install ends in a login page | WordPress installed end to end on a domain that resolves nowhere |
+| `resilience.yml` | Everything comes back on its own | stop every unit, start `default.target` alone, assert sites serve with nobody running `servlo start` |
+| `resilience.yml` | A site gets a real certificate from a real authority | HTTP-01 against Pebble on a genuinely resolvable name, plus a renewal that revalidates |
+| `resilience.yml` | The server that is about to be lost | a real backup of a real site with a real database |
+| `resilience.yml` | A fresh machine plus the backups is the old machine | restore onto a runner that never saw the first, assert every site serves and its settings came back |
 
-The last three are the reboot and rebuild guarantees. They are the ones worth
-re-running by hand on the droplet (§3), because a unit test cannot make those
-claims.
-
-**To turn it back on:** pay for Actions, then push anything. The workflows are
-already in `.github/workflows/` and nothing about them needs changing. Revert
-the gate note in `CLAUDE.md` §5 step 5 when you do.
+A container is not a droplet, so §3 says what is still left after all of that.
 
 ---
 
@@ -68,11 +63,13 @@ those is the slow part of an install, so the same image is built once and
 published, and the client pulls it instead. On a miss it builds locally, prints
 why, and carries on. Same image either way; minutes instead of seconds.
 
-The images used to come from the upstream project's namespace. They now publish
-under yours, so nothing in the tree carries the upstream name, and nothing is
-published yet because that needs Actions or a machine with a container engine.
+The images used to come from the upstream project's namespace. They publish
+under yours now, and **they are published**: `base-images.yml` ran on
+2026-09-06 and the Containerfile has not changed since, so a droplet install
+pulls rather than compiles. There is nothing to do here unless that file
+changes.
 
-**With Actions:** it is automatic. `base-images.yml` fires on any push to `main`
+**It is automatic from here.** `base-images.yml` fires on any push to `main`
 touching the Containerfile. Note that GitHub only offers `workflow_dispatch` for
 workflows on the **default branch**, so the file has to be on `main` before you
 can trigger it by hand.
@@ -109,11 +106,51 @@ cheap.
 
 ## 3. The droplet pass
 
-**Status: never run. This is the real remaining work.**
+**Status: never run, and shorter than it was.**
 
 Deferred by your decision to happen once against the finished product rather
-than per story. All five phases have landed, so it is now the only thing between
-here and a v1 you would put a client on.
+than per story. All five phases have landed.
+
+What changed is that a good deal of this list is no longer a claim only a
+droplet can make. Actions is on, and three workflows now run the product on a
+real Ubuntu 24.04 machine with rootless podman, systemd and a lingering user:
+`ci.yml` (build, tests, installer bats), `verification.yml` (PHP, its image, the
+database behind it, and a one-click install) and `resilience.yml` (boot, a real
+certificate from a real authority, and a rebuild from backups).
+
+### Already proven on a real machine
+
+Not on a droplet, but on Ubuntu 24.04 with the same runtime, so these are no
+longer worth a manual pass:
+
+- **PHP and its image.** The version the binary reports is the version the
+  container runs, all seventeen extensions load, and `servlo production on`
+  moves `display_errors`, `expose_php`, `opcache.enable` and
+  `opcache.validate_timestamps` together. Checked through the host shims an
+  operator types, not through `podman exec`.
+- **PHP reaches the database.** A page opening PDO over the podman network,
+  read back through HTTP: nginx, the site's own pool, the driver, the container
+  network and the engine in one request.
+- **A one-click WordPress install, end to end.** Pinned release, checksum,
+  hardened extractor, database and scoped user, `wp-config.php` at 0600 with the
+  hardening defines, the application's own installer driven over HTTP, a real
+  login form and a front page carrying the title the install was given. On a
+  domain that resolves nowhere, which is the state a real install runs in.
+- **A certificate over HTTP-01, and a renewal that revalidates.** Against Pebble
+  rather than Let's Encrypt, but on a genuinely resolvable domain
+  (`<ip>.sslip.io`) with the authority connecting back to the machine, plus
+  unsecure returning the site to plain HTTP.
+- **Boot.** Everything is stopped, proven down, and brought back by starting
+  `default.target` alone — which is what the user manager does for a lingering
+  user and pulls in only what is enabled. The script names no servlo unit, so a
+  unit servlo wrote but never enabled stays down and fails the job.
+- **A rebuild from backups.** A second machine with nothing on it: import the
+  key, restore the state, reinstall the engine, restore each site, start. Every
+  site serves its own page and its settings are intact.
+- **A deploy with a migration takes a database backup first,** and refuses to
+  deploy at all when it cannot tell which database to back up.
+
+### Still needs a droplet
 
 Take a fresh Ubuntu 24.04 droplet, 2GB or more, and a domain you can point at
 it.
@@ -127,37 +164,27 @@ Podman below 4.5 rather than half-installing. It will print sudo commands for
 the privileged steps instead of running them; that is deliberate, and Servlo
 never runs sudo itself.
 
-Then work down this list. Each line is a claim the test suite cannot make.
+Each line below is something a runner genuinely cannot answer.
 
-**Serving and certificates**
-- [ ] A site answers on the droplet's **public** IP, not just loopback. CI only ever checked the runner's own address, and a loopback-bound nginx passes that.
-- [ ] `servlo doctor` says the port strategy still holds, and still says so after a reboot.
-- [ ] Point a real domain, wait for DNS, click **Get SSL**. A real Let's Encrypt certificate issues over HTTP-01.
+**The public internet**
+- [ ] A site answers on the droplet's **public** IP, not just loopback. CI only ever reaches the machine it is running on, and a loopback-bound nginx passes that.
+- [ ] `servlo doctor` says the port strategy still holds, and still says so after a real reboot of the machine rather than a restart of the user manager.
+- [ ] Point a real domain, wait for DNS, press **Get SSL**. A real Let's Encrypt certificate issues over HTTP-01. Pebble answers the same protocol; it does not answer for rate limits, CAA records, or an account that has to be created against the live directory.
 - [ ] The button stays disabled while DNS does not resolve here, and says what it is actually seeing.
 - [ ] HTTP redirects to HTTPS and the HSTS header is present.
+- [ ] Sign in to the panel over HTTPS from another machine, with TOTP on.
+- [ ] A Developer account sees only its assigned sites and cannot reach an Admin route, over both HTTP and WebSocket.
 
-**Backups, and the promise that rests on them**
-- [ ] `servlo backup <domain>` produces an archive containing files and a database dump.
-- [ ] `servlo backup verify --latest <domain>` restores into a scratch database, verifies and tears down.
+**Somebody else's service**
 - [ ] Add an S3 destination (DigitalOcean Spaces or Amazon S3) and confirm an upload **actually arrives in the bucket**. This runs rclone in a container and has never talked to a real endpoint.
 - [ ] Same for an SFTP destination.
-- [ ] `servlo backup state`, then rebuild onto a second fresh droplet: import the key, restore the state, restore each site, start. Every site serves its own page with its settings intact. This is S16.1's whole claim.
-
-**The things containers hide**
-- [ ] Log rotation against an application holding its log file open across requests. Rotation renames rather than copies, and that is the case it is chosen for.
 - [ ] The cloud metadata service answering for real, so the Security page links to the right provider's firewall screen. It has only ever seen a stub.
-- [ ] Reboot the droplet. Every site, service and worker returns with nobody running `servlo start`.
+- [ ] `servlo apps install` for Joomla and Grav against their live releases. WordPress is covered; these two hand over at their own setup step, and what is worth checking is that nothing claims a one-click finish they do not deliver.
 
-**Apps and deploys**
-- [ ] `servlo apps install wordpress --domain <d>` end to end against the live release: database created, `wp-config.php` written, admin account created, and you can log in.
-- [ ] Joomla and Grav install and hand over at their own setup step, which is what their definitions promise. Nothing claims a one-click finish they do not deliver.
-- [ ] A deploy with a migration in its script takes a database backup first.
+**Time, and things containers hide**
+- [ ] Log rotation against an application holding its log file open across requests. Rotation renames rather than copies, and that is the case it is chosen for.
 - [ ] A WordPress deploy leaves `wp-content/uploads` and `wp-content/plugins` untouched. Losing a client's media is the failure this exists to prevent.
-
-**Panel**
-- [ ] Sign in over HTTPS from another machine, with TOTP on.
-- [ ] A Developer account sees only its assigned sites and cannot reach an Admin route, over both HTTP and WebSocket.
-- [ ] Every state-changing action shows up in the audit log.
+- [ ] A certificate actually renewing on its own. The watcher sweeps twice a day and on start, and the sweep is unit-tested, but nothing has yet watched a real certificate cross into its reissue window unattended.
 
 Anything that fails here is a real bug. Send me the output and I will fix it.
 
@@ -173,13 +200,14 @@ is rebuilt. Going public switches the update path on with no code change.
 
 **Cut the first release.** The version is `0.1.0` and the panel shows a BETA
 chip beside it. `CHANGELOG.md` has a Servlo-starts-here entry with nothing under
-it. Tagging `v0.1.0` runs `release.yml`, which needs Actions.
+it. Tagging `v0.1.0` runs `release.yml`. Until that tag exists, `install.sh`
+resolves `releases/latest` and finds nothing, so the documented one-line install
+cannot work for anybody but you.
 
-**The organisation, and going public.** Both are planned in `MIGRATION.md`,
-and they belong together: going public is what switches the store update path on
-and what gives this repository runners again, since GitHub provides those free
-to public repositories. Doing it before the first release is what keeps it
-cheap.
+**The organisation, and going public.** Both are done: the repository is public
+and lives under `ServloOfficial`, which is what switched the store update path
+on and what pays for the runners. What is left of this item is the release
+above.
 
 ---
 

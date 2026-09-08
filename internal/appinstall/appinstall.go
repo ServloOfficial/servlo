@@ -26,7 +26,9 @@ import (
 	"github.com/ServloOfficial/servlo/internal/dbconn"
 	"github.com/ServloOfficial/servlo/internal/dbcred"
 	"github.com/ServloOfficial/servlo/internal/dbuser"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
 	"github.com/ServloOfficial/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/sitehttp"
 	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
@@ -81,7 +83,13 @@ var (
 		return app.Install(ctx, req, deps)
 	}
 	registerSite = siteops.FinishLink
-	runSetup     = func(ctx context.Context, app appstore.App, siteURL string, values map[string]string) error {
+	// waitForSiteFn blocks until the new site answers. A seam so a test does
+	// not have to serve HTTP to install anything.
+	waitForSiteFn = waitForSite
+	// detectPHPVersion resolves the version the site will run on. A seam so a
+	// test can name one without a PHP installation to detect.
+	detectPHPVersion = phpDet.DetectVersion
+	runSetup         = func(ctx context.Context, app appstore.App, siteURL string, values map[string]string) error {
 		return app.Setup.Run(ctx, siteURL, values)
 	}
 	generatePassword = dbcred.GeneratePassword
@@ -112,7 +120,15 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 	}
 
 	siteName := siteops.SiteName(domain)
+	// Two addresses, because they answer two different questions. siteURL is
+	// where the site will be, and it is what goes into the application's own
+	// config and what the operator is told to open. localURL is where servlo
+	// talks to it, which is this server rather than wherever the domain
+	// currently resolves: the DNS repoint comes after the site exists, so until
+	// then the public address belongs to somebody else, and the setup form
+	// servlo posts carries a generated admin password.
 	siteURL := "http://" + domain
+	localURL := sitehttp.URL(domain)
 
 	var conn dbconn.Connection
 	if app.Database.Required {
@@ -139,11 +155,59 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 	}
 	out.Database = res.Connection
 
+	// Resolved rather than left empty, and this is the whole of that bug: the
+	// version names the container, so an empty one sent the site's pool to
+	// fpm-pools/servlo-php-fpm while the container that runs mounts
+	// fpm-pools/servlo-php85-fpm. The pool was written somewhere nothing reads,
+	// the vhost found none and so wired no PHP upstream, and nginx answered the
+	// POST that drives the application's own installer by serving install.php
+	// as a static file: 405. It also wrote a quadlet for a container that
+	// cannot exist, left behind as a dead unit called "Servlo PHP  FPM".
+	//
+	// Detection reads the release servlo just extracted, so an application that
+	// pins a version in its own project file gets it; anything else falls back
+	// to the machine default, which is what a fresh droplet has.
+	// The document root, from the release that was just extracted. The site
+	// literal named neither this nor the PHP version, and the linker path names
+	// both — an omission is not a default here, it is a field every consumer
+	// reads straight off the registry entry.
+	//
+	// A framework's own definition supplies the root when nginx builds a vhost,
+	// so a site missing it may still serve; what it cannot do is tell the
+	// panel, the deploy or the doctor where its code lives.
+	publicDir := "."
+	if report, rerr := siteops.InspectSiteDirectory(path); rerr == nil && report.PublicDir != "" {
+		publicDir = report.PublicDir
+	}
+
+	phpVersion, err := detectPHPVersion(path)
+	if err != nil || phpVersion == "" {
+		cfg, cfgErr := config.LoadGlobal()
+		if cfgErr != nil || cfg.PHP.DefaultVersion == "" {
+			return out, fmt.Errorf("cannot tell which PHP version %s should run on, and a site registered without one gets a pool and a quadlet named after a container that does not exist", domain)
+		}
+		phpVersion = cfg.PHP.DefaultVersion
+	}
+
 	site := config.Site{
-		Name:      siteName,
-		Domains:   []string{domain},
-		Path:      path,
-		Framework: app.Framework,
+		Name:       siteName,
+		Domains:    []string{domain},
+		Path:       path,
+		Framework:  app.Framework,
+		PHPVersion: phpVersion,
+		PublicDir:  publicDir,
+	}
+	// The registry entry first, then the artifacts. `servlo link` registers a
+	// site in linker.Apply, a layer this path does not go through, and calling
+	// FinishLink alone writes the pool, the vhost and the quadlet without ever
+	// adding the site to sites.yaml. An install used to leave a site nginx
+	// served and nothing else knew about: absent from `servlo sites` and the
+	// panel, skipped by every feature that walks the registry, so no backups,
+	// no scheduled cron, and `servlo secure` unable to find the domain.
+	//
+	// In this order because FinishLink's own steps read the registry back.
+	if err := config.AddSite(site); err != nil {
+		return out, fmt.Errorf("registering site: %w", err)
 	}
 	if err := registerSite(site, site.PHPVersion); err != nil {
 		return out, err
@@ -159,6 +223,15 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 		return out, nil
 	}
 
+	// The site has to be answering before its installer can be driven, and it
+	// was not waited for. See waitForSite: the window between writing the vhost
+	// and nginx serving it is where a POST used to land, and the install then
+	// reported a setup that did not complete over an application that was
+	// perfectly fine a second later.
+	if err := waitForSiteFn(ctx, localURL); err != nil {
+		return out, fmt.Errorf("%s is installed and serving, but its setup could not be driven: %w", app.Label, err)
+	}
+
 	password, err := generatePassword()
 	if err != nil {
 		return out, err
@@ -170,7 +243,7 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 		"admin_email":    opts.AdminEmail,
 		"site_url":       siteURL,
 	}
-	if err := runSetup(ctx, app, siteURL, values); err != nil {
+	if err := runSetup(ctx, app, localURL, values); err != nil {
 		// The site is registered and serving, so this is reported rather than
 		// rolled back: the operator can finish the form themselves, and taking
 		// the site away would lose the release and the database with it.

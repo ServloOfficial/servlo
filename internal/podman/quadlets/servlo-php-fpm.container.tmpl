@@ -11,7 +11,12 @@ StartLimitIntervalSec=300
 StartLimitBurst=20
 
 [Container]
-Image=servlo-php{{.VersionShort}}-fpm:local
+# Qualified with localhost/ on purpose. An unqualified name sends podman to the
+# registries in registries.conf for an image servlo built on this machine, and a
+# registry that answers with an error rather than a not-found turns a working
+# install into a PHP-FPM that will not start. A Docker Hub 500 did exactly that
+# once, on a runner holding the image it went looking for.
+Image=localhost/servlo-php{{.VersionShort}}-fpm:local
 ContainerName=servlo-php{{.VersionShort}}-fpm
 {{.HostNameLine}}
 Network=servlo

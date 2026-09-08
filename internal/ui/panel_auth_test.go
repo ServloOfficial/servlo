@@ -156,10 +156,13 @@ func TestPanelAuth_SetupClosesOnceAnAccountExists(t *testing.T) {
 	}
 	handler := withPanelAuth(guard, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 
+	// From the machine, which is the only place the first account is created:
+	// the panel listens on every interface, and until there is an account
+	// there is no session to gate the route with.
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/setup",
 		strings.NewReader(`{"username":"alice","password":"a long enough passphrase"}`))
-	req.RemoteAddr = "203.0.113.9:54321"
+	req.RemoteAddr = "127.0.0.1:54321"
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("first setup: status = %d (%s)", rec.Code, rec.Body.String())

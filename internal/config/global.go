@@ -192,15 +192,6 @@ type GlobalConfig struct {
 		// difference between keeping a week of them and not.
 		KeepUncompressed bool `yaml:"keep_uncompressed,omitempty" mapstructure:"keep_uncompressed"`
 	} `yaml:"logs,omitempty" mapstructure:"logs"`
-	// DNS is legacy. The .test stack it configured was removed in S2.1; these
-	// fields are retained only so a config file written before that still
-	// parses. Nothing reads them, and S2.2 removes TLD along with the last
-	// place a domain is derived rather than given.
-	DNS struct {
-		Enabled  bool     `yaml:"enabled" mapstructure:"enabled"`
-		TLD      string   `yaml:"tld"     mapstructure:"tld"`
-		Upstream []string `yaml:"upstream,omitempty" mapstructure:"upstream"`
-	} `yaml:"dns" mapstructure:"dns"`
 	Autostart struct {
 		// Disabled controls whether servlo comes back after a reboot. The
 		// zero value (false) means servlo autostarts as it always has:
@@ -245,22 +236,6 @@ type GlobalConfig struct {
 		// moment there is one.
 		Domain string `yaml:"domain,omitempty" mapstructure:"domain"`
 	} `yaml:"ui,omitempty" mapstructure:"ui"`
-	Workers struct {
-		// ExecMode controls how framework workers (queue, schedule, horizon,
-		// reverb, custom) are launched on macOS. "exec" (default) wraps a
-		// single `podman exec` per worker in a dedup guard and lets systemd
-		// supervise that process, matching Linux's lower-memory behaviour.
-		// "container" runs each worker as its own detached container, which
-		// costs more memory per worker but makes the podman supervisor
-		// boundary 1:1 and sidesteps the SSH-bridge hiccups that can
-		// otherwise produce phantom or duplicate workers.
-		//
-		// The field is ignored on Linux, which always runs workers as
-		// `podman exec` into the shared FPM container (systemd is a
-		// dependable supervisor there). Use WorkerExecMode() to read the
-		// effective value.
-		ExecMode string `yaml:"exec_mode,omitempty" mapstructure:"exec_mode"`
-	} `yaml:"workers,omitempty" mapstructure:"workers"`
 	Notifications struct {
 		// Disabled globally mutes the notifier (WebSocket banners + Web
 		// Push fanout). Inverted form so the zero value keeps existing
@@ -330,20 +305,7 @@ func (c *GlobalConfig) RequestTimeoutSeconds() int {
 // `container` is available as an opt-in on macOS for users who prefer the
 // reliability of per-worker containers over the memory savings of
 // podman-exec into the shared FPM container.
-const (
-	WorkerExecModeExec      = "exec"
-	WorkerExecModeContainer = "container"
-)
-
-// WorkerExecMode returns the effective worker exec mode for the current
-// platform. Invalid or empty configured values normalise to "exec".
-func (c *GlobalConfig) WorkerExecMode() string {
-	switch c.Workers.ExecMode {
-	case WorkerExecModeContainer:
-		return WorkerExecModeContainer
-	}
-	return WorkerExecModeExec
-}
+const ()
 
 func defaultConfig() *GlobalConfig {
 	cfg := &GlobalConfig{}
@@ -351,8 +313,6 @@ func defaultConfig() *GlobalConfig {
 	cfg.Node.DefaultVersion = "22"
 	cfg.Nginx.HTTPPort = 80
 	cfg.Nginx.HTTPSPort = 443
-	cfg.DNS.Enabled = true
-	cfg.DNS.TLD = "test"
 	cfg.AutoCleanup = true
 
 	home, _ := os.UserHomeDir()
@@ -602,16 +562,6 @@ func invalidateGlobalCache() {
 	globalCacheMu.Unlock()
 }
 
-// EffectiveTLD returns the configured DNS TLD, falling back to "test" when the
-// global config can't be loaded or leaves it empty. Single source of truth for
-// the many callers that need the active TLD with that default.
-func EffectiveTLD() string {
-	if cfg, err := LoadGlobal(); err == nil && cfg.DNS.TLD != "" {
-		return cfg.DNS.TLD
-	}
-	return "test"
-}
-
 // LoadGlobal reads config.yaml via viper, returning defaults if the file is absent.
 func LoadGlobal() (*GlobalConfig, error) {
 	cfgFile := GlobalConfigFile()
@@ -715,9 +665,6 @@ func cloneGlobalConfig(in *GlobalConfig) *GlobalConfig {
 	}
 	if in.Mounts != nil {
 		out.Mounts = append([]string(nil), in.Mounts...)
-	}
-	if in.DNS.Upstream != nil {
-		out.DNS.Upstream = append([]string(nil), in.DNS.Upstream...)
 	}
 	if in.Services != nil {
 		out.Services = make(map[string]ServiceConfig, len(in.Services))

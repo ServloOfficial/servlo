@@ -77,9 +77,12 @@ func ApplyPhpConstUpdates(path string, updates map[string]string) error {
 	}
 
 	if content == string(data) {
-		return nil
+		return secure(path)
 	}
-	return os.WriteFile(path, []byte(content), 0644)
+	if err := os.WriteFile(path, []byte(content), SecretMode); err != nil {
+		return err
+	}
+	return secure(path)
 }
 
 // phpConstLiteral matches a define() with any value, quoted or not, so a
@@ -140,9 +143,12 @@ func ApplyPhpConstLiterals(path string, updates map[string]string) error {
 	}
 
 	if content == string(data) {
-		return nil
+		return secure(path)
 	}
-	return os.WriteFile(path, []byte(content), 0644)
+	if err := os.WriteFile(path, []byte(content), SecretMode); err != nil {
+		return err
+	}
+	return secure(path)
 }
 
 // RemovePhpConsts deletes whole define() lines for the named constants, which
@@ -166,9 +172,12 @@ func RemovePhpConsts(path string, names ...string) error {
 	}
 	content := strings.Join(kept, "\n")
 	if content == string(data) {
-		return nil
+		return secure(path)
 	}
-	return os.WriteFile(path, []byte(content), 0644)
+	if err := os.WriteFile(path, []byte(content), SecretMode); err != nil {
+		return err
+	}
+	return secure(path)
 }
 
 // insertPhpConst puts new define() lines where WordPress-shaped config files

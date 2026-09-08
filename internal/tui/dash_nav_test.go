@@ -22,7 +22,7 @@ func dashNavModel() *Model {
 			{Name: "redis", State: stateStopped},
 			{Name: "queue-alpha", State: stateRunning, WorkerKind: "queue", WorkerSite: "alpha"},
 		},
-		Status: StatusRow{TLD: "test"},
+		Status: StatusRow{},
 	}
 	// Render once so dashZones reflects what's on screen, like the real loop.
 	_ = m.renderDashboardGrid(120, 24)

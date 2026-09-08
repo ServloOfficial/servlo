@@ -4,6 +4,8 @@ Every request to the panel carries a session or it goes no further. Not "unless 
 
 Open the panel and it asks who you are. On a fresh install it asks you to create the first account instead, and that account is an administrator, because a panel whose only account cannot administer it is a panel nobody can administer.
 
+**That first account is created from the machine, not over the network.** Everything else the panel does is gated on a session, but claiming it the first time cannot be: there is no account yet to hold one. The panel listens on every interface by design, so a route that took the first account from anywhere would mean that between an install finishing and you opening the dashboard, whoever reached port 7073 first became the administrator of every site, database and file on the server. Open the dashboard on the server itself — `http://servlo.localhost`, or over an SSH tunnel — or create the account from a shell with `servlo users add`, which is the way in when the public address is your only access.
+
 ---
 
 ## What replaced what

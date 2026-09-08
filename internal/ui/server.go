@@ -4079,20 +4079,11 @@ var allowedQueueUnit = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 // SettingsResponse is the response for GET /api/settings.
 type SettingsResponse struct {
-	AutostartOnLogin bool   `json:"autostart_on_login"`
-	WorkerExecMode   string `json:"worker_exec_mode"`
+	AutostartOnLogin bool `json:"autostart_on_login"`
 }
 
 func handleSettings(w http.ResponseWriter, _ *http.Request) {
-	cfg, _ := config.LoadGlobal()
-	mode := config.WorkerExecModeExec
-	if cfg != nil {
-		mode = cfg.WorkerExecMode()
-	}
-	writeJSON(w, SettingsResponse{
-		AutostartOnLogin: servloSystemd.IsAutostartEnabled(),
-		WorkerExecMode:   mode,
-	})
+	writeJSON(w, SettingsResponse{AutostartOnLogin: servloSystemd.IsAutostartEnabled()})
 }
 
 // handleWorkersHealth reports every worker unit currently in the systemd

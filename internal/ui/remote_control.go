@@ -1,13 +1,11 @@
 package ui
 
 import (
-	"crypto/subtle"
 	"encoding/json"
 	"net"
 	"net/http"
 
 	"github.com/ServloOfficial/servlo/internal/config"
-	"github.com/ServloOfficial/servlo/internal/nginx"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -263,25 +261,15 @@ func forwardedByProxy(r *http.Request) bool {
 }
 
 // isLocalControlRequest reports whether a request may control the servlo host.
-// Unix-socket requests and requests carrying the private nginx trust token are
-// authoritative. A direct TCP request qualifies when its peer is loopback and
-// it carries no forwarding headers, which rejects reverse proxies such as
-// Tailscale Serve that connect from 127.0.0.1 for a remote browser.
+// Unix-socket requests are authoritative. A direct TCP request qualifies when
+// its peer is loopback and it carries no forwarding headers, which rejects
+// reverse proxies such as Tailscale Serve that connect from 127.0.0.1 for a
+// remote browser.
 //
 // The Host header is deliberately not part of this: a local browser may reach
 // the dashboard by the machine's own hostname (Debian and Ubuntu map it to
 // 127.0.1.1) or any /etc/hosts alias, and locking those out would leave the
 // local user with no way in.
-
-func hasValidTrustToken(r *http.Request) bool {
-	claimed := r.Header.Get("X-Servlo-Trust")
-	if claimed == "" {
-		return false
-	}
-	token, err := nginx.LoadOrGenerateTrustToken()
-	return err == nil && token != "" &&
-		subtle.ConstantTimeCompare([]byte(claimed), []byte(token)) == 1
-}
 
 // publicPanelHeader marks a request that reached the panel over its public
 // domain rather than the local dashboard vhost.
@@ -310,9 +298,6 @@ func isLocalControlRequest(r *http.Request) bool {
 	if v, _ := r.Context().Value(ctxKeyUnixSocket{}).(bool); v {
 		return true
 	}
-	if hasValidTrustToken(r) {
-		return true
-	}
 	if forwardedByProxy(r) {
 		return false
 	}
@@ -324,8 +309,8 @@ func isLocalControlRequest(r *http.Request) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// isLoopbackRequest reports whether r originates from the local host. Three
-// paths qualify:
+// isLoopbackRequest reports whether r originates from the local host. Two paths
+// qualify:
 //
 //  1. The connection arrived over the unix socket listener. Only host
 //     processes with filesystem access to the socket can connect, so this is
@@ -333,9 +318,13 @@ func isLocalControlRequest(r *http.Request) bool {
 //     reaches servlo-panel via this path.
 //  2. The TCP peer is a loopback IP (127.x, ::1). This catches direct visits
 //     to http://localhost:7073 / http://127.0.0.1:7073.
-//  3. The request carries an X-Servlo-Trust header whose value matches the
-//     per-install token. Kept for backward compatibility with old vhosts
-//     that may still inject the header; new installs use the unix socket.
+//
+// A third once qualified: a header carrying a per-install secret. It existed
+// because on macOS the vhost reached the panel over the podman bridge rather
+// than a unix socket, so its requests arrived from a non-loopback address and
+// needed something to vouch for them. The macOS paths are gone, no vhost servlo
+// writes has set that header since, and the panel listens on 0.0.0.0, so all it
+// could still do was make a request from anywhere count as local.
 func isLoopbackRequest(r *http.Request) bool {
 	if fromPublicPanel(r) {
 		return false
@@ -350,5 +339,5 @@ func isLoopbackRequest(r *http.Request) bool {
 	if ip := net.ParseIP(peer); ip != nil && ip.IsLoopback() {
 		return true
 	}
-	return hasValidTrustToken(r)
+	return false
 }

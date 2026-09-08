@@ -60,6 +60,10 @@ type Result struct {
 
 // loadDump is the seam. Loading a dump needs a database container, which a test
 // has no business starting.
+// finishLink writes the site's artifacts. A seam, because they need podman,
+// systemd and a running nginx, and a test has none of those.
+var finishLink = siteops.FinishLink
+
 var loadDump = func(conn dbconn.Connection, database string, r io.Reader) error {
 	return dbdump.Load(conn, database, r)
 }
@@ -122,7 +126,20 @@ func Import(opts Options) (Result, error) {
 			"serves from a subdirectory, set it before pointing DNS here, or the source will be downloadable.")
 	}
 
-	if err := siteops.FinishLink(site, site.PHPVersion); err != nil {
+	// Registered before its artifacts are written, and it was not registered at
+	// all. FinishLink writes the pool, the vhost and the quadlet; adding the
+	// site to sites.yaml happens a layer up in linker.Apply, which this path
+	// does not go through, so an imported site was one nginx served and nothing
+	// else knew about — including `servlo secure`, which this command's own
+	// closing line tells the operator to run next.
+	//
+	// Before rather than after, because PublishLinks rewrites the container
+	// hosts file from the registry, and a site missing from it is missing from
+	// every container's view of which domains resolve where.
+	if err := config.AddSite(site); err != nil {
+		return out, fmt.Errorf("registering site: %w", err)
+	}
+	if err := finishLink(site, site.PHPVersion); err != nil {
 		return out, err
 	}
 	out.Site = site

@@ -72,21 +72,6 @@ func TestNavigableRows_SkipsInfo(t *testing.T) {
 	}
 }
 
-func TestTrimTLD_StripsConfiguredTLD(t *testing.T) {
-	// Relies on the installed config; if the TLD isn't "test", the
-	// fallback path still trims the last dotted component. Both outcomes
-	// strip the suffix from "name.test".
-	if got := trimTLD("name.test"); got != "name" {
-		t.Errorf("trimTLD(name.test) = %q, want name", got)
-	}
-	if got := trimTLD("sub.name.test"); got != "sub.name" {
-		t.Errorf("trimTLD(sub.name.test) = %q, want sub.name", got)
-	}
-	if got := trimTLD("plain"); got != "plain" {
-		t.Errorf("trimTLD(plain) = %q, want plain (no dot, no change)", got)
-	}
-}
-
 func TestDomainRole_MarksPrimary(t *testing.T) {
 	s := &siteinfo.EnrichedSite{Domains: []string{"first.test", "second.test"}}
 	if got := domainRole(s, "first.test"); !strings.Contains(got, "primary") {

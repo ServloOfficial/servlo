@@ -74,6 +74,25 @@ func withPanelAuth(guard *authz.Guard, next http.Handler) http.Handler {
 			guard.HandleLogout(w, r)
 			return
 		case "/api/auth/setup":
+			// Claiming the panel the first time is the one thing a session
+			// cannot gate, because there is no account to hold one yet. The
+			// listener is on every interface by design, so without this the
+			// window between `servlo install` finishing and the operator
+			// opening the dashboard is a window in which anybody who reaches
+			// port 7073 becomes the admin of every site on the machine.
+			//
+			// This is not the "being at the machine is a credential" rule that
+			// S5.5 threw out. That rule was about ordinary authority, and it
+			// was wrong because a panel reached over the internet by design
+			// cannot reserve adding a site to somebody sitting at the droplet.
+			// Bootstrapping is the other thing: it happens once, before there
+			// is anybody to authorise it, and `servlo users add` is the path
+			// for an operator whose only way in is the public address.
+			if !isLocalControlRequest(r) {
+				http.Error(w, "This panel has no account yet, and the first one is not created over the network. "+
+					"Open the dashboard on the server itself, or run: servlo users add", http.StatusForbidden)
+				return
+			}
 			guard.HandleSetup(w, r)
 			return
 		}

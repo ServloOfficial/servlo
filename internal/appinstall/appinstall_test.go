@@ -57,6 +57,8 @@ func stub(t *testing.T, app appstore.App) *calls {
 		}),
 		set(&registerSite, func(site config.Site, php string) error {
 			c.registered = append(c.registered, site.Name)
+			c.registeredSite = site
+			c.registeredPHP = php
 			return nil
 		}),
 		set(&runSetup, func(ctx context.Context, a appstore.App, url string, values map[string]string) error {
@@ -64,6 +66,10 @@ func stub(t *testing.T, app appstore.App) *calls {
 			return nil
 		}),
 		set(&generatePassword, func() (string, error) { return "admin-password", nil }),
+		set(&waitForSiteFn, func(context.Context, string) error {
+			c.waitedFor++
+			return nil
+		}),
 	}
 	t.Cleanup(func() {
 		for _, undo := range restore {
@@ -74,11 +80,14 @@ func stub(t *testing.T, app appstore.App) *calls {
 }
 
 type calls struct {
-	databases   []string
-	registered  []string
-	dir         string
-	siteURL     string
-	setupValues map[string]string
+	databases      []string
+	registered     []string
+	registeredSite config.Site
+	registeredPHP  string
+	waitedFor      int
+	dir            string
+	siteURL        string
+	setupValues    map[string]string
 }
 
 func set[T any](target *T, value T) func() {
