@@ -55,11 +55,13 @@ Removing a domain leaves its certificate on disk. Removing one is usually a step
 
 ## What the domain does not grant
 
-Servlo treats requests arriving over its own unix socket as local control: they bypass the remote-access gate entirely. That is correct for `servlo.localhost`, which no remote browser can reach.
+Servlo treats requests arriving over its own unix socket as local. That is correct for `servlo.localhost`, which no remote browser can reach.
 
-A panel domain proxies into that same socket, and it *is* reachable from anywhere. So the vhost marks every request it forwards with a header saying so, and the panel refuses local-control trust to anything carrying it. The header is set with nginx's `proxy_set_header`, which overwrites whatever the client sent, so it cannot be stripped from outside; and it only ever *removes* trust, so a client that sets it directly is denying itself and nobody else.
+A panel domain proxies into that same socket, and it *is* reachable from anywhere. So the vhost marks every request it forwards with a header saying so, and the panel refuses local trust to anything carrying it. The header is set with nginx's `proxy_set_header`, which overwrites whatever the client sent, so it cannot be stripped from outside; and it only ever *removes* trust, so a client that sets it directly is denying itself and nobody else.
 
-Concretely: reaching the panel by domain does not grant terminal access, filesystem browsing, raw `.env` reads or database drops. Those stay with the local dashboard, or with a remote session that has been explicitly opted in.
+Be clear about what being local does and does not decide, because this page used to say otherwise. It is **not** what separates what you may do: an admin signed in over the panel domain has an admin's authority, terminal and file manager included. Reserving those to somebody sitting at the droplet is the rule S5.5 threw out, on the grounds that a panel reached over the internet by design cannot hide its own surface from the only person who is ever going to use it. What decides authority is your role and the permission each route declares, and those answer the same wherever the request came from.
+
+What local trust still decides is the short list of things that cannot be gated on a session at all: the profiler endpoint, the cross-process notifier the CLI pokes, and creating the very first account on a panel that has none. That last one matters most, because until it exists there is nobody to authorise it — see [Panel authentication](./panel-authentication).
 
 The panel vhost also refuses to be framed (`X-Frame-Options: DENY` and `frame-ancestors 'none'`). A clickjacked panel is a clickjacked delete button.
 
