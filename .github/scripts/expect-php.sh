@@ -9,12 +9,17 @@
 # podman directly would step over it.
 set -euo pipefail
 
+# Failures are collected and reprinted last. A CI log is read from the end, and
+# the first cut of this printed them inline and then dumped the module list, so
+# the only thing retrievable afterwards was the module list.
 fail=0
+failures=""
 check() { # check <label> <expected-substring> <actual>
   if [[ "$3" == *"$2"* ]]; then
     printf '  ok   %s\n' "$1"
   else
-    printf '  FAIL %s\n       wanted %q in: %s\n' "$1" "$2" "${3:0:400}"
+    printf '  FAIL %s\n' "$1"
+    failures+="  $1"$'\n'"       wanted: $2"$'\n'"       got:    ${3:0:200}"$'\n'
     fail=1
   fi
 }
@@ -54,8 +59,9 @@ check "git is in the image"            "git version"      "$(servlo php -r 'echo
 
 if [ "$fail" -ne 0 ]; then
   echo
-  echo "PHP image verification failed. Full module list:"
-  echo "$modules"
+  echo "════ what failed ════"
+  printf '%s' "$failures"
+  echo "════════════════════"
   exit 1
 fi
 echo

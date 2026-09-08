@@ -60,20 +60,16 @@ jobs:
       - name: PHP reaches the database, through nginx and its own pool
         run: .github/scripts/expect-php-reaches-the-database.sh "$SITE"
 
-      # php-fpm failing to start is the one thing these jobs kept hitting, and
-      # its reason is in the unit's journal rather than anywhere servlo prints.
+      # Deliberately terse, and only on failure. A CI log is retrievable from
+      # the end, so a chatty always-block buries the failure it exists to
+      # explain — which is exactly what happened on the second run.
       - name: What the runtime looked like
-        if: always()
+        if: failure()
         run: |
-          servlo status || true
-          servlo php:list || true
-          systemctl --user list-units 'servlo-*' --all --no-pager || true
-          echo "── php-fpm journal ──"
-          journalctl --user -u 'servlo-php*-fpm' -n 60 --no-pager || true
-          echo "── pool directory (empty here means no pool, which php-fpm exits on) ──"
-          ls -la ~/.local/share/servlo/fpm-pools/*/ || true
-          podman images || true
-          podman ps -a || true
+          systemctl --user list-units 'servlo-php*' --all --no-pager || true
+          echo "── pools (empty means no pool, which php-fpm exits on) ──"
+          ls ~/.local/share/servlo/fpm-pools/*/ || true
+          journalctl --user -u servlo-php85-fpm -n 25 --no-pager || true
 
   app-install:
     name: A one-click application install ends in a login page
@@ -105,21 +101,14 @@ jobs:
       - name: Install WordPress on a domain
         run: .github/scripts/expect-app-install.sh wordpress "$APP_SITE"
 
+      # Terse and failure-only, for the reason above. The pool listing is kept
+      # because it is what identified the version-less container the first time.
       - name: What the runtime looked like
-        if: always()
+        if: failure()
         run: |
-          servlo status || true
           servlo sites || true
-          systemctl --user list-units 'servlo-*' --all --no-pager || true
-          echo "── php-fpm journal ──"
-          journalctl --user -u 'servlo-php*-fpm' -n 60 --no-pager || true
-          echo "── nginx ──"
-          podman logs servlo-nginx 2>&1 | tail -40 || true
-          # A 405 on a POST to a .php path means nginx served it as a static
-          # file, which means the vhost was generated without a PHP upstream.
-          # The vhost and the pool it points at are what settle that.
-          echo "── generated vhosts ──"
-          cat ~/.local/share/servlo/nginx/conf.d/*.conf 2>/dev/null || true
-          echo "── pool files ──"
-          ls -la ~/.local/share/servlo/fpm-pools/*/ || true
-          podman ps -a || true
+          echo "── pools ──"
+          ls ~/.local/share/servlo/fpm-pools/*/ || true
+          echo "── vhost php upstream ──"
+          grep -l fastcgi_pass ~/.local/share/servlo/nginx/conf.d/*.conf 2>/dev/null || echo "NO vhost wires PHP"
+          journalctl --user -u servlo-php85-fpm -n 25 --no-pager || true
