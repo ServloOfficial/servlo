@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ServloOfficial/servlo/internal/backup"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/feedback"
 	"github.com/ServloOfficial/servlo/internal/fpmpool"
@@ -19,6 +20,7 @@ import (
 	"github.com/ServloOfficial/servlo/internal/serviceops"
 	"github.com/ServloOfficial/servlo/internal/services"
 	"github.com/ServloOfficial/servlo/internal/shims"
+	"github.com/ServloOfficial/servlo/internal/sitecron"
 	"github.com/ServloOfficial/servlo/internal/siteops"
 	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 	"github.com/spf13/cobra"
@@ -863,6 +865,23 @@ func restoreSiteInfrastructure() {
 			if err := siteops.RegenerateSiteVhost(&site, site.PrimaryDomain()); err != nil {
 				feedback.Warn("restoring the vhost and PHP-FPM pool for %s: %v", site.Name, err)
 			}
+		}
+
+		// Put the site's timers back. Both are idempotent and both decide the
+		// whole state from the registry, so a site whose schedule was switched
+		// off loses its units here rather than keeping them.
+		//
+		// This is the half of a rebuild that stays quiet when it is missing. A
+		// restored server serves every site correctly and silently stops doing
+		// anything on a schedule: the backup that was the reason for keeping
+		// backups, its test restore, and every command the site had cron
+		// running. Nothing on the machine says so, because a timer that was
+		// never written cannot fail.
+		if err := sitecron.Sync(s); err != nil {
+			feedback.Warn("restoring scheduled commands for %s: %v", s.Name, err)
+		}
+		if err := backup.ApplySchedule(s, servloBinaryPath()); err != nil {
+			feedback.Warn("restoring the backup schedule for %s: %v", s.Name, err)
 		}
 
 		// Restore FPM quadlet for this site's PHP version (shared-FPM PHP sites
