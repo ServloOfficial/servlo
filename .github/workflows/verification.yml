@@ -69,7 +69,7 @@ jobs:
           systemctl --user list-units 'servlo-php*' --all --no-pager || true
           echo "── pools (empty means no pool, which php-fpm exits on) ──"
           ls ~/.local/share/servlo/fpm-pools/*/ || true
-          journalctl --user -u servlo-php85-fpm -n 25 --no-pager || true
+          journalctl --user -u servlo-php85-fpm -n 40 --no-pager -o cat 2>/dev/null | grep -iE 'error|fatal|warn|fail|no pool' | tail -8 || true
 
   app-install:
     name: A one-click application install ends in a login page
@@ -111,4 +111,4 @@ jobs:
           ls ~/.local/share/servlo/fpm-pools/*/ || true
           echo "── vhost php upstream ──"
           grep -l fastcgi_pass ~/.local/share/servlo/nginx/conf.d/*.conf 2>/dev/null || echo "NO vhost wires PHP"
-          journalctl --user -u servlo-php85-fpm -n 25 --no-pager || true
+          journalctl --user -u servlo-php85-fpm -n 40 --no-pager -o cat 2>/dev/null | grep -iE 'error|fatal|warn|fail|no pool' | tail -8 || true

@@ -171,6 +171,18 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 		Framework:  app.Framework,
 		PHPVersion: phpVersion,
 	}
+	// The registry entry first, then the artifacts. `servlo link` registers a
+	// site in linker.Apply, a layer this path does not go through, and calling
+	// FinishLink alone writes the pool, the vhost and the quadlet without ever
+	// adding the site to sites.yaml. An install used to leave a site nginx
+	// served and nothing else knew about: absent from `servlo sites` and the
+	// panel, skipped by every feature that walks the registry, so no backups,
+	// no scheduled cron, and `servlo secure` unable to find the domain.
+	//
+	// In this order because FinishLink's own steps read the registry back.
+	if err := config.AddSite(site); err != nil {
+		return out, fmt.Errorf("registering site: %w", err)
+	}
 	if err := registerSite(site, site.PHPVersion); err != nil {
 		return out, err
 	}

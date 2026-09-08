@@ -3,6 +3,8 @@ package appinstall
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // An installed app has to be registered against a real PHP version.
@@ -39,5 +41,32 @@ func TestInstallRegistersTheSiteWithAResolvedPHPVersion(t *testing.T) {
 	if c.registeredSite.PHPVersion != c.registeredPHP {
 		t.Errorf("the site says PHP %q and the link was told %q; they name the same container and must agree",
 			c.registeredSite.PHPVersion, c.registeredPHP)
+	}
+}
+
+// An installed app has to be in the site registry, and it was not in it at all.
+//
+// The installer writes every artifact by hand through siteops.FinishLink — the
+// pool, the vhost, the quadlet — but registering the site is not one of those:
+// `servlo link` does that a layer up, in linker.Apply, which this path does not
+// go through. So an install left a site that nginx served and nothing else knew
+// about. It was absent from `servlo sites` and from the panel, and every feature
+// that walks the registry walked straight past it: no backups, no scheduled
+// cron, and `servlo secure` could not find the domain to issue a certificate
+// for.
+func TestInstallPutsTheSiteInTheRegistry(t *testing.T) {
+	sandbox(t)
+	stub(t, withSetup())
+
+	if _, err := Install(t.Context(), Options{
+		App:    "example",
+		Domain: "blog.example.com",
+		Path:   filepath.Join(t.TempDir(), "site"),
+	}); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+
+	if _, err := config.FindSiteByDomain("blog.example.com"); err != nil {
+		t.Fatalf("the installed app is not in the site registry, so nothing but nginx knows it exists: %v", err)
 	}
 }
