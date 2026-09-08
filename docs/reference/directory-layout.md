@@ -28,7 +28,6 @@
 ├── vapid-private.key                # Web Push signing key (mode 0600, see features/notifications.md)
 ├── vapid-public.key                 # Web Push public key, served to browsers
 ├── push-subscriptions.json          # Browser push subscriptions + per-category prefs (mode 0600)
-├── nginx-trust-token                # Per-install secret for servlo.localhost → servlo-ui proxy
 └── sites.yaml
 ```
 

@@ -1319,28 +1319,3 @@ func TestEnsureForwardedConf_rewrittenOnEachCall(t *testing.T) {
 		t.Errorf("_forwarded.conf must be rewritten on every ensure call so new variables reach existing installs, got:\n%s", content)
 	}
 }
-
-func TestEnsureServloVhost_darwinProxiesHostContainersInternal(t *testing.T) {
-	t.Skip("macOS uses TCP via host.containers.internal because unix sockets don't traverse the podman-machine virtio-fs boundary as functional sockets")
-	confD := setupConfD(t)
-	if err := EnsureServloVhost(); err != nil {
-		t.Fatalf("EnsureServloVhost: %v", err)
-	}
-	content := readConf(t, filepath.Join(confD, "servlo.localhost.conf"))
-
-	// On macOS the vhost MUST proxy via TCP to host.containers.internal:7073
-	// and MUST inject the X-Servlo-Trust header so servlo-panel's gate sees the
-	// proxied request as loopback (it arrives via the bridge, not 127.0.0.1).
-	if !strings.Contains(content, "proxy_pass http://host.containers.internal:7073") {
-		t.Errorf("expected host.containers.internal proxy_pass in macOS vhost:\n%s", content)
-	}
-	if !strings.Contains(content, "X-Servlo-Trust") {
-		t.Errorf("macOS vhost must inject X-Servlo-Trust header:\n%s", content)
-	}
-	if strings.Contains(content, "unix:") {
-		t.Errorf("macOS vhost must not use a unix socket (won't traverse the VM boundary):\n%s", content)
-	}
-	if !strings.Contains(content, "return 444") {
-		t.Errorf("expected catch-all 'return 444' in:\n%s", content)
-	}
-}

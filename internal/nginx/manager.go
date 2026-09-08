@@ -1354,26 +1354,13 @@ func writeErrorPages() error {
 // which reverse-proxies to the servlo-panel process running on the host so the
 // browser's URL bar stays on servlo.localhost (no redirect to localhost:7073).
 //
-// The upstream differs by platform because container → host connectivity
-// works differently on each:
-//
-//   - Linux: servlo-nginx runs in a rootless podman bridge. Reaching the
-//     host over TCP via host.containers.internal depends on netavark /
-//     pasta wiring up the 169.254.1.2 alias, which silently breaks
-//     across podman versions and host network changes. We bind-mount
-//     servlo-panel's unix socket into the container instead — filesystem
-//     access only, no networking, no detection. servlo-panel marks
-//     socket-arriving requests as loopback in isLoopbackRequest.
-//
-//   - macOS: servlo-panel runs as a native macOS process and servlo-nginx runs
-//     inside the podman-machine VM. Unix sockets don't traverse the
-//     virtio-fs / 9p hypervisor boundary as functional sockets, so
-//     binding one on the macOS host doesn't help the VM. We fall back
-//     to TCP via host.containers.internal:7073 — gvproxy reliably
-//     forwards this on podman-machine, and the request carries an
-//     X-Servlo-Trust header that the gate matches against the per-install
-//     token (proxy_set_header overwrites any client-supplied value, so
-//     a LAN attacker can't inject it).
+// servlo-nginx runs in a rootless podman bridge, so reaching the host over TCP
+// via host.containers.internal depends on netavark and pasta wiring up the
+// 169.254.1.2 alias, which silently breaks across podman versions and host
+// network changes. servlo-panel's unix socket is bind-mounted into the
+// container instead: filesystem access only, no networking, nothing to detect.
+// servlo-panel marks socket-arriving requests as loopback in
+// isLoopbackRequest.
 //
 // .localhost is RFC 6761 reserved and always resolves to the visiting
 // device's loopback, so this vhost is unreachable from a LAN browser doing

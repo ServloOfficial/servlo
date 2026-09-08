@@ -409,5 +409,18 @@ func Rules() []Rule {
 			Patterns: []string{`\bworkersMode\b`, `\bWorkerMigrationActive\b`, `workers mode`},
 			Allow:    specs,
 		},
+		{
+			// The header vouched for requests that reached the panel over the
+			// podman bridge instead of a unix socket, which is what the vhost
+			// did on macOS. S0.2 deleted the macOS paths and nothing servlo
+			// writes has injected it since, so all it could still do was make a
+			// request from anywhere count as local on a panel that listens on
+			// 0.0.0.0.
+			Feature: "the nginx trust-token bypass", Story: "S0.2", Enforced: true,
+			Patterns: []string{`X-Servlo-Trust`, `TrustToken`, `nginx-trust-token`},
+			// The regression test has to name the header it proves buys
+			// nothing, and it is the only thing excused.
+			Allow: append(append([]string{}, specs...), "internal/ui/local_control_test.go"),
+		},
 	}
 }

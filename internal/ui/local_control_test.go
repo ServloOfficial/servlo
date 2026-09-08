@@ -86,3 +86,26 @@ func TestLocalControlAcceptsUnixSocketWithForeignHost(t *testing.T) {
 		t.Fatalf("unix-socket request was blocked (status %d)", rec.Code)
 	}
 }
+
+// The panel listens on 0.0.0.0:7073, so anything that makes a request count as
+// local is reachable from wherever that port is. An X-Servlo-Trust header
+// matching a per-install token used to be one, because on macOS the vhost
+// reached the panel over the podman bridge and its requests arrived from a
+// non-loopback address that needed something to vouch for them. The macOS paths
+// went with S0.2 and no vhost servlo writes has injected the header since, so
+// what was left was a way in from anywhere for whoever learned one file.
+func TestLocalControl_TrustHeaderBuysNothing(t *testing.T) {
+	setupConfigDir(t, "", "")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/internal/notify", nil)
+	req.RemoteAddr = "203.0.113.9:41234"
+	req.Host = "panel.example:7073"
+	req.Header.Set("X-Servlo-Trust", "any-value-at-all")
+
+	if isLoopbackRequest(req) {
+		t.Error("a trust header still makes a remote request count as loopback")
+	}
+	if isLocalControlRequest(req) {
+		t.Error("a trust header still buys control of the host")
+	}
+}
