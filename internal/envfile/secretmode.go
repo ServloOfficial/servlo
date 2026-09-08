@@ -3,6 +3,8 @@ package envfile
 import (
 	"io/fs"
 	"os"
+
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 )
 
 // SecretMode is the mode a site's env file is left at.
@@ -36,4 +38,15 @@ func secure(path string) error {
 		return nil
 	}
 	return os.Chmod(path, info.Mode().Perm()&SecretMode)
+}
+
+// writeSecret replaces path with data at SecretMode, without ever leaving it
+// holding less than it held before.
+//
+// Every writer here reprints a whole file that already contains the site's
+// application key, its database password and whatever else a preset injected,
+// so a write that fails partway is the difference between a site that carries
+// on and one whose encrypted columns can never be read again.
+func writeSecret(path string, data []byte) error {
+	return atomicfile.Write(path, data, SecretMode)
 }

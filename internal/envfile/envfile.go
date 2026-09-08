@@ -107,7 +107,7 @@ func ApplyUpdates(path string, updates map[string]string) error {
 		// sync is when servlo gets to notice.
 		return secure(path)
 	}
-	if err := os.WriteFile(path, []byte(out), SecretMode); err != nil {
+	if err := writeSecret(path, []byte(out)); err != nil {
 		return err
 	}
 	return secure(path)

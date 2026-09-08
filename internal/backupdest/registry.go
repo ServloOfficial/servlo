@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"gopkg.in/yaml.v3"
 )
@@ -50,7 +51,7 @@ func save(reg Registry) error {
 	if err := os.MkdirAll(config.ConfigDir(), 0700); err != nil {
 		return err
 	}
-	return os.WriteFile(storePath(), raw, 0600)
+	return atomicfile.Write(storePath(), raw, 0600)
 }
 
 // Add stores a destination, refusing one that could not work and one whose name
