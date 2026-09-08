@@ -99,7 +99,9 @@ bash install.sh --local ./build/servlo
 servlo update
 ```
 
-Fetches the latest release from GitHub, downloads the binary for your architecture, and atomically replaces the running binary. No restart needed.
+Fetches the latest release from GitHub, downloads the binary for your architecture, checks it against the `checksums.txt` published beside it, and atomically replaces the running binary. No restart needed.
+
+An archive whose checksum cannot be established, or does not match, is not installed at all. What that catches most often is not an attacker but a truncated download, and half a binary that runs is worse than none. The installer does the same on a first install.
 
 You can also re-run the installer:
 

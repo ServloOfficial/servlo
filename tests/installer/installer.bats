@@ -264,6 +264,61 @@ teardown() {
   [[ "$output" == *"Neither curl nor wget"* ]]
 }
 
+# ── verify_archive ────────────────────────────────────────────────────────────
+#
+# This script is run as `curl … | bash` on a machine about to serve other
+# people's sites, and the archive it unpacks becomes every command on it. servlo
+# already refuses an application release it cannot verify; its own binary was
+# held to a lower standard than WordPress.
+
+@test "verify_archive accepts an archive matching the published checksum" {
+  run bash -c "
+    source '$INSTALLER'
+    d=\"\$(mktemp -d)\"
+    printf 'servlo binary' > \"\$d/servlo_1.0.0_linux_amd64.tar.gz\"
+    sum=\$(sha256sum \"\$d/servlo_1.0.0_linux_amd64.tar.gz\" | awk '{print \$1}')
+    function fetch() { printf '%s  servlo_1.0.0_linux_amd64.tar.gz\n' \"\$sum\" > \"\$2\"; }
+    verify_archive 1.0.0 servlo_1.0.0_linux_amd64.tar.gz \"\$d/servlo_1.0.0_linux_amd64.tar.gz\"
+  "
+  [ "$status" -eq 0 ]
+}
+
+@test "verify_archive refuses an archive that does not match its checksum" {
+  run bash -c "
+    source '$INSTALLER'
+    d=\"\$(mktemp -d)\"
+    printf 'servlo binary' > \"\$d/servlo_1.0.0_linux_amd64.tar.gz\"
+    function fetch() { printf '%s  servlo_1.0.0_linux_amd64.tar.gz\n' 0000000000000000000000000000000000000000000000000000000000000000 > \"\$2\"; }
+    verify_archive 1.0.0 servlo_1.0.0_linux_amd64.tar.gz \"\$d/servlo_1.0.0_linux_amd64.tar.gz\"
+  "
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"does not match its checksum"* ]]
+}
+
+@test "verify_archive refuses a release whose checksums cannot be read" {
+  run bash -c "
+    source '$INSTALLER'
+    d=\"\$(mktemp -d)\"
+    printf 'servlo binary' > \"\$d/servlo_1.0.0_linux_amd64.tar.gz\"
+    function fetch() { return 1; }
+    verify_archive 1.0.0 servlo_1.0.0_linux_amd64.tar.gz \"\$d/servlo_1.0.0_linux_amd64.tar.gz\"
+  "
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"checksums"* ]]
+}
+
+@test "verify_archive refuses a checksums file that does not name the archive" {
+  run bash -c "
+    source '$INSTALLER'
+    d=\"\$(mktemp -d)\"
+    printf 'servlo binary' > \"\$d/servlo_1.0.0_linux_amd64.tar.gz\"
+    function fetch() { printf '%s  something_else.tar.gz\n' 0000000000000000000000000000000000000000000000000000000000000000 > \"\$2\"; }
+    verify_archive 1.0.0 servlo_1.0.0_linux_amd64.tar.gz \"\$d/servlo_1.0.0_linux_amd64.tar.gz\"
+  "
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"do not name"* ]]
+}
+
 # ── add_to_path / remove_from_path ────────────────────────────────────────────
 
 @test "add_to_path appends PATH entry to .bashrc" {

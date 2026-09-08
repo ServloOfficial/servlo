@@ -320,17 +320,74 @@ func downloadReleaseBinary(version string) (string, func(), error) {
 
 // downloadArchive fetches the release archive, trying each download base in
 // order until one succeeds, and returns an aggregated error if none do.
+//
+// Every archive is checked against the checksums.txt the release publishes
+// beside it. servlo already refuses to install an application release it cannot
+// verify, on the grounds that an unverified release is a supply-chain hole on a
+// machine serving other people's sites; the binary that serves all of them had
+// been held to a lower standard than WordPress. A truncated download is the
+// commoner failure and the same check catches it, which matters here because
+// what the archive replaces is the working binary.
+//
+// No checksum, no install. An archive whose digest cannot be established is not
+// one to unpack over the thing running every site on the machine, so a base
+// that cannot produce one is treated as a base that failed.
 func downloadArchive(ver, filename, archive string) error {
 	var errs []string
 	for _, base := range githubDownloadBases() {
 		url := fmt.Sprintf("%s/v%s/%s", base, ver, filename)
-		if err := download.File(context.Background(), url, archive, 0644, io.Discard); err != nil {
+		sum, err := releaseChecksum(base, ver, filename)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", url, err))
+			continue
+		}
+		if err := download.Verified(context.Background(), url, archive, 0644, sum, io.Discard); err != nil {
 			errs = append(errs, fmt.Sprintf("%s: %v", url, err))
 			continue
 		}
 		return nil
 	}
 	return fmt.Errorf("download failed: %s", strings.Join(errs, "; "))
+}
+
+// releaseChecksum reads filename's sha256 out of the release's checksums.txt.
+//
+// The file is goreleaser's, one "<digest>  <name>" per line, and it is fetched
+// from the same base as the archive rather than from anywhere else: the point
+// is not to have a second source of truth but to catch an archive that did not
+// arrive whole, and to leave one place to hang a signature on later.
+func releaseChecksum(base, ver, filename string) (string, error) {
+	tmp, err := os.CreateTemp("", "servlo-checksums-*")
+	if err != nil {
+		return "", err
+	}
+	path := tmp.Name()
+	_ = tmp.Close()
+	defer os.Remove(path) //nolint:errcheck
+
+	url := fmt.Sprintf("%s/v%s/checksums.txt", base, ver)
+	if err := download.File(context.Background(), url, path, 0644, io.Discard); err != nil {
+		return "", fmt.Errorf("reading the release checksums: %w", err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(body), "\n") {
+		digest, name, ok := strings.Cut(strings.TrimSpace(line), "  ")
+		if !ok {
+			// goreleaser writes two spaces; tolerate one so a hand-made
+			// checksums file is not a silent refusal to update.
+			digest, name, ok = strings.Cut(strings.TrimSpace(line), " ")
+			if !ok {
+				continue
+			}
+		}
+		if strings.TrimSpace(name) == filename {
+			return strings.ToLower(strings.TrimSpace(digest)), nil
+		}
+	}
+	return "", fmt.Errorf("the release checksums do not name %s", filename)
 }
 
 // isSystemPackageManaged reports whether the binary lives under a system prefix

@@ -368,9 +368,46 @@ download_binary() {
     die "Download failed (HTTP 404).\nNo release v${version} found at:\n  ${url}\n\nIf you built servlo locally, use:\n  bash install.sh --local ./build/servlo"
   fi
 
+  verify_archive "$version" "$filename" "${destdir}/${filename}"
+
   if ! tar -xzf "${destdir}/${filename}" -C "$destdir" 2>&1; then
     die "Failed to extract archive: ${filename}"
   fi
+}
+
+# verify_archive <version> <filename> <path>
+#
+# Checks the downloaded archive against the checksums.txt every release
+# publishes beside it. This script is run as `curl … | bash` on a machine that
+# is about to serve other people's sites, and the archive it unpacks becomes
+# every command on it. servlo already refuses to install an *application*
+# release it cannot verify; holding its own binary to a lower standard than
+# WordPress was the wrong way round.
+#
+# No checksum, no install. A release whose digest cannot be established is not
+# one to unpack, so this dies rather than warning and carrying on: the commonest
+# thing it catches is not an attacker but a truncated download, and half a
+# binary that runs is worse than none.
+verify_archive() {
+  local version="$1" filename="$2" path="$3"
+  local sums="${path}.checksums.txt"
+  local url="https://github.com/${REPO}/releases/download/v${version}/checksums.txt"
+
+  command -v sha256sum &>/dev/null || die "sha256sum is missing, so the download cannot be verified. Install coreutils and retry."
+
+  if ! fetch "$url" "$sums"; then
+    die "Could not read the release checksums at:\n  ${url}\n\nThe download cannot be verified, so it was not installed."
+  fi
+
+  local want got
+  want="$(awk -v f="$filename" '$2 == f { print $1 }' "$sums" | head -1)"
+  [ -n "$want" ] || die "The release checksums do not name ${filename}, so the download cannot be verified."
+
+  got="$(sha256sum "$path" | awk '{ print $1 }')"
+  if [ "$got" != "$want" ]; then
+    die "The download does not match its checksum.\n  expected ${want}\n  got      ${got}\n\nNothing was installed. Retry; if it happens again, the release is bad or the download is being tampered with."
+  fi
+  info "Checksum verified."
 }
 
 installed_version() {
