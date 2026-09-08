@@ -113,17 +113,18 @@ func TestSetPublishedPortNotInstalled(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	res, err := SetPublishedPort("mysql", 33991)
+	port := freePort(t, 33991)
+	res, err := SetPublishedPort("mysql", port)
 	if err != nil {
 		t.Fatalf("SetPublishedPort: %v", err)
 	}
 	if res.Installed {
 		t.Error("Installed = true for an uninstalled service")
 	}
-	if res.Actual != 33991 {
-		t.Errorf("Actual = %d, want 33991", res.Actual)
+	if res.Actual != port {
+		t.Errorf("Actual = %d, want %d", res.Actual, port)
 	}
-	if config.ServicePublishedPort("mysql") != 33991 {
+	if config.ServicePublishedPort("mysql") != port {
 		t.Errorf("override not persisted, got %d", config.ServicePublishedPort("mysql"))
 	}
 }
@@ -135,10 +136,11 @@ func TestSetPublishedPortNoOp(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	if _, err := SetPublishedPort("mysql", 33991); err != nil {
+	port := freePort(t, 33991)
+	if _, err := SetPublishedPort("mysql", port); err != nil {
 		t.Fatalf("first SetPublishedPort: %v", err)
 	}
-	res, err := SetPublishedPort("mysql", 33991)
+	res, err := SetPublishedPort("mysql", port)
 	if err != nil {
 		t.Fatalf("second SetPublishedPort: %v", err)
 	}
@@ -509,10 +511,16 @@ func TestSnapshotRestorePublishedPorts(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("XDG_DATA_HOME", tmp)
 
-	if _, err := SetPublishedPort("rustfs", 49000); err != nil {
+	// Both setters bind-probe the host port, so naming one outright fails
+	// whenever anything on the machine is holding it, and every port this test
+	// used to name sat inside the ephemeral range a busy runner allocates from.
+	primary, secondary := freePort(t, 49000), freePort(t, 39002)
+	moved := freePort(t, primary+1)
+
+	if _, err := SetPublishedPort("rustfs", primary); err != nil {
 		t.Fatalf("seed primary: %v", err)
 	}
-	if _, err := SetPublishedPortFor("rustfs", 9001, 39002); err != nil {
+	if _, err := SetPublishedPortFor("rustfs", 9001, secondary); err != nil {
 		t.Fatalf("seed secondary: %v", err)
 	}
 	snap, ok := SnapshotPublishedPorts("rustfs")
@@ -521,7 +529,7 @@ func TestSnapshotRestorePublishedPorts(t *testing.T) {
 	}
 
 	// Mutate away from the snapshot, then restore.
-	if _, err := SetPublishedPort("rustfs", 49100); err != nil {
+	if _, err := SetPublishedPort("rustfs", moved); err != nil {
 		t.Fatalf("mutate primary: %v", err)
 	}
 	if _, err := SetPublishedPortFor("rustfs", 9001, 9001); err != nil {
@@ -530,11 +538,11 @@ func TestSnapshotRestorePublishedPorts(t *testing.T) {
 	if err := RestorePublishedPorts("rustfs", snap); err != nil {
 		t.Fatalf("RestorePublishedPorts: %v", err)
 	}
-	if got := config.ServicePublishedPort("rustfs"); got != 49000 {
-		t.Errorf("primary not restored, got %d want 49000", got)
+	if got := config.ServicePublishedPort("rustfs"); got != primary {
+		t.Errorf("primary not restored, got %d want %d", got, primary)
 	}
-	if got := config.ServicePublishedPorts("rustfs")[9001]; got != 39002 {
-		t.Errorf("secondary not restored, got %d want 39002", got)
+	if got := config.ServicePublishedPorts("rustfs")[9001]; got != secondary {
+		t.Errorf("secondary not restored, got %d want %d", got, secondary)
 	}
 }
 
