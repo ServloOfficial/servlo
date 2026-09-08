@@ -8,12 +8,9 @@ import (
 	"github.com/ServloOfficial/servlo/internal/config"
 )
 
-// testConfig is the global config the resolve tests link against: servlo manages
-// DNS on the .test TLD, so secured decisions are reachable.
+// testConfig is the global config the resolve tests link against.
 func testConfig() *config.GlobalConfig {
 	cfg := &config.GlobalConfig{}
-	cfg.DNS.TLD = "test"
-	cfg.DNS.Enabled = true
 	cfg.PHP.DefaultVersion = "8.3"
 	cfg.Node.DefaultVersion = "22"
 	return cfg

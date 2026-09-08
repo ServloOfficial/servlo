@@ -54,7 +54,6 @@ const (
 
 // StatusRow drives the top header bar.
 type StatusRow struct {
-	TLD            string
 	NginxRunning   bool
 	WatcherRunning bool
 	PHPRunning     []string
@@ -180,13 +179,7 @@ func buildServiceRow(name string, custom bool) ServiceRow {
 }
 
 func loadStatus() StatusRow {
-	cfg, _ := config.LoadGlobal()
-	tld := "test"
-	if cfg != nil && cfg.DNS.TLD != "" {
-		tld = cfg.DNS.TLD
-	}
 	row := StatusRow{
-		TLD:          tld,
 		NginxRunning: podman.Cache.Running("servlo-nginx"),
 		Autostart:    servloSystemd.IsAutostartEnabled(),
 	}

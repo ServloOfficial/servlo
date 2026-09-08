@@ -193,13 +193,18 @@ func TestDomainInput_EscCancels(t *testing.T) {
 	}
 }
 
-func TestOpenDomainEdit_PrefillsShortName(t *testing.T) {
+// The domain the operator sees is the domain the command gets. This used to
+// strip a TLD before handing the name on, which was right when servlo appended
+// one and wrong the moment it stopped: `servlo domain add` wants the whole
+// name, and a two-label domain trimmed to one is refused outright as not fully
+// qualified, so removing example.com from here could not work at all.
+func TestOpenDomainEdit_PrefillsTheWholeDomain(t *testing.T) {
 	m := NewModel("test")
-	m.openDomainEdit("staging.alpha.test")
-	if !strings.Contains(m.domainInput, "staging.alpha") && m.domainInput != "staging.alpha" {
-		t.Fatalf("edit should prefill short form, got %q", m.domainInput)
+	m.openDomainEdit("staging.alpha.example.com")
+	if m.domainInput != "staging.alpha.example.com" {
+		t.Fatalf("edit should prefill the whole domain, got %q", m.domainInput)
 	}
-	if m.domainInputEditing != "staging.alpha.test" {
+	if m.domainInputEditing != "staging.alpha.example.com" {
 		t.Fatalf("editing target not stored, got %q", m.domainInputEditing)
 	}
 }

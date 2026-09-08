@@ -775,13 +775,12 @@ func (m *Model) openDomainInput() {
 	m.focus = paneDetail
 }
 
-// openDomainEdit enters domain-input mode pre-filled with the short form
-// of `full`. On commit the handler runs add-new + remove-old as a sequence,
-// which gives rename semantics without a dedicated `servlo domain rename`
-// command.
+// openDomainEdit enters domain-input mode pre-filled with `full`. On commit
+// the handler runs add-new + remove-old as a sequence, which gives rename
+// semantics without a dedicated `servlo domain rename` command.
 func (m *Model) openDomainEdit(full string) {
 	m.domainInputActive = true
-	m.domainInput = trimTLD(full)
+	m.domainInput = full
 	m.domainInputEditing = full
 	m.focus = paneDetail
 }
@@ -831,17 +830,16 @@ func (m *Model) handleDomainInputKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if s == nil || value == "" {
 			return m, nil
 		}
-		value = strings.ToLower(strings.TrimSuffix(value, "."+currentTLD()))
+		value = strings.ToLower(value)
 		if editing != "" {
 			// No-op if the user pressed enter without changing anything.
-			if value == trimTLD(editing) {
+			if value == strings.ToLower(editing) {
 				return m, nil
 			}
-			oldShort := trimTLD(editing)
 			m.setStatus("renaming "+editing+" → "+value+"…", 5*time.Second)
 			return m, tea.Sequence(
 				runServlo(s.Path, "domain", "add", value),
-				runServlo(s.Path, "domain", "remove", oldShort),
+				runServlo(s.Path, "domain", "remove", editing),
 			)
 		}
 		m.setStatus("adding domain "+value+"…", 5*time.Second)

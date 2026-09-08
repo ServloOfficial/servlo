@@ -1204,16 +1204,13 @@ func appURLPointsToFilteredDomain(rawURL string, proj *config.ProjectConfig, sit
 	}
 	host := parsed.Hostname()
 
-	cfg, cfgErr := config.LoadGlobal()
-	if cfgErr != nil {
-		return false
-	}
-	suffix := "." + cfg.DNS.TLD
-
-	// Was this host in the .servlo.yaml-declared list?
+	// Compared as declared. Servlo appends no TLD to anything (CLAUDE.md
+	// section 3.3), so appending ".test" before comparing meant this never
+	// matched and the guard below never fired: a site whose domain was
+	// filtered out still got that domain written into its APP_URL.
 	declared := false
 	for _, d := range proj.Domains {
-		if strings.ToLower(d)+suffix == host {
+		if strings.ToLower(d) == host {
 			declared = true
 			break
 		}

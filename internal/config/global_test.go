@@ -24,12 +24,6 @@ func TestLoadGlobal_Defaults(t *testing.T) {
 	if cfg.PHP.DefaultVersion == "" {
 		t.Error("expected a default PHP version")
 	}
-	if cfg.DNS.TLD == "" {
-		t.Error("expected a default DNS TLD")
-	}
-	if !cfg.DNS.Enabled {
-		t.Error("expected DNS.Enabled to default true")
-	}
 	if cfg.Nginx.HTTPPort == 0 {
 		t.Error("expected a non-zero HTTP port")
 	}
@@ -104,7 +98,6 @@ func TestSaveLoadGlobal_RoundTrip(t *testing.T) {
 
 	cfg.PHP.DefaultVersion = "8.2"
 	cfg.Node.DefaultVersion = "20"
-	cfg.DNS.TLD = "local"
 	cfg.Nginx.HTTPPort = 8080
 
 	if err := SaveGlobal(cfg); err != nil {
@@ -120,9 +113,6 @@ func TestSaveLoadGlobal_RoundTrip(t *testing.T) {
 	}
 	if got.Node.DefaultVersion != "20" {
 		t.Errorf("Node.DefaultVersion = %q, want %q", got.Node.DefaultVersion, "20")
-	}
-	if got.DNS.TLD != "local" {
-		t.Errorf("DNS.TLD = %q, want %q", got.DNS.TLD, "local")
 	}
 	if got.Nginx.HTTPPort != 8080 {
 		t.Errorf("Nginx.HTTPPort = %d, want 8080", got.Nginx.HTTPPort)
@@ -215,7 +205,7 @@ func TestLoadGlobal_CacheReturnsIndependentCopy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadGlobal: %v", err)
 	}
-	cfg.DNS.TLD = "local"
+	cfg.PHP.DefaultVersion = "mutated-version"
 	if cfg.Services == nil {
 		cfg.Services = map[string]ServiceConfig{}
 	}
@@ -225,8 +215,8 @@ func TestLoadGlobal_CacheReturnsIndependentCopy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadGlobal #2: %v", err)
 	}
-	if again.DNS.TLD == "local" {
-		t.Error("cached value should not reflect caller mutation of DNS.TLD")
+	if again.PHP.DefaultVersion == "mutated-version" {
+		t.Error("cached value should not reflect caller mutation of PHP.DefaultVersion")
 	}
 	if _, ok := again.Services["mutated"]; ok {
 		t.Error("cached value should not reflect caller mutation of Services map")
@@ -242,7 +232,7 @@ func TestLoadGlobal_CacheInvalidatedBySaveGlobal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadGlobal: %v", err)
 	}
-	cfg.DNS.TLD = "local"
+	cfg.PHP.DefaultVersion = "8.1"
 	if err := SaveGlobal(cfg); err != nil {
 		t.Fatalf("SaveGlobal: %v", err)
 	}
@@ -251,8 +241,8 @@ func TestLoadGlobal_CacheInvalidatedBySaveGlobal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadGlobal after save: %v", err)
 	}
-	if got.DNS.TLD != "local" {
-		t.Errorf("after SaveGlobal, DNS.TLD = %q, want %q", got.DNS.TLD, "local")
+	if got.PHP.DefaultVersion != "8.1" {
+		t.Errorf("after SaveGlobal, PHP.DefaultVersion = %q, want %q", got.PHP.DefaultVersion, "8.1")
 	}
 }
 
@@ -345,59 +335,6 @@ func TestExtensions_RemoveNonExistent(t *testing.T) {
 	cfg.RemoveExtension("nonexistent")
 }
 
-// Pre-existing configs from before the dns.enabled field was introduced have
-// no `enabled:` key under `dns:`. LoadGlobal must preserve the `true` default
-// for those users so an upgrade does not silently disable DNS.
-func TestDNSEnabled_DefaultsTrueWhenKeyAbsent(t *testing.T) {
-	setConfigDir(t)
-	invalidateGlobalCache()
-	t.Cleanup(invalidateGlobalCache)
-
-	if err := os.MkdirAll(ConfigDir(), 0755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	legacy := []byte("dns:\n  tld: test\nphp:\n  default_version: 8.4\n")
-	if err := os.WriteFile(GlobalConfigFile(), legacy, 0644); err != nil {
-		t.Fatalf("write legacy config: %v", err)
-	}
-
-	got, err := LoadGlobal()
-	if err != nil {
-		t.Fatalf("LoadGlobal: %v", err)
-	}
-	if !got.DNS.Enabled {
-		t.Errorf("DNS.Enabled = false on legacy config without enabled key, want true")
-	}
-	if got.DNS.TLD != "test" {
-		t.Errorf("DNS.TLD = %q, want %q", got.DNS.TLD, "test")
-	}
-}
-
-func TestDNSEnabled_RoundTripsThroughYAML(t *testing.T) {
-	setConfigDir(t)
-	invalidateGlobalCache()
-	t.Cleanup(invalidateGlobalCache)
-	cfg, err := LoadGlobal()
-	if err != nil {
-		t.Fatalf("LoadGlobal: %v", err)
-	}
-	cfg.DNS.Enabled = false
-	cfg.DNS.TLD = "localhost"
-	if err := SaveGlobal(cfg); err != nil {
-		t.Fatalf("SaveGlobal: %v", err)
-	}
-	got, err := LoadGlobal()
-	if err != nil {
-		t.Fatalf("reload: %v", err)
-	}
-	if got.DNS.Enabled {
-		t.Errorf("DNS.Enabled = true, want false after roundtrip")
-	}
-	if got.DNS.TLD != "localhost" {
-		t.Errorf("DNS.TLD = %q, want %q", got.DNS.TLD, "localhost")
-	}
-}
-
 func TestMigrateStaleServiceImages_LeavesTrackLatestAlone(t *testing.T) {
 	// Once postgres opted into track_latest, defaultConfig leaves its Image
 	// empty so EnsureDefaultPresetQuadlet can resolve the actual newest tag
@@ -426,50 +363,6 @@ func TestMigrateStaleServiceImages_KeepsCustom(t *testing.T) {
 	migrateStaleServiceImages(cfg)
 	if got := cfg.Services["postgres"].Image; got != "myorg/custom-postgres:latest" {
 		t.Errorf("custom postgres image was overwritten: got %q", got)
-	}
-}
-
-// ── Workers.ExecMode ──────────────────────────────────────────────────────────
-
-func TestWorkerExecMode_Defaults(t *testing.T) {
-	cfg := defaultConfig()
-	if got := cfg.WorkerExecMode(); got != WorkerExecModeExec {
-		t.Errorf("default WorkerExecMode: got %q, want %q", got, WorkerExecModeExec)
-	}
-}
-
-func TestWorkerExecMode_RespectsContainer(t *testing.T) {
-	cfg := defaultConfig()
-	cfg.Workers.ExecMode = WorkerExecModeContainer
-	if got := cfg.WorkerExecMode(); got != WorkerExecModeContainer {
-		t.Errorf("container override not respected: got %q", got)
-	}
-}
-
-func TestWorkerExecMode_NormalizesUnknownValue(t *testing.T) {
-	cfg := defaultConfig()
-	cfg.Workers.ExecMode = "garbage"
-	if got := cfg.WorkerExecMode(); got != WorkerExecModeExec {
-		t.Errorf("unknown value should normalize to exec, got %q", got)
-	}
-}
-
-func TestWorkerExecMode_RoundTripsThroughYAML(t *testing.T) {
-	setConfigDir(t)
-	cfg, err := LoadGlobal()
-	if err != nil {
-		t.Fatalf("LoadGlobal: %v", err)
-	}
-	cfg.Workers.ExecMode = WorkerExecModeContainer
-	if err := SaveGlobal(cfg); err != nil {
-		t.Fatalf("SaveGlobal: %v", err)
-	}
-	reloaded, err := LoadGlobal()
-	if err != nil {
-		t.Fatalf("reload: %v", err)
-	}
-	if got := reloaded.WorkerExecMode(); got != WorkerExecModeContainer {
-		t.Errorf("after round trip: got %q, want %q", got, WorkerExecModeContainer)
 	}
 }
 

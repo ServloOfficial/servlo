@@ -604,22 +604,16 @@ func (e *EnrichedSite) enrichDomainConflicts() {
 		return
 	}
 
-	gcfg, _ := config.LoadGlobal()
-	tld := ""
-	if gcfg != nil {
-		tld = gcfg.DNS.TLD
-	}
-
 	registered := make(map[string]bool, len(e.Domains))
 	for _, d := range e.Domains {
 		registered[d] = true
 	}
 
+	// The declared name is compared as it stands. Servlo appends no TLD to
+	// anything (CLAUDE.md section 3.3), so a check that stuck ".test" on the
+	// end before comparing matched nothing and reported no conflict ever.
 	for _, declared := range proj.Domains {
 		full := strings.ToLower(declared)
-		if tld != "" {
-			full = full + "." + tld
-		}
 		if registered[full] {
 			continue
 		}

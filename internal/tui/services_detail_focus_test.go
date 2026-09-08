@@ -20,7 +20,7 @@ func TestDetailPane_ServicesTabShowsServiceEvenWhenDetailFocused(t *testing.T) {
 		Services: []ServiceRow{
 			{Name: "mysql", State: stateRunning, SiteCount: 1},
 		},
-		Status: StatusRow{TLD: "test"},
+		Status: StatusRow{},
 	}
 	m.activeTab = tabServices
 	m.detailMode = detailSite

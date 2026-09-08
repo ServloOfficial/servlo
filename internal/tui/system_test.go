@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -24,28 +23,6 @@ func TestSystemRows_ContainsCoreSections(t *testing.T) {
 		if !have[w] {
 			t.Errorf("missing section header %q in system rows", w)
 		}
-	}
-}
-
-// TestSystemRows_WorkerModeOnlyOnDarwin matches the existing settings rule —
-// Linux always runs workers under systemd, so a worker-mode toggle there is
-// meaningless and must not be advertised.
-func TestSystemRows_WorkerModeOnlyOnDarwin(t *testing.T) {
-	m := NewModel("test")
-	rows := m.systemRows()
-
-	found := false
-	for _, r := range rows {
-		if r.kind == sysWorkerMode {
-			found = true
-			break
-		}
-	}
-
-	wantPresent := runtime.GOOS == "darwin"
-	if found != wantPresent {
-		t.Errorf("worker-mode row present=%v on %s, want present=%v",
-			found, runtime.GOOS, wantPresent)
 	}
 }
 

@@ -17,7 +17,7 @@ func domainGateSnap() Snapshot {
 		Services: []ServiceRow{
 			{Name: "mysql", State: stateRunning, SiteCount: 1},
 		},
-		Status: StatusRow{TLD: "test"},
+		Status: StatusRow{},
 	}
 }
 

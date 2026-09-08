@@ -115,7 +115,7 @@ func TestRegisterProject_SkipsCustomContainer(t *testing.T) {
 	})
 
 	cfg := &config.GlobalConfig{}
-	cfg.DNS.TLD = "test"
+
 	cfg.PHP.DefaultVersion = "8.4"
 
 	registered, err := RegisterProject(projectDir, cfg)

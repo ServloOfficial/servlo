@@ -229,10 +229,9 @@ func Rules() []Rule {
 				"_test.go", ".test.ts",
 				// The teardown for the root-owned files an older servlo wrote.
 				"install.sh", "tests/installer/installer.bats",
-				// These two name the deleted stack to explain their own
-				// relationship to it: what container DNS was never part of, and
-				// what the legacy dns block in the global config configured.
-				"internal/podman/containerdns.go", "internal/config/global.go",
+				// Names the deleted stack to explain its own relationship to
+				// it: what container DNS was never part of.
+				"internal/podman/containerdns.go",
 				// The WebSocket DNS-rebinding defence accepts a hostname only
 				// under a reserved local TLD. .test is one whether or not servlo
 				// resolves it, and a site served on such a name still needs its
@@ -406,8 +405,14 @@ func Rules() []Rule {
 			// container workers on macOS, and its own help said Linux ignores
 			// it. S0.2 deleted the macOS paths; this is what they left behind.
 			Feature: "macOS worker runtime mode", Story: "S0.2", Enforced: true,
-			Patterns: []string{`\bworkersMode\b`, `\bWorkerMigrationActive\b`, `workers mode`},
-			Allow:    specs,
+			// WorkerExecMode is the same setting under the name it kept: a
+			// choice between exec and container workers, ignored on Linux,
+			// which is the only platform there is. The three patterns above
+			// missed it, and the TUI still had a switch wired to a `workers
+			// mode` command that had been deleted.
+			Patterns: []string{`\bworkersMode\b`, `\bWorkerMigrationActive\b`, `workers mode`,
+				`WorkerExecMode`, `\bexec_mode\b`, `sysWorkerMode`},
+			Allow: specs,
 		},
 		{
 			// The header vouched for requests that reached the panel over the
