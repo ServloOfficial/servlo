@@ -46,9 +46,24 @@ done
 echo
 echo "── production ini defaults (CLAUDE.md §3.4) ──"
 ini() { servlo php -r "echo ini_get('$1');" 2>/dev/null; }
-check "display_errors is off"          ""    "$(ini display_errors)"
-check "expose_php is off"              ""    "$(ini expose_php)"
-check "opcache is enabled"             "1"   "$(ini opcache.enable)"
+
+# check() matches a substring, and every string contains the empty one, so
+# passing "" as the expected value asserts nothing at all. An off directive
+# reads back as "", "0" or "Off" depending on how it was written, so it needs
+# its own comparison rather than a substring that is always present.
+check_off() { # check_off <label> <actual>
+  case "$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')" in
+    ""|0|off|false) printf '  ok   %s\n' "$1" ;;
+    *)
+      printf '  FAIL %s\n' "$1"
+      failures+="  $1"$'\n'"       wanted it off, got: $2"$'\n'
+      fail=1 ;;
+  esac
+}
+
+check_off "display_errors is off" "$(ini display_errors)"
+check_off "expose_php is off"     "$(ini expose_php)"
+check "opcache is enabled"                     "1" "$(ini opcache.enable)"
 check "opcache does not stat on every request" "0" "$(ini opcache.validate_timestamps)"
 
 echo
