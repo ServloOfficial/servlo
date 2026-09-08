@@ -7,6 +7,7 @@ import (
 	"github.com/ServloOfficial/servlo/internal/certs"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
 // Certificate renewal, and why it is a watcher pass rather than a command.
@@ -31,11 +32,19 @@ import (
 // stat and one parse.
 const CertRenewalInterval = 12 * time.Hour
 
-// Seams. Both reach the network or the service manager, so a test that could
-// not replace them could only run on a server.
+// nginxSettleWait bounds how long the first sweep waits for nginx before giving
+// up on it. Generous, because the cost of being wrong in one direction is a
+// certificate renewed a few hours late and in the other is a burnt validation.
+const nginxSettleWait = 5 * time.Minute
+
+// Seams. All three reach the network or the service manager, so a test that
+// could not replace them could only run on a server.
 var (
-	renewIfDue  = certs.RenewIfDue
-	reloadNginx = nginx.Reload
+	renewIfDue    = certs.RenewIfDue
+	reloadNginx   = nginx.Reload
+	nginxIsUp     = func() bool { up, err := podman.ContainerRunning("servlo-nginx"); return err == nil && up }
+	settleTick    = 5 * time.Second
+	sweepDeadline = func() time.Time { return time.Now().Add(nginxSettleWait) }
 )
 
 // WatchCertRenewal renews the certificates of secured sites as they age.
@@ -44,7 +53,16 @@ func WatchCertRenewal(interval time.Duration) {
 	// month, or restored from a backup, comes back with certificates that aged
 	// while nothing was watching them, and waiting half a day to look would be
 	// half a day of serving something expired.
-	renewCertsOnce()
+	//
+	// But not before nginx is up. An HTTP-01 challenge is answered out of the
+	// webroot nginx serves, so a sweep that runs first fails every renewal it
+	// attempts, records a failure, raises an alert the operator has no cause
+	// for, and spends one of the five validations Let's Encrypt allows per
+	// hostname per hour. At boot the watcher is a systemd unit like any other
+	// and nothing orders it after the nginx container.
+	if waitForNginx() {
+		renewCertsOnce()
+	}
 
 	t := time.NewTicker(interval)
 	defer t.Stop()
@@ -53,8 +71,34 @@ func WatchCertRenewal(interval time.Duration) {
 	}
 }
 
+// waitForNginx blocks until nginx is answering or the wait runs out, and
+// reports whether it came up. A machine with no nginx serves no sites, so there
+// is nothing there worth failing an issuance over.
+func waitForNginx() bool {
+	deadline := sweepDeadline()
+	for {
+		if nginxIsUp() {
+			return true
+		}
+		if time.Now().After(deadline) {
+			log.Printf("[certs] nginx did not come up within %s, so the startup renewal sweep is skipped", nginxSettleWait)
+			return false
+		}
+		time.Sleep(settleTick)
+	}
+}
+
 // renewCertsOnce is one sweep over the secured sites.
 func renewCertsOnce() {
+	// The same reason the startup sweep waits: an HTTP-01 challenge is answered
+	// out of nginx's webroot, so attempting one while nginx is down turns a
+	// healthy install into a recorded failure, an alert, and a validation spent
+	// out of the five an hour the authority allows.
+	if !nginxIsUp() {
+		log.Print("[certs] nginx is not running, so this renewal sweep is skipped")
+		return
+	}
+
 	reg, err := config.LoadSites()
 	if err != nil {
 		return
