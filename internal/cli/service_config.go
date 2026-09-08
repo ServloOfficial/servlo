@@ -67,7 +67,7 @@ func newServiceConfigCmd() *cobra.Command {
 			// a service the user has explicitly removed — effectively a silent
 			// reinstall as a side effect of an edit command. Block that here.
 			if !serviceops.ServiceInstalled(name) {
-				return fmt.Errorf("service %q is not installed — run `servlo service preset install %s` first", name, name)
+				return fmt.Errorf("service %q is not installed — run `servlo service preset %s` first", name, name)
 			}
 			if _, ok := config.ServiceTuningMount(svc); !ok {
 				supported := strings.Join(config.TuningFamilies(), ", ")

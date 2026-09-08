@@ -33,7 +33,7 @@ func NewCleanupCmd() *cobra.Command {
 
 // newCleanupAutoCmd toggles automatic cleanup (the watcher's daily managed-tier
 // sweep and the post-rebuild / post-service-change reaping), so users don't have
-// to hand-edit config.yaml. Matches the on/off/status shape of servlo idle/notify.
+// to hand-edit config.yaml. Matches the on/off/status shape of servlo notify.
 func newCleanupAutoCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auto",

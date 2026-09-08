@@ -308,7 +308,7 @@ func runRestoreState(ref string, yes bool) error {
 	}
 
 	fmt.Println("  Certificates are not in a backup and are reissued, so point DNS at this")
-	fmt.Println("  server first and then run servlo secure for each site.")
+	fmt.Println("  server first and then run `servlo secure` for each site.")
 	fmt.Println("  A managed database needs this server's address added to its trusted sources.")
 	return nil
 }

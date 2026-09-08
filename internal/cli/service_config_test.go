@@ -106,7 +106,7 @@ func TestServiceConfig_RejectsRemovedDefaultPreset(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "not installed") {
 		t.Errorf("expected not-installed error for removed default preset, got: %v", err)
 	}
-	if err != nil && !strings.Contains(err.Error(), "servlo service preset install mysql") {
+	if err != nil && !strings.Contains(err.Error(), "servlo service preset mysql") {
 		t.Errorf("expected install hint in error, got: %v", err)
 	}
 }

@@ -811,10 +811,9 @@ func IgnoreSite(name string) error {
 	return fmt.Errorf("site %q not found", name)
 }
 
-// SetSitePinned atomically updates just a site's pin flag. Like
-// SetSiteIdleSuspendedWorkers it rewrites only that field under the write lock, so
-// `servlo idle pin/unpin` can't clobber a concurrent SetSiteIdleSuspendedWorkers
-// write the idle engine makes for the same site.
+// SetSitePinned atomically updates just a site's pin flag, rewriting only that
+// field under the write lock so it cannot clobber a concurrent write to the same
+// site from anywhere else.
 func SetSitePinned(name string, pinned bool) error {
 	siteWriteMu.Lock()
 	defer siteWriteMu.Unlock()

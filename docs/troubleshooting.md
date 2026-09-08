@@ -103,7 +103,7 @@ cat ~/.local/share/servlo/nginx/conf.d/my-app.example.com.conf   # check generat
 :::
 
 ::: details My custom nginx directive disappeared after an update
-Don't edit `~/.local/share/servlo/nginx/conf.d/*.conf` directly. Servlo regenerates those files on `servlo link`, `servlo secure`, `servlo site rebuild`, and every `servlo install` (which `servlo update` re-execs). Drop your snippet in `~/.local/share/servlo/nginx/custom.d/{domain}.conf` instead, the generated vhost ends with an `include` for that file, and servlo never writes into `custom.d/`. See [Nginx Overrides](./usage/nginx-overrides.md) for examples.
+Don't edit `~/.local/share/servlo/nginx/conf.d/*.conf` directly. Servlo regenerates those files on `servlo link`, `servlo secure`, `servlo start`, and every `servlo install` (which `servlo update` re-execs). Drop your snippet in `~/.local/share/servlo/nginx/custom.d/{domain}.conf` instead, the generated vhost ends with an `include` for that file, and servlo never writes into `custom.d/`. See [Nginx Overrides](./usage/nginx-overrides.md) for examples.
 :::
 
 ::: details PHP-FPM container not running

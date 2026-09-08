@@ -206,7 +206,7 @@ func TestAddShellShims_LaravelShim(t *testing.T) {
 
 func TestRefreshUnreferencedCustomQuadlets_globalCustomServiceGetsV6Pair(t *testing.T) {
 	// Simulates a preset like mongo-express installed globally via
-	// `servlo service preset install`: a yaml in CustomServicesDir() with
+	// `servlo service preset`: a yaml in CustomServicesDir() with
 	// loopback publish ports, but no site .servlo.yaml references it.
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)

@@ -343,7 +343,7 @@ func printUpdateNotice(info *servloUpdate.UpdateInfo) {
 	fmt.Println()
 	fmt.Println(feedback.Amber(bar))
 	fmt.Println(feedback.Amber("  Update available: " + info.LatestVersion + "  →  run: servlo update"))
-	fmt.Println(feedback.Amber("  Run servlo whatsnew to see what changed."))
+	fmt.Println(feedback.Amber("  Run `servlo whatsnew` to see what changed."))
 	fmt.Println(feedback.Amber(bar))
 }
 
