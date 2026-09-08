@@ -346,10 +346,6 @@ Reaching the dashboard, and who may sign in to it. See [Panel access](/features/
 | `servlo sessions` | List or end signed-in panel sessions |
 | `servlo sessions list` | List signed-in sessions |
 | `servlo sessions revoke` | End a session, or every session with --all |
-| `servlo remote-control` | Toggle dashboard access from remote clients (off by default) |
-| `servlo remote-control off` | Disable remote access to the dashboard |
-| `servlo remote-control on` | Enable remote access to the dashboard with HTTP Basic auth |
-| `servlo remote-control status` | Show whether remote access to the dashboard is enabled |
 | `servlo tui` | Open a terminal dashboard for sites, services, and workers |
 | `servlo notify` | Globally enable or disable servlo notifications |
 | `servlo notify off` | Disable notifications globally |
@@ -437,4 +433,5 @@ What a signed-in operator may do in the panel is decided by their role and by
 the permission each route declares, not by where they are: an Admin reads a
 site's `.env`, browses the filesystem and drops a database from wherever they
 signed in, and a Developer does none of those anywhere. Reaching the panel from
-another machine at all needs credentials, set with `servlo remote-control on`.
+another machine at all needs an account, created with `servlo users add` or by
+claiming the panel from the server itself.

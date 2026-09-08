@@ -60,7 +60,7 @@ func TestPrintRemoteAccessStatus(t *testing.T) {
 				"Dashboard has no account yet",
 				"servlo users add",
 			},
-			notSubstr: []string{"403", "remote-control"},
+			notSubstr: []string{"403", "Basic auth"},
 		},
 		{
 			name:    "panel claimed",
@@ -70,7 +70,7 @@ func TestPrintRemoteAccessStatus(t *testing.T) {
 				"every request needs a session",
 				"Managed services (loopback-only, always)",
 			},
-			notSubstr: []string{"403", "remote-control"},
+			notSubstr: []string{"403", "Basic auth"},
 		},
 	}
 

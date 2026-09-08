@@ -117,3 +117,56 @@ func TestScanRoutes_IgnoresTheAppShell(t *testing.T) {
 		t.Errorf("the app shell was reported as undeclared: %+v", missing)
 	}
 }
+
+// The third gate: every path the panel exempts from the cross-origin check is
+// a route the panel registers.
+//
+// The exemption list is the one place a route is named without being served,
+// so it is the one place a name can outlive the endpoint. It did: the
+// laptop-bootstrap endpoint was exempt here, described in the gate's comments
+// and in `servlo remote-control`'s help as having a token, a source-IP and a
+// lockout gate of its own, and never registered on the mux at all. Nothing
+// failed, because nothing checks that a route named is a route served.
+func TestEveryCrossOriginExemptionIsARegisteredRoute(t *testing.T) {
+	gate := filepath.Join(repoRoot(t), "internal", "ui", "crossorigin.go")
+	source, err := os.ReadFile(gate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exempt := CrossOriginExemptions(string(source))
+	if len(exempt) == 0 {
+		t.Fatalf("%s declares no cross-origin exemptions — the scanner found nothing "+
+			"to check, which is not the same as finding nothing wrong. Has "+
+			"csrfExemptPaths been renamed or reshaped?", gate)
+	}
+
+	registered, err := RegisteredRoutes(panelRouteFiles(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range exempt {
+		if !registered[path] {
+			t.Errorf("%s exempts %q from the cross-origin gate, but no panel route "+
+				"registers it. Either serve it or drop the exemption.", gate, path)
+		}
+	}
+}
+
+// The scanner reports a stale exemption rather than passing over it.
+func TestCrossOriginExemptions_ReadsTheList(t *testing.T) {
+	source := `var csrfExemptPaths = []string{
+	"/api/internal/notify",
+	"/api/remote-setup",
+}
+`
+	got := CrossOriginExemptions(source)
+	want := []string{"/api/internal/notify", "/api/remote-setup"}
+	if len(got) != len(want) {
+		t.Fatalf("exemptions = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("exemption %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}

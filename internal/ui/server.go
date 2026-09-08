@@ -25,8 +25,6 @@ import (
 
 	_ "embed"
 
-	qrcode "github.com/skip2/go-qrcode"
-
 	"github.com/ServloOfficial/servlo/internal/applog"
 	"github.com/ServloOfficial/servlo/internal/authz"
 	"github.com/ServloOfficial/servlo/internal/cfgedit"
@@ -78,8 +76,8 @@ var swJS []byte
 var offlineHTML []byte
 
 // listenAddr is the TCP address servlo-panel binds to. It listens on 0.0.0.0:7073
-// so browsers can hit it directly, wherever they are; the remote-control
-// middleware, not the bind address, is the security boundary.
+// so browsers can hit it directly, wherever they are; the session the panel
+// requires, not the bind address, is the security boundary.
 //
 // servlo-panel ALSO listens on a unix socket at config.UISocketPath() for the
 // servlo.localhost nginx vhost. Bind-mounting a socket into servlo-nginx is more
@@ -188,7 +186,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/push/devices", withCORS(handlePushDevices))
 	mux.HandleFunc("/api/push/test", withCORS(handlePushTest))
 	mux.HandleFunc("/api/tools/", withCORS(publishAfter(handleTools, eventbus.KindStatus)))
-	mux.HandleFunc("/api/dashboard-qr", withCORS(handleDashboardQR))
 
 	// Cross-process notifier for CLI. It requires dashboard-control
 	// authority. PollNow runs in a goroutine so the handler returns under the
@@ -261,7 +258,6 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/servlo/start", withCORS(handleServloStart))
 	mux.HandleFunc("/api/servlo/stop", withCORS(handleServloStop))
 	mux.HandleFunc("/api/servlo/quit", withCORS(handleServloQuit))
-	mux.HandleFunc("/api/remote-control", withCORS(handleRemoteControl))
 	mux.HandleFunc("/api/access-mode", withCORS(handleAccessMode))
 	mux.HandleFunc("/manifest.webmanifest", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/manifest+json")
@@ -315,7 +311,7 @@ func Start(currentVersion string) error {
 	// What an authenticator app lists this panel under. The domain when there
 	// is one, so three servers in someone's app do not all read the same.
 	guard.Issuer = PanelDomain()
-	handler := withPanelAuth(guard, withRemoteControlGate(mux))
+	handler := withPanelAuth(guard, withCrossOriginGate(mux))
 
 	// Unix socket listener for the servlo.localhost nginx vhost. Linux only:
 	// on macOS, servlo-nginx runs inside the podman-machine VM and unix
@@ -2761,25 +2757,6 @@ func handleSiteEnvRestore(w http.ResponseWriter, r *http.Request, site *config.S
 		return
 	}
 	writeJSON(w, SiteEnvRestoreResponse(res))
-}
-
-// handleDashboardQR serves a QR code PNG encoding the panel's own address
-// (https://<ip>:7073) so a phone can scan straight into the dashboard rather
-// than typing an address out. 404 when the machine has no routable address.
-func handleDashboardQR(w http.ResponseWriter, r *http.Request) {
-	ip := uiPrimaryIP()
-	if ip == "" {
-		http.NotFound(w, r)
-		return
-	}
-	png, err := qrcode.Encode("https://"+ip+":7073", qrcode.Medium, 160)
-	if err != nil {
-		http.Error(w, "qr encode: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Cache-Control", "no-cache")
-	http.ServeContent(w, r, "qr.png", time.Time{}, bytes.NewReader(png))
 }
 
 // SiteNginxBackup is the backup metadata the frontend's restore dropdown

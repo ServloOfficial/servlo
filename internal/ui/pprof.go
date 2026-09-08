@@ -20,8 +20,8 @@ import (
 // The second is loopback. servlo-panel binds 0.0.0.0 so a browser on another
 // machine can reach it, and these endpoints expose goroutine stacks, the
 // process command line, and heap contents; profile and trace also let a caller
-// pin a core for as long as they ask. Neither belongs off-host, so the same
-// boundary the remote-control middleware uses applies here too.
+// pin a core for as long as they ask. Neither belongs off-host, so this is one
+// of the few surfaces that still asks where the request came from.
 //
 // A blocked request gets 404 rather than 403: a daemon with profiling off
 // should look like it has no profiling surface at all.

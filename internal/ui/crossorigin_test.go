@@ -13,10 +13,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// setupConfigDir points config.LoadGlobal at a temp dir, optionally writing
-// a config.yaml with the given UI credentials. Empty credentials leave the
-// config absent, which is what a server that has never run
-// `servlo remote-control on` looks like.
+// setupConfigDir points config.LoadGlobal at a temp dir, optionally writing a
+// config.yaml with the given UI credentials. Those are the credentials an
+// install carried before session authentication; empty ones leave the config
+// absent, which is what any install written since looks like.
 func setupConfigDir(t *testing.T, username, plainPassword string) {
 	t.Helper()
 	tmp := t.TempDir()
@@ -64,11 +64,11 @@ func (n *nextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
-func TestRemoteControlGate_loopbackBypassesEverything(t *testing.T) {
+func TestCrossOriginGate_loopbackBypassesEverything(t *testing.T) {
 	setupConfigDir(t, "alice", "s3cret")
 
 	next := &nextHandler{}
-	gate := withRemoteControlGate(next)
+	gate := withCrossOriginGate(next)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/sites", nil)
 	req.RemoteAddr = "127.0.0.1:54321"
@@ -87,11 +87,11 @@ func TestRemoteControlGate_loopbackBypassesEverything(t *testing.T) {
 // A state-changing request from off the machine, carrying valid credentials
 // and the CSRF header, reaches the handler. This is the whole point of the
 // gate: it is an authentication check, not a source-address check.
-func TestRemoteControlGate_authenticatedRemoteRequestReachesTheHandler(t *testing.T) {
+func TestCrossOriginGate_authenticatedRemoteRequestReachesTheHandler(t *testing.T) {
 	setupConfigDir(t, "alice", "s3cret")
 
 	next := &nextHandler{}
-	gate := withRemoteControlGate(next)
+	gate := withCrossOriginGate(next)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/sites", http.NoBody)
 	req.RemoteAddr = "192.168.1.42:54321"
@@ -107,48 +107,16 @@ func TestRemoteControlGate_authenticatedRemoteRequestReachesTheHandler(t *testin
 	}
 }
 
-func TestRemoteControlGate_remoteSetupBypassesAuth(t *testing.T) {
-	setupConfigDir(t, "alice", "s3cret") // even with auth set...
-
-	next := &nextHandler{}
-	gate := withRemoteControlGate(next)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/remote-setup?code=abc", nil)
-	req.RemoteAddr = "192.168.1.42:54321" // ...and a LAN source IP
-	rec := httptest.NewRecorder()
-	gate.ServeHTTP(rec, req)
-
-	if !next.called {
-		t.Error("/api/remote-setup did not reach next handler")
-	}
-}
-
-func TestRemoteControlGate_remoteSetupBypassesEvenWhenDisabled(t *testing.T) {
-	setupConfigDir(t, "", "") // remote-control off
-
-	next := &nextHandler{}
-	gate := withRemoteControlGate(next)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/remote-setup?code=abc", nil)
-	req.RemoteAddr = "192.168.1.42:54321"
-	rec := httptest.NewRecorder()
-	gate.ServeHTTP(rec, req)
-
-	if !next.called {
-		t.Error("/api/remote-setup blocked even though it has its own gate")
-	}
-}
-
 // Every dashboard route is one a remote session is meant to drive, which is
 // the whole of what this gate now has to say about where a request came from.
-func TestRemoteControlGateAuthenticatedDashboardUsesOrdinaryRoutes(t *testing.T) {
+func TestCrossOriginGateAuthenticatedDashboardUsesOrdinaryRoutes(t *testing.T) {
 	setupConfigDir(t, "alice", "s3cret")
 	called := false
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	})
-	gate := withRemoteControlGate(next)
+	gate := withCrossOriginGate(next)
 
 	for _, path := range []string{
 		"/api/servlo/start",
@@ -176,11 +144,11 @@ func TestRemoteControlGateAuthenticatedDashboardUsesOrdinaryRoutes(t *testing.T)
 	}
 }
 
-func TestRemoteControlGate_optionsBypassesAuth(t *testing.T) {
+func TestCrossOriginGate_optionsBypassesAuth(t *testing.T) {
 	setupConfigDir(t, "alice", "s3cret")
 
 	next := &nextHandler{}
-	gate := withRemoteControlGate(next)
+	gate := withCrossOriginGate(next)
 
 	req := httptest.NewRequest(http.MethodOptions, "/api/sites", nil)
 	req.RemoteAddr = "192.168.1.42:54321" // LAN, no auth header
@@ -198,11 +166,11 @@ func TestRemoteControlGate_optionsBypassesAuth(t *testing.T) {
 // fast-path, the gate would 403 it the same as a LAN client and the
 // dashboard would be unreachable via servlo.localhost. Regression test for
 // the fix that replaced host.containers.internal:7073 with the unix socket.
-func TestRemoteControlGate_unixSocketTreatedAsLoopback(t *testing.T) {
+func TestCrossOriginGate_unixSocketTreatedAsLoopback(t *testing.T) {
 	setupConfigDir(t, "", "")
 
 	next := &nextHandler{}
-	gate := withRemoteControlGate(next)
+	gate := withCrossOriginGate(next)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/sites", nil)
 	req.RemoteAddr = "@" // typical for anonymous unix socket peer
@@ -220,17 +188,17 @@ func TestRemoteControlGate_unixSocketTreatedAsLoopback(t *testing.T) {
 	}
 }
 
-// TestRemoteControlGate_csrf covers the cross-origin gate that guards every
+// TestCrossOriginGate_csrf covers the cross-origin gate that guards every
 // state-changing request, loopback included. The RCE vector is a malicious
 // page in the developer's own browser POSTing to 127.0.0.1:7073, so a
 // loopback source IP is no longer a free pass for unsafe methods: the request
 // must also prove it came from servlo's own dashboard.
-func TestRemoteControlGate_csrf(t *testing.T) {
+func TestCrossOriginGate_csrf(t *testing.T) {
 	const siteAction = "/api/sites/myapp.test/restart"
 
 	t.Run("cross-site POST blocked", func(t *testing.T) {
 		next := &nextHandler{}
-		gate := withRemoteControlGate(next)
+		gate := withCrossOriginGate(next)
 		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "127.0.0.1:54321"
 		req.Host = "localhost:7073"
@@ -248,7 +216,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 
 	t.Run("same-origin POST allowed", func(t *testing.T) {
 		next := &nextHandler{}
-		gate := withRemoteControlGate(next)
+		gate := withCrossOriginGate(next)
 		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "127.0.0.1:54321"
 		req.Host = "localhost:7073"
@@ -265,7 +233,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 	// dashboard's own requests must still pass.
 	t.Run("split-origin dashboard allowed via Origin allowlist", func(t *testing.T) {
 		next := &nextHandler{}
-		gate := withRemoteControlGate(next)
+		gate := withCrossOriginGate(next)
 		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "127.0.0.1:54321"
 		req.Host = "localhost:7073"
@@ -280,7 +248,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 
 	t.Run("no Sec-Fetch requires CSRF header", func(t *testing.T) {
 		next := &nextHandler{}
-		gate := withRemoteControlGate(next)
+		gate := withCrossOriginGate(next)
 		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "127.0.0.1:54321" // no Sec-Fetch, no X-Servlo-CSRF
 		req.Host = "localhost:7073"
@@ -291,7 +259,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 		}
 
 		next2 := &nextHandler{}
-		gate2 := withRemoteControlGate(next2)
+		gate2 := withCrossOriginGate(next2)
 		req2 := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req2.RemoteAddr = "127.0.0.1:54321"
 		req2.Host = "localhost:7073"
@@ -306,7 +274,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 	t.Run("safe methods bypass the gate", func(t *testing.T) {
 		for _, m := range []string{http.MethodGet, http.MethodHead} {
 			next := &nextHandler{}
-			gate := withRemoteControlGate(next)
+			gate := withCrossOriginGate(next)
 			req := httptest.NewRequest(m, "/api/sites", nil)
 			req.RemoteAddr = "127.0.0.1:54321"
 			req.Host = "localhost:7073"
@@ -322,7 +290,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 
 	t.Run("unix socket exempt", func(t *testing.T) {
 		next := &nextHandler{}
-		gate := withRemoteControlGate(next)
+		gate := withCrossOriginGate(next)
 		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "@" // no Sec-Fetch, no header — trusted via the socket
 		req = req.WithContext(context.WithValue(req.Context(), ctxKeyUnixSocket{}, true))
@@ -340,7 +308,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 		for _, path := range []string{"/api/internal/notify"} {
 			t.Run(path, func(t *testing.T) {
 				next := &nextHandler{}
-				gate := withRemoteControlGate(next)
+				gate := withCrossOriginGate(next)
 				req := httptest.NewRequest(http.MethodPost, path, nil)
 				req.RemoteAddr = "127.0.0.1:54321" // no Sec-Fetch, no X-Servlo-CSRF
 				req.Host = "localhost:7073"
@@ -358,7 +326,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 	// site, so the button is a link now and the exemption is gone.
 	t.Run("unpause is no longer exempt", func(t *testing.T) {
 		next := &nextHandler{}
-		gate := withRemoteControlGate(next)
+		gate := withCrossOriginGate(next)
 		req := httptest.NewRequest(http.MethodPost, "/api/sites/myapp.test/unpause", nil)
 		req.RemoteAddr = "127.0.0.1:54321"
 		req.Host = "localhost:7073"
@@ -372,7 +340,7 @@ func TestRemoteControlGate_csrf(t *testing.T) {
 	t.Run("LAN cross-site rejected even with valid auth", func(t *testing.T) {
 		setupConfigDir(t, "alice", "s3cret")
 		next := &nextHandler{}
-		gate := withRemoteControlGate(next)
+		gate := withCrossOriginGate(next)
 		req := httptest.NewRequest(http.MethodPost, siteAction, nil)
 		req.RemoteAddr = "192.168.1.42:54321"
 		req.SetBasicAuth("alice", "s3cret")
