@@ -15,6 +15,12 @@ import (
 // install against a genuinely broken site still finishes and says so.
 const siteReadyTimeout = 60 * time.Second
 
+// attemptTimeout bounds one request. An application's very first request is its
+// slowest — nothing is compiled, nothing is cached, and an installer that
+// reaches out to its own project's servers waits on that too — so this is well
+// clear of what a healthy site takes to answer once.
+const attemptTimeout = 10 * time.Second
+
 // waitForSite blocks until the site's own vhost answers on its own domain.
 //
 // The application's own installer is driven over HTTP against the site servlo
@@ -49,7 +55,12 @@ const siteReadyTimeout = 60 * time.Second
 // function what each application looks like before its own installer has run.
 func waitForSite(ctx context.Context, siteURL string) error {
 	deadline := time.Now().Add(siteReadyTimeout)
-	client := sitehttp.Client(5 * time.Second)
+	client := sitehttp.Client(attemptTimeout)
+	// A redirect is an answer. Following one would make this wait run whatever
+	// the application redirects to, which for an application that has not been
+	// set up is its own installer: the slowest page it has, fetched over and
+	// over, when the site proved it was serving with the 302.
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 
 	lastReason := "the site never answered"
 	for {

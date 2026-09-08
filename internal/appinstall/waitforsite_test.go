@@ -89,3 +89,34 @@ func TestWaitForSiteGivesUpOnAPermanentCatchAll(t *testing.T) {
 		t.Errorf("expected the failure to name the catch-all, got %q", err)
 	}
 }
+
+// The wait is asking whether the site is serving, and a redirect says it is.
+// Following it means fetching whatever an application that has not been set up
+// redirects to, which is its own installer: the heaviest page it has, on the
+// slowest request it will ever serve, repeatedly, when the 302 already answered
+// the question. CI spent the whole minute doing that and timed out.
+func TestWaitForSiteTakesARedirectAsTheAnswer(t *testing.T) {
+	var installerHits int64
+	mux := http.NewServeMux()
+	mux.HandleFunc("/setup", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&installerHits, 1)
+		time.Sleep(2 * time.Second)
+		w.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/setup", http.StatusFound)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	start := time.Now()
+	if err := waitForSite(context.Background(), srv.URL); err != nil {
+		t.Fatalf("waitForSite: %v", err)
+	}
+	if took := time.Since(start); took > time.Second {
+		t.Errorf("the wait took %s, so it followed the redirect instead of taking it as the answer", took)
+	}
+	if got := atomic.LoadInt64(&installerHits); got != 0 {
+		t.Errorf("the wait fetched the installer %d times", got)
+	}
+}
