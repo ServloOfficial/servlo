@@ -371,6 +371,12 @@ func newWatchCmd() *cobra.Command {
 			// and keep the alert list in step both ways.
 			go monitor.Watch(monitor.Interval)
 
+			// Renew the certificates of secured sites as they age into the
+			// reissue window. A Let's Encrypt leaf lasts ninety days and
+			// nothing here renewed one, so every secured site on an install
+			// went down together three months in.
+			go watcher.WatchCertRenewal(watcher.CertRenewalInterval)
+
 			// Reclaim orphaned servlo images (safe tier) on a slow daily cadence,
 			// so rebuild leftovers and stale base images don't pile up. Gated by
 			// the auto_cleanup config; never touches service images (--deep).
