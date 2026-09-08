@@ -155,6 +155,19 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 	// Detection reads the release servlo just extracted, so an application that
 	// pins a version in its own project file gets it; anything else falls back
 	// to the machine default, which is what a fresh droplet has.
+	// The document root, from the release that was just extracted. The site
+	// literal named neither this nor the PHP version, and the linker path names
+	// both — an omission is not a default here, it is a field every consumer
+	// reads straight off the registry entry.
+	//
+	// A framework's own definition supplies the root when nginx builds a vhost,
+	// so a site missing it may still serve; what it cannot do is tell the
+	// panel, the deploy or the doctor where its code lives.
+	publicDir := "."
+	if report, rerr := siteops.InspectSiteDirectory(path); rerr == nil && report.PublicDir != "" {
+		publicDir = report.PublicDir
+	}
+
 	phpVersion, err := detectPHPVersion(path)
 	if err != nil || phpVersion == "" {
 		cfg, cfgErr := config.LoadGlobal()
@@ -170,6 +183,7 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 		Path:       path,
 		Framework:  app.Framework,
 		PHPVersion: phpVersion,
+		PublicDir:  publicDir,
 	}
 	// The registry entry first, then the artifacts. `servlo link` registers a
 	// site in linker.Apply, a layer this path does not go through, and calling

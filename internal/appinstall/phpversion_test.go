@@ -70,3 +70,24 @@ func TestInstallPutsTheSiteInTheRegistry(t *testing.T) {
 		t.Fatalf("the installed app is not in the site registry, so nothing but nginx knows it exists: %v", err)
 	}
 }
+
+// The registry entry has to carry the document root as well. The linker path
+// sets it; this one did not, and an omission is not a default: the panel, the
+// deploy and the doctor all read PublicDir straight off the registry, so a site
+// with an empty one cannot tell any of them where its code lives.
+func TestInstallRecordsTheDocumentRoot(t *testing.T) {
+	sandbox(t)
+	c := stub(t, withSetup())
+
+	if _, err := Install(t.Context(), Options{
+		App:    "example",
+		Domain: "blog.example.com",
+		Path:   filepath.Join(t.TempDir(), "site"),
+	}); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+
+	if c.registeredSite.PublicDir == "" {
+		t.Error("the installed site records no document root, so nothing that reads the registry knows where to serve from")
+	}
+}
