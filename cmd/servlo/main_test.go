@@ -132,6 +132,61 @@ func TestRemoveStale_skipsIgnoredSites(t *testing.T) {
 	}
 }
 
+// Putting a server back is two steps: restore the state, which brings the
+// registry back, then restore each site, which brings its directory back.
+// Between them every site is registered with nothing on disk, and the sweep
+// read that as the operator having deleted their projects. It unregistered the
+// sites the rebuild was in the middle of restoring, and the next site archive
+// was refused as being of a site that is not on this server, which by then was
+// true. CI lost that race in a thirty-second gap; an operator working through a
+// dozen archives by hand has a far wider one.
+func TestRemoveStale_LeavesARestoreInProgressAlone(t *testing.T) {
+	isolateConfig(t)
+
+	reg := &config.SiteRegistry{Sites: []config.Site{
+		{Name: "ci-one-example", Domains: []string{"ci-one.example"}, Path: "/var/empty/not-restored-yet"},
+	}}
+	if err := config.SaveSites(reg); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.MarkRestoring(); err != nil {
+		t.Fatal(err)
+	}
+
+	if removeStale(&config.GlobalConfig{}) {
+		t.Error("the sweep unregistered a site whose directory the operator is still restoring")
+	}
+	after, _ := config.LoadSites()
+	if len(after.Sites) != 1 {
+		t.Errorf("expected the site to survive the restore window, got %d sites", len(after.Sites))
+	}
+}
+
+// The window is a pause, not an off switch: once it closes a directory the
+// operator really did delete is swept as before.
+func TestRemoveStale_SweepsAgainOnceTheRestoreWindowCloses(t *testing.T) {
+	isolateConfig(t)
+
+	reg := &config.SiteRegistry{Sites: []config.Site{
+		{Name: "gone", Domains: []string{"gone.example"}, Path: "/var/empty/does-not-exist"},
+	}}
+	if err := config.SaveSites(reg); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.MarkRestoring(); err != nil {
+		t.Fatal(err)
+	}
+	config.ExpireRestoreWindowForTest(t)
+
+	if !removeStale(&config.GlobalConfig{}) {
+		t.Error("the sweep stayed off after the restore window closed")
+	}
+	after, _ := config.LoadSites()
+	if len(after.Sites) != 0 {
+		t.Errorf("expected the stale site to be swept, got %d sites", len(after.Sites))
+	}
+}
+
 func TestNotifyReadyThenScan_readinessDoesNotWaitOnTheScan(t *testing.T) {
 	release := make(chan struct{})
 	// A scan run synchronously would block on release forever, so it is let go

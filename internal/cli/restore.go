@@ -108,6 +108,10 @@ func runRestore(archivePath, into string, filesOnly, yes bool) error {
 	}
 	step.OK(feedback.Val(target))
 
+	// A rebuild is a sequence of these, and each one says the sequence is still
+	// running, so the sweep stays off for the sites still to come.
+	_ = config.MarkRestoring()
+
 	if filesOnly || !man.Database {
 		if man.Database {
 			fmt.Println("  The database in this archive was left alone.")
@@ -294,6 +298,15 @@ func runRestoreState(ref string, yes bool) error {
 		return err
 	}
 	step.OK(feedback.Val(fmt.Sprintf("%d files", man.Files)))
+
+	// The registry is now ahead of the disk: every site is registered and none
+	// of their directories are here yet. Said out loud so the watcher's stale
+	// sweep does not read that as the operator having deleted their projects
+	// and unregister the sites this rebuild is about to restore.
+	if err := config.MarkRestoring(); err != nil {
+		feedback.Warn("recording that a restore is under way: %v", err)
+	}
+
 	fmt.Println("  Certificates are not in a backup and are reissued, so point DNS at this")
 	fmt.Println("  server first and then run servlo secure for each site.")
 	fmt.Println("  A managed database needs this server's address added to its trusted sources.")
