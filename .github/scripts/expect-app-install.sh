@@ -99,8 +99,12 @@ case "$front" in
   *) echo "note: the front page renders but does not name the title"; echo "${front:0:300}" ;;
 esac
 
+# Not an assertion. Replacing WordPress's page-load scheduler with a real timer
+# is a switch the operator throws, not something an install decides for them, so
+# a fresh install having no timers here is correct. It is printed because when a
+# site does have scheduled commands, this is where a missing one shows up.
 echo
-echo "── the real system cron replaced the request-driven one ──"
+echo "── scheduled commands this site has ──"
 systemctl --user list-timers 'servlo-cron-*' --all --no-pager || true
 
 echo
