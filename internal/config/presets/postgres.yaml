@@ -120,8 +120,14 @@ introspect:
         rotate: >
           psql "postgresql://{{admin_user}}@{{host}}:{{port}}/postgres{{tls_flags}}" -v ON_ERROR_STOP=1 -c
           "ALTER ROLE \"{{name}}\" WITH PASSWORD '{{user_password}}'"
+        # The revoke is the half that keeps one site out of another's database.
+        # PostgreSQL grants CONNECT on a new database to PUBLIC and every role
+        # in the cluster is in PUBLIC, so on a server carrying several sites the
+        # default leaves each site's role able to open all the others. It runs
+        # before the grant, so the site's own explicit CONNECT survives it.
         grant: >
           psql "postgresql://{{admin_user}}@{{host}}:{{port}}/{{database}}{{tls_flags}}" -v ON_ERROR_STOP=1
+          -c "REVOKE CONNECT ON DATABASE \"{{database}}\" FROM PUBLIC"
           -c "GRANT CONNECT ON DATABASE \"{{database}}\" TO \"{{name}}\""
           -c "ALTER DATABASE \"{{database}}\" OWNER TO \"{{name}}\""
           -c "ALTER SCHEMA public OWNER TO \"{{name}}\""
