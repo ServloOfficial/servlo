@@ -880,8 +880,16 @@ func restoreSiteInfrastructure() {
 		if err := sitecron.Sync(s); err != nil {
 			feedback.Warn("restoring scheduled commands for %s: %v", s.Name, err)
 		}
-		if err := backup.ApplySchedule(s, servloBinaryPath()); err != nil {
-			feedback.Warn("restoring the backup schedule for %s: %v", s.Name, err)
+		// Only for a site that has one. ApplySchedule decides all three states,
+		// and the state it decides for a site with no schedule is "take the
+		// units away", which on an ordinary start is two daemon reloads and
+		// four systemctl calls per site to remove units that were never there.
+		// A schedule switched off while servlo was not running is cleaned up by
+		// the path that switched it off.
+		if s.Backup != nil && s.Backup.Schedule != "" {
+			if err := backup.ApplySchedule(s, servloBinaryPath()); err != nil {
+				feedback.Warn("restoring the backup schedule for %s: %v", s.Name, err)
+			}
 		}
 
 		// Restore FPM quadlet for this site's PHP version (shared-FPM PHP sites
