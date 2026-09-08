@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ServloOfficial/servlo/internal/authz"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/feedback"
 	phpPkg "github.com/ServloOfficial/servlo/internal/php"
@@ -311,11 +312,30 @@ func runStatus(_ *cobra.Command, _ []string) error {
 func printRemoteAccessStatus(cfg *config.GlobalConfig) {
 	ok2("Sites served on every interface")
 	ok2("Managed services (loopback-only, always)")
-	if cfg.UI.PasswordHash != "" {
-		ok2(fmt.Sprintf("Dashboard remote access (user: %s)", cfg.UI.Username))
-	} else {
-		warn2("Dashboard remote access", "remote clients get 403 — enable with: servlo remote-control on")
+
+	// What this used to say was that remote clients get a 403 until
+	// `servlo remote-control on` sets a password. That was the pre-S5.5 gate,
+	// and S5.5 removed it: every request needs a session now, whatever address
+	// it came from, which is a stronger rule and a different sentence. Leaving
+	// the old one up told an operator they were behind a door that was no
+	// longer there.
+	if accountsExist() {
+		ok2("Dashboard reachable from anywhere, and every request needs a session")
+		return
 	}
+	warn2("Dashboard has no account yet",
+		"claim it from this machine, or run: servlo users add")
+}
+
+// accountsExist reports whether the panel has been claimed. Errors read as
+// "not yet", because the status line it drives is a nudge to finish setting up
+// and the worse mistake is staying quiet about a panel nobody owns.
+func accountsExist() bool {
+	accounts, err := authz.OpenAccounts()
+	if err != nil {
+		return false
+	}
+	return accounts.Any()
 }
 
 // printUpdateNotice prints a highlighted banner when a new servlo version is available.
