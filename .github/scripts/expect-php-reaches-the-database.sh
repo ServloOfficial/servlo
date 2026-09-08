@@ -12,11 +12,24 @@ domain="$1"
 root="$HOME/sites/$domain"
 cd "$root"
 
-# servlo env is what fills in host, port, user and password for whichever
-# connection the site is on. Running it here proves that wiring rather than
-# hand-writing credentials the panel would have written differently.
-servlo env
-echo "── .env after servlo env ──"
+# Deliberately not `servlo env`. That command maps services into a project's
+# .env using the framework store's env.services, so it needs a framework, and
+# it refuses a plain PHP application by design. This fixture is one file that
+# echoes a row: giving it a framework to satisfy a helper would be testing the
+# helper, and what is under test here is whether PHP can reach the database at
+# all.
+#
+# So the connection comes from where servlo itself keeps it. The service
+# password is one file, generated at install; the host is the engine's container
+# on the podman network.
+password="$(cat "$HOME/.config/servlo/service-password")"
+{
+  echo "DB_HOST=servlo-mysql"
+  echo "DB_PORT=3306"
+  echo "DB_USERNAME=root"
+  echo "DB_PASSWORD=$password"
+} >> .env
+echo "── .env (password redacted) ──"
 sed -E 's/(PASSWORD=).*/\1<redacted>/' .env
 
 cat > public/index.php <<'PHP'

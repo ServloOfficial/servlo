@@ -109,6 +109,14 @@ jobs:
           servlo sites || true
           echo "── pools ──"
           ls ~/.local/share/servlo/fpm-pools/*/ || true
-          echo "── vhost php upstream ──"
-          grep -l fastcgi_pass ~/.local/share/servlo/nginx/conf.d/*.conf 2>/dev/null || echo "NO vhost wires PHP"
+          # "File not found." from php-fpm means the script path it was handed
+          # does not exist, so what settles it is the root nginx sends, the
+          # directory the pool chdirs into, and what is actually on disk.
+          echo "── vhost root and php upstream ──"
+          grep -hE '^\s*(root|fastcgi_pass)' ~/.local/share/servlo/nginx/conf.d/*.conf 2>/dev/null || echo "NO vhost wires PHP"
+          echo "── pool chdir ──"
+          grep -h chdir ~/.local/share/servlo/fpm-pools/*/*.conf 2>/dev/null || true
+          echo "── what is actually in the site directory ──"
+          ls -a ~/"$APP_SITE" 2>/dev/null | head -20 || echo "the site directory is not there"
+          ls ~/"$APP_SITE"/wp-admin/install.php 2>/dev/null || echo "wp-admin/install.php is NOT on disk"
           journalctl --user -u servlo-php85-fpm -n 40 --no-pager -o cat 2>/dev/null | grep -iE 'error|fatal|warn|fail|no pool' | tail -8 || true
