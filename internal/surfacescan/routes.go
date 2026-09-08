@@ -86,6 +86,55 @@ func ScanRoutes(files []string, declared map[string]bool) ([]UndeclaredRoute, er
 // It is also how a route quietly loses its declaration when it is renamed, with
 // the old entry left behind to make the count look right.
 func StaleDeclarations(files []string, declared map[string]bool) ([]string, error) {
+	registered, err := RegisteredRoutes(files)
+	if err != nil {
+		return nil, err
+	}
+	var stale []string
+	for pattern := range declared {
+		if !registered[pattern] {
+			stale = append(stale, pattern)
+		}
+	}
+	sort.Strings(stale)
+	return stale, nil
+}
+
+// exemptListStart opens the panel's cross-origin exemption list, and
+// exemptEntry matches one path inside it.
+var (
+	exemptListStart = regexp.MustCompile(`^var csrfExemptPaths = \[\]string\{`)
+	exemptEntry     = regexp.MustCompile(`^\s*"(/[^"]+)",`)
+)
+
+// CrossOriginExemptions returns the paths source exempts from the panel's
+// cross-origin gate.
+//
+// It reads the declaration rather than importing internal/ui, which keeps this
+// package free of the panel exactly as ScanRoutes keeps it free of authz.
+// A file with no such declaration yields nothing, which the caller checks for:
+// a scan that silently finds no exemptions proves nothing about the ones that
+// are there.
+func CrossOriginExemptions(source string) []string {
+	var found []string
+	inList := false
+	for _, line := range strings.Split(source, "\n") {
+		if !inList {
+			inList = exemptListStart.MatchString(line)
+			continue
+		}
+		if strings.HasPrefix(line, "}") {
+			break
+		}
+		if m := exemptEntry.FindStringSubmatch(line); m != nil {
+			found = append(found, m[1])
+		}
+	}
+	return found
+}
+
+// RegisteredRoutes returns every path the named files dispatch.
+func RegisteredRoutes(files []string) (map[string]bool, error) {
 	registered := map[string]bool{}
 	for _, path := range files {
 		data, err := os.ReadFile(path)
@@ -96,12 +145,5 @@ func StaleDeclarations(files []string, declared map[string]bool) ([]string, erro
 			registered[route.Pattern] = true
 		}
 	}
-	var stale []string
-	for pattern := range declared {
-		if !registered[pattern] {
-			stale = append(stale, pattern)
-		}
-	}
-	sort.Strings(stale)
-	return stale, nil
+	return registered, nil
 }

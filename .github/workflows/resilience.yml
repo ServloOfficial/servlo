@@ -230,6 +230,23 @@ jobs:
           servlo backup schedule "$SITE" daily --daily 3 --weekly 2 --monthly 1
           servlo backup schedule "$SITE" | tee /tmp/schedule-before.txt
 
+      # A setting in the registry is the easy half. These are the files the
+      # operator wrote by hand, which servlo promises never to overwrite and
+      # which nothing can reconstruct from anywhere else. They live under the
+      # data directory, so an archive that took only sites.yaml out of it left
+      # the rebuilt machine with stock tuning and no custom nginx.
+      - name: Write the things only the operator knows
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.local/share/servlo/nginx/custom.d
+          mkdir -p ~/.local/share/servlo/nginx/http.d
+          mkdir -p ~/.local/share/servlo/service-tuning
+          mkdir -p ~/.local/share/servlo/php/shared
+          echo 'add_header X-Rebuilt-Custom "yes" always;' > ~/.local/share/servlo/nginx/custom.d/"$SITE".conf
+          echo 'client_max_body_size 512m;' > ~/.local/share/servlo/nginx/http.d/zz-servlo-user.conf
+          printf '[mysqld]\nmax_allowed_packet = 1G\n' > ~/.local/share/servlo/service-tuning/mysql.conf
+          echo 'memory_limit = 512M' > ~/.local/share/servlo/php/shared/95-shared.ini
+
       - name: They both serve
         run: |
           .github/scripts/expect-serving.sh "$SITE"
@@ -363,6 +380,32 @@ jobs:
             cat /tmp/schedule-after.txt
             exit 1
           fi
+
+      # The half a registry cannot carry. Each of these was typed by a person
+      # and is not derivable from anything else on the machine, so a rebuild
+      # that loses them is a rebuild that quietly reverts the operator's tuning
+      # on a server they have just been told came back.
+      - name: What the operator wrote came back too
+        run: |
+          set -euo pipefail
+          fail=0
+          check() {
+            if [ ! -f "$1" ]; then
+              echo "missing after the rebuild: $1"
+              fail=1
+              return
+            fi
+            if ! grep -qF "$2" "$1"; then
+              echo "$1 came back without what was in it (wanted: $2)"
+              cat "$1"
+              fail=1
+            fi
+          }
+          check ~/.local/share/servlo/nginx/custom.d/"$SITE".conf 'X-Rebuilt-Custom'
+          check ~/.local/share/servlo/nginx/http.d/zz-servlo-user.conf 'client_max_body_size 512m'
+          check ~/.local/share/servlo/service-tuning/mysql.conf 'max_allowed_packet = 1G'
+          check ~/.local/share/servlo/php/shared/95-shared.ini 'memory_limit = 512M'
+          exit $fail
 
       - name: What the rebuilt server looks like
         if: always()

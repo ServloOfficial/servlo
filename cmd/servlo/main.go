@@ -215,10 +215,6 @@ func main() {
 	root.AddCommand(cli.NewUsersCmd())
 	root.AddCommand(cli.NewSessionsCmd())
 	root.AddCommand(cli.NewAuditCmd())
-	root.AddCommand(cli.NewRemoteControlCmd())
-	root.AddCommand(cli.NewRemoteControlOnCmd())
-	root.AddCommand(cli.NewRemoteControlOffCmd())
-	root.AddCommand(cli.NewRemoteControlStatusCmd())
 	root.AddCommand(newWatchCmd())
 	root.AddCommand(newServeUICmd())
 

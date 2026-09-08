@@ -6,7 +6,6 @@ export type ModalKind =
   | 'group'
   | 'addSite'
   | 'preset'
-  | 'remoteControl'
   | 'phpAdd'
   | 'phpRebuild'
   | 'envSave'
@@ -253,10 +252,6 @@ export function openAddSiteModal() {
 
 export function openPresetModal() {
   modal.set({ kind: 'preset' });
-}
-
-export function openRemoteControlModal(onSuccess?: () => void) {
-  modal.set({ kind: 'remoteControl', onSuccess });
 }
 
 export function openPhpAddModal() {

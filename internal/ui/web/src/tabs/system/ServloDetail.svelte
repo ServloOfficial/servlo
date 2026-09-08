@@ -2,10 +2,8 @@
   import { onMount } from 'svelte';
   import CheckUpdatesButton from '$components/CheckUpdatesButton.svelte';
   import { version, loadVersion } from '$stores/version';
-  import { isAdmin } from '$stores/session';
   import { status } from '$stores/status';
-  import { remoteControl, loadRemoteControl, disableRemoteControl } from '$stores/remoteControl';
-  import { openRemoteControlModal } from '$stores/modals';
+  import { isAdmin } from '$stores/session';
   import { autostartEnabled, loadAutostart, toggleAutostart } from '$stores/autostart';
   import Toggle from '$components/Toggle.svelte';
   import SettingsCard from '$components/SettingsCard.svelte';
@@ -13,16 +11,9 @@
   import AuditLog from './AuditLog.svelte';
   import ServerStateCard from './ServerStateCard.svelte';
   import LanguageSwitcher from '$components/LanguageSwitcher.svelte';
-  import { apiFetch, apiBase } from '$lib/api';
-  import { escapeHtml } from '$lib/html';
   import { m } from '../../paraglide/messages.js';
 
-  // The remote dashboard always binds :7073.
-  const dashboardURL = $derived('https://' + location.hostname + ':7073');
-  const dashboardQRSrc = $derived(apiBase + '/api/dashboard-qr?v=' + encodeURIComponent(location.hostname));
-
   onMount(() => {
-    loadRemoteControl();
     loadAutostart();
   });
 
@@ -34,15 +25,6 @@
     } finally {
       autostartBusy = false;
     }
-  }
-
-
-  // Hidden until credentials exist, so a server that has never enabled remote
-  // access does not carry a card about it. Once they are set the card stays,
-  // because that is where they are rotated or cleared.
-  const remoteCardHidden = $derived(!$remoteControl.enabled);
-  async function doDisableRemoteControl() {
-    await disableRemoteControl();
   }
 </script>
 
@@ -142,64 +124,5 @@
 
     </div>
 
-    {#if !remoteCardHidden}
-    <SettingsCard>
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{m.system_remote_title()}</span>
-        <span
-          class="inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full {$remoteControl.enabled
-            ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
-            : false
-              ? 'bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400'
-              : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'}"
-        >
-          <span class="w-1.5 h-1.5 rounded-full {$remoteControl.enabled
-            ? 'bg-emerald-500'
-            : 'bg-gray-400'}"></span>
-          {$remoteControl.enabled ? m.system_remote_status_active() : m.system_remote_status_disabled()}
-        </span>
-      </div>
-      <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
-      {@html m.system_remote_description({ loop4: '<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded-sm font-mono">127.0.0.1</code>', loop6: '<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded-sm font-mono">::1</code>' })}
-      </p>
-
-      {#if $isAdmin}
-      {#if $remoteControl.enabled}
-        <div class="space-y-2">
-          <div class="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50 dark:bg-white/3 border border-gray-100 dark:border-servlo-border">
-              <div class="min-w-0">
-                <p class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">{m.system_remote_address()}</p>
-                <a href={dashboardURL} target="_blank" rel="noopener" class="text-sm text-teal-600 dark:text-teal-400 font-mono hover:underline break-all">{dashboardURL}</a>
-              </div>
-            <img src={dashboardQRSrc} width="112" height="112" alt={m.system_remote_qrAlt()} class="shrink-0 rounded-sm bg-white p-1" />
-          </div>
-          <p class="text-xs text-gray-600 dark:text-gray-400">
-            {@html m.system_remote_usernameRow({ username: '<code class="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded-sm font-mono">' + escapeHtml($remoteControl.username) + '</code>' })}
-          </p>
-          <div class="flex flex-wrap gap-2">
-            <button
-              onclick={() => openRemoteControlModal()}
-              disabled={$remoteControl.loading}
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 disabled:opacity-50 transition-colors"
-            >{m.system_remote_changeCredentials()}</button>
-            <button
-              onclick={doDisableRemoteControl}
-              disabled={$remoteControl.loading}
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-700 dark:text-red-400 disabled:opacity-50 transition-colors"
-            >{m.system_remote_disable()}</button>
-          </div>
-        </div>
-      {:else}
-        <div>
-          <button
-            onclick={() => openRemoteControlModal()}
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >{m.system_remote_enable()}</button>
-        </div>
-      {/if}
-      {/if}
-      {#if $remoteControl.error}<p class="text-xs text-red-500 mt-2">{$remoteControl.error}</p>{/if}
-    </SettingsCard>
-    {/if}
   </div>
 </div>

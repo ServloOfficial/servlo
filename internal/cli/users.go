@@ -10,6 +10,7 @@ import (
 
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/ServloOfficial/servlo/internal/auditlog"
 	"github.com/ServloOfficial/servlo/internal/authz"
@@ -607,4 +608,34 @@ func NewAuditCmd() *cobra.Command {
 	}
 	cmd.Flags().IntVar(&limit, "limit", 50, "How many entries to show")
 	return cmd
+}
+
+// readPasswordTwice prompts for a password on stdin twice and returns it when
+// the two inputs match, so an operator setting one from a shell cannot store a
+// typo they will never reproduce.
+func readPasswordTwice() (string, error) {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return "", fmt.Errorf("password prompt requires a TTY — pipe `echo` won't work, run interactively")
+	}
+	fmt.Fprint(os.Stderr, "Password: ")
+	first, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		return "", fmt.Errorf("reading password: %w", err)
+	}
+	fmt.Fprintln(os.Stderr)
+	if len(first) == 0 {
+		return "", fmt.Errorf("empty password")
+	}
+
+	fmt.Fprint(os.Stderr, "Confirm:  ")
+	second, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		return "", fmt.Errorf("reading password: %w", err)
+	}
+	fmt.Fprintln(os.Stderr)
+
+	if string(first) != string(second) {
+		return "", fmt.Errorf("passwords do not match")
+	}
+	return strings.TrimSpace(string(first)), nil
 }

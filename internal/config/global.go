@@ -222,10 +222,12 @@ type GlobalConfig struct {
 		PathDisabled bool `yaml:"path_disabled,omitempty" mapstructure:"path_disabled"`
 	} `yaml:"shims,omitempty" mapstructure:"shims"`
 	UI struct {
-		// RemoteControl gates non-loopback access to the servlo dashboard.
-		// Empty PasswordHash = disabled = remote clients get 403. With a
-		// hash set, they must present matching HTTP Basic auth. Loopback
-		// (127.0.0.1, ::1) always bypasses both checks.
+		// The credentials an install carried before session authentication.
+		// Nothing sets them any more and nothing reads them to admit a
+		// request: cli.AdoptInheritedCredentials turns a pair left here by an
+		// older install into a real account on the next start and clears them,
+		// so an upgrade does not meet the first-run setup form on a machine
+		// that already had a password.
 		Username     string `yaml:"username,omitempty" mapstructure:"username"`
 		PasswordHash string `yaml:"password_hash,omitempty" mapstructure:"password_hash"`
 

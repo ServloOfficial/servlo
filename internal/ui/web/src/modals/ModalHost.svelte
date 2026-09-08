@@ -4,7 +4,6 @@
   import GroupModal from './GroupModal.svelte';
   import AddSiteModal from './AddSiteModal.svelte';
   import PresetModal from './PresetModal.svelte';
-  import RemoteControlModal from './RemoteControlModal.svelte';
   import AddPhpModal from './AddPhpModal.svelte';
   import RebuildPhpModal from './RebuildPhpModal.svelte';
   import ConfirmEnvSaveModal from './ConfirmEnvSaveModal.svelte';
@@ -38,8 +37,6 @@
   <AddSiteModal />
 {:else if $modal.kind === 'preset'}
   <PresetModal />
-{:else if $modal.kind === 'remoteControl'}
-  <RemoteControlModal />
 {:else if $modal.kind === 'phpAdd'}
   <AddPhpModal />
 {:else if $modal.kind === 'phpRebuild' && $modal.phpRebuild}

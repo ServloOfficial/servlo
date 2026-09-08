@@ -1,12 +1,8 @@
 package ui
 
 import (
-	"encoding/json"
 	"net"
 	"net/http"
-
-	"github.com/ServloOfficial/servlo/internal/config"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // unsafeMethod reports whether m can mutate server state and therefore must
@@ -26,21 +22,32 @@ func unsafeMethod(m string) bool {
 // so the split-origin dashboard's preflight succeeds.
 const csrfHeader = "X-Servlo-CSRF"
 
-// csrfExemptPath reports whether path skips the cross-origin gate. These
-// endpoints are reached by non-browser clients (or cross-origin pages we
-// can't control) that can't carry the header, and each already has its own
-// source protection: /api/remote-setup has a token + RFC1918 + lockout gate,
-// the internal notify bridge (POSTed over loopback by out-of-process CLI
-// commands) has its own loopback gate and only triggers a dashboard refresh.
+// csrfExemptPaths skip the cross-origin gate. The one endpoint on the list is
+// reached by a non-browser client that cannot carry the header and has its own
+// source protection: the internal notify bridge, POSTed over loopback by
+// out-of-process CLI commands, has its own loopback gate and only triggers a
+// dashboard refresh.
+//
+// Every entry must be a route the panel actually registers, which
+// TestEveryCrossOriginExemptionIsARegisteredRoute holds it to. An exemption for
+// a path nothing serves is not harmless: the laptop-bootstrap endpoint sat on
+// this list through the gate's whole rewrite, unregistered on the mux since
+// before it, and read to everyone after as a live endpoint with a gate of its
+// own.
 //
 // The per-site unpause used to be exempt too, for a button on the paused-site
 // holding page that POSTed here cross-origin. That page is served to whoever
 // visits the site, which on a server is the public, so the button is a link to
 // the dashboard now and the exemption went with it.
+var csrfExemptPaths = []string{
+	"/api/internal/notify",
+}
+
 func csrfExemptPath(path string) bool {
-	switch path {
-	case "/api/remote-setup", "/api/internal/notify":
-		return true
+	for _, exempt := range csrfExemptPaths {
+		if path == exempt {
+			return true
+		}
 	}
 	return false
 }
@@ -74,54 +81,39 @@ func passesCSRF(r *http.Request) bool {
 	return r.Header.Get(csrfHeader) != ""
 }
 
-// withRemoteControlGate is what is left of the gate after S5.5.
+// withCrossOriginGate refuses a state-changing request that cannot show it was
+// initiated by servlo's own dashboard.
 //
-// Authentication is no longer its job. withPanelAuth sits in front and refuses
-// anything without a session, whatever address it came from, so the LAN
-// exposure flag and the HTTP Basic challenge that used to live here are gone
-// along with the model that needed them: on a server there is no trusted side
-// of the connection to exempt.
-//
-// Authority is no longer its job either. It used to hold a list of routes a
-// remote client could not reach whatever its password, on the reasoning that
-// being at the machine is itself a credential. That reasoning belongs to a
-// local development tool. Servlo's panel is reached over the internet by
-// design, and a rule that only an operator sitting at the droplet may add a
-// site or open a database is a rule that nobody can satisfy, so the whole
-// surface was hidden from the only person who was ever going to use it. Roles
-// (S5.4), a permission declared per route (S5.5) and the audit log (S5.6) are
-// what answer the question now, and they answer it the same wherever the
+// It had a broader name when it also decided who could reach the panel from
+// off the machine: a LAN exposure flag, an HTTP Basic challenge,
+// and a list of routes a remote client could not reach whatever its password,
+// on the reasoning that being at the machine is itself a credential. That
+// reasoning belongs to a local development tool. Servlo's panel is reached over
+// the internet by design, so a rule that only an operator sitting at the
+// droplet may add a site or open a database is a rule nobody can satisfy.
+// withPanelAuth answers who may connect now, and roles, a permission declared
+// per route and the audit log answer what they may do, the same wherever the
 // request came from.
 //
-// What remains is the part sessions do not answer: the cross-origin check,
-// which still applies to the routes that reach the panel without a session.
-func withRemoteControlGate(next http.Handler) http.Handler {
+// What is left is the part sessions do not answer, and the name says so.
+func withCrossOriginGate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 1. CORS preflight: pass through. Browsers don't include the
-		// Authorization header on preflight, so requiring auth here would
-		// break every cross-origin request from a configured client.
+		// CORS preflight: pass through. A browser sends it before it has
+		// anything to prove with, and it changes nothing on its own.
 		if r.Method == http.MethodOptions {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		// 1b. Cross-origin (CSRF) gate. A state-changing request must prove it
-		// came from servlo's own dashboard rather than a malicious page open in
-		// the developer's browser. This is the one check that also applies to
-		// loopback, because the RCE vector is exactly a local browser POSTing
-		// to 127.0.0.1:7073/api/sites/<d>/<action>. Exempt endpoints are reached
-		// by non-browser clients that have their own source protection.
+		// A state-changing request must prove it came from servlo's own
+		// dashboard rather than a malicious page open in the operator's
+		// browser. This applies to loopback too, because the RCE vector is
+		// exactly a local browser POSTing to 127.0.0.1:7073/api/sites/<d>/<a>.
+		// The exempt path is reached by a non-browser client that has its own
+		// source protection.
 		if unsafeMethod(r.Method) && !csrfExemptPath(r.URL.Path) && !passesCSRF(r) {
 			w.Header().Set("Cache-Control", "no-store")
 			http.Error(w, "Forbidden — cross-origin request blocked. Use the Servlo dashboard itself.", http.StatusForbidden)
-			return
-		}
-
-		// 2. The remote-setup bootstrap endpoint has its own gate (token,
-		// RFC 1918 source IP, brute-force lockout). It must remain reachable
-		// from a remote laptop *before* the user has set up dashboard auth.
-		if r.URL.Path == "/api/remote-setup" {
-			next.ServeHTTP(w, r)
 			return
 		}
 
@@ -162,87 +154,6 @@ func uiPrimaryIP() string {
 		}
 	}
 	return ""
-}
-
-// handleRemoteControl serves /api/remote-control. The middleware already
-// gates this endpoint to loopback (because writing the password from a
-// browser over HTTP would otherwise expose it to the network), so we don't
-// need a second source-IP check here.
-//
-//	GET                                  → { enabled, username }
-//	POST { action: "enable", username, password } → enables, persists hash
-//	POST { action: "disable" }           → clears credentials
-func handleRemoteControl(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		cfg, err := config.LoadGlobal()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		writeJSON(w, map[string]any{
-			"enabled":  cfg.UI.PasswordHash != "",
-			"username": cfg.UI.Username,
-		})
-		return
-
-	case http.MethodPost:
-		var body struct {
-			Action   string `json:"action"`
-			Username string `json:"username"`
-			Password string `json:"password"`
-			Enabled  bool   `json:"enabled"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		cfg, err := config.LoadGlobal()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		switch body.Action {
-		case "enable":
-			if body.Username == "" || body.Password == "" {
-				http.Error(w, "username and password are required", http.StatusBadRequest)
-				return
-			}
-			hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
-			if err != nil {
-				http.Error(w, "hashing password: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			cfg.UI.Username = body.Username
-			cfg.UI.PasswordHash = string(hash)
-			if err := config.SaveGlobal(cfg); err != nil {
-				http.Error(w, "saving config: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			writeJSON(w, map[string]any{"ok": true, "enabled": true, "username": body.Username})
-			return
-
-		case "disable":
-			cfg.UI.Username = ""
-			cfg.UI.PasswordHash = ""
-			if err := config.SaveGlobal(cfg); err != nil {
-				http.Error(w, "saving config: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			writeJSON(w, map[string]any{"ok": true, "enabled": false})
-			return
-
-		default:
-			http.Error(w, "unknown action — expected 'enable' or 'disable'", http.StatusBadRequest)
-			return
-		}
-
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 }
 
 // proxyHeaders are the headers a reverse proxy adds when it forwards a request

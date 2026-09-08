@@ -26,12 +26,12 @@ var panelVhostFiles = []string{
 	"internal/ui/dashproxy_test.go",
 	"internal/ui/local_control_test.go",
 	"internal/ui/panel_public_test.go",
-	"internal/ui/remote_control_test.go",
+	"internal/ui/crossorigin_test.go",
 	"internal/ui/site_env_test.go",
 	"internal/ui/ws_origin_test.go",
 	"internal/ui/web/src/lib/api.ts",
 	"internal/ui/server.go",
-	"internal/ui/remote_control.go",
+	"internal/ui/crossorigin.go",
 	"internal/ui/wsframe.go",
 	"internal/ui/wsframe_test.go",
 	"docs/features/index.md",
@@ -426,6 +426,26 @@ func Rules() []Rule {
 			// The regression test has to name the header it proves buys
 			// nothing, and it is the only thing excused.
 			Allow: append(append([]string{}, specs...), "internal/ui/local_control_test.go"),
+		},
+		{
+			// `servlo remote-control on` bcrypt-hashed a password into
+			// config.yaml, said remote clients now needed HTTP Basic auth, and
+			// `off` said they were back to 403. Nothing had read that hash to
+			// admit or refuse a request since S5.5 replaced the gate with
+			// sessions. The help was the pre-S5.5 gate described in the present
+			// tense, so an operator running `off` was told they had locked the
+			// panel down and had changed nothing at all. The panel card and its
+			// modal wrote the same field over /api/remote-control, and the
+			// /api/remote-setup endpoint all three of them cited was never
+			// registered on the mux.
+			//
+			// The field itself stays in config.GlobalConfig, unset by anything
+			// that ships: cli.AdoptInheritedCredentials still turns a pair left
+			// by an older install into a real account, once, on the next start.
+			Feature: "the remote-control Basic-auth gate", Story: "S5.5", Enforced: true,
+			Patterns: []string{`remote-control`, `remote_control`, `RemoteControl`,
+				`remoteControl`, `remote-setup`, `system_remote`},
+			Allow: specs,
 		},
 	}
 }

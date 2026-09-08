@@ -28,7 +28,7 @@ func TestLocalControlAcceptsLoopbackHostnames(t *testing.T) {
 			req.RemoteAddr = tc.peer
 			req.Host = tc.host
 			rec := httptest.NewRecorder()
-			withRemoteControlGate(next).ServeHTTP(rec, req)
+			withCrossOriginGate(next).ServeHTTP(rec, req)
 
 			if !next.called {
 				t.Errorf("local request with Host %q was blocked (status %d)", tc.host, rec.Code)
@@ -80,7 +80,7 @@ func TestLocalControlAcceptsUnixSocketWithForeignHost(t *testing.T) {
 	req.Host = "servlo.localhost"
 	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUnixSocket{}, true))
 	rec := httptest.NewRecorder()
-	withRemoteControlGate(next).ServeHTTP(rec, req)
+	withCrossOriginGate(next).ServeHTTP(rec, req)
 
 	if !next.called {
 		t.Fatalf("unix-socket request was blocked (status %d)", rec.Code)

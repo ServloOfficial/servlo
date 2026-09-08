@@ -188,5 +188,5 @@ func panelStack(t *testing.T, next http.Handler) http.Handler {
 	if err != nil {
 		t.Fatalf("NewGuard: %v", err)
 	}
-	return withPanelAuth(guard, withRemoteControlGate(next))
+	return withPanelAuth(guard, withCrossOriginGate(next))
 }
