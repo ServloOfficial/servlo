@@ -27,11 +27,14 @@ func writeSites(t *testing.T, sites string) {
 func stubRenewal(t *testing.T, fn func(config.Site) (bool, error)) *int {
 	t.Helper()
 	reloads := 0
-	oldRenew, oldReload, oldUp := renewIfDue, reloadNginx, nginxIsUp
+	oldRenew, oldReload, oldUp, oldRestore := renewIfDue, reloadNginx, nginxIsUp, restoreInProgress
 	renewIfDue = fn
 	reloadNginx = func() error { reloads++; return nil }
 	nginxIsUp = func() bool { return true }
-	t.Cleanup(func() { renewIfDue, reloadNginx, nginxIsUp = oldRenew, oldReload, oldUp })
+	restoreInProgress = func() bool { return false }
+	t.Cleanup(func() {
+		renewIfDue, reloadNginx, nginxIsUp, restoreInProgress = oldRenew, oldReload, oldUp, oldRestore
+	})
 	return &reloads
 }
 
@@ -147,5 +150,23 @@ func TestWaitForNginx_ReturnsOnceNginxAnswers(t *testing.T) {
 
 	if !waitForNginx() {
 		t.Error("waitForNginx gave up on an nginx that came up")
+	}
+}
+
+// Certificates are not in a backup, so every secured site on a restored server
+// has none and every one of them looks overdue at once. The restore has just
+// told the operator to point DNS here and run servlo secure; answering that
+// with an alert per site for the thing they were told to do next is noise, and
+// on a rebuild it is noise at the worst possible moment.
+func TestRenewCertsOnce_LeavesARebuildToTheOperator(t *testing.T) {
+	writeSites(t, twoSecuredOnePlain)
+	asked := 0
+	stubRenewal(t, func(config.Site) (bool, error) { asked++; return true, nil })
+	restoreInProgress = func() bool { return true }
+
+	renewCertsOnce()
+
+	if asked != 0 {
+		t.Errorf("the sweep tried %d issuances during a restore, one alert each", asked)
 	}
 }

@@ -40,11 +40,12 @@ const nginxSettleWait = 5 * time.Minute
 // Seams. All three reach the network or the service manager, so a test that
 // could not replace them could only run on a server.
 var (
-	renewIfDue    = certs.RenewIfDue
-	reloadNginx   = nginx.Reload
-	nginxIsUp     = func() bool { up, err := podman.ContainerRunning("servlo-nginx"); return err == nil && up }
-	settleTick    = 5 * time.Second
-	sweepDeadline = func() time.Time { return time.Now().Add(nginxSettleWait) }
+	renewIfDue        = certs.RenewIfDue
+	reloadNginx       = nginx.Reload
+	nginxIsUp         = func() bool { up, err := podman.ContainerRunning("servlo-nginx"); return err == nil && up }
+	restoreInProgress = config.RestoreInProgress
+	settleTick        = 5 * time.Second
+	sweepDeadline     = func() time.Time { return time.Now().Add(nginxSettleWait) }
 )
 
 // WatchCertRenewal renews the certificates of secured sites as they age.
@@ -96,6 +97,16 @@ func renewCertsOnce() {
 	// out of the five an hour the authority allows.
 	if !nginxIsUp() {
 		log.Print("[certs] nginx is not running, so this renewal sweep is skipped")
+		return
+	}
+
+	// Nor during a rebuild. Certificates are not in a backup, so every secured
+	// site on a restored server has none, and every one of them looks overdue
+	// at once. The restore has already told the operator to point DNS here and
+	// run servlo secure; sweeping now would answer that with an alert per site
+	// for the thing they were just told to do next.
+	if restoreInProgress() {
+		log.Print("[certs] a restore is in progress, so certificates are left to the operator until it is done")
 		return
 	}
 
