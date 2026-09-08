@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ServloOfficial/servlo/internal/authz"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/envfile"
 	"github.com/ServloOfficial/servlo/internal/podman"
@@ -226,6 +227,11 @@ func handleEntityAction(w http.ResponseWriter, r *http.Request, service, kind, a
 		writeDBError(w, "a name is required")
 		return
 	}
+	// The same reason the database drop leaves one: the row's name is in the
+	// body, and an entry that says an index was deleted without saying which is
+	// not the record this log exists to be. Left before the run so a refused
+	// attempt is in it too.
+	authz.SetAuditDetail(r, action+" "+strings.TrimSpace(body.Name)+" ("+kind+" on "+service+")")
 	if status, _ := podman.UnitStatus("servlo-" + service); status != "active" {
 		writeDBError(w, "start the service before running entity actions")
 		return

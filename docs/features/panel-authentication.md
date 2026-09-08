@@ -44,6 +44,8 @@ servlo sessions revoke --all
 
 The store holds the SHA-256 of each token and never the token itself, so reading the file is not the same as holding every live session. The panel and the CLI both read through to it, so a session ended from a shell stops working on the next request rather than at the next restart.
 
+The dashboard's live connection is the one thing with no next request: it is authorised when it opens and then streams the panel's state for as long as the browser holds it. So it asks, every thirty seconds, whether its session is still there, and closes itself when the answer is no. Revoking a session takes the open dashboard with it, within one interval, which is what the laptop that is no longer in the building needed it to do.
+
 Sessions last a week from last use. Working all day pushes the expiry out; a laptop left in a hotel eventually stops being a way in.
 
 ## The cookie

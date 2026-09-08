@@ -923,6 +923,7 @@
   "databases_drop": "Excluir",
   "databases_dropTitle": "Excluir {name}?",
   "databases_dropBody": "Isto apaga permanentemente o banco de dados e todos os seus dados, e não pode ser desfeito.",
+  "databases_dropConfirm": "Digite {name} para confirmar",
   "databases_snapshots": "Snapshots",
   "databases_snapshotsTitle": "Snapshots de {name}",
   "databases_takeSnapshot": "Criar snapshot",

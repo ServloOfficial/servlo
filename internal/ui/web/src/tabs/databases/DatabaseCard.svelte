@@ -153,7 +153,15 @@
     }, 4000);
   }
 
+  // Typed confirmation, not a second button. This is the most destructive
+  // thing the panel can do: a client's database, permanently, with no undo,
+  // and a modal you can dismiss with the same reflex that opened it is not
+  // friction. The same reasoning as deleting a file from a live site.
+  let dropTyped = $state('');
+  const dropMatches = $derived(!!active && dropTyped.trim() === active.name);
+
   async function confirmDrop() {
+    if (!dropMatches) return;
     dropBusy = true;
     dropError = '';
     const res = await dropDatabase(engine.service, active.name);
@@ -339,15 +347,28 @@
 
 {#if showDrop}
   <Modal open title={m.databases_dropTitle({ name: active.name })} onclose={() => !dropBusy && (showDrop = false)} size="sm">
-    <div class="px-5 py-4 space-y-2">
+    <div class="px-5 py-4 space-y-3">
       <p class="text-sm text-gray-700 dark:text-gray-300">{m.databases_dropBody()}</p>
+      <label class="block space-y-1">
+        <span class="text-xs text-gray-500 dark:text-gray-400"
+          >{m.databases_dropConfirm({ name: active.name })}</span
+        >
+        <input
+          type="text"
+          bind:value={dropTyped}
+          disabled={dropBusy}
+          autocomplete="off"
+          spellcheck="false"
+          class="w-full px-2 py-1.5 rounded-sm border border-gray-300 dark:border-servlo-border bg-white dark:bg-black/30 text-sm font-mono text-gray-900 dark:text-gray-100 disabled:opacity-50"
+        />
+      </label>
       {#if dropError}
         <p class="text-xs text-red-500">{dropError}</p>
       {/if}
     </div>
     {#snippet footer()}
       <DetailButton onclick={() => (showDrop = false)} disabled={dropBusy}>{m.common_cancel()}</DetailButton>
-      <DetailButton tone="danger" onclick={confirmDrop} loading={dropBusy} disabled={dropBusy}>
+      <DetailButton tone="danger" onclick={confirmDrop} loading={dropBusy} disabled={dropBusy || !dropMatches}>
         {m.databases_drop()}
       </DetailButton>
     {/snippet}

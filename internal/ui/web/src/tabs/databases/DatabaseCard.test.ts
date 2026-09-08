@@ -91,15 +91,36 @@ describe('DatabaseCard', () => {
     expect(getByText('havenly.test')).toBeInTheDocument();
   });
 
-  it('drops only the half the segment points at', async () => {
+  it('drops only the half the segment points at, once its name is typed', async () => {
     const { getByRole, getByLabelText, getAllByRole } = render(DatabaseCard, {
       props: { engine, entry: parent, testing }
     });
     await fireEvent.click(within(getByRole('group')).getByRole('button', { name: 'Testing' }));
     await fireEvent.click(getByLabelText('Drop'));
+
     const confirm = getAllByRole('button', { name: 'Drop' }).at(-1)!;
+    await fireEvent.input(getByRole('textbox'), { target: { value: 'havenly_testing' } });
     await fireEvent.click(confirm);
     expect(dropDatabase).toHaveBeenCalledWith('mysql', 'havenly_testing');
+  });
+
+  // The friction is the point. Dropping a client's database is permanent and
+  // has no undo, so the confirm stays inert until the name is typed exactly:
+  // a modal you dismiss with the same reflex that opened it is not friction.
+  it('will not drop until the typed name matches', async () => {
+    const { getByRole, getByLabelText, getAllByRole } = render(DatabaseCard, {
+      props: { engine, entry: parent, testing }
+    });
+    await fireEvent.click(within(getByRole('group')).getByRole('button', { name: 'Testing' }));
+    await fireEvent.click(getByLabelText('Drop'));
+
+    const confirm = getAllByRole('button', { name: 'Drop' }).at(-1)!;
+    await fireEvent.click(confirm);
+    expect(dropDatabase).not.toHaveBeenCalled();
+
+    await fireEvent.input(getByRole('textbox'), { target: { value: 'havenly' } });
+    await fireEvent.click(confirm);
+    expect(dropDatabase).not.toHaveBeenCalled();
   });
 
   it('reports the import as it progresses and confirms it when it lands', async () => {

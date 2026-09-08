@@ -923,6 +923,7 @@
   "databases_drop": "Xóa",
   "databases_dropTitle": "Xóa {name}?",
   "databases_dropBody": "Thao tác này xóa vĩnh viễn cơ sở dữ liệu cùng toàn bộ dữ liệu của nó, và không thể hoàn tác.",
+  "databases_dropConfirm": "Gõ {name} để xác nhận",
   "databases_snapshots": "Ảnh chụp",
   "databases_snapshotsTitle": "Ảnh chụp của {name}",
   "databases_takeSnapshot": "Tạo ảnh chụp",

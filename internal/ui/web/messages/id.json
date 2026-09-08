@@ -923,6 +923,7 @@
   "databases_drop": "Hapus",
   "databases_dropTitle": "Hapus {name}?",
   "databases_dropBody": "Ini menghapus basis data beserta seluruh datanya secara permanen, dan tidak dapat dibatalkan.",
+  "databases_dropConfirm": "Ketik {name} untuk mengonfirmasi",
   "databases_snapshots": "Snapshot",
   "databases_snapshotsTitle": "Snapshot dari {name}",
   "databases_takeSnapshot": "Ambil snapshot",

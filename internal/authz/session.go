@@ -154,6 +154,41 @@ func (s *SessionStore) Lookup(token string) (Session, bool) {
 	return Session{}, false
 }
 
+// Live reports whether the session with this ID is still in the store and has
+// not expired.
+//
+// For the one surface that authorises once and then keeps going. Every route
+// looks a session up on the way past, so a revoked operator is refused at their
+// next click; a websocket has no next click, and without this it would stream
+// the panel's state until the browser went away.
+//
+// Read-only on purpose. Lookup extends a session on every request because a
+// request is somebody using the panel. A liveness check on a timer is not, and
+// renewing from one would keep a session alive indefinitely behind a tab nobody
+// is looking at.
+func (s *SessionStore) Live(id string) bool {
+	if id == "" {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	sessions, err := s.load()
+	if err != nil {
+		// A store that cannot be read is not evidence the session is gone, and
+		// closing every connection on a transient read error would turn a
+		// blipping disk into a dashboard that will not stay up.
+		return true
+	}
+	now := s.now()
+	for i := range sessions {
+		if sessions[i].ID == id {
+			return !now.After(sessions[i].Expires)
+		}
+	}
+	return false
+}
+
 // List returns the live sessions, newest first, without their token hashes.
 func (s *SessionStore) List() []Session {
 	s.mu.Lock()

@@ -76,8 +76,12 @@ server {
 `, domain, acmeChallengeLocation, panelSecurityHeaders, panelProxyBlock())
 	}
 
+	// Through commitVhost like every other generated vhost. nginx loads its
+	// whole configuration or none of it, so a panel vhost it refuses takes
+	// every site on the machine down with it, and §3.4 admits no exception for
+	// config servlo wrote itself.
 	config.GuardRealWrite(PanelVhostPath())
-	return os.WriteFile(PanelVhostPath(), []byte(content), 0644)
+	return commitVhost(PanelVhostPath(), []byte(content))
 }
 
 // RemovePanelVhost deletes the panel vhost. An absent one is not an error:

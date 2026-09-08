@@ -923,6 +923,7 @@
   "databases_drop": "Elimina",
   "databases_dropTitle": "Eliminare {name}?",
   "databases_dropBody": "Questa operazione elimina definitivamente il database e tutti i suoi dati, e non può essere annullata.",
+  "databases_dropConfirm": "Scrivi {name} per confermare",
   "databases_snapshots": "Snapshot",
   "databases_snapshotsTitle": "Snapshot di {name}",
   "databases_takeSnapshot": "Crea snapshot",

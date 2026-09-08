@@ -923,6 +923,7 @@
   "databases_drop": "削除",
   "databases_dropTitle": "{name} を削除しますか？",
   "databases_dropBody": "データベースとそのすべてのデータを完全に削除します。元に戻すことはできません。",
+  "databases_dropConfirm": "確認のため {name} と入力してください",
   "databases_snapshots": "スナップショット",
   "databases_snapshotsTitle": "{name} のスナップショット",
   "databases_takeSnapshot": "スナップショットを取得",

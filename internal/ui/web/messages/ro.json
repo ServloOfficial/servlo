@@ -923,6 +923,7 @@
   "databases_drop": "Șterge",
   "databases_dropTitle": "Ștergi {name}?",
   "databases_dropBody": "Aceasta șterge definitiv baza de date și toate datele ei și nu poate fi anulată.",
+  "databases_dropConfirm": "Scrie {name} pentru a confirma",
   "databases_snapshots": "Snapshot-uri",
   "databases_snapshotsTitle": "Snapshot-uri pentru {name}",
   "databases_takeSnapshot": "Creează snapshot",

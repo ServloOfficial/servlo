@@ -235,6 +235,17 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	// so the worst case is a stale list on screen rather than access.
 	scope, _ := authz.ScopeFrom(r.Context())
 
+	// Whose session this is, so the ping tick can ask whether it still exists.
+	// That argument above holds for a role because there is always a next
+	// request to catch it. There is no next request for a revoked session: this
+	// connection was authorised at the handshake and would otherwise keep
+	// streaming the panel's state to somebody `servlo sessions revoke` was run
+	// against, until their browser happened to go away.
+	var sessionID string
+	if session, ok := authz.SessionFrom(r.Context()); ok {
+		sessionID = session.ID
+	}
+
 	// Initial snapshot: assemble one JSON object containing all kinds.
 	initial := assembleSnapshot(
 		scopeSites(snapshots.Sites(), scope),
@@ -266,6 +277,12 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		case <-pingTicker.C:
+			// Checked here rather than on every frame: a revoked operator sees
+			// at most one more ping interval, and the cost is one small read
+			// per connection per tick instead of one per snapshot.
+			if wsSessionEnded(sessionID) {
+				return
+			}
 			if err := sendPing(); err != nil {
 				return
 			}
@@ -310,4 +327,26 @@ func assembleSnapshot(sites, services, status, unhealthy, notification []byte, k
 	}
 	buf.WriteByte('}')
 	return buf.Bytes()
+}
+
+// sessionLive is the seam. The real one reads the session store, which is also
+// what every route reads.
+var sessionLive = func(id string) bool {
+	store, err := authz.OpenSessions()
+	if err != nil {
+		// A store that cannot be opened is not evidence the session is gone.
+		// Dropping every dashboard on a transient read error would be a worse
+		// failure than the one this guards against.
+		return true
+	}
+	return store.Live(id)
+}
+
+// wsSessionEnded reports whether the session this connection was opened with
+// has been revoked or has expired since.
+//
+// An empty id is a panel with no accounts yet, where there is no session to
+// revoke and nothing to check.
+func wsSessionEnded(id string) bool {
+	return id != "" && !sessionLive(id)
 }

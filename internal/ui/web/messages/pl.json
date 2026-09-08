@@ -923,6 +923,7 @@
   "databases_drop": "Usuń",
   "databases_dropTitle": "Usunąć {name}?",
   "databases_dropBody": "Spowoduje to trwałe usunięcie bazy danych i wszystkich jej danych, czego nie można cofnąć.",
+  "databases_dropConfirm": "Wpisz {name}, aby potwierdzić",
   "databases_snapshots": "Migawki",
   "databases_snapshotsTitle": "Migawki bazy {name}",
   "databases_takeSnapshot": "Utwórz migawkę",
