@@ -86,7 +86,7 @@ func generateCustomFPMQuadlet(siteName, version string) (string, error) {
 		return "", err
 	}
 	short := strings.ReplaceAll(version, ".", "")
-	content = strings.ReplaceAll(content, "Image=servlo-php"+short+"-fpm:local", "Image="+CustomImageName(siteName))
+	content = strings.ReplaceAll(content, "Image=localhost/servlo-php"+short+"-fpm:local", "Image="+CustomImageName(siteName))
 	content = strings.ReplaceAll(content, "ContainerName=servlo-php"+short+"-fpm", "ContainerName="+CustomFPMContainerName(siteName))
 	// Its own pools, for the same reason every container has its own: a master
 	// binds the socket of every pool it can see, so sharing the shared

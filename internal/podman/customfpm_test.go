@@ -74,7 +74,7 @@ func TestGenerateCustomFPMQuadlet_OverridesImageAndName(t *testing.T) {
 		}
 	}
 	// The shared image/name must be gone (the override replaced them).
-	for _, s := range []string{"Image=servlo-php84-fpm:local", "ContainerName=servlo-php84-fpm"} {
+	for _, s := range []string{"Image=localhost/servlo-php84-fpm:local", "ContainerName=servlo-php84-fpm"} {
 		if strings.Contains(content, s) {
 			t.Errorf("quadlet still has shared %q after override", s)
 		}
