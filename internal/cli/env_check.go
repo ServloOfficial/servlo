@@ -99,7 +99,7 @@ func runEnvCheck(fix bool) error {
 
 	envFiles := findEnvFiles(cwd)
 	if len(envFiles) == 0 {
-		return fmt.Errorf("no .env files found in %s — run servlo env to create one", cwd)
+		return fmt.Errorf("no .env files found in %s — run `servlo env` to create one", cwd)
 	}
 
 	if fix {

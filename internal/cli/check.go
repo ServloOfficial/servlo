@@ -62,7 +62,7 @@ func runCheck(_ *cobra.Command, _ []string) error {
 			ckFail("php_version: %s — %v\n", cfg.PHPVersion, err)
 			errors++
 		} else if !phpPkg.IsInstalled(cfg.PHPVersion) {
-			ckWarn("php_version: %s is not installed — run servlo php:install %s\n", cfg.PHPVersion, cfg.PHPVersion)
+			ckWarn("php_version: %s is not installed — run `servlo use %s`\n", cfg.PHPVersion, cfg.PHPVersion)
 			warnings++
 		} else {
 			ckOK("php_version: %s\n", cfg.PHPVersion)
@@ -191,7 +191,7 @@ func runCheck(_ *cobra.Command, _ []string) error {
 				ckFail("service %q: unknown preset %q\n", svc.Name, svc.Preset)
 				errors++
 			} else if _, err := config.LoadCustomService(svc.Name); err != nil {
-				ckWarn("service %s: preset %q not installed — run: servlo service preset install %s\n", svc.Name, svc.Preset, svc.Preset)
+				ckWarn("service %s: preset %q not installed — run: servlo service preset %s\n", svc.Name, svc.Preset, svc.Preset)
 				warnings++
 			} else {
 				ckOK("service: %s (preset: %s)\n", svc.Name, svc.Preset)
@@ -207,7 +207,7 @@ func runCheck(_ *cobra.Command, _ []string) error {
 		if serviceops.ServiceInstalled(svc.Name) {
 			ckOK("service: %s (custom)\n", svc.Name)
 		} else {
-			ckFail("service %q: not installed — run `servlo service preset install %s` (if it's a bundled preset) or `servlo service add --name %s ...`\n",
+			ckFail("service %q: not installed — run `servlo service preset %s` (if it's a bundled preset) or `servlo service add --name %s ...`\n",
 				svc.Name, svc.Name, svc.Name)
 			errors++
 		}

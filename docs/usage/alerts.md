@@ -41,7 +41,7 @@ An alert is emailed once, through the panel's own SMTP account, at the moment it
 
 The panel is where an alert lives and email is a copy of it. That order matters: SMTP is optional, a mail server can be down, and an alert that only ever existed as an email nobody received is exactly the failure this is meant to prevent. So an alert is written down first and sent second, and a send that fails is reported without losing the alert.
 
-A server with no panel SMTP configured sends nothing and says nothing about it. That is the ordinary state of a fresh install, not a fault. Set it up under Settings, or with `servlo panel smtp`.
+A server with no panel SMTP configured sends nothing and says nothing about it. That is the ordinary state of a fresh install, not a fault. Set it up in the dashboard under **System, Mail**; there is no command for it, because the one thing it holds is a password and a shell is the wrong place to put one.
 
 ## The uptime check
 

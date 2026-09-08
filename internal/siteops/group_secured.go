@@ -72,8 +72,8 @@ func cascadeGroupSecondaries(main *config.Site) ([]string, error) {
 
 // EnforceGroupSecondaries repairs the invariant across the whole registry: it
 // secures every secondary whose group main is secured. Install runs it as a
-// reconcile, which is also what `servlo dns:enable` re-execs into, so an install
-// that has already drifted into the broken state is repaired.
+// reconcile, so an install that has already drifted into the broken state is
+// repaired.
 //
 // Returns the secondaries it changed. A failure on one is reported but does not
 // stop the rest: a partially repaired group still serves more sites correctly

@@ -40,7 +40,7 @@ func TestSaveTuningOverride_NotInstalled(t *testing.T) {
 	}
 	// The hint must be runnable as-is so the user can recover without
 	// guessing the command shape.
-	if got := err.Error(); !contains(got, "servlo service preset install mysql") {
+	if got := err.Error(); !contains(got, "servlo service preset mysql") {
 		t.Errorf("expected install hint in error, got: %v", got)
 	}
 }

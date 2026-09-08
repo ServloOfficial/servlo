@@ -191,7 +191,7 @@ func presetSuggestionFor(svc *ServiceRow) string {
 	if serviceops.ServiceInstalled(target) {
 		return ""
 	}
-	return "install " + target + " for a browser dashboard (run `servlo preset install " + target + "`)"
+	return "install " + target + " for a browser dashboard (run `servlo service preset " + target + "`)"
 }
 
 // servicePortsInfo returns the host (published) port a built-in service is

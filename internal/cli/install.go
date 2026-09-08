@@ -180,8 +180,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	unattended, _ := cmd.Flags().GetBool("unattended")
 	// Captured before any step writes config: a missing file means this is a
 	// first install, the only time the DNS question is asked. Every later run
-	// honours the saved choice, which is flipped afterward with dns:enable /
-	// dns:disable rather than by re-prompting.
+	// honours the saved choice rather than re-prompting.
 	// Unattended runs are driven by a package maintainer script: reuse the
 	// non-interactive update path for prompts. The sudo-gated system steps are
 	// skipped here because `servlo bootstrap --system` performs them as root
@@ -409,7 +408,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	// Ahead of the regen pass, which reads the registry below: a secondary left
 	// on plain HTTP under a secured main has no 443 block and the main's
-	// wildcard answers its subdomain. This is the reconcile dns:enable re-execs.
+	// wildcard answers its subdomain. This is the reconcile an install re-runs.
 	secured, securedErr := siteops.EnforceGroupSecondaries()
 	if len(secured) > 0 {
 		feedback.Note("restored https for group secondaries: " + strings.Join(secured, ", "))
@@ -1130,7 +1129,7 @@ func laravelInstallerPresent() bool {
 func installLaravelInstaller() error {
 	installed, err := phpDet.ListInstalled()
 	if err != nil || len(installed) == 0 {
-		return fmt.Errorf("no PHP version installed — install one with `servlo php:install <version>` first")
+		return fmt.Errorf("no PHP version installed — install one with `servlo use <version>` first")
 	}
 
 	// Prefer the configured default PHP, otherwise use the highest installed.

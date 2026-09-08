@@ -376,7 +376,7 @@ func readTuningContent(name string) (string, bool) {
 func SaveTuningOverride(name, content string, backup bool) (TuningSaveResult, error) {
 	res := TuningSaveResult{}
 	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `servlo service preset install %s` first", ErrTuningServiceNotInstalled, name)
+		return res, fmt.Errorf("%w: run `servlo service preset %s` first", ErrTuningServiceNotInstalled, name)
 	}
 	svc, err := config.ResolveServiceForTuning(name)
 	if err != nil {
@@ -527,7 +527,7 @@ type TuningResetResult struct {
 func ResetTuningOverride(name string) (TuningResetResult, error) {
 	res := TuningResetResult{}
 	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `servlo service preset install %s` first", ErrTuningServiceNotInstalled, name)
+		return res, fmt.Errorf("%w: run `servlo service preset %s` first", ErrTuningServiceNotInstalled, name)
 	}
 	svc, err := config.ResolveServiceForTuning(name)
 	if err != nil {
@@ -629,7 +629,7 @@ type TuningRestoreResult struct {
 func RestoreTuningFromBackup(name, backupName string) (TuningRestoreResult, error) {
 	res := TuningRestoreResult{}
 	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `servlo service preset install %s` first", ErrTuningServiceNotInstalled, name)
+		return res, fmt.Errorf("%w: run `servlo service preset %s` first", ErrTuningServiceNotInstalled, name)
 	}
 	svc, err := config.ResolveServiceForTuning(name)
 	if err != nil {

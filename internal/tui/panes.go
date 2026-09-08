@@ -620,7 +620,7 @@ func (m *Model) renderServices(w, h int) string {
 		rowData = []string{
 			padToWidth(dimStyle.Render("no services configured"), contentW),
 			padToWidth("", contentW),
-			padToWidth(dimStyle.Render("  link a site or install a preset (e.g. ")+accentStyle.Render("servlo preset install mysql")+dimStyle.Render(")"), contentW),
+			padToWidth(dimStyle.Render("  link a site or install a preset (e.g. ")+accentStyle.Render("servlo service preset mysql")+dimStyle.Render(")"), contentW),
 		}
 	case len(services) == 0:
 		rowData = []string{

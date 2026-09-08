@@ -125,7 +125,7 @@ When focus is on the Services pane, the right column swaps to a service-focused 
 - **Depends on**: services in `depends_on`, each with its live state so you can confirm a stack is fully up before debugging.
 - **Sites using**: every active site (excluding paused/ignored) whose `.servlo.yaml` references this service.
 - **Env vars**: the preset's `env_vars` template list for default presets, or the merged `env_vars` + `environment` map for custom services. Read-only.
-- **Preset suggestion**: a one-line nudge for the matching admin dashboard preset (e.g. `mysql` → install `phpmyadmin`) when it isn't already on disk. Install is destructive enough to stay CLI-only per the TUI scope rule, so the banner points at `servlo preset install <name>` rather than wiring an in-TUI installer.
+- **Preset suggestion**: a one-line nudge for the matching admin dashboard preset (e.g. `mysql` → install `phpmyadmin`) when it isn't already on disk. Install is destructive enough to stay CLI-only per the TUI scope rule, so the banner points at `servlo service preset <name>` rather than wiring an in-TUI installer.
 - **Actions**: quick reminder of the reversible verbs the services pane already handles: `s start`, `x stop`, `r restart`, `t shell`, `u update`, `b rollback`, `l logs`.
 
 For worker rows (queue-X, schedule-X, custom framework workers) the detail variant skips the env / dependency / sites-using sections and just shows the worker kind, the parent site, the systemd user unit, and the project path, workers run inside the owning site's FPM container, so they have no env or image of their own.
