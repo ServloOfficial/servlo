@@ -795,6 +795,37 @@ func siteServingFilesMissing(s config.Site) bool {
 	return err != nil
 }
 
+// restoreSiteTimers puts one site's scheduled work back on the machine.
+//
+// This is the half of a rebuild that stays quiet when it is missing. A restored
+// server serves every site correctly and silently stops doing anything on a
+// schedule: the backup that was the reason for keeping backups, its test
+// restore, and every command the site had cron running. Nothing says so,
+// because a timer that was never written cannot fail. The timers are not in a
+// backup either, since they live in the user's systemd directory and the state
+// archive holds servlo's config.
+//
+// Both restorers are idempotent and both decide the whole state from the
+// registry, so a schedule an operator switched off loses its units here rather
+// than coming back from the dead.
+func restoreSiteTimers(s config.Site) {
+	if err := sitecron.Sync(s); err != nil {
+		feedback.Warn("restoring scheduled commands for %s: %v", s.Name, err)
+	}
+	// Only for a site that has one. ApplySchedule decides all three states, and
+	// the state it decides for a site with no schedule is "take the units
+	// away", which on an ordinary start is two daemon reloads and four
+	// systemctl calls per site to remove units that were never there. A
+	// schedule switched off while servlo was not running is cleaned up by the
+	// path that switched it off.
+	if s.Backup == nil || s.Backup.Schedule == "" {
+		return
+	}
+	if err := backup.ApplySchedule(s, servloBinaryPath()); err != nil {
+		feedback.Warn("restoring the backup schedule for %s: %v", s.Name, err)
+	}
+}
+
 func restoreSiteInfrastructure() {
 	reg, err := config.LoadSites()
 	if err != nil {
@@ -867,30 +898,7 @@ func restoreSiteInfrastructure() {
 			}
 		}
 
-		// Put the site's timers back. Both are idempotent and both decide the
-		// whole state from the registry, so a site whose schedule was switched
-		// off loses its units here rather than keeping them.
-		//
-		// This is the half of a rebuild that stays quiet when it is missing. A
-		// restored server serves every site correctly and silently stops doing
-		// anything on a schedule: the backup that was the reason for keeping
-		// backups, its test restore, and every command the site had cron
-		// running. Nothing on the machine says so, because a timer that was
-		// never written cannot fail.
-		if err := sitecron.Sync(s); err != nil {
-			feedback.Warn("restoring scheduled commands for %s: %v", s.Name, err)
-		}
-		// Only for a site that has one. ApplySchedule decides all three states,
-		// and the state it decides for a site with no schedule is "take the
-		// units away", which on an ordinary start is two daemon reloads and
-		// four systemctl calls per site to remove units that were never there.
-		// A schedule switched off while servlo was not running is cleaned up by
-		// the path that switched it off.
-		if s.Backup != nil && s.Backup.Schedule != "" {
-			if err := backup.ApplySchedule(s, servloBinaryPath()); err != nil {
-				feedback.Warn("restoring the backup schedule for %s: %v", s.Name, err)
-			}
-		}
+		restoreSiteTimers(s)
 
 		// Restore FPM quadlet for this site's PHP version (shared-FPM PHP sites
 		// only; custom-FPM sites use their per-site container handled above).

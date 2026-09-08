@@ -30,7 +30,7 @@ func (m *timerRecorder) DaemonReload() error { m.reloads++; return nil }
 // makes it do anything on a schedule, so the server came up serving every site
 // correctly and never ran a backup, a test restore, or a single cron command
 // again. Nothing failed, because a timer that was never written cannot.
-func TestRestoreSiteInfrastructure_PutsTheSitesTimersBack(t *testing.T) {
+func TestRestoreSiteTimers_PutsTheSitesTimersBack(t *testing.T) {
 	isolate(t)
 
 	site := config.Site{
@@ -38,16 +38,13 @@ func TestRestoreSiteInfrastructure_PutsTheSitesTimersBack(t *testing.T) {
 		Cron:   []config.CronEntry{{ID: "prune", Name: "Prune", Command: "php artisan prune", Calendar: "daily"}},
 		Backup: &config.SiteBackup{Schedule: "daily"},
 	}
-	if err := config.AddSite(site); err != nil {
-		t.Fatal(err)
-	}
 
 	rec := &timerRecorder{ServiceManager: services.Mgr}
 	prev := services.Mgr
 	services.Mgr = rec
 	t.Cleanup(func() { services.Mgr = prev })
 
-	restoreSiteInfrastructure()
+	restoreSiteTimers(site)
 
 	got := strings.Join(rec.written, " ")
 	if !strings.Contains(got, "servlo-cron-acme-prune") {
@@ -61,20 +58,17 @@ func TestRestoreSiteInfrastructure_PutsTheSitesTimersBack(t *testing.T) {
 // A site with nothing scheduled is the ordinary case on every start. Deciding
 // its state anyway means two daemon reloads and four systemctl calls per site
 // to take away units that were never written.
-func TestRestoreSiteInfrastructure_LeavesAnUnscheduledSiteAlone(t *testing.T) {
+func TestRestoreSiteTimers_LeavesAnUnscheduledSiteAlone(t *testing.T) {
 	isolate(t)
 
 	site := config.Site{Name: "plain", Domains: []string{"plain.example"}, Path: t.TempDir(), PHPVersion: "8.5"}
-	if err := config.AddSite(site); err != nil {
-		t.Fatal(err)
-	}
 
 	rec := &timerRecorder{ServiceManager: services.Mgr}
 	prev := services.Mgr
 	services.Mgr = rec
 	t.Cleanup(func() { services.Mgr = prev })
 
-	restoreSiteInfrastructure()
+	restoreSiteTimers(site)
 
 	if len(rec.written) != 0 {
 		t.Errorf("timers were written for a site that schedules nothing: %v", rec.written)
