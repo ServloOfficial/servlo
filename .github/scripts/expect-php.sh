@@ -48,33 +48,70 @@ for ext in pdo_mysql pdo_pgsql mysqli mbstring intl gd zip bcmath curl xml \
 done
 
 echo
-echo "── production ini defaults (CLAUDE.md §3.4) ──"
+echo "── the production switch actually switches something ──"
+#
+# The first cut of this asserted the production defaults on a fresh install and
+# was simply wrong about the product. Production mode is off by default and
+# says why in its own source: turning it on for somebody who has not asked hides
+# the errors they were about to read. A fresh machine is supposed to show them.
+#
+# So the real claim, and the one an operator depends on the afternoon they go
+# live, is that the single flag moves all of these together. CLAUDE.md §3.4 lists
+# them as one decision precisely so a machine cannot end up half-production,
+# showing stack traces to the world while caching hard enough to hide the fix.
 ini() { servlo php -r "echo ini_get('$1');" 2>/dev/null; }
 
 # check() matches a substring, and every string contains the empty one, so
 # passing "" as the expected value asserts nothing at all. An off directive
 # reads back as "", "0" or "Off" depending on how it was written, so it needs
-# its own comparison rather than a substring that is always present.
-check_off() { # check_off <label> <actual>
-  case "$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')" in
-    ""|0|off|false) printf '  ok   %s\n' "$1" ;;
-    *)
-      printf '  FAIL %s\n' "$1"
-      failures+="  $1"$'\n'"       wanted it off, got: $2"$'\n'
-      fail=1 ;;
+# its own comparison.
+is_off() { # is_off <value>
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+    ""|0|off|false) return 0 ;;
+    *) return 1 ;;
   esac
 }
+check_off() { # check_off <label> <actual>
+  if is_off "$2"; then
+    printf '  ok   %s\n' "$1"
+  else
+    printf '  FAIL %s\n' "$1"
+    failures+="  $1"$'\n'"       wanted it off, got: $2"$'\n'
+    fail=1
+  fi
+}
+check_on() { # check_on <label> <actual>
+  if is_off "$2"; then
+    printf '  FAIL %s\n' "$1"
+    failures+="  $1"$'\n'"       wanted it on, got: $2"$'\n'
+    fail=1
+  else
+    printf '  ok   %s\n' "$1"
+  fi
+}
 
-check_off "display_errors is off" "$(ini display_errors)"
-check_off "expose_php is off"     "$(ini expose_php)"
-check "opcache is enabled"                     "1" "$(ini opcache.enable)"
-check "opcache does not stat on every request" "0" "$(ini opcache.validate_timestamps)"
+echo "  a fresh install is in development mode, and shows errors:"
+check_on "display_errors is on before production mode" "$(ini display_errors)"
+
+echo "  turning production mode on:"
+servlo production on
+
+check_off "display_errors is off in production"  "$(ini display_errors)"
+check_off "expose_php is off in production"      "$(ini expose_php)"
+check "opcache is enabled"                       "1" "$(ini opcache.enable)"
+check "opcache stops stat-ing on every request"  "0" "$(ini opcache.validate_timestamps)"
 
 echo
 echo "── the tooling an operator reaches for ──"
 check "composer runs in the container" "Composer version" "$(servlo composer --version 2>&1)"
-check "node is in the image"           "v"                "$(servlo php -r 'echo shell_exec("node --version");' 2>&1)"
-check "git is in the image"            "git version"      "$(servlo php -r 'echo shell_exec("git --version");' 2>&1)"
+
+# Asked for the binary's path rather than its version string. "v" as an expected
+# substring, which is what this looked for first, appears in almost any output
+# including the error text printed when the lookup fails, so it would have passed
+# on an image with no node in it at all.
+check "node is in the image" "/node" "$(servlo php -r 'echo shell_exec("command -v node");' 2>&1)"
+check "npm is in the image"  "/npm"  "$(servlo php -r 'echo shell_exec("command -v npm");' 2>&1)"
+check "git is in the image"  "/git"  "$(servlo php -r 'echo shell_exec("command -v git");' 2>&1)"
 
 if [ "$fail" -ne 0 ]; then
   echo
