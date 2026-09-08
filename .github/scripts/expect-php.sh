@@ -33,7 +33,11 @@ check "php -v runs and reports $want_version" "PHP $want_version" "$version_out"
 
 echo
 echo "── the extensions the Containerfile compiles are loaded ──"
-modules="$(servlo php -m 2>&1)"
+# Lower-cased, because php -m does not agree with itself on case: the extension
+# built as "opcache" is listed as "Zend OPcache", and Core, PDO and SPL are all
+# capitalised too. Matching the names as written would fail on the one extension
+# whose absence matters most.
+modules="$(servlo php -m 2>&1 | tr '[:upper:]' '[:lower:]')"
 # The set a PHP application on this panel actually depends on: database drivers,
 # the string/image/intl trio a CMS will not boot without, the cache, and the
 # session/queue backend. Not the full list — these are the ones whose absence is
