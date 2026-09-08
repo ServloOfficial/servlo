@@ -15,11 +15,14 @@ app="$1"
 domain="$2"
 ip=$(ip -4 -o route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<NF;i++) if ($i=="src") print $(i+1)}')
 
-# The installer drives the application's own setup over HTTP against the site's
-# own domain, which resolves nowhere on a runner. /etc/hosts is the harness's
-# to write, not servlo's: servlo never touches a resolver, and this is CI
-# standing in for the DNS an operator's registrar provides.
-echo "$ip $domain" | sudo tee -a /etc/hosts >/dev/null
+# The domain deliberately resolves nowhere. That is the state a real install
+# runs in: servlo's order is add the site, point the domain here, then get a
+# certificate, so at install time the domain still points at the operator's old
+# host or at nothing. An install that needed public DNS to work would be sending
+# the generated admin password to whoever answers for the domain today, so the
+# runner's resolver is left alone and servlo has to reach its own nginx by
+# itself. Every check below carries --resolve, which is this script talking to
+# the site, not servlo.
 
 # The generated admin password is printed once, and this repository's CI logs
 # are public. Redacted on the way through rather than after the fact: `tee` to a
