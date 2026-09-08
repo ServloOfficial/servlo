@@ -21,8 +21,12 @@ ip=$(ip -4 -o route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<NF;i++) if ($i=="
 # standing in for the DNS an operator's registrar provides.
 echo "$ip $domain" | sudo tee -a /etc/hosts >/dev/null
 
+# The generated admin password is printed once, and this repository's CI logs
+# are public. Redacted on the way through rather than after the fact: `tee` to a
+# file and `cat` it later would have put it in the log twice.
 cd "$HOME"
-servlo apps install "$app" "$domain" --admin-email ci@servlo.invalid --title "Servlo CI" 2>&1 | tee /tmp/app-install.log
+servlo apps install "$app" "$domain" --admin-email ci@servlo.invalid --title "Servlo CI" 2>&1 |
+  sed -E 's/^(  Password  *).*/\1<redacted>/' | tee /tmp/app-install.log
 
 echo
 echo "── the site is registered ──"
@@ -52,7 +56,8 @@ case "$body" in
   *)
     echo "the application did not serve a login form"
     curl -sS -i --max-time 20 --resolve "$domain:80:$ip" "http://$domain/wp-login.php" | head -40 || true
-    echo "── install log ──"; cat /tmp/app-install.log || true
+    echo "── install log (password redacted at source) ──"
+    cat /tmp/app-install.log || true
     exit 1 ;;
 esac
 
