@@ -131,6 +131,10 @@ The panel has it too, on **System, Servlo**, as the Server state card: what exis
 
 `servlo backup state` is the other half. It carries everything servlo knows that is not a site's files or data: the site registry, the connections, the per-site database accounts, the SMTP settings, the provider certificates and every per-site setting.
 
+It also carries what you wrote by hand, which is the part nothing else can reconstruct: the per-site and global nginx snippets in `custom.d` and `http.d`, each service's runtime tuning file, and the PHP `98-user.ini` and `95-shared.ini` files behind the panel's PHP settings. servlo promises never to overwrite any of those, and a rebuild that did not carry them would have kept that promise on the old machine and broken it on the new one.
+
+What it leaves out is what servlo writes for itself: a generated vhost, which comes back from the registry and would otherwise name a certificate the new machine has not been issued; the editor's timestamped backups of the files above; and the caches, certificates and archives beside them.
+
 **The backup key is deliberately not in it.** It is what opens the archive, so putting it inside would be locking the door and taping the key to the front.
 
 The two kinds refuse each other. A state archive handed to `servlo restore` says so and names the command to use, and a site archive handed to `--state` does the same, because the two unpack to completely different places and getting them the wrong way round would empty a server's configuration over a site directory.
@@ -151,6 +155,8 @@ Without the key first, nothing opens: servlo will have generated a key of its ow
 The engine is reinstalled after the state, and not before, for a reason of the same shape. servlo's service password lives in the config directory a state archive carries, and MySQL bakes the password it is handed into its data directory the first time it starts. The engine the install put on the new machine is therefore holding that machine's password while the restored config holds the old one, and every dump load afterwards is refused with an access denied that says nothing about backups. Reinstalling recreates it from the restored config. There is nothing to lose to `--reset-data` on a machine being rebuilt, and the databases the sites need are created as each site archive goes back.
 
 Between the state and the last site archive the registry is ahead of the disk: every site is registered and none of their directories are back yet. The watcher's stale sweep would read that as projects the operator had deleted and unregister them, so a restore records that it is happening and the sweep holds off for two hours, pushed out again by each site archive that goes back. What that costs is a directory you really did delete lingering in the registry until the window closes. What it buys is a rebuild that does not eat itself while you work through a dozen archives.
+
+A staging site's password comes back with it. The file nginx checks it against lives outside the archive, and a staging site whose vhost asks for a password against a file that is not there answers 500 to everybody, so `servlo start` writes that file again from the hash in the registry. The password is the one that was in use before the rebuild; nobody has to be told a new one.
 
 Two things a restore cannot give back, both said plainly at the end of one:
 

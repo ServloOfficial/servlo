@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ServloOfficial/servlo/internal/config"
@@ -71,12 +72,24 @@ func CreateState(w io.Writer, key []byte, opts StateOptions) (Manifest, error) {
 	}
 	man.Files, man.Bytes = files, bytes
 
-	// Only the registry from the data directory. The rest of it is caches,
-	// certificates that will be reissued, and the archives themselves, none of
-	// which belongs inside a backup of the thing that made them.
+	// From the data directory: the registry, and the files the operator wrote
+	// by hand. The rest of it is caches, certificates that will be reissued,
+	// generated config that comes back from the registry, and the archives
+	// themselves, none of which belongs inside a backup of the thing that made
+	// them.
 	if n, size, err := writeStateFile(tw, sitesFilePath(), path.Join(dataPrefix, "sites.yaml")); err != nil {
 		return Manifest{}, err
 	} else {
+		man.Files += n
+		man.Bytes += size
+	}
+
+	for _, tree := range operatorTrees {
+		n, size, err := writeStateTreeMatching(tw, filepath.Join(config.DataDir(), filepath.FromSlash(tree.rel)),
+			path.Join(dataPrefix, tree.rel), tree.keep)
+		if err != nil {
+			return Manifest{}, err
+		}
 		man.Files += n
 		man.Bytes += size
 	}
@@ -99,6 +112,86 @@ func CreateState(w io.Writer, key []byte, opts StateOptions) (Manifest, error) {
 // sitesFilePath is the registry, as its own function so a test can find it
 // under a temporary data home.
 func sitesFilePath() string { return config.SitesFile() }
+
+// operatorTrees are the places under the data directory that hold what the
+// operator typed rather than what servlo generated.
+//
+// Each of these carries an explicit never-clobber contract in its own doc
+// comment in internal/config/paths.go: servlo seeds the file once and never
+// writes it again, so edits survive a vhost regeneration, a service reinstall
+// and an update. What none of them survived was a rebuild. The archive took the
+// config directory and sites.yaml, on the reasoning that everything else under
+// the data directory was a cache, a certificate that would be reissued or an
+// archive. That is true of everything else and false of these four, and the
+// difference is that nothing else knows what was in them.
+//
+// The filters matter as much as the paths. A generated vhost restored onto a
+// fresh machine names a certificate it has not been issued, the .bkp
+// directories are copies of the files beside them, and the .aux.conf tuning
+// helper is rewritten on every start.
+var operatorTrees = []struct {
+	rel  string
+	keep func(rel string) bool
+}{
+	// Per-site and global nginx snippets, included at the end of a server
+	// block and at http{} level respectively.
+	{"nginx/custom.d", hasExt(".conf")},
+	{"nginx/http.d", hasExt(".conf")},
+	// Per-service runtime tuning, minus the helper servlo regenerates.
+	{"service-tuning", func(rel string) bool {
+		return strings.HasSuffix(rel, ".conf") && !strings.HasSuffix(rel, ".aux.conf")
+	}},
+	// PHP settings: per version, shared across versions, and per site. The
+	// ini.bkp directories beside them are the editor's own backups.
+	{"php", func(rel string) bool {
+		base := path.Base(rel)
+		return (base == "98-user.ini" || base == "95-shared.ini") && !strings.Contains(rel, "ini.bkp/")
+	}},
+}
+
+// hasExt keeps the files with one extension and nothing else.
+func hasExt(ext string) func(string) bool {
+	return func(rel string) bool { return strings.HasSuffix(rel, ext) }
+}
+
+// writeStateTreeMatching copies the files under root that keep accepts, named
+// relative to root. A directory that is not there yields nothing, because a
+// server with no custom nginx is the ordinary case rather than an error.
+func writeStateTreeMatching(tw *tar.Writer, root, prefix string, keep func(rel string) bool) (int, int64, error) {
+	var files int
+	var total int64
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, infoErr := d.Info()
+		if infoErr != nil || !info.Mode().IsRegular() {
+			return infoErr
+		}
+		rel, relErr := filepath.Rel(root, p)
+		if relErr != nil {
+			return relErr
+		}
+		rel = filepath.ToSlash(rel)
+		if !keep(rel) {
+			return nil
+		}
+		n, size, err := writeStateFileFrom(tw, p, path.Join(prefix, rel), info)
+		files += n
+		total += size
+		return err
+	})
+	if err != nil {
+		return 0, 0, fmt.Errorf("reading %s: %w", root, err)
+	}
+	return files, total, nil
+}
 
 // writeStateTree copies a directory into the archive under prefix, skipping
 // anything named in skip.

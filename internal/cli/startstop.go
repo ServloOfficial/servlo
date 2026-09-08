@@ -22,6 +22,7 @@ import (
 	"github.com/ServloOfficial/servlo/internal/shims"
 	"github.com/ServloOfficial/servlo/internal/sitecron"
 	"github.com/ServloOfficial/servlo/internal/siteops"
+	"github.com/ServloOfficial/servlo/internal/staging"
 	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -826,6 +827,38 @@ func restoreSiteTimers(s config.Site) {
 	}
 }
 
+// restoreStagingCredentials puts back the file nginx checks a staging site's
+// password against.
+//
+// A staging site is behind a password and that is not optional, so its vhost
+// names an auth_basic_user_file. The file lives under the data directory, which
+// the server-state archive does not carry: it holds servlo's config plus the
+// registry, and everything else there is a cache, a certificate that will be
+// reissued, or an archive. So a rebuild restored the site, regenerated a vhost
+// naming an auth file, and wrote no file. nginx answers 500 to every request
+// against an auth_basic_user_file it cannot open, which leaves the staging site
+// broken rather than closed, on a machine whose operator has just proved their
+// backups work.
+//
+// The hash to write was in the registry the whole time. It was stored by three
+// callers and read by none.
+//
+// Only when the file is missing. Once it exists it is what nginx is already
+// checking, and rewriting it every start would let a stale registry entry undo
+// a password set since.
+func restoreStagingCredentials(s config.Site) {
+	if s.Staging == nil || s.Staging.User == "" || s.Staging.Hash == "" {
+		return
+	}
+	domain := s.PrimaryDomain()
+	if _, err := os.Stat(nginx.HtpasswdPath(domain)); err == nil {
+		return
+	}
+	if err := staging.WriteHtpasswd(domain, s.Staging.User, s.Staging.Hash); err != nil {
+		feedback.Warn("restoring the staging password for %s: %v", s.Name, err)
+	}
+}
+
 func restoreSiteInfrastructure() {
 	reg, err := config.LoadSites()
 	if err != nil {
@@ -899,6 +932,7 @@ func restoreSiteInfrastructure() {
 		}
 
 		restoreSiteTimers(s)
+		restoreStagingCredentials(s)
 
 		// Restore FPM quadlet for this site's PHP version (shared-FPM PHP sites
 		// only; custom-FPM sites use their per-site container handled above).
