@@ -923,6 +923,7 @@
   "databases_drop": "Drop",
   "databases_dropTitle": "Drop {name}?",
   "databases_dropBody": "This permanently deletes the database and all of its data, and cannot be undone.",
+  "databases_dropConfirm": "Type {name} to confirm",
   "databases_snapshots": "Snapshots",
   "databases_snapshotsTitle": "Snapshots of {name}",
   "databases_takeSnapshot": "Take snapshot",

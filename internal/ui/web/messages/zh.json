@@ -923,6 +923,7 @@
   "databases_drop": "删除",
   "databases_dropTitle": "删除 {name}？",
   "databases_dropBody": "这将永久删除该数据库及其所有数据，且无法撤销。",
+  "databases_dropConfirm": "输入 {name} 以确认",
   "databases_snapshots": "快照",
   "databases_snapshotsTitle": "{name} 的快照",
   "databases_takeSnapshot": "创建快照",

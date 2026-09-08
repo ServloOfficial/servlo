@@ -923,6 +923,7 @@
   "databases_drop": "Verwijderen",
   "databases_dropTitle": "{name} verwijderen?",
   "databases_dropBody": "Dit verwijdert de database en alle data ervan definitief, en kan niet ongedaan worden gemaakt.",
+  "databases_dropConfirm": "Typ {name} om te bevestigen",
   "databases_snapshots": "Snapshots",
   "databases_snapshotsTitle": "Snapshots van {name}",
   "databases_takeSnapshot": "Snapshot maken",

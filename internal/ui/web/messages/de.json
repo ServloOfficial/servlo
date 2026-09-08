@@ -923,6 +923,7 @@
   "databases_drop": "Löschen",
   "databases_dropTitle": "{name} löschen?",
   "databases_dropBody": "Dies löscht die Datenbank und alle ihre Daten dauerhaft und kann nicht rückgängig gemacht werden.",
+  "databases_dropConfirm": "Zum Bestätigen {name} eingeben",
   "databases_snapshots": "Snapshots",
   "databases_snapshotsTitle": "Snapshots von {name}",
   "databases_takeSnapshot": "Snapshot erstellen",

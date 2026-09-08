@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ServloOfficial/servlo/internal/authz"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/envfile"
 	"github.com/ServloOfficial/servlo/internal/podman"
@@ -363,6 +364,12 @@ func handleDatabaseDrop(w http.ResponseWriter, r *http.Request, service string) 
 	if !ok || !requireDatabaseName(w, name) {
 		return
 	}
+	// Left as soon as the name is known rather than after the drop, so a
+	// refused attempt is in the log too. The middleware records the actor, the
+	// address and the verb from the request; the database is in the body and
+	// only this knows it, so without this line the entry says a database was
+	// dropped on this service and never which one.
+	authz.SetAuditDetail(r, "dropped the database "+name+" on "+service)
 	if !serviceops.DatabaseActionDeclared(service, "drop") {
 		writeDBError(w, fmt.Sprintf("%s does not support dropping databases", service))
 		return
