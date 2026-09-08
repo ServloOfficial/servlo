@@ -189,11 +189,47 @@ func RunPHPVersionCaptureEnv(cwd, version string, args []string, extraEnv []stri
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		if exit, ok := err.(*exec.ExitError); ok {
-			return exit.ExitCode(), nil
+			code := exit.ExitCode()
+			if err := explainPodmanFailure(code, version, container); err != nil {
+				return code, err
+			}
+			return code, nil
 		}
 		return 0, err
 	}
 	return 0, nil
+}
+
+// podmanCouldNotRun is the exit code podman returns for its own failures, as
+// opposed to the exit status of whatever it was asked to run. A container that
+// is not up is the common one.
+const podmanCouldNotRun = 125
+
+// explainPodmanFailure turns podman's silence into a sentence, and only when it
+// is certain the failure was podman's.
+//
+// The shim is deliberately transparent: it returns PHP's exit code as its own,
+// so `php -r 'exit(3);'` exits 3 and a failing script fails the script's way.
+// The cost is that podman's own 125 arrives looking exactly like a program that
+// chose to exit 125, and the operator gets an empty line and a number.
+//
+// That is not hypothetical. A fresh install used to leave PHP-FPM restarting in
+// a loop, so the first `servlo php -v` anybody typed printed nothing at all and
+// exited 125, with no clue that the container was the problem.
+//
+// Asking whether the container is running is what separates the two cases: a
+// PHP script that happens to exit 125 leaves it up. Only when it is verifiably
+// down does this say anything, so a real 125 from PHP still passes through
+// untouched.
+func explainPodmanFailure(code int, version, container string) error {
+	if code != podmanCouldNotRun {
+		return nil
+	}
+	if running, _ := fpmContainerRunning(container); running {
+		return nil
+	}
+	return fmt.Errorf("the PHP %s container (%s) is not running, so there was nothing to run php in — check `servlo status`, then %s",
+		version, container, serviceStartHint(container))
 }
 
 // phpScriptArgIndex returns the index of the script operand in a `php` argument

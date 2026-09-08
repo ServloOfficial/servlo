@@ -26,6 +26,7 @@ import (
 	"github.com/ServloOfficial/servlo/internal/dbconn"
 	"github.com/ServloOfficial/servlo/internal/dbcred"
 	"github.com/ServloOfficial/servlo/internal/dbuser"
+	phpDet "github.com/ServloOfficial/servlo/internal/php"
 	"github.com/ServloOfficial/servlo/internal/serviceops"
 	"github.com/ServloOfficial/servlo/internal/siteops"
 )
@@ -81,7 +82,10 @@ var (
 		return app.Install(ctx, req, deps)
 	}
 	registerSite = siteops.FinishLink
-	runSetup     = func(ctx context.Context, app appstore.App, siteURL string, values map[string]string) error {
+	// detectPHPVersion resolves the version the site will run on. A seam so a
+	// test can name one without a PHP installation to detect.
+	detectPHPVersion = phpDet.DetectVersion
+	runSetup         = func(ctx context.Context, app appstore.App, siteURL string, values map[string]string) error {
 		return app.Setup.Run(ctx, siteURL, values)
 	}
 	generatePassword = dbcred.GeneratePassword
@@ -139,11 +143,33 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 	}
 	out.Database = res.Connection
 
+	// Resolved rather than left empty, and this is the whole of that bug: the
+	// version names the container, so an empty one sent the site's pool to
+	// fpm-pools/servlo-php-fpm while the container that runs mounts
+	// fpm-pools/servlo-php85-fpm. The pool was written somewhere nothing reads,
+	// the vhost found none and so wired no PHP upstream, and nginx answered the
+	// POST that drives the application's own installer by serving install.php
+	// as a static file: 405. It also wrote a quadlet for a container that
+	// cannot exist, left behind as a dead unit called "Servlo PHP  FPM".
+	//
+	// Detection reads the release servlo just extracted, so an application that
+	// pins a version in its own project file gets it; anything else falls back
+	// to the machine default, which is what a fresh droplet has.
+	phpVersion, err := detectPHPVersion(path)
+	if err != nil || phpVersion == "" {
+		cfg, cfgErr := config.LoadGlobal()
+		if cfgErr != nil || cfg.PHP.DefaultVersion == "" {
+			return out, fmt.Errorf("cannot tell which PHP version %s should run on, and a site registered without one gets a pool and a quadlet named after a container that does not exist", domain)
+		}
+		phpVersion = cfg.PHP.DefaultVersion
+	}
+
 	site := config.Site{
-		Name:      siteName,
-		Domains:   []string{domain},
-		Path:      path,
-		Framework: app.Framework,
+		Name:       siteName,
+		Domains:    []string{domain},
+		Path:       path,
+		Framework:  app.Framework,
+		PHPVersion: phpVersion,
 	}
 	if err := registerSite(site, site.PHPVersion); err != nil {
 		return out, err

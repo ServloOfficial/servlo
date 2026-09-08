@@ -57,6 +57,8 @@ func stub(t *testing.T, app appstore.App) *calls {
 		}),
 		set(&registerSite, func(site config.Site, php string) error {
 			c.registered = append(c.registered, site.Name)
+			c.registeredSite = site
+			c.registeredPHP = php
 			return nil
 		}),
 		set(&runSetup, func(ctx context.Context, a appstore.App, url string, values map[string]string) error {
@@ -74,11 +76,13 @@ func stub(t *testing.T, app appstore.App) *calls {
 }
 
 type calls struct {
-	databases   []string
-	registered  []string
-	dir         string
-	siteURL     string
-	setupValues map[string]string
+	databases      []string
+	registered     []string
+	registeredSite config.Site
+	registeredPHP  string
+	dir            string
+	siteURL        string
+	setupValues    map[string]string
 }
 
 func set[T any](target *T, value T) func() {
