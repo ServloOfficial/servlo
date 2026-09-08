@@ -135,6 +135,8 @@ It also carries what you wrote by hand, which is the part nothing else can recon
 
 What it leaves out is what servlo writes for itself: a generated vhost, which comes back from the registry and would otherwise name a certificate the new machine has not been issued; the editor's timestamped backups of the files above; and the caches, certificates and archives beside them.
 
+**It runs nightly on its own, at 03:00, and goes wherever your site archives go.** Every install gets that timer, the way every install gets log rotation, because a machine backing its sites up nightly while the registry that makes them restorable ages is a rebuild that finds the gap on the worst possible day. Older state archives are thinned to the same seven daily, four weekly, three monthly a site keeps. `servlo backup state` takes one on demand as well.
+
 **The backup key is deliberately not in it.** It is what opens the archive, so putting it inside would be locking the door and taping the key to the front.
 
 The two kinds refuse each other. A state archive handed to `servlo restore` says so and names the command to use, and a site archive handed to `--state` does the same, because the two unpack to completely different places and getting them the wrong way round would empty a server's configuration over a site directory.

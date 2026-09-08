@@ -83,6 +83,11 @@ export interface StateTaken {
   name?: string;
   size?: number;
   files?: number;
+  // One per destination the archive could not be copied to. The archive is on
+  // the server either way, so these come back beside a successful write rather
+  // than instead of one, and the card has to say so: an archive that stayed on
+  // the machine it is a backup of is the one case this backup exists for.
+  send_errors?: string[];
 }
 
 export async function loadServerState(): Promise<ServerStateResult> {

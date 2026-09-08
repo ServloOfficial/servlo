@@ -15,7 +15,6 @@ import (
 	"github.com/ServloOfficial/servlo/internal/dbconn"
 	"github.com/ServloOfficial/servlo/internal/dbdump"
 	"github.com/ServloOfficial/servlo/internal/feedback"
-	"github.com/ServloOfficial/servlo/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -477,14 +476,25 @@ func runBackupState() error {
 		return err
 	}
 	step := feedback.Start("backing up this server's own state")
-	path, man, size, err := backup.WriteState(config.SiteBackupsDir(), key, backup.StateOptions{Version: version.Version})
+	rec, err := backup.ForState().Run(key, backup.StateOptions{})
 	if err != nil {
 		step.Fail(err)
 		return err
 	}
-	step.OK(feedback.Val(filepath.Base(path)))
-	fmt.Printf("  %d %s, %s on disk\n", man.Files, plural(man.Files, "file", "files"), humanSize(size))
-	fmt.Printf("  %s\n", path)
+	step.OK(feedback.Val(filepath.Base(rec.Path)))
+	fmt.Printf("  %d %s, %s on disk\n", rec.Manifest.Files, plural(rec.Manifest.Files, "file", "files"), humanSize(rec.Size))
+	fmt.Printf("  %s\n", rec.Path)
+	// Said whichever way it went. An archive that did not reach a destination
+	// is an archive that dies with the machine, which is the one case this
+	// backup exists for.
+	for _, sendErr := range rec.SendErrors {
+		feedback.Warn("copying it to a destination: %v", sendErr)
+	}
+	if rec.PruneError != nil {
+		feedback.Warn("thinning the older state archives: %v", rec.PruneError)
+	} else if rec.Pruned > 0 {
+		fmt.Printf("  %d older %s removed\n", rec.Pruned, plural(rec.Pruned, "archive", "archives"))
+	}
 	fmt.Println("  The backup key is not in here. Keep a copy of it somewhere else, or this")
 	fmt.Println("  archive is not recoverable either.")
 	return nil

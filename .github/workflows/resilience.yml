@@ -77,6 +77,25 @@ jobs:
       - name: Every unit servlo installed is enabled
         run: .github/scripts/expect-enabled.sh
 
+      # The server's own state backup is armed and its unit actually runs. A
+      # timer whose ExecStart is wrong looks identical to a working one until
+      # the night it does not fire, and the archive it does not write is the
+      # one a rebuild needs.
+      - name: The server backs its own state up on a timer
+        run: |
+          set -euo pipefail
+          systemctl --user is-enabled servlo-backup-state.timer
+          systemctl --user start servlo-backup-state.service
+          shopt -s nullglob
+          archives=(~/.local/share/servlo/site-backups/servlo-state-*.servlobak)
+          if [ ${#archives[@]} -eq 0 ]; then
+            echo "the state backup unit ran and wrote no archive"
+            systemctl --user status servlo-backup-state.service --no-pager || true
+            journalctl --user -u servlo-backup-state.service --no-pager | tail -40 || true
+            exit 1
+          fi
+          echo "the timer's own unit wrote ${archives[0]}"
+
       - name: What the runtime looked like
         if: always()
         run: |

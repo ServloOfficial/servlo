@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/version"
 )
 
 // What an archive is of. A site archive holds one site; a state archive holds
@@ -321,4 +322,77 @@ func WriteState(dir string, key []byte, opts StateOptions) (path string, man Man
 		return "", Manifest{}, 0, err
 	}
 	return path, man, size, nil
+}
+
+// StatePolicy is how much of the server's own history to keep.
+//
+// The same shape as a site's, and for the same reason: the newest archive is
+// the one a rebuild uses, and the older ones are there for the day the newest
+// turns out to have been taken after whatever went wrong. Keeping every one of
+// them is how a disk fills quietly.
+var StatePolicy = Policy{Daily: 7, Weekly: 4, Monthly: 3}
+
+// StateRunner takes a backup of the server's own state, copies it to every
+// destination and thins the older ones.
+//
+// It exists because none of that was happening. WriteState wrote an archive to
+// local disk and stopped, so the one thing that makes a site archive
+// restorable, the registry and every setting beside it, was the one thing with
+// no offsite copy and no retention. The droplet dies, the site archives are
+// safe somewhere else, and what comes back is a server with no idea what a
+// site is.
+//
+// The two fields are seams, the same ones Runner has, so a test can take a
+// backup without a bucket and without deleting anything it did not create. A
+// nil Send skips the copy and a zero Policy skips the sweep.
+type StateRunner struct {
+	Dir     string
+	Send    func(path, name string) []error
+	Policy  Policy
+	Version string
+}
+
+// ForState is the runner the command and the panel both use, so there is one
+// place that decides where a state archive goes rather than two.
+func ForState() StateRunner {
+	return StateRunner{
+		Dir:     config.SiteBackupsDir(),
+		Send:    SendEverywhere,
+		Policy:  StatePolicy,
+		Version: version.Version,
+	}
+}
+
+// Run writes the archive, sends it, and prunes what the policy no longer keeps.
+//
+// A destination failing is reported rather than raised, exactly as it is for a
+// site: the archive is on this server and usable, and calling the whole backup
+// failed would have an operator re-running one that worked. A failed sweep is
+// reported the same way and for the same reason.
+func (r StateRunner) Run(key []byte, opts StateOptions) (Record, error) {
+	if opts.Version == "" {
+		opts.Version = r.Version
+	}
+	if opts.Taken.IsZero() {
+		opts.Taken = time.Now().UTC()
+	}
+
+	path, man, size, err := WriteState(r.Dir, key, opts)
+	if err != nil {
+		return Record{}, err
+	}
+
+	rec := Record{Path: path, Size: size, Manifest: man}
+	if r.Send != nil {
+		rec.SendErrors = r.Send(path, filepath.Base(path))
+	}
+	if !r.Policy.Empty() {
+		// StateName rather than a site slug. The two share a directory and
+		// each sweep matches its own prefix followed by a timestamp, so
+		// neither can reach the other's archives.
+		removed, pruneErr := Prune(r.Dir, StateName, r.Policy, opts.Taken)
+		rec.Pruned = removed
+		rec.PruneError = pruneErr
+	}
+	return rec, nil
 }
