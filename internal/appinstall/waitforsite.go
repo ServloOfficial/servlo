@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ServloOfficial/servlo/internal/nginx"
+	"github.com/ServloOfficial/servlo/internal/sitehttp"
 )
 
 // siteReadyTimeout bounds the wait. Long enough for nginx to reload and a
@@ -48,7 +49,7 @@ const siteReadyTimeout = 60 * time.Second
 // function what each application looks like before its own installer has run.
 func waitForSite(ctx context.Context, siteURL string) error {
 	deadline := time.Now().Add(siteReadyTimeout)
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := sitehttp.Client(5 * time.Second)
 
 	lastReason := "the site never answered"
 	for {

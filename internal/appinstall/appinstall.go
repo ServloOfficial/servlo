@@ -28,6 +28,7 @@ import (
 	"github.com/ServloOfficial/servlo/internal/dbuser"
 	phpDet "github.com/ServloOfficial/servlo/internal/php"
 	"github.com/ServloOfficial/servlo/internal/serviceops"
+	"github.com/ServloOfficial/servlo/internal/sitehttp"
 	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
@@ -119,7 +120,15 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 	}
 
 	siteName := siteops.SiteName(domain)
+	// Two addresses, because they answer two different questions. siteURL is
+	// where the site will be, and it is what goes into the application's own
+	// config and what the operator is told to open. localURL is where servlo
+	// talks to it, which is this server rather than wherever the domain
+	// currently resolves: the DNS repoint comes after the site exists, so until
+	// then the public address belongs to somebody else, and the setup form
+	// servlo posts carries a generated admin password.
 	siteURL := "http://" + domain
+	localURL := sitehttp.URL(domain)
 
 	var conn dbconn.Connection
 	if app.Database.Required {
@@ -219,7 +228,7 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 	// and nginx serving it is where a POST used to land, and the install then
 	// reported a setup that did not complete over an application that was
 	// perfectly fine a second later.
-	if err := waitForSiteFn(ctx, siteURL); err != nil {
+	if err := waitForSiteFn(ctx, localURL); err != nil {
 		return out, fmt.Errorf("%s is installed and serving, but its setup could not be driven: %w", app.Label, err)
 	}
 
@@ -234,7 +243,7 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 		"admin_email":    opts.AdminEmail,
 		"site_url":       siteURL,
 	}
-	if err := runSetup(ctx, app, siteURL, values); err != nil {
+	if err := runSetup(ctx, app, localURL, values); err != nil {
 		// The site is registered and serving, so this is reported rather than
 		// rolled back: the operator can finish the form themselves, and taking
 		// the site away would lose the release and the database with it.

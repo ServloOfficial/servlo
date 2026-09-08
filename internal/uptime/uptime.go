@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/sitehttp"
 )
 
 // Timeout bounds one check. Short: a site that takes longer than this to answer
@@ -152,24 +153,11 @@ func HealthPath(fw *config.Framework) string {
 // PortPair is where nginx is listening. Not always 80 and 443: a server that
 // took the nftables fallback rather than the unprivileged-port sysctl has nginx
 // on 8080 and 8443, and a check aimed at 443 there would report every site down.
-type PortPair struct{ HTTP, HTTPS int }
+type PortPair = sitehttp.PortPair
 
 // Ports reads where nginx actually listens, falling back to the defaults when
 // the configuration cannot be read.
-func Ports() PortPair {
-	p := PortPair{HTTP: 80, HTTPS: 443}
-	cfg, err := config.LoadGlobal()
-	if err != nil {
-		return p
-	}
-	if cfg.Nginx.HTTPPort != 0 {
-		p.HTTP = cfg.Nginx.HTTPPort
-	}
-	if cfg.Nginx.HTTPSPort != 0 {
-		p.HTTPS = cfg.Nginx.HTTPSPort
-	}
-	return p
-}
+func Ports() PortPair { return sitehttp.Ports() }
 
 // downReason turns a transport error into something worth reading, because
 // "dial tcp 127.0.0.1:443: connect: connection refused" tells an operator only

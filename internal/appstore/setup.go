@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/ServloOfficial/servlo/internal/sitehttp"
 )
 
 // Driving an application's own installer.
@@ -96,7 +98,11 @@ func (s Setup) Run(ctx context.Context, siteURL string, values map[string]string
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	// Dialled at this server's own nginx rather than at whatever the domain
+	// resolves to. The request carries a generated admin password, and until the
+	// operator repoints DNS the public address for the domain is not this
+	// machine.
+	resp, err := sitehttp.Client(setupTimeout).Do(req)
 	if err != nil {
 		return fmt.Errorf("running the setup: %w", err)
 	}

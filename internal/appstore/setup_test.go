@@ -1,6 +1,7 @@
 package appstore
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -149,5 +150,45 @@ func TestRunSetup_RefusesAPlaceholderItCannotFill(t *testing.T) {
 	err = app.Setup.Run(t.Context(), "http://127.0.0.1:1", map[string]string{"admin_user": "x"})
 	if err == nil || !strings.Contains(err.Error(), "nothing_servlo_has") {
 		t.Errorf("error = %v, want it to name the placeholder", err)
+	}
+}
+
+// The setup POST carries a generated admin password, and the domain it is for
+// does not resolve to this server until the operator repoints its DNS, which
+// servlo's own order of operations puts after the site exists. Sent to the
+// public address, the password goes to whoever answers for the domain today.
+//
+// The domain here is under .invalid, which resolves nowhere by definition. A
+// request that arrives at all is one that was dialled at this server.
+func TestRunSetup_TalksToThisServerRatherThanTheDomain(t *testing.T) {
+	app, err := Parse([]byte(withSetup))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var gotHost string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHost = r.Host
+		w.Write([]byte("<p>Installed successfully.</p>")) //nolint:errcheck
+	}))
+	t.Cleanup(srv.Close)
+
+	_, port, err := net.SplitHostPort(strings.TrimPrefix(srv.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = app.Setup.Run(t.Context(), "http://not-pointed-here.invalid:"+port, map[string]string{
+		"site_title": "Example", "admin_user": "admin",
+		"admin_password": "generated-one", "admin_email": "a@example.com",
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	// The domain still has to reach nginx's server_name, and without the port:
+	// an application that records the host it was installed through would
+	// otherwise hand every visitor a link to servlo's internal port.
+	if gotHost != "not-pointed-here.invalid" {
+		t.Errorf("the site saw Host %q, want the bare domain", gotHost)
 	}
 }
