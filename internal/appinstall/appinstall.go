@@ -82,6 +82,9 @@ var (
 		return app.Install(ctx, req, deps)
 	}
 	registerSite = siteops.FinishLink
+	// waitForSiteFn blocks until the new site answers. A seam so a test does
+	// not have to serve HTTP to install anything.
+	waitForSiteFn = waitForSite
 	// detectPHPVersion resolves the version the site will run on. A seam so a
 	// test can name one without a PHP installation to detect.
 	detectPHPVersion = phpDet.DetectVersion
@@ -209,6 +212,15 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 		// live domain for the first passer-by to claim.
 		out.Note = fmt.Sprintf("%s finishes in its own installer. Open %s and complete it before pointing DNS at this domain.", app.Label, siteURL)
 		return out, nil
+	}
+
+	// The site has to be answering before its installer can be driven, and it
+	// was not waited for. See waitForSite: the window between writing the vhost
+	// and nginx serving it is where a POST used to land, and the install then
+	// reported a setup that did not complete over an application that was
+	// perfectly fine a second later.
+	if err := waitForSiteFn(ctx, siteURL); err != nil {
+		return out, fmt.Errorf("%s is installed and serving, but its setup could not be driven: %w", app.Label, err)
 	}
 
 	password, err := generatePassword()

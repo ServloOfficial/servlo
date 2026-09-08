@@ -1,7 +1,10 @@
 package appinstall
 
 import (
+	"context"
+	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ServloOfficial/servlo/internal/config"
@@ -89,5 +92,58 @@ func TestInstallRecordsTheDocumentRoot(t *testing.T) {
 
 	if c.registeredSite.PublicDir == "" {
 		t.Error("the installed site records no document root, so nothing that reads the registry knows where to serve from")
+	}
+}
+
+// The application's own installer is driven over HTTP against the site servlo
+// just created, and nothing waited for that site to start answering.
+//
+// Between writing the pool and the vhost and reloading them there is a window
+// where nginx has not picked up the server block and the FPM master has not
+// finished spawning the pool's workers. A POST landing in it gets php-fpm's
+// "File not found.", and the install reports a setup that did not complete over
+// an application that was serving perfectly a second later. CI hit exactly that
+// and then curled the same site successfully from the next step.
+//
+// What it leaves behind is what appinstall already refuses to leave behind when
+// it cannot drive an installer at all: an uninstalled application on a live
+// domain with its setup form open to the first passer-by.
+func TestInstallWaitsForTheSiteBeforeDrivingItsInstaller(t *testing.T) {
+	sandbox(t)
+	c := stub(t, withSetup())
+
+	if _, err := Install(t.Context(), Options{
+		App:    "example",
+		Domain: "blog.example.com",
+		Path:   filepath.Join(t.TempDir(), "site"),
+	}); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+
+	if c.waitedFor == 0 {
+		t.Error("the setup form was posted without waiting for the site to answer, which is the race that leaves an uninstalled app on a live domain")
+	}
+}
+
+// A site that never answers must fail the install rather than post into the
+// void: the operator needs to be told to finish the installer themselves.
+func TestInstallReportsASiteThatNeverAnswers(t *testing.T) {
+	sandbox(t)
+	stub(t, withSetup())
+
+	orig := waitForSiteFn
+	waitForSiteFn = func(context.Context, string) error { return errors.New("no answer") }
+	t.Cleanup(func() { waitForSiteFn = orig })
+
+	_, err := Install(t.Context(), Options{
+		App:    "example",
+		Domain: "blog.example.com",
+		Path:   filepath.Join(t.TempDir(), "site"),
+	})
+	if err == nil {
+		t.Fatal("an install whose site never answered reported success")
+	}
+	if !strings.Contains(err.Error(), "setup could not be driven") {
+		t.Errorf("the error should say the setup could not be driven, got %v", err)
 	}
 }

@@ -66,6 +66,10 @@ func stub(t *testing.T, app appstore.App) *calls {
 			return nil
 		}),
 		set(&generatePassword, func() (string, error) { return "admin-password", nil }),
+		set(&waitForSiteFn, func(context.Context, string) error {
+			c.waitedFor++
+			return nil
+		}),
 	}
 	t.Cleanup(func() {
 		for _, undo := range restore {
@@ -80,6 +84,7 @@ type calls struct {
 	registered     []string
 	registeredSite config.Site
 	registeredPHP  string
+	waitedFor      int
 	dir            string
 	siteURL        string
 	setupValues    map[string]string
