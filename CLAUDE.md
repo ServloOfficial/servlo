@@ -185,16 +185,18 @@ bats tests/installer/installer.bats    # if install.sh changed
 make surface-scan                      # deleted-feature gate
 ```
 Plus step 4.5's screenshot pass whenever the change is visible in the panel. A green suite over a view nobody has looked at is not a passed gate.
-**GitHub Actions is switched off for this repository and is not coming back on a schedule anyone should wait for.** The account has no Actions billing, so every job fails to provision in a couple of seconds with no logs and zero billable time. That is not a symptom to diagnose; it is the standing condition. Do not re-run jobs hoping for a different answer, and do not hold a merge waiting for a green tick that cannot appear.
+**GitHub Actions is on.** It was off for a while, for want of billing, and the rule then was that the local gate was the only gate. That is over: jobs provision, run and report, and a story is done when the local gate above is green *and* CI is green on the PR.
 
-So the gate for a story is the local gate above, run in full, and nothing else. Say so in the PR body rather than implying CI passed. What Actions used to add on top, and what is therefore unverified until somebody runs it by hand, is written down in `HANDOVER.md`: the Ubuntu 24.04 runner, the installer bats suite, the reboot-resilience job and the rebuild-from-backup job. If Actions is ever paid for again, that file says how to turn the gate back on.
+Run the local gate before pushing anyway. A red runner costs ten minutes and a reviewer's attention, and most of what CI catches is caught locally in seconds. What CI adds on top is a real Ubuntu 24.04 machine with rootless podman, systemd and a lingering user, which is where the interesting failures live: `verification.yml` proves PHP, its image, the database behind it and a one-click install; `resilience.yml` proves boot, a certificate from a real authority over HTTP-01, and a rebuild from backups onto a machine that never saw the first. `HANDOVER.md` §1 lists every job and what it is for.
+
+Two Go tests fail in a container and pass on a real machine — `TestHandleServiceTuningReset_NoOpWhenMissing` needs dbus and `TestHandleWorkspaceLayoutRollsBackAndReportsTheReorderError` needs to not be running as root. They are green in CI, which is how you tell them from a real failure. Do not chase them and do not "fix" them.
 
 **The droplet smoke test is deferred to the end of the build, by the project owner's decision.** Its checklist lives in `HANDOVER.md` §3, alongside everything else that needs a human, a machine or money. It used to sit here as a per-story gate, which in a browser session meant every story ended blocked on something no session could do. It now happens once, against the finished product, after the last phase lands. Do not wait for it, do not treat it as a merge condition, and do not re-raise it story by story.
 
 What this does not change: say plainly what ran. A story is "the local gate is green", not "verified working on a server", and the two are different claims. Write the honest one. Anything genuinely unverifiable in a session (a real certificate from Let's Encrypt, a live registrar, a running container's bind mount) is worth one line in the PR body so the eventual droplet pass knows where to look, and no more than that.
 
 ### Step 6 — Commit, PR, merge
-The standing instruction for this build is to work straight through the phases: write the code and its tests, run the gate, open the PR, merge to `main`, and start the next story without stopping to ask. There is no CI to wait for; see the gate note above. Do not pause at phase boundaries for a manual check.
+The standing instruction for this build is to work straight through the phases: write the code and its tests, run the gate, open the PR, merge to `main` once CI is green, and start the next story without stopping to ask. Do not pause at phase boundaries for a manual check.
 
 This is a deliberate relaxation of the older "only commit when asked" rule and applies to the phased build in `STORY.md`. It is not licence to skip the gate, invent a story, or start work outside the backlog: the ordering and the scope still come from `STORY.md`, and anything that is a genuine judgement call about the product still gets raised.
 
