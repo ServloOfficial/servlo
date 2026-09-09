@@ -104,7 +104,7 @@ func ApplyPhpArrayUpdates(path string, updates map[string]string) error {
 			return err
 		}
 	}
-	if err := os.WriteFile(path, []byte(b.String()), SecretMode); err != nil {
+	if err := writeSecret(path, []byte(b.String())); err != nil {
 		return err
 	}
 	return secure(path)

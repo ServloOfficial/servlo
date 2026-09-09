@@ -79,7 +79,7 @@ func ApplyPhpConstUpdates(path string, updates map[string]string) error {
 	if content == string(data) {
 		return secure(path)
 	}
-	if err := os.WriteFile(path, []byte(content), SecretMode); err != nil {
+	if err := writeSecret(path, []byte(content)); err != nil {
 		return err
 	}
 	return secure(path)
@@ -145,7 +145,7 @@ func ApplyPhpConstLiterals(path string, updates map[string]string) error {
 	if content == string(data) {
 		return secure(path)
 	}
-	if err := os.WriteFile(path, []byte(content), SecretMode); err != nil {
+	if err := writeSecret(path, []byte(content)); err != nil {
 		return err
 	}
 	return secure(path)
@@ -174,7 +174,7 @@ func RemovePhpConsts(path string, names ...string) error {
 	if content == string(data) {
 		return secure(path)
 	}
-	if err := os.WriteFile(path, []byte(content), SecretMode); err != nil {
+	if err := writeSecret(path, []byte(content)); err != nil {
 		return err
 	}
 	return secure(path)

@@ -60,8 +60,10 @@ func ServicePassword() (string, error) {
 	if err := os.MkdirAll(ConfigDir(), 0700); err != nil {
 		return "", err
 	}
-	// Created 0600 rather than chmodded after, so it is never briefly readable.
-	if err := os.WriteFile(ServicePasswordFile(), []byte(pw), 0600); err != nil {
+	// Staged and renamed, so a write that runs out of disk cannot leave a
+	// truncated password behind: the file is created 0600 and only ever
+	// appears at the real path complete.
+	if err := writeFileAtomic(ServicePasswordFile(), []byte(pw), 0600); err != nil {
 		return "", err
 	}
 	return pw, nil

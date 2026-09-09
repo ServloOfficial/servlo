@@ -8,9 +8,55 @@ import (
 	"path/filepath"
 )
 
-// WriteIfChanged writes data to path via a temp file and rename, so a reader
-// never sees a half-written file, and skips the write entirely when path
-// already holds exactly these bytes.
+// Write replaces path with data, and never leaves it holding less than it held
+// before.
+//
+// os.WriteFile empties a file before it writes a byte, so a disk that fills in
+// between (the case internal/monitor exists to warn about) leaves whatever fit
+// and loses the rest. Staging the contents beside the file and renaming means a
+// write that cannot fit costs the temp file instead. The temp name is unique, so
+// two writers racing for the same path do not clobber each other's staging, and
+// it is created 0600 by CreateTemp and widened only at the end, so a file
+// holding a credential is never briefly readable at a wider mode.
+//
+// The rename is done on the resolved path, so a file symlinked somewhere shared
+// keeps its symlink rather than being replaced by a regular one.
+func Write(path string, data []byte, perm os.FileMode) error {
+	target := path
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		target = resolved
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(filepath.Dir(target), "."+filepath.Base(target)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Chmod(perm); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	if err := os.Rename(tmp, target); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
+// WriteIfChanged is Write, skipped entirely when path already holds exactly
+// these bytes.
 //
 // The skip is the point. A daemon that re-persists a snapshot on a fixed tick
 // spends a write, a rename and a dirtied page every tick even when nothing
@@ -21,12 +67,5 @@ func WriteIfChanged(path string, data []byte, perm os.FileMode) (bool, error) {
 	if existing, err := os.ReadFile(path); err == nil && bytes.Equal(existing, data) {
 		return false, nil
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return false, err
-	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, perm); err != nil {
-		return false, err
-	}
-	return true, os.Rename(tmp, path)
+	return true, Write(path, data, perm)
 }
