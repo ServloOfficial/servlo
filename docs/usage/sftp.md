@@ -58,7 +58,7 @@ Until you run this, an authorised key opens in the site's directory but is **not
 
 Confinement is sshd's `ChrootDirectory`, and it comes with a hard requirement: the chroot and every parent must be owned by `root` and writable by nobody else. A process running as the Servlo user cannot create such a directory, cannot chown one to root, and cannot bind-mount the site inside it. There is no way round that and Servlo does not pretend otherwise.
 
-There is a second problem, and it is the reason the layout looks unusual. sshd tells sessions apart with `Match`, and `Match` can key on a user, a group, an address or a **local port**. It cannot key on "which site", and every site here is the same Linux user, so user and group are useless. That leaves the port. Each site with SFTP enabled gets its own port on the same sshd, allocated from 2200 upwards and remembered in `~/.local/share/servlo/sftp-ports.yaml` so it never moves under a saved connection.
+There is a second problem, and it is the reason the layout looks unusual. sshd tells sessions apart with `Match`, and `Match` can key on a user, a group, an address or a **local port**. It cannot key on "which site", and every site here is the same Linux user, so user and group are useless. That leaves the port. Each site with SFTP enabled gets its own port on the same sshd, allocated from 2200 upwards and remembered in `~/.local/share/servlo/sftp-ports.yaml` so it never moves under a saved connection. Ports sshd already answers on are skipped, and a site holding one is moved off it: if you have moved sshd to 2222, that is a port inside this range, and a site holding it would put a chrooted `internal-sftp` session in front of every shell login on the only port you use.
 
 Generate and print the block:
 

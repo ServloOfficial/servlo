@@ -981,8 +981,11 @@ func SaveGlobal(cfg *GlobalConfig) error {
 	if err != nil {
 		return err
 	}
-	guardRealWrite(GlobalConfigFile())
-	if err := os.WriteFile(GlobalConfigFile(), data, 0644); err != nil {
+	// Through the same atomic replace sites.yaml uses. A truncated config.yaml
+	// does not fail to parse, it reads as defaults, so a write that runs out of
+	// disk halfway would quietly hand back the built-in parked directory and a
+	// panel with no domain, and the next start would remove that domain's vhost.
+	if err := writeFileAtomic(GlobalConfigFile(), data, 0644); err != nil {
 		return err
 	}
 	invalidateGlobalCache()

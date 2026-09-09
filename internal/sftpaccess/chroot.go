@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"gopkg.in/yaml.v3"
 )
@@ -88,6 +89,26 @@ func Config(chroots []Chroot, keepPorts []int) string {
 	b.WriteString("# apart with. A session on one of these ports is chrooted to that site.\n")
 	b.WriteString("\n")
 
+	// A site on a port sshd already answers on is left out entirely, and said
+	// out loud rather than dropped quietly. The Match block it would get applies
+	// to every session on that port, so the operator's own shell login would
+	// become a chrooted internal-sftp session with no shell in it. The allocator
+	// does not hand these out, and this is the line that holds even if one ever
+	// arrives some other way: a site without SFTP is an inconvenience, and a
+	// machine the operator cannot log in to is not.
+	reserved := map[int]bool{}
+	for _, port := range keepPorts {
+		reserved[port] = true
+	}
+	var serve, refused []Chroot
+	for _, c := range chroots {
+		if reserved[c.Port] {
+			refused = append(refused, c)
+			continue
+		}
+		serve = append(serve, c)
+	}
+
 	// Every global directive first. A Port line after the first Match falls
 	// inside that block, and sshd refuses the file.
 	b.WriteString("# The ports sshd already listens on, restated so this file does not\n")
@@ -96,11 +117,16 @@ func Config(chroots []Chroot, keepPorts []int) string {
 		fmt.Fprintf(&b, "Port %d\n", port)
 	}
 	b.WriteString("\n# One port per site with SFTP enabled.\n")
-	for _, c := range chroots {
+	for _, c := range serve {
 		fmt.Fprintf(&b, "Port %d\n", c.Port)
 	}
+	for _, c := range refused {
+		fmt.Fprintf(&b, "\n# %s is left out: port %d is one sshd already answers on, and confining it\n"+
+			"# here would take the shell off every session that arrives on it. Run\n"+
+			"# `servlo sftp config` to give the site a port of its own.\n", c.Domain, c.Port)
+	}
 
-	for _, c := range chroots {
+	for _, c := range serve {
 		fmt.Fprintf(&b, "\n# %s\nMatch LocalPort %d\n", c.Domain, c.Port)
 		fmt.Fprintf(&b, "    ChrootDirectory %s\n", c.Dir())
 		// -d is relative to the chroot, so the session opens on the site rather
@@ -218,31 +244,49 @@ func Ports() (map[string]int, error) {
 	return file.Ports, nil
 }
 
+// reservedSSHPorts is what sshd already answers on, as a seam so a test does
+// not need /etc.
+var reservedSSHPorts = ConfiguredSSHPorts
+
 // AssignPort returns the site's port, allocating one the first time.
 //
 // Stable, because the port is in whatever the operator saved in their SFTP
 // client, and a port that moved when an unrelated site was removed would break
 // a connection that had nothing to do with the change.
+//
+// Stable except against sshd. The range this allocates from is exactly where an
+// operator who moved sshd off 22 tends to have put it, and a site holding that
+// port puts a Match LocalPort block on it: every shell login there becomes a
+// chrooted internal-sftp session, and the operator loses the only way into their
+// own machine, remotely, from a panel action. So a reserved port is never handed
+// out, and one handed out before it was reserved is taken back. A saved
+// connection breaking is worth less than a shell.
 func AssignPort(domain string) (int, error) {
 	ports, err := Ports()
 	if err != nil {
 		return 0, err
 	}
-	if port, ok := ports[domain]; ok {
+	reserved := map[int]bool{}
+	for _, port := range reservedSSHPorts() {
+		reserved[port] = true
+	}
+	if port, ok := ports[domain]; ok && !reserved[port] {
 		return port, nil
 	}
 	taken := map[int]bool{}
-	for _, port := range ports {
-		taken[port] = true
+	for other, port := range ports {
+		if other != domain {
+			taken[port] = true
+		}
 	}
 	for port := firstPort; port <= lastPort; port++ {
-		if taken[port] {
+		if taken[port] || reserved[port] {
 			continue
 		}
 		ports[domain] = port
 		return port, savePorts(ports)
 	}
-	return 0, fmt.Errorf("every port between %d and %d is already allocated", firstPort, lastPort)
+	return 0, fmt.Errorf("every port between %d and %d is already allocated or in use by sshd", firstPort, lastPort)
 }
 
 // ReleasePort forgets a site, so its port can be handed to another one.
@@ -266,7 +310,11 @@ func savePorts(ports map[string]int) error {
 	if err := os.MkdirAll(filepath.Dir(PortsFile()), 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(PortsFile(), data, 0o600)
+	// Replaced rather than rewritten. This file is the only record of which port
+	// a site answers on, and the whole point of it is that the port does not
+	// move: a half-written one reads as no allocations at all, and every site
+	// would be handed a new port on the next pass.
+	return atomicfile.Write(PortsFile(), data, 0o600)
 }
 
 // ConfiguredSSHPorts reads the ports sshd is already listening on.
