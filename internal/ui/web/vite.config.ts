@@ -45,6 +45,14 @@ export default defineConfig(() => ({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/test-setup.ts']
+    setupFiles: ['./src/test-setup.ts'],
+    // Several suites import the module under test inside the first `it`, because
+    // they reset the module registry between cases. That first import compiles
+    // the module graph, and vitest charges the whole compile to that one test's
+    // timeout: on a cold or busy machine the first test in a file fails at five
+    // seconds while every later one in the same file passes in milliseconds.
+    // Nothing here is slow on purpose, so the ceiling is set where a real hang
+    // still trips it.
+    testTimeout: 20000
   }
 }));

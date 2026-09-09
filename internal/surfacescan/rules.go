@@ -128,7 +128,10 @@ func Rules() []Rule {
 		},
 		{
 			Feature: "Xdebug toggles", Story: "S0.5", Enforced: true,
-			Patterns: []string{`(?i)\bxdebug\b`},
+			// No trailing \b: the word boundary does not fire before an
+			// underscore, so the old pattern read straight past the
+			// xdebug_enabled the panel's own fixtures were still carrying.
+			Patterns: []string{`(?i)\bxdebug`},
 			Allow:    specs,
 		},
 		{
@@ -265,6 +268,20 @@ func Rules() []Rule {
 				`openTerminal`, `update-terminal`, `logs/terminal`,
 				`x-terminal-emulator`, `gnome-terminal`, `konsole`,
 				`open-folder`, `open-editor`, `openInEditor`, `editorCommand`,
+			},
+			Allow: specs,
+		},
+		{
+			// The panel used to ask systemd-logind whether the desktop session
+			// on this machine was idle or locked, and slow its container poll
+			// when it was. That made sense when the panel and the browser were
+			// the same laptop. On a droplet the operator is somewhere else
+			// entirely, and the only session logind can see is an SSH terminal
+			// whose idle hint says nothing about whether anyone is watching.
+			Feature: "desktop session idle signal", Story: "S5.7", Enforced: true,
+			Patterns: []string{
+				`login1`, `IdleHint`, `LockedHint`,
+				`SessionIsIdle`, `SessionIsLocked`, `startIdleWatcher`,
 			},
 			Allow: specs,
 		},

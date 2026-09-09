@@ -313,15 +313,16 @@ There are four check types, each with its own fields.
   detail: MAILER_DSN is empty, so no mail will be sent.
 ```
 
-`env_combo` catches a combination of env values that is individually legal but collectively a footgun, the classic being debug mode left on in production. It takes `when` and `warn_if`, both maps of key to expected value, and only triggers when every pair in both maps matches. Values are compared truthily, so a `warn_if` of `true` matches `1`, `on` and `yes` as well.
+`env_combo` catches a combination of env values that is individually legal but collectively a footgun. It takes `when` and `warn_if`, both maps of key to expected value, and only triggers when every pair in both maps matches. Values are compared truthily, so a `warn_if` of `true` matches `1`, `on` and `yes` as well. `when` is optional; leave it out and the check rests on `warn_if` alone.
+
+The shipped debug checks do leave it out, deliberately. Gating a debug warning on `APP_ENV: production` is the right rule for a laptop and the wrong one for a server: every servlo site answers on a public domain, and the checkout most likely to have debug on is the one whose `.env` came straight from `.env.example` and still says `local`. That is exactly the site the warning has to reach.
 
 ```yaml
 - name: app_debug
   type: env_combo
   label: Debug Mode
-  when: { APP_ENV: production }
   warn_if: { APP_DEBUG: true }
-  detail: APP_DEBUG is on in production, which leaks stack traces.
+  detail: APP_DEBUG is on, so a stack trace leaks the site's config to anyone who can provoke an error.
 ```
 
 `symlink` checks that a path is a symlink, for the likes of Laravel's `public/storage`. It takes `link`, the path that should be one, and `target`, the directory it should point into. The check skips itself entirely when `target` does not exist, since the link is meaningless then, and `requires_dir` adds a second directory that must exist for the check to apply at all.

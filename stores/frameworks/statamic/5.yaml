@@ -111,11 +111,9 @@ doctor:
   checks:
     - name: app_debug
       type: env_combo
-      when:
-        APP_ENV: production
       warn_if:
         APP_DEBUG: "true"
-      detail: "APP_DEBUG is on while APP_ENV=production, so stack traces and config will leak. Turn debug off."
+      detail: "APP_DEBUG is on, so a stack trace leaks the site's config and credentials to anyone who can provoke an error. Every servlo site is on a public domain, whatever APP_ENV says. Turn debug off."
     - name: storage_link
       type: symlink
       link: public/storage

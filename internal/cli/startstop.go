@@ -873,17 +873,19 @@ func restoreSiteInfrastructure() {
 
 	seenPHP := map[string]bool{}
 	seenSvc := map[string]bool{}
-	dirty := false
 
 	// Backfill framework for all sites (including paused) that were linked
-	// before detection was added.
+	// before detection was added. Detection reads each site's directory, which
+	// is far too long to hold the registry lock over, so the answers are
+	// collected here and applied at the end in one short locked pass.
+	detected := map[string]string{}
 	for i, s := range reg.Sites {
 		if s.Ignored || s.Framework != "" {
 			continue
 		}
 		if name, ok := config.DetectFrameworkForDir(s.Path); ok {
 			reg.Sites[i].Framework = name
-			dirty = true
+			detected[s.Name] = name
 		}
 	}
 
@@ -1024,8 +1026,20 @@ func restoreSiteInfrastructure() {
 			}
 		}
 	}
-	if dirty {
-		config.SaveSites(reg) //nolint:errcheck
+	// Re-read under the lock and set only the field this sweep decided, rather
+	// than saving a snapshot taken before every site was walked: anything the
+	// panel wrote in between is still in the file that way.
+	if len(detected) > 0 {
+		config.UpdateSites(func(cur *config.SiteRegistry) (bool, error) { //nolint:errcheck
+			changed := false
+			for i := range cur.Sites {
+				if name, ok := detected[cur.Sites[i].Name]; ok && cur.Sites[i].Framework == "" {
+					cur.Sites[i].Framework = name
+					changed = true
+				}
+			}
+			return changed, nil
+		})
 	}
 
 	// Restore unit files for standalone custom services (installed globally via

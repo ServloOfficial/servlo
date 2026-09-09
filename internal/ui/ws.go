@@ -2,7 +2,6 @@ package ui
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"sync"
@@ -12,19 +11,16 @@ import (
 	"github.com/ServloOfficial/servlo/internal/authz"
 	"github.com/ServloOfficial/servlo/internal/eventbus"
 	"github.com/ServloOfficial/servlo/internal/podman"
-	servloSystemd "github.com/ServloOfficial/servlo/internal/systemd"
 )
 
 var (
 	visibleClients atomic.Int32
 	focusedClients atomic.Int32
-	sessionIdle    atomic.Bool
 )
 
 const (
-	intervalFocused      = 15 * time.Second
-	intervalIdle         = 60 * time.Second
-	idleWatcherCheckTick = 30 * time.Second
+	intervalFocused = 15 * time.Second
+	intervalIdle    = 60 * time.Second
 
 	// wsPingInterval is how often the server probes a connected client with
 	// a ping frame. Browsers reply within milliseconds; if no pong (or any
@@ -42,19 +38,19 @@ const (
 // the handler's deferred join leaks. A var so tests can shorten it.
 var wsWriteTimeout = 10 * time.Second
 
-// chooseInterval returns the cache poll cadence implied by the current
-// (visibility, session-idle) pair. Fast cadence requires both an engaged
-// browser tab and an active desktop session: a focused tab on a locked
-// laptop still drops to idle, matching the watcher's idle backoff.
-func chooseInterval(visible int32, idle bool) time.Duration {
-	if visible > 0 && !idle {
+// chooseInterval returns the cache poll cadence implied by how many dashboard
+// tabs are open. A visible tab is the whole signal: the panel runs on the
+// server and whoever is watching it is somewhere else, so nothing this machine
+// can observe about its own login sessions says anything about that.
+func chooseInterval(visible int32) time.Duration {
+	if visible > 0 {
 		return intervalFocused
 	}
 	return intervalIdle
 }
 
 func recomputeInterval() {
-	podman.Cache.SetInterval(chooseInterval(visibleClients.Load(), sessionIdle.Load()))
+	podman.Cache.SetInterval(chooseInterval(visibleClients.Load()))
 }
 
 // noteFocus tracks how many dashboard windows currently have focus. It is kept
@@ -79,28 +75,6 @@ func noteVisibility(visible bool) {
 		visibleClients.Store(0)
 	}
 	recomputeInterval()
-}
-
-// startIdleWatcher polls systemd-logind every 30s and recomputes the cache
-// interval when the session transitions between idle/locked and active.
-// On non-Linux SessionIsIdleOrLocked is a stub that always returns false,
-// so the interval stays driven by visibility alone.
-func startIdleWatcher(ctx context.Context) {
-	go func() {
-		t := time.NewTicker(idleWatcherCheckTick)
-		defer t.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				idle := servloSystemd.SessionIsIdleOrLocked()
-				if sessionIdle.Swap(idle) != idle {
-					recomputeInterval()
-				}
-			}
-		}
-	}()
 }
 
 // handleWS upgrades the HTTP connection to a websocket and streams snapshot

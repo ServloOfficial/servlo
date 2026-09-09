@@ -75,8 +75,26 @@ describe('status store', () => {
     expect(get(servloStatusColor)).toBe('green');
   });
 
-
-
+  // The System health card lists every PHP-FPM pool with its own dot, and the
+  // System tab offers to start everything when one is down. The card's summary
+  // pill used to look only at nginx and the watcher, so a dead pool showed a red
+  // dot with the word Healthy above it, on the page an operator lands on.
+  it('servloStatusColor is red when a php-fpm pool the card lists is down', async () => {
+    const { status, statusLoaded, servloStatusColor } = await import('./status');
+    const { version } = await import('./version');
+    statusLoaded.set(true);
+    status.update((s) => ({
+      ...s,
+      nginx: { running: true },
+      watcher_running: true,
+      php_fpms: [
+        { version: '8.4', running: true },
+        { version: '8.5', running: false }
+      ]
+    }));
+    version.update((v) => ({ ...v, hasUpdate: false }));
+    expect(get(servloStatusColor)).toBe('red');
+  });
 });
 
 describe('server restart reload', () => {

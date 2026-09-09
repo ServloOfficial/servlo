@@ -29,7 +29,7 @@ Mouse support is on: clicking a tab switches screens, clicking a site or service
 - **Status bar** briefly shows the most recent action (e.g. `✓ servlo service stop redis` or `✖ …exit 1`).
 - **Footer** summarises active keybindings for the current mode.
 
-Dots follow the same convention everywhere: green `●` running, grey `○` stopped, amber `◐` paused, red `✖` failing. A worker the idle engine has put to sleep reads `suspended` with an amber `◔` glyph, so a deliberately stopped-for-idle worker isn't mistaken for one that crashed or never started; it wakes on the next request.
+Dots follow the same convention everywhere: green `●` running, grey `○` stopped, amber `◐` paused, red `✖` failing. A worker that is up but not answering its health probe reads `unreachable` with a `⊘` glyph, so a wedged worker isn't mistaken for one systemd has given up on.
 
 ## Keybindings
 
@@ -139,7 +139,7 @@ The site detail pane is split into read-side tabs the user can jump between with
 | `1` | Overview | The default: domains, toggles (HTTPS / PHP / Node), services used, workers, and the [request-timing panel](#request-timing), laid out as a [responsive grid](#overview-layout) |
 | `2` | Logs | A live tail of any of the site's log sources: the FPM or custom container, every worker unit, and each of the framework's app-log files. `[` / `]` cycle the source, `{` / `}` scroll back through the buffer, `f` finds within it. `l` is a shortcut to this tab from anywhere on the Sites tab |
 | `3` | Env | Read-only display of the site's `.env` file (read up to 256 KB so a runaway file can't wedge the render loop) |
-| `4` | Doctor | The same framework-agnostic app-level health checks the web dashboard runs: a universal baseline (env file present, env drift warning only on keys the code reads without a default, application key set, composer and node dependencies installed with lockfiles in step, `composer audit` and `npm audit` clean, PHP version in range) plus each framework's own checks from its store definition (for Laravel, the `APP_DEBUG`-in-production footgun, the `public/storage` symlink, and pending migrations). Some checks exec in the container, so the run is on-demand: press `5` to run and again to re-run. The panel is read-only and names the suggested fix (e.g. `key:generate`, `migrate`) rather than running it, so a status view can never migrate a database |
+| `4` | Doctor | The same framework-agnostic app-level health checks the web dashboard runs: a universal baseline (env file present, env drift warning only on keys the code reads without a default, application key set, composer and node dependencies installed with lockfiles in step, `composer audit` and `npm audit` clean, PHP version in range) plus each framework's own checks from its store definition (for Laravel, debug mode left on, the `public/storage` symlink, and pending migrations). Some checks exec in the container, so the run is on-demand: press `5` to run and again to re-run. The panel is read-only and names the suggested fix (e.g. `key:generate`, `migrate`) rather than running it, so a status view can never migrate a database |
 
 Switching tabs resets the detail-pane scroll so the user lands at the top of the new tab. Picker overlays (PHP / Node version) only show in Overview; selecting a different tab dismisses them.
 

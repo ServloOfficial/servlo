@@ -12,7 +12,7 @@ import (
 
 // workerVisual is the single source for how a worker's live state renders: its
 // style, dot glyph, and one-word label, applying the one precedence used
-// everywhere — failing > unreachable > running > suspended > stopped. Every
+// everywhere: failing > unreachable > running > stopped. Every
 // render site routes through this so the orderings and colours can't drift
 // apart. stoppedStyle and dimStyle share a
 // colour, so the stopped word looks identical to the old dimStyle rendering.

@@ -119,9 +119,15 @@ wsMessage.subscribe((msg) => {
 
 export type ServloStatusColor = 'green' | 'yellow' | 'red' | 'gray';
 
+// The colour the System health card puts on its own summary pill. It has to
+// answer for every row that card draws, PHP-FPM included: a pool that failed to
+// come back after a version change shows its red dot there while the pill above
+// it reads Healthy, and the dashboard is the page an operator lands on. The
+// System tab already offers to start everything in exactly this state.
 export const servloStatusColor = derived([status, statusLoaded, version], ([$s, $loaded, $v]): ServloStatusColor => {
   if (!$loaded) return 'gray';
   if (!$s.nginx.running || !$s.watcher_running) return 'red';
+  if (($s.php_fpms || []).some((f) => !f.running)) return 'red';
   if ($v.hasUpdate) return 'yellow';
   return 'green';
 });

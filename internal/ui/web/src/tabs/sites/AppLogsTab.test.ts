@@ -76,4 +76,38 @@ describe('AppLogsTab', () => {
 
     expect(methodCalls.some((c) => c.startsWith('POST') && c.includes('/clear'))).toBe(true);
   });
+
+  // The level pill is as wide as its word, so a page mixing INFO with WARNING
+  // used to step the timestamp and message columns left and right row by row.
+  // The cell holding the pill is what keeps them straight.
+  it('gives every level the same width so the columns below it line up', async () => {
+    globalThis.fetch = vi.fn(async (url: string) => {
+      const seg = url.match(/\/api\/app-logs\/[^/?]+(?:\/([^?]+))?/)?.[1];
+      if (seg) {
+        return new Response(
+          JSON.stringify({
+            entries: [
+              { level: 'INFO', date: '2026-09-09 11:05:35', message: 'Cache warmed' },
+              { level: 'EMERGENCY', date: '2026-09-09 11:04:45', message: 'Disk full' },
+              { level: undefined, date: '2026-09-09 11:02:55', message: 'Unlabelled' }
+            ]
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(JSON.stringify({ files: [{ name: 'laravel.log', size: 2048 }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }) as unknown as typeof fetch;
+
+    const { container } = render(Harness, { props: { site: siteWith() } });
+    await screen.findByText('Cache warmed');
+
+    const cells = [...container.querySelectorAll('[data-level-cell]')];
+    expect(cells.length).toBe(3);
+    const widths = new Set(cells.map((c) => [...c.classList].find((n) => n.startsWith('w-'))));
+    expect(widths.size).toBe(1);
+    expect([...widths][0]).toBeTruthy();
+  });
 });

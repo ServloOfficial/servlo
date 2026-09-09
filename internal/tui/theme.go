@@ -51,7 +51,7 @@ var (
 	// distinct glyph, so it reads as its own state rather than a systemd failure.
 	unreachableStyle = lipgloss.NewStyle().Foreground(colFailing)
 	pausedStyle      = lipgloss.NewStyle().Foreground(colPaused)
-	suspendedStyle   = lipgloss.NewStyle().Foreground(colPaused)
+	warnStyle        = lipgloss.NewStyle().Foreground(colPaused)
 	accentStyle      = lipgloss.NewStyle().Foreground(colAccent)
 	helpStyle        = lipgloss.NewStyle().Foreground(colDim)
 )
@@ -88,7 +88,7 @@ const (
 	glyphFailing     = "✖"
 	glyphUnreachable = "⊘"
 	glyphPaused      = "◐"
-	glyphSuspended   = "◔"
+	glyphWarn        = "◔"
 )
 
 // keyChipStyle wraps a single keybinding name (e.g. " y ", " esc ") in a

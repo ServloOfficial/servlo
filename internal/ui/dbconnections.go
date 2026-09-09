@@ -290,14 +290,17 @@ func assignConnection(domain, connection string) error {
 			return err
 		}
 	}
-	reg, err := config.LoadSites()
-	if err != nil {
-		return err
-	}
-	for i := range reg.Sites {
-		if reg.Sites[i].Name == site.Name {
-			reg.Sites[i].Database = connection
+	// Through UpdateSites rather than load-mutate-save: the panel serves these
+	// concurrently, and a bare sequence here races every other registry write
+	// and drops one of the two silently.
+	return config.UpdateSites(func(reg *config.SiteRegistry) (bool, error) {
+		changed := false
+		for i := range reg.Sites {
+			if reg.Sites[i].Name == site.Name {
+				reg.Sites[i].Database = connection
+				changed = true
+			}
 		}
-	}
-	return config.SaveSites(reg)
+		return changed, nil
+	})
 }

@@ -518,12 +518,35 @@ var (
 	sitesCacheSz int64
 )
 
-// siteWriteMu serializes every read-modify-write of the registry (AddSite,
-// RemoveSite, ReorderSites, IgnoreSite). Each does LoadSites -> mutate ->
-// SaveSites; without one lock spanning the whole sequence, concurrent writers
-// (the idle engine's goroutines, a CLI pin/pause, a worker toggle) interleave
-// and clobber each other, which let one site's worker list bleed onto another.
+// siteWriteMu serializes every read-modify-write of the registry. Each does
+// LoadSites -> mutate -> SaveSites; without one lock spanning the whole
+// sequence, concurrent writers (two panel requests, a CLI pause against a
+// running panel, a vhost repair sweep) interleave. The file write is atomic, so
+// what that costs is not a corrupt sites.yaml but a silently lost one: the last
+// full write wins and the other caller's change is gone with no error.
+//
+// Callers outside this package reach it through UpdateSites. Three of them used
+// to load, mutate and save on their own, which meant this lock excluded nothing
+// against them.
 var siteWriteMu sync.Mutex
+
+// UpdateSites runs mutate against the registry under that lock and saves the
+// result when mutate reports it changed something. A mutation that reports
+// false writes nothing, so a sweep that finds nothing to repair does not churn
+// the file on every pass.
+func UpdateSites(mutate func(*SiteRegistry) (changed bool, err error)) error {
+	siteWriteMu.Lock()
+	defer siteWriteMu.Unlock()
+	reg, err := LoadSites()
+	if err != nil {
+		return err
+	}
+	changed, err := mutate(reg)
+	if err != nil || !changed {
+		return err
+	}
+	return SaveSites(reg)
+}
 
 func invalidateSitesCache() {
 	sitesCacheMu.Lock()

@@ -373,7 +373,7 @@ func (m *Model) dashWorkersCard(width, sel int) cardContent {
 	si := 0
 	for _, idx := range workerIdx {
 		wk := m.snap.Services[idx]
-		// The status dot already conveys running/stopped/suspended, so the
+		// The status dot already conveys running/stopped, so the
 		// site sits on the left and the worker kind (queue / schedule / vite)
 		// is flush right instead of a redundant state word.
 		left := serviceStateGlyph(wk.State) + " " + wk.WorkerSite

@@ -82,6 +82,15 @@ const SHOTS = [
       const managed = page.getByRole('button', { name: /^Managed$/ }).first();
       if (await managed.count()) { await managed.click(); await page.waitForTimeout(400); }
     } },
+  { name: 'sites', height: 1600, act: rail('Sites') },
+  { name: 'site-overview', height: 2000, act: siteTab('Acme', 'Overview') },
+  { name: 'site-logs', height: 1600, act: siteTab('Acme', 'Logs') },
+  { name: 'site-env', height: 1600, act: siteTab('Acme', 'Env') },
+  { name: 'services-detail', height: 1600, act: async (page) => {
+      await rail('Services')(page);
+      await page.getByText('mysql', { exact: true }).first().click();
+      await page.waitForTimeout(1200);
+    } },
   { name: 'site-settings', height: 2200, act: siteTab('Acme', 'Settings'), bottom: true },
   { name: 'site-deploy', height: 1600, act: siteTab('Acme', 'Deploy') },
   { name: 'site-cron', height: 1700, act: siteTab('Acme', 'Cron') },

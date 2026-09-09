@@ -1001,7 +1001,8 @@ func RepairVhosts() []VhostRepair {
 	}
 
 	var repairs []VhostRepair
-	dirty := false
+	// Names whose Secured flag this sweep decided to clear, applied at the end.
+	var unsecured []string
 
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".conf") {
@@ -1057,7 +1058,7 @@ func RepairVhosts() []VhostRepair {
 				continue
 			}
 			reg.Sites[i].Secured = false
-			dirty = true
+			unsecured = append(unsecured, site.Name)
 			repaired = true
 			repairs = append(repairs, VhostRepair{Domain: domain, Reason: "missing-cert"})
 			os.Remove(filepath.Join(certsDir, domain+".crt")) //nolint:errcheck
@@ -1071,8 +1072,22 @@ func RepairVhosts() []VhostRepair {
 		}
 	}
 
-	if dirty {
-		config.SaveSites(reg) //nolint:errcheck
+	// Re-read under the registry lock and clear only the flag this sweep
+	// decided. Saving the snapshot taken before the vhost walk would put back
+	// whatever the panel wrote while it was running.
+	if len(unsecured) > 0 {
+		config.UpdateSites(func(cur *config.SiteRegistry) (bool, error) { //nolint:errcheck
+			changed := false
+			for i := range cur.Sites {
+				for _, name := range unsecured {
+					if cur.Sites[i].Name == name && cur.Sites[i].Secured {
+						cur.Sites[i].Secured = false
+						changed = true
+					}
+				}
+			}
+			return changed, nil
+		})
 	}
 
 	return repairs

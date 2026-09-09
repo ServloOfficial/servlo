@@ -117,11 +117,9 @@ doctor:
   checks:
     - name: app_debug
       type: env_combo
-      when:
-        APP_ENV: prod
       warn_if:
         APP_DEBUG: "true"
-      detail: "APP_DEBUG is on while APP_ENV=prod, so stack traces and internals will leak. Turn debug off in production."
+      detail: "APP_DEBUG is on, so the profiler and stack traces leak the site's internals to anyone who can provoke an error. Every servlo site is on a public domain, whatever APP_ENV says. Turn debug off."
 
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.
