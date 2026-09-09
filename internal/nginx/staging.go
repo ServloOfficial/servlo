@@ -64,6 +64,16 @@ func HtpasswdPath(domain string) string {
 	return filepath.Join(config.NginxHtpasswdDir(), domain)
 }
 
+// RemoveHtpasswd takes a domain's credential file away.
+//
+// It lives here rather than in internal/staging because this is where the path
+// is spelled, and internal/staging imports internal/siteops, so site removal
+// could not reach it there. One spelling of a layout is what keeps a caller
+// from growing its own copy and quietly missing when the layout moves.
+func RemoveHtpasswd(domain string) {
+	os.Remove(HtpasswdPath(domain)) //nolint:errcheck — a site with no password is the common case
+}
+
 // StagingGuard is the noindex header and the password prompt, empty for an
 // ordinary site.
 func (d VhostData) StagingGuard() string {

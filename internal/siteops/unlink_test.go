@@ -7,6 +7,7 @@ import (
 
 	"github.com/ServloOfficial/servlo/internal/certs"
 	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/nginx"
 )
 
 func TestIsParkedSite(t *testing.T) {
@@ -191,5 +192,63 @@ func TestUnlinkSiteCore_KeepsWhatAParkedSiteCannotCheaplyGetBack(t *testing.T) {
 		if _, err := os.Stat(p); err != nil {
 			t.Errorf("a parked site's %s was deleted, so relinking it would spend an issuance: %v", filepath.Base(p), err)
 		}
+	}
+}
+
+// A staging site is behind a password, and the file holding it is named for the
+// domain and left at 0644 so nginx's workers can read it. Nothing took it away
+// when the site went: RemoveHtpasswd says it is for a site that "stopped being a
+// staging site or stopped existing", and staging.Remove says deleting the site
+// itself is site removal's job, but site removal never called either. So every
+// staging site ever unlinked left its hash on disk, readable, for good.
+func TestUnlinkSiteCore_TakesAStagingSitesPasswordFileWithIt(t *testing.T) {
+	domain := "staging.example.com"
+	if err := os.MkdirAll(config.NginxHtpasswdDir(), 0755); err != nil {
+		t.Fatalf("creating the htpasswd directory: %v", err)
+	}
+	htpasswd := nginx.HtpasswdPath(domain)
+	if err := os.WriteFile(htpasswd, []byte("staging:$2y$10$notreal\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Another site's file, to prove the removal is keyed rather than a sweep.
+	other := nginx.HtpasswdPath("kept.example.com")
+	if err := os.WriteFile(other, []byte("staging:$2y$10$alsonotreal\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	site := &config.Site{Name: "stg", Path: t.TempDir(), Domains: []string{domain}}
+	_ = UnlinkSiteCore(site, nil)
+
+	if _, err := os.Stat(htpasswd); !os.IsNotExist(err) {
+		t.Errorf("the password file outlived the site (stat error %v)", err)
+	}
+	if _, err := os.Stat(other); err != nil {
+		t.Errorf("another site's password file went with it: %v", err)
+	}
+}
+
+// A parked site keeps its registry entry, staging and all, so its vhost still
+// names the file. Taking it away would leave a relinked site asking for a
+// password against a file that is not there, which nginx answers 500 to
+// everybody: a broken site rather than a closed one.
+func TestUnlinkSiteCore_KeepsAParkedStagingSitesPasswordFile(t *testing.T) {
+	domain := "parkedstg.example.com"
+	parked := t.TempDir()
+	if err := os.MkdirAll(config.NginxHtpasswdDir(), 0755); err != nil {
+		t.Fatalf("creating the htpasswd directory: %v", err)
+	}
+	htpasswd := nginx.HtpasswdPath(domain)
+	if err := os.WriteFile(htpasswd, []byte("staging:$2y$10$notreal\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	site := &config.Site{Name: "parkedstg", Path: filepath.Join(parked, "parkedstg"), Domains: []string{domain}}
+	if err := config.AddSite(*site); err != nil {
+		t.Fatal(err)
+	}
+	_ = UnlinkSiteCore(site, []string{parked})
+
+	if _, err := os.Stat(htpasswd); err != nil {
+		t.Errorf("a parked staging site lost its password file, so relinking it would answer 500: %v", err)
 	}
 }

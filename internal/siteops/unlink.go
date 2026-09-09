@@ -119,6 +119,11 @@ func UnlinkSiteCore(site *config.Site, parkedDirs []string) error {
 		// whose vhost step failed leaves a key behind a site that never read as
 		// secured.
 		certs.ForgetSite(site.PrimaryDomain())
+		// And a staging site's password file, which is named for the domain
+		// like the rest of them. Two comments in internal/staging said site
+		// removal took care of this and nothing here ever did, so every staging
+		// site ever unlinked left its hash on disk at 0644.
+		nginx.RemoveHtpasswd(site.PrimaryDomain())
 	}
 
 	forgetSiteState(site.Name)
