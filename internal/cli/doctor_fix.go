@@ -32,9 +32,19 @@ const (
 
 // heavyFixKeys are auto fixes that rebuild images, reinstall units, or delete
 // data, so `servlo doctor --fix` re-confirms them even under --yes.
+//
+// Every fix that re-enters a servlo subcommand belongs here, and
+// TestHeavyFixKeys_CoverEveryFixThatReEntersASubcommand reads ApplyDoctorFix to
+// say so: the light fixes are a mkdir, a loginctl call and a drop-in, while a
+// subcommand is a whole operation with its own blast radius. php:rebuild is the
+// one this was written for, because it rebuilds an image and, as the comment on
+// the other caller says, restarts FPM and worker units unconditionally: every
+// site on that PHP version goes down for it, which is not something to do to an
+// operator who typed --yes to a list of repairs.
 var heavyFixKeys = map[string]bool{
-	fixInstall: true,
-	fixCleanup: true,
+	fixInstall:    true,
+	fixCleanup:    true,
+	fixPhpRebuild: true,
 }
 
 // reCheckReport re-runs the diagnosis after fixes are applied; a package var so
