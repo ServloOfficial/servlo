@@ -28,13 +28,33 @@ func TestNothingTouchesSSHPasswordAuthentication(t *testing.T) {
 	}
 	body := allCommands(plans)
 
-	for _, forbidden := range []string{
-		"PasswordAuthentication",
-		"PermitRootLogin",
-		"ChallengeResponseAuthentication",
-		"sshd_config",
-		"KbdInteractiveAuthentication",
-	} {
+	for _, forbidden := range wouldLockTheOperatorOut {
+		if strings.Contains(body, forbidden) {
+			t.Errorf("a server basic touches %q, which could lock the operator out:\n%s", forbidden, body)
+		}
+	}
+}
+
+// wouldLockTheOperatorOut is what no basic may name, shared by the two tests
+// below so the staged plans and the real set are held to one list.
+var wouldLockTheOperatorOut = []string{
+	"PasswordAuthentication",
+	"PermitRootLogin",
+	"ChallengeResponseAuthentication",
+	"sshd_config",
+	"KbdInteractiveAuthentication",
+}
+
+// And the same over the set as it actually ships, rather than over four plans
+// named by hand. All() is what the install and the doctor run, so a basic added
+// to it is a basic an operator will be offered, and the rule above is the one
+// place in this codebase where a list that has to be kept in step by hand is
+// not good enough. Every plan here is measured by reading files and asking
+// whether a binary is on PATH, so building the real set costs nothing and
+// changes nothing.
+func TestEveryBasicThatShipsLeavesSSHAlone(t *testing.T) {
+	body := allCommands(All())
+	for _, forbidden := range wouldLockTheOperatorOut {
 		if strings.Contains(body, forbidden) {
 			t.Errorf("a server basic touches %q, which could lock the operator out:\n%s", forbidden, body)
 		}
