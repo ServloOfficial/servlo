@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ServloOfficial/servlo/internal/auditlog"
 )
 
 // Policy is how much history to keep, in the usual three periods.
@@ -63,11 +65,42 @@ func Prune(dir, site string, policy Policy, now time.Time) (int, error) {
 			continue
 		}
 		if err := os.Remove(a.path); err != nil {
+			recordPruned(site, removed, policy, err)
 			return removed, fmt.Errorf("removing %s: %w", filepath.Base(a.path), err)
 		}
 		removed++
 	}
+	recordPruned(site, removed, policy, nil)
 	return removed, nil
+}
+
+// recordPruned puts a sweep that deleted something in the audit log.
+//
+// CLAUDE.md section 8 names backup pruning beside site removal and the database
+// drop as something that deletes data. The other two are operator actions with
+// a typed confirmation in front of them; this one runs on a timer with nobody
+// asked, which makes the entry the only trace it leaves.
+//
+// No actor: an empty one means servlo itself on a timer, which is what this is.
+// Nothing is written when nothing was deleted, because that is every site
+// inside its policy every night and it would bury the sweeps that matter.
+func recordPruned(site string, removed int, policy Policy, cause error) {
+	if removed == 0 && cause == nil {
+		return
+	}
+	detail := fmt.Sprintf("removed %d, keeping %d daily, %d weekly, %d monthly",
+		removed, policy.Daily, policy.Weekly, policy.Monthly)
+	result := auditlog.ResultOK
+	if cause != nil {
+		result = auditlog.ResultFailed
+		detail += ": " + cause.Error()
+	}
+	auditlog.Record(auditlog.Entry{
+		Action:  "backup.pruned",
+		Subject: site,
+		Result:  result,
+		Detail:  detail,
+	})
 }
 
 // markNewestPerBucket keeps the newest archive in each of the most recent count

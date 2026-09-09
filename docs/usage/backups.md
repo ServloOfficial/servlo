@@ -60,6 +60,8 @@ That is also the default for a site that has not said otherwise. Keeping everyth
 
 The sweep runs as part of the backup rather than as a second timer, because a retention timer nobody armed is the same disk filling up. It only ever touches archives matching that one site, and only files that are actually archives: a checksum sidecar, a note, a partial file from an interrupted run and a decompressed copy are all left alone.
 
+A sweep that deletes something writes a `backup.pruned` line to the audit log naming the site, how many archives went and the policy that decided it, so `servlo audit` answers where a missing archive went. The line carries no operator, because nobody was asked: an empty actor is servlo's own timer, the same as a certificate renewal. A sweep inside its policy deletes nothing and says nothing, which is most nights for most sites.
+
 A sweep that fails is reported as a warning, not as a failed backup. The archive is already on disk, and saying otherwise would have you re-running something that worked.
 
 ## Verifying a backup
