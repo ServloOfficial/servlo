@@ -167,8 +167,12 @@ func TestRemoveStale_LeavesARestoreInProgressAlone(t *testing.T) {
 func TestRemoveStale_SweepsAgainOnceTheRestoreWindowCloses(t *testing.T) {
 	isolateConfig(t)
 
+	// A deleted project, which is a missing directory inside one that is still
+	// there. A path whose parent is missing too reads as a directory tree that
+	// went away, and the sweep leaves those alone whatever the restore window
+	// says.
 	reg := &config.SiteRegistry{Sites: []config.Site{
-		{Name: "gone", Domains: []string{"gone.example"}, Path: "/var/empty/does-not-exist"},
+		{Name: "gone", Domains: []string{"gone.example"}, Path: filepath.Join(t.TempDir(), "gone")},
 	}}
 	if err := config.SaveSites(reg); err != nil {
 		t.Fatal(err)
@@ -212,4 +216,71 @@ func TestNotifyReadyThenScan_readinessDoesNotWaitOnTheScan(t *testing.T) {
 
 	releaseScan()
 	<-scanDone
+}
+
+// A detached volume must not be read as a pile of deleted projects.
+//
+// The sweep asks os.Stat for each site path and treats ENOENT as "the operator
+// deleted this project". A block volume that detaches, or a mount missing from
+// fstab after a reboot, leaves the mountpoint as an empty directory, so every
+// site under it answers ENOENT at once. What the sweep then does to each is not
+// a registry edit: it stops the workers, removes the per-site container, deletes
+// the vhost and drops the entry. The volume comes back and the sites are gone,
+// which is the one failure a panel for other people's sites cannot have.
+//
+// A project the operator deleted leaves its parent standing. A subtree that went
+// with its mount does not, which is the difference the sweep can see.
+func TestRemoveStale_leavesSitesWhoseParentWentWithThem(t *testing.T) {
+	isolateConfig(t)
+
+	// The mountpoint exists and is empty, as it is after an unmount.
+	mount := t.TempDir()
+	sitesDir := filepath.Join(mount, "sites")
+
+	reg := &config.SiteRegistry{Sites: []config.Site{
+		{Name: "acme", Domains: []string{"acme.example"}, Path: filepath.Join(sitesDir, "acme")},
+		{Name: "beta", Domains: []string{"beta.example"}, Path: filepath.Join(sitesDir, "beta")},
+	}}
+	if err := config.SaveSites(reg); err != nil {
+		t.Fatal(err)
+	}
+
+	if removeStale(&config.GlobalConfig{}) {
+		t.Error("the sweep unregistered sites whose whole directory tree is missing, which is what a detached volume looks like")
+	}
+	after, err := config.LoadSites()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after.Sites) != 2 {
+		t.Errorf("kept %d of 2 sites after the mount went away", len(after.Sites))
+	}
+}
+
+// The ordinary case still sweeps: one project deleted out of a directory that
+// is still there.
+func TestRemoveStale_removesOneDeletedProjectFromALiveParent(t *testing.T) {
+	isolateConfig(t)
+
+	sitesDir := t.TempDir()
+	live := filepath.Join(sitesDir, "live")
+	if err := os.MkdirAll(live, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	reg := &config.SiteRegistry{Sites: []config.Site{
+		{Name: "live", Domains: []string{"live.example"}, Path: live},
+		{Name: "gone", Domains: []string{"gone.example"}, Path: filepath.Join(sitesDir, "gone")},
+	}}
+	if err := config.SaveSites(reg); err != nil {
+		t.Fatal(err)
+	}
+
+	if !removeStale(&config.GlobalConfig{}) {
+		t.Fatal("a project deleted from a directory that still exists must still be swept")
+	}
+	after, _ := config.LoadSites()
+	if len(after.Sites) != 1 || after.Sites[0].Name != "live" {
+		t.Errorf("after the sweep = %+v, want only the live site", after.Sites)
+	}
 }

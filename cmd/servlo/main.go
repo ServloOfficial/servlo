@@ -434,7 +434,28 @@ func removeStale(_ *config.GlobalConfig) bool {
 		if site.Ignored {
 			continue
 		}
-		if _, statErr := os.Stat(site.Path); os.IsNotExist(statErr) {
+		if _, statErr := os.Stat(site.Path); !os.IsNotExist(statErr) {
+			continue
+		}
+		// A project the operator deleted leaves the directory it sat in. A
+		// subtree that went with its mount does not, and that is the whole
+		// difference this sweep can see between the two.
+		//
+		// It matters because of what happens next: this does not edit the
+		// registry, it stops the site's workers, removes its container, deletes
+		// its vhost and drops the entry. A block volume that detached, or a
+		// mount missing from fstab after a reboot, leaves the mountpoint an
+		// empty directory, so every site under it reads as deleted at once and
+		// is gone by the time anybody notices the volume. Erring the other way
+		// leaves a registry entry for a directory nobody will bring back, which
+		// `servlo unlink` removes in a second.
+		if parent := filepath.Dir(site.Path); parent != site.Path {
+			if _, err := os.Stat(parent); err != nil {
+				fmt.Printf("Leaving %s registered: %s is missing too, which is a directory tree that went away rather than a project that was deleted\n", site.Name, parent)
+				continue
+			}
+		}
+		{
 			fmt.Printf("Removing stale site: %s (%s)\n", site.Name, site.Path)
 			s := site
 			// Tear down the site's workers and any per-site container before

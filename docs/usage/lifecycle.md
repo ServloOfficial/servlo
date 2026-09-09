@@ -62,7 +62,9 @@ If you ran `servlo uninstall` and then reinstalled, worker units and service qua
 `servlo-watcher` removes sites from `sites.yaml` whenever their project directory disappears on disk. Two paths do this:
 
 - **Instant**: fsnotify on every parked directory (configured via `servlo park`). When a direct subdirectory gets deleted, the corresponding site is unlinked within milliseconds.
-- **Periodic**: every 30 seconds the watcher sweeps the full site registry (parked and non-parked) and removes any site whose path no longer exists. The UI refreshes via the sites eventbus so the dashboard reflects the removal without a manual page reload.
+- **Periodic**: every 30 seconds the watcher sweeps the full site registry (parked and non-parked) and removes any site whose path no longer exists, provided the directory that path sat in is still there. The UI refreshes via the sites eventbus so the dashboard reflects the removal without a manual page reload.
+
+That proviso is about detached storage. Removing a stale site is not a registry edit: it stops the site's workers, removes its per-site container, deletes its vhost and drops the entry. A block volume that detaches, or a mount missing from `fstab` after a reboot, leaves the mountpoint as an empty directory, so every site under it reads as deleted in the same pass and is gone before anybody notices the volume. A project you deleted leaves the directory it sat in; a subtree that went with its mount does not, and that is the difference the sweep goes on. Erring the other way leaves a registry entry for a directory nobody is bringing back, which `servlo unlink` clears in a second.
 
 Both paths skip `Ignored: true` sites, those are explicitly parked by the user (e.g. via `servlo unpark` leaving a tombstone) and must not be reaped.
 :::
