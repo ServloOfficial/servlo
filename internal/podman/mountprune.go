@@ -87,7 +87,7 @@ func RepairMissingMounts() []MountRepair {
 		if len(removed) == 0 {
 			continue
 		}
-		if writeErr := os.WriteFile(path, []byte(pruned), 0644); writeErr != nil {
+		if writeErr := os.WriteFile(path, []byte(pruned), 0600); writeErr != nil {
 			continue
 		}
 		unit := strings.TrimSuffix(name, ".container")

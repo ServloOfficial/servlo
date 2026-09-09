@@ -4,7 +4,7 @@
 ~/.config/servlo/
 └── config.yaml
 
-~/.config/containers/systemd/        # Podman Quadlet units (auto-loaded)
+~/.config/containers/systemd/        # Podman Quadlet units (auto-loaded), 0700
 ~/.config/systemd/user/
 └── servlo-watcher.service
 

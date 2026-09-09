@@ -56,8 +56,21 @@ func WriteQuadlet(name, content string) error {
 // predates the policy — without a restart the running container would
 // silently keep its old bind).
 func WriteQuadletDiff(name, content string) (changed bool, err error) {
+	// 0700 on the directory and 0600 on the file below, because a service
+	// quadlet carries that engine's root password in an Environment= line, in
+	// plain text. Every other file servlo writes that holds a credential is
+	// already private: the service password itself, the SMTP accounts, the
+	// deploy webhook secrets. These held the same password those protect and
+	// were readable by any other account on the machine.
+	//
+	// systemd's generator runs as this user, so nothing is lost by it.
 	dir := config.QuadletDir()
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return false, err
+	}
+	// Chmod as well as MkdirAll, which does nothing to a directory that already
+	// exists, and on an install that predates this the directory does.
+	if err := os.Chmod(dir, 0700); err != nil && !os.IsNotExist(err) {
 		return false, err
 	}
 	autostartDisabled := false
@@ -89,9 +102,20 @@ func WriteQuadletDiff(name, content string) (changed bool, err error) {
 	}
 	if fileChanged {
 		config.GuardRealWrite(path)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			return false, err
 		}
+	}
+	// Unconditional, and not left to the WriteFile above. A write to a file that
+	// already exists keeps the mode it already had, and the skip above means an
+	// unchanged quadlet is never written at all, so an install made before this
+	// would have kept its 0644 and the password in it for good.
+	//
+	// Not reported as a change: the mode is not what a caller reloads systemd
+	// for, and saying it changed would restart every container on the upgrade
+	// that heals it.
+	if err := os.Chmod(path, 0600); err != nil && !os.IsNotExist(err) {
+		return fileChanged, err
 	}
 	return fileChanged, nil
 }
@@ -184,7 +208,7 @@ func RebindInstalledQuadlets() ([]string, error) {
 		updated := PairIPv6Binds(BindQuadletPorts(name, string(content)))
 		if string(content) != updated {
 			config.GuardRealWrite(path)
-			if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
+			if err := os.WriteFile(path, []byte(updated), 0o600); err != nil {
 				return nil, fmt.Errorf("rewriting %s: %w", filepath.Base(path), err)
 			}
 			restart = append(restart, name)
