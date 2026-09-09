@@ -1,6 +1,7 @@
 package siteops
 
 import (
+	"os"
 	"path/filepath"
 
 	"github.com/ServloOfficial/servlo/internal/cfgedit"
@@ -68,6 +69,25 @@ func SaveCustomNginx(domain, content string, backup bool) (cfgedit.SaveResult, e
 // ResetCustomNginx deletes the override and reloads nginx. Backups are kept.
 func ResetCustomNginx(domain string) error {
 	return nginxFile(domain).Reset(func() error { return NginxReloadFn() })
+}
+
+// ForgetCustomNginx deletes a domain's override and every backup of it, for a
+// site that is being removed rather than edited.
+//
+// Both are keyed on the primary domain, and the generated vhost includes the
+// file by name, so one left behind is not inert for long: the next site on that
+// domain comes up with a stranger's hand-written nginx directives applied to it,
+// and a restore dropdown offering that site's history.
+func ForgetCustomNginx(domain string) {
+	f := nginxFile(domain)
+	os.Remove(f.Path) //nolint:errcheck — a site with no override is the common case
+	backups, err := f.ListBackups()
+	if err != nil {
+		return
+	}
+	for _, b := range backups {
+		os.Remove(filepath.Join(config.NginxCustomDBkp(), b.Name)) //nolint:errcheck
+	}
 }
 
 // ListCustomNginxBackups returns a domain's override backups, newest first.

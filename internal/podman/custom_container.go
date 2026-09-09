@@ -104,7 +104,14 @@ func hashContainerfile(projectPath string, cfg *config.ContainerConfig) string {
 	// target: production in .servlo.yaml invalidates the cache. Without this,
 	// CustomImageUpToDate would return a stale image when only the target
 	// changed (issue #379).
-	return fmt.Sprintf("%x", md5.Sum([]byte(string(data)+"\x00--target="+target)))
+	//
+	// And the project directory, because it is the build context: the question
+	// this hash answers is whether the image on disk is the one this project
+	// would build, and two projects can hold the same Containerfile and nothing
+	// else in common. The ledger is keyed on the site handle, which comes from a
+	// directory name, so without the path a second shop.com on this server reads
+	// as up to date against the first one's image and never gets built.
+	return fmt.Sprintf("%x", md5.Sum([]byte(string(data)+"\x00--target="+target+"\x00--context="+projectPath)))
 }
 
 func readContainerfileHash(siteName string) string {

@@ -84,7 +84,7 @@ func NeedsRenewal(site config.Site) bool {
 // siteCertDomains assembles the cert output directory and the SAN list shared by
 // the reuse and force reissue paths so they cannot drift.
 func siteCertDomains(site config.Site) (certsDir string, domains []string) {
-	certsDir = filepath.Join(config.CertsDir(), "sites")
+	certsDir = sitesDir()
 	domains = make([]string, len(site.Domains))
 	copy(domains, site.Domains)
 	return certsDir, domains
@@ -122,7 +122,7 @@ func UnsecureSite(site config.Site) error {
 	}
 
 	// Remove cert files
-	certsDir := filepath.Join(config.CertsDir(), "sites")
+	certsDir := sitesDir()
 	os.Remove(filepath.Join(certsDir, site.PrimaryDomain()+".crt")) //nolint:errcheck
 	os.Remove(filepath.Join(certsDir, site.PrimaryDomain()+".key")) //nolint:errcheck
 

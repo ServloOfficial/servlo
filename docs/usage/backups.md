@@ -48,6 +48,10 @@ The timer is `Persistent`, so a droplet that was off overnight takes the backup 
 
 The unit runs servlo by absolute path. A unit that resolved `servlo` from `PATH` would stop working the first time `PATH` changed, and the way that failure shows up is a backup that quietly stopped happening months ago.
 
+Removing the site takes the timer with it, along with the scheduled test restore. Both are named for the site handle and nothing else, so one left behind would not merely fail every night against a site that is gone: the next site to take that handle, which is just the next project directory of that name, would come up already running on it.
+
+Unlinking a *parked* site keeps both. That is a tombstone rather than a removal, and a backup reads the site's files and its database rather than running anything inside it, so the site is still there to back up and still its own.
+
 ## Retention
 
 Every backup ends by thinning the older ones for that site, on the ordinary grandfather-father-son rule: keep the newest of each of the last N days, then of each of the last N weeks, then of each of the last N months.

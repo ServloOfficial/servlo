@@ -39,6 +39,8 @@ A regeneration whose bytes match what is already on disk does nothing: no write,
 
 Restoring a generated vhost puts a backup back through the same validation and reloads. It is for getting a site serving again now, not for holding config against servlo: the next regeneration overwrites it. For changes meant to last, use the override above, or the site's Settings tab.
 
+An override belongs to the domain, not to the file: it lives at `custom.d/{domain}.conf` and every generated vhost for that domain includes it by name. So unlinking a site removes it, along with its backups, unless the site is parked, where unlinking only marks it ignored and linking the directory again is expected to bring the whole site back. Without that, a domain reused for a different site would come up applying directives its operator never wrote and has no obvious way to find.
+
 ## From the CLI
 
 The same override is reachable without the web UI, which is handy for scripting. `servlo nginx show [site]` prints the current override (`--path` prints just the file path), `servlo nginx edit [site]` opens it in `$EDITOR` and then validates with `nginx -t` and reloads on save, and `servlo nginx reset [site]` deletes it and falls back to the bundled defaults. Both surfaces go through one shared edit service, so validation, backups, and reload behave identically whichever one you use.

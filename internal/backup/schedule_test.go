@@ -256,3 +256,26 @@ func TestApplySchedule_NoCheckTakesTheCheckUnitsAway(t *testing.T) {
 		t.Error("removing the check took the backup with it")
 	}
 }
+
+// A backup timer is named for the site and nothing else, and unlink never
+// removed it: it stayed armed, failing nightly against a site that was gone.
+// Worse than the noise is what happens when the name comes back. Site handles
+// are derived from directory names, so a second shop.com on this server picks
+// up the first one's schedule without anybody setting one.
+func TestRemoveSiteSchedules_TakesBothPairsOffTheMachine(t *testing.T) {
+	mgr := newRecordingMgr()
+	swapMgr(t, mgr)
+
+	if err := RemoveSiteSchedules("shop"); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, unit := range []string{"servlo-backup-shop", "servlo-backup-verify-shop"} {
+		for _, call := range []string{"stop:" + unit + ".timer", "disable:" + unit + ".timer",
+			"remove-timer:" + unit, "remove-service:" + unit} {
+			if !slices.Contains(mgr.calls, call) {
+				t.Errorf("%q never happened; calls were %v", call, mgr.calls)
+			}
+		}
+	}
+}

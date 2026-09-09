@@ -232,3 +232,33 @@ func TestBuildCustomImageArgs_NilConfigSafe(t *testing.T) {
 		t.Errorf("args = %v\nwant %v", args, want)
 	}
 }
+
+// The hash answers whether the image on disk is the one this project would
+// build, and the project directory is the build context, so it is part of the
+// answer. It was not in the hash, and the ledger is keyed on the site handle,
+// which comes from a directory name: unlink one client's shop.com, link
+// another's, and an identical Containerfile (the scaffolded one is identical
+// for any two projects of the same runtime and port, and `COPY . /app` is
+// identical for any two projects at all) reads as up to date. The build is
+// skipped and the new site serves the previous one's image.
+func TestHashContainerfile_TheProjectItBuildsIsPartOfTheHash(t *testing.T) {
+	same := "FROM node:20\nCOPY . /app\n"
+	clientA, clientB := t.TempDir(), t.TempDir()
+	for _, dir := range []string{clientA, clientB} {
+		if err := os.WriteFile(filepath.Join(dir, "Containerfile.servlo"), []byte(same), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	hA := hashContainerfile(clientA, nil)
+	hB := hashContainerfile(clientB, nil)
+	if hA == "" || hB == "" {
+		t.Fatal("expected non-empty hashes")
+	}
+	if hA == hB {
+		t.Errorf("two projects with the same Containerfile hash the same, so one's image counts as the other's: %q", hA)
+	}
+	if hA != hashContainerfile(clientA, nil) {
+		t.Error("the same project hashed differently twice, so nothing would ever count as up to date")
+	}
+}

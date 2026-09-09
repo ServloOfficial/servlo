@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ServloOfficial/servlo/internal/certs"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/dbconn"
 	"github.com/ServloOfficial/servlo/internal/feedback"
@@ -215,8 +216,8 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	step("Creating directories")
 	dirs := []string{
 		config.ConfigDir(), config.DataDir(), config.BinDir(),
-		config.NginxDir(), config.NginxConfD(), config.NginxCustomD(), config.CertsDir(),
-		filepath.Join(config.CertsDir(), "sites"),
+		config.NginxDir(), config.NginxConfD(), config.NginxCustomD(),
+		certs.SitesDir(),
 		config.QuadletDir(), config.SystemdUserDir(),
 		config.DataSubDir("mysql"), config.DataSubDir("redis"),
 		config.DataSubDir("postgres"), config.DataSubDir("meilisearch"),

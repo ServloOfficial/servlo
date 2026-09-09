@@ -91,10 +91,13 @@ func DeleteCron(site *config.Site, id string) error {
 // RemoveSiteCron takes every one of a site's schedules off the machine, leaving
 // the entries in the registry. Used when the site itself is going away, where
 // there is no point writing a registry that is about to be deleted.
+//
+// It goes by what is on the machine rather than by what the site says it has.
+// The two drift when a save writes the unit and then fails at the registry, and
+// the sweep that reconciles them runs only for registered sites, so this is the
+// last moment anything looks at this site's units at all.
 func RemoveSiteCron(site *config.Site) {
-	for _, e := range site.Cron {
-		_ = sitecron.Remove(site.Name, e.ID)
-	}
+	_ = sitecron.RemoveAll(*site)
 }
 
 // replaceCron puts the entry where its predecessor was, so editing a schedule

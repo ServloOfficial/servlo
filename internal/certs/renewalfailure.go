@@ -96,17 +96,27 @@ func recordFailure(domain string, cause error) {
 // clearFailure forgets a domain's failure after a successful issuance. An
 // alarm that outlives its problem is an alarm operators learn to ignore.
 func clearFailure(domain string) {
+	if dropFailure(domain) {
+		auditlog.Record(auditlog.Entry{Action: "cert.issue.recovered", Subject: domain})
+	}
+}
+
+// dropFailure takes the record and its alert away and reports whether there was
+// one. Separate from clearFailure because the two callers are saying different
+// things: an issuance that worked has recovered, and a site that was removed
+// has not, so only one of them may write that word into the audit log.
+func dropFailure(domain string) bool {
 	failureMu.Lock()
 	defer failureMu.Unlock()
 
 	failures := readFailures()
 	if _, ok := failures[domain]; !ok {
-		return
+		return false
 	}
 	delete(failures, domain)
 	writeFailures(failures)
 	alertRenewalRecovered(domain)
-	auditlog.Record(auditlog.Entry{Action: "cert.issue.recovered", Subject: domain})
+	return true
 }
 
 // RenewalFailures returns every domain whose issuance is currently failing, for
@@ -142,7 +152,7 @@ type ExpiryProblem struct {
 // restored from a backup, or whose panel has never run, has no failure records
 // and can still be serving something expired, and that must not be quiet.
 func ExpiryProblems(domains []string) []ExpiryProblem {
-	certsDir := filepath.Join(config.CertsDir(), "sites")
+	certsDir := sitesDir()
 	var out []ExpiryProblem
 	for _, domain := range domains {
 		path := filepath.Join(certsDir, domain+".crt")
