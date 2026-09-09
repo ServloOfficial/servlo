@@ -232,10 +232,11 @@ func restoreWorker(siteName, sitePath, phpVersion, workerName string, w config.F
 	fpmUnit := resolveWorkerFPMUnit(siteName, phpVersion)
 	unitName, displaySite := workerNames(siteName, sitePath, workerName)
 
-	restart := w.Restart
-	if restart == "" {
-		restart = "always"
-	}
+	// Through the same resolver as `servlo worker start`, so the production
+	// restart policy survives a boot. Without it this path, which is every
+	// start and the `servlo restart` that applies the mode, wrote the store's
+	// declaration back over it.
+	restart := resolveWorkerRestart(w.Restart)
 	label := w.Label
 	if label == "" {
 		label = workerName

@@ -126,6 +126,11 @@ func setProductionMode(cfg *config.GlobalConfig, on bool) error {
 
 	feedback.Begin()
 	feedback.Done(message)
-	feedback.Note("apply it to the running stack with: servlo restart")
+	// `servlo restart` is one site's container, and typed outside a site
+	// directory it resolves to the directory name and reports it is not a site.
+	// Both halves of the mode need the whole stack: the PHP drop-in is re-read
+	// when a site's containers come back, and the worker restart policy is
+	// rewritten by start.
+	feedback.Note("apply it to the running stack with: servlo stop, then servlo start")
 	return nil
 }

@@ -29,7 +29,7 @@ Turning production mode **on** is confirmed, because it changes what visitors se
 | `opcache.validate_timestamps` | 1 | 0 |
 | Worker restart policy | as declared | `always` |
 
-The PHP settings are written to a drop-in named `90-production.ini`, which sorts ahead of the shared and per-site files so a site can still override any of them. Changing the mode writes the drop-in immediately, rather than at the next restart, so what is on disk always matches the flag; applying it to running containers is `servlo restart`.
+The PHP settings are written to a drop-in named `90-production.ini`, which sorts ahead of the shared and per-site files so a site can still override any of them. Changing the mode writes the drop-in immediately, rather than at the next restart, so what is on disk always matches the flag; applying it to what is already running is `servlo stop` then `servlo start`, which brings the containers back against the new drop-in and rewrites the worker units. `servlo restart` is one site's container rather than the machine.
 
 `opcache.validate_timestamps=0` is the setting that surprises people. With it off, PHP never re-reads a changed file, which is most of the speed. It also means a deploy that does not reload PHP-FPM serves the old code indefinitely. Servlo's deploy reloads for you.
 
