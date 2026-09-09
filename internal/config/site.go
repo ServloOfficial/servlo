@@ -537,6 +537,13 @@ var siteWriteMu sync.Mutex
 func UpdateSites(mutate func(*SiteRegistry) (changed bool, err error)) error {
 	siteWriteMu.Lock()
 	defer siteWriteMu.Unlock()
+	// And the same sequence against the other servlo processes on this machine,
+	// which the mutex above says nothing about. See registryflock.go.
+	release, err := lockRegistry()
+	if err != nil {
+		return err
+	}
+	defer release()
 	reg, err := LoadSites()
 	if err != nil {
 		return err

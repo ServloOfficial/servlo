@@ -28,6 +28,12 @@ vi.mock('$stores/sites', () => ({
   proposeSiteEnv: (...a: unknown[]) => proposeSiteEnv(...(a as []))
 }));
 
+// Monaco can't run in jsdom, which is why the two tests that render an editor
+// directly already mock this loader. This one renders the tab those editors live
+// inside and did not, so every run pulled the real five-megabyte editor in behind
+// the component under test and raced its own teardown to finish the import.
+vi.mock('$lib/monaco', () => import('$lib/monaco.stub'));
+
 vi.mock('$stores/modals', () => ({
   openEnvSaveModal: vi.fn(),
   openEnvRestoreModal: vi.fn(),

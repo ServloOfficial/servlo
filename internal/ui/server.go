@@ -3514,8 +3514,10 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 						_ = config.SetProjectWorkers(site.Path, cli.CollectRunningWorkerNames(site))
 					}
 				} else {
-					fwN := site.Framework
-					fw, ok := config.GetFrameworkForDir(fwN, targetPath)
+					// Through FrameworkForSite, not GetFrameworkForDir: a
+					// custom-container site need not be on a framework, and its
+					// workers are the ones the dashboard already lists for it.
+					fw, ok := config.FrameworkForSite(site)
 					if !ok || fw.Workers == nil {
 						writeJSON(w, SiteActionResponse{Error: "framework has no workers defined"})
 						return

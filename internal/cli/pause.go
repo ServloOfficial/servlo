@@ -389,7 +389,7 @@ func collectRunningWorkers(site *config.Site) []string {
 	// because the latter is a no-op stub on darwin, which would make
 	// every `servlo worker start … && SetProjectWorkers(CollectRunningWorkerNames)`
 	// chain wipe the workers list it just appended to.
-	if fw, ok := config.GetFrameworkForDir(site.Framework, site.Path); ok && fw.Workers != nil {
+	if fw, ok := config.FrameworkForSite(site); ok && fw.Workers != nil {
 		names := make([]string, 0, len(fw.Workers))
 		for wName := range fw.Workers {
 			names = append(names, wName)
@@ -464,7 +464,7 @@ func resumeWorkerByName(site *config.Site, workerName, phpVersion string) {
 		}
 		return
 	}
-	fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
+	fw, ok := config.FrameworkForSite(site)
 	if !ok || fw.Workers == nil {
 		return
 	}
@@ -590,7 +590,7 @@ func workerResumable(site *config.Site, workerName string) bool {
 		proj, _ := config.LoadProjectConfig(site.Path)
 		return proj != nil && proj.Proxy != nil
 	}
-	fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
+	fw, ok := config.FrameworkForSite(site)
 	if !ok || fw.Workers == nil {
 		return false
 	}

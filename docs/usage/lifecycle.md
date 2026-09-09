@@ -67,6 +67,14 @@ If you ran `servlo uninstall` and then reinstalled, worker units and service qua
 Both paths skip `Ignored: true` sites, those are explicitly parked by the user (e.g. via `servlo unpark` leaving a tombstone) and must not be reaped.
 :::
 
+## Two things writing the registry at once
+
+`sites.yaml` is written by three processes: the panel, the watcher, and whatever `servlo` command you are running in a terminal. Every change to it is a read, an edit and a write, and every one of those sequences takes a lock spanning all three, both within a process and across them. Without it the write would still be atomic, so the file would never be corrupt, but the later of two overlapping changes would win outright and the other would be gone with nothing logged and no error returned: a setting you saved in the panel quietly back to what it was because `servlo pause` landed in the same second.
+
+The lock is a `flock` on `sites.yaml.lock` beside the file, so the kernel releases it when the holding process exits however it exits, and a killed process leaves nothing to clean up. A caller waits up to five seconds and then fails with a sentence saying another servlo process is holding it, which is a stuck process rather than a busy one: an ordinary hold is a small read and a small write.
+
+Reading is not held to the lock. The write goes to a temporary file that is renamed into place, so a reader sees the whole of one version or the whole of the other, and making every dashboard render wait behind every write would buy nothing.
+
 ---
 
 ## `servlo stop`

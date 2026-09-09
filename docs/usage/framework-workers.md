@@ -140,6 +140,8 @@ custom_workers:
 
 Custom workers are merged with the framework's workers at runtime. They are committed to git so teammates get the same setup.
 
+A custom-container site need not be on a framework at all, and its custom workers are then the only workers it has. Servlo resolves them the same way everywhere: the dashboard lists them, start and stop act on them, pausing the site takes them down with it, and the boot sweep writes their unit files back after a reinstall or a rebuild. Because they come out of a file inside the repository, a `host: true` worker among them asks for consent before it runs on the server, exactly as one on a framework site does.
+
 ## Worker logs
 
 ```bash

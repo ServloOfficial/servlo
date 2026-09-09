@@ -1,6 +1,7 @@
 package surfacescan
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -238,5 +239,64 @@ func TestScanSource_SkipsTheGeneratedDemoBundle(t *testing.T) {
 	}
 	if len(found) == 0 {
 		t.Error("the demo's own source is not scanned, so a deleted feature could live there")
+	}
+}
+
+// Every kind of file in the repository is either scanned or deliberately not.
+//
+// textExts was written once and never revisited, and the two file kinds added
+// since sat outside it: the Containerfiles that decide what is inside the PHP
+// images and the templates that generate the FPM unit and every nginx vhost.
+// Those are the artefacts CLAUDE.md §3.1 points at by name, and the FrankenPHP
+// image definition spent that whole time describing an Xdebug ini it arms and an
+// mkcert CA it injects, with the gate reading straight past it because of the
+// file's extension.
+//
+// A blind spot nobody chose is the failure here. Choosing one is fine: add the
+// extension to textExts, or to the list below with the reason.
+func TestScannedExtensions_CoverEverySourceKindInTheRepository(t *testing.T) {
+	// Deliberately unscanned, with why.
+	unscanned := map[string]string{
+		".png": "raster image", ".gif": "raster image",
+		".svg":         "vector image; the path data matches short words by accident",
+		".cast":        "asciinema recording, replayed rather than read",
+		".webmanifest": "generated icon manifest",
+		".sum":         "checksum database", ".mod": "module graph",
+		".gitignore": "path patterns",
+		".txt": "recorded `php -m` output from the published PHP images and two docs " +
+			"fixtures, none of it servlo source. What that output says about the images " +
+			"is a question for the images rather than for this scan.",
+	}
+
+	root := repoRoot(t)
+	seen := map[string]bool{}
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		if d.IsDir() {
+			if rel != "." && (skipDirs[d.Name()] || skipPaths[filepath.ToSlash(rel)]) {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if ext := filepath.Ext(path); ext != "" {
+			seen[ext] = true
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for ext := range seen {
+		if textExts[ext] || unscanned[ext] != "" {
+			continue
+		}
+		t.Errorf("%s files are in this repository and the scan neither reads them nor says why not: add the extension to textExts, or to the unscanned list with the reason", ext)
 	}
 }
