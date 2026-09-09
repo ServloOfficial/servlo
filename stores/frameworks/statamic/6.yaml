@@ -121,6 +121,13 @@ doctor:
       requires_dir: public
       detail: "public/storage symlink is missing, so files on the public disk won't be web-accessible. Run php please storage:link."
 
+# How servlo recognises a migration in a site's deploy script, which is what
+# decides whether the deploy takes a database backup first. Statamic is Laravel
+# underneath: a flat-file site never migrates, but one with a database does it
+# with artisan, and the marker costs nothing on the sites that do not.
+deploy:
+  migrate: php artisan migrate
+
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.
 # Statamic keeps its content in content/, which is flat files and is exactly

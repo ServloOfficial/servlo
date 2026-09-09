@@ -258,3 +258,65 @@ func TestServicePresets_MySQLFamilyCommandsNameTheAddress(t *testing.T) {
 		t.Fatal("no local MySQL-family command was checked, so this proves nothing")
 	}
 }
+
+// Every framework has to answer what a migration looks like on it, because the
+// answer is what arms the backup taken before a deploy that changes the schema.
+//
+// The marker is the whole mechanism: ScriptMigrates returns false the moment
+// deploy.migrate is empty, whatever the deploy script says, and the deploy runs
+// the migration against the live database with nothing behind it. Nothing warns,
+// because from servlo's side there was no migration to warn about. That is the
+// one guarantee in CLAUDE.md §3.5 that fails silently and destructively at once.
+//
+// So a definition declares the key even when the answer is "none", and a
+// definition whose own command set offers a migration has to answer with the
+// string that recognises it. An author who has thought about it and written
+// migrate: "" passes; an author who never reached the question does not.
+func TestFrameworkDefinitions_SayWhatAMigrationLooksLikeOnThem(t *testing.T) {
+	for name, versions := range frameworkVersionsOnDisk(t) {
+		for v := range versions {
+			data, _ := Read(Frameworks, name+"/"+v+".yaml")
+			file := name + "/" + v + ".yaml"
+
+			var raw struct {
+				Deploy   map[string]any `yaml:"deploy"`
+				Commands []struct {
+					Name    string `yaml:"name"`
+					Command string `yaml:"command"`
+				} `yaml:"commands"`
+			}
+			if err := yaml.Unmarshal(data, &raw); err != nil {
+				t.Errorf("%s does not parse: %v", file, err)
+				continue
+			}
+			marker, declared := raw.Deploy["migrate"]
+			if !declared {
+				t.Errorf("%s declares no deploy.migrate, so no deploy on it ever takes a database backup first. Say what a migration looks like, or say \"\" to say it has none", file)
+				continue
+			}
+			if strings.TrimSpace(marker.(string)) != "" {
+				continue
+			}
+			for _, c := range raw.Commands {
+				if migrationish(c.Name) || migrationish(c.Command) {
+					t.Errorf("%s says it has no migration but offers the command %q, which is one. A deploy script running it takes no backup first", file, c.Name)
+				}
+			}
+		}
+	}
+}
+
+// migrationish is a tripwire, not a taxonomy. It knows the spellings the
+// frameworks in this store actually use for the thing that changes a schema, so
+// a new definition that offers one under a familiar name cannot quietly declare
+// it has none. A framework that spells it some other way passes this and is
+// still the author's to get right.
+func migrationish(s string) bool {
+	s = strings.ToLower(s)
+	for _, w := range []string{"migrat", "setup:upgrade", "updb", "updatedb"} {
+		if strings.Contains(s, w) {
+			return true
+		}
+	}
+	return false
+}

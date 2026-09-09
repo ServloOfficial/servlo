@@ -396,7 +396,9 @@ deploy:
 
 `script` is a starting point and nothing more. The site's copy is editable, servlo never rewrites it, and what a particular application needs at deploy time is not knowable from its framework.
 
-`migrate` is matched as a substring against the site's script, ignoring blank and commented-out lines, and that match is what decides whether the deploy takes a database backup first. So `php artisan migrate` recognises the `--force` the script actually runs, and a line somebody commented out does not trigger a snapshot on every deploy afterwards. A framework with no migrations leaves it empty and no deploy on it is ever treated as schema-changing.
+`migrate` is matched as a substring against the site's script, ignoring blank and commented-out lines, and that match is what decides whether the deploy takes a database backup first. So `php artisan migrate` recognises the `--force` the script actually runs, and a line somebody commented out does not trigger a snapshot on every deploy afterwards. A framework with no migrations leaves it empty, and no deploy on it is ever treated as schema-changing.
+
+Leave it empty deliberately or not at all. An absent `migrate` and an empty one behave identically at deploy time, and the behaviour is the destructive one: the deploy runs the migration and takes no backup, and says nothing, because from servlo's side there was no migration there. So a definition without the key fails the store's own tests, and so does one that claims no migration while offering a migration in its command set. Answering with `""` is a fine answer; not reaching the question is not.
 
 `exclude` is the field to think hardest about. It names the directories the application writes to in production that the repository does not own, and getting it wrong loses a client's data. WordPress is the case it exists for: `wp-content/uploads` is every image the client has ever added and `wp-content/plugins` is everything they have installed through wp-admin, neither of which a deploy has any business removing. A framework whose repository genuinely owns its whole tree declares an empty list, and says so in a comment.
 

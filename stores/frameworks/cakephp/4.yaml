@@ -77,6 +77,12 @@ commands:
     output: silent
     icon: refresh
 
+# How servlo recognises a migration in a site's deploy script, which is what
+# decides whether the deploy takes a database backup first. Matched as a
+# substring, so the flags a real script adds still count.
+deploy:
+  migrate: bin/cake migrations migrate
+
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.
 # tmp/cache is regenerated on the next request; logs is this server's.

@@ -250,6 +250,12 @@ doctor:
       fix: deploy:mode:developer
       detail: "The store is in production mode, so template changes need a static content deploy to show up. Switch to developer mode."
 
+# How servlo recognises a schema change in a site's deploy script, which is what
+# decides whether the deploy takes a database backup first. setup:upgrade is
+# Magento's migration: it applies every pending module schema and data patch.
+deploy:
+  migrate: bin/magento setup:upgrade
+
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.
 # Magento's generated code and static content are built by setup:di:compile

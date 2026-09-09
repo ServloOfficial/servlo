@@ -127,6 +127,14 @@ doctor:
         APP_DEBUG: "true"
       detail: "APP_DEBUG is on, so the profiler and stack traces leak the site's internals to anyone who can provoke an error. Every servlo site is on a public domain, whatever APP_ENV says. Turn debug off."
 
+# How servlo recognises a migration in a site's deploy script, which is what
+# decides whether the deploy takes a database backup first. The full command
+# name rather than the console path, so it matches however the script reaches
+# bin/console. The d:m:m shorthand does not match and a script using it takes no
+# backup.
+deploy:
+  migrate: doctrine:migrations:migrate
+
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.
 # var/cache is compiled on the next request and var/log is this server's own

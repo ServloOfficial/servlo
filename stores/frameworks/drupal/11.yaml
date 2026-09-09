@@ -154,6 +154,14 @@ commands:
     check:
       composer: drush/drush
 
+# How servlo recognises a database update in a site's deploy script, which is
+# what decides whether the deploy takes a database backup first. Short on
+# purpose: servlo's own command runs drush out of vendor and an operator's
+# script is as likely to call one installed globally, and both spell the update
+# the same way.
+deploy:
+  migrate: updb
+
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.
 # sites/default/files is NOT here: it is every file the site's editors have
