@@ -3,6 +3,7 @@
   import ActionButton from '$components/ActionButton.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Icon from '$components/Icon.svelte';
+  import PauseGlyph from '$components/PauseGlyph.svelte';
   import SiteIcon from '$components/SiteIcon.svelte';
   import SiteIndicators from '$components/SiteIndicators.svelte';
   import SitesSectionHeader from '$components/SitesSectionHeader.svelte';
@@ -720,9 +721,7 @@
               ? 'bg-servlo-red/10 text-servlo-red'
               : 'text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/3'}"
           >
-            <svg class="w-3 h-3 shrink-0 opacity-60" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M6 5h4v14H6zM14 5h4v14h-4z"/>
-            </svg>
+            <PauseGlyph class="opacity-60" />
             <span class="flex-1 text-sm truncate">{s.domain}</span>
           </button>
         {/each}

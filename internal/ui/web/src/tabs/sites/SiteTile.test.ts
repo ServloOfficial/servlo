@@ -57,4 +57,16 @@ describe('SiteTile', () => {
     const { container } = render(SiteTile, { props: { site: site({ queue_failing: true }) } });
     expect(container.querySelector('.bg-red-500')).toBeTruthy();
   });
+
+  // Pausing a site swaps its vhost for the paused page but leaves the FPM pool
+  // up, so a status read off fpm_running showed a paused site with the same
+  // green dot as a live one. The sidebar has always drawn the pause bars for
+  // these; the tile has to say the same thing about the same site.
+  it('marks a paused site as paused rather than running', () => {
+    const { container } = render(SiteTile, {
+      props: { site: site({ paused: true, fpm_running: true }) }
+    });
+    expect(container.querySelector('[data-paused-glyph]')).toBeTruthy();
+    expect(container.querySelector('.bg-emerald-500')).toBeNull();
+  });
 });
