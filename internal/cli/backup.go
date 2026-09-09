@@ -369,17 +369,23 @@ func newBackupVerifyCmd() *cobra.Command {
 		RunE: func(_ *cobra.Command, args []string) error {
 			feedback.Begin()
 			ref := args[0]
+			// The site this is a check of, when the caller named one. The
+			// scheduled unit always does, and a check that cannot say which
+			// site it failed for cannot raise the alert that is the whole
+			// point of running it on a timer.
+			var forSite string
 			if latest {
 				site, err := config.FindSiteByRef(ref)
 				if err != nil {
 					return fmt.Errorf("site %q not found", ref)
 				}
+				forSite = site.Name
 				ref, err = backup.Newest(config.SiteBackupsDir(), config.SiteSlug(site.Name))
 				if err != nil {
 					return err
 				}
 			}
-			return runBackupVerify(ref)
+			return runBackupVerify(ref, forSite)
 		},
 	}
 	cmd.Flags().BoolVar(&latest, "latest", false,
@@ -387,20 +393,39 @@ func newBackupVerifyCmd() *cobra.Command {
 	return cmd
 }
 
-func runBackupVerify(ref string) error {
+func runBackupVerify(ref, forSite string) error {
+	// Recorded whenever the caller named a site, which the scheduled check
+	// always does. A verify that fails before it can read the manifest is the
+	// same news as one that fails after, and it used to be news that only ever
+	// reached the journal.
+	reportFailure := func(err error) error {
+		if forSite != "" {
+			backup.ReportVerify(forSite, filepath.Base(ref), err)
+		}
+		return err
+	}
 	path, err := resolveArchive(ref)
 	if err != nil {
-		return err
+		return reportFailure(err)
 	}
 	key, err := backup.Key()
 	if err != nil {
-		return err
+		return reportFailure(err)
 	}
 	man, err := readArchiveManifest(path, key)
 	if err != nil {
-		return err
+		// Reaching the manifest is what proves the archive decrypts and is
+		// whole, because it is written last: everything before it has to
+		// inflate to get there. Failing to reach it is therefore the finding,
+		// not a preliminary step that went wrong.
+		return reportFailure(err)
 	}
 	if !man.Database {
+		// Reported on the way out for the same reason the database path reports
+		// on its way out. A site with no database servlo can name still gets a
+		// weekly check, and it still has to be able to clear an alert that an
+		// earlier failure raised, which returning here quietly never did.
+		backup.ReportVerify(man.Site, filepath.Base(path), nil)
 		fmt.Printf("  %s holds no database, so there is nothing to restore and check.\n", filepath.Base(path))
 		fmt.Println("  Its files were verified by opening the archive: it decrypts and it is complete.")
 		return nil
