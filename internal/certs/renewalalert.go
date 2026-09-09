@@ -33,19 +33,22 @@ var (
 // than an alert, so the repetition is dropped, but it is dropped in the alerts
 // package where every other kind of failure is deduplicated the same way.
 func alertRenewalFailure(domain string, cause error) {
-	// Raised in the background: this is called from the issuance path, and an
-	// unreachable mail server must not turn a failed renewal into a hung one.
-	go func() {
-		err := raiseAlert(alerts.Alert{
-			Kind: alerts.KindCertRenewFailed,
-			Site: domain,
-			Message: fmt.Sprintf("%s\n\nThe site keeps serving its existing certificate "+
-				"until that expires. Open the panel to see the failure and retry.", cause),
-		})
-		if err != nil {
-			log.Printf("[certs] could not report the renewal failure for %s: %v", domain, err)
-		}
-	}()
+	// Raised before this returns, not in a goroutine. It used to be spawned so
+	// that an unreachable mail server could not turn a failed renewal into a
+	// hung one, and mailsend bounds the whole exchange at its own Timeout now,
+	// so the wait is capped without anyone's help. What the goroutine cost was
+	// the alert itself: `servlo secure` on a domain whose DNS is not ready
+	// records the failure and exits, and a raise nobody waits for is a banner
+	// and an email that happen only if the scheduler gets there first.
+	err := raiseAlert(alerts.Alert{
+		Kind: alerts.KindCertRenewFailed,
+		Site: domain,
+		Message: fmt.Sprintf("%s\n\nThe site keeps serving its existing certificate "+
+			"until that expires. Open the panel to see the failure and retry.", cause),
+	})
+	if err != nil {
+		log.Printf("[certs] could not report the renewal failure for %s: %v", domain, err)
+	}
 }
 
 // alertRenewalRecovered takes the alert away once issuance works again.
