@@ -19,6 +19,14 @@ import (
 // something went wrong with it. So every entry is checked against the directory
 // it is being written into rather than trusted, and anything that is not a
 // plain file or a directory is skipped entirely.
+//
+// It unpacks into a scratch directory beside dir and moves the result in only
+// once the whole archive has been read and accepted, so an archive that is
+// refused leaves the site exactly as it found it. Unpacking in place would mean
+// a refusal landed everything the archive listed before the entry that earned
+// it, which for a hostile archive is a way to write files into a live site
+// while the operator reads that nothing was restored. It costs the restored
+// tree's size in scratch space for the length of the restore.
 func RestoreFiles(r io.Reader, key []byte, dir string) (Manifest, error) {
 	root, err := filepath.Abs(dir)
 	if err != nil {
@@ -27,6 +35,11 @@ func RestoreFiles(r io.Reader, key []byte, dir string) (Manifest, error) {
 	if err := os.MkdirAll(root, 0755); err != nil {
 		return Manifest{}, err
 	}
+	stage, err := newStage(root)
+	if err != nil {
+		return Manifest{}, err
+	}
+	defer os.RemoveAll(stage) //nolint:errcheck
 
 	var man Manifest
 	var seenManifest bool
@@ -69,7 +82,7 @@ func RestoreFiles(r io.Reader, key []byte, dir string) (Manifest, error) {
 			// unpack it.
 			return fmt.Errorf("this archive has an entry servlo does not recognise (%s), so it is not restored", h.Name)
 		}
-		target, err := contain(root, rel)
+		target, err := contain(stage, rel)
 		if err != nil {
 			return err
 		}
@@ -103,6 +116,9 @@ func RestoreFiles(r io.Reader, key []byte, dir string) (Manifest, error) {
 	}
 	if !seenManifest {
 		return Manifest{}, errors.New("this archive has no manifest: it was interrupted before it finished")
+	}
+	if err := mergeInto(stage, root); err != nil {
+		return Manifest{}, err
 	}
 	return man, nil
 }
@@ -141,11 +157,11 @@ func OpenDump(r io.Reader, key []byte, w io.Writer) (Manifest, error) {
 
 // walkArchive opens an archive and hands each entry to fn in order.
 //
-// The manifest is written last, so the format version is not known until the
-// end. Rather than restore first and check afterwards, entries are read twice
-// where it matters: RestoreFiles reads the manifest through this same walk and
-// ParseManifest refuses an unreadable one, which stops the walk before the rest
-// of the archive is written.
+// The manifest is written last, so nothing an entry is checked against is known
+// until the archive has been read whole: an archive from a newer servlo, or of
+// the wrong kind, announces itself only after every file in it has gone by.
+// That is why the callers unpack into a scratch directory rather than into the
+// destination, and why the destination is written at the end or not at all.
 func walkArchive(r io.Reader, key []byte, fn func(*tar.Header, io.Reader) error) error {
 	dec, err := NewDecryptor(r, key)
 	if err != nil {
@@ -207,10 +223,17 @@ func permOr(mode int64, fallback os.FileMode) os.FileMode {
 // would empty a server's configuration over a site directory or the reverse.
 func RestoreState(r io.Reader, key []byte, configDir, dataDir string) (Manifest, error) {
 	roots := map[string]string{configPrefix: configDir, dataPrefix: dataDir}
-	for _, dir := range roots {
+	stages := map[string]string{}
+	for prefix, dir := range roots {
 		if err := os.MkdirAll(dir, 0700); err != nil {
 			return Manifest{}, err
 		}
+		stage, err := newStage(dir)
+		if err != nil {
+			return Manifest{}, err
+		}
+		defer os.RemoveAll(stage) //nolint:errcheck
+		stages[prefix] = stage
 	}
 
 	var man Manifest
@@ -235,11 +258,11 @@ func RestoreState(r io.Reader, key []byte, configDir, dataDir string) (Manifest,
 		if prefix == filesPrefix || h.Name == DatabaseName {
 			return errors.New("this is a backup of a site, not of the server: restore it with servlo restore")
 		}
-		root, known := roots[prefix]
+		stage, known := stages[prefix]
 		if !ok || !known {
 			return fmt.Errorf("this archive has an entry servlo does not recognise (%s), so it is not restored", h.Name)
 		}
-		target, err := contain(root, rel)
+		target, err := contain(stage, rel)
 		if err != nil {
 			return err
 		}
@@ -272,5 +295,75 @@ func RestoreState(r io.Reader, key []byte, configDir, dataDir string) (Manifest,
 	if !seen {
 		return Manifest{}, errors.New("this archive has no manifest: it was interrupted before it finished")
 	}
+	for prefix, stage := range stages {
+		if err := mergeInto(stage, roots[prefix]); err != nil {
+			return Manifest{}, err
+		}
+	}
 	return man, nil
+}
+
+// newStage makes the scratch directory a restore unpacks into. It sits beside
+// the directory being restored so the move in at the end is a rename rather
+// than a copy, and it is hidden so an operator listing the parent while a
+// restore runs does not read it as a site.
+func newStage(root string) (string, error) {
+	return os.MkdirTemp(filepath.Dir(root), "."+filepath.Base(root)+".restoring-")
+}
+
+// mergeInto moves everything under from into to, replacing what is there.
+//
+// A restore puts back what the archive holds and leaves alone what it does not,
+// which is why this merges rather than swapping the two directories: a site
+// directory is also a mount source and an nginx root, and replacing it wholesale
+// would strand both. Each file arrives by rename, so no file is ever half
+// written, and by the time this runs the archive has been read to its end and
+// accepted.
+func mergeInto(from, to string) error {
+	entries, err := os.ReadDir(from)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		src := filepath.Join(from, e.Name())
+		dst := filepath.Join(to, e.Name())
+		if e.IsDir() {
+			info, err := e.Info()
+			if err != nil {
+				return err
+			}
+			if err := clearForKind(dst, true); err != nil {
+				return err
+			}
+			if err := os.MkdirAll(dst, info.Mode().Perm()); err != nil {
+				return err
+			}
+			if err := mergeInto(src, dst); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := clearForKind(dst, false); err != nil {
+			return err
+		}
+		if err := os.Rename(src, dst); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// clearForKind removes what is at path when it is the wrong kind of thing for
+// what is about to be put there. Rename replaces a file with a file on its own;
+// it is a directory standing where a file goes, or the reverse, that has to go
+// first.
+func clearForKind(path string, wantDir bool) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil //nolint:nilerr // nothing there is the ordinary case
+	}
+	if info.IsDir() == wantDir {
+		return nil
+	}
+	return os.RemoveAll(path)
 }

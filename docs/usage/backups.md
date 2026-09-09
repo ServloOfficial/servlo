@@ -193,6 +193,8 @@ Every entry is resolved against the directory it is going into and refused if it
 
 An archive written by a newer servlo is refused before anything is written, with a message saying to update.
 
+Every one of these refusals leaves the site exactly as it was. A restore unpacks into a scratch directory beside the site and moves the result in only once the whole archive has been read and accepted, so an archive that is refused halfway through has written nothing you will find afterwards. It has to work that way round: the manifest is at the end of the archive, so the entry that earns the refusal can come after a hundred perfectly ordinary files, and unpacking in place would put all hundred of them into a live site while telling you nothing was restored. What it costs is scratch space the size of the restored tree, on the same filesystem as the site, for as long as the restore runs.
+
 ## What is in an archive
 
 Three things: the site's files under `files/`, the database as `database.sql`, and a `manifest.json` saying which site, when, which framework, which database and what was left out.
