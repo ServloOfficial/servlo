@@ -1,0 +1,93 @@
+{
+  "script": {
+    "default": {
+      "path": "/home/dev/.config/servlo/deploy/acme.sh",
+      "exists": true,
+      "migrates": true,
+      "body": "set -e\n\ncomposer install --no-interaction --prefer-dist --optimize-autoloader --no-dev\nphp artisan migrate --force\nnpm ci\nnpm run build\nphp artisan config:cache\nphp artisan route:cache\nphp artisan view:cache\n"
+    },
+    "blog.orbitlabs.app": {
+      "path": "/home/dev/.config/servlo/deploy/blog.sh",
+      "exists": false,
+      "migrates": false,
+      "body": "set -e\n\n# WordPress deploys are a pull and a cache flush. Anything the site writes to\n# is on the protected list rather than in here.\nwp cache flush\n"
+    }
+  },
+  "exclude": {
+    "default": { "paths": [], "custom": false, "default": [] },
+    "blog.orbitlabs.app": {
+      "paths": ["wp-content/uploads", "wp-content/plugins"],
+      "custom": false,
+      "default": ["wp-content/uploads", "wp-content/plugins"]
+    }
+  },
+  "history": {
+    "default": [
+      {
+        "at": "2026-09-08T21:14:07Z",
+        "from": "9f2c1ab4d0e7b3a15c8f6d2e4b09a7c3d5e18f60",
+        "to": "3d81b6e2a94f07c5b1d8e35a2f6c0d947be13a82",
+        "ok": true,
+        "snapshot": "acme-20260908-211402.sql.gz",
+        "kept": 0,
+        "duration_ms": 48213,
+        "author": "Priya Raman",
+        "subject": "Bump the invoice totals to include shipping",
+        "actor": "demo"
+      },
+      {
+        "at": "2026-09-07T09:02:51Z",
+        "from": "c40de9a17b25f8d3096ae4c1b7f2d85630914eab",
+        "to": "9f2c1ab4d0e7b3a15c8f6d2e4b09a7c3d5e18f60",
+        "ok": false,
+        "error": "the deploy script failed at: npm run build",
+        "duration_ms": 91004,
+        "author": "Priya Raman",
+        "subject": "Switch the checkout page to the new component",
+        "actor": "demo"
+      },
+      {
+        "at": "2026-09-05T16:41:19Z",
+        "from": "5b7e3d9c8a1f04627de3b95c1a08f4d726e0c3b9",
+        "to": "c40de9a17b25f8d3096ae4c1b7f2d85630914eab",
+        "ok": true,
+        "kept": 0,
+        "duration_ms": 31776,
+        "author": "Tom Okafor",
+        "subject": "Drop the unused webhook retry table",
+        "actor": ""
+      }
+    ],
+    "blog.orbitlabs.app": [
+      {
+        "at": "2026-09-06T11:20:44Z",
+        "from": "aa19c7f4d3b608e25f1a9c704d8b23e6c5710f92",
+        "to": "e71b4a09c5d3f82761b0ae94c2d58037a6b1c7d4",
+        "ok": true,
+        "kept": 148,
+        "duration_ms": 12904,
+        "author": "Priya Raman",
+        "subject": "Update the theme footer",
+        "actor": "demo"
+      }
+    ]
+  },
+  "redeploy": {
+    "default": { "available": true, "commit": "9f2c1ab4d0e7b3a15c8f6d2e4b09a7c3d5e18f60" },
+    "blog.orbitlabs.app": { "available": false }
+  },
+  "webhook": {
+    "default": {
+      "enabled": true,
+      "url": "https://acme-supply.com/servlo/deploy/2f8c41a6e07b",
+      "branch": "main",
+      "signature_header": "X-Hub-Signature-256",
+      "delivery_header": "X-GitHub-Delivery"
+    },
+    "blog.orbitlabs.app": {
+      "enabled": false,
+      "signature_header": "X-Hub-Signature-256",
+      "delivery_header": "X-GitHub-Delivery"
+    }
+  }
+}

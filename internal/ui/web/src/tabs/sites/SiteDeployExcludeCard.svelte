@@ -1,3 +1,19 @@
+<script module lang="ts">
+  /**
+   * Whether to name where the list came from.
+   *
+   * "Following the framework's list" reads as a promise, and on a framework that
+   * declares no protected paths, which is every one of them except WordPress,
+   * there is no list to follow: the card said that directly above "Nothing is
+   * protected. A deploy will remove whatever the repository removed." A site's
+   * own list is always named, empty or not, because then the emptiness is a
+   * choice somebody made.
+   */
+  export function namesTheSource(custom: boolean, count: number): boolean {
+    return custom || count > 0;
+  }
+</script>
+
 <script lang="ts">
   import SettingsCard from '$components/SettingsCard.svelte';
   import {
@@ -95,11 +111,13 @@
   {#if loading}
     <p class="mt-4 text-xs text-gray-400">…</p>
   {:else}
-    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-      {custom
-        ? m.sites_deployExclude_sourceSite()
-        : m.sites_deployExclude_sourceFramework()}
-    </p>
+    {#if namesTheSource(custom, lines(text).length)}
+      <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+        {custom
+          ? m.sites_deployExclude_sourceSite()
+          : m.sites_deployExclude_sourceFramework()}
+      </p>
+    {/if}
 
     <textarea
       bind:value={text}
