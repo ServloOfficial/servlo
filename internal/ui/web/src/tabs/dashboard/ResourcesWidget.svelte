@@ -6,6 +6,7 @@
   import { stats, statsLoaded, startStatsPolling, formatBytes } from '$stores/stats';
   import { disk, startDiskPolling, runCleanup } from '$stores/disk';
   import { m } from '../../paraglide/messages.js';
+  import { shortContainerName } from '$lib/containerName';
 
   let stop: (() => void) | null = null;
   let stopDisk: (() => void) | null = null;
@@ -46,9 +47,6 @@
   const cpuBarWidth = $derived(Math.min(100, $stats.total_cpu_percent));
   const memBarWidth = $derived(Math.min(100, memPercentOfHost));
 
-  function shortName(n: string): string {
-    return n.startsWith('servlo-') ? n.slice(5) : n;
-  }
 </script>
 
 <DashboardCard title={m.dashboard_resources_title()}>
@@ -107,7 +105,7 @@
         <div class="space-y-1 max-h-44 xl:max-h-none overflow-y-auto pr-1">
           {#each rows as c (c.name)}
             <div class="flex items-center gap-2 text-xs">
-              <span class="flex-1 truncate text-gray-600 dark:text-gray-300">{shortName(c.name)}</span>
+              <span class="flex-1 truncate text-gray-600 dark:text-gray-300">{shortContainerName(c.name)}</span>
               <span class="shrink-0 font-mono tabular-nums text-gray-500 dark:text-gray-400 w-16 text-right">{formatBytes(c.mem_bytes)}</span>
               <span class="shrink-0 font-mono tabular-nums text-gray-400 dark:text-gray-500 w-12 text-right">{c.cpu_percent.toFixed(1)}%</span>
             </div>
