@@ -16,7 +16,7 @@ func enrol(t *testing.T, store *AccountStore, name string) (string, []string) {
 	if err != nil {
 		t.Fatalf("NewTOTPSecret: %v", err)
 	}
-	codes, err := store.EnableTOTP(name, secret)
+	codes, err := store.EnableTOTP(name, secret, 0)
 	if err != nil {
 		t.Fatalf("EnableTOTP: %v", err)
 	}
@@ -278,5 +278,67 @@ func TestAccountTOTP_RecoveryCountSurvivesRedaction(t *testing.T) {
 	account, _ = store.Lookup("alice")
 	if got := account.RecoveryCodesLeft(); got != len(codes)-1 {
 		t.Errorf("after spending one, recovery codes left = %d, want %d", got, len(codes)-1)
+	}
+}
+
+// RFC 6238 §5.2: a code that has been accepted must not be accepted again. A
+// second factor exists for the case where somebody has the password, and a code
+// stays valid for its step plus a step of drift either side, so a code read off
+// a screen, a phishing page or a form somebody logged is good for another minute
+// and a half unless the one that was spent is remembered.
+func TestAccountTOTP_ACodeIsAcceptedOnce(t *testing.T) {
+	store := testAccounts(t)
+	if _, err := store.Create("alice", "a long enough passphrase", RoleAdmin); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	secret, _ := enrol(t, store, "alice")
+	now := time.Now()
+	code := totpAt(secret, now, totpDigits)
+
+	if _, ok := store.AuthenticateWithCode("alice", "a long enough passphrase", code); !ok {
+		t.Fatal("a valid code was refused the first time")
+	}
+	if _, ok := store.AuthenticateWithCode("alice", "a long enough passphrase", code); ok {
+		t.Error("the same code signed in a second time")
+	}
+}
+
+// And the next one still works, so remembering the spent code does not lock the
+// account out of the following minute.
+func TestAccountTOTP_TheNextCodeStillWorks(t *testing.T) {
+	store := testAccounts(t)
+	if _, err := store.Create("alice", "a long enough passphrase", RoleAdmin); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	secret, _ := enrol(t, store, "alice")
+	now := time.Now()
+
+	if _, ok := store.AuthenticateWithCode("alice", "a long enough passphrase", totpAt(secret, now, totpDigits)); !ok {
+		t.Fatal("a valid code was refused")
+	}
+	// One step ahead is inside the drift servlo allows, so it verifies now and
+	// its counter is higher than the one just spent.
+	next := totpAt(secret, now.Add(totpStep), totpDigits)
+	if next == totpAt(secret, now, totpDigits) {
+		t.Skip("the two steps produced the same digits, which says nothing either way")
+	}
+	if _, ok := store.AuthenticateWithCode("alice", "a long enough passphrase", next); !ok {
+		t.Error("the next code was refused after the previous one was spent")
+	}
+}
+
+// A recovery code is still one-time, and spending one does not disturb the
+// counter the codes are checked against.
+func TestAccountTOTP_ARecoveryCodeStillWorksAfterACodeIsSpent(t *testing.T) {
+	store := testAccounts(t)
+	if _, err := store.Create("alice", "a long enough passphrase", RoleAdmin); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	secret, codes := enrol(t, store, "alice")
+	if _, ok := store.AuthenticateWithCode("alice", "a long enough passphrase", totpAt(secret, time.Now(), totpDigits)); !ok {
+		t.Fatal("a valid code was refused")
+	}
+	if _, ok := store.AuthenticateWithCode("alice", "a long enough passphrase", codes[0]); !ok {
+		t.Error("a recovery code was refused after a TOTP code was spent")
 	}
 }

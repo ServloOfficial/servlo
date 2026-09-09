@@ -14,7 +14,10 @@ import (
 // EnableTOTP turns the second factor on for an account and returns the recovery
 // codes to show once. Enabling replaces any previous secret and codes, so
 // re-enrolling a new phone does not leave the old one working.
-func (s *AccountStore) EnableTOTP(name, secret string) ([]string, error) {
+//
+// enrolledCounter is the step of the code that proved the enrolment, recorded as
+// spent so the same code cannot also be the one that signs in.
+func (s *AccountStore) EnableTOTP(name, secret string, enrolledCounter int64) ([]string, error) {
 	if secret == "" {
 		return nil, fmt.Errorf("no secret to enrol")
 	}
@@ -37,6 +40,9 @@ func (s *AccountStore) EnableTOTP(name, secret string) ([]string, error) {
 		accounts[i].TOTPSecret = secret
 		accounts[i].TOTPEnabled = true
 		accounts[i].RecoveryHashes = hashes
+		// The code that proved the enrolment counts as spent, so it cannot also
+		// be the code that signs in a minute later.
+		accounts[i].TOTPLastCounter = enrolledCounter
 		if err := s.save(accounts); err != nil {
 			return nil, err
 		}
@@ -166,7 +172,18 @@ func (s *AccountStore) authenticate(name, password, code string) (Account, Outco
 		if code == "" {
 			return Account{}, AuthCodeRequired
 		}
-		if VerifyTOTP(accounts[i].TOTPSecret, code) {
+		if counter, ok := VerifyTOTPCounter(accounts[i].TOTPSecret, code); ok {
+			// Once. A code is valid for its own step and one either side, so
+			// without this the code somebody watched being typed is good for
+			// another minute and a half against a password they already have.
+			if counter <= accounts[i].TOTPLastCounter {
+				return Account{}, AuthFailed
+			}
+			accounts[i].TOTPLastCounter = counter
+			// A failed write leaves the code spendable again, which is the same
+			// safe direction the recovery codes below take: the operator gets in,
+			// and the window closes on its own thirty seconds later.
+			_ = s.save(accounts)
 			return redact(accounts[i]), AuthOK
 		}
 		remaining, spent := ConsumeRecoveryCode(accounts[i].RecoveryHashes, code)

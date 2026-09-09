@@ -516,11 +516,12 @@ func newUsersTOTPEnableCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if !authz.VerifyTOTP(secret, strings.TrimSpace(code)) {
+			counter, ok := authz.VerifyTOTPCounter(secret, strings.TrimSpace(code))
+			if !ok {
 				return fmt.Errorf("that code does not match, so nothing was changed. Try again and check your phone's clock is right")
 			}
 
-			codes, err := accounts.EnableTOTP(args[0], secret)
+			codes, err := accounts.EnableTOTP(args[0], secret, counter)
 			if err != nil {
 				return err
 			}

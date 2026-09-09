@@ -69,28 +69,56 @@ func TOTPEnrolmentURI(account, issuer, secret string) string {
 
 // VerifyTOTP reports whether code is valid for secret right now.
 func VerifyTOTP(secret, code string) bool {
-	return verifyTOTPAt(secret, code, time.Now())
+	_, ok := VerifyTOTPCounter(secret, code)
+	return ok
+}
+
+// VerifyTOTPCounter is VerifyTOTP with the step the code belongs to, which is
+// what makes a code spendable once.
+//
+// RFC 6238 section 5.2 asks for exactly this: a verifier must not accept a code
+// it has already accepted. A code is good for its own step and one either side,
+// so without the counter one read off a screen, out of a phishing page or out of
+// a form somebody logged is good for another minute and a half, against an
+// account whose password is already known. Recording the step it belongs to and
+// refusing anything at or below it is what closes that.
+func VerifyTOTPCounter(secret, code string) (int64, bool) {
+	return verifyTOTPCounterAt(secret, code, time.Now())
 }
 
 func verifyTOTPAt(secret, code string, now time.Time) bool {
+	_, ok := verifyTOTPCounterAt(secret, code, now)
+	return ok
+}
+
+func verifyTOTPCounterAt(secret, code string, now time.Time) (int64, bool) {
 	if secret == "" || len(code) != totpDigits {
-		return false
+		return 0, false
 	}
 	for _, c := range code {
 		if c < '0' || c > '9' {
-			return false
+			return 0, false
 		}
 	}
 	// Every candidate is checked even after a match, so the time taken does not
 	// say which step matched.
 	matched := false
+	var counter int64
 	for skew := -totpSkew; skew <= totpSkew; skew++ {
-		want := totpAt(secret, now.Add(time.Duration(skew)*totpStep), totpDigits)
+		at := now.Add(time.Duration(skew) * totpStep)
+		want := totpAt(secret, at, totpDigits)
 		if subtle.ConstantTimeCompare([]byte(code), []byte(want)) == 1 {
 			matched = true
+			counter = counterAt(at)
 		}
 	}
-	return matched
+	return counter, matched
+}
+
+// counterAt is the step number a moment falls in, which is what a code is
+// really a function of.
+func counterAt(at time.Time) int64 {
+	return at.Unix() / int64(totpStep.Seconds())
 }
 
 // totpAt is the RFC 6238 code for a secret at a moment.
@@ -99,9 +127,8 @@ func totpAt(secret string, at time.Time, digits int) string {
 	if err != nil {
 		return ""
 	}
-	counter := uint64(at.Unix()) / uint64(totpStep.Seconds())
 	var buf [8]byte
-	binary.BigEndian.PutUint64(buf[:], counter)
+	binary.BigEndian.PutUint64(buf[:], uint64(counterAt(at)))
 
 	mac := hmac.New(sha1.New, key)
 	mac.Write(buf[:])
