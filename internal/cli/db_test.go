@@ -2,6 +2,8 @@ package cli
 
 import (
 	"os"
+
+	"github.com/ServloOfficial/servlo/internal/config"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,6 +18,11 @@ func isolateConfig(t *testing.T) {
 
 // The commands run with the fixed admin credentials in the exec environment,
 // never as a -p flag where a process listing would show them.
+//
+// This test's name has always said that and its assertion did not: it looked
+// for MYSQL_PWD= in cmd.Args, which is the argv, so what it actually pinned was
+// the password being in the process listing. The name was the invariant, the
+// body was the bug, and it read as green either way.
 func TestDbImportCmdPasswordOnlyInEnv(t *testing.T) {
 	isolateConfig(t)
 	env := &dbEnv{service: "mysql", connection: "mysql", database: "testdb"}
@@ -24,12 +31,45 @@ func TestDbImportCmdPasswordOnlyInEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 	joined := strings.Join(cmd.Args, " ")
-	if !strings.Contains(joined, "MYSQL_PWD=") {
-		t.Errorf("expected MYSQL_PWD in the exec env: %v", cmd.Args)
+	if !strings.Contains(joined, "-e MYSQL_PWD") {
+		t.Errorf("the credential is not forwarded by name: %v", cmd.Args)
 	}
+	if !envHasName(cmd.Env, "MYSQL_PWD") {
+		t.Error("the credential is not on the process for podman to read")
+	}
+	assertNoPasswordInArgv(t, cmd.Args)
 	for _, arg := range cmd.Args {
 		if strings.HasPrefix(arg, "-p") && arg != "-p" {
 			t.Errorf("password-like flag in args: %q", arg)
+		}
+	}
+}
+
+func envHasName(env []string, name string) bool {
+	for _, kv := range env {
+		if k, _, ok := strings.Cut(kv, "="); ok && k == name {
+			return true
+		}
+	}
+	return false
+}
+
+// assertNoPasswordInArgv is the whole point of the two tests that call it.
+// /proc/<pid>/cmdline is readable by every process on the machine and every
+// site here runs as the same Linux user, so a password in an argument is a
+// password every site can read while the command runs.
+func assertNoPasswordInArgv(t *testing.T, args []string) {
+	t.Helper()
+	password, err := config.ServicePassword()
+	if err != nil {
+		t.Fatalf("reading the install's service password: %v", err)
+	}
+	if password == "" {
+		t.Fatal("no service password, so this check would pass for the wrong reason")
+	}
+	for i, a := range args {
+		if strings.Contains(a, password) {
+			t.Errorf("the install's database password is in argv[%d]; every site on this machine can read it out of /proc", i)
 		}
 	}
 }
@@ -65,9 +105,13 @@ func TestDbCmdPostgresUsesEnv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(strings.Join(cmd.Args, " "), "PGPASSWORD=") {
-		t.Error("expected PGPASSWORD env var in postgres command")
+	if !strings.Contains(strings.Join(cmd.Args, " "), "-e PGPASSWORD") {
+		t.Errorf("the credential is not forwarded by name: %v", cmd.Args)
 	}
+	if !envHasName(cmd.Env, "PGPASSWORD") {
+		t.Error("the credential is not on the process for podman to read")
+	}
+	assertNoPasswordInArgv(t, cmd.Args)
 }
 
 // The mariadb images carry only the mariadb-named binaries, so the declared

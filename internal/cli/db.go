@@ -384,12 +384,20 @@ func dbImportCmd(env *dbEnv) (*exec.Cmd, error) {
 
 // dbEntityCmd wraps a declared in-container command in the podman exec the CLI
 // streams through, carrying the fixed admin credentials in the env.
+//
+// Named in the argv and spelled on the process, never the other way round:
+// /proc/<pid>/cmdline is readable by everything on the machine and every site
+// here runs as the same Linux user, so a password in an argument is a password
+// every site can read while an import runs.
 func dbEntityCmd(service, shellCmd string) *exec.Cmd {
+	envValues := serviceops.EntityExecEnv()
 	args := []string{"exec", "-i"}
-	for _, kv := range serviceops.EntityExecEnv() {
-		args = append(args, "-e", kv)
+	for _, name := range serviceops.EnvNames(envValues) {
+		args = append(args, "-e", name)
 	}
-	return podman.Cmd(append(args, "servlo-"+service, "sh", "-c", shellCmd)...)
+	cmd := podman.Cmd(append(args, "servlo-"+service, "sh", "-c", shellCmd)...)
+	cmd.Env = append(cmd.Environ(), envValues...)
+	return cmd
 }
 
 func runDbExport(output, service, database string) error {
@@ -613,8 +621,12 @@ func databaseExists(svc, name string) (bool, error) {
 		for _, bin := range binaries {
 			// The password rides in the exec's environment: an argument would
 			// be readable out of the process list by every other user here.
-			check := podman.Cmd("exec", "--env", c.ClientEnv()[0], container, bin, "-uroot",
+			// Named in the argv, spelled on the process, which is the only way
+			// that sentence is true.
+			clientEnv := c.ClientEnv()
+			check := podman.Cmd("exec", "--env", serviceops.EnvNames(clientEnv)[0], container, bin, "-uroot",
 				"-sNe", mysqlDatabaseExistsQuery(name))
+			check.Env = append(check.Environ(), clientEnv...)
 			out, err := check.Output()
 			if err != nil {
 				lastErr = err

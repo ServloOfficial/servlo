@@ -640,19 +640,24 @@ func sailCountTables(composeArgs []string, service string, env *dbEnv, composeBi
 	var args []string
 	args = append(args, composeArgs...)
 	args = append(args, "exec", "-T")
+	var passEnv string
 	switch env.connection {
 	case "mysql", "mariadb":
-		args = append(args, "-e", "MYSQL_PWD="+env.password,
+		passEnv = "MYSQL_PWD=" + env.password
+		args = append(args, "-e", "MYSQL_PWD",
 			service, "mysql", "-h", "127.0.0.1", "-u"+env.username, "-N", "-B", "-e",
 			fmt.Sprintf("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=%q;", env.database))
 	case "pgsql", "postgres":
-		args = append(args, "-e", "PGPASSWORD="+env.password,
+		passEnv = "PGPASSWORD=" + env.password
+		args = append(args, "-e", "PGPASSWORD",
 			service, "psql", "-U", env.username, "-d", env.database, "-tAc",
 			"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';")
 	default:
 		return 0, nil
 	}
-	out, err := exec.Command(composeBin, args...).Output()
+	countCmd := exec.Command(composeBin, args...)
+	countCmd.Env = append(countCmd.Environ(), passEnv)
+	out, err := countCmd.Output()
 	if err != nil {
 		// Database may not exist — treat as zero.
 		return 0, nil
@@ -929,20 +934,25 @@ func sailDetectDatabase(composeArgs []string, service string, env *dbEnv, compos
 		"template1":          true,
 	}
 
+	var passEnv string
 	switch env.connection {
 	case "mysql", "mariadb":
-		args = append(args, "-e", "MYSQL_PWD="+env.password,
+		passEnv = "MYSQL_PWD=" + env.password
+		args = append(args, "-e", "MYSQL_PWD",
 			service, "mysql", "-h", "127.0.0.1", "-u"+env.username,
 			"-N", "-e", "SHOW DATABASES;")
 	case "pgsql", "postgres":
-		args = append(args, "-e", "PGPASSWORD="+env.password,
+		passEnv = "PGPASSWORD=" + env.password
+		args = append(args, "-e", "PGPASSWORD",
 			service, "psql", "-U", env.username,
 			"-t", "-c", "SELECT datname FROM pg_database WHERE datistemplate = false;")
 	default:
 		return "", nil
 	}
 
-	out, err := exec.Command(composeBin, args...).Output()
+	listCmd := exec.Command(composeBin, args...)
+	listCmd.Env = append(listCmd.Environ(), passEnv)
+	out, err := listCmd.Output()
 	if err != nil {
 		return "", err
 	}
@@ -1017,12 +1027,15 @@ func sailDumpDB(composeArgs []string, service string, env *dbEnv, composeBin str
 	args = append(args, composeArgs...)
 	args = append(args, "exec", "-T")
 
+	var passEnv string
 	switch env.connection {
 	case "mysql", "mariadb":
-		args = append(args, "-e", "MYSQL_PWD="+env.password,
+		passEnv = "MYSQL_PWD=" + env.password
+		args = append(args, "-e", "MYSQL_PWD",
 			service, "mysqldump", "--no-tablespaces", "-h", "127.0.0.1", "-u"+env.username, env.database)
 	case "pgsql", "postgres":
-		args = append(args, "-e", "PGPASSWORD="+env.password,
+		passEnv = "PGPASSWORD=" + env.password
+		args = append(args, "-e", "PGPASSWORD",
 			service, "pg_dump", "-U", env.username, env.database)
 	default:
 		os.Remove(tmpPath)
@@ -1037,6 +1050,7 @@ func sailDumpDB(composeArgs []string, service string, env *dbEnv, composeBin str
 	defer out.Close()
 
 	cmd := exec.Command(composeBin, args...)
+	cmd.Env = append(cmd.Environ(), passEnv)
 	cmd.Stdout = out
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -1053,9 +1067,10 @@ func sailRecreateDB(env *dbEnv) error {
 		sql := fmt.Sprintf("DROP DATABASE IF EXISTS `%s`; CREATE DATABASE `%s`;",
 			env.database, env.database)
 		cmd := podman.Cmd("exec", "-i",
-			"-e", "MYSQL_PWD="+env.password,
+			"-e", "MYSQL_PWD",
 			"servlo-mysql",
 			"mysql", "-u"+env.username, "-e", sql)
+		cmd.Env = append(cmd.Environ(), "MYSQL_PWD="+env.password)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("%s", strings.TrimSpace(string(out)))
 		}
@@ -1067,9 +1082,10 @@ func sailRecreateDB(env *dbEnv) error {
 			fmt.Sprintf(`CREATE DATABASE "%s";`, env.database),
 		} {
 			cmd := podman.Cmd("exec", "-i",
-				"-e", "PGPASSWORD="+env.password,
+				"-e", "PGPASSWORD",
 				"servlo-postgres",
 				"psql", "-U", env.username, "postgres", "-c", sql)
+			cmd.Env = append(cmd.Environ(), "PGPASSWORD="+env.password)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				return fmt.Errorf("postgres: %s", strings.TrimSpace(string(out)))
 			}

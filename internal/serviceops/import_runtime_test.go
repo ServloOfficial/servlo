@@ -61,8 +61,13 @@ func TestImportDatabaseRunsInTheDeclaredClientImage(t *testing.T) {
 	if !strings.Contains(argv, "example/client:1") {
 		t.Errorf("import ignored the declared client image\nargv: %s", argv)
 	}
-	if !strings.Contains(argv, "CLIENT_TOKEN=abc") {
+	// By name, not by value: the value travels on the process for podman to
+	// read, so nothing on this machine sees it in a process listing.
+	if !strings.Contains(argv, "-e CLIENT_TOKEN") {
 		t.Errorf("import ignored the declared entity env\nargv: %s", argv)
+	}
+	if strings.Contains(argv, "CLIENT_TOKEN=abc") {
+		t.Errorf("the declared entity env was spelled into the argv\nargv: %s", argv)
 	}
 	if strings.Contains(argv, "servlo-myengine") {
 		t.Errorf("import exec'd inside the service container instead of the client image\nargv: %s", argv)

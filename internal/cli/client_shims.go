@@ -504,24 +504,37 @@ func runClientExec(tool string, args []string) error {
 	if term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd())) {
 		runFlags = append(runFlags, "-t")
 	}
+	// Every one of these is forwarded by name, never spelled: these are database
+	// passwords, and an argument is readable out of /proc by everything on this
+	// machine, where every site runs as the same Linux user. podman reads the
+	// value out of this process's environment instead.
+	//
 	// Local-target defaults first, so the caller's own DB-client env (forwarded
 	// next) always wins over them.
+	passEnv := make([]string, 0, len(defaultEnv))
 	for _, e := range defaultEnv {
-		runFlags = append(runFlags, "-e", e)
+		name, _, ok := strings.Cut(e, "=")
+		if !ok {
+			continue
+		}
+		passEnv = append(passEnv, e)
+		runFlags = append(runFlags, "-e", name)
 	}
 	// Forward the caller's DB-client environment (PGPASSWORD, PGSSLMODE,
 	// MYSQL_PWD…) so credentials set on the host reach the tool; podman run
-	// otherwise inherits none of the host env.
+	// otherwise inherits none of the host env. These are already in this
+	// process's environment, so naming them is all podman needs.
 	for _, e := range os.Environ() {
 		k, _, _ := strings.Cut(e, "=")
 		if strings.HasPrefix(k, "PG") || strings.HasPrefix(k, "MYSQL") || strings.HasPrefix(k, "MARIADB") {
-			runFlags = append(runFlags, "-e", e)
+			runFlags = append(runFlags, "-e", k)
 		}
 	}
 	runFlags = append(runFlags, image, "-c", shellCmd, "sh")
 	runFlags = append(runFlags, args...)
 
 	cmd := podman.Cmd(runFlags...)
+	cmd.Env = append(cmd.Environ(), passEnv...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
