@@ -128,7 +128,10 @@ func Rules() []Rule {
 		},
 		{
 			Feature: "Xdebug toggles", Story: "S0.5", Enforced: true,
-			Patterns: []string{`(?i)\bxdebug\b`},
+			// No trailing \b: the word boundary does not fire before an
+			// underscore, so the old pattern read straight past the
+			// xdebug_enabled the panel's own fixtures were still carrying.
+			Patterns: []string{`(?i)\bxdebug`},
 			Allow:    specs,
 		},
 		{
