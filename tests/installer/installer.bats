@@ -544,29 +544,26 @@ _stub_dns_files() {
   SERVLO_DNS_FILES=("$d/servlo-dns-link.service")
 }
 
-@test "uninstall_linux_dns runs the teardown when accepted" {
+# The managed DNS setup is gone from servlo, and with it the command that undid
+# it. A machine installed before the removal still carries the root-owned files,
+# so the uninstaller is right to notice them, but the only thing it can honestly
+# do is print what removes them: an earlier version offered to run `servlo
+# dns:disable` and spent the operator's answer on a command that no longer
+# exists.
+@test "uninstall_linux_dns prints the manual removal and calls no servlo command" {
   local d; d="$(_fake_servlo_dir)"
   PATH="$d:$PATH"
   _stub_dns_files
   ask() { return 0; }
   run uninstall_linux_dns
   [ "$status" -eq 0 ]
-  grep -q "dns:disable" "$d/calls"
-}
-
-@test "uninstall_linux_dns prints the manual removal when declined" {
-  local d; d="$(_fake_servlo_dir)"
-  PATH="$d:$PATH"
-  _stub_dns_files
-  ask() { return 1; }
-  run uninstall_linux_dns
-  [ "$status" -eq 0 ]
   [[ "$output" == *"servlo-dns-link.service"* ]]
   [[ "$output" == *"systemd-resolved"* ]]
+  [[ "$output" != *"dns:disable"* ]]
   [ ! -f "$d/calls" ]
 }
 
-@test "uninstall_linux_dns falls back to the manual removal when the binary is gone" {
+@test "uninstall_linux_dns says the same thing when the binary is already gone" {
   function command() {
     case "$2" in
       servlo) return 1 ;;
@@ -575,7 +572,6 @@ _stub_dns_files() {
   }
   export -f command
   _stub_dns_files
-  ask() { return 0; }
   run uninstall_linux_dns
   [ "$status" -eq 0 ]
   [[ "$output" == *"only root can remove it"* ]]

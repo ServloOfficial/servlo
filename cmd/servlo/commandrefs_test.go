@@ -98,9 +98,38 @@ type commandRef struct {
 // A pattern wide enough for the first reports the second, and a check that
 // reports prose is a check somebody deletes. The TUI's own hint was one of the
 // references this found; it was found by grep, and that is the tool for it.
-var refPatterns = []*regexp.Regexp{
-	regexp.MustCompile("`servlo ([a-z][^`\n]{0,60})`"),
-	regexp.MustCompile(`\b(?:run|Run|with|fix|enable|disable|try):\s+servlo ([a-z][a-z0-9:_ %<>-]{0,40})`),
+var (
+	backtickRef = regexp.MustCompile("`servlo ([a-z][^`\n]{0,60})`")
+	colonRef    = regexp.MustCompile(`\b(?:run|Run|with|fix|enable|disable|try):\s+servlo ([a-z][a-z0-9:_ %<>-]{0,40})`)
+)
+
+// shellRefPatterns are the two shapes a shell script uses: a command actually
+// run at the start of a line, and one named inside single quotes, which is that
+// file's backtick.
+//
+// The invocations matter more than the mentions. install.sh offered to run
+// `servlo dns:disable` on uninstall, years after the DNS stack was deleted, and
+// its own test proved the call was made by stubbing a servlo that answers to
+// anything. Reading the real command tree is the only way that check means
+// something.
+var shellRefPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?m)^[ \t]*(?:if[ \t]+|![ \t]+)?servlo ([a-z][^\n]{0,60})`),
+	regexp.MustCompile(`'servlo ([a-z][^'\n]{0,60})'`),
+}
+
+// patternsFor is which shapes to trust in which file. The un-backticked
+// "run: servlo …" shape is only trusted inside Go string literals: in prose the
+// colon is punctuation, and "safe to run: servlo re-fetches a definition …" is a
+// sentence rather than an instruction.
+func patternsFor(ext string) []*regexp.Regexp {
+	switch ext {
+	case ".go":
+		return []*regexp.Regexp{backtickRef, colonRef}
+	case ".sh":
+		return shellRefPatterns
+	default:
+		return []*regexp.Regexp{backtickRef}
+	}
 }
 
 // wordLike matches a token worth carrying into the check: a command name, or a
@@ -121,7 +150,7 @@ func commandRefsInRepo(t *testing.T) []commandRef {
 			return err
 		}
 		ext := filepath.Ext(p)
-		if ext != ".go" && ext != ".md" {
+		if ext != ".go" && ext != ".md" && ext != ".sh" {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, p)
@@ -133,14 +162,7 @@ func commandRefsInRepo(t *testing.T) []commandRef {
 			return readErr
 		}
 		src := string(body)
-		for i, re := range refPatterns {
-			// The un-backticked "run: servlo …" shape is only trusted inside Go
-			// string literals. In prose the colon is punctuation, and "safe to
-			// run: servlo re-fetches a definition …" is a sentence rather than
-			// an instruction.
-			if i == 1 && ext != ".go" {
-				continue
-			}
+		for _, re := range patternsFor(ext) {
 			for _, m := range re.FindAllStringSubmatchIndex(src, -1) {
 				raw := strings.TrimSpace(src[m[2]:m[3]])
 				var words []string

@@ -625,25 +625,11 @@ servlo_dns_cleanup_hint() {
 
 # Left in place, the link unit recreates servlo0 at every boot pointing .test at a
 # dnsmasq that no longer exists, and the fallback drop-in keeps systemd-resolved's
-# fallback servers switched off for good. The binary is removed further down and
-# it is the only thing that can undo any of it, so offer the teardown here.
+# fallback servers switched off for good. Servlo has no command that undoes any
+# of it any more, and every one of these files is root-owned, so the honest thing
+# the uninstaller can do is notice them and print what removes them.
 uninstall_linux_dns() {
   servlo_dns_config_present || return 0
-
-  if ! command -v servlo &>/dev/null; then
-    servlo_dns_cleanup_hint
-    return 0
-  fi
-
-  warn "The system DNS setup (the servlo0 link, its root unit, the NetworkManager rules and systemd-resolved's fallback servers) is removed only by servlo itself."
-  info "Nothing on this machine can undo it once the binary is gone."
-  if ask "Remove the DNS setup now? (runs 'servlo dns:disable', needs sudo)"; then
-    if servlo dns:disable; then
-      success "Removed servlo DNS configuration"
-      return 0
-    fi
-    warn "'servlo dns:disable' did not complete."
-  fi
   servlo_dns_cleanup_hint
 }
 
@@ -721,9 +707,8 @@ main() {
     --update|-u|update)     cmd_update ;;
     --uninstall|uninstall)  cmd_uninstall ;;
     --check|check)
-      # Non-interactive: report the full requirement set (managed DNS), so the
-      # check never blocks on a prompt. Picking .localhost at real install time
-      # is what skips the HTTPS-only packages.
+      # Non-interactive: report the full requirement set, so the check never
+      # blocks on a prompt.
       MISSING_PKGS=()
       check_prerequisites
       ;;
