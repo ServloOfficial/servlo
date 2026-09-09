@@ -222,6 +222,17 @@ func SitePHPUserIniFile(siteName string) string {
 	return filepath.Join(DataDir(), "php", "sites", siteName, "98-user.ini")
 }
 
+// SitePHPManagedIniFile is where a site's PHP settings from the panel land for a
+// runtime that has no FPM pool to put them in.
+//
+// Numbered below the operator's own 98-user.ini and above the shared 95 file, so
+// the three layers rank the way they read: servlo's baseline for every site,
+// then this site's settings, then whatever the operator wrote by hand. Servlo
+// owns this file and rewrites it on every save; the operator's is never touched.
+func SitePHPManagedIniFile(siteName string) string {
+	return filepath.Join(DataDir(), "php", "sites", siteName, "96-servlo-site.ini")
+}
+
 // SitePHPUserIniBkpDir holds timestamped backups of a site's per-site user ini,
 // next to (not inside) the file so the container's conf.d scan never loads them.
 func SitePHPUserIniBkpDir(siteName string) string {

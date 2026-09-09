@@ -54,6 +54,10 @@ func TestGenerateFrankenPHPQuadlet(t *testing.T) {
 		// php.ini parity: the same conf.d inis the FPM container mounts.
 		"/usr/local/etc/php/conf.d/98-servlo-user.ini:ro",
 		"/usr/local/etc/php/conf.d/95-servlo-shared.ini:ro",
+		// Where the site's own settings from the panel land. A shared-FPM site
+		// gets them in its pool; this runtime has no pool, so without this
+		// mount the upload limit reached nginx and stopped there.
+		"/usr/local/etc/php/conf.d/96-servlo-site.ini:ro",
 	}
 	for _, s := range mustContain {
 		if !strings.Contains(content, s) {

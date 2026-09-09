@@ -13,7 +13,9 @@ import (
 
 // settingsHome gives the test its own config, data and nginx directories, and
 // stops the reload and the pool signal from reaching anything real.
-func settingsHome(t *testing.T) {
+// The count of runtime reloads, for the caller that cares whether a save that
+// changed nothing restarted a live site.
+func settingsHome(t *testing.T) *int {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -24,10 +26,15 @@ func settingsHome(t *testing.T) {
 	nginxReloadFn = func() error { return nil }
 	prevFPM := ReloadFPMPoolsFn
 	ReloadFPMPoolsFn = func(string) error { return nil }
+	prevRuntime := RestartSiteRuntimeFn
+	restarted := 0
+	RestartSiteRuntimeFn = func(config.Site) { restarted++ }
 	t.Cleanup(func() {
 		nginxReloadFn = prevReload
 		ReloadFPMPoolsFn = prevFPM
+		RestartSiteRuntimeFn = prevRuntime
 	})
+	return &restarted
 }
 
 func settingsSite(t *testing.T) *config.Site {
@@ -367,5 +374,108 @@ func TestSetSiteNginxSettings_RefusesARedirectLoopWithoutTouchingTheVhost(t *tes
 	}
 	if !strings.Contains(vhost, "expires 7d;") {
 		t.Errorf("the refused save discarded what the site already had:\n%s", vhost)
+	}
+}
+
+// frankenSite is the same site running its own FrankenPHP container rather than
+// sharing the FPM one. It has no pool, which is what makes it the interesting
+// case: the nginx half of every pair is written for it exactly as before.
+func frankenSite(t *testing.T) *config.Site {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "octane")
+	if err := os.MkdirAll(filepath.Join(path, "public"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	site := config.Site{
+		Name: "octane", Domains: []string{"octane.example"},
+		Path: path, PHPVersion: "8.4", PublicDir: "public", Runtime: "frankenphp",
+	}
+	if err := config.AddSite(site); err != nil {
+		t.Fatal(err)
+	}
+	return &site
+}
+
+// The same acceptance criterion, on the runtime that has no pool to write it to.
+//
+// A FrankenPHP site is PHP that servlo builds, runs and mounts config into, so
+// there is nothing about it that makes the PHP half of the pair unwritable. The
+// pool is simply not where it goes. Before this, raising the upload limit moved
+// nginx's client_max_body_size and nothing else, which is the failure the pair
+// exists to prevent: the upload passes nginx and PHP refuses it at the default
+// the image was built with.
+func TestSetSitePHPSettings_FrankenPHPGetsThePHPHalfOfEveryPair(t *testing.T) {
+	settingsHome(t)
+	site := frankenSite(t)
+
+	if err := SetSitePHPSettings(site, PHPSettings{
+		MaxUploadMB: 256, MaxExecutionSeconds: 600, MemoryLimitMB: 512,
+	}); err != nil {
+		t.Fatalf("SetSitePHPSettings: %v", err)
+	}
+
+	ini := readManagedIni(t, site)
+	for _, want := range []string{
+		"upload_max_filesize = 256M",
+		"post_max_size = 256M",
+		"max_execution_time = 600",
+		"memory_limit = 512M",
+	} {
+		if !strings.Contains(ini, want) {
+			t.Errorf("the site's php.ini is missing %q, so nginx allows what PHP refuses:\n%s", want, ini)
+		}
+	}
+	if vhost := readVhost(t, site); !strings.Contains(vhost, "client_max_body_size 256m;") {
+		t.Errorf("the vhost half is missing too:\n%s", vhost)
+	}
+}
+
+// Clearing a setting has to take the directive away here as well, or the
+// operator who empties the field keeps the old ceiling with nothing on screen
+// saying so.
+func TestSetSitePHPSettings_FrankenPHPClearingASettingRemovesIt(t *testing.T) {
+	settingsHome(t)
+	site := frankenSite(t)
+
+	if err := SetSitePHPSettings(site, PHPSettings{MaxUploadMB: 256}); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetSitePHPSettings(site, PHPSettings{}); err != nil {
+		t.Fatal(err)
+	}
+	if ini := readManagedIni(t, site); strings.Contains(ini, "upload_max_filesize") {
+		t.Errorf("the cleared setting is still in the file:\n%s", ini)
+	}
+}
+
+func readManagedIni(t *testing.T, site *config.Site) string {
+	t.Helper()
+	b, err := os.ReadFile(config.SitePHPManagedIniFile(site.Name))
+	if err != nil {
+		t.Fatalf("reading the site's managed php.ini: %v", err)
+	}
+	return string(b)
+}
+
+// A save that changes nothing must not restart the site. Every vhost
+// regeneration passes through here, and a FrankenPHP site whose container went
+// down for a couple of seconds on each one would be a site that flickers
+// whenever anything unrelated touches it.
+func TestSetSitePHPSettings_FrankenPHPDoesNotRestartWhenNothingChanged(t *testing.T) {
+	restarted := settingsHome(t)
+	site := frankenSite(t)
+
+	if err := SetSitePHPSettings(site, PHPSettings{MaxUploadMB: 256}); err != nil {
+		t.Fatal(err)
+	}
+	after := *restarted
+	if after == 0 {
+		t.Fatal("the setting was written and the site never picked it up")
+	}
+	if err := SetSitePHPSettings(site, PHPSettings{MaxUploadMB: 256}); err != nil {
+		t.Fatal(err)
+	}
+	if *restarted != after {
+		t.Errorf("a save that changed nothing restarted the site (%d then %d)", after, *restarted)
 	}
 }

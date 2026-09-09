@@ -302,6 +302,14 @@ php_admin_value[expose_php] = Off
 
 A site that sets nothing gets a pool with only those, and everything else still comes from the layered ini files below. A site created before per-site pools existed has no pool file, and keeps being served by the shared container until it gets one.
 
+#### A site that runs its own container
+
+A FrankenPHP site has no pool, because it is not served by the shared FPM container. The same three settings go into `~/.local/share/servlo/php/sites/<site>/96-servlo-site.ini`, which that site's own container mounts into its `conf.d`. Servlo owns that file and rewrites it on every save, and the site's container is restarted so the change takes effect, which it is not if only the file changes.
+
+The numbering is the ranking. `95-servlo-shared.ini` is the baseline for every site, `96-servlo-site.ini` is this site's settings from the panel, and `98-user.ini` is whatever you wrote by hand, which loads last and wins. Editing `96` is pointless: the next save overwrites it.
+
+A custom-container site and a host-proxy site get neither. They run something servlo did not build, so there is no file of servlo's their runtime would read; on those the settings reach nginx alone, which is all servlo has to reach.
+
 ### php.ini settings
 
 Each PHP version has a user-editable ini file at `~/.local/share/servlo/php/<version>/98-servlo-user.ini`, mounted read-only into the FPM container. Edit it with:
