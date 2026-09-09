@@ -73,7 +73,7 @@ func TestPollEmptyOutputClearsState(t *testing.T) {
 		t.Fatal("expected running after first poll")
 	}
 
-	// Simulate podman machine stopped: empty output (but no error).
+	// Simulate podman not running: empty output, but no error.
 	c.pollFn = func() (string, error) { return "", nil }
 	c.poll()
 	if c.Running("servlo-nginx") {
@@ -89,7 +89,7 @@ func TestPollErrorKeepsLastState(t *testing.T) {
 		if calls == 1 {
 			return "servlo-nginx\trunning", nil
 		}
-		return "", errors.New("podman machine unreachable")
+		return "", errors.New("podman unreachable")
 	})
 	c.started = true
 	c.poll() // first poll: nginx running

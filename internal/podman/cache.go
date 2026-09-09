@@ -56,8 +56,8 @@ func (c *ContainerCache) SetOnChange(fn func()) {
 // test can drive the transition without touching the real marker file.
 var stoppedFn = config.IsStopped
 
-// pollTimeout bounds the non-started fallback podman calls so a stalled VM
-// (macOS post-sleep) yields a fast empty snapshot instead of hanging the caller.
+// pollTimeout bounds the non-started fallback podman calls so a stalled podman
+// yields a fast empty snapshot instead of hanging the caller.
 const pollTimeout = 10 * time.Second
 
 func defaultPollFn() (string, error) {
@@ -181,7 +181,7 @@ func (c *ContainerCache) SetInterval(d time.Duration) {
 
 // Pause suspends the background poll loop. Refcounted: nested Pause/Resume
 // pairs work correctly. Used during worker-mode migrations so the poller
-// doesn't compete with the migration's stop/start podman calls for gvproxy
+// doesn't compete with the migration's stop/start podman calls for the
 // connection slots.
 func (c *ContainerCache) Pause()  { atomic.AddInt32(&c.pauseCount, 1) }
 func (c *ContainerCache) Resume() { atomic.AddInt32(&c.pauseCount, -1) }

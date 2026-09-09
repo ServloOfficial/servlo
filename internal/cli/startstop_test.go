@@ -95,9 +95,6 @@ func TestIsPortConflict(t *testing.T) {
 		{"running container owns its port", mariadb, "mysqld 1 sdp 3u TCP 127.0.0.1:3306 (LISTEN)", running, false},
 		// Non-dns service, not running, foreign listener — real conflict.
 		{"foreign process holds a service port", mariadb, "someapp 999 sdp 3u TCP 127.0.0.1:3306 (LISTEN)", notRunning, true},
-		// The macOS regression: gvproxy (podman machine's own forwarder) holds
-		// the published port — a servlo forward into the VM, NOT a conflict.
-		{"gvproxy forward owns a service port", mariadb, "gvproxy 82853 sdp 12u TCP 127.0.0.1:3306 (LISTEN)", notRunning, false},
 		// Port is free — no conflict regardless.
 		{"port free", mariadb, portList, notRunning, false},
 	}

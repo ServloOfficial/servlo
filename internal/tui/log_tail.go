@@ -120,9 +120,8 @@ func (t *logTail) run(ctx context.Context, target LogTarget, ch chan<- string) {
 	var cmd *exec.Cmd
 	switch target.Kind {
 	case kindJournal:
-		// Worker log tail — platform-specific because workers are systemd
-		// user units on Linux (journalctl) but podman containers on macOS
-		// (podman logs). The ID is the same on both platforms (servlo-<kind>-<site>).
+		// Worker log tail. A worker is a systemd user unit, so this is
+		// journalctl against servlo-<kind>-<site>.
 		cmd = workerLogCmd(ctx, target.ID)
 	case kindFile:
 		// -F follows by name, re-opening if the file is rotated, which is

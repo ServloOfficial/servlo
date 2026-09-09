@@ -109,8 +109,6 @@ func (m *Model) systemRows() []systemRow {
 		info("Installed", "none (run `servlo node:install <ver>`)")
 	}
 
-	// Worker mode (macOS only — on Linux every worker is exec-mode under systemd)
-
 	// Servlo
 	header("Servlo")
 	info("Version", m.version)

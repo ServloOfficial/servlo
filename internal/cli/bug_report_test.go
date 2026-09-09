@@ -122,8 +122,8 @@ func TestWriteBugReport_defaultPath(t *testing.T) {
 	if !strings.HasPrefix(filepath.Base(got), "servlo-bug-report-") {
 		t.Errorf("default filename doesn't start with servlo-bug-report-: %s", got)
 	}
-	// EvalSymlinks both sides because macOS resolves /var → /private/var,
-	// so t.TempDir() and os.Getwd()-after-chdir return different forms.
+	// EvalSymlinks both sides, because a temp dir reached through a symlink and
+	// the same path after chdir come back in different forms.
 	gotDir, _ := filepath.EvalSymlinks(filepath.Dir(got))
 	wantDir, _ := filepath.EvalSymlinks(dir)
 	if gotDir != wantDir {

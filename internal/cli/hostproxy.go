@@ -20,10 +20,8 @@ import (
 )
 
 // RegenerateHostProxyVhostsOnGatewayChange rewrites every host-proxy site's
-// nginx vhost so the host-gateway IP baked into proxy_pass (Linux only) tracks a
-// network change, then reloads nginx. Wired to the host-gateway watcher from
-// main. No-op on macOS, where the upstream is the gvproxy-resolved
-// host.containers.internal hostname rather than a literal IP.
+// nginx vhost so the host-gateway IP baked into proxy_pass tracks a network
+// change, then reloads nginx. Wired to the host-gateway watcher from main.
 func RegenerateHostProxyVhostsOnGatewayChange() {
 	reg, err := config.LoadSites()
 	if err != nil {
@@ -134,11 +132,11 @@ var hostGatewayBindIP = podman.ReadHostGatewayFromFile
 var hostIPIsLocal = isLocalInterfaceIP
 
 // hostProxyBindAddr is the address the dev server must bind so the in-container
-// nginx can reach it. On Linux that is the routable host-gateway IP, which keeps
-// the dev server off other interfaces; but only when that IP is a local interface
-// we can bind. A gateway that isn't local (slirp4netns 10.0.2.2, the 169.254.1.2
-// fallback), an unknown gateway, or macOS (gvproxy) all fall back to 0.0.0.0,
-// which always binds. Env-only: pure Vite reads --host, not this var.
+// nginx can reach it: the routable host-gateway IP, which keeps the dev server
+// off other interfaces, but only when that IP is a local interface servlo can
+// bind. A gateway that is not local (slirp4netns 10.0.2.2, the 169.254.1.2
+// fallback) or an unknown one falls back to 0.0.0.0, which always binds.
+// Env-only: pure Vite reads --host, not this var.
 func hostProxyBindAddr() string {
 	if ip := hostGatewayBindIP(); ip != "" && hostIPIsLocal(ip) {
 		return ip
@@ -167,10 +165,10 @@ func isLocalInterfaceIP(ip string) bool {
 
 // buildHostProxyCommandPort prefixes the dev command with `env PORT=port
 // HOST=<bind>` so the app binds the port nginx proxies to, on the interface the
-// proxy container reaches it by. The `env` utility (not a bare `KEY=value`
-// assignment) is used because host workers exec the command both through a
-// shell (macOS) and directly via `fnm exec --` (Linux); `env` is a real
-// executable that works in both. A HOST the user sets later in their own
+// proxy container reaches it by. The `env` utility rather than a bare
+// `KEY=value` assignment, because a host worker's command runs through
+// `fnm exec --` rather than through a shell, and `env` is a real executable
+// that does not need one. A HOST the user sets later in their own
 // command still wins (env evaluates left to right). The bind injection is
 // suppressed when `inject_host: false`, leaving only the port. Returns "" in
 // proxy-only mode (no command).

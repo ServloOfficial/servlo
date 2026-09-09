@@ -89,11 +89,11 @@ func TestLocalControlAcceptsUnixSocketWithForeignHost(t *testing.T) {
 
 // The panel listens on 0.0.0.0:7073, so anything that makes a request count as
 // local is reachable from wherever that port is. An X-Servlo-Trust header
-// matching a per-install token used to be one, because on macOS the vhost
-// reached the panel over the podman bridge and its requests arrived from a
-// non-loopback address that needed something to vouch for them. The macOS paths
-// went with S0.2 and no vhost servlo writes has injected the header since, so
-// what was left was a way in from anywhere for whoever learned one file.
+// matching a per-install token used to be one, for a vhost that reached the
+// panel over the podman bridge and whose requests therefore arrived from a
+// non-loopback address that needed something to vouch for them. No vhost servlo
+// writes has injected the header since, so what was left was a way in from
+// anywhere for whoever learned one file.
 func TestLocalControl_TrustHeaderBuysNothing(t *testing.T) {
 	setupConfigDir(t, "", "")
 

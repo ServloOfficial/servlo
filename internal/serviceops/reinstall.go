@@ -105,8 +105,8 @@ func ReinstallService(name string, resetData bool, emit func(PhaseEvent)) error 
 		return fmt.Errorf("reinstall: pre-flight pull %q: %w", spec.image, err)
 	}
 
-	// Suppress regen-during-remove; we drive it ourselves below to
-	// eliminate the launchctl bootout/bootstrap race on macOS.
+	// Suppress regen-during-remove; it is driven explicitly below so a
+	// consumer is never regenerated against a half-removed service.
 	if err := RemoveService(name, RemoveOptions{RemoveData: resetData, SkipFamilyRegen: true}, emit); err != nil {
 		return fmt.Errorf("reinstall: remove step: %w", err)
 	}

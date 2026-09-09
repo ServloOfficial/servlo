@@ -11,5 +11,3 @@ tools:
     assets:
       linux/amd64: fnm-linux.zip
       linux/arm64: fnm-arm64.zip
-      darwin/amd64: fnm-macos.zip
-      darwin/arm64: fnm-macos.zip

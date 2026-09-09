@@ -193,9 +193,8 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 
 		// Rootless podman build preflight: a missing subuid/subgid range or a
 		// missing fuse-overlayfs surface as the same opaque tar "Operation not
-		// permitted" failure during image builds (#636). Both are Linux-host
-		// concerns; on macOS the uid mapping and storage live inside the podman
-		// machine VM. Diagnose each so the user gets a real pointer.
+		// permitted" failure during image builds (#636). Diagnose each so the
+		// operator gets a real pointer rather than that message.
 		if currentUser != "" {
 			uid := strconv.Itoa(os.Getuid())
 			for _, path := range []string{"/etc/subuid", "/etc/subgid"} {
@@ -655,9 +654,8 @@ func checkDirWritable(dir string) error {
 
 // PortInUse is implemented in doctor_linux.go.
 //
-// PortInUseIn checks whether the given TCP port appears in pre-fetched output
-// from a port listing command (ss on Linux, lsof on macOS). Used by
-// checkPortConflicts in startstop.go for batch checks.
+// PortInUseIn checks whether the given TCP port appears in pre-fetched ss
+// output. Used by checkPortConflicts in startstop.go for batch checks.
 func PortInUseIn(port, output string) bool {
 	return strings.Contains(output, ":"+port+" ")
 }

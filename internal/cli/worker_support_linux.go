@@ -9,9 +9,8 @@ import "github.com/ServloOfficial/servlo/internal/config"
 // systemd user units; scheduled workers via .timer + Type=oneshot — so the
 // gate is unconditionally permissive.
 //
-// This is a package var (not a function) so tests can substitute it to
-// exercise the unsupported path without a darwin build. The macOS build
-// Linux has no platform variant to install.
+// A package var rather than a function so a test can substitute it and exercise
+// the refusal path, which no worker shape servlo supports reaches on its own.
 var workerSupportedOnPlatform = func(_ config.FrameworkWorker) (bool, string) {
 	return true, ""
 }

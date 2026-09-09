@@ -358,10 +358,9 @@ func UISocketPath() string {
 }
 
 // UIClientNetwork / UIClientAddr give the transport a CLI process uses to reach
-// the running servlo-panel daemon. On macOS the unix socket is never created (the
-// server binds it Linux-only, see internal/ui/server.go), so the CLI dials the
-// same TCP loopback the dashboard uses; on Linux it stays on the unix socket.
-// Mirrors the DumpsListenNetwork/Addr split. The port matches servlo-panel's fixed
+// the running servlo-panel daemon: the unix socket the server binds, rather than
+// the TCP loopback the dashboard uses.
+// The port matches servlo-panel's fixed
 // listen port (internal/ui/server.go listenAddr).
 func UIClientNetwork() string {
 	return "unix"

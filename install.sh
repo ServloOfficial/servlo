@@ -48,7 +48,7 @@ detect_os() {
 }
 
 detect_arch() {
-  # macOS reports arm64; Linux reports aarch64: both map to the arm64 release.
+  # Both aarch64 and arm64 map to the arm64 release.
   case "$(uname -m)" in
     x86_64)        echo "amd64" ;;
     aarch64|arm64) echo "arm64" ;;
@@ -495,8 +495,8 @@ remove_from_path() {
   local rc; rc="$(detect_shell_rc)"
   if [ ! -f "$rc" ]; then return; fi
 
-  # Remove the block: marker line + the next line. {N;d;} is POSIX and works on
-  # both GNU and BSD/macOS sed, unlike the GNU-only `,+1` relative address.
+  # Remove the block: marker line + the next line. {N;d;} is POSIX, unlike the
+  # GNU-only `,+1` relative address.
   if grep -q "$SHELL_MARKER" "$rc" 2>/dev/null; then
     sed -i.bak -e "/^${SHELL_MARKER}/{N;d;}" "$rc" && rm -f "${rc}.bak"
     info "Removed PATH entry from $rc"

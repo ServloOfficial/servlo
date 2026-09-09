@@ -308,7 +308,8 @@ func aardvarkListenHasV6(firstLine string) bool {
 
 // AardvarkNetworkDrifted returns true when the named network is dual-stack
 // but aardvark-dns's on-disk listen line is v4-only, which stalls every
-// lookup ~5s. Returns false when the config file is absent (fresh / macOS).
+// lookup ~5s. Returns false when the config file is absent, which is the state
+// of a machine aardvark-dns has not run on yet.
 func AardvarkNetworkDrifted(name string) bool {
 	if !NetworkHasIPv6(name) {
 		return false

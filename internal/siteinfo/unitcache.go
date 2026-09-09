@@ -38,22 +38,6 @@ var (
 	// returns raw `systemctl show` output for the two extra probe properties;
 	// the state path stays on list-units, untouched.
 	unitShowFn = defaultUnitShow
-
-	// allUnitStatesFn lets non-systemd platforms override the enumeration
-	// entirely. When non-nil it bypasses unitCacheListFn and returns the
-	// unit→state map directly. Set from unitcache_darwin.go's init() to
-	// route through podman.UnitLifecycle.
-	allUnitStatesFn func() map[string]string
-
-	// allUnitMetaFn is the darwin override for AllUnitMeta, mirroring
-	// allUnitStatesFn. nil on Linux, where the systemctl path fills meta.
-	allUnitMetaFn func() map[string]UnitMeta
-
-	// invalidateExtraFn clears any platform-specific TTL cache layered on
-	// top of allUnitStatesFn. Set from unitcache_darwin.go to drop the
-	// unit-states cache; nil where the systemctl path uses the
-	// shared globalUnitCache directly.
-	invalidateExtraFn func()
 )
 
 func defaultUnitCacheList() (string, error) {
@@ -134,9 +118,6 @@ func InvalidateUnitCache() {
 	globalUnitCache.mu.Lock()
 	globalUnitCache.at = time.Time{}
 	globalUnitCache.mu.Unlock()
-	if invalidateExtraFn != nil {
-		invalidateExtraFn()
-	}
 }
 
 // AllUnitStates returns a snapshot of every cached servlo-* unit state
@@ -146,9 +127,6 @@ func InvalidateUnitCache() {
 // systemctl snapshot the dashboard's enrichment path is already populating
 // — zero extra subprocess cost for callers like the worker-health detector.
 func AllUnitStates() map[string]string {
-	if allUnitStatesFn != nil {
-		return allUnitStatesFn()
-	}
 	globalUnitCache.mu.Lock()
 	defer globalUnitCache.mu.Unlock()
 	if globalUnitCache.states == nil || time.Since(globalUnitCache.at) > unitCacheTTL {
@@ -164,12 +142,8 @@ func AllUnitStates() map[string]string {
 // AllUnitStatesOK is AllUnitStates plus a trust signal: ok is false when the
 // batched systemctl enumeration was attempted this call and failed, leaving the
 // snapshot empty or stale. Callers that infer "unit absent -> removed" must check
-// ok first, since a failed enumeration makes every unit look absent. On the
-// non-systemd override path (darwin) ok is always true.
+// ok first, since a failed enumeration makes every unit look absent.
 func AllUnitStatesOK() (map[string]string, bool) {
-	if allUnitStatesFn != nil {
-		return allUnitStatesFn(), true
-	}
 	globalUnitCache.mu.Lock()
 	defer globalUnitCache.mu.Unlock()
 	ok := true
@@ -189,9 +163,6 @@ func AllUnitStatesOK() (map[string]string, bool) {
 // same batched refresh AllUnitStates uses, so the reachability probe reads one
 // source.
 func AllUnitMeta() map[string]UnitMeta {
-	if allUnitMetaFn != nil {
-		return allUnitMetaFn()
-	}
 	globalUnitCache.mu.Lock()
 	defer globalUnitCache.mu.Unlock()
 	if globalUnitCache.states == nil || time.Since(globalUnitCache.at) > unitCacheTTL {

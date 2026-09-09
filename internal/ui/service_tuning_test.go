@@ -22,7 +22,7 @@ import (
 func installFakeMysqlQuadlet(t *testing.T) {
 	t.Helper()
 	// Isolate HOME too: the service manager writes unit files under
-	// $HOME/Library/LaunchAgents (launchAgentsDir), which is NOT covered by the
+	// a path derived from $HOME, which is NOT covered by the
 	// XDG_* overrides. Without this, a handler that regenerates a quadlet writes
 	// a real servlo-<svc>.plist with volume sources pointing at the test's temp
 	// dirs; once the temp dir is cleaned up, `servlo start` fails with statfs on

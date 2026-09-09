@@ -156,8 +156,8 @@ func probeReachableHostIP() string {
 }
 
 // hostCandidates returns the ordered, deduplicated list of IPs to probe as
-// the host gateway. Order: getent's host.containers.internal (works on
-// macOS/gvproxy and well-configured Linux), the host's primary LAN IP
+// the host gateway. Order: getent's host.containers.internal (works on a
+// well-configured host), the host's primary LAN IP
 // (works whenever the host has any LAN address), and slirp4netns's default
 // 10.0.2.2. host.containers.internal goes first because it is the
 // conventional name for the gateway wherever it resolves. Empty strings

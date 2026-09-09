@@ -145,9 +145,9 @@ func TestEnsureCustomServiceQuadlet_materialisesHostsMountSource(t *testing.T) {
 }
 
 // TestEnsureCustomServiceQuadlet_healsStaleHostsDirectory: a previous broken
-// start (or the macOS precreateBindMountDirs pass that runs off WriteQuadletDiff)
-// leaves a directory at the mount source. It has to be healed into a regular
-// file, otherwise every later WriteContainerHosts fails with "is a directory"
+// start leaves a directory at the mount source, which podman creates for a
+// Volume source that does not exist. It has to be healed into a regular file,
+// otherwise every later WriteContainerHosts fails with "is a directory"
 // and only warns.
 func TestEnsureCustomServiceQuadlet_healsStaleHostsDirectory(t *testing.T) {
 	tmp := t.TempDir()

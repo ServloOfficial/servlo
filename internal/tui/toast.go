@@ -19,8 +19,8 @@ import (
 
 const (
 	maxVisibleToasts = 3
-	// Per-kind TTLs: success acknowledgements vanish fast (~3s, like a
-	// macOS notification), warnings get a bit longer to read, failures
+	// Per-kind TTLs: success acknowledgements vanish fast (~3s), warnings
+	// get a bit longer to read, failures
 	// stay long enough that the user has time to read the error before
 	// it disappears. `d` always dismisses early if they want.
 	toastTTLSuccess = 3 * time.Second

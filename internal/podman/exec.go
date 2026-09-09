@@ -79,7 +79,7 @@ func RunSilent(args ...string) error {
 
 // ImageExists returns true if the named image is present in the local store. It
 // applies the same host rewrite as the pull path (postgis/postgis ->
-// imresamu/postgis on Apple Silicon), so the check tests the name actually
+// imresamu/postgis on arm64), so the check tests the name actually
 // stored and doesn't force a needless re-pull. PlatformImage is identity for
 // every other image and platform.
 func ImageExists(image string) bool {

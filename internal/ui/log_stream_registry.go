@@ -8,7 +8,7 @@ import (
 // logStreamRegistry tracks active worker-log SSE streams so a worker-mode
 // migration can cancel them all before issuing podman rm calls. Without
 // this, `podman logs -f` streams from open log panels race against the
-// migration's `podman rm -f` for the same container, jamming the gvproxy
+// migration's `podman rm -f` for the same container, jamming the
 // connection pool and eventually wedging the podman API socket.
 type logStreamRegistry struct {
 	mu      sync.Mutex
@@ -45,7 +45,7 @@ func (r *logStreamRegistry) Register(unit string, cancel context.CancelFunc) fun
 
 // CancelAllFor cancels every stream registered under any of the named units.
 // The cancelled HTTP handler exits, which sends SIGKILL to its `podman logs -f`
-// child via exec.CommandContext, releasing the gvproxy connection.
+// child via exec.CommandContext, releasing the connection.
 func (r *logStreamRegistry) CancelAllFor(units []string) {
 	r.mu.Lock()
 	cfs := make([]context.CancelFunc, 0)
@@ -60,6 +60,6 @@ func (r *logStreamRegistry) CancelAllFor(units []string) {
 	}
 }
 
-// logStreams is the process-wide registry. Populated by streamUnitLogs on
-// macOS; consumed by the worker-mode migration hook in server.go init.
+// logStreams is the process-wide registry of open log streams, so one can be
+// cancelled before something removes the container it is reading.
 var logStreams = newLogStreamRegistry()

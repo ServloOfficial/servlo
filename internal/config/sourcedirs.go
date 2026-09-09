@@ -16,7 +16,7 @@ var DefaultSourceDirs = []string{
 }
 
 // sourceWatchExcludes are directory names never watched or descended into, so
-// the watch set stays small and macOS kqueue descriptor use stays bounded. The
+// the watch set stays small and the inotify watch count stays bounded. The
 // source roots above don't normally contain these, but a custom source_dirs
 // entry might, and CREATE events can surface them.
 var sourceWatchExcludes = map[string]bool{

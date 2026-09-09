@@ -68,9 +68,9 @@ func WriteQuadletDiff(name, content string) (changed bool, err error) {
 	content = PairIPv6Binds(content)
 	content = StripInstallSection(content, autostartDisabled)
 	// Centralised platform image rewrite + podman-run flags so every quadlet
-	// writer emits identical units. On Apple Silicon PlatformImage swaps
+	// writer emits identical units. On arm64 PlatformImage would swap
 	// postgis/postgis for the multi-arch imresamu/postgis (runs native, no
-	// Rosetta); mysql:5.7 keeps the --platform=linux/amd64 pin.
+	// the emulated one); mysql:5.7 keeps the --platform=linux/amd64 pin.
 	if svc := strings.TrimPrefix(name, "servlo-"); svc != name {
 		if img := CurrentImage(content); img != "" {
 			if rewritten := PlatformImage(img); rewritten != img {

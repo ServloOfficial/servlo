@@ -231,11 +231,11 @@ func isLocalControlRequest(r *http.Request) bool {
 //     to http://localhost:7073 / http://127.0.0.1:7073.
 //
 // A third once qualified: a header carrying a per-install secret. It existed
-// because on macOS the vhost reached the panel over the podman bridge rather
-// than a unix socket, so its requests arrived from a non-loopback address and
-// needed something to vouch for them. The macOS paths are gone, no vhost servlo
-// writes has set that header since, and the panel listens on 0.0.0.0, so all it
-// could still do was make a request from anywhere count as local.
+// for a vhost that reached the panel over the podman bridge rather than a unix
+// socket, whose requests therefore arrived from a non-loopback address and
+// needed something to vouch for them. No vhost servlo writes has set that
+// header since, and the panel listens on 0.0.0.0, so all it could still do was
+// make a request from anywhere count as local.
 func isLoopbackRequest(r *http.Request) bool {
 	if fromPublicPanel(r) {
 		return false

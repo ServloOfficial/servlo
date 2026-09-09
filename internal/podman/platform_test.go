@@ -2,7 +2,7 @@ package podman
 
 import "testing"
 
-// TestRewriteArm64Image pins the Apple Silicon image swap that fixes #603: only
+// TestRewriteArm64Image pins the arm64 image swap that fixes #603: only
 // postgis/postgis is rewritten to imresamu/postgis, only on arm64, preserving
 // the registry prefix and tag. Everything else (mysql:5.7, already-imresamu,
 // non-postgis) is left untouched. Pure, so it runs on the Linux CI runner too.

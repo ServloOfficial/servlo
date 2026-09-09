@@ -2,8 +2,8 @@ package power
 
 import "testing"
 
-// Callers arrive in bursts (one worker unit per worker per site), and on macOS
-// each probe is a subprocess, so repeat calls must collapse into one.
+// Callers arrive in bursts (one worker unit per worker per site) and each probe
+// crosses the system bus, so repeat calls must collapse into one.
 func TestCurrent_CachesWithinTTL(t *testing.T) {
 	t.Cleanup(reset)
 	reset()

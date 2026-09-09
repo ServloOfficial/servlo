@@ -308,10 +308,9 @@ func Start(currentVersion string) error {
 	guard.Issuer = PanelDomain()
 	handler := withPanelAuth(guard, withCrossOriginGate(mux))
 
-	// Unix socket listener for the servlo.localhost nginx vhost. Linux only:
-	// on macOS, servlo-nginx runs inside the podman-machine VM and unix
-	// sockets don't traverse virtio-fs as functional sockets, so the
-	// vhost falls back to TCP via host.containers.internal there.
+	// Unix socket listener for the servlo.localhost nginx vhost, bind-mounted
+	// into the rootless nginx container so the panel is reachable without
+	// publishing a port.
 	// Errors are non-fatal — direct http://localhost:7073 access still
 	// works even if the socket can't be created.
 	if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
@@ -4013,7 +4012,7 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 
 	// Wrap r.Context() in a cancel so the worker-mode migration can kill
 	// this stream pre-emptively. Otherwise its `podman logs -f` child holds
-	// a gvproxy slot and races the migration's `podman rm -f` against the
+	// the connection and races the migration's `podman rm -f` against the
 	// same container, jamming the podman API socket.
 	streamCtx, streamCancel := context.WithCancel(r.Context())
 	defer streamCancel()

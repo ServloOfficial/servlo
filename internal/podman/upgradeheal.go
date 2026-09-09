@@ -147,8 +147,7 @@ func systemMigrate() error {
 // can bring them back up; it is returned even on a partial failure so nothing
 // is left stopped. The current fingerprint is recorded up front, so a failed
 // heal warns and points at manual steps rather than re-running its destructive
-// steps on every subsequent invocation. Linux-only: on macOS the runtime lives
-// in a VM and the rootless-netns failure mode does not exist.
+// steps on every subsequent invocation.
 func HealPodmanUpgrade(dns []string, emit func(string)) (healed bool, restart []string, err error) {
 	if runtime.GOOS != "linux" {
 		return false, nil, nil

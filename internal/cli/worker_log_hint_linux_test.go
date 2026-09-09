@@ -9,7 +9,7 @@ import "testing"
 // host-mode workers (host workers are systemd user services that emit
 // to the journal like any other unit), so the hint shouldn't fork on
 // `host`. The bool is on the signature for cross-platform parity with
-// the darwin path that does branch on it.
+// the host flag it does not branch on.
 func TestWorkerLogHint_linux(t *testing.T) {
 	const unit = "servlo-vite-acme"
 	want := "journalctl --user -u " + unit + " -f"

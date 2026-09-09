@@ -26,7 +26,7 @@ const hostCmdTimeout = 3 * time.Second
 // host-proxy dev server run via fnm) using systemd's per-unit cgroup accounting.
 // Memory is reported as the working set (page cache excluded) to match podman's
 // container metric. Container units appear here too — Read drops those by name so
-// the podman measurement wins. Linux only; the macOS stub returns nothing.
+// the podman measurement wins.
 func readHostProcesses() ([]ContainerStat, error) {
 	units := listServloServices()
 	if len(units) == 0 {
