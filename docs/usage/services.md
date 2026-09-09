@@ -136,6 +136,13 @@ so no two machines share one. `servlo service start <name>` prints the values fo
 that service, and they also live at `~/.config/servlo/service-password`. See
 [Production mode](/features/production-mode) for how the substitution works.
 
+That file is 0600 in a 0700 directory, and so is every quadlet, because a
+service's quadlet carries the same password in an `Environment=` line in plain
+text. This is not a wall between sites: they all run as the same Linux user, so
+a site that can run code can read the password whichever file it is in. It is a
+wall against any other account on the machine, which is why the mode matters and
+why servlo also fixes it on an install made before it started doing this.
+
 Additional UIs:
 
 - RustFS console: `http://127.0.0.1:9001`

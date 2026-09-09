@@ -1176,7 +1176,7 @@ func EnsurePathMounted(path, phpVersion string) {
 		if updated == string(existing) {
 			continue
 		}
-		if writeErr := os.WriteFile(q.path, []byte(updated), 0644); writeErr != nil {
+		if writeErr := os.WriteFile(q.path, []byte(updated), 0600); writeErr != nil {
 			continue
 		}
 		changedUnits = append(changedUnits, q.unitName)

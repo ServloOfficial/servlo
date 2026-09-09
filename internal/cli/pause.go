@@ -161,7 +161,7 @@ func setSiteContainerAutostart(site *config.Site, on bool) bool {
 	if out == string(raw) {
 		return false
 	}
-	return os.WriteFile(path, []byte(out), 0644) == nil
+	return os.WriteFile(path, []byte(out), 0600) == nil
 }
 
 // hostProxyEnvRefresh regenerates a site's .env by re-running `servlo env`. A

@@ -161,7 +161,7 @@ func rewriteQuadletsForAutostart(disabled bool) error {
 		if string(raw) == out {
 			continue
 		}
-		if err := os.WriteFile(path, []byte(out), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(out), 0600); err != nil {
 			return err
 		}
 	}
