@@ -83,6 +83,12 @@ pseudo_cron:
     command: php wp-cron.php
     schedule: "* * * * *"
 
+# WordPress has no migration command of its own. Schema changes happen inside a
+# plugin or core update, which servlo does not drive, so no deploy here is
+# treated as schema-changing and none takes a database backup on that basis.
+deploy:
+  migrate: ""
+
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.
 # wp-content/uploads and wp-content/plugins are deliberately absent: on most

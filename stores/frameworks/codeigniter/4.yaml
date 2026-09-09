@@ -136,6 +136,13 @@ commands:
     check:
       composer: codeigniter4/queue
 
+# How servlo recognises a migration in a site's deploy script, which is what
+# decides whether the deploy takes a database backup first. Matched as a
+# substring, so a rollback counts too, which is right: it changes the schema
+# the same way and wants the same snapshot behind it.
+deploy:
+  migrate: php spark migrate
+
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.
 # writable/uploads stays: it is the application's data. Only the cache, log

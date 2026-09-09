@@ -106,6 +106,12 @@ commands:
     output: silent
     icon: broom
 
+# How servlo recognises a migration in a site's deploy script, which is what
+# decides whether the deploy takes a database backup first. The trailing colon
+# covers migrate:up and migrate:down alike; both change the schema.
+deploy:
+  migrate: 'tempest migrate:'
+
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.
 # Both come back from the lockfiles.

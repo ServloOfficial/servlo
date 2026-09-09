@@ -60,7 +60,9 @@ Servlo reads the saved script to decide whether a deploy is schema-changing, mat
 
 It reads the script that will actually run, not the framework's template, so taking the migration out means no backup and adding one the template never had means there is. Blank and commented-out lines do not count: a migration somebody commented out would otherwise snapshot the database on every deploy from then on.
 
-A framework that declares no migration command has no schema-changing deploys, and nothing on it is ever backed up on that basis.
+What counts as a migration is the framework's own to say, and every framework definition says it. Laravel and Statamic recognise `php artisan migrate`, Symfony `doctrine:migrations:migrate`, CakePHP `bin/cake migrations migrate`, CodeIgniter `php spark migrate`, Tempest `tempest migrate:`, Magento `bin/magento setup:upgrade`, and Drupal `updb`. Grav, Joomla and WordPress say plainly that they have none: their schema changes come from a plugin or a core update, which servlo does not drive, so no deploy on them is treated as schema-changing.
+
+It is a substring match, which decides where it errs. `php spark migrate` also matches `php spark migrate:rollback`, and a rollback wants the same snapshot behind it, so the extra backup is the right answer. The other direction is the one to know about: a migration servlo does not recognise is a deploy with no backup and no warning, because from servlo's side there was nothing to warn about. Symfony's `d:m:m` shorthand is the case in the box, and a script that calls a wrapper of your own is the general one. If your deploy migrates by some other spelling, add the framework's own command to the script beside it, or take a snapshot before you deploy.
 
 ## Which Node the build uses
 
