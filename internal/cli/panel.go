@@ -135,8 +135,10 @@ func newPanelDomainSecureCmd() *cobra.Command {
 	}
 }
 
-// panelCertsDir is the same directory sites use, so the renewal scanner that
-// already walks it picks the panel up without being told about it.
+// panelCertsDir is the same directory sites use, and the same issuer writes it,
+// so a certificate for the panel is not a second kind of certificate. It is
+// still not a site: the renewal sweep and doctor both walk the registry, and
+// both are told about the panel domain by name.
 func panelCertsDir() (string, error) {
 	dir := certs.SitesDir()
 	if err := os.MkdirAll(dir, 0700); err != nil {
@@ -236,4 +238,35 @@ func showPanel() error {
 	}
 	feedback.Note("it is always reachable by address on port 7073, over a self-signed certificate")
 	return nil
+}
+
+// panelDomain is the FQDN the panel answers to, empty until one is attached.
+// The panel package has its own copy for the TLS handshake path, which cannot
+// import this one.
+func panelDomain() string {
+	cfg, err := config.LoadGlobal()
+	if err != nil || cfg == nil {
+		return ""
+	}
+	return strings.TrimSpace(cfg.UI.Domain)
+}
+
+// securedCertDomains is every domain whose certificate this machine has to keep
+// alive: the secured sites, and the panel's own domain once it has one. The
+// panel is not in the registry, so a check that reads only sites.yaml never
+// looks at the certificate the operator reaches the panel through, which is the
+// one whose expiry they find out about by being unable to sign in.
+func securedCertDomains() []string {
+	var out []string
+	if reg, err := config.LoadSites(); err == nil && reg != nil {
+		for _, site := range reg.Sites {
+			if site.Secured {
+				out = append(out, site.PrimaryDomain())
+			}
+		}
+	}
+	if domain := panelDomain(); domain != "" && certs.CertExists(domain) {
+		out = append(out, domain)
+	}
+	return out
 }

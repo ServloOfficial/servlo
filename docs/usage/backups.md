@@ -98,6 +98,8 @@ Weekly rather than nightly, and deliberately not folded into the backup itself. 
 
 `servlo backup schedule acme` says whether a check is armed, and says so plainly when one is not.
 
+However it ends, the check records what it found, and that record is what the panel banner and `servlo doctor` read. A failure raises the alert; the next check that passes clears it. That includes a site whose archive holds files and no database: reaching the manifest is the whole test there, because the manifest is written last and everything before it has to decrypt and inflate to get to it. A result that only ever reached the systemd journal would be the failure this whole story exists to catch.
+
 ## Sending archives somewhere else
 
 A backup that only exists on the machine it is a backup of is not a backup. Archives are copied to every configured destination as soon as they are written.

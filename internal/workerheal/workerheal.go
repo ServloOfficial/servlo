@@ -54,12 +54,22 @@ type Failure struct {
 }
 
 // nonWorkerPerSitePrefixes lists servlo-<X>-<site> patterns that match a
-// registered site suffix but are NOT worker units (per-site containers
-// rather than worker processes). Heal must skip these — restarting a
-// crashed servlo-fp-myapp via this path is a different operation.
+// registered site suffix but are NOT worker units (per-site containers and
+// per-site timers rather than worker processes). Heal must skip these —
+// restarting a crashed servlo-fp-myapp via this path is a different operation,
+// and starting servlo-backup-myapp takes an unscheduled backup.
+//
+// Every entry has to be here, because a site's own name is the only thing these
+// units and a worker unit have in common: a missing one is reported as a worker
+// nobody declared and offered a heal that does something else entirely. The
+// list is kept honest by TestNonWorkerPrefixes_CoverEveryPerSiteUnitName, which
+// derives it from the functions that build the names.
 var nonWorkerPerSitePrefixes = map[string]bool{
-	"custom": true, // servlo-custom-<site> — per-site custom container
-	"fp":     true, // servlo-fp-<site>     — per-site FrankenPHP container
+	"custom":        true, // servlo-custom-<site>        — per-site custom container
+	"fp":            true, // servlo-fp-<site>            — per-site FrankenPHP container
+	"cfpm":          true, // servlo-cfpm-<site>          — per-site PHP-FPM container
+	"backup":        true, // servlo-backup-<site>        — scheduled backup oneshot
+	"backup-verify": true, // servlo-backup-verify-<site> — scheduled test restore
 }
 
 // Swappable for tests so the detector can be exercised without touching the

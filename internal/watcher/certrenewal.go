@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/ServloOfficial/servlo/internal/certs"
@@ -44,6 +45,7 @@ var (
 	reloadNginx       = nginx.Reload
 	nginxIsUp         = func() bool { up, err := podman.ContainerRunning("servlo-nginx"); return err == nil && up }
 	restoreInProgress = config.RestoreInProgress
+	panelCertExists   = certs.CertExists
 	settleTick        = 5 * time.Second
 	sweepDeadline     = func() time.Time { return time.Now().Add(nginxSettleWait) }
 )
@@ -135,6 +137,17 @@ func renewCertsOnce() {
 		}
 	}
 
+	// The panel's own domain, last, because it is not a site and the loop above
+	// walks sites.yaml. It is issued by the same issuer into the same directory
+	// as a site's, which is what the comment beside that issuance took for
+	// enough: the sweep reads the registry, not the directory, so nothing ever
+	// renewed it and the panel was the one thing on the machine certain to
+	// serve an expired certificate. It is also the thing an operator signs in
+	// to in order to find out.
+	if renewPanelIfDue() {
+		renewed++
+	}
+
 	// Once, after the whole sweep, and only if something changed. nginx serves
 	// the certificate it loaded at its last reload, so a renewal nobody reloads
 	// for is a new file on disk and the old certificate still on the wire,
@@ -144,4 +157,35 @@ func renewCertsOnce() {
 			log.Printf("[certs] renewed %d certificate(s) but nginx did not reload, so the old ones are still being served: %v", renewed, err)
 		}
 	}
+}
+
+// renewPanelIfDue renews the certificate behind the panel's own domain and
+// reports whether it reissued.
+//
+// A domain with no certificate is left alone. Attaching one and securing it are
+// two steps on purpose, because the second waits on DNS, and asking the
+// authority for a certificate the operator never asked for spends a validation
+// and records a failure against a panel they are reaching by address quite
+// happily.
+func renewPanelIfDue() bool {
+	cfg, err := config.LoadGlobal()
+	if err != nil || cfg == nil {
+		return false
+	}
+	domain := strings.TrimSpace(cfg.UI.Domain)
+	if domain == "" || !panelCertExists(domain) {
+		return false
+	}
+	// Only the domains are read from this, and the panel has exactly one: the
+	// vhost is written for a single name and a wildcard is refused at the point
+	// the domain is set.
+	renewed, err := renewIfDue(config.Site{Name: domain, Domains: []string{domain}, Secured: true})
+	if err != nil {
+		log.Printf("[certs] renewing the panel certificate for %s failed: %v", domain, err)
+		return false
+	}
+	if renewed {
+		log.Printf("[certs] renewed the panel certificate for %s", domain)
+	}
+	return renewed
 }

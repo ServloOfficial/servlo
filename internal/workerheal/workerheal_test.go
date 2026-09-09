@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ServloOfficial/servlo/internal/backup"
 	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/podman"
 	"github.com/ServloOfficial/servlo/internal/siteinfo"
 )
 
@@ -730,5 +732,49 @@ func TestDetect_ActivatingNonOrphanIsNotFlagged(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Errorf("got %v, want nothing: a starting worker is not unhealthy", unitNames(got))
+	}
+}
+
+// TestNonWorkerPrefixes_CoverEveryPerSiteUnitName derives each prefix from the
+// function that builds the name, so a rename cannot leave the detector matching
+// a unit shape nothing writes any more, and so adding a per-site unit family
+// without telling the detector about it fails here rather than in the panel.
+func TestNonWorkerPrefixes_CoverEveryPerSiteUnitName(t *testing.T) {
+	const site = "sentinel"
+	for _, build := range []func(string) string{
+		podman.CustomContainerName,
+		podman.FrankenPHPContainerName,
+		podman.CustomFPMContainerName,
+		backup.UnitName,
+		backup.VerifyUnitName,
+	} {
+		unit := build(site)
+		prefix := strings.TrimSuffix(strings.TrimPrefix(unit, "servlo-"), "-"+site)
+		if prefix == unit {
+			t.Fatalf("%q is not a servlo-<prefix>-<site> name, so the detector never sees it as one", unit)
+		}
+		if !nonWorkerPerSitePrefixes[prefix] {
+			t.Errorf("%q reads as a worker called %q: add it to nonWorkerPerSitePrefixes", unit, prefix)
+		}
+	}
+}
+
+func TestDetect_PerSiteBackupAndFPMUnitsAreNotWorkers(t *testing.T) {
+	stubEnv(t,
+		[]string{"myapp"}, nil,
+		map[string]string{
+			"servlo-cfpm-myapp.service":          "failed",
+			"servlo-backup-myapp.service":        "failed",
+			"servlo-backup-verify-myapp.service": "failed",
+			"servlo-queue-myapp.service":         "failed",
+		},
+		nil,
+	)
+	got, err := Detect()
+	if err != nil {
+		t.Fatalf("Detect: %v", err)
+	}
+	if names := unitNames(got); len(names) != 1 || names[0] != "servlo-queue-myapp" {
+		t.Errorf("per-site non-worker units leaked into detection: %v", names)
 	}
 }
