@@ -18,6 +18,30 @@ import (
 	"github.com/ServloOfficial/servlo/internal/feedback"
 )
 
+// assignedSiteLines renders a developer's assignments, marking any that no
+// site on this server answers on.
+//
+// An assignment is a domain string and nothing prunes it when the site holding
+// that domain goes away, so the list accumulates entries that grant nothing
+// today and would grant everything if that domain came back on another site.
+// Printed plainly they were indistinguishable from live ones, which left the
+// admin deciding who reaches what with no way to tell.
+//
+// It reports rather than removes. Whether a removed site should take its
+// assignments with it is a decision about what an admin meant, and this is not
+// the place to make it silently.
+func assignedSiteLines(sites []string) []string {
+	lines := make([]string, 0, len(sites))
+	for _, site := range sites {
+		if _, err := config.FindSiteByDomain(site); err != nil {
+			lines = append(lines, "  "+site+"  (no site on this server has this domain)")
+			continue
+		}
+		lines = append(lines, "  "+site)
+	}
+	return lines
+}
+
 // NewUsersCmd returns the `servlo users` command group: who can sign in to the
 // panel.
 //
@@ -403,8 +427,8 @@ func newUsersSitesCmd() *cobra.Command {
 					feedback.Note("assign some with: servlo users sites " + args[0] + " example.com")
 					return nil
 				}
-				for _, site := range account.Sites {
-					fmt.Println("  " + site)
+				for _, line := range assignedSiteLines(account.Sites) {
+					fmt.Println(line)
 				}
 				return nil
 			}
@@ -414,6 +438,15 @@ func newUsersSitesCmd() *cobra.Command {
 			}
 			if err := accounts.SetSites(args[0], args[1:]); err != nil {
 				return err
+			}
+			// Said after the write rather than refused before it. A domain can
+			// be assigned ahead of the site that will answer on it, and this is
+			// the one moment an admin would notice a typo, or an assignment to
+			// a site that was removed while they were not looking.
+			for _, domain := range args[1:] {
+				if _, err := config.FindSiteByDomain(domain); err != nil {
+					feedback.Warn("no site on this server has the domain %s", domain)
+				}
 			}
 			recordAudit(auditlog.Entry{
 				Action: "users.sites.set", Subject: args[0],

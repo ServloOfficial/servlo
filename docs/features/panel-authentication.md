@@ -135,7 +135,9 @@ servlo users sites alice                        # what they work on
 servlo users sites alice example.com shop.example.com
 ```
 
-That is a shell command on purpose. A developer able to widen their own list would make the role advisory rather than enforced.
+That is a shell command on purpose. A developer able to widen their own list would make the role advisory rather than enforced, and nothing in the panel reaches account management at all: accounts, roles and assignments are `servlo users` and a shell on the box.
+
+An assignment is a domain, stored as you typed it, and nothing prunes it when the site holding that domain is removed. Listing them marks any that no site on this server currently answers on, and assigning one warns if it matches nothing yet, so a typo and a leftover both show. They are left rather than deleted because a domain can be assigned before the site that will answer on it exists. Worth knowing what that means if you reuse a domain: an old assignment naming it would match the new site too, so review the list when a domain changes hands.
 
 A developer with nothing assigned sees nothing, which is the state an account is in the moment it is made. Reading an empty list as "unrestricted" would make every new developer an admin until somebody noticed.
 

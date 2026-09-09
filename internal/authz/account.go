@@ -435,7 +435,13 @@ func (s *AccountStore) PasswordMatches(name, password string) bool {
 // SetSites assigns the domains a Developer may act on.
 //
 // An admin action: a developer widening their own list would make the role
-// advisory. The panel only offers it to an admin, and the CLI needs a shell.
+// advisory. Nothing in the panel reaches this, so it takes a shell on the box:
+// accounts, roles and assignments are all `servlo users`.
+//
+// The domains are stored as given. Nothing prunes one when the site holding it
+// is removed, so an assignment outlives its site and would match again if that
+// domain came back on a different one. `servlo users sites <name>` marks the
+// entries no site currently answers on.
 func (s *AccountStore) SetSites(name string, sites []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
