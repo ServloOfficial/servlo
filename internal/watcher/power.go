@@ -108,7 +108,7 @@ func restartPollingReloadWorkers(state power.State) {
 		if proj == nil || len(proj.ReloadWorkers) == 0 {
 			continue
 		}
-		fw, ok := config.GetFrameworkForDir(s.Framework, s.Path)
+		fw, ok := config.FrameworkForSite(&s)
 		if !ok || fw == nil {
 			continue
 		}

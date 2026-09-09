@@ -25,11 +25,13 @@ import (
 func TestSiteWorkerCallers_ResolveThroughFrameworkForSite(t *testing.T) {
 	root := repoRoot(t)
 	for path, what := range map[string]string{
-		"internal/ui/server.go":         "the panel's worker start handler",
-		"internal/cli/startstop.go":     "the boot sweep that writes worker units",
-		"internal/cli/pause.go":         "pausing and resuming a site's workers",
-		"internal/cli/worker.go":        "the worker CLI",
-		"internal/siteinfo/siteinfo.go": "the worker list the dashboard renders",
+		"internal/ui/server.go":             "the panel's worker start handler",
+		"internal/cli/startstop.go":         "the boot sweep that writes worker units",
+		"internal/cli/pause.go":             "pausing and resuming a site's workers",
+		"internal/cli/worker.go":            "the worker CLI",
+		"internal/siteinfo/siteinfo.go":     "the worker list the dashboard renders",
+		"internal/workerheal/workerheal.go": "the health probe behind the worker self-healer",
+		"internal/watcher/power.go":         "restarting reload workers on a power-state change",
 	} {
 		src, err := os.ReadFile(filepath.Join(root, path))
 		if err != nil {

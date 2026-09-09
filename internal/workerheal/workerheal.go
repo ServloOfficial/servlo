@@ -221,14 +221,19 @@ func Detect() ([]UnhealthyWorker, error) {
 	}
 	sitePaths := make(map[string]string, len(reg.Sites))
 	// path + framework per site, for resolving a health-probed worker's block.
-	type siteMeta struct{ path, framework string }
+	// The container port comes along because it is what tells FrameworkForSite
+	// that a site with no framework still has workers of its own.
+	type siteMeta struct {
+		path, framework string
+		containerPort   int
+	}
 	meta := make(map[string]siteMeta, len(reg.Sites))
 	for _, s := range reg.Sites {
 		if s.Paused || s.Ignored {
 			continue
 		}
 		sitePaths[s.Name] = s.Path
-		meta[s.Name] = siteMeta{path: s.Path, framework: s.Framework}
+		meta[s.Name] = siteMeta{path: s.Path, framework: s.Framework, containerPort: s.ContainerPort}
 	}
 	if len(sitePaths) == 0 {
 		return nil, nil
@@ -310,7 +315,9 @@ func Detect() ([]UnhealthyWorker, error) {
 		default: // "active": up, but a health-probed server may have died under it.
 			m := meta[site]
 			if !resolvedSet[site] {
-				resolvedFw[site], _ = config.GetFrameworkForDir(m.framework, m.path)
+				resolvedFw[site], _ = config.FrameworkForSite(&config.Site{
+					Name: site, Path: m.path, Framework: m.framework, ContainerPort: m.containerPort,
+				})
 				resolvedSet[site] = true
 			}
 			path := checkout
