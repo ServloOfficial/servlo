@@ -326,12 +326,29 @@ func (s *Site) PrimaryDomain() string {
 
 // HasDomain returns true if the site has the given domain.
 func (s *Site) HasDomain(domain string) bool {
+	want := sameDomain(domain)
+	if want == "" {
+		return false
+	}
 	for _, d := range s.Domains {
-		if d == domain {
+		if sameDomain(d) == want {
 			return true
 		}
 	}
 	return false
+}
+
+// sameDomain is the form two names are compared in, because DNS does not
+// distinguish them: case carries no meaning and the trailing dot only says the
+// name is already absolute. nginx matches server_name this way and a browser
+// sends whatever case it was given.
+//
+// It is also what authz.Scope.MaySee already reduces a domain to before it
+// decides whether a Developer may touch that site. The two have to agree: a
+// scope check that says yes to a name the registry then resolves differently is
+// a check on the wrong site.
+func sameDomain(domain string) string {
+	return strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), "."))
 }
 
 // siteYAML is the on-disk YAML representation of a Site, supporting both the
