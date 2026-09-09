@@ -2,6 +2,7 @@ package siteops
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/ServloOfficial/servlo/internal/config"
@@ -27,6 +28,63 @@ var ReloadFPMPoolsFn = podman.ReloadFPMPools
 // Any pool left in another container's directory is removed first. A site that
 // changes PHP version moves between containers, and the pool it left behind
 // would have the old master still binding the socket the new one needs.
+// SyncSitePHPSettings puts a site's PHP settings wherever that site's runtime
+// reads them from.
+//
+// A shared-FPM site reads them out of its pool. A site running its own container
+// has no pool and reads them out of an ini that container mounts. Both halves of
+// every pair in CLAUDE.md §3.4 move on one save either way, which is the whole
+// point of the pairs: the vhost side is written for every runtime, so a runtime
+// whose PHP side went nowhere was a site where nginx allowed an upload PHP then
+// refused.
+func SyncSitePHPSettings(site config.Site) error {
+	if servedByFPM(site) {
+		if err := SyncFPMPool(site); err != nil {
+			return fmt.Errorf("writing the site's PHP-FPM pool: %w", err)
+		}
+		return nil
+	}
+	// The pool may still exist from before the site changed runtime, and its
+	// old master would go on binding the socket.
+	if err := RemoveFPMPool(site.Name); err != nil {
+		return err
+	}
+	if !site.IsFrankenPHP() {
+		// A custom container and a host proxy run something servlo did not
+		// build. There is no file of servlo's that their PHP, if they have any,
+		// would read.
+		return nil
+	}
+	if err := site.ValidatePHPSettings(); err != nil {
+		return err
+	}
+	changed, err := writeManagedSiteIni(site)
+	if err != nil {
+		return fmt.Errorf("writing the site's PHP settings: %w", err)
+	}
+	if changed {
+		RestartSiteRuntimeFn(site)
+	}
+	return nil
+}
+
+// RestartSiteRuntimeFn makes a written setting live on a site that runs its own
+// container, indirected so a test does not need systemd. A setting written and
+// not picked up is the same half-applied state the pairs exist to prevent.
+//
+// The unit is rewritten before the restart, not only restarted. A site created
+// before servlo mounted this file has a unit that does not mount it, and writing
+// the file without the mount is a setting that goes nowhere just as surely as
+// not writing it at all.
+var RestartSiteRuntimeFn = func(site config.Site) {
+	entrypoint, env := site.FrankenPHPQuadletSpec()
+	if _, err := podman.WriteFrankenPHPQuadletDiff(site.Name, site.Path, site.PHPVersion, entrypoint, env); err != nil {
+		return
+	}
+	_ = podman.DaemonReloadFn()
+	_ = podman.RestartUnit(podman.FrankenPHPContainerName(site.Name))
+}
+
 func SyncFPMPool(site config.Site) error {
 	if err := RemoveFPMPool(site.Name); err != nil {
 		return err

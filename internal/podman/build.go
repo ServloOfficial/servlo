@@ -1249,6 +1249,30 @@ func EnsureSharedIni() error {
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
+// EnsureSitePHPManagedIni creates the mount source for the ini servlo writes a
+// site's panel settings into, so podman has a file to bind rather than a missing
+// path it would create a directory at. Empty of directives until a setting is
+// saved: the site's own values are written by siteops, which owns the file.
+func EnsureSitePHPManagedIni(siteName string) error {
+	path := config.SitePHPManagedIniFile(siteName)
+	if info, err := os.Stat(path); err == nil {
+		if !info.IsDir() {
+			return nil
+		}
+		if rmErr := os.RemoveAll(path); rmErr != nil {
+			return fmt.Errorf("removing stale managed ini directory: %w", rmErr)
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	content := "; Servlo per-site PHP settings for " + siteName + ".\n" +
+		"; Written from the site's settings in the panel. Servlo rewrites this file\n" +
+		"; on every save, so edit 98-user.ini beside it instead: it loads after this\n" +
+		"; one and wins.\n"
+	return os.WriteFile(path, []byte(content), 0644)
+}
+
 // EnsureSitePHPUserIni creates a FrankenPHP site's own per-site user php.ini with
 // defaults if it doesn't exist, healing a stale podman-auto-created directory at
 // the bind-mount path the same way EnsureUserIni does for the per-version file.

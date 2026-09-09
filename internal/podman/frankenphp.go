@@ -63,6 +63,12 @@ func GenerateFrankenPHPQuadlet(siteName, projectPath, phpVersion string, entrypo
 	// to this site (not the shared per-version file), since a FrankenPHP site runs
 	// its own container.
 	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/98-servlo-user.ini:ro\n", config.SitePHPUserIniFile(siteName))
+	// The site's own settings from the panel. Below the operator's file so a
+	// hand-written key wins, above the shared one so this site's upload limit
+	// beats the baseline. Without it a FrankenPHP site's max upload reached
+	// nginx and stopped there, and the upload PHP then refused was the only
+	// sign of it.
+	fmt.Fprintf(&b, "Volume=%s:/usr/local/etc/php/conf.d/96-servlo-site.ini:ro\n", config.SitePHPManagedIniFile(siteName))
 	// Version-agnostic shared php.ini, below the per-site file so a per-site key
 	// still wins. Mounted here too so a site switched FPM->FrankenPHP keeps the
 	// shared baseline instead of silently losing it.
@@ -129,6 +135,7 @@ func WriteFrankenPHPQuadlet(siteName, projectPath, phpVersion string, entrypoint
 // break the container's PHP startup.
 func WriteFrankenPHPQuadletDiff(siteName, projectPath, phpVersion string, entrypoint []string, env map[string]string) (bool, error) {
 	_ = EnsureSitePHPUserIni(siteName)
+	_ = EnsureSitePHPManagedIni(siteName)
 	_ = EnsureSharedIni()
 	content, err := GenerateFrankenPHPQuadlet(siteName, projectPath, phpVersion, entrypoint, env)
 	if err != nil {
