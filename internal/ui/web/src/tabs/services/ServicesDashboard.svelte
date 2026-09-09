@@ -93,7 +93,9 @@
   {#if sitesServed > 0}
     <span class="inline-flex items-center gap-1.5">
       <Icon name="sites" class="w-3.5 h-3.5" />
-      {m.services_dash_sitesServed({ count: sitesServed })}
+      {sitesServed === 1
+        ? m.services_dash_siteServed({ count: sitesServed })
+        : m.services_dash_sitesServed({ count: sitesServed })}
     </span>
   {/if}
 {/snippet}

@@ -69,7 +69,9 @@
     if (!importOp) return '';
     if (importOp.tone === 'error') return m.databases_importFailed({ error: importOp.error ?? '' });
     if (importOp.tone === 'warn')
-      return m.databases_importedWithErrors({ file: importOp.file, count: importOp.errors ?? 0 });
+      return (importOp.errors ?? 0) === 1
+        ? m.databases_importedWithErrorsOne({ file: importOp.file, count: 1 })
+        : m.databases_importedWithErrors({ file: importOp.file, count: importOp.errors ?? 0 });
     if (importOp.tone === 'done')
       return importOp.created?.length
         ? m.databases_importedWithExtensions({

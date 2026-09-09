@@ -354,7 +354,9 @@
         {#if dbCount !== null}
           <span
             class="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400"
-            title={m.databases_count({ count: dbCount })}
+            title={dbCount === 1
+              ? m.databases_countOne({ count: dbCount })
+              : m.databases_count({ count: dbCount })}
           >
             <Icon name="database" class="w-3.5 h-3.5" />
             {dbCount}

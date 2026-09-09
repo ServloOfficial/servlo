@@ -125,7 +125,10 @@
       m.databases_restoring({ name: snapshotBaseName(snapshot) }),
       m.databases_restored({ name: snapshotBaseName(snapshot) }),
       () => restoreSnapshot(engine.service, entry.name, snapshot),
-      (count) => m.databases_restoredWithErrors({ name: snapshotBaseName(snapshot), count })
+      (count) =>
+        count === 1
+          ? m.databases_restoredWithErrorsOne({ name: snapshotBaseName(snapshot), count })
+          : m.databases_restoredWithErrors({ name: snapshotBaseName(snapshot), count })
     );
     confirmName = '';
     confirmAction = '';

@@ -176,7 +176,9 @@
     {#if data.cold_starts > 0}
       <div class="mt-2 flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
         <span class="text-sky-500 dark:text-sky-400">❄</span>
-        {m.sites_timing_coldExcluded({ n: data.cold_starts })}
+        {data.cold_starts === 1
+          ? m.sites_timing_coldExcludedOne({ n: data.cold_starts })
+          : m.sites_timing_coldExcluded({ n: data.cold_starts })}
       </div>
     {/if}
 
