@@ -124,6 +124,12 @@ func UnlinkSiteCore(site *config.Site, parkedDirs []string) error {
 		// removal took care of this and nothing here ever did, so every staging
 		// site ever unlinked left its hash on disk at 0644.
 		nginx.RemoveHtpasswd(site.PrimaryDomain())
+		// And the site's PHP settings, the whole directory rather than the
+		// files in it, so anything that lands there later goes too. Both ini
+		// files are volumed into the runtime by name, so leaving them means the
+		// next site with this handle runs on the last one's php.ini, and
+		// php.ini decides more than upload limits.
+		os.RemoveAll(config.SitePHPDir(site.Name)) //nolint:errcheck — a site that never had settings is the common case
 	}
 
 	forgetSiteState(site.Name)
