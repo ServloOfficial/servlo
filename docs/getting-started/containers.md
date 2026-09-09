@@ -49,7 +49,7 @@ CMD ["bin/rails", "server", "-b", "0.0.0.0"]
 :::
 
 ::: tip Why bind mount, not COPY?
-Servlo is a dev environment: source lives on your host, edits are live. Baking source into the image would force a rebuild on every save. Your production Dockerfile still uses `COPY` and multi-stage builds, just name it something other than `Containerfile.servlo`.
+The site's files on the server are the site. A deploy is a `git pull` into that directory and PHP serves what is there, so baking the source into the image would mean rebuilding it on every deploy. Your own production Dockerfile still uses `COPY` and multi-stage builds, just name it something other than `Containerfile.servlo`.
 :::
 
 ---
