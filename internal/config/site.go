@@ -649,6 +649,13 @@ func AddSite(site Site) error {
 	if ContainsUnitInjectionChars(site.Name) || strings.ContainsRune(site.Name, '/') {
 		return fmt.Errorf("invalid site name %q: must not contain newline, NUL, or slash", site.Name)
 	}
+	// The server-state archive is a file in the same directory as every site's
+	// archives, named for what it is, and retention finds both by name prefix.
+	// A site called the same thing would have its backups pruned on the state
+	// policy rather than its own.
+	if site.Name == StateArchiveName {
+		return fmt.Errorf("invalid site name %q: servlo keeps the server's own state archive under that name", site.Name)
+	}
 	// A domain is written into the vhost's server_name, and a project's
 	// .servlo.yaml supplies the list. The vhost generator refuses these too; this
 	// is the registry side, so a bad domain is rejected when the site is linked
