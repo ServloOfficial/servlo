@@ -36,6 +36,11 @@ type ServiceIndexEntry struct {
 	Category       string                 `json:"category,omitempty"`
 	Icon           string                 `json:"icon,omitempty"`
 	AdminFor       []string               `json:"admin_for,omitempty"`
+	// Digest is the sha256 of the preset file this entry names, in the same
+	// "sha256:<hex>" form the framework index uses. One per preset rather than
+	// one per version, because a service preset is a single file carrying every
+	// version it offers.
+	Digest string `json:"digest,omitempty"`
 }
 
 func init() {
@@ -69,19 +74,46 @@ func (c *Client) FetchServiceIndex() (*ServiceIndex, error) {
 	return &idx, nil
 }
 
-// FetchServicePreset downloads a preset's YAML, validates it against the local
-// Preset schema, and saves it verbatim into the store-cache dir. It returns the
-// raw bytes on success. Validation happens before the save so a malformed remote
-// preset never lands in the cache where the seam would try to serve it.
+// FetchServicePreset downloads a preset's YAML, checks it against the digest the
+// index records, and saves it verbatim into the store-cache dir. It returns the
+// raw bytes on success.
+//
+// Verified before it is saved, for the reason FetchFramework verifies before it
+// parses, and more so: a service preset names the image servlo runs, what it
+// mounts and what it is given on its command line, so a swapped one is a
+// container of somebody else's choosing on the droplet. A framework definition
+// has been checked this way since digests existed and this one had not been,
+// which left the higher-stakes half of the store taken on trust.
 func (c *Client) FetchServicePreset(name string) ([]byte, error) {
+	idx, idxErr := c.FetchServiceIndex()
 	data, err := c.fetch(name + ".yaml")
 	if err != nil {
 		return nil, fmt.Errorf("fetching service preset %q: %w", name, err)
+	}
+	// An unreachable index leaves nothing to check against. That is the offline
+	// case, where the fetch above came from the embedded copy, which no network
+	// party can influence.
+	if idxErr == nil {
+		if entry, ok := idx.find(name); ok {
+			if err := verifyDigest(data, entry.Digest, name+".yaml"); err != nil {
+				return nil, err
+			}
+		}
 	}
 	if err := config.SaveStorePreset(name, data); err != nil {
 		return nil, fmt.Errorf("saving service preset %q: %w", name, err)
 	}
 	return data, nil
+}
+
+// find returns the index entry for a preset by name.
+func (i *ServiceIndex) find(name string) (ServiceIndexEntry, bool) {
+	for _, e := range i.Services {
+		if e.Name == name {
+			return e, true
+		}
+	}
+	return ServiceIndexEntry{}, false
 }
 
 // SearchServices filters the store index by a case-insensitive substring match

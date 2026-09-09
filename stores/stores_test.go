@@ -143,7 +143,8 @@ func TestFrameworkDefinitions_ParseAndTheirNginxBlocksAreSpliceable(t *testing.T
 func TestServiceIndex_MatchesThePresetsBesideIt(t *testing.T) {
 	var index struct {
 		Services []struct {
-			Name string `json:"name"`
+			Name   string `json:"name"`
+			Digest string `json:"digest"`
 		} `json:"services"`
 	}
 	readIndex(t, Services, &index)
@@ -165,6 +166,22 @@ func TestServiceIndex_MatchesThePresetsBesideIt(t *testing.T) {
 			t.Errorf("the index lists the preset %q, which has no file", row.Name)
 		}
 		delete(onDisk, row.Name)
+
+		// A preset names the image servlo runs and what it mounts, so a fetched
+		// one is checked against this digest before it is saved. A missing digest
+		// is taken on trust, and a stale one rejects the very file it vouches for.
+		data, ok := Read(Services, row.Name+".yaml")
+		if !ok {
+			continue
+		}
+		sum := sha256.Sum256(data)
+		want := "sha256:" + hex.EncodeToString(sum[:])
+		switch {
+		case row.Digest == "":
+			t.Errorf("%s: the preset has no digest, so a fetched copy is taken on trust", row.Name)
+		case row.Digest != want:
+			t.Errorf("%s: the index digest is %s and the file is %s, so a fetched copy would be rejected", row.Name, row.Digest, want)
+		}
 	}
 	for name := range onDisk {
 		t.Errorf("%s.yaml is in the store and not in the index, so no client can discover it", name)

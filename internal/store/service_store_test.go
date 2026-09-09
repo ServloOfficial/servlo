@@ -1,10 +1,13 @@
 package store
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ServloOfficial/servlo/internal/config"
@@ -121,4 +124,67 @@ func TestSearchServices(t *testing.T) {
 	if all, _ := c.SearchServices(""); len(all) != 3 {
 		t.Errorf("empty query should match all, got %d", len(all))
 	}
+}
+
+// A service preset names the image servlo runs, what it mounts and what it is
+// given on its command line, so a swapped one is a container of somebody else's
+// choosing on the droplet. The framework half of the store has been checked
+// against the index digest since digests existed; this half had not been.
+func TestFetchServicePreset_RefusesABodyThatDoesNotMatchTheIndexDigest(t *testing.T) {
+	const served = "name: demo\nimage: example/evil:1\ndescription: Demo document store\nports:\n  - \"1234:1234\"\n"
+	mux := http.NewServeMux()
+	mux.HandleFunc("/index.json", func(w http.ResponseWriter, _ *http.Request) {
+		// The digest of something else entirely, which is what a swapped file
+		// looks like from here.
+		_, _ = w.Write([]byte(`{"services":[{"name":"demo","description":"Demo","digest":"sha256:` +
+			hex.EncodeToString(sha256Of("name: demo\nimage: example/demo:1\n")) + `"}]}`))
+	})
+	mux.HandleFunc("/demo.yaml", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(served))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	_, err := serviceTestClient(srv).FetchServicePreset("demo")
+	if err == nil {
+		t.Fatal("a preset whose body does not match the index digest was accepted")
+	}
+	if !strings.Contains(err.Error(), "does not match the digest") {
+		t.Errorf("error = %v, does not say why it was refused", err)
+	}
+	// And nothing of it reached the cache the seam serves from.
+	if _, statErr := os.Stat(filepath.Join(config.StorePresetsDir(), "demo.yaml")); statErr == nil {
+		t.Error("the refused preset was saved anyway")
+	}
+}
+
+// A preset the index vouches for is saved as it always was.
+func TestFetchServicePreset_AcceptsABodyThatMatchesTheIndexDigest(t *testing.T) {
+	const served = "name: demo\nimage: example/demo:1\ndescription: Demo document store\nports:\n  - \"1234:1234\"\n"
+	mux := http.NewServeMux()
+	mux.HandleFunc("/index.json", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"services":[{"name":"demo","description":"Demo","digest":"sha256:` +
+			hex.EncodeToString(sha256Of(served)) + `"}]}`))
+	})
+	mux.HandleFunc("/demo.yaml", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(served))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	if _, err := serviceTestClient(srv).FetchServicePreset("demo"); err != nil {
+		t.Fatalf("FetchServicePreset: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(config.StorePresetsDir(), "demo.yaml")); err != nil {
+		t.Errorf("the preset was not saved: %v", err)
+	}
+}
+
+func sha256Of(s string) []byte {
+	sum := sha256.Sum256([]byte(s))
+	return sum[:]
 }
