@@ -2,6 +2,9 @@ package deploy
 
 import (
 	"bytes"
+	"compress/gzip"
+	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
 	"github.com/ServloOfficial/servlo/internal/node"
 )
 
@@ -97,22 +101,41 @@ func TestSnapshot_RefusesWhenItCannotTellWhichDatabase(t *testing.T) {
 	}
 }
 
-// The name says what the backup is and when, so the one an operator wants after
-// a bad deploy is findable in a list months later.
-func TestSnapshotName_SaysWhatItIsAndWhen(t *testing.T) {
+// The name says what the backup is and which site it came from, so the one an
+// operator wants after a bad deploy is findable in a list months later. The
+// time comes from the store, which stamps every snapshot it files.
+func TestSnapshotName_SaysWhatItIsAndWhichSite(t *testing.T) {
 	site := &config.Site{Name: "shop", Domains: []string{"shop.example"}}
 
 	name := snapshotName(site)
 
-	if !strings.HasPrefix(name, "predeploy-shop-") {
+	if name != "predeploy-shop" {
 		t.Errorf("name = %q, does not say what it is or which site", name)
-	}
-	// A timestamp, so two deploys on the same day are told apart.
-	if len(name) != len("predeploy-shop-20060102-150405") {
-		t.Errorf("name = %q, has no timestamp", name)
 	}
 	if name == snapshotName(&config.Site{Name: "other"}) {
 		t.Error("two sites produced the same backup name")
+	}
+}
+
+// The name a deploy reports is the name of the thing it stored. Naming the
+// backup here and again in the store left the operator looking for a snapshot
+// that was on disk under a longer name.
+func TestSnapshot_ReportsTheNameItActuallyStored(t *testing.T) {
+	site := managedSite(t)
+	prev := remoteDump
+	remoteDump = func(_ dbconn.Connection, _ string, w io.Writer) error {
+		_, err := io.WriteString(w, "-- the dump\n")
+		return err
+	}
+	t.Cleanup(func() { remoteDump = prev })
+
+	name, err := Snapshot(site)
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	dir := filepath.Join(config.SnapshotsDir(), "managed", "databases", "shop", name)
+	if _, err := os.Stat(dir); err != nil {
+		t.Errorf("the deploy reported %q and there is no such snapshot: %v", name, err)
 	}
 }
 
@@ -379,5 +402,86 @@ func TestRunScript_DoesNotBlameMemoryForAnUnconfinedBuild(t *testing.T) {
 	}
 	if strings.Contains(strings.ToLower(err.Error()), "memory") {
 		t.Errorf("error = %q, blamed memory for a build nothing was confining", err)
+	}
+}
+
+// managedSite stages a site on a database servlo does not host: a connection in
+// the registry and an .env pointing at the provider's own hostname, which is
+// what the env injection writes for one.
+func managedSite(t *testing.T) *config.Site {
+	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	reg := &dbconn.Registry{Connections: []dbconn.Connection{
+		dbconn.External("managed", "mysql", "db-mysql-nyc3-1234.b.db.example.com", 25060, "doadmin", "secret"),
+	}}
+	if err := dbconn.SaveRegistry(reg); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	env := "DB_CONNECTION=mysql\nDB_HOST=db-mysql-nyc3-1234.b.db.example.com\nDB_PORT=25060\nDB_DATABASE=shop\n"
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(env), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return &config.Site{Name: "shop", Domains: []string{"shop.example"}, Path: dir, Database: "managed"}
+}
+
+// A managed database has no container to dump inside, and the deploy stops when
+// the backup fails. Without a path for one, a site on a managed database could
+// not run a migrating deploy at all.
+func TestSnapshot_BacksUpADatabaseServloDoesNotHost(t *testing.T) {
+	site := managedSite(t)
+	var asked string
+	prev := remoteDump
+	remoteDump = func(conn dbconn.Connection, database string, w io.Writer) error {
+		asked = conn.Host + "/" + database
+		_, err := io.WriteString(w, "-- the dump\n")
+		return err
+	}
+	t.Cleanup(func() { remoteDump = prev })
+
+	name, err := Snapshot(site)
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	if asked != "db-mysql-nyc3-1234.b.db.example.com/shop" {
+		t.Errorf("dumped %q, not the site's own connection and database", asked)
+	}
+
+	dump := filepath.Join(config.SnapshotsDir(), "managed", "databases", "shop", name, "dump.sql.gz")
+	f, err := os.Open(dump)
+	if err != nil {
+		t.Fatalf("the backup is not in the snapshot store: %v", err)
+	}
+	defer f.Close()
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatalf("the stored dump is not gzipped like a local one: %v", err)
+	}
+	body, err := io.ReadAll(zr)
+	if err != nil {
+		t.Fatalf("reading the stored dump: %v", err)
+	}
+	if string(body) != "-- the dump\n" {
+		t.Errorf("stored %q", body)
+	}
+}
+
+// A dump that fails halfway is not a backup, and the deploy has to hear about
+// it rather than being told a name for something that is not there.
+func TestSnapshot_ReportsAFailedRemoteDump(t *testing.T) {
+	site := managedSite(t)
+	prev := remoteDump
+	remoteDump = func(dbconn.Connection, string, io.Writer) error {
+		return errors.New("the server closed the connection")
+	}
+	t.Cleanup(func() { remoteDump = prev })
+
+	name, err := Snapshot(site)
+	if err == nil {
+		t.Fatal("a failed dump was reported as a backup")
+	}
+	if name != "" {
+		t.Errorf("a name was returned for a backup that was not taken: %q", name)
 	}
 }

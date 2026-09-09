@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/ServloOfficial/servlo/internal/buildscope"
 	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/dbconn"
+	"github.com/ServloOfficial/servlo/internal/dbdump"
 	"github.com/ServloOfficial/servlo/internal/envfile"
 	gitpkg "github.com/ServloOfficial/servlo/internal/git"
 	"github.com/ServloOfficial/servlo/internal/node"
@@ -70,6 +71,11 @@ var (
 // wrapScopeFn confines the build, indirected so a test does not need a systemd
 // user session.
 var wrapScopeFn = buildscope.Wrap
+
+// remoteDump is how a database servlo does not host is read. Indirected so a
+// test can exercise the pre-deploy backup without a managed database and the
+// engine's client binaries to reach it with.
+var remoteDump = dbdump.Dump
 
 // RunScript runs a site's deploy script with the site as its working directory,
 // under the site's own Node version.
@@ -179,29 +185,76 @@ func Reload(site *config.Site) error {
 // prevent, and quietly skipping it would be worse than refusing.
 func Snapshot(site *config.Site) (string, error) {
 	vals := envfile.ReadValues(filepath.Join(site.Path, ".env"))
-	service := strings.TrimPrefix(strings.TrimSpace(vals["DB_HOST"]), "servlo-")
+	host := strings.TrimSpace(vals["DB_HOST"])
+	service := strings.TrimPrefix(host, "servlo-")
 	database := strings.TrimSpace(vals["DB_DATABASE"])
-	if service == "" || database == "" {
+	if host == "" || database == "" {
 		return "", fmt.Errorf(
 			"this deploy runs a migration but servlo cannot tell which database to back up: " +
 				"set DB_HOST and DB_DATABASE in the site's .env, or take the migration out of the deploy script")
 	}
 
 	name := snapshotName(site)
-	target := serviceops.SnapshotTarget{
-		Service:  service,
-		Family:   config.FamilyOfName(service),
-		Database: database,
-	}
 	meta := serviceops.SnapshotMeta{Site: site.Name, GitBranch: gitpkg.MainBranch(site.Path)}
-	if _, err := serviceops.CreateSnapshot(target, name, meta, nil); err != nil {
-		return "", err
+
+	// A database servlo runs is dumped inside its own container, which is both
+	// faster and the only path that needs no credentials of its own.
+	if serviceops.SnapshotSupported(service, false) {
+		target := serviceops.SnapshotTarget{
+			Service:  service,
+			Family:   config.FamilyOfName(service),
+			Database: database,
+		}
+		snap, err := serviceops.CreateSnapshot(target, name, meta, nil)
+		if err != nil {
+			return "", err
+		}
+		return snap.Name, nil
 	}
-	return name, nil
+
+	// Otherwise the site is on a database servlo does not host, which has no
+	// container to dump inside. It is reached the way the rest of servlo reaches
+	// one, through the site's named connection, and the dump is filed in the
+	// same store. Without this a site on a managed database could not run a
+	// migrating deploy at all: the guarantee that a migration is preceded by a
+	// backup would fail on the backup, and the deploy would stop every time.
+	conn, err := dbconn.Named(site.Database)
+	if err != nil || conn.Local() {
+		return "", fmt.Errorf(
+			"this deploy runs a migration and %s is not a database servlo can back up: "+
+				"add it as a connection with `servlo db:connection add` and point the site at it, "+
+				"or take the migration out of the deploy script", host)
+	}
+	return snapshotRemote(conn, database, name, meta)
 }
 
-// snapshotName says what the backup is and when, so the one an operator wants
-// after a bad deploy is findable in a list months later.
+// snapshotRemote dumps a database servlo does not host into the snapshot store.
+//
+// The dump is streamed rather than spooled: a production database is exactly
+// the thing that does not fit in a temporary file nobody sized for it, and the
+// deploy is already waiting on the dump either way.
+func snapshotRemote(conn dbconn.Connection, database, name string, meta serviceops.SnapshotMeta) (string, error) {
+	target := serviceops.SnapshotTarget{
+		Service:  conn.Name,
+		Family:   conn.Family,
+		Database: database,
+	}
+	r, w := io.Pipe()
+	go func() { w.CloseWithError(remoteDump(conn, database, w)) }()
+	defer r.Close()
+	snap, err := serviceops.StoreSnapshot(target, name, meta, r)
+	if err != nil {
+		return "", err
+	}
+	return snap.Name, nil
+}
+
+// snapshotName says what the backup is and which site it came from, so the one
+// an operator wants after a bad deploy is findable in a list months later. The
+// store stamps it with the time, which is why there is no clock here: naming it
+// twice produced predeploy-shop-<time>-<time> on disk while the deploy reported
+// the half of it without the store's stamp, so the name an operator was told to
+// look for was not the name of anything.
 func snapshotName(site *config.Site) string {
-	return fmt.Sprintf("predeploy-%s-%s", site.Name, time.Now().UTC().Format("20060102-150405"))
+	return "predeploy-" + site.Name
 }
