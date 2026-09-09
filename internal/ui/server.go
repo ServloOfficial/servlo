@@ -149,11 +149,6 @@ func Start(currentVersion string) error {
 	// trades off-up-to-15s latency for an order-of-magnitude CPU saving.
 	podman.Cache.SetOnChange(publisher.trigger)
 
-	// Drop the cache to idle cadence whenever the desktop session is idle
-	// or locked, so a focused tab on an unattended laptop still saves
-	// battery. Recomputes on every transition.
-	startIdleWatcher(context.Background())
-
 	// A single goroutine subscribes to the eventbus and invalidates the
 	// relevant snapshot on every mutation. The /api/ws handler broadcasts
 	// the freshly rebuilt bytes to every connected browser.
@@ -692,8 +687,8 @@ func buildSites() ([]SiteResponse, error) {
 	// what has actually been used rather than by log-file mtime.
 	siteUsage := loadSiteUsage()
 
-	// Per-site list of workers the engine suspended, so the dashboard can keep
-	// showing their dots dimmed instead of dropping them.
+	// Sites the operator pinned, so the dashboard can float them to the top of
+	// the list however it is otherwise ordered.
 	pinnedSites := map[string]bool{}
 	if reg, err := config.LoadSites(); err == nil {
 		for _, s := range reg.Sites {

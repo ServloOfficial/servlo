@@ -64,7 +64,7 @@ func doctorStatusVisual(status string) (style lipgloss.Style, glyph, label strin
 	case sitedoctor.StatusOK:
 		return runningStyle, glyphRunning, "ok"
 	case sitedoctor.StatusWarn:
-		return suspendedStyle, glyphSuspended, "warn"
+		return warnStyle, glyphWarn, "warn"
 	case sitedoctor.StatusFail:
 		return failingStyle, glyphFailing, "fail"
 	default:

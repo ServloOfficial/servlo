@@ -223,7 +223,6 @@ func Detect() ([]UnhealthyWorker, error) {
 	// path + framework per site, for resolving a health-probed worker's block.
 	type siteMeta struct{ path, framework string }
 	meta := make(map[string]siteMeta, len(reg.Sites))
-	suspended := make(map[string]map[string]bool, len(reg.Sites))
 	for _, s := range reg.Sites {
 		if s.Paused || s.Ignored {
 			continue
@@ -271,9 +270,6 @@ func Detect() ([]UnhealthyWorker, error) {
 		}
 		if nonWorkerPerSitePrefixes[worker] {
 			continue
-		}
-		if suspended[site][worker] {
-			continue // intentionally stopped, not a failure
 		}
 		// A host unit pins WorkingDirectory to its checkout, so once that checkout
 		// is gone the unit fails at CHDIR before the command ever runs. Decided on

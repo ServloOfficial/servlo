@@ -29,7 +29,7 @@ Mouse support is on: clicking a tab switches screens, clicking a site or service
 - **Status bar** briefly shows the most recent action (e.g. `✓ servlo service stop redis` or `✖ …exit 1`).
 - **Footer** summarises active keybindings for the current mode.
 
-Dots follow the same convention everywhere: green `●` running, grey `○` stopped, amber `◐` paused, red `✖` failing. A worker the idle engine has put to sleep reads `suspended` with an amber `◔` glyph, so a deliberately stopped-for-idle worker isn't mistaken for one that crashed or never started; it wakes on the next request.
+Dots follow the same convention everywhere: green `●` running, grey `○` stopped, amber `◐` paused, red `✖` failing. A worker that is up but not answering its health probe reads `unreachable` with a `⊘` glyph, so a wedged worker isn't mistaken for one systemd has given up on.
 
 ## Keybindings
 

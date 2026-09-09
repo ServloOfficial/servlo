@@ -269,6 +269,20 @@ func Rules() []Rule {
 			Allow: specs,
 		},
 		{
+			// The panel used to ask systemd-logind whether the desktop session
+			// on this machine was idle or locked, and slow its container poll
+			// when it was. That made sense when the panel and the browser were
+			// the same laptop. On a droplet the operator is somewhere else
+			// entirely, and the only session logind can see is an SSH terminal
+			// whose idle hint says nothing about whether anyone is watching.
+			Feature: "desktop session idle signal", Story: "S5.7", Enforced: true,
+			Patterns: []string{
+				`login1`, `IdleHint`, `LockedHint`,
+				`SessionIsIdle`, `SessionIsLocked`, `startIdleWatcher`,
+			},
+			Allow: specs,
+		},
+		{
 			Feature: "Mailpit", Story: "S13.0", Enforced: true,
 			// mailhog is named too: the Sail importer used to translate it into
 			// the mailpit preset, so leaving the old name behind would let the

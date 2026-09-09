@@ -6,27 +6,25 @@ import (
 )
 
 // chooseInterval is the only branching point that decides the cache poll
-// cadence. The full state space is 4 combinations of (visible>0, idle);
-// table covers them and a couple of edge values for the visible counter.
+// cadence, and an open dashboard tab is the only thing it may look at. The
+// panel runs on the server; whether anyone is watching it is a fact about a
+// browser on somebody else's machine, and no property of this machine's own
+// login sessions stands in for it.
 func TestChooseInterval(t *testing.T) {
 	cases := []struct {
 		name    string
 		visible int32
-		idle    bool
 		want    time.Duration
 	}{
-		{"focused tab, active session", 1, false, intervalFocused},
-		{"focused tab, idle session", 1, true, intervalIdle},
-		{"no tabs, active session", 0, false, intervalIdle},
-		{"no tabs, idle session", 0, true, intervalIdle},
-		{"many tabs, active session", 7, false, intervalFocused},
-		{"many tabs, idle session", 7, true, intervalIdle},
-		{"negative counter, active session", -1, false, intervalIdle},
+		{"one tab open", 1, intervalFocused},
+		{"several tabs open", 7, intervalFocused},
+		{"no tabs open", 0, intervalIdle},
+		{"negative counter", -1, intervalIdle},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := chooseInterval(tc.visible, tc.idle); got != tc.want {
-				t.Errorf("chooseInterval(%d, %v) = %v, want %v", tc.visible, tc.idle, got, tc.want)
+			if got := chooseInterval(tc.visible); got != tc.want {
+				t.Errorf("chooseInterval(%d) = %v, want %v", tc.visible, got, tc.want)
 			}
 		})
 	}
