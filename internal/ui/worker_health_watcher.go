@@ -16,11 +16,9 @@ import (
 // UI tab is visible. healthWatchIdleInterval is the cadence with no tab open,
 // where the only consumer is the failure push notification.
 //
-// The detector is not free on darwin: siteinfo.AllUnitStates shells out to
-// `launchctl print` once per servlo-*.plist, so a 25-worker install pays 25
-// forks per uncached tick. The visible cadence stays above the 3s unit-state
-// cache TTL so back-to-back dashboard renders share one sweep, and the idle
-// cadence keeps an unattended machine off the CPU without going silent.
+// The visible cadence stays above the 3s unit-state cache TTL so back-to-back
+// dashboard renders share one sweep, and the idle cadence keeps an unattended
+// machine off the CPU without going silent.
 const (
 	healthWatchInterval     = 5 * time.Second
 	healthWatchIdleInterval = 60 * time.Second
