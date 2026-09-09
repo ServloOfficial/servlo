@@ -192,6 +192,8 @@ Each line answers the five questions asked after something goes wrong — when, 
 
 Recording happens in the middleware, not in each handler. Seventy handlers is seventy chances to forget, and the one that forgets is the one somebody later needs. A route added tomorrow is audited the day it is added, without anyone remembering to.
 
+Six routes are the exception, and they record for themselves: signing in, signing out, claiming the panel, and turning the second factor on or off. They run before there is a session for the middleware to read an actor from, or in the case of claiming the panel before there is an account at all, so recording them there would put an empty name on every sign-in, which is the one field those entries exist for. A refused sign-in is recorded too, with the username that was tried. The form still will not say whether a username or a password was wrong, because that would turn it into a way to enumerate accounts, but the log is 0600 and it is allowed to know. Turning the second factor off through the panel writes the same `users.totp.disabled` the CLI writes, so one search finds both doors.
+
 Reads are not recorded. A log with every page view in it is a log nobody reads, and the question an audit answers is what changed. **Refusals are** — somebody reaching for something they may not have is most of why the log exists.
 
 A command run from a shell is attributed to the Unix user running it, with no IP. On a box where one operator has the login and the rest reach the panel, that is exactly the distinction worth recording, and a loopback address would suggest the entry knows something it does not. An entry with no actor at all is Servlo itself, on a timer: a renewal, a self-heal.
