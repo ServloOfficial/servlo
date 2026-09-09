@@ -89,6 +89,26 @@ func Config(chroots []Chroot, keepPorts []int) string {
 	b.WriteString("# apart with. A session on one of these ports is chrooted to that site.\n")
 	b.WriteString("\n")
 
+	// A site on a port sshd already answers on is left out entirely, and said
+	// out loud rather than dropped quietly. The Match block it would get applies
+	// to every session on that port, so the operator's own shell login would
+	// become a chrooted internal-sftp session with no shell in it. The allocator
+	// does not hand these out, and this is the line that holds even if one ever
+	// arrives some other way: a site without SFTP is an inconvenience, and a
+	// machine the operator cannot log in to is not.
+	reserved := map[int]bool{}
+	for _, port := range keepPorts {
+		reserved[port] = true
+	}
+	var serve, refused []Chroot
+	for _, c := range chroots {
+		if reserved[c.Port] {
+			refused = append(refused, c)
+			continue
+		}
+		serve = append(serve, c)
+	}
+
 	// Every global directive first. A Port line after the first Match falls
 	// inside that block, and sshd refuses the file.
 	b.WriteString("# The ports sshd already listens on, restated so this file does not\n")
@@ -97,11 +117,16 @@ func Config(chroots []Chroot, keepPorts []int) string {
 		fmt.Fprintf(&b, "Port %d\n", port)
 	}
 	b.WriteString("\n# One port per site with SFTP enabled.\n")
-	for _, c := range chroots {
+	for _, c := range serve {
 		fmt.Fprintf(&b, "Port %d\n", c.Port)
 	}
+	for _, c := range refused {
+		fmt.Fprintf(&b, "\n# %s is left out: port %d is one sshd already answers on, and confining it\n"+
+			"# here would take the shell off every session that arrives on it. Run\n"+
+			"# `servlo sftp config` to give the site a port of its own.\n", c.Domain, c.Port)
+	}
 
-	for _, c := range chroots {
+	for _, c := range serve {
 		fmt.Fprintf(&b, "\n# %s\nMatch LocalPort %d\n", c.Domain, c.Port)
 		fmt.Fprintf(&b, "    ChrootDirectory %s\n", c.Dir())
 		// -d is relative to the chroot, so the session opens on the site rather

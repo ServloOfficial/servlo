@@ -308,3 +308,27 @@ func TestSavePorts_ReplacesTheFileRatherThanRewritingIt(t *testing.T) {
 		t.Errorf("mode = %o, want 600", mode)
 	}
 }
+
+// The last line before a lockout. Whatever put a site on a port sshd already
+// answers on, the generated file must not carry a Match block for it: that block
+// applies to every session arriving on that port, so the operator's own shell
+// login would come up as a chrooted internal-sftp session with no shell in it.
+func TestConfig_LeavesOutASiteOnAPortSSHAlreadyAnswersOn(t *testing.T) {
+	config := Config([]Chroot{
+		{Domain: "acme.com", SitePath: "/srv/sites/acme", Port: 2222},
+		{Domain: "beta.example", SitePath: "/srv/sites/beta", Port: 2201},
+	}, []int{22, 2222})
+
+	if strings.Contains(config, "Match LocalPort 2222") {
+		t.Errorf("the operator's own SSH port was confined to a site:\n%s", config)
+	}
+	if !strings.Contains(config, "Match LocalPort 2201") {
+		t.Errorf("the site on a port of its own was dropped too:\n%s", config)
+	}
+	if strings.Count(config, "\nPort 2222\n") != 1 {
+		t.Errorf("port 2222 is declared more than once:\n%s", config)
+	}
+	if !strings.Contains(config, "acme.com is left out") {
+		t.Errorf("the site was dropped without saying so:\n%s", config)
+	}
+}
