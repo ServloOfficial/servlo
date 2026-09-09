@@ -10,7 +10,7 @@ That is what somebody actually has when they are moving off shared hosting or of
 
 ## What servlo adds
 
-Everything around them. It looks at the files and works out the framework and the document root, registers the site, writes the vhost, and loads the dump into a database of its own with an account scoped to it.
+Everything around them. It looks at the files and works out the framework and the document root, registers the site, writes the vhost, and loads the dump into a database of its own, which the site then reaches through an account scoped to that database.
 
 ```
 Framework      laravel
@@ -40,6 +40,8 @@ That is the commonest thing to hand over by mistake, because the filename looks 
 The dump is checked before anything is registered, so an import that cannot work leaves nothing behind to clean up. Once the site exists, a dump that fails to load is reported without unregistering the site: the site is serving, and only the data did not arrive.
 
 It streams from the file into the engine's client, so a dump larger than the droplet's memory imports.
+
+**Import a dump you trust.** The site that comes out of this gets its own database and an account scoped to that database, which is what the site runs as afterwards. Loading the dump is not done by that account: it goes in through the connection's administrative credentials, because a dump often creates the schema it fills. So a `.sql` file is not inert data here, it is a script the engine runs as an administrator, and one that has had `CREATE USER` or a `GRANT` appended to it reaches every database on that server rather than just this site's. Read a dump you did not export yourself before importing it, the same way you would read a shell script somebody sent you.
 
 ## Afterwards
 

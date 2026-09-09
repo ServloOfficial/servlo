@@ -5,7 +5,8 @@
       "description": "Beanstalkd work queue",
       "image": "docker.io/schickling/beanstalkd:latest",
       "category": "messaging",
-      "icon": "queue"
+      "icon": "queue",
+      "digest": "sha256:e837c8c556dc07b295666ad27d296a2ee8b979681221878a4dafb4af4df0cda4"
     },
     {
       "name": "clickhouse",
@@ -14,14 +15,16 @@
       "dashboard": "http://localhost:8123/play?user=servlo&password={{password}}",
       "image": "docker.io/library/clickhouse:26.3",
       "category": "databases",
-      "icon": "database"
+      "icon": "database",
+      "digest": "sha256:ad3bd4c673d0c28e37b15bbb2ac84a89d82aff5a5869216368ffddaf0385327e"
     },
     {
       "name": "elasticsearch",
       "description": "Elasticsearch single-node search and analytics engine",
       "image": "docker.elastic.co/elasticsearch/elasticsearch:8.13.4",
       "category": "search",
-      "icon": "search"
+      "icon": "search",
+      "digest": "sha256:01c5fab4dc9953846652966833ffdf8e8a5d7ab26e9436d21e90f7568d6f5fce"
     },
     {
       "name": "elasticvue",
@@ -35,14 +38,16 @@
       "icon": "search",
       "admin_for": [
         "elasticsearch"
-      ]
+      ],
+      "digest": "sha256:77eeb9b3d7b3a16eefa5923438b994aa15975906f47c31f86a3b877f311466b0"
     },
     {
       "name": "gotenberg",
       "description": "Gotenberg API for PDF generation and document conversion",
       "image": "docker.io/gotenberg/gotenberg:8",
       "category": "mail",
-      "icon": "mail"
+      "icon": "mail",
+      "digest": "sha256:e79f220f82f9ffa3e83a1f6cc28a9f03a6cf7d68e616f10349abdada249be29e"
     },
     {
       "name": "mariadb",
@@ -89,21 +94,24 @@
       "default_version": "11.8",
       "category": "databases",
       "icon": "database",
-      "env_role": "mysql"
+      "env_role": "mysql",
+      "digest": "sha256:e649ad19ce2e189df325d0596cb79f8ce93dc6248792ffe150409bdb19e2dc66"
     },
     {
       "name": "memcached",
       "description": "Memcached in-memory key/value cache",
       "image": "docker.io/library/memcached:1.6-alpine",
       "category": "cache",
-      "icon": "bolt"
+      "icon": "bolt",
+      "digest": "sha256:83603059a4fb45def0b2c216d94898843cf2967d23169bdba85b1338e975f5e3"
     },
     {
       "name": "mongo",
       "description": "MongoDB document database",
       "image": "docker.io/library/mongo:7",
       "category": "databases",
-      "icon": "leaf"
+      "icon": "leaf",
+      "digest": "sha256:3fdebf17bf389c278694a4981f215fd15520a125052678388db9ed48d81f6f72"
     },
     {
       "name": "mongo-express",
@@ -117,14 +125,16 @@
       "icon": "leaf",
       "admin_for": [
         "mongo"
-      ]
+      ],
+      "digest": "sha256:9fdc46395dc4ef36a44f15d30b1b7eeef67c380e063f57b1353f4ca5119c32f8"
     },
     {
       "name": "opensearch",
       "description": "OpenSearch single-node search and analytics engine",
       "image": "docker.io/opensearchproject/opensearch:2.19.5",
       "category": "search",
-      "icon": "search"
+      "icon": "search",
+      "digest": "sha256:ae96068ce0fde66b76e5f968fedf9a14f9093d4a6a7600a91a590a248425b2ab"
     },
     {
       "name": "opensearch-dashboards",
@@ -138,7 +148,8 @@
       "icon": "search",
       "admin_for": [
         "opensearch"
-      ]
+      ],
+      "digest": "sha256:6a4fd73266bf196a46dd81eb037b014be5b26bf584870e964b076fd8fa7c4f7d"
     },
     {
       "name": "pgadmin",
@@ -154,7 +165,8 @@
         "postgres",
         "postgres-pgvector",
         "postgres-timescaledb"
-      ]
+      ],
+      "digest": "sha256:ebe46165af74d804955953580c4b82fa7b2b2f4eb361c9e51509b25d16ebfa23"
     },
     {
       "name": "phpmyadmin",
@@ -169,7 +181,8 @@
       "admin_for": [
         "mysql",
         "mariadb"
-      ]
+      ],
+      "digest": "sha256:930180fac2ab53c62a2fbca6bc6b45e78cdf4312f35e8ac0274940f0d680dc60"
     },
     {
       "name": "postgres-pgvector",
@@ -198,7 +211,8 @@
       ],
       "default_version": "18",
       "category": "databases",
-      "icon": "elephant"
+      "icon": "elephant",
+      "digest": "sha256:d8df624f8f6ff126c0f0731a28ef01a5cabd90975bdd6960caf31341124d038a"
     },
     {
       "name": "postgres-timescaledb",
@@ -221,7 +235,8 @@
       ],
       "default_version": "17",
       "category": "databases",
-      "icon": "elephant"
+      "icon": "elephant",
+      "digest": "sha256:36c3f978429f5b3fd623521203d0af6644ef1d7d5290de62fc918f723bdc96f7"
     },
     {
       "name": "rabbitmq",
@@ -229,7 +244,8 @@
       "dashboard": "http://localhost:15672",
       "image": "docker.io/library/rabbitmq:3-management-alpine",
       "category": "messaging",
-      "icon": "queue"
+      "icon": "queue",
+      "digest": "sha256:55d98751748d2a98f7bfefe87c4b819d1b8035364cb3fd170ceaaaaf1a7fcc5c"
     },
     {
       "name": "redisinsight",
@@ -244,14 +260,16 @@
       "admin_for": [
         "redis",
         "valkey"
-      ]
+      ],
+      "digest": "sha256:48638ae9935377c0a51f1b8ca05c13206867e494c9fe0c300db82a049e044584"
     },
     {
       "name": "soketi",
       "description": "Soketi realtime WebSocket server (Pusher-compatible)",
       "image": "quay.io/soketi/soketi:1.6-16-alpine",
       "category": "messaging",
-      "icon": "broadcast"
+      "icon": "broadcast",
+      "digest": "sha256:f79f8a92ea0ebf76427cb92681b49ebd6fff5cb0e7d05bf2a0ba8a929a77b0b6"
     },
     {
       "name": "typesense",
@@ -259,7 +277,8 @@
       "family": "typesense",
       "image": "docker.io/typesense/typesense:30.2",
       "category": "search",
-      "icon": "search"
+      "icon": "search",
+      "digest": "sha256:c6533bf0a2dede515d14229bc07e2438a2acb3e06a8880fd640bf84446f49ae1"
     },
     {
       "name": "typesense-dashboard",
@@ -273,7 +292,8 @@
       "icon": "search",
       "admin_for": [
         "typesense"
-      ]
+      ],
+      "digest": "sha256:73f08ab9f1dbfd189cca126ee26dabe52170eba45351084df8d2bec56daac3a9"
     },
     {
       "name": "valkey",
@@ -282,7 +302,8 @@
       "image": "docker.io/valkey/valkey:9-alpine",
       "category": "cache",
       "icon": "bolt",
-      "env_role": "redis"
+      "env_role": "redis",
+      "digest": "sha256:5025e17928bbb02c0eaa216b4d04cf88ae7a2a8810bc4fdeb2371cf9a0ef5716"
     }
   ]
 }

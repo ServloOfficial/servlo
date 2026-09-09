@@ -92,6 +92,8 @@ It is TOTP as RFC 6238 specifies it — SHA-1, six digits, thirty-second step �
 
 Codes are accepted one step either side of now, and no further. Phone clocks are rarely exact and a code typed as the window turns over should still work; a wider window is a longer life for a code read over your shoulder.
 
+And each code signs in once. RFC 6238 asks for that in as many words, and the reason is the window above: without it a code is good for a minute and a half, against an account whose password whoever read the code already has. Servlo records the step of the last code an account signed in with and refuses anything at or below it, so a code watched being typed, echoed by a phishing page or left in a form somebody logged is spent by the time it is used. The code that proves an enrolment counts as spent too. The next code always works, so this costs nothing but a second's wait in the case where somebody signs in twice in the same half-minute.
+
 ### Recovery codes
 
 Ten, each good once, shown exactly when they are made. There is no command to show them again — storing them in a form Servlo could reprint would make them a second password sitting on the same disk as the first.

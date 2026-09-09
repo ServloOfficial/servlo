@@ -397,11 +397,12 @@ func (g *Guard) HandleTOTPConfirm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	if !VerifyTOTP(body.Secret, body.Code) {
+	counter, ok := VerifyTOTPCounter(body.Secret, body.Code)
+	if !ok {
 		http.Error(w, "That code does not match. Check your phone's clock, then try the next one.", http.StatusBadRequest)
 		return
 	}
-	codes, err := g.Accounts.EnableTOTP(session.User, body.Secret)
+	codes, err := g.Accounts.EnableTOTP(session.User, body.Secret, counter)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

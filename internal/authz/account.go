@@ -62,6 +62,11 @@ type Account struct {
 	// every copy that leaves this package and the panel still has to know
 	// which accounts have one.
 	TOTPEnabled bool `json:"totp_enabled,omitempty"`
+	// TOTPLastCounter is the step of the last code this account signed in with.
+	// A code at or below it is refused, which is what makes a code one-time
+	// rather than good for the minute and a half its step and the drift either
+	// side add up to (RFC 6238 section 5.2).
+	TOTPLastCounter int64 `json:"totp_last_counter,omitempty"`
 	// RecoveryHashes are the unspent recovery codes, hashed. Each is spent on
 	// use, which is what makes them one-time rather than a second password.
 	RecoveryHashes []string `json:"recovery_hashes,omitempty"`
