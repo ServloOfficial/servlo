@@ -1,6 +1,7 @@
 package serviceops
 
 import (
+	"github.com/ServloOfficial/servlo/internal/config"
 	"strings"
 	"testing"
 )
@@ -136,25 +137,92 @@ func TestParseEntityRows(t *testing.T) {
 // admin credentials; one with a client image runs ephemerally on the servlo
 // network with only its own env, and the image's entrypoint is overridden
 // because client images make their tool the entrypoint.
+//
+// Either way the credentials are named in the argv and spelled in the
+// environment, never the other way round. See the password test below.
 func TestEntityCommandArgs(t *testing.T) {
-	execArgs := entityCommandArgs("mysql", "", nil, "list-cmd", false)
+	execArgs, execEnv := entityCommandArgs("mysql", "", nil, "list-cmd", false)
 	joined := strings.Join(execArgs, " ")
 	if execArgs[0] != "exec" || !strings.Contains(joined, "servlo-mysql sh -c list-cmd") {
 		t.Errorf("exec args = %v", execArgs)
 	}
-	if !strings.Contains(joined, "MYSQL_PWD=") {
-		t.Errorf("exec args missing admin env: %v", execArgs)
+	if !strings.Contains(joined, "--env MYSQL_PWD") {
+		t.Errorf("exec args do not forward the admin credential by name: %v", execArgs)
+	}
+	if !hasPrefixIn(execEnv, "MYSQL_PWD=") {
+		t.Errorf("the admin credential is not in the env for the process to carry: %v", redactEnvNames(execEnv))
 	}
 
-	runArgs := entityCommandArgs("rustfs", "docker.io/rclone/rclone:latest", []string{"A=b"}, "tar-cmd", true)
+	runArgs, runEnv := entityCommandArgs("rustfs", "docker.io/rclone/rclone:latest", []string{"A=b"}, "tar-cmd", true)
 	joined = strings.Join(runArgs, " ")
-	for _, want := range []string{"run --rm -i", "--network servlo", "--entrypoint sh", "-e A=b", "docker.io/rclone/rclone:latest -c tar-cmd"} {
+	for _, want := range []string{"run --rm -i", "--network servlo", "--entrypoint sh", "-e A", "docker.io/rclone/rclone:latest -c tar-cmd"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("run args missing %q: %v", want, runArgs)
 		}
 	}
-	if strings.Contains(joined, "MYSQL_PWD=") {
-		t.Errorf("a client run must not carry the exec admin env: %v", runArgs)
+	if !hasPrefixIn(runEnv, "A=b") {
+		t.Errorf("the declared env is not carried: %v", runEnv)
+	}
+	if hasPrefixIn(runEnv, "MYSQL_PWD=") {
+		t.Errorf("a client run must not carry the exec admin env: %v", redactEnvNames(runEnv))
+	}
+}
+
+func hasPrefixIn(list []string, prefix string) bool {
+	for _, s := range list {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// redactEnvNames prints what an env list holds without printing the values,
+// because a failure here is about a credential and a test log is a file.
+func redactEnvNames(env []string) []string {
+	names := make([]string, 0, len(env))
+	for _, kv := range env {
+		name, _, _ := strings.Cut(kv, "=")
+		names = append(names, name)
+	}
+	return names
+}
+
+// The install's database password must never be in an argv.
+//
+// /proc/<pid>/cmdline is readable by every process on the machine, and on this
+// one every site runs as the same Linux user (PRD section 6), so a password
+// spelled into a podman argument is a password every site can read while the
+// command runs. Listing databases happens on a panel page load, so the window
+// is not rare.
+//
+// internal/dbexec already does this correctly and says why: podman reads
+// `--env NAME` out of its own environment, so the value travels in this
+// process rather than in an argument list. This is the same rule for the
+// entity commands.
+func TestEntityCommandArgs_NeverSpellTheAdminPasswordInTheArgv(t *testing.T) {
+	password, err := config.ServicePassword()
+	if err != nil {
+		t.Fatalf("reading the install's service password: %v", err)
+	}
+	if password == "" {
+		t.Fatal("no service password, so this test would pass for the wrong reason")
+	}
+
+	for _, c := range []struct {
+		what  string
+		image string
+		env   []string
+	}{
+		{"an exec in the service container", "", nil},
+		{"an ephemeral client image", "docker.io/rclone/rclone:latest", []string{"SECRET=" + password}},
+	} {
+		args, _ := entityCommandArgs("mysql", c.image, c.env, "some-cmd", false)
+		for i, a := range args {
+			if strings.Contains(a, password) {
+				t.Errorf("%s puts the install's database password in argv[%d]; every site on this machine can read it out of /proc", c.what, i)
+			}
+		}
 	}
 }
 

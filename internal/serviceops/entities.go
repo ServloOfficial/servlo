@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -91,28 +92,59 @@ func actionRuntime(spec *config.EntitySpec, act config.EntityAction) (image stri
 // ephemeral run of that image on the servlo network, for services whose own
 // image ships no tooling for what they hold. interactive adds -i so a command
 // can read its stdin.
-func entityCommandArgs(service, image string, env []string, shellCmd string, interactive bool) []string {
+func entityCommandArgs(service, image string, env []string, shellCmd string, interactive bool) (args []string, envValues []string) {
 	if image == "" {
-		args := []string{"exec"}
+		args = []string{"exec"}
 		if interactive {
 			args = append(args, "-i")
 		}
-		for _, kv := range append(introspectEnv(), env...) {
-			args = append(args, "--env", kv)
+		envValues = append(introspectEnv(), env...)
+		for _, name := range envNames(envValues) {
+			args = append(args, "--env", name)
 		}
-		return append(args, "servlo-"+service, "sh", "-c", shellCmd)
+		return append(args, "servlo-"+service, "sh", "-c", shellCmd), envValues
 	}
-	args := []string{"run", "--rm"}
+	args = []string{"run", "--rm"}
 	if interactive {
 		args = append(args, "-i")
 	}
 	// --entrypoint sh: client images (mc, rclone) make their tool the
 	// entrypoint, which would swallow the shell command as its own arguments.
 	args = append(args, "--network", "servlo", "--entrypoint", "sh")
-	for _, kv := range env {
-		args = append(args, "-e", kv)
+	envValues = env
+	for _, name := range envNames(envValues) {
+		args = append(args, "-e", name)
 	}
-	return append(args, image, "-c", shellCmd)
+	return append(args, image, "-c", shellCmd), envValues
+}
+
+// envNames is the credential variables to forward by name, keeping the values
+// out of the argv and returning them for the caller to put on the process.
+//
+// /proc/<pid>/cmdline is readable by every process on the machine, and on this
+// one every site runs as the same Linux user, so a password spelled into a
+// podman argument is a password every site can read for as long as the command
+// runs. podman reads `--env NAME` out of its own environment instead, which is
+// what internal/dbexec has always done; this is the same rule.
+func envNames(env []string) []string { return EnvNames(env) }
+
+// EnvNames is envNames for the CLI, which builds its own exec argv for the
+// streaming import and export.
+func EnvNames(env []string) []string {
+	names := make([]string, 0, len(env))
+	for _, kv := range env {
+		if name, _, ok := strings.Cut(kv, "="); ok {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+// withEnv puts the credential values on the command, where podman reads them
+// from rather than from its own arguments.
+func withEnv(cmd *exec.Cmd, envValues []string) *exec.Cmd {
+	cmd.Env = append(cmd.Environ(), envValues...)
+	return cmd
 }
 
 // runEntityCommand runs one non-streaming declared command and returns its
@@ -120,7 +152,8 @@ func entityCommandArgs(service, image string, env []string, shellCmd string, int
 func runEntityCommand(service string, spec *config.EntitySpec, image string, env []string, shellCmd string, timeout time.Duration) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	return podman.CmdContext(ctx, entityCommandArgs(service, image, env, shellCmd, false)...).CombinedOutput()
+	args, envValues := entityCommandArgs(service, image, env, shellCmd, false)
+	return withEnv(podman.CmdContext(ctx, args...), envValues).CombinedOutput()
 }
 
 // ListEntities runs a spec's list command and parses its tab-separated rows.
@@ -200,7 +233,8 @@ func streamEntityAction(service string, spec *config.EntitySpec, action, name st
 	image, env := actionRuntime(spec, act)
 	ctx, cancel := context.WithTimeout(context.Background(), dumpRestoreTimeout)
 	defer cancel()
-	cmd := podman.CmdContext(ctx, entityCommandArgs(service, image, env, shellCmd, stdin != nil)...)
+	args, envValues := entityCommandArgs(service, image, env, shellCmd, stdin != nil)
+	cmd := withEnv(podman.CmdContext(ctx, args...), envValues)
 	var stderr bytes.Buffer
 	cmd.Stdout = stdout
 	cmd.Stderr = &stderr

@@ -150,17 +150,18 @@ func migrateTargetImage(p *config.Preset, currentImage, version string) (string,
 func timestamped() string { return time.Now().UTC().Format("20060102-150405") }
 
 // containerExec runs shellCmd inside a running container with a hard timeout.
-// envPairs are passed via the exec env (not argv) so secrets don't leak into
-// /proc/<pid>/cmdline. Captured output includes stderr.
+// envPairs are forwarded by name so their values stay out of the argv and
+// therefore out of /proc/<pid>/cmdline, which every process on this machine can
+// read. Captured output includes stderr.
 func containerExec(container, shellCmd string, envPairs []string, stdin *os.File, timeout time.Duration) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	args := []string{"exec", "-i"}
-	for _, kv := range envPairs {
-		args = append(args, "--env", kv)
+	for _, name := range envNames(envPairs) {
+		args = append(args, "--env", name)
 	}
 	args = append(args, container, "sh", "-c", shellCmd)
-	cmd := podman.CmdContext(ctx, args...)
+	cmd := withEnv(podman.CmdContext(ctx, args...), envPairs)
 	if stdin != nil {
 		cmd.Stdin = stdin
 	}
@@ -168,8 +169,8 @@ func containerExec(container, shellCmd string, envPairs []string, stdin *os.File
 }
 
 // dumpToHost streams the output of a container command into a host file with
-// 0600 permissions. envPairs go through podman exec --env so secrets stay out
-// of argv.
+// 0600 permissions. envPairs are forwarded by name so their values stay out of
+// the argv.
 func dumpToHost(container, shellCmd string, envPairs []string, hostPath string, timeout time.Duration) error {
 	out, err := os.OpenFile(hostPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
@@ -179,11 +180,11 @@ func dumpToHost(container, shellCmd string, envPairs []string, hostPath string, 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	args := []string{"exec"}
-	for _, kv := range envPairs {
-		args = append(args, "--env", kv)
+	for _, name := range envNames(envPairs) {
+		args = append(args, "--env", name)
 	}
 	args = append(args, container, "sh", "-c", shellCmd)
-	cmd := podman.CmdContext(ctx, args...)
+	cmd := withEnv(podman.CmdContext(ctx, args...), envPairs)
 	if err := runStreaming(cmd, out); err != nil {
 		return fmt.Errorf("dump command failed: %w", err)
 	}
@@ -213,11 +214,11 @@ func restoreFromHost(container, shellCmd string, envPairs []string, hostPath str
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	args := []string{"exec", "-i"}
-	for _, kv := range envPairs {
-		args = append(args, "--env", kv)
+	for _, name := range envNames(envPairs) {
+		args = append(args, "--env", name)
 	}
 	args = append(args, container, "sh", "-c", shellCmd)
-	cmd := podman.CmdContext(ctx, args...)
+	cmd := withEnv(podman.CmdContext(ctx, args...), envPairs)
 	cmd.Stdin = in
 	out, err := cmd.CombinedOutput()
 	if err != nil {
