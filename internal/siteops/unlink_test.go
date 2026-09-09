@@ -252,3 +252,66 @@ func TestUnlinkSiteCore_KeepsAParkedStagingSitesPasswordFile(t *testing.T) {
 		t.Errorf("a parked staging site lost its password file, so relinking it would answer 500: %v", err)
 	}
 }
+
+// A site's PHP settings live in a directory named for its handle: the
+// operator's own php.ini, the panel-managed one, and the timestamped backups of
+// the first. Nothing removed any of them, and both ini files are volumed into
+// the runtime by name, so a later site taking that handle came up running the
+// previous operator's PHP directives. Those decide more than upload limits:
+// disable_functions, open_basedir and display_errors are all php.ini.
+func TestUnlinkSiteCore_TakesTheSitesPHPSettingsWithIt(t *testing.T) {
+	dir := config.SitePHPDir("gonephp")
+	if err := os.MkdirAll(filepath.Join(dir, "ini.bkp"), 0755); err != nil {
+		t.Fatalf("creating the site's php directory: %v", err)
+	}
+	for _, p := range []string{
+		config.SitePHPUserIniFile("gonephp"),
+		config.SitePHPManagedIniFile("gonephp"),
+		filepath.Join(config.SitePHPUserIniBkpDir("gonephp"), "98-user.ini.bkp.20260101-000000"),
+	} {
+		if err := os.WriteFile(p, []byte("disable_functions = exec\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	kept := config.SitePHPDir("keptphp")
+	if err := os.MkdirAll(kept, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(config.SitePHPUserIniFile("keptphp"), []byte("memory_limit = 512M\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	site := &config.Site{Name: "gonephp", Path: t.TempDir(), Domains: []string{"gonephp.example.com"}}
+	_ = UnlinkSiteCore(site, nil)
+
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Errorf("the site's PHP settings outlived it (stat error %v)", err)
+	}
+	if _, err := os.Stat(config.SitePHPUserIniFile("keptphp")); err != nil {
+		t.Errorf("another site's PHP settings went with it: %v", err)
+	}
+}
+
+// A parked site's quadlet still volumes both ini paths, and it comes back when
+// its directory is linked again, so taking its settings away would change the
+// PHP a relinked site runs on without anybody asking for that.
+func TestUnlinkSiteCore_KeepsAParkedSitesPHPSettings(t *testing.T) {
+	parked := t.TempDir()
+	if err := os.MkdirAll(config.SitePHPDir("parkedphp"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	userIni := config.SitePHPUserIniFile("parkedphp")
+	if err := os.WriteFile(userIni, []byte("memory_limit = 512M\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	site := &config.Site{Name: "parkedphp", Path: filepath.Join(parked, "parkedphp"), Domains: []string{"parkedphp.example.com"}}
+	if err := config.AddSite(*site); err != nil {
+		t.Fatal(err)
+	}
+	_ = UnlinkSiteCore(site, []string{parked})
+
+	if _, err := os.Stat(userIni); err != nil {
+		t.Errorf("a parked site lost the php.ini it will come back on: %v", err)
+	}
+}

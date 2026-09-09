@@ -215,11 +215,23 @@ func SharedIniBkpDir() string {
 	return filepath.Join(DataDir(), "php", "shared", "ini.bkp")
 }
 
+// SitePHPDir holds everything servlo keeps about one site's PHP: the operator's
+// own ini, servlo's managed one, and the backups of the first.
+//
+// Named, and everything below joins through it, so a site that goes away takes
+// the whole directory rather than a list of files somebody has to remember to
+// extend. The three of them outlived their sites until this was written, and
+// both ini files are volumed into the runtime by name, so the next site to take
+// that handle came up on the last one's PHP.
+func SitePHPDir(siteName string) string {
+	return filepath.Join(DataDir(), "php", "sites", siteName)
+}
+
 // SitePHPUserIniFile is the per-site user php.ini for a runtime site that runs
 // its own container (FrankenPHP). Unlike PHPUserIniFile (shared by every site on
 // a PHP version), this is scoped to one site so its php.ini is independent.
 func SitePHPUserIniFile(siteName string) string {
-	return filepath.Join(DataDir(), "php", "sites", siteName, "98-user.ini")
+	return filepath.Join(SitePHPDir(siteName), "98-user.ini")
 }
 
 // SitePHPManagedIniFile is where a site's PHP settings from the panel land for a
@@ -230,13 +242,13 @@ func SitePHPUserIniFile(siteName string) string {
 // then this site's settings, then whatever the operator wrote by hand. Servlo
 // owns this file and rewrites it on every save; the operator's is never touched.
 func SitePHPManagedIniFile(siteName string) string {
-	return filepath.Join(DataDir(), "php", "sites", siteName, "96-servlo-site.ini")
+	return filepath.Join(SitePHPDir(siteName), "96-servlo-site.ini")
 }
 
 // SitePHPUserIniBkpDir holds timestamped backups of a site's per-site user ini,
 // next to (not inside) the file so the container's conf.d scan never loads them.
 func SitePHPUserIniBkpDir(siteName string) string {
-	return filepath.Join(DataDir(), "php", "sites", siteName, "ini.bkp")
+	return filepath.Join(SitePHPDir(siteName), "ini.bkp")
 }
 
 // PHPUserIniBkpDir holds timestamped backups of the per-version user ini

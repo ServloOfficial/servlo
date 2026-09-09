@@ -308,6 +308,8 @@ A FrankenPHP site has no pool, because it is not served by the shared FPM contai
 
 The numbering is the ranking. `95-servlo-shared.ini` is the baseline for every site, `96-servlo-site.ini` is this site's settings from the panel, and `98-user.ini` is whatever you wrote by hand, which loads last and wins. Editing `96` is pointless: the next save overwrites it.
 
+That directory is named for the site handle, which comes from a directory name, so removing a site takes the whole of it: both ini files and the timestamped backups of yours. Otherwise the next site of that name would come up on the last one's php.ini, and php.ini decides more than upload limits. Unlinking a *parked* site keeps it, because that site comes back when its directory is linked again and its container still mounts these paths.
+
 A custom-container site and a host-proxy site get neither. They run something servlo did not build, so there is no file of servlo's their runtime would read; on those the settings reach nginx alone, which is all servlo has to reach.
 
 ### php.ini settings
