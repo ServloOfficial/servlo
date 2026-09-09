@@ -111,6 +111,26 @@ func (g *Guard) Require(next http.Handler) http.Handler {
 }
 
 // HandleLogin authenticates a name and password and issues a session.
+// The six routes that run outside the audit middleware.
+//
+// They sit outside it for a real reason: Audit reads the actor from the
+// session on the request, and these run before there is one, or in the case of
+// setup before there is an account at all. Recording them there would put an
+// empty actor on every sign-in, which is the one field the entry exists for.
+//
+// So they record for themselves, naming the account they know about. Reads are
+// still not recorded: /api/auth/session and the TOTP QR answer questions, they
+// do not change anything.
+func recordAuth(action, subject, actor, ip, result string) {
+	auditlog.Record(auditlog.Entry{
+		Action:  action,
+		Subject: subject,
+		Actor:   actor,
+		IP:      ip,
+		Result:  result,
+	})
+}
+
 func (g *Guard) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -142,11 +162,15 @@ func (g *Guard) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		if outcome == AuthCodeRequired {
 			// Only ever reached with a correct password, so this says nothing
 			// to anyone who does not already hold it.
+			recordAuth("auth.login", body.Username, body.Username, addr, auditlog.ResultFailed)
 			http.Error(w, "That account needs a code from its authenticator app.", http.StatusUnauthorized)
 			return
 		}
 		// One message for a wrong password and an unknown account, because
 		// telling them apart turns the form into a way to enumerate names.
+		// The log is allowed to know the difference the form is not: it is
+		// 0600, and a refused attempt is the entry somebody looks for.
+		recordAuth("auth.login", body.Username, body.Username, addr, auditlog.ResultFailed)
 		http.Error(w, "That username and password do not match.", http.StatusUnauthorized)
 		return
 	}
@@ -161,6 +185,7 @@ func (g *Guard) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session, _ := g.Sessions.Lookup(token)
+	recordAuth("auth.login", account.Name, account.Name, addr, auditlog.ResultOK)
 	setSessionCookie(w, token)
 	writeJSON(w, map[string]any{
 		"ok":   true,
@@ -196,6 +221,10 @@ func (g *Guard) HandleLogout(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not end the session: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		// Named from the session rather than the request body: the account is
+		// whoever the cookie belonged to, which is the only claim here servlo
+		// established itself.
+		recordAuth("auth.logout", session.User, session.User, sourceAddress(r), auditlog.ResultOK)
 	}
 	clearSessionCookie(w)
 	writeJSON(w, map[string]any{"ok": true})
@@ -272,6 +301,7 @@ func (g *Guard) HandleSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session, _ := g.Sessions.Lookup(token)
+	recordAuth("auth.setup", account.Name, account.Name, sourceAddress(r), auditlog.ResultOK)
 	setSessionCookie(w, token)
 	writeJSON(w, map[string]any{
 		"ok":   true,
@@ -376,6 +406,7 @@ func (g *Guard) HandleTOTPConfirm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	recordAuth("users.totp.enabled", session.User, session.User, sourceAddress(r), auditlog.ResultOK)
 	writeJSON(w, map[string]any{"ok": true, "recovery_codes": codes})
 }
 
@@ -415,6 +446,8 @@ func (g *Guard) HandleTOTPDisable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// The same action the CLI writes, so one search finds both doors.
+	recordAuth("users.totp.disabled", session.User, session.User, addr, auditlog.ResultOK)
 	writeJSON(w, map[string]any{"ok": true})
 }
 
