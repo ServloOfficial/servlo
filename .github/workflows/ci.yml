@@ -93,6 +93,17 @@ jobs:
       - name: Test
         run: go test ./...
 
+      # The panel is a long-running server with a watcher, a health poller, an
+      # event bus, caches and a WebSocket broker on separate goroutines, and a
+      # race there is invisible to every other check here. The one this found
+      # was a renewal alert raised in a goroutine nobody waited for, which on a
+      # short-lived `servlo secure` was a banner and an email that may never
+      # have happened. The surface scan is left out: it walks the whole tree and
+      # the race detector takes it past the ten-minute test timeout, and it has
+      # no concurrency of its own to say anything about.
+      - name: Test under the race detector
+        run: go test -race $(go list ./... | grep -v /internal/surfacescan)
+
       - name: Vet
         run: go vet ./...
 
