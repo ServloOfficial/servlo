@@ -180,6 +180,10 @@ A `.sql.gz` imports like a `.sql`. The engine clients read plain SQL, so servlo 
 
 A custom-format archive (`pg_dump -Fc`) is not a SQL file at all, and `psql` says so: the import fails with "The input is a PostgreSQL custom-format dump. Use the pg_restore command-line client". Export it as plain SQL, or `--format=plain`, and it imports.
 
+### What a dump is allowed to do
+
+A dump is a script, not data. `servlo db:import`, `servlo db:restore` and `servlo import site` all feed it to the engine's client through the connection's administrative credentials, because a dump commonly creates the schema it is filling and the site's own account cannot. That is the right account for a dump you exported; it is the wrong one for a dump somebody sent you, because a `CREATE USER` or a `GRANT` appended to the end of the file reaches every database on that server rather than the one you were importing into. Read a dump whose provenance you are unsure of before loading it.
+
 ### Imports that finish with errors
 
 `psql` exits 0 whether a dump loaded cleanly or every statement in it failed, so `servlo db:import`, `servlo db:restore` and a cross-version `service migrate` count what the engine wrote and end on a warning instead of "import complete" when it complained. On the terminal the warning spells out the first few complaints with their counts and folds the rest into a tally, which is usually enough to name the cause on sight; the web UI lists them all: a flood of `invalid command \N`, or of `backslash commands are restricted` on PostgreSQL 18, means a `COPY` block had no table to load into, so the failure is further up in whatever stopped that table from being created. Both phrasings are the same thing and both fold into a single line in the report, so the cascade never crowds out its cause.
