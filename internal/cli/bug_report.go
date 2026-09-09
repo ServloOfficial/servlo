@@ -498,9 +498,20 @@ func dumpEnvironment(w io.Writer) {
 // sensitive. Used for the SERVLO_* dump in bug reports — even though the rest
 // of the bug-report scrubbers redact common secret value shapes, key names
 // containing TOKEN/SECRET/PASSWORD/PASSWD/KEY are a stronger signal.
+//
+// PWD is in the list because that is how a database client actually spells it:
+// the variable the mysql tools read is MYSQL_PWD, and a list matching PASSWORD
+// but not PWD misses the one servlo passes most often. The same list, for the
+// same reason, is what TestPodmanEnvArgsNeverSpellACredential in
+// internal/serviceops refuses to see in a podman argument; the two answer the
+// same question and drifting apart is how one of them stops being true.
+//
+// It over-matches on purpose. A name like SERVLO_BYPASS_CHECK reads as a
+// secret here and is redacted for nothing, which costs a bug report one
+// diagnostic line. Guessing the other way costs a credential.
 func isSecretShapedKey(key string) bool {
 	upper := strings.ToUpper(key)
-	for _, needle := range []string{"TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "PRIVATE_KEY"} {
+	for _, needle := range []string{"TOKEN", "SECRET", "PASSWORD", "PASSWD", "PASS", "PWD", "CREDENTIAL", "API_KEY", "PRIVATE_KEY"} {
 		if strings.Contains(upper, needle) {
 			return true
 		}

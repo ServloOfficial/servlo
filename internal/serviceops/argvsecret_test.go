@@ -98,6 +98,12 @@ func TestPodmanEnvArgsNeverSpellACredential(t *testing.T) {
 // isCredentialPair reports whether a "NAME=" literal names something secret.
 // The list is the shapes servlo actually hands a database or object-store
 // client, plus the words a new one would be spelled with.
+//
+// It is the same list isSecretShapedKey in internal/cli uses to decide what a
+// bug report may print. The two answer the same question about the same
+// variables, and the reason they are written out twice rather than shared is
+// that this one lives in a test: if they ever disagree, the one that matters is
+// whichever is narrower, so widen both.
 func isCredentialPair(lit string) bool {
 	name, _, ok := strings.Cut(strings.Trim(lit, `"`), "=")
 	if !ok {
