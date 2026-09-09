@@ -10,6 +10,10 @@ vi.mock('./PresetSuggestionBanner.svelte', () => import('./ServiceDetail.stub.sv
 vi.mock('./ServiceDatabasesTab.svelte', () => import('./ServiceDetail.stub.svelte'));
 vi.mock('./ServiceEntitiesTab.svelte', () => import('./ServiceDetail.stub.svelte'));
 vi.mock('$components/LogViewer.svelte', () => import('./ServiceDetail.stub.svelte'));
+// The env and tuning tabs put an editor inside this component, and Monaco cannot
+// run in jsdom. Without this the real one loads on every run of a test about
+// which tabs are visible.
+vi.mock('$lib/monaco', () => import('$lib/monaco.stub'));
 
 import ServiceDetail from './ServiceDetail.svelte';
 import { session } from '$stores/session';
