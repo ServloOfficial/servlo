@@ -113,7 +113,9 @@ func WriteHtpasswd(domain, user, hash string) error {
 }
 
 // RemoveHtpasswd takes the credentials away, for a site that stopped being a
-// staging site or stopped existing.
+// staging site. A site that stopped existing is unlink's, which calls the same
+// removal directly: this package imports siteops, so the call cannot come back
+// the other way.
 func RemoveHtpasswd(domain string) {
-	_ = os.Remove(nginx.HtpasswdPath(domain))
+	nginx.RemoveHtpasswd(domain)
 }

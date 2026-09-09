@@ -35,6 +35,8 @@ That is what to run when somebody who had it should not have it any more. The ol
 
 The certificate still works. The ACME challenge path is exempted from the password, because the authority cannot be asked for one, and without that exemption a staging site could never be issued a certificate and the failure would read like a DNS problem.
 
+The hash lives in its own file named for the domain, and it is the one credential servlo leaves at 0644: nginx's workers drop to the image's own user before they read it, and a file they cannot open makes the site answer 500 to everybody. A hash rather than a password is what makes that payable. Removing the site removes the file; unlinking a parked one leaves it, because that site is coming back and its vhost still names it.
+
 ## Refreshing from live
 
 ```bash
