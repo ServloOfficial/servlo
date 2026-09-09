@@ -98,11 +98,17 @@ func WriteHtpasswd(domain, user, hash string) error {
 	if err := os.MkdirAll(config.NginxHtpasswdDir(), 0755); err != nil {
 		return err
 	}
-	// 0644 rather than 0600: nginx reads this from its own container as its own
-	// user, and it holds a bcrypt hash rather than a password. A file nginx
-	// cannot read makes the site answer 500 to everybody, which is a worse
-	// outcome than a hash being readable by an account that can already read
-	// the site's .env.
+	// 0644 rather than 0600, and this is the one credential file servlo leaves
+	// readable. nginx's master starts as the container's root, which rootless
+	// podman maps to this user, but the workers that read an
+	// auth_basic_user_file have dropped to the image's own nginx user by then,
+	// and that maps to a subuid this file's owner is not. A file those workers
+	// cannot open makes the site answer 500 to everybody.
+	//
+	// So it holds a bcrypt hash rather than a password, which is what makes the
+	// tradeoff payable. It used to say the hash was readable by an account that
+	// could already read the site's .env; that stopped being true when those
+	// went to 0600, so the reason above is now the whole of it.
 	return os.WriteFile(nginx.HtpasswdPath(domain), []byte(user+":"+hash+"\n"), 0644)
 }
 
