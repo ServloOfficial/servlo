@@ -229,3 +229,82 @@ func TestConfiguredSSHPortsFallsBackToTwentyTwo(t *testing.T) {
 		t.Fatalf("ports = %v, want [22]", got)
 	}
 }
+
+// The range servlo allocates from, 2200 to 2999, is exactly where an operator
+// who moved sshd off 22 tends to have put it. Handing a site the port sshd is
+// already on writes a Match LocalPort block for it, and every shell login on
+// that port becomes a chrooted internal-sftp session: the operator loses the
+// only way into their own machine, remotely, from a panel action.
+func TestAssignPort_NeverTakesAPortSSHIsAlreadyOn(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	prev := reservedSSHPorts
+	reservedSSHPorts = func() []int { return []int{22, firstPort, firstPort + 1} }
+	t.Cleanup(func() { reservedSSHPorts = prev })
+
+	port, err := AssignPort("acme.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if port == firstPort || port == firstPort+1 {
+		t.Errorf("a site was given %d, which is a port sshd is listening on", port)
+	}
+	if port != firstPort+2 {
+		t.Errorf("port = %d, want the first one below sshd's", port)
+	}
+}
+
+// And an allocation made before that was true is corrected rather than kept.
+// Stability is worth a saved connection breaking; it is not worth the operator's
+// shell.
+func TestAssignPort_MovesASiteOffAPortSSHHasTaken(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	if err := savePorts(map[string]int{"acme.com": 2222}); err != nil {
+		t.Fatal(err)
+	}
+	prev := reservedSSHPorts
+	reservedSSHPorts = func() []int { return []int{2222} }
+	t.Cleanup(func() { reservedSSHPorts = prev })
+
+	port, err := AssignPort("acme.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if port == 2222 {
+		t.Error("the site kept the port sshd listens on")
+	}
+	ports, err := Ports()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ports["acme.com"] != port {
+		t.Errorf("the move was not recorded: %+v", ports)
+	}
+}
+
+// The file is the only record of which port a site answers on, and the whole
+// point of it is that the port does not move. os.WriteFile empties a file before
+// it writes a byte, so a write that could not finish would read as no
+// allocations at all and every site would be handed a new port on the next pass.
+func TestSavePorts_ReplacesTheFileRatherThanRewritingIt(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	if err := savePorts(map[string]int{"acme.com": 2201}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.Stat(PortsFile())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := savePorts(map[string]int{"acme.com": 2201, "beta.example": 2202}); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.Stat(PortsFile())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.SameFile(before, after) {
+		t.Error("the port file was rewritten in place, so a write that runs out of disk moves every site's SFTP port")
+	}
+	if mode := after.Mode().Perm(); mode != 0o600 {
+		t.Errorf("mode = %o, want 600", mode)
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"gopkg.in/yaml.v3"
 )
@@ -218,31 +219,49 @@ func Ports() (map[string]int, error) {
 	return file.Ports, nil
 }
 
+// reservedSSHPorts is what sshd already answers on, as a seam so a test does
+// not need /etc.
+var reservedSSHPorts = ConfiguredSSHPorts
+
 // AssignPort returns the site's port, allocating one the first time.
 //
 // Stable, because the port is in whatever the operator saved in their SFTP
 // client, and a port that moved when an unrelated site was removed would break
 // a connection that had nothing to do with the change.
+//
+// Stable except against sshd. The range this allocates from is exactly where an
+// operator who moved sshd off 22 tends to have put it, and a site holding that
+// port puts a Match LocalPort block on it: every shell login there becomes a
+// chrooted internal-sftp session, and the operator loses the only way into their
+// own machine, remotely, from a panel action. So a reserved port is never handed
+// out, and one handed out before it was reserved is taken back. A saved
+// connection breaking is worth less than a shell.
 func AssignPort(domain string) (int, error) {
 	ports, err := Ports()
 	if err != nil {
 		return 0, err
 	}
-	if port, ok := ports[domain]; ok {
+	reserved := map[int]bool{}
+	for _, port := range reservedSSHPorts() {
+		reserved[port] = true
+	}
+	if port, ok := ports[domain]; ok && !reserved[port] {
 		return port, nil
 	}
 	taken := map[int]bool{}
-	for _, port := range ports {
-		taken[port] = true
+	for other, port := range ports {
+		if other != domain {
+			taken[port] = true
+		}
 	}
 	for port := firstPort; port <= lastPort; port++ {
-		if taken[port] {
+		if taken[port] || reserved[port] {
 			continue
 		}
 		ports[domain] = port
 		return port, savePorts(ports)
 	}
-	return 0, fmt.Errorf("every port between %d and %d is already allocated", firstPort, lastPort)
+	return 0, fmt.Errorf("every port between %d and %d is already allocated or in use by sshd", firstPort, lastPort)
 }
 
 // ReleasePort forgets a site, so its port can be handed to another one.
@@ -266,7 +285,11 @@ func savePorts(ports map[string]int) error {
 	if err := os.MkdirAll(filepath.Dir(PortsFile()), 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(PortsFile(), data, 0o600)
+	// Replaced rather than rewritten. This file is the only record of which port
+	// a site answers on, and the whole point of it is that the port does not
+	// move: a half-written one reads as no allocations at all, and every site
+	// would be handed a new port on the next pass.
+	return atomicfile.Write(PortsFile(), data, 0o600)
 }
 
 // ConfiguredSSHPorts reads the ports sshd is already listening on.
