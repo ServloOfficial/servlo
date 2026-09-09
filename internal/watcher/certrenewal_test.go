@@ -4,9 +4,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/ServloOfficial/servlo/internal/certs"
 	"github.com/ServloOfficial/servlo/internal/config"
 )
 
@@ -168,5 +170,73 @@ func TestRenewCertsOnce_LeavesARebuildToTheOperator(t *testing.T) {
 
 	if asked != 0 {
 		t.Errorf("the sweep tried %d issuances during a restore, one alert each", asked)
+	}
+}
+
+// writePanelDomain attaches a domain to the panel in the config the sweep
+// reads, and optionally puts a certificate on disk for it, which is what tells
+// the sweep the operator ever secured it.
+func writePanelDomain(t *testing.T, domain string, secured bool) {
+	t.Helper()
+	dir := config.ConfigDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte("ui:\n  domain: "+domain+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !secured {
+		return
+	}
+	certPath, keyPath := certs.SitePaths(domain)
+	if err := os.MkdirAll(filepath.Dir(certPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{certPath, keyPath} {
+		if err := os.WriteFile(p, []byte("stand-in"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// The panel's own domain is not a site, so the sweep over sites.yaml walks past
+// it. Ninety days after `servlo panel domain secure` the panel is the one thing
+// on the machine serving an expired certificate, and it is the thing the
+// operator logs in to to find out.
+func TestRenewCertsOnce_RenewsThePanelsOwnCertificate(t *testing.T) {
+	writeSites(t, twoSecuredOnePlain)
+	writePanelDomain(t, "panel.example", true)
+	var asked []string
+	reloads := stubRenewal(t, func(s config.Site) (bool, error) {
+		asked = append(asked, s.PrimaryDomain())
+		return true, nil
+	})
+
+	renewCertsOnce()
+
+	if !slices.Contains(asked, "panel.example") {
+		t.Errorf("the panel's certificate was never renewed; asked about %v", asked)
+	}
+	if *reloads != 1 {
+		t.Errorf("nginx reloaded %d times, want exactly one after the sweep", *reloads)
+	}
+}
+
+// A domain attached but never secured has no certificate, and asking the
+// authority for one nobody asked for spends a validation and raises a failure
+// for a panel the operator is happily reaching by address.
+func TestRenewCertsOnce_LeavesAnUnsecuredPanelDomainAlone(t *testing.T) {
+	writeSites(t, twoSecuredOnePlain)
+	writePanelDomain(t, "panel.example", false)
+	var asked []string
+	stubRenewal(t, func(s config.Site) (bool, error) {
+		asked = append(asked, s.PrimaryDomain())
+		return true, nil
+	})
+
+	renewCertsOnce()
+
+	if slices.Contains(asked, "panel.example") {
+		t.Errorf("the sweep tried to issue a certificate for a panel domain that has none: %v", asked)
 	}
 }

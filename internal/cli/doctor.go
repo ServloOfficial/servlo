@@ -437,14 +437,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 
 		// And what is actually on disk, which a machine restored from a backup
 		// can get wrong with no failure record at all.
-		var secured []string
-		if reg, regErr := config.LoadSites(); regErr == nil && reg != nil {
-			for _, site := range reg.Sites {
-				if site.Secured {
-					secured = append(secured, site.PrimaryDomain())
-				}
-			}
-		}
+		secured := securedCertDomains()
 		for _, p := range certs.ExpiryProblems(secured) {
 			if p.Expired {
 				fail("certificate for "+p.Domain, p.Reason, "servlo secure --renew "+p.Domain)
@@ -454,7 +447,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 			rep.fixLast(manualFix)
 		}
 		if len(secured) > 0 && len(certs.ExpiryProblems(secured)) == 0 && len(certs.RenewalFailures()) == 0 {
-			ok(fmt.Sprintf("certificates (%d secured site(s))", len(secured)))
+			ok(fmt.Sprintf("certificates (%d secured domain(s))", len(secured)))
 		}
 
 		if cfg != nil {

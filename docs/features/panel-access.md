@@ -42,7 +42,7 @@ servlo panel domain secure
 servlo restart
 ```
 
-That issues through the ordinary ACME path, into the same certificate directory sites use, so the renewal scanner picks the panel up without being told about it. The vhost is rewritten to listen on 443, redirect from 80, and carry the same TLS defaults, HSTS and OCSP handling every secured site gets.
+That issues through the ordinary ACME path, into the same certificate directory sites use. The panel is not a site, so the twice-daily renewal sweep is told about its domain by name, and renews it alongside the secured sites; `servlo doctor` reports its expiry the same way. The vhost is rewritten to listen on 443, redirect from 80, and carry the same TLS defaults, HSTS and OCSP handling every secured site gets.
 
 Until the certificate exists, the panel keeps answering on port 7073 with its self-signed certificate. Nothing goes offline in between.
 
