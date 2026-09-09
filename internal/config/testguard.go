@@ -69,3 +69,23 @@ func resolveLinks(path string) string {
 // UnderTest reports whether this process is a test binary, for packages that must
 // refuse to touch the real system (systemd, podman) when no stub is installed.
 func UnderTest() bool { return underTest }
+
+// IsolateStateForTests points servlo's data and config directories at a fresh
+// temp directory and returns the function that removes it. For a TestMain that
+// needs a whole package kept off the real install, rather than the per-test
+// t.Setenv pair, because the path that reaches state is often several calls deep:
+// reading global config resolves the default presets, and resolving a preset
+// generates this install's service password on first use. A test that never
+// mentions passwords writes one.
+//
+// The guard still holds after this: realStateDirs is resolved when the package
+// loads, which is before any TestMain runs.
+func IsolateStateForTests() func() {
+	dir, err := os.MkdirTemp("", "servlo-test-state-")
+	if err != nil {
+		panic("isolating servlo state for tests: " + err.Error())
+	}
+	os.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+	os.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
+	return func() { os.RemoveAll(dir) }
+}
