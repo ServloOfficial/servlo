@@ -91,17 +91,24 @@ func (c *Client) FetchIndex() (*Index, error) {
 // fetchIndex downloads and parses the store index, returning the raw bytes too so
 // callers can persist them to the on-disk cache verbatim.
 func (c *Client) fetchIndex() (*Index, []byte, error) {
-	data, err := c.fetch("index.json")
+	idx, data, _, err := c.fetchIndexFrom()
+	return idx, data, err
+}
+
+// fetchIndexFrom is fetchIndex, saying whether the index came from the embedded
+// copy, which is what decides whether its digests can speak for a fetched file.
+func (c *Client) fetchIndexFrom() (*Index, []byte, bool, error) {
+	data, embedded, err := c.fetchFrom("index.json")
 	if err != nil {
-		return nil, nil, fmt.Errorf("fetching store index: %w", err)
+		return nil, nil, false, fmt.Errorf("fetching store index: %w", err)
 	}
 
 	var idx Index
 	if err := json.Unmarshal(data, &idx); err != nil {
-		return nil, nil, fmt.Errorf("parsing store index: %w", err)
+		return nil, nil, false, fmt.Errorf("parsing store index: %w", err)
 	}
 
-	return &idx, data, nil
+	return &idx, data, embedded, nil
 }
 
 // RefreshIndex downloads the store index, updates the local cache, and returns
@@ -164,7 +171,7 @@ func writeCachedIndex(data []byte) {
 // carries the commands servlo will run, so it is verified before it is read,
 // not after.
 func (c *Client) FetchFramework(name, version string) (*config.Framework, error) {
-	idx, idxErr := c.FetchIndex()
+	idx, _, idxEmbedded, idxErr := c.fetchIndexFrom()
 	if version == "" {
 		if idxErr != nil {
 			return nil, idxErr
@@ -177,14 +184,16 @@ func (c *Client) FetchFramework(name, version string) (*config.Framework, error)
 	}
 
 	remotePath := name + "/" + version + ".yaml"
-	data, err := c.fetch(remotePath)
+	data, embedded, err := c.fetchFrom(remotePath)
 	if err != nil {
 		return nil, fmt.Errorf("fetching %s@%s: %w", name, version, err)
 	}
-	// An unreachable index leaves nothing to check against. That is the offline
-	// case, where the fetch above came from the embedded copy, which no network
-	// party can influence.
-	if idxErr == nil {
+	// Checked when both halves came off the network. An unreachable index leaves
+	// nothing to check against, an embedded definition needs no checking because
+	// no network party can influence it, and an embedded index cannot vouch for
+	// one that did come from the network: it says what this build shipped with,
+	// so a definition published since would be refused for being newer.
+	if idxErr == nil && !idxEmbedded && !embedded {
 		if entry, ok := c.findEntry(idx, name); ok {
 			if err := verifyDigest(data, entry.DigestFor(version), remotePath); err != nil {
 				return nil, err
@@ -285,12 +294,25 @@ func (c *Client) findEntry(idx *Index, name string) (*IndexEntry, bool) {
 }
 
 func (c *Client) fetch(path string) ([]byte, error) {
+	body, _, err := c.fetchFrom(path)
+	return body, err
+}
+
+// fetchFrom is fetch, saying whether the bytes came from the copy compiled into
+// this binary rather than from the network.
+//
+// The digest checks need to know. An embedded file needs no checking, because no
+// network party can influence it, and an embedded index cannot vouch for a file
+// that did come from the network: it records what this build shipped with, so a
+// definition published since would be refused for being newer rather than for
+// being wrong.
+func (c *Client) fetchFrom(path string) ([]byte, bool, error) {
 	client := &http.Client{Timeout: httpTimeout}
 	var errs []string
 	for _, base := range append([]string{c.BaseURL}, c.Fallbacks...) {
 		body, err := fetchWithRetry(client, base+"/"+path)
 		if err == nil {
-			return body, nil
+			return body, false, nil
 		}
 		errs = append(errs, err.Error())
 	}
@@ -299,10 +321,10 @@ func (c *Client) fetch(path string) ([]byte, error) {
 	// definition the build already carries is never unreachable.
 	if c.Embedded != "" {
 		if body, ok := stores.Read(c.Embedded, path); ok {
-			return body, nil
+			return body, true, nil
 		}
 	}
-	return nil, fmt.Errorf("fetching %s: %s", path, strings.Join(errs, "; "))
+	return nil, false, fmt.Errorf("fetching %s: %s", path, strings.Join(errs, "; "))
 }
 
 // fetchWithRetry retries a transient fetch failure, a request timeout, a dropped

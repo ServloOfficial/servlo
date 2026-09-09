@@ -63,15 +63,23 @@ func NewServiceClient() *Client {
 
 // FetchServiceIndex downloads and parses the service-preset store index.
 func (c *Client) FetchServiceIndex() (*ServiceIndex, error) {
-	data, err := c.fetch("index.json")
+	idx, _, err := c.fetchServiceIndexFrom()
+	return idx, err
+}
+
+// fetchServiceIndexFrom is FetchServiceIndex, saying whether the index came from
+// the embedded copy, which is what decides whether its digests can speak for a
+// fetched preset.
+func (c *Client) fetchServiceIndexFrom() (*ServiceIndex, bool, error) {
+	data, embedded, err := c.fetchFrom("index.json")
 	if err != nil {
-		return nil, fmt.Errorf("fetching service store index: %w", err)
+		return nil, false, fmt.Errorf("fetching service store index: %w", err)
 	}
 	var idx ServiceIndex
 	if err := json.Unmarshal(data, &idx); err != nil {
-		return nil, fmt.Errorf("parsing service store index: %w", err)
+		return nil, false, fmt.Errorf("parsing service store index: %w", err)
 	}
-	return &idx, nil
+	return &idx, embedded, nil
 }
 
 // FetchServicePreset downloads a preset's YAML, checks it against the digest the
@@ -85,15 +93,15 @@ func (c *Client) FetchServiceIndex() (*ServiceIndex, error) {
 // has been checked this way since digests existed and this one had not been,
 // which left the higher-stakes half of the store taken on trust.
 func (c *Client) FetchServicePreset(name string) ([]byte, error) {
-	idx, idxErr := c.FetchServiceIndex()
-	data, err := c.fetch(name + ".yaml")
+	idx, idxEmbedded, idxErr := c.fetchServiceIndexFrom()
+	data, embedded, err := c.fetchFrom(name + ".yaml")
 	if err != nil {
 		return nil, fmt.Errorf("fetching service preset %q: %w", name, err)
 	}
-	// An unreachable index leaves nothing to check against. That is the offline
-	// case, where the fetch above came from the embedded copy, which no network
-	// party can influence.
-	if idxErr == nil {
+	// Checked when both halves came off the network, for the reason
+	// FetchFramework gives: an embedded preset needs no checking, and an embedded
+	// index would refuse a preset published since this build for being newer.
+	if idxErr == nil && !idxEmbedded && !embedded {
 		if entry, ok := idx.find(name); ok {
 			if err := verifyDigest(data, entry.Digest, name+".yaml"); err != nil {
 				return nil, err

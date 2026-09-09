@@ -188,3 +188,31 @@ func sha256Of(s string) []byte {
 	sum := sha256.Sum256([]byte(s))
 	return sum[:]
 }
+
+// The embedded index says what this build shipped with. It cannot vouch for a
+// preset that came off the network, because a preset published since would be
+// refused for being newer rather than for being wrong, and that is the ordinary
+// case: the store is the update path.
+func TestFetchServicePreset_AnEmbeddedIndexDoesNotJudgeAFetchedPreset(t *testing.T) {
+	// No index handler, so the index falls back to the copy compiled in while
+	// the preset itself comes from the server.
+	mux := http.NewServeMux()
+	mux.HandleFunc("/mysql.yaml", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("name: mysql\nimage: docker.io/library/mysql:9.9\ndescription: newer than this build\n"))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	c := NewServiceClient()
+	c.BaseURL, c.Fallbacks = srv.URL, nil
+
+	data, err := c.FetchServicePreset("mysql")
+	if err != nil {
+		t.Fatalf("a preset newer than the embedded index was refused: %v", err)
+	}
+	if !strings.Contains(string(data), "newer than this build") {
+		t.Errorf("got %q, want the body the server served", data)
+	}
+}
