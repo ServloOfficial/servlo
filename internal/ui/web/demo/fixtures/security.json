@@ -2,7 +2,7 @@
   "findings": [
     {
       "severity": "bad",
-      "title": "2 ports listening on a public address that should not be",
+      "title": "2 ports are listening on a public address that should not be",
       "detail": "Open and unaccounted for: 3306, 6379. A servlo service binds to the container network, so anything here is either a published port that is no longer needed or a service bound to the wrong address.",
       "fix": [
         "sudo ufw allow 22/tcp comment 'SSH'",
