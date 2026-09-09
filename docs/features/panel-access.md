@@ -46,6 +46,8 @@ That issues through the ordinary ACME path, into the same certificate directory 
 
 Until the certificate exists, the panel keeps answering on port 7073 with its self-signed certificate. Nothing goes offline in between.
 
+Port 7073 keeps answering afterwards too, and keeps answering with the self-signed certificate. It is the way back in when DNS is wrong or nginx is down, and it is reached by address, which sends no server name for the panel to match: presenting the certificate for the domain there would make the emergency route a name mismatch. A request that does name the domain gets the real certificate.
+
 ```bash
 servlo panel                    # which of the two paths is live
 servlo panel domain remove      # stop serving on the domain

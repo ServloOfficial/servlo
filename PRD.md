@@ -312,6 +312,6 @@ This is the same model most single-operator panels ship, and it is a reasonable 
 
 ## 10. Deferred
 
-**v1.1:** staging sites · importing an existing live site (files plus a `.sql` dump) · email alerts once panel SMTP is set · additional apps in the installer store beyond WordPress
+**Shipped, having been deferred here first:** staging sites · importing an existing live site (files plus a `.sql` dump) · email alerts once panel SMTP is set · additional apps in the installer store beyond WordPress. The list is kept rather than deleted because a reader who came for what is deferred should be able to see that these four are not, and stop looking for them.
 
 **Later, driven by real use:** atomic releases with true rollback · per-site Linux user isolation · Prometheus metrics endpoint · managing more than one server from a single panel

@@ -20,6 +20,8 @@ The order is the design, and each part of it is deliberate:
 
 **If the backup fails, nothing is deployed.** A guarantee that only holds when nothing goes wrong is not one, and this is the case it exists for. If servlo cannot tell which database to back up, that counts as a failed backup: set `DB_HOST` and `DB_DATABASE` in the site's `.env`, or take the migration out of the script.
 
+**A managed database is backed up too.** A database servlo runs is dumped inside its own container; one it does not, a DigitalOcean Managed database or any other, is dumped over the connection the site is on and filed in the same snapshot store. Either way the deploy stops if the dump does. Restoring a managed database's snapshot is not wired into `servlo db:restore` yet, so that one is a `gunzip` and the engine's own client for now.
+
 **The pull is fast-forward only.** A deploy that merges is a deploy that can produce a commit nobody wrote and nobody reviewed, on a server, unattended.
 
 **The script stops at its first failing command.** Otherwise a `composer install` that could not reach the network is followed by a migration against half-installed code, and the deploy reports success.

@@ -1,8 +1,10 @@
 package serviceops
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -269,64 +271,45 @@ func DeleteSnapshot(service, database, name string, allDatabases bool) error {
 	return os.RemoveAll(dir)
 }
 
-// CreateSnapshot dumps the target database (or every database when
-// t.AllDatabases is set) into a new named snapshot under config.SnapshotsDir().
-// An empty name is auto-generated from the current UTC time.
-func CreateSnapshot(t SnapshotTarget, name string, ctx SnapshotMeta, emit func(PhaseEvent)) (*Snapshot, error) {
-	if emit == nil {
-		emit = func(PhaseEvent) {}
-	}
-	if !t.AllDatabases {
-		if err := ValidateDatabaseName(t.Database); err != nil {
-			return nil, err
-		}
-	}
-	dumpCmd, err := snapshotDumpCommand(t)
-	if err != nil {
-		return nil, err
-	}
+// newSnapshotDir settles a snapshot's final name and makes the directory it
+// goes in, holding the service lock until the caller is done with it. Shared by
+// the two ways a snapshot is taken, so a snapshot of a managed database is named
+// and stored exactly like a snapshot of a local one.
+func newSnapshotDir(t SnapshotTarget, name string) (dir, clean string, unlock func(), err error) {
 	if strings.TrimSpace(name) == "" {
 		name = "snapshot-" + timestamped()
 	} else if hint, reserved := reservedSnapshotName(name); reserved {
-		return nil, fmt.Errorf("%q is not a valid snapshot name — %s", strings.TrimSpace(name), hint)
+		return "", "", nil, fmt.Errorf("%q is not a valid snapshot name — %s", strings.TrimSpace(name), hint)
 	} else {
 		// Stamp a user-provided name with the same UTC timestamp an auto-generated
 		// one carries, so repeated snapshots of one name never collide and each
 		// snapshot's time can be read straight off its name.
 		name = strings.TrimSpace(name) + "-" + timestamped()
 	}
-	clean, err := sanitizeSnapshotName(name)
+	clean, err = sanitizeSnapshotName(name)
 	if err != nil {
-		return nil, err
+		return "", "", nil, err
 	}
 
-	unlock := lockService(t.Service)
-	defer unlock()
-
-	dir := snapshotDir(t.Service, t.Database, clean, t.AllDatabases)
-	if _, err := os.Stat(dir); err == nil {
-		return nil, fmt.Errorf("snapshot %q already exists — delete it first with db:snapshot:rm", clean)
+	unlock = lockService(t.Service)
+	dir = snapshotDir(t.Service, t.Database, clean, t.AllDatabases)
+	if _, statErr := os.Stat(dir); statErr == nil {
+		unlock()
+		return "", "", nil, fmt.Errorf("snapshot %q already exists — delete it first with db:snapshot:rm", clean)
 	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		return nil, fmt.Errorf("creating snapshot dir: %w", err)
+		unlock()
+		return "", "", nil, fmt.Errorf("creating snapshot dir: %w", err)
 	}
+	return dir, clean, unlock, nil
+}
 
-	label := t.Database
-	if t.AllDatabases {
-		label = "all databases"
-	}
-	emit(PhaseEvent{Phase: "dumping_data", Message: "dumping " + label})
-	dumpPath := filepath.Join(dir, snapshotDumpFile)
-	if err := dumpToHost("servlo-"+t.Service, dumpCmd, introspectEnv(), dumpPath, dumpRestoreTimeout); err != nil {
-		_ = os.RemoveAll(dir)
-		return nil, fmt.Errorf("dumping %s: %w", label, err)
-	}
-
+// finishSnapshot records the sidecar beside a dump that has just been written.
+func finishSnapshot(dir, clean string, t SnapshotTarget, ctx SnapshotMeta) (*Snapshot, error) {
 	var size int64
-	if fi, statErr := os.Stat(dumpPath); statErr == nil {
+	if fi, err := os.Stat(filepath.Join(dir, snapshotDumpFile)); err == nil {
 		size = fi.Size()
 	}
-
 	database := t.Database
 	if t.AllDatabases {
 		database = ""
@@ -348,8 +331,100 @@ func CreateSnapshot(t SnapshotTarget, name string, ctx SnapshotMeta, emit func(P
 		_ = os.RemoveAll(dir)
 		return nil, fmt.Errorf("writing snapshot metadata: %w", err)
 	}
-	emit(PhaseEvent{Phase: "done", Message: "snapshot " + clean + " created"})
 	return &snap, nil
+}
+
+// StoreSnapshot files a dump the caller has already taken, for a database
+// servlo does not host.
+//
+// The container path cannot reach one of those: it execs the engine's own dump
+// command inside the service's container, and a managed database has no
+// container on this machine. So whoever can reach it takes the dump and hands
+// it here, and it lands in the same store under the same layout, because an
+// operator looking for the backup taken before a bad deploy should find it in
+// one place whether or not servlo runs the database it came from.
+//
+// plainSQL is uncompressed; it is gzipped on the way in so the stored file is
+// the same shape as a local snapshot's.
+func StoreSnapshot(t SnapshotTarget, name string, ctx SnapshotMeta, plainSQL io.Reader) (*Snapshot, error) {
+	if !t.AllDatabases {
+		if err := ValidateDatabaseName(t.Database); err != nil {
+			return nil, err
+		}
+	}
+	dir, clean, unlock, err := newSnapshotDir(t, name)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
+	if err := writeGzip(filepath.Join(dir, snapshotDumpFile), plainSQL); err != nil {
+		_ = os.RemoveAll(dir)
+		return nil, fmt.Errorf("writing the dump: %w", err)
+	}
+	return finishSnapshot(dir, clean, t, ctx)
+}
+
+// writeGzip streams r into path, compressed. The close order matters: the gzip
+// footer is written on Close, so a file closed before the writer is flushed is
+// a truncated archive that reads as a corrupt one.
+func writeGzip(path string, r io.Reader) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return err
+	}
+	zw := gzip.NewWriter(f)
+	if _, err := io.Copy(zw, r); err != nil {
+		zw.Close()
+		f.Close()
+		return err
+	}
+	if err := zw.Close(); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+// CreateSnapshot dumps the target database (or every database when
+// t.AllDatabases is set) into a new named snapshot under config.SnapshotsDir().
+// An empty name is auto-generated from the current UTC time.
+func CreateSnapshot(t SnapshotTarget, name string, ctx SnapshotMeta, emit func(PhaseEvent)) (*Snapshot, error) {
+	if emit == nil {
+		emit = func(PhaseEvent) {}
+	}
+	if !t.AllDatabases {
+		if err := ValidateDatabaseName(t.Database); err != nil {
+			return nil, err
+		}
+	}
+	dumpCmd, err := snapshotDumpCommand(t)
+	if err != nil {
+		return nil, err
+	}
+	dir, clean, unlock, err := newSnapshotDir(t, name)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
+	label := t.Database
+	if t.AllDatabases {
+		label = "all databases"
+	}
+	emit(PhaseEvent{Phase: "dumping_data", Message: "dumping " + label})
+	dumpPath := filepath.Join(dir, snapshotDumpFile)
+	if err := dumpToHost("servlo-"+t.Service, dumpCmd, introspectEnv(), dumpPath, dumpRestoreTimeout); err != nil {
+		_ = os.RemoveAll(dir)
+		return nil, fmt.Errorf("dumping %s: %w", label, err)
+	}
+
+	snap, err := finishSnapshot(dir, clean, t, ctx)
+	if err != nil {
+		return nil, err
+	}
+	emit(PhaseEvent{Phase: "done", Message: "snapshot " + clean + " created"})
+	return snap, nil
 }
 
 // RestoreSnapshot loads a stored snapshot back into its database. A per-database

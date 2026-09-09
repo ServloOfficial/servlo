@@ -230,4 +230,4 @@ This is a deliberate relaxation of the older "only commit when asked" rule and a
 - **Destructive actions need friction.** Anything that deletes data (site removal, database drop, backup pruning) gets a typed-confirmation modal and an audit entry. The file manager always shows its live-site warning.
 - **Don't flip a default** without user demand behind it.
 - Treat "can we do X?" as a question ("is X needed?"), not an instruction to build X. Answer first.
-- The deferred list (PRD §10) is deferred on purpose: staging, site import, atomic releases, per-site Linux users, Prometheus, multi-server. Do not start any of it unprompted.
+- The deferred list (PRD §10) is deferred on purpose: atomic releases, per-site Linux users, Prometheus, multi-server. Do not start any of it unprompted. Staging, site import, panel email alerts and the apps beyond WordPress were on that list and have since shipped, so they are ordinary parts of the product now rather than things to leave alone.

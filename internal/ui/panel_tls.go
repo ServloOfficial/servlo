@@ -142,8 +142,16 @@ func (l *channelListener) Addr() net.Addr { return l.addr }
 // next connection rather than at the next restart.
 func panelCertificateFor(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	domain := PanelDomain()
-	if real, err := panelRealCertificate(domain); err == nil {
-		return real, nil
+	// Only to a client that asked for the panel's domain by name. This port is
+	// the route to the panel when DNS is wrong or nginx is down, and it is
+	// reached by address, which carries no SNI: answering that with a
+	// certificate for a name the client never asked for makes the emergency
+	// route a name mismatch. The self-signed one covers the address, and the
+	// domain too, so the by-name case still works before there is a real one.
+	if domain != "" && strings.EqualFold(hello.ServerName, domain) {
+		if real, err := panelRealCertificate(domain); err == nil {
+			return real, nil
+		}
 	}
 	addrs, _ := dnscheck.ServerAddresses(hello.Context())
 	return certs.PanelCertificate(addrs, domain)
