@@ -451,6 +451,20 @@ func TestIsSecretShapedKey(t *testing.T) {
 		"SERVLO_SSH_KEY":       true,
 		"SERVLO_DATA_DIR":      false,
 		"SERVLO_SOMETHING_KEY": true,
+
+		// PWD is how a database client actually spells it: the variable the
+		// mysql tools read is MYSQL_PWD, not MYSQL_PASSWORD. A list that
+		// matches PASSWORD and not PWD misses the real one.
+		"SERVLO_DB_PWD":         true,
+		"SERVLO_MYSQL_PWD":      true,
+		"SERVLO_S3_PASS":        true,
+		"SERVLO_API_CREDENTIAL": true,
+
+		// Still not everything with a suggestive substring: a path is not a
+		// secret, and redacting one costs a bug report the thing it was
+		// collected to show.
+		"SERVLO_PASSWORD_FILE_DIR": true,
+		"SERVLO_KEYRING_PATH":      false,
 	}
 	for k, want := range cases {
 		if got := isSecretShapedKey(k); got != want {
