@@ -861,10 +861,15 @@ func writeLandingVhost(site config.Site, htmlFile string) error {
 	}
 	conf := landingVhostConf(site, config.PausedDir(), htmlFile)
 	confPath := filepath.Join(config.NginxConfD(), site.PrimaryDomain()+".conf")
-	config.GuardRealWrite(confPath)
-	if err := os.WriteFile(confPath, []byte(conf), 0644); err != nil {
+	// Through commitVhost like every other generated vhost. This one replaces
+	// the live site's own file on a running machine, and the caller reloads
+	// straight after, so a file nginx refuses here takes down every site on the
+	// server with no previous copy to put back.
+	if err := commitVhost(confPath, []byte(conf)); err != nil {
 		return err
 	}
+	// Only once the landing page is committed: dropping the HTTPS block first
+	// and then failing to write the page would leave the site with neither.
 	if site.Secured {
 		_ = os.Remove(filepath.Join(config.NginxConfD(), site.PrimaryDomain()+"-ssl.conf"))
 	}
@@ -1460,7 +1465,11 @@ func EnsureServloVhost() error {
 	return commitVhost(dashboardPath, []byte(content))
 }
 
-// EnsureNginxConfig copies the base nginx.conf to the data dir if it is missing.
+// EnsureNginxConfig re-renders the base nginx.conf into the data dir, every
+// call rather than only when it is missing: the render drops the defaults the
+// operator has overridden at http level, so it has to run again whenever that
+// set changes. The operator's own text is not in this file, it is in the
+// override the panel saves through cfgedit with its own validation and backup.
 func EnsureNginxConfig() error {
 	nginxDir := config.NginxDir()
 	if err := os.MkdirAll(nginxDir, 0755); err != nil {
