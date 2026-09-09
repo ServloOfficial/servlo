@@ -42,9 +42,9 @@ func TestNvmCommand_RunsNode(t *testing.T) {
 	wantNodeVersion(t, m.Command("default", "node", []string{"--version"}))
 }
 
-// TestNvmExecPrefix_SurvivesGuardLine reproduces the macOS host-worker guard
-// line, where ExecPrefix is placed raw into a shell-parsed line followed by the
-// command: `exec <prefix> /bin/sh -c '<cmd>'`. This guards the deeply nested
+// TestNvmExecPrefix_SurvivesGuardLine places ExecPrefix raw into a shell-parsed
+// line followed by the command: `exec <prefix> /bin/sh -c '<cmd>'`. This guards
+// the deeply nested
 // quoting (a shellQuote'd bash -c script inside a shell-parsed line) that the
 // worker builders rely on. The Linux path embeds the same prefix in a systemd
 // ExecStart, which applies the same shell-style quote parsing.

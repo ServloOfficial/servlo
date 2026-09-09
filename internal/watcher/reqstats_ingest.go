@@ -171,21 +171,10 @@ func startAccessFeed() {
 	}()
 }
 
-// accessFeedConn binds the nginx access feed listener per platform: a unix
-// datagram socket on Linux (bind-mounted into the rootless nginx container), or
-// UDP on macOS where nginx is in the VM and the host socket isn't reachable.
+// accessFeedConn binds the nginx access feed listener: a unix datagram socket,
+// bind-mounted into the rootless nginx container.
 func accessFeedConn() (net.PacketConn, bool) {
 	return listenDatagram(config.AccessSocketPath())
-}
-
-// listenUDP binds a UDP socket at addr for the macOS access feed. ok=false on
-// failure, matching listenDatagram so callers skip the feed the same way.
-func listenUDP(addr string) (net.PacketConn, bool) {
-	conn, err := net.ListenPacket("udp", addr)
-	if err != nil {
-		return nil, false
-	}
-	return conn, true
 }
 
 // listenDatagram binds a unix datagram socket at path under RunDir, replacing any

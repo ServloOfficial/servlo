@@ -56,8 +56,7 @@ var systemBusProperty = func(dest, path, iface, prop string) (dbus.Variant, erro
 }
 
 // detectState prefers the system bus and falls back to sysfs. The power-saver
-// profile is the closest analogue to macOS Low Power Mode and, like it, can be
-// selected while plugged in, so it is checked first.
+// profile can be selected while plugged in, so it is checked first.
 func detectState() State {
 	if busElseFile(lowPowerDBus, lowPowerSysfs) {
 		return LowPower

@@ -16,8 +16,8 @@ const (
 	Mains State = iota
 	// Battery is running from the battery.
 	Battery
-	// LowPower is an explicit user request to conserve energy (macOS Low Power
-	// Mode, the power-saver profile on Linux). It outranks Battery: the
+	// LowPower is an explicit user request to conserve energy: the power-saver
+	// profile. It outranks Battery: the
 	// setting can be switched on while plugged in, and when it is, the user has
 	// asked for less background work regardless of the power source.
 	LowPower
@@ -34,8 +34,8 @@ func (s State) String() string {
 	}
 }
 
-// probeTTL caches the answer briefly. The probe shells out on macOS and crosses
-// the system bus on Linux, and callers arrive in bursts (a `servlo start` writes
+// probeTTL caches the answer briefly. The probe crosses the system bus, and
+// callers arrive in bursts (a `servlo start` writes
 // one unit per worker per site), so a short window collapses a dozen probes
 // into one without letting the answer go stale enough to matter for the
 // cadences that read it.

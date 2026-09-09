@@ -142,8 +142,8 @@ func siteContainerUnit(site *config.Site) string {
 // autostart` uses globally, so a paused runtime site's container stops
 // autostarting at boot. Restoring is gated on the global autostart flag so
 // unpause never re-arms a container the user disabled globally. Returns whether
-// the file changed. No-op when the site has no container quadlet (plain FPM, or
-// the macOS plist path). Caller daemon-reloads when it returns true.
+// the file changed. No-op when the site has no container quadlet, which is the
+// plain FPM case. Caller daemon-reloads when it returns true.
 func setSiteContainerAutostart(site *config.Site, on bool) bool {
 	unit := siteContainerUnit(site)
 	if unit == "" {
@@ -384,11 +384,9 @@ func CollectRunningWorkerNames(site *config.Site) []string {
 func collectRunningWorkers(site *config.Site) []string {
 	var active []string
 
-	// Enumerate all workers from the framework definition. Use
-	// podman.UnitStatus rather than systemd.IsServiceActiveOrRestarting
-	// because the latter is a no-op stub on darwin, which would make
-	// every `servlo worker start … && SetProjectWorkers(CollectRunningWorkerNames)`
-	// chain wipe the workers list it just appended to.
+	// Enumerate every worker the framework declares, asking podman.UnitStatus
+	// for each one's state so this reads the same source the lifecycle calls
+	// write to.
 	if fw, ok := config.FrameworkForSite(site); ok && fw.Workers != nil {
 		names := make([]string, 0, len(fw.Workers))
 		for wName := range fw.Workers {
@@ -436,10 +434,9 @@ func timerIsActive(states map[string]string, unit string) bool {
 	return states[unit+".timer"] == "active"
 }
 
-// unitIsActiveOrActivating routes through podman.UnitStatus so the check
-// works on macOS too (UnitLifecycle is the darwin service manager, which
-// reads launchctl). systemd.IsServiceActiveOrRestarting falls through to
-// the DBus stub on darwin and always reports "inactive".
+// unitIsActiveOrActivating routes through podman.UnitStatus rather than
+// systemd.IsServiceActiveOrRestarting, so a unit that is still activating reads
+// as up rather than as gone.
 func unitIsActiveOrActivating(unit string) bool {
 	state, _ := podman.UnitStatus(unit)
 	return state == "active" || state == "activating"

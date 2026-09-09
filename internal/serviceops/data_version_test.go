@@ -137,9 +137,9 @@ func TestEnsureDefaultPresetQuadlet_explicitImagePinWinsOverDataDir(t *testing.T
 		t.Fatalf("EnsureDefaultPresetQuadlet: %v", err)
 	}
 
-	// Assert the tag, not the whole ref: on darwin the platform override swaps
-	// postgis/postgis for imresamu/postgis and templates the same tag through,
-	// so the repo legitimately differs per host while the pinned version cannot.
+	// Assert the tag, not the whole ref: a preset's platform override may swap
+	// the repository and template the same tag through, so the repo can
+	// legitimately differ while the pinned version cannot.
 	if got := readQuadletImage(t, "servlo-postgres"); !strings.HasSuffix(got, ":16-3.5-alpine") {
 		t.Errorf("explicit image pin must be honored, got %q", got)
 	}

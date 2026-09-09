@@ -23,9 +23,9 @@ func TestBindable_falseForBoundPort(t *testing.T) {
 // interfaces must read as not bindable. Go binds "0.0.0.0:0" as an IPv4
 // all-interfaces (AF_INET) socket and "[::]:0" as a dual-stack [::] socket; a DB
 // configured to listen on all interfaces (bind-address *, listen_addresses '*')
-// or gvproxy publishing a container's port on macOS takes one of these shapes. A
-// specific-loopback probe alone slips past them under SO_REUSEADDR on macOS and
-// lets servlo publish a container on the same port; the wildcard probes catch it.
+// takes one of these shapes. A specific-loopback probe alone slips past them
+// under SO_REUSEADDR and lets servlo publish a container on the same port; the
+// wildcard probes catch it.
 // Both wildcard spellings are exercised so the coverage is explicit.
 func TestBindable_falseForAllInterfacesBoundPort(t *testing.T) {
 	for _, spec := range []string{"0.0.0.0:0", "[::]:0"} {

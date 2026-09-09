@@ -303,12 +303,6 @@ func (c *GlobalConfig) RequestTimeoutSeconds() int {
 	return DefaultRequestTimeout
 }
 
-// Worker exec-mode constants. `exec` is the default on every platform;
-// `container` is available as an opt-in on macOS for users who prefer the
-// reliability of per-worker containers over the memory savings of
-// podman-exec into the shared FPM container.
-const ()
-
 func defaultConfig() *GlobalConfig {
 	cfg := &GlobalConfig{}
 	cfg.PHP.DefaultVersion = "8.5"

@@ -73,9 +73,37 @@ func Rules() []Rule {
 			Patterns: []string{
 				`_darwin(_test)?\.go$`, `_windows(_test)?\.go$`,
 				`^//go:build.*\b(darwin|windows)\b`,
+				// A file excluded from Linux is a file that never compiles here,
+				// which is how two systemd stubs stayed in the tree describing
+				// the platform they existed for.
+				`^//go:build.*!linux\b`,
 				`"launchctl"`,
 			},
 			Allow: specs,
+		},
+		{
+			// The code went with S0.2. The prose did not: a hundred comments
+			// went on explaining Linux behaviour by contrast with a platform
+			// that is not here, and three of them were describing functions
+			// nothing had called since. A comment nobody can act on is not
+			// harmless when it is the thing the next person reads to decide
+			// what a branch is for.
+			//
+			// Prose spellings only. A "darwin" string handed to a function that
+			// takes a GOOS is data, and the build surface above already covers
+			// the file names and the build tags.
+			Feature: "macOS prose", Story: "S0.2", Enforced: true,
+			Patterns: []string{
+				`(?i)\bmac ?os\b`, `(?i)apple silicon`, `\bgvproxy\b`,
+				`\bLaunchAgents\b`, `podman machine`, `(?i)\brosetta\b`,
+			},
+			// The panel's notification tests carry real user-agent strings,
+			// including Safari's. That is the browser a visitor opens the panel
+			// in, which servlo has every reason to know about and none to
+			// forbid; the host it runs on is the deleted thing.
+			Allow: append(append([]string{}, specs...),
+				"internal/ui/web/src/lib/notify.test.ts",
+			),
 		},
 		{
 			Feature: "MCP server", Story: "S0.4", Enforced: true,

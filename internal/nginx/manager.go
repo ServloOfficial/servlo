@@ -736,9 +736,9 @@ func GenerateCustomSSLVhost(site config.Site) error {
 	return commitVhost(confPath, rendered)
 }
 
-// hostProxyUpstream returns the host address nginx proxies a host-proxy site to.
-// macOS resolves host.containers.internal via gvproxy; on Linux we reuse the
-// routable gateway IP the probe cached in the hosts file (pure read, no podman).
+// hostProxyUpstream returns the host address nginx proxies a host-proxy site to:
+// the routable gateway IP the probe cached in the hosts file (pure read, no
+// podman).
 func hostProxyUpstream() string {
 	if ip := podman.ReadHostGatewayFromFile(); ip != "" {
 		return ip

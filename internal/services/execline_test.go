@@ -45,8 +45,8 @@ func TestSplitExecStart(t *testing.T) {
 		},
 		{
 			// ShellQuote renders an apostrophe as '\'', which only survives the
-			// round trip if an escape outside quotes is honoured. Folders like
-			// "Tim's Projects" are ordinary on macOS.
+			// round trip if an escape outside quotes is honoured. A folder like
+			// "Tim's Projects" is ordinary enough to hit it.
 			name: "apostrophe in path, as ShellQuote writes it",
 			line: `/usr/bin/podman exec -w '/Users/tim/Tim'\''s Projects/shop' servlo-php84-fpm php artisan queue:work`,
 			want: []string{"/usr/bin/podman", "exec", "-w", "/Users/tim/Tim's Projects/shop", "servlo-php84-fpm", "php", "artisan", "queue:work"},

@@ -30,10 +30,6 @@ func (m *Model) settingsRows() []settingsRow {
 		on:    servloSystemd.IsAutostartEnabled(),
 	})
 
-	// Worker runtime mode: macOS only. On Linux workers always run via
-	// podman exec under systemd so the setting is meaningless there and
-	// is hidden from the UI.
-
 	return rows
 }
 

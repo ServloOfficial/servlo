@@ -9,10 +9,10 @@ import (
 
 // TestWorkerStartForSite_skipsLifecycleWhenUnsupported pins the contract
 // fixed in this round: when workerSupportedOnPlatform reports the worker
-// can't run on this platform, WorkerStartForSite must return nil without
-// calling Enable/StartUnit. On macOS the prior behaviour was to print a
-// WARN, return (false, nil) from writeWorkerUnitFile, then proceed to
-// StartUnit on a non-existent unit — producing a confusing podman error
+// can't run on this host, WorkerStartForSite must return nil without
+// calling Enable/StartUnit. The prior behaviour was to print a WARN, return
+// (false, nil) from writeWorkerUnitFile, then proceed to StartUnit on a
+// non-existent unit — producing a confusing podman error
 // after the WARN.
 func TestWorkerStartForSite_skipsLifecycleWhenUnsupported(t *testing.T) {
 	registerSite(t, "ws", "/p/ws")
@@ -21,7 +21,7 @@ func TestWorkerStartForSite_skipsLifecycleWhenUnsupported(t *testing.T) {
 
 	prev := workerSupportedOnPlatform
 	workerSupportedOnPlatform = func(_ config.FrameworkWorker) (bool, string) {
-		return false, "host: true workers aren't supported on macOS yet"
+		return false, "this worker shape is not supported on this host"
 	}
 	t.Cleanup(func() { workerSupportedOnPlatform = prev })
 

@@ -55,9 +55,9 @@ func ensureImages() {
 	for _, unit := range units {
 		image := quadletImage(unit)
 
-		// On macOS there are no quadlet files, so quadletImage returns "".
-		// Derive the image name from the unit name for PHP-FPM units so that
-		// images are rebuilt after a VM reset without requiring manual intervention.
+		// A unit whose quadlet file is gone reads back no image, which is the
+		// state a reinstall leaves. Derive it from the unit name for PHP-FPM
+		// units so the image is rebuilt rather than the unit skipped.
 		if image == "" && strings.HasPrefix(unit, "servlo-php") && strings.HasSuffix(unit, "-fpm") {
 			short := strings.TrimSuffix(strings.TrimPrefix(unit, "servlo-php"), "-fpm")
 			image = "servlo-php" + short + "-fpm:local"
@@ -217,8 +217,8 @@ func coreUnits() []string {
 }
 
 // installedCustomContainerUnits returns units for per-project custom containers
-// and per-site FrankenPHP containers that have a unit file installed (plist on
-// macOS, quadlet on Linux). These are started alongside FPM and services.
+// and per-site FrankenPHP containers whose quadlet is installed. These are
+// started alongside FPM and services.
 func installedCustomContainerUnits() []string {
 	var units []string
 	reg, err := config.LoadSites()
@@ -240,9 +240,8 @@ func installedCustomContainerUnits() []string {
 		default:
 			continue
 		}
-		// Use the platform-aware check (plist on macOS, .container quadlet on Linux)
-		// rather than podman.QuadletInstalled which only checks for .container files
-		// and always returns false on macOS where plists are used instead.
+		// Through the service manager rather than podman.QuadletInstalled, so
+		// this asks the same question the lifecycle calls ask.
 		if services.Mgr.ContainerUnitInstalled(unitName) {
 			units = append(units, unitName)
 		}
@@ -408,31 +407,13 @@ func checkPortConflicts(units []string) {
 }
 
 // isPortConflict reports whether a port check is a genuine clash with a foreign
-// process. A servlo service that already owns its port is never a conflict: a
-// running container owns it directly, and the podman machine's gvproxy owns any
-// published port by forwarding it. The func seam keeps this pure and testable.
+// process. A servlo service that already owns its port is never a conflict, so a
+// running container is not one. The func seam keeps this pure and testable.
 func isPortConflict(c PortCheck, portList string, containerRunning func(string) bool) bool {
 	if containerRunning(c.Container) {
 		return false
 	}
-	if !PortInUseIn(c.Port, portList) {
-		return false
-	}
-	return !portOwnedByMachineProxy(c.Port, portList)
-}
-
-// portOwnedByMachineProxy reports whether the listener on the given port is the
-// podman machine's gvproxy. On macOS that proxy owns every published host port
-// (servlo's containers themselves carry no -p), so a gvproxy-held port is a
-// servlo/podman forward into the VM rather than a foreign blocker. On Linux there
-// is no gvproxy, so this never matches and the check is a harmless no-op.
-func portOwnedByMachineProxy(port, portList string) bool {
-	for _, line := range strings.Split(portList, "\n") {
-		if strings.HasPrefix(line, "gvproxy") && strings.Contains(line, ":"+port+" ") {
-			return true
-		}
-	}
-	return false
+	return PortInUseIn(c.Port, portList)
 }
 
 // podmanContainerRunning adapts podman.ContainerRunning to the bool-only seam
@@ -467,10 +448,9 @@ func runStart(_ *cobra.Command, _ []string) error {
 	containerDNS := podman.ContainerDNS()
 	_ = healPodmanUpgrade(containerDNS)
 
-	// Ensure the servlo bridge network exists. On macOS the network is stored
-	// inside the Podman Machine VM; it may be absent after a fresh machine
-	// init or if it was pruned. All service containers use --network servlo so
-	// this must succeed before any container is started.
+	// Ensure the servlo bridge network exists: it may have been pruned, and
+	// every service container joins it with --network servlo, so this has to
+	// succeed before any container is started.
 	if err := podman.EnsureNetwork("servlo", containerDNS); err != nil {
 		if errors.Is(err, podman.ErrNetworkNeedsMigration) {
 			fmt.Println("  WARN: servlo network schema doesn't match host IPv6 support; run 'servlo install' to recreate")
@@ -894,10 +874,9 @@ func restoreSiteInfrastructure() {
 			continue
 		}
 
-		// Restore custom container plist/quadlet for custom container sites.
-		// On macOS the plist lives in ~/Library/LaunchAgents; on Linux it is a
-		// systemd quadlet. After a reinstall the unit file may be gone even though
-		// the site is still registered in sites.yaml and .servlo.yaml is on disk.
+		// Restore the quadlet for a custom container site. After a reinstall the
+		// unit file may be gone even though the site is still registered in
+		// sites.yaml and .servlo.yaml is on disk.
 		if s.IsCustomContainer() {
 			unitName := podman.CustomContainerName(s.Name)
 			if !services.Mgr.ContainerUnitInstalled(unitName) {
@@ -995,9 +974,8 @@ func restoreSiteInfrastructure() {
 			}
 		}
 
-		// Restore worker units from saved worker names. The platform helper
-		// decides whether to start immediately (Linux) or just write the unit
-		// file and let phase 2 of runStart launch it (macOS).
+		// Restore worker units from the site's saved worker names, writing the
+		// unit and starting it.
 		for _, w := range proj.Workers {
 			unitName := "servlo-" + w + "-" + s.Name
 			parentEnabled := services.Mgr.IsEnabled(unitName)
@@ -1050,8 +1028,8 @@ func restoreSiteInfrastructure() {
 
 	// Restore unit files for standalone custom services (installed globally via
 	// `servlo service add`) whose config exists in ~/.config/servlo/services/ but
-	// whose unit file (plist on macOS, quadlet on Linux) is missing — e.g. after
-	// a reinstall that wiped ~/Library/LaunchAgents or ~/.config/containers/systemd/.
+	// whose quadlet is missing, which is what a reinstall that wiped
+	// ~/.config/containers/systemd/ leaves behind.
 	if customs, err := config.ListCustomServices(); err == nil {
 		for _, svc := range customs {
 			if !services.Mgr.ContainerUnitInstalled("servlo-" + svc.Name) {

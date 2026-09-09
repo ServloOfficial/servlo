@@ -41,8 +41,7 @@ func ReconcileServices(emit func(PhaseEvent)) (ReconcileResult, error) {
 	var res ReconcileResult
 	var errs []error
 
-	// Forward: every defined service must have its unit (EnsureCustomServiceQuadlet
-	// also re-syncs the macOS plist).
+	// Forward: every defined service must have its unit.
 	customs, err := config.ListCustomServices()
 	if err != nil {
 		return res, fmt.Errorf("listing custom services: %w", err)

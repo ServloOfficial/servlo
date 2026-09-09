@@ -17,8 +17,8 @@ const (
 	// SSHAgentUnit is the quadlet/systemd unit name (matches the container).
 	SSHAgentUnit = "servlo-ssh-agent"
 	// SSHAgentVolume is the named volume that carries the agent socket. Podman
-	// auto-creates it on first container start; it lives inside the podman
-	// machine on macOS, so the socket never crosses the host-VM boundary.
+	// auto-creates it on first container start, so the socket is shared between
+	// containers without being written anywhere on the host.
 	SSHAgentVolume = "servlo-ssh-agent"
 	// SSHAgentMountDir is where the named volume is mounted in every container.
 	SSHAgentMountDir = "/ssh-agent"

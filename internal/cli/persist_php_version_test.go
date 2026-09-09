@@ -30,8 +30,8 @@ func TestPersistPHPVersion_PlainSitePinsTheSiteRoot(t *testing.T) {
 }
 
 // tempRoot is t.TempDir() with symlinks resolved. AddSite canonicalises a site's
-// path, and on macOS the temp dir sits under /var, a symlink to /private/var, so
-// an unresolved path would never prefix-match the registered site.
+// path, so a temp dir reached through a symlink would never prefix-match the
+// registered site.
 func tempRoot(t *testing.T) string {
 	t.Helper()
 	dir, err := filepath.EvalSymlinks(t.TempDir())

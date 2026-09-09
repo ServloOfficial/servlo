@@ -59,7 +59,7 @@ func SweepRefs(refs ...string) {
 	}
 	// De-dup the non-empty refs into canonical candidates, preserving order so a
 	// repeated ref is reaped once. Apply the host image rewrite first
-	// (postgis/postgis -> imresamu/postgis on Apple Silicon) so the ref matches the
+	// (postgis/postgis -> imresamu/postgis on arm64) so the ref matches the
 	// name actually stored, otherwise the superseded image is never reclaimed.
 	candidates := map[string]bool{}
 	var order []string

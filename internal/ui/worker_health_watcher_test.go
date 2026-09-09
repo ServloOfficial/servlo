@@ -77,9 +77,8 @@ func TestTickWorkerHealth_UnchangedSignatureDoesNotPublish(t *testing.T) {
 	}
 }
 
-// The idle cadence is what keeps an unattended install off the CPU. On
-// darwin every detect is one launchctl fork per worker plist, so a hidden
-// dashboard must poll far less often than a visible one.
+// The idle cadence is what keeps an unattended install off the CPU: a hidden
+// dashboard has to poll far less often than a visible one.
 func TestChooseHealthInterval(t *testing.T) {
 	if got := chooseHealthInterval(true); got != healthWatchInterval {
 		t.Errorf("visible interval = %v, want %v", got, healthWatchInterval)
@@ -96,10 +95,11 @@ func TestChooseHealthInterval(t *testing.T) {
 // the cache TTL misses it every single time, which is the bug behind the
 // idle fork storm: the throttle never once fires for this caller.
 func TestHealthTickOutlivesUnitCacheTTL(t *testing.T) {
-	const darwinUnitStatesTTL = 3 * time.Second
-	if healthWatchInterval < darwinUnitStatesTTL {
+	// Mirrors siteinfo's unitCacheTTL, which is not exported.
+	const unitStatesTTL = 3 * time.Second
+	if healthWatchInterval < unitStatesTTL {
 		t.Errorf("tick %v is shorter than the %v unit-state cache TTL, so every tick is a cache miss",
-			healthWatchInterval, darwinUnitStatesTTL)
+			healthWatchInterval, unitStatesTTL)
 	}
 }
 

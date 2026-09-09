@@ -21,11 +21,8 @@ import (
 // a v6-only wildcard [::] since it covers ::1. The wildcard probe (net.Listen on
 // "0.0.0.0", an IPv4 all-interfaces socket) catches a v4-wildcard server (e.g. a
 // MySQL on bind-address 0.0.0.0) that a specific-address bind slips past under
-// SO_REUSEADDR on BSD/macOS, which would otherwise read as free.
-// On macOS a running servlo container's gvproxy holds the dual-stack wildcard, so
-// the wildcard probe reports its port in use; gvproxy releases it synchronously
-// when the container stops, so a reinstall still rebinds without a spurious
-// shift. A host with no IPv6 loopback at all is tolerated — the v6 check is
+// SO_REUSEADDR, which would otherwise read as free.
+// A host with no IPv6 loopback at all is tolerated — the v6 check is
 // skipped rather than treated as busy.
 //
 // The wildcard probe is released before the loopback pair is bound: on Linux a

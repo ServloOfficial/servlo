@@ -37,10 +37,9 @@ func TestTickHostGateway(t *testing.T) {
 		{
 			// Fast-path: the common case on a stationary machine. LAN IP
 			// is unchanged from the last tick, so we short-circuit before
-			// touching podman. This is the ~99.99% path on a desktop and
-			// the whole reason the optimization exists — a podman exec
-			// per tick would burn 1-3 % CPU on macOS (gvproxy hop costs
-			// ~300 ms – 1 s per exec).
+			// touching podman. This is the ordinary path and the whole
+			// reason the optimization exists: a podman exec per tick is
+			// real CPU on a machine that is otherwise idle.
 			name:                 "lan unchanged, fast path",
 			lastLAN:              "192.168.1.10",
 			currentLAN:           "192.168.1.10",
@@ -99,14 +98,13 @@ func TestTickHostGateway(t *testing.T) {
 			wantLastLANAfterTick:  "10.0.0.50",
 		},
 		{
-			// Regression: probe reports the same IP already on disk (can
-			// happen on macOS where gvproxy's address doesn't depend on
-			// LAN IP). Skip the write so we don't thrash the bind-mounted
-			// file and trigger spurious inotify events.
+			// Regression: the probe reports the same IP already on disk.
+			// Skip the write so we don't thrash the bind-mounted file and
+			// trigger spurious inotify events.
 			name:                  "lan changed but probe confirms current",
 			lastLAN:               "192.168.1.10",
 			currentLAN:            "10.0.0.50",
-			current:               "192.168.127.254", // gvproxy address
+			current:               "192.168.127.254", // an address off this host's LAN
 			reachable:             false,
 			fresh:                 "192.168.127.254",
 			wantWrote:             false,

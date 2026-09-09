@@ -1,7 +1,7 @@
 name: beanstalkd
 description: Beanstalkd work queue
-# schickling/beanstalkd is the de-facto image and is amd64-only; on arm64
-# (Apple Silicon) it runs under podman's linux/amd64 emulation.
+# schickling/beanstalkd is the de-facto image and is amd64-only; on arm64 it
+# runs under podman's linux/amd64 emulation.
 image: docker.io/schickling/beanstalkd:latest
 ports:
   - "11300:11300"

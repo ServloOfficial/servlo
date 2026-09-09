@@ -228,7 +228,7 @@ func streamShellRun(w http.ResponseWriter, ctx context.Context, cwd, shell strin
 	cmd := exec.CommandContext(ctx, "sh", "-c", shell)
 	cmd.Dir = cwd
 	// Prepend BinDir so php/composer/npm shims resolve under the daemon's
-	// restricted PATH on macOS. Skip the trailing separator when PATH is
+	// restricted PATH. Skip the trailing separator when PATH is
 	// empty — a bare "PATH=<bin>:" would search CWD on POSIX.
 	path := config.BinDir()
 	if existing := os.Getenv("PATH"); existing != "" {

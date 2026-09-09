@@ -152,8 +152,7 @@ func TestHostCandidates(t *testing.T) {
 		{
 			// Happy path: all three candidates present and distinct. Probe
 			// order is preserved so host.containers.internal gets the first
-			// shot — the conventional host-gateway address, and the
-			// canonical choice on macOS/gvproxy.
+			// shot, it being the conventional host-gateway address.
 			name:     "all distinct",
 			getentIP: "169.254.1.2",
 			lanIP:    "192.168.1.10",

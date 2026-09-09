@@ -27,10 +27,8 @@ type RemoveOptions struct {
 	// pass. Set by ReinstallService, which then drives the regen itself
 	// after install: InstallPresetByName regenerates internally for custom
 	// services, while default-preset and failure paths call regen
-	// explicitly. The regen-during-remove was racing the post-install
-	// regen on macOS (launchctl bootout/bootstrap can fall through to
-	// kickstart which doesn't re-read the plist), leaving consumers on
-	// the partial plist.
+	// explicitly. Regenerating during the remove raced that, and a consumer
+	// left holding the half-removed service's config is the result.
 	SkipFamilyRegen bool
 }
 
@@ -185,8 +183,8 @@ func renameDataAside(dir string) error {
 }
 
 // isCrossDeviceErr unwraps a *os.LinkError and matches syscall.EXDEV. Falls
-// back to substring matching only as a last resort so non-Go-wrapped errors
-// (e.g. localized macOS messages bubbled through CGo paths) are still caught.
+// back to substring matching only as a last resort, so an error that reached
+// here without Go's wrapping is still caught.
 func isCrossDeviceErr(err error) bool {
 	if err == nil {
 		return false

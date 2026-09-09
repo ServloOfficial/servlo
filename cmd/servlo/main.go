@@ -222,12 +222,6 @@ func newWatchCmd() *cobra.Command {
 			watcher.OnGatewayIPChange = cli.RegenerateHostProxyVhostsOnGatewayChange
 			go watcher.WatchHostGateway(30*time.Second, nil)
 
-			// Self-heal exec-mode framework workers on macOS. Container mode
-			// uses podman --restart=always; exec mode runs guard scripts
-			// under systemd that can be left orphaned by an interrupted
-			// migration or sleep/wake bridge churn. No-op on Linux.
-			go watcher.WatchExecWorkers(60 * time.Second)
-
 			// Re-apply the reload watcher's poll cadence when the machine is
 			// plugged in or unplugged. The interval is baked into a worker's
 			// unit and read once at watcher startup, so an unplugged laptop

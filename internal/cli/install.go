@@ -132,8 +132,8 @@ func fileChangedBy(path string, mutate func() error) (bool, error) {
 // portPreflightConflicts returns the core host ports servlo needs to bind first
 // (nginx HTTP/HTTPS and DNS) that are already held by a foreign process.
 // portList is the host listener dump from PortListOutput; the seams mirror
-// checkPortConflicts so servlo's own running container and the podman machine's
-// gvproxy forward are not reported as conflicts.
+// checkPortConflicts, so servlo's own running container is not reported as a
+// conflict with itself.
 func portPreflightConflicts(portList string, containerRunning func(string) bool) []PortCheck {
 	var conflicts []PortCheck
 	for _, c := range CollectPortChecks([]string{"servlo-nginx"}) {
@@ -759,10 +759,8 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// that don't already exist, so this is a no-op for ordinary updates.
 	restoreSiteInfrastructure()
 
-	// Ensure all globally configured services have unit files on disk.
-	// This writes the unit files for any service that has a config
-	// entry but no plist (e.g. services installed before the macOS port, or
-	// after a clean install from config backup).
+	// Ensure every globally configured service has its unit file on disk,
+	// which a clean install restored from a config backup does not.
 	migrateServiceUnits()
 
 	// Build any missing derived FrankenPHP image regardless of autostart: the
@@ -1604,9 +1602,8 @@ func installShellCompletions(home, servloBin string) {
 	}
 }
 
-// bashRCPath picks the bash startup file servlo should write its PATH line to.
-// macOS Terminal launches bash as a login shell that reads .bash_profile (not
-// .bashrc); Linux interactive bash reads .bashrc.
+// bashRCPath picks the bash startup file servlo writes its PATH line to.
+// Interactive bash reads .bashrc.
 func bashRCPath(home string) string {
 	return filepath.Join(home, ".bashrc")
 }

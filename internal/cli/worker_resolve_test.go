@@ -48,10 +48,9 @@ func TestResolveWorkerFPMUnit_customContainer(t *testing.T) {
 	}
 }
 
-// TestResolveWorkerFPMUnit_frankenPHP regression-pins the FrankenPHP
-// branch that restoreWorker (linux + darwin) and writeWorkerExecUnit
-// (darwin) used to miss: they hard-coded the shared FPM, so FrankenPHP
-// sites' workers ended up exec'ing into a container that doesn't run their
+// TestResolveWorkerFPMUnit_frankenPHP regression-pins the FrankenPHP branch the
+// worker-start callers used to miss: they hard-coded the shared FPM, so
+// FrankenPHP sites' workers ended up exec'ing into a container that doesn't run their
 // PHP. The shared helper now routes FrankenPHP sites to their own FrankenPHP
 // container.
 func TestResolveWorkerFPMUnit_frankenPHP(t *testing.T) {

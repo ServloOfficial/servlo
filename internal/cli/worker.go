@@ -330,11 +330,10 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 		return err
 	}
 
-	// Skip lifecycle for worker shapes the current platform can't run.
-	// Without this gate macOS hosts proceed past writeWorkerUnitFile (which
-	// returns (false, nil) and prints a WARN) into podman.StartUnit on a
-	// unit that was never written, surfacing a confusing podman error
-	// behind the original WARN.
+	// Skip the lifecycle for a worker shape this host cannot run. Without the
+	// gate, writeWorkerUnitFile returns (false, nil) with a WARN and the start
+	// goes on to podman.StartUnit against a unit that was never written, which
+	// surfaces a confusing podman error behind the original WARN.
 	if ok, reason := workerSupportedOnPlatform(w); !ok {
 		feedback.Warn("worker %s skipped: %s", workerName, reason)
 		return nil
@@ -424,10 +423,9 @@ func WorkerStartForSite(siteName, sitePath, phpVersion, workerName string, w con
 	}
 
 	// Route through podman.StartUnit/RestartUnit (not services.Mgr directly) so
-	// AfterUnitChange fires the dashboard cache invalidate + WS push. On Linux
-	// the systemd DBus subscription catches direct services.Mgr calls as a
-	// fallback; macOS has no equivalent, so a direct call leaves the UI stale
-	// until the next 15s cache poll.
+	// AfterUnitChange fires the dashboard cache invalidate and the WS push. The
+	// systemd DBus subscription catches a direct services.Mgr call as a
+	// fallback, but going the long way leaves the UI stale until it does.
 	//
 	// When the unit changed and is already active, restart it instead of
 	// starting: a start is a no-op on an active unit, so the old process would
@@ -654,10 +652,9 @@ func WorkerUnitName(siteName, sitePath, workerName string) string {
 //   - FrankenPHP site       → its dunglas/frankenphp container
 //   - everything else       → shared servlo-php<v>-fpm
 //
-// Centralised here because restoreWorker (linux + darwin) and the macOS
-// writeWorker* helpers used to repeat the resolution and missed the
-// FrankenPHP branch — workers on FrankenPHP sites ended up exec'ing into
-// the shared FPM container that doesn't run their PHP at all.
+// Centralised here because the callers used to repeat the resolution and one
+// of them missed the FrankenPHP branch, so workers on a FrankenPHP site ended
+// up exec'ing into the shared FPM container that does not run their PHP at all.
 func resolveWorkerFPMUnit(siteName, phpVersion string) string {
 	if site, _ := config.FindSite(siteName); site != nil {
 		// Host-proxy sites run their dev server on the host and have no FPM
@@ -697,10 +694,6 @@ func stopWorkerUnit(unitName, label, _ string) error {
 		step.Fail(err)
 		return fmt.Errorf("removing unit file: %w", err)
 	}
-	// Drop the macOS exec-mode guard script + pid file (no-op on Linux).
-	// Without this they linger in ~/.local/share/servlo/run/workers after
-	// a normal stop and confuse later mode-migration discovery.
-	removeWorkerExecArtifacts(unitName)
 	finalizeStopStep(step, podman.DaemonReloadFn())
 	return nil
 }

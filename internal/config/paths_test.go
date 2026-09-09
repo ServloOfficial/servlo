@@ -7,9 +7,8 @@ import (
 	"testing"
 )
 
-// UIClient{Network,Addr} must give the CLI a transport that actually exists on
-// the host: macOS has no servlo-panel unix socket (server binds it Linux-only), so
-// the client dials the TCP loopback; Linux stays on the unix socket.
+// UIClient{Network,Addr} must give the CLI the transport the panel actually
+// binds, which is the unix socket rather than the TCP loopback.
 func TestUIClientTransport_matchesOS(t *testing.T) {
 	net, addr := UIClientNetwork(), UIClientAddr()
 	if net != "unix" {
@@ -20,9 +19,8 @@ func TestUIClientTransport_matchesOS(t *testing.T) {
 	}
 }
 
-// AccessLogTarget must give nginx a syslog server it can reach: macOS ships the
-// feed to host.containers.internal over gvproxy UDP (nginx is in the VM), Linux
-// stays on the bind-mounted unix socket. The watcher's listen addr must pair.
+// AccessLogTarget must give nginx a syslog server it can reach: the
+// bind-mounted unix socket. The watcher's listen addr must pair with it.
 func TestAccessLogTarget_matchesOS(t *testing.T) {
 	target := AccessLogTarget()
 	if want := "unix:" + AccessSocketPath(); target != want {

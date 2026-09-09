@@ -1095,8 +1095,8 @@ func ensureCustomServiceQuadletDiff(svc *config.CustomService) (bool, error) {
 		return false, err
 	}
 	// Before the quadlet exists, not after: podman creates a directory at a
-	// missing Volume source, and on macOS WriteQuadletDiff itself pre-creates
-	// bind-mount parents, so the hosts mount has to be a regular file already.
+	// missing Volume source, so the hosts mount has to be a regular file by
+	// the time anything reads the unit.
 	if err := podman.EnsureServiceHostsFile(svc.ShareHosts); err != nil {
 		return false, fmt.Errorf("ensuring hosts mount source for %s: %w", svc.Name, err)
 	}

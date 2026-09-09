@@ -25,7 +25,7 @@ func offline(t *testing.T) {
 }
 
 var platforms = []struct{ goos, goarch string }{
-	{"linux", "amd64"}, {"linux", "arm64"}, {"darwin", "amd64"}, {"darwin", "arm64"},
+	{"linux", "amd64"}, {"linux", "arm64"},
 }
 
 func TestEmbedded_ResolvesEveryToolOnEveryPlatform(t *testing.T) {
@@ -365,7 +365,7 @@ func TestManifestDigestLookup(t *testing.T) {
 	if got := m.Digest("fnm", "linux", "amd64"); got != strings.Repeat("b", 64) {
 		t.Errorf("Digest = %q", got)
 	}
-	if got := m.Digest("fnm", "darwin", "arm64"); got != "" {
+	if got := m.Digest("fnm", "linux", "riscv64"); got != "" {
 		t.Errorf("an unpinned platform must report no digest, got %q", got)
 	}
 	if got := m.Digest("composer", "linux", "amd64"); got != "" {

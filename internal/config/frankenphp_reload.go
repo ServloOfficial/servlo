@@ -26,10 +26,10 @@ func HostCanPollWatchers() bool { return false }
 // watcherPollIntervalMS is how often a polling reload watcher re-stats each
 // watched file while the machine is plugged in. chokidar's own default is
 // 100ms, which is fine on a local disk and ruinous on a shared one: every
-// watched file becomes ten host round trips a second. On macOS that traffic
-// crosses virtiofs and is served by the VM process, which is where the cost
-// lands (measured at roughly 280 virtiofs requests per second for a single
-// site, holding the VM process near 30% CPU on an otherwise idle machine). A
+// watched file becomes ten round trips a second, and on a filesystem served by
+// another process that cost lands there rather than in the watcher (measured at
+// roughly 280 requests per second for a single site, holding the serving process
+// near 30% CPU on an otherwise idle machine). A
 // second between passes keeps reload feeling immediate for a worker that takes
 // longer than that to restart anyway.
 const watcherPollIntervalMS = 1000
