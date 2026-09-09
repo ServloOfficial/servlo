@@ -25,6 +25,7 @@ import alertsFixture from './fixtures/alerts.json';
 import appsFixture from './fixtures/apps.json';
 import serverStateFixture from './fixtures/server-state.json';
 import securityFixture from './fixtures/security.json';
+import deployFixture from './fixtures/deploy.json';
 
 // Demo follows the system theme (auto). Reset any stale value a previous demo
 // session may have pinned, so it isn't stuck on a forced light/dark.
@@ -50,6 +51,25 @@ interface DemoSMTP {
   note?: string;
 }
 const smtp = structuredClone(smtpFixture) as { panel: DemoSMTP; sites: Record<string, DemoSMTP> };
+
+// Per-site deploy state. Without these the whole Deploy tab renders from an
+// empty object: the script card said the template "lands at undefined when you
+// save it", and the protected-paths card showed its load error. Mutable, so a
+// save in the demo lands on the card that made it.
+interface DemoDeployScript { path: string; body: string; exists: boolean; migrates: boolean }
+interface DemoDeployExclude { paths: string[]; custom: boolean; default: string[] }
+const deployState = structuredClone(deployFixture) as {
+  script: Record<string, DemoDeployScript>;
+  exclude: Record<string, DemoDeployExclude>;
+  history: Record<string, Array<Record<string, unknown>>>;
+  redeploy: Record<string, { available: boolean; commit?: string }>;
+  webhook: Record<string, Record<string, unknown>>;
+};
+
+function deployFor<T>(bag: Record<string, T>, domain: string): T {
+  if (!bag[domain]) bag[domain] = structuredClone(bag['default']);
+  return bag[domain];
+}
 
 function smtpFor(domain: string): DemoSMTP {
   if (!smtp.sites[domain]) smtp.sites[domain] = structuredClone(smtp.sites['default']);
@@ -1006,6 +1026,51 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
     state.verify = body.verify ? 'Sun *-*-* 04:00:00' : '';
     if (body.keep) state.keep = body.keep;
     return jsonResponse({ ok: true });
+  }
+
+  // Deploy: the script, the paths a deploy must not remove, what went out
+  // before, whether there is a commit to go back to, and deploy-on-push.
+  const deployScript = path.match(/^\/api\/sites\/([^/]+)\/deploy-script$/);
+  if (deployScript) {
+    const domain = decodeURIComponent(deployScript[1]);
+    const script = deployFor(deployState.script, domain);
+    if (method === 'GET') return jsonResponse(script);
+    if (method === 'POST') {
+      const body = JSON.parse(String(init?.body || '{}')) as { body?: string };
+      script.body = String(body.body ?? '');
+      script.exists = true;
+      script.migrates = /\bmigrate\b/.test(script.body);
+      return jsonResponse({ ok: true });
+    }
+  }
+  const deployExclude = path.match(/^\/api\/sites\/([^/]+)\/deploy-exclude$/);
+  if (deployExclude) {
+    const domain = decodeURIComponent(deployExclude[1]);
+    const exclude = deployFor(deployState.exclude, domain);
+    if (method === 'GET') return jsonResponse(exclude);
+    if (method === 'POST') {
+      const body = JSON.parse(String(init?.body || '{}')) as { paths?: string[] };
+      exclude.paths = body.paths ?? [];
+      exclude.custom = true;
+      return jsonResponse({ ok: true });
+    }
+    if (method === 'DELETE') {
+      exclude.paths = [...exclude.default];
+      exclude.custom = false;
+      return jsonResponse({ ok: true });
+    }
+  }
+  const deployHistory = path.match(/^\/api\/sites\/([^/]+)\/deploy-history$/);
+  if (deployHistory && method === 'GET') {
+    return jsonResponse({ entries: deployFor(deployState.history, decodeURIComponent(deployHistory[1])) });
+  }
+  const redeploy = path.match(/^\/api\/sites\/([^/]+)\/redeploy$/);
+  if (redeploy && method === 'GET') {
+    return jsonResponse(deployFor(deployState.redeploy, decodeURIComponent(redeploy[1])));
+  }
+  const siteWebhook = path.match(/^\/api\/sites\/([^/]+)\/webhook$/);
+  if (siteWebhook && method === 'GET') {
+    return jsonResponse(deployFor(deployState.webhook, decodeURIComponent(siteWebhook[1])));
   }
 
   // Per-site cron: the schedule, saving one, deleting one, and the framework's

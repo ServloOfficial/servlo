@@ -279,8 +279,10 @@ func writeStateFileFrom(tw *tar.Writer, from, name string, info os.FileInfo) (in
 }
 
 // StateName is the prefix every server-state archive carries, which is also
-// what lists them: they sit in the same directory as the sites' own.
-const StateName = "servlo-state"
+// what lists them: they sit in the same directory as the sites' own. It comes
+// from config because that is where the registry refuses a site of the same
+// name, and the two have to agree for that refusal to mean anything.
+const StateName = config.StateArchiveName
 
 // WriteState creates a server-state archive in dir and returns where it landed.
 //

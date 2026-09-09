@@ -95,11 +95,18 @@
   {#if loading}
     <p class="mt-4 text-xs text-gray-400">…</p>
   {:else}
-    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-      {custom
-        ? m.sites_deployExclude_sourceSite()
-        : m.sites_deployExclude_sourceFramework()}
-    </p>
+    <!-- "Following the framework's list" reads as a promise, and every
+         framework but WordPress declares no protected paths, so on most sites
+         that line sat directly above "Nothing is protected". A site's own list
+         is named whether or not it is empty, because then the emptiness is a
+         choice somebody made. -->
+    {#if custom || lines(text).length > 0}
+      <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+        {custom
+          ? m.sites_deployExclude_sourceSite()
+          : m.sites_deployExclude_sourceFramework()}
+      </p>
+    {/if}
 
     <textarea
       bind:value={text}

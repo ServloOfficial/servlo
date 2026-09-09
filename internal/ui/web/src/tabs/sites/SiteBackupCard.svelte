@@ -77,7 +77,9 @@
     const res = await act('verify', () => verifyBackup(site.domain));
     if (res) {
       const r = res as { tables?: number; note?: string };
-      notice = r.note ? r.note : m.backups_verified({ n: r.tables ?? 0 });
+      const tables = r.tables ?? 0;
+      const verified = tables === 1 ? m.backups_verifiedOne({ n: tables }) : m.backups_verified({ n: tables });
+      notice = r.note ? r.note : verified;
     }
   }
 

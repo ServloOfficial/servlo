@@ -687,26 +687,48 @@ export function findService(name: string): Service | undefined {
   return get(services).find((s) => s.name === name);
 }
 
+/**
+ * How each service servlo ships is spelled, which is how its makers spell it.
+ *
+ * Every preset in the stores has an entry, including the ones capitalising the
+ * slug would get right anyway, because the fallback is a guess and a guess that
+ * decides a shipped name is a typo with a schedule: the panel showed "Mariadb"
+ * on the card next to MySQL and PostgreSQL for as long as this table was short
+ * of the store. A test reads the stores and fails on a preset that is missing
+ * here, so adding one means deciding its name.
+ */
+export const serviceLabelOverrides: Record<string, string> = {
+  beanstalkd: 'Beanstalkd',
+  clickhouse: 'ClickHouse',
+  elasticsearch: 'Elasticsearch',
+  elasticvue: 'Elasticvue',
+  gotenberg: 'Gotenberg',
+  mariadb: 'MariaDB',
+  meilisearch: 'Meilisearch',
+  memcached: 'Memcached',
+  mongo: 'MongoDB',
+  'mongo-express': 'Mongo Express',
+  mysql: 'MySQL',
+  opensearch: 'OpenSearch',
+  'opensearch-dashboards': 'OpenSearch Dashboards',
+  pgadmin: 'pgAdmin',
+  phpmyadmin: 'phpMyAdmin',
+  postgres: 'PostgreSQL',
+  'postgres-pgvector': 'PostgreSQL + pgvector',
+  'postgres-postgis': 'PostgreSQL + PostGIS',
+  'postgres-timescaledb': 'PostgreSQL + TimescaleDB',
+  rabbitmq: 'RabbitMQ',
+  redis: 'Redis',
+  redisinsight: 'RedisInsight',
+  rustfs: 'RustFS',
+  soketi: 'Soketi',
+  typesense: 'Typesense',
+  'typesense-dashboard': 'Typesense Dashboard',
+  valkey: 'Valkey'
+};
+
 export function serviceLabel(name: string): string {
-  const overrides: Record<string, string> = {
-    phpmyadmin: 'phpMyAdmin',
-    pgadmin: 'pgAdmin',
-    mysql: 'MySQL',
-    postgres: 'PostgreSQL',
-    'postgres-pgvector': 'PostgreSQL + pgvector',
-    'postgres-postgis': 'PostgreSQL + PostGIS',
-    meilisearch: 'Meilisearch',
-    rustfs: 'RustFS',
-    mongo: 'MongoDB',
-    'mongo-express': 'Mongo Express',
-    elasticsearch: 'Elasticsearch',
-    elasticvue: 'Elasticvue',
-    memcached: 'Memcached',
-    rabbitmq: 'RabbitMQ',
-    valkey: 'Valkey',
-    typesense: 'Typesense',
-    'typesense-dashboard': 'Typesense Dashboard'
-  };
+  const overrides = serviceLabelOverrides;
   if (overrides[name]) return overrides[name];
   // Versioned variants like "mysql-5-7"; show the family label.
   const m = name.match(/^([a-z][a-z0-9]*?)-(\d[\w-]*)$/);

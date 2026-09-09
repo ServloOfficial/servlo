@@ -110,4 +110,24 @@ describe('SiteDeployExcludeCard', () => {
 
     await findByText('path "../../etc" points outside the site directory');
   });
+  // Every framework but WordPress protects nothing, so this is what the card
+  // looks like on most sites: it used to say it was following a list that did
+  // not exist, directly above the warning saying nothing was protected.
+  it('says nothing about a framework list that is empty', async () => {
+    current = { paths: [], custom: false, default: [] };
+    const { findByText, queryByText } = render(SiteDeployExcludeCard, { props });
+
+    await findByText(m.sites_deployExclude_emptyWarning());
+    expect(queryByText(m.sites_deployExclude_sourceFramework())).toBeNull();
+  });
+
+  // A site that emptied its own list chose that, so the warning still says whose
+  // list it is.
+  it('still names the site when the site emptied its own list', async () => {
+    current = { paths: [], custom: true, default: ['wp-content/uploads'] };
+    const { findByText } = render(SiteDeployExcludeCard, { props });
+
+    await findByText(m.sites_deployExclude_sourceSite());
+    await findByText(m.sites_deployExclude_emptyWarning());
+  });
 });

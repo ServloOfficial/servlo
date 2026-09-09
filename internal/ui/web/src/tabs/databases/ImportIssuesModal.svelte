@@ -31,7 +31,9 @@
     </ul>
     {#if omitted > 0}
       <p class="text-xs text-gray-500 dark:text-gray-400">
-        {m.databases_importIssuesMore({ count: omitted })}
+        {omitted === 1
+          ? m.databases_importIssuesMoreOne({ count: omitted })
+          : m.databases_importIssuesMore({ count: omitted })}
       </p>
     {/if}
     {#if skipped.length > 0}

@@ -113,6 +113,14 @@ func CertsDir() string {
 	return filepath.Join(DataDir(), "certs")
 }
 
+// StateArchiveName is what a server-state archive is called, and therefore a
+// name no site may have. State archives sit in the same directory as the sites'
+// own and are found and pruned by their name prefix, so a site called this
+// would have its backups swept on the state policy and would list the machine's
+// state archives as its own. internal/backup takes its StateName from here so
+// there is one spelling of it.
+const StateArchiveName = "servlo-state"
+
 // SiteBackupsDir is where a site's own backups land on this server before they
 // go anywhere else.
 //
