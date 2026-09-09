@@ -201,6 +201,26 @@ func removeSchedule(unit, timer string) error {
 	return nil
 }
 
+// RemoveSiteSchedules takes a site's backup and its scheduled test restore off
+// the machine, for a site that is going away.
+//
+// The units are named for the site and nothing else, and a site handle comes
+// from a directory name, so a schedule left armed here is not only a unit that
+// fails nightly against a site that is gone: it is the schedule a later site of
+// the same name starts running on, having never been given one.
+func RemoveSiteSchedules(siteName string) error {
+	var failures []string
+	for _, unit := range []string{UnitName(siteName), VerifyUnitName(siteName)} {
+		if err := removeSchedule(unit, unit+".timer"); err != nil {
+			failures = append(failures, err.Error())
+		}
+	}
+	if len(failures) > 0 {
+		return fmt.Errorf("%s", strings.Join(failures, "; "))
+	}
+	return nil
+}
+
 // VerifyUnitName is the pair for a site's scheduled test restore. Separate from
 // the backup's own units so switching one off does not switch off the other,
 // and so systemctl shows which of the two is failing.

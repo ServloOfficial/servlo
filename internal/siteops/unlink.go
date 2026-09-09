@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ServloOfficial/servlo/internal/certs"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/nginx"
 	"github.com/ServloOfficial/servlo/internal/podman"
@@ -35,6 +36,13 @@ func IsParkedSite(sitePath string, parkedDirs []string) bool {
 // framework workers) running after the site is gone.
 var StopSiteWorkers func(site *config.Site)
 
+// RemoveSiteBackupSchedules takes a site's backup timer and its scheduled test
+// restore off the machine as part of UnlinkSiteCore, for a site being removed
+// outright. A hook for the same reason StopSiteWorkers is one, and one more
+// besides: internal/backup imports this package, so the call cannot go the other
+// way.
+var RemoveSiteBackupSchedules func(siteName string)
+
 // UnlinkSiteCore performs the shared unlink steps: stop workers, remove vhost,
 // remove certs, update registry (ignore if parked, remove otherwise), update
 // container hosts, and reload nginx.
@@ -54,13 +62,6 @@ func UnlinkSiteCore(site *config.Site, parkedDirs []string) error {
 	// about to stop existing, and keeps a socket bound that the next site to
 	// take this name would inherit.
 	_ = RemoveFPMPool(site.Name)
-
-	if site.Secured {
-		certsDir := config.CertsDir()
-		domain := site.PrimaryDomain()
-		os.Remove(filepath.Join(certsDir, domain+".crt")) //nolint:errcheck
-		os.Remove(filepath.Join(certsDir, domain+".key")) //nolint:errcheck
-	}
 
 	// Clean up the per-project custom container if this site uses one.
 	// The image is kept so relinking is fast; use `servlo rebuild` to
@@ -91,6 +92,33 @@ func UnlinkSiteCore(site *config.Site, parkedDirs []string) error {
 	} else {
 		_ = config.RemoveSite(site.Name)
 		_ = config.RemoveSiteFromWorkspaces(site.Name)
+		// Both only on this branch. Unlinking a parked site is a tombstone
+		// rather than a removal: linking the directory again brings the site
+		// back, and it has to come back with its override and its certificate.
+		// Everything else here is a unit or a generated file that relinking
+		// rewrites for nothing, but a certificate costs a rate-limited exchange
+		// with an authority that can refuse, and an override is something a
+		// person typed.
+		//
+		// A site removed outright is not coming back, and both files are keyed
+		// on the domain, so leaving them hands a stranger's nginx directives and
+		// a live private key to whatever site next takes that domain.
+		ForgetCustomNginx(site.PrimaryDomain())
+		// And the backup pair, for the same reason plus one of its own. A
+		// scheduled backup reads the site's files and its database rather than
+		// running anything inside it, so unlike the cron units above it is not
+		// broken by the site being unserved: a tombstoned site is still there to
+		// back up. A site removed outright is not, so the timer fails nightly
+		// and then starts backing up whatever site next takes the name, on a
+		// schedule its operator never set.
+		if RemoveSiteBackupSchedules != nil {
+			RemoveSiteBackupSchedules(site.Name)
+		}
+		// Not conditional on Secured either. The flag says what the vhost
+		// serves, and the files are named for the domain either way: an issuance
+		// whose vhost step failed leaves a key behind a site that never read as
+		// secured.
+		certs.ForgetSite(site.PrimaryDomain())
 	}
 
 	forgetSiteState(site.Name)

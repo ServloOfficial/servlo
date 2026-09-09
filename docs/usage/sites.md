@@ -350,6 +350,18 @@ When you unlink a site that lives inside a parked directory, the vhost is remove
 
 Either way, unlinking also drops the site's per-site request-timing state: its rows in the durable request store, its entry in the persisted request-timing snapshot, and the running watcher's in-memory copy, so an unlinked site leaves no stale traffic history behind.
 
+Its scheduled commands go either way, both halves of each unit pair. They exec into the site's container, which unlinking removes, so a timer left armed only has somewhere to fail. `servlo start` writes back the ones a relinked site still has in the registry.
+
+A site removed outright loses its certificate: the leaf, the private key, the log of the last issuance attempt, and any record that renewal was failing. The key is the part that matters, because nothing else on the machine ever deletes one. The failure record matters for a different reason: it is kept until an issuance succeeds, and a domain with no site behind it can never have one, so a record left behind is a red banner in the panel and a red line in `servlo doctor` that nobody can act on and nobody can clear.
+
+It loses its hand-written nginx override and that file's backups too. The override is keyed on the primary domain and the generated vhost includes it by name, so leaving it behind means the next site on that domain silently comes up running somebody else's nginx directives.
+
+And its scheduled backup and scheduled test restore. Those are the one thing unlinking a parked site leaves running, which looks inconsistent and is not: a backup reads the site's files and its database rather than running anything inside it, so a tombstoned site is still there to back up, while a site removed outright is not. Its timer would fail nightly and then start backing up whatever site next took the handle, on a schedule that operator never set.
+
+A parked site keeps its certificate, its override and its backup schedule, because unlinking one is a tombstone rather than a removal: linking the directory again brings the site back and it has to come back with them. Most of what unlinking takes is a unit or a generated file that relinking rewrites for nothing. These are not: a certificate costs a rate-limited exchange with an authority that can refuse, and an override is something a person typed.
+
+What unlinking does not touch is the project directory, the site's database and its user, and any backups taken from it. Removing a site from the server is not a decision to delete the data it was serving, so those are yours to remove when you want them gone.
+
 ---
 
 ## Pausing sites

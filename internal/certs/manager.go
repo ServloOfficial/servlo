@@ -205,9 +205,13 @@ func copyFile(src, dst string) error {
 // spells the layout, so a caller outside this package reads the same files the
 // issuer writes rather than a second copy of the same join.
 func SitePaths(domain string) (certPath, keyPath string) {
-	dir := filepath.Join(config.CertsDir(), "sites")
+	dir := sitesDir()
 	return filepath.Join(dir, domain+".crt"), filepath.Join(dir, domain+".key")
 }
+
+// sitesDir is the single spelling of the layout SitePaths and SitesDir hand
+// out. Everything in this package joins through it so a move stays one edit.
+func sitesDir() string { return filepath.Join(config.CertsDir(), "sites") }
 
 // CertExists returns true if the certificate for the domain already exists.
 func CertExists(domain string) bool {

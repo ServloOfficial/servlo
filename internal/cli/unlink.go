@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ServloOfficial/servlo/internal/backup"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/feedback"
 	"github.com/ServloOfficial/servlo/internal/podman"
@@ -11,10 +12,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Wire worker teardown into the shared unlink core so every unlink path (CLI,
-// , parked-directory watcher) stops the site's workers — including a
-// host-proxy site's always-restart dev server.
+// Wire the teardown that lives outside siteops into the shared unlink core, so
+// every unlink path (the CLI, the panel, the parked-directory watcher) does it:
+// the site's workers, including a host-proxy site's always-restart dev server,
+// and the timers behind its scheduled backup.
 func init() {
+	siteops.RemoveSiteBackupSchedules = func(siteName string) {
+		_ = backup.RemoveSiteSchedules(siteName)
+	}
 	siteops.StopSiteWorkers = func(site *config.Site) {
 		for _, w := range collectRunningWorkers(site) {
 			stopWorkerByName(site, w)

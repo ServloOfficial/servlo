@@ -353,7 +353,7 @@ custom_workers:
 
 ## Rebuilding after Containerfile changes
 
-`servlo link` reuses the cached image (Containerfile MD5 hash). When you change `Containerfile.servlo`, rebuild explicitly:
+`servlo link` reuses the cached image when the Containerfile, the build target and the project directory all hash to what the image on disk was built from. The directory counts because it is the build context: the site handle the cache is keyed on comes from a directory name, so without it a second `shop.com` on this server would read as up to date against the first one's image and serve it. When you change `Containerfile.servlo`, rebuild explicitly:
 
 ```bash
 servlo rebuild

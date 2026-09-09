@@ -298,3 +298,55 @@ func TestResume_RestoresTheScheduleWithoutRevivingADisabledEntry(t *testing.T) {
 		t.Error("resuming started an entry the operator had switched off")
 	}
 }
+
+// RemoveAll is what unlink calls, and it walks the machine rather than the
+// registry on purpose.
+//
+// Sync finds a unit whose entry is gone by comparing the two, and it only ever
+// runs for a site that is still registered. A site being removed is the one
+// moment that comparison stops being available: after this, nothing looks at
+// this prefix again. A timer left here goes on firing a command at a directory
+// that is not served any more, with no page in the panel from which to notice
+// it or stop it.
+func TestRemoveAll_TakesUnitsTheRegistryNoLongerKnowsAbout(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("XDG_DATA_HOME", "")
+	for _, name := range []string{"acme", "acme-two"} {
+		if err := config.AddSite(config.Site{Name: name, Domains: []string{name + ".example"}, Path: t.TempDir()}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	mgr := newRecordingMgr()
+	mgr.existing = []string{
+		"servlo-cron-acme-prune",
+		// The entry this one belonged to never reached the registry: its save
+		// wrote the unit, failed at the registry, and failed again rolling back.
+		"servlo-cron-acme-orphan",
+		"servlo-cron-acme-two-report",
+		"servlo-queue-acme",
+	}
+	swapMgr(t, mgr)
+
+	site := testSite()
+	site.Cron = []config.CronEntry{{ID: "prune", Name: "Prune", Command: "php artisan prune", Calendar: "daily"}}
+
+	if err := RemoveAll(site); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, gone := range []string{"servlo-cron-acme-prune", "servlo-cron-acme-orphan"} {
+		if !slices.Contains(mgr.calls, "remove-service:"+gone) {
+			t.Errorf("%s outlived the site; calls were %v", gone, mgr.calls)
+		}
+		if !slices.Contains(mgr.calls, "remove-timer:"+gone) {
+			t.Errorf("the timer for %s outlived the site; calls were %v", gone, mgr.calls)
+		}
+	}
+	for _, mustKeep := range []string{"servlo-cron-acme-two-report", "servlo-queue-acme"} {
+		if slices.Contains(mgr.calls, "remove-service:"+mustKeep) {
+			t.Errorf("removing one site took %s with it", mustKeep)
+		}
+	}
+}

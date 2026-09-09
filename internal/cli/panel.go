@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -139,7 +138,7 @@ func newPanelDomainSecureCmd() *cobra.Command {
 // panelCertsDir is the same directory sites use, so the renewal scanner that
 // already walks it picks the panel up without being told about it.
 func panelCertsDir() (string, error) {
-	dir := filepath.Join(config.CertsDir(), "sites")
+	dir := certs.SitesDir()
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", fmt.Errorf("creating the certificate directory: %w", err)
 	}

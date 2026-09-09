@@ -159,6 +159,24 @@ func Sync(site config.Site) error {
 	return nil
 }
 
+// RemoveAll takes every unit this site has off the machine, for a site that is
+// going away. It sweeps by prefix rather than by the site's entries, because
+// Sync is the only thing that finds a unit the registry has forgotten and Sync
+// never runs for a site that is no longer registered: whatever is left here is
+// left for good, firing a command at a directory nobody serves.
+func RemoveAll(site config.Site) error {
+	var failures []string
+	for _, unit := range strayUnits(site, nil) {
+		if err := removeUnit(unit); err != nil {
+			failures = append(failures, err.Error())
+		}
+	}
+	if len(failures) > 0 {
+		return fmt.Errorf("%s", strings.Join(failures, "; "))
+	}
+	return nil
+}
+
 // strayUnits are this site's cron units with no entry behind them.
 //
 // A prefix match alone would take another site's units with it: "acme" is a

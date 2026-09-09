@@ -6,10 +6,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/ServloOfficial/servlo/internal/authz"
+	"github.com/ServloOfficial/servlo/internal/certs"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/feedback"
 	phpPkg "github.com/ServloOfficial/servlo/internal/php"
@@ -277,7 +277,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 				continue
 			}
 			hasSecured = true
-			certPath := filepath.Join(config.CertsDir(), "sites", s.PrimaryDomain()+".crt")
+			certPath, _ := certs.SitePaths(s.PrimaryDomain())
 			if exp, err := certExpiry(certPath); err != nil {
 				fail2(s.PrimaryDomain(), "cannot read cert", "run: servlo secure "+s.PrimaryDomain())
 			} else {
