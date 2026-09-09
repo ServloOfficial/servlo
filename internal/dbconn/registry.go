@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"gopkg.in/yaml.v3"
 )
@@ -79,9 +80,11 @@ func SaveRegistry(reg *Registry) error {
 	if err := os.MkdirAll(config.ConfigDir(), 0700); err != nil {
 		return err
 	}
-	// Written 0600 from the start rather than chmodded after, so an external
-	// database's password is never briefly world-readable.
-	return os.WriteFile(registryFile(), data, 0600)
+	// Replaced rather than rewritten, and staged 0600 rather than chmodded
+	// after, so an external database's password is never briefly world-readable
+	// and a write that cannot finish costs the staging file rather than the only
+	// record of how to reach the database.
+	return atomicfile.Write(registryFile(), data, 0600)
 }
 
 // Find returns the named connection from reg, and whether it is there.
