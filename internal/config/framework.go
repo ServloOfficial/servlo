@@ -753,10 +753,12 @@ var laravelFramework = &Framework{
 	Doctor: &FrameworkDoctor{
 		Checks: []DoctorCheck{
 			{
+				// Not gated on APP_ENV. Every servlo site is on a public domain,
+				// and a checkout whose .env still says local is the one most
+				// likely to have debug left on.
 				Name: "app_debug", Type: "env_combo",
-				When:   map[string]string{"APP_ENV": "production"},
 				WarnIf: map[string]string{"APP_DEBUG": "true"},
-				Detail: "APP_DEBUG is on while APP_ENV=production, so stack traces and config will leak. Turn debug off.",
+				Detail: "APP_DEBUG is on, so a stack trace leaks the site's config and credentials to anyone who can provoke an error. Every servlo site is on a public domain, whatever APP_ENV says. Turn debug off.",
 			},
 			{
 				Name: "storage_link", Type: "symlink",

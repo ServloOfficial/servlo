@@ -212,8 +212,13 @@
           onclick={() => toggleEntry(i)}
           class="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-white/3 transition-colors"
         >
-          <span class="shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm leading-tight {levelClass(entry.level)}">
-            {entry.level || 'LOG'}
+          <!-- Fixed-width cell around a pill that is not: INFO and EMERGENCY are
+               different widths, and without this every column after them steps
+               left and right down the page. -->
+          <span class="shrink-0 w-[68px]" data-level-cell>
+            <span class="inline-block max-w-full truncate text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-sm leading-tight {levelClass(entry.level)}">
+              {entry.level || 'LOG'}
+            </span>
           </span>
           <span class="shrink-0 text-[11px] text-gray-400 font-mono w-[135px]">{entry.date ?? ''}</span>
           <span class="text-xs text-gray-700 dark:text-gray-300 truncate flex-1">{entry.message ?? ''}</span>

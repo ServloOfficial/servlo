@@ -81,6 +81,12 @@ jobs:
       - name: Build UI
         run: make build-ui
 
+      # The panel's own suite, which until now ran only when somebody remembered
+      # to run it locally. It is nine hundred tests over the views an operator
+      # actually clicks, and nothing on a pull request was looking at them.
+      - name: Test the panel
+        run: make test-ui
+
       - name: Download dependencies
         run: go mod download
 
