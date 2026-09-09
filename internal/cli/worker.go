@@ -182,24 +182,17 @@ func resolveSiteAndFramework(cwd string) (*config.Site, *config.Framework, strin
 		}
 	}
 
-	// Custom container sites may not have a framework. Build a synthetic
-	// framework from .servlo.yaml custom_workers so the worker commands work.
-	if site.IsCustomContainer() && site.Framework == "" {
-		fw := &config.Framework{Name: "custom", Label: "custom container"}
-		if proj, _ := config.LoadProjectConfig(cwd); proj != nil && len(proj.CustomWorkers) > 0 {
-			fw.Workers = proj.CustomWorkers
-		}
-		return site, fw, "", nil
-	}
-
-	fwName := site.Framework
-	if fwName == "" {
+	if site.Framework == "" && !site.IsCustomContainer() {
 		return nil, nil, "", fmt.Errorf("site %q has no framework assigned — run 'servlo link' first", site.Name)
 	}
 
-	fw, ok := config.GetFrameworkForDir(fwName, cwd)
+	fw, ok := config.FrameworkForSite(site)
 	if !ok {
 		return nil, nil, "", fmt.Errorf("site %q has no framework assigned — run 'servlo link' or 'servlo framework add'", site.Name)
+	}
+	// A custom container answers with its own custom_workers and no PHP.
+	if site.Framework == "" {
+		return site, fw, "", nil
 	}
 
 	phpVersion := site.PHPVersion

@@ -1006,8 +1006,14 @@ func restoreSiteInfrastructure() {
 				cfg, _ := config.LoadGlobal()
 				phpVersion = cfg.PHP.DefaultVersion
 			}
-			fwName := s.Framework
-			fw, fwOK := config.GetFrameworkForDir(fwName, s.Path)
+			// Through FrameworkForSite, because a custom-container site need
+			// not be on a framework and its workers are then its own
+			// custom_workers. registeredFrameworkWorkerUnits enumerates a unit
+			// for every name in proj.Workers whatever the framework, so a
+			// resolution that stops short here leaves start trying to launch a
+			// unit this sweep never wrote.
+			site := s
+			fw, fwOK := config.FrameworkForSite(&site)
 			if !fwOK || fw.Workers == nil {
 				continue
 			}

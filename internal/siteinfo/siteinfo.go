@@ -425,13 +425,16 @@ func (e *EnrichedSite) enrichFPM() {
 }
 
 func (e *EnrichedSite) enrichWorkers(fw *config.Framework, hasFw bool) {
-	// Custom container sites without a framework get their workers from
-	// .servlo.yaml custom_workers. Build a synthetic framework so the rest
-	// of the function works uniformly.
-	if !hasFw && e.ContainerPort > 0 {
-		if proj, err := config.LoadProjectConfig(e.Path); err == nil && len(proj.CustomWorkers) > 0 {
-			fw = &config.Framework{Workers: proj.CustomWorkers}
-			hasFw = true
+	// A custom-container site without a framework gets its workers from its own
+	// .servlo.yaml, which FrameworkForSite resolves the same way the panel's
+	// start handler and the boot sweep do. Listing a worker here that one of
+	// those two cannot then act on is how this row used to be a button that
+	// only ever returned an error.
+	if !hasFw {
+		if resolved, ok := config.FrameworkForSite(&config.Site{
+			Name: e.Name, Path: e.Path, ContainerPort: e.ContainerPort,
+		}); ok {
+			fw, hasFw = resolved, true
 		}
 	}
 
