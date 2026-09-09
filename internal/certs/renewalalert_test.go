@@ -10,37 +10,30 @@ import (
 )
 
 // captureAlerts swaps the raiser for one that records, and returns a function
-// that waits for n of them. The real one runs in a goroutine so a dead mail
-// server cannot hang an issuance.
+// that reads back what was raised.
+//
+// It used to wait on a channel with a deadline, and then sleep in case a
+// spurious extra alert was still on its way, because the raise happened in a
+// goroutine. Raising synchronously makes every alert already there by the time
+// the call returns, so a slice answers the same questions without the waiting
+// or the flakiness: the deadline version raced its own t.Cleanup restoring the
+// seam, which is how this was found.
 func captureAlerts(t *testing.T) func(n int) []alerts.Alert {
 	t.Helper()
-	ch := make(chan alerts.Alert, 8)
+	var raised []alerts.Alert
 	old := raiseAlert
 	raiseAlert = func(a alerts.Alert) error {
-		ch <- a
+		raised = append(raised, a)
 		return nil
 	}
 	t.Cleanup(func() { raiseAlert = old })
 
 	return func(n int) []alerts.Alert {
 		t.Helper()
-		var got []alerts.Alert
-		deadline := time.After(2 * time.Second)
-		for len(got) < n {
-			select {
-			case a := <-ch:
-				got = append(got, a)
-			case <-deadline:
-				t.Fatalf("only %d of %d alerts were raised", len(got), n)
-			}
+		if len(raised) < n {
+			t.Fatalf("only %d of %d alerts were raised", len(raised), n)
 		}
-		// Give a spurious extra one a moment to show up.
-		select {
-		case a := <-ch:
-			got = append(got, a)
-		case <-time.After(200 * time.Millisecond):
-		}
-		return got
+		return raised
 	}
 }
 
@@ -110,5 +103,46 @@ func TestSuccessfulRenewal_ClearsNothingWhenNothingWasFailing(t *testing.T) {
 
 	if called {
 		t.Error("a domain that was never failing tried to clear an alert")
+	}
+}
+
+// A short-lived process must not outrun its own alert.
+//
+// `servlo secure` on a domain whose DNS is not ready fails, records, and exits.
+// The record and the audit entry are written before it returns; the alert was
+// raised in a goroutine nobody waits for, so the banner and the email that
+// CLAUDE.md section 3.3 calls the loud half were a race against process exit.
+func TestFailedRenewal_RaisesTheAlertBeforeItReturns(t *testing.T) {
+	renewalEnv(t)
+
+	entered := make(chan alerts.Alert, 1)
+	release := make(chan struct{})
+	old := raiseAlert
+	raiseAlert = func(a alerts.Alert) error {
+		entered <- a
+		<-release
+		return nil
+	}
+	t.Cleanup(func() {
+		close(release)
+		raiseAlert = old
+	})
+
+	returned := make(chan struct{})
+	go func() {
+		recordFailure("example.com", errors.New("dns-01 challenge timed out"))
+		close(returned)
+	}()
+
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the alert was never raised")
+	}
+
+	select {
+	case <-returned:
+		t.Fatal("recordFailure returned while its alert was still being raised: a process that exits here reports nothing")
+	case <-time.After(100 * time.Millisecond):
 	}
 }
