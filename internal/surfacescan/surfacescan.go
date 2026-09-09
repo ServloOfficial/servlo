@@ -72,11 +72,20 @@ var skipPaths = map[string]bool{
 
 // textExts are the file kinds a deleted feature can hide in. Anything else is
 // a binary or an asset and is checked by name only.
+//
+// .Containerfile and .tmpl were the gap. The scan reads .container units and
+// .conf files, and read neither the Containerfiles that decide what is inside
+// the PHP images nor the templates that generate the FPM unit and every nginx
+// vhost. Those are precisely the artefacts CLAUDE.md §3.1 says to verify a
+// deletion against, and the FrankenPHP image definition was still describing an
+// Xdebug ini it arms and an mkcert CA it injects, neither of which had existed
+// since S0.5 deleted them.
 var textExts = map[string]bool{
 	".go": true, ".ts": true, ".js": true, ".mjs": true, ".svelte": true,
 	".vue": true, ".css": true, ".json": true, ".yml": true, ".yaml": true,
 	".sh": true, ".md": true, ".py": true, ".service": true, ".container": true,
 	".ini": true, ".conf": true, ".html": true, ".bats": true,
+	".Containerfile": true, ".tmpl": true,
 }
 
 // maxFileSize skips files too large to be hand-written source. Reading a

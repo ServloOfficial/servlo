@@ -139,7 +139,7 @@ RUN mkdir -p /etc/my.cnf.d && printf '[client]\nssl=0\n' > /etc/my.cnf.d/servlo-
 # Composer from the official image.
 COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
 
-# Interactive shell for servlo shell. zsh/fzf exist on every alpine base;
+# Interactive shell for the TUI's shell key. zsh/fzf exist on every alpine base;
 # bat lands on 3.16+ and starship/eza/zoxide on 3.18+, so the optional
 # tools install tolerantly and zshrc inits starship only when present.
 RUN apk add --no-cache zsh fzf \
