@@ -225,7 +225,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		scopeSites(snapshots.Sites(), scope),
 		scopeServices(snapshots.Services(), scope),
 		snapshots.Status(),
-		snapshots.UnhealthyWorkers(),
+		scopeUnhealthyWorkers(snapshots.UnhealthyWorkers(), scope),
 		nil,
 		[]string{"snapshot"},
 	)
@@ -242,10 +242,15 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
+			// Status is left whole: /api/status is PermSelf, so the socket
+			// and the route agree already.
 			frame := assembleSnapshot(
 				scopeSites(msg.Sites, scope),
 				scopeServices(msg.Services, scope),
-				msg.Status, msg.UnhealthyWorkers, msg.Notification, msg.Kinds,
+				msg.Status,
+				scopeUnhealthyWorkers(msg.UnhealthyWorkers, scope),
+				scopeNotification(msg.Notification, scope),
+				msg.Kinds,
 			)
 			if err := sendText(frame); err != nil {
 				return
