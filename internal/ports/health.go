@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 )
 
@@ -64,14 +63,20 @@ func sysctlHealth() Health {
 	current, available := liveUnprivStart()
 	h.Live = available && current <= unprivStart
 
-	if body, err := readTextFile(dropInPath); err == nil {
-		h.Persistent = dropInAllows(string(body))
-	}
+	// Not "is servlo's drop-in permissive" but "which file decides this at the
+	// next boot, and does that one allow the bind". They are the same answer
+	// only until something sorting after servlo's says otherwise, and the file
+	// that does so on Ubuntu is the one an operator is most likely to edit.
+	setter, pinned, found := unprivStartSetter()
+	h.Persistent = found && pinned <= unprivStart
 
-	setting := fmt.Sprintf("net.ipv4.ip_unprivileged_port_start=%d", unprivStart)
+	setting := fmt.Sprintf("%s=%d", unprivStartKey, unprivStart)
 	switch {
 	case h.Healthy():
-		h.Detail = fmt.Sprintf("ip_unprivileged_port_start is %d live and pinned in %s", current, dropInPath)
+		h.Detail = fmt.Sprintf("ip_unprivileged_port_start is %d live and pinned in %s", current, setter)
+	case h.Live && !h.Persistent && found:
+		h.Detail = fmt.Sprintf("%s sets it to %d and loads after %s, so nginx loses ports 80 and 443 at the next reboot", setter, pinned, dropInPath)
+		h.Fix = []string{fmt.Sprintf("edit %s to set %s, or remove the line and let servlo's drop-in stand", setter, setting)}
 	case h.Live && !h.Persistent:
 		h.Detail = fmt.Sprintf("set live but not pinned in %s, so nginx loses ports 80 and 443 at the next reboot", dropInPath)
 		h.Fix = []string{fmt.Sprintf("sudo sh -c 'echo %s > %s'", setting, dropInPath)}
@@ -86,28 +91,6 @@ func sysctlHealth() Health {
 		h.Fix = sysctlPlan(current).Commands
 	}
 	return h
-}
-
-// dropInAllows reads the pinned value back rather than looking for the literal
-// line servlo writes. A drop-in edited to a value that no longer admits 443 is
-// worse than a missing one, because it looks present.
-func dropInAllows(body string) bool {
-	for _, line := range strings.Split(body, "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "net.ipv4.ip_unprivileged_port_start") {
-			continue
-		}
-		_, value, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		n, err := strconv.Atoi(strings.TrimSpace(value))
-		if err != nil {
-			continue
-		}
-		return n <= unprivStart
-	}
-	return false
 }
 
 func nftablesHealth() Health {

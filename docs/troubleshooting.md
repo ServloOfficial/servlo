@@ -173,6 +173,8 @@ sudo sh -c 'echo net.ipv4.ip_unprivileged_port_start=80 > /etc/sysctl.d/99-servl
 
 Both lines matter: the first takes effect now and is lost at reboot, the second survives a reboot and does nothing until one.
 
+If doctor says a named file sets it to something higher and loads after servlo's drop-in, edit that file rather than servlo's: on Ubuntu it is usually `/etc/sysctl.conf`, reached through the `99-sysctl.conf` symlink, and it wins because its name sorts after `99-servlo-ports.conf`. Either set it to 80 there or take the line out and let servlo's drop-in stand.
+
 `servlo doctor` re-checks this on every run. If your kernel does not expose `ip_unprivileged_port_start` at all, servlo picks the nftables strategy instead and prints a different set of commands; see [Port binding](/reference/architecture#port-binding).
 :::
 
