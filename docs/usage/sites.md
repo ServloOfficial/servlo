@@ -267,7 +267,9 @@ This is a local, single-developer signal meant to catch a route that is dragging
 
 ## Name collision handling
 
-When a directory is parked or linked and another site is already registered with the same name:
+A site's name is its domain with the TLD dropped, so `acme.com`, `acme.net` and `acme.org` all want to be called `acme`. The name is what servlo builds the FPM pool, the worker units, the backup timer, the deploy script and the per-site PHP settings from, so two sites cannot share one.
+
+Whenever a site is created, by parking a directory, by linking one, by installing an app or by making a staging copy, and another site is already registered under the name it wants:
 
 - **Same path**: treated as a re-link of the same site. The existing registration is updated and the TLS state is preserved.
 - **Different path**: the new site is registered with a numeric suffix (`myapp-2`, `myapp-3`, etc.) so both sites can coexist.

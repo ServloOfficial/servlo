@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ServloOfficial/servlo/internal/config"
+	"github.com/ServloOfficial/servlo/internal/linker"
 	"github.com/ServloOfficial/servlo/internal/siteops"
 )
 
@@ -84,7 +85,7 @@ func Create(opts Options) (Created, error) {
 	}
 
 	site := config.Site{
-		Name:    siteops.SiteName(domain),
+		Name:    stagingHandleFor(domain, path),
 		Domains: []string{domain},
 		Path:    path,
 		// Everything about how the live site runs, so staging is a copy in the
@@ -131,4 +132,15 @@ func Remove(site *config.Site) error {
 	}
 	RemoveHtpasswd(site.PrimaryDomain())
 	return nil
+}
+
+// stagingHandleFor is the handle the staging site is registered under.
+//
+// A handle drops the TLD, so two staging sites for the same name under
+// different ones reduce to the same handle, and config.AddSite treats a matching
+// name as an update: the second would replace the first rather than fail. The
+// handle names the FPM pool, the worker units and the backup timer, so a
+// replaced entry leaves those pointing at a site that is no longer registered.
+func stagingHandleFor(domain, path string) string {
+	return linker.FreeSiteName(siteops.SiteName(domain), path)
 }

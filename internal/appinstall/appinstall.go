@@ -26,6 +26,7 @@ import (
 	"github.com/ServloOfficial/servlo/internal/dbconn"
 	"github.com/ServloOfficial/servlo/internal/dbcred"
 	"github.com/ServloOfficial/servlo/internal/dbuser"
+	"github.com/ServloOfficial/servlo/internal/linker"
 	phpDet "github.com/ServloOfficial/servlo/internal/php"
 	"github.com/ServloOfficial/servlo/internal/serviceops"
 	"github.com/ServloOfficial/servlo/internal/sitehttp"
@@ -119,7 +120,7 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 		return out, err
 	}
 
-	siteName := siteops.SiteName(domain)
+	siteName := siteHandleFor(domain, path)
 	// Two addresses, because they answer two different questions. siteURL is
 	// where the site will be, and it is what goes into the application's own
 	// config and what the operator is told to open. localURL is where servlo
@@ -338,4 +339,20 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// siteHandleFor is the handle this site is registered under.
+//
+// A handle is the domain with its TLD dropped, so acme.com, acme.net and
+// acme.org all reduce to "acme", and the handle is what names the FPM pool, the
+// worker units, the backup timer, the deploy script, the per-site PHP settings
+// and the database. config.AddSite treats a matching name as an update, so
+// taking one another site holds would replace that site's registry entry rather
+// than fail, and the new app would be installed into its database.
+//
+// The linker has asked the registry for a free one since it was written; this is
+// the same question, asked from the other way in. Re-running an install over the
+// same directory keeps the handle it already has, because that is the same site.
+func siteHandleFor(domain, path string) string {
+	return linker.FreeSiteName(siteops.SiteName(domain), path)
 }
