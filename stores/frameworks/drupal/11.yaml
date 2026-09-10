@@ -155,12 +155,14 @@ commands:
       composer: drush/drush
 
 # How servlo recognises a database update in a site's deploy script, which is
-# what decides whether the deploy takes a database backup first. Short on
-# purpose: servlo's own command runs drush out of vendor and an operator's
-# script is as likely to call one installed globally, and both spell the update
-# the same way.
+# what decides whether the deploy takes a database backup first. Both spellings,
+# because drush answers to either: `updatedb` is the canonical name and what the
+# setup step above uses, `updb` is the alias. Neither contains the other, so a
+# script written with one and matched against the other deploys with no backup.
+# Just the command, not the invocation: servlo's own runs drush out of vendor and
+# an operator's script is as likely to call one installed globally.
 deploy:
-  migrate: updb
+  migrate: [updatedb, updb]
 
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.

@@ -127,7 +127,7 @@ doctor:
 # bin/console. The d:m:m shorthand does not match and a script using it takes no
 # backup.
 deploy:
-  migrate: doctrine:migrations:migrate
+  migrate: [doctrine:migrations:migrate, d:m:m]
 
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.

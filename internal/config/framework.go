@@ -2258,7 +2258,15 @@ type FrameworkDeploy struct {
 	// decides whether a deploy takes a database backup first. Empty means the
 	// framework has no migrations and no deploy on it is ever treated as
 	// schema-changing.
-	Migrate string `yaml:"migrate,omitempty"`
+	//
+	// One spelling or a list of them, because the script being read is the
+	// operator's and they are not obliged to write the command the way the
+	// shipped script does: drush spells its update `updatedb` and `updb`,
+	// Doctrine's migrate command has a three-letter alias, and a marker that
+	// carries the invocation (`php artisan`, `bin/magento`) misses a script
+	// that reaches the same binary another way. A marker should be the
+	// distinctive part of the command rather than one way of running it.
+	Migrate MigrateMarkers `yaml:"migrate,omitempty"`
 	// Exclude names paths a deploy must never remove, relative to the site
 	// root. These are the directories an application writes to in production
 	// and a repository does not own: uploaded media, plugins installed through
@@ -2282,12 +2290,44 @@ func (f *Framework) DeployScript() string {
 	return f.Deploy.Script
 }
 
-// MigrateCommand is what a migration looks like for this framework.
-func (f *Framework) MigrateCommand() string {
-	if f.Deploy == nil {
-		return ""
+// MigrateMarkers is one or more ways this framework's migration command may be
+// written. A definition may give a single string or a list; both arrive here as
+// a list.
+type MigrateMarkers []string
+
+// UnmarshalYAML accepts a bare string or a sequence of them, so a definition
+// with one spelling stays a one-line declaration.
+func (m *MigrateMarkers) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind == yaml.ScalarNode {
+		var one string
+		if err := value.Decode(&one); err != nil {
+			return err
+		}
+		*m = MigrateMarkers{one}
+		return nil
 	}
-	return strings.TrimSpace(f.Deploy.Migrate)
+	var many []string
+	if err := value.Decode(&many); err != nil {
+		return err
+	}
+	*m = many
+	return nil
+}
+
+// MigrateCommands are the spellings that mean a migration for this framework,
+// with blanks dropped so a definition cannot accidentally declare a marker that
+// matches every line.
+func (f *Framework) MigrateCommands() []string {
+	if f.Deploy == nil {
+		return nil
+	}
+	var out []string
+	for _, m := range f.Deploy.Migrate {
+		if m = strings.TrimSpace(m); m != "" {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // DeployExcludes are the paths a deploy of this framework must never remove.
@@ -2322,8 +2362,8 @@ func (f *Framework) HealthPath() string {
 // snapshot on every deploy of a script that once had one, which is slow enough
 // that an operator would start turning the backup off.
 func (f *Framework) ScriptMigrates(script string) bool {
-	migrate := f.MigrateCommand()
-	if migrate == "" {
+	markers := f.MigrateCommands()
+	if len(markers) == 0 {
 		return false
 	}
 	for _, line := range strings.Split(script, "\n") {
@@ -2331,8 +2371,10 @@ func (f *Framework) ScriptMigrates(script string) bool {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		if strings.Contains(line, migrate) {
-			return true
+		for _, marker := range markers {
+			if strings.Contains(line, marker) {
+				return true
+			}
 		}
 	}
 	return false

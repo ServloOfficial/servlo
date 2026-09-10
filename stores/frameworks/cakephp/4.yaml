@@ -81,7 +81,7 @@ commands:
 # decides whether the deploy takes a database backup first. Matched as a
 # substring, so the flags a real script adds still count.
 deploy:
-  migrate: bin/cake migrations migrate
+  migrate: migrations migrate
 
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.

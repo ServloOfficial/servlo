@@ -229,7 +229,7 @@ deploy:
   # How servlo recognises a migration in that script, which is what decides
   # whether the deploy takes a database backup first. Matched as a substring, so
   # the --force the script actually uses still counts.
-  migrate: php artisan migrate
+  migrate: artisan migrate
 
   # Nothing here. A Laravel repository owns its whole tree; storage/ is where
   # the application writes and it is not something a pull removes.

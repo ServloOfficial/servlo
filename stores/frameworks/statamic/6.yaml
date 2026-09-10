@@ -126,7 +126,7 @@ doctor:
 # underneath: a flat-file site never migrates, but one with a database does it
 # with artisan, and the marker costs nothing on the sites that do not.
 deploy:
-  migrate: php artisan migrate
+  migrate: artisan migrate
 
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.
