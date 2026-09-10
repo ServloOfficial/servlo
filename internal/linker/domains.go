@@ -24,19 +24,45 @@ func IsReservedDomain(domain string) bool {
 // name is returned as-is, as is one already held by the same path (a re-link).
 // A name held by a different path gets "-2", "-3", … until one is free.
 func FreeSiteName(desired, path string) string {
+	own := config.CanonicalPath(path)
+	reg, err := config.LoadSites()
+	if err != nil || reg == nil {
+		return desired
+	}
 	for i := 0; ; i++ {
 		candidate := desired
 		if i > 0 {
 			candidate = fmt.Sprintf("%s-%d", desired, i+1)
 		}
-		existing, err := config.FindSite(candidate)
-		if err != nil || existing == nil {
-			return candidate // name is free
-		}
-		if config.CanonicalPath(existing.Path) == config.CanonicalPath(path) {
-			return candidate // same site being re-registered (symlink spellings included, #930)
+		if nameIsFree(candidate, own, reg.Sites) {
+			return candidate
 		}
 	}
+}
+
+// nameIsFree reports whether a candidate name is available to the site at own.
+//
+// Two things have to be free, not one. The name itself, because it is the key
+// the registry and every generated unit are built on. And what it slugs to,
+// because the slug is the site's database and the prefix its backup archives are
+// named with: my-app and my_app are two names and one slug, which would put two
+// sites in one schema and let a retention sweep on either one delete the other's
+// archives.
+//
+// A site at the same path is not a collision with itself, whichever of the two
+// matched: it is the same site being registered again, symlink spellings
+// included (#930).
+func nameIsFree(candidate, own string, sites []config.Site) bool {
+	slug := config.SiteSlug(candidate)
+	for _, s := range sites {
+		if s.Name != candidate && config.SiteSlug(s.Name) != slug {
+			continue
+		}
+		if config.CanonicalPath(s.Path) != own {
+			return false
+		}
+	}
+	return true
 }
 
 // FilterConflictingDomains splits desired into the domains ownPath may claim

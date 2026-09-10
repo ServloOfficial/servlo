@@ -274,6 +274,8 @@ Whenever a site is created, by parking a directory, by linking one, by installin
 - **Same path**: treated as a re-link of the same site. The existing registration is updated and the TLS state is preserved.
 - **Different path**: the new site is registered with a numeric suffix (`myapp-2`, `myapp-3`, etc.) so both sites can coexist.
 
+The same suffix is used when a name is free but what it *slugs* to is not. The slug turns every character that is not a letter or a digit into an underscore, and it names two things a site cannot share: its database, and the prefix its backup archives carry. So `my-app` and `my_app` are two names and one slug, and the second to be registered becomes `my_app-2` rather than being handed the first one's database and having its archives swept on the other site's retention policy.
+
 Paths are compared after resolving symlinks, and the resolved path is what gets stored. Where `/home` is itself a symlink, so linking a project through either spelling maps to the one site instead of registering it twice.
 
 ---
