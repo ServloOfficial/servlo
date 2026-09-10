@@ -44,15 +44,16 @@ var tempSuffixSeq atomic.Uint64
 // IssueCert issues a TLS certificate covering all the given domains through the
 // active issuer. The cert files are named after primaryDomain.
 // An existing cert/key pair is reused without calling the issuer only while the
-// cert is still valid and more than certReissueWindow from NotAfter; a cert that
-// is expired, near expiry, or unreadable falls through to the atomic reissue so
-// an ordinary start or watcher pass self-heals an aging cert.
+// cert is still valid, more than certReissueWindow from NotAfter, and already
+// names every domain asked of it; anything else falls through to the atomic
+// reissue so an ordinary start or watcher pass self-heals a cert that has aged
+// or that a domain was added to after it was issued.
 func IssueCert(primaryDomain string, allDomains []string, certsDir string) error {
 	certFile := filepath.Join(certsDir, primaryDomain+".crt")
 	keyFile := filepath.Join(certsDir, primaryDomain+".key")
 	if _, certErr := os.Stat(certFile); certErr == nil {
 		if _, keyErr := os.Stat(keyFile); keyErr == nil {
-			if !certNeedsReissue(certFile, certReissueWindow) {
+			if !certNeedsReissue(certFile, certReissueWindow) && certCovers(certFile, allDomains) {
 				return nil
 			}
 		}
@@ -83,6 +84,26 @@ func certNeedsReissue(path string, window time.Duration) bool {
 		return true
 	}
 	return time.Until(leaf.NotAfter) < window
+}
+
+// certCovers reports whether the PEM cert at path names every one of domains.
+//
+// A certificate that is nowhere near expiry can still be the wrong one: a
+// domain added to a secured site after its certificate was issued is served
+// under a certificate that does not name it, and expiry alone never notices.
+// An unreadable cert answers false, so it is reissued rather than trusted, the
+// same way certNeedsReissue treats it.
+func certCovers(path string, domains []string) bool {
+	leaf, err := readLeaf(path)
+	if err != nil {
+		return false
+	}
+	for _, d := range domains {
+		if leaf.VerifyHostname(d) != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // IssueCertForce regenerates the certificate for primaryDomain even if files

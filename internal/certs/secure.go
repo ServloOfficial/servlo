@@ -70,15 +70,32 @@ func RenewIfDue(site config.Site) (renewed bool, err error) {
 }
 
 // NeedsRenewal reports whether the site's certificate is missing, unreadable,
-// expired, or close enough to expiry to be reissued now.
+// expired, close enough to expiry to be reissued now, or does not name one of
+// the domains the site answers on.
+//
+// That last one is what makes adding a domain recover on its own. The ordinary
+// order is to add the domain and then repoint its DNS, and the gate refuses to
+// issue for a name that does not resolve here yet, so the reissue at the moment
+// of the change usually fails and leaves a certificate short of a name. Asking
+// about coverage as well as expiry means the next pass after the DNS moves
+// issues the right certificate, instead of waiting sixty days for expiry to
+// come round while visitors to that domain meet a name mismatch.
+//
+// It costs a parse of a file already on disk. The DNS lookup that follows only
+// happens for a site that is actually short a name, and it refuses before
+// anything reaches the authority, so a site waiting on DNS re-checks cheaply
+// rather than spending an issuance quota.
 func NeedsRenewal(site config.Site) bool {
-	certsDir, _ := siteCertDomains(site)
+	certsDir, domains := siteCertDomains(site)
 	certFile := filepath.Join(certsDir, site.PrimaryDomain()+".crt")
 	keyFile := filepath.Join(certsDir, site.PrimaryDomain()+".key")
 	if _, err := os.Stat(keyFile); err != nil {
 		return true
 	}
-	return certNeedsReissue(certFile, certReissueWindow)
+	if certNeedsReissue(certFile, certReissueWindow) {
+		return true
+	}
+	return !certCovers(certFile, domains)
 }
 
 // siteCertDomains assembles the cert output directory and the SAN list shared by
