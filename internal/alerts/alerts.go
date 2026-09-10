@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/mailsend"
 )
@@ -204,7 +205,13 @@ func save(open map[string]Alert) error {
 	if err := os.MkdirAll(config.DataDir(), 0700); err != nil {
 		return err
 	}
+	// Replaced by rename rather than rewritten in place. One of the things that
+	// can be wrong with a server is a full disk, and that alert is written by the
+	// check that fires because writes are already failing: rewriting in place
+	// would leave a file too short to parse, which reads as an error rather than
+	// as an empty list and so loses every alert, permanently.
+	//
 	// 0600: this is a list of what is wrong with a production server, which is
 	// not something other accounts on it need.
-	return os.WriteFile(storePath(), raw, 0600)
+	return atomicfile.Write(storePath(), raw, 0600)
 }

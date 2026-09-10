@@ -965,9 +965,10 @@ func SaveCustomService(svc *CustomService) error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(dir, svc.Name+".yaml")
-	guardRealWrite(path)
-	return os.WriteFile(path, data, 0644)
+	// Replaced by rename rather than rewritten: this file is the only copy of a
+	// definition somebody typed in, and a write that runs out of disk would
+	// otherwise leave YAML that no longer parses.
+	return writeFileAtomic(filepath.Join(dir, svc.Name+".yaml"), data, 0644)
 }
 
 // RemoveCustomService deletes a custom service config file.

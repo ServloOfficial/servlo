@@ -37,6 +37,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
+
 	"golang.org/x/crypto/ssh"
 )
 
@@ -210,8 +212,13 @@ func write(keys []Key) error {
 	if err := os.Chmod(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
+	// Replaced by rename rather than rewritten in place. Everything outside
+	// servlo's block belongs to the operator, servlo holds no copy of it, and a
+	// write that runs out of disk halfway would take it with it. The rename also
+	// means sshd, which reads this file on every connection, can never catch it
+	// half written and reject a key that is really there.
 	body := strings.Join(trimTrailingBlanks(lines), "\n") + "\n"
-	return os.WriteFile(path, []byte(body), 0o600)
+	return atomicfile.Write(path, []byte(body), 0o600)
 }
 
 // line is the authorized_keys entry for one key.

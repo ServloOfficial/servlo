@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 	"github.com/ServloOfficial/servlo/internal/config"
 )
 
@@ -209,7 +210,10 @@ func Seen(site, delivery string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	// Replaced by rename. A delivery file too short to parse is refused rather
+	// than waved through, which is the right way round and also means a write
+	// that ran out of disk would refuse every later push to this site for good.
+	if err := atomicfile.Write(path, data, 0o600); err != nil {
 		return false, err
 	}
 	return false, nil
