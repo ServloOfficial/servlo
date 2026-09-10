@@ -259,3 +259,44 @@ func TestDesiredDomains(t *testing.T) {
 		})
 	}
 }
+
+// A site's name is slugged for two things that must not be shared: the database
+// it is given, and the prefix its backup archives are named with. The slug maps
+// every character that is not a letter or a digit to an underscore, so my-app
+// and my_app are two ordinary directory names, each with a name of its own, that
+// arrive at one database and one archive namespace.
+//
+// Sharing the database puts two sites in one schema on one account, against
+// section 3.6. Sharing the archive prefix is worse: each site's backup list
+// shows the other's archives, and a retention sweep run on one site's policy
+// deletes the other's backups.
+func TestFreeSiteName_refusesANameThatSlugsOntoAnother(t *testing.T) {
+	setupSitesYAML(t, `sites:
+  - name: my-app
+    domains:
+      - my-app.example
+    path: /projects/my-app
+    php_version: "8.3"
+`)
+	got := FreeSiteName("my_app", "/projects/my_app")
+	if got == "my_app" {
+		t.Fatal("the new site took a name that slugs onto my-app, so both share a database and a backup prefix")
+	}
+	if got != "my_app-2" {
+		t.Errorf("got %q, want my_app-2", got)
+	}
+}
+
+// The site itself is not a collision with itself, however its name slugs.
+func TestFreeSiteName_slugOfTheSamePathIsNotACollision(t *testing.T) {
+	setupSitesYAML(t, `sites:
+  - name: my-app
+    domains:
+      - my-app.example
+    path: /projects/my-app
+    php_version: "8.3"
+`)
+	if got := FreeSiteName("my-app", "/projects/my-app"); got != "my-app" {
+		t.Errorf("got %q, want the name it already has", got)
+	}
+}
