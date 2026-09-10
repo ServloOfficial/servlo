@@ -11,6 +11,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 	"github.com/ServloOfficial/servlo/internal/config"
 )
 
@@ -64,8 +65,16 @@ func load() map[string]bool {
 	return set
 }
 
-// save writes the ledger atomically (temp then rename) so a concurrent reader or
-// a mid-write crash can never see a truncated file.
+// save writes the ledger atomically so a concurrent reader or a mid-write crash
+// can never see a truncated file.
+//
+// Through atomicfile rather than a fixed <path>.tmp, because the mutex above
+// orders writers inside one process and the ledger has three: whichever of the
+// panel, the watcher or a CLI run pulled the image. Two of them staging at one
+// filename write through each other, and what lands is whichever bytes finished
+// last over whichever finished first. A ledger that will not parse reads as
+// empty, which keeps cleanup conservative rather than reaping something it
+// should not, and costs images servlo pulled never being reclaimed.
 func save(set map[string]bool) {
 	refs := make([]string, 0, len(set))
 	for r := range set {
@@ -76,13 +85,5 @@ func save(set map[string]bool) {
 	if err != nil {
 		return
 	}
-	path := pathFn()
-	if os.MkdirAll(filepath.Dir(path), 0o755) != nil {
-		return
-	}
-	tmp := path + ".tmp"
-	if os.WriteFile(tmp, b, 0o644) != nil {
-		return
-	}
-	_ = os.Rename(tmp, path)
+	_ = atomicfile.Write(pathFn(), b, 0o644)
 }
