@@ -150,9 +150,13 @@ func UnlinkSiteCore(site *config.Site, parkedDirs []string) error {
 }
 
 // forgetSiteState drops the per-site request-timing state the watcher writes,
-// which the rest of the unlink path leaves behind: the durable request store,
-// the snapshot file, and (via the control socket) the running watcher's
-// in-memory copy so it stops re-emitting the site. All best-effort: a site with no recorded state or a down watcher just no-ops.
+// which the rest of the unlink path leaves behind: the durable request store and
+// the snapshot file. Best-effort, so a site with no recorded state no-ops.
+//
+// The watcher's own in-memory copy is not reached from here, and used to claim
+// to be through a control socket that went with the idle engine. It drops a site
+// the registry no longer carries on its next save tick instead, which works
+// whichever process ran the unlink and also covers one done while it was down.
 func forgetSiteState(name string) {
 	_ = reqstats.RemoveSite(config.RequestStatsFile(), name)
 	if _, err := os.Stat(config.RequestStatsDB()); err == nil {

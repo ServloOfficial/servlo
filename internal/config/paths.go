@@ -383,13 +383,6 @@ func UIClientAddr() string {
 	return UISocketPath()
 }
 
-// IdleActivityFile is where the servlo-watcher persists per-site last-active times
-// so a restart restores the idle countdowns instead of re-seeding to now; servlo-panel
-// and the CLI read it to render each site's idle state. Lives in RunDir.
-func IdleActivityFile() string {
-	return filepath.Join(RunDir(), "idle-activity.json")
-}
-
 // RequestStatsFile is where the watcher persists its rolling per-site request
 // timing snapshot for servlo-panel to read, since the two run as separate processes
 // and only the watcher binds the nginx access feed. Ephemeral, lives in RunDir.
@@ -418,13 +411,6 @@ func AccessSocketPath() string {
 // socket servlo bind-mounts into the nginx container.
 func AccessLogTarget() string {
 	return "unix:" + AccessSocketPath()
-}
-
-// ControlSocketPath is the unix datagram socket the servlo-watcher binds for
-// control messages from the CLI and dashboard
-// toggle, and "activity <site>" from the CLI shims.
-func ControlSocketPath() string {
-	return filepath.Join(RunDir(), "servlo-idle-control.sock")
 }
 
 // stoppedMarkerPath is the sentinel `servlo stop` writes and `servlo start` clears.
