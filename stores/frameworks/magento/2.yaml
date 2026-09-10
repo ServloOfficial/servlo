@@ -254,7 +254,7 @@ doctor:
 # decides whether the deploy takes a database backup first. setup:upgrade is
 # Magento's migration: it applies every pending module schema and data patch.
 deploy:
-  migrate: bin/magento setup:upgrade
+  migrate: setup:upgrade
 
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.

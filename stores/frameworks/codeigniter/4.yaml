@@ -141,7 +141,7 @@ commands:
 # substring, so a rollback counts too, which is right: it changes the schema
 # the same way and wants the same snapshot behind it.
 deploy:
-  migrate: php spark migrate
+  migrate: spark migrate
 
 # What a backup leaves out. Everything here is rebuilt by a deploy or written
 # again on the next request, so carrying it would grow every archive for nothing.

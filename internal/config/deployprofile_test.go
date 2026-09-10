@@ -43,7 +43,7 @@ func TestDeployProfile_ReadsTheWholeBlock(t *testing.T) {
 	if !strings.Contains(fw.Deploy.Script, "composer install --no-dev") {
 		t.Errorf("Script = %q", fw.Deploy.Script)
 	}
-	if fw.Deploy.Migrate != "php bin/console doctrine:migrations:migrate" {
+	if len(fw.Deploy.Migrate) != 1 || fw.Deploy.Migrate[0] != "php bin/console doctrine:migrations:migrate" {
 		t.Errorf("Migrate = %q", fw.Deploy.Migrate)
 	}
 	if len(fw.Deploy.Exclude) != 2 || fw.Deploy.Exclude[0] != "var/uploads" {
@@ -65,7 +65,7 @@ func TestDeployProfile_AbsentIsFine(t *testing.T) {
 	if got := fw.DeployScript(); got != "" {
 		t.Errorf("DeployScript = %q, want empty for a framework with no profile", got)
 	}
-	if fw.MigrateCommand() != "" || len(fw.DeployExcludes()) != 0 || fw.HealthPath() != "" {
+	if len(fw.MigrateCommands()) != 0 || len(fw.DeployExcludes()) != 0 || fw.HealthPath() != "" {
 		t.Error("a framework with no profile reported deploy settings anyway")
 	}
 }
@@ -191,14 +191,14 @@ func TestDeployProfile_ShippedDefinitionsAreUsable(t *testing.T) {
 			if err := fw.ValidateDeploy(); err != nil {
 				t.Fatalf("the shipped profile does not validate: %v", err)
 			}
-			if got := fw.MigrateCommand() != ""; got != tc.wantsMigrate {
+			if got := len(fw.MigrateCommands()) != 0; got != tc.wantsMigrate {
 				t.Errorf("declares a migration command = %v, want %v", got, tc.wantsMigrate)
 			}
 			// A framework whose script runs migrations has to declare the
 			// command that recognises them, or the pre-deploy backup never
 			// fires for the sites that most need it.
 			if tc.wantsMigrate && !fw.ScriptMigrates(fw.DeployScript()) {
-				t.Errorf("the shipped script's migration is not recognised by the declared command:\nscript=%q\nmigrate=%q", fw.DeployScript(), fw.MigrateCommand())
+				t.Errorf("the shipped script's migration is not recognised by the declared command:\nscript=%q\nmigrate=%v", fw.DeployScript(), fw.MigrateCommands())
 			}
 			for _, want := range tc.wantsExcludes {
 				if !slices.Contains(fw.DeployExcludes(), want) {

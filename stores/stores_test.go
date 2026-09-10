@@ -311,7 +311,7 @@ func TestFrameworkDefinitions_SayWhatAMigrationLooksLikeOnThem(t *testing.T) {
 				t.Errorf("%s declares no deploy.migrate, so no deploy on it ever takes a database backup first. Say what a migration looks like, or say \"\" to say it has none", file)
 				continue
 			}
-			if strings.TrimSpace(marker.(string)) != "" {
+			if migrateMarkersDeclared(marker) {
 				continue
 			}
 			for _, c := range raw.Commands {
@@ -333,6 +333,24 @@ func migrationish(s string) bool {
 	for _, w := range []string{"migrat", "setup:upgrade", "updb", "updatedb"} {
 		if strings.Contains(s, w) {
 			return true
+		}
+	}
+	return false
+}
+
+// migrateMarkersDeclared reports whether deploy.migrate names at least one
+// spelling. A definition may write one as a string or several as a list, so this
+// takes the raw node either way rather than assuming the shape.
+func migrateMarkersDeclared(marker any) bool {
+	switch m := marker.(type) {
+	case string:
+		return strings.TrimSpace(m) != ""
+	case []any:
+		for _, one := range m {
+			s, ok := one.(string)
+			if ok && strings.TrimSpace(s) != "" {
+				return true
+			}
 		}
 	}
 	return false
