@@ -142,7 +142,7 @@ func TestIssueCertForce_FailureLeavesThePreviousCertInPlace(t *testing.T) {
 // every site every time.
 func TestIssueCert_SkipsAFreshCertificate(t *testing.T) {
 	dir := t.TempDir()
-	rec := withIssuer(t, &recordingIssuer{name: "test", content: leafPEM(t, time.Now().Add(365*24*time.Hour))})
+	rec := withIssuer(t, &recordingIssuer{name: "test", content: leafPEM(t, "example.com", time.Now().Add(365*24*time.Hour))})
 	if err := IssueCert("example.com", []string{"example.com"}, dir); err != nil {
 		t.Fatalf("first issue: %v", err)
 	}

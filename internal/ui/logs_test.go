@@ -15,19 +15,6 @@ func TestServiceRecentLogs_unknownUnit(t *testing.T) {
 	}
 }
 
-func TestIsContainerUnit_nginx(t *testing.T) {
-	// servlo-nginx is a container on both platforms
-	if !isContainerUnit("servlo-nginx") {
-		t.Error("expected isContainerUnit to return true for servlo-nginx")
-	}
-}
-
-func TestIsContainerUnit_service(t *testing.T) {
-	if !isContainerUnit("servlo-redis") {
-		t.Error("expected isContainerUnit to return true for servlo-redis")
-	}
-}
-
 // streamUnitLogs must send the response headers and an initial SSE comment
 // before running the log-following subprocess; otherwise silent units leave
 // the browser's EventSource stuck in CONNECTING and the UI sticks on

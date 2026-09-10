@@ -19,15 +19,23 @@ import (
 // writeLeafCert writes a self-signed PEM certificate to path whose NotAfter is
 // the given time, so the expiry-aware reuse path in IssueCert has a real cert
 // to parse.
+//
+// It names the domain the file is stored under, which is how servlo names a
+// site's certificate. A certificate carrying no SAN at all names no host as far
+// as crypto/x509 is concerned, so a fixture without one would stand for a
+// certificate no browser would accept rather than for the healthy one these
+// tests mean.
 func writeLeafCert(t *testing.T, path string, notAfter time.Time) {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
+	domain := strings.TrimSuffix(filepath.Base(path), ".crt")
 	tmpl := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: "site.example"},
+		Subject:      pkix.Name{CommonName: domain},
+		DNSNames:     []string{domain},
 		NotBefore:    notAfter.Add(-2 * 365 * 24 * time.Hour),
 		NotAfter:     notAfter,
 	}
@@ -110,9 +118,10 @@ func TestIssueCert_skipsWhenCertExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// IssueCert should leave the existing cert untouched, even though the SAN
-	// list it was asked for includes a brand-new domain.
-	if err := IssueCert("site.example", []string{"site.example", "extra.example"}, certsDir); err != nil {
+	// The SAN list it is asked for is the one the cert already covers, which is
+	// the case that must not reissue. A wider list is a different question and
+	// TestIssueCert_DoesNotReuseACertificateNarrowerThanAsked asks it.
+	if err := IssueCert("site.example", []string{"site.example"}, certsDir); err != nil {
 		t.Fatalf("IssueCert returned %v", err)
 	}
 	if len(rec.calls) != 0 {
@@ -449,9 +458,9 @@ func TestIssueCertForce_failureLeavesExistingCertIntact(t *testing.T) {
 
 // leafPEM returns a self-signed certificate as PEM text, for tests that need a
 // body IssueCert's reissue window can actually parse.
-func leafPEM(t *testing.T, notAfter time.Time) string {
+func leafPEM(t *testing.T, domain string, notAfter time.Time) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "leaf.crt")
+	path := filepath.Join(t.TempDir(), domain+".crt")
 	writeLeafCert(t, path, notAfter)
 	data, err := os.ReadFile(path)
 	if err != nil {

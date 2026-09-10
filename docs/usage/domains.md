@@ -68,6 +68,8 @@ Every alias goes into the site's certificate as a SAN and into the DNS pre-fligh
 
 That is also why changing the domains on a site that already has a certificate usually cannot reissue on the spot. The ordinary sequence is to add the alias and then point its DNS here, and the pre-flight refuses to issue for a name that does not resolve to this server yet. When that happens the domain change still goes through, and the panel says plainly that the certificate does not cover the new name and what to do about it. It does not fail quietly: a site serving a certificate that does not name a domain it answers to gives every visitor to that domain a browser warning, and the operator has to be able to see why.
 
+You do not have to come back and press anything afterwards. A certificate short of one of its site's domains counts as due for renewal in the same way an expiring one does, so once the DNS moves, the next renewal pass issues a certificate naming it. Until then the site keeps the certificate it has, and the shortfall is on the alert list rather than only in the message you saw when you added the domain.
+
 Point the DNS, then use **Get SSL**.
 
 ### Subdomains
