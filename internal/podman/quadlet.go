@@ -277,9 +277,19 @@ func RemoveQuadlet(name string) error {
 	return nil
 }
 
+// BeforeRemove is called with a container's name just before it is removed, for
+// whoever is holding something open on it. The panel sets it: it streams a
+// container's logs with `podman logs -f` from the same process that removes the
+// container, and the two racing over one container jam podman's connection pool.
+// Nil everywhere else, where nothing is holding a stream.
+var BeforeRemove func(name string)
+
 // RemoveContainer removes a stopped Podman container by name, ignoring errors
 // if the container does not exist.
 func RemoveContainer(name string) {
+	if BeforeRemove != nil {
+		BeforeRemove(name)
+	}
 	_ = execCommand(PodmanBin(), "rm", "-f", name).Run()
 }
 

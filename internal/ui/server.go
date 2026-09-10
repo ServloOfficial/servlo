@@ -3992,16 +3992,13 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, ": connected\n\n")
 	flusher.Flush()
 
-	// If no container exists for this unit, route to the platform log stream
-	// (file tail for native services) or report not-running for container units.
+	// This route is podman's: it is what the panel asks for a service container,
+	// and servlo's own daemons are asked for elsewhere, through the journal. So a
+	// container that is not there has no logs to give rather than a file to fall
+	// back to.
 	if exists, _ := podman.ContainerExists(container); !exists {
-		if isContainerUnit(container) {
-			fmt.Fprintf(w, "data: container %s is not running\n\n", container)
-			flusher.Flush()
-			return
-		}
-		// Native service (dns, watcher, ui) — stream from log file.
-		streamUnitLogs(w, r, container)
+		fmt.Fprintf(w, "data: container %s is not running\n\n", container)
+		flusher.Flush()
 		return
 	}
 
@@ -4010,15 +4007,18 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		tail = "0"
 	}
 
-	// Wrap r.Context() in a cancel so the worker-mode migration can kill
-	// this stream pre-emptively. Otherwise its `podman logs -f` child holds
-	// the connection and races the migration's `podman rm -f` against the
-	// same container, jamming the podman API socket.
+	// Wrap r.Context() in a cancel so a removal of this container can kill the
+	// stream pre-emptively. Otherwise its `podman logs -f` child holds the
+	// connection and races the `podman rm -f` against the same container,
+	// jamming the podman API socket.
 	streamCtx, streamCancel := context.WithCancel(r.Context())
 	defer streamCancel()
-	if isFrameworkWorkerUnit(container) {
-		defer logStreams.Register(container, streamCancel)()
-	}
+	// Every stream, not just some. This handler is only ever asked for a service
+	// container (the panel reads a worker's logs from the journal instead), and a
+	// service container is exactly what a remove, restart, reinstall or migration
+	// pulls out from under it, so a gate on which units qualify registered
+	// nothing that was ever at risk.
+	defer logStreams.Register(container, streamCancel)()
 
 	pr, pw := io.Pipe()
 	cmd := podman.CmdContext(streamCtx, "logs", "-f", "--tail", tail, container)

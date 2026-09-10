@@ -11,8 +11,6 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
-
-	"github.com/ServloOfficial/servlo/internal/unitlog"
 )
 
 func serviceRecentLogs(unit string) string {
@@ -24,9 +22,6 @@ func serviceRecentLogs(unit string) string {
 func logStreamCmd(ctx context.Context, unit string) *exec.Cmd {
 	return exec.CommandContext(ctx, "journalctl", "--user", "-u", unit, "-f", "--no-pager", "-n", "100", "--output=cat")
 }
-
-// isContainerUnit returns true on Linux — all servlo units run as Podman containers.
-func isContainerUnit(unit string) bool { return unitlog.IsContainerUnit(unit) }
 
 func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
 	flusher, ok := w.(http.Flusher)

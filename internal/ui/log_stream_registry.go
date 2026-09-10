@@ -3,13 +3,15 @@ package ui
 import (
 	"context"
 	"sync"
+
+	"github.com/ServloOfficial/servlo/internal/podman"
 )
 
-// logStreamRegistry tracks active worker-log SSE streams so a worker-mode
-// migration can cancel them all before issuing podman rm calls. Without
-// this, `podman logs -f` streams from open log panels race against the
-// migration's `podman rm -f` for the same container, jamming the
-// connection pool and eventually wedging the podman API socket.
+// logStreamRegistry tracks the panel's open log streams by container, so one can
+// be closed before something removes the container under it. Without this,
+// `podman logs -f` from an open log pane races the `podman rm -f` behind a
+// service remove, restart, reinstall or migration, jamming the connection pool
+// and eventually wedging the podman API socket.
 type logStreamRegistry struct {
 	mu      sync.Mutex
 	streams map[string]map[*context.CancelFunc]struct{}
@@ -63,3 +65,9 @@ func (r *logStreamRegistry) CancelAllFor(units []string) {
 // logStreams is the process-wide registry of open log streams, so one can be
 // cancelled before something removes the container it is reading.
 var logStreams = newLogStreamRegistry()
+
+// Every removal goes through podman.RemoveContainer, so hooking it there rather
+// than at each of the panel's service actions means a new one cannot forget.
+func init() {
+	podman.BeforeRemove = func(unit string) { logStreams.CancelAllFor([]string{unit}) }
+}
