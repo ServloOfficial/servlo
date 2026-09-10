@@ -16,22 +16,16 @@ import (
 
 // Site represents a single registered Servlo site.
 type Site struct {
-	Name        string   `yaml:"-"`
-	Domains     []string `yaml:"-"`
-	Path        string   `yaml:"path"`
-	PHPVersion  string   `yaml:"php_version"`
-	NodeVersion string   `yaml:"node_version"`
-	Secured     bool     `yaml:"secured"`
-	// SecuredBeforeDNSOff records that the site was on HTTPS when servlo DNS was
-	// last disabled, so re-enabling can restore it even for a site with no
-	// .servlo.yaml to carry the intent. Cleared once HTTPS is restored.
-	SecuredBeforeDNSOff bool     `yaml:"secured_before_dns_off,omitempty"`
-	Ignored             bool     `yaml:"ignored,omitempty"`
-	Paused              bool     `yaml:"paused,omitempty"`
-	PausedWorkers       []string `yaml:"paused_workers,omitempty"`
-	// Pinned keeps the site at the top of the list even
-	// when the global idle policy is on, so a site you want always-warm never
-	// sleeps.
+	Name          string   `yaml:"-"`
+	Domains       []string `yaml:"-"`
+	Path          string   `yaml:"path"`
+	PHPVersion    string   `yaml:"php_version"`
+	NodeVersion   string   `yaml:"node_version"`
+	Secured       bool     `yaml:"secured"`
+	Ignored       bool     `yaml:"ignored,omitempty"`
+	Paused        bool     `yaml:"paused,omitempty"`
+	PausedWorkers []string `yaml:"paused_workers,omitempty"`
+	// Pinned keeps the site at the top of the list.
 	Pinned    bool   `yaml:"pinned,omitempty"`
 	Framework string `yaml:"framework,omitempty"`
 	PublicDir string `yaml:"public_dir,omitempty"`
@@ -361,7 +355,6 @@ type siteYAML struct {
 	PHPVersion          string           `yaml:"php_version"`
 	NodeVersion         string           `yaml:"node_version"`
 	Secured             bool             `yaml:"secured"`
-	SecuredBeforeDNSOff bool             `yaml:"secured_before_dns_off,omitempty"`
 	Ignored             bool             `yaml:"ignored,omitempty"`
 	Paused              bool             `yaml:"paused,omitempty"`
 	PausedWorkers       []string         `yaml:"paused_workers,omitempty"`
@@ -407,7 +400,6 @@ func (s Site) toYAML() siteYAML {
 		PHPVersion:          s.PHPVersion,
 		NodeVersion:         s.NodeVersion,
 		Secured:             s.Secured,
-		SecuredBeforeDNSOff: s.SecuredBeforeDNSOff,
 		Ignored:             s.Ignored,
 		Paused:              s.Paused,
 		PausedWorkers:       s.PausedWorkers,
@@ -458,7 +450,6 @@ func (sy siteYAML) toSite() Site {
 		PHPVersion:          sy.PHPVersion,
 		NodeVersion:         sy.NodeVersion,
 		Secured:             sy.Secured,
-		SecuredBeforeDNSOff: sy.SecuredBeforeDNSOff,
 		Ignored:             sy.Ignored,
 		Paused:              sy.Paused,
 		PausedWorkers:       sy.PausedWorkers,
