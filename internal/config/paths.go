@@ -420,13 +420,6 @@ func AccessLogTarget() string {
 	return "unix:" + AccessSocketPath()
 }
 
-// ControlSocketPath is the unix datagram socket the servlo-watcher binds for
-// control messages from the CLI and dashboard
-// toggle, and "activity <site>" from the CLI shims.
-func ControlSocketPath() string {
-	return filepath.Join(RunDir(), "servlo-idle-control.sock")
-}
-
 // stoppedMarkerPath is the sentinel `servlo stop` writes and `servlo start` clears.
 // It lets long-running loops (the worker health watcher, heal notifications)
 // tell an intentional shutdown from worker drift.

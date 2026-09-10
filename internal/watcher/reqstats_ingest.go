@@ -120,7 +120,7 @@ func runReqStatsSaver() {
 		if reqAggregator == nil {
 			continue
 		}
-		snap := reqAggregator.Snapshot()
+		snap := forgetUnregisteredSites(reqAggregator, reqAggregator.Snapshot())
 		_ = reqstats.SaveSnapshot(snap, config.RequestStatsFile())
 		flushReqStore()
 		domainOf := lazyResolver(siteDomainResolver)
@@ -219,4 +219,41 @@ func siteNameForHost(host string) (string, bool) {
 		return "", false
 	}
 	return site.Name, true
+}
+
+// forgetUnregisteredSites drops every site the registry no longer carries, from
+// the snapshot about to be written and from the aggregator holding it.
+//
+// Unlinking a site clears its rows from the snapshot file and the durable store,
+// and this process keeps its rolling windows in memory, so without this the next
+// tick writes the site straight back and it stays in the panel until the watcher
+// restarts. The comment on the unlink path said a control socket told the
+// watcher; that socket went with the idle engine and nothing has told it since.
+//
+// Read here rather than sent from there, because an unlink happens in whichever
+// process the operator used, the panel, the CLI over SSH or this one, and the
+// registry is the truth all three already share. It also heals a site removed
+// while the watcher was down, which no message could.
+//
+// A paused or ignored site is still registered and is kept. A registry that
+// cannot be read drops nothing: losing one read must not empty the snapshot of
+// every site on the machine.
+func forgetUnregisteredSites(agg *reqstats.Aggregator, snap []reqstats.SiteStats) []reqstats.SiteStats {
+	reg, err := config.LoadSites()
+	if err != nil || reg == nil {
+		return snap
+	}
+	registered := make(map[string]bool, len(reg.Sites))
+	for _, s := range reg.Sites {
+		registered[s.Name] = true
+	}
+	kept := make([]reqstats.SiteStats, 0, len(snap))
+	for _, st := range snap {
+		if registered[st.Site] {
+			kept = append(kept, st)
+			continue
+		}
+		agg.Forget(st.Site)
+	}
+	return kept
 }
