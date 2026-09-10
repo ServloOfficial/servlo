@@ -15,9 +15,19 @@ import (
 // stops the reload and the pool signal from reaching anything real.
 // The count of runtime reloads, for the caller that cares whether a save that
 // changed nothing restarted a live site.
+//
+// The home is made short on purpose rather than taken from t.TempDir, which
+// names the directory after the test. A pool's socket lives under the data
+// directory and a unix socket's path has a hard length limit, so a home named
+// after a long test function is a home no site on it can have a pool in, which
+// would be the test failing for a reason no install has.
 func settingsHome(t *testing.T) *int {
 	t.Helper()
-	home := t.TempDir()
+	home, err := os.MkdirTemp("", "servlo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(home) }) //nolint:errcheck
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_DATA_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", "")

@@ -56,7 +56,7 @@ func fastcgiPassBlock(u Upstream) string {
 // FPMUpstream decides where a site's PHP requests go.
 func FPMUpstream(poolDir, socketDir, site, container string) Upstream {
 	up := Upstream{Container: container}
-	if !fpmpool.UsableHandle(site) {
+	if !fpmpool.UsablePool(socketDir, site) {
 		return up
 	}
 	if _, err := os.Stat(fpmpool.Path(poolDir, site)); err != nil {
