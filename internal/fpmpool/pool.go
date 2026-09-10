@@ -59,6 +59,37 @@ var siteHandle = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$`)
 // with a pool nothing routes to.
 func UsableHandle(site string) bool { return siteHandle.MatchString(site) }
 
+// maxSocketPath is the longest a unix socket's path may be: Linux carries it in
+// sockaddr_un's sun_path, which is 108 bytes with one of them the terminator.
+const maxSocketPath = 107
+
+// SocketFits reports whether this site's socket could actually be bound where it
+// would go.
+//
+// The handle rules above are about characters and stop at sixty-four, which is a
+// count this cannot be folded into: the pool listens on the host path, because
+// the FPM container and servlo-nginx mount that directory at the same absolute
+// place, so how much room is left for a site name depends on how long the
+// operator's home directory is. Under /home/servlo a handle of sixty-two
+// characters is one byte too many, and the handle rules are perfectly happy with
+// it.
+//
+// Getting it wrong is not a broken site, it is a broken machine. FPM does not
+// skip a pool whose listen address it cannot bind: the master fails to start,
+// and every site sharing that PHP version goes down with the one that was just
+// added.
+func SocketFits(socketDir, site string) bool {
+	return len(SocketPath(socketDir, site)) <= maxSocketPath
+}
+
+// UsablePool reports whether this site can have a pool at all: a handle that may
+// name one, and somewhere to put the socket. Exported for the reason UsableHandle
+// is, and it is the one the callers should ask: the two deciding separately is
+// how a site ends up with a pool nothing routes to.
+func UsablePool(socketDir, site string) bool {
+	return UsableHandle(site) && SocketFits(socketDir, site)
+}
+
 // Bounds. A value outside them produces a pool FPM refuses to start with, which
 // takes down every site sharing the container, so they are refused here.
 const (
@@ -83,6 +114,10 @@ func Render(s Settings) (string, error) {
 	}
 	if !filepath.IsAbs(s.SocketDir) {
 		return "", fmt.Errorf("the socket directory %q is not an absolute path", s.SocketDir)
+	}
+	if !SocketFits(s.SocketDir, s.Site) {
+		return "", fmt.Errorf("%s is %d bytes, past the %d a unix socket may be, so FPM could not bind it",
+			SocketPath(s.SocketDir, s.Site), len(SocketPath(s.SocketDir, s.Site)), maxSocketPath)
 	}
 	if err := s.checkRanges(); err != nil {
 		return "", err

@@ -302,6 +302,8 @@ php_admin_value[expose_php] = Off
 
 A site that sets nothing gets a pool with only those, and everything else still comes from the layered ini files below. A site created before per-site pools existed has no pool file, and keeps being served by the shared container until it gets one.
 
+A pool listens on a unix socket under `~/.local/share/servlo/run/fpm/`, and a unix socket's path may not exceed 107 bytes. That is the whole path, so how long a site name can be depends on how long your home directory is: under `/home/servlo` it leaves 61 characters, which is longer than any site name a domain produces in practice. A site that would need more than that is served by the shared container instead, and servlo refuses to write the pool rather than write one PHP-FPM could not bind, because a pool the master cannot bind stops the master, and that would take down every site on that PHP version rather than just the one.
+
 #### A site that runs its own container
 
 A FrankenPHP site has no pool, because it is not served by the shared FPM container. The same three settings go into `~/.local/share/servlo/php/sites/<site>/96-servlo-site.ini`, which that site's own container mounts into its `conf.d`. Servlo owns that file and rewrites it on every save, and the site's container is restarted so the change takes effect, which it is not if only the file changes.

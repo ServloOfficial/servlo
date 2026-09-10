@@ -13,9 +13,20 @@ import (
 
 // poolHome points the data directory at a scratch home and records what
 // SyncFPMPool asked to be reloaded, so these tests never signal a container.
+//
+// The home is made short on purpose rather than taken from t.TempDir, which
+// names the directory after the test. A pool's socket lives under the data
+// directory and a unix socket's path has a hard length limit, so a home named
+// after a long test function is a home no site on it can have a pool in, which
+// would be these tests failing for a reason no install has.
 func poolHome(t *testing.T) *[]string {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
+	home, err := os.MkdirTemp("", "servlo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(home) }) //nolint:errcheck
+	t.Setenv("HOME", home)
 	t.Setenv("XDG_DATA_HOME", "")
 
 	var reloaded []string

@@ -89,7 +89,7 @@ func SyncFPMPool(site config.Site) error {
 	if err := RemoveFPMPool(site.Name); err != nil {
 		return err
 	}
-	if !servedByFPM(site) || !fpmpool.UsableHandle(site.Name) {
+	if !servedByFPM(site) || !fpmpool.UsablePool(config.FPMSocketDir(), site.Name) {
 		return nil
 	}
 
