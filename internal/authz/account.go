@@ -333,8 +333,17 @@ func (s *AccountStore) Delete(name string) error {
 }
 
 // redact strips every credential from a copy of an account. One function, so a
-// field added later is stripped in one place rather than four, and forgetting
-// is a compile error at the struct rather than a leak at one of the callers.
+// field added later is stripped in one place rather than at each of the seven
+// exits from this package.
+//
+// Forgetting one is not a compile error, whatever would be convenient: Go will
+// happily carry a new field straight through here and out to the panel. What
+// stands in for that is a test beside this one that sets every field on an
+// Account, redacts it, and fails on any field whose name says it holds a
+// credential and came back set. A field added and not stripped fails it twice,
+// once for not being in the fixture and once for surviving. That is a floor
+// under the reasoning rather than a proof, since it reads the field's name: a
+// secret called something else still needs somebody to think.
 func redact(account Account) Account {
 	account.RecoveryLeft = len(account.RecoveryHashes)
 	account.PasswordHash = ""
