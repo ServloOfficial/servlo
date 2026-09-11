@@ -901,3 +901,42 @@ func TestSailInitialized(t *testing.T) {
 		})
 	}
 }
+
+// ── sailRecreateDB ───────────────────────────────────────────────────────────
+
+// The servlo half of a Sail import drops and recreates the target database
+// before loading the dump. Its name comes out of the site's .env, and the
+// service it lands in is whichever engine that site is on, so both have to be
+// taken from the resolved env rather than guessed from the dialect.
+func TestSailRecreateDB_refusesANameNoOtherDatabaseSinkWouldAccept(t *testing.T) {
+	err := sailRecreateDB(&dbEnv{service: "mysql", connection: "mysql", database: "shop`; DROP DATABASE `live"})
+	if err == nil {
+		t.Fatal("a database name out of .env reached DROP DATABASE unchecked")
+	}
+	if !strings.Contains(err.Error(), "invalid database name") {
+		t.Fatalf("want the refusal every other database sink gives, got %v", err)
+	}
+}
+
+func TestSailRecreateDB_actsOnTheEngineTheSiteIsActuallyOn(t *testing.T) {
+	var gotService, gotDatabase string
+	prev := emptyDatabase
+	t.Cleanup(func() { emptyDatabase = prev })
+	emptyDatabase = func(service, database string) error {
+		gotService, gotDatabase = service, database
+		return nil
+	}
+
+	// DB_HOST=servlo-mariadb resolves to the mariadb service while the dialect
+	// is still "mysql", which is exactly where guessing from the dialect sends
+	// the drop to a container the site never used.
+	if err := sailRecreateDB(&dbEnv{service: "mariadb", connection: "mysql", database: "shop"}); err != nil {
+		t.Fatalf("sailRecreateDB: %v", err)
+	}
+	if gotService != "mariadb" {
+		t.Errorf("dropped in %q, but the site is on mariadb", gotService)
+	}
+	if gotDatabase != "shop" {
+		t.Errorf("dropped %q, want shop", gotDatabase)
+	}
+}

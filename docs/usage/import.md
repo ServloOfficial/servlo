@@ -43,6 +43,20 @@ It streams from the file into the engine's client, so a dump larger than the dro
 
 **Import a dump you trust.** The site that comes out of this gets its own database and an account scoped to that database, which is what the site runs as afterwards. Loading the dump is not done by that account: it goes in through the connection's administrative credentials, because a dump often creates the schema it fills. So a `.sql` file is not inert data here, it is a script the engine runs as an administrator, and one that has had `CREATE USER` or a `GRANT` appended to it reaches every database on that server rather than just this site's. Read a dump you did not export yourself before importing it, the same way you would read a shell script somebody sent you.
 
+## From a Laravel Sail project
+
+A project that was running under Sail already has its data in a container, so there is nothing to export by hand:
+
+```bash
+servlo import sail
+```
+
+It reads the project's compose file, starts the Sail database long enough to dump it, and loads that dump into the servlo database the site's `.env` names. The MinIO bucket comes across the same way when the project used one.
+
+Which engine it lands in is the one the site is actually on, taken from `DB_HOST`, not from the dialect in `DB_CONNECTION`. A site pointed at `servlo-mariadb` has `DB_CONNECTION=mysql` like every other MySQL-family site, and its data belongs in MariaDB.
+
+The target database is emptied first, and servlo says how many tables it found on the Sail side before it does: an empty or missing Sail database is refused rather than allowed to overwrite what is already here.
+
 ## Afterwards
 
 Point DNS at this server, then `servlo secure acme.com`.
