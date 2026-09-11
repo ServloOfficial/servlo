@@ -147,9 +147,6 @@ longer worth a manual pass:
 - **A rebuild from backups.** A second machine with nothing on it: import the
   key, restore the state, reinstall the engine, restore each site, start. Every
   site serves its own page and its settings are intact.
-- **A deploy with a migration takes a database backup first,** and refuses to
-  deploy at all when it cannot tell which database to back up.
-
 ### Still needs a droplet
 
 Take a fresh Ubuntu 24.04 droplet, 2GB or more, and a domain you can point at
@@ -180,6 +177,22 @@ Each line below is something a runner genuinely cannot answer.
 - [ ] Same for an SFTP destination.
 - [ ] The cloud metadata service answering for real, so the Security page links to the right provider's firewall screen. It has only ever seen a stub.
 - [ ] `servlo apps install` for Joomla and Grav against their live releases. WordPress is covered; these two hand over at their own setup step, and what is worth checking is that nothing claims a one-click finish they do not deliver.
+
+**A deploy, which nothing has ever run outside a unit test**
+
+No workflow deploys anything. The deploy tests stub every external command with
+`exec.Command("true")`, so the whole chain is proven in the sense that the Go
+code makes the right decisions and in no other sense: no real `git pull`, no
+real dump, no real FPM reload. This list used to say the backup guarantee was
+already proven on a real machine, which was this unit test running on a real
+runner rather than a deploy happening on one, and that would have taken the
+check off the only pass that could make it.
+
+- [ ] A deploy with a migration in its script takes a database snapshot before the pull, and the snapshot is real enough to restore from.
+- [ ] A deploy refuses to start at all when it cannot tell which database to back up, rather than pulling and running the migration anyway.
+- [ ] A deploy script that fails leaves visitors on the last version that worked. Production OPcache is what makes that true, so it is not observable anywhere the container is not real.
+- [ ] Redeploy previous commit puts the code back and says plainly that it did not put the data back.
+- [ ] Both ways in: the panel's Deploy button and the deploy webhook.
 
 **Time, and things containers hide**
 - [ ] Log rotation against an application holding its log file open across requests. Rotation renames rather than copies, and that is the case it is chosen for.
