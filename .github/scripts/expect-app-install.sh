@@ -38,12 +38,19 @@ servlo apps install "$app" "$domain" --admin-email ci@servlo.invalid --title "Se
 
 if [ "$install_ok" -ne 0 ]; then
   echo
+  # Headers, not just the body. Servlo's catch-all names itself in one, and it
+  # is the only thing in a response that tells the placeholder page apart from
+  # the site answering, which is the difference the install turns on.
   echo "── the install reported a failure; what does the site serve? ──"
   for path in / /wp-admin/install.php; do
-    code=$(curl -sS -o /tmp/body -w '%{http_code}' --max-time 20 --resolve "$domain:80:$ip" "http://$domain$path" || true)
-    echo "GET $path -> $code"
-    head -c 300 /tmp/body; echo
+    echo "GET $path"
+    curl -sS -D - -o /tmp/body --max-time 20 --resolve "$domain:80:$ip" "http://$domain$path" | head -15 || true
+    head -c 200 /tmp/body; echo
   done
+  echo "── and what a POST gets, which is the request the install actually makes ──"
+  curl -sS -D - -o /dev/null -X POST --max-time 20 --resolve "$domain:80:$ip" "http://$domain/wp-admin/install.php?step=2" | head -15 || true
+  echo "── nginx's own log, which says whether the reload had landed ──"
+  podman logs servlo-nginx 2>&1 | tail -30 || true
   echo "── php-fpm's own output (the pool logs errors to container stderr) ──"
   podman logs servlo-php85-fpm 2>&1 | tail -25 || true
 fi

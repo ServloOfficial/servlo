@@ -137,6 +137,8 @@ The path must start with a single `/`. A definition naming a host, including the
 
 A failure reports what the application said, with every value servlo put into the request removed from it first. An application echoing its own form back into an error page is not hypothetical, and that error reaches the panel and the audit log.
 
+The form is also only posted once nginx is serving the site itself. Servlo answers a domain no site is linked to with a branded page, so a domain answers over HTTP well before the site behind it exists, and a reload that has not settled yet would take a generated admin password to that placeholder rather than to the application. Servlo waits for the site before posting, and the post itself checks whose answer it got and keeps asking for up to a minute, because the wait and the post are two requests and the window can close between them.
+
 ## What does not fit yet
 
 Three things stop an application becoming a definition, and all three are worth knowing before you spend an afternoon on one.

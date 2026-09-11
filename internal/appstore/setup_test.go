@@ -1,11 +1,14 @@
 package appstore
 
 import (
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/ServloOfficial/servlo/internal/nginx"
 )
 
 const withSetup = `
@@ -190,5 +193,28 @@ func TestRunSetup_TalksToThisServerRatherThanTheDomain(t *testing.T) {
 	// otherwise hand every visitor a link to servlo's internal port.
 	if gotHost != "not-pointed-here.invalid" {
 		t.Errorf("the site saw Host %q, want the bare domain", gotHost)
+	}
+}
+
+// The 405 a CI run caught. Servlo answers a domain no site is linked to with a
+// branded page, and a POST against that vhost lands on a static file, which
+// nginx refuses with its own error page. Nothing in the response says what
+// happened, so the setup read it as an application that declined and the
+// install stopped there, having sent a freshly generated admin password to
+// servlo's own placeholder and left the site claimable.
+func TestRunSetup_KnowsServlosCatchAllFromTheApplication(t *testing.T) {
+	app, _ := Parse([]byte(withSetup))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set(nginx.CatchAllHeader, nginx.CatchAllHeaderValue)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("<html><head><title>405 Not Allowed</title></head></html>")) //nolint:errcheck
+	}))
+	t.Cleanup(srv.Close)
+
+	err := app.Setup.Run(t.Context(), srv.URL, map[string]string{
+		"site_title": "x", "admin_user": "x", "admin_password": "x", "admin_email": "x",
+	})
+	if !errors.Is(err, ErrNotTheSite) {
+		t.Fatalf("err = %v, want it to report the catch-all rather than a refusal by the application", err)
 	}
 }
