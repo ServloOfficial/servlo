@@ -53,8 +53,14 @@
 
   const groups = $derived.by(() => (hasWorkspaces ? byWorkspace() : byFramework()));
 
-  // Sites in no workspace trail the sections without a heading, mirroring the
-  // sidebar. The framework fallback already covers every active site.
+  // Sites in no workspace trail the named ones under the same heading the
+  // framework grouping already gives its leftovers.
+  //
+  // They used to trail with no heading at all, meant to mirror the sidebar. The
+  // sidebar can do that because it sets them at a different indent; a grid of
+  // identical tiles has no such cue, so the last workspace's heading ran on and
+  // owned them. A site belonging to one client read as belonging to another,
+  // which is the one thing a view organised by client must not do.
   const ungrouped = $derived(
     hasWorkspaces ? active.filter((s) => !s.workspace || !workspaceNames.includes(s.workspace)) : []
   );
@@ -78,7 +84,7 @@
       {/each}
 
       {#if ungrouped.length > 0}
-        <DashboardSection>
+        <DashboardSection label={m.sites_dash_otherFramework()}>
           {#each ungrouped as site (site.domain)}
             <SiteTile {site} />
           {/each}

@@ -40,7 +40,12 @@ describe('SitesDashboard', () => {
     expect(queryByRole('heading', { name: 'Laravel' })).toBeNull();
   });
 
-  it('lists sites in no workspace without a heading', () => {
+  // This asked for no heading at all, to mirror the sidebar. The sidebar can do
+  // that because it sets ungrouped sites at their own indent; a grid of
+  // identical tiles has no such cue, so the last workspace's heading ran on and
+  // owned them and a site belonging to one client read as belonging to another.
+  // They take the heading the framework grouping already gives its leftovers.
+  it('gives sites in no workspace their own heading rather than the last one', () => {
     setWorkspaces(['Client Work']);
     sites.set([
       site({ domain: 'shop.test', workspace: 'Client Work' }),
@@ -48,8 +53,9 @@ describe('SitesDashboard', () => {
     ]);
     const { getByText, queryByText } = render(SitesDashboard);
     expect(getByText('static.test')).toBeTruthy();
+    expect(getByText('Other')).toBeTruthy();
+    // "Other" is the neutral bucket both groupings share, not a new word.
     expect(queryByText('Ungrouped')).toBeNull();
-    expect(queryByText('Other')).toBeNull();
   });
 
   it('hides an empty workspace so the overview stays uncluttered', () => {
