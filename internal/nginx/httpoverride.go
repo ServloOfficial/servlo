@@ -66,7 +66,13 @@ func dropOverriddenDefaults(conf string, names map[string]bool) string {
 		stmt := strings.TrimSpace(stripConfComment(line))
 		if inHTTP && depth == 1 && stmt != "" {
 			name := strings.Trim(strings.Fields(stmt)[0], "{};")
-			if !repeatableDirectives[name] && names[name] {
+			// A line that opens a block is never retired: commenting it out
+			// leaves its body and its closing brace behind as http-level
+			// statements, and nginx refuses the whole file. It is also the
+			// right answer for the block servlo has, since a map is the idiom
+			// for anything conditional in nginx and two of them coexist as
+			// long as they name different variables.
+			if braceDelta(stmt) <= 0 && !repeatableDirectives[name] && names[name] {
 				indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 				lines[i] = indent + "# " + strings.TrimSpace(line) + "  (overridden in http.d)"
 			}

@@ -151,3 +151,46 @@ func readRenderedConf(t *testing.T, tmp string) string {
 	}
 	return string(body)
 }
+
+// A map is the standard nginx idiom for anything conditional, so an operator
+// writing one into the http-level override is ordinary. It is also repeatable,
+// and servlo has one of its own: the websocket upgrade map every proxying vhost
+// reads $connection_upgrade from.
+//
+// Retiring a block by commenting out its first line leaves its body and its
+// closing brace behind as http-level statements, which nginx refuses. The file
+// is only read when nginx starts or reloads, so the sites keep serving on the
+// configuration already in memory and the machine comes up with nothing on it
+// whenever it is next restarted.
+func TestEnsureNginxConfig_keepsItsOwnMapWhenTheOperatorWritesOne(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	writeHTTPOverride(t, tmp, "map $http_user_agent $is_bot {\n    default 0;\n    ~*bot   1;\n}\n")
+	if err := EnsureNginxConfig(); err != nil {
+		t.Fatalf("EnsureNginxConfig: %v", err)
+	}
+	body := readRenderedConf(t, tmp)
+	if !hasActiveDirective(body, "map $http_upgrade $connection_upgrade") {
+		t.Errorf("servlo's websocket map must survive an operator's own map, got:\n%s", body)
+	}
+	if strings.Contains(body, "# map $http_upgrade") {
+		t.Errorf("servlo's map was retired, leaving its body and brace at http level:\n%s", body)
+	}
+	if !strings.Contains(body, "include /etc/nginx/conf.d/*.conf;") {
+		t.Errorf("the vhost include must survive the filter, got:\n%s", body)
+	}
+}
+
+// The floor under the next block somebody adds to the template. Whether or not
+// the directive is repeatable, a line that opens a block cannot be retired one
+// line at a time.
+func TestDropOverriddenDefaults_NeverCommentsOutALineThatOpensABlock(t *testing.T) {
+	conf := "http {\n    limit_req_zone $binary_remote_addr zone=one:10m rate=1r/s;\n    geo $internal {\n        default 0;\n    }\n}\n"
+	got := dropOverriddenDefaults(conf, map[string]bool{"geo": true, "limit_req_zone": true})
+	if !hasActiveDirective(got, "geo $internal {") {
+		t.Errorf("a block's opening line was commented out, orphaning its body:\n%s", got)
+	}
+	if hasActiveDirective(got, "limit_req_zone ") {
+		t.Errorf("an ordinary overridden directive should still step aside:\n%s", got)
+	}
+}
