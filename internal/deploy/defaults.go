@@ -66,6 +66,7 @@ func Head(dir string) (string, error) {
 var (
 	nodeActive        = func() node.Manager { return node.Active() }
 	nodeDetectVersion = node.DetectVersion
+	nodePinnedVersion = node.PinnedVersion
 )
 
 // wrapScopeFn confines the build, indirected so a test does not need a systemd
@@ -142,23 +143,29 @@ func nodeScriptCommand(dir string, args []string) (*exec.Cmd, error) {
 	}
 
 	version, _ := nodeDetectVersion(dir)
-	if version == "" || version == "default" {
-		if !mgr.HasDefault() {
-			return exec.Command("sh", args...), nil
-		}
-		return mgr.Command("default", "sh", args), nil
+	if version != "" && version != "default" && slices.Contains(mgr.List(), version) {
+		return mgr.Command(version, "sh", args), nil
 	}
 
-	// A pinned version that is not installed is refused rather than silently
+	// A version the site pinned and did not get is refused rather than silently
 	// swapped for another. Installing one here would mean a deploy quietly
 	// downloading a toolchain, which is minutes of surprise in the middle of an
 	// operation somebody is watching.
-	if !slices.Contains(mgr.List(), version) {
+	//
+	// Only a pin, though. A site that names no version still gets one, servlo's
+	// global default, and on a server where nobody ever ran `servlo node:install`
+	// that version is not there. Refusing over it would stop the deploy of every
+	// PHP-only site on the machine for a toolchain none of them use.
+	if version != "" && version != "default" && nodePinnedVersion(dir) != "" {
 		return nil, fmt.Errorf(
 			"this site builds with Node %s and it is not installed: run `servlo node:install %s` and deploy again",
 			version, version)
 	}
-	return mgr.Command(version, "sh", args), nil
+
+	if !mgr.HasDefault() {
+		return exec.Command("sh", args...), nil
+	}
+	return mgr.Command("default", "sh", args), nil
 }
 
 // Reload makes a site's new code live, gracefully.

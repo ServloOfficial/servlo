@@ -197,7 +197,7 @@ func TestRunScript_RunsUnderTheSitesNodeVersion(t *testing.T) {
 // quietly building with a different one. A deploy is not the moment to download
 // a toolchain either, so it says what to run instead of doing it.
 func TestRunScript_RefusesAMissingPinnedVersion(t *testing.T) {
-	restore := stubNode(t, nodeStub{available: true, installed: []string{"20"}, version: "22"})
+	restore := stubNode(t, nodeStub{available: true, installed: []string{"20"}, version: "22", pinned: "22"})
 	defer restore()
 
 	err := RunScript(t.TempDir(), "npm run build\n", &bytes.Buffer{})
@@ -258,6 +258,7 @@ type nodeStub struct {
 	installed  []string
 	hasDefault bool
 	version    string
+	pinned     string
 	detect     func(dir string) (string, error)
 	command    func(version, bin string, args []string) *exec.Cmd
 }
@@ -282,7 +283,7 @@ func (s nodeStub) Command(version, bin string, args []string) *exec.Cmd {
 
 func stubNode(t *testing.T, s nodeStub) func() {
 	t.Helper()
-	prevActive, prevDetect := nodeActive, nodeDetectVersion
+	prevActive, prevDetect, prevPinned := nodeActive, nodeDetectVersion, nodePinnedVersion
 	nodeActive = func() node.Manager { return s }
 	nodeDetectVersion = func(dir string) (string, error) {
 		if s.detect != nil {
@@ -290,7 +291,10 @@ func stubNode(t *testing.T, s nodeStub) func() {
 		}
 		return s.version, nil
 	}
-	return func() { nodeActive, nodeDetectVersion = prevActive, prevDetect }
+	nodePinnedVersion = func(string) string { return s.pinned }
+	return func() {
+		nodeActive, nodeDetectVersion, nodePinnedVersion = prevActive, prevDetect, prevPinned
+	}
 }
 
 // The deploy script is the thing that runs `npm run build`, so it is the thing
@@ -483,5 +487,37 @@ func TestSnapshot_ReportsAFailedRemoteDump(t *testing.T) {
 	}
 	if name != "" {
 		t.Errorf("a name was returned for a backup that was not taken: %q", name)
+	}
+}
+
+// Most sites on a PHP server never build anything with Node. They pin no
+// version, so the one servlo hands them is its own global default, and on a
+// server where nobody ever ran `servlo node:install` that version is not there.
+// Refusing the deploy over it means a WordPress site whose script is two lines
+// of PHP cannot deploy at all.
+func TestRunScript_ASiteThatNeverAsksForNodeStillDeploys(t *testing.T) {
+	defer stubNode(t, nodeStub{
+		available: true, installed: []string{"20"}, hasDefault: true, version: "22",
+	})()
+
+	if err := RunScript(t.TempDir(), "php artisan optimize\n", &bytes.Buffer{}); err != nil {
+		t.Fatalf("a site with no Node pin was refused its deploy: %v", err)
+	}
+}
+
+// A site that did pin a version and did not get it is a different case: the
+// build it is about to run needs that toolchain, so it is told rather than run
+// against whatever else happens to be installed.
+func TestRunScript_APinnedVersionThatIsMissingIsStillRefused(t *testing.T) {
+	defer stubNode(t, nodeStub{
+		available: true, installed: []string{"20"}, hasDefault: true, version: "22", pinned: "22",
+	})()
+
+	err := RunScript(t.TempDir(), "npm run build\n", &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("a build pinned to a Node version that is not installed ran anyway")
+	}
+	if !strings.Contains(err.Error(), "node:install 22") {
+		t.Errorf("the refusal does not say how to fix it: %v", err)
 	}
 }

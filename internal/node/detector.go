@@ -29,14 +29,31 @@ func SafeVersion(v string) string {
 	return v
 }
 
-// DetectVersion detects the Node.js version for the given directory.
-// It checks, in order:
+// DetectVersion is the Node.js version a directory runs with: the one it pins,
+// or servlo's global default when it pins none.
+func DetectVersion(dir string) (string, error) {
+	if v := PinnedVersion(dir); v != "" {
+		return v, nil
+	}
+	cfg, err := config.LoadGlobal()
+	if err != nil {
+		return "22", nil
+	}
+	return cfg.Node.DefaultVersion, nil
+}
+
+// PinnedVersion is the Node.js version the directory itself asks for, empty
+// when it asks for none. It checks, in order:
 //  1. .servlo.yaml node_version field (explicit servlo override)
 //  2. .nvmrc
 //  3. .node-version
 //  4. package.json engines.node
-//  5. global config default
-func DetectVersion(dir string) (string, error) {
+//
+// The distinction matters where a missing version is refused rather than
+// worked around: a project that asked for Node 22 and did not get it has
+// something to fix, while a PHP-only site that never mentioned Node has
+// nothing to do with Node at all.
+func PinnedVersion(dir string) string {
 	// 1. .servlo.yaml — explicit servlo override takes top priority
 	servloYaml := filepath.Join(dir, ".servlo.yaml")
 	if data, err := os.ReadFile(servloYaml); err == nil {
@@ -48,7 +65,7 @@ func DetectVersion(dir string) (string, error) {
 		// shaped: it is repository content and ends up on a command line.
 		if yaml.Unmarshal(data, &servloCfg) == nil {
 			if v := SafeVersion(servloCfg.NodeVersion); v != "" {
-				return v, nil
+				return v
 			}
 		}
 	}
@@ -59,7 +76,7 @@ func DetectVersion(dir string) (string, error) {
 		v := strings.TrimSpace(string(data))
 		v = strings.TrimPrefix(v, "v")
 		if major := extractMajor(v); isNumericVersion(major) {
-			return major, nil
+			return major
 		}
 	}
 
@@ -69,7 +86,7 @@ func DetectVersion(dir string) (string, error) {
 		v := strings.TrimSpace(string(data))
 		v = strings.TrimPrefix(v, "v")
 		if major := extractMajor(v); isNumericVersion(major) {
-			return major, nil
+			return major
 		}
 	}
 
@@ -83,17 +100,12 @@ func DetectVersion(dir string) (string, error) {
 		}
 		if json.Unmarshal(data, &pkg) == nil && pkg.Engines.Node != "" {
 			if v := parseNodeConstraint(pkg.Engines.Node); v != "" {
-				return v, nil
+				return v
 			}
 		}
 	}
 
-	// 4. global config default
-	cfg, err := config.LoadGlobal()
-	if err != nil {
-		return "22", nil
-	}
-	return cfg.Node.DefaultVersion, nil
+	return ""
 }
 
 // extractMajor returns the major version number from a semver-like string.
