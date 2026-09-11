@@ -64,6 +64,8 @@ The placeholders:
 | `{{smtp_crypto}}` | `tls`, or empty. The bare spelling, for CodeIgniter and the WordPress plugins |
 | `{{smtp_tls}}` | `true` or `false`, for a DSN query parameter |
 
+A definition writes `KEY={{placeholder}}` and nothing more: the quoting is servlo's, not the definition's. A `.env` value carrying a space, a tab or a `#` is quoted on the way in, because phpdotenv refuses the whole file over the first two and truncates the value at the third, and a from name is a company's while an application password from Google is four groups with spaces between them. A value going into a PHP config file has its quotes and backslashes escaped for the same reason: a password with an apostrophe in it would otherwise end the string and leave the file unparseable. Nothing is quoted that does not need it, so an ordinary host, port or generated password is written exactly as it always was.
+
 Adding mail support to a framework is a YAML change to its definition and nothing else. A framework whose mail settings do not live in an env file at all, as Magento's do not, declares no `smtp` block, and the card says so rather than writing keys the application will ignore.
 
 ---

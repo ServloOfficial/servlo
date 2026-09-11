@@ -86,7 +86,7 @@ env:
       - MAIL_PASSWORD={{smtp_password}}
       - MAIL_ENCRYPTION={{smtp_encryption}}
       - MAIL_FROM_ADDRESS={{smtp_from_address}}
-      - MAIL_FROM_NAME="{{smtp_from_name}}"
+      - MAIL_FROM_NAME={{smtp_from_name}}
 
 composer: auto
 npm: auto
