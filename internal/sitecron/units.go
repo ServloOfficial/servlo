@@ -7,6 +7,7 @@ import (
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/logcolor"
 	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/systemd"
 )
 
 // unitPrefix is the shape of every cron unit's name. The site comes before the
@@ -136,16 +137,16 @@ func execColorArgs() string {
 // systemdArg escapes a command so systemd hands it to the shell as one
 // argument, unchanged.
 //
-// Three characters matter. A percent sign is a specifier systemd expands before
-// anything runs, and doubling it is how a unit says it meant the character. A
-// backslash and a double quote both end or alter the quoted argument the
-// command sits inside. A dollar sign would be a fourth, but there is no escape
-// for it that systemd documents, so CronEntry.Validate refuses it instead.
+// Three characters matter. A backslash and a double quote both end or alter the
+// quoted argument the command sits inside. The per cent sign is the third, and
+// it is escaped through internal/systemd because every unit servlo writes an
+// operator's command into has the same problem with it. A dollar sign would be
+// a fourth, but there is no escape for it that systemd documents, so
+// CronEntry.Validate refuses it instead.
 func systemdArg(command string) string {
 	r := strings.NewReplacer(
 		`\`, `\\`,
 		`"`, `\"`,
-		`%`, `%%`,
 	)
-	return r.Replace(command)
+	return systemd.EscapeSpecifiers(r.Replace(command))
 }

@@ -16,6 +16,7 @@ import (
 	nodeDet "github.com/ServloOfficial/servlo/internal/node"
 	"github.com/ServloOfficial/servlo/internal/podman"
 	"github.com/ServloOfficial/servlo/internal/services"
+	"github.com/ServloOfficial/servlo/internal/systemd"
 )
 
 // writeWorkerUnitFile writes a systemd service unit for the worker on Linux.
@@ -46,6 +47,10 @@ func writeWorkerUnitFile(unitName, label, siteName, sitePath, phpVersion, comman
 		return writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, restart, fpmUnit)
 	}
 	container := fpmUnit
+	// systemd resolves a per cent sign before podman ever sees the command, so
+	// the operator's own gets doubled here. internal/sitecron does the same to
+	// a cron entry, which is the same string from the same place.
+	command = systemd.EscapeSpecifiers(command)
 
 	if schedule != "" {
 		serviceUnit := fmt.Sprintf(`[Unit]
@@ -119,7 +124,8 @@ func writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, resta
 	// splitting on whitespace and execve's the result directly, so without the
 	// wrapper `npm run build && npm run preview` would pass "&&" as a literal
 	// argument. Single quotes are escaped via the standard '"'"' idiom so the
-	// wrapper survives any user-provided string verbatim.
+	// wrapper carries the operator's string through the shell, and per cent
+	// signs are doubled so systemd carries it through too.
 	home, _ := os.UserHomeDir()
 	// servlo's shim must lead PATH so wayfinder + friends find `php`; we
 	// rebuild the path systemd's user default would have supplied so
@@ -157,7 +163,7 @@ func writeHostWorkerUnitFile(unitName, label, siteName, sitePath, command, resta
 			return false, errNoUsableNode()
 		}
 	}
-	escaped := strings.ReplaceAll(shellCommand, "'", `'"'"'`)
+	escaped := systemd.EscapeSpecifiers(strings.ReplaceAll(shellCommand, "'", `'"'"'`))
 	// Order after and pull up the site's FPM container: host tools like Vite
 	// run wayfinder (php artisan) at startup, which fails if FPM isn't up yet
 	// at boot. Wants, not BindsTo, so a transient FPM restart can't kill Vite.
