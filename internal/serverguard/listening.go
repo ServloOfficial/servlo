@@ -15,7 +15,9 @@ package serverguard
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"sort"
 	"strconv"
@@ -96,14 +98,38 @@ func scanTable(f *os.File, seen map[int]bool) error {
 
 // loopbackOnly reports an address nothing outside this machine can reach.
 //
-// The kernel writes the address little-endian per word and in hex, so 127.0.0.1
-// is 0100007F and ::1 is a run of zeroes ending in 01. Comparing the text is
-// enough here: the two forms are fixed, and the alternative is decoding an
-// address only to throw it away.
+// The address is decoded rather than compared as text. Matching the two fixed
+// spellings of "localhost" missed the rest of 127.0.0.0/8, and the one that
+// matters there is 127.0.0.53, where the local DNS stub Ubuntu runs listens on
+// every machine, so port 53 was reported as facing the world on every install
+// servlo has ever done. The same shortcut missed ::ffff:127.0.0.1, which is how
+// a loopback listener on a dual-stack socket appears.
+//
+// An address that will not decode is reported rather than hidden, which is the
+// direction to err in on a page whose whole job is to say what is exposed.
 func loopbackOnly(addr string) bool {
-	switch strings.ToUpper(addr) {
-	case "0100007F", "00000000000000000000000001000000":
-		return true
+	ip := parseProcAddr(addr)
+	return ip != nil && ip.IsLoopback()
+}
+
+// parseProcAddr turns the hex address /proc writes into the address it means.
+//
+// The kernel writes it as 32-bit words in the host's byte order, so on every
+// machine servlo runs on each word's four bytes arrive backwards: one word for
+// IPv4, four for IPv6.
+func parseProcAddr(hexAddr string) net.IP {
+	if len(hexAddr) == 0 || len(hexAddr)%8 != 0 {
+		return nil
 	}
-	return false
+	raw, err := hex.DecodeString(hexAddr)
+	if err != nil {
+		return nil
+	}
+	if len(raw) != net.IPv4len && len(raw) != net.IPv6len {
+		return nil
+	}
+	for w := 0; w < len(raw); w += 4 {
+		raw[w], raw[w+1], raw[w+2], raw[w+3] = raw[w+3], raw[w+2], raw[w+1], raw[w]
+	}
+	return net.IP(raw)
 }
