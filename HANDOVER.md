@@ -43,6 +43,7 @@ re-run with `--testTimeout=30000` and they pass.
 | `ci.yml` | Build & Test | the gate above on a real Ubuntu 24.04 VM, not a container |
 | `ci.yml` | Installer Tests | `tests/installer/installer.bats` against `install.sh` |
 | `verification.yml` | PHP, its image, and the database behind it | the shims reach the container, the extensions are there, production mode moves all four settings, and PHP reaches MySQL through nginx and its own pool |
+| `verification.yml` | A deploy pulls, runs and holds the line when it fails | a real pull over the panel's own route, a snapshot before a migrating script, and a failed script leaving visitors on the version that worked |
 | `verification.yml` | A one-click application install ends in a login page | WordPress installed end to end on a domain that resolves nowhere |
 | `resilience.yml` | Everything comes back on its own | stop every unit, start `default.target` alone, assert sites serve with nobody running `servlo start` |
 | `resilience.yml` | A site gets a real certificate from a real authority | HTTP-01 against Pebble on a genuinely resolvable name, plus a renewal that revalidates |
@@ -178,21 +179,15 @@ Each line below is something a runner genuinely cannot answer.
 - [ ] The cloud metadata service answering for real, so the Security page links to the right provider's firewall screen. It has only ever seen a stub.
 - [ ] `servlo apps install` for Joomla and Grav against their live releases. WordPress is covered; these two hand over at their own setup step, and what is worth checking is that nothing claims a one-click finish they do not deliver.
 
-**A deploy, which nothing has ever run outside a unit test**
+**What is left of deploy**
 
-No workflow deploys anything. The deploy tests stub every external command with
-`exec.Command("true")`, so the whole chain is proven in the sense that the Go
-code makes the right decisions and in no other sense: no real `git pull`, no
-real dump, no real FPM reload. This list used to say the backup guarantee was
-already proven on a real machine, which was this unit test running on a real
-runner rather than a deploy happening on one, and that would have taken the
-check off the only pass that could make it.
+A runner deploys now, over the panel's own route, so the pull, the snapshot
+before a migrating script and the withheld reload on a failure are covered.
+Three things are not, and each needs a person.
 
-- [ ] A deploy with a migration in its script takes a database snapshot before the pull, and the snapshot is real enough to restore from.
-- [ ] A deploy refuses to start at all when it cannot tell which database to back up, rather than pulling and running the migration anyway.
-- [ ] A deploy script that fails leaves visitors on the last version that worked. Production OPcache is what makes that true, so it is not observable anywhere the container is not real.
+- [ ] A deploy refuses to start at all when it cannot tell which database to back up, rather than pulling and running the migration anyway. The runner always can tell, which is the case worth having; this is the other one.
 - [ ] Redeploy previous commit puts the code back and says plainly that it did not put the data back.
-- [ ] Both ways in: the panel's Deploy button and the deploy webhook.
+- [ ] The deploy webhook. Turning it on is a panel action and the signature is minted once, so the runner drives the route rather than the hook.
 
 **Time, and things containers hide**
 - [ ] Log rotation against an application holding its log file open across requests. Rotation renames rather than copies, and that is the case it is chosen for.
