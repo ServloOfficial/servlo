@@ -147,6 +147,8 @@ Assignments take effect on the next request. Narrowing a list is not a reason to
 
 The dashboard's WebSocket is held to the same list, which matters because it is pushed rather than asked for. Every frame is filtered per connection: the sites list down to what the account may see, the services blanked for anyone who may not administer them, worker health blanked the same way because the route beside it is admin-only, and a notification dropped when it names a site the account cannot open. The one payload sent whole is the machine's own status, because the route that serves it is open to any signed-in account. Gating the routes and leaving the socket alone would mean a developer who can never open another team's site but can watch it fail.
 
+The decision about each of those payloads is written down beside them rather than left to whoever last touched the file, and the build reads it: a payload added to the frame without a narrowing function, or declared and then passed through whole anyway, fails the test suite. The socket is a door, and the way a door stops being locked is somebody adding a window next to it.
+
 ### How it is enforced
 
 Every route declares what authority it needs, in one table, and the build fails on a route that declares none — or on a declaration no route registers, which is how a renamed route quietly loses its own.
