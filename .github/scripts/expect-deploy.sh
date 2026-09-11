@@ -89,6 +89,20 @@ esac
 
 # ── claim the panel, over loopback ──────────────────────────────────────────
 say "claim the panel"
+# The panel is a unit like any other and comes up on its own schedule, so it is
+# waited for rather than assumed: a connection refused here would read as a
+# deploy failure three steps later.
+for _ in $(seq 30); do
+  curl -sk --max-time 5 -o /dev/null "$panel/api/auth/session" && break
+  sleep 2
+done
+curl -sk --max-time 10 "$panel/api/auth/session" || {
+  echo "the panel never answered on $panel"
+  systemctl --user status servlo-panel --no-pager -l 2>&1 | head -20 || true
+  exit 1
+}
+echo
+
 setup=$(curl -sk -c "$jar" --max-time 20 -X POST "$panel/api/auth/setup" \
   -H 'Content-Type: application/json' \
   -d "$(printf '{"username":"ci","password":"%s"}' "$admin_pw")")
