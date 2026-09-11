@@ -3,10 +3,12 @@ package appinstall
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ServloOfficial/servlo/internal/appstore"
 	"github.com/ServloOfficial/servlo/internal/config"
@@ -241,5 +243,55 @@ func TestProvision_UsesTheLocalPathForAConnectionServloHosts(t *testing.T) {
 	}
 	if got.Host == "" {
 		t.Error("the application was given no host to connect to")
+	}
+}
+
+// The window the wait was built for does not close when the wait returns. The
+// POST that carries the generated admin password is a second request, and a
+// reload landing between the two puts it on servlo's catch-all, which is what
+// a CI run caught: nginx answered the POST 405 from its own error page and the
+// install stopped, leaving WordPress uninstalled on a live domain with its
+// setup form open. Six seconds later the vhost was serving.
+func TestInstall_KeepsAskingWhileTheCatchAllIsStillAnswering(t *testing.T) {
+	sandbox(t)
+	app := withSetup()
+	c := stub(t, app)
+	defer set(&setupRetryPause, time.Millisecond)()
+
+	attempts := 0
+	defer set(&runSetup, func(ctx context.Context, a appstore.App, url string, values map[string]string) error {
+		attempts++
+		c.setupValues = values
+		if attempts < 3 {
+			return fmt.Errorf("running the setup: %w", appstore.ErrNotTheSite)
+		}
+		return nil
+	})()
+
+	if _, err := Install(t.Context(), Options{App: "example", Domain: "blog.example.com", AdminEmail: "a@example.com"}); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	if attempts != 3 {
+		t.Errorf("the setup was posted %d times, want it retried until the site answered", attempts)
+	}
+}
+
+// And it does give up. A site that never comes back has to be reported, not
+// waited on forever, and what it is reported as matters: the operator has to
+// know the form was never filled in.
+func TestInstall_ReportsACatchAllThatNeverGivesWay(t *testing.T) {
+	sandbox(t)
+	app := withSetup()
+	stub(t, app)
+	defer set(&setupRetryPause, time.Millisecond)()
+	defer set(&setupRetryWindow, 10*time.Millisecond)()
+
+	defer set(&runSetup, func(context.Context, appstore.App, string, map[string]string) error {
+		return fmt.Errorf("running the setup: %w", appstore.ErrNotTheSite)
+	})()
+
+	_, err := Install(t.Context(), Options{App: "example", Domain: "blog.example.com", AdminEmail: "a@example.com"})
+	if !errors.Is(err, appstore.ErrNotTheSite) {
+		t.Fatalf("err = %v, want it to name the catch-all", err)
 	}
 }

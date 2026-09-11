@@ -20,6 +20,11 @@
     const parts: string[] = [];
     if (site.app_name) parts.push(site.domain);
     if (site.framework_label) parts.push(site.framework_label);
+    // A host-proxy site runs the operator's own dev server on the host, so it
+    // has no framework servlo detected and no PHP or Node of its own to name.
+    // Without this its tile carried a title and an empty line under it, alone
+    // in a grid where every other tile says what it is.
+    if (site.host_proxy && site.host_port) parts.push(m.sites_controls_proxyBadge() + ' :' + site.host_port);
     if (site.php_version) parts.push('PHP ' + site.php_version);
     else if (site.node_version) parts.push('Node ' + site.node_version);
     return parts.join(' · ');

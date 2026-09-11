@@ -20,6 +20,17 @@ describe('SiteTile', () => {
     expect(getByText('Laravel · PHP 8.3')).toBeTruthy();
   });
 
+  // A host-proxy site runs the operator's own dev server, so servlo detects no
+  // framework for it and it has no PHP or Node of its own. Every branch of the
+  // subtitle came back empty and the tile carried a title over a blank line,
+  // alone in a grid where every other tile says what it is.
+  it('says what a host-proxy site is when nothing else describes it', () => {
+    const { getByText } = render(SiteTile, {
+      props: { site: site({ host_proxy: true, host_port: 3100 }) }
+    });
+    expect(getByText('Proxy :3100')).toBeTruthy();
+  });
+
   it('falls back to the node version when there is no php', () => {
     const { getByText } = render(SiteTile, {
       props: { site: site({ framework_label: 'Next.js', node_version: '20' }) }

@@ -15,6 +15,15 @@ import (
 // install against a genuinely broken site still finishes and says so.
 const siteReadyTimeout = 60 * time.Second
 
+// The setup POST gets the same budget as the wait, for the same reason: it is
+// the request the wait was protecting, and the window it protects against can
+// close between the two. Vars so a test does not spend a minute proving it
+// gives up.
+var (
+	setupRetryWindow = siteReadyTimeout
+	setupRetryPause  = 250 * time.Millisecond
+)
+
 // attemptTimeout bounds one request. An application's very first request is its
 // slowest — nothing is compiled, nothing is cached, and an installer that
 // reaches out to its own project's servers waits on that too — so this is well

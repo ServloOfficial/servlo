@@ -2,6 +2,7 @@ package appstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ServloOfficial/servlo/internal/nginx"
 	"github.com/ServloOfficial/servlo/internal/sitehttp"
 )
 
@@ -27,6 +29,17 @@ import (
 // answer at all reads as success, and a setup that silently did not happen
 // leaves an uninstalled application on a live domain for the first passer-by to
 // claim.
+
+// ErrNotTheSite says the setup request reached servlo rather than the site.
+//
+// Servlo answers a domain no site is linked to with a branded page, which is
+// also what a domain whose vhost nginx has not reloaded yet gets. A POST to
+// that server lands on a static file and nginx refuses it with an error page of
+// its own, and nothing in that response says whose it is except the header the
+// catch-all sets. Without this the install read it as the application declining
+// and stopped there, having sent a generated admin password to servlo's own
+// placeholder and left the site sitting on its setup form.
+var ErrNotTheSite = errors.New("the request reached servlo's catch-all rather than the site, so nginx had not picked up the site's own vhost")
 
 // Setup is the application's own install form.
 type Setup struct {
@@ -107,6 +120,12 @@ func (s Setup) Run(ctx context.Context, siteURL string, values map[string]string
 		return fmt.Errorf("running the setup: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// Before the body, because the body of this one is nginx's error page and
+	// reading it as the application's answer is the mistake this closes.
+	if resp.Header.Get(nginx.CatchAllHeader) == nginx.CatchAllHeaderValue {
+		return ErrNotTheSite
+	}
 
 	// Bounded: this is an install page, and an application that answers with a
 	// hundred megabytes is one servlo should stop reading rather than hold.

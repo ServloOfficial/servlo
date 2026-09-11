@@ -16,10 +16,12 @@ package appinstall
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ServloOfficial/servlo/internal/appstore"
 	"github.com/ServloOfficial/servlo/internal/config"
@@ -244,7 +246,7 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 		"admin_email":    opts.AdminEmail,
 		"site_url":       siteURL,
 	}
-	if err := runSetup(ctx, app, localURL, values); err != nil {
+	if err := driveSetup(ctx, app, localURL, values); err != nil {
 		// The site is registered and serving, so this is reported rather than
 		// rolled back: the operator can finish the form themselves, and taking
 		// the site away would lose the release and the database with it.
@@ -253,6 +255,31 @@ func Install(ctx context.Context, opts Options) (Installed, error) {
 	out.AdminUser = values["admin_user"]
 	out.AdminPassword = password
 	return out, nil
+}
+
+// driveSetup posts the setup form, and keeps posting while the answer is
+// servlo's own catch-all.
+//
+// waitForSite proves the site answered a GET. The POST is a second request on a
+// second connection, and an nginx reload that has not finished settling between
+// the two sends the generated admin password to the placeholder page instead of
+// the application. CI caught exactly that: the POST came back 405 from nginx's
+// error page, and the site's vhost was serving six seconds later. So the
+// request that carries the password checks whose answer it got, and waits the
+// same budget the wait ahead of it would have.
+func driveSetup(ctx context.Context, app appstore.App, localURL string, values map[string]string) error {
+	deadline := time.Now().Add(setupRetryWindow)
+	for {
+		err := runSetup(ctx, app, localURL, values)
+		if !errors.Is(err, appstore.ErrNotTheSite) || !time.Now().Before(deadline) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(setupRetryPause):
+		}
+	}
 }
 
 // prepareDir resolves the site directory and refuses one with anything in it.
