@@ -30,7 +30,12 @@
   let port = $state<number | null>(null);
   let user = $state('');
   let password = $state('');
-  let tlsMode = $state('');
+  // Require, not off. A managed database is reached over the public internet and
+  // off is the empty value, so the select would open on the one answer that
+  // sends the password in the clear and an operator clicking through would pick
+  // it without picking it. Off is still in the list for a provider on a private
+  // network; it is no longer what the form starts as.
+  let tlsMode = $state('require');
   // The certificate travels as text and servlo stores it: a path would point
   // into somebody's home directory, which a tidy-up deletes.
   let caCertPem = $state('');
