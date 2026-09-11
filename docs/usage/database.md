@@ -219,7 +219,7 @@ A connection servlo cannot resolve, because its name was removed or the default 
 |---|---|
 | `servlo db:connection` | List the configured connections, marking the default |
 | `servlo db:connection add <name> --service <service>` | Add a connection to a database servlo runs |
-| `servlo db:connection add <name> --engine <mysql\|postgres> --host <host> [--port N] --user <user> [--tls require\|verify-ca] [--ca-cert <path>]` | Add a managed database |
+| `servlo db:connection add <name> --engine <mysql\|postgres> --host <host> [--port N] --user <user> --tls <verify-ca\|require\|none> [--ca-cert <path>]` | Add a managed database |
 | `servlo db:connection rm <name>` | Remove a connection |
 | `servlo db:connection test <name>` | Open a connection and report what happened |
 | `servlo db:connection default <name>` | Put new sites on this connection |
@@ -240,7 +240,7 @@ A managed database is added the same way as a local one, and everything below ap
 
 **The port is not the default.** DigitalOcean answers on **25060** for both engines, not 3306 or 5432, and offers a connection pool on 25061. Pass `--port 25060`, or type it in the panel.
 
-**TLS.** `--tls require` encrypts without checking who is on the other end; `--tls verify-ca` checks the chain against the CA certificate you uploaded and deliberately does not check the hostname, because a managed certificate is issued to the cluster and the host you connect to is frequently a CNAME, a private endpoint or a pooler. `verify-ca` is what the providers document, and it is what you want.
+**TLS.** The flag is not optional, because a managed database is reached over the public internet and there is no answer servlo should pick for you. `--tls require` encrypts without checking who is on the other end; `--tls verify-ca` checks the chain against the CA certificate you uploaded and deliberately does not check the hostname, because a managed certificate is issued to the cluster and the host you connect to is frequently a CNAME, a private endpoint or a pooler. `verify-ca` is what the providers document, and it is what you want. `--tls none` sends the password and every query in the clear, which is a real choice for a provider on a private network and nothing else; the panel's form opens on **Require** for the same reason.
 
 ```bash
 servlo db:connection add managed \

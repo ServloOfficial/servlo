@@ -119,9 +119,35 @@ database they are already on.`,
 	cmd.Flags().StringVar(&host, "host", "", "Host of a managed database")
 	cmd.Flags().IntVar(&port, "port", 0, "Port of a managed database (default: the engine's)")
 	cmd.Flags().StringVar(&user, "user", "", "Administrative user servlo creates databases as")
-	cmd.Flags().StringVar(&tlsMode, "tls", "", "TLS for a managed database: require or verify-ca")
+	cmd.Flags().StringVar(&tlsMode, "tls", "", "TLS for a managed database: verify-ca, require or none (required)")
 	cmd.Flags().StringVar(&caCert, "ca-cert", "", "Path to the provider's CA certificate (.crt), for verify-ca. Servlo keeps its own copy")
 	return cmd
+}
+
+// managedTLSMode turns what the operator typed after --tls into what servlo
+// stores, and refuses to guess when they typed nothing.
+//
+// A managed database is reached over the public internet, and off is the zero
+// value of the field that protects it, so an omitted flag was not a decision.
+// Everything around this said otherwise: the flag's own help offers require and
+// verify-ca and never offered none, and the database page says verify-ca is what
+// you want and passes it in its worked example. Only the default disagreed, and
+// what it produced was the administrative password and every query in the clear.
+//
+// None is still spellable, because a provider reached over a private network is
+// a real case. It has to be spelled.
+func managedTLSMode(typed string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(typed)) {
+	case "none":
+		return dbconn.TLSOff, nil
+	case dbconn.TLSRequire:
+		return dbconn.TLSRequire, nil
+	case dbconn.TLSVerifyCA:
+		return dbconn.TLSVerifyCA, nil
+	case "":
+		return "", fmt.Errorf("a managed database needs --tls: verify-ca with the provider's CA certificate, which is what they document, or require to encrypt without checking who answers, or none to send the password and every query in the clear")
+	}
+	return "", fmt.Errorf("--tls %q is not one servlo knows: verify-ca, require or none", typed)
 }
 
 func runDbConnectionAdd(name, service, engine, host string, port int, user, tlsMode, caCert string) error {
@@ -151,8 +177,12 @@ func runDbConnectionAdd(name, service, engine, host string, port int, user, tlsM
 		if err != nil {
 			return err
 		}
+		mode, err := managedTLSMode(tlsMode)
+		if err != nil {
+			return err
+		}
 		c = dbconn.External(name, engine, host, port, user, password)
-		c.TLSMode = tlsMode
+		c.TLSMode = mode
 		if caCert != "" {
 			// Copied rather than referenced: a path into a home directory is one
 			// tidy-up away from a connection that stops verifying.
