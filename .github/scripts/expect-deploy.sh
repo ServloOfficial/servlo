@@ -72,14 +72,20 @@ cd "$site"
 git config user.email ci@servlo.invalid
 git config user.name "Servlo CI"
 servlo link "$domain"
-servlo start
-"$scripts/wait-for-db.sh"
-servlo db:create
 
 # Production mode is what makes the failed-deploy check mean anything: OPcache
 # stops watching timestamps, so the only thing that can put new code in front of
 # a visitor is the reload a failed deploy withholds.
+#
+# Before the stack starts, because servlo says so itself when you set it after:
+# the PHP drop-in is re-read when a site's containers come back. Set it later
+# and OPcache is still watching timestamps, and the last check here passes or
+# fails for a reason that has nothing to do with the deploy.
 servlo production on
+
+servlo start
+"$scripts/wait-for-db.sh"
+servlo db:create
 
 name=$(servlo sites | awk -v d="$domain" '$2 == d {print $1}')
 [ -n "$name" ] || { echo "the site did not register"; servlo sites; exit 1; }
