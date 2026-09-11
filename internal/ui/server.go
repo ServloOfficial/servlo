@@ -1421,7 +1421,7 @@ func startNDJSONStream(w http.ResponseWriter, r *http.Request) (writeLine func(p
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
-	flusher, _ := w.(http.Flusher)
+	rc := http.NewResponseController(w)
 	dead := false
 	ctx := r.Context()
 	writeLine = func(payload any) {
@@ -1441,9 +1441,7 @@ func startNDJSONStream(w http.ResponseWriter, r *http.Request) (writeLine func(p
 			dead = true
 			return
 		}
-		if flusher != nil {
-			flusher.Flush()
-		}
+		_ = rc.Flush()
 	}
 	alive = func() bool { return !dead && ctx.Err() == nil }
 	return writeLine, alive
@@ -3740,19 +3738,24 @@ func installablePHPVersions(supported, installed []string) []string {
 // returning the writer that ships build output and the emitter for the final
 // `event: done` payload. ok is false when the client cannot be streamed to.
 func startPHPBuildStream(w http.ResponseWriter) (*sseLineWriter, func(map[string]any), bool) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		return nil, nil, false
-	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
+	// Through the controller rather than a type assertion on w. Every
+	// state-changing request arrives wrapped by the audit middleware, which
+	// embeds the ResponseWriter as an interface and so is not itself a
+	// Flusher whatever it holds; the controller is what follows the Unwrap
+	// that wrapper provides for exactly this.
+	rc := http.NewResponseController(w)
+	if err := rc.Flush(); err != nil {
+		return nil, nil, false
+	}
 	done := func(payload map[string]any) {
 		fmt.Fprintf(w, "event: done\ndata: %s\n\n", mustJSON(payload))
-		flusher.Flush()
+		_ = rc.Flush()
 	}
-	return &sseLineWriter{w: w, f: flusher}, done, true
+	return &sseLineWriter{w: w, rc: rc}, done, true
 }
 
 // handlePHPInstall answers POST /api/php-versions/install?version=8.3 by
@@ -3974,23 +3977,25 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
-		return
-	}
-
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no") // tell nginx not to buffer
+
+	// After the headers: a flush is what sends them, and the controller has no
+	// way to ask whether a writer can flush without flushing.
+	rc := http.NewResponseController(w)
+	if err := rc.Flush(); err != nil {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
 
 	// Flush headers immediately so the EventSource client fires `onopen` even
 	// when the container is idle and writing nothing. Without
 	// this, scanner.Scan below blocks before any bytes hit the wire and the
 	// browser's "live" indicator never turns on.
 	_, _ = io.WriteString(w, ": connected\n\n")
-	flusher.Flush()
+	_ = rc.Flush()
 
 	// This route is podman's: it is what the panel asks for a service container,
 	// and servlo's own daemons are asked for elsewhere, through the journal. So a
@@ -3998,7 +4003,7 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	// back to.
 	if exists, _ := podman.ContainerExists(container); !exists {
 		fmt.Fprintf(w, "data: container %s is not running\n\n", container)
-		flusher.Flush()
+		_ = rc.Flush()
 		return
 	}
 
@@ -4027,7 +4032,7 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 
 	if err := cmd.Start(); err != nil {
 		fmt.Fprintf(w, "data: error starting logs: %s\n\n", err.Error())
-		flusher.Flush()
+		_ = rc.Flush()
 		return
 	}
 
@@ -4044,7 +4049,7 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		escaped := strings.ReplaceAll(line, "\\", "\\\\")
 		lineID++
 		fmt.Fprintf(w, "id: %d\ndata: %s\n\n", lineID, escaped)
-		flusher.Flush()
+		_ = rc.Flush()
 		if r.Context().Err() != nil {
 			break
 		}
@@ -4150,9 +4155,7 @@ func handleServloQuit(w http.ResponseWriter, r *http.Request) {
 	}
 	// Respond before quitting so the browser receives the response.
 	writeJSON(w, map[string]any{"ok": true})
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
-	}
+	_ = http.NewResponseController(w).Flush()
 	go cli.RunQuit() //nolint:errcheck
 }
 
@@ -4404,7 +4407,7 @@ func handleSiteReorder(w http.ResponseWriter, r *http.Request) {
 // arbitrary git/composer output streams cleanly to the browser.
 type sseLineWriter struct {
 	w   http.ResponseWriter
-	f   http.Flusher
+	rc  *http.ResponseController
 	buf []byte
 }
 
@@ -4425,7 +4428,7 @@ func (s *sseLineWriter) emit(line string) {
 	// SSE data lines are delimited by newlines only, so backslashes need no
 	// escaping; the frontend consumers pass the payload through verbatim.
 	fmt.Fprintf(s.w, "data: %s\n\n", strings.TrimRight(line, "\r"))
-	s.f.Flush()
+	_ = s.rc.Flush()
 }
 
 func (s *sseLineWriter) flushTail() {

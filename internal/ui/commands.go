@@ -189,15 +189,20 @@ func handleCommandRun(w http.ResponseWriter, r *http.Request, site *config.Site,
 // duration, and (when captureURL) a URL parsed from the output. Shared by the
 // command runner and the doctor fix runner so both produce an identical stream.
 func streamShellRun(w http.ResponseWriter, ctx context.Context, cwd, shell string, captureURL bool) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		writeJSON(w, map[string]any{"error": "streaming not supported"})
-		return
-	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("X-Accel-Buffering", "no") // disable nginx proxy buffering
-	w.WriteHeader(http.StatusOK)
+
+	// Through the controller, not a type assertion: this is a POST, so the
+	// audit middleware has already wrapped w in something that holds a
+	// flushable writer without being one. It follows the headers because a
+	// flush is what sends them, and it replaces the explicit WriteHeader for
+	// the same reason.
+	rc := http.NewResponseController(w)
+	if err := rc.Flush(); err != nil {
+		writeJSON(w, map[string]any{"error": "streaming not supported"})
+		return
+	}
 
 	// writeMu serializes SSE frame writes and `captured` appends across the
 	// two pipe-reader goroutines. http.ResponseWriter and strings.Builder
@@ -222,7 +227,7 @@ func streamShellRun(w http.ResponseWriter, ctx context.Context, cwd, shell strin
 		writeMu.Lock()
 		defer writeMu.Unlock()
 		_, _ = io.WriteString(w, b.String())
-		flusher.Flush()
+		_ = rc.Flush()
 	}
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", shell)
