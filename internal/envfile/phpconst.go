@@ -19,11 +19,14 @@ func ReadPhpConst(path string) (map[string]string, error) {
 
 	result := make(map[string]string)
 	// Matches: define( 'KEY', 'value' ) or define("KEY", "value") with optional whitespace
-	re := regexp.MustCompile(`(?i)define\(\s*['"](\w+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)`)
+	// One alternative per quote style, because RE2 has no backreference to say
+	// "the same quote that opened it", and a pattern that ended at either would
+	// read a value holding the other kind as no value at all.
+	re := regexp.MustCompile(`(?i)define\(\s*['"](\w+)['"]\s*,\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")\s*\)`)
 	for _, match := range re.FindAllSubmatch(data, -1) {
 		key := string(match[1])
-		val := string(match[2])
-		result[key] = val
+		val := string(match[2]) + string(match[3])
+		result[key] = unescapeSingle(val)
 	}
 	return result, nil
 }
@@ -44,7 +47,12 @@ func ApplyPhpConstUpdates(path string, updates map[string]string) error {
 	}
 
 	// Replace existing defines in-place
-	re := regexp.MustCompile(`(?i)(define\(\s*['"])(\w+)(['"]\s*,\s*['"])[^'"]*(['"][^)]*\))`)
+	// The value may carry an escaped quote or backslash, because servlo puts one
+	// there whenever the operator's own value needs it, and a pattern that stopped
+	// at the first quote would read the escaped one as the end of the string and
+	// rewrite the file into something that is not PHP. One alternative per quote
+	// style, for the reason given in ReadPhpConst.
+	re := regexp.MustCompile(`(?i)(define\(\s*['"])(\w+)(['"]\s*,\s*)(?:'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")([^)]*\))`)
 	content = re.ReplaceAllStringFunc(content, func(match string) string {
 		parts := re.FindStringSubmatch(match)
 		if len(parts) < 5 {
@@ -53,7 +61,10 @@ func ApplyPhpConstUpdates(path string, updates map[string]string) error {
 		key := parts[2]
 		if val, ok := remaining[key]; ok {
 			delete(remaining, key)
-			return parts[1] + key + parts[3] + val + parts[4]
+			// Single quotes whatever the file used, because that is what
+			// escapeSingle escapes for: the same backslash means nothing
+			// inside a double-quoted PHP string.
+			return parts[1] + key + parts[3] + "'" + escapeSingle(val) + "'" + parts[4]
 		}
 		return match
 	})
@@ -62,7 +73,7 @@ func ApplyPhpConstUpdates(path string, updates map[string]string) error {
 	if len(remaining) > 0 {
 		var newLines strings.Builder
 		for k, v := range remaining {
-			newLines.WriteString(fmt.Sprintf("define( '%s', '%s' );\n", k, v))
+			newLines.WriteString(fmt.Sprintf("define( '%s', '%s' );\n", k, escapeSingle(v)))
 		}
 
 		// Insert before "/* That's all" if present, otherwise before closing ?>  or at EOF

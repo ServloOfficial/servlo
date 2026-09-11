@@ -453,3 +453,10 @@ func Reader(path, format string) func(key string) string {
 	}
 	return func(key string) string { return values[key] }
 }
+
+// unescapeSingle is the inverse of escapeSingle, for reading a value back out
+// of a PHP single-quoted string. PHP gives a backslash meaning before only
+// those two characters, so nothing else in the value is touched.
+func unescapeSingle(s string) string {
+	return strings.NewReplacer(`\'`, `'`, `\\`, `\`).Replace(s)
+}

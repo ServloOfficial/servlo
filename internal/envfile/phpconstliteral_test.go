@@ -103,3 +103,54 @@ func TestRemovePhpConsts(t *testing.T) {
 		t.Errorf("removal took a neighbouring constant with it:\n%s", body)
 	}
 }
+
+// A value goes into the config as a single-quoted PHP string, so an apostrophe
+// in one closes the string and the rest of the line is syntax. That is not the
+// setting failing, it is a parse error in wp-config.php: WordPress cannot load
+// at all, so every page of the site is a 500 from the moment the operator
+// pressed Save on the mail form.
+//
+// An apostrophe in an SMTP password is ordinary, and so is a backslash, which
+// escapes whatever follows it in a PHP single-quoted string.
+func TestApplyPhpConstUpdates_EscapesAValueThatWouldCloseTheString(t *testing.T) {
+	path := writeConfig(t, wpConfig)
+
+	const pass = `o'brien\pass`
+	if err := ApplyPhpConstUpdates(path, map[string]string{"SMTP_PASS": pass}); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := os.ReadFile(path)
+	if !strings.Contains(string(body), `'o\'brien\\pass'`) {
+		t.Fatalf("the value was written unescaped, so the file is not PHP any more:\n%s", body)
+	}
+
+	// And a second save has to find the value it wrote the first time rather
+	// than reading the escaped quote as the end of the string.
+	if err := ApplyPhpConstUpdates(path, map[string]string{"SMTP_PASS": "plain"}); err != nil {
+		t.Fatal(err)
+	}
+	body, _ = os.ReadFile(path)
+	if !strings.Contains(string(body), `define( 'SMTP_PASS', 'plain' );`) && !strings.Contains(string(body), `'SMTP_PASS', 'plain'`) {
+		t.Fatalf("the second save did not replace the escaped value:\n%s", body)
+	}
+	if strings.Contains(string(body), `o\'brien`) {
+		t.Fatalf("the old value is still in the file:\n%s", body)
+	}
+}
+
+// A from name carrying a double quote reads back as nothing, because the
+// pattern that found the value stopped at either quote whichever one opened it.
+// The panel then shows the setting as empty over a config file that has it.
+func TestReadPhpConst_ReadsAValueHoldingTheOtherQuote(t *testing.T) {
+	path := writeConfig(t, wpConfig)
+	if err := ApplyPhpConstUpdates(path, map[string]string{"SMTP_NAME": `Acme "Support" Team`}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ReadPhpConst(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["SMTP_NAME"] != `Acme "Support" Team` {
+		t.Errorf("read back %q, want the name it was given", got["SMTP_NAME"])
+	}
+}

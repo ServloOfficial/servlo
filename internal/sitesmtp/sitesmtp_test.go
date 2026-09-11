@@ -316,3 +316,40 @@ func TestSendTest_refusesARecipientThatIsNotAnAddress(t *testing.T) {
 		t.Fatal("a recipient carrying a second header line was accepted")
 	}
 }
+
+// laravelishWithName adds the key the store actually declares for a from name,
+// which is the one an operator's answer has a space in.
+const laravelishWithName = laravelish + `      - MAIL_FROM_NAME={{smtp_from_name}}
+`
+
+// The two answers on this form that carry a space. A from name is a company's,
+// and an application password from Google is four groups with spaces between
+// them, which is how their own page shows it.
+//
+// A .env value with a space in it is not a value phpdotenv will read: it
+// refuses the whole file, so the framework cannot boot and every page of the
+// site is a 500 from the moment Save was pressed. The quoting belongs here
+// rather than in each definition, which is why the store declares the key and
+// nothing else.
+func TestWriteEnv_QuotesWhatTheOperatorTyped(t *testing.T) {
+	acct := account()
+	acct.FromName = "Acme Support"
+	acct.Password = "abcd efgh ijkl mnop"
+	s := site(t, laravelishWithName, ".env", "APP_NAME=Acme\n", &acct)
+
+	if _, err := WriteEnv(s); err != nil {
+		t.Fatalf("WriteEnv: %v", err)
+	}
+	body, err := os.ReadFile(filepath.Join(s.Path, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"MAIL_FROM_NAME='Acme Support'",
+		"MAIL_PASSWORD='abcd efgh ijkl mnop'",
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Errorf(".env is missing %q:\n%s", want, body)
+		}
+	}
+}

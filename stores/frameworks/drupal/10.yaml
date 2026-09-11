@@ -58,7 +58,7 @@ env:
       - SMTP_PASSWORD={{smtp_password}}
       - SMTP_PROTOCOL={{smtp_crypto}}
       - SMTP_FROM={{smtp_from_address}}
-      - SMTP_FROMNAME="{{smtp_from_name}}"
+      - SMTP_FROMNAME={{smtp_from_name}}
 
 composer: auto
 npm: false

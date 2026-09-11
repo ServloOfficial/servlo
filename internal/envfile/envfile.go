@@ -48,7 +48,7 @@ func ApplyUpdates(path string, updates map[string]string) error {
 			k, _, _ := strings.Cut(line, "=")
 			k = strings.TrimSpace(k)
 			if newVal, ok := updates[k]; ok {
-				line = k + "=" + newVal
+				line = k + "=" + quoteValue(newVal)
 				applied[k] = true
 			}
 		}
@@ -85,13 +85,13 @@ func ApplyUpdates(path string, updates map[string]string) error {
 			}
 			ck, _, _ := strings.Cut(trimmed, "=")
 			if strings.TrimSpace(ck) == k {
-				lines[i] = k + "=" + v
+				lines[i] = k + "=" + quoteValue(v)
 				found = true
 				break
 			}
 		}
 		if !found {
-			lines = append(lines, k+"="+v)
+			lines = append(lines, k+"="+quoteValue(v))
 		}
 	}
 
@@ -155,7 +155,7 @@ func ReadKey(path, key string) string {
 		}
 		k, v, ok := strings.Cut(line, "=")
 		if ok && strings.TrimSpace(k) == key {
-			return strings.Trim(strings.TrimSpace(v), `"'`)
+			return unquoteValue(v)
 		}
 	}
 	return ""
@@ -186,7 +186,7 @@ func ReadValues(path string) map[string]string {
 		}
 		if k = strings.TrimSpace(k); k != "" {
 			if _, seen := out[k]; !seen {
-				out[k] = strings.Trim(strings.TrimSpace(v), `"'`)
+				out[k] = unquoteValue(v)
 			}
 		}
 	}
