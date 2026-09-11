@@ -15,6 +15,11 @@
 # exercises the one route that exists before anybody can be signed in.
 set -euo pipefail
 
+# Resolved before anything changes directory, because $0 is the relative path
+# the workflow invoked this with and stops resolving the moment we cd. The same
+# reason make-site.sh does it here.
+scripts="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 domain="$1"
 panel="https://127.0.0.1:7073"
 ip=$(ip -4 -o route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<NF;i++) if ($i=="src") print $(i+1)}')
@@ -31,7 +36,10 @@ say() { echo; echo "── $* ──"; }
 
 # ── a repository with something in it ───────────────────────────────────────
 say "a repository the site can pull from"
-git init -q --bare "$origin"
+# -b main, or the bare repository's HEAD names a branch that never gets pushed
+# and the clone below checks out nothing: "remote HEAD refers to nonexistent
+# ref" is a warning, not an error, so the site would be linked empty.
+git init -q --bare -b main "$origin"
 git init -q "$work"
 cd "$work"
 git config user.email ci@servlo.invalid
@@ -60,11 +68,12 @@ say "the site, cloned from that repository"
 mkdir -p "$(dirname "$site")"
 git clone -q "$origin" "$site"
 cd "$site"
+[ -f public/index.php ] || { echo "the clone checked nothing out"; ls -a; git branch -a; exit 1; }
 git config user.email ci@servlo.invalid
 git config user.name "Servlo CI"
 servlo link "$domain"
 servlo start
-"$(dirname "${BASH_SOURCE[0]}")/wait-for-db.sh"
+"$scripts/wait-for-db.sh"
 servlo db:create
 
 # Production mode is what makes the failed-deploy check mean anything: OPcache
