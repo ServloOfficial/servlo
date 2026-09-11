@@ -9,9 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"bytes"
-	"net/http"
-
 	"github.com/ServloOfficial/servlo/internal/cleanup"
 	"github.com/ServloOfficial/servlo/internal/cli"
 	"github.com/ServloOfficial/servlo/internal/config"
@@ -32,31 +29,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// notifyServloUI posts to the servlo-panel loopback notifier so any unit lifecycle
-// change from a CLI process propagates to the dashboard in real time. It
-// runs synchronously with a tight timeout: the CLI process is about to
-// exit, so a background goroutine would be killed before the POST hits the
-// socket. 500ms is more than enough for a loopback round-trip and is barely
-// perceptible. If servlo-panel isn't running the POST fails fast and the CLI
-// command still succeeds.
-func notifyServloUI(_ string) {
-	client := &http.Client{Timeout: 500 * time.Millisecond}
-	req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:7073/api/internal/notify", bytes.NewReader(nil))
-	if err != nil {
-		return
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	resp.Body.Close()
-}
-
 func main() {
-	// Cross-process bridge from CLI unit mutations to the running servlo-panel.
-	// ui.Start reassigns this in its own process for a direct in-process
-	// publish; in the CLI processes we HTTP-POST to the dashboard.
-	podman.AfterUnitChange = notifyServloUI
+	// Cross-process bridge from CLI unit mutations to the running servlo-panel,
+	// so a change made at the command line reaches an open dashboard rather
+	// than waiting for its next poll. ui.Start reassigns this in its own
+	// process for a direct in-process publish; a CLI process goes over the
+	// panel's socket. Synchronously, because the command is about to exit and
+	// a goroutine would be killed before it said anything.
+	podman.AfterUnitChange = func(string) { cli.NotifyPanel() }
 
 	// A PHP image (re)build orphans the previous image. Flag it here and reclaim
 	// once when the command finishes, so a multi-version install/update coalesces
