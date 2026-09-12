@@ -7,7 +7,9 @@
 # real dump, or the thing that only exists because the container is real: a
 # failed script withholds the PHP-FPM reload, and production OPcache is not
 # watching timestamps, so visitors keep getting the bytecode that worked even
-# though the new files are already on disk.
+# though the new files are already on disk. That holds for what the cache
+# already has and not for what it never held, which is why the last check here
+# warms the page first and says so.
 #
 # Driven over the panel's own API rather than a helper binary, because the route,
 # its permission and its audit entry are part of what a deploy is. Claiming the
@@ -191,6 +193,20 @@ after=$(servlo db:snapshots 2>/dev/null | grep -c predeploy || true)
 [ "$after" -gt "$before" ] || { echo "no snapshot was taken before a deploy whose script migrates"; exit 1; }
 echo "a snapshot was taken before the migration ran"
 
+# Warm the page before the next deploy, because warming it is the mechanism.
+# Withholding the reload keeps live what OPcache already holds, and a file the
+# cache has never seen is compiled off disk however new it is. A successful
+# deploy reloads FPM, which empties the cache, so without a request here the
+# check below would be measuring an empty cache rather than a withheld reload.
+for _ in $(seq 15); do
+  case "$(serves)" in *servlo-ci:v3*) break ;; esac
+  sleep 2
+done
+case "$(serves)" in
+  *servlo-ci:v3*) echo "the working version is compiled and cached" ;;
+  *) echo "the site never served the migrating deploy's version"; serves; exit 1 ;;
+esac
+
 # ── a failing script leaves visitors on the version that worked ─────────────
 say "a failing script does not put half a deploy in front of anyone"
 cat > "$script" <<'SH'
@@ -214,12 +230,15 @@ esac
 
 # The files are on disk now: the pull succeeded and only the script failed. What
 # a visitor gets is decided by whether servlo reloaded PHP-FPM, and it must not
-# have.
+# have. This is the half of the promise that holds: the version above is in
+# OPcache, and withholding the reload leaves it there. The half that does not is
+# a route the cache never held, which is read off disk however new it is, and
+# that is a documented limit of deploying by pull in place rather than a bug.
 grep -q "v4-never-served" "$site/public/index.php" || { echo "the pull did not happen, so this proves nothing"; exit 1; }
 body=$(serves)
 case "$body" in
   *servlo-ci:v4-never-served*)
-    echo "a failed deploy put the half-deployed version in front of a visitor"
+    echo "a failed deploy reloaded PHP anyway, so the half-deployed version is what visitors get"
     exit 1 ;;
   *servlo-ci:v3*) echo "visitors are still on the version that worked" ;;
   *) echo "the site is serving something unexpected: $body"; exit 1 ;;

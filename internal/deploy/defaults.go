@@ -178,7 +178,7 @@ func nodeScriptCommand(dir string, args []string) (*exec.Cmd, error) {
 // This is also the step that matters most on a production site. OPcache runs
 // with validate_timestamps off, so PHP keeps serving the bytecode it already
 // has: without the reload, the pull and the script change the files on disk and
-// nothing visitors see.
+// nothing visitors see, for as long as the cache holds what they ask for.
 func Reload(site *config.Site) error {
 	return podman.ReloadFPMPools(podman.FPMContainerName(*site, site.PHPVersion))
 }

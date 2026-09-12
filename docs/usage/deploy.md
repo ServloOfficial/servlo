@@ -28,6 +28,8 @@ The order is the design, and each part of it is deliberate:
 
 **A failed script does not reload PHP-FPM**, and that is the safe direction rather than an oversight. Production OPcache runs with `validate_timestamps=0`, so PHP keeps serving the bytecode it already has: withholding the reload leaves visitors on the last version that worked rather than on the half-deployed one now on disk. The failure says so explicitly, along with the commit the pull had already reached.
 
+Know what that covers. It keeps live what the cache already holds, and a file the cache has never seen is compiled off disk on the next request however new it is. A route nobody has hit since the last successful deploy will serve the half-deployed code, and so will every route on a site quiet enough that the cache was still empty. A deploy is a pull in place and the tree is not rolled back, so this is protection rather than a guarantee: on a busy site it holds, on a quiet one it may not. Fix forward, or use [going back a deploy](#going-back-a-deploy).
+
 **The reload is graceful.** `SIGUSR2` to the FPM master, which starts new workers and lets the running ones finish. A deploy that dropped every in-flight request on every site sharing the container would be worse than the problem it solves.
 
 **Files are put back before the script, not after it.** A script that rebuilds a cache or runs a plugin update should see the tree the site actually has, not one briefly missing the client's plugins.
@@ -131,7 +133,7 @@ It takes the same per-site lock, honours the same [exclude list](#paths-a-deploy
 
 It never pulls. The operator is going backwards, and going to the network first is how a rollback ends up back on the commit it was escaping.
 
-As with a forward deploy, a failed script means no reload, so visitors stay on the version that was working rather than on a half-prepared rollback.
+As with a forward deploy, a failed script means no reload, so visitors stay on the version that was working rather than on a half-prepared rollback, with the same limit: what the cache never held is read off disk.
 
 
 ## Paths a deploy must not remove
