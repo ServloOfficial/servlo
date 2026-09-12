@@ -605,3 +605,50 @@ func TestRestorePublishedPorts_RefreshesHostProxyToRestoredPort(t *testing.T) {
 		t.Errorf("rollback must refresh host-proxy sites to the restored port; fired=%v want [%d]", fired, seeded)
 	}
 }
+
+// The recovery above covers a start that fails. It does not cover the step
+// before it: the unit is stopped first, and if re-rendering the quadlet then
+// fails the function returned that error with the service still stopped and
+// nothing saying so. Its own doc comment says a failed move never leaves the
+// service down.
+func TestSetPublishedPortBringsTheServiceBackWhenTheRenderFails(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+	t.Setenv("XDG_DATA_HOME", tmp)
+	fakeQuadletOnDisk(t, "mysql")
+
+	prevStatus, prevStop, prevStart := portsUnitStatus, portsStopUnit, portsStartUnit
+	prevWait, prevRerender := portsWaitReady, portsRerender
+	t.Cleanup(func() {
+		portsUnitStatus, portsStopUnit, portsStartUnit = prevStatus, prevStop, prevStart
+		portsWaitReady, portsRerender = prevWait, prevRerender
+	})
+
+	stopped, started, renders := 0, 0, 0
+	portsUnitStatus = func(string) (string, error) { return "active", nil }
+	portsStopUnit = func(string) error { stopped++; return nil }
+	portsWaitReady = func(string, time.Duration) error { return nil }
+	portsRerender = func(string) error {
+		renders++
+		if renders == 1 {
+			return errors.New("no space left on device")
+		}
+		return nil // rendering the previous port back succeeds
+	}
+	portsStartUnit = func(string) error { started++; return nil }
+
+	_, err := SetPublishedPort("mysql", freePort(t, 33100))
+	if err == nil {
+		t.Fatal("a failed render must surface an error")
+	}
+	if stopped != 1 {
+		t.Fatalf("the unit should have been stopped once, got %d", stopped)
+	}
+	if started == 0 {
+		t.Error("the service was stopped and never brought back, which is the service down " +
+			"after a port change that did not even happen")
+	}
+	if got := config.ServicePublishedPort("mysql"); got != 0 {
+		t.Errorf("the override must roll back to the default, got %d", got)
+	}
+}
