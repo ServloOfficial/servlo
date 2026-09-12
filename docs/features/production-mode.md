@@ -39,7 +39,9 @@ The PHP settings are written to a drop-in named `90-production.ini`, which sorts
 
 Databases, caches, search engines and admin UIs bind to **loopback only**, always. This is a design law rather than a setting: a database reachable from off the machine is a database anyone who finds the port can attack, and on a box hosting other people's sites there is no version of that worth the convenience.
 
-Only nginx ever binds beyond loopback, because only nginx has a reason to: it serves the sites. That is not a setting either, in either direction. A quadlet that arrives already bound to every interface, from an edit by hand or an older install, is pulled back to loopback rather than left as it is, and nginx is pushed out to every interface rather than left on loopback where it would answer nobody.
+Only nginx ever binds beyond loopback, because only nginx has a reason to: it serves the sites. That is not a setting either, in either direction. The policy is applied by the writer every unit file goes through, so a quadlet that arrives already bound to every interface, from an edit by hand or an older install, is pulled back to loopback rather than left as it is, and nginx is pushed out to every interface rather than left on loopback where it would answer nobody.
+
+It is applied when servlo writes the unit rather than by a sweep looking for drift, and servlo rewrites them on install, on linking or unlinking a site, on parking and unparking one, and on a PHP version change. So a hand-edited quadlet is corrected the next time any of those happens rather than the moment it is saved, and a container already running on the wrong address keeps that address until its unit is restarted.
 
 Containers reach each other over the `servlo` Podman network by name (`servlo-mysql`, `servlo-redis`), which does not involve a published host port at all. The published loopback port exists for host tools: a GUI client, a `psql` on the droplet, an SSH tunnel from your laptop.
 
