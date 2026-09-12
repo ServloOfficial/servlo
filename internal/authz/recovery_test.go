@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"math"
 	"strings"
 	"testing"
 )
@@ -119,5 +120,27 @@ func TestRecoveryCodes_AreReadable(t *testing.T) {
 		if strings.ContainsAny(code, "01lIO") {
 			t.Errorf("code %q contains a character that is easy to misread", code)
 		}
+	}
+}
+
+// The comment above the alphabet is the only statement anywhere of how much a
+// recovery code is worth, and it is arithmetic on a constant sitting three
+// lines below it. Nothing stops the two drifting apart, and they had: the
+// alphabet lost its ambiguous letters and the comment kept the old count.
+func TestRecoveryCodeStrength_MatchesWhatTheCommentClaims(t *testing.T) {
+	if len(recoveryCodeLetters) != 31 {
+		t.Errorf("the alphabet is %d symbols; the comment above it says 31, so one of them is now wrong",
+			len(recoveryCodeLetters))
+	}
+	seen := map[rune]bool{}
+	for _, r := range recoveryCodeLetters {
+		if seen[r] {
+			t.Errorf("%q appears twice in the alphabet, so a code is worth less than the count says", r)
+		}
+		seen[r] = true
+	}
+	bits := math.Log2(float64(len(recoveryCodeLetters))) * float64(recoveryGroupSize*recoveryGroupCount)
+	if bits < 48 || bits >= 50 {
+		t.Errorf("a code is worth %.1f bits; the comment says just under 50", bits)
 	}
 }
