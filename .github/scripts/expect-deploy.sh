@@ -193,18 +193,34 @@ after=$(servlo db:snapshots 2>/dev/null | grep -c predeploy || true)
 [ "$after" -gt "$before" ] || { echo "no snapshot was taken before a deploy whose script migrates"; exit 1; }
 echo "a snapshot was taken before the migration ran"
 
+# What PHP is actually running with, because the next check means nothing
+# without it. If OPcache is off, or watching timestamps, then no reload was ever
+# what kept the old code in front of a visitor and the claim below is untestable
+# rather than false.
+say "what PHP is running with"
+podman exec servlo-php85-fpm php -r \
+  'printf("opcache=%s validate_timestamps=%s\n", ini_get("opcache.enable") ?: "0", ini_get("opcache.validate_timestamps"));' \
+  2>&1 || true
+
 # Warm the page before the next deploy, because warming it is the mechanism.
 # Withholding the reload keeps live what OPcache already holds, and a file the
-# cache has never seen is compiled off disk however new it is. A successful
-# deploy reloads FPM, which empties the cache, so without a request here the
-# check below would be measuring an empty cache rather than a withheld reload.
-for _ in $(seq 15); do
-  case "$(serves)" in *servlo-ci:v3*) break ;; esac
-  sleep 2
+# cache has never seen is compiled off disk however new it is.
+#
+# The reload the successful deploy above just did is graceful: old workers
+# finish what they are doing while new ones start with an empty cache. So one
+# request proves nothing, it may well be answered by a worker from before the
+# reload. Settle first, then warm several times, so the generation that will
+# answer the check below is the generation being warmed.
+sleep 5
+warmed=""
+for _ in $(seq 20); do
+  case "$(serves)" in *servlo-ci:v3*) warmed="yes" ;; esac
+  sleep 1
 done
+[ -n "$warmed" ] || { echo "the site never served the migrating deploy's version"; serves; exit 1; }
 case "$(serves)" in
   *servlo-ci:v3*) echo "the working version is compiled and cached" ;;
-  *) echo "the site never served the migrating deploy's version"; serves; exit 1 ;;
+  *) echo "the site stopped serving the migrating deploy's version while warming"; serves; exit 1 ;;
 esac
 
 # ── a failing script leaves visitors on the version that worked ─────────────
@@ -238,7 +254,9 @@ grep -q "v4-never-served" "$site/public/index.php" || { echo "the pull did not h
 body=$(serves)
 case "$body" in
   *servlo-ci:v4-never-served*)
-    echo "a failed deploy reloaded PHP anyway, so the half-deployed version is what visitors get"
+    echo "the half-deployed version is what a visitor gets, even though the version that"
+    echo "worked had been served twenty times over the five seconds before the deploy."
+    echo "Either the failed deploy reloaded PHP, or OPcache is not holding what it served."
     exit 1 ;;
   *servlo-ci:v3*) echo "visitors are still on the version that worked" ;;
   *) echo "the site is serving something unexpected: $body"; exit 1 ;;
