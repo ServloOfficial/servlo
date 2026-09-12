@@ -312,3 +312,38 @@ func TestDeployScriptTemplate_SaysWhichShellActuallyRunsIt(t *testing.T) {
 		}
 	}
 }
+
+// §3.5: a database backup runs automatically before any deploy whose script
+// contains a migration. The marker a migration is recognised by comes from the
+// framework's profile, so a site that resolves to a definition carrying no
+// profile has nothing to match and the backup silently never happens. That is
+// the worst shape this guarantee can fail in: the deploy reports success, and
+// the operator learns the snapshot was not taken when they go looking for it.
+func TestDeployScriptMigrates_OnASiteWhoseVersionCannotBeRead(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "cfg"))
+
+	sitePath := filepath.Join(dir, "site")
+	if err := os.MkdirAll(sitePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The marker file and nothing that says which version: no composer.json.
+	if err := os.WriteFile(filepath.Join(sitePath, "artisan"), []byte("#!/usr/bin/env php\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	site := &config.Site{Name: "acme", Domains: []string{"acme.com"}, Path: sitePath, Framework: "laravel"}
+	if _, err := SaveDeployScript(site, "#!/bin/sh\nset -eu\nphp artisan migrate --force\n", false); err != nil {
+		t.Fatal(err)
+	}
+
+	migrates, err := DeployScriptMigrates(site)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !migrates {
+		t.Error("a deploy script that plainly runs a migration was not treated as one, " +
+			"so the deploy would have gone ahead with no database backup behind it")
+	}
+}

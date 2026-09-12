@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ServloOfficial/servlo/stores"
 	"gopkg.in/yaml.v3"
 )
 
@@ -1079,6 +1081,20 @@ func GetFrameworkForDir(name, projectDir string) (*Framework, bool) {
 		base = loadBestVersionedFramework(name, "")
 	}
 
+	// 4b. Then the copy embedded in this binary, which is the floor an install
+	// bootstraps from (CLAUDE.md §4). Reaching past it to a built-in adapter
+	// serves the site from a profile written before the store existed: a name,
+	// a public directory and a detect rule, with no deploy block. A site that
+	// lands there gets no migration marker, so no deploy on it ever takes the
+	// database backup that is supposed to precede a migration, and says nothing.
+	//
+	// The site that lands there is one whose version could not be read: the
+	// fetch above is keyed by version and never runs without one, and nothing
+	// on disk is named for a version nobody knows.
+	if base == nil {
+		base = loadEmbeddedFramework(name, version)
+	}
+
 	if base != nil {
 		if guessed {
 			base.VersionGuessed = true
@@ -1317,6 +1333,64 @@ func loadBestVersionedFramework(name, preferVersion string) *Framework {
 		}
 	}
 	return nil
+}
+
+// loadEmbeddedFramework reads a definition out of the copy embedded in this
+// binary, preferring the named version and otherwise taking the highest one
+// that parses.
+//
+// Highest rather than lowest, unlike the clamp above. That clamp exists for a
+// project whose version is known and older than anything shipped; this is for a
+// project whose version is not known at all, where the newest profile is the
+// better guess and, more to the point, a profile is better than none.
+func loadEmbeddedFramework(name, version string) *Framework {
+	read := func(v string) *Framework {
+		data, ok := stores.Read(stores.Frameworks, path.Join(name, v+".yaml"))
+		if !ok {
+			return nil
+		}
+		fw, err := ParseFramework(data)
+		if err != nil || fw.Name == "" {
+			return nil
+		}
+		return fw
+	}
+	if version != "" {
+		if fw := read(version); fw != nil {
+			return fw
+		}
+	}
+	for _, v := range embeddedFrameworkVersions(name) {
+		if fw := read(v); fw != nil {
+			return fw
+		}
+	}
+	return nil
+}
+
+// embeddedFrameworkVersions lists a framework's embedded versions, highest
+// first. Sorted numerically rather than as text, so 10 comes after 9.
+func embeddedFrameworkVersions(name string) []string {
+	entries, err := fs.ReadDir(stores.FS(), path.Join(string(stores.Frameworks), name))
+	if err != nil {
+		return nil
+	}
+	var versions []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") {
+			continue
+		}
+		versions = append(versions, strings.TrimSuffix(e.Name(), ".yaml"))
+	}
+	sort.Slice(versions, func(i, j int) bool {
+		a, aErr := strconv.Atoi(versions[i])
+		b, bErr := strconv.Atoi(versions[j])
+		if aErr == nil && bErr == nil {
+			return a > b
+		}
+		return versions[i] > versions[j]
+	})
+	return versions
 }
 
 // ValidatePublicDir returns nil when s is a safe relative subdirectory and

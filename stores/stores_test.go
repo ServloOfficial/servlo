@@ -1,4 +1,4 @@
-package stores
+package stores_test
 
 import (
 	"crypto/sha256"
@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	. "github.com/ServloOfficial/servlo/stores"
 
 	"github.com/ServloOfficial/servlo/internal/config"
 )

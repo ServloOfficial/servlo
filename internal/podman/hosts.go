@@ -376,7 +376,8 @@ func outputWithTimeout(cmd *exec.Cmd, timeout time.Duration) ([]byte, error) {
 
 // primaryLANIP returns the local IPv4 address that the kernel would use to
 // reach a public destination. It was one of a pair, the other in the DNS
-// package that went with the .test stack, and this is the copy that stayed.
+// package that went when local development domains did, and this is the copy
+// that stayed.
 func primaryLANIP() string {
 	conn, err := net.Dial("udp4", "1.1.1.1:80")
 	if err == nil {

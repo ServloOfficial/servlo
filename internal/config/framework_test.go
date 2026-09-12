@@ -533,3 +533,38 @@ func TestListFrameworkFiles_IncludesUserVersioned(t *testing.T) {
 		t.Error("expected user-dir versioned file to be removed")
 	}
 }
+
+// Every binary ships every definition it was built with, and CLAUDE.md §4 calls
+// that embedded copy the floor an install bootstraps from. A site whose version
+// cannot be read has no versioned definition to load and nothing to fetch one
+// by, and it was falling past that floor to a built-in adapter that predates the
+// store: a name, a public directory and a detect rule, with no deploy profile at
+// all. What that costs is the pre-deploy database backup, since the marker a
+// migration is recognised by lives in the profile.
+func TestGetFrameworkForDir_FallsBackToTheEmbeddedStoreNotABareAdapter(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "cfg"))
+
+	// An application servlo recognises by its marker file, carrying nothing
+	// that says which version it is: no composer.json, no .servlo.yaml.
+	site := filepath.Join(dir, "site")
+	if err := os.MkdirAll(site, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(site, "artisan"), []byte("#!/usr/bin/env php\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	fw, ok := GetFrameworkForDir("laravel", site)
+	if !ok {
+		t.Fatal("the framework did not resolve at all")
+	}
+	if len(fw.MigrateCommands()) == 0 {
+		t.Errorf("%s resolved with no migration marker, so no deploy on this site will ever take "+
+			"the database backup that is supposed to precede a migration", fw.Label)
+	}
+	if fw.DeployScript() == "" {
+		t.Errorf("%s resolved with no deploy script template", fw.Label)
+	}
+}
