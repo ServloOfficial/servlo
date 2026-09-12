@@ -1092,7 +1092,15 @@ func GetFrameworkForDir(name, projectDir string) (*Framework, bool) {
 	// fetch above is keyed by version and never runs without one, and nothing
 	// on disk is named for a version nobody knows.
 	if base == nil {
-		base = loadEmbeddedFramework(name, version)
+		var exact bool
+		if base, exact = loadEmbeddedFramework(name, version); base != nil && !exact {
+			// Borrowed, exactly as in 3b and for the same reason: a definition
+			// that targets a version the project is not must not have its PHP
+			// range clamp the project. Here it is more borrowed than there,
+			// since nobody knows what version the project is at all.
+			guessed = true
+			guessedVersion = version
+		}
 	}
 
 	if base != nil {
@@ -1343,29 +1351,32 @@ func loadBestVersionedFramework(name, preferVersion string) *Framework {
 // project whose version is known and older than anything shipped; this is for a
 // project whose version is not known at all, where the newest profile is the
 // better guess and, more to the point, a profile is better than none.
-func loadEmbeddedFramework(name, version string) *Framework {
+// exact is false when the definition is one borrowed from another version,
+// which is what the caller needs to know before letting its PHP range clamp
+// anything.
+func loadEmbeddedFramework(name, version string) (fw *Framework, exact bool) {
 	read := func(v string) *Framework {
 		data, ok := stores.Read(stores.Frameworks, path.Join(name, v+".yaml"))
 		if !ok {
 			return nil
 		}
-		fw, err := ParseFramework(data)
-		if err != nil || fw.Name == "" {
+		parsed, err := ParseFramework(data)
+		if err != nil || parsed.Name == "" {
 			return nil
 		}
-		return fw
+		return parsed
 	}
 	if version != "" {
-		if fw := read(version); fw != nil {
-			return fw
+		if got := read(version); got != nil {
+			return got, true
 		}
 	}
 	for _, v := range embeddedFrameworkVersions(name) {
-		if fw := read(v); fw != nil {
-			return fw
+		if got := read(v); got != nil {
+			return got, false
 		}
 	}
-	return nil
+	return nil, false
 }
 
 // embeddedFrameworkVersions lists a framework's embedded versions, highest

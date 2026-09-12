@@ -568,3 +568,32 @@ func TestGetFrameworkForDir_FallsBackToTheEmbeddedStoreNotABareAdapter(t *testin
 		t.Errorf("%s resolved with no deploy script template", fw.Label)
 	}
 }
+
+// The definition that comes back for an unreadable version is borrowed: it is
+// the newest one shipped, and the project is some other version. So its PHP
+// range must not clamp the project, the same rule a definition borrowed from a
+// known-but-older version already follows. Without this a site running 8.1
+// whose version could not be read would be bumped to the newest definition's
+// minimum on every snapshot rebuild.
+func TestGetFrameworkForDir_TheEmbeddedFallbackIsMarkedBorrowed(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "cfg"))
+
+	site := filepath.Join(dir, "site")
+	if err := os.MkdirAll(site, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(site, "artisan"), []byte("#!/usr/bin/env php\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	fw, ok := GetFrameworkForDir("laravel", site)
+	if !ok {
+		t.Fatal("the framework did not resolve at all")
+	}
+	if !fw.VersionGuessed {
+		t.Error("a definition borrowed for a version nobody could read was returned as if it were the " +
+			"project's own, so its PHP range will clamp a project it was never written for")
+	}
+}
