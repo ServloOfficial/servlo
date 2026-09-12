@@ -597,3 +597,51 @@ func TestGetFrameworkForDir_TheEmbeddedFallbackIsMarkedBorrowed(t *testing.T) {
 			"project's own, so its PHP range will clamp a project it was never written for")
 	}
 }
+
+// Every framework the binary ships has to resolve from a bare project directory,
+// with the profile that carries its guarantees. A site whose version cannot be
+// read is the ordinary way to land here: no composer.json, or a constraint like
+// dev-main with no number in it.
+//
+// What rides on the profile is not cosmetic. The migration marker is what
+// decides whether a deploy takes a database backup first (§3.5), and the exclude
+// list is what stops a deploy removing a client's uploads. Before the embedded
+// store became the floor this resolution stands on, two of these came back as a
+// bare adapter with neither, and the other nine came back as nothing at all.
+func TestGetFrameworkForDir_EveryEmbeddedFrameworkResolvesWithItsProfile(t *testing.T) {
+	// One marker file each, from the framework's own detect rules.
+	markers := map[string]string{
+		"laravel": "artisan", "symfony": "bin/console", "wordpress": "wp-settings.php",
+		"drupal": "core/lib/Drupal.php", "magento": "bin/magento", "cakephp": "bin/cake",
+		"codeigniter": "spark", "statamic": "please", "joomla": "configuration.php",
+		"grav": "bin/grav", "tempest": "tempest",
+	}
+	// The two that say plainly they have no migration of their own: their schema
+	// changes come from a plugin or a core update, which servlo does not drive.
+	noMigration := map[string]bool{"joomla": true, "grav": true, "wordpress": true}
+
+	for name, marker := range markers {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+			t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "cfg"))
+			site := filepath.Join(dir, "site")
+			if err := os.MkdirAll(filepath.Join(site, filepath.Dir(marker)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(site, marker), []byte("x"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			fw, ok := GetFrameworkForDir(name, site)
+			if !ok {
+				t.Fatalf("%s did not resolve at all, so this site has no workers, no doctor checks, "+
+					"no deploy template and no migration marker", name)
+			}
+			if !noMigration[name] && len(fw.MigrateCommands()) == 0 {
+				t.Errorf("%s resolved with no migration marker, so no deploy on this site would ever take "+
+					"the database backup that is supposed to precede a migration", name)
+			}
+		})
+	}
+}
