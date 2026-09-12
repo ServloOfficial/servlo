@@ -2,8 +2,10 @@ package authz
 
 import (
 	"os"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 func testAccounts(t *testing.T) *AccountStore {
@@ -213,5 +215,47 @@ func TestAccounts_RefusesToDeleteTheLastAdmin(t *testing.T) {
 	}
 	if _, ok := store.Authenticate("alice", "a long enough passphrase"); !ok {
 		t.Error("the refused delete removed the account anyway")
+	}
+}
+
+// The form answers a wrong password and an unknown account with the same words,
+// on purpose: telling them apart turns it into a way to enumerate account
+// names. It has to answer them in the same time too. An unknown name that never
+// reaches the password hash comes back in microseconds where a real one takes
+// tens of milliseconds, and a 2000x gap is not a side channel anybody needs
+// statistics to read.
+func TestAuthenticate_AnUnknownAccountCostsWhatAKnownOneCosts(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	store, err := OpenAccounts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Create("alice", "a long enough passphrase", RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+
+	// The median of a handful, because a busy machine can stall any single
+	// attempt and the claim is about the work done, not about one reading.
+	median := func(name string) time.Duration {
+		const runs = 5
+		var taken []time.Duration
+		for i := 0; i < runs; i++ {
+			start := time.Now()
+			store.AuthenticateWithOutcome(name, "not the passphrase", "")
+			taken = append(taken, time.Since(start))
+		}
+		sort.Slice(taken, func(i, j int) bool { return taken[i] < taken[j] })
+		return taken[runs/2]
+	}
+
+	known, unknown := median("alice"), median("nobody")
+	// A quarter, not parity: the point is that the hash ran, and a bound that
+	// tight would fail on a loaded runner for no reason.
+	if unknown*4 < known {
+		t.Errorf("an unknown account was refused in %v where a known one took %v (%.0fx faster), "+
+			"so the login form says which names exist even though it will not print it",
+			unknown, known, float64(known)/float64(unknown))
 	}
 }

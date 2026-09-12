@@ -116,6 +116,8 @@ Turning the second factor off takes the secret and the unspent codes with it, so
 
 A wrong password and an unknown account answer identically, because telling them apart turns the form into a way to enumerate account names.
 
+In the same time, too. A name servlo does not have is checked against a hash of a password nobody holds, so an attempt that was never going to succeed does the same work as one that might. Without that the reply for an unknown name comes back in microseconds and the reply for a real one takes tens of milliseconds, and a gap that size is not a side channel anybody needs statistics to read: the form would be saying in the clock exactly what it refuses to print.
+
 "That account needs a code" is different, and only ever follows a **correct** password. Saying it after a wrong one would announce that the account exists and has a second factor — the same enumeration by another route.
 
 A missing or wrong code counts against the rate limiter like a wrong password. Without that, the second factor is six digits an attacker can try a million times.

@@ -142,13 +142,6 @@ func (s *AccountStore) AuthenticateWithOutcome(name, password, code string) (Acc
 }
 
 func (s *AccountStore) authenticate(name, password, code string) (Account, Outcome) {
-	if account, ok := s.Authenticate(name, password); ok {
-		// No second factor on this account: the password was the whole answer.
-		return account, AuthOK
-	}
-	// Authenticate refuses an account with TOTP on whatever the password, so
-	// reaching here means the password was wrong, the account is unknown, or
-	// the second factor is owed. Which one is settled below.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -156,19 +149,35 @@ func (s *AccountStore) authenticate(name, password, code string) (Account, Outco
 	if err != nil {
 		return Account{}, AuthFailed
 	}
-	for i := range accounts {
-		if subtle.ConstantTimeCompare([]byte(accounts[i].Name), []byte(name)) != 1 {
-			continue
+
+	i := -1
+	for j := range accounts {
+		if subtle.ConstantTimeCompare([]byte(accounts[j].Name), []byte(name)) == 1 {
+			i = j
+			break
 		}
-		if accounts[i].TOTPSecret == "" {
-			return Account{}, AuthFailed
-		}
-		if !VerifyPassword(accounts[i].PasswordHash, password) {
-			return Account{}, AuthFailed
-		}
-		// From here the password is known good, so saying a code is owed
-		// tells the holder of that password something they can act on and
-		// tells anyone else nothing.
+	}
+	if i < 0 {
+		// An unknown name is made to cost what a known one costs. The form
+		// answers a wrong password and a name that does not exist with the same
+		// words on purpose; without this it answers them in wildly different
+		// times, and the clock says what the wording will not.
+		VerifyPassword(decoyHash(), password)
+		return Account{}, AuthFailed
+	}
+
+	// Once, for every outcome below. Verifying twice would cost a second-factor
+	// sign-in double, and would say which accounts have a second factor in the
+	// same currency the decoy above exists to stop spending.
+	if !VerifyPassword(accounts[i].PasswordHash, password) {
+		return Account{}, AuthFailed
+	}
+
+	// The password is known good from here, so anything said below tells the
+	// holder of that password something they can act on and tells anyone else
+	// nothing.
+	changed := false
+	if accounts[i].TOTPEnabled || accounts[i].TOTPSecret != "" {
 		if code == "" {
 			return Account{}, AuthCodeRequired
 		}
@@ -180,22 +189,30 @@ func (s *AccountStore) authenticate(name, password, code string) (Account, Outco
 				return Account{}, AuthFailed
 			}
 			accounts[i].TOTPLastCounter = counter
-			// A failed write leaves the code spendable again, which is the same
-			// safe direction the recovery codes below take: the operator gets in,
-			// and the window closes on its own thirty seconds later.
-			_ = s.save(accounts)
-			return redact(accounts[i]), AuthOK
+			changed = true
+		} else {
+			remaining, spent := ConsumeRecoveryCode(accounts[i].RecoveryHashes, code)
+			if !spent {
+				return Account{}, AuthFailed
+			}
+			accounts[i].RecoveryHashes = remaining
+			changed = true
 		}
-		remaining, spent := ConsumeRecoveryCode(accounts[i].RecoveryHashes, code)
-		if !spent {
-			return Account{}, AuthFailed
-		}
-		accounts[i].RecoveryHashes = remaining
-		// A failed write leaves the code unspent, which is the safe direction:
-		// the operator gets in and the code stays usable, rather than being
-		// told no while the code is gone.
-		_ = s.save(accounts)
-		return redact(accounts[i]), AuthOK
 	}
-	return Account{}, AuthFailed
+
+	// While the plaintext is in hand, so an inherited bcrypt hash is used
+	// exactly once more.
+	if NeedsRehash(accounts[i].PasswordHash) {
+		if hash, err := HashPassword(password); err == nil {
+			accounts[i].PasswordHash = hash
+			changed = true
+		}
+	}
+	if changed {
+		// A failed write leaves a spent code spendable and an old hash in
+		// place, which is the safe direction in both cases: the operator gets
+		// in, and the window closes on its own thirty seconds later.
+		_ = s.save(accounts)
+	}
+	return redact(accounts[i]), AuthOK
 }
