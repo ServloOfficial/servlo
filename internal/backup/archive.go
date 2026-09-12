@@ -151,11 +151,17 @@ func Create(w io.Writer, key []byte, opts Options) (Manifest, error) {
 
 // writeTree walks the site into the archive under files/.
 //
-// Only regular files and directories go in. A symlink is deliberately not
-// followed: copying what it points at would pull the rest of the server into
-// one site's backup, and writing it back out on restore would land outside the
-// site. Devices, sockets and fifos are skipped for the same reason there is no
-// sense in restoring them.
+// Regular files, directories, and the symlinks a site is built out of. A link
+// is recorded by where it points rather than followed: copying what it points
+// at would pull the rest of the server into one site's backup, and it is the
+// link itself the site needs back. Laravel's public/storage is the ordinary
+// case, and a restore that dropped it would bring a site back whose every
+// uploaded image is a 404, quietly.
+//
+// A link out of the site is left out, here and again on the way back in, since
+// writing it back would put a door in the site to somewhere the archive was
+// never taken from. Devices, sockets and fifos are skipped for the same reason
+// there is no sense in restoring them.
 func writeTree(tw *tar.Writer, root string, excludes []string) (int, int64, error) {
 	skip := excludeSet(excludes)
 	var files int
@@ -190,6 +196,18 @@ func writeTree(tw *tar.Writer, root string, excludes []string) (int, int64, erro
 				Typeflag: tar.TypeDir, Name: name + "/",
 				Mode: int64(info.Mode().Perm()), ModTime: info.ModTime(),
 			})
+		case info.Mode()&os.ModeSymlink != 0:
+			link, err := os.Readlink(p)
+			if err != nil {
+				return err
+			}
+			if !linkStaysInside(root, rel, link) {
+				return nil
+			}
+			return tw.WriteHeader(&tar.Header{
+				Typeflag: tar.TypeSymlink, Name: name, Linkname: link,
+				Mode: int64(info.Mode().Perm()), ModTime: info.ModTime(),
+			})
 		case info.Mode().IsRegular():
 			if err := tw.WriteHeader(&tar.Header{
 				Typeflag: tar.TypeReg, Name: name, Size: info.Size(),
@@ -217,6 +235,22 @@ func writeTree(tw *tar.Writer, root string, excludes []string) (int, int64, erro
 		return 0, 0, fmt.Errorf("reading %s: %w", root, err)
 	}
 	return files, total, nil
+}
+
+// linkStaysInside reports whether a symlink at rel, pointing at link, resolves
+// to somewhere still under root.
+//
+// Lexical, against the site-relative path rather than the filesystem, because
+// the same answer has to hold on the machine the archive is restored onto,
+// where root is a different directory and the target may not exist at all. An
+// absolute target is out by definition: it names a path on the machine the
+// backup was taken from, not a place inside the site.
+func linkStaysInside(root, rel, link string) bool {
+	if filepath.IsAbs(link) {
+		return false
+	}
+	inside := filepath.Clean(filepath.Join(filepath.Dir(rel), link))
+	return inside != ".." && !strings.HasPrefix(inside, ".."+string(os.PathSeparator))
 }
 
 // writeDump streams the database into the archive.

@@ -232,7 +232,9 @@ Note this is the opposite of the `deploy.exclude` list beside it. A deploy exclu
 
 A site can override the framework's list with its own. Clearing it to empty is a decision that survives: an empty list means this site's backup carries everything, and a site that never set one keeps following its framework's definition, including one updated after the site was created.
 
-A symlink pointing out of the site is recorded but not followed. Copying what it points at would pull the rest of the server into one site's archive, and writing it back out on restore would land outside the site.
+A symlink is recorded by where it points rather than followed. Copying what it points at would pull the rest of the server into one site's archive, and the link itself is what the site needs back: Laravel serves its uploads through `public/storage`, a link into `storage/app/public`, and a restore that dropped it would bring the site back with every uploaded image a 404.
+
+A link pointing out of the site is left out, both when the archive is written and again when it is read. Installing one would put a door in the site to somewhere the backup was never taken from, and the next thing written through it would land there.
 
 ## Databases, local and managed
 

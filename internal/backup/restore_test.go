@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ServloOfficial/servlo/internal/config"
 )
 
 // handMade builds an archive entry by entry, so a test can put something in one
@@ -203,3 +205,114 @@ func TestOpenDump_SaysWhenThereIsNoDump(t *testing.T) {
 }
 
 var _ = io.Discard
+
+// A Laravel site serves its uploads through public/storage, a relative symlink
+// into storage/app/public. A backup that drops it restores a site whose every
+// uploaded image is a 404, and says nothing on the way past.
+//
+// A link out of the site is the case the skipping was written for and stays
+// refused: it is the one that would write outside the site when it came back.
+func TestBackupRoundTrip_KeepsTheLinksASiteNeedsAndRefusesTheOnesItDoesNot(t *testing.T) {
+	key := testKey(t)
+	site := t.TempDir()
+	outside := t.TempDir()
+
+	mkdirAll(t, filepath.Join(site, "storage", "app", "public"))
+	mkdirAll(t, filepath.Join(site, "public"))
+	writeSiteFile(t, filepath.Join(site, "storage", "app", "public", "logo.png"), "a client's logo")
+	writeSiteFile(t, filepath.Join(outside, "secrets"), "another site's env")
+	if err := os.Symlink(filepath.Join("..", "storage", "app", "public"), filepath.Join(site, "public", "storage")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(site, "escape")); err != nil {
+		t.Fatal(err)
+	}
+
+	var sealed bytes.Buffer
+	if _, err := Create(&sealed, key, Options{Site: config.Site{Name: "acme", Path: site}}); err != nil {
+		t.Fatal(err)
+	}
+
+	back := t.TempDir()
+	if _, err := RestoreFiles(bytes.NewReader(sealed.Bytes()), key, back); err != nil {
+		t.Fatal(err)
+	}
+
+	link := filepath.Join(back, "public", "storage")
+	target, err := os.Readlink(link)
+	if err != nil {
+		t.Fatalf("public/storage did not come back as a link, so the site's uploads are gone: %v", err)
+	}
+	if filepath.ToSlash(target) != "../storage/app/public" {
+		t.Errorf("public/storage points at %q, want ../storage/app/public", target)
+	}
+	got, err := os.ReadFile(filepath.Join(link, "logo.png"))
+	if err != nil || string(got) != "a client's logo" {
+		t.Errorf("reading through the restored link: %v (%q)", err, got)
+	}
+
+	if _, err := os.Lstat(filepath.Join(back, "escape")); !os.IsNotExist(err) {
+		t.Errorf("a link out of the site came back, which is how a restore writes somewhere it was never asked to: %v", err)
+	}
+}
+
+func mkdirAll(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(path, 0755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeSiteFile(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The round trip above proves servlo's own archives. This is the other half:
+// an archive from somewhere else, carrying the link servlo would never write.
+func TestRestoreFiles_RefusesALinkOutOfTheSite(t *testing.T) {
+	key := testKey(t)
+
+	var sealed bytes.Buffer
+	enc, err := NewEncryptor(&sealed, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gz := gzip.NewWriter(enc)
+	tw := tar.NewWriter(gz)
+	for _, h := range []*tar.Header{
+		{Typeflag: tar.TypeSymlink, Name: "files/escape", Linkname: "../../../etc", Mode: 0777},
+		{Typeflag: tar.TypeSymlink, Name: "files/rooted", Linkname: "/etc", Mode: 0777},
+	} {
+		if err := tw.WriteHeader(h); err != nil {
+			t.Fatal(err)
+		}
+	}
+	raw, err := json.Marshal(Manifest{Format: FormatVersion, Site: "acme", Taken: time.Now().UTC()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.WriteHeader(&tar.Header{Typeflag: tar.TypeReg, Name: ManifestName, Size: int64(len(raw)), Mode: 0600}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []func() error{tw.Close, gz.Close, enc.Close} {
+		if err := c(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	back := t.TempDir()
+	if _, err := RestoreFiles(bytes.NewReader(sealed.Bytes()), key, back); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"escape", "rooted"} {
+		if _, err := os.Lstat(filepath.Join(back, name)); !os.IsNotExist(err) {
+			t.Errorf("%s was installed, so the next thing written through it lands outside the site", name)
+		}
+	}
+}

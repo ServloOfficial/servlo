@@ -103,11 +103,22 @@ func RestoreFiles(r io.Reader, key []byte, dir string) (Manifest, error) {
 				return copyErr
 			}
 			return closeErr
+		case tar.TypeSymlink:
+			// Checked again here rather than trusted from the archive: the
+			// archive is the thing that might be hostile. A link that stays
+			// inside the site can only ever be written through to somewhere
+			// inside the site, which is what makes restoring it safe; one that
+			// points out is the door this refuses to install.
+			if !linkStaysInside(stage, rel, h.Linkname) {
+				return nil
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				return err
+			}
+			return os.Symlink(h.Linkname, target)
 		default:
-			// A symlink is a way to write through it on the next entry, and a
-			// device or socket is not something a site's backup should carry.
-			// Skipped rather than checked, because there is no version of
-			// restoring one that is worth the risk.
+			// A device or socket is not something a site's backup should carry,
+			// and there is no version of restoring one that is worth the risk.
 			return nil
 		}
 	})
@@ -286,6 +297,9 @@ func RestoreState(r io.Reader, key []byte, configDir, dataDir string) (Manifest,
 			}
 			return closeErr
 		default:
+			// No links here, unlike a site: nothing servlo writes into the
+			// config or data directory is one, so there is nothing to bring
+			// back and no reason to accept one from an archive.
 			return nil
 		}
 	})
