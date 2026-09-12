@@ -298,3 +298,17 @@ func mustReadDir(t *testing.T, dir string) []os.DirEntry {
 	}
 	return entries
 }
+
+// The header is the only place an operator is told which shell runs this, and
+// it has to be told plainly: servlo runs the body, not the file, so changing
+// the first line changes nothing and a bash feature below it fails with
+// something like "Illegal option -o pipefail" and no hint why.
+func TestDeployScriptTemplate_SaysWhichShellActuallyRunsIt(t *testing.T) {
+	site := &config.Site{Name: "acme", Domains: []string{"acme.com"}, Framework: "unknown"}
+	header := deployScriptTemplate(site)
+	for _, want := range []string{"#!/bin/sh", "/bin/sh", "first line"} {
+		if !strings.Contains(header, want) {
+			t.Errorf("the deploy script header never mentions %q:\n%s", want, header)
+		}
+	}
+}

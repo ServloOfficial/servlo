@@ -140,9 +140,12 @@ echo '<?php echo "servlo-ci:v2\n";' > public/index.php
 git commit -qam "the version being deployed"
 git push -q origin main
 
+# POSIX sh, not bash: servlo runs the body of this file with /bin/sh, which on
+# Ubuntu is dash, and its own template says so in the first line. `pipefail` is
+# not a thing dash has.
 cat > "$script" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 echo "the deploy script ran" > /tmp/deploy-ran
 SH
 chmod +x "$script"
@@ -167,8 +170,8 @@ esac
 say "a script that migrates is backed up first"
 before=$(servlo db:snapshots 2>/dev/null | grep -c predeploy || true)
 cat > "$script" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 # The marker the framework declares for a migration. Nothing is actually
 # migrated: what is being checked is that servlo took the snapshot before
 # deciding to run this at all.
@@ -191,8 +194,8 @@ echo "a snapshot was taken before the migration ran"
 # ── a failing script leaves visitors on the version that worked ─────────────
 say "a failing script does not put half a deploy in front of anyone"
 cat > "$script" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 echo "about to fail, on purpose"
 exit 1
 SH

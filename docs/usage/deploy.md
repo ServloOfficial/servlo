@@ -56,6 +56,8 @@ Edit it on the site's Deploy tab. Saving keeps a timestamped backup of what it r
 
 Nothing validates the contents beyond refusing a NUL byte. It is a shell script you wrote to run on your own server, and servlo guessing at which commands are reasonable would be both wrong and impossible to get right.
 
+It runs under `/bin/sh`, which on Ubuntu is dash. Servlo runs the body rather than the file, so the shebang on the first line is a label and changing it changes nothing: a `[[ ]]`, an array or a `set -o pipefail` below it fails with a complaint about the option rather than about the shell. Keep it to POSIX sh, or call bash from inside the script.
+
 ## Migrations and the pre-deploy backup
 
 Servlo reads the saved script to decide whether a deploy is schema-changing, matching it against the migration command the framework declares. That match is what triggers the automatic database backup before the deploy.

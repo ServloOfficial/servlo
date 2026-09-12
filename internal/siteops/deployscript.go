@@ -66,6 +66,11 @@ func deployScriptTemplate(site *config.Site) string {
 # It runs as the servlo user, with the site directory as its working directory,
 # and its output streams into the panel. A non-zero exit fails the deploy.
 #
+# Servlo runs what is below with /bin/sh, which on Ubuntu is dash. It runs the
+# body rather than the file, so changing the first line changes nothing: a bash
+# feature underneath it fails with a message about the option rather than about
+# the shell. Keep it to POSIX sh, or call bash from inside the script.
+#
 # Servlo seeded this from the framework's profile and will not touch it again.
 `
 	fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
