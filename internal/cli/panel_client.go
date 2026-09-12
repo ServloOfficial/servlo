@@ -51,3 +51,21 @@ func postUnix(path string, body []byte) ([]byte, int, error) {
 	got, err := io.ReadAll(resp.Body)
 	return got, resp.StatusCode, err
 }
+
+// NotifyPanel tells a running servlo-panel that units changed under it, so an
+// open dashboard updates rather than waiting for its next poll.
+//
+// Over the socket, like everything else a CLI process says to the panel. It
+// used to POST to http://127.0.0.1:7073, which stopped being an address the
+// panel answers the day it started speaking TLS: the sorting listener sees
+// plain HTTP, redirects to https, and the redirect Go follows on its own lands
+// on a certificate the panel signed itself, so every notification since has
+// ended in a failed verification nothing surfaced. The socket has no such
+// problem and needs no certificate to trust.
+//
+// Best effort by design. A panel that is not running is the ordinary state of a
+// CLI-only install, and a command that failed because nobody was watching the
+// dashboard would be worse than a dashboard that updates a poll later.
+func NotifyPanel() {
+	_, _, _ = postUnix("/api/internal/notify", nil)
+}

@@ -93,6 +93,8 @@ servlo node:install 22
 servlo node:use 22
 ```
 
+The default is a default, not a requirement. A deploy whose site pins a version servlo does not have stops and tells you to install it, because the build about to run asked for that toolchain and building with another one silently is worse than not building. A site that pins nothing is not held to the same line: its deploy runs under whatever Node is there, or under none at all, so a PHP-only site deploys on a server where Node was never installed.
+
 Version numbers are normalised to the major only, so `22.11.0` and `22.14.1` are both treated as `22`, and only one entry per major appears in the UI and CLI.
 
 ---

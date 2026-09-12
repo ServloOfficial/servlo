@@ -2,7 +2,12 @@ package ui
 
 import (
 	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/printer"
+	"go/token"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -192,4 +197,90 @@ func payloadFields(t *testing.T, src string) []string {
 		out = append(out, fields[0])
 	}
 	return out
+}
+
+// Every payload the socket broadcasts has to have been narrowed, or to have a
+// written reason it needs no narrowing. The check is against the send path
+// rather than only against the table, because a field can be declared here and
+// still be handed to assembleSnapshot whole.
+func TestEveryWebsocketPayloadIsScoped(t *testing.T) {
+	msgType := reflect.TypeOf(wsMessage{})
+	for i := 0; i < msgType.NumField(); i++ {
+		name := msgType.Field(i).Name
+		if _, ok := wsPayloadScoping[name]; !ok {
+			t.Errorf("wsMessage.%s goes to every open dashboard and no scoping decision was recorded for it: "+
+				"add it to wsPayloadScoping, with the function that narrows it or the reason it needs none", name)
+		}
+	}
+	for name := range wsPayloadScoping {
+		if _, ok := msgType.FieldByName(name); !ok {
+			t.Errorf("wsPayloadScoping decides about %s, which wsMessage no longer carries", name)
+		}
+	}
+
+	whole := map[string]bool{}
+	for name, decision := range wsPayloadScoping {
+		if strings.HasPrefix(decision, "whole:") {
+			whole[name] = true
+		}
+	}
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "ws.go", nil, 0)
+	if err != nil {
+		t.Fatalf("parsing ws.go: %v", err)
+	}
+
+	calls := 0
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if id, ok := call.Fun.(*ast.Ident); !ok || id.Name != "assembleSnapshot" {
+			return true
+		}
+		calls++
+		// The last argument is the frame kinds; everything before it is a
+		// payload that reaches a browser.
+		for _, arg := range call.Args[:len(call.Args)-1] {
+			if scopedArgument(arg, whole) {
+				continue
+			}
+			t.Errorf("%s: a snapshot payload reaches every connection unscoped: %s",
+				fset.Position(arg.Pos()), exprText(arg))
+		}
+		return true
+	})
+	if calls == 0 {
+		t.Fatal("no assembleSnapshot call found, so this check proved nothing")
+	}
+}
+
+// scopedArgument reports whether one argument to assembleSnapshot is safe to
+// send: nothing at all, the result of a scope function, or a payload the table
+// says goes whole.
+func scopedArgument(arg ast.Expr, whole map[string]bool) bool {
+	switch e := arg.(type) {
+	case *ast.Ident:
+		return e.Name == "nil"
+	case *ast.CallExpr:
+		switch fn := e.Fun.(type) {
+		case *ast.Ident:
+			return strings.HasPrefix(fn.Name, "scope")
+		case *ast.SelectorExpr:
+			// snapshots.Status() and the like: a reader on the snapshot store.
+			return whole[fn.Sel.Name]
+		}
+	case *ast.SelectorExpr:
+		// msg.Status and the like.
+		return whole[e.Sel.Name]
+	}
+	return false
+}
+
+func exprText(e ast.Expr) string {
+	var b strings.Builder
+	_ = printer.Fprint(&b, token.NewFileSet(), e)
+	return b.String()
 }

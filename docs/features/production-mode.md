@@ -14,7 +14,7 @@ The dashboard header carries a badge for the current state, so it is visible fro
 
 ## Why turning it off is the harder direction
 
-Turning production mode **on** is confirmed, because it changes what visitors see. Turning it **off** needs `--force`, because doing it on a live machine starts showing PHP stack traces to the internet, and that is not something to do by autocompleting a command.
+Turning production mode **on** is confirmed, because it changes what visitors see. Turning it **off** needs `--force`, because on a machine serving anything through FrankenPHP it starts showing PHP stack traces to the internet, and because it stops OPcache trusting its cache, which is most of the speed. Neither is something to do by autocompleting a command. On an FPM site the stack traces stay hidden either way, per the note above, but the flag is one machine-wide switch and it is set for the weakest site on the box.
 
 `--force` is a flag rather than a prompt on purpose: a prompt can be answered by muscle memory, or by a script piping `y`.
 
@@ -22,12 +22,14 @@ Turning production mode **on** is confirmed, because it changes what visitors se
 
 | | Production off | Production on |
 |---|---|---|
-| `display_errors` | On | Off |
+| `display_errors` | On* | Off |
 | `display_startup_errors` | On | Off |
-| `expose_php` | On | Off |
+| `expose_php` | On* | Off |
 | `opcache.enable` | 1 | 1 |
 | `opcache.validate_timestamps` | 1 | 0 |
 | Worker restart policy | as declared | `always` |
+
+\* Not on a site served by PHP-FPM, which is every site unless you moved it to FrankenPHP. Its pool sets `display_errors` and `expose_php` with `php_admin_value`, which the mode's drop-in cannot move and the application's own `ini_set` cannot either. Those two are off on an FPM site whatever this flag says, deliberately: a stack trace in front of a visitor is not something to leave to a setting. Turning the mode off to debug an FPM site therefore does not start showing errors, and the place to look is the site's log rather than the page.
 
 The PHP settings are written to a drop-in named `90-production.ini`, which sorts ahead of the shared and per-site files so a site can still override any of them. Changing the mode writes the drop-in immediately, rather than at the next restart, so what is on disk always matches the flag; applying it to what is already running is `servlo stop` then `servlo start`, which brings the containers back against the new drop-in and rewrites the worker units. `servlo restart` is one site's container rather than the machine.
 

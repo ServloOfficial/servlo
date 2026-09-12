@@ -122,11 +122,11 @@ func wsUpgrade(w http.ResponseWriter, r *http.Request) (*wsConn, error) {
 	if key == "" {
 		return nil, errors.New("missing Sec-WebSocket-Key")
 	}
-	h, ok := w.(http.Hijacker)
-	if !ok {
-		return nil, errors.New("response writer does not support hijack")
-	}
-	conn, brw, err := h.Hijack()
+	// Through the controller for the same reason the streaming routes use it:
+	// it follows the Unwrap a wrapping middleware provides, where a type
+	// assertion stops at the wrapper. The upgrade is a GET today and meets no
+	// such wrapper, which is the only reason this one was not already broken.
+	conn, brw, err := http.NewResponseController(w).Hijack()
 	if err != nil {
 		return nil, err
 	}

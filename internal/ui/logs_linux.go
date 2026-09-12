@@ -24,23 +24,25 @@ func logStreamCmd(ctx context.Context, unit string) *exec.Cmd {
 }
 
 func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
-		return
-	}
-
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
+
+	// After the headers, not before: the controller has no way to ask whether
+	// a writer can flush without flushing, and a flush is what sends them.
+	rc := http.NewResponseController(w)
+	if err := rc.Flush(); err != nil {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
 
 	// Flush an SSE comment so the response headers go out immediately and
 	// the browser's EventSource fires onopen. Without this a silent unit
 	// (schedule between cron ticks, reverb before any WebSocket client
 	// connects) leaves the UI stuck on "connecting...".
 	fmt.Fprint(w, ": connected\n\n")
-	flusher.Flush()
+	_ = rc.Flush()
 
 	cursor := r.Header.Get("Last-Event-ID")
 	args := []string{"--user", "-u", unit, "-f", "--no-pager", "--output=json"}
@@ -57,7 +59,7 @@ func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
 
 	if err := cmd.Start(); err != nil {
 		fmt.Fprintf(w, "data: error starting logs: %s\n\n", err.Error())
-		flusher.Flush()
+		_ = rc.Flush()
 		return
 	}
 
@@ -89,6 +91,6 @@ func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
 			}
 		}
 		fmt.Fprintf(w, "id: %s\ndata: %s\n\n", entry.Cursor, msg)
-		flusher.Flush()
+		_ = rc.Flush()
 	}
 }

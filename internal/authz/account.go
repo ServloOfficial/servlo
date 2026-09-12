@@ -184,39 +184,28 @@ func (s *AccountStore) Adopt(name, passwordHash string, role Role) error {
 // password is one of the two things it needs, and returning true on half of
 // them would make every caller responsible for remembering the other half.
 // AuthenticateWithCode is the one that takes both.
-//
-// It also quietly replaces a hash that is due for rehashing while it holds the
-// plaintext, so an inherited bcrypt hash is used exactly once more.
 func (s *AccountStore) Authenticate(name, password string) (Account, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	accounts, err := s.load()
-	if err != nil {
-		return Account{}, false
-	}
-	for i := range accounts {
-		if subtle.ConstantTimeCompare([]byte(accounts[i].Name), []byte(name)) != 1 {
-			continue
-		}
-		if !VerifyPassword(accounts[i].PasswordHash, password) {
-			return Account{}, false
-		}
-		if accounts[i].TOTPEnabled {
-			return Account{}, false
-		}
-		if NeedsRehash(accounts[i].PasswordHash) {
-			if hash, err := HashPassword(password); err == nil {
-				accounts[i].PasswordHash = hash
-				// A failed write leaves the old hash, which still verifies, so
-				// the sign-in stands and the upgrade retries next time.
-				_ = s.save(accounts)
-			}
-		}
-		return redact(accounts[i]), true
-	}
-	return Account{}, false
+	account, outcome := s.authenticate(name, password, "")
+	return account, outcome == AuthOK
 }
+
+// decoyHash is a real Argon2id hash of a password nobody has, used to make an
+// unknown account name cost what a known one costs.
+//
+// Built once at startup rather than per attempt: the salt is what makes a hash
+// unguessable, and there is nothing here to guess. The work that matters is the
+// verification, and that happens on every attempt either way.
+var decoyHash = sync.OnceValue(func() string {
+	// The error case is the entropy source failing, and an empty hash still
+	// costs nothing to verify, which is the one thing this must not do. A fixed
+	// salt is worse than a random one and far better than no work at all.
+	hash, err := HashPassword("servlo has no account by that name")
+	if err != nil {
+		return "$argon2id$v=19$m=47104,t=1,p=2$c2Vydmxvbm9zdWNoYWNjdA$" +
+			"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	}
+	return hash
+})
 
 // Lookup returns an account by name, without its hash.
 func (s *AccountStore) Lookup(name string) (Account, bool) {

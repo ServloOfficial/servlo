@@ -23,8 +23,8 @@ import (
 const (
 	recoveryCodeCount = 10
 	// Two groups of five, which reads back off a screen without losing your
-	// place. 10 characters from a 27-symbol alphabet is about 47 bits, far past
-	// guessable given the login is rate limited.
+	// place. 10 characters from the 31-symbol alphabet below is just under 50
+	// bits, far past guessable given the login is rate limited.
 	recoveryGroupSize   = 5
 	recoveryGroupCount  = 2
 	recoveryCodeLetters = "abcdefghjkmnpqrstuvwxyz23456789"

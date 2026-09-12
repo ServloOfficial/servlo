@@ -71,6 +71,53 @@ jobs:
           ls ~/.local/share/servlo/fpm-pools/*/ || true
           journalctl --user -u servlo-php85-fpm -n 40 --no-pager -o cat 2>/dev/null | grep -iE 'error|fatal|warn|fail|no pool' | tail -8 || true
 
+  deploy:
+    name: A deploy pulls, runs and holds the line when it fails
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      DEPLOY_SITE: ci-deploy.example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: internal/ui/web/package-lock.json
+
+      - name: Prepare the rootless runtime
+        run: .github/scripts/prepare-runtime.sh
+
+      - name: Install servlo
+        run: .github/scripts/install-servlo.sh
+
+      - name: Wait for the database engine
+        run: .github/scripts/wait-for-db.sh
+
+      - name: Deploy a site the way the panel does
+        run: .github/scripts/expect-deploy.sh "$DEPLOY_SITE"
+
+      - name: What the runtime looked like
+        if: failure()
+        run: |
+          servlo sites || true
+          echo "── the site's git state ──"
+          git -C ~/sites/"$DEPLOY_SITE" log --oneline -5 2>/dev/null || true
+          git -C ~/sites/"$DEPLOY_SITE" status --short 2>/dev/null || true
+          echo "── what the site serves right now ──"
+          head -c 200 ~/sites/"$DEPLOY_SITE"/public/index.php 2>/dev/null || true
+          echo
+          echo "── the deploy script servlo was asked to run ──"
+          cat ~/.local/share/servlo/deploy-scripts/*.sh 2>/dev/null || true
+          echo "── snapshots ──"
+          servlo db:snapshots || true
+          echo "── the panel's own log, which is where a refused route says why ──"
+          journalctl --user -u servlo-panel -n 40 --no-pager -o cat 2>/dev/null || true
+
   app-install:
     name: A one-click application install ends in a login page
     runs-on: ubuntu-24.04

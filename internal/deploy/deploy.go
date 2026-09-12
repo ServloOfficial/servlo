@@ -151,6 +151,18 @@ func Run(o Options) (Result, error) {
 			// so PHP keeps serving the bytecode it already has: withholding the
 			// reload leaves visitors on the last version that worked rather
 			// than on the half-deployed one now on disk.
+			//
+			// Worth knowing what that does and does not cover, because it
+			// reads stronger than it is. It keeps live whatever is already in
+			// the cache. A file the cache has never seen is compiled off disk
+			// on the next request however new it is, so a route nobody hit
+			// between the last successful deploy and this failed one serves
+			// the half-deployed code. The window is widest right after a
+			// successful deploy, whose own reload starts workers with an empty
+			// cache. Deploy is a pull in place (CLAUDE.md §3.5) and the tree is
+			// not rolled back, so this is a real limit rather than a bug to fix
+			// here: on a busy site the cache is warm and it holds, on a quiet
+			// one it may not.
 			return res, fmt.Errorf("the deploy script failed, and the new code was not made live: %w", err)
 		}
 	} else {

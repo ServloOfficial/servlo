@@ -112,3 +112,22 @@ func scopeNotification(payload []byte, scope authz.Scope) []byte {
 	}
 	return payload
 }
+
+// wsPayloadScoping is the decision recorded about every field a snapshot frame
+// can carry: the function that narrows it to what a scope may see, or, for a
+// payload sent whole, why that is safe.
+//
+// Roles are enforced on every route and on every websocket message, and the way
+// that quietly stops being true is a sixth payload added beside these five by
+// somebody who did not know the socket was a door. So the decision is written
+// down and checked: TestEveryWebsocketPayloadIsScoped reads this table against
+// wsMessage and against the send path itself, and fails on a field nobody
+// decided about, or one decided about and then passed through whole anyway.
+var wsPayloadScoping = map[string]string{
+	"Kinds":            "not a payload: the frame type names, which carry no tenant data",
+	"Sites":            "scopeSites",
+	"Services":         "scopeServices",
+	"Status":           "whole: /api/status is PermSelf, so the socket and the route already agree",
+	"UnhealthyWorkers": "scopeUnhealthyWorkers",
+	"Notification":     "scopeNotification",
+}

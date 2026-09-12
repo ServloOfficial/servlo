@@ -40,9 +40,12 @@ func (a *auditRecorder) Write(b []byte) (int, error) {
 	return a.ResponseWriter.Write(b)
 }
 
-// Unwrap lets the websocket's hijack and the streaming handlers' flush reach
-// the real writer. Without it, wrapping the response would break every route
-// that streams, which is most of the interesting ones.
+// Unwrap is how a caller reaches the real writer through this wrapper, which
+// is what keeps wrapping the response from breaking every route that streams.
+// It only helps a caller that asks: http.ResponseController follows it, and a
+// type assertion for http.Flusher or http.Hijacker does not, because embedding
+// the interface promotes only the three methods it declares. The panel's
+// streaming routes go through the controller for that reason.
 func (a *auditRecorder) Unwrap() http.ResponseWriter { return a.ResponseWriter }
 
 type ctxKeyAuditDetail struct{}

@@ -13,6 +13,7 @@ import (
 	"github.com/ServloOfficial/servlo/internal/config"
 	"github.com/ServloOfficial/servlo/internal/feedback"
 	"github.com/ServloOfficial/servlo/internal/podman"
+	"github.com/ServloOfficial/servlo/internal/serviceops"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -330,7 +331,7 @@ func runImportSail(noStop, skipS3 bool, sailDBUser, sailDBPassword, sailDBName s
 		defer os.Remove(dumpFile)
 
 		imp := feedback.Start("importing into servlo (" + servloEnv.connection + " / " + servloEnv.database + ")")
-		if err := ensureServiceRunning(connToService(servloEnv.connection)); err != nil {
+		if err := ensureServiceRunning(servloEnv.service); err != nil {
 			imp.Fail(err)
 			return fmt.Errorf("starting servlo DB service: %w", err)
 		}
@@ -1060,40 +1061,17 @@ func sailDumpDB(composeArgs []string, service string, env *dbEnv, composeBin str
 	return tmpPath, nil
 }
 
-// sailRecreateDB drops and recreates the target database in servlo.
+// emptyDatabase is swappable so a test can assert which service an import acts
+// on without a container behind it.
+var emptyDatabase = serviceops.EmptyDatabase
+
+// sailRecreateDB drops and recreates the target database in servlo, through the
+// same store-declared actions every other database path uses. The name comes
+// out of the site's .env and the engine out of its DB_HOST, so neither is
+// guessed here: a site on MariaDB had its dump loaded into servlo-mariadb while
+// the drop beside it went to servlo-mysql.
 func sailRecreateDB(env *dbEnv) error {
-	switch env.connection {
-	case "mysql", "mariadb":
-		sql := fmt.Sprintf("DROP DATABASE IF EXISTS `%s`; CREATE DATABASE `%s`;",
-			env.database, env.database)
-		cmd := podman.Cmd("exec", "-i",
-			"-e", "MYSQL_PWD",
-			"servlo-mysql",
-			"mysql", "-u"+env.username, "-e", sql)
-		cmd.Env = append(cmd.Environ(), "MYSQL_PWD="+env.password)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("%s", strings.TrimSpace(string(out)))
-		}
-		return nil
-	case "pgsql", "postgres":
-		// Connect to the 'postgres' maintenance db to drop/create the target.
-		for _, sql := range []string{
-			fmt.Sprintf(`DROP DATABASE IF EXISTS "%s";`, env.database),
-			fmt.Sprintf(`CREATE DATABASE "%s";`, env.database),
-		} {
-			cmd := podman.Cmd("exec", "-i",
-				"-e", "PGPASSWORD",
-				"servlo-postgres",
-				"psql", "-U", env.username, "postgres", "-c", sql)
-			cmd.Env = append(cmd.Environ(), "PGPASSWORD="+env.password)
-			if out, err := cmd.CombinedOutput(); err != nil {
-				return fmt.Errorf("postgres: %s", strings.TrimSpace(string(out)))
-			}
-		}
-		return nil
-	default:
-		return fmt.Errorf("unsupported connection: %q", env.connection)
-	}
+	return emptyDatabase(env.service, env.database)
 }
 
 // sailImportDump pipes a SQL dump file into the servlo database.
