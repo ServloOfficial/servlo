@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 	"github.com/ServloOfficial/servlo/internal/config"
 	webpush "github.com/SherClockHolmes/webpush-go"
 )
@@ -55,10 +56,13 @@ func VAPIDKeys() (priv, pub string, err error) {
 	if err := os.MkdirAll(config.DataDir(), 0o755); err != nil {
 		return "", "", err
 	}
-	if err := os.WriteFile(privPath(), []byte(p+"\n"), 0o600); err != nil {
+	// Atomically, because the reader below accepts any non-empty key: a write
+	// torn by a full disk would leave a private key too short to sign with,
+	// sitting beside a public key that still reads fine.
+	if err := atomicfile.Write(privPath(), []byte(p+"\n"), 0o600); err != nil {
 		return "", "", fmt.Errorf("writing VAPID private key: %w", err)
 	}
-	if err := os.WriteFile(pubPath(), []byte(q+"\n"), 0o644); err != nil {
+	if err := atomicfile.Write(pubPath(), []byte(q+"\n"), 0o644); err != nil {
 		return "", "", fmt.Errorf("writing VAPID public key: %w", err)
 	}
 	cachedPriv, cachedPub = p, q

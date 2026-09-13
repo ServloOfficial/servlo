@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ServloOfficial/servlo/internal/atomicfile"
 	"github.com/ServloOfficial/servlo/internal/config"
 )
 
@@ -57,7 +58,10 @@ func Key() ([]byte, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(path, []byte(hex.EncodeToString(key)+"\n"), 0600); err != nil {
+	// Atomically, because a key file of the wrong length is refused rather
+	// than replaced: a write torn by a full disk would strand every archive
+	// this server goes on to take, with nothing able to fix the file.
+	if err := atomicfile.Write(path, []byte(hex.EncodeToString(key)+"\n"), 0600); err != nil {
 		return nil, fmt.Errorf("writing the backup key: %w", err)
 	}
 	return key, nil
@@ -96,5 +100,5 @@ func ImportKey(encoded string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(hex.EncodeToString(key)+"\n"), 0600)
+	return atomicfile.Write(path, []byte(hex.EncodeToString(key)+"\n"), 0600)
 }

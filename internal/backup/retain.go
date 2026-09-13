@@ -129,6 +129,11 @@ type archive struct {
 	taken time.Time
 }
 
+// stampLayout is how every archive's name carries when it was taken. One
+// constant rather than the same literal in four places, because a name that
+// parses back is what makes retention and listing work at all.
+const stampLayout = "20060102-150405"
+
 // listArchives finds this site's archives, newest first.
 //
 // The site is matched on the whole slug plus the separator the name uses, not
@@ -136,11 +141,6 @@ type archive struct {
 // take the other's backups. The time comes from the name rather than from the
 // file's mtime, because copying a directory rewrites mtimes and would reshuffle
 // a history that is supposed to be stable.
-// stampLayout is how every archive's name carries when it was taken. One
-// constant rather than the same literal in four places, because a name that
-// parses back is what makes retention and listing work at all.
-const stampLayout = "20060102-150405"
-
 func listArchives(dir, site string) ([]archive, error) {
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
