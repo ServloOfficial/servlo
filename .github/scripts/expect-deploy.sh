@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy a site the way the panel does, and check the three things a deploy
+# Deploy a site the way the panel does, and check the five things a deploy
 # promises that nothing outside a unit test had ever checked.
 #
 # Every external command in the deploy tests is stubbed, so what they prove is
@@ -9,7 +9,10 @@
 # watching timestamps, so visitors keep getting the bytecode that worked even
 # though the new files are already on disk. That holds for what the cache
 # already has and not for what it never held, which is why the last check here
-# warms the page first and says so.
+# warms the page first and says so. Nor can they prove the two promises that are
+# about data rather than code: that a commit deleting the client's uploads does
+# not take them off the server, and that the database backup a migrating deploy
+# takes is one that loads back.
 #
 # Driven over the panel's own API rather than a helper binary, because the route,
 # its permission and its audit entry are part of what a deploy is. Claiming the
@@ -262,5 +265,138 @@ case "$body" in
   *) echo "the site is serving something unexpected: $body"; exit 1 ;;
 esac
 
+
+# ── the exclude list stops a commit taking the client's files ───────────────
+say "a commit that deletes the uploads cannot take them off the server"
+
+# A script that works again, so what the next two deploys prove is about the
+# files rather than the script.
+cat > "$script" <<'SH'
+#!/bin/sh
+set -eu
+echo "nothing to do"
+SH
+chmod +x "$script"
+
+# Saved through the panel, because an operator sets this in the browser and the
+# route is as much a part of the promise as the code behind it.
+excl=$(curl -sk -b "$jar" --max-time 20 -X POST "$panel/api/sites/$domain/deploy-exclude" \
+  -H "X-Servlo-CSRF: $csrf" -H 'Content-Type: application/json' \
+  -d '{"paths":["wp-content/uploads","wp-content/plugins"]}')
+case "$excl" in
+  *'"ok":true'*) echo "the site protects wp-content/uploads and wp-content/plugins" ;;
+  *) echo "the exclude list would not save: $excl"; exit 1 ;;
+esac
+
+# The files have to be committed for this to prove anything. An untracked upload
+# is one a pull cannot touch; the sites that lose a client's data are the ones
+# whose repository tracked these directories, and there a commit that deletes
+# them deletes them here too, silently, because from git's side nothing local
+# was at risk.
+cd "$work"
+mkdir -p wp-content/uploads wp-content/plugins/acme
+echo "the photo a client uploaded" > wp-content/uploads/client.jpg
+echo '<?php // the plugin a client installed' > wp-content/plugins/acme/acme.php
+echo '<?php echo "servlo-ci:v5\n";' > public/index.php
+git add wp-content public/index.php
+git commit -qm "the release that carries the client's files"
+git push -q origin main
+
+out=$(deploy)
+case "$out" in *'"ok":true'*) : ;;
+  *) echo "the deploy that adds the files failed"; echo "$out" | tail -30; exit 1 ;;
+esac
+[ -f "$site/wp-content/uploads/client.jpg" ] || { echo "the upload never reached the server"; exit 1; }
+
+# And now the release a developer pushes from a checkout that never had them.
+cd "$work"
+git rm -q -r wp-content
+echo '<?php echo "servlo-ci:v6\n";' > public/index.php
+git commit -qm "tidying up a directory that should not have been committed"
+git push -q origin main
+
+out=$(deploy)
+case "$out" in *'"ok":true'*) : ;;
+  *) echo "the deploy that removes them failed"; echo "$out" | tail -30; exit 1 ;;
+esac
+
+missing=""
+[ -f "$site/wp-content/uploads/client.jpg" ] || missing="$missing wp-content/uploads/client.jpg"
+[ -f "$site/wp-content/plugins/acme/acme.php" ] || missing="$missing wp-content/plugins/acme/acme.php"
+if [ -n "$missing" ]; then
+  echo "the deploy took the client's files with it:$missing"
+  ls -R "$site/wp-content" 2>&1 | head -20 || true
+  exit 1
+fi
+grep -q "the photo a client uploaded" "$site/wp-content/uploads/client.jpg" || {
+  echo "the upload survived as a name with the wrong contents behind it"; exit 1; }
+case "$out" in *Kept*) : ;;
+  *) echo "the files are there but the deploy never reported keeping them"; echo "$out" | tail -30; exit 1 ;;
+esac
+echo "the client's upload and plugin are still on the server, and the deploy said so"
+
+# ── the backup taken before a migration can actually be restored ────────────
+say "the backup a migrating deploy takes can be restored"
+
+# The snapshot check earlier counts that one was taken. Taken is not kept, and
+# kept is not restorable: a dump nobody has ever loaded back is a file, not a
+# backup. So put real data in, let a migrating deploy back it up, destroy it the
+# way a bad migration would, and ask for it back.
+cd "$site"
+cat > "$HOME/seed.sql" <<'SQL'
+CREATE TABLE IF NOT EXISTS servlo_ci_orders (id INT PRIMARY KEY, note VARCHAR(64));
+DELETE FROM servlo_ci_orders;
+INSERT INTO servlo_ci_orders (id, note) VALUES (1, 'the row a client would miss');
+SQL
+servlo db:import "$HOME/seed.sql"
+
+cat > "$script" <<'SH'
+#!/bin/sh
+set -eu
+echo "php artisan migrate --force"
+SH
+chmod +x "$script"
+
+cd "$work"
+echo '<?php echo "servlo-ci:v7\n";' > public/index.php
+git commit -qam "the release whose migration is about to go wrong"
+git push -q origin main
+
+out=$(deploy)
+case "$out" in *'"ok":true'*) : ;;
+  *) echo "the deploy that should have snapshotted failed"; echo "$out" | tail -30; exit 1 ;;
+esac
+
+# Read out of the deploy's own output rather than off the end of the list.
+# There is more than one predeploy snapshot on this database by now, the first
+# from the migrating deploy further up, and that one was taken before the row
+# below existed: restoring it would fail this check for the wrong reason.
+cd "$site"
+snap=$(echo "$out" | grep -o 'Saved as predeploy-[A-Za-z0-9_.-]*' | tail -1 | sed 's/^Saved as //')
+[ -n "$snap" ] || { echo "the deploy reported success but never said what it saved"; echo "$out" | tail -30; servlo db:snapshots; exit 1; }
+echo "the snapshot to restore is $snap"
+
+# What a migration that goes wrong does.
+cat > "$HOME/wreck.sql" <<'SQL'
+DROP TABLE IF EXISTS servlo_ci_orders;
+SQL
+servlo db:import "$HOME/wreck.sql"
+servlo db:export -o "$HOME/wrecked.sql"
+if grep -q "the row a client would miss" "$HOME/wrecked.sql"; then
+  echo "the table survived being dropped, so restoring it proves nothing"
+  exit 1
+fi
+echo "the data is gone, the way a bad migration leaves it"
+
+servlo db:restore "$snap" --force
+servlo db:export -o "$HOME/restored.sql"
+grep -q "the row a client would miss" "$HOME/restored.sql" || {
+  echo "the pre-deploy snapshot restored without the data that was in it"
+  head -40 "$HOME/restored.sql" || true
+  exit 1
+}
+echo "the row is back, out of the backup the deploy took on its own"
+
 echo
-echo "deploy: pulled, ran, reloaded; backed up before a migration; and held the line on a failure"
+echo "deploy: pulled, ran, reloaded; held the line on a failure; kept the files the site"
+echo "protects; and took a database backup that restores."
