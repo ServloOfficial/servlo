@@ -17,11 +17,22 @@ The dashboard shows the same list in a **Needs attention** card, and the card is
 | `cert_renew_failed` | Issuing or renewing a certificate failed |
 | `backup_failed` | A backup did not complete, or no copy of it left this server |
 | `backup_unverified` | The newest archive could not be restored into a scratch database |
+| `backup_none` | A site has no archive and no schedule that would produce one |
 | `deploy_failed` | A deploy did not finish |
 | `worker_down` | A worker is not running when it should be |
 | `disk_filling` | A filesystem servlo uses is 90% full or more |
 
 Three of those are raised by whatever failed, at the moment it failed: a deploy, a backup, an issuance. The other three have nothing that fails at a moment anybody could be told about, so they are looked for on a timer every five minutes.
+
+## The one that is about nothing happening
+
+Every other alert is about something that went wrong. `backup_none` is about something that never started: a site with no archive on disk and no schedule that would take one, whose files and database exist only on this server.
+
+It is checked once a night, by the same timer that backs up the server's own state, and it needs both halves to be missing. An archive is something to restore from however it got there, and a schedule means one arrives tonight, so a site with either is a site whose operator made a choice.
+
+A parked domain is left alone. It is a placeholder with nothing in it, and an alert about its backups is the clutter that teaches you to stop reading the list.
+
+Servlo does not schedule anything on your behalf when it raises this. Writing timers for somebody is a different decision from telling them there are none, and only the second one is servlo's to make.
 
 ## The same failure is one alert
 

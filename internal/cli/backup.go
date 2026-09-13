@@ -496,6 +496,11 @@ func newBackupStateCmd() *cobra.Command {
 }
 
 func runBackupState() error {
+	// Before the archive rather than after it. This is the one thing on the
+	// machine that looks at every site on a timer, and a state backup that
+	// fails must not also swallow the question of which sites have nothing.
+	reportUnbackedSites()
+
 	key, err := backup.Key()
 	if err != nil {
 		return err
@@ -523,6 +528,28 @@ func runBackupState() error {
 	fmt.Println("  The backup key is not in here. Keep a copy of it somewhere else, or this")
 	fmt.Println("  archive is not recoverable either.")
 	return nil
+}
+
+// reportUnbackedSites puts a site nothing would ever restore on the alert list.
+//
+// Nothing is scheduled on the operator's behalf: a timer written for somebody
+// is a different decision from telling them there are none, and only the second
+// is servlo's to make.
+func reportUnbackedSites() {
+	reg, err := config.LoadSites()
+	if err != nil {
+		return
+	}
+	var parked []string
+	if cfg, _ := config.LoadGlobal(); cfg != nil {
+		parked = cfg.ParkedDirectories
+	}
+	names := backup.ReportUnbacked(reg.Sites, parked)
+	if len(names) == 0 {
+		return
+	}
+	feedback.Warn("nothing backs up %s, and no schedule would: %s",
+		plural(len(names), "one site", "these sites"), strings.Join(names, ", "))
 }
 
 func newBackupDestCmd() *cobra.Command {

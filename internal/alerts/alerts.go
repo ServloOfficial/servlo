@@ -31,6 +31,7 @@ const (
 	KindCertRenewFailed  = "cert_renew_failed"
 	KindBackupFailed     = "backup_failed"
 	KindBackupUnverified = "backup_unverified"
+	KindBackupNone       = "backup_none"
 	KindDeployFailed     = "deploy_failed"
 	KindWorkerDown       = "worker_down"
 	KindDiskFilling      = "disk_filling"
@@ -96,6 +97,8 @@ func title(kind string) string {
 		return "Backup failed"
 	case KindBackupUnverified:
 		return "A backup could not be restored"
+	case KindBackupNone:
+		return "This site has no backups"
 	case KindDeployFailed:
 		return "Deploy failed"
 	case KindWorkerDown:

@@ -52,6 +52,10 @@ Removing the site takes the timer with it, along with the scheduled test restore
 
 Unlinking a *parked* site keeps both. That is a tombstone rather than a removal, and a backup reads the site's files and its database rather than running anything inside it, so the site is still there to back up and still its own.
 
+### A site with nothing at all
+
+Nothing is scheduled for you when a site is created. Once a night the server's own state backup also looks at every site, and raises the `backup_none` alert for any that has no archive and no schedule that would take one. It is the one case where the panel tells you about a backup that does not exist rather than one that failed.
+
 ## Retention
 
 Every backup ends by thinning the older ones for that site, on the ordinary grandfather-father-son rule: keep the newest of each of the last N days, then of each of the last N weeks, then of each of the last N months.

@@ -12,6 +12,7 @@
     'cert_renew_failed',
     'backup_failed',
     'backup_unverified',
+    'backup_none',
     'worker_down',
     'deploy_failed',
     'disk_filling'
