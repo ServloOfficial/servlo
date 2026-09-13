@@ -266,17 +266,17 @@ func find(root *cobra.Command, path []string) *cobra.Command {
 // exemptFromRefs are the files that name commands without instructing anybody
 // to run one.
 //
-// The working documents describe the product, including its name and things it
-// may never grow: PRD.md's opening paragraph types `servlo deploy` to show what
-// the word looks like under the fingers, and deploying is a panel action with
-// no command behind it. The scan's own rule list spells deleted commands on
-// purpose. A test that asserts on a message is checked by the message itself.
+// A document describing the product names commands the way prose does, and can
+// name one the binary does not have: deploying is a panel action with no
+// command behind it, and a sentence about it still types the word. The scan's
+// own rule list spells deleted commands on purpose. A test that asserts on a
+// message is checked by the message itself.
 func exemptFromRefs(rel string) bool {
 	if strings.HasSuffix(rel, "_test.go") || strings.HasPrefix(rel, "internal/surfacescan/") {
 		return true
 	}
 	switch rel {
-	case "PRD.md", "STORY.md", "CLAUDE.md", "CHANGELOG.md", "README.md", "SECURITY.md", "HANDOVER.md":
+	case "CLAUDE.md", "CHANGELOG.md", "README.md", "SECURITY.md":
 		return true
 	}
 	return false

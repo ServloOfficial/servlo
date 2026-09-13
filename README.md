@@ -96,10 +96,12 @@ process.
 tested. What has not happened yet is a full run on a real droplet, so please do
 not put a client on this today.
 
-The test suite and the UI checks are green, but they run in a container, and a
-container cannot prove that Let's Encrypt issues a certificate, that a backup
-lands in your bucket, or that every site comes back after a reboot. That pass is
-next, and [`HANDOVER.md`](HANDOVER.md) is the checklist.
+The test suite and the UI checks are green, and nine CI jobs run the product on
+a real Ubuntu 24.04 machine with rootless podman and systemd, which covers a
+certificate over HTTP-01, a deploy, a reboot and a rebuild from backups. What
+none of that can prove is the part that needs the public internet and somebody
+else's service: a real Let's Encrypt certificate against a real domain, a backup
+landing in your bucket, and a month of uptime. That pass is next.
 
 ## What it is not
 

@@ -2,8 +2,7 @@
 
 Raster and off-site brand assets. Everything here is derived from
 `docs/public/assets/logo.svg`, which is the mark itself and the only file to
-edit if the shape ever changes. `BRANDING.md` at the repository root is the
-reasoning; this is the output.
+edit if the shape ever changes.
 
 | File | What it is for |
 |---|---|

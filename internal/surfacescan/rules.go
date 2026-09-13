@@ -3,8 +3,12 @@ package surfacescan
 // specs are the documents that describe the deletions and so name every
 // deleted feature on purpose, plus this package, whose whole content is the
 // list of forbidden names.
+//
+// An entry naming a file that is not there costs nothing: the scan walks the
+// tree and asks whether each file it finds is exempt, so a spec that has been
+// removed simply never matches.
 var specs = []string{
-	"CLAUDE.md", "PRD.md", "STORY.md", "CHANGELOG.md", "README.md",
+	"CLAUDE.md", "CHANGELOG.md", "README.md",
 	"SECURITY.md", ".claude/", "internal/surfacescan/",
 }
 
