@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
 
-// GitHub Pages for ServloOfficial/servlo. PRD §0: servlo.sh is unregistered and
-// must not be named anywhere until it exists.
+// GitHub Pages for ServloOfficial/servlo. servlo.sh is unregistered and must
+// not be named anywhere until it exists.
 const SITE_URL = 'https://servloofficial.github.io/servlo'
 const OG_IMAGE = `${SITE_URL}/assets/social-preview.png`
 

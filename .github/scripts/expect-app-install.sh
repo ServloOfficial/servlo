@@ -3,8 +3,8 @@
 # prove the thing an install is actually for: a working login page backed by a
 # database the installer populated.
 #
-# HANDOVER.md lists this among the claims no test suite can make. It is the
-# longest chain in the product — fetch a pinned release, verify its checksum,
+# This was one of the claims no test suite could make. It is the longest chain
+# in the product — fetch a pinned release, verify its checksum,
 # extract it through the hardened extractor, create a database and a scoped
 # user, write a config file with generated salts, drive the application's own
 # installer over HTTP, and register a site and a cron — and until now none of

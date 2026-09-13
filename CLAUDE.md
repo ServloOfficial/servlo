@@ -4,7 +4,7 @@ You are a coding agent working on **Servlo**: a free, open-source (MIT), product
 
 This file is loaded into every session. Read it before you touch anything, then follow it exactly. It overrides your defaults, and it overrides any habit you have from the upstream Lerd codebase. When a rule here conflicts with something you see in inherited code or docs, this file wins.
 
-`PRD.md` is the product specification and `STORY.md` is the backlog. When implementing a story, read its acceptance criteria first and write the failing test from them.
+The product is built. What is left is bugs, polish and whatever the operator asks for next, so there is no backlog file to read a story out of: the acceptance criteria for a change are whatever the person asking described, plus the laws below.
 
 ---
 
@@ -12,7 +12,7 @@ This file is loaded into every session. Read it before you touch anything, then 
 
 One operator (plus a small team) runs many PHP sites on one Ubuntu droplet. They add a site from a ZIP, a GitHub clone, an existing folder, or a one-click app install; bind it to a real domain; click **Get SSL** when DNS propagates; pick a PHP version per site; toggle services like MySQL and Redis; deploy with `git pull` plus a per-site script; and sleep because backups are verified by real test restores. It is the cPanel/Forge/Ploi niche, self-hosted and free.
 
-It is **not** multi-tenant hosting. There are no per-client Linux users, no root broker daemon, no edge proxy. All sites run as the same Linux user — a documented, accepted tradeoff (PRD §6). Do not "fix" this.
+It is **not** multi-tenant hosting. There are no per-client Linux users, no root broker daemon, no edge proxy. All sites run as the same Linux user, which is a deliberate tradeoff and not an oversight: it is what keeps a one-operator panel simple, and it is the line this product does not cross. Do not "fix" this.
 
 ---
 
@@ -119,7 +119,7 @@ scripts/             operator scripts run by hand, not by CI
 
 S0.1 landed the rename, so the tree above is what you will actually find. The module path is `github.com/ServloOfficial/servlo` and the entrypoint is `cmd/servlo`; `cmd/lerd-tray` is gone.
 
-No upstream name survives in the code, the panel, the stores or the docs. The prebuilt PHP base images were the last one and now publish under Servlo's own GHCR namespace, derived from `mainRepo` in `internal/origin/origin.go` so moving the project to an organisation is one line. What remains is the fork statement in `README.md`, the upstream copyright in `LICENSE` (which the MIT terms require), and the working documents that explain the fork to whoever picks the codebase up: this file, `PRD.md` and `STORY.md`. The surface scan enforces exactly that, repository-wide: anything else spelling the upstream name is a regression, including in a comment.
+No upstream name survives in the code, the panel, the stores or the docs. The prebuilt PHP base images were the last one and now publish under Servlo's own GHCR namespace, derived from `mainRepo` in `internal/origin/origin.go` so moving the project to an organisation is one line. What remains is the fork statement in `README.md`, the upstream copyright in `LICENSE` (which the MIT terms require), and this file. The surface scan enforces exactly that, repository-wide: anything else spelling the upstream name is a regression, including in a comment.
 
 S0.8 brought the stores in-repo: `stores/frameworks/`, `stores/services/` and `stores/apps/` are the definitions themselves, and `stores/stores.go` embeds them into the binary. The layout mirrors what the client fetches, so `internal/origin` needs only the base URL. The embedded copy is the floor an install bootstraps from; the fetch is how a definition published since that build reaches an existing install. The surface scan walks `stores/` like any other directory, so a deleted feature cannot come back as store data either.
 
@@ -134,12 +134,12 @@ The web UI is Svelte under `internal/ui/web/`, built to `dist/` and embedded via
 ## 5. The contribution lifecycle — follow every step, in order
 
 ### Step 0 — An issue exists first
-Recommended while the project is one person, required again the moment a second joins. Frame it as future work, one issue per unit of work. During the phased build the backlog in `STORY.md` is the issue list, so a story does not need one raised first.
+Recommended while the project is one person, required again the moment a second joins. Frame it as future work, one issue per unit of work. Work the operator asks for directly in a session does not need an issue raised first.
 
 Sessions here have no `gh` CLI. GitHub goes through the MCP tools.
 
 ### Step 1 — Understand before you build
-Read the surrounding package and the closest existing example. Match its naming, comment density and idioms. Decide which layer the change belongs to using §2 and §3. If it is store data, you are editing YAML, not Go. If the story is in `STORY.md`, its acceptance criteria are the spec.
+Read the surrounding package and the closest existing example. Match its naming, comment density and idioms. Decide which layer the change belongs to using §2 and §3. If it is store data, you are editing YAML, not Go.
 
 ### Step 2 — Write the test first (TDD)
 New functionality must include tests; behaviour changes must update them. A PR without corresponding coverage will not merge. Write the failing test, then make it pass. Keep test fixtures in the repo, not `/tmp`.
@@ -187,18 +187,18 @@ make surface-scan                      # deleted-feature gate
 Plus step 4.5's screenshot pass whenever the change is visible in the panel. A green suite over a view nobody has looked at is not a passed gate.
 **GitHub Actions is on.** It was off for a while, for want of billing, and the rule then was that the local gate was the only gate. That is over: jobs provision, run and report, and a story is done when the local gate above is green *and* CI is green on the PR.
 
-Run the local gate before pushing anyway. A red runner costs ten minutes and a reviewer's attention, and most of what CI catches is caught locally in seconds. What CI adds on top is a real Ubuntu 24.04 machine with rootless podman, systemd and a lingering user, which is where the interesting failures live: `verification.yml` proves PHP, its image, the database behind it, a deploy over the panel's own route and a one-click install; `resilience.yml` proves boot, a certificate from a real authority over HTTP-01, and a rebuild from backups onto a machine that never saw the first. `HANDOVER.md` §1 lists every job and what it is for.
+Run the local gate before pushing anyway. A red runner costs ten minutes and a reviewer's attention, and most of what CI catches is caught locally in seconds. What CI adds on top is a real Ubuntu 24.04 machine with rootless podman, systemd and a lingering user, which is where the interesting failures live: `verification.yml` proves PHP, its image, the database behind it, a deploy over the panel's own route and a one-click install; `resilience.yml` proves boot, a certificate from a real authority over HTTP-01, and a rebuild from backups onto a machine that never saw the first.
 
 Two Go tests fail in a container and pass on a real machine — `TestHandleServiceTuningReset_NoOpWhenMissing` needs dbus and `TestHandleWorkspaceLayoutRollsBackAndReportsTheReorderError` needs to not be running as root. They are green in CI, which is how you tell them from a real failure. Do not chase them and do not "fix" them.
 
-**The droplet smoke test is deferred to the end of the build, by the project owner's decision.** Its checklist lives in `HANDOVER.md` §3, alongside everything else that needs a human, a machine or money. It used to sit here as a per-story gate, which in a browser session meant every story ended blocked on something no session could do. It now happens once, against the finished product, after the last phase lands. Do not wait for it, do not treat it as a merge condition, and do not re-raise it story by story.
+**The droplet smoke test is the operator's, and it is not a merge condition.** It used to sit here as a per-story gate, which in a browser session meant every change ended blocked on something no session could do. It happens against the finished product, on a real machine, by a person. Do not wait for it, do not treat it as a merge condition, and do not re-raise it change by change. What it covers is everything a runner cannot answer: a public IP, a real certificate authority, somebody else's S3 or SFTP endpoint, a cloud metadata service, and time passing.
 
 What this does not change: say plainly what ran. A story is "the local gate is green", not "verified working on a server", and the two are different claims. Write the honest one. Anything genuinely unverifiable in a session (a real certificate from Let's Encrypt, a live registrar, a running container's bind mount) is worth one line in the PR body so the eventual droplet pass knows where to look, and no more than that.
 
 ### Step 6 — Commit, PR, merge
 The standing instruction for this build is to work straight through the phases: write the code and its tests, run the gate, open the PR, merge to `main` once CI is green, and start the next story without stopping to ask. Do not pause at phase boundaries for a manual check.
 
-This is a deliberate relaxation of the older "only commit when asked" rule and applies to the phased build in `STORY.md`. It is not licence to skip the gate, invent a story, or start work outside the backlog: the ordering and the scope still come from `STORY.md`, and anything that is a genuine judgement call about the product still gets raised.
+This is a deliberate relaxation of the older "only commit when asked" rule. It is not licence to skip the gate or to widen the job: the scope still comes from what was asked, and anything that is a genuine judgement call about the product still gets raised.
 
 ### Step 7 — Open the PR the Servlo way (see §7)
 
@@ -230,4 +230,4 @@ This is a deliberate relaxation of the older "only commit when asked" rule and a
 - **Destructive actions need friction.** Anything that deletes data (site removal, database drop, backup pruning) gets a typed-confirmation modal and an audit entry. The file manager always shows its live-site warning.
 - **Don't flip a default** without user demand behind it.
 - Treat "can we do X?" as a question ("is X needed?"), not an instruction to build X. Answer first.
-- The deferred list (PRD §10) is deferred on purpose: atomic releases, per-site Linux users, Prometheus, multi-server. Do not start any of it unprompted. Staging, site import, panel email alerts and the apps beyond WordPress were on that list and have since shipped, so they are ordinary parts of the product now rather than things to leave alone.
+- Four things are deferred on purpose: atomic releases, per-site Linux users, Prometheus, multi-server. Do not start any of them unprompted. Staging, site import, panel email alerts and the apps beyond WordPress were once on that list and have since shipped, so they are ordinary parts of the product now rather than things to leave alone.
