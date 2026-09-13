@@ -72,7 +72,7 @@ jobs:
           journalctl --user -u servlo-php85-fpm -n 40 --no-pager -o cat 2>/dev/null | grep -iE 'error|fatal|warn|fail|no pool' | tail -8 || true
 
   deploy:
-    name: A deploy pulls, runs and holds the line when it fails
+    name: A deploy pulls, runs, holds the line, and keeps what it must
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -113,6 +113,8 @@ jobs:
           echo
           echo "── the deploy script servlo was asked to run ──"
           cat ~/.local/share/servlo/deploy-scripts/*.sh 2>/dev/null || true
+          echo "── the files the site protects ──"
+          ls -R ~/sites/"$DEPLOY_SITE"/wp-content 2>/dev/null || true
           echo "── snapshots ──"
           servlo db:snapshots || true
           echo "── the panel's own log, which is where a refused route says why ──"
