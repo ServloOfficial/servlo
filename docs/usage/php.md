@@ -277,6 +277,12 @@ Switching a site to another PHP version moves its pool with it, into the directo
 
 Neither reload is a restart, so no other site on either version drops a request while this happens.
 
+#### Removing a version
+
+The panel's PHP page will not remove a version any site is still on. Removing one stops and deletes the container every pool on that version lives in, so those sites would answer 502 from that moment until the version came back, and the refusal names how many are on it. Move them to another version first.
+
+A paused site does not hold a version: its containers are already stopped, so removing the version takes nothing down that was up.
+
 #### Changing them from the panel
 
 Open a site, then **Settings**. Three fields:

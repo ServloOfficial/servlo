@@ -146,8 +146,12 @@ func SetPublishedPort(name string, port int) (PortChange, error) {
 // re-renders the quadlet, reads the actual resulting port via rereadActual into
 // res.Actual, then restarts. If the unit can't bind the new port, persistPrev
 // restores the previous port in config and the unit is re-rendered and brought
-// back up on it, so a failed move never leaves the service down. Shared by the
-// primary and secondary port paths so both recover identically.
+// back up on it, so a failed move never leaves the service down. The same
+// recovery runs when it is the re-render that fails, which is the other way
+// to end up stopped over a change that never took. When even the recovery
+// cannot start it, the error says the service is stopped rather than only
+// that the move failed. Shared by the primary and secondary port paths so
+// both recover identically.
 func applyServicePortRestart(name string, res *PortChange, prevActual int, rereadActual func() int, persistPrev func() error) error {
 	unit := "servlo-" + name
 	status, _ := portsUnitStatus(unit)
@@ -158,7 +162,23 @@ func applyServicePortRestart(name string, res *PortChange, prevActual int, rerea
 		}
 	}
 	if err := portsRerender(name); err != nil {
-		return err
+		if !res.WasActive {
+			return err
+		}
+		// It was running and we stopped it, so returning here would leave it
+		// stopped over a change that never took. The quadlet on disk is
+		// whatever the failed render left, so the recovery is the same one a
+		// failed start takes: put the previous port back, render that, and
+		// bring the service up on it.
+		res.Actual = prevActual
+		restored := persistPrev() == nil &&
+			portsRerender(name) == nil &&
+			portsStartUnit(unit) == nil
+		if restored {
+			_ = portsWaitReady(name, 30*time.Second)
+			return fmt.Errorf("could not write the new port for %s, restored the previous port %d: %w", unit, prevActual, err)
+		}
+		return fmt.Errorf("could not write the new port for %s and could not bring it back, it is stopped, run `servlo start`: %w", unit, err)
 	}
 	res.Actual = rereadActual()
 	if !res.WasActive {

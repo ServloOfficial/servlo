@@ -3648,6 +3648,10 @@ func handlePHPVersionAction(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, map[string]any{"ok": true})
 	case "remove":
+		if why := phpVersionRemovalRefusal(version); why != "" {
+			writeJSON(w, map[string]any{"ok": false, "error": why})
+			return
+		}
 		if err := teardownPHPFPM(version); err != nil {
 			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 			return
@@ -3698,6 +3702,32 @@ func fullyInstalledPHPVersions() []string {
 // teardownPHPFPM stops and removes a PHP-FPM version's unit, quadlet and
 // container, then refreshes the cache so the version list reflects the removal
 // immediately. Used by the remove action and to roll back a failed install.
+// phpVersionRemovalRefusal is why a version may not be removed, empty when it
+// may.
+//
+// Removing one stops and deletes the FPM container that every pool on that
+// version lives in, so a site still on it answers 502 from that moment with
+// nothing anywhere having said so. Refused rather than warned about, because
+// the panel has no way to ask a second question and the recovery is to install
+// the version again and restart, which an operator has to work out mid-outage.
+//
+// A paused site is not counted: its containers are already stopped, so removing
+// the version takes nothing down that was up. That is config.CountSitesUsingPHP's
+// rule, and it was written for this and had no caller.
+func phpVersionRemovalRefusal(version string) string {
+	n := config.CountSitesUsingPHP(version)
+	if n == 0 {
+		return ""
+	}
+	sites := "1 site"
+	if n > 1 {
+		sites = fmt.Sprintf("%d sites", n)
+	}
+	return fmt.Sprintf("PHP %s still runs %s. Removing it stops the container their pools live in, "+
+		"so they would answer 502 until the version is back. Move them to another version first.",
+		version, sites)
+}
+
 func teardownPHPFPM(version string) error {
 	short := strings.ReplaceAll(version, ".", "")
 	unit := "servlo-php" + short + "-fpm"
