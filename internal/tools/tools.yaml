@@ -3,7 +3,7 @@
 # pin is fixable for every install here, without a binary release.
 tools:
   composer:
-    version: "2.10.2"
+    version: "2.10.3"
     url: https://getcomposer.org/download/{version}/composer.phar
   fnm:
     version: v1.39.0
